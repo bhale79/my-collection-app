@@ -2464,7 +2464,7 @@ async function loadAllData() {
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '7';
+  const _CACHE_VER = '6';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
@@ -2479,8 +2479,8 @@ async function loadMasterData() {
     try {
       state.masterData = JSON.parse(cached);
       // Refresh in background without blocking
-      sheetsGet(state.masterSheetId, 'Master Inventory!A2:N').then(res => {
-        if (!res.values) return sheetsGet(state.masterSheetId, 'Sheet1!A2:N');
+      sheetsGet(state.masterSheetId, 'Master Inventory!A2:P').then(res => {
+        if (!res.values) return sheetsGet(state.masterSheetId, 'Sheet1!A2:P');
         return res;
       }).then(res => {
         if (res && res.values) {
@@ -2494,9 +2494,9 @@ async function loadMasterData() {
     } catch(e) {}
   }
 
-  let res = await sheetsGet(state.masterSheetId, 'Master Inventory!A2:N');
+  let res = await sheetsGet(state.masterSheetId, 'Master Inventory!A2:P');
   if (!res.values) {
-    res = await sheetsGet(state.masterSheetId, 'Sheet1!A2:N');
+    res = await sheetsGet(state.masterSheetId, 'Sheet1!A2:P');
   }
   const rows = res.values || [];
   parseMasterRows(rows);
@@ -2514,12 +2514,14 @@ function parseMasterRows(rows) {
     yearProd:    r[5]  || '',
     variation:   r[6]  || '',
     varDesc:     r[7]  || '',
-    refLink:     r[8]  || '',
-    notes:       r[9]  || '',
-    ebayAvg:     r[10] || '',
-    ebaySample:  r[11] || '',
-    ebayUpdated: r[12] || '',
-    marketVal:   r[13] || '',
+    rarity:      r[8]  || '',
+    rarityLabel: r[9]  || '',
+    refLink:     r[10] || '',
+    notes:       r[11] || '',
+    ebayAvg:     r[12] || '',
+    ebaySample:  r[13] || '',
+    ebayUpdated: r[14] || '',
+    marketVal:   r[15] || '',
   }));
 }
 
@@ -5098,239 +5100,98 @@ function getSteps(tab) {
     }
     // Helper: is this a paired engine+tender set?
     const isPaired = (d) => d.tenderMatch && d.tenderMatch !== 'none' && d.tenderMatch !== '';
-    const engineLabel = (d) => isPaired(d) ? ' (Engine Only — tender added next)' : '';
-    const tenderLabel = (d) => ' (Tender: ' + (d.tenderMatch || '') + ')';
+    const isSetNow = (d) => d.setMatch === 'set-now';
 
     return [
       { id: 'itemCategory', title: 'What would you like to add?', type: 'itemCategory',
         skipIf: (d) => !!d.itemCategory },
-      ...base,
 
-      // ── ENTRY MODE ──
+      // ── SCREEN 1: Item Number + Grouping ──
+      { id: 'itemNumGrouping', title: 'Item Number', type: 'itemNumGrouping' },
+
+      // ── SCREEN 2: Variation (auto-skip for no/single variations) ──
+      { id: 'variation',  title: 'Which variation is it?', type: 'variation', optional: true },
+
+      // ── Entry Mode (Full/Quick) ──
       { id: 'entryMode', title: (d) => 'How would you like to add this ' + getItemLabel(d) + '?',
         type: 'entryMode' },
 
-      // ── ITEM CONDITION ──
-      { id: 'condition',       title: (d) => 'What condition is the ' + getItemLabel(d) + '?',
-        type: 'slider', min:1, max:10 },
-      { id: 'allOriginal',     title: (d) => 'Is the ' + getItemLabel(d) + ' all original?',
-        type: 'choice3', choices: ['Yes','No','Unknown'] },
-      { id: 'notOriginalDesc', title: (d) => 'What has been done to the ' + getItemLabel(d) + '?',
-        type: 'textarea', optional: true,
-        placeholder: 'e.g. Repaint, touch-ups, reproduction parts, re-wired, replaced wheels…',
-        note: () => 'Common examples: repaint, partial repaint, touch-ups, reproduction decals, reproduction parts, re-wired, replaced wheels, replaced motor',
-        skipIf: (d) => d.allOriginal !== 'No' },
+      // ── SCREEN 3: Condition & Details (multi-column) ──
+      { id: 'conditionDetails', title: 'Condition & Details', type: 'conditionDetails' },
 
-      // ── MATCHING / SET ──
-      { id: 'tenderMatch',  title: 'Tender / Engine matching', type: 'tenderMatch',
-        skipIf: (d) => {
-          const num = (d.itemNum || '').trim();
-          return getMatchingTenders(num).length === 0 && getMatchingLocos(num).length === 0;
-        }
-      },
-      { id: 'setMatch',     title: 'Multi-unit diesel set',    type: 'setMatch',
-        skipIf: (d) => !isF3AlcoUnit((d.itemNum || '').trim()) },
-      { id: 'unitPower',    title: 'Is this a powered or dummy unit?', type: 'choice2',
-        choices: ['Powered', 'Dummy'],
-        note: () => 'Lionel used the same item number for both. This will be saved as e.g. 2343-P or 2343-D.',
-        skipIf: (d) => {
-          const num = (d.itemNum || '').trim();
-          return num.endsWith('C') || !isF3AlcoUnit(num);
-        }
-      },
+      // ── SCREEN 4: Purchase & Value (combined) ──
+      { id: 'purchaseValue', title: 'Purchase & Value', type: 'purchaseValue' },
 
-      // ── BOX ──
-      { id: 'hasBox',  title: (d) => 'Did the ' + getItemLabel(d) + ' come with a box?',
-        type: 'choice2', choices: ['Yes','No'] },
-      { id: 'boxCond', title: (d) => 'What condition is the ' + getItemLabel(d) + ' box?',
-        type: 'slider', min:1, max:10,
-        skipIf: (d) => d.hasBox !== 'Yes' },
-
-      // ── ITEM PHOTOS (main item + box) ──
+      // ── SCREEN 5+: Photos (one per subject, color-coded banners) ──
       { id: 'photosItem', title: (d) => 'Add photos of the ' + getItemLabel(d),
         type: 'drivePhotos', label: 'Item',
-        note: (d) => isPaired(d) ? 'Engine photos only — tender photos will be added next. Each item is filed in its own Drive folder.' : '' },
+        photoBanner: { color: '#2980b9', label: (d) => '\u{1F7E6} PHOTOS: No. ' + (d.itemNum || '') + ' ' + (getItemLabel(d) || '').charAt(0).toUpperCase() + (getItemLabel(d) || '').slice(1) },
+        note: (d) => isPaired(d) ? 'Engine photos only — tender photos next.' : '' },
       { id: 'photosBox',  title: (d) => 'Add photos of the ' + getItemLabel(d) + ' box',
         type: 'drivePhotos', label: 'Box',
-        skipIf: (d) => d.hasBox !== 'Yes',
-        note: (d) => isPaired(d) ? 'Engine box photos only — tender box photos will be added next.' : '' },
+        photoBanner: { color: '#8B4513', label: (d) => '\u{1F7EB} PHOTOS: No. ' + (d.itemNum || '') + ' — BOX' },
+        skipIf: (d) => d.hasBox !== 'Yes' },
 
-      // ── TENDER section (only shown when paired) ──
-      { id: '_tenderDivider',   title: 'Now for the tender', type: 'divider',
-        subtitle: (d) => 'Next we will record details for the matching tender (' + d.tenderMatch + '). It will be saved as a separate item in your collection.',
-        skipIf: (d) => !isPaired(d) },
-      { id: 'tenderCondition',  title: 'What condition is the tender?',
-        type: 'slider', min:1, max:10, skipIf: (d) => !isPaired(d) },
-      { id: 'tenderAllOriginal', title: 'Is the tender all original?',
-        type: 'choice3', choices: ['Yes','No','Unknown'], skipIf: (d) => !isPaired(d) },
-      { id: 'tenderNotOriginalDesc', title: 'What has been done to the tender?',
-        type: 'textarea', optional: true,
-        placeholder: 'e.g. Repaint, touch-ups, reproduction parts, re-wired, replaced wheels…',
-        note: () => 'Common examples: repaint, partial repaint, touch-ups, reproduction decals, reproduction parts, re-wired, replaced wheels',
-        skipIf: (d) => !isPaired(d) || d.tenderAllOriginal !== 'No' },
-      { id: 'tenderHasBox',     title: 'Did the tender come with a box?',
-        type: 'choice2', choices: ['Yes','No'], skipIf: (d) => !isPaired(d) },
-      { id: 'tenderBoxCond',    title: 'What condition is the tender box?',
-        type: 'slider', min:1, max:10, skipIf: (d) => !isPaired(d) || d.tenderHasBox !== 'Yes' },
-      { id: 'photosTenderItem', title: 'Add photos of the tender',
+      // ── Tender photos (only for engine+tender grouping) ──
+      { id: 'photosTenderItem', title: (d) => 'Add photos of the tender',
         type: 'drivePhotos', label: 'Item', tenderMode: true,
-        note: () => "Tender photos only — filed under the tender's own Drive folder.",
+        photoBanner: { color: '#27ae60', label: (d) => '\u{1F7E9} PHOTOS: Tender ' + (d.tenderMatch || '') },
         skipIf: (d) => !isPaired(d) },
-      { id: 'photosTenderBox',  title: 'Add photos of the tender box',
+      { id: 'photosTenderBox',  title: (d) => 'Add photos of the tender box',
         type: 'drivePhotos', label: 'Box', tenderMode: true,
-        note: () => 'Tender box photos only.',
+        photoBanner: { color: '#8B4513', label: (d) => '\u{1F7EB} PHOTOS: Tender ' + (d.tenderMatch || '') + ' — BOX' },
         skipIf: (d) => !isPaired(d) || d.tenderHasBox !== 'Yes' },
 
-      // ── SET UNIT 2 section ──
-      { id: '_setDivider',    title: 'Now for the second unit', type: 'divider',
-        subtitle: (d) => {
-          const partner = getSetPartner((d.itemNum||'').trim()) || ((d.itemNum||'').trim()+'C');
-          return 'Next we will record details for the ' + (d.setType||'AB') + ' set partner (' + partner + '). It will be saved as a separate item with the same Set ID.';
-        },
-        skipIf: (d) => d.setMatch !== 'set-now' },
-      { id: 'unit2ItemNum',      title: 'Confirm second unit item number',
-        type: 'setUnit2Num', skipIf: (d) => d.setMatch !== 'set-now' },
-      { id: 'unit2Condition',    title: (d) => 'What condition is the second unit (' + (d.unit2ItemNum || 'B unit') + ')?',
-        type: 'slider', min:1, max:10, skipIf: (d) => d.setMatch !== 'set-now' },
-      { id: 'unit2AllOriginal',  title: (d) => 'Is the second unit (' + (d.unit2ItemNum || 'B unit') + ') all original?',
-        type: 'choice3', choices: ['Yes','No','Unknown'], skipIf: (d) => d.setMatch !== 'set-now' },
-      { id: 'unit2NotOriginalDesc', title: (d) => 'What has been done to the ' + (d.unit2ItemNum || 'B unit') + '?',
-        type: 'textarea', optional: true,
-        placeholder: 'e.g. Repaint, touch-ups, reproduction parts, re-wired…',
-        skipIf: (d) => d.setMatch !== 'set-now' || d.unit2AllOriginal !== 'No' },
-      { id: 'unit2HasBox',       title: (d) => 'Did the second unit (' + (d.unit2ItemNum || 'B unit') + ') come with a box?',
-        type: 'choice2', choices: ['Yes','No'], skipIf: (d) => d.setMatch !== 'set-now' },
-      { id: 'unit2BoxCond',      title: (d) => 'What condition is the second unit (' + (d.unit2ItemNum || 'B unit') + ') box?',
-        type: 'slider', min:1, max:10, skipIf: (d) => d.setMatch !== 'set-now' || d.unit2HasBox !== 'Yes' },
-      { id: 'photosUnit2Item',   title: (d) => 'Add photos of the ' + (d.unit2ItemNum || 'B unit'),
+      // ── Unit 2 photos (diesel set) ──
+      { id: 'photosUnit2Item', title: (d) => 'Add photos of the ' + (d.unit2ItemNum || 'B unit'),
         type: 'drivePhotos', label: 'Item', unit2Mode: true,
-        note: () => 'Photos for unit 2 — filed under its own Drive folder.',
-        skipIf: (d) => d.setMatch !== 'set-now' },
-      { id: 'photosUnit2Box',    title: (d) => 'Add photos of the ' + (d.unit2ItemNum || 'B unit') + ' box',
+        photoBanner: { color: '#2980b9', label: (d) => '\u{1F7E6} PHOTOS: ' + (d.unit2ItemNum || 'Unit 2') },
+        skipIf: (d) => !isSetNow(d) },
+      { id: 'photosUnit2Box',  title: (d) => 'Add photos of the ' + (d.unit2ItemNum || 'B unit') + ' box',
         type: 'drivePhotos', label: 'Box', unit2Mode: true,
-        note: () => 'Unit 2 box photos.',
-        skipIf: (d) => d.setMatch !== 'set-now' || d.unit2HasBox !== 'Yes' },
+        photoBanner: { color: '#8B4513', label: (d) => '\u{1F7EB} PHOTOS: ' + (d.unit2ItemNum || 'Unit 2') + ' — BOX' },
+        skipIf: (d) => !isSetNow(d) || d.unit2HasBox !== 'Yes' },
 
-      // ── SET UNIT 3 section (ABA only) ──
-      { id: '_set3Divider',   title: 'Now for the third unit (A)', type: 'divider',
-        subtitle: () => 'Finally, the second A unit to complete the ABA set.',
-        skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
-      { id: 'unit3ItemNum',      title: 'Confirm third unit item number',
-        type: 'setUnit2Num', unit3: true, skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
-      { id: 'unit3Power',        title: 'Is the third unit powered or dummy?',
-        type: 'choice2', choices: ['Powered', 'Dummy'],
-        note: () => 'Will be saved as e.g. 2343-P or 2343-D.',
-        skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
-      { id: 'unit3Condition',    title: (d) => 'What condition is the third unit (' + (d.unit3ItemNum || 'A unit') + ')?',
-        type: 'slider', min:1, max:10, skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
-      { id: 'unit3AllOriginal',  title: (d) => 'Is the third unit (' + (d.unit3ItemNum || 'A unit') + ') all original?',
-        type: 'choice3', choices: ['Yes','No','Unknown'], skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
-      { id: 'unit3NotOriginalDesc', title: (d) => 'What has been done to the ' + (d.unit3ItemNum || 'A unit') + '?',
-        type: 'textarea', optional: true,
-        placeholder: 'e.g. Repaint, touch-ups, reproduction parts, re-wired…',
-        skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' || d.unit3AllOriginal !== 'No' },
-      { id: 'unit3HasBox',       title: (d) => 'Did the third unit (' + (d.unit3ItemNum || 'A unit') + ') come with a box?',
-        type: 'choice2', choices: ['Yes','No'], skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
-      { id: 'unit3BoxCond',      title: (d) => 'What condition is the third unit (' + (d.unit3ItemNum || 'A unit') + ') box?',
-        type: 'slider', min:1, max:10, skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' || d.unit3HasBox !== 'Yes' },
-      { id: 'photosUnit3Item',   title: (d) => 'Add photos of the ' + (d.unit3ItemNum || 'A unit'),
+      // ── Unit 3 photos (ABA only) ──
+      { id: 'photosUnit3Item', title: (d) => 'Add photos of the ' + (d.unit3ItemNum || 'A unit'),
         type: 'drivePhotos', label: 'Item', unit3Mode: true,
-        note: () => 'Photos for unit 3 (second A unit).',
-        skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' },
-      { id: 'photosUnit3Box',    title: (d) => 'Add photos of the ' + (d.unit3ItemNum || 'A unit') + ' box',
+        photoBanner: { color: '#2980b9', label: (d) => '\u{1F7E6} PHOTOS: ' + (d.unit3ItemNum || 'Unit 3') },
+        skipIf: (d) => !isSetNow(d) || d.setType !== 'ABA' },
+      { id: 'photosUnit3Box',  title: (d) => 'Add photos of the ' + (d.unit3ItemNum || 'A unit') + ' box',
         type: 'drivePhotos', label: 'Box', unit3Mode: true,
-        note: () => 'Unit 3 box photos.',
-        skipIf: (d) => d.setMatch !== 'set-now' || d.setType !== 'ABA' || d.unit3HasBox !== 'Yes' },
+        photoBanner: { color: '#8B4513', label: (d) => '\u{1F7EB} PHOTOS: ' + (d.unit3ItemNum || 'Unit 3') + ' — BOX' },
+        skipIf: (d) => !isSetNow(d) || d.setType !== 'ABA' || d.unit3HasBox !== 'Yes' },
 
-      // ── INSTRUCTION SHEET — after all unit photos, before pricing ──
-      { id: 'hasIS',        title: (d) => 'Does it have an instruction sheet?',
-        type: 'choice2', choices: ['Yes','No'] },
-      { id: 'is_sheetNum',  title: 'What is the instruction sheet number?',
-        type: 'text', placeholder: 'e.g. 924-6, 1-1957, 726-13', optional: true,
-        skipIf: d => d.hasIS !== 'Yes' },
-      { id: 'is_condition', title: 'What condition is the instruction sheet?',
-        type: 'slider', min:1, max:10, skipIf: d => d.hasIS !== 'Yes' },
-      { id: 'photosIS',     title: 'Add photos of the instruction sheet',
+      // ── Instruction Sheet photos ──
+      { id: 'photosIS', title: 'Add photos of the instruction sheet',
         type: 'drivePhotos', label: 'IS',
         views: [
           { key: 'IS-FRONT', label: 'Front Side', abbr: 'Front' },
           { key: 'IS-BACK',  label: 'Back Side',  abbr: 'Back'  },
         ],
+        photoBanner: { color: '#d4a843', label: (d) => '\u{1F7E8} PHOTOS: Instruction Sheet' + (d.is_sheetNum ? ' #' + d.is_sheetNum : '') },
         optional: true, skipIf: d => d.hasIS !== 'Yes' },
 
-      // ── PRICING ──
-      { id: 'pricePaid',     title: 'What did you pay?', type: 'pricePaid',
-        note: (d) => isPaired(d) || d.setMatch === 'set-now' ? 'Full price goes to the first unit — other units will reference it in their notes.' : '' },
-      { id: 'yearMade',      title: 'What year do you think this was made?',
-        type: 'yearMade', optional: true },
-      { id: 'datePurchased', title: 'When did you purchase?',
-        type: 'date', optional: true },
-      { id: 'userEstWorth',  title: 'What do you estimate it is worth?',
-        type: 'money', placeholder: '0.00', optional: true,
-        note: (d) => (isPaired(d) || d.setMatch === 'set-now') ? 'Full estimated value goes to the first unit.' : (d.hasBox === 'Yes' ? 'Include the value of both the item and the box.' : '') },
-
-      // ── NOTES & ERROR ──
-      { id: 'notes',           title: (d) => 'Any notes about this ' + (d.itemNum ? d.itemNum + ' ' : '') + getItemLabel(d) + '?',
-        type: 'textarea', optional: true },
-      { id: 'isError',         title: (d) => 'Is this ' + getItemLabel(d) + ' an error item?',
-        type: 'choice2', choices: ['No','Yes'],
-        note: () => 'Error items have factory mistakes like double-stamping, missing lettering or decoration, wrong color, etc.' },
-      { id: 'errorDesc',       title: 'Describe the error',
-        type: 'textarea', optional: true,
-        placeholder: 'e.g. Double-stamped road name, missing decoration on left side',
-        skipIf: d => d.isError !== 'Yes' },
-      { id: 'wantErrorPhotos', title: 'Add close-up photos of the error?',
-        type: 'choice2', choices: ['Yes','No'], skipIf: d => d.isError !== 'Yes' },
-      { id: 'photosError',     title: 'Add close-up photos of the error',
+      // ── Error close-ups ──
+      { id: 'photosError', title: 'Add close-up photos of the error',
         type: 'drivePhotos', label: 'Error', views: ERROR_VIEWS,
-        note: () => 'Close-ups of the error — e.g. double-stamp area, missing lettering. Filed in the same Drive folder.',
-        skipIf: d => d.isError !== 'Yes' || d.wantErrorPhotos !== 'Yes' },
+        photoBanner: { color: '#e74c3c', label: () => '\u{1F7E5} PHOTOS: Error Close-ups' },
+        skipIf: d => d.isError !== 'Yes' },
 
-      // ── TOGETHER PHOTOS — last question before saving ──
-      { id: 'wantTogetherPhotos',
-        title: (d) => {
-          if (isPaired(d)) return 'Would you like a photo of the ' + getItemLabel(d) + ' and tender together?';
-          if (d.setMatch === 'set-now') return 'Would you like a photo of the full ' + (d.setType || 'AB') + ' set together?';
-          return 'Would you like a photo of the items together?';
-        },
-        type: 'choice2', choices: ['Yes','No'],
-        skipIf: (d) => !isPaired(d) && d.setMatch !== 'set-now' },
+      // ── Together photo ──
       { id: 'photosTogether',
-        title: (d) => {
-          if (isPaired(d)) return 'Add a photo of the ' + getItemLabel(d) + ' and tender together';
-          return 'Add a photo of the full ' + (d.setType || 'AB') + ' set together';
-        },
+        title: (d) => isPaired(d) ? 'Photo of engine and tender together' : 'Photo of the full ' + (d.setType || 'AB') + ' set together',
         type: 'drivePhotos', label: 'Set',
-        note: () => 'Filed under the first unit\'s Drive folder.',
-        skipIf: (d) => (!isPaired(d) && d.setMatch !== 'set-now') || d.wantTogetherPhotos !== 'Yes' },
+        photoBanner: { color: '#9b59b6', label: (d) => isPaired(d) ? '\u{1F7EA} PHOTOS: Engine + Tender Together' : '\u{1F7EA} PHOTOS: Full Set Together' },
+        skipIf: (d) => !isPaired(d) && !isSetNow(d) },
 
-      // ── MASTER BOX — outer box for grouped items ──
-      { id: 'hasMasterBox',    title: (d) => {
-          if (isPaired(d)) return 'Did the engine and tender come in a master (outer) box?';
-          if (d.setMatch === 'set-now') return 'Did the ' + (d.setType || 'AB') + ' set come in a master (outer) box?';
-          return 'Did the set come in a master (outer) box?';
-        },
-        type: 'choice2', choices: ['Yes','No'],
-        note: () => 'The master box is the large outer box that holds all the individual component boxes. It will be saved as a separate inventory item with its own ID.',
-        skipIf: (d) => !isPaired(d) && d.setMatch !== 'set-now' },
-      { id: 'masterBoxCond',   title: 'What condition is the master box?',
-        type: 'slider', min:1, max:10,
-        skipIf: (d) => d.hasMasterBox !== 'Yes' },
-      { id: 'masterBoxNotes',  title: 'Any notes about the master box?',
-        type: 'textarea', optional: true,
-        placeholder: 'e.g. Original inner flaps, writing on lid, tape damage…',
-        skipIf: (d) => d.hasMasterBox !== 'Yes' },
+      // ── Master box photos ──
       { id: 'photosMasterBox', title: 'Add photos of the master box',
         type: 'drivePhotos', label: 'MasterBox',
-        note: () => 'Photos of the outer set box — filed under the first unit\'s Drive folder.',
+        photoBanner: { color: '#9b59b6', label: () => '\u{1F7EA} PHOTOS: Master Box' },
         skipIf: (d) => d.hasMasterBox !== 'Yes' },
 
-      // ── STORAGE LOCATION — optional, toggle-controlled ──
-      { id: 'location',    title: 'Where will this item be stored?',
-        type: 'location', optional: true,
-        placeholder: 'e.g. Shelf 3, Tote 12, Display Case A',
-        skipIf: () => localStorage.getItem('lv_location_enabled') !== 'true' },
-
+      // ── Confirm & Save ──
       { id: 'confirm', title: (d) => 'Looking good! Ready to save your ' + getItemLabel(d) + '?', type: 'confirm' },
     ];
   } else if (tab === 'sold') {
@@ -5394,6 +5255,201 @@ function closeWizardOnOverlay(e) {
   if (e.target === document.getElementById('wizard-modal')) closeWizard();
 }
 
+// ── Wizard Consolidation Helpers ──
+
+function _updateGroupingButtons() {
+  const container = document.getElementById('wiz-grouping-btns');
+  if (!container) return;
+  
+  const itemNum = (wizard.data.itemNum || '').trim();
+  if (!itemNum) { container.style.display = 'none'; return; }
+  
+  // Determine item type
+  const hasTenders = getMatchingTenders(itemNum).length > 0;
+  const hasLocos = getMatchingLocos(itemNum).length > 0;
+  const isF3Alco = isF3AlcoUnit(itemNum);
+  const isBUnit = itemNum.endsWith('C');
+  
+  let buttons = [];
+  
+  if (hasTenders && !isF3Alco) {
+    // Steam engine with known tender
+    buttons = [
+      { id: 'engine', label: 'Engine Only', icon: '🚂' },
+      { id: 'engine_tender', label: 'Engine + Tender', icon: '🚂📦' },
+    ];
+  } else if (hasLocos && !isF3Alco) {
+    // Standalone tender being entered
+    buttons = [];  // No grouping needed
+  } else if (isF3Alco && !isBUnit) {
+    // F3/Alco A unit
+    buttons = [
+      { id: 'a_powered', label: 'A Powered', icon: '🔵' },
+      { id: 'a_dummy', label: 'A Dummy', icon: '⚪' },
+      { id: 'aa', label: 'AA', icon: '🔵🔵' },
+      { id: 'ab', label: 'AB', icon: '🔵🟤' },
+      { id: 'aba', label: 'ABA', icon: '🔵🟤🔵' },
+    ];
+  } else if (isF3Alco && isBUnit) {
+    // F3/Alco B unit — standalone only
+    buttons = [];
+  }
+  
+  if (buttons.length === 0) {
+    container.style.display = 'none';
+    wizard.data._itemGrouping = 'single';
+    return;
+  }
+  
+  container.style.display = 'block';
+  const current = wizard.data._itemGrouping || '';
+  
+  let html = '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.4rem">How are you entering this item?</div>';
+  html += '<div style="display:flex;flex-wrap:wrap;gap:0.35rem">';
+  buttons.forEach(function(btn) {
+    const sel = current === btn.id;
+    html += '<button onclick="_selectGrouping(\'' + btn.id + '\')" style="padding:0.5rem 0.85rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:var(--font-body);white-space:nowrap;'
+      + 'border:2px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';'
+      + 'background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--surface2)') + ';'
+      + 'color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + '">'
+      + btn.icon + ' ' + btn.label + '</button>';
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function _selectGrouping(groupId) {
+  wizard.data._itemGrouping = groupId;
+  const itemNum = (wizard.data.itemNum || '').trim();
+  
+  // Map grouping to existing data fields used by saveWizardItem
+  if (groupId === 'engine') {
+    wizard.data.tenderMatch = 'none';
+    wizard.data.setMatch = '';
+    wizard.data.unitPower = '';
+  } else if (groupId === 'engine_tender') {
+    const tenders = getMatchingTenders(itemNum);
+    wizard.data.tenderMatch = tenders.length > 0 ? tenders[0] : '';
+    wizard.data.setMatch = '';
+    wizard.data.unitPower = '';
+  } else if (groupId === 'a_powered') {
+    wizard.data.unitPower = 'Powered';
+    wizard.data.setMatch = 'standalone';
+    wizard.data.tenderMatch = '';
+  } else if (groupId === 'a_dummy') {
+    wizard.data.unitPower = 'Dummy';
+    wizard.data.setMatch = 'standalone';
+    wizard.data.tenderMatch = '';
+  } else if (groupId === 'aa') {
+    wizard.data.unitPower = 'Powered';
+    wizard.data.setMatch = 'set-now';
+    wizard.data.setType = 'AA';
+    wizard.data._setId = genSetId(itemNum);
+    wizard.data.unit2ItemNum = itemNum;  // Same # but dummy
+    wizard.data.tenderMatch = '';
+  } else if (groupId === 'ab') {
+    wizard.data.unitPower = 'Powered';
+    wizard.data.setMatch = 'set-now';
+    wizard.data.setType = 'AB';
+    wizard.data._setId = genSetId(itemNum);
+    wizard.data.unit2ItemNum = getSetPartner(itemNum) || (itemNum + 'C');
+    wizard.data.tenderMatch = '';
+  } else if (groupId === 'aba') {
+    wizard.data.unitPower = 'Powered';
+    wizard.data.setMatch = 'set-now';
+    wizard.data.setType = 'ABA';
+    wizard.data._setId = genSetId(itemNum);
+    wizard.data.unit2ItemNum = getSetPartner(itemNum) || (itemNum + 'C');
+    wizard.data.unit3ItemNum = itemNum;  // Second A unit (dummy)
+    wizard.data.unit3Power = 'Dummy';
+    wizard.data.tenderMatch = '';
+  } else {
+    wizard.data._itemGrouping = 'single';
+    wizard.data.tenderMatch = '';
+    wizard.data.setMatch = '';
+    wizard.data.unitPower = '';
+  }
+  
+  _updateGroupingButtons();
+}
+
+// Condition Details inline toggle helpers
+function _cdToggleOrig(colId, origKey, val) {
+  wizard.data[origKey] = val;
+  var modDiv = document.getElementById('cd-mod-' + colId);
+  if (modDiv) modDiv.style.display = (val === 'No') ? 'block' : 'none';
+  // Update button styles without full re-render (preserves text cursor)
+  document.querySelectorAll('[onclick*="' + origKey + '"]').forEach(function(btn) {
+    var sel = btn.textContent.trim() === val;
+    btn.style.border = '1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)');
+    btn.style.background = sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)';
+    btn.style.color = sel ? 'var(--accent)' : 'var(--text-mid)';
+  });
+}
+
+function _cdToggleBox(colId, val) {
+  var reveal = document.getElementById('cd-boxcond-' + colId);
+  if (reveal) reveal.style.display = (val === 'Yes') ? 'block' : 'none';
+  // Update sibling button styles (parent div holds both buttons)
+  if (reveal && reveal.previousElementSibling) {
+    reveal.previousElementSibling.querySelectorAll('button').forEach(function(btn) {
+      var sel = btn.textContent.trim() === val;
+      btn.style.border = '1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)');
+      btn.style.background = sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)';
+      btn.style.color = sel ? 'var(--accent)' : 'var(--text-mid)';
+    });
+  }
+}
+
+function _cdToggleIS(val) {
+  wizard.data.hasIS = val;
+  var reveal = document.getElementById('cd-is-reveal');
+  if (reveal) reveal.style.display = (val === 'Yes') ? 'block' : 'none';
+  document.querySelectorAll('[onclick*="_cdToggleIS"]').forEach(function(btn) {
+    var sel = btn.textContent.trim() === val;
+    btn.style.border = '1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)');
+    btn.style.background = sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)';
+    btn.style.color = sel ? 'var(--accent)' : 'var(--text-mid)';
+  });
+}
+
+function _cdToggleError(val) {
+  wizard.data.isError = val;
+  var reveal = document.getElementById('cd-error-reveal');
+  if (reveal) reveal.style.display = (val === 'Yes') ? 'block' : 'none';
+  document.querySelectorAll('[onclick*="_cdToggleError"]').forEach(function(btn) {
+    var bVal = btn.textContent.trim();
+    var sel = bVal === val;
+    var isYes = bVal === 'Yes';
+    btn.style.border = '1.5px solid ' + (sel ? (isYes ? '#e74c3c' : 'var(--accent)') : 'var(--border)');
+    btn.style.background = sel ? (isYes ? 'rgba(231,76,60,0.12)' : 'rgba(232,64,28,0.12)') : 'var(--bg)';
+    btn.style.color = sel ? (isYes ? '#e74c3c' : 'var(--accent)') : 'var(--text-mid)';
+  });
+}
+
+// Purchase & Value helpers
+function _pvRefreshYear(yr) {
+  wizard.data.yearMade = String(yr);
+  document.querySelectorAll('.pv-yr-btn').forEach(function(btn) {
+    var sel = btn.dataset.yr === String(yr);
+    btn.style.border = '1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)');
+    btn.style.background = sel ? 'rgba(232,64,28,0.15)' : 'var(--bg)';
+    btn.style.color = sel ? 'var(--accent)' : 'var(--text-mid)';
+  });
+}
+
+function _pvToggleMasterBox(val) {
+  wizard.data.hasMasterBox = val;
+  var reveal = document.getElementById('pv-mb-reveal');
+  if (reveal) reveal.style.display = (val === 'Yes') ? 'block' : 'none';
+  document.querySelectorAll('[onclick*="_pvToggleMasterBox"]').forEach(function(btn) {
+    var sel = btn.textContent.trim() === val;
+    btn.style.border = '1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)');
+    btn.style.background = sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)';
+    btn.style.color = sel ? 'var(--accent)' : 'var(--text-mid)';
+  });
+}
+
 function renderWizardStep() {
   // Always restore Next button (entryMode step hides it)
   const _nb = document.getElementById('wizard-next-btn');
@@ -5445,6 +5501,7 @@ function renderWizardStep() {
   document.getElementById('wizard-progress').style.width = pct + '%';
   document.getElementById('wizard-back-btn').style.display = step > 0 ? 'inline-flex' : 'none';
   const autoAdvanceTypes = new Set(['choice','choice2','choice3','pickRow','pickSoldItem']); // 'variation' removed — Next needed when item has no variations
+  // New consolidated types always use Next button
   // setMatch and setUnit2Num need Next button (user may interact multiple times)
   if (s.type === 'confirm') {
     nextBtn.textContent = '✓ Save';
@@ -6071,6 +6128,17 @@ function renderWizardStep() {
     const views = s.views ? s.views : s.label === 'Box' ? BOX_VIEWS : s.label === 'Error' ? ERROR_VIEWS : ITEM_VIEWS;
     const stored = wizard.data[s.id] || {};
 
+    // Color-coded photo banner (always clear body first for clean render)
+    body.innerHTML = '';
+    if (s.photoBanner) {
+      const _bannerColor = s.photoBanner.color || '#2980b9';
+      const _bannerLabel = typeof s.photoBanner.label === 'function' ? s.photoBanner.label(wizard.data) : (s.photoBanner.label || '');
+      const _bannerDiv = document.createElement('div');
+      _bannerDiv.style.cssText = 'background:' + _bannerColor + ';color:#fff;padding:0.7rem 1rem;border-radius:10px;margin-bottom:0.6rem;font-family:var(--font-head);font-size:0.9rem;font-weight:700;letter-spacing:0.04em;text-align:center;text-shadow:0 1px 2px rgba(0,0,0,0.3)';
+      _bannerDiv.textContent = _bannerLabel;
+      body.appendChild(_bannerDiv);
+    }
+
     // Build a photo slot element (used for both fixed and extra slots)
     function makePhotoSlot(viewKey, label, abbr, stepId) {
       const url = stored[viewKey] || '';
@@ -6433,6 +6501,320 @@ function renderWizardStep() {
           </button>`;
         }).join('')}
       </div>`;
+
+  } else if (s.type === 'itemNumGrouping') {
+    // ── SCREEN 1: Item Number + Grouping Buttons ──
+    const _ingVal = wizard.data.itemNum || '';
+    const _ingGrouping = wizard.data._itemGrouping || '';
+    const _ingBoxOnly = wizard.data.boxOnly || false;
+    
+    const _ingWrap = document.createElement('div');
+    _ingWrap.style.cssText = 'padding-top:0.5rem';
+    
+    // Item number input row
+    const _ingInputRow = document.createElement('div');
+    _ingInputRow.style.cssText = 'display:flex;gap:0.5rem;align-items:flex-start';
+    _ingInputRow.innerHTML = `
+      <div style="flex:1">
+        <input type="text" id="wiz-input" value="${_ingVal}" placeholder="e.g. 726, 2046, 6464-1"
+          autocomplete="off"
+          style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
+          padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none;box-sizing:border-box"
+          oninput="wizard.data.itemNum=this.value; updateItemSuggestions(this.value); _updateGroupingButtons();"
+          onkeydown="handleSuggestionKey(event)">
+        <div id="wiz-suggestions" style="display:none;flex-direction:column;gap:1px;margin-top:4px;max-height:340px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;-webkit-overflow-scrolling:touch"></div>
+      </div>`;
+    _ingWrap.appendChild(_ingInputRow);
+    
+    // Match display
+    const _ingMatchDiv = document.createElement('div');
+    _ingMatchDiv.id = 'wiz-match';
+    _ingMatchDiv.style.cssText = 'margin-top:0.5rem';
+    _ingWrap.appendChild(_ingMatchDiv);
+    
+    // Grouping buttons container (populated dynamically)
+    const _ingGroupDiv = document.createElement('div');
+    _ingGroupDiv.id = 'wiz-grouping-btns';
+    _ingGroupDiv.style.cssText = 'margin-top:0.75rem;display:none';
+    _ingWrap.appendChild(_ingGroupDiv);
+    
+    // Identify by photo button
+    const _ingPhotoBtn = document.createElement('button');
+    _ingPhotoBtn.onclick = function() { openIdentify('wizard'); };
+    _ingPhotoBtn.style.cssText = 'width:100%;margin-top:0.6rem;padding:0.65rem 1rem;border-radius:8px;border:1.5px dashed var(--gold);background:rgba(212,168,67,0.07);color:var(--gold);font-family:var(--font-head);font-size:0.78rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;transition:all 0.15s';
+    _ingPhotoBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Don\x27t know the number? Identify by photo';
+    _ingWrap.appendChild(_ingPhotoBtn);
+    
+    // Box-only toggle
+    const _ingBoxLabel = document.createElement('label');
+    _ingBoxLabel.onclick = function() { toggleBoxOnly(); setTimeout(_updateGroupingButtons, 50); };
+    _ingBoxLabel.style.cssText = 'display:flex;align-items:center;gap:0.75rem;padding:0.85rem 1rem;margin-top:0.75rem;border-radius:10px;border:2px solid ' + (_ingBoxOnly ? 'var(--accent2)' : 'var(--border)') + ';background:' + (_ingBoxOnly ? 'rgba(201,146,42,0.1)' : 'var(--surface2)') + ';cursor:pointer;transition:all 0.15s';
+    _ingBoxLabel.innerHTML = '<div style="width:20px;height:20px;border-radius:5px;flex-shrink:0;border:2px solid ' + (_ingBoxOnly ? 'var(--accent2)' : 'var(--border)') + ';background:' + (_ingBoxOnly ? 'var(--accent2)' : 'transparent') + ';display:flex;align-items:center;justify-content:center;font-size:0.75rem;color:white;font-weight:700;transition:all 0.15s">' + (_ingBoxOnly ? '✓' : '') + '</div><div><div style="font-weight:600;font-size:0.9rem;color:var(--text)">Adding box info only</div><div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.1rem">I bought a separate box for this item</div></div>';
+    _ingWrap.appendChild(_ingBoxLabel);
+    
+    body.innerHTML = '';
+    body.appendChild(_ingWrap);
+    
+    setTimeout(function() {
+      var inp = document.getElementById('wiz-input');
+      if (inp) {
+        inp.focus();
+        inp.addEventListener('input', debounceItemLookup);
+        if (inp.value) { updateItemSuggestions(inp.value); }
+      }
+      _updateGroupingButtons();
+    }, 50);
+
+  } else if (s.type === 'conditionDetails') {
+    // ── SCREEN 3: Multi-column Condition & Details ──
+    const _cdGrouping = wizard.data._itemGrouping || 'single';
+    const _cdItemNum = (wizard.data.itemNum || '').trim();
+    
+    // Determine columns
+    const _cdCols = [];
+    if (_cdGrouping === 'engine_tender') {
+      const _tenders = getMatchingTenders(_cdItemNum);
+      const _tenderNum = wizard.data.tenderMatch || (_tenders.length > 0 ? _tenders[0] : '');
+      _cdCols.push({ id: 'main', label: '\u{1F682} No. ' + _cdItemNum, prefix: '', isEngine: true });
+      _cdCols.push({ id: 'tender', label: '\u{1F4E6} Tender: ' + _tenderNum, prefix: 'tender', isTender: true });
+    } else if (_cdGrouping === 'aa') {
+      _cdCols.push({ id: 'main', label: '\u{1F535} A Unit: ' + _cdItemNum + '-P', prefix: '', sublabel: 'Powered' });
+      _cdCols.push({ id: 'unit2', label: '\u{1F535} A Unit: ' + _cdItemNum + '-D', prefix: 'unit2', sublabel: 'Dummy' });
+    } else if (_cdGrouping === 'ab') {
+      const _bUnit = getSetPartner(_cdItemNum) || (_cdItemNum + 'C');
+      _cdCols.push({ id: 'main', label: '\u{1F535} A Unit: ' + _cdItemNum + '-P', prefix: '', sublabel: 'Powered' });
+      _cdCols.push({ id: 'unit2', label: '\u{1F535} B Unit: ' + _bUnit, prefix: 'unit2' });
+    } else if (_cdGrouping === 'aba') {
+      const _bUnit2 = getSetPartner(_cdItemNum) || (_cdItemNum + 'C');
+      _cdCols.push({ id: 'main', label: '\u{1F535} A Unit: ' + _cdItemNum + '-P', prefix: '', sublabel: 'Powered' });
+      _cdCols.push({ id: 'unit2', label: '\u{1F535} B Unit: ' + _bUnit2, prefix: 'unit2' });
+      _cdCols.push({ id: 'unit3', label: '\u{1F535} A Unit: ' + _cdItemNum + '-D', prefix: 'unit3', sublabel: 'Dummy' });
+    } else {
+      // Single item
+      _cdCols.push({ id: 'main', label: 'No. ' + _cdItemNum, prefix: '' });
+    }
+    
+    const _colCount = _cdCols.length;
+    const _isMobile = window.innerWidth < 600;
+    
+    function _buildCondCol(col) {
+      const p = col.prefix;
+      const condKey = p ? p + 'Condition' : 'condition';
+      const origKey = p ? p + 'AllOriginal' : 'allOriginal';
+      const modKey = p ? p + 'NotOriginalDesc' : 'notOriginalDesc';
+      const boxKey = p ? p + 'HasBox' : 'hasBox';
+      const boxCondKey = p ? p + 'BoxCond' : 'boxCond';
+      
+      const condVal = wizard.data[condKey] || 7;
+      const origVal = wizard.data[origKey] || '';
+      const modVal = wizard.data[modKey] || '';
+      const boxVal = wizard.data[boxKey] || '';
+      const boxCondVal = wizard.data[boxCondKey] || 7;
+      
+      let html = '<div class="cd-col" style="flex:1;min-width:' + (_isMobile ? '100%' : '200px') + ';background:var(--surface2);border-radius:10px;padding:0.85rem;border:1px solid var(--border)">';
+      html += '<div style="font-weight:700;font-size:0.85rem;color:var(--accent2);margin-bottom:0.75rem;padding-bottom:0.5rem;border-bottom:1px solid var(--border)">' + col.label + (col.sublabel ? ' <span style=\"font-weight:400;color:var(--text-dim);font-size:0.78rem\">(' + col.sublabel + ')</span>' : '') + '</div>';
+      
+      // Condition slider
+      html += '<div style="margin-bottom:0.6rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Condition</div>';
+      html += '<div style="display:flex;align-items:center;gap:0.5rem"><span id="cd-cond-val-' + col.id + '" style="font-family:var(--font-head);font-size:1.5rem;color:var(--accent2);width:2rem;text-align:center">' + condVal + '</span>';
+      html += '<input type="range" min="1" max="10" value="' + condVal + '" style="flex:1;accent-color:var(--accent)" oninput="wizard.data[\'' + condKey + '\']=parseInt(this.value);document.getElementById(\'cd-cond-val-' + col.id + '\').textContent=this.value"></div>';
+      html += '<div style="display:flex;justify-content:space-between;font-size:0.65rem;color:var(--text-dim)"><span>Poor</span><span>Good</span><span>Exc</span><span>Mint</span></div></div>';
+      
+      // All Original
+      html += '<div style="margin-bottom:0.6rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">All Original?</div>';
+      html += '<div style="display:flex;gap:0.3rem">';
+      ['Yes','No','Unknown'].forEach(function(c) {
+        var sel = origVal === c;
+        html += '<button onclick="wizard.data[\'' + origKey + '\']=\'' + c + '\';_cdToggleOrig(\'' + col.id + '\',\'' + origKey + '\',\'' + c + '\')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)') + ';color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + ';font-family:var(--font-body)">' + c + '</button>';
+      });
+      html += '</div></div>';
+      
+      // Modifications textarea (hidden unless allOriginal=No)
+      html += '<div id="cd-mod-' + col.id + '" style="margin-bottom:0.6rem;display:' + (origVal === 'No' ? 'block' : 'none') + '">';
+      html += '<textarea placeholder="What\x27s been done?" style="width:100%;min-height:50px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.8rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data[\'' + modKey + '\']=this.value">' + modVal + '</textarea></div>';
+      
+      // Has box toggle + inline box condition
+      html += '<div style="margin-bottom:0.6rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Has Box?</div>';
+      html += '<div style="display:flex;gap:0.3rem">';
+      ['Yes','No'].forEach(function(c) {
+        var sel = boxVal === c;
+        html += '<button onclick="wizard.data[\'' + boxKey + '\']=\'' + c + '\';_cdToggleBox(\'' + col.id + '\',\'' + c + '\')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)') + ';color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + ';font-family:var(--font-body)">' + c + '</button>';
+      });
+      html += '</div>';
+      // Box condition slider (inline reveal)
+      html += '<div id="cd-boxcond-' + col.id + '" style="margin-top:0.4rem;display:' + (boxVal === 'Yes' ? 'block' : 'none') + ';padding:0.5rem;background:var(--bg);border-radius:6px;border:1px solid var(--border)">';
+      html += '<div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:0.2rem">Box Condition</div>';
+      html += '<div style="display:flex;align-items:center;gap:0.4rem"><span id="cd-boxcond-val-' + col.id + '" style="font-family:var(--font-head);font-size:1.2rem;color:var(--accent2);width:1.5rem;text-align:center">' + boxCondVal + '</span>';
+      html += '<input type="range" min="1" max="10" value="' + boxCondVal + '" style="flex:1;accent-color:var(--accent)" oninput="wizard.data[\'' + boxCondKey + '\']=parseInt(this.value);document.getElementById(\'cd-boxcond-val-' + col.id + '\').textContent=this.value"></div>';
+      html += '</div></div>';
+      
+      // IS, Error only on main column
+      if (col.id === 'main') {
+        const isVal = wizard.data.hasIS || '';
+        const isSheetVal = wizard.data.is_sheetNum || '';
+        const isCondVal = wizard.data.is_condition || 7;
+        const errVal = wizard.data.isError || '';
+        const errDescVal = wizard.data.errorDesc || '';
+        
+        // Instruction Sheet toggle
+        html += '<div style="margin-bottom:0.6rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Instruction Sheet?</div>';
+        html += '<div style="display:flex;gap:0.3rem">';
+        ['Yes','No'].forEach(function(c) {
+          var sel = isVal === c;
+          html += '<button onclick="wizard.data.hasIS=\'' + c + '\';_cdToggleIS(\'' + c + '\')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)') + ';color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + ';font-family:var(--font-body)">' + c + '</button>';
+        });
+        html += '</div>';
+        // IS inline reveal
+        html += '<div id="cd-is-reveal" style="margin-top:0.4rem;display:' + (isVal === 'Yes' ? 'block' : 'none') + ';padding:0.5rem;background:var(--bg);border-radius:6px;border:1px solid var(--border)">';
+        html += '<input type="text" placeholder="Sheet # (e.g. 924-6)" value="' + isSheetVal.replace(/"/g, '&quot;') + '" style="width:100%;margin-bottom:0.4rem;background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:0.4rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.82rem;outline:none;box-sizing:border-box" oninput="wizard.data.is_sheetNum=this.value">';
+        html += '<div style="display:flex;align-items:center;gap:0.4rem"><span style="font-size:0.7rem;color:var(--text-dim)">Cond:</span><span id="cd-is-cond-val" style="font-family:var(--font-head);font-size:1rem;color:var(--accent2)">' + isCondVal + '</span>';
+        html += '<input type="range" min="1" max="10" value="' + isCondVal + '" style="flex:1;accent-color:var(--accent)" oninput="wizard.data.is_condition=parseInt(this.value);document.getElementById(\'cd-is-cond-val\').textContent=this.value"></div>';
+        html += '</div></div>';
+        
+        // Error item toggle
+        html += '<div style="margin-bottom:0.4rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Error Item?</div>';
+        html += '<div style="display:flex;gap:0.3rem">';
+        ['No','Yes'].forEach(function(c) {
+          var sel = errVal === c;
+          html += '<button onclick="wizard.data.isError=\'' + c + '\';_cdToggleError(\'' + c + '\')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid ' + (sel ? (c==='Yes' ? '#e74c3c' : 'var(--accent)') : 'var(--border)') + ';background:' + (sel ? (c==='Yes' ? 'rgba(231,76,60,0.12)' : 'rgba(232,64,28,0.12)') : 'var(--bg)') + ';color:' + (sel ? (c==='Yes' ? '#e74c3c' : 'var(--accent)') : 'var(--text-mid)') + ';font-family:var(--font-body)">' + c + '</button>';
+        });
+        html += '</div>';
+        html += '<div id="cd-error-reveal" style="margin-top:0.4rem;display:' + (errVal === 'Yes' ? 'block' : 'none') + '">';
+        html += '<textarea placeholder="Describe the error…" style="width:100%;min-height:45px;background:var(--bg);border:1px solid #e74c3c44;border-radius:6px;padding:0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.8rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data.errorDesc=this.value">' + errDescVal + '</textarea></div>';
+        html += '</div>';
+      }
+      
+      html += '</div>';
+      return html;
+    }
+    
+    // Build the multi-column layout
+    const _cdWrap = document.createElement('div');
+    _cdWrap.style.cssText = 'padding-top:0.25rem;max-height:65vh;overflow-y:auto;-webkit-overflow-scrolling:touch';
+    
+    let _cdHtml = '<div style="display:flex;gap:0.5rem;' + (_isMobile ? 'flex-direction:column' : '') + '">';
+    _cdCols.forEach(function(col) {
+      _cdHtml += _buildCondCol(col);
+    });
+    _cdHtml += '</div>';
+    _cdWrap.innerHTML = _cdHtml;
+    body.innerHTML = '';
+    body.appendChild(_cdWrap);
+
+  } else if (s.type === 'purchaseValue') {
+    // ── SCREEN 4: Purchase & Value (combined screen) ──
+    const _pvD = wizard.data;
+    const _pvIsPaired = _pvD.tenderMatch && _pvD.tenderMatch !== 'none';
+    const _pvIsSet = _pvD.setMatch === 'set-now';
+    const _pvItemNum = (_pvD.itemNum || '').trim();
+    
+    // Year made: parse known production years
+    const _pvMatch = state.masterData.find(function(m) {
+      return normalizeItemNum(m.itemNum) === normalizeItemNum(_pvItemNum);
+    });
+    const _pvYearRange = _pvMatch ? (_pvMatch.yearProd || '') : '';
+    let _pvYears = [];
+    if (_pvYearRange) {
+      _pvYearRange.split(/[,;]/).forEach(function(part) {
+        part = part.trim();
+        var rm = part.match(/^(\d{4})\s*[\-\u2013]\s*(\d{2,4})$/);
+        if (rm) {
+          var st = parseInt(rm[1]), en = parseInt(rm[2]);
+          if (en < 100) en = Math.floor(st/100)*100 + en;
+          for (var y = st; y <= Math.min(en, st+25); y++) _pvYears.push(y);
+        } else if (/^\d{4}$/.test(part)) _pvYears.push(parseInt(part));
+      });
+      _pvYears = [...new Set(_pvYears)].sort((a,b) => a-b);
+    }
+    
+    // Location chips
+    const _pvAllLocs = {};
+    Object.values(state.personalData).forEach(function(pd) {
+      if (pd.location && pd.location.trim()) {
+        var loc = pd.location.trim();
+        _pvAllLocs[loc] = (_pvAllLocs[loc] || 0) + 1;
+      }
+    });
+    const _pvLocList = Object.entries(_pvAllLocs).sort((a,b) => b[1]-a[1]).map(e => e[0]);
+    const _pvLocEnabled = localStorage.getItem('lv_location_enabled') === 'true';
+    
+    let _pvHtml = '<div style="padding-top:0.25rem;max-height:65vh;overflow-y:auto;-webkit-overflow-scrolling:touch">';
+    
+    // Price paid
+    _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">What did you pay? ($)</div>';
+    _pvHtml += '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem">';
+    _pvHtml += '<span style="color:var(--text-dim);font-size:1.1rem">$</span>';
+    _pvHtml += '<input type="number" id="pv-price" value="' + (_pvD.priceItem || '') + '" placeholder="0.00" min="0" step="0.01" style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem" oninput="wizard.data.priceItem=this.value"></div>';
+    if (_pvIsPaired || _pvIsSet) {
+      _pvHtml += '<div style="font-size:0.75rem;color:var(--accent2);margin-top:0.2rem">Full price — other units will reference this.</div>';
+    }
+    _pvHtml += '</div>';
+    
+    // Date purchased + Year made (side by side on desktop)
+    _pvHtml += '<div style="display:flex;gap:0.5rem;margin-bottom:0.75rem;' + (window.innerWidth < 500 ? 'flex-direction:column' : '') + '">';
+    
+    _pvHtml += '<div style="flex:1"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Date Purchased</div>';
+    _pvHtml += '<input type="date" value="' + (_pvD.datePurchased || '') + '" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box" oninput="wizard.data.datePurchased=this.value"></div>';
+    
+    _pvHtml += '<div style="flex:1"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Year Made</div>';
+    if (_pvYears.length > 0 && _pvYears.length <= 10) {
+      _pvHtml += '<div style="display:flex;flex-wrap:wrap;gap:0.25rem">';
+      _pvYears.forEach(function(yr) {
+        var sel = String(yr) === String(_pvD.yearMade || '');
+        _pvHtml += '<button onclick="wizard.data.yearMade=String(' + yr + ');_pvRefreshYear(' + yr + ')" class="pv-yr-btn" data-yr="' + yr + '" style="padding:0.35rem 0.5rem;border-radius:6px;font-family:var(--font-mono);font-size:0.8rem;font-weight:600;cursor:pointer;border:1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';background:' + (sel ? 'rgba(232,64,28,0.15)' : 'var(--bg)') + ';color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + '">' + yr + '</button>';
+      });
+      _pvHtml += '</div>';
+    } else {
+      _pvHtml += '<input type="number" value="' + (_pvD.yearMade || '') + '" placeholder="e.g. 1952" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-mono);font-size:0.95rem;outline:none;box-sizing:border-box" oninput="wizard.data.yearMade=this.value">';
+    }
+    _pvHtml += '</div></div>';
+    
+    // Estimated worth
+    _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Estimated Worth ($)</div>';
+    _pvHtml += '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem">';
+    _pvHtml += '<span style="color:var(--text-dim);font-size:1.1rem">$</span>';
+    _pvHtml += '<input type="number" value="' + (_pvD.userEstWorth || '') + '" placeholder="0.00" min="0" step="0.01" style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem" oninput="wizard.data.userEstWorth=this.value"></div></div>';
+    
+    // Location (if enabled)
+    if (_pvLocEnabled) {
+      _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">\u{1F4CD} Storage Location</div>';
+      _pvHtml += '<input type="text" id="pv-location" value="' + (_pvD.location || '').replace(/"/g, '&quot;') + '" placeholder="e.g. Shelf 3, Tote 12" autocomplete="off" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box" oninput="wizard.data.location=this.value">';
+      if (_pvLocList.length > 0) {
+        _pvHtml += '<div style="display:flex;flex-wrap:wrap;gap:0.25rem;margin-top:0.35rem">';
+        _pvLocList.slice(0, 8).forEach(function(loc) {
+          _pvHtml += '<button type="button" onclick="document.getElementById(\'pv-location\').value=\'' + loc.replace(/'/g, "\\'") + '\';wizard.data.location=\'' + loc.replace(/'/g, "\\'") + '\';" style="padding:0.25rem 0.55rem;border-radius:12px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.75rem;cursor:pointer;font-family:var(--font-body)">' + loc + '</button>';
+        });
+        _pvHtml += '</div>';
+      }
+      _pvHtml += '</div>';
+    }
+    
+    // Notes
+    _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Notes (optional)</div>';
+    _pvHtml += '<textarea id="pv-notes" placeholder="e.g. Purchased at train show, minor rust on trucks, runs well" style="width:100%;min-height:60px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data.notes=this.value">' + (_pvD.notes || '') + '</textarea></div>';
+    
+    // Master box (only for paired/set)
+    if (_pvIsPaired || _pvIsSet) {
+      const mbVal = _pvD.hasMasterBox || '';
+      const mbCondVal = _pvD.masterBoxCond || 7;
+      _pvHtml += '<div style="margin-bottom:0.6rem;padding:0.75rem;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">';
+      _pvHtml += '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Master (Outer) Box?</div>';
+      _pvHtml += '<div style="display:flex;gap:0.3rem;margin-bottom:0.4rem">';
+      ['Yes','No'].forEach(function(c) {
+        var sel = mbVal === c;
+        _pvHtml += '<button onclick="wizard.data.hasMasterBox=\'' + c + '\';_pvToggleMasterBox(\'' + c + '\')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)') + ';color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + ';font-family:var(--font-body)">' + c + '</button>';
+      });
+      _pvHtml += '</div>';
+      _pvHtml += '<div id="pv-mb-reveal" style="display:' + (mbVal === 'Yes' ? 'block' : 'none') + '">';
+      _pvHtml += '<div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.3rem"><span style="font-size:0.7rem;color:var(--text-dim)">Condition:</span><span id="pv-mb-cond-val" style="font-family:var(--font-head);font-size:1rem;color:var(--accent2)">' + mbCondVal + '</span>';
+      _pvHtml += '<input type="range" min="1" max="10" value="' + mbCondVal + '" style="flex:1;accent-color:var(--accent)" oninput="wizard.data.masterBoxCond=parseInt(this.value);document.getElementById(\'pv-mb-cond-val\').textContent=this.value"></div>';
+      _pvHtml += '<textarea placeholder="Master box notes…" style="width:100%;min-height:40px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:0.4rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.8rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data.masterBoxNotes=this.value">' + (_pvD.masterBoxNotes || '') + '</textarea>';
+      _pvHtml += '</div></div>';
+    }
+    
+    _pvHtml += '</div>';
+    body.innerHTML = _pvHtml;
+    setTimeout(function() { var i = document.getElementById('pv-price'); if(i) i.focus(); }, 50);
 
   } else if (s.type === 'confirm') {
     const item = wizard.matchedItem;
@@ -7074,6 +7456,27 @@ async function _wizardNextCore() {
   if (s.type === 'text' && !s.optional && !wizard.data[s.id]?.trim()) {
     showToast('This field is required.'); return;
   }
+  if (s.type === 'itemNumGrouping' && !(wizard.data.itemNum || '').trim()) {
+    showToast('Please enter an item number.'); return;
+  }
+  // conditionDetails: commit slider defaults if user never moved them
+  if (s.type === 'conditionDetails') {
+    if (!wizard.data.condition) wizard.data.condition = 7;
+    const g = wizard.data._itemGrouping || 'single';
+    if (g === 'engine_tender') {
+      if (!wizard.data.tenderCondition) wizard.data.tenderCondition = 7;
+    }
+    if (['aa','ab','aba'].includes(g)) {
+      if (!wizard.data.unit2Condition) wizard.data.unit2Condition = 7;
+    }
+    if (g === 'aba') {
+      if (!wizard.data.unit3Condition) wizard.data.unit3Condition = 7;
+    }
+  }
+  // purchaseValue: no required fields (all optional)
+  if (s.type === 'purchaseValue') {
+    // All fields optional, just commit
+  }
   if (s.type === 'money' && !s.optional && !wizard.data[s.id]) {
     showToast('Please enter a price.'); return;
   }
@@ -7427,7 +7830,6 @@ async function saveWizardItem() {
   let groupId = _hasAnyBox ? ('GRP-' + _rawItemNum + '-' + Date.now()) : '';
 
   try {
-    let row;  // Declared at try-block level so it's accessible in grouped-box and optimistic-state sections below
     if (tab === 'collection') {
       // Find existing by row-keyed lookup (key includes row number now)
       let existing = Object.keys(state.personalData)
@@ -7507,6 +7909,7 @@ async function saveWizardItem() {
         return;  // Done — box-only exits here
 
       }
+      let row;
       {
         const _paired = d.tenderMatch && d.tenderMatch !== 'none';
         const enginePrice = _paired
