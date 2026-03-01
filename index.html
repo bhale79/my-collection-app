@@ -7857,6 +7857,12 @@ async function saveWizardItem() {
   const _hasAnyBox = d.hasBox === 'Yes' || _isPairedCheck || _isSetCheck;
   let groupId = _hasAnyBox ? ('GRP-' + _rawItemNum + '-' + Date.now()) : '';
 
+  // Hoisted to function scope — used by both collection save and group box save blocks
+  let row;
+  let isSetSave = false;
+  let isPairedSave = false;
+  let setId = '';
+
   try {
     if (tab === 'collection') {
       // Find existing by row-keyed lookup (key includes row number now)
@@ -7937,7 +7943,6 @@ async function saveWizardItem() {
         return;  // Done — box-only exits here
 
       }
-      let row;
       {
         const _paired = d.tenderMatch && d.tenderMatch !== 'none';
         const enginePrice = _paired
@@ -7975,8 +7980,8 @@ async function saveWizardItem() {
         ];
       }
       // ── SET UNIT SAVE: if diesel set, save unit2 (and unit3) rows with shared Set ID ──
-  const isSetSave = d.setMatch === 'set-now';
-  const setId = d._setId || '';
+  isSetSave = d.setMatch === 'set-now';
+  setId = d._setId || '';
   // Apply Group ID to unit 1 row
   if (groupId && row.length >= 22) { row[21] = groupId; }
 
@@ -8053,7 +8058,7 @@ async function saveWizardItem() {
   }
 
   // ── PAIRED SAVE: if engine+tender together, save a second row for the tender ──
-  const isPairedSave = d.tenderMatch && d.tenderMatch !== 'none';
+  isPairedSave = d.tenderMatch && d.tenderMatch !== 'none';
   if (isPairedSave) {
     const tNum = d.tenderMatch.trim();
     const tVariation = '';
