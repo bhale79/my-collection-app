@@ -3725,9 +3725,15 @@ function renderBrowse() {
       driveGetFolderPhotos(pd2.photoItem).then(function(photos) {
         if (photos && photos.length > 0) {
           const fileId = photos[0].id;
-          const thumbUrl = 'https://drive.google.com/thumbnail?id=' + fileId + '&sz=w80';
           const el = document.getElementById('thumb-' + item.itemNum + '-' + (item.variation || ''));
-          if (el) el.innerHTML = '<img src="' + thumbUrl + '" style="width:40px;height:40px;object-fit:cover;border-radius:4px" onerror="this.parentElement.innerHTML=\'📷\'">';
+          if (el) {
+            const img = document.createElement('img');
+            img.style.cssText = 'width:40px;height:40px;object-fit:cover;border-radius:4px;display:block;background:var(--surface2)';
+            img.alt = item.itemNum;
+            el.innerHTML = '';
+            el.appendChild(img);
+            loadDriveThumb(fileId, img, el);
+          }
         } else {
           const el = document.getElementById('thumb-' + item.itemNum + '-' + (item.variation || ''));
           if (el) el.innerHTML = '<span style="color:var(--text-dim);font-size:0.7rem;display:flex;align-items:center;justify-content:center;height:100%">—</span>';
