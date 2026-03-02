@@ -58,6 +58,47 @@
     --header-h:  60px;
   }
 
+  /* ── Light mode for main content area ─────────────────────── */
+  .main {
+    --bg:        #f2ddb0;
+    --surface:   #fffcf5;
+    --surface2:  #f5eed8;
+    --surface3:  #ebe0c8;
+    --border:    #d4c8a8;
+    --border-hi: #c0b090;
+    --border-light: #d4c8a8;
+    --text:      #2a2015;
+    --text-dim:  #8a7e68;
+    --text-mid:  #5a4e38;
+    --navy:      #2a2015;
+    --cream:     #2a2015;
+    background: #f2ddb0;
+  }
+  .main .stat-card { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .main .stat-card:hover { border-color: #c0b090; }
+  .main .table-wrap { box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .main .item-table th { background: #f0e6cc; color: #5a4e38; border-bottom: 2px solid #d4c8a8; }
+  .main .item-table td { border-bottom: 1px solid #e8ddc0; color: #2a2015; }
+  .main .item-table tr:hover td { background: #f5eed8; }
+  .main .page-title { color: #2a2015; }
+  .main .page-title span { color: #5a4e38; }
+  .main .item-num { color: #b83018; }
+  .main .tag { background: #f0e6cc; color: #5a4e38; border: 1px solid #d4c8a8; }
+  .main .market-val { color: #2a7a18; }
+  .main .text-dim { color: #8a7e68; }
+  .main .empty-state { color: #8a7e68; }
+  .main .panel { box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .main .owned-badge.yes { background: rgba(58,158,104,0.12); color: #2a7a18; border-color: rgba(58,158,104,0.3); }
+  .main .owned-badge.no { background: #f0e6cc; color: #8a7e68; }
+  .main .owned-badge.want { background: rgba(212,168,67,0.12); color: #b08820; border-color: rgba(212,168,67,0.3); }
+  .main .owned-badge.forsale { background: rgba(230,126,34,0.12); color: #c05a10; border-color: rgba(230,126,34,0.3); }
+  .main input[type="text"], .main input[type="search"], .main select {
+    background: #fffcf5; color: #2a2015; border-color: #d4c8a8;
+  }
+  .main input::placeholder { color: #a09080; }
+  .main .filter-btn, .main .chip { background: #f0e6cc; color: #5a4e38; border-color: #d4c8a8; }
+  .main .filter-btn:hover, .main .chip:hover { background: #e8ddc0; }
+
   html, body { height: 100%; font-family: var(--font-body); background: var(--bg); color: var(--text); font-size: 16px; }
 
   /* ── Accessibility: minimum font sizes for readability ─────── */
