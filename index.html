@@ -2464,7 +2464,7 @@ async function loadAllData() {
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '6';
+  const _CACHE_VER = '7';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
@@ -2505,7 +2505,7 @@ async function loadMasterData() {
 }
 
 function parseMasterRows(rows) {
-  state.masterData = rows.map(r => ({
+  const mapped = rows.map(r => ({
     itemNum:     r[0]  || '',
     itemType:    r[1]  || '',
     subType:     r[2]  || '',
@@ -2523,6 +2523,14 @@ function parseMasterRows(rows) {
     ebayUpdated: r[14] || '',
     marketVal:   r[15] || '',
   }));
+  // Deduplicate by itemNum+variation (keep first occurrence)
+  const seen = new Set();
+  state.masterData = mapped.filter(m => {
+    const key = m.itemNum + '|' + m.variation;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 async function loadPersonalData() {
@@ -5578,7 +5586,14 @@ function renderWizardStep() {
   } else if (s.type === 'variation') {
     // Look up all variations for the entered item number
     const itemNum = wizard.data.itemNum || '';
-    const variations = state.masterData.filter(i => i.itemNum === itemNum && i.variation);
+    const _allVars = state.masterData.filter(i => i.itemNum === itemNum && i.variation);
+    // Deduplicate by variation number (safety net against doubled data)
+    const _seenVars = new Set();
+    const variations = _allVars.filter(v => {
+      if (_seenVars.has(v.variation)) return false;
+      _seenVars.add(v.variation);
+      return true;
+    });
     const val = wizard.data.variation || '';
     if (variations.length === 0) {
       // No variations in master - fall back to text input
