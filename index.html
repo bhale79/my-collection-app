@@ -5439,6 +5439,95 @@ function _cdToggleError(colId, val) {
 }
 
 // Purchase & Value helpers
+// ── Confirm screen inline edit helpers ──
+function _confirmEdit(key) {
+  var valEl = document.getElementById('confirm-val-' + key);
+  var btnEl = document.getElementById('confirm-edit-btn-' + key);
+  if (!valEl || !btnEl) return;
+  var curVal = String(wizard.data[key] || '');
+  var escaped = curVal.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+  // Yes/No fields
+  if (window._cfYesNo && window._cfYesNo.indexOf(key) >= 0) {
+    var opts = ['Yes','No'];
+    var h = '';
+    opts.forEach(function(o) {
+      var sel = curVal === o;
+      h += '<button onclick="_confirmPickOpt(\'' + key + '\',\'' + o + '\')" style="padding:0.25rem 0.6rem;border-radius:5px;cursor:pointer;font-size:0.8rem;font-family:var(--font-body);margin-right:0.3rem;border:1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)') + ';color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + '">' + o + '</button>';
+    });
+    valEl.innerHTML = h;
+    btnEl.style.display = 'none';
+    return;
+  }
+  // Yes/No/Unknown fields
+  if (window._cfYesNoUnk && window._cfYesNoUnk.indexOf(key) >= 0) {
+    var opts2 = ['Yes','No','Unknown'];
+    var h2 = '';
+    opts2.forEach(function(o) {
+      var sel2 = curVal === o;
+      h2 += '<button onclick="_confirmPickOpt(\'' + key + '\',\'' + o + '\')" style="padding:0.25rem 0.5rem;border-radius:5px;cursor:pointer;font-size:0.78rem;font-family:var(--font-body);margin-right:0.2rem;border:1.5px solid ' + (sel2 ? 'var(--accent)' : 'var(--border)') + ';background:' + (sel2 ? 'rgba(232,64,28,0.12)' : 'var(--bg)') + ';color:' + (sel2 ? 'var(--accent)' : 'var(--text-mid)') + '">' + o + '</button>';
+    });
+    valEl.innerHTML = h2;
+    btnEl.style.display = 'none';
+    return;
+  }
+  // Slider (condition fields)
+  if (window._cfSlider && window._cfSlider.indexOf(key) >= 0) {
+    valEl.innerHTML = '<div style="display:flex;align-items:center;gap:0.4rem;width:100%">'
+      + '<span id="confirm-slider-lbl-' + key + '" style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent2);min-width:1.5rem;text-align:center">' + curVal + '</span>'
+      + '<input type="range" min="1" max="10" value="' + curVal + '" style="flex:1;accent-color:var(--accent)" oninput="wizard.data[\'' + key + '\']=parseInt(this.value);document.getElementById(\'confirm-slider-lbl-' + key + '\').textContent=this.value">'
+      + '<button onclick="_confirmDoneEdit(\'' + key + '\')" style="padding:0.2rem 0.5rem;border-radius:5px;cursor:pointer;font-size:0.72rem;font-family:var(--font-body);border:1px solid var(--accent);background:rgba(232,64,28,0.12);color:var(--accent)">✓</button></div>';
+    btnEl.style.display = 'none';
+    return;
+  }
+  // Money fields
+  if (window._cfMoney && window._cfMoney.indexOf(key) >= 0) {
+    valEl.innerHTML = '<div style="display:flex;align-items:center;gap:0.3rem">'
+      + '<span style="color:var(--accent2)">$</span>'
+      + '<input id="confirm-input-' + key + '" type="number" value="' + (curVal || '') + '" min="0" step="0.01" style="flex:1;background:var(--bg);border:1px solid var(--accent);border-radius:5px;padding:0.3rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none" onkeydown="if(event.key===\'Enter\')_confirmDoneEdit(\'' + key + '\')">'
+      + '<button onclick="_confirmDoneEdit(\'' + key + '\')" style="padding:0.2rem 0.5rem;border-radius:5px;cursor:pointer;font-size:0.72rem;font-family:var(--font-body);border:1px solid var(--accent);background:rgba(232,64,28,0.12);color:var(--accent)">✓</button></div>';
+    btnEl.style.display = 'none';
+    setTimeout(function(){ var inp = document.getElementById('confirm-input-' + key); if(inp) inp.focus(); }, 50);
+    return;
+  }
+  // Date fields
+  if (window._cfDate && window._cfDate.indexOf(key) >= 0) {
+    valEl.innerHTML = '<div style="display:flex;align-items:center;gap:0.3rem">'
+      + '<input id="confirm-input-' + key + '" type="date" value="' + (curVal || '') + '" style="flex:1;background:var(--bg);border:1px solid var(--accent);border-radius:5px;padding:0.3rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none">'
+      + '<button onclick="_confirmDoneEdit(\'' + key + '\')" style="padding:0.2rem 0.5rem;border-radius:5px;cursor:pointer;font-size:0.72rem;font-family:var(--font-body);border:1px solid var(--accent);background:rgba(232,64,28,0.12);color:var(--accent)">✓</button></div>';
+    btnEl.style.display = 'none';
+    return;
+  }
+  // Default: text input
+  valEl.innerHTML = '<div style="display:flex;align-items:center;gap:0.3rem">'
+    + '<input id="confirm-input-' + key + '" type="text" value="' + escaped + '" style="flex:1;background:var(--bg);border:1px solid var(--accent);border-radius:5px;padding:0.3rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none" onkeydown="if(event.key===\'Enter\')_confirmDoneEdit(\'' + key + '\')">'
+    + '<button onclick="_confirmDoneEdit(\'' + key + '\')" style="padding:0.2rem 0.5rem;border-radius:5px;cursor:pointer;font-size:0.72rem;font-family:var(--font-body);border:1px solid var(--accent);background:rgba(232,64,28,0.12);color:var(--accent)">✓</button></div>';
+  btnEl.style.display = 'none';
+  setTimeout(function(){ var inp = document.getElementById('confirm-input-' + key); if(inp) inp.focus(); }, 50);
+}
+
+function _confirmPickOpt(key, val) {
+  wizard.data[key] = val;
+  var valEl = document.getElementById('confirm-val-' + key);
+  var btnEl = document.getElementById('confirm-edit-btn-' + key);
+  if (valEl) valEl.textContent = val;
+  if (btnEl) btnEl.style.display = '';
+}
+
+function _confirmDoneEdit(key) {
+  var valEl = document.getElementById('confirm-val-' + key);
+  var btnEl = document.getElementById('confirm-edit-btn-' + key);
+  var inp = document.getElementById('confirm-input-' + key);
+  if (inp) wizard.data[key] = inp.value;
+  var slider = valEl ? valEl.querySelector('input[type=range]') : null;
+  if (slider) wizard.data[key] = parseInt(slider.value);
+  var v = wizard.data[key] || '';
+  var isMoney = window._cfMoney && window._cfMoney.indexOf(key) >= 0;
+  var dispVal = isMoney && parseFloat(v) ? '$' + parseFloat(v).toLocaleString() : v;
+  if (valEl) valEl.textContent = dispVal;
+  if (btnEl) btnEl.style.display = '';
+}
+
 function _pvRefreshYear(yr) {
   wizard.data.yearMade = String(yr);
   document.querySelectorAll('.pv-yr-btn').forEach(function(btn) {
@@ -6841,7 +6930,6 @@ function renderWizardStep() {
   } else if (s.type === 'confirm') {
     const item = wizard.matchedItem;
     const _isEph = ['catalogs','paper','mockups','other',...(state.userDefinedTabs||[]).map(t=>t.id)].includes(wizard.tab);
-    // Human-readable key labels for confirm summary
     const _keyLabels = {
       itemCategory:'Category', cat_type:'Type', cat_year:'Year',
       hasIS:'Has Instruction Sheet', is_sheetNum:'Sheet #', is_condition:'Sheet Condition',
@@ -6857,35 +6945,68 @@ function renderWizardStep() {
       eph_material:'Material', eph_dimensions:'Dimensions',
       eph_lionelVerified:'Lionel Verified',
       location:'Storage Location',
+      isError:'Error Item', errorDesc:'Error Description',
+      tenderIsError:'Tender Error', tenderErrorDesc:'Tender Error Desc',
+      unit2IsError:'Unit 2 Error', unit2ErrorDesc:'Unit 2 Error Desc',
+      unit3IsError:'Unit 3 Error', unit3ErrorDesc:'Unit 3 Error Desc',
+      condition:'Condition', tenderCondition:'Tender Condition',
+      unit2Condition:'Unit 2 Condition', unit3Condition:'Unit 3 Condition',
+      allOriginal:'All Original', tenderAllOriginal:'Tender All Original',
+      unit2AllOriginal:'Unit 2 All Original', unit3AllOriginal:'Unit 3 All Original',
+      hasBox:'Has Box', tenderHasBox:'Tender Has Box',
+      unit2HasBox:'Unit 2 Has Box', unit3HasBox:'Unit 3 Has Box',
+      boxCond:'Box Condition', tenderBoxCond:'Tender Box Cond',
+      unit2BoxCond:'Unit 2 Box Cond', unit3BoxCond:'Unit 3 Box Cond',
+      pricePaid:'Price Paid', userEstWorth:'Est. Worth (insurance)',
+      datePurchased:'Date Purchased', yearMade:'Year Made',
+      variation:'Variation', itemNum:'Item Number',
+      entryMode:'Entry Mode', boxOnly:'Box Only',
+      priority:'Priority', expectedPrice:'Expected Price',
+      salePrice:'Sale Price', dateSold:'Date Sold',
     };
-    const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','wantErrorPhotos','photosMasterBox']);
-    const _summaryEntries = Object.entries(wizard.data).filter(([k,v]) =>
-      !_skipKeys.has(k) && v && v !== '' && !Array.isArray(v) && typeof v !== 'object'
-    );
-    body.innerHTML = `
-      <div style="padding-top:0.5rem">
-        ${!_isEph && item ? `
-          <div style="background:var(--surface2);border-radius:8px;padding:0.85rem;margin-bottom:1rem">
-            <div style="font-family:var(--font-mono);color:var(--accent2);font-size:0.8rem">No. ${item.itemNum}${item.variation ? ' — Var ' + item.variation : ''}</div>
-            <div style="font-weight:600;margin-top:0.2rem">${item.roadName || item.itemType || ''}</div>
-            <div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.1rem">${item.yearProd || ''} · ${item.itemType || ''}</div>
-          </div>` : !_isEph ? `
-          <div style="background:var(--surface2);border-radius:8px;padding:0.85rem;margin-bottom:1rem">
-            <div style="font-family:var(--font-mono);color:var(--accent2)">Item ${wizard.data.itemNum || '?'}${wizard.data.variation ? ' Var ' + wizard.data.variation : ''}</div>
-            <div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.2rem">Not found in master inventory — will save with entered data</div>
-          </div>` : ''}
-        <div style="display:flex;flex-direction:column;gap:0.35rem;font-size:0.83rem">
-          ${_summaryEntries.map(([k,v]) => {
-            const label = _keyLabels[k] || k.replace(/^(cat_|eph_)/,'').replace(/([A-Z])/g,' $1').replace(/_/g,' ').toLowerCase().replace(/^./,c=>c.toUpperCase());
-            const isVal = k.includes('Value') || k.includes('value') || k.includes('Price') || k.includes('price');
-            const dispVal = isVal && parseFloat(v) ? '$'+parseFloat(v).toLocaleString() : v;
-            return `<div style="display:flex;gap:0.5rem">
-              <span style="color:var(--text-dim);min-width:130px;flex-shrink:0">${label}</span>
-              <span>${dispVal}</span>
-            </div>`;
-          }).join('')}
-        </div>
-      </div>`;
+    const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','wantErrorPhotos','photosMasterBox','boxOnly','entryMode','_setId','_rawItemNum','matchedItem']);
+    const _summaryEntries = Object.entries(wizard.data).filter(function(e) {
+      return !_skipKeys.has(e[0]) && e[1] && e[1] !== '' && !e[0].startsWith('photos') && !Array.isArray(e[1]) && typeof e[1] !== 'object';
+    });
+
+    const _yesNoKeys = ['hasIS','hasMasterBox','hasBox','tenderHasBox','unit2HasBox','unit3HasBox','isError','tenderIsError','unit2IsError','unit3IsError','cat_hasMailer'];
+    const _yesNoUnkKeys = ['allOriginal','tenderAllOriginal','unit2AllOriginal','unit3AllOriginal'];
+    const _sliderKeys = ['condition','tenderCondition','unit2Condition','unit3Condition','boxCond','tenderBoxCond','unit2BoxCond','unit3BoxCond','is_condition','cat_condition','eph_condition','masterBoxCond'];
+    const _moneyKeys = ['pricePaid','userEstWorth','cat_estValue','eph_estValue','expectedPrice','salePrice'];
+    const _dateKeys = ['datePurchased','cat_dateAcquired','eph_dateAcquired','dateSold'];
+
+    // Store field type maps on window for edit functions
+    window._cfYesNo = _yesNoKeys;
+    window._cfYesNoUnk = _yesNoUnkKeys;
+    window._cfSlider = _sliderKeys;
+    window._cfMoney = _moneyKeys;
+    window._cfDate = _dateKeys;
+
+    let confirmHtml = '<div style="padding-top:0.5rem">';
+    if (!_isEph && item) {
+      confirmHtml += '<div style="background:var(--surface2);border-radius:8px;padding:0.85rem;margin-bottom:1rem">'
+        + '<div style="font-family:var(--font-mono);color:var(--accent2);font-size:0.8rem">No. ' + item.itemNum + (item.variation ? ' — Var ' + item.variation : '') + '</div>'
+        + '<div style="font-weight:600;margin-top:0.2rem">' + (item.roadName || item.itemType || '') + '</div>'
+        + '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.1rem">' + (item.yearProd || '') + ' · ' + (item.itemType || '') + '</div></div>';
+    } else if (!_isEph) {
+      confirmHtml += '<div style="background:var(--surface2);border-radius:8px;padding:0.85rem;margin-bottom:1rem">'
+        + '<div style="font-family:var(--font-mono);color:var(--accent2)">Item ' + (wizard.data.itemNum || '?') + (wizard.data.variation ? ' Var ' + wizard.data.variation : '') + '</div>'
+        + '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.2rem">Not found in master inventory — will save with entered data</div></div>';
+    }
+    confirmHtml += '<div style="display:flex;flex-direction:column;gap:0.3rem;font-size:0.83rem">';
+    _summaryEntries.forEach(function(entry) {
+      var k = entry[0], v = entry[1];
+      var label = _keyLabels[k] || k.replace(/^(cat_|eph_)/,'').replace(/([A-Z])/g,' $1').replace(/_/g,' ').toLowerCase().replace(/^./,function(c){return c.toUpperCase();});
+      var isMoney = _moneyKeys.indexOf(k) >= 0;
+      var dispVal = isMoney && parseFloat(v) ? '$' + parseFloat(v).toLocaleString() : v;
+      confirmHtml += '<div style="display:flex;align-items:center;gap:0.4rem;padding:0.3rem 0.5rem;border-radius:6px;background:var(--surface2)">'
+        + '<span style="color:var(--text-dim);min-width:120px;flex-shrink:0;font-size:0.78rem">' + label + '</span>'
+        + '<span id="confirm-val-' + k + '" style="flex:1;word-break:break-word">' + dispVal + '</span>'
+        + '<button onclick="_confirmEdit(\'' + k + '\')" id="confirm-edit-btn-' + k + '" title="Edit" style="flex-shrink:0;background:none;border:1px solid var(--border);border-radius:5px;padding:0.2rem 0.45rem;cursor:pointer;color:var(--text-dim);font-size:0.72rem;font-family:var(--font-body)">✏️</button>'
+        + '</div>';
+    });
+    confirmHtml += '</div></div>';
+    body.innerHTML = confirmHtml;
   }
 }
 
