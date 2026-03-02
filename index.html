@@ -3822,7 +3822,7 @@ function showCollectionDetail(idx) {
   box.innerHTML = '<div style="padding:1.25rem 1.5rem;border-bottom:2px solid var(--accent);display:flex;align-items:center;justify-content:space-between">'
     + '<div><div style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent);letter-spacing:0.04em">No. ' + it.itemNum + '</div>'
     + '<div style="font-size:0.82rem;color:var(--text-mid);margin-top:2px">' + (it.roadName || it.itemType || '') + '</div></div>'
-    + '<button onclick="this.closest('[style*=fixed]').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.2rem;cursor:pointer">✕</button>'
+    + '<button onclick="this.closest(&apos;[style*=fixed]&apos;).remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.2rem;cursor:pointer">✕</button>'
     + '</div>'
     + '<div style="padding:1rem 1.5rem">'
     + rows.map(r => '<div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid var(--border)">'
@@ -3831,7 +3831,7 @@ function showCollectionDetail(idx) {
       + '</div>').join('')
     + groupHtml
     + '<div style="margin-top:1rem;text-align:center">'
-    + '<button onclick="this.closest('[style*=fixed]').remove();browseRowClick(null,' + idx + ')" style="padding:0.5rem 1.2rem;border-radius:8px;border:1.5px solid #2980b9;background:rgba(41,128,185,0.1);color:#2980b9;font-family:var(--font-body);font-size:0.85rem;cursor:pointer;font-weight:600">Edit Item</button>'
+    + '<button onclick="this.closest(&apos;[style*=fixed]&apos;).remove();browseRowClick(null,' + idx + ')" style="padding:0.5rem 1.2rem;border-radius:8px;border:1.5px solid #2980b9;background:rgba(41,128,185,0.1);color:#2980b9;font-family:var(--font-body);font-size:0.85rem;cursor:pointer;font-weight:600">Edit Item</button>'
     + '</div>'
     + '</div>';
 
