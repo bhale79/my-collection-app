@@ -850,7 +850,6 @@
   <header class="header">
     <div class="header-logo">
       <div style="font-family:var(--font-head);font-size:1.4rem;font-weight:700;color:var(--cream);letter-spacing:0.06em;text-transform:uppercase;line-height:1">My <span style="color:var(--accent)">Collection</span> App</div>
-      <div style="font-size:0.72rem;letter-spacing:0.2em;color:var(--text-dim);margin-top:4px;text-transform:uppercase;font-family:var(--font-head);font-weight:400">Postwar Lionel &nbsp;·&nbsp; 1945–1969</div>
     </div>
 
     <div class="header-right">
@@ -866,10 +865,7 @@
 
     <!-- Sidebar -->
     <nav class="sidebar">
-      <div class="sidebar-logo-wrap">
-        <div style="font-family:var(--font-head);font-size:1.3rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--cream);line-height:1">My <span style="color:var(--accent)">Collection</span> App</div>
-        <div style="font-family:var(--font-head);font-size:0.72rem;font-weight:400;letter-spacing:0.22em;text-transform:uppercase;color:var(--text-dim);margin-top:5px">Postwar &nbsp;·&nbsp; 1945–1969</div>
-      </div>
+
       <div class="nav-section">
         <div class="nav-label">Overview</div>
         <button class="nav-item active" onclick="showPage('dashboard', this)">
@@ -5328,8 +5324,8 @@ function buildForSalePage() {
           </div>
         </div>
         <div style="display:flex;gap:0.4rem;margin-top:0.6rem">
-          <button onclick="markForSaleAsSold('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}','${fs.askingPrice||''}')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600">Mark Sold</button>
-          <button onclick="removeForSaleItem('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}',${fs.row})" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>
+          <button onclick="markForSaleAsSold('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}','${fs.askingPrice||''}')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600">Mark as Sold</button>
+          <button onclick="removeForSaleItem('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}',${fs.row})" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Back to Collection</button>
         </div>
       </div>`;
     }).join('') : '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🏷️</div><p>No items listed for sale</p></div>';
@@ -5349,8 +5345,8 @@ function buildForSalePage() {
         <td class="text-dim">${estWorth ? '$' + parseFloat(estWorth).toLocaleString() : '—'}</td>
         <td class="text-dim">${fs.dateListed || '—'}</td>
         <td style="white-space:nowrap">
-          <button onclick="markForSaleAsSold('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}','${fs.askingPrice||''}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);margin-right:0.3rem">Sold</button>
-          <button onclick="removeForSaleItem('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}',${fs.row})" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">✕</button>
+          <button onclick="markForSaleAsSold('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}','${fs.askingPrice||''}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);margin-right:0.3rem">Mark as Sold</button>
+          <button onclick="removeForSaleItem('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}',${fs.row})" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Back to Collection</button>
         </td>
       </tr>`;
     }).join('') : '<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🏷️</div><p>No items listed for sale</p></div></td></tr>';
