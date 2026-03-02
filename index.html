@@ -5184,7 +5184,7 @@ function getSteps(tab) {
       { id: 'photosError', title: 'Add close-up photos of the error',
         type: 'drivePhotos', label: 'Error', views: ERROR_VIEWS,
         photoBanner: { color: '#e74c3c', label: () => '\u{1F7E5} PHOTOS: Error Close-ups' },
-        skipIf: d => d.isError !== 'Yes' },
+        skipIf: d => d.isError !== 'Yes' && d.tenderIsError !== 'Yes' && d.unit2IsError !== 'Yes' && d.unit3IsError !== 'Yes' },
 
       // ── Together photo ──
       { id: 'photosTogether',
@@ -5423,14 +5423,15 @@ function _cdToggleIS(val) {
   });
 }
 
-function _cdToggleError(val) {
-  wizard.data.isError = val;
-  var reveal = document.getElementById('cd-error-reveal');
+function _cdToggleError(colId, val) {
+  var reveal = document.getElementById('cd-error-reveal-' + colId);
   if (reveal) reveal.style.display = (val === 'Yes') ? 'block' : 'none';
-  document.querySelectorAll('[onclick*="_cdToggleError"]').forEach(function(btn) {
-    var bVal = btn.textContent.trim();
-    var sel = bVal === val;
-    var isYes = bVal === 'Yes';
+  // Style the Yes and No buttons for THIS column only
+  ['Yes','No'].forEach(function(c) {
+    var btn = document.getElementById('cd-err-btn-' + colId + '-' + c);
+    if (!btn) return;
+    var sel = c === val;
+    var isYes = c === 'Yes';
     btn.style.border = '1.5px solid ' + (sel ? (isYes ? '#e74c3c' : 'var(--accent)') : 'var(--border)');
     btn.style.background = sel ? (isYes ? 'rgba(231,76,60,0.12)' : 'rgba(232,64,28,0.12)') : 'var(--bg)';
     btn.style.color = sel ? (isYes ? '#e74c3c' : 'var(--accent)') : 'var(--text-mid)';
@@ -6689,17 +6690,19 @@ function renderWizardStep() {
       
       // Error item toggle — shown on every item column
       {
-        const errVal = wizard.data.isError || '';
-        const errDescVal = wizard.data.errorDesc || '';
+        const errKey = p ? p + 'IsError' : 'isError';
+        const errDescKey = p ? p + 'ErrorDesc' : 'errorDesc';
+        const errVal = wizard.data[errKey] || '';
+        const errDescVal = wizard.data[errDescKey] || '';
         html += '<div style="margin-bottom:0.4rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Error Item?</div>';
         html += '<div style="display:flex;gap:0.3rem">';
         ['Yes','No'].forEach(function(c) {
           var sel = errVal === c;
-          html += '<button onclick="wizard.data.isError=\'' + c + '\';_cdToggleError(\'' + c + '\')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid ' + (sel ? (c==='Yes' ? '#e74c3c' : 'var(--accent)') : 'var(--border)') + ';background:' + (sel ? (c==='Yes' ? 'rgba(231,76,60,0.12)' : 'rgba(232,64,28,0.12)') : 'var(--bg)') + ';color:' + (sel ? (c==='Yes' ? '#e74c3c' : 'var(--accent)') : 'var(--text-mid)') + ';font-family:var(--font-body)">' + c + '</button>';
+          html += '<button id="cd-err-btn-' + col.id + '-' + c + '" onclick="wizard.data[\'' + errKey + '\']=\'' + c + '\';_cdToggleError(\'' + col.id + '\',\'' + c + '\')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid ' + (sel ? (c==='Yes' ? '#e74c3c' : 'var(--accent)') : 'var(--border)') + ';background:' + (sel ? (c==='Yes' ? 'rgba(231,76,60,0.12)' : 'rgba(232,64,28,0.12)') : 'var(--bg)') + ';color:' + (sel ? (c==='Yes' ? '#e74c3c' : 'var(--accent)') : 'var(--text-mid)') + ';font-family:var(--font-body)">' + c + '</button>';
         });
         html += '</div>';
-        html += '<div id="cd-error-reveal" style="margin-top:0.4rem;display:' + (errVal === 'Yes' ? 'block' : 'none') + '">';
-        html += '<textarea placeholder="Describe the error…" style="width:100%;min-height:45px;background:var(--bg);border:1px solid #e74c3c44;border-radius:6px;padding:0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.8rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data.errorDesc=this.value">' + errDescVal + '</textarea></div>';
+        html += '<div id="cd-error-reveal-' + col.id + '" style="margin-top:0.4rem;display:' + (errVal === 'Yes' ? 'block' : 'none') + '">';
+        html += '<textarea placeholder="Describe the error…" style="width:100%;min-height:45px;background:var(--bg);border:1px solid #e74c3c44;border-radius:6px;padding:0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.8rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data[\'' + errDescKey + '\']=this.value">' + errDescVal + '</textarea></div>';
         html += '</div>';
       }
       
@@ -8023,7 +8026,7 @@ async function saveWizardItem() {
       '',           // $0 worth — worth is on unit 1
       itemNum,      // matchedTo = suffixed A unit
       setId,
-      '', '', '', '',  // yearMade, isError, errorDesc, quickEntry
+      '', d.unit2IsError === 'Yes' ? 'Yes' : '', d.unit2IsError === 'Yes' ? (d.unit2ErrorDesc || '') : '', '',  // yearMade, isError, errorDesc, quickEntry
       nextInventoryId(),  // Inventory ID
       groupId,  // Group ID — shared across set
       d.location || '',  // Location (col W) — same as unit 1
@@ -8046,7 +8049,7 @@ async function saveWizardItem() {
         '',           // $0 worth — worth is on unit 1
         u2Num,        // matchedTo = B unit
         setId,
-        '', '', '', '',  // yearMade, isError, errorDesc, quickEntry
+        '', d.unit3IsError === 'Yes' ? 'Yes' : '', d.unit3IsError === 'Yes' ? (d.unit3ErrorDesc || '') : '', '',  // yearMade, isError, errorDesc, quickEntry
         nextInventoryId(),  // Inventory ID
         groupId,  // Group ID — shared across set
         d.location || '',  // Location (col W) — same as unit 1
@@ -8096,7 +8099,7 @@ async function saveWizardItem() {
       d.datePurchased || '',
       '',          // $0 worth — worth is on the engine row
       itemNum,     // matchedTo = engine number
-      '', '', '', '', '',  // setId, yearMade, isError, errorDesc, quickEntry
+      '', '', d.tenderIsError === 'Yes' ? 'Yes' : '', d.tenderIsError === 'Yes' ? (d.tenderErrorDesc || '') : '', '',  // setId, yearMade, isError, errorDesc, quickEntry
       nextInventoryId(),  // Inventory ID
       groupId,  // Group ID — shared with engine
       d.location || '',  // Location (col W) — same as engine
