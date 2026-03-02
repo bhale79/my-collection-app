@@ -2344,7 +2344,7 @@ async function driveMoveSheetToVault(sheetId) {
 }
 
 // ── SHEETS API ──────────────────────────────────────────────────
-// Quote sheet names that contain spaces for the Sheets API JSON body
+// Quote sheet names with spaces — ONLY for JSON body, NOT for URLs
 function _quoteRange(range) {
   if (!range.includes('!')) return range;
   const parts = range.split('!');
@@ -2357,15 +2357,27 @@ function _quoteRange(range) {
   return range;
 }
 
-// Encode range for URL path — encode spaces but preserve : ! ' which Sheets API needs
+// Encode range for URL path — just encode spaces, no quotes
 function _encodeRange(range) {
-  return range.replace(/ /g, '%20');
+  // Strip any existing quotes (in case _quoteRange was applied first)
+  let clean = range;
+  if (clean.includes('!')) {
+    const parts = clean.split('!');
+    let sheet = parts[0];
+    const rest = parts.slice(1).join('!');
+    // Remove wrapping single quotes
+    if (sheet.startsWith("'") && sheet.endsWith("'")) {
+      sheet = sheet.slice(1, -1).replace(/''/g, "'");
+    }
+    clean = sheet + '!' + rest;
+  }
+  return clean.replace(/ /g, '%20');
 }
 
 async function sheetsGet(spreadsheetId, range) {
   const isMaster = spreadsheetId === state.masterSheetId;
   const useApiKey = isMaster && API_KEY && API_KEY !== 'YOUR_API_KEY';
-  const urlRange = _encodeRange(_quoteRange(range));
+  const urlRange = _encodeRange(range);
   const url = useApiKey
     ? `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${urlRange}?key=${API_KEY}`
     : `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${urlRange}`;
@@ -2427,9 +2439,9 @@ async function _withTokenRetry(fetchFn) {
 }
 
 async function sheetsUpdate(spreadsheetId, range, values) {
-  range = _quoteRange(range);
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${_encodeRange(range)}?valueInputOption=USER_ENTERED`;
-  const body = JSON.stringify({ range, majorDimension: 'ROWS', values });
+  const bodyRange = _quoteRange(range);
+  const body = JSON.stringify({ range: bodyRange, majorDimension: 'ROWS', values });
   const res = await _withTokenRetry(() => fetch(url, {
     method: 'PUT',
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
@@ -2444,8 +2456,7 @@ async function sheetsUpdate(spreadsheetId, range, values) {
 }
 
 async function sheetsAppend(spreadsheetId, range, values) {
-  range = _quoteRange(range);
-  // Extract tab name from range (e.g. "'My Collection'!A:A" -> "'My Collection'")
+  // Extract raw tab name from range (e.g. "For Sale!A:A" -> "For Sale")
   const tabName = range.includes('!') ? range.split('!')[0] : range;
 
   // Helper: convert column number (1-based) to letter(s): 1=A, 26=Z, 27=AA
@@ -2464,7 +2475,8 @@ async function sheetsAppend(spreadsheetId, range, values) {
     const row = values[i];
     const endCol = colLetter(Math.max(row.length, 1));
     const writeRange = `${tabName}!A${nextRow + i}:${endCol}${nextRow + i}`;
-    const body = JSON.stringify({ range: writeRange, majorDimension: 'ROWS', values: [row] });
+    const bodyRange = _quoteRange(writeRange);
+    const body = JSON.stringify({ range: bodyRange, majorDimension: 'ROWS', values: [row] });
     const res = await _withTokenRetry(() => fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${_encodeRange(writeRange)}?valueInputOption=USER_ENTERED`,
       { method: 'PUT', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body }
