@@ -1158,23 +1158,38 @@ document.addEventListener('touchmove', function(){}, {passive: true});
         </div>
 
         <div style="margin-bottom:0.75rem">
-          <div style="display:flex;align-items:center;gap:0.4rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0.35rem 0.65rem;flex:1;max-width:320px">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            <input id="sold-search" type="text" placeholder="Search item #, road, type…" oninput="onPageSearch(this.value,'sold')" style="border:none;background:none;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;width:100%">
+          <div class="filter-bar" style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+            <select id="sold-filter-type" class="filter-select" onchange="state._soldFilterType=this.value;buildSoldPage()">
+              <option value="">All Types</option>
+            </select>
+            <select id="sold-sort-field" class="filter-select" onchange="state._soldSortField=this.value;buildSoldPage()">
+              <option value="dateSold">Date Sold</option>
+              <option value="itemNum">Item #</option>
+              <option value="salePrice">Sale Price</option>
+              <option value="condition">Condition</option>
+              <option value="type">Type</option>
+              <option value="roadName">Road / Name</option>
+            </select>
+            <button id="sold-sort-dir-btn" onclick="state._soldSortDir=state._soldSortDir==='asc'?'desc':'asc';buildSoldPage()" style="padding:0.35rem 0.6rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-size:0.82rem;font-family:var(--font-body)">↓ Newest</button>
+            <div style="display:flex;align-items:center;gap:0.4rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0.35rem 0.65rem;flex:1;max-width:320px">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              <input id="sold-search" type="text" placeholder="Search item #, road, type…" oninput="onPageSearch(this.value,'sold')" style="border:none;background:none;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;width:100%">
+            </div>
+            <span id="sold-result-count" style="margin-left:auto;font-size:0.8rem;color:var(--text-dim)"></span>
           </div>
         </div>
         <div id="sold-cards" style="display:none;flex-direction:column;gap:0.6rem"></div>
-        <div class="table-wrap" id="sold-table-wrap">
+        <div class="table-wrap" id="sold-table-wrap" style="max-height:calc(100vh - 320px);overflow-y:auto">
           <table class="item-table">
-            <thead>
+            <thead style="position:sticky;top:0;z-index:2;background:var(--surface)">
               <tr>
-                <th>Item #</th>
-                <th>Type</th>
-                <th>Road / Name</th>
+                <th style="cursor:pointer" onclick="soldSortBy('itemNum')">Item # <span id="sold-sort-i-itemNum"></span></th>
+                <th style="cursor:pointer" onclick="soldSortBy('type')">Type <span id="sold-sort-i-type"></span></th>
+                <th style="cursor:pointer" onclick="soldSortBy('roadName')">Road / Name <span id="sold-sort-i-roadName"></span></th>
                 <th>Variation</th>
-                <th>Condition</th>
-                <th>Sale Price</th>
-                <th>Date Sold</th>
+                <th style="cursor:pointer" onclick="soldSortBy('condition')">Condition <span id="sold-sort-i-condition"></span></th>
+                <th style="cursor:pointer" onclick="soldSortBy('salePrice')">Sale Price <span id="sold-sort-i-salePrice"></span></th>
+                <th style="cursor:pointer" onclick="soldSortBy('dateSold')">Date Sold <span id="sold-sort-i-dateSold"></span></th>
               </tr>
             </thead>
             <tbody id="sold-tbody"></tbody>
@@ -5998,24 +6013,108 @@ function toggleSoldSummary() {
   try { localStorage.setItem('soldSummaryHidden', hidden ? '0' : '1'); } catch(e) {}
 }
 
-function buildSoldPage() {
-  const _sq = (state._soldSearch || '').toLowerCase();
-  const soldEntries = Object.values(state.soldData).filter(sd => {
-    if (!_sq) return true;
-    const master = state.masterData.find(i => i.itemNum === sd.itemNum && i.variation === sd.variation) || {};
-    return (sd.itemNum||'').toLowerCase().includes(_sq)
-      || (master.roadName||'').toLowerCase().includes(_sq)
-      || (master.itemType||'').toLowerCase().includes(_sq)
-      || (sd.variation||'').toLowerCase().includes(_sq);
-  });
-  const tbody = document.getElementById('sold-tbody');
+function soldSortBy(field) {
+  if (state._soldSortField === field) {
+    state._soldSortDir = state._soldSortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    state._soldSortField = field;
+    state._soldSortDir = field === 'salePrice' || field === 'dateSold' || field === 'condition' ? 'desc' : 'asc';
+  }
+  // Sync the dropdown
+  var sel = document.getElementById('sold-sort-field');
+  if (sel) sel.value = field;
+  buildSoldPage();
+}
 
-  // Populate summary stats
+function buildSoldPage() {
+  // Initialize sort/filter state if needed
+  if (!state._soldSortField) state._soldSortField = 'dateSold';
+  if (!state._soldSortDir) state._soldSortDir = 'desc';
+  if (!state._soldFilterType) state._soldFilterType = '';
+
+  const _sq = (state._soldSearch || '').toLowerCase();
+  const _typeFilter = (state._soldFilterType || '').toLowerCase();
+
+  // Enrich with master data
+  let soldEntries = Object.values(state.soldData).map(sd => {
+    const master = state.masterData.find(i => i.itemNum === sd.itemNum && i.variation === sd.variation) || {};
+    return { ...sd, _type: master.itemType || '', _roadName: master.roadName || '', _master: master };
+  });
+
+  // Populate type filter dropdown (before filtering)
+  const allTypes = [...new Set(soldEntries.map(e => e._type).filter(Boolean))].sort();
+  const typeSel = document.getElementById('sold-filter-type');
+  if (typeSel) {
+    const curVal = state._soldFilterType || '';
+    typeSel.innerHTML = '<option value="">All Types</option>' + allTypes.map(t =>
+      '<option value="' + t + '"' + (t === curVal ? ' selected' : '') + '>' + t + '</option>'
+    ).join('');
+  }
+
+  // Apply type filter
+  if (_typeFilter) {
+    soldEntries = soldEntries.filter(e => (e._type || '').toLowerCase() === _typeFilter);
+  }
+
+  // Apply search filter
+  if (_sq) {
+    soldEntries = soldEntries.filter(e =>
+      (e.itemNum||'').toLowerCase().includes(_sq)
+      || (e._roadName||'').toLowerCase().includes(_sq)
+      || (e._type||'').toLowerCase().includes(_sq)
+      || (e.variation||'').toLowerCase().includes(_sq)
+      || (e.notes||'').toLowerCase().includes(_sq)
+    );
+  }
+
+  // Sort
+  const sf = state._soldSortField;
+  const dir = state._soldSortDir === 'asc' ? 1 : -1;
+  soldEntries.sort(function(a, b) {
+    let va, vb;
+    if (sf === 'salePrice') {
+      va = parseFloat(a.salePrice) || 0; vb = parseFloat(b.salePrice) || 0;
+    } else if (sf === 'condition') {
+      va = parseFloat(a.condition) || 0; vb = parseFloat(b.condition) || 0;
+    } else if (sf === 'dateSold') {
+      va = a.dateSold || ''; vb = b.dateSold || '';
+    } else if (sf === 'type') {
+      va = (a._type || '').toLowerCase(); vb = (b._type || '').toLowerCase();
+    } else if (sf === 'roadName') {
+      va = (a._roadName || '').toLowerCase(); vb = (b._roadName || '').toLowerCase();
+    } else {
+      va = (a.itemNum || '').toLowerCase(); vb = (b.itemNum || '').toLowerCase();
+    }
+    return va < vb ? -dir : va > vb ? dir : 0;
+  });
+
+  // Update sort direction button label
+  const dirBtn = document.getElementById('sold-sort-dir-btn');
+  if (dirBtn) {
+    const labels = { dateSold:'Date', itemNum:'Item #', salePrice:'Price', condition:'Cond', type:'Type', roadName:'Name' };
+    dirBtn.textContent = (state._soldSortDir === 'asc' ? '↑ ' : '↓ ') + (labels[sf] || sf);
+  }
+
+  // Update column header sort indicators
+  ['itemNum','type','roadName','condition','salePrice','dateSold'].forEach(function(col) {
+    var el = document.getElementById('sold-sort-i-' + col);
+    if (el) el.textContent = sf === col ? (state._soldSortDir === 'asc' ? '▲' : '▼') : '';
+  });
+
+  // Sync dropdown
+  var sortSel = document.getElementById('sold-sort-field');
+  if (sortSel) sortSel.value = sf;
+
+  // Summary stats
   const totalRevenue = soldEntries.reduce((sum, sd) => sum + (parseFloat(sd.salePrice) || 0), 0);
   const countEl = document.getElementById('sold-stat-count');
   const totalEl = document.getElementById('sold-stat-total');
   if (countEl) countEl.textContent = soldEntries.length.toLocaleString();
   if (totalEl) totalEl.textContent = totalRevenue > 0 ? '$' + Math.round(totalRevenue).toLocaleString() : '$0';
+
+  // Result count
+  const rcEl = document.getElementById('sold-result-count');
+  if (rcEl) rcEl.textContent = soldEntries.length + ' item' + (soldEntries.length !== 1 ? 's' : '');
 
   // Restore hidden state from localStorage
   try {
@@ -6030,19 +6129,19 @@ function buildSoldPage() {
   const isMobileSold = window.innerWidth <= 640;
   const soldCardsEl = document.getElementById('sold-cards');
   const soldTableWrap = document.getElementById('sold-table-wrap');
+  const tbody = document.getElementById('sold-tbody');
 
   if (isMobileSold) {
     if (soldCardsEl) soldCardsEl.style.display = 'flex';
     if (soldTableWrap) soldTableWrap.style.display = 'none';
     if (soldCardsEl) soldCardsEl.innerHTML = soldEntries.length ? soldEntries.map(sd => {
-      const master = state.masterData.find(i => i.itemNum === sd.itemNum && i.variation === sd.variation) || {};
       return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div>
             <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${sd.itemNum}</span>
             ${sd.variation ? `<span style="font-size:0.72rem;color:var(--text-dim);margin-left:0.4rem">${sd.variation}</span>` : ''}
-            ${master.roadName ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">${master.roadName}</div>` : ''}
-            <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${[master.itemType, sd.condition ? 'Cond: '+sd.condition : '', sd.dateSold].filter(Boolean).join(' · ')}</div>
+            ${sd._roadName ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">${sd._roadName}</div>` : ''}
+            <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${[sd._type, sd.condition ? 'Cond: '+sd.condition : '', sd.dateSold].filter(Boolean).join(' · ')}</div>
           </div>
           <div style="text-align:right;flex-shrink:0">
             ${sd.salePrice ? `<div style="font-family:var(--font-mono);color:#2ecc71;font-size:1.1rem;font-weight:600">$${parseFloat(sd.salePrice).toLocaleString()}</div>` : '<div style="color:var(--text-dim);font-size:0.8rem">No price</div>'}
@@ -6054,11 +6153,10 @@ function buildSoldPage() {
     if (soldCardsEl) soldCardsEl.style.display = 'none';
     if (soldTableWrap) soldTableWrap.style.display = '';
     tbody.innerHTML = soldEntries.length ? soldEntries.map(sd => {
-      const master = state.masterData.find(i => i.itemNum === sd.itemNum && i.variation === sd.variation) || {};
       return `<tr>
         <td><span class="item-num">${sd.itemNum}</span></td>
-        <td><span class="tag">${master.itemType || '—'}</span></td>
-        <td>${master.roadName || '—'}</td>
+        <td><span class="tag">${sd._type || '—'}</span></td>
+        <td>${sd._roadName || '—'}</td>
         <td>${sd.variation || '—'}</td>
         <td>${sd.condition || '—'}</td>
         <td class="market-val">${sd.salePrice ? '$' + parseFloat(sd.salePrice).toLocaleString() : '—'}</td>
@@ -6067,7 +6165,7 @@ function buildSoldPage() {
     }).join('') : '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">💰</div><p>No sold items yet</p></div></td></tr>';
   }
 
-  document.getElementById('nav-sold').textContent = soldEntries.length;
+  document.getElementById('nav-sold').textContent = Object.keys(state.soldData).length;
 }
 
 function clearPageSearch(name) {
