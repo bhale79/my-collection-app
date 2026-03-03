@@ -6429,11 +6429,12 @@ function getSteps(tab) {
         skipIf: (d) => !d._partialMatches || d._partialMatches.length === 0 },
 
       // ── SCREEN 2: Variation (auto-skip for no/single variations) ──
-      { id: 'variation',  title: 'Which variation is it?', type: 'variation', optional: true },
+      { id: 'variation',  title: 'Which variation is it?', type: 'variation', optional: true,
+        skipIf: (d) => d._completingQuickEntry },
 
       // ── Entry Mode (Full/Quick) ──
       { id: 'entryMode', title: (d) => 'How would you like to add this ' + getItemLabel(d) + '?',
-        type: 'entryMode' },
+        type: 'entryMode', skipIf: (d) => d._completingQuickEntry },
 
       // ── SCREEN 3: Condition & Details (multi-column) ──
       { id: 'conditionDetails', title: 'Condition & Details', type: 'conditionDetails' },
@@ -6596,25 +6597,34 @@ function closeWizard() {
 }
 
 function completeQuickEntry(itemNum, variation, globalIdx) {
-  // Set up wizard state directly — no openWizard() which resets and renders step 1
   var _activePg = document.querySelector('.page.active');
   var _returnPage = _activePg ? _activePg.id.replace('page-', '') : 'browse';
 
   // Pre-fill from existing personal data so nothing gets blanked on save
   var pdKey = findPDKey(itemNum, variation);
   var pd = pdKey ? state.personalData[pdKey] : null;
-  var master = state.masterData.find(function(m) { return m.itemNum === itemNum && (!variation || m.variation === variation); });
+
+  // Strip powered/dummy suffix to get base item number for master lookup and wizard
+  var baseItemNum = itemNum.replace(/-(P|D|T)$/i, '');
+  var master = state.masterData.find(function(m) { return m.itemNum === baseItemNum && (!variation || m.variation === variation); })
+            || state.masterData.find(function(m) { return m.itemNum === baseItemNum; });
+
+  // Detect power suffix so the save re-applies it correctly
+  var _unitPower = '';
+  if (itemNum.endsWith('-P')) _unitPower = 'Powered';
+  else if (itemNum.endsWith('-D') || itemNum.endsWith('-T')) _unitPower = 'Dummy';
 
   var data = {
     tab: 'collection',
     _returnPage: _returnPage,
-    _rawItemNum: itemNum,
-    itemNum: itemNum,
+    _rawItemNum: baseItemNum,
+    itemNum: baseItemNum,
     itemCategory: 'lionel',
     entryMode: 'full',
-    _itemGrouping: 'single',
     _fillItemMode: true,
+    _completingQuickEntry: true,
   };
+  if (_unitPower) data.unitPower = _unitPower;
   if (variation) data.variation = variation;
   if (master) data.matchedItem = master;
 
@@ -6638,13 +6648,16 @@ function completeQuickEntry(itemNum, variation, globalIdx) {
     if (pd.errorDesc) data.errorDesc = pd.errorDesc;
     if (pd.photoItem) data.photosItem = { existing: pd.photoItem };
     if (pd.photoBox) data.photosBox = { existing: pd.photoBox };
+    // Preserve group info so save doesn't overwrite with new IDs
+    if (pd.groupId) data._existingGroupId = pd.groupId;
+    if (pd.inventoryId) data._existingInventoryId = pd.inventoryId;
   }
 
   wizard = { step: 0, tab: 'collection', data: data, steps: getSteps('collection'), matchedItem: master || null };
 
-  // Jump to conditionDetails step
-  var condIdx = wizard.steps.findIndex(function(s) { return s.id === 'conditionDetails'; });
-  if (condIdx >= 0) wizard.step = condIdx;
+  // Land on itemNumGrouping — item number pre-filled, user goes through full flow
+  var groupIdx = wizard.steps.findIndex(function(s) { return s.id === 'itemNumGrouping'; });
+  if (groupIdx >= 0) wizard.step = groupIdx;
 
   // Now open the modal and render once at the correct step
   document.getElementById('wizard-modal').classList.add('open');
@@ -9748,7 +9761,7 @@ async function saveWizardItem() {
   const _isPairedCheck = d.tenderMatch && d.tenderMatch !== 'none';
   const _isSetCheck = d.setMatch === 'set-now';
   const _hasAnyBox = d.hasBox === 'Yes' || _isPairedCheck || _isSetCheck;
-  let groupId = _hasAnyBox ? ('GRP-' + _rawItemNum + '-' + Date.now()) : '';
+  let groupId = d._existingGroupId || (_hasAnyBox ? ('GRP-' + _rawItemNum + '-' + Date.now()) : '');
 
   // Hoisted to function scope — used by both collection save and group box save blocks
   let row;
@@ -9868,7 +9881,7 @@ async function saveWizardItem() {
         d.isError === 'Yes' ? 'Yes' : 'No',  // Is Error (col R)
         d.isError === 'Yes' ? (d.errorDesc || '') : '',  // Error Description (col S)
         '',  // Quick Entry (col T) — blank = normal full entry
-        nextInventoryId(),  // Inventory ID (col U)
+        d._existingInventoryId || nextInventoryId(),  // Inventory ID (col U)
         '',  // Group ID (col V) — filled in below for grouped items
         d.location || '',  // Location (col W)
         ];
