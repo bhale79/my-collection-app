@@ -2682,14 +2682,23 @@ async function sheetsGet(spreadsheetId, range) {
   const headers = useApiKey
     ? {}
     : { Authorization: `Bearer ${accessToken}` };
-  const res = await fetch(url, { headers });
-  if (!res.ok) {
-    const errText = await res.text().catch(() => '');
-    const errMsg = 'sheetsGet ' + range + ' HTTP ' + res.status + ': ' + errText.substring(0, 200);
-    _authStatus('❌ ' + errMsg);
-    throw new Error(errMsg);
+  // Retry with backoff for 429 rate limit errors
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const res = await fetch(url, { headers });
+    if (res.status === 429 && attempt < 2) {
+      const wait = (attempt + 1) * 2000; // 2s, 4s
+      _authStatus('⏳ Rate limited on ' + range + ', retrying in ' + (wait/1000) + 's...');
+      await new Promise(r => setTimeout(r, wait));
+      continue;
+    }
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      const errMsg = 'sheetsGet ' + range + ' HTTP ' + res.status + ': ' + errText.substring(0, 200);
+      _authStatus('❌ ' + errMsg);
+      throw new Error(errMsg);
+    }
+    return res.json();
   }
-  return res.json();
 }
 
 // ── Token refresh helper — silently refreshes expired token then retries ──
@@ -2912,18 +2921,20 @@ async function loadMasterData() {
   if (cached && cacheAge < CACHE_TTL) {
     try {
       state.masterData = JSON.parse(cached);
-      // Refresh in background without blocking
-      sheetsGet(state.masterSheetId, 'Master Inventory!A2:P').then(res => {
-        if (!res.values) return sheetsGet(state.masterSheetId, 'Sheet1!A2:P');
-        return res;
-      }).then(res => {
-        if (res && res.values) {
-          parseMasterRows(res.values);
-          localStorage.setItem('lv_master_cache', JSON.stringify(state.masterData));
-          localStorage.setItem('lv_master_cache_ts', Date.now().toString());
-          if (typeof renderBrowse === 'function') renderBrowse();
-        }
-      }).catch(() => {});
+      // Refresh in background after delay to avoid rate limiting
+      setTimeout(() => {
+        sheetsGet(state.masterSheetId, 'Master Inventory!A2:P').then(res => {
+          if (!res.values) return sheetsGet(state.masterSheetId, 'Sheet1!A2:P');
+          return res;
+        }).then(res => {
+          if (res && res.values) {
+            parseMasterRows(res.values);
+            localStorage.setItem('lv_master_cache', JSON.stringify(state.masterData));
+            localStorage.setItem('lv_master_cache_ts', Date.now().toString());
+            if (typeof renderBrowse === 'function') renderBrowse();
+          }
+        }).catch(() => {});
+      }, 8000);
       return;
     } catch(e) {}
   }
@@ -2978,32 +2989,36 @@ async function loadPersonalData() {
   }
 
   // Quick verification: check if the sheet actually exists (prevents loading from stale/wrong IDs)
-  try {
-    const checkRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + '?fields=spreadsheetId', {
-      headers: { Authorization: 'Bearer ' + accessToken }
-    });
-    if (checkRes.status === 404 || checkRes.status === 403) {
-      _authStatus('⚠️ Personal sheet ' + state.personalSheetId.substring(0,10) + '... returned ' + checkRes.status + '. Searching Drive for real sheet...');
-      // Clear stale ID
-      localStorage.removeItem('lv_personal_id');
-      localStorage.removeItem('lv_personal_cache');
-      localStorage.removeItem('lv_personal_cache_ts');
-      state.personalSheetId = null;
-      // Search Drive for existing sheet by name
-      const foundId = await _findPersonalSheetByName();
-      if (foundId) {
-        _authStatus('✅ Found real personal sheet: ' + foundId.substring(0,10) + '...');
-        state.personalSheetId = foundId;
-        localStorage.setItem('lv_personal_id', foundId);
-        // Update Drive config for future loads
-        driveWriteConfig({ personalSheetId: foundId }).catch(() => {});
-      } else {
-        _authStatus('→ No existing sheet found. Creating new one...');
-        await createPersonalSheet();
+  // Skip if we have valid cached data — no need for extra API call
+  const _pcache = localStorage.getItem('lv_personal_cache');
+  const _ptime  = parseInt(localStorage.getItem('lv_personal_cache_ts') || '0');
+  const _PAGE_TTL = 15 * 60 * 1000;
+  const _hasFreshCache = _pcache && (Date.now() - _ptime) < _PAGE_TTL;
+  if (!_hasFreshCache) {
+    try {
+      const checkRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + '?fields=spreadsheetId', {
+        headers: { Authorization: 'Bearer ' + accessToken }
+      });
+      if (checkRes.status === 404 || checkRes.status === 403) {
+        _authStatus('⚠️ Personal sheet ' + state.personalSheetId.substring(0,10) + '... returned ' + checkRes.status + '. Searching Drive for real sheet...');
+        localStorage.removeItem('lv_personal_id');
+        localStorage.removeItem('lv_personal_cache');
+        localStorage.removeItem('lv_personal_cache_ts');
+        state.personalSheetId = null;
+        const foundId = await _findPersonalSheetByName();
+        if (foundId) {
+          _authStatus('✅ Found real personal sheet: ' + foundId.substring(0,10) + '...');
+          state.personalSheetId = foundId;
+          localStorage.setItem('lv_personal_id', foundId);
+          driveWriteConfig({ personalSheetId: foundId }).catch(() => {});
+        } else {
+          _authStatus('→ No existing sheet found. Creating new one...');
+          await createPersonalSheet();
+        }
       }
+    } catch(e) {
+      _authStatus('Sheet verification error: ' + e.message);
     }
-  } catch(e) {
-    _authStatus('Sheet verification error: ' + e.message);
   }
 
   if (!state.personalSheetId) {
@@ -3012,10 +3027,7 @@ async function loadPersonalData() {
   }
 
   // Use cached personal data for instant load (15 min TTL)
-  const _pcache = localStorage.getItem('lv_personal_cache');
-  const _ptime  = parseInt(localStorage.getItem('lv_personal_cache_ts') || '0');
-  const _PAGE_TTL = 15 * 60 * 1000;
-  if (_pcache && (Date.now() - _ptime) < _PAGE_TTL) {
+  if (_hasFreshCache) {
     try {
       const _pd = JSON.parse(_pcache);
       state.personalData  = _pd.personalData  || {};
@@ -3024,12 +3036,14 @@ async function loadPersonalData() {
       state.wantData      = _pd.wantData      || {};
       state.isData        = _pd.isData        || {};
       state.ephemeraData  = _pd.ephemeraData  || { catalogs:{}, paper:{}, mockups:{}, other:{} };
-      // Refresh in background
-      _loadPersonalFromSheets(state.personalSheetId).then(() => {
-        _cachePersonalData();
-        buildDashboard();
-        renderBrowse();
-      }).catch(() => {});
+      // Refresh in background after a delay to avoid rate limiting
+      setTimeout(() => {
+        _loadPersonalFromSheets(state.personalSheetId).then(() => {
+          _cachePersonalData();
+          buildDashboard();
+          renderBrowse();
+        }).catch(() => {});
+      }, 5000);
       return;
     } catch(e) {}
   }
@@ -3065,23 +3079,47 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   const newEphemera = { catalogs:{}, paper:{}, mockups:{}, other:{} };
   const newForSale = {};
 
-  // Fetch all tabs in parallel — with debug logging
-  const _dbgFetch = (range) => sheetsGet(sheetId, range).catch(e => {
-    _authStatus('⚠️ Fetch ' + range + ' FAILED: ' + e.message);
-    return {values:[]};
-  });
-  const [collRes, soldRes, forSaleRes, wantRes,
-         catRes, paperRes, mockRes, otherRes, isRes] = await Promise.all([
-    _dbgFetch('My Collection!A3:W'),
-    _dbgFetch('Sold!A3:H'),
-    _dbgFetch('For Sale!A3:H'),
-    _dbgFetch('Want List!A3:E'),
-    _dbgFetch('Catalogs!A3:I'),
-    _dbgFetch('Paper Items!A3:J'),
-    _dbgFetch('Mock-Ups!A3:O'),
-    _dbgFetch('Other Lionel!A3:J'),
-    _dbgFetch('Instruction Sheets!A3:H'),
-  ]);
+  // Fetch all tabs in a SINGLE batchGet request (1 API call instead of 9)
+  const ranges = [
+    'My Collection!A3:W', 'Sold!A3:H', 'For Sale!A3:H', 'Want List!A3:E',
+    'Catalogs!A3:I', 'Paper Items!A3:J', 'Mock-Ups!A3:O', 'Other Lionel!A3:J',
+    'Instruction Sheets!A3:H'
+  ];
+  const rangeParams = ranges.map(r => 'ranges=' + _encodeRange(r)).join('&');
+  let batchResults;
+  try {
+    const batchUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values:batchGet?${rangeParams}`;
+    const batchRes = await fetch(batchUrl, { headers: { Authorization: 'Bearer ' + accessToken } });
+    if (!batchRes.ok) {
+      const errText = await batchRes.text().catch(() => '');
+      _authStatus('❌ batchGet HTTP ' + batchRes.status + ': ' + errText.substring(0, 200));
+      throw new Error('batchGet failed: HTTP ' + batchRes.status);
+    }
+    const batchData = await batchRes.json();
+    batchResults = batchData.valueRanges || [];
+  } catch(e) {
+    _authStatus('⚠️ batchGet failed: ' + e.message + '. Falling back to individual fetches...');
+    // Fallback: fetch individually with small delays
+    batchResults = [];
+    for (const range of ranges) {
+      try {
+        const r = await sheetsGet(sheetId, range);
+        batchResults.push(r);
+      } catch(e2) {
+        _authStatus('⚠️ Fetch ' + range + ' FAILED: ' + e2.message);
+        batchResults.push({values:[]});
+      }
+    }
+  }
+  const collRes    = batchResults[0] || {values:[]};
+  const soldRes    = batchResults[1] || {values:[]};
+  const forSaleRes = batchResults[2] || {values:[]};
+  const wantRes    = batchResults[3] || {values:[]};
+  const catRes     = batchResults[4] || {values:[]};
+  const paperRes   = batchResults[5] || {values:[]};
+  const mockRes    = batchResults[6] || {values:[]};
+  const otherRes   = batchResults[7] || {values:[]};
+  const isRes      = batchResults[8] || {values:[]};
   _authStatus('Collection rows: ' + (collRes.values||[]).length + ' | Want: ' + (wantRes.values||[]).length + ' | Sold: ' + (soldRes.values||[]).length);
 
   // My Collection
