@@ -1737,12 +1737,176 @@ let state = {
 // ── GOOGLE IDENTITY / AUTH ──────────────────────────────────────
 let tokenClient;
 
-function initGoogle() {
-  tokenClient = google.accounts.oauth2.initTokenClient({
+// Detect PWA standalone mode (home screen icon) — popups are blocked here
+function _isStandalone() {
+  return window.navigator.standalone === true
+    || window.matchMedia('(display-mode: standalone)').matches;
+}
+
+// Build OAuth redirect URL for standalone/PWA mode
+function _oauthRedirectUrl(prompt) {
+  const redirectUri = window.location.origin + window.location.pathname;
+  const params = new URLSearchParams({
     client_id: CLIENT_ID,
+    redirect_uri: redirectUri,
+    response_type: 'token',
     scope: SCOPES,
-    callback: onTokenReceived,
+    prompt: prompt || 'consent',
+    include_granted_scopes: 'true',
   });
+  // Add login_hint if we know the user's email
+  const savedUser = localStorage.getItem('lv_user');
+  if (savedUser) {
+    try {
+      const u = JSON.parse(savedUser);
+      if (u.email) params.set('login_hint', u.email);
+    } catch(e) {}
+  }
+  return 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
+}
+
+// Check URL hash for OAuth redirect token on page load
+function _checkOAuthRedirect() {
+  const hash = window.location.hash;
+  if (!hash || !hash.includes('access_token=')) return false;
+  // Parse token from hash fragment
+  const params = new URLSearchParams(hash.substring(1));
+  const token = params.get('access_token');
+  if (!token) return false;
+  // Clear the hash so it doesn't linger in the URL
+  history.replaceState(null, '', window.location.pathname + window.location.search);
+  // Process the token the same way as popup flow
+  accessToken = token;
+  _tokenIsInitial = false;
+  // Set up master sheet
+  state.masterSheetId = '1Y9-cg8C1CkIqy0RQ66DfP7fmGrE3IGBpyJbtdfYx8q0';
+  localStorage.setItem('lv_master_id', state.masterSheetId);
+  // Fetch user info
+  fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+    headers: { Authorization: 'Bearer ' + accessToken }
+  })
+  .then(r => r.json())
+  .then(info => {
+    state.user = { name: info.given_name || info.name || 'User', email: info.email };
+    localStorage.setItem('lv_user', JSON.stringify(state.user));
+    showApp();
+    updateUserUI();
+    // Load data via the same path as onTokenReceived
+    _finishTokenSetup();
+  })
+  .catch(e => {
+    console.error('User info fetch failed:', e);
+    // Try with saved user
+    const savedUser = localStorage.getItem('lv_user');
+    if (savedUser) {
+      state.user = JSON.parse(savedUser);
+      showApp();
+      updateUserUI();
+      _finishTokenSetup();
+    }
+  });
+  // Schedule token refresh
+  _scheduleTokenRefresh();
+  return true;
+}
+
+// Shared logic: after receiving a token, load data from sheets/drive
+function _finishTokenSetup() {
+  driveReadConfig().then(config => {
+    if (config && config.personalSheetId) {
+      state.personalSheetId = config.personalSheetId;
+      localStorage.setItem('lv_personal_id', config.personalSheetId);
+      if (config.vaultId)      { driveCache.vaultId = config.vaultId;           localStorage.setItem('lv_vault_id', config.vaultId); }
+      if (config.photosId)     { driveCache.photosId = config.photosId;         localStorage.setItem('lv_photos_id', config.photosId); }
+      if (config.soldPhotosId) { driveCache.soldPhotosId = config.soldPhotosId; localStorage.setItem('lv_sold_photos_id', config.soldPhotosId); }
+      loadAllData();
+    } else {
+      state.personalSheetId = localStorage.getItem('lv_personal_id');
+      if (!state.personalSheetId) {
+        createPersonalSheet().then(loadAllData);
+      } else {
+        driveEnsureSetup().catch(e => console.warn('Drive setup:', e));
+        loadAllData();
+      }
+    }
+  }).catch(() => {
+    state.personalSheetId = localStorage.getItem('lv_personal_id');
+    if (!state.personalSheetId) {
+      createPersonalSheet().then(loadAllData);
+    } else {
+      loadAllData();
+    }
+  });
+}
+
+// Schedule silent token refresh 55 min from now
+function _scheduleTokenRefresh() {
+  setTimeout(() => {
+    if (!accessToken) return;
+    if (_isStandalone()) {
+      // In standalone mode, try a hidden iframe for silent refresh
+      _silentIframeRefresh();
+    } else if (tokenClient) {
+      const hint = state.user?.email || '';
+      tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
+    }
+  }, 55 * 60 * 1000);
+}
+
+// Silent token refresh via hidden iframe (for standalone PWA mode)
+function _silentIframeRefresh() {
+  const redirectUri = window.location.origin + window.location.pathname;
+  const params = new URLSearchParams({
+    client_id: CLIENT_ID,
+    redirect_uri: redirectUri,
+    response_type: 'token',
+    scope: SCOPES,
+    prompt: 'none',
+    include_granted_scopes: 'true',
+  });
+  if (state.user?.email) params.set('login_hint', state.user.email);
+  const iframe = document.createElement('iframe');
+  iframe.style.display = 'none';
+  iframe.src = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
+  const _cleanup = () => { try { document.body.removeChild(iframe); } catch(e) {} };
+  iframe.onload = function() {
+    try {
+      const hash = iframe.contentWindow.location.hash;
+      if (hash && hash.includes('access_token=')) {
+        const p = new URLSearchParams(hash.substring(1));
+        const newToken = p.get('access_token');
+        if (newToken) {
+          accessToken = newToken;
+          _scheduleTokenRefresh();
+        }
+      }
+    } catch(e) {
+      // Cross-origin — can't read iframe. Token may have expired.
+      console.warn('Silent refresh failed (cross-origin). User may need to re-auth.');
+    }
+    _cleanup();
+  };
+  setTimeout(_cleanup, 10000); // safety cleanup
+  document.body.appendChild(iframe);
+}
+
+function initGoogle() {
+  // First check if we're returning from an OAuth redirect
+  if (_checkOAuthRedirect()) return;
+
+  try {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES,
+      callback: onTokenReceived,
+    });
+  } catch(e) {
+    console.error('initGoogle error:', e);
+    // In standalone mode this is expected if GIS hasn't loaded — we'll use redirect flow
+    if (!_isStandalone()) {
+      alert('Google init error: ' + e.message);
+    }
+  }
 
   // Check for existing session — master ID is hardcoded, just need saved user
   const savedUser = localStorage.getItem('lv_user');
@@ -1754,18 +1918,48 @@ function initGoogle() {
     state.user = JSON.parse(savedUser);
     state.personalSheetId = savedPersonalId;
     showApp();
-    showLoading(); // show spinner — onTokenReceived will call loadAllData once token is ready
+    showLoading();
     const savedEmail = state.user?.email || '';
+    if (_isStandalone() && !tokenClient) {
+      // Standalone mode, GIS not available — use redirect with prompt=none for silent auth
+      window.location.href = _oauthRedirectUrl('none');
+      return;
+    }
     tokenClient.requestAccessToken({ prompt: '', login_hint: savedEmail });
   }
 }
 
 function handleSignIn() {
-  if (!tokenClient) {
-    if (typeof google !== 'undefined') { initGoogle(); }
-    else { showToast('Google sign-in is still loading — try again in a moment', 3000, true); return; }
+  // In standalone/PWA mode, use redirect flow (popups are blocked)
+  if (_isStandalone()) {
+    window.location.href = _oauthRedirectUrl('consent');
+    return;
   }
-  tokenClient.requestAccessToken({ prompt: 'consent' });
+  // Normal browser mode — use popup flow
+  const btn = document.querySelector('.btn-google');
+  if (btn) btn.textContent = 'Signing in…';
+  try {
+    if (typeof google === 'undefined') {
+      alert('Google sign-in library failed to load. Check your internet connection and try refreshing.');
+      if (btn) btn.textContent = 'Continue with Google';
+      return;
+    }
+    if (!tokenClient) {
+      initGoogle();
+    }
+    if (!tokenClient) {
+      alert('Could not initialize sign-in. Try refreshing the page.');
+      if (btn) btn.textContent = 'Continue with Google';
+      return;
+    }
+    tokenClient.requestAccessToken({ prompt: 'consent' });
+    setTimeout(function() {
+      if (!accessToken && btn) btn.textContent = 'Continue with Google';
+    }, 10000);
+  } catch(e) {
+    alert('Sign-in error: ' + e.message);
+    if (btn) btn.textContent = 'Continue with Google';
+  }
 }
 
 function onGoogleSignIn(response) {
@@ -1784,25 +1978,25 @@ function onTokenReceived(resp) {
     console.error('Token error:', resp);
     // If silent token refresh failed, prompt user to sign in again
     if (resp.error === 'interaction_required' || resp.error === 'login_required') {
+      _tokenIsInitial = true;
+      if (_isStandalone()) {
+        // In standalone mode, redirect instead of popup
+        window.location.href = _oauthRedirectUrl('consent');
+        return;
+      }
       const hint = state.user?.email || '';
-      _tokenIsInitial = true; // next token will be a fresh sign-in
       tokenClient.requestAccessToken({ prompt: 'consent', login_hint: hint });
     }
     return;
   }
 
   const isInitial = _tokenIsInitial;
-  _tokenIsInitial = false; // all subsequent tokens are background refreshes
+  _tokenIsInitial = false;
 
   accessToken = resp.access_token;
 
-  // Schedule next silent refresh 55 min from now (tokens last 1 hour)
-  setTimeout(() => {
-    if (accessToken) {
-      const hint = state.user?.email || '';
-      tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
-    }
-  }, 55 * 60 * 1000);
+  // Schedule next silent refresh
+  _scheduleTokenRefresh();
 
   // Background refresh — just update the token, don't reload data
   if (!isInitial) {
@@ -1830,41 +2024,15 @@ function onTokenReceived(resp) {
   state.masterSheetId = '1Y9-cg8C1CkIqy0RQ66DfP7fmGrE3IGBpyJbtdfYx8q0';
   localStorage.setItem('lv_master_id', state.masterSheetId);
 
-  // Always sync from Drive config to ensure correct sheet ID across devices
-  driveReadConfig().then(config => {
-    if (config && config.personalSheetId) {
-      // Always use Drive config as source of truth
-      state.personalSheetId = config.personalSheetId;
-      localStorage.setItem('lv_personal_id', config.personalSheetId);
-      if (config.vaultId)      { driveCache.vaultId = config.vaultId;           localStorage.setItem('lv_vault_id', config.vaultId); }
-      if (config.photosId)     { driveCache.photosId = config.photosId;         localStorage.setItem('lv_photos_id', config.photosId); }
-      if (config.soldPhotosId) { driveCache.soldPhotosId = config.soldPhotosId; localStorage.setItem('lv_sold_photos_id', config.soldPhotosId); }
-      loadAllData();
-    } else {
-      // No config yet — check localStorage then create if needed
-      state.personalSheetId = localStorage.getItem('lv_personal_id');
-      if (!state.personalSheetId) {
-        createPersonalSheet().then(loadAllData);
-      } else {
-        driveEnsureSetup().catch(e => console.warn('Drive setup:', e));
-        loadAllData();
-      }
-    }
-  }).catch(() => {
-    // Drive read failed — fall back to localStorage
-    state.personalSheetId = localStorage.getItem('lv_personal_id');
-    if (!state.personalSheetId) {
-      createPersonalSheet().then(loadAllData);
-    } else {
-      loadAllData();
-    }
-  });
+  // Load data via shared helper
+  _finishTokenSetup();
 }
 
 function handleSignOut() {
-  google.accounts.oauth2.revoke(localStorage.getItem('lv_token'), () => {});
+  try { google.accounts.oauth2.revoke(localStorage.getItem('lv_token'), () => {}); } catch(e) {}
   localStorage.removeItem('lv_user');
   localStorage.removeItem('lv_token');
+  accessToken = null;
   state.user = null;
   document.getElementById('auth-screen').style.display = 'flex';
   document.getElementById('app').classList.remove('active');
@@ -2431,25 +2599,37 @@ async function sheetsGet(spreadsheetId, range) {
 // On mobile, tokens expire and the silent refresh sometimes doesn't fire in time.
 // This wraps any fetch so a 401 triggers a fresh token request before retrying once.
 async function _withTokenRetry(fetchFn) {
-  // If no token at all, try to get one silently first
-  if (!accessToken && tokenClient) {
-    await new Promise((resolve, reject) => {
-      const hint = state.user?.email || '';
-      const prev = tokenClient.callback;
-      tokenClient.callback = (resp) => {
-        tokenClient.callback = prev;
-        if (resp.error) { reject(new Error('Token required: ' + resp.error)); return; }
-        accessToken = resp.access_token;
-        resolve();
-      };
-      tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
-      setTimeout(() => reject(new Error('Sign-in timed out')), 10000);
-    });
+  // If no token at all, try to get one
+  if (!accessToken) {
+    if (_isStandalone()) {
+      // In standalone mode, redirect for auth
+      window.location.href = _oauthRedirectUrl('consent');
+      throw new Error('Redirecting for sign-in...');
+    }
+    if (tokenClient) {
+      await new Promise((resolve, reject) => {
+        const hint = state.user?.email || '';
+        const prev = tokenClient.callback;
+        tokenClient.callback = (resp) => {
+          tokenClient.callback = prev;
+          if (resp.error) { reject(new Error('Token required: ' + resp.error)); return; }
+          accessToken = resp.access_token;
+          resolve();
+        };
+        tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
+        setTimeout(() => reject(new Error('Sign-in timed out')), 10000);
+      });
+    }
   }
   if (!accessToken) throw new Error('Not signed in — please reload and sign in again');
 
   const res = await fetchFn();
   if (res.status === 401 || res.status === 403) {
+    if (_isStandalone()) {
+      // In standalone mode, redirect for re-auth on token expiry
+      window.location.href = _oauthRedirectUrl('consent');
+      throw new Error('Token expired — redirecting for sign-in...');
+    }
     if (!tokenClient) throw new Error('Cannot refresh token — please reload');
     await new Promise((resolve, reject) => {
       const hint = state.user?.email || '';
@@ -5605,6 +5785,9 @@ function parseJwt(token) {
 
 // ── INIT ────────────────────────────────────────────────────────
 window.onload = () => {
+  // Check for OAuth redirect token first (standalone/PWA mode)
+  if (_checkOAuthRedirect()) return;
+  // Normal flow — initialize via Google Identity Services
   if (typeof google !== 'undefined') initGoogle();
 };
 </script>
