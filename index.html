@@ -1774,31 +1774,50 @@ function _oauthRedirectUrl(prompt) {
 // Track if we already handled an OAuth redirect (prevents redirect loop)
 let _oauthRedirectHandled = false;
 
+// Show a status message on screen (for debugging PWA auth)
+function _authStatus(msg) {
+  console.log('[Auth]', msg);
+  // Update page title so it's visible in tab/PWA header
+  document.title = msg;
+  try {
+    let el = document.getElementById('_auth-status');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = '_auth-status';
+      el.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#000;border-bottom:3px solid #e8401c;padding:0.75rem 1rem;font-size:0.72rem;color:#0f0;z-index:99999;font-family:monospace;max-height:40vh;overflow:auto;line-height:1.6';
+      (document.body || document.documentElement).appendChild(el);
+    }
+    el.innerHTML += '<div>' + new Date().toLocaleTimeString() + ' ' + msg + '</div>';
+    el.scrollTop = el.scrollHeight;
+  } catch(e) { console.log('_authStatus DOM error:', e); }
+}
+
 // Check URL hash for OAuth redirect token on page load
 function _checkOAuthRedirect() {
   const hash = window.location.hash;
   if (!hash || hash.length < 2) return false;
   const params = new URLSearchParams(hash.substring(1));
 
-  // Handle OAuth errors (e.g. prompt=none failed, needs consent)
+  // Handle OAuth errors
   const error = params.get('error');
   if (error) {
-    console.warn('OAuth redirect error:', error);
+    _authStatus('⚠️ OAuth error: ' + error + ' / ' + (params.get('error_description') || ''));
     history.replaceState(null, '', window.location.pathname + window.location.search);
-    if (_isStandalone() && (error === 'interaction_required' || error === 'login_required')) {
-      // Silent auth failed — need full consent, redirect again with consent prompt
+    if (_isStandalone() && (error === 'interaction_required' || error === 'login_required' || error === 'consent_required')) {
+      _authStatus('→ Retrying with consent prompt...');
       window.location.href = _oauthRedirectUrl('consent');
       return true;
     }
-    return false; // let normal init handle it
+    // For other errors (e.g. redirect_uri_mismatch), show sign-in screen
+    _authStatus('→ Showing sign-in screen. Error: ' + error);
+    return false;
   }
 
   if (!params.get('access_token')) return false;
   const token = params.get('access_token');
   if (!token) return false;
-  // Mark as handled so initGoogle won't redirect again
   _oauthRedirectHandled = true;
-  // Clear the hash so it doesn't linger in the URL
+  _authStatus('✅ Got token from redirect (' + token.substring(0,10) + '...)');
   history.replaceState(null, '', window.location.pathname + window.location.search);
   // Process the token the same way as popup flow
   accessToken = token;
@@ -1835,7 +1854,9 @@ function _checkOAuthRedirect() {
 
 // Shared logic: after receiving a token, load data from sheets/drive
 function _finishTokenSetup() {
+  _authStatus('_finishTokenSetup called. personalSheetId in state: ' + (state.personalSheetId || 'null') + ' | in localStorage: ' + (localStorage.getItem('lv_personal_id') || 'null'));
   driveReadConfig().then(config => {
+    _authStatus('driveReadConfig result: ' + (config ? JSON.stringify({pid: config.personalSheetId?.substring(0,10), vid: !!config.vaultId}) : 'null'));
     if (config && config.personalSheetId) {
       state.personalSheetId = config.personalSheetId;
       localStorage.setItem('lv_personal_id', config.personalSheetId);
@@ -1845,21 +1866,69 @@ function _finishTokenSetup() {
       loadAllData();
     } else {
       state.personalSheetId = localStorage.getItem('lv_personal_id');
+      _authStatus('No drive config. localStorage personalSheetId: ' + (state.personalSheetId || 'null'));
       if (!state.personalSheetId) {
-        createPersonalSheet().then(loadAllData);
+        // Last resort: search Drive for the personal sheet by name
+        _authStatus('→ Searching Drive for existing personal sheet...');
+        _findPersonalSheetByName().then(foundId => {
+          if (foundId) {
+            _authStatus('✅ Found personal sheet: ' + foundId.substring(0,10) + '...');
+            state.personalSheetId = foundId;
+            localStorage.setItem('lv_personal_id', foundId);
+            // Save to drive config so future loads are faster
+            driveWriteConfig({ personalSheetId: foundId }).catch(() => {});
+            loadAllData();
+          } else {
+            _authStatus('→ No existing sheet found. Creating new personal sheet...');
+            createPersonalSheet().then(loadAllData);
+          }
+        }).catch(e => {
+          _authStatus('→ Drive search failed: ' + e.message + '. Creating new sheet...');
+          createPersonalSheet().then(loadAllData);
+        });
       } else {
         driveEnsureSetup().catch(e => console.warn('Drive setup:', e));
         loadAllData();
       }
     }
-  }).catch(() => {
+  }).catch((e) => {
+    _authStatus('driveReadConfig FAILED: ' + e.message);
     state.personalSheetId = localStorage.getItem('lv_personal_id');
     if (!state.personalSheetId) {
-      createPersonalSheet().then(loadAllData);
+      // Last resort: search Drive for the personal sheet by name
+      _findPersonalSheetByName().then(foundId => {
+        if (foundId) {
+          state.personalSheetId = foundId;
+          localStorage.setItem('lv_personal_id', foundId);
+          loadAllData();
+        } else {
+          createPersonalSheet().then(loadAllData);
+        }
+      }).catch(() => {
+        createPersonalSheet().then(loadAllData);
+      });
     } else {
       loadAllData();
     }
   });
+}
+
+// Search Google Drive for existing personal sheet by name
+async function _findPersonalSheetByName() {
+  try {
+    const q = encodeURIComponent("name='" + PERSONAL_SHEET_NAME + "' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false");
+    const res = await fetch('https://www.googleapis.com/drive/v3/files?q=' + q + '&fields=files(id,name)&spaces=drive', {
+      headers: { Authorization: 'Bearer ' + accessToken }
+    });
+    const data = await res.json();
+    if (data.files && data.files.length > 0) {
+      return data.files[0].id;
+    }
+    return null;
+  } catch(e) {
+    console.warn('_findPersonalSheetByName error:', e);
+    return null;
+  }
 }
 
 // Schedule silent token refresh 55 min from now
@@ -1943,13 +2012,17 @@ function initGoogle() {
     showApp();
     showLoading();
     const savedEmail = state.user?.email || '';
+    _authStatus('Saved user: ' + savedEmail + ' | standalone: ' + _isStandalone() + ' | redirectHandled: ' + _oauthRedirectHandled + ' | hasToken: ' + !!accessToken);
     if (_isStandalone() && !_oauthRedirectHandled && !accessToken) {
-      // Standalone/PWA mode: popups are blocked, use redirect for silent re-auth
+      _authStatus('→ Redirecting to Google (prompt=none)...');
       window.location.href = _oauthRedirectUrl('none');
       return;
     }
     if (tokenClient && !accessToken) {
+      _authStatus('→ Requesting token via popup...');
       tokenClient.requestAccessToken({ prompt: '', login_hint: savedEmail });
+    } else if (accessToken) {
+      _authStatus('→ Already have token, skipping auth');
     }
   }
 }
@@ -2806,14 +2879,16 @@ function saveUserDefinedTabs() {
 }
 
 async function loadAllData() {
+  _authStatus('loadAllData started');
   showLoading();
   try {
     loadUserDefinedTabs();
-    // Load master data (uses cache if fresh) and personal data in parallel
     await Promise.all([loadMasterData(), loadPersonalData()]);
+    _authStatus('loadAllData complete. Master: ' + state.masterData.length + ' items. Personal: ' + Object.keys(state.personalData).length + ' items');
     buildApp();
     showOnboarding();
   } catch(e) {
+    _authStatus('❌ loadAllData ERROR: ' + e.message);
     showToast('Load error: ' + e.message);
     const tb = document.getElementById('browse-tbody');
     if (tb) tb.innerHTML = '<tr><td colspan="9" style="padding:2rem;color:var(--red);text-align:center">Error loading data. Please refresh.<br><small>' + e.message + '</small></td></tr>';
@@ -2895,7 +2970,11 @@ async function loadPersonalData() {
   if (!state.personalSheetId) {
     state.personalSheetId = localStorage.getItem('lv_personal_id');
   }
-  if (!state.personalSheetId) return;
+  _authStatus('loadPersonalData: sheetId=' + (state.personalSheetId ? state.personalSheetId.substring(0,10) + '...' : 'NULL'));
+  if (!state.personalSheetId) {
+    _authStatus('⚠️ No personal sheet ID — skipping personal data load');
+    return;
+  }
 
   // Use cached personal data for instant load (15 min TTL)
   const _pcache = localStorage.getItem('lv_personal_cache');
@@ -5862,10 +5941,12 @@ function parseJwt(token) {
 
 // ── INIT ────────────────────────────────────────────────────────
 window.onload = () => {
+  _authStatus('Page loaded. Hash: ' + (window.location.hash ? window.location.hash.substring(0,50) + '...' : '(none)'));
   // Check for OAuth redirect token first (standalone/PWA mode)
   if (_checkOAuthRedirect()) return;
   // Normal flow — initialize via Google Identity Services
   if (typeof google !== 'undefined') initGoogle();
+  else _authStatus('⚠️ GIS not loaded yet (async)');
 };
 </script>
 
