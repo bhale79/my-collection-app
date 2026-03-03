@@ -4038,8 +4038,17 @@ function showItemDetailPage(idx) {
     html += `<div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border)">`;
     if (matchedTo) {
       const _mIcon = isTender(it.itemNum) ? '\ud83d\ude82' : '\ud83d\ude83';
-      const _mtIdx = state.masterData.findIndex(md => md.itemNum === matchedTo);
-      html += `<div style="font-size:0.85rem;color:var(--text-mid);margin-bottom:0.3rem">${_mIcon} Matched to: ${_mtIdx >= 0
+      // Matched items are always in the collection
+      const _mtPdKey = findPDKey(matchedTo, '');
+      let _mtIdx = state.masterData.findIndex(md => md.itemNum === matchedTo);
+      if (_mtIdx < 0 && _mtPdKey) {
+        if (!window._poKeys) window._poKeys = [];
+        let _mtPoIdx = window._poKeys.indexOf(_mtPdKey);
+        if (_mtPoIdx < 0) _mtPoIdx = window._poKeys.push(_mtPdKey) - 1;
+        _mtIdx = -(_mtPoIdx + 1000);
+      }
+      const _mtClickable = _mtPdKey && _mtIdx !== -1;
+      html += `<div style="font-size:0.85rem;color:var(--text-mid);margin-bottom:0.3rem">${_mIcon} Matched to: ${_mtClickable
         ? '<a href="javascript:void(0)" onclick="showItemDetailPage(' + _mtIdx + ')" style="color:var(--accent);font-weight:700;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;cursor:pointer">' + matchedTo + '</a>'
         : '<strong style="color:var(--accent)">' + matchedTo + '</strong>'}</div>`;
     }
@@ -4048,10 +4057,20 @@ function showItemDetailPage(idx) {
     }
     if (groupMembers.length) {
       html += `<div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.3rem">Grouped with: ${groupMembers.map(m => {
-        const _gIdx = state.masterData.findIndex(md => md.itemNum === m.itemNum && (!m.variation || md.variation === m.variation));
-        return _gIdx >= 0
-          ? '<a href="javascript:void(0)" onclick="showItemDetailPage(' + _gIdx + ')" style="color:var(--accent);font-family:var(--font-mono);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;cursor:pointer">' + m.itemNum + '</a>'
-          : '<span style="color:var(--accent);font-family:var(--font-mono)">' + m.itemNum + '</span>';
+        // Grouped items are always in the collection — look up via personalData
+        const _gPdKey = findPDKey(m.itemNum, m.variation);
+        if (_gPdKey) {
+          // Check if also in masterData (positive index), otherwise use personal-only negative index
+          let _gIdx = state.masterData.findIndex(md => md.itemNum === m.itemNum && (!m.variation || md.variation === m.variation));
+          if (_gIdx < 0) {
+            if (!window._poKeys) window._poKeys = [];
+            let _poIdx = window._poKeys.indexOf(_gPdKey);
+            if (_poIdx < 0) _poIdx = window._poKeys.push(_gPdKey) - 1;
+            _gIdx = -(_poIdx + 1000);
+          }
+          return '<a href="javascript:void(0)" onclick="showItemDetailPage(' + _gIdx + ')" style="color:var(--accent);font-family:var(--font-mono);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;cursor:pointer">' + m.itemNum + '</a>';
+        }
+        return '<span style="color:var(--accent);font-family:var(--font-mono)">' + m.itemNum + '</span>';
       }).join(', ')}</div>`;
     }
     html += `</div>`;
