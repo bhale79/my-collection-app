@@ -2233,7 +2233,7 @@ async function driveRequest(method, endpoint, body) {
         tokenClient.callback = function(resp) {
           if (_done) return;
           _done = true;
-          tokenClient.callback = _origCb;  // restore original callback
+          tokenClient.callback = _origCb;
           if (resp.error) { reject(new Error(resp.error)); return; }
           onTokenReceived(resp);
           resolve();
@@ -2245,17 +2245,22 @@ async function driveRequest(method, endpoint, body) {
       console.error('[Drive] Token refresh failed:', e);
       throw new Error('Session expired — please sign in again');
     }
-    // Retry the request with the new token
+    // Retry with fresh token
     res = await fetch('https://www.googleapis.com/drive/v3' + endpoint, {
       method: method,
       headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   }
-  if (!res.ok) {
+  // For 4xx errors (except 401 handled above), return JSON so callers can inspect .error
+  // For 5xx server errors, throw
+  if (res.status >= 500) {
     var errBody = await res.text().catch(function() { return 'unknown'; });
-    console.error('[Drive] API error:', res.status, errBody);
-    throw new Error('Drive API error (' + res.status + ')');
+    console.error('[Drive] Server error:', res.status, endpoint, errBody);
+    throw new Error('Drive server error (' + res.status + ')');
+  }
+  if (!res.ok) {
+    console.warn('[Drive] API', res.status, method, endpoint);
   }
   return res.json();
 }
@@ -2322,7 +2327,11 @@ async function driveMoveFileToFolder(fileId, fromFolderId, toFolderId) {
 async function driveSetupVault() {
   // Find or create root vault folder
   const rootRes = await driveRequest('GET', '/files/root?fields=id');
-  const rootId = rootRes.id;
+  const rootId = rootRes && rootRes.id;
+  if (!rootId) {
+    console.error('[Drive] Cannot access Drive root:', rootRes);
+    throw new Error('Cannot access Google Drive — please check permissions');
+  }
   driveCache.vaultId = await driveFindOrCreateFolder('Lionel Vault - My Collection', rootId);
   localStorage.setItem('lv_vault_id', driveCache.vaultId);
 
@@ -2351,8 +2360,28 @@ async function driveSetupVault() {
 }
 
 async function driveEnsureSetup() {
-  if (driveCache.vaultId && driveCache.photosId && driveCache.soldPhotosId) return;
-  // Try from localStorage first (fast path)
+  // If cache is populated AND already validated this session, trust it
+  if (driveCache.vaultId && driveCache.photosId && driveCache.soldPhotosId && driveCache._validated) return;
+  // If cache is populated but not yet validated, check the folder exists
+  if (driveCache.vaultId && driveCache.photosId && driveCache.soldPhotosId) {
+    try {
+      var _vc = await driveRequest('GET', '/files/' + driveCache.photosId + '?fields=id,trashed');
+      if (_vc && _vc.id && !_vc.trashed) { driveCache._validated = true; return; }
+    } catch(e) { /* validation failed, fall through */ }
+    // Cache is stale — clear everything
+    console.warn('[Drive] Cached photosId stale/invalid, re-running setup');
+    driveCache.vaultId = null;
+    driveCache.photosId = null;
+    driveCache.soldPhotosId = null;
+    driveCache.itemFolders = {};
+    localStorage.removeItem('lv_vault_id');
+    localStorage.removeItem('lv_photos_id');
+    localStorage.removeItem('lv_sold_photos_id');
+    await driveSetupVault();
+    driveCache._validated = true;
+    return;
+  }
+  // Try from localStorage (fast path)
   const vId = localStorage.getItem('lv_vault_id');
   const pId = localStorage.getItem('lv_photos_id');
   const sId = localStorage.getItem('lv_sold_photos_id');
@@ -2364,17 +2393,19 @@ async function driveEnsureSetup() {
         driveCache.vaultId      = vId;
         driveCache.photosId     = pId;
         driveCache.soldPhotosId = sId;
+        driveCache._validated   = true;
         return;
       }
     } catch(e) { /* fall through to full setup */ }
     // Cached IDs are stale — clear and re-create
-    console.warn('[Drive] Cached folder IDs stale, re-running setup');
+    console.warn('[Drive] localStorage folder IDs stale, re-running setup');
     localStorage.removeItem('lv_vault_id');
     localStorage.removeItem('lv_photos_id');
     localStorage.removeItem('lv_sold_photos_id');
   }
   // Always run full setup so any missing folders get created
   await driveSetupVault();
+  driveCache._validated = true;
 }
 
 async function driveEnsureItemFolder(itemNum) {
