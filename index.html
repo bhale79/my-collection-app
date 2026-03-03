@@ -6159,6 +6159,7 @@ function _selectGrouping(groupId) {
     wizard.data.setType = 'AA';
     wizard.data._setId = genSetId(itemNum);
     wizard.data.unit2ItemNum = itemNum;  // Same # but dummy
+    wizard.data.unit2Power = 'Dummy';
     wizard.data.tenderMatch = '';
   } else if (groupId === 'ab') {
     wizard.data.unitPower = 'Powered';
@@ -6510,34 +6511,35 @@ function renderWizardStep() {
         </div>`;
       setTimeout(() => { const i = document.getElementById('wiz-input'); if(i) i.focus(); }, 50);
     } else {
-      // Show variation cards with description tooltip
+      // Show variation cards with COTT link per variation
       body.innerHTML = `
         <div style="padding-top:0.5rem">
           <div style="display:flex;flex-direction:column;gap:0.5rem" id="var-cards">
-            ${[{variation:'', varDesc:'No specific variation / not sure'}, ...variations].map(v => `
+            ${[{variation:'', varDesc:'No specific variation / not sure', refLink:''}, ...variations].map(v => {
+              const isSelected = val===v.variation;
+              const cottLink = v.refLink ? `<a href="${v.refLink}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.75rem;color:var(--accent2);text-decoration:none;padding:0.2rem 0.5rem;border:1px solid rgba(201,146,42,0.3);border-radius:5px;background:rgba(201,146,42,0.08);flex-shrink:0;white-space:nowrap">COTT ↗</a>` : '';
+              return `
               <button onclick="wizardChooseVariation('${v.variation}')" style="
-                display:flex;align-items:flex-start;gap:0.75rem;padding:0.85rem 1rem;
+                display:flex;flex-direction:column;gap:0.4rem;padding:0.85rem 1rem;
                 border-radius:10px;text-align:left;width:100%;cursor:pointer;
                 font-family:var(--font-body);transition:all 0.15s;
-                border:2px solid ${val===v.variation ? 'var(--accent)' : 'var(--border)'};
-                background:${val===v.variation ? 'rgba(232,64,28,0.12)' : 'var(--surface2)'};
+                border:2px solid ${isSelected ? 'var(--accent)' : 'var(--border)'};
+                background:${isSelected ? 'rgba(232,64,28,0.12)' : 'var(--surface2)'};
                 color:var(--text);
               ">
-                <span style="
-                  font-family:var(--font-mono);font-size:1rem;font-weight:600;
-                  color:${val===v.variation ? 'var(--accent)' : 'var(--accent2)'};
-                  min-width:2rem;padding-top:0.1rem;
-                ">${v.variation || '—'}</span>
-                <span style="font-size:0.82rem;color:var(--text-mid);line-height:1.5">${v.varDesc || v.description || 'No description available'}</span>
-              </button>`).join('')}
+                <div style="display:flex;align-items:center;gap:0.6rem;width:100%">
+                  <span style="
+                    font-family:var(--font-mono);font-size:1rem;font-weight:600;
+                    color:${isSelected ? 'var(--accent)' : 'var(--accent2)'};
+                    min-width:2rem;
+                  ">${v.variation || '—'}</span>
+                  ${cottLink}
+                </div>
+                <span style="font-size:0.82rem;color:var(--text-mid);line-height:1.5;padding-left:0.1rem">${v.varDesc || v.description || 'No description available'}</span>
+              </button>`;
+            }).join('')}
           </div>
           <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Selecting a variation will auto-advance</div>
-          ${(() => {
-            const cottItem = variations.find(v => v.variation === val) || variations[0];
-            return cottItem && cottItem.refLink
-              ? '<a href="' + cottItem.refLink + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:0.4rem;margin-top:0.75rem;font-size:0.82rem;color:var(--accent2);text-decoration:none;padding:0.4rem 0.75rem;border:1px solid rgba(201,146,42,0.3);border-radius:6px;background:rgba(201,146,42,0.08)">View ' + (val ? val : 'item') + ' on COTT ↗</a>'
-              : '';
-          })()}
         </div>`;
     }
 
@@ -9273,7 +9275,9 @@ async function saveWizardItem() {
   if (groupId && row.length >= 22) { row[21] = groupId; }
 
   if (isSetSave && d.unit2ItemNum) {
-    const u2Num = (d.unit2ItemNum || '').trim();
+    const _u2Raw = (d.unit2ItemNum || '').trim();
+    const _u2Power = d.setType === 'AA' ? 'Dummy' : '';
+    const u2Num = _pdSuffix(_u2Raw, _u2Power);
     // Unit 1 keeps full price/worth; other units get $0 with a note pointing to unit 1
     const setPriceNote = (baseNote, leadNum) => {
       const ref = 'Set price on item ' + leadNum;
@@ -9734,14 +9738,21 @@ async function quickEntryAdd() {
     ? genSetId(itemNum) : '';
   const qeGroupId = setId ? ('GRP-' + itemNum + '-' + Date.now()) : '';
 
+  const _qeIsAA = d._qeSetType === 'AA';
+  const _qeIsABA = d._qeSetType === 'ABA';
+  const _qeHasSet = d._qeSetPartner && d._qeSetPartner !== 'none';
+  const _qeUnit1Num = (_qeHasSet && !itemNum.endsWith('C')) ? itemNum + '-P' : itemNum;
+  const _qeUnit2Num = _qeHasSet ? (_qeIsAA ? itemNum + '-D' : d._qeSetPartner) : '';
+  const _qeUnit3Num = (_qeIsABA && d._qeUnit3 && d._qeUnit3 !== 'none') ? d._qeUnit3 + '-D' : '';
+
   const rows = [];
-  rows.push({ itemNum, variation, matchedTo: d._qeTender && d._qeTender !== 'none' ? d._qeTender : (d._qeSetPartner && d._qeSetPartner !== 'none' ? d._qeSetPartner : ''), setId, groupId: qeGroupId, notes: '' });
+  rows.push({ itemNum: _qeUnit1Num, variation, matchedTo: _qeUnit2Num || (d._qeTender && d._qeTender !== 'none' ? d._qeTender : ''), setId, groupId: qeGroupId, notes: '' });
   if (d._qeTender && d._qeTender !== 'none')
-    rows.push({ itemNum: d._qeTender,     variation: '', matchedTo: itemNum, setId, groupId: qeGroupId, notes: 'Quick Entry — paired with ' + itemNum });
-  if (d._qeSetPartner && d._qeSetPartner !== 'none')
-    rows.push({ itemNum: d._qeSetPartner, variation: '', matchedTo: itemNum, setId, groupId: qeGroupId, notes: 'Quick Entry — paired with ' + itemNum });
-  if (d._qeUnit3 && d._qeUnit3 !== 'none')
-    rows.push({ itemNum: d._qeUnit3,      variation: '', matchedTo: itemNum, setId, groupId: qeGroupId, notes: 'Quick Entry — ABA set with ' + itemNum });
+    rows.push({ itemNum: d._qeTender, variation: '', matchedTo: _qeUnit1Num, setId, groupId: qeGroupId, notes: 'Quick Entry \u2014 paired with ' + _qeUnit1Num });
+  if (_qeHasSet && _qeUnit2Num)
+    rows.push({ itemNum: _qeUnit2Num, variation: '', matchedTo: _qeUnit1Num, setId, groupId: qeGroupId, notes: 'Quick Entry \u2014 paired with ' + _qeUnit1Num });
+  if (_qeUnit3Num)
+    rows.push({ itemNum: _qeUnit3Num, variation: '', matchedTo: _qeUnit1Num, setId, groupId: qeGroupId, notes: 'Quick Entry \u2014 ABA set with ' + _qeUnit1Num });
 
   try {
     const _nextBtn = document.getElementById('wizard-next-btn');
@@ -9874,13 +9885,16 @@ function _showQuickEntryMultiUI(itemNum, variation, tenders, isSet, bUnit) {
     const btns = document.createElement('div');
     btns.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.4rem';
     const noChip = _qeChip('None');
-    noChip.onclick = () => { _qeSelectChip(btns, noChip); wizard.data._qeSetPartner = 'none'; wizard.data._qeUnit3 = null; };
+    noChip.onclick = () => { _qeSelectChip(btns, noChip); wizard.data._qeSetPartner = 'none'; wizard.data._qeSetType = ''; wizard.data._qeUnit3 = null; };
     btns.appendChild(noChip);
+    const aaChip = _qeChip('AA set \u2014 add ' + itemNum + ' Dummy');
+    aaChip.onclick = () => { _qeSelectChip(btns, aaChip); wizard.data._qeSetPartner = itemNum; wizard.data._qeSetType = 'AA'; wizard.data._qeUnit3 = null; };
+    btns.appendChild(aaChip);
     const abChip = _qeChip('AB set — add ' + bUnit);
-    abChip.onclick = () => { _qeSelectChip(btns, abChip); wizard.data._qeSetPartner = bUnit; wizard.data._qeUnit3 = null; };
+    abChip.onclick = () => { _qeSelectChip(btns, abChip); wizard.data._qeSetPartner = bUnit; wizard.data._qeSetType = 'AB'; wizard.data._qeUnit3 = null; };
     btns.appendChild(abChip);
     const abaChip = _qeChip('ABA set — add ' + bUnit + ' + 2nd A');
-    abaChip.onclick = () => { _qeSelectChip(btns, abaChip); wizard.data._qeSetPartner = bUnit; wizard.data._qeUnit3 = itemNum; };
+    abaChip.onclick = () => { _qeSelectChip(btns, abaChip); wizard.data._qeSetPartner = bUnit; wizard.data._qeSetType = 'ABA'; wizard.data._qeUnit3 = itemNum; };
     btns.appendChild(abaChip);
     sec.appendChild(btns);
     wrap.appendChild(sec);
