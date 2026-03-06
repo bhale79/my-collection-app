@@ -13620,7 +13620,7 @@ const _TUT = (function() {
           msg: 'Each listed item has a green <strong>Mark as Sold</strong> button. Tap it — enter the final sale price and date.'
         },
         {
-          nav: () => { showPage('sold', document.querySelector('.nav-item[onclick*="showPage('sold'"]') || document.querySelector('.nav-item')); },
+          nav: () => { showPage('sold', document.querySelector('#mnav-sold') || document.querySelector('.nav-item')); },
           target: () => document.querySelector('#page-sold'),
           title: 'Moved to Sold History!',
           msg: 'The item is removed from For Sale and added to your <strong>Sold</strong> history with the sale price, date, and profit tracked automatically.'
@@ -13659,8 +13659,8 @@ const _TUT = (function() {
       label: 'How to generate a report',
       steps: [
         {
-          nav: () => { showPage('reports', document.querySelector('.nav-item[onclick*="showPage(\'reports"]') || document.querySelector('.nav-item')); if(typeof buildReport==='function') buildReport(); },
-          target: () => document.querySelector('.nav-item[onclick*="showPage(\'reports"]') || document.querySelector('#page-reports'),
+          nav: () => { showPage('reports', document.querySelector('#mnav-reports') || document.querySelector('.nav-item')); if(typeof buildReport==='function') buildReport(); },
+          target: () => document.querySelector('#mnav-reports') || document.querySelector('#page-reports'),
           title: 'Open Reports',
           msg: 'Click <strong>Reports</strong> in the sidebar. This section generates printable and exportable reports from your collection data.'
         },
