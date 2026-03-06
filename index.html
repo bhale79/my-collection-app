@@ -2781,7 +2781,7 @@ async function loadAllData() {
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '8';
+  const _CACHE_VER = '9';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
@@ -2796,8 +2796,8 @@ async function loadMasterData() {
     try {
       state.masterData = JSON.parse(cached);
       // Refresh in background without blocking
-      sheetsGet(state.masterSheetId, 'Master Inventory!A2:P').then(res => {
-        if (!res.values) return sheetsGet(state.masterSheetId, 'Sheet1!A2:P');
+      sheetsGet(state.masterSheetId, 'Master Inventory!A2:N').then(res => {
+        if (!res.values) return sheetsGet(state.masterSheetId, 'Sheet1!A2:N');
         return res;
       }).then(res => {
         if (res && res.values) {
@@ -2811,9 +2811,9 @@ async function loadMasterData() {
     } catch(e) {}
   }
 
-  let res = await sheetsGet(state.masterSheetId, 'Master Inventory!A2:P');
+  let res = await sheetsGet(state.masterSheetId, 'Master Inventory!A2:N');
   if (!res.values) {
-    res = await sheetsGet(state.masterSheetId, 'Sheet1!A2:P');
+    res = await sheetsGet(state.masterSheetId, 'Sheet1!A2:N');
   }
   const rows = res.values || [];
   parseMasterRows(rows);
@@ -2831,14 +2831,12 @@ function parseMasterRows(rows) {
     yearProd:    r[5]  || '',
     variation:   r[6]  || '',
     varDesc:     r[7]  || '',
-    rarity:      r[8]  || '',
-    rarityLabel: r[9]  || '',
-    refLink:     r[10] || '',
-    notes:       r[11] || '',
-    ebayAvg:     r[12] || '',
-    ebaySample:  r[13] || '',
-    ebayUpdated: r[14] || '',
-    marketVal:   r[15] || '',
+    refLink:     r[8]  || '',
+    notes:       r[9]  || '',
+    ebayAvg:     r[10] || '',
+    ebaySample:  r[11] || '',
+    ebayUpdated: r[12] || '',
+    marketVal:   r[13] || '',
   }));
   // Deduplicate by itemNum+variation (keep first occurrence)
   const seen = new Set();
