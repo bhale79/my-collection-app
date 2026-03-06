@@ -7411,15 +7411,19 @@ function renderWizardStep() {
 
   } else if (s.type === 'choice2' || s.type === 'choice3') {
     const val = wizard.data[s.id] || '';
+    const _manyChoices = s.choices.length > 4;
     body.innerHTML = `
-      <div style="display:flex;gap:0.75rem;flex-wrap:wrap;padding-top:0.75rem">
+      <div style="${_manyChoices
+        ? 'display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;padding-top:0.75rem'
+        : 'display:flex;gap:0.75rem;flex-wrap:wrap;padding-top:0.75rem'}">
         ${s.choices.map(c => `
           <button onclick="wizardChoose('${s.id}','${c}')" style="
-            flex:1;min-width:80px;padding:0.85rem;border-radius:10px;
+            padding:${_manyChoices ? '0.7rem 0.5rem' : '0.85rem'};border-radius:10px;
             border:2px solid ${val===c ? 'var(--accent)' : 'var(--border)'};
             background:${val===c ? 'rgba(232,64,28,0.15)' : 'var(--surface2)'};
             color:${val===c ? 'var(--accent)' : 'var(--text-mid)'};
-            font-family:var(--font-body);font-size:0.95rem;font-weight:500;cursor:pointer;transition:all 0.15s
+            font-family:var(--font-body);font-size:${_manyChoices ? '0.82rem' : '0.95rem'};font-weight:500;cursor:pointer;transition:all 0.15s;text-align:center;
+            ${_manyChoices ? '' : 'flex:1;min-width:80px;'}
           ">${c}</button>`).join('')}
       </div>`;
 
@@ -9648,6 +9652,23 @@ function generateEphemeraItemNum(tabId, year, catType) {
   return base + '-' + suffix;
 }
 
+function generatePaperItemNum(paperType, itemRef) {
+  // Format: [item ref or 'PAP']-[type abbrev]-[unique 5-char ID]
+  const typeMap = {
+    'Drawing':          'DRW',
+    'Advertisement':    'ADV',
+    'Instruction Sheet':'IS',
+    'Manual':           'MAN',
+    'Price Guide':      'PGD',
+    'Reference':        'REF',
+    'Other':            'OTH',
+  };
+  const typeCode = typeMap[paperType] || 'PAP';
+  const base = itemRef ? itemRef.replace(/[^A-Za-z0-9]/g, '').toUpperCase() : 'PAP';
+  const uid = Date.now().toString(36).slice(-4).toUpperCase();
+  return base + '-' + typeCode + '-' + uid;
+}
+
 async function saveInstructionSheet() {
   const d = wizard.data;
   const sheetNum = (d.is_sheetNum || '').trim();
@@ -9809,7 +9830,9 @@ async function saveEphemeraItem() {
   const sheetName = tabNames[tab] || (_userTab && _userTab.label) || null;
   if (!sheetName) { closeWizard(); return; }
 
-  const ephItemNum = generateEphemeraItemNum(tab, d.eph_year || '', '');
+  const ephItemNum = tab === 'paper'
+    ? generatePaperItemNum(d.eph_paperType || '', d.eph_itemNumRef || '')
+    : generateEphemeraItemNum(tab, d.eph_year || '', '');
 
   let row;
   if (tab === 'mockups') {
