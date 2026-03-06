@@ -565,6 +565,31 @@
   .rb-sort-dir.asc  { border-color:#27ae60;color:#27ae60; }
   .rb-sort-dir.desc { border-color:var(--accent);color:var(--accent); }
 
+  /* ── Preferences Page ──────────────────────────────────────── */
+  .pref-page { max-width: 680px; }
+  .pref-section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 1.25rem; overflow: hidden; }
+  .pref-section-title { font-family: var(--font-head); font-size: 0.65rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-dim); padding: 0.75rem 1.25rem 0.5rem; border-bottom: 1px solid var(--border); background: var(--surface2); }
+  .pref-row { display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.25rem; border-bottom: 1px solid var(--border); gap: 1rem; }
+  .pref-row:last-child { border-bottom: none; }
+  .pref-row-label { flex: 1; min-width: 0; }
+  .pref-row-label strong { display: block; font-size: 0.88rem; color: var(--text); font-weight: 600; margin-bottom: 0.1rem; }
+  .pref-row-label span { display: block; font-size: 0.75rem; color: var(--text-dim); line-height: 1.4; }
+  .pref-toggle { position: relative; width: 42px; height: 24px; flex-shrink: 0; }
+  .pref-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .pref-toggle-track { position: absolute; inset: 0; border-radius: 24px; background: var(--surface3); border: 1px solid var(--border); transition: background 0.2s, border-color 0.2s; cursor: pointer; }
+  .pref-toggle input:checked + .pref-toggle-track { background: var(--accent2); border-color: var(--accent2); }
+  .pref-toggle-track::after { content: ''; position: absolute; left: 3px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; border-radius: 50%; background: white; transition: left 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+  .pref-toggle input:checked + .pref-toggle-track::after { left: 21px; }
+  .pref-select { padding: 0.38rem 0.6rem; border-radius: 7px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); font-family: var(--font-body); font-size: 0.85rem; outline: none; cursor: pointer; }
+  .pref-select:focus { border-color: var(--accent2); }
+  .pref-btn { padding: 0.45rem 0.9rem; border-radius: 7px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-mid); font-family: var(--font-body); font-size: 0.82rem; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .pref-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+  .pref-btn.danger { border-color: rgba(240,80,8,0.4); color: var(--accent); }
+  .pref-btn.danger:hover { background: rgba(240,80,8,0.1); }
+  .pref-account-card { display: flex; align-items: center; gap: 1rem; padding: 1rem 1.25rem; }
+  .pref-avatar { width: 48px; height: 48px; border-radius: 50%; background: var(--accent); color: white; display: flex; align-items: center; justify-content: center; font-family: var(--font-head); font-size: 1.4rem; font-weight: 700; flex-shrink: 0; overflow: hidden; }
+  .pref-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+
   /* ── Insurance Report ──────────────────────────────────────── */
   .ins-report-header { padding: 1.25rem 0 1rem; border-bottom: 2px solid var(--border); margin-bottom: 1rem; }
   .ins-report-title { font-family: var(--font-head); font-size: 1.3rem; font-weight: 800; color: var(--text); margin-bottom: 0.2rem; }
@@ -1006,28 +1031,12 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
           Reports
         </button>
+        <button class="nav-item" onclick="showPage('prefs', this); buildPrefsPage()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Preferences
+        </button>
       </div>
       <div class="nav-section" style="padding-top:0.75rem;border-top:1px solid var(--border)">
-        <div class="nav-label">Preferences</div>
-        <label style="display:flex;align-items:center;gap:0.55rem;padding:0.45rem 0.75rem;border-radius:7px;color:var(--text-dim);font-size:0.82rem;cursor:pointer;font-family:var(--font-body)"
-          onmouseover="this.style.background='rgba(255,255,255,0.06)';this.style.color='var(--text)'"
-          onmouseout="this.style.background='none';this.style.color='var(--text-dim)'">
-          <input type="checkbox" id="pref-location-toggle"
-            onchange="localStorage.setItem('lv_location_enabled', this.checked ? 'true' : 'false')"
-            style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex-shrink:0">
-          <span style="line-height:1.35">Do you want to track Item Storage Location?</span>
-        </label>
-      </div>
-      <div class="nav-section" style="padding-top:0.75rem;border-top:1px solid var(--border)"">
-        <a id="nav-sheet-link" href="#" target="_blank"
-          style="display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.75rem;border-radius:7px;color:var(--text-dim);text-decoration:none;font-size:0.82rem;font-family:var(--font-body);transition:background 0.15s;cursor:pointer"
-          onmouseover="this.style.background='rgba(255,255,255,0.06)';this.style.color='var(--text)'"
-          onmouseout="this.style.background='none';this.style.color='var(--text-dim)'"
-          onclick="return _sheetLinkClick(event)">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="8" y1="9" x2="10" y2="9"/></svg>
-          My Collection Page
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:auto;opacity:0.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-        </a>
         <button id="refresh-btn" onclick="forceRefreshData()"
           style="display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.75rem;border-radius:7px;color:var(--text-dim);font-size:0.82rem;background:none;border:none;width:100%;cursor:pointer;text-align:left;font-family:var(--font-body)"
           onmouseover="this.style.background='rgba(255,255,255,0.06)';this.style.color='var(--text)'"
@@ -1336,6 +1345,15 @@ document.addEventListener('touchmove', function(){}, {passive: true});
       <!-- ── Item Detail ── -->
       <div class="page" id="page-itemdetail" style="padding-bottom:2rem">
         <div id="item-detail-content"></div>
+      </div>
+
+      <!-- ── Preferences ── -->
+      <div class="page" id="page-prefs">
+        <div class="page-title">Preferences</div>
+        <div class="pref-page" id="prefs-content">
+          <!-- Rendered by buildPrefsPage() -->
+          <div style="padding:2rem;text-align:center;color:var(--text-dim)">Loading…</div>
+        </div>
       </div>
 
       <!-- ── Reports ── -->
@@ -6581,7 +6599,277 @@ function exportCustomReport(def) {
   const a = document.createElement('a'); a.href=url; a.download=`${safeName}-${dateTag}.csv`; a.click();
 }
 
-// ── NAVIGATION ──────────────────────────────────────────────────
+// ── PREFERENCES ─────────────────────────────────────────────────
+
+const APP_VERSION = '1.0 · Build 39';
+const APP_DATE    = 'March 2026';
+
+function _prefGet(key, def) { const v = localStorage.getItem(key); return v === null ? def : v; }
+function _prefSet(key, val) { localStorage.setItem(key, val); }
+
+// ── Theme ────────────────────────────────────────────────────────
+function applyTheme() {
+  const theme = _prefGet('lv_theme', 'dark');
+  const main  = document.getElementById('main-content');
+  const sidebar = document.querySelector('.sidebar');
+  if (!main) return;
+  if (theme === 'light') {
+    // Force light mode everywhere — add light class to sidebar too
+    if (sidebar) sidebar.classList.add('sidebar-light');
+    document.documentElement.dataset.theme = 'light';
+  } else if (theme === 'system') {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (sidebar) sidebar.classList.toggle('sidebar-light', !prefersDark);
+    document.documentElement.dataset.theme = prefersDark ? 'dark' : 'light';
+  } else {
+    if (sidebar) sidebar.classList.remove('sidebar-light');
+    document.documentElement.dataset.theme = 'dark';
+  }
+}
+
+function buildPrefsPage() {
+  const el = document.getElementById('prefs-content');
+  if (!el) return;
+
+  const u = state.user || {};
+  const sheetId = state.personalSheetId || '';
+  const cacheTs = parseInt(localStorage.getItem('lv_personal_cache_ts') || '0');
+  const cacheDateStr = cacheTs ? new Date(cacheTs).toLocaleString() : 'Not cached';
+  const cacheSize = (() => { try { return (JSON.stringify(JSON.parse(localStorage.getItem('lv_personal_cache')||'{}')).length / 1024).toFixed(1) + ' KB'; } catch(e) { return '—'; } })();
+
+  const toggle = (id, key, def='false') => `
+    <label class="pref-toggle" title="${id}">
+      <input type="checkbox" id="ptog-${id}" ${_prefGet(key, def) === 'true' ? 'checked' : ''}
+        onchange="_prefSet('${key}', this.checked?'true':'false'); _onPrefChange('${id}', this.checked)">
+      <div class="pref-toggle-track"></div>
+    </label>`;
+
+  const avatarHtml = u.picture
+    ? `<div class="pref-avatar"><img src="${u.picture}" alt="${u.name||''}"></div>`
+    : `<div class="pref-avatar">${(u.name||'?')[0].toUpperCase()}</div>`;
+
+  el.innerHTML = `
+
+    <!-- ── 1. Account ─────────────────────────── -->
+    <div class="pref-section">
+      <div class="pref-section-title">Account</div>
+      <div class="pref-account-card">
+        ${avatarHtml}
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:0.95rem;color:var(--text)">${u.name || 'Not signed in'}</div>
+          <div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.1rem">${u.email || ''}</div>
+        </div>
+        <button class="pref-btn danger" onclick="handleSignOut()">Sign Out</button>
+      </div>
+      <div class="pref-row">
+        <div class="pref-row-label">
+          <strong>My Collection Sheet</strong>
+          <span>Open your Google Sheet — read-only recommended</span>
+        </div>
+        <a id="nav-sheet-link-p" href="${sheetId ? 'https://docs.google.com/spreadsheets/d/'+sheetId : '#'}" target="_blank"
+          class="pref-btn" onclick="return _sheetLinkClick(event)" style="text-decoration:none">Open ↗</a>
+      </div>
+      <div class="pref-row">
+        <div class="pref-row-label">
+          <strong>Sheet ID</strong>
+          <span id="pref-sheet-id" style="font-family:var(--font-mono);font-size:0.72rem;word-break:break-all">${sheetId || 'Not connected'}</span>
+        </div>
+        <button class="pref-btn" onclick="navigator.clipboard?.writeText('${sheetId}').then(()=>showToast('Copied'))">Copy</button>
+      </div>
+    </div>
+
+    <!-- ── 2. Collection Settings ─────────────── -->
+    <div class="pref-section">
+      <div class="pref-section-title">Collection Settings</div>
+      <div class="pref-row">
+        <div class="pref-row-label">
+          <strong>Track Storage Location</strong>
+          <span>Adds a location step in the entry wizard</span>
+        </div>
+        ${toggle('location', 'lv_location_enabled', 'false')}
+      </div>
+      <div class="pref-row">
+        <div class="pref-row-label">
+          <strong>Track Year Made</strong>
+          <span>Adds a "Year Made" step when adding items</span>
+        </div>
+        ${toggle('yearMade', 'lv_year_made_enabled', 'true')}
+      </div>
+      <div class="pref-row">
+        <div class="pref-row-label">
+          <strong>Show Quick Entry badge ⚡</strong>
+          <span>Highlights items with incomplete details</span>
+        </div>
+        ${toggle('qeBadge', 'lv_qe_badge_enabled', 'true')}
+      </div>
+      <div class="pref-row">
+        <div class="pref-row-label">
+          <strong>Default Condition</strong>
+          <span>Starting value for the condition slider in the wizard</span>
+        </div>
+        <select class="pref-select" id="pref-def-cond" onchange="_prefSet('lv_default_cond', this.value)">
+          ${[...Array(10)].map((_,i)=>{const v=i+1; return `<option value="${v}" ${_prefGet('lv_default_cond','7')===String(v)?'selected':''}>${v} — ${['','Heavily worn','Very rough','Worn','Good','Good Plus','Very Good','VG+','Excellent','Exc+','Mint'][v]}</option>`;}).join('')}
+        </select>
+      </div>
+      <div class="pref-row">
+        <div class="pref-row-label">
+          <strong>Items Per Page</strong>
+          <span>How many items show in the browse list at once</span>
+        </div>
+        <select class="pref-select" id="pref-page-size" onchange="_prefSet('lv_page_size', this.value); state.pageSize=parseInt(this.value); state.currentPage=1; if(document.getElementById('page-browse').classList.contains('active')) renderBrowse()">
+          ${[25,50,100,200].map(n=>`<option value="${n}" ${_prefGet('lv_page_size','50')===String(n)?'selected':''}>${n}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+
+    <!-- ── 3. Display ─────────────────────────── -->
+    <div class="pref-section">
+      <div class="pref-section-title">Display</div>
+      <div class="pref-row">
+        <div class="pref-row-label">
+          <strong>Theme</strong>
+          <span>App color scheme</span>
+        </div>
+        <select class="pref-select" id="pref-theme" onchange="_prefSet('lv_theme', this.value); applyTheme(); buildPrefsPage()">
+          ${['dark','light','system'].map(t=>`<option value="${t}" ${_prefGet('lv_theme','dark')===t?'selected':''}>${{dark:'🌙 Dark',light:'☀️ Light',system:'💻 System'}[t]}</option>`).join('')}
+        </select>
+      </div>
+      <div class="pref-row">
+        <div class="pref-row-label">
+          <strong>Currency Symbol</strong>
+          <span>Shown next to prices throughout the app</span>
+        </div>
+        <select class="pref-select" id="pref-currency" onchange="_prefSet('lv_currency', this.value)">
+          ${['$','€','£','¥','CA$','AU$'].map(c=>`<option value="${c}" ${_prefGet('lv_currency','$')===c?'selected':''}>${c}</option>`).join('')}
+        </select>
+      </div>
+      <div class="pref-row">
+        <div class="pref-row-label">
+          <strong>Date Format</strong>
+          <span>How dates appear in reports and detail views</span>
+        </div>
+        <select class="pref-select" id="pref-datefmt" onchange="_prefSet('lv_date_fmt', this.value)">
+          ${[['MM/DD/YYYY','MM/DD/YYYY'],['DD/MM/YYYY','DD/MM/YYYY'],['YYYY-MM-DD','YYYY-MM-DD']].map(([v,l])=>`<option value="${v}" ${_prefGet('lv_date_fmt','MM/DD/YYYY')===v?'selected':''}>${l}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+
+    <!-- ── 4. Data & Backup ───────────────────── -->
+    <div class="pref-section">
+      <div class="pref-section-title">Data &amp; Backup</div>
+      <div class="pref-row">
+        <div class="pref-row-label">
+          <strong>Export Full Collection</strong>
+          <span>Download everything as a CSV spreadsheet</span>
+        </div>
+        <button class="pref-btn" onclick="exportFullCollection()">Download CSV</button>
+      </div>
+      <div class="pref-row">
+        <div class="pref-row-label">
+          <strong>Last Synced</strong>
+          <span id="pref-cache-ts">${cacheDateStr} · ${cacheSize}</span>
+        </div>
+        <button class="pref-btn" onclick="forceRefreshData().then(()=>buildPrefsPage())">Sync Now</button>
+      </div>
+      <div class="pref-row">
+        <div class="pref-row-label">
+          <strong>Clear Local Cache</strong>
+          <span>Forces a full reload from Google Sheets on next launch</span>
+        </div>
+        <button class="pref-btn danger" onclick="_clearCacheOnly()">Clear Cache</button>
+      </div>
+    </div>
+
+    <!-- ── 5. About ───────────────────────────── -->
+    <div class="pref-section">
+      <div class="pref-section-title">About</div>
+      <div class="pref-row">
+        <div class="pref-row-label"><strong>Lionel Vault</strong><span>${APP_VERSION} · ${APP_DATE}</span></div>
+      </div>
+      <div class="pref-row">
+        <div class="pref-row-label">
+          <strong>Master Catalog</strong>
+          <span id="pref-catalog-count">${state.masterData?.length?.toLocaleString() || '—'} items loaded</span>
+        </div>
+      </div>
+      <div class="pref-row">
+        <div class="pref-row-label">
+          <strong>Send Feedback</strong>
+          <span>Report a bug or suggest a feature</span>
+        </div>
+        <a href="mailto:feedback@lionelvault.app?subject=Lionel Vault Feedback" class="pref-btn" style="text-decoration:none">Email ↗</a>
+      </div>
+    </div>`;
+
+  // Keep hidden pref-location-toggle in sync (used by wizard)
+  const locTog = document.getElementById('ptog-location');
+  const oldTog = document.getElementById('pref-location-toggle');
+  if (oldTog && locTog) oldTog.checked = locTog.checked;
+}
+
+function _onPrefChange(id, val) {
+  if (id === 'location') {
+    // Keep hidden toggle in sync
+    const old = document.getElementById('pref-location-toggle');
+    if (old) old.checked = val;
+  }
+  if (id === 'qeBadge') {
+    // Show/hide QE badge in nav
+    const b1 = document.getElementById('nav-qe-count');
+    const b2 = document.getElementById('mnav-qe-badge');
+    const hide = !val;
+    if (b1) b1.style.display = hide ? 'none' : '';
+    if (b2) b2.style.display = hide ? 'none' : '';
+  }
+  if (id === 'yearMade') {
+    // Stored — wizard reads lv_year_made_enabled at step render time (hooked below)
+  }
+}
+
+function _clearCacheOnly() {
+  localStorage.removeItem('lv_personal_cache');
+  localStorage.removeItem('lv_personal_cache_ts');
+  showToast('Cache cleared — will reload from sheet on next launch');
+  buildPrefsPage();
+}
+
+function exportFullCollection() {
+  const headers = ['Item #','Variation','Condition','All Original','Price Paid','Box Price','Complete Price','Has Box','Box Condition','Item Photo','Box Photo','Notes','Date Purchased','Est. Worth','Matched To','Set ID','Year Made','Is Error','Error Desc','Inventory ID','Group ID','Location'];
+  const esc = v => `"${(v||'').toString().replace(/"/g,'""')}"`;
+  const rows = Object.values(state.personalData)
+    .filter(pd => pd.owned)
+    .sort((a,b) => (a.itemNum||'').localeCompare(b.itemNum||'', undefined, {numeric:true}))
+    .map(pd => [
+      esc(pd.itemNum), esc(pd.variation||''), esc(pd.condition||''), esc(pd.allOriginal||''),
+      esc(pd.priceItem||''), esc(pd.priceBox||''), esc(pd.priceComplete||''),
+      esc(pd.hasBox||''), esc(pd.boxCond||''), esc(pd.photoItem||''), esc(pd.photoBox||''),
+      esc(pd.notes||''), esc(pd.datePurchased||''), esc(pd.userEstWorth||''),
+      esc(pd.matchedTo||''), esc(pd.setId||''), esc(pd.yearMade||''),
+      esc(pd.isError||''), esc(pd.errorDesc||''), esc(pd.inventoryId||''),
+      esc(pd.groupId||''), esc(pd.location||''),
+    ].join(','));
+  const dateTag = new Date().toISOString().slice(0,10);
+  const csv = headers.map(h=>`"${h}"`).join(',') + '\n' + rows.join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download=`lionel-vault-collection-${dateTag}.csv`; a.click();
+  showToast('✓ Collection exported');
+}
+
+// Apply theme on load
+applyTheme();
+// Watch system theme changes
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  if (_prefGet('lv_theme','dark') === 'system') applyTheme();
+});
+
+// Apply stored page size on load
+(function() {
+  const stored = localStorage.getItem('lv_page_size');
+  if (stored) state.pageSize = parseInt(stored);
+})();
+
+// ── NAVIGATION ─────────────────────────────────────────────────────
 // ── EPHEMERA ─────────────────────────────────────────────────────
 let _ephCurrentTab = 'catalogs';
 
@@ -7435,6 +7723,7 @@ function showPage(name, clickedEl) {
   if (name === 'sold') buildSoldPage();
   if (name === 'forsale') buildForSalePage();
   if (name === 'want') buildWantPage();
+  if (name === 'prefs') buildPrefsPage();
   document.getElementById('main-content').scrollTop = 0;
 }
 
@@ -8560,7 +8849,7 @@ function renderWizardStep() {
     if (nb) nb.style.display = 'none';
 
   } else if (s.type === 'slider') {
-    const val = wizard.data[s.id] || 7;
+    const val = wizard.data[s.id] || parseInt(localStorage.getItem('lv_default_cond') || '7');
     body.innerHTML = `
       <div style="padding-top:1rem">
         <div style="display:flex;align-items:center;gap:1rem">
