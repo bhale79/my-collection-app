@@ -6538,18 +6538,27 @@ function getSteps(tab) {
           type: 'text', placeholder: 'e.g. 1467W, 2190W',
           skipIf: d => d.set_knowsNum !== 'Yes' },
 
-        // NO path — enter loco first
+        // NO path — enter items to identify
         { id: 'set_loco',
           title: 'What is the locomotive item number?',
           type: 'text', placeholder: 'e.g. 736, 2383P, 2023',
           skipIf: d => d.set_knowsNum !== 'No' },
 
-        // Component walkthrough — dynamic, rendered via 'setComponents' custom type
+        // Identify phase (both paths converge here)
         { id: 'set_components',
-          title: 'Now let\'s go through the pieces',
+          title: 'Identify your set',
           type: 'setComponents' },
 
-        // Set box — asked after components so user has context
+        // One entry mode question for the whole set
+        { id: 'set_entryMode',
+          title: d => {
+            const s = d._resolvedSet;
+            const label = s ? 'Set ' + s.setNum : 'your set';
+            return 'How would you like to add ' + label + '?';
+          },
+          type: 'entryMode' },
+
+        // Set box — asked after all items are saved (wizard returns here)
         { id: 'set_hasBox',
           title: 'Does it have the original set box?',
           type: 'choice2', choices: ['Yes','No'] },
@@ -6567,16 +6576,15 @@ function getSteps(tab) {
           ], optional: true,
           skipIf: d => d.set_hasBox !== 'Yes' },
 
-        // Notes
         { id: 'set_notes',
           title: 'Any notes about this set?',
           type: 'textarea', optional: true,
-          placeholder: 'e.g. Track included (027 curve, 027 straight), transformer cord frayed' },
+          placeholder: 'e.g. Track included (027 curve, 027 straight)' },
 
         { id: 'set_confirm',
           title: d => {
-            const count = Object.values(d.set_componentData||{}).filter(c=>c.have).length;
-            return `Ready to save — ${count} item${count!==1?'s':''} will be added to your collection`;
+            const count = (d._setItemsSaved || []).length;
+            return `Set saved — ${count} item${count!==1?'s':''} in collection. Save set box info?`;
           },
           type: 'confirm' },
       ];
@@ -7309,7 +7317,16 @@ function renderWizardStep() {
   }
 
   document.getElementById('wizard-step-label').textContent = `Step ${current} of ${total}`;
-  document.getElementById('wizard-title').textContent = typeof s.title === 'function' ? s.title(wizard.data) : s.title;
+  const _titleText = typeof s.title === 'function' ? s.title(wizard.data) : s.title;
+  const _titleEl = document.getElementById('wizard-title');
+  if (wizard.data._setMode && wizard.data._setFinalItems) {
+    const _idx   = wizard.data._setItemIndex || 0;
+    const _total = wizard.data._setFinalItems.length;
+    const _cur   = wizard.data.itemNum || wizard.data._setFinalItems[_idx] || '';
+    _titleEl.innerHTML = `<span style="font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#e67e22;display:block;margin-bottom:0.2rem">🎁 Set — Item ${_idx + 1} of ${_total}: ${_cur}</span>${_titleText}`;
+  } else {
+    _titleEl.textContent = _titleText;
+  }
   document.getElementById('wizard-progress').style.width = pct + '%';
   document.getElementById('wizard-back-btn').style.display = step > 0 ? 'inline-flex' : 'none';
   const autoAdvanceTypes = new Set(['choice','choice2','choice3','pickRow','pickSoldItem','pickForSaleItem']); // 'variation' removed — Next needed when item has no variations
@@ -8109,14 +8126,25 @@ function renderWizardStep() {
           ? `Continue — add details for ${_resolvedSet.items.length} items →`
           : `Continue without set ID — add ${_enteredNums.length} item${_enteredNums.length!==1?'s':''}  →`;
         contBtn.onclick = () => {
-          // Pre-mark entered items as "have" in compData
-          _enteredNums.forEach(n => {
-            if (!wizard.data.set_componentData[n]) wizard.data.set_componentData[n] = {};
-            wizard.data.set_componentData[n].have = true;
-          });
-          wizard.data._setPhase = 'detail';
-          wizard.data._setDetailIdx = 0;
-          renderWizardStep();
+          // Build final item list from resolved set + manually entered items
+          const _rs = _resolvedSet;
+          let _finalItems;
+          if (_rs) {
+            // Deduped set items + alts that were entered + manual items not in set
+            const _knownAll = [..._rs.items, ..._rs.alts];
+            const _manuals = _enteredNums.filter(n => !_knownAll.some(k => normalizeItemNum(k) === normalizeItemNum(n)));
+            // Include alts only if user explicitly entered them
+            const _altsToInclude = _rs.alts.filter(a => _enteredNums.some(e => normalizeItemNum(e) === normalizeItemNum(a)));
+            _finalItems = [...new Map([..._rs.items, ..._altsToInclude, ..._manuals].map(x=>[normalizeItemNum(x),x])).values()];
+          } else {
+            _finalItems = [..._enteredNums];
+          }
+          wizard.data._setFinalItems = _finalItems;
+          wizard.data._setItemIndex = 0;
+          wizard.data._setGroupId = 'SET-' + ((_resolvedSet && _resolvedSet.setNum) || 'UNK') + '-' + Date.now();
+          wizard.data._setItemsSaved = [];
+          // Advance past setComponents to set_entryMode
+          wizardAdvance();
         };
         body.appendChild(contBtn);
       }
@@ -10153,6 +10181,13 @@ async function _wizardNextCore() {
     return;
   }
 
+  // Set entry mode — store choice and launch first item
+  if (s.id === 'set_entryMode') {
+    wizard.data._setEntryMode = wizard.data.entryMode || 'full';
+    launchSetItemWizard();
+    return;
+  }
+
   // Set confirm
   if (s.id === 'set_confirm') {
     if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
@@ -10254,94 +10289,112 @@ function generatePaperItemNum(paperType, itemRef) {
   return base + '-' + typeCode + '-' + uid;
 }
 
-async function saveSet() {
+// Launch the standard collection wizard for one item in a set
+function launchSetItemWizard() {
   const d = wizard.data;
-  const resolvedSet = d._resolvedSet;
-  const setNum = (d.set_num || (resolvedSet && resolvedSet.setNum) || '').trim();
-  const compData = d.set_componentData || {};
+  const items = d._setFinalItems || [];
+  const idx   = d._setItemIndex || 0;
+  if (idx >= items.length) {
+    // All items done — return to set wizard at set_hasBox step
+    wizard.tab   = 'set';
+    wizard.steps = getSteps('set');
+    // Advance to set_hasBox step
+    wizard.step  = wizard.steps.findIndex(s => s.id === 'set_hasBox');
+    if (wizard.step < 0) wizard.step = wizard.steps.length - 1;
+    renderWizardStep();
+    return;
+  }
+  const itemNum = items[idx];
+  // Snapshot set-level data we need to preserve
+  const _setGroupId      = d._setGroupId;
+  const _setFinalItems   = d._setFinalItems;
+  const _setItemIndex    = idx;
+  const _setItemsSaved   = d._setItemsSaved || [];
+  const _setEntryMode    = d._setEntryMode;
+  const _resolvedSet     = d._resolvedSet;
+  const _setHasBox       = d.set_hasBox;
+  const _setBoxCond      = d.set_boxCond;
+  const _setBoxPhotos    = d.set_boxPhotos;
+  const _setNotes        = d.set_notes;
+  const _returnPage      = d._returnPage;
 
-  const ownedItems = Object.entries(compData).filter(([,c]) => c.have === true);
-  if (!ownedItems.length) { showToast('Mark at least one item as owned', 3000, true); return; }
+  // Build fresh wizard data for this collection item
+  wizard.tab  = 'collection';
+  wizard.data = {
+    tab: 'collection',
+    itemCategory: 'lionel',
+    itemNum: itemNum,
+    entryMode: _setEntryMode,       // use set-level entry mode, skip the question
+    _setMode: true,                  // intercept closeWizard in saveWizardItem
+    _setGroupId,
+    _setFinalItems,
+    _setItemIndex,
+    _setItemsSaved,
+    _setEntryMode,
+    _resolvedSet,
+    set_hasBox: _setHasBox,
+    set_boxCond: _setBoxCond,
+    set_boxPhotos: _setBoxPhotos,
+    set_notes: _setNotes,
+    _returnPage,
+    _existingGroupId: _setGroupId,  // force all items into the shared group
+  };
+  wizard.steps = getSteps('collection');
+  wizard.matchedItem = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum)) || null;
+  if (wizard.matchedItem) {
+    wizard.data.itemNum = wizard.matchedItem.itemNum; // use canonical form
+  }
 
-  // Generate shared group ID
-  const groupId = 'SET-' + (setNum || 'UNK') + '-' + Date.now();
+  // Fast-forward past itemCategory, itemNumGrouping, itemPicker to variation
+  wizard.step = 0;
+  const _skip = new Set(['itemCategory', 'itemNumGrouping', 'itemPicker', 'entryMode']);
+  while (wizard.step < wizard.steps.length - 1) {
+    const s = wizard.steps[wizard.step];
+    if (_skip.has(s.id) || (s.skipIf && s.skipIf(wizard.data))) {
+      wizard.step++;
+    } else {
+      break;
+    }
+  }
 
-  // Handle set box photo upload
-  let setBoxPhotoLink = '';
+  // Show item counter in wizard title area
+  const titleEl = document.getElementById('wizard-step-title');
+  if (titleEl) {
+    titleEl.setAttribute('data-set-progress', `Item ${idx + 1} of ${items.length}: ${itemNum}`);
+  }
+
+  renderWizardStep();
+}
+
+async function saveSet() {
+  // Items were already saved one-by-one via saveWizardItem.
+  // This function now only records set box notes and closes.
+  const d = wizard.data;
+  const setNum  = d._resolvedSet ? d._resolvedSet.setNum : (d.set_num || '');
+  const groupId = d._setGroupId || '';
+  const saved   = d._setItemsSaved || [];
+
+  // Upload set box photos if any
   if (d.set_hasBox === 'Yes') {
     const photoObj = d.set_boxPhotos || {};
     if (Object.keys(photoObj).some(k => photoObj[k]?.file)) {
       try {
         await driveEnsureSetup();
-        if (!driveCache.vaultId) await driveFindOrCreateFolder('Lionel Vault', null);
-        const setFolderName = setNum || groupId;
-        const setFolderId = await driveFindOrCreateFolder(setFolderName, driveCache.vaultId);
-        setBoxPhotoLink = 'https://drive.google.com/drive/folders/' + setFolderId;
+        const folderName = setNum || groupId || 'SetBox';
+        const parentId   = driveCache.vaultId || await driveFindOrCreateFolder('Lionel Vault', null);
+        const folderId   = await driveFindOrCreateFolder(folderName, parentId);
         for (const [viewKey, fileObj] of Object.entries(photoObj)) {
           if (!fileObj?.file) continue;
-          const fname = setFolderName + ' ' + viewKey + '.' + (fileObj.file.name.split('.').pop() || 'jpg');
-          await driveUploadPhoto(fileObj.file, fname, setFolderId).catch(e => console.warn(e));
+          const fname = folderName + ' ' + viewKey + '.' + (fileObj.file.name.split('.').pop() || 'jpg');
+          await driveUploadPhoto(fileObj.file, fname, folderId).catch(e => console.warn(e));
         }
-      } catch(e) { console.warn('Set box photos:', e); }
+      } catch(e) { console.warn('Set box photo upload:', e); }
     }
-  }
-
-  // Save each owned component as a My Collection row
-  const savedItems = [];
-  for (const [itemNum, comp] of ownedItems) {
-    const master = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum));
-    const invId = nextInventoryId();
-    const notes = [
-      setNum ? 'From set ' + setNum : '',
-      resolvedSet && resolvedSet.alts && resolvedSet.alts.includes(itemNum) ? 'Alternate item' : '',
-      d.set_notes || '',
-    ].filter(Boolean).join(' · ');
-
-    const row = [
-      itemNum,                         // A: Item #
-      '',                              // B: Variation
-      master ? master.itemType : '',   // C: Type
-      master ? master.roadName : '',   // D: Road
-      master ? master.yearProd : '',   // E: Year
-      comp.condition || '',            // F: Condition
-      comp.hasBox ? 'Yes' : 'No',     // G: Has Box
-      comp.boxCond || '',              // H: Box Condition
-      '',                              // I: Price Paid
-      '',                              // J: Photo Link
-      notes,                           // K: Notes
-      '',                              // L: Date Acquired
-      '',                              // M: User Est. Worth
-      '',                              // N: For Sale
-      '',                              // O: Sale Price
-      '',                              // P: Sale Date
-      '',                              // Q: Buyer
-      '',                              // R: Year Made (user)
-      setNum,                          // S: Set #
-      '',                              // T: placeholder
-      invId,                           // U: Inventory ID
-      groupId,                         // V: Group ID
-    ];
-
-    try {
-      await ensureCollectionSheet();
-      const appendRes = await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
-      const newRow = appendRes?.updates?.updatedRange?.match(/\d+$/)?.[0];
-      const newKey = itemNum + '|' + '|' + (newRow || Date.now());
-      state.personalData[newKey] = {
-        row: newRow, itemNum, variation: '',
-        itemType: master ? master.itemType : '', roadName: master ? master.roadName : '',
-        condition: comp.condition || '', hasBox: comp.hasBox ? 'Yes' : 'No',
-        boxCond: comp.boxCond || '', priceItem: '', photoItem: '',
-        notes, yearMade: master ? master.yearProd : '',
-        setNum, inventoryId: invId, groupId,
-      };
-      savedItems.push(itemNum);
-    } catch(e) { console.warn('Save set item ' + itemNum + ':', e); }
   }
 
   localStorage.removeItem('lv_personal_cache');
   localStorage.removeItem('lv_personal_cache_ts');
-  showToast('✓ Set saved — ' + savedItems.length + ' items added to your collection!');
+  showToast('\u2713 ' + (setNum || 'Set') + ' complete \u2014 ' + saved.length + ' item' + (saved.length !== 1 ? 's' : '') + ' in your collection!');
   closeWizard();
   buildDashboard();
   renderBrowse();
@@ -11127,6 +11180,20 @@ async function saveWizardItem() {
       } catch(e) { console.warn('Master box save error:', e); }
     }
 
+    // ── Set mode: record saved item, advance to next item or return to set box steps ──
+    if (d._setMode && tab === 'collection') {
+      const _saved = d._setItemsSaved || [];
+      _saved.push(itemNum);
+      const _nextIdx = (d._setItemIndex || 0) + 1;
+      wizard.data._setItemsSaved = _saved;
+      wizard.data._setItemIndex  = _nextIdx;
+      buildDashboard();
+      renderBrowse();
+      showToast(`✓ ${itemNum} saved (${_saved.length} of ${(d._setFinalItems||[]).length})`);
+      launchSetItemWizard();
+      return;
+    }
+
     closeWizard();
 
     // ── If this came from the Want List, clean up the want entry ──
@@ -11293,6 +11360,22 @@ async function quickEntryAdd() {
     }
 
     const label = rows.length > 1 ? rows.map(r => r.itemNum).join(' + ') + ' added' : itemNum + ' added';
+
+    // Set mode: advance to next item instead of closing
+    if (d._setMode) {
+      const _saved = d._setItemsSaved || [];
+      _saved.push(itemNum);
+      const _nextIdx = (d._setItemIndex || 0) + 1;
+      wizard.data._setItemsSaved = _saved;
+      wizard.data._setItemIndex  = _nextIdx;
+      buildDashboard();
+      renderBrowse();
+      showToast(`⚡ ${itemNum} saved (${_saved.length} of ${(d._setFinalItems||[]).length})`);
+      if (_nextBtn) _nextBtn.disabled = false;
+      launchSetItemWizard();
+      return;
+    }
+
     closeWizard();
     showToast('⚡ ' + label + ' (Quick Entry)');
     buildDashboard();
