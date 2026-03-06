@@ -7986,224 +7986,289 @@ function renderWizardStep() {
     body.appendChild(tmContainer);
 
   } else if (s.type === 'setComponents') {
-    // Resolve which set we're working with
-    const _setNum = wizard.data.set_num || '';
-    const _setLoco = (wizard.data.set_loco || '').trim();
-    const _compData = wizard.data.set_componentData || {};
-    let _resolvedSet = wizard.data._resolvedSet || null;
-    let _enteredItems = Object.keys(_compData);
-    if (_setLoco && !_enteredItems.includes(_setLoco)) _enteredItems = [_setLoco, ..._enteredItems];
+    // ── Phase management ──────────────────────────────────────────
+    // _setPhase: 'identify' | 'detail'
+    // _setDetailIdx: index into the final item list for detail walkthrough
+    if (!wizard.data._setPhase) wizard.data._setPhase = 'identify';
+    const phase = wizard.data._setPhase;
 
-    // Find set by number if known
-    if (_setNum && !_resolvedSet) {
-      _resolvedSet = state.setData.find(s => normalizeItemNum(s.setNum) === normalizeItemNum(_setNum)) || null;
-      if (_resolvedSet) wizard.data._resolvedSet = _resolvedSet;
-    }
+    const _setLoco      = (wizard.data.set_loco || '').trim().toUpperCase();
+    const _enteredNums  = wizard.data._enteredNums || (_setLoco ? [_setLoco] : []);
+    if (!wizard.data._enteredNums) wizard.data._enteredNums = _enteredNums;
 
-    // Suggestions from entered items
-    const _suggestions = _enteredItems.length >= 1 ? suggestSets(_enteredItems) : [];
-    const _topSuggestion = !_resolvedSet && _suggestions[0] && _suggestions[0].total >= 2 ? _suggestions[0] : null;
-
-    // Build component list from resolved set or blank
-    const _setItems = _resolvedSet ? _resolvedSet.items : (_setLoco ? [_setLoco] : []);
-    const _setAlts  = _resolvedSet ? _resolvedSet.alts  : [];
+    const _resolvedSet  = wizard.data._resolvedSet || null;
+    const _dismissed    = wizard.data._dismissedSets || [];
+    const _compData     = wizard.data.set_componentData || {};
+    if (!wizard.data.set_componentData) wizard.data.set_componentData = {};
 
     body.innerHTML = '';
 
-    // Suggestion banner
-    if (!_resolvedSet && _topSuggestion) {
-      const banner = document.createElement('div');
-      banner.style.cssText = 'background:rgba(230,126,34,0.12);border:1.5px solid #e67e22;border-radius:10px;padding:0.75rem 1rem;margin-bottom:0.75rem';
-      banner.innerHTML = `
-        <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#e67e22;margin-bottom:0.3rem">🎁 Possible Set Match</div>
-        <div style="font-size:0.9rem;color:var(--text);font-weight:600">${_topSuggestion.setNum}${_topSuggestion.setName ? ' — ' + _topSuggestion.setName : ''}</div>
-        <div style="font-size:0.78rem;color:var(--text-mid);margin-top:0.15rem">${_topSuggestion.total}/${_topSuggestion.items.length} items match${_topSuggestion.altMatches ? ' · includes alternate items' : ''} · ${_topSuggestion.year||'year unknown'}</div>
-        ${_topSuggestion.matchedAlts.length ? `<div style="font-size:0.72rem;color:#e67e22;margin-top:0.25rem">⚠ Alternate items matched: ${_topSuggestion.matchedAlts.join(', ')}</div>` : ''}
-        <div style="display:flex;gap:0.5rem;margin-top:0.6rem">
-          <button onclick="window._confirmSetMatch('${_topSuggestion.setNum}')" style="flex:1;padding:0.5rem;border-radius:8px;border:1.5px solid #e67e22;background:#e67e2222;color:#e67e22;font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer">Yes, this is my set</button>
-          <button onclick="window._dismissSetMatch()" style="padding:0.5rem 0.75rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer">Not this one</button>
-        </div>`;
-      body.appendChild(banner);
-    }
+    // ── PHASE 1: IDENTIFY ─────────────────────────────────────────
+    if (phase === 'identify') {
 
-    // Resolved set header
-    if (_resolvedSet) {
-      const hdr = document.createElement('div');
-      hdr.style.cssText = 'background:rgba(39,174,96,0.1);border:1.5px solid #27ae60;border-radius:10px;padding:0.6rem 1rem;margin-bottom:0.75rem;display:flex;align-items:center;justify-content:space-between';
-      hdr.innerHTML = `<div>
-        <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#27ae60">Set Identified</div>
-        <div style="font-size:0.9rem;color:var(--text);font-weight:600">${_resolvedSet.setNum}${_resolvedSet.setName ? ' — ' + _resolvedSet.setName : ''}</div>
-        <div style="font-size:0.75rem;color:var(--text-dim)">${_resolvedSet.year||''} ${_resolvedSet.gauge||''} · ${_resolvedSet.items.length} components</div>
-      </div>
-      <button onclick="wizard.data._resolvedSet=null;wizard.data.set_num='';renderWizardStep()" style="border:none;background:none;color:var(--text-dim);cursor:pointer;font-size:1.1rem" title="Clear">✕</button>`;
-      body.appendChild(hdr);
-    }
-
-    // Known components from set
-    if (_setItems.length) {
-      const compHeader = document.createElement('div');
-      compHeader.style.cssText = 'font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.4rem';
-      compHeader.textContent = _resolvedSet ? 'Known components — do you have each?' : 'Items entered so far';
-      body.appendChild(compHeader);
-
-      _setItems.forEach(itemNum => {
-        const master = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum));
-        const comp = _compData[itemNum] || {};
-        const isAlt = _setAlts.includes(itemNum);
-
-        const row = document.createElement('div');
-        row.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.65rem 0.85rem;margin-bottom:0.4rem';
-        row.innerHTML = `
-          <div style="display:flex;align-items:center;gap:0.6rem">
-            <span style="font-family:var(--font-mono);font-size:0.9rem;font-weight:700;color:var(--accent);min-width:60px">${itemNum}</span>
-            <span style="font-size:0.78rem;color:var(--text-mid);flex:1">${master ? (master.roadName ? master.roadName + ' ' : '') + master.description : (master ? master.itemType : '')}</span>
-            ${isAlt ? '<span style="font-size:0.62rem;background:#e67e2222;color:#e67e22;border-radius:4px;padding:1px 5px;font-weight:700">ALT</span>' : ''}
-            <div style="display:flex;gap:0.35rem">
-              <button onclick="window._setCompToggle('${itemNum}',true)" style="padding:0.3rem 0.6rem;border-radius:7px;border:1.5px solid ${comp.have===true?'#27ae60':'var(--border)'};background:${comp.have===true?'rgba(39,174,96,0.18)':'var(--surface)'};color:${comp.have===true?'#27ae60':'var(--text-dim)'};font-size:0.78rem;cursor:pointer">✓ Have</button>
-              <button onclick="window._setCompToggle('${itemNum}',false)" style="padding:0.3rem 0.6rem;border-radius:7px;border:1.5px solid ${comp.have===false?'var(--accent)':'var(--border)'};background:${comp.have===false?'rgba(232,64,28,0.12)':'var(--surface)'};color:${comp.have===false?'var(--accent)':'var(--text-dim)'};font-size:0.78rem;cursor:pointer">✗ No</button>
-            </div>
-          </div>
-          ${comp.have === true ? `
-          <div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border);display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
-            <span style="font-size:0.72rem;color:var(--text-dim)">Condition:</span>
-            ${[...Array(10)].map((_,i)=>`<button onclick="window._setCompCond('${itemNum}',${i+1})" style="width:26px;height:26px;border-radius:5px;border:1.5px solid ${(comp.condition||0)===i+1?'var(--accent)':'var(--border)'};background:${(comp.condition||0)===i+1?'rgba(232,64,28,0.2)':'var(--surface)'};font-size:0.72rem;cursor:pointer;color:${(comp.condition||0)===i+1?'var(--accent)':'var(--text-dim)'}">${i+1}</button>`).join('')}
-            <button onclick="window._setCompBoxToggle('${itemNum}')" style="margin-left:0.5rem;padding:0.25rem 0.6rem;border-radius:7px;border:1.5px solid ${comp.hasBox?'#3498db':'var(--border)'};background:${comp.hasBox?'rgba(52,152,219,0.15)':'var(--surface)'};color:${comp.hasBox?'#3498db':'var(--text-dim)'};font-size:0.72rem;cursor:pointer">📦 Has Box</button>
-            ${comp.hasBox ? `<input type="number" min="1" max="10" value="${comp.boxCond||''}" placeholder="Box cond." oninput="window._setCompBoxCond('${itemNum}',this.value)" style="width:70px;padding:0.2rem 0.4rem;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:0.75rem;font-family:var(--font-body)">` : ''}
-          </div>` : ''}`;
-        body.appendChild(row);
-      });
-    }
-
-    // Alt items not yet in list
-    if (_resolvedSet && _setAlts.length) {
-      const altHdr = document.createElement('div');
-      altHdr.style.cssText = 'font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#e67e22;margin:0.75rem 0 0.4rem';
-      altHdr.textContent = '⚠ Known alternates for this set';
-      body.appendChild(altHdr);
-      _setAlts.forEach(itemNum => {
-        if (_setItems.includes(itemNum)) return;
-        const comp = _compData[itemNum] || {};
-        const altRow = document.createElement('div');
-        altRow.style.cssText = 'background:rgba(230,126,34,0.06);border:1px solid rgba(230,126,34,0.3);border-radius:10px;padding:0.55rem 0.85rem;margin-bottom:0.4rem;display:flex;align-items:center;gap:0.6rem';
-        altRow.innerHTML = `
-          <span style="font-family:var(--font-mono);font-size:0.88rem;font-weight:700;color:#e67e22;min-width:60px">${itemNum}</span>
-          <span style="font-size:0.75rem;color:var(--text-dim);flex:1">Alternate item for this set</span>
-          <button onclick="window._setCompToggle('${itemNum}',true)" style="padding:0.3rem 0.6rem;border-radius:7px;border:1.5px solid ${comp.have===true?'#27ae60':'var(--border)'};background:${comp.have===true?'rgba(39,174,96,0.18)':'var(--surface)'};color:${comp.have===true?'#27ae60':'var(--text-dim)'};font-size:0.78rem;cursor:pointer">✓ Have</button>`;
-        body.appendChild(altRow);
-      });
-    }
-
-    // Manually added items not in the known set list
-    const _knownAll = [..._setItems, ..._setAlts];
-    const _manualItems = Object.keys(_compData).filter(k => !_knownAll.some(si => normalizeItemNum(si) === normalizeItemNum(k)));
-    if (_manualItems.length) {
-      const manHdr = document.createElement('div');
-      manHdr.style.cssText = 'font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin:0.75rem 0 0.4rem';
-      manHdr.textContent = 'Items you added';
-      body.appendChild(manHdr);
-      _manualItems.forEach(itemNum => {
-        const master = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum));
-        const comp = _compData[itemNum] || {};
-        const manRow = document.createElement('div');
-        manRow.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.65rem 0.85rem;margin-bottom:0.4rem';
-        manRow.innerHTML = `
-          <div style="display:flex;align-items:center;gap:0.6rem">
-            <span style="font-family:var(--font-mono);font-size:0.9rem;font-weight:700;color:var(--accent);min-width:60px">${itemNum}</span>
-            <span style="font-size:0.78rem;color:var(--text-mid);flex:1">${master ? (master.roadName ? master.roadName + ' ' : '') + master.description : ''}</span>
-            <div style="display:flex;gap:0.35rem">
-              <button onclick="window._setCompToggle('${itemNum}',true)" style="padding:0.3rem 0.6rem;border-radius:7px;border:1.5px solid ${comp.have===true?'#27ae60':'var(--border)'};background:${comp.have===true?'rgba(39,174,96,0.18)':'var(--surface)'};color:${comp.have===true?'#27ae60':'var(--text-dim)'};font-size:0.78rem;cursor:pointer">✓ Have</button>
-              <button onclick="window._setCompRemove('${itemNum}')" style="padding:0.3rem 0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-size:0.78rem;cursor:pointer" title="Remove">✕</button>
-            </div>
-          </div>
-          ${comp.have === true ? `
-          <div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border);display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
-            <span style="font-size:0.72rem;color:var(--text-dim)">Condition:</span>
-            ${[...Array(10)].map((_,i)=>`<button onclick="window._setCompCond('${itemNum}',${i+1})" style="width:26px;height:26px;border-radius:5px;border:1.5px solid ${(comp.condition||0)===i+1?'var(--accent)':'var(--border)'};background:${(comp.condition||0)===i+1?'rgba(232,64,28,0.2)':'var(--surface)'};font-size:0.72rem;cursor:pointer;color:${(comp.condition||0)===i+1?'var(--accent)':'var(--text-dim)'}">${i+1}</button>`).join('')}
-            <button onclick="window._setCompBoxToggle('${itemNum}')" style="margin-left:0.5rem;padding:0.25rem 0.6rem;border-radius:7px;border:1.5px solid ${comp.hasBox?'#3498db':'var(--border)'};background:${comp.hasBox?'rgba(52,152,219,0.15)':'var(--surface)'};color:${comp.hasBox?'#3498db':'var(--text-dim)'};font-size:0.72rem;cursor:pointer">📦 Has Box</button>
-            ${comp.hasBox ? `<input type="number" min="1" max="10" value="${comp.boxCond||''}" placeholder="Box cond." oninput="window._setCompBoxCond('${itemNum}',this.value)" style="width:70px;padding:0.2rem 0.4rem;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:0.75rem;font-family:var(--font-body)">` : ''}
-          </div>` : ''}`;
-        body.appendChild(manRow);
-      });
-    }
-
-    // Add item manually
-    const addRow = document.createElement('div');
-    addRow.style.cssText = 'display:flex;gap:0.5rem;margin-top:0.75rem';
-    addRow.innerHTML = `
-      <input id="set-comp-input" type="text" placeholder="Add item # (e.g. 6357, 1033)" autocomplete="off"
-        style="flex:1;padding:0.6rem 0.85rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.9rem"
-        onkeydown="if(event.key==='Enter'){event.preventDefault();window._setCompAdd();}">
-      <button onclick="window._setCompAdd()" style="padding:0.6rem 1rem;border-radius:9px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-weight:600;cursor:pointer">Add</button>`;
-    body.appendChild(addRow);
-
-    // Suggestion list (multiple candidates)
-    if (!_resolvedSet && _suggestions.length > 1) {
-      const sugHdr = document.createElement('div');
-      sugHdr.style.cssText = 'font-size:0.72rem;color:var(--text-dim);margin-top:0.75rem;margin-bottom:0.3rem;font-weight:600;text-transform:uppercase;letter-spacing:0.07em';
-      sugHdr.textContent = 'Other possible sets:';
-      body.appendChild(sugHdr);
-      _suggestions.slice(1,4).forEach(sg => {
-        const sgRow = document.createElement('div');
-        sgRow.style.cssText = 'display:flex;align-items:center;gap:0.75rem;padding:0.5rem 0.75rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);margin-bottom:0.3rem;cursor:pointer';
-        sgRow.onclick = () => window._confirmSetMatch(sg.setNum);
-        sgRow.innerHTML = `
-          <span style="font-family:var(--font-mono);font-size:0.82rem;color:var(--accent);font-weight:700">${sg.setNum}</span>
-          <span style="font-size:0.78rem;color:var(--text-mid);flex:1">${sg.setName||''} (${sg.year||'?'})</span>
-          <span style="font-size:0.72rem;color:var(--text-dim)">${sg.total}/${sg.items.length}</span>
-          ${sg.matchedAlts.length ? '<span style="font-size:0.65rem;background:#e67e2222;color:#e67e22;border-radius:4px;padding:1px 5px">has alt</span>' : ''}`;
-        body.appendChild(sgRow);
-      });
-    }
-
-    // Wire up JS callbacks
-    window._setCompRemove = (itemNum) => {
-      if (wizard.data.set_componentData) delete wizard.data.set_componentData[itemNum];
-      renderWizardStep();
-    };
-    window._setCompToggle = (itemNum, have) => {
-      if (!wizard.data.set_componentData) wizard.data.set_componentData = {};
-      const ex = wizard.data.set_componentData[itemNum] || {};
-      wizard.data.set_componentData[itemNum] = { ...ex, have };
-      renderWizardStep();
-    };
-    window._setCompCond = (itemNum, val) => {
-      if (!wizard.data.set_componentData) wizard.data.set_componentData = {};
-      const ex = wizard.data.set_componentData[itemNum] || {};
-      wizard.data.set_componentData[itemNum] = { ...ex, condition: parseInt(val) };
-    };
-    window._setCompBoxToggle = (itemNum) => {
-      if (!wizard.data.set_componentData) wizard.data.set_componentData = {};
-      const ex = wizard.data.set_componentData[itemNum] || {};
-      wizard.data.set_componentData[itemNum] = { ...ex, hasBox: !ex.hasBox };
-      renderWizardStep();
-    };
-    window._setCompBoxCond = (itemNum, val) => {
-      if (!wizard.data.set_componentData) wizard.data.set_componentData = {};
-      const ex = wizard.data.set_componentData[itemNum] || {};
-      wizard.data.set_componentData[itemNum] = { ...ex, boxCond: parseInt(val) };
-    };
-    window._setCompAdd = () => {
-      const inp = document.getElementById('set-comp-input');
-      const val = (inp ? inp.value : '').trim().toUpperCase();
-      if (!val) return;
-      if (!wizard.data.set_componentData) wizard.data.set_componentData = {};
-      if (!wizard.data.set_componentData[val]) wizard.data.set_componentData[val] = {};
-      renderWizardStep();
-    };
-    window._confirmSetMatch = (setNum) => {
-      const found = state.setData.find(s => s.setNum === setNum);
-      if (found) { wizard.data._resolvedSet = found; wizard.data.set_num = found.setNum; }
-      renderWizardStep();
-    };
-    window._dismissSetMatch = () => {
-      // Mark this suggestion as dismissed so it doesn't keep appearing
-      const top = suggestSets(Object.keys(wizard.data.set_componentData||{})).find(s=>s.total>=2);
-      if (top) {
-        if (!wizard.data._dismissedSets) wizard.data._dismissedSets = [];
-        wizard.data._dismissedSets.push(top.setNum);
+      // Resolved set banner
+      if (_resolvedSet) {
+        const hdr = document.createElement('div');
+        hdr.style.cssText = 'background:rgba(39,174,96,0.1);border:1.5px solid #27ae60;border-radius:10px;padding:0.7rem 1rem;margin-bottom:0.75rem;display:flex;align-items:center;justify-content:space-between';
+        hdr.innerHTML = `<div>
+          <div style="font-size:0.68rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#27ae60">Set Identified ✓</div>
+          <div style="font-size:0.92rem;color:var(--text);font-weight:600">${_resolvedSet.setNum}${_resolvedSet.setName ? ' — ' + _resolvedSet.setName : ''}</div>
+          <div style="font-size:0.75rem;color:var(--text-dim)">${_resolvedSet.year||''} ${_resolvedSet.gauge||''} · ${_resolvedSet.items.length} components</div>
+        </div>
+        <button onclick="wizard.data._resolvedSet=null;wizard.data.set_num='';renderWizardStep()" style="border:none;background:none;color:var(--text-dim);cursor:pointer;font-size:1.1rem" title="Clear">✕</button>`;
+        body.appendChild(hdr);
       }
-      renderWizardStep();
-    };
+
+      // Items entered so far
+      if (_enteredNums.length) {
+        const listHdr = document.createElement('div');
+        listHdr.style.cssText = 'font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.4rem';
+        listHdr.textContent = 'Items entered:';
+        body.appendChild(listHdr);
+        const listWrap = document.createElement('div');
+        listWrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.75rem';
+        _enteredNums.forEach(n => {
+          const chip = document.createElement('div');
+          chip.style.cssText = 'display:flex;align-items:center;gap:0.3rem;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:0.25rem 0.6rem 0.25rem 0.75rem';
+          chip.innerHTML = `<span style="font-family:var(--font-mono);font-size:0.82rem;color:var(--accent);font-weight:600">${n}</span>
+            <button onclick="window._setRemoveEntered('${n}')" style="border:none;background:none;color:var(--text-dim);cursor:pointer;font-size:0.9rem;line-height:1;padding:0">×</button>`;
+          listWrap.appendChild(chip);
+        });
+        body.appendChild(listWrap);
+      }
+
+      // Add item input
+      const addRow = document.createElement('div');
+      addRow.style.cssText = 'display:flex;gap:0.5rem;margin-bottom:0.75rem';
+      addRow.innerHTML = `
+        <input id="set-id-input" type="text" placeholder="Enter item # (e.g. 736, 6357, 1033)" autocomplete="off"
+          style="flex:1;padding:0.65rem 0.9rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.92rem;text-transform:uppercase"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();window._setAddEntered();}">
+        <button onclick="window._setAddEntered()" style="padding:0.65rem 1rem;border-radius:9px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-weight:600;cursor:pointer">Add</button>`;
+      body.appendChild(addRow);
+
+      // Suggestions
+      const _allEntered = _enteredNums;
+      const _suggestions = _allEntered.length >= 1
+        ? suggestSets(_allEntered).filter(sg => !_dismissed.includes(sg.setNum))
+        : [];
+
+      if (!_resolvedSet && _suggestions.length) {
+        const sugHdr = document.createElement('div');
+        sugHdr.style.cssText = 'font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#e67e22;margin-bottom:0.4rem';
+        sugHdr.textContent = _suggestions.length === 1 ? '🎁 Possible set match:' : '🎁 Possible set matches:';
+        body.appendChild(sugHdr);
+        _suggestions.slice(0, 4).forEach((sg, i) => {
+          const card = document.createElement('div');
+          card.style.cssText = `background:${i===0?'rgba(230,126,34,0.1)':'var(--surface2)'};border:${i===0?'1.5px solid #e67e22':'1px solid var(--border)'};border-radius:10px;padding:0.65rem 0.85rem;margin-bottom:0.4rem;cursor:pointer`;
+          card.onclick = () => window._confirmSetMatch(sg.setNum);
+          card.innerHTML = `
+            <div style="display:flex;align-items:center;gap:0.5rem">
+              <div style="flex:1">
+                <span style="font-family:var(--font-mono);font-size:0.9rem;font-weight:700;color:${i===0?'#e67e22':'var(--accent)'}">${sg.setNum}</span>
+                ${sg.setName ? `<span style="font-size:0.8rem;color:var(--text-mid);margin-left:0.5rem">${sg.setName}</span>` : ''}
+                <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.1rem">${sg.year||'?'} · ${sg.total}/${sg.items.length} items match${sg.altMatches?' · <span style="color:#e67e22">includes alternates</span>':''}</div>
+                ${sg.matchedAlts.length ? `<div style="font-size:0.68rem;color:#e67e22;margin-top:0.1rem">⚠ Alternate items: ${sg.matchedAlts.join(', ')}</div>` : ''}
+              </div>
+              <button onclick="event.stopPropagation();window._confirmSetMatch('${sg.setNum}')" style="padding:0.35rem 0.75rem;border-radius:8px;border:1.5px solid ${i===0?'#e67e22':'var(--border)'};background:${i===0?'#e67e2222':'var(--surface)'};color:${i===0?'#e67e22':'var(--text-dim)'};font-size:0.78rem;font-weight:600;cursor:pointer;white-space:nowrap">This is mine</button>
+            </div>`;
+          body.appendChild(card);
+        });
+        // Dismiss link
+        if (_suggestions.length) {
+          const noMatch = document.createElement('div');
+          noMatch.style.cssText = 'text-align:center;margin-top:0.25rem';
+          noMatch.innerHTML = `<button onclick="window._dismissAllSugg()" style="border:none;background:none;color:var(--text-dim);font-size:0.78rem;cursor:pointer;text-decoration:underline">None of these match</button>`;
+          body.appendChild(noMatch);
+        }
+      }
+
+      // Continue button — shown once set identified OR user has ≥1 item and no suggestions
+      const canContinue = _resolvedSet || (_enteredNums.length >= 1);
+      if (canContinue) {
+        const contBtn = document.createElement('button');
+        contBtn.style.cssText = 'width:100%;margin-top:0.75rem;padding:0.85rem;border-radius:10px;border:none;background:' + (_resolvedSet ? '#27ae60' : 'var(--surface2)') + ';color:' + (_resolvedSet ? 'white' : 'var(--text-mid)') + ';font-family:var(--font-body);font-size:0.92rem;font-weight:600;cursor:pointer';
+        contBtn.textContent = _resolvedSet
+          ? `Continue — add details for ${_resolvedSet.items.length} items →`
+          : `Continue without set ID — add ${_enteredNums.length} item${_enteredNums.length!==1?'s':''}  →`;
+        contBtn.onclick = () => {
+          // Pre-mark entered items as "have" in compData
+          _enteredNums.forEach(n => {
+            if (!wizard.data.set_componentData[n]) wizard.data.set_componentData[n] = {};
+            wizard.data.set_componentData[n].have = true;
+          });
+          wizard.data._setPhase = 'detail';
+          wizard.data._setDetailIdx = 0;
+          renderWizardStep();
+        };
+        body.appendChild(contBtn);
+      }
+
+      // Wire up identify-phase callbacks
+      window._setAddEntered = () => {
+        const inp = document.getElementById('set-id-input');
+        const val = (inp ? inp.value : '').trim().toUpperCase().replace(/\s+/g,'');
+        if (!val) return;
+        if (!wizard.data._enteredNums) wizard.data._enteredNums = [];
+        if (!wizard.data._enteredNums.includes(val)) wizard.data._enteredNums.push(val);
+        renderWizardStep();
+      };
+      window._setRemoveEntered = (n) => {
+        wizard.data._enteredNums = (wizard.data._enteredNums||[]).filter(x => x !== n);
+        renderWizardStep();
+      };
+      window._confirmSetMatch = (setNum) => {
+        const found = state.setData.find(s => s.setNum === setNum);
+        if (found) { wizard.data._resolvedSet = found; wizard.data.set_num = found.setNum; }
+        renderWizardStep();
+      };
+      window._dismissAllSugg = () => {
+        const sug = suggestSets(wizard.data._enteredNums||[]).filter(sg => !(wizard.data._dismissedSets||[]).includes(sg.setNum));
+        if (!wizard.data._dismissedSets) wizard.data._dismissedSets = [];
+        sug.forEach(sg => wizard.data._dismissedSets.push(sg.setNum));
+        renderWizardStep();
+      };
+
+    // ── PHASE 2: DETAIL ───────────────────────────────────────────
+    } else {
+      const _resolvedSet2 = wizard.data._resolvedSet;
+      // Build final item list: set items (deduped) + manually entered not in set
+      const _setItems = _resolvedSet2
+        ? [...new Map(_resolvedSet2.items.map(x=>[normalizeItemNum(x),x])).values()]
+        : [];
+      const _setAlts  = _resolvedSet2 ? _resolvedSet2.alts : [];
+      const _allKnown = [..._setItems, ..._setAlts];
+      const _manuals  = (wizard.data._enteredNums||[]).filter(n => !_allKnown.some(k => normalizeItemNum(k)===normalizeItemNum(n)));
+      const _allItems = [..._setItems, ..._setAlts.filter(a => {
+        // Only include alt if user entered it or has it
+        const n = normalizeItemNum(a);
+        return (wizard.data._enteredNums||[]).some(e=>normalizeItemNum(e)===n) || (_compData[a]||{}).have === true;
+      }), ..._manuals];
+
+      const idx  = wizard.data._setDetailIdx || 0;
+      const item = _allItems[idx];
+      const total = _allItems.length;
+
+      if (!item) {
+        // All done — show summary
+        const owned = _allItems.filter(n => (_compData[n]||{}).have === true);
+        const sumDiv = document.createElement('div');
+        sumDiv.style.cssText = 'text-align:center;padding:1rem 0';
+        sumDiv.innerHTML = `<div style="font-size:2rem;margin-bottom:0.5rem">✅</div>
+          <div style="font-size:1rem;font-weight:700;color:var(--text)">All ${total} items reviewed</div>
+          <div style="font-size:0.85rem;color:var(--text-mid);margin-top:0.25rem">${owned.length} item${owned.length!==1?'s':''} will be saved to your collection</div>
+          <button onclick="wizard.data._setDetailIdx=${total-1};renderWizardStep()" style="margin-top:0.75rem;padding:0.5rem 1rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-size:0.82rem;cursor:pointer">← Back</button>`;
+        body.appendChild(sumDiv);
+      } else {
+        const comp   = _compData[item] || {};
+        const master = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(item));
+        const isAlt  = _setAlts.some(a => normalizeItemNum(a) === normalizeItemNum(item));
+        const isManual = _manuals.some(n => normalizeItemNum(n) === normalizeItemNum(item));
+        const preOwned = (wizard.data._enteredNums||[]).some(n => normalizeItemNum(n) === normalizeItemNum(item));
+
+        // Progress
+        const prog = document.createElement('div');
+        prog.style.cssText = 'display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem';
+        prog.innerHTML = `<div style="flex:1;height:4px;background:var(--surface2);border-radius:2px">
+          <div style="height:4px;background:var(--accent);border-radius:2px;width:${Math.round((idx/total)*100)}%;transition:width 0.3s"></div>
+        </div>
+        <span style="font-size:0.72rem;color:var(--text-dim);white-space:nowrap">${idx+1} of ${total}</span>`;
+        body.appendChild(prog);
+
+        // Item header
+        const itemHdr = document.createElement('div');
+        itemHdr.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.75rem 1rem;margin-bottom:0.75rem';
+        itemHdr.innerHTML = `
+          <div style="display:flex;align-items:center;gap:0.6rem">
+            <span style="font-family:var(--font-mono);font-size:1.05rem;font-weight:700;color:var(--accent)">${item}</span>
+            ${isAlt ? '<span style="font-size:0.62rem;background:#e67e2222;color:#e67e22;border-radius:4px;padding:1px 6px;font-weight:700">ALTERNATE</span>' : ''}
+            ${isManual ? '<span style="font-size:0.62rem;background:rgba(52,152,219,0.15);color:#3498db;border-radius:4px;padding:1px 6px;font-weight:700">ADDED BY YOU</span>' : ''}
+          </div>
+          ${master ? `<div style="font-size:0.82rem;color:var(--text-mid);margin-top:0.2rem">${[master.roadName, master.description].filter(Boolean).join(' · ')}</div>` : ''}
+          ${master && master.itemType ? `<div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.1rem">${master.itemType}${master.yearProd?' · '+master.yearProd:''}</div>` : ''}`;
+        body.appendChild(itemHdr);
+
+        // Have / No
+        const haveRow = document.createElement('div');
+        haveRow.style.cssText = 'display:flex;gap:0.6rem;margin-bottom:0.75rem';
+        haveRow.innerHTML = `
+          <button onclick="window._detailHave('${item}',true)" style="flex:1;padding:0.85rem;border-radius:10px;border:2px solid ${comp.have===true?'#27ae60':'var(--border)'};background:${comp.have===true?'rgba(39,174,96,0.18)':'var(--surface2)'};color:${comp.have===true?'#27ae60':'var(--text-mid)'};font-family:var(--font-body);font-size:0.92rem;font-weight:600;cursor:pointer">✓ I have it</button>
+          <button onclick="window._detailHave('${item}',false)" style="flex:1;padding:0.85rem;border-radius:10px;border:2px solid ${comp.have===false?'var(--accent)':'var(--border)'};background:${comp.have===false?'rgba(232,64,28,0.12)':'var(--surface2)'};color:${comp.have===false?'var(--accent)':'var(--text-mid)'};font-family:var(--font-body);font-size:0.92rem;font-weight:600;cursor:pointer">✗ Don't have it</button>`;
+        body.appendChild(haveRow);
+
+        // Detail fields (if have)
+        if (comp.have === true) {
+          // Condition
+          const condDiv = document.createElement('div');
+          condDiv.style.cssText = 'margin-bottom:0.65rem';
+          condDiv.innerHTML = `<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:0.4rem">Condition</div>
+            <div style="display:flex;gap:0.3rem;flex-wrap:wrap">
+              ${[...Array(10)].map((_,i)=>`<button onclick="window._detailCond('${item}',${i+1})" style="flex:1;min-width:28px;height:36px;border-radius:7px;border:1.5px solid ${(comp.condition||0)===i+1?'var(--accent)':'var(--border)'};background:${(comp.condition||0)===i+1?'rgba(232,64,28,0.2)':'var(--surface2)'};font-size:0.82rem;cursor:pointer;color:${(comp.condition||0)===i+1?'var(--accent)':'var(--text-mid)'};font-weight:${(comp.condition||0)===i+1?'700':'400'}">${i+1}</button>`).join('')}
+            </div>`;
+          body.appendChild(condDiv);
+
+          // Has box
+          const boxRow = document.createElement('div');
+          boxRow.style.cssText = 'margin-bottom:0.65rem';
+          boxRow.innerHTML = `<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:0.4rem">Original Box?</div>
+            <div style="display:flex;gap:0.6rem">
+              <button onclick="window._detailBox('${item}',true)" style="flex:1;padding:0.65rem;border-radius:10px;border:1.5px solid ${comp.hasBox===true?'#3498db':'var(--border)'};background:${comp.hasBox===true?'rgba(52,152,219,0.15)':'var(--surface2)'};color:${comp.hasBox===true?'#3498db':'var(--text-mid)'};font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">📦 Yes</button>
+              <button onclick="window._detailBox('${item}',false)" style="flex:1;padding:0.65rem;border-radius:10px;border:1.5px solid ${comp.hasBox===false?'var(--border)':'var(--border)'};background:${comp.hasBox===false?'rgba(232,64,28,0.08)':'var(--surface2)'};color:${comp.hasBox===false?'var(--accent)':'var(--text-mid)'};font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">No box</button>
+            </div>
+            ${comp.hasBox===true ? `<div style="margin-top:0.5rem;display:flex;align-items:center;gap:0.5rem">
+              <span style="font-size:0.75rem;color:var(--text-dim)">Box condition:</span>
+              <div style="display:flex;gap:0.25rem">
+                ${[...Array(10)].map((_,i)=>`<button onclick="window._detailBoxCond('${item}',${i+1})" style="width:26px;height:26px;border-radius:5px;border:1.5px solid ${(comp.boxCond||0)===i+1?'#3498db':'var(--border)'};background:${(comp.boxCond||0)===i+1?'rgba(52,152,219,0.2)':'var(--surface2)'};font-size:0.7rem;cursor:pointer;color:${(comp.boxCond||0)===i+1?'#3498db':'var(--text-dim)'}">${i+1}</button>`).join('')}
+              </div>
+            </div>` : ''}`;
+          body.appendChild(boxRow);
+        }
+
+        // Prev / Next
+        const navRow = document.createElement('div');
+        navRow.style.cssText = 'display:flex;gap:0.6rem;margin-top:0.5rem';
+        if (idx > 0) {
+          const prevBtn = document.createElement('button');
+          prevBtn.style.cssText = 'padding:0.7rem 1.1rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer';
+          prevBtn.textContent = '← Back';
+          prevBtn.onclick = () => { wizard.data._setDetailIdx = idx - 1; renderWizardStep(); };
+          navRow.appendChild(prevBtn);
+        }
+        if (comp.have !== undefined) {
+          const nextBtn = document.createElement('button');
+          nextBtn.style.cssText = 'flex:1;padding:0.7rem;border-radius:9px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer';
+          nextBtn.textContent = idx < total - 1 ? 'Next →' : 'All done ✓';
+          nextBtn.onclick = () => { wizard.data._setDetailIdx = idx + 1; renderWizardStep(); };
+          navRow.appendChild(nextBtn);
+        }
+        body.appendChild(navRow);
+      }
+
+      // Detail callbacks
+      window._detailHave = (item, val) => {
+        if (!wizard.data.set_componentData) wizard.data.set_componentData = {};
+        const ex = wizard.data.set_componentData[item] || {};
+        wizard.data.set_componentData[item] = { ...ex, have: val };
+        renderWizardStep();
+      };
+      window._detailCond = (item, val) => {
+        if (!wizard.data.set_componentData) wizard.data.set_componentData = {};
+        const ex = wizard.data.set_componentData[item] || {};
+        wizard.data.set_componentData[item] = { ...ex, condition: val };
+        renderWizardStep();
+      };
+      window._detailBox = (item, val) => {
+        if (!wizard.data.set_componentData) wizard.data.set_componentData = {};
+        const ex = wizard.data.set_componentData[item] || {};
+        wizard.data.set_componentData[item] = { ...ex, hasBox: val };
+        renderWizardStep();
+      };
+      window._detailBoxCond = (item, val) => {
+        if (!wizard.data.set_componentData) wizard.data.set_componentData = {};
+        const ex = wizard.data.set_componentData[item] || {};
+        wizard.data.set_componentData[item] = { ...ex, boxCond: val };
+      };
+    }
 
   } else if (s.type === 'drivePhotos') {
     const views = s.views ? s.views : s.label === 'Box' ? BOX_VIEWS : s.label === 'Error' ? ERROR_VIEWS : ITEM_VIEWS;
