@@ -6171,7 +6171,7 @@ function exportReport() {
   const csv = headers + '\n' + rows;
   const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = 'lionel-report.csv'; a.click();
+  const a = document.createElement('a'); a.href = url; a.download = 'my-collection-report.csv'; a.click();
 }
 
 // ── REPORT BUILDER ───────────────────────────────────────────────
@@ -6795,8 +6795,8 @@ function buildPrefsPage() {
     <!-- ── 5. About ───────────────────────────── -->
     <div class="pref-section">
       <div class="pref-section-title">About</div>
-      <div class="pref-row">
-        <div class="pref-row-label"><strong>Lionel Vault</strong><span>${APP_VERSION} · ${APP_DATE}</span></div>
+        <div class="pref-row">
+        <div class="pref-row-label"><strong>My Collection App</strong><span>${APP_VERSION} · ${APP_DATE}</span></div>
       </div>
       <div class="pref-row">
         <div class="pref-row-label">
@@ -6809,7 +6809,7 @@ function buildPrefsPage() {
           <strong>Send Feedback</strong>
           <span>Report a bug or suggest a feature</span>
         </div>
-        <a href="mailto:feedback@lionelvault.app?subject=Lionel Vault Feedback" class="pref-btn" style="text-decoration:none">Email ↗</a>
+        <a href="mailto:bhale@ipd-llc.com?subject=My Collection App Feedback" class="pref-btn" style="text-decoration:none">Email ↗</a>
       </div>
     </div>`;
 
@@ -6864,7 +6864,7 @@ function exportFullCollection() {
   const csv = headers.map(h=>`"${h}"`).join(',') + '\n' + rows.join('\n');
   const blob = new Blob([csv], {type:'text/csv'});
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href=url; a.download=`lionel-vault-collection-${dateTag}.csv`; a.click();
+  const a = document.createElement('a'); a.href=url; a.download=`my-collection-${dateTag}.csv`; a.click();
   showToast('✓ Collection exported');
 }
 
@@ -12766,7 +12766,7 @@ function _sheetLinkClick(e) {
       <span style="font-size:0.95rem;font-weight:700;color:var(--text)">Heads up before you edit</span>
     </div>
     <p style="font-size:0.85rem;color:var(--text-mid);line-height:1.55;margin:0 0 0.75rem">
-      This sheet is managed entirely by Lionel Vault. <strong style="color:var(--text)">Editing rows, columns, or tab names directly can break the app</strong> and may cause data loss that can't be undone.
+      This sheet is managed entirely by My Collection App. <strong style="color:var(--text)">Editing rows, columns, or tab names directly can break the app</strong> and may cause data loss that can't be undone.
     </p>
     <p style="font-size:0.85rem;color:var(--text-mid);line-height:1.55;margin:0 0 1.1rem">
       It's safe to <strong style="color:var(--text)">read and export</strong> your data — just don't add, move, or delete anything while the app is in use.
