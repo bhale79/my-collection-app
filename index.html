@@ -8522,7 +8522,15 @@ function renderWizardStep() {
     const _idx   = wizard.data._setItemIndex || 0;
     const _total = wizard.data._setFinalItems.length;
     const _cur   = wizard.data.itemNum || wizard.data._setFinalItems[_idx] || '';
-    _titleEl.innerHTML = `<span style="font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#e67e22;display:block;margin-bottom:0.2rem">🎁 Set — Item ${_idx + 1} of ${_total}: ${_cur}</span>${_titleText}`;
+    const _master = state.masterData.find(m => m.itemNum === _cur);
+    const _type  = (_master && _master.itemType) ? _master.itemType : '';
+    _titleEl.innerHTML =
+      `<div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:0.5rem 0.75rem;margin-bottom:0.35rem">` +
+        `<span style="font-size:0.62rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#e67e22;white-space:nowrap">🎁 Set — Item ${_idx + 1} of ${_total}</span>` +
+        `<span style="font-size:0.95rem;font-weight:800;color:var(--text);font-family:var(--font-mono)">${_cur}</span>` +
+        (_type ? `<span style="font-size:0.72rem;font-weight:600;color:var(--text-mid);text-transform:uppercase;letter-spacing:0.06em">${_type}</span>` : '') +
+        `<span style="font-size:0.88rem;color:var(--text-mid)">— ${_titleText}</span>` +
+      `</div>`;
   } else {
     _titleEl.textContent = _titleText;
   }
