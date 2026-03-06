@@ -1824,6 +1824,9 @@ function getMatchingLocos(tenderNum) { return TENDER_TO_LOCOS[tenderNum?.toStrin
 
 
 // ── STATE ───────────────────────────────────────────────────────
+// ── Cached preference values (read once at startup, updated on change) ──
+let _prefLocEnabled = localStorage.getItem('lv_location_enabled') === 'true';
+
 let state = {
   user: null,
   masterSheetId: null,
@@ -3231,21 +3234,16 @@ function buildApp() {
   showApp();
   populateFilters();
   buildDashboard();
-  buildBrowse();
-  buildSoldPage();
-  buildForSalePage();
-  buildWantPage();
   // Wire up the Google Sheet link in the sidebar
   const sheetLink = document.getElementById('nav-sheet-link');
   if (sheetLink && state.personalSheetId) {
     sheetLink.href = 'https://docs.google.com/spreadsheets/d/' + state.personalSheetId;
   }
-  buildReport();
-  loadSavedReports();
   buildQuickEntryList();
   // Initialize location preference toggle
   const _locToggle = document.getElementById('pref-location-toggle');
-  if (_locToggle) _locToggle.checked = localStorage.getItem('lv_location_enabled') === 'true';
+  if (_locToggle) _locToggle.checked = _prefLocEnabled;
+  // Browse, Sold, For Sale, Want, Reports built lazily on first nav via showPage()
 }
 
 function showLoading() {
@@ -7686,7 +7684,7 @@ window.onload = () => {
 
 <!-- Google Identity Services -->
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="https://apis.google.com/js/api.js"></script>
+<!-- apis.google.com/js/api.js removed — not used, was render-blocking -->
 <script>
 // Picker state — declared at top so available to all onclick handlers
 var _pickerStepId = null;
@@ -7935,7 +7933,7 @@ function getSteps(tab) {
         { id: 'location',     title: 'Where will this box be stored?',
           type: 'location', optional: true,
           placeholder: 'e.g. Shelf 3, Tote 12, Display Case A',
-          skipIf: () => localStorage.getItem('lv_location_enabled') !== 'true' },
+          skipIf: () => !_prefLocEnabled },
         { id: 'confirm',       title: 'Ready to save box info!',            type: 'confirm' },
       ];
     }
@@ -9877,8 +9875,8 @@ function renderWizardStep() {
         <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.6rem">Optional — press Next to skip</div>
         <label style="display:flex;align-items:center;gap:0.5rem;margin-top:0.75rem;padding:0.6rem 0.75rem;
           background:var(--surface2);border-radius:8px;border:1px solid var(--border);cursor:pointer;font-size:0.82rem;color:var(--text-mid)">
-          <input type="checkbox" id="wiz-loc-toggle" ${localStorage.getItem('lv_location_enabled') === 'true' ? 'checked' : ''}
-            onchange="localStorage.setItem('lv_location_enabled', this.checked ? 'true' : 'false')"
+          <input type="checkbox" id="wiz-loc-toggle" ${_prefLocEnabled ? 'checked' : ''}
+            onchange="_prefLocEnabled = this.checked; localStorage.setItem('lv_location_enabled', this.checked ? 'true' : 'false')"
             style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer">
           Ask for storage location on future items
         </label>
@@ -10277,7 +10275,7 @@ function renderWizardStep() {
       }
     });
     const _pvLocList = Object.entries(_pvAllLocs).sort((a,b) => b[1]-a[1]).map(e => e[0]);
-    const _pvLocEnabled = localStorage.getItem('lv_location_enabled') === 'true';
+    const _pvLocEnabled = _prefLocEnabled;
     
     let _pvHtml = '<div style="padding-top:0.25rem;max-height:65vh;overflow-y:auto;-webkit-overflow-scrolling:touch">';
 
