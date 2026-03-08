@@ -22,49 +22,33 @@ const _TUT = (function() {
           msg: 'The wizard asks what you\'d like to add. Tap <strong>Lionel Item #</strong> — the first option. This covers any train, car, or accessory that has a Lionel catalog number.',
           hint: 'Tap <strong>Lionel Item #</strong> — the first option in the list. That\'s the right choice for most items in your collection.'
         },
-        {
-          nav: () => {},
-          target: () => document.querySelector('#wizard-body'),
-          title: 'Enter Item Number & Select Type',
-          msg: 'Type <strong>773</strong> in the search box — results appear as you type. Then tap <strong>Engine + Tender</strong> in the section below, and hit <strong>Next</strong> to continue.',
-          hint: 'Type <strong>773</strong>, tap <strong>Engine + Tender</strong>, then tap <strong>Next →</strong>.'
+        { wizardStep: 'itemNumGrouping', target: null,
+          title: 'Enter Item Number',
+          msg: 'Type <strong>773</strong> in the search box — results appear as you type. Then tap <strong>Engine + Tender</strong> below and hit <strong>Next</strong> to continue.'
         },
-        {
-          nav: () => {},
-          target: () => document.querySelector('[onclick*="wizardChooseVariation"]'),
-          title: 'Select Variation 1',
-          msg: 'Pick <strong>Variation 1</strong> from the list. Each variation includes a description from the Lionel reference catalog. You\'ll also see a <strong>COTT link</strong> — that opens the item on the Collector\'s Old Time Trains site for more detail. You can check that later!',
-          hint: 'Tap <strong>Variation 1</strong> in the list above to select it. You can explore the COTT link another time.'
+        { wizardStep: 'variation', target: null,
+          title: 'Select Variation',
+          msg: 'Pick a variation from the list. Each one includes a description from the Lionel catalog. You\'ll also see a <strong>COTT link</strong> — that opens the item on the Collector\'s Old Time Trains site. You can check that later!'
         },
-        {
-          nav: () => {},
-          target: () => document.querySelector('#wizard-body button'),
+        { wizardStep: 'entryMode', target: null,
           title: 'Full vs Quick Entry',
-          msg: '<strong>Quick Entry</strong> saves the item immediately with no further questions — great for speed. Items added that way are marked with the ⚡ icon so you can fill in details later. For this tour, tap <strong>Full Entry</strong> so we can walk through all the fields.',
-          hint: 'Tap <strong>Full Entry</strong> to continue the walkthrough with all the detail steps.'
+          msg: '<strong>Quick Entry</strong> saves immediately — items are marked ⚡ so you can fill details in later. For this tour, tap <strong>Full Entry</strong> to walk through all the fields.'
         },
-        {
-          target: () => document.querySelector('#wizard-next-btn'),
+        { wizardStep: 'conditionDetails', target: null,
           title: 'Condition',
-          msg: 'Rate the condition from <strong>1 to 10</strong> — 10 is mint in box, 1 is heavily worn. This screen appears <strong>twice</strong> — once for the engine, once for the tender. Rate each and tap <strong>Next</strong> each time.',
-          hint: 'Use the slider to rate the condition, then tap <strong>Next →</strong>. You\'ll do this again for the tender.'
+          msg: 'Rate condition from <strong>1 to 10</strong> — 10 is mint, 1 is heavily worn. This screen appears <strong>twice</strong> — once for the engine, once for the tender. Rate each and tap <strong>Next</strong>.'
         },
-        {
-          target: () => document.querySelector('#wizard-next-btn'),
+        { wizardStep: 'purchaseValue', target: null,
           title: 'Purchase & Value',
-          msg: 'Enter what you paid and when you bought the item. You can also set your own estimated value. All fields are optional — fill in what you know and tap <strong>Next</strong>.',
-          hint: 'Enter a purchase price if you know it, then tap <strong>Next →</strong>. You can always edit this later.'
+          msg: 'Enter what you paid and when. You can also set your own estimated value. All fields are optional — fill in what you know and tap <strong>Next</strong>.'
         },
-        {
-          target: () => document.querySelector('#wizard-next-btn'),
+        { wizardStep: 'drivePhotos', target: null,
           title: 'Add Photos',
-          msg: 'You can attach photos of your item here — on a <strong>computer</strong>, click to upload from your files; on the <strong>mobile app</strong>, take a photo directly with your camera. This screen appears <strong>twice</strong> — once for the engine, once for the tender. Feel free to add photos or tap <strong>Next</strong> to skip and come back later.',
-          hint: 'Tap <strong>Next →</strong> to skip photos for now — you can add them later from the item\'s detail screen.'
+          msg: 'Attach photos here — on a <strong>computer</strong> click to upload; on the <strong>mobile app</strong> take a photo directly. This screen appears for each piece. Add photos or tap <strong>Next</strong> to skip and come back later.'
         },
-        {
-          target: null,
+        { wizardStep: 'confirm', target: null,
           title: 'Review & Save',
-          msg: 'This is the confirm screen. Every field is listed here and <strong>any line can be tapped to edit</strong> before saving. Review your entries, make any changes, then tap <strong>Save</strong>. The item is written to your Google Sheet instantly. That\'s it — you\'ve added your first item!'
+          msg: 'This is the confirm screen. Every field is listed here and <strong>any line can be tapped to edit</strong>. Review your entries, make changes, then tap <strong>Save</strong> — the item is written to your Google Sheet instantly!'
         }
       ]
     },
