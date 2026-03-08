@@ -177,40 +177,24 @@
   gap: 0;
   z-index: 9000;
   cursor: pointer;
+  background: transparent;
 }
 @media (max-width: 767px) {
   #tut-help-widget { top: 10px; right: 110px; }
 }
-/* "Need Help?" text overlaid inside the drawn speech bubble */
-#tut-help-widget::before {
-  content: 'Need Help?';
-  position: absolute;
-  top: 4px; right: -6px;
-  font-family: 'Comic Sans MS', var(--font-head, cursive);
-  font-size: 0.58rem;
-  font-weight: 700;
-  color: #1a1a1a;
-  text-align: center;
-  line-height: 1.2;
-  width: 52px;
-  pointer-events: none;
-  transform: rotate(-4deg);
-  z-index: 1;
-}
 #tut-help-conductor {
-  height: 90px;
+  height: 40px;
   width: auto;
   display: block;
-  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.35));
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.35));
   transition: transform 0.2s;
   transform-origin: bottom center;
-  mix-blend-mode: multiply;
 }
 #tut-help-btn {
   display: none;
 }
 #tut-help-widget:hover #tut-help-conductor {
-  transform: translateY(-4px) rotate(-3deg);
+  transform: translateY(-3px) rotate(-3deg);
 }
 
 /* ── Help Menu ── */
