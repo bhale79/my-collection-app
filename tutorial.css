@@ -178,7 +178,6 @@
   z-index: 9000;
   cursor: pointer;
   background: transparent;
-  position: relative;
 }
 @media (max-width: 767px) {
   #tut-help-widget { top: 10px; right: 110px; }
