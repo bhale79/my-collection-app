@@ -59,7 +59,7 @@
   flex-shrink: 0;
   width: 160px;
   filter: drop-shadow(0 -4px 16px rgba(0,0,0,0.5));
-  mix-blend-mode: multiply;
+  mix-blend-mode: darken;
 }
 @media (max-width: 767px) {
   #tut-conductor { width: 100px; }
@@ -226,7 +226,7 @@
   width: auto;
   display: block;
   filter: drop-shadow(0 2px 6px rgba(0,0,0,0.35));
-  mix-blend-mode: multiply;
+  mix-blend-mode: darken;
   transition: transform 0.2s;
   transform-origin: bottom center;
 }
