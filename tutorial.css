@@ -204,6 +204,7 @@
   filter: drop-shadow(0 4px 10px rgba(0,0,0,0.35));
   transition: transform 0.2s;
   transform-origin: bottom center;
+  mix-blend-mode: multiply;
 }
 #tut-help-btn {
   display: none;
