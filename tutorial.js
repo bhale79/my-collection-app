@@ -342,6 +342,12 @@ const _TUT = (function() {
           }
         }, 5000);
       }
+    } else if (step.wizardStep) {
+      // Wizard-driven step — hide Next, conductor just narrates
+      nextBtn.style.display = 'none';
+      clickHint.style.display = 'none';
+      skipBtn.textContent = 'Skip tour';
+      skipBtn.style.display = '';
     } else {
       // No target — show normal Next button
       nextBtn.style.display = '';
