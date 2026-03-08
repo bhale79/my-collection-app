@@ -23,40 +23,40 @@ const _TUT = (function() {
           hint: 'Tap <strong>Lionel Item #</strong> — the first option in the list. That\'s the right choice for most items in your collection.'
         },
         {
+          nav: () => {},
           target: () => document.querySelector('#wiz-input'),
           title: 'Enter Item Number & Type',
           msg: 'Type <strong>773</strong> in the search box — the app searches the master catalog as you type. Tap <strong>Next</strong>, then select <strong>Engine + Tender</strong>. The app will walk you through each piece and link them as a matched pair.',
           hint: 'Type <strong>773</strong>, tap <strong>Next →</strong>, then tap the <strong>Engine + Tender</strong> option highlighted above.'
         },
         {
-          target: () => {
-            const rows = document.querySelectorAll('.variation-row, .var-option, [onclick*="variation"], [onclick*="pickVar"]');
-            return rows[0] || null;
-          },
+          nav: () => {},
+          target: () => document.querySelector('[onclick*="wizardChooseVariation"]'),
           title: 'Select Variation 1',
           msg: 'Pick <strong>Variation 1</strong> from the list. Each variation includes a description from the Lionel reference catalog. You\'ll also see a <strong>COTT link</strong> — that opens the item on the Collector\'s Old Time Trains site for more detail. You can check that later!',
           hint: 'Tap <strong>Variation 1</strong> in the list above to select it. You can explore the COTT link another time.'
         },
         {
-          target: () => document.querySelector('[onclick*="fullEntry"], [onclick*="full_entry"]') || document.querySelector('.entry-mode-full, .wizard-option'),
+          nav: () => {},
+          target: () => document.querySelector('#wizard-body button'),
           title: 'Full vs Quick Entry',
           msg: '<strong>Quick Entry</strong> saves the item immediately with no further questions — great for speed. Items added that way are marked with the ⚡ icon so you can fill in details later. For this tour, tap <strong>Full Entry</strong> so we can walk through all the fields.',
           hint: 'Tap <strong>Full Entry</strong> to continue the walkthrough with all the detail steps.'
         },
         {
-          target: () => document.querySelector('#wizard-next, [id*="wiz-next"], [onclick*="wizardNext"]'),
+          target: () => document.querySelector('#wizard-next-btn'),
           title: 'Condition',
           msg: 'Rate the condition from <strong>1 to 10</strong> — 10 is mint in box, 1 is heavily worn. This screen appears <strong>twice</strong> — once for the engine, once for the tender. Rate each and tap <strong>Next</strong> each time.',
           hint: 'Use the slider to rate the condition, then tap <strong>Next →</strong>. You\'ll do this again for the tender.'
         },
         {
-          target: () => document.querySelector('#wizard-next, [id*="wiz-next"], [onclick*="wizardNext"]'),
+          target: () => document.querySelector('#wizard-next-btn'),
           title: 'Purchase & Value',
           msg: 'Enter what you paid and when you bought the item. You can also set your own estimated value. All fields are optional — fill in what you know and tap <strong>Next</strong>.',
           hint: 'Enter a purchase price if you know it, then tap <strong>Next →</strong>. You can always edit this later.'
         },
         {
-          target: () => document.querySelector('#wizard-next, [id*="wiz-next"], [onclick*="wizardNext"]'),
+          target: () => document.querySelector('#wizard-next-btn'),
           title: 'Add Photos',
           msg: 'You can attach photos of your item here — on a <strong>computer</strong>, click to upload from your files; on the <strong>mobile app</strong>, take a photo directly with your camera. This screen appears <strong>twice</strong> — once for the engine, once for the tender. Feel free to add photos or tap <strong>Next</strong> to skip and come back later.',
           hint: 'Tap <strong>Next →</strong> to skip photos for now — you can add them later from the item\'s detail screen.'
