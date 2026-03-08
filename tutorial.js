@@ -26,16 +26,10 @@ const _TUT = (function() {
           hint: 'Tap <strong>Lionel Item #</strong> — the first option in the list. That\'s the right choice for most items in your collection.'
         },
         {
-          target: () => document.querySelector('#wizard-next, [id*="wiz-next"], [onclick*="wizardNext"]'),
-          title: 'Enter Item Number: 773',
-          msg: 'Type <strong>773</strong> in the search box. The app searches the master catalog as you type and shows matching results. When ready, tap <strong>Next</strong>.',
-          hint: 'Type <strong>773</strong> in the box above — matches will appear as you type. Then tap <strong>Next →</strong> to continue.'
-        },
-        {
           target: () => document.querySelector('[onclick*="engineTender"], [onclick*="engine_tender"], [onclick*="loco_tender"]') || document.querySelector('.item-grouping-option, .wizard-option'),
-          title: 'Engine + Tender',
-          msg: 'The 773 comes with a matching tender. Tap <strong>Engine + Tender</strong> to add both pieces together — the app will walk you through each one and link them as a matched pair.',
-          hint: 'Tap the <strong>Engine + Tender</strong> option highlighted above to add both pieces together.'
+          title: 'Enter Item Number & Type',
+          msg: 'Type <strong>773</strong> in the search box — the app searches the master catalog as you type. Tap <strong>Next</strong>, then select <strong>Engine + Tender</strong>. The app will walk you through each piece and link them as a matched pair.',
+          hint: 'Type <strong>773</strong>, tap <strong>Next →</strong>, then tap the <strong>Engine + Tender</strong> option highlighted above.'
         },
         {
           target: () => {
@@ -55,8 +49,8 @@ const _TUT = (function() {
         {
           target: () => document.querySelector('#wizard-next, [id*="wiz-next"], [onclick*="wizardNext"]'),
           title: 'Condition',
-          msg: 'Rate the condition of your item from <strong>1 to 10</strong> — 10 is mint in the box, 1 is heavily worn. You\'ll rate the engine here, then do the same for the tender on the next screen. When done, tap <strong>Next</strong>.',
-          hint: 'Use the slider to rate the condition, then tap <strong>Next →</strong> to continue.'
+          msg: 'Rate the condition from <strong>1 to 10</strong> — 10 is mint in box, 1 is heavily worn. This screen appears <strong>twice</strong> — once for the engine, once for the tender. Rate each and tap <strong>Next</strong> each time.',
+          hint: 'Use the slider to rate the condition, then tap <strong>Next →</strong>. You\'ll do this again for the tender.'
         },
         {
           target: () => document.querySelector('#wizard-next, [id*="wiz-next"], [onclick*="wizardNext"]'),
@@ -67,7 +61,7 @@ const _TUT = (function() {
         {
           target: () => document.querySelector('#wizard-next, [id*="wiz-next"], [onclick*="wizardNext"]'),
           title: 'Add Photos',
-          msg: 'You can attach photos of your item here. On a <strong>computer</strong>, click to upload from your files. On the <strong>mobile app</strong>, you can take a photo directly with your camera. You\'ll add photos for both the engine and the tender. Tap <strong>Skip</strong> or <strong>Next</strong> if you\'d like to come back to this later.',
+          msg: 'You can attach photos of your item here — on a <strong>computer</strong>, click to upload from your files; on the <strong>mobile app</strong>, take a photo directly with your camera. This screen appears <strong>twice</strong> — once for the engine, once for the tender. Feel free to add photos or tap <strong>Next</strong> to skip and come back later.',
           hint: 'Tap <strong>Next →</strong> to skip photos for now — you can add them later from the item\'s detail screen.'
         },
         {
