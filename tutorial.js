@@ -436,13 +436,46 @@ const _TUT = (function() {
     }, 100);
   }
 
-  return { start, next, end };
+  function isActive() { return _active; }
+  function currentSteps() { return _steps; }
+  function currentIndex() { return _idx; }
+  function goTo(idx) {
+    if (!_active || idx < 0 || idx >= _steps.length) return;
+    _idx = idx;
+    _renderStep();
+    // Hide tutorial Next button for wizard-driven steps
+    const nextBtn = document.getElementById('tut-next');
+    const skipBtn = document.getElementById('tut-skip');
+    const step = _steps[_idx];
+    if (step && step.wizardStep) {
+      if (nextBtn) { nextBtn.style.display = 'none'; }
+      if (skipBtn) { skipBtn.style.display = 'none'; }
+    } else {
+      if (nextBtn) { nextBtn.style.display = ''; }
+      if (skipBtn) { skipBtn.style.display = ''; }
+    }
+  }
+
+  return { start, next, end, isActive, currentSteps, currentIndex, goTo };
 })();
 
 // ── Global wrappers (called from inline HTML) ─────────────────
 function tutStart(id)  { _TUT.start(id); }
 function tutNext()     { _TUT.next(); }
 function tutEnd()      { _TUT.end(); }
+
+// Called by wizard.js renderWizardStep — auto-advances tutorial to matching wizard step
+function tutOnWizardStep(stepId, stepType) {
+  if (!_TUT || !_TUT.isActive()) return;
+  const steps = _TUT.currentSteps();
+  if (!steps) return;
+  const idx = steps.findIndex(function(s) {
+    return s.wizardStep && (s.wizardStep === stepType || s.wizardStep === stepId);
+  });
+  if (idx !== -1 && idx !== _TUT.currentIndex()) {
+    _TUT.goTo(idx);
+  }
+}
 
 // ── Help menu toggle ──────────────────────────────────────────
 function tutToggleMenu() {
