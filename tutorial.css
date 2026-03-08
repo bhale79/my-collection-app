@@ -59,6 +59,7 @@
   flex-shrink: 0;
   width: 160px;
   filter: drop-shadow(0 -4px 16px rgba(0,0,0,0.5));
+  mix-blend-mode: multiply;
 }
 @media (max-width: 767px) {
   #tut-conductor { width: 100px; }
@@ -170,7 +171,7 @@
 /* ── Help Widget (conductor + button) ── */
 #tut-help-widget {
   position: fixed;
-  top: 10px; right: 160px;
+  top: 10px; right: 220px;
   display: none;
   align-items: center;
   gap: 6px;
@@ -180,7 +181,6 @@
 @media (max-width: 767px) {
   #tut-help-widget { top: 10px; right: 110px; }
 }
-/* "Need Help?" label */
 #tut-help-widget::after {
   content: 'Need Help?';
   font-family: var(--font-head, sans-serif);
