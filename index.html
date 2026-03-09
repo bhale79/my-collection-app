@@ -233,14 +233,18 @@ document.addEventListener('touchmove', function(){}, {passive: true});
 
         <div class="two-col">
           <div class="panel">
-            <div class="section-title">Recent Additions</div>
-            <div id="recent-list">
-              <div style="padding:1rem 0"><div style="font-size:2rem;margin-bottom:0.5rem">👋</div><div style="font-weight:600;font-size:0.95rem;margin-bottom:0.4rem">Welcome to My Collection App!</div><div style="font-size:0.82rem;color:var(--text-dim);line-height:1.6;margin-bottom:1rem">Start building your collection record. Tap Add Item to log your first piece.</div><button onclick="startWizardFor('collection')" style="width:100%;padding:0.75rem;border-radius:10px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.95rem;font-weight:600;cursor:pointer">+ Add My First Item</button></div>
+            <div class="section-title" id="dash-panel-header-0" style="display:flex;align-items:center;justify-content:space-between">
+              <span>🕐 Recent Additions</span>
+            </div>
+            <div id="dash-panel-body-0" style="max-height:320px;overflow-y:auto">
+              <div class="loading"><div class="spinner"></div></div>
             </div>
           </div>
           <div class="panel">
-            <div class="section-title">Top Want List Items</div>
-            <div id="want-preview">
+            <div class="section-title" id="dash-panel-header-1" style="display:flex;align-items:center;justify-content:space-between">
+              <span>⭐ Top Want List Items</span>
+            </div>
+            <div id="dash-panel-body-1" style="max-height:320px;overflow-y:auto">
               <div class="loading"><div class="spinner"></div></div>
             </div>
           </div>
@@ -280,6 +284,10 @@ document.addEventListener('touchmove', function(){}, {passive: true});
           </div>
         </div>
 
+        <div style="display:flex;align-items:flex-start;gap:0.6rem;background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.35);border-radius:9px;padding:0.6rem 0.85rem;margin-bottom:0.85rem;font-size:0.78rem;color:var(--text-dim);line-height:1.55">
+          <span style="font-size:1rem;flex-shrink:0;margin-top:0.05rem">⚠️</span>
+          <span>We've done our best to list items accurately, but errors and omissions exist. Part numbers, variations, and set contents may differ from what's shown. Always verify details with additional sources.</span>
+        </div>
         <div class="filter-bar">
           <select class="filter-select" id="filter-type" onchange="applyFilters()">
             <option value="">All Types</option>
@@ -461,6 +469,10 @@ document.addEventListener('touchmove', function(){}, {passive: true});
           <span id="sets-count-label" style="font-size:0.78rem;color:var(--text-dim);white-space:nowrap"></span>
         </div>
         <!-- Mobile cards -->
+        <div style="display:flex;align-items:flex-start;gap:0.6rem;background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.35);border-radius:9px;padding:0.6rem 0.85rem;margin-bottom:0.85rem;font-size:0.78rem;color:var(--text-dim);line-height:1.55">
+          <span style="font-size:1rem;flex-shrink:0;margin-top:0.05rem">⚠️</span>
+          <span>We've done our best to list items accurately, but errors and omissions exist. Part numbers, variations, and set contents may differ from what's shown. Always verify details with additional sources.</span>
+        </div>
         <div id="sets-cards" style="display:none;flex-direction:column;gap:0.6rem"></div>
         <!-- Desktop table -->
         <div class="table-wrap" id="sets-table-wrap" style="margin-top:0;max-height:calc(100vh - 220px);overflow-y:auto">
