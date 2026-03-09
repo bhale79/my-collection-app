@@ -1560,147 +1560,187 @@ function renderWizardStep() {
 
   } else if (s.type === 'wantSetIdentify') {
     // ── Want List: Identify set by entering item numbers ─────────
-    const _enteredNums  = wizard.data._want_enteredNums || [];
+    // Live-as-you-type: typing in the input filters the set list immediately.
+    // "Add" commits the number as a filter chip to narrow results further.
+    // Continue is always visible once any results are showing.
     if (!wizard.data._want_enteredNums) wizard.data._want_enteredNums = [];
-    const _dismissed    = wizard.data._want_dismissedSets || [];
-    const _resolvedSet  = wizard.data._resolvedSet || null;
+    const _enteredNums = wizard.data._want_enteredNums;
+    const _dismissed   = wizard.data._want_dismissedSets || [];
+    const _resolvedSet = wizard.data._resolvedSet || null;
+    const _liveQuery   = wizard.data._want_liveQuery || '';
 
     body.innerHTML = '';
 
-    // Resolved set banner
+    // ── Resolved set banner ───────────────────────────────────────
     if (_resolvedSet) {
       const hdr = document.createElement('div');
       hdr.style.cssText = 'background:rgba(41,128,185,0.1);border:1.5px solid #2980b9;border-radius:10px;padding:0.7rem 1rem;margin-bottom:0.75rem;display:flex;align-items:center;justify-content:space-between';
       hdr.innerHTML = `<div>
-        <div style="font-size:0.68rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#2980b9">Set Identified ✓</div>
-        <div style="font-size:0.92rem;color:var(--text);font-weight:600">${_resolvedSet.setNum}${_resolvedSet.setName ? ' — ' + _resolvedSet.setName : ''}</div>
-        <div style="font-size:0.75rem;color:var(--text-dim)">${_resolvedSet.year||''} ${_resolvedSet.gauge||''} · ${_resolvedSet.items.length} components</div>
+        <div style="font-size:0.68rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#2980b9">Set Selected ✓</div>
+        <div style="font-size:0.9rem;color:var(--text);font-weight:600">${_resolvedSet.setNum}${_resolvedSet.setName ? ' — ' + _resolvedSet.setName : ''}</div>
+        <div style="font-size:0.72rem;color:var(--text-dim)">${[_resolvedSet.year, _resolvedSet.gauge, _resolvedSet.items.length + ' items'].filter(Boolean).join(' · ')}</div>
       </div>
-      <button onclick="wizard.data._resolvedSet=null;wizard.data.itemNum='';renderWizardStep()" style="border:none;background:none;color:var(--text-dim);cursor:pointer;font-size:1.1rem" title="Clear">✕</button>`;
+      <button onclick="wizard.data._resolvedSet=null;wizard.data.itemNum='';renderWizardStep()" style="border:none;background:none;color:var(--text-dim);cursor:pointer;font-size:1.1rem" title="Change">✕</button>`;
       body.appendChild(hdr);
     }
 
-    // Items entered so far
+    // ── Filter chips (committed item numbers) ─────────────────────
     if (_enteredNums.length) {
-      const listHdr = document.createElement('div');
-      listHdr.style.cssText = 'font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.4rem';
-      listHdr.textContent = 'Items entered:';
-      body.appendChild(listHdr);
-      const listWrap = document.createElement('div');
-      listWrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.75rem';
+      const chipsWrap = document.createElement('div');
+      chipsWrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.65rem;align-items:center';
+      const lbl = document.createElement('span');
+      lbl.style.cssText = 'font-size:0.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;margin-right:0.15rem';
+      lbl.textContent = 'Filtering by:';
+      chipsWrap.appendChild(lbl);
       _enteredNums.forEach(n => {
         const chip = document.createElement('div');
-        chip.style.cssText = 'display:flex;align-items:center;gap:0.3rem;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:0.25rem 0.6rem 0.25rem 0.75rem';
-        chip.innerHTML = `<span style="font-family:var(--font-mono);font-size:0.82rem;color:#2980b9;font-weight:600">${n}</span>
-          <button onclick="window._wantSetRemove('${n}')" style="border:none;background:none;color:var(--text-dim);cursor:pointer;font-size:0.9rem;line-height:1;padding:0">×</button>`;
-        listWrap.appendChild(chip);
+        chip.style.cssText = 'display:flex;align-items:center;gap:0.25rem;background:rgba(41,128,185,0.12);border:1px solid #2980b9;border-radius:20px;padding:0.2rem 0.55rem 0.2rem 0.7rem';
+        chip.innerHTML = `<span style="font-family:var(--font-mono);font-size:0.8rem;color:#2980b9;font-weight:600">${n}</span>
+          <button onclick="window._wantSetRemove('${n}')" style="border:none;background:none;color:#2980b9;cursor:pointer;font-size:0.95rem;line-height:1;padding:0" title="Remove filter">×</button>`;
+        chipsWrap.appendChild(chip);
       });
-      body.appendChild(listWrap);
+      body.appendChild(chipsWrap);
     }
 
-    // Add item input
-    const addRow = document.createElement('div');
-    addRow.style.cssText = 'display:flex;gap:0.5rem;margin-bottom:0.75rem';
-    addRow.innerHTML = `
-      <input id="want-set-input" type="text" placeholder="Enter item # (e.g. 736, 6357)" autocomplete="off"
-        style="flex:1;padding:0.65rem 0.9rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.92rem;text-transform:uppercase"
-        onkeydown="if(event.key==='Enter'){event.preventDefault();window._wantSetAdd();}">
-      <button onclick="window._wantSetAdd()" style="padding:0.65rem 1rem;border-radius:9px;border:none;background:#2980b9;color:white;font-family:var(--font-body);font-weight:600;cursor:pointer">Add</button>`;
-    body.appendChild(addRow);
+    // ── Input row ─────────────────────────────────────────────────
+    const addWrap = document.createElement('div');
+    addWrap.style.cssText = 'display:flex;flex-direction:column;gap:3px;margin-bottom:0.6rem';
 
-    // Set suggestions
-    const _suggestions = _enteredNums.length >= 1
-      ? suggestSets(_enteredNums).filter(sg => !_dismissed.includes(sg.setNum))
+    const inputRow = document.createElement('div');
+    inputRow.style.cssText = 'display:flex;gap:0.5rem';
+    inputRow.innerHTML = `
+      <input id="want-set-input" type="text" placeholder="Type a loco or car # to find sets…" autocomplete="off"
+        value="${_liveQuery}"
+        style="flex:1;padding:0.65rem 0.9rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.9rem;text-transform:uppercase"
+        oninput="window._wantSetLive(this.value)"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();window._wantSetAdd();}">
+      <button onclick="window._wantSetAdd()" title="Lock this number in as a filter"
+        style="padding:0.65rem 0.85rem;border-radius:9px;border:none;background:#2980b9;color:white;font-family:var(--font-body);font-weight:600;cursor:pointer;white-space:nowrap">+ Add filter</button>`;
+    addWrap.appendChild(inputRow);
+
+    // Hint text
+    const hint = document.createElement('div');
+    hint.style.cssText = 'font-size:0.7rem;color:var(--text-dim);padding-left:0.25rem';
+    hint.textContent = _enteredNums.length
+      ? 'Type another item # to narrow the list, or pick a set below'
+      : 'Start typing — sets will appear as you type';
+    addWrap.appendChild(hint);
+    body.appendChild(addWrap);
+
+    // ── Live set list ─────────────────────────────────────────────
+    // Combine committed filters + current live query for matching
+    const _liveNum = _liveQuery.trim().toUpperCase();
+    const _allNums = _liveNum
+      ? [..._enteredNums, _liveNum]
+      : _enteredNums;
+
+    const _suggestions = _allNums.length >= 1
+      ? suggestSets(_allNums).filter(sg => !_dismissed.includes(sg.setNum))
       : [];
 
     if (!_resolvedSet && _suggestions.length) {
       const sugHdr = document.createElement('div');
       sugHdr.style.cssText = 'font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#2980b9;margin-bottom:0.4rem';
-      sugHdr.textContent = _suggestions.length === 1 ? '🎁 Possible set match:' : '🎁 Possible set matches:';
+      sugHdr.textContent = _suggestions.length + ' matching set' + (_suggestions.length !== 1 ? 's' : '') + ' — scroll to browse, tap to pick';
       body.appendChild(sugHdr);
 
       const scrollWrap = document.createElement('div');
-      scrollWrap.style.cssText = 'max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:0.4rem;margin-bottom:0.5rem;padding-right:2px';
+      scrollWrap.style.cssText = 'max-height:240px;overflow-y:auto;display:flex;flex-direction:column;gap:0.35rem;margin-bottom:0.5rem;padding-right:3px;-webkit-overflow-scrolling:touch';
 
       _suggestions.forEach((sg, i) => {
         const card = document.createElement('div');
-        card.style.cssText = `background:${i===0?'rgba(41,128,185,0.1)':'var(--surface2)'};border:${i===0?'1.5px solid #2980b9':'1px solid var(--border)'};border-radius:10px;padding:0.65rem 0.85rem;cursor:pointer`;
+        card.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.6rem 0.8rem;cursor:pointer;transition:border-color 0.1s';
+        card.onmouseenter = () => card.style.borderColor = '#2980b9';
+        card.onmouseleave = () => card.style.borderColor = 'var(--border)';
         card.onclick = () => {
           wizard.data._resolvedSet = sg;
           wizard.data.itemNum = sg.setNum;
           wizard.data.want_set_num = sg.setNum;
+          wizard.data._want_liveQuery = '';
           renderWizardStep();
         };
+
+        // Build component chips — highlight matched numbers
+        const chipHtml = sg.items.map(n => {
+          const isMatch = _allNums.some(e => normalizeItemNum(e) === normalizeItemNum(n));
+          return `<span style="font-family:var(--font-mono);font-size:0.7rem;padding:1px 5px;border-radius:4px;border:1px solid ${isMatch?'#2980b9':'var(--border)'};background:${isMatch?'rgba(41,128,185,0.15)':'var(--surface)'};color:${isMatch?'#2980b9':'var(--text-dim)'};font-weight:${isMatch?'700':'400'}">${n}</span>`;
+        }).join('');
+
         card.innerHTML = `
-          <div style="display:flex;align-items:flex-start;gap:0.5rem">
-            <div style="flex:1">
-              <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
-                <span style="font-family:var(--font-mono);font-size:0.9rem;font-weight:700;color:${i===0?'#2980b9':'var(--accent)'}">${sg.setNum}</span>
-                ${sg.setName ? `<span style="font-size:0.8rem;color:var(--text-mid)">${sg.setName}</span>` : ''}
-                ${sg.year ? `<span style="font-size:0.72rem;color:var(--text-dim)">${sg.year}</span>` : ''}
-              </div>
-              <div style="margin-top:0.35rem;display:flex;flex-wrap:wrap;gap:0.25rem">
-                ${sg.items.map(n => {
-                  const isEntered = _enteredNums.some(e => normalizeItemNum(e) === normalizeItemNum(n));
-                  return `<span style="font-family:var(--font-mono);font-size:0.72rem;padding:1px 6px;border-radius:4px;border:1px solid ${isEntered?'#2980b9':'var(--border)'};background:${isEntered?'rgba(41,128,185,0.15)':'var(--surface)'};color:${isEntered?'#2980b9':'var(--text-dim)'};font-weight:${isEntered?'700':'400'}">${n}</span>`;
-                }).join('')}
-              </div>
-            </div>
-            <button onclick="event.stopPropagation();wizard.data._resolvedSet=${JSON.stringify(sg)};wizard.data.itemNum='${sg.setNum}';wizard.data.want_set_num='${sg.setNum}';renderWizardStep();" 
-              style="flex-shrink:0;padding:0.35rem 0.75rem;border-radius:8px;border:1.5px solid ${i===0?'#2980b9':'var(--border)'};background:${i===0?'rgba(41,128,185,0.15)':'var(--surface)'};color:${i===0?'#2980b9':'var(--text-dim)'};font-size:0.78rem;font-weight:600;cursor:pointer;white-space:nowrap">
-              I want this one
-            </button>
-          </div>`;
+          <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.3rem">
+            <span style="font-family:var(--font-mono);font-size:0.9rem;font-weight:700;color:var(--accent)">${sg.setNum}</span>
+            ${sg.setName ? `<span style="font-size:0.78rem;color:var(--text-mid);flex:1">${sg.setName}</span>` : '<span style="flex:1"></span>'}
+            <span style="font-size:0.68rem;color:var(--text-dim);white-space:nowrap">${[sg.year, sg.gauge].filter(Boolean).join(' · ')}</span>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:0.2rem">${chipHtml}</div>`;
+
         scrollWrap.appendChild(card);
       });
       body.appendChild(scrollWrap);
-
-      const noMatch = document.createElement('div');
-      noMatch.style.cssText = 'text-align:center;margin-bottom:0.5rem';
-      noMatch.innerHTML = `<button onclick="wizard.data._want_dismissedSets=(wizard.data._want_dismissedSets||[]).concat(${JSON.stringify(_suggestions.map(s=>s.setNum))});renderWizardStep()" style="border:none;background:none;color:var(--text-dim);font-size:0.78rem;cursor:pointer;text-decoration:underline">None of these match</button>`;
-      body.appendChild(noMatch);
+    } else if (_allNums.length >= 1 && !_resolvedSet && !_suggestions.length) {
+      const noRes = document.createElement('div');
+      noRes.style.cssText = 'font-size:0.82rem;color:var(--text-dim);padding:0.75rem 0;text-align:center';
+      noRes.textContent = 'No sets found for those item numbers — try a different number';
+      body.appendChild(noRes);
     }
 
-    // Continue once set picked OR at least one item entered
-    const canContinue = _resolvedSet || _enteredNums.length >= 1;
-    if (canContinue && !_suggestions.length || _resolvedSet) {
+    // ── Continue button — always shown once user has typed or added something ──
+    const _hasActivity = _resolvedSet || _enteredNums.length >= 1 || _liveNum.length >= 2;
+    if (_hasActivity) {
       const contBtn = document.createElement('button');
-      contBtn.style.cssText = 'width:100%;margin-top:0.5rem;padding:0.85rem;border-radius:10px;border:none;background:' + (_resolvedSet ? '#2980b9' : 'var(--surface2)') + ';color:' + (_resolvedSet ? 'white' : 'var(--text-mid)') + ';font-family:var(--font-body);font-size:0.92rem;font-weight:600;cursor:pointer';
+      const _btnBlue = 'padding:0.8rem;border-radius:10px;border:none;font-family:var(--font-body);font-size:0.9rem;font-weight:600;cursor:pointer;width:100%;margin-top:0.5rem;';
+      contBtn.style.cssText = _btnBlue + (_resolvedSet
+        ? 'background:#2980b9;color:white'
+        : 'background:var(--surface2);color:var(--text-mid)');
       contBtn.textContent = _resolvedSet
         ? `Continue with Set ${_resolvedSet.setNum} →`
-        : `Continue — ${_enteredNums.length} item${_enteredNums.length!==1?'s':''} entered →`;
+        : _enteredNums.length
+          ? `Can't find the set — continue anyway →`
+          : 'Continue without a set number →';
       contBtn.onclick = () => {
-        if (!_resolvedSet && _enteredNums.length) {
-          // No set matched — use first item number as placeholder
-          wizard.data.itemNum = _enteredNums[0];
+        if (!_resolvedSet) {
+          wizard.data.itemNum = _enteredNums[0] || _liveNum || 'Unknown';
         }
+        wizard.data._want_liveQuery = '';
         wizardAdvance();
       };
       body.appendChild(contBtn);
     }
 
-    // Wire up callbacks
+    // ── Callbacks ─────────────────────────────────────────────────
+    window._wantSetLive = (val) => {
+      wizard.data._want_liveQuery = val.toUpperCase().replace(/\s+/g,'');
+      // Re-render just the set list area without losing focus
+      const bodyEl = document.getElementById('wizard-body');
+      if (bodyEl) {
+        // Full re-render is cleanest since the list changes
+        const pos = document.getElementById('want-set-input')?.selectionStart || val.length;
+        renderWizardStep();
+        // Restore cursor
+        setTimeout(() => {
+          const inp = document.getElementById('want-set-input');
+          if (inp) { inp.focus(); try { inp.setSelectionRange(pos, pos); } catch(e){} }
+        }, 10);
+      }
+    };
     window._wantSetAdd = () => {
       const inp = document.getElementById('want-set-input');
-      const val = (inp ? inp.value : '').trim().toUpperCase().replace(/\s+/g,'');
+      const val = (inp ? inp.value : wizard.data._want_liveQuery || '').trim().toUpperCase().replace(/\s+/g,'');
       if (!val) return;
-      if (!wizard.data._want_enteredNums) wizard.data._want_enteredNums = [];
       if (!wizard.data._want_enteredNums.includes(val)) {
         wizard.data._want_enteredNums.push(val);
       }
-      if (inp) inp.value = '';
+      wizard.data._want_liveQuery = '';
       renderWizardStep();
       setTimeout(() => { const i = document.getElementById('want-set-input'); if(i) i.focus(); }, 50);
     };
     window._wantSetRemove = (n) => {
-      wizard.data._want_enteredNums = (wizard.data._want_enteredNums||[]).filter(x => x !== n);
-      if (wizard.data._resolvedSet && wizard.data._resolvedSet.setNum) {
-        // If we removed an item that was the basis of the resolved set, clear it
-      }
+      wizard.data._want_enteredNums = wizard.data._want_enteredNums.filter(x => x !== n);
       renderWizardStep();
+      setTimeout(() => { const i = document.getElementById('want-set-input'); if(i) i.focus(); }, 50);
     };
 
-    nextBtn.style.display = 'none'; // hide the wizard Next btn — Continue btn handles advance
+    nextBtn.style.display = 'none'; // Continue btn handles advance
 
   } else if (s.type === 'setComponents') {
     // ── Phase management ──────────────────────────────────────────
