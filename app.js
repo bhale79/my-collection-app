@@ -1601,6 +1601,188 @@ async function forceRefreshData() {
   }
 }
 
+
+// ══════════════════════════════════════════════════════════════════
+// DASHBOARD CARD CATALOG
+// ══════════════════════════════════════════════════════════════════
+const CARD_CATALOG = [
+  {
+    id: 'owned',
+    label: 'Items I Own',
+    color: 'var(--green-light,#3aad70)',
+    compute: function(state) {
+      const allOwned = Object.values(state.personalData).filter(pd => {
+        if (!pd.owned) return false;
+        const condVal = (pd.condition||'').toString().trim();
+        const priceVal = (pd.priceItem||'').toString().trim();
+        const noCondition = !condVal || condVal === 'N/A';
+        const noItemPrice = !priceVal || priceVal === 'N/A';
+        return !(pd.hasBox === 'Yes' && noCondition && noItemPrice);
+      }).length;
+      let ephCount = 0;
+      Object.values(state.ephemeraData||{}).forEach(b => { ephCount += Object.keys(b).length; });
+      const total = allOwned + ephCount;
+      return { value: total.toLocaleString(), sub: ephCount > 0 ? 'incl. ' + ephCount + ' other items' : 'including variations' };
+    }
+  },
+  {
+    id: 'value',
+    label: 'Collection Value',
+    color: 'var(--gold,#c9922a)',
+    compute: function(state) {
+      let total = 0;
+      Object.values(state.personalData).filter(pd=>pd.owned).forEach(pd => {
+        if (pd.priceComplete) total += parseFloat(pd.priceComplete)||0;
+        else if (pd.priceItem && pd.priceItem!=='N/A') total += parseFloat(pd.priceItem)||0;
+        else if (pd.priceBox) total += parseFloat(pd.priceBox)||0;
+      });
+      Object.values(state.ephemeraData||{}).forEach(b => { Object.values(b).forEach(it => { if (it.estValue) total += parseFloat(it.estValue)||0; }); });
+      return { value: total > 0 ? '$' + Math.round(total).toLocaleString() : '—', sub: 'estimated worth' };
+    }
+  },
+  {
+    id: 'catalog',
+    label: 'Catalog Items I Own',
+    color: '#3498db',
+    compute: function(state) {
+      const catNums = new Set(state.masterData.map(m => normalizeItemNum(m.itemNum)));
+      const ownedNums = new Set(Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum)));
+      const unique = [...ownedNums].filter(n=>catNums.has(n)).length;
+      const pct = catNums.size > 0 ? (unique/catNums.size*100).toFixed(1) : 0;
+      return { value: unique.toLocaleString(), sub: pct + '% of all Lionel items cataloged' };
+    }
+  },
+  {
+    id: 'engines',
+    label: 'Total Engines',
+    color: '#e74c3c',
+    compute: function(state) {
+      const owned = new Set(Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum)));
+      const count = state.masterData.filter(m => {
+        const t = (m.itemType||'').toLowerCase();
+        return (t.includes('steam') || t.includes('diesel') || t.includes('electric') || t.includes('locomotive')) && owned.has(normalizeItemNum(m.itemNum));
+      }).length;
+      return { value: count.toLocaleString(), sub: 'locomotives in collection' };
+    }
+  },
+  {
+    id: 'cabooses',
+    label: 'Total Cabooses',
+    color: '#c0392b',
+    compute: function(state) {
+      const owned = new Set(Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum)));
+      const count = state.masterData.filter(m => (m.itemType||'').toLowerCase().includes('caboose') && owned.has(normalizeItemNum(m.itemNum))).length;
+      return { value: count.toLocaleString(), sub: 'cabooses in collection' };
+    }
+  },
+  {
+    id: 'freight',
+    label: 'Total Freight Cars',
+    color: '#8e44ad',
+    compute: function(state) {
+      const owned = new Set(Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum)));
+      const count = state.masterData.filter(m => {
+        const t = (m.itemType||'').toLowerCase();
+        return (t.includes('freight') || t.includes('box car') || t.includes('boxcar') || t.includes('gondola') || t.includes('hopper') || t.includes('tank') || t.includes('flat')) && owned.has(normalizeItemNum(m.itemNum));
+      }).length;
+      return { value: count.toLocaleString(), sub: 'freight cars in collection' };
+    }
+  },
+  {
+    id: 'passenger',
+    label: 'Total Passenger Cars',
+    color: '#2980b9',
+    compute: function(state) {
+      const owned = new Set(Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum)));
+      const count = state.masterData.filter(m => (m.itemType||'').toLowerCase().includes('passenger') && owned.has(normalizeItemNum(m.itemNum))).length;
+      return { value: count.toLocaleString(), sub: 'passenger cars in collection' };
+    }
+  },
+  {
+    id: 'accessories',
+    label: 'Total Accessories',
+    color: '#16a085',
+    compute: function(state) {
+      const owned = new Set(Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum)));
+      const count = state.masterData.filter(m => (m.itemType||'').toLowerCase().includes('accessor') && owned.has(normalizeItemNum(m.itemNum))).length;
+      return { value: count.toLocaleString(), sub: 'accessories in collection' };
+    }
+  },
+  {
+    id: 'sets',
+    label: 'Total Sets',
+    color: '#d35400',
+    compute: function(state) {
+      const owned = new Set(Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum)));
+      const count = state.masterData.filter(m => (m.itemType||'').toLowerCase().includes('set') && owned.has(normalizeItemNum(m.itemNum))).length;
+      return { value: count.toLocaleString(), sub: 'sets in collection' };
+    }
+  },
+  {
+    id: 'photos',
+    label: 'Items with Photos',
+    color: '#f39c12',
+    compute: function(state) {
+      const count = Object.values(state.personalData).filter(pd => pd.owned && pd.photoItem).length;
+      const total = Object.values(state.personalData).filter(pd => pd.owned).length;
+      return { value: count.toLocaleString(), sub: count === 0 ? 'add photos in item detail' : 'of ' + total + ' items have photos' };
+    }
+  },
+  {
+    id: 'forsale',
+    label: 'For Sale',
+    color: '#e67e22',
+    compute: function(state) {
+      const items = Object.values(state.forSaleData||{});
+      const count = items.length;
+      const total = items.reduce((s,i) => s + (parseFloat(i.askingPrice)||0), 0);
+      return { value: count.toLocaleString() + (count===1?' item':' items'), sub: total > 0 ? '$' + Math.round(total).toLocaleString() + ' total asking' : 'no asking prices set' };
+    }
+  },
+  {
+    id: 'custom',
+    label: null, // set by user
+    color: '#6c5ce7',
+    compute: function(state) {
+      const title  = _prefGet('lv_card_custom_title','My Custom Card');
+      const filter = (_prefGet('lv_card_custom_filter','')).toLowerCase().trim();
+      if (!filter) return { value: '—', sub: 'set a filter in Preferences' };
+      const owned = Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum));
+      const ownedSet = new Set(owned);
+      // Count owned items whose itemNum starts with filter OR itemType includes filter
+      const matching = state.masterData.filter(m => {
+        if (!ownedSet.has(normalizeItemNum(m.itemNum))) return false;
+        const num = (m.itemNum||'').toLowerCase();
+        const type = (m.itemType||'').toLowerCase();
+        const road = (m.roadName||'').toLowerCase();
+        return num.startsWith(filter) || type.includes(filter) || road.includes(filter);
+      });
+      const total = state.masterData.filter(m => {
+        const num = (m.itemNum||'').toLowerCase();
+        const type = (m.itemType||'').toLowerCase();
+        const road = (m.roadName||'').toLowerCase();
+        return num.startsWith(filter) || type.includes(filter) || road.includes(filter);
+      }).length;
+      return { value: matching.length.toLocaleString(), sub: matching.length + ' of ' + total + ' in catalog' };
+    }
+  }
+];
+
+const _CARD_DEFAULT = ['owned','value','catalog'];
+const MAX_CARDS = 5;
+
+function _getDashCards() {
+  try {
+    const saved = _prefGet('lv_dash_cards', '');
+    if (saved) return JSON.parse(saved);
+  } catch(e) {}
+  return _CARD_DEFAULT.slice();
+}
+
+function _setDashCards(arr) {
+  _prefSet('lv_dash_cards', JSON.stringify(arr));
+}
+
 function buildDashboard() {
   const total = state.masterData.length;
 
@@ -1642,26 +1824,22 @@ function buildDashboard() {
   });
 
   const totalOwned = owned + ephemeraCount;
-  document.getElementById('stat-owned').textContent = totalOwned.toLocaleString();
-  document.getElementById('stat-owned-sub').textContent = ephemeraCount > 0
-    ? 'incl. ' + ephemeraCount + ' other items'
-    : 'including variations';
-  document.getElementById('stat-value').textContent = totalValue > 0 ? `$${Math.round(totalValue).toLocaleString()}` : '—';
-
-  // Catalog coverage — unique item numbers owned vs unique item numbers in master catalog
-  const _catalogItemNums = new Set(state.masterData.map(m => normalizeItemNum(m.itemNum)));
-  const _ownedItemNums   = new Set(
-    Object.values(state.personalData)
-      .filter(pd => pd.owned)
-      .map(pd => normalizeItemNum(pd.itemNum))
-  );
-  const _uniqueOwned  = [..._ownedItemNums].filter(n => _catalogItemNums.has(n)).length;
-  const _totalCatalog = _catalogItemNums.size;
-  const _coveragePct  = _totalCatalog > 0 ? (_uniqueOwned / _totalCatalog * 100).toFixed(1) : 0;
-  const _covEl    = document.getElementById('stat-catalog-coverage');
-  const _covPctEl = document.getElementById('stat-catalog-pct');
-  if (_covEl)    _covEl.textContent    = _uniqueOwned.toLocaleString();
-  if (_covPctEl) _covPctEl.textContent = _coveragePct + '% of all Lionel items cataloged';
+  // ── Render dashboard stat cards ──────────────────────────────
+  const _statsGrid = document.getElementById('stats-grid');
+  if (_statsGrid) {
+    const _selectedIds = _getDashCards();
+    _statsGrid.innerHTML = _selectedIds.map(function(id) {
+      const card = CARD_CATALOG.find(function(c) { return c.id === id; });
+      if (!card) return '';
+      const result = card.compute(state);
+      const cardLabel = id === 'custom' ? _prefGet('lv_card_custom_title','My Custom Card') : card.label;
+      return '<div class="stat-card" style="--card-accent:' + card.color + '">'
+        + '<div class="stat-label">' + cardLabel + '</div>'
+        + '<div class="stat-value">' + result.value + '</div>'
+        + '<div class="stat-sub">' + result.sub + '</div>'
+        + '</div>';
+    }).join('');
+  }
 
   const soldCount = Object.keys(state.soldData).length;
   const wantCount = total - owned - soldCount;
@@ -5067,6 +5245,49 @@ function buildPrefsPage() {
 
     <!-- ── 5. About ───────────────────────────── -->
     <div class="pref-section">
+      <div class="pref-section-title">Dashboard Cards</div>
+      <div class="pref-row" style="flex-direction:column;align-items:flex-start;gap:0.75rem">
+        <div style="font-size:0.82rem;color:var(--text-dim);line-height:1.5">Choose up to ${MAX_CARDS} cards to show on your dashboard. Check to include, uncheck to remove.</div>
+        <div id="pref-card-list" style="display:flex;flex-direction:column;gap:0.4rem;width:100%">
+          ${(function() {
+            const selected = _getDashCards();
+            return CARD_CATALOG.filter(c => c.id !== 'custom').map(function(card) {
+              const checked = selected.includes(card.id);
+              const disabled = !checked && selected.length >= MAX_CARDS;
+              return '<label style="display:flex;align-items:center;gap:0.6rem;padding:0.4rem 0.5rem;border-radius:7px;cursor:pointer;background:' + (checked ? 'rgba(255,255,255,0.05)' : 'transparent') + ';border:1px solid ' + (checked ? 'var(--border-light,#3a4870)' : 'transparent') + '" id="pref-card-label-' + card.id + '">'
+                + '<input type="checkbox" ' + (checked ? 'checked' : '') + ' ' + (disabled ? 'disabled' : '') + ' onchange="_onDashCardToggle(\'' + card.id + '\', this.checked)" style="accent-color:' + card.color + ';width:15px;height:15px;cursor:pointer">'
+                + '<span style="font-size:0.85rem;color:var(--text);flex:1">' + card.label + '</span>'
+                + '<span style="width:10px;height:10px;border-radius:50%;background:' + card.color + ';flex-shrink:0"></span>'
+                + '</label>';
+            }).join('');
+          })()}
+        </div>
+        <div style="font-size:0.72rem;color:var(--text-dim)" id="pref-card-count-msg">${(function(){ const n=_getDashCards().filter(id=>id!=='custom').length; return n + ' of ' + MAX_CARDS + ' standard cards selected'; })()}</div>
+      </div>
+      <div class="pref-row" style="flex-direction:column;align-items:flex-start;gap:0.5rem">
+        <div style="font-size:0.82rem;font-weight:600;color:var(--text)">Custom Card</div>
+        <div style="font-size:0.82rem;color:var(--text-dim);line-height:1.5">Create your own card — counts items in your collection matching a keyword (item # prefix, type, or road name).</div>
+        <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;width:100%">
+          <label style="font-size:0.78rem;color:var(--text-dim);min-width:60px">Title:</label>
+          <input id="pref-custom-card-title" type="text" value="${_prefGet('lv_card_custom_title','My Custom Card')}" placeholder="e.g. My 6464s" maxlength="24"
+            style="flex:1;min-width:120px;padding:0.3rem 0.5rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem"
+            oninput="_prefSet('lv_card_custom_title', this.value); buildDashboard()">
+        </div>
+        <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;width:100%">
+          <label style="font-size:0.78rem;color:var(--text-dim);min-width:60px">Filter:</label>
+          <input id="pref-custom-card-filter" type="text" value="${_prefGet('lv_card_custom_filter','')}" placeholder="e.g. 6464, tank, Missouri Pacific"
+            style="flex:1;min-width:120px;padding:0.3rem 0.5rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem"
+            oninput="_prefSet('lv_card_custom_filter', this.value); buildDashboard()">
+        </div>
+        <label style="display:flex;align-items:center;gap:0.6rem;padding:0.4rem 0.5rem;border-radius:7px;cursor:pointer;width:100%;background:${_getDashCards().includes('custom') ? 'rgba(255,255,255,0.05)' : 'transparent'};border:1px solid ${_getDashCards().includes('custom') ? 'var(--border-light,#3a4870)' : 'transparent'}" id="pref-card-label-custom">
+          <input type="checkbox" ${_getDashCards().includes('custom') ? 'checked' : ''} ${!_getDashCards().includes('custom') && _getDashCards().length >= MAX_CARDS ? 'disabled' : ''} onchange="_onDashCardToggle('custom', this.checked)" style="accent-color:#6c5ce7;width:15px;height:15px;cursor:pointer">
+          <span style="font-size:0.85rem;color:var(--text);flex:1">Show custom card on dashboard</span>
+          <span style="width:10px;height:10px;border-radius:50%;background:#6c5ce7;flex-shrink:0"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="pref-section">
       <div class="pref-section-title">About</div>
         <div class="pref-row">
         <div class="pref-row-label"><strong>My Collection App</strong><span>${APP_VERSION} · ${APP_DATE}</span></div>
@@ -5090,6 +5311,43 @@ function buildPrefsPage() {
   const locTog = document.getElementById('ptog-location');
   const oldTog = document.getElementById('pref-location-toggle');
   if (oldTog && locTog) oldTog.checked = locTog.checked;
+}
+
+
+function _onDashCardToggle(id, checked) {
+  let selected = _getDashCards();
+  if (checked) {
+    if (selected.length >= MAX_CARDS) {
+      // Revert checkbox — already at max
+      const cb = document.querySelector('#pref-card-label-' + id + ' input');
+      if (cb) cb.checked = false;
+      return;
+    }
+    if (!selected.includes(id)) selected.push(id);
+  } else {
+    selected = selected.filter(function(s) { return s !== id; });
+  }
+  _setDashCards(selected);
+  buildDashboard();
+
+  // Refresh the prefs UI to update disabled states + count msg
+  const countMsg = document.getElementById('pref-card-count-msg');
+  if (countMsg) {
+    const n = selected.filter(function(s){ return s !== 'custom'; }).length;
+    countMsg.textContent = n + ' of ' + MAX_CARDS + ' standard cards selected';
+  }
+  // Update all checkbox disabled states
+  CARD_CATALOG.forEach(function(card) {
+    const lbl = document.getElementById('pref-card-label-' + card.id);
+    if (!lbl) return;
+    const cb = lbl.querySelector('input');
+    if (!cb) return;
+    const isSelected = selected.includes(card.id);
+    const isDisabled = !isSelected && selected.length >= MAX_CARDS;
+    cb.disabled = isDisabled;
+    lbl.style.background = isSelected ? 'rgba(255,255,255,0.05)' : 'transparent';
+    lbl.style.borderColor = isSelected ? 'var(--border-light,#3a4870)' : 'transparent';
+  });
 }
 
 function _onPrefChange(id, val) {
