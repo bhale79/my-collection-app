@@ -169,19 +169,15 @@
 /* ── Help Button ── */
 /* ── Help Widget (conductor + button) ── */
 #tut-help-widget {
-  /* Fixed to bottom-left of sidebar, just below Sync from Sheet */
-  position: fixed;
-  bottom: 12px;
-  left: 0;
-  width: 220px;
+  /* Inline in sidebar — flows naturally below Sync from Sheet */
   display: none; /* shown via tutShowHelpBtn() */
   flex-direction: row;
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 0.75rem;
   cursor: pointer;
-  z-index: 100;
-  border-radius: 0 8px 8px 0;
+  width: 100%;
+  border-radius: 7px;
 }
 @media (max-width: 767px) {
   #tut-help-widget { display: none !important; } /* use bottom nav on mobile */
@@ -202,6 +198,9 @@
 }
 #tut-help-btn {
   display: none;
+}
+#tut-help-widget:hover {
+  background: rgba(255,255,255,0.05);
 }
 #tut-help-widget:hover #tut-help-conductor {
   transform: translateY(-2px) rotate(-3deg);
