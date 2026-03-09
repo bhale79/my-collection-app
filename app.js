@@ -6582,7 +6582,7 @@ function buildSetsPage() {
     const wantBtn = alreadyWanted
       ? '<span style="font-size:' + fs + ';color:var(--text-dim);padding:' + p + '">✓ On Want List</span>'
       : '<button onclick="addSetToWantList(\'' + esc + '\',\'' + escName + '\')" style="padding:' + p + ';border-radius:5px;font-size:' + fs + ';cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.25rem">+ Want List</button>';
-    const browseBtn = '<button onclick="browseSetItems(\'' + esc + '\')" style="padding:' + p + ';border-radius:5px;font-size:' + fs + ';cursor:pointer;border:1px solid #2980b9;background:rgba(41,128,185,0.12);color:#2980b9;font-family:var(--font-body);margin-right:0.25rem">Browse Items</button>';
+    const browseBtn = '<button onclick="showSetDetail(\'' + esc + '\')" style="padding:' + p + ';border-radius:5px;font-size:' + fs + ';cursor:pointer;border:1px solid #2980b9;background:rgba(41,128,185,0.12);color:#2980b9;font-family:var(--font-body);margin-right:0.25rem">View Full Set</button>';
     return wantBtn + browseBtn;
   }
 
@@ -6655,40 +6655,125 @@ function addSetToWantList(setNum, setName) {
   renderWizardStep();
 }
 
-function browseSetItems(setNum) {
-  const setEntry = state.setData.find(s => s.setNum === setNum);
-  if (!setEntry) return;
-  // Navigate to browse with search pre-filled to show set components
-  // We use the set number itself as a search term since items reference it
-  // Better: open browse and show each item number
-  const navBtn = document.querySelector('.nav-item[onclick*="renderBrowse"]');
-  showPage('browse', navBtn);
-  // Search for the set number — items tagged with this set will surface
-  // Instead, show all items that are in this set by pre-populating search
-  // with the first item number and noting the set
-  state.filters.search = setNum.toLowerCase();
-  state._setsSourceSet = setNum;
-  document.getElementById('browse-search') && (document.getElementById('browse-search').value = setNum);
-  renderBrowse();
-  // Show a banner so user knows what they're looking at
-  setTimeout(() => {
-    const existing = document.getElementById('set-browse-banner');
-    if (existing) existing.remove();
-    const browseEl = document.getElementById('page-browse');
-    if (!browseEl) return;
-    const banner = document.createElement('div');
-    banner.id = 'set-browse-banner';
-    banner.style.cssText = 'background:rgba(211,84,0,0.1);border:1.5px solid #d35400;border-radius:9px;padding:0.55rem 0.9rem;margin-bottom:0.75rem;display:flex;align-items:center;justify-content:space-between;font-size:0.82rem';
-    banner.innerHTML = '<span style="color:#d35400;font-weight:600">🎁 Set ' + setNum + (setEntry.setName ? ' — ' + setEntry.setName : '') + '</span>'
-      + '<span style="color:var(--text-dim);margin:0 0.75rem;flex:1">Showing individual items — use search to refine</span>'
-      + '<button onclick="document.getElementById(\'set-browse-banner\').remove();state.filters.search=\'\';renderBrowse()" style="border:none;background:none;color:var(--text-dim);cursor:pointer;font-size:1rem">✕</button>';
-    const firstChild = browseEl.querySelector('.page-title');
-    if (firstChild && firstChild.nextSibling) {
-      browseEl.insertBefore(banner, firstChild.nextSibling);
-    } else {
-      browseEl.prepend(banner);
-    }
-  }, 100);
+function showSetDetail(setNum) {
+  const s = state.setData.find(x => x.setNum === setNum);
+  if (!s) return;
+
+  const existing = document.getElementById('set-detail-popup');
+  if (existing) existing.remove();
+
+  // ── Overlay ──
+  const overlay = document.createElement('div');
+  overlay.id = 'set-detail-popup';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.25rem';
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+
+  // ── Box ──
+  const box = document.createElement('div');
+  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:560px;width:100%;padding:1.5rem;position:relative;max-height:85vh;overflow-y:auto';
+
+  // Close button
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕';
+  closeBtn.style.cssText = 'position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer;z-index:1';
+  closeBtn.onclick = () => overlay.remove();
+  box.appendChild(closeBtn);
+
+  // ── Header ──
+  const hdr = document.createElement('div');
+  hdr.style.cssText = 'margin-bottom:1rem;padding-right:2rem';
+  hdr.innerHTML =
+    '<div style="display:flex;align-items:baseline;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.25rem">'
+    + '<span style="font-family:var(--font-head);font-size:1.4rem;color:#d35400">' + s.setNum + '</span>'
+    + (s.setName ? '<span style="font-size:1rem;color:var(--text);font-weight:600">' + s.setName + '</span>' : '')
+    + '</div>'
+    + '<div style="display:flex;gap:0.75rem;flex-wrap:wrap;font-size:0.78rem;color:var(--text-dim)">'
+    + (s.year  ? '<span>📅 ' + s.year  + '</span>' : '')
+    + (s.gauge ? '<span>🔧 ' + s.gauge + '</span>' : '')
+    + (s.price ? '<span>💰 Original price: ' + s.price + '</span>' : '')
+    + '</div>';
+  box.appendChild(hdr);
+
+  // ── Divider ──
+  const div1 = document.createElement('hr');
+  div1.style.cssText = 'border:none;border-top:1px solid var(--border);margin:0 0 1rem 0';
+  box.appendChild(div1);
+
+  // ── Components ──
+  const compHdr = document.createElement('div');
+  compHdr.style.cssText = 'font-size:0.68rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.5rem';
+  compHdr.textContent = 'Components (' + s.items.length + ' items)';
+  box.appendChild(compHdr);
+
+  const chipsWrap = document.createElement('div');
+  chipsWrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.3rem;margin-bottom:' + (s.alts.length ? '0.9rem' : (s.notes ? '0.9rem' : '0')) + ';';
+  s.items.forEach(n => {
+    // Look up the item name from master data for a richer chip
+    const master = state.masterData.find(m => m.itemNum === n);
+    const label = master ? (master.roadName || master.description || master.itemType || '') : '';
+    const chip = document.createElement('div');
+    chip.style.cssText = 'display:flex;flex-direction:column;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:0.3rem 0.55rem;cursor:default';
+    chip.innerHTML =
+      '<span style="font-family:var(--font-mono);font-size:0.78rem;font-weight:700;color:#d35400">' + n + '</span>'
+      + (label ? '<span style="font-size:0.65rem;color:var(--text-dim);margin-top:1px">' + label + '</span>' : '');
+    chipsWrap.appendChild(chip);
+  });
+  box.appendChild(chipsWrap);
+
+  // ── Alternate items (if any) ──
+  if (s.alts && s.alts.length) {
+    const altHdr = document.createElement('div');
+    altHdr.style.cssText = 'font-size:0.68rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:var(--text-dim);margin:0.9rem 0 0.4rem';
+    altHdr.textContent = 'Alternate / Optional Items';
+    box.appendChild(altHdr);
+    const altWrap = document.createElement('div');
+    altWrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.3rem;margin-bottom:' + (s.notes ? '0.9rem' : '0') + ';';
+    s.alts.forEach(n => {
+      const chip = document.createElement('span');
+      chip.style.cssText = 'font-family:var(--font-mono);font-size:0.75rem;padding:2px 7px;border-radius:5px;border:1px dashed var(--border);color:var(--text-dim)';
+      chip.textContent = n;
+      altWrap.appendChild(chip);
+    });
+    box.appendChild(altWrap);
+  }
+
+  // ── Notes ──
+  if (s.notes) {
+    const notesHdr = document.createElement('div');
+    notesHdr.style.cssText = 'font-size:0.68rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:var(--text-dim);margin:0.9rem 0 0.35rem';
+    notesHdr.textContent = 'Notes';
+    box.appendChild(notesHdr);
+    const notesEl = document.createElement('div');
+    notesEl.style.cssText = 'font-size:0.85rem;color:var(--text);line-height:1.6;font-style:italic';
+    notesEl.textContent = s.notes;
+    box.appendChild(notesEl);
+  }
+
+  // ── Footer action ──
+  const footer = document.createElement('div');
+  footer.style.cssText = 'margin-top:1.25rem;padding-top:0.9rem;border-top:1px solid var(--border);display:flex;gap:0.5rem;justify-content:flex-end';
+  const alreadyWanted = !!state.wantData[s.setNum + '|'];
+  if (!alreadyWanted) {
+    const wantBtn = document.createElement('button');
+    wantBtn.textContent = '+ Add to Want List';
+    wantBtn.style.cssText = 'padding:0.45rem 0.9rem;border-radius:7px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer';
+    wantBtn.onclick = () => { overlay.remove(); addSetToWantList(s.setNum, s.setName || ''); };
+    footer.appendChild(wantBtn);
+  } else {
+    const wantedLbl = document.createElement('span');
+    wantedLbl.style.cssText = 'font-size:0.8rem;color:var(--text-dim);align-self:center';
+    wantedLbl.textContent = '✓ Already on Want List';
+    footer.appendChild(wantedLbl);
+  }
+  const doneBtn = document.createElement('button');
+  doneBtn.textContent = 'Close';
+  doneBtn.style.cssText = 'padding:0.45rem 0.9rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-size:0.82rem;cursor:pointer';
+  doneBtn.onclick = () => overlay.remove();
+  footer.appendChild(doneBtn);
+  box.appendChild(footer);
+
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
 }
 
 
