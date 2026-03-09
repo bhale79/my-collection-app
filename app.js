@@ -2481,6 +2481,9 @@ function onPageSearch(val, page) {
   } else if (page === 'sold') {
     state._soldSearch = q;
     buildSoldPage();
+  } else if (page === 'sets') {
+    state._setsSearch = q;
+    buildSetsPage();
   } else if (page === 'forsale') {
     state._forsaleSearch = q;
     buildForSalePage();
@@ -6503,9 +6506,191 @@ function showPage(name, clickedEl) {
   if (name === 'sold') buildSoldPage();
   if (name === 'forsale') buildForSalePage();
   if (name === 'want') buildWantPage();
+  if (name === 'sets') buildSetsPage();
   if (name === 'prefs') buildPrefsPage();
   document.getElementById('main-content').scrollTop = 0;
 }
+
+// ── SETS PAGE ────────────────────────────────────────────────────────────────
+function buildSetsPage() {
+  const isMobile = window.innerWidth <= 640;
+  const sq = (state._setsSearch || '').toLowerCase();
+  const yearFilter  = (document.getElementById('sets-filter-year')?.value  || '').trim();
+  const gaugeFilter = (document.getElementById('sets-filter-gauge')?.value || '').trim();
+
+  // Populate year + gauge dropdowns on first call
+  const yearEl  = document.getElementById('sets-filter-year');
+  const gaugeEl = document.getElementById('sets-filter-gauge');
+  if (yearEl && yearEl.options.length <= 1) {
+    const years = [...new Set(state.setData.map(s => s.year).filter(Boolean))].sort();
+    years.forEach(y => {
+      const o = document.createElement('option'); o.value = y; o.textContent = y; yearEl.appendChild(o);
+    });
+  }
+  if (gaugeEl && gaugeEl.options.length <= 1) {
+    const gauges = [...new Set(state.setData.map(s => s.gauge).filter(Boolean))].sort();
+    gauges.forEach(g => {
+      const o = document.createElement('option'); o.value = g; o.textContent = g; gaugeEl.appendChild(o);
+    });
+  }
+
+  // Restore saved filter values
+  if (yearEl  && yearFilter)  yearEl.value  = yearFilter;
+  if (gaugeEl && gaugeFilter) gaugeEl.value = gaugeFilter;
+
+  // Filter
+  const entries = state.setData.filter(s => {
+    if (yearFilter  && s.year  !== yearFilter)  return false;
+    if (gaugeFilter && s.gauge !== gaugeFilter) return false;
+    if (sq) {
+      const hay = (s.setNum + ' ' + s.setName + ' ' + s.year + ' ' + s.items.join(' ') + ' ' + s.alts.join(' ') + ' ' + s.notes).toLowerCase();
+      if (!hay.includes(sq)) return false;
+    }
+    return true;
+  });
+
+  // Update count badge + label
+  const badge = document.getElementById('nav-sets-count');
+  if (badge) badge.textContent = state.setData.length.toLocaleString();
+  const countLbl = document.getElementById('sets-count-label');
+  if (countLbl) countLbl.textContent = entries.length + ' of ' + state.setData.length + ' sets';
+
+  const cardsEl    = document.getElementById('sets-cards');
+  const tableWrap  = document.getElementById('sets-table-wrap');
+  const tbody      = document.getElementById('sets-tbody');
+
+  // ── Helper: build component chips HTML ──────────────────────────
+  function _chips(items, alts, sq) {
+    const allItems = items.slice(0, 8);
+    const more = items.length > 8 ? items.length - 8 : 0;
+    return allItems.map(n => {
+      const isMatch = sq && n.toLowerCase().includes(sq);
+      return '<span style="font-family:var(--font-mono);font-size:0.68rem;padding:1px 5px;border-radius:3px;border:1px solid '
+        + (isMatch ? '#2980b9' : 'var(--border)')
+        + ';background:' + (isMatch ? 'rgba(41,128,185,0.12)' : 'var(--surface)')
+        + ';color:' + (isMatch ? '#2980b9' : 'var(--text-dim)') + ';font-weight:' + (isMatch ? '700' : '400') + '">' + n + '</span>';
+    }).join('') + (more ? '<span style="font-size:0.68rem;color:var(--text-dim)">+' + more + ' more</span>' : '');
+  }
+
+  // ── Helper: action buttons ───────────────────────────────────────
+  function _actions(s, small) {
+    const esc = s.setNum.replace(/'/g,"\'");
+    const escName = (s.setName||'').replace(/'/g,"\'");
+    const p = small ? '0.28rem 0.45rem' : '0.3rem 0.55rem';
+    const fs = small ? '0.7rem' : '0.72rem';
+    const alreadyWanted = !!state.wantData[s.setNum + '|'];
+    const wantBtn = alreadyWanted
+      ? '<span style="font-size:' + fs + ';color:var(--text-dim);padding:' + p + '">✓ On Want List</span>'
+      : '<button onclick="addSetToWantList(\'' + esc + '\',\'' + escName + '\')" style="padding:' + p + ';border-radius:5px;font-size:' + fs + ';cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.25rem">+ Want List</button>';
+    const browseBtn = '<button onclick="browseSetItems(\'' + esc + '\')" style="padding:' + p + ';border-radius:5px;font-size:' + fs + ';cursor:pointer;border:1px solid #2980b9;background:rgba(41,128,185,0.12);color:#2980b9;font-family:var(--font-body);margin-right:0.25rem">Browse Items</button>';
+    return wantBtn + browseBtn;
+  }
+
+  if (entries.length === 0) {
+    const empty = '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🎁</div><p>No sets found</p></div>';
+    if (cardsEl) cardsEl.innerHTML = empty;
+    if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="ui-empty">No sets found</td></tr>';
+    return;
+  }
+
+  if (isMobile) {
+    if (tableWrap) tableWrap.style.display = 'none';
+    if (cardsEl)   { cardsEl.style.display = 'flex'; }
+    cardsEl.innerHTML = entries.map(s => {
+      const label = [s.setName, s.gauge].filter(Boolean).join(' · ');
+      return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem">'
+        + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.5rem;margin-bottom:0.4rem">'
+        + '<div>'
+        + '<span style="font-family:var(--font-head);font-size:1.1rem;color:#d35400">' + s.setNum + '</span>'
+        + (s.year ? ' <span style="font-size:0.72rem;color:var(--text-dim)">' + s.year + '</span>' : '')
+        + (label ? '<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">' + label + '</div>' : '')
+        + '</div></div>'
+        + '<div style="display:flex;flex-wrap:wrap;gap:0.2rem;margin-bottom:0.55rem">' + _chips(s.items, s.alts, sq) + '</div>'
+        + (s.notes ? '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.45rem;font-style:italic">' + s.notes + '</div>' : '')
+        + '<div style="display:flex;gap:0.35rem;flex-wrap:wrap">' + _actions(s, true) + '</div>'
+        + '</div>';
+    }).join('');
+  } else {
+    if (tableWrap) tableWrap.style.display = '';
+    if (cardsEl)   cardsEl.style.display = 'none';
+    tbody.innerHTML = entries.map(s => {
+      return '<tr>'
+        + '<td><span style="font-family:var(--font-mono);font-weight:700;color:#d35400;font-size:0.92rem">' + s.setNum + '</span></td>'
+        + '<td>' + (s.setName || '<span class="text-dim">—</span>') + '</td>'
+        + '<td>' + (s.year    || '<span class="text-dim">—</span>') + '</td>'
+        + '<td>' + (s.gauge   || '<span class="text-dim">—</span>') + '</td>'
+        + '<td><div style="display:flex;flex-wrap:wrap;gap:0.2rem;align-items:center">' + _chips(s.items, s.alts, sq) + '</div></td>'
+        + '<td style="white-space:nowrap">' + _actions(s, false) + '</td>'
+        + '</tr>';
+    }).join('') || '<tr><td colspan="6" class="ui-empty">No sets found</td></tr>';
+  }
+}
+
+function addSetToWantList(setNum, setName) {
+  // Open the want wizard pre-filled as a set
+  const _activePg = document.querySelector('.page.active');
+  const _returnPage = _activePg ? _activePg.id.replace('page-', '') : 'sets';
+  wizard = {
+    step: 0, tab: 'want',
+    data: {
+      tab: 'want',
+      itemCategory: 'set',
+      want_set_num: setNum,
+      itemNum: setNum,
+      _resolvedSet: state.setData.find(s => s.setNum === setNum) || null,
+      _returnPage: _returnPage
+    },
+    steps: getSteps('want'),
+    matchedItem: null
+  };
+  // Skip past itemCategory + want_set_knowsNum + want_set_num steps (already filled)
+  const autoSkip = new Set(['itemCategory','want_set_knowsNum','want_set_num','want_set_identify']);
+  while (wizard.step < wizard.steps.length) {
+    const curStep = wizard.steps[wizard.step];
+    if (!autoSkip.has(curStep.id)) break;
+    wizard.step++;
+  }
+  document.getElementById('wizard-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  renderWizardStep();
+}
+
+function browseSetItems(setNum) {
+  const setEntry = state.setData.find(s => s.setNum === setNum);
+  if (!setEntry) return;
+  // Navigate to browse with search pre-filled to show set components
+  // We use the set number itself as a search term since items reference it
+  // Better: open browse and show each item number
+  const navBtn = document.querySelector('.nav-item[onclick*="renderBrowse"]');
+  showPage('browse', navBtn);
+  // Search for the set number — items tagged with this set will surface
+  // Instead, show all items that are in this set by pre-populating search
+  // with the first item number and noting the set
+  state.filters.search = setNum.toLowerCase();
+  state._setsSourceSet = setNum;
+  document.getElementById('browse-search') && (document.getElementById('browse-search').value = setNum);
+  renderBrowse();
+  // Show a banner so user knows what they're looking at
+  setTimeout(() => {
+    const existing = document.getElementById('set-browse-banner');
+    if (existing) existing.remove();
+    const browseEl = document.getElementById('page-browse');
+    if (!browseEl) return;
+    const banner = document.createElement('div');
+    banner.id = 'set-browse-banner';
+    banner.style.cssText = 'background:rgba(211,84,0,0.1);border:1.5px solid #d35400;border-radius:9px;padding:0.55rem 0.9rem;margin-bottom:0.75rem;display:flex;align-items:center;justify-content:space-between;font-size:0.82rem';
+    banner.innerHTML = '<span style="color:#d35400;font-weight:600">🎁 Set ' + setNum + (setEntry.setName ? ' — ' + setEntry.setName : '') + '</span>'
+      + '<span style="color:var(--text-dim);margin:0 0.75rem;flex:1">Showing individual items — use search to refine</span>'
+      + '<button onclick="document.getElementById(\'set-browse-banner\').remove();state.filters.search=\'\';renderBrowse()" style="border:none;background:none;color:var(--text-dim);cursor:pointer;font-size:1rem">✕</button>';
+    const firstChild = browseEl.querySelector('.page-title');
+    if (firstChild && firstChild.nextSibling) {
+      browseEl.insertBefore(banner, firstChild.nextSibling);
+    } else {
+      browseEl.prepend(banner);
+    }
+  }, 100);
+}
+
 
 // ── UTILITIES ───────────────────────────────────────────────────
 function parseJwt(token) {
