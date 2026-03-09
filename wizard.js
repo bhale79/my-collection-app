@@ -2790,10 +2790,6 @@ function renderWizardStep() {
     body.innerHTML = confirmHtml;
   }
 
-  // Notify tutorial engine of wizard screen change
-  if (typeof tutOnWizardStep === 'function') {
-    setTimeout(function() { tutOnWizardStep(s.id, s.type); }, 50);
-  }
 }
 
 function wizardChooseCategory(catId) {
