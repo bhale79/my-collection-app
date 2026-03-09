@@ -169,61 +169,27 @@
 /* ── Help Button ── */
 /* ── Help Widget (conductor + button) ── */
 #tut-help-widget {
-  position: fixed;
-  top: 10px; right: 300px;
-  display: none;
-  flex-direction: column;
+  /* Now lives inside the sidebar nav — no fixed positioning needed */
+  display: none; /* shown via tutShowHelpBtn() */
+  flex-direction: row;
   align-items: center;
-  gap: 0;
-  z-index: 9000;
+  gap: 0.5rem;
   cursor: pointer;
-  background: transparent;
 }
 @media (max-width: 767px) {
-  #tut-help-widget { top: 10px; right: 180px; }
+  #tut-help-widget { display: none !important; } /* sidebar hidden on mobile, use bottom nav */
 }
 #tut-help-label {
-  display: block;
-  text-align: center;
-  font-family: 'Comic Sans MS', cursive;
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: #1a1a1a;
-  background: #fff176;
-  border: 2px solid #1a1a1a;
-  border-radius: 10px;
-  padding: 0.25rem 0.5rem;
+  font-family: var(--font-body, sans-serif);
+  font-size: 0.82rem;
+  color: var(--text-dim, #999);
   white-space: nowrap;
-  z-index: 2;
-  box-shadow: 1px 2px 0 #1a1a1a;
-  line-height: 1.2;
-  margin-bottom: 4px;
-}
-/* Comic bubble tail — points down toward conductor */
-#tut-help-label::before {
-  content: '';
-  position: absolute;
-  bottom: -20px;
-  left: 50%;
-  transform: translateX(-50%);
-  border: 5px solid transparent;
-  border-top-color: #1a1a1a;
-}
-#tut-help-label::after {
-  content: '';
-  position: absolute;
-  bottom: -17px;
-  left: 50%;
-  transform: translateX(-50%);
-  border: 4px solid transparent;
-  border-top-color: #fff176;
-  z-index: 1;
 }
 #tut-help-conductor {
-  height: 52px;
+  height: 28px;
   width: auto;
   display: block;
-  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.35));
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.35));
   transition: transform 0.2s;
   transform-origin: bottom center;
 }
@@ -231,7 +197,10 @@
   display: none;
 }
 #tut-help-widget:hover #tut-help-conductor {
-  transform: translateY(-3px) rotate(-3deg);
+  transform: translateY(-2px) rotate(-3deg);
+}
+#tut-help-widget:hover #tut-help-label {
+  color: var(--text, #eee);
 }
 
 /* ── Help Menu ── */
@@ -252,7 +221,7 @@
   to   { transform: scale(1) translateY(0);     opacity: 1; }
 }
 @media (min-width: 768px) {
-  #tut-help-menu { top: 56px; right: 12px; }
+  #tut-help-menu { bottom: 120px; left: 12px; top: auto; }
 }
 @media (max-width: 767px) {
   #tut-help-menu { bottom: 72px; top: auto; left: 16px; right: 16px; }
