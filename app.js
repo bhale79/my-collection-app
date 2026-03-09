@@ -1548,6 +1548,7 @@ function buildApp() {
   showApp();
   populateFilters();
   buildDashboard();
+  _applyDisclaimerPref();
   // Wire up the Google Sheet link in the sidebar
   const sheetLink = document.getElementById('nav-sheet-link');
   if (sheetLink && state.personalSheetId) {
@@ -5469,6 +5470,13 @@ function buildPrefsPage() {
           ${[['MM/DD/YYYY','MM/DD/YYYY'],['DD/MM/YYYY','DD/MM/YYYY'],['YYYY-MM-DD','YYYY-MM-DD']].map(([v,l])=>`<option value="${v}" ${_prefGet('lv_date_fmt','MM/DD/YYYY')===v?'selected':''}>${l}</option>`).join('')}
         </select>
       </div>
+      <div class="pref-row">
+        <div class="pref-row-label">
+          <strong>Show Accuracy Disclaimer</strong>
+          <span>Warning banner on Master Catalog and Complete Sets pages</span>
+        </div>
+        ${toggle('disclaimer', 'lv_show_disclaimer', 'true')}
+      </div>
     </div>
 
     <!-- ── 4. Data & Backup ───────────────────── -->
@@ -5589,6 +5597,9 @@ function _onPrefChange(id, val) {
   }
   if (id === 'yearMade') {
     // Stored — wizard reads lv_year_made_enabled at step render time (hooked below)
+  }
+  if (id === 'disclaimer') {
+    _applyDisclaimerPref();
   }
 }
 
@@ -6513,6 +6524,7 @@ function showPage(name, clickedEl) {
   if (name === 'forsale') buildForSalePage();
   if (name === 'want') buildWantPage();
   if (name === 'sets') buildSetsPage();
+  if (name === 'browse' || name === 'sets') _applyDisclaimerPref();
   if (name === 'prefs') buildPrefsPage();
   document.getElementById('main-content').scrollTop = 0;
 }
@@ -6820,6 +6832,28 @@ function showSetDetail(setNum) {
 
   overlay.appendChild(box);
   document.body.appendChild(overlay);
+}
+
+
+function _dismissDisclaimer() {
+  _prefSet('lv_show_disclaimer', 'false');
+  _applyDisclaimerPref();
+  // Keep prefs toggle in sync if prefs page is open
+  const tog = document.getElementById('ptog-disclaimer');
+  if (tog) tog.checked = false;
+}
+
+function _applyDisclaimerPref() {
+  const show = _prefGet('lv_show_disclaimer', 'true') === 'true';
+  const d1 = document.getElementById('disclaimer-browse');
+  const d2 = document.getElementById('disclaimer-sets');
+  if (d1) d1.style.display = show ? '' : 'none';
+  if (d2) d2.style.display = show ? '' : 'none';
+}
+
+function showContactModal() {
+  const m = document.getElementById('contact-modal');
+  if (m) { m.style.display = 'flex'; }
 }
 
 
