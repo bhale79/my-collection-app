@@ -1,261 +1,249 @@
-/* ── Tutorial Overlay & Spotlight ── */
-#tut-overlay {
-  position: fixed; inset: 0; z-index: 10000;
-  pointer-events: none;
-}
-#tut-overlay.active { pointer-events: none; } /* overlay is visual only - clicks pass through */
+// ═══════════════════════════════════════════════════════════════
+// TUTORIAL ENGINE — Slideshow narration only, no DOM targeting
+// ═══════════════════════════════════════════════════════════════
+const _TUT = (function() {
 
-.tut-spotlight {
-  position: fixed;
-  pointer-events: none;
-  z-index: 10001;
-  border-radius: 10px;
-  transition: top 0.4s cubic-bezier(.4,0,.2,1),
-              left 0.4s cubic-bezier(.4,0,.2,1),
-              width 0.4s cubic-bezier(.4,0,.2,1),
-              height 0.4s cubic-bezier(.4,0,.2,1);
-  box-shadow: 0 0 0 4px rgba(240,180,40,0.9), 0 0 0 9999px rgba(0,0,0,0.74);
-  animation: tut-pulse 2s ease-in-out infinite;
-}
-@keyframes tut-pulse {
-  0%,100% { box-shadow: 0 0 0 4px rgba(240,180,40,0.9), 0 0 0 9999px rgba(0,0,0,0.74); }
-  50%      { box-shadow: 0 0 0 9px rgba(240,180,40,0.4), 0 0 0 9999px rgba(0,0,0,0.74); }
-}
-.tut-spotlight.no-target {
-  box-shadow: 0 0 0 9999px rgba(0,0,0,0.74);
-  animation: none;
-}
+  const TUTORIALS = {
 
-/* ── Conductor Panel ── */
-#tut-panel {
-  position: fixed;
-  z-index: 12000;
-  display: flex;
-  align-items: flex-end;
-  gap: 0;
-  pointer-events: auto;
-  transition: transform 0.45s cubic-bezier(.34,1.36,.64,1), opacity 0.3s ease;
-}
-/* Desktop: bottom-left */
-@media (min-width: 768px) {
-  #tut-panel {
-    bottom: 0; left: 24px;
-    flex-direction: row;
-    align-items: flex-end;
+    'add-item': {
+      label: 'How to add an item',
+      steps: [
+        { title: 'Adding an Item',
+          msg: 'To add an item, tap the <strong>+ Add to Collection</strong> button at the top of the Dashboard. This opens the Add Item wizard.' },
+        { title: 'Choose a Category',
+          msg: 'The wizard asks what you\'d like to add. Tap <strong>Lionel Item #</strong> — the first option. This covers any train, car, or accessory with a Lionel catalog number.' },
+        { title: 'Enter the Item Number',
+          msg: 'Type the item number — for example, <strong>773</strong>. The app searches the master catalog as you type and shows matching results. Select the item from the list.' },
+        { title: 'Engine + Tender',
+          msg: 'If the item has a matching tender, you\'ll see an <strong>Engine + Tender</strong> option. Tap it to add both pieces together — the app links them as a matched pair automatically.' },
+        { title: 'Select a Variation',
+          msg: 'Pick the variation that matches your item. Each variation includes a description from the Lionel reference catalog. You\'ll also see a <strong>COTT link</strong> that opens the item on the Collector\'s Old Time Trains site for more detail.' },
+        { title: 'Full vs Quick Entry',
+          msg: '<strong>Quick Entry</strong> saves immediately with no further questions — items are marked with a lightning bolt icon so you can fill details in later. Choose <strong>Full Entry</strong> to walk through all the fields now.' },
+        { title: 'Condition',
+          msg: 'Rate the condition from <strong>1 to 10</strong> — 10 is mint in the box, 1 is heavily worn. If you added an engine and tender, you\'ll rate each piece separately.' },
+        { title: 'Purchase & Value',
+          msg: 'Enter what you paid and when you bought the item. You can also set your own estimated value. All fields are optional — tap <strong>Next</strong> when ready.' },
+        { title: 'Add Photos',
+          msg: 'Attach photos here. On a <strong>computer</strong>, click to upload from your files. On the <strong>mobile app</strong>, take a photo directly with your camera. Tap <strong>Next</strong> to skip and add photos later.' },
+        { title: 'Review & Save',
+          msg: 'The confirm screen shows every field you\'ve entered. <strong>Tap any line to edit it</strong> before saving. When you\'re happy, tap <strong>Save</strong> — the item is written to your Google Sheet instantly.' }
+      ]
+    },
+
+    'add-want': {
+      label: 'How to add a want list item',
+      steps: [
+        { title: 'Your Want List',
+          msg: 'The Want List is for items you\'re looking for but don\'t own yet. Open it from the left sidebar, then tap <strong>Add Want Item</strong>.' },
+        { title: 'Enter the Item Number',
+          msg: 'Type the item number and the app finds it in the master catalog. Select the item and variation you\'re looking for.' },
+        { title: 'Set a Target Price',
+          msg: 'Optionally set a target price — what you\'re willing to pay. This helps you track deals when hunting for an item.' },
+        { title: 'Saved to Want List',
+          msg: 'The item saves with its catalog market value shown. When you acquire it, tap the green <strong>+ Collection</strong> button on the want item — the wizard opens pre-filled and moves it to your collection automatically.' }
+      ]
+    },
+
+    'list-for-sale': {
+      label: 'How to list an item for sale',
+      steps: [
+        { title: 'Listing for Sale',
+          msg: 'Go to <strong>My Collection</strong> in the left sidebar and find the item you want to sell. Tap the item to open its detail panel.' },
+        { title: 'Mark as For Sale',
+          msg: 'In the detail panel, tap <strong>List for Sale</strong>. You\'ll be asked to enter your asking price and any notes for the buyer.' },
+        { title: 'Your For Sale List',
+          msg: 'The item appears in your <strong>For Sale</strong> list in the left sidebar. Your asking price shows alongside the catalog market value.' },
+        { title: 'When It Sells',
+          msg: 'Once sold, tap the item and choose <strong>Mark as Sold</strong>. Enter the final sale price — the item moves to your <strong>Sold Items</strong> history automatically.' }
+      ]
+    },
+
+    'delete-item': {
+      label: 'How to delete an item',
+      steps: [
+        { title: 'Find the Item',
+          msg: 'Go to <strong>My Collection</strong> in the left sidebar. Find the item you want to remove — search by item number or scroll through the list.' },
+        { title: 'Open the Detail Panel',
+          msg: 'Tap the item to open its detail panel. Scroll to the bottom of the panel to find the delete option.' },
+        { title: 'Delete the Item',
+          msg: 'Tap <strong>Delete Item</strong> at the bottom of the panel. You\'ll be asked to confirm before anything is removed — this prevents accidental deletions.' },
+        { title: 'Grouped Items',
+          msg: 'If the item is part of a group — like an engine paired with a tender — you\'ll be asked whether to delete just this piece or the entire group. Choose carefully!' }
+      ]
+    }
+
+  };
+
+  // State
+  let _active = false;
+  let _steps  = [];
+  let _idx    = 0;
+
+  // Core functions
+  function start(id) {
+    const tut = TUTORIALS[id];
+    if (!tut) return;
+    _steps  = tut.steps;
+    _idx    = 0;
+    _active = true;
+    const menu = document.getElementById('tut-help-menu');
+    if (menu) menu.style.display = 'none';
+    document.getElementById('tut-overlay').classList.add('active');
+    document.getElementById('tut-panel').classList.remove('tut-hidden');
+    _renderStep();
   }
-  #tut-panel.tut-hidden { transform: translateX(-120%); opacity: 0; }
-}
-/* Mobile: bottom-right, slides up */
-@media (max-width: 767px) {
-  #tut-panel {
-    bottom: 72px; right: 8px; left: 8px;
-    flex-direction: column-reverse;
-    align-items: flex-end;
-  }
-  #tut-panel.tut-hidden { transform: translateY(140%); opacity: 0; }
-}
 
-#tut-conductor {
-  flex-shrink: 0;
-  width: 160px;
-  filter: drop-shadow(0 -4px 16px rgba(0,0,0,0.5));
-}
-@media (max-width: 767px) {
-  #tut-conductor { width: 100px; }
-}
+  function next() {
+    if (!_active) return;
+    if (_idx < _steps.length - 1) { _idx++; _renderStep(); }
+    else { end(); }
+  }
 
-/* ── Speech Bubble ── */
-#tut-bubble {
-  background: #faf7ee;
-  border: 2px solid #1a3a6b;
-  border-radius: 18px;
-  padding: 1rem 1.1rem 0.9rem;
-  max-width: 320px;
-  min-width: 220px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-  position: relative;
-  margin-bottom: 32px;
-  animation: tut-bubble-in 0.35s cubic-bezier(.34,1.36,.64,1);
-}
-@keyframes tut-bubble-in {
-  from { transform: scale(0.85); opacity: 0; }
-  to   { transform: scale(1);    opacity: 1; }
-}
-/* Tail pointing toward conductor — left side on desktop */
-@media (min-width: 768px) {
-  #tut-bubble::after {
-    content: '';
-    position: absolute;
-    bottom: 18px; left: -14px;
-    border: 8px solid transparent;
-    border-right-color: #1a3a6b;
+  function end() {
+    _active = false;
+    _steps  = [];
+    _idx    = 0;
+    document.getElementById('tut-panel').classList.add('tut-hidden');
+    document.getElementById('tut-overlay').classList.remove('active');
+    localStorage.setItem('lv_tut_seen', '1');
   }
-  #tut-bubble::before {
-    content: '';
-    position: absolute;
-    bottom: 20px; left: -10px;
-    border: 7px solid transparent;
-    border-right-color: #faf7ee;
-    z-index: 1;
+
+  function _renderStep() {
+    if (_idx >= _steps.length) { end(); return; }
+    const step   = _steps[_idx];
+    const isLast = _idx === _steps.length - 1;
+
+    document.getElementById('tut-title').textContent   = step.title || '';
+    document.getElementById('tut-msg').innerHTML       = step.msg   || '';
+    document.getElementById('tut-counter').textContent = 'Step ' + (_idx + 1) + ' of ' + _steps.length;
+    document.getElementById('tut-click-hint').style.display = 'none';
+
+    const nextBtn = document.getElementById('tut-next');
+    const skipBtn = document.getElementById('tut-skip');
+    nextBtn.style.display = '';
+    nextBtn.textContent   = isLast ? 'Done' : 'Next';
+    nextBtn.className     = 'tut-btn-next' + (isLast ? ' done' : '');
+    skipBtn.style.display = isLast ? 'none' : '';
+    skipBtn.textContent   = 'Skip tour';
   }
-}
-/* Tail pointing down toward conductor on mobile */
-@media (max-width: 767px) {
-  #tut-bubble { margin-bottom: 8px; max-width: 100%; }
-  #tut-bubble::after {
-    content: '';
-    position: absolute;
-    bottom: -16px; right: 48px;
-    border: 8px solid transparent;
-    border-top-color: #1a3a6b;
-  }
-  #tut-bubble::before {
-    content: '';
-    position: absolute;
-    bottom: -13px; right: 50px;
-    border: 7px solid transparent;
-    border-top-color: #faf7ee;
-    z-index: 1;
+
+  return { start, next, end };
+})();
+
+// Global wrappers (called from inline HTML)
+function tutStart(id) { _TUT.start(id); }
+function tutNext()    { _TUT.next();    }
+function tutEnd()     { _TUT.end();     }
+
+// Help menu toggle
+function tutToggleMenu() {
+  const menu = document.getElementById('tut-help-menu');
+  if (!menu) return;
+  const isOpen = menu.style.display === 'block';
+  menu.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) {
+    // Close when clicking anywhere outside — but NOT if clicking the trigger buttons
+    setTimeout(() => {
+      document.addEventListener('click', function _close(e) {
+        const widget  = document.getElementById('tut-help-widget');
+        const mnavBtn = document.getElementById('mnav-help');
+        const clickedTrigger = (widget && widget.contains(e.target)) ||
+                               (mnavBtn && mnavBtn.contains(e.target));
+        if (!menu.contains(e.target) && !clickedTrigger) {
+          menu.style.display = 'none';
+          document.removeEventListener('click', _close);
+        }
+      });
+    }, 0);
   }
 }
 
-.tut-bubble-title {
-  font-family: var(--font-head);
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: #1a3a6b;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  margin-bottom: 0.4rem;
-}
-.tut-bubble-msg {
-  font-size: 0.88rem;
-  color: #2c2c2c;
-  line-height: 1.55;
-  margin-bottom: 0.85rem;
-}
-.tut-bubble-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-.tut-counter {
-  font-size: 0.75rem;
-  color: #888;
-  font-family: var(--font-mono, monospace);
-}
-.tut-btn-row { display: flex; gap: 0.5rem; }
-.tut-btn-skip {
-  background: none; border: none;
-  color: #aaa; font-size: 0.78rem;
-  cursor: pointer; padding: 0.3rem 0.5rem;
-  font-family: var(--font-body);
-  transition: color 0.15s;
-}
-.tut-btn-skip:hover { color: #666; }
-.tut-btn-next {
-  background: #1a3a6b; color: #fff;
-  border: none; border-radius: 8px;
-  font-size: 0.84rem; font-weight: 700;
-  padding: 0.45rem 1rem; cursor: pointer;
-  font-family: var(--font-body);
-  transition: background 0.15s, transform 0.1s;
-}
-.tut-btn-next:hover { background: #2255a0; }
-.tut-btn-next:active { transform: scale(0.97); }
-.tut-btn-next.done { background: #27ae60; }
-
-/* ── Help Button ── */
-/* ── Help Widget (conductor + button) ── */
-#tut-help-widget {
-  /* Inline in sidebar — flows naturally below Sync from Sheet */
-  display: none; /* shown via tutShowHelpBtn() */
-  flex-direction: row;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  cursor: pointer;
-  width: 100%;
-  border-radius: 7px;
-}
-@media (max-width: 767px) {
-  #tut-help-widget { display: none !important; } /* use bottom nav on mobile */
-}
-#tut-help-label {
-  font-family: var(--font-body, sans-serif);
-  font-size: 0.82rem;
-  color: var(--text-dim, #999);
-  white-space: nowrap;
-}
-#tut-help-conductor {
-  height: 28px;
-  width: auto;
-  display: block;
-  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.35));
-  transition: transform 0.2s;
-  transform-origin: bottom center;
-}
-#tut-help-btn {
-  display: none;
-}
-#tut-help-widget:hover {
-  background: rgba(255,255,255,0.05);
-}
-#tut-help-widget:hover #tut-help-conductor {
-  transform: translateY(-2px) rotate(-3deg);
-}
-#tut-help-widget:hover #tut-help-label {
-  color: var(--text, #eee);
+function tutShowHelpBtn() {
+  const w = document.getElementById('tut-help-widget');
+  if (w) w.style.display = 'flex';
 }
 
-/* ── Help Menu ── */
-#tut-help-menu {
-  position: fixed;
-  z-index: 9500;
-  background: var(--surface, #1a1a1f);
-  border: 1px solid var(--border, #2a2a35);
-  border-radius: 16px;
-  padding: 0.75rem 0;
-  box-shadow: 0 12px 48px rgba(0,0,0,0.5);
-  min-width: 270px;
-  display: none;
-  animation: tut-menu-in 0.2s cubic-bezier(.34,1.36,.64,1);
+function tutCheckAutoLaunch() {
+  const seen = localStorage.getItem('lv_tut_seen');
+  setTimeout(() => {
+    tutShowHelpBtn();
+    if (!seen) { _TUT.start('add-item'); }
+  }, 1200);
 }
-@keyframes tut-menu-in {
-  from { transform: scale(0.9) translateY(10px); opacity: 0; }
-  to   { transform: scale(1) translateY(0);     opacity: 1; }
-}
-@media (min-width: 768px) {
-  #tut-help-menu { bottom: 70px; left: 12px; top: auto; right: auto; }
-}
-@media (max-width: 767px) {
-  #tut-help-menu { bottom: 72px; top: auto; left: 16px; right: 16px; }
-}
-.tut-menu-header {
-  font-family: var(--font-head);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-dim, #888);
-  padding: 0 1rem 0.5rem;
-  border-bottom: 1px solid var(--border, #2a2a35);
-  margin-bottom: 0.4rem;
-}
-.tut-menu-item {
-  display: flex; align-items: center; gap: 0.65rem;
-  width: 100%; padding: 0.6rem 1rem;
-  background: none; border: none;
-  color: var(--text, #eee); font-size: 0.88rem;
-  cursor: pointer; text-align: left;
-  font-family: var(--font-body);
-  transition: background 0.12s;
-}
-.tut-menu-item:hover { background: rgba(255,255,255,0.06); }
-.tut-menu-item .tut-menu-icon {
-  width: 28px; height: 28px;
-  border-radius: 8px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 14px; flex-shrink: 0;
-}
+
+
+// ══════════════════════════════════════════════════════════════════
+// CONDUCTOR TOOLTIP ENGINE
+// Hover any element with data-ctip="..." for 1.5s to see the tip
+// ══════════════════════════════════════════════════════════════════
+(function() {
+  var _timer = null;
+  var _active = null;
+  var DELAY = 1500;
+
+  function _show(target) {
+    _clearTip();
+    var text = target.getAttribute('data-ctip');
+    if (!text) return;
+
+    var rect = target.getBoundingClientRect();
+    var tip = document.createElement('div');
+    tip.id = 'conductor-tip';
+    tip.innerHTML =
+      '<img src="./conductor.png" id="ctip-img">' +
+      '<div id="ctip-bubble"><div id="ctip-tail"></div>' + text + '</div>';
+    document.body.appendChild(tip);
+
+    // Measure after insert
+    var bub = tip.querySelector('#ctip-bubble');
+    var bubW = bub ? bub.offsetWidth : 240;
+    var bubH = bub ? bub.offsetHeight : 70;
+    var imgH = 40;
+    var totalH = Math.max(bubH, imgH) + 14; // 14px gap below + arrow
+
+    // Center the bubble over the button
+    var left = rect.left + rect.width / 2 - bubW / 2 - 44; // 44 = approx conductor width + gap
+    var top  = rect.top - totalH;
+
+    // Flip below if off the top of screen
+    var flipBelow = top < 8;
+    if (flipBelow) {
+      top = rect.bottom + 10;
+      tip.classList.add('ctip-below');
+    }
+
+    // Clamp horizontal
+    left = Math.max(8, Math.min(left, window.innerWidth - bubW - 60));
+
+    tip.style.left = left + 'px';
+    tip.style.top  = top  + 'px';
+  }
+
+  function _clearTip() {
+    var existing = document.getElementById('conductor-tip');
+    if (existing) existing.remove();
+    if (_timer) { clearTimeout(_timer); _timer = null; }
+    _active = null;
+  }
+
+  document.addEventListener('mouseover', function(e) {
+    var target = e.target.closest ? e.target.closest('[data-ctip]') : null;
+    if (!target) return;
+    if (target === _active) return;
+    _active = target;
+    if (_timer) clearTimeout(_timer);
+    _timer = setTimeout(function() { _show(target); }, DELAY);
+  });
+
+  document.addEventListener('mouseout', function(e) {
+    var target = e.target.closest ? e.target.closest('[data-ctip]') : null;
+    if (!target) return;
+    if (target.contains && target.contains(e.relatedTarget)) return;
+    _clearTip();
+  });
+
+  // Dismiss on scroll or click
+  document.addEventListener('scroll', _clearTip, true);
+  document.addEventListener('click', _clearTip, true);
+})();
