@@ -171,3 +171,79 @@ function tutCheckAutoLaunch() {
     if (!seen) { _TUT.start('add-item'); }
   }, 1200);
 }
+
+
+// ══════════════════════════════════════════════════════════════════
+// CONDUCTOR TOOLTIP ENGINE
+// Hover any element with data-ctip="..." for 1.5s to see the tip
+// ══════════════════════════════════════════════════════════════════
+(function() {
+  var _timer = null;
+  var _active = null;
+  var DELAY = 1500;
+
+  function _show(target) {
+    _clearTip();
+    var text = target.getAttribute('data-ctip');
+    if (!text) return;
+
+    var rect = target.getBoundingClientRect();
+    var tip = document.createElement('div');
+    tip.id = 'conductor-tip';
+    tip.innerHTML =
+      '<img src="./conductor.png" id="ctip-img">' +
+      '<div id="ctip-bubble"><div id="ctip-tail"></div>' + text + '</div>';
+    document.body.appendChild(tip);
+
+    // Measure after insert
+    var bub = tip.querySelector('#ctip-bubble');
+    var bubW = bub ? bub.offsetWidth : 240;
+    var bubH = bub ? bub.offsetHeight : 70;
+    var imgH = 40;
+    var totalH = Math.max(bubH, imgH) + 14; // 14px gap below + arrow
+
+    // Center the bubble over the button
+    var left = rect.left + rect.width / 2 - bubW / 2 - 44; // 44 = approx conductor width + gap
+    var top  = rect.top - totalH;
+
+    // Flip below if off the top of screen
+    var flipBelow = top < 8;
+    if (flipBelow) {
+      top = rect.bottom + 10;
+      tip.classList.add('ctip-below');
+    }
+
+    // Clamp horizontal
+    left = Math.max(8, Math.min(left, window.innerWidth - bubW - 60));
+
+    tip.style.left = left + 'px';
+    tip.style.top  = top  + 'px';
+  }
+
+  function _clearTip() {
+    var existing = document.getElementById('conductor-tip');
+    if (existing) existing.remove();
+    if (_timer) { clearTimeout(_timer); _timer = null; }
+    _active = null;
+  }
+
+  document.addEventListener('mouseover', function(e) {
+    var target = e.target.closest ? e.target.closest('[data-ctip]') : null;
+    if (!target) return;
+    if (target === _active) return;
+    _active = target;
+    if (_timer) clearTimeout(_timer);
+    _timer = setTimeout(function() { _show(target); }, DELAY);
+  });
+
+  document.addEventListener('mouseout', function(e) {
+    var target = e.target.closest ? e.target.closest('[data-ctip]') : null;
+    if (!target) return;
+    if (target.contains && target.contains(e.relatedTarget)) return;
+    _clearTip();
+  });
+
+  // Dismiss on scroll or click
+  document.addEventListener('scroll', _clearTip, true);
+  document.addEventListener('click', _clearTip, true);
+})();
