@@ -1957,23 +1957,6 @@ function buildDashboard() {
       }
     });
   })();
-});
-    const name = master ? (master.roadName || master.itemType || w.itemNum) : w.itemNum;
-    const pc = _wPriColor[w.priority] || 'var(--text-dim)';
-    const price = w.expectedPrice ? '$' + parseFloat(w.expectedPrice).toLocaleString() : '';
-    return '<div onclick="goToWantList()" style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.1s" '
-      + 'class="dash-row-hover">'
-      + '<div style="flex:1;min-width:0">'
-      + '<div style="display:flex;align-items:center;gap:0.4rem">'
-      + '<span class="item-num">' + w.itemNum + (w.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + w.variation + '</span>' : '') + '</span>'
-      + '<span style="font-size:0.8rem;color:var(--text-mid);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">' + name + '</span>'
-      + '</div>'
-      + (price ? '<div style="font-size:0.7rem;color:var(--text-dim);margin-top:1px">' + price + '</div>' : '')
-      + '</div>'
-      + '<span style="font-size:0.75rem;font-weight:600;color:' + pc + ';border:1px solid ' + pc + ';border-radius:3px;padding:0.1rem 0.3rem;flex-shrink:0">' + (w.priority||'Med') + '</span>'
-      + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>'
-      + '</div>';
-  }).join('') : '<div class="empty-state"><p>Want list is empty</p></div>';
 }
 
 
