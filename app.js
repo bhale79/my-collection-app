@@ -5962,15 +5962,20 @@ function buildWantPage() {
       const masterIdx2 = master ? state.masterData.indexOf(master) : -1;
       const escVar = (w.variation||'').replace(/'/g,"\\'");
       const escName = (name||'').replace(/'/g,"\\'");
+      // Set detection for mobile cards
+      const _mSetMatch = state.setData ? state.setData.find(s => s.setNum === w.itemNum) : null;
+      const _mIsSet = !!_mSetMatch;
+      const _mSetLabel = _mIsSet ? [_mSetMatch.setName, _mSetMatch.year].filter(Boolean).join(' · ') : '';
+      const _mChipsHtml = _mIsSet ? '<div style="display:flex;flex-wrap:wrap;gap:0.2rem;margin-top:0.35rem">' + _mSetMatch.items.slice(0,6).map(n => '<span style="font-family:var(--font-mono);font-size:0.65rem;padding:1px 5px;border-radius:3px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim)">' + n + '</span>').join('') + (_mSetMatch.items.length > 6 ? '<span style="font-size:0.65rem;color:var(--text-dim)">+' + (_mSetMatch.items.length-6) + ' more</span>' : '') + '</div>' : '';
       return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem">
         <div style="display:flex;align-items:center;gap:0.75rem;cursor:pointer" ${masterIdx2>=0?`onclick="openItem(${masterIdx2})"`:''}>
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:0.5rem">
               <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${w.itemNum}</span>
-              ${w.variation ? `<span style="font-size:0.72rem;color:var(--text-dim)">${w.variation}</span>` : ''}
+              ${_mIsSet ? '<span style="font-size:0.62rem;color:#e67e22;font-weight:600">SET</span>' : (w.variation ? `<span style="font-size:0.72rem;color:var(--text-dim)">${w.variation}</span>` : '')}
               <span style="font-size:0.65rem;font-weight:600;color:${pColor};border:1px solid ${pColor};border-radius:4px;padding:0.1rem 0.4rem">${w.priority || 'Medium'}</span>
             </div>
-            ${name ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.15rem">${name}</div>` : ''}
+            ${_mIsSet ? (_mSetLabel ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.15rem">${_mSetLabel}</div>` : '') + _mChipsHtml : (name ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.15rem">${name}</div>` : '')}
             ${w.notes ? `<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${w.notes}</div>` : ''}
           </div>
           <div style="text-align:right;flex-shrink:0">
@@ -5995,16 +6000,34 @@ function buildWantPage() {
       const roadName = master ? (master.roadName || '') : '';
       const varDesc  = master ? (master.varDesc || master.variationDesc || '') : '';
       const fullDesc = master ? (master.description || '') : '';
-      window._wantDescs[idx] = { title: roadName || w.itemNum, varDesc, fullDesc };
+
+      // Check if this is a set want entry
+      const _setMatch = state.setData ? state.setData.find(s => s.setNum === w.itemNum) : null;
+      const _isSet = !!_setMatch;
+      const _setLabel = _isSet
+        ? [_setMatch.setName, _setMatch.year, _setMatch.gauge].filter(Boolean).join(' · ')
+        : '';
+      const _setChipsHtml = _isSet
+        ? _setMatch.items.slice(0, 6).map(n =>
+            `<span style="font-family:var(--font-mono);font-size:0.67rem;padding:1px 5px;border-radius:3px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim)">${n}</span>`
+          ).join('') + (_setMatch.items.length > 6
+            ? `<span style="font-size:0.67rem;color:var(--text-dim)">+${_setMatch.items.length - 6} more</span>`
+            : '')
+        : '';
+
+      window._wantDescs[idx] = { title: (_isSet ? _setLabel : roadName) || w.itemNum, varDesc, fullDesc };
       const pColor = priorityColor[w.priority] || 'var(--text-dim)';
       const shortVar = varDesc.length > 30 ? varDesc.substring(0, 30) + '…' : varDesc;
-      const varCell = varDesc
-        ? `<span style="cursor:pointer;border-bottom:1px dashed var(--border);color:var(--text-mid)" onclick="showWantDesc(${idx})">${shortVar}</span>`
-        : (w.variation ? `<span class="text-dim">${w.variation}</span>` : '<span class="text-dim">—</span>');
+      const varCell = _isSet
+        ? `<div style="display:flex;flex-wrap:wrap;gap:0.2rem;align-items:center">${_setChipsHtml}</div>`
+        : varDesc
+          ? `<span style="cursor:pointer;border-bottom:1px dashed var(--border);color:var(--text-mid)" onclick="showWantDesc(${idx})">${shortVar}</span>`
+          : (w.variation ? `<span class="text-dim">${w.variation}</span>` : '<span class="text-dim">—</span>');
+      const _displayRoad = _isSet ? _setLabel : roadName;
       return `<tr>
-        <td><span class="item-num">${w.itemNum}</span></td>
-        <td>${roadName || '<span class="text-dim">—</span>'}</td>
-        <td>${w.variation || '<span class="text-dim">—</span>'}</td>
+        <td><span class="item-num">${w.itemNum}</span>${_isSet ? ' <span style="font-size:0.62rem;color:#e67e22;font-weight:600;vertical-align:middle">SET</span>' : ''}</td>
+        <td>${_displayRoad || '<span class="text-dim">—</span>'}</td>
+        <td>${_isSet ? '<span class="text-dim">—</span>' : (w.variation || '<span class="text-dim">—</span>')}</td>
         <td>${varCell}</td>
         <td><span style="color:${pColor};font-weight:500">${w.priority || 'Medium'}</span></td>
         <td class="market-val">${w.expectedPrice ? '$' + parseFloat(w.expectedPrice).toLocaleString() : '<span class="text-dim">—</span>'}</td>
