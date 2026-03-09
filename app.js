@@ -1602,14 +1602,14 @@ async function forceRefreshData() {
 }
 
 
+
 // ══════════════════════════════════════════════════════════════════
-// DASHBOARD CARD CATALOG
+// DASHBOARD CARD CATALOG — 5 independent slots
+// Each slot: {id:'engines'} or null for empty
 // ══════════════════════════════════════════════════════════════════
 const CARD_CATALOG = [
   {
-    id: 'owned',
-    label: 'Items I Own',
-    color: 'var(--green-light,#3aad70)',
+    id: 'owned', label: 'Items I Own', color: '#3aad70',
     compute: function(state) {
       const allOwned = Object.values(state.personalData).filter(pd => {
         if (!pd.owned) return false;
@@ -1626,9 +1626,7 @@ const CARD_CATALOG = [
     }
   },
   {
-    id: 'value',
-    label: 'Collection Value',
-    color: 'var(--gold,#c9922a)',
+    id: 'value', label: 'Collection Value', color: '#c9922a',
     compute: function(state) {
       let total = 0;
       Object.values(state.personalData).filter(pd=>pd.owned).forEach(pd => {
@@ -1641,9 +1639,7 @@ const CARD_CATALOG = [
     }
   },
   {
-    id: 'catalog',
-    label: 'Catalog Items I Own',
-    color: '#3498db',
+    id: 'catalog', label: 'Catalog Items I Own', color: '#3498db',
     compute: function(state) {
       const catNums = new Set(state.masterData.map(m => normalizeItemNum(m.itemNum)));
       const ownedNums = new Set(Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum)));
@@ -1653,22 +1649,18 @@ const CARD_CATALOG = [
     }
   },
   {
-    id: 'engines',
-    label: 'Total Engines',
-    color: '#e74c3c',
+    id: 'engines', label: 'Total Engines', color: '#e74c3c',
     compute: function(state) {
       const owned = new Set(Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum)));
       const count = state.masterData.filter(m => {
         const t = (m.itemType||'').toLowerCase();
-        return (t.includes('steam') || t.includes('diesel') || t.includes('electric') || t.includes('locomotive')) && owned.has(normalizeItemNum(m.itemNum));
+        return (t.includes('steam')||t.includes('diesel')||t.includes('electric')||t.includes('locomotive')) && owned.has(normalizeItemNum(m.itemNum));
       }).length;
       return { value: count.toLocaleString(), sub: 'locomotives in collection' };
     }
   },
   {
-    id: 'cabooses',
-    label: 'Total Cabooses',
-    color: '#c0392b',
+    id: 'cabooses', label: 'Total Cabooses', color: '#c0392b',
     compute: function(state) {
       const owned = new Set(Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum)));
       const count = state.masterData.filter(m => (m.itemType||'').toLowerCase().includes('caboose') && owned.has(normalizeItemNum(m.itemNum))).length;
@@ -1676,22 +1668,18 @@ const CARD_CATALOG = [
     }
   },
   {
-    id: 'freight',
-    label: 'Total Freight Cars',
-    color: '#8e44ad',
+    id: 'freight', label: 'Total Freight Cars', color: '#8e44ad',
     compute: function(state) {
       const owned = new Set(Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum)));
       const count = state.masterData.filter(m => {
         const t = (m.itemType||'').toLowerCase();
-        return (t.includes('freight') || t.includes('box car') || t.includes('boxcar') || t.includes('gondola') || t.includes('hopper') || t.includes('tank') || t.includes('flat')) && owned.has(normalizeItemNum(m.itemNum));
+        return (t.includes('freight')||t.includes('box car')||t.includes('boxcar')||t.includes('gondola')||t.includes('hopper')||t.includes('tank')||t.includes('flat')) && owned.has(normalizeItemNum(m.itemNum));
       }).length;
       return { value: count.toLocaleString(), sub: 'freight cars in collection' };
     }
   },
   {
-    id: 'passenger',
-    label: 'Total Passenger Cars',
-    color: '#2980b9',
+    id: 'passenger', label: 'Total Passenger Cars', color: '#2980b9',
     compute: function(state) {
       const owned = new Set(Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum)));
       const count = state.masterData.filter(m => (m.itemType||'').toLowerCase().includes('passenger') && owned.has(normalizeItemNum(m.itemNum))).length;
@@ -1699,9 +1687,7 @@ const CARD_CATALOG = [
     }
   },
   {
-    id: 'accessories',
-    label: 'Total Accessories',
-    color: '#16a085',
+    id: 'accessories', label: 'Total Accessories', color: '#16a085',
     compute: function(state) {
       const owned = new Set(Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum)));
       const count = state.masterData.filter(m => (m.itemType||'').toLowerCase().includes('accessor') && owned.has(normalizeItemNum(m.itemNum))).length;
@@ -1709,9 +1695,7 @@ const CARD_CATALOG = [
     }
   },
   {
-    id: 'sets',
-    label: 'Total Sets',
-    color: '#d35400',
+    id: 'sets', label: 'Total Sets', color: '#d35400',
     compute: function(state) {
       const owned = new Set(Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum)));
       const count = state.masterData.filter(m => (m.itemType||'').toLowerCase().includes('set') && owned.has(normalizeItemNum(m.itemNum))).length;
@@ -1719,9 +1703,7 @@ const CARD_CATALOG = [
     }
   },
   {
-    id: 'photos',
-    label: 'Items with Photos',
-    color: '#f39c12',
+    id: 'photos', label: 'Items with Photos', color: '#f39c12',
     compute: function(state) {
       const count = Object.values(state.personalData).filter(pd => pd.owned && pd.photoItem).length;
       const total = Object.values(state.personalData).filter(pd => pd.owned).length;
@@ -1729,9 +1711,7 @@ const CARD_CATALOG = [
     }
   },
   {
-    id: 'forsale',
-    label: 'For Sale',
-    color: '#e67e22',
+    id: 'forsale', label: 'For Sale', color: '#e67e22',
     compute: function(state) {
       const items = Object.values(state.forSaleData||{});
       const count = items.length;
@@ -1740,47 +1720,150 @@ const CARD_CATALOG = [
     }
   },
   {
-    id: 'custom',
-    label: null, // set by user
-    color: '#6c5ce7',
-    compute: function(state) {
-      const title  = _prefGet('lv_card_custom_title','My Custom Card');
-      const filter = (_prefGet('lv_card_custom_filter','')).toLowerCase().trim();
-      if (!filter) return { value: '—', sub: 'set a filter in Preferences' };
-      const owned = Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum));
-      const ownedSet = new Set(owned);
-      // Count owned items whose itemNum starts with filter OR itemType includes filter
+    id: 'custom', label: null, color: '#6c5ce7',
+    compute: function(state, slotIdx) {
+      const titleKey  = 'lv_card_custom_title_'  + (slotIdx||0);
+      const filterKey = 'lv_card_custom_filter_' + (slotIdx||0);
+      const filter = (_prefGet(filterKey,'')).toLowerCase().trim();
+      if (!filter) return { value: '—', sub: 'click card to set a filter' };
+      const ownedSet = new Set(Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum)));
       const matching = state.masterData.filter(m => {
         if (!ownedSet.has(normalizeItemNum(m.itemNum))) return false;
-        const num = (m.itemNum||'').toLowerCase();
-        const type = (m.itemType||'').toLowerCase();
-        const road = (m.roadName||'').toLowerCase();
-        return num.startsWith(filter) || type.includes(filter) || road.includes(filter);
-      });
-      const total = state.masterData.filter(m => {
-        const num = (m.itemNum||'').toLowerCase();
-        const type = (m.itemType||'').toLowerCase();
-        const road = (m.roadName||'').toLowerCase();
-        return num.startsWith(filter) || type.includes(filter) || road.includes(filter);
+        return (m.itemNum||'').toLowerCase().startsWith(filter) || (m.itemType||'').toLowerCase().includes(filter) || (m.roadName||'').toLowerCase().includes(filter);
       }).length;
-      return { value: matching.length.toLocaleString(), sub: matching.length + ' of ' + total + ' in catalog' };
+      const total = state.masterData.filter(m => {
+        return (m.itemNum||'').toLowerCase().startsWith(filter) || (m.itemType||'').toLowerCase().includes(filter) || (m.roadName||'').toLowerCase().includes(filter);
+      }).length;
+      return { value: matching.toLocaleString(), sub: matching + ' of ' + total + ' in catalog' };
     }
   }
 ];
 
-const _CARD_DEFAULT = ['owned','value','catalog'];
 const MAX_CARDS = 5;
+const _DEFAULT_SLOTS = [{id:'owned'},{id:'value'},{id:'catalog'},null,null];
 
-function _getDashCards() {
+function _getSlots() {
   try {
-    const saved = _prefGet('lv_dash_cards', '');
+    const saved = _prefGet('lv_dash_slots','');
     if (saved) return JSON.parse(saved);
   } catch(e) {}
-  return _CARD_DEFAULT.slice();
+  // Migrate from old flat array format if present
+  try {
+    const oldSaved = _prefGet('lv_dash_cards','');
+    if (oldSaved) {
+      const oldArr = JSON.parse(oldSaved);
+      if (Array.isArray(oldArr)) {
+        const migrated = [null,null,null,null,null];
+        oldArr.slice(0,5).forEach(function(id,i) { migrated[i] = {id:id}; });
+        return migrated;
+      }
+    }
+  } catch(e) {}
+  return _DEFAULT_SLOTS.map(s => s ? Object.assign({},s) : null);
 }
 
-function _setDashCards(arr) {
-  _prefSet('lv_dash_cards', JSON.stringify(arr));
+function _saveSlots(slots) {
+  _prefSet('lv_dash_slots', JSON.stringify(slots));
+}
+
+// ── Card edit popup ───────────────────────────────────────────────
+function _openCardPopup(slotIdx) {
+  _closeCardPopup();
+  const slots = _getSlots();
+  const slot   = slots[slotIdx] || null;
+  const currentId = slot ? slot.id : '';
+
+  const popup = document.createElement('div');
+  popup.id = 'card-popup';
+  popup.style.cssText = 'position:fixed;z-index:99990;background:var(--surface,#161c34);border:1px solid var(--border,#2a3a5c);border-radius:12px;padding:1rem;box-shadow:0 8px 32px rgba(0,0,0,0.5);min-width:240px;max-width:280px';
+
+  const opts = CARD_CATALOG.map(function(c) {
+    const lbl = c.id === 'custom' ? 'Custom Card' : c.label;
+    return '<option value="' + c.id + '"' + (c.id === currentId ? ' selected' : '') + '>' + lbl + '</option>';
+  }).join('');
+
+  const isCustom = currentId === 'custom';
+  const titleKey  = 'lv_card_custom_title_'  + slotIdx;
+  const filterKey = 'lv_card_custom_filter_' + slotIdx;
+  const titleVal  = _prefGet(titleKey, 'My Custom Card').replace(/"/g,'&quot;');
+  const filterVal = _prefGet(filterKey, '').replace(/"/g,'&quot;');
+
+  popup.innerHTML =
+    '<div style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.65rem">Card Slot ' + (slotIdx+1) + '</div>' +
+    '<select id="card-popup-select" onchange="_onCardPopupChange(' + slotIdx + ',this.value)" style="width:100%;padding:0.4rem 0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;margin-bottom:0.65rem">' +
+      '<option value="">— None (remove this card) —</option>' + opts +
+    '</select>' +
+    '<div id="card-popup-custom" style="display:' + (isCustom ? 'flex' : 'none') + ';flex-direction:column;gap:0.4rem;margin-bottom:0.65rem">' +
+      '<input id="card-popup-title" type="text" placeholder="Card title" maxlength="24" value="' + titleVal + '" ' +
+        'oninput="_prefSet(\'' + titleKey + '\',this.value);buildDashboard()" ' +
+        'style="padding:0.3rem 0.5rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem">' +
+      '<input id="card-popup-filter" type="text" placeholder="Filter: e.g. 6464, tank, Missouri" value="' + filterVal + '" ' +
+        'oninput="_prefSet(\'' + filterKey + '\',this.value);buildDashboard()" ' +
+        'style="padding:0.3rem 0.5rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem">' +
+    '</div>' +
+    '<div style="display:flex;justify-content:flex-end">' +
+      '<button onclick="_closeCardPopup()" style="padding:0.3rem 0.9rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.8rem;cursor:pointer">Done</button>' +
+    '</div>';
+
+  document.body.appendChild(popup);
+
+  // Position anchored below the card, clamped to viewport
+  var cardEl = document.getElementById('dash-card-' + slotIdx);
+  if (!cardEl) cardEl = document.getElementById('dash-card-add');
+  if (cardEl) {
+    var rect = cardEl.getBoundingClientRect();
+    var top  = rect.bottom + 8;
+    var left = rect.left;
+    if (top + 220 > window.innerHeight - 16) top = rect.top - 220 - 8;
+    if (left + 280 > window.innerWidth  -  8) left = window.innerWidth - 288;
+    if (left < 8) left = 8;
+    popup.style.top  = Math.max(8, top)  + 'px';
+    popup.style.left = left + 'px';
+  } else {
+    popup.style.top  = '50%';
+    popup.style.left = '50%';
+    popup.style.transform = 'translate(-50%,-50%)';
+  }
+
+  // Dismiss on outside click
+  setTimeout(function() {
+    document.addEventListener('mousedown', _popupOutsideClick);
+  }, 60);
+}
+
+function _popupOutsideClick(e) {
+  var p = document.getElementById('card-popup');
+  if (p && !p.contains(e.target)) _closeCardPopup();
+}
+
+function _closeCardPopup() {
+  var p = document.getElementById('card-popup');
+  if (p) p.remove();
+  document.removeEventListener('mousedown', _popupOutsideClick);
+}
+
+function _onCardPopupChange(slotIdx, newId) {
+  var slots = _getSlots();
+  slots[slotIdx] = newId ? {id: newId} : null;
+  _saveSlots(slots);
+  buildDashboard();
+  // Show/hide custom fields inline
+  var customDiv = document.getElementById('card-popup-custom');
+  if (customDiv) customDiv.style.display = (newId === 'custom') ? 'flex' : 'none';
+  // Re-anchor popup to new card position after rebuild
+  setTimeout(function() {
+    var p = document.getElementById('card-popup');
+    var cardEl = document.getElementById('dash-card-' + slotIdx) || document.getElementById('dash-card-add');
+    if (p && cardEl) {
+      var rect = cardEl.getBoundingClientRect();
+      var top  = rect.bottom + 8;
+      var left = rect.left;
+      if (top + 220 > window.innerHeight - 16) top = rect.top - 220 - 8;
+      if (left + 280 > window.innerWidth  -  8) left = window.innerWidth - 288;
+      p.style.top  = Math.max(8, top) + 'px';
+      p.style.left = Math.max(8, left) + 'px';
+    }
+  }, 50);
 }
 
 function buildDashboard() {
@@ -1824,21 +1907,44 @@ function buildDashboard() {
   });
 
   const totalOwned = owned + ephemeraCount;
-  // ── Render dashboard stat cards ──────────────────────────────
+  // ── Render dashboard stat cards (slot-based) ─────────────────
   const _statsGrid = document.getElementById('stats-grid');
   if (_statsGrid) {
-    const _selectedIds = _getDashCards();
-    _statsGrid.innerHTML = _selectedIds.map(function(id) {
-      const card = CARD_CATALOG.find(function(c) { return c.id === id; });
-      if (!card) return '';
-      const result = card.compute(state);
-      const cardLabel = id === 'custom' ? _prefGet('lv_card_custom_title','My Custom Card') : card.label;
-      return '<div class="stat-card" style="--card-accent:' + card.color + '">'
-        + '<div class="stat-label">' + cardLabel + '</div>'
-        + '<div class="stat-value">' + result.value + '</div>'
-        + '<div class="stat-sub">' + result.sub + '</div>'
-        + '</div>';
-    }).join('');
+    const slots = _getSlots();
+    const activeSlots = slots.map(function(slot,i){return{slot,i};}).filter(function(s){return s.slot!==null;});
+    if (activeSlots.length === 0) {
+      _statsGrid.innerHTML =
+        '<button onclick="_openCardPopup(0)" style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 1rem;border-radius:8px;border:1.5px dashed var(--border,#2a3a5c);background:transparent;color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer" ' +
+        'onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\'" ' +
+        'onmouseout="this.style.borderColor=\'var(--border,#2a3a5c)\';this.style.color=\'var(--text-dim)\'">' +
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
+        'Add a stat card</button>';
+      _statsGrid.style.cssText = 'display:flex;padding:0.25rem 0;margin-bottom:0.5rem';
+    } else {
+      _statsGrid.style.cssText = '';
+      let html = activeSlots.map(function(s) {
+        const slot = s.slot, i = s.i;
+        const card = CARD_CATALOG.find(function(c){return c.id===slot.id;});
+        if (!card) return '';
+        const result = card.compute(state, i);
+        const titleKey = 'lv_card_custom_title_' + i;
+        const cardLabel = slot.id === 'custom' ? (_prefGet(titleKey,'My Custom Card')) : card.label;
+        return '<div class="stat-card" id="dash-card-' + i + '" style="--card-accent:' + card.color + ';cursor:pointer;position:relative" onclick="_openCardPopup(' + i + ')" title="Click to customize">'
+          + '<div style="position:absolute;top:6px;right:8px;font-size:0.65rem;color:var(--text-dim);opacity:0.45">✎</div>'
+          + '<div class="stat-label">' + cardLabel + '</div>'
+          + '<div class="stat-value">' + result.value + '</div>'
+          + '<div class="stat-sub">' + result.sub + '</div>'
+          + '</div>';
+      }).join('');
+      if (activeSlots.length < MAX_CARDS) {
+        var nextNull = slots.indexOf(null);
+        html += '<div class="stat-card" id="dash-card-add" style="--card-accent:var(--border,#2a3a5c);cursor:pointer;border-style:dashed;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.3rem;opacity:0.55" onclick="_openCardPopup(' + nextNull + ')" onmouseover="this.style.opacity=\'0.9\'" onmouseout="this.style.opacity=\'0.55\'">'
+          + '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
+          + '<div style="font-size:0.72rem;color:var(--text-dim);font-family:var(--font-body)">Add card</div>'
+          + '</div>';
+      }
+      _statsGrid.innerHTML = html;
+    }
   }
 
   const soldCount = Object.keys(state.soldData).length;
@@ -5246,48 +5352,17 @@ function buildPrefsPage() {
     <!-- ── 5. About ───────────────────────────── -->
     <div class="pref-section">
       <div class="pref-section-title">Dashboard Cards</div>
-      <div class="pref-row" style="flex-direction:column;align-items:flex-start;gap:0.75rem">
-        <div style="font-size:0.82rem;color:var(--text-dim);line-height:1.5">Choose up to ${MAX_CARDS} cards to show on your dashboard. Check to include, uncheck to remove.</div>
-        <div id="pref-card-list" style="display:flex;flex-direction:column;gap:0.4rem;width:100%">
-          ${(function() {
-            const selected = _getDashCards();
-            return CARD_CATALOG.filter(c => c.id !== 'custom').map(function(card) {
-              const checked = selected.includes(card.id);
-              const disabled = !checked && selected.length >= MAX_CARDS;
-              return '<label style="display:flex;align-items:center;gap:0.6rem;padding:0.4rem 0.5rem;border-radius:7px;cursor:pointer;background:' + (checked ? 'rgba(255,255,255,0.05)' : 'transparent') + ';border:1px solid ' + (checked ? 'var(--border-light,#3a4870)' : 'transparent') + '" id="pref-card-label-' + card.id + '">'
-                + '<input type="checkbox" ' + (checked ? 'checked' : '') + ' ' + (disabled ? 'disabled' : '') + ' onchange="_onDashCardToggle(\'' + card.id + '\', this.checked)" style="accent-color:' + card.color + ';width:15px;height:15px;cursor:pointer">'
-                + '<span style="font-size:0.85rem;color:var(--text);flex:1">' + card.label + '</span>'
-                + '<span style="width:10px;height:10px;border-radius:50%;background:' + card.color + ';flex-shrink:0"></span>'
-                + '</label>';
-            }).join('');
-          })()}
+      <div class="pref-row" style="flex-direction:column;align-items:flex-start;gap:0.4rem">
+        <div style="font-size:0.82rem;color:var(--text-dim);line-height:1.6">
+          You can have up to <strong style="color:var(--text)">5 stat cards</strong> on your dashboard. Click any card on the dashboard to change what it shows, or click the <strong style="color:var(--text)">+ Add card</strong> button to add a new one.
         </div>
-        <div style="font-size:0.72rem;color:var(--text-dim)" id="pref-card-count-msg">${(function(){ const n=_getDashCards().filter(id=>id!=='custom').length; return n + ' of ' + MAX_CARDS + ' standard cards selected'; })()}</div>
-      </div>
-      <div class="pref-row" style="flex-direction:column;align-items:flex-start;gap:0.5rem">
-        <div style="font-size:0.82rem;font-weight:600;color:var(--text)">Custom Card</div>
-        <div style="font-size:0.82rem;color:var(--text-dim);line-height:1.5">Create your own card — counts items in your collection matching a keyword (item # prefix, type, or road name).</div>
-        <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;width:100%">
-          <label style="font-size:0.78rem;color:var(--text-dim);min-width:60px">Title:</label>
-          <input id="pref-custom-card-title" type="text" value="${_prefGet('lv_card_custom_title','My Custom Card')}" placeholder="e.g. My 6464s" maxlength="24"
-            style="flex:1;min-width:120px;padding:0.3rem 0.5rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem"
-            oninput="_prefSet('lv_card_custom_title', this.value); buildDashboard()">
-        </div>
-        <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;width:100%">
-          <label style="font-size:0.78rem;color:var(--text-dim);min-width:60px">Filter:</label>
-          <input id="pref-custom-card-filter" type="text" value="${_prefGet('lv_card_custom_filter','')}" placeholder="e.g. 6464, tank, Missouri Pacific"
-            style="flex:1;min-width:120px;padding:0.3rem 0.5rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem"
-            oninput="_prefSet('lv_card_custom_filter', this.value); buildDashboard()">
-        </div>
-        <label style="display:flex;align-items:center;gap:0.6rem;padding:0.4rem 0.5rem;border-radius:7px;cursor:pointer;width:100%;background:${_getDashCards().includes('custom') ? 'rgba(255,255,255,0.05)' : 'transparent'};border:1px solid ${_getDashCards().includes('custom') ? 'var(--border-light,#3a4870)' : 'transparent'}" id="pref-card-label-custom">
-          <input type="checkbox" ${_getDashCards().includes('custom') ? 'checked' : ''} ${!_getDashCards().includes('custom') && _getDashCards().length >= MAX_CARDS ? 'disabled' : ''} onchange="_onDashCardToggle('custom', this.checked)" style="accent-color:#6c5ce7;width:15px;height:15px;cursor:pointer">
-          <span style="font-size:0.85rem;color:var(--text);flex:1">Show custom card on dashboard</span>
-          <span style="width:10px;height:10px;border-radius:50%;background:#6c5ce7;flex-shrink:0"></span>
-        </label>
+        <button onclick="showPage('dashboard', document.querySelector('.nav-item[onclick*=dashboard]')); setTimeout(function(){ _openCardPopup(${_getSlots().indexOf(null) >= 0 ? _getSlots().indexOf(null) : 0}); }, 150);" style="padding:0.35rem 0.8rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-size:0.8rem;cursor:pointer;margin-top:0.2rem">
+          Go to Dashboard →
+        </button>
       </div>
     </div>
 
-    <div class="pref-section">
+        <div class="pref-section">
       <div class="pref-section-title">About</div>
         <div class="pref-row">
         <div class="pref-row-label"><strong>My Collection App</strong><span>${APP_VERSION} · ${APP_DATE}</span></div>
