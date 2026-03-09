@@ -204,6 +204,10 @@ document.addEventListener('touchmove', function(){}, {passive: true});
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
               Sell Item
             </button>
+            <button id="dash-btn-browse-col" class="btn" onclick="showPage('browse', document.querySelector('.nav-item[onclick*=filterOwned]')); filterOwned();" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid #9b59b6;color:#9b59b6;background:rgba(155,89,182,0.12);font-weight:600">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              Browse My Collection
+            </button>
 
           </div>
         </div>
@@ -543,9 +547,9 @@ document.addEventListener('touchmove', function(){}, {passive: true});
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z"/></svg>
         Want List
       </button>
-      <button class="mobile-nav-item" id="mnav-sold" onclick="showPage('sold', this)">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-        Sold
+      <button class="mobile-nav-item" id="mnav-help" onclick="tutToggleMenu()">
+        <img src="./conductor.png" style="height:28px;width:auto;display:block;margin:0 auto 2px;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.4))">
+        Need Help?
       </button>
     </div>
   </nav>
@@ -790,8 +794,8 @@ document.addEventListener('touchmove', function(){}, {passive: true});
 
 <!-- Help Widget -->
 <div id="tut-help-widget" onclick="tutToggleMenu()" title="Help &amp; Tutorials" role="button" tabindex="0">
-  <img id="tut-help-conductor" src="./conductor.png">
   <span id="tut-help-label">Need Help?</span>
+  <img id="tut-help-conductor" src="./conductor.png">
   <button id="tut-help-btn" onclick="void(0)">Help</button>
 </div>
 
