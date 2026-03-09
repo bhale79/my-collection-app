@@ -393,6 +393,29 @@ function getSteps(tab) {
       { id: 'confirm',      title: 'Ready to save!',                       type: 'confirm' },
     ];
   } else { // want
+    // ── Want list: Set flow ──────────────────────────────────
+    if (wizard.data.itemCategory === 'set') {
+      return [
+        { id: 'itemCategory', title: 'What would you like to add?', type: 'itemCategory',
+          skipIf: (d) => !!d.itemCategory },
+        { id: 'want_set_knowsNum',
+          title: 'Do you know the set number?',
+          type: 'choice2', choices: ['Yes', 'No'] },
+        { id: 'want_set_num',
+          title: 'Enter the set number',
+          type: 'text', placeholder: 'e.g. 1467W, 2190W',
+          skipIf: (d) => d.want_set_knowsNum !== 'Yes' },
+        { id: 'want_set_identify',
+          title: 'Enter items to identify your set',
+          type: 'wantSetIdentify',
+          skipIf: (d) => d.want_set_knowsNum !== 'No' },
+        { id: 'priority',      title: 'How high is your priority for this set?',    type: 'choice3', choices: ['High','Medium','Low'] },
+        { id: 'expectedPrice', title: 'What do you expect to pay?',                 type: 'money',   placeholder: '0.00', optional: true },
+        { id: 'notes',         title: 'Any notes about what you\'re looking for?',  type: 'textarea', optional: true },
+        { id: 'confirm',       title: 'Ready to add set to Want List!',             type: 'confirm' },
+      ];
+    }
+    // ── Want list: standard item flow ────────────────────────
     return [
       { id: 'itemCategory', title: 'What would you like to add?', type: 'itemCategory',
         skipIf: (d) => !!d.itemCategory },
@@ -1008,7 +1031,7 @@ function renderWizardStep() {
           style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
           padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none"
           autocomplete="off"
-          oninput="wizard.data['${s.id}']=this.value; if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='itemNum') updateItemSuggestions(this.value); if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='set_num') updateSetSuggestions(this.value); if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='eph_itemNumRef') updateMockupRefSuggestions(this.value); ${_showCollPicker ? '_filterCollPicker(this.value)' : ''}"
+          oninput="wizard.data['${s.id}']=this.value; if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='itemNum') updateItemSuggestions(this.value); if(this.id==='wiz-input' && (wizard.steps[wizard.step].id==='set_num'||wizard.steps[wizard.step].id==='want_set_num')) updateSetSuggestions(this.value); if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='eph_itemNumRef') updateMockupRefSuggestions(this.value); ${_showCollPicker ? '_filterCollPicker(this.value)' : ''}"
           onkeydown="handleSuggestionKey(event)">
         <div id="wiz-suggestions" style="display:none;flex-direction:column;gap:1px;margin-top:4px;max-height:340px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;-webkit-overflow-scrolling:touch"></div>
         ${s.optional ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>' : ''}
@@ -1534,6 +1557,150 @@ function renderWizardStep() {
 
     body.innerHTML = '';
     body.appendChild(tmContainer);
+
+  } else if (s.type === 'wantSetIdentify') {
+    // ── Want List: Identify set by entering item numbers ─────────
+    const _enteredNums  = wizard.data._want_enteredNums || [];
+    if (!wizard.data._want_enteredNums) wizard.data._want_enteredNums = [];
+    const _dismissed    = wizard.data._want_dismissedSets || [];
+    const _resolvedSet  = wizard.data._resolvedSet || null;
+
+    body.innerHTML = '';
+
+    // Resolved set banner
+    if (_resolvedSet) {
+      const hdr = document.createElement('div');
+      hdr.style.cssText = 'background:rgba(41,128,185,0.1);border:1.5px solid #2980b9;border-radius:10px;padding:0.7rem 1rem;margin-bottom:0.75rem;display:flex;align-items:center;justify-content:space-between';
+      hdr.innerHTML = `<div>
+        <div style="font-size:0.68rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#2980b9">Set Identified ✓</div>
+        <div style="font-size:0.92rem;color:var(--text);font-weight:600">${_resolvedSet.setNum}${_resolvedSet.setName ? ' — ' + _resolvedSet.setName : ''}</div>
+        <div style="font-size:0.75rem;color:var(--text-dim)">${_resolvedSet.year||''} ${_resolvedSet.gauge||''} · ${_resolvedSet.items.length} components</div>
+      </div>
+      <button onclick="wizard.data._resolvedSet=null;wizard.data.itemNum='';renderWizardStep()" style="border:none;background:none;color:var(--text-dim);cursor:pointer;font-size:1.1rem" title="Clear">✕</button>`;
+      body.appendChild(hdr);
+    }
+
+    // Items entered so far
+    if (_enteredNums.length) {
+      const listHdr = document.createElement('div');
+      listHdr.style.cssText = 'font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.4rem';
+      listHdr.textContent = 'Items entered:';
+      body.appendChild(listHdr);
+      const listWrap = document.createElement('div');
+      listWrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.75rem';
+      _enteredNums.forEach(n => {
+        const chip = document.createElement('div');
+        chip.style.cssText = 'display:flex;align-items:center;gap:0.3rem;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:0.25rem 0.6rem 0.25rem 0.75rem';
+        chip.innerHTML = `<span style="font-family:var(--font-mono);font-size:0.82rem;color:#2980b9;font-weight:600">${n}</span>
+          <button onclick="window._wantSetRemove('${n}')" style="border:none;background:none;color:var(--text-dim);cursor:pointer;font-size:0.9rem;line-height:1;padding:0">×</button>`;
+        listWrap.appendChild(chip);
+      });
+      body.appendChild(listWrap);
+    }
+
+    // Add item input
+    const addRow = document.createElement('div');
+    addRow.style.cssText = 'display:flex;gap:0.5rem;margin-bottom:0.75rem';
+    addRow.innerHTML = `
+      <input id="want-set-input" type="text" placeholder="Enter item # (e.g. 736, 6357)" autocomplete="off"
+        style="flex:1;padding:0.65rem 0.9rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.92rem;text-transform:uppercase"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();window._wantSetAdd();}">
+      <button onclick="window._wantSetAdd()" style="padding:0.65rem 1rem;border-radius:9px;border:none;background:#2980b9;color:white;font-family:var(--font-body);font-weight:600;cursor:pointer">Add</button>`;
+    body.appendChild(addRow);
+
+    // Set suggestions
+    const _suggestions = _enteredNums.length >= 1
+      ? suggestSets(_enteredNums).filter(sg => !_dismissed.includes(sg.setNum))
+      : [];
+
+    if (!_resolvedSet && _suggestions.length) {
+      const sugHdr = document.createElement('div');
+      sugHdr.style.cssText = 'font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#2980b9;margin-bottom:0.4rem';
+      sugHdr.textContent = _suggestions.length === 1 ? '🎁 Possible set match:' : '🎁 Possible set matches:';
+      body.appendChild(sugHdr);
+
+      const scrollWrap = document.createElement('div');
+      scrollWrap.style.cssText = 'max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:0.4rem;margin-bottom:0.5rem;padding-right:2px';
+
+      _suggestions.forEach((sg, i) => {
+        const card = document.createElement('div');
+        card.style.cssText = `background:${i===0?'rgba(41,128,185,0.1)':'var(--surface2)'};border:${i===0?'1.5px solid #2980b9':'1px solid var(--border)'};border-radius:10px;padding:0.65rem 0.85rem;cursor:pointer`;
+        card.onclick = () => {
+          wizard.data._resolvedSet = sg;
+          wizard.data.itemNum = sg.setNum;
+          wizard.data.want_set_num = sg.setNum;
+          renderWizardStep();
+        };
+        card.innerHTML = `
+          <div style="display:flex;align-items:flex-start;gap:0.5rem">
+            <div style="flex:1">
+              <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+                <span style="font-family:var(--font-mono);font-size:0.9rem;font-weight:700;color:${i===0?'#2980b9':'var(--accent)'}">${sg.setNum}</span>
+                ${sg.setName ? `<span style="font-size:0.8rem;color:var(--text-mid)">${sg.setName}</span>` : ''}
+                ${sg.year ? `<span style="font-size:0.72rem;color:var(--text-dim)">${sg.year}</span>` : ''}
+              </div>
+              <div style="margin-top:0.35rem;display:flex;flex-wrap:wrap;gap:0.25rem">
+                ${sg.items.map(n => {
+                  const isEntered = _enteredNums.some(e => normalizeItemNum(e) === normalizeItemNum(n));
+                  return `<span style="font-family:var(--font-mono);font-size:0.72rem;padding:1px 6px;border-radius:4px;border:1px solid ${isEntered?'#2980b9':'var(--border)'};background:${isEntered?'rgba(41,128,185,0.15)':'var(--surface)'};color:${isEntered?'#2980b9':'var(--text-dim)'};font-weight:${isEntered?'700':'400'}">${n}</span>`;
+                }).join('')}
+              </div>
+            </div>
+            <button onclick="event.stopPropagation();wizard.data._resolvedSet=${JSON.stringify(sg)};wizard.data.itemNum='${sg.setNum}';wizard.data.want_set_num='${sg.setNum}';renderWizardStep();" 
+              style="flex-shrink:0;padding:0.35rem 0.75rem;border-radius:8px;border:1.5px solid ${i===0?'#2980b9':'var(--border)'};background:${i===0?'rgba(41,128,185,0.15)':'var(--surface)'};color:${i===0?'#2980b9':'var(--text-dim)'};font-size:0.78rem;font-weight:600;cursor:pointer;white-space:nowrap">
+              I want this one
+            </button>
+          </div>`;
+        scrollWrap.appendChild(card);
+      });
+      body.appendChild(scrollWrap);
+
+      const noMatch = document.createElement('div');
+      noMatch.style.cssText = 'text-align:center;margin-bottom:0.5rem';
+      noMatch.innerHTML = `<button onclick="wizard.data._want_dismissedSets=(wizard.data._want_dismissedSets||[]).concat(${JSON.stringify(_suggestions.map(s=>s.setNum))});renderWizardStep()" style="border:none;background:none;color:var(--text-dim);font-size:0.78rem;cursor:pointer;text-decoration:underline">None of these match</button>`;
+      body.appendChild(noMatch);
+    }
+
+    // Continue once set picked OR at least one item entered
+    const canContinue = _resolvedSet || _enteredNums.length >= 1;
+    if (canContinue && !_suggestions.length || _resolvedSet) {
+      const contBtn = document.createElement('button');
+      contBtn.style.cssText = 'width:100%;margin-top:0.5rem;padding:0.85rem;border-radius:10px;border:none;background:' + (_resolvedSet ? '#2980b9' : 'var(--surface2)') + ';color:' + (_resolvedSet ? 'white' : 'var(--text-mid)') + ';font-family:var(--font-body);font-size:0.92rem;font-weight:600;cursor:pointer';
+      contBtn.textContent = _resolvedSet
+        ? `Continue with Set ${_resolvedSet.setNum} →`
+        : `Continue — ${_enteredNums.length} item${_enteredNums.length!==1?'s':''} entered →`;
+      contBtn.onclick = () => {
+        if (!_resolvedSet && _enteredNums.length) {
+          // No set matched — use first item number as placeholder
+          wizard.data.itemNum = _enteredNums[0];
+        }
+        wizardAdvance();
+      };
+      body.appendChild(contBtn);
+    }
+
+    // Wire up callbacks
+    window._wantSetAdd = () => {
+      const inp = document.getElementById('want-set-input');
+      const val = (inp ? inp.value : '').trim().toUpperCase().replace(/\s+/g,'');
+      if (!val) return;
+      if (!wizard.data._want_enteredNums) wizard.data._want_enteredNums = [];
+      if (!wizard.data._want_enteredNums.includes(val)) {
+        wizard.data._want_enteredNums.push(val);
+      }
+      if (inp) inp.value = '';
+      renderWizardStep();
+      setTimeout(() => { const i = document.getElementById('want-set-input'); if(i) i.focus(); }, 50);
+    };
+    window._wantSetRemove = (n) => {
+      wizard.data._want_enteredNums = (wizard.data._want_enteredNums||[]).filter(x => x !== n);
+      if (wizard.data._resolvedSet && wizard.data._resolvedSet.setNum) {
+        // If we removed an item that was the basis of the resolved set, clear it
+      }
+      renderWizardStep();
+    };
+
+    nextBtn.style.display = 'none'; // hide the wizard Next btn — Continue btn handles advance
 
   } else if (s.type === 'setComponents') {
     // ── Phase management ──────────────────────────────────────────
@@ -2814,6 +2981,13 @@ function wizardChooseCategory(catId) {
     return;
   }
   wizard.data.itemCategory = catId;
+  if (catId === 'set' && wizard.tab === 'want') {
+    // Want list set flow — stay in 'want' tab but refresh steps
+    wizard.steps = getSteps('want');
+    wizard.step = 0;
+    wizardNext(); // skip past itemCategory
+    return;
+  }
   if (catId !== 'lionel') {
     wizard.tab = catId;
     wizard.steps = getSteps(catId);
@@ -3228,6 +3402,8 @@ function updateSetSuggestions(query) {
 
     row.onclick = () => {
       wizard.data.set_num = s.setNum;
+      wizard.data.want_set_num = s.setNum;
+      wizard.data.itemNum = s.setNum; // ensure save picks it up
       wizard.data._resolvedSet = s;  // store the exact variant row
       el.style.display = 'none';
       el.innerHTML = '';
@@ -4689,7 +4865,7 @@ async function saveWizardItem() {
         soldPricePaid,
         d.salePrice || '',
         d.dateSold || '',
-        ( d.notes || '' ).trim(),
+        _saveNotes.trim(),
       ];
       const soldKey = `${itemNum}|${soldVariation}`;
       const existingSold = state.soldData[soldKey];
@@ -4708,13 +4884,21 @@ async function saveWizardItem() {
       }
 
     } else if (tab === 'want') {
+      // For set wants, resolve itemNum from set number fields
+      const _saveItemNum = (d.itemCategory === 'set')
+        ? (d.want_set_num || d.set_num || d._resolvedSet?.setNum || itemNum || '').trim()
+        : itemNum;
+      const _saveNotes = (d.itemCategory === 'set' && d._resolvedSet?.setName && !d.notes)
+        ? ('Set: ' + d._resolvedSet.setName)
+        : (d.notes || '');
       const row = [
-        itemNum, variation,
+        _saveItemNum, variation,
         d.priority || 'Medium',
         d.expectedPrice || '',
         ( d.notes || '' ).trim(),
       ];
-      const existing = state.wantData[key];
+      const _wantKey = (d.itemCategory === 'set') ? `${_saveItemNum}|${variation}` : key;
+      const existing = state.wantData[_wantKey];
       if (existing?.row) {
         await sheetsUpdate(state.personalSheetId, `Want List!A${existing.row}:E${existing.row}`, [row]);
       } else {
