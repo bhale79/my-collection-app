@@ -2818,6 +2818,29 @@ function renderBrowse() {
     if (cardsEl) cardsEl.style.display = 'none';
   }
 
+  // ── Icon legend bar (My Collection only) ──
+  if (state.filters.owned) {
+    const legendEl = document.getElementById('coll-icon-legend');
+    if (legendEl) {
+      const showLegend = _prefGet('lv_show_coll_legend', 'true') === 'true';
+      legendEl.style.display = '';
+      legendEl.innerHTML = showLegend
+        ? `<div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;font-size:0.72rem;color:var(--text-dim);padding:0.4rem 0.6rem;background:var(--surface2);border:1px solid var(--border);border-radius:7px;margin-bottom:0.5rem">
+            <span style="font-weight:600;color:var(--text-mid)">Icon key:</span>
+            <span title="Grouped items">🔗 Grouped</span>
+            <span title="Quick entry — details not yet complete">⚡ Quick Entry</span>
+            <span title="Has a photo on file">📷 Has Photo</span>
+            <button onclick="event.stopPropagation();_prefSet('lv_show_coll_legend','false');renderBrowse()" style="margin-left:auto;background:none;border:none;color:var(--text-dim);font-size:0.72rem;cursor:pointer;padding:0;text-decoration:underline">Hide</button>
+          </div>`
+        : `<div style="display:flex;justify-content:flex-end;margin-bottom:0.35rem">
+            <button onclick="event.stopPropagation();_prefSet('lv_show_coll_legend','true');renderBrowse()" style="background:none;border:none;color:var(--text-dim);font-size:0.72rem;cursor:pointer;padding:0;text-decoration:underline">Show icon key</button>
+          </div>`;
+    }
+  } else {
+    const legendEl = document.getElementById('coll-icon-legend');
+    if (legendEl) legendEl.style.display = 'none';
+  }
+
   const rowsHtml = pageData.map((item, i) => {
     const pd = item._personalOnly ? item : findPD(item.itemNum, item.variation);
     const isOwned = item._personalOnly ? true : (pd?.owned || false);
@@ -2878,6 +2901,7 @@ function renderBrowse() {
           <span class="item-num">${item.itemNum}</span>
           ${_groupId ? '<span style="font-size:0.55rem;color:var(--accent3);margin-left:4px;vertical-align:super" title="Grouped">🔗</span>' : ''}
           ${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(\''+item.itemNum+'\',\''+_escVar+'\','+globalIdx+')" style="margin-left:5px;font-size:0.72rem;background:#27ae60;color:#fff;border-radius:4px;padding:1px 5px;cursor:pointer;font-weight:700;vertical-align:middle" title="Complete this Quick Entry">⚡</span>' : ''}
+          ${pd && pd.photoItem ? '<span style="margin-left:4px;font-size:0.78rem;vertical-align:middle;opacity:0.75" title="Has photo">📷</span>' : ''}
         </td>
         <td style="white-space:nowrap">${item.variation ? '<span style="font-size:0.78rem;color:var(--text-mid)">' + item.variation + '</span>' : '<span style="color:var(--text-dim)">—</span>'}</td>
         <td style="color:var(--text-mid);font-size:0.85rem">${_descShort}</td>
