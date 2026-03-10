@@ -1,7 +1,7 @@
 {
   "name": "My Collection App",
   "short_name": "My Collection",
-  "description": "Track your Lionel postwar train collection",
+  "description": "Track your postwar train collection",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",
