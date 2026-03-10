@@ -120,24 +120,18 @@
       <div class="nav-section">
         <button class="nav-item" onclick="showPage('browse', this); resetFilters(); renderBrowse();" data-ctip="Opens the master list of Postwar Items. Here you can view and then add to your inventory, want, or for sale list.">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-          Postwar Item List
+          Postwar Master List
           <span class="nav-badge" id="nav-total">—</span>
+        </button>
+        <button class="nav-item" onclick="showPage('sets', this); buildSetsPage();" data-ctip="Browse complete Lionel sets and see which components you already own. Great for finding what you need to complete a set.">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+          Postwar Set Master List
+          <span class="nav-badge" id="nav-sets-count" style="background:#d35400;color:#fff">—</span>
         </button>
         <button class="nav-item" onclick="showPage('browse', this); filterOwned()" data-ctip="This is your inventory list. All the items you own are viewed here. From here you can also add items to your collection, transfer items to the sale list, or delete them from the list.">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
-          My Collection
+          My Collection List
           <span class="nav-badge green" id="nav-owned">—</span>
-        </button>
-        <button class="nav-item" id="nav-quickentry-btn" onclick="showPage('quickentry', this); buildQuickEntryList();" data-ctip="This shows you the items you quickly uploaded so you can add the item details when you have the time.">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          Quick Entry List
-          <span class="nav-badge" id="nav-qe-count" style="background:#27ae60">—</span>
-        </button>
-
-        <button class="nav-item" onclick="showPage('sets', this); buildSetsPage();" data-ctip="Browse complete Lionel sets and see which components you already own. Great for finding what you need to complete a set.">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
-          Complete Sets
-          <span class="nav-badge" id="nav-sets-count" style="background:#d35400;color:#fff">—</span>
         </button>
         <button class="nav-item" onclick="showPage('want', this); buildWantPage();" data-ctip="This is the list you want to take to the next train show. Add what you are looking for and keep notes to make sure you buy what you need. When you do buy it, transfer it quickly to your collection from here.">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z"/></svg>
@@ -151,13 +145,18 @@
         </button>
         <button class="nav-item" onclick="showPage('forsale', this); buildForSalePage();" data-ctip="This is the list of the things you have for sale. It keeps track of items, their notes, and what you want for them. Once sold, transfer to your sold list — or change your mind and put them back in your collection.">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-          For Sale
+          For Sale List
           <span class="nav-badge" id="nav-forsale" style="background:#e67e22;color:#fff">—</span>
         </button>
         <button class="nav-item" onclick="showPage('sold', this)" data-ctip="This is the list of the items you have sold and what you sold them for. Don't look too long as you might wish you had some of these back.">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
           Sold Items
           <span class="nav-badge" id="nav-sold" style="background:#9b59b6">—</span>
+        </button>
+        <button class="nav-item" id="nav-quickentry-btn" onclick="showPage('quickentry', this); buildQuickEntryList();" data-ctip="This shows you the items you quickly uploaded so you can add the item details when you have the time.">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Quick Entry List
+          <span class="nav-badge" id="nav-qe-count" style="background:#27ae60">—</span>
         </button>
       </div>
       <div class="nav-section">
