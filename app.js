@@ -6641,7 +6641,7 @@ async function removeForSaleAndCollection(itemNum, variation, fsRow) {
   showToast('✓ Item removed');
 }
 
-function showPage(name, clickedEl) {
+function showPage(name, clickedEl, _fromPopState) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelectorAll('.mobile-nav-item').forEach(n => n.classList.remove('active'));
@@ -6657,7 +6657,23 @@ function showPage(name, clickedEl) {
   if (name === 'upgrade') buildUpgradePage();
   if (name === 'prefs') buildPrefsPage();
   document.getElementById('main-content').scrollTop = 0;
+  // Push to browser history so the back button navigates within the app
+  // (mobile only — skip if this call was triggered by the back button itself)
+  if (!_fromPopState) {
+    history.pushState({ page: name }, '', '');
+  }
 }
+
+// Back button handler — intercept and navigate within the app instead of closing it
+window.addEventListener('popstate', function(e) {
+  if (e.state && e.state.page) {
+    showPage(e.state.page, null, true);
+  } else {
+    // No state means we've backed past all app pages — go to dashboard
+    showPage('dashboard', null, true);
+    history.pushState({ page: 'dashboard' }, '', '');
+  }
+});
 
 // ── SETS PAGE ────────────────────────────────────────────────────────────────
 function buildSetsPage() {
