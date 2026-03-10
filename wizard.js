@@ -1094,7 +1094,7 @@ function renderWizardStep() {
     const quickCard = document.createElement('div');
     quickCard.style.cssText = 'width:100%;border-radius:12px;font-family:var(--font-body);border:2px solid #1e3a5f;background:rgba(30,58,95,0.07);overflow:hidden';
 
-    // Read saved toggle prefs
+    // Read saved checkbox prefs
     const _qeWorthOn = localStorage.getItem('lv_qe_worth') === '1';
     const _qePhotoOn = isMobile && localStorage.getItem('lv_qe_photo') === '1';
 
@@ -1105,46 +1105,46 @@ function renderWizardStep() {
       + '<div style="flex:1"><div style="font-size:0.95rem;font-weight:700;color:#1e3a5f;margin-bottom:0.1rem">Quick Entry</div>'
       + '<div style="font-size:0.78rem;color:var(--text-mid);line-height:1.4">Just save the item number now — fill in details later.</div></div>';
 
-    // Toggle strip
-    const qcToggles = document.createElement('div');
-    qcToggles.style.cssText = 'display:flex;gap:0.5rem;padding:0 1rem 0.75rem 1rem';
+    // ── Checkbox row ──
+    const qcChecks = document.createElement('div');
+    qcChecks.style.cssText = 'display:flex;gap:1.25rem;padding:0 1rem 0.8rem 1rem';
 
-    function _mkToggle(id, emoji, label, savedOn) {
-      const btn = document.createElement('button');
-      btn.dataset.on = savedOn ? '1' : '0';
-      btn.style.cssText = 'display:flex;align-items:center;gap:0.35rem;padding:0.3rem 0.65rem;border-radius:20px;font-size:0.75rem;font-weight:600;font-family:var(--font-body);cursor:pointer;transition:all 0.15s;border:1.5px solid ' + (savedOn ? '#27ae60' : 'var(--border)') + ';background:' + (savedOn ? 'rgba(39,174,96,0.15)' : 'var(--surface2)') + ';color:' + (savedOn ? '#27ae60' : 'var(--text-dim)') + ';';
-      btn.innerHTML = emoji + ' ' + label;
-      btn.onclick = function(e) {
-        e.stopPropagation();
-        var isOn = btn.dataset.on === '1';
-        isOn = !isOn;
-        btn.dataset.on = isOn ? '1' : '0';
-        btn.style.border = '1.5px solid ' + (isOn ? '#27ae60' : 'var(--border)');
-        btn.style.background = isOn ? 'rgba(39,174,96,0.15)' : 'var(--surface2)';
-        btn.style.color = isOn ? '#27ae60' : 'var(--text-dim)';
-        localStorage.setItem(id, isOn ? '1' : '0');
-      };
-      return btn;
+    function _mkCheckbox(storageKey, emoji, label, checkedInit) {
+      const wrap = document.createElement('label');
+      wrap.style.cssText = 'display:flex;align-items:center;gap:0.45rem;cursor:pointer;user-select:none';
+
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = checkedInit;
+      cb.style.cssText = 'width:16px;height:16px;accent-color:#1e3a5f;cursor:pointer;flex-shrink:0';
+      cb.onclick = function(e) { e.stopPropagation(); localStorage.setItem(storageKey, cb.checked ? '1' : '0'); };
+
+      const lbl = document.createElement('span');
+      lbl.style.cssText = 'font-size:0.82rem;color:var(--text-mid)';
+      lbl.textContent = emoji + ' ' + label;
+
+      wrap.appendChild(cb);
+      wrap.appendChild(lbl);
+      return { el: wrap, cb };
     }
 
-    const worthToggle = _mkToggle('lv_qe_worth', '💰', 'Est. Worth', _qeWorthOn);
-    qcToggles.appendChild(worthToggle);
-    var photoToggle = null;
+    const worthCheck = _mkCheckbox('lv_qe_worth', '💰', 'Est. Worth', _qeWorthOn);
+    qcChecks.appendChild(worthCheck.el);
+    var photoCheck = null;
     if (isMobile) {
-      photoToggle = _mkToggle('lv_qe_photo', '📷', 'Add Photo', _qePhotoOn);
-      qcToggles.appendChild(photoToggle);
+      photoCheck = _mkCheckbox('lv_qe_photo', '📷', 'Add Photo', _qePhotoOn);
+      qcChecks.appendChild(photoCheck.el);
     }
 
     quickCard.appendChild(qcTop);
-    quickCard.appendChild(qcToggles);
+    quickCard.appendChild(qcChecks);
 
-    // ── Mini-step panel (shown after tapping card when a toggle is on) ──
+    // ── Mini-step panel (shown after tapping card when a checkbox is checked) ──
     const miniStep = document.createElement('div');
     miniStep.style.cssText = 'display:none;padding:0.75rem 1rem;border-top:1px solid rgba(30,58,95,0.2);background:rgba(30,58,95,0.04)';
 
     // Est. Worth field
     const worthWrap = document.createElement('div');
-    worthWrap.id = 'qe-mini-worth';
     worthWrap.style.cssText = 'display:none;margin-bottom:0.65rem';
     worthWrap.innerHTML = '<div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-dim);margin-bottom:0.3rem">Est. Worth</div>'
       + '<div style="display:flex;align-items:center;gap:0.4rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.4rem 0.75rem">'
@@ -1154,7 +1154,6 @@ function renderWizardStep() {
 
     // Photo field (mobile only)
     const photoWrap = document.createElement('div');
-    photoWrap.id = 'qe-mini-photo';
     photoWrap.style.cssText = 'display:none;margin-bottom:0.65rem';
     photoWrap.innerHTML = '<div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-dim);margin-bottom:0.3rem">Photo</div>'
       + '<div style="display:flex;align-items:center;gap:0.75rem">'
@@ -1186,12 +1185,11 @@ function renderWizardStep() {
       };
     }, 60);
 
-    // ── Tap card top → show mini-step if any toggle is on, else save immediately ──
+    // ── Tap card top → show mini-step if any checkbox checked, else save immediately ──
     qcTop.onclick = function() {
-      var wantWorth = worthToggle.dataset.on === '1';
-      var wantPhoto = photoToggle && photoToggle.dataset.on === '1';
+      var wantWorth = worthCheck.cb.checked;
+      var wantPhoto = photoCheck && photoCheck.cb.checked;
       if (!wantWorth && !wantPhoto) {
-        // Save immediately
         wizard.data.entryMode = 'quick';
         wizard.data._qeEstWorth = '';
         delete wizard.data._qePhotoFile;
@@ -1201,11 +1199,9 @@ function renderWizardStep() {
         });
         return;
       }
-      // Show mini-step
       miniStep.style.display = 'block';
       if (wantWorth) worthWrap.style.display = 'block';
       if (wantPhoto) photoWrap.style.display = 'block';
-      // Scroll confirm button into view
       setTimeout(function() { confirmBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 80);
     };
 
@@ -5143,7 +5139,7 @@ async function quickEntryAdd() {
     const _nextBtn = document.getElementById('wizard-next-btn');
     if (_nextBtn) _nextBtn.disabled = true;
 
-    // Capture optional QE fields
+    // Upload photo if one was taken (lead item only)
     const _qePhotoFile = d._qePhotoFile || null;
     const _qeEstWorth  = d._qeEstWorth  || '';
     let   _qePhotoLink = '';
