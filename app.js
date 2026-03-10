@@ -2464,11 +2464,10 @@ function buildQuickEntryList() {
     row.onmouseenter = function() { this.style.borderColor='#27ae60'; this.style.background='rgba(39,174,96,0.06)'; };
     row.onmouseleave = function() { this.style.borderColor='rgba(39,174,96,0.3)'; this.style.background='var(--surface)'; };
     row.onclick = (function(num, vari) { return function() {
-      // Find the pdKey for this item and open its detail panel
       var prefix = num + '|' + vari + '|';
       var exact = Object.keys(state.personalData).find(function(k) { return k.startsWith(prefix); });
       if (!exact) { exact = Object.keys(state.personalData).find(function(k) { return k.startsWith(num + '|'); }); }
-      if (exact) { showOwnedItemMenu(-1, exact); }
+      if (exact) { updateCollectionItem(-1, exact); }
     }; })(pd.itemNum, variation);
 
     var icon = document.createElement('div');
@@ -2507,8 +2506,17 @@ function buildQuickEntryList() {
 
     var right = document.createElement('div');
     right.style.cssText = 'flex-shrink:0;text-align:right';
-    right.innerHTML = '<div style="font-size:0.72rem;color:#27ae60;font-weight:600;background:rgba(39,174,96,0.1);padding:0.25rem 0.5rem;border-radius:5px;margin-bottom:0.3rem;white-space:nowrap">Needs info</div>'
-      + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>';
+    var addInfoBtn = document.createElement('button');
+    addInfoBtn.textContent = 'Add Info';
+    addInfoBtn.style.cssText = 'font-size:0.78rem;color:#fff;font-weight:600;background:#27ae60;border:none;padding:0.3rem 0.7rem;border-radius:6px;cursor:pointer;white-space:nowrap';
+    addInfoBtn.onclick = (function(num, vari) { return function(e) {
+      e.stopPropagation();
+      var prefix = num + '|' + vari + '|';
+      var exact = Object.keys(state.personalData).find(function(k) { return k.startsWith(prefix); });
+      if (!exact) { exact = Object.keys(state.personalData).find(function(k) { return k.startsWith(num + '|'); }); }
+      if (exact) { updateCollectionItem(-1, exact); }
+    }; })(pd.itemNum, variation);
+    right.appendChild(addInfoBtn);
 
     row.appendChild(icon);
     row.appendChild(info);
@@ -6641,7 +6649,7 @@ async function removeForSaleAndCollection(itemNum, variation, fsRow) {
   showToast('✓ Item removed');
 }
 
-function showPage(name, clickedEl, _fromPopState) {
+function showPage(name, clickedEl) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelectorAll('.mobile-nav-item').forEach(n => n.classList.remove('active'));
@@ -6657,23 +6665,7 @@ function showPage(name, clickedEl, _fromPopState) {
   if (name === 'upgrade') buildUpgradePage();
   if (name === 'prefs') buildPrefsPage();
   document.getElementById('main-content').scrollTop = 0;
-  // Push to browser history so the back button navigates within the app
-  // (mobile only — skip if this call was triggered by the back button itself)
-  if (!_fromPopState) {
-    history.pushState({ page: name }, '', '');
-  }
 }
-
-// Back button handler — intercept and navigate within the app instead of closing it
-window.addEventListener('popstate', function(e) {
-  if (e.state && e.state.page) {
-    showPage(e.state.page, null, true);
-  } else {
-    // No state means we've backed past all app pages — go to dashboard
-    showPage('dashboard', null, true);
-    history.pushState({ page: 'dashboard' }, '', '');
-  }
-});
 
 // ── SETS PAGE ────────────────────────────────────────────────────────────────
 function buildSetsPage() {
