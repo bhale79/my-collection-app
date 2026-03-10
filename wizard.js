@@ -501,7 +501,8 @@ function completeQuickEntry(itemNum, variation, globalIdx) {
 }
 
 function closeWizardOnOverlay(e) {
-  if (e.target === document.getElementById('wizard-modal')) closeWizard();
+  // Intentionally disabled — clicking outside the wizard does nothing.
+  // Use the Cancel button to exit.
 }
 
 // ── Wizard Consolidation Helpers ──
