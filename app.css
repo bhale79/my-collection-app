@@ -912,4 +912,9 @@
     #page-dashboard .dash-btn-grid { margin-top: 0.5rem; }
     .main { padding-top: 0.5rem !important; }
   }
+
+  /* ── Hide native date picker calendar icon — we use our own 📅 button ── */
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    display: none;
+  }
 </style>
