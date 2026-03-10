@@ -1070,142 +1070,150 @@ function renderWizardStep() {
   } else if (s.type === 'entryMode') {
     const lbl = getItemLabel(wizard.data);
     const itemNum = (wizard.data.itemNum || '').trim();
+    const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
     const wrap = document.createElement('div');
-    wrap.style.cssText = 'padding-top:0.75rem;display:flex;flex-direction:column;gap:0.75rem';
+    wrap.style.cssText = 'padding-top:0.5rem;display:flex;flex-direction:column;gap:0.6rem';
 
-    // Full Entry card
+    // Hide Next button — cards drive navigation
+    var nb = document.getElementById('wizard-next-btn');
+    if (nb) nb.style.display = 'none';
+
+    // ── Full Entry card ──
     const fullCard = document.createElement('button');
-    fullCard.style.cssText = 'width:100%;padding:1.1rem 1.25rem;border-radius:14px;text-align:left;cursor:pointer;font-family:var(--font-body);transition:all 0.15s;border:2px solid var(--border);background:var(--surface2);display:flex;align-items:flex-start;gap:1rem';
-    fullCard.innerHTML = '<div style="font-size:2rem;flex-shrink:0;line-height:1">📋</div>'
-      + '<div><div style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:0.2rem">Full Entry</div>'
-      + '<div style="font-size:0.82rem;color:var(--text-mid);line-height:1.5">Answer all questions and add photos.<br>Best for a complete record.</div></div>';
+    fullCard.style.cssText = 'width:100%;padding:0.85rem 1rem;border-radius:12px;text-align:left;cursor:pointer;font-family:var(--font-body);transition:all 0.15s;border:2px solid var(--border);background:var(--surface2);display:flex;align-items:center;gap:0.85rem';
+    fullCard.innerHTML = '<div style="font-size:1.6rem;flex-shrink:0;line-height:1">📋</div>'
+      + '<div><div style="font-size:0.95rem;font-weight:700;color:var(--text);margin-bottom:0.1rem">Full Entry</div>'
+      + '<div style="font-size:0.78rem;color:var(--text-mid);line-height:1.4">Answer all questions and add photos. Best for a complete record.</div></div>';
     fullCard.onclick = function() {
       wizard.data.entryMode = 'full';
       renderWizardStep();
       setTimeout(function() { wizardNext(); }, 120);
     };
 
-    // Quick Entry card
+    // ── Quick Entry card ──
     const quickCard = document.createElement('div');
-    quickCard.style.cssText = 'width:100%;padding:1.1rem 1.25rem;border-radius:14px;text-align:left;font-family:var(--font-body);border:2px solid #1e3a5f;background:rgba(30,58,95,0.07)';
+    quickCard.style.cssText = 'width:100%;border-radius:12px;font-family:var(--font-body);border:2px solid #1e3a5f;background:rgba(30,58,95,0.07);overflow:hidden';
 
-    // Header row — clicking this triggers expansion
-    const qcHeader = document.createElement('div');
-    qcHeader.style.cssText = 'display:flex;align-items:flex-start;gap:1rem;cursor:pointer';
-    qcHeader.innerHTML = '<div style="font-size:2rem;flex-shrink:0;line-height:1">⚡</div>'
-      + '<div><div style="font-size:1rem;font-weight:700;color:#1e3a5f;margin-bottom:0.2rem">Quick Entry</div>'
-      + '<div style="font-size:0.82rem;color:var(--text-mid);line-height:1.5">Just save the item number now.<br>You can fill in the details later — use the ⚡ Quick Entry filter to find it.</div></div>';
+    // Read saved toggle prefs
+    const _qeWorthOn = localStorage.getItem('lv_qe_worth') === '1';
+    const _qePhotoOn = isMobile && localStorage.getItem('lv_qe_photo') === '1';
 
-    // Expandable options panel (hidden until header clicked)
-    const qcOptions = document.createElement('div');
-    qcOptions.style.cssText = 'display:none;margin-top:1rem;padding-top:1rem;border-top:1px solid rgba(30,58,95,0.2)';
+    // Card top row (tappable)
+    const qcTop = document.createElement('div');
+    qcTop.style.cssText = 'display:flex;align-items:center;gap:0.85rem;padding:0.85rem 1rem;cursor:pointer';
+    qcTop.innerHTML = '<div style="font-size:1.6rem;flex-shrink:0;line-height:1">⚡</div>'
+      + '<div style="flex:1"><div style="font-size:0.95rem;font-weight:700;color:#1e3a5f;margin-bottom:0.1rem">Quick Entry</div>'
+      + '<div style="font-size:0.78rem;color:var(--text-mid);line-height:1.4">Just save the item number now — fill in details later.</div></div>';
 
-    const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    // Toggle strip
+    const qcToggles = document.createElement('div');
+    qcToggles.style.cssText = 'display:flex;gap:0.5rem;padding:0 1rem 0.75rem 1rem';
 
-    // ── Helper: build a toggle row ──
-    function _qeToggleRow(emoji, label, id) {
-      const row = document.createElement('div');
-      row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem';
-      row.innerHTML = '<span style="font-size:0.88rem;color:var(--text-mid)">' + emoji + ' ' + label + '</span>'
-        + '<label style="position:relative;display:inline-block;width:38px;height:22px;cursor:pointer">'
-        + '<input type="checkbox" id="' + id + '" style="opacity:0;width:0;height:0">'
-        + '<span style="position:absolute;inset:0;background:#ccc;border-radius:22px;transition:0.2s" id="' + id + '-track"></span>'
-        + '<span style="position:absolute;left:3px;top:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:0.2s" id="' + id + '-thumb"></span>'
-        + '</label>';
-      return row;
+    function _mkToggle(id, emoji, label, savedOn) {
+      const btn = document.createElement('button');
+      btn.dataset.on = savedOn ? '1' : '0';
+      btn.style.cssText = 'display:flex;align-items:center;gap:0.35rem;padding:0.3rem 0.65rem;border-radius:20px;font-size:0.75rem;font-weight:600;font-family:var(--font-body);cursor:pointer;transition:all 0.15s;border:1.5px solid ' + (savedOn ? '#27ae60' : 'var(--border)') + ';background:' + (savedOn ? 'rgba(39,174,96,0.15)' : 'var(--surface2)') + ';color:' + (savedOn ? '#27ae60' : 'var(--text-dim)') + ';';
+      btn.innerHTML = emoji + ' ' + label;
+      btn.onclick = function(e) {
+        e.stopPropagation();
+        var isOn = btn.dataset.on === '1';
+        isOn = !isOn;
+        btn.dataset.on = isOn ? '1' : '0';
+        btn.style.border = '1.5px solid ' + (isOn ? '#27ae60' : 'var(--border)');
+        btn.style.background = isOn ? 'rgba(39,174,96,0.15)' : 'var(--surface2)';
+        btn.style.color = isOn ? '#27ae60' : 'var(--text-dim)';
+        localStorage.setItem(id, isOn ? '1' : '0');
+      };
+      return btn;
     }
 
-    // ── Est. Worth toggle + field (shown on all devices) ──
-    const worthRow = _qeToggleRow('💰', 'Add Est. Worth', 'qe-worth-toggle');
-    const worthField = document.createElement('div');
-    worthField.style.cssText = 'display:none;margin-bottom:0.75rem';
-    worthField.innerHTML = '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.4rem 0.75rem">'
-      + '<span style="color:var(--text-dim);font-size:0.9rem">$</span>'
+    const worthToggle = _mkToggle('lv_qe_worth', '💰', 'Est. Worth', _qeWorthOn);
+    qcToggles.appendChild(worthToggle);
+    var photoToggle = null;
+    if (isMobile) {
+      photoToggle = _mkToggle('lv_qe_photo', '📷', 'Add Photo', _qePhotoOn);
+      qcToggles.appendChild(photoToggle);
+    }
+
+    quickCard.appendChild(qcTop);
+    quickCard.appendChild(qcToggles);
+
+    // ── Mini-step panel (shown after tapping card when a toggle is on) ──
+    const miniStep = document.createElement('div');
+    miniStep.style.cssText = 'display:none;padding:0.75rem 1rem;border-top:1px solid rgba(30,58,95,0.2);background:rgba(30,58,95,0.04)';
+
+    // Est. Worth field
+    const worthWrap = document.createElement('div');
+    worthWrap.id = 'qe-mini-worth';
+    worthWrap.style.cssText = 'display:none;margin-bottom:0.65rem';
+    worthWrap.innerHTML = '<div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-dim);margin-bottom:0.3rem">Est. Worth</div>'
+      + '<div style="display:flex;align-items:center;gap:0.4rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.4rem 0.75rem">'
+      + '<span style="color:var(--text-dim)">$</span>'
       + '<input id="qe-worth-input" type="number" min="0" step="0.01" placeholder="0.00" style="background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:0.95rem;width:100%">'
       + '</div>';
 
-    // ── Photo toggle + button (mobile only) ──
-    var photoRow = null;
-    var photoField = null;
-    if (isMobile) {
-      photoRow = _qeToggleRow('📷', 'Add a Photo', 'qe-photo-toggle');
-      photoField = document.createElement('div');
-      photoField.style.cssText = 'display:none;margin-bottom:0.75rem';
-      photoField.innerHTML = '<div style="display:flex;align-items:center;gap:0.75rem">'
-        + '<label style="display:flex;align-items:center;gap:0.4rem;padding:0.45rem 0.9rem;border-radius:8px;border:1.5px solid #27ae60;color:#27ae60;background:rgba(39,174,96,0.08);font-size:0.85rem;font-weight:600;cursor:pointer">'
-        + '📷 Take Photo'
-        + '<input id="qe-photo-input" type="file" accept="image/*" capture="environment" style="display:none">'
-        + '</label>'
-        + '<span id="qe-photo-name" style="font-size:0.78rem;color:var(--text-dim);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>'
-        + '</div>';
-    }
+    // Photo field (mobile only)
+    const photoWrap = document.createElement('div');
+    photoWrap.id = 'qe-mini-photo';
+    photoWrap.style.cssText = 'display:none;margin-bottom:0.65rem';
+    photoWrap.innerHTML = '<div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-dim);margin-bottom:0.3rem">Photo</div>'
+      + '<div style="display:flex;align-items:center;gap:0.75rem">'
+      + '<label style="display:flex;align-items:center;gap:0.4rem;padding:0.4rem 0.85rem;border-radius:8px;border:1.5px solid #27ae60;color:#27ae60;background:rgba(39,174,96,0.08);font-size:0.82rem;font-weight:600;cursor:pointer;flex-shrink:0">'
+      + '📷 Take Photo<input id="qe-photo-input" type="file" accept="image/*" capture="environment" style="display:none">'
+      + '</label>'
+      + '<span id="qe-photo-name" style="font-size:0.75rem;color:#27ae60;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>'
+      + '</div>';
 
-    // ── Save button ──
-    const saveBtn = document.createElement('button');
-    saveBtn.style.cssText = 'width:100%;padding:0.65rem;border-radius:9px;border:none;background:#1e3a5f;color:#fff;font-family:var(--font-body);font-size:0.92rem;font-weight:700;cursor:pointer;margin-top:0.25rem';
-    saveBtn.textContent = '⚡ Save Quick Entry';
+    // Confirm button
+    const confirmBtn = document.createElement('button');
+    confirmBtn.style.cssText = 'width:100%;padding:0.6rem;border-radius:9px;border:none;background:#1e3a5f;color:#fff;font-family:var(--font-body);font-size:0.9rem;font-weight:700;cursor:pointer';
+    confirmBtn.textContent = '⚡ Confirm & Save';
 
-    // Assemble options panel
-    qcOptions.appendChild(worthRow);
-    qcOptions.appendChild(worthField);
-    if (isMobile && photoRow) {
-      qcOptions.appendChild(photoRow);
-      qcOptions.appendChild(photoField);
-    }
-    qcOptions.appendChild(saveBtn);
+    miniStep.appendChild(worthWrap);
+    miniStep.appendChild(photoWrap);
+    miniStep.appendChild(confirmBtn);
+    quickCard.appendChild(miniStep);
 
-    quickCard.appendChild(qcHeader);
-    quickCard.appendChild(qcOptions);
-
-    // ── Wire up toggle switches ──
-    function _wireToggle(toggleId, field) {
-      setTimeout(function() {
-        var cb = document.getElementById(toggleId);
-        var track = document.getElementById(toggleId + '-track');
-        var thumb = document.getElementById(toggleId + '-thumb');
-        if (!cb) return;
-        cb.onchange = function() {
-          field.style.display = cb.checked ? 'block' : 'none';
-          if (track) track.style.background = cb.checked ? '#27ae60' : '#ccc';
-          if (thumb) thumb.style.left = cb.checked ? '19px' : '3px';
-        };
-      }, 50);
-    }
-    _wireToggle('qe-worth-toggle', worthField);
-    if (isMobile) _wireToggle('qe-photo-toggle', photoField);
-
-    // ── Wire photo file input ──
-    if (isMobile) {
-      setTimeout(function() {
-        var photoInput = document.getElementById('qe-photo-input');
-        if (photoInput) {
-          photoInput.onchange = function() {
-            if (photoInput.files && photoInput.files[0]) {
-              wizard.data._qePhotoFile = photoInput.files[0];
-              var nameEl = document.getElementById('qe-photo-name');
-              if (nameEl) nameEl.textContent = '✓ ' + photoInput.files[0].name;
-            }
-          };
+    // ── Wire photo input ──
+    setTimeout(function() {
+      var pi = document.getElementById('qe-photo-input');
+      if (pi) pi.onchange = function() {
+        if (pi.files && pi.files[0]) {
+          wizard.data._qePhotoFile = pi.files[0];
+          var nm = document.getElementById('qe-photo-name');
+          if (nm) nm.textContent = '✓ ' + pi.files[0].name;
         }
-      }, 50);
-    }
+      };
+    }, 60);
 
-    // ── Header click expands the options panel ──
-    qcHeader.onclick = function() {
-      if (qcOptions.style.display === 'none') {
-        qcOptions.style.display = 'block';
-        // Hide the Next button while options are shown
-        var nb = document.getElementById('wizard-next-btn');
-        if (nb) nb.style.display = 'none';
+    // ── Tap card top → show mini-step if any toggle is on, else save immediately ──
+    qcTop.onclick = function() {
+      var wantWorth = worthToggle.dataset.on === '1';
+      var wantPhoto = photoToggle && photoToggle.dataset.on === '1';
+      if (!wantWorth && !wantPhoto) {
+        // Save immediately
+        wizard.data.entryMode = 'quick';
+        wizard.data._qeEstWorth = '';
+        delete wizard.data._qePhotoFile;
+        quickEntryAdd().catch(function(e) {
+          console.error('[QE] Uncaught error:', e);
+          showToast('❌ Quick Entry failed: ' + e.message, 6000, true);
+        });
+        return;
       }
+      // Show mini-step
+      miniStep.style.display = 'block';
+      if (wantWorth) worthWrap.style.display = 'block';
+      if (wantPhoto) photoWrap.style.display = 'block';
+      // Scroll confirm button into view
+      setTimeout(function() { confirmBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 80);
     };
 
-    // ── Save button click ──
-    saveBtn.onclick = function() {
+    // ── Confirm button → save with captured values ──
+    confirmBtn.onclick = function() {
       wizard.data.entryMode = 'quick';
-      // Capture est. worth
-      var worthInput = document.getElementById('qe-worth-input');
-      wizard.data._qeEstWorth = (worthInput && worthInput.value.trim()) ? worthInput.value.trim() : '';
+      var wi = document.getElementById('qe-worth-input');
+      wizard.data._qeEstWorth = (wi && wi.value.trim()) ? wi.value.trim() : '';
       quickEntryAdd().catch(function(e) {
         console.error('[QE] Uncaught error:', e);
         showToast('❌ Quick Entry failed: ' + e.message, 6000, true);
@@ -1216,9 +1224,6 @@ function renderWizardStep() {
     wrap.appendChild(quickCard);
     body.innerHTML = '';
     body.appendChild(wrap);
-    // Hide the Next button — selection is made by tapping a card
-    var nb = document.getElementById('wizard-next-btn');
-    if (nb) nb.style.display = 'none';
 
   } else if (s.type === 'slider') {
     const val = wizard.data[s.id] || parseInt(localStorage.getItem('lv_default_cond') || '7');
@@ -5138,7 +5143,7 @@ async function quickEntryAdd() {
     const _nextBtn = document.getElementById('wizard-next-btn');
     if (_nextBtn) _nextBtn.disabled = true;
 
-    // Upload photo if one was taken (lead item only)
+    // Capture optional QE fields
     const _qePhotoFile = d._qePhotoFile || null;
     const _qeEstWorth  = d._qeEstWorth  || '';
     let   _qePhotoLink = '';
@@ -5152,18 +5157,17 @@ async function quickEntryAdd() {
 
     for (const r of rows) {
       const invId = nextInventoryId();
-      // Only apply photo + worth to the lead item (first row)
       const isLead = r === rows[0];
       const row = [
         r.itemNum, r.variation,        // A, B
-        '','','','','','','',          // C–I (condition through boxCond)
+        '','','','','','','',          // C–I
         isLead ? _qePhotoLink : '',    // J — photoItem
         '',                            // K — photoBox
         r.notes,                       // L — notes
         '',                            // M — datePurchased
         isLead ? _qeEstWorth : '',     // N — userEstWorth
         r.matchedTo, r.setId,          // O, P
-        '','','',                      // Q–S (yearMade, isError, errorDesc)
+        '','','',                      // Q–S
         'Yes',                         // T — quickEntry
         invId, r.groupId||'',          // U, V
         ''                             // W — location
@@ -5209,7 +5213,6 @@ async function quickEntryAdd() {
     }
 
     closeWizard();
-    // Clear optional QE fields so they don't carry over to next entry
     delete wizard.data._qePhotoFile;
     delete wizard.data._qeEstWorth;
     showToast('⚡ ' + label + ' (Quick Entry)');
