@@ -146,6 +146,11 @@
           Want List
           <span class="nav-badge" id="nav-wanted2" style="background:var(--accent2);color:#000">—</span>
         </button>
+        <button class="nav-item" onclick="showPage('upgrade', this); buildUpgradePage();">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+          Upgrade List
+          <span class="nav-badge" id="nav-upgrade-count" style="background:#8b5cf6;color:#fff">—</span>
+        </button>
         <button class="nav-item" onclick="showPage('forsale', this); buildForSalePage();">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
           For Sale
@@ -530,6 +535,44 @@ document.addEventListener('touchmove', function(){}, {passive: true});
               </tr>
             </thead>
             <tbody id="want-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── Upgrade List ── -->
+      <div class="page" id="page-upgrade">
+        <div class="page-title">Upgrade List</div>
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem">
+          <div style="display:flex;align-items:center;gap:0.4rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0.35rem 0.65rem;flex:1;min-width:180px;max-width:300px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input id="upgrade-search" type="text" placeholder="Search item #, road, notes…" oninput="state._upgradeSearch=this.value; buildUpgradePage()" style="border:none;background:none;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;width:100%">
+          </div>
+          <select onchange="state._upgradeSort=this.value; buildUpgradePage()" style="padding:0.38rem 0.6rem;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:var(--font-body);font-size:0.82rem">
+            <option value="priority">Sort: Priority</option>
+            <option value="condition">Sort: Condition ↑</option>
+            <option value="itemnum">Sort: Item #</option>
+          </select>
+          <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.8rem;color:var(--text-dim);cursor:pointer;white-space:nowrap">
+            <input type="checkbox" id="upgrade-thresh-toggle" checked onchange="state._upgradeThreshFilter=this.checked; buildUpgradePage()">
+            Below threshold only
+          </label>
+        </div>
+        <div id="upgrade-cards" style="display:flex;flex-direction:column;gap:0.6rem"></div>
+        <div class="table-wrap" style="margin-top:0;max-height:calc(100vh - 210px);overflow-y:auto">
+          <table class="item-table" id="upgrade-table">
+            <thead>
+              <tr>
+                <th>Item #</th>
+                <th>Road / Name</th>
+                <th>My Cond.</th>
+                <th>Target</th>
+                <th>Priority</th>
+                <th>Max Price</th>
+                <th>Notes</th>
+                <th style="min-width:240px">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="upgrade-tbody"></tbody>
           </table>
         </div>
       </div>
