@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Collection App — QA Checklist</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f1220; color: #e0e6f0; font-family: 'Segoe UI', sans-serif; min-height: 100vh; padding: 1.5rem; max-width: 640px; margin: 0 auto; }
+
+  h1 { font-size: 1.3rem; color: #f05008; letter-spacing: 0.04em; margin-bottom: 0.2rem; }
+  .subtitle { font-size: 0.78rem; color: #5a6280; margin-bottom: 1.5rem; }
+
+  .section { margin-bottom: 1.25rem; }
+  .section-head { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #d4a843; padding: 0.4rem 0.75rem; background: rgba(212,168,67,0.08); border-left: 3px solid #d4a843; border-radius: 0 6px 6px 0; margin-bottom: 0.5rem; }
+
+  .item { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.65rem 0.75rem; border-radius: 9px; background: #161c34; border: 1.5px solid #2a3a5c; margin-bottom: 0.4rem; cursor: pointer; transition: all 0.12s; user-select: none; }
+  .item:hover { border-color: #3a5a8c; }
+  .item.done { background: rgba(39,174,96,0.08); border-color: rgba(39,174,96,0.4); }
+  .item.fail { background: rgba(231,76,60,0.08); border-color: rgba(231,76,60,0.4); }
+  .item.na   { background: rgba(90,98,128,0.1);  border-color: #2a3a5c; opacity: 0.6; }
+
+  .cb { width: 22px; height: 22px; border-radius: 6px; border: 2px solid #3a5a8c; background: #0f1220; flex-shrink: 0; margin-top: 1px; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; transition: all 0.12s; }
+  .item.done .cb { background: #3a9e68; border-color: #3a9e68; }
+  .item.fail .cb { background: #e74c3c; border-color: #e74c3c; }
+  .item.na   .cb { background: #2a3a5c; border-color: #2a3a5c; }
+
+  .text { flex: 1; }
+  .label { font-size: 0.86rem; line-height: 1.35; color: #d0d8f0; }
+  .hint  { font-size: 0.73rem; color: #5a6280; margin-top: 0.2rem; line-height: 1.4; }
+  .item.done .label { color: #3a9e68; }
+  .item.fail .label { color: #e74c3c; }
+
+  .controls { display: flex; gap: 0.3rem; flex-shrink: 0; align-items: flex-start; padding-top: 1px; }
+  .btn-sm { padding: 0.2rem 0.4rem; border-radius: 5px; border: 1px solid #2a3a5c; background: none; color: #5a6280; font-size: 0.68rem; cursor: pointer; white-space: nowrap; }
+  .btn-sm:hover { border-color: #3a5a8c; color: #8a9ac0; }
+  .btn-sm.red { border-color: rgba(231,76,60,0.4); color: #e74c3c; }
+  .btn-sm.red:hover { background: rgba(231,76,60,0.1); }
+
+  /* Summary bar */
+  #summary-bar { position: sticky; top: 0; z-index: 10; background: #0f1220; border-bottom: 1px solid #2a3a5c; padding: 0.6rem 0; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+  .stat { font-size: 0.82rem; }
+  .stat span { font-weight: 700; }
+  .stat.pass span { color: #3a9e68; }
+  .stat.fail-s span { color: #e74c3c; }
+  .stat.pend span { color: #d4a843; }
+  #progress { flex: 1; height: 6px; background: #2a3a5c; border-radius: 3px; min-width: 80px; }
+  #progress-bar { height: 100%; border-radius: 3px; background: #3a9e68; transition: width 0.3s; width: 0%; }
+
+  .action-row { display: flex; gap: 0.5rem; margin-top: 1.5rem; flex-wrap: wrap; }
+  .action-row button { padding: 0.55rem 1rem; border-radius: 8px; border: none; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+  #reset-btn { background: #1e3a5f; color: white; }
+  #export-btn { background: #2a3a5c; color: #d4a843; }
+  #print-btn { background: #2a3a5c; color: #8a9ac0; }
+
+  .done-msg { display: none; margin-top: 1rem; padding: 1rem; border-radius: 10px; background: rgba(39,174,96,0.1); border: 1.5px solid #3a9e68; color: #3a9e68; font-weight: 600; font-size: 0.9rem; text-align: center; }
+</style>
+</head>
+<body>
+
+<h1>📋 My Collection App — QA Checklist</h1>
+<p class="subtitle">Manual tap-through after each deploy. Tap an item to mark it ✓ Pass. Use ✗ Fail button if something is broken.</p>
+
+<div id="summary-bar">
+  <div class="stat pass"><span id="c-pass">0</span> pass</div>
+  <div class="stat fail-s"><span id="c-fail">0</span> fail</div>
+  <div class="stat pend"><span id="c-pend">0</span> pending</div>
+  <div id="progress"><div id="progress-bar"></div></div>
+</div>
+
+<div id="checklist"></div>
+
+<div class="action-row">
+  <button id="reset-btn" onclick="resetAll()">↺ Reset All</button>
+  <button id="export-btn" onclick="exportResults()">⬇ Copy Results</button>
+</div>
+
+<div class="done-msg" id="done-msg">🎉 All checks passed — app is good to go!</div>
+
+<script>
+const ITEMS = [
+  {
+    section: '🔐 Auth & Login',
+    items: [
+      { id: 'auth-load',   label: 'App loads without errors', hint: 'Open the app. No red error banners, no blank screen.' },
+      { id: 'auth-login',  label: 'Google sign-in works', hint: 'Tap "Sign in with Google". You are taken to your dashboard.' },
+      { id: 'auth-dash',   label: 'Dashboard shows correct counts', hint: 'Collection count, want list count, and quick entry count all show.' },
+    ]
+  },
+  {
+    section: '📋 My Collection List',
+    items: [
+      { id: 'coll-load',   label: 'My Collection list loads', hint: 'Tap "My Collection" from sidebar. Items appear.' },
+      { id: 'coll-cols',   label: 'All 6 columns visible: Item # | Var. | Type | Description | Est. Worth | Actions', hint: 'Type and Est. Worth columns should now be present.' },
+      { id: 'coll-fill',   label: 'Description column fills the available space', hint: 'The table should stretch edge-to-edge with no empty white space on the right.' },
+      { id: 'coll-filter', label: 'Type and Road filters work', hint: 'Select a type (e.g. Steam). List narrows correctly.' },
+      { id: 'coll-search', label: 'Search box filters results', hint: 'Type a partial item number. Matching rows appear.' },
+      { id: 'coll-detail', label: 'Tapping a row opens item detail page', hint: 'Tap any row. Item detail page opens with full info.' },
+      { id: 'coll-back',   label: 'Back button returns to list (mobile)', hint: 'On phone: tap detail, then tap back. Returns to list, not home screen.' },
+    ]
+  },
+  {
+    section: '⚡ Quick Entry',
+    items: [
+      { id: 'qe-open',     label: 'Quick Entry list loads', hint: 'Tap "Quick Entry List" in sidebar. Shows any pending items.' },
+      { id: 'qe-card',     label: 'Quick Entry card shows checkboxes (Est. Worth, Add Photo on mobile)', hint: 'Add a new item. The card shows square checkboxes at bottom.' },
+      { id: 'qe-save-basic', label: 'Quick Entry saves with no checkboxes checked (fast save)', hint: 'Tap card with no boxes checked. Toast confirms save. Item appears in collection.' },
+      { id: 'qe-worth',    label: 'Est. Worth checkbox shows input field', hint: 'Check Est. Worth, tap card. Mini-step appears with $ input.' },
+      { id: 'qe-worth-save', label: 'Est. Worth value saves to sheet column N', hint: 'Enter a value, tap Confirm & Save. In Google Sheets, column N should show the value.' },
+      { id: 'qe-photo-btn', label: '📷 Tap to take photo button opens camera (mobile)', hint: 'Check Add Photo, tap card. Styled button appears. Tapping it opens the camera app.' },
+      { id: 'qe-photo-save', label: 'Photo saves to Drive and link appears in sheet column J', hint: 'Take a photo, save. In Google Sheets, column J should have a Drive folder link.' },
+      { id: 'qe-dupe',    label: 'Double-tap does not save twice', hint: 'Tap the quick entry card rapidly twice. Only one row is added to the sheet.' },
+      { id: 'qe-addinfo', label: '"Add Info" button on Quick Entry list opens edit wizard', hint: 'Tap Add Info on any ⚡ item in the Quick Entry list. Wizard opens pre-filled.' },
+    ]
+  },
+  {
+    section: '➕ Full Add Item Wizard',
+    items: [
+      { id: 'wiz-open',    label: 'Wizard opens from + Add button', hint: 'Tap the + Add or FAB button. Wizard opens on Step 1.' },
+      { id: 'wiz-search',  label: 'Item number search finds items from master list', hint: 'Type an item number. Matching results appear below.' },
+      { id: 'wiz-steps',   label: 'All wizard steps advance correctly', hint: 'Complete a full entry. Each Next button moves forward without errors.' },
+      { id: 'wiz-save',    label: 'Full entry saves and appears in My Collection', hint: 'Complete wizard. Toast confirms. Item appears in list.' },
+      { id: 'wiz-photo',   label: 'Photo upload in full wizard works', hint: 'Upload a photo in the wizard. Drive folder link appears in sheet column J.' },
+    ]
+  },
+  {
+    section: '⭐ Want List',
+    items: [
+      { id: 'want-load',   label: 'Want List page loads', hint: 'Tap Want List. Items appear if any are on the list.' },
+      { id: 'want-add',    label: 'Adding to Want List from master browse works', hint: 'Browse an item, tap ★ Want. Item appears on Want List.' },
+      { id: 'want-remove', label: 'Removing from Want List works', hint: 'Tap Remove on a want item. It disappears from list.' },
+    ]
+  },
+  {
+    section: '🏷️ For Sale & Sold',
+    items: [
+      { id: 'fs-action',   label: '"For Sale" button on collection row works', hint: 'Tap 🏷️ For Sale on any collection item. Form appears.' },
+      { id: 'fs-list',     label: 'For Sale list shows the item', hint: 'After marking for sale, go to For Sale list. Item appears.' },
+      { id: 'sold-action', label: '"Sold" button works', hint: 'Tap 💰 Sold on a collection item. Sold Item form appears.' },
+      { id: 'sold-list',   label: 'Sold Items list shows the item', hint: 'After marking sold, go to Sold Items list. Item appears.' },
+    ]
+  },
+  {
+    section: '↑ Upgrade List',
+    items: [
+      { id: 'upg-add',     label: 'Add to Upgrade List works from collection row', hint: 'Tap ↑ Upgrade on a collection item. Confirmation appears.' },
+      { id: 'upg-list',    label: 'Upgrade List shows the item', hint: 'Go to Upgrade List. Item appears.' },
+    ]
+  },
+  {
+    section: '🗑️ Remove Item',
+    items: [
+      { id: 'rem-confirm', label: 'Remove button shows confirmation dialog', hint: 'Tap Remove on a collection item. Confirm dialog appears before anything is deleted.' },
+      { id: 'rem-gone',    label: 'Removed item disappears from collection list', hint: 'Confirm remove. Item is no longer in My Collection.' },
+      { id: 'rem-sheet',   label: 'Removed item row is cleared in Google Sheet', hint: 'Open your Google Sheet. The row should be blank (not deleted, just cleared).' },
+    ]
+  },
+  {
+    section: '🔄 Navigation & General',
+    items: [
+      { id: 'nav-sidebar', label: 'All sidebar nav items open correct pages', hint: 'Click each sidebar link. Correct page appears each time.' },
+      { id: 'nav-mobile',  label: 'Mobile bottom nav works (Dashboard, Browse, +, Want, Help)', hint: 'On phone: each bottom nav button opens the correct page.' },
+      { id: 'nav-back',    label: 'Browser back button works throughout the app', hint: 'Navigate a few pages deep, hit back. Goes to previous page, not an error.' },
+      { id: 'nav-prefs',   label: 'Preferences page loads and saves', hint: 'Go to Preferences. Make a change and save. Reload app. Change persisted.' },
+      { id: 'nav-sync',    label: '"Sync from Sheet" refreshes data', hint: 'Tap Sync from Sheet in sidebar. Data reloads. Dashboard counts update.' },
+    ]
+  },
+  {
+    section: '🎓 Help / Tutorial',
+    items: [
+      { id: 'tut-open',    label: 'Need Help? opens tutorial or conductor tooltip', hint: 'Tap Need Help? in sidebar or bottom nav. Something helpful appears.' },
+      { id: 'tut-dismiss', label: 'Tutorial/tooltip can be dismissed', hint: 'Tap to close or dismiss. It goes away cleanly.' },
+    ]
+  },
+  {
+    section: '📊 Collector\'s Market',
+    items: [
+      { id: 'vault-prefs', label: 'Collector\'s Market row appears in Preferences', hint: 'Go to Preferences. A "Collector\'s Market" section with opt-in toggle appears.' },
+      { id: 'vault-card',  label: 'Market card appears on item detail (if opted in)', hint: 'If opted in: open an item detail page. Market Est. card appears at bottom.' },
+    ]
+  },
+];
+
+// ── State ──────────────────────────────────────────────────────────
+const STATE_KEY = 'lv_qa_checklist';
+let state = {};
+try { state = JSON.parse(localStorage.getItem(STATE_KEY) || '{}'); } catch(e) { state = {}; }
+
+function saveState() { localStorage.setItem(STATE_KEY, JSON.stringify(state)); }
+
+// ── Render ─────────────────────────────────────────────────────────
+function render() {
+  const container = document.getElementById('checklist');
+  container.innerHTML = '';
+
+  ITEMS.forEach(section => {
+    const secDiv = document.createElement('div');
+    secDiv.className = 'section';
+    const head = document.createElement('div');
+    head.className = 'section-head';
+    head.textContent = section.section;
+    secDiv.appendChild(head);
+
+    section.items.forEach(item => {
+      const val = state[item.id] || 'pending';
+      const div = document.createElement('div');
+      div.className = 'item' + (val === 'pass' ? ' done' : val === 'fail' ? ' fail' : val === 'na' ? ' na' : '');
+      div.onclick = function(e) {
+        if (e.target.closest('.controls')) return;
+        const cur = state[item.id] || 'pending';
+        state[item.id] = cur === 'pass' ? 'pending' : 'pass';
+        saveState(); render();
+      };
+
+      const cbIcon = val === 'pass' ? '✓' : val === 'fail' ? '✗' : val === 'na' ? '—' : '';
+      div.innerHTML = `
+        <div class="cb">${cbIcon}</div>
+        <div class="text">
+          <div class="label">${item.label}</div>
+          ${item.hint ? '<div class="hint">' + item.hint + '</div>' : ''}
+        </div>
+        <div class="controls">
+          <button class="btn-sm red" onclick="markFail('${item.id}')">✗ Fail</button>
+          <button class="btn-sm" onclick="markNA('${item.id}')">N/A</button>
+        </div>`;
+      secDiv.appendChild(div);
+    });
+
+    container.appendChild(secDiv);
+  });
+
+  updateSummary();
+}
+
+function markFail(id) {
+  state[id] = state[id] === 'fail' ? 'pending' : 'fail';
+  saveState(); render();
+}
+function markNA(id) {
+  state[id] = state[id] === 'na' ? 'pending' : 'na';
+  saveState(); render();
+}
+
+function updateSummary() {
+  const allIds = ITEMS.flatMap(s => s.items.map(i => i.id));
+  const passes = allIds.filter(id => state[id] === 'pass').length;
+  const fails  = allIds.filter(id => state[id] === 'fail').length;
+  const pend   = allIds.filter(id => !state[id] || state[id] === 'pending').length;
+  const done   = passes + fails + allIds.filter(id => state[id] === 'na').length;
+
+  document.getElementById('c-pass').textContent = passes;
+  document.getElementById('c-fail').textContent = fails;
+  document.getElementById('c-pend').textContent = pend;
+  document.getElementById('progress-bar').style.width = (done / allIds.length * 100) + '%';
+
+  const doneMsg = document.getElementById('done-msg');
+  doneMsg.style.display = (pend === 0 && fails === 0) ? 'block' : 'none';
+}
+
+function resetAll() {
+  if (!confirm('Reset all checklist items?')) return;
+  state = {};
+  saveState(); render();
+}
+
+function exportResults() {
+  const allIds = ITEMS.flatMap(s => s.items.map(i => ({ ...i, section: s.section })));
+  const lines = ['My Collection App — QA Checklist Results', new Date().toLocaleString(), ''];
+  let curSection = '';
+  allIds.forEach(item => {
+    if (item.section !== curSection) { lines.push('\n' + item.section); curSection = item.section; }
+    const val = state[item.id] || 'pending';
+    const icon = val === 'pass' ? '✅' : val === 'fail' ? '❌' : val === 'na' ? '➖' : '⬜';
+    lines.push('  ' + icon + ' ' + item.label);
+  });
+  const passes = allIds.filter(i => state[i.id] === 'pass').length;
+  const fails  = allIds.filter(i => state[i.id] === 'fail').length;
+  lines.push('\nResult: ' + passes + ' passed, ' + fails + ' failed');
+  navigator.clipboard.writeText(lines.join('\n')).then(() => alert('Results copied to clipboard!')).catch(() => alert(lines.join('\n')));
+}
+
+render();
+</script>
+</body>
+</html>

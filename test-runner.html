@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Collection App — Test Runner</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f1220; color: #e0e6f0; font-family: 'Segoe UI', sans-serif; min-height: 100vh; padding: 1.5rem; }
+  h1 { font-size: 1.3rem; color: #f05008; letter-spacing: 0.05em; margin-bottom: 0.25rem; }
+  .subtitle { font-size: 0.8rem; color: #5a6280; margin-bottom: 1.5rem; }
+  .card { background: #161c34; border: 1px solid #2a3a5c; border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; }
+  .card h2 { font-size: 0.9rem; color: #d4a843; margin-bottom: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase; }
+  label { font-size: 0.82rem; color: #8a9ac0; display: block; margin-bottom: 0.3rem; }
+  input[type="text"] { width: 100%; padding: 0.55rem 0.75rem; background: #0f1220; border: 1px solid #2a3a5c; border-radius: 8px; color: #e0e6f0; font-size: 0.9rem; margin-bottom: 0.75rem; outline: none; }
+  input[type="text"]:focus { border-color: #f05008; }
+  button { padding: 0.65rem 1.25rem; border-radius: 9px; border: none; font-size: 0.88rem; font-weight: 700; cursor: pointer; transition: opacity 0.15s; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  #sign-in-btn { background: #1e3a5f; color: white; width: 100%; margin-bottom: 0.5rem; }
+  #run-btn { background: #f05008; color: white; width: 100%; font-size: 1rem; padding: 0.8rem; }
+  #sign-out-btn { background: none; border: 1px solid #2a3a5c; color: #8a9ac0; font-size: 0.75rem; padding: 0.3rem 0.75rem; float: right; }
+  .user-row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; color: #8a9ac0; margin-bottom: 0.5rem; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #3a9e68; flex-shrink: 0; }
+  .dot.red { background: #e74c3c; }
+
+  /* Test log */
+  #log { margin-top: 1rem; }
+  .log-entry { display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.55rem 0.75rem; border-radius: 8px; margin-bottom: 0.4rem; font-size: 0.82rem; line-height: 1.4; }
+  .log-entry.pass { background: rgba(39,174,96,0.1); border: 1px solid rgba(39,174,96,0.25); }
+  .log-entry.fail { background: rgba(231,76,60,0.1); border: 1px solid rgba(231,76,60,0.3); }
+  .log-entry.info { background: rgba(30,58,95,0.5); border: 1px solid #2a3a5c; color: #8a9ac0; }
+  .log-entry.warn { background: rgba(212,168,67,0.1); border: 1px solid rgba(212,168,67,0.3); color: #d4a843; }
+  .log-entry.head { background: #1e3a5f; border: none; color: #e0e6f0; font-weight: 700; font-size: 0.85rem; }
+  .icon { font-size: 0.95rem; flex-shrink: 0; margin-top: 0.05rem; }
+  .log-detail { font-size: 0.73rem; color: #5a6280; margin-top: 0.2rem; word-break: break-all; }
+
+  /* Summary */
+  #summary { display: none; margin-top: 1rem; padding: 1rem 1.25rem; border-radius: 12px; }
+  #summary.all-pass { background: rgba(39,174,96,0.12); border: 1.5px solid #3a9e68; }
+  #summary.has-fail { background: rgba(231,76,60,0.1); border: 1.5px solid #e74c3c; }
+  #summary .score { font-size: 1.6rem; font-weight: 700; }
+  #summary .score.pass { color: #3a9e68; }
+  #summary .score.fail { color: #e74c3c; }
+  #summary .label { font-size: 0.82rem; color: #8a9ac0; margin-top: 0.25rem; }
+
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.2); border-top-color: #f05008; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-left: 0.5rem; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .warn-box { background: rgba(212,168,67,0.1); border: 1px solid rgba(212,168,67,0.4); border-radius: 8px; padding: 0.65rem 0.85rem; font-size: 0.78rem; color: #d4a843; margin-bottom: 0.75rem; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<h1>⚙️ My Collection App — Test Runner</h1>
+<p class="subtitle">Automated backend tests · writes real data then cleans it up</p>
+
+<!-- Auth card -->
+<div class="card" id="auth-card">
+  <h2>Step 1 — Sign In</h2>
+  <div class="warn-box">⚠️ This will write two test rows to your real <strong>My Collection</strong> sheet and then delete them. Nothing permanent is left behind.</div>
+  <div id="user-area" style="display:none">
+    <div class="user-row"><span class="dot" id="auth-dot"></span><span id="user-label">Not signed in</span><button id="sign-out-btn" onclick="signOut()">Sign out</button></div>
+  </div>
+  <button id="sign-in-btn" onclick="signIn()">Sign in with Google</button>
+</div>
+
+<!-- Config card -->
+<div class="card" id="config-card" style="display:none">
+  <h2>Step 2 — Test Items</h2>
+  <label>Item #1 (Quick Entry — no photo, no est. worth)</label>
+  <input type="text" id="item1" value="6464-150" placeholder="e.g. 6464-150">
+  <label>Item #2 (Quick Entry — with est. worth)</label>
+  <input type="text" id="item2" value="736" placeholder="e.g. 736">
+  <label>Your personal Sheet ID (from your app URL or settings)</label>
+  <input type="text" id="sheet-id" placeholder="Paste your Google Sheet ID here">
+  <div class="warn-box">📋 Find your Sheet ID by opening your app, going to Preferences, and looking at the personal sheet link. It's the long string of letters in the URL.</div>
+  <button id="run-btn" onclick="runTests()" disabled>▶ Run Tests</button>
+</div>
+
+<!-- Log -->
+<div id="log"></div>
+<div id="summary"></div>
+
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+// ── Config ───────────────────────────────────────────────────────
+const CLIENT_ID = '161569968813-vrhet7p68vkthkunare60nqr34li5uuh.apps.googleusercontent.com';
+const SCOPES    = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
+
+// ── State ─────────────────────────────────────────────────────────
+let accessToken = null;
+let tokenClient = null;
+let passCount = 0;
+let failCount = 0;
+let drivePhotosId = null;
+let driveVaultId  = null;
+
+// ── Auth ──────────────────────────────────────────────────────────
+window.addEventListener('load', function() {
+  // Restore token
+  const saved  = localStorage.getItem('lv_token');
+  const expiry = parseInt(localStorage.getItem('lv_token_expiry') || '0');
+  if (saved && expiry > Date.now()) {
+    accessToken = saved;
+    showSignedIn();
+  }
+  // Restore sheet ID
+  const sid = localStorage.getItem('lv_personal_id');
+  if (sid) document.getElementById('sheet-id').value = sid;
+
+  // Init Google token client
+  function initGSI() {
+    if (!window.google || !window.google.accounts) { setTimeout(initGSI, 200); return; }
+    tokenClient = window.google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES,
+      callback: function(resp) {
+        if (resp.error) { log('fail', '❌ Auth error: ' + resp.error); return; }
+        accessToken = resp.access_token;
+        localStorage.setItem('lv_token', accessToken);
+        localStorage.setItem('lv_token_expiry', Date.now() + (resp.expires_in - 60) * 1000);
+        showSignedIn();
+      }
+    });
+  }
+  initGSI();
+});
+
+function signIn() {
+  if (!tokenClient) { alert('Google auth not ready yet — try again in a moment.'); return; }
+  tokenClient.requestAccessToken({ prompt: 'consent' });
+}
+
+function signOut() {
+  accessToken = null;
+  localStorage.removeItem('lv_token');
+  localStorage.removeItem('lv_token_expiry');
+  document.getElementById('user-area').style.display = 'none';
+  document.getElementById('sign-in-btn').style.display = '';
+  document.getElementById('config-card').style.display = 'none';
+  document.getElementById('run-btn').disabled = true;
+  document.getElementById('auth-dot').className = 'dot red';
+}
+
+function showSignedIn() {
+  document.getElementById('sign-in-btn').style.display = 'none';
+  document.getElementById('user-area').style.display = 'block';
+  document.getElementById('auth-dot').className = 'dot';
+  document.getElementById('user-label').textContent = 'Signed in ✓';
+  document.getElementById('config-card').style.display = 'block';
+  document.getElementById('run-btn').disabled = false;
+  // Try to get user name
+  fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+    headers: { Authorization: 'Bearer ' + accessToken }
+  }).then(r => r.json()).then(u => {
+    if (u.name) document.getElementById('user-label').textContent = 'Signed in as ' + u.name + ' ✓';
+  }).catch(() => {});
+}
+
+// ── Logging ───────────────────────────────────────────────────────
+function log(type, msg, detail) {
+  const el = document.getElementById('log');
+  const icons = { pass: '✅', fail: '❌', info: 'ℹ️', warn: '⚠️', head: '🔷' };
+  const div = document.createElement('div');
+  div.className = 'log-entry ' + type;
+  div.innerHTML = '<span class="icon">' + (icons[type]||'') + '</span><div><div>' + msg + '</div>'
+    + (detail ? '<div class="log-detail">' + detail + '</div>' : '') + '</div>';
+  el.appendChild(div);
+  div.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  if (type === 'pass') passCount++;
+  if (type === 'fail') failCount++;
+}
+
+function logHead(msg) { log('head', msg); }
+
+async function check(label, fn) {
+  try {
+    const result = await fn();
+    log('pass', label, typeof result === 'string' ? result : undefined);
+    return result;
+  } catch(e) {
+    log('fail', label, e.message || String(e));
+    return null;
+  }
+}
+
+// ── Test image — small orange square with "TEST" text ─────────────
+// 100x100 PNG generated as base64
+const TEST_IMAGE_B64 = (function() {
+  // Creates a tiny canvas-based PNG at runtime
+  const c = document.createElement('canvas');
+  c.width = 100; c.height = 100;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#f05008';
+  ctx.fillRect(0, 0, 100, 100);
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 22px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('TEST', 50, 50);
+  return c.toDataURL('image/png').split(',')[1];
+})();
+
+function makeTestFile(name) {
+  const bytes = Uint8Array.from(atob(TEST_IMAGE_B64), c => c.charCodeAt(0));
+  return new File([bytes], name, { type: 'image/png' });
+}
+
+// ── API helpers (mirror app.js) ───────────────────────────────────
+async function sheetsGet(sheetId, range) {
+  const enc = encodeURIComponent(range);
+  const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${enc}`, {
+    headers: { Authorization: 'Bearer ' + accessToken }
+  });
+  return res.json();
+}
+
+async function sheetsWrite(sheetId, range, values) {
+  const enc = encodeURIComponent(range);
+  const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${enc}?valueInputOption=USER_ENTERED`, {
+    method: 'PUT',
+    headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ range, majorDimension: 'ROWS', values })
+  });
+  const json = await res.json();
+  if (json.error) throw new Error('Sheets write failed: ' + (json.error.message || JSON.stringify(json.error)));
+  return json;
+}
+
+async function sheetsFindLastRow(sheetId) {
+  const res = await sheetsGet(sheetId, 'My Collection!A3:A');
+  return 3 + ((res.values || []).length);
+}
+
+async function sheetsDeleteRow(sheetId, rowNumber) {
+  const metaRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties`, {
+    headers: { Authorization: 'Bearer ' + accessToken }
+  });
+  const meta = await metaRes.json();
+  const sheet = (meta.sheets || []).find(s => s.properties.title === 'My Collection');
+  if (!sheet) throw new Error('Could not find My Collection tab');
+  const sheetTabId = sheet.properties.sheetId;
+  const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requests: [{ deleteDimension: { range: {
+      sheetId: sheetTabId, dimension: 'ROWS',
+      startIndex: rowNumber - 1, endIndex: rowNumber
+    }}}]})
+  });
+  const json = await res.json();
+  if (json.error) throw new Error('Delete row failed: ' + (json.error.message || JSON.stringify(json.error)));
+  return json;
+}
+
+async function driveEnsureFolder(name, parentId) {
+  const q = encodeURIComponent(`name='${name}' and mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`);
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)&spaces=drive`, {
+    headers: { Authorization: 'Bearer ' + accessToken }
+  });
+  const json = await res.json();
+  if (json.files && json.files.length > 0) return json.files[0].id;
+  const created = await fetch('https://www.googleapis.com/drive/v3/files?fields=id', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, mimeType: 'application/vnd.google-apps.folder', parents: [parentId] })
+  });
+  const cJson = await created.json();
+  if (!cJson.id) throw new Error('Could not create Drive folder: ' + name);
+  return cJson.id;
+}
+
+async function driveUploadTestFile(file, name, folderId) {
+  const meta = JSON.stringify({ name, parents: [folderId] });
+  const form = new FormData();
+  form.append('metadata', new Blob([meta], { type: 'application/json' }));
+  form.append('file', file);
+  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + accessToken },
+    body: form
+  });
+  const json = await res.json();
+  if (!json.id) throw new Error('Upload returned no file ID. Response: ' + JSON.stringify(json));
+  return json;
+}
+
+async function driveDeleteFile(fileId) {
+  await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+    method: 'DELETE',
+    headers: { Authorization: 'Bearer ' + accessToken }
+  });
+}
+
+// ── Main test runner ──────────────────────────────────────────────
+async function runTests() {
+  const item1   = document.getElementById('item1').value.trim().toUpperCase();
+  const item2   = document.getElementById('item2').value.trim().toUpperCase();
+  const sheetId = document.getElementById('sheet-id').value.trim();
+
+  if (!item1 || !item2) { alert('Please enter both item numbers.'); return; }
+  if (!sheetId) { alert('Please enter your personal Sheet ID.'); return; }
+  if (!accessToken) { alert('Please sign in first.'); return; }
+
+  // Save sheet ID for next time
+  localStorage.setItem('lv_personal_id', sheetId);
+
+  // Reset
+  document.getElementById('log').innerHTML = '';
+  document.getElementById('summary').style.display = 'none';
+  passCount = 0; failCount = 0;
+  document.getElementById('run-btn').disabled = true;
+  document.getElementById('run-btn').innerHTML = 'Running tests… <span class="spinner"></span>';
+
+  let row1 = null, row2 = null;
+  let uploadedFileId = null;
+  let testFolderId   = null;
+
+  try {
+
+    // ── GROUP 1: Auth ─────────────────────────────────────────────
+    logHead('1 — Authentication');
+
+    await check('Access token is present', () => {
+      if (!accessToken) throw new Error('accessToken is null');
+      return 'Token: ' + accessToken.substring(0,12) + '…';
+    });
+
+    await check('Token is valid (Google userinfo call)', async () => {
+      const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: 'Bearer ' + accessToken }
+      });
+      const u = await res.json();
+      if (!u.email) throw new Error('No email returned — token may be expired');
+      return 'Signed in as ' + u.email;
+    });
+
+    // ── GROUP 2: Google Sheets — Read ─────────────────────────────
+    logHead('2 — Google Sheets: Read');
+
+    await check('Can read My Collection tab (headers)', async () => {
+      const res = await sheetsGet(sheetId, 'My Collection!A1:W2');
+      if (res.error) throw new Error(res.error.message || JSON.stringify(res.error));
+      const rows = res.values || [];
+      if (!rows.length) throw new Error('Sheet returned no rows — check Sheet ID');
+      return 'Headers found: ' + (rows[0] || []).slice(0, 5).join(', ') + '…';
+    });
+
+    await check('Can detect last used row in sheet', async () => {
+      const nextRow = await sheetsFindLastRow(sheetId);
+      if (nextRow < 3) throw new Error('Invalid next row: ' + nextRow);
+      return 'Next available row: ' + nextRow;
+    });
+
+    // ── GROUP 3: Google Sheets — Write ───────────────────────────
+    logHead('3 — Google Sheets: Write (Quick Entry)');
+
+    // Write item 1 — basic quick entry (no photo, no worth)
+    row1 = await check('Write item 1 (' + item1 + ') — basic Quick Entry row', async () => {
+      const nextRow = await sheetsFindLastRow(sheetId);
+      const testRow = [item1, '', '', '', '', '', '', '', '', '', '', 'TEST RUNNER — SAFE TO DELETE', '', '', '', '', '', '', '', 'Yes', 'TEST-INV-001', 'TEST-GRP', ''];
+      await sheetsWrite(sheetId, `My Collection!A${nextRow}:W${nextRow}`, [testRow]);
+      // Verify it's there
+      const verify = await sheetsGet(sheetId, `My Collection!A${nextRow}:W${nextRow}`);
+      const written = (verify.values || [[]])[0] || [];
+      if (written[0] !== item1) throw new Error('Item number mismatch — wrote "' + item1 + '" but read back "' + written[0] + '"');
+      if (written[11] !== 'TEST RUNNER — SAFE TO DELETE') throw new Error('Notes column (L) mismatch');
+      if (written[19] !== 'Yes') throw new Error('Quick Entry flag (T) not set to "Yes"');
+      return 'Row ' + nextRow + ' written and verified. Item# ✓ Notes ✓ QE flag ✓';
+    });
+
+    // Write item 2 — quick entry with est. worth
+    row2 = await check('Write item 2 (' + item2 + ') — Quick Entry with Est. Worth', async () => {
+      const nextRow = await sheetsFindLastRow(sheetId);
+      const testRow = [item2, '', '', '', '', '', '', '', '', '', '', 'TEST RUNNER — SAFE TO DELETE', '', '99.99', '', '', '', '', '', 'Yes', 'TEST-INV-002', 'TEST-GRP', ''];
+      await sheetsWrite(sheetId, `My Collection!A${nextRow}:W${nextRow}`, [testRow]);
+      // Verify
+      const verify = await sheetsGet(sheetId, `My Collection!A${nextRow}:W${nextRow}`);
+      const written = (verify.values || [[]])[0] || [];
+      if (written[0] !== item2) throw new Error('Item number mismatch');
+      if (written[13] !== '99.99') throw new Error('Est. Worth column (N) mismatch — expected "99.99", got "' + written[13] + '"');
+      return 'Row ' + nextRow + ' written. Item# ✓ Est. Worth in col N ✓';
+    });
+
+    // ── GROUP 4: Drive — Photo Upload ────────────────────────────
+    logHead('4 — Google Drive: Photo Upload');
+
+    await check('Drive API is accessible', async () => {
+      const res = await fetch('https://www.googleapis.com/drive/v3/about?fields=user', {
+        headers: { Authorization: 'Bearer ' + accessToken }
+      });
+      const json = await res.json();
+      if (json.error) throw new Error(json.error.message || JSON.stringify(json.error));
+      return 'Drive user: ' + (json.user && json.user.displayName ? json.user.displayName : '(name not returned)');
+    });
+
+    testFolderId = await check('Find/create "My Collection Photos" folder in Drive', async () => {
+      const cached = localStorage.getItem('lv_photos_id');
+      if (cached) {
+        // Validate it still exists
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files/${cached}?fields=id,trashed`, {
+          headers: { Authorization: 'Bearer ' + accessToken }
+        });
+        const json = await res.json();
+        if (json.id && !json.trashed) return cached;
+      }
+      const vaultId = await driveEnsureFolder('Lionel Vault - My Collection', 'root');
+      const photosId = await driveEnsureFolder('My Collection Photos', vaultId);
+      return photosId;
+    });
+
+    const itemFolderId = await check('Find/create item folder for ' + item1 + ' in Drive', async () => {
+      if (!testFolderId) throw new Error('Photos folder not available — skipping');
+      const folderId = await driveEnsureFolder(item1, testFolderId);
+      return folderId;
+    });
+
+    uploadedFileId = await check('Upload test image to Drive folder for ' + item1, async () => {
+      if (!itemFolderId) throw new Error('Item folder not available — skipping');
+      const testFile = makeTestFile(item1 + ' QE.png');
+      const result = await driveUploadTestFile(testFile, item1 + ' QE.png', itemFolderId);
+      return 'File uploaded. ID: ' + result.id;
+    });
+
+    // Build the folder link (same format as app)
+    const photoFolderLink = itemFolderId ? 'https://drive.google.com/drive/folders/' + itemFolderId : null;
+
+    // Write photo link to col J (index 9) of item 1's row
+    if (row1 && photoFolderLink) {
+      await check('Write photo folder link to column J (photoItem) of item 1 row', async () => {
+        await sheetsWrite(sheetId, `My Collection!J${row1}:J${row1}`, [[photoFolderLink]]);
+        const verify = await sheetsGet(sheetId, `My Collection!J${row1}:J${row1}`);
+        const val = ((verify.values || [[]])[0] || [])[0] || '';
+        if (!val.includes('drive.google.com')) throw new Error('Photo link not found in col J. Got: "' + val + '"');
+        return 'Photo link saved to col J ✓ → ' + val.substring(0, 50) + '…';
+      });
+    }
+
+    // ── GROUP 5: Cleanup ─────────────────────────────────────────
+    logHead('5 — Cleanup');
+
+    // Delete uploaded test file from Drive
+    if (uploadedFileId) {
+      await check('Delete test photo from Drive', async () => {
+        await driveDeleteFile(uploadedFileId);
+        // Verify it's gone
+        const verify = await fetch(`https://www.googleapis.com/drive/v3/files/${uploadedFileId}?fields=id,trashed`, {
+          headers: { Authorization: 'Bearer ' + accessToken }
+        });
+        const json = await verify.json();
+        if (json.id && !json.trashed) throw new Error('File still exists after delete attempt');
+        return 'Test photo removed from Drive ✓';
+      });
+    }
+
+    // Delete row 2 first (higher row number), then row 1 (lower)
+    // Always delete higher row first to avoid row number shift
+    const rows = [row1, row2].filter(Boolean).sort((a, b) => b - a);
+
+    for (const rowNum of rows) {
+      await check('Delete test row ' + rowNum + ' from My Collection sheet', async () => {
+        await sheetsDeleteRow(sheetId, rowNum);
+        return 'Row ' + rowNum + ' deleted ✓';
+      });
+    }
+
+    // Final verify — confirm test items are gone
+    await check('Verify sheet is clean (no TEST RUNNER rows remain)', async () => {
+      const res = await sheetsGet(sheetId, 'My Collection!A3:L');
+      const rows = (res.values || []);
+      const leftover = rows.filter(r => (r[11] || '').includes('TEST RUNNER'));
+      if (leftover.length) throw new Error(leftover.length + ' test row(s) still present in sheet');
+      return 'Sheet is clean ✓';
+    });
+
+  } catch(e) {
+    log('fail', 'Unexpected test error: ' + e.message);
+  }
+
+  // ── Summary ───────────────────────────────────────────────────
+  const total = passCount + failCount;
+  const allPass = failCount === 0;
+  const sumEl = document.getElementById('summary');
+  sumEl.style.display = 'block';
+  sumEl.className = allPass ? 'all-pass' : 'has-fail';
+  sumEl.innerHTML = `<div class="score ${allPass ? 'pass' : 'fail'}">${passCount} / ${total} tests passed</div>
+    <div class="label">${allPass ? '✅ All automated tests passed. Run the manual checklist next.' : '❌ ' + failCount + ' test(s) failed — see details above.'}</div>`;
+
+  document.getElementById('run-btn').disabled = false;
+  document.getElementById('run-btn').innerHTML = '▶ Run Tests Again';
+}
+</script>
+</body>
+</html>
