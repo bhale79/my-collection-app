@@ -357,7 +357,7 @@ async function runTests() {
     logHead('3 — Google Sheets: Write (Quick Entry)');
 
     // Write item 1 — basic quick entry (no photo, no worth)
-    row1 = await check('Write item 1 (' + item1 + ') — basic Quick Entry row', async () => {
+    await check('Write item 1 (' + item1 + ') — basic Quick Entry row', async () => {
       const nextRow = await sheetsFindLastRow(sheetId);
       const testRow = [item1, '', '', '', '', '', '', '', '', '', '', 'TEST RUNNER — SAFE TO DELETE', '', '', '', '', '', '', '', 'Yes', 'TEST-INV-001', 'TEST-GRP', ''];
       await sheetsWrite(sheetId, `My Collection!A${nextRow}:W${nextRow}`, [testRow]);
@@ -367,11 +367,12 @@ async function runTests() {
       if (written[0] !== item1) throw new Error('Item number mismatch — wrote "' + item1 + '" but read back "' + written[0] + '"');
       if (written[11] !== 'TEST RUNNER — SAFE TO DELETE') throw new Error('Notes column (L) mismatch');
       if (written[19] !== 'Yes') throw new Error('Quick Entry flag (T) not set to "Yes"');
+      row1 = nextRow; // capture actual row number
       return 'Row ' + nextRow + ' written and verified. Item# ✓ Notes ✓ QE flag ✓';
     });
 
     // Write item 2 — quick entry with est. worth
-    row2 = await check('Write item 2 (' + item2 + ') — Quick Entry with Est. Worth', async () => {
+    await check('Write item 2 (' + item2 + ') — Quick Entry with Est. Worth', async () => {
       const nextRow = await sheetsFindLastRow(sheetId);
       const testRow = [item2, '', '', '', '', '', '', '', '', '', '', 'TEST RUNNER — SAFE TO DELETE', '', '99.99', '', '', '', '', '', 'Yes', 'TEST-INV-002', 'TEST-GRP', ''];
       await sheetsWrite(sheetId, `My Collection!A${nextRow}:W${nextRow}`, [testRow]);
@@ -380,6 +381,7 @@ async function runTests() {
       const written = (verify.values || [[]])[0] || [];
       if (written[0] !== item2) throw new Error('Item number mismatch');
       if (written[13] !== '99.99') throw new Error('Est. Worth column (N) mismatch — expected "99.99", got "' + written[13] + '"');
+      row2 = nextRow; // capture actual row number
       return 'Row ' + nextRow + ' written. Item# ✓ Est. Worth in col N ✓';
     });
 
@@ -395,31 +397,34 @@ async function runTests() {
       return 'Drive user: ' + (json.user && json.user.displayName ? json.user.displayName : '(name not returned)');
     });
 
-    testFolderId = await check('Find/create "My Collection Photos" folder in Drive', async () => {
+    await check('Find/create "My Collection Photos" folder in Drive', async () => {
       const cached = localStorage.getItem('lv_photos_id');
       if (cached) {
-        // Validate it still exists
         const res = await fetch(`https://www.googleapis.com/drive/v3/files/${cached}?fields=id,trashed`, {
           headers: { Authorization: 'Bearer ' + accessToken }
         });
         const json = await res.json();
-        if (json.id && !json.trashed) return cached;
+        if (json.id && !json.trashed) { testFolderId = cached; return 'Using cached folder: ' + cached; }
       }
       const vaultId = await driveEnsureFolder('Lionel Vault - My Collection', 'root');
       const photosId = await driveEnsureFolder('My Collection Photos', vaultId);
-      return photosId;
+      testFolderId = photosId; // capture actual folder ID
+      return 'Folder ready: ' + photosId;
     });
 
-    const itemFolderId = await check('Find/create item folder for ' + item1 + ' in Drive', async () => {
+    let itemFolderId = null;
+    await check('Find/create item folder for ' + item1 + ' in Drive', async () => {
       if (!testFolderId) throw new Error('Photos folder not available — skipping');
       const folderId = await driveEnsureFolder(item1, testFolderId);
-      return folderId;
+      itemFolderId = folderId; // capture actual folder ID
+      return 'Item folder ready: ' + folderId;
     });
 
-    uploadedFileId = await check('Upload test image to Drive folder for ' + item1, async () => {
+    await check('Upload test image to Drive folder for ' + item1, async () => {
       if (!itemFolderId) throw new Error('Item folder not available — skipping');
       const testFile = makeTestFile(item1 + ' QE.png');
       const result = await driveUploadTestFile(testFile, item1 + ' QE.png', itemFolderId);
+      uploadedFileId = result.id; // capture actual file ID
       return 'File uploaded. ID: ' + result.id;
     });
 
