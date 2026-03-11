@@ -2392,7 +2392,7 @@ function filterOwned(qe) {
   if (idBtn) idBtn.style.display = 'none';
   // Update table headers for collection view
   const thead = document.querySelector('#page-browse .item-table thead tr');
-  if (thead) thead.innerHTML = '<th>Item #</th><th>Variation</th><th>Description</th><th>Actions</th>';
+  if (thead) thead.innerHTML = '<th style="width:110px">Item #</th><th style="width:60px">Var.</th><th style="width:90px">Type</th><th>Description</th><th style="width:90px">Est. Worth</th><th style="width:260px;text-align:right">Actions</th>';
   var _tbl2 = document.querySelector('#page-browse .item-table');
   if (_tbl2) _tbl2.classList.add('collection-view');
   var _leg = document.getElementById('collection-icon-legend');
@@ -2747,7 +2747,7 @@ function renderBrowse() {
   let _ephRowsHtml = '';
   if (_ephemeraRows.length) {
     _ephRowsHtml = _ephemeraRows.map(r => {
-      if (r._divider) return `<tr><td colspan="${state.filters.owned ? '4' : '7'}" style="padding:0.5rem 0.75rem;background:var(--surface2);font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:${r.color};text-transform:uppercase;border-top:2px solid ${r.color}33">${r.label}</td></tr>`;
+      if (r._divider) return `<tr><td colspan="${state.filters.owned ? '6' : '7'}" style="padding:0.5rem 0.75rem;background:var(--surface2);font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:${r.color};text-transform:uppercase;border-top:2px solid ${r.color}33">${r.label}</td></tr>`;
       const it = r.item;
       const cond = it.condition ? parseInt(it.condition) : null;
       const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
@@ -2909,6 +2909,8 @@ function renderBrowse() {
       const _descFull  = _descParts.join(' · ') || item.description || '—';
       const _descShort = _descFull.length > 42 ? _descFull.substring(0, 40) + '…' : _descFull;
       const _varText   = item.variation ? ` <span style="font-size:0.72rem;color:var(--text-dim);background:var(--surface2);padding:1px 5px;border-radius:4px;margin-left:3px">${item.variation}</span>` : '';
+      const _typeText = item.itemType || '<span style="color:var(--text-dim)">—</span>';
+      const _estWorth = pd && pd.userEstWorth ? '$' + parseFloat(pd.userEstWorth).toLocaleString() : '<span style="color:var(--text-dim)">—</span>';
       return `<tr onclick="showItemDetailPage(${globalIdx})" style="cursor:pointer${_isQuick ? ';opacity:0.82' : ''}" data-group="${_groupId}" data-item="${item.itemNum}">
         <td style="white-space:nowrap">
           <span class="item-num">${item.itemNum}</span>
@@ -2917,7 +2919,9 @@ function renderBrowse() {
           ${pd && pd.photoItem ? '<span style="margin-left:4px;font-size:0.78rem;vertical-align:middle;opacity:0.75" title="Has photo">📷</span>' : ''}
         </td>
         <td style="white-space:nowrap">${item.variation ? '<span style="font-size:0.78rem;color:var(--text-mid)">' + item.variation + '</span>' : '<span style="color:var(--text-dim)">—</span>'}</td>
+        <td style="font-size:0.78rem;color:var(--text-dim)">${_typeText}</td>
         <td style="color:var(--text-mid);font-size:0.85rem">${_descShort}</td>
+        <td style="font-size:0.82rem;color:var(--gold);white-space:nowrap">${_estWorth}</td>
         <td style="text-align:right;white-space:nowrap">
           <button onclick="event.stopPropagation();collectionActionForSale(${globalIdx},'${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">${isForSale ? '🏷️ Update' : '🏷️ For Sale'}</button>
           <button onclick="event.stopPropagation();collectionActionSold(${globalIdx},'${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">💰 Sold</button>
@@ -2949,7 +2953,7 @@ function renderBrowse() {
 
   const emptyHtml = isMobile
     ? '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🔍</div><p>No items match your filters</p></div>'
-    : '<tr><td colspan="' + (state.filters.owned ? '4' : '7') + '"><div class="empty-state"><div class="empty-icon">🔍</div><p>No items match your filters</p><p style="font-size:0.8rem;color:var(--text-dim);margin-top:0.25rem">Try clearing some filters</p></div></td></tr>';
+    : '<tr><td colspan="' + (state.filters.owned ? '6' : '7') + '"><div class="empty-state"><div class="empty-icon">🔍</div><p>No items match your filters</p><p style="font-size:0.8rem;color:var(--text-dim);margin-top:0.25rem">Try clearing some filters</p></div></td></tr>';
 
   if (isMobile) {
     let _ephCardsHtml = '';
