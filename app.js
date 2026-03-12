@@ -2469,10 +2469,7 @@ function buildQuickEntryList() {
     row.onmouseenter = function() { this.style.borderColor='#27ae60'; this.style.background='rgba(39,174,96,0.06)'; };
     row.onmouseleave = function() { this.style.borderColor='rgba(39,174,96,0.3)'; this.style.background='var(--surface)'; };
     row.onclick = (function(num, vari) { return function() {
-      var prefix = num + '|' + vari + '|';
-      var exact = Object.keys(state.personalData).find(function(k) { return k.startsWith(prefix); });
-      if (!exact) { exact = Object.keys(state.personalData).find(function(k) { return k.startsWith(num + '|'); }); }
-      if (exact) { updateCollectionItem(-1, exact); }
+      completeQuickEntry(num, vari, -1);
     }; })(pd.itemNum, variation);
 
     var icon = document.createElement('div');
@@ -2516,10 +2513,7 @@ function buildQuickEntryList() {
     addInfoBtn.style.cssText = 'font-size:0.78rem;color:#fff;font-weight:600;background:#27ae60;border:none;padding:0.3rem 0.7rem;border-radius:6px;cursor:pointer;white-space:nowrap';
     addInfoBtn.onclick = (function(num, vari) { return function(e) {
       e.stopPropagation();
-      var prefix = num + '|' + vari + '|';
-      var exact = Object.keys(state.personalData).find(function(k) { return k.startsWith(prefix); });
-      if (!exact) { exact = Object.keys(state.personalData).find(function(k) { return k.startsWith(num + '|'); }); }
-      if (exact) { updateCollectionItem(-1, exact); }
+      completeQuickEntry(num, vari, -1);
     }; })(pd.itemNum, variation);
     right.appendChild(addInfoBtn);
 
