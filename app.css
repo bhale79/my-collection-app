@@ -393,7 +393,7 @@
   .modal-overlay.open { opacity: 1; pointer-events: all; }
   .modal {
     background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
-    width: 100%; max-width: 680px; max-height: 90vh; overflow-y: auto;
+    width: 100%; max-width: 680px; max-height: 92vh; overflow-y: auto;
     transform: translateY(20px); transition: transform 0.2s;
   }
   #wizard-modal .modal {
@@ -458,7 +458,7 @@
   }
   .btn-close:hover { border-color: var(--accent); color: var(--accent); }
 
-  .modal-body { padding: 1.25rem 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; }
+  .modal-body { padding: 1.25rem 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; flex: 1; overflow-y: auto; }
 
   .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
   @media (max-width: 480px) { .info-grid { grid-template-columns: 1fr; } }
