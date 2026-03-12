@@ -3445,58 +3445,71 @@ function updateItemSuggestions(query) {
   const q = (query || '').trim().toLowerCase();
   if (q.length < 1) { el.style.display = 'none'; el.innerHTML = ''; return; }
 
-  // Parse query: split into number part and optional keyword part
-  // e.g. "6142 olive" → numPart="6142", keyParts=["olive"]
-  const qParts = q.split(/\s+/);
-  const numPart = qParts[0];
-  const keyParts = qParts.slice(1).filter(p => p.length > 0);
-
-  // Choose source based on tab
   const tab = wizard.tab;
   let candidates = [];
 
   if (tab === 'sold' || tab === 'forsale') {
+    // For sell/forsale tabs: search personal collection only
     const seen = new Set();
     Object.values(state.personalData).forEach(pd => {
       const key = pd.itemNum + (pd.variation ? ' (' + pd.variation + ')' : '');
-      if (!seen.has(key) && pd.itemNum.toLowerCase().includes(numPart)) {
+      const haystack = (pd.itemNum + ' ' + (pd.variation || '') + ' ' + (pd.roadName || '') + ' ' + (pd.description || '')).toLowerCase();
+      if (!seen.has(key) && haystack.includes(q)) {
         seen.add(key);
         candidates.push({ num: pd.itemNum, label: key, sub: '' });
       }
     });
   } else {
-    // Collection + Want: suggest from master list — unique item numbers
-    // Match itemNum containing numPart, then filter by keyword in description/roadName
+    // Collection + Want: search master list by item number OR description/road name
+    // Detect search mode: if query starts with a digit, prioritize item number matching
+    const startsWithDigit = /^\d/.test(q);
+    const qParts = q.split(/\s+/);
+    const numPart = qParts[0];
+    const keyParts = qParts.slice(1).filter(p => p.length > 0);
+
     const seen = new Set();
     state.masterData.forEach(m => {
-      if (!m.itemNum.toLowerCase().includes(numPart)) return;
-      if (keyParts.length > 0) {
-        const haystack = (m.roadName + ' ' + m.description + ' ' + m.varDesc).toLowerCase();
-        if (!keyParts.every(kp => haystack.includes(kp))) return;
+      const haystack = ((m.roadName || '') + ' ' + (m.description || '') + ' ' + (m.varDesc || '') + ' ' + (m.itemType || '')).toLowerCase();
+
+      let matches = false;
+      if (startsWithDigit) {
+        // Number-led search: item number must match first token; extra words filter by description
+        if (!m.itemNum.toLowerCase().includes(numPart)) return;
+        if (keyParts.length > 0 && !keyParts.every(kp => haystack.includes(kp))) return;
+        matches = true;
+      } else {
+        // Text-only search: match anywhere in road name, description, or item type
+        matches = qParts.every(kp => haystack.includes(kp));
       }
+
+      if (!matches) return;
+
       if (!seen.has(m.itemNum)) {
         seen.add(m.itemNum);
-        const road = m.roadName || m.description || '';
-        candidates.push({ num: m.itemNum, label: m.itemNum, sub: road.substring(0, 50) });
+        const desc = [m.roadName, m.description].filter(Boolean).join(' — ');
+        candidates.push({ num: m.itemNum, label: m.itemNum, sub: desc.substring(0, 55) });
       }
     });
   }
 
-  // Sort: starts-with first, then contains
-  candidates.sort((a, b) => {
-    const aStarts = a.num.toLowerCase().startsWith(q);
-    const bStarts = b.num.toLowerCase().startsWith(q);
-    if (aStarts && !bStarts) return -1;
-    if (!aStarts && bStarts) return 1;
-    return a.num.localeCompare(b.num);
-  });
+  // Sort: for number searches, starts-with first; for text searches, keep natural order
+  const startsWithDigit = /^\d/.test(q);
+  if (startsWithDigit) {
+    candidates.sort((a, b) => {
+      const aStarts = a.num.toLowerCase().startsWith(q.split(' ')[0]);
+      const bStarts = b.num.toLowerCase().startsWith(q.split(' ')[0]);
+      if (aStarts && !bStarts) return -1;
+      if (!aStarts && bStarts) return 1;
+      return a.num.localeCompare(b.num);
+    });
+  }
 
   if (candidates.length === 0) { el.style.display = 'none'; el.innerHTML = ''; return; }
 
   _suggestionIndex = -1;
   el.innerHTML = '';
 
-  // Count header so user knows how many matches exist
+  // Count header
   const countBar = document.createElement('div');
   countBar.style.cssText = 'padding:0.3rem 0.75rem 0.4rem;font-size:0.72rem;color:var(--text-dim);border-bottom:1px solid var(--border);margin-bottom:2px;flex-shrink:0';
   countBar.textContent = candidates.length + ' match' + (candidates.length !== 1 ? 'es' : '') + ' — tap to select or keep typing to filter';
@@ -3510,7 +3523,7 @@ function updateItemSuggestions(query) {
     btn.onmouseenter = function() { highlightSuggestion(i); };
     btn.onclick = function() { selectSuggestion(c.num); };
     const numSpan = document.createElement('span');
-    numSpan.style.cssText = 'font-family:var(--font-mono);font-weight:600;color:var(--accent2);font-size:0.95rem';
+    numSpan.style.cssText = 'font-family:var(--font-mono);font-weight:600;color:var(--accent2);font-size:0.95rem;flex-shrink:0';
     numSpan.textContent = c.num;
     btn.appendChild(numSpan);
     if (c.sub) {
@@ -3523,6 +3536,7 @@ function updateItemSuggestions(query) {
   });
   el.style.display = 'flex';
 }
+
 
 function highlightSuggestion(idx) {
   _suggestionIndex = idx;
