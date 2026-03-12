@@ -4734,6 +4734,16 @@ async function saveItem() {
     } else {
       await sheetsAppend(state.personalSheetId, 'Want List!A:A', [wantRow]);
     }
+    // Store info for partner prompt — shown after modal closes
+    window._pendingWantPartner = {
+      itemNum: item.itemNum,
+      variation: item.variation || '',
+      priority: wantRow[2],
+      maxPrice: wantRow[3],
+      notes: wantRow[4],
+    };
+  } else {
+    window._pendingWantPartner = null;
   }
 
   // Bust cache then background sync — don't block the UI
@@ -4747,6 +4757,13 @@ async function saveItem() {
   renderBrowse();
   showToast('✓ Item updated!');
 
+  // Show groupable partner prompt if applicable
+  if (window._pendingWantPartner) {
+    const _pwp = window._pendingWantPartner;
+    window._pendingWantPartner = null;
+    setTimeout(() => _checkWantPartners(_pwp.itemNum, _pwp.variation, _pwp.priority, _pwp.maxPrice, _pwp.notes), 400);
+  }
+
   // Background sync after a delay to give Sheets time to propagate
   const _syncDelay = typeof _isTouchDevice !== 'undefined' && _isTouchDevice ? 3000 : 1500;
   setTimeout(async function() {
@@ -4756,6 +4773,98 @@ async function saveItem() {
       renderBrowse();
     } catch(e) { console.warn('Background sync after saveItem:', e); }
   }, _syncDelay);
+}
+
+// ── WANT LIST PARTNER PROMPT ─────────────────────────────────────
+// Shown after saving a groupable item to Want List
+function _checkWantPartners(itemNum, variation, priority, maxPrice, notes) {
+  const num = normalizeItemNum(itemNum);
+  const isLoco   = !!LOCO_TO_TENDERS[num];
+  const isTnd    = !!TENDER_TO_LOCOS[num];
+  const bUnit    = getBUnit(num);          // diesel A-unit: returns "XXXC" or null
+  const aUnit    = getAUnit(num);          // diesel B-unit: returns "XXX" or null
+
+  // Build list of candidates (skip any already on Want List)
+  let candidates = []; // [{ itemNum, label }]
+
+  if (isLoco) {
+    const tenders = LOCO_TO_TENDERS[num] || [];
+    tenders.forEach(t => {
+      if (!state.wantData[t + '|']) candidates.push({ itemNum: t, label: t + ' (tender)' });
+    });
+  } else if (isTnd) {
+    const locos = TENDER_TO_LOCOS[num] || [];
+    locos.forEach(l => {
+      if (!state.wantData[l + '|']) candidates.push({ itemNum: l, label: l + ' (locomotive)' });
+    });
+  } else if (bUnit) {
+    if (!state.wantData[bUnit + '|']) candidates.push({ itemNum: bUnit, label: bUnit + ' (B unit)' });
+  } else if (aUnit) {
+    if (!state.wantData[aUnit + '|']) candidates.push({ itemNum: aUnit, label: aUnit + ' (A unit)' });
+  }
+
+  if (!candidates.length) return; // Nothing to offer
+
+  // Build modal
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9200;display:flex;align-items:center;justify-content:center;padding:1rem';
+
+  const isLocoOrTender = isLoco || isTnd;
+  const promptText = isLoco
+    ? 'This locomotive has matching tenders. Add any to your Want List?'
+    : isTnd
+      ? 'This tender fits these locomotives. Add any to your Want List?'
+      : bUnit
+        ? 'This is an A unit — do you also want the B unit?'
+        : 'This is a B unit — do you also want the A unit?';
+
+  const checkboxRows = candidates.map((c, i) => `
+    <label style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0.6rem;border-radius:7px;background:var(--surface2);cursor:pointer;margin-bottom:0.4rem">
+      <input type="checkbox" id="wpc-${i}" checked style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer">
+      <span style="font-family:var(--font-mono);font-weight:600;color:var(--accent)">${c.itemNum}</span>
+      <span style="font-size:0.78rem;color:var(--text-dim)">${c.label.replace(c.itemNum + ' ', '')}</span>
+    </label>`).join('');
+
+  overlay.innerHTML = `
+    <div style="background:var(--surface);border:1.5px solid var(--accent3);border-radius:14px;padding:1.5rem;max-width:380px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
+      <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;color:var(--accent3);text-transform:uppercase;margin-bottom:0.5rem">Add Partner(s) to Want List?</div>
+      <div style="font-size:0.9rem;color:var(--text-mid);margin-bottom:1rem;line-height:1.4">${promptText}</div>
+      <div style="margin-bottom:1rem">${checkboxRows}</div>
+      <div style="display:flex;gap:0.5rem;justify-content:flex-end">
+        <button id="wpc-skip" style="padding:0.45rem 1rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer">Skip</button>
+        <button id="wpc-add" style="padding:0.45rem 1.1rem;border-radius:7px;border:none;background:var(--accent3);color:#fff;font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer">Add Selected</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+
+  overlay.querySelector('#wpc-skip').onclick = () => overlay.remove();
+  overlay.querySelector('#wpc-add').onclick = async () => {
+    const selected = candidates.filter((c, i) => {
+      const cb = overlay.querySelector('#wpc-' + i);
+      return cb && cb.checked;
+    });
+    overlay.remove();
+    if (!selected.length) return;
+    let added = 0;
+    for (const c of selected) {
+      try {
+        const row = [c.itemNum, '', priority || 'Medium', maxPrice || '', notes || ''];
+        await sheetsAppend(state.personalSheetId, 'Want List!A:A', [row]);
+        added++;
+      } catch(e) { console.warn('[WantPartner] Failed to add', c.itemNum, e); }
+    }
+    if (added) {
+      localStorage.removeItem('lv_personal_cache');
+      localStorage.removeItem('lv_personal_cache_ts');
+      showToast('✓ Added ' + added + ' partner' + (added > 1 ? 's' : '') + ' to Want List');
+      setTimeout(async () => {
+        await loadPersonalData();
+        buildWantPage();
+        buildDashboard();
+      }, 1200);
+    }
+  };
 }
 
 // ── REPORTS ─────────────────────────────────────────────────────
