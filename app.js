@@ -522,6 +522,20 @@ async function ensurePersonalHeaders(sheetId) {
     if (title !== 'My Collection') {
       await sheetsUpdate(sheetId, 'My Collection!A1', [['My Collection']]);
     }
+
+    // Repair Upgrade List headers if missing or wrong
+    try {
+      const upgRes = await sheetsGet(sheetId, 'Upgrade List!A2:F2');
+      const upgCurrent = (upgRes.values && upgRes.values[0]) || [];
+      const upgNeedsUpdate = UPGRADE_HEADERS.some((h, i) => upgCurrent[i] !== h);
+      if (upgNeedsUpdate) {
+        await sheetsUpdate(sheetId, 'Upgrade List!A1:A1', [['Upgrade List']]);
+        await sheetsUpdate(sheetId, 'Upgrade List!A2:F2', [UPGRADE_HEADERS]);
+        console.log('[Headers] Upgrade List headers repaired');
+      }
+    } catch(e) {
+      console.warn('[Headers] Upgrade List header check failed:', e.message);
+    }
   } catch(e) {
     console.warn('[Headers] ensurePersonalHeaders failed:', e.message);
   }
