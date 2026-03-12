@@ -3325,7 +3325,8 @@ function showItemDetailPage_sell(idx) {
   const item = idx >= 0 ? state.masterData[idx] : null;
   if (!item) return;
   const pdKey = findPDKey(item.itemNum, item.variation);
-  if (pdKey) sellFromCollection(idx, pdKey);
+  if (!pdKey) { showToast('Item not found in your collection', 3000, true); return; }
+  _checkSetBeforeAction(pdKey, () => sellFromCollection(idx, pdKey), { isSell: true, idx });
 }
 function showItemDetailPage_forsale(idx) {
   const item = idx >= 0 ? state.masterData[idx] : null;
@@ -3499,10 +3500,10 @@ function collectionActionForSale(globalIdx, itemNum, variation) {
 function collectionActionSold(globalIdx, itemNum, variation) {
   var pdKey = findPDKey(itemNum, variation);
   if (!pdKey) { showToast('Item not found in collection', 3000, true); return; }
-  _checkSetBeforeAction(pdKey, () => sellFromCollection(globalIdx, pdKey));
+  _checkSetBeforeAction(pdKey, () => sellFromCollection(globalIdx, pdKey), { isSell: true, idx: globalIdx });
 }
 
-function _checkSetBeforeAction(pdKey, proceed) {
+function _checkSetBeforeAction(pdKey, proceed, opts) {
   const pd = state.personalData[pdKey] || {};
   if (!pd.groupId) { proceed(); return; }
   // Check if this groupId has other members
@@ -3520,6 +3521,10 @@ function _checkSetBeforeAction(pdKey, proceed) {
         What would you like to do?
       </div>
       <div style="display:flex;flex-direction:column;gap:0.5rem">
+        ${opts && opts.isSell ? `<button id="_setaction-selltogether" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid var(--gold);background:rgba(212,168,67,0.1);color:var(--gold);font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer;text-align:left">
+          💰 Sell together — all ${siblings.length + 1} items<br>
+          <span style="font-weight:400;font-size:0.78rem;color:var(--text-dim)">One sale price covers the whole group</span>
+        </button>` : ''}
         <button id="_setaction-proceed" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid #27ae60;background:rgba(39,174,96,0.1);color:#27ae60;font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer;text-align:left">
           Continue — list as incomplete set<br>
           <span style="font-weight:400;font-size:0.78rem;color:var(--text-dim)">Other set items keep their group ID</span>
@@ -3532,6 +3537,13 @@ function _checkSetBeforeAction(pdKey, proceed) {
       </div>
     </div>`;
   document.body.appendChild(overlay);
+  if (opts && opts.isSell) {
+    document.getElementById('_setaction-selltogether').onclick = () => {
+      overlay.remove();
+      const allGroup = [[pdKey, pd], ...siblings];
+      _sellGroupTogether(allGroup, opts.idx);
+    };
+  }
   document.getElementById('_setaction-proceed').onclick = () => { overlay.remove(); proceed(); };
   document.getElementById('_setaction-cancel').onclick  = () => overlay.remove();
   document.getElementById('_setaction-break').onclick   = async () => {
@@ -3693,6 +3705,36 @@ function _checkSetBeforeAction(pdKey, proceed) {
       proceed();
     }
   };
+}
+
+function _sellGroupTogether(allGroup, idx) {
+  // allGroup is [[pdKey, pd], ...] — first entry is the lead item the user tapped
+  const [leadKey, leadPd] = allGroup[0];
+  const siblings = allGroup.slice(1);
+  const item = (idx >= 0 ? state.masterData[idx] : null) || {
+    itemNum: leadPd.itemNum, variation: leadPd.variation || '',
+    roadName: '', itemType: '', yearProd: '', marketVal: '',
+  };
+  wizard = { step: 0, tab: 'sold', data: {
+    tab: 'sold',
+    itemNum: item.itemNum,
+    variation: item.variation || '',
+    condition: leadPd.condition || '',
+    priceItem: leadPd.priceItem || '',
+    estWorth: leadPd.userEstWorth || '',
+    _collectionPdKey: leadKey,
+    _collectionRow: leadPd.row,
+    _sellGroupSiblings: siblings.map(function(e) { return { pdKey: e[0], pd: e[1] }; }),
+  }, steps: getSteps('sold'), matchedItem: item };
+  document.getElementById('wizard-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  const autoSkip = new Set(['tab', 'itemNum', 'variation', 'itemPicker', 'itemCategory']);
+  while (wizard.step < wizard.steps.length - 1) {
+    const s = wizard.steps[wizard.step];
+    if (autoSkip.has(s.id) || (s.skipIf && s.skipIf(wizard.data))) wizard.step++;
+    else break;
+  }
+  renderWizardStep();
 }
 
 async function removeCollectionItem(itemNum, variation, row) {
@@ -4733,6 +4775,32 @@ async function saveItem() {
       await sheetsUpdate(state.personalSheetId, `Sold!A${soldEntry.row}:H${soldEntry.row}`, [soldRow]);
     } else {
       await sheetsAppend(state.personalSheetId, 'Sold!A:A', [soldRow]);
+    }
+
+    // If selling as a group, record sold for all sibling items too
+    if (wizard && wizard.data && wizard.data._sellGroupSiblings && wizard.data._sellGroupSiblings.length) {
+      const _salePrice = document.getElementById('fc-sale-price')?.value || '';
+      const _dateSold  = document.getElementById('fc-date-sold')?.value  || '';
+      const _wizNotes  = document.getElementById('fc-notes')?.value      || '';
+      for (const sib of wizard.data._sellGroupSiblings) {
+        // Clear sibling from My Collection sheet
+        if (sib.pd.row) {
+          await sheetsUpdate(state.personalSheetId,
+            `My Collection!A${sib.pd.row}:W${sib.pd.row}`,
+            [['','','','','','','','','','','','','','','','','','','','','','','']]);
+        }
+        // Write sibling sold entry — price is blank (total is on lead); note references lead
+        const _sibNote = ('Sold as group with ' + item.itemNum
+          + (_salePrice ? ' — total sale: $' + _salePrice : '')
+          + (_wizNotes ? ' — ' + _wizNotes : '')).trim();
+        await sheetsAppend(state.personalSheetId, 'Sold!A:A', [[
+          sib.pd.itemNum, sib.pd.variation || '', '1',
+          sib.pd.condition || '', sib.pd.priceItem || '',
+          '', _dateSold, _sibNote
+        ]]);
+        // Remove from local state
+        delete state.personalData[sib.pdKey];
+      }
     }
 
   } else if (currentStatus === 'Want') {
