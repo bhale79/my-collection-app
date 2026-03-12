@@ -4845,6 +4845,10 @@ async function saveWizardItem() {
       } else {
         await sheetsAppend(state.personalSheetId, 'Want List!A:A', [row]);
       }
+      // After save, prompt about groupable partners (tender, A/B unit)
+      if (typeof _checkWantPartners === 'function') {
+        setTimeout(() => _checkWantPartners(itemNum, variation, row[2], row[3], row[4]), 500);
+      }
     }
 
     // ── Save individual box rows for grouped items (each box gets its own Inventory ID) ──
@@ -5070,16 +5074,6 @@ async function saveWizardItem() {
     if (tab === 'want') buildWantPage();
     renderBrowse();
     showToast(`✓ Item ${itemNum} added to ${tab === 'collection' ? 'My Collection' : tab === 'forsale' ? 'For Sale' : tab === 'sold' ? 'Sold' : 'Want List'}!`);
-
-    // After adding to Want List, check if item has groupable partners
-    if (tab === 'want' && typeof _checkWantPartners === 'function') {
-      setTimeout(() => _checkWantPartners(
-        itemNum, variation,
-        d.priority || 'Medium',
-        d.expectedPrice || '',
-        (d.notes || '').trim()
-      ), 400);
-    }
 
     // ── Vault: submit updated collection data in background ──
     if (typeof vaultIsOptedIn === 'function' && vaultIsOptedIn()) {
