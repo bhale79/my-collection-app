@@ -1572,6 +1572,7 @@ function buildApp() {
   showApp();
   populateFilters();
   buildDashboard();
+  _maybeShowAdminPrefs();
   _applyDisclaimerPref();
   // Upgrade count badge
   const _uEl = document.getElementById('nav-upgrade-count');
@@ -2467,9 +2468,12 @@ function buildQuickEntryList() {
     row.style.cssText = 'display:flex;align-items:center;gap:0.85rem;padding:0.9rem 1rem;background:var(--surface);border:1.5px solid rgba(39,174,96,0.3);border-radius:12px;cursor:pointer;transition:all 0.15s';
     row.onmouseenter = function() { this.style.borderColor='#27ae60'; this.style.background='rgba(39,174,96,0.06)'; };
     row.onmouseleave = function() { this.style.borderColor='rgba(39,174,96,0.3)'; this.style.background='var(--surface)'; };
-    row.onclick = (function(num, vari, mIdx) { return function() {
-      if (typeof completeQuickEntry === 'function') { completeQuickEntry(num, vari, mIdx); }
-    }; })(pd.itemNum, variation, master ? state.masterData.indexOf(master) : -1);
+    row.onclick = (function(num, vari) { return function() {
+      var prefix = num + '|' + vari + '|';
+      var exact = Object.keys(state.personalData).find(function(k) { return k.startsWith(prefix); });
+      if (!exact) { exact = Object.keys(state.personalData).find(function(k) { return k.startsWith(num + '|'); }); }
+      if (exact) { updateCollectionItem(-1, exact); }
+    }; })(pd.itemNum, variation);
 
     var icon = document.createElement('div');
     icon.style.cssText = 'background:rgba(39,174,96,0.12);border-radius:8px;padding:0.5rem;flex-shrink:0';
@@ -2510,10 +2514,13 @@ function buildQuickEntryList() {
     var addInfoBtn = document.createElement('button');
     addInfoBtn.textContent = 'Add Info';
     addInfoBtn.style.cssText = 'font-size:0.78rem;color:#fff;font-weight:600;background:#27ae60;border:none;padding:0.3rem 0.7rem;border-radius:6px;cursor:pointer;white-space:nowrap';
-    addInfoBtn.onclick = (function(num, vari, mIdx) { return function(e) {
+    addInfoBtn.onclick = (function(num, vari) { return function(e) {
       e.stopPropagation();
-      if (typeof completeQuickEntry === 'function') { completeQuickEntry(num, vari, mIdx); }
-    }; })(pd.itemNum, variation, master ? state.masterData.indexOf(master) : -1);
+      var prefix = num + '|' + vari + '|';
+      var exact = Object.keys(state.personalData).find(function(k) { return k.startsWith(prefix); });
+      if (!exact) { exact = Object.keys(state.personalData).find(function(k) { return k.startsWith(num + '|'); }); }
+      if (exact) { updateCollectionItem(-1, exact); }
+    }; })(pd.itemNum, variation);
     right.appendChild(addInfoBtn);
 
     row.appendChild(icon);
@@ -5652,6 +5659,19 @@ function buildPrefsPage() {
       <div id="vault-prefs-row"></div>
     </div>
 
+    <div class="pref-section" id="admin-health-section" style="display:none">
+      <div class="pref-section-title">App Health Check</div>
+      <div class="pref-row">
+        <div class="pref-row-label"><strong>Run Health Check</strong><span>Verify all app functions and data are wired up correctly</span></div>
+        <button class="pref-btn" id="health-check-btn" onclick="_runHealthCheck()">Run Check</button>
+      </div>
+      <div class="pref-row" style="margin-top:0.25rem">
+        <div class="pref-row-label"><strong>Copy to Console</strong><span>Copy the script &mdash; paste into browser console (F12) for detailed output</span></div>
+        <button class="pref-btn" id="hc-copy-btn" onclick="_copyHealthCheckScript()">Copy Script</button>
+      </div>
+      <div id="health-check-output" style="display:none;margin-top:0.75rem;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:0.85rem 1rem;font-size:0.75rem;font-family:var(--font-mono);line-height:1.8;max-height:320px;overflow-y:auto"></div>
+    </div>
+
         <div class="pref-section">
       <div class="pref-section-title">About</div>
         <div class="pref-row">
@@ -5681,8 +5701,242 @@ function buildPrefsPage() {
   if (typeof vaultRenderPrefsRow === 'function') {
     vaultRenderPrefsRow(document.getElementById('vault-prefs-row'));
   }
+  _maybeShowAdminPrefs();
 }
 
+
+function _runHealthCheck() {
+  var out = document.getElementById("health-check-output");
+  var btn = document.getElementById("health-check-btn");
+  if (!out) return;
+  out.style.display = "block";
+  out.innerHTML = "<span style='color:var(--text-dim)'>Running checks...</span>";
+  if (btn) { btn.disabled = true; btn.textContent = "Running..."; }
+  setTimeout(function() {
+    var results = [];
+    function pass(l,d){results.push({s:"pass",l:l,d:d});}
+    function fail(l,d){results.push({s:"fail",l:l,d:d});}
+    function warn(l,d){results.push({s:"warn",l:l,d:d});}
+    ["showPage","renderBrowse","buildDashboard","buildWantPage","buildForSalePage","buildSoldPage",
+     "buildQuickEntryList","showItemDetailPage","updateCollectionItem","removeCollectionItem",
+     "loadPersonalData","sheetsAppend","sheetsDeleteRow","driveUploadItemPhoto","driveEnsureSetup",
+     "collectionActionForSale","collectionActionSold","showAddToUpgradeModal"
+    ].forEach(function(fn){typeof window[fn]==="function"?pass(fn+"()"):fail(fn+"()","Not found");});
+    ["openWizard","quickEntryAdd","closeWizard","saveItem","launchSetItemWizard","_showQuickEntryMultiUI"
+    ].forEach(function(fn){typeof window[fn]==="function"?pass(fn+"()"):fail(fn+"()","wizard.js may not have loaded");});
+    ["vaultInit","vaultSubmitData","vaultIsOptedIn","vaultRenderMarketCard","vaultRenderPrefsRow"
+    ].forEach(function(fn){typeof window[fn]==="function"?pass(fn+"()"):warn(fn+"()","vault.js non-critical");});
+    if (typeof state === "undefined") {
+      fail("state object","Not defined");
+    } else {
+      pass("state object");
+      if (state.personalSheetId) pass("personalSheetId", state.personalSheetId.substring(0,16)+"..."); else fail("personalSheetId","null - not signed in?");
+      if (state.masterData && state.masterData.length) pass("masterData", state.masterData.length.toLocaleString()+" items"); else fail("masterData","Empty");
+      if (state.personalData && Object.keys(state.personalData).length) pass("personalData", Object.keys(state.personalData).length+" items"); else warn("personalData","Empty");
+    }
+    var tok = localStorage.getItem("lv_token"), exp = parseInt(localStorage.getItem("lv_token_expiry")||"0");
+    if (!tok) warn("accessToken","No token - sign in again");
+    else if (exp < Date.now()) warn("accessToken","Expired - will refresh on next action");
+    else pass("accessToken","Valid ~"+Math.round((exp-Date.now())/60000)+" min");
+    if (typeof driveCache !== "undefined") {
+      if (driveCache.photosId) pass("driveCache.photosId"); else warn("driveCache.photosId","Not set");
+      if (driveCache.vaultId) pass("driveCache.vaultId"); else warn("driveCache.vaultId","Not set");
+    } else { fail("driveCache","Not defined"); }
+    ["page-browse","page-dashboard","page-quickentry","browse-tbody","result-count","page-info","wizard-modal"
+    ].forEach(function(id){document.getElementById(id)?pass("#"+id):fail("#"+id,"Missing from DOM");});
+    if (typeof state !== "undefined" && state.personalData) {
+      var samp = Object.values(state.personalData).filter(function(p){return p.owned;}).slice(0,3);
+      if (samp.length) {
+        if (samp.some(function(p){return "userEstWorth" in p;})) pass("col N: userEstWorth"); else warn("col N: userEstWorth","Not found");
+        if (samp.some(function(p){return "photoItem" in p;})) pass("col J: photoItem"); else warn("col J: photoItem","Not found");
+      }
+    }
+    var passes=results.filter(function(r){return r.s==="pass";}).length;
+    var fails=results.filter(function(r){return r.s==="fail";}).length;
+    var warns=results.filter(function(r){return r.s==="warn";}).length;
+    var sc=fails>0?"#e74c3c":warns>0?"#d4a843":"#3a9e68";
+    var st=fails>0?fails+" issue(s) found":warns>0?"Minor warnings only":"All systems go!";
+    var html="<div style='font-weight:700;color:"+sc+";margin-bottom:0.6rem;font-size:0.82rem'>"+passes+" passed &middot; "+fails+" failed &middot; "+warns+" warnings &mdash; "+st+"</div>";
+    results.forEach(function(r) {
+      var icon = r.s==="pass" ? "&#9989;" : r.s==="fail" ? "&#10060;" : "&#9888;";
+      var c = r.s==="pass"?"#3a9e68":r.s==="fail"?"#e74c3c":"#d4a843";
+      html += "<div style='color:"+c+"'>"+icon+" "+r.l+(r.d?" <span style='color:var(--text-dim);font-size:0.7rem'>&rarr; "+r.d+"</span>":"")+"</div>";
+    });
+    out.innerHTML = html;
+    if (btn) { btn.disabled = false; btn.textContent = "Run Again"; }
+  }, 50);
+}
+
+var _HEALTH_CHECK_SCRIPT = "// ============================================================\n//  My Collection App \u2014 Health Check\n//  Paste this entire block into your browser console while\n//  the app is open. It will print a wiring report in ~2 seconds.\n//  Last updated: Session 50\n// ============================================================\n\n(function() {\n  const OK  = '\u2705';\n  const ERR = '\u274c';\n  const WARN = '\u26a0\ufe0f';\n  const results = [];\n\n  function pass(label, detail) { results.push({ s: OK,   l: label, d: detail }); }\n  function fail(label, detail) { results.push({ s: ERR,  l: label, d: detail }); }\n  function warn(label, detail) { results.push({ s: WARN, l: label, d: detail }); }\n\n  // \u2500\u2500 1. Core functions exist \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n  const coreFns = [\n    'showPage', 'renderBrowse', 'buildDashboard', 'buildWantPage',\n    'buildForSalePage', 'buildSoldPage', 'buildQuickEntryList',\n    'showItemDetailPage', 'updateCollectionItem', 'removeCollectionItem',\n    'loadPersonalData', 'sheetsAppend', 'sheetsDeleteRow',\n    'driveUploadItemPhoto', 'driveEnsureSetup',\n    'collectionActionForSale', 'collectionActionSold',\n    'showAddToUpgradeModal',\n  ];\n  coreFns.forEach(fn => {\n    if (typeof window[fn] === 'function') pass(fn + '()');\n    else fail(fn + '()', 'NOT FOUND \u2014 may be broken or renamed');\n  });\n\n  // \u2500\u2500 2. Wizard functions exist \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n  const wizardFns = [\n    'quickEntryAdd', 'closeWizard', 'saveItem', 'launchWizard',\n    'launchSetItemWizard', '_showQuickEntryMultiUI',\n  ];\n  wizardFns.forEach(fn => {\n    if (typeof window[fn] === 'function') pass(fn + '()');\n    else fail(fn + '()', 'NOT FOUND \u2014 wizard.js may not have loaded or function renamed');\n  });\n\n  // \u2500\u2500 3. Vault functions exist \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n  const vaultFns = [\n    'vaultInit', 'vaultSubmitData', 'vaultIsOptedIn',\n    'vaultRenderMarketCard', 'vaultRenderPrefsRow', 'vaultShowOptInModal',\n  ];\n  vaultFns.forEach(fn => {\n    if (typeof window[fn] === 'function') pass(fn + '()');\n    else warn(fn + '()', 'Not found \u2014 vault.js may not have loaded (non-critical)');\n  });\n\n  // \u2500\u2500 4. Tutorial functions exist \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n  const tutFns = ['tutNext', 'tutBack', 'tutClose'];\n  tutFns.forEach(fn => {\n    if (typeof window[fn] === 'function') pass(fn + '()');\n    else warn(fn + '()', 'Not found \u2014 tutorial.js may not have loaded (non-critical)');\n  });\n\n  // \u2500\u2500 5. State object is populated \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n  if (typeof state === 'undefined') {\n    fail('state object', 'state is not defined \u2014 app.js likely failed to load');\n  } else {\n    pass('state object exists');\n\n    if (state.personalSheetId)\n      pass('state.personalSheetId', state.personalSheetId.substring(0,20) + '\u2026');\n    else\n      fail('state.personalSheetId', 'null \u2014 user may not be signed in or config not found');\n\n    if (state.masterData && state.masterData.length > 0)\n      pass('state.masterData', state.masterData.length.toLocaleString() + ' items loaded');\n    else\n      fail('state.masterData', 'Empty or not loaded');\n\n    if (state.personalData && Object.keys(state.personalData).length > 0)\n      pass('state.personalData', Object.keys(state.personalData).length + ' personal items loaded');\n    else\n      warn('state.personalData', 'Empty \u2014 expected if collection is empty or not yet loaded');\n\n    const filters = ['type','road','owned','search','quickEntry'];\n    const missingFilters = filters.filter(f => !(f in (state.filters || {})));\n    if (missingFilters.length === 0) pass('state.filters');\n    else warn('state.filters', 'Missing keys: ' + missingFilters.join(', '));\n  }\n\n  // \u2500\u2500 6. Auth / token \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n  const token = localStorage.getItem('lv_token');\n  const expiry = parseInt(localStorage.getItem('lv_token_expiry') || '0');\n  if (!token) {\n    warn('accessToken', 'No token in localStorage \u2014 user may need to sign in');\n  } else if (expiry < Date.now()) {\n    warn('accessToken', 'Token is expired \u2014 will refresh on next action');\n  } else {\n    const mins = Math.round((expiry - Date.now()) / 60000);\n    pass('accessToken', 'Valid for ~' + mins + ' more minutes');\n  }\n\n  // \u2500\u2500 7. Drive cache \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n  if (typeof driveCache !== 'undefined') {\n    if (driveCache.photosId) pass('driveCache.photosId', driveCache.photosId);\n    else warn('driveCache.photosId', 'Not set \u2014 Drive setup may not have run yet');\n    if (driveCache.vaultId) pass('driveCache.vaultId', driveCache.vaultId);\n    else warn('driveCache.vaultId', 'Not set');\n  } else {\n    fail('driveCache', 'Not defined \u2014 app.js may not have loaded');\n  }\n\n  // \u2500\u2500 8. localStorage keys \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n  const lsKeys = [\n    'lv_token', 'lv_personal_id', 'lv_vault_id',\n    'lv_photos_id', 'lv_personal_cache_ts'\n  ];\n  const presentKeys = lsKeys.filter(k => !!localStorage.getItem(k));\n  const missingKeys = lsKeys.filter(k => !localStorage.getItem(k));\n  if (missingKeys.length === 0)\n    pass('localStorage keys', 'All ' + lsKeys.length + ' expected keys present');\n  else if (missingKeys.length <= 2)\n    warn('localStorage keys', 'Missing: ' + missingKeys.join(', '));\n  else\n    fail('localStorage keys', 'Many missing: ' + missingKeys.join(', ') + ' \u2014 may need to sign in');\n\n  // \u2500\u2500 9. Critical DOM elements \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n  const domIds = [\n    'page-browse', 'page-dashboard', 'page-quickentry',\n    'browse-tbody', 'result-count', 'page-info',\n    'wizard-modal',\n  ];\n  domIds.forEach(id => {\n    if (document.getElementById(id)) pass('#' + id + ' DOM element');\n    else fail('#' + id + ' DOM element', 'Not found in DOM \u2014 index.html may be out of sync');\n  });\n\n  // \u2500\u2500 10. Column mapping sanity check \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n  if (typeof state !== 'undefined' && state.personalData) {\n    const samples = Object.values(state.personalData).filter(pd => pd.owned).slice(0, 3);\n    if (samples.length) {\n      const hasEstWorth = samples.some(pd => 'userEstWorth' in pd);\n      const hasPhotoItem = samples.some(pd => 'photoItem' in pd);\n      const hasCondition = samples.some(pd => 'condition' in pd);\n      if (hasEstWorth) pass('personalData.userEstWorth field present');\n      else warn('personalData.userEstWorth', 'Not found on any owned items \u2014 column mapping may be off');\n      if (hasPhotoItem) pass('personalData.photoItem field present');\n      else warn('personalData.photoItem', 'Not found \u2014 photo column may be wrong');\n      if (hasCondition) pass('personalData.condition field present');\n      else warn('personalData.condition', 'Not found');\n    }\n  }\n\n  // \u2500\u2500 Print report \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n  const passes = results.filter(r => r.s === OK).length;\n  const fails  = results.filter(r => r.s === ERR).length;\n  const warns  = results.filter(r => r.s === WARN).length;\n\n  console.group('%c My Collection App \u2014 Health Check Report', 'font-size:14px;font-weight:bold;color:#f05008');\n  console.log('%c ' + passes + ' passed  |  ' + fails + ' failed  |  ' + warns + ' warnings',\n    'font-size:12px;color:' + (fails > 0 ? '#e74c3c' : warns > 0 ? '#d4a843' : '#3a9e68'));\n  console.log('\u2500'.repeat(60));\n\n  results.forEach(r => {\n    const style = r.s === OK ? 'color:#3a9e68' : r.s === ERR ? 'color:#e74c3c;font-weight:bold' : 'color:#d4a843';\n    if (r.d)\n      console.log('%c' + r.s + ' ' + r.l, style, '\\n    \u2192 ' + r.d);\n    else\n      console.log('%c' + r.s + ' ' + r.l, style);\n  });\n\n  console.log('\u2500'.repeat(60));\n  if (fails === 0 && warns === 0)\n    console.log('%c All systems go! \ud83d\ude82', 'color:#3a9e68;font-size:13px;font-weight:bold');\n  else if (fails === 0)\n    console.log('%c Minor warnings only \u2014 app should work normally', 'color:#d4a843');\n  else\n    console.log('%c ' + fails + ' critical issue(s) found \u2014 check \u274c items above', 'color:#e74c3c;font-weight:bold');\n\n  console.groupEnd();\n})();\n";
+
+function _copyHealthCheckScript() {
+  var btn = document.getElementById("hc-copy-btn");
+  function _flash() {
+    if (btn) { btn.textContent = "Copied! ✓"; btn.style.background = "#27ae60"; btn.style.color = "#fff"; }
+    setTimeout(function() { if (btn) { btn.textContent = "Copy Script"; btn.style.background = ""; btn.style.color = ""; } }, 2500);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(_HEALTH_CHECK_SCRIPT).then(_flash).catch(function() {
+      var ta = document.createElement("textarea");
+      ta.value = _HEALTH_CHECK_SCRIPT;
+      ta.style.cssText = "position:fixed;top:-9999px;left:-9999px";
+      document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
+      _flash();
+    });
+  } else {
+    var ta = document.createElement("textarea");
+    ta.value = _HEALTH_CHECK_SCRIPT;
+    ta.style.cssText = "position:fixed;top:-9999px;left:-9999px";
+    document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
+    _flash();
+  }
+}
+
+var _QA_ITEMS = [
+  { section: '🔐 Auth & Login', items: [
+    { id: 'auth-load',   label: 'App loads without errors', hint: 'Open the app. No red error banners, no blank screen.' },
+    { id: 'auth-login',  label: 'Google sign-in works', hint: 'Tap Sign in with Google. You are taken to your dashboard.' },
+    { id: 'auth-dash',   label: 'Dashboard shows correct counts', hint: 'Collection count, want list count, and quick entry count all show.' },
+  ]},
+  { section: '📋 My Collection List', items: [
+    { id: 'coll-load',   label: 'My Collection list loads', hint: 'Tap My Collection from sidebar. Items appear.' },
+    { id: 'coll-cols',   label: 'All 6 columns visible: Item # | Var. | Type | Description | Est. Worth | Actions', hint: 'Type and Est. Worth columns should be present.' },
+    { id: 'coll-filter', label: 'Type and Road filters work', hint: 'Select a type (e.g. Steam). List narrows correctly.' },
+    { id: 'coll-search', label: 'Search box filters results', hint: 'Type a partial item number. Matching rows appear.' },
+    { id: 'coll-detail', label: 'Tapping a row opens item detail page', hint: 'Tap any row. Item detail page opens with full info.' },
+  ]},
+  { section: '⚡ Quick Entry', items: [
+    { id: 'qe-open',       label: 'Quick Entry list loads', hint: 'Tap Quick Entry List in sidebar. Shows any pending items.' },
+    { id: 'qe-save-basic', label: 'Quick Entry saves (fast save)', hint: 'Tap card with no boxes checked. Toast confirms save. Item appears in collection.' },
+    { id: 'qe-worth-save', label: 'Est. Worth saves to sheet column N', hint: 'Enter a value, tap Confirm & Save. Column N in Google Sheets should show the value.' },
+    { id: 'qe-photo-save', label: 'Photo saves to Drive (column J)', hint: 'Take a photo, save. Column J should have a Drive folder link.' },
+    { id: 'qe-addinfo',    label: 'Add Info opens wizard pre-filled', hint: 'Tap Add Info on any quick entry item. Wizard opens with data already filled in.' },
+  ]},
+  { section: '➕ Full Add Item Wizard', items: [
+    { id: 'wiz-open',   label: 'Wizard opens from + Add button', hint: 'Tap the + Add button. Wizard opens on Step 1.' },
+    { id: 'wiz-search', label: 'Item number search finds items', hint: 'Type an item number. Matching results appear.' },
+    { id: 'wiz-save',   label: 'Full entry saves to My Collection', hint: 'Complete wizard. Toast confirms. Item appears in list.' },
+    { id: 'wiz-photo',  label: 'Photo upload in full wizard works', hint: 'Upload a photo. Drive folder link appears in sheet column J.' },
+  ]},
+  { section: '⭐ Want List', items: [
+    { id: 'want-load',   label: 'Want List page loads', hint: 'Tap Want List. Items appear if any are on the list.' },
+    { id: 'want-add',    label: 'Adding to Want List works', hint: 'Browse an item, tap Want. Item appears on Want List.' },
+    { id: 'want-remove', label: 'Removing from Want List works', hint: 'Tap Remove on a want item. It disappears from list.' },
+  ]},
+  { section: '🏷️ For Sale & Sold', items: [
+    { id: 'fs-action', label: 'For Sale button on collection row works', hint: 'Tap For Sale on any collection item. Form appears.' },
+    { id: 'fs-list',   label: 'For Sale list shows the item', hint: 'After marking for sale, go to For Sale list. Item appears.' },
+    { id: 'sold-list', label: 'Sold Items list shows the item', hint: 'After marking sold, go to Sold Items list. Item appears.' },
+  ]},
+  { section: '↑ Upgrade List', items: [
+    { id: 'upg-add',  label: 'Add to Upgrade List works', hint: 'Tap Upgrade on a collection item. Confirmation appears.' },
+    { id: 'upg-list', label: 'Upgrade List shows the item', hint: 'Go to Upgrade List. Item appears.' },
+  ]},
+  { section: '🗑️ Remove Item', items: [
+    { id: 'rem-confirm', label: 'Remove shows confirmation dialog', hint: 'Tap Remove on a collection item. Confirm dialog appears before anything is deleted.' },
+    { id: 'rem-gone',    label: 'Removed item disappears from collection', hint: 'Confirm remove. Item is no longer in My Collection.' },
+  ]},
+  { section: '🔄 Navigation & General', items: [
+    { id: 'nav-sidebar', label: 'All sidebar nav items open correct pages', hint: 'Click each sidebar link. Correct page appears each time.' },
+    { id: 'nav-back',    label: 'Browser back button works throughout the app', hint: 'Navigate a few pages deep, hit back. Goes to previous page.' },
+    { id: 'nav-prefs',   label: 'Preferences page loads and saves', hint: 'Go to Preferences. Make a change, reload. Change persisted.' },
+    { id: 'nav-sync',    label: 'Sync from Sheet refreshes data', hint: 'Tap Sync from Sheet. Data reloads. Dashboard counts update.' },
+  ]},
+  { section: '📊 Collector\'s Market', items: [
+    { id: 'vault-prefs', label: "Collector's Market row appears in Preferences", hint: 'Go to Preferences. Collector\'s Market section with opt-in toggle appears.' },
+    { id: 'vault-card',  label: 'Market card appears on item detail (if opted in)', hint: 'If opted in: open an item detail page. Market Est. card appears at bottom.' },
+  ]},
+];
+
+var _QA_STATE_KEY = 'lv_qa_checklist';
+
+function _isAdmin() {
+  return !!(state.user && state.user.email === 'bhale@ipd-llc.com');
+}
+
+function _maybeShowAdminPrefs() {
+  var sec = document.getElementById('admin-health-section');
+  if (sec) sec.style.display = _isAdmin() ? '' : 'none';
+  var fab = document.getElementById('qa-fab');
+  if (fab) fab.style.display = _isAdmin() ? 'flex' : 'none';
+}
+
+function _qaToggle() {
+  var panel = document.getElementById('qa-panel');
+  if (!panel) return;
+  var isOpen = panel.style.transform === 'translateY(0%)';
+  if (isOpen) {
+    panel.style.transform = 'translateY(100%)';
+    setTimeout(function() { panel.style.display = 'none'; }, 280);
+  } else {
+    panel.style.display = 'flex';
+    _qaRender();
+    requestAnimationFrame(function() {
+      requestAnimationFrame(function() { panel.style.transform = 'translateY(0%)'; });
+    });
+  }
+}
+
+function _qaReset() {
+  if (!confirm('Reset all checklist progress?')) return;
+  localStorage.removeItem(_QA_STATE_KEY);
+  _qaRender();
+}
+
+function _qaRender() {
+  var body = document.getElementById('qa-body');
+  var progressLabel = document.getElementById('qa-progress-label');
+  if (!body) return;
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem(_QA_STATE_KEY) || '{}'); } catch(e) { saved = {}; }
+
+  var totalItems = 0, doneItems = 0;
+  _QA_ITEMS.forEach(function(sec) { sec.items.forEach(function(it) { totalItems++; if (saved[it.id] === 'pass') doneItems++; }); });
+  if (progressLabel) progressLabel.textContent = doneItems + ' / ' + totalItems + ' complete';
+
+  var html = '';
+  _QA_ITEMS.forEach(function(sec) {
+    html += '<div style="margin-bottom:1rem">';
+    html += '<div style="font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--gold);padding:0.35rem 0.6rem;background:rgba(212,168,67,0.08);border-left:3px solid var(--gold);border-radius:0 5px 5px 0;margin-bottom:0.4rem">' + sec.section + '</div>';
+    sec.items.forEach(function(it) {
+      var st = saved[it.id] || '';
+      var bg = st === 'pass' ? 'rgba(39,174,96,0.1)' : st === 'fail' ? 'rgba(231,76,60,0.1)' : 'var(--surface2)';
+      var border = st === 'pass' ? 'rgba(39,174,96,0.5)' : st === 'fail' ? 'rgba(231,76,60,0.5)' : 'var(--border)';
+      var icon = st === 'pass' ? '&#9989;' : st === 'fail' ? '&#10060;' : '<span style="display:inline-block;width:16px;height:16px;border:2px solid var(--border);border-radius:4px;vertical-align:middle"></span>';
+      var labelColor = st === 'pass' ? '#3a9e68' : st === 'fail' ? '#e74c3c' : 'var(--text)';
+      html += '<div onclick="_qaTap(\''+it.id+'\')" style="display:flex;align-items:flex-start;gap:0.6rem;padding:0.55rem 0.7rem;border-radius:8px;background:'+bg+';border:1.5px solid '+border+';margin-bottom:0.3rem;cursor:pointer;user-select:none">';
+      html += '<span style="flex-shrink:0;margin-top:1px;font-size:0.85rem">' + icon + '</span>';
+      html += '<div style="flex:1;min-width:0">';
+      html += '<div style="font-size:0.82rem;color:' + labelColor + ';line-height:1.3">' + it.label + '</div>';
+      if (it.hint) html += '<div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.15rem;line-height:1.35">' + it.hint + '</div>';
+      html += '</div>';
+      // Fail button (only show when not already failed)
+      if (st !== 'fail') {
+        html += '<button onclick="event.stopPropagation();_qaFail(\''+it.id+'\')" style="flex-shrink:0;font-size:0.65rem;padding:0.15rem 0.4rem;border-radius:4px;border:1px solid rgba(231,76,60,0.4);background:rgba(231,76,60,0.08);color:#e74c3c;cursor:pointer;font-family:var(--font-body);margin-top:1px">Fail</button>';
+      }
+      html += '</div>';
+    });
+    html += '</div>';
+  });
+  body.innerHTML = html;
+}
+
+function _qaTap(id) {
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem(_QA_STATE_KEY) || '{}'); } catch(e) { saved = {}; }
+  // Cycle: empty -> pass -> empty
+  saved[id] = saved[id] === 'pass' ? '' : 'pass';
+  localStorage.setItem(_QA_STATE_KEY, JSON.stringify(saved));
+  _qaRender();
+}
+
+function _qaFail(id) {
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem(_QA_STATE_KEY) || '{}'); } catch(e) { saved = {}; }
+  saved[id] = 'fail';
+  localStorage.setItem(_QA_STATE_KEY, JSON.stringify(saved));
+  _qaRender();
+}
 
 function _onDashCardToggle(id, checked) {
   let selected = _getDashCards();
