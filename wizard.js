@@ -2772,7 +2772,7 @@ function renderWizardStep() {
       _pvHtml += '<div style="position:relative;display:flex;align-items:center"><input type="date" value="' + (_pvD.datePurchased || '') + '" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 2.5rem 0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box;color-scheme:dark" oninput="wizard.data.datePurchased=this.value" id="pvDate"><span onclick="document.getElementById(\"pvDate\").showPicker()" style="position:absolute;right:0.6rem;cursor:pointer;font-size:1rem;color:var(--accent2)">📅</span></div></div>';
     }
     
-    _pvHtml += '<div style="flex:1"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Year Made</div>';
+    _pvHtml += '<div style="flex:1"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">What year if you know exactly?</div>';
     if (_pvYears.length > 0 && _pvYears.length <= 10) {
       _pvHtml += '<div style="display:flex;flex-wrap:wrap;gap:0.25rem">';
       _pvYears.forEach(function(yr) {
