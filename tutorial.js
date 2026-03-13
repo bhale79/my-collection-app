@@ -159,7 +159,64 @@ function tutToggleMenu() {
   }
 }
 
+function _buildTutorialUI() {
+  if (document.getElementById('tut-help-widget')) return;
+
+  // Help widget (conductor button)
+  var widget = document.createElement('div');
+  widget.id = 'tut-help-widget';
+  widget.title = 'Help & Tutorials';
+  widget.setAttribute('role', 'button');
+  widget.setAttribute('tabindex', '0');
+  widget.onclick = function() { tutToggleMenu(); };
+  widget.innerHTML =
+    '<img id="tut-help-conductor" src="./conductor.png">' +
+    '<span id="tut-help-label">Need Help?</span>' +
+    '<button id="tut-help-btn" onclick="void(0)">Help</button>';
+  document.body.appendChild(widget);
+
+  // Help menu
+  var menu = document.createElement('div');
+  menu.id = 'tut-help-menu';
+  menu.innerHTML =
+    '<div class="tut-menu-header">&#x1F4D6; Help &amp; Tutorials</div>' +
+    '<button class="tut-menu-item" onclick="tutStart(\'add-item\')"><div class="tut-menu-icon" style="background:rgba(232,64,28,0.15)">&#x1F4E6;</div>How to add an item</button>' +
+    '<button class="tut-menu-item" onclick="tutStart(\'add-want\')"><div class="tut-menu-icon" style="background:rgba(41,128,185,0.15)">&#x2B50;</div>How to add a want list item</button>' +
+    '<button class="tut-menu-item" onclick="tutStart(\'want-to-collection\')"><div class="tut-menu-icon" style="background:rgba(46,204,113,0.15)">&#x2705;</div>Move a want item to your collection</button>' +
+    '<button class="tut-menu-item" onclick="tutStart(\'list-for-sale\')"><div class="tut-menu-icon" style="background:rgba(230,126,34,0.15)">&#x1F3F7;&#xFE0F;</div>List an item for sale</button>' +
+    '<button class="tut-menu-item" onclick="tutStart(\'mark-sold\')"><div class="tut-menu-icon" style="background:rgba(46,204,113,0.15)">&#x1F4B0;</div>Mark an item as sold</button>' +
+    '<button class="tut-menu-item" onclick="tutStart(\'remove-item\')"><div class="tut-menu-icon" style="background:rgba(150,150,150,0.15)">&#x1F5D1;&#xFE0F;</div>Remove / delete an item</button>' +
+    '<button class="tut-menu-item" onclick="tutStart(\'reports\')"><div class="tut-menu-icon" style="background:rgba(180,140,60,0.15)">&#x1F4CA;</div>How to generate a report</button>';
+  document.body.appendChild(menu);
+
+  // Tutorial spotlight overlay
+  var overlay = document.createElement('div');
+  overlay.id = 'tut-overlay';
+  document.body.appendChild(overlay);
+
+  // Conductor panel
+  var panel = document.createElement('div');
+  panel.id = 'tut-panel';
+  panel.className = 'tut-hidden';
+  panel.innerHTML =
+    '<img id="tut-conductor" src="./conductor.png">' +
+    '<div id="tut-bubble">' +
+      '<div class="tut-bubble-title" id="tut-title">Getting Started</div>' +
+      '<div class="tut-bubble-msg" id="tut-msg">Let me show you around!</div>' +
+      '<div id="tut-click-hint" style="display:none;font-size:0.78rem;color:#b07d20;font-weight:600;margin-bottom:0.5rem;letter-spacing:0.02em;">&#x1F446; Tap the highlighted item to continue</div>' +
+      '<div class="tut-bubble-footer">' +
+        '<span class="tut-counter" id="tut-counter">Step 1 of 5</span>' +
+        '<div class="tut-btn-row">' +
+          '<button class="tut-btn-skip" id="tut-skip" onclick="tutEnd()">Skip tour</button>' +
+          '<button class="tut-btn-next" id="tut-next" onclick="tutNext()">Next \u2192</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(panel);
+}
+
 function tutShowHelpBtn() {
+  _buildTutorialUI();
   const w = document.getElementById('tut-help-widget');
   if (w) w.style.display = 'flex';
 }
