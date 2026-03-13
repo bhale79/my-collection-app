@@ -7466,7 +7466,32 @@ function _applyDisclaimerPref() {
   if (d2) d2.style.display = show ? '' : 'none';
 }
 
+function _buildContactModal() {
+  if (document.getElementById('contact-modal')) return;
+  var d = document.createElement('div');
+  d.id = 'contact-modal';
+  d.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;align-items:center;justify-content:center;padding:1.25rem';
+  d.innerHTML =
+    '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:420px;width:100%;padding:1.75rem;position:relative">' +
+      '<button onclick="document.getElementById(\'contact-modal\').style.display=\'none\'" style="position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">&#x2715;</button>' +
+      '<div style="font-family:var(--font-head);font-size:1.2rem;color:var(--accent);margin-bottom:0.4rem">&#x1F4EC; Contact Us</div>' +
+      '<p style="font-size:0.88rem;color:var(--text);line-height:1.65;margin-bottom:1rem">' +
+        'Found an error in the catalog or set list? Have a suggestion? We\'d love to hear from you.' +
+      '</p>' +
+      '<a href="mailto:bhale@ipd-llc.com" style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.6rem 1.1rem;border-radius:8px;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.88rem;font-weight:600;text-decoration:none">' +
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>' +
+        'Send an Email' +
+      '</a>' +
+      '<p style="font-size:0.75rem;color:var(--text-dim);margin-top:1rem;line-height:1.5">' +
+        'This is a community resource for postwar collectors. We appreciate every correction and suggestion.' +
+      '</p>' +
+    '</div>';
+  d.addEventListener('click', function(e) { if (e.target === d) d.style.display = 'none'; });
+  document.body.appendChild(d);
+}
+
 function showContactModal() {
+  _buildContactModal();
   const m = document.getElementById('contact-modal');
   if (m) { m.style.display = 'flex'; }
 }
