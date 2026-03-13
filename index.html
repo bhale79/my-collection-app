@@ -866,34 +866,8 @@ document.addEventListener('touchmove', function(){}, {passive: true});
 </div>
 
 <!-- ══ SOLD MODAL ══════════════════════════════════════════════ -->
-<div class="modal-overlay" id="sold-modal" onclick="closeSoldModalOnOverlay(event)">
-  <div class="modal" style="max-width:420px">
-    <div class="modal-header">
-      <div>
-        <div class="modal-title">Mark as Sold?</div>
-        <div class="modal-subtitle" id="sold-modal-subtitle"></div>
-      </div>
-      <button class="btn-close" onclick="closeSoldModal()">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="form-field">
-        <label>Sale Price ($)</label>
-        <input type="number" id="sold-price" placeholder="0.00" min="0" step="0.01">
-      </div>
-      <div class="form-field" style="margin-top:0.75rem">
-        <label>Date Sold</label>
-        <input type="date" id="sold-date">
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeSoldModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="confirmSold()">Mark as Sold</button>
-    </div>
-  </div>
-</div>
-
-
-<!-- ══ ADD ITEM WIZARD ══════════════════════════════════════════ -->
+<!-- sold-modal removed — sell flow is handled inline by app.js -->
+<!-- ══ ADD ITEM WIZARD
 <div class="modal-overlay" id="wizard-modal" onclick="closeWizardOnOverlay(event)">
   <div class="modal" style="max-width:520px;height:580px;display:flex;flex-direction:column;overflow:hidden">
     <div class="modal-header">
