@@ -201,7 +201,8 @@ document.addEventListener('touchmove', function(){}, {passive: true});
 
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem">
           <div class="page-title"><span id="dash-greeting"></span></div>
-          <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+          <!-- Desktop buttons (hidden on mobile) -->
+          <div class="dash-desktop-actions" style="display:flex;gap:0.5rem;flex-wrap:wrap">
             <button class="btn" onclick="startWizardFor('collection')" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid var(--accent);color:var(--accent);background:rgba(232,64,28,0.12);font-weight:600">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Add to My Collection
@@ -218,7 +219,17 @@ document.addEventListener('touchmove', function(){}, {passive: true});
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
               Record a Sale
             </button>
+          </div>
 
+          <!-- Mobile 2x2 quick-add grid (hidden on desktop) -->
+          <div class="dash-mobile-actions">
+            <div style="font-size:0.65rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.3rem">Add to:</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.35rem">
+              <button onclick="startWizardFor('collection')" style="padding:0.55rem 0.4rem;border-radius:8px;border:1.5px solid var(--accent);color:var(--accent);background:rgba(232,64,28,0.12);font-family:var(--font-body);font-size:0.72rem;font-weight:700;cursor:pointer;text-align:center;line-height:1.2">My Collection</button>
+              <button onclick="startWizardFor('want')" style="padding:0.55rem 0.4rem;border-radius:8px;border:1.5px solid #2980b9;color:#2980b9;background:rgba(41,128,185,0.12);font-family:var(--font-body);font-size:0.72rem;font-weight:700;cursor:pointer;text-align:center;line-height:1.2">My Want List</button>
+              <button onclick="startWizardFor('forsale')" style="padding:0.55rem 0.4rem;border-radius:8px;border:1.5px solid #e67e22;color:#e67e22;background:rgba(230,126,34,0.12);font-family:var(--font-body);font-size:0.72rem;font-weight:700;cursor:pointer;text-align:center;line-height:1.2">For Sale List</button>
+              <button onclick="startWizardFor('sold')" style="padding:0.55rem 0.4rem;border-radius:8px;border:1.5px solid #2ecc71;color:#2ecc71;background:rgba(46,204,113,0.12);font-family:var(--font-body);font-size:0.72rem;font-weight:700;cursor:pointer;text-align:center;line-height:1.2">Sold List</button>
+            </div>
           </div>
         </div>
 
