@@ -413,6 +413,8 @@ function openWizard(tab) {
   wizard = { step: 0, tab: tab, data: { tab: tab, _returnPage: _returnPage }, steps: getSteps(tab), matchedItem: null };
   document.getElementById('wizard-modal').classList.add('open');
   document.body.style.overflow = 'hidden';
+  // Push a history entry so the back button steps through the wizard
+  history.pushState({ appPage: 'wizard', step: 0 }, '', '');
   // Skip old-style 'choice' tab picker — but NOT itemCategory (we want that shown)
   if (wizard.steps[0] && wizard.steps[0].type === 'choice') {
     wizard.step = 1;
@@ -4006,6 +4008,9 @@ async function _wizardNextCore() {
   while (wizard.step < steps.length - 1 && steps[wizard.step].skipIf && steps[wizard.step].skipIf(wizard.data)) {
     wizard.step++;
   }
+
+  // Push history so the back button returns to the previous step
+  history.pushState({ appPage: 'wizard', step: wizard.step }, '', '');
 
   renderWizardStep();
 }
