@@ -1603,6 +1603,8 @@ function buildApp() {
   // Browse, Sold, For Sale, Want, Reports built lazily on first nav via showPage()
   // Auto-launch tutorial for first-time users
   if (typeof tutCheckAutoLaunch === 'function') tutCheckAutoLaunch();
+  // Initialize back-button interception after app is ready
+  _initBackButton();
 }
 
 function showLoading() {
@@ -7790,62 +7792,71 @@ window.onload = () => {
   if (typeof google !== 'undefined') initGoogle();
 };
 
-// ── Back-button / popstate handler ──────────────────────────────────────────
-// Seed a base history entry so there's always one entry behind us.
-// Without this the very first back press would exit the app.
+// ── Back-button handler — initialized inside buildApp() ─────────────────────
 var _navSuppressHistory = false;
 var _backPressTime = 0;
+var _backButtonInited = false;
 
-history.replaceState({ appPage: 'dashboard' }, '', '');
+function _initBackButton() {
+  if (_backButtonInited) return;
+  _backButtonInited = true;
 
-window.addEventListener('popstate', function(e) {
-  // ── Case 1: Wizard is open ──
-  var wizModal = document.getElementById('wizard-modal');
-  if (wizModal && wizModal.classList.contains('open')) {
-    if (typeof wizard !== 'undefined' && wizard.step > 0) {
-      // Go back one wizard step
-      wizard.step--;
-      if (typeof renderWizardStep === 'function') renderWizardStep();
-    } else {
-      // On first step — close the wizard
-      if (typeof closeWizard === 'function') closeWizard();
-    }
-    // Re-push so we stay in the app
-    history.pushState({ appPage: 'wizard' }, '', '');
-    return;
-  }
-
-  // ── Case 2: Any modal/overlay is open — close it ──
-  var openOverlay = document.querySelector(
-    '.rb-overlay.open, [id$="-modal"].open, [id$="-overlay"].open'
-  );
-  if (openOverlay) {
-    openOverlay.classList.remove('open');
-    history.pushState({ appPage: 'modal' }, '', '');
-    return;
-  }
-
-  // ── Case 3: On a page other than dashboard — go to dashboard ──
-  var activePage = document.querySelector('.page.active');
-  var activePageId = activePage ? activePage.id.replace('page-', '') : 'dashboard';
-  if (activePageId !== 'dashboard') {
-    _navSuppressHistory = true;
-    showPage('dashboard');
-    _navSuppressHistory = false;
-    // Push so back from dashboard still gets the double-tap prompt
-    history.pushState({ appPage: 'dashboard' }, '', '');
-    return;
-  }
-
-  // ── Case 4: Already on dashboard — double-tap to exit ──
-  var now = Date.now();
-  if (now - _backPressTime < 2000) {
-    // Second press within 2s — let the app close naturally
-    return;
-  }
-  _backPressTime = now;
-  showToast('Press back again to exit', 2000);
-  // Re-push to stay in app for the 2-second window
+  // Seed TWO history entries:
+  // Entry 0 (base): replaceState — this is the "exit" floor
+  // Entry 1 (current): pushState — back button pops to entry 0, firing popstate
+  history.replaceState({ appPage: 'base' }, '', '');
   history.pushState({ appPage: 'dashboard' }, '', '');
-});
+
+  window.addEventListener('popstate', function(e) {
+    var state = e.state || {};
+
+    // ── Case 1: Wizard is open ──
+    var wizModal = document.getElementById('wizard-modal');
+    if (wizModal && wizModal.classList.contains('open')) {
+      if (typeof wizard !== 'undefined' && wizard.step > 0) {
+        wizard.step--;
+        // Step back over any skipIf steps
+        while (wizard.step > 0 && wizard.steps[wizard.step] && wizard.steps[wizard.step].skipIf && wizard.steps[wizard.step].skipIf(wizard.data)) {
+          wizard.step--;
+        }
+        if (typeof renderWizardStep === 'function') renderWizardStep();
+      } else {
+        if (typeof closeWizard === 'function') closeWizard();
+      }
+      history.pushState({ appPage: 'wizard' }, '', '');
+      return;
+    }
+
+    // ── Case 2: Any overlay modal is open — close it ──
+    var openOverlay = document.querySelector('.rb-overlay.open');
+    if (!openOverlay) openOverlay = document.querySelector('#wizard-modal.open');
+    if (openOverlay && openOverlay.id !== 'wizard-modal') {
+      openOverlay.classList.remove('open');
+      document.body.style.overflow = '';
+      history.pushState({ appPage: 'modal-closed' }, '', '');
+      return;
+    }
+
+    // ── Case 3: On a page other than dashboard — go to dashboard ──
+    var activePage = document.querySelector('.page.active');
+    var activePageId = activePage ? activePage.id.replace('page-', '') : 'dashboard';
+    if (activePageId !== 'dashboard') {
+      _navSuppressHistory = true;
+      showPage('dashboard');
+      _navSuppressHistory = false;
+      history.pushState({ appPage: 'dashboard' }, '', '');
+      return;
+    }
+
+    // ── Case 4: On dashboard — double-tap to exit ──
+    var now = Date.now();
+    if (now - _backPressTime < 2200) {
+      // Second press — allow natural exit (don't re-push)
+      return;
+    }
+    _backPressTime = now;
+    if (typeof showToast === 'function') showToast('Press back again to exit', 2000);
+    history.pushState({ appPage: 'dashboard' }, '', '');
+  });
+}
 
