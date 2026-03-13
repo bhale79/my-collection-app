@@ -201,48 +201,23 @@ document.addEventListener('touchmove', function(){}, {passive: true});
 
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem">
           <div class="page-title"><span id="dash-greeting"></span></div>
-          <!-- Desktop buttons (hidden on mobile) -->
-          <div class="dash-desktop-actions" style="display:flex;gap:0.5rem;flex-wrap:wrap">
+          <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
             <button class="btn" onclick="startWizardFor('collection')" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid var(--accent);color:var(--accent);background:rgba(232,64,28,0.12);font-weight:600">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Add to My Collection
+              Add to Collection
             </button>
             <button class="btn" onclick="startWizardFor('want')" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid #2980b9;color:#2980b9;background:rgba(41,128,185,0.12);font-weight:600">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z"/></svg>
-              Add to Want List
+              Want List
             </button>
             <button class="btn" onclick="startWizardFor('forsale')" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid #e67e22;color:#e67e22;background:rgba(230,126,34,0.12);font-weight:600">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-              Add to For Sale List
+              For Sale
             </button>
             <button class="btn" onclick="startWizardFor('sold')" style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.6rem 1rem;border:1.5px solid #2ecc71;color:#2ecc71;background:rgba(46,204,113,0.12);font-weight:600">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-              Record a Sale
+              Sell Item
             </button>
-          </div>
-
-          <!-- Mobile quick-action panels (hidden on desktop) -->
-          <div class="dash-mobile-actions" style="display:flex;gap:0.5rem;width:100%">
-
-            <!-- Left: Show My (1x2) -->
-            <div style="flex:1;border:1.5px solid var(--accent);border-radius:9px;padding:0.4rem 0.35rem">
-              <div style="font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);margin-bottom:0.3rem;text-align:center">Show My:</div>
-              <div style="display:flex;flex-direction:column;gap:0.3rem">
-                <button onclick="showPage('browse', document.getElementById('mnav-browse')); filterOwned();" style="padding:0.55rem 0.3rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.72rem;font-weight:700;cursor:pointer;text-align:center;line-height:1.2">My Collection</button>
-                <button onclick="showPage('want', document.getElementById('mnav-want')); buildWantPage();" style="padding:0.55rem 0.3rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.72rem;font-weight:700;cursor:pointer;text-align:center;line-height:1.2">My Want List</button>
-              </div>
-            </div>
-
-            <!-- Right: Add To (2x2) -->
-            <div style="flex:2;border:1.5px solid var(--accent);border-radius:9px;padding:0.4rem 0.35rem">
-              <div style="font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);margin-bottom:0.3rem;text-align:center">Add to:</div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem">
-                <button onclick="startWizardFor('collection')" style="padding:0.55rem 0.3rem;border-radius:7px;border:1.5px solid var(--accent);color:var(--accent);background:rgba(232,64,28,0.12);font-family:var(--font-body);font-size:0.72rem;font-weight:700;cursor:pointer;text-align:center;line-height:1.2">My Collection</button>
-                <button onclick="startWizardFor('want')" style="padding:0.55rem 0.3rem;border-radius:7px;border:1.5px solid #2980b9;color:#2980b9;background:rgba(41,128,185,0.12);font-family:var(--font-body);font-size:0.72rem;font-weight:700;cursor:pointer;text-align:center;line-height:1.2">My Want List</button>
-                <button onclick="startWizardFor('forsale')" style="padding:0.55rem 0.3rem;border-radius:7px;border:1.5px solid #e67e22;color:#e67e22;background:rgba(230,126,34,0.12);font-family:var(--font-body);font-size:0.72rem;font-weight:700;cursor:pointer;text-align:center;line-height:1.2">For Sale List</button>
-                <button onclick="startWizardFor('sold')" style="padding:0.55rem 0.3rem;border-radius:7px;border:1.5px solid #2ecc71;color:#2ecc71;background:rgba(46,204,113,0.12);font-family:var(--font-body);font-size:0.72rem;font-weight:700;cursor:pointer;text-align:center;line-height:1.2">Sold List</button>
-              </div>
-            </div>
 
           </div>
         </div>
@@ -987,6 +962,34 @@ document.addEventListener('touchmove', function(){}, {passive: true});
   </div>
 </div>
 
+
+<!-- ── Identify by Photo Modal ── -->
+<div class="modal-overlay" id="identify-modal" style="z-index:9100">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <div class="modal-title">🔍 Identify by Photo</div>
+      <button class="modal-close" onclick="closeIdentify()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:1.25rem">
+      <p style="font-size:0.88rem;color:var(--text-mid);line-height:1.6;margin-bottom:1rem">
+        Use Google Lens to photograph the item or its box. It will identify the item number for you — then paste it below.
+      </p>
+      <button onclick="openGoogleLens()" style="width:100%;padding:0.65rem 1rem;border-radius:8px;border:1.5px solid var(--gold);background:rgba(212,168,67,0.1);color:var(--gold);font-family:var(--font-body);font-size:0.9rem;font-weight:700;cursor:pointer;margin-bottom:1rem;display:flex;align-items:center;justify-content:center;gap:0.5rem">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Open Google Lens
+      </button>
+      <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:0.5rem">Then paste or type the item number here:</div>
+      <input id="identify-manual-input" type="text" placeholder="e.g. 736 or 2046W"
+        style="width:100%;padding:0.55rem 0.75rem;border-radius:8px;border:1.5px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font-mono);font-size:1rem;outline:none;box-sizing:border-box;margin-bottom:1rem"
+        oninput="this.value=this.value.toUpperCase()"
+        onkeydown="if(event.key==='Enter') useIdentifiedItem()">
+      <div style="display:flex;gap:0.5rem;justify-content:flex-end">
+        <button onclick="closeIdentify()" style="padding:0.45rem 1rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Cancel</button>
+        <button onclick="useIdentifiedItem()" style="padding:0.45rem 1.1rem;border-radius:7px;border:none;background:var(--accent);color:#fff;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Use This Number →</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script src="./app.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
