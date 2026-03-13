@@ -4533,7 +4533,113 @@ function addFromBrowse(idx) {
 }
 
 // ── ITEM MODAL ──────────────────────────────────────────────────
+function _buildItemModal() {
+  if (document.getElementById('item-modal')) return;
+  var overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'item-modal';
+  overlay.onclick = function(e) { if (e.target === overlay) closeModal(); };
+  overlay.innerHTML =
+    '<div class="modal">' +
+      '<div class="modal-header">' +
+        '<div>' +
+          '<div class="modal-item-num" id="modal-item-num"></div>' +
+          '<div class="modal-title" id="modal-title"></div>' +
+          '<div class="modal-subtitle" id="modal-subtitle"></div>' +
+        '</div>' +
+        '<button class="btn-close" onclick="closeModal()">&#x2715;</button>' +
+      '</div>' +
+      '<div class="modal-body">' +
+        '<div id="box-only-prompt" style="display:none;background:rgba(201,146,42,0.1);border:1px solid var(--accent2);border-radius:10px;padding:0.85rem 1rem;align-items:center;justify-content:space-between;gap:1rem">' +
+          '<div>' +
+            '<div style="font-weight:600;font-size:0.875rem;color:var(--accent2)">&#x1F4E6; Box without item info</div>' +
+            '<div style="font-size:0.8rem;color:var(--text-mid);margin-top:0.2rem">This entry has a box but no item details. Want to add the item info?</div>' +
+          '</div>' +
+          '<button onclick="fillItemFromBoxRow()" class="btn btn-primary" style="font-size:0.88rem;padding:0.6rem 1rem;white-space:nowrap">Add Item Info</button>' +
+        '</div>' +
+        '<div>' +
+          '<div class="section-title" style="margin-bottom:0.75rem">Reference Information</div>' +
+          '<div class="info-grid">' +
+            '<div class="info-field"><label>Item Type</label><div class="info-val" id="mi-type"></div></div>' +
+            '<div class="info-field"><label>Year Produced</label><div class="info-val" id="mi-year"></div></div>' +
+            '<div class="info-field"><label>Road Name</label><div class="info-val" id="mi-road"></div></div>' +
+            '<div class="info-field"><label>Variation</label><div class="info-val" id="mi-var"></div></div>' +
+            '<div class="info-field"><label>Est. Market Value</label><div class="info-val market-val" id="mi-market"></div></div>' +
+            '<div class="info-field"><label>COTT Reference</label><div class="info-val" id="mi-ref"></div></div>' +
+          '</div>' +
+          '<div id="mi-desc-wrap" style="margin-top:0.75rem"><div class="desc-block" id="mi-desc"></div></div>' +
+          '<div id="mi-varDesc-wrap" style="margin-top:0.5rem;display:none">' +
+            '<div style="font-size:0.68rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.3rem">Variation Notes</div>' +
+            '<div class="desc-block" id="mi-varDesc"></div>' +
+          '</div>' +
+        '</div>' +
+        '<div>' +
+          '<div class="form-section-title" style="margin-bottom:0.75rem">Your Collection Data</div>' +
+          '<div style="margin-bottom:0.85rem">' +
+            '<label style="font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);display:block;margin-bottom:0.4rem">Status</label>' +
+            '<div style="display:flex;gap:0.5rem">' +
+              '<button class="status-btn" id="status-want" onclick="setStatus(\'Want\')" style="flex:1;padding:0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body);font-size:0.85rem;transition:all 0.15s">Want</button>' +
+              '<button class="status-btn" id="status-owned" onclick="setStatus(\'Owned\')" style="flex:1;padding:0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body);font-size:0.85rem;transition:all 0.15s">Owned</button>' +
+              '<button class="status-btn" id="status-forsale" onclick="setStatus(\'ForSale\')" style="flex:1;padding:0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body);font-size:0.85rem;transition:all 0.15s">For Sale</button>' +
+              '<button class="status-btn" id="status-sold" onclick="setStatus(\'Sold\')" style="flex:1;padding:0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body);font-size:0.85rem;transition:all 0.15s">Sold</button>' +
+            '</div>' +
+          '</div>' +
+          '<div id="sold-fields" style="display:none;margin-bottom:0.75rem">' +
+            '<div class="price-row">' +
+              '<div class="form-field"><label>Sale Price ($)</label><input type="number" id="fc-sale-price" placeholder="0.00" min="0" step="0.01"></div>' +
+              '<div class="form-field"><label>Date Sold</label><input type="date" id="fc-date-sold"></div>' +
+            '</div>' +
+          '</div>' +
+          '<div id="forsale-fields" style="display:none;margin-bottom:0.75rem">' +
+            '<div class="price-row">' +
+              '<div class="form-field"><label>Asking Price ($)</label><input type="number" id="fc-asking-price" placeholder="0.00" min="0" step="0.01"></div>' +
+              '<div class="form-field"><label>Date Listed</label><input type="date" id="fc-date-listed"></div>' +
+            '</div>' +
+          '</div>' +
+          '<div id="want-fields" style="display:none;margin-bottom:0.75rem">' +
+            '<div class="form-grid">' +
+              '<div class="form-field"><label>Priority</label><select id="fc-want-priority"><option value="High">High</option><option value="Medium" selected>Medium</option><option value="Low">Low</option></select></div>' +
+              '<div class="form-field"><label>Expected Price ($)</label><input type="number" id="fc-want-price" placeholder="0.00" min="0" step="0.01"></div>' +
+            '</div>' +
+            '<div class="form-field full" style="margin-top:0.5rem"><label>Notes</label><input type="text" id="fc-want-notes" placeholder="Why you want it, where to find it\u2026"></div>' +
+          '</div>' +
+          '<div id="collection-form" style="display:none">' +
+            '<div class="form-grid">' +
+              '<div class="form-field"><label>Copy #</label><select id="fc-copy"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option></select></div>' +
+              '<div class="form-field"><label>All Original?</label><select id="fc-original"><option value="Yes">Yes</option><option value="No">No</option><option value="Unknown">Unknown</option></select></div>' +
+            '</div>' +
+            '<div class="form-field" style="margin-top:0.75rem">' +
+              '<label>Condition (1\u201310)</label>' +
+              '<div class="condition-display">' +
+                '<div class="condition-num" id="cond-display">7</div>' +
+                '<input type="range" min="1" max="10" value="7" id="fc-condition" oninput="document.getElementById(\'cond-display\').textContent=this.value">' +
+              '</div>' +
+            '</div>' +
+            '<div class="price-row" style="margin-top:0.75rem">' +
+              '<div class="form-field"><label>Item Only Price ($)</label><input type="number" id="fc-price-item" placeholder="0.00" min="0" step="0.01"></div>' +
+              '<div class="form-field"><label>Box Only Price ($)</label><input type="number" id="fc-price-box" placeholder="0.00" min="0" step="0.01"></div>' +
+              '<div class="form-field"><label>Item+Box Complete ($)</label><input type="number" id="fc-price-complete" placeholder="0.00" min="0" step="0.01"></div>' +
+            '</div>' +
+            '<div class="form-grid" style="margin-top:0.75rem">' +
+              '<div class="form-field"><label>Has Box?</label><select id="fc-has-box"><option value="Yes">Yes</option><option value="No">No</option></select></div>' +
+              '<div class="form-field"><label>Box Condition (1\u201310)</label><input type="number" id="fc-box-cond" min="1" max="10" placeholder="\u2014"></div>' +
+            '</div>' +
+            '<div class="form-field full" style="margin-top:0.75rem"><label>Item Photo Link (Google Photos)</label><input type="url" id="fc-photo-item" placeholder="https://photos.google.com/\u2026"></div>' +
+            '<div class="form-field full" style="margin-top:0.5rem"><label>Box Photo Link (Google Photos)</label><input type="url" id="fc-photo-box" placeholder="https://photos.google.com/\u2026"></div>' +
+            '<div class="form-field full" style="margin-top:0.5rem"><label>Notes</label><textarea id="fc-notes" placeholder="Any personal notes about this item\u2026"></textarea></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="modal-footer">' +
+        '<button class="btn btn-secondary" onclick="closeModal()">Cancel</button>' +
+        '<button class="btn btn-primary" onclick="saveItem()">Save to Collection</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+}
+
 function openItem(idx) {
+  _buildItemModal();
   const item = state.masterData[idx];
   state.currentItem = { item, idx };
   // Find by prefix since key now includes row number
