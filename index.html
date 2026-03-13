@@ -867,35 +867,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
 
 <!-- sold-modal removed — sell flow handled inline by app.js -->
 
-<!-- ══ ADD ITEM WIZARD ══════════════════════════════════════════ -->
-<div class="modal-overlay" id="wizard-modal" onclick="closeWizardOnOverlay(event)">
-  <div class="modal" style="max-width:520px;height:580px;display:flex;flex-direction:column;overflow:hidden">
-    <div class="modal-header">
-      <div>
-        <div class="modal-item-num" id="wizard-step-label"></div>
-        <div class="modal-title" id="wizard-title"></div>
-      </div>
-      <button class="btn-close" onclick="closeWizard()">✕</button>
-    </div>
-
-    <!-- Progress bar -->
-    <div style="padding:0 1.5rem;padding-top:0.75rem">
-      <div style="background:var(--border);border-radius:4px;height:4px">
-        <div id="wizard-progress" style="height:100%;border-radius:4px;background:var(--accent);transition:width 0.3s ease;width:0%"></div>
-      </div>
-    </div>
-
-    <div class="modal-body" id="wizard-body" style="flex:1;overflow-y:auto;min-height:0">
-    </div>
-
-    <div class="modal-footer">
-      <button class="btn btn-secondary" id="wizard-back-btn" onclick="wizardBack()" style="display:none">← Back</button>
-      <button class="btn btn-secondary" onclick="closeWizard()">Cancel</button>
-      <button class="btn btn-primary" id="wizard-next-btn" onclick="wizardNext()">Next →</button>
-    </div>
-  </div>
-</div>
-
+<!-- wizard-modal is built dynamically by wizard.js -->
 <!-- ══ SCRIPTS ══════════════════════════════════════════════════ -->
 
 <!-- Help Widget -->
