@@ -1406,6 +1406,15 @@ async function loadAllData() {
     buildApp();
     showOnboarding();
     if (typeof vaultInit === 'function') vaultInit();
+    // Re-write config after every successful load so all devices can always find the Sheet ID
+    if (state.personalSheetId) {
+      driveWriteConfig({
+        personalSheetId: state.personalSheetId,
+        vaultId: driveCache.vaultId || '',
+        photosId: driveCache.photosId || '',
+        soldPhotosId: driveCache.soldPhotosId || '',
+      }).catch(e => console.warn('Config refresh:', e));
+    }
   } catch(e) {
     showToast('Load error: ' + e.message);
     const tb = document.getElementById('browse-tbody');
