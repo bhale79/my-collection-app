@@ -608,7 +608,7 @@ function showOnboarding() {
   ov.id = 'onboarding-overlay';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,20,0.92);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
   ov.innerHTML = '<div style="background:var(--surface);border-radius:18px;max-width:380px;width:100%;padding:2rem;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5)">'
-    + '<div style="font-size:3rem;margin-bottom:0.75rem">🚂</div>'
+    + '<div style="margin-bottom:0.75rem;display:flex;justify-content:center"><img src="' + _RSV_PLACEHOLDER_PNG + '" style="width:90px;height:auto;opacity:0.9;border-radius:6px"></div>'
     + '<div style="font-family:var(--font-head);font-size:1.5rem;font-weight:700;margin-bottom:0.5rem;color:var(--text)">Welcome to <span style=\"color:var(--accent)\">My Collection App</span></div>'
     + '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.7;margin-bottom:1.5rem">Your personal postwar Lionel collection manager. Here\'s how it works:</div>'
     + '<div style="display:flex;flex-direction:column;gap:0.75rem;text-align:left;margin-bottom:1.5rem">'
@@ -2475,9 +2475,12 @@ const PANEL_CATALOG = [
 
 // Shared row renderer for all panels
 function _panelRow(icon, itemHtml, name, meta, onclick, photoUrl, extraBadge) {
+  const _placeholderImg = (typeof _RSV_PLACEHOLDER_PNG !== 'undefined')
+    ? '<img src="' + _RSV_PLACEHOLDER_PNG + '" style="width:32px;height:32px;object-fit:cover;border-radius:5px;flex-shrink:0;border:1px solid var(--border);opacity:0.75">'
+    : '<div style="width:32px;height:32px;border-radius:5px;background:var(--surface2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1rem">' + icon + '</div>';
   const thumb = photoUrl
     ? '<img src="' + photoUrl + '" style="width:32px;height:32px;object-fit:cover;border-radius:5px;flex-shrink:0;border:1px solid var(--border)" onerror="this.style.display=\'none\'">'
-    : '<div style="width:32px;height:32px;border-radius:5px;background:var(--surface2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1rem">' + icon + '</div>';
+    : (icon === '🚂' ? _placeholderImg : '<div style="width:32px;height:32px;border-radius:5px;background:var(--surface2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1rem">' + icon + '</div>');
   return '<div onclick="' + onclick + '" class="dash-row-hover" style="display:flex;align-items:center;gap:0.55rem;padding:0.45rem 0;border-bottom:1px solid var(--border);cursor:pointer">'
     + thumb
     + '<div style="flex:1;min-width:0">'
