@@ -1525,7 +1525,7 @@ async function loadAllData() {
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '11';
+  const _CACHE_VER = '12';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
@@ -1540,8 +1540,8 @@ async function loadMasterData() {
     try {
       state.masterData = JSON.parse(cached);
       // Refresh in background without blocking
-      sheetsGet(state.masterSheetId, 'Master Inventory!A2:K').then(res => {
-        if (!res.values) return sheetsGet(state.masterSheetId, 'Sheet1!A2:K');
+      sheetsGet(state.masterSheetId, 'Master Inventory!A2:M').then(res => {
+        if (!res.values) return sheetsGet(state.masterSheetId, 'Sheet1!A2:M');
         return res;
       }).then(res => {
         if (res && res.values) {
@@ -1555,9 +1555,9 @@ async function loadMasterData() {
     } catch(e) {}
   }
 
-  let res = await sheetsGet(state.masterSheetId, 'Master Inventory!A2:K');
+  let res = await sheetsGet(state.masterSheetId, 'Master Inventory!A2:M');
   if (!res.values) {
-    res = await sheetsGet(state.masterSheetId, 'Sheet1!A2:K');
+    res = await sheetsGet(state.masterSheetId, 'Sheet1!A2:M');
   }
   const rows = res.values || [];
   parseMasterRows(rows);
@@ -1567,17 +1567,19 @@ async function loadMasterData() {
 
 function parseMasterRows(rows) {
   const mapped = rows.map(r => ({
-    itemNum:     r[0]  || '',
-    itemType:    r[1]  || '',
-    subType:     r[2]  || '',
-    roadName:    r[3]  || '',
-    description: r[4]  || '',
-    yearProd:    r[5]  || '',
-    variation:   r[6]  || '',
-    varDesc:     r[7]  || '',
-    refLink:     r[8]  || '',
-    notes:       r[9]  || '',
-    marketVal:   r[10] || '',
+    itemNum:      r[0]  || '',
+    itemType:     r[1]  || '',
+    subType:      r[2]  || '',
+    unit:         r[3]  || '',   // A or B (new col D)
+    poweredDummy: r[4]  || '',   // P or D (new col E)
+    roadName:     r[5]  || '',
+    description:  r[6]  || '',
+    yearProd:     r[7]  || '',
+    variation:    r[8]  || '',
+    varDesc:      r[9]  || '',
+    refLink:      r[10] || '',
+    notes:        r[11] || '',
+    marketVal:    r[12] || '',
   }));
   // Deduplicate by itemNum+variation (keep first occurrence)
   const seen = new Set();
