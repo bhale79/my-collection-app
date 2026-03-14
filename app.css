@@ -754,6 +754,9 @@
     /* Filters bar on mobile */
     .filter-bar { gap: 0.4rem; flex-wrap: wrap; }
     .filter-bar input { font-size: 16px !important; } /* prevent iOS zoom */
+    /* My Collection mobile: hide road + quick-entry filters, keep type + search */
+    #filter-road { display: none !important; }
+    #filter-quick-inline { display: none !important; }
 
     /* Wizard modal — full screen on mobile */
     .wizard-modal-inner {
