@@ -224,6 +224,8 @@ function tutShowHelpBtn() {
 function tutCheckAutoLaunch() {
   const seen = localStorage.getItem('lv_tut_seen');
   setTimeout(() => {
+    // Don't fire tutorial over the onboarding welcome screen
+    if (document.getElementById('onboarding-overlay')) return;
     tutShowHelpBtn();
     if (!seen) { _TUT.start('add-item'); }
   }, 1200);
