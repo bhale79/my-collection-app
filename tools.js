@@ -40,6 +40,16 @@ function buildToolsPage() {
         '<button onclick="runSetBuilder()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #0891b2;background:rgba(8,145,178,0.1);color:#0891b2;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan Sets</button>' +
       '</div>' +
       '<div id="set-builder-results" style="margin-top:0.5rem"></div>' +
+    '</div>' +
+    // Companion Suggester card
+    '<div class="tools-card">' +
+      '<div class="tools-card-title">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3a9e68" stroke-width="2"><circle cx="9" cy="9" r="4"/><path d="M20 20c0-3.31-2.69-6-6-6H9a6 6 0 0 0-6 6"/><path d="M19 8l2 2-2 2"/><path d="M15 10h6"/></svg>' +
+        'Companion Suggester' +
+      '</div>' +
+      '<div class="tools-card-desc">Looks at engines and diesels you own and suggests matching companions — tenders and B units — that are not in your collection yet. Add any missing piece straight to your Want List.</div>' +
+      '<button onclick="runCompanionSuggester()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #3a9e68;background:rgba(58,158,104,0.1);color:#3a9e68;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan My Engines</button>' +
+      '<div id="companion-suggester-results" style="margin-top:1rem"></div>' +
     '</div>';
 }
 
@@ -420,5 +430,131 @@ async function toolCreateSet(idx) {
   } catch(e) {
     showToast('Error linking set — try again', 3000, true);
     if (btn) { btn.textContent = 'Link Owned Pieces as Set ' + r.set.setNum; btn.disabled = false; }
+  }
+}
+
+// ── COMPANION SUGGESTER ──────────────────────────────────────────────
+function runCompanionSuggester() {
+  var out = document.getElementById('companion-suggester-results');
+  if (!out) return;
+  out.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem">Scanning…</div>';
+
+  if (!state.companionData || !state.companionData.length) {
+    out.innerHTML = '<div style="padding:0.75rem;background:rgba(240,80,8,0.08);border:1px solid rgba(240,80,8,0.25);border-radius:8px;color:var(--accent);font-size:0.85rem">Companion data not loaded yet — try again in a moment.</div>';
+    return;
+  }
+
+  var norm = function(n) { return (n || '').toString().trim().toUpperCase(); };
+
+  // Build a set of owned item numbers (normalised)
+  var ownedNums = new Set(
+    Object.values(state.personalData)
+      .filter(function(pd) { return pd.owned; })
+      .map(function(pd) { return norm(pd.itemNum); })
+  );
+
+  // Build a set of wanted item numbers
+  var wantedNums = new Set(
+    Object.keys(state.wantData).map(function(k) { return norm(k.split('|')[0]); })
+  );
+
+  // Group companion suggestions by engine
+  var engineMap = {};
+
+  state.companionData.forEach(function(c) {
+    var engineKey = norm(c.engineNum);
+    if (!ownedNums.has(engineKey)) return;             // don't own this engine — skip
+    if (ownedNums.has(norm(c.companionNum))) return;   // already own the companion — skip
+
+    if (!engineMap[engineKey]) engineMap[engineKey] = { engineNum: c.engineNum, suggestions: [] };
+
+    // Check if this companion is already on the want list
+    var alreadyWanted = wantedNums.has(norm(c.companionNum));
+
+    engineMap[engineKey].suggestions.push({
+      companionNum:  c.companionNum,
+      companionType: c.companionType,
+      engineVar:     c.engineVar,
+      alreadyWanted: alreadyWanted,
+    });
+  });
+
+  var engines = Object.values(engineMap).filter(function(e) { return e.suggestions.length > 0; });
+
+  if (!engines.length) {
+    out.innerHTML = '<div style="padding:0.75rem;background:rgba(58,158,104,0.08);border:1px solid rgba(58,158,104,0.25);border-radius:8px;color:#4dc880;font-size:0.85rem">✓ All engines in your collection have their companions — nothing missing!</div>';
+    return;
+  }
+
+  var html = '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.75rem">' + engines.length + ' engine' + (engines.length > 1 ? 's' : '') + ' with missing companions:</div>';
+
+  engines.forEach(function(e, idx) {
+    // Get road name from master data
+    var masterEntry = state.masterData && state.masterData.find(function(m) {
+      return norm(m.itemNum) === norm(e.engineNum);
+    });
+    var roadName = masterEntry ? (masterEntry.roadName || '') : '';
+    var engineLabel = '<strong>' + e.engineNum + '</strong>' + (roadName ? ' <span style="color:var(--text-dim);font-size:0.8rem">· ' + roadName + '</span>' : '');
+
+    html += '<div class="tools-result-row" style="flex-direction:column;align-items:flex-start;gap:0.5rem" id="comp-engine-' + idx + '">' +
+      '<div style="font-size:0.88rem;color:var(--text);display:flex;align-items:center;gap:0.5rem">' +
+        '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#3a9e68" stroke-width="2" style="flex-shrink:0"><circle cx="9" cy="9" r="4"/><path d="M20 20c0-3.31-2.69-6-6-6H9a6 6 0 0 0-6 6"/></svg>' +
+        engineLabel +
+      '</div>';
+
+    // Deduplicate suggestions by companion number
+    var seen = {};
+    var dedupedSuggestions = e.suggestions.filter(function(s) {
+      if (seen[norm(s.companionNum)]) return false;
+      seen[norm(s.companionNum)] = true;
+      return true;
+    });
+
+    dedupedSuggestions.forEach(function(s, sIdx) {
+      // Get companion road name/description from master
+      var compMaster = state.masterData && state.masterData.find(function(m) {
+        return norm(m.itemNum) === norm(s.companionNum);
+      });
+      var compDesc = compMaster ? (compMaster.roadName || compMaster.subType || '') : '';
+      var typeLabel = s.companionType === 'B Unit' ? 'B Unit' : 'Tender';
+      var typeColor = s.companionType === 'B Unit' ? '#8b5cf6' : '#0891b2';
+
+      html += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.35rem 0.5rem;background:var(--surface);border-radius:7px;width:100%;box-sizing:border-box">' +
+        '<span style="font-family:var(--font-mono);font-size:0.85rem;color:var(--text)">' + s.companionNum + '</span>' +
+        '<span style="font-size:0.75rem;color:' + typeColor + ';border:1px solid ' + typeColor + ';border-radius:4px;padding:0.1rem 0.4rem;flex-shrink:0">' + typeLabel + '</span>' +
+        (compDesc ? '<span style="font-size:0.78rem;color:var(--text-dim);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + compDesc + '</span>' : '<span style="flex:1"></span>') +
+        (s.alreadyWanted
+          ? '<span style="font-size:0.75rem;color:var(--gold);white-space:nowrap;flex-shrink:0">★ On want list</span>'
+          : '<button onclick="companionAddToWantList(' + JSON.stringify(s.companionNum) + ',' + idx + ',' + sIdx + ')" style="margin-left:auto;padding:0.25rem 0.6rem;border-radius:6px;border:1px solid var(--gold);background:rgba(212,168,67,0.08);color:var(--gold);font-family:var(--font-body);font-size:0.75rem;cursor:pointer;white-space:nowrap;flex-shrink:0">+ Want List</button>'
+        ) +
+      '</div>';
+    });
+
+    html += '</div>';
+  });
+
+  window._companionEngines = engines;
+  out.innerHTML = html;
+}
+
+async function companionAddToWantList(companionNum, engineIdx, suggIdx) {
+  var norm = function(n) { return (n || '').toString().trim().toUpperCase(); };
+
+  // Look up master data for this companion
+  var master = state.masterData && state.masterData.find(function(m) {
+    return norm(m.itemNum) === norm(companionNum);
+  });
+  var variation = master ? (master.variation || '') : '';
+  var wantRow = [companionNum, variation, '', '', 'Added via Companion Suggester'];
+
+  try {
+    await sheetsAppend(state.personalSheetId, 'Want List!A:A', [wantRow]);
+    var wantKey = companionNum + '|' + variation;
+    state.wantData[wantKey] = { itemNum: companionNum, variation: variation, notes: wantRow[4] };
+    showToast('★ ' + companionNum + ' added to Want List', 2500);
+    // Refresh the display
+    runCompanionSuggester();
+  } catch(e) {
+    showToast('Could not add to want list — try again', 3000, true);
   }
 }
