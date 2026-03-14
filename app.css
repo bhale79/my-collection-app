@@ -386,6 +386,50 @@
   .owned-badge.no   { background: var(--surface2); color: var(--text-dim); font-family: var(--font-head); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
   .owned-badge.want { background: rgba(212,168,67,0.15); color: #e8c060; border: 1px solid rgba(212,168,67,0.3); font-family: var(--font-head); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
   .owned-badge.forsale { background: rgba(230,126,34,0.15); color: #e67e22; border: 1px solid rgba(230,126,34,0.3); font-family: var(--font-head); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
+
+  /* Set membership badge — teal, distinct from purple group badge */
+  .badge-set {
+    display: inline-flex; align-items: center; gap: 0.25rem;
+    padding: 0.15rem 0.5rem; border-radius: 10px;
+    background: rgba(8,145,178,0.15); color: #0891b2;
+    border: 1px solid rgba(8,145,178,0.35);
+    font-family: var(--font-head); font-size: 0.6rem; font-weight: 600;
+    letter-spacing: 0.07em; text-transform: uppercase; white-space: nowrap;
+  }
+
+  /* Tools page */
+  .tools-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 1.5rem; margin-bottom: 1.5rem;
+  }
+  .tools-card-title {
+    font-family: var(--font-head); font-size: 1rem; font-weight: 700;
+    letter-spacing: 0.05em; text-transform: uppercase; color: var(--text);
+    margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.5rem;
+  }
+  .tools-card-desc { font-size: 0.85rem; color: var(--text-dim); margin-bottom: 1rem; line-height: 1.5; }
+  .tools-result-row {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.65rem 0.75rem; border-radius: 9px;
+    background: var(--surface2); border: 1px solid var(--border);
+    margin-bottom: 0.5rem;
+  }
+  .tools-set-row {
+    border: 1px solid var(--border); border-radius: 10px;
+    margin-bottom: 0.6rem; overflow: hidden;
+  }
+  .tools-set-header {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.7rem 0.9rem; cursor: pointer;
+    background: var(--surface2); transition: background 0.15s;
+  }
+  .tools-set-header:hover { background: var(--surface); }
+  .tools-set-body { padding: 0.75rem 0.9rem; display: none; border-top: 1px solid var(--border); }
+  .tools-set-body.open { display: block; }
+  .tools-progress-bar {
+    flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden;
+  }
+  .tools-progress-fill { height: 100%; background: #0891b2; border-radius: 3px; transition: width 0.3s; }
   .condition-pip {
     display: inline-block; width: 8px; height: 8px; border-radius: 50%;
     margin-right: 0.25rem;
