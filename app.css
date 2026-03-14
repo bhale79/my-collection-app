@@ -719,7 +719,7 @@
     transition: color 0.15s; border-radius: 8px;
   }
   .mobile-nav-item.active { color: var(--accent); }
-  .mobile-add-btn { color: var(--text-dim) !important; padding-top: 0 !important; }
+
 
   @media (max-width: 640px) {
     /* Layout */
