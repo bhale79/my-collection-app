@@ -459,10 +459,20 @@ function onTokenReceived(resp) {
       if (config.soldPhotosId) { driveCache.soldPhotosId = config.soldPhotosId; localStorage.setItem('lv_sold_photos_id', config.soldPhotosId); }
       loadAllData();
     } else {
-      // No config yet — check localStorage then create if needed
+      // No config found — check localStorage before creating anything new
       state.personalSheetId = localStorage.getItem('lv_personal_id');
       if (!state.personalSheetId) {
-        createPersonalSheet().then(loadAllData);
+        // Only create a new sheet if this is genuinely a first-time setup
+        // (no saved user on this device at all)
+        const savedUser = localStorage.getItem('lv_user');
+        if (!savedUser) {
+          createPersonalSheet().then(loadAllData);
+        } else {
+          // Returning user but no sheet ID — Drive config read failed after retries
+          // Don't create a blank sheet — show a clear recovery message
+          showToast('Could not find your collection. Please sign out and back in.');
+          hideLoading();
+        }
       } else {
         driveEnsureSetup().catch(e => console.warn('Drive setup:', e));
         loadAllData();
@@ -472,7 +482,13 @@ function onTokenReceived(resp) {
     // Drive read failed — fall back to localStorage
     state.personalSheetId = localStorage.getItem('lv_personal_id');
     if (!state.personalSheetId) {
-      createPersonalSheet().then(loadAllData);
+      const savedUser = localStorage.getItem('lv_user');
+      if (!savedUser) {
+        createPersonalSheet().then(loadAllData);
+      } else {
+        showToast('Could not find your collection. Please sign out and back in.');
+        hideLoading();
+      }
     } else {
       loadAllData();
     }
@@ -1114,7 +1130,9 @@ async function driveMoveToSold(itemNum) {
 
 const CONFIG_FILENAME = 'my-collection-app-config.json';
 
-async function driveReadConfig() {
+async function driveReadConfig(retryCount = 0) {
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY_MS = 2000;
   try {
     // Search for config file in Drive root
     const q = encodeURIComponent(`name='${CONFIG_FILENAME}' and trashed=false`);
@@ -1126,7 +1144,18 @@ async function driveReadConfig() {
       headers: { Authorization: 'Bearer ' + accessToken }
     });
     return await r.json();
-  } catch(e) { console.warn('driveReadConfig error:', e); return null; }
+  } catch(e) {
+    console.warn(`driveReadConfig error (attempt ${retryCount + 1}):`, e);
+    if (retryCount < MAX_RETRIES) {
+      // Show reconnecting message on first retry
+      if (retryCount === 0) showToast('Reconnecting to your collection\u2026');
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+      return driveReadConfig(retryCount + 1);
+    }
+    // All retries failed — show clear message to user
+    showToast('Could not connect to your collection. Try signing out and back in.');
+    return null;
+  }
 }
 
 async function driveWriteConfig(data) {
