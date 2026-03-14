@@ -2260,9 +2260,10 @@ function buildDashboard() {
       }).join('');
       if (activeSlots.length < MAX_CARDS) {
         var nextNull = slots.indexOf(null);
-        html += '<div class="stat-card" id="dash-card-add" style="--card-accent:var(--border,#2a3a5c);cursor:pointer;border-style:dashed;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.3rem;opacity:0.55" onclick="_openCardPopup(' + nextNull + ')" onmouseover="this.style.opacity=\'0.9\'" onmouseout="this.style.opacity=\'0.55\'">'
-          + '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
-          + '<div style="font-size:0.72rem;color:var(--text-dim);font-family:var(--font-body)">Add card</div>'
+        html += '<div style="grid-column:1/-1;text-align:right;padding:0.15rem 0.1rem 0">'
+          + '<button onclick="_openCardPopup(' + nextNull + ')" style="background:none;border:none;color:var(--text-dim);font-size:0.75rem;font-family:var(--font-body);cursor:pointer;padding:0;opacity:0.6;display:inline-flex;align-items:center;gap:0.3rem" onmouseover="this.style.opacity=\'1\'" onmouseout="this.style.opacity=\'0.6\'">'
+          + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
+          + ' Add a stat card</button>'
           + '</div>';
       }
       _statsGrid.innerHTML = html;
