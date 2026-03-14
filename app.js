@@ -3180,12 +3180,12 @@ function renderBrowse() {
       const showLegend = _prefGet('lv_show_coll_legend', 'true') === 'true';
       legendEl.style.display = '';
       legendEl.innerHTML = showLegend
-        ? `<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:nowrap;font-size:0.72rem;color:var(--text-dim);padding:0.4rem 0.6rem;background:var(--surface2);border:1px solid var(--border);border-radius:7px;margin-bottom:0.5rem;overflow:hidden">
-            <span style="font-weight:600;color:var(--text-mid);flex-shrink:0">Icon key:</span>
-            <span style="flex-shrink:0" title="Grouped items">🔗 Grouped</span>
-            <span style="flex-shrink:0" title="Quick entry — details not yet complete">⚡ Quick Entry</span>
-            <span style="flex-shrink:0" title="Has a photo on file">📷 Has Photo</span>
-            <button onclick="event.stopPropagation();_prefSet('lv_show_coll_legend','false');renderBrowse()" style="margin-left:auto;flex-shrink:0;background:none;border:none;color:var(--text-dim);font-size:0.72rem;cursor:pointer;padding:0;text-decoration:underline">Hide</button>
+        ? `<div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:nowrap;font-size:0.68rem;color:var(--text-dim);padding:0.3rem 0.5rem;background:var(--surface2);border:1px solid var(--border);border-radius:7px;margin-bottom:0.5rem;overflow:hidden">
+            <span style="font-weight:600;color:var(--text-mid);flex-shrink:0">Key:</span>
+            <span style="flex-shrink:0">🔗 Grouped</span>
+            <span style="flex-shrink:0">⚡ QE</span>
+            <span style="flex-shrink:0">📷 Photo</span>
+            <button onclick="event.stopPropagation();_prefSet('lv_show_coll_legend','false');renderBrowse()" style="margin-left:auto;flex-shrink:0;background:none;border:none;color:var(--text-dim);font-size:0.68rem;cursor:pointer;padding:0 0.2rem;text-decoration:underline">Hide</button>
           </div>`
         : `<div style="display:flex;justify-content:flex-end;margin-bottom:0.35rem">
             <button onclick="event.stopPropagation();_prefSet('lv_show_coll_legend','true');renderBrowse()" style="background:none;border:none;color:var(--text-dim);font-size:0.72rem;cursor:pointer;padding:0;text-decoration:underline">Show icon key</button>
@@ -3223,23 +3223,29 @@ function renderBrowse() {
       const _pdKey = findPDKey(item.itemNum, item.variation);
       const _pdRow = pd && pd.row ? pd.row : 0;
       const _ownedActions = state.filters.owned && isOwned ? `
-        <div style="display:flex;gap:0.35rem;margin-top:0.6rem;flex-wrap:wrap">
-          <button onclick="event.stopPropagation();collectionActionForSale(${globalIdx},'${item.itemNum}','${_escVar}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.75rem;cursor:pointer;border:1.5px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);font-weight:600">${isForSale ? '🏷️ Update Listing' : '🏷️ For Sale'}</button>
-          <button onclick="event.stopPropagation();collectionActionSold(${globalIdx},'${item.itemNum}','${_escVar}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.75rem;cursor:pointer;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600">💰 Sold It</button>
-          <button onclick="event.stopPropagation();showAddToUpgradeModal('${item.itemNum}','${_escVar}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.75rem;cursor:pointer;border:1.5px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600">↑ Upgrade</button>
-          <button onclick="event.stopPropagation();removeCollectionItem('${item.itemNum}','${_escVar}',${_pdRow})" style="flex:0 0 auto;padding:0.4rem 0.6rem;border-radius:7px;font-size:0.75rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>
+        <div style="display:flex;gap:0.3rem;margin-top:0.5rem">
+          <button onclick="event.stopPropagation();collectionActionForSale(${globalIdx},'${item.itemNum}','${_escVar}')" style="flex:1;padding:0.35rem 0.2rem;border-radius:7px;font-size:0.7rem;cursor:pointer;border:1.5px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);font-weight:600;white-space:nowrap">${isForSale ? '🏷️ Listed' : '🏷️ Sale'}</button>
+          <button onclick="event.stopPropagation();collectionActionSold(${globalIdx},'${item.itemNum}','${_escVar}')" style="flex:1;padding:0.35rem 0.2rem;border-radius:7px;font-size:0.7rem;cursor:pointer;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600;white-space:nowrap">💰 Sold</button>
+          <button onclick="event.stopPropagation();showAddToUpgradeModal('${item.itemNum}','${_escVar}')" style="flex:1;padding:0.35rem 0.2rem;border-radius:7px;font-size:0.7rem;cursor:pointer;border:1.5px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;white-space:nowrap">↑ Upgrade</button>
+          <button onclick="event.stopPropagation();removeCollectionItem('${item.itemNum}','${_escVar}',${_pdRow})" style="flex:0 0 auto;padding:0.35rem 0.5rem;border-radius:7px;font-size:0.7rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);white-space:nowrap">✕</button>
         </div>` : '';
+      // For My Collection view, strip tender/set info from sub-line to keep it one line
+      const _subLine = state.filters.owned
+        ? [item.itemType, item.yearProd].filter(Boolean).join(' · ')
+        : [item.itemType, item.yearProd].filter(Boolean).join(' · ') + (pd?.matchedTo ? ' · ' + (isTender(item.itemNum)?'🚂':'🚃') + ' ' + pd.matchedTo : '') + (pd?.setId ? ' · 🔗 ' + pd.setId.split('-').slice(0,2).join('-') : '');
       return `<div class="browse-card" onclick="browseRowClick(event,${globalIdx})">
-        <div class="browse-card-left">
-          <div class="browse-card-num">${item.itemNum}${item.variation ? ' <span style="font-size:0.75rem;color:var(--text-dim)">' + item.variation + '</span>' : ''}</div>
-          <div class="browse-card-name">${item.roadName || item.itemType || '—'}</div>
-          <div class="browse-card-sub">${[item.itemType, item.yearProd].filter(Boolean).join(' · ')}${pd?.matchedTo ? ' · <span style="color:var(--accent2)">' + (isTender(item.itemNum)?'🚂':'🚃') + ' ' + pd.matchedTo + '</span>' : ''}${pd?.setId ? ' · <span style="color:#a855f7;font-size:0.7rem">🔗 ' + pd.setId.split('-').slice(0,2).join('-') + '</span>' : ''}</div>
-        </div>
-        <div class="browse-card-right">
-          <span class="owned-badge ${badgeClass}">${badgeText}</span>
-          ${cond ? `<span style="font-size:0.75rem"><span class="condition-pip ${condClass}"></span>${cond}</span>` : ''}
-          ${marketVal ? `<span class="market-val" style="font-size:0.78rem">${marketVal}</span>` : ''}
-          <span id="cam-${item.itemNum}-${item.variation||''}-m" style="font-size:0.85rem;display:none" onclick="event.stopPropagation();openPhotoFolder('${item.itemNum}','${pd&&pd.photoItem?pd.photoItem:''}')">📷</span>
+        <div style="display:flex;align-items:center;gap:0.5rem;width:100%;min-width:0">
+          <div style="flex:1;min-width:0">
+            <div class="browse-card-num" style="white-space:nowrap">${item.itemNum}${item.variation ? ' <span style="font-size:0.72rem;color:var(--text-dim)">' + item.variation + '</span>' : ''}</div>
+            <div class="browse-card-name">${item.roadName || item.itemType || '—'}</div>
+            <div class="browse-card-sub" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_subLine}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.2rem;flex-shrink:0">
+            <span class="owned-badge ${badgeClass}">${badgeText}</span>
+            ${cond ? `<span style="font-size:0.72rem"><span class="condition-pip ${condClass}"></span>${cond}</span>` : ''}
+            ${marketVal ? `<span class="market-val" style="font-size:0.72rem">${marketVal}</span>` : ''}
+            <span id="cam-${item.itemNum}-${item.variation||''}-m" style="font-size:0.82rem;display:none" onclick="event.stopPropagation();openPhotoFolder('${item.itemNum}','${pd&&pd.photoItem?pd.photoItem:''}')">📷</span>
+          </div>
         </div>${_ownedActions}
       </div>`;
     } else if (state.filters.owned) {
