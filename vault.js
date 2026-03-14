@@ -534,6 +534,142 @@ function vaultShowToast(message) {
 
 
 // ============================================================
+//  COLLECTOR'S MARKET PAGE
+//  Renders the full feature page into #page-vault
+// ============================================================
+
+function vaultRenderPage() {
+  const el = document.getElementById('page-vault');
+  if (!el) return;
+
+  const isIn = vaultIsOptedIn();
+
+  el.innerHTML = `
+    <div style="max-width:600px;margin:0 auto;padding:24px 16px;font-family:var(--font-body)">
+
+      <div style="font-family:var(--font-head);font-size:1.4rem;color:var(--text);letter-spacing:0.04em;margin-bottom:4px">
+        Collector's Market
+      </div>
+      <div style="font-size:0.78rem;color:var(--accent);font-family:var(--font-head);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:24px">
+        Community Intelligence for Collectors
+      </div>
+
+      <p style="color:var(--text-mid);font-size:0.88rem;line-height:1.75;margin-bottom:24px">
+        The Collector's Market is built entirely from data contributed by collectors like you.
+        The more collectors who participate, the more accurate and valuable it becomes for everyone.
+        All data is submitted anonymously — your name, email, and identity are never attached.
+      </p>
+
+      <!-- Feature cards -->
+      <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:28px">
+
+        <div class="vault-feature-card">
+          <div class="vault-feature-icon">💰</div>
+          <div>
+            <div class="vault-feature-title">User Market Value</div>
+            <div class="vault-feature-desc">
+              The average estimated worth and actual sale prices submitted by collectors across the community.
+              The more contributors, the more accurate the number — real data, not guesswork.
+            </div>
+          </div>
+        </div>
+
+        <div class="vault-feature-card">
+          <div class="vault-feature-icon">📈</div>
+          <div>
+            <div class="vault-feature-title">Buy / Sale Trends</div>
+            <div class="vault-feature-desc">
+              See what's actively being bought and sold across all user collections.
+              Know which items are hot right now and which ones are sitting — useful intel when you're buying or timing a sale.
+            </div>
+          </div>
+        </div>
+
+        <div class="vault-feature-card">
+          <div class="vault-feature-icon">🔍</div>
+          <div>
+            <div class="vault-feature-title">User Rarity</div>
+            <div class="vault-feature-desc">
+              Rarity is calculated from real collection data — how many of an item appear across all collections
+              divided by the number of collectors in the app. As more collectors join, rarity scores become
+              more meaningful.
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Progress bar -->
+      <div id="vault-progress-wrap" style="margin-bottom:28px"></div>
+
+      <!-- What gets submitted -->
+      <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:16px 18px;margin-bottom:28px;border:1px solid var(--border)">
+        <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.1em;font-family:var(--font-head)">What gets submitted</div>
+        <div style="font-size:0.84rem;color:var(--text-mid);line-height:2">
+          ✓ &nbsp;Item number and variation<br>
+          ✓ &nbsp;Condition grade<br>
+          ✓ &nbsp;Your estimated worth<br>
+          ✓ &nbsp;Sold price (if recorded)<br>
+          ✗ &nbsp;<span style="color:var(--text)">Your name, email, or any identifying information — never</span>
+        </div>
+      </div>
+
+      <!-- Opt-in / opt-out -->
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        ${!isIn ? `
+          <button onclick="vaultConfirmOptIn();vaultRenderPage();vaultRenderFloatingBadge()" style="
+            flex:1;padding:12px 20px;border-radius:8px;border:none;
+            background:var(--accent);color:#fff;font-family:var(--font-body);
+            font-size:0.9rem;font-weight:600;cursor:pointer;min-width:160px
+          ">Yes, I'll Contribute</button>
+        ` : `
+          <div style="flex:1;padding:12px 16px;border-radius:8px;background:rgba(58,158,104,0.12);border:1px solid rgba(58,158,104,0.3);color:#3a9e68;font-size:0.88rem;line-height:1.5">
+            ✓ You are contributing anonymously. Thank you — your data helps the whole community.
+          </div>
+          <button onclick="vaultConfirmOptOut()" style="
+            padding:12px 18px;border-radius:8px;
+            border:1px solid var(--border);background:none;
+            color:var(--text-mid);font-family:var(--font-body);
+            font-size:0.85rem;cursor:pointer;white-space:nowrap
+          ">Opt Out &amp; Delete My Data</button>
+        `}
+      </div>
+
+    </div>`;
+
+  // Load contributor count into progress bar
+  vaultLoadContributorCount();
+}
+
+
+// ============================================================
+//  FLOATING BADGE
+//  Small bottom-right pill for users not yet opted in.
+//  Disappears once opted in.
+// ============================================================
+
+function vaultRenderFloatingBadge() {
+  const existing = document.getElementById('vault-float-badge');
+  if (existing) existing.remove();
+
+  // Don't show badge if already opted in
+  if (vaultIsOptedIn()) return;
+
+  const badge = document.createElement('div');
+  badge.id = 'vault-float-badge';
+  badge.className = 'vault-float-badge';
+  badge.innerHTML = `<span style="opacity:0.7">🏪</span> Collector's Market`;
+  badge.onclick = () => {
+    // Navigate to the vault page
+    const btn = document.querySelector('[data-page="vault"]');
+    if (btn) btn.click();
+    badge.remove();
+  };
+  document.body.appendChild(badge);
+}
+
+
+// ============================================================
 //  INIT — called after user logs in successfully
 //  Add this call to the end of your login success handler
 //  in app.js:  vaultInit();
@@ -550,8 +686,8 @@ async function vaultInit() {
   if (vaultIsOptedIn()) {
     // Small delay so app data is fully loaded first
     setTimeout(() => vaultSubmitData(), 3000);
-  } else if (localStorage.getItem(VAULT.KEY_OPTIN) === null) {
-    // First time — show opt-in modal after a short delay
-    setTimeout(() => vaultShowOptInModal(false), 2000);
   }
+
+  // Show floating badge for users who haven't opted in yet
+  vaultRenderFloatingBadge();
 }
