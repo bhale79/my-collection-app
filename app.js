@@ -3216,37 +3216,35 @@ function renderBrowse() {
     const isForSale = !!state.forSaleData[`${item.itemNum}|${item.variation||''}`];
     const badgeClass = isOwned ? (isForSale ? 'forsale' : 'yes') : isWanted ? 'want' : 'no';
     const badgeText  = isOwned ? (isForSale ? '🏷️ For Sale' : '✓ Owned') : isWanted ? '★ Want' : '—';
-    const marketVal  = item.marketVal ? '$' + parseFloat(item.marketVal).toLocaleString() : '';
+    const _mv = parseFloat(item.marketVal);
+    const marketVal  = item.marketVal && !isNaN(_mv) ? '$' + _mv.toLocaleString() : '';
 
     if (isMobile) {
       const _escVar = (item.variation||'').replace(/'/g,"\\'");
       const _pdKey = findPDKey(item.itemNum, item.variation);
       const _pdRow = pd && pd.row ? pd.row : 0;
-      const _ownedActions = state.filters.owned && isOwned ? `
-        <div style="display:flex;gap:0.3rem;margin-top:0.5rem">
-          <button onclick="event.stopPropagation();collectionActionForSale(${globalIdx},'${item.itemNum}','${_escVar}')" style="flex:1;padding:0.35rem 0.2rem;border-radius:7px;font-size:0.7rem;cursor:pointer;border:1.5px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);font-weight:600;white-space:nowrap">${isForSale ? '🏷️ Listed' : '🏷️ Sale'}</button>
-          <button onclick="event.stopPropagation();collectionActionSold(${globalIdx},'${item.itemNum}','${_escVar}')" style="flex:1;padding:0.35rem 0.2rem;border-radius:7px;font-size:0.7rem;cursor:pointer;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600;white-space:nowrap">💰 Sold</button>
-          <button onclick="event.stopPropagation();showAddToUpgradeModal('${item.itemNum}','${_escVar}')" style="flex:1;padding:0.35rem 0.2rem;border-radius:7px;font-size:0.7rem;cursor:pointer;border:1.5px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;white-space:nowrap">↑ Upgrade</button>
-          <button onclick="event.stopPropagation();removeCollectionItem('${item.itemNum}','${_escVar}',${_pdRow})" style="flex:0 0 auto;padding:0.35rem 0.5rem;border-radius:7px;font-size:0.7rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);white-space:nowrap">✕</button>
-        </div>` : '';
-      // For My Collection view, strip tender/set info from sub-line to keep it one line
-      const _subLine = state.filters.owned
-        ? [item.itemType, item.yearProd].filter(Boolean).join(' · ')
-        : [item.itemType, item.yearProd].filter(Boolean).join(' · ') + (pd?.matchedTo ? ' · ' + (isTender(item.itemNum)?'🚂':'🚃') + ' ' + pd.matchedTo : '') + (pd?.setId ? ' · 🔗 ' + pd.setId.split('-').slice(0,2).join('-') : '');
-      return `<div class="browse-card" onclick="browseRowClick(event,${globalIdx})">
+      const _isQE = pd && pd.quickEntry;
+      const _isGrouped = pd && pd.groupId;
+      const _hasPhoto = pd && pd.photoItem;
+      const _statusIcons = (_isGrouped ? '<span title="Grouped item" style="font-size:0.8rem">🔗</span>' : '')
+                         + (_isQE ? '<span title="Quick Entry — details incomplete" style="font-size:0.8rem">⚡</span>' : '')
+                         + (_hasPhoto ? '<span title="Has photo" style="font-size:0.8rem" onclick="event.stopPropagation();openPhotoFolder(\''+item.itemNum+'\',\''+(_hasPhoto||'')+'\')">📷</span>' : '');
+      return `<div class="browse-card" onclick="showItemDetailPage(${globalIdx})" style="cursor:pointer">
         <div style="display:flex;align-items:center;gap:0.5rem;width:100%;min-width:0">
           <div style="flex:1;min-width:0">
-            <div class="browse-card-num" style="white-space:nowrap">${item.itemNum}${item.variation ? ' <span style="font-size:0.72rem;color:var(--text-dim)">' + item.variation + '</span>' : ''}</div>
-            <div class="browse-card-name">${item.roadName || item.itemType || '—'}</div>
-            <div class="browse-card-sub" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_subLine}</div>
+            <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:nowrap">
+              <span class="browse-card-num" style="white-space:nowrap">${item.itemNum}${item.variation ? ' <span style="font-size:0.72rem;color:var(--text-dim)">' + item.variation + '</span>' : ''}</span>
+              <span style="display:flex;gap:0.2rem;align-items:center">${_statusIcons}</span>
+            </div>
+            <div class="browse-card-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.roadName || item.itemType || '—'}</div>
+            <div class="browse-card-sub" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${[item.itemType, item.yearProd].filter(Boolean).join(' · ')}</div>
           </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.2rem;flex-shrink:0">
-            <span class="owned-badge ${badgeClass}">${badgeText}</span>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.25rem;flex-shrink:0">
             ${cond ? `<span style="font-size:0.72rem"><span class="condition-pip ${condClass}"></span>${cond}</span>` : ''}
             ${marketVal ? `<span class="market-val" style="font-size:0.72rem">${marketVal}</span>` : ''}
-            <span id="cam-${item.itemNum}-${item.variation||''}-m" style="font-size:0.82rem;display:none" onclick="event.stopPropagation();openPhotoFolder('${item.itemNum}','${pd&&pd.photoItem?pd.photoItem:''}')">📷</span>
+            <button onclick="event.stopPropagation();removeCollectionItem('${item.itemNum}','${_escVar}',${_pdRow})" style="padding:0.25rem 0.5rem;border-radius:6px;font-size:0.75rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);line-height:1" title="Remove from collection">✕</button>
           </div>
-        </div>${_ownedActions}
+        </div>
       </div>`;
     } else if (state.filters.owned) {
       // ── My Collection view: Item # | Description | Actions (3 clean columns) ──
@@ -3459,13 +3457,13 @@ function showItemDetailPage(idx) {
   </div>`;
 
   // ── ACTION TOOLBAR ──
+  const _isMobileDetail = window.innerWidth <= 640;
   html += `
   <div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap">
     <button onclick="showItemDetailPage_edit(${idx})" data-ctip="Edit this item's details and add photos all in one place." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2980b9;background:rgba(41,128,185,0.1);color:#2980b9;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
       Update Info &amp; Add Pictures
     </button>
-    
     <button onclick="showItemDetailPage_sell(${idx})" data-ctip="Did you sell something? Record that here." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
       Record Sale
@@ -3474,6 +3472,10 @@ function showItemDetailPage(idx) {
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
       List for Sale
     </button>
+    ${_isMobileDetail ? `<button onclick="showAddToUpgradeModal('${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+      Add to Upgrade List
+    </button>` : ''}
   </div>`;
 
   // ── DETAILS GRID ──
@@ -3486,7 +3488,7 @@ function showItemDetailPage(idx) {
     { label: 'Price Paid (Box)', val: pd && pd.priceBox ? '$' + parseFloat(pd.priceBox).toLocaleString() : null },
     { label: 'Price Paid (Complete)', val: pd && pd.priceComplete ? '$' + parseFloat(pd.priceComplete).toLocaleString() : null },
     { label: 'Est. Worth', val: pd && pd.userEstWorth ? '$' + parseFloat(pd.userEstWorth).toLocaleString() : null },
-    { label: 'Market Value', val: it.marketVal ? '$' + parseFloat(it.marketVal).toLocaleString() : null },
+    { label: 'Market Value', val: it.marketVal && !isNaN(parseFloat(it.marketVal)) ? '$' + parseFloat(it.marketVal).toLocaleString() : null },
     { label: 'Date Purchased', val: pd && pd.datePurchased ? pd.datePurchased : null },
     { label: 'Year Made', val: pd && pd.yearMade ? pd.yearMade : null },
     { label: 'Location', val: pd && pd.location ? pd.location : null },
