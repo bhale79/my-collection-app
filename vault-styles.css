@@ -138,6 +138,57 @@
   flex-wrap: wrap;
 }
 
+/* ── Feature cards (market page) ── */
+.vault-feature-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+.vault-feature-icon {
+  font-size: 1.4rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.vault-feature-title {
+  font-family: var(--font-head);
+  font-size: 0.95rem;
+  color: var(--text);
+  letter-spacing: 0.03em;
+  margin-bottom: 5px;
+}
+.vault-feature-desc {
+  font-size: 0.84rem;
+  color: var(--text-mid);
+  line-height: 1.65;
+}
+
+/* ── Floating badge ── */
+.vault-float-badge {
+  position: fixed;
+  bottom: 80px;
+  right: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 8px 14px;
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  color: var(--text-mid);
+  cursor: pointer;
+  z-index: 8000;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  transition: border-color 0.2s, color 0.2s;
+  white-space: nowrap;
+}
+.vault-float-badge:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
 /* ── Toast animation ── */
 @keyframes vaultToastIn {
   from { opacity: 0; transform: translateX(-50%) translateY(8px); }
