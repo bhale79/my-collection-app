@@ -472,6 +472,14 @@ function _buildWizardModal() {
     _pickerEl.addEventListener('click', function(e) { if (e.target === _pickerEl) closePhotoPicker(); });
     document.body.appendChild(_pickerEl);
   }
+
+  // Build identify modal if not already present
+  if (!document.getElementById('identify-modal')) {
+    var _identEl = document.createElement('div');
+    _identEl.id = 'identify-modal';
+    _identEl.innerHTML = "<div id=\"identify-panel\"><div style=\"display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem\"><div style=\"font-family:var(--font-head);font-size:1.05rem;color:var(--text);letter-spacing:0.04em\">Identify by Photo</div><button onclick=\"closeIdentify()\" style=\"background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer;line-height:1\">\u2715</button></div><div style=\"font-size:0.82rem;color:var(--text-mid);margin-bottom:0.9rem;line-height:1.5\">Use Google Lens to identify your item from a photo, then paste the item number below.</div><button onclick=\"openGoogleLens()\" style=\"width:100%;padding:0.7rem;border-radius:9px;background:var(--accent);border:none;color:#fff;font-family:var(--font-head);font-size:0.95rem;letter-spacing:0.05em;cursor:pointer;margin-bottom:0.75rem\">Open Google Lens \u2197</button><div style=\"font-size:0.78rem;color:var(--text-dim);margin-bottom:0.4rem\">Paste or type the item number you found:</div><input id=\"identify-manual-input\" type=\"text\" placeholder=\"e.g. 736, 2046W, 3349\" style=\"width:100%;padding:0.5rem 0.65rem;border-radius:7px;background:var(--surface2);border:1.5px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:0.9rem;box-sizing:border-box;margin-bottom:0.65rem\"><button onclick=\"useIdentifiedItem()\" style=\"width:100%;padding:0.6rem;border-radius:9px;background:var(--surface2);border:1.5px solid var(--gold);color:var(--gold);font-family:var(--font-head);font-size:0.9rem;letter-spacing:0.04em;cursor:pointer\">Use This Item Number</button></div>";
+    document.body.appendChild(_identEl);
+  }
 }
 
 function openWizard(tab) {
