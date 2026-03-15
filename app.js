@@ -250,7 +250,7 @@ function _buildAppShell() {
   header.className = 'header';
   header.innerHTML =
     '<div class="header-logo">' +
-      '<div style="font-family:var(--font-head);font-size:1.4rem;font-weight:700;color:var(--cream);letter-spacing:0.06em;text-transform:uppercase;line-height:1">My <span style="color:var(--accent)">Collection</span> App</div>' +
+      '<div style="font-family:var(--font-head);font-size:1.4rem;font-weight:700;color:var(--cream);letter-spacing:0.06em;text-transform:uppercase;line-height:1">The <span style="color:var(--accent)">Boxcar</span> Files</div>' +
     '</div>' +
     '<div class="header-right" style="position:relative">' +
       '<div class="user-chip" id="user-chip" onclick="toggleAccountMenu()" role="button" aria-haspopup="true">' +
@@ -565,6 +565,7 @@ function handleSignOut() {
   localStorage.removeItem('lv_token');
   localStorage.removeItem('lv_token_expiry');
   state.user = null;
+  _tokenIsInitial = true; // ensure next sign-in triggers full data load
   document.getElementById('auth-screen').style.display = 'flex';
   document.getElementById('app').classList.remove('active');
 }
