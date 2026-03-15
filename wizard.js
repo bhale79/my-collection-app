@@ -5633,21 +5633,27 @@ function extractLionelNumber(text) {
 
 function _applyIdentifiedItem(num) {
   _identifySelectedNum = num;
+  var _savedContext = _identifyCallerContext; // save before closeIdentify clears it
   closeIdentify();
-  if (_identifyCallerContext === 'wizard') {
+  if (_savedContext === 'wizard') {
     const inp = document.getElementById('wiz-input');
     if (inp) {
       inp.value = num;
       wizard.data.itemNum = num;
       wizard.data['itemNum'] = num;
-      // Trigger input event so the field registers the value
-      inp.dispatchEvent(new Event('input', { bubbles: true }));
-      updateItemSuggestions(num);
-      // Advance after delay — ensure next button is enabled and modal is fully closed
+      // Advance after delay using wizardAdvance directly to bypass validation issues
       setTimeout(function() {
+        // Re-check inp exists after modal close
+        var inp2 = document.getElementById('wiz-input');
+        if (inp2) inp2.value = num;
         var btn = document.getElementById('wizard-next-btn');
         if (btn) btn.disabled = false;
-        if (typeof wizardNext === 'function') wizardNext();
+        // Use wizardAdvance directly to skip validation and go to next step
+        if (typeof wizardAdvance === 'function') {
+          wizardAdvance();
+        } else if (typeof wizardNext === 'function') {
+          wizardNext();
+        }
       }, 500);
     }
   } else {
