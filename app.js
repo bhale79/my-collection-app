@@ -2778,7 +2778,7 @@ function filterOwned(qe) {
   }
   // Update table headers for collection view
   const thead = document.querySelector('#page-browse .item-table thead tr');
-  if (thead) thead.innerHTML = '<th>Item #</th><th>Var.</th><th>Type</th><th>Description</th><th>Est. Worth</th><th style="text-align:right">Actions</th>';
+  if (thead) thead.innerHTML = '<th style="width:110px">Item #</th><th style="width:60px">Var.</th><th style="width:90px">Type</th><th>Description</th><th style="width:90px">Est. Worth</th><th style="width:260px;text-align:right">Actions</th>';
   var _tbl2 = document.querySelector('#page-browse .item-table');
   if (_tbl2) _tbl2.classList.add('collection-view');
   var _leg = document.getElementById('collection-icon-legend');
@@ -2853,12 +2853,12 @@ function buildQuickEntryList() {
     row.style.cssText = 'display:flex;align-items:center;gap:0.85rem;padding:0.9rem 1rem;background:var(--surface);border:1.5px solid rgba(39,174,96,0.3);border-radius:12px;cursor:pointer;transition:all 0.15s';
     row.onmouseenter = function() { this.style.borderColor='#27ae60'; this.style.background='rgba(39,174,96,0.06)'; };
     row.onmouseleave = function() { this.style.borderColor='rgba(39,174,96,0.3)'; this.style.background='var(--surface)'; };
-    row.onclick = (function(num, vari) { return function() {
-      var prefix = num + '|' + vari + '|';
-      var exact = Object.keys(state.personalData).find(function(k) { return k.startsWith(prefix); });
-      if (!exact) { exact = Object.keys(state.personalData).find(function(k) { return k.startsWith(num + '|'); }); }
-      if (exact) { updateCollectionItem(-1, exact); }
-    }; })(pd.itemNum, variation);
+    row.onclick = (function(num, vari, pdRow) { return function() {
+      var globalIdx = state.masterData ? state.masterData.findIndex(function(m) {
+        return m.itemNum === num && (!vari || m.variation === vari);
+      }) : -1;
+      completeQuickEntry(num, vari, globalIdx, pdRow);
+    }; })(pd.itemNum, variation, pd.row);
 
     var icon = document.createElement('div');
     icon.style.cssText = 'background:rgba(39,174,96,0.12);border-radius:8px;padding:0.5rem;flex-shrink:0';
@@ -2899,13 +2899,13 @@ function buildQuickEntryList() {
     var addInfoBtn = document.createElement('button');
     addInfoBtn.textContent = 'Add Info';
     addInfoBtn.style.cssText = 'font-size:0.78rem;color:#fff;font-weight:600;background:#27ae60;border:none;padding:0.3rem 0.7rem;border-radius:6px;cursor:pointer;white-space:nowrap';
-    addInfoBtn.onclick = (function(num, vari) { return function(e) {
+    addInfoBtn.onclick = (function(num, vari, pdRow) { return function(e) {
       e.stopPropagation();
-      var prefix = num + '|' + vari + '|';
-      var exact = Object.keys(state.personalData).find(function(k) { return k.startsWith(prefix); });
-      if (!exact) { exact = Object.keys(state.personalData).find(function(k) { return k.startsWith(num + '|'); }); }
-      if (exact) { updateCollectionItem(-1, exact); }
-    }; })(pd.itemNum, variation);
+      var globalIdx = state.masterData ? state.masterData.findIndex(function(m) {
+        return m.itemNum === num && (!vari || m.variation === vari);
+      }) : -1;
+      completeQuickEntry(num, vari, globalIdx, pdRow);
+    }; })(pd.itemNum, variation, pd.row);
     right.appendChild(addInfoBtn);
 
     row.appendChild(icon);
@@ -3337,10 +3337,10 @@ function renderBrowse() {
         <td style="color:var(--text-mid);font-size:0.85rem">${_descShort}</td>
         <td style="font-size:0.82rem;color:var(--gold);white-space:nowrap">${_estWorth}</td>
         <td style="text-align:right;white-space:nowrap">
-          ${!_inShareModeD ? `<button onclick="event.stopPropagation();collectionActionForSale(${globalIdx},'${item.itemNum}','${_escVar}')" style="padding:0.18rem 0.35rem;border-radius:5px;font-size:0.68rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-weight:600;margin-right:0.15rem;white-space:nowrap">${isForSale ? '🏷️' : '🏷️'} Sale</button>
-          <button onclick="event.stopPropagation();collectionActionSold(${globalIdx},'${item.itemNum}','${_escVar}')" style="padding:0.18rem 0.35rem;border-radius:5px;font-size:0.68rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.15rem;white-space:nowrap">💰 Sold</button>
-          <button onclick="event.stopPropagation();showAddToUpgradeModal('${item.itemNum}','${_escVar}')" style="padding:0.18rem 0.35rem;border-radius:5px;font-size:0.68rem;cursor:pointer;border:1px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.15rem;white-space:nowrap" title="Add to Upgrade List">↑ Up</button>
-          <button onclick="event.stopPropagation();removeCollectionItem('${item.itemNum}','${_escVar}',${pd && pd.row ? pd.row : 0})" style="padding:0.18rem 0.35rem;border-radius:5px;font-size:0.68rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);white-space:nowrap">✕</button>` : ''}
+          ${!_inShareModeD ? `<button onclick="event.stopPropagation();collectionActionForSale(${globalIdx},'${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">${isForSale ? '🏷️ Update' : '🏷️ For Sale'}</button>
+          <button onclick="event.stopPropagation();collectionActionSold(${globalIdx},'${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">💰 Sold</button>
+          <button onclick="event.stopPropagation();showAddToUpgradeModal('${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Add to Upgrade List">↑ Upgrade</button>
+          <button onclick="event.stopPropagation();removeCollectionItem('${item.itemNum}','${_escVar}',${pd && pd.row ? pd.row : 0})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>` : ''}
         </td>
       </tr>`;
     } else {
