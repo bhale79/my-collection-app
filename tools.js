@@ -41,6 +41,16 @@ function buildToolsPage() {
       '</div>' +
       '<div id="set-builder-results" style="margin-top:0.5rem"></div>' +
     '</div>' +
+    // Duplicate Checker card
+    '<div class="tools-card">' +
+      '<div class="tools-card-title">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d4a843" stroke-width="2"><rect x="2" y="2" width="13" height="13" rx="2"/><rect x="9" y="9" width="13" height="13" rx="2"/><line x1="12" y1="6" x2="12" y2="12"/><line x1="9" y1="9" x2="15" y2="9"/></svg>' +
+        'Duplicate Checker' +
+      '</div>' +
+      '<div class="tools-card-desc">Scans your collection for items you own more than once — same item number and variation. Review each duplicate group to decide which copy to keep, sell, or remove.</div>' +
+      '<button onclick="runDuplicateChecker()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #d4a843;background:rgba(212,168,67,0.1);color:#d4a843;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan for Duplicates</button>' +
+      '<div id="duplicate-checker-results" style="margin-top:1rem"></div>' +
+    '</div>' +
     // Companion Suggester card
     '<div class="tools-card">' +
       '<div class="tools-card-title">' +
@@ -434,6 +444,77 @@ async function toolCreateSet(idx) {
 }
 
 // ── COMPANION SUGGESTER ──────────────────────────────────────────────
+// ── DUPLICATE CHECKER ────────────────────────────────────────────
+function runDuplicateChecker() {
+  var out = document.getElementById('duplicate-checker-results');
+  if (!out) return;
+  out.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem">Scanning…</div>';
+
+  if (!state.personalData || !Object.keys(state.personalData).length) {
+    out.innerHTML = '<div style="padding:0.75rem;background:rgba(240,80,8,0.08);border:1px solid rgba(240,80,8,0.25);border-radius:8px;color:var(--accent);font-size:0.85rem">Collection data not loaded yet — try again in a moment.</div>';
+    return;
+  }
+
+  // Group owned items by itemNum|variation
+  var groups = {};
+  Object.values(state.personalData).forEach(function(pd) {
+    if (!pd.owned) return;
+    var key = (pd.itemNum || '').trim().toUpperCase() + '|' + (pd.variation || '').trim().toUpperCase();
+    if (!groups[key]) groups[key] = { itemNum: pd.itemNum, variation: pd.variation, copies: [] };
+    groups[key].copies.push(pd);
+  });
+
+  // Keep only groups with 2+ copies
+  var dupes = Object.values(groups).filter(function(g) { return g.copies.length > 1; });
+
+  if (!dupes.length) {
+    out.innerHTML = '<div style="padding:0.75rem;background:rgba(58,158,104,0.08);border:1px solid rgba(58,158,104,0.25);border-radius:8px;color:#4dc880;font-size:0.85rem">✓ No duplicates found — every item in your collection is unique!</div>';
+    return;
+  }
+
+  // Sort by item number
+  dupes.sort(function(a, b) {
+    var na = parseFloat(a.itemNum) || 0, nb = parseFloat(b.itemNum) || 0;
+    if (na !== nb) return na - nb;
+    return (a.itemNum || '').localeCompare(b.itemNum || '');
+  });
+
+  var html = '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.75rem">' +
+    dupes.length + ' item' + (dupes.length > 1 ? 's' : '') + ' with duplicates:</div>';
+
+  dupes.forEach(function(g) {
+    var masterEntry = state.masterData && state.masterData.find(function(m) {
+      return (m.itemNum || '').trim().toUpperCase() === (g.itemNum || '').trim().toUpperCase();
+    });
+    var roadName = masterEntry ? (masterEntry.roadName || masterEntry.itemType || '') : '';
+    var varLabel = g.variation ? ' <span style="font-size:0.75rem;color:var(--text-dim);background:var(--surface2);padding:1px 5px;border-radius:4px">' + g.variation + '</span>' : '';
+
+    html += '<div class="tools-result-row" style="flex-direction:column;align-items:flex-start;gap:0.5rem">' +
+      '<div style="font-size:0.88rem;color:var(--text);display:flex;align-items:center;gap:0.5rem">' +
+        '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#d4a843" stroke-width="2" style="flex-shrink:0"><rect x="2" y="2" width="13" height="13" rx="2"/><rect x="9" y="9" width="13" height="13" rx="2"/></svg>' +
+        '<strong>' + g.itemNum + '</strong>' + varLabel +
+        (roadName ? '<span style="color:var(--text-dim);font-size:0.8rem">· ' + roadName + '</span>' : '') +
+        '<span style="font-size:0.75rem;color:#d4a843;border:1px solid rgba(212,168,67,0.4);border-radius:4px;padding:0.1rem 0.4rem;flex-shrink:0">' + g.copies.length + ' copies</span>' +
+      '</div>';
+
+    g.copies.forEach(function(pd, i) {
+      var condStr = pd.condition ? 'Cond: ' + pd.condition + '/10' : 'No condition';
+      var invId   = pd.inventoryId || '—';
+      var isQE    = pd.quickEntry ? ' <span style="font-size:0.7rem;background:#27ae60;color:#fff;border-radius:3px;padding:1px 4px">⚡ Quick Entry</span>' : '';
+      var hasBox  = pd.hasBox === 'Yes' ? ' · 📦 Has box' : '';
+      html += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.35rem 0.5rem;background:var(--surface);border-radius:7px;width:100%;box-sizing:border-box">' +
+        '<span style="font-size:0.75rem;color:var(--text-dim);flex-shrink:0">Copy ' + (i + 1) + '</span>' +
+        '<span style="font-family:var(--font-mono);font-size:0.78rem;color:var(--text-mid)">' + invId + '</span>' +
+        '<span style="font-size:0.78rem;color:var(--text-dim);flex:1">' + condStr + hasBox + isQE + '</span>' +
+      '</div>';
+    });
+
+    html += '</div>';
+  });
+
+  out.innerHTML = html;
+}
+
 function runCompanionSuggester() {
   var out = document.getElementById('companion-suggester-results');
   if (!out) return;
