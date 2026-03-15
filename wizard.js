@@ -205,7 +205,8 @@ function getSteps(tab) {
 
   const base = [
     { id: 'itemNum',    title: 'What is the Lionel item number?',       type: 'text',     placeholder: 'e.g. 726, 2046, 6464-1' },
-    { id: 'variation',  title: 'Which variation is it?',                type: 'variation', optional: true },
+    { id: 'variation',  title: 'Which variation is it?',                type: 'variation', optional: true,
+        skipIf: (d) => { var num = d.itemNum || ''; var vars = state.masterData.filter(function(m) { return m.itemNum === num && m.variation; }); return vars.length === 0; } },
   ];
 
   if (tab === 'collection') {
@@ -267,7 +268,7 @@ function getSteps(tab) {
 
       // ── SCREEN 2: Variation (auto-skip for no/single variations) ──
       { id: 'variation',  title: 'Which variation is it?', type: 'variation', optional: true,
-        skipIf: (d) => d._completingQuickEntry },
+        skipIf: (d) => { if (d._completingQuickEntry) return true; var num = d.itemNum || ''; var vars = state.masterData.filter(function(m) { return m.itemNum === num && m.variation; }); return vars.length === 0; } },
 
       // ── Entry Mode (Full/Quick) ──
       { id: 'entryMode', title: (d) => 'How would you like to add this ' + getItemLabel(d) + '?',
@@ -5633,27 +5634,21 @@ function extractLionelNumber(text) {
 
 function _applyIdentifiedItem(num) {
   _identifySelectedNum = num;
-  var _savedContext = _identifyCallerContext; // save before closeIdentify clears it
   closeIdentify();
-  if (_savedContext === 'wizard') {
+  if (_identifyCallerContext === 'wizard') {
     const inp = document.getElementById('wiz-input');
     if (inp) {
       inp.value = num;
       wizard.data.itemNum = num;
       wizard.data['itemNum'] = num;
-      // Advance after delay using wizardAdvance directly to bypass validation issues
+      // Trigger input event so the field registers the value
+      inp.dispatchEvent(new Event('input', { bubbles: true }));
+      updateItemSuggestions(num);
+      // Advance after delay — ensure next button is enabled and modal is fully closed
       setTimeout(function() {
-        // Re-check inp exists after modal close
-        var inp2 = document.getElementById('wiz-input');
-        if (inp2) inp2.value = num;
         var btn = document.getElementById('wizard-next-btn');
         if (btn) btn.disabled = false;
-        // Use wizardAdvance directly to skip validation and go to next step
-        if (typeof wizardAdvance === 'function') {
-          wizardAdvance();
-        } else if (typeof wizardNext === 'function') {
-          wizardNext();
-        }
+        if (typeof wizardNext === 'function') wizardNext();
       }, 500);
     }
   } else {
