@@ -182,7 +182,7 @@ function _buildAuthScreen() {
   d.dataset.built = '1';
   d.innerHTML =
     '<div class="auth-logo" style="line-height:1.1">' +
-      '<div style="font-family:var(--font-head);font-size:2.4rem;font-weight:700;color:var(--cream);letter-spacing:0.07em;text-transform:uppercase">My <span style="color:var(--accent)">Collection</span> App</div>' +
+      '<div style="font-family:var(--font-head);font-size:2.4rem;font-weight:700;color:var(--cream);letter-spacing:0.07em;text-transform:uppercase">The <span style="color:var(--accent)">Boxcar</span> Files</div>' +
       '<div style="font-size:0.75rem;letter-spacing:0.22em;color:var(--text-dim);margin-top:7px;text-transform:uppercase;font-family:var(--font-head);font-weight:400">Postwar Collector\'s Inventory</div>' +
     '</div>' +
     '<div class="auth-sub">Postwar Collector\'s Inventory</div>' +
@@ -7225,3 +7225,98 @@ function _initBackButton() {
   });
 }
 
+
+// ── iOS INSTALL HINT ────────────────────────────────────────────
+// Shows a one-time banner on iOS Safari when app is not installed as PWA
+function _showIOSInstallHint() {
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isStandalone = window.navigator.standalone === true;
+  const dismissed = localStorage.getItem('lv_ios_hint_dismissed');
+  if (!isIOS || isStandalone || dismissed) return;
+
+  const banner = document.createElement('div');
+  banner.id = 'ios-install-hint';
+  banner.style.cssText = [
+    'position:fixed',
+    'bottom:80px',
+    'left:50%',
+    'transform:translateX(-50%)',
+    'width:calc(100% - 2rem)',
+    'max-width:380px',
+    'background:#1c2544',
+    'border:1.5px solid var(--border)',
+    'border-radius:12px',
+    'padding:0.8rem 1rem',
+    'z-index:8000',
+    'box-shadow:0 4px 24px rgba(0,0,0,0.5)',
+    'display:flex',
+    'align-items:center',
+    'gap:0.75rem',
+    'animation:fadeIn 0.3s ease'
+  ].join(';');
+
+  banner.innerHTML = `
+    <div style="font-size:1.4rem;flex-shrink:0">📲</div>
+    <div style="flex:1;font-family:var(--font-body);font-size:0.8rem;color:var(--text);line-height:1.4">
+      <strong style="color:var(--gold)">Install The Boxcar Files</strong><br>
+      Tap <strong>Share</strong> <span style="font-size:1rem">⎙</span> then <strong>Add to Home Screen</strong> for the best experience.
+    </div>
+    <button onclick="localStorage.setItem('lv_ios_hint_dismissed','1');document.getElementById('ios-install-hint').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.2rem;cursor:pointer;flex-shrink:0;padding:0;line-height:1">✕</button>
+  `;
+
+  document.body.appendChild(banner);
+
+  // Auto-dismiss after 12 seconds
+  setTimeout(() => {
+    const el = document.getElementById('ios-install-hint');
+    if (el) {
+      el.style.transition = 'opacity 0.5s ease';
+      el.style.opacity = '0';
+      setTimeout(() => el.remove(), 500);
+    }
+  }, 12000);
+}
+
+// ── OFFLINE / ONLINE BANNER ─────────────────────────────────────
+function _showOfflineBanner() {
+  if (document.getElementById('offline-banner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'offline-banner';
+  banner.style.cssText = [
+    'position:fixed',
+    'top:0',
+    'left:0',
+    'right:0',
+    'z-index:9998',
+    'background:#7f1d1d',
+    'color:#fecaca',
+    'text-align:center',
+    'padding:0.5rem 1rem',
+    'font-family:var(--font-body)',
+    'font-size:0.82rem',
+    'font-weight:600',
+    'letter-spacing:0.02em',
+    'box-shadow:0 2px 8px rgba(0,0,0,0.4)'
+  ].join(';');
+  banner.textContent = '⚠ No internet connection — changes may not save until you reconnect';
+  document.body.appendChild(banner);
+}
+
+function _hideOfflineBanner() {
+  const banner = document.getElementById('offline-banner');
+  if (banner) {
+    banner.style.transition = 'opacity 0.4s ease';
+    banner.style.opacity = '0';
+    setTimeout(() => banner.remove(), 400);
+    showToast('✓ Back online', 2500);
+  }
+}
+
+window.addEventListener('offline', _showOfflineBanner);
+window.addEventListener('online', _hideOfflineBanner);
+
+// Check on load in case they open the app already offline
+if (!navigator.onLine) _showOfflineBanner();
+
+// Trigger iOS install hint after a short delay (so app has rendered)
+setTimeout(_showIOSInstallHint, 2500);
