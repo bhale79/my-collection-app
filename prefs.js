@@ -218,7 +218,7 @@ function buildPrefsPage() {
         <div class="pref-section">
       <div class="pref-section-title">About</div>
         <div class="pref-row">
-        <div class="pref-row-label"><strong>My Collection App</strong><span>${APP_VERSION} · ${APP_DATE}</span></div>
+        <div class="pref-row-label"><strong>The Boxcar Files</strong><span>${APP_VERSION} · ${APP_DATE}</span></div>
       </div>
       <div class="pref-row">
         <div class="pref-row-label">
@@ -231,7 +231,7 @@ function buildPrefsPage() {
           <strong>Send Feedback</strong>
           <span>Report a bug or suggest a feature</span>
         </div>
-        <a href="mailto:bhale@ipd-llc.com?subject=My Collection App Feedback" class="pref-btn" style="text-decoration:none">Email ↗</a>
+        <a href="mailto:bhale@ipd-llc.com?subject=The Boxcar Files Feedback" class="pref-btn" style="text-decoration:none">Email ↗</a>
       </div>
     </div>`;
 
