@@ -248,7 +248,7 @@ async function _doShare(mode) {
 
   } catch(err) {
     console.error('Share error:', err);
-    if (prog) prog.textContent = 'Error: ' + (err && err.message ? err.message : String(err));
+    if (prog) prog.textContent = 'Something went wrong — please try again.';
     if (acts) acts.style.display = 'flex';
   }
 }
@@ -272,12 +272,8 @@ async function _fetchPhotoAsDataUrl(fileId) {
 
 // ── Build PDF using jsPDF ─────────────────────────────────────────
 async function _buildPDF(items, fields, message) {
-  // Resolve jsPDF from multiple possible namespaces
-  var jsPDFClass = (window.jspdf && window.jspdf.jsPDF)
-    || window.jsPDF
-    || (window.jspdf && window.jspdf.default);
-  if (!jsPDFClass) throw new Error('PDF library not loaded — please refresh and try again');
-  var doc = new jsPDFClass({ unit: 'pt', format: 'letter' });
+  // jsPDF is loaded from CDN in index.html
+  var doc = new window.jspdf.jsPDF({ unit: 'pt', format: 'letter' });
   var pageW = doc.internal.pageSize.getWidth();
   var margin = 36;
   var contentW = pageW - margin * 2;
@@ -431,8 +427,9 @@ async function _buildPDF(items, fields, message) {
 
 // ── Upload PDF to Drive and return shareable link ─────────────────
 async function _uploadShareToDrive(pdfBlob) {
-  var token = accessToken || localStorage.getItem('lv_token');
-  if (!token) throw new Error('Not signed in');
+  // Get token from localStorage — accessToken in app.js is not accessible from share.js
+  var token = localStorage.getItem('lv_token');
+  if (!token) throw new Error('Not signed in — please sign in and try again');
 
   // Ensure vault folder exists
   await driveEnsureSetup();
@@ -443,34 +440,25 @@ async function _uploadShareToDrive(pdfBlob) {
   // Step 1: Create file metadata
   var metaRes = await fetch('https://www.googleapis.com/drive/v3/files', {
     method: 'POST',
-    headers: {
-      Authorization: 'Bearer ' + token,
-      'Content-Type': 'application/json',
-    },
+    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
     body: JSON.stringify({ name: fileName, mimeType: 'application/pdf', parents: [folderId] }),
   });
   if (!metaRes.ok) throw new Error('Drive create failed: ' + metaRes.status);
   var metaData = await metaRes.json();
   var fileId = metaData.id;
 
-  // Step 2: Upload content
+  // Step 2: Upload PDF content
   var uploadRes = await fetch('https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=media', {
     method: 'PATCH',
-    headers: {
-      Authorization: 'Bearer ' + token,
-      'Content-Type': 'application/pdf',
-    },
+    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/pdf' },
     body: pdfBlob,
   });
   if (!uploadRes.ok) throw new Error('Drive upload failed: ' + uploadRes.status);
 
-  // Step 3: Make publicly viewable
+  // Step 3: Make publicly viewable (anyone with link)
   await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '/permissions', {
     method: 'POST',
-    headers: {
-      Authorization: 'Bearer ' + token,
-      'Content-Type': 'application/json',
-    },
+    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
     body: JSON.stringify({ role: 'reader', type: 'anyone' }),
   });
 
