@@ -6,7 +6,11 @@ const API_KEY = ''; // Set your Google Cloud API key in settings if needed
 // Gemini Vision API key — get a free key at https://aistudio.google.com/app/apikey
 // Paste your key here to enable photo-based item identification
 let GEMINI_KEY = localStorage.getItem('lv_gemini_key') || '';
-const PERSONAL_SHEET_NAME = 'Lionel Vault — My Collection'; // Sheet tab name — kept stable for existing users
+// Sheet name is dynamic — built from user's first name at sign-in
+function _getPersonalSheetName() {
+  const firstName = (state.user?.name || '').split(' ')[0] || 'My';
+  return `The Boxcar Files - ${firstName}'s Collection`;
+}
 const PERSONAL_HEADERS = [
   'Item Number','Variation','Condition (1-10)','All Original',
   'Item Only Price','Box Only Price','Item+Box Complete','Has Box',
@@ -1248,7 +1252,8 @@ async function driveReadConfig(retryCount = 0) {
 // Used when config file read fails — always works as long as the sheet exists in Drive
 async function driveFindPersonalSheet() {
   try {
-    const q = encodeURIComponent(`name='${PERSONAL_SHEET_NAME}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`);
+    // Search by prefix to find any user's sheet regardless of their name
+    const q = encodeURIComponent(`name contains 'The Boxcar Files -' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`);
     const res = await driveRequest('GET', `/files?q=${q}&fields=files(id,name)&spaces=drive`);
     if (res.files && res.files.length > 0) {
       return res.files[0].id;
@@ -1461,7 +1466,7 @@ async function createPersonalSheet() {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      properties: { title: PERSONAL_SHEET_NAME },
+      properties: { title: _getPersonalSheetName() },
       sheets: [{ properties: { title: 'My Collection' } }]
     })
   });
