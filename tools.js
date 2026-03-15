@@ -497,15 +497,26 @@ function runDuplicateChecker() {
         '<span style="font-size:0.75rem;color:#d4a843;border:1px solid rgba(212,168,67,0.4);border-radius:4px;padding:0.1rem 0.4rem;flex-shrink:0">' + g.copies.length + ' copies</span>' +
       '</div>';
 
+    // Find master data index for this item (for showItemDetailPage)
+    var masterIdx = state.masterData ? state.masterData.findIndex(function(m) {
+      return (m.itemNum || '').trim().toUpperCase() === (g.itemNum || '').trim().toUpperCase();
+    }) : -1;
+
     g.copies.forEach(function(pd, i) {
       var condStr = pd.condition ? 'Cond: ' + pd.condition + '/10' : 'No condition';
       var invId   = pd.inventoryId || '—';
       var isQE    = pd.quickEntry ? ' <span style="font-size:0.7rem;background:#27ae60;color:#fff;border-radius:3px;padding:1px 4px">⚡ Quick Entry</span>' : '';
       var hasBox  = pd.hasBox === 'Yes' ? ' · 📦 Has box' : '';
-      html += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.35rem 0.5rem;background:var(--surface);border-radius:7px;width:100%;box-sizing:border-box">' +
+      // Reconstruct exact pdKey for this specific copy using its row number
+      var pdKey   = pd.itemNum + '|' + (pd.variation || '') + '|' + pd.row;
+
+      html += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.35rem 0.5rem;background:var(--surface);border-radius:7px;width:100%;box-sizing:border-box;cursor:pointer" onclick="showItemDetailPage(' + masterIdx + ')" title="View details">' +
         '<span style="font-size:0.75rem;color:var(--text-dim);flex-shrink:0">Copy ' + (i + 1) + '</span>' +
         '<span style="font-family:var(--font-mono);font-size:0.78rem;color:var(--text-mid)">' + invId + '</span>' +
         '<span style="font-size:0.78rem;color:var(--text-dim);flex:1">' + condStr + hasBox + isQE + '</span>' +
+        '<button onclick="event.stopPropagation();listForSaleFromCollection(' + masterIdx + ',&apos;' + pdKey + '&apos;)" ' +
+          'style="padding:0.2rem 0.5rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-weight:600;white-space:nowrap;flex-shrink:0" ' +
+          'title="List this copy for sale">🏷️ For Sale</button>' +
       '</div>';
     });
 
