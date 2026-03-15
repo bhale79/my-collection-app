@@ -7,7 +7,8 @@
 // ── Share state ──────────────────────────────────────────────────
 var _shareMode   = false;
 var _shareSource = ''; // 'collection' | 'want' | 'forsale'
-var _shareItems  = {}; // key -> { itemNum, variation, label, pd, master, fs, want }
+var _shareItems  = {}; // key -> item data
+var _shareDataMap = {}; // key -> item data (populated by page renderers)
 
 // ── Enter / Exit selection mode ──────────────────────────────────
 function startShareMode(source) {
@@ -23,37 +24,32 @@ function startShareMode(source) {
 }
 
 function cancelShareMode() {
+  var prevSource = _shareSource;
   _shareMode   = false;
   _shareSource = '';
   _shareItems  = {};
+  window._shareDataMap = {};
   var bar = document.getElementById('share-bottom-bar');
   if (bar) bar.remove();
 
-  // Rebuild page to remove checkboxes
-  if (_shareSource === 'collection' || document.getElementById('page-browse').classList.contains('active')) {
-    renderBrowse();
-  } else if (document.getElementById('page-want').classList.contains('active')) {
-    buildWantPage();
-  } else if (document.getElementById('page-forsale').classList.contains('active')) {
-    buildForSalePage();
-  }
   // Rebuild whichever page is currently active
   var activePage = document.querySelector('.page.active');
   if (!activePage) return;
   var pid = activePage.id;
-  if (pid === 'page-browse')   renderBrowse();
+  if (pid === 'page-browse')       renderBrowse();
   else if (pid === 'page-want')    buildWantPage();
   else if (pid === 'page-forsale') buildForSalePage();
 }
 
 // ── Toggle item selection ─────────────────────────────────────────
-function toggleShareItem(key, itemData) {
+function toggleShareItem(key) {
+  var itemData = window._shareDataMap && window._shareDataMap[key];
+  if (!itemData) return;
   if (_shareItems[key]) {
     delete _shareItems[key];
   } else {
     if (Object.keys(_shareItems).length >= 10) {
       showToast('Maximum 10 items at a time', 2500, true);
-      // Uncheck the checkbox
       var cb = document.getElementById('share-cb-' + key);
       if (cb) cb.checked = false;
       return;
@@ -61,12 +57,14 @@ function toggleShareItem(key, itemData) {
     _shareItems[key] = itemData;
   }
   _renderShareBar();
-  // Highlight the row/card
   var card = document.getElementById('share-card-' + key);
   if (card) {
     card.style.outline = _shareItems[key] ? '2px solid #3a9e68' : 'none';
     card.style.background = _shareItems[key] ? 'rgba(58,158,104,0.08)' : '';
   }
+  // Sync checkbox state
+  var cb2 = document.getElementById('share-cb-' + key);
+  if (cb2) cb2.checked = !!_shareItems[key];
 }
 
 // ── Floating bottom bar ───────────────────────────────────────────
@@ -101,13 +99,6 @@ function _renderShareBar() {
 // ── Check if share mode is active (called by page builders) ──────
 function isShareMode(source) {
   return _shareMode && _shareSource === source;
-}
-
-// ── Build a share checkbox for a row/card ─────────────────────────
-function buildShareCheckbox(key, itemData, isChecked) {
-  return '<input type="checkbox" id="share-cb-' + key + '" ' + (isChecked ? 'checked' : '') + ' ' +
-    'onclick="event.stopPropagation();toggleShareItem(\'' + key + '\',' + JSON.stringify(itemData).replace(/'/g, '&#39;') + ')" ' +
-    'style="width:1.1rem;height:1.1rem;accent-color:#3a9e68;cursor:pointer;flex-shrink:0">';
 }
 
 // ── Share Builder Modal ───────────────────────────────────────────
