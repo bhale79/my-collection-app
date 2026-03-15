@@ -2765,6 +2765,17 @@ function filterOwned(qe) {
   }
   const idBtn = document.getElementById('identify-btn');
   if (idBtn) idBtn.style.display = 'none';
+  // Show Share button for collection view
+  var _btnArea = document.querySelector('#page-browse > .page-title > div');
+  if (_btnArea && !document.getElementById('share-btn-collection')) {
+    var _shareBtn = document.createElement('button');
+    _shareBtn.id = 'share-btn-collection';
+    _shareBtn.className = 'btn';
+    _shareBtn.onclick = function() { if (typeof startShareMode === 'function') startShareMode('collection'); };
+    _shareBtn.style.cssText = 'display:flex;align-items:center;gap:0.4rem;border:1.5px solid #3a9e68;color:#3a9e68;background:rgba(58,158,104,0.1);font-weight:600;font-size:0.85rem;padding:0.5rem 0.9rem';
+    _shareBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> Share';
+    _btnArea.insertBefore(_shareBtn, _btnArea.firstChild);
+  }
   // Update table headers for collection view
   const thead = document.querySelector('#page-browse .item-table thead tr');
   if (thead) thead.innerHTML = '<th style="width:110px">Item #</th><th style="width:60px">Var.</th><th style="width:90px">Type</th><th>Description</th><th style="width:90px">Est. Worth</th><th style="width:260px;text-align:right">Actions</th>';
@@ -3274,8 +3285,13 @@ function renderBrowse() {
       const _statusIcons = (_isGrouped ? '<span title="Grouped item" style="font-size:0.8rem">🔗</span>' : '')
                          + (_isQE ? '<span title="Quick Entry — details incomplete" style="font-size:0.8rem">⚡</span>' : '')
                          + (_hasPhoto ? '<span title="Has photo" style="font-size:0.8rem" onclick="event.stopPropagation();openPhotoFolder(\''+item.itemNum+'\',\''+(_hasPhoto||'')+'\')">📷</span>' : '');
-      return `<div class="browse-card" onclick="showItemDetailPage(${globalIdx})" style="cursor:pointer">
+      const _shareKey = item.itemNum + '|' + (item.variation||'') + '|' + _pdRow;
+      const _inShareMode = typeof isShareMode === 'function' && isShareMode('collection');
+      const _isShareSelected = _inShareMode && window._shareItems && window._shareItems[_shareKey];
+      const _shareItemData = { itemNum: item.itemNum, variation: item.variation||'', pd: pd, master: item };
+      return `<div class="browse-card" id="share-card-${_shareKey}" onclick="${_inShareMode ? 'toggleShareItem(\'' + _shareKey + '\',' + JSON.stringify(_shareItemData).replace(/'/g,'&#39;') + ')' : 'showItemDetailPage(' + globalIdx + ')'}" style="cursor:pointer${_isShareSelected ? ';outline:2px solid #3a9e68;background:rgba(58,158,104,0.08)' : ''}">
         <div style="display:flex;align-items:center;gap:0.5rem;width:100%;min-width:0">
+          ${_inShareMode ? '<input type="checkbox" ' + (_isShareSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _shareKey + '\',' + JSON.stringify(_shareItemData).replace(/'/g,'&#39;') + ')" style="width:1.1rem;height:1.1rem;accent-color:#3a9e68;flex-shrink:0">' : ''}
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:nowrap">
               <span class="browse-card-num" style="white-space:nowrap">${item.itemNum}${item.variation ? ' <span style="font-size:0.72rem;color:var(--text-dim)">' + item.variation + '</span>' : ''}</span>
@@ -3288,7 +3304,7 @@ function renderBrowse() {
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.25rem;flex-shrink:0">
             ${cond ? `<span style="font-size:0.72rem"><span class="condition-pip ${condClass}"></span>${cond}</span>` : ''}
             ${marketVal ? `<span class="market-val" style="font-size:0.72rem">${marketVal}</span>` : ''}
-            <button onclick="event.stopPropagation();removeCollectionItem('${item.itemNum}','${_escVar}',${_pdRow})" style="padding:0.25rem 0.5rem;border-radius:6px;font-size:0.75rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);line-height:1" title="Remove from collection">✕</button>
+            ${!_inShareMode ? `<button onclick="event.stopPropagation();removeCollectionItem('${item.itemNum}','${_escVar}',${_pdRow})" style="padding:0.25rem 0.5rem;border-radius:6px;font-size:0.75rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);line-height:1" title="Remove from collection">✕</button>` : ''}
           </div>
         </div>
       </div>`;
@@ -3303,8 +3319,13 @@ function renderBrowse() {
       const _varText   = item.variation ? ` <span style="font-size:0.72rem;color:var(--text-dim);background:var(--surface2);padding:1px 5px;border-radius:4px;margin-left:3px">${item.variation}</span>` : '';
       const _typeText = item.itemType || '<span style="color:var(--text-dim)">—</span>';
       const _estWorth = pd && pd.userEstWorth ? '$' + parseFloat(pd.userEstWorth).toLocaleString() : '<span style="color:var(--text-dim)">—</span>';
-      return `<tr onclick="showItemDetailPage(${globalIdx})" style="cursor:pointer${_isQuick ? ';opacity:0.82' : ''}" data-group="${_groupId}" data-item="${item.itemNum}">
+      const _shareKeyD = item.itemNum + '|' + (item.variation||'') + '|' + (pd && pd.row ? pd.row : 0);
+      const _inShareModeD = typeof isShareMode === 'function' && isShareMode('collection');
+      const _isShareSelectedD = _inShareModeD && window._shareItems && window._shareItems[_shareKeyD];
+      const _shareItemDataD = { itemNum: item.itemNum, variation: item.variation||'', pd: pd, master: item };
+      return `<tr id="share-card-${_shareKeyD}" onclick="${_inShareModeD ? 'toggleShareItem(\'' + _shareKeyD + '\',' + JSON.stringify(_shareItemDataD).replace(/'/g,'&#39;') + ')' : 'showItemDetailPage(' + globalIdx + ')'}" style="cursor:pointer${_isQuick ? ';opacity:0.82' : ''}${_isShareSelectedD ? ';outline:2px solid #3a9e68;background:rgba(58,158,104,0.06)' : ''}" data-group="${_groupId}" data-item="${item.itemNum}">
         <td style="white-space:nowrap">
+          ${_inShareModeD ? '<input type="checkbox" ' + (_isShareSelectedD ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _shareKeyD + '\',' + JSON.stringify(_shareItemDataD).replace(/'/g,'&#39;') + ')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">' : ''}
           <span class="item-num">${item.itemNum}</span>
           ${_groupId ? '<span style="font-size:0.55rem;color:var(--accent3);margin-left:4px;vertical-align:super" title="Grouped">🔗</span>' : ''}
           ${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(\''+item.itemNum+'\',\''+_escVar+'\','+globalIdx+','+pd.row+')" style="margin-left:5px;font-size:0.72rem;background:#27ae60;color:#fff;border-radius:4px;padding:1px 5px;cursor:pointer;font-weight:700;vertical-align:middle" title="Complete this Quick Entry">⚡</span>' : ''}
@@ -3316,10 +3337,10 @@ function renderBrowse() {
         <td style="color:var(--text-mid);font-size:0.85rem">${_descShort}</td>
         <td style="font-size:0.82rem;color:var(--gold);white-space:nowrap">${_estWorth}</td>
         <td style="text-align:right;white-space:nowrap">
-          <button onclick="event.stopPropagation();collectionActionForSale(${globalIdx},'${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">${isForSale ? '🏷️ Update' : '🏷️ For Sale'}</button>
+          ${!_inShareModeD ? `<button onclick="event.stopPropagation();collectionActionForSale(${globalIdx},'${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">${isForSale ? '🏷️ Update' : '🏷️ For Sale'}</button>
           <button onclick="event.stopPropagation();collectionActionSold(${globalIdx},'${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">💰 Sold</button>
           <button onclick="event.stopPropagation();showAddToUpgradeModal('${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Add to Upgrade List">↑ Upgrade</button>
-          <button onclick="event.stopPropagation();removeCollectionItem('${item.itemNum}','${_escVar}',${pd && pd.row ? pd.row : 0})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>
+          <button onclick="event.stopPropagation();removeCollectionItem('${item.itemNum}','${_escVar}',${pd && pd.row ? pd.row : 0})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>` : ''}
         </td>
       </tr>`;
     } else {
@@ -5785,8 +5806,13 @@ function buildWantPage() {
       const _mIsSet = !!_mSetMatch;
       const _mSetLabel = _mIsSet ? [_mSetMatch.setName, _mSetMatch.year].filter(Boolean).join(' · ') : '';
       const _mChipsHtml = _mIsSet ? '<div style="display:flex;flex-wrap:wrap;gap:0.2rem;margin-top:0.35rem">' + _mSetMatch.items.slice(0,6).map(n => '<span style="font-family:var(--font-mono);font-size:0.65rem;padding:1px 5px;border-radius:3px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim)">' + n + '</span>').join('') + (_mSetMatch.items.length > 6 ? '<span style="font-size:0.65rem;color:var(--text-dim)">+' + (_mSetMatch.items.length-6) + ' more</span>' : '') + '</div>' : '';
-      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem">
-        <div style="display:flex;align-items:center;gap:0.75rem;cursor:pointer" ${masterIdx2>=0?`onclick="openItem(${masterIdx2})"`:''}>
+      const _wShareKey = w.itemNum + '|' + (w.variation||'') + '|' + (w.row||0);
+      const _wInShare = typeof isShareMode === 'function' && isShareMode('want');
+      const _wSelected = _wInShare && window._shareItems && window._shareItems[_wShareKey];
+      const _wShareData = { itemNum: w.itemNum, variation: w.variation||'', want: w, master: master };
+      return `<div id="share-card-${_wShareKey}" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem${_wSelected ? ';outline:2px solid #3a9e68' : ''}">
+        <div style="display:flex;align-items:center;gap:0.75rem;cursor:pointer" onclick="${_wInShare ? 'toggleShareItem(\'' + _wShareKey + '\',' + JSON.stringify(_wShareData).replace(/'/g,'&#39;') + ')' : (masterIdx2>=0?'openItem('+masterIdx2+')':'')}">
+          ${_wInShare ? '<input type="checkbox" ' + (_wSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _wShareKey + '\',' + JSON.stringify(_wShareData).replace(/'/g,'&#39;') + ')" style="width:1.1rem;height:1.1rem;accent-color:#3a9e68;flex-shrink:0">' : ''}
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:0.5rem">
               <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${w.itemNum}</span>
@@ -5800,12 +5826,12 @@ function buildWantPage() {
             ${w.expectedPrice ? `<div style="font-family:var(--font-mono);color:var(--accent2);font-size:0.9rem">$${parseFloat(w.expectedPrice).toLocaleString()}</div>` : ''}
           </div>
         </div>
-        <div style="display:flex;gap:0.35rem;margin-top:0.6rem;flex-wrap:wrap">
+        ${!_wInShare ? `<div style="display:flex;gap:0.35rem;margin-top:0.6rem;flex-wrap:wrap">
           <button onclick="event.stopPropagation();moveWantToCollection('${w.itemNum}','${escVar}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.75rem;cursor:pointer;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600">+ Collection</button>
           <button onclick="event.stopPropagation();wantFindOnEbay('${w.itemNum}','${escName}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.75rem;cursor:pointer;border:1.5px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);font-weight:600">eBay</button>
           <button onclick="event.stopPropagation();wantSearchOtherSites('${w.itemNum}','${escName}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.75rem;cursor:pointer;border:1.5px solid #2980b9;background:rgba(41,128,185,0.12);color:#2980b9;font-family:var(--font-body);font-weight:600">Search</button>
           <button onclick="event.stopPropagation();removeWantItem('${w.itemNum}','${escVar}',${w.row})" style="flex:0 0 auto;padding:0.4rem 0.6rem;border-radius:7px;font-size:0.75rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>
-        </div>
+        </div>` : ''}
       </div>`;
     }).join('');
   } else {
@@ -6177,25 +6203,32 @@ function buildForSalePage() {
       const master = state.masterData.find(i => i.itemNum === fs.itemNum && i.variation === fs.variation) || {};
       const collPd = state.personalData[fs.itemNum + '|' + (fs.variation||'')] || {};
       const estWorth = fs.estWorth || collPd.userEstWorth || '';
-      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem">
+      const _fsShareKey = fs.itemNum + '|' + (fs.variation||'') + '|' + (fs.row||0);
+      const _fsInShare = typeof isShareMode === 'function' && isShareMode('forsale');
+      const _fsSelected = _fsInShare && window._shareItems && window._shareItems[_fsShareKey];
+      const _fsShareData = { itemNum: fs.itemNum, variation: fs.variation||'', fs: fs, master: master };
+      return `<div id="share-card-${_fsShareKey}" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem${_fsSelected ? ';outline:2px solid #3a9e68' : ''}" ${_fsInShare ? 'onclick="toggleShareItem(\'' + _fsShareKey + '\',' + JSON.stringify(_fsShareData).replace(/'/g,'&#39;') + ')"' : ''}>
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
-          <div>
-            <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${fs.itemNum}</span>
-            ${fs.variation ? `<span style="font-size:0.72rem;color:var(--text-dim);margin-left:0.4rem">${fs.variation}</span>` : ''}
-            ${master.roadName ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">${master.roadName}</div>` : ''}
-            <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${[master.itemType, fs.condition ? 'Cond: '+fs.condition : '', fs.dateListed ? 'Listed: '+fs.dateListed : ''].filter(Boolean).join(' · ')}</div>
-            ${estWorth ? `<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.1rem">Est. Worth: $${parseFloat(estWorth).toLocaleString()}</div>` : ''}
-            ${fs.notes ? `<div style="font-size:0.72rem;color:var(--text-mid);margin-top:0.15rem;font-style:italic">${fs.notes.length > 60 ? fs.notes.substring(0,57)+'…' : fs.notes}</div>` : ''}
+          <div style="display:flex;align-items:flex-start;gap:0.5rem">
+            ${_fsInShare ? '<input type="checkbox" ' + (_fsSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _fsShareKey + '\',' + JSON.stringify(_fsShareData).replace(/'/g,'&#39;') + ')" style="width:1.1rem;height:1.1rem;accent-color:#3a9e68;flex-shrink:0;margin-top:0.2rem">' : ''}
+            <div>
+              <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${fs.itemNum}</span>
+              ${fs.variation ? `<span style="font-size:0.72rem;color:var(--text-dim);margin-left:0.4rem">${fs.variation}</span>` : ''}
+              ${master.roadName ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">${master.roadName}</div>` : ''}
+              <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${[master.itemType, fs.condition ? 'Cond: '+fs.condition : '', fs.dateListed ? 'Listed: '+fs.dateListed : ''].filter(Boolean).join(' · ')}</div>
+              ${estWorth ? `<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.1rem">Est. Worth: $${parseFloat(estWorth).toLocaleString()}</div>` : ''}
+              ${fs.notes ? `<div style="font-size:0.72rem;color:var(--text-mid);margin-top:0.15rem;font-style:italic">${fs.notes.length > 60 ? fs.notes.substring(0,57)+'…' : fs.notes}</div>` : ''}
+            </div>
           </div>
           <div style="text-align:right;flex-shrink:0">
             ${fs.askingPrice ? `<div style="font-family:var(--font-mono);color:#e67e22;font-size:1.1rem;font-weight:600">$${parseFloat(fs.askingPrice).toLocaleString()}</div>` : '<div style="color:var(--text-dim);font-size:0.8rem">No price</div>'}
           </div>
         </div>
-        <div style="display:flex;gap:0.4rem;margin-top:0.6rem;flex-wrap:wrap">
+        ${!_fsInShare ? `<div style="display:flex;gap:0.4rem;margin-top:0.6rem;flex-wrap:wrap">
           <button onclick="markForSaleAsSold('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}','${fs.askingPrice||''}')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600">Mark as Sold</button>
           <button onclick="removeForSaleItem('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}',${fs.row})" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Back to Collection</button>
           <button onclick="removeForSaleAndCollection('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}',${fs.row})" style="flex:0 0 auto;padding:0.4rem 0.6rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid #e74c3c;background:rgba(231,76,60,0.10);color:#e74c3c;font-family:var(--font-body)">Remove</button>
-        </div>
+        </div>` : ''}
       </div>`;
     }).join('') : '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🏷️</div><p>No items listed for sale</p></div>';
   } else {
@@ -6205,8 +6238,12 @@ function buildForSalePage() {
       const master = state.masterData.find(i => i.itemNum === fs.itemNum && i.variation === fs.variation) || {};
       const collPd = state.personalData[fs.itemNum + '|' + (fs.variation||'')] || {};
       const estWorth = fs.estWorth || collPd.userEstWorth || '';
-      return `<tr>
-        <td><span class="item-num">${fs.itemNum}</span>${fs.variation ? ' <span style="font-size:0.72rem;color:var(--text-dim)">' + fs.variation + '</span>' : ''}</td>
+      const _fsDShareKey = fs.itemNum + '|' + (fs.variation||'') + '|' + (fs.row||0);
+      const _fsDInShare = typeof isShareMode === 'function' && isShareMode('forsale');
+      const _fsDSelected = _fsDInShare && window._shareItems && window._shareItems[_fsDShareKey];
+      const _fsDShareData = { itemNum: fs.itemNum, variation: fs.variation||'', fs: fs, master: master };
+      return `<tr id="share-card-${_fsDShareKey}" ${_fsDInShare ? 'onclick="toggleShareItem(\'' + _fsDShareKey + '\',' + JSON.stringify(_fsDShareData).replace(/'/g,'&#39;') + ')"' : ''} style="cursor:${_fsDInShare ? 'pointer' : 'default'}${_fsDSelected ? ';outline:2px solid #3a9e68;background:rgba(58,158,104,0.06)' : ''}">
+        <td><span class="item-num">${_fsDInShare ? '<input type="checkbox" ' + (_fsDSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _fsDShareKey + '\',' + JSON.stringify(_fsDShareData).replace(/'/g,'&#39;') + ')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">' : ''}${fs.itemNum}</span>${fs.variation ? ' <span style="font-size:0.72rem;color:var(--text-dim)">' + fs.variation + '</span>' : ''}</td>
         <td><span class="tag">${master.itemType || '—'}</span></td>
         <td>${master.roadName || '—'}</td>
         <td>${fs.condition || '—'}</td>
@@ -6214,9 +6251,9 @@ function buildForSalePage() {
         <td class="text-dim">${estWorth ? '$' + parseFloat(estWorth).toLocaleString() : '—'}</td>
         <td class="text-dim">${fs.dateListed || '—'}</td>
         <td style="white-space:nowrap">
-          <button onclick="markForSaleAsSold('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}','${fs.askingPrice||''}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);margin-right:0.3rem">Mark as Sold</button>
+          ${!_fsDInShare ? `<button onclick="markForSaleAsSold('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}','${fs.askingPrice||''}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);margin-right:0.3rem">Mark as Sold</button>
           <button onclick="removeForSaleItem('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}',${fs.row})" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);margin-right:0.3rem">Back to Collection</button>
-          <button onclick="removeForSaleAndCollection('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}',${fs.row})" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #e74c3c;background:rgba(231,76,60,0.10);color:#e74c3c;font-family:var(--font-body)">Remove</button>
+          <button onclick="removeForSaleAndCollection('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}',${fs.row})" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #e74c3c;background:rgba(231,76,60,0.10);color:#e74c3c;font-family:var(--font-body)">Remove</button>` : ''}
         </td>
       </tr>`;
     }).join('') : '<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🏷️</div><p>No items listed for sale</p></div></td></tr>';
