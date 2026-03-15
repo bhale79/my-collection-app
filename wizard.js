@@ -465,6 +465,8 @@ function closeWizard() {
 }
 
 function completeQuickEntry(itemNum, variation, globalIdx, pdRow) {
+  // Ensure wizard modal exists — it's built lazily on first openWizard() call
+  if (typeof _buildWizardModal === 'function') _buildWizardModal();
   var _activePg = document.querySelector('.page.active');
   var _returnPage = _activePg ? _activePg.id.replace('page-', '') : 'browse';
 
