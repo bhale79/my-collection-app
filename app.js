@@ -5994,10 +5994,115 @@ function moveWantToCollection(itemNum, variation) {
   }, 150);
 }
 
+// ── EBAY SEARCH MODAL ────────────────────────────────────────────
+// Affiliate Campaign ID — replace CAMPAIGN_ID with real ID from eBay Partner Network
+const _EPN_CAMPAIGN_ID = 'CAMPAIGN_ID';
+const _EPN_PARAMS = _EPN_CAMPAIGN_ID !== 'CAMPAIGN_ID'
+  ? `&mkcid=1&mkrid=711-53200-19255-0&siteid=0&campid=${_EPN_CAMPAIGN_ID}&toolid=10001&mkevt=1`
+  : '';
+
 function wantFindOnEbay(itemNum, roadName) {
-  const query = ['lionel', itemNum, roadName || ''].filter(Boolean).join(' ').trim();
-  const url = 'https://www.ebay.com/sch/i.html?_nkw=' + encodeURIComponent(query) + '&_sacat=180250';
+  // Remove any existing eBay modal
+  const _old = document.getElementById('ebay-search-modal');
+  if (_old) _old.remove();
+
+  const _overlay = document.createElement('div');
+  _overlay.id = 'ebay-search-modal';
+  _overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+  _overlay.onclick = function(e) { if (e.target === _overlay) _overlay.remove(); };
+
+  _overlay.innerHTML = `
+    <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;width:100%;max-width:420px;padding:1.25rem;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+        <div style="display:flex;align-items:center;gap:0.5rem">
+          <span style="font-size:1.3rem">🛒</span>
+          <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--text);letter-spacing:0.03em">Search eBay</span>
+        </div>
+        <button onclick="document.getElementById('ebay-search-modal').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer;line-height:1">✕</button>
+      </div>
+
+      <div style="background:var(--surface2);border-radius:8px;padding:0.6rem 0.8rem;margin-bottom:1rem;font-family:var(--font-mono);font-size:0.85rem;color:var(--gold)">
+        No. ${itemNum}${roadName ? ' · ' + roadName : ''}
+      </div>
+
+      <div style="margin-bottom:0.85rem">
+        <label style="font-size:0.75rem;color:var(--text-mid);display:block;margin-bottom:0.3rem">LISTING TYPE</label>
+        <div style="display:flex;gap:0.5rem">
+          <button id="ebay-type-active" onclick="_ebaySetType('active')" style="flex:1;padding:0.45rem;border-radius:7px;font-size:0.8rem;cursor:pointer;border:1.5px solid var(--accent);background:var(--accent);color:#fff;font-family:var(--font-body);font-weight:600">Active Listings</button>
+          <button id="ebay-type-sold" onclick="_ebaySetType('sold')" style="flex:1;padding:0.45rem;border-radius:7px;font-size:0.8rem;cursor:pointer;border:1.5px solid var(--border);background:transparent;color:var(--text-mid);font-family:var(--font-body);font-weight:600">Sold Listings</button>
+        </div>
+        <div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.3rem" id="ebay-type-hint">See what&apos;s available to buy right now</div>
+      </div>
+
+      <div style="margin-bottom:0.85rem">
+        <label style="font-size:0.75rem;color:var(--text-mid);display:block;margin-bottom:0.3rem">CONDITION</label>
+        <select id="ebay-condition" style="width:100%;padding:0.4rem 0.5rem;border-radius:7px;background:var(--surface2);border:1.5px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.82rem">
+          <option value="">Any Condition</option>
+          <option value="3000">Used</option>
+          <option value="1000">New</option>
+          <option value="2500">For parts / not working</option>
+        </select>
+      </div>
+
+      <div style="margin-bottom:1.1rem">
+        <label style="font-size:0.75rem;color:var(--text-mid);display:block;margin-bottom:0.3rem">PRICE RANGE (optional)</label>
+        <div style="display:flex;align-items:center;gap:0.5rem">
+          <input id="ebay-price-min" type="number" placeholder="Min $" min="0" style="flex:1;padding:0.4rem 0.5rem;border-radius:7px;background:var(--surface2);border:1.5px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.82rem">
+          <span style="color:var(--text-dim);font-size:0.8rem">to</span>
+          <input id="ebay-price-max" type="number" placeholder="Max $" min="0" style="flex:1;padding:0.4rem 0.5rem;border-radius:7px;background:var(--surface2);border:1.5px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.82rem">
+        </div>
+      </div>
+
+      <button onclick="_ebayDoSearch('${itemNum}','${(roadName||'').replace(/'/g,"\\'")}',false)" style="width:100%;padding:0.65rem;border-radius:9px;background:#e67e22;border:none;color:#fff;font-family:var(--font-head);font-size:1rem;letter-spacing:0.05em;cursor:pointer;font-weight:600">
+        SEARCH EBAY ↗
+      </button>
+      <div style="text-align:center;margin-top:0.5rem;font-size:0.68rem;color:var(--text-dim)">Opens in a new tab</div>
+    </div>
+  `;
+
+  document.body.appendChild(_overlay);
+  window._ebayListingType = 'active';
+}
+
+function _ebaySetType(type) {
+  window._ebayListingType = type;
+  const btnActive = document.getElementById('ebay-type-active');
+  const btnSold   = document.getElementById('ebay-type-sold');
+  const hint      = document.getElementById('ebay-type-hint');
+  if (type === 'active') {
+    btnActive.style.cssText += ';border-color:var(--accent);background:var(--accent);color:#fff';
+    btnSold.style.cssText   += ';border-color:var(--border);background:transparent;color:var(--text-mid)';
+    hint.textContent = 'See what\'s available to buy right now';
+  } else {
+    btnSold.style.cssText   += ';border-color:#e67e22;background:#e67e22;color:#fff';
+    btnActive.style.cssText += ';border-color:var(--border);background:transparent;color:var(--text-mid)';
+    hint.textContent = 'See what items have actually sold for — great for pricing';
+  }
+}
+
+function _ebayDoSearch(itemNum, roadName, _unused) {
+  const query     = ['lionel', itemNum, roadName || ''].filter(Boolean).join(' ').trim();
+  const type      = window._ebayListingType || 'active';
+  const condition = document.getElementById('ebay-condition')?.value || '';
+  const priceMin  = document.getElementById('ebay-price-min')?.value || '';
+  const priceMax  = document.getElementById('ebay-price-max')?.value || '';
+
+  let url;
+  if (type === 'sold') {
+    // Sold listings search
+    url = 'https://www.ebay.com/sch/i.html?_nkw=' + encodeURIComponent(query)
+      + '&_sacat=180250&LH_Sold=1&LH_Complete=1';
+  } else {
+    url = 'https://www.ebay.com/sch/i.html?_nkw=' + encodeURIComponent(query)
+      + '&_sacat=180250&LH_ItemCondition=' + condition;
+  }
+  if (priceMin) url += '&_udlo=' + encodeURIComponent(priceMin);
+  if (priceMax) url += '&_udhi=' + encodeURIComponent(priceMax);
+  url += _EPN_PARAMS;
+
   window.open(url, '_blank');
+  const modal = document.getElementById('ebay-search-modal');
+  if (modal) modal.remove();
 }
 
 function wantSearchOtherSites(itemNum, roadName) {
