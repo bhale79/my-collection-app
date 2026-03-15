@@ -5639,9 +5639,16 @@ function _applyIdentifiedItem(num) {
     if (inp) {
       inp.value = num;
       wizard.data.itemNum = num;
+      wizard.data['itemNum'] = num;
+      // Trigger input event so the field registers the value
+      inp.dispatchEvent(new Event('input', { bubbles: true }));
       updateItemSuggestions(num);
-      // Advance to next step after a short delay so suggestions load first
-      setTimeout(function() { if (typeof wizardNext === 'function') wizardNext(); }, 350);
+      // Advance after delay — ensure next button is enabled and modal is fully closed
+      setTimeout(function() {
+        var btn = document.getElementById('wizard-next-btn');
+        if (btn) btn.disabled = false;
+        if (typeof wizardNext === 'function') wizardNext();
+      }, 500);
     }
   } else {
     const search = document.getElementById('browse-search');
