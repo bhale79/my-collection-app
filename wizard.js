@@ -434,6 +434,44 @@ function _buildWizardModal() {
       '</div>' +
     '</div>';
   document.body.appendChild(overlay);
+
+  // Build photo source picker sheet if not already present
+  if (!document.getElementById('photo-picker-sheet')) {
+    var _pickerEl = document.createElement('div');
+    _pickerEl.id = 'photo-picker-sheet';
+    _pickerEl.innerHTML = "<div id=\"photo-picker-inner\"><div style=\"text-align:center;font-family:var(--font-head);font-size:0.8rem;letter-spacing:0.12em;color:var(--text-dim);text-transform:uppercase;margin-bottom:0.25rem\">Add Photo</div><button id=\"picker-btn-cam\" class=\"picker-btn\" style=\"display:none\"><span class=\"picker-icon\">\ud83d\udcf7</span><span id=\"picker-cam-label\">Take Photo</span></button><button id=\"picker-btn-lib\" class=\"picker-btn\"><span class=\"picker-icon\">\ud83d\uddbc\ufe0f</span><span id=\"picker-lib-label\">Choose from Library</span></button><button class=\"picker-btn\" style=\"border-color:var(--text-dim);color:var(--text-dim)\" onclick=\"closePhotoPicker()\"><span class=\"picker-icon\">\u2715</span><span>Cancel</span></button></div>";
+    // Wire up camera button (creates hidden input on click)
+    var _camBtn = _pickerEl.querySelector('#picker-btn-cam');
+    if (_camBtn) _camBtn.addEventListener('click', function() {
+      var inp = document.getElementById('picker-input-cam');
+      if (!inp) {
+        inp = document.createElement('input');
+        inp.type = 'file'; inp.id = 'picker-input-cam';
+        inp.accept = 'image/*'; inp.setAttribute('capture', 'environment');
+        inp.style.display = 'none';
+        inp.addEventListener('change', function() { pickerHandleFile(inp, true); });
+        document.body.appendChild(inp);
+      }
+      inp.value = ''; inp.click();
+    });
+    // Wire up library button
+    var _libBtn = _pickerEl.querySelector('#picker-btn-lib');
+    if (_libBtn) _libBtn.addEventListener('click', function() {
+      var inp = document.getElementById('picker-input-lib');
+      if (!inp) {
+        inp = document.createElement('input');
+        inp.type = 'file'; inp.id = 'picker-input-lib';
+        inp.accept = 'image/*';
+        inp.style.display = 'none';
+        inp.addEventListener('change', function() { pickerHandleFile(inp, false); });
+        document.body.appendChild(inp);
+      }
+      inp.value = ''; inp.click();
+    });
+    // Close on backdrop click
+    _pickerEl.addEventListener('click', function(e) { if (e.target === _pickerEl) closePhotoPicker(); });
+    document.body.appendChild(_pickerEl);
+  }
 }
 
 function openWizard(tab) {
