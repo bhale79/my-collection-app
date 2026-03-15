@@ -248,7 +248,7 @@ async function _doShare(mode) {
 
   } catch(err) {
     console.error('Share error:', err);
-    if (prog) prog.textContent = 'Something went wrong — please try again.';
+    if (prog) prog.textContent = 'Error: ' + (err && err.message ? err.message : String(err));
     if (acts) acts.style.display = 'flex';
   }
 }
@@ -272,8 +272,12 @@ async function _fetchPhotoAsDataUrl(fileId) {
 
 // ── Build PDF using jsPDF ─────────────────────────────────────────
 async function _buildPDF(items, fields, message) {
-  // jsPDF is loaded from CDN in index.html
-  var doc = new window.jspdf.jsPDF({ unit: 'pt', format: 'letter' });
+  // Resolve jsPDF from multiple possible namespaces
+  var jsPDFClass = (window.jspdf && window.jspdf.jsPDF)
+    || window.jsPDF
+    || (window.jspdf && window.jspdf.default);
+  if (!jsPDFClass) throw new Error('PDF library not loaded — please refresh and try again');
+  var doc = new jsPDFClass({ unit: 'pt', format: 'letter' });
   var pageW = doc.internal.pageSize.getWidth();
   var margin = 36;
   var contentW = pageW - margin * 2;
@@ -427,51 +431,48 @@ async function _buildPDF(items, fields, message) {
 
 // ── Upload PDF to Drive and return shareable link ─────────────────
 async function _uploadShareToDrive(pdfBlob) {
+  var token = accessToken || localStorage.getItem('lv_token');
+  if (!token) throw new Error('Not signed in');
+
   // Ensure vault folder exists
   await driveEnsureSetup();
-  var folderId = driveCache.vaultId || 'root';
+  var folderId = (driveCache && driveCache.vaultId) ? driveCache.vaultId : 'root';
 
-  var fileName = 'Collection Share ' + new Date().toLocaleDateString('en-US') + '.pdf';
+  var fileName = 'Collection Share ' + new Date().toLocaleDateString('en-US', {year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\//g,'-') + '.pdf';
 
-  // Upload using multipart
-  var metadata = { name: fileName, mimeType: 'application/pdf', parents: [folderId] };
-  var boundary = '-------collectionshare314159';
-  var delimiter = '\r\n--' + boundary + '\r\n';
-  var closeDelimiter = '\r\n--' + boundary + '--';
+  // Step 1: Create file metadata
+  var metaRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer ' + token,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ name: fileName, mimeType: 'application/pdf', parents: [folderId] }),
+  });
+  if (!metaRes.ok) throw new Error('Drive create failed: ' + metaRes.status);
+  var metaData = await metaRes.json();
+  var fileId = metaData.id;
 
-  var metaStr = JSON.stringify(metadata);
-  var pdfArrayBuffer = await pdfBlob.arrayBuffer();
-  var pdfBytes = new Uint8Array(pdfArrayBuffer);
+  // Step 2: Upload content
+  var uploadRes = await fetch('https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=media', {
+    method: 'PATCH',
+    headers: {
+      Authorization: 'Bearer ' + token,
+      'Content-Type': 'application/pdf',
+    },
+    body: pdfBlob,
+  });
+  if (!uploadRes.ok) throw new Error('Drive upload failed: ' + uploadRes.status);
 
-  // Build multipart body
-  var bodyParts = [];
-  var metaPart = delimiter +
-    'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
-    metaStr +
-    '\r\n--' + boundary + '\r\n' +
-    'Content-Type: application/pdf\r\n\r\n';
+  // Step 3: Make publicly viewable
+  await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '/permissions', {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer ' + token,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ role: 'reader', type: 'anyone' }),
+  });
 
-  var encoder = new TextEncoder();
-  var metaBytes = encoder.encode(metaPart);
-  var closeBytes = encoder.encode(closeDelimiter);
-
-  var combined = new Uint8Array(metaBytes.length + pdfBytes.length + closeBytes.length);
-  combined.set(metaBytes, 0);
-  combined.set(pdfBytes, metaBytes.length);
-  combined.set(closeBytes, metaBytes.length + pdfBytes.length);
-
-  var uploadRes = await driveRequest('POST',
-    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',
-    new Blob([combined], { type: 'multipart/related; boundary=' + boundary })
-  );
-
-  var fileId = uploadRes.id;
-
-  // Make it publicly accessible (anyone with link can view)
-  await driveRequest('POST',
-    'https://www.googleapis.com/drive/v3/files/' + fileId + '/permissions',
-    { role: 'reader', type: 'anyone' }
-  );
-
-  return uploadRes.webViewLink || ('https://drive.google.com/file/d/' + fileId + '/view');
+  return 'https://drive.google.com/file/d/' + fileId + '/view';
 }
