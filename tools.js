@@ -57,7 +57,7 @@ function buildToolsPage() {
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3a9e68" stroke-width="2"><circle cx="9" cy="9" r="4"/><path d="M20 20c0-3.31-2.69-6-6-6H9a6 6 0 0 0-6 6"/><path d="M19 8l2 2-2 2"/><path d="M15 10h6"/></svg>' +
         'Companion Suggester' +
       '</div>' +
-      '<div class="tools-card-desc">Looks at engines and diesels you own and suggests matching companions — tenders and B units — that are not in your collection yet. Add any missing piece straight to your Want List.</div>' +
+      '<div class="tools-card-desc">Scans your entire collection for missing companions — tenders without their engine, B units without their A unit, and engines without their tender or B unit. Add any missing piece straight to your Want List.</div>' +
       '<button onclick="runCompanionSuggester()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #3a9e68;background:rgba(58,158,104,0.1);color:#3a9e68;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan My Engines</button>' +
       '<div id="companion-suggester-results" style="margin-top:1rem"></div>' +
     '</div>';
@@ -550,66 +550,75 @@ function runCompanionSuggester() {
     Object.keys(state.wantData).map(function(k) { return norm(k.split('|')[0]); })
   );
 
-  // Group companion suggestions by engine
-  var engineMap = {};
+  // suggestMap: keyed by the owned item number, groups missing companions
+  var suggestMap = {};
 
-  state.companionData.forEach(function(c) {
-    var engineKey = norm(c.engineNum);
-    if (!ownedNums.has(engineKey)) return;             // don't own this engine — skip
+  function addSuggestion(ownedNum, missingNum, missingType) {
+    var ownedKey = norm(ownedNum);
+    var missingKey = norm(missingNum);
 
-    // For same-item-number B units, the companion number matches the engine number.
-    // We can't use a simple "is it owned?" check because we'd always find the A unit.
-    // Instead, check whether the user specifically owns a B unit for this item number.
-    var isSameNum = norm(c.companionNum) === norm(c.engineNum);
-    if (isSameNum) {
-      // Check if any owned entry for this item number has unit='B' in master data
+    if (!ownedNums.has(ownedKey)) return;  // don't own the anchor item
+
+    // For same-item-number pairs, check B unit ownership specifically
+    if (ownedKey === missingKey) {
       var ownsBUnit = Object.values(state.personalData).some(function(pd) {
         if (!pd.owned) return false;
-        if (norm(pd.itemNum) !== norm(c.companionNum)) return false;
-        var masterEntry = state.masterData && state.masterData.find(function(m) {
+        if (norm(pd.itemNum) !== missingKey) return false;
+        var m = state.masterData && state.masterData.find(function(m) {
           return norm(m.itemNum) === norm(pd.itemNum) && m.unit === 'B';
         });
-        return !!masterEntry;
+        return !!m;
       });
-      if (ownsBUnit) return; // already own the B unit — skip
+      if (ownsBUnit) return;  // already own the B unit
     } else {
-      if (ownedNums.has(norm(c.companionNum))) return; // already own the companion — skip
+      if (ownedNums.has(missingKey)) return;  // already own the companion
     }
 
-    if (!engineMap[engineKey]) engineMap[engineKey] = { engineNum: c.engineNum, suggestions: [] };
-
-    // Check if this companion is already on the want list
-    var alreadyWanted = wantedNums.has(norm(c.companionNum));
-
-    engineMap[engineKey].suggestions.push({
-      companionNum:  c.companionNum,
-      companionType: c.companionType,
-      engineVar:     c.engineVar,
-      alreadyWanted: alreadyWanted,
+    if (!suggestMap[ownedKey]) suggestMap[ownedKey] = { ownedNum: ownedNum, suggestions: [] };
+    suggestMap[ownedKey].suggestions.push({
+      companionNum:  missingNum,
+      companionType: missingType,
+      alreadyWanted: wantedNums.has(missingKey),
     });
+  }
+
+  state.companionData.forEach(function(c) {
+    // Forward: own engine/A unit → suggest tender or B unit
+    addSuggestion(c.engineNum, c.companionNum, c.companionType);
+
+    // Reverse: own tender → suggest engine; own B unit → suggest A unit
+    var reverseType = c.companionType === 'B Unit' ? 'A Unit' : 'Engine';
+    addSuggestion(c.companionNum, c.engineNum, reverseType);
   });
 
-  var engines = Object.values(engineMap).filter(function(e) { return e.suggestions.length > 0; });
+  var items = Object.values(suggestMap).filter(function(e) { return e.suggestions.length > 0; });
 
-  if (!engines.length) {
-    out.innerHTML = '<div style="padding:0.75rem;background:rgba(58,158,104,0.08);border:1px solid rgba(58,158,104,0.25);border-radius:8px;color:#4dc880;font-size:0.85rem">✓ All engines in your collection have their companions — nothing missing!</div>';
+  if (!items.length) {
+    out.innerHTML = '<div style="padding:0.75rem;background:rgba(58,158,104,0.08);border:1px solid rgba(58,158,104,0.25);border-radius:8px;color:#4dc880;font-size:0.85rem">✓ All items in your collection have their companions — nothing missing!</div>';
     return;
   }
 
-  var html = '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.75rem">' + engines.length + ' engine' + (engines.length > 1 ? 's' : '') + ' with missing companions:</div>';
+  // Sort by item number
+  items.sort(function(a, b) {
+    var na = parseFloat(a.ownedNum) || 0, nb = parseFloat(b.ownedNum) || 0;
+    if (na !== nb) return na - nb;
+    return (a.ownedNum || '').localeCompare(b.ownedNum || '');
+  });
 
-  engines.forEach(function(e, idx) {
+  var html = '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.75rem">' + items.length + ' item' + (items.length > 1 ? 's' : '') + ' with missing companions:</div>';
+
+  items.forEach(function(e, idx) {
     // Get road name from master data
     var masterEntry = state.masterData && state.masterData.find(function(m) {
-      return norm(m.itemNum) === norm(e.engineNum);
+      return norm(m.itemNum) === norm(e.ownedNum);
     });
     var roadName = masterEntry ? (masterEntry.roadName || '') : '';
-    var engineLabel = '<strong>' + e.engineNum + '</strong>' + (roadName ? ' <span style="color:var(--text-dim);font-size:0.8rem">· ' + roadName + '</span>' : '');
+    var itemLabel = '<strong>' + e.ownedNum + '</strong>' + (roadName ? ' <span style="color:var(--text-dim);font-size:0.8rem">· ' + roadName + '</span>' : '');
 
     html += '<div class="tools-result-row" style="flex-direction:column;align-items:flex-start;gap:0.5rem" id="comp-engine-' + idx + '">' +
       '<div style="font-size:0.88rem;color:var(--text);display:flex;align-items:center;gap:0.5rem">' +
         '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#3a9e68" stroke-width="2" style="flex-shrink:0"><circle cx="9" cy="9" r="4"/><path d="M20 20c0-3.31-2.69-6-6-6H9a6 6 0 0 0-6 6"/></svg>' +
-        engineLabel +
+        itemLabel +
       '</div>';
 
     // Deduplicate suggestions by companion number
@@ -626,8 +635,13 @@ function runCompanionSuggester() {
         return norm(m.itemNum) === norm(s.companionNum);
       });
       var compDesc = compMaster ? (compMaster.roadName || compMaster.subType || '') : '';
-      var typeLabel = s.companionType === 'B Unit' ? 'B Unit' : 'Tender';
-      var typeColor = s.companionType === 'B Unit' ? '#8b5cf6' : '#0891b2';
+
+      // Type label and color
+      var typeLabel, typeColor;
+      if (s.companionType === 'B Unit')      { typeLabel = 'B Unit';  typeColor = '#8b5cf6'; }
+      else if (s.companionType === 'A Unit') { typeLabel = 'A Unit';  typeColor = '#8b5cf6'; }
+      else if (s.companionType === 'Engine') { typeLabel = 'Engine';  typeColor = '#d4a843'; }
+      else                                   { typeLabel = 'Tender';  typeColor = '#0891b2'; }
 
       html += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.35rem 0.5rem;background:var(--surface);border-radius:7px;width:100%;box-sizing:border-box">' +
         '<span style="font-family:var(--font-mono);font-size:0.85rem;color:var(--text)">' + s.companionNum + '</span>' +
@@ -643,7 +657,7 @@ function runCompanionSuggester() {
     html += '</div>';
   });
 
-  window._companionEngines = engines;
+  window._companionEngines = items;
   out.innerHTML = html;
 }
 
