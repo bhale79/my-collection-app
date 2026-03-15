@@ -362,16 +362,20 @@
   .browse-table-wrap { overflow-x: auto; overflow-y: auto; }
   /* Disable sticky on browse thead — can't be sticky in both axes simultaneously */
   .browse-table-wrap .item-table thead th { position: static; box-shadow: none; }
-  /* Collection view: min-width ensures table scrolls as one unit */
-  #page-browse .item-table.collection-view { min-width: 780px; }
+  /* Collection view: fills container width, no horizontal scroll */
+  #page-browse .item-table.collection-view { table-layout: fixed; width: 100%; min-width: 0; }
   #page-browse .item-table.collection-view th:nth-child(1),
-  #page-browse .item-table.collection-view td:nth-child(1) { width: 90px; }
+  #page-browse .item-table.collection-view td:nth-child(1) { width: 100px; }
   #page-browse .item-table.collection-view th:nth-child(2),
-  #page-browse .item-table.collection-view td:nth-child(2) { width: 105px; }
+  #page-browse .item-table.collection-view td:nth-child(2) { width: 52px; }
   #page-browse .item-table.collection-view th:nth-child(3),
-  #page-browse .item-table.collection-view td:nth-child(3) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #page-browse .item-table.collection-view td:nth-child(3) { width: 80px; }
   #page-browse .item-table.collection-view th:nth-child(4),
-  #page-browse .item-table.collection-view td:nth-child(4) { width: 290px; }
+  #page-browse .item-table.collection-view td:nth-child(4) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #page-browse .item-table.collection-view th:nth-child(5),
+  #page-browse .item-table.collection-view td:nth-child(5) { width: 82px; }
+  #page-browse .item-table.collection-view th:nth-child(6),
+  #page-browse .item-table.collection-view td:nth-child(6) { width: 210px; text-align: right; }
 
   /* ── Master Catalog: Var. column narrower ── */
   #page-browse .item-table:not(.collection-view) th:nth-child(4),
