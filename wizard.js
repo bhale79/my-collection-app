@@ -35,23 +35,26 @@ function getSteps(tab) {
           },
           type: 'choice2', choices: ['Yes','No'],
           skipIf: (d) => !_findCollectionItemByNum(d.is_linkedItem) },
-        { id: 'is_sheetNum',   title: 'What is the instruction sheet number?',       type: 'text',
-          placeholder: 'e.g. 924-6, 1-1957, 726-13' },
-        { id: 'is_formCode',   title: 'What is the form code?',                      type: 'text',
-          placeholder: 'e.g. 671-58—8-55—TT', optional: true,
-          note: () => 'Found at the bottom of the sheet next to "Printed in U.S.A." — skip if not visible' },
-        { id: 'is_year',       title: 'Year or date printed (if known)',              type: 'text',
-          placeholder: 'e.g. 1957, 1957-06', optional: true },
-        { id: 'is_condition',  title: 'What condition is the sheet?',                type: 'slider', min:1, max:10 },
-        { id: 'is_notes',      title: 'Any notes about this sheet?',                 type: 'textarea', optional: true,
-          placeholder: 'e.g. Early printing, double-sided, staple holes' },
-        { id: 'is_photos',     title: 'Add photos of the instruction sheet',         type: 'drivePhotos', label: 'IS',
+        // IS picker — searchable list of known sheets for this item
+        { id: 'is_pick',
+          title: (d) => 'Find the instruction sheet' + (d.is_linkedItem ? ' for No. ' + d.is_linkedItem : ''),
+          type: 'isPicker',
+          optional: true },
+        // Consolidated details card — sheet #, form code, year on one screen
+        { id: 'is_details',    title: 'Sheet details',  type: 'isDetails', optional: true },
+        { id: 'is_condition',  title: 'What condition is the sheet?', type: 'slider', min:1, max:10 },
+        { id: 'is_photos',     title: 'Add photos of the instruction sheet', type: 'drivePhotos', label: 'IS',
           views: [
             { key: 'IS-FRONT',  label: 'Front Side',  abbr: 'IS-FRONT'  },
             { key: 'IS-BACK',   label: 'Back Side',   abbr: 'IS-BACK'   },
             { key: 'IS-DETAIL', label: 'Detail',      abbr: 'IS-DETAIL' },
           ], optional: true },
-        { id: 'is_confirm',    title: 'Ready to save the instruction sheet!',        type: 'confirm' },
+        { id: 'is_confirm',
+          title: (d) => {
+            const desc = d.is_pick ? d.is_pick.description : (d.is_linkedItem ? 'IS for No. ' + d.is_linkedItem : 'Instruction Sheet');
+            return 'Ready to save: ' + desc;
+          },
+          type: 'confirm' },
       ];
     }
 
@@ -1505,6 +1508,75 @@ function renderWizardStep() {
       + '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional - press Next to enter title manually</div>'
       + '</div>';
     setTimeout(function() { var i = document.getElementById('cp-input'); if(i) i.focus(); }, 80);
+
+  } else if (s.type === 'isPicker') {
+    // Searchable IS picker — filters master IS list by linked item number
+    const ipVal    = wizard.data[s.id] || null;
+    const itemNum  = (wizard.data.is_linkedItem || '').trim();
+    // Filter master IS data by item number (exact + suffix variants like 671a, 671b)
+    const allIS = (state.isRefData || []).filter(function(it) {
+      if (!itemNum) return true;
+      const base = it.itemNumber || '';
+      return base === itemNum || base.startsWith(itemNum);
+    });
+    window._ipAllItems = allIS;
+    const pickedDesc = ipVal ? ipVal.description : '';
+    let listHTML = '';
+    if (allIS.length === 0) {
+      listHTML = '<div style="color:var(--text-dim);font-size:0.82rem;padding:0.5rem">'
+        + (itemNum ? 'No known sheets for No. ' + itemNum + ' — press Next to enter manually' : 'Enter item # first')
+        + '</div>';
+    } else {
+      allIS.forEach(function(it, idx) {
+        const picked = ipVal && ipVal.id === it.id;
+        const label  = it.description + (it.variations ? ' (' + it.variations + ')' : '');
+        const search = (it.description + ' ' + it.itemNumber + ' ' + (it.variations||'')).toLowerCase().replace(/"/g,'');
+        listHTML += '<button onclick="wizardPickIS(' + idx + ')" data-search="' + search + '" style="'
+          + 'padding:0.5rem 0.75rem;border-radius:8px;text-align:left;cursor:pointer;width:100%;'
+          + 'border:2px solid ' + (picked ? 'var(--accent)' : 'var(--border)') + ';'
+          + 'background:' + (picked ? 'rgba(232,64,28,0.15)' : 'var(--surface2)') + ';'
+          + 'color:' + (picked ? 'var(--accent)' : 'var(--text-mid)') + ';'
+          + 'font-family:var(--font-body);font-size:0.82rem;font-weight:500;transition:all 0.15s;margin-bottom:0.3rem">'
+          + label + '</button>';
+      });
+    }
+    body.innerHTML = '<div style="padding-top:0.5rem">'
+      + '<div style="position:relative;margin-bottom:0.6rem">'
+      + '<input id="ip-input" type="text" placeholder="Search by description..." autocomplete="off" spellcheck="false" value="' + pickedDesc.replace(/"/g,'&quot;') + '" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.55rem 0.75rem 0.55rem 2rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none" oninput="wizardFilterIS()">'
+      + '<span style="position:absolute;left:0.6rem;top:50%;transform:translateY(-50%);color:var(--text-dim);pointer-events:none">&#128269;</span>'
+      + '</div>'
+      + '<div id="ip-list" style="display:flex;flex-direction:column;max-height:280px;overflow-y:auto">' + listHTML + '</div>'
+      + '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>'
+      + '</div>';
+    setTimeout(function() { var i = document.getElementById('ip-input'); if(i) i.focus(); }, 80);
+
+  } else if (s.type === 'isDetails') {
+    // Consolidated sheet # / form code / year / notes on one card
+    const sn = wizard.data.is_sheetNum  || '';
+    const fc = wizard.data.is_formCode  || '';
+    const yr = wizard.data.is_year      || '';
+    const nt = wizard.data.is_notes     || '';
+    body.innerHTML = '<div style="padding-top:0.5rem;display:flex;flex-direction:column;gap:0.85rem">'
+      + '<div>'
+      +   '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.35rem">Sheet Number <span style="color:var(--text-dim);font-weight:400;font-style:italic">(optional)</span></div>'
+      +   '<input type="text" id="isd-sn" value="' + sn.replace(/"/g,'&quot;') + '" placeholder="e.g. 924-6, 726-13" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.55rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none" oninput="wizard.data.is_sheetNum=this.value">'
+      + '</div>'
+      + '<div>'
+      +   '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.35rem">Form Code <span style="color:var(--text-dim);font-weight:400;font-style:italic">(optional)</span></div>'
+      +   '<input type="text" id="isd-fc" value="' + fc.replace(/"/g,'&quot;') + '" placeholder="e.g. 671-58\u20148-55\u2014TT" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.55rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none" oninput="wizard.data.is_formCode=this.value">'
+      +   '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.25rem">Bottom of sheet next to "Printed in U.S.A."</div>'
+      + '</div>'
+      + '<div>'
+      +   '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.35rem">Year Printed <span style="color:var(--text-dim);font-weight:400;font-style:italic">(optional)</span></div>'
+      +   '<input type="text" id="isd-yr" value="' + yr.replace(/"/g,'&quot;') + '" placeholder="e.g. 1957, 1955-08" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.55rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none" oninput="wizard.data.is_year=this.value">'
+      + '</div>'
+      + '<div>'
+      +   '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.35rem">Notes <span style="color:var(--text-dim);font-weight:400;font-style:italic">(optional)</span></div>'
+      +   '<textarea id="isd-nt" rows="2" placeholder="e.g. Early printing, double-sided, staple holes" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.55rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;resize:none" oninput="wizard.data.is_notes=this.value">' + nt + '</textarea>'
+      + '</div>'
+      + '<div style="font-size:0.75rem;color:var(--text-dim)">All fields optional — press Next to skip</div>'
+      + '</div>';
+    setTimeout(function() { var i = document.getElementById('isd-sn'); if(i) i.focus(); }, 50);
 
   } else if (s.type === 'paperExtras') {
     const ev  = wizard.data.eph_estValue    || '';
@@ -3306,7 +3378,31 @@ function wizardPickCatalog(idx) {
   } catch(e) { console.warn('wizardPickCatalog:', e); }
 }
 
+function wizardFilterIS() {
+  const input = document.getElementById('ip-input');
+  const list  = document.getElementById('ip-list');
+  if (!input || !list) return;
+  const q = input.value.toLowerCase().trim();
+  const btns = list.querySelectorAll('button[data-search]');
+  if (!q) { btns.forEach(function(b) { b.style.display = ''; }); return; }
+  const tokens = q.split(/\s+/).filter(Boolean);
+  btns.forEach(function(btn) {
+    const hay = btn.getAttribute('data-search') || '';
+    btn.style.display = tokens.every(function(t) { return hay.includes(t); }) ? '' : 'none';
+  });
+}
 
+function wizardPickIS(idx) {
+  try {
+    const item = (window._ipAllItems || [])[idx];
+    if (!item) return;
+    wizard.data.is_pick      = item;
+    // Auto-fill sheet number and year if known from master data
+    wizard.data.is_sheetNum  = wizard.data.is_sheetNum  || '';
+    wizard.data.is_year      = item.year || wizard.data.is_year || '';
+    setTimeout(function() { wizardNext(); }, 200);
+  } catch(e) { console.warn('wizardPickIS:', e); }
+}
 
 // Find personalData entry by itemNum|variation prefix (key includes row number)
 function findPD(itemNum, variation) {
@@ -4511,9 +4607,11 @@ async function saveSet() {
 
 async function saveInstructionSheet() {
   const d = wizard.data;
-  const sheetNum = (d.is_sheetNum || '').trim();
   const linkedItem = (d.is_linkedItem || '').trim();
-  if (!sheetNum) { showToast('Sheet number is required'); return; }
+  // Sheet number is optional — fall back to picked item ID or auto-generate
+  const sheetNum = (d.is_sheetNum || '').trim()
+    || (d.is_pick ? d.is_pick.id : '')
+    || (linkedItem ? linkedItem + '-IS' : 'IS-' + Date.now());
 
   // Resolve Group ID — if user opted to group with the collection item
   let resolvedGroupId = '';
