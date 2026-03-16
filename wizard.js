@@ -1,3343 +1,4298 @@
-// Picker state — declared at top so available to all onclick handlers
-var _pickerStepId = null;
-var _pickerViewKey = null;
+// ── CONFIG ─────────────────────────────────────────────────────
+// Replace with your actual Google OAuth Client ID after setup
+const CLIENT_ID = '161569968813-vrhet7p68vkthkunare60nqr34li5uuh.apps.googleusercontent.com';
+const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
+const API_KEY = ''; // Set your Google Cloud API key in settings if needed
+// Gemini Vision API key — get a free key at https://aistudio.google.com/app/apikey
+// Paste your key here to enable photo-based item identification
+let GEMINI_KEY = localStorage.getItem('lv_gemini_key') || '';
+// Sheet name is dynamic — built from user's first name at sign-in
+function _getPersonalSheetName() {
+  const firstName = (state.user?.name || '').split(' ')[0] || 'My';
+  return `The Boxcar Files - ${firstName}'s Collection`;
+}
+const PERSONAL_HEADERS = [
+  'Item Number','Variation','Condition (1-10)','All Original',
+  'Item Only Price','Box Only Price','Item+Box Complete','Has Box',
+  'Box Condition (1-10)','Item Photo Link','Box Photo Link','Notes',
+  'Date Purchased','User Est. Worth','Matched Tender/Engine','Set ID','Year Made',
+  'Is Error','Error Description','Quick Entry','Inventory ID','Group ID','Location'
+];
+const SOLD_HEADERS = [
+  'Item Number','Variation','Copy #','Condition (1-10)','Item Only Price Paid',
+  'Sale Price','Date Sold','Notes'
+];
+const FOR_SALE_HEADERS = [
+  'Item Number','Variation','Condition (1-10)','Asking Price',
+  'Date Listed','Notes','Original Price Paid','Est. Worth'
+];
+const WANT_HEADERS = [
+  'Item Number','Variation','Priority','Expected Price','Notes'
+];
+const UPGRADE_HEADERS = [
+  'Item Number','Variation','Priority','Target Condition','Max Price','Notes'
+];
 
-// ── ADD ITEM WIZARD ─────────────────────────────────────────────
-let wizard = {
-  step: 0,
-  tab: null,       // 'collection' | 'sold' | 'want'
-  data: {},
-  steps: [],
-  matchedItem: null,
+// Ephemera tab definitions — shared structure, one tab per category
+const EPHEMERA_TABS = [
+  { id: 'catalogs',   label: 'Catalogs',    emoji: '📒', color: '#e67e22' },
+  { id: 'paper',      label: 'Paper Items', emoji: '📄', color: '#3498db' },
+  { id: 'mockups',    label: 'Mock-Ups',    emoji: '🔩', color: '#9b59b6' },
+  { id: 'other',      label: 'Other Lionel',emoji: '📦', color: '#27ae60' },
+];
+const EPHEMERA_HEADERS = [
+  'Item ID','Title','Description','Year','Manufacturer','Condition (1-10)',
+  'Quantity','Est. Value','Photo Link','Notes','Date Acquired'
+];
+const CATALOG_HEADERS = [
+  'Item ID','Type','Year','Has Envelope/Mailer','Condition (1-10)',
+  'Est. Value','Date Acquired','Notes','Photo Link'
+];
+// Mock-ups get extra columns
+const IS_HEADERS = [
+  'Sheet #','Linked Item #','Year/Date Printed','Condition (1-10)','Notes','Photo Link','Inventory ID','Group ID'
+];
+const MOCKUP_HEADERS = [
+  'Title','Item Number Ref','Description','Year','Manufacturer',
+  'Condition (1-10)','Production Status','Material','Dimensions',
+  'Provenance','Lionel Verified','Est. Value','Photo Link','Notes','Date Acquired'
+];
+
+// ── TENDER / LOCOMOTIVE RELATIONSHIPS ──────────────────────────
+const TENDER_TO_LOCOS = {"1872T":["1872"],"1882T":["1882"],"2020W":["2020"],"2046W":["726RR","637","646","2056","675","736","2055","2046","2065","665"],"2046WX":["671RR","682","681"],"2426W":["773","726"],"2466T":["224","1666"],"2466W":["224","1666"],"2466WX":["675","224","1666"],"2671W":["681","671"],"4424W":["671R"],"4671W":["671R"],"6001T":["6110"],"6020W":["2020"],"6026T":["2018","2037"],"6026W":["2037","685","2055","2018","2065","665","2016"],"6066T":["2026","1130","2034","2037"],"6403B":["1656"],"6466W":["2026","2036","2025","2035"],"6466WX":["2026","2025","675"],"6654T":["1655"],"250T":["250","249"],"671W":["671"],"736W":["637","665","773","736"],"746W":["746"],"773W":["773"],"1001T":["1101","1120","1001","1110"],"1050T":["235","1060","1050","236"],"1060T":["237","242","1060","2029","1062","1061"],"1130T":["244","248","236","245","2037","2018","1130","235","246"],"1130T-500":["2037-500"],"1625T":["1625"],"1654T":["1654"],"1654W":["1654"],"1862T":["1862"]};
+const LOCO_TO_TENDERS = {"1872":["1872T"],"1882":["1882T"],"2020":["2020W","6020W"],"726RR":["2046W"],"637":["2046W","736W"],"646":["2046W"],"2056":["2046W"],"675":["2046W","2466WX","6466WX"],"736":["2046W","736W"],"2055":["2046W","6026W"],"2046":["2046W"],"2065":["2046W","6026W"],"665":["2046W","6026W","736W"],"671RR":["2046WX"],"682":["2046WX"],"681":["2046WX","2671W"],"773":["2426W","736W","773W"],"726":["2426W"],"224":["2466T","2466W","2466WX"],"1666":["2466T","2466W","2466WX"],"671":["2671W","671W"],"671R":["4424W","4671W"],"6110":["6001T"],"2018":["6026T","6026W","1130T"],"2037":["6026T","6026W","6066T","1130T"],"685":["6026W"],"2016":["6026W"],"2026":["6066T","6466W","6466WX"],"1130":["6066T","1130T"],"2034":["6066T"],"1656":["6403B"],"2036":["6466W"],"2025":["6466W","6466WX"],"2035":["6466W"],"1655":["6654T"],"250":["250T"],"249":["250T"],"746":["746W"],"1101":["1001T"],"1120":["1001T"],"1001":["1001T"],"1110":["1001T"],"235":["1050T","1130T"],"1060":["1050T","1060T"],"1050":["1050T"],"236":["1050T","1130T"],"237":["1060T"],"242":["1060T"],"2029":["1060T"],"1062":["1060T"],"1061":["1060T"],"244":["1130T"],"248":["1130T"],"245":["1130T"],"246":["1130T"],"2037-500":["1130T-500"],"1625":["1625T"],"1654":["1654T","1654W"],"1862":["1862T"]};
+
+// ── DIESEL SET HELPERS ──────────────────────────────────────────
+function isSetUnit(itemNum) {
+  const num = normalizeItemNum(itemNum);
+  if (num.endsWith('C')) return true;
+  return state.masterData.some(m => normalizeItemNum(m.itemNum) === num + 'C');
+}
+function getBUnit(itemNum) {
+  const num = normalizeItemNum(itemNum);
+  const bNum = num + 'C';
+  return state.masterData.some(m => normalizeItemNum(m.itemNum) === bNum) ? bNum : null;
+}
+function getAUnit(itemNum) {
+  const num = normalizeItemNum(itemNum);
+  if (!num.endsWith('C')) return null;
+  const aNum = num.slice(0, -1);
+  return state.masterData.some(m => normalizeItemNum(m.itemNum) === aNum) ? aNum : null;
+}
+function getSetPartner(itemNum) {
+  const num = normalizeItemNum(itemNum);
+  if (num.endsWith('C')) return getAUnit(num);
+  return getBUnit(num);
+}
+function getGroupMembers(itemNum) {
+  // Find all personal collection items sharing the same Group ID
+  const pd = Object.values(state.personalData).find(p => p.itemNum === itemNum);
+  if (!pd || !pd.groupId) return [];
+  return Object.values(state.personalData).filter(p => p.groupId === pd.groupId);
+}
+function normalizeItemNum(n) {
+  // Strip trailing .0 from numbers stored as floats e.g. "2343.0" -> "2343"
+  const s = (n || '').toString().trim();
+  return s.match(/^\d+\.0$/) ? s.slice(0, -2) : s;
+}
+function isF3AlcoUnit(itemNum) {
+  const num = normalizeItemNum(itemNum).replace(/C$/i, '');
+  return state.masterData.some(m =>
+    normalizeItemNum(m.itemNum) === num &&
+    (m.subType || '').match(/F3|Alco/i)
+  );
+}
+function nextInventoryId() {
+  let max = 0;
+  Object.values(state.personalData).forEach(pd => {
+    const id = parseInt(pd.inventoryId);
+    if (!isNaN(id) && id > max) max = id;
+  });
+  // Also check IS data
+  Object.values(state.isData || {}).forEach(is => {
+    const id = parseInt(is.inventoryId);
+    if (!isNaN(id) && id > max) max = id;
+  });
+  return String(max + 1);
+}
+function _buildGroupBoxRow(unitNum, boxCond, boxPhotoLink, groupId, datePurchased, leadItemNum) {
+  return [
+    unitNum + '-BOX', '',  // itemNum, variation
+    boxCond || '', '',     // condition = box condition, allOriginal
+    '', '', '',            // prices — $0, value tracked on lead unit
+    'Yes',                 // hasBox — this IS a box
+    boxCond || '',         // boxCond
+    '', boxPhotoLink || '', // no item photo; box photo
+    'Box for ' + unitNum,  // notes
+    datePurchased || '',
+    '',                    // $0 worth
+    unitNum,               // matchedTo = the unit this box belongs to
+    '', '', '', '', '',    // setId, yearMade, isError, errorDesc, quickEntry
+    nextInventoryId(),     // Inventory ID — unique
+    groupId,               // Group ID — shared with group
+    '',                    // Location (col W) — blank for box rows
+  ];
+}
+function genSetId(baseNum) {
+  return 'SET-' + baseNum + '-' + Date.now();
+}
+
+function isTender(itemNum) { return !!TENDER_TO_LOCOS[itemNum?.toString().trim().toUpperCase()] || !!TENDER_TO_LOCOS[itemNum?.toString().trim()]; }
+function isLocomotive(itemNum) { return !!LOCO_TO_TENDERS[itemNum?.toString().trim()]; }
+function getMatchingTenders(itemNum) { return LOCO_TO_TENDERS[itemNum?.toString().trim()] || []; }
+function getMatchingLocos(tenderNum) { return TENDER_TO_LOCOS[tenderNum?.toString().trim()] || []; }
+
+
+// ── STATE ───────────────────────────────────────────────────────
+// ── Cached preference values (read once at startup, updated on change) ──
+let _prefLocEnabled = localStorage.getItem('lv_location_enabled') === 'true';
+
+let state = {
+  user: null,
+  masterSheetId: null,
+  ephemeraData: {},   // keyed by tab name → { rowKey: record }
+  userDefinedTabs: [], // array of { id, label } for user-created custom tabs
+  isError: false,
+  personalSheetId: null,
+  masterData: [],      // all rows from master sheet
+  personalData: {},    // keyed by "itemNum|variation" -> personal row (owned items)
+  soldData: {},        // keyed by "itemNum|variation" -> sold row
+  forSaleData: {},     // keyed by "itemNum|variation" -> for sale row
+  wantData: {},
+  upgradeData: {},        // keyed by "itemNum|variation" -> want list row
+  setData: [],         // all rows from Master Set list (read-only reference)
+  companionData: [],   // all rows from Companions tab (engine/tender/B-unit relationships)
+  filteredData: [],
+  currentPage: 1,
+  pageSize: 50,
+  filters: { owned: false, unowned: false, boxed: false, wantList: false, type: '', road: '', search: '', quickEntry: '' },
+  currentItem: null,
 };
 
-// Step definitions per tab
-function getSteps(tab) {
-  // User-defined custom tabs — same flow as ephemera
-  const _allEphTabs = ['catalogs','paper','mockups','other','instrsheet','set',
-    ...(state.userDefinedTabs||[]).map(t => t.id)];
-  if (tab && _allEphTabs.includes(tab)) {
-    const isMockup  = tab === 'mockups';
-    const isCatalog = tab === 'catalogs';
-    const _userTabDef = (state.userDefinedTabs||[]).find(t => t.id === tab);
+// ── GOOGLE IDENTITY / AUTH ──────────────────────────────────────
+let tokenClient;
 
-    // ── Instruction Sheet flow ──
-    if (tab === 'instrsheet') {
-      return [
-        { id: 'is_linkedItem', title: 'What Lionel item # does this sheet go with?', type: 'text',
-          placeholder: 'e.g. 726, 2046, 6464-1' },
-        { id: 'is_groupChoice',
-          title: (d) => {
-            const found = _findCollectionItemByNum(d.is_linkedItem);
-            if (!found) return '';
-            if (found.groupId) return 'Found ' + found.itemNum + ' in your collection — it\'s part of a group. Add this instruction sheet to that group?';
-            return 'Found ' + found.itemNum + ' in your collection. Group this instruction sheet with it?';
-          },
-          type: 'choice2', choices: ['Yes','No'],
-          skipIf: (d) => !_findCollectionItemByNum(d.is_linkedItem) },
-        { id: 'is_sheetNum',   title: 'What is the instruction sheet number?',       type: 'text',
-          placeholder: 'e.g. 924-6, 1-1957, 726-13' },
-        { id: 'is_year',       title: 'Year or date printed (if known)',              type: 'text',
-          placeholder: 'e.g. 1957, 1957-06', optional: true },
-        { id: 'is_condition',  title: 'What condition is the sheet?',                type: 'slider', min:1, max:10 },
-        { id: 'is_notes',      title: 'Any notes about this sheet?',                 type: 'textarea', optional: true,
-          placeholder: 'e.g. Early printing, double-sided, staple holes' },
-        { id: 'is_photos',     title: 'Add photos of the instruction sheet',         type: 'drivePhotos', label: 'IS',
-          views: [
-            { key: 'IS-FRONT',  label: 'Front Side',  abbr: 'IS-FRONT'  },
-            { key: 'IS-BACK',   label: 'Back Side',   abbr: 'IS-BACK'   },
-            { key: 'IS-DETAIL', label: 'Detail',      abbr: 'IS-DETAIL' },
-          ], optional: true },
-        { id: 'is_confirm',    title: 'Ready to save the instruction sheet!',        type: 'confirm' },
-      ];
-    }
+// ══════════════════════════════════════════════════════════════════
+// DYNAMIC UI BUILDERS — replaces static HTML in index.html
+// ══════════════════════════════════════════════════════════════════
 
-    // ── Set / Outfit flow ──
-    if (tab === 'set') {
-      return [
-        { id: 'set_knowsNum',
-          title: 'Do you know the set number?',
-          type: 'choice2', choices: ['Yes','No'] },
-
-        // YES path — enter set number
-        { id: 'set_num',
-          title: 'Enter the set number',
-          type: 'text', placeholder: 'e.g. 1467W, 2190W',
-          skipIf: d => d.set_knowsNum !== 'Yes' },
-
-        // NO path — enter items to identify
-        { id: 'set_loco',
-          title: 'What is the locomotive item number?',
-          type: 'text', placeholder: 'e.g. 736, 2383P, 2023',
-          skipIf: d => d.set_knowsNum !== 'No' },
-
-        // Identify phase (both paths converge here)
-        { id: 'set_components',
-          title: 'Identify your set',
-          type: 'setComponents' },
-
-        // One entry mode question for the whole set
-        { id: 'set_entryMode',
-          title: d => {
-            const s = d._resolvedSet;
-            const label = s ? 'Set ' + s.setNum : 'your set';
-            return 'How would you like to add ' + label + '?';
-          },
-          type: 'entryMode' },
-
-        // Set box — asked after all items are saved (wizard returns here)
-        { id: 'set_hasBox',
-          title: 'Does it have the original set box?',
-          type: 'choice2', choices: ['Yes','No'] },
-        { id: 'set_boxCond',
-          title: 'Set box condition (1–10)',
-          type: 'slider', min:1, max:10,
-          skipIf: d => d.set_hasBox !== 'Yes' },
-        { id: 'set_boxPhotos',
-          title: 'Add photos of the set box',
-          type: 'drivePhotos', label: 'SETBOX',
-          views: [
-            { key: 'SETBOX-TOP',    label: 'Top',    abbr: 'Top'    },
-            { key: 'SETBOX-SIDE',   label: 'Side',   abbr: 'Side'   },
-            { key: 'SETBOX-DETAIL', label: 'Detail', abbr: 'Detail' },
-          ], optional: true,
-          skipIf: d => d.set_hasBox !== 'Yes' },
-
-        { id: 'set_notes',
-          title: 'Any notes about this set?',
-          type: 'textarea', optional: true,
-          placeholder: 'e.g. Track included (027 curve, 027 straight)' },
-
-        { id: 'set_confirm',
-          title: d => {
-            const count = (d._setItemsSaved || []).length;
-            return `Set saved — ${count} item${count!==1?'s':''} in collection. Save set box info?`;
-          },
-          type: 'confirm' },
-      ];
-    }
-
-    // ── Paper Items flow ──
-    if (tab === 'paper') {
-      // If user chose Instruction Sheet, redirect to IS flow
-      if (wizard.data.eph_paperType === 'Instruction Sheet') {
-        wizard.tab = 'instrsheet';
-        return getSteps('instrsheet');
-      }
-      const _paperType = wizard.data.eph_paperType || '';
-      const _needsItemRef = _paperType && !['Manual','Price Guide','Reference'].includes(_paperType);
-      return [
-        { id: 'eph_paperType', title: 'What type of paper item is this?', type: 'choice3',
-          choices: ['Drawing','Advertisement','Instruction Sheet','Manual','Price Guide','Reference','Other'] },
-        { id: 'eph_title',
-          title: (d) => 'What is the title of this ' + (d.eph_paperType || 'item') + '?',
-          type: 'text', placeholder: 'e.g. 1957 Full-Page Ad, 726 Berkshire Drawing' },
-        { id: 'eph_itemNumRef',
-          title: 'Associated Lionel item number (if any)',
-          type: 'text', placeholder: 'e.g. 726, 2046, 6464-1', optional: true,
-          skipIf: (d) => ['Manual','Price Guide','Reference'].includes(d.eph_paperType) },
-        { id: 'eph_year',        title: 'Year (if known)',          type: 'text',     placeholder: 'e.g. 1957', optional: true },
-        { id: 'eph_description', title: 'Description (optional)',   type: 'textarea', optional: true,
-          placeholder: 'e.g. Full-page ad from Model Railroader, June 1957' },
-        { id: 'eph_condition',   title: 'Condition (1-10)',         type: 'slider', min:1, max:10 },
-        { id: 'eph_estValue',    title: 'Estimated value',          type: 'money',    placeholder: '0.00', optional: true },
-        { id: 'eph_dateAcquired',title: 'Date acquired',            type: 'date',     optional: true },
-        { id: 'eph_notes',       title: 'Notes (optional)',         type: 'textarea', optional: true },
-        { id: 'eph_confirm',
-          title: (d) => 'Ready to save your ' + (d.eph_paperType || 'paper item') + '!',
-          type: 'confirm' },
-      ];
-    }
-
-
-    if (isCatalog) {
-      return [
-        { id: 'cat_type',        title: 'What type of catalog is this?',          type: 'choice3',
-          choices: ['Consumer','Dealer','Advance','Other'] },
-        { id: 'cat_year',        title: 'What year is the catalog?',              type: 'postwarYear' },
-        { id: 'cat_hasMailer',   title: 'Does it have the envelope or mailer?',   type: 'choice2',
-          choices: ['Yes','No'] },
-        { id: 'cat_condition',   title: 'What condition is the catalog?',         type: 'slider', min:1, max:10 },
-        { id: 'cat_estValue',    title: 'Estimated value',                        type: 'money',
-          placeholder: '0.00', optional: true },
-        { id: 'cat_dateAcquired',title: 'Date acquired',                          type: 'date', optional: true },
-        { id: 'cat_notes',       title: 'Any notes?',                             type: 'textarea', optional: true },
-        { id: 'cat_photos',      title: 'Add photos of the catalog',              type: 'drivePhotos', label: 'Catalog',
-          views: [
-            { key: 'COVER',   label: 'Front Cover',  abbr: 'COVER'   },
-            { key: 'BACK',    label: 'Back Cover',   abbr: 'BACK'    },
-            { key: 'INSIDE',  label: 'Inside Spread',abbr: 'INSIDE'  },
-            { key: 'MAILER',  label: 'Envelope/Mailer',abbr:'MAILER' },
-          ],
-          optional: true },
-        { id: 'cat_confirm',     title: 'Ready to save the catalog!',             type: 'confirm' },
-      ];
-    }
-
-    const steps = [
-      { id: 'eph_title', title: isMockup ? 'What is the mock-up title or name?' : ('What is the title of this ' + (_userTabDef ? _userTabDef.label : 'item') + '?'), type: 'text', placeholder: isMockup ? 'e.g. 2344 Santa Fe Prototype' : 'e.g. 1957 Consumer Catalog' },
-    ];
-    if (isMockup) steps.push(
-      { id: 'eph_itemNumRef', title: 'Related item number (if known)', type: 'text', placeholder: 'e.g. 2344', optional: true },
-      { id: 'eph_productionStatus', title: 'Production status', type: 'choice3', choices: ['Produced as shown','Modified before production','Never produced'] },
-      { id: 'eph_provenance', title: 'Provenance / history (optional)', type: 'textarea', optional: true },
-    );
-    steps.push(
-      { id: 'eph_description', title: 'Description (optional)', type: 'textarea', optional: true, placeholder: isMockup ? 'e.g. Pre-production body in unpainted wood, hand-lettered' : 'e.g. First edition with red cover, 48 pages' },
-      { id: 'eph_year', title: 'Year', type: 'text', placeholder: 'e.g. 1957', optional: true },
-      { id: 'eph_condition', title: 'Condition (1-10)', type: 'slider', min:1, max:10 },
-    );
-    steps.push(
-      { id: 'eph_estValue', title: 'Estimated value', type: 'money', placeholder: '0.00', optional: true },
-      { id: 'eph_dateAcquired', title: 'Date acquired', type: 'date', optional: true },
-      { id: 'eph_notes', title: 'Notes (optional)', type: 'textarea', optional: true },
-      { id: 'eph_photos', title: 'Add photos (optional)', type: 'drivePhotos', label: 'EPH',
-        views: [
-          { key: 'PHOTO-1', label: 'Photo',   abbr: 'Photo'  },
-          { key: 'PHOTO-2', label: 'Detail',  abbr: 'Detail' },
-          { key: 'PHOTO-3', label: 'Other',   abbr: 'Other'  },
-        ],
-        optional: true },
-      { id: 'eph_confirm', title: (d) => 'Looking good! Ready to save your ' + getItemLabel(d) + '?', type: 'confirm' },
-    );
-    return steps;
-  }
-
-  const base = [
-    { id: 'itemNum',    title: 'What is the Lionel item number?',       type: 'text',     placeholder: 'e.g. 726, 2046, 6464-1' },
-    { id: 'variation',  title: 'Which variation is it?',                type: 'variation', optional: true,
-        skipIf: (d) => { var num = d.itemNum || ''; var vars = state.masterData.filter(function(m) { return m.itemNum === num && m.variation; }); return vars.length === 0; } },
-  ];
-
-  if (tab === 'collection') {
-    // If a sub-category was chosen and it's not a Lionel item, redirect to ephemera steps
-    if (wizard.data.itemCategory && wizard.data.itemCategory !== 'lionel') {
-      const ephTab = wizard.data.itemCategory;
-      wizard.tab = ephTab;
-      return getSteps(ephTab);
-    }
-    // Box-only mode: create a standalone box inventory item, suggest grouping if item exists
-    if (wizard.data.boxOnly) {
-      return [
-        { id: 'itemCategory', title: 'What would you like to add?', type: 'itemCategory' },
-        { id: 'itemNum',       title: 'What is the Lionel item number?',    type: 'text',     placeholder: 'e.g. 726, 2046, 6464-1' },
-        { id: 'boxGroupSuggest', title: (d) => {
-            const num = (d.itemNum || '').trim();
-            const match = Object.values(state.personalData).find(pd => pd.itemNum === num && pd.owned);
-            if (match) return 'You have a ' + num + ' in your collection. Group this box with it?';
-            return 'Group this box with an item?';
-          },
-          type: 'choice2', choices: ['Yes','No'],
-          note: (d) => {
-            const num = (d.itemNum || '').trim();
-            const match = Object.values(state.personalData).find(pd => pd.itemNum === num && pd.owned);
-            if (match) return 'Grouping links the box and item together with a shared Group ID so they stay connected in your inventory.';
-            return 'The item is not in your collection yet. You can group it later when you add the item.';
-          },
-          skipIf: (d) => {
-            const num = (d.itemNum || '').trim();
-            return !Object.values(state.personalData).some(pd => pd.itemNum === num && pd.owned);
-          }
-        },
-        { id: 'boxCond',       title: (d) => 'What condition is the ' + getItemLabel(d) + ' box?',         type: 'slider',   min:1, max:10 },
-        { id: 'priceBox',      title: 'What did you pay for the box?',      type: 'money',    placeholder: '0.00', optional: true },
-        { id: 'purchaseDate',  title: 'When did you buy the box?',          type: 'date',     optional: true },
-        { id: 'userEstWorth',  title: 'Estimated worth (for insurance purposes)',  type: 'money',    placeholder: '0.00', optional: true },
-        { id: 'notes',         title: (d) => 'Any notes about this ' + getItemLabel(d) + ' box?',          type: 'textarea', optional: true },
-        { id: 'location',     title: 'Where will this box be stored?',
-          type: 'location', optional: true,
-          placeholder: 'e.g. Shelf 3, Tote 12, Display Case A',
-          skipIf: () => !_prefLocEnabled },
-        { id: 'confirm',       title: 'Ready to save box info!',            type: 'confirm' },
-      ];
-    }
-    // Helper: is this a paired engine+tender set?
-    const isPaired = (d) => d.tenderMatch && d.tenderMatch !== 'none' && d.tenderMatch !== '';
-    const isSetNow = (d) => d.setMatch === 'set-now';
-
-    return [
-      { id: 'itemCategory', title: 'What would you like to add?', type: 'itemCategory',
-        skipIf: (d) => !!d.itemCategory },
-
-      // ── SCREEN 1: Item Number + Grouping ──
-      { id: 'itemNumGrouping', title: 'Item Number', type: 'itemNumGrouping' },
-
-      // ── SCREEN 1b: Partial match picker (auto-skip if exact match or no matches) ──
-      { id: 'itemPicker', title: 'Select an item', type: 'itemPicker',
-        skipIf: (d) => !d._partialMatches || d._partialMatches.length === 0 },
-
-      // ── SCREEN 2: Variation (auto-skip for no/single variations) ──
-      { id: 'variation',  title: 'Which variation is it?', type: 'variation', optional: true,
-        skipIf: (d) => { if (d._completingQuickEntry) return true; var num = d.itemNum || ''; var vars = state.masterData.filter(function(m) { return m.itemNum === num && m.variation; }); return vars.length === 0; } },
-
-      // ── Entry Mode (Full/Quick) ──
-      { id: 'entryMode', title: (d) => 'How would you like to add this ' + getItemLabel(d) + '?',
-        type: 'entryMode', skipIf: (d) => d._completingQuickEntry || !!d._setMode },
-
-      // ── SCREEN 3: Condition & Details (multi-column) ──
-      { id: 'conditionDetails', title: 'Condition & Details', type: 'conditionDetails' },
-
-      // ── SCREEN 4: Purchase & Value (combined) ──
-      { id: 'purchaseValue', title: 'Purchase & Value', type: 'purchaseValue' },
-
-      // ── SCREEN 5+: Photos (one per subject, color-coded banners) ──
-      { id: 'photosItem', title: (d) => 'Add photos of the ' + getItemLabel(d),
-        type: 'drivePhotos', label: 'Item',
-        photoBanner: { color: '#2980b9', label: (d) => '\u{1F7E6} PHOTOS: No. ' + (d.itemNum || '') + ' ' + (getItemLabel(d) || '').charAt(0).toUpperCase() + (getItemLabel(d) || '').slice(1) },
-        note: (d) => isPaired(d) ? 'Engine photos only — tender photos next.' : '' },
-      { id: 'photosBox',  title: (d) => 'Add photos of the ' + getItemLabel(d) + ' box',
-        type: 'drivePhotos', label: 'Box',
-        photoBanner: { color: '#8B4513', label: (d) => '\u{1F7EB} PHOTOS: No. ' + (d.itemNum || '') + ' — BOX' },
-        skipIf: (d) => d.hasBox !== 'Yes' },
-
-      // ── Tender photos (only for engine+tender grouping) ──
-      { id: 'photosTenderItem', title: (d) => 'Add photos of the tender',
-        type: 'drivePhotos', label: 'Item', tenderMode: true,
-        photoBanner: { color: '#27ae60', label: (d) => '\u{1F7E9} PHOTOS: Tender ' + (d.tenderMatch || '') },
-        skipIf: (d) => !isPaired(d) },
-      { id: 'photosTenderBox',  title: (d) => 'Add photos of the tender box',
-        type: 'drivePhotos', label: 'Box', tenderMode: true,
-        photoBanner: { color: '#8B4513', label: (d) => '\u{1F7EB} PHOTOS: Tender ' + (d.tenderMatch || '') + ' — BOX' },
-        skipIf: (d) => !isPaired(d) || d.tenderHasBox !== 'Yes' },
-
-      // ── Unit 2 photos (diesel set) ──
-      { id: 'photosUnit2Item', title: (d) => 'Add photos of the ' + (d.unit2ItemNum || 'B unit'),
-        type: 'drivePhotos', label: 'Item', unit2Mode: true,
-        photoBanner: { color: '#2980b9', label: (d) => '\u{1F7E6} PHOTOS: ' + (d.unit2ItemNum || 'Unit 2') },
-        skipIf: (d) => !isSetNow(d) },
-      { id: 'photosUnit2Box',  title: (d) => 'Add photos of the ' + (d.unit2ItemNum || 'B unit') + ' box',
-        type: 'drivePhotos', label: 'Box', unit2Mode: true,
-        photoBanner: { color: '#8B4513', label: (d) => '\u{1F7EB} PHOTOS: ' + (d.unit2ItemNum || 'Unit 2') + ' — BOX' },
-        skipIf: (d) => !isSetNow(d) || d.unit2HasBox !== 'Yes' },
-
-      // ── Unit 3 photos (ABA only) ──
-      { id: 'photosUnit3Item', title: (d) => 'Add photos of the ' + (d.unit3ItemNum || 'A unit'),
-        type: 'drivePhotos', label: 'Item', unit3Mode: true,
-        photoBanner: { color: '#2980b9', label: (d) => '\u{1F7E6} PHOTOS: ' + (d.unit3ItemNum || 'Unit 3') },
-        skipIf: (d) => !isSetNow(d) || d.setType !== 'ABA' },
-      { id: 'photosUnit3Box',  title: (d) => 'Add photos of the ' + (d.unit3ItemNum || 'A unit') + ' box',
-        type: 'drivePhotos', label: 'Box', unit3Mode: true,
-        photoBanner: { color: '#8B4513', label: (d) => '\u{1F7EB} PHOTOS: ' + (d.unit3ItemNum || 'Unit 3') + ' — BOX' },
-        skipIf: (d) => !isSetNow(d) || d.setType !== 'ABA' || d.unit3HasBox !== 'Yes' },
-
-      // ── Instruction Sheet photos ──
-      { id: 'photosIS', title: 'Add photos of the instruction sheet',
-        type: 'drivePhotos', label: 'IS',
-        views: [
-          { key: 'IS-FRONT',  label: 'Front Side', abbr: 'Front'  },
-          { key: 'IS-BACK',   label: 'Back Side',  abbr: 'Back'   },
-          { key: 'IS-DETAIL', label: 'Detail',     abbr: 'Detail' },
-        ],
-        photoBanner: { color: '#d4a843', label: (d) => '\u{1F7E8} PHOTOS: Instruction Sheet' + (d.is_sheetNum ? ' #' + d.is_sheetNum : '') },
-        optional: true, skipIf: d => d.hasIS !== 'Yes' },
-
-      // ── Error close-ups ──
-      { id: 'photosError', title: 'Add close-up photos of the error',
-        type: 'drivePhotos', label: 'Error', views: ERROR_VIEWS,
-        photoBanner: { color: '#e74c3c', label: () => '\u{1F7E5} PHOTOS: Error Close-ups' },
-        skipIf: d => d.isError !== 'Yes' && d.tenderIsError !== 'Yes' && d.unit2IsError !== 'Yes' && d.unit3IsError !== 'Yes' },
-
-      // ── Together photo ──
-      { id: 'photosTogether',
-        title: (d) => isPaired(d) ? 'Photo of engine and tender together' : 'Photo of the full ' + (d.setType || 'AB') + ' set together',
-        type: 'drivePhotos', label: 'Set',
-        photoBanner: { color: '#9b59b6', label: (d) => isPaired(d) ? '\u{1F7EA} PHOTOS: Engine + Tender Together' : '\u{1F7EA} PHOTOS: Full Set Together' },
-        skipIf: (d) => !isPaired(d) && !isSetNow(d) },
-
-      // ── Master box photos ──
-      { id: 'photosMasterBox', title: 'Add photos of the master box',
-        type: 'drivePhotos', label: 'MasterBox',
-        photoBanner: { color: '#9b59b6', label: () => '\u{1F7EA} PHOTOS: Master Box' },
-        skipIf: (d) => d.hasMasterBox !== 'Yes' },
-
-      // ── Confirm & Save ──
-      { id: 'confirm', title: (d) => 'Looking good! Ready to save your ' + getItemLabel(d) + '?', type: 'confirm' },
-    ];
-  } else if (tab === 'forsale') {
-    return [
-      { id: 'tab',          title: 'What would you like to add?',         type: 'choice' },
-      { id: 'itemNum',      title: 'What is the Lionel item number?',      type: 'text',        placeholder: 'e.g. 726, 2046, 6464-1' },
-      { id: 'pickForSaleItem', title: 'Which item are you listing?',       type: 'pickForSaleItem',
-        skipIf: (d) => {
-          const matches = Object.keys(state.personalData).filter(k => k.split('|')[0] === (d.itemNum||'').trim());
-          return matches.length === 0;
-        }
-      },
-      { id: 'condition',    title: 'What condition is the item?',         type: 'slider',      min:1, max:10,
-        skipIf: (d) => !!d.selectedForSaleKey && d.selectedForSaleKey !== '__new__' },
-      { id: 'hasBox',       title: 'Does it have the original box?',      type: 'choice3',     choices: ['Yes','No'],
-        skipIf: (d) => !!d.selectedForSaleKey && d.selectedForSaleKey !== '__new__' },
-      { id: 'allOriginal',  title: 'Is it all original?',                 type: 'choice3',     choices: ['Yes','No','Unknown'],
-        skipIf: (d) => !!d.selectedForSaleKey && d.selectedForSaleKey !== '__new__' },
-      { id: 'askingPrice',  title: 'What is your asking price?',          type: 'money',       placeholder: '0.00' },
-      { id: 'dateListed',   title: 'Date listed',                         type: 'date',        optional: true },
-      { id: 'notes',        title: 'Any notes about the listing?',        type: 'textarea',    optional: true },
-      { id: 'confirm',      title: 'Ready to list for sale!',             type: 'confirm' },
-    ];
-  } else if (tab === 'sold') {
-    return [
-      { id: 'tab',          title: 'What would you like to add?',         type: 'choice' },
-      { id: 'itemNum',      title: 'What is the Lionel item number?',      type: 'text',        placeholder: 'e.g. 726, 2046, 6464-1' },
-      { id: 'pickSoldItem', title: 'Which item are you selling?',          type: 'pickSoldItem',
-        skipIf: (d) => {
-          const matches = Object.keys(state.personalData).filter(k => k.split('|')[0] === (d.itemNum||'').trim());
-          return matches.length === 0; // not in collection — skip picker
-        }
-      },
-      { id: 'condition',    title: 'What condition was the item?',         type: 'slider',      min:1, max:10,
-        skipIf: (d) => !!d.selectedSoldKey },
-      { id: 'priceItem',    title: 'What did you originally pay for it?',  type: 'money',       placeholder: '0.00', optional: true,
-        skipIf: (d) => !!d.selectedSoldKey },
-      { id: 'salePrice',    title: 'What did you sell it for?',            type: 'money',       placeholder: '0.00' },
-      { id: 'dateSold',     title: 'When did you sell it?',                type: 'date',        optional: true },
-      { id: 'notes',        title: 'Any notes about the sale?',            type: 'textarea',    optional: true },
-      { id: 'confirm',      title: 'Ready to save!',                       type: 'confirm' },
-    ];
-  } else { // want
-    return [
-      { id: 'itemCategory', title: 'What would you like to add?', type: 'itemCategory',
-        skipIf: (d) => !!d.itemCategory },
-      ...base,
-      { id: 'priority',      title: 'How high is your priority for this item?', type: 'choice3', choices: ['High','Medium','Low'] },
-      { id: 'expectedPrice', title: 'What do you expect to pay?',               type: 'money',   placeholder: '0.00', optional: true },
-      { id: 'notes',         title: "Any notes about what you're looking for?", type: 'textarea', optional: true },
-      { id: 'confirm',       title: 'Ready to add to Want List!',               type: 'confirm' },
-    ];
-  }
+function _buildAuthScreen() {
+  var d = document.getElementById('auth-screen');
+  if (!d || d.dataset.built) return;
+  d.dataset.built = '1';
+  d.innerHTML =
+    '<div class="auth-logo" style="line-height:1.1">' +
+      '<div style="font-family:var(--font-head);font-size:2.4rem;font-weight:700;color:var(--cream);letter-spacing:0.07em;text-transform:uppercase">The <span style="color:var(--accent)">Boxcar</span> Files</div>' +
+      '<div style="font-size:0.75rem;letter-spacing:0.22em;color:var(--text-dim);margin-top:7px;text-transform:uppercase;font-family:var(--font-head);font-weight:400">Postwar Collector\'s Inventory</div>' +
+    '</div>' +
+    '<div class="auth-sub">Postwar Collector\'s Inventory</div>' +
+    '<div style="display:flex;flex-direction:column;gap:0.6rem;margin:1.25rem 0;max-width:340px;text-align:left">' +
+      '<div style="display:flex;align-items:flex-start;gap:0.75rem;background:rgba(200,16,46,0.06);border-radius:10px;padding:0.75rem 1rem">' +
+        '<span style="font-size:1.3rem;flex-shrink:0">&#x1F4CB;</span>' +
+        '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:#fff">Catalog every item you own</strong><br>Condition, price paid, box, photos \u2014 all in one place.</div>' +
+      '</div>' +
+      '<div style="display:flex;align-items:flex-start;gap:0.75rem;background:rgba(200,16,46,0.06);border-radius:10px;padding:0.75rem 1rem">' +
+        '<span style="font-size:1.3rem;flex-shrink:0">&#x1F4F8;</span>' +
+        '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:#fff">Store photos to Google Drive</strong><br>Every view, every box \u2014 organized automatically.</div>' +
+      '</div>' +
+      '<div style="display:flex;align-items:flex-start;gap:0.75rem;background:rgba(200,16,46,0.06);border-radius:10px;padding:0.75rem 1rem">' +
+        '<span style="font-size:1.3rem;flex-shrink:0">&#x1F682;</span>' +
+        '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:#fff">Built for postwar collectors</strong><br>Pre-loaded master catalog of every item 1945\u20131969.</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="auth-card">' +
+      '<h2>Sign in to get started</h2>' +
+      '<p>Your collection is stored in your own Google account \u2014 private, secure, and accessible on any device.</p>' +
+      '<button class="btn-google" onclick="handleSignIn()">' +
+        '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">' +
+          '<path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>' +
+          '<path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>' +
+          '<path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>' +
+          '<path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>' +
+        '</svg>' +
+        'Continue with Google' +
+      '</button>' +
+      '<p class="auth-note">Your personal collection data is stored in your own Google Sheet. The master inventory is shared read-only.</p>' +
+    '</div>';
 }
 
-
-function _buildWizardModal() {
-  if (document.getElementById('wizard-modal')) return;
-  var overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
-  overlay.id = 'wizard-modal';
-  overlay.onclick = function(e) { if (e.target === overlay) closeWizardOnOverlay(e); };
-  overlay.innerHTML =
-    '<div class="modal" style="max-width:520px;height:580px;display:flex;flex-direction:column;overflow:hidden">' +
-      '<div class="modal-header">' +
-        '<div>' +
-          '<div class="modal-item-num" id="wizard-step-label"></div>' +
-          '<div class="modal-title" id="wizard-title"></div>' +
-        '</div>' +
-        '<button class="btn-close" onclick="closeWizard()">&#x2715;</button>' +
+function _buildSetupScreen() {
+  var d = document.getElementById('setup-screen');
+  if (!d || d.dataset.built) return;
+  d.dataset.built = '1';
+  d.innerHTML =
+    '<div class="setup-card">' +
+      '<h2>Welcome!</h2>' +
+      '<p>One-time setup \u2014 just two steps to connect your inventory.</p>' +
+      '<div class="setup-step"><div class="setup-num">1</div>' +
+        '<p>Enter the Master Inventory Sheet ID (get this from whoever shared the app with you).</p>' +
       '</div>' +
-      '<div style="padding:0 1.5rem;padding-top:0.75rem">' +
-        '<div style="background:var(--border);border-radius:4px;height:4px">' +
-          '<div id="wizard-progress" style="height:100%;border-radius:4px;background:var(--accent);transition:width 0.3s ease;width:0%"></div>' +
-        '</div>' +
+      '<div class="setup-step"><div class="setup-num">2</div>' +
+        '<p>Create a blank Google Sheet for your personal collection, then paste its ID below. Go to <a href="https://sheets.google.com" target="_blank" style="color:var(--accent2)">sheets.google.com</a>, create a blank sheet, name it "The Boxcar Files", and copy the ID from the URL.</p>' +
       '</div>' +
-      '<div class="modal-body" id="wizard-body" style="flex:1;overflow-y:auto;min-height:0"></div>' +
-      '<div class="modal-footer">' +
-        '<button class="btn btn-secondary" id="wizard-back-btn" onclick="wizardBack()" style="display:none">&#x2190; Back</button>' +
-        '<button class="btn btn-secondary" onclick="closeWizard()">Cancel</button>' +
-        '<button class="btn btn-primary" id="wizard-next-btn" onclick="wizardNext()">Next &#x2192;</button>' +
+      '<div class="input-group"><label>Master Sheet ID</label>' +
+        '<input id="master-sheet-input" type="text" placeholder="1Y9-cg8C1CkIqy0RQ66DfP7fmGrE3IGBpyJbtdfYx8q0">' +
+      '</div>' +
+      '<div class="input-group" style="margin-top:0.75rem"><label>Your Personal Collection Sheet ID</label>' +
+        '<input id="personal-sheet-input" type="text" placeholder="Paste your blank sheet ID here">' +
+      '</div>' +
+      '<div style="margin-top:1.25rem">' +
+        '<button class="btn btn-primary" style="width:100%" onclick="completeSetup()">Set Up My Collection</button>' +
       '</div>' +
     '</div>';
-  document.body.appendChild(overlay);
+}
 
-  // Build photo source picker sheet if not already present
-  if (!document.getElementById('photo-picker-sheet')) {
-    var _pickerEl = document.createElement('div');
-    _pickerEl.id = 'photo-picker-sheet';
-    _pickerEl.innerHTML = "<div id=\"photo-picker-inner\"><div style=\"text-align:center;font-family:var(--font-head);font-size:0.8rem;letter-spacing:0.12em;color:var(--text-dim);text-transform:uppercase;margin-bottom:0.25rem\">Add Photo</div><button id=\"picker-btn-cam\" class=\"picker-btn\" style=\"display:none\"><span class=\"picker-icon\">\ud83d\udcf7</span><span id=\"picker-cam-label\">Take Photo</span></button><button id=\"picker-btn-lib\" class=\"picker-btn\"><span class=\"picker-icon\">\ud83d\uddbc\ufe0f</span><span id=\"picker-lib-label\">Choose from Library</span></button><button class=\"picker-btn\" style=\"border-color:var(--text-dim);color:var(--text-dim)\" onclick=\"closePhotoPicker()\"><span class=\"picker-icon\">\u2715</span><span>Cancel</span></button></div>";
-    // Wire up camera button (creates hidden input on click)
-    var _camBtn = _pickerEl.querySelector('#picker-btn-cam');
-    if (_camBtn) _camBtn.addEventListener('click', function() {
-      var inp = document.getElementById('picker-input-cam');
-      if (!inp) {
-        inp = document.createElement('input');
-        inp.type = 'file'; inp.id = 'picker-input-cam';
-        inp.accept = 'image/*'; inp.setAttribute('capture', 'environment');
-        inp.style.display = 'none';
-        inp.addEventListener('change', function() { pickerHandleFile(inp, true); });
-        document.body.appendChild(inp);
-      }
-      inp.value = ''; inp.click();
-    });
-    // Wire up library button
-    var _libBtn = _pickerEl.querySelector('#picker-btn-lib');
-    if (_libBtn) _libBtn.addEventListener('click', function() {
-      var inp = document.getElementById('picker-input-lib');
-      if (!inp) {
-        inp = document.createElement('input');
-        inp.type = 'file'; inp.id = 'picker-input-lib';
-        inp.accept = 'image/*';
-        inp.style.display = 'none';
-        inp.addEventListener('change', function() { pickerHandleFile(inp, false); });
-        document.body.appendChild(inp);
-      }
-      inp.value = ''; inp.click();
-    });
-    // Close on backdrop click
-    _pickerEl.addEventListener('click', function(e) { if (e.target === _pickerEl) closePhotoPicker(); });
-    document.body.appendChild(_pickerEl);
+function _buildAppShell() {
+  var app = document.getElementById('app');
+  if (!app || document.querySelector('.header')) return;
+  // Build header
+  var header = document.createElement('header');
+  header.className = 'header';
+  header.innerHTML =
+    '<div class="header-logo">' +
+      '<div style="font-family:var(--font-head);font-size:1.4rem;font-weight:700;color:var(--cream);letter-spacing:0.06em;text-transform:uppercase;line-height:1">The <span style="color:var(--accent)">Boxcar</span> Files</div>' +
+    '</div>' +
+    '<div class="header-right" style="position:relative">' +
+      '<div class="user-chip" id="user-chip" onclick="toggleAccountMenu()" role="button" aria-haspopup="true">' +
+        '<div class="user-avatar" id="user-avatar">?</div>' +
+        '<span id="user-name">Loading\u2026</span>' +
+        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left:2px;opacity:0.6"><polyline points="6 9 12 15 18 9"/></svg>' +
+      '</div>' +
+      '<div class="account-menu" id="account-menu" style="display:none">' +
+        '<div class="account-menu-header">' +
+          '<div class="account-menu-avatar" id="account-menu-avatar"></div>' +
+          '<div>' +
+            '<div class="account-menu-name" id="account-menu-name"></div>' +
+            '<div class="account-menu-email" id="account-menu-email"></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="account-menu-divider"></div>' +
+        '<button class="account-menu-item" onclick="toggleAccountMenu(); showPage(\'prefs\', null); buildPrefsPage()">' +
+          '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>' +
+          'Preferences' +
+        '</button>' +
+        '<button class="account-menu-item account-menu-signout" onclick="handleSignOut()">' +
+          '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>' +
+          'Sign Out' +
+        '</button>' +
+      '</div>' +
+    '</div>';
+  app.insertBefore(header, app.firstChild);
+  // Build app-body wrapper with sidebar + main placeholder
+  var appBody = document.createElement('div');
+  appBody.className = 'app-body';
+  var nav = document.createElement('nav');
+  nav.className = 'sidebar';
+  nav.innerHTML =
+    '<div class="nav-section">' +
+      '<button class="nav-item active" onclick="showPage(\'dashboard\', this)" data-ctip="This will take you to the main page so you can navigate to where you want to go!">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>' +
+        'Dashboard' +
+      '</button>' +
+    '</div>' +
+    '<div class="nav-section">' +
+      '<button class="nav-item" onclick="showPage(\'browse\', this); resetFilters(); renderBrowse();" data-ctip="Opens the master list of Postwar Items.">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>' +
+        'Postwar Master List<span class="nav-badge" id="nav-total" style="background:#f8e8c0;color:#1a1a1a">\u2014</span>' +
+      '</button>' +
+      '<button class="nav-item" onclick="showPage(\'sets\', this); buildSetsPage();" data-ctip="Browse complete sets and see which components you already own.">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>' +
+        'Postwar Set Master List<span class="nav-badge" id="nav-sets-count" style="background:#f8e8c0;color:#1a1a1a">\u2014</span>' +
+      '</button>' +
+      '<button class="nav-item" onclick="showPage(\'browse\', this); filterOwned()" data-ctip="This is your inventory list.">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>' +
+        'My Collection List<span class="nav-badge" id="nav-owned" style="background:#f8e8c0;color:#1a1a1a">\u2014</span>' +
+      '</button>' +
+      '<button class="nav-item" onclick="showPage(\'want\', this); buildWantPage();" data-ctip="Your want list \u2014 great to take to a train show.">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +
+        'Want List<span class="nav-badge" id="nav-wanted2" style="background:#f8e8c0;color:#1a1a1a">\u2014</span>' +
+      '</button>' +
+      '<button class="nav-item" onclick="showPage(\'upgrade\', this); buildUpgradePage();" data-ctip="Track items you own but want to upgrade.">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>' +
+        'Upgrade List<span class="nav-badge" id="nav-upgrade-count" style="background:#f8e8c0;color:#1a1a1a">\u2014</span>' +
+      '</button>' +
+      '<button class="nav-item" onclick="showPage(\'forsale\', this); buildForSalePage();" data-ctip="Items you have listed for sale.">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>' +
+        'For Sale List<span class="nav-badge" id="nav-forsale" style="background:#f8e8c0;color:#1a1a1a">\u2014</span>' +
+      '</button>' +
+      '<button class="nav-item" onclick="showPage(\'sold\', this)" data-ctip="Items you have sold.">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>' +
+        'Sold Items<span class="nav-badge" id="nav-sold" style="background:#f8e8c0;color:#1a1a1a">\u2014</span>' +
+      '</button>' +
+      '<button class="nav-item" id="nav-quickentry-btn" onclick="showPage(\'quickentry\', this); buildQuickEntryList();" data-ctip="Items quickly uploaded to fill in details later.">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
+        'Quick Entry List<span class="nav-badge" id="nav-qe-count" style="background:#f8e8c0;color:#1a1a1a">\u2014</span>' +
+      '</button>' +
+    '</div>' +
+    '<div class="nav-section">' +
+      '<button class="nav-item" onclick="showPage(\'vault\', this); vaultRenderPage()" data-page="vault" data-ctip="Community market values, buy/sale trends, and rarity scores.">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>' +
+        'Collector\'s Market' +
+      '</button>' +
+      '<button class="nav-item" onclick="showPage(\'tools\', this)" data-ctip="Smart tools to group items and build sets from your collection.">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>' +
+        'Collection Tools' +
+      '</button>' +
+      '<button class="nav-item" onclick="showPage(\'reports\', this)" data-ctip="Generate reports for insurance, want lists, and more.">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>' +
+        'Reports' +
+      '</button>' +
+      '<button class="nav-item" onclick="showPage(\'prefs\', this); buildPrefsPage()" data-ctip="Customize the app to your liking.">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>' +
+        'Preferences' +
+      '</button>' +
+    '</div>' +
+    '<div class="nav-section" style="padding-top:0.75rem;border-top:1px solid var(--border)">' +
+      '<button id="refresh-btn" onclick="forceRefreshData()" data-ctip="Reload your data straight from your sheet."' +
+        ' style="display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.75rem;border-radius:7px;color:var(--text-dim);font-size:0.82rem;background:none;border:none;width:100%;cursor:pointer;text-align:left;font-family:var(--font-body)"' +
+        ' onmouseover="this.style.background=\'rgba(255,255,255,0.06)\';this.style.color=\'var(--text)\'"' +
+        ' onmouseout="this.style.background=\'none\';this.style.color=\'var(--text-dim)\'">' +
+        '<svg id="refresh-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>' +
+        'Sync from Sheet' +
+      '</button>' +
+      '<button onclick="showContactModal()"' +
+        ' style="display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.75rem;border-radius:7px;color:var(--text-dim);font-size:0.82rem;background:none;border:none;width:100%;cursor:pointer;text-align:left;font-family:var(--font-body)"' +
+        ' onmouseover="this.style.background=\'rgba(255,255,255,0.06)\';this.style.color=\'var(--text)\'"' +
+        ' onmouseout="this.style.background=\'none\';this.style.color=\'var(--text-dim)\'">' +
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>' +
+        'Contact' +
+      '</button>' +
+    '</div>';
+  // Move existing main content into app-body
+  var existingMain = app.querySelector('main, .main, #main-content');
+  appBody.appendChild(nav);
+  if (existingMain) {
+    app.removeChild(existingMain);
+    appBody.appendChild(existingMain);
   }
+  app.appendChild(appBody);
+}
 
-  // Build identify modal if not already present
-  if (!document.getElementById('identify-modal')) {
-    var _identEl = document.createElement('div');
-    _identEl.id = 'identify-modal';
-    _identEl.innerHTML = "<div id=\"identify-panel\"><div style=\"display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem\"><div style=\"font-family:var(--font-head);font-size:1.05rem;color:var(--text);letter-spacing:0.04em\">Identify by Photo</div><button onclick=\"closeIdentify()\" style=\"background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer;line-height:1\">\u2715</button></div><div style=\"font-size:0.82rem;color:var(--text-mid);margin-bottom:0.9rem;line-height:1.5\">Use Google Lens to identify your item from a photo, then paste the item number below.</div><button onclick=\"openGoogleLens()\" style=\"width:100%;padding:0.7rem;border-radius:9px;background:var(--accent);border:none;color:#fff;font-family:var(--font-head);font-size:0.95rem;letter-spacing:0.05em;cursor:pointer;margin-bottom:0.75rem\">Open Google Lens \u2197</button><div style=\"font-size:0.78rem;color:var(--text-dim);margin-bottom:0.4rem\">Paste or type the item number you found:</div><input id=\"identify-manual-input\" type=\"text\" placeholder=\"e.g. 736, 2046W, 3349\" style=\"width:100%;padding:0.5rem 0.65rem;border-radius:7px;background:var(--surface2);border:1.5px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:0.9rem;box-sizing:border-box;margin-bottom:0.65rem\"><button onclick=\"useIdentifiedItem()\" style=\"width:100%;padding:0.6rem;border-radius:9px;background:var(--surface2);border:1.5px solid var(--gold);color:var(--gold);font-family:var(--font-head);font-size:0.9rem;letter-spacing:0.04em;cursor:pointer\">Use This Item Number</button></div>";
-    document.body.appendChild(_identEl);
+
+function initGoogle() {
+  _buildAuthScreen();
+  _buildSetupScreen();
+  _buildAppShell();
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPES,
+    callback: onTokenReceived,
+  });
+
+  // Check for existing session — master ID is hardcoded, just need saved user
+  const savedUser = localStorage.getItem('lv_user');
+  const savedPersonalId = localStorage.getItem('lv_personal_id');
+  state.masterSheetId = '1Y9-cg8C1CkIqy0RQ66DfP7fmGrE3IGBpyJbtdfYx8q0';
+  localStorage.setItem('lv_master_id', state.masterSheetId);
+
+  if (savedUser) {
+    state.user = JSON.parse(savedUser);
+    state.personalSheetId = savedPersonalId;
+    showApp();
+    showLoading(); // show spinner — onTokenReceived will call loadAllData once token is ready
+    const savedEmail = state.user?.email || '';
+    tokenClient.requestAccessToken({ prompt: '', login_hint: savedEmail });
   }
 }
 
-function openWizard(tab) {
-  _buildWizardModal();
-  // Start wizard pre-set to a specific tab, skipping the tab picker step
-  const _activePg = document.querySelector('.page.active');
-  const _returnPage = _activePg ? _activePg.id.replace('page-', '') : 'dashboard';
-  wizard = { step: 0, tab: tab, data: { tab: tab, _returnPage: _returnPage }, steps: getSteps(tab), matchedItem: null };
-  document.getElementById('wizard-modal').classList.add('open');
-  document.body.style.overflow = 'hidden';
-  // Push a history entry so the back button steps through the wizard
-  history.pushState({ appPage: 'wizard', step: 0 }, '', '');
-  // Skip old-style 'choice' tab picker — but NOT itemCategory (we want that shown)
-  if (wizard.steps[0] && wizard.steps[0].type === 'choice') {
-    wizard.step = 1;
-  }
-  // Pre-set lionel category if opening collection directly
-  if (tab === 'collection' && !wizard.data.itemCategory) {
-    // Don't pre-set — let user choose category first
-  }
-  renderWizardStep();
+function handleSignIn() {
+  tokenClient.requestAccessToken({ prompt: 'consent' });
 }
 
-function closeWizard() {
-  const returnTo = wizard && wizard.data && wizard.data._returnPage;
-  document.getElementById('wizard-modal').classList.remove('open');
-  document.body.style.overflow = '';
-  if (returnTo) showPage(returnTo);
+function onGoogleSignIn(response) {
+  const payload = parseJwt(response.credential);
+  state.user = { name: payload.given_name, email: payload.email, picture: payload.picture };
+  localStorage.setItem('lv_user', JSON.stringify(state.user));
 }
 
-function completeQuickEntry(itemNum, variation, globalIdx, pdRow) {
-  // Ensure wizard modal exists — it's built lazily on first openWizard() call
-  if (typeof _buildWizardModal === 'function') _buildWizardModal();
-  var _activePg = document.querySelector('.page.active');
-  var _returnPage = _activePg ? _activePg.id.replace('page-', '') : 'browse';
+let accessToken = null;
 
-  // Use the specific row number passed in to pin to the right copy —
-  // avoids picking the wrong item when multiple copies share the same item number
-  var pdKey = pdRow
-    ? (itemNum + '|' + (variation||'') + '|' + pdRow)
-    : findPDKey(itemNum, variation);
-  // Fallback: if constructed key not found, search manually
-  if (pdRow && !state.personalData[pdKey]) {
-    pdKey = Object.keys(state.personalData).find(function(k) {
-      var pd = state.personalData[k];
-      return pd.itemNum === itemNum && (pd.variation||'') === (variation||'') && pd.row == pdRow;
-    }) || findPDKey(itemNum, variation);
+// Restore token from localStorage (survives mobile page suspension)
+(function _restoreToken() {
+  var saved = localStorage.getItem('lv_token');
+  var expiry = parseInt(localStorage.getItem('lv_token_expiry') || '0');
+  if (saved && expiry > Date.now()) {
+    accessToken = saved;
+    console.log('[Auth] Restored token from localStorage, expires in', Math.round((expiry - Date.now())/60000), 'min');
   }
-  var pd = pdKey ? state.personalData[pdKey] : null;
+})();
 
-  // Strip powered/dummy suffix to get base item number for master lookup and wizard
-  var baseItemNum = itemNum.replace(/-(P|D|T)$/i, '');
-  var master = state.masterData.find(function(m) { return m.itemNum === baseItemNum && (!variation || m.variation === variation); })
-            || state.masterData.find(function(m) { return m.itemNum === baseItemNum; });
+// Track whether this is the first token receipt (triggers full load) or a background refresh (just updates token)
+let _tokenIsInitial = true;
 
-  // Detect power suffix so the save re-applies it correctly
-  var _unitPower = '';
-  if (itemNum.endsWith('-P')) _unitPower = 'Powered';
-  else if (itemNum.endsWith('-D') || itemNum.endsWith('-T')) _unitPower = 'Dummy';
-
-  var data = {
-    tab: 'collection',
-    _returnPage: _returnPage,
-    _rawItemNum: baseItemNum,
-    itemNum: baseItemNum,
-    itemCategory: 'lionel',
-    entryMode: 'full',
-    _fillItemMode: true,
-    _completingQuickEntry: true,
-    _fillTargetKey: pdKey,
-  };
-  if (_unitPower) data.unitPower = _unitPower;
-  if (variation) data.variation = variation;
-  if (master) data.matchedItem = master;
-
-  // Carry forward all existing personal data fields
-  if (pd) {
-    if (pd.condition && pd.condition !== 'N/A') data.condition = pd.condition;
-    if (pd.allOriginal) data.allOriginal = pd.allOriginal;
-    if (pd.hasBox) data.hasBox = pd.hasBox;
-    if (pd.boxCond) data.boxCond = pd.boxCond;
-    if (pd.priceItem && pd.priceItem !== 'N/A') data.priceItem = pd.priceItem;
-    if (pd.priceBox) data.priceBox = pd.priceBox;
-    if (pd.priceComplete) data.priceComplete = pd.priceComplete;
-    if (pd.notes) data.notes = pd.notes;
-    if (pd.datePurchased) data.datePurchased = pd.datePurchased;
-    if (pd.userEstWorth) data.userEstWorth = pd.userEstWorth;
-    if (pd.yearMade) data.yearMade = pd.yearMade;
-    if (pd.location) data.location = pd.location;
-    if (pd.matchedTo) data.tenderMatch = pd.matchedTo;
-    if (pd.setId) data._setId = pd.setId;
-    if (pd.isError) data.isError = pd.isError;
-    if (pd.errorDesc) data.errorDesc = pd.errorDesc;
-    if (pd.photoItem) data.photosItem = { existing: pd.photoItem };
-    if (pd.photoBox) data.photosBox = { existing: pd.photoBox };
-    // Preserve group info so save doesn't overwrite with new IDs
-    if (pd.groupId) data._existingGroupId = pd.groupId;
-    if (pd.inventoryId) data._existingInventoryId = pd.inventoryId;
-  }
-
-  wizard = { step: 0, tab: 'collection', data: data, steps: getSteps('collection'), matchedItem: master || null };
-
-  // Land on itemNumGrouping — item number pre-filled, user goes through full flow
-  var groupIdx = wizard.steps.findIndex(function(s) { return s.id === 'itemNumGrouping'; });
-  if (groupIdx >= 0) wizard.step = groupIdx;
-
-  // Now open the modal and render once at the correct step
-  document.getElementById('wizard-modal').classList.add('open');
-  document.body.style.overflow = 'hidden';
-  renderWizardStep();
-}
-
-function closeWizardOnOverlay(e) {
-  // Intentionally disabled — clicking outside the wizard does nothing.
-  // Use the Cancel button to exit.
-}
-
-// ── Wizard Consolidation Helpers ──
-
-function _updateGroupingButtons() {
-  const container = document.getElementById('wiz-grouping-btns');
-  if (!container) return;
-  
-  const itemNum = (wizard.data.itemNum || '').trim();
-  if (!itemNum) { container.style.display = 'none'; return; }
-  
-  // Determine item type
-  const hasTenders = getMatchingTenders(itemNum).length > 0;
-  const hasLocos = getMatchingLocos(itemNum).length > 0;
-  const isF3Alco = isF3AlcoUnit(itemNum);
-  const isBUnit = itemNum.endsWith('C');
-  
-  let buttons = [];
-  
-  if (hasTenders && !isF3Alco) {
-    // Steam engine with known tender
-    buttons = [
-      { id: 'engine', label: 'Engine Only', icon: '🚂' },
-      { id: 'engine_tender', label: 'Engine + Tender', icon: '🚂📦' },
-    ];
-  } else if (hasLocos && !isF3Alco) {
-    // Standalone tender being entered
-    buttons = [];  // No grouping needed
-  } else if (isF3Alco && !isBUnit) {
-    // F3/Alco A unit
-    buttons = [
-      { id: 'a_powered', label: 'A Powered', icon: '🔵' },
-      { id: 'a_dummy', label: 'A Dummy', icon: '⚪' },
-      { id: 'aa', label: 'AA', icon: '🔵🔵' },
-      { id: 'ab', label: 'AB', icon: '🔵🟤' },
-      { id: 'aba', label: 'ABA', icon: '🔵🟤🔵' },
-    ];
-  } else if (isF3Alco && isBUnit) {
-    // F3/Alco B unit — standalone only
-    buttons = [];
-  }
-  
-  if (buttons.length === 0) {
-    container.style.display = 'none';
-    wizard.data._itemGrouping = 'single';
+function onTokenReceived(resp) {
+  if (resp.error) {
+    console.error('Token error:', resp);
+    // If silent token refresh failed, prompt user to sign in again
+    if (resp.error === 'interaction_required' || resp.error === 'login_required') {
+      const hint = state.user?.email || '';
+      _tokenIsInitial = true; // next token will be a fresh sign-in
+      tokenClient.requestAccessToken({ prompt: 'consent', login_hint: hint });
+    }
     return;
   }
-  
-  container.style.display = 'block';
-  const current = wizard.data._itemGrouping || '';
-  
-  let html = '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.4rem">How are you entering this item?</div>';
-  html += '<div style="display:flex;flex-wrap:wrap;gap:0.35rem">';
-  buttons.forEach(function(btn) {
-    const sel = current === btn.id;
-    html += '<button onclick="_selectGrouping(\'' + btn.id + '\')" style="padding:0.5rem 0.85rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:var(--font-body);white-space:nowrap;'
-      + 'border:2px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';'
-      + 'background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--surface2)') + ';'
-      + 'color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + '">'
-      + btn.icon + ' ' + btn.label + '</button>';
-  });
-  html += '</div>';
-  container.innerHTML = html;
-}
 
-function _selectGrouping(groupId) {
-  wizard.data._itemGrouping = groupId;
-  const itemNum = (wizard.data.itemNum || '').trim();
-  
-  // Map grouping to existing data fields used by saveWizardItem
-  if (groupId === 'engine') {
-    wizard.data.tenderMatch = 'none';
-    wizard.data.setMatch = '';
-    wizard.data.unitPower = '';
-  } else if (groupId === 'engine_tender') {
-    const tenders = getMatchingTenders(itemNum);
-    wizard.data.tenderMatch = tenders.length > 0 ? tenders[0] : '';
-    wizard.data.setMatch = '';
-    wizard.data.unitPower = '';
-  } else if (groupId === 'a_powered') {
-    wizard.data.unitPower = 'Powered';
-    wizard.data.setMatch = 'standalone';
-    wizard.data.tenderMatch = '';
-  } else if (groupId === 'a_dummy') {
-    wizard.data.unitPower = 'Dummy';
-    wizard.data.setMatch = 'standalone';
-    wizard.data.tenderMatch = '';
-  } else if (groupId === 'aa') {
-    wizard.data.unitPower = 'Powered';
-    wizard.data.setMatch = 'set-now';
-    wizard.data.setType = 'AA';
-    wizard.data._setId = genSetId(itemNum);
-    wizard.data.unit2ItemNum = itemNum;  // Same # but dummy
-    wizard.data.unit2Power = 'Dummy';
-    wizard.data.tenderMatch = '';
-  } else if (groupId === 'ab') {
-    wizard.data.unitPower = 'Powered';
-    wizard.data.setMatch = 'set-now';
-    wizard.data.setType = 'AB';
-    wizard.data._setId = genSetId(itemNum);
-    wizard.data.unit2ItemNum = getSetPartner(itemNum) || (itemNum + 'C');
-    wizard.data.tenderMatch = '';
-  } else if (groupId === 'aba') {
-    wizard.data.unitPower = 'Powered';
-    wizard.data.setMatch = 'set-now';
-    wizard.data.setType = 'ABA';
-    wizard.data._setId = genSetId(itemNum);
-    wizard.data.unit2ItemNum = getSetPartner(itemNum) || (itemNum + 'C');
-    wizard.data.unit3ItemNum = itemNum;  // Second A unit (dummy)
-    wizard.data.unit3Power = 'Dummy';
-    wizard.data.tenderMatch = '';
+  const isInitial = _tokenIsInitial;
+  _tokenIsInitial = false; // all subsequent tokens are background refreshes
+
+  accessToken = resp.access_token;
+  // Persist token + expiry so it survives mobile page suspension
+  localStorage.setItem('lv_token', accessToken);
+  localStorage.setItem('lv_token_expiry', String(Date.now() + 55 * 60 * 1000));
+
+  // Schedule next silent refresh 55 min from now (tokens last 1 hour)
+  if (window._tokenRefreshTimer) clearTimeout(window._tokenRefreshTimer);
+  window._tokenRefreshTimer = setTimeout(() => {
+    if (accessToken) {
+      const hint = state.user?.email || '';
+      tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
+    }
+  }, 55 * 60 * 1000);
+
+  // Background refresh — just update the token, don't reload data
+  if (!isInitial) {
+    return;
+  }
+
+  // ── Initial sign-in / app startup path ──
+
+  // Fetch user info from Google if we don't have it yet
+  if (!state.user) {
+    fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: 'Bearer ' + accessToken }
+    })
+    .then(r => r.json())
+    .then(info => {
+      state.user = { name: info.given_name || info.name || 'User', email: info.email };
+      localStorage.setItem('lv_user', JSON.stringify(state.user));
+      updateUserUI();
+    });
   } else {
-    wizard.data._itemGrouping = 'single';
-    wizard.data.tenderMatch = '';
-    wizard.data.setMatch = '';
-    wizard.data.unitPower = '';
-  }
-  
-  _updateGroupingButtons();
-  // Auto-advance to next step after grouping selection
-  setTimeout(function() { wizardNext(); }, 150);
-}
-
-// Condition Details inline toggle helpers
-function _cdToggleOrig(colId, origKey, val) {
-  wizard.data[origKey] = val;
-  var modDiv = document.getElementById('cd-mod-' + colId);
-  if (modDiv) modDiv.style.display = (val === 'No') ? 'block' : 'none';
-  // Update button styles without full re-render (preserves text cursor)
-  document.querySelectorAll('[onclick*="' + origKey + '"]').forEach(function(btn) {
-    var sel = btn.textContent.trim() === val;
-    btn.style.border = '1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)');
-    btn.style.background = sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)';
-    btn.style.color = sel ? 'var(--accent)' : 'var(--text-mid)';
-  });
-}
-
-function _cdToggleBox(colId, val) {
-  var reveal = document.getElementById('cd-boxcond-' + colId);
-  if (reveal) reveal.style.display = (val === 'Yes') ? 'block' : 'none';
-  // Update sibling button styles (parent div holds both buttons)
-  if (reveal && reveal.previousElementSibling) {
-    reveal.previousElementSibling.querySelectorAll('button').forEach(function(btn) {
-      var sel = btn.textContent.trim() === val;
-      btn.style.border = '1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)');
-      btn.style.background = sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)';
-      btn.style.color = sel ? 'var(--accent)' : 'var(--text-mid)';
-    });
-  }
-}
-
-function _cdToggleIS(val) {
-  wizard.data.hasIS = val;
-  var reveal = document.getElementById('cd-is-reveal');
-  if (reveal) reveal.style.display = (val === 'Yes') ? 'block' : 'none';
-  document.querySelectorAll('[onclick*="_cdToggleIS"]').forEach(function(btn) {
-    var sel = btn.textContent.trim() === val;
-    btn.style.border = '1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)');
-    btn.style.background = sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)';
-    btn.style.color = sel ? 'var(--accent)' : 'var(--text-mid)';
-  });
-}
-
-function _cdToggleError(colId, val) {
-  var reveal = document.getElementById('cd-error-reveal-' + colId);
-  if (reveal) reveal.style.display = (val === 'Yes') ? 'block' : 'none';
-  // Style the Yes and No buttons for THIS column only
-  ['Yes','No'].forEach(function(c) {
-    var btn = document.getElementById('cd-err-btn-' + colId + '-' + c);
-    if (!btn) return;
-    var sel = c === val;
-    var isYes = c === 'Yes';
-    btn.style.border = '1.5px solid ' + (sel ? (isYes ? '#e74c3c' : 'var(--accent)') : 'var(--border)');
-    btn.style.background = sel ? (isYes ? 'rgba(231,76,60,0.12)' : 'rgba(232,64,28,0.12)') : 'var(--bg)';
-    btn.style.color = sel ? (isYes ? '#e74c3c' : 'var(--accent)') : 'var(--text-mid)';
-  });
-}
-
-// Purchase & Value helpers
-// ── Confirm screen inline edit helpers ──
-function _confirmEdit(key) {
-  var valEl = document.getElementById('confirm-val-' + key);
-  var btnEl = document.getElementById('confirm-edit-btn-' + key);
-  if (!valEl || !btnEl) return;
-  var curVal = String(wizard.data[key] || '');
-  var escaped = curVal.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-
-  // Yes/No fields
-  if (window._cfYesNo && window._cfYesNo.indexOf(key) >= 0) {
-    var opts = ['Yes','No'];
-    var h = '';
-    opts.forEach(function(o) {
-      var sel = curVal === o;
-      h += '<button onclick="_confirmPickOpt(\'' + key + '\',\'' + o + '\')" style="padding:0.25rem 0.6rem;border-radius:5px;cursor:pointer;font-size:0.8rem;font-family:var(--font-body);margin-right:0.3rem;border:1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)') + ';color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + '">' + o + '</button>';
-    });
-    valEl.innerHTML = h;
-    btnEl.style.display = 'none';
-    return;
-  }
-  // Yes/No/Unknown fields
-  if (window._cfYesNoUnk && window._cfYesNoUnk.indexOf(key) >= 0) {
-    var opts2 = ['Yes','No','Unknown'];
-    var h2 = '';
-    opts2.forEach(function(o) {
-      var sel2 = curVal === o;
-      h2 += '<button onclick="_confirmPickOpt(\'' + key + '\',\'' + o + '\')" style="padding:0.25rem 0.5rem;border-radius:5px;cursor:pointer;font-size:0.78rem;font-family:var(--font-body);margin-right:0.2rem;border:1.5px solid ' + (sel2 ? 'var(--accent)' : 'var(--border)') + ';background:' + (sel2 ? 'rgba(232,64,28,0.12)' : 'var(--bg)') + ';color:' + (sel2 ? 'var(--accent)' : 'var(--text-mid)') + '">' + o + '</button>';
-    });
-    valEl.innerHTML = h2;
-    btnEl.style.display = 'none';
-    return;
-  }
-  // Slider (condition fields)
-  if (window._cfSlider && window._cfSlider.indexOf(key) >= 0) {
-    valEl.innerHTML = '<div style="display:flex;align-items:center;gap:0.4rem;width:100%">'
-      + '<span id="confirm-slider-lbl-' + key + '" style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent2);min-width:1.5rem;text-align:center">' + curVal + '</span>'
-      + '<input type="range" min="1" max="10" value="' + curVal + '" style="flex:1;accent-color:var(--accent)" oninput="wizard.data[\'' + key + '\']=parseInt(this.value);document.getElementById(\'confirm-slider-lbl-' + key + '\').textContent=this.value">'
-      + '<button onclick="_confirmDoneEdit(\'' + key + '\')" style="padding:0.2rem 0.5rem;border-radius:5px;cursor:pointer;font-size:0.72rem;font-family:var(--font-body);border:1px solid #1e3a5f;background:#1e3a5f;color:#fff">✓</button></div>';
-    btnEl.style.display = 'none';
-    return;
-  }
-  // Money fields
-  if (window._cfMoney && window._cfMoney.indexOf(key) >= 0) {
-    valEl.innerHTML = '<div style="display:flex;align-items:center;gap:0.3rem">'
-      + '<span style="color:var(--accent2)">$</span>'
-      + '<input id="confirm-input-' + key + '" type="number" value="' + (curVal || '') + '" min="0" step="0.01" style="flex:1;background:var(--bg);border:1px solid var(--accent);border-radius:5px;padding:0.3rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none" onkeydown="if(event.key===\'Enter\')_confirmDoneEdit(\'' + key + '\')">'
-      + '<button onclick="_confirmDoneEdit(\'' + key + '\')" style="padding:0.2rem 0.5rem;border-radius:5px;cursor:pointer;font-size:0.72rem;font-family:var(--font-body);border:1px solid #1e3a5f;background:#1e3a5f;color:#fff">✓</button></div>';
-    btnEl.style.display = 'none';
-    setTimeout(function(){ var inp = document.getElementById('confirm-input-' + key); if(inp) inp.focus(); }, 50);
-    return;
-  }
-  // Date fields
-  if (window._cfDate && window._cfDate.indexOf(key) >= 0) {
-    valEl.innerHTML = '<div style="display:flex;align-items:center;gap:0.3rem">'
-      + '<div style="position:relative;display:flex;align-items:center;flex:1"><input id="confirm-input-' + key + '" type="date" value="' + (curVal || '') + '" style="width:100%;background:var(--bg);border:1px solid var(--accent);border-radius:5px;padding:0.3rem 2.2rem 0.3rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;color-scheme:dark"><span onclick="event.preventDefault();event.stopPropagation();document.getElementById(\"confirm-input-' + key + '\").showPicker()" style="position:absolute;right:0.4rem;cursor:pointer;font-size:0.95rem;color:var(--accent2);background:none;border:none;padding:0.3rem;line-height:1;touch-action:manipulation">📅</span></div>'
-      + '<button onclick="_confirmDoneEdit(\'' + key + '\')" style="padding:0.2rem 0.5rem;border-radius:5px;cursor:pointer;font-size:0.72rem;font-family:var(--font-body);border:1px solid #1e3a5f;background:#1e3a5f;color:#fff">✓</button></div>';
-    btnEl.style.display = 'none';
-    return;
-  }
-  // Default: text input
-  valEl.innerHTML = '<div style="display:flex;align-items:center;gap:0.3rem">'
-    + '<input id="confirm-input-' + key + '" type="text" value="' + escaped + '" style="flex:1;background:var(--bg);border:1px solid var(--accent);border-radius:5px;padding:0.3rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none" onkeydown="if(event.key===\'Enter\')_confirmDoneEdit(\'' + key + '\')">'
-    + '<button onclick="_confirmDoneEdit(\'' + key + '\')" style="padding:0.2rem 0.5rem;border-radius:5px;cursor:pointer;font-size:0.72rem;font-family:var(--font-body);border:1px solid #1e3a5f;background:#1e3a5f;color:#fff">✓</button></div>';
-  btnEl.style.display = 'none';
-  setTimeout(function(){ var inp = document.getElementById('confirm-input-' + key); if(inp) inp.focus(); }, 50);
-}
-
-function _confirmPickOpt(key, val) {
-  wizard.data[key] = val;
-  var valEl = document.getElementById('confirm-val-' + key);
-  var btnEl = document.getElementById('confirm-edit-btn-' + key);
-  if (valEl) valEl.textContent = val;
-  if (btnEl) btnEl.style.display = '';
-}
-
-function _confirmDoneEdit(key) {
-  var valEl = document.getElementById('confirm-val-' + key);
-  var btnEl = document.getElementById('confirm-edit-btn-' + key);
-  var inp = document.getElementById('confirm-input-' + key);
-  if (inp) wizard.data[key] = inp.value;
-  var slider = valEl ? valEl.querySelector('input[type=range]') : null;
-  if (slider) wizard.data[key] = parseInt(slider.value);
-  var v = wizard.data[key] || '';
-  var isMoney = window._cfMoney && window._cfMoney.indexOf(key) >= 0;
-  var dispVal = isMoney && parseFloat(v) ? '$' + parseFloat(v).toLocaleString() : v;
-  if (valEl) valEl.textContent = dispVal;
-  if (btnEl) btnEl.style.display = '';
-}
-
-function _pvRefreshYear(yr) {
-  wizard.data.yearMade = String(yr);
-  document.querySelectorAll('.pv-yr-btn').forEach(function(btn) {
-    var sel = btn.dataset.yr === String(yr);
-    btn.style.border = '1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)');
-    btn.style.background = sel ? 'rgba(232,64,28,0.15)' : 'var(--bg)';
-    btn.style.color = sel ? 'var(--accent)' : 'var(--text-mid)';
-  });
-}
-
-function _pvToggleMasterBox(val) {
-  wizard.data.hasMasterBox = val;
-  var reveal = document.getElementById('pv-mb-reveal');
-  if (reveal) reveal.style.display = (val === 'Yes') ? 'block' : 'none';
-  document.querySelectorAll('[onclick*="_pvToggleMasterBox"]').forEach(function(btn) {
-    var sel = btn.textContent.trim() === val;
-    btn.style.border = '1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)');
-    btn.style.background = sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)';
-    btn.style.color = sel ? 'var(--accent)' : 'var(--text-mid)';
-  });
-}
-
-function renderWizardStep() {
-  // Always restore Next button (entryMode step hides it)
-  const _nb = document.getElementById('wizard-next-btn');
-  if (_nb) _nb.style.display = '';
-
-  const steps = wizard.tab ? getSteps(wizard.tab) : getSteps(null);
-  wizard.steps = steps;
-
-  // Skip steps based on skipIf
-  let step = wizard.step;
-  while (step < steps.length - 1 && steps[step].skipIf && steps[step].skipIf(wizard.data)) {
-    step++;
-    wizard.step = step;
+    updateUserUI();
   }
 
-  const s = steps[step];
-  const total = steps.filter(st => !st.skipIf || !st.skipIf(wizard.data)).length;
-  const current = steps.slice(0, step).filter(st => !st.skipIf || !st.skipIf(wizard.data)).length + 1;
-  const pct = Math.round((current / total) * 100);
+  // Master sheet is hardcoded
+  state.masterSheetId = '1Y9-cg8C1CkIqy0RQ66DfP7fmGrE3IGBpyJbtdfYx8q0';
+  localStorage.setItem('lv_master_id', state.masterSheetId);
 
-  // Declare nextBtn first — used in theme block below
-  const nextBtn = document.getElementById('wizard-next-btn');
-
-  // Apply color theme based on tab
-  const wizModal = document.querySelector('#wizard-modal .modal');
-  if (wizModal) {
-    wizModal.classList.remove('wiz-collection','wiz-want','wiz-sold');
-    if (wizard.tab === 'collection') wizModal.classList.add('wiz-collection');
-    else if (wizard.tab === 'want')   wizModal.classList.add('wiz-want');
-    else if (wizard.tab === 'forsale') wizModal.classList.add('wiz-forsale');
-    else if (wizard.tab === 'sold')   wizModal.classList.add('wiz-sold');
-  }
-  const progBar = document.getElementById('wizard-progress');
-  if (progBar) {
-    const _ephColors = {catalogs:'#e67e22',paper:'#3498db',mockups:'#9b59b6',other:'#27ae60'};
-    if (wizard.tab === 'collection') progBar.style.background = 'var(--accent)';
-    else if (wizard.tab === 'want')  progBar.style.background = '#2980b9';
-    else if (wizard.tab === 'forsale') progBar.style.background = '#e67e22';
-    else if (wizard.tab === 'sold')  progBar.style.background = '#2ecc71';
-    else if (_ephColors[wizard.tab]) progBar.style.background = _ephColors[wizard.tab];
-    else                             progBar.style.background = 'var(--accent)';
-  }
-  if (nextBtn) {
-    if (wizard.tab === 'want')       { nextBtn.style.background='#2980b9'; nextBtn.style.borderColor='#2980b9'; nextBtn.style.color='#fff'; }
-    else if (wizard.tab === 'forsale') { nextBtn.style.background='#e67e22'; nextBtn.style.borderColor='#e67e22'; nextBtn.style.color='#fff'; }
-    else if (wizard.tab === 'sold')  { nextBtn.style.background='#2ecc71'; nextBtn.style.borderColor='#2ecc71'; nextBtn.style.color='#081a0e'; }
-    else                             { nextBtn.style.background=''; nextBtn.style.borderColor=''; nextBtn.style.color=''; }
-  }
-
-  document.getElementById('wizard-step-label').textContent = `Step ${current} of ${total}`;
-  const _titleText = typeof s.title === 'function' ? s.title(wizard.data) : s.title;
-  const _titleEl = document.getElementById('wizard-title');
-  if (wizard.data._setMode && wizard.data._setFinalItems) {
-    const _idx   = wizard.data._setItemIndex || 0;
-    const _total = wizard.data._setFinalItems.length;
-    const _cur   = wizard.data.itemNum || wizard.data._setFinalItems[_idx] || '';
-    const _master = state.masterData.find(m => m.itemNum === _cur);
-    const _type  = (_master && _master.itemType) ? _master.itemType : '';
-    _titleEl.innerHTML =
-      `<div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:0.5rem 0.75rem;margin-bottom:0.35rem">` +
-        `<span style="font-size:0.62rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#e67e22;white-space:nowrap">🎁 Set — Item ${_idx + 1} of ${_total}</span>` +
-        `<span style="font-size:0.95rem;font-weight:800;color:var(--text);font-family:var(--font-mono)">${_cur}</span>` +
-        (_type ? `<span style="font-size:0.72rem;font-weight:600;color:var(--text-mid);text-transform:uppercase;letter-spacing:0.06em">${_type}</span>` : '') +
-        `<span style="font-size:0.88rem;color:var(--text-mid)">— ${_titleText}</span>` +
-      `</div>`;
-  } else {
-    _titleEl.textContent = _titleText;
-  }
-  document.getElementById('wizard-progress').style.width = pct + '%';
-  document.getElementById('wizard-back-btn').style.display = step > 0 ? 'inline-flex' : 'none';
-  const autoAdvanceTypes = new Set(['choice','choice2','choice3','pickRow','pickSoldItem','pickForSaleItem']); // 'variation' removed — Next needed when item has no variations
-  // New consolidated types always use Next button
-  // setMatch and setUnit2Num need Next button (user may interact multiple times)
-  if (s.type === 'confirm') {
-    nextBtn.textContent = '✓ Save';
-    nextBtn.style.display = 'inline-flex';
-  } else if (autoAdvanceTypes.has(s.type)) {
-    nextBtn.style.display = 'none';
-  } else {
-    nextBtn.textContent = 'Next →';
-    nextBtn.style.display = 'inline-flex';
-  }
-
-  const body = document.getElementById('wizard-body');
-
-  if (s.type === 'itemCategory') {
-    const _userTabs = state.userDefinedTabs || [];
-    const _cats = [
-      { id: 'lionel',   label: 'Lionel Item #',  desc: 'Train, car, accessory with a Lionel catalog number', emoji: '🚂', color: 'var(--accent)' },
-      { id: 'set',      label: 'Complete Set',   desc: 'Outfit box with loco, cars & accessories grouped together', emoji: '🎁', color: '#e67e22' },
-      { id: 'paper',    label: 'Paper Item',       desc: 'Catalog, ad, flyer, instruction sheet, article, box insert', emoji: '📄', color: '#3498db' },
-      { id: 'mockups',  label: 'Mock-Up',          desc: 'Pre-production prototype',                          emoji: '🔩', color: '#9b59b6' },
-      { id: 'other',    label: 'Other Item',       desc: 'Accessory, display, anything else',                 emoji: '📦', color: '#27ae60' },
-    ];
-    const cur = wizard.data.itemCategory || '';
-    body.innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:0.5rem;padding-top:0.25rem;max-height:60vh;overflow-y:auto">
-        ${_cats.map(c => `
-          <button onclick="wizardChooseCategory('${c.id}')" style="
-            display:flex;align-items:center;gap:0.85rem;padding:0.75rem 1rem;
-            border-radius:10px;border:2px solid ${cur===c.id ? c.color : 'var(--border)'};
-            background:${cur===c.id ? c.color+'22' : 'var(--surface2)'};
-            color:var(--text);cursor:pointer;text-align:left;font-family:var(--font-body);width:100%
-          ">
-            <span style="font-size:1.3rem;width:28px;text-align:center;flex-shrink:0">${c.emoji}</span>
-            <div>
-              <div style="font-weight:600;font-size:0.9rem">${c.label}</div>
-              <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.1rem">${c.desc}</div>
-            </div>
-          </button>`).join('')}
-      </div>`;
-
-  } else if (s.type === 'choice') {
-    // First step - choose tab
-    body.innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:0.75rem;padding-top:0.5rem">
-        ${[['collection','✓ My Collection','Add a Lionel train you own','var(--green)'],
-           ['sold','$ Sold','Record a sold item','#9b59b6'],
-           ['want','★ Want List','Add to your wish list','var(--accent2)'],
-           ['catalogs','📒 Catalogs','Lionel catalogs & publications','#e67e22'],
-           ['paper','📄 Paper Items','Ads, flyers, box inserts, articles','#3498db'],
-           ['mockups','🔩 Mock-Ups','Pre-production prototypes','#9b59b6'],
-           ['other','📦 Other Lionel','Accessories, displays & more','#27ae60'],
-          ].map(([val,label,desc,color]) => `
-          <button onclick="wizardChooseTab('${val}')" style="
-            display:flex;align-items:center;gap:1rem;padding:1rem 1.25rem;
-            border-radius:10px;border:2px solid ${wizard.tab===val ? color : 'var(--border)'};
-            background:${wizard.tab===val ? color+'22' : 'var(--surface2)'};
-            color:var(--text);cursor:pointer;text-align:left;font-family:var(--font-body);
-            transition:all 0.15s;width:100%
-          ">
-            <div style="font-size:1.5rem;width:36px;text-align:center">${label.split(' ')[0]}</div>
-            <div>
-              <div style="font-weight:600;font-size:0.95rem">${label.split(' ').slice(1).join(' ')}</div>
-              <div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.15rem">${desc}</div>
-            </div>
-          </button>`).join('')}
-
-      </div>`;
-
-  } else if (s.type === 'variation') {
-    // Look up all variations for the entered item number
-    const itemNum = wizard.data.itemNum || '';
-    const _allVars = state.masterData.filter(i => i.itemNum === itemNum && i.variation);
-    // Deduplicate by variation number (safety net against doubled data)
-    const _seenVars = new Set();
-    const variations = _allVars.filter(v => {
-      if (_seenVars.has(v.variation)) return false;
-      _seenVars.add(v.variation);
-      return true;
-    });
-    const val = wizard.data.variation || '';
-    if (variations.length === 0) {
-      // No variations in master - fall back to text input
-      body.innerHTML = `
-        <div style="padding-top:0.75rem">
-          <input type="text" id="wiz-input" value="${val}" placeholder="Leave blank if no variation"
-            style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
-            padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none"
-            oninput="wizard.data.variation=this.value"
-            onkeydown="if(event.key==='Enter')wizardNext()">
-          ${s.note && s.note(wizard.data) ? `<div style="font-size:0.8rem;color:var(--accent2);margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(201,146,42,0.1);border-radius:6px">${s.note(wizard.data)}</div>` : ''}
-        <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
-        ${(() => {
-          const singleItem = state.masterData.find(i => i.itemNum === itemNum);
-          return singleItem && singleItem.refLink
-            ? '<a href="' + singleItem.refLink + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:0.4rem;margin-top:0.75rem;font-size:0.82rem;color:var(--accent2);text-decoration:none;padding:0.4rem 0.75rem;border:1px solid rgba(201,146,42,0.3);border-radius:6px;background:rgba(201,146,42,0.08)">View on COTT ↗</a>'
-            : '';
-        })()}
-
-        </div>`;
-      setTimeout(() => { const i = document.getElementById('wiz-input'); if(i) i.focus(); }, 50);
+  // Always sync from Drive config to ensure correct sheet ID across devices
+  driveReadConfig().then(async config => {
+    if (config && config.personalSheetId) {
+      // Always use Drive config as source of truth
+      state.personalSheetId = config.personalSheetId;
+      localStorage.setItem('lv_personal_id', config.personalSheetId);
+      if (config.vaultId)      { driveCache.vaultId = config.vaultId;           localStorage.setItem('lv_vault_id', config.vaultId); }
+      if (config.photosId)     { driveCache.photosId = config.photosId;         localStorage.setItem('lv_photos_id', config.photosId); }
+      if (config.soldPhotosId) { driveCache.soldPhotosId = config.soldPhotosId; localStorage.setItem('lv_sold_photos_id', config.soldPhotosId); }
+      loadAllData();
     } else {
-      // Show variation cards with COTT link per variation
-      body.innerHTML = `
-        <div style="padding-top:0.5rem">
-          <div style="display:flex;flex-direction:column;gap:0.5rem" id="var-cards">
-            ${[{variation:'', varDesc:'No specific variation / not sure', refLink:''}, ...variations].map(v => {
-              const isSelected = val===v.variation;
-              const cottLink = v.refLink ? `<a href="${v.refLink}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.75rem;color:var(--accent2);text-decoration:none;padding:0.2rem 0.5rem;border:1px solid rgba(201,146,42,0.3);border-radius:5px;background:rgba(201,146,42,0.08);flex-shrink:0;white-space:nowrap">COTT ↗</a>` : '';
-              return `
-              <button onclick="wizardChooseVariation('${v.variation}')" style="
-                display:flex;flex-direction:column;gap:0.4rem;padding:0.85rem 1rem;
-                border-radius:10px;text-align:left;width:100%;cursor:pointer;
-                font-family:var(--font-body);transition:all 0.15s;
-                border:2px solid ${isSelected ? 'var(--accent)' : 'var(--border)'};
-                background:${isSelected ? 'rgba(232,64,28,0.12)' : 'var(--surface2)'};
-                color:var(--text);
-              ">
-                <div style="display:flex;align-items:center;gap:0.6rem;width:100%">
-                  <span style="
-                    font-family:var(--font-mono);font-size:1rem;font-weight:600;
-                    color:${isSelected ? 'var(--accent)' : 'var(--accent2)'};
-                    min-width:2rem;
-                  ">${v.variation || '—'}</span>
-                  ${cottLink}
-                </div>
-                <span style="font-size:0.82rem;color:var(--text-mid);line-height:1.5;padding-left:0.1rem">${v.varDesc || v.description || 'No description available'}</span>
-              </button>`;
-            }).join('')}
-          </div>
-          <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Selecting a variation will auto-advance</div>
-        </div>`;
-    }
-
-  } else if (s.type === 'text') {
-    const val = wizard.data[s.id] || '';
-    const showBoxOnly = s.id === 'itemNum' && wizard.tab === 'collection';
-    const boxOnlyChecked = wizard.data.boxOnly || false;
-    const _showCollPicker = s.id === 'itemNum' && (wizard.tab === 'forsale' || wizard.tab === 'sold');
-    body.innerHTML = `
-      <div style="padding-top:0.75rem">
-        <input type="text" id="wiz-input" value="${val}" placeholder="${s.placeholder || ''}"
-          style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
-          padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none"
-          autocomplete="off"
-          oninput="wizard.data['${s.id}']=this.value; if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='itemNum') updateItemSuggestions(this.value); if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='set_num') updateSetSuggestions(this.value); if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='eph_itemNumRef') updateMockupRefSuggestions(this.value); ${_showCollPicker ? '_filterCollPicker(this.value)' : ''}"
-          onkeydown="handleSuggestionKey(event)">
-        <div id="wiz-suggestions" style="display:none;flex-direction:column;gap:1px;margin-top:4px;max-height:340px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;-webkit-overflow-scrolling:touch"></div>
-        ${s.optional ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>' : ''}
-        <div id="wiz-match" style="margin-top:0.75rem"></div>
-        ${s.id === 'itemNum' ? `
-        <button onclick="openIdentify('wizard')" style="
-          width:100%;margin-top:0.6rem;padding:0.65rem 1rem;
-          border-radius:8px;border:1.5px dashed var(--gold);
-          background:rgba(212,168,67,0.07);color:var(--gold);
-          font-family:var(--font-head);font-size:0.78rem;font-weight:600;
-          letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;
-          display:flex;align-items:center;justify-content:center;gap:0.5rem;
-          transition:all 0.15s
-        ">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-          Don't know the number? Identify by photo
-        </button>` : ''}
-        ${showBoxOnly ? `
-        <label onclick="toggleBoxOnly()" style="
-          display:flex;align-items:center;gap:0.75rem;padding:0.85rem 1rem;margin-top:0.75rem;
-          border-radius:10px;border:2px solid ${boxOnlyChecked ? 'var(--accent2)' : 'var(--border)'};
-          background:${boxOnlyChecked ? 'rgba(201,146,42,0.1)' : 'var(--surface2)'};
-          cursor:pointer;transition:all 0.15s;
-        ">
-          <div style="
-            width:20px;height:20px;border-radius:5px;flex-shrink:0;
-            border:2px solid ${boxOnlyChecked ? 'var(--accent2)' : 'var(--border)'};
-            background:${boxOnlyChecked ? 'var(--accent2)' : 'transparent'};
-            display:flex;align-items:center;justify-content:center;
-            font-size:0.75rem;color:white;font-weight:700;transition:all 0.15s;
-          ">${boxOnlyChecked ? '✓' : ''}</div>
-          <div>
-            <div style="font-weight:600;font-size:0.9rem;color:var(--text)">Adding box info only</div>
-            <div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.1rem">I bought a separate box for this item</div>
-          </div>
-        </label>` : ''}
-        ${_showCollPicker ? `
-        <div style="margin-top:0.85rem">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.4rem">
-            <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);font-weight:600">Or pick from your collection</div>
-            <button onclick="_openFullCollPicker()" style="font-size:0.72rem;color:${wizard.tab === 'forsale' ? '#e67e22' : '#2ecc71'};background:none;border:1px solid ${wizard.tab === 'forsale' ? '#e67e22' : '#2ecc71'};border-radius:5px;padding:0.2rem 0.5rem;cursor:pointer;font-family:var(--font-body)">Browse All ▸</button>
-          </div>
-          <div id="wiz-coll-picker" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;background:var(--surface);-webkit-overflow-scrolling:touch"></div>
-        </div>` : ''}
-      </div>`;
-    setTimeout(() => {
-      const inp = document.getElementById('wiz-input');
-      if (inp) {
-        inp.focus();
-        if (s.id === 'itemNum') {
-          inp.addEventListener('input', debounceItemLookup);
-          if (inp.value) updateItemSuggestions(inp.value);
-        }
+      // Config file not found — try searching Drive by sheet name
+      const foundId = await driveFindPersonalSheet();
+      if (foundId) {
+        state.personalSheetId = foundId;
+        localStorage.setItem('lv_personal_id', foundId);
+        // Write config so future loads are faster
+        driveWriteConfig({ personalSheetId: foundId }).catch(() => {});
+        loadAllData();
+        return;
       }
-      if (_showCollPicker) _filterCollPicker('');
-    }, 50);
-
-  } else if (s.type === 'entryMode') {
-    const lbl = getItemLabel(wizard.data);
-    const itemNum = (wizard.data.itemNum || '').trim();
-    const wrap = document.createElement('div');
-    wrap.style.cssText = 'padding-top:0.75rem;display:flex;flex-direction:column;gap:0.75rem';
-
-    // Full Entry card
-    const fullCard = document.createElement('button');
-    fullCard.style.cssText = 'width:100%;padding:1.1rem 1.25rem;border-radius:14px;text-align:left;cursor:pointer;font-family:var(--font-body);transition:all 0.15s;border:2px solid var(--border);background:var(--surface2);display:flex;align-items:flex-start;gap:1rem';
-    fullCard.innerHTML = '<div style="font-size:2rem;flex-shrink:0;line-height:1">📋</div>'
-      + '<div><div style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:0.2rem">Full Entry</div>'
-      + '<div style="font-size:0.82rem;color:var(--text-mid);line-height:1.5">Answer all questions and add photos.<br>Best for a complete record.</div></div>';
-    fullCard.onclick = function() {
-      wizard.data.entryMode = 'full';
-      renderWizardStep();
-      setTimeout(function() { wizardNext(); }, 120);
-    };
-
-    // Quick Entry card — div with checkboxes and optional mini-step
-    const quickCard = document.createElement('div');
-    quickCard.style.cssText = 'width:100%;padding:1.1rem 1.25rem;border-radius:14px;font-family:var(--font-body);transition:all 0.15s;border:2px solid #1e3a5f;background:rgba(30,58,95,0.07)';
-
-    const qcTop = document.createElement('div');
-    qcTop.style.cssText = 'display:flex;align-items:flex-start;gap:1rem;cursor:pointer';
-    qcTop.innerHTML = '<div style="font-size:2rem;flex-shrink:0;line-height:1">⚡</div>'
-      + '<div><div style="font-size:1rem;font-weight:700;color:#1e3a5f;margin-bottom:0.2rem">Quick Entry</div>'
-      + '<div style="font-size:0.82rem;color:var(--text-mid);line-height:1.5">Just save the item number now.<br>You can fill in the details later — use the ⚡ Quick Entry filter to find it.</div></div>';
-
-    function _mkQeCheckbox(storageKey, emoji, label) {
-      var row = document.createElement('label');
-      row.style.cssText = 'display:inline-flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.8rem;color:var(--text-mid);user-select:none';
-      var cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.checked = localStorage.getItem(storageKey) === 'true';
-      cb.style.cssText = 'width:15px;height:15px;accent-color:var(--accent2);cursor:pointer;flex-shrink:0';
-      cb.addEventListener('click', function(e) { e.stopPropagation(); localStorage.setItem(storageKey, cb.checked ? 'true' : 'false'); });
-      row.appendChild(cb);
-      row.appendChild(document.createTextNode(' ' + emoji + ' ' + label));
-      return { el: row, cb: cb };
-    }
-
-    var qcCbRow = document.createElement('div');
-    qcCbRow.style.cssText = 'display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.65rem;padding-top:0.55rem;border-top:1px solid rgba(30,58,95,0.25)';
-    var worthCheck = _mkQeCheckbox('lv_qe_worth', '💰', 'Est. Worth');
-    qcCbRow.appendChild(worthCheck.el);
-    var photoCheck = _mkQeCheckbox('lv_qe_photo', '📷', 'Add Photo');
-    qcCbRow.appendChild(photoCheck.el);
-
-    var qcMiniStep = document.createElement('div');
-    qcMiniStep.style.cssText = 'display:none;margin-top:0.65rem;padding-top:0.65rem;border-top:1px solid rgba(30,58,95,0.3)';
-
-    var qcWorthWrap = document.createElement('div');
-    qcWorthWrap.style.cssText = 'display:none;margin-bottom:0.55rem';
-    qcWorthWrap.innerHTML = '<div style="font-size:0.68rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.25rem">Est. Worth ($)</div>'
-      + '<div style="display:flex;align-items:center;gap:0.4rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.45rem 0.7rem">'
-      + '<span style="color:var(--text-dim)">$</span>'
-      + '<input type="number" id="qe-worth-input" placeholder="0.00" min="0" step="0.01" style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:0.95rem" onclick="event.stopPropagation()">'
-      + '</div>';
-    qcMiniStep.appendChild(qcWorthWrap);
-
-    var qcPhotoWrap = document.createElement('div');
-    qcPhotoWrap.style.cssText = 'display:none;margin-bottom:0.55rem';
-
-    var qcPhotoLabel = document.createElement('div');
-    qcPhotoLabel.style.cssText = 'font-size:0.68rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.25rem';
-    qcPhotoLabel.textContent = '📷 Photo';
-    qcPhotoWrap.appendChild(qcPhotoLabel);
-
-    var qcPhotoInput = document.createElement('input');
-    qcPhotoInput.type = 'file';
-    qcPhotoInput.id = 'qe-photo-input';
-    qcPhotoInput.accept = 'image/*';
-    qcPhotoInput.setAttribute('capture', 'environment');
-    qcPhotoInput.style.display = 'none';
-    qcPhotoInput.addEventListener('click', function(e) { e.stopPropagation(); });
-    qcPhotoInput.addEventListener('change', function() {
-      if (this.files && this.files[0]) {
-        wizard.data._qePhotoFile = this.files[0];
-        qcPhotoBtn.textContent = '📷 ' + this.files[0].name;
-        qcPhotoBtn.style.borderColor = '#3a9e68';
-        qcPhotoBtn.style.color = '#3a9e68';
-        qcPhotoStatus.style.display = 'block';
-      }
-    });
-    qcPhotoWrap.appendChild(qcPhotoInput);
-
-    var qcPhotoBtn = document.createElement('button');
-    qcPhotoBtn.id = 'qe-photo-btn';
-    qcPhotoBtn.type = 'button';
-    qcPhotoBtn.textContent = '📷 Tap to take photo';
-    qcPhotoBtn.style.cssText = 'width:100%;padding:0.55rem 0.8rem;border-radius:9px;border:1.5px dashed var(--border);background:var(--bg);color:var(--text-mid);font-family:var(--font-body);font-size:0.88rem;cursor:pointer;text-align:left';
-    qcPhotoBtn.addEventListener('click', function(e) {
-      e.stopPropagation();
-      qcPhotoInput.click();
-    });
-    qcPhotoWrap.appendChild(qcPhotoBtn);
-
-    var qcPhotoStatus = document.createElement('div');
-    qcPhotoStatus.style.cssText = 'display:none;margin-top:0.35rem;font-size:0.78rem;color:#3a9e68;font-weight:600';
-    qcPhotoStatus.textContent = '✓ Photo ready';
-    qcPhotoWrap.appendChild(qcPhotoStatus);
-
-    qcMiniStep.appendChild(qcPhotoWrap);
-
-    var qcConfirmBtn = document.createElement('button');
-    qcConfirmBtn.textContent = '⚡ Confirm & Save';
-    qcConfirmBtn.style.cssText = 'width:100%;padding:0.6rem;border-radius:9px;border:none;background:#1e3a5f;color:white;font-family:var(--font-body);font-size:0.9rem;font-weight:700;cursor:pointer;margin-top:0.1rem';
-    qcConfirmBtn.onclick = function(e) {
-      e.stopPropagation();
-      if (wizard.data._qeSaving) return;
-      wizard.data._qeSaving = true;
-      qcConfirmBtn.disabled = true;
-      qcConfirmBtn.textContent = 'Saving…';
-      var wv = document.getElementById('qe-worth-input');
-      if (wv && wv.value) wizard.data._qeEstWorth = wv.value;
-      // _qePhotoFile already set by qcPhotoInput change listener above
-      quickEntryAdd().catch(function(err) {
-        wizard.data._qeSaving = false;
-        qcConfirmBtn.disabled = false;
-        qcConfirmBtn.textContent = '⚡ Confirm & Save';
-        console.error('[QE] Uncaught error:', err);
-        showToast('❌ Quick Entry failed: ' + err.message, 6000, true);
-      });
-    };
-    qcMiniStep.appendChild(qcConfirmBtn);
-
-    qcTop.onclick = function() {
-      if (wizard.data._qeSaving) return;
-      var needsWorth = worthCheck.cb.checked;
-      var needsPhoto = photoCheck && photoCheck.cb.checked;
-      if (!needsWorth && !needsPhoto) {
-        wizard.data._qeSaving = true;
-        quickCard.style.opacity = '0.55';
-        quickCard.style.pointerEvents = 'none';
-        wizard.data.entryMode = 'quick';
-        quickEntryAdd().catch(function(err) {
-          wizard.data._qeSaving = false;
-          quickCard.style.opacity = '';
-          quickCard.style.pointerEvents = '';
-          console.error('[QE] Uncaught error:', err);
-          showToast('❌ Quick Entry failed: ' + err.message, 6000, true);
+      // No config and no sheet found — check localStorage before creating anything new
+      state.personalSheetId = localStorage.getItem('lv_personal_id');
+      if (!state.personalSheetId) {
+        // No sheet found anywhere — create one for this new user
+        createPersonalSheet().then(loadAllData).catch(e => {
+          console.error('[Setup] createPersonalSheet failed:', e);
+          showToast('Could not create your collection sheet. Please sign out and try again.', 4000, true);
+          hideLoading();
         });
       } else {
-        qcMiniStep.style.display = 'block';
-        if (needsWorth) { qcWorthWrap.style.display = 'block'; setTimeout(function() { var wi = document.getElementById('qe-worth-input'); if (wi) wi.focus(); }, 50); }
-        if (needsPhoto) qcPhotoWrap.style.display = 'block';
-      }
-    };
-
-    quickCard.appendChild(qcTop);
-    quickCard.appendChild(qcCbRow);
-    quickCard.appendChild(qcMiniStep);
-
-    wrap.appendChild(fullCard);
-    wrap.appendChild(quickCard);
-    body.innerHTML = '';
-    body.appendChild(wrap);
-    // Hide the Next button — selection is made by tapping a card
-    var nb = document.getElementById('wizard-next-btn');
-    if (nb) nb.style.display = 'none';
-
-  } else if (s.type === 'slider') {
-    const val = wizard.data[s.id] || parseInt(localStorage.getItem('lv_default_cond') || '7');
-    body.innerHTML = `
-      <div style="padding-top:1rem">
-        <div style="display:flex;align-items:center;gap:1rem">
-          <div style="font-family:var(--font-head);font-size:3rem;color:var(--accent2);width:3rem" id="wiz-slider-val">${val}</div>
-          <input type="range" min="${s.min}" max="${s.max}" value="${val}" id="wiz-slider" style="flex:1;accent-color:var(--accent)"
-            oninput="wizard.data['${s.id}']=parseInt(this.value);document.getElementById('wiz-slider-val').textContent=this.value">
-        </div>
-        <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--text-dim);margin-top:0.25rem">
-          <span>1–3<br>Fair/Poor</span><span style="text-align:center">4–5<br>Good</span><span style="text-align:center">6–7<br>Very Good</span><span style="text-align:right">8–10<br>Exc/Mint</span>
-        </div>
-        <div id="wiz-cond-desc" style="margin-top:0.6rem;padding:0.5rem 0.75rem;border-radius:8px;background:var(--surface2);font-size:0.82rem;color:var(--text-mid);text-align:center;min-height:2rem"></div>
-
-      </div>`;
-    setTimeout(initCondDesc, 60);
-
-  } else if (s.type === 'choice2' || s.type === 'choice3') {
-    const val = wizard.data[s.id] || '';
-    const _manyChoices = s.choices.length > 4;
-    body.innerHTML = `
-      <div style="${_manyChoices
-        ? 'display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;padding-top:0.75rem'
-        : 'display:flex;gap:0.75rem;flex-wrap:wrap;padding-top:0.75rem'}">
-        ${s.choices.map(c => `
-          <button onclick="wizardChoose('${s.id}','${c}')" style="
-            padding:${_manyChoices ? '0.7rem 0.5rem' : '0.85rem'};border-radius:10px;
-            border:2px solid ${val===c ? 'var(--accent)' : 'var(--border)'};
-            background:${val===c ? 'rgba(232,64,28,0.15)' : 'var(--surface2)'};
-            color:${val===c ? 'var(--accent)' : 'var(--text-mid)'};
-            font-family:var(--font-body);font-size:${_manyChoices ? '0.82rem' : '0.95rem'};font-weight:500;cursor:pointer;transition:all 0.15s;text-align:center;
-            ${_manyChoices ? '' : 'flex:1;min-width:80px;'}
-          ">${c}</button>`).join('')}
-      </div>`;
-
-  } else if (s.type === 'pricePaid') {
-    const itemVal = wizard.data.priceItem || '';
-    body.innerHTML = `
-      <div style="padding-top:0.75rem">
-        <div style="font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.4rem">What did you pay for the item? ($)</div>
-        <div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem">
-          <span style="color:var(--text-dim);font-size:1.2rem">$</span>
-          <input type="number" id="wiz-price-item" value="${itemVal}" placeholder="0.00" min="0" step="0.01"
-            style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1.1rem"
-            oninput="wizard.data.priceItem=this.value"
-            onkeydown="if(event.key==='Enter')wizardNext()">
-        </div>
-        ${s.note && s.note(wizard.data) ? `<div style="font-size:0.8rem;color:var(--accent2);margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(201,146,42,0.1);border-radius:6px">${s.note(wizard.data)}</div>` : ''}
-        <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
-      </div>`;
-    setTimeout(() => { const i = document.getElementById('wiz-price-item'); if(i) i.focus(); }, 50);
-
-  } else if (s.type === 'money') {
-    const val = wizard.data[s.id] || '';
-    const moneyNote = s.note ? s.note(wizard.data) : '';
-    const moneyNoteHtml = moneyNote ? '<div style="font-size:0.82rem;color:var(--accent2);margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(201,146,42,0.12);border:1px solid rgba(201,146,42,0.4);border-radius:6px;line-height:1.4">' + moneyNote + '</div>' : '';
-
-    // Build price context for askingPrice step (from collection data)
-    let _priceCtxHtml = '';
-    if ((s.id === 'askingPrice' && wizard.tab === 'forsale') || (s.id === 'salePrice' && wizard.tab === 'sold')) {
-      const _pdKey = wizard.data._collectionPdKey || wizard.data.selectedForSaleKey || wizard.data.selectedSoldKey;
-      const _pd = _pdKey && _pdKey !== '__new__' ? (state.personalData[_pdKey] || {}) : {};
-      const _pricePaid = wizard.data.originalPrice || wizard.data.priceItem || _pd.priceItem || '';
-      const _estWorth = wizard.data.estWorth || _pd.userEstWorth || '';
-      if (_pricePaid || _estWorth) {
-        _priceCtxHtml = '<div style="display:flex;gap:0.75rem;margin-bottom:0.75rem;flex-wrap:wrap">';
-        if (_pricePaid) {
-          _priceCtxHtml += '<div style="flex:1;min-width:120px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.8rem">'
-            + '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.2rem">Price Paid</div>'
-            + '<div style="font-family:var(--font-head);font-size:1.15rem;color:var(--accent)">$' + parseFloat(_pricePaid).toLocaleString() + '</div>'
-            + '</div>';
-        }
-        if (_estWorth) {
-          _priceCtxHtml += '<div style="flex:1;min-width:120px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.8rem">'
-            + '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.2rem">Est. Worth</div>'
-            + '<div style="font-family:var(--font-head);font-size:1.15rem;color:var(--accent2)">$' + parseFloat(_estWorth).toLocaleString() + '</div>'
-            + '</div>';
-        }
-        _priceCtxHtml += '</div>';
+        driveEnsureSetup().catch(e => console.warn('Drive setup:', e));
+        loadAllData();
       }
     }
-
-    body.innerHTML = `
-      <div style="padding-top:0.75rem">
-        ${_priceCtxHtml}
-        <div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem">
-          <span style="color:var(--text-dim);font-size:1.2rem">$</span>
-          <input type="number" id="wiz-input" value="${val}" placeholder="${s.placeholder || '0.00'}" min="0" step="0.01"
-            style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1.1rem"
-            oninput="wizard.data['${s.id}']=this.value"
-            onkeydown="if(event.key==='Enter')wizardNext()">
-        </div>
-        ${moneyNoteHtml}
-        ${s.optional ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>' : ''}
-      </div>`;
-    setTimeout(() => { const i = document.getElementById('wiz-input'); if(i) i.focus(); }, 50);
-
-  } else if (s.type === 'yearMade') {
-    var wData = wizard.data;
-    var _itmNum  = (wData.itemNum  || '').trim();
-    var _vartn = (wData.variation || '').trim();
-    var _match = state.masterData.find(function(m) {
-        return normalizeItemNum(m.itemNum) === normalizeItemNum(_itmNum) && (!_vartn || m.variation === _vartn);
-      }) || state.masterData.find(function(m) { return normalizeItemNum(m.itemNum) === normalizeItemNum(_itmNum); });
-    var yearRange = _match ? (_match.yearProd || '') : '';
-    var curr = wData.yearMade || '';
-
-    // Parse yearRange into individual year integers
-    var rangeYears = [];
-    if (yearRange) {
-      yearRange.split(/[,;]/).forEach(function(part) {
-        part = part.trim();
-        var rm = part.match(/^(\d{4})\s*[\-\u2013]\s*(\d{2,4})$/);
-        if (rm) {
-          var st = parseInt(rm[1]), en = parseInt(rm[2]);
-          if (en < 100) en = Math.floor(st/100)*100 + en;
-          for (var y = st; y <= Math.min(en, st+25); y++) rangeYears.push(y);
-        } else if (/^\d{4}$/.test(part)) {
-          rangeYears.push(parseInt(part));
-        }
+  }).catch(async () => {
+    // Drive read failed — try searching by sheet name
+    const foundId = await driveFindPersonalSheet();
+    if (foundId) {
+      state.personalSheetId = foundId;
+      localStorage.setItem('lv_personal_id', foundId);
+      driveWriteConfig({ personalSheetId: foundId }).catch(() => {});
+      loadAllData();
+      return;
+    }
+    // Fall back to localStorage
+    state.personalSheetId = localStorage.getItem('lv_personal_id');
+    if (!state.personalSheetId) {
+      // No sheet found anywhere — create one for this new user
+      createPersonalSheet().then(loadAllData).catch(e => {
+        console.error('[Setup] createPersonalSheet failed:', e);
+        showToast('Could not create your collection sheet. Please sign out and try again.', 4000, true);
+        hideLoading();
       });
-      rangeYears = rangeYears.filter(function(v,i,a){ return a.indexOf(v)===i; }).sort(function(a,b){return a-b;});
-    }
-    wizard._yearRangeYears = rangeYears;
-
-    var yearWrap = document.createElement('div');
-    yearWrap.style.cssText = 'padding-top:0.75rem';
-
-    if (rangeYears.length > 0) {
-      var hdr = document.createElement('div');
-      hdr.style.cssText = 'font-size:0.78rem;font-weight:600;color:#2980b9;margin-bottom:0.5rem';
-      hdr.textContent = 'Known production years — tap to select:';
-      yearWrap.appendChild(hdr);
-
-      var grid = document.createElement('div');
-      grid.id = 'year-btn-grid';
-      grid.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.85rem';
-      rangeYears.forEach(function(yr) {
-        var btn = document.createElement('button');
-        var isSel = String(yr) === String(curr);
-        btn.style.cssText = 'padding:0.45rem 0.8rem;border-radius:8px;font-family:var(--font-mono);font-size:0.9rem;font-weight:600;cursor:pointer;transition:all 0.15s;'
-          + (isSel ? 'border:2px solid var(--accent);background:rgba(232,64,28,0.15);color:var(--accent)'
-                   : 'border:1.5px solid var(--border);background:var(--surface2);color:var(--text-mid)');
-        btn.textContent = yr;
-        btn.onclick = (function(yrVal) { return function() {
-          wizard.data.yearMade = String(yrVal);
-          var inp2 = document.getElementById('wiz-year-input');
-          if (inp2) inp2.value = yrVal;
-          document.querySelectorAll('#year-btn-grid button').forEach(function(b) {
-            var s2 = b.textContent === String(yrVal);
-            b.style.border = s2 ? '2px solid var(--accent)' : '1.5px solid var(--border)';
-            b.style.background = s2 ? 'rgba(232,64,28,0.15)' : 'var(--surface2)';
-            b.style.color = s2 ? 'var(--accent)' : 'var(--text-mid)';
-          });
-          var w2 = document.getElementById('year-range-warning');
-          if (w2) w2.remove();
-          setTimeout(function() { wizardNext(); }, 120);
-        }; })(yr);
-        grid.appendChild(btn);
-      });
-      yearWrap.appendChild(grid);
-    }
-
-    var manualLbl = document.createElement('div');
-    manualLbl.style.cssText = 'font-size:0.75rem;color:var(--text-dim);margin-bottom:0.3rem';
-    manualLbl.textContent = rangeYears.length > 0 ? 'Or type a year manually:' : 'Enter the year:';
-    yearWrap.appendChild(manualLbl);
-
-    var yearInp = document.createElement('input');
-    yearInp.type = 'number'; yearInp.id = 'wiz-year-input';
-    yearInp.value = curr; yearInp.placeholder = 'e.g. 1952';
-    yearInp.style.cssText = 'width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem;color:var(--text);font-family:var(--font-mono);font-size:1.2rem;outline:none;letter-spacing:0.1em';
-    yearInp.oninput = function() { wizard.data.yearMade = yearInp.value; };
-    yearInp.onkeydown = function(e) { if (e.key === 'Enter') yearMadeNext(); };
-    yearWrap.appendChild(yearInp);
-
-    var skiphint = document.createElement('div');
-    skiphint.style.cssText = 'font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem';
-    skiphint.textContent = 'Optional — press Next to skip.';
-    yearWrap.appendChild(skiphint);
-
-    body.innerHTML = '';
-    body.appendChild(yearWrap);
-    setTimeout(function() { var i = document.getElementById('wiz-year-input'); if(i) i.focus(); }, 50);
-
-
-  } else if (s.type === 'postwarYear') {
-    var _pwCurr = wizard.data[s.id] || '';
-    var _pwWrap = document.createElement('div');
-    _pwWrap.style.cssText = 'padding-top:0.5rem';
-    var _pwHint = document.createElement('div');
-    _pwHint.style.cssText = 'font-size:0.78rem;font-weight:600;color:#2980b9;margin-bottom:0.6rem';
-    _pwHint.textContent = 'Tap the year:';
-    _pwWrap.appendChild(_pwHint);
-    var _pwGrid = document.createElement('div');
-    _pwGrid.id = 'postwar-year-grid';
-    _pwGrid.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.4rem';
-    for (var _y = 1945; _y <= 1969; _y++) {
-      (function(yr) {
-        var _btn = document.createElement('button');
-        var _sel = String(yr) === String(_pwCurr);
-        _btn.style.cssText = 'padding:0.45rem 0.7rem;border-radius:8px;font-family:var(--font-mono);font-size:0.88rem;font-weight:600;cursor:pointer;transition:all 0.15s;'
-          + (_sel ? 'border:2px solid var(--accent);background:rgba(232,64,28,0.15);color:var(--accent)'
-                  : 'border:1.5px solid var(--border);background:var(--surface2);color:var(--text-mid)');
-        _btn.textContent = yr;
-        _btn.onclick = function() {
-          wizard.data[s.id] = String(yr);
-          document.querySelectorAll('#postwar-year-grid button').forEach(function(b) {
-            var isSel = b.textContent === String(yr);
-            b.style.border = isSel ? '2px solid var(--accent)' : '1.5px solid var(--border)';
-            b.style.background = isSel ? 'rgba(232,64,28,0.15)' : 'var(--surface2)';
-            b.style.color = isSel ? 'var(--accent)' : 'var(--text-mid)';
-          });
-          setTimeout(function() { wizardNext(); }, 120);
-        };
-        _pwGrid.appendChild(_btn);
-      })(_y);
-    }
-    _pwWrap.appendChild(_pwGrid);
-    body.innerHTML = '';
-    body.appendChild(_pwWrap);
-    // Hide Next — year buttons auto-advance
-    var _pwNb = document.getElementById('wizard-next-btn');
-    if (_pwNb) _pwNb.style.display = 'none';
-
-  } else if (s.type === 'date') {
-    const val = wizard.data[s.id] || '';
-    body.innerHTML = `
-      <div style="padding-top:0.75rem">
-        <div style="position:relative;display:flex;align-items:center">
-          <input type="date" id="wiz-input" value="${val}"
-            style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
-            padding:0.75rem 3rem 0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none;
-            color-scheme:dark;"
-            oninput="wizard.data['${s.id}']=this.value">
-          <button type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById('wiz-input').showPicker();" title="Open calendar"
-            style="position:absolute;right:0.5rem;cursor:pointer;font-size:1.15rem;color:var(--accent2);background:none;border:none;padding:0.4rem;line-height:1;touch-action:manipulation">📅</button>
-        </div>
-        ${s.note && s.note(wizard.data) ? `<div style="font-size:0.8rem;color:var(--accent2);margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(201,146,42,0.1);border-radius:6px">${s.note(wizard.data)}</div>` : ''}
-        <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
-      </div>`;
-
-  } else if (s.type === 'setMatch') {
-    const itemNum = (wizard.data.itemNum || '').trim();
-    const partner = getSetPartner(itemNum);
-    const unitType = itemNum.endsWith('C') ? 'B unit' : 'A unit';
-    const current = wizard.data.setMatch || '';
-
-    // Check if user already owns a unit from this set
-    const baseNum = itemNum.endsWith('C') ? itemNum.slice(0,-1) : itemNum;
-    const ownedPartner = Object.values(state.personalData).find(pd =>
-      pd.itemNum === baseNum || pd.itemNum === baseNum + 'C'
-    );
-
-    const smContainer = document.createElement('div');
-    smContainer.style.cssText = 'padding-top:0.5rem';
-
-    const intro = document.createElement('div');
-    intro.style.cssText = 'font-size:0.85rem;color:var(--text-dim);margin-bottom:1rem';
-    intro.textContent = 'This is a ' + unitType + ' that can be part of a multi-unit diesel set' + (partner ? ' (partner: ' + partner + ')' : '') + '.';
-    smContainer.appendChild(intro);
-
-    const opts = [
-      { val: 'set-now',   icon: '🚂🚂', label: 'Adding as a set now',        desc: 'Walk through all units together' },
-      { val: 'link',      icon: '🔗',   label: 'Link to unit already owned', desc: ownedPartner ? 'Found: ' + ownedPartner.itemNum + ' in your collection' : 'Assign same Set ID as existing unit', disabled: !ownedPartner },
-      { val: 'standalone',icon: '🚂',   label: 'Standalone / no set',        desc: 'Save this unit by itself' },
-    ];
-
-    opts.forEach(function(opt) {
-      const btn = document.createElement('button');
-      const sel = current === opt.val;
-      btn.style.cssText = 'text-align:left;padding:0.85rem 1rem;border-radius:10px;cursor:pointer;width:100%;margin-bottom:0.5rem;'
-        + 'border:2px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';'
-        + 'background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--surface2)') + ';'
-        + 'color:' + (opt.disabled ? 'var(--text-dim)' : 'var(--text)') + ';font-family:var(--font-body)';
-      btn.disabled = opt.disabled;
-      btn.onclick = function() {
-        wizard.data.setMatch = opt.val;
-        if (opt.val === 'set-now') {
-          wizard.data._setId = genSetId(baseNum);
-          wizard.data.unit2ItemNum = partner || baseNum + 'C';
-          wizard.data.unit3ItemNum = wizard.data.itemNum; // ABA: third unit = same A number
-        }
-        if (opt.val === 'link' && ownedPartner) {
-          wizard.data._setId = ownedPartner.setId || genSetId(baseNum);
-        }
-        renderWizardStep();
-      };
-      const top = document.createElement('div');
-      top.style.cssText = 'display:flex;align-items:center;gap:0.75rem';
-      const iconEl = document.createElement('span');
-      iconEl.style.cssText = 'font-size:1.3rem';
-      iconEl.textContent = opt.icon;
-      const labelEl = document.createElement('div');
-      labelEl.innerHTML = '<div style="font-weight:600;color:' + (sel?'var(--accent)':'inherit') + '">' + opt.label + '</div>'
-        + '<div style="font-size:0.78rem;color:var(--text-dim)">' + opt.desc + '</div>';
-      top.appendChild(iconEl);
-      top.appendChild(labelEl);
-      btn.appendChild(top);
-      smContainer.appendChild(btn);
-    });
-
-    // Set type selector (AA/AB/ABA) — only show when 'set-now' selected
-    if (current === 'set-now') {
-      const typeDiv = document.createElement('div');
-      typeDiv.style.cssText = 'margin-top:0.75rem;padding:0.75rem;background:var(--bg);border-radius:8px;border:1px solid var(--border)';
-      typeDiv.innerHTML = '<div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:0.5rem">What type of set?</div>';
-      const btnRow = document.createElement('div');
-      btnRow.style.cssText = 'display:flex;gap:0.5rem';
-      ['AA','AB','ABA'].forEach(function(t) {
-        const tb = document.createElement('button');
-        const tsel = wizard.data.setType === t;
-        tb.style.cssText = 'flex:1;padding:0.5rem;border-radius:7px;font-weight:600;cursor:pointer;font-family:var(--font-head);'
-          + 'border:2px solid ' + (tsel?'var(--accent2)':'var(--border)') + ';'
-          + 'background:' + (tsel?'rgba(201,146,42,0.15)':'var(--surface2)') + ';'
-          + 'color:' + (tsel?'var(--accent2)':'var(--text-mid)');
-        tb.textContent = t;
-        tb.onclick = function() { wizard.data.setType = t; renderWizardStep(); };
-        btnRow.appendChild(tb);
-      });
-      typeDiv.appendChild(btnRow);
-      smContainer.appendChild(typeDiv);
-    }
-
-    const hint = document.createElement('div');
-    hint.style.cssText = 'font-size:0.75rem;color:var(--text-dim);margin-top:0.75rem';
-    hint.textContent = 'Optional — press Next to skip';
-    smContainer.appendChild(hint);
-
-    body.innerHTML = '';
-    body.appendChild(smContainer);
-
-  } else if (s.type === 'setUnit2Num') {
-    // Pre-filled unit number — let user confirm or change
-    const isUnit3 = !!s.unit3;
-    const field = isUnit3 ? 'unit3ItemNum' : 'unit2ItemNum';
-    const curr = wizard.data[field] || '';
-    const label = isUnit3
-      ? 'Third unit item number (second A unit — edit if needed)'
-      : 'Second unit item number (pre-filled from partner — edit if needed)';
-    body.innerHTML = '<div style="padding-top:0.75rem">'
-      + '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.5rem">' + label + '</div>'
-      + '<input type="text" id="wiz-unit-num" value="' + curr + '" autocomplete="off" '
-      + 'style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none" '
-      + 'oninput="wizard.data[\'' + field + '\']=this.value; updateUnitNumSuggestions(this.value,\'' + field + '\')" '
-      + 'onkeydown="handleUnitNumKey(event)">'
-      + '<div id="wiz-unit-suggestions" style="display:none;flex-direction:column;gap:2px;margin-top:4px;max-height:200px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:4px"></div>'
-      + '</div>';
-    setTimeout(function() {
-      const i = document.getElementById('wiz-unit-num');
-      if (i) { i.focus(); if (i.value) updateUnitNumSuggestions(i.value, field); }
-    }, 50);
-
-  } else if (s.type === 'divider') {
-    const sub = s.subtitle ? s.subtitle(wizard.data) : '';
-    body.innerHTML = '<div style="padding-top:1rem;text-align:center">'
-      + '<div style="font-size:3rem;margin-bottom:0.75rem">🚃</div>'
-      + '<div style="font-size:0.95rem;color:var(--text-dim);line-height:1.6;max-width:340px;margin:0 auto">' + sub + '</div>'
-      + '</div>';
-
-  } else if (s.type === 'tenderMatch') {
-    const tmItemNum = (wizard.data.itemNum || '').trim();
-    const tmTenders = getMatchingTenders(tmItemNum);
-    const tmLocos   = getMatchingLocos(tmItemNum);
-    const tmIsTend  = tmLocos.length > 0;
-    const tmCandidates = tmIsTend ? tmLocos : tmTenders;
-    const tmRole    = tmIsTend ? 'locomotive' : 'tender';
-    const tmCurrent = wizard.data.tenderMatch || '';
-    const tmIntro   = tmIsTend
-      ? ('This tender (' + tmItemNum + ') pairs with the following locomotive(s):')
-      : ('This steam engine (' + tmItemNum + ') pairs with the following tender(s):');
-
-    const tmContainer = document.createElement('div');
-    tmContainer.style.cssText = 'padding-top:0.5rem';
-
-    const tmIntroEl = document.createElement('div');
-    tmIntroEl.style.cssText = 'font-size:0.85rem;color:var(--text-dim);margin-bottom:1rem';
-    tmIntroEl.textContent = tmIntro;
-    tmContainer.appendChild(tmIntroEl);
-
-    tmCandidates.forEach(function(num) {
-      const masterItem = state.masterData.find(function(m) { return m.itemNum === num; });
-      const desc = masterItem ? (masterItem.roadName || masterItem.description || masterItem.itemType || '') : '';
-      const owned = Object.values(state.personalData).find(function(pd) { return pd.itemNum === num; });
-      const sel = tmCurrent === num;
-
-      const btn = document.createElement('button');
-      btn.style.cssText = 'text-align:left;padding:0.85rem 1rem;border-radius:10px;cursor:pointer;width:100%;margin-bottom:0.5rem;'
-        + 'border:2px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';'
-        + 'background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--surface2)') + ';'
-        + 'color:var(--text);font-family:var(--font-body)';
-      btn.onclick = function() { wizard.data.tenderMatch = num; renderWizardStep(); };
-
-      const topRow = document.createElement('div');
-      topRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between';
-
-      const numSpan = document.createElement('span');
-      numSpan.style.cssText = 'font-family:var(--font-head);font-size:1.2rem;color:' + (sel ? 'var(--accent)' : 'var(--text)');
-      numSpan.textContent = (tmIsTend ? '🚂 ' : '🚃 ') + num;
-      topRow.appendChild(numSpan);
-
-      if (owned) {
-        const badge = document.createElement('span');
-        badge.style.cssText = 'font-size:0.7rem;color:var(--accent2);border:1px solid var(--accent2);padding:0.15rem 0.5rem;border-radius:4px';
-        badge.textContent = '✓ In Collection';
-        topRow.appendChild(badge);
-      }
-      btn.appendChild(topRow);
-
-      if (desc) {
-        const descEl = document.createElement('div');
-        descEl.style.cssText = 'font-size:0.8rem;color:var(--text-dim);margin-top:0.2rem';
-        descEl.textContent = desc;
-        btn.appendChild(descEl);
-      }
-      tmContainer.appendChild(btn);
-    });
-
-    const noneBtn = document.createElement('button');
-    noneBtn.style.cssText = 'text-align:left;padding:0.75rem 1rem;border-radius:10px;cursor:pointer;width:100%;'
-      + 'border:2px solid var(--border);background:' + (tmCurrent === 'none' ? 'var(--surface2)' : 'transparent') + ';'
-      + 'color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem';
-    noneBtn.textContent = 'No matching ' + tmRole + ' / not applicable';
-    noneBtn.onclick = function() { wizard.data.tenderMatch = 'none'; renderWizardStep(); };
-    tmContainer.appendChild(noneBtn);
-
-    const tmHint = document.createElement('div');
-    tmHint.style.cssText = 'font-size:0.75rem;color:var(--text-dim);margin-top:0.75rem';
-    tmHint.textContent = 'Optional — press Next to skip';
-    tmContainer.appendChild(tmHint);
-
-    body.innerHTML = '';
-    body.appendChild(tmContainer);
-
-  } else if (s.type === 'setComponents') {
-    // ── Phase management ──────────────────────────────────────────
-    // _setPhase: 'identify' | 'detail'
-    // _setDetailIdx: index into the final item list for detail walkthrough
-    if (!wizard.data._setPhase) wizard.data._setPhase = 'identify';
-    const phase = wizard.data._setPhase;
-
-    const _setLoco      = (wizard.data.set_loco || '').trim().toUpperCase();
-    const _enteredNums  = wizard.data._enteredNums || (_setLoco ? [_setLoco] : []);
-    if (!wizard.data._enteredNums) wizard.data._enteredNums = _enteredNums;
-
-    const _resolvedSet  = wizard.data._resolvedSet || null;
-    const _dismissed    = wizard.data._dismissedSets || [];
-    const _compData     = wizard.data.set_componentData || {};
-    if (!wizard.data.set_componentData) wizard.data.set_componentData = {};
-
-    body.innerHTML = '';
-
-    // ── PHASE 1: IDENTIFY ─────────────────────────────────────────
-    if (phase === 'identify') {
-
-      // Resolved set banner
-      if (_resolvedSet) {
-        const hdr = document.createElement('div');
-        hdr.style.cssText = 'background:rgba(39,174,96,0.1);border:1.5px solid #27ae60;border-radius:10px;padding:0.7rem 1rem;margin-bottom:0.75rem;display:flex;align-items:center;justify-content:space-between';
-        hdr.innerHTML = `<div>
-          <div style="font-size:0.68rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#27ae60">Set Identified ✓</div>
-          <div style="font-size:0.92rem;color:var(--text);font-weight:600">${_resolvedSet.setNum}${_resolvedSet.setName ? ' — ' + _resolvedSet.setName : ''}</div>
-          <div style="font-size:0.75rem;color:var(--text-dim)">${_resolvedSet.year||''} ${_resolvedSet.gauge||''} · ${_resolvedSet.items.length} components</div>
-        </div>
-        <button onclick="wizard.data._resolvedSet=null;wizard.data.set_num='';renderWizardStep()" style="border:none;background:none;color:var(--text-dim);cursor:pointer;font-size:1.1rem" title="Clear">✕</button>`;
-        body.appendChild(hdr);
-      }
-
-      // Items entered so far
-      if (_enteredNums.length) {
-        const listHdr = document.createElement('div');
-        listHdr.style.cssText = 'font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.4rem';
-        listHdr.textContent = 'Items entered:';
-        body.appendChild(listHdr);
-        const listWrap = document.createElement('div');
-        listWrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.75rem';
-        _enteredNums.forEach(n => {
-          const chip = document.createElement('div');
-          chip.style.cssText = 'display:flex;align-items:center;gap:0.3rem;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:0.25rem 0.6rem 0.25rem 0.75rem';
-          chip.innerHTML = `<span style="font-family:var(--font-mono);font-size:0.82rem;color:var(--accent);font-weight:600">${n}</span>
-            <button onclick="window._setRemoveEntered('${n}')" style="border:none;background:none;color:var(--text-dim);cursor:pointer;font-size:0.9rem;line-height:1;padding:0">×</button>`;
-          listWrap.appendChild(chip);
-        });
-        body.appendChild(listWrap);
-      }
-
-      // Add item input
-      const addRow = document.createElement('div');
-      addRow.style.cssText = 'display:flex;gap:0.5rem;margin-bottom:0.75rem';
-      addRow.innerHTML = `
-        <input id="set-id-input" type="text" placeholder="Enter item # (e.g. 736, 6357, 1033)" autocomplete="off"
-          style="flex:1;padding:0.65rem 0.9rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.92rem;text-transform:uppercase"
-          onkeydown="if(event.key==='Enter'){event.preventDefault();window._setAddEntered();}">
-        <button onclick="window._setAddEntered()" style="padding:0.65rem 1rem;border-radius:9px;border:none;background:#1e3a5f;color:white;font-family:var(--font-body);font-weight:600;cursor:pointer">Add</button>`;
-      body.appendChild(addRow);
-
-      // Suggestions
-      const _allEntered = _enteredNums;
-      const _suggestions = _allEntered.length >= 1
-        ? suggestSets(_allEntered).filter(sg => !_dismissed.includes(sg.setNum))
-        : [];
-      wizard.data._suggestions_cache = _suggestions; // for inline button onclick refs
-
-      if (!_resolvedSet && _suggestions.length) {
-        const sugHdr = document.createElement('div');
-        sugHdr.style.cssText = 'font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#e67e22;margin-bottom:0.4rem';
-        sugHdr.textContent = _suggestions.length === 1 ? '🎁 Possible set match:' : '🎁 Possible set matches:';
-        body.appendChild(sugHdr);
-        _suggestions.slice(0, 4).forEach((sg, i) => {
-          const card = document.createElement('div');
-          card.style.cssText = `background:${i===0?'rgba(230,126,34,0.1)':'var(--surface2)'};border:${i===0?'1.5px solid #e67e22':'1px solid var(--border)'};border-radius:10px;padding:0.65rem 0.85rem;margin-bottom:0.4rem;cursor:pointer`;
-          // sg is the exact scored variant row — resolve it directly, no disambiguation needed
-          card.onclick = () => {
-            wizard.data._resolvedSet = sg;
-            wizard.data.set_num = sg.setNum;
-            renderWizardStep();
-          };
-          card.innerHTML = `
-            <div style="display:flex;align-items:flex-start;gap:0.5rem">
-              <div style="flex:1">
-                <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
-                  <span style="font-family:var(--font-mono);font-size:0.9rem;font-weight:700;color:${i===0?'#e67e22':'var(--accent)'}">${sg.setNum}</span>
-                  ${sg.setName ? `<span style="font-size:0.8rem;color:var(--text-mid)">${sg.setName}</span>` : ''}
-                  ${sg.year ? `<span style="font-size:0.72rem;color:var(--text-dim)">${sg.year}</span>` : ''}
-                </div>
-                <div style="margin-top:0.35rem;display:flex;flex-wrap:wrap;gap:0.25rem">
-                  ${sg.items.map(n => {
-                    const isEntered = _enteredNums.some(e => normalizeItemNum(e) === normalizeItemNum(n));
-                    return `<span style="font-family:var(--font-mono);font-size:0.72rem;padding:1px 6px;border-radius:4px;border:1px solid ${isEntered?'#27ae60':'var(--border)'};background:${isEntered?'rgba(39,174,96,0.15)':'var(--surface)'};color:${isEntered?'#27ae60':'var(--text-dim)'};font-weight:${isEntered?'700':'400'}">${n}</span>`;
-                  }).join('')}
-                  ${sg.alts.length ? sg.alts.map(n => {
-                    const isEntered = _enteredNums.some(e => normalizeItemNum(e) === normalizeItemNum(n));
-                    return `<span style="font-family:var(--font-mono);font-size:0.72rem;padding:1px 6px;border-radius:4px;border:1px solid ${isEntered?'#e67e22':'var(--border)'};background:${isEntered?'rgba(230,126,34,0.12)':'var(--surface)'};color:${isEntered?'#e67e22':'var(--text-dim)'};font-style:italic" title="Alternate">${n}</span>`;
-                  }).join('') : ''}
-                </div>
-              </div>
-              <button onclick="event.stopPropagation();wizard.data._resolvedSet=wizard.data._suggestions_cache?.[${i}];wizard.data.set_num='${sg.setNum}';renderWizardStep();" style="flex-shrink:0;padding:0.35rem 0.75rem;border-radius:8px;border:1.5px solid ${i===0?'#e67e22':'var(--border)'};background:${i===0?'#e67e2222':'var(--surface)'};color:${i===0?'#e67e22':'var(--text-dim)'};font-size:0.78rem;font-weight:600;cursor:pointer;white-space:nowrap">This is mine</button>
-            </div>`;
-          body.appendChild(card);
-        });
-        // Dismiss link
-        if (_suggestions.length) {
-          const noMatch = document.createElement('div');
-          noMatch.style.cssText = 'text-align:center;margin-top:0.25rem';
-          noMatch.innerHTML = `<button onclick="window._dismissAllSugg()" style="border:none;background:none;color:var(--text-dim);font-size:0.78rem;cursor:pointer;text-decoration:underline">None of these match</button>`;
-          body.appendChild(noMatch);
-        }
-      }
-
-      // Continue button — shown once set identified OR user has ≥1 item and no suggestions
-      const canContinue = _resolvedSet || (_enteredNums.length >= 1);
-      if (canContinue) {
-        const contBtn = document.createElement('button');
-        contBtn.style.cssText = 'width:100%;margin-top:0.75rem;padding:0.85rem;border-radius:10px;border:none;background:' + (_resolvedSet ? '#1e3a5f' : 'var(--surface2)') + ';color:' + (_resolvedSet ? 'white' : 'var(--text-mid)') + ';font-family:var(--font-body);font-size:0.92rem;font-weight:600;cursor:pointer';
-        contBtn.textContent = _resolvedSet
-          ? `Continue — add details for ${_resolvedSet.items.length} items →`
-          : `Continue without set ID — add ${_enteredNums.length} item${_enteredNums.length!==1?'s':''}  →`;
-        contBtn.onclick = () => {
-          // Build final item list from resolved set + manually entered items
-          const _rs = _resolvedSet;
-          let _finalItems;
-          if (_rs) {
-            // Deduped set items + alts that were entered + manual items not in set
-            const _knownAll = [..._rs.items, ..._rs.alts];
-            const _manuals = _enteredNums.filter(n => !_knownAll.some(k => normalizeItemNum(k) === normalizeItemNum(n)));
-            // Include alts only if user explicitly entered them
-            const _altsToInclude = _rs.alts.filter(a => _enteredNums.some(e => normalizeItemNum(e) === normalizeItemNum(a)));
-            _finalItems = [...new Map([..._rs.items, ..._altsToInclude, ..._manuals].map(x=>[normalizeItemNum(x),x])).values()];
-          } else {
-            _finalItems = [..._enteredNums];
-          }
-          wizard.data._setFinalItems = _finalItems;
-          wizard.data._setItemIndex = 0;
-          wizard.data._setGroupId = 'SET-' + ((_resolvedSet && _resolvedSet.setNum) || 'UNK') + '-' + Date.now();
-          wizard.data._setItemsSaved = [];
-          // Advance past setComponents to set_entryMode
-          wizardAdvance();
-        };
-        body.appendChild(contBtn);
-      }
-
-      // Wire up identify-phase callbacks
-      window._setAddEntered = () => {
-        const inp = document.getElementById('set-id-input');
-        const val = (inp ? inp.value : '').trim().toUpperCase().replace(/\s+/g,'');
-        if (!val) return;
-        if (!wizard.data._enteredNums) wizard.data._enteredNums = [];
-        if (!wizard.data._enteredNums.includes(val)) wizard.data._enteredNums.push(val);
-        renderWizardStep();
-      };
-      window._setRemoveEntered = (n) => {
-        wizard.data._enteredNums = (wizard.data._enteredNums||[]).filter(x => x !== n);
-        renderWizardStep();
-      };
-      window._confirmSetMatch = (setNum, variantIdx) => {
-        const allVariants = state.setData.filter(s => s.setNum === setNum);
-        if (!allVariants.length) return;
-
-        // If a specific variant was passed or only one exists, resolve directly
-        if (variantIdx !== undefined) {
-          const v = allVariants[variantIdx];
-          wizard.data._resolvedSet = v;
-          wizard.data.set_num = v.setNum;
-          renderWizardStep();
-          return;
-        }
-        if (allVariants.length === 1) {
-          wizard.data._resolvedSet = allVariants[0];
-          wizard.data.set_num = allVariants[0].setNum;
-          renderWizardStep();
-          return;
-        }
-
-        // Multiple variants — show disambiguation overlay
-        const overlay = document.createElement('div');
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:flex-end;justify-content:center;padding:0';
-        const sheet = document.createElement('div');
-        sheet.style.cssText = 'background:var(--surface);border-radius:16px 16px 0 0;padding:1.25rem;width:100%;max-width:520px;max-height:80vh;overflow-y:auto';
-        sheet.innerHTML = `<div style="font-family:var(--font-head);font-size:0.65rem;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-dim);text-align:center;margin-bottom:0.75rem">Set ${setNum} — Which version?</div>`;
-
-        const _entered = wizard.data._enteredNums || [];
-        allVariants.forEach((v, vi) => {
-          const btn = document.createElement('button');
-          btn.style.cssText = 'display:flex;flex-direction:column;align-items:flex-start;gap:0.3rem;width:100%;padding:0.75rem 0.9rem;border-radius:10px;border:1px solid var(--border);background:var(--surface2);margin-bottom:0.4rem;cursor:pointer;text-align:left;font-family:var(--font-body)';
-          btn.onmouseenter = () => btn.style.border = '1px solid #e67e22';
-          btn.onmouseleave = () => btn.style.border = '1px solid var(--border)';
-
-          const chips = v.items.map(n => {
-            const matched = _entered.some(e => normalizeItemNum(e) === normalizeItemNum(n));
-            return `<span style="font-family:var(--font-mono);font-size:0.7rem;padding:1px 6px;border-radius:4px;border:1px solid ${matched?'#27ae60':'var(--border)'};background:${matched?'rgba(39,174,96,0.15)':'var(--surface)'};color:${matched?'#27ae60':'var(--text-dim)'};font-weight:${matched?'700':'400'}">${n}</span>`;
-          }).join('');
-          const altChips = v.alts.length ? v.alts.map(n => {
-            const matched = _entered.some(e => normalizeItemNum(e) === normalizeItemNum(n));
-            return `<span style="font-family:var(--font-mono);font-size:0.7rem;padding:1px 6px;border-radius:4px;border:1px solid ${matched?'#e67e22':'rgba(230,126,34,0.3)'};background:${matched?'rgba(230,126,34,0.12)':'var(--surface)'};color:${matched?'#e67e22':'var(--text-dim)'};font-style:italic">${n}</span>`;
-          }).join('') : '';
-
-          btn.innerHTML = `
-            <div style="font-size:0.78rem;color:var(--text-dim)">${v.year || 'Year unknown'}${v.gauge ? ' · ' + v.gauge : ''}${v.price ? ' · ' + v.price : ''}</div>
-            <div style="display:flex;flex-wrap:wrap;gap:0.2rem">${chips}${altChips}</div>`;
-          btn.onclick = () => { overlay.remove(); window._confirmSetMatch(setNum, vi); };
-          sheet.appendChild(btn);
-        });
-
-        const cancel = document.createElement('button');
-        cancel.style.cssText = 'width:100%;padding:0.65rem;border-radius:10px;border:none;background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;margin-top:0.25rem';
-        cancel.textContent = 'Cancel';
-        cancel.onclick = () => overlay.remove();
-        sheet.appendChild(cancel);
-        overlay.appendChild(sheet);
-        overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
-        document.body.appendChild(overlay);
-      };
-      window._dismissAllSugg = () => {
-        const sug = suggestSets(wizard.data._enteredNums||[]).filter(sg => !(wizard.data._dismissedSets||[]).includes(sg.setNum));
-        if (!wizard.data._dismissedSets) wizard.data._dismissedSets = [];
-        sug.forEach(sg => wizard.data._dismissedSets.push(sg.setNum));
-        renderWizardStep();
-      };
-
-    // ── PHASE 2: DETAIL ───────────────────────────────────────────
     } else {
-      const _resolvedSet2 = wizard.data._resolvedSet;
-      // Build final item list: set items (deduped) + manually entered not in set
-      const _setItems = _resolvedSet2
-        ? [...new Map(_resolvedSet2.items.map(x=>[normalizeItemNum(x),x])).values()]
-        : [];
-      const _setAlts  = _resolvedSet2 ? _resolvedSet2.alts : [];
-      const _allKnown = [..._setItems, ..._setAlts];
-      const _manuals  = (wizard.data._enteredNums||[]).filter(n => !_allKnown.some(k => normalizeItemNum(k)===normalizeItemNum(n)));
-      const _allItems = [..._setItems, ..._setAlts.filter(a => {
-        // Only include alt if user entered it or has it
-        const n = normalizeItemNum(a);
-        return (wizard.data._enteredNums||[]).some(e=>normalizeItemNum(e)===n) || (_compData[a]||{}).have === true;
-      }), ..._manuals];
-
-      const idx  = wizard.data._setDetailIdx || 0;
-      const item = _allItems[idx];
-      const total = _allItems.length;
-
-      if (!item) {
-        // All done — show summary
-        const owned = _allItems.filter(n => (_compData[n]||{}).have === true);
-        const sumDiv = document.createElement('div');
-        sumDiv.style.cssText = 'text-align:center;padding:1rem 0';
-        sumDiv.innerHTML = `<div style="font-size:2rem;margin-bottom:0.5rem">✅</div>
-          <div style="font-size:1rem;font-weight:700;color:var(--text)">All ${total} items reviewed</div>
-          <div style="font-size:0.85rem;color:var(--text-mid);margin-top:0.25rem">${owned.length} item${owned.length!==1?'s':''} will be saved to your collection</div>
-          <button onclick="wizard.data._setDetailIdx=${total-1};renderWizardStep()" style="margin-top:0.75rem;padding:0.5rem 1rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-size:0.82rem;cursor:pointer">← Back</button>`;
-        body.appendChild(sumDiv);
-      } else {
-        const comp   = _compData[item] || {};
-        const master = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(item));
-        const isAlt  = _setAlts.some(a => normalizeItemNum(a) === normalizeItemNum(item));
-        const isManual = _manuals.some(n => normalizeItemNum(n) === normalizeItemNum(item));
-        const preOwned = (wizard.data._enteredNums||[]).some(n => normalizeItemNum(n) === normalizeItemNum(item));
-
-        // Progress
-        const prog = document.createElement('div');
-        prog.style.cssText = 'display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem';
-        prog.innerHTML = `<div style="flex:1;height:4px;background:var(--surface2);border-radius:2px">
-          <div style="height:4px;background:var(--accent);border-radius:2px;width:${Math.round((idx/total)*100)}%;transition:width 0.3s"></div>
-        </div>
-        <span style="font-size:0.72rem;color:var(--text-dim);white-space:nowrap">${idx+1} of ${total}</span>`;
-        body.appendChild(prog);
-
-        // Item header
-        const itemHdr = document.createElement('div');
-        itemHdr.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.75rem 1rem;margin-bottom:0.75rem';
-        itemHdr.innerHTML = `
-          <div style="display:flex;align-items:center;gap:0.6rem">
-            <span style="font-family:var(--font-mono);font-size:1.05rem;font-weight:700;color:var(--accent)">${item}</span>
-            ${isAlt ? '<span style="font-size:0.62rem;background:#e67e2222;color:#e67e22;border-radius:4px;padding:1px 6px;font-weight:700">ALTERNATE</span>' : ''}
-            ${isManual ? '<span style="font-size:0.62rem;background:rgba(52,152,219,0.15);color:#3498db;border-radius:4px;padding:1px 6px;font-weight:700">ADDED BY YOU</span>' : ''}
-          </div>
-          ${master ? `<div style="font-size:0.82rem;color:var(--text-mid);margin-top:0.2rem">${[master.roadName, master.description].filter(Boolean).join(' · ')}</div>` : ''}
-          ${master && master.itemType ? `<div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.1rem">${master.itemType}${master.yearProd?' · '+master.yearProd:''}</div>` : ''}`;
-        body.appendChild(itemHdr);
-
-        // Have / No
-        const haveRow = document.createElement('div');
-        haveRow.style.cssText = 'display:flex;gap:0.6rem;margin-bottom:0.75rem';
-        haveRow.innerHTML = `
-          <button onclick="window._detailHave('${item}',true)" style="flex:1;padding:0.85rem;border-radius:10px;border:2px solid ${comp.have===true?'#27ae60':'var(--border)'};background:${comp.have===true?'rgba(39,174,96,0.18)':'var(--surface2)'};color:${comp.have===true?'#27ae60':'var(--text-mid)'};font-family:var(--font-body);font-size:0.92rem;font-weight:600;cursor:pointer">✓ I have it</button>
-          <button onclick="window._detailHave('${item}',false)" style="flex:1;padding:0.85rem;border-radius:10px;border:2px solid ${comp.have===false?'var(--accent)':'var(--border)'};background:${comp.have===false?'rgba(232,64,28,0.12)':'var(--surface2)'};color:${comp.have===false?'var(--accent)':'var(--text-mid)'};font-family:var(--font-body);font-size:0.92rem;font-weight:600;cursor:pointer">✗ Don't have it</button>`;
-        body.appendChild(haveRow);
-
-        // Detail fields (if have)
-        if (comp.have === true) {
-          // Condition
-          const condDiv = document.createElement('div');
-          condDiv.style.cssText = 'margin-bottom:0.65rem';
-          condDiv.innerHTML = `<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:0.4rem">Condition</div>
-            <div style="display:flex;gap:0.3rem;flex-wrap:wrap">
-              ${[...Array(10)].map((_,i)=>`<button onclick="window._detailCond('${item}',${i+1})" style="flex:1;min-width:28px;height:36px;border-radius:7px;border:1.5px solid ${(comp.condition||0)===i+1?'var(--accent)':'var(--border)'};background:${(comp.condition||0)===i+1?'rgba(232,64,28,0.2)':'var(--surface2)'};font-size:0.82rem;cursor:pointer;color:${(comp.condition||0)===i+1?'var(--accent)':'var(--text-mid)'};font-weight:${(comp.condition||0)===i+1?'700':'400'}">${i+1}</button>`).join('')}
-            </div>`;
-          body.appendChild(condDiv);
-
-          // Has box
-          const boxRow = document.createElement('div');
-          boxRow.style.cssText = 'margin-bottom:0.65rem';
-          boxRow.innerHTML = `<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:0.4rem">Original Box?</div>
-            <div style="display:flex;gap:0.6rem">
-              <button onclick="window._detailBox('${item}',true)" style="flex:1;padding:0.65rem;border-radius:10px;border:1.5px solid ${comp.hasBox===true?'#3498db':'var(--border)'};background:${comp.hasBox===true?'rgba(52,152,219,0.15)':'var(--surface2)'};color:${comp.hasBox===true?'#3498db':'var(--text-mid)'};font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">📦 Yes</button>
-              <button onclick="window._detailBox('${item}',false)" style="flex:1;padding:0.65rem;border-radius:10px;border:1.5px solid ${comp.hasBox===false?'var(--border)':'var(--border)'};background:${comp.hasBox===false?'rgba(232,64,28,0.08)':'var(--surface2)'};color:${comp.hasBox===false?'var(--accent)':'var(--text-mid)'};font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">No box</button>
-            </div>
-            ${comp.hasBox===true ? `<div style="margin-top:0.5rem;display:flex;align-items:center;gap:0.5rem">
-              <span style="font-size:0.75rem;color:var(--text-dim)">Box condition:</span>
-              <div style="display:flex;gap:0.25rem">
-                ${[...Array(10)].map((_,i)=>`<button onclick="window._detailBoxCond('${item}',${i+1})" style="width:26px;height:26px;border-radius:5px;border:1.5px solid ${(comp.boxCond||0)===i+1?'#3498db':'var(--border)'};background:${(comp.boxCond||0)===i+1?'rgba(52,152,219,0.2)':'var(--surface2)'};font-size:0.7rem;cursor:pointer;color:${(comp.boxCond||0)===i+1?'#3498db':'var(--text-dim)'}">${i+1}</button>`).join('')}
-              </div>
-            </div>` : ''}`;
-          body.appendChild(boxRow);
-        }
-
-        // Prev / Next
-        const navRow = document.createElement('div');
-        navRow.style.cssText = 'display:flex;gap:0.6rem;margin-top:0.5rem';
-        if (idx > 0) {
-          const prevBtn = document.createElement('button');
-          prevBtn.style.cssText = 'padding:0.7rem 1.1rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer';
-          prevBtn.textContent = '← Back';
-          prevBtn.onclick = () => { wizard.data._setDetailIdx = idx - 1; renderWizardStep(); };
-          navRow.appendChild(prevBtn);
-        }
-        if (comp.have !== undefined) {
-          const nextBtn = document.createElement('button');
-          nextBtn.style.cssText = 'flex:1;padding:0.7rem;border-radius:9px;border:none;background:#1e3a5f;color:white;font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer';
-          nextBtn.textContent = idx < total - 1 ? 'Next →' : 'All done ✓';
-          nextBtn.onclick = () => { wizard.data._setDetailIdx = idx + 1; renderWizardStep(); };
-          navRow.appendChild(nextBtn);
-        }
-        body.appendChild(navRow);
-      }
-
-      // Detail callbacks
-      window._detailHave = (item, val) => {
-        if (!wizard.data.set_componentData) wizard.data.set_componentData = {};
-        const ex = wizard.data.set_componentData[item] || {};
-        wizard.data.set_componentData[item] = { ...ex, have: val };
-        renderWizardStep();
-      };
-      window._detailCond = (item, val) => {
-        if (!wizard.data.set_componentData) wizard.data.set_componentData = {};
-        const ex = wizard.data.set_componentData[item] || {};
-        wizard.data.set_componentData[item] = { ...ex, condition: val };
-        renderWizardStep();
-      };
-      window._detailBox = (item, val) => {
-        if (!wizard.data.set_componentData) wizard.data.set_componentData = {};
-        const ex = wizard.data.set_componentData[item] || {};
-        wizard.data.set_componentData[item] = { ...ex, hasBox: val };
-        renderWizardStep();
-      };
-      window._detailBoxCond = (item, val) => {
-        if (!wizard.data.set_componentData) wizard.data.set_componentData = {};
-        const ex = wizard.data.set_componentData[item] || {};
-        wizard.data.set_componentData[item] = { ...ex, boxCond: val };
-      };
+      loadAllData();
     }
-
-  } else if (s.type === 'drivePhotos') {
-    const views = s.views ? s.views : s.label === 'Box' ? BOX_VIEWS : s.label === 'Error' ? ERROR_VIEWS : ITEM_VIEWS;
-    const stored = wizard.data[s.id] || {};
-
-    // Color-coded photo banner (always clear body first for clean render)
-    body.innerHTML = '';
-    if (s.photoBanner) {
-      const _bannerColor = s.photoBanner.color || '#2980b9';
-      const _bannerLabel = typeof s.photoBanner.label === 'function' ? s.photoBanner.label(wizard.data) : (s.photoBanner.label || '');
-      const _bannerDiv = document.createElement('div');
-      _bannerDiv.style.cssText = 'background:' + _bannerColor + ';color:#fff;padding:0.7rem 1rem;border-radius:10px;margin-bottom:0.6rem;font-family:var(--font-head);font-size:0.9rem;font-weight:700;letter-spacing:0.04em;text-align:center;text-shadow:0 1px 2px rgba(0,0,0,0.3)';
-      _bannerDiv.textContent = _bannerLabel;
-      body.appendChild(_bannerDiv);
-    }
-
-    // Build a photo slot element (used for both fixed and extra slots)
-    function makePhotoSlot(viewKey, label, abbr, stepId) {
-      const url = stored[viewKey] || '';
-      const hasPic = !!url;
-
-      const div = document.createElement('div');
-      div.className = 'photo-drop-zone';
-      div.dataset.view = viewKey;
-      div.dataset.sid = stepId;
-      div.style.cssText = 'border:2px dashed ' + (hasPic ? 'var(--accent2)' : 'var(--border)') + ';'
-        + 'border-radius:8px;aspect-ratio:1;min-height:58px;'
-        + 'display:flex;flex-direction:column;align-items:center;justify-content:center;'
-        + 'cursor:pointer;transition:all 0.2s;position:relative;overflow:hidden;'
-        + 'background:' + (hasPic ? 'rgba(201,146,42,0.08)' : 'var(--surface2)');
-      div.ondragover = function(e) { e.preventDefault(); div.style.borderColor = 'var(--accent)'; };
-      div.ondragleave = function() { div.style.borderColor = hasPic ? 'var(--accent2)' : 'var(--border)'; };
-      div.ondrop = function(e) { handlePhotoDrop(e, stepId, viewKey); };
-      div.onclick = function() { showPhotoSourcePicker(stepId, viewKey); };
-
-      if (hasPic) {
-        const img = document.createElement('img');
-        img.loading = 'lazy';
-        img.src = url;
-        img.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;inset:0;opacity:0.82';
-        img.onerror = function() { this.style.display = 'none'; };
-        const overlay = document.createElement('div');
-        overlay.style.cssText = 'position:absolute;inset:0;background:rgba(0,0,0,0.25)';
-        const lbl = document.createElement('div');
-        lbl.style.cssText = 'position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.65);'
-          + 'font-size:0.68rem;color:#fff;padding:2px 3px;text-align:center;'
-          + 'font-family:var(--font-head);letter-spacing:0.04em;text-transform:uppercase';
-        lbl.textContent = abbr + ' \u2713';
-        div.appendChild(img);
-        div.appendChild(overlay);
-        div.appendChild(lbl);
-      } else {
-        const inner = document.createElement('div');
-        inner.style.cssText = 'font-size:0.72rem;color:var(--text-dim);text-align:center;padding:0.25rem;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%';
-        // RSV gets the engine icon as a placeholder
-        const isRSV = (viewKey === 'RSV' || viewKey === 'BOX-RSV');
-        if (isRSV) {
-          inner.innerHTML = '<img src="' + _RSV_PLACEHOLDER_PNG + '" style="width:72%;max-width:80px;height:auto;opacity:0.35;margin-bottom:2px">'
-            + '<div style="font-weight:600;color:var(--text-mid);font-size:0.72rem;line-height:1.2">' + abbr + '</div>';
-        } else {
-          inner.innerHTML = '<div style="font-size:1rem;margin-bottom:0.1rem;opacity:0.4">&#128247;</div>'
-            + '<div style="font-weight:600;color:var(--text-mid);font-size:0.72rem;line-height:1.2">' + abbr + '</div>';
-        }
-        div.appendChild(inner);
-      }
-
-      const prog = document.createElement('div');
-      prog.id = 'prog-' + stepId + '-' + viewKey;
-      prog.style.cssText = 'display:none;position:absolute;inset:0;background:rgba(0,0,0,0.72);'
-        + 'align-items:center;justify-content:center';
-      prog.innerHTML = '<div class="spinner" style="width:18px;height:18px;border-width:2px"></div>';
-      div.appendChild(prog);
-
-      const wrapper = document.createElement('div');
-      wrapper.style.cssText = 'display:contents';
-      wrapper.appendChild(div);
-      return wrapper;
-    }
-
-    // Count existing extra slots stored in wizard data
-    const _existingExtras = Object.keys(stored).filter(k => k.startsWith('EXTRA-'));
-    const _extraCount = { val: _existingExtras.length };
-
-    // Show orientation reminder for item/locomotive photo steps only
-    const _isItemPhotoStep = (s.label === 'Item' || s.label === 'IS' === false) &&
-      !['Box','Error','IS','Catalog'].includes(s.label);
-
-    body.innerHTML = '';
-    const wrap = document.createElement('div');
-    wrap.style.cssText = 'padding-top:0.25rem';
-
-    // Friendly orientation note for item photos
-    if (_isItemPhotoStep) {
-      const orientNote = document.createElement('div');
-      orientNote.style.cssText = 'background:rgba(200,16,46,0.06);border:1px solid rgba(41,128,185,0.25);border-radius:10px;padding:0.75rem 0.8rem;margin-bottom:0.75rem;text-align:center';
-      orientNote.innerHTML = `
-        <div style="font-size:0.75rem;font-weight:600;color:#2980b9;margin-bottom:0.6rem;letter-spacing:0.03em">📐 Orientation tip</div>
-        <div style="display:flex;align-items:center;justify-content:center;gap:0.6rem;margin-bottom:0.5rem">
-          <div style="font-size:0.72rem;color:var(--text-dim);white-space:nowrap;font-family:var(--font-mono)">← Rear View</div>
-          <div style="display:flex;flex-direction:column;align-items:center;gap:0.3rem">
-            <img loading="lazy" src="${_RSV_PLACEHOLDER_PNG}" style="width:130px;height:auto;display:block;border-radius:6px;opacity:0.9">
-            <div style="font-size:0.7rem;color:#2980b9;font-weight:600;letter-spacing:0.04em">Right Side View</div>
-          </div>
-          <div style="font-size:0.72rem;color:var(--text-dim);white-space:nowrap;font-family:var(--font-mono)">Front View →</div>
-        </div>
-        <div style="font-size:0.74rem;color:var(--text-mid);text-align:center">Keeping this consistent makes your collection look sharp!</div>`;
-      wrap.appendChild(orientNote);
-    }
-
-    const introDiv = document.createElement('div');
-    introDiv.style.cssText = 'font-size:0.78rem;color:var(--text-dim);margin-bottom:0.5rem';
-    introDiv.textContent = 'Drag & drop or click each slot to upload. Photos save to Google Drive automatically.';
-    wrap.appendChild(introDiv);
-
-    if (s.note && s.note(wizard.data)) {
-      const noteDiv = document.createElement('div');
-      noteDiv.style.cssText = 'font-size:0.8rem;color:var(--accent2);margin-bottom:0.75rem;padding:0.5rem 0.75rem;background:rgba(201,146,42,0.1);border-radius:6px';
-      noteDiv.textContent = s.note(wizard.data);
-      wrap.appendChild(noteDiv);
-    }
-
-    const grid = document.createElement('div');
-    grid.id = 'photo-grid';
-
-    // Check if views use orthographic layout (have ortho property)
-    const isOrtho = views.length > 0 && views[0].ortho;
-
-    if (isOrtho) {
-      // Orthographic projection: 4-col grid
-      // Row 1: _ TOP _ _
-      // Row 2: LEFT FRONT RIGHT BACK
-      // Row 3: _ BOTTOM _ _
-      grid.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:0.4rem;align-items:center';
-
-      const orthoMap = {};
-      views.forEach(v => { orthoMap[v.ortho] = v; });
-
-      // Row 1: empty, TOP, empty, empty
-      const makeEmpty = () => {
-        const d = document.createElement('div');
-        d.style.cssText = 'min-height:64px';
-        return d;
-      };
-      grid.appendChild(makeEmpty());
-      if (orthoMap.top)    grid.appendChild(makePhotoSlot(orthoMap.top.key,    orthoMap.top.label,    orthoMap.top.abbr,    s.id));
-      grid.appendChild(makeEmpty());
-      grid.appendChild(makeEmpty());
-
-      // Row 2: BACK, RIGHT, FRONT, LEFT (RSV in primary/front spot)
-      ['back','right','front','left'].forEach(pos => {
-        if (orthoMap[pos]) grid.appendChild(makePhotoSlot(orthoMap[pos].key, orthoMap[pos].label, orthoMap[pos].abbr, s.id));
-        else grid.appendChild(makeEmpty());
-      });
-
-      // Row 3: empty, BOTTOM, empty, empty
-      grid.appendChild(makeEmpty());
-      if (orthoMap.bottom) grid.appendChild(makePhotoSlot(orthoMap.bottom.key, orthoMap.bottom.label, orthoMap.bottom.abbr, s.id));
-      grid.appendChild(makeEmpty());
-      grid.appendChild(makeEmpty());
-
-    } else {
-      // Non-orthographic views (error, IS, catalog) — simple 2-col grid
-      grid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:0.6rem';
-      views.forEach(v => grid.appendChild(makePhotoSlot(v.key, v.label, v.abbr, s.id)));
-    }
-
-    // Re-render any previously added extra slots
-    _existingExtras.sort().forEach(k => {
-      const n = k.replace('EXTRA-','');
-      grid.appendChild(makePhotoSlot(k, 'Extra Photo ' + n, 'EXTRA-' + n, s.id));
-    });
-
-    wrap.appendChild(grid);
-
-    // "Add another photo" button
-    const addBtn = document.createElement('button');
-    addBtn.style.cssText = 'margin-top:0.6rem;display:flex;align-items:center;gap:0.4rem;padding:0.45rem 0.9rem;border-radius:8px;border:1.5px dashed var(--border);background:none;color:var(--text-dim);cursor:pointer;font-family:var(--font-body);font-size:0.82rem;width:100%;justify-content:center;transition:all 0.15s';
-    addBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg> Add another photo';
-    addBtn.onmouseover = () => { addBtn.style.borderColor = 'var(--accent)'; addBtn.style.color = 'var(--accent)'; };
-    addBtn.onmouseout  = () => { addBtn.style.borderColor = 'var(--border)'; addBtn.style.color = 'var(--text-dim)'; };
-    addBtn.onclick = () => {
-      // Ask for a label first so the photo is meaningfully named
-      const _extraPrompt = document.createElement('div');
-      _extraPrompt.style.cssText = 'margin-top:0.5rem;display:flex;gap:0.4rem;align-items:center';
-      _extraPrompt.innerHTML = `
-        <input id="extra-photo-title" type="text" maxlength="40"
-          placeholder='e.g. "Torn page", "Scratch", "Detail"'
-          style="flex:1;padding:0.4rem 0.65rem;border-radius:7px;border:1.5px solid var(--accent);
-          background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:0.82rem;outline:none">
-        <button id="extra-photo-go" style="padding:0.4rem 0.8rem;border-radius:7px;border:none;
-          background:#1e3a5f;color:white;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;
-          white-space:nowrap">Add Photo</button>
-        <button id="extra-photo-cancel" style="padding:0.4rem 0.6rem;border-radius:7px;border:1px solid var(--border);
-          background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer">✕</button>`;
-
-      // Replace button with inline form
-      addBtn.style.display = 'none';
-      addBtn.parentNode.insertBefore(_extraPrompt, addBtn.nextSibling);
-
-      const titleInp = document.getElementById('extra-photo-title');
-      const goBtn    = document.getElementById('extra-photo-go');
-      const cancelBtn = document.getElementById('extra-photo-cancel');
-
-      titleInp.focus();
-
-      const doAdd = () => {
-        const title = titleInp.value.trim() || ('Extra ' + (_extraCount.val + 1));
-        _extraCount.val++;
-        // Build file-safe key: EXTRA-N-title (spaces→underscore, strip special chars)
-        const safeTitle = title.replace(/[^a-zA-Z0-9 _-]/g,'').replace(/ +/g,'_').substring(0, 30);
-        const key = 'EXTRA-' + _extraCount.val + (safeTitle ? '-' + safeTitle : '');
-        _extraPrompt.remove();
-        addBtn.style.display = '';
-        grid.appendChild(makePhotoSlot(key, title, title, s.id));
-        setTimeout(() => {
-          const inp = document.getElementById('file-' + s.id + '-' + key);
-          if (inp) inp.click();
-        }, 50);
-      };
-
-      goBtn.onclick = doAdd;
-      cancelBtn.onclick = () => { _extraPrompt.remove(); addBtn.style.display = ''; };
-      titleInp.onkeydown = e => { if (e.key === 'Enter') doAdd(); if (e.key === 'Escape') cancelBtn.onclick(); };
-    };
-    wrap.appendChild(addBtn);
-
-    const hint = document.createElement('div');
-    hint.style.cssText = 'font-size:0.75rem;color:var(--text-dim);margin-top:0.4rem';
-    hint.textContent = 'Optional — press Next to skip any views';
-    wrap.appendChild(hint);
-
-    body.appendChild(wrap);
-
-  } else if (s.type === 'textarea') {
-    const val = wizard.data[s.id] || '';
-    // Use step-specific placeholder or fall back to a helpful default for notes
-    const _notesPlaceholder = s.id === 'notes'
-      ? 'e.g. Purchased at train show, minor rust on trucks, runs well'
-      : (s.placeholder || '');
-    body.innerHTML = `
-      <div style="padding-top:0.75rem">
-        <textarea id="wiz-input" placeholder="Optional notes…"
-          style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
-          padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;
-          outline:none;resize:vertical;min-height:100px"
-          oninput="wizard.data['${s.id}']=this.value">${val}</textarea>
-        ${s.note && s.note(wizard.data) ? `<div style="font-size:0.8rem;color:var(--accent2);margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(201,146,42,0.1);border-radius:6px">${s.note(wizard.data)}</div>` : ''}
-        <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
-      </div>`;
-    setTimeout(() => { const i = document.getElementById('wiz-input'); if(i) i.focus(); }, 50);
-
-  } else if (s.type === 'location') {
-    const val = wizard.data[s.id] || '';
-    // Gather unique locations from existing personal data for autocomplete
-    const _allLocs = {};
-    Object.values(state.personalData).forEach(pd => {
-      if (pd.location && pd.location.trim()) {
-        const loc = pd.location.trim();
-        _allLocs[loc] = (_allLocs[loc] || 0) + 1;
-      }
-    });
-    // Sort by frequency (most used first), then alphabetically
-    const _locList = Object.entries(_allLocs)
-      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-      .map(e => e[0]);
-
-    body.innerHTML = `
-      <div style="padding-top:0.75rem">
-        <div style="position:relative">
-          <input type="text" id="wiz-loc-input" value="${val.replace(/"/g, '&quot;')}"
-            placeholder="${s.placeholder || 'e.g. Shelf 3, Tote 12'}"
-            autocomplete="off"
-            style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
-            padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:0.95rem;
-            outline:none;box-sizing:border-box"
-            oninput="wizard.data['${s.id}']=this.value; _filterLocSuggestions(this.value);">
-          <div id="wiz-loc-suggestions" style="display:none;position:absolute;top:100%;left:0;right:0;
-            background:var(--surface2);border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;
-            max-height:180px;overflow-y:auto;z-index:10"></div>
-        </div>
-        ${_locList.length > 0 ? `
-          <div style="margin-top:0.6rem">
-            <div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.35rem">Recent locations</div>
-            <div id="wiz-loc-chips" style="display:flex;flex-wrap:wrap;gap:0.35rem">
-              ${_locList.slice(0, 12).map(loc => `
-                <button type="button" class="loc-chip" onclick="document.getElementById('wiz-loc-input').value='${loc.replace(/'/g, "\\'")}'; wizard.data['${s.id}']='${loc.replace(/'/g, "\\'")}'; _highlightLocChip(this);"
-                  style="padding:0.35rem 0.7rem;border-radius:16px;border:1px solid var(--border);
-                  background:var(--surface2);color:var(--text);font-size:0.82rem;cursor:pointer;
-                  font-family:var(--font-body);transition:all 0.15s ease${val === loc ? ';background:var(--accent);color:#fff;border-color:var(--accent)' : ''}">${loc} <span style="font-size:0.7rem;color:var(--text-dim);margin-left:0.15rem">(${_allLocs[loc]})</span></button>
-              `).join('')}
-            </div>
-          </div>
-        ` : ''}
-        <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.6rem">Optional — press Next to skip</div>
-        <label style="display:flex;align-items:center;gap:0.5rem;margin-top:0.75rem;padding:0.6rem 0.75rem;
-          background:var(--surface2);border-radius:8px;border:1px solid var(--border);cursor:pointer;font-size:0.82rem;color:var(--text-mid)">
-          <input type="checkbox" id="wiz-loc-toggle" ${_prefLocEnabled ? 'checked' : ''}
-            onchange="_prefLocEnabled = this.checked; localStorage.setItem('lv_location_enabled', this.checked ? 'true' : 'false')"
-            style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer">
-          Ask for storage location on future items
-        </label>
-      </div>`;
-    setTimeout(() => { const i = document.getElementById('wiz-loc-input'); if(i) i.focus(); }, 50);
-
-  } else if (s.type === 'pickSoldItem') {
-    const itemNum = (wizard.data.itemNum || '').trim();
-    const matchKeys = Object.keys(state.personalData).filter(k => {
-      const pd = state.personalData[k];
-      // Show all owned rows for this item number
-      // Include rows with real item info (condition not N/A or empty)
-      return k.split('|')[0] === itemNum && pd.owned;
-    });
-      const selected = wizard.data.selectedSoldKey || '';
-    body.innerHTML = `
-      <div style="padding-top:0.5rem;display:flex;flex-direction:column;gap:0.5rem">
-        ${matchKeys.length === 0 ? '<div style="color:var(--text-dim);font-size:0.85rem">No owned items found for this number.</div>' : ''}
-        ${matchKeys.map(k => {
-          const pd = state.personalData[k];
-          const isSelected = selected === k;
-          return `<button onclick="wizardPickSoldItem('${k}')" style="
-            display:flex;align-items:flex-start;gap:0.75rem;padding:0.85rem 1rem;
-            border-radius:10px;text-align:left;width:100%;cursor:pointer;
-            font-family:var(--font-body);transition:all 0.15s;
-            border:2px solid ${isSelected ? 'var(--accent)' : 'var(--border)'};
-            background:${isSelected ? 'rgba(232,64,28,0.12)' : 'var(--surface2)'};
-          ">
-            <div style="flex:1">
-              <div style="font-family:var(--font-mono);color:var(--accent2);font-size:0.9rem;font-weight:600">
-                ${pd.itemNum}${pd.variation ? ' — Var ' + pd.variation : ''}
-              </div>
-              <div style="font-size:0.8rem;color:var(--text-mid);margin-top:0.3rem;display:flex;gap:1rem;flex-wrap:wrap">
-                ${pd.condition ? `<span>Condition: <strong style="color:var(--text)">${pd.condition}</strong></span>` : ''}
-                ${pd.hasBox === 'Yes' ? `<span style="color:var(--green)">✓ Has box</span>` : ''}
-                ${pd.priceItem ? `<span>Paid: <strong style="color:var(--text)">$${parseFloat(pd.priceItem).toLocaleString()}</strong></span>` : ''}
-                ${pd.allOriginal === 'Yes' ? `<span style="color:var(--accent2)">All original</span>` : ''}
-              </div>
-            </div>
-            ${isSelected ? '<span style="color:var(--accent);font-size:1.1rem;align-self:center">✓</span>' : ''}
-          </button>`;
-        }).join('')}
-        <button onclick="wizardPickSoldItem('__new__')" style="
-          padding:0.75rem 1rem;border-radius:10px;text-align:left;width:100%;cursor:pointer;
-          font-family:var(--font-body);font-size:0.85rem;transition:all 0.15s;
-          border:2px solid ${selected==='__new__' ? 'var(--border)' : 'var(--border)'};
-          background:var(--surface2);color:var(--text-dim);
-        ">Not in my collection — enter details manually</button>
-      </div>`;
-
-  } else if (s.type === 'pickForSaleItem') {
-    const itemNum = (wizard.data.itemNum || '').trim();
-    const matchKeys = Object.keys(state.personalData).filter(k => {
-      const pd = state.personalData[k];
-      return k.split('|')[0] === itemNum && pd.owned;
-    });
-    const selected = wizard.data.selectedForSaleKey || '';
-    body.innerHTML = `
-      <div style="padding-top:0.5rem;display:flex;flex-direction:column;gap:0.5rem">
-        ${matchKeys.length === 0 ? '<div style="color:var(--text-dim);font-size:0.85rem">No owned items found for this number.</div>' : ''}
-        ${matchKeys.map(k => {
-          const pd = state.personalData[k];
-          const isSelected = selected === k;
-          return `<button onclick="wizardPickForSaleItem('${k}')" style="
-            display:flex;align-items:flex-start;gap:0.75rem;padding:0.85rem 1rem;
-            border-radius:10px;text-align:left;width:100%;cursor:pointer;
-            font-family:var(--font-body);transition:all 0.15s;
-            border:2px solid ${isSelected ? '#e67e22' : 'var(--border)'};
-            background:${isSelected ? 'rgba(230,126,34,0.12)' : 'var(--surface2)'};
-          ">
-            <div style="flex:1">
-              <div style="font-family:var(--font-mono);color:var(--accent2);font-size:0.9rem;font-weight:600">
-                ${pd.itemNum}${pd.variation ? ' — Var ' + pd.variation : ''}
-              </div>
-              <div style="font-size:0.8rem;color:var(--text-mid);margin-top:0.3rem;display:flex;gap:1rem;flex-wrap:wrap">
-                ${pd.condition ? `<span>Condition: <strong style="color:var(--text)">${pd.condition}</strong></span>` : ''}
-                ${pd.hasBox === 'Yes' ? `<span style="color:var(--green)">✓ Has box</span>` : ''}
-                ${pd.priceItem ? `<span>Paid: <strong style="color:var(--text)">$${parseFloat(pd.priceItem).toLocaleString()}</strong></span>` : ''}
-                ${pd.userEstWorth ? `<span>Est. Worth: <strong style="color:var(--text)">$${parseFloat(pd.userEstWorth).toLocaleString()}</strong></span>` : ''}
-              </div>
-            </div>
-            ${isSelected ? '<span style="color:#e67e22;font-size:1.1rem;align-self:center">✓</span>' : ''}
-          </button>`;
-        }).join('')}
-        <button onclick="wizardPickForSaleItem('__new__')" style="
-          padding:0.75rem 1rem;border-radius:10px;text-align:left;width:100%;cursor:pointer;
-          font-family:var(--font-body);font-size:0.85rem;transition:all 0.15s;
-          border:2px solid var(--border);
-          background:var(--surface2);color:var(--text-dim);
-        ">Not in my collection — enter details manually</button>
-      </div>`;
-
-  } else if (s.type === 'pickRow') {
-    const itemNum = (wizard.data.itemNum || '').trim();
-    const matchKeys = Object.keys(state.personalData).filter(k => k.split('|')[0] === itemNum);
-    const selected = wizard.data.selectedRowKey || '';
-    body.innerHTML = `
-      <div style="padding-top:0.5rem;display:flex;flex-direction:column;gap:0.5rem">
-        ${matchKeys.map(k => {
-          const pd = state.personalData[k];
-          const hasBoxAlready = pd.hasBox === 'Yes';
-          const isSelected = selected === k;
-          return `<button onclick="wizardPickRow('${k}')" style="
-            display:flex;align-items:center;gap:0.75rem;padding:0.85rem 1rem;
-            border-radius:10px;text-align:left;width:100%;cursor:pointer;
-            font-family:var(--font-body);transition:all 0.15s;
-            border:2px solid ${isSelected ? 'var(--accent)' : 'var(--border)'};
-            background:${isSelected ? 'rgba(232,64,28,0.12)' : 'var(--surface2)'};
-          ">
-            <div style="flex:1">
-              <div style="font-family:var(--font-mono);color:var(--accent2);font-size:0.85rem">${pd.itemNum} ${pd.variation ? '— Var ' + pd.variation : ''}</div>
-              <div style="font-size:0.8rem;color:var(--text-mid);margin-top:0.2rem">
-                Condition: ${pd.condition || '—'} · 
-                ${hasBoxAlready
-                  ? '<span style="color:var(--accent2)">Already has a box — will add new row</span>'
-                  : '<span style="color:var(--green)">No box yet — will update this row</span>'}
-              </div>
-            </div>
-            ${isSelected ? '<span style="color:var(--accent);font-size:1rem">✓</span>' : ''}
-          </button>`;
-        }).join('')}
-      </div>`;
-
-  } else if (s.type === 'itemNumGrouping') {
-    // ── SCREEN 1: Item Number + Grouping Buttons ──
-    const _ingVal = wizard.data.itemNum || '';
-    const _ingGrouping = wizard.data._itemGrouping || '';
-    const _ingBoxOnly = wizard.data.boxOnly || false;
-    
-    const _ingWrap = document.createElement('div');
-    _ingWrap.style.cssText = 'padding-top:0.5rem';
-    
-    // Item number input row
-    const _ingInputRow = document.createElement('div');
-    _ingInputRow.style.cssText = 'display:flex;gap:0.5rem;align-items:flex-start';
-    _ingInputRow.innerHTML = `
-      <div style="flex:1">
-        <input type="text" id="wiz-input" value="${_ingVal}" placeholder="e.g. 726, 2046, 6464-1"
-          autocomplete="off"
-          style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
-          padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none;box-sizing:border-box"
-          oninput="wizard.data.itemNum=this.value; updateItemSuggestions(this.value); _updateGroupingButtons();"
-          onkeydown="handleSuggestionKey(event)">
-        <div id="wiz-suggestions" style="display:none;flex-direction:column;gap:1px;margin-top:4px;max-height:340px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;-webkit-overflow-scrolling:touch"></div>
-      </div>`;
-    _ingWrap.appendChild(_ingInputRow);
-    
-    // Match display
-    const _ingMatchDiv = document.createElement('div');
-    _ingMatchDiv.id = 'wiz-match';
-    _ingMatchDiv.style.cssText = 'margin-top:0.5rem';
-    _ingWrap.appendChild(_ingMatchDiv);
-    
-    // Grouping buttons container (populated dynamically)
-    const _ingGroupDiv = document.createElement('div');
-    _ingGroupDiv.id = 'wiz-grouping-btns';
-    _ingGroupDiv.style.cssText = 'margin-top:0.75rem;display:none';
-    _ingWrap.appendChild(_ingGroupDiv);
-    
-    // Identify by photo button
-    const _ingPhotoBtn = document.createElement('button');
-    _ingPhotoBtn.onclick = function() { openIdentify('wizard'); };
-    _ingPhotoBtn.style.cssText = 'width:100%;margin-top:0.6rem;padding:0.65rem 1rem;border-radius:8px;border:1.5px dashed var(--gold);background:rgba(212,168,67,0.07);color:var(--gold);font-family:var(--font-head);font-size:0.78rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;transition:all 0.15s';
-    _ingPhotoBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Don\x27t know the number? Identify by photo';
-    _ingWrap.appendChild(_ingPhotoBtn);
-    
-    // Box-only toggle
-    const _ingBoxLabel = document.createElement('label');
-    _ingBoxLabel.onclick = function() { toggleBoxOnly(); setTimeout(_updateGroupingButtons, 50); };
-    _ingBoxLabel.style.cssText = 'display:flex;align-items:center;gap:0.75rem;padding:0.85rem 1rem;margin-top:0.75rem;border-radius:10px;border:2px solid ' + (_ingBoxOnly ? 'var(--accent2)' : 'var(--border)') + ';background:' + (_ingBoxOnly ? 'rgba(201,146,42,0.1)' : 'var(--surface2)') + ';cursor:pointer;transition:all 0.15s';
-    _ingBoxLabel.innerHTML = '<div style="width:20px;height:20px;border-radius:5px;flex-shrink:0;border:2px solid ' + (_ingBoxOnly ? 'var(--accent2)' : 'var(--border)') + ';background:' + (_ingBoxOnly ? 'var(--accent2)' : 'transparent') + ';display:flex;align-items:center;justify-content:center;font-size:0.75rem;color:white;font-weight:700;transition:all 0.15s">' + (_ingBoxOnly ? '✓' : '') + '</div><div><div style="font-weight:600;font-size:0.9rem;color:var(--text)">Adding box info only</div><div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.1rem">I bought a separate box for this item</div></div>';
-    _ingWrap.appendChild(_ingBoxLabel);
-    
-    body.innerHTML = '';
-    body.appendChild(_ingWrap);
-    
-    setTimeout(function() {
-      var inp = document.getElementById('wiz-input');
-      if (inp) {
-        inp.focus();
-        inp.addEventListener('input', debounceItemLookup);
-        if (inp.value) { updateItemSuggestions(inp.value); }
-      }
-      _updateGroupingButtons();
-    }, 50);
-
-  } else if (s.type === 'itemPicker') {
-    // ── SCREEN 1b: Partial match picker ──
-    const _matches = wizard.data._partialMatches || [];
-    const _query = wizard.data._partialQuery || '';
-    const _wrap = document.createElement('div');
-    _wrap.style.cssText = 'display:flex;flex-direction:column;gap:0.4rem;padding-top:0.25rem';
-
-    const _info = document.createElement('div');
-    _info.style.cssText = 'font-size:0.82rem;color:var(--text-dim);margin-bottom:0.4rem';
-    _info.textContent = _matches.length + ' item' + (_matches.length !== 1 ? 's' : '') + ' matching "' + _query + '" — tap to select';
-    _wrap.appendChild(_info);
-
-    const _list = document.createElement('div');
-    _list.style.cssText = 'display:flex;flex-direction:column;gap:0.35rem;max-height:55vh;overflow-y:auto;-webkit-overflow-scrolling:touch';
-
-    _matches.forEach(function(m) {
-      const desc = m.description || m.roadName || '';
-      const road = m.roadName || '';
-      const sub = (road && desc && road !== desc) ? road + ' — ' + desc : (desc || road);
-      const btn = document.createElement('button');
-      btn.style.cssText = 'text-align:left;width:100%;padding:0.7rem 0.9rem;border:2px solid var(--border);background:var(--surface2);border-radius:10px;cursor:pointer;color:var(--text);font-family:var(--font-body);display:flex;flex-direction:column;gap:0.15rem;transition:all 0.12s';
-      btn.innerHTML = '<div style="font-family:var(--font-mono);font-weight:700;font-size:0.95rem;color:var(--accent2)">' + m.itemNum + '</div>'
-        + (sub ? '<div style="font-size:0.78rem;color:var(--text-dim);line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + sub + '</div>' : '');
-      btn.onclick = function() {
-        wizard.data.itemNum = m.itemNum;
-        wizard.data._partialMatches = [];
-        wizard.matchedItem = m;
-        // Go back to itemNumGrouping with the selected number filled in
-        wizard.step = wizard.step - 1;
-        renderWizardStep();
-      };
-      _list.appendChild(btn);
-    });
-    _wrap.appendChild(_list);
-    body.innerHTML = '';
-    body.appendChild(_wrap);
-
-  } else if (s.type === 'conditionDetails') {
-    // ── SCREEN 3: Multi-column Condition & Details ──
-    const _cdGrouping = wizard.data._itemGrouping || 'single';
-    const _cdItemNum = (wizard.data.itemNum || '').trim();
-    
-    // Determine columns
-    const _cdCols = [];
-    if (_cdGrouping === 'engine_tender') {
-      const _tenders = getMatchingTenders(_cdItemNum);
-      const _tenderNum = wizard.data.tenderMatch || (_tenders.length > 0 ? _tenders[0] : '');
-      _cdCols.push({ id: 'main', label: '\u{1F682} No. ' + _cdItemNum, prefix: '', isEngine: true });
-      _cdCols.push({ id: 'tender', label: '\u{1F4E6} Tender: ' + _tenderNum, prefix: 'tender', isTender: true });
-    } else if (_cdGrouping === 'aa') {
-      _cdCols.push({ id: 'main', label: '\u{1F535} A Unit: ' + _cdItemNum + '-P', prefix: '', sublabel: 'Powered' });
-      _cdCols.push({ id: 'unit2', label: '\u{1F535} A Unit: ' + _cdItemNum + '-D', prefix: 'unit2', sublabel: 'Dummy' });
-    } else if (_cdGrouping === 'ab') {
-      const _bUnit = getSetPartner(_cdItemNum) || (_cdItemNum + 'C');
-      _cdCols.push({ id: 'main', label: '\u{1F535} A Unit: ' + _cdItemNum + '-P', prefix: '', sublabel: 'Powered' });
-      _cdCols.push({ id: 'unit2', label: '\u{1F535} B Unit: ' + _bUnit, prefix: 'unit2' });
-    } else if (_cdGrouping === 'aba') {
-      const _bUnit2 = getSetPartner(_cdItemNum) || (_cdItemNum + 'C');
-      _cdCols.push({ id: 'main', label: '\u{1F535} A Unit: ' + _cdItemNum + '-P', prefix: '', sublabel: 'Powered' });
-      _cdCols.push({ id: 'unit2', label: '\u{1F535} B Unit: ' + _bUnit2, prefix: 'unit2' });
-      _cdCols.push({ id: 'unit3', label: '\u{1F535} A Unit: ' + _cdItemNum + '-D', prefix: 'unit3', sublabel: 'Dummy' });
-    } else {
-      // Single item
-      _cdCols.push({ id: 'main', label: 'No. ' + _cdItemNum, prefix: '' });
-    }
-    
-    const _colCount = _cdCols.length;
-    const _isMobile = window.innerWidth < 600;
-    
-    function _buildCondCol(col) {
-      const p = col.prefix;
-      const condKey = p ? p + 'Condition' : 'condition';
-      const origKey = p ? p + 'AllOriginal' : 'allOriginal';
-      const modKey = p ? p + 'NotOriginalDesc' : 'notOriginalDesc';
-      const boxKey = p ? p + 'HasBox' : 'hasBox';
-      const boxCondKey = p ? p + 'BoxCond' : 'boxCond';
-      
-      const condVal = wizard.data[condKey] || 7;
-      const origVal = wizard.data[origKey] || '';
-      const modVal = wizard.data[modKey] || '';
-      const boxVal = wizard.data[boxKey] || '';
-      const boxCondVal = wizard.data[boxCondKey] || 7;
-      
-      let html = '<div class="cd-col" style="flex:1;min-width:' + (_isMobile ? '100%' : '200px') + ';background:var(--surface2);border-radius:10px;padding:0.85rem;border:1px solid var(--border)">';
-      html += '<div style="font-weight:700;font-size:0.85rem;color:var(--accent2);margin-bottom:0.75rem;padding-bottom:0.5rem;border-bottom:1px solid var(--border)">' + col.label + (col.sublabel ? ' <span style=\"font-weight:400;color:var(--text-dim);font-size:0.78rem\">(' + col.sublabel + ')</span>' : '') + '</div>';
-      
-      // Condition slider
-      html += '<div style="margin-bottom:0.6rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Condition</div>';
-      html += '<div style="display:flex;align-items:center;gap:0.5rem"><span id="cd-cond-val-' + col.id + '" style="font-family:var(--font-head);font-size:1.5rem;color:var(--accent2);width:2rem;text-align:center">' + condVal + '</span>';
-      html += '<input type="range" min="1" max="10" value="' + condVal + '" style="flex:1;accent-color:var(--accent)" oninput="wizard.data[\'' + condKey + '\']=parseInt(this.value);document.getElementById(\'cd-cond-val-' + col.id + '\').textContent=this.value"></div>';
-      html += '<div style="display:flex;justify-content:space-between;font-size:0.65rem;color:var(--text-dim)"><span>Poor</span><span>Good</span><span>Exc</span><span>Mint</span></div></div>';
-      
-      // All Original
-      html += '<div style="margin-bottom:0.6rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">All Original?</div>';
-      html += '<div style="display:flex;gap:0.3rem">';
-      ['Yes','No','Unknown'].forEach(function(c) {
-        var sel = origVal === c;
-        html += '<button onclick="wizard.data[\'' + origKey + '\']=\'' + c + '\';_cdToggleOrig(\'' + col.id + '\',\'' + origKey + '\',\'' + c + '\')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)') + ';color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + ';font-family:var(--font-body)">' + c + '</button>';
-      });
-      html += '</div></div>';
-      
-      // Modifications textarea (hidden unless allOriginal=No)
-      html += '<div id="cd-mod-' + col.id + '" style="margin-bottom:0.6rem;display:' + (origVal === 'No' ? 'block' : 'none') + '">';
-      html += '<textarea placeholder="What\x27s been done?" style="width:100%;min-height:50px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.8rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data[\'' + modKey + '\']=this.value">' + modVal + '</textarea></div>';
-      
-      // Has box toggle + inline box condition
-      html += '<div style="margin-bottom:0.6rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Has Box?</div>';
-      html += '<div style="display:flex;gap:0.3rem">';
-      ['Yes','No'].forEach(function(c) {
-        var sel = boxVal === c;
-        html += '<button onclick="wizard.data[\'' + boxKey + '\']=\'' + c + '\';_cdToggleBox(\'' + col.id + '\',\'' + c + '\')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)') + ';color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + ';font-family:var(--font-body)">' + c + '</button>';
-      });
-      html += '</div>';
-      // Box condition slider (inline reveal)
-      html += '<div id="cd-boxcond-' + col.id + '" style="margin-top:0.4rem;display:' + (boxVal === 'Yes' ? 'block' : 'none') + ';padding:0.5rem;background:var(--bg);border-radius:6px;border:1px solid var(--border)">';
-      html += '<div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:0.2rem">Box Condition</div>';
-      html += '<div style="display:flex;align-items:center;gap:0.4rem"><span id="cd-boxcond-val-' + col.id + '" style="font-family:var(--font-head);font-size:1.2rem;color:var(--accent2);width:1.5rem;text-align:center">' + boxCondVal + '</span>';
-      html += '<input type="range" min="1" max="10" value="' + boxCondVal + '" style="flex:1;accent-color:var(--accent)" oninput="wizard.data[\'' + boxCondKey + '\']=parseInt(this.value);document.getElementById(\'cd-boxcond-val-' + col.id + '\').textContent=this.value"></div>';
-      html += '</div></div>';
-      
-      // Instruction Sheet — only on main column
-      if (col.id === 'main') {
-        const isVal = wizard.data.hasIS || '';
-        const isSheetVal = wizard.data.is_sheetNum || '';
-        const isCondVal = wizard.data.is_condition || 7;
-        
-        // Instruction Sheet toggle
-        html += '<div style="margin-bottom:0.6rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Instruction Sheet?</div>';
-        html += '<div style="display:flex;gap:0.3rem">';
-        ['Yes','No'].forEach(function(c) {
-          var sel = isVal === c;
-          html += '<button onclick="wizard.data.hasIS=\'' + c + '\';_cdToggleIS(\'' + c + '\')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)') + ';color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + ';font-family:var(--font-body)">' + c + '</button>';
-        });
-        html += '</div>';
-        // IS inline reveal
-        html += '<div id="cd-is-reveal" style="margin-top:0.4rem;display:' + (isVal === 'Yes' ? 'block' : 'none') + ';padding:0.5rem;background:var(--bg);border-radius:6px;border:1px solid var(--border)">';
-        html += '<input type="text" placeholder="Sheet # (e.g. 924-6)" value="' + isSheetVal.replace(/"/g, '&quot;') + '" style="width:100%;margin-bottom:0.4rem;background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:0.4rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.82rem;outline:none;box-sizing:border-box" oninput="wizard.data.is_sheetNum=this.value">';
-        html += '<div style="display:flex;align-items:center;gap:0.4rem"><span style="font-size:0.7rem;color:var(--text-dim)">Cond:</span><span id="cd-is-cond-val" style="font-family:var(--font-head);font-size:1rem;color:var(--accent2)">' + isCondVal + '</span>';
-        html += '<input type="range" min="1" max="10" value="' + isCondVal + '" style="flex:1;accent-color:var(--accent)" oninput="wizard.data.is_condition=parseInt(this.value);document.getElementById(\'cd-is-cond-val\').textContent=this.value"></div>';
-        html += '</div></div>';
-      }
-      
-      // Error item toggle — shown on every item column
-      {
-        const errKey = p ? p + 'IsError' : 'isError';
-        const errDescKey = p ? p + 'ErrorDesc' : 'errorDesc';
-        const errVal = wizard.data[errKey] || '';
-        const errDescVal = wizard.data[errDescKey] || '';
-        html += '<div style="margin-bottom:0.4rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Error Item?</div>';
-        html += '<div style="display:flex;gap:0.3rem">';
-        ['Yes','No'].forEach(function(c) {
-          var sel = errVal === c;
-          html += '<button id="cd-err-btn-' + col.id + '-' + c + '" onclick="wizard.data[\'' + errKey + '\']=\'' + c + '\';_cdToggleError(\'' + col.id + '\',\'' + c + '\')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid ' + (sel ? (c==='Yes' ? '#e74c3c' : 'var(--accent)') : 'var(--border)') + ';background:' + (sel ? (c==='Yes' ? 'rgba(231,76,60,0.12)' : 'rgba(232,64,28,0.12)') : 'var(--bg)') + ';color:' + (sel ? (c==='Yes' ? '#e74c3c' : 'var(--accent)') : 'var(--text-mid)') + ';font-family:var(--font-body)">' + c + '</button>';
-        });
-        html += '</div>';
-        html += '<div id="cd-error-reveal-' + col.id + '" style="margin-top:0.4rem;display:' + (errVal === 'Yes' ? 'block' : 'none') + '">';
-        html += '<textarea placeholder="Describe the error…" style="width:100%;min-height:45px;background:var(--bg);border:1px solid #e74c3c44;border-radius:6px;padding:0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.8rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data[\'' + errDescKey + '\']=this.value">' + errDescVal + '</textarea></div>';
-        html += '</div>';
-      }
-      
-      html += '</div>';
-      return html;
-    }
-    
-    // Build the multi-column layout
-    const _cdWrap = document.createElement('div');
-    _cdWrap.style.cssText = 'padding-top:0.25rem;max-height:65vh;overflow-y:auto;-webkit-overflow-scrolling:touch';
-    
-    let _cdHtml = '<div style="display:flex;gap:0.5rem;' + (_isMobile ? 'flex-direction:column' : '') + '">';
-    _cdCols.forEach(function(col) {
-      _cdHtml += _buildCondCol(col);
-    });
-    _cdHtml += '</div>';
-    _cdWrap.innerHTML = _cdHtml;
-    body.innerHTML = '';
-    body.appendChild(_cdWrap);
-
-  } else if (s.type === 'purchaseValue') {
-    // ── SCREEN 4: Purchase & Value (combined screen) ──
-    const _pvD = wizard.data;
-    const _pvIsPaired = _pvD.tenderMatch && _pvD.tenderMatch !== 'none';
-    const _pvIsSet = _pvD.setMatch === 'set-now';
-    const _pvItemNum = (_pvD.itemNum || '').trim();
-    
-    // Year made: parse known production years
-    const _pvMatch = state.masterData.find(function(m) {
-      return normalizeItemNum(m.itemNum) === normalizeItemNum(_pvItemNum);
-    });
-    const _pvYearRange = _pvMatch ? (_pvMatch.yearProd || '') : '';
-    let _pvYears = [];
-    if (_pvYearRange) {
-      _pvYearRange.split(/[,;]/).forEach(function(part) {
-        part = part.trim();
-        var rm = part.match(/^(\d{4})\s*[\-\u2013]\s*(\d{2,4})$/);
-        if (rm) {
-          var st = parseInt(rm[1]), en = parseInt(rm[2]);
-          if (en < 100) en = Math.floor(st/100)*100 + en;
-          for (var y = st; y <= Math.min(en, st+25); y++) _pvYears.push(y);
-        } else if (/^\d{4}$/.test(part)) _pvYears.push(parseInt(part));
-      });
-      _pvYears = [...new Set(_pvYears)].sort((a,b) => a-b);
-    }
-    
-    // Location chips
-    const _pvAllLocs = {};
-    Object.values(state.personalData).forEach(function(pd) {
-      if (pd.location && pd.location.trim()) {
-        var loc = pd.location.trim();
-        _pvAllLocs[loc] = (_pvAllLocs[loc] || 0) + 1;
-      }
-    });
-    const _pvLocList = Object.entries(_pvAllLocs).sort((a,b) => b[1]-a[1]).map(e => e[0]);
-    const _pvLocEnabled = _prefLocEnabled;
-    
-    let _pvHtml = '<div style="padding-top:0.25rem;max-height:65vh;overflow-y:auto;-webkit-overflow-scrolling:touch">';
-
-    const _pvIsSetLoco  = _pvD._setMode && (_pvD._setItemIndex || 0) === 0;
-    const _pvIsSetOther = _pvD._setMode && (_pvD._setItemIndex || 0) > 0;
-    const _pvSetNum     = _pvD._resolvedSet ? _pvD._resolvedSet.setNum : '';
-    const _pvLocoNum    = _pvD._setLocoNum || (_pvD._setFinalItems && _pvD._setFinalItems[0]) || '';
-
-    // ── Set loco banner ──
-    if (_pvIsSetLoco) {
-      _pvHtml += '<div style="background:rgba(52,152,219,0.1);border:1.5px solid #3498db;border-radius:10px;padding:0.65rem 0.9rem;margin-bottom:0.85rem;font-size:0.82rem;color:var(--text-mid);line-height:1.45">'
-        + '<div style="font-size:0.68rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:#3498db;margin-bottom:0.25rem">💰 Set Purchase Info</div>'
-        + 'Enter what you paid and the <strong style="color:var(--text)">full set\'s estimated value</strong> below. Since you bought these together, price &amp; value are stored here on the locomotive'
-        + (_pvSetNum ? ' and linked to set ' + _pvSetNum : '') + '.'
-        + '</div>';
-    }
-
-    // ── Set non-loco info card (replaces price/date/worth) ──
-    if (_pvIsSetOther) {
-      _pvHtml += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.65rem 0.9rem;margin-bottom:0.85rem;font-size:0.82rem;color:var(--text-dim);line-height:1.45">'
-        + '<div style="font-size:0.68rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.2rem">💰 Price &amp; Value</div>'
-        + 'Stored on the locomotive'
-        + (_pvLocoNum ? ' <span style="font-family:var(--font-mono);color:var(--accent);font-weight:600">' + _pvLocoNum + '</span>' : '')
-        + (_pvSetNum ? ' · Set ' + _pvSetNum : '')
-        + '</div>';
-    }
-
-    // Price paid — loco and normal items only, not set non-loco
-    if (!_pvIsSetOther) {
-      _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">' + (_pvIsSetLoco ? 'What did you pay for the whole set? ($)' : 'What did you pay? ($)') + '</div>';
-      _pvHtml += '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem">';
-      _pvHtml += '<span style="color:var(--text-dim);font-size:1.1rem">$</span>';
-      _pvHtml += '<input type="number" id="pv-price" value="' + (_pvD.priceItem || '') + '" placeholder="0.00" min="0" step="0.01" style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem" oninput="wizard.data.priceItem=this.value"></div>';
-      if (_pvIsPaired || _pvIsSet) {
-        _pvHtml += '<div style="font-size:0.75rem;color:var(--accent2);margin-top:0.2rem">Full price — other units will reference this.</div>';
-      }
-      _pvHtml += '</div>';
-    }
-    
-    // Date purchased + Year made (side by side on desktop)
-    _pvHtml += '<div style="display:flex;gap:0.5rem;margin-bottom:0.75rem;' + (window.innerWidth < 500 ? 'flex-direction:column' : '') + '">';
-
-    // Date purchased — loco and normal only
-    if (!_pvIsSetOther) {
-      _pvHtml += '<div style="flex:1"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">' + (_pvIsSetLoco ? 'Date Set Purchased' : 'Date Purchased') + '</div>';
-            _pvHtml += '<div style="position:relative;display:flex;align-items:center"><input type="date" value="' + (_pvD.datePurchased || '') + '" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 2.5rem 0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box;color-scheme:dark" oninput="wizard.data.datePurchased=this.value" id="pvDate"><button type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById(&quot;pvDate&quot;).showPicker();" style="position:absolute;right:0.4rem;cursor:pointer;font-size:1rem;color:var(--accent2);background:none;border:none;padding:0.3rem;line-height:1;touch-action:manipulation">📅</button></div></div>';
-    }
-    
-    _pvHtml += '<div style="flex:1"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">What year if you know exactly?</div>';
-    if (_pvYears.length > 0 && _pvYears.length <= 10) {
-      _pvHtml += '<div style="display:flex;flex-wrap:wrap;gap:0.25rem">';
-      _pvYears.forEach(function(yr) {
-        var sel = String(yr) === String(_pvD.yearMade || '');
-        _pvHtml += '<button onclick="wizard.data.yearMade=String(' + yr + ');_pvRefreshYear(' + yr + ')" class="pv-yr-btn" data-yr="' + yr + '" style="padding:0.35rem 0.5rem;border-radius:6px;font-family:var(--font-mono);font-size:0.8rem;font-weight:600;cursor:pointer;border:1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';background:' + (sel ? 'rgba(232,64,28,0.15)' : 'var(--bg)') + ';color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + '">' + yr + '</button>';
-      });
-      _pvHtml += '</div>';
-    } else {
-      _pvHtml += '<input type="number" value="' + (_pvD.yearMade || '') + '" placeholder="e.g. 1952" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-mono);font-size:0.95rem;outline:none;box-sizing:border-box" oninput="wizard.data.yearMade=this.value">';
-    }
-    _pvHtml += '</div></div>';
-    
-    // Estimated worth
-    // Estimated worth — loco and normal only
-    if (!_pvIsSetOther) {
-      _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">' + (_pvIsSetLoco ? 'Estimated Worth of Whole Set (for insurance)' : 'Estimated Worth (for insurance purposes)') + '</div>';
-      _pvHtml += '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem">';
-      _pvHtml += '<span style="color:var(--text-dim);font-size:1.1rem">$</span>';
-      _pvHtml += '<input type="number" value="' + (_pvD.userEstWorth || '') + '" placeholder="0.00" min="0" step="0.01" style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem" oninput="wizard.data.userEstWorth=this.value"></div></div>';
-    }
-    
-    // Location (if enabled)
-    if (_pvLocEnabled) {
-      _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">\u{1F4CD} Storage Location</div>';
-      _pvHtml += '<input type="text" id="pv-location" value="' + (_pvD.location || '').replace(/"/g, '&quot;') + '" placeholder="e.g. Shelf 3, Tote 12" autocomplete="off" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box" oninput="wizard.data.location=this.value">';
-      if (_pvLocList.length > 0) {
-        _pvHtml += '<div style="display:flex;flex-wrap:wrap;gap:0.25rem;margin-top:0.35rem">';
-        _pvLocList.slice(0, 8).forEach(function(loc) {
-          _pvHtml += '<button type="button" onclick="document.getElementById(\'pv-location\').value=\'' + loc.replace(/'/g, "\\'") + '\';wizard.data.location=\'' + loc.replace(/'/g, "\\'") + '\';" style="padding:0.25rem 0.55rem;border-radius:12px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.75rem;cursor:pointer;font-family:var(--font-body)">' + loc + '</button>';
-        });
-        _pvHtml += '</div>';
-      }
-      _pvHtml += '</div>';
-    }
-    
-    // Notes
-    _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Notes (optional)</div>';
-    _pvHtml += '<textarea id="pv-notes" placeholder="e.g. Purchased at train show, minor rust on trucks, runs well" style="width:100%;min-height:60px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data.notes=this.value">' + (_pvD.notes || '') + '</textarea></div>';
-    
-    // Master box (only for paired/set)
-    if (_pvIsPaired || _pvIsSet) {
-      const mbVal = _pvD.hasMasterBox || '';
-      const mbCondVal = _pvD.masterBoxCond || 7;
-      _pvHtml += '<div style="margin-bottom:0.6rem;padding:0.75rem;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">';
-      _pvHtml += '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Master (Outer) Box?</div>';
-      _pvHtml += '<div style="display:flex;gap:0.3rem;margin-bottom:0.4rem">';
-      ['Yes','No'].forEach(function(c) {
-        var sel = mbVal === c;
-        _pvHtml += '<button onclick="wizard.data.hasMasterBox=\'' + c + '\';_pvToggleMasterBox(\'' + c + '\')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)') + ';color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + ';font-family:var(--font-body)">' + c + '</button>';
-      });
-      _pvHtml += '</div>';
-      _pvHtml += '<div id="pv-mb-reveal" style="display:' + (mbVal === 'Yes' ? 'block' : 'none') + '">';
-      _pvHtml += '<div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.3rem"><span style="font-size:0.7rem;color:var(--text-dim)">Condition:</span><span id="pv-mb-cond-val" style="font-family:var(--font-head);font-size:1rem;color:var(--accent2)">' + mbCondVal + '</span>';
-      _pvHtml += '<input type="range" min="1" max="10" value="' + mbCondVal + '" style="flex:1;accent-color:var(--accent)" oninput="wizard.data.masterBoxCond=parseInt(this.value);document.getElementById(\'pv-mb-cond-val\').textContent=this.value"></div>';
-      _pvHtml += '<textarea placeholder="Master box notes…" style="width:100%;min-height:40px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:0.4rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.8rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data.masterBoxNotes=this.value">' + (_pvD.masterBoxNotes || '') + '</textarea>';
-      _pvHtml += '</div></div>';
-    }
-    
-    _pvHtml += '</div>';
-    body.innerHTML = _pvHtml;
-    setTimeout(function() { var i = document.getElementById('pv-price'); if(i) i.focus(); }, 50);
-
-  } else if (s.type === 'confirm') {
-    const item = wizard.matchedItem;
-    const _isEph = ['catalogs','paper','mockups','other',...(state.userDefinedTabs||[]).map(t=>t.id)].includes(wizard.tab);
-    const _keyLabels = {
-      itemCategory:'Category', cat_type:'Type', cat_year:'Year',
-      hasIS:'Has Instruction Sheet', is_sheetNum:'Sheet #', is_condition:'Sheet Condition',
-      hasMasterBox:'Has Master Box', masterBoxCond:'Master Box Condition', masterBoxNotes:'Master Box Notes',
-      notOriginalDesc:'Modifications', tenderNotOriginalDesc:'Tender Modifications',
-      unit2NotOriginalDesc:'Unit 2 Modifications', unit3NotOriginalDesc:'Unit 3 Modifications',
-      cat_hasMailer:'Has Envelope/Mailer', cat_condition:'Condition',
-      cat_estValue:'Est. Value', cat_dateAcquired:'Date Acquired', cat_notes:'Notes',
-      eph_title:'Title', eph_description:'Description', eph_year:'Year',
-      eph_condition:'Condition', eph_quantity:'Quantity', eph_estValue:'Est. Value',
-      eph_dateAcquired:'Date Acquired', eph_notes:'Notes',
-      eph_itemNumRef:'Item # Ref', eph_productionStatus:'Production Status',
-      eph_material:'Material', eph_dimensions:'Dimensions',
-      eph_lionelVerified:'Lionel Verified',
-      location:'Storage Location',
-      isError:'Error Item', errorDesc:'Error Description',
-      tenderIsError:'Tender Error', tenderErrorDesc:'Tender Error Desc',
-      unit2IsError:'Unit 2 Error', unit2ErrorDesc:'Unit 2 Error Desc',
-      unit3IsError:'Unit 3 Error', unit3ErrorDesc:'Unit 3 Error Desc',
-      condition:'Condition', tenderCondition:'Tender Condition',
-      unit2Condition:'Unit 2 Condition', unit3Condition:'Unit 3 Condition',
-      allOriginal:'All Original', tenderAllOriginal:'Tender All Original',
-      unit2AllOriginal:'Unit 2 All Original', unit3AllOriginal:'Unit 3 All Original',
-      hasBox:'Has Box', tenderHasBox:'Tender Has Box',
-      unit2HasBox:'Unit 2 Has Box', unit3HasBox:'Unit 3 Has Box',
-      boxCond:'Box Condition', tenderBoxCond:'Tender Box Cond',
-      unit2BoxCond:'Unit 2 Box Cond', unit3BoxCond:'Unit 3 Box Cond',
-      pricePaid:'Price Paid', userEstWorth:'Est. Worth (insurance)',
-      datePurchased:'Date Purchased', yearMade:'Year Made',
-      variation:'Variation', itemNum:'Item Number',
-      entryMode:'Entry Mode', boxOnly:'Box Only',
-      priority:'Priority', expectedPrice:'Expected Price',
-      salePrice:'Sale Price', dateSold:'Date Sold',
-    };
-    const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','wantErrorPhotos','photosMasterBox','boxOnly','entryMode','_setId','_rawItemNum','matchedItem','_partialMatches','_partialQuery','_itemGrouping','_fromWantList','_fromWantKey','_returnPage']);
-    const _summaryEntries = Object.entries(wizard.data).filter(function(e) {
-      return !_skipKeys.has(e[0]) && e[1] && e[1] !== '' && !e[0].startsWith('photos') && !Array.isArray(e[1]) && typeof e[1] !== 'object';
-    });
-
-    const _yesNoKeys = ['hasIS','hasMasterBox','hasBox','tenderHasBox','unit2HasBox','unit3HasBox','isError','tenderIsError','unit2IsError','unit3IsError','cat_hasMailer'];
-    const _yesNoUnkKeys = ['allOriginal','tenderAllOriginal','unit2AllOriginal','unit3AllOriginal'];
-    const _sliderKeys = ['condition','tenderCondition','unit2Condition','unit3Condition','boxCond','tenderBoxCond','unit2BoxCond','unit3BoxCond','is_condition','cat_condition','eph_condition','masterBoxCond'];
-    const _moneyKeys = ['pricePaid','userEstWorth','cat_estValue','eph_estValue','expectedPrice','salePrice'];
-    const _dateKeys = ['datePurchased','cat_dateAcquired','eph_dateAcquired','dateSold'];
-
-    // Store field type maps on window for edit functions
-    window._cfYesNo = _yesNoKeys;
-    window._cfYesNoUnk = _yesNoUnkKeys;
-    window._cfSlider = _sliderKeys;
-    window._cfMoney = _moneyKeys;
-    window._cfDate = _dateKeys;
-
-    let confirmHtml = '<div style="padding-top:0.5rem">';
-    if (!_isEph && item) {
-      confirmHtml += '<div style="background:var(--surface2);border-radius:8px;padding:0.85rem;margin-bottom:1rem">'
-        + '<div style="font-family:var(--font-mono);color:var(--accent2);font-size:0.8rem">No. ' + item.itemNum + (item.variation ? ' — Var ' + item.variation : '') + '</div>'
-        + '<div style="font-weight:600;margin-top:0.2rem">' + (item.roadName || item.itemType || '') + '</div>'
-        + '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.1rem">' + (item.yearProd || '') + ' · ' + (item.itemType || '') + '</div></div>';
-    } else if (!_isEph) {
-      confirmHtml += '<div style="background:var(--surface2);border-radius:8px;padding:0.85rem;margin-bottom:1rem">'
-        + '<div style="font-family:var(--font-mono);color:var(--accent2)">Item ' + (wizard.data.itemNum || '?') + (wizard.data.variation ? ' Var ' + wizard.data.variation : '') + '</div>'
-        + '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.2rem">Not found in master inventory — will save with entered data</div></div>';
-    }
-    confirmHtml += '<div style="display:flex;flex-direction:column;gap:0.3rem;font-size:0.83rem">';
-    _summaryEntries.forEach(function(entry) {
-      var k = entry[0], v = entry[1];
-      var label = _keyLabels[k] || k.replace(/^(cat_|eph_)/,'').replace(/([A-Z])/g,' $1').replace(/_/g,' ').toLowerCase().replace(/^./,function(c){return c.toUpperCase();});
-      var isMoney = _moneyKeys.indexOf(k) >= 0;
-      var dispVal = isMoney && parseFloat(v) ? '$' + parseFloat(v).toLocaleString() : v;
-      confirmHtml += '<div style="display:flex;align-items:center;gap:0.4rem;padding:0.3rem 0.5rem;border-radius:6px;background:var(--surface2)">'
-        + '<span style="color:var(--text-dim);min-width:120px;flex-shrink:0;font-size:0.78rem">' + label + '</span>'
-        + '<span id="confirm-val-' + k + '" style="flex:1;word-break:break-word">' + dispVal + '</span>'
-        + '<button onclick="_confirmEdit(\'' + k + '\')" id="confirm-edit-btn-' + k + '" title="Edit" style="flex-shrink:0;background:none;border:1px solid var(--border);border-radius:5px;padding:0.2rem 0.45rem;cursor:pointer;color:var(--text-dim);font-size:0.72rem;font-family:var(--font-body)">✏️</button>'
-        + '</div>';
-    });
-    confirmHtml += '</div></div>';
-    body.innerHTML = confirmHtml;
-  }
-
+  });
 }
 
-function wizardChooseCategory(catId) {
-  if (catId === '__new__') {
-    // Prompt for custom category name
-    const name = prompt('Enter a name for your custom category:');
-    if (!name || !name.trim()) return;
-    const label = name.trim();
-    const id = 'user_' + label.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
-    // Check if already exists
-    if (!state.userDefinedTabs.find(t => t.id === id)) {
-      state.userDefinedTabs.push({ id, label });
-      saveUserDefinedTabs();
-      // Create the sheet tab
-      ensureUserDefinedSheet(id, label);
+// Refresh token when page resumes from background (e.g. returning from camera on mobile)
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible' && state.user) {
+    var expiry = parseInt(localStorage.getItem('lv_token_expiry') || '0');
+    var savedToken = localStorage.getItem('lv_token');
+    // Restore from localStorage if JS variable was lost (page suspension)
+    if (!accessToken && savedToken && expiry > Date.now()) {
+      accessToken = savedToken;
+      console.log('[Auth] Restored token on resume');
     }
-    wizard.data.itemCategory = id;
-    wizard.tab = id;
-    wizard.steps = getSteps(id);
-    wizard.step = 0;
-    renderWizardStep();
+    // If token is expired or about to expire (< 5 min), request fresh one
+    if (!accessToken || expiry < Date.now() + 5 * 60 * 1000) {
+      console.log('[Auth] Token expired or expiring, requesting refresh');
+      try {
+        var hint = state.user?.email || '';
+        tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
+      } catch(e) { console.warn('[Auth] Silent refresh failed:', e); }
+    }
+  }
+});
+
+function handleSignOut() {
+  google.accounts.oauth2.revoke(localStorage.getItem('lv_token'), () => {});
+  localStorage.removeItem('lv_user');
+  localStorage.removeItem('lv_token');
+  localStorage.removeItem('lv_token_expiry');
+  state.user = null;
+  _tokenIsInitial = true; // ensure next sign-in triggers full data load
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('app').classList.remove('active');
+}
+
+function toggleAccountMenu() {
+  var menu = document.getElementById('account-menu');
+  if (!menu) return;
+  var isOpen = menu.style.display !== 'none';
+  if (isOpen) {
+    menu.style.display = 'none';
+    document.removeEventListener('click', _accountMenuOutsideClick);
     return;
   }
-  wizard.data.itemCategory = catId;
-  if (catId !== 'lionel') {
-    wizard.tab = catId;
-    wizard.steps = getSteps(catId);
-    wizard.step = 0;
-    renderWizardStep();
-  } else {
-    setTimeout(() => wizardNext(), 150);
+  // Populate name/email/avatar each time it opens so it's always fresh
+  var u = state.user || {};
+  var nameEl = document.getElementById('account-menu-name');
+  var emailEl = document.getElementById('account-menu-email');
+  var avatarEl = document.getElementById('account-menu-avatar');
+  if (nameEl) nameEl.textContent = u.name || '';
+  if (emailEl) emailEl.textContent = u.email || '';
+  if (avatarEl) {
+    if (u.picture) {
+      avatarEl.innerHTML = '<img src="' + u.picture + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover" alt="">';
+    } else {
+      avatarEl.textContent = (u.name || '?')[0].toUpperCase();
+    }
+  }
+  menu.style.display = 'block';
+  // Close when clicking outside — defer so this click doesn't immediately close it
+  setTimeout(function() {
+    document.addEventListener('click', _accountMenuOutsideClick);
+  }, 0);
+}
+
+function _accountMenuOutsideClick(e) {
+  var chip = document.getElementById('user-chip');
+  var menu = document.getElementById('account-menu');
+  if (menu && chip && !chip.contains(e.target)) {
+    menu.style.display = 'none';
+    document.removeEventListener('click', _accountMenuOutsideClick);
   }
 }
 
-async function ensureUserDefinedSheet(id, label) {
-  if (!state.personalSheetId) return;
+function closeOnboarding() { var o = document.getElementById("onboarding-overlay"); if (o) o.remove(); }
+
+function showOnboarding() {
+  if (localStorage.getItem('lv_onboarded')) return;
+  localStorage.setItem('lv_onboarded', '1');
+  const ov = document.createElement('div');
+  ov.id = 'onboarding-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,20,0.92);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+  ov.innerHTML = '<div style="background:var(--surface);border-radius:18px;max-width:380px;width:100%;padding:2rem;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5)">'
+    + '<div style="margin-bottom:0.75rem;display:flex;justify-content:center"><img src="' + _RSV_PLACEHOLDER_PNG + '" style="width:90px;height:auto;opacity:0.9;border-radius:6px"></div>'
+    + '<div style="font-family:var(--font-head);font-size:1.5rem;font-weight:700;margin-bottom:0.5rem;color:var(--text)">Welcome to <span style=\"color:var(--accent)\">The Boxcar Files</span></div>'
+    + '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.7;margin-bottom:1.5rem">Your personal postwar Lionel collection manager. Here\'s how it works:</div>'
+    + '<div style="display:flex;flex-direction:column;gap:0.75rem;text-align:left;margin-bottom:1.5rem">'
+    + '<div style="display:flex;gap:0.75rem;align-items:flex-start"><div style="background:var(--accent);color:white;border-radius:50%;width:26px;height:26px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem">1</div><div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:var(--text)">Browse the Master Catalog</strong><br>Over 2,000 postwar items pre-loaded — engines, cars, accessories and more.</div></div>'
+    + '<div style="display:flex;gap:0.75rem;align-items:flex-start"><div style="background:var(--accent);color:white;border-radius:50%;width:26px;height:26px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem">2</div><div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:var(--text)">Add items you own</strong><br>Tap Add Item, enter the number, and answer a few simple questions.</div></div>'
+    + '<div style="display:flex;gap:0.75rem;align-items:flex-start"><div style="background:var(--accent);color:white;border-radius:50%;width:26px;height:26px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem">3</div><div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:var(--text)">Track your collection</strong><br>Photos, condition, value, want list — all saved to your Google account.</div></div>'
+    + '</div>'
+    + '<button onclick="closeOnboarding()" style="width:100%;padding:0.9rem;border-radius:12px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-size:1rem;font-weight:700;cursor:pointer">Get Started →</button>'
+    + '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.75rem">Tip: Use Quick Entry to log items fast, then fill in details later.</div>'
+    + '</div>';
+  document.body.appendChild(ov);
+}
+
+function showApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('setup-screen').classList.remove('active');
+  const _appEl = document.getElementById('app');
+  _appEl.style.opacity = '0';
+  _appEl.classList.add('active');
+  requestAnimationFrame(() => { _appEl.style.transition = 'opacity 0.3s ease'; _appEl.style.opacity = '1'; });
+  updateUserUI();
+  if (typeof tutShowHelpBtn === 'function') tutShowHelpBtn();
+  const hr = new Date().getHours();
+  const _greet = hr < 12 ? 'Good Morning' : hr < 17 ? 'Good Afternoon' : 'Good Evening';
+  const _name = (state.user?.name || '').split(' ')[0] || 'Collector';
+  document.getElementById('dash-greeting').innerHTML = _greet + ', <span style="color:var(--accent)">' + _name + '</span>';
+}
+
+function showSetup() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').classList.remove('active');
+  document.getElementById('setup-screen').classList.add('active');
+}
+
+function updateUserUI() {
+  if (!state.user) return;
+  var nameEl = document.getElementById('user-name');
+  var avatarEl = document.getElementById('user-avatar');
+  if (nameEl) nameEl.textContent = state.user.name;
+  if (avatarEl) {
+    if (state.user.picture) {
+      avatarEl.innerHTML = '<img src="' + state.user.picture + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover" alt="">';
+    } else {
+      avatarEl.textContent = state.user.name[0].toUpperCase();
+    }
+  }
+}
+
+async function completeSetup() {
+  let rawMaster = document.getElementById('master-sheet-input').value.trim();
+  let rawPersonal = document.getElementById('personal-sheet-input').value.trim();
+  if (!rawMaster) { showToast('Please enter the Master Sheet ID.', 3000, true); return; }
+  if (!rawPersonal) { showToast('Please enter your Personal Collection Sheet ID.', 3000, true); return; }
+
+  // Extract IDs if full URLs were pasted
+  const masterMatch = rawMaster.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  const personalMatch = rawPersonal.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  const masterId = masterMatch ? masterMatch[1] : rawMaster;
+  const personalId = personalMatch ? personalMatch[1] : rawPersonal;
+
+  state.masterSheetId = masterId;
+  state.personalSheetId = personalId;
+  localStorage.setItem('lv_master_id', masterId);
+  localStorage.setItem('lv_personal_id', personalId);
+
+  // Initialize personal sheet headers
   try {
+    await initPersonalSheet(personalId);
+    showApp();
+    loadAllData();
+  } catch(e) {
+    console.error('Setup error:', e);
+    showToast('Could not connect to sheet. Make sure you\'re signed in and the sheet exists.', 4000, true);
+  }
+}
+
+async function initPersonalSheet(sheetId) {
+  // Write My Collection title + headers if empty
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/My%20Collection!A1:M2`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  const data = await res.json();
+  const rows = data.values || [];
+  if (rows.length === 0 || !rows[0] || rows[0].length === 0) {
+    // Brand new sheet — write title row 1 and headers row 2
+    await sheetsUpdate(sheetId, 'My Collection!A1:A1', [['My Collection']]);
+    await sheetsUpdate(sheetId, 'My Collection!A2:W2', [PERSONAL_HEADERS]);
+  } else if (rows.length === 1 || !rows[1] || rows[1].length < 13) {
+    // Has title but missing/old headers — rewrite row 2
+    await sheetsUpdate(sheetId, 'My Collection!A2:W2', [PERSONAL_HEADERS]);
+  }
+  // Get existing sheet tab names
+  const metaRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties.title`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  const meta = await metaRes.json();
+  const existingTabs = (meta.sheets || []).map(s => s.properties.title);
+
+  // Build list of tabs to create
+  const toCreate = [];
+  if (!existingTabs.includes('Sold'))      toCreate.push({ addSheet: { properties: { title: 'Sold' } } });
+  if (!existingTabs.includes('For Sale'))  toCreate.push({ addSheet: { properties: { title: 'For Sale' } } });
+  if (!existingTabs.includes('Want List'))    toCreate.push({ addSheet: { properties: { title: 'Want List' } } });
+  if (!existingTabs.includes('Upgrade List')) toCreate.push({ addSheet: { properties: { title: 'Upgrade List' } } });
+
+  if (toCreate.length > 0) {
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requests: toCreate }),
+    });
+  }
+
+  // Write headers to all tabs
+  await sheetsUpdate(sheetId, 'Sold!A1:A1',      [['Sold']]);
+  await sheetsUpdate(sheetId, 'Sold!A2:H2',      [SOLD_HEADERS]);
+  await sheetsUpdate(sheetId, 'For Sale!A1:A1',   [['For Sale']]);
+  await sheetsUpdate(sheetId, 'For Sale!A2:H2',   [FOR_SALE_HEADERS]);
+  await sheetsUpdate(sheetId, 'Want List!A1:A1',    [['Want List']]);
+  await sheetsUpdate(sheetId, 'Want List!A2:E2',    [WANT_HEADERS]);
+  await sheetsUpdate(sheetId, 'Upgrade List!A1:A1', [['Upgrade List']]);
+  await sheetsUpdate(sheetId, 'Upgrade List!A2:F2', [UPGRADE_HEADERS]);
+
+  // Ephemera tabs
+  await ensureEphemeraSheets(sheetId);
+}
+
+let _ensureEphemDone = false;
+async function ensurePersonalHeaders(sheetId) {
+  if (!sheetId) return;
+  try {
+    // Ensure all tabs exist (For Sale, Sold, Want List may not exist for older sheets)
     const metaRes = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${state.personalSheetId}?fields=sheets.properties.title`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties.title`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
     const meta = await metaRes.json();
-    const existing = (meta.sheets || []).map(s => s.properties.title);
-    if (!existing.includes(label)) {
-      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${state.personalSheetId}:batchUpdate`, {
+    const existingTabs = (meta.sheets || []).map(s => s.properties.title);
+    const toCreate = [];
+    if (!existingTabs.includes('Sold'))      toCreate.push({ addSheet: { properties: { title: 'Sold' } } });
+    if (!existingTabs.includes('For Sale'))  toCreate.push({ addSheet: { properties: { title: 'For Sale' } } });
+    if (!existingTabs.includes('Want List'))    toCreate.push({ addSheet: { properties: { title: 'Want List' } } });
+    if (!existingTabs.includes('Upgrade List')) toCreate.push({ addSheet: { properties: { title: 'Upgrade List' } } });
+    if (toCreate.length > 0) {
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requests: [{ addSheet: { properties: { title: label } } }] }),
+        body: JSON.stringify({ requests: toCreate }),
       });
-      await sheetsUpdate(state.personalSheetId, `${label}!A1:A1`, [[label]]);
-      await sheetsUpdate(state.personalSheetId, `${label}!A2:J2`, [EPHEMERA_HEADERS]);
+      // Write headers for newly created tabs
+      if (!existingTabs.includes('Sold')) {
+        await sheetsUpdate(sheetId, 'Sold!A1:A1', [['Sold']]);
+        await sheetsUpdate(sheetId, 'Sold!A2:H2', [SOLD_HEADERS]);
+      }
+      if (!existingTabs.includes('For Sale')) {
+        await sheetsUpdate(sheetId, 'For Sale!A1:A1', [['For Sale']]);
+        await sheetsUpdate(sheetId, 'For Sale!A2:H2', [FOR_SALE_HEADERS]);
+      }
+      if (!existingTabs.includes('Want List')) {
+        await sheetsUpdate(sheetId, 'Want List!A1:A1', [['Want List']]);
+        await sheetsUpdate(sheetId, 'Want List!A2:E2', [WANT_HEADERS]);
+      }
+      if (!existingTabs.includes('Upgrade List')) {
+        await sheetsUpdate(sheetId, 'Upgrade List!A1:A1', [['Upgrade List']]);
+        await sheetsUpdate(sheetId, 'Upgrade List!A2:F2', [UPGRADE_HEADERS]);
+      }
+      console.log('[Setup] Created missing tabs:', toCreate.map(t => t.addSheet.properties.title).join(', '));
     }
-    // Initialize in state
-    if (!state.ephemeraData[id]) state.ephemeraData[id] = {};
-    showToast('✓ Created "' + label + '" tab');
-  } catch(e) { console.error('Create user tab error:', e); }
-}
 
-function wizardChooseTab(tab) {
-  wizard.tab = tab;
-  wizard.data.tab = tab;
-  wizard.steps = getSteps(tab);
-  renderWizardStep();
-}
+    // Fetch current row 2 headers (A2:W2 — 23 cols)
+    const res = await sheetsGet(sheetId, 'My Collection!A2:W2');
+    const current = (res.values && res.values[0]) || [];
 
-function wizardChoose(field, val) {
-  wizard.data[field] = val;
-  renderWizardStep();
-  // Auto-advance for choice2/choice3 but not tenderMatch (user may want to review)
-  const s = wizard.steps[wizard.step];
-  if (s && s.type !== 'tenderMatch') {
-    setTimeout(() => wizardNext(), 200);
-  }
-}
-
-// Find personalData entry by itemNum|variation prefix (key includes row number)
-function findPD(itemNum, variation) {
-  const prefix = `${itemNum}|${variation || ''}|`;
-  const k = Object.keys(state.personalData).find(k => k.startsWith(prefix));
-  return k ? state.personalData[k] : null;
-}
-// Find a collection item by item number (for IS grouping logic)
-function _findCollectionItemByNum(itemNum) {
-  if (!itemNum) return null;
-  const norm = normalizeItemNum(itemNum.trim());
-  return Object.values(state.personalData).find(p =>
-    normalizeItemNum(p.itemNum || '') === norm
-  ) || null;
-}
-
-function findPDKey(itemNum, variation) {
-  const prefix = `${itemNum}|${variation || ''}|`;
-  return Object.keys(state.personalData).find(k => k.startsWith(prefix)) || null;
-}
-
-// ── PHOTO UPLOAD HANDLERS ───────────────────────────────────────
-
-async function handlePhotoDrop(event, stepId, viewKey) {
-  event.preventDefault();
-  event.currentTarget.style.borderColor = 'var(--border)';
-  const file = event.dataTransfer.files[0];
-  if (file && file.type.startsWith('image/')) {
-    await uploadWizardPhoto(file, stepId, viewKey);
-  }
-}
-
-
-async function uploadWizardPhoto(file, stepId, viewKey) {
-  // Pre-flight: ensure we have a valid token (critical on mobile after returning from camera)
-  if (!accessToken) {
-    var _saved = localStorage.getItem('lv_token');
-    var _exp = parseInt(localStorage.getItem('lv_token_expiry') || '0');
-    if (_saved && _exp > Date.now()) {
-      accessToken = _saved;
-      console.log('[Upload] Restored token from localStorage');
-    } else {
-      showToast('Session expired — please sign in and try again', 4000, true);
-      return;
+    // Check each expected header — write the full row if anything is missing or wrong
+    const needsUpdate = PERSONAL_HEADERS.some((h, i) => current[i] !== h);
+    if (needsUpdate) {
+      await sheetsUpdate(sheetId, 'My Collection!A2:W2', [PERSONAL_HEADERS]);
+      console.log('[Headers] My Collection headers repaired');
     }
-  }
-  console.log('[Upload] Starting:', stepId, viewKey, 'file:', file.name, 'size:', (file.size/1024).toFixed(0) + 'KB');
-  const d = wizard.data;
-  // For tender/set photo steps, use the tender or engine item number for the Drive folder
-  const isTenderPhotoStep = stepId === 'photosTenderItem' || stepId === 'photosTenderBox';
-  const isUnit2PhotoStep = stepId === 'photosUnit2Item' || stepId === 'photosUnit2Box';
-  const isUnit3PhotoStep = stepId === 'photosUnit3Item' || stepId === 'photosUnit3Box';
-  const isSetPhotoStep = stepId === 'photosTogether';
-  const itemNum = isTenderPhotoStep
-    ? (d.tenderMatch || d.itemNum || 'unknown').trim()
-    : isUnit2PhotoStep
-      ? (d.unit2ItemNum || d.itemNum || 'unknown').trim()
-      : isUnit3PhotoStep
-        ? (d.itemNum || 'unknown').trim()  // unit3 = second A unit, same number
-        : (d.itemNum || 'unknown').trim();
-  const variation = (d.variation || '').trim();
 
-  // Show progress overlay
-  const prog = document.getElementById('prog-' + stepId + '-' + viewKey);
-  if (prog) { prog.style.display = 'flex'; }
+    // Also ensure row 1 title
+    const titleRes = await sheetsGet(sheetId, 'My Collection!A1');
+    const title = (titleRes.values && titleRes.values[0] && titleRes.values[0][0]) || '';
+    if (title !== 'My Collection') {
+      await sheetsUpdate(sheetId, 'My Collection!A1', [['My Collection']]);
+    }
 
-  // Create blob URL immediately for instant thumbnail display (before Drive upload)
-  const blobThumb = URL.createObjectURL(file);
-
-  // Show thumbnail right away in the zone
-  const zone = document.querySelector(`.photo-drop-zone[data-view="${viewKey}"][data-sid="${stepId}"]`);
-  if (zone) {
-    zone.style.border = '2px dashed var(--accent2)';
-    zone.style.background = 'rgba(201,146,42,0.08)';
-    const img = document.createElement('img');
-    img.src = blobThumb;
-    img.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;inset:0;opacity:0.82';
-    const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:absolute;inset:0;background:rgba(0,0,0,0.25)';
-    const lbl = document.createElement('div');
-    lbl.style.cssText = 'position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.65);font-size:0.68rem;color:#fff;padding:2px 3px;text-align:center;font-family:var(--font-head);letter-spacing:0.04em;text-transform:uppercase';
-    // Resolve friendly label from ITEM_VIEWS/BOX_VIEWS
-    const allViews = [...ITEM_VIEWS, ...BOX_VIEWS, ...(typeof ERROR_VIEWS !== 'undefined' ? ERROR_VIEWS : [])];
-    const viewDef = allViews.find(v => v.key === viewKey);
-    const viewLabel = viewDef ? viewDef.label : viewKey;
-    lbl.textContent = viewLabel;
-    zone.innerHTML = '';
-    zone.appendChild(img);
-    zone.appendChild(overlay);
-    zone.appendChild(lbl);
-    // Re-add progress spinner
-    const prog2 = document.createElement('div');
-    prog2.id = 'prog-' + stepId + '-' + viewKey;
-    prog2.style.cssText = 'display:flex;position:absolute;inset:0;background:rgba(0,0,0,0.55);align-items:center;justify-content:center';
-    prog2.innerHTML = '<div class="spinner" style="width:18px;height:18px;border-width:2px"></div>';
-    zone.appendChild(prog2);
-  }
-
-  try {
-    const url = await driveUploadItemPhoto(file, itemNum, viewKey);
-    if (!wizard.data[stepId]) wizard.data[stepId] = {};
-    wizard.data[stepId][viewKey] = url;
-    // Update label to show success, hide spinner
-    if (zone) {
-      const lbl = zone.querySelector('div:last-of-type');
-      const prog3 = document.getElementById('prog-' + stepId + '-' + viewKey);
-      if (prog3) prog3.style.display = 'none';
-      // Find the label div and update to friendly view name
-      const allViews2 = [...ITEM_VIEWS, ...BOX_VIEWS, ...(typeof ERROR_VIEWS !== 'undefined' ? ERROR_VIEWS : [])];
-      const viewDef2 = allViews2.find(v => v.key === viewKey);
-      const viewLabel2 = viewDef2 ? viewDef2.label : viewKey;
-      zone.querySelectorAll('div').forEach(d => {
-        if (d.style.cssText && d.style.cssText.includes('bottom:0')) d.textContent = viewLabel2;
-      });
+    // Repair Upgrade List headers if missing or wrong
+    try {
+      const upgRes = await sheetsGet(sheetId, 'Upgrade List!A2:F2');
+      const upgCurrent = (upgRes.values && upgRes.values[0]) || [];
+      const upgNeedsUpdate = UPGRADE_HEADERS.some((h, i) => upgCurrent[i] !== h);
+      if (upgNeedsUpdate) {
+        await sheetsUpdate(sheetId, 'Upgrade List!A1:A1', [['Upgrade List']]);
+        await sheetsUpdate(sheetId, 'Upgrade List!A2:F2', [UPGRADE_HEADERS]);
+        console.log('[Headers] Upgrade List headers repaired');
+      }
+    } catch(e) {
+      console.warn('[Headers] Upgrade List header check failed:', e.message);
     }
   } catch(e) {
-    console.error('Photo upload failed:', e);
-    showToast('Photo upload failed: ' + e.message);
-  } finally {
-    if (prog) prog.style.display = 'none';
+    console.warn('[Headers] ensurePersonalHeaders failed:', e.message);
   }
 }
 
-function toggleBoxOnly() {
-  wizard.data.boxOnly = !wizard.data.boxOnly;
-  // Reset the step list so it picks up new boxOnly steps
-  wizard.steps = getSteps(wizard.tab);
+async function ensureEphemeraSheets(sheetId) {
+  if (_ensureEphemDone) return;  // Only run once per session — tabs and headers don't change
+  const metaRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties.title`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  const meta = await metaRes.json();
+  const existingTabs = (meta.sheets || []).map(s => s.properties.title);
+  const tabNames = { catalogs:'Catalogs', paper:'Paper Items', mockups:'Mock-Ups', other:'Other Lionel' };
+  const toCreate = [];
+  Object.values(tabNames).forEach(t => {
+    if (!existingTabs.includes(t)) toCreate.push({ addSheet: { properties: { title: t } } });
+  });
+  if (toCreate.length > 0) {
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requests: toCreate }),
+    });
+  }
+  // Write headers — clear extra columns first to fix any stale headers
+  // Clear row 1 and row 2 across all ephemera tabs (A1:P covers any previous wide headers)
+  const _clearReqs = ['Catalogs','Paper Items','Mock-Ups','Other Lionel'].map(t => ({
+    updateCells: {
+      range: { sheetId: 0, startRowIndex: 0, endRowIndex: 2, startColumnIndex: 0, endColumnIndex: 16 },
+      fields: 'userEnteredValue',
+    }
+  }));
+  // Use values API to clear then rewrite cleanly
+  await sheetsUpdate(sheetId, 'Catalogs!A1:P1',    [['Catalogs','','','','','','','','','','','','','','','']]);
+  await sheetsUpdate(sheetId, 'Catalogs!A2:P2',    [CATALOG_HEADERS.concat(['','','','','','',''])]);
+  await sheetsUpdate(sheetId, 'Paper Items!A1:P1', [['Paper Items','','','','','','','','','','','','','','','']]);
+  await sheetsUpdate(sheetId, 'Paper Items!A2:P2', [EPHEMERA_HEADERS.concat(['','','','',''])]);
+  await sheetsUpdate(sheetId, 'Mock-Ups!A1:P1',    [['Mock-Ups','','','','','','','','','','','','','','','']]);
+  await sheetsUpdate(sheetId, 'Mock-Ups!A2:P2',    [MOCKUP_HEADERS.concat([''])]);
+  await sheetsUpdate(sheetId, 'Other Lionel!A1:P1',[['Other Lionel','','','','','','','','','','','','','','','']]);
+  await sheetsUpdate(sheetId, 'Other Lionel!A2:P2',[EPHEMERA_HEADERS.concat(['','','','',''])]);
+  _ensureEphemDone = true;  // Don't run again this session
+  // Instruction Sheets tab
+  if (!existingTabs.includes('Instruction Sheets')) {
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+      method:'POST', headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+      body: JSON.stringify({ requests:[{ addSheet:{ properties:{ title:'Instruction Sheets' } } }] }),
+    });
+  }
+  await sheetsUpdate(sheetId, 'Instruction Sheets!A1:A1', [['Instruction Sheets']]);
+  await sheetsUpdate(sheetId, 'Instruction Sheets!A2:H2', [IS_HEADERS]);
+}
+
+
+// ── GOOGLE DRIVE HELPERS ────────────────────────────────────────
+
+// Orthographic projection order: TOP, LEFT, FRONT, RIGHT, BACK, BOTTOM
+// Grid positions: [TOP=col2], [LEFT=col1, FRONT=col2, RIGHT=col3, BACK=col4], [BOTTOM=col2]
+const ITEM_VIEWS = [
+  { key: 'TV',  label: 'Top View',        abbr: 'Top',        ortho: 'top'   },
+  { key: 'LSV', label: 'Left Side View',  abbr: 'Left Side',  ortho: 'left'  },
+  { key: 'FV',  label: 'Front View',      abbr: 'Front',      ortho: 'front' },
+  { key: 'RSV', label: 'Right Side View', abbr: 'Right Side', ortho: 'right' },
+  { key: 'BKV', label: 'Back View',       abbr: 'Back',       ortho: 'back'  },
+  { key: 'BV',  label: 'Bottom View',     abbr: 'Bottom',     ortho: 'bottom'},
+];
+// Error car close-up photo views
+const ERROR_VIEWS = [
+  { key: 'ERR-1', label: 'Error Close-up 1', abbr: 'ERR-1' },
+  { key: 'ERR-2', label: 'Error Close-up 2', abbr: 'ERR-2' },
+  { key: 'ERR-3', label: 'Error Close-up 3', abbr: 'ERR-3' },
+  { key: 'ERR-4', label: 'Error Close-up 4', abbr: 'ERR-4' },
+];
+
+// Returns a human-friendly label for the item type (for wizard questions)
+function getItemLabel(d) {
+  // Try master data lookup first
+  const itemNum = (d.itemNum || '').trim().replace(/-[PD]$/, '');
+  const master = state.masterData.find(m => m.itemNum === itemNum || m.itemNum === d.itemNum);
+  const t = (master && master.itemType) ? master.itemType.toLowerCase() : '';
+  if (t.includes('steam') || t.includes('diesel') || t.includes('electric')) return 'locomotive';
+  if (t.includes('freight') || t.includes('car')) return 'car';
+  if (t.includes('passenger')) return 'car';
+  if (t.includes('accessory') || t.includes('accessories')) return 'accessory';
+  if (t.includes('track')) return 'track section';
+  if (t.includes('set')) return 'set';
+  return 'item';
+}
+
+const BOX_VIEWS = [
+  { key: 'BOX-TV',  label: 'Box Top',        abbr: 'Top',        ortho: 'top'   },
+  { key: 'BOX-LSV', label: 'Box Left Side',  abbr: 'Left Side',  ortho: 'left'  },
+  { key: 'BOX-FV',  label: 'Box Front',      abbr: 'Front',      ortho: 'front' },
+  { key: 'BOX-RSV', label: 'Box Right Side', abbr: 'Right Side', ortho: 'right' },
+  { key: 'BOX-BKV', label: 'Box Back',       abbr: 'Back',       ortho: 'back'  },
+  { key: 'BOX-BV',  label: 'Box Bottom',     abbr: 'Bottom',     ortho: 'bottom'},
+];
+
+// Folder structure:
+//  My Collection App - Drive Folder/         (vault root — stores sheet + photo subfolders)
+//    My Collection Photos/               (item photo folders)
+//      726/
+//        726 FV.jpg, 726 RSV.jpg ...
+//    My Sold Collection Photos/          (sold item photo folders — moved here on sale)
+
+const driveCache = {
+  vaultId: null,       // "My Collection App - Drive Folder" root
+  photosId: null,      // "My Collection Photos"
+  catalogsId: localStorage.getItem('lv_catalogs_id') || null,
+  isPhotosId: localStorage.getItem('lv_is_id') || null,
+  soldPhotosId: null,  // "My Sold Collection Photos"
+  itemFolders: {},     // itemNum -> folderId
+};
+
+async function driveRequest(method, endpoint, body) {
+  if (!accessToken) {
+    // Try restore from localStorage
+    var saved = localStorage.getItem('lv_token');
+    var expiry = parseInt(localStorage.getItem('lv_token_expiry') || '0');
+    if (saved && expiry > Date.now()) accessToken = saved;
+    else throw new Error('Not signed in');
+  }
+  var res = await fetch('https://www.googleapis.com/drive/v3' + endpoint, {
+    method: method,
+    headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  // If 401 (expired token), try one silent refresh and retry
+  if (res.status === 401 && state.user) {
+    console.warn('[Drive] 401 — attempting token refresh');
+    try {
+      await new Promise(function(resolve, reject) {
+        var _origCb = tokenClient.callback;
+        var _done = false;
+        tokenClient.callback = function(resp) {
+          if (_done) return;
+          _done = true;
+          tokenClient.callback = _origCb;
+          if (resp.error) { reject(new Error(resp.error)); return; }
+          onTokenReceived(resp);
+          resolve();
+        };
+        tokenClient.requestAccessToken({ prompt: '', login_hint: state.user.email || '' });
+        setTimeout(function() { if (!_done) { _done = true; tokenClient.callback = _origCb; reject(new Error('Token refresh timeout')); } }, 10000);
+      });
+    } catch(e) {
+      console.error('[Drive] Token refresh failed:', e);
+      throw new Error('Session expired — please sign in again');
+    }
+    // Retry with fresh token
+    res = await fetch('https://www.googleapis.com/drive/v3' + endpoint, {
+      method: method,
+      headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  }
+  // For 4xx errors (except 401 handled above), return JSON so callers can inspect .error
+  // For 5xx server errors, throw
+  if (res.status >= 500) {
+    var errBody = await res.text().catch(function() { return 'unknown'; });
+    console.error('[Drive] Server error:', res.status, endpoint, errBody);
+    throw new Error('Drive server error (' + res.status + ')');
+  }
+  if (!res.ok) {
+    console.warn('[Drive] API', res.status, method, endpoint);
+  }
+  return res.json();
+}
+
+async function driveUploadFile(file, name, folderId) {
+  if (!folderId) throw new Error('Missing folderId for upload: ' + name);
+  if (!accessToken) {
+    var _s = localStorage.getItem('lv_token');
+    var _e = parseInt(localStorage.getItem('lv_token_expiry') || '0');
+    if (_s && _e > Date.now()) { accessToken = _s; }
+    else throw new Error('Not signed in — please sign in and try again');
+  }
+  const metadata = { name, parents: [folderId], mimeType: file.type };
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+  form.append('file', file);
+  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,webContentLink', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + accessToken },
+    body: form,
+  });
+  if (!res.ok) {
+    const errText = await res.text().catch(() => 'unknown');
+    console.error('[Drive] Upload failed:', res.status, errText);
+    throw new Error('Photo upload failed (HTTP ' + res.status + ')');
+  }
+  return res.json();
+}
+
+async function driveFindOrCreateFolder(name, parentId) {
+  if (!parentId) throw new Error('Missing parentId for folder: ' + name);
+  const q = encodeURIComponent(`name='${name}' and mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`);
+  const res = await driveRequest('GET', `/files?q=${q}&fields=files(id,name)&spaces=drive`);
+  if (res.error) { console.error('[Drive] Folder search error:', name, res.error); throw new Error('Drive folder search failed: ' + (res.error.message || res.error)); }
+  if (res.files && res.files.length > 0) return res.files[0].id;
+  const created = await driveRequest('POST', '/files?fields=id', {
+    name, mimeType: 'application/vnd.google-apps.folder', parents: [parentId],
+  });
+  if (!created || !created.id) {
+    console.error('[Drive] Folder create failed:', name, created);
+    throw new Error('Could not create Drive folder: ' + name);
+  }
+  return created.id;
+}
+
+async function driveUploadPhoto(file, fileName, folderId) {
+  const meta = JSON.stringify({ name: fileName, parents: [folderId] });
+  const form = new FormData();
+  form.append('metadata', new Blob([meta], { type: 'application/json' }));
+  form.append('file', file);
+  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: form,
+  });
+  return res.json();
+}
+
+async function driveMoveFileToFolder(fileId, fromFolderId, toFolderId) {
+  await driveRequest('PATCH', `/files/${fileId}?addParents=${toFolderId}&removeParents=${fromFolderId}&fields=id`, {});
+}
+
+// Called once on first run — creates the full vault folder structure
+async function driveSetupVault() {
+  // Use 'root' directly as parent ID — Drive API accepts it without needing to look up the ID
+  driveCache.vaultId = await driveFindOrCreateFolder('The Boxcar Files - My Collection', 'root');
+  localStorage.setItem('lv_vault_id', driveCache.vaultId);
+
+  // Find or create both photo subfolders (always, so nothing is missing)
+  driveCache.photosId     = await driveFindOrCreateFolder('My Collection Photos',      driveCache.vaultId);
+  driveCache.soldPhotosId = await driveFindOrCreateFolder('My Sold Collection Photos', driveCache.vaultId);
+  localStorage.setItem('lv_photos_id',      driveCache.photosId);
+  localStorage.setItem('lv_sold_photos_id', driveCache.soldPhotosId);
+
+  // Move the personal sheet into the vault folder if we have its ID
+  const sheetId = localStorage.getItem('lv_personal_id');
+  if (sheetId) {
+    try { await driveMoveSheetToVault(sheetId); } catch(e) { console.warn('Sheet move:', e); }
+  }
+
+  // Save config so other devices can discover these IDs
+  if (state.personalSheetId) {
+    driveWriteConfig({
+      personalSheetId: state.personalSheetId,
+      vaultId: driveCache.vaultId,
+      photosId: driveCache.photosId,
+      soldPhotosId: driveCache.soldPhotosId,
+    }).catch(e => console.warn('Config write:', e));
+  }
+  return driveCache.vaultId;
+}
+
+async function driveEnsureSetup() {
+  // If cache is populated AND already validated this session, trust it
+  if (driveCache.vaultId && driveCache.photosId && driveCache.soldPhotosId && driveCache._validated) return;
+  // If cache is populated but not yet validated, check the folder exists
+  if (driveCache.vaultId && driveCache.photosId && driveCache.soldPhotosId) {
+    try {
+      var _vc = await driveRequest('GET', '/files/' + driveCache.photosId + '?fields=id,trashed');
+      if (_vc && _vc.id && !_vc.trashed) { driveCache._validated = true; return; }
+    } catch(e) { /* validation failed, fall through */ }
+    // Cache is stale — clear everything
+    console.warn('[Drive] Cached photosId stale/invalid, re-running setup');
+    driveCache.vaultId = null;
+    driveCache.photosId = null;
+    driveCache.soldPhotosId = null;
+    driveCache.itemFolders = {};
+    localStorage.removeItem('lv_vault_id');
+    localStorage.removeItem('lv_photos_id');
+    localStorage.removeItem('lv_sold_photos_id');
+    await driveSetupVault();
+    driveCache._validated = true;
+    return;
+  }
+  // Try from localStorage (fast path)
+  const vId = localStorage.getItem('lv_vault_id');
+  const pId = localStorage.getItem('lv_photos_id');
+  const sId = localStorage.getItem('lv_sold_photos_id');
+  if (vId && pId && sId) {
+    // Quick-validate that the photos folder still exists
+    try {
+      const check = await driveRequest('GET', '/files/' + pId + '?fields=id,trashed');
+      if (check && check.id && !check.trashed) {
+        driveCache.vaultId      = vId;
+        driveCache.photosId     = pId;
+        driveCache.soldPhotosId = sId;
+        driveCache._validated   = true;
+        return;
+      }
+    } catch(e) { /* fall through to full setup */ }
+    // Cached IDs are stale — clear and re-create
+    console.warn('[Drive] localStorage folder IDs stale, re-running setup');
+    localStorage.removeItem('lv_vault_id');
+    localStorage.removeItem('lv_photos_id');
+    localStorage.removeItem('lv_sold_photos_id');
+  }
+  // Always run full setup so any missing folders get created
+  await driveSetupVault();
+  driveCache._validated = true;
+}
+
+async function driveEnsureItemFolder(itemNum) {
+  await driveEnsureSetup();
+  const key = String(itemNum);
+  if (driveCache.itemFolders[key]) return driveCache.itemFolders[key];
+  const folderId = await driveFindOrCreateFolder(key, driveCache.photosId);
+  driveCache.itemFolders[key] = folderId;
+  return folderId;
+}
+
+async function driveGetFolderPhotos(folderLink) {
+  const match = (folderLink || '').match(/folders\/([a-zA-Z0-9_-]+)/);
+  if (!match) return null;
+  const folderId = match[1];
+  if (!accessToken) return null;
+  try {
+    const q = encodeURIComponent(`'${folderId}' in parents and mimeType contains 'image/' and trashed=false`);
+    const res = await driveRequest('GET', `/files?q=${q}&fields=files(id,name)&orderBy=name`);
+    if (res.error) { console.warn('Drive photo fetch error:', res.error); return null; }
+    return (res.files || []).map(function(f) {
+      return {
+        id: f.id,
+        name: f.name,
+        // Use authenticated media download URL — fetch as blob in loadThumb()
+        mediaUrl: 'https://www.googleapis.com/drive/v3/files/' + f.id + '?alt=media',
+        view: 'https://drive.google.com/file/d/' + f.id + '/view',
+      };
+    });
+  } catch(e) { console.error('driveGetFolderPhotos:', e); return null; }
+}
+
+// Fetch a Drive file as an authenticated blob URL for use in <img loading="lazy" src>
+const _blobCache = {};
+async function loadDriveThumb(fileId, imgEl, containerEl) {
+  const cacheKey = fileId;
+  if (_blobCache[cacheKey]) { imgEl.src = _blobCache[cacheKey]; return; }
+  try {
+    // Use thumbnail endpoint with size parameter (requires auth)
+    const thumbUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&acknowledgeAbuse=true`;
+    const res = await fetch(thumbUrl, {
+      headers: { Authorization: 'Bearer ' + accessToken }
+    });
+    if (!res.ok) {
+      containerEl.innerHTML = '<span style="font-size:0.65rem;color:var(--text-dim)">⚠ ' + res.status + '</span>';
+      return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    _blobCache[cacheKey] = url;
+    imgEl.src = url;
+  } catch(e) {
+    containerEl.innerHTML = '<span style="font-size:0.65rem;color:var(--text-dim)">⚠ err</span>';
+  }
+}
+
+function driveFolderLink(folderId) {
+  return `https://drive.google.com/drive/folders/${folderId}`;
+}
+
+async function driveUploadItemPhoto(file, itemNum, viewAbbr) {
+  console.log('[Drive] Uploading photo:', itemNum, viewAbbr, 'file:', file.name, 'size:', file.size);
+  await driveEnsureSetup();
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const fileName = `${itemNum} ${viewAbbr}.${ext}`;
+  const folderId = await driveEnsureItemFolder(itemNum);
+  console.log('[Drive] Folder ready:', folderId, 'Uploading...');
+  const result = await driveUploadFile(file, fileName, folderId);
+  console.log('[Drive] Upload result:', result && result.id ? 'OK id=' + result.id : 'FAILED', result);
+  if (!result || !result.id) {
+    throw new Error('Upload returned no file ID');
+  }
+  // Return folder link (not individual photo link)
+  return driveFolderLink(folderId);
+}
+
+async function driveMoveToSold(itemNum) {
+  await driveEnsureSetup();
+  const key = String(itemNum);
+  // Find item folder in My Collection Photos
+  const q = encodeURIComponent(`name='${key}' and mimeType='application/vnd.google-apps.folder' and '${driveCache.photosId}' in parents and trashed=false`);
+  const res = await driveRequest('GET', `/files?q=${q}&fields=files(id)`);
+  if (res.files && res.files.length > 0) {
+    const fId = res.files[0].id;
+    await driveMoveFileToFolder(fId, driveCache.photosId, driveCache.soldPhotosId);
+    delete driveCache.itemFolders[key];
+  }
+}
+
+// ── DRIVE CONFIG FILE ───────────────────────────────────────────
+// Stores personalSheetId in a small JSON file in Drive root
+// so any device can find the right sheet after signing in
+
+const CONFIG_FILENAME = 'boxcar-files-config.json';
+
+async function driveReadConfig(retryCount = 0) {
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY_MS = 2000;
+  try {
+    // Search for config file in Drive root
+    const q = encodeURIComponent(`name='${CONFIG_FILENAME}' and trashed=false`);
+    const res = await driveRequest('GET', `/files?q=${q}&fields=files(id,name)&spaces=drive`);
+    if (!res.files || res.files.length === 0) return null;
+    // Read file contents
+    const fileId = res.files[0].id;
+    const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+      headers: { Authorization: 'Bearer ' + accessToken }
+    });
+    return await r.json();
+  } catch(e) {
+    console.warn(`driveReadConfig error (attempt ${retryCount + 1}):`, e);
+    if (retryCount < MAX_RETRIES) {
+      // Show reconnecting message on first retry
+      if (retryCount === 0) showToast('Reconnecting to your collection\u2026');
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+      return driveReadConfig(retryCount + 1);
+    }
+    // All retries failed — show clear message to user
+    showToast('Could not connect to your collection. Try signing out and back in.');
+    return null;
+  }
+}
+
+// Fallback: search Drive for the personal sheet by name
+// Used when config file read fails — always works as long as the sheet exists in Drive
+async function driveFindPersonalSheet() {
+  try {
+    // Search by prefix to find any user's sheet regardless of their name
+    const q = encodeURIComponent(`name contains 'The Boxcar Files -' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`);
+    const res = await driveRequest('GET', `/files?q=${q}&fields=files(id,name)&spaces=drive`);
+    if (res.files && res.files.length > 0) {
+      return res.files[0].id;
+    }
+    return null;
+  } catch(e) {
+    console.warn('driveFindPersonalSheet error:', e);
+    return null;
+  }
+}
+
+async function driveWriteConfig(data) {
+  try {
+    const json = JSON.stringify(data);
+    const blob = new Blob([json], { type: 'application/json' });
+    // Check if file already exists
+    const q = encodeURIComponent(`name='${CONFIG_FILENAME}' and trashed=false`);
+    const res = await driveRequest('GET', `/files?q=${q}&fields=files(id)&spaces=drive`);
+    if (res.files && res.files.length > 0) {
+      // Update existing file
+      const fileId = res.files[0].id;
+      await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+        method: 'PATCH',
+        headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+        body: blob,
+      });
+    } else {
+      // Create new file
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify({ name: CONFIG_FILENAME, mimeType: 'application/json' })], { type: 'application/json' }));
+      form.append('file', blob);
+      await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + accessToken },
+        body: form,
+      });
+    }
+  } catch(e) { console.warn('driveWriteConfig error:', e); }
+}
+
+// Move sheet into vault folder after creation
+async function driveMoveSheetToVault(sheetId) {
+  await driveEnsureSetup();
+  // Get current parents of the sheet file
+  const meta = await driveRequest('GET', `/files/${sheetId}?fields=parents`);
+  const currentParents = (meta.parents || []).join(',');
+  await fetch(`https://www.googleapis.com/drive/v3/files/${sheetId}?addParents=${driveCache.vaultId}&removeParents=${currentParents}&fields=id`, {
+    method: 'PATCH',
+    headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+}
+
+// ── SHEETS API ──────────────────────────────────────────────────
+// Encode range for URL path — just encode spaces
+function _encodeRange(range) {
+  return range.replace(/ /g, '%20');
+}
+
+async function sheetsGet(spreadsheetId, range) {
+  const isMaster = spreadsheetId === state.masterSheetId;
+  const useApiKey = isMaster && API_KEY && API_KEY !== 'YOUR_API_KEY';
+  const urlRange = _encodeRange(range);
+  const url = useApiKey
+    ? `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${urlRange}?key=${API_KEY}`
+    : `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${urlRange}`;
+  const headers = useApiKey
+    ? {}
+    : { Authorization: `Bearer ${accessToken}` };
+  const res = await fetch(url, { headers });
+  return res.json();
+}
+
+// ── Token refresh helper — silently refreshes expired token then retries ──
+// On mobile, tokens expire and the silent refresh sometimes doesn't fire in time.
+// This wraps any fetch so a 401 triggers a fresh token request before retrying once.
+async function _withTokenRetry(fetchFn) {
+  // If no token at all, try to get one silently first
+  if (!accessToken && tokenClient) {
+    await new Promise((resolve, reject) => {
+      const hint = state.user?.email || '';
+      const prev = tokenClient.callback;
+      tokenClient.callback = (resp) => {
+        tokenClient.callback = prev;
+        if (resp.error) { reject(new Error('Token required: ' + resp.error)); return; }
+        accessToken = resp.access_token;
+        resolve();
+      };
+      tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
+      setTimeout(() => reject(new Error('Sign-in timed out')), 10000);
+    });
+  }
+  if (!accessToken) throw new Error('Not signed in — please reload and sign in again');
+
+  const res = await fetchFn();
+  if (res.status === 401 || res.status === 403) {
+    if (!tokenClient) throw new Error('Cannot refresh token — please reload');
+    await new Promise((resolve, reject) => {
+      const hint = state.user?.email || '';
+      const prevCallback = tokenClient.callback;
+      tokenClient.callback = (resp) => {
+        tokenClient.callback = prevCallback;
+        if (resp.error) { reject(new Error('Token refresh failed: ' + resp.error)); return; }
+        accessToken = resp.access_token;
+        resolve();
+      };
+      tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
+      setTimeout(() => reject(new Error('Token refresh timed out')), 8000);
+    });
+    const retryRes = await fetchFn();
+    if (!retryRes.ok) {
+      const errBody = await retryRes.json().catch(() => ({}));
+      throw new Error(`Sheets API error ${retryRes.status}: ${errBody?.error?.message || retryRes.statusText}`);
+    }
+    return retryRes;
+  }
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}));
+    throw new Error(`Sheets API error ${res.status}: ${errBody?.error?.message || res.statusText}`);
+  }
+  return res;
+}
+
+async function sheetsUpdate(spreadsheetId, range, values) {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${_encodeRange(range)}?valueInputOption=USER_ENTERED`;
+  const body = JSON.stringify({ range, majorDimension: 'ROWS', values });
+  const res = await _withTokenRetry(() => fetch(url, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body,
+  }));
+  const json = await res.json();
+  if (json.error) {
+    console.error('sheetsUpdate error:', JSON.stringify(json.error));
+    throw new Error('Sheets update failed: ' + (json.error.message || JSON.stringify(json.error)));
+  }
+  return json;
+}
+
+async function sheetsAppend(spreadsheetId, range, values) {
+  // Extract raw tab name from range (e.g. "For Sale!A:A" -> "For Sale")
+  const tabName = range.includes('!') ? range.split('!')[0] : range;
+
+  // Helper: convert column number (1-based) to letter(s): 1=A, 26=Z, 27=AA
+  function colLetter(n) {
+    let s = '';
+    while (n > 0) { n--; s = String.fromCharCode(65 + (n % 26)) + s; n = Math.floor(n / 26); }
+    return s;
+  }
+
+  // Find the last used row in column A (data starts at row 3)
+  const colARes = await sheetsGet(spreadsheetId, `${tabName}!A3:A`);
+  const nextRow = 3 + ((colARes.values || []).length);
+
+  // Write each row with PUT to an exact range
+  for (let i = 0; i < values.length; i++) {
+    const row = values[i];
+    const endCol = colLetter(Math.max(row.length, 1));
+    const writeRange = `${tabName}!A${nextRow + i}:${endCol}${nextRow + i}`;
+    const body = JSON.stringify({ range: writeRange, majorDimension: 'ROWS', values: [row] });
+    const res = await _withTokenRetry(() => fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${_encodeRange(writeRange)}?valueInputOption=USER_ENTERED`,
+      { method: 'PUT', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body }
+    ));
+    const json = await res.json();
+    if (json.error) {
+      console.error('sheetsAppend (PUT) error:', JSON.stringify(json.error));
+      throw new Error('Sheets write failed: ' + (json.error.message || JSON.stringify(json.error)));
+    }
+    console.log('[Sheets] Wrote row to', writeRange);
+  }
+}
+
+async function sheetsDeleteRow(spreadsheetId, sheetName, rowNumber) {
+  // First get the sheetId (numeric) for the named tab
+  const metaRes = await _withTokenRetry(() => fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  ));
+  const meta = await metaRes.json();
+  const sheet = meta.sheets.find(s => s.properties.title === sheetName);
+  if (!sheet) return;
+  const sheetId = sheet.properties.sheetId;
+
+  // Delete the row (0-indexed, startIndex = rowNumber-1)
+  await _withTokenRetry(() => fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      requests: [{
+        deleteDimension: {
+          range: {
+            sheetId,
+            dimension: 'ROWS',
+            startIndex: rowNumber - 1,
+            endIndex: rowNumber
+          }
+        }
+      }]
+    })
+  }));
+}
+
+async function createPersonalSheet() {
+  // 0. Wait for user info if not yet loaded (async race on first sign-in)
+  if (!state.user || !state.user.name) {
+    try {
+      const info = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: 'Bearer ' + accessToken }
+      }).then(r => r.json());
+      state.user = { name: info.given_name || info.name || 'My', email: info.email, picture: info.picture };
+      localStorage.setItem('lv_user', JSON.stringify(state.user));
+      updateUserUI();
+    } catch(e) { console.warn('[Setup] Could not fetch user info:', e); }
+  }
+
+  // 1. Set up Drive vault folders first
+  await driveSetupVault();
+
+  // 2. Create new spreadsheet
+  const res = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      properties: { title: _getPersonalSheetName() },
+      sheets: [{ properties: { title: 'My Collection' } }]
+    })
+  });
+  const data = await res.json();
+  state.personalSheetId = data.spreadsheetId;
+  localStorage.setItem('lv_personal_id', state.personalSheetId);
+
+  // 3. Write headers and create all tabs
+  await sheetsUpdate(state.personalSheetId, 'My Collection!A1:A1', [['My Collection']]);
+  await sheetsUpdate(state.personalSheetId, 'My Collection!A2:W2', [PERSONAL_HEADERS]);
+  await initPersonalSheet(state.personalSheetId);
+
+  // 4. Move the sheet file into the vault folder
+  try { await driveMoveSheetToVault(state.personalSheetId); } catch(e) { console.warn('Could not move sheet to vault:', e); }
+
+  // 5. Write config to Drive so other devices can find this sheet
+  await driveWriteConfig({
+    personalSheetId: state.personalSheetId,
+    vaultId: driveCache.vaultId,
+    photosId: driveCache.photosId,
+    soldPhotosId: driveCache.soldPhotosId,
+  });
+
+  return state.personalSheetId;
+}
+
+// ── LOAD DATA ───────────────────────────────────────────────────
+// Load/save user-defined tab names
+function loadUserDefinedTabs() {
+  try {
+    state.userDefinedTabs = JSON.parse(localStorage.getItem('lv_user_tabs') || '[]');
+  } catch(e) { state.userDefinedTabs = []; }
+}
+function saveUserDefinedTabs() {
+  localStorage.setItem('lv_user_tabs', JSON.stringify(state.userDefinedTabs));
+}
+
+async function loadAllData() {
+  showLoading();
+  try {
+    loadUserDefinedTabs();
+    // Load master data (uses cache if fresh) and personal data in parallel
+    await Promise.all([loadMasterData(), loadPersonalData(), loadSetData(), loadCompanionData()]);
+    buildApp();
+    showOnboarding();
+    if (typeof vaultInit === 'function') vaultInit();
+    // Re-write config after every successful load so all devices can always find the Sheet ID
+    if (state.personalSheetId) {
+      driveWriteConfig({
+        personalSheetId: state.personalSheetId,
+        vaultId: driveCache.vaultId || '',
+        photosId: driveCache.photosId || '',
+        soldPhotosId: driveCache.soldPhotosId || '',
+      }).catch(e => console.warn('Config refresh:', e));
+    }
+  } catch(e) {
+    showToast('Load error: ' + e.message);
+    const tb = document.getElementById('browse-tbody');
+    if (tb) tb.innerHTML = '<tr><td colspan="9" style="padding:2rem;color:var(--red);text-align:center">Error loading data. Please refresh.<br><small>' + e.message + '</small></td></tr>';
+  }
+}
+
+async function loadMasterData() {
+  // Use cached master data for instant load, refresh in background
+  const _CACHE_VER = '12';
+  if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
+    localStorage.removeItem('lv_master_cache');
+    localStorage.removeItem('lv_personal_cache');
+    localStorage.setItem('lv_cache_ver', _CACHE_VER);
+  }
+  const cached = localStorage.getItem('lv_master_cache');
+  const cachedAt = parseInt(localStorage.getItem('lv_master_cache_ts') || '0');
+  const cacheAge = Date.now() - cachedAt;
+  const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+  if (cached && cacheAge < CACHE_TTL) {
+    try {
+      state.masterData = JSON.parse(cached);
+      // Refresh in background without blocking
+      sheetsGet(state.masterSheetId, 'Master Inventory!A2:M').then(res => {
+        if (!res.values) return sheetsGet(state.masterSheetId, 'Sheet1!A2:M');
+        return res;
+      }).then(res => {
+        if (res && res.values) {
+          parseMasterRows(res.values);
+          localStorage.setItem('lv_master_cache', JSON.stringify(state.masterData));
+          localStorage.setItem('lv_master_cache_ts', Date.now().toString());
+          if (typeof renderBrowse === 'function') renderBrowse();
+        }
+      }).catch(() => {});
+      return;
+    } catch(e) {}
+  }
+
+  let res = await sheetsGet(state.masterSheetId, 'Master Inventory!A2:M');
+  if (!res.values) {
+    res = await sheetsGet(state.masterSheetId, 'Sheet1!A2:M');
+  }
+  const rows = res.values || [];
+  parseMasterRows(rows);
+  localStorage.setItem('lv_master_cache', JSON.stringify(state.masterData));
+  localStorage.setItem('lv_master_cache_ts', Date.now().toString());
+}
+
+function parseMasterRows(rows) {
+  const mapped = rows.map(r => ({
+    itemNum:      r[0]  || '',
+    itemType:     r[1]  || '',
+    subType:      r[2]  || '',
+    unit:         r[3]  || '',   // A or B (new col D)
+    poweredDummy: r[4]  || '',   // P or D (new col E)
+    roadName:     r[5]  || '',
+    description:  r[6]  || '',
+    yearProd:     r[7]  || '',
+    variation:    r[8]  || '',
+    varDesc:      r[9]  || '',
+    refLink:      r[10] || '',
+    notes:        r[11] || '',
+    marketVal:    r[12] || '',
+  }));
+  // Deduplicate by itemNum+variation (keep first occurrence)
+  const seen = new Set();
+  state.masterData = mapped.filter(m => {
+    const key = m.itemNum + '|' + m.variation;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+async function loadSetData() {
+  try {
+    const cached = localStorage.getItem('lv_set_cache');
+    const cachedAt = parseInt(localStorage.getItem('lv_set_cache_ts') || '0');
+    if (cached && (Date.now() - cachedAt) < 24*60*60*1000) {
+      state.setData = JSON.parse(cached);
+      // Background refresh
+      sheetsGet(state.masterSheetId, 'Master Set list!A2:U').then(res => {
+        if (res && res.values) {
+          parseSetRows(res.values);
+          localStorage.setItem('lv_set_cache', JSON.stringify(state.setData));
+          localStorage.setItem('lv_set_cache_ts', Date.now().toString());
+        }
+      }).catch(() => {});
+      return;
+    }
+    const res = await sheetsGet(state.masterSheetId, 'Master Set list!A2:U');
+    parseSetRows((res && res.values) || []);
+    localStorage.setItem('lv_set_cache', JSON.stringify(state.setData));
+    localStorage.setItem('lv_set_cache_ts', Date.now().toString());
+  } catch(e) { console.warn('loadSetData:', e); state.setData = []; }
+}
+
+async function loadCompanionData() {
+  try {
+    const cached = localStorage.getItem('lv_companion_cache');
+    const cachedAt = parseInt(localStorage.getItem('lv_companion_cache_ts') || '0');
+    if (cached && (Date.now() - cachedAt) < 24*60*60*1000) {
+      state.companionData = JSON.parse(cached);
+      sheetsGet(state.masterSheetId, 'Companions!A2:E').then(res => {
+        if (res && res.values) {
+          parseCompanionRows(res.values);
+          localStorage.setItem('lv_companion_cache', JSON.stringify(state.companionData));
+          localStorage.setItem('lv_companion_cache_ts', Date.now().toString());
+        }
+      }).catch(() => {});
+      return;
+    }
+    const res = await sheetsGet(state.masterSheetId, 'Companions!A2:E');
+    parseCompanionRows((res && res.values) || []);
+    localStorage.setItem('lv_companion_cache', JSON.stringify(state.companionData));
+    localStorage.setItem('lv_companion_cache_ts', Date.now().toString());
+  } catch(e) { console.warn('loadCompanionData:', e); state.companionData = []; }
+}
+
+function parseCompanionRows(rows) {
+  state.companionData = rows
+    .filter(r => r[0] && r[2])
+    .map(r => ({
+      engineNum:     (r[0] || '').trim(),
+      engineVar:     (r[1] || '').trim(),
+      companionNum:  (r[2] || '').trim(),
+      companionType: (r[3] || '').trim(),
+      notes:         (r[4] || '').trim(),
+    }));
+}
+
+function parseSetRows(rows) {
+  state.setData = rows
+    .filter(r => r[0])
+    .map(r => ({
+      setNum:   (r[0]  || '').trim(),
+      setName:  (r[1]  || '').trim(),
+      year:     (r[2]  || '').trim(),
+      gauge:    (r[3]  || '').trim(),
+      price:    (r[4]  || '').trim(),
+      items:    [r[5],r[6],r[7],r[8],r[9],r[10],r[11],r[12],r[13],r[14],r[15]]
+                  .map(v => (v||'').trim()).filter(Boolean),
+      alts:     [r[16],r[17],r[18],r[19]]
+                  .map(v => (v||'').trim()).filter(Boolean),
+      notes:    (r[20] || '').trim(),
+    }));
+}
+
+// Find sets that match a list of item numbers (for set suggestion)
+function suggestSets(enteredItems) {
+  if (!enteredItems.length) return [];
+  const norm = n => normalizeItemNum((n||'').trim());
+  return state.setData
+    .map(s => {
+      const allItems = s.items;
+      const allAlts  = s.alts;
+      let primaryMatches = 0, altMatches = 0, matchedAlts = [];
+      enteredItems.forEach(ei => {
+        const en = norm(ei);
+        if (allItems.some(si => norm(si) === en)) {
+          primaryMatches++;
+        } else if (allAlts.some(ai => norm(ai) === en)) {
+          altMatches++;
+          matchedAlts.push(ei);
+        }
+      });
+      const total = primaryMatches + altMatches;
+      return { ...s, primaryMatches, altMatches, matchedAlts, total };
+    })
+    .filter(s => s.total >= 2)
+    .sort((a, b) => b.total - a.total || b.primaryMatches - a.primaryMatches)
+    .slice(0, 5);
+}
+
+async function loadPersonalData() {
+  if (!state.personalSheetId) {
+    state.personalSheetId = localStorage.getItem('lv_personal_id');
+  }
+  if (!state.personalSheetId) return;
+
+  // Use cached personal data for instant load (2 hour TTL)
+  const _pcache = localStorage.getItem('lv_personal_cache');
+  const _ptime  = parseInt(localStorage.getItem('lv_personal_cache_ts') || '0');
+  const _PAGE_TTL    = 2 * 60 * 60 * 1000; // 2 hours
+  const _BG_REFRESH  = 5 * 60 * 1000;      // background refresh throttle: 5 min
+  if (_pcache && (Date.now() - _ptime) < _PAGE_TTL) {
+    try {
+      const _pd = JSON.parse(_pcache);
+      state.personalData  = _pd.personalData  || {};
+      state.soldData      = _pd.soldData      || {};
+      state.forSaleData   = _pd.forSaleData   || {};
+      state.wantData      = _pd.wantData      || {};
+      state.isData        = _pd.isData        || {};
+      state.ephemeraData  = _pd.ephemeraData  || { catalogs:{}, paper:{}, mockups:{}, other:{} };
+      // Only background-refresh if cache is older than 5 minutes
+      if ((Date.now() - _ptime) > _BG_REFRESH) {
+        _loadPersonalFromSheets(state.personalSheetId).then(() => {
+          _cachePersonalData();
+          buildDashboard();
+          renderBrowse();
+        }).catch(() => {});
+      }
+      return;
+    } catch(e) {}
+  }
+
+  ensureEphemeraSheets(state.personalSheetId).catch(() => {});
+  await ensurePersonalHeaders(state.personalSheetId).catch(() => {});
+  await _loadPersonalFromSheets(state.personalSheetId);
+  _cachePersonalData();
+}
+
+function _cachePersonalData() {
+  try {
+    const _snap = {
+      personalData: state.personalData,
+      soldData: state.soldData,
+      forSaleData: state.forSaleData,
+      wantData: state.wantData,
+      isData: state.isData,
+      ephemeraData: state.ephemeraData,
+    };
+    localStorage.setItem('lv_personal_cache', JSON.stringify(_snap));
+    localStorage.setItem('lv_personal_cache_ts', Date.now().toString());
+  } catch(e) {}
+}
+
+async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
+  // Use temporary objects — only commit to state if fetch succeeds
+  // This prevents a failed/slow fetch from wiping items that were just saved
+  const newPersonal = {};
+  const newSold     = {};
+  const newWant     = {};
+  const newIsData   = {};
+  const newEphemera = { catalogs:{}, paper:{}, mockups:{}, other:{} };
+  const newForSale = {};
+
+  // Fetch all tabs in parallel
+  const [collRes, soldRes, forSaleRes, wantRes, upgradeRes,
+         catRes, paperRes, mockRes, otherRes, isRes] = await Promise.all([
+    sheetsGet(sheetId, 'My Collection!A3:W').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Sold!A3:H').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'For Sale!A3:H').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Want List!A3:E').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Upgrade List!A3:F').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Catalogs!A3:I').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Paper Items!A3:J').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Mock-Ups!A3:O').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Other Lionel!A3:J').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Instruction Sheets!A3:H').catch(() => ({values:[]})),
+  ]);
+
+  // My Collection
+  (collRes.values || []).forEach((r, idx) => {
+    if (!r[0] || r[0] === 'Item Number') return;
+    const rowNum = idx + 3;
+    const key = `${r[0]}|${r[1] || ''}|${rowNum}`;
+    newPersonal[key] = {
+      row: rowNum, itemNum: r[0]||'', variation: r[1]||'',
+      status: 'Owned', owned: true,
+      condition: r[2]||'', allOriginal: r[3]||'',
+      priceItem: r[4]||'', priceBox: r[5]||'', priceComplete: r[6]||'',
+      hasBox: r[7]||'', boxCond: r[8]||'',
+      photoItem: r[9]||'', photoBox: r[10]||'',
+      notes: r[11]||'', datePurchased: r[12]||'',
+      userEstWorth: r[13]||'', matchedTo: r[14]||'',
+      setId: r[15]||'', yearMade: r[16]||'',
+      isError: r[17]||'', errorDesc: r[18]||'',
+      quickEntry: r[19] === 'Yes',
+      inventoryId: r[20]||'', groupId: r[21]||'',
+      location: r[22]||'',
+    };
+  });
+
+  // Sold
+  (soldRes.values || []).forEach((r, idx) => {
+    if (!r[0] || r[0] === 'Item Number') return;
+    const key = `${r[0]}|${r[1]||''}`;
+    newSold[key] = {
+      row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
+      copy: r[2]||'1', condition: r[3]||'', priceItem: r[4]||'',
+      salePrice: r[5]||'', dateSold: r[6]||'', notes: r[7]||'',
+    };
+  });
+
+  // For Sale
+  (forSaleRes.values || []).forEach((r, idx) => {
+    if (!r[0] || r[0] === 'Item Number') return;
+    const key = `${r[0]}|${r[1]||''}`;
+    newForSale[key] = {
+      row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
+      condition: r[2]||'', askingPrice: r[3]||'', dateListed: r[4]||'',
+      notes: r[5]||'', originalPrice: r[6]||'', estWorth: r[7]||'',
+    };
+  });
+
+  // Want List
+  (wantRes.values || []).forEach((r, idx) => {
+    if (!r[0] || r[0] === 'Item Number') return;
+    const key = `${r[0]}|${r[1]||''}`;
+    newWant[key] = {
+      row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
+      priority: r[2]||'Medium', expectedPrice: r[3]||'', notes: r[4]||'',
+    };
+  });
+
+  // Upgrade List
+  (upgradeRes.values || []).forEach((r, idx) => {
+    if (!r[0] || r[0] === 'Item Number') return;
+    const key = `${r[0]}|${r[1]||''}`;
+    state.upgradeData[key] = {
+      row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
+      priority: r[2]||'Medium', targetCondition: r[3]||'', maxPrice: r[4]||'', notes: r[5]||'',
+    };
+  });
+
+  // Instruction Sheets
+  const _isRows = (isRes && isRes.values) || [];
+  _isRows.forEach((r, idx) => {
+    if (!r[0] || r[0] === 'Sheet #' || r[0] === 'Instruction Sheets') return;
+    const key = idx + 3;
+    newIsData[key] = {
+      row: key, sheetNum: r[0]||'', linkedItem: r[1]||'', year: r[2]||'',
+      condition: r[3]||'', notes: r[4]||'', photoLink: r[5]||'',
+      inventoryId: r[6]||'', groupId: r[7]||'',
+    };
+  });
+
+  // Ephemera tabs
+  // Initialize user-defined tab buckets
+  (state.userDefinedTabs||[]).forEach(t => { newEphemera[t.id] = {}; });
+
+  function parseEphemeraRows(rows, bucket) {
+    (rows || []).forEach((r, idx) => {
+      if (!r[0] || r[0] === 'Item ID' || r[0] === 'Title') return;
+      const key = idx + 3;
+      // Detect old format (no Item ID): if r[0] looks like a title (not a system ID like 8157-PAP)
+      const hasItemId = /^\d{4}-[A-Z]+/.test(r[0]);
+      if (hasItemId) {
+        bucket[key] = {
+          row: key, itemNum: r[0]||'', title: r[1]||'', description: r[2]||'', year: r[3]||'',
+          manufacturer: r[4]||'Lionel', condition: r[5]||'', quantity: r[6]||'1',
+          estValue: r[7]||'', photoLink: r[8]||'', notes: r[9]||'', dateAcquired: r[10]||'',
+        };
+      } else {
+        // Legacy row without Item ID
+        bucket[key] = {
+          row: key, itemNum: '', title: r[0]||'', description: r[1]||'', year: r[2]||'',
+          manufacturer: r[3]||'Lionel', condition: r[4]||'', quantity: r[5]||'1',
+          estValue: r[6]||'', photoLink: r[7]||'', notes: r[8]||'', dateAcquired: r[9]||'',
+        };
+      }
+    });
+  }
+  // Catalogs have their own column layout
+  (catRes.values || []).forEach((r, idx) => {
+    // Skip header rows: first cell is 'Item ID', 'Type', or 'Catalogs'
+    if (!r[0] || r[0] === 'Item ID' || r[0] === 'Type' || r[0] === 'Catalogs') return;
+    const key = idx + 3;
+    // Columns: ItemID(0) Type(1) Year(2) HasMailer(3) Condition(4) EstValue(5) DateAcq(6) Notes(7) PhotoLink(8)
+    const catType = r[1]||'';
+    const year = r[2]||'';
+    const title = [year, catType, 'Catalog'].filter(Boolean).join(' ');
+    newEphemera.catalogs[key] = {
+      row: key, itemNum: r[0]||'', title,
+      catType, year, hasMailer: r[3]||'No',
+      condition: r[4]||'', estValue: r[5]||'', dateAcquired: r[6]||'',
+      notes: r[7]||'', photoLink: r[8]||'',
+    };
+  });
+  parseEphemeraRows(paperRes.values, newEphemera.paper);
+  parseEphemeraRows(otherRes.values, newEphemera.other);
+  // Re-populate type filter now that ephemera data is loaded (only if already populated)
+  if (typeof populateFilters === 'function' && document.getElementById('filter-type') &&
+      document.getElementById('filter-type').options.length > 1) {
+    document.getElementById('filter-type').innerHTML = '<option value="">All Types</option>';
+    document.getElementById('filter-road').innerHTML = '<option value="">All Roads</option>';
+    populateFilters();
+  }
+
+  // User-defined tabs — load their sheet data
+  const _utPromises = (state.userDefinedTabs||[]).map(ut =>
+    sheetsGet(sheetId, ut.label + '!A3:J').catch(() => ({values:[]}))
+      .then(utRes => parseEphemeraRows(utRes.values, newEphemera[ut.id]))
+      .catch(() => {})
+  );
+  await Promise.all(_utPromises);
+
+  // Mock-ups have extra fields
+  (mockRes.values || []).forEach((r, idx) => {
+    if (!r[0] || r[0] === 'Title') return;
+    const key = idx + 3;
+    newEphemera.mockups[key] = {
+      row: key, title: r[0]||'', itemNumRef: r[1]||'', description: r[2]||'',
+      year: r[3]||'', manufacturer: r[4]||'Lionel', condition: r[5]||'',
+      productionStatus: r[6]||'', material: r[7]||'', dimensions: r[8]||'',
+      provenance: r[9]||'', lionelVerified: r[10]||'', estValue: r[11]||'',
+      photoLink: r[12]||'', notes: r[13]||'', dateAcquired: r[14]||'',
+    };
+  });
+
+  // ── Commit to state ──
+  // forceOverwrite: always replace (used by Sync button)
+  // Normal load: only replace if sheet returned data (protects optimistic items)
+  if (forceOverwrite || Object.keys(newPersonal).length > 0 || Object.keys(state.personalData).length === 0) {
+    state.personalData = newPersonal;
+  }
+  if (forceOverwrite || Object.keys(newSold).length > 0 || Object.keys(state.soldData).length === 0) {
+    state.soldData = newSold;
+  }
+  if (forceOverwrite || Object.keys(newForSale).length > 0 || Object.keys(state.forSaleData).length === 0) {
+    state.forSaleData = newForSale;
+  }
+  if (forceOverwrite || Object.keys(newWant).length > 0 || Object.keys(state.wantData).length === 0) {
+    state.wantData = newWant;
+  }
+  state.isData = newIsData;
+  state.ephemeraData = newEphemera;
+}
+
+// ── BUILD APP ───────────────────────────────────────────────────
+function buildApp() {
+  showApp();
+  populateFilters();
+  buildDashboard();
+  _maybeShowAdminPrefs();
+  _applyDisclaimerPref();
+  // Upgrade count badge
+  const _uEl = document.getElementById('nav-upgrade-count');
+  if (_uEl) { const _uc = Object.values(state.upgradeData||{}).length; _uEl.textContent = _uc > 0 ? _uc.toLocaleString() : '—'; }
+  // Wire up the Google Sheet link in the sidebar
+  const sheetLink = document.getElementById('nav-sheet-link');
+  if (sheetLink && state.personalSheetId) {
+    sheetLink.href = 'https://docs.google.com/spreadsheets/d/' + state.personalSheetId;
+  }
+  buildQuickEntryList();
+  // Initialize location preference toggle
+  const _locToggle = document.getElementById('pref-location-toggle');
+  if (_locToggle) _locToggle.checked = _prefLocEnabled;
+  // Browse, Sold, For Sale, Want, Reports built lazily on first nav via showPage()
+  // Auto-launch tutorial for first-time users
+  if (typeof tutCheckAutoLaunch === 'function') tutCheckAutoLaunch();
+  // Initialize back-button interception after app is ready
+  _initBackButton();
+}
+
+function showLoading() {
+  const tb = document.getElementById('browse-tbody');
+  if (tb) tb.innerHTML = '<tr><td colspan="9"><div class="loading" style="padding:3rem;flex-direction:column;gap:0.75rem"><div class="spinner" style="width:36px;height:36px;border-width:3px"></div><div style="font-size:0.9rem;color:var(--text-dim)">Loading The Boxcar Files…</div><div style="font-size:0.75rem;color:var(--text-dim);opacity:0.7">Fetching master inventory</div></div></td></tr>';
+}
+
+// ── DASHBOARD ───────────────────────────────────────────────────
+
+async function forceRefreshData() {
+  const btn  = document.getElementById('refresh-btn');
+  const icon = document.getElementById('refresh-icon');
+  if (btn) btn.disabled = true;
+  if (icon) icon.style.animation = 'spin 0.8s linear infinite';
+  try {
+    localStorage.removeItem('lv_personal_cache');
+    localStorage.removeItem('lv_personal_cache_ts');
+    // Wipe state completely so merge logic can't keep stale optimistic items
+    state.personalData = {};
+    state.soldData = {};
+    state.forSaleData = {};
+    state.wantData = {};
+    await _loadPersonalFromSheets(state.personalSheetId, true);
+    _cachePersonalData();
+    resetFilters();
+    buildDashboard();
+    buildSoldPage();
+    buildForSalePage();
+    buildWantPage();
+    renderBrowse();
+    buildQuickEntryList && buildQuickEntryList();
+    showToast('✓ Synced from Google Sheet');
+  } catch(e) {
+    console.error('Sync error:', e);
+    showToast('Sync failed: ' + e.message, 5000, true);
+  } finally {
+    if (btn)  btn.disabled = false;
+    if (icon) icon.style.animation = '';
+  }
+}
+
+
+
+// ══════════════════════════════════════════════════════════════════
+// DASHBOARD CARD CATALOG — 5 independent slots
+// Each slot: {id:'engines'} or null for empty
+// ══════════════════════════════════════════════════════════════════
+const CARD_CATALOG = [
+  {
+    id: 'owned', label: 'Items I Own', color: '#3aad70',
+    compute: function(state) {
+      const allOwned = Object.values(state.personalData).filter(pd => {
+        if (!pd.owned) return false;
+        const condVal = (pd.condition||'').toString().trim();
+        const priceVal = (pd.priceItem||'').toString().trim();
+        const noCondition = !condVal || condVal === 'N/A';
+        const noItemPrice = !priceVal || priceVal === 'N/A';
+        return !(pd.hasBox === 'Yes' && noCondition && noItemPrice);
+      }).length;
+      let ephCount = 0;
+      Object.values(state.ephemeraData||{}).forEach(b => { ephCount += Object.keys(b).length; });
+      const total = allOwned + ephCount;
+      return { value: total.toLocaleString(), sub: ephCount > 0 ? 'incl. ' + ephCount + ' other items' : 'including variations' };
+    }
+  },
+  {
+    id: 'value', label: 'Collection Value', color: '#c9922a',
+    compute: function(state) {
+      let total = 0;
+      Object.values(state.personalData).filter(pd=>pd.owned).forEach(pd => {
+        if (pd.userEstWorth) total += parseFloat(pd.userEstWorth)||0;
+      });
+      Object.values(state.ephemeraData||{}).forEach(b => { Object.values(b).forEach(it => { if (it.estValue) total += parseFloat(it.estValue)||0; }); });
+      return { value: total > 0 ? '$' + Math.round(total).toLocaleString() : '—', sub: 'estimated worth' };
+    }
+  },
+  {
+    id: 'catalog', label: 'Catalog Items I Own', color: '#3498db',
+    compute: function(state) {
+      const catNums = new Set(state.masterData.map(m => normalizeItemNum(m.itemNum)));
+      const ownedNums = new Set(Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum)));
+      const unique = [...ownedNums].filter(n=>catNums.has(n)).length;
+      const pct = catNums.size > 0 ? (unique/catNums.size*100).toFixed(1) : 0;
+      return { value: unique.toLocaleString(), sub: pct + '% of all Lionel items cataloged' };
+    }
+  },
+  {
+    id: 'engines', label: 'Total Engines', color: '#e74c3c',
+    compute: function(state) {
+      const owned = new Set(Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum)));
+      const count = state.masterData.filter(m => {
+        const t = (m.itemType||'').toLowerCase();
+        return (t.includes('steam')||t.includes('diesel')||t.includes('electric')||t.includes('locomotive')) && owned.has(normalizeItemNum(m.itemNum));
+      }).length;
+      return { value: count.toLocaleString(), sub: 'locomotives in collection' };
+    }
+  },
+  {
+    id: 'cabooses', label: 'Total Cabooses', color: '#c0392b',
+    compute: function(state) {
+      const owned = new Set(Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum)));
+      const count = state.masterData.filter(m => (m.itemType||'').toLowerCase().includes('caboose') && owned.has(normalizeItemNum(m.itemNum))).length;
+      return { value: count.toLocaleString(), sub: 'cabooses in collection' };
+    }
+  },
+  {
+    id: 'freight', label: 'Total Freight Cars', color: '#8e44ad',
+    compute: function(state) {
+      const owned = new Set(Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum)));
+      const count = state.masterData.filter(m => {
+        const t = (m.itemType||'').toLowerCase();
+        return (t.includes('freight')||t.includes('box car')||t.includes('boxcar')||t.includes('gondola')||t.includes('hopper')||t.includes('tank')||t.includes('flat')) && owned.has(normalizeItemNum(m.itemNum));
+      }).length;
+      return { value: count.toLocaleString(), sub: 'freight cars in collection' };
+    }
+  },
+  {
+    id: 'passenger', label: 'Total Passenger Cars', color: '#2980b9',
+    compute: function(state) {
+      const owned = new Set(Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum)));
+      const count = state.masterData.filter(m => (m.itemType||'').toLowerCase().includes('passenger') && owned.has(normalizeItemNum(m.itemNum))).length;
+      return { value: count.toLocaleString(), sub: 'passenger cars in collection' };
+    }
+  },
+  {
+    id: 'accessories', label: 'Total Accessories', color: '#16a085',
+    compute: function(state) {
+      const owned = new Set(Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum)));
+      const count = state.masterData.filter(m => (m.itemType||'').toLowerCase().includes('accessor') && owned.has(normalizeItemNum(m.itemNum))).length;
+      return { value: count.toLocaleString(), sub: 'accessories in collection' };
+    }
+  },
+  {
+    id: 'sets', label: 'Total Sets', color: '#d35400',
+    compute: function(state) {
+      const owned = new Set(Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum)));
+      const count = state.masterData.filter(m => (m.itemType||'').toLowerCase().includes('set') && owned.has(normalizeItemNum(m.itemNum))).length;
+      return { value: count.toLocaleString(), sub: 'sets in collection' };
+    }
+  },
+  {
+    id: 'photos', label: 'Items with Photos', color: '#f39c12',
+    compute: function(state) {
+      const count = Object.values(state.personalData).filter(pd => pd.owned && pd.photoItem).length;
+      const total = Object.values(state.personalData).filter(pd => pd.owned).length;
+      return { value: count.toLocaleString(), sub: count === 0 ? 'add photos in item detail' : 'of ' + total + ' items have photos' };
+    }
+  },
+  {
+    id: 'forsale', label: 'For Sale', color: '#e67e22',
+    compute: function(state) {
+      const items = Object.values(state.forSaleData||{});
+      const count = items.length;
+      const total = items.reduce((s,i) => s + (parseFloat(i.askingPrice)||0), 0);
+      return { value: count.toLocaleString() + (count===1?' item':' items'), sub: total > 0 ? '$' + Math.round(total).toLocaleString() + ' total asking' : 'no asking prices set' };
+    }
+  }
+];;
+
+const MAX_CARDS = 5;
+const _DEFAULT_SLOTS = [{id:'owned'},{id:'value'},{id:'catalog'},null,null];
+
+function _getSlots() {
+  try {
+    const saved = _prefGet('lv_dash_slots','');
+    if (saved) return JSON.parse(saved);
+  } catch(e) {}
+  // Migrate from old flat array format if present
+  try {
+    const oldSaved = _prefGet('lv_dash_cards','');
+    if (oldSaved) {
+      const oldArr = JSON.parse(oldSaved);
+      if (Array.isArray(oldArr)) {
+        const migrated = [null,null,null,null,null];
+        oldArr.slice(0,5).forEach(function(id,i) { migrated[i] = {id:id}; });
+        return migrated;
+      }
+    }
+  } catch(e) {}
+  return _DEFAULT_SLOTS.map(s => s ? Object.assign({},s) : null);
+}
+
+function _saveSlots(slots) {
+  _prefSet('lv_dash_slots', JSON.stringify(slots));
+}
+
+// ── Card edit popup ───────────────────────────────────────────────
+function _openCardPopup(slotIdx) {
+  _closeCardPopup();
+  const slots = _getSlots();
+  const slot   = slots[slotIdx] || null;
+  const currentId = slot ? slot.id : '';
+
+  const popup = document.createElement('div');
+  popup.id = 'card-popup';
+  popup.style.cssText = 'position:fixed;z-index:99990;background:var(--surface,#161c34);border:1px solid var(--border,#2a3a5c);border-radius:12px;padding:1rem;box-shadow:0 8px 32px rgba(0,0,0,0.5);min-width:240px;max-width:280px';
+
+  const opts = CARD_CATALOG.map(function(c) {
+    const lbl = c.label;
+    return '<option value="' + c.id + '"' + (c.id === currentId ? ' selected' : '') + '>' + lbl + '</option>';
+  }).join('');
+  popup.innerHTML =
+    '<div style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.65rem">Card Slot ' + (slotIdx+1) + '</div>' +
+    '<select id="card-popup-select" onchange="_onCardPopupChange(' + slotIdx + ',this.value)" style="width:100%;padding:0.4rem 0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;margin-bottom:0.65rem">' +
+      '<option value="">— None (remove this card) —</option>' + opts +
+    '</select>'
+    +
+    '<div style="display:flex;justify-content:flex-end">' +
+      '<button onclick="_closeCardPopup()" style="padding:0.3rem 0.9rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.8rem;cursor:pointer">Done</button>' +
+    '</div>';
+
+  document.body.appendChild(popup);
+
+  // Position anchored below the card, clamped to viewport
+  var cardEl = document.getElementById('dash-card-' + slotIdx);
+  if (!cardEl) cardEl = document.getElementById('dash-card-add');
+  if (cardEl) {
+    var rect = cardEl.getBoundingClientRect();
+    var top  = rect.bottom + 8;
+    var left = rect.left;
+    if (top + 220 > window.innerHeight - 16) top = rect.top - 220 - 8;
+    if (left + 280 > window.innerWidth  -  8) left = window.innerWidth - 288;
+    if (left < 8) left = 8;
+    popup.style.top  = Math.max(8, top)  + 'px';
+    popup.style.left = left + 'px';
+  } else {
+    popup.style.top  = '50%';
+    popup.style.left = '50%';
+    popup.style.transform = 'translate(-50%,-50%)';
+  }
+
+  // Dismiss on outside click
+  setTimeout(function() {
+    document.addEventListener('mousedown', _popupOutsideClick);
+  }, 60);
+}
+
+function _popupOutsideClick(e) {
+  var p = document.getElementById('card-popup');
+  if (p && !p.contains(e.target)) _closeCardPopup();
+}
+
+function _closeCardPopup() {
+  var p = document.getElementById('card-popup');
+  if (p) p.remove();
+  document.removeEventListener('mousedown', _popupOutsideClick);
+}
+
+function _onCardPopupChange(slotIdx, newId) {
+  var slots = _getSlots();
+  slots[slotIdx] = newId ? {id: newId} : null;
+  _saveSlots(slots);
+  buildDashboard();
+  // Re-anchor popup to new card position after rebuild
+  setTimeout(function() {
+    var p = document.getElementById('card-popup');
+    var cardEl = document.getElementById('dash-card-' + slotIdx) || document.getElementById('dash-card-add');
+    if (p && cardEl) {
+      var rect = cardEl.getBoundingClientRect();
+      var top  = rect.bottom + 8;
+      var left = rect.left;
+      if (top + 220 > window.innerHeight - 16) top = rect.top - 220 - 8;
+      if (left + 280 > window.innerWidth  -  8) left = window.innerWidth - 288;
+      p.style.top  = Math.max(8, top) + 'px';
+      p.style.left = Math.max(8, left) + 'px';
+    }
+  }, 50);
+}
+
+function buildDashboard() {
+  const total = state.masterData.length;
+
+  // Count ALL owned entries including box-only rows
+  const allOwned = Object.values(state.personalData).filter(pd => {
+    if (!pd.owned) return false;
+    // Exclude pure box-only rows (has box but NO item condition AND NO item price)
+    const condVal = pd.condition?.toString().trim();
+    const priceVal = pd.priceItem?.toString().trim();
+    const noCondition = !condVal || condVal === '' || condVal === 'N/A';
+    const noItemPrice = !priceVal || priceVal === '' || priceVal === 'N/A';
+    const isBoxOnly = pd.hasBox === 'Yes' && noCondition && noItemPrice;
+    return !isBoxOnly; // count everything except pure box-only rows
+  });
+  const owned = allOwned.length;
+  const pct = total > 0 ? Math.round((owned / total) * 100) : 0;
+
+  let totalValue = 0, condSum = 0, condCount = 0, boxedCount = 0, origCount = 0;
+  // Count value across ALL owned rows (items + boxes)
+  const allOwnedEntries = Object.values(state.personalData).filter(pd => pd.owned);
+  allOwnedEntries.forEach(pd => {
+    if (pd.userEstWorth) totalValue += parseFloat(pd.userEstWorth) || 0;
+  });
+  // Add ephemera values
+  let ephemeraCount = 0;
+  Object.values(state.ephemeraData || {}).forEach(bucket => {
+    Object.values(bucket).forEach(item => {
+      ephemeraCount++;
+      if (item.estValue) totalValue += parseFloat(item.estValue) || 0;
+    });
+  });
+
+  allOwned.forEach(pd => {
+    if (pd.condition && pd.condition !== 'N/A') { const c = parseInt(pd.condition); if (!isNaN(c)) { condSum += c; condCount++; } }
+    if (pd.hasBox === 'Yes') boxedCount++;
+    if (pd.allOriginal === 'Yes') origCount++;
+  });
+
+  const totalOwned = owned + ephemeraCount;
+  // ── Render dashboard stat cards (slot-based) ─────────────────
+  const _statsGrid = document.getElementById('stats-grid');
+  if (_statsGrid) {
+    const slots = _getSlots();
+    const activeSlots = slots.map(function(slot,i){return{slot,i};}).filter(function(s){return s.slot!==null;});
+    if (activeSlots.length === 0) {
+      _statsGrid.innerHTML =
+        '<button onclick="_openCardPopup(0)" style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 1rem;border-radius:8px;border:1.5px dashed var(--border,#2a3a5c);background:transparent;color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer" ' +
+        'onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\'" ' +
+        'onmouseout="this.style.borderColor=\'var(--border,#2a3a5c)\';this.style.color=\'var(--text-dim)\'">' +
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
+        'Add a stat card</button>';
+      _statsGrid.style.cssText = 'display:flex;padding:0.25rem 0;margin-bottom:0.5rem';
+    } else {
+      _statsGrid.style.cssText = '';
+      let html = activeSlots.map(function(s) {
+        const slot = s.slot, i = s.i;
+        const card = CARD_CATALOG.find(function(c){return c.id===slot.id;});
+        if (!card) return '';
+        const result = card.compute(state, i);
+        const cardLabel = card.label;
+        return '<div class="stat-card" id="dash-card-' + i + '" style="--card-accent:' + card.color + ';cursor:pointer;position:relative" onclick="_openCardPopup(' + i + ')" title="Click to customize">'
+          + '<div style="position:absolute;top:6px;right:8px;font-size:0.65rem;color:var(--text-dim);opacity:0.45">✎</div>'
+          + '<div class="stat-label">' + cardLabel + '</div>'
+          + '<div class="stat-value">' + result.value + '</div>'
+          + '<div class="stat-sub">' + result.sub + '</div>'
+          + '</div>';
+      }).join('');
+      if (activeSlots.length < MAX_CARDS) {
+        var nextNull = slots.indexOf(null);
+        html += '<div style="grid-column:1/-1;text-align:right;padding:0.15rem 0.1rem 0">'
+          + '<button onclick="_openCardPopup(' + nextNull + ')" style="background:none;border:none;color:var(--text-dim);font-size:0.75rem;font-family:var(--font-body);cursor:pointer;padding:0;opacity:0.6;display:inline-flex;align-items:center;gap:0.3rem" onmouseover="this.style.opacity=\'1\'" onmouseout="this.style.opacity=\'0.6\'">'
+          + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
+          + ' Add a stat card</button>'
+          + '</div>';
+      }
+      _statsGrid.innerHTML = html;
+    }
+  }
+
+  const soldCount = Object.keys(state.soldData).length;
+  const wantCount = total - owned - soldCount;
+  document.getElementById('nav-total').textContent = total.toLocaleString();
+  document.getElementById('nav-owned').textContent = owned.toLocaleString();
+  const wantListCount = Object.keys(state.wantData).length;
+  document.getElementById('nav-wanted2').textContent = wantListCount.toLocaleString();
+  const _upgradeCount = Object.values(state.upgradeData).length;
+  const _upgradeEl = document.getElementById('nav-upgrade-count');
+  if (_upgradeEl) _upgradeEl.textContent = _upgradeCount > 0 ? _upgradeCount.toLocaleString() : '—';
+  // Quick Entry badge count
+  const _qeCount = Object.values(state.personalData).filter(pd => pd.owned && pd.quickEntry).length;
+  const _qeBadge = document.getElementById('nav-qe-count');
+  if (_qeBadge) _qeBadge.textContent = _qeCount > 0 ? _qeCount : '0';
+  const _mnavQeBadge = document.getElementById('mnav-qe-badge');
+  if (_mnavQeBadge) { if (_qeCount > 0) { _mnavQeBadge.style.display='flex'; _mnavQeBadge.textContent=_qeCount; } else { _mnavQeBadge.style.display='none'; } }
+  if (document.getElementById('nav-sold')) document.getElementById('nav-sold').textContent = soldCount;
+  const fsCount = Object.keys(state.forSaleData).length;
+  if (document.getElementById('nav-forsale')) document.getElementById('nav-forsale').textContent = fsCount;
+
+
+
+  // ── Dynamic large panels ──────────────────────────────────
+  (function() {
+    var panels = _getPanels();
+    [0, 1].forEach(function(i) {
+      var panelDef = PANEL_CATALOG.find(function(p) { return p.id === (panels[i] ? panels[i].id : (i === 0 ? 'recent' : 'wants')); })
+                  || PANEL_CATALOG[i] || PANEL_CATALOG[0];
+
+      // Update header: title (clickable if panel has navFn) + pencil icon
+      var headerEl = document.getElementById('dash-panel-header-' + i);
+      if (headerEl) {
+        var titleHtml = panelDef.navFn
+          ? '<span style="cursor:pointer;text-decoration:none" onclick="' + panelDef.navFn + '" title="Go to ' + panelDef.label + '">' + panelDef.icon + ' ' + panelDef.label + ' <span style="font-size:0.65rem;opacity:0.5">›</span></span>'
+          : '<span>' + panelDef.icon + ' ' + panelDef.label + '</span>';
+        headerEl.innerHTML = titleHtml
+          + '<button onclick="_openPanelPopup(' + i + ')" title="Change panel" '
+          + 'style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:0.75rem;padding:0.1rem 0.3rem;border-radius:4px;opacity:0.55;line-height:1" '
+          + 'onmouseover="this.style.opacity=\'1\'" onmouseout="this.style.opacity=\'0.55\'">✎</button>';
+      }
+
+      // Render panel body
+      var bodyEl = document.getElementById('dash-panel-body-' + i);
+      if (bodyEl) {
+        try {
+          bodyEl.innerHTML = panelDef.render(state);
+        } catch(e) {
+          bodyEl.innerHTML = '<div class="empty-state"><p>Could not load panel</p></div>';
+        }
+      }
+    });
+  })();
+}
+
+
+// ── Dashboard Panel System ─────────────────────────────────────────────────
+const PANEL_CATALOG = [
+  {
+    id: 'recent',
+    label: 'Recent Additions',
+    icon: '🕐',
+    navFn: "showPage('browse', document.querySelector('.nav-item[onclick*=\'renderBrowse\']')); resetFilters(); renderBrowse();",
+    render: function(state) {
+      const trains = Object.values(state.personalData).filter(pd => pd.owned)
+        .map(pd => ({ ...pd, _src: 'train' }));
+      const ephMap = { catalogs:'📒', paper:'📄', mockups:'🔩', other:'📦' };
+      const ephs = [];
+      Object.entries(state.ephemeraData || {}).forEach(([tabId, bucket]) => {
+        Object.values(bucket).forEach(it => {
+          ephs.push({ ...it, _src:'eph', tabId, _ephEmoji: ephMap[tabId]||'⭐' });
+        });
+      });
+      return [...trains, ...ephs]
+        .sort((a, b) => (b.row || 0) - (a.row || 0))
+        .slice(0, 8)
+        .map(function(pd) {
+          if (pd._src === 'eph') {
+            const val = pd.estValue ? '$' + parseFloat(pd.estValue).toLocaleString() : '';
+            return _panelRow(
+              pd._ephEmoji, pd.title || '—', '', val,
+              'goToMyCollection()', null
+            );
+          }
+          const master = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum));
+          const name = master ? (master.roadName || master.itemType || pd.itemNum) : pd.itemNum;
+          const price = pd.priceItem ? '$' + parseFloat(pd.priceItem).toLocaleString() : '';
+          const date = pd.datePurchased || '';
+          const meta = [date, price].filter(Boolean).join(' · ');
+          const idx = master ? state.masterData.indexOf(master) : -1;
+          const hasPhoto = !!pd.photoItem;
+          const groupBadge = pd.groupId ? ' <span style="font-size:0.55rem;color:var(--accent3);vertical-align:super" title="Grouped">🔗</span>' : '';
+          return _panelRow('🚂', pd.itemNum + (pd.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + pd.variation + '</span>' : '') + groupBadge, name, meta,
+            idx >= 0 ? 'showItemDetailPage(' + idx + ')' : 'goToMyCollection()', hasPhoto ? pd.photoItem : null
+          );
+        }).join('') || '<div class="empty-state"><p>No items yet</p></div>';
+    }
+  },
+  {
+    id: 'wants',
+    label: 'Top Want List Items',
+    icon: '⭐',
+    navFn: "goToWantList();",
+    render: function(state) {
+      const priOrder = { High: 0, Medium: 1, Low: 2 };
+      const priColor = { High: 'var(--accent)', Medium: 'var(--accent2,#8b5cf6)', Low: 'var(--text-dim)' };
+      return Object.values(state.wantData)
+        .sort((a, b) => ((priOrder[a.priority] ?? 1) - (priOrder[b.priority] ?? 1)))
+        .slice(0, 8)
+        .map(function(w) {
+          const master = state.masterData.find(m => m.itemNum === w.itemNum);
+          const name = master ? (master.roadName || master.itemType || w.itemNum) : w.itemNum;
+          const price = w.expectedPrice ? '$' + parseFloat(w.expectedPrice).toLocaleString() : '';
+          const pc = priColor[w.priority] || 'var(--text-dim)';
+          const badge = '<span style="font-size:0.72rem;font-weight:600;color:' + pc + ';border:1px solid ' + pc + ';border-radius:3px;padding:0.1rem 0.3rem;flex-shrink:0">' + (w.priority || 'Med') + '</span>';
+          const idx = master ? state.masterData.indexOf(master) : -1;
+          return _panelRow('⭐', w.itemNum + (w.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + w.variation + '</span>' : ''), name, price,
+            idx >= 0 ? 'showItemDetailPage(' + idx + ')' : 'goToWantList()', null, badge
+          );
+        }).join('') || '<div class="empty-state"><p>Want list is empty</p></div>';
+    }
+  },
+  {
+    id: 'forsale',
+    label: 'For Sale',
+    icon: '🏷️',
+    navFn: "showPage('forsale', document.querySelector('.nav-item[onclick*=\'buildForSalePage\']')); buildForSalePage();",
+    render: function(state) {
+      return Object.values(state.forSaleData)
+        .sort((a, b) => (parseFloat(b.askingPrice) || 0) - (parseFloat(a.askingPrice) || 0))
+        .slice(0, 8)
+        .map(function(fs) {
+          const master = state.masterData.find(m => m.itemNum === fs.itemNum) || {};
+          const name = master.roadName || master.itemType || '';
+          const price = fs.askingPrice ? '$' + parseFloat(fs.askingPrice).toLocaleString() : 'No price';
+          const idx = master ? state.masterData.indexOf(master) : -1;
+          const pd = state.personalData[fs.itemNum + '|' + (fs.variation||'')] || {};
+          const hasPhoto = !!pd.photoItem;
+          return _panelRow('🏷️', fs.itemNum + (fs.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + fs.variation + '</span>' : ''), name, price,
+            idx >= 0 ? 'showItemDetailPage(' + idx + ')' : 'showPage(\'forsale\', document.querySelector(\'.nav-item[onclick*=buildForSalePage]\'));buildForSalePage();',
+            hasPhoto ? pd.photoItem : null
+          );
+        }).join('') || '<div class="empty-state" style="padding:1.5rem 0"><p>No items listed for sale</p></div>';
+    }
+  },
+  {
+    id: 'value',
+    label: 'Highest Value Items',
+    icon: '💰',
+    navFn: "showPage('browse', document.querySelector('.nav-item[onclick*=\'filterOwned\']')); filterOwned();",
+    render: function(state) {
+      return Object.values(state.personalData)
+        .filter(pd => pd.owned && (pd.priceComplete || pd.priceItem))
+        .map(pd => ({
+          ...pd,
+          _val: parseFloat(pd.priceComplete || pd.priceItem || 0)
+        }))
+        .sort((a, b) => b._val - a._val)
+        .slice(0, 8)
+        .map(function(pd) {
+          const master = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum));
+          const name = master ? (master.roadName || master.itemType || pd.itemNum) : pd.itemNum;
+          const price = '$' + pd._val.toLocaleString();
+          const idx = master ? state.masterData.indexOf(master) : -1;
+          const hasPhoto = !!pd.photoItem;
+          return _panelRow('💰', pd.itemNum + (pd.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + pd.variation + '</span>' : ''), name, price,
+            idx >= 0 ? 'showItemDetailPage(' + idx + ')' : 'goToMyCollection()', hasPhoto ? pd.photoItem : null
+          );
+        }).join('') || '<div class="empty-state"><p>No valued items yet</p></div>';
+    }
+  },
+  {
+    id: 'upgrades',
+    label: 'Upgrade Targets',
+    icon: '↑',
+    navFn: "showPage('upgrade', document.querySelector('.nav-item[onclick*=\'buildUpgradePage\']')); buildUpgradePage();",
+    render: function(state) {
+      const thresh = parseInt(_prefGet('lv_upgrade_thresh', '7'));
+      const entries = Object.values(state.upgradeData || {});
+      const priorityOrder = { High: 0, Medium: 1, Low: 2 };
+      return entries
+        .sort((a, b) => {
+          const pA = priorityOrder[a.priority] ?? 1;
+          const pB = priorityOrder[b.priority] ?? 1;
+          if (pA !== pB) return pA - pB;
+          const pdA = Object.values(state.personalData).find(p => p.owned && p.itemNum === a.itemNum && (p.variation||'') === (a.variation||''));
+          const pdB = Object.values(state.personalData).find(p => p.owned && p.itemNum === b.itemNum && (p.variation||'') === (b.variation||''));
+          return (parseInt(pdA && pdA.condition || 99)) - (parseInt(pdB && pdB.condition || 99));
+        })
+        .slice(0, 8)
+        .map(function(u) {
+          const pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === u.itemNum && (p.variation||'') === (u.variation||''));
+          const master = state.masterData.find(m => m.itemNum === u.itemNum);
+          const name = master ? (master.roadName || master.itemType || u.itemNum) : u.itemNum;
+          const cond = pd && pd.condition ? parseInt(pd.condition) : null;
+          const meta = [cond ? 'Cond: ' + cond : '', u.targetCondition ? '→ ' + u.targetCondition : ''].filter(Boolean).join(' ');
+          const idx = master ? state.masterData.indexOf(master) : -1;
+          const hasPhoto = pd && !!pd.photoItem;
+          return _panelRow('↑', u.itemNum + (u.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim);">' + u.variation + '</span>' : ''), name, meta,
+            idx >= 0 ? 'showItemDetailPage(' + idx + ')' : "showPage('upgrade',null);buildUpgradePage()", hasPhoto ? pd.photoItem : null
+          );
+        }).join('') || '<div class="empty-state"><p>No upgrade targets yet</p></div>';
+    }
+  }
+];
+
+// Shared row renderer for all panels
+function _panelRow(icon, itemHtml, name, meta, onclick, photoUrl, extraBadge) {
+  const _placeholderImg = (typeof _RSV_PLACEHOLDER_PNG !== 'undefined')
+    ? '<img src="' + _RSV_PLACEHOLDER_PNG + '" style="width:32px;height:32px;object-fit:cover;border-radius:5px;flex-shrink:0;border:1px solid var(--border);opacity:0.75">'
+    : '<div style="width:32px;height:32px;border-radius:5px;background:var(--surface2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1rem">' + icon + '</div>';
+  const thumb = photoUrl
+    ? '<img src="' + photoUrl + '" style="width:32px;height:32px;object-fit:cover;border-radius:5px;flex-shrink:0;border:1px solid var(--border)" onerror="this.style.display=\'none\'">'
+    : (icon === '🚂' ? _placeholderImg : '<div style="width:32px;height:32px;border-radius:5px;background:var(--surface2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1rem">' + icon + '</div>');
+  return '<div onclick="' + onclick + '" class="dash-row-hover" style="display:flex;align-items:center;gap:0.55rem;padding:0.45rem 0;border-bottom:1px solid var(--border);cursor:pointer">'
+    + thumb
+    + '<div style="flex:1;min-width:0">'
+    + '<div style="display:flex;align-items:center;gap:0.35rem;flex-wrap:wrap">'
+    + '<span class="item-num" style="font-size:0.82rem">' + itemHtml + '</span>'
+    + (name ? '<span style="font-size:0.78rem;color:var(--text-mid);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">' + name + '</span>' : '')
+    + '</div>'
+    + (meta ? '<div style="font-size:0.7rem;color:var(--text-dim);margin-top:1px">' + meta + '</div>' : '')
+    + '</div>'
+    + (extraBadge || '')
+    + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>'
+    + '</div>';
+}
+
+const _DEFAULT_PANELS = [{id:'recent'}, {id:'wants'}];
+
+function _getPanels() {
+  try {
+    const saved = _prefGet('lv_dash_panels', '');
+    if (saved) return JSON.parse(saved);
+  } catch(e) {}
+  return [{ id: 'recent' }, { id: 'wants' }];
+}
+
+function _savePanels(panels) {
+  _prefSet('lv_dash_panels', JSON.stringify(panels));
+}
+
+function _openPanelPopup(panelIdx) {
+  var existing = document.getElementById('panel-popup');
+  if (existing) { existing.remove(); return; }
+
+  const panels = _getPanels();
+  const currentId = panels[panelIdx] ? panels[panelIdx].id : 'recent';
+
+  const popup = document.createElement('div');
+  popup.id = 'panel-popup';
+  popup.style.cssText = 'position:fixed;z-index:99990;background:var(--surface,#161c34);border:1px solid var(--border,#2a3a5c);border-radius:12px;padding:1rem;box-shadow:0 8px 32px rgba(0,0,0,0.5);min-width:220px;max-width:260px';
+
+  const opts = PANEL_CATALOG.map(function(p) {
+    return '<option value="' + p.id + '"' + (p.id === currentId ? ' selected' : '') + '>' + p.icon + ' ' + p.label + '</option>';
+  }).join('');
+
+  popup.innerHTML =
+    '<div style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.65rem">Panel ' + (panelIdx + 1) + '</div>' +
+    '<select onchange="_onPanelPopupChange(' + panelIdx + ',this.value)" style="width:100%;padding:0.4rem 0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;margin-bottom:0.65rem">' +
+      opts +
+    '</select>' +
+    '<div style="display:flex;justify-content:flex-end">' +
+      '<button onclick="document.getElementById(\'panel-popup\').remove()" style="padding:0.3rem 0.9rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.8rem;cursor:pointer">Done</button>' +
+    '</div>';
+
+  document.body.appendChild(popup);
+
+  // Position anchored to the panel header
+  var headerEl = document.getElementById('dash-panel-header-' + panelIdx);
+  if (headerEl) {
+    var rect = headerEl.getBoundingClientRect();
+    var top = rect.bottom + 6;
+    var left = rect.left;
+    if (top + 160 > window.innerHeight - 16) top = rect.top - 160 - 6;
+    if (left + 260 > window.innerWidth - 8) left = window.innerWidth - 268;
+    if (left < 8) left = 8;
+    popup.style.top  = Math.max(8, top) + 'px';
+    popup.style.left = left + 'px';
+  } else {
+    popup.style.top = '50%'; popup.style.left = '50%';
+    popup.style.transform = 'translate(-50%,-50%)';
+  }
+
+  setTimeout(function() {
+    document.addEventListener('mousedown', _panelPopupOutsideClick);
+  }, 60);
+}
+
+function _panelPopupOutsideClick(e) {
+  var p = document.getElementById('panel-popup');
+  if (p && !p.contains(e.target)) {
+    p.remove();
+    document.removeEventListener('mousedown', _panelPopupOutsideClick);
+  }
+}
+
+function _onPanelPopupChange(panelIdx, newId) {
+  var panels = _getPanels();
+  panels[panelIdx] = { id: newId };
+  _savePanels(panels);
+  buildDashboard();
+  // Re-open popup anchored to new header
+  setTimeout(function() {
+    var p = document.getElementById('panel-popup');
+    if (!p) return;
+    var headerEl = document.getElementById('dash-panel-header-' + panelIdx);
+    if (headerEl) {
+      var rect = headerEl.getBoundingClientRect();
+      var top = rect.bottom + 6;
+      var left = rect.left;
+      if (top + 160 > window.innerHeight - 16) top = rect.top - 160 - 6;
+      if (left + 260 > window.innerWidth - 8) left = window.innerWidth - 268;
+      p.style.top  = Math.max(8, top) + 'px';
+      p.style.left = Math.max(8, left) + 'px';
+    }
+  }, 60);
+}
+
+// ── BROWSE ──────────────────────────────────────────────────────
+function populateFilters() {
+  const types = [...new Set(state.masterData.map(i => i.itemType).filter(Boolean))].sort();
+  const roads = [...new Set(state.masterData.map(i => i.roadName).filter(Boolean))].sort();
+
+  const typeEl = document.getElementById('filter-type');
+  types.forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; typeEl.appendChild(o); });
+
+  // Add ephemera types as a group
+  const ephemeraTypes = ['Catalog','Paper Item','Mock-Up','Other Lionel'];
+  // Also add catalog sub-types actually present in data
+  const catSubTypes = [...new Set(
+    Object.values(state.ephemeraData.catalogs||{}).map(it=>it.catType).filter(Boolean)
+  )].sort();
+  const hasCatalogs = Object.keys(state.ephemeraData.catalogs||{}).length > 0;
+  const hasOtherEph = ['paper','mockups','other'].some(k => Object.keys(state.ephemeraData[k]||{}).length > 0);
+  const userEph = (state.userDefinedTabs||[]).filter(t => Object.keys(state.ephemeraData[t.id]||{}).length > 0);
+
+  // Always add a separator then ephemera/collection categories
+  const sep = document.createElement('option');
+  sep.disabled = true; sep.textContent = '── My Collection ──';
+  typeEl.appendChild(sep);
+  // Catalog with subtypes
+  const oCat = document.createElement('option'); oCat.value = 'Catalog'; oCat.textContent = '📒 Catalogs (all)'; typeEl.appendChild(oCat);
+  catSubTypes.forEach(ct => {
+    const o2 = document.createElement('option'); o2.value = ct; o2.textContent = '  ' + ct + ' Catalog'; typeEl.appendChild(o2);
+  });
+  const oPaper = document.createElement('option'); oPaper.value = 'Paper Item'; oPaper.textContent = '📄 Paper Items'; typeEl.appendChild(oPaper);
+  const oMock = document.createElement('option'); oMock.value = 'Mock-Up'; oMock.textContent = '🔩 Mock-Ups'; typeEl.appendChild(oMock);
+  const oOther = document.createElement('option'); oOther.value = 'Other Lionel'; oOther.textContent = '📦 Other Lionel'; typeEl.appendChild(oOther);
+  const oIS = document.createElement('option'); oIS.value = 'Instruction Sheet'; oIS.textContent = '📋 Instruction Sheets'; typeEl.appendChild(oIS);
+  userEph.forEach(t => {
+    const o = document.createElement('option'); o.value = t.label; o.textContent = '⭐ ' + t.label; typeEl.appendChild(o);
+  });
+
+  const roadEl = document.getElementById('filter-road');
+  roads.slice(0, 80).forEach(r => { const o = document.createElement('option'); o.value = r; o.textContent = r; roadEl.appendChild(o); });
+}
+
+// ── Browse filter popup ──────────────────────────────────────────
+function toggleBrowseFilterPanel() {
+  const panel = document.getElementById('browse-filter-panel');
+  if (!panel) return;
+  const isOpen = panel.style.display === 'block';
+  panel.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) {
+    setTimeout(() => {
+      document.addEventListener('click', function _closeFP(e) {
+        const btn = document.getElementById('browse-filter-btn');
+        if (panel && !panel.contains(e.target) && btn && !btn.contains(e.target)) {
+          panel.style.display = 'none';
+          document.removeEventListener('click', _closeFP);
+        }
+      });
+    }, 0);
+  }
+}
+
+function updateFilterBadge() {
+  const badge = document.getElementById('browse-filter-badge');
+  const btn   = document.getElementById('browse-filter-btn');
+  if (!badge) return;
+  const t = (document.getElementById('filter-type')?.value || '').trim();
+  const r = (document.getElementById('filter-road')?.value || '').trim();
+  const count = (t ? 1 : 0) + (r ? 1 : 0);
+  badge.textContent = count;
+  badge.style.display = count > 0 ? 'inline' : 'none';
+  if (btn) btn.style.borderColor = count > 0 ? 'var(--accent)' : 'var(--border)';
+  if (btn) btn.style.color = count > 0 ? 'var(--accent)' : 'var(--text-mid)';
+}
+
+function clearBrowseFilters() {
+  const ft = document.getElementById('filter-type');
+  const fr = document.getElementById('filter-road');
+  if (ft) ft.value = '';
+  if (fr) fr.value = '';
+  updateFilterBadge();
+  applyFilters();
+}
+
+function applyFilters() {
+  state.filters.type = document.getElementById('filter-type').value;
+  state.filters.quickEntry = ''; // QE filter only applies in My Collection view
+  state.filters.road = document.getElementById('filter-road').value;
+  state.filters.wantList = false;
+  state.currentPage = 1;
+  renderBrowse();
+}
+
+function toggleFilter(name) {
+  state.filters[name] = !state.filters[name];
+  document.getElementById('toggle-' + name).classList.toggle('on', state.filters[name]);
+  state.currentPage = 1;
+  renderBrowse();
+}
+
+function resetFilters() {
+  // Restore Master Catalog title and Identify button
+  const titleEl = document.querySelector('#page-browse > .page-title > span');
+  if (titleEl) {
+    titleEl.textContent = 'Master Catalog';
+    titleEl.style.cssText = '';
+  }
+  const idBtn = document.getElementById('identify-btn');
+  if (idBtn) idBtn.style.display = '';
+  // Restore table headers to default
+  const thead = document.querySelector('#page-browse .item-table thead tr');
+  if (thead) thead.innerHTML = '<th>Item #</th><th>Type</th><th>Road / Name</th><th>Var.</th><th>Var. Descr.</th><th>Year</th><th>Owned</th>';
+  var _tbl = document.querySelector('#page-browse .item-table');
+  if (_tbl) _tbl.classList.remove('collection-view');
+  var _leg = document.getElementById('collection-icon-legend');
+  if (_leg) _leg.style.display = 'none';
+  removeQEFilter();
+  state.filters.owned = false;
+  state.filters.unowned = false;
+  state.filters.boxed = false;
+  state.filters.wantList = false;
+  state.filters.type = '';
+  state.filters.road = '';
+  state.filters.quickEntry = '';
+  state.currentPage = 1;
+  document.getElementById('filter-type').value = '';
+  document.getElementById('filter-road').value = '';
+  updateFilterBadge();
+}
+
+function filterOwned(qe) {
+  resetFilters();
+  state.filters.owned = true;
+  if (qe) state.filters.quickEntry = qe;
+  // Switch title to My Collection List — styled to match button size
+  const titleEl = document.querySelector('#page-browse > .page-title > span');
+  if (titleEl) {
+    titleEl.textContent = 'My Collection List';
+    titleEl.style.cssText = 'font-family:var(--font-head);font-size:0.95rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:var(--text)';
+  }
+  const idBtn = document.getElementById('identify-btn');
+  if (idBtn) idBtn.style.display = 'none';
+  // Show Share button for collection view
+  var _btnArea = document.querySelector('#page-browse > .page-title > div');
+  if (_btnArea && !document.getElementById('share-btn-collection')) {
+    var _shareBtn = document.createElement('button');
+    _shareBtn.id = 'share-btn-collection';
+    _shareBtn.className = 'btn';
+    _shareBtn.onclick = function() { if (typeof startShareMode === 'function') startShareMode('collection'); };
+    _shareBtn.style.cssText = 'display:flex;align-items:center;gap:0.4rem;border:1.5px solid #3a9e68;color:#3a9e68;background:rgba(58,158,104,0.1);font-weight:600;font-size:0.85rem;padding:0.5rem 0.9rem';
+    _shareBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> Share';
+    _btnArea.insertBefore(_shareBtn, _btnArea.firstChild);
+  }
+  // Update table headers for collection view
+  const thead = document.querySelector('#page-browse .item-table thead tr');
+  if (thead) thead.innerHTML = '<th style="width:110px">Item #</th><th style="width:60px">Var.</th><th style="width:90px">Type</th><th>Description</th><th style="width:90px">Est. Worth</th><th style="width:260px;text-align:right">Actions</th>';
+  var _tbl2 = document.querySelector('#page-browse .item-table');
+  if (_tbl2) _tbl2.classList.add('collection-view');
+  var _leg = document.getElementById('collection-icon-legend');
+  if (_leg) _leg.style.display = 'flex';
+  renderBrowse();
+  // Show QE filter toggle in filter bar when in My Collection
+  setTimeout(function() {
+    var existing = document.getElementById('filter-quick-inline');
+    if (!existing) {
+      var fb = document.querySelector('.filter-bar');
+      if (!fb) return;
+      var sel = document.createElement('select');
+      sel.id = 'filter-quick-inline';
+      sel.className = 'filter-select';
+      sel.title = 'Quick Entry filter';
+      sel.innerHTML = '<option value="">All Items</option>'
+        + '<option value="quick">&#9889; Quick Entry</option>'
+        + '<option value="complete">&#10003; Complete</option>';
+      sel.value = state.filters.quickEntry || '';
+      sel.onchange = function() { state.filters.quickEntry = this.value; renderBrowse(); };
+      // Insert after first child (type filter)
+      var typeFilter = fb.querySelector('#filter-type');
+      if (typeFilter && typeFilter.nextSibling) {
+        fb.insertBefore(sel, typeFilter.nextSibling);
+      } else {
+        fb.appendChild(sel);
+      }
+    }
+  }, 50);
+}
+
+function removeQEFilter() {
+  var el = document.getElementById('filter-quick-inline');
+  if (el) el.remove();
+  state.filters.quickEntry = '';
+}
+
+function buildQuickEntryList() {
+  const container = document.getElementById('qe-list-container');
+  if (!container) return;
+
+  const qeItems = Object.values(state.personalData)
+    .filter(pd => pd.owned && pd.quickEntry)
+    .sort((a, b) => (b.row || 0) - (a.row || 0));
+
+  if (qeItems.length === 0) {
+    container.innerHTML = '<div class="empty-state" style="padding:3rem 1rem">'
+      + '<div style="font-size:3rem;margin-bottom:0.75rem">&#9889;</div>'
+      + '<div style="font-weight:600;font-size:1rem;margin-bottom:0.4rem">No quick entries yet</div>'
+      + '<div style="font-size:0.85rem;color:var(--text-dim);line-height:1.6">When you add an item using Quick Entry, it will appear here so you can come back and fill in the details.</div>'
+      + '</div>';
+    return;
+  }
+
+  // Update badge
+  const badge = document.getElementById('nav-qe-count');
+  if (badge) badge.textContent = qeItems.length;
+
+  var gridEl = document.createElement('div');
+  gridEl.style.cssText = 'display:flex;flex-direction:column;gap:0.5rem';
+    qeItems.forEach(function(pd) {
+    var master = state.masterData.find(function(m) {
+      return m.itemNum === pd.itemNum && (!pd.variation || m.variation === pd.variation);
+    }) || state.masterData.find(function(m) { return m.itemNum === pd.itemNum; });
+    var itemName = master ? (master.roadName || master.description || master.itemType || '') : '';
+    var itemType = master ? (master.itemType || '') : '';
+    var itemYear = master ? (master.yearProd || '') : '';
+    var variation = pd.variation || '';
+    var meta = [itemType, itemYear].filter(Boolean).join(' · ');
+
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:0.85rem;padding:0.9rem 1rem;background:var(--surface);border:1.5px solid rgba(39,174,96,0.3);border-radius:12px;cursor:pointer;transition:all 0.15s';
+    row.onmouseenter = function() { this.style.borderColor='#27ae60'; this.style.background='rgba(39,174,96,0.06)'; };
+    row.onmouseleave = function() { this.style.borderColor='rgba(39,174,96,0.3)'; this.style.background='var(--surface)'; };
+    row.onclick = (function(num, vari, pdRow) { return function() {
+      var globalIdx = state.masterData ? state.masterData.findIndex(function(m) {
+        return m.itemNum === num && (!vari || m.variation === vari);
+      }) : -1;
+      completeQuickEntry(num, vari, globalIdx, pdRow);
+    }; })(pd.itemNum, variation, pd.row);
+
+    var icon = document.createElement('div');
+    icon.style.cssText = 'background:rgba(39,174,96,0.12);border-radius:8px;padding:0.5rem;flex-shrink:0';
+    icon.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#27ae60" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+
+    var info = document.createElement('div');
+    info.style.cssText = 'flex:1;min-width:0';
+
+    var topRow = document.createElement('div');
+    topRow.style.cssText = 'display:flex;align-items:baseline;gap:0.5rem;flex-wrap:wrap';
+    var numSpan = document.createElement('span');
+    numSpan.style.cssText = 'font-family:var(--font-mono);font-weight:700;color:var(--accent2);font-size:1rem';
+    numSpan.textContent = pd.itemNum;
+    topRow.appendChild(numSpan);
+    if (variation) {
+      var varSpan = document.createElement('span');
+      varSpan.style.cssText = 'font-size:0.75rem;color:var(--text-dim);background:var(--surface2);padding:0.1rem 0.4rem;border-radius:4px';
+      varSpan.textContent = variation;
+      topRow.appendChild(varSpan);
+    }
+    info.appendChild(topRow);
+
+    if (itemName) {
+      var nameEl = document.createElement('div');
+      nameEl.style.cssText = 'font-size:0.85rem;color:var(--text-mid);margin-top:0.15rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+      nameEl.textContent = itemName;
+      info.appendChild(nameEl);
+    }
+    if (meta) {
+      var metaEl = document.createElement('div');
+      metaEl.style.cssText = 'font-size:0.75rem;color:var(--text-dim);margin-top:0.1rem';
+      metaEl.textContent = meta;
+      info.appendChild(metaEl);
+    }
+
+    var right = document.createElement('div');
+    right.style.cssText = 'flex-shrink:0;text-align:right';
+    var addInfoBtn = document.createElement('button');
+    addInfoBtn.textContent = 'Add Info';
+    addInfoBtn.style.cssText = 'font-size:0.78rem;color:#fff;font-weight:600;background:#27ae60;border:none;padding:0.3rem 0.7rem;border-radius:6px;cursor:pointer;white-space:nowrap';
+    addInfoBtn.onclick = (function(num, vari, pdRow) { return function(e) {
+      e.stopPropagation();
+      var globalIdx = state.masterData ? state.masterData.findIndex(function(m) {
+        return m.itemNum === num && (!vari || m.variation === vari);
+      }) : -1;
+      completeQuickEntry(num, vari, globalIdx, pdRow);
+    }; })(pd.itemNum, variation, pd.row);
+    right.appendChild(addInfoBtn);
+
+    row.appendChild(icon);
+    row.appendChild(info);
+    row.appendChild(right);
+    gridEl.appendChild(row);
+  });
+  var footer = document.createElement('div');
+  footer.style.cssText = 'margin-top:1rem;padding:0.75rem 1rem;background:rgba(39,174,96,0.06);border-radius:10px;border:1px solid rgba(39,174,96,0.2);font-size:0.82rem;color:var(--text-dim);text-align:center';
+  footer.textContent = qeItems.length + ' item' + (qeItems.length !== 1 ? 's' : '') + ' waiting for details — tap any item to open and complete it.';
+
+  container.innerHTML = '';
+  container.appendChild(gridEl);
+  container.appendChild(footer);
+}
+
+function goToMyCollection() {
+  const navBtn = document.querySelector('.nav-item[onclick*="filterOwned"]');
+  showPage('browse', navBtn);
+  filterOwned();
+  // mobile
+  const mNav = document.getElementById('mnav-browse');
+  if (mNav && window.innerWidth <= 640) { showPage('browse', mNav); filterOwned(); }
+}
+function goToWantList() {
+  const navBtn = document.querySelector('.nav-item[onclick*="buildWantPage"]');
+  showPage('want', navBtn);
+  buildWantPage();
+  const mNav = document.getElementById('mnav-want');
+  if (mNav && window.innerWidth <= 640) { showPage('want', mNav); buildWantPage(); }
+}
+
+function filterByType(type) { document.getElementById('filter-type').value = type; showPage('browse'); applyFilters(); }
+
+function onPageSearch(val, page) {
+  const q = val.toLowerCase();
+  if (page === 'browse') {
+    state.filters.search = q;
+    state.currentPage = 1;
+    renderBrowse();
+  } else if (page === 'sold') {
+    state._soldSearch = q;
+    buildSoldPage();
+  } else if (page === 'sets') {
+    state._setsSearch = q;
+    buildSetsPage();
+  } else if (page === 'forsale') {
+    state._forsaleSearch = q;
+    buildForSalePage();
+  } else if (page === 'want') {
+    state._wantSearch = q;
+    buildWantPage();
+  }
+}
+
+function buildBrowse() { renderBrowse(); }
+
+let _lastBrowseHash = '';
+
+function renderBrowse() {
+  const { type, road, owned, unowned, boxed, search } = state.filters;
+  // Base list: masterData + any personal-only items (e.g. 2343-P not in master)
+  const masterNums = new Set(state.masterData.map(m => m.itemNum + '|' + (m.variation||'')));
+  const personalOnlyItems = Object.values(state.personalData)
+    .filter(pd => pd.owned && !masterNums.has(pd.itemNum + '|' + (pd.variation||'')))
+    .map(pd => {
+      // Infer type from item number suffix for personal-only items
+      let _poType = pd.itemType || '';
+      const _num = (pd.itemNum || '').toUpperCase();
+      if (!_poType) {
+        if (_num.endsWith('-MBOX'))      _poType = 'Master Carton';
+        else if (_num.endsWith('-BOX'))  _poType = 'Box';
+        else if (_num.endsWith('-P'))    _poType = 'Powered Unit';
+        else if (_num.endsWith('-T'))    _poType = 'Dummy Unit';
+      }
+      // Strip suffix to find the base item for description/roadName
+      const _baseNum = pd.itemNum.replace(/-(P|T|BOX|MBOX)$/i, '');
+      const _baseItem = _baseNum !== pd.itemNum
+        ? (state.masterData.find(m => m.itemNum === _baseNum && (!pd.variation || m.variation === pd.variation))
+           || state.masterData.find(m => m.itemNum === _baseNum))
+        : null;
+      // Fallback: if no suffix match, still try to find master entry by item number alone
+      // (handles cases like 2426W saved with no variation but master has variations)
+      const _masterFallback = _baseItem ? null
+        : (state.masterData.find(m => m.itemNum === pd.itemNum && (!pd.variation || m.variation === pd.variation))
+           || state.masterData.find(m => m.itemNum === pd.itemNum));
+      const _refItem = _baseItem || _masterFallback;
+      return {
+        itemNum: pd.itemNum, variation: pd.variation || '',
+        itemType: _poType || (_refItem ? _refItem.itemType : ''),
+        roadName: pd.roadName || (_refItem ? _refItem.roadName : ''),
+        description: _refItem ? _refItem.description : (pd.notes || ''),
+        yearProd: pd.datePurchased || (_refItem ? _refItem.yearProd : ''),
+        marketVal: _refItem ? _refItem.marketVal : '',
+        varDesc: _refItem ? _refItem.varDesc : '',
+        refLink: _refItem ? _refItem.refLink : '',
+        // Carry through collection-status fields so icons/actions work for personal-only items
+        owned: pd.owned, row: pd.row,
+        quickEntry: pd.quickEntry, groupId: pd.groupId || '',
+        matchedTo: pd.matchedTo || '', setId: pd.setId || '',
+        photoItem: pd.photoItem || '', userEstWorth: pd.userEstWorth || '',
+        condition: pd.condition || '', inventoryId: pd.inventoryId || '',
+        _personalOnly: true
+      };
+    });
+  const baseList = owned ? [...state.masterData, ...personalOnlyItems] : state.masterData;
+
+  state.filteredData = baseList.filter(item => {
+    const pd = findPD(item.itemNum, item.variation) || (item._personalOnly ? item : null);
+    const isOwned = item._personalOnly ? true : (pd?.owned || false);
+    const hasBox = pd?.hasBox === 'Yes';
+    const isSold = !!state.soldData[`${item.itemNum}|${item.variation}`];
+    if (isSold) return false;
+    const isWanted = !!state.wantData[`${item.itemNum}|${item.variation}`];
+    if (state.filters.wantList && !isWanted) return false;
+    if (owned && !isOwned) return false;
+    if (unowned && (isOwned || isWanted)) return false;
+    if (boxed && !hasBox) return false;
+    // Quick Entry filter — only applies when item is owned
+    if (isOwned && pd) {
+      const _qf = state.filters.quickEntry || '';
+      if (_qf === 'quick' && !pd.quickEntry) return false;
+      if (_qf === 'complete' && pd.quickEntry) return false;
+    }
+    // If type filter is an ephemera category, hide train rows
+    if (type) {
+      const _ephTypeKeys = ['Catalog','Paper Item','Mock-Up','Other Lionel',
+        ...(state.userDefinedTabs||[]).map(t=>t.label)];
+      // Check for catalog subtype match too (e.g. "Advance")
+      const _isEphFilter = _ephTypeKeys.some(k=>k.toLowerCase()===type.toLowerCase())
+        || type.toLowerCase() === 'instruction sheet'
+        || Object.values(state.ephemeraData.catalogs||{}).some(it=>(it.catType||'').toLowerCase()===type.toLowerCase());
+      if (_isEphFilter) return false; // hide all train rows when filtering to ephemera
+      if (item.itemType !== type) return false;
+    }
+    if (road && item.roadName !== road) return false;
+    if (search) {
+      const haystack = `${item.itemNum} ${item.roadName||''} ${item.description||''} ${item.itemType||''}`.toLowerCase();
+      if (!haystack.includes(search)) return false;
+    }
+    return true;
+  });
+
+  // Sort My Collection: by item number, with grouped items together
+  if (state.filters.owned) {
+    state.filteredData.sort((a, b) => {
+      const pdA = findPD(a.itemNum, a.variation) || {};
+      const pdB = findPD(b.itemNum, b.variation) || {};
+      const gA = pdA.groupId || '';
+      const gB = pdB.groupId || '';
+      // If same group, sort by item number within group
+      if (gA && gA === gB) {
+        const numA = (a.itemNum||'').replace(/[^0-9]/g,'');
+        const numB = (b.itemNum||'').replace(/[^0-9]/g,'');
+        return (parseInt(numA)||0) - (parseInt(numB)||0) || (a.itemNum||'').localeCompare(b.itemNum||'');
+      }
+      // Otherwise sort by the group's lead item number (extract from GRP-XXXX-timestamp)
+      const leadA = gA ? gA.split('-').slice(1,-1).join('-') : a.itemNum;
+      const leadB = gB ? gB.split('-').slice(1,-1).join('-') : b.itemNum;
+      const numA = (leadA||'').replace(/[^0-9]/g,'');
+      const numB = (leadB||'').replace(/[^0-9]/g,'');
+      if (numA !== numB) return (parseInt(numA)||0) - (parseInt(numB)||0);
+      return (leadA||'').localeCompare(leadB||'') || (a.itemNum||'').localeCompare(b.itemNum||'');
+    });
+  }
+  const total = state.filteredData.length;
+  const pages = Math.ceil(total / state.pageSize);
+  const start = (state.currentPage - 1) * state.pageSize;
+  const pageData = state.filteredData.slice(start, start + state.pageSize);
+
+  // Ephemera items — shown when owned filter is on OR search has text OR type filter matches an ephemera category
+  const _ephemeraRows = [];
+  const _ephLabels = { catalogs:'Catalog', paper:'Paper Item', mockups:'Mock-Up', other:'Other Lionel' };
+  const _ephEmojis = { catalogs:'📒', paper:'📄', mockups:'🔩', other:'📦' };
+  const _ephColors = { catalogs:'#e67e22', paper:'#3498db', mockups:'#9b59b6', other:'#27ae60' };
+  const _ephTypeMap = { 'Catalog':'catalogs', 'Paper Item':'paper', 'Mock-Up':'mockups', 'Other Lionel':'other' };
+  const sq = (state.filters.search||'').toLowerCase();
+  const tf = (state.filters.type||'').toLowerCase();
+  // Show ephemera if: owned view, searching, or type filter is an ephemera category
+  const _showEph = state.filters.owned || sq || Object.keys(_ephTypeMap).some(k => k.toLowerCase() === tf);
+  // Instruction Sheets in browse
+  if (_showEph || tf === 'instruction sheet') {
+    const isItems = Object.values(state.isData || {});
+    const isFiltered = isItems.filter(it => {
+      if (sq && !`${it.sheetNum||''} ${it.linkedItem||''} ${it.year||''} ${it.notes||''}`.toLowerCase().includes(sq)) return false;
+      if (tf && tf !== 'instruction sheet' && tf !== 'catalog') {
+        // Check linked item match
+        if (!(it.linkedItem||'').toLowerCase().includes(tf) && !(it.sheetNum||'').toLowerCase().includes(tf)) return false;
+      }
+      return true;
+    });
+    if (isFiltered.length) {
+      _ephemeraRows.push({ _divider: true, label: '📋 Instruction Sheets', color: '#16a085' });
+      isFiltered.sort((a,b)=>(a.linkedItem||'').localeCompare(b.linkedItem||'')).forEach(it => {
+        _ephemeraRows.push({ _is: true, item: it, label:'Instruction Sheet', emoji:'📋', color:'#16a085' });
+      });
+    }
+  }
+  if (_showEph) {
+    Object.entries(state.ephemeraData || {}).forEach(([tabId, bucket]) => {
+      const items = Object.values(bucket);
+      if (!items.length) return;
+      const label = _ephLabels[tabId] || ((state.userDefinedTabs||[]).find(t=>t.id===tabId)||{}).label || tabId;
+      const emoji = _ephEmojis[tabId] || '⭐';
+      const color = _ephColors[tabId] || '#f39c12';
+      // Type filter: if a specific ephemera type is selected, only show that bucket
+      if (tf && Object.keys(_ephTypeMap).some(k=>k.toLowerCase()===tf) && label.toLowerCase() !== tf) return;
+      // Also filter by catType if type filter matches a subtype like "Advance", "Consumer"
+      const filtered = items.filter(it => {
+        // Search filter across all fields
+        if (sq && !`${it.title||''} ${it.year||''} ${it.notes||''} ${it.catType||''} ${label}`.toLowerCase().includes(sq)) return false;
+        // Type dropdown filter — match label (Catalog) or catType (Advance/Consumer/Dealer)
+        if (tf) {
+          const matchesLabel = label.toLowerCase().includes(tf);
+          const matchesCatType = (it.catType||'').toLowerCase().includes(tf);
+          if (!matchesLabel && !matchesCatType) return false;
+        }
+        return true;
+      });
+      if (!filtered.length) return;
+      _ephemeraRows.push({ _divider: true, label: emoji + ' ' + label + 's', color });
+      filtered.sort((a,b)=>(b.row||0)-(a.row||0)).forEach(it => {
+        _ephemeraRows.push({ _eph: true, tabId, item: it, label, emoji, color });
+      });
+    });
+  }
+  const ephTotal = _ephemeraRows.filter(r=>r._eph).length;
+  const displayTotal = total + ephTotal;
+  document.getElementById('result-count').textContent = `${displayTotal.toLocaleString()} items`;
+  document.getElementById('page-info').textContent = `Showing ${start+1}–${Math.min(start+state.pageSize, total)} of ${total.toLocaleString()} trains${ephTotal ? ' + ' + ephTotal + ' other' : ''}`;
+
+  // Rows
+  const tbody = document.getElementById('browse-tbody');
+  const isMobile = window.innerWidth <= 640;
+  const cardsEl = document.getElementById('browse-cards');
+  const tableEl = document.querySelector('.item-table');
+  let _ephRowsHtml = '';
+  if (_ephemeraRows.length) {
+    _ephRowsHtml = _ephemeraRows.map(r => {
+      if (r._divider) return `<tr><td colspan="${state.filters.owned ? '6' : '7'}" style="padding:0.5rem 0.75rem;background:var(--surface2);font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:${r.color};text-transform:uppercase;border-top:2px solid ${r.color}33">${r.label}</td></tr>`;
+      const it = r.item;
+      const cond = it.condition ? parseInt(it.condition) : null;
+      const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
+      if (r._is) {
+        if (state.filters.owned) {
+          return `<tr onclick="openISDetail(${it.row})" style="cursor:pointer">
+            <td><span style="font-family:var(--font-mono);font-size:0.85rem;color:#16a085;font-weight:600">${it.sheetNum}</span></td>
+            <td><span class="text-dim">—</span></td>
+            <td style="text-align:center"><button onclick="event.stopPropagation();openISDetail(${it.row})" style="padding:0.25rem 0.6rem;border-radius:6px;border:1px solid #16a085;background:#16a08518;color:#16a085;font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">Details</button></td>
+            <td><span class="tag" style="border-color:#16a085;color:#16a085;background:#16a08518">Instr. Sheet</span></td>
+            <td></td><td></td>
+            <td style="text-align:center;white-space:nowrap"><span style="color:var(--text-dim);font-size:0.75rem">For #${it.linkedItem || '—'}</span></td>
+          </tr>`;
+        }
+        return `<tr onclick="openISDetail(${it.row})" style="cursor:pointer">
+          <td><span style="font-family:var(--font-mono);font-size:0.85rem;color:#16a085;font-weight:600">${it.sheetNum}</span></td>
+          <td><span class="tag" style="border-color:#16a085;color:#16a085;background:#16a08518">Instr. Sheet</span></td>
+          <td>For item #${it.linkedItem || '—'}</td>
+          <td>${it.year || '—'}</td>
+          <td></td><td></td>
+          <td><span class="owned-badge badge-owned">✓ Owned</span></td>
+          <td>${cond ? `<span class="condition-pip ${condClass}"></span>${cond}` : '<span class="text-dim">—</span>'}</td>
+          <td class="market-val">—</td>
+        </tr>`;
+      }
+      const val = it.estValue ? '$' + parseFloat(it.estValue).toLocaleString() : '—';
+      const _itmId = it.itemNum ? `<span style="font-family:var(--font-mono);font-size:0.78rem;color:${r.color};opacity:0.75;font-style:italic">${it.itemNum}</span>` : r.emoji;
+      const _ephActions = state.filters.owned ? `
+        <div style="display:flex;gap:0.35rem;margin-top:0.5rem;flex-wrap:wrap">
+          <button onclick="event.stopPropagation();ephemeraForSale('${r.tabId}',${it.row})" style="flex:1;min-width:0;padding:0.35rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #f39c12;background:rgba(243,156,18,0.12);color:#f39c12;font-family:var(--font-body);font-weight:600">🏷️ For Sale</button>
+          <button onclick="event.stopPropagation();ephemeraSold('${r.tabId}',${it.row})" style="flex:1;min-width:0;padding:0.35rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600">💰 Sold</button>
+          <button onclick="event.stopPropagation();ephemeraDelete('${r.tabId}',${it.row})" style="flex:0 0 auto;padding:0.35rem 0.5rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--accent);font-family:var(--font-body)">Remove</button>
+        </div>` : '';
+
+      // ── My Collection view: match the 7-column layout ──────────
+      if (state.filters.owned) {
+        const _photoLink = it.photoLink || '';
+        const _thumbId = 'eph-thumb-' + r.tabId + '-' + it.row;
+        return `<tr onclick="openEphemeraDetail('${r.tabId}',${it.row})" style="cursor:pointer">
+          <td>
+            <span style="font-family:var(--font-mono);font-size:0.78rem;color:${r.color}">${it.itemNum || r.emoji}</span>
+          </td>
+          <td><span class="text-dim">—</span></td>
+          <td style="text-align:center">
+            <button onclick="event.stopPropagation();openEphemeraDetail('${r.tabId}',${it.row})" style="padding:0.25rem 0.6rem;border-radius:6px;border:1px solid ${r.color};background:${r.color}18;color:${r.color};font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">Details</button>
+          </td>
+          <td><span class="tag" style="border-color:${r.color};color:${r.color};background:${r.color}18">${r.label}</span></td>
+          <td style="text-align:center">
+            <span id="${_thumbId}" style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:4px;background:var(--surface2);overflow:hidden;vertical-align:middle;color:var(--text-dim)">${_photoLink ? '' : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.45"><rect x="2" y="2" width="20" height="20" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/><line x1="4" y1="4" x2="20" y2="20" stroke-width="2" opacity="0.55"/></svg>'}</span>
+          </td>
+          <td style="text-align:center">
+            <button onclick="event.stopPropagation();${_photoLink ? `openPhotoFolder('${it.itemNum||''}','${_photoLink}')` : `openEphemeraDetail('${r.tabId}',${it.row})`}" style="padding:0.25rem 0.6rem;border-radius:6px;border:1px solid ${_photoLink ? 'var(--gold)' : 'var(--border)'};background:${_photoLink ? 'rgba(212,168,67,0.08)' : 'var(--surface2)'};color:${_photoLink ? 'var(--gold)' : 'var(--text-dim)'};font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600${_photoLink ? '' : ';opacity:0.7'}">${_photoLink ? '📷 Photos' : '📷 No Photos Uploaded'}</button>
+          </td>
+          <td style="text-align:center;white-space:nowrap">
+            <button onclick="event.stopPropagation();ephemeraForSale('${r.tabId}',${it.row})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #f39c12;background:rgba(243,156,18,0.1);color:#f39c12;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">🏷️ For Sale</button>
+            <button onclick="event.stopPropagation();ephemeraSold('${r.tabId}',${it.row})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">💰 Sold</button>
+            <button onclick="event.stopPropagation();ephemeraDelete('${r.tabId}',${it.row})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>
+          </td>
+        </tr>`;
+      }
+
+      // ── Master browse view: 9-column layout ───────────────────
+      return `<tr onclick="openEphemeraDetail('${r.tabId}',${it.row})" style="cursor:pointer">
+        <td>${_itmId}</td>
+        <td><span class="tag" style="border-color:${r.color};color:${r.color};background:${r.color}18">${r.label}</span></td>
+        <td>${it.title || '—'}</td>
+        <td>${it.catType || it.year || '—'}</td>
+        <td style="color:var(--text-dim);font-size:0.8rem">${it.year || '—'}</td>
+        <td>${it.year || '—'}</td>
+        <td><span class="owned-badge badge-owned">✓ Owned</span></td>
+        <td class="market-val">${val}${_ephActions}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  if (isMobile) {
+    if (tableEl) tableEl.style.display = 'none';
+    if (cardsEl) cardsEl.style.display = 'flex';
+  } else {
+    if (tableEl) tableEl.style.display = '';
+    if (cardsEl) cardsEl.style.display = 'none';
+  }
+
+  // ── Icon legend bar (My Collection only) ──
+  if (state.filters.owned) {
+    const legendEl = document.getElementById('coll-icon-legend');
+    if (legendEl) {
+      const showLegend = _prefGet('lv_show_coll_legend', 'true') === 'true';
+      legendEl.style.display = '';
+      legendEl.innerHTML = showLegend
+        ? `<div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:nowrap;font-size:0.68rem;color:var(--text-dim);padding:0.3rem 0.5rem;background:var(--surface2);border:1px solid var(--border);border-radius:7px;margin-bottom:0.5rem;overflow:hidden">
+            <span style="font-weight:600;color:var(--text-mid);flex-shrink:0">Key:</span>
+            <span style="flex-shrink:0">🔗 Grouped</span>
+            <span style="flex-shrink:0">⚡ QE</span>
+            <span style="flex-shrink:0">📷 Photo</span>
+            <button onclick="event.stopPropagation();_prefSet('lv_show_coll_legend','false');renderBrowse()" style="margin-left:auto;flex-shrink:0;background:none;border:none;color:var(--text-dim);font-size:0.68rem;cursor:pointer;padding:0 0.2rem;text-decoration:underline">Hide</button>
+          </div>`
+        : `<div style="display:flex;justify-content:flex-end;margin-bottom:0.35rem">
+            <button onclick="event.stopPropagation();_prefSet('lv_show_coll_legend','true');renderBrowse()" style="background:none;border:none;color:var(--text-dim);font-size:0.72rem;cursor:pointer;padding:0;text-decoration:underline">Show icon key</button>
+          </div>`;
+    }
+  } else {
+    const legendEl = document.getElementById('coll-icon-legend');
+    if (legendEl) legendEl.style.display = 'none';
+  }
+
+  const rowsHtml = pageData.map((item, i) => {
+    const pd = item._personalOnly ? item : findPD(item.itemNum, item.variation);
+    const isOwned = item._personalOnly ? true : (pd?.owned || false);
+    const isWanted = !!state.wantData[`${item.itemNum}|${item.variation}`];
+    const cond = pd?.condition ? parseInt(pd.condition) : null;
+    const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
+    let globalIdx = state.masterData.indexOf(item);
+    // For _personalOnly items not in masterData, use negative index via global array
+    if (globalIdx < 0 && item._personalOnly) {
+      const poKey = findPDKey(item.itemNum, item.variation);
+      if (poKey) {
+        if (!window._poKeys) window._poKeys = [];
+        let poIdx = window._poKeys.indexOf(poKey);
+        if (poIdx < 0) poIdx = window._poKeys.push(poKey) - 1;
+        globalIdx = -(poIdx + 1000);
+      }
+    }
+    const isForSale = !!state.forSaleData[`${item.itemNum}|${item.variation||''}`];
+    const badgeClass = isOwned ? (isForSale ? 'forsale' : 'yes') : isWanted ? 'want' : 'no';
+    const badgeText  = isOwned ? (isForSale ? '🏷️ For Sale' : '✓ Owned') : isWanted ? '★ Want' : '—';
+    const _mv = parseFloat(item.marketVal);
+    const marketVal  = item.marketVal && !isNaN(_mv) ? '$' + _mv.toLocaleString() : '';
+
+    if (isMobile) {
+      const _escVar = (item.variation||'').replace(/'/g,"\\'");
+      const _pdKey = findPDKey(item.itemNum, item.variation);
+      const _pdRow = pd && pd.row ? pd.row : 0;
+      const _isQE = pd && pd.quickEntry;
+      const _isGrouped = pd && pd.groupId;
+      const _hasPhoto = pd && pd.photoItem;
+      const _statusIcons = (_isGrouped ? '<span title="Grouped item" style="font-size:0.8rem">🔗</span>' : '')
+                         + (_isQE ? '<span title="Quick Entry — details incomplete" style="font-size:0.8rem">⚡</span>' : '')
+                         + (_hasPhoto ? '<span title="Has photo" style="font-size:0.8rem" onclick="event.stopPropagation();openPhotoFolder(\''+item.itemNum+'\',\''+(_hasPhoto||'')+'\')">📷</span>' : '');
+      const _shareKey = item.itemNum + '|' + (item.variation||'') + '|' + _pdRow;
+      const _inShareMode = typeof isShareMode === 'function' && isShareMode('collection');
+      const _isShareSelected = _inShareMode && window._shareItems && window._shareItems[_shareKey];
+      if (_inShareMode) { if (!window._shareDataMap) window._shareDataMap = {}; window._shareDataMap[_shareKey] = { itemNum: item.itemNum, variation: item.variation||'', pd: pd, master: item }; }
+      return `<div class="browse-card" id="share-card-${_shareKey}" onclick="${_inShareMode ? 'toggleShareItem(\'' + _shareKey + '\')' : 'showItemDetailPage(' + globalIdx + ')'}" style="cursor:pointer${_isShareSelected ? ';outline:2px solid #3a9e68;background:rgba(58,158,104,0.08)' : ''}">
+        <div style="display:flex;align-items:center;gap:0.5rem;width:100%;min-width:0">
+          ${_inShareMode ? '<input type="checkbox" id="share-cb-' + _shareKey + '" ' + (_isShareSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _shareKey + '\')" style="width:1.1rem;height:1.1rem;accent-color:#3a9e68;flex-shrink:0">' : ''}
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:nowrap">
+              <span class="browse-card-num" style="white-space:nowrap">${item.itemNum}${item.variation ? ' <span style="font-size:0.72rem;color:var(--text-dim)">' + item.variation + '</span>' : ''}</span>
+              <span style="display:flex;gap:0.2rem;align-items:center">${_statusIcons}</span>
+            </div>
+            <div class="browse-card-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.roadName || item.itemType || '—'}</div>
+            <div class="browse-card-sub" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${[item.itemType, item.yearProd].filter(Boolean).join(' · ')}</div>
+            ${pd && pd.setId ? '<div style="margin-top:0.2rem"><span class="badge-set">🔗 ' + pd.setId + '</span></div>' : ''}
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.25rem;flex-shrink:0">
+            ${cond ? `<span style="font-size:0.72rem"><span class="condition-pip ${condClass}"></span>${cond}</span>` : ''}
+            ${marketVal ? `<span class="market-val" style="font-size:0.72rem">${marketVal}</span>` : ''}
+            ${!_inShareMode ? `<button onclick="event.stopPropagation();removeCollectionItem('${item.itemNum}','${_escVar}',${_pdRow})" style="padding:0.25rem 0.5rem;border-radius:6px;font-size:0.75rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);line-height:1" title="Remove from collection">✕</button>` : ''}
+          </div>
+        </div>
+      </div>`;
+    } else if (state.filters.owned) {
+      // ── My Collection view: Item # | Description | Actions (3 clean columns) ──
+      const _isQuick = pd && pd.quickEntry;
+      const _groupId = pd && pd.groupId ? pd.groupId : '';
+      const _escVar = (item.variation||'').replace(/'/g,"\'");
+      const _descParts = [item.roadName, item.itemType].filter(Boolean);
+      const _descFull  = _descParts.join(' · ') || item.description || '—';
+      const _descShort = _descFull.length > 42 ? _descFull.substring(0, 40) + '…' : _descFull;
+      const _varText   = item.variation ? ` <span style="font-size:0.72rem;color:var(--text-dim);background:var(--surface2);padding:1px 5px;border-radius:4px;margin-left:3px">${item.variation}</span>` : '';
+      const _typeText = item.itemType || '<span style="color:var(--text-dim)">—</span>';
+      const _estWorth = pd && pd.userEstWorth ? '$' + parseFloat(pd.userEstWorth).toLocaleString() : '<span style="color:var(--text-dim)">—</span>';
+      const _shareKeyD = item.itemNum + '|' + (item.variation||'') + '|' + (pd && pd.row ? pd.row : 0);
+      const _inShareModeD = typeof isShareMode === 'function' && isShareMode('collection');
+      const _isShareSelectedD = _inShareModeD && window._shareItems && window._shareItems[_shareKeyD];
+      if (_inShareModeD) { if (!window._shareDataMap) window._shareDataMap = {}; window._shareDataMap[_shareKeyD] = { itemNum: item.itemNum, variation: item.variation||'', pd: pd, master: item }; }
+      return `<tr id="share-card-${_shareKeyD}" onclick="${_inShareModeD ? 'toggleShareItem(\'' + _shareKeyD + '\')' : 'showItemDetailPage(' + globalIdx + ')'}" style="cursor:pointer${_isQuick ? ';opacity:0.82' : ''}${_isShareSelectedD ? ';outline:2px solid #3a9e68;background:rgba(58,158,104,0.06)' : ''}" data-group="${_groupId}" data-item="${item.itemNum}">
+        <td style="white-space:nowrap">
+          ${_inShareModeD ? '<input type="checkbox" id="share-cb-' + _shareKeyD + '" ' + (_isShareSelectedD ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _shareKeyD + '\')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">' : ''}
+          <span class="item-num">${item.itemNum}</span>
+          ${_groupId ? '<span style="font-size:0.55rem;color:var(--accent3);margin-left:4px;vertical-align:super" title="Grouped">🔗</span>' : ''}
+          ${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(\''+item.itemNum+'\',\''+_escVar+'\','+globalIdx+','+pd.row+')" style="margin-left:5px;font-size:0.72rem;background:#27ae60;color:#fff;border-radius:4px;padding:1px 5px;cursor:pointer;font-weight:700;vertical-align:middle" title="Complete this Quick Entry">⚡</span>' : ''}
+          ${pd && pd.photoItem ? '<span style="margin-left:4px;font-size:0.78rem;vertical-align:middle;opacity:0.75" title="Has photo">📷</span>' : ''}
+          ${pd && pd.setId ? '<span class="badge-set" style="margin-left:5px;vertical-align:middle">' + pd.setId + '</span>' : ''}
+        </td>
+        <td style="white-space:nowrap">${item.variation ? '<span style="font-size:0.78rem;color:var(--text-mid)">' + item.variation + '</span>' : '<span style="color:var(--text-dim)">—</span>'}</td>
+        <td style="font-size:0.78rem;color:var(--text-dim)">${_typeText}</td>
+        <td style="color:var(--text-mid);font-size:0.85rem">${_descShort}</td>
+        <td style="font-size:0.82rem;color:var(--gold);white-space:nowrap">${_estWorth}</td>
+        <td style="text-align:right;white-space:nowrap">
+          ${!_inShareModeD ? `<button onclick="event.stopPropagation();collectionActionForSale(${globalIdx},'${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">${isForSale ? '🏷️ Update' : '🏷️ For Sale'}</button>
+          <button onclick="event.stopPropagation();collectionActionSold(${globalIdx},'${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">💰 Sold</button>
+          <button onclick="event.stopPropagation();showAddToUpgradeModal('${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Add to Upgrade List">↑ Upgrade</button>
+          <button onclick="event.stopPropagation();removeCollectionItem('${item.itemNum}','${_escVar}',${pd && pd.row ? pd.row : 0})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>` : ''}
+        </td>
+      </tr>`;
+    } else {
+      const vdShort = item.varDesc ? (item.varDesc.length > 28 ? item.varDesc.substring(0,28)+'…' : item.varDesc) : '';
+      const vdCell = vdShort
+        ? `<span style="cursor:pointer;border-bottom:1px dashed var(--border);color:var(--text-mid)" onclick="event.stopPropagation();showVarDescPopup(${globalIdx})">${vdShort}</span>`
+        : '<span class="text-dim">—</span>';
+      const _isErrCar = pd && pd.isError;
+      const _isQuick = pd && pd.quickEntry;
+      return `<tr onclick="browseRowClick(event, ${globalIdx})" style="cursor:pointer${_isQuick ? ';opacity:0.78' : ''}" title="${_isErrCar ? '⚠ Error car: ' + (pd.errorDesc||'see notes') : _isQuick ? '⚡ Quick Entry — details not yet filled in' : ''}">
+        <td>
+          <span class="item-num">${item.itemNum}${_isErrCar ? '<sup style="color:var(--accent);font-size:0.65rem">*</sup>' : ''}${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(\''+item.itemNum+'\',\''+((item.variation||'').replace(/\'/g,"\\\\'"))+'\','+globalIdx+','+pd.row+')" style="font-size:0.6rem;background:#27ae60;color:#fff;border-radius:3px;padding:1px 4px;vertical-align:middle;font-weight:600;cursor:pointer" title="Complete this Quick Entry">⚡</span>' : ''}</span>
+          ${item.refLink ? `<a href="${item.refLink}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="View on COTT" style="margin-left:5px;vertical-align:middle;color:var(--text-dim);opacity:0.6;text-decoration:none;display:inline-flex" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : ''}
+          <span id="cam-${item.itemNum}-${item.variation||''}" style="margin-left:5px;font-size:0.85rem;cursor:pointer;display:none" onclick="event.stopPropagation();openPhotoFolder('${item.itemNum}','${pd&&pd.photoItem?pd.photoItem:''}')" title="Open photo folder">📷</span>
+        </td>
+        <td><span class="tag">${item.itemType || '—'}</span></td>
+        <td>${item.roadName || '<span class="text-dim">—</span>'}</td>
+        <td>${item.variation || '<span class="text-dim">—</span>'}</td>
+        <td>${vdCell}</td>
+        <td class="text-dim">${item.yearProd || '—'}</td>
+        <td><span class="owned-badge ${badgeClass}">${badgeText}</span></td>
+      </tr>`;
+    }
+  });
+
+  const emptyHtml = isMobile
+    ? '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🔍</div><p>No items match your filters</p></div>'
+    : '<tr><td colspan="' + (state.filters.owned ? '6' : '7') + '"><div class="empty-state"><div class="empty-icon">🔍</div><p>No items match your filters</p><p style="font-size:0.8rem;color:var(--text-dim);margin-top:0.25rem">Try clearing some filters</p></div></td></tr>';
+
+  if (isMobile) {
+    let _ephCardsHtml = '';
+    if (_ephemeraRows.length) {
+      _ephCardsHtml = _ephemeraRows.map(r => {
+        if (r._divider) return '<div style="font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:'+r.color+';text-transform:uppercase;padding:0.6rem 0 0.2rem;border-top:2px solid '+r.color+'33;margin-top:0.5rem">'+r.label+'</div>';
+        const it = r.item;
+        const val = it.estValue ? '$'+parseFloat(it.estValue).toLocaleString() : '';
+        return '<div class="browse-card" onclick="openEphemeraDetail(\"'+r.tabId+'\",'+it.row+')" style="border-left:3px solid '+r.color+';cursor:pointer">'
+          +'<div class="browse-card-row"><span style="font-size:0.9rem">'+r.emoji+'</span>'
+          +'<span class="browse-card-num" style="color:'+r.color+'">'+it.title+'</span>'
+          +'<span class="owned-badge badge-owned" style="margin-left:auto">✓</span></div>'
+          +'<div class="browse-card-sub">'+r.label+(it.year?' · '+it.year:'')+(val?' · '+val:'')+'</div>'
+          +'</div>';
+      }).join('');
+    }
+    if (cardsEl) cardsEl.innerHTML = (rowsHtml.join('') || emptyHtml) + _ephCardsHtml;
+  } else {
+    tbody.innerHTML = (rowsHtml.join('') || emptyHtml) + _ephRowsHtml;
+  }
+  // Async: load thumbnails for My Collection view
+  if (state.filters.owned) {
+    pageData.forEach(function(item) {
+      const pd2 = item._personalOnly ? item : findPD(item.itemNum, item.variation);
+      if (!pd2 || !pd2.owned || !pd2.photoItem) return;
+      const thumbEl = document.getElementById('thumb-' + item.itemNum + '-' + (item.variation || ''));
+      if (!thumbEl) return;
+      driveGetFolderPhotos(pd2.photoItem).then(function(photos) {
+        if (photos && photos.length > 0) {
+          const fileId = photos[0].id;
+          const el = document.getElementById('thumb-' + item.itemNum + '-' + (item.variation || ''));
+          if (el) {
+            const img = document.createElement('img');
+            img.style.cssText = 'width:40px;height:40px;object-fit:cover;border-radius:4px';
+            el.innerHTML = '';
+            el.appendChild(img);
+            loadDriveThumb(fileId, img, el);
+          }
+        } else {
+          const el = document.getElementById('thumb-' + item.itemNum + '-' + (item.variation || ''));
+          if (el) el.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;height:100%"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.35"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>';
+        }
+      });
+    });
+  }
+  // Async: check which owned items have photos and reveal their camera icons
+  if (state.filters.owned) {
+    pageData.forEach(function(item) {
+      const pd2 = item._personalOnly ? item : findPD(item.itemNum, item.variation);
+      if (!pd2 || !pd2.owned) return;
+      const camEl = document.getElementById('cam-' + item.itemNum + '-' + (item.variation || ''));
+      if (!camEl) return;
+      if (pd2.photoItem) {
+        driveGetFolderPhotos(pd2.photoItem).then(function(photos) {
+          if (photos && photos.length > 0) {
+            const c1 = document.getElementById('cam-' + item.itemNum + '-' + (item.variation || ''));
+            const c2 = document.getElementById('cam-' + item.itemNum + '-' + (item.variation || '') + '-m');
+            if (c1) c1.style.display = 'inline';
+            if (c2) c2.style.display = 'inline';
+          }
+        });
+      }
+    });
+  }
+
+  // Pagination
+  const paginEl = document.getElementById('pagination-btns');
+  let btns = '';
+  if (state.currentPage > 1) btns += `<button class="page-btn" onclick="goPage(${state.currentPage-1})">‹</button>`;
+  const range = [1, ...Array.from({length: pages}, (_,i)=>i+1).filter(p => Math.abs(p - state.currentPage) <= 2), pages];
+  [...new Set(range)].sort((a,b)=>a-b).forEach((p, i, arr) => {
+    if (i > 0 && arr[i-1] < p - 1) btns += `<span style="padding:0 4px;color:var(--text-dim)">…</span>`;
+    btns += `<button class="page-btn ${p === state.currentPage ? 'active' : ''}" onclick="goPage(${p})">${p}</button>`;
+  });
+  if (state.currentPage < pages) btns += `<button class="page-btn" onclick="goPage(${state.currentPage+1})">›</button>`;
+  paginEl.innerHTML = btns;
+}
+
+function goPage(p) { state.currentPage = p; renderBrowse(); document.getElementById('main-content').scrollTop = 0; }
+// ── My Collection Detail Popup ──
+function showItemDetailPage(idx) {
+  const item = idx >= 0 ? state.masterData[idx] : null;
+  let pd = null, pdKey = null;
+  if (item) {
+    pdKey = findPDKey(item.itemNum, item.variation);
+    pd = pdKey ? state.personalData[pdKey] : null;
+  } else {
+    const poKey = window._poKeys ? window._poKeys[-(idx+1000)] : null;
+    pd = poKey ? state.personalData[poKey] : null;
+    pdKey = poKey;
+  }
+  if (!pd && !item) return;
+  // Infer type from suffix for personal-only items
+  let _detailType = pd && pd.itemType ? pd.itemType : '';
+  let _baseItem = null; // master data for the base item (e.g. 2032 for 2032-P)
+  if (!item && pd) {
+    const _dn = (pd.itemNum || '').toUpperCase();
+    if (_dn.endsWith('-MBOX'))      _detailType = _detailType || 'Master Carton';
+    else if (_dn.endsWith('-BOX'))  _detailType = _detailType || 'Box';
+    else if (_dn.endsWith('-P'))    _detailType = _detailType || 'Powered Unit';
+    else if (_dn.endsWith('-T'))    _detailType = _detailType || 'Dummy Unit';
+    // Strip suffix to find the base item in master data for description/roadName/varDesc
+    const _baseNum = pd.itemNum.replace(/-(P|T|BOX|MBOX)$/i, '');
+    if (_baseNum !== pd.itemNum) {
+      _baseItem = state.masterData.find(m => m.itemNum === _baseNum && (!pd.variation || m.variation === pd.variation))
+               || state.masterData.find(m => m.itemNum === _baseNum);
+    }
+  }
+  const it = item || {
+    itemNum: pd.itemNum, variation: pd.variation || '',
+    itemType: _detailType || (_baseItem ? _baseItem.itemType : ''),
+    roadName: pd.roadName || (_baseItem ? _baseItem.roadName : ''),
+    description: _baseItem ? _baseItem.description : '',
+    yearProd: pd.yearMade || (_baseItem ? _baseItem.yearProd : ''),
+    marketVal: _baseItem ? _baseItem.marketVal : '',
+    varDesc: _baseItem ? _baseItem.varDesc : '',
+    refLink: _baseItem ? _baseItem.refLink : '',
+  };
+
+  // Show page
+  showPage('itemdetail');
+  const container = document.getElementById('item-detail-content');
+  if (!container) return;
+
+  const cond = pd && pd.condition ? parseInt(pd.condition) : null;
+  const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
+  const isForSale = !!state.forSaleData[`${it.itemNum}|${it.variation||''}`];
+  const groupMembers = pd && pd.groupId ? Object.values(state.personalData).filter(p => p.groupId === pd.groupId && p.itemNum !== it.itemNum) : [];
+
+  // ── HEADER ──
+  const _fromTools = window._detailReturn === 'tools';
+  const _backLabel = _fromTools ? 'Back to Collection Tools' : 'Back to Collection';
+  const _backFn    = _fromTools ? 'delete window._detailReturn;showPage(&apos;tools&apos;);buildToolsPage()' : 'showPage(&apos;browse&apos;);filterOwned()';
+  let html = `
+  <div style="margin-bottom:1.5rem">
+    <button onclick="${_backFn}" style="background:none;border:none;color:#2980b9;font-family:var(--font-body);font-size:1.1rem;font-weight:700;cursor:pointer;padding:0;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.4rem">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+      ${_backLabel}
+    </button>
+    <div style="display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.25rem">
+          <span style="font-family:var(--font-head);font-size:1.6rem;color:var(--accent);letter-spacing:0.03em">No. ${it.itemNum}</span>
+          ${it.variation ? `<span style="font-size:0.9rem;color:var(--text-dim);background:var(--surface2);border-radius:6px;padding:0.15rem 0.6rem">Var. ${it.variation}</span>` : ''}
+          ${it.itemType ? `<span class="tag">${it.itemType}</span>` : ''}
+          ${it.yearProd ? `<span style="font-size:0.82rem;color:var(--text-dim)">${it.yearProd}</span>` : ''}
+        </div>
+        <div style="font-size:1.05rem;color:var(--text);margin-bottom:0.2rem">${it.roadName || ''}</div>
+        ${it.description ? `<div style="font-size:0.85rem;color:var(--text-mid);line-height:1.5;margin-top:0.3rem"><strong style="color:var(--text)">Description:</strong> ${it.description}</div>` : ''}
+        ${it.varDesc ? `<div style="font-size:0.85rem;color:var(--text-mid);line-height:1.5;margin-top:0.3rem"><strong style="color:var(--text)">Variation Description:</strong> ${it.varDesc}</div>` : ''}
+        ${it.refLink ? `<a href="${it.refLink}" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent2);text-decoration:none;display:inline-flex;align-items:center;gap:0.3rem;margin-top:0.4rem">View on COTT <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : ''}
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.4rem;flex-shrink:0">
+        <span class="owned-badge ${isForSale ? 'forsale' : 'yes'}" style="font-size:0.85rem">${isForSale ? '\ud83c\udff7\ufe0f For Sale' : '\u2713 In Collection'}</span>
+        ${cond ? `<span style="font-size:0.85rem"><span class="condition-pip ${condClass}"></span> ${cond}/10</span>` : ''}
+      </div>
+    </div>
+  </div>`;
+
+  // ── ACTION TOOLBAR ──
+  html += `
+  <div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap">
+    <button onclick="showItemDetailPage_edit(${idx})" data-ctip="Edit this item's details and add photos all in one place." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2980b9;background:rgba(41,128,185,0.1);color:#2980b9;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      Update Info &amp; Add Pictures
+    </button>
+    <button onclick="collectionActionSold(${idx},'${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}')" data-ctip="Did you sell something? Record that here." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      Record Sale
+    </button>
+    <button onclick="collectionActionForSale(${idx},'${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}')" data-ctip="If you want to sell an item from your collection, you can list it for sale here." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+      List for Sale
+    </button>
+    <button onclick="showAddToUpgradeModal('${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+      Add to Upgrade List
+    </button>
+  </div>`;
+
+  // ── DETAILS GRID ──
+  const details = [
+    { label: 'Condition', val: cond ? `<span class="condition-pip ${condClass}"></span> ${cond}/10` : null },
+    { label: 'All Original', val: pd && pd.allOriginal && pd.allOriginal !== 'Unknown' ? pd.allOriginal : null },
+    { label: 'Not Original', val: pd && pd.notOriginalDesc ? pd.notOriginalDesc : null },
+    { label: 'Has Box', val: pd ? (pd.hasBox === 'Yes' ? '\u2705 Yes' + (pd.boxCond ? ` (${pd.boxCond}/10)` : '') : pd.hasBox === 'No' ? 'No' : null) : null },
+    { label: 'Price Paid (Item)', val: pd && pd.priceItem ? '$' + parseFloat(pd.priceItem).toLocaleString() : null },
+    { label: 'Price Paid (Box)', val: pd && pd.priceBox ? '$' + parseFloat(pd.priceBox).toLocaleString() : null },
+    { label: 'Price Paid (Complete)', val: pd && pd.priceComplete ? '$' + parseFloat(pd.priceComplete).toLocaleString() : null },
+    { label: 'Est. Worth', val: pd && pd.userEstWorth ? '$' + parseFloat(pd.userEstWorth).toLocaleString() : null },
+    { label: 'Market Value', val: it.marketVal && !isNaN(parseFloat(it.marketVal)) ? '$' + parseFloat(it.marketVal).toLocaleString() : null },
+    { label: 'Date Purchased', val: pd && pd.datePurchased ? pd.datePurchased : null },
+    { label: 'Year Made', val: pd && pd.yearMade ? pd.yearMade : null },
+    { label: 'Location', val: pd && pd.location ? pd.location : null },
+    { label: 'Inventory ID', val: pd && pd.inventoryId ? pd.inventoryId : null },
+  ].filter(d => d.val);
+
+  const matchedTo = pd && pd.matchedTo ? pd.matchedTo : '';
+  const setId = pd && pd.setId ? pd.setId : '';
+
+  html += `<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem;margin-bottom:1.5rem">
+    <div style="font-family:var(--font-head);font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent2);margin-bottom:0.75rem">Details</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.6rem 1.5rem">
+      ${details.map(d => `<div style="display:flex;justify-content:space-between;padding:0.35rem 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:0.78rem;color:var(--text-dim);font-weight:600">${d.label}</span>
+        <span style="font-size:0.85rem;color:var(--text);text-align:right">${d.val}</span>
+      </div>`).join('')}
+    </div>`;
+
+  // Matched / Set info
+  if (matchedTo || setId || groupMembers.length) {
+    html += `<div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border)">`;
+    if (matchedTo) {
+      const _mIcon = isTender(it.itemNum) ? '\ud83d\ude82' : '\ud83d\ude83';
+      // Matched items are always in the collection
+      const _mtPdKey = findPDKey(matchedTo, '');
+      let _mtIdx = state.masterData.findIndex(md => md.itemNum === matchedTo);
+      if (_mtIdx < 0 && _mtPdKey) {
+        if (!window._poKeys) window._poKeys = [];
+        let _mtPoIdx = window._poKeys.indexOf(_mtPdKey);
+        if (_mtPoIdx < 0) _mtPoIdx = window._poKeys.push(_mtPdKey) - 1;
+        _mtIdx = -(_mtPoIdx + 1000);
+      }
+      const _mtClickable = _mtPdKey && _mtIdx !== -1;
+      html += `<div style="font-size:0.85rem;color:var(--text-mid);margin-bottom:0.3rem">${_mIcon} Matched to: ${_mtClickable
+        ? '<a href="javascript:void(0)" onclick="showItemDetailPage(' + _mtIdx + ')" style="color:var(--accent);font-weight:700;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;cursor:pointer">' + matchedTo + '</a>'
+        : '<strong style="color:var(--accent)">' + matchedTo + '</strong>'}</div>`;
+    }
+    if (setId) {
+      html += `<div style="font-size:0.85rem;color:var(--text-mid);margin-bottom:0.3rem">\ud83d\udd17 Set: <strong style="color:#a855f7">${setId}</strong></div>`;
+    }
+    if (groupMembers.length) {
+      html += `<div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.3rem">Grouped with: ${groupMembers.map(m => {
+        // Grouped items are always in the collection — look up via personalData
+        const _gPdKey = findPDKey(m.itemNum, m.variation);
+        if (_gPdKey) {
+          // Check if also in masterData (positive index), otherwise use personal-only negative index
+          let _gIdx = state.masterData.findIndex(md => md.itemNum === m.itemNum && (!m.variation || md.variation === m.variation));
+          if (_gIdx < 0) {
+            if (!window._poKeys) window._poKeys = [];
+            let _poIdx = window._poKeys.indexOf(_gPdKey);
+            if (_poIdx < 0) _poIdx = window._poKeys.push(_gPdKey) - 1;
+            _gIdx = -(_poIdx + 1000);
+          }
+          return '<a href="javascript:void(0)" onclick="showItemDetailPage(' + _gIdx + ')" style="color:var(--accent);font-family:var(--font-mono);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;cursor:pointer">' + m.itemNum + '</a>';
+        }
+        return '<span style="color:var(--accent);font-family:var(--font-mono)">' + m.itemNum + '</span>';
+      }).join(', ')}</div>`;
+    }
+    html += `</div>`;
+  }
+
+  // Notes
+  if (pd && pd.notes) {
+    html += `<div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border)">
+      <div style="font-size:0.78rem;color:var(--text-dim);font-weight:600;margin-bottom:0.3rem">Notes</div>
+      <div style="font-size:0.85rem;color:var(--text);line-height:1.6">${pd.notes}</div>
+    </div>`;
+  }
+
+  html += `</div>`;
+
+  // ── PHOTO GALLERY ──
+  const _photoLink = pd && pd.photoItem ? pd.photoItem : '';
+  html += `<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
+      <div style="font-family:var(--font-head);font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent2)">Photos</div>
+      ${_photoLink ? `<a href="${_photoLink}" target="_blank" rel="noopener" style="font-size:0.75rem;color:var(--accent2);text-decoration:none">Open Drive Folder \u2197</a>` : ''}
+    </div>
+    <div id="item-detail-photos" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:0.75rem;min-height:80px">
+      ${_photoLink ? '<div style="grid-column:1/-1;text-align:center;padding:1rem;color:var(--text-dim);font-size:0.82rem"><div class="spinner" style="margin:0 auto 0.5rem;width:20px;height:20px;border-width:2px"></div>Loading photos...</div>' : '<div style="grid-column:1/-1;text-align:center;padding:2rem 1rem;color:var(--text-dim)"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3" style="margin:0 auto 0.5rem;display:block"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg><div style="font-size:0.85rem;margin-bottom:0.5rem">No photos uploaded yet</div><button onclick="showItemDetailPage_photos(${idx})" style="padding:0.4rem 0.8rem;border-radius:7px;border:1.5px solid var(--gold);background:rgba(212,168,67,0.08);color:var(--gold);font-family:var(--font-body);font-size:0.78rem;cursor:pointer;font-weight:600">Add Photos</button></div>'}
+    </div>
+  </div>`;
+
+  container.innerHTML = html;
+
+  // Async: load photos
+  if (_photoLink) {
+    driveGetFolderPhotos(_photoLink).then(function(photos) {
+      const el = document.getElementById('item-detail-photos');
+      if (!el) return;
+      if (!photos || photos.length === 0) {
+        el.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:2rem 1rem;color:var(--text-dim)"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3" style="margin:0 auto 0.5rem;display:block"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg><div style="font-size:0.85rem;margin-bottom:0.5rem">No photos in folder</div><button onclick="showItemDetailPage_photos(' + idx + ')" style="padding:0.4rem 0.8rem;border-radius:7px;border:1.5px solid var(--gold);background:rgba(212,168,67,0.08);color:var(--gold);font-family:var(--font-body);font-size:0.78rem;cursor:pointer;font-weight:600">Add Photos</button></div>';
+        return;
+      }
+      el.innerHTML = photos.map(function(p) {
+        return '<a href="' + p.view + '" target="_blank" rel="noopener" style="display:block;border-radius:8px;overflow:hidden;background:var(--surface2);aspect-ratio:1;position:relative">'
+          + '<img id="idp-' + p.id + '" style="width:100%;height:100%;object-fit:cover;border-radius:8px;transition:opacity 0.3s" alt="' + (p.name||'Photo') + '">'
+          + '<div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.6));padding:0.3rem 0.5rem">'
+          + '<div style="font-size:0.65rem;color:#fff;font-family:var(--font-head);letter-spacing:0.05em;text-transform:uppercase">' + (p.name||'').replace(/\.[^.]+$/,'') + '</div>'
+          + '</div></a>';
+      }).join('');
+      // Load each photo thumbnail
+      photos.forEach(function(p) {
+        const imgEl = document.getElementById('idp-' + p.id);
+        if (imgEl) {
+          loadDriveThumb(p.id, imgEl, imgEl.parentElement);
+        }
+      });
+    }).catch(function(e) {
+      console.warn('Photo gallery load:', e);
+      const el = document.getElementById('item-detail-photos');
+      if (el) el.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:1rem;color:var(--text-dim);font-size:0.82rem">Could not load photos</div>';
+    });
+  }
+}
+
+// Helper functions for item detail page action buttons
+function showItemDetailPage_edit(idx) {
+  const item = idx >= 0 ? state.masterData[idx] : null;
+  if (!item) return;
+  const pdKey = findPDKey(item.itemNum, item.variation);
+  if (pdKey) updateCollectionItem(idx, pdKey);
+  else showToast('Item not found in your collection', 3000, true);
+}
+function showItemDetailPage_photos(idx) {
+  const item = idx >= 0 ? state.masterData[idx] : null;
+  if (!item) return;
+  const pdKey = findPDKey(item.itemNum, item.variation);
+  if (pdKey) showItemPanel(idx, pdKey, 'edit');
+  else showToast('Item not found in your collection', 3000, true);
+}
+function showItemDetailPage_sell(idx) {
+  const item = idx >= 0 ? state.masterData[idx] : null;
+  if (!item) return;
+  const pdKey = findPDKey(item.itemNum, item.variation);
+  if (pdKey) sellFromCollection(idx, pdKey);
+}
+function showItemDetailPage_forsale(idx) {
+  const item = idx >= 0 ? state.masterData[idx] : null;
+  if (!item) return;
+  const pdKey = findPDKey(item.itemNum, item.variation);
+  if (pdKey) listForSaleFromCollection(idx, pdKey);
+}
+
+
+
+
+// ── BROWSE ROW CLICK — offer to add or view ─────────────────────
+function openPhotoWizard(itemNum, variation, pdKey) {
+  // Open wizard on the photo step for an existing item
+  const pd = state.personalData[pdKey] || {};
+  wizard = {
+    step: 0, tab: 'collection',
+    data: { tab: 'collection', itemNum: itemNum, variation: variation,
+            condition: pd.condition || '', allOriginal: pd.allOriginal || '',
+            hasBox: pd.hasBox || '', _updatePdKey: pdKey, _photoOnly: true },
+    steps: getSteps('collection'), matchedItem: null
+  };
+  document.getElementById('wizard-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  // Skip to the photosItem step
+  const autoSkip = new Set(['tab','itemNum','variation','itemPicker','entryMode','condition','allOriginal','notOriginalDesc',
+    'hasBox','boxCond','hasIS','is_sheetNum','is_condition','pricePaid','datePurchased','userEstWorth','yearMade',
+    'tenderAllOriginal','tenderNotOriginalDesc','unit2AllOriginal','unit2NotOriginalDesc',
+    'unit3AllOriginal','unit3NotOriginalDesc','wantTenderPhotos','tenderMatch','dieselSetQ','setMatch','setType',
+    'unit2ItemNum','unit3ItemNum','setUnit2Num','setUnit3Num',
+    'wantTogetherPhotos','photosTogether','boxOnly','wantBoxPhotos',
+    'hasMasterBox','masterBoxCond','masterBoxNotes','photosMasterBox',
+    'purchaseDate','photosBox']);
+  while (wizard.step < wizard.steps.length - 1) {
+    const s = wizard.steps[wizard.step];
+    if (autoSkip.has(s.id) || (s.skipIf && s.skipIf(wizard.data))) wizard.step++;
+    else break;
+  }
   renderWizardStep();
 }
 
-function wizardPickSoldItem(key) {
-  wizard.data.selectedSoldKey = key;
-  if (key !== '__new__') {
-    const pd = state.personalData[key];
-    if (pd) {
-      // Pre-fill condition and original price from collection data
-      if (pd.condition && pd.condition !== 'N/A') wizard.data.condition = parseInt(pd.condition);
-      if (pd.priceItem && pd.priceItem !== 'N/A') wizard.data.priceItem = pd.priceItem;
+function addPhotosFromCollection(globalIdx) {
+  var item = state.masterData[globalIdx] || {};
+  var itemNum = item.itemNum || '';
+  var variation = item.variation || '';
+  var pdKey = Object.keys(state.personalData).find(function(k) {
+    var pd = state.personalData[k];
+    return pd && pd.itemNum === itemNum && (!variation || pd.variation === variation) && pd.owned;
+  });
+  if (pdKey) openPhotoWizard(itemNum, variation, pdKey);
+  else showToast('Item not found in collection');
+}
+
+async function openPhotoFolder(itemNum, storedLink) {
+  if (storedLink) {
+    var _pfMatch = (storedLink || '').match(/folders\/([a-zA-Z0-9_-]+)/);
+    if (_pfMatch && _pfMatch[1] && _pfMatch[1] !== 'undefined') {
+      try {
+        var _pfCheck = await driveRequest('GET', '/files/' + _pfMatch[1] + '?fields=id,trashed');
+        if (_pfCheck && _pfCheck.id && !_pfCheck.trashed) {
+          window.open(storedLink, '_blank');
+          return;
+        }
+      } catch(e) { /* stale link, fall through */ }
     }
+    console.warn('[Photos] Stored link invalid for', itemNum);
   }
-  setTimeout(() => wizardNext(), 150);
+  try {
+    var folderId = await driveEnsureItemFolder(itemNum);
+    var freshLink = driveFolderLink(folderId);
+    window.open(freshLink, '_blank');
+    // Auto-repair the broken link in the sheet
+    var _pfKey = Object.keys(state.personalData).find(function(k) {
+      var pd = state.personalData[k];
+      return pd && pd.itemNum === itemNum && pd.owned;
+    });
+    if (_pfKey && state.personalData[_pfKey].row) {
+      state.personalData[_pfKey].photoItem = freshLink;
+      sheetsUpdate(state.personalSheetId, 'My Collection!J' + state.personalData[_pfKey].row, [[freshLink]]).catch(function(e) { console.warn('Photo link update:', e); });
+    }
+  } catch(e) { showToast('Could not open Drive folder: ' + e.message); }
 }
 
-// ── Collection picker in forsale/sold itemNum step ──
-function _filterCollPicker(q) {
-  var el = document.getElementById('wiz-coll-picker');
-  if (!el) return;
-  q = (q || '').toLowerCase();
-  var owned = Object.entries(state.personalData).filter(function(e) {
-    if (!e[1].owned) return false;
-    if (!q) return true;
-    var pd = e[1];
-    return (pd.itemNum||'').toLowerCase().includes(q)
-      || (pd.variation||'').toLowerCase().includes(q);
-  });
-  // Sort by item number
-  owned.sort(function(a,b) { return (a[1].itemNum||'').localeCompare(b[1].itemNum||'', undefined, {numeric:true}); });
-
-  if (owned.length === 0) {
-    el.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--text-dim);font-size:0.82rem">' + (q ? 'No matches' : 'No items in collection') + '</div>';
-    return;
-  }
-  var accentColor = wizard.tab === 'forsale' ? '#e67e22' : '#2ecc71';
-  var html = '';
-  owned.forEach(function(entry) {
-    var pdKey = entry[0], pd = entry[1];
-    var master = state.masterData.find(function(m) { return m.itemNum === pd.itemNum && m.variation === (pd.variation||''); }) || {};
-    var alreadyListed = wizard.tab === 'forsale' ? !!state.forSaleData[pd.itemNum + '|' + (pd.variation||'')] : false;
-    html += '<div onclick="_selectCollItem(\'' + pdKey.replace(/'/g,"\\'") + '\')" style="'
-      + 'display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.75rem;cursor:pointer;'
-      + 'border-bottom:1px solid var(--border);transition:background 0.1s;'
-      + (alreadyListed ? 'background:rgba(230,126,34,0.05);' : '')
-      + '" onmouseenter="this.style.background=\'rgba(232,64,28,0.06)\'" onmouseleave="this.style.background=\'' + (alreadyListed ? 'rgba(230,126,34,0.05)' : '') + '\'">'
-      + '<div style="flex:1;min-width:0">'
-      + '<div style="display:flex;align-items:center;gap:0.4rem">'
-      + '<span style="font-family:var(--font-mono);font-size:0.88rem;color:var(--accent2);font-weight:600">' + pd.itemNum + '</span>'
-      + (pd.variation ? '<span style="font-size:0.68rem;color:var(--text-dim)">V' + pd.variation + '</span>' : '')
-      + (alreadyListed ? '<span style="font-size:0.6rem;color:#e67e22;font-weight:600;margin-left:auto">LISTED</span>' : '')
-      + '</div>'
-      + '<div style="font-size:0.72rem;color:var(--text-mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'
-      + (master.roadName || master.itemType || '')
-      + (pd.condition ? ' · C:' + pd.condition : '')
-      + (pd.priceItem ? ' · $' + parseFloat(pd.priceItem).toLocaleString() : '')
-      + '</div>'
-      + '</div>'
-      + '</div>';
-  });
-  el.innerHTML = html;
-}
-
-function _selectCollItem(pdKey) {
-  var pd = state.personalData[pdKey];
-  if (!pd) return;
-  var master = state.masterData.find(function(m) { return m.itemNum === pd.itemNum && m.variation === (pd.variation||''); });
-  var idx = master ? state.masterData.indexOf(master) : -1;
-
-  if (wizard.tab === 'forsale') {
-    // Close any full picker overlay
-    var ov = document.getElementById('pick-fs-overlay');
-    if (ov) ov.remove();
-    listForSaleFromCollection(idx, pdKey);
-  } else if (wizard.tab === 'sold') {
-    var ov2 = document.getElementById('pick-fs-overlay');
-    if (ov2) ov2.remove();
-    sellFromCollection(idx, pdKey);
-  }
-}
-
-function _openFullCollPicker() {
-  // Reuse showPickFromCollectionForSale but make it work for sold too
-  var owned = Object.entries(state.personalData).filter(function(e) { return e[1].owned; });
-  if (owned.length === 0) { showToast('No items in your collection yet'); return; }
-
-  var existing = document.getElementById('pick-fs-overlay');
+function showOwnedItemMenu(idx, pdKey) {
+  const pd = state.personalData[pdKey] || {};
+  // For personalOnly items, build a minimal item object from pd
+  const item = state.masterData[idx] || {
+    itemNum: pd.itemNum, variation: pd.variation || '',
+    roadName: pd.roadName || '', itemType: pd.itemType || '',
+    yearProd: pd.yearMade || '', marketVal: '', // market value comes from master sheet only
+  };
+  const existing = document.getElementById('owned-action-menu');
   if (existing) existing.remove();
 
-  var overlay = document.createElement('div');
+  const overlay = document.createElement('div');
+  overlay.id = 'owned-action-menu';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  const box = document.createElement('div');
+  box.style.cssText = 'background:var(--surface);border:1px solid rgba(46,204,113,0.35);border-radius:16px;max-width:420px;width:100%;padding:1.75rem;position:relative';
+
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕';
+  closeBtn.style.cssText = 'position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer';
+  closeBtn.onclick = function() { overlay.remove(); };
+  box.appendChild(closeBtn);
+
+  const hdr = document.createElement('div');
+  hdr.style.cssText = 'font-family:var(--font-head);font-size:1rem;color:var(--green);margin-bottom:0.15rem';
+  hdr.textContent = '✓ In Your Collection';
+  box.appendChild(hdr);
+  const itemLbl = document.createElement('div');
+  itemLbl.style.cssText = 'font-size:0.85rem;color:var(--text-mid);margin-bottom:0.1rem';
+  itemLbl.textContent = 'No. ' + item.itemNum + (item.variation ? ' — Var. ' + item.variation : '') + (item.roadName ? ' · ' + item.roadName : '');
+  box.appendChild(itemLbl);
+  const condLbl = document.createElement('div');
+  condLbl.style.cssText = 'font-size:0.75rem;color:var(--text-dim);margin-bottom:1.25rem';
+  const parts = [];
+  if (pd.condition) parts.push('Condition: ' + pd.condition + '/10');
+  if (pd.priceItem || pd.priceComplete) parts.push('Paid: $' + (pd.priceComplete || pd.priceItem));
+  if (pd.yearMade) parts.push('Year: ' + pd.yearMade);
+  condLbl.textContent = parts.join(' · ') || item.yearProd || '';
+  box.appendChild(condLbl);
+
+  // Action buttons stacked
+  const mkBtn = function(label, color, bg, handler) {
+    const b = document.createElement('button');
+    b.style.cssText = 'width:100%;padding:0.7rem 1rem;border-radius:9px;border:1.5px solid ' + color + ';color:' + color + ';background:' + bg + ';font-family:var(--font-body);font-size:0.9rem;font-weight:600;cursor:pointer;margin-bottom:0.5rem;text-align:left;display:flex;align-items:center;gap:0.5rem';
+    b.innerHTML = label;
+    b.onclick = handler;
+    return b;
+  };
+
+  box.appendChild(mkBtn(
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Record a Sale',
+    '#2ecc71', 'rgba(46,204,113,0.1)',
+    function() { overlay.remove(); sellFromCollection(idx, pdKey); }
+  ));
+  // Check if already listed for sale
+  const _fsKey = pd.itemNum + '|' + (pd.variation || '');
+  const _alreadyForSale = !!state.forSaleData[_fsKey];
+  box.appendChild(mkBtn(
+    _alreadyForSale
+      ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg> Update For Sale Listing'
+      : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg> List for Sale',
+    '#e67e22', 'rgba(230,126,34,0.1)',
+    function() { overlay.remove(); listForSaleFromCollection(idx, pdKey); }
+  ));
+  box.appendChild(mkBtn(
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Update Info',
+    '#2980b9', 'rgba(224,64,40,0.08)',
+    function() { overlay.remove(); updateCollectionItem(idx, pdKey); }
+  ));
+  box.appendChild(mkBtn(
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> View Item Details',
+    'var(--text-dim)', 'var(--surface2)',
+    function() { overlay.remove(); showItemPanel(idx, pdKey, 'view'); }
+  ));
+
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+}
+
+// ── Collection list action helpers (resolve pdKey from itemNum/variation, then delegate) ──
+function collectionActionForSale(globalIdx, itemNum, variation) {
+  var pdKey = findPDKey(itemNum, variation);
+  if (!pdKey) { showToast('Item not found in collection', 3000, true); return; }
+  _checkSetBeforeAction(pdKey, () => listForSaleFromCollection(globalIdx, pdKey));
+}
+
+function collectionActionSold(globalIdx, itemNum, variation) {
+  var pdKey = findPDKey(itemNum, variation);
+  if (!pdKey) { showToast('Item not found in collection', 3000, true); return; }
+  _checkSetBeforeAction(pdKey, () => sellFromCollection(globalIdx, pdKey));
+}
+
+function _checkSetBeforeAction(pdKey, proceed) {
+  const pd = state.personalData[pdKey] || {};
+  if (!pd.groupId) { proceed(); return; }
+  // Check if this groupId has other members
+  const siblings = Object.entries(state.personalData)
+    .filter(([k, p]) => k !== pdKey && p.groupId === pd.groupId);
+  if (!siblings.length) { proceed(); return; }
+  // Show set breakup modal
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+  overlay.innerHTML = `
+    <div style="background:var(--surface);border-radius:16px;padding:1.5rem;max-width:380px;width:100%;border:1px solid var(--border)">
+      <div style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:0.4rem">This item is part of a set</div>
+      <div style="font-size:0.84rem;color:var(--text-mid);margin-bottom:1.25rem">
+        ${pd.setNum ? 'Set ' + pd.setNum + ' · ' : ''}${siblings.length + 1} items share this group.
+        What would you like to do?
+      </div>
+      <div style="display:flex;flex-direction:column;gap:0.5rem">
+        <button id="_setaction-proceed" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid #27ae60;background:rgba(39,174,96,0.1);color:#27ae60;font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer;text-align:left">
+          Continue — list as incomplete set<br>
+          <span style="font-weight:400;font-size:0.78rem;color:var(--text-dim)">Other set items keep their group ID</span>
+        </button>
+        <button id="_setaction-break" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid var(--accent);background:rgba(232,64,28,0.08);color:var(--accent);font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer;text-align:left">
+          Break up the set<br>
+          <span style="font-weight:400;font-size:0.78rem;color:var(--text-dim)">Removes group from all ${siblings.length + 1} items</span>
+        </button>
+        <button id="_setaction-cancel" style="padding:0.75rem;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  document.getElementById('_setaction-proceed').onclick = () => { overlay.remove(); proceed(); };
+  document.getElementById('_setaction-cancel').onclick  = () => overlay.remove();
+  document.getElementById('_setaction-break').onclick   = async () => {
+    overlay.remove();
+    const allGroup = [[pdKey, pd], ...siblings];
+
+    // Check if any item has a purchase price (stored on loco)
+    const _priceItem = allGroup.find(([,p]) => p.priceItem && parseFloat(p.priceItem) > 0);
+    const _worthItem = allGroup.find(([,p]) => p.userEstWorth && parseFloat(p.userEstWorth) > 0);
+    const _hasMoney  = _priceItem || _worthItem;
+
+    if (_hasMoney) {
+      const _locoNum   = (_priceItem || _worthItem)[1].itemNum;
+      const _price     = _priceItem ? parseFloat(_priceItem[1].priceItem) : 0;
+      const _worth     = _worthItem ? parseFloat(_worthItem[1].userEstWorth) : 0;
+      const _count     = allGroup.length;
+      const _perPrice  = _price  ? '$' + (_price  / _count).toFixed(2) : null;
+      const _perWorth  = _worth  ? '$' + (_worth  / _count).toFixed(2) : null;
+
+      // Show price-split modal
+      const o2 = document.createElement('div');
+      o2.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+      o2.innerHTML = `
+        <div style="background:var(--surface);border-radius:16px;padding:1.5rem;max-width:380px;width:100%;border:1px solid var(--border)">
+          <div style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:0.4rem">What about the price?</div>
+          <div style="font-size:0.84rem;color:var(--text-mid);margin-bottom:1.1rem">
+            ${_price ? 'Purchase price of <strong style="color:var(--text)">$' + _price.toFixed(2) + '</strong>' : ''}
+            ${_price && _worth ? ' and ' : ''}
+            ${_worth ? 'estimated value of <strong style="color:var(--text)">$' + _worth.toFixed(2) + '</strong>' : ''}
+            ${_price || _worth ? ' is stored on the locomotive <span style="font-family:var(--font-mono);color:var(--accent);font-weight:600">' + _locoNum + '</span>.' : ''}
+          </div>
+          <div style="display:flex;flex-direction:column;gap:0.5rem">
+            <button id="_split-even" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid #27ae60;background:rgba(39,174,96,0.1);color:#27ae60;font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer;text-align:left">
+              Split evenly across all ${_count} items<br>
+              <span style="font-weight:400;font-size:0.78rem;color:var(--text-dim)">${[_perPrice ? _perPrice + ' per item (price)' : '', _perWorth ? _perWorth + ' per item (value)' : ''].filter(Boolean).join(' · ')}</span>
+            </button>
+            <button id="_split-assign" style="padding:0.8rem 1rem;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer;text-align:left">
+              Assign value to each item<br>
+              <span style="font-weight:400;font-size:0.78rem;color:var(--text-dim)">Enter price &amp; value individually for each piece</span>
+            </button>
+            <button id="_split-clear" style="padding:0.8rem 1rem;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer;text-align:left">
+              Clear it<br>
+              <span style="font-weight:400;font-size:0.78rem">Remove price &amp; value from all items</span>
+            </button>
+          </div>
+        </div>`;
+      document.body.appendChild(o2);
+
+      const _doBreak = async (splitMode, customValues) => {
+        o2.remove();
+        for (const [k, p] of allGroup) {
+          let newPrice, newWorth;
+          if (splitMode === 'even') {
+            newPrice = _price ? (_price / _count).toFixed(2) : '';
+            newWorth = _worth ? (_worth / _count).toFixed(2) : '';
+          } else if (splitMode === 'clear') {
+            newPrice = '';
+            newWorth = '';
+          } else if (splitMode === 'assign' && customValues) {
+            newPrice = customValues[k]?.price ?? '';
+            newWorth = customValues[k]?.worth ?? '';
+          } else {
+            newPrice = p.priceItem || '';
+            newWorth = p.userEstWorth || '';
+          }
+          state.personalData[k] = { ...p, groupId: '', priceItem: newPrice, userEstWorth: newWorth };
+          if (p.row) {
+            sheetsUpdate(state.personalSheetId, 'My Collection!E' + p.row, [[newPrice]])
+              .catch(e => console.warn('price split row', p.row, e));
+            sheetsUpdate(state.personalSheetId, 'My Collection!N' + p.row, [[newWorth]])
+              .catch(e => console.warn('worth split row', p.row, e));
+            sheetsUpdate(state.personalSheetId, 'My Collection!V' + p.row, [['']])
+              .catch(e => console.warn('clear groupId row', p.row, e));
+          }
+        }
+        _cachePersonalData();
+        const _msg = splitMode === 'even'
+          ? 'Set broken up — price split evenly across ' + _count + ' items'
+          : splitMode === 'clear'
+          ? 'Set broken up — price & value cleared'
+          : splitMode === 'assign'
+          ? 'Set broken up — values assigned per item'
+          : 'Set broken up';
+        showToast(_msg);
+        proceed();
+      };
+
+      // Assign individually — show per-item input screen
+      document.getElementById('_split-assign').onclick = () => {
+        o2.remove();
+        const perEven = { price: _price ? (_price/_count).toFixed(2) : '', worth: _worth ? (_worth/_count).toFixed(2) : '' };
+
+        const o3 = document.createElement('div');
+        o3.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:flex-end;justify-content:center';
+        const sheet = document.createElement('div');
+        sheet.style.cssText = 'background:var(--surface);border-radius:16px 16px 0 0;padding:1.25rem;width:100%;max-width:520px;max-height:85vh;overflow-y:auto;-webkit-overflow-scrolling:touch';
+
+        let html = `<div style="font-family:var(--font-head);font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim);text-align:center;margin-bottom:0.85rem">Assign Price &amp; Value per Item</div>`;
+        html += `<div style="display:grid;grid-template-columns:1fr 90px 90px;gap:0.3rem;margin-bottom:0.4rem;padding:0 0.1rem">
+          <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim)">Item</div>
+          <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);text-align:center">Paid ($)</div>
+          <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);text-align:center">Worth ($)</div>
+        </div>`;
+
+        allGroup.forEach(([k, p], i) => {
+          const master = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(p.itemNum));
+          const desc = master ? (master.roadName || master.description || '') : '';
+          const safeKey = 'assign_' + i;
+          html += `<div style="display:grid;grid-template-columns:1fr 90px 90px;gap:0.3rem;align-items:center;margin-bottom:0.45rem;padding:0.4rem 0.5rem;background:var(--surface2);border-radius:8px">
+            <div>
+              <div style="font-family:var(--font-mono);font-size:0.85rem;font-weight:700;color:var(--accent)">${p.itemNum}</div>
+              ${desc ? `<div style="font-size:0.7rem;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${desc}</div>` : ''}
+            </div>
+            <input type="number" id="${safeKey}_price" value="${perEven.price}" min="0" step="0.01" placeholder="0.00"
+              style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:0.4rem 0.5rem;color:var(--text);font-family:var(--font-mono);font-size:0.85rem;text-align:right;outline:none;box-sizing:border-box">
+            <input type="number" id="${safeKey}_worth" value="${perEven.worth}" min="0" step="0.01" placeholder="0.00"
+              style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:0.4rem 0.5rem;color:var(--text);font-family:var(--font-mono);font-size:0.85rem;text-align:right;outline:none;box-sizing:border-box">
+          </div>`;
+        });
+
+        html += `<div style="display:flex;gap:0.6rem;margin-top:0.75rem;padding-bottom:0.25rem">
+          <button id="_assign-cancel" style="flex:1;padding:0.7rem;border-radius:9px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.88rem;cursor:pointer">Cancel</button>
+          <button id="_assign-save" style="flex:2;padding:0.7rem;border-radius:9px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer">Save &amp; Break Up</button>
+        </div>`;
+
+        sheet.innerHTML = html;
+        o3.appendChild(sheet);
+        document.body.appendChild(o3);
+
+        document.getElementById('_assign-cancel').onclick = () => o3.remove();
+        document.getElementById('_assign-save').onclick = () => {
+          const customValues = {};
+          allGroup.forEach(([k], i) => {
+            const safeKey = 'assign_' + i;
+            customValues[k] = {
+              price: document.getElementById(safeKey + '_price')?.value || '',
+              worth: document.getElementById(safeKey + '_worth')?.value || '',
+            };
+          });
+          o3.remove();
+          _doBreak('assign', customValues);
+        };
+      };
+
+      document.getElementById('_split-even').onclick  = () => _doBreak('even');
+      document.getElementById('_split-clear').onclick = () => _doBreak('clear');
+
+    } else {
+      // No price data — just clear group IDs
+      for (const [k, p] of allGroup) {
+        state.personalData[k] = { ...p, groupId: '' };
+        if (p.row) {
+          sheetsUpdate(state.personalSheetId, 'My Collection!V' + p.row, [['']])
+            .catch(e => console.warn('Clear groupId row', p.row, e));
+        }
+      }
+      _cachePersonalData();
+      showToast('Set broken up — items are now individual');
+      proceed();
+    }
+  };
+}
+
+async function removeCollectionItem(itemNum, variation, row) {
+  // Check if this item is part of a group with other members
+  var pdKey = findPDKey(itemNum, variation);
+  var thisPd = pdKey ? state.personalData[pdKey] : null;
+  var groupId = thisPd && thisPd.groupId;
+  var groupSiblings = groupId
+    ? Object.values(state.personalData).filter(p => p.groupId === groupId && p.owned)
+    : [];
+  var isGrouped = groupSiblings.length > 1;
+
+  if (isGrouped) {
+    // Show choice modal — remove just this item or the whole group
+    var groupLabels = groupSiblings.map(p => p.itemNum).join(' + ');
+    var choice = await new Promise(function(resolve) {
+      var siblings = groupSiblings.filter(p => p.itemNum !== itemNum).map(p => p.itemNum).join(', ');
+      var overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9500;display:flex;align-items:center;justify-content:center;padding:1rem';
+      overlay.innerHTML = `
+        <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:1.5rem;max-width:360px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
+          <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;color:var(--accent);text-transform:uppercase;margin-bottom:0.5rem">Remove Item</div>
+          <div style="font-size:0.9rem;color:var(--text);margin-bottom:0.2rem;line-height:1.5">
+            Item <strong>${itemNum}</strong> is grouped with <strong>${siblings}</strong>.
+          </div>
+          <div style="font-size:0.85rem;color:var(--text-mid);margin-bottom:1.25rem;line-height:1.5">Do you want to remove just this item, or all items in the group?</div>
+          <div style="display:flex;flex-direction:column;gap:0.5rem">
+            <button id="rm-just-one" style="padding:0.55rem 1rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left;line-height:1.4">
+              Remove <strong>${itemNum}</strong> only
+            </button>
+            <button id="rm-all-group" style="padding:0.55rem 1rem;border-radius:8px;border:1.5px solid var(--accent);background:rgba(240,80,8,0.08);color:var(--accent);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left;font-weight:600;line-height:1.4">
+              Remove all grouped items (${groupLabels})
+            </button>
+            <button id="rm-cancel" style="padding:0.45rem 1rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;margin-top:0.25rem">Cancel</button>
+          </div>
+        </div>`;
+      document.body.appendChild(overlay);
+      overlay.querySelector('#rm-just-one').onclick  = function() { document.body.removeChild(overlay); resolve('one'); };
+      overlay.querySelector('#rm-all-group').onclick = function() { document.body.removeChild(overlay); resolve('all'); };
+      overlay.querySelector('#rm-cancel').onclick    = function() { document.body.removeChild(overlay); resolve('cancel'); };
+    });
+    if (choice === 'cancel') return;
+
+    if (choice === 'all') {
+      // Remove every item in the group
+      for (var sib of groupSiblings) {
+        var sibKey = findPDKey(sib.itemNum, sib.variation);
+        if (sib.row) {
+          try {
+            await sheetsUpdate(state.personalSheetId, 'My Collection!A' + sib.row + ':W' + sib.row,
+              [['','','','','','','','','','','','','','','','','','','','','','','']]);
+          } catch(e) { console.warn('Remove group row error:', sib.itemNum, e); }
+        }
+        var sibFsKey = sib.itemNum + '|' + (sib.variation || '');
+        var sibFs = state.forSaleData[sibFsKey];
+        if (sibFs && sibFs.row) {
+          try {
+            await sheetsUpdate(state.personalSheetId, 'For Sale!A' + sibFs.row + ':H' + sibFs.row,
+              [['','','','','','','','']]);
+          } catch(e) { console.warn('For Sale group cleanup:', e); }
+          delete state.forSaleData[sibFsKey];
+        }
+        if (sibKey) delete state.personalData[sibKey];
+      }
+      _cachePersonalData();
+      renderBrowse();
+      buildDashboard();
+      showToast('✓ Removed ' + groupSiblings.length + ' grouped items');
+      return;
+    }
+    // else fall through to remove just this one item
+  } else {
+    // Standalone item — simple confirm
+    if (!confirm('Remove No. ' + itemNum + (variation ? ' (Var. ' + variation + ')' : '') + ' from your collection?')) return;
+  }
+
+  // ── Remove single item ──
+  if (row) {
+    try {
+      await sheetsUpdate(state.personalSheetId, 'My Collection!A' + row + ':W' + row,
+        [['','','','','','','','','','','','','','','','','','','','','','','']]);
+    } catch(e) { console.error('Remove row error:', e); showToast('Error removing item — please try again', 3000, true); return; }
+  }
+  // Also remove from For Sale if listed
+  var fsKey = itemNum + '|' + (variation || '');
+  var fsEntry = state.forSaleData[fsKey];
+  if (fsEntry && fsEntry.row) {
+    try {
+      await sheetsUpdate(state.personalSheetId, 'For Sale!A' + fsEntry.row + ':H' + fsEntry.row,
+        [['','','','','','','','']]);
+    } catch(e) { console.warn('For Sale cleanup:', e); }
+    delete state.forSaleData[fsKey];
+  }
+  if (pdKey) delete state.personalData[pdKey];
+  _cachePersonalData();
+  renderBrowse();
+  buildDashboard();
+  showToast('✓ Removed from collection');
+}
+
+function sellFromCollection(idx, pdKey) {
+  const pd = state.personalData[pdKey] || {};
+  const item = state.masterData[idx] || {
+    itemNum: pd.itemNum, variation: pd.variation || '',
+    roadName: pd.roadName || '', itemType: pd.itemType || '',
+    yearProd: pd.yearMade || '', marketVal: '',
+  };
+  if (!item.itemNum) return;
+  // Open sell wizard pre-filled with item info
+  wizard = { step: 0, tab: 'sold', data: {
+    tab: 'sold',
+    itemNum: item.itemNum,
+    variation: item.variation || '',
+    condition: pd.condition || '',
+    priceItem: pd.priceItem || '',
+    estWorth: pd.userEstWorth || '',
+    _collectionPdKey: pdKey,
+    _collectionRow: pd.row
+  }, steps: getSteps('sold'), matchedItem: item };
+  document.getElementById('wizard-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  // Skip tab, itemNum, variation steps
+  const autoSkip = new Set(['tab', 'itemNum', 'variation', 'itemPicker', 'itemCategory']);
+  while (wizard.step < wizard.steps.length - 1) {
+    const s = wizard.steps[wizard.step];
+    if (autoSkip.has(s.id) || (s.skipIf && s.skipIf(wizard.data))) wizard.step++;
+    else break;
+  }
+  renderWizardStep();
+}
+
+function listForSaleFromCollection(idx, pdKey) {
+  const pd = state.personalData[pdKey] || {};
+  const item = state.masterData[idx] || {
+    itemNum: pd.itemNum, variation: pd.variation || '',
+    roadName: pd.roadName || '', itemType: pd.itemType || '',
+    yearProd: pd.yearMade || '', marketVal: '',
+  };
+  // Pre-fill from collection data and existing for-sale listing
+  const fsKey = pd.itemNum + '|' + (pd.variation || '');
+  const existingFs = state.forSaleData[fsKey] || {};
+  wizard = { step: 0, tab: 'forsale', data: {
+    tab: 'forsale',
+    itemNum: item.itemNum,
+    variation: item.variation || '',
+    condition: existingFs.condition || pd.condition || '',
+    selectedForSaleKey: pdKey,
+    askingPrice: existingFs.askingPrice || '',
+    dateListed: existingFs.dateListed || '',
+    notes: existingFs.notes || '',
+    originalPrice: pd.priceItem || '',
+    estWorth: pd.userEstWorth || '',
+    _collectionPdKey: pdKey,
+  }, steps: getSteps('forsale'), matchedItem: item };
+  document.getElementById('wizard-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  // Skip tab, itemNum, pickForSaleItem, condition steps (all pre-filled from collection)
+  const autoSkip = new Set(['tab', 'itemNum', 'variation', 'itemPicker', 'itemCategory', 'pickForSaleItem', 'condition']);
+  while (wizard.step < wizard.steps.length - 1) {
+    const s = wizard.steps[wizard.step];
+    if (autoSkip.has(s.id) || (s.skipIf && s.skipIf(wizard.data))) wizard.step++;
+    else break;
+  }
+  renderWizardStep();
+}
+
+function showPickFromCollectionForSale() {
+  const owned = Object.entries(state.personalData).filter(function(e) { return e[1].owned; });
+  if (owned.length === 0) {
+    showToast('No items in your collection yet');
+    return;
+  }
+  const existing = document.getElementById('pick-fs-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
   overlay.id = 'pick-fs-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
   overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 
-  var accentColor = wizard.tab === 'forsale' ? '#e67e22' : '#2ecc71';
-  var titleText = wizard.tab === 'forsale' ? 'Pick Item to List' : 'Pick Item to Sell';
+  const box = document.createElement('div');
+  box.style.cssText = 'background:var(--surface);border:1px solid rgba(230,126,34,0.4);border-radius:16px;max-width:480px;width:100%;position:relative;max-height:85vh;display:flex;flex-direction:column;overflow:hidden';
 
-  var box = document.createElement('div');
-  box.style.cssText = 'background:var(--surface);border:1px solid ' + accentColor + '66;border-radius:16px;max-width:480px;width:100%;position:relative;max-height:85vh;display:flex;flex-direction:column;overflow:hidden';
-
-  var hdr = document.createElement('div');
+  // Header
+  const hdr = document.createElement('div');
   hdr.style.cssText = 'padding:1rem 1.25rem;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between';
-  hdr.innerHTML = '<div style="font-family:var(--font-head);font-size:1rem;color:' + accentColor + '">' + titleText + '</div>'
+  hdr.innerHTML = '<div style="font-family:var(--font-head);font-size:1rem;color:#e67e22">List from Collection</div>'
     + '<button onclick="document.getElementById(\'pick-fs-overlay\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">✕</button>';
   box.appendChild(hdr);
 
-  var searchWrap = document.createElement('div');
+  // Search
+  const searchWrap = document.createElement('div');
   searchWrap.style.cssText = 'padding:0.6rem 1.25rem;border-bottom:1px solid var(--border);flex-shrink:0';
-  searchWrap.innerHTML = '<input id="pick-full-search" type="text" placeholder="Search item #, road name…" style="width:100%;border:1px solid var(--border);border-radius:7px;padding:0.45rem 0.7rem;background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;box-sizing:border-box" oninput="_renderFullPickList(this.value)">';
+  searchWrap.innerHTML = '<input id="pick-fs-search" type="text" placeholder="Search item #, road name…" style="width:100%;border:1px solid var(--border);border-radius:7px;padding:0.45rem 0.7rem;background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;box-sizing:border-box" oninput="_filterPickFs(this.value)">';
   box.appendChild(searchWrap);
 
-  var listWrap = document.createElement('div');
-  listWrap.id = 'pick-full-list';
-  listWrap.style.cssText = 'flex:1;overflow-y:auto;padding:0.25rem 0;-webkit-overflow-scrolling:touch';
+  // Scrollable item list
+  const listWrap = document.createElement('div');
+  listWrap.id = 'pick-fs-list';
+  listWrap.style.cssText = 'flex:1;overflow-y:auto;padding:0.5rem 1rem';
   box.appendChild(listWrap);
 
   overlay.appendChild(box);
   document.body.appendChild(overlay);
-  _renderFullPickList('');
-  setTimeout(function() { var s = document.getElementById('pick-full-search'); if(s) s.focus(); }, 100);
+
+  // Render the list
+  _renderPickFsList('');
 }
 
-function _renderFullPickList(q) {
-  var listEl = document.getElementById('pick-full-list');
+function _renderPickFsList(q) {
+  const listEl = document.getElementById('pick-fs-list');
   if (!listEl) return;
   q = (q || '').toLowerCase();
-  var owned = Object.entries(state.personalData).filter(function(e) {
+
+  const owned = Object.entries(state.personalData).filter(function(e) {
     if (!e[1].owned) return false;
     if (!q) return true;
     var pd = e[1];
@@ -3347,2380 +4302,3027 @@ function _renderFullPickList(q) {
       || (master.itemType||'').toLowerCase().includes(q)
       || (pd.variation||'').toLowerCase().includes(q);
   });
+
+  // Sort by item number
   owned.sort(function(a,b) { return (a[1].itemNum||'').localeCompare(b[1].itemNum||'', undefined, {numeric:true}); });
 
   if (owned.length === 0) {
     listEl.innerHTML = '<div class="ui-empty">No matching items</div>';
     return;
   }
-  var accentColor = wizard.tab === 'forsale' ? '#e67e22' : '#2ecc71';
+
   var html = '';
   owned.forEach(function(entry) {
     var pdKey = entry[0], pd = entry[1];
     var master = state.masterData.find(function(m) { return m.itemNum === pd.itemNum && m.variation === (pd.variation||''); }) || {};
     var fsKey = pd.itemNum + '|' + (pd.variation||'');
-    var alreadyListed = wizard.tab === 'forsale' ? !!state.forSaleData[fsKey] : !!state.soldData[fsKey];
+    var alreadyListed = !!state.forSaleData[fsKey];
+    var idx = state.masterData.indexOf(master);
+    if (idx < 0) idx = -1;
 
-    html += '<div onclick="_selectCollItem(\'' + pdKey.replace(/'/g,"\\'") + '\')" style="'
-      + 'display:flex;align-items:center;gap:0.7rem;padding:0.7rem 1.25rem;cursor:pointer;'
-      + 'border-bottom:1px solid var(--border);transition:background 0.1s;'
-      + '" onmouseenter="this.style.background=\'var(--surface2)\'" onmouseleave="this.style.background=\'\'">'
-      + '<div style="flex:1;min-width:0">'
-      + '<div style="display:flex;align-items:center;gap:0.4rem">'
-      + '<span style="font-family:var(--font-mono);font-size:0.92rem;color:var(--accent2);font-weight:600">' + pd.itemNum + '</span>'
-      + (pd.variation ? '<span style="font-size:0.7rem;color:var(--text-dim)">Var ' + pd.variation + '</span>' : '')
+    html += '<button onclick="_pickFsSelect(' + idx + ',\'' + pdKey.replace(/'/g,"\\'") + '\')" style="'
+      + 'display:flex;align-items:center;gap:0.7rem;padding:0.7rem 0.85rem;'
+      + 'border-radius:9px;text-align:left;width:100%;cursor:pointer;'
+      + 'font-family:var(--font-body);margin-bottom:0.35rem;transition:all 0.15s;'
+      + 'border:1.5px solid ' + (alreadyListed ? 'rgba(230,126,34,0.4)' : 'var(--border)') + ';'
+      + 'background:' + (alreadyListed ? 'rgba(230,126,34,0.06)' : 'var(--surface2)') + '">'
+      + '<div style="flex:1">'
+      + '<div style="font-family:var(--font-mono);font-size:0.88rem;color:var(--accent2);font-weight:600">'
+      + pd.itemNum + (pd.variation ? ' <span style="color:var(--text-dim);font-size:0.72rem">Var ' + pd.variation + '</span>' : '')
       + '</div>'
-      + '<div style="font-size:0.78rem;color:var(--text-mid);margin-top:0.1rem">'
+      + '<div style="font-size:0.78rem;color:var(--text-mid);margin-top:0.15rem">'
       + (master.roadName || master.itemType || '')
+      + (pd.condition ? ' · Cond: ' + pd.condition + '/10' : '')
+      + (pd.priceItem ? ' · Paid: $' + parseFloat(pd.priceItem).toLocaleString() : '')
       + '</div>'
-      + '<div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.1rem">'
-      + [pd.condition ? 'Cond: ' + pd.condition + '/10' : '', pd.priceItem ? 'Paid: $' + parseFloat(pd.priceItem).toLocaleString() : '', pd.userEstWorth ? 'Worth: $' + parseFloat(pd.userEstWorth).toLocaleString() : ''].filter(Boolean).join(' · ')
       + '</div>'
-      + '</div>'
-      + (alreadyListed ? '<span style="font-size:0.65rem;color:' + accentColor + ';font-weight:600;flex-shrink:0">' + (wizard.tab === 'forsale' ? 'LISTED' : 'SOLD') + '</span>' : '')
-      + '</div>';
+      + (alreadyListed ? '<span style="font-size:0.68rem;color:#e67e22;font-weight:600;white-space:nowrap">LISTED</span>' : '')
+      + '</button>';
   });
   listEl.innerHTML = html;
 }
 
-function wizardPickForSaleItem(key) {
-  wizard.data.selectedForSaleKey = key;
-  if (key !== '__new__') {
-    const pd = state.personalData[key];
-    if (pd) {
-      if (pd.condition && pd.condition !== 'N/A') wizard.data.condition = parseInt(pd.condition);
-      if (pd.priceItem && pd.priceItem !== 'N/A') wizard.data.originalPrice = pd.priceItem;
-      if (pd.userEstWorth) wizard.data.estWorth = pd.userEstWorth;
-    }
-  }
-  setTimeout(() => wizardNext(), 150);
+function _filterPickFs(q) { _renderPickFsList(q); }
+
+function _pickFsSelect(idx, pdKey) {
+  document.getElementById('pick-fs-overlay').remove();
+  listForSaleFromCollection(idx, pdKey);
 }
 
-function wizardPickRow(key) {
-  wizard.data.selectedRowKey = key;
-  setTimeout(() => wizardNext(), 150);
+function updateCollectionItem(idx, pdKey) {
+  showItemPanel(idx, pdKey, 'edit');
 }
 
-function wizardChooseVariation(variation) {
-  wizard.data.variation = variation;
-  setTimeout(() => wizardNext(), 150);
-}
+function showItemPanel(idx, pdKey, mode) {
+  const pd = state.personalData[pdKey] || {};
+  const item = state.masterData[idx] || {
+    itemNum: pd.itemNum, variation: pd.variation || '',
+    roadName: pd.roadName || '', itemType: pd.itemType || '',
+    yearProd: pd.yearMade || '', marketVal: '', // market value comes from master sheet only
+    varDesc: '', description: '',
+  };
 
+  const existing = document.getElementById('item-panel-overlay');
+  if (existing) existing.remove();
 
-let itemLookupTimer;
-let _suggestionIndex = -1;
+  const overlay = document.createElement('div');
+  overlay.id = 'item-panel-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 
-function updateSetSuggestions(query) {
-  const el = document.getElementById('wiz-suggestions');
-  if (!el) return;
-  const q = (query || '').trim().toUpperCase();
-  if (q.length < 1) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  const box = document.createElement('div');
+  box.style.cssText = 'background:var(--surface);border:1px solid rgba(41,128,185,0.35);border-radius:16px;max-width:500px;width:100%;position:relative;max-height:92vh;display:flex;flex-direction:column;overflow:hidden';
 
-  // Show every matching row (one per variant), limit to 12
-  const candidates = state.setData
-    .filter(s => s.setNum.toUpperCase().includes(q))
-    .slice(0, 12);
+  // Header
+  const header = document.createElement('div');
+  header.style.cssText = 'padding:1.25rem 1.5rem;border-bottom:1px solid var(--border);flex-shrink:0';
+  header.innerHTML = '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.5rem">'
+    + '<div>'
+    + '<div style="font-family:var(--font-head);font-size:1rem;color:#2980b9">No. ' + item.itemNum + (item.variation ? ' <span style="color:var(--text-dim);font-size:0.75rem">Var. ' + item.variation + '</span>' : '') + '</div>'
+    + '<div style="font-size:0.82rem;color:var(--text-mid);margin-top:2px">' + (item.roadName || item.itemType || '') + (item.yearProd ? ' · ' + item.yearProd : '') + '</div>'
+    + '</div>'
+    + '<button id="item-panel-close-btn" style="background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer;flex-shrink:0">✕</button>'
+    + '</div>';
+  box.appendChild(header);
+  // Wire close btn now that header is in memory
+  const _hdrClose = header.querySelector('#item-panel-close-btn');
+  if (_hdrClose) _hdrClose.onclick = function() { overlay.remove(); };
 
-  if (!candidates.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  // Scrollable content — split into photos (permanent) + fields (re-rendered)
+  const body = document.createElement('div');
+  body.style.cssText = 'flex:1;overflow-y:auto;padding:0.75rem 1.5rem';
+  const photoContainer = document.createElement('div');
+  photoContainer.id = 'item-panel-photo-container';
+  body.appendChild(photoContainer);
+  const fieldsContainer = document.createElement('div');
+  fieldsContainer.id = 'item-panel-fields-container';
+  body.appendChild(fieldsContainer);
 
-  el.innerHTML = '';
-  candidates.forEach((s, i) => {
-    const row = document.createElement('button');
-    row.style.cssText = 'display:flex;flex-direction:column;align-items:flex-start;gap:0.25rem;padding:0.55rem 0.75rem;border-radius:8px;border:none;background:none;color:var(--text);text-align:left;cursor:pointer;width:100%;font-family:var(--font-body)';
-    row.onmouseenter = () => row.style.background = 'var(--surface2)';
-    row.onmouseleave = () => row.style.background = 'none';
+  const fields = [
+    { label: 'Condition',     key: 'condition',     val: pd.condition || '—',     type: 'number', min:1, max:10 },
+    { label: 'All Original',  key: 'allOriginal',   val: pd.allOriginal || '—',   type: 'select', options: ['Yes','No','Unknown'] },
+    { label: 'Has Box',       key: 'hasBox',        val: pd.hasBox || '—',        type: 'select', options: ['Yes','No'] },
+    { label: 'Box Condition', key: 'boxCond',       val: pd.boxCond || '—',       type: 'number', min:1, max:10 },
+    { label: 'Price Paid ($)',key: 'priceItem',     val: pd.priceItem || '—',     type: 'number' },
+    { label: 'Est. Worth (insurance)',key: 'userEstWorth',  val: pd.userEstWorth || '—',  type: 'number' },
+    { label: 'Year Made',     key: 'yearMade',      val: pd.yearMade || '—',      type: 'number', min:1945, max:1969 },
+    { label: 'Date Purchased',key: 'datePurchased', val: pd.datePurchased || '—', type: 'date' },
+    { label: 'Notes',         key: 'notes',         val: pd.notes || '—',         type: 'text' },
+    { label: 'Location',      key: 'location',      val: pd.location || '—',      type: 'text' },
+    ...(item.refLink ? [{ label: 'COTT Reference', key: null, val: item.refLink, type: 'readonly' }] : []),
+    ...(item.errorDesc || pd.isError ? [{ label: 'Error', key: null, val: pd.errorDesc || '—', type: 'readonly' }] : []),
+  ];
 
-    // Item number chips
-    const chips = s.items.map(n =>
-      `<span style="font-family:var(--font-mono);font-size:0.68rem;padding:1px 5px;border-radius:4px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim)">${n}</span>`
-    ).join('');
-    const altChips = s.alts.length ? s.alts.map(n =>
-      `<span style="font-family:var(--font-mono);font-size:0.68rem;padding:1px 5px;border-radius:4px;border:1px solid rgba(230,126,34,0.4);background:var(--surface);color:#e67e22;font-style:italic" title="Alternate">${n}</span>`
-    ).join('') : '';
+  // ── Photos section ──
+  const photoSection = document.createElement('div');
+  photoSection.id = 'item-panel-photos';
+  photoSection.style.cssText = 'padding:0.75rem 0;border-bottom:1px solid var(--border);margin-bottom:0.25rem';
 
-    row.innerHTML = `
-      <div style="display:flex;align-items:center;gap:0.5rem;width:100%">
-        <span style="font-family:var(--font-mono);font-size:0.88rem;font-weight:700;color:var(--accent)">${s.setNum}</span>
-        ${s.setName ? `<span style="font-size:0.78rem;color:var(--text-mid);flex:1">${s.setName}</span>` : '<span style="flex:1"></span>'}
-        <span style="font-size:0.7rem;color:var(--text-dim);white-space:nowrap">${s.year || ''}${s.gauge ? ' · ' + s.gauge : ''}</span>
-      </div>
-      <div style="display:flex;flex-wrap:wrap;gap:0.2rem;margin-top:0.1rem">${chips}${altChips}</div>`;
+  // Header row with label + "Add Photos" button
+  const photoHdr = document.createElement('div');
+  photoHdr.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem';
+  photoHdr.innerHTML = '<span style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em">Photos</span>';
+  const addPhotoBtn = document.createElement('button');
+  addPhotoBtn.style.cssText = 'font-size:0.72rem;padding:0.2rem 0.55rem;border-radius:5px;border:1px solid #2980b9;color:#2980b9;background:rgba(224,64,40,0.08);cursor:pointer;display:flex;align-items:center;gap:0.25rem';
+  addPhotoBtn.innerHTML = '📷 Add Photos';
+  addPhotoBtn.onclick = function() {
+    // Close this panel and open photo wizard for this item
+    document.getElementById('item-panel-overlay').remove();
+    openPhotoWizard(item.itemNum, pd.variation || item.variation || '', pdKey);
+  };
+  photoHdr.appendChild(addPhotoBtn);
+  photoSection.appendChild(photoHdr);
 
-    row.onclick = () => {
-      wizard.data.set_num = s.setNum;
-      wizard.data._resolvedSet = s;  // store the exact variant row
-      el.style.display = 'none';
-      el.innerHTML = '';
-      const inp = document.getElementById('wiz-input');
-      if (inp) inp.value = s.setNum;
-      wizardNext();
-    };
-    el.appendChild(row);
+  // Thumbnail row
+  const thumbRow = document.createElement('div');
+  thumbRow.id = 'item-panel-thumb-row';
+  thumbRow.style.cssText = 'display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center';
+  thumbRow.innerHTML = '<span style="font-size:0.75rem;color:var(--text-dim)">Loading…</span>';
+  photoSection.appendChild(thumbRow);
 
-    // Divider between different set numbers
-    if (i < candidates.length - 1 && candidates[i+1].setNum !== s.setNum) {
-      const div = document.createElement('div');
-      div.style.cssText = 'height:1px;background:var(--border);margin:2px 0';
-      el.appendChild(div);
-    }
-  });
-  el.style.display = 'flex';
-  el.style.flexDirection = 'column';
-}
+  // Folder link
+  const folderLinkEl = document.createElement('div');
+  folderLinkEl.id = 'item-panel-folder-link';
+  folderLinkEl.style.cssText = 'margin-top:0.4rem;min-height:1.2rem';
+  photoSection.appendChild(folderLinkEl);
 
-function updateUnitNumSuggestions(query, field) {
-  const el = document.getElementById('wiz-unit-suggestions');
-  if (!el) return;
-  const q = (query || '').trim().toLowerCase();
-  if (q.length < 1) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  photoContainer.appendChild(photoSection);
 
-  // Search master data for matching item numbers
-  const seen = new Set();
-  const candidates = [];
-  state.masterData.forEach(function(m) {
-    const num = normalizeItemNum(m.itemNum);
-    if (!seen.has(num) && num.toLowerCase().includes(q)) {
-      seen.add(num);
-      candidates.push({ num: num, sub: (m.roadName || m.description || '').substring(0, 40) });
-    }
-  });
-
-  candidates.sort(function(a, b) {
-    const as = a.num.toLowerCase().startsWith(q);
-    const bs = b.num.toLowerCase().startsWith(q);
-    if (as && !bs) return -1;
-    if (!as && bs) return 1;
-    return a.num.localeCompare(b.num);
-  });
-
-  if (candidates.length === 0) { el.style.display = 'none'; el.innerHTML = ''; return; }
-  const top = candidates;
-
-  el.innerHTML = '';
-  top.forEach(function(c) {
-    const btn = document.createElement('button');
-    btn.style.cssText = 'text-align:left;width:100%;padding:0.65rem 0.75rem;border:none;background:transparent;'
-      + 'border-radius:6px;cursor:pointer;color:var(--text);font-family:var(--font-body);display:flex;align-items:baseline;gap:0.5rem;min-height:44px';
-    btn.onmouseenter = function() { btn.style.background = 'var(--surface2)'; };
-    btn.onmouseleave = function() { btn.style.background = 'transparent'; };
-    btn.onclick = function() {
-      wizard.data[field] = c.num;
-      const inp = document.getElementById('wiz-unit-num');
-      if (inp) inp.value = c.num;
-      el.style.display = 'none';
-    };
-    const numSpan = document.createElement('span');
-    numSpan.style.cssText = 'font-family:var(--font-mono);font-weight:600;color:var(--accent2);font-size:0.95rem';
-    numSpan.textContent = c.num;
-    btn.appendChild(numSpan);
-    if (c.sub) {
-      const sub = document.createElement('span');
-      sub.style.cssText = 'font-size:0.75rem;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
-      sub.textContent = c.sub;
-      btn.appendChild(sub);
-    }
-    el.appendChild(btn);
-  });
-  el.style.display = 'flex';
-}
-
-function handleUnitNumKey(e, field) {
-  if (e.key === 'Enter') { wizardNext(); }
-  else if (e.key === 'Escape') {
-    const el = document.getElementById('wiz-unit-suggestions');
-    if (el) el.style.display = 'none';
-  }
-}
-
-function updateItemSuggestions(query) {
-  const el = document.getElementById('wiz-suggestions');
-  if (!el) return;
-  const q = (query || '').trim().toLowerCase();
-  if (q.length < 1) { el.style.display = 'none'; el.innerHTML = ''; return; }
-
-  const tab = wizard.tab;
-  let candidates = [];
-
-  if (tab === 'sold' || tab === 'forsale') {
-    // For sell/forsale tabs: search personal collection only
-    const seen = new Set();
-    Object.values(state.personalData).forEach(pd => {
-      const key = pd.itemNum + (pd.variation ? ' (' + pd.variation + ')' : '');
-      const haystack = (pd.itemNum + ' ' + (pd.variation || '') + ' ' + (pd.roadName || '') + ' ' + (pd.description || '')).toLowerCase();
-      if (!seen.has(key) && haystack.includes(q)) {
-        seen.add(key);
-        candidates.push({ num: pd.itemNum, label: key, sub: '' });
+  // Async load photos — use direct references (element not in DOM yet when IIFE fires)
+  const _thumbRowRef = thumbRow;
+  const _folderLinkRef = folderLinkEl;
+  (async function() {
+    const tr2 = _thumbRowRef;
+    const fl2 = _folderLinkRef;
+    try {
+      // Wait for accessToken to be available (max 5s)
+      let waited = 0;
+      while (!accessToken && waited < 5000) {
+        await new Promise(r => setTimeout(r, 200));
+        waited += 200;
       }
-    });
-  } else {
-    // Collection + Want: search master list by item number OR description/road name
-    // Detect search mode: if query starts with a digit, prioritize item number matching
-    const startsWithDigit = /^\d/.test(q);
-    const qParts = q.split(/\s+/);
-    const numPart = qParts[0];
-    const keyParts = qParts.slice(1).filter(p => p.length > 0);
-
-    const seen = new Set();
-    state.masterData.forEach(m => {
-      const haystack = ((m.roadName || '') + ' ' + (m.description || '') + ' ' + (m.varDesc || '') + ' ' + (m.itemType || '')).toLowerCase();
-
-      let matches = false;
-      if (startsWithDigit) {
-        // Number-led search: item number must match first token; extra words filter by description
-        if (!m.itemNum.toLowerCase().includes(numPart)) return;
-        if (keyParts.length > 0 && !keyParts.every(kp => haystack.includes(kp))) return;
-        matches = true;
-      } else {
-        // Text-only search: match anywhere in road name, description, or item type
-        matches = qParts.every(kp => haystack.includes(kp));
+      if (!accessToken) {
+        if (tr2) tr2.innerHTML = '<span style="font-size:0.75rem;color:var(--text-dim)">Not signed in to Drive</span>';
+        return;
       }
 
-      if (!matches) return;
-
-      if (!seen.has(m.itemNum)) {
-        seen.add(m.itemNum);
-        const desc = [m.roadName, m.description].filter(Boolean).join(' — ');
-        candidates.push({ num: m.itemNum, label: m.itemNum, sub: desc.substring(0, 55) });
+      let folderLink = pd.photoItem || '';
+      if (!folderLink) {
+        try { await driveEnsureSetup(); } catch(e) {}
+        try {
+          const folderId = await driveEnsureItemFolder(item.itemNum);
+          folderLink = driveFolderLink(folderId);
+        } catch(e) {}
       }
-    });
-  }
 
-  // Sort: for number searches, starts-with first; for text searches, keep natural order
-  const startsWithDigit = /^\d/.test(q);
-  if (startsWithDigit) {
-    candidates.sort((a, b) => {
-      const aStarts = a.num.toLowerCase().startsWith(q.split(' ')[0]);
-      const bStarts = b.num.toLowerCase().startsWith(q.split(' ')[0]);
-      if (aStarts && !bStarts) return -1;
-      if (!aStarts && bStarts) return 1;
-      return a.num.localeCompare(b.num);
-    });
-  }
-
-  if (candidates.length === 0) { el.style.display = 'none'; el.innerHTML = ''; return; }
-
-  _suggestionIndex = -1;
-  el.innerHTML = '';
-
-  // Count header
-  const countBar = document.createElement('div');
-  countBar.style.cssText = 'padding:0.3rem 0.75rem 0.4rem;font-size:0.72rem;color:var(--text-dim);border-bottom:1px solid var(--border);margin-bottom:2px;flex-shrink:0';
-  countBar.textContent = candidates.length + ' match' + (candidates.length !== 1 ? 'es' : '') + ' — tap to select or keep typing to filter';
-  el.appendChild(countBar);
-
-  candidates.forEach(function(c, i) {
-    const btn = document.createElement('button');
-    btn.dataset.idx = i;
-    btn.style.cssText = 'text-align:left;width:100%;padding:0.65rem 0.75rem;border:none;background:transparent;'
-      + 'border-radius:6px;cursor:pointer;color:var(--text);font-family:var(--font-body);display:flex;align-items:baseline;gap:0.5rem;min-height:44px';
-    btn.onmouseenter = function() { highlightSuggestion(i); };
-    btn.onclick = function() { selectSuggestion(c.num); };
-    const numSpan = document.createElement('span');
-    numSpan.style.cssText = 'font-family:var(--font-mono);font-weight:600;color:var(--accent2);font-size:0.95rem;flex-shrink:0';
-    numSpan.textContent = c.num;
-    btn.appendChild(numSpan);
-    if (c.sub) {
-      const subSpan = document.createElement('span');
-      subSpan.style.cssText = 'font-size:0.75rem;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
-      subSpan.textContent = c.sub;
-      btn.appendChild(subSpan);
-    }
-    el.appendChild(btn);
-  });
-  el.style.display = 'flex';
-}
-
-
-function highlightSuggestion(idx) {
-  _suggestionIndex = idx;
-  const el = document.getElementById('wiz-suggestions');
-  if (!el) return;
-  el.querySelectorAll('button').forEach(function(btn, i) {
-    btn.style.background = i === idx ? 'var(--surface2)' : 'transparent';
-  });
-}
-
-function selectSuggestion(num) {
-  wizard.data.itemNum = num;
-  wizard.data._partialMatches = [];
-  const inp = document.getElementById('wiz-input');
-  if (inp) inp.value = num;
-  const el = document.getElementById('wiz-suggestions');
-  if (el) { el.style.display = 'none'; el.innerHTML = ''; }
-  lookupItem(num);
-
-  // On itemNumGrouping screen: check if grouping buttons will appear
-  const _curStep = wizard.steps[wizard.step];
-  if (_curStep && _curStep.type === 'itemNumGrouping') {
-    // Update grouping buttons first
-    _updateGroupingButtons();
-    // Check if buttons are now visible — if so, wait for user to pick one
-    const _grpEl = document.getElementById('wiz-grouping-btns');
-    const _hasButtons = _grpEl && _grpEl.style.display !== 'none' && _grpEl.innerHTML.indexOf('button') >= 0;
-    if (_hasButtons) {
-      // Stay on this screen — user needs to pick a grouping
-      return;
-    }
-    // No grouping buttons (freight car, accessory, etc.) — set single and advance
-    wizard.data._itemGrouping = 'single';
-  }
-  // Auto-advance to next step after a brief moment so lookupItem can render
-  setTimeout(() => wizardNext(), 120);
-}
-
-// ── Mockup reference item number suggestions ──────────────────────────────
-function updateMockupRefSuggestions(query) {
-  const el = document.getElementById('wiz-suggestions');
-  if (!el) return;
-  const q = (query || '').trim().toLowerCase();
-  if (q.length < 1) { el.style.display = 'none'; el.innerHTML = ''; return; }
-
-  const seen = new Set();
-  const candidates = [];
-  state.masterData.forEach(m => {
-    if (!m.itemNum.toLowerCase().includes(q)) return;
-    if (!seen.has(m.itemNum)) {
-      seen.add(m.itemNum);
-      candidates.push({ num: m.itemNum, sub: (m.roadName || m.description || '').substring(0, 50) });
-    }
-  });
-
-  candidates.sort((a, b) => {
-    const aS = a.num.toLowerCase().startsWith(q);
-    const bS = b.num.toLowerCase().startsWith(q);
-    if (aS && !bS) return -1;
-    if (!aS && bS) return 1;
-    return a.num.localeCompare(b.num);
-  });
-
-  if (candidates.length === 0) { el.style.display = 'none'; el.innerHTML = ''; return; }
-
-  _suggestionIndex = -1;
-  el.innerHTML = '';
-  const countBar = document.createElement('div');
-  countBar.style.cssText = 'padding:0.3rem 0.75rem 0.4rem;font-size:0.72rem;color:var(--text-dim);border-bottom:1px solid var(--border);margin-bottom:2px';
-  countBar.textContent = candidates.length + ' match' + (candidates.length !== 1 ? 'es' : '') + ' — tap to select';
-  el.appendChild(countBar);
-
-  candidates.forEach(function(c, i) {
-    const btn = document.createElement('button');
-    btn.dataset.idx = i;
-    btn.style.cssText = 'text-align:left;width:100%;padding:0.65rem 0.75rem;border:none;background:transparent;border-radius:6px;cursor:pointer;color:var(--text);font-family:var(--font-body);display:flex;align-items:baseline;gap:0.5rem;min-height:44px';
-    btn.onmouseenter = function() { highlightSuggestion(i); };
-    btn.onclick = function() { selectMockupRef(c.num); };
-    const numSpan = document.createElement('span');
-    numSpan.style.cssText = 'font-family:var(--font-mono);font-weight:600;color:var(--accent2);font-size:0.95rem';
-    numSpan.textContent = c.num;
-    btn.appendChild(numSpan);
-    if (c.sub) {
-      const subSpan = document.createElement('span');
-      subSpan.style.cssText = 'font-size:0.8rem;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
-      subSpan.textContent = c.sub;
-      btn.appendChild(subSpan);
-    }
-    el.appendChild(btn);
-  });
-  el.style.display = 'flex';
-}
-
-function selectMockupRef(num) {
-  wizard.data.eph_itemNumRef = num;
-  const inp = document.getElementById('wiz-input');
-  if (inp) inp.value = num;
-  const el = document.getElementById('wiz-suggestions');
-  if (el) { el.style.display = 'none'; el.innerHTML = ''; }
-}
-
-function handleSuggestionKey(e) {
-  const el = document.getElementById('wiz-suggestions');
-  const btns = el ? el.querySelectorAll('button') : [];
-  if (e.key === 'ArrowDown') {
-    e.preventDefault();
-    highlightSuggestion(Math.min(_suggestionIndex + 1, btns.length - 1));
-  } else if (e.key === 'ArrowUp') {
-    e.preventDefault();
-    highlightSuggestion(Math.max(_suggestionIndex - 1, 0));
-  } else if (e.key === 'Enter') {
-    if (_suggestionIndex >= 0 && btns[_suggestionIndex]) {
-      e.preventDefault();
-      btns[_suggestionIndex].click();
-    } else {
-      wizardNext();
-    }
-  } else if (e.key === 'Escape') {
-    if (el) { el.style.display = 'none'; }
-  }
-}
-
-function debounceItemLookup(e) {
-  clearTimeout(itemLookupTimer);
-  itemLookupTimer = setTimeout(() => lookupItem(e.target.value), 400);
-}
-
-function lookupItem(num) {
-  const match = state.masterData.find(i => i.itemNum.toLowerCase() === num.trim().toLowerCase());
-  wizard.matchedItem = match || null;
-  const el = document.getElementById('wiz-match');
-  if (!el) return;
-  const trimmed = num.trim();
-  if (!trimmed) { el.innerHTML = ''; return; }
-
-  if (wizard.tab === 'sold' || wizard.tab === 'forsale') {
-    const _fsLabel = wizard.tab === 'forsale' ? 'For Sale' : 'Sold';
-    const _fsColor = wizard.tab === 'forsale' ? '#e67e22' : 'var(--green)';
-    // Sold/For Sale mode: check collection first, show what they own
-    const collectionKeys = Object.keys(state.personalData).filter(k => k.split('|')[0] === trimmed);
-    const inCollection = collectionKeys.length > 0;
-    if (inCollection) {
-      const count = collectionKeys.length;
-      el.innerHTML = `<div style="background:${_fsColor}15;border:1px solid ${_fsColor};border-radius:8px;padding:0.65rem 0.85rem;font-size:0.82rem">
-        <span style="color:${_fsColor}">✓ Found in your collection</span> — ${count} item${count>1?'s':''} · select which one on the next step
-      </div>`;
-    } else {
-      if (match) {
-        el.innerHTML = `<div style="background:rgba(201,146,42,0.1);border:1px solid var(--accent2);border-radius:8px;padding:0.65rem 0.85rem;font-size:0.82rem">
-          <span style="color:var(--accent2)">Not in your collection</span> · ${match.roadName || match.itemType || ''} · ${match.yearProd || ''}<br>
-          <span style="color:var(--text-dim)">You can still enter details manually</span>
-        </div>`;
-      } else {
-        el.innerHTML = `<div style="font-size:0.8rem;color:var(--text-dim)">Not found in collection or catalog — enter details manually</div>`;
+      // Show folder link
+      if (fl2 && folderLink) {
+        const a = document.createElement('a');
+        a.href = folderLink; a.target = '_blank';
+        a.style.cssText = 'font-size:0.72rem;color:#2980b9';
+        a.textContent = '📁 Open Drive Folder ↗';
+        fl2.innerHTML = '';
+        fl2.appendChild(a);
       }
-    }
-  } else if (wizard.data.boxOnly) {
-    // Box-only mode: show collection status
-    const collectionKey = Object.keys(state.personalData).find(k => k.startsWith(trimmed + '|'));
-    const inCollection = !!collectionKey;
-    const pd = inCollection ? state.personalData[collectionKey] : null;
-    if (match) {
-      el.innerHTML = `<div style="border-radius:8px;padding:0.65rem 0.85rem;font-size:0.82rem;
-        background:rgba(46,204,113,0.1);border:1px solid var(--green)">
-        <div><span style="color:var(--green)">✓ Found in catalog:</span> ${match.roadName || match.itemType || ''} · ${match.yearProd || ''}</div>
-        <div style="margin-top:0.4rem;padding-top:0.4rem;border-top:1px solid rgba(255,255,255,0.08)">
-          ${inCollection
-            ? `<span style="color:var(--green)">✓ In your collection</span> · Condition: ${pd.condition || '?'} · Has box: ${pd.hasBox || 'No'}`
-            : `<span style="color:var(--accent2)">⚠ Box will be listed under Lionel Number ${trimmed}</span>`}
-        </div>
-      </div>`;
-    } else {
-      el.innerHTML = `<div style="background:rgba(201,146,42,0.1);border:1px solid var(--accent2);border-radius:8px;padding:0.65rem 0.85rem;font-size:0.82rem">
-        <span style="color:var(--accent2)">⚠ Not found in catalog</span> — will save box info anyway
-        ${inCollection ? '<br><span style="color:var(--green)">✓ Found in your collection</span>' : ''}
-      </div>`;
-    }
-  } else {
-    // Normal mode: show catalog match + check for existing box-only row
-    const boxOnlyKeys = Object.keys(state.personalData).filter(k => {
-      const pd = state.personalData[k];
-      return pd.itemNum === trimmed + '-BOX' && pd.owned;
-    });
-    const hasBoxOnlyRow = boxOnlyKeys.length > 0;
 
-    if (match) {
-      el.innerHTML = `<div style="background:rgba(46,204,113,0.1);border:1px solid var(--green);border-radius:8px;padding:0.65rem 0.85rem;font-size:0.82rem">
-        <span style="color:var(--green)">✓ Found:</span> ${match.roadName || match.itemType || ''} · ${match.yearProd || ''} · ${match.itemType || ''}
-        ${match.variation ? '<br><span style="color:var(--text-dim)">Note: multiple variations exist — select on next step</span>' : ''}
-        ${hasBoxOnlyRow ? `<div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid rgba(255,255,255,0.08)">
-          <span style="color:var(--accent2)">📦 A box for this item is already in your collection — it will be automatically grouped with this item.</span>
-        </div>` : ''}
-      </div>`;
-    } else {
-      el.innerHTML = `<div style="font-size:0.8rem;color:var(--text-dim)">Not found in master inventory — will save anyway</div>`;
-    }
-  }
-}
+      if (!tr2) return;
 
-function wizardBack() {
-  if (wizard.step > 0) {
-    wizard.step--;
-    // Skip back over skipIf steps
-    while (wizard.step > 0 && wizard.steps[wizard.step].skipIf && wizard.steps[wizard.step].skipIf(wizard.data)) {
-      wizard.step--;
-    }
-    // In set mode, the first visible step is 'variation' — don't go further back
-    // into steps that were fast-forwarded (itemCategory, itemNumGrouping, etc.)
-    if (wizard.data._setMode) {
-      const _setFwdSkip = new Set(['itemCategory', 'itemNumGrouping', 'itemPicker', 'entryMode']);
-      while (wizard.step > 0 && _setFwdSkip.has(wizard.steps[wizard.step].id)) {
-        wizard.step++;
-        break;
+      const photos = await driveGetFolderPhotos(folderLink);
+
+      if (photos === null) {
+        tr2.innerHTML = '<span style="font-size:0.75rem;color:var(--text-dim)">Could not load photos — check Drive access</span>';
+        return;
       }
-    }
-    renderWizardStep();
-  }
-}
+      if (photos.length === 0) {
+        tr2.innerHTML = '<span style="font-size:0.75rem;color:var(--text-dim);font-style:italic">No photos yet — tap Add Photos</span>';
+        return;
+      }
 
-function wizardNextWithYearCheck() {
-  const yr = parseInt(wizard.data.yearMade);
-  const rangeYears = wizard._yearRangeYears || [];
-  if (yr && rangeYears.length > 0 && !rangeYears.includes(yr)) {
-    const min = rangeYears[0], max = rangeYears[rangeYears.length - 1];
-    // Show inline warning
-    const existing = document.getElementById('year-range-warning');
-    if (existing) existing.remove();
-    const warn = document.createElement('div');
-    warn.id = 'year-range-warning';
-    warn.style.cssText = 'margin-top:0.75rem;padding:0.75rem 1rem;border-radius:10px;background:rgba(201,146,42,0.12);border:1px solid rgba(201,146,42,0.5);font-size:0.82rem;color:var(--text)';
-    warn.innerHTML = '<div style="font-weight:600;color:var(--accent2);margin-bottom:0.4rem">⚠️ Just a heads up!</div>'
-      + '<div style="color:var(--text-mid);margin-bottom:0.65rem">The known production range for this item is <strong>' + min + '–' + max + '</strong>. '
-      + 'The year <strong>' + yr + '</strong> is outside that range — no problem if you know something we don\'t!</div>'
-      + '<div style="display:flex;gap:0.5rem">'
-      + '<button onclick="wizardNext()" style="flex:1;padding:0.5rem;border-radius:8px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Yes, continue</button>'
-      + '<button onclick="(function(){var w=document.getElementById(\'year-range-warning\');if(w)w.remove();wizard.data.yearMade=\'\';var i=document.getElementById(\'wiz-year-input\');if(i){i.value=\'\';i.focus();}})()" style="flex:1;padding:0.5rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">No, re-enter</button>'
-      + '</div>';
-    const body = document.getElementById('wizard-body');
-    if (body) body.appendChild(warn);
-    return;
-  }
-  wizardNext();
-}
+      // Sort: RSV first, then FV, then others
+      const priority = function(name) {
+        const n = (name || '').toUpperCase();
+        if (n.includes('RSV')) return 0;
+        if (n.includes('FV'))  return 1;
+        if (n.includes('TV'))  return 2;
+        if (n.includes('BV'))  return 3;
+        return 9;
+      };
+      photos.sort(function(a,b) { return priority(a.name) - priority(b.name); });
 
-function initCondDesc() {
-  var _descs = {1:'Heavily worn, broken or missing parts',2:'Very rough, significant damage',3:'Worn, chipping or rust present',4:'Good — visible play wear',5:'Good plus — light wear throughout',6:'Very Good — minor wear only',7:'Very Good plus — light marks, sharp detail',8:'Excellent — near perfect, very light handling',9:'Excellent plus — virtually no flaws',10:'Mint — appears unrun, like new'};
-  function _upd() { var v=document.getElementById('wiz-slider'); var d=document.getElementById('wiz-cond-desc'); if(v&&d) d.textContent=_descs[parseInt(v.value)]||''; }
-  _upd();
-  var sl = document.getElementById('wiz-slider');
-  if (sl) sl.addEventListener('input', _upd);
-}
-
-function yearMadeReenter() {
-  var w = document.getElementById("year-range-warning"); if (w) w.remove();
-  wizard.data.yearMade = "";
-  var i = document.getElementById("wiz-year-input"); if (i) { i.value = ""; i.focus(); }
-}
-
-function yearMadeNext() {
-  var yr = parseInt(wizard.data.yearMade);
-  var rangeYears = wizard._yearRangeYears || [];
-  var warn = document.getElementById('year-range-warning');
-  if (warn) warn.remove();
-  if (yr && rangeYears.length > 0 && rangeYears.indexOf(yr) === -1) {
-    var min = rangeYears[0], max = rangeYears[rangeYears.length - 1];
-    var warnDiv = document.createElement('div');
-    warnDiv.id = 'year-range-warning';
-    warnDiv.style.cssText = 'margin-top:0.75rem;padding:0.75rem 1rem;border-radius:10px;background:rgba(201,146,42,0.1);border:1px solid rgba(201,146,42,0.45);font-size:0.82rem';
-    warnDiv.innerHTML = '<div style="font-weight:600;color:var(--accent2);margin-bottom:0.35rem">Just a heads up!</div>'
-      + '<div style="color:var(--text-mid);line-height:1.5;margin-bottom:0.65rem">The known production years for this item are <strong>' + min + '\u2013' + max + '</strong>. '
-      + 'You entered <strong>' + yr + '</strong> \u2014 that\'s outside the suggested range. Want to continue anyway?</div>'
-      + '<div style="display:flex;gap:0.5rem">'
-      + '<button onclick="wizardAdvance()" style="flex:1;padding:0.5rem;border-radius:8px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Yes, continue</button>'
-      + '<button onclick="yearMadeReenter()" style="flex:1;padding:0.5rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">No, re-enter</button>'
-      + '</div>';
-    var bdy = document.getElementById('wizard-body');
-    if (bdy) bdy.appendChild(warnDiv);
-    return;
-  }
-  // Year is fine — advance directly without going through the yearMade check again
-  wizardAdvance();
-}
-
-// Advances wizard without triggering yearMade intercept — called by yearMadeNext
-async function wizardAdvance() {
-  const _nextBtn = document.getElementById('wizard-next-btn');
-  if (_nextBtn && _nextBtn.disabled) return;
-  const _warn = document.getElementById('year-range-warning');
-  if (_warn) _warn.remove();
-  await _wizardNextCore();
-}
-
-async function wizardNext() {
-  // Prevent double-save from rapid clicks
-  const _nextBtn = document.getElementById('wizard-next-btn');
-  if (_nextBtn && _nextBtn.disabled) return;
-
-  const steps = wizard.steps;
-  const s = steps[wizard.step];
-
-  // yearMade step: hand off to yearMadeNext for range check; it calls wizardAdvance when done
-  if (s && s.type === 'yearMade') {
-    yearMadeNext();
-    return;
-  }
-
-  await _wizardNextCore();
-}
-
-async function _wizardNextCore() {
-  const _nextBtn = document.getElementById('wizard-next-btn');
-  if (_nextBtn && _nextBtn.disabled) return;
-  const steps = wizard.steps;
-  const s = steps[wizard.step];
-// Validate required fields
-  if (s.type === 'choice' && !wizard.tab) {
-    showToast('Please select where to add the item.'); return;
-  }
-  if (s.type === 'text' && !s.optional && !wizard.data[s.id]?.trim()) {
-    showToast('This field is required.'); return;
-  }
-  if (s.type === 'itemNumGrouping' && !(wizard.data.itemNum || '').trim()) {
-    showToast('Please enter an item number.'); return;
-  }
-  if (s.type === 'itemNumGrouping') {
-    const _rawInput = (wizard.data.itemNum || '').trim();
-    const _inputParts = _rawInput.toLowerCase().split(/\s+/);
-    const _numPart = _inputParts[0];
-    const _keyParts = _inputParts.slice(1).filter(p => p.length > 0);
-
-    // Check for exact match first
-    const _exactMatch = state.masterData.find(i => i.itemNum.toLowerCase() === _rawInput.toLowerCase());
-
-    if (!_exactMatch) {
-      // No exact match — look for partial matches (items whose number contains the input)
-      const _seen = new Set();
-      const _partials = state.masterData.filter(m => {
-        if (!m.itemNum.toLowerCase().includes(_numPart)) return false;
-        if (_keyParts.length > 0) {
-          const hay = (m.roadName + ' ' + m.description + ' ' + m.varDesc).toLowerCase();
-          if (!_keyParts.every(kp => hay.includes(kp))) return false;
-        }
-        // Deduplicate by itemNum
-        if (_seen.has(m.itemNum)) return false;
-        _seen.add(m.itemNum);
-        return true;
+      tr2.innerHTML = '';
+      photos.forEach(function(p) {
+        const isRSV = p.name.toUpperCase().includes('RSV');
+        const a = document.createElement('a');
+        a.href = p.view; a.target = '_blank';
+        a.title = p.name.replace(/\.[^.]+$/, '');
+        a.style.cssText = 'display:inline-block;border-radius:8px;overflow:hidden;border:2px solid '
+          + (isRSV ? '#2980b9' : 'var(--border)') + ';flex-shrink:0';
+        const img = document.createElement('img');
+        img.style.cssText = 'width:80px;height:80px;object-fit:cover;display:block;background:var(--surface2)';
+        img.alt = p.name.replace(/\.[^.]+$/, '').split(' ').pop();
+        // Authenticated load using file ID
+        loadDriveThumb(p.id, img, a);
+        const lbl = document.createElement('div');
+        lbl.style.cssText = 'font-size:0.68rem;text-align:center;padding:2px 0;background:var(--surface2);color:var(--text-dim);letter-spacing:0.03em';
+        lbl.textContent = p.name.replace(/\.[^.]+$/, '').split(' ').pop();
+        a.appendChild(img);
+        a.appendChild(lbl);
+        tr2.appendChild(a);
       });
 
-      if (_partials.length === 1) {
-        // Single match — auto-select it
-        wizard.data.itemNum = _partials[0].itemNum;
-        wizard.data._partialMatches = [];
-        wizard.matchedItem = _partials[0];
-        lookupItem(_partials[0].itemNum);
-      } else if (_partials.length > 1) {
-        // Multiple partial matches — store them for itemPicker step
-        wizard.data._partialMatches = _partials;
-        wizard.data._partialQuery = _rawInput;
+    } catch(e) {
+      console.error('Photo load error:', e);
+      if (tr2) tr2.innerHTML = '<span style="font-size:0.75rem;color:var(--text-dim)">Could not load photos</span>';
+    }
+  })();
+
+  // Track which field is being edited
+  let editingKey = null;
+
+  function renderFields(activeKey) {
+    fieldsContainer.innerHTML = '';
+    fields.forEach(function(f) {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:0.75rem;padding:0.65rem 0;border-bottom:1px solid var(--border);min-height:44px';
+
+      const lbl = document.createElement('div');
+      lbl.style.cssText = 'font-size:0.75rem;color:var(--text-dim);width:120px;flex-shrink:0';
+      lbl.textContent = f.label;
+
+      const valWrap = document.createElement('div');
+      valWrap.style.cssText = 'flex:1';
+
+      if (mode === 'edit' && activeKey === f.key) {
+        // Show input
+        let inp;
+        if (f.type === 'select') {
+          inp = document.createElement('select');
+          inp.style.cssText = 'width:100%;background:var(--bg);border:1px solid #2980b9;border-radius:6px;padding:0.4rem 0.6rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem';
+          f.options.forEach(function(o) {
+            const opt = document.createElement('option');
+            opt.value = o; opt.textContent = o;
+            if (o === (pd[f.key] || '')) opt.selected = true;
+            inp.appendChild(opt);
+          });
+        } else {
+          inp = document.createElement('input');
+          inp.type = f.type === 'text' ? 'text' : f.type;
+          inp.value = pd[f.key] || '';
+          if (f.min !== undefined) inp.min = f.min;
+          if (f.max !== undefined) inp.max = f.max;
+          inp.style.cssText = 'width:100%;background:var(--bg);border:1px solid #2980b9;border-radius:6px;padding:0.4rem 0.6rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;box-sizing:border-box';
+        }
+        inp.id = 'panel-inp-' + f.key;
+        setTimeout(function() { if (inp) inp.focus(); }, 30);
+
+        const doneBtn = document.createElement('button');
+        doneBtn.textContent = '✓';
+        doneBtn.style.cssText = 'margin-left:0.4rem;padding:0.3rem 0.6rem;border-radius:6px;border:1px solid #2980b9;background:#2980b9;color:#fff;cursor:pointer;font-size:0.85rem;flex-shrink:0';
+        doneBtn.onclick = function() {
+          pd[f.key] = inp.value;
+          f.val = inp.value || '—';
+          editingKey = null;
+          renderFields(null);
+        };
+
+        const cancelInp = document.createElement('button');
+        cancelInp.textContent = '✕';
+        cancelInp.style.cssText = 'margin-left:0.25rem;padding:0.3rem 0.5rem;border-radius:6px;border:1px solid var(--border);background:none;color:var(--text-dim);cursor:pointer;font-size:0.85rem;flex-shrink:0';
+        cancelInp.onclick = function() { editingKey = null; renderFields(null); };
+
+        const inpRow = document.createElement('div');
+        inpRow.style.cssText = 'display:flex;align-items:center;gap:0;width:100%';
+        inpRow.appendChild(inp);
+        inpRow.appendChild(doneBtn);
+        inpRow.appendChild(cancelInp);
+        valWrap.appendChild(inpRow);
+
+      } else if (f.type === 'link') {
+        // External link — render as clickable anchor, no edit
+        const a = document.createElement('a');
+        a.href = f.val;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.style.cssText = 'font-size:0.85rem;color:#2980b9;text-decoration:none;display:inline-flex;align-items:center;gap:0.3rem';
+        a.innerHTML = 'View on COTT <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+        valWrap.appendChild(a);
+        row.appendChild(lbl);
+        row.appendChild(valWrap);
+        fieldsContainer.appendChild(row);
+        return;
+      } else if (f.type === 'readonly') {
+        // Read-only value with accent color, no edit
+        const valEl = document.createElement('span');
+        valEl.style.cssText = 'font-size:0.85rem;color:var(--accent);font-style:italic';
+        valEl.textContent = f.val && f.val !== '—' ? f.val : '—';
+        valWrap.appendChild(valEl);
+        row.appendChild(lbl);
+        row.appendChild(valWrap);
+        fieldsContainer.appendChild(row);
+        return;
       } else {
-        // No matches at all — allow adding as custom item
-        wizard.data._partialMatches = [];
+        // Show value
+        const valEl = document.createElement('span');
+        valEl.style.cssText = 'font-size:0.88rem;color:' + (f.val && f.val !== '—' ? 'var(--text)' : 'var(--text-dim)');
+        valEl.textContent = f.val && f.val !== '—' ? f.val : '—';
+        valWrap.appendChild(valEl);
+
+        if (mode === 'edit') {
+          const editBtn = document.createElement('button');
+          editBtn.textContent = '✏️';
+          editBtn.title = 'Edit';
+          editBtn.style.cssText = 'margin-left:0.5rem;padding:0.15rem 0.4rem;border-radius:5px;border:1px solid var(--border);background:none;cursor:pointer;font-size:0.75rem;color:var(--text-dim)';
+          editBtn.onclick = function() { editingKey = f.key; renderFields(f.key); };
+          valWrap.appendChild(editBtn);
+        }
       }
-    } else {
-      // Exact match found
-      wizard.data._partialMatches = [];
-      wizard.data.itemNum = _exactMatch.itemNum;
-      wizard.matchedItem = _exactMatch;
-    }
 
-    // If grouping buttons are visible, require a selection before advancing
-    const _grpEl = document.getElementById('wiz-grouping-btns');
-    const _hasButtons = _grpEl && _grpEl.style.display !== 'none' && _grpEl.innerHTML.indexOf('button') >= 0;
-    if (_hasButtons && !wizard.data._itemGrouping) {
-      showToast('Please select how you are entering this item.'); return;
-    }
-    // If no buttons shown, default to single
-    if (!wizard.data._itemGrouping) wizard.data._itemGrouping = 'single';
-  }
-  // conditionDetails: commit slider defaults if user never moved them
-  if (s.type === 'conditionDetails') {
-    if (!wizard.data.condition) wizard.data.condition = 7;
-    const g = wizard.data._itemGrouping || 'single';
-    if (g === 'engine_tender') {
-      if (!wizard.data.tenderCondition) wizard.data.tenderCondition = 7;
-    }
-    if (['aa','ab','aba'].includes(g)) {
-      if (!wizard.data.unit2Condition) wizard.data.unit2Condition = 7;
-    }
-    if (g === 'aba') {
-      if (!wizard.data.unit3Condition) wizard.data.unit3Condition = 7;
-    }
-  }
-  // purchaseValue: no required fields (all optional)
-  if (s.type === 'purchaseValue') {
-    // All fields optional, just commit
-  }
-  if (s.type === 'money' && !s.optional && !wizard.data[s.id]) {
-    showToast('Please enter a price.'); return;
-  }
-  if ((s.type === 'choice2' || s.type === 'choice3') && !wizard.data[s.id]) {
-    showToast('Please make a selection.'); return;
+      row.appendChild(lbl);
+      row.appendChild(valWrap);
+      fieldsContainer.appendChild(row);
+    });
   }
 
-  // Photo-only mode: after completing a drivePhotos step, save the link and close
-  if (wizard.data._photoOnly && s.type === 'drivePhotos') {
-    await savePhotoOnlyUpdate();
-    return;
+  renderFields(null);
+
+  // Instruction Sheets linked to this item
+  const _liNum = (item.itemNum || '').replace(/-[PD]$/,'').trim();
+  const _linkedIS = Object.values(state.isData || {}).filter(s => {
+    const li = (s.linkedItem || '').trim();
+    return li === _liNum || li === item.itemNum;
+  });
+  if (_linkedIS.length) {
+    const isSection = document.createElement('div');
+    isSection.style.cssText = 'margin-top:0.75rem;padding-top:0.75rem;border-top:2px solid rgba(22,160,133,0.3)';
+    isSection.innerHTML = '<div style="font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:#16a085;text-transform:uppercase;margin-bottom:0.5rem">📋 Instruction Sheets</div>'
+      + _linkedIS.map(s => `<div onclick="openISDetail(${s.row})" style="display:flex;align-items:center;gap:0.6rem;padding:0.45rem 0.5rem;border-radius:8px;cursor:pointer;transition:background 0.1s" class="dash-row-hover">
+        <span style="font-family:var(--font-mono);font-size:0.85rem;color:#16a085;font-weight:600;min-width:80px">${s.sheetNum}</span>
+        <span style="font-size:0.8rem;color:var(--text-mid)">${s.year||''}</span>
+        ${s.condition?`<span style="font-size:0.78rem;color:var(--text-dim);margin-left:auto">Cond: ${s.condition}/10</span>`:''}
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      </div>`).join('');
+    body.appendChild(isSection);
   }
 
-  // Set entry mode — store choice and launch first item
-  if (s.id === 'set_entryMode') {
-    wizard.data._setEntryMode = wizard.data.entryMode || 'full';
-    launchSetItemWizard();
-    return;
+  box.appendChild(body);
+
+  // Footer buttons
+  const footer = document.createElement('div');
+  footer.style.cssText = 'padding:1rem 1.5rem;border-top:1px solid var(--border);display:flex;gap:0.6rem;flex-shrink:0';
+
+  if (mode === 'view') {
+    const editModeBtn = document.createElement('button');
+    editModeBtn.className = 'btn';
+    editModeBtn.style.cssText = 'flex:1;border:1.5px solid #2980b9;color:#2980b9;background:rgba(224,64,40,0.08);font-weight:600';
+    editModeBtn.innerHTML = '✏️ Edit This Item';
+    editModeBtn.onclick = function() { mode = 'edit'; renderFields(null); footer.innerHTML = ''; buildFooter(); };
+    footer.appendChild(editModeBtn);
+  } else {
+    buildFooter();
   }
 
-  // Set confirm
-  if (s.id === 'set_confirm') {
-    if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
-    try { await saveSet(); } catch(e) { showToast('Error: ' + e.message); }
-    if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Save →'; }
-    return;
+  function buildFooter() {
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'btn btn-primary';
+    saveBtn.style.cssText = 'flex:1;background:#2980b9;border-color:#2980b9;font-weight:600';
+    saveBtn.textContent = '💾 Save All Changes';
+    saveBtn.onclick = async function() {
+      saveBtn.textContent = 'Saving…'; saveBtn.disabled = true;
+      // Collect all current pd values (updated in-place during edits)
+      const priceItem = pd.priceItem || '';
+      const priceBox = pd.priceBox || '';
+      const calc = (parseFloat(priceItem)||0) + (parseFloat(priceBox)||0);
+      const newRow = [
+        item.itemNum, item.variation || '',
+        pd.condition || '', pd.allOriginal || '',
+        priceItem, priceBox, calc > 0 ? calc.toFixed(2) : '',
+        pd.hasBox || '', pd.boxCond || '',
+        pd.photoItem || '', pd.photoBox || '',
+        pd.notes || '', pd.datePurchased || '',
+        pd.userEstWorth || '', pd.matchedTo || '',
+        pd.setId || '', pd.yearMade || '',
+        pd.isError || '', pd.errorDesc || '',
+        pd.quickEntry ? 'Yes' : '',
+        pd.inventoryId || '', pd.groupId || '',
+        pd.location || '',  // Location (col W)
+      ];
+      try {
+        await sheetsUpdate(state.personalSheetId, 'My Collection!A' + pd.row + ':W' + pd.row, [newRow]);
+        state.personalData[pdKey] = Object.assign({}, pd, { priceComplete: calc > 0 ? calc.toFixed(2) : '' });
+        overlay.remove();
+        showToast('✓ Item updated!');
+        buildDashboard();
+      } catch(e) {
+        saveBtn.textContent = '💾 Save All Changes'; saveBtn.disabled = false;
+        showToast('Error: ' + e.message);
+      }
+    };
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'btn btn-secondary';
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.onclick = function() { overlay.remove(); };
+
+    footer.innerHTML = '';
+    footer.appendChild(saveBtn);
+    footer.appendChild(cancelBtn);
   }
 
-  // Instruction Sheet confirm
-  if (s.id === 'is_confirm') {
-    if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
-    try { await saveInstructionSheet(); } catch(e) { showToast('Error: '+e.message); }
-    if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Save →'; }
-    return;
-  }
-
-  // Catalog confirm — must be checked BEFORE generic confirm
-  if (s.id === 'cat_confirm') {
-    if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
-    try { await saveCatalogItem(); } catch(e) { showToast('Error: '+e.message); }
-    if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Save →'; }
-    return;
-  }
-
-  // Ephemera confirm — must be checked BEFORE generic confirm
-  const _ephTabIds = ['paper','mockups','other',...(state.userDefinedTabs||[]).map(t=>t.id)];
-  if (s.id === 'eph_confirm' || (s.type === 'confirm' && _ephTabIds.includes(wizard.tab))) {
-    if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
-    try { await saveEphemeraItem(); } catch(e) { showToast('Error: '+e.message); }
-    if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Save →'; }
-    return;
-  }
-
-  // Generic confirm — train/collection/sold/want items
-  if (s.type === 'confirm') {
-    if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
-    try { await saveWizardItem(); } catch(e) { showToast('Error: '+e.message); }
-    if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Save →'; }
-    return;
-  }
-
-  // Commit slider default if user never moved it
-  if (s.type === 'slider' && (wizard.data[s.id] === undefined || wizard.data[s.id] === null)) {
-    wizard.data[s.id] = 7;
-  }
-
-  // Advance
-  wizard.step++;
-
-  // Skip steps based on skipIf
-  while (wizard.step < steps.length - 1 && steps[wizard.step].skipIf && steps[wizard.step].skipIf(wizard.data)) {
-    wizard.step++;
-  }
-
-  // Push history so the back button returns to the previous step
-  history.pushState({ appPage: 'wizard', step: wizard.step }, '', '');
-
-  renderWizardStep();
+  box.appendChild(footer);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
 }
 
-// Generate a system item number for ephemera/non-train items
-// Catalogs:  80YY-CON/ADV/DLR/OTH
-// Paper:     81YY-PAP
-// Mock-Ups:  82YY-MU
-// Other:     82YY-OTH
-// User tabs: 83YY-USR
-function generateEphemeraItemNum(tabId, year, catType) {
-  const yy = year ? String(year).slice(-2).padStart(2,'0') : '00';
-  const prefixMap = { catalogs:'80', paper:'81', mockups:'82', other:'82' };
-  const prefix = prefixMap[tabId] || '83';
-  const base = prefix + yy;
 
-  // Suffix by tab
-  let suffix = 'OTH';
-  if (tabId === 'catalogs') {
-    const catMap = { Consumer:'CON', Advance:'ADV', Dealer:'DLR', Other:'OTH' };
-    suffix = catMap[catType] || 'OTH';
-  } else if (tabId === 'paper')   { suffix = 'PAP'; }
-  else if (tabId === 'mockups')   { suffix = 'MU';  }
-  else if (tabId === 'other')     { suffix = 'OTH'; }
-  else { suffix = 'USR'; }
-
-  // Return the base number — collectors can own multiples of the same item
-  // and they all share the same item number (like real Lionel catalog numbers)
-  return base + '-' + suffix;
+function openISDetail(rowKey) {
+  const it = state.isData[rowKey];
+  if (!it) return;
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+  overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
+  const box = document.createElement('div');
+  box.style.cssText = 'background:var(--surface);border:1px solid rgba(22,160,133,0.4);border-radius:16px;max-width:460px;width:100%;padding:1.75rem;position:relative;max-height:88vh;overflow-y:auto';
+  const closeBtn = document.createElement('button');
+  closeBtn.innerHTML='✕'; closeBtn.style.cssText='position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer';
+  closeBtn.onclick=()=>overlay.remove();
+  box.appendChild(closeBtn);
+  box.innerHTML += `
+    <div style="font-family:var(--font-head);font-size:1rem;color:#16a085;margin-bottom:0.15rem">📋 Sheet # ${it.sheetNum}</div>
+    <div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:1.25rem">Instruction Sheet${it.linkedItem?' for Lionel No. '+it.linkedItem:''}</div>
+    <div style="display:flex;flex-direction:column;gap:0.5rem;font-size:0.85rem">
+      ${[
+        ['Sheet #',       it.sheetNum||'—'],
+        ['Linked Item #', it.linkedItem||'—'],
+        ['Year / Date',   it.year||'—'],
+        ['Condition',     it.condition ? it.condition+'/10' : '—'],
+        ['Notes',         it.notes||'—'],
+      ].map(([l,v])=>`<div style="display:flex;gap:0.75rem;padding:0.45rem 0;border-bottom:1px solid var(--border)">
+        <span style="color:var(--text-dim);min-width:110px;flex-shrink:0">${l}</span>
+        <span>${v}</span>
+      </div>`).join('')}
+      ${it.photoLink?`<div style="margin-top:0.75rem"><a href="${it.photoLink}" target="_blank" rel="noopener" style="font-size:0.82rem;color:#16a085;text-decoration:none">📷 View Photos ↗</a></div>`:''}
+    </div>`;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
 }
 
-function generatePaperItemNum(paperType, itemRef) {
-  // Format: [item ref or 'PAP']-[type abbrev]-[unique 5-char ID]
-  const typeMap = {
-    'Drawing':          'DRW',
-    'Advertisement':    'ADV',
-    'Instruction Sheet':'IS',
-    'Manual':           'MAN',
-    'Price Guide':      'PGD',
-    'Reference':        'REF',
-    'Other':            'OTH',
+function browseRowClick(event, idx) {
+  // If click was on the varDesc popup span, don't intercept
+  if (event.target.closest && event.target.closest('[onclick*="showVarDescPopup"]')) return;
+  // Handle _personalOnly items encoded as negative sentinel
+  if (idx <= -1000) {
+    const poIdx = Math.abs(idx) - 1000;
+    const pdKey = (window._poKeys || [])[poIdx];
+    if (pdKey) { showOwnedItemMenu(-1, pdKey); }
+    return;
+  }
+  const item = state.masterData[idx];
+  if (!item) return;
+  const keyPrefix = item.itemNum + '|' + item.variation + '|';
+  const pdKey = Object.keys(state.personalData).find(k => k.startsWith(keyPrefix));
+  const alreadyOwned = !!pdKey;
+  if (alreadyOwned) {
+    showOwnedItemMenu(idx, pdKey);
+    return;
+  }
+  // Not owned — show quick prompt
+  const existing = document.getElementById('browse-add-prompt');
+  if (existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'browse-add-prompt';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  const box = document.createElement('div');
+  box.style.cssText = 'background:var(--surface);border:1px solid rgba(232,64,28,0.4);border-radius:16px;max-width:440px;width:100%;padding:1.75rem;position:relative';
+  // Header
+  const hdr = document.createElement('div');
+  hdr.style.cssText = 'font-family:var(--font-head);font-size:1.05rem;color:var(--accent);margin-bottom:0.25rem';
+  hdr.textContent = 'No. ' + item.itemNum + (item.variation ? ' — Var. ' + item.variation : '');
+  box.appendChild(hdr);
+  const sub = document.createElement('div');
+  sub.style.cssText = 'font-size:0.85rem;color:var(--text-mid);margin-bottom:0.25rem';
+  sub.textContent = item.roadName || item.itemType || '';
+  box.appendChild(sub);
+  if (item.yearProd) {
+    const yr = document.createElement('div');
+    yr.style.cssText = 'font-size:0.75rem;color:var(--text-dim);margin-bottom:1.25rem';
+    yr.textContent = item.yearProd + (item.itemType ? ' · ' + item.itemType : '');
+    box.appendChild(yr);
+  } else {
+    sub.style.marginBottom = '1.25rem';
+  }
+  // Question
+  const q = document.createElement('div');
+  q.style.cssText = 'font-size:0.9rem;color:var(--text);margin-bottom:1.25rem;font-weight:500';
+  q.textContent = 'Do you own this item?';
+  box.appendChild(q);
+  // Buttons
+  const btnRow = document.createElement('div');
+  btnRow.style.cssText = 'display:flex;gap:0.75rem';
+  const yesBtn = document.createElement('button');
+  yesBtn.className = 'btn btn-primary';
+  yesBtn.style.cssText = 'flex:1;background:var(--accent);border-color:var(--accent);font-weight:600';
+  yesBtn.textContent = '✓ Yes — Add to Collection';
+  yesBtn.onclick = function() { overlay.remove(); addFromBrowse(idx); };
+  const viewBtn = document.createElement('button');
+  viewBtn.className = 'btn btn-secondary';
+  viewBtn.style.cssText = 'flex:1';
+  viewBtn.textContent = 'View Details';
+  viewBtn.onclick = function() {
+    overlay.remove();
+    // Show description popup
+    const vdOverlay = document.createElement('div');
+    vdOverlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+    vdOverlay.onclick = function(e) { if (e.target === vdOverlay) vdOverlay.remove(); };
+    const vdBox = document.createElement('div');
+    vdBox.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;padding:1.75rem;position:relative;max-height:80vh;overflow-y:auto';
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '✕';
+    closeBtn.style.cssText = 'position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer';
+    closeBtn.onclick = function() { vdOverlay.remove(); };
+    vdBox.appendChild(closeBtn);
+    const rows = [
+      ['Item #', item.itemNum + (item.variation ? ' — Var. ' + item.variation : '')],
+      ['Type', item.itemType || '—'],
+      ['Road / Name', item.roadName || '—'],
+      ['Year', item.yearProd || '—'],
+      ['Market Value', item.marketVal ? '$' + parseFloat(item.marketVal).toLocaleString() : '—'],
+    ];
+    rows.forEach(function(r) {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:0.75rem;margin-bottom:0.4rem;font-size:0.85rem';
+      const lbl = document.createElement('span');
+      lbl.style.cssText = 'color:var(--text-dim);min-width:90px;flex-shrink:0';
+      lbl.textContent = r[0];
+      const val = document.createElement('span');
+      val.style.cssText = 'color:var(--text)';
+      val.textContent = r[1];
+      row.appendChild(lbl);
+      row.appendChild(val);
+      vdBox.appendChild(row);
+    });
+    if (item.varDesc) {
+      const vdSec = document.createElement('div');
+      vdSec.style.cssText = 'margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border);font-size:0.82rem;color:var(--text-mid);line-height:1.6';
+      vdSec.innerHTML = '<span style="color:var(--accent2);font-weight:600">Variation: </span>' + item.varDesc;
+      vdBox.appendChild(vdSec);
+    }
+    if (item.description) {
+      const descSec = document.createElement('div');
+      descSec.style.cssText = 'margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border);font-size:0.82rem;color:var(--text-mid);line-height:1.6';
+      descSec.textContent = item.description;
+      vdBox.appendChild(descSec);
+    }
+    if (item.refLink) {
+      const cottRow = document.createElement('div');
+      cottRow.style.cssText = 'margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border)';
+      const cottA = document.createElement('a');
+      cottA.href = item.refLink;
+      cottA.target = '_blank';
+      cottA.rel = 'noopener';
+      cottA.style.cssText = 'font-size:0.82rem;color:#2980b9;text-decoration:none;display:inline-flex;align-items:center;gap:0.35rem';
+      cottA.innerHTML = 'View on COTT <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+      cottRow.appendChild(cottA);
+      vdBox.appendChild(cottRow);
+    }
+    // Add to collection button at bottom
+    const addBtn = document.createElement('button');
+    addBtn.className = 'btn btn-primary';
+    addBtn.style.cssText = 'margin-top:1.25rem;width:100%;background:var(--accent);border-color:var(--accent);line-height:1.25';
+    addBtn.innerHTML = '<span style="display:block;font-size:0.75em;opacity:0.85;font-weight:400;letter-spacing:0.03em">Add to</span><span style="display:block">Collection</span>';
+    addBtn.onclick = function() { vdOverlay.remove(); addFromBrowse(idx); };
+    vdBox.appendChild(addBtn);
+    vdOverlay.appendChild(vdBox);
+    document.body.appendChild(vdOverlay);
   };
-  const typeCode = typeMap[paperType] || 'PAP';
-  const base = itemRef ? itemRef.replace(/[^A-Za-z0-9]/g, '').toUpperCase() : 'PAP';
-  const uid = Date.now().toString(36).slice(-4).toUpperCase();
-  return base + '-' + typeCode + '-' + uid;
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'btn btn-secondary';
+  cancelBtn.style.cssText = 'padding:0.6rem 0.9rem';
+  cancelBtn.textContent = '✕';
+  cancelBtn.onclick = function() { overlay.remove(); };
+  btnRow.appendChild(yesBtn);
+  btnRow.appendChild(viewBtn);
+  btnRow.appendChild(cancelBtn);
+  box.appendChild(btnRow);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
 }
 
-// Launch the standard collection wizard for one item in a set
-function launchSetItemWizard() {
-  const d = wizard.data;
-  const items = d._setFinalItems || [];
-  const idx   = d._setItemIndex || 0;
-  if (idx >= items.length) {
-    // All items done — return to set wizard at set_hasBox step
-    wizard.tab   = 'set';
-    wizard.steps = getSteps('set');
-    // Advance to set_hasBox step
-    wizard.step  = wizard.steps.findIndex(s => s.id === 'set_hasBox');
-    if (wizard.step < 0) wizard.step = wizard.steps.length - 1;
-    renderWizardStep();
-    return;
-  }
-  const itemNum = items[idx];
-  // Snapshot set-level data we need to preserve
-  const _setGroupId      = d._setGroupId;
-  const _setFinalItems   = d._setFinalItems;
-  const _setItemIndex    = idx;
-  const _setItemsSaved   = d._setItemsSaved || [];
-  const _setEntryMode    = d._setEntryMode;
-  const _resolvedSet     = d._resolvedSet;
-  const _setHasBox       = d.set_hasBox;
-  const _setBoxCond      = d.set_boxCond;
-  const _setBoxPhotos    = d.set_boxPhotos;
-  const _setNotes        = d.set_notes;
-  const _returnPage      = d._returnPage;
-
-  const _setLocoNum      = d._setLocoNum || (items[0] || '');
-  const _setPrice        = d._setPrice || '';
-  const _setDate         = d._setDate  || '';
-  const _setWorth        = d._setWorth || '';
-
-  // Build fresh wizard data for this collection item
-  wizard.tab  = 'collection';
-  wizard.data = {
-    tab: 'collection',
-    itemCategory: 'lionel',
-    itemNum: itemNum,
-    entryMode: _setEntryMode,
-    _setMode: true,
-    _setGroupId,
-    _setFinalItems,
-    _setItemIndex:  idx,
-    _setItemsSaved,
-    _setEntryMode,
-    _resolvedSet,
-    _setLocoNum,
-    _setPrice,
-    _setDate,
-    _setWorth,
-    set_hasBox: _setHasBox,
-    set_boxCond: _setBoxCond,
-    set_boxPhotos: _setBoxPhotos,
-    set_notes: _setNotes,
-    _returnPage,
-    _existingGroupId: _setGroupId,
-    // For the locomotive (item 0): pre-fill purchase fields
-    ...(idx === 0 ? {} : {
-      // Non-loco items: no price/date/worth — note will be added on save
-    }),
-    ...(idx === 0 ? {
-      priceItem:     _setPrice,
-      datePurchased: _setDate,
-      userEstWorth:  _setWorth,
-    } : {}),
-  };
-  wizard.steps = getSteps('collection');
-  wizard.matchedItem = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum)) || null;
-  if (wizard.matchedItem) {
-    wizard.data.itemNum = wizard.matchedItem.itemNum; // use canonical form
-  }
-
-  // Fast-forward past itemCategory, itemNumGrouping, itemPicker to variation
-  wizard.step = 0;
-  const _skip = new Set(['itemCategory', 'itemNumGrouping', 'itemPicker', 'entryMode']);
+function addFromBrowse(idx) {
+  const item = state.masterData[idx];
+  if (!item) return;
+  // Open the collection wizard with itemNum + variation pre-filled
+  wizard = { step: 0, tab: 'collection', data: { tab: 'collection', itemNum: item.itemNum, variation: item.variation || '' }, steps: getSteps('collection'), matchedItem: item };
+  document.getElementById('wizard-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  // Skip the tab picker (step 0) and itemNum step — advance past any steps
+  // whose id is 'itemNum' or 'variation' (already known)
+  const autoSkip = new Set(['tab', 'itemNum', 'variation', 'itemPicker', 'itemCategory']);
   while (wizard.step < wizard.steps.length - 1) {
     const s = wizard.steps[wizard.step];
-    if (_skip.has(s.id) || (s.skipIf && s.skipIf(wizard.data))) {
+    if (autoSkip.has(s.id) || (s.skipIf && s.skipIf(wizard.data))) {
       wizard.step++;
     } else {
       break;
     }
   }
-
-  // Show item counter in wizard title area
-  const titleEl = document.getElementById('wizard-step-title');
-  if (titleEl) {
-    titleEl.setAttribute('data-set-progress', `Item ${idx + 1} of ${items.length}: ${itemNum}`);
-  }
-
   renderWizardStep();
 }
 
-async function saveSet() {
-  // Items were already saved one-by-one via saveWizardItem.
-  // This function now only records set box notes and closes.
-  const d = wizard.data;
-  const setNum  = d._resolvedSet ? d._resolvedSet.setNum : (d.set_num || '');
-  const groupId = d._setGroupId || '';
-  const saved   = d._setItemsSaved || [];
+// ── ITEM MODAL ──────────────────────────────────────────────────
+function _buildItemModal() {
+  if (document.getElementById('item-modal')) return;
+  var overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'item-modal';
+  overlay.onclick = function(e) { if (e.target === overlay) closeModal(); };
+  overlay.innerHTML =
+    '<div class="modal">' +
+      '<div class="modal-header">' +
+        '<div>' +
+          '<div class="modal-item-num" id="modal-item-num"></div>' +
+          '<div class="modal-title" id="modal-title"></div>' +
+          '<div class="modal-subtitle" id="modal-subtitle"></div>' +
+        '</div>' +
+        '<button class="btn-close" onclick="closeModal()">&#x2715;</button>' +
+      '</div>' +
+      '<div class="modal-body">' +
+        '<div id="box-only-prompt" style="display:none;background:rgba(201,146,42,0.1);border:1px solid var(--accent2);border-radius:10px;padding:0.85rem 1rem;align-items:center;justify-content:space-between;gap:1rem">' +
+          '<div>' +
+            '<div style="font-weight:600;font-size:0.875rem;color:var(--accent2)">&#x1F4E6; Box without item info</div>' +
+            '<div style="font-size:0.8rem;color:var(--text-mid);margin-top:0.2rem">This entry has a box but no item details. Want to add the item info?</div>' +
+          '</div>' +
+          '<button onclick="fillItemFromBoxRow()" class="btn btn-primary" style="font-size:0.88rem;padding:0.6rem 1rem;white-space:nowrap">Add Item Info</button>' +
+        '</div>' +
+        '<div>' +
+          '<div class="section-title" style="margin-bottom:0.75rem">Reference Information</div>' +
+          '<div class="info-grid">' +
+            '<div class="info-field"><label>Item Type</label><div class="info-val" id="mi-type"></div></div>' +
+            '<div class="info-field"><label>Year Produced</label><div class="info-val" id="mi-year"></div></div>' +
+            '<div class="info-field"><label>Road Name</label><div class="info-val" id="mi-road"></div></div>' +
+            '<div class="info-field"><label>Variation</label><div class="info-val" id="mi-var"></div></div>' +
+            '<div class="info-field"><label>Est. Market Value</label><div class="info-val market-val" id="mi-market"></div></div>' +
+            '<div class="info-field"><label>COTT Reference</label><div class="info-val" id="mi-ref"></div></div>' +
+          '</div>' +
+          '<div id="mi-desc-wrap" style="margin-top:0.75rem"><div class="desc-block" id="mi-desc"></div></div>' +
+          '<div id="mi-varDesc-wrap" style="margin-top:0.5rem;display:none">' +
+            '<div style="font-size:0.68rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.3rem">Variation Notes</div>' +
+            '<div class="desc-block" id="mi-varDesc"></div>' +
+          '</div>' +
+        '</div>' +
+        '<div>' +
+          '<div class="form-section-title" style="margin-bottom:0.75rem">Your Collection Data</div>' +
+          '<div style="margin-bottom:0.85rem">' +
+            '<label style="font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);display:block;margin-bottom:0.4rem">Status</label>' +
+            '<div style="display:flex;gap:0.5rem">' +
+              '<button class="status-btn" id="status-want" onclick="setStatus(\'Want\')" style="flex:1;padding:0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body);font-size:0.85rem;transition:all 0.15s">Want</button>' +
+              '<button class="status-btn" id="status-owned" onclick="setStatus(\'Owned\')" style="flex:1;padding:0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body);font-size:0.85rem;transition:all 0.15s">Owned</button>' +
+              '<button class="status-btn" id="status-forsale" onclick="setStatus(\'ForSale\')" style="flex:1;padding:0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body);font-size:0.85rem;transition:all 0.15s">For Sale</button>' +
+              '<button class="status-btn" id="status-sold" onclick="setStatus(\'Sold\')" style="flex:1;padding:0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body);font-size:0.85rem;transition:all 0.15s">Sold</button>' +
+            '</div>' +
+          '</div>' +
+          '<div id="sold-fields" style="display:none;margin-bottom:0.75rem">' +
+            '<div class="price-row">' +
+              '<div class="form-field"><label>Sale Price ($)</label><input type="number" id="fc-sale-price" placeholder="0.00" min="0" step="0.01"></div>' +
+              '<div class="form-field"><label>Date Sold</label><input type="date" id="fc-date-sold"></div>' +
+            '</div>' +
+          '</div>' +
+          '<div id="forsale-fields" style="display:none;margin-bottom:0.75rem">' +
+            '<div class="price-row">' +
+              '<div class="form-field"><label>Asking Price ($)</label><input type="number" id="fc-asking-price" placeholder="0.00" min="0" step="0.01"></div>' +
+              '<div class="form-field"><label>Date Listed</label><input type="date" id="fc-date-listed"></div>' +
+            '</div>' +
+          '</div>' +
+          '<div id="want-fields" style="display:none;margin-bottom:0.75rem">' +
+            '<div class="form-grid">' +
+              '<div class="form-field"><label>Priority</label><select id="fc-want-priority"><option value="High">High</option><option value="Medium" selected>Medium</option><option value="Low">Low</option></select></div>' +
+              '<div class="form-field"><label>Expected Price ($)</label><input type="number" id="fc-want-price" placeholder="0.00" min="0" step="0.01"></div>' +
+            '</div>' +
+            '<div class="form-field full" style="margin-top:0.5rem"><label>Notes</label><input type="text" id="fc-want-notes" placeholder="Why you want it, where to find it\u2026"></div>' +
+          '</div>' +
+          '<div id="collection-form" style="display:none">' +
+            '<div class="form-grid">' +
+              '<div class="form-field"><label>Copy #</label><select id="fc-copy"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option></select></div>' +
+              '<div class="form-field"><label>All Original?</label><select id="fc-original"><option value="Yes">Yes</option><option value="No">No</option><option value="Unknown">Unknown</option></select></div>' +
+            '</div>' +
+            '<div class="form-field" style="margin-top:0.75rem">' +
+              '<label>Condition (1\u201310)</label>' +
+              '<div class="condition-display">' +
+                '<div class="condition-num" id="cond-display">7</div>' +
+                '<input type="range" min="1" max="10" value="7" id="fc-condition" oninput="document.getElementById(\'cond-display\').textContent=this.value">' +
+              '</div>' +
+            '</div>' +
+            '<div class="price-row" style="margin-top:0.75rem">' +
+              '<div class="form-field"><label>Item Only Price ($)</label><input type="number" id="fc-price-item" placeholder="0.00" min="0" step="0.01"></div>' +
+              '<div class="form-field"><label>Box Only Price ($)</label><input type="number" id="fc-price-box" placeholder="0.00" min="0" step="0.01"></div>' +
+              '<div class="form-field"><label>Item+Box Complete ($)</label><input type="number" id="fc-price-complete" placeholder="0.00" min="0" step="0.01"></div>' +
+            '</div>' +
+            '<div class="form-grid" style="margin-top:0.75rem">' +
+              '<div class="form-field"><label>Has Box?</label><select id="fc-has-box"><option value="Yes">Yes</option><option value="No">No</option></select></div>' +
+              '<div class="form-field"><label>Box Condition (1\u201310)</label><input type="number" id="fc-box-cond" min="1" max="10" placeholder="\u2014"></div>' +
+            '</div>' +
+            '<div class="form-field full" style="margin-top:0.75rem"><label>Item Photo Link (Google Photos)</label><input type="url" id="fc-photo-item" placeholder="https://photos.google.com/\u2026"></div>' +
+            '<div class="form-field full" style="margin-top:0.5rem"><label>Box Photo Link (Google Photos)</label><input type="url" id="fc-photo-box" placeholder="https://photos.google.com/\u2026"></div>' +
+            '<div class="form-field full" style="margin-top:0.5rem"><label>Notes</label><textarea id="fc-notes" placeholder="Any personal notes about this item\u2026"></textarea></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="modal-footer">' +
+        '<button class="btn btn-secondary" onclick="closeModal()">Cancel</button>' +
+        '<button class="btn btn-primary" onclick="saveItem()">Save to Collection</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+}
 
-  // Upload set box photos if any
-  if (d.set_hasBox === 'Yes') {
-    const photoObj = d.set_boxPhotos || {};
-    if (Object.keys(photoObj).some(k => photoObj[k]?.file)) {
-      try {
-        await driveEnsureSetup();
-        const folderName = setNum || groupId || 'SetBox';
-        const parentId   = driveCache.vaultId || await driveFindOrCreateFolder('The Boxcar Files', null);
-        const folderId   = await driveFindOrCreateFolder(folderName, parentId);
-        for (const [viewKey, fileObj] of Object.entries(photoObj)) {
-          if (!fileObj?.file) continue;
-          const fname = folderName + ' ' + viewKey + '.' + (fileObj.file.name.split('.').pop() || 'jpg');
-          await driveUploadPhoto(fileObj.file, fname, folderId).catch(e => console.warn(e));
-        }
-      } catch(e) { console.warn('Set box photo upload:', e); }
+function openItem(idx) {
+  _buildItemModal();
+  const item = state.masterData[idx];
+  state.currentItem = { item, idx };
+  // Find by prefix since key now includes row number
+  const keyPrefix = `${item.itemNum}|${item.variation}|`;
+  const pdKey = Object.keys(state.personalData).find(k => k.startsWith(keyPrefix));
+  const pd = pdKey ? state.personalData[pdKey] : {};
+
+  const _errPd = findPD(item.itemNum, item.variation);
+  const _errSuffix = _errPd && _errPd.isError ? ' ⚠ Error' : '';
+  document.getElementById('modal-item-num').textContent = `No. ${item.itemNum}${item.variation ? ' — Variation ' + item.variation : ''}${_errSuffix}`;
+  document.getElementById('modal-title').textContent = item.roadName || item.itemType || item.description.substring(0, 60);
+  const modalMatchedTo = pd?.matchedTo || '';
+  const modalIsTender = isTender(item.itemNum);
+  document.getElementById('modal-subtitle').textContent = `${item.itemType}${item.subType ? ' — ' + item.subType : ''}${item.yearProd ? ' · ' + item.yearProd : ''}`;
+  // Set ID badge
+  const setIdBadgeEl = document.getElementById('modal-set-badge');
+  if (setIdBadgeEl) {
+    if (pd?.setId) {
+      setIdBadgeEl.style.display = 'inline-flex';
+      // Find all other items in this set
+      const setMates = Object.values(state.personalData)
+        .filter(p => p.setId === pd.setId && p.itemNum !== item.itemNum)
+        .map(p => p.itemNum);
+      setIdBadgeEl.textContent = '🔗 Set: ' + pd.setId + (setMates.length ? ' (with ' + setMates.join(', ') + ')' : '');
+    } else {
+      setIdBadgeEl.style.display = 'none';
     }
   }
 
+  const matchedBadgeEl = document.getElementById('modal-matched-badge');
+  if (matchedBadgeEl) {
+    if (modalMatchedTo) {
+      matchedBadgeEl.style.display = 'inline-flex';
+      matchedBadgeEl.innerHTML = `${modalIsTender ? '🚂' : '🚃'} Matched ${modalIsTender ? 'Engine' : 'Tender'}: <strong style="margin-left:0.3rem">${modalMatchedTo}</strong>`;
+    } else {
+      matchedBadgeEl.style.display = 'none';
+    }
+  }
+  document.getElementById('mi-type').textContent = item.itemType || '—';
+  document.getElementById('mi-year').textContent = item.yearProd || '—';
+  document.getElementById('mi-road').textContent = item.roadName || '—';
+  document.getElementById('mi-var').textContent = item.variation || '(no variation)';
+  document.getElementById('mi-market').textContent = item.marketVal ? '$' + parseFloat(item.marketVal).toLocaleString() : '—';
+  document.getElementById('mi-ref').innerHTML = item.refLink ? `<a href="${item.refLink}" target="_blank">View on COTT ↗</a>` : '—';
+  document.getElementById('mi-desc').textContent = item.description || 'No description available.';
+  const vd = document.getElementById('mi-varDesc-wrap');
+  if (item.varDesc) { document.getElementById('mi-varDesc').textContent = item.varDesc; vd.style.display = 'block'; }
+  else { vd.style.display = 'none'; }
+
+  // Personal data - check owned, for sale, sold, and want
+  const sd = state.soldData[key] || {};
+  const fs = state.forSaleData[key] || {};
+  const wd = state.wantData[key] || {};
+  const itemStatus = pd.owned ? 'Owned' : fs.itemNum ? 'ForSale' : sd.itemNum ? 'Sold' : wd.itemNum ? 'Want' : '';
+  currentStatus = itemStatus || '';
+  setStatus(itemStatus || 'Want');
+  document.getElementById('fc-sale-price').value = sd.salePrice || '';
+  document.getElementById('fc-date-sold').value = sd.dateSold || '';
+  document.getElementById('fc-asking-price').value = fs.askingPrice || '';
+  document.getElementById('fc-date-listed').value = fs.dateListed || '';
+  document.getElementById('fc-want-priority').value = wd.priority || 'Medium';
+  document.getElementById('fc-want-price').value = wd.expectedPrice || '';
+  document.getElementById('fc-want-notes').value = wd.notes || '';
+
+  // copy field removed
+  document.getElementById('fc-original').value = pd.allOriginal || 'Unknown';
+  const cond = pd.condition || 7;
+  document.getElementById('fc-condition').value = cond;
+  document.getElementById('cond-display').textContent = cond;
+  const toNum = v => (v && !isNaN(parseFloat(v))) ? v : '';
+  document.getElementById('fc-price-item').value = toNum(pd.priceItem);
+  document.getElementById('fc-price-box').value = toNum(pd.priceBox);
+  document.getElementById('fc-price-complete').value = toNum(pd.priceComplete);
+  document.getElementById('fc-has-box').value = ['Yes','No'].includes(pd.hasBox) ? pd.hasBox : 'No';
+  document.getElementById('fc-box-cond').value = toNum(pd.boxCond);
+  document.getElementById('fc-photo-item').value = pd.photoItem || '';
+  document.getElementById('fc-photo-box').value = pd.photoBox || '';
+  document.getElementById('fc-notes').value = pd.notes || '';
+
+  // Show box-only prompt if row has box but no item info
+  const isBoxOnly = pd.owned && pd.hasBox === 'Yes' && 
+    (!pd.condition || pd.condition === 'N/A') && 
+    (!pd.priceItem || pd.priceItem === 'N/A');
+  const prompt = document.getElementById('box-only-prompt');
+  if (prompt) prompt.style.display = isBoxOnly ? 'flex' : 'none';
+
+  document.getElementById('item-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function fillItemFromBoxRow() {
+  if (!state.currentItem) return;
+  const { item } = state.currentItem;
+  closeModal();
+  // Start wizard in collection mode, pre-filled with item number, skip to item-info steps
+  wizard = {
+    step: 0,
+    tab: 'collection',
+    data: {
+      tab: 'collection',
+      itemNum: item.itemNum,
+      variation: item.variation || '',
+      boxOnly: false,
+      _fillItemMode: true, // flag so we can pre-set item number
+    },
+    steps: getSteps('collection'),
+    matchedItem: state.masterData.find(i => i.itemNum === item.itemNum) || null,
+  };
+  // Advance past tab and itemNum steps since we already know them
+  wizard.step = 2; // start at condition step
+  document.getElementById('wizard-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  renderWizardStep();
+}
+
+function closeModal() {
+  document.getElementById('item-modal').classList.remove('open');
+  document.body.style.overflow = '';
+  state.currentItem = null;
+}
+
+function closeModalOnOverlay(e) { if (e.target === document.getElementById('item-modal')) closeModal(); }
+
+let currentStatus = 'Want';
+
+function setStatus(status) {
+  currentStatus = status;
+  // Update button styles
+  ['Want','Owned','ForSale','Sold'].forEach(s => {
+    const btn = document.getElementById('status-' + s.toLowerCase());
+    if (!btn) return;
+    if (s === status) {
+      const colors = { Want: 'var(--accent2)', Owned: 'var(--green)', ForSale: '#e67e22', Sold: '#9b59b6' };
+      btn.style.background = colors[s] + '22';
+      btn.style.borderColor = colors[s];
+      btn.style.color = colors[s];
+    } else {
+      btn.style.background = 'var(--surface2)';
+      btn.style.borderColor = 'var(--border)';
+      btn.style.color = 'var(--text-mid)';
+    }
+  });
+  document.getElementById('collection-form').style.display = (status === 'Owned' || status === 'Sold' || status === 'ForSale') ? 'block' : 'none';
+  const soldFields = document.getElementById('sold-fields');
+  if (soldFields) soldFields.style.display = status === 'Sold' ? 'block' : 'none';
+  const forsaleFields = document.getElementById('forsale-fields');
+  if (forsaleFields) forsaleFields.style.display = status === 'ForSale' ? 'block' : 'none';
+  const wantFields = document.getElementById('want-fields');
+  if (wantFields) wantFields.style.display = status === 'Want' ? 'block' : 'none';
+}
+
+async function saveItem() {
+  if (!state.currentItem) return;
+  const { item } = state.currentItem;
+  const key = `${item.itemNum}|${item.variation}`;
+
+  const copy = document.getElementById('fc-copy').value;
+  const condition = document.getElementById('fc-condition').value;
+
+  if (currentStatus === 'Owned') {
+    // Write/update in My Collection tab
+    const _ex = state.personalData[key] || {};
+    const ownedRow = [
+      item.itemNum, item.variation || '', copy, condition,
+      document.getElementById('fc-original').value,
+      document.getElementById('fc-price-item').value,
+      document.getElementById('fc-price-box').value,
+      document.getElementById('fc-price-complete').value,
+      document.getElementById('fc-has-box').value,
+      document.getElementById('fc-box-cond').value,
+      document.getElementById('fc-photo-item').value,
+      document.getElementById('fc-photo-box').value,
+      document.getElementById('fc-notes').value,
+      _ex.datePurchased || '', _ex.userEstWorth || '',
+      _ex.matchedTo || '', _ex.setId || '', _ex.yearMade || '',
+      _ex.isError || '', _ex.errorDesc || '',
+      _ex.quickEntry ? 'Yes' : '',  // preserve Quick Entry flag
+      _ex.inventoryId || nextInventoryId(),  // auto-assign if new
+      _ex.groupId || '',
+      _ex.location || '',  // Location (col W)
+    ];
+    const existing = state.personalData[key];
+    if (existing && existing.row) {
+      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:W${existing.row}`, [ownedRow]);
+    } else {
+      await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [ownedRow]);
+    }
+    // Remove from Sold tab if it was there
+    const soldEntry = state.soldData[key];
+    if (soldEntry && soldEntry.row) {
+      await sheetsUpdate(state.personalSheetId, `Sold!A${soldEntry.row}:H${soldEntry.row}`, [['','','','','','','','']]);
+    }
+    // Remove from Want List if it was there
+    const wantEntry = state.wantData[key];
+    if (wantEntry && wantEntry.row) {
+      await sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry.row}:E${wantEntry.row}`, [['','','','','']]);
+    }
+    // Remove from For Sale if it was there
+    const fsEntry = state.forSaleData[key];
+    if (fsEntry && fsEntry.row) {
+      await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry.row}:H${fsEntry.row}`, [['','','','','','','','']]);
+    }
+
+  } else if (currentStatus === 'ForSale') {
+    // Write to For Sale tab (keep in collection too — it's still yours)
+    const existing = state.personalData[key];
+    const forSaleRow = [
+      item.itemNum, item.variation || '',
+      condition,
+      document.getElementById('fc-asking-price').value,
+      document.getElementById('fc-date-listed').value || new Date().toISOString().split('T')[0],
+      document.getElementById('fc-notes').value,
+      existing?.priceItem || '',
+      existing?.userEstWorth || '',
+    ];
+    const fsEntry2 = state.forSaleData[key];
+    if (fsEntry2 && fsEntry2.row) {
+      await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry2.row}:H${fsEntry2.row}`, [forSaleRow]);
+    } else {
+      await sheetsAppend(state.personalSheetId, 'For Sale!A:A', [forSaleRow]);
+    }
+    // Remove from Sold if it was there
+    const soldEntry2 = state.soldData[key];
+    if (soldEntry2 && soldEntry2.row) {
+      await sheetsUpdate(state.personalSheetId, `Sold!A${soldEntry2.row}:H${soldEntry2.row}`, [['','','','','','','','']]);
+    }
+    // Remove from Want if it was there
+    const wantEntry2 = state.wantData[key];
+    if (wantEntry2 && wantEntry2.row) {
+      await sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry2.row}:E${wantEntry2.row}`, [['','','','','']]);
+    }
+
+  } else if (currentStatus === 'Sold') {
+    // Remove from My Collection
+    const existing = state.personalData[key];
+    if (existing && existing.row) {
+      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:W${existing.row}`, [['','','','','','','','','','','','','','','','','','','','','','','']]);  // 23 cols A-W
+    }
+    // Remove from For Sale if it was there
+    const fsEntry3 = state.forSaleData[key];
+    if (fsEntry3 && fsEntry3.row) {
+      await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry3.row}:H${fsEntry3.row}`, [['','','','','','','','']]);
+    }
+    // Write to Sold tab
+    const soldRow = [
+      item.itemNum, item.variation || '', copy, condition,
+      existing?.priceItem || document.getElementById('fc-price-item').value,
+      document.getElementById('fc-sale-price').value,
+      document.getElementById('fc-date-sold').value,
+      document.getElementById('fc-notes').value,
+    ];
+    const soldEntry = state.soldData[key];
+    if (soldEntry && soldEntry.row) {
+      await sheetsUpdate(state.personalSheetId, `Sold!A${soldEntry.row}:H${soldEntry.row}`, [soldRow]);
+    } else {
+      await sheetsAppend(state.personalSheetId, 'Sold!A:A', [soldRow]);
+    }
+
+  } else if (currentStatus === 'Want') {
+    // Remove from My Collection if present
+    const existing = state.personalData[key];
+    if (existing && existing.row) {
+      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:W${existing.row}`, [['','','','','','','','','','','','','','','','','','','','','','','']]);  // 23 cols A-W
+    }
+    // Write/update Want List tab
+    const wantRow = [
+      item.itemNum,
+      item.variation || '',
+      document.getElementById('fc-want-priority').value,
+      document.getElementById('fc-want-price').value,
+      document.getElementById('fc-want-notes').value,
+    ];
+    const wantEntry = state.wantData[key];
+    if (wantEntry && wantEntry.row) {
+      await sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry.row}:E${wantEntry.row}`, [wantRow]);
+    } else {
+      await sheetsAppend(state.personalSheetId, 'Want List!A:A', [wantRow]);
+    }
+    // Store info for partner prompt — shown after modal closes
+    window._pendingWantPartner = {
+      itemNum: item.itemNum,
+      variation: item.variation || '',
+      priority: wantRow[2],
+      maxPrice: wantRow[3],
+      notes: wantRow[4],
+    };
+  } else {
+    window._pendingWantPartner = null;
+  }
+
+  // Bust cache then background sync — don't block the UI
   localStorage.removeItem('lv_personal_cache');
   localStorage.removeItem('lv_personal_cache_ts');
-  showToast('\u2713 ' + (setNum || 'Set') + ' complete \u2014 ' + saved.length + ' item' + (saved.length !== 1 ? 's' : '') + ' in your collection!');
-  closeWizard();
+
+  closeModal();
   buildDashboard();
+  buildSoldPage();
+  buildForSalePage();
   renderBrowse();
-}
+  showToast('✓ Item updated!');
 
-async function saveInstructionSheet() {
-  const d = wizard.data;
-  const sheetNum = (d.is_sheetNum || '').trim();
-  const linkedItem = (d.is_linkedItem || '').trim();
-  if (!sheetNum) { showToast('Sheet number is required'); return; }
-
-  // Resolve Group ID — if user opted to group with the collection item
-  let resolvedGroupId = '';
-  if (d.is_groupChoice === 'Yes') {
-    const found = _findCollectionItemByNum(linkedItem);
-    if (found) {
-      resolvedGroupId = found.groupId || ('GRP-' + linkedItem.replace(/[^A-Za-z0-9]/g,'-') + '-' + Date.now());
-    }
+  // Show groupable partner prompt if applicable
+  if (window._pendingWantPartner) {
+    const _pwp = window._pendingWantPartner;
+    window._pendingWantPartner = null;
+    setTimeout(() => _checkWantPartners(_pwp.itemNum, _pwp.variation, _pwp.priority, _pwp.maxPrice, _pwp.notes), 400);
   }
 
-  // Photo handling — use group folder if grouped, otherwise IS Photos folder
-  let photoLink = '';
-  const photoObj = d.is_photos || {};
-  if (Object.keys(photoObj).some(k => photoObj[k]?.file)) {
+  // Background sync after a delay to give Sheets time to propagate
+  const _syncDelay = typeof _isTouchDevice !== 'undefined' && _isTouchDevice ? 3000 : 1500;
+  setTimeout(async function() {
     try {
-      await driveEnsureSetup();
-      let parentFolderId;
-      if (resolvedGroupId) {
-        // Place photos in the group's Drive folder (same as where train item photos live)
-        const groupFolderName = linkedItem;
-        if (!driveCache.groupFolders) driveCache.groupFolders = {};
-        if (!driveCache.groupFolders[groupFolderName]) {
-          driveCache.groupFolders[groupFolderName] = await driveFindOrCreateFolder(groupFolderName, driveCache.vaultId);
-        }
-        parentFolderId = driveCache.groupFolders[groupFolderName];
-      } else {
-        if (!driveCache.isPhotosId) {
-          driveCache.isPhotosId = await driveFindOrCreateFolder('Instruction Sheet Photos', driveCache.vaultId);
-        }
-        parentFolderId = driveCache.isPhotosId;
-      }
-      const folderName = linkedItem ? linkedItem + ' - ' + sheetNum : sheetNum;
-      const isFolderId = await driveFindOrCreateFolder(folderName, parentFolderId);
-      photoLink = 'https://drive.google.com/drive/folders/' + isFolderId;
-      for (const [viewKey, fileObj] of Object.entries(photoObj)) {
-        if (!fileObj?.file) continue;
-        const fname = folderName + ' ' + viewKey + '.' + (fileObj.file.name.split('.').pop() || 'jpg');
-        await driveUploadPhoto(fileObj.file, fname, isFolderId).catch(e => console.warn(e));
-      }
-    } catch(e) { console.warn('IS photo folder:', e); }
-  }
-
-  const isStandaloneInvId = nextInventoryId();
-  const row = [sheetNum, linkedItem, d.is_year||'', d.is_condition||'', d.is_notes||'', photoLink, isStandaloneInvId, resolvedGroupId];
-  try {
-    await ensureEphemeraSheets(state.personalSheetId);
-    await sheetsAppend(state.personalSheetId, 'Instruction Sheets!A:A', [row]);
-    const newKey = Date.now();
-    state.isData[newKey] = {
-      row: newKey, sheetNum, linkedItem, year: d.is_year||'',
-      condition: d.is_condition||'', notes: d.is_notes||'', photoLink,
-      inventoryId: isStandaloneInvId, groupId: resolvedGroupId,
-    };
-    showToast('✓ Instruction Sheet ' + sheetNum + ' saved!');
-    closeWizard();
-    buildDashboard();
-    renderBrowse();
-  } catch(e) {
-    showToast('Error saving: ' + e.message);
-  }
-}
-
-async function saveCatalogItem() {
-  const d = wizard.data;
-  // Title = "Year Type Catalog" e.g. "1957 Consumer Catalog"
-  const typeLabel = d.cat_type || '';
-  const yearLabel = d.cat_year || '';
-  const folderName = [yearLabel, typeLabel, 'Catalog'].filter(Boolean).join(' ');
-  const title = folderName;
-  const itemNum = generateEphemeraItemNum('catalogs', yearLabel, typeLabel);
-
-  // Create photo folder and upload photos if any
-  let photoFolderLink = '';
-  const photoObj = d.cat_photos || {};
-  if (Object.keys(photoObj).length > 0 || true) {
-    try {
-      await driveEnsureSetup();
-      // Create "Catalogs" subfolder under vault if needed
-      if (!driveCache.catalogsId) {
-        driveCache.catalogsId = await driveFindOrCreateFolder('Catalog Photos', driveCache.vaultId);
-        localStorage.setItem('lv_catalogs_id', driveCache.catalogsId);
-      }
-      const catFolderId = await driveFindOrCreateFolder(folderName, driveCache.catalogsId);
-      photoFolderLink = 'https://drive.google.com/drive/folders/' + catFolderId;
-      // Upload any photos
-      for (const [viewKey, fileObj] of Object.entries(photoObj)) {
-        if (!fileObj || !fileObj.file) continue;
-        try {
-          const fname = folderName + ' ' + viewKey + '.' + (fileObj.file.name.split('.').pop() || 'jpg');
-          await driveUploadPhoto(fileObj.file, fname, catFolderId);
-        } catch(e) { console.warn('Photo upload:', e); }
-      }
-    } catch(e) { console.warn('Drive folder:', e); }
-  }
-
-  const row = [
-    itemNum,
-    d.cat_type || '',
-    d.cat_year || '',
-    d.cat_hasMailer || 'No',
-    d.cat_condition || '',
-    d.cat_estValue || '',
-    d.cat_dateAcquired || '',
-    d.cat_notes || '',
-    photoFolderLink,
-  ];
-  try {
-    // Ensure Catalogs tab exists with proper headers before appending
-    await ensureEphemeraSheets(state.personalSheetId);
-    const appendResult = await sheetsAppend(state.personalSheetId, 'Catalogs!A:I', [row]);
-    // Reload catalog rows from sheet to get accurate row numbers
-    if (!state.ephemeraData.catalogs) state.ephemeraData.catalogs = {};
-    try {
-      const freshCat = await sheetsGet(state.personalSheetId, 'Catalogs!A3:I');
-      state.ephemeraData.catalogs = {};
-      (freshCat.values || []).forEach((r, idx) => {
-        if (!r[0] || r[0] === 'Item ID' || r[0] === 'Type' || r[0] === 'Catalogs') return;
-        const key = idx + 3;
-        const catType2 = r[1]||''; const year2 = r[2]||'';
-        const t = [year2, catType2, 'Catalog'].filter(Boolean).join(' ');
-        state.ephemeraData.catalogs[key] = {
-          row: key, itemNum: r[0]||'', title: t,
-          catType: catType2, year: year2, hasMailer: r[3]||'No',
-          condition: r[4]||'', estValue: r[5]||'', dateAcquired: r[6]||'',
-          notes: r[7]||'', photoLink: r[8]||'',
-        };
-      });
-    } catch(e) {
-      // Fallback: add optimistically
-      const newKey = Date.now();
-      state.ephemeraData.catalogs[newKey] = {
-        row: newKey, itemNum, title,
-        catType: d.cat_type || '', year: d.cat_year || '',
-        hasMailer: d.cat_hasMailer || 'No', condition: d.cat_condition || '',
-        estValue: d.cat_estValue || '', dateAcquired: d.cat_dateAcquired || '',
-        notes: d.cat_notes || '', photoLink: photoFolderLink,
-      };
-    }
-    showToast('✓ ' + title + ' saved!');
-    closeWizard();
-    buildDashboard(); // refresh stats
-    populateFilters(); // refresh type dropdown to include new catalog type
-    renderBrowse();    // always refresh so it appears immediately
-  } catch(e) {
-    showToast('Error saving: ' + e.message);
-  }
-}
-
-async function saveEphemeraItem() {
-  const d = wizard.data;
-  const tab = wizard.tab;
-  const tabNames = { catalogs:'Catalogs', paper:'Paper Items', mockups:'Mock-Ups', other:'Other Lionel' };
-  const _userTab = (state.userDefinedTabs||[]).find(t => t.id === tab);
-  const sheetName = tabNames[tab] || (_userTab && _userTab.label) || null;
-  if (!sheetName) { closeWizard(); return; }
-
-  const ephItemNum = tab === 'paper'
-    ? generatePaperItemNum(d.eph_paperType || '', d.eph_itemNumRef || '')
-    : generateEphemeraItemNum(tab, d.eph_year || '', '');
-
-  // Upload photos if any
-  let photoFolderLink = '';
-  const photoObj = d.eph_photos || {};
-  const hasPhotos = Object.values(photoObj).some(v => v && v.file);
-  if (hasPhotos) {
-    try {
-      await driveEnsureSetup();
-      if (!driveCache.ephPhotosId) {
-        driveCache.ephPhotosId = await driveFindOrCreateFolder('Ephemera Photos', driveCache.vaultId);
-      }
-      const folderTitle = (d.eph_title || ephItemNum).substring(0, 60);
-      const itemFolderId = await driveFindOrCreateFolder(folderTitle, driveCache.ephPhotosId);
-      photoFolderLink = 'https://drive.google.com/drive/folders/' + itemFolderId;
-      for (const [viewKey, fileObj] of Object.entries(photoObj)) {
-        if (!fileObj || !fileObj.file) continue;
-        try {
-          const ext = fileObj.file.name.split('.').pop() || 'jpg';
-          await driveUploadPhoto(fileObj.file, folderTitle + ' ' + viewKey + '.' + ext, itemFolderId);
-        } catch(e) { console.warn('Photo upload:', e); }
-      }
-    } catch(e) { console.warn('Drive folder:', e); }
-  }
-
-  let row;
-  if (tab === 'mockups') {
-    row = [
-      ephItemNum,
-      d.eph_title||'', d.eph_itemNumRef||'', d.eph_description||'',
-      d.eph_year||'', d.eph_manufacturer||'Lionel', d.eph_condition||'',
-      d.eph_productionStatus||'', d.eph_material||'', d.eph_dimensions||'',
-      d.eph_provenance||'', d.eph_lionelVerified||'', d.eph_estValue||'',
-      photoFolderLink,
-      d.eph_notes||'', d.eph_dateAcquired||'',
-    ];
-  } else {
-    row = [
-      ephItemNum,
-      d.eph_title||'', d.eph_description||'', d.eph_year||'',
-      d.eph_manufacturer||'Lionel', d.eph_condition||'',
-      d.eph_quantity||'1', d.eph_estValue||'',
-      photoFolderLink,
-      d.eph_notes||'', d.eph_dateAcquired||'',
-    ];
-  }
-
-  try {
-    await sheetsAppend(state.personalSheetId, sheetName + '!A:P', [row]);
-    // Add to local state
-    const bucket = state.ephemeraData[tab] || {};
-    const newKey = Date.now();
-    if (tab === 'mockups') {
-      bucket[newKey] = {
-        row: newKey, itemNum: ephItemNum, title: d.eph_title||'', itemNumRef: d.eph_itemNumRef||'',
-        description: d.eph_description||'', year: d.eph_year||'',
-        manufacturer: d.eph_manufacturer||'Lionel', condition: d.eph_condition||'',
-        productionStatus: d.eph_productionStatus||'', material: d.eph_material||'',
-        dimensions: d.eph_dimensions||'', provenance: d.eph_provenance||'',
-        lionelVerified: d.eph_lionelVerified||'', estValue: d.eph_estValue||'',
-        photoLink: photoFolderLink, notes: d.eph_notes||'', dateAcquired: d.eph_dateAcquired||'',
-      };
-    } else {
-      bucket[newKey] = {
-        row: newKey, itemNum: ephItemNum, title: d.eph_title||'', description: d.eph_description||'',
-        year: d.eph_year||'', manufacturer: d.eph_manufacturer||'Lionel',
-        condition: d.eph_condition||'', quantity: d.eph_quantity||'1',
-        estValue: d.eph_estValue||'', photoLink: photoFolderLink, notes: d.eph_notes||'',
-        dateAcquired: d.eph_dateAcquired||'',
-      };
-    }
-    state.ephemeraData[tab] = bucket;
-    showToast('✓ ' + (d.eph_title||'Item') + ' saved!');
-    closeWizard();
-    if (state.filters.owned) renderBrowse();
-  } catch(e) {
-    showToast('Error saving: ' + e.message);
-  }
-}
-
-async function savePhotoOnlyUpdate() {
-  const d = wizard.data;
-  const pdKey = d._updatePdKey;
-  if (!pdKey || !state.personalData[pdKey]) {
-    closeWizard(); return;
-  }
-  const pd = state.personalData[pdKey];
-  // Get the folder link from whichever photo step just ran
-  const photoObj = d.photosItem || d.photosBox || {};
-  const folderLink = Object.values(photoObj).find(v => v) || '';
-  if (folderLink && pd.row) {
-    // Write folder link to col J (index 9) of the existing row
-    try {
-      await sheetsUpdate(state.personalSheetId, 'My Collection!J' + pd.row, [[folderLink]]);
-      pd.photoItem = folderLink;
-      showToast('✓ Photos saved!');
-    } catch(e) {
-      showToast('Photos uploaded but link save failed: ' + e.message);
-    }
-  } else {
-    showToast('✓ Photos uploaded!');
-  }
-  closeWizard();
-  // Refresh camera icons on current browse view
-  if (folderLink) {
-    const itemNum = pd.itemNum;
-    const variation = pd.variation || '';
-    const c1 = document.getElementById('cam-' + itemNum + '-' + variation);
-    const c2 = document.getElementById('cam-' + itemNum + '-' + variation + '-m');
-    if (c1) c1.style.display = 'inline';
-    if (c2) c2.style.display = 'inline';
-  }
-}
-
-async function saveWizardItem() {
-  const d = wizard.data;
-  const tab = wizard.tab;
-  console.log('[Save] Starting save. tab:', tab, '| accessToken:', accessToken ? 'present' : 'MISSING', '| sheetId:', state.personalSheetId || 'MISSING');
-  // Apply powered/dummy suffix to A units (B units ending in C are never powered)
-  const _rawItemNum = (d.itemNum || '').trim();
-  const _pdSuffix = (raw, power) => {
-    if (!power || raw.endsWith('C')) return raw;
-    return raw + (power === 'Powered' ? '-P' : '-D');
-  };
-  const itemNum = _pdSuffix(_rawItemNum, d.unitPower);
-  const variation = (d.variation || '').trim();
-  const key = `${itemNum}|${variation}`;
-  // Photos are now Drive URL objects keyed by view
-  const photoObj = d.photosItem || {};
-  const boxPhotoObj = d.photosBox || {};
-  const errorPhotoObj = d.photosError || {};
-  // Primary display photo = Front View, fallback to first available
-  // All views return the same folder link — just grab the first one found
-  const anyItemLink = Object.values(photoObj).find(v => v) || '';
-  const anyBoxLink  = Object.values(boxPhotoObj).find(v => v) || '';
-  const photos    = [anyItemLink];
-  const boxPhotos = [anyBoxLink];
-
-  // Pre-compute Group ID for grouped saves — any item entered with a box, paired, or set gets a Group ID
-  const _isPairedCheck = d.tenderMatch && d.tenderMatch !== 'none';
-  const _isSetCheck = d.setMatch === 'set-now';
-  const _hasAnyBox = d.hasBox === 'Yes' || _isPairedCheck || _isSetCheck;
-  let groupId = d._existingGroupId || (_hasAnyBox ? ('GRP-' + _rawItemNum + '-' + Date.now()) : '');
-
-  // Hoisted to function scope — used by both collection save and group box save blocks
-  let row;
-  let isSetSave = false;
-  let isPairedSave = false;
-  let setId = '';
-
-  try {
-    if (tab === 'collection') {
-      // Find existing by row-keyed lookup (key includes row number now)
-      // When completing a quick entry, use the specific row passed in —
-      // avoids overwriting a different copy of the same item number
-      let existing = (d._fillTargetKey && state.personalData[d._fillTargetKey])
-        ? state.personalData[d._fillTargetKey]
-        : (Object.keys(state.personalData)
-            .map(k => state.personalData[k])
-            .find(pd => pd.itemNum === itemNum && pd.variation === variation && pd.quickEntry) || null);
-      if (d.boxOnly) {
-        // Box-only entry: create a standalone -BOX row as its own inventory item
-        const boxItemNum = itemNum + '-BOX';
-        const boxInvId = nextInventoryId();
-        let boxGroupId = '';
-
-        // If user said Yes to grouping, find or create a Group ID shared with the item
-        if (d.boxGroupSuggest === 'Yes') {
-          const existingItem = Object.values(state.personalData).find(pd => pd.itemNum === itemNum && pd.owned);
-          if (existingItem) {
-            if (existingItem.groupId) {
-              // Item already has a group — join it
-              boxGroupId = existingItem.groupId;
-            } else {
-              // Item has no group yet — create one and backfill it
-              boxGroupId = 'GRP-' + _rawItemNum + '-' + Date.now();
-              existingItem.groupId = boxGroupId;
-              const existingInvId = existingItem.inventoryId || nextInventoryId();
-              if (!existingItem.inventoryId) existingItem.inventoryId = existingInvId;
-              // Backfill Group ID + Inventory ID on existing item row (cols U-V)
-              if (existingItem.row && existingItem.row !== 99999) {
-                sheetsUpdate(state.personalSheetId, `My Collection!U${existingItem.row}:V${existingItem.row}`, [[existingInvId, boxGroupId]])
-                  .catch(e => console.warn('Box group backfill:', e));
-              }
-            }
-          }
-        }
-
-        const boxRow = [
-          boxItemNum, variation,
-          d.boxCond || '', '',     // condition = box condition, allOriginal
-          '', d.priceBox || '', '', // no item price, box price, no complete
-          'Yes',                   // hasBox — this IS a box
-          d.boxCond || '',
-          '', boxPhotos[0] || '',  // no item photo; box photo
-          (d.notes || '').trim() || 'Box for ' + itemNum,
-          d.purchaseDate || '',
-          d.userEstWorth || '',
-          itemNum,                 // matchedTo = the item this box belongs to
-          '', '', '', '', '',      // setId, yearMade, isError, errorDesc, quickEntry
-          boxInvId,
-          boxGroupId,
-          d.location || '',        // Location (col W)
-        ];
-
-        if (existing && existing.row && existing.itemNum === boxItemNum) {
-          // Update existing BOX row
-          await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:W${existing.row}`, [boxRow]);
-        } else {
-          await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [boxRow]);
-        }
-
-        // Optimistic state update
-        const boxKey = `${boxItemNum}|${variation}|temp_${Date.now()}`;
-        state.personalData[boxKey] = {
-          row: 99999, itemNum: boxItemNum, variation,
-          status: 'Owned', owned: true,
-          itemType: 'Box',
-          condition: d.boxCond || '', hasBox: 'Yes', boxCond: d.boxCond || '',
-          priceBox: d.priceBox || '',
-          notes: (d.notes || '').trim() || 'Box for ' + itemNum,
-          datePurchased: d.purchaseDate || '',
-          userEstWorth: d.userEstWorth || '',
-          matchedTo: itemNum,
-          inventoryId: boxInvId, groupId: boxGroupId,
-          location: d.location || '',
-        };
-
-        closeWizard();
-        showToast('✓ Box for ' + itemNum + ' saved!' + (boxGroupId ? ' (grouped)' : ''));
-        buildDashboard();
-        renderBrowse();
-        return;  // Done — box-only exits here
-
-      }
-      {
-        const _paired = d.tenderMatch && d.tenderMatch !== 'none';
-        const enginePrice = _paired
-          ? (d.priceItem ? (parseFloat(d.priceItem)/2).toFixed(2) : '')
-          : (d.priceItem || '');
-        const engineWorth = _paired
-          ? (d.userEstWorth ? (parseFloat(d.userEstWorth)/2).toFixed(2) : '')
-          : (d.userEstWorth || '');
-        const calcComplete = _paired
-          ? (enginePrice ? parseFloat(enginePrice) : 0)
-          : ((parseFloat(d.priceItem)||0) + (parseFloat(d.priceBox)||0));
-        row = [
-          itemNum, variation,
-          d.condition || '',
-          d.allOriginal || '',
-          enginePrice,
-          d.priceBox || '',
-          calcComplete > 0 ? calcComplete.toFixed(2) : '',
-          d.hasBox || 'No',
-          d.boxCond || '',
-          photos[0] || '',
-          boxPhotos[0] || '',
-          [
-            d.notOriginalDesc ? 'Modifications: ' + d.notOriginalDesc.trim() : '',
-            (d.notes || '').trim(),
-            (d._setMode && (d._setItemIndex || 0) > 0 && d._resolvedSet)
-              ? 'Part of set ' + d._resolvedSet.setNum + ' — price & value on ' + (d._setLocoNum || d._setFinalItems[0] || 'locomotive')
-              : '',
-          ].filter(Boolean).join(' | '),
-          d.datePurchased || '',
-          engineWorth,
-          d.tenderMatch && d.tenderMatch !== 'none' ? d.tenderMatch : '',
-          '',  // Set ID — filled in after save if set unit
-          d.yearMade || '',  // Year Made (col Q)
-        d.isError === 'Yes' ? 'Yes' : 'No',  // Is Error (col R)
-        d.isError === 'Yes' ? (d.errorDesc || '') : '',  // Error Description (col S)
-        '',  // Quick Entry (col T) — blank = normal full entry
-        d._existingInventoryId || nextInventoryId(),  // Inventory ID (col U)
-        '',  // Group ID (col V) — filled in below for grouped items
-        d.location || '',  // Location (col W)
-        ];
-      }
-      // ── SET UNIT SAVE: if diesel set, save unit2 (and unit3) rows with shared Set ID ──
-  isSetSave = d.setMatch === 'set-now';
-  setId = d._setId || '';
-  // Apply Group ID to unit 1 row
-  if (groupId && row.length >= 22) { row[21] = groupId; }
-
-  if (isSetSave && d.unit2ItemNum) {
-    const _u2Raw = (d.unit2ItemNum || '').trim();
-    const _u2Power = d.setType === 'AA' ? 'Dummy' : '';
-    const u2Num = _pdSuffix(_u2Raw, _u2Power);
-    // Unit 1 keeps full price/worth; other units get $0 with a note pointing to unit 1
-    const setPriceNote = (baseNote, leadNum) => {
-      const ref = 'Set price on item ' + leadNum;
-      return baseNote ? baseNote + '; ' + ref : ref;
-    };
-
-    const u2Row = [
-      u2Num, '',
-      d.unit2Condition || '',
-      d.unit2AllOriginal || '',
-      '', '', '',   // $0 — price is on unit 1
-      d.unit2HasBox || 'No',
-      d.unit2BoxCond || '',
-      '', '',
-      setPriceNote((d.notes || '').trim(), itemNum),
-      d.datePurchased || '',
-      '',           // $0 worth — worth is on unit 1
-      itemNum,      // matchedTo = suffixed A unit
-      setId,
-      '', d.unit2IsError === 'Yes' ? 'Yes' : '', d.unit2IsError === 'Yes' ? (d.unit2ErrorDesc || '') : '', '',  // yearMade, isError, errorDesc, quickEntry
-      nextInventoryId(),  // Inventory ID
-      groupId,  // Group ID — shared across set
-      d.location || '',  // Location (col W) — same as unit 1
-    ];
-    await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u2Row]);
-
-    // Unit 3 (ABA second A unit)
-    if (d.setType === 'ABA') {
-      const u3Num = _pdSuffix((d.unit3ItemNum || _rawItemNum).trim(), d.unit3Power);
-      const u3Row = [
-        u3Num, '',
-        d.unit3Condition || '',
-        d.unit3AllOriginal || '',
-        '', '', '',   // $0 — price is on unit 1
-        d.unit3HasBox || 'No',
-        d.unit3BoxCond || '',
-        '', '',
-        setPriceNote((d.notes || '').trim(), itemNum),
-        d.datePurchased || '',
-        '',           // $0 worth — worth is on unit 1
-        u2Num,        // matchedTo = B unit
-        setId,
-        '', d.unit3IsError === 'Yes' ? 'Yes' : '', d.unit3IsError === 'Yes' ? (d.unit3ErrorDesc || '') : '', '',  // yearMade, isError, errorDesc, quickEntry
-        nextInventoryId(),  // Inventory ID
-        groupId,  // Group ID — shared across set
-        d.location || '',  // Location (col W) — same as unit 1
-      ];
-      await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u3Row]);
-      // Update u2Row matchedTo to also reference u3Num
-
-    }
-
-    // Update unit 1 row to include setId
-    row[15] = setId;
-    row[14] = row[14] || u2Num; // matchedTo
-  }
-
-  // Link-to-existing: just tag unit 1 with the existing set's setId
-  if (d.setMatch === 'link' && d._setId) {
-    row[15] = d._setId;
-    // Update the existing unit's setId if it doesn't have one
-    const existingUnit = Object.values(state.personalData).find(pd =>
-      pd.itemNum === (itemNum.endsWith('C') ? itemNum.slice(0,-1) : itemNum+'C')
-    );
-    if (existingUnit && existingUnit.row && !existingUnit.setId) {
-      sheetsUpdate(state.personalSheetId, 'My Collection!P' + existingUnit.row, [[d._setId]])
-        .catch(e => console.warn('Set ID backfill:', e));
-    }
-  }
-
-  // ── PAIRED SAVE: if engine+tender together, save a second row for the tender ──
-  isPairedSave = d.tenderMatch && d.tenderMatch !== 'none';
-  if (isPairedSave) {
-    const tNum = d.tenderMatch.trim();
-    const tVariation = '';
-    const tenderNote = (() => {
-      const ref = 'Set price on item ' + itemNum;
-      return d.notes ? d.notes.trim() + '; ' + ref : ref;
-    })();
-    const tRow = [
-      tNum, tVariation,
-      d.tenderCondition || '',
-      d.tenderAllOriginal || '',
-      '', '',  '',  // $0 — full price is on the engine row
-      d.tenderHasBox || 'No',
-      d.tenderBoxCond || '',
-      '',          // photo — filed separately under tender folder
-      '',          // box photo
-      tenderNote,
-      d.datePurchased || '',
-      '',          // $0 worth — worth is on the engine row
-      itemNum,     // matchedTo = engine number
-      '', '', d.tenderIsError === 'Yes' ? 'Yes' : '', d.tenderIsError === 'Yes' ? (d.tenderErrorDesc || '') : '', '',  // setId, yearMade, isError, errorDesc, quickEntry
-      nextInventoryId(),  // Inventory ID
-      groupId,  // Group ID — shared with engine
-      d.location || '',  // Location (col W) — same as engine
-    ];
-    await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [tRow]);
-    // Update engine row matchedTo to point to tender
-    row[14] = tNum;
-  }
-
-  // Cross-link: if a tender/engine was matched, update that item's matchedTo column too
-  const matchedNum = (!isPairedSave && d.tenderMatch && d.tenderMatch !== 'none') ? d.tenderMatch : null;
-  if (matchedNum) {
-    const matchedEntry = Object.values(state.personalData).find(pd => pd.itemNum === matchedNum);
-    if (matchedEntry && matchedEntry.row) {
-      // Update col O (index 14) of the matched row
-      sheetsUpdate(state.personalSheetId, `My Collection!O${matchedEntry.row}`, [[itemNum]]).catch(e => console.warn('Cross-link update:', e));
-      matchedEntry.matchedTo = itemNum;
-    }
-  }
-
-  if (d._fillItemMode && existing?.row) {
-        // Updating existing row with new item details (e.g. filling in a quick-entry row)
-        await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:W${existing.row}`, [row]);
-      } else {
-        // Always append for a plain new collection add — never overwrite existing rows
-        await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
-      }
-
-      // Auto-group with existing standalone box: if a -BOX row already exists for this item, adopt it into the group
-      if (groupId) {
-        const existingBoxEntry = Object.values(state.personalData).find(pd =>
-          pd.itemNum === itemNum + '-BOX' && pd.owned && !pd.groupId
-        );
-        if (existingBoxEntry) {
-          existingBoxEntry.groupId = groupId;
-          if (existingBoxEntry.row && existingBoxEntry.row !== 99999) {
-            sheetsUpdate(state.personalSheetId, `My Collection!V${existingBoxEntry.row}`, [[groupId]])
-              .catch(e => console.warn('Auto-group box backfill:', e));
-          }
-        }
-      }
-
-    } else if (tab === 'forsale') {
-      const collectionEntry = d.selectedForSaleKey && d.selectedForSaleKey !== '__new__' ? state.personalData[d.selectedForSaleKey] : null;
-      const fsVariation = collectionEntry ? (collectionEntry.variation || '') : variation;
-      const fsCondition = d.condition || (collectionEntry?.condition !== 'N/A' ? collectionEntry?.condition : '') || '';
-      const fsOrigPrice = d.originalPrice || (collectionEntry?.priceItem !== 'N/A' ? collectionEntry?.priceItem : '') || '';
-      const fsEstWorth = d.estWorth || collectionEntry?.userEstWorth || '';
-      // For direct entries, append box/original status to notes
-      let fsNotes = (d.notes || '').trim();
-      if (!collectionEntry) {
-        const extras = [];
-        if (d.hasBox) extras.push('Box: ' + d.hasBox);
-        if (d.allOriginal) extras.push('All Original: ' + d.allOriginal);
-        if (extras.length) fsNotes = fsNotes ? fsNotes + ' | ' + extras.join(', ') : extras.join(', ');
-      }
-
-      const row = [
-        itemNum, fsVariation,
-        fsCondition,
-        d.askingPrice || '',
-        d.dateListed || new Date().toISOString().split('T')[0],
-        fsNotes,
-        fsOrigPrice,
-        fsEstWorth,
-      ];
-      const fsKey = `${itemNum}|${fsVariation}`;
-      const existingFs = state.forSaleData[fsKey];
-      if (existingFs?.row) {
-        await sheetsUpdate(state.personalSheetId, `For Sale!A${existingFs.row}:H${existingFs.row}`, [row]);
-      } else {
-        await sheetsAppend(state.personalSheetId, 'For Sale!A:A', [row]);
-      }
-      // Optimistic update
-      state.forSaleData[fsKey] = {
-        row: existingFs?.row || 99999, itemNum, variation: fsVariation,
-        condition: fsCondition, askingPrice: d.askingPrice || '',
-        dateListed: row[4], notes: row[5], originalPrice: fsOrigPrice, estWorth: fsEstWorth,
-      };
-
-    } else if (tab === 'sold') {
-      const collectionEntry = d.selectedSoldKey ? state.personalData[d.selectedSoldKey] : null;
-      const soldVariation = collectionEntry ? (collectionEntry.variation || '') : variation;
-      const soldCondition = d.condition || (collectionEntry?.condition !== 'N/A' ? collectionEntry?.condition : '') || '';
-      const soldPricePaid = d.priceItem || (collectionEntry?.priceItem !== 'N/A' ? collectionEntry?.priceItem : '') || '';
-
-      const row = [
-        itemNum, soldVariation, '1',
-        soldCondition,
-        soldPricePaid,
-        d.salePrice || '',
-        d.dateSold || '',
-        ( d.notes || '' ).trim(),
-      ];
-      const soldKey = `${itemNum}|${soldVariation}`;
-      const existingSold = state.soldData[soldKey];
-      if (existingSold?.row) {
-        await sheetsUpdate(state.personalSheetId, `Sold!A${existingSold.row}:H${existingSold.row}`, [row]);
-      } else {
-        await sheetsAppend(state.personalSheetId, 'Sold!A:A', [row]);
-      }
-      // Delete the row from My Collection
-      if (collectionEntry?.row) {
-        await sheetsDeleteRow(state.personalSheetId, 'My Collection', collectionEntry.row);
-      }
-      // Move photo folder to Sold in Drive
-      if (collectionEntry?.itemNum) {
-        try { await driveMoveToSold(collectionEntry.itemNum); } catch(e) { console.warn('Drive move failed:', e); }
-      }
-
-    } else if (tab === 'want') {
-      const row = [
-        itemNum, variation,
-        d.priority || 'Medium',
-        d.expectedPrice || '',
-        ( d.notes || '' ).trim(),
-      ];
-      const existing = state.wantData[key];
-      if (existing?.row) {
-        await sheetsUpdate(state.personalSheetId, `Want List!A${existing.row}:E${existing.row}`, [row]);
-      } else {
-        await sheetsAppend(state.personalSheetId, 'Want List!A:A', [row]);
-      }
-      // After save, prompt about groupable partners (tender, A/B unit)
-      if (typeof _checkWantPartners === 'function') {
-        setTimeout(() => _checkWantPartners(itemNum, variation, row[2], row[3], row[4]), 500);
-      }
-    }
-
-    // ── Save individual box rows for grouped items (each box gets its own Inventory ID) ──
-    if (groupId && tab === 'collection') {
-      try {
-        // Unit 1 box
-        if (d.hasBox === 'Yes') {
-          const u1BoxRow = _buildGroupBoxRow(itemNum, d.boxCond || row[8], boxPhotos[0] || row[10] || '', groupId, d.datePurchased, itemNum);
-          await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u1BoxRow]);
-          const u1bKey = `${itemNum}-BOX||temp_${Date.now()}`;
-          state.personalData[u1bKey] = {
-            row: 99999, itemNum: itemNum + '-BOX', variation: '',
-            status: 'Owned', owned: true,
-            condition: d.boxCond || row[8] || '', hasBox: 'Yes', boxCond: d.boxCond || row[8] || '',
-            notes: 'Box for ' + itemNum, matchedTo: itemNum,
-            inventoryId: u1BoxRow[20], groupId: groupId,
-          };
-        }
-        // Unit 2 box (set save)
-        if (isSetSave && d.unit2HasBox === 'Yes' && d.unit2ItemNum) {
-          const u2Num = (d.unit2ItemNum || '').trim();
-          const u2BoxRow = _buildGroupBoxRow(u2Num, d.unit2BoxCond || '', '', groupId, d.datePurchased, itemNum);
-          await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u2BoxRow]);
-          const u2bKey = `${u2Num}-BOX||temp_${Date.now()}`;
-          state.personalData[u2bKey] = {
-            row: 99999, itemNum: u2Num + '-BOX', variation: '',
-            status: 'Owned', owned: true,
-            condition: d.unit2BoxCond || '', hasBox: 'Yes', boxCond: d.unit2BoxCond || '',
-            notes: 'Box for ' + u2Num, matchedTo: u2Num,
-            inventoryId: u2BoxRow[20], groupId: groupId,
-          };
-        }
-        // Unit 3 box (ABA save)
-        if (isSetSave && d.setType === 'ABA' && d.unit3HasBox === 'Yes') {
-          const u3Num = _pdSuffix((d.unit3ItemNum || _rawItemNum).trim(), d.unit3Power);
-          const u3BoxRow = _buildGroupBoxRow(u3Num, d.unit3BoxCond || '', '', groupId, d.datePurchased, itemNum);
-          await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u3BoxRow]);
-          const u3bKey = `${u3Num}-BOX||temp_${Date.now()}`;
-          state.personalData[u3bKey] = {
-            row: 99999, itemNum: u3Num + '-BOX', variation: '',
-            status: 'Owned', owned: true,
-            condition: d.unit3BoxCond || '', hasBox: 'Yes', boxCond: d.unit3BoxCond || '',
-            notes: 'Box for ' + u3Num, matchedTo: u3Num,
-            inventoryId: u3BoxRow[20], groupId: groupId,
-          };
-        }
-        // Tender box (paired save)
-        if (isPairedSave && d.tenderHasBox === 'Yes') {
-          const tNum = d.tenderMatch.trim();
-          const tBoxRow = _buildGroupBoxRow(tNum, d.tenderBoxCond || '', '', groupId, d.datePurchased, itemNum);
-          await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [tBoxRow]);
-          const tbKey = `${tNum}-BOX||temp_${Date.now()}`;
-          state.personalData[tbKey] = {
-            row: 99999, itemNum: tNum + '-BOX', variation: '',
-            status: 'Owned', owned: true,
-            condition: d.tenderBoxCond || '', hasBox: 'Yes', boxCond: d.tenderBoxCond || '',
-            notes: 'Box for ' + tNum, matchedTo: tNum,
-            inventoryId: tBoxRow[20], groupId: groupId,
-          };
-        }
-      } catch(e) { console.warn('Group box row save error:', e); }
-    }
-
-    // ── Save instruction sheet if user said they have one ──
-    if (d.hasIS === 'Yes' && tab === 'collection') {
-      try {
-        const isSheetNum = (d.is_sheetNum || '').trim() || itemNum + '-IS';
-        const isPhotoObj = d.photosIS || {};
-        let isPhotoLink = '';
-        if (Object.keys(isPhotoObj).some(k => isPhotoObj[k]?.file)) {
-          await driveEnsureSetup();
-          if (!driveCache.isPhotosId) {
-            driveCache.isPhotosId = await driveFindOrCreateFolder('Instruction Sheet Photos', driveCache.vaultId);
-          }
-          const isFolderName = itemNum + ' - ' + isSheetNum;
-          const isFolderId = await driveFindOrCreateFolder(isFolderName, driveCache.isPhotosId);
-          isPhotoLink = 'https://drive.google.com/drive/folders/' + isFolderId;
-          for (const [viewKey, fileObj] of Object.entries(isPhotoObj)) {
-            if (!fileObj?.file) continue;
-            const fname = isFolderName + ' ' + viewKey + '.' + (fileObj.file.name.split('.').pop() || 'jpg');
-            await driveUploadPhoto(fileObj.file, fname, isFolderId).catch(e => console.warn(e));
-          }
-        }
-        const isInvId = nextInventoryId();
-        const isRow = [isSheetNum, itemNum, '', d.is_condition || '', '', isPhotoLink, isInvId, groupId];
-        await sheetsAppend(state.personalSheetId, 'Instruction Sheets!A:A', [isRow]);
-        const newISKey = Date.now();
-        state.isData[newISKey] = {
-          row: newISKey, sheetNum: isSheetNum, linkedItem: itemNum,
-          year: '', condition: d.is_condition || '', notes: '', photoLink: isPhotoLink,
-          inventoryId: isInvId, groupId: groupId,
-        };
-      } catch(e) { console.warn('IS save error:', e); }
-    }
-
-    // ── Save master box if user said they have one (grouped items only) ──
-    if (d.hasMasterBox === 'Yes' && tab === 'collection') {
-      try {
-        const mbItemNum = _rawItemNum + '-MBOX';
-        const mbInvId = nextInventoryId();
-        // Upload master box photos if any
-        let mbPhotoLink = '';
-        const mbPhotoObj = d.photosMasterBox || {};
-        if (Object.keys(mbPhotoObj).some(k => mbPhotoObj[k]?.file)) {
-          await driveEnsureSetup();
-          const mbFolderId = await driveEnsureItemFolder(mbItemNum);
-          mbPhotoLink = 'https://drive.google.com/drive/folders/' + mbFolderId;
-          for (const [viewKey, fileObj] of Object.entries(mbPhotoObj)) {
-            if (!fileObj?.file) continue;
-            const fname = mbItemNum + ' ' + viewKey + '.' + (fileObj.file.name.split('.').pop() || 'jpg');
-            await driveUploadPhoto(fileObj.file, fname, mbFolderId).catch(e => console.warn(e));
-          }
-        }
-        const mbRow = [
-          mbItemNum, '',
-          d.masterBoxCond || '', '',  // condition, allOriginal
-          '', '', '',   // prices — $0, value is on unit 1
-          'Yes',        // hasBox — the master box IS a box
-          d.masterBoxCond || '',
-          '', mbPhotoLink,  // no item photo, box photo = master box photos
-          (d.masterBoxNotes || '').trim() || 'Master box for ' + _rawItemNum + ' set',
-          d.datePurchased || '',
-          '',           // $0 worth — worth is on unit 1
-          itemNum,      // matchedTo = primary unit
-          setId || '',  // Set ID
-          '', '', '', '',  // yearMade, isError, errorDesc, quickEntry
-          mbInvId,      // Inventory ID
-          groupId,      // Group ID — shared with set
-          d.location || '',  // Location (col W) — same as lead unit
-        ];
-        await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [mbRow]);
-        // Add to local state
-        const mbKey = `${mbItemNum}||temp_${Date.now()}`;
-        state.personalData[mbKey] = {
-          row: 99999, itemNum: mbItemNum, variation: '',
-          status: 'Owned', owned: true,
-          itemType: 'Master Carton',
-          condition: d.masterBoxCond || '', hasBox: 'Yes', boxCond: d.masterBoxCond || '',
-          notes: (d.masterBoxNotes || '').trim() || 'Master box for ' + _rawItemNum + ' set',
-          matchedTo: itemNum, setId: setId || '',
-          inventoryId: mbInvId, groupId: groupId,
-        };
-      } catch(e) { console.warn('Master box save error:', e); }
-    }
-
-    // ── Set mode: record saved item, advance to next item or return to set box steps ──
-    if (d._setMode && tab === 'collection') {
-      const _saved   = d._setItemsSaved || [];
-      _saved.push(itemNum);
-      const _curIdx  = d._setItemIndex || 0;
-      const _nextIdx = _curIdx + 1;
-
-      // After loco (item 0) saves, snapshot its purchase data for reference in other items
-      const _setPrice = _curIdx === 0 ? (d.priceItem || '') : (d._setPrice || '');
-      const _setDate  = _curIdx === 0 ? (d.datePurchased || '') : (d._setDate  || '');
-      const _setWorth = _curIdx === 0 ? (d.userEstWorth || '') : (d._setWorth || '');
-
-      wizard.data._setItemsSaved = _saved;
-      wizard.data._setItemIndex  = _nextIdx;
-      wizard.data._setPrice      = _setPrice;
-      wizard.data._setDate       = _setDate;
-      wizard.data._setWorth      = _setWorth;
+      await loadPersonalData();
       buildDashboard();
       renderBrowse();
-      showToast(`✓ ${itemNum} saved (${_saved.length} of ${(d._setFinalItems||[]).length})`);
-      launchSetItemWizard();
-      return;
-    }
-
-    closeWizard();
-
-    // ── If this came from the Want List, clean up the want entry ──
-    if (d._fromWantList && d._fromWantKey && tab === 'collection') {
-      const wantEntry = state.wantData[d._fromWantKey];
-      if (wantEntry && wantEntry.row) {
-        sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry.row}:E${wantEntry.row}`, [['','','','','']]).catch(e => console.warn('Want cleanup error:', e));
-      }
-      delete state.wantData[d._fromWantKey];
-      buildWantPage();
-    }
-
-    // ── Optimistic update: inject directly into state so item appears immediately ──
-    // Don't wait for Sheets to propagate — add it to state right now
-    const _tempKey = `${itemNum}|${variation}|temp_${Date.now()}`;
-    if (tab === 'collection') {
-      state.personalData[_tempKey] = {
-        row: 99999, itemNum, variation,
-        status: 'Owned', owned: true,
-        condition: d.condition || '',
-        allOriginal: d.allOriginal || '',
-        priceItem: d.priceItem || '',
-        priceBox: d.priceBox || '',
-        priceComplete: d.priceComplete || '',
-        hasBox: d.hasBox || 'No',
-        boxCond: d.boxCondition || '',
-        notes: d.notes || '',
-        datePurchased: d.datePurchased || '',
-        inventoryId: row[20] || '', groupId: groupId || '',
-        location: d.location || '',
-      };
-    } else if (tab === 'sold') {
-      state.soldData[`${itemNum}|${variation}`] = {
-        row: 99999, itemNum, variation,
-        condition: d.condition || '',
-        priceItem: d.priceItem || '',
-        salePrice: d.salePrice || '',
-        dateSold: d.dateSold || '',
-        notes: d.notes || '',
-      };
-    } else if (tab === 'want') {
-      state.wantData[`${itemNum}|${variation}`] = {
-        row: 99999, itemNum, variation,
-        priority: d.priority || 'Medium',
-        expectedPrice: d.expectedPrice || '',
-        notes: d.notes || '',
-      };
-    }
-
-    // Rebuild UI immediately with the optimistic data
-    buildDashboard();
-    buildSoldPage();
-    buildForSalePage();
-    if (tab === 'want') buildWantPage();
-    renderBrowse();
-    showToast(`✓ Item ${itemNum} added to ${tab === 'collection' ? 'My Collection' : tab === 'forsale' ? 'For Sale' : tab === 'sold' ? 'Sold' : 'Want List'}!`);
-
-    // ── Vault: submit updated collection data in background ──
-    if (typeof vaultIsOptedIn === 'function' && vaultIsOptedIn()) {
-      localStorage.removeItem(VAULT.KEY_LAST_SUB);
-      setTimeout(function() {
-        if (typeof vaultSubmitData === 'function') vaultSubmitData().catch(function(e) { console.warn('[Vault] Submit after save failed:', e); });
-      }, 2000);
-    }
-
-    // ── Background sync: bust cache and re-fetch from Sheets to get real row numbers ──
-    // Longer delay on mobile to give Sheets time to propagate
-    localStorage.removeItem('lv_personal_cache');
-    localStorage.removeItem('lv_personal_cache_ts');
-    const _syncDelay = typeof _isTouchDevice !== 'undefined' && _isTouchDevice ? 3000 : 1500;
-    setTimeout(async function() {
-      try {
-        await loadPersonalData();
-        buildDashboard();
-        buildSoldPage();
-        buildForSalePage();
-        renderBrowse();
-      } catch(e) { console.warn('Background sync after save:', e); }
-    }, _syncDelay);
-
-  } catch(e) {
-    console.error('Save error:', e, '| accessToken:', accessToken ? 'present' : 'MISSING');
-    showToast('❌ Save failed: ' + e.message, 8000, true);
-  }
+    } catch(e) { console.warn('Background sync after saveItem:', e); }
+  }, _syncDelay);
 }
 
-async function quickEntryAdd() {
-  const d = wizard.data;
-  const itemNum = (d.itemNum || '').trim();
-  if (!itemNum) { showToast('Please enter an item number first'); return; }
-  const variation = (d.variation || '').trim();
+// ── WANT LIST PARTNER PROMPT ─────────────────────────────────────
+// Shown after saving a groupable item to Want List
+function _checkWantPartners(itemNum, variation, priority, maxPrice, notes) {
+  const num = normalizeItemNum(itemNum);
+  const isLoco   = !!LOCO_TO_TENDERS[num];
+  const isTnd    = !!TENDER_TO_LOCOS[num];
+  const bUnit    = getBUnit(num);          // diesel A-unit: returns "XXXC" or null
+  const aUnit    = getAUnit(num);          // diesel B-unit: returns "XXX" or null
 
-  // If user already chose a grouping on the itemNumGrouping screen,
-  // translate that into _qe* fields so we skip the multi-unit popup
-  const grp = d._itemGrouping || '';
-  if (grp && grp !== 'single' && !d._qeMultiResolved) {
-    if (grp === 'engine_tender' && d.tenderMatch && d.tenderMatch !== 'none') {
-      d._qeTender = d.tenderMatch;
-    } else if (grp === 'engine') {
-      d._qeTender = 'none';
-    } else if (grp === 'aa') {
-      d._qeSetPartner = itemNum;
-      d._qeSetType = 'AA';
-    } else if (grp === 'ab') {
-      d._qeSetPartner = d.unit2ItemNum || getBUnit(itemNum) || (itemNum + 'C');
-      d._qeSetType = 'AB';
-    } else if (grp === 'aba') {
-      d._qeSetPartner = d.unit2ItemNum || getBUnit(itemNum) || (itemNum + 'C');
-      d._qeSetType = 'ABA';
-      d._qeUnit3 = itemNum;
-    } else if (grp === 'a_powered' || grp === 'a_dummy') {
-      // Single unit, no partner needed
-    }
-    d._qeMultiResolved = true;
+  // Build list of candidates (skip any already on Want List)
+  let candidates = []; // [{ itemNum, label }]
+
+  if (isLoco) {
+    const tenders = LOCO_TO_TENDERS[num] || [];
+    tenders.forEach(t => {
+      if (!state.wantData[t + '|']) candidates.push({ itemNum: t, label: t + ' (tender)' });
+    });
+  } else if (isTnd) {
+    const locos = TENDER_TO_LOCOS[num] || [];
+    locos.forEach(l => {
+      if (!state.wantData[l + '|']) candidates.push({ itemNum: l, label: l + ' (locomotive)' });
+    });
+  } else if (bUnit) {
+    if (!state.wantData[bUnit + '|']) candidates.push({ itemNum: bUnit, label: bUnit + ' (B unit)' });
+  } else if (aUnit) {
+    if (!state.wantData[aUnit + '|']) candidates.push({ itemNum: aUnit, label: aUnit + ' (A unit)' });
   }
 
-  // Check if this item needs multi-unit questions
-  const tenders = getMatchingTenders(itemNum);
-  const isSet   = isSetUnit(itemNum);
-  const bUnit   = !itemNum.endsWith('C') ? getBUnit(itemNum) : null;
+  if (!candidates.length) return; // Nothing to offer
 
-  if ((tenders.length > 0 || (isSet && bUnit)) && !d._qeMultiResolved) {
-    _showQuickEntryMultiUI(itemNum, variation, tenders, isSet, bUnit);
-    return;
-  }
-
-  // Build rows to save
-  const setId = (d._qeTender && d._qeTender !== 'none') || (d._qeSetPartner && d._qeSetPartner !== 'none')
-    ? genSetId(itemNum) : '';
-  const qeGroupId = setId ? ('GRP-' + itemNum + '-' + Date.now()) : '';
-
-  const _qeIsAA = d._qeSetType === 'AA';
-  const _qeIsABA = d._qeSetType === 'ABA';
-  const _qeHasSet = d._qeSetPartner && d._qeSetPartner !== 'none';
-  // Unit 1 suffix: -P for set lead or standalone powered A; -D for standalone dummy A
-  const _qeGrp = d._itemGrouping || '';
-  const _qeU1Suf = _qeHasSet ? '-P' : (_qeGrp === 'a_powered' ? '-P' : (_qeGrp === 'a_dummy' ? '-D' : ''));
-  const _qeUnit1Num = (_qeU1Suf && !itemNum.endsWith('C')) ? itemNum + _qeU1Suf : itemNum;
-  const _qeUnit2Num = _qeHasSet ? (_qeIsAA ? itemNum + '-D' : d._qeSetPartner) : '';
-  const _qeUnit3Num = (_qeIsABA && d._qeUnit3 && d._qeUnit3 !== 'none') ? d._qeUnit3 + '-D' : '';
-
-  const rows = [];
-  rows.push({ itemNum: _qeUnit1Num, variation, matchedTo: _qeUnit2Num || (d._qeTender && d._qeTender !== 'none' ? d._qeTender : ''), setId, groupId: qeGroupId, notes: '' });
-  if (d._qeTender && d._qeTender !== 'none')
-    rows.push({ itemNum: d._qeTender, variation: '', matchedTo: _qeUnit1Num, setId, groupId: qeGroupId, notes: 'Quick Entry \u2014 paired with ' + _qeUnit1Num });
-  if (_qeHasSet && _qeUnit2Num)
-    rows.push({ itemNum: _qeUnit2Num, variation: '', matchedTo: _qeUnit1Num, setId, groupId: qeGroupId, notes: 'Quick Entry \u2014 paired with ' + _qeUnit1Num });
-  if (_qeUnit3Num)
-    rows.push({ itemNum: _qeUnit3Num, variation: '', matchedTo: _qeUnit1Num, setId, groupId: qeGroupId, notes: 'Quick Entry \u2014 ABA set with ' + _qeUnit1Num });
-
-  try {
-    const _nextBtn = document.getElementById('wizard-next-btn');
-    if (_nextBtn) _nextBtn.disabled = true;
-
-    // ── Upload photo before saving rows (lead item only) ──
-    let _qePhotoLink = '';
-    if (d._qePhotoFile) {
-      try {
-        _qePhotoLink = await driveUploadItemPhoto(d._qePhotoFile, rows[0].itemNum, 'QE') || '';
-      } catch(photoErr) {
-        console.warn('[QE] Photo upload failed, continuing without photo:', photoErr);
-      }
-    }
-    const _qeEstWorth = d._qeEstWorth || '';
-
-    for (const r of rows) {
-      const isLead = r === rows[0];
-      const invId = nextInventoryId();
-      const row = [r.itemNum, r.variation,'','','','','','','',(isLead ? _qePhotoLink : ''),'', r.notes,'',(isLead ? _qeEstWorth : ''),r.matchedTo,r.setId,'','','','Yes', invId, r.groupId||'', ''];
-      console.log('[QE] Saving', r.itemNum);
-      await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
-      const key = r.itemNum + '|' + r.variation + '|' + Date.now();
-      state.personalData[key] = {
-        row: Date.now(), itemNum: r.itemNum, variation: r.variation,
-        status: 'Owned', owned: true,
-        condition: '', allOriginal: '', priceItem: '', priceBox: '', priceComplete: '',
-        hasBox: '', boxCond: '', photoItem: (isLead ? _qePhotoLink : ''), photoBox: '',
-        notes: r.notes, datePurchased: '', userEstWorth: (isLead ? _qeEstWorth : ''),
-        matchedTo: r.matchedTo, setId: r.setId,
-        yearMade: '', isError: '', errorDesc: '', quickEntry: true,
-        inventoryId: invId, groupId: r.groupId||'',
-        location: '',
-      };
-    }
-
-    const label = rows.length > 1 ? rows.map(r => r.itemNum).join(' + ') + ' added' : itemNum + ' added';
-
-    // Set mode: advance to next item instead of closing
-    if (d._setMode) {
-      const _saved   = d._setItemsSaved || [];
-      _saved.push(itemNum);
-      const _curIdx  = d._setItemIndex || 0;
-      const _nextIdx = _curIdx + 1;
-      const _setPrice = _curIdx === 0 ? (d.priceItem || '') : (d._setPrice || '');
-      const _setDate  = _curIdx === 0 ? (d.datePurchased || '') : (d._setDate  || '');
-      const _setWorth = _curIdx === 0 ? (d.userEstWorth || '') : (d._setWorth || '');
-      wizard.data._setItemsSaved = _saved;
-      wizard.data._setItemIndex  = _nextIdx;
-      wizard.data._setPrice      = _setPrice;
-      wizard.data._setDate       = _setDate;
-      wizard.data._setWorth      = _setWorth;
-      buildDashboard();
-      renderBrowse();
-      showToast(`⚡ ${itemNum} saved (${_saved.length} of ${(d._setFinalItems||[]).length})`);
-      if (_nextBtn) _nextBtn.disabled = false;
-      launchSetItemWizard();
-      return;
-    }
-
-    closeWizard();
-    showToast('⚡ ' + label + ' (Quick Entry)');
-    buildDashboard();
-    renderBrowse();
-    if (_nextBtn) _nextBtn.disabled = false;
-
-    // ── Vault: submit updated collection data in background ──
-    if (typeof vaultIsOptedIn === 'function' && vaultIsOptedIn()) {
-      localStorage.removeItem(VAULT.KEY_LAST_SUB);
-      setTimeout(function() {
-        if (typeof vaultSubmitData === 'function') vaultSubmitData().catch(function(e) { console.warn('[Vault] Submit after save failed:', e); });
-      }, 2000);
-    }
-  } catch(e) {
-    console.error('[QE] Save error:', e);
-    showToast('❌ Save failed: ' + e.message, 6000, true);
-  }
-}
-
-// ── Location autocomplete helpers ──
-function _sheetLinkClick(e) {
-  // If user has already acknowledged the warning, open directly
-  if (localStorage.getItem('lv_sheet_warn_ack') === 'true') return true;
-
-  e.preventDefault();
-  // Read href from the clicked element directly (sidebar element was removed)
-  const href = (e.currentTarget || e.target).href || ('https://docs.google.com/spreadsheets/d/' + (state.personalSheetId || ''));
-
+  // Build modal
   const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.25rem';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9200;display:flex;align-items:center;justify-content:center;padding:1rem';
 
-  const box = document.createElement('div');
-  box.style.cssText = 'background:var(--surface);border-radius:14px;padding:1.5rem;max-width:360px;width:100%;font-family:var(--font-body)';
-  box.innerHTML = `
-    <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.9rem">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e67e22" stroke-width="2.2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-      <span style="font-size:0.95rem;font-weight:700;color:var(--text)">Heads up before you edit</span>
-    </div>
-    <p style="font-size:0.85rem;color:var(--text-mid);line-height:1.55;margin:0 0 0.75rem">
-      This sheet is managed entirely by The Boxcar Files. <strong style="color:var(--text)">Editing rows, columns, or tab names directly can break the app</strong> and may cause data loss that can't be undone.
-    </p>
-    <p style="font-size:0.85rem;color:var(--text-mid);line-height:1.55;margin:0 0 1.1rem">
-      It's safe to <strong style="color:var(--text)">read and export</strong> your data — just don't add, move, or delete anything while the app is in use.
-    </p>
-    <label style="display:flex;align-items:center;gap:0.6rem;font-size:0.8rem;color:var(--text-dim);cursor:pointer;margin-bottom:1.1rem">
-      <input type="checkbox" id="sheet-warn-ack" style="width:15px;height:15px;accent-color:var(--accent);cursor:pointer">
-      Don't show this again
-    </label>
-    <div style="display:flex;gap:0.6rem">
-      <button onclick="document.body.removeChild(this.closest('.lv-overlay'))" 
-        style="flex:1;padding:0.7rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.88rem;cursor:pointer">
-        Cancel
-      </button>
-      <button id="sheet-warn-open"
-        style="flex:2;padding:0.7rem;border-radius:9px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer">
-        Open anyway
-      </button>
+  const isLocoOrTender = isLoco || isTnd;
+  const promptText = isLoco
+    ? 'This locomotive has matching tenders. Add any to your Want List?'
+    : isTnd
+      ? 'This tender fits these locomotives. Add any to your Want List?'
+      : bUnit
+        ? 'This is an A unit — do you also want the B unit?'
+        : 'This is a B unit — do you also want the A unit?';
+
+  const checkboxRows = candidates.map((c, i) => `
+    <label style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0.6rem;border-radius:7px;background:var(--surface2);cursor:pointer;margin-bottom:0.4rem">
+      <input type="checkbox" id="wpc-${i}" checked style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer">
+      <span style="font-family:var(--font-mono);font-weight:600;color:var(--accent)">${c.itemNum}</span>
+      <span style="font-size:0.78rem;color:var(--text-dim)">${c.label.replace(c.itemNum + ' ', '')}</span>
+    </label>`).join('');
+
+  overlay.innerHTML = `
+    <div style="background:var(--surface);border:1.5px solid var(--accent3);border-radius:14px;padding:1.5rem;max-width:380px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
+      <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;color:var(--accent3);text-transform:uppercase;margin-bottom:0.5rem">Add Partner(s) to Want List?</div>
+      <div style="font-size:0.9rem;color:var(--text-mid);margin-bottom:1rem;line-height:1.4">${promptText}</div>
+      <div style="margin-bottom:1rem">${checkboxRows}</div>
+      <div style="display:flex;gap:0.5rem;justify-content:flex-end">
+        <button id="wpc-skip" style="padding:0.45rem 1rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer">Skip</button>
+        <button id="wpc-add" style="padding:0.45rem 1.1rem;border-radius:7px;border:none;background:var(--accent3);color:#fff;font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer">Add Selected</button>
+      </div>
     </div>`;
 
-  overlay.classList.add('lv-overlay');
-  overlay.appendChild(box);
   document.body.appendChild(overlay);
 
-  document.getElementById('sheet-warn-open').onclick = () => {
-    if (document.getElementById('sheet-warn-ack')?.checked) {
-      localStorage.setItem('lv_sheet_warn_ack', 'true');
-    }
-    document.body.removeChild(overlay);
-    window.open(href, '_blank');
-  };
-
-  return false;
-}
-
-function _filterLocSuggestions(query) {
-  const sugBox = document.getElementById('wiz-loc-suggestions');
-  if (!sugBox) return;
-  if (!query || query.length < 1) { sugBox.style.display = 'none'; return; }
-  const _allLocs = {};
-  Object.values(state.personalData).forEach(pd => {
-    if (pd.location && pd.location.trim()) {
-      const loc = pd.location.trim();
-      _allLocs[loc] = (_allLocs[loc] || 0) + 1;
-    }
-  });
-  const q = query.toLowerCase();
-  const matches = Object.entries(_allLocs)
-    .filter(([loc]) => loc.toLowerCase().includes(q) && loc.toLowerCase() !== q)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 8);
-  if (matches.length === 0) { sugBox.style.display = 'none'; return; }
-  sugBox.style.display = 'block';
-  sugBox.innerHTML = matches.map(([loc, count]) =>
-    `<div onclick="_selectLocSuggestion('${loc.replace(/'/g, "\\'")}')"
-      style="padding:0.55rem 0.85rem;cursor:pointer;font-size:0.88rem;color:var(--text);
-      border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center"
-      onmouseover="this.style.background='var(--surface3)'" onmouseout="this.style.background=''">
-      <span>${loc}</span><span style="font-size:0.72rem;color:var(--text-dim)">${count} items</span>
-    </div>`
-  ).join('');
-}
-function _selectLocSuggestion(loc) {
-  const inp = document.getElementById('wiz-loc-input');
-  if (inp) { inp.value = loc; }
-  wizard.data.location = loc;
-  const sugBox = document.getElementById('wiz-loc-suggestions');
-  if (sugBox) sugBox.style.display = 'none';
-  _highlightLocChipByValue(loc);
-}
-function _highlightLocChip(el) {
-  document.querySelectorAll('#wiz-loc-chips .loc-chip').forEach(c => {
-    c.style.background = 'var(--surface2)'; c.style.color = 'var(--text)'; c.style.borderColor = 'var(--border)';
-  });
-  el.style.background = 'var(--accent)'; el.style.color = '#fff'; el.style.borderColor = 'var(--accent)';
-}
-function _highlightLocChipByValue(loc) {
-  document.querySelectorAll('#wiz-loc-chips .loc-chip').forEach(c => {
-    const chipLoc = c.textContent.replace(/\s*\(\d+\)\s*$/, '').trim();
-    if (chipLoc === loc) {
-      c.style.background = 'var(--accent)'; c.style.color = '#fff'; c.style.borderColor = 'var(--accent)';
-    } else {
-      c.style.background = 'var(--surface2)'; c.style.color = 'var(--text)'; c.style.borderColor = 'var(--border)';
-    }
-  });
-}
-
-function _showQuickEntryMultiUI(itemNum, variation, tenders, isSet, bUnit) {
-  const body = document.getElementById('wiz-body');
-  if (!body) return;
-
-  const wrap = document.createElement('div');
-  wrap.style.cssText = 'display:flex;flex-direction:column;gap:0.75rem';
-
-  const hdr = document.createElement('div');
-  hdr.style.cssText = 'font-size:0.8rem;color:var(--text-mid);line-height:1.5;padding:0.6rem 0.75rem;background:var(--surface2);border-radius:8px;border:1px solid var(--border)';
-  hdr.innerHTML = '<strong style="color:var(--text)">' + itemNum + '</strong> can be part of a multi-unit set.';
-  wrap.appendChild(hdr);
-
-  if (tenders.length > 0) {
-    const sec = document.createElement('div');
-    sec.style.cssText = 'display:flex;flex-direction:column;gap:0.5rem';
-    const lbl = document.createElement('div');
-    lbl.style.cssText = 'font-family:var(--font-head);font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim)';
-    lbl.textContent = 'Tender?';
-    sec.appendChild(lbl);
-    const btns = document.createElement('div');
-    btns.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.4rem';
-    const noChip = _qeChip('No tender');
-    noChip.onclick = () => { _qeSelectChip(btns, noChip); wizard.data._qeTender = 'none'; };
-    btns.appendChild(noChip);
-    tenders.forEach(t => {
-      const chip = _qeChip(t);
-      chip.onclick = () => { _qeSelectChip(btns, chip); wizard.data._qeTender = t; };
-      btns.appendChild(chip);
+  overlay.querySelector('#wpc-skip').onclick = () => overlay.remove();
+  overlay.querySelector('#wpc-add').onclick = async () => {
+    const selected = candidates.filter((c, i) => {
+      const cb = overlay.querySelector('#wpc-' + i);
+      return cb && cb.checked;
     });
-    sec.appendChild(btns);
-    wrap.appendChild(sec);
+    overlay.remove();
+    if (!selected.length) return;
+    let added = 0;
+    for (const c of selected) {
+      try {
+        const row = [c.itemNum, '', priority || 'Medium', maxPrice || '', notes || ''];
+        await sheetsAppend(state.personalSheetId, 'Want List!A:A', [row]);
+        added++;
+      } catch(e) { console.warn('[WantPartner] Failed to add', c.itemNum, e); }
+    }
+    if (added) {
+      _cachePersonalData();
+      showToast('✓ Added ' + added + ' partner' + (added > 1 ? 's' : '') + ' to Want List');
+      setTimeout(async () => {
+        await loadPersonalData();
+        buildWantPage();
+        buildDashboard();
+      }, 1200);
+    }
+  };
+}
+
+// ── REPORTS ─────────────────────────────────────────────────────
+
+function _prefGet(key, def) { const v = localStorage.getItem(key); return v === null ? def : v; }
+function _prefSet(key, val) { localStorage.setItem(key, val); }
+
+// ── Theme ────────────────────────────────────────────────────────
+function applyTheme() {
+  const theme = _prefGet('lv_theme', 'dark');
+  const main  = document.getElementById('main-content');
+  const sidebar = document.querySelector('.sidebar');
+  if (!main) return;
+  if (theme === 'light') {
+    // Force light mode everywhere — add light class to sidebar too
+    if (sidebar) sidebar.classList.add('sidebar-light');
+    document.documentElement.dataset.theme = 'light';
+  } else if (theme === 'system') {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (sidebar) sidebar.classList.toggle('sidebar-light', !prefersDark);
+    document.documentElement.dataset.theme = prefersDark ? 'dark' : 'light';
+  } else {
+    if (sidebar) sidebar.classList.remove('sidebar-light');
+    document.documentElement.dataset.theme = 'dark';
   }
+}
 
-  if (isSet && bUnit) {
-    const sec = document.createElement('div');
-    sec.style.cssText = 'display:flex;flex-direction:column;gap:0.5rem';
-    const lbl = document.createElement('div');
-    lbl.style.cssText = 'font-family:var(--font-head);font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim)';
-    lbl.textContent = 'Set partner?';
-    sec.appendChild(lbl);
-    const btns = document.createElement('div');
-    btns.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.4rem';
-    const noChip = _qeChip('None');
-    noChip.onclick = () => { _qeSelectChip(btns, noChip); wizard.data._qeSetPartner = 'none'; wizard.data._qeSetType = ''; wizard.data._qeUnit3 = null; };
-    btns.appendChild(noChip);
-    const aaChip = _qeChip('AA set \u2014 add ' + itemNum + ' Dummy');
-    aaChip.onclick = () => { _qeSelectChip(btns, aaChip); wizard.data._qeSetPartner = itemNum; wizard.data._qeSetType = 'AA'; wizard.data._qeUnit3 = null; };
-    btns.appendChild(aaChip);
-    const abChip = _qeChip('AB set — add ' + bUnit);
-    abChip.onclick = () => { _qeSelectChip(btns, abChip); wizard.data._qeSetPartner = bUnit; wizard.data._qeSetType = 'AB'; wizard.data._qeUnit3 = null; };
-    btns.appendChild(abChip);
-    const abaChip = _qeChip('ABA set — add ' + bUnit + ' + 2nd A');
-    abaChip.onclick = () => { _qeSelectChip(btns, abaChip); wizard.data._qeSetPartner = bUnit; wizard.data._qeSetType = 'ABA'; wizard.data._qeUnit3 = itemNum; };
-    btns.appendChild(abaChip);
-    sec.appendChild(btns);
-    wrap.appendChild(sec);
+
+function buildEphemeraPage() {
+  // Rebuild tab buttons to include user-defined tabs
+  const tabBar = document.getElementById('ephemera-tabs');
+  if (tabBar) {
+    const stdTabs = [
+      { id:'catalogs', emoji:'📒', label:'Catalogs' },
+      { id:'paper',    emoji:'📄', label:'Paper Items' },
+      { id:'mockups',  emoji:'🔩', label:'Mock-Ups' },
+      { id:'other',    emoji:'📦', label:'Other Lionel' },
+    ];
+    const allTabs = [...stdTabs, ...(state.userDefinedTabs||[]).map(t => ({ id:t.id, emoji:'⭐', label:t.label }))];
+    tabBar.innerHTML = allTabs.map(t =>
+      `<button class="eph-tab${_ephCurrentTab===t.id?' active':''}" data-eph="${t.id}" onclick="switchEphTab('${t.id}',this)">${t.emoji} ${t.label}</button>`
+    ).join('');
   }
-
-  const saveBtn = document.createElement('button');
-  saveBtn.className = 'btn btn-primary';
-  saveBtn.style.cssText = 'width:100%;justify-content:center;padding:0.8rem;font-size:0.9rem;margin-top:0.25rem';
-  saveBtn.textContent = '⚡ Save Quick Entry';
-  saveBtn.onclick = () => { wizard.data._qeMultiResolved = true; quickEntryAdd(); };
-  wrap.appendChild(saveBtn);
-
-  body.innerHTML = '';
-  body.appendChild(wrap);
-
-  const titleEl = document.getElementById('wiz-title');
-  if (titleEl) titleEl.textContent = 'Quick Entry — ' + itemNum;
-  const nextBtn = document.getElementById('wizard-next-btn');
-  const backBtn = document.getElementById('wizard-back-btn');
-  if (nextBtn) nextBtn.style.display = 'none';
-  if (backBtn) backBtn.style.display = 'none';
+  switchEphTab(_ephCurrentTab, document.querySelector('.eph-tab.active'));
 }
 
-function _qeChip(label) {
-  const btn = document.createElement('button');
-  btn.textContent = label;
-  btn.style.cssText = 'padding:0.4rem 0.8rem;border-radius:20px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-mid);font-size:0.82rem;cursor:pointer;font-family:var(--font-body);transition:all 0.15s';
-  return btn;
-}
+function switchEphTab(tabId, btn) {
+  _ephCurrentTab = tabId;
+  document.querySelectorAll('.eph-tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  if (!state.ephemeraData[tabId]) state.ephemeraData[tabId] = {};
+  const bucket = state.ephemeraData[tabId];
+  const items = Object.values(bucket);
+  const container = document.getElementById('ephemera-content');
+  if (!container) return;
+  const isMockup = tabId === 'mockups';
 
-function _qeSelectChip(container, selected) {
-  container.querySelectorAll('button').forEach(b => {
-    b.style.borderColor = 'var(--border)';
-    b.style.background  = 'var(--surface2)';
-    b.style.color       = 'var(--text-mid)';
-  });
-  selected.style.borderColor = 'var(--accent)';
-  selected.style.background  = 'rgba(232,64,28,0.12)';
-  selected.style.color       = 'var(--accent)';
-}
-
-function showToast(msg, duration, isError) {
-  let t = document.getElementById('toast');
-  if (t) t.remove();
-  t = document.createElement('div');
-  t.id = 'toast';
-  const err = isError || /error|failed|invalid|required/i.test(msg);
-  t.style.cssText = 'position:fixed;bottom:88px;left:50%;transform:translateX(-50%) translateY(8px);'
-    + 'background:' + (err ? '#c0392b' : '#1a2e3d') + ';color:#fff;padding:0.7rem 1.4rem;'
-    + 'border-radius:10px;font-size:0.88rem;font-weight:500;z-index:99999;'
-    + 'font-family:var(--font-body);box-shadow:0 4px 20px rgba(0,0,0,0.35);'
-    + 'max-width:88vw;text-align:center;opacity:0;transition:opacity 0.2s,transform 0.2s';
-  t.textContent = msg;
-  document.body.appendChild(t);
-  requestAnimationFrame(() => { t.style.opacity = '1'; t.style.transform = 'translateX(-50%) translateY(0)'; });
-  const _timer = setTimeout(() => {
-    t.style.opacity = '0'; t.style.transform = 'translateX(-50%) translateY(4px)';
-    setTimeout(() => { if (t.parentNode) t.remove(); }, 220);
-  }, duration || 2400);
-  t.onclick = () => { clearTimeout(_timer); t.remove(); };
-}
-
-
-// ══════════════════════════════════════════════════════════════════
-// ══════════════════════════════════════════════════════════════════
-// IDENTIFY BY PHOTO — Google Lens
-// ══════════════════════════════════════════════════════════════════
-let _identifyCallerContext = null;
-let _identifySelectedNum = null;
-
-function openIdentify(context) {
-  _identifyCallerContext = context;
-  _identifySelectedNum = null;
-  document.getElementById('identify-modal').classList.add('open');
-}
-
-function closeIdentify() {
-  document.getElementById('identify-modal').classList.remove('open');
-  _identifyCallerContext = null;
-  _identifySelectedNum = null;
-}
-
-function openGoogleLens() {
-  window.open('https://lens.google.com', '_blank');
-}
-
-function useIdentifiedItem() {
-  const raw = (document.getElementById('identify-manual-input').value || '').trim();
-  if (!raw) { showToast('Enter the item number you found', 2500, true); return; }
-
-  // Try to extract a Lionel item number from a longer pasted description
-  // Lionel postwar numbers: 1-4 digits, optionally followed by letters (e.g. 736, 2046, 3349, 736W, 2046W, 221C)
-  const extracted = extractLionelNumber(raw);
-  if (!extracted) { showToast('Could not find an item number — try pasting just the number', 3000, true); return; }
-
-  // If we had to extract (user pasted a description), show what we pulled
-  if (extracted !== raw) {
-    document.getElementById('identify-manual-input').value = extracted;
-    showToast('Found item #' + extracted, 2000);
-    // Small delay so they see the extraction, then proceed
-    setTimeout(function() { _applyIdentifiedItem(extracted); }, 800);
+  if (items.length === 0) {
+    const labels = { catalogs:'Catalogs', paper:'Paper Items', mockups:'Mock-Ups', other:'Other Lionel Items' };
+    const emojis = { catalogs:'📒', paper:'📄', mockups:'🔩', other:'📦' };
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">${emojis[tabId]}</div><p>No ${labels[tabId]} yet — tap Add Item to get started</p></div>`;
     return;
   }
 
-  _applyIdentifiedItem(extracted);
+  container.innerHTML = items.sort((a,b) => (b.row||0)-(a.row||0)).map(item => {
+    const val = item.estValue ? '$' + parseFloat(item.estValue).toLocaleString() : '';
+    const cond = item.condition ? item.condition + '/10' : '';
+    const isCatalog2 = tabId === 'catalogs';
+    const subtitle = [
+      isCatalog2 && item.catType ? item.catType : '',
+      isCatalog2 && item.hasMailer === 'Yes' ? '✉ Has mailer' : '',
+      isMockup && item.itemNumRef ? 'Ref: ' + item.itemNumRef : '',
+      item.manufacturer && item.manufacturer !== 'Lionel' ? item.manufacturer : '',
+      isMockup && item.productionStatus ? item.productionStatus : '',
+      !isCatalog2 && item.quantity > 1 ? 'Qty: ' + item.quantity : '',
+      cond,
+    ].filter(Boolean).join(' · ');
+    return `<div class="eph-row" onclick="openEphemeraDetail('${tabId}',${item.row})">
+      <div style="font-size:1.4rem;width:28px;text-align:center;flex-shrink:0">${{catalogs:'📒',paper:'📄',mockups:'🔩',other:'📦'}[tabId]}</div>
+      <div style="flex:1;min-width:0">
+        <div class="eph-title">${item.title}</div>
+        ${subtitle ? `<div style="font-size:0.72rem;color:var(--text-dim);margin-top:1px">${subtitle}</div>` : ''}
+      </div>
+      ${item.year ? `<span class="eph-year">${item.year}</span>` : ''}
+      ${val ? `<span class="eph-val">${val}</span>` : ''}
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+    </div>`;
+  }).join('');
 }
 
-function extractLionelNumber(text) {
-  // If it's already just a number (with optional letter suffix), use it directly
-  if (/^\d{1,5}[A-Z]?[A-Z]?$/i.test(text)) return text.toUpperCase().replace(/^0+/, '') || text;
+function openEphemeraDetail(tabId, rowKey) {
+  const item = (state.ephemeraData[tabId] || {})[rowKey];
+  if (!item) return;
+  const isMockup = tabId === 'mockups';
+  const labels = { catalogs:'Catalog', paper:'Paper Item', mockups:'Mock-Up', other:'Other Item' };
 
-  // Try to find a Lionel-style number in the text
-  // Common patterns: "No. 3349", "#3349", "Item 3349", "Lionel 3349", or just a standalone number
-  const patterns = [
-    /(?:no\.?|item|#|number|lionel)\s*(\d{2,5}[A-Z]{0,2})/i,  // "No. 3349", "Item 3349"
-    /\b(\d{3,5}[A-Z]{0,2})\b/,                                  // standalone 3-5 digit number
-    /\b(\d{2}[A-Z]{1,2})\b/,                                    // 2-digit + letters like "44W"
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay open';
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+
+  const isCatalog3 = tabId === 'catalogs';
+  const fields = isCatalog3 ? [
+    ['Item ID',           item.itemNum || '—'],
+    ['Type',              item.catType || '—'],
+    ['Year',              item.year || '—'],
+    ['Has Envelope/Mailer', item.hasMailer || 'No'],
+    ['Condition',         item.condition ? item.condition + '/10' : '—'],
+    ['Est. Value',        item.estValue ? '$' + parseFloat(item.estValue).toLocaleString() : '—'],
+    ['Date Acquired',     item.dateAcquired || '—'],
+    ['Notes',             item.notes || '—'],
+  ] : isMockup ? [
+    ['Title', item.title],
+    ['Item # Reference', item.itemNumRef],
+    ['Description', item.description],
+    ['Year', item.year],
+    ['Manufacturer', item.manufacturer || 'Lionel'],
+    ['Condition', item.condition ? item.condition + '/10' : '—'],
+    ['Production Status', item.productionStatus || '—'],
+    ['Material', item.material || '—'],
+    ['Dimensions', item.dimensions || '—'],
+    ['Provenance', item.provenance || '—'],
+    ['Lionel Verified', item.lionelVerified || '—'],
+    ['Est. Value', item.estValue ? '$' + parseFloat(item.estValue).toLocaleString() : '—'],
+    ['Date Acquired', item.dateAcquired || '—'],
+    ['Notes', item.notes || '—'],
+  ] : [
+    ['Title', item.title],
+    ['Description', item.description || '—'],
+    ['Year', item.year || '—'],
+    ['Manufacturer', item.manufacturer || 'Lionel'],
+    ['Condition', item.condition ? item.condition + '/10' : '—'],
+    ['Quantity', item.quantity || '1'],
+    ['Est. Value', item.estValue ? '$' + parseFloat(item.estValue).toLocaleString() : '—'],
+    ['Date Acquired', item.dateAcquired || '—'],
+    ['Notes', item.notes || '—'],
   ];
 
-  for (const pattern of patterns) {
-    const m = text.match(pattern);
-    if (m) return m[1].toUpperCase();
-  }
-  return null;
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:480px;max-height:85vh;overflow-y:auto">
+      <div class="modal-header" style="background:var(--surface2);border-bottom:1px solid var(--border);padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:0.65rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.2rem">${labels[tabId]}</div>
+          <div style="font-weight:600;font-size:1rem">${item.title}</div>
+        </div>
+        <button onclick="this.closest('.modal-overlay').remove()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:1.4rem;line-height:1">✕</button>
+      </div>
+      <div style="padding:1rem 1.25rem">
+        ${fields.map(([label, val]) => val && val !== '—' ? `
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:0.45rem 0;border-bottom:1px solid var(--border)">
+            <span style="font-size:0.78rem;color:var(--text-dim);flex-shrink:0;padding-right:1rem">${label}</span>
+            <span style="font-size:0.85rem;color:var(--text);text-align:right">${val}</span>
+          </div>` : '').join('')}
+        ${item.photoLink ? `<div style="margin-top:1rem"><a href="${item.photoLink}" target="_blank" style="color:#2980b9;font-size:0.82rem">📁 View Photos ↗</a></div>` : ''}
+      </div>
+      <div style="padding:0.75rem 1.25rem;border-top:1px solid var(--border);display:flex;gap:0.5rem">
+        <button onclick="openEphemeraEdit('${tabId}',${rowKey})" style="flex:1;padding:0.6rem;border-radius:8px;border:1.5px solid #e67e22;color:#e67e22;background:rgba(230,126,34,0.1);cursor:pointer;font-family:var(--font-body);font-weight:600">Edit</button>
+        <button onclick="ephemeraForSale('${tabId}',${rowKey});this.closest('.modal-overlay').remove()" style="flex:1;padding:0.6rem;border-radius:8px;border:1.5px solid #f39c12;color:#f39c12;background:rgba(243,156,18,0.1);cursor:pointer;font-family:var(--font-body);font-weight:600">🏷️ For Sale</button>
+        <button onclick="ephemeraSold('${tabId}',${rowKey});this.closest('.modal-overlay').remove()" style="flex:1;padding:0.6rem;border-radius:8px;border:1.5px solid #2ecc71;color:#2ecc71;background:rgba(46,204,113,0.1);cursor:pointer;font-family:var(--font-body);font-weight:600">💰 Sold</button>
+        <button onclick="ephemeraDelete('${tabId}',${rowKey});this.closest('.modal-overlay').remove()" style="padding:0.6rem 0.8rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);cursor:pointer;font-family:var(--font-body)" title="Delete">🗑</button>
+        <button onclick="this.closest('.modal-overlay').remove()" style="padding:0.6rem 0.8rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-family:var(--font-body)">Close</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
 }
 
-function _applyIdentifiedItem(num) {
-  _identifySelectedNum = num;
-  closeIdentify();
-  if (_identifyCallerContext === 'wizard') {
-    const inp = document.getElementById('wiz-input');
-    if (inp) {
-      inp.value = num;
-      wizard.data.itemNum = num;
-      wizard.data['itemNum'] = num;
-      // Trigger input event so the field registers the value
-      inp.dispatchEvent(new Event('input', { bubbles: true }));
-      updateItemSuggestions(num);
-      // Advance after delay — ensure next button is enabled and modal is fully closed
-      setTimeout(function() {
-        var btn = document.getElementById('wizard-next-btn');
-        if (btn) btn.disabled = false;
-        if (typeof wizardNext === 'function') wizardNext();
-      }, 500);
+// ── Ephemera Actions ─────────────────────────────────────────────
+
+const _ephTabNames  = { catalogs:'Catalogs', paper:'Paper Items', mockups:'Mock-Ups', other:'Other Lionel' };
+const _ephTabCols   = { catalogs:'I', paper:'J', mockups:'O', other:'J' };
+
+async function ephemeraDelete(tabId, rowKey) {
+  const item = (state.ephemeraData[tabId] || {})[rowKey];
+  if (!item) return;
+  const label = (_ephTabNames[tabId] || tabId);
+  if (!confirm('Remove "' + (item.title || item.itemNum || label) + '" from your collection?')) return;
+  // Blank sheet row if we have an actual row number
+  if (item.row && typeof item.row === 'number' && item.row >= 3 && item.row < 1000000) {
+    const lastCol = _ephTabCols[tabId] || 'J';
+    const sheetName = (_ephTabNames[tabId] || tabId) + '!A' + item.row + ':' + lastCol + item.row;
+    const blanks = [Array(lastCol.charCodeAt(0) - 64).fill('')];
+    sheetsUpdate(state.personalSheetId, sheetName, blanks).catch(e => console.warn('ephemera delete row', e));
+  }
+  delete state.ephemeraData[tabId][rowKey];
+  _cachePersonalData();
+  showToast('✓ Removed from collection');
+  renderBrowse();
+  buildDashboard();
+}
+
+function ephemeraForSale(tabId, rowKey) {
+  const item = (state.ephemeraData[tabId] || {})[rowKey];
+  if (!item) return;
+  const label = _ephTabNames[tabId] || tabId;
+  const title = item.title || item.itemNum || label;
+
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+  ov.innerHTML = `
+    <div style="background:var(--surface);border-radius:14px;padding:1.5rem;max-width:360px;width:100%;border:1px solid var(--border)">
+      <div style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:0.2rem">List For Sale</div>
+      <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:1.1rem">${title}</div>
+      <div style="margin-bottom:0.75rem">
+        <div class="field-label">Asking Price ($)</div>
+        <input type="number" id="eph-fs-price" min="0" step="0.01" placeholder="0.00"
+          value="${item.estValue||''}"
+          style="width:100%;padding:0.5rem 0.7rem;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font-mono);font-size:0.95rem;outline:none;box-sizing:border-box">
+      </div>
+      <div style="margin-bottom:1.1rem">
+        <div class="field-label">Date Listed</div>
+        <input type="date" id="eph-fs-date" value="${new Date().toISOString().slice(0,10)}"
+          style="width:100%;padding:0.5rem 0.7rem;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box">
+      </div>
+      <div style="display:flex;gap:0.6rem">
+        <button onclick="this.closest('div[style*=fixed]').remove()"
+          style="flex:1;padding:0.65rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);cursor:pointer">Cancel</button>
+        <button id="eph-fs-save"
+          style="flex:2;padding:0.65rem;border-radius:8px;border:none;background:#f39c12;color:white;font-family:var(--font-body);font-weight:600;cursor:pointer">🏷️ List For Sale</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+
+  document.getElementById('eph-fs-save').onclick = async () => {
+    const price    = document.getElementById('eph-fs-price').value;
+    const dateListed = document.getElementById('eph-fs-date').value;
+    ov.remove();
+    // Write to For Sale sheet: Item#, Variation, Condition, AskingPrice, DateListed, Notes, OrigPrice, EstWorth
+    const row = [
+      item.itemNum || label,
+      '',                          // variation
+      item.condition || '',
+      price,
+      dateListed,
+      title,                       // notes = title as description
+      '',                          // original price paid
+      item.estValue || '',
+    ];
+    try {
+      await sheetsAppend(state.personalSheetId, 'For Sale!A:H', [row]);
+      showToast('✓ Listed for sale');
+    } catch(e) { showToast('Error listing: ' + e.message, 3000, true); }
+  };
+}
+
+function ephemeraSold(tabId, rowKey) {
+  const item = (state.ephemeraData[tabId] || {})[rowKey];
+  if (!item) return;
+  const label = _ephTabNames[tabId] || tabId;
+  const title = item.title || item.itemNum || label;
+
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+  ov.innerHTML = `
+    <div style="background:var(--surface);border-radius:14px;padding:1.5rem;max-width:360px;width:100%;border:1px solid var(--border)">
+      <div style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:0.2rem">Mark as Sold</div>
+      <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:1.1rem">${title}</div>
+      <div style="margin-bottom:0.75rem">
+        <div class="field-label">Sale Price ($)</div>
+        <input type="number" id="eph-sold-price" min="0" step="0.01" placeholder="0.00"
+          value="${item.estValue||''}"
+          style="width:100%;padding:0.5rem 0.7rem;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font-mono);font-size:0.95rem;outline:none;box-sizing:border-box">
+      </div>
+      <div style="margin-bottom:1.1rem">
+        <div class="field-label">Date Sold</div>
+        <input type="date" id="eph-sold-date" value="${new Date().toISOString().slice(0,10)}"
+          style="width:100%;padding:0.5rem 0.7rem;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box">
+      </div>
+      <div style="margin-bottom:1.1rem">
+        <div class="field-label">Also remove from collection?</div>
+        <div style="display:flex;gap:0.5rem">
+          <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;cursor:pointer"><input type="radio" name="eph-rm" id="eph-rm-yes" checked> Yes, remove it</label>
+          <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;cursor:pointer"><input type="radio" name="eph-rm" id="eph-rm-no"> Keep in collection</label>
+        </div>
+      </div>
+      <div style="display:flex;gap:0.6rem">
+        <button onclick="this.closest('div[style*=fixed]').remove()"
+          style="flex:1;padding:0.65rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);cursor:pointer">Cancel</button>
+        <button id="eph-sold-save"
+          style="flex:2;padding:0.65rem;border-radius:8px;border:none;background:#2ecc71;color:white;font-family:var(--font-body);font-weight:600;cursor:pointer">💰 Mark as Sold</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+
+  document.getElementById('eph-sold-save').onclick = async () => {
+    const salePrice = document.getElementById('eph-sold-price').value;
+    const dateSold  = document.getElementById('eph-sold-date').value;
+    const removeIt  = document.getElementById('eph-rm-yes').checked;
+    ov.remove();
+    // Write to Sold sheet: Item#, Variation, Copy#, Condition, PricePaid, SalePrice, DateSold, Notes
+    const row = [
+      item.itemNum || label,
+      '',          // variation
+      '1',         // copy
+      item.condition || '',
+      item.estValue || '',
+      salePrice,
+      dateSold,
+      title,       // notes = title as description
+    ];
+    try {
+      await sheetsAppend(state.personalSheetId, 'Sold!A:H', [row]);
+      if (removeIt) {
+        // Remove from ephemera sheet and state
+        if (item.row && typeof item.row === 'number' && item.row >= 3 && item.row < 1000000) {
+          const lastCol = _ephTabCols[tabId] || 'J';
+          const sheetName = (_ephTabNames[tabId] || tabId) + '!A' + item.row + ':' + lastCol + item.row;
+          const blanks = [Array(lastCol.charCodeAt(0) - 64).fill('')];
+          sheetsUpdate(state.personalSheetId, sheetName, blanks).catch(e => console.warn('ephemera sold clear', e));
+        }
+        delete state.ephemeraData[tabId][rowKey];
+        _cachePersonalData();
+        renderBrowse();
+        buildDashboard();
+      }
+      showToast('✓ Marked as sold');
+    } catch(e) { showToast('Error saving: ' + e.message, 3000, true); }
+  };
+}
+
+function buildWantPage() {
+  const isMobile = window.innerWidth <= 640;
+  const _wq = (state._wantSearch || '').toLowerCase();
+  const entries = Object.values(state.wantData).filter(w => {
+    if (!_wq) return true;
+    const master = state.masterData.find(m => m.itemNum === w.itemNum && (!w.variation || m.variation === w.variation)) || {};
+    return (w.itemNum||'').toLowerCase().includes(_wq)
+      || (master.roadName||'').toLowerCase().includes(_wq)
+      || (master.itemType||'').toLowerCase().includes(_wq)
+      || (w.variation||'').toLowerCase().includes(_wq)
+      || (w.notes||'').toLowerCase().includes(_wq);
+  });
+  // Keep count badge in sync
+  const countBadge = document.getElementById('nav-wanted2');
+  if (countBadge) countBadge.textContent = entries.length.toLocaleString();
+  const cardsEl = document.getElementById('want-cards');
+  const tableEl = document.getElementById('want-table');
+  const tbody   = document.getElementById('want-tbody');
+
+  // Priority order
+  const priorityOrder = { 'High': 0, 'Medium': 1, 'Low': 2 };
+  entries.sort((a, b) => (priorityOrder[a.priority] ?? 1) - (priorityOrder[b.priority] ?? 1));
+
+  const priorityColor = { High: 'var(--accent)', Medium: 'var(--accent2)', Low: 'var(--text-dim)' };
+
+  if (entries.length === 0) {
+    const empty = `<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">❤️</div><p>Your want list is empty</p><p style="font-size:0.8rem;margin-top:0.5rem">Add items you're looking for</p></div>`;
+    if (cardsEl) cardsEl.innerHTML = empty;
+    if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="ui-empty">No items on want list</td></tr>';
+    return;
+  }
+
+  if (isMobile) {
+    if (tableEl) tableEl.style.display = 'none';
+    if (cardsEl) cardsEl.style.display = 'flex';
+    cardsEl.innerHTML = entries.map(w => {
+      const master = state.masterData.find(m => m.itemNum === w.itemNum && (!w.variation || m.variation === w.variation));
+      const name = master ? (master.roadName || master.description || master.itemType || '') : '';
+      const pColor = priorityColor[w.priority] || 'var(--text-dim)';
+      const masterIdx2 = master ? state.masterData.indexOf(master) : -1;
+      const escVar = (w.variation||'').replace(/'/g,"\\'");
+      const escName = (name||'').replace(/'/g,"\\'");
+      // Set detection for mobile cards
+      const _mSetMatch = state.setData ? state.setData.find(s => s.setNum === w.itemNum) : null;
+      const _mIsSet = !!_mSetMatch;
+      const _mSetLabel = _mIsSet ? [_mSetMatch.setName, _mSetMatch.year].filter(Boolean).join(' · ') : '';
+      const _mChipsHtml = _mIsSet ? '<div style="display:flex;flex-wrap:wrap;gap:0.2rem;margin-top:0.35rem">' + _mSetMatch.items.slice(0,6).map(n => '<span style="font-family:var(--font-mono);font-size:0.65rem;padding:1px 5px;border-radius:3px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim)">' + n + '</span>').join('') + (_mSetMatch.items.length > 6 ? '<span style="font-size:0.65rem;color:var(--text-dim)">+' + (_mSetMatch.items.length-6) + ' more</span>' : '') + '</div>' : '';
+      const _wShareKey = w.itemNum + '|' + (w.variation||'') + '|' + (w.row||0);
+      const _wInShare = typeof isShareMode === 'function' && isShareMode('want');
+      const _wSelected = _wInShare && window._shareItems && window._shareItems[_wShareKey];
+      if (_wInShare) { if (!window._shareDataMap) window._shareDataMap = {}; window._shareDataMap[_wShareKey] = { itemNum: w.itemNum, variation: w.variation||'', want: w, master: master }; }
+      return `<div id="share-card-${_wShareKey}" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem${_wSelected ? ';outline:2px solid #3a9e68' : ''}">
+        <div style="display:flex;align-items:center;gap:0.75rem;cursor:pointer" onclick="${_wInShare ? 'toggleShareItem(\'' + _wShareKey + '\')' : (masterIdx2>=0?'openItem('+masterIdx2+')':'')}">
+          ${_wInShare ? '<input type="checkbox" id="share-cb-' + _wShareKey + '" ' + (_wSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _wShareKey + '\')" style="width:1.1rem;height:1.1rem;accent-color:#3a9e68;flex-shrink:0">' : ''}
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:0.5rem">
+              <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${w.itemNum}</span>
+              ${_mIsSet ? '<span style="font-size:0.62rem;color:#e67e22;font-weight:600">SET</span>' : (w.variation ? `<span style="font-size:0.72rem;color:var(--text-dim)">${w.variation}</span>` : '')}
+              <span style="font-size:0.65rem;font-weight:600;color:${pColor};border:1px solid ${pColor};border-radius:4px;padding:0.1rem 0.4rem">${w.priority || 'Medium'}</span>
+            </div>
+            ${_mIsSet ? (_mSetLabel ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.15rem">${_mSetLabel}</div>` : '') + _mChipsHtml : (name ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.15rem">${name}</div>` : '')}
+            ${w.notes ? `<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${w.notes}</div>` : ''}
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            ${w.expectedPrice ? `<div style="font-family:var(--font-mono);color:var(--accent2);font-size:0.9rem">$${parseFloat(w.expectedPrice).toLocaleString()}</div>` : ''}
+          </div>
+        </div>
+        ${!_wInShare ? `<div style="display:flex;gap:0.35rem;margin-top:0.6rem;flex-wrap:wrap">
+          <button onclick="event.stopPropagation();moveWantToCollection('${w.itemNum}','${escVar}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.75rem;cursor:pointer;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600">+ Collection</button>
+          <button onclick="event.stopPropagation();wantFindOnEbay('${w.itemNum}','${escName}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.75rem;cursor:pointer;border:1.5px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);font-weight:600">eBay</button>
+          <button onclick="event.stopPropagation();wantSearchOtherSites('${w.itemNum}','${escName}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.75rem;cursor:pointer;border:1.5px solid #2980b9;background:rgba(41,128,185,0.12);color:#2980b9;font-family:var(--font-body);font-weight:600">Search</button>
+          <button onclick="event.stopPropagation();removeWantItem('${w.itemNum}','${escVar}',${w.row})" style="flex:0 0 auto;padding:0.4rem 0.6rem;border-radius:7px;font-size:0.75rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>
+        </div>` : ''}
+      </div>`;
+    }).join('');
+  } else {
+    if (tableEl) tableEl.style.display = '';
+    if (cardsEl) cardsEl.style.display = 'none';
+    // Store descriptions in a map to avoid quoting issues in onclick
+    window._wantDescs = {};
+    tbody.innerHTML = entries.map((w, idx) => {
+      const master = state.masterData.find(m => m.itemNum === w.itemNum && (!w.variation || m.variation === w.variation));
+      const roadName = master ? (master.roadName || '') : '';
+      const varDesc  = master ? (master.varDesc || master.variationDesc || '') : '';
+      const fullDesc = master ? (master.description || '') : '';
+
+      // Check if this is a set want entry
+      const _setMatch = state.setData ? state.setData.find(s => s.setNum === w.itemNum) : null;
+      const _isSet = !!_setMatch;
+      const _setLabel = _isSet
+        ? [_setMatch.setName, _setMatch.year, _setMatch.gauge].filter(Boolean).join(' · ')
+        : '';
+      const _setChipsHtml = _isSet
+        ? _setMatch.items.slice(0, 6).map(n =>
+            `<span style="font-family:var(--font-mono);font-size:0.67rem;padding:1px 5px;border-radius:3px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim)">${n}</span>`
+          ).join('') + (_setMatch.items.length > 6
+            ? `<span style="font-size:0.67rem;color:var(--text-dim)">+${_setMatch.items.length - 6} more</span>`
+            : '')
+        : '';
+
+      window._wantDescs[idx] = { title: (_isSet ? _setLabel : roadName) || w.itemNum, varDesc, fullDesc };
+      const pColor = priorityColor[w.priority] || 'var(--text-dim)';
+      const shortVar = varDesc.length > 30 ? varDesc.substring(0, 30) + '…' : varDesc;
+      const varCell = _isSet
+        ? `<div style="display:flex;flex-wrap:wrap;gap:0.2rem;align-items:center">${_setChipsHtml}</div>`
+        : varDesc
+          ? `<span style="cursor:pointer;border-bottom:1px dashed var(--border);color:var(--text-mid)" onclick="showWantDesc(${idx})">${shortVar}</span>`
+          : (w.variation ? `<span class="text-dim">${w.variation}</span>` : '<span class="text-dim">—</span>');
+      const _displayRoad = _isSet ? _setLabel : roadName;
+      const _wDShareKey = w.itemNum + '|' + (w.variation||'') + '|' + (w.row||0);
+      const _wDInShare = typeof isShareMode === 'function' && isShareMode('want');
+      const _wDSelected = _wDInShare && window._shareItems && window._shareItems[_wDShareKey];
+      if (_wDInShare) { if (!window._shareDataMap) window._shareDataMap = {}; window._shareDataMap[_wDShareKey] = { itemNum: w.itemNum, variation: w.variation||'', want: w, master: master }; }
+      return `<tr id="share-card-${_wDShareKey}" ${_wDInShare ? 'onclick="toggleShareItem(\'' + _wDShareKey + '\')"' : ''} style="cursor:${_wDInShare ? 'pointer' : 'default'}${_wDSelected ? ';outline:2px solid #3a9e68;background:rgba(58,158,104,0.06)' : ''}">
+        <td><span class="item-num">${_wDInShare ? '<input type="checkbox" id="share-cb-' + _wDShareKey + '" ' + (_wDSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _wDShareKey + '\')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">' : ''}${w.itemNum}</span>${_isSet ? ' <span style="font-size:0.62rem;color:#e67e22;font-weight:600;vertical-align:middle">SET</span>' : ''}</td>
+        <td>${_displayRoad || '<span class="text-dim">—</span>'}</td>
+        <td>${_isSet ? '<span class="text-dim">—</span>' : (w.variation || '<span class="text-dim">—</span>')}</td>
+        <td>${varCell}</td>
+        <td><span style="color:${pColor};font-weight:500">${w.priority || 'Medium'}</span></td>
+        <td class="market-val">${w.expectedPrice ? '$' + parseFloat(w.expectedPrice).toLocaleString() : '<span class="text-dim">—</span>'}</td>
+        <td style="white-space:nowrap">
+          ${!_wDInShare ? `<button onclick="moveWantToCollection('${w.itemNum}','${(w.variation||'').replace(/'/g,"\\'")}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);margin-right:0.25rem" title="Add to My Collection">+ Collection</button>
+          <button onclick="wantFindOnEbay('${w.itemNum}','${(roadName||'').replace(/'/g,"\\'")}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);margin-right:0.25rem" title="Search eBay">eBay</button>
+          <button onclick="wantSearchOtherSites('${w.itemNum}','${(roadName||'').replace(/'/g,"\\'")}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2980b9;background:rgba(41,128,185,0.12);color:#2980b9;font-family:var(--font-body);margin-right:0.25rem" title="Search other auction sites">Search</button>
+          <button onclick="removeWantItem('${w.itemNum}','${(w.variation||'').replace(/'/g,"\\'")}',${w.row})" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)" title="Remove from Want List">Remove</button>` : ''}
+        </td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="7" class="ui-empty">No items on want list</td></tr>';
+  }
+}
+
+function showVarDescPopup(idx) {
+  const item = state.masterData[idx];
+  if (!item || !item.varDesc) return;
+  const existing = document.getElementById('vardesc-popup');
+  if (existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'vardesc-popup';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  const box = document.createElement('div');
+  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;padding:1.5rem;position:relative';
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕';
+  closeBtn.style.cssText = 'position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer';
+  closeBtn.onclick = function() { overlay.remove(); };
+  box.appendChild(closeBtn);
+  const hdr = document.createElement('div');
+  hdr.style.cssText = 'font-family:var(--font-head);color:var(--accent2);margin-bottom:0.5rem;margin-right:2rem';
+  hdr.textContent = item.itemNum + (item.variation ? ' — Variation ' + item.variation : '') + (item.roadName ? ' · ' + item.roadName : '');
+  box.appendChild(hdr);
+  const varEl = document.createElement('div');
+  varEl.style.cssText = 'font-size:0.9rem;color:var(--text);line-height:1.7';
+  varEl.textContent = item.varDesc;
+  box.appendChild(varEl);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+}
+
+function showWantDesc(idx) {
+  const d = (window._wantDescs || {})[idx];
+  if (!d) return;
+  const existing = document.getElementById('want-desc-modal');
+  if (existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'want-desc-modal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  const box = document.createElement('div');
+  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;padding:1.5rem;position:relative';
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕';
+  closeBtn.style.cssText = 'position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer';
+  closeBtn.onclick = function() { overlay.remove(); };
+  box.appendChild(closeBtn);
+  const titleEl = document.createElement('div');
+  titleEl.style.cssText = 'font-family:var(--font-head);font-size:1rem;color:var(--accent2);margin-bottom:0.75rem;margin-right:2rem';
+  titleEl.textContent = d.title;
+  box.appendChild(titleEl);
+  if (d.varDesc) {
+    const varEl = document.createElement('div');
+    varEl.style.cssText = 'font-size:0.85rem;color:var(--accent);font-weight:600;margin-bottom:0.5rem';
+    varEl.textContent = 'Variation: ' + d.varDesc;
+    box.appendChild(varEl);
+  }
+  const descEl = document.createElement('div');
+  descEl.style.cssText = 'font-size:0.85rem;color:var(--text-mid);line-height:1.7';
+  descEl.textContent = d.fullDesc || d.title;
+  box.appendChild(descEl);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+}
+
+// ── Want List Actions ──────────────────────────────────────────
+async function removeWantItem(itemNum, variation, row) {
+  if (!confirm('Remove this item from your Want List?')) return;
+  const key = `${itemNum}|${variation}`;
+  if (row) {
+    await sheetsUpdate(state.personalSheetId, `Want List!A${row}:E${row}`, [['','','','','']]);
+  }
+  delete state.wantData[key];
+  _cachePersonalData();
+  buildWantPage();
+  buildDashboard();
+  showToast('✓ Removed from Want List');
+}
+
+function moveWantToCollection(itemNum, variation) {
+  // Open collection wizard pre-filled from want list item
+  openWizard('collection');
+  // Short delay to let wizard initialize
+  setTimeout(function() {
+    if (!window.wizard) return;
+    wizard.data._fromWantList = true;
+    wizard.data._fromWantKey = `${itemNum}|${variation}`;
+    wizard.data._rawItemNum = itemNum;
+    wizard.data.itemNum = itemNum;
+    if (variation) wizard.data.variation = variation;
+    // Try to find master match
+    const master = state.masterData.find(m => m.itemNum === itemNum && (!variation || m.variation === variation));
+    if (master) {
+      wizard.data.matchedItem = master;
     }
+    // Land on itemNumGrouping step so the user sees grouping buttons
+    // (AA/AB/ABA for F3/Alco, engine+tender for steamers, single for freight)
+    const steps = getSteps('collection');
+    const groupIdx = steps.findIndex(s => s.id === 'itemNumGrouping');
+    if (groupIdx >= 0) {
+      wizard.step = groupIdx;
+      renderWizardStep();
+    }
+  }, 150);
+}
+
+// ── EBAY SEARCH MODAL ────────────────────────────────────────────
+// Affiliate Campaign ID — replace CAMPAIGN_ID with real ID from eBay Partner Network
+const _EPN_CAMPAIGN_ID = '5339145351';
+const _EPN_PARAMS = _EPN_CAMPAIGN_ID !== 'CAMPAIGN_ID'
+  ? `&mkcid=1&mkrid=711-53200-19255-0&siteid=0&campid=${_EPN_CAMPAIGN_ID}&toolid=10001&mkevt=1`
+  : '';
+
+function wantFindOnEbay(itemNum, roadName) {
+  // Remove any existing eBay modal
+  const _old = document.getElementById('ebay-search-modal');
+  if (_old) _old.remove();
+
+  const _overlay = document.createElement('div');
+  _overlay.id = 'ebay-search-modal';
+  _overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+  _overlay.onclick = function(e) { if (e.target === _overlay) _overlay.remove(); };
+
+  _overlay.innerHTML = `
+    <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;width:100%;max-width:420px;padding:1.25rem;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+        <div style="display:flex;align-items:center;gap:0.5rem">
+          <span style="font-size:1.3rem">🛒</span>
+          <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--text);letter-spacing:0.03em">Search eBay</span>
+        </div>
+        <button onclick="document.getElementById('ebay-search-modal').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer;line-height:1">✕</button>
+      </div>
+
+      <div style="background:var(--surface2);border-radius:8px;padding:0.6rem 0.8rem;margin-bottom:1rem;font-family:var(--font-mono);font-size:0.85rem;color:var(--gold)">
+        No. ${itemNum}${roadName ? ' · ' + roadName : ''}
+      </div>
+
+      <div style="margin-bottom:0.85rem">
+        <label style="font-size:0.75rem;color:var(--text-mid);display:block;margin-bottom:0.3rem">LISTING TYPE</label>
+        <div style="display:flex;gap:0.5rem">
+          <button id="ebay-type-active" onclick="_ebaySetType('active')" style="flex:1;padding:0.45rem;border-radius:7px;font-size:0.8rem;cursor:pointer;border:1.5px solid var(--accent);background:var(--accent);color:#fff;font-family:var(--font-body);font-weight:600">Active Listings</button>
+          <button id="ebay-type-sold" onclick="_ebaySetType('sold')" style="flex:1;padding:0.45rem;border-radius:7px;font-size:0.8rem;cursor:pointer;border:1.5px solid var(--border);background:transparent;color:var(--text-mid);font-family:var(--font-body);font-weight:600">Sold Listings</button>
+        </div>
+        <div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.3rem" id="ebay-type-hint">See what&apos;s available to buy right now</div>
+      </div>
+
+      <div style="margin-bottom:0.85rem">
+        <label style="font-size:0.75rem;color:var(--text-mid);display:block;margin-bottom:0.3rem">CONDITION</label>
+        <select id="ebay-condition" style="width:100%;padding:0.4rem 0.5rem;border-radius:7px;background:var(--surface2);border:1.5px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.82rem">
+          <option value="">Any Condition</option>
+          <option value="3000">Used</option>
+          <option value="1000">New</option>
+          <option value="2500">For parts / not working</option>
+        </select>
+      </div>
+
+      <div style="margin-bottom:1.1rem">
+        <label style="font-size:0.75rem;color:var(--text-mid);display:block;margin-bottom:0.3rem">PRICE RANGE (optional)</label>
+        <div style="display:flex;align-items:center;gap:0.5rem">
+          <input id="ebay-price-min" type="number" placeholder="Min $" min="0" style="flex:1;padding:0.4rem 0.5rem;border-radius:7px;background:var(--surface2);border:1.5px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.82rem">
+          <span style="color:var(--text-dim);font-size:0.8rem">to</span>
+          <input id="ebay-price-max" type="number" placeholder="Max $" min="0" style="flex:1;padding:0.4rem 0.5rem;border-radius:7px;background:var(--surface2);border:1.5px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.82rem">
+        </div>
+      </div>
+
+      <button onclick="_ebayDoSearch('${itemNum}','${(roadName||'').replace(/'/g,"\\'")}',false)" style="width:100%;padding:0.65rem;border-radius:9px;background:#e67e22;border:none;color:#fff;font-family:var(--font-head);font-size:1rem;letter-spacing:0.05em;cursor:pointer;font-weight:600">
+        SEARCH EBAY ↗
+      </button>
+      <div style="text-align:center;margin-top:0.5rem;font-size:0.68rem;color:var(--text-dim)">Opens in a new tab</div>
+    </div>
+  `;
+
+  document.body.appendChild(_overlay);
+  window._ebayListingType = 'active';
+}
+
+function _ebaySetType(type) {
+  window._ebayListingType = type;
+  const btnActive = document.getElementById('ebay-type-active');
+  const btnSold   = document.getElementById('ebay-type-sold');
+  const hint      = document.getElementById('ebay-type-hint');
+  if (type === 'active') {
+    btnActive.style.cssText += ';border-color:var(--accent);background:var(--accent);color:#fff';
+    btnSold.style.cssText   += ';border-color:var(--border);background:transparent;color:var(--text-mid)';
+    hint.textContent = 'See what\'s available to buy right now';
   } else {
-    const search = document.getElementById('browse-search');
-    if (search) { search.value = num; onPageSearch(num, 'browse'); }
-    showPage('browse');
+    btnSold.style.cssText   += ';border-color:#e67e22;background:#e67e22;color:#fff';
+    btnActive.style.cssText += ';border-color:var(--border);background:transparent;color:var(--text-mid)';
+    hint.textContent = 'See what items have actually sold for — great for pricing';
   }
 }
 
-// Close on backdrop click — deferred so DOM is ready
-window.addEventListener('load', function() {
-  var m = document.getElementById('identify-modal');
-  if (m) m.addEventListener('click', function(e) { if (e.target === this) closeIdentify(); });
-  var p = document.getElementById('photo-picker-sheet');
-  if (p) p.addEventListener('click', function(e) { if (e.target === this) closePhotoPicker(); });
-});
+function _ebayDoSearch(itemNum, roadName, _unused) {
+  const query     = ['lionel', itemNum, roadName || ''].filter(Boolean).join(' ').trim();
+  const type      = window._ebayListingType || 'active';
+  const condition = document.getElementById('ebay-condition')?.value || '';
+  const priceMin  = document.getElementById('ebay-price-min')?.value || '';
+  const priceMax  = document.getElementById('ebay-price-max')?.value || '';
 
-
-// ══════════════════════════════════════════════════════════════════
-// VIEW PICTURES PAGE
-// ══════════════════════════════════════════════════════════════════
-
-let _photosCurrentItem = null;  // { pd, masterItem }
-let _photosFiles = [];          // array of { id, name, mediaUrl }
-let _photosIdx = 0;             // current photo index
-let _photosFolderLink = '';     // Drive folder URL
-
-// ── Ticker (scrolling thumbnails) ─────────────────────────────
-let _tickerItems = [];       // items with photos
-// ══════════════════════════════════════════════════════════════════
-// PHOTO SOURCE PICKER — camera vs phone library
-// ══════════════════════════════════════════════════════════════════
-const _isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-
-function showPhotoSourcePicker(stepId, viewKey) {
-  _pickerStepId = stepId;
-  _pickerViewKey = viewKey;
-  // Update button labels based on device type
-  const camLabel = document.getElementById('picker-cam-label');
-  const libLabel = document.getElementById('picker-lib-label');
-  const camBtn   = document.getElementById('picker-btn-cam');
-  if (_isTouchDevice) {
-    if (camLabel) camLabel.textContent = 'Take Photo';
-    if (libLabel) libLabel.textContent = 'Choose from Phone Library';
-    if (camBtn)   camBtn.style.display = 'flex';
+  let url;
+  if (type === 'sold') {
+    // Sold listings search
+    url = 'https://www.ebay.com/sch/i.html?_nkw=' + encodeURIComponent(query)
+      + '&_sacat=180250&LH_Sold=1&LH_Complete=1';
   } else {
-    if (camLabel) camLabel.textContent = 'Take Photo with Webcam';
-    if (libLabel) libLabel.textContent = 'Upload from Computer';
-    if (camBtn)   camBtn.style.display = 'none'; // most desktops lack useful camera
+    url = 'https://www.ebay.com/sch/i.html?_nkw=' + encodeURIComponent(query)
+      + '&_sacat=180250&LH_ItemCondition=' + condition;
   }
-  document.getElementById('photo-picker-sheet').classList.add('open');
+  if (priceMin) url += '&_udlo=' + encodeURIComponent(priceMin);
+  if (priceMax) url += '&_udhi=' + encodeURIComponent(priceMax);
+  url += _EPN_PARAMS;
+
+  window.open(url, '_blank');
+  const modal = document.getElementById('ebay-search-modal');
+  if (modal) modal.remove();
 }
 
-function closePhotoPicker() {
-  document.getElementById('photo-picker-sheet').classList.remove('open');
-  _pickerStepId = null;
-  _pickerViewKey = null;
+function wantSearchOtherSites(itemNum, roadName) {
+  const query = ['lionel', itemNum, roadName || '', 'for sale'].filter(Boolean).join(' ').trim();
+  const url = 'https://www.google.com/search?q=' + encodeURIComponent(query);
+  window.open(url, '_blank');
 }
 
-function pickerHandleFile(inputEl, isCamera) {
-  if (!inputEl.files || !inputEl.files[0]) return;
-  // Grab everything synchronously before any async or state changes
-  const file = inputEl.files[0];
-  const sid = _pickerStepId;
-  const vk = _pickerViewKey;
-  // Close picker and clear state
-  closePhotoPicker();
-  // Reset input value so same file can be re-selected later
-  setTimeout(() => { try { inputEl.value = ''; } catch(e) {} }, 500);
-  // Validate we have a target slot
-  if (!sid || !vk) { showToast('Photo slot lost — please try again', 3000, true); return; }
-  // Call upload directly with the file (bypass event object entirely)
-  uploadWizardPhoto(file, sid, vk);
+function toggleSoldSummary() {
+  const box = document.getElementById('sold-summary-box');
+  const btn = document.getElementById('sold-summary-toggle');
+  if (!box || !btn) return;
+  const hidden = box.style.display === 'none';
+  box.style.display = hidden ? 'flex' : 'none';
+  btn.textContent = hidden ? 'Hide Summary' : 'Show Summary';
+  try { localStorage.setItem('soldSummaryHidden', hidden ? '0' : '1'); } catch(e) {}
 }
 
+function soldSortBy(field) {
+  if (state._soldSortField === field) {
+    state._soldSortDir = state._soldSortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    state._soldSortField = field;
+    state._soldSortDir = field === 'salePrice' || field === 'dateSold' || field === 'condition' ? 'desc' : 'asc';
+  }
+  // Sync the dropdown
+  var sel = document.getElementById('sold-sort-field');
+  if (sel) sel.value = field;
+  buildSoldPage();
+}
+
+function buildSoldPage() {
+  // Initialize sort/filter state if needed
+  if (!state._soldSortField) state._soldSortField = 'dateSold';
+  if (!state._soldSortDir) state._soldSortDir = 'desc';
+  if (!state._soldFilterType) state._soldFilterType = '';
+
+  const _sq = (state._soldSearch || '').toLowerCase();
+  const _typeFilter = (state._soldFilterType || '').toLowerCase();
+
+  // Enrich with master data
+  let soldEntries = Object.values(state.soldData).map(sd => {
+    const master = state.masterData.find(i => i.itemNum === sd.itemNum && i.variation === sd.variation) || {};
+    return { ...sd, _type: master.itemType || '', _roadName: master.roadName || '', _master: master };
+  });
+
+  // Populate type filter dropdown (before filtering)
+  const allTypes = [...new Set(soldEntries.map(e => e._type).filter(Boolean))].sort();
+  const typeSel = document.getElementById('sold-filter-type');
+  if (typeSel) {
+    const curVal = state._soldFilterType || '';
+    typeSel.innerHTML = '<option value="">All Types</option>' + allTypes.map(t =>
+      '<option value="' + t + '"' + (t === curVal ? ' selected' : '') + '>' + t + '</option>'
+    ).join('');
+  }
+
+  // Apply type filter
+  if (_typeFilter) {
+    soldEntries = soldEntries.filter(e => (e._type || '').toLowerCase() === _typeFilter);
+  }
+
+  // Apply search filter
+  if (_sq) {
+    soldEntries = soldEntries.filter(e =>
+      (e.itemNum||'').toLowerCase().includes(_sq)
+      || (e._roadName||'').toLowerCase().includes(_sq)
+      || (e._type||'').toLowerCase().includes(_sq)
+      || (e.variation||'').toLowerCase().includes(_sq)
+      || (e.notes||'').toLowerCase().includes(_sq)
+    );
+  }
+
+  // Sort
+  const sf = state._soldSortField;
+  const dir = state._soldSortDir === 'asc' ? 1 : -1;
+  soldEntries.sort(function(a, b) {
+    let va, vb;
+    if (sf === 'salePrice') {
+      va = parseFloat(a.salePrice) || 0; vb = parseFloat(b.salePrice) || 0;
+    } else if (sf === 'condition') {
+      va = parseFloat(a.condition) || 0; vb = parseFloat(b.condition) || 0;
+    } else if (sf === 'dateSold') {
+      va = a.dateSold || ''; vb = b.dateSold || '';
+    } else if (sf === 'type') {
+      va = (a._type || '').toLowerCase(); vb = (b._type || '').toLowerCase();
+    } else if (sf === 'roadName') {
+      va = (a._roadName || '').toLowerCase(); vb = (b._roadName || '').toLowerCase();
+    } else {
+      va = (a.itemNum || '').toLowerCase(); vb = (b.itemNum || '').toLowerCase();
+    }
+    return va < vb ? -dir : va > vb ? dir : 0;
+  });
+
+  // Update sort direction button label
+  const dirBtn = document.getElementById('sold-sort-dir-btn');
+  if (dirBtn) {
+    const labels = { dateSold:'Date', itemNum:'Item #', salePrice:'Price', condition:'Cond', type:'Type', roadName:'Name' };
+    dirBtn.textContent = (state._soldSortDir === 'asc' ? '↑ ' : '↓ ') + (labels[sf] || sf);
+  }
+
+  // Update column header sort indicators
+  ['itemNum','type','roadName','condition','salePrice','dateSold'].forEach(function(col) {
+    var el = document.getElementById('sold-sort-i-' + col);
+    if (el) el.textContent = sf === col ? (state._soldSortDir === 'asc' ? '▲' : '▼') : '';
+  });
+
+  // Sync dropdown
+  var sortSel = document.getElementById('sold-sort-field');
+  if (sortSel) sortSel.value = sf;
+
+  // Summary stats
+  const totalRevenue = soldEntries.reduce((sum, sd) => sum + (parseFloat(sd.salePrice) || 0), 0);
+  const countEl = document.getElementById('sold-stat-count');
+  const totalEl = document.getElementById('sold-stat-total');
+  if (countEl) countEl.textContent = soldEntries.length.toLocaleString();
+  if (totalEl) totalEl.textContent = totalRevenue > 0 ? '$' + Math.round(totalRevenue).toLocaleString() : '$0';
+
+  // Result count
+  const rcEl = document.getElementById('sold-result-count');
+  if (rcEl) rcEl.textContent = soldEntries.length + ' item' + (soldEntries.length !== 1 ? 's' : '');
+
+  // Restore hidden state from localStorage
+  try {
+    const box = document.getElementById('sold-summary-box');
+    const btn = document.getElementById('sold-summary-toggle');
+    if (box && btn && localStorage.getItem('soldSummaryHidden') === '1') {
+      box.style.display = 'none';
+      btn.textContent = 'Show Summary';
+    }
+  } catch(e) {}
+
+  const isMobileSold = window.innerWidth <= 640;
+  const soldCardsEl = document.getElementById('sold-cards');
+  const soldTableWrap = document.getElementById('sold-table-wrap');
+  const tbody = document.getElementById('sold-tbody');
+
+  if (isMobileSold) {
+    if (soldCardsEl) soldCardsEl.style.display = 'flex';
+    if (soldTableWrap) soldTableWrap.style.display = 'none';
+    if (soldCardsEl) soldCardsEl.innerHTML = soldEntries.length ? soldEntries.map(sd => {
+      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${sd.itemNum}</span>
+            ${sd.variation ? `<span style="font-size:0.72rem;color:var(--text-dim);margin-left:0.4rem">${sd.variation}</span>` : ''}
+            ${sd._roadName ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">${sd._roadName}</div>` : ''}
+            <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${[sd._type, sd.condition ? 'Cond: '+sd.condition : '', sd.dateSold].filter(Boolean).join(' · ')}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            ${sd.salePrice ? `<div style="font-family:var(--font-mono);color:#2ecc71;font-size:1.1rem;font-weight:600">$${parseFloat(sd.salePrice).toLocaleString()}</div>` : '<div style="color:var(--text-dim);font-size:0.8rem">No price</div>'}
+          </div>
+        </div>
+      </div>`;
+    }).join('') : '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">💰</div><p>No sold items yet</p></div>';
+  } else {
+    if (soldCardsEl) soldCardsEl.style.display = 'none';
+    if (soldTableWrap) soldTableWrap.style.display = '';
+    tbody.innerHTML = soldEntries.length ? soldEntries.map(sd => {
+      return `<tr>
+        <td><span class="item-num">${sd.itemNum}</span></td>
+        <td><span class="tag">${sd._type || '—'}</span></td>
+        <td>${sd._roadName || '—'}</td>
+        <td>${sd.variation || '—'}</td>
+        <td>${sd.condition || '—'}</td>
+        <td class="market-val">${sd.salePrice ? '$' + parseFloat(sd.salePrice).toLocaleString() : '—'}</td>
+        <td class="text-dim">${sd.dateSold || '—'}</td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">💰</div><p>No sold items yet</p></div></td></tr>';
+  }
+
+  document.getElementById('nav-sold').textContent = Object.keys(state.soldData).length;
+}
+
+function clearPageSearch(name) {
+  const map = { browse: 'browse-search', sold: 'sold-search', want: 'want-search' };
+  const el = document.getElementById(map[name]);
+  // Don't clear — keep search term when returning to same page
+}
+
+function buildForSalePage() {
+  const _fq = (state._forsaleSearch || '').toLowerCase();
+  const fsEntries = Object.values(state.forSaleData).filter(fs => {
+    if (!_fq) return true;
+    const master = state.masterData.find(i => i.itemNum === fs.itemNum && i.variation === fs.variation) || {};
+    return (fs.itemNum||'').toLowerCase().includes(_fq)
+      || (master.roadName||'').toLowerCase().includes(_fq)
+      || (master.itemType||'').toLowerCase().includes(_fq)
+      || (fs.variation||'').toLowerCase().includes(_fq);
+  });
+
+  // Summary stats
+  const totalAsking = fsEntries.reduce((sum, fs) => sum + (parseFloat(fs.askingPrice) || 0), 0);
+  const countEl = document.getElementById('forsale-stat-count');
+  const totalEl = document.getElementById('forsale-stat-total');
+  if (countEl) countEl.textContent = fsEntries.length.toLocaleString();
+  if (totalEl) totalEl.textContent = totalAsking > 0 ? '$' + Math.round(totalAsking).toLocaleString() : '$0';
+
+  const isMobileFs = window.innerWidth <= 640;
+  const fsCardsEl = document.getElementById('forsale-cards');
+  const fsTableWrap = document.getElementById('forsale-table-wrap');
+  const tbody = document.getElementById('forsale-tbody');
+
+  if (isMobileFs) {
+    if (fsCardsEl) fsCardsEl.style.display = 'flex';
+    if (fsTableWrap) fsTableWrap.style.display = 'none';
+    if (fsCardsEl) fsCardsEl.innerHTML = fsEntries.length ? fsEntries.map(fs => {
+      const master = state.masterData.find(i => i.itemNum === fs.itemNum && i.variation === fs.variation) || {};
+      const collPd = state.personalData[fs.itemNum + '|' + (fs.variation||'')] || {};
+      const estWorth = fs.estWorth || collPd.userEstWorth || '';
+      const _fsShareKey = fs.itemNum + '|' + (fs.variation||'') + '|' + (fs.row||0);
+      const _fsInShare = typeof isShareMode === 'function' && isShareMode('forsale');
+      const _fsSelected = _fsInShare && window._shareItems && window._shareItems[_fsShareKey];
+      if (_fsInShare) { if (!window._shareDataMap) window._shareDataMap = {}; window._shareDataMap[_fsShareKey] = { itemNum: fs.itemNum, variation: fs.variation||'', fs: fs, master: master }; }
+      return `<div id="share-card-${_fsShareKey}" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem${_fsSelected ? ';outline:2px solid #3a9e68' : ''}" ${_fsInShare ? 'onclick="toggleShareItem(\'' + _fsShareKey + '\')"' : ''}>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div style="display:flex;align-items:flex-start;gap:0.5rem">
+            ${_fsInShare ? '<input type="checkbox" id="share-cb-' + _fsShareKey + '" ' + (_fsSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _fsShareKey + '\')" style="width:1.1rem;height:1.1rem;accent-color:#3a9e68;flex-shrink:0;margin-top:0.2rem">' : ''}
+            <div>
+              <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${fs.itemNum}</span>
+              ${fs.variation ? `<span style="font-size:0.72rem;color:var(--text-dim);margin-left:0.4rem">${fs.variation}</span>` : ''}
+              ${master.roadName ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">${master.roadName}</div>` : ''}
+              <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${[master.itemType, fs.condition ? 'Cond: '+fs.condition : '', fs.dateListed ? 'Listed: '+fs.dateListed : ''].filter(Boolean).join(' · ')}</div>
+              ${estWorth ? `<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.1rem">Est. Worth: $${parseFloat(estWorth).toLocaleString()}</div>` : ''}
+              ${fs.notes ? `<div style="font-size:0.72rem;color:var(--text-mid);margin-top:0.15rem;font-style:italic">${fs.notes.length > 60 ? fs.notes.substring(0,57)+'…' : fs.notes}</div>` : ''}
+            </div>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            ${fs.askingPrice ? `<div style="font-family:var(--font-mono);color:#e67e22;font-size:1.1rem;font-weight:600">$${parseFloat(fs.askingPrice).toLocaleString()}</div>` : '<div style="color:var(--text-dim);font-size:0.8rem">No price</div>'}
+          </div>
+        </div>
+        ${!_fsInShare ? `<div style="display:flex;gap:0.4rem;margin-top:0.6rem;flex-wrap:wrap">
+          <button onclick="markForSaleAsSold('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}','${fs.askingPrice||''}')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600">Mark as Sold</button>
+          <button onclick="removeForSaleItem('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}',${fs.row})" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Back to Collection</button>
+          <button onclick="removeForSaleAndCollection('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}',${fs.row})" style="flex:0 0 auto;padding:0.4rem 0.6rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid #e74c3c;background:rgba(231,76,60,0.10);color:#e74c3c;font-family:var(--font-body)">Remove</button>
+        </div>` : ''}
+      </div>`;
+    }).join('') : '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🏷️</div><p>No items listed for sale</p></div>';
+  } else {
+    if (fsCardsEl) fsCardsEl.style.display = 'none';
+    if (fsTableWrap) fsTableWrap.style.display = '';
+    if (tbody) tbody.innerHTML = fsEntries.length ? fsEntries.map(fs => {
+      const master = state.masterData.find(i => i.itemNum === fs.itemNum && i.variation === fs.variation) || {};
+      const collPd = state.personalData[fs.itemNum + '|' + (fs.variation||'')] || {};
+      const estWorth = fs.estWorth || collPd.userEstWorth || '';
+      const _fsDShareKey = fs.itemNum + '|' + (fs.variation||'') + '|' + (fs.row||0);
+      const _fsDInShare = typeof isShareMode === 'function' && isShareMode('forsale');
+      const _fsDSelected = _fsDInShare && window._shareItems && window._shareItems[_fsDShareKey];
+      if (_fsDInShare) { if (!window._shareDataMap) window._shareDataMap = {}; window._shareDataMap[_fsDShareKey] = { itemNum: fs.itemNum, variation: fs.variation||'', fs: fs, master: master }; }
+      return `<tr id="share-card-${_fsDShareKey}" ${_fsDInShare ? 'onclick="toggleShareItem(\'' + _fsDShareKey + '\')"' : ''} style="cursor:${_fsDInShare ? 'pointer' : 'default'}${_fsDSelected ? ';outline:2px solid #3a9e68;background:rgba(58,158,104,0.06)' : ''}">
+        <td><span class="item-num">${_fsDInShare ? '<input type="checkbox" id="share-cb-' + _fsDShareKey + '" ' + (_fsDSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _fsDShareKey + '\')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">' : ''}${fs.itemNum}</span>${fs.variation ? ' <span style="font-size:0.72rem;color:var(--text-dim)">' + fs.variation + '</span>' : ''}</td>
+        <td><span class="tag">${master.itemType || '—'}</span></td>
+        <td>${master.roadName || '—'}</td>
+        <td>${fs.condition || '—'}</td>
+        <td class="market-val" style="color:#e67e22">${fs.askingPrice ? '$' + parseFloat(fs.askingPrice).toLocaleString() : '—'}</td>
+        <td class="text-dim">${estWorth ? '$' + parseFloat(estWorth).toLocaleString() : '—'}</td>
+        <td class="text-dim">${fs.dateListed || '—'}</td>
+        <td style="white-space:nowrap">
+          ${!_fsDInShare ? `<button onclick="markForSaleAsSold('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}','${fs.askingPrice||''}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);margin-right:0.3rem">Mark as Sold</button>
+          <button onclick="removeForSaleItem('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}',${fs.row})" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);margin-right:0.3rem">Back to Collection</button>
+          <button onclick="removeForSaleAndCollection('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}',${fs.row})" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #e74c3c;background:rgba(231,76,60,0.10);color:#e74c3c;font-family:var(--font-body)">Remove</button>` : ''}
+        </td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🏷️</div><p>No items listed for sale</p></div></td></tr>';
+  }
+
+  const navBadge = document.getElementById('nav-forsale');
+  if (navBadge) navBadge.textContent = fsEntries.length;
+}
+
+async function markForSaleAsSold(itemNum, variation, askingPrice) {
+  const salePrice = prompt('Sale price? (leave blank for asking price)', askingPrice || '');
+  if (salePrice === null) return; // cancelled
+  const dateSold = new Date().toISOString().split('T')[0];
+  const fsKey = `${itemNum}|${variation}`;
+  const fs = state.forSaleData[fsKey] || {};
+
+  // Write to Sold tab
+  const soldRow = [
+    itemNum, variation, '1',
+    fs.condition || '',
+    fs.originalPrice || '',
+    salePrice || askingPrice || '',
+    dateSold,
+    fs.notes || '',
+  ];
+  const existingSold = state.soldData[fsKey];
+  if (existingSold?.row) {
+    await sheetsUpdate(state.personalSheetId, `Sold!A${existingSold.row}:H${existingSold.row}`, [soldRow]);
+  } else {
+    await sheetsAppend(state.personalSheetId, 'Sold!A:A', [soldRow]);
+  }
+
+  // Remove from For Sale tab
+  if (fs.row) {
+    await sheetsUpdate(state.personalSheetId, `For Sale!A${fs.row}:H${fs.row}`, [['','','','','','','','']]);
+  }
+
+  // Remove from My Collection
+  const collKey = Object.keys(state.personalData).find(k => k.split('|')[0] === itemNum && (state.personalData[k].variation || '') === variation);
+  const collEntry = collKey ? state.personalData[collKey] : null;
+  if (collEntry?.row) {
+    await sheetsUpdate(state.personalSheetId, `My Collection!A${collEntry.row}:W${collEntry.row}`, [['','','','','','','','','','','','','','','','','','','','','','','']]);
+    delete state.personalData[collKey];
+  }
+
+  // Optimistic state update
+  state.soldData[fsKey] = { row: existingSold?.row || 99999, itemNum, variation, condition: fs.condition, salePrice: salePrice || askingPrice, dateSold, notes: fs.notes };
+  delete state.forSaleData[fsKey];
+
+  _cachePersonalData();
+
+  buildForSalePage();
+  buildSoldPage();
+  buildDashboard();
+  showToast('✓ Marked as sold!');
+}
+
+async function removeForSaleItem(itemNum, variation, row) {
+  if (!confirm('Remove this item from your For Sale list?')) return;
+  const fsKey = `${itemNum}|${variation}`;
+  if (row) {
+    await sheetsUpdate(state.personalSheetId, `For Sale!A${row}:H${row}`, [['','','','','','','','']]);
+  }
+  delete state.forSaleData[fsKey];
+  _cachePersonalData();
+  buildForSalePage();
+  showToast('✓ Removed from For Sale');
+}
+
+async function removeForSaleAndCollection(itemNum, variation, fsRow) {
+  if (!confirm('Remove this item from For Sale AND your collection? This cannot be undone.')) return;
+  const key = `${itemNum}|${variation}`;
+  // Remove from For Sale tab
+  if (fsRow) {
+    await sheetsUpdate(state.personalSheetId, `For Sale!A${fsRow}:H${fsRow}`, [['','','','','','','','']]);
+  }
+  delete state.forSaleData[key];
+  // Remove from My Collection tab
+  const collEntry = state.personalData[key];
+  if (collEntry && collEntry.row) {
+    await sheetsUpdate(state.personalSheetId, `My Collection!A${collEntry.row}:W${collEntry.row}`, [['','','','','','','','','','','','','','','','','','','','','','','']]);  // 23 cols A-W
+  }
+  delete state.personalData[key];
+  _cachePersonalData();
+  buildForSalePage();
+  buildDashboard();
+  renderBrowse();
+  showToast('✓ Item removed');
+}
+
+function showPage(name, clickedEl) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.mobile-nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  if (clickedEl) clickedEl.classList.add('active');
+  if (name === 'browse') renderBrowse();
+  if (name === 'reports') buildReport();
+  if (name === 'sold') buildSoldPage();
+  if (name === 'forsale') buildForSalePage();
+  if (name === 'want') buildWantPage();
+  if (name === 'sets') buildSetsPage();
+  if (name === 'browse' || name === 'sets') _applyDisclaimerPref();
+  if (name === 'upgrade') buildUpgradePage();
+  if (name === 'prefs') buildPrefsPage();
+  if (name === 'vault') vaultRenderPage();
+  if (name === 'tools' && typeof buildToolsPage === 'function') buildToolsPage();
+  document.getElementById('main-content').scrollTop = 0;
+  // Push history entry so back button returns here instead of closing the app
+  if (!_navSuppressHistory) {
+    history.pushState({ appPage: name }, '', '');
+  }
+}
+
+// ── SETS PAGE ────────────────────────────────────────────────────────────────
+function buildSetsPage() {
+  const isMobile = window.innerWidth <= 640;
+  const sq = (state._setsSearch || '').toLowerCase();
+  const yearFilter  = (document.getElementById('sets-filter-year')?.value  || '').trim();
+  const gaugeFilter = (document.getElementById('sets-filter-gauge')?.value || '').trim();
+
+  // Populate year + gauge dropdowns on first call
+  const yearEl  = document.getElementById('sets-filter-year');
+  const gaugeEl = document.getElementById('sets-filter-gauge');
+  if (yearEl && yearEl.options.length <= 1) {
+    const years = [...new Set(state.setData.map(s => s.year).filter(Boolean))].sort();
+    years.forEach(y => {
+      const o = document.createElement('option'); o.value = y; o.textContent = y; yearEl.appendChild(o);
+    });
+  }
+  if (gaugeEl && gaugeEl.options.length <= 1) {
+    const gauges = [...new Set(state.setData.map(s => s.gauge).filter(Boolean))].sort();
+    gauges.forEach(g => {
+      const o = document.createElement('option'); o.value = g; o.textContent = g; gaugeEl.appendChild(o);
+    });
+  }
+
+  // Restore saved filter values
+  if (yearEl  && yearFilter)  yearEl.value  = yearFilter;
+  if (gaugeEl && gaugeFilter) gaugeEl.value = gaugeFilter;
+
+  // Filter
+  const entries = state.setData.filter(s => {
+    if (yearFilter  && s.year  !== yearFilter)  return false;
+    if (gaugeFilter && s.gauge !== gaugeFilter) return false;
+    if (sq) {
+      const hay = (s.setNum + ' ' + s.setName + ' ' + s.year + ' ' + s.items.join(' ') + ' ' + s.alts.join(' ') + ' ' + s.notes).toLowerCase();
+      if (!hay.includes(sq)) return false;
+    }
+    return true;
+  });
+
+  // Update count badge + label
+  const badge = document.getElementById('nav-sets-count');
+  if (badge) badge.textContent = state.setData.length.toLocaleString();
+  const countLbl = document.getElementById('sets-count-label');
+  if (countLbl) countLbl.textContent = entries.length + ' of ' + state.setData.length + ' sets';
+
+  const cardsEl    = document.getElementById('sets-cards');
+  const tableWrap  = document.getElementById('sets-table-wrap');
+  const tbody      = document.getElementById('sets-tbody');
+
+  // ── Helper: build component chips HTML ──────────────────────────
+  function _chips(items, alts, sq) {
+    const allItems = items.slice(0, 8);
+    const more = items.length > 8 ? items.length - 8 : 0;
+    return allItems.map(n => {
+      const isMatch = sq && n.toLowerCase().includes(sq);
+      return '<span style="font-family:var(--font-mono);font-size:0.68rem;padding:1px 5px;border-radius:3px;border:1px solid '
+        + (isMatch ? '#2980b9' : 'var(--border)')
+        + ';background:' + (isMatch ? 'rgba(41,128,185,0.12)' : 'var(--surface)')
+        + ';color:' + (isMatch ? '#2980b9' : 'var(--text-dim)') + ';font-weight:' + (isMatch ? '700' : '400') + '">' + n + '</span>';
+    }).join('') + (more ? '<span style="font-size:0.68rem;color:var(--text-dim)">+' + more + ' more</span>' : '');
+  }
+
+  // ── Helper: action buttons ───────────────────────────────────────
+  function _actions(s, small) {
+    const esc = s.setNum.replace(/'/g,"\'");
+    const escName = (s.setName||'').replace(/'/g,"\'");
+    const p = small ? '0.28rem 0.45rem' : '0.3rem 0.55rem';
+    const fs = small ? '0.7rem' : '0.72rem';
+    const alreadyWanted = !!state.wantData[s.setNum + '|'];
+    const wantBtn = alreadyWanted
+      ? '<span style="font-size:' + fs + ';color:var(--text-dim);padding:' + p + '">✓ On Want List</span>'
+      : '<button onclick="addSetToWantList(\'' + esc + '\',\'' + escName + '\')" style="padding:' + p + ';border-radius:5px;font-size:' + fs + ';cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.25rem">+ Want List</button>';
+    const browseBtn = '<button onclick="showSetDetail(\'' + esc + '\')" style="padding:' + p + ';border-radius:5px;font-size:' + fs + ';cursor:pointer;border:1px solid #2980b9;background:rgba(41,128,185,0.12);color:#2980b9;font-family:var(--font-body);margin-right:0.25rem">View Full Set</button>';
+    return wantBtn + browseBtn;
+  }
+
+  if (entries.length === 0) {
+    const empty = '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🎁</div><p>No sets found</p></div>';
+    if (cardsEl) cardsEl.innerHTML = empty;
+    if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="ui-empty">No sets found</td></tr>';
+    return;
+  }
+
+  if (isMobile) {
+    if (tableWrap) tableWrap.style.display = 'none';
+    if (cardsEl)   { cardsEl.style.display = 'flex'; }
+    cardsEl.innerHTML = entries.map(s => {
+      const label = [s.setName, s.gauge].filter(Boolean).join(' · ');
+      return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem">'
+        + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.5rem;margin-bottom:0.4rem">'
+        + '<div>'
+        + '<span style="font-family:var(--font-head);font-size:1.1rem;color:#d35400">' + s.setNum + '</span>'
+        + (s.year ? ' <span style="font-size:0.72rem;color:var(--text-dim)">' + s.year + '</span>' : '')
+        + (label ? '<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">' + label + '</div>' : '')
+        + '</div></div>'
+        + '<div style="display:flex;flex-wrap:wrap;gap:0.2rem;margin-bottom:0.55rem">' + _chips(s.items, s.alts, sq) + '</div>'
+        + (s.notes ? '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.45rem;font-style:italic">' + s.notes + '</div>' : '')
+        + '<div style="display:flex;gap:0.35rem;flex-wrap:wrap">' + _actions(s, true) + '</div>'
+        + '</div>';
+    }).join('');
+  } else {
+    if (tableWrap) tableWrap.style.display = '';
+    if (cardsEl)   cardsEl.style.display = 'none';
+    tbody.innerHTML = entries.map(s => {
+      return '<tr>'
+        + '<td><span style="font-family:var(--font-mono);font-weight:700;color:#d35400;font-size:0.92rem">' + s.setNum + '</span></td>'
+        + '<td>' + (s.setName || '<span class="text-dim">—</span>') + '</td>'
+        + '<td>' + (s.year    || '<span class="text-dim">—</span>') + '</td>'
+        + '<td>' + (s.gauge   || '<span class="text-dim">—</span>') + '</td>'
+        + '<td><div style="display:flex;flex-wrap:wrap;gap:0.2rem;align-items:center">' + _chips(s.items, s.alts, sq) + '</div></td>'
+        + '<td style="white-space:nowrap">' + _actions(s, false) + '</td>'
+        + '</tr>';
+    }).join('') || '<tr><td colspan="6" class="ui-empty">No sets found</td></tr>';
+  }
+}
+
+function addSetToCollection(setNum, setName) {
+  const _activePg = document.querySelector('.page.active');
+  const _returnPage = _activePg ? _activePg.id.replace('page-', '') : 'sets';
+  // Set wizard.data FIRST so getSteps('set') can branch correctly
+  wizard = {
+    step: 0, tab: 'set',
+    data: {
+      tab: 'set',
+      set_knowsNum: 'Yes',
+      set_num: setNum,
+      _resolvedSet: state.setData.find(s => s.setNum === setNum) || null,
+      _returnPage: _returnPage
+    },
+    steps: [],
+    matchedItem: null
+  };
+  wizard.steps = getSteps('set'); // called after data is set
+  // Skip set_knowsNum and set_num — already filled
+  const autoSkip = new Set(['set_knowsNum', 'set_num', 'set_loco']);
+  while (wizard.step < wizard.steps.length) {
+    const cur = wizard.steps[wizard.step];
+    if (!autoSkip.has(cur.id)) break;
+    wizard.step++;
+  }
+  document.getElementById('wizard-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  renderWizardStep();
+}
+
+
+function addSetToWantList(setNum, setName) {
+  // Open the want wizard pre-filled as a set
+  const _activePg = document.querySelector('.page.active');
+  const _returnPage = _activePg ? _activePg.id.replace('page-', '') : 'sets';
+  // Set data FIRST so getSteps('want') sees itemCategory:'set' when it branches
+  wizard = {
+    step: 0, tab: 'want',
+    data: {
+      tab: 'want',
+      itemCategory: 'set',
+      want_set_num: setNum,
+      itemNum: setNum,
+      _resolvedSet: state.setData.find(s => s.setNum === setNum) || null,
+      _returnPage: _returnPage
+    },
+    steps: [],
+    matchedItem: null
+  };
+  wizard.steps = getSteps('want'); // called AFTER wizard.data is set so branching works
+  // Skip past itemCategory + want_set_knowsNum + want_set_num steps (already filled)
+  const autoSkip = new Set(['itemCategory','want_set_knowsNum','want_set_num','want_set_identify']);
+  while (wizard.step < wizard.steps.length) {
+    const curStep = wizard.steps[wizard.step];
+    if (!autoSkip.has(curStep.id)) break;
+    wizard.step++;
+  }
+  document.getElementById('wizard-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  renderWizardStep();
+}
+
+function showSetDetail(setNum) {
+  const s = state.setData.find(x => x.setNum === setNum);
+  if (!s) return;
+
+  const existing = document.getElementById('set-detail-popup');
+  if (existing) existing.remove();
+
+  // ── Overlay ──
+  const overlay = document.createElement('div');
+  overlay.id = 'set-detail-popup';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.25rem';
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+
+  // ── Box ──
+  const box = document.createElement('div');
+  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:560px;width:100%;padding:1.5rem;position:relative;max-height:85vh;overflow-y:auto';
+
+  // Close button
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕';
+  closeBtn.style.cssText = 'position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer;z-index:1';
+  closeBtn.onclick = () => overlay.remove();
+  box.appendChild(closeBtn);
+
+  // ── Header ──
+  const hdr = document.createElement('div');
+  hdr.style.cssText = 'margin-bottom:1rem;padding-right:2rem';
+  hdr.innerHTML =
+    '<div style="display:flex;align-items:baseline;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.25rem">'
+    + '<span style="font-family:var(--font-head);font-size:1.4rem;color:#d35400">' + s.setNum + '</span>'
+    + (s.setName ? '<span style="font-size:1rem;color:var(--text);font-weight:600">' + s.setName + '</span>' : '')
+    + '</div>'
+    + '<div style="display:flex;gap:0.75rem;flex-wrap:wrap;font-size:0.78rem;color:var(--text-dim)">'
+    + (s.year  ? '<span>📅 ' + s.year  + '</span>' : '')
+    + (s.gauge ? '<span>🔧 ' + s.gauge + '</span>' : '')
+    + (s.price ? '<span>💰 Original price: ' + s.price + '</span>' : '')
+    + '</div>';
+  box.appendChild(hdr);
+
+  // ── Divider ──
+  const div1 = document.createElement('hr');
+  div1.style.cssText = 'border:none;border-top:1px solid var(--border);margin:0 0 1rem 0';
+  box.appendChild(div1);
+
+  // ── Components ──
+  const compHdr = document.createElement('div');
+  compHdr.style.cssText = 'font-size:0.68rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.5rem';
+  compHdr.textContent = 'Components (' + s.items.length + ' items)';
+  box.appendChild(compHdr);
+
+  const chipsWrap = document.createElement('div');
+  chipsWrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.3rem;margin-bottom:' + (s.alts.length ? '0.9rem' : (s.notes ? '0.9rem' : '0')) + ';';
+  s.items.forEach(n => {
+    // Look up the item name from master data for a richer chip
+    const master = state.masterData.find(m => m.itemNum === n);
+    const label = master ? (master.roadName || master.description || master.itemType || '') : '';
+    const chip = document.createElement('div');
+    chip.style.cssText = 'display:flex;flex-direction:column;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:0.3rem 0.55rem;cursor:default';
+    chip.innerHTML =
+      '<span style="font-family:var(--font-mono);font-size:0.78rem;font-weight:700;color:#d35400">' + n + '</span>'
+      + (label ? '<span style="font-size:0.65rem;color:var(--text-dim);margin-top:1px">' + label + '</span>' : '');
+    chipsWrap.appendChild(chip);
+  });
+  box.appendChild(chipsWrap);
+
+  // ── Alternate items (if any) ──
+  if (s.alts && s.alts.length) {
+    const altHdr = document.createElement('div');
+    altHdr.style.cssText = 'font-size:0.68rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:var(--text-dim);margin:0.9rem 0 0.4rem';
+    altHdr.textContent = 'Alternate / Optional Items';
+    box.appendChild(altHdr);
+    const altWrap = document.createElement('div');
+    altWrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.3rem;margin-bottom:' + (s.notes ? '0.9rem' : '0') + ';';
+    s.alts.forEach(n => {
+      const chip = document.createElement('span');
+      chip.style.cssText = 'font-family:var(--font-mono);font-size:0.75rem;padding:2px 7px;border-radius:5px;border:1px dashed var(--border);color:var(--text-dim)';
+      chip.textContent = n;
+      altWrap.appendChild(chip);
+    });
+    box.appendChild(altWrap);
+  }
+
+  // ── Notes ──
+  if (s.notes) {
+    const notesHdr = document.createElement('div');
+    notesHdr.style.cssText = 'font-size:0.68rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:var(--text-dim);margin:0.9rem 0 0.35rem';
+    notesHdr.textContent = 'Notes';
+    box.appendChild(notesHdr);
+    const notesEl = document.createElement('div');
+    notesEl.style.cssText = 'font-size:0.85rem;color:var(--text);line-height:1.6;font-style:italic';
+    notesEl.textContent = s.notes;
+    box.appendChild(notesEl);
+  }
+
+  // ── Footer action ──
+  const footer = document.createElement('div');
+  footer.style.cssText = 'margin-top:1.25rem;padding-top:0.9rem;border-top:1px solid var(--border);display:flex;gap:0.5rem;justify-content:flex-end';
+  // Upgrade List button (only for owned items)
+  const _upgradeKey2 = `${s.itemNum}|${s.variation||''}`;
+  const _alreadyUpgrade = !!state.upgradeData[_upgradeKey2];
+  const upgradeBtn = document.createElement('button');
+  upgradeBtn.style.cssText = 'padding:0.55rem 1rem;border-radius:8px;border:1.5px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer';
+  upgradeBtn.textContent = _alreadyUpgrade ? '↑ On Upgrade List' : '↑ Add to Upgrade List';
+  if (_alreadyUpgrade) upgradeBtn.style.opacity = '0.6';
+  else upgradeBtn.onclick = () => showAddToUpgradeModal(s.itemNum, s.variation||'');
+  if (pd && pd.owned) btns.appendChild(upgradeBtn);
+
+  // Add to Collection button (always shown)
+  const collBtn = document.createElement('button');
+  collBtn.textContent = '+ Add to Collection';
+  collBtn.style.cssText = 'padding:0.45rem 0.9rem;border-radius:7px;border:1.5px solid var(--accent);background:rgba(240,80,8,0.1);color:var(--accent);font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer';
+  collBtn.onclick = () => { overlay.remove(); addSetToCollection(s.setNum, s.setName || ''); };
+  footer.appendChild(collBtn);
+
+  // Add to Want List button
+  const alreadyWanted = !!state.wantData[s.setNum + '|'];
+  if (!alreadyWanted) {
+    const wantBtn = document.createElement('button');
+    wantBtn.textContent = '+ Want List';
+    wantBtn.style.cssText = 'padding:0.45rem 0.9rem;border-radius:7px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer';
+    wantBtn.onclick = () => { overlay.remove(); addSetToWantList(s.setNum, s.setName || ''); };
+    footer.appendChild(wantBtn);
+  } else {
+    const wantedLbl = document.createElement('span');
+    wantedLbl.style.cssText = 'font-size:0.8rem;color:var(--text-dim);align-self:center';
+    wantedLbl.textContent = '✓ On Want List';
+    footer.appendChild(wantedLbl);
+  }
+  const doneBtn = document.createElement('button');
+  doneBtn.textContent = 'Close';
+  doneBtn.style.cssText = 'padding:0.45rem 0.9rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-size:0.82rem;cursor:pointer';
+  doneBtn.onclick = () => overlay.remove();
+  footer.appendChild(doneBtn);
+  box.appendChild(footer);
+
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+}
+
+
+function _dismissDisclaimer() {
+  _prefSet('lv_show_disclaimer', 'false');
+  _applyDisclaimerPref();
+  // Keep prefs toggle in sync if prefs page is open
+  const tog = document.getElementById('ptog-disclaimer');
+  if (tog) tog.checked = false;
+}
+
+function _applyDisclaimerPref() {
+  const show = _prefGet('lv_show_disclaimer', 'true') === 'true';
+  const d1 = document.getElementById('disclaimer-browse');
+  const d2 = document.getElementById('disclaimer-sets');
+  if (d1) d1.style.display = show ? '' : 'none';
+  if (d2) d2.style.display = show ? '' : 'none';
+}
+
+function _buildContactModal() {
+  if (document.getElementById('contact-modal')) return;
+  var d = document.createElement('div');
+  d.id = 'contact-modal';
+  d.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;align-items:center;justify-content:center;padding:1.25rem';
+  d.innerHTML =
+    '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:420px;width:100%;padding:1.75rem;position:relative">' +
+      '<button onclick="document.getElementById(\'contact-modal\').style.display=\'none\'" style="position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">&#x2715;</button>' +
+      '<div style="font-family:var(--font-head);font-size:1.2rem;color:var(--accent);margin-bottom:0.4rem">&#x1F4EC; Contact Us</div>' +
+      '<p style="font-size:0.88rem;color:var(--text);line-height:1.65;margin-bottom:1rem">' +
+        'Found an error in the catalog or set list? Have a suggestion? We\'d love to hear from you.' +
+      '</p>' +
+      '<a href="mailto:bhale@ipd-llc.com" style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.6rem 1.1rem;border-radius:8px;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.88rem;font-weight:600;text-decoration:none">' +
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>' +
+        'Send an Email' +
+      '</a>' +
+      '<p style="font-size:0.75rem;color:var(--text-dim);margin-top:1rem;line-height:1.5">' +
+        'This is a community resource for postwar collectors. We appreciate every correction and suggestion.' +
+      '</p>' +
+    '</div>';
+  d.addEventListener('click', function(e) { if (e.target === d) d.style.display = 'none'; });
+  document.body.appendChild(d);
+}
+
+function showContactModal() {
+  _buildContactModal();
+  const m = document.getElementById('contact-modal');
+  if (m) { m.style.display = 'flex'; }
+}
+
+
+// ══════════════════════════════════════════════════════════════════
+// UPGRADE LIST
+// ══════════════════════════════════════════════════════════════════
+
+function buildUpgradePage() {
+  const isMobile = window.innerWidth <= 640;
+  const _uq = (state._upgradeSearch || '').toLowerCase();
+  const _sort = state._upgradeSort || 'priority';
+  const thresh = parseInt(_prefGet('lv_upgrade_thresh', '7'));
+  const _threshFilter = state._upgradeThreshFilter !== false; // default on
+
+  let entries = Object.values(state.upgradeData).filter(u => {
+    if (_uq) {
+      const master = state.masterData.find(m => m.itemNum === u.itemNum) || {};
+      if (!(u.itemNum||'').toLowerCase().includes(_uq)
+        && !(master.roadName||'').toLowerCase().includes(_uq)
+        && !(u.notes||'').toLowerCase().includes(_uq)) return false;
+    }
+    if (_threshFilter) {
+      const pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === u.itemNum && (p.variation||'') === (u.variation||''));
+      const cond = pd && pd.condition ? parseInt(pd.condition) : null;
+      if (cond !== null && cond > thresh) return false;
+    }
+    return true;
+  });
+
+  const priorityOrder = { High: 0, Medium: 1, Low: 2 };
+  if (_sort === 'priority') {
+    entries.sort((a, b) => (priorityOrder[a.priority]??1) - (priorityOrder[b.priority]??1));
+  } else if (_sort === 'condition') {
+    entries.sort((a, b) => {
+      const getC = u => { const pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === u.itemNum && (p.variation||'') === (u.variation||'')); return pd && pd.condition ? parseInt(pd.condition) : 99; };
+      return getC(a) - getC(b);
+    });
+  } else {
+    entries.sort((a, b) => (a.itemNum||'').localeCompare(b.itemNum||'', undefined, {numeric:true}));
+  }
+
+  // Update badge
+  const badge = document.getElementById('nav-upgrade-count');
+  if (badge) badge.textContent = Object.values(state.upgradeData).length > 0 ? Object.values(state.upgradeData).length : '—';
+
+  const cardsEl = document.getElementById('upgrade-cards');
+  const tableEl = document.getElementById('upgrade-table');
+  const tbody   = document.getElementById('upgrade-tbody');
+
+  const priorityColor = { High: 'var(--accent)', Medium: 'var(--accent2)', Low: 'var(--text-dim)' };
+
+  if (entries.length === 0) {
+    const empty = `<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">↑</div><p>Your upgrade list is empty</p><p style="font-size:0.8rem;margin-top:0.5rem">Add items from My Collection that you'd like in better condition</p></div>`;
+    if (cardsEl) cardsEl.innerHTML = empty;
+    if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="ui-empty">No items on upgrade list</td></tr>';
+    return;
+  }
+
+  if (isMobile) {
+    if (tableEl) tableEl.style.display = 'none';
+    if (cardsEl) cardsEl.style.display = 'flex';
+    cardsEl.innerHTML = entries.map(u => {
+      const pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === u.itemNum && (p.variation||'') === (u.variation||''));
+      const master = state.masterData.find(m => m.itemNum === u.itemNum);
+      const name = master ? (master.roadName || master.itemType || '') : '';
+      const cond = pd && pd.condition ? parseInt(pd.condition) : null;
+      const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
+      const pColor = priorityColor[u.priority] || 'var(--text-dim)';
+      const escVar = (u.variation||'').replace(/'/g,"\\'");
+      const photoId = `upgphoto-m-${u.itemNum}-${u.variation||''}`.replace(/[^a-zA-Z0-9-]/g,'_');
+      const hasPhoto = pd && !!pd.photoItem;
+      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem">
+        <div style="display:flex;align-items:flex-start;gap:0.5rem">
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap">
+              <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${u.itemNum}</span>
+              ${u.variation ? `<span style="font-size:0.72rem;color:var(--text-dim)">${u.variation}</span>` : ''}
+              <span style="font-size:0.65rem;font-weight:600;color:${pColor};border:1px solid ${pColor};border-radius:4px;padding:0.1rem 0.4rem">${u.priority||'Medium'}</span>
+            </div>
+            ${name ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">${name}</div>` : ''}
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.25rem;flex-wrap:wrap">
+              ${cond !== null ? `<span style="font-size:0.75rem"><span class="condition-pip ${condClass}"></span>Mine: ${cond}</span>` : ''}
+              ${u.targetCondition ? `<span style="font-size:0.75rem;color:#8b5cf6">→ Target: ${u.targetCondition}</span>` : ''}
+              ${u.maxPrice ? `<span style="font-size:0.75rem;color:var(--accent2);font-family:var(--font-mono)">Max: $${parseFloat(u.maxPrice).toLocaleString()}</span>` : ''}
+            </div>
+            ${u.notes ? `<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${u.notes}</div>` : ''}
+          </div>
+          ${hasPhoto ? `<button onclick="event.stopPropagation();_toggleUpgradePhoto('${photoId}','${pd.photoItem.replace(/'/g,"\\'")}')" style="background:none;border:none;font-size:1.1rem;cursor:pointer;flex-shrink:0" title="View my photo">📷</button>` : ''}
+        </div>
+        <div id="${photoId}" style="display:none;margin-top:0.5rem"><img src="${pd && pd.photoItem ? pd.photoItem : ''}" style="max-width:100%;max-height:180px;border-radius:8px;object-fit:contain" onerror="this.parentElement.style.display='none'"></div>
+        <div style="display:flex;gap:0.35rem;margin-top:0.6rem;flex-wrap:wrap">
+          <button onclick="event.stopPropagation();_upgradeViewMine('${u.itemNum}','${escVar}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600">View Mine</button>
+          <button onclick="event.stopPropagation();wantFindOnEbay('${u.itemNum}','${(name||'').replace(/'/g,"\\'")}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);font-weight:600">eBay</button>
+          <button onclick="event.stopPropagation();wantSearchOtherSites('${u.itemNum}','${(name||'').replace(/'/g,"\\'")}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #2980b9;background:rgba(41,128,185,0.12);color:#2980b9;font-family:var(--font-body);font-weight:600">Search</button>
+          <button onclick="event.stopPropagation();upgradeGotIt('${u.itemNum}','${escVar}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600">✓ Got It</button>
+          <button onclick="event.stopPropagation();removeUpgradeItem('${u.itemNum}','${escVar}',${u.row})" style="flex:0 0 auto;padding:0.4rem 0.6rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    if (tableEl) tableEl.style.display = '';
+    if (cardsEl) cardsEl.style.display = 'none';
+    tbody.innerHTML = entries.map((u, idx) => {
+      const pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === u.itemNum && (p.variation||'') === (u.variation||''));
+      const master = state.masterData.find(m => m.itemNum === u.itemNum);
+      const name = master ? (master.roadName || master.itemType || '') : '';
+      const cond = pd && pd.condition ? parseInt(pd.condition) : null;
+      const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
+      const pColor = priorityColor[u.priority] || 'var(--text-dim)';
+      const escVar = (u.variation||'').replace(/'/g,"\\'");
+      const hasPhoto = pd && !!pd.photoItem;
+      const photoId = `upgphoto-d-${idx}`;
+      return `<tr>
+        <td><span class="item-num">${u.itemNum}</span>${u.variation ? ' <span style="font-size:0.72rem;color:var(--text-dim)">' + u.variation + '</span>' : ''}</td>
+        <td style="color:var(--text-mid)">${name || '<span class="text-dim">—</span>'}</td>
+        <td>${cond !== null ? `<span class="condition-pip ${condClass}" style="margin-right:3px"></span>${cond}` : '<span class="text-dim">—</span>'}</td>
+        <td style="color:#8b5cf6;font-weight:600">${u.targetCondition || '<span class="text-dim">—</span>'}</td>
+        <td><span style="color:${pColor};font-weight:500">${u.priority||'Medium'}</span></td>
+        <td class="market-val">${u.maxPrice ? '$' + parseFloat(u.maxPrice).toLocaleString() : '<span class="text-dim">—</span>'}</td>
+        <td style="font-size:0.8rem;color:var(--text-dim);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(u.notes||'').replace(/"/g,'&quot;')}">${u.notes || '<span class="text-dim">—</span>'}</td>
+        <td style="white-space:nowrap">
+          ${hasPhoto ? `<button onclick="event.stopPropagation();_toggleUpgradePhoto('${photoId}','${(pd.photoItem||'').replace(/'/g,"\\'")}')" style="padding:0.25rem 0.4rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);margin-right:0.2rem" title="Toggle photo">📷</button>` : ''}
+          <button onclick="_upgradeViewMine('${u.itemNum}','${escVar}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">View Mine</button>
+          <button onclick="wantFindOnEbay('${u.itemNum}','${(name||'').replace(/'/g,"\\'")}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);margin-right:0.2rem">eBay</button>
+          <button onclick="wantSearchOtherSites('${u.itemNum}','${(name||'').replace(/'/g,"\\'")}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2980b9;background:rgba(41,128,185,0.12);color:#2980b9;font-family:var(--font-body);margin-right:0.2rem">Search</button>
+          <button onclick="upgradeGotIt('${u.itemNum}','${escVar}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">✓ Got It</button>
+          <button onclick="removeUpgradeItem('${u.itemNum}','${escVar}',${u.row})" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>
+        </td>
+      </tr>
+      <tr id="${photoId}-row" style="display:none"><td colspan="8" style="padding:0.5rem 1rem;background:var(--surface2)"><img src="${pd && pd.photoItem ? pd.photoItem : ''}" style="max-height:160px;border-radius:6px;object-fit:contain" onerror="this.parentElement.parentElement.style.display='none'"></td></tr>`;
+    }).join('') || '<tr><td colspan="8" class="ui-empty">No items on upgrade list</td></tr>';
+  }
+}
+
+function _toggleUpgradePhoto(id, photoUrl) {
+  // Mobile: toggle inline div; desktop: toggle row
+  const el = document.getElementById(id);
+  const rowEl = document.getElementById(id + '-row');
+  const target = el || rowEl;
+  if (!target) return;
+  const showing = target.style.display !== 'none';
+  target.style.display = showing ? 'none' : '';
+}
+
+function _upgradeViewMine(itemNum, variation) {
+  const master = state.masterData.find(m => m.itemNum === itemNum);
+  if (master) {
+    showItemDetailPage(state.masterData.indexOf(master));
+  } else {
+    showToast('Item not found in master catalog');
+  }
+}
+
+function showAddToUpgradeModal(itemNum, variation) {
+  const existing = state.upgradeData[`${itemNum}|${variation||''}`] || {};
+  const pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === itemNum && (p.variation||'') === (variation||''));
+  const master = state.masterData.find(m => m.itemNum === itemNum);
+  const name = master ? (master.roadName || master.itemType || itemNum) : itemNum;
+  const myCond = pd && pd.condition ? pd.condition : '';
+
+  const old = document.getElementById('upgrade-add-modal');
+  if (old) old.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'upgrade-add-modal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10001;display:flex;align-items:center;justify-content:center;padding:1.25rem';
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+
+  overlay.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:400px;width:100%;padding:1.5rem;position:relative">
+      <button onclick="document.getElementById('upgrade-add-modal').remove()" style="position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">✕</button>
+      <div style="font-family:var(--font-head);font-size:1.15rem;color:#8b5cf6;margin-bottom:0.25rem">↑ Add to Upgrade List</div>
+      <div style="font-family:var(--font-mono);font-size:0.9rem;color:var(--accent);margin-bottom:0.1rem">${itemNum}${variation ? ' <span style="color:var(--text-dim);font-size:0.8rem">' + variation + '</span>' : ''}</div>
+      <div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:1rem">${name}${myCond ? ' · Current condition: ' + myCond : ''}</div>
+      <div style="display:flex;flex-direction:column;gap:0.75rem">
+        <div>
+          <label style="font-size:0.78rem;color:var(--text-dim);display:block;margin-bottom:0.25rem">Priority</label>
+          <select id="upg-priority" style="width:100%;padding:0.4rem 0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem">
+            <option value="High" ${(existing.priority||'Medium')==='High'?'selected':''}>High</option>
+            <option value="Medium" ${(existing.priority||'Medium')==='Medium'?'selected':''}>Medium</option>
+            <option value="Low" ${(existing.priority||'Medium')==='Low'?'selected':''}>Low</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:0.78rem;color:var(--text-dim);display:block;margin-bottom:0.25rem">Target Condition (1–10)</label>
+          <select id="upg-target-cond" style="width:100%;padding:0.4rem 0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem">
+            <option value="">Not specified</option>
+            ${[...Array(10)].map((_,i)=>{const v=10-i; return `<option value="${v}" ${(existing.targetCondition||'')==String(v)?'selected':''}>${v}</option>`;}).join('')}
+          </select>
+        </div>
+        <div>
+          <label style="font-size:0.78rem;color:var(--text-dim);display:block;margin-bottom:0.25rem">Max Price I'd Pay</label>
+          <input id="upg-max-price" type="number" min="0" placeholder="e.g. 150" value="${existing.maxPrice||''}" style="width:100%;box-sizing:border-box;padding:0.4rem 0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.85rem">
+        </div>
+        <div>
+          <label style="font-size:0.78rem;color:var(--text-dim);display:block;margin-bottom:0.25rem">Notes</label>
+          <textarea id="upg-notes" rows="2" placeholder="e.g. needs to have original box" style="width:100%;box-sizing:border-box;padding:0.4rem 0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;resize:vertical">${existing.notes||''}</textarea>
+        </div>
+        <button onclick="saveUpgradeItem('${itemNum}','${(variation||'').replace(/'/g,"\\'")}',${existing.row||0})" style="padding:0.6rem;border-radius:8px;background:#8b5cf6;color:#fff;border:none;font-family:var(--font-body);font-size:0.9rem;font-weight:600;cursor:pointer;margin-top:0.25rem">
+          ${existing.row ? 'Update Upgrade Entry' : '+ Add to Upgrade List'}
+        </button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function saveUpgradeItem(itemNum, variation, existingRow) {
+  const priority = document.getElementById('upg-priority')?.value || 'Medium';
+  const targetCond = document.getElementById('upg-target-cond')?.value || '';
+  const maxPrice = document.getElementById('upg-max-price')?.value || '';
+  const notes = document.getElementById('upg-notes')?.value || '';
+  const row = [itemNum, variation||'', priority, targetCond, maxPrice, notes];
+  const key = `${itemNum}|${variation||''}`;
+  const sheetId = state.personalSheetId;
+  if (!sheetId) { showToast('Not connected to a sheet'); return; }
+  try {
+    if (existingRow > 0) {
+      await sheetsUpdate(sheetId, `Upgrade List!A${existingRow}:F${existingRow}`, [row]);
+    } else {
+      await sheetsAppend(sheetId, 'Upgrade List!A:A', [row]);
+    }
+    // Reload data
+    const res = await sheetsGet(sheetId, 'Upgrade List!A3:F');
+    state.upgradeData = {};
+    (res.values || []).forEach((r, idx) => {
+      if (!r[0] || r[0] === 'Item Number') return;
+      state.upgradeData[`${r[0]}|${r[1]||''}`] = {
+        row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
+        priority: r[2]||'Medium', targetCondition: r[3]||'', maxPrice: r[4]||'', notes: r[5]||''
+      };
+    });
+    const modal = document.getElementById('upgrade-add-modal');
+    if (modal) modal.remove();
+    showToast('✓ Added to Upgrade List');
+    buildDashboard();
+    const badge = document.getElementById('nav-upgrade-count');
+    if (badge) badge.textContent = Object.values(state.upgradeData).length.toLocaleString();
+  } catch(e) {
+    showToast('Error saving — check connection');
+    console.error(e);
+  }
+}
+
+async function removeUpgradeItem(itemNum, variation, row) {
+  const key = `${itemNum}|${variation||''}`;
+  if (!state.personalSheetId) return;
+  try {
+    await sheetsUpdate(state.personalSheetId, `Upgrade List!A${row}:F${row}`, [['','','','','','']]);
+    delete state.upgradeData[key];
+    showToast('Removed from Upgrade List');
+    buildUpgradePage();
+    buildDashboard();
+    const badge = document.getElementById('nav-upgrade-count');
+    if (badge) { const c = Object.values(state.upgradeData).length; badge.textContent = c > 0 ? c : '—'; }
+  } catch(e) {
+    showToast('Error removing item');
+  }
+}
+
+function upgradeGotIt(itemNum, variation) {
+  const old = document.getElementById('upgrade-gotit-modal');
+  if (old) old.remove();
+  const master = state.masterData.find(m => m.itemNum === itemNum);
+  const name = master ? (master.roadName || master.itemType || itemNum) : itemNum;
+  const overlay = document.createElement('div');
+  overlay.id = 'upgrade-gotit-modal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10002;display:flex;align-items:center;justify-content:center;padding:1.25rem';
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:380px;width:100%;padding:1.5rem;position:relative">
+      <button onclick="document.getElementById('upgrade-gotit-modal').remove()" style="position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">✕</button>
+      <div style="font-family:var(--font-head);font-size:1.15rem;color:#2ecc71;margin-bottom:0.25rem">✓ Got It!</div>
+      <div style="font-family:var(--font-mono);font-size:0.88rem;color:var(--accent);margin-bottom:0.75rem">${itemNum} — ${name}</div>
+      <p style="font-size:0.85rem;color:var(--text);margin-bottom:1rem;line-height:1.5">Did you already add the new one to your collection?</p>
+      <div style="display:flex;gap:0.5rem;margin-bottom:1.25rem">
+        <button onclick="document.getElementById('upg-gotit-added').style.display=''" style="flex:1;padding:0.5rem;border-radius:8px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Yes, it's added</button>
+        <button onclick="document.getElementById('upg-gotit-added').style.display=''" style="flex:1;padding:0.5rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Not yet</button>
+      </div>
+      <div id="upg-gotit-added" style="display:none">
+        <p style="font-size:0.85rem;color:var(--text);margin-bottom:0.75rem;line-height:1.5">What would you like to do with your old one?</p>
+        <div style="display:flex;flex-direction:column;gap:0.4rem">
+          <button onclick="_upgradeGotItFinish('${itemNum}','${(variation||'').replace(/'/g,"\\'")}','keep')" style="padding:0.5rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left">Keep both copies</button>
+          <button onclick="_upgradeGotItFinish('${itemNum}','${(variation||'').replace(/'/g,"\\'")}','forsale')" style="padding:0.5rem;border-radius:8px;border:1.5px solid #e67e22;background:rgba(230,126,34,0.08);color:#e67e22;font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left">🏷️ List old one for sale</button>
+          <button onclick="_upgradeGotItFinish('${itemNum}','${(variation||'').replace(/'/g,"\\'")}','remove')" style="padding:0.5rem;border-radius:8px;border:1.5px solid var(--accent);background:rgba(240,80,8,0.08);color:var(--accent);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left">Remove old entry from collection</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function _upgradeGotItFinish(itemNum, variation, action) {
+  const modal = document.getElementById('upgrade-gotit-modal');
+  if (modal) modal.remove();
+  const key = `${itemNum}|${variation||''}`;
+  const upgradeEntry = state.upgradeData[key];
+  // Remove from upgrade list
+  if (upgradeEntry) await removeUpgradeItem(itemNum, variation, upgradeEntry.row);
+  if (action === 'forsale') {
+    // Navigate to for sale flow for this item
+    const master = state.masterData.find(m => m.itemNum === itemNum);
+    const idx = master ? state.masterData.indexOf(master) : -1;
+    if (idx >= 0) collectionActionForSale(idx, itemNum, variation);
+    else showToast('Navigate to My Collection to list for sale');
+  } else if (action === 'remove') {
+    const pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === itemNum && (p.variation||'') === (variation||''));
+    if (pd) await removeCollectionItem(itemNum, variation, pd.row);
+    else showToast('Item not found in collection');
+  } else {
+    showToast('✓ Upgrade complete — entry removed from list');
+  }
+}
+
+
+// ── UTILITIES ───────────────────────────────────────────────────
+function parseJwt(token) {
+  const base64 = token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+  return JSON.parse(atob(base64));
+}
+
+// ── INIT ────────────────────────────────────────────────────────
+window.onload = () => {
+  if (typeof google !== 'undefined') initGoogle();
+};
+
+// ── Back-button handler — initialized inside buildApp() ─────────────────────
+var _navSuppressHistory = false;
+var _backPressTime = 0;
+var _backButtonInited = false;
+
+function _initBackButton() {
+  if (_backButtonInited) return;
+  _backButtonInited = true;
+
+  // Seed TWO history entries:
+  // Entry 0 (base): replaceState — this is the "exit" floor
+  // Entry 1 (current): pushState — back button pops to entry 0, firing popstate
+  history.replaceState({ appPage: 'base' }, '', '');
+  history.pushState({ appPage: 'dashboard' }, '', '');
+
+  window.addEventListener('popstate', function(e) {
+    var state = e.state || {};
+
+    // ── Case 1: Wizard is open ──
+    var wizModal = document.getElementById('wizard-modal');
+    if (wizModal && wizModal.classList.contains('open')) {
+      if (typeof wizard !== 'undefined' && wizard.step > 0) {
+        wizard.step--;
+        // Step back over any skipIf steps
+        while (wizard.step > 0 && wizard.steps[wizard.step] && wizard.steps[wizard.step].skipIf && wizard.steps[wizard.step].skipIf(wizard.data)) {
+          wizard.step--;
+        }
+        if (typeof renderWizardStep === 'function') renderWizardStep();
+      } else {
+        if (typeof closeWizard === 'function') closeWizard();
+      }
+      history.pushState({ appPage: 'wizard' }, '', '');
+      return;
+    }
+
+    // ── Case 2: Any overlay modal is open — close it ──
+    var openOverlay = document.querySelector('.rb-overlay.open');
+    if (!openOverlay) openOverlay = document.querySelector('#wizard-modal.open');
+    if (openOverlay && openOverlay.id !== 'wizard-modal') {
+      openOverlay.classList.remove('open');
+      document.body.style.overflow = '';
+      history.pushState({ appPage: 'modal-closed' }, '', '');
+      return;
+    }
+
+    // ── Case 3: On a page other than dashboard — go to dashboard ──
+    var activePage = document.querySelector('.page.active');
+    var activePageId = activePage ? activePage.id.replace('page-', '') : 'dashboard';
+    if (activePageId !== 'dashboard') {
+      _navSuppressHistory = true;
+      showPage('dashboard');
+      _navSuppressHistory = false;
+      history.pushState({ appPage: 'dashboard' }, '', '');
+      return;
+    }
+
+    // ── Case 4: On dashboard — double-tap to exit ──
+    var now = Date.now();
+    if (now - _backPressTime < 2200) {
+      // Second press — allow natural exit (don't re-push)
+      return;
+    }
+    _backPressTime = now;
+    if (typeof showToast === 'function') showToast('Press back again to exit', 2000);
+    history.pushState({ appPage: 'dashboard' }, '', '');
+  });
+}
+
+
+// ── iOS INSTALL HINT ────────────────────────────────────────────
+// Shows a one-time banner on iOS Safari when app is not installed as PWA
+function _showIOSInstallHint() {
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isStandalone = window.navigator.standalone === true;
+  const dismissed = localStorage.getItem('lv_ios_hint_dismissed');
+  if (!isIOS || isStandalone || dismissed) return;
+
+  const banner = document.createElement('div');
+  banner.id = 'ios-install-hint';
+  banner.style.cssText = [
+    'position:fixed',
+    'bottom:80px',
+    'left:50%',
+    'transform:translateX(-50%)',
+    'width:calc(100% - 2rem)',
+    'max-width:380px',
+    'background:#1c2544',
+    'border:1.5px solid var(--border)',
+    'border-radius:12px',
+    'padding:0.8rem 1rem',
+    'z-index:8000',
+    'box-shadow:0 4px 24px rgba(0,0,0,0.5)',
+    'display:flex',
+    'align-items:center',
+    'gap:0.75rem',
+    'animation:fadeIn 0.3s ease'
+  ].join(';');
+
+  banner.innerHTML = `
+    <div style="font-size:1.4rem;flex-shrink:0">📲</div>
+    <div style="flex:1;font-family:var(--font-body);font-size:0.8rem;color:var(--text);line-height:1.4">
+      <strong style="color:var(--gold)">Install The Boxcar Files</strong><br>
+      Tap <strong>Share</strong> <span style="font-size:1rem">⎙</span> then <strong>Add to Home Screen</strong> for the best experience.
+    </div>
+    <button onclick="localStorage.setItem('lv_ios_hint_dismissed','1');document.getElementById('ios-install-hint').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.2rem;cursor:pointer;flex-shrink:0;padding:0;line-height:1">✕</button>
+  `;
+
+  document.body.appendChild(banner);
+
+  // Auto-dismiss after 12 seconds
+  setTimeout(() => {
+    const el = document.getElementById('ios-install-hint');
+    if (el) {
+      el.style.transition = 'opacity 0.5s ease';
+      el.style.opacity = '0';
+      setTimeout(() => el.remove(), 500);
+    }
+  }, 12000);
+}
+
+// ── OFFLINE / ONLINE BANNER ─────────────────────────────────────
+function _showOfflineBanner() {
+  if (document.getElementById('offline-banner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'offline-banner';
+  banner.style.cssText = [
+    'position:fixed',
+    'top:0',
+    'left:0',
+    'right:0',
+    'z-index:9998',
+    'background:#7f1d1d',
+    'color:#fecaca',
+    'text-align:center',
+    'padding:0.5rem 1rem',
+    'font-family:var(--font-body)',
+    'font-size:0.82rem',
+    'font-weight:600',
+    'letter-spacing:0.02em',
+    'box-shadow:0 2px 8px rgba(0,0,0,0.4)'
+  ].join(';');
+  banner.textContent = '⚠ No internet connection — changes may not save until you reconnect';
+  document.body.appendChild(banner);
+}
+
+function _hideOfflineBanner() {
+  const banner = document.getElementById('offline-banner');
+  if (banner) {
+    banner.style.transition = 'opacity 0.4s ease';
+    banner.style.opacity = '0';
+    setTimeout(() => banner.remove(), 400);
+    showToast('✓ Back online', 2500);
+  }
+}
+
+window.addEventListener('offline', _showOfflineBanner);
+window.addEventListener('online', _hideOfflineBanner);
+
+// Check on load in case they open the app already offline
+if (!navigator.onLine) _showOfflineBanner();
+
+// Trigger iOS install hint after a short delay (so app has rendered)
+setTimeout(_showIOSInstallHint, 2500);
