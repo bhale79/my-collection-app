@@ -164,6 +164,7 @@ let state = {
   setData: [],         // all rows from Master Set list (read-only reference)
   companionData: [],   // all rows from Companions tab (engine/tender/B-unit relationships)
   catalogRefData: [],  // all rows from master Catalogs tab (reference list for paper item wizard)
+  isRefData: [],       // all rows from master Instruction Sheets tab (reference list for IS wizard)
   filteredData: [],
   currentPage: 1,
   pageSize: 50,
@@ -1521,7 +1522,7 @@ async function loadAllData() {
   try {
     loadUserDefinedTabs();
     // Load master data (uses cache if fresh) and personal data in parallel
-    await Promise.all([loadMasterData(), loadPersonalData(), loadSetData(), loadCompanionData(), loadCatalogRefData()]);
+    await Promise.all([loadMasterData(), loadPersonalData(), loadSetData(), loadCompanionData(), loadCatalogRefData(), loadISRefData()]);
     buildApp();
     showOnboarding();
     if (typeof vaultInit === 'function') vaultInit();
@@ -1549,6 +1550,8 @@ async function loadMasterData() {
     localStorage.removeItem('lv_personal_cache');
     localStorage.removeItem('lv_catalog_ref_cache');
     localStorage.removeItem('lv_catalog_ref_ts');
+    localStorage.removeItem('lv_is_ref_cache');
+    localStorage.removeItem('lv_is_ref_ts');
     localStorage.setItem('lv_cache_ver', _CACHE_VER);
   }
   const cached = localStorage.getItem('lv_master_cache');
@@ -1638,6 +1641,38 @@ async function loadCatalogRefData() {
   } catch(e) {
     console.warn('loadCatalogRefData:', e);
     state.catalogRefData = [];
+  }
+}
+
+async function loadISRefData() {
+  // Fetch Instruction Sheets tab from master sheet
+  // Columns: A=IS ID, B=Item Number, C=Description, D=Category, E=Variations, F=Notes
+  const CACHE_KEY = 'lv_is_ref_cache';
+  const CACHE_TS  = 'lv_is_ref_ts';
+  const TTL = 24 * 60 * 60 * 1000;
+  const cached = localStorage.getItem(CACHE_KEY);
+  const cachedAt = parseInt(localStorage.getItem(CACHE_TS) || '0');
+  if (cached && (Date.now() - cachedAt) < TTL) {
+    try { state.isRefData = JSON.parse(cached); return; } catch(e) {}
+  }
+  try {
+    const res = await sheetsGet(state.masterSheetId, 'Instruction Sheets!A2:F');
+    const rows = (res && res.values) || [];
+    state.isRefData = rows
+      .filter(r => r[0] && r[2] && r[0] !== 'Instruction Sheet ID')
+      .map(r => ({
+        id:          r[0] || '',
+        itemNumber:  r[1] || '',
+        description: r[2] || '',
+        category:    r[3] || '',
+        variations:  r[4] || '',
+        notes:       r[5] || '',
+      }));
+    localStorage.setItem(CACHE_KEY, JSON.stringify(state.isRefData));
+    localStorage.setItem(CACHE_TS, Date.now().toString());
+  } catch(e) {
+    console.warn('loadISRefData:', e);
+    state.isRefData = [];
   }
 }
 
