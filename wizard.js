@@ -4126,8 +4126,9 @@ function generateEphemeraItemNum(tabId, year, catType) {
   return base + '-' + suffix;
 }
 
-function generatePaperItemNum(paperType, itemRef) {
-  // Format: [item ref or 'PAP']-[type abbrev]-[unique 5-char ID]
+function generatePaperItemNum(paperType, year) {
+  // Format: [type abbrev]-[year]-[3-digit sequence]
+  // e.g. ADV-1957-001, DRW-1954-002, PAP-001
   const typeMap = {
     'Drawing':          'DRW',
     'Advertisement':    'ADV',
@@ -4138,9 +4139,9 @@ function generatePaperItemNum(paperType, itemRef) {
     'Other':            'OTH',
   };
   const typeCode = typeMap[paperType] || 'PAP';
-  const base = itemRef ? itemRef.replace(/[^A-Za-z0-9]/g, '').toUpperCase() : 'PAP';
-  const uid = Date.now().toString(36).slice(-4).toUpperCase();
-  return base + '-' + typeCode + '-' + uid;
+  const yr = year ? String(year).trim() : '';
+  const seq = String((Date.now() % 1000)).padStart(3, '0');
+  return yr ? typeCode + '-' + yr + '-' + seq : typeCode + '-' + seq;
 }
 
 // Launch the standard collection wizard for one item in a set
@@ -4434,7 +4435,7 @@ async function saveEphemeraItem() {
   if (!sheetName) { closeWizard(); return; }
 
   const ephItemNum = tab === 'paper'
-    ? generatePaperItemNum(d.eph_paperType || '', d.eph_itemNumRef || '')
+    ? generatePaperItemNum(d.eph_paperType || '', d.eph_year || '')
     : generateEphemeraItemNum(tab, d.eph_year || '', '');
 
   // Upload photos if any
@@ -4479,6 +4480,7 @@ async function saveEphemeraItem() {
       d.eph_quantity||'1', d.eph_estValue||'',
       photoFolderLink,
       d.eph_notes||'', d.eph_dateAcquired||'',
+      d.eph_paperType||'', d.eph_itemNumRef||'',
     ];
   }
 
@@ -4504,6 +4506,7 @@ async function saveEphemeraItem() {
         condition: d.eph_condition||'', quantity: d.eph_quantity||'1',
         estValue: d.eph_estValue||'', photoLink: photoFolderLink, notes: d.eph_notes||'',
         dateAcquired: d.eph_dateAcquired||'',
+        paperType: d.eph_paperType||'', itemNumRef: d.eph_itemNumRef||'',
       };
     }
     state.ephemeraData[tab] = bucket;
