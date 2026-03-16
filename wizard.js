@@ -2645,7 +2645,25 @@ function renderWizardStep() {
     // ── SCREEN 3: Multi-column Condition & Details ──
     const _cdGrouping = wizard.data._itemGrouping || 'single';
     const _cdItemNum = (wizard.data.itemNum || '').trim();
-    
+
+    // Pre-populate defaults from preferences (only if not already set)
+    const _defAllOrig  = _prefGet('lv_def_allOriginal', 'Yes');
+    const _defHasBox   = _prefGet('lv_def_hasBox',      'No');
+    const _defHasIS    = _prefGet('lv_def_hasIS',       'No');
+    const _defIsError  = _prefGet('lv_def_isError',     'No');
+    const _defMasterBox = _prefGet('lv_def_masterBox',  'No');
+    const _allPrefixes = ['', 'tender', 'unit2', 'unit3'];
+    _allPrefixes.forEach(function(p) {
+      const origKey  = p ? p + 'AllOriginal' : 'allOriginal';
+      const boxKey   = p ? p + 'HasBox'      : 'hasBox';
+      const errKey   = p ? p + 'IsError'     : 'isError';
+      if (!wizard.data[origKey]) wizard.data[origKey] = _defAllOrig;
+      if (!wizard.data[boxKey])  wizard.data[boxKey]  = _defHasBox;
+      if (!wizard.data[errKey])  wizard.data[errKey]  = _defIsError;
+    });
+    if (!wizard.data.hasIS)        wizard.data.hasIS        = _defHasIS;
+    if (!wizard.data.hasMasterBox) wizard.data.hasMasterBox = _defMasterBox;
+
     // Determine columns
     const _cdCols = [];
     if (_cdGrouping === 'engine_tender') {
@@ -2743,6 +2761,16 @@ function renderWizardStep() {
         html += '<input type="text" placeholder="Sheet # (e.g. 924-6)" value="' + isSheetVal.replace(/"/g, '&quot;') + '" style="width:100%;margin-bottom:0.4rem;background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:0.4rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.82rem;outline:none;box-sizing:border-box" oninput="wizard.data.is_sheetNum=this.value">';
         html += '<div style="display:flex;align-items:center;gap:0.4rem"><span style="font-size:0.7rem;color:var(--text-dim)">Cond:</span><span id="cd-is-cond-val" style="font-family:var(--font-head);font-size:1rem;color:var(--accent2)">' + isCondVal + '</span>';
         html += '<input type="range" min="1" max="10" value="' + isCondVal + '" style="flex:1;accent-color:var(--accent)" oninput="wizard.data.is_condition=parseInt(this.value);document.getElementById(\'cd-is-cond-val\').textContent=this.value"></div>';
+        html += '</div></div>';
+
+        // Master Box — main column only, shown for all items
+        const mbVal2 = wizard.data.hasMasterBox || '';
+        html += '<div style="margin-bottom:0.6rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Master (Outer) Box?</div>';
+        html += '<div style="display:flex;gap:0.3rem">';
+        ['Yes','No'].forEach(function(c) {
+          var sel = mbVal2 === c;
+          html += '<button onclick="wizard.data.hasMasterBox=\'' + c + '\';_pvToggleMasterBox(\'' + c + '\')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)') + ';color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + ';font-family:var(--font-body)">' + c + '</button>';
+        });
         html += '</div></div>';
       }
       
@@ -2888,25 +2916,6 @@ function renderWizardStep() {
     // Notes
     _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Notes (optional)</div>';
     _pvHtml += '<textarea id="pv-notes" placeholder="e.g. Purchased at train show, minor rust on trucks, runs well" style="width:100%;min-height:60px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data.notes=this.value">' + (_pvD.notes || '') + '</textarea></div>';
-    
-    // Master box (only for paired/set)
-    if (_pvIsPaired || _pvIsSet) {
-      const mbVal = _pvD.hasMasterBox || '';
-      const mbCondVal = _pvD.masterBoxCond || 7;
-      _pvHtml += '<div style="margin-bottom:0.6rem;padding:0.75rem;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">';
-      _pvHtml += '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Master (Outer) Box?</div>';
-      _pvHtml += '<div style="display:flex;gap:0.3rem;margin-bottom:0.4rem">';
-      ['Yes','No'].forEach(function(c) {
-        var sel = mbVal === c;
-        _pvHtml += '<button onclick="wizard.data.hasMasterBox=\'' + c + '\';_pvToggleMasterBox(\'' + c + '\')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)') + ';color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + ';font-family:var(--font-body)">' + c + '</button>';
-      });
-      _pvHtml += '</div>';
-      _pvHtml += '<div id="pv-mb-reveal" style="display:' + (mbVal === 'Yes' ? 'block' : 'none') + '">';
-      _pvHtml += '<div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.3rem"><span style="font-size:0.7rem;color:var(--text-dim)">Condition:</span><span id="pv-mb-cond-val" style="font-family:var(--font-head);font-size:1rem;color:var(--accent2)">' + mbCondVal + '</span>';
-      _pvHtml += '<input type="range" min="1" max="10" value="' + mbCondVal + '" style="flex:1;accent-color:var(--accent)" oninput="wizard.data.masterBoxCond=parseInt(this.value);document.getElementById(\'pv-mb-cond-val\').textContent=this.value"></div>';
-      _pvHtml += '<textarea placeholder="Master box notes…" style="width:100%;min-height:40px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:0.4rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.8rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data.masterBoxNotes=this.value">' + (_pvD.masterBoxNotes || '') + '</textarea>';
-      _pvHtml += '</div></div>';
-    }
     
     _pvHtml += '</div>';
     body.innerHTML = _pvHtml;
