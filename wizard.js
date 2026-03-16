@@ -993,7 +993,7 @@ function renderWizardStep() {
             <span style="font-size:1.3rem;width:28px;text-align:center;flex-shrink:0">${c.emoji}</span>
             <div>
               <div style="font-weight:600;font-size:0.9rem">${c.label}</div>
-              <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.1rem">${c.desc}</div>
+              <div style="font-size:0.82rem;color:var(--text-mid);margin-top:0.1rem">${c.desc}</div>
             </div>
           </button>`).join('')}
       </div>`;
@@ -1020,7 +1020,7 @@ function renderWizardStep() {
             <div style="font-size:1.5rem;width:36px;text-align:center">${label.split(' ')[0]}</div>
             <div>
               <div style="font-weight:600;font-size:0.95rem">${label.split(' ').slice(1).join(' ')}</div>
-              <div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.15rem">${desc}</div>
+              <div style="font-size:0.82rem;color:var(--text-mid);margin-top:0.15rem">${desc}</div>
             </div>
           </button>`).join('')}
 
