@@ -42,7 +42,8 @@ const EPHEMERA_TABS = [
 ];
 const EPHEMERA_HEADERS = [
   'Item ID','Title','Description','Year','Manufacturer','Condition (1-10)',
-  'Quantity','Est. Value','Photo Link','Notes','Date Acquired'
+  'Quantity','Est. Value','Photo Link','Notes','Date Acquired',
+  'Type','Item # Ref'
 ];
 const CATALOG_HEADERS = [
   'Item ID','Type','Year','Has Envelope/Mailer','Condition (1-10)',
@@ -855,7 +856,7 @@ async function ensureEphemeraSheets(sheetId) {
   await sheetsUpdate(sheetId, 'Catalogs!A1:P1',    [['Catalogs','','','','','','','','','','','','','','','']]);
   await sheetsUpdate(sheetId, 'Catalogs!A2:P2',    [CATALOG_HEADERS.concat(['','','','','','',''])]);
   await sheetsUpdate(sheetId, 'Paper Items!A1:P1', [['Paper Items','','','','','','','','','','','','','','','']]);
-  await sheetsUpdate(sheetId, 'Paper Items!A2:P2', [EPHEMERA_HEADERS.concat(['','','','',''])]);
+  await sheetsUpdate(sheetId, 'Paper Items!A2:M2', [EPHEMERA_HEADERS]);
   await sheetsUpdate(sheetId, 'Mock-Ups!A1:P1',    [['Mock-Ups','','','','','','','','','','','','','','','']]);
   await sheetsUpdate(sheetId, 'Mock-Ups!A2:P2',    [MOCKUP_HEADERS.concat([''])]);
   await sheetsUpdate(sheetId, 'Other Lionel!A1:P1',[['Other Lionel','','','','','','','','','','','','','','','']]);
@@ -1779,7 +1780,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     sheetsGet(sheetId, 'Want List!A3:E').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Upgrade List!A3:F').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Catalogs!A3:I').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Paper Items!A3:J').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Paper Items!A3:M').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Mock-Ups!A3:O').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Other Lionel!A3:J').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Instruction Sheets!A3:H').catch(() => ({values:[]})),
@@ -1870,12 +1871,13 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
       if (!r[0] || r[0] === 'Item ID' || r[0] === 'Title') return;
       const key = idx + 3;
       // Detect old format (no Item ID): if r[0] looks like a title (not a system ID like 8157-PAP)
-      const hasItemId = /^\d{4}-[A-Z]+/.test(r[0]);
+      const hasItemId = /^(\d{4}-[A-Z]+|[A-Z]{2,4}-\d{4}|[A-Z]{2,4}-\d{3}$)/.test(r[0]);
       if (hasItemId) {
         bucket[key] = {
           row: key, itemNum: r[0]||'', title: r[1]||'', description: r[2]||'', year: r[3]||'',
           manufacturer: r[4]||'Lionel', condition: r[5]||'', quantity: r[6]||'1',
           estValue: r[7]||'', photoLink: r[8]||'', notes: r[9]||'', dateAcquired: r[10]||'',
+          paperType: r[11]||'', itemNumRef: r[12]||'',
         };
       } else {
         // Legacy row without Item ID
@@ -1883,6 +1885,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
           row: key, itemNum: '', title: r[0]||'', description: r[1]||'', year: r[2]||'',
           manufacturer: r[3]||'Lionel', condition: r[4]||'', quantity: r[5]||'1',
           estValue: r[6]||'', photoLink: r[7]||'', notes: r[8]||'', dateAcquired: r[9]||'',
+          paperType: '', itemNumRef: '',
         };
       }
     });
@@ -3199,15 +3202,17 @@ function renderBrowse() {
       if (state.filters.owned) {
         const _photoLink = it.photoLink || '';
         const _thumbId = 'eph-thumb-' + r.tabId + '-' + it.row;
+        const _ephTypeLabel = it.paperType || r.label;
         return `<tr onclick="openEphemeraDetail('${r.tabId}',${it.row})" style="cursor:pointer">
           <td>
-            <span style="font-family:var(--font-mono);font-size:0.78rem;color:${r.color}">${it.itemNum || r.emoji}</span>
+            <div style="font-size:0.88rem;color:var(--text);font-weight:600;line-height:1.3">${it.title || it.itemNum || '—'}</div>
+            <div style="font-family:var(--font-mono);font-size:0.7rem;color:${r.color};opacity:0.8;margin-top:1px">${it.itemNum || ''}</div>
           </td>
           <td><span class="text-dim">—</span></td>
           <td style="text-align:center">
             <button onclick="event.stopPropagation();openEphemeraDetail('${r.tabId}',${it.row})" style="padding:0.25rem 0.6rem;border-radius:6px;border:1px solid ${r.color};background:${r.color}18;color:${r.color};font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">Details</button>
           </td>
-          <td><span class="tag" style="border-color:${r.color};color:${r.color};background:${r.color}18">${r.label}</span></td>
+          <td><span class="tag" style="border-color:${r.color};color:${r.color};background:${r.color}18">${_ephTypeLabel}</span></td>
           <td style="text-align:center">
             <span id="${_thumbId}" style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:4px;background:var(--surface2);overflow:hidden;vertical-align:middle;color:var(--text-dim)">${_photoLink ? '' : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.45"><rect x="2" y="2" width="20" height="20" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/><line x1="4" y1="4" x2="20" y2="20" stroke-width="2" opacity="0.55"/></svg>'}</span>
           </td>
@@ -3223,12 +3228,16 @@ function renderBrowse() {
       }
 
       // ── Master browse view: 9-column layout ───────────────────
+      const _ephTypeBadge = it.paperType || r.label;
       return `<tr onclick="openEphemeraDetail('${r.tabId}',${it.row})" style="cursor:pointer">
-        <td>${_itmId}</td>
-        <td><span class="tag" style="border-color:${r.color};color:${r.color};background:${r.color}18">${r.label}</span></td>
-        <td>${it.title || '—'}</td>
-        <td>${it.catType || it.year || '—'}</td>
-        <td style="color:var(--text-dim);font-size:0.8rem">${it.year || '—'}</td>
+        <td>
+          <div style="font-size:0.88rem;color:var(--text);font-weight:600">${it.title || it.itemNum || '—'}</div>
+          <div style="font-family:var(--font-mono);font-size:0.7rem;color:${r.color};opacity:0.8;margin-top:1px">${it.itemNum || ''}</div>
+        </td>
+        <td><span class="tag" style="border-color:${r.color};color:${r.color};background:${r.color}18">${_ephTypeBadge}</span></td>
+        <td>${it.description || '—'}</td>
+        <td>${it.year || '—'}</td>
+        <td style="color:var(--text-dim);font-size:0.8rem">${it.itemNumRef || '—'}</td>
         <td>${it.year || '—'}</td>
         <td><span class="owned-badge badge-owned">✓ Owned</span></td>
         <td class="market-val">${val}${_ephActions}</td>
