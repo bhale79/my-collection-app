@@ -37,6 +37,9 @@ function getSteps(tab) {
           skipIf: (d) => !_findCollectionItemByNum(d.is_linkedItem) },
         { id: 'is_sheetNum',   title: 'What is the instruction sheet number?',       type: 'text',
           placeholder: 'e.g. 924-6, 1-1957, 726-13' },
+        { id: 'is_formCode',   title: 'What is the form code?',                      type: 'text',
+          placeholder: 'e.g. 671-58—8-55—TT', optional: true,
+          note: () => 'Found at the bottom of the sheet next to "Printed in U.S.A." — skip if not visible' },
         { id: 'is_year',       title: 'Year or date printed (if known)',              type: 'text',
           placeholder: 'e.g. 1957, 1957-06', optional: true },
         { id: 'is_condition',  title: 'What condition is the sheet?',                type: 'slider', min:1, max:10 },
@@ -125,17 +128,39 @@ function getSteps(tab) {
         return getSteps('instrsheet');
       }
       const _paperType = wizard.data.eph_paperType || '';
-      const _needsItemRef = _paperType && !['Manual','Price Guide','Reference'].includes(_paperType);
+      const _needsSubType = ['Catalog','Magazine','Dealer Paper'].includes(_paperType);
+      const _noItemRef    = ['Reference Book','Other','Promotional Item'].includes(_paperType);
+      // Sub-type choices by top-level type
+      const _subChoices = {
+        'Catalog':      ['Consumer Postwar','Consumer Pre-war','Advance/Dealer','Display','Accessory','HO','Science/Other'],
+        'Magazine':     ['Lionel Magazine','Model Builder / Model Engineer'],
+        'Dealer Paper': ['Price List','Parts List','Service Paper','Service Station Listing','Dealer Flyer'],
+      };
       return [
-        { id: 'eph_paperType', title: 'What type of paper item is this?', type: 'choice3',
-          choices: ['Catalog','Consumer (Pre-war)','Display Catalog','Operating Manual','Dealer Promo Kit','Dealer Display Poster','Dealer Price List','Dealer Parts List','Dealer Service Paper','Service Station Listing','Dealer Flyer','Lionel Magazine','Model Builder Magazine','Reference Book','Promotional Booklet','Drawing','Advertisement','Instruction Sheet','Manual','Price Guide','Reference','Other'] },
+        { id: 'eph_paperType',
+          title: 'What type of paper item is this?',
+          type: 'choiceSearch',
+          choices: ['Catalog','Instruction Sheet','Operating Manual','Magazine','Dealer Paper','Dealer Promo Kit','Dealer Display Poster','Reference Book','Promotional Item','Other'] },
+        { id: 'eph_paperSubType',
+          title: (d) => {
+            if (d.eph_paperType === 'Catalog')      return 'What kind of catalog?';
+            if (d.eph_paperType === 'Magazine')     return 'Which magazine?';
+            if (d.eph_paperType === 'Dealer Paper') return 'What type of dealer paper?';
+            return 'Sub-type';
+          },
+          type: 'choiceSearch',
+          choices: (d) => _subChoices[d.eph_paperType] || [],
+          skipIf: (d) => !_subChoices[d.eph_paperType] },
         { id: 'eph_title',
-          title: (d) => 'What is the title of this ' + (d.eph_paperType || 'item') + '?',
-          type: 'text', placeholder: 'e.g. 1957 Full-Page Ad, 726 Berkshire Drawing' },
+          title: (d) => {
+            const sub = d.eph_paperSubType ? d.eph_paperSubType + ' ' : '';
+            return 'What is the title of this ' + sub + (d.eph_paperType || 'item') + '?';
+          },
+          type: 'text', placeholder: 'e.g. 1957 Consumer Catalog, 1956 GG1 Dealer Poster' },
         { id: 'eph_itemNumRef',
           title: 'Associated Lionel item number (if any)',
           type: 'text', placeholder: 'e.g. 726, 2046, 6464-1', optional: true,
-          skipIf: (d) => ['Manual','Price Guide','Reference'].includes(d.eph_paperType) },
+          skipIf: (d) => _noItemRef || ['Operating Manual','Dealer Paper','Magazine','Dealer Promo Kit'].includes(d.eph_paperType) },
         { id: 'eph_year',        title: 'Year (if known)',          type: 'text',     placeholder: 'e.g. 1957', optional: true },
         { id: 'eph_description', title: 'Description (optional)',   type: 'textarea', optional: true,
           placeholder: 'e.g. Full-page ad from Model Railroader, June 1957' },
@@ -144,7 +169,10 @@ function getSteps(tab) {
         { id: 'eph_dateAcquired',title: 'Date acquired',            type: 'date',     optional: true },
         { id: 'eph_notes',       title: 'Notes (optional)',         type: 'textarea', optional: true },
         { id: 'eph_confirm',
-          title: (d) => 'Ready to save your ' + (d.eph_paperType || 'paper item') + '!',
+          title: (d) => {
+            const parts = [d.eph_paperSubType, d.eph_paperType].filter(Boolean);
+            return 'Ready to save your ' + (parts.join(' ') || 'paper item') + '!';
+          },
           type: 'confirm' },
       ];
     }
@@ -956,7 +984,7 @@ function renderWizardStep() {
   }
   document.getElementById('wizard-progress').style.width = pct + '%';
   document.getElementById('wizard-back-btn').style.display = step > 0 ? 'inline-flex' : 'none';
-  const autoAdvanceTypes = new Set(['choice','choice2','choice3','pickRow','pickSoldItem','pickForSaleItem']); // 'variation' removed — Next needed when item has no variations
+  const autoAdvanceTypes = new Set(['choice','choice2','choice3','choiceSearch','pickRow','pickSoldItem','pickForSaleItem']); // 'variation' removed — Next needed when item has no variations
   // New consolidated types always use Next button
   // setMatch and setUnit2Num need Next button (user may interact multiple times)
   if (s.type === 'confirm') {
@@ -1355,6 +1383,39 @@ function renderWizardStep() {
             ${_manyChoices ? '' : 'flex:1;min-width:80px;'}
           ">${c}</button>`).join('')}
       </div>`;
+
+  } else if (s.type === 'choiceSearch') {
+    // Searchable choice list — type to filter, click to select
+    const csVal     = wizard.data[s.id] || '';
+    const csId      = 'cs-input-' + s.id;
+    const csChoices = typeof s.choices === 'function' ? s.choices(wizard.data) : (s.choices || []);
+    body.innerHTML = `
+      <div style="padding-top:0.5rem">
+        <div style="position:relative;margin-bottom:0.6rem">
+          <input id="${csId}" type="text" placeholder="Type to search…"
+            autocomplete="off" autocorrect="off" spellcheck="false"
+            value="${csVal}"
+            style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);
+                   border-radius:8px;padding:0.55rem 0.75rem 0.55rem 2rem;color:var(--text);
+                   font-family:var(--font-body);font-size:0.9rem;outline:none"
+            oninput="wizardFilterChoices('${s.id}','${csId}')">
+          <span style="position:absolute;left:0.6rem;top:50%;transform:translateY(-50%);
+                       color:var(--text-dim);font-size:0.9rem;pointer-events:none">🔍</span>
+        </div>
+        <div id="cs-list-${s.id}" style="display:flex;flex-direction:column;gap:0.35rem;max-height:300px;overflow-y:auto">
+          ${csChoices.map(c => `
+            <button onclick="wizardChoose('${s.id}','${c}')" data-choice="${c.toLowerCase()}" style="
+              padding:0.6rem 0.75rem;border-radius:8px;text-align:left;cursor:pointer;
+              border:2px solid ${csVal===c ? 'var(--accent)' : 'var(--border)'};
+              background:${csVal===c ? 'rgba(232,64,28,0.15)' : 'var(--surface2)'};
+              color:${csVal===c ? 'var(--accent)' : 'var(--text-mid)'};
+              font-family:var(--font-body);font-size:0.85rem;font-weight:500;
+              transition:all 0.15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+            >${c}</button>`).join('')}
+        </div>
+        ${s.optional ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>' : ''}
+      </div>`;
+    setTimeout(() => { const i = document.getElementById(csId); if(i) i.focus(); }, 80);
 
   } else if (s.type === 'pricePaid') {
     const itemVal = wizard.data.priceItem || '';
@@ -3078,6 +3139,31 @@ function wizardChoose(field, val) {
   }
 }
 
+function wizardFilterChoices(fieldId, inputId) {
+  const input = document.getElementById(inputId);
+  const list  = document.getElementById('cs-list-' + fieldId);
+  if (!input || !list) return;
+  const q = input.value.toLowerCase().trim();
+  // Store typed value in wizard data only if it matches a choice exactly
+  const btns = list.querySelectorAll('button[data-choice]');
+  let visibleCount = 0;
+  btns.forEach(btn => {
+    const choiceText = btn.getAttribute('data-choice') || '';
+    const matches = !q || choiceText.includes(q);
+    btn.style.display = matches ? '' : 'none';
+    if (matches) visibleCount++;
+  });
+  // If exactly one result visible and user hits Enter, auto-select it
+  input.onkeydown = (e) => {
+    if (e.key === 'Enter') {
+      const visible = [...btns].filter(b => b.style.display !== 'none');
+      if (visible.length === 1) visible[0].click();
+    }
+  };
+}
+
+
+
 // Find personalData entry by itemNum|variation prefix (key includes row number)
 function findPD(itemNum, variation) {
   const prefix = `${itemNum}|${variation || ''}|`;
@@ -3941,6 +4027,9 @@ async function _wizardNextCore() {
   if (s.type === 'choice' && !wizard.tab) {
     showToast('Please select where to add the item.'); return;
   }
+  if ((s.type === 'choice2' || s.type === 'choice3' || s.type === 'choiceSearch') && !s.optional && !wizard.data[s.id]) {
+    showToast('Please make a selection.'); return;
+  }
   if (s.type === 'text' && !s.optional && !wizard.data[s.id]?.trim()) {
     showToast('This field is required.'); return;
   }
@@ -4128,30 +4217,18 @@ function generateEphemeraItemNum(tabId, year, catType) {
 
 function generatePaperItemNum(paperType, year) {
   // Format: [type abbrev]-[year]-[3-digit sequence]
-  // e.g. ADV-1957-001, DRW-1954-002, PAP-001
+  // e.g. CAT-1957-001, MAG-1930-001, DPP-1956-001
   const typeMap = {
-    'Catalog':          'CAT',
-    'Operating Manual': 'OPM',
-    'Dealer Promo Kit':  'DPK',
-    'Consumer (Pre-war)':    'PRW',
-    'Display Catalog':       'DIS',
-    'Dealer Price List':      'PRL',
-    'Dealer Parts List':      'PTL',
-    'Dealer Service Paper':   'SVC',
-    'Service Station Listing':'SSL',
-    'Dealer Flyer':           'FLY',
-    'Lionel Magazine':         'LMG',
-    'Model Builder Magazine':  'MBM',
+    'Catalog':            'CAT',
+    'Operating Manual':   'OPM',
+    'Dealer Promo Kit':   'DPK',
+    'Magazine':           'MAG',
+    'Dealer Paper':       'DPP',
     'Dealer Display Poster': 'POS',
-    'Reference Book':   'REF',
-    'Promotional Booklet':'PRO',
-    'Drawing':          'DRW',
-    'Advertisement':    'ADV',
-    'Instruction Sheet':'IS',
-    'Manual':           'MAN',
-    'Price Guide':      'PGD',
-    'Reference':        'REF',
-    'Other':            'OTH',
+    'Reference Book':     'REF',
+    'Promotional Item':   'PRO',
+    'Instruction Sheet':  'IS',
+    'Other':              'OTH',
   };
   const typeCode = typeMap[paperType] || 'PAP';
   const yr = year ? String(year).trim() : '';
@@ -4336,7 +4413,7 @@ async function saveInstructionSheet() {
   }
 
   const isStandaloneInvId = nextInventoryId();
-  const row = [sheetNum, linkedItem, d.is_year||'', d.is_condition||'', d.is_notes||'', photoLink, isStandaloneInvId, resolvedGroupId];
+  const row = [sheetNum, linkedItem, d.is_year||'', d.is_condition||'', d.is_notes||'', photoLink, isStandaloneInvId, resolvedGroupId, d.is_formCode||''];
   try {
     await ensureEphemeraSheets(state.personalSheetId);
     await sheetsAppend(state.personalSheetId, 'Instruction Sheets!A:A', [row]);
@@ -4344,7 +4421,7 @@ async function saveInstructionSheet() {
     state.isData[newKey] = {
       row: newKey, sheetNum, linkedItem, year: d.is_year||'',
       condition: d.is_condition||'', notes: d.is_notes||'', photoLink,
-      inventoryId: isStandaloneInvId, groupId: resolvedGroupId,
+      inventoryId: isStandaloneInvId, groupId: resolvedGroupId, formCode: d.is_formCode||'',
     };
     showToast('✓ Instruction Sheet ' + sheetNum + ' saved!');
     closeWizard();
@@ -4495,7 +4572,7 @@ async function saveEphemeraItem() {
       d.eph_quantity||'1', d.eph_estValue||'',
       photoFolderLink,
       d.eph_notes||'', d.eph_dateAcquired||'',
-      d.eph_paperType||'', d.eph_itemNumRef||'',
+      (d.eph_paperType||'') + (d.eph_paperSubType ? ' — ' + d.eph_paperSubType : ''), d.eph_itemNumRef||'',
     ];
   }
 
@@ -4521,7 +4598,7 @@ async function saveEphemeraItem() {
         condition: d.eph_condition||'', quantity: d.eph_quantity||'1',
         estValue: d.eph_estValue||'', photoLink: photoFolderLink, notes: d.eph_notes||'',
         dateAcquired: d.eph_dateAcquired||'',
-        paperType: d.eph_paperType||'', itemNumRef: d.eph_itemNumRef||'',
+        paperType: (d.eph_paperType||'') + (d.eph_paperSubType ? ' — ' + d.eph_paperSubType : ''), itemNumRef: d.eph_itemNumRef||'',
       };
     }
     state.ephemeraData[tab] = bucket;
@@ -5044,13 +5121,13 @@ async function saveWizardItem() {
           }
         }
         const isInvId = nextInventoryId();
-        const isRow = [isSheetNum, itemNum, '', d.is_condition || '', '', isPhotoLink, isInvId, groupId];
+        const isRow = [isSheetNum, itemNum, '', d.is_condition || '', '', isPhotoLink, isInvId, groupId, d.is_formCode||''];
         await sheetsAppend(state.personalSheetId, 'Instruction Sheets!A:A', [isRow]);
         const newISKey = Date.now();
         state.isData[newISKey] = {
           row: newISKey, sheetNum: isSheetNum, linkedItem: itemNum,
           year: '', condition: d.is_condition || '', notes: '', photoLink: isPhotoLink,
-          inventoryId: isInvId, groupId: groupId,
+          inventoryId: isInvId, groupId: groupId, formCode: d.is_formCode||'',
         };
       } catch(e) { console.warn('IS save error:', e); }
     }
