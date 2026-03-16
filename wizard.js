@@ -128,7 +128,7 @@ function getSteps(tab) {
       const _needsItemRef = _paperType && !['Manual','Price Guide','Reference'].includes(_paperType);
       return [
         { id: 'eph_paperType', title: 'What type of paper item is this?', type: 'choice3',
-          choices: ['Catalog','Reference Book','Promotional Booklet','Drawing','Advertisement','Instruction Sheet','Manual','Price Guide','Reference','Other'] },
+          choices: ['Catalog','Operating Manual','Reference Book','Promotional Booklet','Drawing','Advertisement','Instruction Sheet','Manual','Price Guide','Reference','Other'] },
         { id: 'eph_title',
           title: (d) => 'What is the title of this ' + (d.eph_paperType || 'item') + '?',
           type: 'text', placeholder: 'e.g. 1957 Full-Page Ad, 726 Berkshire Drawing' },
@@ -4131,6 +4131,7 @@ function generatePaperItemNum(paperType, year) {
   // e.g. ADV-1957-001, DRW-1954-002, PAP-001
   const typeMap = {
     'Catalog':          'CAT',
+    'Operating Manual': 'OPM',
     'Reference Book':   'REF',
     'Promotional Booklet':'PRO',
     'Drawing':          'DRW',
