@@ -128,19 +128,24 @@ function getSteps(tab) {
         return getSteps('instrsheet');
       }
       const _paperType = wizard.data.eph_paperType || '';
-      const _needsSubType = ['Catalog','Magazine','Dealer Paper'].includes(_paperType);
-      const _noItemRef    = ['Reference Book','Other','Promotional Item'].includes(_paperType);
+      const _isCatalogType = _paperType === 'Catalog';
+      const _noItemRef = ['Reference Book','Other','Promotional Item','Operating Manual',
+                          'Dealer Paper','Magazine','Dealer Promo Kit'].includes(_paperType);
       // Sub-type choices by top-level type
       const _subChoices = {
         'Catalog':      ['Consumer Postwar','Consumer Pre-war','Advance/Dealer','Display','Accessory','HO','Science/Other'],
         'Magazine':     ['Lionel Magazine','Model Builder / Model Engineer'],
         'Dealer Paper': ['Price List','Parts List','Service Paper','Service Station Listing','Dealer Flyer'],
       };
+      const _hasSubType = !!_subChoices[_paperType];
       return [
+        // Step 1 — top-level type (button grid, no search)
         { id: 'eph_paperType',
           title: 'What type of paper item is this?',
-          type: 'choiceSearch',
-          choices: ['Catalog','Instruction Sheet','Operating Manual','Magazine','Dealer Paper','Dealer Promo Kit','Dealer Display Poster','Reference Book','Promotional Item','Other'] },
+          type: 'choice3',
+          choices: ['Catalog','Instruction Sheet','Operating Manual','Magazine','Dealer Paper',
+                    'Dealer Promo Kit','Dealer Display Poster','Reference Book','Promotional Item','Other'] },
+        // Step 2 — sub-type (button grid, only for Catalog/Magazine/Dealer Paper)
         { id: 'eph_paperSubType',
           title: (d) => {
             if (d.eph_paperType === 'Catalog')      return 'What kind of catalog?';
@@ -148,30 +153,45 @@ function getSteps(tab) {
             if (d.eph_paperType === 'Dealer Paper') return 'What type of dealer paper?';
             return 'Sub-type';
           },
-          type: 'choiceSearch',
+          type: 'choice3',
           choices: (d) => _subChoices[d.eph_paperType] || [],
           skipIf: (d) => !_subChoices[d.eph_paperType] },
+        // Step 3 — catalog picker (searchable, only for Catalog type)
+        { id: 'eph_catalogPick',
+          title: 'Find your catalog',
+          type: 'catalogPicker',
+          optional: true,
+          skipIf: (d) => d.eph_paperType !== 'Catalog',
+          note: () => 'Search by year or keyword — or skip to enter manually' },
+        // Step 4 — title (pre-filled if catalog was picked)
         { id: 'eph_title',
           title: (d) => {
             const sub = d.eph_paperSubType ? d.eph_paperSubType + ' ' : '';
-            return 'What is the title of this ' + sub + (d.eph_paperType || 'item') + '?';
+            return 'Title of this ' + sub + (d.eph_paperType || 'item');
           },
-          type: 'text', placeholder: 'e.g. 1957 Consumer Catalog, 1956 GG1 Dealer Poster' },
+          type: 'text',
+          placeholder: 'e.g. 1957 Advance Catalog',
+          skipIf: (d) => !!(d.eph_catalogPick) },  // skip if picked from list
         { id: 'eph_itemNumRef',
           title: 'Associated Lionel item number (if any)',
           type: 'text', placeholder: 'e.g. 726, 2046, 6464-1', optional: true,
-          skipIf: (d) => _noItemRef || ['Operating Manual','Dealer Paper','Magazine','Dealer Promo Kit'].includes(d.eph_paperType) },
-        { id: 'eph_year',        title: 'Year (if known)',          type: 'text',     placeholder: 'e.g. 1957', optional: true },
-        { id: 'eph_description', title: 'Description (optional)',   type: 'textarea', optional: true,
-          placeholder: 'e.g. Full-page ad from Model Railroader, June 1957' },
-        { id: 'eph_condition',   title: 'Condition (1-10)',         type: 'slider', min:1, max:10 },
-        { id: 'eph_estValue',    title: 'Estimated value',          type: 'money',    placeholder: '0.00', optional: true },
-        { id: 'eph_dateAcquired',title: 'Date acquired',            type: 'date',     optional: true },
-        { id: 'eph_notes',       title: 'Notes (optional)',         type: 'textarea', optional: true },
+          skipIf: (d) => _noItemRef },
+        { id: 'eph_year',
+          title: 'Year (if known)',
+          type: 'text', placeholder: 'e.g. 1957', optional: true,
+          skipIf: (d) => !!(d.eph_catalogPick) },  // skip if picked from list (year auto-filled)
+        { id: 'eph_description', title: 'Description (optional)', type: 'textarea', optional: true,
+          placeholder: 'e.g. Still in original mailing envelope' },
+        { id: 'eph_condition',   title: 'Condition (1-10)', type: 'slider', min:1, max:10 },
+        { id: 'eph_estValue',    title: 'Estimated value',  type: 'money', placeholder: '0.00', optional: true },
+        { id: 'eph_dateAcquired',title: 'Date acquired',    type: 'date', optional: true },
+        { id: 'eph_notes',       title: 'Notes (optional)', type: 'textarea', optional: true },
         { id: 'eph_confirm',
           title: (d) => {
-            const parts = [d.eph_paperSubType, d.eph_paperType].filter(Boolean);
-            return 'Ready to save your ' + (parts.join(' ') || 'paper item') + '!';
+            const label = d.eph_catalogPick
+              ? d.eph_catalogPick.title
+              : ((d.eph_paperSubType ? d.eph_paperSubType + ' ' : '') + (d.eph_paperType || 'paper item'));
+            return 'Ready to save: ' + label;
           },
           type: 'confirm' },
       ];
@@ -1416,6 +1436,62 @@ function renderWizardStep() {
         ${s.optional ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>' : ''}
       </div>`;
     setTimeout(() => { const i = document.getElementById(csId); if(i) i.focus(); }, 80);
+
+  } else if (s.type === 'catalogPicker') {
+    // Searchable catalog picker — pulls from state.catalogRefData
+    const cpVal  = wizard.data[s.id] || null;
+    const cpSub  = wizard.data.eph_paperSubType || '';
+    const cpId   = 'cp-input';
+    // Filter master list by sub-type if chosen
+    const subTypeMap = {
+      'Consumer Postwar':  ['Consumer'],
+      'Consumer Pre-war':  ['Consumer (Pre-war)'],
+      'Advance/Dealer':    ['Advance','Pre-Advance','Display Catalog'],
+      'Display':           ['Display Catalog'],
+      'Accessory':         ['Consumer'],   // accessory catalogs are tagged Consumer
+      'HO':                ['Consumer'],
+      'Science/Other':     ['Consumer'],
+    };
+    const allowedTypes = cpSub ? (subTypeMap[cpSub] || []) : [];
+    const allItems = (state.catalogRefData || []).filter(it => {
+      if (!allowedTypes.length) return true;
+      return allowedTypes.some(t => (it.type||'').includes(t));
+    });
+    const pickedTitle = cpVal ? cpVal.title : '';
+    body.innerHTML = `
+      <div style="padding-top:0.5rem">
+        <div style="position:relative;margin-bottom:0.6rem">
+          <input id="${cpId}" type="text" placeholder="Type year or keyword, e.g. 1957 adv…"
+            autocomplete="off" autocorrect="off" spellcheck="false"
+            value="${pickedTitle.replace(/"/g,'&quot;')}"
+            style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);
+                   border-radius:8px;padding:0.55rem 0.75rem 0.55rem 2rem;color:var(--text);
+                   font-family:var(--font-body);font-size:0.9rem;outline:none"
+            oninput="wizardFilterCatalog('${cpId}')">
+          <span style="position:absolute;left:0.6rem;top:50%;transform:translateY(-50%);
+                       color:var(--text-dim);font-size:0.9rem;pointer-events:none">🔍</span>
+        </div>
+        <div id="cp-list" style="display:flex;flex-direction:column;gap:0.3rem;max-height:280px;overflow-y:auto">
+          ${allItems.slice(0,80).map(it => {
+            const picked = cpVal && cpVal.id === it.id;
+            const label = it.title + (it.year && !it.title.includes(it.year) ? ' (' + it.year + ')' : '');
+            return `<button onclick="wizardPickCatalog(${JSON.stringify(JSON.stringify(it))})"
+              data-search="${(it.title+' '+it.year+' '+it.type).toLowerCase()}"
+              style="padding:0.5rem 0.75rem;border-radius:8px;text-align:left;cursor:pointer;
+                border:2px solid ${picked ? 'var(--accent)' : 'var(--border)'};
+                background:${picked ? 'rgba(232,64,28,0.15)' : 'var(--surface2)'};
+                color:${picked ? 'var(--accent)' : 'var(--text-mid)'};
+                font-family:var(--font-body);font-size:0.82rem;font-weight:500;transition:all 0.15s"
+              >${label}</button>`;
+          }).join('')}
+        </div>
+        <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">
+          Optional — press Next to enter title manually
+        </div>
+      </div>`;
+    // Store allItems ref for filtering
+    window._cpAllItems = allItems;
+    setTimeout(() => { const i = document.getElementById(cpId); if(i) i.focus(); }, 80);
 
   } else if (s.type === 'pricePaid') {
     const itemVal = wizard.data.priceItem || '';
@@ -3144,22 +3220,49 @@ function wizardFilterChoices(fieldId, inputId) {
   const list  = document.getElementById('cs-list-' + fieldId);
   if (!input || !list) return;
   const q = input.value.toLowerCase().trim();
-  // Store typed value in wizard data only if it matches a choice exactly
   const btns = list.querySelectorAll('button[data-choice]');
-  let visibleCount = 0;
   btns.forEach(btn => {
     const choiceText = btn.getAttribute('data-choice') || '';
-    const matches = !q || choiceText.includes(q);
-    btn.style.display = matches ? '' : 'none';
-    if (matches) visibleCount++;
+    btn.style.display = (!q || choiceText.includes(q)) ? '' : 'none';
   });
-  // If exactly one result visible and user hits Enter, auto-select it
   input.onkeydown = (e) => {
     if (e.key === 'Enter') {
       const visible = [...btns].filter(b => b.style.display !== 'none');
       if (visible.length === 1) visible[0].click();
     }
   };
+}
+
+function wizardFilterCatalog(inputId) {
+  const input = document.getElementById(inputId);
+  const list  = document.getElementById('cp-list');
+  if (!input || !list) return;
+  const q = input.value.toLowerCase().trim();
+  const allItems = window._cpAllItems || [];
+  if (!q) {
+    // Show first 80 unfiltered
+    list.querySelectorAll('button[data-search]').forEach(b => b.style.display = '');
+    return;
+  }
+  // Filter by all search tokens — all words must match somewhere
+  const tokens = q.split(/\s+/).filter(Boolean);
+  list.querySelectorAll('button[data-search]').forEach(btn => {
+    const hay = btn.getAttribute('data-search') || '';
+    const matches = tokens.every(t => hay.includes(t));
+    btn.style.display = matches ? '' : 'none';
+  });
+}
+
+function wizardPickCatalog(jsonStr) {
+  try {
+    const item = JSON.parse(jsonStr);
+    wizard.data.eph_catalogPick = item;
+    // Auto-fill year and title from the picked catalog
+    wizard.data.eph_year  = item.year  || wizard.data.eph_year  || '';
+    wizard.data.eph_title = item.title || wizard.data.eph_title || '';
+    // Auto-advance after short delay
+    setTimeout(() => wizardNext(), 200);
+  } catch(e) { console.warn('wizardPickCatalog:', e); }
 }
 
 
