@@ -657,30 +657,31 @@ function _updateGroupingButtons() {
     buttons = [];
   }
   
-  if (buttons.length === 0) {
-    container.style.display = 'none';
-    wizard.data._itemGrouping = 'single';
-    return;
-  }
-  
   container.style.display = 'block';
   const current = wizard.data._itemGrouping || '';
+  const _boxSelected = wizard.data.boxOnly || false;
+  if (buttons.length === 0 && !_boxSelected) wizard.data._itemGrouping = 'single';
   
   let html = '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.4rem">How are you entering this item?</div>';
   html += '<div style="display:flex;flex-wrap:wrap;gap:0.35rem">';
   buttons.forEach(function(btn) {
-    const sel = current === btn.id;
-    html += '<button onclick="_selectGrouping(\'' + btn.id + '\')" style="padding:0.5rem 0.85rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:var(--font-body);white-space:nowrap;'
+    const sel = !_boxSelected && current === btn.id;
+    html += '<button onclick="_selectGrouping(\'' + btn.id + '\')" style="flex:1;min-width:0;padding:0.5rem 0.6rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:var(--font-body);white-space:nowrap;'
       + 'border:2px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';'
       + 'background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--surface2)') + ';'
       + 'color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + '">'
       + btn.icon + ' ' + btn.label + '</button>';
   });
+  html += '<button onclick="_selectBoxOnly()" style="flex:1;min-width:0;padding:0.5rem 0.6rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:var(--font-body);white-space:nowrap;'
+    + 'border:2px solid ' + (_boxSelected ? 'var(--accent2)' : 'var(--border)') + ';'
+    + 'background:' + (_boxSelected ? 'rgba(201,146,42,0.12)' : 'var(--surface2)') + ';'
+    + 'color:' + (_boxSelected ? 'var(--accent2)' : 'var(--text-mid)') + '">Box only</button>';
   html += '</div>';
   container.innerHTML = html;
 }
 
 function _selectGrouping(groupId) {
+  wizard.data.boxOnly = false;
   wizard.data._itemGrouping = groupId;
   const itemNum = (wizard.data.itemNum || '').trim();
   
@@ -735,6 +736,17 @@ function _selectGrouping(groupId) {
   
   _updateGroupingButtons();
   // Auto-advance to next step after grouping selection
+  setTimeout(function() { wizardNext(); }, 150);
+}
+
+function _selectBoxOnly() {
+  wizard.data.boxOnly = true;
+  wizard.data._itemGrouping = 'single';
+  wizard.data.tenderMatch = '';
+  wizard.data.setMatch = '';
+  wizard.data.unitPower = '';
+  wizard.steps = getSteps(wizard.tab);
+  _updateGroupingButtons();
   setTimeout(function() { wizardNext(); }, 150);
 }
 
@@ -1199,42 +1211,23 @@ function renderWizardStep() {
     var _qe1Wrap = document.createElement('div');
     _qe1Wrap.style.cssText = 'padding-top:0.5rem;display:flex;flex-direction:column;gap:0.55rem';
 
-    // ── Row 1: Item number | ID photo | Box only ──
-    var _qe1InputRow = document.createElement('div');
-    _qe1InputRow.style.cssText = 'display:flex;gap:0.4rem;align-items:flex-start';
-    _qe1InputRow.innerHTML =
-      '<div style="flex:1;display:flex;flex-direction:column;gap:0">'
-        + '<input type="text" id="wiz-input" value="' + _qe1ItemNum + '" placeholder="Item number" autocomplete="off"'
-        + ' style="width:100%;background:var(--bg);border:1.5px solid ' + (_qe1ItemNum ? 'var(--accent2)' : 'var(--border)') + ';border-radius:8px;'
-        + 'padding:0.65rem 0.8rem;color:var(--text);font-family:var(--font-mono);font-size:1rem;outline:none;box-sizing:border-box"'
-        + ' oninput="wizard.data.itemNum=this.value;if(window._qe1OnInput)window._qe1OnInput(this.value)"'
-        + ' onkeydown="handleSuggestionKey(event)">'
-        + '<div id="qe1-match" style="margin-top:4px;font-size:0.78rem;color:var(--accent2);min-height:1rem"></div>'
-        + '<div id="wiz-suggestions" style="display:none;flex-direction:column;gap:1px;margin-top:4px;max-height:220px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;-webkit-overflow-scrolling:touch"></div>'
-      + '</div>'
-      + '<div style="display:flex;flex-direction:column;gap:2px">'
-        + '<div style="font-size:0.58rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);text-align:center">ID Photo</div>'
-        + '<button type="button" onclick="openIdentify(\'wizard\')" style="width:54px;height:42px;background:var(--surface2);border:1.5px dashed var(--gold);border-radius:8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:0">'
-          + '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>'
-          + '<span style="font-size:0.55rem;color:var(--gold)">Identify</span>'
-        + '</button>'
-        + '<div style="visibility:hidden;font-size:0.55rem">·</div>'
-      + '</div>'
-      + '<div style="display:flex;flex-direction:column;gap:2px">'
-        + '<div style="font-size:0.58rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);text-align:center">Box Only</div>'
-        + '<button type="button" id="qe1-boxonly-btn" onclick="_qe1ToggleBoxOnly()"'
-          + ' style="width:54px;height:42px;background:' + (_qe1BoxOnly ? 'rgba(201,146,42,0.12)' : 'var(--surface2)') + ';border:1.5px solid ' + (_qe1BoxOnly ? 'var(--accent2)' : 'var(--border)') + ';border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center">'
-          + '<div style="width:17px;height:17px;border-radius:4px;border:2px solid ' + (_qe1BoxOnly ? 'var(--accent2)' : 'var(--border)') + ';background:' + (_qe1BoxOnly ? 'var(--accent2)' : 'transparent') + ';display:flex;align-items:center;justify-content:center;font-size:0.68rem;color:white">' + (_qe1BoxOnly ? '\u2713' : '') + '</div>'
-        + '</button>'
-        + '<div style="visibility:hidden;font-size:0.55rem">·</div>'
-      + '</div>';
-    _qe1Wrap.appendChild(_qe1InputRow);
-
-    // ── Grouping buttons container ──
-    var _qe1GrpDiv = document.createElement('div');
-    _qe1GrpDiv.id = 'qe1-grouping';
-    _qe1GrpDiv.style.cssText = 'display:none';
-    _qe1Wrap.appendChild(_qe1GrpDiv);
+    // -- Summary chip: item + grouping locked from step 1 --
+    var _qe1ChipDiv = document.createElement('div');
+    var _qe1GrpLabels = { engine:'Engine only', engine_tender:'Engine + Tender', aa:'AA set', ab:'AB set', aba:'ABA set', a_powered:'A Powered', a_dummy:'A Dummy', single:'' };
+    var _qe1GrpLbl = _qe1BoxOnly ? 'Box only' : (_qe1GrpLabels[_qe1D._itemGrouping] || '');
+    var _qe1MatchDesc = '';
+    if (wizard.matchedItem) {
+      var _mRoad = wizard.matchedItem.roadName || '';
+      var _mType = wizard.matchedItem.itemType || '';
+      _qe1MatchDesc = (_mRoad && _mType && _mRoad !== _mType) ? _mRoad + ' ' + _mType : (_mType || _mRoad);
+    }
+    var _qe1ChipText = '<span style="font-family:var(--font-mono);font-weight:700;color:var(--accent2)">' + _qe1ItemNum + '</span>'
+      + (_qe1MatchDesc ? ' &middot; <span style="color:var(--text-mid)">' + _qe1MatchDesc.trim() + '</span>' : '')
+      + (_qe1GrpLbl ? ' &middot; <span style="color:' + (_qe1BoxOnly ? 'var(--accent2)' : 'var(--accent)') + ';font-weight:600">' + _qe1GrpLbl + '</span>' : '');
+    _qe1ChipDiv.style.cssText = 'display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border:1px solid var(--accent2);border-radius:8px;padding:0.5rem 0.8rem;gap:0.5rem';
+    _qe1ChipDiv.innerHTML = '<span style="font-size:0.88rem;line-height:1.3">' + _qe1ChipText + '</span>'
+      + '<button type="button" onclick="wizard.step=Math.max(0,wizard.step-1);renderWizardStep()" style="font-size:0.72rem;color:var(--text-dim);background:none;border:1px solid var(--border);border-radius:6px;padding:0.2rem 0.5rem;cursor:pointer;white-space:nowrap;font-family:var(--font-body);flex-shrink:0">&larr; Change</button>';
+    _qe1Wrap.appendChild(_qe1ChipDiv);
 
     // ── Sliders container ──
     var _qe1SlidersDiv = document.createElement('div');
@@ -1575,20 +1568,7 @@ function renderWizardStep() {
       _qe1RenderSliders();
       _qe1RenderPhotoBtn();
     };
-    window._qe1ToggleBoxOnly = function() {
-      // Flip boxOnly but do NOT call toggleBoxOnly() — that calls renderWizardStep()
-      // which blows away the QE screen. We just update state + UI in place.
-      wizard.data.boxOnly = !wizard.data.boxOnly;
-      var bo = wizard.data.boxOnly;
-      var btn = document.getElementById('qe1-boxonly-btn');
-      if (btn) {
-        btn.style.background = bo ? 'rgba(201,146,42,0.12)' : 'var(--surface2)';
-        btn.style.borderColor = bo ? 'var(--accent2)' : 'var(--border)';
-        btn.innerHTML = '<div style="width:17px;height:17px;border-radius:4px;border:2px solid ' + (bo ? 'var(--accent2)' : 'var(--border)') + ';background:' + (bo ? 'var(--accent2)' : 'transparent') + ';display:flex;align-items:center;justify-content:center;font-size:0.68rem;color:white">' + (bo ? '\u2713' : '') + '</div>';
-      }
-      // Re-render sliders so label updates to "Box Condition" when checked
-      _qe1RenderSliders();
-    };
+    // _qe1ToggleBoxOnly removed (box only now set on itemNumGrouping screen)
     window._qe1OnInput = function(val) {
       var num = val.trim();
       var inp = document.getElementById('wiz-input');
@@ -3250,13 +3230,6 @@ function renderWizardStep() {
     _ingPhotoBtn.style.cssText = 'width:100%;margin-top:0.6rem;padding:0.65rem 1rem;border-radius:8px;border:1.5px dashed var(--gold);background:rgba(212,168,67,0.07);color:var(--gold);font-family:var(--font-head);font-size:0.78rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;transition:all 0.15s';
     _ingPhotoBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Don\x27t know the number? Identify by photo';
     _ingWrap.appendChild(_ingPhotoBtn);
-    
-    // Box-only toggle
-    const _ingBoxLabel = document.createElement('label');
-    _ingBoxLabel.onclick = function() { toggleBoxOnly(); setTimeout(_updateGroupingButtons, 50); };
-    _ingBoxLabel.style.cssText = 'display:flex;align-items:center;gap:0.75rem;padding:0.85rem 1rem;margin-top:0.75rem;border-radius:10px;border:2px solid ' + (_ingBoxOnly ? 'var(--accent2)' : 'var(--border)') + ';background:' + (_ingBoxOnly ? 'rgba(201,146,42,0.1)' : 'var(--surface2)') + ';cursor:pointer;transition:all 0.15s';
-    _ingBoxLabel.innerHTML = '<div style="width:20px;height:20px;border-radius:5px;flex-shrink:0;border:2px solid ' + (_ingBoxOnly ? 'var(--accent2)' : 'var(--border)') + ';background:' + (_ingBoxOnly ? 'var(--accent2)' : 'transparent') + ';display:flex;align-items:center;justify-content:center;font-size:0.75rem;color:white;font-weight:700;transition:all 0.15s">' + (_ingBoxOnly ? '✓' : '') + '</div><div><div style="font-weight:600;font-size:0.9rem;color:var(--text)">Adding box info only</div><div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.1rem">I bought a separate box for this item</div></div>';
-    _ingWrap.appendChild(_ingBoxLabel);
     
     body.innerHTML = '';
     body.appendChild(_ingWrap);
