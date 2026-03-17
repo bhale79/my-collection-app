@@ -1250,7 +1250,15 @@ function renderWizardStep() {
 
     // ── Worth + photo button row ──
     var _qe1WorthRow = document.createElement('div');
-    _qe1WorthRow.style.cssText = 'display:flex;gap:0.4rem;align-items:stretch';
+    // Inject responsive style for worth row if not already present
+    if (!document.getElementById('qe1-worth-style')) {
+      var _ws = document.createElement('style');
+      _ws.id = 'qe1-worth-style';
+      _ws.textContent = '#qe1-worth-row{display:flex;gap:0.4rem;align-items:stretch}'
+        + '@media(max-width:640px){#qe1-worth-row{flex-direction:column}}';
+      document.head.appendChild(_ws);
+    }
+    _qe1WorthRow.id = 'qe1-worth-row';
     _qe1WorthRow.innerHTML =
       '<div style="flex:1;display:flex;flex-direction:column;gap:3px">'
         + '<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim)">Est. Worth</div>'
