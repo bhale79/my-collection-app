@@ -3375,12 +3375,6 @@ function renderWizardStep() {
       let html = '<div class="cd-col" style="flex:1;min-width:' + (_isMobile ? '100%' : '200px') + ';background:var(--surface2);border-radius:10px;padding:0.85rem;border:1px solid var(--border)">';
       html += '<div style="font-weight:700;font-size:0.85rem;color:var(--accent2);margin-bottom:0.75rem;padding-bottom:0.5rem;border-bottom:1px solid var(--border)">' + col.label + (col.sublabel ? ' <span style=\"font-weight:400;color:var(--text-dim);font-size:0.78rem\">(' + col.sublabel + ')</span>' : '') + '</div>';
       
-      // Condition slider
-      html += '<div style="margin-bottom:0.6rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Condition</div>';
-      html += '<div style="display:flex;align-items:center;gap:0.5rem"><span id="cd-cond-val-' + col.id + '" style="font-family:var(--font-head);font-size:1.5rem;color:var(--accent2);width:2rem;text-align:center">' + condVal + '</span>';
-      html += '<input type="range" min="1" max="10" value="' + condVal + '" style="flex:1;accent-color:var(--accent)" oninput="wizard.data[\'' + condKey + '\']=parseInt(this.value);document.getElementById(\'cd-cond-val-' + col.id + '\').textContent=this.value"></div>';
-      html += '<div style="display:flex;justify-content:space-between;font-size:0.65rem;color:var(--text-dim)"><span>Poor</span><span>Good</span><span>Exc</span><span>Mint</span></div></div>';
-      
       // All Original
       html += '<div style="margin-bottom:0.6rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">All Original?</div>';
       html += '<div style="display:flex;gap:0.3rem">';
@@ -3555,15 +3549,6 @@ function renderWizardStep() {
     if (!_pvIsSetOther) {
       _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">' + (_pvIsSetLoco ? 'Date Set Purchased' : 'Date Purchased') + '</div>';
       _pvHtml += '<div style="position:relative;display:flex;align-items:center"><input type="date" value="' + (_pvD.datePurchased || '') + '" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 2.5rem 0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box;color-scheme:dark" oninput="wizard.data.datePurchased=this.value" id="pvDate"><button type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById(&quot;pvDate&quot;).showPicker();" style="position:absolute;right:0.4rem;cursor:pointer;font-size:1rem;color:var(--accent2);background:none;border:none;padding:0.3rem;line-height:1;touch-action:manipulation">📅</button></div></div>';
-    }
-    
-    // Estimated worth
-    // Estimated worth — loco and normal only
-    if (!_pvIsSetOther) {
-      _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">' + (_pvIsSetLoco ? 'Estimated Worth of Whole Set (for insurance)' : 'Estimated Worth (for insurance purposes)') + '</div>';
-      _pvHtml += '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem">';
-      _pvHtml += '<span style="color:var(--text-dim);font-size:1.1rem">$</span>';
-      _pvHtml += '<input type="number" value="' + (_pvD.userEstWorth || '') + '" placeholder="0.00" min="0" step="0.01" style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem" oninput="wizard.data.userEstWorth=this.value"></div></div>';
     }
     
     // Location (if enabled)
