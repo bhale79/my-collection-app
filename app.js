@@ -2837,7 +2837,8 @@ function resetFilters() {
   document.getElementById('filter-type').value = '';
   document.getElementById('filter-road').value = '';
   updateFilterBadge();
-  if (state._browseTab && state._browseTab !== 'items') renderBrowseTab('items');
+  state._browseTab = 'items';
+  renderBrowseTab('items');
 }
 
 function filterOwned(qe) {
@@ -2871,6 +2872,9 @@ function filterOwned(qe) {
   var _leg = document.getElementById('collection-icon-legend');
   if (_leg) _leg.style.display = 'flex';
   renderBrowse();
+  // Update tab visibility for collection context
+  state._browseTab = 'items';
+  renderBrowseTab('items');
   // Show QE filter toggle in filter bar when in My Collection
   setTimeout(function() {
     var existing = document.getElementById('filter-quick-inline');
