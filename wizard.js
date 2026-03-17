@@ -620,6 +620,16 @@ function closeWizardOnOverlay(e) {
 // ── Wizard Consolidation Helpers ──
 
 function _updateGroupingButtons() {
+  // Ensure responsive styles are injected
+  if (!document.getElementById('qe1-worth-style')) {
+    var _ws2 = document.createElement('style');
+    _ws2.id = 'qe1-worth-style';
+    _ws2.textContent = '#qe1-worth-row{display:flex;gap:0.4rem;align-items:stretch}'
+      + '@media(max-width:640px){#qe1-worth-row{flex-direction:column}}'
+      + '.wiz-grp-btns-row{display:flex;flex-wrap:wrap;gap:0.35rem}'
+      + '@media(max-width:640px){.wiz-grp-btn{flex:1 1 calc(50% - 0.35rem) !important;min-width:0}}';
+    document.head.appendChild(_ws2);
+  }
   const container = document.getElementById('wiz-grouping-btns');
   if (!container) return;
   
@@ -676,16 +686,16 @@ function _updateGroupingButtons() {
   if (buttons.length === 0 && !_boxSelected) wizard.data._itemGrouping = 'single';
   
   let html = '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.4rem">How are you entering this item?</div>';
-  html += '<div style="display:flex;flex-wrap:wrap;gap:0.35rem">';
+  html += '<div class="wiz-grp-btns-row" style="display:flex;flex-wrap:wrap;gap:0.35rem">';
   buttons.forEach(function(btn) {
     const sel = !_boxSelected && current === btn.id;
-    html += '<button onclick="_selectGrouping(\'' + btn.id + '\')" style="flex:1;min-width:0;padding:0.5rem 0.6rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:var(--font-body);white-space:nowrap;'
+    html += '<button class="wiz-grp-btn" onclick="_selectGrouping(\'' + btn.id + '\')" style="flex:1;min-width:0;padding:0.5rem 0.6rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:var(--font-body);white-space:nowrap;'
       + 'border:2px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';'
       + 'background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--surface2)') + ';'
       + 'color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + '">'
       + btn.label + '</button>';
   });
-  html += '<button onclick="_selectBoxOnly()" style="flex:1;min-width:0;padding:0.5rem 0.6rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:var(--font-body);white-space:nowrap;'
+  html += '<button class="wiz-grp-btn" onclick="_selectBoxOnly()" style="flex:1;min-width:0;padding:0.5rem 0.6rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:var(--font-body);white-space:nowrap;'
     + 'border:2px solid ' + (_boxSelected ? 'var(--accent2)' : 'var(--border)') + ';'
     + 'background:' + (_boxSelected ? 'rgba(201,146,42,0.12)' : 'var(--surface2)') + ';'
     + 'color:' + (_boxSelected ? 'var(--accent2)' : 'var(--text-mid)') + '">Box only</button>';
@@ -1255,7 +1265,9 @@ function renderWizardStep() {
       var _ws = document.createElement('style');
       _ws.id = 'qe1-worth-style';
       _ws.textContent = '#qe1-worth-row{display:flex;gap:0.4rem;align-items:stretch}'
-        + '@media(max-width:640px){#qe1-worth-row{flex-direction:column}}';
+        + '@media(max-width:640px){#qe1-worth-row{flex-direction:column}}'
+        + '.wiz-grp-btns-row{display:flex;flex-wrap:wrap;gap:0.35rem}'
+        + '@media(max-width:640px){.wiz-grp-btn{flex:1 1 calc(50% - 0.35rem) !important;min-width:0}}';
       document.head.appendChild(_ws);
     }
     _qe1WorthRow.id = 'qe1-worth-row';
