@@ -100,7 +100,7 @@ function isF3AlcoUnit(itemNum) {
   const num = normalizeItemNum(itemNum).replace(/C$/i, '');
   return state.masterData.some(m =>
     normalizeItemNum(m.itemNum) === num &&
-    (m.subType || '').match(/F3|Alco/i)
+    (m.subType || '').match(/F-?3|Alco/i)
   );
 }
 function nextInventoryId() {
