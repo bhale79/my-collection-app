@@ -161,6 +161,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
           <button id="btab-sets"     onclick="renderBrowseTab('sets')"     style="padding:0.5rem 1.1rem;font-size:0.82rem;font-weight:600;font-family:var(--font-body);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-dim);cursor:pointer">Sets</button>
           <button id="btab-catalogs" onclick="renderBrowseTab('catalogs')" style="padding:0.5rem 1.1rem;font-size:0.82rem;font-weight:600;font-family:var(--font-body);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-dim);cursor:pointer">Catalogs</button>
           <button id="btab-is"       onclick="renderBrowseTab('is')"       style="padding:0.5rem 1.1rem;font-size:0.82rem;font-weight:600;font-family:var(--font-body);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-dim);cursor:pointer">Instr. Sheets</button>
+          <button id="btab-mockups"  onclick="renderBrowseTab('mockups')"  style="display:none;padding:0.5rem 1.1rem;font-size:0.82rem;font-weight:600;font-family:var(--font-body);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-dim);cursor:pointer">Mock-ups &amp; Other Items</button>
         </div>
 
         <div id="disclaimer-browse" style="display:flex;align-items:flex-start;gap:0.6rem;background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.35);border-radius:9px;padding:0.6rem 0.85rem;margin-bottom:0.85rem;font-size:0.78rem;color:var(--text-dim);line-height:1.55">
@@ -237,6 +238,16 @@ document.addEventListener('touchmove', function(){}, {passive: true});
           </div>
           <div class="table-wrap" style="max-height:calc(100vh - 240px);overflow-y:auto">
             <table class="item-table"><thead><tr><th>IS ID</th><th>Item #</th><th>Description</th><th>Category</th><th>Variations</th></tr></thead><tbody id="is-tbody"></tbody></table>
+          </div>
+        </div>
+
+        <div id="browse-mockups-panel" style="display:none">
+          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem">
+            <input id="mockups-search" type="text" placeholder="Search mock-ups and other items…" oninput="renderMockupsOtherTab()" style="border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:0.35rem 0.65rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;width:280px">
+            <span id="mockups-count" style="font-size:0.8rem;color:var(--text-dim);margin-left:auto"></span>
+          </div>
+          <div class="table-wrap" style="max-height:calc(100vh - 240px);overflow-y:auto">
+            <table class="item-table"><thead><tr><th>Type</th><th>Title / ID</th><th>Description</th><th>Year</th><th>Condition</th><th>Est. Value</th></tr></thead><tbody id="mockups-tbody"></tbody></table>
           </div>
         </div>
 
