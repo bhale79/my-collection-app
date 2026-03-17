@@ -298,10 +298,6 @@ function _buildAppShell() {
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>' +
         'Postwar Master List<span class="nav-badge" id="nav-total" style="background:#f8e8c0;color:#1a1a1a">\u2014</span>' +
       '</button>' +
-      '<button class="nav-item" onclick="showPage(\'sets\', this); buildSetsPage();" data-ctip="Browse complete sets and see which components you already own.">' +
-        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>' +
-        'Postwar Set Master List<span class="nav-badge" id="nav-sets-count" style="background:#f8e8c0;color:#1a1a1a">\u2014</span>' +
-      '</button>' +
       '<button class="nav-item" onclick="showPage(\'browse\', this); filterOwned()" data-ctip="This is your inventory list.">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>' +
         'My Collection List<span class="nav-badge" id="nav-owned" style="background:#f8e8c0;color:#1a1a1a">\u2014</span>' +
@@ -3058,10 +3054,20 @@ let _lastBrowseHash = '';
 
 // ── Browse Tab Controller ─────────────────────────────────────────────────────
 function renderBrowseTab(tab) {
+  const inCollection = !!state.filters.owned;
+  if (tab === 'is' && inCollection) tab = 'items';
+  if (tab === 'mockups' && !inCollection) tab = 'items';
   state._browseTab = tab || 'items';
 
-  // Update tab button styles
-  const tabs = { items: 'btab-items', sets: 'btab-sets', catalogs: 'btab-catalogs', is: 'btab-is' };
+  // IS tab: master catalog only. Mockups tab: collection only.
+  const isBtn = document.getElementById('btab-is');
+  if (isBtn) isBtn.style.display = inCollection ? 'none' : '';
+  const moBtn = document.getElementById('btab-mockups');
+  if (moBtn) moBtn.style.display = inCollection ? '' : 'none';
+  const catBtn = document.getElementById('btab-catalogs');
+  if (catBtn) catBtn.textContent = inCollection ? 'My Catalogs & Paper Items' : 'Catalogs';
+
+  const tabs = { items:'btab-items', sets:'btab-sets', catalogs:'btab-catalogs', is:'btab-is', mockups:'btab-mockups' };
   Object.entries(tabs).forEach(([key, id]) => {
     const btn = document.getElementById(id);
     if (!btn) return;
@@ -3070,32 +3076,30 @@ function renderBrowseTab(tab) {
     btn.style.color = active ? 'var(--accent)' : 'var(--text-dim)';
   });
 
-  // Show/hide panels
-  const panels = { items: 'browse-items-panel', sets: 'browse-sets-panel', catalogs: 'browse-catalogs-panel', is: 'browse-is-panel' };
+  const panels = { items:'browse-items-panel', sets:'browse-sets-panel', catalogs:'browse-catalogs-panel', is:'browse-is-panel', mockups:'browse-mockups-panel' };
   Object.entries(panels).forEach(([key, id]) => {
     const el = document.getElementById(id);
     if (el) el.style.display = key === state._browseTab ? '' : 'none';
   });
 
-  // Show/hide filter bar and disclaimer (only on Items tab)
   const filterBar = document.querySelector('#page-browse .filter-bar');
   const disclaimer = document.getElementById('disclaimer-browse');
   const identBtn = document.getElementById('identify-btn');
   const onItems = state._browseTab === 'items';
   if (filterBar) filterBar.style.display = onItems ? '' : 'none';
   if (disclaimer) disclaimer.style.display = onItems ? '' : 'none';
-  if (identBtn) identBtn.style.display = onItems ? '' : 'none';
+  if (identBtn) identBtn.style.display = inCollection ? 'none' : (onItems ? '' : 'none');
 
-  // Update page title
   const titleEl = document.getElementById('browse-page-title');
-  const titles = { items: 'Master Catalog', sets: 'Set Master List', catalogs: 'Catalog List', is: 'Instruction Sheet List' };
-  if (titleEl) titleEl.textContent = titles[state._browseTab] || 'Master Catalog';
+  const mTitles = { items:'Master Catalog', sets:'Set Master List', catalogs:'Catalog List', is:'Instruction Sheet List' };
+  const cTitles = { items:'My Collection', sets:'My Sets', catalogs:'My Catalogs & Paper Items', mockups:'My Mock-ups & Other Items' };
+  if (titleEl) titleEl.textContent = (inCollection ? cTitles : mTitles)[state._browseTab] || 'Master Catalog';
 
-  // Render the active tab
   if (state._browseTab === 'items') renderBrowse();
   else if (state._browseTab === 'sets') renderSetsTab();
   else if (state._browseTab === 'catalogs') renderCatalogsTab();
   else if (state._browseTab === 'is') renderISTab();
+  else if (state._browseTab === 'mockups') renderMockupsOtherTab();
 }
 
 function renderSetsTab() {
