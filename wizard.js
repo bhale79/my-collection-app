@@ -1206,163 +1206,444 @@ function renderWizardStep() {
     }, 50);
 
   } else if (s.type === 'entryMode') {
-    const lbl = getItemLabel(wizard.data);
-    const itemNum = (wizard.data.itemNum || '').trim();
-    const wrap = document.createElement('div');
-    wrap.style.cssText = 'padding-top:0.75rem;display:flex;flex-direction:column;gap:0.75rem';
+    // ── QE Step 1: Combined item number + condition + save screen ──
+    var _qe1D = wizard.data;
+    var _qe1ItemNum = (_qe1D.itemNum || '').trim();
+    var _qe1BoxOnly = _qe1D.boxOnly || false;
 
-    // Full Entry card
-    const fullCard = document.createElement('button');
-    fullCard.style.cssText = 'width:100%;padding:1.1rem 1.25rem;border-radius:14px;text-align:left;cursor:pointer;font-family:var(--font-body);transition:all 0.15s;border:2px solid var(--border);background:var(--surface2);display:flex;align-items:flex-start;gap:1rem';
-    fullCard.innerHTML = '<div style="font-size:2rem;flex-shrink:0;line-height:1">📋</div>'
-      + '<div><div style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:0.2rem">Full Entry</div>'
-      + '<div style="font-size:0.82rem;color:var(--text-mid);line-height:1.5">Answer all questions and add photos.<br>Best for a complete record.</div></div>';
-    fullCard.onclick = function() {
+    // Icon paths (files live in repo root, served via GitHub Pages)
+    var _qe1Icons = {
+      engine:    './Engine.png',
+      tender:    './tender_icon.png',
+      a_powered: './A_unit__Powered.jpg',
+      a_dummy:   './A_unit__Dummy.png',
+      b_unit:    './B_Unit.png',
+      freight:   './freight_car.png',
+    };
+
+    // ── Outer wrapper ──
+    var _qe1Wrap = document.createElement('div');
+    _qe1Wrap.style.cssText = 'padding-top:0.5rem;display:flex;flex-direction:column;gap:0.55rem';
+
+    // ── Row 1: Item number | ID photo | Box only ──
+    var _qe1InputRow = document.createElement('div');
+    _qe1InputRow.style.cssText = 'display:flex;gap:0.4rem;align-items:flex-start';
+    _qe1InputRow.innerHTML =
+      '<div style="flex:1;display:flex;flex-direction:column;gap:0">'
+        + '<input type="text" id="wiz-input" value="' + _qe1ItemNum + '" placeholder="Item number" autocomplete="off"'
+        + ' style="width:100%;background:var(--bg);border:1.5px solid ' + (_qe1ItemNum ? 'var(--accent2)' : 'var(--border)') + ';border-radius:8px;'
+        + 'padding:0.65rem 0.8rem;color:var(--text);font-family:var(--font-mono);font-size:1rem;outline:none;box-sizing:border-box"'
+        + ' oninput="wizard.data.itemNum=this.value;if(window._qe1OnInput)window._qe1OnInput(this.value)"'
+        + ' onkeydown="handleSuggestionKey(event)">'
+        + '<div id="qe1-match" style="margin-top:4px;font-size:0.78rem;color:var(--accent2);min-height:1rem"></div>'
+        + '<div id="wiz-suggestions" style="display:none;flex-direction:column;gap:1px;margin-top:4px;max-height:220px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;-webkit-overflow-scrolling:touch"></div>'
+      + '</div>'
+      + '<div style="display:flex;flex-direction:column;gap:2px">'
+        + '<div style="font-size:0.58rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);text-align:center">ID Photo</div>'
+        + '<button type="button" onclick="openIdentify(\'wizard\')" style="width:54px;height:42px;background:var(--surface2);border:1.5px dashed var(--gold);border-radius:8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:0">'
+          + '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>'
+          + '<span style="font-size:0.55rem;color:var(--gold)">Identify</span>'
+        + '</button>'
+        + '<div style="visibility:hidden;font-size:0.55rem">·</div>'
+      + '</div>'
+      + '<div style="display:flex;flex-direction:column;gap:2px">'
+        + '<div style="font-size:0.58rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);text-align:center">Box Only</div>'
+        + '<button type="button" id="qe1-boxonly-btn" onclick="_qe1ToggleBoxOnly()"'
+          + ' style="width:54px;height:42px;background:' + (_qe1BoxOnly ? 'rgba(201,146,42,0.12)' : 'var(--surface2)') + ';border:1.5px solid ' + (_qe1BoxOnly ? 'var(--accent2)' : 'var(--border)') + ';border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center">'
+          + '<div style="width:17px;height:17px;border-radius:4px;border:2px solid ' + (_qe1BoxOnly ? 'var(--accent2)' : 'var(--border)') + ';background:' + (_qe1BoxOnly ? 'var(--accent2)' : 'transparent') + ';display:flex;align-items:center;justify-content:center;font-size:0.68rem;color:white">' + (_qe1BoxOnly ? '\u2713' : '') + '</div>'
+        + '</button>'
+        + '<div style="visibility:hidden;font-size:0.55rem">·</div>'
+      + '</div>';
+    _qe1Wrap.appendChild(_qe1InputRow);
+
+    // ── Grouping buttons container ──
+    var _qe1GrpDiv = document.createElement('div');
+    _qe1GrpDiv.id = 'qe1-grouping';
+    _qe1GrpDiv.style.cssText = 'display:none';
+    _qe1Wrap.appendChild(_qe1GrpDiv);
+
+    // ── Sliders container ──
+    var _qe1SlidersDiv = document.createElement('div');
+    _qe1SlidersDiv.id = 'qe1-sliders';
+    _qe1Wrap.appendChild(_qe1SlidersDiv);
+
+    // ── Photo checkbox ──
+    var _qe1PhotoCbRow = document.createElement('label');
+    _qe1PhotoCbRow.style.cssText = 'display:flex;align-items:center;gap:0.45rem;cursor:pointer;user-select:none';
+    var _qe1PhotoCb = document.createElement('input');
+    _qe1PhotoCb.type = 'checkbox';
+    _qe1PhotoCb.id = 'qe1-photo-cb';
+    _qe1PhotoCb.checked = localStorage.getItem('lv_qe_photo') !== 'false';
+    _qe1PhotoCb.style.cssText = 'width:15px;height:15px;accent-color:#3a9e68;cursor:pointer;flex-shrink:0';
+    _qe1PhotoCb.addEventListener('change', function() {
+      localStorage.setItem('lv_qe_photo', _qe1PhotoCb.checked ? 'true' : 'false');
+      _qe1RenderPhotoBtn();
+    });
+    var _qe1PhotoCbLbl = document.createElement('span');
+    _qe1PhotoCbLbl.textContent = 'Add photo';
+    _qe1PhotoCbLbl.style.cssText = 'font-size:0.82rem;color:var(--text-mid)';
+    var _qe1PhotoCbHint = document.createElement('span');
+    _qe1PhotoCbHint.textContent = '(persists until unchecked)';
+    _qe1PhotoCbHint.style.cssText = 'font-size:0.72rem;color:var(--text-dim)';
+    _qe1PhotoCbRow.appendChild(_qe1PhotoCb);
+    _qe1PhotoCbRow.appendChild(_qe1PhotoCbLbl);
+    _qe1PhotoCbRow.appendChild(_qe1PhotoCbHint);
+    _qe1Wrap.appendChild(_qe1PhotoCbRow);
+
+    // ── Worth + photo button row ──
+    var _qe1WorthRow = document.createElement('div');
+    _qe1WorthRow.style.cssText = 'display:flex;gap:0.4rem;align-items:stretch';
+    _qe1WorthRow.innerHTML =
+      '<div style="flex:1;display:flex;flex-direction:column;gap:3px">'
+        + '<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim)">Est. Worth</div>'
+        + '<div style="display:flex;align-items:center;gap:0.4rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.45rem 0.6rem;flex:1">'
+          + '<span style="color:var(--text-dim);font-size:0.85rem">$</span>'
+          + '<input type="number" id="qe1-worth" placeholder="0.00" min="0" step="0.01"'
+          + ' style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:0.9rem;min-width:0"'
+          + ' onclick="event.stopPropagation()">'
+        + '</div>'
+      + '</div>'
+      + '<div style="flex:1;display:flex;flex-direction:column;gap:3px">'
+        + '<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);visibility:hidden">\xb7</div>'
+        + '<div id="qe1-photo-btn-inner" style="flex:1"></div>'
+      + '</div>';
+    _qe1Wrap.appendChild(_qe1WorthRow);
+
+    // ── Hidden file inputs ──
+    var _qe1FilesDiv = document.createElement('div');
+    _qe1FilesDiv.style.display = 'none';
+    _qe1FilesDiv.innerHTML =
+      '<input type="file" id="qe1-file-engine" accept="image/*" capture="environment">'
+    + '<input type="file" id="qe1-file-tender" accept="image/*" capture="environment">'
+    + '<input type="file" id="qe1-file-u2" accept="image/*" capture="environment">'
+    + '<input type="file" id="qe1-file-u3" accept="image/*" capture="environment">';
+    _qe1Wrap.appendChild(_qe1FilesDiv);
+
+    // ── Action buttons ──
+    var _qe1ActionRow = document.createElement('div');
+    _qe1ActionRow.style.cssText = 'display:flex;gap:0.4rem;margin-top:0.15rem';
+
+    var _qe1SaveBtn = document.createElement('button');
+    _qe1SaveBtn.id = 'qe1-save-btn';
+    _qe1SaveBtn.type = 'button';
+    _qe1SaveBtn.style.cssText = 'flex:1;padding:0.7rem;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-size:0.86rem;font-weight:600;cursor:pointer';
+    _qe1SaveBtn.textContent = '\u26a1 Save quick entry';
+    _qe1SaveBtn.onclick = function() {
+      if (wizard.data._qeSaving) return;
+      var wv = document.getElementById('qe1-worth');
+      if (wv && wv.value) wizard.data._qeEstWorth = wv.value;
+      var sl = document.getElementById('qe1-slider-lead');
+      if (sl) wizard.data._qeCondition = parseInt(sl.value) || '';
+      var ts = document.getElementById('qe1-slider-tender');
+      if (ts) wizard.data._qeTenderCondition = parseInt(ts.value) || '';
+      var u2s = document.getElementById('qe1-slider-u2');
+      if (u2s) wizard.data._qeUnit2Condition = parseInt(u2s.value) || '';
+      var u3s = document.getElementById('qe1-slider-u3');
+      if (u3s) wizard.data._qeUnit3Condition = parseInt(u3s.value) || '';
+      wizard.data._qeSaving = true;
+      _qe1SaveBtn.disabled = true;
+      _qe1SaveBtn.textContent = 'Saving\u2026';
+      quickEntryAdd().catch(function(err) {
+        wizard.data._qeSaving = false;
+        _qe1SaveBtn.disabled = false;
+        _qe1SaveBtn.textContent = '\u26a1 Save quick entry';
+        console.error('[QE1] Error:', err);
+        showToast('\u274c Save failed: ' + err.message, 6000, true);
+      });
+    };
+
+    var _qe1FullBtn = document.createElement('button');
+    _qe1FullBtn.type = 'button';
+    _qe1FullBtn.style.cssText = 'flex:1;padding:0.7rem;border-radius:10px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.86rem;font-weight:700;cursor:pointer';
+    _qe1FullBtn.textContent = 'Full entry \u2192';
+    _qe1FullBtn.onclick = function() {
       wizard.data.entryMode = 'full';
       renderWizardStep();
       setTimeout(function() { wizardNext(); }, 120);
     };
 
-    // Quick Entry card — div with checkboxes and optional mini-step
-    const quickCard = document.createElement('div');
-    quickCard.style.cssText = 'width:100%;padding:1.1rem 1.25rem;border-radius:14px;font-family:var(--font-body);transition:all 0.15s;border:2px solid #1e3a5f;background:rgba(30,58,95,0.07)';
+    _qe1ActionRow.appendChild(_qe1SaveBtn);
+    _qe1ActionRow.appendChild(_qe1FullBtn);
+    _qe1Wrap.appendChild(_qe1ActionRow);
 
-    const qcTop = document.createElement('div');
-    qcTop.style.cssText = 'display:flex;align-items:flex-start;gap:1rem;cursor:pointer';
-    qcTop.innerHTML = '<div style="font-size:2rem;flex-shrink:0;line-height:1">⚡</div>'
-      + '<div><div style="font-size:1rem;font-weight:700;color:#1e3a5f;margin-bottom:0.2rem">Quick Entry</div>'
-      + '<div style="font-size:0.82rem;color:var(--text-mid);line-height:1.5">Just save the item number now.<br>You can fill in the details later — use the ⚡ Quick Entry filter to find it.</div></div>';
+    body.innerHTML = '';
+    body.appendChild(_qe1Wrap);
 
-    function _mkQeCheckbox(storageKey, emoji, label) {
-      var row = document.createElement('label');
-      row.style.cssText = 'display:inline-flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.8rem;color:var(--text-mid);user-select:none';
-      var cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.checked = localStorage.getItem(storageKey) === 'true';
-      cb.style.cssText = 'width:15px;height:15px;accent-color:var(--accent2);cursor:pointer;flex-shrink:0';
-      cb.addEventListener('click', function(e) { e.stopPropagation(); localStorage.setItem(storageKey, cb.checked ? 'true' : 'false'); });
-      row.appendChild(cb);
-      row.appendChild(document.createTextNode(' ' + emoji + ' ' + label));
-      return { el: row, cb: cb };
+    // ── Inner helpers (closures over _qe1Icons, wizard.data, etc.) ──
+
+    // Grouping data mutation without auto-advance
+    function _selectGroupingData(gid) {
+      wizard.data._itemGrouping = gid;
+      var n = (wizard.data.itemNum || '').trim();
+      if (gid === 'engine') {
+        wizard.data.tenderMatch = 'none'; wizard.data.setMatch = ''; wizard.data.unitPower = '';
+      } else if (gid === 'engine_tender') {
+        var _t = getMatchingTenders(n); wizard.data.tenderMatch = _t.length > 0 ? _t[0] : ''; wizard.data.setMatch = ''; wizard.data.unitPower = '';
+      } else if (gid === 'a_powered') {
+        wizard.data.unitPower = 'Powered'; wizard.data.setMatch = 'standalone'; wizard.data.tenderMatch = '';
+      } else if (gid === 'a_dummy') {
+        wizard.data.unitPower = 'Dummy'; wizard.data.setMatch = 'standalone'; wizard.data.tenderMatch = '';
+      } else if (gid === 'aa') {
+        wizard.data.unitPower = 'Powered'; wizard.data.setMatch = 'set-now'; wizard.data.setType = 'AA';
+        wizard.data._setId = genSetId(n); wizard.data.unit2ItemNum = n; wizard.data.unit2Power = 'Dummy'; wizard.data.tenderMatch = '';
+      } else if (gid === 'ab') {
+        wizard.data.unitPower = 'Powered'; wizard.data.setMatch = 'set-now'; wizard.data.setType = 'AB';
+        wizard.data._setId = genSetId(n); wizard.data.unit2ItemNum = getSetPartner(n) || (n + 'C'); wizard.data.tenderMatch = '';
+      } else if (gid === 'aba') {
+        wizard.data.unitPower = 'Powered'; wizard.data.setMatch = 'set-now'; wizard.data.setType = 'ABA';
+        wizard.data._setId = genSetId(n); wizard.data.unit2ItemNum = getSetPartner(n) || (n + 'C');
+        wizard.data.unit3ItemNum = n; wizard.data.unit3Power = 'Dummy'; wizard.data.tenderMatch = '';
+      } else {
+        wizard.data._itemGrouping = 'single'; wizard.data.tenderMatch = ''; wizard.data.setMatch = ''; wizard.data.unitPower = '';
+      }
     }
 
-    var qcCbRow = document.createElement('div');
-    qcCbRow.style.cssText = 'display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.65rem;padding-top:0.55rem;border-top:1px solid rgba(30,58,95,0.25)';
-    var worthCheck = _mkQeCheckbox('lv_qe_worth', '💰', 'Est. Worth');
-    qcCbRow.appendChild(worthCheck.el);
-    var photoCheck = _mkQeCheckbox('lv_qe_photo', '📷', 'Add Photo');
-    qcCbRow.appendChild(photoCheck.el);
-
-    var qcMiniStep = document.createElement('div');
-    qcMiniStep.style.cssText = 'display:none;margin-top:0.65rem;padding-top:0.65rem;border-top:1px solid rgba(30,58,95,0.3)';
-
-    var qcWorthWrap = document.createElement('div');
-    qcWorthWrap.style.cssText = 'display:none;margin-bottom:0.55rem';
-    qcWorthWrap.innerHTML = '<div style="font-size:0.68rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.25rem">Est. Worth ($)</div>'
-      + '<div style="display:flex;align-items:center;gap:0.4rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.45rem 0.7rem">'
-      + '<span style="color:var(--text-dim)">$</span>'
-      + '<input type="number" id="qe-worth-input" placeholder="0.00" min="0" step="0.01" style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:0.95rem" onclick="event.stopPropagation()">'
-      + '</div>';
-    qcMiniStep.appendChild(qcWorthWrap);
-
-    var qcPhotoWrap = document.createElement('div');
-    qcPhotoWrap.style.cssText = 'display:none;margin-bottom:0.55rem';
-
-    var qcPhotoLabel = document.createElement('div');
-    qcPhotoLabel.style.cssText = 'font-size:0.68rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.25rem';
-    qcPhotoLabel.textContent = '📷 Photo';
-    qcPhotoWrap.appendChild(qcPhotoLabel);
-
-    var qcPhotoInput = document.createElement('input');
-    qcPhotoInput.type = 'file';
-    qcPhotoInput.id = 'qe-photo-input';
-    qcPhotoInput.accept = 'image/*';
-    qcPhotoInput.setAttribute('capture', 'environment');
-    qcPhotoInput.style.display = 'none';
-    qcPhotoInput.addEventListener('click', function(e) { e.stopPropagation(); });
-    qcPhotoInput.addEventListener('change', function() {
-      if (this.files && this.files[0]) {
-        wizard.data._qePhotoFile = this.files[0];
-        qcPhotoBtn.textContent = '📷 ' + this.files[0].name;
-        qcPhotoBtn.style.borderColor = '#3a9e68';
-        qcPhotoBtn.style.color = '#3a9e68';
-        qcPhotoStatus.style.display = 'block';
+    // Render grouping buttons (no auto-advance)
+    function _qe1RenderGrouping() {
+      var cont = document.getElementById('qe1-grouping');
+      if (!cont) return;
+      var num = (wizard.data.itemNum || '').trim();
+      if (!num) { cont.style.display = 'none'; return; }
+      var hasTenders = getMatchingTenders(num).length > 0;
+      var isF3 = isF3AlcoUnit(num);
+      var isBU = num.endsWith('C');
+      var btns = [];
+      if (hasTenders && !isF3) {
+        btns = [{ id: 'engine', label: 'Engine only' }, { id: 'engine_tender', label: 'Engine + Tender' }];
+      } else if (isF3 && !isBU) {
+        btns = [{ id: 'a_powered', label: 'A Powered' }, { id: 'a_dummy', label: 'A Dummy' }, { id: 'aa', label: 'AA set' }, { id: 'ab', label: 'AB set' }, { id: 'aba', label: 'ABA set' }];
       }
-    });
-    qcPhotoWrap.appendChild(qcPhotoInput);
-
-    var qcPhotoBtn = document.createElement('button');
-    qcPhotoBtn.id = 'qe-photo-btn';
-    qcPhotoBtn.type = 'button';
-    qcPhotoBtn.textContent = '📷 Tap to take photo';
-    qcPhotoBtn.style.cssText = 'width:100%;padding:0.55rem 0.8rem;border-radius:9px;border:1.5px dashed var(--border);background:var(--bg);color:var(--text-mid);font-family:var(--font-body);font-size:0.88rem;cursor:pointer;text-align:left';
-    qcPhotoBtn.addEventListener('click', function(e) {
-      e.stopPropagation();
-      qcPhotoInput.click();
-    });
-    qcPhotoWrap.appendChild(qcPhotoBtn);
-
-    var qcPhotoStatus = document.createElement('div');
-    qcPhotoStatus.style.cssText = 'display:none;margin-top:0.35rem;font-size:0.78rem;color:#3a9e68;font-weight:600';
-    qcPhotoStatus.textContent = '✓ Photo ready';
-    qcPhotoWrap.appendChild(qcPhotoStatus);
-
-    qcMiniStep.appendChild(qcPhotoWrap);
-
-    var qcConfirmBtn = document.createElement('button');
-    qcConfirmBtn.textContent = '⚡ Confirm & Save';
-    qcConfirmBtn.style.cssText = 'width:100%;padding:0.6rem;border-radius:9px;border:none;background:#1e3a5f;color:white;font-family:var(--font-body);font-size:0.9rem;font-weight:700;cursor:pointer;margin-top:0.1rem';
-    qcConfirmBtn.onclick = function(e) {
-      e.stopPropagation();
-      if (wizard.data._qeSaving) return;
-      wizard.data._qeSaving = true;
-      qcConfirmBtn.disabled = true;
-      qcConfirmBtn.textContent = 'Saving…';
-      var wv = document.getElementById('qe-worth-input');
-      if (wv && wv.value) wizard.data._qeEstWorth = wv.value;
-      // _qePhotoFile already set by qcPhotoInput change listener above
-      quickEntryAdd().catch(function(err) {
-        wizard.data._qeSaving = false;
-        qcConfirmBtn.disabled = false;
-        qcConfirmBtn.textContent = '⚡ Confirm & Save';
-        console.error('[QE] Uncaught error:', err);
-        showToast('❌ Quick Entry failed: ' + err.message, 6000, true);
+      if (!btns.length) { cont.style.display = 'none'; return; }
+      cont.style.display = 'block';
+      var cur = wizard.data._itemGrouping || '';
+      var html = '<div style="display:flex;flex-wrap:wrap;gap:0.3rem">';
+      btns.forEach(function(b) {
+        var sel = cur === b.id;
+        html += '<button type="button" onclick="_qe1SelectGrouping(\'' + b.id + '\')" style="padding:0.38rem 0.7rem;border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:var(--font-body);'
+          + 'border:2px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';'
+          + 'background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--surface2)') + ';'
+          + 'color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + '">' + b.label + '</button>';
       });
-    };
-    qcMiniStep.appendChild(qcConfirmBtn);
+      html += '</div>';
+      cont.innerHTML = html;
+    }
 
-    qcTop.onclick = function() {
-      if (wizard.data._qeSaving) return;
-      var needsWorth = worthCheck.cb.checked;
-      var needsPhoto = photoCheck && photoCheck.cb.checked;
-      if (!needsWorth && !needsPhoto) {
-        wizard.data._qeSaving = true;
-        quickCard.style.opacity = '0.55';
-        quickCard.style.pointerEvents = 'none';
-        wizard.data.entryMode = 'quick';
-        quickEntryAdd().catch(function(err) {
-          wizard.data._qeSaving = false;
-          quickCard.style.opacity = '';
-          quickCard.style.pointerEvents = '';
-          console.error('[QE] Uncaught error:', err);
-          showToast('❌ Quick Entry failed: ' + err.message, 6000, true);
+    // Render condition sliders
+    function _qe1RenderSliders() {
+      var cont = document.getElementById('qe1-sliders');
+      if (!cont) return;
+      var grp = wizard.data._itemGrouping || 'single';
+      var defCond = parseInt(localStorage.getItem('lv_default_cond') || '7');
+
+      function _sl(slId, iconKey, label, accent, imgStyle) {
+        var cur = wizard.data[slId] || defCond;
+        var imgExtra = imgStyle ? ';' + imgStyle : '';
+        return '<div style="margin-bottom:0.4rem">'
+          + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">'
+          + '<div style="display:flex;align-items:center;gap:5px;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim)">'
+          + '<img src="' + _qe1Icons[iconKey] + '" style="height:17px;width:auto;flex-shrink:0' + imgExtra + '" onerror="this.style.opacity=\'0.3\'">'
+          + label + '</div>'
+          + '<span id="qe1v-' + slId + '" style="font-size:0.82rem;font-weight:700;color:' + accent + '">' + cur + '</span>'
+          + '</div>'
+          + '<input type="range" id="' + slId + '" min="1" max="10" value="' + cur + '" style="width:100%;accent-color:' + accent + '"'
+          + ' oninput="wizard.data[\'' + slId + '\']=parseInt(this.value);var v=document.getElementById(\'qe1v-' + slId + '\');if(v)v.textContent=this.value">'
+          + '</div>';
+      }
+
+      var html = '';
+      if (grp === 'engine_tender') {
+        html += _sl('qe1-slider-lead', 'engine', 'Engine', '#d4a843', '');
+        html += _sl('qe1-slider-tender', 'tender', 'Tender', '#8b5cf6', '');
+      } else if (grp === 'aa') {
+        html += _sl('qe1-slider-lead', 'a_powered', 'A Powered', '#d4a843', '');
+        html += _sl('qe1-slider-u2', 'a_dummy', 'A Dummy', '#6a5e48', 'opacity:0.65');
+      } else if (grp === 'ab') {
+        html += _sl('qe1-slider-lead', 'a_powered', 'A Powered', '#d4a843', '');
+        html += _sl('qe1-slider-u2', 'b_unit', 'B Unit', '#8b5cf6', '');
+      } else if (grp === 'aba') {
+        html += _sl('qe1-slider-lead', 'a_powered', 'A Powered', '#d4a843', '');
+        html += _sl('qe1-slider-u2', 'b_unit', 'B Unit', '#8b5cf6', '');
+        html += _sl('qe1-slider-u3', 'a_dummy', 'A Dummy', '#6a5e48', 'opacity:0.65');
+      } else if (grp === 'a_powered') {
+        html += _sl('qe1-slider-lead', 'a_powered', 'Condition', '#d4a843', '');
+      } else if (grp === 'a_dummy') {
+        html += _sl('qe1-slider-lead', 'a_dummy', 'Condition', '#6a5e48', 'opacity:0.65');
+      } else {
+        var iconKey = 'engine';
+        var _mi = wizard.matchedItem;
+        if (_mi) {
+          var _mt = (_mi.itemType || '').toLowerCase();
+          if (_mt.indexOf('tender') >= 0) iconKey = 'tender';
+          else if (_mt.indexOf('freight') >= 0 || _mt.indexOf(' car') >= 0) iconKey = 'freight';
+        }
+        html += _sl('qe1-slider-lead', iconKey, 'Condition', '#d4a843', '');
+      }
+      html += '<div style="display:flex;justify-content:space-between;font-size:0.68rem;color:var(--text-dim);margin-top:-0.15rem"><span>Poor</span><span>Excellent</span></div>';
+      cont.innerHTML = html;
+    }
+
+    // Render photo action button
+    function _qe1RenderPhotoBtn() {
+      var inner = document.getElementById('qe1-photo-btn-inner');
+      if (!inner) return;
+      var cb = document.getElementById('qe1-photo-cb');
+      if (cb && !cb.checked) { inner.innerHTML = ''; return; }
+      var grp = wizard.data._itemGrouping || 'single';
+      var multi = grp === 'engine_tender' || grp === 'aa' || grp === 'ab' || grp === 'aba';
+      var btnStyle = 'width:100%;min-height:38px;padding:0.42rem;border-radius:8px;border:1.5px dashed var(--border);background:rgba(212,168,67,0.07);color:var(--gold);font-family:var(--font-body);font-size:0.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.3rem';
+      var camIcon = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>';
+      inner.innerHTML = '<button type="button" id="qe1-photo-trigger" style="' + btnStyle + '">' + camIcon + (multi ? ' Add photos' : ' Add photo') + '</button>';
+      var btn = document.getElementById('qe1-photo-trigger');
+      if (!multi) {
+        var fi = document.getElementById('qe1-file-engine');
+        btn.addEventListener('click', function(e) { e.stopPropagation(); if (fi) fi.click(); });
+        if (fi) fi.addEventListener('change', function() {
+          if (fi.files && fi.files[0]) {
+            wizard.data._qePhotoFile = fi.files[0];
+            btn.innerHTML = camIcon + ' \u2713 ' + fi.files[0].name.slice(0, 16);
+            btn.style.color = '#3a9e68'; btn.style.borderColor = '#3a9e68';
+          }
         });
       } else {
-        qcMiniStep.style.display = 'block';
-        if (needsWorth) { qcWorthWrap.style.display = 'block'; setTimeout(function() { var wi = document.getElementById('qe-worth-input'); if (wi) wi.focus(); }, 50); }
-        if (needsPhoto) qcPhotoWrap.style.display = 'block';
+        btn.addEventListener('click', function() { _qe1OpenPhotoModal(); });
+      }
+    }
+
+    // Photo modal for multi-unit groupings
+    function _qe1OpenPhotoModal() {
+      var grp = wizard.data._itemGrouping || 'single';
+      var num = (wizard.data.itemNum || '').trim();
+      var units = [];
+      if (grp === 'engine_tender') {
+        units = [{ key: 'engine', fileId: 'qe1-file-engine', iconKey: 'engine', label: 'Engine', desc: num },
+                 { key: 'tender', fileId: 'qe1-file-tender', iconKey: 'tender', label: 'Tender', desc: wizard.data.tenderMatch || '' }];
+      } else if (grp === 'aa') {
+        units = [{ key: 'engine', fileId: 'qe1-file-engine', iconKey: 'a_powered', label: 'A Powered', desc: num + '-P' },
+                 { key: 'u2',     fileId: 'qe1-file-u2',     iconKey: 'a_dummy',   label: 'A Dummy',   desc: num + '-D' }];
+      } else if (grp === 'ab') {
+        units = [{ key: 'engine', fileId: 'qe1-file-engine', iconKey: 'a_powered', label: 'A Powered', desc: num + '-P' },
+                 { key: 'u2',     fileId: 'qe1-file-u2',     iconKey: 'b_unit',    label: 'B Unit',    desc: wizard.data.unit2ItemNum || '' }];
+      } else if (grp === 'aba') {
+        units = [{ key: 'engine', fileId: 'qe1-file-engine', iconKey: 'a_powered', label: 'A Powered', desc: num + '-P' },
+                 { key: 'u2',     fileId: 'qe1-file-u2',     iconKey: 'b_unit',    label: 'B Unit',    desc: wizard.data.unit2ItemNum || '' },
+                 { key: 'u3',     fileId: 'qe1-file-u3',     iconKey: 'a_dummy',   label: 'A Dummy',   desc: num + '-D' }];
+      }
+      if (!units.length) return;
+      var overlay = document.createElement('div');
+      overlay.id = 'qe1-photo-overlay';
+      overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:flex-end';
+      var sheet = document.createElement('div');
+      sheet.style.cssText = 'width:100%;background:var(--surface);border-radius:16px 16px 0 0;padding:1.2rem;max-height:75vh;overflow-y:auto;-webkit-overflow-scrolling:touch';
+      var drag = document.createElement('div');
+      drag.style.cssText = 'width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 1rem';
+      sheet.appendChild(drag);
+      var titleEl = document.createElement('div');
+      titleEl.style.cssText = 'font-size:0.92rem;font-weight:700;color:var(--text);margin-bottom:3px';
+      titleEl.textContent = 'Add photos';
+      sheet.appendChild(titleEl);
+      var subEl = document.createElement('div');
+      subEl.style.cssText = 'font-size:0.73rem;color:var(--text-dim);margin-bottom:0.8rem';
+      subEl.textContent = 'Right side photo for each unit';
+      sheet.appendChild(subEl);
+      units.forEach(function(u) {
+        var card = document.createElement('div');
+        card.style.cssText = 'display:flex;align-items:center;gap:0.7rem;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.7rem;margin-bottom:0.45rem';
+        var iconEl = document.createElement('img');
+        iconEl.src = _qe1Icons[u.iconKey];
+        iconEl.style.cssText = 'height:30px;width:auto;flex-shrink:0' + (u.iconKey === 'a_dummy' ? ';opacity:0.65' : '');
+        iconEl.onerror = function() { this.style.opacity = '0.3'; };
+        card.appendChild(iconEl);
+        var infoEl = document.createElement('div');
+        infoEl.style.flex = '1';
+        infoEl.innerHTML = '<div style="font-size:0.8rem;font-weight:600;color:var(--text)">' + u.label + '</div>'
+          + '<div style="font-size:0.7rem;color:var(--text-dim)">' + u.desc + '</div>';
+        card.appendChild(infoEl);
+        var slot = document.createElement('button');
+        slot.type = 'button';
+        slot.id = 'qe1-slot-' + u.key;
+        slot.style.cssText = 'width:54px;height:54px;background:var(--bg);border:1.5px dashed var(--border);border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;flex-shrink:0';
+        slot.innerHTML = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg><span style="font-size:0.6rem;color:var(--text-dim)">Photo</span>';
+        var fi = document.getElementById(u.fileId);
+        (function(slot, fi, u) {
+          slot.addEventListener('click', function() { if (fi) fi.click(); });
+          if (fi) fi.addEventListener('change', function() {
+            if (!fi.files || !fi.files[0]) return;
+            var f = fi.files[0];
+            if (u.key === 'engine') wizard.data._qePhotoFile = f;
+            else if (u.key === 'tender') wizard.data._qePhotoFileTender = f;
+            else if (u.key === 'u2') wizard.data._qePhotoFileU2 = f;
+            else if (u.key === 'u3') wizard.data._qePhotoFileU3 = f;
+            slot.style.borderColor = '#3a9e68';
+            slot.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3a9e68" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span style="font-size:0.6rem;color:#3a9e68">\u2713</span>';
+          });
+        })(slot, fi, u);
+        card.appendChild(slot);
+        sheet.appendChild(card);
+      });
+      var doneBtn = document.createElement('button');
+      doneBtn.type = 'button';
+      doneBtn.style.cssText = 'width:100%;padding:0.65rem;border-radius:10px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.88rem;font-weight:700;cursor:pointer;margin-top:0.3rem';
+      doneBtn.textContent = 'Done \u2192';
+      doneBtn.onclick = function() { document.body.removeChild(overlay); };
+      sheet.appendChild(doneBtn);
+      overlay.appendChild(sheet);
+      overlay.addEventListener('click', function(e) { if (e.target === overlay) document.body.removeChild(overlay); });
+      document.body.appendChild(overlay);
+    }
+
+    // Expose globals needed by onclick strings and selectSuggestion
+    window._qe1SelectGrouping = function(gid) {
+      _selectGroupingData(gid);
+      _qe1RenderGrouping();
+      _qe1RenderSliders();
+      _qe1RenderPhotoBtn();
+    };
+    window._qe1ToggleBoxOnly = function() {
+      toggleBoxOnly();
+      var bo = wizard.data.boxOnly || false;
+      var btn = document.getElementById('qe1-boxonly-btn');
+      if (btn) {
+        btn.style.background = bo ? 'rgba(201,146,42,0.12)' : 'var(--surface2)';
+        btn.style.borderColor = bo ? 'var(--accent2)' : 'var(--border)';
+        btn.innerHTML = '<div style="width:17px;height:17px;border-radius:4px;border:2px solid ' + (bo ? 'var(--accent2)' : 'var(--border)') + ';background:' + (bo ? 'var(--accent2)' : 'transparent') + ';display:flex;align-items:center;justify-content:center;font-size:0.68rem;color:white">' + (bo ? '\u2713' : '') + '</div>';
       }
     };
+    window._qe1OnInput = function(val) {
+      var num = val.trim();
+      var inp = document.getElementById('wiz-input');
+      var md = document.getElementById('qe1-match');
+      var m = num ? state.masterData.find(function(x) { return x.itemNum === num; }) : null;
+      if (inp) inp.style.borderColor = m ? 'var(--accent2)' : 'var(--border)';
+      if (m) {
+        wizard.matchedItem = m;
+        if (md) {
+          var desc = m.roadName ? m.roadName + ' ' + m.itemType : (m.itemType || m.description || '');
+          md.textContent = '\u2713 ' + desc + (m.yearFrom ? ' \xb7 ' + m.yearFrom : '');
+        }
+      } else {
+        if (md) md.textContent = '';
+      }
+      _qe1RenderGrouping();
+      _qe1RenderSliders();
+      _qe1RenderPhotoBtn();
+    };
 
-    quickCard.appendChild(qcTop);
-    quickCard.appendChild(qcCbRow);
-    quickCard.appendChild(qcMiniStep);
+    // ── Initial render ──
+    setTimeout(function() {
+      var inp = document.getElementById('wiz-input');
+      if (inp) {
+        inp.addEventListener('input', debounceItemLookup);
+        if (inp.value) {
+          updateItemSuggestions(inp.value);
+          window._qe1OnInput(inp.value);
+        }
+        inp.focus();
+      }
+      _qe1RenderGrouping();
+      _qe1RenderSliders();
+      _qe1RenderPhotoBtn();
+    }, 50);
 
-    wrap.appendChild(fullCard);
-    wrap.appendChild(quickCard);
-    body.innerHTML = '';
-    body.appendChild(wrap);
-    // Hide the Next button — selection is made by tapping a card
     var nb = document.getElementById('wizard-next-btn');
     if (nb) nb.style.display = 'none';
 
@@ -3982,6 +4263,10 @@ function selectSuggestion(num) {
     }
     // No grouping buttons (freight car, accessory, etc.) — set single and advance
     wizard.data._itemGrouping = 'single';
+  } else if (_curStep && _curStep.type === 'entryMode') {
+    // QE Step 1: update match display + sliders without advancing
+    if (typeof window._qe1OnInput === 'function') window._qe1OnInput(num);
+    return;
   }
   // Auto-advance to next step after a brief moment so lookupItem can render
   setTimeout(() => wizardNext(), 120);
@@ -5597,13 +5882,13 @@ async function quickEntryAdd() {
   const _qeUnit3Num = (_qeIsABA && d._qeUnit3 && d._qeUnit3 !== 'none') ? d._qeUnit3 + '-D' : '';
 
   const rows = [];
-  rows.push({ itemNum: _qeUnit1Num, variation, matchedTo: _qeUnit2Num || (d._qeTender && d._qeTender !== 'none' ? d._qeTender : ''), setId, groupId: qeGroupId, notes: '' });
+  rows.push({ itemNum: _qeUnit1Num, variation, matchedTo: _qeUnit2Num || (d._qeTender && d._qeTender !== 'none' ? d._qeTender : ''), setId, groupId: qeGroupId, notes: '', condition: d._qeCondition || '' });
   if (d._qeTender && d._qeTender !== 'none')
-    rows.push({ itemNum: d._qeTender, variation: '', matchedTo: _qeUnit1Num, setId, groupId: qeGroupId, notes: 'Quick Entry \u2014 paired with ' + _qeUnit1Num });
+    rows.push({ itemNum: d._qeTender, variation: '', matchedTo: _qeUnit1Num, setId, groupId: qeGroupId, notes: 'Quick Entry \u2014 paired with ' + _qeUnit1Num, condition: d._qeTenderCondition || '' });
   if (_qeHasSet && _qeUnit2Num)
-    rows.push({ itemNum: _qeUnit2Num, variation: '', matchedTo: _qeUnit1Num, setId, groupId: qeGroupId, notes: 'Quick Entry \u2014 paired with ' + _qeUnit1Num });
+    rows.push({ itemNum: _qeUnit2Num, variation: '', matchedTo: _qeUnit1Num, setId, groupId: qeGroupId, notes: 'Quick Entry \u2014 paired with ' + _qeUnit1Num, condition: d._qeUnit2Condition || '' });
   if (_qeUnit3Num)
-    rows.push({ itemNum: _qeUnit3Num, variation: '', matchedTo: _qeUnit1Num, setId, groupId: qeGroupId, notes: 'Quick Entry \u2014 ABA set with ' + _qeUnit1Num });
+    rows.push({ itemNum: _qeUnit3Num, variation: '', matchedTo: _qeUnit1Num, setId, groupId: qeGroupId, notes: 'Quick Entry \u2014 ABA set with ' + _qeUnit1Num, condition: d._qeUnit3Condition || '' });
 
   try {
     const _nextBtn = document.getElementById('wizard-next-btn');
@@ -5623,14 +5908,14 @@ async function quickEntryAdd() {
     for (const r of rows) {
       const isLead = r === rows[0];
       const invId = nextInventoryId();
-      const row = [r.itemNum, r.variation,'','','','','','','',(isLead ? _qePhotoLink : ''),'', r.notes,'',(isLead ? _qeEstWorth : ''),r.matchedTo,r.setId,'','','','Yes', invId, r.groupId||'', ''];
+      const row = [r.itemNum, r.variation, r.condition||'','','','','','','',(isLead ? _qePhotoLink : ''),'', r.notes,'',(isLead ? _qeEstWorth : ''),r.matchedTo,r.setId,'','','','Yes', invId, r.groupId||'', ''];
       console.log('[QE] Saving', r.itemNum);
       await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
       const key = r.itemNum + '|' + r.variation + '|' + Date.now();
       state.personalData[key] = {
         row: Date.now(), itemNum: r.itemNum, variation: r.variation,
         status: 'Owned', owned: true,
-        condition: '', allOriginal: '', priceItem: '', priceBox: '', priceComplete: '',
+        condition: r.condition||'', allOriginal: '', priceItem: '', priceBox: '', priceComplete: '',
         hasBox: '', boxCond: '', photoItem: (isLead ? _qePhotoLink : ''), photoBox: '',
         notes: r.notes, datePurchased: '', userEstWorth: (isLead ? _qeEstWorth : ''),
         matchedTo: r.matchedTo, setId: r.setId,
