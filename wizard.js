@@ -683,7 +683,7 @@ function _updateGroupingButtons() {
       + 'border:2px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';'
       + 'background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--surface2)') + ';'
       + 'color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + '">'
-      + btn.icon + ' ' + btn.label + '</button>';
+      + btn.label + '</button>';
   });
   html += '<button onclick="_selectBoxOnly()" style="flex:1;min-width:0;padding:0.5rem 0.6rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:var(--font-body);white-space:nowrap;'
     + 'border:2px solid ' + (_boxSelected ? 'var(--accent2)' : 'var(--border)') + ';'
