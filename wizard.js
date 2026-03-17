@@ -1283,6 +1283,7 @@ function renderWizardStep() {
     _qe1SaveBtn.id = 'qe1-save-btn';
     _qe1SaveBtn.type = 'button';
     _qe1SaveBtn.style.cssText = 'width:100%;padding:0.7rem;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-size:0.86rem;font-weight:600;cursor:pointer;margin-top:0.15rem';
+    _qe1SaveBtn.textContent = '\u26a1 Save quick entry';
     _qe1SaveBtn.onclick = function() {
       if (wizard.data._qeSaving) return;
       var wv = document.getElementById('qe1-worth');
