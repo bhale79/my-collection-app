@@ -626,32 +626,45 @@ function _updateGroupingButtons() {
   const itemNum = (wizard.data.itemNum || '').trim();
   if (!itemNum) { container.style.display = 'none'; return; }
   
-  // Determine item type
+  // Determine item type from master data sub-type
   const hasTenders = getMatchingTenders(itemNum).length > 0;
   const hasLocos = getMatchingLocos(itemNum).length > 0;
   const isF3Alco = isF3AlcoUnit(itemNum);
   const isBUnit = itemNum.endsWith('C');
-  
+
+  // For F3/Alco: derive valid set configs from sub-type in master data
+  let _f3SubTypes = new Set();
+  if (isF3Alco) {
+    state.masterData.forEach(function(m) {
+      if (normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum) && m.subType) {
+        _f3SubTypes.add((m.subType || '').toUpperCase());
+      }
+    });
+  }
+  const _hasAA  = Array.from(_f3SubTypes).some(s => s.includes('AA'));
+  const _hasAB  = Array.from(_f3SubTypes).some(s => s.includes('AB') && !s.includes('ABA'));
+  const _hasABA = Array.from(_f3SubTypes).some(s => s.includes('ABA'));
+
   let buttons = [];
-  
+
   if (hasTenders && !isF3Alco) {
     // Steam engine with known tender
     buttons = [
-      { id: 'engine', label: 'Engine Only', icon: '🚂' },
-      { id: 'engine_tender', label: 'Engine + Tender', icon: '🚂📦' },
+      { id: 'engine', label: 'Engine Only' },
+      { id: 'engine_tender', label: 'Engine + Tender' },
     ];
   } else if (hasLocos && !isF3Alco) {
     // Standalone tender being entered
-    buttons = [];  // No grouping needed
+    buttons = [];
   } else if (isF3Alco && !isBUnit) {
-    // F3/Alco A unit
+    // F3/Alco A unit — only show configs that actually exist for this item
     buttons = [
-      { id: 'a_powered', label: 'A Powered', icon: '🔵' },
-      { id: 'a_dummy', label: 'A Dummy', icon: '⚪' },
-      { id: 'aa', label: 'AA', icon: '🔵🔵' },
-      { id: 'ab', label: 'AB', icon: '🔵🟤' },
-      { id: 'aba', label: 'ABA', icon: '🔵🟤🔵' },
+      { id: 'a_powered', label: 'A Powered' },
+      { id: 'a_dummy',   label: 'A Dummy'   },
     ];
+    if (_hasAA)  buttons.push({ id: 'aa',  label: 'AA set'  });
+    if (_hasAB)  buttons.push({ id: 'ab',  label: 'AB set'  });
+    if (_hasABA) buttons.push({ id: 'aba', label: 'ABA set' });
   } else if (isF3Alco && isBUnit) {
     // F3/Alco B unit — standalone only
     buttons = [];
@@ -1361,7 +1374,15 @@ function renderWizardStep() {
       if (hasTenders && !isF3) {
         btns = [{ id: 'engine', label: 'Engine only' }, { id: 'engine_tender', label: 'Engine + Tender' }];
       } else if (isF3 && !isBU) {
-        btns = [{ id: 'a_powered', label: 'A Powered' }, { id: 'a_dummy', label: 'A Dummy' }, { id: 'aa', label: 'AA set' }, { id: 'ab', label: 'AB set' }, { id: 'aba', label: 'ABA set' }];
+        // Only show AA/AB/ABA configs that exist for this item in master data
+        var _qeSubs = new Set();
+        state.masterData.forEach(function(m) {
+          if (normalizeItemNum(m.itemNum) === normalizeItemNum(num) && m.subType) _qeSubs.add((m.subType||'').toUpperCase());
+        });
+        btns = [{ id: 'a_powered', label: 'A Powered' }, { id: 'a_dummy', label: 'A Dummy' }];
+        if (Array.from(_qeSubs).some(function(s){return s.includes('AA');}))  btns.push({ id: 'aa',  label: 'AA set'  });
+        if (Array.from(_qeSubs).some(function(s){return s.includes('AB') && !s.includes('ABA');})) btns.push({ id: 'ab',  label: 'AB set'  });
+        if (Array.from(_qeSubs).some(function(s){return s.includes('ABA');})) btns.push({ id: 'aba', label: 'ABA set' });
       }
       if (!btns.length) { cont.style.display = 'none'; return; }
       cont.style.display = 'block';
@@ -4263,10 +4284,13 @@ function updateItemSuggestions(query) {
 
       if (!matches) return;
 
-      if (!seen.has(m.itemNum)) {
-        seen.add(m.itemNum);
-        const desc = [m.roadName, m.description].filter(Boolean).join(' — ');
-        candidates.push({ num: m.itemNum, label: m.itemNum, sub: desc.substring(0, 55) });
+      // Deduplicate by itemNum+roadName so items with multiple road names each get a row
+      const _dedupeKey = m.itemNum + '|' + (m.roadName || '');
+      if (!seen.has(_dedupeKey)) {
+        seen.add(_dedupeKey);
+        const road = m.roadName || '';
+        const desc = [road, m.description].filter(Boolean).join(' — ');
+        candidates.push({ num: m.itemNum, roadName: road, label: m.itemNum, sub: desc.substring(0, 55) });
       }
     });
   }
@@ -4300,7 +4324,8 @@ function updateItemSuggestions(query) {
     btn.style.cssText = 'text-align:left;width:100%;padding:0.65rem 0.75rem;border:none;background:transparent;'
       + 'border-radius:6px;cursor:pointer;color:var(--text);font-family:var(--font-body);display:flex;align-items:baseline;gap:0.5rem;min-height:44px';
     btn.onmouseenter = function() { highlightSuggestion(i); };
-    btn.onclick = function() { selectSuggestion(c.num); };
+    btn.dataset.roadName = c.roadName || '';
+    btn.onclick = function() { selectSuggestion(c.num, c.roadName || ''); };
     const numSpan = document.createElement('span');
     numSpan.style.cssText = 'font-family:var(--font-mono);font-weight:600;color:var(--accent2);font-size:0.95rem;flex-shrink:0';
     numSpan.textContent = c.num;
@@ -4326,8 +4351,9 @@ function highlightSuggestion(idx) {
   });
 }
 
-function selectSuggestion(num) {
+function selectSuggestion(num, roadName) {
   wizard.data.itemNum = num;
+  if (roadName) wizard.data._suggestedRoadName = roadName;
   wizard.data._partialMatches = [];
   const inp = document.getElementById('wiz-input');
   if (inp) inp.value = num;
