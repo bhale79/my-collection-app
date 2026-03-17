@@ -687,15 +687,18 @@ function _updateGroupingButtons() {
   
   let html = '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.4rem">How are you entering this item?</div>';
   html += '<div class="wiz-grp-btns-row" style="display:flex;flex-wrap:wrap;gap:0.35rem">';
+  const _isMobile = window.innerWidth <= 640;
+  const _btnFlex = _isMobile ? '1 1 calc(50% - 0.35rem)' : '1';
   buttons.forEach(function(btn) {
     const sel = !_boxSelected && current === btn.id;
-    html += '<button class="wiz-grp-btn" onclick="_selectGrouping(\'' + btn.id + '\')" style="flex:1;min-width:0;padding:0.5rem 0.6rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:var(--font-body);white-space:nowrap;'
+    html += '<button onclick="_selectGrouping(\'' + btn.id + '\')" style="flex:' + _btnFlex + ';min-width:0;padding:0.5rem 0.6rem;border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:var(--font-body);white-space:normal;word-break:break-word;text-align:center;line-height:1.2;'
       + 'border:2px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';'
       + 'background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--surface2)') + ';'
       + 'color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + '">'
       + btn.label + '</button>';
   });
-  html += '<button class="wiz-grp-btn" onclick="_selectBoxOnly()" style="flex:1;min-width:0;padding:0.5rem 0.6rem;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:var(--font-body);white-space:nowrap;'
+  const _btnFlexBox = window.innerWidth <= 640 ? '1 1 calc(50% - 0.35rem)' : '1';
+  html += '<button onclick="_selectBoxOnly()" style="flex:' + _btnFlexBox + ';min-width:0;padding:0.5rem 0.6rem;border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:var(--font-body);white-space:normal;word-break:break-word;text-align:center;line-height:1.2;'
     + 'border:2px solid ' + (_boxSelected ? 'var(--accent2)' : 'var(--border)') + ';'
     + 'background:' + (_boxSelected ? 'rgba(201,146,42,0.12)' : 'var(--surface2)') + ';'
     + 'color:' + (_boxSelected ? 'var(--accent2)' : 'var(--text-mid)') + '">Box only</button>';
