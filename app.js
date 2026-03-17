@@ -1767,7 +1767,7 @@ function suggestSets(enteredItems) {
       const total = primaryMatches + altMatches;
       return { ...s, primaryMatches, altMatches, matchedAlts, total };
     })
-    .filter(s => s.total >= 2)
+    .filter(s => s.total >= 1)
     .sort((a, b) => b.total - a.total || b.primaryMatches - a.primaryMatches)
     .slice(0, 5);
 }
