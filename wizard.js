@@ -1368,7 +1368,22 @@ function renderWizardStep() {
       if (gid === 'engine') {
         wizard.data.tenderMatch = 'none'; wizard.data.setMatch = ''; wizard.data.unitPower = '';
       } else if (gid === 'engine_tender') {
-        var _t = getMatchingTenders(n); wizard.data.tenderMatch = _t.length > 0 ? _t[0] : ''; wizard.data.setMatch = ''; wizard.data.unitPower = '';
+        var _t = getMatchingTenders(n);
+        // Try to pick variation-aware tender from varDesc first
+        var _varTender = '';
+        if (wizard.data.variation && _t.length > 1) {
+          var _vm = state.masterData.find(function(m) { return m.itemNum === n && m.variation === wizard.data.variation; });
+          if (_vm && _vm.varDesc) {
+            var _tdMatch = _vm.varDesc.match(/\b(\d{3,4}[TW]X?)\b/i);
+            if (_tdMatch) {
+              var _tdCand = _tdMatch[1].toUpperCase();
+              if (_t.some(function(t){ return t.toUpperCase() === _tdCand; })) _varTender = _tdCand;
+            }
+          }
+        }
+        wizard.data.tenderMatch = _varTender || (_t.length > 0 ? _t[0] : '');
+        wizard.data.tenderIsNonOriginal = false;
+        wizard.data.setMatch = ''; wizard.data.unitPower = '';
       } else if (gid === 'a_powered') {
         wizard.data.unitPower = 'Powered'; wizard.data.setMatch = 'standalone'; wizard.data.tenderMatch = '';
       } else if (gid === 'a_dummy') {
@@ -1387,6 +1402,65 @@ function renderWizardStep() {
         wizard.data._itemGrouping = 'single'; wizard.data.tenderMatch = ''; wizard.data.setMatch = ''; wizard.data.unitPower = '';
       }
     }
+
+    // Tender picker popup
+    window._showTenderPicker = function() {
+      var existing = document.getElementById('tender-picker-modal');
+      if (existing) existing.remove();
+      var overlay = document.createElement('div');
+      overlay.id = 'tender-picker-modal';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10010;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+      overlay.innerHTML = '<div style="background:var(--surface);border-radius:14px;padding:1.25rem;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,0.5)">'
+        + '<div style="font-family:var(--font-head);font-size:1rem;font-weight:700;color:var(--text);margin-bottom:0.1rem">Select Your Tender</div>'
+        + '<div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:0.85rem">Type a tender number to search, or pick from the list below.</div>'
+        + '<input id="tender-picker-input" type="search" autocomplete="off" placeholder="e.g. 2046W, 6026T…" style="width:100%;box-sizing:border-box;padding:0.65rem 0.85rem;border-radius:9px;border:1.5px solid var(--accent);background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.92rem;outline:none;margin-bottom:0.5rem">'
+        + '<div id="tender-picker-results" style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:0.25rem"></div>'
+        + '<button onclick="document.getElementById(\'tender-picker-modal\').remove()" style="margin-top:0.85rem;width:100%;padding:0.55rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Cancel</button>'
+        + '</div>';
+      document.body.appendChild(overlay);
+      var inp = document.getElementById('tender-picker-input');
+      var res = document.getElementById('tender-picker-results');
+      function _renderResults(q) {
+        var known = getMatchingTenders((wizard.data.itemNum||'').trim());
+        var all = state.masterData
+          .filter(function(m) { return isTender(m.itemNum); })
+          .reduce(function(acc, m) {
+            if (!acc.find(function(x){ return x.itemNum === m.itemNum; })) acc.push(m);
+            return acc;
+          }, []);
+        var filtered = all.filter(function(m) {
+          if (!q) return known.includes(m.itemNum);
+          return m.itemNum.toLowerCase().includes(q) || (m.description||'').toLowerCase().includes(q);
+        }).slice(0, 8);
+        res.innerHTML = filtered.map(function(m) {
+          var isKnown = known.includes(m.itemNum);
+          return '<button onclick="_selectTender(\'' + m.itemNum + '\')" style="width:100%;text-align:left;padding:0.55rem 0.75rem;border-radius:8px;border:1px solid ' + (isKnown ? 'rgba(139,92,246,0.35)' : 'var(--border)') + ';background:' + (isKnown ? 'rgba(139,92,246,0.08)' : 'var(--surface2)') + ';cursor:pointer;font-family:var(--font-body)">'
+            + '<span style="font-family:var(--font-mono);font-weight:700;color:' + (isKnown ? '#8b5cf6' : 'var(--accent2)') + ';font-size:0.88rem">' + m.itemNum + '</span>'
+            + (isKnown ? '<span style="margin-left:0.4rem;font-size:0.65rem;color:#8b5cf6;font-family:var(--font-head);letter-spacing:0.06em;text-transform:uppercase">known match</span>' : '')
+            + (m.description ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.1rem">' + m.description + '</div>' : '')
+            + '</button>';
+        }).join('');
+        if (!filtered.length) res.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--text-dim);font-size:0.82rem">No tenders found</div>';
+      }
+      inp.addEventListener('input', function() { _renderResults(this.value.trim().toLowerCase()); });
+      _renderResults('');
+      setTimeout(function(){ inp.focus(); }, 80);
+    };
+    window._selectTender = function(tNum) {
+      var known = getMatchingTenders((wizard.data.itemNum||'').trim());
+      wizard.data.tenderMatch = tNum;
+      wizard.data.tenderIsNonOriginal = !known.includes(tNum);
+      wizard.data._qeMultiResolved = false;
+      var modal = document.getElementById('tender-picker-modal');
+      if (modal) modal.remove();
+      // Update tender label in DOM without full re-render
+      var lbl = document.getElementById('qe1-tender-label');
+      if (lbl) {
+        var nonOrig = wizard.data.tenderIsNonOriginal;
+        lbl.innerHTML = 'TENDER <span style="font-family:var(--font-mono);font-weight:700;color:' + (nonOrig ? '#f39c12' : '#8b5cf6') + '">' + tNum + (nonOrig ? ' &#x26A0;' : '') + '</span>'
+          + '<button type="button" onclick="_showTenderPicker()" style="margin-left:0.4rem;padding:0.15rem 0.5rem;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-size:0.65rem;font-family:var(--font-body);cursor:pointer;white-space:nowrap">Not yours?</button>';
+      }
+    };
 
     // Render grouping buttons (no auto-advance)
     function _qe1RenderGrouping() {
@@ -1433,6 +1507,21 @@ function renderWizardStep() {
       var grp = wizard.data._itemGrouping || 'single';
       var defCond = parseInt(localStorage.getItem('lv_default_cond') || '7');
 
+      // _slHtml: same as _sl but label is raw HTML (not escaped)
+      function _slHtml(slId, iconKey, labelHtml, accent, imgStyle) {
+        var cur = wizard.data[slId] || defCond;
+        var imgExtra = imgStyle ? ';' + imgStyle : '';
+        return '<div style="margin-bottom:0.4rem">'
+          + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">'
+          + '<div style="display:flex;align-items:center;gap:5px;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim)">'
+          + '<img src="' + _qe1Icons[iconKey] + '" style="height:17px;width:auto;flex-shrink:0' + imgExtra + '" onerror="this.style.opacity=\'0.3\'">'
+          + labelHtml + '</div>'
+          + '<span id="qe1v-' + slId + '" style="font-size:0.82rem;font-weight:700;color:' + accent + '">' + cur + '</span>'
+          + '</div>'
+          + '<input type="range" id="' + slId + '" min="1" max="10" value="' + cur + '" style="width:100%;accent-color:' + accent + '"'
+          + ' oninput="wizard.data[\'' + slId + '\']=parseInt(this.value);var v=document.getElementById(\'qe1v-' + slId + '\');if(v)v.textContent=this.value">'
+          + '</div>';
+      }
       function _sl(slId, iconKey, label, accent, imgStyle) {
         var cur = wizard.data[slId] || defCond;
         var imgExtra = imgStyle ? ';' + imgStyle : '';
@@ -1451,7 +1540,12 @@ function renderWizardStep() {
       var html = '';
       if (grp === 'engine_tender') {
         html += _sl('qe1-slider-lead', 'engine', 'Engine', '#d4a843', '');
-        html += _sl('qe1-slider-tender', 'tender', 'Tender', '#8b5cf6', '');
+        var _tNum = wizard.data.tenderMatch || '';
+        var _tNonOrig = wizard.data.tenderIsNonOriginal;
+        var _tLabelInner = 'TENDER' + (_tNum ? ' <span style="font-family:var(--font-mono);font-weight:700;color:' + (_tNonOrig ? '#f39c12' : '#8b5cf6') + '">' + _tNum + (_tNonOrig ? ' &#x26A0;' : '') + '</span>' : '')
+          + '<button type="button" onclick="_showTenderPicker()" style="margin-left:0.4rem;padding:0.15rem 0.5rem;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-size:0.65rem;font-family:var(--font-body);cursor:pointer;white-space:nowrap">Not yours?</button>';
+        var _tLabelHtml = '<span id="qe1-tender-label" style="display:flex;align-items:center;gap:0">' + _tLabelInner + '</span>';
+        html += _slHtml('qe1-slider-tender', 'tender', _tLabelHtml, '#8b5cf6', '');
       } else if (grp === 'aa') {
         html += _sl('qe1-slider-lead', 'a_powered', 'A Powered', '#d4a843', '');
         html += _sl('qe1-slider-u2', 'a_dummy', 'A Dummy', '#6a5e48', 'opacity:0.65');
@@ -5562,7 +5656,8 @@ async function saveWizardItem() {
     const tVariation = '';
     const tenderNote = (() => {
       const ref = 'Set price on item ' + itemNum;
-      return d.notes ? d.notes.trim() + '; ' + ref : ref;
+      const nonOrigFlag = d.tenderIsNonOriginal ? '; non-original tender' : '';
+      return (d.notes ? d.notes.trim() + '; ' + ref : ref) + nonOrigFlag;
     })();
     const tRow = [
       tNum, tVariation,
@@ -6018,7 +6113,7 @@ async function quickEntryAdd() {
   const rows = [];
   rows.push({ itemNum: _qeUnit1Num, variation, matchedTo: _qeUnit2Num || (d._qeTender && d._qeTender !== 'none' ? d._qeTender : ''), setId, groupId: qeGroupId, notes: '', condition: d._qeCondition || '' });
   if (d._qeTender && d._qeTender !== 'none')
-    rows.push({ itemNum: d._qeTender, variation: '', matchedTo: _qeUnit1Num, setId, groupId: qeGroupId, notes: 'Quick Entry \u2014 paired with ' + _qeUnit1Num, condition: d._qeTenderCondition || '' });
+    rows.push({ itemNum: d._qeTender, variation: '', matchedTo: _qeUnit1Num, setId, groupId: qeGroupId, notes: 'Quick Entry \u2014 paired with ' + _qeUnit1Num + (d.tenderIsNonOriginal ? ' [non-original tender]' : ''), condition: d._qeTenderCondition || '' });
   if (_qeHasSet && _qeUnit2Num)
     rows.push({ itemNum: _qeUnit2Num, variation: '', matchedTo: _qeUnit1Num, setId, groupId: qeGroupId, notes: 'Quick Entry \u2014 paired with ' + _qeUnit1Num, condition: d._qeUnit2Condition || '' });
   if (_qeUnit3Num)
