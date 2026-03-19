@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 function buildPrefsPage() {
+  setTimeout(_prefUpdateLockBtn, 200);
   const el = document.getElementById('prefs-content');
   if (!el) return;
 
@@ -587,6 +588,44 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () 
   const stored = localStorage.getItem('lv_page_size');
   if (stored) state.pageSize = parseInt(stored);
 })();
+
+// ── Sheet lock toggle from Preferences ──────────────────────────
+async function _prefToggleSheetLock() {
+  var btn = document.getElementById('pref-lock-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Working…'; }
+  try {
+    var result = await getSheetLockState(state.personalSheetId);
+    if (result.locked) {
+      await unlockSheetTabs(state.personalSheetId);
+      showToast('🔓 Sheet unlocked — you can now edit in Google Sheets');
+    } else {
+      await lockSheetTabs(state.personalSheetId);
+      showToast('🔒 Sheet locked');
+    }
+    _prefUpdateLockBtn();
+  } catch(e) {
+    showToast('Lock failed: ' + e.message, 5000, true);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function _prefUpdateLockBtn() {
+  var btn = document.getElementById('pref-lock-btn');
+  if (!btn || !state.personalSheetId) return;
+  try {
+    var result = await getSheetLockState(state.personalSheetId);
+    if (result.locked) {
+      btn.textContent = '🔒 Locked';
+      btn.style.borderColor = '#27ae60';
+      btn.style.color = '#27ae60';
+    } else {
+      btn.textContent = '🔓 Unlock';
+      btn.style.borderColor = '';
+      btn.style.color = '';
+    }
+  } catch(e) { /* silent */ }
+}
 
 // ── NAVIGATION ─────────────────────────────────────────────────────
 // ── EPHEMERA ─────────────────────────────────────────────────────
