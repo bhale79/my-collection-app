@@ -705,7 +705,8 @@ document.addEventListener('visibilitychange', function() {
 });
 
 function handleSignOut() {
-  google.accounts.oauth2.revoke(localStorage.getItem('lv_token'), () => {});
+  // Clear local state only — do NOT revoke the Google grant
+  // (revoking forces full consent screens on every sign-in)
   localStorage.removeItem('lv_user');
   localStorage.removeItem('lv_token');
   localStorage.removeItem('lv_token_expiry');
