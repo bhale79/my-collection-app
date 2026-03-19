@@ -6139,10 +6139,10 @@ async function quickEntryAdd() {
       const invId = nextInventoryId();
       const row = [r.itemNum, r.variation, r.condition||'','','','','','','',(isLead ? _qePhotoLink : ''),'', r.notes,'',(isLead ? _qeEstWorth : ''),r.matchedTo,r.setId,'','','','Yes', invId, r.groupId||'', ''];
       console.log('[QE] Saving', r.itemNum);
-      await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
-      const key = r.itemNum + '|' + r.variation + '|' + Date.now();
+      const actualRow = await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
+      const key = r.itemNum + '|' + r.variation + '|' + actualRow;
       state.personalData[key] = {
-        row: Date.now(), itemNum: r.itemNum, variation: r.variation,
+        row: actualRow, itemNum: r.itemNum, variation: r.variation,
         status: 'Owned', owned: true,
         condition: r.condition||'', allOriginal: '', priceItem: '', priceBox: '', priceComplete: '',
         hasBox: '', boxCond: '', photoItem: (isLead ? _qePhotoLink : ''), photoBox: '',
