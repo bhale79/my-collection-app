@@ -291,6 +291,45 @@ function buildPrefsPage() {
     vaultRenderPrefsRow(document.getElementById('vault-prefs-row'));
   }
   _maybeShowAdminPrefs();
+  // Load lock state for the lock button
+  setTimeout(function() { _prefRefreshLockBtn(); }, 150);
+}
+
+async function _prefRefreshLockBtn() {
+  var btn = document.getElementById('pref-lock-btn');
+  if (!btn || !state.personalSheetId) return;
+  try {
+    var result = await getSheetLockState(state.personalSheetId);
+    if (result.locked) {
+      btn.textContent = '🔒 Locked';
+      btn.style.borderColor = '#27ae60';
+      btn.style.color = '#27ae60';
+    } else {
+      btn.textContent = '🔓 Unlocked';
+      btn.style.borderColor = '';
+      btn.style.color = '';
+    }
+  } catch(e) { btn.textContent = '🔒 Lock'; }
+}
+
+async function _prefToggleLock() {
+  var btn = document.getElementById('pref-lock-btn');
+  if (!btn) return;
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    var result = await getSheetLockState(state.personalSheetId);
+    if (result.locked) {
+      await unlockSheetTabs(state.personalSheetId);
+      showToast('🔓 Sheet unlocked');
+    } else {
+      await lockSheetTabs(state.personalSheetId);
+      showToast('🔒 Sheet locked');
+    }
+    await _prefRefreshLockBtn();
+    if (typeof refreshSheetLockUI === 'function') refreshSheetLockUI();
+  } catch(e) {
+    showToast('Lock failed: ' + e.message, 4000, true);
+  } finally { btn.disabled = false; }
 }
 
 
