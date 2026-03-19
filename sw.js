@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v2';
+const CACHE_NAME = 'mca-v3';
 
 const SHELL_FILES = [
   './index.html',
@@ -14,6 +14,7 @@ const SHELL_FILES = [
   './vault-styles.css',
   './app.js',
   './sheets.js',
+  './browse.js',
   './wizard.js',
   './tutorial.js',
   './vault.js',
