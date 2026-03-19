@@ -229,7 +229,7 @@ async function _doShare(mode) {
       if (prog) prog.textContent = 'Opening share sheet…';
 
       var shareData = {
-        title: 'Boxcar Files Share',
+        title: 'Rail Roster Share',
         text: message || 'Check out these items from my collection.',
         url: link,
       };
@@ -285,7 +285,7 @@ async function _buildPDF(items, fields, message) {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
   doc.setTextColor(240, 80, 8); // --accent
-  doc.text('THE BOXCAR FILES', margin, 36);
+  doc.text('THE RAIL ROSTER', margin, 36);
   doc.setFontSize(9);
   doc.setTextColor(200, 184, 138); // --text-mid
   doc.text('Share Sheet  ·  ' + new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' }), margin, 50);
