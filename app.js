@@ -482,6 +482,17 @@ function initGoogle() {
   _buildAuthScreen();
   _buildSetupScreen();
   _buildAppShell();
+
+  // Check if returning from OAuth redirect (GIS redirect mode)
+  if (_checkOAuthRedirect()) {
+    document.getElementById('beta-gate').style.display = 'none';
+    document.getElementById('auth-screen').style.display = 'none';
+    showApp();
+    showLoading();
+    _finishRedirectSignIn();
+    return;
+  }
+
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: CLIENT_ID,
     scope: SCOPES,
@@ -493,16 +504,6 @@ function initGoogle() {
   const savedPersonalId = localStorage.getItem('lv_personal_id');
   state.masterSheetId = '1Y9-cg8C1CkIqy0RQ66DfP7fmGrE3IGBpyJbtdfYx8q0';
   localStorage.setItem('lv_master_id', state.masterSheetId);
-
-  // Check if returning from OAuth redirect (new sign-in)
-  if (_checkOAuthRedirect()) {
-    document.getElementById('beta-gate').style.display = 'none';
-    document.getElementById('auth-screen').style.display = 'none';
-    showApp();
-    showLoading();
-    _finishRedirectSignIn();
-    return;
-  }
 
   if (savedUser) {
     // Returning user — skip beta gate, they already have access
@@ -525,9 +526,9 @@ function initGoogle() {
 }
 
 function handleSignIn() {
-  // Redirect to Google sign-in (no popup needed)
-  // 'select_account' shows account picker but skips permission screens if already granted
-  window.location.href = _oauthRedirectUrl('select_account');
+  // Use GIS popup flow — it caches consent so users only approve once
+  // Popups work after user click (not blocked when triggered by button)
+  tokenClient.requestAccessToken({ prompt: '' });
 }
 
 function onGoogleSignIn(response) {
@@ -557,8 +558,9 @@ function onTokenReceived(resp) {
     // If silent token refresh failed, prompt user to sign in again
     if (resp.error === 'interaction_required' || resp.error === 'login_required') {
       _tokenIsInitial = true;
-      // Redirect to Google sign-in instead of popup
-      window.location.href = _oauthRedirectUrl('select_account');
+      // Show the sign-in screen so user can click the button (avoids popup blocker)
+      document.getElementById('auth-screen').style.display = 'flex';
+      document.getElementById('app').classList.remove('active');
     }
     return;
   }
