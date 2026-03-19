@@ -5106,7 +5106,7 @@ async function saveSet() {
       try {
         await driveEnsureSetup();
         const folderName = setNum || groupId || 'SetBox';
-        const parentId   = driveCache.vaultId || await driveFindOrCreateFolder('The Boxcar Files', null);
+        const parentId   = driveCache.vaultId || await driveFindOrCreateFolder('The Rail Roster', null);
         const folderId   = await driveFindOrCreateFolder(folderName, parentId);
         for (const [viewKey, fileObj] of Object.entries(photoObj)) {
           if (!fileObj?.file) continue;
@@ -6217,7 +6217,7 @@ function _sheetLinkClick(e) {
       <span style="font-size:0.95rem;font-weight:700;color:var(--text)">Heads up before you edit</span>
     </div>
     <p style="font-size:0.85rem;color:var(--text-mid);line-height:1.55;margin:0 0 0.75rem">
-      This sheet is managed entirely by The Boxcar Files. <strong style="color:var(--text)">Editing rows, columns, or tab names directly can break the app</strong> and may cause data loss that can't be undone.
+      This sheet is managed entirely by The Rail Roster. <strong style="color:var(--text)">Editing rows, columns, or tab names directly can break the app</strong> and may cause data loss that can't be undone.
     </p>
     <p style="font-size:0.85rem;color:var(--text-mid);line-height:1.55;margin:0 0 1.1rem">
       It's safe to <strong style="color:var(--text)">read and export</strong> your data — just don't add, move, or delete anything while the app is in use.
