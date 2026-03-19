@@ -19,7 +19,7 @@ const SB = {
   labelBg:  { red: 0.133, green: 0.196, blue: 0.31  },   // #223250 label rows
 };
 
-const CONDUCTOR_URL = 'https://raw.githubusercontent.com/bhale79/my-collection-app/main/conductor.png';
+const CONDUCTOR_URL = 'https://raw.githubusercontent.com/bhale79/my-collection-app/main/conductor-list.png';
 
 async function applySheetFormatting(sheetId) {
   if (!sheetId || !accessToken) return;
