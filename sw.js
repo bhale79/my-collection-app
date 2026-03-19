@@ -1,4 +1,4 @@
-// The Rail Registry — Service Worker
+// The Rail Roster — Service Worker
 // Caches app shell + CSS + JS for fast loads.
 // Uses stale-while-revalidate: serves cached files instantly,
 // fetches fresh copies in the background for next load.
