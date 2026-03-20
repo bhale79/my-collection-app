@@ -1113,7 +1113,7 @@ async function loadAllData() {
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '15';
+  const _CACHE_VER = '16';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
@@ -1132,8 +1132,8 @@ async function loadMasterData() {
     try {
       state.masterData = JSON.parse(cached);
       // Refresh in background without blocking
-      sheetsGet(state.masterSheetId, 'Master Inventory!A2:M').then(res => {
-        if (!res.values) return sheetsGet(state.masterSheetId, 'Sheet1!A2:M');
+      sheetsGet(state.masterSheetId, 'Master Inventory!A2:O').then(res => {
+        if (!res.values) return sheetsGet(state.masterSheetId, 'Sheet1!A2:O');
         return res;
       }).then(res => {
         if (res && res.values) {
@@ -1147,9 +1147,9 @@ async function loadMasterData() {
     } catch(e) {}
   }
 
-  let res = await sheetsGet(state.masterSheetId, 'Master Inventory!A2:M');
+  let res = await sheetsGet(state.masterSheetId, 'Master Inventory!A2:O');
   if (!res.values) {
-    res = await sheetsGet(state.masterSheetId, 'Sheet1!A2:M');
+    res = await sheetsGet(state.masterSheetId, 'Sheet1!A2:O');
   }
   const rows = res.values || [];
   parseMasterRows(rows);
@@ -1172,6 +1172,8 @@ function parseMasterRows(rows) {
     refLink:      r[10] || '',
     notes:        r[11] || '',
     marketVal:    r[12] || '',
+    source:       r[13] || '',
+    cottCode:     r[14] || '',
   }));
   // Deduplicate by itemNum+roadName+variation — keep each road name variant
   const seen = new Set();
