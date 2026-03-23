@@ -168,7 +168,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
           <button id="btab-mockups"  onclick="renderBrowseTab('mockups')"  style="display:none;padding:0.5rem 1.1rem;font-size:0.82rem;font-weight:600;font-family:var(--font-body);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-dim);cursor:pointer">Mock-ups &amp; Other Items</button>
         </div>
 
-        <div id="disclaimer-browse" style="display:flex;align-items:flex-start;gap:0.6rem;background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.35);border-radius:9px;padding:0.6rem 0.85rem;margin-bottom:0.85rem;font-size:0.78rem;color:var(--text-dim);line-height:1.55">
+        <div id="disclaimer-browse" style="display:none;align-items:flex-start;gap:0.6rem;background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.35);border-radius:9px;padding:0.6rem 0.85rem;margin-bottom:0.85rem;font-size:0.78rem;color:var(--text-dim);line-height:1.55">
           <span style="font-size:1rem;flex-shrink:0;margin-top:0.05rem">⚠️</span>
           <span style="flex:1">We've done our best to list items accurately, but errors and omissions exist. Part numbers, variations, and set contents may differ from what's shown. Always verify details with additional sources. If you spot an issue, <a href="#" onclick="event.preventDefault();showContactModal()" style="color:var(--gold);text-decoration:underline">contact us</a>.</span>
           <button onclick="_dismissDisclaimer()" title="Hide this notice" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:1rem;line-height:1;flex-shrink:0;padding:0;margin-top:0.05rem;opacity:0.6" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">✕</button>
@@ -402,7 +402,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
           <span id="sets-count-label" style="font-size:0.78rem;color:var(--text-dim);white-space:nowrap"></span>
         </div>
         <!-- Mobile cards -->
-        <div id="disclaimer-sets" style="display:flex;align-items:flex-start;gap:0.6rem;background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.35);border-radius:9px;padding:0.6rem 0.85rem;margin-bottom:0.85rem;font-size:0.78rem;color:var(--text-dim);line-height:1.55">
+        <div id="disclaimer-sets" style="display:none;align-items:flex-start;gap:0.6rem;background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.35);border-radius:9px;padding:0.6rem 0.85rem;margin-bottom:0.85rem;font-size:0.78rem;color:var(--text-dim);line-height:1.55">
           <span style="font-size:1rem;flex-shrink:0;margin-top:0.05rem">⚠️</span>
           <span style="flex:1">We've done our best to list items accurately, but errors and omissions exist. Part numbers, variations, and set contents may differ from what's shown. Always verify details with additional sources. If you spot an issue, <a href="#" onclick="event.preventDefault();showContactModal()" style="color:var(--gold);text-decoration:underline">contact us</a>.</span>
           <button onclick="_dismissDisclaimer()" title="Hide this notice" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:1rem;line-height:1;flex-shrink:0;padding:0;margin-top:0.05rem;opacity:0.6" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">✕</button>
