@@ -5232,8 +5232,8 @@ function _applyDisclaimerPref() {
   const show = _prefGet('lv_show_disclaimer', 'true') === 'true';
   const d1 = document.getElementById('disclaimer-browse');
   const d2 = document.getElementById('disclaimer-sets');
-  if (d1) d1.style.display = show ? '' : 'none';
-  if (d2) d2.style.display = show ? '' : 'none';
+  if (d1) d1.style.display = show ? 'flex' : 'none';
+  if (d2) d2.style.display = show ? 'flex' : 'none';
 }
 
 function _buildContactModal() {
