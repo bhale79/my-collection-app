@@ -218,9 +218,15 @@ function renderBrowseTab(tab) {
   const inCollection = !!state.filters.owned;
   if (tab === 'is' && inCollection) tab = 'items';
   if (tab === 'mockups' && !inCollection) tab = 'items';
+  if (['science','construction','paper','other','service'].includes(tab) && inCollection) tab = 'items';
   state._browseTab = tab || 'items';
 
   // IS tab: master catalog only. Mockups tab: collection only.
+  // Hide master-only tabs when in collection view
+  ['btab-science','btab-construction','btab-paper','btab-other','btab-service'].forEach(function(id) {
+    var b = document.getElementById(id);
+    if (b) b.style.display = inCollection ? 'none' : '';
+  });
   const isBtn = document.getElementById('btab-is');
   if (isBtn) isBtn.style.display = inCollection ? 'none' : '';
   const moBtn = document.getElementById('btab-mockups');
@@ -228,7 +234,7 @@ function renderBrowseTab(tab) {
   const catBtn = document.getElementById('btab-catalogs');
   if (catBtn) catBtn.textContent = inCollection ? 'My Catalogs & Paper Items' : 'Catalogs';
 
-  const tabs = { items:'btab-items', sets:'btab-sets', catalogs:'btab-catalogs', is:'btab-is', mockups:'btab-mockups' };
+  const tabs = { items:'btab-items', sets:'btab-sets', catalogs:'btab-catalogs', science:'btab-science', construction:'btab-construction', paper:'btab-paper', other:'btab-other', service:'btab-service', is:'btab-is', mockups:'btab-mockups' };
   Object.entries(tabs).forEach(([key, id]) => {
     const btn = document.getElementById(id);
     if (!btn) return;
@@ -237,7 +243,7 @@ function renderBrowseTab(tab) {
     btn.style.color = active ? 'var(--accent)' : 'var(--text-dim)';
   });
 
-  const panels = { items:'browse-items-panel', sets:'browse-sets-panel', catalogs:'browse-catalogs-panel', is:'browse-is-panel', mockups:'browse-mockups-panel' };
+  const panels = { items:'browse-items-panel', sets:'browse-sets-panel', catalogs:'browse-catalogs-panel', science:'browse-science-panel', construction:'browse-construction-panel', paper:'browse-paper-panel', other:'browse-other-panel', service:'browse-service-panel', is:'browse-is-panel', mockups:'browse-mockups-panel' };
   Object.entries(panels).forEach(([key, id]) => {
     const el = document.getElementById(id);
     if (el) el.style.display = key === state._browseTab ? '' : 'none';
@@ -252,7 +258,7 @@ function renderBrowseTab(tab) {
   if (identBtn) identBtn.style.display = inCollection ? 'none' : (onItems ? '' : 'none');
 
   const titleEl = document.getElementById('browse-page-title');
-  const mTitles = { items:'Master Catalog', sets:'Set Master List', catalogs:'Catalog List', is:'Instruction Sheet List' };
+  const mTitles = { items:'Master Catalog', sets:'Set Master List', catalogs:'Catalog List', science:'Science Sets', construction:'Construction Sets', paper:'Paper Items', other:'Other Items', service:'Service Tools', is:'Instruction Sheet List' };
   const cTitles = { items:'My Collection', sets:'My Sets', catalogs:'My Catalogs & Paper Items', mockups:'My Mock-ups & Other Items' };
   if (titleEl) titleEl.textContent = (inCollection ? cTitles : mTitles)[state._browseTab] || 'Master Catalog';
 
@@ -260,6 +266,11 @@ function renderBrowseTab(tab) {
   else if (state._browseTab === 'sets') renderSetsTab();
   else if (state._browseTab === 'catalogs') renderCatalogsTab();
   else if (state._browseTab === 'is') renderISTab();
+  else if (state._browseTab === 'science') renderMasterSubTab('science');
+  else if (state._browseTab === 'construction') renderMasterSubTab('construction');
+  else if (state._browseTab === 'paper') renderMasterSubTab('paper');
+  else if (state._browseTab === 'other') renderMasterSubTab('other');
+  else if (state._browseTab === 'service') renderMasterSubTab('service');
   else if (state._browseTab === 'mockups') renderMockupsOtherTab();
 }
 
@@ -281,12 +292,13 @@ function renderSetsTab() {
   const emptyMsg = inColl ? 'No sets in your collection yet' : 'No sets found';
   if (countEl) countEl.textContent = sets.length.toLocaleString() + ' set' + (sets.length !== 1 ? 's' : '');
   if (!sets.length) { tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-dim)">${emptyMsg}</td></tr>`; return; }
-  tbody.innerHTML = sets.map(s => {
+  window._browseFilteredSets = sets;
+  tbody.innerHTML = sets.map((s, si) => {
     const owned = ownedSetIds.has(s.setNum.toLowerCase());
     const itemChips = s.items.slice(0, 6).map(n =>
       `<span style="font-family:var(--font-mono);font-size:0.67rem;padding:1px 5px;border-radius:3px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim)">${n}</span>`
     ).join(' ') + (s.items.length > 6 ? `<span style="font-size:0.67rem;color:var(--text-dim)"> +${s.items.length - 6}</span>` : '');
-    return `<tr>
+    return `<tr onclick="showRefItemPopup(&apos;set&apos;,${si})" style="cursor:pointer">
       <td><span style="font-family:var(--font-mono);color:var(--accent2)">${s.setNum}</span></td>
       <td style="font-size:0.88rem">${s.setName || '—'}</td>
       <td style="font-size:0.85rem;color:var(--text-mid)">${s.year || '—'}</td>
@@ -320,7 +332,8 @@ function renderCatalogsTab() {
     <td style="font-size:0.85rem">${c.catType||'—'}</td>
     <td style="font-size:0.88rem">${c.title||'—'}${c.hasMailer==='Yes'?' <span style="font-size:0.7rem;color:var(--accent2)">(w/ mailer)</span>':''}</td>
   </tr>`).join('');
-  tbody.innerHTML = cats.map(c => `<tr>
+  window._browseFilteredCats = cats;
+  tbody.innerHTML = cats.map((c, ci) => `<tr onclick="showRefItemPopup(&apos;catalog&apos;,${ci})" style="cursor:pointer">
     <td><span style="font-family:var(--font-mono);color:var(--accent2)">${c.id}</span></td>
     <td style="font-size:0.85rem;color:var(--text-mid)">${c.year || '—'}</td>
     <td style="font-size:0.85rem">${c.type || '—'}</td>
@@ -339,7 +352,8 @@ function renderISTab() {
   });
   if (countEl) countEl.textContent = sheets.length.toLocaleString() + ' sheets';
   if (!sheets.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-dim)">No instruction sheets found</td></tr>'; return; }
-  tbody.innerHTML = sheets.map(s => `<tr>
+  window._browseFilteredIS = sheets;
+  tbody.innerHTML = sheets.map((s, si) => `<tr onclick="showRefItemPopup(&apos;is&apos;,${si})" style="cursor:pointer">
     <td><span style="font-family:var(--font-mono);color:var(--accent2)">${s.id}</span></td>
     <td style="font-family:var(--font-mono);font-size:0.85rem">${s.itemNumber || '—'}</td>
     <td style="font-size:0.85rem">${s.description || '—'}</td>
@@ -374,6 +388,54 @@ function renderMockupsOtherTab() {
     <td style="font-size:0.85rem">${r.cond}</td>
     <td style="font-size:0.85rem;color:var(--accent2)">${r.val}</td>
   </tr>`).join('');
+}
+
+
+// ── Generic renderer for master data sub-tabs (Science, Construction, Paper, Other, Service Tools) ──
+const _MASTER_TAB_MAP = {
+  science: 'Lionel Postwar - Science',
+  construction: 'Lionel Postwar - Construction',
+  paper: 'Lionel Postwar - Paper',
+  other: 'Lionel Postwar - Other',
+  service: 'Lionel Postwar - Service Tools',
+};
+
+function renderMasterSubTab(tabKey) {
+  const masterTab = _MASTER_TAB_MAP[tabKey];
+  if (!masterTab) return;
+  const tbody = document.getElementById(tabKey + '-tbody');
+  const countEl = document.getElementById(tabKey + '-count');
+  if (!tbody) return;
+  const q = (document.getElementById(tabKey + '-search')?.value || '').trim().toLowerCase();
+
+  const items = (state.masterData || []).map(function(item, idx) {
+    return { item: item, globalIdx: idx };
+  }).filter(function(r) {
+    if (r.item._tab !== masterTab) return false;
+    if (!q) return true;
+    return (r.item.itemNum + ' ' + (r.item.itemType||'') + ' ' + (r.item.description||'') + ' ' + (r.item.varDetail||'')).toLowerCase().includes(q);
+  });
+
+  if (countEl) countEl.textContent = items.length.toLocaleString() + ' item' + (items.length !== 1 ? 's' : '');
+
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-dim)">No items found</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = items.map(function(r) {
+    var item = r.item;
+    var vd = item.varDetail || '';
+    if (vd.length > 80) vd = vd.substring(0, 77) + '…';
+    return '<tr onclick="browseRowClick(event, ' + r.globalIdx + ')" style="cursor:pointer">' +
+      '<td><span class="item-num">' + item.itemNum + '</span></td>' +
+      '<td><span class="tag">' + (item.itemType || '—') + '</span></td>' +
+      '<td>' + (item.description || '<span class="text-dim">—</span>') + '</td>' +
+      '<td>' + (item.variation || '<span class="text-dim">—</span>') + '</td>' +
+      '<td>' + (vd || '<span class="text-dim">—</span>') + '</td>' +
+      '<td class="text-dim">' + (item.yearProd || '—') + '</td>' +
+    '</tr>';
+  }).join('');
 }
 
 function renderBrowse() {
@@ -422,7 +484,8 @@ function renderBrowse() {
         _personalOnly: true
       };
     });
-  const baseList = owned ? [...state.masterData, ...personalOnlyItems] : state.masterData;
+  const baseList = owned ? [...state.masterData, ...personalOnlyItems]
+    : state.masterData.filter(function(m) { return m._tab === 'Lionel Postwar - Items' || !m._tab; });
 
   state.filteredData = baseList.filter(item => {
     const pd = findPD(item.itemNum, item.variation) || (item._personalOnly ? item : null);
