@@ -5495,11 +5495,13 @@ async function saveWizardItem() {
           boxInvId,
           boxGroupId,
           d.location || '',        // Location (col W)
+          '',                    // Era (col X)
+          '',                    // Manufacturer (col Y)
         ];
 
         if (existing && existing.row && existing.itemNum === boxItemNum) {
           // Update existing BOX row
-          await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:W${existing.row}`, [boxRow]);
+          await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:Y${existing.row}`, [boxRow]);
         } else {
           await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [boxRow]);
         }
@@ -5518,6 +5520,7 @@ async function saveWizardItem() {
           matchedTo: itemNum,
           inventoryId: boxInvId, groupId: boxGroupId,
           location: d.location || '',
+          era: '', manufacturer: '',
         };
 
         closeWizard();
@@ -5567,6 +5570,8 @@ async function saveWizardItem() {
         d._existingInventoryId || nextInventoryId(),  // Inventory ID (col U)
         '',  // Group ID (col V) — filled in below for grouped items
         d.location || '',  // Location (col W)
+        '',                    // Era (col X)
+        '',                    // Manufacturer (col Y)
         ];
       }
       // ── SET UNIT SAVE: if diesel set, save unit2 (and unit3) rows with shared Set ID ──
@@ -5602,6 +5607,8 @@ async function saveWizardItem() {
       nextInventoryId(),  // Inventory ID
       groupId,  // Group ID — shared across set
       d.location || '',  // Location (col W) — same as unit 1
+      '',                    // Era (col X)
+      '',                    // Manufacturer (col Y)
     ];
     await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u2Row]);
 
@@ -5625,6 +5632,8 @@ async function saveWizardItem() {
         nextInventoryId(),  // Inventory ID
         groupId,  // Group ID — shared across set
         d.location || '',  // Location (col W) — same as unit 1
+        '',                    // Era (col X)
+        '',                    // Manufacturer (col Y)
       ];
       await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u3Row]);
       // Update u2Row matchedTo to also reference u3Num
@@ -5676,6 +5685,8 @@ async function saveWizardItem() {
       nextInventoryId(),  // Inventory ID
       groupId,  // Group ID — shared with engine
       d.location || '',  // Location (col W) — same as engine
+      '',                    // Era (col X)
+      '',                    // Manufacturer (col Y)
     ];
     await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [tRow]);
     // Update engine row matchedTo to point to tender
@@ -5695,7 +5706,7 @@ async function saveWizardItem() {
 
   if (d._fillItemMode && existing?.row) {
         // Updating existing row with new item details (e.g. filling in a quick-entry row)
-        await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:W${existing.row}`, [row]);
+        await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:Y${existing.row}`, [row]);
       } else {
         // Always append for a plain new collection add — never overwrite existing rows
         await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
@@ -5929,6 +5940,8 @@ async function saveWizardItem() {
           mbInvId,      // Inventory ID
           groupId,      // Group ID — shared with set
           d.location || '',  // Location (col W) — same as lead unit
+          '',                    // Era (col X)
+          '',                    // Manufacturer (col Y)
         ];
         await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [mbRow]);
         // Add to local state
@@ -5999,6 +6012,7 @@ async function saveWizardItem() {
         datePurchased: d.datePurchased || '',
         inventoryId: row[20] || '', groupId: groupId || '',
         location: d.location || '',
+        era: '', manufacturer: '',
       };
     } else if (tab === 'sold') {
       state.soldData[`${itemNum}|${variation}`] = {
@@ -6137,7 +6151,7 @@ async function quickEntryAdd() {
     for (const r of rows) {
       const isLead = r === rows[0];
       const invId = nextInventoryId();
-      const row = [r.itemNum, r.variation, r.condition||'','','','','','','',(isLead ? _qePhotoLink : ''),'', r.notes,'',(isLead ? _qeEstWorth : ''),r.matchedTo,r.setId,'','','','Yes', invId, r.groupId||'', ''];
+      const row = [r.itemNum, r.variation, r.condition||'','','','','','','',(isLead ? _qePhotoLink : ''),'', r.notes,'',(isLead ? _qeEstWorth : ''),r.matchedTo,r.setId,'','','','Yes', invId, r.groupId||'', '', '', ''];
       console.log('[QE] Saving', r.itemNum);
       const actualRow = await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
       const key = r.itemNum + '|' + r.variation + '|' + actualRow;
@@ -6151,6 +6165,7 @@ async function quickEntryAdd() {
         yearMade: '', isError: '', errorDesc: '', quickEntry: true,
         inventoryId: invId, groupId: r.groupId||'',
         location: '',
+        era: '', manufacturer: '',
       };
     }
 
