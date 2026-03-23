@@ -255,6 +255,34 @@ function getSteps(tab) {
   ];
 
   if (tab === 'collection') {
+    // ── Manual Entry path — no catalog lookup ──
+    if (wizard.data.itemCategory === 'manual') {
+      wizard.data._manualEntry = true;
+      return [
+        { id: 'itemCategory', title: 'What would you like to add?', type: 'itemCategory',
+          skipIf: (d) => !!d.itemCategory },
+        { id: 'manualManufacturer', title: 'Who made this item?', type: 'manualManufacturer' },
+        { id: 'manualItemNum', title: 'What is the item number?', type: 'text', placeholder: 'e.g. 726, S321, 999' },
+        { id: 'manualItemType', title: 'What type of item is this?', type: 'manualItemType' },
+        { id: 'manualDesc', title: 'Describe this item (optional)', type: 'textarea',
+          placeholder: 'e.g. Red caboose with illuminated interior', optional: true },
+        { id: 'manualYear', title: 'Year made (if known)', type: 'text', placeholder: 'e.g. 1957', optional: true },
+        { id: 'manualCondition', title: 'What condition is it?', type: 'slider', min: 1, max: 10 },
+        { id: 'manualHasBox', title: 'Does it have the original box?', type: 'choice2', choices: ['Yes', 'No'] },
+        { id: 'manualBoxCond', title: 'Box condition (1\u201310)', type: 'slider', min: 1, max: 10,
+          skipIf: d => d.manualHasBox !== 'Yes' },
+        { id: 'manualPurchaseValue', title: 'Purchase & Value', type: 'manualPurchaseValue' },
+        { id: 'manualPhotos', title: 'Add photos', type: 'drivePhotos', label: 'Item',
+          views: [
+            { key: 'PHOTO-1', label: 'Item Photo', abbr: 'Item' },
+            { key: 'PHOTO-2', label: 'Box Photo',  abbr: 'Box'  },
+            { key: 'PHOTO-3', label: 'Detail',     abbr: 'Detail' },
+          ], optional: true },
+        { id: 'manualNotes', title: 'Any notes?', type: 'textarea', optional: true,
+          placeholder: 'e.g. Purchased at York 2024, slight chip on roof' },
+        { id: 'confirm', title: (d) => 'Ready to save ' + (d.manualItemNum || 'your item') + '?', type: 'confirm' },
+      ];
+    }
     // If a sub-category was chosen and it's not a Lionel item, redirect to ephemera steps
     if (wizard.data.itemCategory && wizard.data.itemCategory !== 'lionel') {
       const ephTab = wizard.data.itemCategory;
@@ -1036,6 +1064,7 @@ function renderWizardStep() {
       { id: 'paper',    label: 'Paper Item',       desc: 'Catalog, ad, flyer, instruction sheet, article, box insert', emoji: '📄', color: '#3498db' },
       { id: 'mockups',  label: 'Mock-Up',          desc: 'Pre-production prototype',                          emoji: '🔩', color: '#9b59b6' },
       { id: 'other',    label: 'Other Item',       desc: 'Accessory, display, anything else',                 emoji: '📦', color: '#27ae60' },
+      { id: 'manual',   label: 'Manual Entry',     desc: 'Any item, any era, any manufacturer — no catalog lookup', emoji: '✏️', color: '#6c757d' },
     ];
     const cur = wizard.data.itemCategory || '';
     body.innerHTML = `
@@ -1054,6 +1083,89 @@ function renderWizardStep() {
             </div>
           </button>`).join('')}
       </div>`;
+
+  } else if (s.type === 'manualManufacturer') {
+    const _mfrs = ['Lionel', 'American Flyer', 'Marx', 'Ives', 'Kusan', 'Williams'];
+    const cur = wizard.data.manualManufacturer || '';
+    body.innerHTML =
+      '<div style="display:flex;flex-direction:column;gap:0.5rem;padding-top:0.25rem">' +
+        _mfrs.map(m =>
+          '<button onclick="wizard.data.manualManufacturer=\'' + m.replace(/'/g, "\\'") + '\';renderWizardStep()" style="' +
+            'display:flex;align-items:center;gap:0.75rem;padding:0.7rem 1rem;' +
+            'border-radius:10px;border:2px solid ' + (cur === m ? 'var(--accent)' : 'var(--border)') + ';' +
+            'background:' + (cur === m ? 'var(--accent)22' : 'var(--surface2)') + ';' +
+            'color:var(--text);cursor:pointer;font-family:var(--font-body);width:100%;font-size:0.92rem;font-weight:600;text-align:left' +
+          '">' + m + '</button>'
+        ).join('') +
+      '</div>' +
+      '<div style="margin-top:0.75rem">' +
+        '<label style="font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.3rem">Or type a manufacturer:</label>' +
+        '<input type="text" id="manual-mfr-input" value="' + ((_mfrs.includes(cur) ? '' : cur) || '').replace(/"/g, '&quot;') + '"' +
+          ' placeholder="e.g. Dorfan, Hafner, Unique Art"' +
+          ' oninput="wizard.data.manualManufacturer=this.value.trim();' +
+            'document.querySelectorAll(\'#wizard-body button\').forEach(b=>b.style.border=\'2px solid var(--border)\');' +
+            'document.querySelectorAll(\'#wizard-body button\').forEach(b=>b.style.background=\'var(--surface2)\')"' +
+          ' style="width:100%;padding:0.6rem 0.75rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box">' +
+      '</div>';
+
+  } else if (s.type === 'manualItemType') {
+    const _types = [
+      ['Steam Engine', '🚂'], ['Diesel Engine', '🚄'], ['Electric Engine', '⚡'],
+      ['Freight Car', '🚃'], ['Passenger Car', '🚋'], ['Caboose', '🔴'],
+      ['Accessory', '🏗️'], ['Track', '🛤️'], ['Transformer', '🔌'],
+      ['Rolling Stock', '📦'], ['Other', '❓'],
+    ];
+    const cur = wizard.data.manualItemType || '';
+    body.innerHTML =
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;padding-top:0.25rem">' +
+        _types.map(([t, emoji]) =>
+          '<button onclick="wizard.data.manualItemType=\'' + t.replace(/'/g, "\\'") + '\';renderWizardStep()" style="' +
+            'display:flex;align-items:center;gap:0.5rem;padding:0.55rem 0.7rem;' +
+            'border-radius:8px;border:2px solid ' + (cur === t ? 'var(--accent)' : 'var(--border)') + ';' +
+            'background:' + (cur === t ? 'var(--accent)22' : 'var(--surface2)') + ';' +
+            'color:var(--text);cursor:pointer;font-family:var(--font-body);font-size:0.82rem;font-weight:600;text-align:left' +
+          '"><span style=\"font-size:1.1rem\">' + emoji + '</span>' + t + '</button>'
+        ).join('') +
+      '</div>' +
+      '<div style="margin-top:0.6rem">' +
+        '<input type="text" id="manual-type-input" value="' + ((_types.some(([t])=>t===cur) ? '' : cur) || '').replace(/"/g, '&quot;') + '"' +
+          ' placeholder="Or type a custom type"' +
+          ' oninput="wizard.data.manualItemType=this.value.trim();' +
+            'document.querySelectorAll(\'#wizard-body button\').forEach(b=>{b.style.border=\'2px solid var(--border)\';b.style.background=\'var(--surface2)\';})"' +
+          ' style="width:100%;padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;box-sizing:border-box">' +
+      '</div>';
+
+  } else if (s.type === 'manualPurchaseValue') {
+    const d = wizard.data;
+    body.innerHTML =
+      '<div style="display:flex;flex-direction:column;gap:0.75rem;padding-top:0.25rem">' +
+        '<div>' +
+          '<label style="font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.25rem">Date Purchased</label>' +
+          '<input type="date" value="' + (d.datePurchased || '') + '"' +
+            ' onchange="wizard.data.datePurchased=this.value"' +
+            ' style="width:100%;padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.88rem;box-sizing:border-box">' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem">' +
+          '<div>' +
+            '<label style="font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.25rem">Price Paid</label>' +
+            '<input type="number" step="0.01" value="' + (d.priceItem || '') + '"' +
+              ' oninput="wizard.data.priceItem=this.value" placeholder="$0.00"' +
+              ' style="width:100%;padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:0.88rem;box-sizing:border-box">' +
+          '</div>' +
+          '<div>' +
+            '<label style="font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.25rem">Est. Worth</label>' +
+            '<input type="number" step="0.01" value="' + (d.userEstWorth || '') + '"' +
+              ' oninput="wizard.data.userEstWorth=this.value" placeholder="$0.00"' +
+              ' style="width:100%;padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:0.88rem;box-sizing:border-box">' +
+          '</div>' +
+        '</div>' +
+        '<div>' +
+          '<label style="font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.25rem">Storage Location</label>' +
+          '<input type="text" value="' + (d.location || '').replace(/"/g, '&quot;') + '"' +
+            ' oninput="wizard.data.location=this.value" placeholder="e.g. Shelf 3, Tote 12"' +
+            ' style="width:100%;padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.88rem;box-sizing:border-box">' +
+        '</div>' +
+      '</div>';
 
   } else if (s.type === 'choice') {
     // First step - choose tab
@@ -3685,6 +3797,9 @@ function renderWizardStep() {
       eph_material:'Material', eph_dimensions:'Dimensions',
       eph_lionelVerified:'Lionel Verified',
       location:'Storage Location',
+      manualManufacturer:'Manufacturer', manualItemNum:'Item Number', manualItemType:'Item Type',
+      manualDesc:'Description', manualYear:'Year Made', manualCondition:'Condition',
+      manualHasBox:'Has Box', manualBoxCond:'Box Condition', manualNotes:'Notes',
       isError:'Error Item', errorDesc:'Error Description',
       tenderIsError:'Tender Error', tenderErrorDesc:'Tender Error Desc',
       unit2IsError:'Unit 2 Error', unit2ErrorDesc:'Unit 2 Error Desc',
@@ -3697,22 +3812,22 @@ function renderWizardStep() {
       unit2HasBox:'Unit 2 Has Box', unit3HasBox:'Unit 3 Has Box',
       boxCond:'Box Condition', tenderBoxCond:'Tender Box Cond',
       unit2BoxCond:'Unit 2 Box Cond', unit3BoxCond:'Unit 3 Box Cond',
-      pricePaid:'Price Paid', userEstWorth:'Est. Worth (insurance)',
+      pricePaid:'Price Paid', priceItem:'Price Paid', userEstWorth:'Est. Worth (insurance)',
       datePurchased:'Date Purchased', yearMade:'Year Made',
       variation:'Variation', itemNum:'Item Number',
       entryMode:'Entry Mode', boxOnly:'Box Only',
       priority:'Priority', expectedPrice:'Expected Price',
       salePrice:'Sale Price', dateSold:'Date Sold',
     };
-    const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','wantErrorPhotos','photosMasterBox','boxOnly','entryMode','_setId','_rawItemNum','matchedItem','_partialMatches','_partialQuery','_itemGrouping','_fromWantList','_fromWantKey','_returnPage']);
+    const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','wantErrorPhotos','photosMasterBox','boxOnly','entryMode','_setId','_rawItemNum','matchedItem','_partialMatches','_partialQuery','_itemGrouping','_fromWantList','_fromWantKey','_returnPage','_manualEntry','_drivePhotos']);
     const _summaryEntries = Object.entries(wizard.data).filter(function(e) {
       return !_skipKeys.has(e[0]) && e[1] && e[1] !== '' && !e[0].startsWith('photos') && !Array.isArray(e[1]) && typeof e[1] !== 'object';
     });
 
-    const _yesNoKeys = ['hasIS','hasMasterBox','hasBox','tenderHasBox','unit2HasBox','unit3HasBox','isError','tenderIsError','unit2IsError','unit3IsError','cat_hasMailer'];
+    const _yesNoKeys = ['hasIS','hasMasterBox','hasBox','tenderHasBox','unit2HasBox','unit3HasBox','isError','tenderIsError','unit2IsError','unit3IsError','cat_hasMailer','manualHasBox'];
     const _yesNoUnkKeys = ['allOriginal','tenderAllOriginal','unit2AllOriginal','unit3AllOriginal'];
-    const _sliderKeys = ['condition','tenderCondition','unit2Condition','unit3Condition','boxCond','tenderBoxCond','unit2BoxCond','unit3BoxCond','is_condition','cat_condition','eph_condition','masterBoxCond'];
-    const _moneyKeys = ['pricePaid','userEstWorth','cat_estValue','eph_estValue','expectedPrice','salePrice'];
+    const _sliderKeys = ['condition','tenderCondition','unit2Condition','unit3Condition','boxCond','tenderBoxCond','unit2BoxCond','unit3BoxCond','is_condition','cat_condition','eph_condition','masterBoxCond','manualCondition','manualBoxCond'];
+    const _moneyKeys = ['pricePaid','priceItem','userEstWorth','cat_estValue','eph_estValue','expectedPrice','salePrice'];
     const _dateKeys = ['datePurchased','cat_dateAcquired','eph_dateAcquired','dateSold'];
 
     // Store field type maps on window for edit functions
@@ -3773,7 +3888,15 @@ function wizardChooseCategory(catId) {
     return;
   }
   wizard.data.itemCategory = catId;
-  if (catId !== 'lionel') {
+  if (catId === 'manual') {
+    // Manual entry stays in collection tab but uses its own step list
+    wizard.data._manualEntry = true;
+    wizard.steps = getSteps('collection');
+    wizard.step = 0;
+    renderWizardStep();
+    // Auto-advance past the itemCategory step (already chosen)
+    setTimeout(() => wizardNext(), 150);
+  } else if (catId !== 'lionel') {
     wizard.tab = catId;
     wizard.steps = getSteps(catId);
     wizard.step = 0;
@@ -4776,6 +4899,12 @@ async function _wizardNextCore() {
   if (s.type === 'text' && !s.optional && !wizard.data[s.id]?.trim()) {
     showToast('This field is required.'); return;
   }
+  if (s.type === 'manualManufacturer' && !(wizard.data.manualManufacturer || '').trim()) {
+    showToast('Please select or type a manufacturer.'); return;
+  }
+  if (s.type === 'manualItemType' && !(wizard.data.manualItemType || '').trim()) {
+    showToast('Please select or type an item type.'); return;
+  }
   if (s.type === 'itemNumGrouping' && !(wizard.data.itemNum || '').trim()) {
     showToast('Please enter an item number.'); return;
   }
@@ -4917,6 +5046,14 @@ async function _wizardNextCore() {
     }
     if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
     try { await saveEphemeraItem(); } catch(e) { showToast('Error: '+e.message); }
+    if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Save →'; }
+    return;
+  }
+
+  // Manual entry confirm — separate save path, no catalog matching
+  if (s.type === 'confirm' && wizard.data._manualEntry) {
+    if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
+    try { await _saveManualEntry(); } catch(e) { showToast('Error: '+e.message); }
     if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Save →'; }
     return;
   }
@@ -5404,6 +5541,93 @@ async function savePhotoOnlyUpdate() {
     if (c1) c1.style.display = 'inline';
     if (c2) c2.style.display = 'inline';
   }
+}
+
+async function _saveManualEntry() {
+  const d = wizard.data;
+  const itemNum = (d.manualItemNum || '').trim();
+  if (!itemNum) { showToast('Please enter an item number'); return; }
+
+  const manufacturer = (d.manualManufacturer || '').trim();
+  const itemType = d.manualItemType || '';
+  const description = (d.manualDesc || '').trim();
+  const year = (d.manualYear || '').trim();
+  const condition = d.manualCondition || '';
+  const hasBox = d.manualHasBox || 'No';
+  const boxCond = hasBox === 'Yes' ? (d.manualBoxCond || '') : '';
+  const notes = (d.manualNotes || '').trim();
+  const priceItem = d.priceItem || '';
+  const userEstWorth = d.userEstWorth || '';
+  const datePurchased = d.datePurchased || '';
+  const location = d.location || '';
+  const invId = nextInventoryId();
+
+  // Upload photos if present
+  let photoLink = '';
+  if (d._drivePhotos && d._drivePhotos.length > 0) {
+    try {
+      photoLink = await driveUploadItemPhoto(d._drivePhotos[0].file || d._drivePhotos[0], itemNum, 'MANUAL') || '';
+    } catch(e) { console.warn('[Manual] Photo upload failed:', e); }
+  }
+
+  // Build description + type as combined notes/description
+  const fullDesc = [itemType, description].filter(Boolean).join(' — ');
+
+  // Construct 25-column row (A-Y)
+  const row = [
+    itemNum,          // A: Item Number
+    '',               // B: Variation
+    condition,        // C: Condition
+    '',               // D: All Original
+    priceItem,        // E: Item Only Price
+    '',               // F: Box Only Price
+    priceItem ? parseFloat(priceItem).toFixed(2) : '',  // G: Item+Box Complete
+    hasBox,           // H: Has Box
+    boxCond,          // I: Box Condition
+    photoLink,        // J: Item Photo Link
+    '',               // K: Box Photo Link
+    (fullDesc ? fullDesc + (notes ? ' | ' + notes : '') : notes) || '',  // L: Notes
+    datePurchased,    // M: Date Purchased
+    userEstWorth,     // N: User Est. Worth
+    '',               // O: Matched Tender/Engine
+    '',               // P: Set ID
+    year,             // Q: Year Made
+    'No',             // R: Is Error
+    '',               // S: Error Description
+    '',               // T: Quick Entry
+    invId,            // U: Inventory ID
+    '',               // V: Group ID
+    location,         // W: Location
+    'Manual',         // X: Era
+    manufacturer,     // Y: Manufacturer
+  ];
+
+  await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
+
+  // Optimistic state update
+  const tempKey = itemNum + '||temp_' + Date.now();
+  state.personalData[tempKey] = {
+    row: 99999, itemNum, variation: '',
+    status: 'Owned', owned: true,
+    condition, allOriginal: '',
+    priceItem, priceBox: '', priceComplete: row[6],
+    hasBox, boxCond,
+    photoItem: photoLink, photoBox: '',
+    notes: row[11],
+    datePurchased, userEstWorth,
+    matchedTo: '', setId: '',
+    yearMade: year, isError: 'No', errorDesc: '',
+    quickEntry: false,
+    inventoryId: invId, groupId: '',
+    location,
+    era: 'Manual', manufacturer,
+  };
+
+  _cachePersonalData();
+  closeWizard();
+  showToast('\u2713 ' + itemNum + ' saved (manual entry)');
+  buildDashboard();
+  renderBrowse();
 }
 
 async function saveWizardItem() {
