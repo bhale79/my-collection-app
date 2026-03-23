@@ -164,6 +164,11 @@ document.addEventListener('touchmove', function(){}, {passive: true});
           <button id="btab-items"    onclick="renderBrowseTab('items')"    style="padding:0.5rem 1.1rem;font-size:0.82rem;font-weight:600;font-family:var(--font-body);background:none;border:none;border-bottom:2px solid var(--accent);margin-bottom:-2px;color:var(--accent);cursor:pointer">Items</button>
           <button id="btab-sets"     onclick="renderBrowseTab('sets')"     style="padding:0.5rem 1.1rem;font-size:0.82rem;font-weight:600;font-family:var(--font-body);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-dim);cursor:pointer">Sets</button>
           <button id="btab-catalogs" onclick="renderBrowseTab('catalogs')" style="padding:0.5rem 1.1rem;font-size:0.82rem;font-weight:600;font-family:var(--font-body);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-dim);cursor:pointer">Catalogs</button>
+          <button id="btab-science"  onclick="renderBrowseTab('science')"  style="padding:0.5rem 1.1rem;font-size:0.82rem;font-weight:600;font-family:var(--font-body);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-dim);cursor:pointer">Science</button>
+          <button id="btab-construction" onclick="renderBrowseTab('construction')" style="padding:0.5rem 1.1rem;font-size:0.82rem;font-weight:600;font-family:var(--font-body);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-dim);cursor:pointer">Construction</button>
+          <button id="btab-paper"   onclick="renderBrowseTab('paper')"    style="padding:0.5rem 1.1rem;font-size:0.82rem;font-weight:600;font-family:var(--font-body);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-dim);cursor:pointer">Paper</button>
+          <button id="btab-other"   onclick="renderBrowseTab('other')"    style="padding:0.5rem 1.1rem;font-size:0.82rem;font-weight:600;font-family:var(--font-body);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-dim);cursor:pointer">Other</button>
+          <button id="btab-service" onclick="renderBrowseTab('service')"  style="padding:0.5rem 1.1rem;font-size:0.82rem;font-weight:600;font-family:var(--font-body);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-dim);cursor:pointer">Service Tools</button>
           <button id="btab-is"       onclick="renderBrowseTab('is')"       style="padding:0.5rem 1.1rem;font-size:0.82rem;font-weight:600;font-family:var(--font-body);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-dim);cursor:pointer">Instr. Sheets</button>
           <button id="btab-mockups"  onclick="renderBrowseTab('mockups')"  style="display:none;padding:0.5rem 1.1rem;font-size:0.82rem;font-weight:600;font-family:var(--font-body);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-dim);cursor:pointer">Mock-ups &amp; Other Items</button>
         </div>
@@ -245,6 +250,56 @@ document.addEventListener('touchmove', function(){}, {passive: true});
           </div>
         </div>
 
+
+        <div id="browse-science-panel" style="display:none">
+          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem">
+            <input id="science-search" type="text" placeholder="Search science sets…" oninput="renderMasterSubTab('science')" style="border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:0.35rem 0.65rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;width:240px">
+            <span id="science-count" style="font-size:0.8rem;color:var(--text-dim);margin-left:auto"></span>
+          </div>
+          <div class="table-wrap" style="max-height:calc(100vh - 240px);overflow-y:auto">
+            <table class="item-table"><thead><tr><th>Item #</th><th>Type</th><th>Description</th><th>Var.</th><th>Var. Descr.</th><th>Year</th></tr></thead><tbody id="science-tbody"></tbody></table>
+          </div>
+        </div>
+
+        <div id="browse-construction-panel" style="display:none">
+          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem">
+            <input id="construction-search" type="text" placeholder="Search construction sets…" oninput="renderMasterSubTab('construction')" style="border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:0.35rem 0.65rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;width:240px">
+            <span id="construction-count" style="font-size:0.8rem;color:var(--text-dim);margin-left:auto"></span>
+          </div>
+          <div class="table-wrap" style="max-height:calc(100vh - 240px);overflow-y:auto">
+            <table class="item-table"><thead><tr><th>Item #</th><th>Type</th><th>Description</th><th>Var.</th><th>Var. Descr.</th><th>Year</th></tr></thead><tbody id="construction-tbody"></tbody></table>
+          </div>
+        </div>
+
+        <div id="browse-paper-panel" style="display:none">
+          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem">
+            <input id="paper-search" type="text" placeholder="Search paper items…" oninput="renderMasterSubTab('paper')" style="border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:0.35rem 0.65rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;width:240px">
+            <span id="paper-count" style="font-size:0.8rem;color:var(--text-dim);margin-left:auto"></span>
+          </div>
+          <div class="table-wrap" style="max-height:calc(100vh - 240px);overflow-y:auto">
+            <table class="item-table"><thead><tr><th>Item #</th><th>Type</th><th>Description</th><th>Var.</th><th>Var. Descr.</th><th>Year</th></tr></thead><tbody id="paper-tbody"></tbody></table>
+          </div>
+        </div>
+
+        <div id="browse-other-panel" style="display:none">
+          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem">
+            <input id="other-search" type="text" placeholder="Search other items…" oninput="renderMasterSubTab('other')" style="border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:0.35rem 0.65rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;width:240px">
+            <span id="other-count" style="font-size:0.8rem;color:var(--text-dim);margin-left:auto"></span>
+          </div>
+          <div class="table-wrap" style="max-height:calc(100vh - 240px);overflow-y:auto">
+            <table class="item-table"><thead><tr><th>Item #</th><th>Type</th><th>Description</th><th>Var.</th><th>Var. Descr.</th><th>Year</th></tr></thead><tbody id="other-tbody"></tbody></table>
+          </div>
+        </div>
+
+        <div id="browse-service-panel" style="display:none">
+          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem">
+            <input id="service-search" type="text" placeholder="Search service tools…" oninput="renderMasterSubTab('service')" style="border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:0.35rem 0.65rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;width:240px">
+            <span id="service-count" style="font-size:0.8rem;color:var(--text-dim);margin-left:auto"></span>
+          </div>
+          <div class="table-wrap" style="max-height:calc(100vh - 240px);overflow-y:auto">
+            <table class="item-table"><thead><tr><th>Item #</th><th>Type</th><th>Description</th><th>Var.</th><th>Var. Descr.</th><th>Year</th></tr></thead><tbody id="service-tbody"></tbody></table>
+          </div>
+        </div>
         <div id="browse-mockups-panel" style="display:none">
           <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem">
             <input id="mockups-search" type="text" placeholder="Search mock-ups and other items…" oninput="renderMockupsOtherTab()" style="border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:0.35rem 0.65rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;width:280px">
