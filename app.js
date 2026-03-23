@@ -3392,6 +3392,27 @@ function showRefItemPopup(type, idx) {
   closeBtn.textContent = '✕';
   closeBtn.onclick = function() { overlay.remove(); };
   box.appendChild(closeBtn);
+  // Add to Collection button
+  var addBtn = document.createElement('button');
+  addBtn.className = 'btn btn-primary';
+  addBtn.style.cssText = 'margin-top:1.25rem;width:100%;background:var(--accent);border-color:var(--accent);line-height:1.25';
+  addBtn.innerHTML = '<span style="display:block;font-size:0.75em;opacity:0.85;font-weight:400;letter-spacing:0.03em">Add to</span><span style="display:block">Collection</span>';
+  var _itemNum = '';
+  if (type === 'set') _itemNum = (window._browseFilteredSets || [])[idx]?.setNum || '';
+  else if (type === 'catalog') _itemNum = (window._browseFilteredCats || [])[idx]?.id || '';
+  else if (type === 'is') _itemNum = (window._browseFilteredIS || [])[idx]?.itemNumber || (window._browseFilteredIS || [])[idx]?.id || '';
+  addBtn.onclick = function() {
+    overlay.remove();
+    // Find matching item in masterData for the wizard
+    var masterIdx = state.masterData.findIndex(function(m) { return m.itemNum === _itemNum; });
+    if (masterIdx >= 0) {
+      addFromBrowse(masterIdx);
+    } else {
+      // Item not in masterData — open wizard with manual entry
+      openWizard('collection');
+    }
+  };
+  box.appendChild(addBtn);
   overlay.appendChild(box);
   document.body.appendChild(overlay);
 }
