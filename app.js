@@ -3397,19 +3397,42 @@ function showRefItemPopup(type, idx) {
   addBtn.className = 'btn btn-primary';
   addBtn.style.cssText = 'margin-top:1.25rem;width:100%;background:var(--accent);border-color:var(--accent);line-height:1.25';
   addBtn.innerHTML = '<span style="display:block;font-size:0.75em;opacity:0.85;font-weight:400;letter-spacing:0.03em">Add to</span><span style="display:block">Collection</span>';
-  var _itemNum = '';
-  if (type === 'set') _itemNum = (window._browseFilteredSets || [])[idx]?.setNum || '';
-  else if (type === 'catalog') _itemNum = (window._browseFilteredCats || [])[idx]?.id || '';
-  else if (type === 'is') _itemNum = (window._browseFilteredIS || [])[idx]?.itemNumber || (window._browseFilteredIS || [])[idx]?.id || '';
+  var _itemNum = '', _itemType = '', _description = '', _year = '';
+  if (type === 'set') {
+    var _s = (window._browseFilteredSets || [])[idx];
+    if (_s) { _itemNum = _s.setNum; _itemType = 'Set'; _description = _s.setName || ''; _year = _s.year || ''; }
+  } else if (type === 'catalog') {
+    var _c = (window._browseFilteredCats || [])[idx];
+    if (_c) { _itemNum = _c.id; _itemType = 'Catalog'; _description = _c.title || ''; _year = _c.year || ''; }
+  } else if (type === 'is') {
+    var _is = (window._browseFilteredIS || [])[idx];
+    if (_is) { _itemNum = _is.itemNumber || _is.id; _itemType = 'Instruction Sheet'; _description = _is.description || ''; }
+  }
   addBtn.onclick = function() {
     overlay.remove();
-    // Find matching item in masterData for the wizard
+    // Try to find in masterData first (instruction sheets often match)
     var masterIdx = state.masterData.findIndex(function(m) { return m.itemNum === _itemNum; });
     if (masterIdx >= 0) {
       addFromBrowse(masterIdx);
     } else {
-      // Item not in masterData — open wizard with manual entry
-      openWizard('collection');
+      // Pre-fill the wizard with what we know
+      _buildWizardModal();
+      wizard = {
+        step: 0, tab: 'collection',
+        data: { tab: 'collection', itemNum: _itemNum, variation: '' },
+        steps: getSteps('collection'),
+        matchedItem: { itemNum: _itemNum, itemType: _itemType, description: _description, yearProd: _year, roadName: '', variation: '' }
+      };
+      document.getElementById('wizard-modal').classList.add('open');
+      document.body.style.overflow = 'hidden';
+      var autoSkip = new Set(['tab', 'itemNum', 'variation', 'itemPicker', 'itemCategory']);
+      while (wizard.step < wizard.steps.length - 1) {
+        var ws = wizard.steps[wizard.step];
+        if (autoSkip.has(ws.id) || (ws.skipIf && ws.skipIf(wizard.data))) {
+          wizard.step++;
+        } else break;
+      }
+      renderWizardStep();
     }
   };
   box.appendChild(addBtn);
