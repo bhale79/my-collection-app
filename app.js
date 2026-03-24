@@ -3410,6 +3410,11 @@ function showRefItemPopup(type, idx) {
   }
   addBtn.onclick = function() {
     overlay.remove();
+    // Sets get their own wizard flow
+    if (type === 'set') {
+      addSetToCollection(_itemNum, _description);
+      return;
+    }
     // Try to find in masterData first (instruction sheets often match)
     var masterIdx = state.masterData.findIndex(function(m) { return m.itemNum === _itemNum; });
     if (masterIdx >= 0) {
@@ -5143,6 +5148,7 @@ function buildSetsPage() {
 }
 
 function addSetToCollection(setNum, setName) {
+  _buildWizardModal();
   const _activePg = document.querySelector('.page.active');
   const _returnPage = _activePg ? _activePg.id.replace('page-', '') : 'sets';
   // Set wizard.data FIRST so getSteps('set') can branch correctly
@@ -5300,15 +5306,6 @@ function showSetDetail(setNum) {
   // ── Footer action ──
   const footer = document.createElement('div');
   footer.style.cssText = 'margin-top:1.25rem;padding-top:0.9rem;border-top:1px solid var(--border);display:flex;gap:0.5rem;justify-content:flex-end';
-  // Upgrade List button (only for owned items)
-  const _upgradeKey2 = `${s.itemNum}|${s.variation||''}`;
-  const _alreadyUpgrade = !!state.upgradeData[_upgradeKey2];
-  const upgradeBtn = document.createElement('button');
-  upgradeBtn.style.cssText = 'padding:0.55rem 1rem;border-radius:8px;border:1.5px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer';
-  upgradeBtn.textContent = _alreadyUpgrade ? '↑ On Upgrade List' : '↑ Add to Upgrade List';
-  if (_alreadyUpgrade) upgradeBtn.style.opacity = '0.6';
-  else upgradeBtn.onclick = () => showAddToUpgradeModal(s.itemNum, s.variation||'');
-  if (pd && pd.owned) btns.appendChild(upgradeBtn);
 
   // Add to Collection button (always shown)
   const collBtn = document.createElement('button');
