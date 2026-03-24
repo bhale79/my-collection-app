@@ -3742,17 +3742,18 @@ function renderWizardStep() {
     const _defHasIS    = _prefGet('lv_def_hasIS',       'No');
     const _defIsError  = _prefGet('lv_def_isError',     'No');
     const _defMasterBox = _prefGet('lv_def_masterBox',  'No');
-    const _allPrefixes = ['', 'tender', 'unit2', 'unit3'];
+    // In set mode, only pre-populate main item (no tender/unit2/unit3)
+    const _allPrefixes = wizard.data._setMode ? [''] : ['', 'tender', 'unit2', 'unit3'];
     _allPrefixes.forEach(function(p) {
       const origKey  = p ? p + 'AllOriginal' : 'allOriginal';
       const boxKey   = p ? p + 'HasBox'      : 'hasBox';
       const errKey   = p ? p + 'IsError'     : 'isError';
       if (!wizard.data[origKey]) wizard.data[origKey] = _defAllOrig;
       if (!wizard.data[boxKey])  wizard.data[boxKey]  = _defHasBox;
-      if (!wizard.data[errKey])  wizard.data[errKey]  = _defIsError;
+      if (!wizard.data._setMode && !wizard.data[errKey]) wizard.data[errKey] = _defIsError;
     });
     if (!wizard.data.hasIS)        wizard.data.hasIS        = _defHasIS;
-    if (!wizard.data.hasMasterBox) wizard.data.hasMasterBox = _defMasterBox;
+    if (!wizard.data._setMode && !wizard.data.hasMasterBox) wizard.data.hasMasterBox = _defMasterBox;
 
     // Determine columns
     const _cdCols = [];
@@ -4172,6 +4173,15 @@ function renderWizardStep() {
       salePrice:'Sale Price', dateSold:'Date Sold',
     };
     const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','wantErrorPhotos','photosMasterBox','boxOnly','entryMode','_setId','_rawItemNum','matchedItem','_partialMatches','_partialQuery','_itemGrouping','_fromWantList','_fromWantKey','_returnPage','_manualEntry','_drivePhotos','_setMode','_setGroupId','_setFinalItems','_setItemIndex','_setItemsSaved','_setEntryMode','_resolvedSet','_setLocoNum','_setPrice','_setDate','_setWorth','_setCondition','_setHasBoxChecked','_setWantPhotos','_setPhotoThenSave','_prefilledCondition','_setQEPhotos','set_hasBox','set_boxCond','set_boxPhotos','set_notes']);
+    // In set mode, hide tender/unit/masterBox/error fields from confirm (each set item is standalone)
+    if (wizard.data._setMode) {
+      ['tenderAllOriginal','tenderHasBox','tenderCondition','tenderBoxCond','tenderIsError','tenderErrorDesc','tenderNotOriginalDesc',
+       'unit2AllOriginal','unit2HasBox','unit2Condition','unit2BoxCond','unit2IsError','unit2ErrorDesc','unit2NotOriginalDesc',
+       'unit3AllOriginal','unit3HasBox','unit3Condition','unit3BoxCond','unit3IsError','unit3ErrorDesc','unit3NotOriginalDesc',
+       'hasMasterBox','masterBoxCond','masterBoxNotes','isError','errorDesc','notOriginalDesc',
+       'priceItem','userEstWorth','datePurchased','pricePaid','location','yearMade',
+       '_existingGroupId'].forEach(k => _skipKeys.add(k));
+    }
     const _summaryEntries = Object.entries(wizard.data).filter(function(e) {
       return !_skipKeys.has(e[0]) && e[1] && e[1] !== '' && !e[0].startsWith('photos') && !Array.isArray(e[1]) && typeof e[1] !== 'object';
     });
