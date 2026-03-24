@@ -5164,9 +5164,17 @@ function addSetToCollection(setNum, setName) {
     steps: [],
     matchedItem: null
   };
+  // Pre-populate set item list and group ID (normally done in set_components step)
+  const _resolvedSet = wizard.data._resolvedSet;
+  if (_resolvedSet && _resolvedSet.items) {
+    wizard.data._setFinalItems = [..._resolvedSet.items];
+    wizard.data._setItemIndex = 0;
+    wizard.data._setGroupId = 'SET-' + setNum + '-' + Date.now();
+    wizard.data._setItemsSaved = [];
+  }
   wizard.steps = getSteps('set'); // called after data is set
-  // Skip set_knowsNum and set_num — already filled
-  const autoSkip = new Set(['set_knowsNum', 'set_num', 'set_loco']);
+  // Skip set_knowsNum, set_num, set_loco, and set_components — already resolved
+  const autoSkip = new Set(['set_knowsNum', 'set_num', 'set_loco', 'set_components']);
   while (wizard.step < wizard.steps.length) {
     const cur = wizard.steps[wizard.step];
     if (!autoSkip.has(cur.id)) break;
