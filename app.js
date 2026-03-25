@@ -1361,15 +1361,20 @@ function parseSetRows(rows) {
   state.setData = rows
     .filter(r => r[0])
     .map(r => ({
-      setNum:   (r[0]  || '').trim(),
-      setName:  (r[1]  || '').trim(),
-      year:     (r[2]  || '').trim(),
-      gauge:    (r[3]  || '').trim(),
-      price:    (r[4]  || '').trim(),
-      items:    [r[5],r[6],r[7],r[8],r[9],r[10],r[11],r[12],r[13],r[14],r[15]]
+      setNum:      (r[0]  || '').trim(),
+      setName:     (r[1]  || '').trim(),
+      year:        (r[2]  || '').trim(),
+      gauge:       (r[3]  || '').trim(),
+      price:       (r[4]  || '').trim(),
+      steam:       (r[5]  || '').trim(),
+      tender:      (r[6]  || '').trim(),
+      dieselPow:   (r[7]  || '').trim(),
+      dieselB:     (r[8]  || '').trim(),
+      dieselDummy: (r[9]  || '').trim(),
+      // All component item numbers in one flat array (cols F–T)
+      items:    [r[5],r[6],r[7],r[8],r[9],r[10],r[11],r[12],r[13],r[14],r[15],r[16],r[17],r[18],r[19]]
                   .map(v => (v||'').trim()).filter(Boolean),
-      alts:     [r[16],r[17],r[18],r[19]]
-                  .map(v => (v||'').trim()).filter(Boolean),
+      alts:     [],   // no longer used — all components are in items[]
       notes:    (r[20] || '').trim(),
     }));
 }
