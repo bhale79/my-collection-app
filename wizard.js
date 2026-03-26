@@ -347,13 +347,15 @@ function getSteps(tab) {
       { id: 'conditionDetails', title: 'Condition & Details', type: 'conditionDetails' },
 
       // ── SCREEN 4: Purchase & Value (combined) ──
-      // Skipped for Science/Construction (embedded in conditionDetails)
+      // Skipped for simplified types (embedded in conditionDetails)
       { id: 'purchaseValue', title: 'Purchase & Value', type: 'purchaseValue',
         skipIf: d => {
           if (d._setMode) return true;
           const _m = wizard.matchedItem || state.masterData.find(function(m) { return m.itemNum === (d.itemNum||''); });
           const _t = (_m && _m.itemType) ? _m.itemType : '';
-          return ['Science Set','Construction Set'].includes(_t);
+          if (['Science Set','Construction Set','Catalog','Instruction Sheet'].includes(_t)) return true;
+          if (_t.toLowerCase().includes('paper') || _t.toLowerCase().includes('catalog')) return true;
+          return false;
         } },
 
       // ── SCREEN 5+: Photos (one per subject, color-coded banners) ──
@@ -3353,7 +3355,7 @@ function renderWizardStep() {
     }
 
   } else if (s.type === 'drivePhotos') {
-    // Check item type for custom views (Science/Construction sets)
+    // Check item type for custom views (Science/Construction/Catalog/Paper/IS)
     let views = s.views;
     if (!views) {
       const _phMaster = wizard.matchedItem || state.masterData.find(function(m) { return m.itemNum === (wizard.data.itemNum||''); });
@@ -3363,6 +3365,21 @@ function renderWizardStep() {
           { key: 'CASE-FRONT', label: 'Front of Case', abbr: 'Front' },
           { key: 'CASE-BACK',  label: 'Back of Case',  abbr: 'Back'  },
           { key: 'CASE-INSIDE',label: 'Inside of Set',  abbr: 'Inside' },
+        ];
+      } else if (_phType === 'Catalog' && s.label === 'Item') {
+        views = [
+          { key: 'COVER',  label: 'Front Cover', abbr: 'Front' },
+          { key: 'BACK',   label: 'Back Cover',  abbr: 'Back'  },
+        ];
+      } else if (_phType === 'Instruction Sheet' && s.label === 'Item') {
+        views = [
+          { key: 'IS-FRONT', label: 'Front of Sheet', abbr: 'Front' },
+          { key: 'IS-BACK',  label: 'Back of Sheet',  abbr: 'Back'  },
+        ];
+      } else if ((_phType.toLowerCase().includes('paper')) && s.label === 'Item') {
+        views = [
+          { key: 'PAPER-FRONT', label: 'Front of Page', abbr: 'Front' },
+          { key: 'PAPER-BACK',  label: 'Back of Page',  abbr: 'Back'  },
         ];
       } else {
         views = s.label === 'Box' ? BOX_VIEWS : s.label === 'Error' ? ERROR_VIEWS : ITEM_VIEWS;
@@ -3932,10 +3949,15 @@ function renderWizardStep() {
     const _cdGrouping = wizard.data._itemGrouping || 'single';
     const _cdItemNum = (wizard.data.itemNum || '').trim();
 
-    // Detect item type for field hiding (Science Sets, Construction Sets skip IS/MasterBox/Error)
+    // Detect item type for field hiding
+    // _cdIsSimplified = Science/Construction: hide IS, Master Box, Error (keep All Original, Has Box)
+    // _cdIsPaperLike = Catalog/Paper/IS: hide ALL toggles (All Original, Has Box, IS, Master Box, Error)
     const _cdMaster = wizard.matchedItem || state.masterData.find(function(m) { return m.itemNum === _cdItemNum; });
     const _cdItemType = (_cdMaster && _cdMaster.itemType) ? _cdMaster.itemType : '';
     const _cdIsSimplified = ['Science Set','Construction Set'].includes(_cdItemType);
+    const _cdIsPaperLike = ['Catalog','Instruction Sheet'].includes(_cdItemType)
+      || _cdItemType.toLowerCase().includes('paper') || _cdItemType.toLowerCase().includes('catalog');
+    const _cdHideToggles = _cdIsSimplified || _cdIsPaperLike;
 
     // Pre-populate defaults from preferences (only if not already set)
     const _defAllOrig  = _prefGet('lv_def_allOriginal', 'Yes');
@@ -4011,6 +4033,8 @@ function renderWizardStep() {
       }
 
       // All Original
+      // All Original — hidden for Catalog/Paper/IS
+      if (!_cdIsPaperLike) {
       html += '<div style="margin-bottom:0.6rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">All Original?</div>';
       html += '<div style="display:flex;gap:0.3rem">';
       ['Yes','No','Unknown'].forEach(function(c) {
@@ -4022,8 +4046,10 @@ function renderWizardStep() {
       // Modifications textarea (hidden unless allOriginal=No)
       html += '<div id="cd-mod-' + col.id + '" style="margin-bottom:0.6rem;display:' + (origVal === 'No' ? 'block' : 'none') + '">';
       html += '<textarea placeholder="What\x27s been done?" style="width:100%;min-height:50px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.8rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data[\'' + modKey + '\']=this.value">' + modVal + '</textarea></div>';
+      } // end All Original block
       
-      // Has box toggle + inline box condition
+      // Has box toggle + inline box condition — hidden for Catalog/Paper/IS
+      if (!_cdIsPaperLike) {
       html += '<div style="margin-bottom:0.6rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Has Box?</div>';
       html += '<div style="display:flex;gap:0.3rem">';
       ['Yes','No'].forEach(function(c) {
@@ -4037,9 +4063,10 @@ function renderWizardStep() {
       html += '<div style="display:flex;align-items:center;gap:0.4rem"><span id="cd-boxcond-val-' + col.id + '" style="font-family:var(--font-head);font-size:1.2rem;color:var(--accent2);width:1.5rem;text-align:center">' + boxCondVal + '</span>';
       html += '<input type="range" min="1" max="10" value="' + boxCondVal + '" style="flex:1;accent-color:var(--accent)" oninput="wizard.data[\'' + boxCondKey + '\']=parseInt(this.value);document.getElementById(\'cd-boxcond-val-' + col.id + '\').textContent=this.value"></div>';
       html += '</div></div>';
+      } // end Has Box block (paper-like skip)
       
-      // Instruction Sheet — only on main column, hidden for Science/Construction
-      if (col.id === 'main' && !_cdIsSimplified) {
+      // Instruction Sheet — only on main column, hidden for simplified types
+      if (col.id === 'main' && !_cdHideToggles) {
         const isVal = wizard.data.hasIS || '';
         const isSheetVal = wizard.data.is_sheetNum || '';
         const isCondVal = wizard.data.is_condition || 7;
@@ -4072,8 +4099,8 @@ function renderWizardStep() {
       } // end master box
       } // end if !_setMode (master box)
       
-      // Error item toggle — hidden in set mode and for Science/Construction
-      if (!wizard.data._setMode && !_cdIsSimplified) {
+      // Error item toggle — hidden in set mode and for simplified types
+      if (!wizard.data._setMode && !_cdHideToggles) {
       {
         const errKey = p ? p + 'IsError' : 'isError';
         const errDescKey = p ? p + 'ErrorDesc' : 'errorDesc';
@@ -4113,8 +4140,8 @@ function renderWizardStep() {
     });
     _cdHtml += '</div>';
 
-    // For Science/Construction: embed value, date, notes fields (combines steps 4+5)
-    if (_cdIsSimplified) {
+    // For simplified types: embed value, date, notes fields (combines steps 4+5)
+    if (_cdHideToggles) {
       const _scPaid = wizard.data.priceItem    || '';
       const _scVal  = wizard.data.userEstWorth || '';
       const _scDate = wizard.data.dateAcquired|| '';
