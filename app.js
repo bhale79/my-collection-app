@@ -515,8 +515,28 @@ function initGoogle() {
     state.personalSheetId = savedPersonalId;
     showApp();
     showLoading();
-    const savedEmail = state.user?.email || '';
-    tokenClient.requestAccessToken({ prompt: '', login_hint: savedEmail });
+    // If we already have a valid token (restored from localStorage), use it directly
+    var _restoredExpiry = parseInt(localStorage.getItem('lv_token_expiry') || '0');
+    if (accessToken && _restoredExpiry > Date.now() + 60 * 1000) {
+      // Token is good for at least 1 more minute — load data now
+      console.log('[Auth] Using restored token, skipping GIS popup');
+      _tokenIsInitial = true;
+      onTokenReceived({ access_token: accessToken });
+      // Schedule a silent refresh for later
+      if (window._tokenRefreshTimer) clearTimeout(window._tokenRefreshTimer);
+      var _msLeft = _restoredExpiry - Date.now() - 5 * 60 * 1000;
+      if (_msLeft < 60000) _msLeft = 60000;
+      window._tokenRefreshTimer = setTimeout(function() {
+        if (accessToken) {
+          var hint = state.user?.email || '';
+          tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
+        }
+      }, _msLeft);
+    } else {
+      // Token expired or missing — must request a new one via GIS
+      const savedEmail = state.user?.email || '';
+      tokenClient.requestAccessToken({ prompt: '', login_hint: savedEmail });
+    }
   } else if (_isBetaVerified()) {
     // Beta code already entered — show auth screen
     document.getElementById('beta-gate').style.display = 'none';
