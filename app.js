@@ -1177,7 +1177,7 @@ const MASTER_TABS = [
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '18';
+  const _CACHE_VER = '19';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
@@ -2376,6 +2376,52 @@ function showOwnedItemMenu(idx, pdKey) {
 }
 
 // ── Collection list action helpers (resolve pdKey from itemNum/variation, then delegate) ──
+// Owned menu for Science/Construction items (stored in dedicated tabs, not personalData)
+function _showSpecialOwnedMenu(idx, item, ownedItems) {
+  const existing = document.getElementById('owned-action-menu');
+  if (existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'owned-action-menu';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  const box = document.createElement('div');
+  box.style.cssText = 'background:var(--surface);border:1px solid rgba(46,204,113,0.35);border-radius:16px;max-width:420px;width:100%;padding:1.75rem;position:relative';
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕';
+  closeBtn.style.cssText = 'position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer';
+  closeBtn.onclick = function() { overlay.remove(); };
+  box.appendChild(closeBtn);
+  const hdr = document.createElement('div');
+  hdr.style.cssText = 'font-family:var(--font-head);font-size:1rem;color:var(--green);margin-bottom:0.15rem';
+  hdr.textContent = '✓ In Your Collection' + (ownedItems.length > 1 ? ' (' + ownedItems.length + ' copies)' : '');
+  box.appendChild(hdr);
+  const itemLbl = document.createElement('div');
+  itemLbl.style.cssText = 'font-size:0.85rem;color:var(--text-mid);margin-bottom:0.15rem';
+  itemLbl.textContent = 'No. ' + item.itemNum + (item.variation ? ' — Var. ' + item.variation : '');
+  box.appendChild(itemLbl);
+  const descLbl = document.createElement('div');
+  descLbl.style.cssText = 'font-size:0.78rem;color:var(--text-dim);margin-bottom:1rem';
+  const parts = [];
+  if (ownedItems[0] && ownedItems[0].condition) parts.push('Condition: ' + ownedItems[0].condition + '/10');
+  if (ownedItems[0] && ownedItems[0].estValue) parts.push('Worth: $' + parseFloat(ownedItems[0].estValue).toLocaleString());
+  descLbl.textContent = parts.join(' · ') || item.description || '';
+  box.appendChild(descLbl);
+  // View Details button
+  const viewBtn = document.createElement('button');
+  viewBtn.style.cssText = 'width:100%;padding:0.7rem 1rem;border-radius:9px;border:1.5px solid var(--text-dim);color:var(--text-dim);background:var(--surface2);font-family:var(--font-body);font-size:0.9rem;font-weight:600;cursor:pointer;margin-bottom:0.5rem;text-align:left;display:flex;align-items:center;gap:0.5rem';
+  viewBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> View Item Details';
+  viewBtn.onclick = function() { overlay.remove(); showItemDetailPage(idx); };
+  box.appendChild(viewBtn);
+  // Add Another Copy button
+  const addBtn = document.createElement('button');
+  addBtn.style.cssText = 'width:100%;padding:0.7rem 1rem;border-radius:9px;border:1.5px solid var(--text-mid);color:var(--text-mid);background:transparent;font-family:var(--font-body);font-size:0.9rem;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:0.5rem';
+  addBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg> Add Another Copy';
+  addBtn.onclick = function() { overlay.remove(); addFromBrowse(idx); };
+  box.appendChild(addBtn);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+}
+
 function collectionActionForSale(globalIdx, itemNum, variation) {
   var pdKey = findPDKey(itemNum, variation);
   if (!pdKey) { showToast('Item not found in collection', 3000, true); return; }
@@ -3285,8 +3331,21 @@ function browseRowClick(event, idx) {
   const keyPrefix = item.itemNum + '|' + item.variation + '|';
   const pdKey = Object.keys(state.personalData).find(k => k.startsWith(keyPrefix));
   const alreadyOwned = !!pdKey;
+  // Also check Science/Construction dedicated tabs
+  const _sciOwned = (item._tab === 'Lionel Postwar - Science' || item.itemType === 'Science Set')
+    ? Object.values(state.scienceData || {}).filter(s => s.itemNum === item.itemNum)
+    : [];
+  const _conOwned = (item._tab === 'Lionel Postwar - Construction' || item.itemType === 'Construction Set')
+    ? Object.values(state.constructionData || {}).filter(s => s.itemNum === item.itemNum)
+    : [];
+  const _specialOwned = _sciOwned.length + _conOwned.length;
   if (alreadyOwned) {
     showOwnedItemMenu(idx, pdKey);
+    return;
+  }
+  if (_specialOwned > 0) {
+    // Show a simple owned menu for Science/Construction items
+    _showSpecialOwnedMenu(idx, item, _sciOwned.length > 0 ? _sciOwned : _conOwned);
     return;
   }
   // Not owned — show quick prompt
