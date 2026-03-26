@@ -193,9 +193,37 @@ async function driveMoveFileToFolder(fileId, fromFolderId, toFolderId) {
 }
 
 // Called once on first run — creates the full vault folder structure
+const _NEW_VAULT_NAME = 'The Rail Roster - My Collection';
+const _OLD_VAULT_NAME = 'The Boxcar Files - My Collection';
+
 async function driveSetupVault() {
-  // Use 'root' directly as parent ID — Drive API accepts it without needing to look up the ID
-  driveCache.vaultId = await driveFindOrCreateFolder('The Boxcar Files - My Collection', 'root');
+  // Search for new name first, then fall back to old name
+  let vaultId = null;
+  // Try new name
+  const qNew = encodeURIComponent(`name='${_NEW_VAULT_NAME}' and mimeType='application/vnd.google-apps.folder' and 'root' in parents and trashed=false`);
+  const resNew = await driveRequest('GET', `/files?q=${qNew}&fields=files(id,name)&spaces=drive`);
+  if (resNew.files && resNew.files.length > 0) {
+    vaultId = resNew.files[0].id;
+  }
+  // Fall back to old name
+  if (!vaultId) {
+    const qOld = encodeURIComponent(`name='${_OLD_VAULT_NAME}' and mimeType='application/vnd.google-apps.folder' and 'root' in parents and trashed=false`);
+    const resOld = await driveRequest('GET', `/files?q=${qOld}&fields=files(id,name)&spaces=drive`);
+    if (resOld.files && resOld.files.length > 0) {
+      vaultId = resOld.files[0].id;
+      // Rename old folder to new name
+      console.log('[Drive] Renaming vault folder:', _OLD_VAULT_NAME, '→', _NEW_VAULT_NAME);
+      try {
+        await driveRequest('PATCH', `/files/${vaultId}?fields=id`, { name: _NEW_VAULT_NAME });
+      } catch(e) { console.warn('[Drive] Folder rename failed (non-fatal):', e); }
+    }
+  }
+  // Create if neither exists
+  if (!vaultId) {
+    vaultId = await driveFindOrCreateFolder(_NEW_VAULT_NAME, 'root');
+  }
+
+  driveCache.vaultId = vaultId;
   localStorage.setItem('lv_vault_id', driveCache.vaultId);
 
   // Find or create both photo subfolders (always, so nothing is missing)
@@ -373,18 +401,35 @@ async function driveMoveToSold(itemNum) {
 // Stores personalSheetId in a small JSON file in Drive root
 // so any device can find the right sheet after signing in
 
-const CONFIG_FILENAME = 'boxcar-files-config.json';
+const CONFIG_FILENAME = 'rail-roster-config.json';
+const _OLD_CONFIG_FILENAME = 'boxcar-files-config.json';
 
 async function driveReadConfig(retryCount = 0) {
   const MAX_RETRIES = 3;
   const RETRY_DELAY_MS = 2000;
   try {
-    // Search for config file in Drive root
-    const q = encodeURIComponent(`name='${CONFIG_FILENAME}' and trashed=false`);
-    const res = await driveRequest('GET', `/files?q=${q}&fields=files(id,name)&spaces=drive`);
-    if (!res.files || res.files.length === 0) return null;
+    // Search for new config file first
+    let fileId = null;
+    const qNew = encodeURIComponent(`name='${CONFIG_FILENAME}' and trashed=false`);
+    const resNew = await driveRequest('GET', `/files?q=${qNew}&fields=files(id,name)&spaces=drive`);
+    if (resNew.files && resNew.files.length > 0) {
+      fileId = resNew.files[0].id;
+    }
+    // Fall back to old config file
+    if (!fileId) {
+      const qOld = encodeURIComponent(`name='${_OLD_CONFIG_FILENAME}' and trashed=false`);
+      const resOld = await driveRequest('GET', `/files?q=${qOld}&fields=files(id,name)&spaces=drive`);
+      if (resOld.files && resOld.files.length > 0) {
+        fileId = resOld.files[0].id;
+        // Rename old config to new name
+        console.log('[Drive] Renaming config:', _OLD_CONFIG_FILENAME, '→', CONFIG_FILENAME);
+        try {
+          await driveRequest('PATCH', `/files/${fileId}?fields=id`, { name: CONFIG_FILENAME });
+        } catch(e) { console.warn('[Drive] Config rename failed (non-fatal):', e); }
+      }
+    }
+    if (!fileId) return null;
     // Read file contents
-    const fileId = res.files[0].id;
     const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
       headers: { Authorization: 'Bearer ' + accessToken }
     });
@@ -407,11 +452,17 @@ async function driveReadConfig(retryCount = 0) {
 // Used when config file read fails — always works as long as the sheet exists in Drive
 async function driveFindPersonalSheet() {
   try {
-    // Search by prefix to find any user's sheet regardless of their name
-    const q = encodeURIComponent(`name contains 'The Boxcar Files -' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`);
-    const res = await driveRequest('GET', `/files?q=${q}&fields=files(id,name)&spaces=drive`);
-    if (res.files && res.files.length > 0) {
-      return res.files[0].id;
+    // Search by new prefix first
+    const qNew = encodeURIComponent(`name contains 'The Rail Roster -' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`);
+    const resNew = await driveRequest('GET', `/files?q=${qNew}&fields=files(id,name)&spaces=drive`);
+    if (resNew.files && resNew.files.length > 0) {
+      return resNew.files[0].id;
+    }
+    // Fall back to old prefix
+    const qOld = encodeURIComponent(`name contains 'The Boxcar Files -' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`);
+    const resOld = await driveRequest('GET', `/files?q=${qOld}&fields=files(id,name)&spaces=drive`);
+    if (resOld.files && resOld.files.length > 0) {
+      return resOld.files[0].id;
     }
     return null;
   } catch(e) {

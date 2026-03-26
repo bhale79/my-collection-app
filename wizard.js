@@ -6627,7 +6627,7 @@ async function _saveScienceConstructionItem(sheetTabName, stateKey) {
     try {
       await driveEnsureSetup();
       const folderName = itemNum + ' ' + (description || sheetTabName).substring(0, 40);
-      if (!driveCache.vaultId) driveCache.vaultId = await driveFindOrCreateFolder('The Boxcar Files - My Collection');
+      if (!driveCache.vaultId) driveCache.vaultId = await driveFindOrCreateFolder('The Rail Roster - My Collection', 'root');
       const folderId = await driveFindOrCreateFolder(folderName, driveCache.vaultId);
       photoLink = 'https://drive.google.com/drive/folders/' + folderId;
       for (const [viewKey, fileObj] of Object.entries(photoObj)) {
