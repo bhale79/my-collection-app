@@ -46,6 +46,8 @@ function getSteps(tab) {
           skipIf: () => true },
         { id: 'is_photos',     title: 'Condition & photos', type: 'drivePhotos', label: 'IS',
           conditionSlider: { key: 'is_condition', label: 'Sheet Condition' },
+          pricePaidField: { key: 'is_pricePaid', label: 'What Did You Pay? ($)' },
+          moneyField: { key: 'is_estValue', label: 'Est. Worth ($)' },
           views: [
             { key: 'IS-FRONT',  label: 'Front of Sheet', abbr: 'Front'  },
             { key: 'IS-BACK',   label: 'Back of Sheet',  abbr: 'Back'   },
@@ -2497,12 +2499,22 @@ function renderWizardStep() {
     setTimeout(function() { var i = document.getElementById('isd-sn'); if(i) i.focus(); }, 50);
 
   } else if (s.type === 'paperExtras') {
+    const pp  = wizard.data.eph_pricePaid  || '';
     const ev  = wizard.data.eph_estValue    || '';
     const da  = wizard.data.eph_dateAcquired|| '';
     const nt  = wizard.data.eph_notes       || '';
     body.innerHTML = '<div style="padding-top:0.5rem;display:flex;flex-direction:column;gap:0.9rem">'
       + '<div>'
-      +   '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.35rem">Estimated Value ($)</div>'
+      +   '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.35rem">What Did You Pay? ($)</div>'
+      +   '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.9rem">'
+      +     '<span style="color:var(--text-dim)">$</span>'
+      +     '<input type="number" id="pe-paid" value="' + pp + '" placeholder="0.00" min="0" step="0.01"'
+      +     ' style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem"'
+      +     ' oninput="wizard.data.eph_pricePaid=this.value">'
+      +   '</div>'
+      + '</div>'
+      + '<div>'
+      +   '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.35rem">Est. Worth ($)</div>'
       +   '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.9rem">'
       +     '<span style="color:var(--text-dim)">$</span>'
       +     '<input type="number" id="pe-val" value="' + ev + '" placeholder="0.00" min="0" step="0.01"'
@@ -2527,8 +2539,9 @@ function renderWizardStep() {
     setTimeout(function() { var i = document.getElementById('pe-val'); if(i) i.focus(); }, 50);
 
   } else if (s.type === 'catalogExtras') {
-    // ── Combined condition + value + date + notes for catalogs ──
+    // ── Combined condition + price + value + date + notes for catalogs ──
     const _catCond = wizard.data.cat_condition || 7;
+    const _catPaid = wizard.data.cat_pricePaid  || '';
     const _catVal  = wizard.data.cat_estValue    || '';
     const _catDate = wizard.data.cat_dateAcquired|| '';
     const _catNote = wizard.data.cat_notes       || '';
@@ -2542,7 +2555,16 @@ function renderWizardStep() {
       +   '<div style="display:flex;justify-content:space-between;font-size:0.6rem;color:var(--text-dim)"><span>Poor</span><span>Excellent</span></div>'
       + '</div>'
       + '<div>'
-      +   '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.35rem">Estimated Value ($)</div>'
+      +   '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.35rem">What Did You Pay? ($)</div>'
+      +   '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.9rem">'
+      +     '<span style="color:var(--text-dim)">$</span>'
+      +     '<input type="number" id="cat-paid" value="' + _catPaid + '" placeholder="0.00" min="0" step="0.01"'
+      +     ' style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem"'
+      +     ' oninput="wizard.data.cat_pricePaid=this.value">'
+      +   '</div>'
+      + '</div>'
+      + '<div>'
+      +   '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.35rem">Est. Worth ($)</div>'
       +   '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.9rem">'
       +     '<span style="color:var(--text-dim)">$</span>'
       +     '<input type="number" id="cat-val" value="' + _catVal + '" placeholder="0.00" min="0" step="0.01"'
@@ -3473,6 +3495,38 @@ function renderWizardStep() {
       wrap.appendChild(csDiv);
     }
 
+    // Price paid field (when embedded in photo step, e.g. IS flow)
+    if (s.pricePaidField) {
+      const _ppKey = s.pricePaidField.key;
+      const _ppLabel = s.pricePaidField.label || 'What Did You Pay? ($)';
+      const _ppVal = wizard.data[_ppKey] || '';
+      const ppDiv = document.createElement('div');
+      ppDiv.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.65rem 0.85rem;margin-bottom:0.75rem';
+      ppDiv.innerHTML = '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);margin-bottom:0.35rem">' + _ppLabel + '</div>'
+        + '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.75rem">'
+        + '<span style="color:var(--text-dim)">$</span>'
+        + '<input type="number" value="' + _ppVal + '" placeholder="0.00" min="0" step="0.01"'
+        + ' style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:0.95rem"'
+        + ' oninput="wizard.data[\'' + _ppKey + '\']=this.value"></div>';
+      wrap.appendChild(ppDiv);
+    }
+
+    // Money field (when embedded in photo step, e.g. IS flow)
+    if (s.moneyField) {
+      const _mfKey = s.moneyField.key;
+      const _mfLabel = s.moneyField.label || 'Est. Worth ($)';
+      const _mfVal = wizard.data[_mfKey] || '';
+      const mfDiv = document.createElement('div');
+      mfDiv.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.65rem 0.85rem;margin-bottom:0.75rem';
+      mfDiv.innerHTML = '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);margin-bottom:0.35rem">' + _mfLabel + '</div>'
+        + '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.75rem">'
+        + '<span style="color:var(--text-dim)">$</span>'
+        + '<input type="number" value="' + _mfVal + '" placeholder="0.00" min="0" step="0.01"'
+        + ' style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:0.95rem"'
+        + ' oninput="wizard.data[\'' + _mfKey + '\']=this.value"></div>';
+      wrap.appendChild(mfDiv);
+    }
+
     if (s.note && s.note(wizard.data)) {
       const noteDiv = document.createElement('div');
       noteDiv.style.cssText = 'font-size:0.8rem;color:var(--accent2);margin-bottom:0.75rem;padding:0.5rem 0.75rem;background:rgba(201,146,42,0.1);border-radius:6px';
@@ -4061,16 +4115,24 @@ function renderWizardStep() {
 
     // For Science/Construction: embed value, date, notes fields (combines steps 4+5)
     if (_cdIsSimplified) {
-      const _scVal  = wizard.data.estValue    || '';
+      const _scPaid = wizard.data.priceItem    || '';
+      const _scVal  = wizard.data.userEstWorth || '';
       const _scDate = wizard.data.dateAcquired|| '';
       const _scNote = wizard.data.notes       || '';
       _cdHtml += '<div style="margin-top:0.75rem;display:flex;flex-direction:column;gap:0.7rem">';
       _cdHtml += '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.1rem">Purchase & Value</div>';
-      _cdHtml += '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.75rem">'
+      _cdHtml += '<div><div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.25rem">What Did You Pay? ($)</div>'
+        + '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.75rem">'
+        + '<span style="color:var(--text-dim)">$</span>'
+        + '<input type="number" value="' + _scPaid + '" placeholder="0.00" min="0" step="0.01"'
+        + ' style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:0.95rem"'
+        + ' oninput="wizard.data.priceItem=this.value"></div></div>';
+      _cdHtml += '<div><div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.25rem">Est. Worth ($)</div>'
+        + '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.75rem">'
         + '<span style="color:var(--text-dim)">$</span>'
         + '<input type="number" value="' + _scVal + '" placeholder="0.00" min="0" step="0.01"'
         + ' style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:0.95rem"'
-        + ' oninput="wizard.data.estValue=this.value"></div>';
+        + ' oninput="wizard.data.userEstWorth=this.value"></div></div>';
       _cdHtml += '<div><div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.25rem">Date Acquired</div>'
         + '<input type="date" value="' + _scDate + '"'
         + ' style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.65rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none"'
@@ -4312,14 +4374,14 @@ function renderWizardStep() {
     const _isEph = ['catalogs','paper','mockups','other',...(state.userDefinedTabs||[]).map(t=>t.id)].includes(wizard.tab);
     const _keyLabels = {
       itemCategory:'Category', cat_type:'Type', cat_year:'Year',
-      hasIS:'Has Instruction Sheet', is_sheetNum:'Sheet #', is_condition:'Sheet Condition',
+      hasIS:'Has Instruction Sheet', is_sheetNum:'Sheet #', is_condition:'Sheet Condition', is_pricePaid:'Price Paid', is_estValue:'Est. Worth',
       hasMasterBox:'Has Master Box', masterBoxCond:'Master Box Condition', masterBoxNotes:'Master Box Notes',
       notOriginalDesc:'Modifications', tenderNotOriginalDesc:'Tender Modifications',
       unit2NotOriginalDesc:'Unit 2 Modifications', unit3NotOriginalDesc:'Unit 3 Modifications',
       cat_hasMailer:'Has Envelope/Mailer', cat_condition:'Condition',
-      cat_estValue:'Est. Value', cat_dateAcquired:'Date Acquired', cat_notes:'Notes',
+      cat_pricePaid:'Price Paid', cat_estValue:'Est. Worth', cat_dateAcquired:'Date Acquired', cat_notes:'Notes',
       eph_title:'Title', eph_description:'Description', eph_year:'Year',
-      eph_condition:'Condition', eph_quantity:'Quantity', eph_estValue:'Est. Value',
+      eph_condition:'Condition', eph_quantity:'Quantity', eph_pricePaid:'Price Paid', eph_estValue:'Est. Worth',
       eph_dateAcquired:'Date Acquired', eph_notes:'Notes',
       eph_itemNumRef:'Item # Ref', eph_productionStatus:'Production Status',
       eph_material:'Material', eph_dimensions:'Dimensions',
@@ -4364,7 +4426,7 @@ function renderWizardStep() {
     const _yesNoKeys = ['hasIS','hasMasterBox','hasBox','tenderHasBox','unit2HasBox','unit3HasBox','isError','tenderIsError','unit2IsError','unit3IsError','cat_hasMailer','manualHasBox'];
     const _yesNoUnkKeys = ['allOriginal','tenderAllOriginal','unit2AllOriginal','unit3AllOriginal'];
     const _sliderKeys = ['condition','tenderCondition','unit2Condition','unit3Condition','boxCond','tenderBoxCond','unit2BoxCond','unit3BoxCond','is_condition','cat_condition','eph_condition','masterBoxCond','manualCondition','manualBoxCond'];
-    const _moneyKeys = ['pricePaid','priceItem','userEstWorth','cat_estValue','eph_estValue','expectedPrice','salePrice'];
+    const _moneyKeys = ['pricePaid','priceItem','userEstWorth','cat_pricePaid','cat_estValue','eph_pricePaid','eph_estValue','is_estValue','is_pricePaid','expectedPrice','salePrice'];
     const _dateKeys = ['datePurchased','cat_dateAcquired','eph_dateAcquired','dateSold'];
 
     // Store field type maps on window for edit functions
@@ -5990,7 +6052,7 @@ async function saveInstructionSheet() {
   }
 
   const isStandaloneInvId = nextInventoryId();
-  const row = [sheetNum, linkedItem, d.is_year||'', d.is_condition||'', d.is_notes||'', photoLink, isStandaloneInvId, resolvedGroupId, d.is_formCode||''];
+  const row = [sheetNum, linkedItem, d.is_year||'', d.is_condition||'', d.is_notes||'', photoLink, isStandaloneInvId, resolvedGroupId, d.is_formCode||'', d.is_pricePaid||'', d.is_estValue||''];
   try {
     await ensureEphemeraSheets(state.personalSheetId);
     await sheetsAppend(state.personalSheetId, 'Instruction Sheets!A:A', [row]);
@@ -5999,6 +6061,7 @@ async function saveInstructionSheet() {
       row: newKey, sheetNum, linkedItem, year: d.is_year||'',
       condition: d.is_condition||'', notes: d.is_notes||'', photoLink,
       inventoryId: isStandaloneInvId, groupId: resolvedGroupId, formCode: d.is_formCode||'',
+      pricePaid: d.is_pricePaid||'', estValue: d.is_estValue||'',
     };
     showToast('✓ Instruction Sheet ' + sheetNum + ' saved!');
     closeWizard();
@@ -6048,6 +6111,7 @@ async function saveCatalogItem() {
     d.cat_year || '',
     d.cat_hasMailer || 'No',
     d.cat_condition || '',
+    d.cat_pricePaid || '',
     d.cat_estValue || '',
     d.cat_dateAcquired || '',
     d.cat_notes || '',
@@ -6056,11 +6120,11 @@ async function saveCatalogItem() {
   try {
     // Ensure Catalogs tab exists with proper headers before appending
     await ensureEphemeraSheets(state.personalSheetId);
-    const appendResult = await sheetsAppend(state.personalSheetId, 'Catalogs!A:I', [row]);
+    const appendResult = await sheetsAppend(state.personalSheetId, 'Catalogs!A:J', [row]);
     // Reload catalog rows from sheet to get accurate row numbers
     if (!state.ephemeraData.catalogs) state.ephemeraData.catalogs = {};
     try {
-      const freshCat = await sheetsGet(state.personalSheetId, 'Catalogs!A3:I');
+      const freshCat = await sheetsGet(state.personalSheetId, 'Catalogs!A3:J');
       state.ephemeraData.catalogs = {};
       (freshCat.values || []).forEach((r, idx) => {
         if (!r[0] || r[0] === 'Item ID' || r[0] === 'Type' || r[0] === 'Catalogs') return;
@@ -6070,8 +6134,8 @@ async function saveCatalogItem() {
         state.ephemeraData.catalogs[key] = {
           row: key, itemNum: r[0]||'', title: t,
           catType: catType2, year: year2, hasMailer: r[3]||'No',
-          condition: r[4]||'', estValue: r[5]||'', dateAcquired: r[6]||'',
-          notes: r[7]||'', photoLink: r[8]||'',
+          condition: r[4]||'', pricePaid: r[5]||'', estValue: r[6]||'', dateAcquired: r[7]||'',
+          notes: r[8]||'', photoLink: r[9]||'',
         };
       });
     } catch(e) {
@@ -6081,7 +6145,8 @@ async function saveCatalogItem() {
         row: newKey, itemNum, title,
         catType: d.cat_type || '', year: d.cat_year || '',
         hasMailer: d.cat_hasMailer || 'No', condition: d.cat_condition || '',
-        estValue: d.cat_estValue || '', dateAcquired: d.cat_dateAcquired || '',
+        pricePaid: d.cat_pricePaid || '', estValue: d.cat_estValue || '',
+        dateAcquired: d.cat_dateAcquired || '',
         notes: d.cat_notes || '', photoLink: photoFolderLink,
       };
     }
@@ -6146,7 +6211,7 @@ async function saveEphemeraItem() {
       ephItemNum,
       d.eph_title||'', d.eph_description||'', d.eph_year||'',
       d.eph_manufacturer||'Lionel', d.eph_condition||'',
-      d.eph_quantity||'1', d.eph_estValue||'',
+      d.eph_quantity||'1', d.eph_pricePaid||'', d.eph_estValue||'',
       photoFolderLink,
       d.eph_notes||'', d.eph_dateAcquired||'',
       (d.eph_paperType||'') + (d.eph_paperSubType ? ' — ' + d.eph_paperSubType : ''), d.eph_itemNumRef||'',
@@ -6173,7 +6238,8 @@ async function saveEphemeraItem() {
         row: newKey, itemNum: ephItemNum, title: d.eph_title||'', description: d.eph_description||'',
         year: d.eph_year||'', manufacturer: d.eph_manufacturer||'Lionel',
         condition: d.eph_condition||'', quantity: d.eph_quantity||'1',
-        estValue: d.eph_estValue||'', photoLink: photoFolderLink, notes: d.eph_notes||'',
+        pricePaid: d.eph_pricePaid||'', estValue: d.eph_estValue||'',
+        photoLink: photoFolderLink, notes: d.eph_notes||'',
         dateAcquired: d.eph_dateAcquired||'',
         paperType: (d.eph_paperType||'') + (d.eph_paperSubType ? ' — ' + d.eph_paperSubType : ''), itemNumRef: d.eph_itemNumRef||'',
       };
