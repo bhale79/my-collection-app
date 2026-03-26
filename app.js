@@ -2007,6 +2007,8 @@ function showItemDetailPage(idx) {
   const cond = pd && pd.condition ? parseInt(pd.condition) : null;
   const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
   const isForSale = !!state.forSaleData[`${it.itemNum}|${it.variation||''}`];
+  const _fsEntry = state.forSaleData[`${it.itemNum}|${it.variation||''}`];
+  const _fsPrice = _fsEntry ? '$' + parseFloat(_fsEntry.askingPrice || 0).toLocaleString() : '';
   const groupMembers = pd && pd.groupId ? Object.values(state.personalData).filter(p => p.groupId === pd.groupId && p.itemNum !== it.itemNum) : [];
 
   // ── HEADER ──
@@ -2023,6 +2025,7 @@ function showItemDetailPage(idx) {
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.25rem">
           <span style="font-family:var(--font-head);font-size:1.6rem;color:var(--accent);letter-spacing:0.03em">No. ${it.itemNum}${it.poweredDummy === 'P' ? '-P' : it.poweredDummy === 'D' ? '-D' : ''}</span>
+          ${isForSale ? `<span style="font-size:1rem;color:var(--gold);font-family:var(--font-head);letter-spacing:0.02em">— on the sale list for ${_fsPrice}</span>` : ''}
           ${it.variation ? `<span style="font-size:0.9rem;color:var(--text-dim);background:var(--surface2);border-radius:6px;padding:0.15rem 0.6rem">Var. ${it.variation}</span>` : ''}
           ${it.itemType ? `<span class="tag">${it.itemType}</span>` : ''}
           ${it.yearProd ? `<span style="font-size:0.82rem;color:var(--text-dim)">${it.yearProd}</span>` : ''}
@@ -2050,10 +2053,15 @@ function showItemDetailPage(idx) {
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
       Record Sale
     </button>
-    <button onclick="collectionActionForSale(${idx},'${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}')" data-ctip="If you want to sell an item from your collection, you can list it for sale here." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
+    ${isForSale
+      ? `<button onclick="_removeForSaleFromDetail(${idx},'${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}')" data-ctip="Remove this item from your For Sale list and keep it in your collection." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:rgba(230,126,34,0.25);color:#e67e22;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+      Remove from For Sale
+    </button>`
+      : `<button onclick="collectionActionForSale(${idx},'${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}')" data-ctip="If you want to sell an item from your collection, you can list it for sale here." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
       List for Sale
-    </button>
+    </button>`}
     <button onclick="showAddToUpgradeModal('${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
       Add to Upgrade List
@@ -5312,6 +5320,22 @@ async function removeForSaleItem(itemNum, variation, row) {
   _cachePersonalData();
   buildForSalePage();
   showToast('✓ Removed from For Sale');
+}
+
+async function _removeForSaleFromDetail(idx, itemNum, variation) {
+  const fsKey = `${itemNum}|${variation}`;
+  const fsEntry = state.forSaleData[fsKey];
+  if (!fsEntry) { showToast('Item is not on For Sale list'); return; }
+  if (!confirm('Remove No. ' + itemNum + ' from your For Sale list?')) return;
+  if (fsEntry.row) {
+    await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry.row}:I${fsEntry.row}`, [['','','','','','','','','']]);
+  }
+  delete state.forSaleData[fsKey];
+  _cachePersonalData();
+  buildForSalePage();
+  renderBrowse();
+  showToast('✓ Removed from For Sale');
+  showItemDetailPage(idx);
 }
 
 async function removeForSaleAndCollection(itemNum, variation, fsRow) {
