@@ -445,12 +445,16 @@ function renderMasterSubTab(tabKey) {
     }).length;
     // Also check Science/Construction dedicated tabs
     if (tabKey === 'science') {
+      var _itemStr = String(item.itemNum);
+      var _varStr = String(item.variation || '');
       _ownedCopies += Object.values(state.scienceData || {}).filter(function(s) {
-        return s.itemNum === item.itemNum;
+        return String(s.itemNum) === _itemStr && String(s.variation || '') === _varStr;
       }).length;
     } else if (tabKey === 'construction') {
+      var _itemStr2 = String(item.itemNum);
+      var _varStr2 = String(item.variation || '');
       _ownedCopies += Object.values(state.constructionData || {}).filter(function(s) {
-        return s.itemNum === item.itemNum;
+        return String(s.itemNum) === _itemStr2 && String(s.variation || '') === _varStr2;
       }).length;
     }
     var _ownBadge = _ownedCopies > 0
