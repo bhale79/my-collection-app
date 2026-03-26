@@ -2019,7 +2019,7 @@ function showItemDetailPage(idx) {
     <div style="display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap">
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.25rem">
-          <span style="font-family:var(--font-head);font-size:1.6rem;color:var(--accent);letter-spacing:0.03em">No. ${it.itemNum}</span>
+          <span style="font-family:var(--font-head);font-size:1.6rem;color:var(--accent);letter-spacing:0.03em">No. ${it.itemNum}${it.poweredDummy === 'P' ? '-P' : it.poweredDummy === 'D' ? '-D' : ''}</span>
           ${it.variation ? `<span style="font-size:0.9rem;color:var(--text-dim);background:var(--surface2);border-radius:6px;padding:0.15rem 0.6rem">Var. ${it.variation}</span>` : ''}
           ${it.itemType ? `<span class="tag">${it.itemType}</span>` : ''}
           ${it.yearProd ? `<span style="font-size:0.82rem;color:var(--text-dim)">${it.yearProd}</span>` : ''}
@@ -2978,7 +2978,7 @@ function showItemPanel(idx, pdKey, mode) {
     { label: 'Notes',         key: 'notes',         val: pd.notes || '—',         type: 'text' },
     { label: 'Location',      key: 'location',      val: pd.location || '—',      type: 'text' },
     ...(item.refLink ? [{ label: 'COTT Reference', key: null, val: item.refLink, type: 'readonly' }] : []),
-    ...(item.errorDesc || pd.isError ? [{ label: 'Error', key: null, val: pd.errorDesc || '—', type: 'readonly' }] : []),
+    ...(pd.isError === 'Yes' || item.errorDesc ? [{ label: 'Error', key: null, val: pd.errorDesc || '—', type: 'readonly' }] : []),
   ];
 
   // ── Photos section ──
@@ -3809,7 +3809,7 @@ function openItem(idx) {
   const pd = pdKey ? state.personalData[pdKey] : {};
 
   const _errPd = findPD(item.itemNum, item.variation);
-  const _errSuffix = _errPd && _errPd.isError ? ' ⚠ Error' : '';
+  const _errSuffix = _errPd && _errPd.isError === 'Yes' ? ' ⚠ Error' : '';
   document.getElementById('modal-item-num').textContent = `No. ${item.itemNum}${item.variation ? ' — Variation ' + item.variation : ''}${_errSuffix}`;
   document.getElementById('modal-title').textContent = item.roadName || item.itemType || item.description.substring(0, 60);
   const modalMatchedTo = pd?.matchedTo || '';
