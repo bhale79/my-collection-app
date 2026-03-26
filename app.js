@@ -11,6 +11,25 @@ function _getPersonalSheetName() {
   const firstName = (state.user?.name || '').split(' ')[0] || 'My';
   return `The Rail Roster - ${firstName}'s Collection`;
 }
+
+async function _maybeRenamePersonalSheet() {
+  if (!state.personalSheetId || !accessToken) return;
+  try {
+    // Get current sheet title via Drive API
+    const meta = await fetch('https://www.googleapis.com/drive/v3/files/' + state.personalSheetId + '?fields=name', {
+      headers: { Authorization: 'Bearer ' + accessToken }
+    }).then(r => r.json());
+    if (!meta || !meta.name) return;
+    if (!meta.name.includes('Boxcar')) return; // already renamed or never had old name
+    const newName = _getPersonalSheetName();
+    console.log('[Rename] Sheet:', meta.name, '→', newName);
+    await fetch('https://www.googleapis.com/drive/v3/files/' + state.personalSheetId + '?fields=id', {
+      method: 'PATCH',
+      headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newName }),
+    });
+  } catch(e) { console.warn('Sheet rename error (non-fatal):', e); }
+}
 const PERSONAL_HEADERS = [
   'Item Number','Variation','Condition (1-10)','All Original',
   'Item Only Price','Box Only Price','Item+Box Complete','Has Box',
@@ -1157,6 +1176,8 @@ async function loadAllData() {
         photosId: driveCache.photosId || '',
         soldPhotosId: driveCache.soldPhotosId || '',
       }).catch(e => console.warn('Config refresh:', e));
+      // Auto-rename sheet if it still has the old Boxcar Files name
+      _maybeRenamePersonalSheet().catch(e => console.warn('Sheet rename:', e));
     }
   } catch(e) {
     showToast('Load error: ' + e.message);
@@ -1177,7 +1198,7 @@ const MASTER_TABS = [
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '25';
+  const _CACHE_VER = '26';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
