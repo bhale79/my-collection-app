@@ -2406,18 +2406,38 @@ function _showSpecialOwnedMenu(idx, item, ownedItems) {
   if (ownedItems[0] && ownedItems[0].estValue) parts.push('Worth: $' + parseFloat(ownedItems[0].estValue).toLocaleString());
   descLbl.textContent = parts.join(' · ') || item.description || '';
   box.appendChild(descLbl);
-  // View Details button
-  const viewBtn = document.createElement('button');
-  viewBtn.style.cssText = 'width:100%;padding:0.7rem 1rem;border-radius:9px;border:1.5px solid var(--text-dim);color:var(--text-dim);background:var(--surface2);font-family:var(--font-body);font-size:0.9rem;font-weight:600;cursor:pointer;margin-bottom:0.5rem;text-align:left;display:flex;align-items:center;gap:0.5rem';
-  viewBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> View Item Details';
-  viewBtn.onclick = function() { overlay.remove(); showItemDetailPage(idx); };
-  box.appendChild(viewBtn);
-  // Add Another Copy button
-  const addBtn = document.createElement('button');
-  addBtn.style.cssText = 'width:100%;padding:0.7rem 1rem;border-radius:9px;border:1.5px solid var(--text-mid);color:var(--text-mid);background:transparent;font-family:var(--font-body);font-size:0.9rem;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:0.5rem';
-  addBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg> Add Another Copy';
-  addBtn.onclick = function() { overlay.remove(); addFromBrowse(idx); };
-  box.appendChild(addBtn);
+  // Action buttons
+  const mkBtn = function(label, color, bg, handler) {
+    const b = document.createElement('button');
+    b.style.cssText = 'width:100%;padding:0.7rem 1rem;border-radius:9px;border:1.5px solid ' + color + ';color:' + color + ';background:' + bg + ';font-family:var(--font-body);font-size:0.9rem;font-weight:600;cursor:pointer;margin-bottom:0.5rem;text-align:left;display:flex;align-items:center;gap:0.5rem';
+    b.innerHTML = label;
+    b.onclick = handler;
+    return b;
+  };
+  // Record a Sale
+  box.appendChild(mkBtn(
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Record a Sale',
+    '#2ecc71', 'rgba(46,204,113,0.1)',
+    function() { overlay.remove(); openWizard('sold'); }
+  ));
+  // List for Sale
+  box.appendChild(mkBtn(
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg> List for Sale',
+    '#e67e22', 'rgba(230,126,34,0.1)',
+    function() { overlay.remove(); openWizard('forsale'); }
+  ));
+  // View Details
+  box.appendChild(mkBtn(
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> View Item Details',
+    'var(--text-dim)', 'var(--surface2)',
+    function() { overlay.remove(); showItemDetailPage(idx); }
+  ));
+  // Add Another Copy
+  box.appendChild(mkBtn(
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg> Add Another Copy',
+    'var(--text-mid)', 'transparent',
+    function() { overlay.remove(); addFromBrowse(idx); }
+  ));
   overlay.appendChild(box);
   document.body.appendChild(overlay);
 }
