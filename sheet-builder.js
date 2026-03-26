@@ -378,13 +378,24 @@ async function getSheetLockState(sheetId) {
 async function lockSheetTabs(sheetId) {
   if (!sheetId || !accessToken) return;
   try {
+    // Remove any existing protections first to avoid duplicates
+    const existing = await getSheetLockState(sheetId);
+    if (existing.protectionIds.length > 0) {
+      const removeReqs = existing.protectionIds.map(id => ({ deleteProtectedRange: { protectedRangeId: id } }));
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requests: removeReqs })
+      });
+    }
+
     // Get sheet IDs for all data tabs
     const metaRes = await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
     const meta = await metaRes.json();
-    const DATA_TABS = ['My Collection','Sold','For Sale','Want List','Upgrade List','Catalogs','Paper Items','Mock-Ups','Other Lionel','Instruction Sheets'];
+    const DATA_TABS = ['My Collection','Sold','For Sale','Want List','Upgrade List','Catalogs','Paper Items','Mock-Ups','Other Lionel','Instruction Sheets','Science Sets','Construction Sets'];
     const tabMap = {};
     (meta.sheets || []).forEach(s => { tabMap[s.properties.title] = s.properties.sheetId; });
 
@@ -393,8 +404,7 @@ async function lockSheetTabs(sheetId) {
         protectedRange: {
           range: { sheetId: tabMap[t] },
           description: 'boxcar-data-lock',
-          warningOnly: false,
-          editors: { users: [state.user?.email || ''] }
+          warningOnly: true,
         }
       }
     }));

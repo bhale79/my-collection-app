@@ -4,7 +4,6 @@
 // ═══════════════════════════════════════════════════════════════
 
 function buildPrefsPage() {
-  setTimeout(_prefRefreshLockBtn, 200);
   const el = document.getElementById('prefs-content');
   if (!el) return;
 
@@ -44,7 +43,6 @@ function buildPrefsPage() {
           <span>Open your Google Sheet — read-only recommended</span>
         </div>
         <div style="display:flex;gap:0.5rem;align-items:center;flex-shrink:0">
-          <button id="pref-lock-btn" onclick="_prefToggleLock()" style="padding:0.45rem 0.75rem;border-radius:8px;border:1.5px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer;white-space:nowrap">⏳</button>
           <a id="nav-sheet-link-p" href="${sheetId ? 'https://docs.google.com/spreadsheets/d/'+sheetId : '#'}" target="_blank"
             class="pref-btn" onclick="return _sheetLinkClick(event)" style="text-decoration:none">Open ↗</a>
         </div>
@@ -307,8 +305,6 @@ function buildPrefsPage() {
     vaultRenderPrefsRow(document.getElementById('vault-prefs-row'));
   }
   _maybeShowAdminPrefs();
-  // Load lock state for the lock button
-  setTimeout(function() { _prefRefreshLockBtn(); }, 150);
 }
 
 
@@ -567,95 +563,10 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () 
   if (stored) state.pageSize = parseInt(stored);
 })();
 
-// ── Sheet lock toggle from Preferences ──────────────────────────
-async function _prefToggleSheetLock() {
-  var btn = document.getElementById('pref-lock-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Working…'; }
-  try {
-    var result = await getSheetLockState(state.personalSheetId);
-    if (result.locked) {
-      await unlockSheetTabs(state.personalSheetId);
-      showToast('🔓 Sheet unlocked — you can now edit in Google Sheets');
-    } else {
-      await lockSheetTabs(state.personalSheetId);
-      showToast('🔒 Sheet locked');
-    }
-    _prefUpdateLockBtn();
-  } catch(e) {
-    showToast('Lock failed: ' + e.message, 5000, true);
-  } finally {
-    if (btn) btn.disabled = false;
-  }
-}
-
-async function _prefUpdateLockBtn() {
-  var btn = document.getElementById('pref-lock-btn');
-  if (!btn || !state.personalSheetId) return;
-  try {
-    var result = await getSheetLockState(state.personalSheetId);
-    if (result.locked) {
-      btn.textContent = '🔒 Locked';
-      btn.style.borderColor = '#27ae60';
-      btn.style.color = '#27ae60';
-    } else {
-      btn.textContent = '🔓 Unlock';
-      btn.style.borderColor = '';
-      btn.style.color = '';
-    }
-  } catch(e) { /* silent */ }
-}
-
 // ── NAVIGATION ─────────────────────────────────────────────────────
 // ── EPHEMERA ─────────────────────────────────────────────────────
 let _ephCurrentTab = 'catalogs';
 
-
-async function _prefRefreshLockBtn() {
-  var btn = document.getElementById('pref-lock-btn');
-  if (!btn || !state.personalSheetId || typeof getSheetLockState !== 'function') return;
-  try {
-    var result = await getSheetLockState(state.personalSheetId);
-    if (result.locked) {
-      btn.textContent = '🔒 Locked';
-      btn.title = 'Sheet is locked — click to unlock before opening';
-      btn.style.borderColor = '#27ae60';
-      btn.style.color = '#27ae60';
-      btn.style.background = 'rgba(39,174,96,0.1)';
-    } else {
-      btn.textContent = '🔓 Unlocked';
-      btn.title = 'Sheet is unlocked — click to lock';
-      btn.style.borderColor = '#8b5cf6';
-      btn.style.color = '#8b5cf6';
-      btn.style.background = 'rgba(139,92,246,0.1)';
-    }
-  } catch(e) {
-    btn.textContent = '🔒 Lock';
-  }
-}
-
-async function _prefToggleLock() {
-  var btn = document.getElementById('pref-lock-btn');
-  if (!btn || !state.personalSheetId) return;
-  btn.disabled = true;
-  btn.textContent = '⏳';
-  try {
-    var result = await getSheetLockState(state.personalSheetId);
-    if (result.locked) {
-      await unlockSheetTabs(state.personalSheetId);
-      showToast('🔓 Sheet unlocked — you can now edit in Google Sheets');
-    } else {
-      await lockSheetTabs(state.personalSheetId);
-      showToast('🔒 Sheet locked — protected from accidental edits');
-    }
-    await _prefRefreshLockBtn();
-    if (typeof refreshSheetLockUI === 'function') refreshSheetLockUI();
-  } catch(e) {
-    showToast('Could not change lock state: ' + e.message, 4000, true);
-    btn.textContent = '⚠';
-  } finally {
-    btn.disabled = false;
-  }
-}
 
 // ── Rebuild Dashboard Tab ──────────────────────────────────────
 async function _rebuildDashboardTab() {
