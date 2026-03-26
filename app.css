@@ -881,6 +881,18 @@
 
     /* Browse My Collection button — full width on mobile */
     #dash-btn-browse-col { width: 100%; justify-content: center; }
+
+    /* Want List & Upgrade List — filter bars on mobile */
+    #want-priority-filter, #want-type-filter, #want-sort,
+    #upgrade-priority-filter {
+      font-size: 16px !important; /* prevent iOS zoom */
+      min-height: 40px;
+      flex: 1 1 45%;
+      min-width: 0;
+    }
+    #want-search, #upgrade-search {
+      font-size: 16px !important; /* prevent iOS zoom */
+    }
   }
 
   /* ── Utility ───────────────────────────────────────────────── */
