@@ -42,12 +42,13 @@ function getSteps(tab) {
           optional: true },
         // Consolidated details card — sheet #, form code, year on one screen
         { id: 'is_details',    title: 'Sheet details',  type: 'isDetails', optional: true },
-        { id: 'is_condition',  title: 'What condition is the sheet?', type: 'slider', min:1, max:10 },
-        { id: 'is_photos',     title: 'Add photos of the instruction sheet', type: 'drivePhotos', label: 'IS',
+        { id: 'is_condition',  title: 'What condition is the sheet?', type: 'slider', min:1, max:10,
+          skipIf: () => true },
+        { id: 'is_photos',     title: 'Condition & photos', type: 'drivePhotos', label: 'IS',
+          conditionSlider: { key: 'is_condition', label: 'Sheet Condition' },
           views: [
-            { key: 'IS-FRONT',  label: 'Front Side',  abbr: 'IS-FRONT'  },
-            { key: 'IS-BACK',   label: 'Back Side',   abbr: 'IS-BACK'   },
-            { key: 'IS-DETAIL', label: 'Detail',      abbr: 'IS-DETAIL' },
+            { key: 'IS-FRONT',  label: 'Front of Sheet', abbr: 'Front'  },
+            { key: 'IS-BACK',   label: 'Back of Sheet',  abbr: 'Back'   },
           ], optional: true },
         { id: 'is_confirm',
           title: (d) => {
@@ -203,6 +204,11 @@ function getSteps(tab) {
           skipIf: (d) => !!(d.eph_catalogPick) },
         { id: 'eph_condition', title: 'Condition (1-10)', type: 'slider', min:1, max:10 },
         { id: 'eph_extras',    title: 'Value, date & notes', type: 'paperExtras', optional: true },
+        { id: 'eph_photos',    title: 'Add photos', type: 'drivePhotos', label: 'Paper',
+          views: [
+            { key: 'PAPER-FRONT', label: 'Front of Page', abbr: 'Front' },
+            { key: 'PAPER-BACK',  label: 'Back of Page',  abbr: 'Back'  },
+          ], optional: true },
         { id: 'eph_confirm',
           title: (d) => {
             const label = d.eph_catalogPick
@@ -222,17 +228,11 @@ function getSteps(tab) {
         { id: 'cat_year',        title: 'What year is the catalog?',              type: 'postwarYear' },
         { id: 'cat_hasMailer',   title: 'Does it have the envelope or mailer?',   type: 'choice2',
           choices: ['Yes','No'] },
-        { id: 'cat_condition',   title: 'What condition is the catalog?',         type: 'slider', min:1, max:10 },
-        { id: 'cat_estValue',    title: 'Estimated value',                        type: 'money',
-          placeholder: '0.00', optional: true },
-        { id: 'cat_dateAcquired',title: 'Date acquired',                          type: 'date', optional: true },
-        { id: 'cat_notes',       title: 'Any notes?',                             type: 'textarea', optional: true },
+        { id: 'cat_extras',      title: 'Condition, value & notes',               type: 'catalogExtras', optional: true },
         { id: 'cat_photos',      title: 'Add photos of the catalog',              type: 'drivePhotos', label: 'Catalog',
           views: [
-            { key: 'COVER',   label: 'Front Cover',  abbr: 'COVER'   },
-            { key: 'BACK',    label: 'Back Cover',   abbr: 'BACK'    },
-            { key: 'INSIDE',  label: 'Inside Spread',abbr: 'INSIDE'  },
-            { key: 'MAILER',  label: 'Envelope/Mailer',abbr:'MAILER' },
+            { key: 'COVER',   label: 'Front Cover',  abbr: 'Front' },
+            { key: 'BACK',    label: 'Back Cover',   abbr: 'Back'  },
           ],
           optional: true },
         { id: 'cat_confirm',     title: 'Ready to save the catalog!',             type: 'confirm' },
@@ -345,8 +345,14 @@ function getSteps(tab) {
       { id: 'conditionDetails', title: 'Condition & Details', type: 'conditionDetails' },
 
       // ── SCREEN 4: Purchase & Value (combined) ──
+      // Skipped for Science/Construction (embedded in conditionDetails)
       { id: 'purchaseValue', title: 'Purchase & Value', type: 'purchaseValue',
-        skipIf: d => !!d._setMode },
+        skipIf: d => {
+          if (d._setMode) return true;
+          const _m = wizard.matchedItem || state.masterData.find(function(m) { return m.itemNum === (d.itemNum||''); });
+          const _t = (_m && _m.itemType) ? _m.itemType : '';
+          return ['Science Set','Construction Set'].includes(_t);
+        } },
 
       // ── SCREEN 5+: Photos (one per subject, color-coded banners) ──
       { id: 'photosItem', title: (d) => 'Add photos of the ' + getItemLabel(d),
@@ -2520,6 +2526,45 @@ function renderWizardStep() {
       + '</div>';
     setTimeout(function() { var i = document.getElementById('pe-val'); if(i) i.focus(); }, 50);
 
+  } else if (s.type === 'catalogExtras') {
+    // ── Combined condition + value + date + notes for catalogs ──
+    const _catCond = wizard.data.cat_condition || 7;
+    const _catVal  = wizard.data.cat_estValue    || '';
+    const _catDate = wizard.data.cat_dateAcquired|| '';
+    const _catNote = wizard.data.cat_notes       || '';
+    body.innerHTML = '<div style="padding-top:0.5rem;display:flex;flex-direction:column;gap:0.9rem">'
+      + '<div>'
+      +   '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">'
+      +     '<span style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim)">Condition</span>'
+      +     '<span id="cat-cond-val" style="font-family:var(--font-mono);font-size:1.1rem;color:var(--accent);font-weight:700">' + _catCond + '</span></div>'
+      +   '<input type="range" min="1" max="10" value="' + _catCond + '" style="width:100%;accent-color:var(--accent)"'
+      +   ' oninput="wizard.data.cat_condition=parseInt(this.value);document.getElementById(\'cat-cond-val\').textContent=this.value">'
+      +   '<div style="display:flex;justify-content:space-between;font-size:0.6rem;color:var(--text-dim)"><span>Poor</span><span>Excellent</span></div>'
+      + '</div>'
+      + '<div>'
+      +   '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.35rem">Estimated Value ($)</div>'
+      +   '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.9rem">'
+      +     '<span style="color:var(--text-dim)">$</span>'
+      +     '<input type="number" id="cat-val" value="' + _catVal + '" placeholder="0.00" min="0" step="0.01"'
+      +     ' style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem"'
+      +     ' oninput="wizard.data.cat_estValue=this.value">'
+      +   '</div>'
+      + '</div>'
+      + '<div>'
+      +   '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.35rem">Date Acquired</div>'
+      +   '<input type="date" id="cat-date" value="' + _catDate + '"'
+      +   ' style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none"'
+      +   ' oninput="wizard.data.cat_dateAcquired=this.value">'
+      + '</div>'
+      + '<div>'
+      +   '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.35rem">Notes</div>'
+      +   '<textarea id="cat-notes" rows="3" placeholder="e.g. Excellent condition, still in mailing envelope"'
+      +   ' style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;resize:none"'
+      +   ' oninput="wizard.data.cat_notes=this.value">' + _catNote + '</textarea>'
+      + '</div>'
+      + '<div style="font-size:0.75rem;color:var(--text-dim)">All fields optional — press Next to skip</div>'
+      + '</div>';
+
   } else if (s.type === 'pricePaid') {
     const itemVal = wizard.data.priceItem || '';
     body.innerHTML = `
@@ -3286,7 +3331,21 @@ function renderWizardStep() {
     }
 
   } else if (s.type === 'drivePhotos') {
-    const views = s.views ? s.views : s.label === 'Box' ? BOX_VIEWS : s.label === 'Error' ? ERROR_VIEWS : ITEM_VIEWS;
+    // Check item type for custom views (Science/Construction sets)
+    let views = s.views;
+    if (!views) {
+      const _phMaster = wizard.matchedItem || state.masterData.find(function(m) { return m.itemNum === (wizard.data.itemNum||''); });
+      const _phType = (_phMaster && _phMaster.itemType) ? _phMaster.itemType : '';
+      if (['Science Set','Construction Set'].includes(_phType) && s.label === 'Item') {
+        views = [
+          { key: 'CASE-FRONT', label: 'Front of Case', abbr: 'Front' },
+          { key: 'CASE-BACK',  label: 'Back of Case',  abbr: 'Back'  },
+          { key: 'CASE-INSIDE',label: 'Inside of Set',  abbr: 'Inside' },
+        ];
+      } else {
+        views = s.label === 'Box' ? BOX_VIEWS : s.label === 'Error' ? ERROR_VIEWS : ITEM_VIEWS;
+      }
+    }
     const stored = wizard.data[s.id] || {};
 
     // Color-coded photo banner (always clear body first for clean render)
@@ -3398,6 +3457,22 @@ function renderWizardStep() {
     introDiv.textContent = 'Drag & drop or click each slot to upload. Photos save to Google Drive automatically.';
     wrap.appendChild(introDiv);
 
+    // Condition slider (when embedded in photo step, e.g. IS flow)
+    if (s.conditionSlider) {
+      const _csKey = s.conditionSlider.key;
+      const _csLabel = s.conditionSlider.label || 'Condition';
+      const _csVal = wizard.data[_csKey] || 7;
+      const csDiv = document.createElement('div');
+      csDiv.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.75rem 0.85rem;margin-bottom:0.75rem';
+      csDiv.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">'
+        + '<span style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim)">' + _csLabel + '</span>'
+        + '<span id="cs-val" style="font-family:var(--font-mono);font-size:1.1rem;color:var(--accent);font-weight:700">' + _csVal + '</span></div>'
+        + '<input type="range" min="1" max="10" value="' + _csVal + '" style="width:100%;accent-color:var(--accent)"'
+        + ' oninput="wizard.data[\'' + _csKey + '\']=parseInt(this.value);document.getElementById(\'cs-val\').textContent=this.value">'
+        + '<div style="display:flex;justify-content:space-between;font-size:0.6rem;color:var(--text-dim)"><span>Poor</span><span>Excellent</span></div>';
+      wrap.appendChild(csDiv);
+    }
+
     if (s.note && s.note(wizard.data)) {
       const noteDiv = document.createElement('div');
       noteDiv.style.cssText = 'font-size:0.8rem;color:var(--accent2);margin-bottom:0.75rem;padding:0.5rem 0.75rem;background:rgba(201,146,42,0.1);border-radius:6px';
@@ -3498,10 +3573,10 @@ function renderWizardStep() {
         _extraPrompt.remove();
         addBtn.style.display = '';
         grid.appendChild(makePhotoSlot(key, title, title, s.id));
+        // Immediately open the photo source picker (camera/upload) after adding the slot
         setTimeout(() => {
-          const inp = document.getElementById('file-' + s.id + '-' + key);
-          if (inp) inp.click();
-        }, 50);
+          showPhotoSourcePicker(s.id, key);
+        }, 100);
       };
 
       goBtn.onclick = doAdd;
@@ -3803,6 +3878,11 @@ function renderWizardStep() {
     const _cdGrouping = wizard.data._itemGrouping || 'single';
     const _cdItemNum = (wizard.data.itemNum || '').trim();
 
+    // Detect item type for field hiding (Science Sets, Construction Sets skip IS/MasterBox/Error)
+    const _cdMaster = wizard.matchedItem || state.masterData.find(function(m) { return m.itemNum === _cdItemNum; });
+    const _cdItemType = (_cdMaster && _cdMaster.itemType) ? _cdMaster.itemType : '';
+    const _cdIsSimplified = ['Science Set','Construction Set'].includes(_cdItemType);
+
     // Pre-populate defaults from preferences (only if not already set)
     const _defAllOrig  = _prefGet('lv_def_allOriginal', 'Yes');
     const _defHasBox   = _prefGet('lv_def_hasBox',      'No');
@@ -3904,8 +3984,8 @@ function renderWizardStep() {
       html += '<input type="range" min="1" max="10" value="' + boxCondVal + '" style="flex:1;accent-color:var(--accent)" oninput="wizard.data[\'' + boxCondKey + '\']=parseInt(this.value);document.getElementById(\'cd-boxcond-val-' + col.id + '\').textContent=this.value"></div>';
       html += '</div></div>';
       
-      // Instruction Sheet — only on main column
-      if (col.id === 'main') {
+      // Instruction Sheet — only on main column, hidden for Science/Construction
+      if (col.id === 'main' && !_cdIsSimplified) {
         const isVal = wizard.data.hasIS || '';
         const isSheetVal = wizard.data.is_sheetNum || '';
         const isCondVal = wizard.data.is_condition || 7;
@@ -3938,8 +4018,8 @@ function renderWizardStep() {
       } // end master box
       } // end if !_setMode (master box)
       
-      // Error item toggle — hidden in set mode
-      if (!wizard.data._setMode) {
+      // Error item toggle — hidden in set mode and for Science/Construction
+      if (!wizard.data._setMode && !_cdIsSimplified) {
       {
         const errKey = p ? p + 'IsError' : 'isError';
         const errDescKey = p ? p + 'ErrorDesc' : 'errorDesc';
@@ -3978,6 +4058,30 @@ function renderWizardStep() {
       _cdHtml += _buildCondCol(col);
     });
     _cdHtml += '</div>';
+
+    // For Science/Construction: embed value, date, notes fields (combines steps 4+5)
+    if (_cdIsSimplified) {
+      const _scVal  = wizard.data.estValue    || '';
+      const _scDate = wizard.data.dateAcquired|| '';
+      const _scNote = wizard.data.notes       || '';
+      _cdHtml += '<div style="margin-top:0.75rem;display:flex;flex-direction:column;gap:0.7rem">';
+      _cdHtml += '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.1rem">Purchase & Value</div>';
+      _cdHtml += '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.75rem">'
+        + '<span style="color:var(--text-dim)">$</span>'
+        + '<input type="number" value="' + _scVal + '" placeholder="0.00" min="0" step="0.01"'
+        + ' style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:0.95rem"'
+        + ' oninput="wizard.data.estValue=this.value"></div>';
+      _cdHtml += '<div><div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.25rem">Date Acquired</div>'
+        + '<input type="date" value="' + _scDate + '"'
+        + ' style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.65rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none"'
+        + ' oninput="wizard.data.dateAcquired=this.value"></div>';
+      _cdHtml += '<div><div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.25rem">Notes</div>'
+        + '<textarea rows="2" placeholder="e.g. Complete set, all pieces present"'
+        + ' style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.65rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;resize:none"'
+        + ' oninput="wizard.data.notes=this.value">' + _scNote + '</textarea></div>';
+      _cdHtml += '</div>';
+    }
+
     _cdWrap.innerHTML = _cdHtml;
     body.innerHTML = '';
     body.appendChild(_cdWrap);
