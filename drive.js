@@ -329,13 +329,24 @@ function driveFolderLink(folderId) {
   return `https://drive.google.com/drive/folders/${folderId}`;
 }
 
-async function driveUploadItemPhoto(file, itemNum, viewAbbr) {
-  console.log('[Drive] Uploading photo:', itemNum, viewAbbr, 'file:', file.name, 'size:', file.size);
+async function driveUploadItemPhoto(file, itemNum, viewAbbr, inventoryId) {
+  console.log('[Drive] Uploading photo:', itemNum, viewAbbr, 'invId:', inventoryId || 'none', 'file:', file.name, 'size:', file.size);
   await driveEnsureSetup();
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
   const fileName = `${itemNum} ${viewAbbr}.${ext}`;
-  const folderId = await driveEnsureItemFolder(itemNum);
-  console.log('[Drive] Folder ready:', folderId, 'Uploading...');
+  const itemFolderId = await driveEnsureItemFolder(itemNum);
+  // If inventoryId provided, create a subfolder for this specific copy
+  let folderId = itemFolderId;
+  if (inventoryId) {
+    const invKey = itemNum + '/' + inventoryId;
+    if (driveCache.itemFolders[invKey]) {
+      folderId = driveCache.itemFolders[invKey];
+    } else {
+      folderId = await driveFindOrCreateFolder(String(inventoryId), itemFolderId);
+      driveCache.itemFolders[invKey] = folderId;
+    }
+  }
+  console.log('[Drive] Folder ready:', folderId, inventoryId ? '(inv subfolder)' : '(root)', 'Uploading...');
   const result = await driveUploadFile(file, fileName, folderId);
   console.log('[Drive] Upload result:', result && result.id ? 'OK id=' + result.id : 'FAILED', result);
   if (!result || !result.id) {

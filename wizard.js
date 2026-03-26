@@ -4883,7 +4883,16 @@ async function uploadWizardPhoto(file, stepId, viewKey) {
   }
 
   try {
-    const url = await driveUploadItemPhoto(file, itemNum, viewKey);
+    // Pass inventoryId for per-copy subfolder (collection items only)
+    // Auto-allocate if not yet assigned (first photo triggers creation)
+    let _invId = '';
+    if (wizard.tab === 'collection') {
+      if (!wizard.data._photoInventoryId) {
+        wizard.data._photoInventoryId = wizard.data._existingInventoryId || nextInventoryId();
+      }
+      _invId = wizard.data._photoInventoryId;
+    }
+    const url = await driveUploadItemPhoto(file, itemNum, viewKey, _invId || undefined);
     if (!wizard.data[stepId]) wizard.data[stepId] = {};
     wizard.data[stepId][viewKey] = url;
     // Update label to show success, hide spinner
@@ -6833,7 +6842,7 @@ async function saveWizardItem() {
         d.isError === 'Yes' ? 'Yes' : 'No',  // Is Error (col R)
         d.isError === 'Yes' ? (d.errorDesc || '') : '',  // Error Description (col S)
         '',  // Quick Entry (col T) — blank = normal full entry
-        d._existingInventoryId || nextInventoryId(),  // Inventory ID (col U)
+        d._existingInventoryId || d._photoInventoryId || nextInventoryId(),  // Inventory ID (col U)
         '',  // Group ID (col V) — filled in below for grouped items
         d.location || '',  // Location (col W)
         '',                    // Era (col X)
@@ -7410,10 +7419,12 @@ async function quickEntryAdd() {
     if (_nextBtn) _nextBtn.disabled = true;
 
     // ── Upload photo before saving rows (lead item only) ──
+    // Pre-allocate inventoryId so photo goes into the right subfolder
+    const _qeLeadInvId = nextInventoryId();
     let _qePhotoLink = '';
     if (d._qePhotoFile) {
       try {
-        _qePhotoLink = await driveUploadItemPhoto(d._qePhotoFile, rows[0].itemNum, 'QE') || '';
+        _qePhotoLink = await driveUploadItemPhoto(d._qePhotoFile, rows[0].itemNum, 'QE', _qeLeadInvId) || '';
       } catch(photoErr) {
         console.warn('[QE] Photo upload failed, continuing without photo:', photoErr);
       }
@@ -7422,7 +7433,7 @@ async function quickEntryAdd() {
 
     for (const r of rows) {
       const isLead = r === rows[0];
-      const invId = nextInventoryId();
+      const invId = isLead ? _qeLeadInvId : nextInventoryId();
       const row = [r.itemNum, r.variation, r.condition||'','','','','','','',(isLead ? _qePhotoLink : ''),'', r.notes,'',(isLead ? _qeEstWorth : ''),r.matchedTo,r.setId,'','','','Yes', invId, r.groupId||'', '', '', ''];
       console.log('[QE] Saving', r.itemNum);
       const actualRow = await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
