@@ -443,6 +443,16 @@ function renderMasterSubTab(tabKey) {
     var _ownedCopies = Object.keys(state.personalData).filter(function(k) {
       return k.startsWith(_keyPrefix) && state.personalData[k].owned;
     }).length;
+    // Also check Science/Construction dedicated tabs
+    if (tabKey === 'science') {
+      _ownedCopies += Object.values(state.scienceData || {}).filter(function(s) {
+        return s.itemNum === item.itemNum;
+      }).length;
+    } else if (tabKey === 'construction') {
+      _ownedCopies += Object.values(state.constructionData || {}).filter(function(s) {
+        return s.itemNum === item.itemNum;
+      }).length;
+    }
     var _ownBadge = _ownedCopies > 0
       ? '<span style="display:inline-block;font-size:0.6rem;font-weight:700;color:#2ecc71;border:1px solid #2ecc71;border-radius:3px;padding:0 3px;margin-left:4px;vertical-align:middle">' + (_ownedCopies > 1 ? '✓' + _ownedCopies : '✓') + '</span>'
       : '';
