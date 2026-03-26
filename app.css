@@ -372,7 +372,11 @@
   #page-browse .item-table.collection-view th:nth-child(5),
   #page-browse .item-table.collection-view td:nth-child(5) { width: 82px; }
   #page-browse .item-table.collection-view th:nth-child(6),
-  #page-browse .item-table.collection-view td:nth-child(6) { width: 210px; text-align: right; }
+  #page-browse .item-table.collection-view td:nth-child(6) { width: 240px; text-align: right; }
+  /* Compact action buttons — wrap text so they don't force horizontal scroll */
+  #page-browse .item-table.collection-view td:last-child button {
+    white-space: normal; line-height: 1.15; padding: 0.2rem 0.3rem; max-width: 58px; text-align: center;
+  }
 
   /* ── Master Catalog: Var. column narrower ── */
   #page-browse .item-table:not(.collection-view) th:nth-child(4),
