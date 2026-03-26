@@ -59,6 +59,16 @@ const MOCKUP_HEADERS = [
   'Condition (1-10)','Production Status','Material','Dimensions',
   'Provenance','Lionel Verified','Price Paid','Est. Value','Photo Link','Notes','Date Acquired'
 ];
+const SCIENCE_HEADERS = [
+  'Item Number','Description','Year','Condition (1-10)','All Original',
+  'Has Case/Box','Case/Box Condition','Price Paid','Est. Worth',
+  'Photo Link','Notes','Date Acquired','Inventory ID','Group ID'
+];
+const CONSTRUCTION_HEADERS = [
+  'Item Number','Description','Year','Condition (1-10)','All Original',
+  'Has Case/Box','Case/Box Condition','Price Paid','Est. Worth',
+  'Photo Link','Notes','Date Acquired','Inventory ID','Group ID'
+];
 
 // ── TENDER / LOCOMOTIVE RELATIONSHIPS ──────────────────────────
 const TENDER_TO_LOCOS = {"1872T":["1872"],"1882T":["1882"],"2020W":["2020"],"2046W":["726RR","637","646","2056","675","736","2055","2046","2065","665"],"2046WX":["671RR","682","681"],"2426W":["773","726"],"2466T":["224","1666"],"2466W":["224","1666"],"2466WX":["675","224","1666"],"2671W":["681","671"],"4424W":["671R"],"4671W":["671R"],"6001T":["6110"],"6020W":["2020"],"6026T":["2018","2037"],"6026W":["2037","685","2055","2018","2065","665","2016"],"6066T":["2026","1130","2034","2037"],"6403B":["1656"],"6466W":["2026","2036","2025","2035"],"6466WX":["2026","2025","675"],"6654T":["1655"],"250T":["250","249"],"671W":["671"],"736W":["637","665","773","736"],"746W":["746"],"773W":["773"],"1001T":["1101","1120","1001","1110"],"1050T":["235","1060","1050","236"],"1060T":["237","242","1060","2029","1062","1061"],"1130T":["244","248","236","245","2037","2018","1130","235","246"],"1130T-500":["2037-500"],"1625T":["1625"],"1654T":["1654"],"1654W":["1654"],"1862T":["1862"]};
@@ -164,6 +174,9 @@ var state = {
   forSaleData: {},     // keyed by "itemNum|variation" -> for sale row
   wantData: {},
   upgradeData: {},        // keyed by "itemNum|variation" -> want list row
+  isData: {},             // keyed by row# -> instruction sheet data
+  scienceData: {},        // keyed by row# -> science set personal data
+  constructionData: {},   // keyed by row# -> construction set personal data
   setData: [],         // all rows from Master Set list (read-only reference)
   companionData: [],   // all rows from Companions tab (engine/tender/B-unit relationships)
   catalogRefData: [],  // all rows from master Catalogs tab (reference list for paper item wizard)
@@ -1043,6 +1056,24 @@ async function ensureEphemeraSheets(sheetId) {
   }
   await sheetsUpdate(sheetId, 'Instruction Sheets!A1:A1', [['Instruction Sheets']]);
   await sheetsUpdate(sheetId, 'Instruction Sheets!A2:K2', [IS_HEADERS]);
+  // Science Sets tab
+  if (!existingTabs.includes('Science Sets')) {
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+      method:'POST', headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+      body: JSON.stringify({ requests:[{ addSheet:{ properties:{ title:'Science Sets' } } }] }),
+    });
+  }
+  await sheetsUpdate(sheetId, 'Science Sets!A1:A1', [['Science Sets']]);
+  await sheetsUpdate(sheetId, 'Science Sets!A2:N2', [SCIENCE_HEADERS]);
+  // Construction Sets tab
+  if (!existingTabs.includes('Construction Sets')) {
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+      method:'POST', headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+      body: JSON.stringify({ requests:[{ addSheet:{ properties:{ title:'Construction Sets' } } }] }),
+    });
+  }
+  await sheetsUpdate(sheetId, 'Construction Sets!A1:A1', [['Construction Sets']]);
+  await sheetsUpdate(sheetId, 'Construction Sets!A2:N2', [CONSTRUCTION_HEADERS]);
 }
 
 
@@ -1444,6 +1475,8 @@ async function loadPersonalData() {
       state.forSaleData   = _pd.forSaleData   || {};
       state.wantData      = _pd.wantData      || {};
       state.isData        = _pd.isData        || {};
+      state.scienceData   = _pd.scienceData   || {};
+      state.constructionData = _pd.constructionData || {};
       state.ephemeraData  = _pd.ephemeraData  || { catalogs:{}, paper:{}, mockups:{}, other:{} };
       // Only background-refresh if cache is older than 5 minutes
       if ((Date.now() - _ptime) > _BG_REFRESH) {
@@ -1471,6 +1504,8 @@ function _cachePersonalData() {
       forSaleData: state.forSaleData,
       wantData: state.wantData,
       isData: state.isData,
+      scienceData: state.scienceData,
+      constructionData: state.constructionData,
       ephemeraData: state.ephemeraData,
     };
     localStorage.setItem('lv_personal_cache', JSON.stringify(_snap));
@@ -1485,12 +1520,15 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   const newSold     = {};
   const newWant     = {};
   const newIsData   = {};
+  const newScienceData = {};
+  const newConstructionData = {};
   const newEphemera = { catalogs:{}, paper:{}, mockups:{}, other:{} };
   const newForSale = {};
 
   // Fetch all tabs in parallel
   const [collRes, soldRes, forSaleRes, wantRes, upgradeRes,
-         catRes, paperRes, mockRes, otherRes, isRes] = await Promise.all([
+         catRes, paperRes, mockRes, otherRes, isRes,
+         sciRes, conRes] = await Promise.all([
     sheetsGet(sheetId, 'My Collection!A3:Y').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Sold!A3:H').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'For Sale!A3:H').catch(() => ({values:[]})),
@@ -1501,6 +1539,8 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     sheetsGet(sheetId, 'Mock-Ups!A3:Q').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Other Lionel!A3:N').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Instruction Sheets!A3:K').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Science Sets!A3:N').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Construction Sets!A3:N').catch(() => ({values:[]})),
   ]);
 
   // My Collection
@@ -1580,6 +1620,23 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
       pricePaid: r[9]||'', estValue: r[10]||'',
     };
   });
+
+  // Science Sets & Construction Sets — same 14-col layout (A-N)
+  function _parseSetTab(res, bucket, tabTitle) {
+    (res.values || []).forEach((r, idx) => {
+      if (!r[0] || r[0] === 'Item Number' || r[0] === tabTitle) return;
+      const key = idx + 3;
+      bucket[key] = {
+        row: key, itemNum: r[0]||'', description: r[1]||'', year: r[2]||'',
+        condition: r[3]||'', allOriginal: r[4]||'', hasCase: r[5]||'',
+        caseCond: r[6]||'', pricePaid: r[7]||'', estValue: r[8]||'',
+        photoLink: r[9]||'', notes: r[10]||'', dateAcquired: r[11]||'',
+        inventoryId: r[12]||'', groupId: r[13]||'',
+      };
+    });
+  }
+  _parseSetTab(sciRes, newScienceData, 'Science Sets');
+  _parseSetTab(conRes, newConstructionData, 'Construction Sets');
 
   // Ephemera tabs
   // Initialize user-defined tab buckets
@@ -1673,6 +1730,8 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     state.wantData = newWant;
   }
   state.isData = newIsData;
+  state.scienceData = newScienceData;
+  state.constructionData = newConstructionData;
   state.ephemeraData = newEphemera;
 }
 
