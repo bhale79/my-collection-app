@@ -357,11 +357,8 @@
   .main .report-table thead th { background: #f0e6cc; box-shadow: 0 1px 0 #d4c8a8; }
   @media print { .table-wrap { max-height: none !important; overflow: visible !important; } }
 
-  /* Browse table wrapper: vertical scroll on wrapper, horizontal scroll disabled
-     so the sticky thead travels with horizontal table scroll correctly */
+  /* Browse table wrapper: vertical + horizontal scroll with sticky headers */
   .browse-table-wrap { overflow-x: auto; overflow-y: auto; }
-  /* Disable sticky on browse thead — can't be sticky in both axes simultaneously */
-  .browse-table-wrap .item-table thead th { position: static; box-shadow: none; }
   /* Collection view: fills container width, no horizontal scroll */
   #page-browse .item-table.collection-view { table-layout: fixed; width: 100%; min-width: 0; }
   #page-browse .item-table.collection-view th:nth-child(1),
