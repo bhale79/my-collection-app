@@ -333,12 +333,17 @@ function renderCatalogsTab() {
     <td style="font-size:0.88rem">${c.title||'—'}${c.hasMailer==='Yes'?' <span style="font-size:0.7rem;color:var(--accent2)">(w/ mailer)</span>':''}</td>
   </tr>`).join('');
   window._browseFilteredCats = cats;
-  tbody.innerHTML = cats.map((c, ci) => `<tr onclick="showRefItemPopup(&apos;catalog&apos;,${ci})" style="cursor:pointer">
-    <td><span style="font-family:var(--font-mono);color:var(--accent2)">${c.id}</span></td>
+  tbody.innerHTML = cats.map((c, ci) => {
+    const _catOwned = ownedCatIds.has(c.id.toLowerCase());
+    const _catBadge = _catOwned ? '<span style="display:inline-block;font-size:0.6rem;font-weight:700;color:#2ecc71;border:1px solid #2ecc71;border-radius:3px;padding:0 3px;margin-left:4px;vertical-align:middle">✓</span>' : '';
+    const _catBg = _catOwned ? 'background:rgba(46,204,113,0.04);' : '';
+    return `<tr onclick="showRefItemPopup(&apos;catalog&apos;,${ci})" style="cursor:pointer;${_catBg}">
+    <td><span style="font-family:var(--font-mono);color:var(--accent2)">${c.id}</span>${_catBadge}</td>
     <td style="font-size:0.85rem;color:var(--text-mid)">${c.year || '—'}</td>
     <td style="font-size:0.85rem">${c.type || '—'}</td>
     <td style="font-size:0.88rem">${c.title || '—'}</td>
-  </tr>`).join('') + ephRows;
+  </tr>`;
+  }).join('') + ephRows;
 }
 
 function renderISTab() {
@@ -353,13 +358,19 @@ function renderISTab() {
   if (countEl) countEl.textContent = sheets.length.toLocaleString() + ' sheets';
   if (!sheets.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-dim)">No instruction sheets found</td></tr>'; return; }
   window._browseFilteredIS = sheets;
-  tbody.innerHTML = sheets.map((s, si) => `<tr onclick="showRefItemPopup(&apos;is&apos;,${si})" style="cursor:pointer">
-    <td><span style="font-family:var(--font-mono);color:var(--accent2)">${s.id}</span></td>
+  const _ownedISNums = new Set(Object.values(state.isData || {}).map(is => (is.sheetNum||'').toLowerCase()));
+  tbody.innerHTML = sheets.map((s, si) => {
+    const _isOwned = _ownedISNums.has(s.id.toLowerCase());
+    const _isBadge = _isOwned ? '<span style="display:inline-block;font-size:0.6rem;font-weight:700;color:#2ecc71;border:1px solid #2ecc71;border-radius:3px;padding:0 3px;margin-left:4px;vertical-align:middle">✓</span>' : '';
+    const _isBg = _isOwned ? 'background:rgba(46,204,113,0.04);' : '';
+    return `<tr onclick="showRefItemPopup(&apos;is&apos;,${si})" style="cursor:pointer;${_isBg}">
+    <td><span style="font-family:var(--font-mono);color:var(--accent2)">${s.id}</span>${_isBadge}</td>
     <td style="font-family:var(--font-mono);font-size:0.85rem">${s.itemNumber || '—'}</td>
     <td style="font-size:0.85rem">${s.description || '—'}</td>
     <td style="font-size:0.82rem;color:var(--text-mid)">${s.category || '—'}</td>
     <td style="font-size:0.82rem;color:var(--text-mid)">${s.variations || '—'}</td>
-  </tr>`).join('');
+  </tr>`;
+  }).join('');
 }
 
 function renderMockupsOtherTab() {
@@ -427,8 +438,17 @@ function renderMasterSubTab(tabKey) {
     var item = r.item;
     var vd = item.varDetail || '';
     if (vd.length > 80) vd = vd.substring(0, 77) + '…';
-    return '<tr onclick="browseRowClick(event, ' + r.globalIdx + ')" style="cursor:pointer">' +
-      '<td><span class="item-num">' + item.itemNum + '</span></td>' +
+    // Check ownership — count how many copies of this item the user owns
+    var _keyPrefix = item.itemNum + '|' + (item.variation || '') + '|';
+    var _ownedCopies = Object.keys(state.personalData).filter(function(k) {
+      return k.startsWith(_keyPrefix) && state.personalData[k].owned;
+    }).length;
+    var _ownBadge = _ownedCopies > 0
+      ? '<span style="display:inline-block;font-size:0.6rem;font-weight:700;color:#2ecc71;border:1px solid #2ecc71;border-radius:3px;padding:0 3px;margin-left:4px;vertical-align:middle">' + (_ownedCopies > 1 ? '✓' + _ownedCopies : '✓') + '</span>'
+      : '';
+    var _rowBg = _ownedCopies > 0 ? 'background:rgba(46,204,113,0.04);' : '';
+    return '<tr onclick="browseRowClick(event, ' + r.globalIdx + ')" style="cursor:pointer;' + _rowBg + '">' +
+      '<td><span class="item-num">' + item.itemNum + '</span>' + _ownBadge + '</td>' +
       '<td><span class="tag">' + (item.itemType || '—') + '</span></td>' +
       '<td>' + (item.description || '<span class="text-dim">—</span>') + '</td>' +
       '<td>' + (item.variation || '<span class="text-dim">—</span>') + '</td>' +
