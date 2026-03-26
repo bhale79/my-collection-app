@@ -3423,7 +3423,60 @@ function showRefItemPopup(type, idx) {
       addSetToCollection(_itemNum, _description);
       return;
     }
-    // Try to find in masterData first (instruction sheets often match)
+    // Catalogs → catalog wizard flow
+    if (type === 'catalog') {
+      _buildWizardModal();
+      var _c2 = (window._browseFilteredCats || [])[idx];
+      wizard = {
+        step: 0, tab: 'catalogs',
+        data: { tab: 'catalogs', itemCategory: 'catalogs',
+          cat_type: _c2 ? (_c2.type || '') : '',
+          cat_year: _c2 ? (_c2.year || '') : '',
+          cat_hasMailer: _c2 ? (_c2.hasMailer || 'No') : 'No',
+        },
+        steps: getSteps('catalogs'),
+        matchedItem: null
+      };
+      document.getElementById('wizard-modal').classList.add('open');
+      document.body.style.overflow = 'hidden';
+      // Skip past already-filled steps (type, year, hasMailer)
+      var _catAutoSkip = new Set(['cat_type','cat_year','cat_hasMailer']);
+      while (wizard.step < wizard.steps.length - 1) {
+        var _cs = wizard.steps[wizard.step];
+        if (_catAutoSkip.has(_cs.id) && wizard.data[_cs.id]) {
+          wizard.step++;
+        } else break;
+      }
+      renderWizardStep();
+      return;
+    }
+    // Instruction Sheets → IS wizard flow
+    if (type === 'is') {
+      _buildWizardModal();
+      var _is2 = (window._browseFilteredIS || [])[idx];
+      wizard = {
+        step: 0, tab: 'instrsheet',
+        data: { tab: 'instrsheet',
+          is_sheetNum: _is2 ? (_is2.id || '') : '',
+          is_linkedItem: _is2 ? (_is2.itemNumber || '') : '',
+        },
+        steps: getSteps('instrsheet'),
+        matchedItem: null
+      };
+      document.getElementById('wizard-modal').classList.add('open');
+      document.body.style.overflow = 'hidden';
+      // Skip past already-filled steps
+      var _isAutoSkip = new Set(['is_sheetNum','is_linkedItem']);
+      while (wizard.step < wizard.steps.length - 1) {
+        var _iss = wizard.steps[wizard.step];
+        if (_isAutoSkip.has(_iss.id) && wizard.data[_iss.id]) {
+          wizard.step++;
+        } else break;
+      }
+      renderWizardStep();
+      return;
+    }
+    // Try to find in masterData first (regular items)
     var masterIdx = state.masterData.findIndex(function(m) { return m.itemNum === _itemNum; });
     if (masterIdx >= 0) {
       addFromBrowse(masterIdx);
