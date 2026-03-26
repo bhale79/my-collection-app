@@ -3952,15 +3952,18 @@ function renderWizardStep() {
 
     // Detect item type for field hiding
     // _cdIsSimplified = Science/Construction: hide IS, Master Box, Error (keep All Original, Has Box)
-    // _cdIsPaperLike = Catalog/Paper/IS: hide ALL toggles (All Original, Has Box, IS, Master Box, Error)
+    // _cdIsPaperLike = Catalog/Paper/IS/Other/Service: hide ALL toggles (All Original, Has Box, IS, Master Box, Error)
     const _cdMaster = wizard.matchedItem || state.masterData.find(function(m) { return m.itemNum === _cdItemNum; });
     const _cdItemType = (_cdMaster && _cdMaster.itemType) ? _cdMaster.itemType : '';
+    const _cdMasterTab = (_cdMaster && _cdMaster._tab) ? _cdMaster._tab : '';
     const _cdIsSimplified = ['Science Set','Construction Set'].includes(_cdItemType);
     const _cdIsPaperLike = ['Catalog','Instruction Sheet'].includes(_cdItemType)
+      || ['Lionel Postwar - Paper','Lionel Postwar - Other','Lionel Postwar - Service Tools'].includes(_cdMasterTab)
       || _cdItemType.toLowerCase().includes('paper') || _cdItemType.toLowerCase().includes('catalog');
     const _cdHideToggles = _cdIsSimplified || _cdIsPaperLike;
 
     // Pre-populate defaults from preferences (only if not already set)
+    // Skip defaults for fields that will be hidden to prevent them leaking to confirm screen
     const _defAllOrig  = _prefGet('lv_def_allOriginal', 'Yes');
     const _defHasBox   = _prefGet('lv_def_hasBox',      'No');
     const _defHasIS    = _prefGet('lv_def_hasIS',       'No');
@@ -3968,16 +3971,24 @@ function renderWizardStep() {
     const _defMasterBox = _prefGet('lv_def_masterBox',  'No');
     // In set mode, only pre-populate main item (no tender/unit2/unit3)
     const _allPrefixes = wizard.data._setMode ? [''] : ['', 'tender', 'unit2', 'unit3'];
-    _allPrefixes.forEach(function(p) {
-      const origKey  = p ? p + 'AllOriginal' : 'allOriginal';
-      const boxKey   = p ? p + 'HasBox'      : 'hasBox';
-      const errKey   = p ? p + 'IsError'     : 'isError';
-      if (!wizard.data[origKey]) wizard.data[origKey] = _defAllOrig;
-      if (!wizard.data[boxKey])  wizard.data[boxKey]  = _defHasBox;
-      if (!wizard.data._setMode && !wizard.data[errKey]) wizard.data[errKey] = _defIsError;
-    });
-    if (!wizard.data.hasIS)        wizard.data.hasIS        = _defHasIS;
-    if (!wizard.data._setMode && !wizard.data.hasMasterBox) wizard.data.hasMasterBox = _defMasterBox;
+    if (!_cdIsPaperLike) {
+      _allPrefixes.forEach(function(p) {
+        const origKey  = p ? p + 'AllOriginal' : 'allOriginal';
+        const boxKey   = p ? p + 'HasBox'      : 'hasBox';
+        const errKey   = p ? p + 'IsError'     : 'isError';
+        if (!_cdIsSimplified) {
+          if (!wizard.data[origKey]) wizard.data[origKey] = _defAllOrig;
+          if (!wizard.data[boxKey])  wizard.data[boxKey]  = _defHasBox;
+        } else {
+          // Simplified (Science/Construction): keep allOriginal + hasBox, skip error
+          if (!wizard.data[origKey]) wizard.data[origKey] = _defAllOrig;
+          if (!wizard.data[boxKey])  wizard.data[boxKey]  = _defHasBox;
+        }
+        if (!wizard.data._setMode && !_cdHideToggles && !wizard.data[errKey]) wizard.data[errKey] = _defIsError;
+      });
+      if (!_cdHideToggles && !wizard.data.hasIS) wizard.data.hasIS = _defHasIS;
+      if (!_cdHideToggles && !wizard.data._setMode && !wizard.data.hasMasterBox) wizard.data.hasMasterBox = _defMasterBox;
+    }
 
     // Determine columns
     const _cdCols = [];
@@ -4460,6 +4471,27 @@ function renderWizardStep() {
        'hasMasterBox','masterBoxCond','masterBoxNotes',
        'priceItem','userEstWorth','datePurchased','pricePaid','location','yearMade',
        'variation','itemNum','_existingGroupId'].forEach(k => _skipKeys.add(k));
+    }
+    // Collection wizard with special item types (Paper/Other/Service/Science/Construction from Browse):
+    // hide tender/unit/error/IS/masterBox fields that don't apply
+    if (!_isEph && wizard.tab === 'collection' && wizard.matchedItem) {
+      const _miTab = wizard.matchedItem._tab || '';
+      const _miType = wizard.matchedItem.itemType || '';
+      const _miIsPaperLike = ['Lionel Postwar - Paper','Lionel Postwar - Other','Lionel Postwar - Service Tools'].includes(_miTab)
+        || ['Catalog','Instruction Sheet'].includes(_miType) || _miType.toLowerCase().includes('paper');
+      const _miIsSimplified = ['Science Set','Construction Set'].includes(_miType);
+      if (_miIsPaperLike || _miIsSimplified) {
+        ['tenderAllOriginal','tenderHasBox','tenderCondition','tenderBoxCond','tenderIsError','tenderErrorDesc','tenderNotOriginalDesc',
+         'unit2AllOriginal','unit2HasBox','unit2Condition','unit2BoxCond','unit2IsError','unit2ErrorDesc','unit2NotOriginalDesc',
+         'unit3AllOriginal','unit3HasBox','unit3Condition','unit3BoxCond','unit3IsError','unit3ErrorDesc','unit3NotOriginalDesc',
+         'hasIS','is_sheetNum','is_condition','is_pricePaid','is_estValue',
+         'hasMasterBox','masterBoxCond','masterBoxNotes',
+         'isError','errorDesc','notOriginalDesc'].forEach(k => _skipKeys.add(k));
+      }
+      if (_miIsPaperLike) {
+        // Paper-like: also hide allOriginal, hasBox, boxCond
+        ['allOriginal','hasBox','boxCond'].forEach(k => _skipKeys.add(k));
+      }
     }
     const _summaryEntries = Object.entries(wizard.data).filter(function(e) {
       return !_skipKeys.has(e[0]) && e[1] && e[1] !== '' && !e[0].startsWith('photos') && !Array.isArray(e[1]) && typeof e[1] !== 'object';
