@@ -13,6 +13,17 @@
 // ══════════════════════════════════════════════════════════════
 
 // ── BROWSE ──────────────────────────────────────────────────────
+
+// Helper: build display item number with P/D suffix for AA/AB units
+function _displayItemNum(item) {
+  if (!item) return '';
+  var num = item.itemNum || '';
+  var pd = item.poweredDummy || '';
+  if (pd === 'P') return num + '-P';
+  if (pd === 'D') return num + '-D';
+  return num;
+}
+
 function populateFilters() {
   const types = [...new Set(state.masterData.map(i => i.itemType).filter(Boolean))].sort();
   const roads = [...new Set(state.masterData.map(i => i.roadName).filter(Boolean))].sort();
@@ -438,8 +449,10 @@ function renderMasterSubTab(tabKey) {
     var item = r.item;
     var vd = item.varDetail || '';
     if (vd.length > 80) vd = vd.substring(0, 77) + '…';
+    var _dispNum = _displayItemNum(item);
     // Check ownership — count how many copies of this item the user owns
-    var _keyPrefix = item.itemNum + '|' + (item.variation || '') + '|';
+    // For P/D items, match the suffixed key (e.g. "210-P|...")
+    var _keyPrefix = _dispNum + '|' + (item.variation || '') + '|';
     var _ownedCopies = Object.keys(state.personalData).filter(function(k) {
       return k.startsWith(_keyPrefix) && state.personalData[k].owned;
     }).length;
@@ -462,7 +475,7 @@ function renderMasterSubTab(tabKey) {
       : '';
     var _rowBg = _ownedCopies > 0 ? 'background:rgba(46,204,113,0.04);' : '';
     return '<tr onclick="browseRowClick(event, ' + r.globalIdx + ')" style="cursor:pointer;' + _rowBg + '">' +
-      '<td><span class="item-num">' + item.itemNum + '</span>' + _ownBadge + '</td>' +
+      '<td><span class="item-num">' + _dispNum + '</span>' + _ownBadge + '</td>' +
       '<td><span class="tag">' + (item.itemType || '—') + '</span></td>' +
       '<td>' + (item.description || '<span class="text-dim">—</span>') + '</td>' +
       '<td>' + (item.variation || '<span class="text-dim">—</span>') + '</td>' +
@@ -808,7 +821,7 @@ function renderBrowse() {
           ${_inShareMode ? '<input type="checkbox" id="share-cb-' + _shareKey + '" ' + (_isShareSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _shareKey + '\')" style="width:1.1rem;height:1.1rem;accent-color:#3a9e68;flex-shrink:0">' : ''}
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:nowrap">
-              <span class="browse-card-num" style="white-space:nowrap">${item.itemNum}${item.variation ? ' <span style="font-size:0.72rem;color:var(--text-dim)">' + item.variation + '</span>' : ''}</span>
+              <span class="browse-card-num" style="white-space:nowrap">${_displayItemNum(item)}${item.variation ? ' <span style="font-size:0.72rem;color:var(--text-dim)">' + item.variation + '</span>' : ''}</span>
               <span style="display:flex;gap:0.2rem;align-items:center">${_statusIcons}</span>
             </div>
             <div class="browse-card-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.roadName || item.itemType || '—'}</div>
@@ -840,7 +853,7 @@ function renderBrowse() {
       return `<tr id="share-card-${_shareKeyD}" onclick="${_inShareModeD ? 'toggleShareItem(\'' + _shareKeyD + '\')' : 'showItemDetailPage(' + globalIdx + ')'}" style="cursor:pointer${_isQuick ? ';opacity:0.82' : ''}${_isShareSelectedD ? ';outline:2px solid #3a9e68;background:rgba(58,158,104,0.06)' : ''}" data-group="${_groupId}" data-item="${item.itemNum}">
         <td style="white-space:nowrap">
           ${_inShareModeD ? '<input type="checkbox" id="share-cb-' + _shareKeyD + '" ' + (_isShareSelectedD ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _shareKeyD + '\')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">' : ''}
-          <span class="item-num">${item.itemNum}</span>
+          <span class="item-num">${_displayItemNum(item)}</span>
           ${_groupId ? '<span style="font-size:0.55rem;color:var(--accent3);margin-left:4px;vertical-align:super" title="Grouped">🔗</span>' : ''}
           ${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(\''+item.itemNum+'\',\''+_escVar+'\','+globalIdx+','+pd.row+')" style="margin-left:5px;font-size:0.72rem;background:#27ae60;color:#fff;border-radius:4px;padding:1px 5px;cursor:pointer;font-weight:700;vertical-align:middle" title="Complete this Quick Entry">⚡</span>' : ''}
           ${pd && pd.photoItem ? '<span style="margin-left:4px;font-size:0.78rem;vertical-align:middle;opacity:0.75" title="Has photo">📷</span>' : ''}
@@ -866,7 +879,7 @@ function renderBrowse() {
       const _isQuick = pd && pd.quickEntry;
       return `<tr onclick="browseRowClick(event, ${globalIdx})" style="cursor:pointer${_isQuick ? ';opacity:0.78' : ''}" title="${_isErrCar ? '⚠ Error car: ' + (pd.errorDesc||'see notes') : _isQuick ? '⚡ Quick Entry — details not yet filled in' : ''}">
         <td>
-          <span class="item-num">${item.itemNum}${_isErrCar ? '<sup style="color:var(--accent);font-size:0.65rem">*</sup>' : ''}${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(\''+item.itemNum+'\',\''+((item.variation||'').replace(/\'/g,"\\\\'"))+'\','+globalIdx+','+pd.row+')" style="font-size:0.6rem;background:#27ae60;color:#fff;border-radius:3px;padding:1px 4px;vertical-align:middle;font-weight:600;cursor:pointer" title="Complete this Quick Entry">⚡</span>' : ''}</span>
+          <span class="item-num">${_displayItemNum(item)}${_isErrCar ? '<sup style="color:var(--accent);font-size:0.65rem">*</sup>' : ''}${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(\''+item.itemNum+'\',\''+((item.variation||'').replace(/\'/g,"\\\\'"))+'\','+globalIdx+','+pd.row+')" style="font-size:0.6rem;background:#27ae60;color:#fff;border-radius:3px;padding:1px 4px;vertical-align:middle;font-weight:600;cursor:pointer" title="Complete this Quick Entry">⚡</span>' : ''}</span>
           ${item.refLink ? `<a href="${item.refLink}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="View on COTT" style="margin-left:5px;vertical-align:middle;color:var(--text-dim);opacity:0.6;text-decoration:none;display:inline-flex" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : ''}
           <span id="cam-${item.itemNum}-${item.variation||''}" style="margin-left:5px;font-size:0.85rem;cursor:pointer;display:none" onclick="event.stopPropagation();openPhotoFolder('${item.itemNum}','${pd&&pd.photoItem?pd.photoItem:''}')" title="Open photo folder">📷</span>
         </td>
