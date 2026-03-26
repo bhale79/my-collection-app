@@ -255,7 +255,7 @@ function getSteps(tab) {
       { id: 'eph_condition', title: 'Condition (1-10)', type: 'slider', min:1, max:10 },
     );
     steps.push(
-      { id: 'eph_estValue', title: 'Estimated value', type: 'money', placeholder: '0.00', optional: true },
+      { id: 'eph_estValue', title: 'Est. Worth ($)', type: 'money', placeholder: '0.00' },
       { id: 'eph_dateAcquired', title: 'Date acquired', type: 'date', optional: true },
       { id: 'eph_notes', title: 'Notes (optional)', type: 'textarea', optional: true },
       { id: 'eph_photos', title: 'Add photos (optional)', type: 'drivePhotos', label: 'EPH',
@@ -5601,10 +5601,20 @@ async function _wizardNextCore() {
     if (g === 'aba') {
       if (!wizard.data.unit3Condition) wizard.data.unit3Condition = 7;
     }
+    // For simplified types (Catalog/Paper/IS/Science/Construction) est worth is embedded and required
+    const _valMaster = wizard.matchedItem || state.masterData.find(function(m) { return m.itemNum === (wizard.data.itemNum||''); });
+    const _valType = (_valMaster && _valMaster.itemType) ? _valMaster.itemType : '';
+    const _valIsEmbedded = ['Science Set','Construction Set','Catalog','Instruction Sheet'].includes(_valType)
+      || _valType.toLowerCase().includes('paper') || _valType.toLowerCase().includes('catalog');
+    if (_valIsEmbedded && !(wizard.data.userEstWorth || '').trim()) {
+      showToast('Please enter an estimated worth.'); return;
+    }
   }
-  // purchaseValue: no required fields (all optional)
+  // purchaseValue: est worth is required
   if (s.type === 'purchaseValue') {
-    // All fields optional, just commit
+    if (!(wizard.data.userEstWorth || '').trim()) {
+      showToast('Please enter an estimated worth.'); return;
+    }
   }
   // boxCondDetails: commit slider defaults if user never moved them
   if (s.type === 'boxCondDetails') {
@@ -5616,8 +5626,32 @@ async function _wizardNextCore() {
   }
   // boxPurchaseValue: all optional
   if (s.type === 'boxPurchaseValue') { /* all optional */ }
+  // paperExtras: est worth required
+  if (s.type === 'paperExtras') {
+    if (!(wizard.data.eph_estValue || '').trim()) {
+      showToast('Please enter an estimated worth.'); return;
+    }
+  }
+  // catalogExtras: est worth required
+  if (s.type === 'catalogExtras') {
+    if (!(wizard.data.cat_estValue || '').trim()) {
+      showToast('Please enter an estimated worth.'); return;
+    }
+  }
+  // drivePhotos with moneyField (IS flow): est worth required
+  if (s.type === 'drivePhotos' && s.moneyField) {
+    if (!(wizard.data[s.moneyField.key] || '').trim()) {
+      showToast('Please enter an estimated worth.'); return;
+    }
+  }
+  // manualPurchaseValue: est worth required
+  if (s.type === 'manualPurchaseValue') {
+    if (!(wizard.data.userEstWorth || '').trim()) {
+      showToast('Please enter an estimated worth.'); return;
+    }
+  }
   if (s.type === 'money' && !s.optional && !wizard.data[s.id]) {
-    showToast('Please enter a price.'); return;
+    showToast('Please enter a value.'); return;
   }
   if ((s.type === 'choice2' || s.type === 'choice3') && !wizard.data[s.id]) {
     showToast('Please make a selection.'); return;
