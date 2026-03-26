@@ -4313,32 +4313,72 @@ function ephemeraSold(tabId, rowKey) {
 function buildWantPage() {
   const isMobile = window.innerWidth <= 640;
   const _wq = (state._wantSearch || '').toLowerCase();
+  const _wp = state._wantPriority || '';
+  const _wt = state._wantType || '';
+  const _ws = state._wantSort || 'priority';
+  // Sync dropdowns with state
+  const _wpEl = document.getElementById('want-priority-filter');
+  if (_wpEl && _wpEl.value !== _wp) _wpEl.value = _wp;
+  const _wtEl = document.getElementById('want-type-filter');
+  if (_wtEl && _wtEl.value !== _wt) _wtEl.value = _wt;
+  const _wsEl = document.getElementById('want-sort');
+  if (_wsEl && _wsEl.value !== _ws) _wsEl.value = _ws;
+  const totalCount = Object.keys(state.wantData).length;
   const entries = Object.values(state.wantData).filter(w => {
-    if (!_wq) return true;
-    const master = state.masterData.find(m => m.itemNum === w.itemNum && (!w.variation || m.variation === w.variation)) || {};
-    return (w.itemNum||'').toLowerCase().includes(_wq)
-      || (master.roadName||'').toLowerCase().includes(_wq)
-      || (master.itemType||'').toLowerCase().includes(_wq)
-      || (w.variation||'').toLowerCase().includes(_wq)
-      || (w.notes||'').toLowerCase().includes(_wq);
+    // Priority filter
+    if (_wp && (w.priority || 'Medium') !== _wp) return false;
+    // Type filter — lookup master to get item type
+    if (_wt) {
+      const _setMatch = _wt === 'Set' && state.setData && state.setData.find(s => s.setNum === w.itemNum);
+      if (_wt === 'Set' && !_setMatch) return false;
+      if (_wt !== 'Set') {
+        const _master = state.masterData.find(m => m.itemNum === w.itemNum);
+        if (!_master || (_master.itemType || '') !== _wt) return false;
+      }
+    }
+    // Text search
+    if (_wq) {
+      const master = state.masterData.find(m => m.itemNum === w.itemNum && (!w.variation || m.variation === w.variation)) || {};
+      return (w.itemNum||'').toLowerCase().includes(_wq)
+        || (master.roadName||'').toLowerCase().includes(_wq)
+        || (master.itemType||'').toLowerCase().includes(_wq)
+        || (w.variation||'').toLowerCase().includes(_wq)
+        || (w.notes||'').toLowerCase().includes(_wq);
+    }
+    return true;
   });
-  // Keep count badge in sync
+  // Sort
+  const priorityOrder = { 'High': 0, 'Medium': 1, 'Low': 2 };
+  if (_ws === 'priority') {
+    entries.sort((a, b) => (priorityOrder[a.priority] ?? 1) - (priorityOrder[b.priority] ?? 1));
+  } else if (_ws === 'itemnum') {
+    entries.sort((a, b) => (a.itemNum||'').localeCompare(b.itemNum||'', undefined, {numeric:true}));
+  } else if (_ws === 'price') {
+    entries.sort((a, b) => (parseFloat(b.expectedPrice)||0) - (parseFloat(a.expectedPrice)||0));
+  }
+  // Count display
+  const countEl = document.getElementById('want-count');
+  if (countEl) {
+    countEl.textContent = entries.length === totalCount
+      ? totalCount + ' item' + (totalCount !== 1 ? 's' : '')
+      : 'Showing ' + entries.length + ' of ' + totalCount;
+  }
+  // Keep nav count badge in sync
   const countBadge = document.getElementById('nav-wanted2');
-  if (countBadge) countBadge.textContent = entries.length.toLocaleString();
+  if (countBadge) countBadge.textContent = totalCount.toLocaleString();
   const cardsEl = document.getElementById('want-cards');
   const tableEl = document.getElementById('want-table');
   const tbody   = document.getElementById('want-tbody');
-
-  // Priority order
-  const priorityOrder = { 'High': 0, 'Medium': 1, 'Low': 2 };
-  entries.sort((a, b) => (priorityOrder[a.priority] ?? 1) - (priorityOrder[b.priority] ?? 1));
-
   const priorityColor = { High: 'var(--accent)', Medium: 'var(--accent2)', Low: 'var(--text-dim)' };
 
   if (entries.length === 0) {
-    const empty = `<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">❤️</div><p>Your want list is empty</p><p style="font-size:0.8rem;margin-top:0.5rem">Add items you're looking for</p></div>`;
+    const hasFilters = _wq || _wp || _wt;
+    const emptyIcon = hasFilters ? '🔍' : '❤️';
+    const emptyMsg = hasFilters ? 'No items match your filters' : 'Your want list is empty';
+    const emptyTip = hasFilters ? 'Try adjusting your search or filters' : 'Add items you\'re looking for';
+    const empty = `<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">${emptyIcon}</div><p>${emptyMsg}</p><p style="font-size:0.8rem;margin-top:0.5rem">${emptyTip}</p></div>`;
     if (cardsEl) cardsEl.innerHTML = empty;
-    if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="ui-empty">No items on want list</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="ui-empty">' + emptyMsg + '</td></tr>';
     return;
   }
 
@@ -5411,10 +5451,17 @@ function buildUpgradePage() {
   const isMobile = window.innerWidth <= 640;
   const _uq = (state._upgradeSearch || '').toLowerCase();
   const _sort = state._upgradeSort || 'priority';
+  const _up = state._upgradePriority || '';
   const thresh = parseInt(_prefGet('lv_upgrade_thresh', '7'));
   const _threshFilter = state._upgradeThreshFilter !== false; // default on
+  // Sync dropdowns with state
+  const _upEl = document.getElementById('upgrade-priority-filter');
+  if (_upEl && _upEl.value !== _up) _upEl.value = _up;
+  const totalCount = Object.keys(state.upgradeData).length;
 
   let entries = Object.values(state.upgradeData).filter(u => {
+    // Priority filter
+    if (_up && (u.priority || 'Medium') !== _up) return false;
     if (_uq) {
       const master = state.masterData.find(m => m.itemNum === u.itemNum) || {};
       if (!(u.itemNum||'').toLowerCase().includes(_uq)
@@ -5443,7 +5490,14 @@ function buildUpgradePage() {
 
   // Update badge
   const badge = document.getElementById('nav-upgrade-count');
-  if (badge) badge.textContent = Object.values(state.upgradeData).length > 0 ? Object.values(state.upgradeData).length : '—';
+  if (badge) badge.textContent = totalCount > 0 ? totalCount : '—';
+  // Count display
+  const upgradeCountEl = document.getElementById('upgrade-count');
+  if (upgradeCountEl) {
+    upgradeCountEl.textContent = entries.length === totalCount
+      ? totalCount + ' item' + (totalCount !== 1 ? 's' : '')
+      : 'Showing ' + entries.length + ' of ' + totalCount;
+  }
 
   const cardsEl = document.getElementById('upgrade-cards');
   const tableEl = document.getElementById('upgrade-table');
@@ -5452,9 +5506,13 @@ function buildUpgradePage() {
   const priorityColor = { High: 'var(--accent)', Medium: 'var(--accent2)', Low: 'var(--text-dim)' };
 
   if (entries.length === 0) {
-    const empty = `<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">↑</div><p>Your upgrade list is empty</p><p style="font-size:0.8rem;margin-top:0.5rem">Add items from My Collection that you'd like in better condition</p></div>`;
+    const hasFilters = _uq || _up || (_threshFilter && totalCount > 0);
+    const emptyIcon = hasFilters ? '🔍' : '↑';
+    const emptyMsg = hasFilters ? 'No items match your filters' : 'Your upgrade list is empty';
+    const emptyTip = hasFilters ? 'Try adjusting your search or filters' : 'Add items from My Collection that you\'d like in better condition';
+    const empty = `<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">${emptyIcon}</div><p>${emptyMsg}</p><p style="font-size:0.8rem;margin-top:0.5rem">${emptyTip}</p></div>`;
     if (cardsEl) cardsEl.innerHTML = empty;
-    if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="ui-empty">No items on upgrade list</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="ui-empty">' + emptyMsg + '</td></tr>';
     return;
   }
 
