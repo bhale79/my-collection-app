@@ -850,6 +850,8 @@ function renderBrowse() {
       const _typeText = item.itemType || '<span style="color:var(--text-dim)">—</span>';
       const _estWorth = pd && pd.userEstWorth ? '$' + parseFloat(pd.userEstWorth).toLocaleString() : '<span style="color:var(--text-dim)">—</span>';
       const _isUpgrade = !!state.upgradeData[`${item.itemNum}|${item.variation||''}`];
+      // Count how many copies of this item exist in collection
+      const _copyCount = Object.keys(state.personalData).filter(k => k.startsWith(`${item.itemNum}|${item.variation||''}|`) && state.personalData[k].owned).length;
       // Status icons for lists
       const _listIcons = (isForSale ? '<span title="On For Sale list" style="font-size:0.7rem;color:#e67e22;margin-left:4px;vertical-align:middle">🏷️</span>' : '')
         + (_isUpgrade ? '<span title="On Upgrade list" style="font-size:0.7rem;color:#8b5cf6;margin-left:4px;vertical-align:middle">↑</span>' : '');
@@ -858,11 +860,16 @@ function renderBrowse() {
       const _isShareSelectedD = _inShareModeD && window._shareItems && window._shareItems[_shareKeyD];
       if (_inShareModeD) { if (!window._shareDataMap) window._shareDataMap = {}; window._shareDataMap[_shareKeyD] = { itemNum: item.itemNum, variation: item.variation||'', pd: pd, master: item }; }
       // Smart buttons based on list status
-      const _fsBtn = isForSale
+      // Only show "Remove" when there's a single copy (we can't tell which copy is listed)
+      const _fsBtn = isForSale && _copyCount <= 1
         ? `<button onclick="event.stopPropagation();_removeForSaleFromCollection('${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:#e67e22;color:#fff;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">Remove from For Sale</button>`
+        : isForSale
+        ? `<button onclick="event.stopPropagation();collectionActionForSale(${globalIdx},'${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.15);color:#e67e22;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">🏷️ On For Sale</button>`
         : `<button onclick="event.stopPropagation();collectionActionForSale(${globalIdx},'${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">Add to For Sale</button>`;
-      const _upgBtn = _isUpgrade
+      const _upgBtn = _isUpgrade && _copyCount <= 1
         ? `<button onclick="event.stopPropagation();_removeUpgradeFromCollection('${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:#8b5cf6;color:#fff;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">Remove from Upgrade</button>`
+        : _isUpgrade
+        ? `<button onclick="event.stopPropagation();showAddToUpgradeModal('${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:rgba(139,92,246,0.15);color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">↑ On Upgrade</button>`
         : `<button onclick="event.stopPropagation();showAddToUpgradeModal('${item.itemNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">Add to Upgrade</button>`;
       return `<tr id="share-card-${_shareKeyD}" onclick="${_inShareModeD ? 'toggleShareItem(\'' + _shareKeyD + '\')' : 'showItemDetailPage(' + globalIdx + ')'}" style="cursor:pointer${_isQuick ? ';opacity:0.82' : ''}${_isShareSelectedD ? ';outline:2px solid #3a9e68;background:rgba(58,158,104,0.06)' : ''}" data-group="${_groupId}" data-item="${item.itemNum}">
         <td style="white-space:nowrap">
