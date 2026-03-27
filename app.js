@@ -1343,7 +1343,7 @@ const MASTER_TABS = [
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '51';
+  const _CACHE_VER = '52';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
@@ -3094,6 +3094,7 @@ async function removeCollectionItem(itemNum, variation, row) {
         if (sib.row && sib.row !== 99999) {
           try {
             await sheetsDeleteRow(state.personalSheetId, 'My Collection', sib.row);
+            _adjustRowsAfterDelete(state.personalData, sib.row);
           } catch(e) { console.warn('Remove group row error:', sib.itemNum, e); }
         }
         var sibFsKey = sib.itemNum + '|' + (sib.variation || '');
@@ -3107,14 +3108,15 @@ async function removeCollectionItem(itemNum, variation, row) {
       // Delete For Sale rows bottom-to-top
       fsRowsToDelete.sort(function(a, b) { return b - a; });
       for (var fsRow of fsRowsToDelete) {
-        try { await sheetsDeleteRow(state.personalSheetId, 'For Sale', fsRow); } catch(e) { console.warn('FS cleanup:', e); }
+        try {
+          await sheetsDeleteRow(state.personalSheetId, 'For Sale', fsRow);
+          _adjustRowsAfterDelete(state.forSaleData, fsRow);
+        } catch(e) { console.warn('FS cleanup:', e); }
       }
       _cachePersonalData();
       renderBrowse();
       buildDashboard();
       showToast('✓ Removed ' + groupSiblings.length + ' grouped items');
-      // Reload data in background to fix row numbers after deletion
-      _reloadAfterDelete();
       return;
     }
     // else fall through to remove just this one item
@@ -3136,32 +3138,25 @@ async function removeCollectionItem(itemNum, variation, row) {
   if (fsEntry && fsEntry.row) {
     try {
       await sheetsDeleteRow(state.personalSheetId, 'For Sale', fsEntry.row);
+      _adjustRowsAfterDelete(state.forSaleData, fsEntry.row);
     } catch(e) { console.warn('For Sale cleanup:', e); }
     delete state.forSaleData[fsKey];
   }
   if (pdKey) delete state.personalData[pdKey];
+  if (_delRow && _delRow !== 99999) _adjustRowsAfterDelete(state.personalData, _delRow);
   _cachePersonalData();
   renderBrowse();
   buildDashboard();
   showToast('✓ Removed from collection');
-  // Reload data in background to fix row numbers after deletion
-  _reloadAfterDelete();
 }
 
-function _reloadAfterDelete() {
-  // After deleting rows, remaining items' row numbers shift.
-  // Bust cache and reload in background so state stays accurate.
-  localStorage.removeItem('lv_personal_cache');
-  localStorage.removeItem('lv_personal_cache_ts');
-  setTimeout(async function() {
-    try {
-      await loadPersonalData();
-      buildDashboard();
-      buildSoldPage();
-      buildForSalePage();
-      renderBrowse();
-    } catch(e) { console.warn('Post-delete reload:', e); }
-  }, 1500);
+// After deleting a sheet row, decrement .row on all in-memory records above that row.
+// This keeps row numbers accurate without a full background reload.
+function _adjustRowsAfterDelete(dataObj, deletedRow) {
+  if (!deletedRow || deletedRow === 99999) return;
+  Object.values(dataObj).forEach(rec => {
+    if (rec.row && rec.row > deletedRow && rec.row !== 99999) rec.row--;
+  });
 }
 
 function sellFromCollection(idx, pdKey) {
