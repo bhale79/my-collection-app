@@ -1261,10 +1261,30 @@ function _patchMasterData() {
   (state.masterData || []).forEach(m => {
     if (m.itemNum === '6017' && m.itemType === 'Accessory') m.itemType = 'Caboose';
   });
-  // Fix 2046 → 2046W in set component lists (it's a tender, not an engine)
+
+  // Fix set component references — book errors, missing suffixes, COTT X-prefix
+  const _setItemFixes = {
+    '2046':     '2046W',     // tender, not engine
+    '6414-75':  '6414-85',   // book error
+    '6476-125': '6476-135',  // book error
+    '6438-500': '6436-500',  // book error (wrong base number)
+    '6014-325': '6014-335',  // book error
+    '6119-110': '6119-100',  // book error
+    '6462':     '6462-1',    // bare number needs suffix
+    '6476':     '6476-25',   // bare number needs suffix
+    '6112':     '6112-1',    // bare number needs suffix
+    '1004':     'X1004',     // COTT X-prefix
+    '6004':     'X6004',     // COTT X-prefix
+    '2454':     'X2454',     // COTT X-prefix
+  };
+  const _fixItem = (v) => _setItemFixes[v] || v;
   (state.setData || []).forEach(s => {
-    if (s.tender === '2046') s.tender = '2046W';
-    s.items = s.items.map(i => i === '2046' ? '2046W' : i);
+    if (s.steam)       s.steam       = _fixItem(s.steam);
+    if (s.tender)      s.tender      = _fixItem(s.tender);
+    if (s.dieselPow)   s.dieselPow   = _fixItem(s.dieselPow);
+    if (s.dieselB)     s.dieselB     = _fixItem(s.dieselB);
+    if (s.dieselDummy) s.dieselDummy = _fixItem(s.dieselDummy);
+    s.items = s.items.map(_fixItem);
   });
 }
 
@@ -1323,7 +1343,7 @@ const MASTER_TABS = [
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '50';
+  const _CACHE_VER = '51';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
