@@ -4614,7 +4614,7 @@ function renderWizardStep() {
       salePrice:'Sale Price', dateSold:'Date Sold',
       set_num:'Set Number',
     };
-    const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','wantErrorPhotos','photosMasterBox','boxOnly','entryMode','_setId','_rawItemNum','matchedItem','_partialMatches','_partialQuery','_itemGrouping','_fromWantList','_fromWantKey','_returnPage','_manualEntry','_drivePhotos','_setMode','_setGroupId','_setFinalItems','_setItemIndex','_setItemsSaved','_setEntryMode','_resolvedSet','_setLocoNum','_setPrice','_setDate','_setWorth','_setCondition','_setHasBoxChecked','_setWantPhotos','_setPhotoThenSave','_prefilledCondition','_setQEPhotos','set_hasBox','set_boxCond','set_boxPhotos','set_notes','_suggestions_cache','_completingQuickEntry','_existingGroupId','_fillItemMode','_wizSaveLock','_qeSaving','_photoInventoryId']);
+    const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','wantErrorPhotos','photosMasterBox','boxOnly','entryMode','_setId','_rawItemNum','matchedItem','_partialMatches','_partialQuery','_itemGrouping','_fromWantList','_fromWantKey','_returnPage','_manualEntry','_drivePhotos','_setMode','_setGroupId','_setFinalItems','_setItemIndex','_setItemsSaved','_setEntryMode','_resolvedSet','_setLocoNum','_setPrice','_setDate','_setWorth','_setCondition','_setHasBoxChecked','_setWantPhotos','_setPhotoThenSave','_prefilledCondition','_setQEPhotos','set_hasBox','set_boxCond','set_boxPhotos','set_notes','_suggestions_cache','_completingQuickEntry','_existingGroupId','_fillItemMode','_wizSaveLock','_qeSaving','_photoInventoryId','_saveComplete']);
     // Skip set_num from summary if it's already shown in the header
     if (_resolvedSet || wizard.data.set_num) _skipKeys.add('set_num');
     // In set mode, hide tender/unit/masterBox/error fields from confirm (each set item is standalone)
@@ -6812,6 +6812,8 @@ async function _saveScienceConstructionItem(sheetTabName, stateKey) {
 
 async function saveWizardItem() {
   const d = wizard.data;
+  // Guard: prevent any save if a save already completed this wizard session
+  if (d._saveComplete) { console.warn('[Save] Blocked — save already completed this wizard session'); return; }
   // Guard: prevent double-save if QE path already fired
   if (d._qeSaving) { console.warn('[Save] Blocked — QE save already in progress'); return; }
   console.log('[Save] saveWizardItem fired. _wizSaveLock:', d._wizSaveLock, '_qeSaving:', d._qeSaving, 'setMatch:', d.setMatch, 'setType:', d.setType, 'tenderMatch:', d.tenderMatch, 'unitPower:', d.unitPower);
@@ -6930,6 +6932,7 @@ async function saveWizardItem() {
           era: '', manufacturer: '',
         };
 
+        d._saveComplete = true;
         closeWizard();
         showToast('✓ Box for ' + itemNum + ' saved!' + (boxGroupId ? ' (grouped)' : ''));
         buildDashboard();
@@ -7392,6 +7395,7 @@ async function saveWizardItem() {
       return;
     }
 
+    d._saveComplete = true;
     closeWizard();
 
     // ── If this came from the Want List, clean up the want entry ──
@@ -7481,6 +7485,8 @@ async function saveWizardItem() {
 
 async function quickEntryAdd() {
   const d = wizard.data;
+  // Guard: prevent any save if a save already completed this wizard session
+  if (d._saveComplete) { console.warn('[QE] Blocked — save already completed this wizard session'); return; }
   // Guard: prevent double-save if Full Entry path already fired
   if (d._wizSaveLock && !d._qeSaving) { console.warn('[QE] Blocked — save lock held by another path'); return; }
   console.log('[QE] quickEntryAdd fired. _wizSaveLock:', d._wizSaveLock, '_qeSaving:', d._qeSaving, '_itemGrouping:', d._itemGrouping, '_qeSetType:', d._qeSetType, 'tenderMatch:', d.tenderMatch);
@@ -7608,6 +7614,7 @@ async function quickEntryAdd() {
       return;
     }
 
+    d._saveComplete = true;
     closeWizard();
     showToast('⚡ ' + label + ' (Quick Entry)');
     buildDashboard();
