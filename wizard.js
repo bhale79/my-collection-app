@@ -4226,117 +4226,99 @@ function renderWizardStep() {
       const modVal = wizard.data[modKey] || '';
       const boxVal = wizard.data[boxKey] || '';
       const boxCondVal = wizard.data[boxCondKey] || 7;
+
+      // Compact button builder: small inline Yes/No or Yes/No/Unknown
+      const _smallBtn = (dataKey, val, choices, toggleFn) => {
+        let h = '<div style="display:flex;gap:2px">';
+        choices.forEach(c => {
+          const sel = val === c;
+          const isErr = c === 'Yes' && dataKey.includes('Error');
+          const selColor = isErr ? '#e74c3c' : 'var(--accent)';
+          const selBg = isErr ? 'rgba(231,76,60,0.15)' : 'rgba(232,64,28,0.12)';
+          h += '<button onclick="' + toggleFn(c) + '" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid ' + (sel ? selColor : 'var(--border)') + ';background:' + (sel ? selBg : 'var(--bg)') + ';color:' + (sel ? selColor : 'var(--text-mid)') + ';font-family:var(--font-body);line-height:1">' + c + '</button>';
+        });
+        h += '</div>';
+        return h;
+      };
+      // Inline row: label left, buttons right
+      const _inlineRow = (label, buttons, mb) => {
+        return '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.4rem;margin-bottom:' + (mb || '0.4rem') + '">'
+          + '<span style="font-size:0.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap">' + label + '</span>'
+          + buttons + '</div>';
+      };
       
-      let html = '<div class="cd-col" style="flex:1;min-width:' + (_isMobile ? '100%' : '200px') + ';background:var(--surface2);border-radius:10px;padding:0.85rem;border:1px solid var(--border)">';
-      html += '<div style="font-weight:700;font-size:0.85rem;color:var(--accent2);margin-bottom:0.75rem;padding-bottom:0.5rem;border-bottom:1px solid var(--border)">' + col.label + (col.sublabel ? ' <span style=\"font-weight:400;color:var(--text-dim);font-size:0.78rem\">(' + col.sublabel + ')</span>' : '') + '</div>';
+      let html = '<div class="cd-col" style="flex:1;min-width:' + (_isMobile ? '100%' : '200px') + ';background:var(--surface2);border-radius:10px;padding:0.75rem;border:1px solid var(--border)">';
+      html += '<div style="font-weight:700;font-size:0.82rem;color:var(--accent2);margin-bottom:0.5rem;padding-bottom:0.4rem;border-bottom:1px solid var(--border)">' + col.label + (col.sublabel ? ' <span style=\"font-weight:400;color:var(--text-dim);font-size:0.75rem\">(' + col.sublabel + ')</span>' : '') + '</div>';
       
-      // Condition slider — skip if already set on QE1/entryMode step
+      // Condition — compact read-only badge if already set, slider if not
       if (!wizard.data[condKey]) {
-        html += '<div style="margin-bottom:0.65rem"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">'
-          + '<span style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em">Condition</span>'
-          + '<span id="cd-cond-val-' + col.id + '" style="font-family:var(--font-mono);font-size:1.1rem;color:var(--accent);font-weight:700">' + condVal + '</span></div>'
+        html += '<div style="margin-bottom:0.5rem"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">'
+          + '<span style="font-size:0.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em">Condition</span>'
+          + '<span id="cd-cond-val-' + col.id + '" style="font-family:var(--font-mono);font-size:0.95rem;color:var(--accent);font-weight:700">' + condVal + '</span></div>'
           + '<input type="range" min="1" max="10" value="' + condVal + '" style="width:100%;accent-color:var(--accent)"'
           + ' oninput="wizard.data[\'' + condKey + '\']=parseInt(this.value);document.getElementById(\'cd-cond-val-' + col.id + '\').textContent=this.value">'
-          + '<div style="display:flex;justify-content:space-between;font-size:0.6rem;color:var(--text-dim)"><span>Poor</span><span>Excellent</span></div></div>';
+          + '<div style="display:flex;justify-content:space-between;font-size:0.55rem;color:var(--text-dim)"><span>Poor</span><span>Excellent</span></div></div>';
       } else {
-        // Show condition as a compact read-only badge
-        html += '<div style="margin-bottom:0.65rem;display:flex;align-items:center;gap:0.5rem">'
-          + '<span style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em">Condition:</span>'
-          + '<span style="font-family:var(--font-mono);font-size:1.05rem;color:var(--accent);font-weight:700">' + condVal + '/10</span></div>';
+        html += _inlineRow('Condition', '<span style="font-family:var(--font-mono);font-size:0.95rem;color:var(--accent);font-weight:700">' + condVal + '/10</span>', '0.5rem');
       }
 
-      // All Original
-      // All Original — hidden for Catalog/Paper/IS
+      // All Original — inline row
       if (!_cdIsPaperLike) {
-      html += '<div style="margin-bottom:0.6rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">All Original?</div>';
-      html += '<div style="display:flex;gap:0.3rem">';
-      ['Yes','No','Unknown'].forEach(function(c) {
-        var sel = origVal === c;
-        html += '<button onclick="wizard.data[\'' + origKey + '\']=\'' + c + '\';_cdToggleOrig(\'' + col.id + '\',\'' + origKey + '\',\'' + c + '\')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)') + ';color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + ';font-family:var(--font-body)">' + c + '</button>';
-      });
-      html += '</div></div>';
-      
-      // Modifications textarea (hidden unless allOriginal=No)
-      html += '<div id="cd-mod-' + col.id + '" style="margin-bottom:0.6rem;display:' + (origVal === 'No' ? 'block' : 'none') + '">';
-      html += '<textarea placeholder="What\x27s been done?" style="width:100%;min-height:50px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.8rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data[\'' + modKey + '\']=this.value">' + modVal + '</textarea></div>';
-      } // end All Original block
-      
-      // Has box toggle + inline box condition — hidden for Catalog/Paper/IS
-      if (!_cdIsPaperLike) {
-      html += '<div style="margin-bottom:0.6rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Has Box?</div>';
-      html += '<div style="display:flex;gap:0.3rem">';
-      ['Yes','No'].forEach(function(c) {
-        var sel = boxVal === c;
-        html += '<button onclick="wizard.data[\'' + boxKey + '\']=\'' + c + '\';_cdToggleBox(\'' + col.id + '\',\'' + c + '\')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)') + ';color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + ';font-family:var(--font-body)">' + c + '</button>';
-      });
-      html += '</div>';
-      // Box condition slider (inline reveal)
-      html += '<div id="cd-boxcond-' + col.id + '" style="margin-top:0.4rem;display:' + (boxVal === 'Yes' ? 'block' : 'none') + ';padding:0.5rem;background:var(--bg);border-radius:6px;border:1px solid var(--border)">';
-      html += '<div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:0.2rem">Box Condition</div>';
-      html += '<div style="display:flex;align-items:center;gap:0.4rem"><span id="cd-boxcond-val-' + col.id + '" style="font-family:var(--font-head);font-size:1.2rem;color:var(--accent2);width:1.5rem;text-align:center">' + boxCondVal + '</span>';
-      html += '<input type="range" min="1" max="10" value="' + boxCondVal + '" style="flex:1;accent-color:var(--accent)" oninput="wizard.data[\'' + boxCondKey + '\']=parseInt(this.value);document.getElementById(\'cd-boxcond-val-' + col.id + '\').textContent=this.value"></div>';
-      html += '</div></div>';
-      } // end Has Box block (paper-like skip)
+        html += _inlineRow('All Original?', _smallBtn(origKey, origVal, ['Yes','No','Unknown'],
+          (c) => "wizard.data[\'" + origKey + "\']=\'" + c + "\';_cdToggleOrig(\'" + col.id + "\',\'" + origKey + "\',\'" + c + "\')"));
+        // Modifications textarea (hidden unless allOriginal=No)
+        html += '<div id="cd-mod-' + col.id + '" style="margin-bottom:0.4rem;display:' + (origVal === 'No' ? 'block' : 'none') + '">';
+        html += '<textarea placeholder="What has been changed?" style="width:100%;min-height:40px;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:0.4rem;color:var(--text);font-family:var(--font-body);font-size:0.75rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data[\'' + modKey + '\']=this.value">' + modVal + '</textarea></div>';
+
+        // Has Box — inline row
+        html += _inlineRow('Has Box?', _smallBtn(boxKey, boxVal, ['Yes','No'],
+          (c) => "wizard.data[\'" + boxKey + "\']=\'" + c + "\';_cdToggleBox(\'" + col.id + "\',\'" + c + "\')"));
+        // Box condition slider (inline reveal)
+        html += '<div id="cd-boxcond-' + col.id + '" style="margin-bottom:0.4rem;display:' + (boxVal === 'Yes' ? 'block' : 'none') + ';padding:0.4rem;background:var(--bg);border-radius:5px;border:1px solid var(--border)">';
+        html += '<div style="display:flex;align-items:center;gap:0.4rem"><span style="font-size:0.65rem;color:var(--text-dim)">Box Cond:</span><span id="cd-boxcond-val-' + col.id + '" style="font-family:var(--font-head);font-size:0.95rem;color:var(--accent2);width:1.2rem;text-align:center">' + boxCondVal + '</span>';
+        html += '<input type="range" min="1" max="10" value="' + boxCondVal + '" style="flex:1;accent-color:var(--accent)" oninput="wizard.data[\'' + boxCondKey + '\']=parseInt(this.value);document.getElementById(\'cd-boxcond-val-' + col.id + '\').textContent=this.value"></div>';
+        html += '</div>';
+      } // end All Original + Has Box block
       
       // Instruction Sheet — only on main column, hidden for simplified types
       if (col.id === 'main' && !_cdHideToggles) {
         const isVal = wizard.data.hasIS || '';
         const isSheetVal = wizard.data.is_sheetNum || '';
         const isCondVal = wizard.data.is_condition || 7;
-        
-        // Instruction Sheet toggle
-        html += '<div style="margin-bottom:0.6rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Instruction Sheet?</div>';
-        html += '<div style="display:flex;gap:0.3rem">';
-        ['Yes','No'].forEach(function(c) {
-          var sel = isVal === c;
-          html += '<button onclick="wizard.data.hasIS=\'' + c + '\';_cdToggleIS(\'' + c + '\')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)') + ';color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + ';font-family:var(--font-body)">' + c + '</button>';
-        });
-        html += '</div>';
+        html += _inlineRow('Instr. Sheet?', _smallBtn('hasIS', isVal, ['Yes','No'],
+          (c) => "wizard.data.hasIS=\'" + c + "\';_cdToggleIS(\'" + c + "\')"));
         // IS inline reveal
-        html += '<div id="cd-is-reveal" style="margin-top:0.4rem;display:' + (isVal === 'Yes' ? 'block' : 'none') + ';padding:0.5rem;background:var(--bg);border-radius:6px;border:1px solid var(--border)">';
-        html += '<input type="text" placeholder="Sheet # (e.g. 924-6)" value="' + isSheetVal.replace(/"/g, '&quot;') + '" style="width:100%;margin-bottom:0.4rem;background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:0.4rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.82rem;outline:none;box-sizing:border-box" oninput="wizard.data.is_sheetNum=this.value">';
-        html += '<div style="display:flex;align-items:center;gap:0.4rem"><span style="font-size:0.7rem;color:var(--text-dim)">Cond:</span><span id="cd-is-cond-val" style="font-family:var(--font-head);font-size:1rem;color:var(--accent2)">' + isCondVal + '</span>';
+        html += '<div id="cd-is-reveal" style="margin-bottom:0.4rem;display:' + (isVal === 'Yes' ? 'block' : 'none') + ';padding:0.4rem;background:var(--bg);border-radius:5px;border:1px solid var(--border)">';
+        html += '<input type="text" placeholder="Sheet # (e.g. 924-6)" value="' + isSheetVal.replace(/"/g, '&quot;') + '" style="width:100%;margin-bottom:0.3rem;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:0.3rem 0.4rem;color:var(--text);font-family:var(--font-body);font-size:0.78rem;outline:none;box-sizing:border-box" oninput="wizard.data.is_sheetNum=this.value">';
+        html += '<div style="display:flex;align-items:center;gap:0.3rem"><span style="font-size:0.65rem;color:var(--text-dim)">Cond:</span><span id="cd-is-cond-val" style="font-family:var(--font-head);font-size:0.9rem;color:var(--accent2)">' + isCondVal + '</span>';
         html += '<input type="range" min="1" max="10" value="' + isCondVal + '" style="flex:1;accent-color:var(--accent)" oninput="wizard.data.is_condition=parseInt(this.value);document.getElementById(\'cd-is-cond-val\').textContent=this.value"></div>';
-        html += '</div></div>';
+        html += '</div>';
 
         // Master Box — main column only, hidden in set mode
         if (!wizard.data._setMode) {
-        const mbVal2 = wizard.data.hasMasterBox || '';
-        html += '<div style="margin-bottom:0.6rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Master (Outer) Box?</div>';
-        html += '<div style="display:flex;gap:0.3rem">';
-        ['Yes','No'].forEach(function(c) {
-          var sel = mbVal2 === c;
-          html += '<button onclick="wizard.data.hasMasterBox=\'' + c + '\';_pvToggleMasterBox(\'' + c + '\')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)') + ';color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + ';font-family:var(--font-body)">' + c + '</button>';
-        });
-        html += '</div></div>';
-      } // end master box
-      } // end if !_setMode (master box)
+          const mbVal2 = wizard.data.hasMasterBox || '';
+          html += _inlineRow('Master Box?', _smallBtn('hasMasterBox', mbVal2, ['Yes','No'],
+            (c) => "wizard.data.hasMasterBox=\'" + c + "\';_pvToggleMasterBox(\'" + c + "\')"));
+        }
+      }
       
       // Error item toggle — hidden in set mode and for simplified types
       if (!wizard.data._setMode && !_cdHideToggles) {
-      {
         const errKey = p ? p + 'IsError' : 'isError';
         const errDescKey = p ? p + 'ErrorDesc' : 'errorDesc';
         const errVal = wizard.data[errKey] || '';
         const errDescVal = wizard.data[errDescKey] || '';
-        html += '<div style="margin-bottom:0.4rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Error Item?</div>';
-        html += '<div style="display:flex;gap:0.3rem">';
-        ['Yes','No'].forEach(function(c) {
-          var sel = errVal === c;
-          html += '<button id="cd-err-btn-' + col.id + '-' + c + '" onclick="wizard.data[\'' + errKey + '\']=\'' + c + '\';_cdToggleError(\'' + col.id + '\',\'' + c + '\')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid ' + (sel ? (c==='Yes' ? '#e74c3c' : 'var(--accent)') : 'var(--border)') + ';background:' + (sel ? (c==='Yes' ? 'rgba(231,76,60,0.12)' : 'rgba(232,64,28,0.12)') : 'var(--bg)') + ';color:' + (sel ? (c==='Yes' ? '#e74c3c' : 'var(--accent)') : 'var(--text-mid)') + ';font-family:var(--font-body)">' + c + '</button>';
-        });
-        html += '</div>';
-        html += '<div id="cd-error-reveal-' + col.id + '" style="margin-top:0.4rem;display:' + (errVal === 'Yes' ? 'block' : 'none') + '">';
-        html += '<textarea placeholder="Describe the error…" style="width:100%;min-height:45px;background:var(--bg);border:1px solid #e74c3c44;border-radius:6px;padding:0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.8rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data[\'' + errDescKey + '\']=this.value">' + errDescVal + '</textarea></div>';
-        html += '</div>';
-      } // end error block
-      } // end if !_setMode (error)
+        html += _inlineRow('Error Item?', _smallBtn(errKey, errVal, ['Yes','No'],
+          (c) => "wizard.data[\'" + errKey + "\']=\'" + c + "\';_cdToggleError(\'" + col.id + "\',\'" + c + "\')"));
+        html += '<div id="cd-error-reveal-' + col.id + '" style="margin-bottom:0.4rem;display:' + (errVal === 'Yes' ? 'block' : 'none') + '">';
+        html += '<textarea placeholder="Describe the error…" style="width:100%;min-height:38px;background:var(--bg);border:1px solid #e74c3c44;border-radius:5px;padding:0.4rem;color:var(--text);font-family:var(--font-body);font-size:0.75rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data[\'' + errDescKey + '\']=this.value">' + errDescVal + '</textarea></div>';
+      }
       
-      // Notes field — shown in set mode only (replaces separate purchaseValue notes)
+      // Notes field — shown in set mode only
       if (wizard.data._setMode && col.id === 'main') {
         const _setNoteVal = wizard.data.notes || '';
-        html += '<div style="margin-top:0.4rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Notes (optional)</div>';
-        html += '<textarea placeholder="e.g. minor rust on trucks, runs well" style="width:100%;min-height:55px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.8rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data.notes=this.value">' + _setNoteVal + '</textarea></div>';
+        html += '<div style="margin-top:0.3rem"><div style="font-size:0.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.2rem">Notes</div>';
+        html += '<textarea placeholder="e.g. minor rust, runs well" style="width:100%;min-height:45px;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:0.4rem;color:var(--text);font-family:var(--font-body);font-size:0.75rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data.notes=this.value">' + _setNoteVal + '</textarea></div>';
       }
 
       html += '</div>';
