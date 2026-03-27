@@ -4648,6 +4648,8 @@ function renderWizardStep() {
     const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','wantErrorPhotos','photosMasterBox','boxOnly','entryMode','_setId','_rawItemNum','matchedItem','_partialMatches','_partialQuery','_itemGrouping','_fromWantList','_fromWantKey','_returnPage','_manualEntry','_drivePhotos','_setMode','_setGroupId','_setFinalItems','_setItemIndex','_setItemsSaved','_setEntryMode','_resolvedSet','_setLocoNum','_setPrice','_setDate','_setWorth','_setCondition','_setHasBoxChecked','_setWantPhotos','_setPhotoThenSave','_prefilledCondition','_setQEPhotos','set_hasBox','set_boxCond','set_boxPhotos','set_notes','_suggestions_cache','_completingQuickEntry','_existingGroupId','_fillItemMode','_wizSaveLock','_qeSaving','_photoInventoryId','_saveComplete']);
     // Skip set_num from summary if it's already shown in the header
     if (_resolvedSet || wizard.data.set_num) _skipKeys.add('set_num');
+    // Skip notes from summary for tabs that have inline notes on confirm step
+    if (['want','forsale','sold'].includes(wizard.tab)) _skipKeys.add('notes');
     // In set mode, hide tender/unit/masterBox/error fields from confirm (each set item is standalone)
     if (wizard.data._setMode) {
       ['tenderAllOriginal','tenderHasBox','tenderCondition','tenderBoxCond','tenderIsError','tenderErrorDesc','tenderNotOriginalDesc',
