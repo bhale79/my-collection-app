@@ -770,24 +770,11 @@ function _updateGroupingButtons() {
   const isF3Alco = isF3AlcoUnit(_baseNum);
   const isBUnit = _baseNum.endsWith('C');
 
-  // For diesel A/B units: derive valid set configs from sub-type, poweredDummy, and B-unit existence
-  let _f3SubTypes = new Set();
-  let _hasPoweredDummy = false;
-  if (isF3Alco) {
-    state.masterData.forEach(function(m) {
-      if (normalizeItemNum(m.itemNum) === normalizeItemNum(_baseNum)) {
-        if (m.subType) _f3SubTypes.add((m.subType || '').toUpperCase());
-        if ((m.poweredDummy || '').match(/^(P|D)$/i)) _hasPoweredDummy = true;
-      }
-    });
-  }
-  const _hasBUnit = getBUnit(_baseNum) !== null;
-  // AA: always available for diesel A-units (same item# as powered + dummy)
-  const _hasAA  = _hasPoweredDummy || Array.from(_f3SubTypes).some(s => s.includes('AA'));
-  // AB: available if a B-unit (item + 'C') exists in master data
-  const _hasAB  = _hasBUnit || Array.from(_f3SubTypes).some(s => s.includes('AB') && !s.includes('ABA'));
-  // ABA: available if AB is available
-  const _hasABA = _hasBUnit || Array.from(_f3SubTypes).some(s => s.includes('ABA'));
+  // Use partnerMap for diesel configs
+  const _dieselConfigs = typeof getDieselConfigs === 'function' ? getDieselConfigs(_baseNum) : [];
+  const _hasAA  = _dieselConfigs.includes('AA');
+  const _hasAB  = _dieselConfigs.includes('AB');
+  const _hasABA = _dieselConfigs.includes('ABA');
 
   let buttons = [];
 
@@ -796,12 +783,13 @@ function _updateGroupingButtons() {
     buttons = [
       { id: 'engine', label: 'Engine Only' },
       { id: 'engine_tender', label: 'Engine + Tender' },
+      { id: 'custom_tender', label: 'Custom Tender' },
     ];
   } else if (hasLocos && !isF3Alco) {
     // Standalone tender being entered
     buttons = [];
   } else if (isF3Alco && !isBUnit) {
-    // F3/Alco A unit — only show configs that actually exist for this item
+    // Diesel A unit
     buttons = [
       { id: 'a_powered', label: 'A Powered' },
       { id: 'a_dummy',   label: 'A Dummy'   },
@@ -810,7 +798,7 @@ function _updateGroupingButtons() {
     if (_hasAB)  buttons.push({ id: 'ab',  label: 'AB set'  });
     if (_hasABA) buttons.push({ id: 'aba', label: 'ABA set' });
   } else if (isF3Alco && isBUnit) {
-    // F3/Alco B unit — standalone only
+    // Diesel B unit — standalone only
     buttons = [];
   }
   
@@ -855,6 +843,12 @@ function _selectGrouping(groupId) {
     wizard.data.tenderMatch = tenders.length > 0 ? tenders[0] : '';
     wizard.data.setMatch = '';
     wizard.data.unitPower = '';
+  } else if (groupId === 'custom_tender') {
+    // Show input for any tender number — user-defined pairing
+    wizard.data.setMatch = '';
+    wizard.data.unitPower = '';
+    _showCustomTenderInput(itemNum);
+    return; // Don't auto-advance — wait for user input
   } else if (groupId === 'a_powered') {
     wizard.data.unitPower = 'Powered';
     wizard.data.setMatch = 'standalone';
@@ -908,6 +902,42 @@ function _selectBoxOnly() {
   wizard.steps = getSteps(wizard.tab);
   _updateGroupingButtons();
   setTimeout(function() { wizardNext(); }, 150);
+}
+
+function _showCustomTenderInput(engineNum) {
+  var existing = document.getElementById('custom-tender-overlay');
+  if (existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'custom-tender-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10010;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+  overlay.innerHTML = '<div style="background:var(--surface);border-radius:14px;padding:1.25rem;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,0.5)">'
+    + '<div style="font-family:var(--font-head);font-size:1rem;font-weight:700;color:var(--text);margin-bottom:0.1rem">Pair with a Tender</div>'
+    + '<div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:0.85rem">Enter any tender number to pair with ' + engineNum + '.</div>'
+    + '<input id="custom-tender-input" type="text" autocomplete="off" placeholder="e.g. 2046W, 6026T, 243W…" style="width:100%;box-sizing:border-box;padding:0.65rem 0.85rem;border-radius:9px;border:1.5px solid var(--accent);background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.92rem;outline:none;margin-bottom:0.75rem">'
+    + '<div style="display:flex;gap:0.5rem">'
+    + '<button id="custom-tender-cancel" style="flex:1;padding:0.55rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Cancel</button>'
+    + '<button id="custom-tender-ok" style="flex:2;padding:0.55rem;border-radius:8px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.85rem;font-weight:700;cursor:pointer">Pair</button>'
+    + '</div></div>';
+  document.body.appendChild(overlay);
+  setTimeout(function() { var inp = document.getElementById('custom-tender-input'); if (inp) inp.focus(); }, 100);
+
+  document.getElementById('custom-tender-cancel').onclick = function() {
+    overlay.remove();
+  };
+  document.getElementById('custom-tender-ok').onclick = function() {
+    var inp = document.getElementById('custom-tender-input');
+    var val = inp ? inp.value.trim() : '';
+    if (!val) { if (inp) { inp.style.borderColor = 'var(--accent)'; inp.focus(); } showToast('Please enter a tender number'); return; }
+    overlay.remove();
+    wizard.data.tenderMatch = val;
+    wizard.data._itemGrouping = 'engine_tender';
+    _updateGroupingButtons();
+    setTimeout(function() { wizardNext(); }, 150);
+  };
+  // Allow Enter key to confirm
+  document.getElementById('custom-tender-input').onkeydown = function(e) {
+    if (e.key === 'Enter') document.getElementById('custom-tender-ok').click();
+  };
 }
 
 // Condition Details inline toggle helpers

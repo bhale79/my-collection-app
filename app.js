@@ -89,49 +89,134 @@ const CONSTRUCTION_HEADERS = [
   'Photo Link','Notes','Date Acquired','Inventory ID','Group ID'
 ];
 
-// ── TENDER / LOCOMOTIVE RELATIONSHIPS ──────────────────────────
-const TENDER_TO_LOCOS = {"1872T":["1872"],"1882T":["1882"],"2020W":["2020"],"2046W":["726RR","637","646","2056","675","736","2055","2046","2065","665"],"2046WX":["671RR","682","681"],"2426W":["773","726"],"2466T":["224","1666"],"2466W":["224","1666"],"2466WX":["675","224","1666"],"2671W":["681","671"],"4424W":["671R"],"4671W":["671R"],"6001T":["6110"],"6020W":["2020"],"6026T":["2018","2037"],"6026W":["2037","685","2055","2018","2065","665","2016"],"6066T":["2026","1130","2034","2037"],"6403B":["1656"],"6466W":["2026","2036","2025","2035"],"6466WX":["2026","2025","675"],"6654T":["1655"],"250T":["250","249"],"671W":["671"],"736W":["637","665","773","736"],"746W":["746"],"773W":["773"],"1001T":["1101","1120","1001","1110"],"1050T":["235","1060","1050","236"],"1060T":["237","242","1060","2029","1062","1061"],"1130T":["244","248","236","245","2037","2018","1130","235","246"],"1130T-500":["2037-500"],"1625T":["1625"],"1654T":["1654"],"1654W":["1654"],"1862T":["1862"]};
-const LOCO_TO_TENDERS = {"1872":["1872T"],"1882":["1882T"],"2020":["2020W","6020W"],"726RR":["2046W"],"637":["2046W","736W"],"646":["2046W"],"2056":["2046W"],"675":["2046W","2466WX","6466WX"],"736":["2046W","736W"],"2055":["2046W","6026W"],"2046":["2046W"],"2065":["2046W","6026W"],"665":["2046W","6026W","736W"],"671RR":["2046WX"],"682":["2046WX"],"681":["2046WX","2671W"],"773":["2426W","736W","773W"],"726":["2426W"],"224":["2466T","2466W","2466WX"],"1666":["2466T","2466W","2466WX"],"671":["2671W","671W"],"671R":["4424W","4671W"],"6110":["6001T"],"2018":["6026T","6026W","1130T"],"2037":["6026T","6026W","6066T","1130T"],"685":["6026W"],"2016":["6026W"],"2026":["6066T","6466W","6466WX"],"1130":["6066T","1130T"],"2034":["6066T"],"1656":["6403B"],"2036":["6466W"],"2025":["6466W","6466WX"],"2035":["6466W"],"1655":["6654T"],"250":["250T"],"249":["250T"],"746":["746W"],"1101":["1001T"],"1120":["1001T"],"1001":["1001T"],"1110":["1001T"],"235":["1050T","1130T"],"1060":["1050T","1060T"],"1050":["1050T"],"236":["1050T","1130T"],"237":["1060T"],"242":["1060T"],"2029":["1060T"],"1062":["1060T"],"1061":["1060T"],"244":["1130T"],"248":["1130T"],"245":["1130T"],"246":["1130T"],"2037-500":["1130T-500"],"1625":["1625T"],"1654":["1654T","1654W"],"1862":["1862T"]};
+// ── Partner Map — built at startup from Companions + Sets + Master data ──
+// state.partnerMap[itemNum] = { tenders:[], locos:[], bUnit:'', aUnit:'', isDiesel:false, configs:['AA','AB'] }
+function buildPartnerMap() {
+  const map = {};
+  const ensure = (num) => { if (!map[num]) map[num] = { tenders:[], locos:[], bUnit:'', aUnit:'', isDiesel:false, configs:[] }; return map[num]; };
+  const addUnique = (arr, val) => { if (val && !arr.includes(val)) arr.push(val); };
 
-// ── DIESEL SET HELPERS ──────────────────────────────────────────
+  // 1. Companions tab: engine <-> tender, engine <-> B-unit, AA pairs
+  (state.companionData || []).forEach(c => {
+    const eng = c.engineNum;
+    const comp = c.companionNum;
+    const cType = (c.companionType || '').toLowerCase();
+    if (!eng || !comp) return;
+    if (cType.includes('tender') || cType === 't') {
+      addUnique(ensure(eng).tenders, comp);
+      addUnique(ensure(comp).locos, eng);
+    } else if (cType.includes('b-unit') || cType.includes('b unit') || cType === 'b') {
+      ensure(eng).bUnit = comp;
+      ensure(eng).isDiesel = true;
+      ensure(comp).aUnit = eng;
+      ensure(comp).isDiesel = true;
+    } else if (cType.includes('dummy') || cType.includes('aa') || cType === 'd') {
+      ensure(eng).isDiesel = true;
+      ensure(comp).isDiesel = true;
+      ensure(comp).aUnit = eng;
+    } else {
+      // Generic companion — treat as tender if comp looks like a tender (ends in W/T/B)
+      if (comp.match(/[WTB]$/i)) {
+        addUnique(ensure(eng).tenders, comp);
+        addUnique(ensure(comp).locos, eng);
+      }
+    }
+  });
+
+  // 2. Sets tab: steam+tender pairs, diesel configs
+  (state.setData || []).forEach(s => {
+    if (s.steam && s.tender) {
+      addUnique(ensure(s.steam).tenders, s.tender);
+      addUnique(ensure(s.tender).locos, s.steam);
+    }
+    if (s.dieselPow) {
+      const e = ensure(s.dieselPow);
+      e.isDiesel = true;
+      if (s.dieselDummy) {
+        addUnique(e.configs, 'AA');
+        ensure(s.dieselDummy).isDiesel = true;
+        ensure(s.dieselDummy).aUnit = s.dieselPow;
+      }
+      if (s.dieselB) {
+        e.bUnit = e.bUnit || s.dieselB;
+        addUnique(e.configs, 'AB');
+        ensure(s.dieselB).isDiesel = true;
+        ensure(s.dieselB).aUnit = s.dieselPow;
+        if (s.dieselDummy) addUnique(e.configs, 'ABA');
+      }
+    }
+  });
+
+  // 3. Master data: poweredDummy field marks diesel A/B units
+  (state.masterData || []).forEach(m => {
+    const num = normalizeItemNum(m.itemNum);
+    if ((m.poweredDummy || '').match(/^(P|D)$/i)) {
+      ensure(num).isDiesel = true;
+    }
+    // Check for B-unit existence (itemNum + 'C')
+    if (!num.endsWith('C')) {
+      const bNum = num + 'C';
+      if (state.masterData.some(mm => normalizeItemNum(mm.itemNum) === bNum)) {
+        const e = ensure(num);
+        e.isDiesel = true;
+        e.bUnit = e.bUnit || bNum;
+        addUnique(e.configs, 'AB');
+        addUnique(e.configs, 'ABA');
+        ensure(bNum).isDiesel = true;
+        ensure(bNum).aUnit = ensure(bNum).aUnit || num;
+      }
+    }
+    // Any diesel with poweredDummy always supports AA
+    if ((m.poweredDummy || '').match(/^(P|D)$/i) && !num.endsWith('C')) {
+      addUnique(ensure(num).configs, 'AA');
+    }
+  });
+
+  state.partnerMap = map;
+  console.log('[PartnerMap] Built:', Object.keys(map).length, 'items mapped');
+}
+
+// ── Lookup helpers — all query state.partnerMap ──
+function _stripSuffix(itemNum) {
+  return (itemNum || '').toString().trim().replace(/-(P|D)$/i, '');
+}
+function _getPartner(itemNum) {
+  const num = _stripSuffix(itemNum);
+  return state.partnerMap ? (state.partnerMap[num] || null) : null;
+}
+function isTender(itemNum) { const p = _getPartner(itemNum); return p ? p.locos.length > 0 : false; }
+function isLocomotive(itemNum) { const p = _getPartner(itemNum); return p ? p.tenders.length > 0 : false; }
+function getMatchingTenders(itemNum) { const p = _getPartner(itemNum); return p ? p.tenders : []; }
+function getMatchingLocos(tenderNum) { const p = _getPartner(tenderNum); return p ? p.locos : []; }
 function isSetUnit(itemNum) {
-  const num = normalizeItemNum(itemNum).replace(/-(P|D)$/i, '');
+  const num = _stripSuffix(itemNum);
   if (num.endsWith('C')) return true;
-  return state.masterData.some(m => normalizeItemNum(m.itemNum) === num + 'C');
+  const p = _getPartner(num);
+  return p ? p.isDiesel : false;
 }
-function getBUnit(itemNum) {
-  const num = normalizeItemNum(itemNum).replace(/-(P|D)$/i, '');
-  const bNum = num + 'C';
-  return state.masterData.some(m => normalizeItemNum(m.itemNum) === bNum) ? bNum : null;
-}
-function getAUnit(itemNum) {
-  const num = normalizeItemNum(itemNum).replace(/-(P|D)$/i, '');
-  if (!num.endsWith('C')) return null;
-  const aNum = num.slice(0, -1);
-  return state.masterData.some(m => normalizeItemNum(m.itemNum) === aNum) ? aNum : null;
-}
+function getBUnit(itemNum) { const p = _getPartner(itemNum); return (p && p.bUnit) ? p.bUnit : null; }
+function getAUnit(itemNum) { const p = _getPartner(itemNum); return (p && p.aUnit) ? p.aUnit : null; }
 function getSetPartner(itemNum) {
-  const num = normalizeItemNum(itemNum).replace(/-(P|D)$/i, '');
+  const num = _stripSuffix(itemNum);
   if (num.endsWith('C')) return getAUnit(num);
   return getBUnit(num);
 }
+function isF3AlcoUnit(itemNum) {
+  const p = _getPartner(itemNum);
+  return p ? p.isDiesel : false;
+}
+function getDieselConfigs(itemNum) {
+  const p = _getPartner(itemNum);
+  return p ? p.configs : [];
+}
 function getGroupMembers(itemNum) {
-  // Find all personal collection items sharing the same Group ID
   const pd = Object.values(state.personalData).find(p => p.itemNum === itemNum);
   if (!pd || !pd.groupId) return [];
   return Object.values(state.personalData).filter(p => p.groupId === pd.groupId);
 }
 function normalizeItemNum(n) {
-  // Strip trailing .0 from numbers stored as floats e.g. "2343.0" -> "2343"
   const s = (n || '').toString().trim();
   return s.match(/^\d+\.0$/) ? s.slice(0, -2) : s;
-}
-function isF3AlcoUnit(itemNum) {
-  const num = normalizeItemNum(itemNum).replace(/-(P|D)$/i, '').replace(/C$/i, '');
-  return state.masterData.some(m =>
-    normalizeItemNum(m.itemNum) === num &&
-    ((m.subType || '').match(/F-?3|Alco|AA|AB/i) || (m.poweredDummy || '').match(/^(P|D)$/i))
-  );
 }
 function nextInventoryId() {
   let max = 0;
@@ -139,7 +224,6 @@ function nextInventoryId() {
     const id = parseInt(pd.inventoryId);
     if (!isNaN(id) && id > max) max = id;
   });
-  // Also check IS data
   Object.values(state.isData || {}).forEach(is => {
     const id = parseInt(is.inventoryId);
     if (!isNaN(id) && id > max) max = id;
@@ -148,33 +232,25 @@ function nextInventoryId() {
 }
 function _buildGroupBoxRow(unitNum, boxCond, boxPhotoLink, groupId, datePurchased, leadItemNum) {
   return [
-    unitNum + '-BOX', '',  // itemNum, variation
-    boxCond || '', '',     // condition = box condition, allOriginal
-    '', '', '',            // prices — $0, value tracked on lead unit
-    'Yes',                 // hasBox — this IS a box
-    boxCond || '',         // boxCond
-    '', boxPhotoLink || '', // no item photo; box photo
-    'Box for ' + unitNum,  // notes
+    unitNum + '-BOX', '',
+    boxCond || '', '',
+    '', '', '',
+    'Yes',
+    boxCond || '',
+    '', boxPhotoLink || '',
+    'Box for ' + unitNum,
     datePurchased || '',
-    '',                    // $0 worth
-    unitNum,               // matchedTo = the unit this box belongs to
-    '', '', '', '', '',    // setId, yearMade, isError, errorDesc, quickEntry
-    nextInventoryId(),     // Inventory ID — unique
-    groupId,               // Group ID — shared with group
-    '',                    // Location (col W) — blank for box rows
-    '',                    // Era (col X) — inherits from lead item context
-    '',                    // Manufacturer (col Y) — inherits from lead item context
+    '',
+    unitNum,
+    '', '', '', '', '',
+    nextInventoryId(),
+    groupId,
+    '', '', '',
   ];
 }
 function genSetId(baseNum) {
   return 'SET-' + baseNum + '-' + Date.now();
 }
-
-function isTender(itemNum) { const _n = (itemNum||'').toString().trim().replace(/-(P|D)$/i,''); return !!TENDER_TO_LOCOS[_n.toUpperCase()] || !!TENDER_TO_LOCOS[_n]; }
-function isLocomotive(itemNum) { return !!LOCO_TO_TENDERS[(itemNum||'').toString().trim().replace(/-(P|D)$/i,'')]; }
-function getMatchingTenders(itemNum) { return LOCO_TO_TENDERS[(itemNum||'').toString().trim().replace(/-(P|D)$/i,'')] || []; }
-function getMatchingLocos(tenderNum) { return TENDER_TO_LOCOS[(tenderNum||'').toString().trim().replace(/-(P|D)$/i,'')] || []; }
-
 
 // ── STATE ───────────────────────────────────────────────────────
 // ── Cached preference values (read once at startup, updated on change) ──
@@ -1165,6 +1241,7 @@ async function loadAllData() {
     loadUserDefinedTabs();
     // Load master data (uses cache if fresh) and personal data in parallel
     await Promise.all([loadMasterData(), loadPersonalData(), loadSetData(), loadCompanionData(), loadCatalogRefData(), loadISRefData()]);
+    buildPartnerMap();
     buildApp();
     showOnboarding();
     if (typeof vaultInit === 'function') vaultInit();
@@ -1198,7 +1275,7 @@ const MASTER_TABS = [
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '32';
+  const _CACHE_VER = '33';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
@@ -4343,8 +4420,8 @@ async function saveItem() {
 // Shown after saving a groupable item to Want List
 function _checkWantPartners(itemNum, variation, priority, maxPrice, notes) {
   const num = normalizeItemNum(itemNum);
-  const isLoco   = !!LOCO_TO_TENDERS[num];
-  const isTnd    = !!TENDER_TO_LOCOS[num];
+  const isLoco   = isLocomotive(num);
+  const isTnd    = isTender(num);
   const bUnit    = getBUnit(num);          // diesel A-unit: returns "XXXC" or null
   const aUnit    = getAUnit(num);          // diesel B-unit: returns "XXX" or null
 
@@ -4352,12 +4429,12 @@ function _checkWantPartners(itemNum, variation, priority, maxPrice, notes) {
   let candidates = []; // [{ itemNum, label }]
 
   if (isLoco) {
-    const tenders = LOCO_TO_TENDERS[num] || [];
+    const tenders = getMatchingTenders(num);
     tenders.forEach(t => {
       if (!state.wantData[t + '|']) candidates.push({ itemNum: t, label: t + ' (tender)' });
     });
   } else if (isTnd) {
-    const locos = TENDER_TO_LOCOS[num] || [];
+    const locos = getMatchingLocos(num);
     locos.forEach(l => {
       if (!state.wantData[l + '|']) candidates.push({ itemNum: l, label: l + ' (locomotive)' });
     });
