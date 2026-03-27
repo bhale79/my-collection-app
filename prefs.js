@@ -273,6 +273,11 @@ function buildPrefsPage() {
         <button class="pref-btn" id="backfill-invid-btn" onclick="_runBackfillInventoryIds()">Run Backfill</button>
       </div>
       <div id="backfill-invid-output" style="display:none;margin-top:0.75rem;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:0.85rem 1rem;font-size:0.75rem;font-family:var(--font-mono);line-height:1.8;max-height:320px;overflow-y:auto"></div>
+      <div class="pref-row" style="margin-top:0.25rem">
+        <div class="pref-row-label"><strong>Backfill All Collection IDs</strong><span>Assign Inventory IDs to any My Collection, IS, Science, Construction, or My Sets rows missing them</span></div>
+        <button class="pref-btn" id="backfill-all-btn" onclick="_runBackfillAllIds()">Run Backfill</button>
+      </div>
+      <div id="backfill-all-output" style="display:none;margin-top:0.75rem;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:0.85rem 1rem;font-size:0.75rem;font-family:var(--font-mono);line-height:1.8;max-height:320px;overflow-y:auto"></div>
     </div>
 
         <div class="pref-section">
@@ -699,6 +704,85 @@ async function _runBackfillInventoryIds() {
   } catch(e) {
     lines.push('❌ Error: ' + e.message);
     console.error('Backfill error:', e);
+  }
+
+  out.innerHTML = lines.join('<br>');
+  if (btn) { btn.disabled = false; btn.textContent = 'Run Backfill'; }
+}
+
+// ── Backfill All Collection Inventory IDs ──────────────────────
+// Assigns inventoryIds to any rows in My Collection, IS, Science,
+// Construction, or My Sets that are missing them. This eliminates
+// the fallback key paths in the parsers.
+async function _runBackfillAllIds() {
+  var btn = document.getElementById('backfill-all-btn');
+  var out = document.getElementById('backfill-all-output');
+  if (!out) return;
+  out.style.display = 'block';
+  out.innerHTML = '<span style="color:var(--text-dim)">Scanning all tabs…</span>';
+  if (btn) { btn.disabled = true; btn.textContent = 'Running…'; }
+
+  var lines = [];
+  var fixed = 0;
+
+  try {
+    var sheetId = state.personalSheetId;
+    if (!sheetId) throw new Error('No personal sheet ID');
+
+    // Tab configs: { dataObj, tabName, idCol }
+    var tabs = [
+      { data: state.personalData,      tab: 'My Collection',     col: 'U' },
+      { data: state.isData,            tab: 'Instruction Sheets', col: 'G' },
+      { data: state.scienceData,       tab: 'Science Sets',       col: 'N' },
+      { data: state.constructionData,  tab: 'Construction Sets',  col: 'N' },
+      { data: state.mySetsData,        tab: 'My Sets',            col: 'N' },
+    ];
+
+    for (var t = 0; t < tabs.length; t++) {
+      var cfg = tabs[t];
+      var dataObj = cfg.data || {};
+      var entries = Object.entries(dataObj);
+      var tabFixed = 0;
+
+      for (var i = 0; i < entries.length; i++) {
+        var key = entries[i][0];
+        var rec = entries[i][1];
+        if (rec.inventoryId) continue; // already has one
+        if (!rec.row || rec.row === 99999) continue; // temp row, skip
+
+        var newId = nextInventoryId();
+        try {
+          await sheetsUpdate(sheetId, cfg.tab + '!' + cfg.col + rec.row, [[newId]]);
+          rec.inventoryId = newId;
+          // Re-key the entry: remove old key, insert under inventoryId
+          delete dataObj[key];
+          dataObj[newId] = rec;
+          tabFixed++;
+          fixed++;
+        } catch(e) {
+          lines.push('⚠️ ' + cfg.tab + ' row ' + rec.row + ': ' + e.message);
+        }
+      }
+
+      if (tabFixed > 0) {
+        lines.push('✅ ' + cfg.tab + ': ' + tabFixed + ' IDs assigned');
+      } else {
+        lines.push('✓ ' + cfg.tab + ': all rows already have IDs');
+      }
+    }
+
+    if (fixed > 0) {
+      _cachePersonalData();
+      lines.push('');
+      lines.push('Done: ' + fixed + ' total IDs assigned. State updated.');
+    } else {
+      lines.push('');
+      lines.push('All rows already have Inventory IDs — nothing to do.');
+    }
+
+  } catch(e) {
+    lines.push('❌ Error: ' + e.message);
+    console.error('Backfill all error:', e);
   }
 
   out.innerHTML = lines.join('<br>');
