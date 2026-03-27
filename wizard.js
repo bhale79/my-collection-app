@@ -4757,12 +4757,14 @@ function wizardChooseCategory(catId) {
     renderWizardStep();
     // Auto-advance past the itemCategory step (already chosen)
     setTimeout(() => wizardNext(), 150);
-  } else if (catId !== 'lionel') {
+  } else if (catId !== 'lionel' && wizard.tab !== 'want') {
+    // Switch to ephemera/set tab — but NOT for want list (want list uses same simple flow for all types)
     wizard.tab = catId;
     wizard.steps = getSteps(catId);
     wizard.step = 0;
     renderWizardStep();
   } else {
+    // 'lionel' or want-list non-lionel: just advance past itemCategory
     setTimeout(() => wizardNext(), 150);
   }
 }
