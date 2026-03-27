@@ -1799,6 +1799,8 @@ function renderWizardStep() {
         + '<div style="display:flex;align-items:center;gap:0.4rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.45rem 0.6rem;flex:1">'
           + '<span style="color:var(--text-dim);font-size:0.85rem">$</span>'
           + '<input type="number" id="qe1-worth" placeholder="0.00" min="0" step="0.01"'
+          + ' value="' + (wizard.data._qeEstWorth || wizard.data.userEstWorth || '') + '"'
+          + ' oninput="wizard.data._qeEstWorth=this.value"'
           + ' style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:0.9rem;min-width:0"'
           + ' onclick="event.stopPropagation()">'
         + '</div>'
@@ -5757,6 +5759,11 @@ function lookupItem(num) {
 
 function wizardBack() {
   if (wizard.step <= 0) return;
+  // Clear save locks — user is navigating back, not saving
+  if (wizard.data) {
+    wizard.data._wizSaveLock = false;
+    wizard.data._qeSaving = false;
+  }
   const _setFwdSkip = wizard.data._setMode
     ? new Set(['itemCategory', 'itemNumGrouping', 'itemPicker', 'entryMode'])
     : null;
