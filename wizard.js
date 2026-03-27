@@ -783,7 +783,7 @@ function _updateGroupingButtons() {
     buttons = [
       { id: 'engine', label: 'Engine Only' },
       { id: 'engine_tender', label: 'Engine + Tender' },
-      { id: 'custom_tender', label: 'Custom Tender' },
+      { id: 'custom_tender', label: 'Engine + Non-Standard Tender' },
     ];
   } else if (hasLocos && !isF3Alco) {
     // Standalone tender being entered
@@ -911,15 +911,62 @@ function _showCustomTenderInput(engineNum) {
   overlay.id = 'custom-tender-overlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10010;display:flex;align-items:center;justify-content:center;padding:1.5rem';
   overlay.innerHTML = '<div style="background:var(--surface);border-radius:14px;padding:1.25rem;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,0.5)">'
-    + '<div style="font-family:var(--font-head);font-size:1rem;font-weight:700;color:var(--text);margin-bottom:0.1rem">Pair with a Tender</div>'
-    + '<div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:0.85rem">Enter any tender number to pair with ' + engineNum + '.</div>'
-    + '<input id="custom-tender-input" type="text" autocomplete="off" placeholder="e.g. 2046W, 6026T, 243W…" style="width:100%;box-sizing:border-box;padding:0.65rem 0.85rem;border-radius:9px;border:1.5px solid var(--accent);background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.92rem;outline:none;margin-bottom:0.75rem">'
-    + '<div style="display:flex;gap:0.5rem">'
+    + '<div style="font-family:var(--font-head);font-size:1rem;font-weight:700;color:var(--text);margin-bottom:0.1rem">Pair with a Non-Standard Tender</div>'
+    + '<div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:0.85rem">Start typing to find a tender to pair with ' + engineNum + '.</div>'
+    + '<div style="position:relative">'
+    + '<input id="custom-tender-input" type="text" autocomplete="off" placeholder="e.g. 2046W, 6026T, 243W…" style="width:100%;box-sizing:border-box;padding:0.65rem 0.85rem;border-radius:9px;border:1.5px solid var(--accent);background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.92rem;outline:none">'
+    + '<div id="custom-tender-suggestions" style="display:none;position:absolute;left:0;right:0;top:100%;margin-top:4px;max-height:200px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;z-index:10;-webkit-overflow-scrolling:touch"></div>'
+    + '</div>'
+    + '<div style="display:flex;gap:0.5rem;margin-top:0.75rem">'
     + '<button id="custom-tender-cancel" style="flex:1;padding:0.55rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Cancel</button>'
     + '<button id="custom-tender-ok" style="flex:2;padding:0.55rem;border-radius:8px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.85rem;font-weight:700;cursor:pointer">Pair</button>'
     + '</div></div>';
   document.body.appendChild(overlay);
   setTimeout(function() { var inp = document.getElementById('custom-tender-input'); if (inp) inp.focus(); }, 100);
+
+  // Build tender list from master data (items with type containing 'Tender')
+  var _allTenders = [];
+  var _seen = {};
+  (state.masterData || []).forEach(function(m) {
+    if (!m.itemNum || _seen[m.itemNum]) return;
+    if ((m.itemType || '').toLowerCase().includes('tender')) {
+      _seen[m.itemNum] = true;
+      _allTenders.push({ num: m.itemNum, road: m.roadName || '', desc: m.description || '' });
+    }
+  });
+
+  function _updateTenderSuggestions(val) {
+    var box = document.getElementById('custom-tender-suggestions');
+    if (!box) return;
+    var q = (val || '').trim().toLowerCase();
+    if (q.length < 1) { box.style.display = 'none'; return; }
+    var matches = _allTenders.filter(function(t) {
+      return t.num.toLowerCase().startsWith(q) || t.road.toLowerCase().includes(q) || t.desc.toLowerCase().includes(q);
+    }).slice(0, 12);
+    if (!matches.length) { box.style.display = 'none'; return; }
+    box.innerHTML = matches.map(function(t) {
+      return '<div class="ct-sug" style="padding:0.5rem 0.65rem;border-radius:7px;cursor:pointer;font-size:0.82rem;transition:background 0.1s" onmouseenter="this.style.background=\'var(--surface2)\'" onmouseleave="this.style.background=\'none\'">'
+        + '<span style="font-family:var(--font-mono);font-weight:700;color:var(--accent2)">' + t.num + '</span>'
+        + (t.road ? '  <span style="color:var(--text-mid)">' + t.road + '</span>' : '')
+        + (t.desc ? '  <span style="color:var(--text-dim);font-size:0.75rem"> — ' + t.desc + '</span>' : '')
+        + '</div>';
+    }).join('');
+    box.style.display = 'flex';
+    box.style.flexDirection = 'column';
+    box.style.gap = '1px';
+    // Click handler for suggestions
+    box.querySelectorAll('.ct-sug').forEach(function(el, i) {
+      el.onclick = function() {
+        var inp = document.getElementById('custom-tender-input');
+        if (inp) inp.value = matches[i].num;
+        box.style.display = 'none';
+      };
+    });
+  }
+
+  document.getElementById('custom-tender-input').oninput = function() {
+    _updateTenderSuggestions(this.value);
+  };
 
   document.getElementById('custom-tender-cancel').onclick = function() {
     overlay.remove();
@@ -936,7 +983,7 @@ function _showCustomTenderInput(engineNum) {
   };
   // Allow Enter key to confirm
   document.getElementById('custom-tender-input').onkeydown = function(e) {
-    if (e.key === 'Enter') document.getElementById('custom-tender-ok').click();
+    if (e.key === 'Enter') { document.getElementById('custom-tender-suggestions').style.display = 'none'; document.getElementById('custom-tender-ok').click(); }
   };
 }
 
