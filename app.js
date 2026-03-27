@@ -88,6 +88,11 @@ const CONSTRUCTION_HEADERS = [
   'Has Case/Box','Case/Box Condition','Price Paid','Est. Worth',
   'Photo Link','Notes','Date Acquired','Inventory ID','Group ID'
 ];
+const MY_SETS_HEADERS = [
+  'Set Number','Set Name','Year','Condition (1-10)','Est. Worth',
+  'Date Purchased','Group ID','Set ID','Has Set Box','Box Condition',
+  'Photo Link','Notes','Quick Entry','Inventory ID'
+];
 
 // ── Partner Map — built at startup from Companions + Sets + Master data ──
 // state.partnerMap[itemNum] = { tenders:[], locos:[], bUnit:'', aUnit:'', isDiesel:false, configs:['AA','AB'] }
@@ -278,6 +283,7 @@ var state = {
   scienceData: {},        // keyed by row# -> science set personal data
   constructionData: {},   // keyed by row# -> construction set personal data
   setData: [],         // all rows from Master Set list (read-only reference)
+  mySetsData: {},      // keyed by "setNum|year" -> owned set record from personal My Sets tab
   companionData: [],   // all rows from Companions tab (engine/tender/B-unit relationships)
   catalogRefData: [],  // all rows from master Catalogs tab (reference list for paper item wizard)
   isRefData: [],       // all rows from master Instruction Sheets tab (reference list for IS wizard)
@@ -1174,6 +1180,15 @@ async function ensureEphemeraSheets(sheetId) {
   }
   await sheetsUpdate(sheetId, 'Construction Sets!A1:A1', [['Construction Sets']]);
   await sheetsUpdate(sheetId, 'Construction Sets!A2:O2', [CONSTRUCTION_HEADERS]);
+  // My Sets tab
+  if (!existingTabs.includes('My Sets')) {
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+      method:'POST', headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
+      body: JSON.stringify({ requests:[{ addSheet:{ properties:{ title:'My Sets' } } }] }),
+    });
+  }
+  await sheetsUpdate(sheetId, 'My Sets!A1:A1', [['My Sets']]);
+  await sheetsUpdate(sheetId, 'My Sets!A2:N2', [MY_SETS_HEADERS]);
 }
 
 
@@ -1294,7 +1309,7 @@ const MASTER_TABS = [
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '44';
+  const _CACHE_VER = '45';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
@@ -1609,6 +1624,7 @@ async function loadPersonalData() {
       state.scienceData   = _pd.scienceData   || {};
       state.constructionData = _pd.constructionData || {};
       state.ephemeraData  = _pd.ephemeraData  || { catalogs:{}, paper:{}, mockups:{}, other:{} };
+      state.mySetsData   = _pd.mySetsData   || {};
       // Only background-refresh if cache is older than 5 minutes
       if ((Date.now() - _ptime) > _BG_REFRESH) {
         _loadPersonalFromSheets(state.personalSheetId).then(() => {
@@ -1638,6 +1654,7 @@ function _cachePersonalData() {
       scienceData: state.scienceData,
       constructionData: state.constructionData,
       ephemeraData: state.ephemeraData,
+      mySetsData: state.mySetsData,
     };
     localStorage.setItem('lv_personal_cache', JSON.stringify(_snap));
     localStorage.setItem('lv_personal_cache_ts', Date.now().toString());
@@ -1655,11 +1672,12 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   const newConstructionData = {};
   const newEphemera = { catalogs:{}, paper:{}, mockups:{}, other:{} };
   const newForSale = {};
+  const newMySetsData = {};
 
   // Fetch all tabs in parallel
   const [collRes, soldRes, forSaleRes, wantRes, upgradeRes,
          catRes, paperRes, mockRes, otherRes, isRes,
-         sciRes, conRes] = await Promise.all([
+         sciRes, conRes, mySetsRes] = await Promise.all([
     sheetsGet(sheetId, 'My Collection!A3:Y').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Sold!A3:I').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'For Sale!A3:I').catch(() => ({values:[]})),
@@ -1672,6 +1690,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     sheetsGet(sheetId, 'Instruction Sheets!A3:K').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Science Sets!A3:O').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Construction Sets!A3:O').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'My Sets!A3:N').catch(() => ({values:[]})),
   ]);
 
   // My Collection
@@ -1772,6 +1791,20 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   _parseSetTab(sciRes, newScienceData, 'Science Sets');
   _parseSetTab(conRes, newConstructionData, 'Construction Sets');
 
+  // My Sets
+  (mySetsRes.values || []).forEach((r, idx) => {
+    if (!r[0] || r[0] === 'Set Number') return;
+    const rowNum = idx + 3;
+    const key = `${r[0]}|${r[2] || ''}`;  // setNum|year
+    newMySetsData[key] = {
+      row: rowNum, setNum: r[0]||'', setName: r[1]||'', year: r[2]||'',
+      condition: r[3]||'', estWorth: r[4]||'', datePurchased: r[5]||'',
+      groupId: r[6]||'', setId: r[7]||'', hasSetBox: r[8]||'',
+      boxCondition: r[9]||'', photoLink: r[10]||'', notes: r[11]||'',
+      quickEntry: r[12] === 'Yes', inventoryId: r[13]||'',
+    };
+  });
+
   // Ephemera tabs
   // Initialize user-defined tab buckets
   (state.userDefinedTabs||[]).forEach(t => { newEphemera[t.id] = {}; });
@@ -1867,6 +1900,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   state.scienceData = newScienceData;
   state.constructionData = newConstructionData;
   state.ephemeraData = newEphemera;
+  state.mySetsData = newMySetsData;
 }
 
 // ── BUILD APP ───────────────────────────────────────────────────
@@ -3856,12 +3890,20 @@ function showRefItemPopup(type, idx) {
     if (!s) return;
     title = 'Set ' + s.setNum;
     subtitle = s.setName || '';
+    // Check ownership from My Sets data
+    var _mySet = Object.values(state.mySetsData || {}).find(ms => ms.setNum === s.setNum && (!ms.year || ms.year === s.year));
     details = [
       ['Year', s.year || '—'],
       ['Gauge', s.gauge || '—'],
       ['Price', s.price || '—'],
       ['Items', s.items.join(', ') || '—'],
     ];
+    if (_mySet) {
+      if (_mySet.condition) details.push(['Condition', _mySet.condition + '/10']);
+      if (_mySet.estWorth) details.push(['Est. Worth', '$' + parseFloat(_mySet.estWorth).toLocaleString()]);
+      if (_mySet.hasSetBox === 'Yes') details.push(['Set Box', '✓ Yes' + (_mySet.boxCondition ? ' (' + _mySet.boxCondition + '/10)' : '')]);
+      if (_mySet.notes) details.push(['Notes', _mySet.notes]);
+    }
   } else if (type === 'catalog') {
     var c = (window._browseFilteredCats || [])[idx];
     if (!c) return;
@@ -3928,10 +3970,15 @@ function showRefItemPopup(type, idx) {
   addBtn.className = 'btn btn-primary';
   addBtn.style.cssText = 'margin-top:1.25rem;width:100%;background:var(--accent);border-color:var(--accent);line-height:1.25';
   addBtn.innerHTML = '<span style="display:block;font-size:0.75em;opacity:0.85;font-weight:400;letter-spacing:0.03em">Add to</span><span style="display:block">Collection</span>';
-  var _itemNum = '', _itemType = '', _description = '', _year = '';
+  var _itemNum = '', _itemType = '', _description = '', _year = '', _setOwned = false;
   if (type === 'set') {
     var _s = (window._browseFilteredSets || [])[idx];
     if (_s) { _itemNum = _s.setNum; _itemType = 'Set'; _description = _s.setName || ''; _year = _s.year || ''; }
+    _setOwned = !!Object.values(state.mySetsData || {}).find(ms => ms.setNum === _itemNum && (!ms.year || ms.year === _year));
+    if (_setOwned) {
+      addBtn.style.cssText = 'margin-top:1.25rem;width:100%;background:#27ae6022;border:1.5px solid #27ae60;border-radius:10px;padding:0.75rem;line-height:1.25;color:#27ae60;font-family:var(--font-body);font-size:0.92rem;font-weight:700;cursor:default';
+      addBtn.innerHTML = '✓ In Your Collection';
+    }
   } else if (type === 'catalog') {
     var _c = (window._browseFilteredCats || [])[idx];
     if (_c) { _itemNum = _c.id; _itemType = 'Catalog'; _description = _c.title || ''; _year = _c.year || ''; }
@@ -3943,6 +3990,7 @@ function showRefItemPopup(type, idx) {
     overlay.remove();
     // Sets get their own wizard flow
     if (type === 'set') {
+      if (_setOwned) return;  // Already owned — button is just a badge
       addSetToCollection(_itemNum, _description);
       return;
     }
