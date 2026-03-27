@@ -98,3 +98,37 @@ soldData/forSaleData/wantData/upgradeData keys don't use row numbers, so they di
 - **_doCloseWizard()** — use after successful saves to bypass cancel-guard.
 - Cache nuke: `caches.keys().then(k => k.forEach(n => caches.delete(n))); navigator.serviceWorker.getRegistrations().then(r => r.forEach(w => w.unregister())); setTimeout(() => location.reload(), 500);`
 - Must bump BOTH `_CACHE_VER` in app.js AND `CACHE_NAME` in sw.js on every deploy.
+
+---
+
+## ADDITIONAL CHANGES (later in session)
+
+### 5. Eliminated Background Reload After Delete
+- Replaced `_reloadAfterDelete()` (1.5s background full-data reload) with `_adjustRowsAfterDelete()` (instant in-memory row number adjustment)
+- After `sheetsDeleteRow`, all records with `.row` above the deleted row get decremented by 1
+- Applied to both single-item and group delete paths
+- Makes deletes feel instant — no more flash of stale data
+
+### 6. Additional Debug Log Cleanup
+- Removed 2 more diagnostic console.log statements from QE1 Save and Full Entry button handlers in wizard.js
+
+### 7. Set Component Audit Fixes (12 corrections)
+All applied as post-load patches in `_patchMasterData()`:
+- **Book errors:** 6414-75→6414-85, 6476-125→6476-135, 6438-500→6436-500, 6014-325→6014-335, 6119-110→6119-100
+- **Bare numbers needing suffixes:** 6462→6462-1, 6476→6476-25, 6112→6112-1
+- **COTT X-prefix items:** 1004→X1004, 6004→X6004, 2454→X2454
+
+### 8. Architecture Doc Updated to v14
+- Reflects inventoryId migration complete, new helpers, elimination of _reloadAfterDelete
+
+---
+
+## FINAL STATE
+
+**Cache versions:** `_CACHE_VER = '52'` (data) / `CACHE_NAME = 'mca-v57'` (service worker)
+
+| File | Lines |
+|------|-------|
+| app.js | ~6,664 |
+| wizard.js | ~8,125 |
+| browse.js | ~1,035 |
