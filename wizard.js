@@ -438,7 +438,8 @@ function getSteps(tab) {
       { id: 'itemNum',      title: 'What is the item number?',      type: 'text',        placeholder: 'e.g. 726, 2046, 6464-1' },
       { id: 'pickForSaleItem', title: 'Which item are you listing?',       type: 'pickForSaleItem',
         skipIf: (d) => {
-          const matches = Object.keys(state.personalData).filter(k => k.split('|')[0] === (d.itemNum||'').trim());
+          const _num = (d.itemNum||'').trim();
+          const matches = Object.values(state.personalData).filter(p => p.itemNum === _num && p.owned);
           return matches.length === 0;
         }
       },
@@ -3900,8 +3901,7 @@ function renderWizardStep() {
     const matchKeys = Object.keys(state.personalData).filter(k => {
       const pd = state.personalData[k];
       // Show all owned rows for this item number
-      // Include rows with real item info (condition not N/A or empty)
-      return k.split('|')[0] === itemNum && pd.owned;
+      return pd.itemNum === itemNum && pd.owned;
     });
       const selected = wizard.data.selectedSoldKey || '';
     body.innerHTML = `
@@ -3943,7 +3943,7 @@ function renderWizardStep() {
     const itemNum = (wizard.data.itemNum || '').trim();
     const matchKeys = Object.keys(state.personalData).filter(k => {
       const pd = state.personalData[k];
-      return k.split('|')[0] === itemNum && pd.owned;
+      return pd.itemNum === itemNum && pd.owned;
     });
     const selected = wizard.data.selectedForSaleKey || '';
     body.innerHTML = `
@@ -3983,7 +3983,10 @@ function renderWizardStep() {
 
   } else if (s.type === 'pickRow') {
     const itemNum = (wizard.data.itemNum || '').trim();
-    const matchKeys = Object.keys(state.personalData).filter(k => k.split('|')[0] === itemNum);
+    const matchKeys = Object.keys(state.personalData).filter(k => {
+      const pd = state.personalData[k];
+      return pd.itemNum === itemNum;
+    });
     const selected = wizard.data.selectedRowKey || '';
     body.innerHTML = `
       <div style="padding-top:0.5rem;display:flex;flex-direction:column;gap:0.5rem">
@@ -5682,7 +5685,10 @@ function lookupItem(num) {
     const _fsLabel = wizard.tab === 'forsale' ? 'For Sale' : 'Sold';
     const _fsColor = wizard.tab === 'forsale' ? '#e67e22' : 'var(--green)';
     // Sold/For Sale mode: check collection first, show what they own
-    const collectionKeys = Object.keys(state.personalData).filter(k => k.split('|')[0] === trimmed);
+    const collectionKeys = Object.keys(state.personalData).filter(k => {
+      const pd = state.personalData[k];
+      return pd.itemNum === trimmed && pd.owned;
+    });
     const inCollection = collectionKeys.length > 0;
     if (inCollection) {
       const count = collectionKeys.length;
