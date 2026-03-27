@@ -761,19 +761,20 @@ function _updateGroupingButtons() {
   if (!container) return;
   
   const itemNum = (wizard.data.itemNum || '').trim();
+  const _baseNum = itemNum.replace(/-(P|D)$/i, '');
   if (!itemNum) { container.style.display = 'none'; return; }
   
   // Determine item type from master data sub-type
-  const hasTenders = getMatchingTenders(itemNum).length > 0;
-  const hasLocos = getMatchingLocos(itemNum).length > 0;
-  const isF3Alco = isF3AlcoUnit(itemNum);
-  const isBUnit = itemNum.endsWith('C');
+  const hasTenders = getMatchingTenders(_baseNum).length > 0;
+  const hasLocos = getMatchingLocos(_baseNum).length > 0;
+  const isF3Alco = isF3AlcoUnit(_baseNum);
+  const isBUnit = _baseNum.endsWith('C');
 
   // For F3/Alco: derive valid set configs from sub-type in master data
   let _f3SubTypes = new Set();
   if (isF3Alco) {
     state.masterData.forEach(function(m) {
-      if (normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum) && m.subType) {
+      if (normalizeItemNum(m.itemNum) === normalizeItemNum(_baseNum) && m.subType) {
         _f3SubTypes.add((m.subType || '').toUpperCase());
       }
     });

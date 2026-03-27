@@ -95,23 +95,23 @@ const LOCO_TO_TENDERS = {"1872":["1872T"],"1882":["1882T"],"2020":["2020W","6020
 
 // ── DIESEL SET HELPERS ──────────────────────────────────────────
 function isSetUnit(itemNum) {
-  const num = normalizeItemNum(itemNum);
+  const num = normalizeItemNum(itemNum).replace(/-(P|D)$/i, '');
   if (num.endsWith('C')) return true;
   return state.masterData.some(m => normalizeItemNum(m.itemNum) === num + 'C');
 }
 function getBUnit(itemNum) {
-  const num = normalizeItemNum(itemNum);
+  const num = normalizeItemNum(itemNum).replace(/-(P|D)$/i, '');
   const bNum = num + 'C';
   return state.masterData.some(m => normalizeItemNum(m.itemNum) === bNum) ? bNum : null;
 }
 function getAUnit(itemNum) {
-  const num = normalizeItemNum(itemNum);
+  const num = normalizeItemNum(itemNum).replace(/-(P|D)$/i, '');
   if (!num.endsWith('C')) return null;
   const aNum = num.slice(0, -1);
   return state.masterData.some(m => normalizeItemNum(m.itemNum) === aNum) ? aNum : null;
 }
 function getSetPartner(itemNum) {
-  const num = normalizeItemNum(itemNum);
+  const num = normalizeItemNum(itemNum).replace(/-(P|D)$/i, '');
   if (num.endsWith('C')) return getAUnit(num);
   return getBUnit(num);
 }
@@ -127,7 +127,7 @@ function normalizeItemNum(n) {
   return s.match(/^\d+\.0$/) ? s.slice(0, -2) : s;
 }
 function isF3AlcoUnit(itemNum) {
-  const num = normalizeItemNum(itemNum).replace(/C$/i, '');
+  const num = normalizeItemNum(itemNum).replace(/-(P|D)$/i, '').replace(/C$/i, '');
   return state.masterData.some(m =>
     normalizeItemNum(m.itemNum) === num &&
     (m.subType || '').match(/F-?3|Alco/i)
@@ -170,10 +170,10 @@ function genSetId(baseNum) {
   return 'SET-' + baseNum + '-' + Date.now();
 }
 
-function isTender(itemNum) { return !!TENDER_TO_LOCOS[itemNum?.toString().trim().toUpperCase()] || !!TENDER_TO_LOCOS[itemNum?.toString().trim()]; }
-function isLocomotive(itemNum) { return !!LOCO_TO_TENDERS[itemNum?.toString().trim()]; }
-function getMatchingTenders(itemNum) { return LOCO_TO_TENDERS[itemNum?.toString().trim()] || []; }
-function getMatchingLocos(tenderNum) { return TENDER_TO_LOCOS[tenderNum?.toString().trim()] || []; }
+function isTender(itemNum) { const _n = (itemNum||'').toString().trim().replace(/-(P|D)$/i,''); return !!TENDER_TO_LOCOS[_n.toUpperCase()] || !!TENDER_TO_LOCOS[_n]; }
+function isLocomotive(itemNum) { return !!LOCO_TO_TENDERS[(itemNum||'').toString().trim().replace(/-(P|D)$/i,'')]; }
+function getMatchingTenders(itemNum) { return LOCO_TO_TENDERS[(itemNum||'').toString().trim().replace(/-(P|D)$/i,'')] || []; }
+function getMatchingLocos(tenderNum) { return TENDER_TO_LOCOS[(tenderNum||'').toString().trim().replace(/-(P|D)$/i,'')] || []; }
 
 
 // ── STATE ───────────────────────────────────────────────────────
@@ -1198,7 +1198,7 @@ const MASTER_TABS = [
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '28';
+  const _CACHE_VER = '29';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
