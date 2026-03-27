@@ -1309,7 +1309,7 @@ const MASTER_TABS = [
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '47';
+  const _CACHE_VER = '48';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
@@ -1697,7 +1697,8 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   (collRes.values || []).forEach((r, idx) => {
     if (!r[0] || r[0] === 'Item Number') return;
     const rowNum = idx + 3;
-    const key = `${r[0]}|${r[1] || ''}|${rowNum}`;
+    const _invId = r[20] || '';
+    const key = _invId || `${r[0]}|${r[1] || ''}|${rowNum}`;
     newPersonal[key] = {
       row: rowNum, itemNum: r[0]||'', variation: r[1]||'',
       status: 'Owned', owned: true,
@@ -1765,11 +1766,13 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   const _isRows = (isRes && isRes.values) || [];
   _isRows.forEach((r, idx) => {
     if (!r[0] || r[0] === 'Sheet #' || r[0] === 'Instruction Sheets') return;
-    const key = idx + 3;
+    const _rowNum = idx + 3;
+    const _isInvId = r[6] || '';
+    const key = _isInvId || _rowNum;
     newIsData[key] = {
-      row: key, sheetNum: r[0]||'', linkedItem: r[1]||'', year: r[2]||'',
+      row: _rowNum, sheetNum: r[0]||'', linkedItem: r[1]||'', year: r[2]||'',
       condition: r[3]||'', notes: r[4]||'', photoLink: r[5]||'',
-      inventoryId: r[6]||'', groupId: r[7]||'', formCode: r[8]||'',
+      inventoryId: _isInvId, groupId: r[7]||'', formCode: r[8]||'',
       pricePaid: r[9]||'', estValue: r[10]||'',
     };
   });
@@ -1778,9 +1781,11 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   function _parseSetTab(res, bucket, tabTitle) {
     (res.values || []).forEach((r, idx) => {
       if (!r[0] || r[0] === 'Item Number' || r[0] === tabTitle) return;
-      const key = idx + 3;
+      const _rowNum = idx + 3;
+      const _stInvId = r[13] || '';
+      const key = _stInvId || _rowNum;
       bucket[key] = {
-        row: key, itemNum: String(r[0]||''), variation: String(r[1]||''), description: r[2]||'', year: r[3]||'',
+        row: _rowNum, itemNum: String(r[0]||''), variation: String(r[1]||''), description: r[2]||'', year: r[3]||'',
         condition: r[4]||'', allOriginal: r[5]||'', hasCase: r[6]||'',
         caseCond: r[7]||'', pricePaid: r[8]||'', estValue: r[9]||'',
         photoLink: r[10]||'', notes: r[11]||'', dateAcquired: r[12]||'',
@@ -1795,7 +1800,8 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   (mySetsRes.values || []).forEach((r, idx) => {
     if (!r[0] || r[0] === 'Set Number') return;
     const rowNum = idx + 3;
-    const key = `${r[0]}|${r[2] || ''}|${rowNum}`;  // setNum|year|row
+    const _msInvId = r[13] || '';
+    const key = _msInvId || `${r[0]}|${r[2] || ''}|${rowNum}`;
     newMySetsData[key] = {
       row: rowNum, setNum: r[0]||'', setName: r[1]||'', year: r[2]||'',
       condition: r[3]||'', estWorth: r[4]||'', datePurchased: r[5]||'',
@@ -2015,12 +2021,12 @@ function buildQuickEntryList() {
     row.style.cssText = 'display:flex;align-items:center;gap:0.85rem;padding:0.9rem 1rem;background:var(--surface);border:1.5px solid rgba(39,174,96,0.3);border-radius:12px;cursor:pointer;transition:all 0.15s';
     row.onmouseenter = function() { this.style.borderColor='#27ae60'; this.style.background='rgba(39,174,96,0.06)'; };
     row.onmouseleave = function() { this.style.borderColor='rgba(39,174,96,0.3)'; this.style.background='var(--surface)'; };
-    row.onclick = (function(num, vari, pdRow) { return function() {
+    row.onclick = (function(num, vari, pdInvId) { return function() {
       var globalIdx = state.masterData ? state.masterData.findIndex(function(m) {
         return m.itemNum === num && (!vari || m.variation === vari);
       }) : -1;
-      completeQuickEntry(num, vari, globalIdx, pdRow);
-    }; })(pd.itemNum, variation, pd.row);
+      completeQuickEntry(num, vari, globalIdx, pdInvId);
+    }; })(pd.itemNum, variation, pd.inventoryId || '');
 
     var icon = document.createElement('div');
     icon.style.cssText = 'background:rgba(39,174,96,0.12);border-radius:8px;padding:0.5rem;flex-shrink:0';
@@ -2061,13 +2067,13 @@ function buildQuickEntryList() {
     var addInfoBtn = document.createElement('button');
     addInfoBtn.textContent = 'Add Info';
     addInfoBtn.style.cssText = 'font-size:0.78rem;color:#fff;font-weight:600;background:#27ae60;border:none;padding:0.3rem 0.7rem;border-radius:6px;cursor:pointer;white-space:nowrap';
-    addInfoBtn.onclick = (function(num, vari, pdRow) { return function(e) {
+    addInfoBtn.onclick = (function(num, vari, pdInvId) { return function(e) {
       e.stopPropagation();
       var globalIdx = state.masterData ? state.masterData.findIndex(function(m) {
         return m.itemNum === num && (!vari || m.variation === vari);
       }) : -1;
-      completeQuickEntry(num, vari, globalIdx, pdRow);
-    }; })(pd.itemNum, variation, pd.row);
+      completeQuickEntry(num, vari, globalIdx, pdInvId);
+    }; })(pd.itemNum, variation, pd.inventoryId || '');
     right.appendChild(addInfoBtn);
 
     row.appendChild(icon);
@@ -2619,13 +2625,7 @@ function _showSpecialOwnedMenu(idx, item, ownedItems) {
 }
 
 function collectionActionForSale(globalIdx, itemNum, variation, pdRow) {
-  var pdKey;
-  if (pdRow) {
-    pdKey = `${itemNum}|${variation||''}|${pdRow}`;
-    if (!state.personalData[pdKey]) pdKey = findPDKey(itemNum, variation);
-  } else {
-    pdKey = findPDKey(itemNum, variation);
-  }
+  var pdKey = pdRow ? findPDKeyByRow(itemNum, variation, pdRow) : findPDKey(itemNum, variation);
   if (!pdKey) { showToast('Item not found in collection', 3000, true); return; }
   _checkGroupBeforeForSale(globalIdx, pdKey);
 }
@@ -2811,13 +2811,7 @@ function _checkGroupBeforeForSale(globalIdx, pdKey) {
 }
 
 function collectionActionSold(globalIdx, itemNum, variation, pdRow) {
-  var pdKey;
-  if (pdRow) {
-    pdKey = `${itemNum}|${variation||''}|${pdRow}`;
-    if (!state.personalData[pdKey]) pdKey = findPDKey(itemNum, variation);
-  } else {
-    pdKey = findPDKey(itemNum, variation);
-  }
+  var pdKey = pdRow ? findPDKeyByRow(itemNum, variation, pdRow) : findPDKey(itemNum, variation);
   if (!pdKey) { showToast('Item not found in collection', 3000, true); return; }
   _checkSetBeforeAction(pdKey, () => sellFromCollection(globalIdx, pdKey));
 }
@@ -3017,9 +3011,8 @@ function _checkSetBeforeAction(pdKey, proceed) {
 
 async function removeCollectionItem(itemNum, variation, row) {
   // Check if this item is part of a group with other members
-  // Use exact key with row number if available
-  var pdKey = row ? `${itemNum}|${variation||''}|${row}` : null;
-  if (!pdKey || !state.personalData[pdKey]) pdKey = findPDKey(itemNum, variation);
+  // Use row to disambiguate if multiple copies exist
+  var pdKey = findPDKeyByRow(itemNum, variation, row);
   var thisPd = pdKey ? state.personalData[pdKey] : null;
   var groupId = thisPd && thisPd.groupId;
   var groupSiblings = groupId
@@ -3063,7 +3056,7 @@ async function removeCollectionItem(itemNum, variation, row) {
       var sortedSibs = groupSiblings.slice().sort(function(a, b) { return (b.row || 0) - (a.row || 0); });
       var fsRowsToDelete = [];
       for (var sib of sortedSibs) {
-        var sibKey = findPDKey(sib.itemNum, sib.variation);
+        var sibKey = sib.inventoryId || findPDKeyByRow(sib.itemNum, sib.variation, sib.row);
         if (sib.row && sib.row !== 99999) {
           try {
             await sheetsDeleteRow(state.personalSheetId, 'My Collection', sib.row);
@@ -3097,9 +3090,10 @@ async function removeCollectionItem(itemNum, variation, row) {
   }
 
   // ── Remove single item ──
-  if (row && row !== 99999) {
+  var _delRow = thisPd ? thisPd.row : row;
+  if (_delRow && _delRow !== 99999) {
     try {
-      await sheetsDeleteRow(state.personalSheetId, 'My Collection', row);
+      await sheetsDeleteRow(state.personalSheetId, 'My Collection', _delRow);
     } catch(e) { console.error('Remove row error:', e); showToast('Error removing item — please try again', 3000, true); return; }
   }
   // Also remove from For Sale if listed
@@ -4215,9 +4209,8 @@ function openItem(idx) {
   _buildItemModal();
   const item = state.masterData[idx];
   state.currentItem = { item, idx };
-  // Find by prefix since key now includes row number
-  const keyPrefix = `${item.itemNum}|${item.variation}|`;
-  const pdKey = Object.keys(state.personalData).find(k => k.startsWith(keyPrefix));
+  // Find personal data by value scan (key-format-agnostic)
+  const pdKey = findPDKey(item.itemNum, item.variation);
   const pd = pdKey ? state.personalData[pdKey] : {};
 
   const _errPd = findPD(item.itemNum, item.variation);
@@ -5639,10 +5632,10 @@ async function markForSaleAsSold(itemNum, variation, askingPrice) {
     await sheetsUpdate(state.personalSheetId, `For Sale!A${fs.row}:I${fs.row}`, [['','','','','','','','','']]);
   }
 
-  // Remove from My Collection — match by inventoryId if available, else exact key
+  // Remove from My Collection — match by inventoryId (which is now the state key)
   let collKey = null;
-  if (fs.inventoryId) {
-    collKey = Object.keys(state.personalData).find(k => state.personalData[k].inventoryId === fs.inventoryId);
+  if (fs.inventoryId && state.personalData[fs.inventoryId]) {
+    collKey = fs.inventoryId;
   }
   if (!collKey) {
     collKey = findPDKey(itemNum, variation);
