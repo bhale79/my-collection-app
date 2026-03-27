@@ -4943,23 +4943,39 @@ function wizardPickIS(idx) {
   } catch(e) { console.warn('wizardPickIS:', e); }
 }
 
-// Find personalData entry by itemNum|variation prefix (key includes row number)
+// ── Personal Data Lookup Index ──
+// Maps "itemNum|variation" → state key for O(1) lookups.
+// Rebuilt automatically when personalData changes.
+let _pdIndex = {};
+let _pdIndexVer = 0;
+function _rebuildPdIndex() {
+  const idx = {};
+  Object.keys(state.personalData).forEach(k => {
+    const pd = state.personalData[k];
+    const lookupKey = pd.itemNum + '|' + (pd.variation || '');
+    // If multiple copies, first one wins (findPD returns first match)
+    if (!idx[lookupKey]) idx[lookupKey] = k;
+  });
+  _pdIndex = idx;
+  _pdIndexVer = Object.keys(state.personalData).length;
+}
+function _getPdIndex() {
+  // Auto-rebuild if personalData size changed (items added/removed)
+  if (Object.keys(state.personalData).length !== _pdIndexVer) _rebuildPdIndex();
+  return _pdIndex;
+}
+
 function findPD(itemNum, variation) {
-  // Scan personalData by itemNum + variation values (key-format-agnostic)
   const norm = (variation || '');
-  let match = Object.values(state.personalData).find(pd =>
-    pd.itemNum === itemNum && (pd.variation || '') === norm
-  );
-  if (match) return match;
+  const idx = _getPdIndex();
+  const key = idx[itemNum + '|' + norm];
+  if (key && state.personalData[key]) return state.personalData[key];
   // Fallback: try with -P and -D suffixes (AA/AB units stored as 210-P, 210-D)
-  match = Object.values(state.personalData).find(pd =>
-    pd.itemNum === (itemNum + '-P') && (pd.variation || '') === norm
-  );
-  if (match) return match;
-  match = Object.values(state.personalData).find(pd =>
-    pd.itemNum === (itemNum + '-D') && (pd.variation || '') === norm
-  );
-  return match || null;
+  const keyP = idx[(itemNum + '-P') + '|' + norm];
+  if (keyP && state.personalData[keyP]) return state.personalData[keyP];
+  const keyD = idx[(itemNum + '-D') + '|' + norm];
+  if (keyD && state.personalData[keyD]) return state.personalData[keyD];
+  return null;
 }
 // Find a collection item by item number (for IS grouping logic)
 function _findCollectionItemByNum(itemNum) {
@@ -4971,24 +4987,16 @@ function _findCollectionItemByNum(itemNum) {
 }
 
 function findPDKey(itemNum, variation) {
-  // Scan personalData by itemNum + variation values, return the state key (inventoryId)
   const norm = (variation || '');
-  let k = Object.keys(state.personalData).find(k => {
-    const pd = state.personalData[k];
-    return pd.itemNum === itemNum && (pd.variation || '') === norm;
-  });
-  if (k) return k;
+  const idx = _getPdIndex();
+  const key = idx[itemNum + '|' + norm];
+  if (key && state.personalData[key]) return key;
   // Fallback: try with -P and -D suffixes
-  k = Object.keys(state.personalData).find(k => {
-    const pd = state.personalData[k];
-    return pd.itemNum === (itemNum + '-P') && (pd.variation || '') === norm;
-  });
-  if (k) return k;
-  k = Object.keys(state.personalData).find(k => {
-    const pd = state.personalData[k];
-    return pd.itemNum === (itemNum + '-D') && (pd.variation || '') === norm;
-  });
-  return k || null;
+  const keyP = idx[(itemNum + '-P') + '|' + norm];
+  if (keyP && state.personalData[keyP]) return keyP;
+  const keyD = idx[(itemNum + '-D') + '|' + norm];
+  if (keyD && state.personalData[keyD]) return keyD;
+  return null;
 }
 
 // Find personalData key by row number — used to disambiguate multiple copies
