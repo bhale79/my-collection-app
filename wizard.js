@@ -3925,30 +3925,46 @@ function renderWizardStep() {
     const _ingVal = wizard.data.itemNum || '';
     const _ingGrouping = wizard.data._itemGrouping || '';
     const _ingBoxOnly = wizard.data.boxOnly || false;
+    const _ingPreFilled = !!wizard.matchedItem && !!_ingVal;
     
     const _ingWrap = document.createElement('div');
     _ingWrap.style.cssText = 'padding-top:0.5rem';
     
-    // Item number input row
-    const _ingInputRow = document.createElement('div');
-    _ingInputRow.style.cssText = 'display:flex;gap:0.5rem;align-items:flex-start';
-    _ingInputRow.innerHTML = `
-      <div style="flex:1">
-        <input type="text" id="wiz-input" value="${_ingVal}" placeholder="e.g. 726, 2046, 6464-1"
-          autocomplete="off"
-          style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
-          padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none;box-sizing:border-box"
-          oninput="wizard.data.itemNum=this.value; updateItemSuggestions(this.value); _updateGroupingButtons();"
-          onkeydown="handleSuggestionKey(event)">
-        <div id="wiz-suggestions" style="display:none;flex-direction:column;gap:1px;margin-top:4px;max-height:340px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;-webkit-overflow-scrolling:touch"></div>
-      </div>`;
-    _ingWrap.appendChild(_ingInputRow);
-    
-    // Match display
-    const _ingMatchDiv = document.createElement('div');
-    _ingMatchDiv.id = 'wiz-match';
-    _ingMatchDiv.style.cssText = 'margin-top:0.5rem';
-    _ingWrap.appendChild(_ingMatchDiv);
+    if (_ingPreFilled) {
+      // Item already known from Browse — show compact header + grouping buttons only
+      const _mi = wizard.matchedItem;
+      const _hdr = document.createElement('div');
+      _hdr.style.cssText = 'background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:0.85rem 1rem;margin-bottom:0.75rem';
+      _hdr.innerHTML = '<div style="font-family:var(--font-head);font-size:1.2rem;color:var(--accent);letter-spacing:0.03em;font-weight:700">No. ' + _ingVal + '</div>'
+        + '<div style="font-size:0.82rem;color:var(--text-mid);margin-top:0.15rem">' + (_mi.roadName || _mi.itemType || '') + ((_mi.roadName || _mi.itemType) && _mi.description ? ' — ' : '') + (_mi.description || '') + '</div>';
+      _ingWrap.appendChild(_hdr);
+      
+      const _prompt = document.createElement('div');
+      _prompt.style.cssText = 'font-size:0.85rem;color:var(--text);font-weight:600;margin-bottom:0.5rem';
+      _prompt.textContent = 'How are you adding this item?';
+      _ingWrap.appendChild(_prompt);
+    } else {
+      // Normal entry — show item number input
+      const _ingInputRow = document.createElement('div');
+      _ingInputRow.style.cssText = 'display:flex;gap:0.5rem;align-items:flex-start';
+      _ingInputRow.innerHTML = `
+        <div style="flex:1">
+          <input type="text" id="wiz-input" value="${_ingVal}" placeholder="e.g. 726, 2046, 6464-1"
+            autocomplete="off"
+            style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
+            padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none;box-sizing:border-box"
+            oninput="wizard.data.itemNum=this.value; updateItemSuggestions(this.value); _updateGroupingButtons();"
+            onkeydown="handleSuggestionKey(event)">
+          <div id="wiz-suggestions" style="display:none;flex-direction:column;gap:1px;margin-top:4px;max-height:340px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;-webkit-overflow-scrolling:touch"></div>
+        </div>`;
+      _ingWrap.appendChild(_ingInputRow);
+      
+      // Match display
+      const _ingMatchDiv = document.createElement('div');
+      _ingMatchDiv.id = 'wiz-match';
+      _ingMatchDiv.style.cssText = 'margin-top:0.5rem';
+      _ingWrap.appendChild(_ingMatchDiv);
+    }
     
     // Grouping buttons container (populated dynamically)
     const _ingGroupDiv = document.createElement('div');
@@ -3956,22 +3972,30 @@ function renderWizardStep() {
     _ingGroupDiv.style.cssText = 'margin-top:0.75rem;display:none';
     _ingWrap.appendChild(_ingGroupDiv);
     
-    // Identify by photo button
-    const _ingPhotoBtn = document.createElement('button');
-    _ingPhotoBtn.onclick = function() { openIdentify('wizard'); };
-    _ingPhotoBtn.style.cssText = 'width:100%;margin-top:0.6rem;padding:0.65rem 1rem;border-radius:8px;border:1.5px dashed var(--gold);background:rgba(212,168,67,0.07);color:var(--gold);font-family:var(--font-head);font-size:0.78rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;transition:all 0.15s';
-    _ingPhotoBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Don\x27t know the number? Identify by photo';
-    _ingWrap.appendChild(_ingPhotoBtn);
+    // Identify by photo button (only when entering manually)
+    if (!_ingPreFilled) {
+      const _ingPhotoBtn = document.createElement('button');
+      _ingPhotoBtn.onclick = function() { openIdentify('wizard'); };
+      _ingPhotoBtn.style.cssText = 'width:100%;margin-top:0.6rem;padding:0.65rem 1rem;border-radius:8px;border:1.5px dashed var(--gold);background:rgba(212,168,67,0.07);color:var(--gold);font-family:var(--font-head);font-size:0.78rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;transition:all 0.15s';
+      _ingPhotoBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Don\x27t know the number? Identify by photo';
+      _ingWrap.appendChild(_ingPhotoBtn);
+    }
     
     body.innerHTML = '';
     body.appendChild(_ingWrap);
     
     setTimeout(function() {
-      var inp = document.getElementById('wiz-input');
-      if (inp) {
-        inp.focus();
-        inp.addEventListener('input', debounceItemLookup);
-        if (inp.value) { updateItemSuggestions(inp.value); }
+      if (!_ingPreFilled) {
+        var inp = document.getElementById('wiz-input');
+        if (inp) {
+          inp.focus();
+          inp.addEventListener('input', debounceItemLookup);
+          if (inp.value) { updateItemSuggestions(inp.value); }
+        }
+      } else {
+        // Override title for pre-filled items
+        var _tEl = document.getElementById('wizard-title');
+        if (_tEl) _tEl.textContent = 'Add to Collection';
       }
       _updateGroupingButtons();
     }, 50);
