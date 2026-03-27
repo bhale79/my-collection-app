@@ -1168,8 +1168,15 @@ function renderWizardStep() {
   }
 
   const s = steps[step];
-  const total = steps.filter(st => !st.skipIf || !st.skipIf(wizard.data)).length;
-  const current = steps.slice(0, step).filter(st => !st.skipIf || !st.skipIf(wizard.data)).length + 1;
+  // Count only visible steps — skip both skipIf and set-mode fast-forwarded steps
+  const _setSkipIds = wizard.data._setMode ? new Set(['itemCategory', 'itemNumGrouping', 'itemPicker', 'entryMode']) : null;
+  const _isVisible = (st) => {
+    if (st.skipIf && st.skipIf(wizard.data)) return false;
+    if (_setSkipIds && _setSkipIds.has(st.id)) return false;
+    return true;
+  };
+  const total = steps.filter(_isVisible).length;
+  const current = steps.slice(0, step).filter(_isVisible).length + 1;
   const pct = Math.round((current / total) * 100);
 
   // Declare nextBtn first — used in theme block below
@@ -5724,23 +5731,33 @@ function lookupItem(num) {
 }
 
 function wizardBack() {
-  if (wizard.step > 0) {
-    wizard.step--;
-    // Skip back over skipIf steps
-    while (wizard.step > 0 && wizard.steps[wizard.step].skipIf && wizard.steps[wizard.step].skipIf(wizard.data)) {
-      wizard.step--;
-    }
-    // In set mode, the first visible step is 'variation' — don't go further back
-    // into steps that were fast-forwarded (itemCategory, itemNumGrouping, etc.)
-    if (wizard.data._setMode) {
-      const _setFwdSkip = new Set(['itemCategory', 'itemNumGrouping', 'itemPicker', 'entryMode']);
-      while (wizard.step > 0 && _setFwdSkip.has(wizard.steps[wizard.step].id)) {
-        wizard.step++;
-        break;
-      }
-    }
-    renderWizardStep();
+  if (wizard.step <= 0) return;
+  const _setFwdSkip = wizard.data._setMode
+    ? new Set(['itemCategory', 'itemNumGrouping', 'itemPicker', 'entryMode'])
+    : null;
+
+  // Walk backwards to find the previous visible step
+  let target = wizard.step - 1;
+  while (target >= 0) {
+    const st = wizard.steps[target];
+    const isSkipped = (st.skipIf && st.skipIf(wizard.data));
+    const isSetBlocked = (_setFwdSkip && _setFwdSkip.has(st.id));
+    if (!isSkipped && !isSetBlocked) break;
+    target--;
   }
+  // If we ran past the beginning, stay on the first non-skipped step going forward
+  if (target < 0) {
+    target = 0;
+    while (target < wizard.steps.length) {
+      const st = wizard.steps[target];
+      const isSkipped = (st.skipIf && st.skipIf(wizard.data));
+      const isSetBlocked = (_setFwdSkip && _setFwdSkip.has(st.id));
+      if (!isSkipped && !isSetBlocked) break;
+      target++;
+    }
+  }
+  wizard.step = target;
+  renderWizardStep();
 }
 
 function wizardNextWithYearCheck() {
@@ -6919,9 +6936,7 @@ async function saveWizardItem() {
   if (d._saveComplete) { console.warn('[Save] Blocked — save already completed this wizard session'); return; }
   // Guard: prevent double-save if QE path already fired
   if (d._qeSaving) { console.warn('[Save] Blocked — QE save already in progress'); return; }
-  console.log('[Save] saveWizardItem fired. _wizSaveLock:', d._wizSaveLock, '_qeSaving:', d._qeSaving, 'setMatch:', d.setMatch, 'setType:', d.setType, 'tenderMatch:', d.tenderMatch, 'unitPower:', d.unitPower);
   const tab = wizard.tab;
-  console.log('[Save] Starting save. tab:', tab, '| accessToken:', accessToken ? 'present' : 'MISSING', '| sheetId:', state.personalSheetId || 'MISSING');
   // Apply powered/dummy suffix to A units (B units ending in C are never powered)
   const _rawItemNum = (d.itemNum || d.set_num || '').trim();
   const _pdSuffix = (raw, power) => {
@@ -7590,7 +7605,6 @@ async function quickEntryAdd() {
   if (d._saveComplete) { console.warn('[QE] Blocked — save already completed this wizard session'); return; }
   // Guard: prevent double-save if Full Entry path already fired
   if (d._wizSaveLock && !d._qeSaving) { console.warn('[QE] Blocked — save lock held by another path'); return; }
-  console.log('[QE] quickEntryAdd fired. _wizSaveLock:', d._wizSaveLock, '_qeSaving:', d._qeSaving, '_itemGrouping:', d._itemGrouping, '_qeSetType:', d._qeSetType, 'tenderMatch:', d.tenderMatch);
   const itemNum = (d.itemNum || '').trim();
   if (!itemNum) { showToast('Please enter an item number first'); return; }
   const variation = (d.variation || '').trim();
@@ -7674,7 +7688,6 @@ async function quickEntryAdd() {
       const isLead = r === rows[0];
       const invId = isLead ? _qeLeadInvId : nextInventoryId();
       const row = [r.itemNum, r.variation, r.condition||'','','','','','','',(isLead ? _qePhotoLink : ''),'', r.notes,'',(isLead ? _qeEstWorth : ''),r.matchedTo,r.setId,'','','','Yes', invId, r.groupId||'', '', '', ''];
-      console.log('[QE] Saving', r.itemNum);
       const actualRow = await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
       state.personalData[invId] = {
         row: actualRow, itemNum: r.itemNum, variation: r.variation,
