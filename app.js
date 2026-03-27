@@ -1309,7 +1309,7 @@ const MASTER_TABS = [
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '46';
+  const _CACHE_VER = '47';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
@@ -1795,7 +1795,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   (mySetsRes.values || []).forEach((r, idx) => {
     if (!r[0] || r[0] === 'Set Number') return;
     const rowNum = idx + 3;
-    const key = `${r[0]}|${r[2] || ''}`;  // setNum|year
+    const key = `${r[0]}|${r[2] || ''}|${rowNum}`;  // setNum|year|row
     newMySetsData[key] = {
       row: rowNum, setNum: r[0]||'', setName: r[1]||'', year: r[2]||'',
       condition: r[3]||'', estWorth: r[4]||'', datePurchased: r[5]||'',
