@@ -1815,7 +1815,6 @@ function renderWizardStep() {
     _qe1SaveBtn.textContent = '\u26a1 Save quick entry';
     _qe1SaveBtn.onclick = function() {
       // Disable immediately to block double-tap on mobile
-      console.log('[QE1] Save button clicked. _qeSaving:', wizard.data._qeSaving, '_wizSaveLock:', wizard.data._wizSaveLock);
       if (wizard.data._qeSaving || _qe1SaveBtn.disabled) return;
       _qe1SaveBtn.disabled = true;
       var wv = document.getElementById('qe1-worth');
@@ -1863,7 +1862,6 @@ function renderWizardStep() {
     _qe1FullBtn.textContent = 'Full entry \u2192';
     _qe1FullBtn.onclick = function() {
       // Guard: if QE save is already in progress, block Full Entry
-      console.log('[QE1] Full Entry button clicked. _wizSaveLock:', wizard.data._wizSaveLock, '_qeSaving:', wizard.data._qeSaving);
       if (wizard.data._wizSaveLock || wizard.data._qeSaving) return;
       wizard.data._wizSaveLock = true;
       _qe1FullBtn.disabled = true;
