@@ -1275,7 +1275,7 @@ const MASTER_TABS = [
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '35';
+  const _CACHE_VER = '36';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
@@ -2577,15 +2577,46 @@ function _checkGroupBeforeForSale(globalIdx, pdKey) {
   const allItems = [[pdKey, pd], ...siblings];
   const itemList = allItems.map(([, p]) => p.itemNum).join(', ');
 
+  // Build item list with pricing details
+  let _totalPaid = 0, _totalWorth = 0, _hasPaid = false, _hasWorth = false;
+  const _itemRows = allItems.map(([, p]) => {
+    const paid = parseFloat(p.itemBoxPrice) || parseFloat(p.itemOnlyPrice) || 0;
+    const worth = parseFloat(p.userEstWorth) || 0;
+    if (paid > 0) _hasPaid = true;
+    if (worth > 0) _hasWorth = true;
+    _totalPaid += paid;
+    _totalWorth += worth;
+    return { num: p.itemNum, paid, worth };
+  });
+  const _itemTableHtml = '<div style="margin:0.6rem 0 0.75rem;border:1px solid var(--border);border-radius:10px;overflow:hidden">'
+    + '<table style="width:100%;border-collapse:collapse;font-size:0.8rem">'
+    + '<tr style="background:var(--surface2)">'
+    + '<th style="text-align:left;padding:0.4rem 0.6rem;font-family:var(--font-head);font-size:0.62rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim)">Item</th>'
+    + (_hasPaid ? '<th style="text-align:right;padding:0.4rem 0.6rem;font-family:var(--font-head);font-size:0.62rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim)">Paid</th>' : '')
+    + (_hasWorth ? '<th style="text-align:right;padding:0.4rem 0.6rem;font-family:var(--font-head);font-size:0.62rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim)">Est. Worth</th>' : '')
+    + '</tr>'
+    + _itemRows.map(r => '<tr style="border-top:1px solid var(--border)">'
+      + '<td style="padding:0.4rem 0.6rem;font-family:var(--font-mono);font-weight:600;color:var(--accent)">' + r.num + '</td>'
+      + (_hasPaid ? '<td style="text-align:right;padding:0.4rem 0.6rem;color:var(--text-mid)">' + (r.paid > 0 ? '$' + r.paid.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2}) : '—') + '</td>' : '')
+      + (_hasWorth ? '<td style="text-align:right;padding:0.4rem 0.6rem;color:var(--gold)">' + (r.worth > 0 ? '$' + r.worth.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2}) : '—') + '</td>' : '')
+      + '</tr>').join('')
+    + ((_hasPaid || _hasWorth) ? '<tr style="border-top:2px solid var(--border);background:var(--surface2)">'
+      + '<td style="padding:0.4rem 0.6rem;font-weight:700;font-size:0.75rem;color:var(--text)">Total</td>'
+      + (_hasPaid ? '<td style="text-align:right;padding:0.4rem 0.6rem;font-weight:700;color:var(--text-mid)">$' + _totalPaid.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2}) + '</td>' : '')
+      + (_hasWorth ? '<td style="text-align:right;padding:0.4rem 0.6rem;font-weight:700;color:var(--gold)">$' + _totalWorth.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2}) + '</td>' : '')
+      + '</tr>' : '')
+    + '</table></div>';
+
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
   overlay.innerHTML = `
     <div style="background:var(--surface);border-radius:16px;padding:1.5rem;max-width:420px;width:100%;border:1px solid var(--border)">
       <div style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:0.4rem">This is a grouped item</div>
-      <div style="font-size:0.84rem;color:var(--text-mid);margin-bottom:0.5rem">
-        <strong style="color:var(--text)">${allItems.length} items</strong> in this group: <span style="font-family:var(--font-mono);color:var(--accent)">${itemList}</span>
+      <div style="font-size:0.84rem;color:var(--text-mid);margin-bottom:0.15rem">
+        <strong style="color:var(--text)">${allItems.length} items</strong> in this group:
       </div>
-      <div style="font-size:0.84rem;color:var(--text-mid);margin-bottom:1.25rem">
+      ${_itemTableHtml}
+      <div style="font-size:0.84rem;color:var(--text-mid);margin-bottom:1rem">
         Are you selling this as a set or individually?
       </div>
       <div id="_grpfs-set-section" style="display:flex;flex-direction:column;gap:0.5rem">
@@ -2601,6 +2632,7 @@ function _checkGroupBeforeForSale(globalIdx, pdKey) {
       </div>
       <div id="_grpfs-price-section" style="display:none;flex-direction:column;gap:0.6rem">
         <div style="font-size:0.84rem;color:var(--text-mid)">Enter the asking price for the entire set:</div>
+        ${(_hasPaid || _hasWorth) ? '<div style="display:flex;gap:1rem;font-size:0.78rem;color:var(--text-dim);margin-bottom:0.15rem">' + (_hasPaid ? '<span>Total Paid: <strong style="color:var(--text-mid)">$' + _totalPaid.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2}) + '</strong></span>' : '') + (_hasWorth ? '<span>Est. Worth: <strong style="color:var(--gold)">$' + _totalWorth.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2}) + '</strong></span>' : '') + '</div>' : ''}
         <div style="display:flex;align-items:center;gap:0.5rem">
           <span style="font-size:1.1rem;color:var(--text-dim)">$</span>
           <input id="_grpfs-price-input" type="number" min="0" step="0.01" placeholder="0.00" style="flex:1;padding:0.6rem 0.8rem;border-radius:8px;border:1.5px solid var(--accent2);background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:1rem;outline:none">
