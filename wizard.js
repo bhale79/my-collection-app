@@ -4612,8 +4612,11 @@ function renderWizardStep() {
       entryMode:'Entry Mode', boxOnly:'Box Only',
       priority:'Priority', expectedPrice:'Expected Price',
       salePrice:'Sale Price', dateSold:'Date Sold',
+      set_num:'Set Number',
     };
-    const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','wantErrorPhotos','photosMasterBox','boxOnly','entryMode','_setId','_rawItemNum','matchedItem','_partialMatches','_partialQuery','_itemGrouping','_fromWantList','_fromWantKey','_returnPage','_manualEntry','_drivePhotos','_setMode','_setGroupId','_setFinalItems','_setItemIndex','_setItemsSaved','_setEntryMode','_resolvedSet','_setLocoNum','_setPrice','_setDate','_setWorth','_setCondition','_setHasBoxChecked','_setWantPhotos','_setPhotoThenSave','_prefilledCondition','_setQEPhotos','set_hasBox','set_boxCond','set_boxPhotos','set_notes']);
+    const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','wantErrorPhotos','photosMasterBox','boxOnly','entryMode','_setId','_rawItemNum','matchedItem','_partialMatches','_partialQuery','_itemGrouping','_fromWantList','_fromWantKey','_returnPage','_manualEntry','_drivePhotos','_setMode','_setGroupId','_setFinalItems','_setItemIndex','_setItemsSaved','_setEntryMode','_resolvedSet','_setLocoNum','_setPrice','_setDate','_setWorth','_setCondition','_setHasBoxChecked','_setWantPhotos','_setPhotoThenSave','_prefilledCondition','_setQEPhotos','set_hasBox','set_boxCond','set_boxPhotos','set_notes','_suggestions_cache','_completingQuickEntry','_existingGroupId','_fillItemMode','_wizSaveLock','_qeSaving','_photoInventoryId']);
+    // Skip set_num from summary if it's already shown in the header
+    if (_resolvedSet || wizard.data.set_num) _skipKeys.add('set_num');
     // In set mode, hide tender/unit/masterBox/error fields from confirm (each set item is standalone)
     if (wizard.data._setMode) {
       ['tenderAllOriginal','tenderHasBox','tenderCondition','tenderBoxCond','tenderIsError','tenderErrorDesc','tenderNotOriginalDesc',
@@ -4704,15 +4707,22 @@ function renderWizardStep() {
     window._cfDate = _dateKeys;
 
     let confirmHtml = '<div style="padding-top:0.5rem">';
-    if (!_isEph && item) {
+    const _resolvedSet = wizard.data._resolvedSet;
+    if (!_isEph && _resolvedSet) {
+      // Set with resolved details
+      confirmHtml += '<div style="background:var(--surface2);border-radius:8px;padding:0.85rem;margin-bottom:1rem">'
+        + '<div style="font-family:var(--font-mono);color:var(--accent2);font-size:0.8rem">Set ' + _resolvedSet.setNum + '</div>'
+        + '<div style="font-weight:600;margin-top:0.2rem">' + (_resolvedSet.setName || '') + '</div>'
+        + (_resolvedSet.year ? '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.1rem">' + _resolvedSet.year + '</div>' : '') + '</div>';
+    } else if (!_isEph && item) {
       confirmHtml += '<div style="background:var(--surface2);border-radius:8px;padding:0.85rem;margin-bottom:1rem">'
         + '<div style="font-family:var(--font-mono);color:var(--accent2);font-size:0.8rem">No. ' + item.itemNum + (item.variation ? ' — Var ' + item.variation : '') + '</div>'
         + '<div style="font-weight:600;margin-top:0.2rem">' + (item.roadName || item.itemType || '') + '</div>'
         + '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.1rem">' + (item.yearProd || '') + ' · ' + (item.itemType || '') + '</div></div>';
     } else if (!_isEph) {
       confirmHtml += '<div style="background:var(--surface2);border-radius:8px;padding:0.85rem;margin-bottom:1rem">'
-        + '<div style="font-family:var(--font-mono);color:var(--accent2)">Item ' + (wizard.data.itemNum || '?') + (wizard.data.variation ? ' Var ' + wizard.data.variation : '') + '</div>'
-        + '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.2rem">Not found in master inventory — will save with entered data</div></div>';
+        + '<div style="font-family:var(--font-mono);color:var(--accent2)">' + (wizard.data.itemCategory === 'set' ? 'Set ' : 'Item ') + (wizard.data.itemNum || wizard.data.set_num || '?') + (wizard.data.variation ? ' Var ' + wizard.data.variation : '') + '</div>'
+        + '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.2rem">' + (wizard.data.itemCategory === 'set' ? 'Will be added to your Want List' : 'Not found in master inventory — will save with entered data') + '</div></div>';
     }
     confirmHtml += '<div style="display:flex;flex-direction:column;gap:0.3rem;font-size:0.83rem">';
     _summaryEntries.forEach(function(entry) {
