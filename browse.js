@@ -415,11 +415,11 @@ function renderMockupsOtherTab() {
 
 // ── Generic renderer for master data sub-tabs (Science, Construction, Paper, Other, Service Tools) ──
 const _MASTER_TAB_MAP = {
-  science: 'Lionel Postwar - Science',
-  construction: 'Lionel Postwar - Construction',
-  paper: 'Lionel Postwar - Paper',
-  other: 'Lionel Postwar - Other',
-  service: 'Lionel Postwar - Service Tools',
+  science: SHEET_TABS.science,
+  construction: SHEET_TABS.construction,
+  paper: SHEET_TABS.paper,
+  other: SHEET_TABS.other,
+  service: SHEET_TABS.serviceTools,
 };
 
 function renderMasterSubTab(tabKey) {
@@ -532,7 +532,7 @@ function renderBrowse() {
       };
     });
   const baseList = owned ? [...state.masterData, ...personalOnlyItems]
-    : state.masterData.filter(function(m) { return m._tab === 'Lionel Postwar - Items' || !m._tab; });
+    : state.masterData.filter(function(m) { return m._tab === SHEET_TABS.items || !m._tab; });
 
   state.filteredData = baseList.filter(item => {
     const _dispNum = _displayItemNum(item);
