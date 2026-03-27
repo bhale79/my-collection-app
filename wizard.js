@@ -4102,7 +4102,7 @@ function renderWizardStep() {
     const _cdMasterTab = (_cdMaster && _cdMaster._tab) ? _cdMaster._tab : '';
     const _cdIsSimplified = ['Science Set','Construction Set'].includes(_cdItemType);
     const _cdIsPaperLike = ['Catalog','Instruction Sheet'].includes(_cdItemType)
-      || ['Lionel Postwar - Paper','Lionel Postwar - Other','Lionel Postwar - Service Tools'].includes(_cdMasterTab)
+      || [SHEET_TABS.paper, SHEET_TABS.other, SHEET_TABS.serviceTools].includes(_cdMasterTab)
       || _cdItemType.toLowerCase().includes('paper') || _cdItemType.toLowerCase().includes('catalog');
     const _cdHideToggles = _cdIsSimplified || _cdIsPaperLike;
 
@@ -4673,7 +4673,7 @@ function renderWizardStep() {
     if (!_isEph && wizard.tab === 'collection' && wizard.matchedItem) {
       const _miTab = wizard.matchedItem._tab || '';
       const _miType = wizard.matchedItem.itemType || '';
-      const _miIsPaperLike = ['Lionel Postwar - Paper','Lionel Postwar - Other','Lionel Postwar - Service Tools'].includes(_miTab)
+      const _miIsPaperLike = [SHEET_TABS.paper, SHEET_TABS.other, SHEET_TABS.serviceTools].includes(_miTab)
         || ['Catalog','Instruction Sheet'].includes(_miType) || _miType.toLowerCase().includes('paper');
       const _miIsSimplified = ['Science Set','Construction Set'].includes(_miType);
       if (_miIsPaperLike || _miIsSimplified) {
@@ -6031,13 +6031,13 @@ async function _wizardNextCore() {
     const _scMaster = wizard.matchedItem || {};
     const _scType = _scMaster.itemType || '';
     const _scTab = _scMaster._tab || '';
-    if (_scType === 'Science Set' || _scTab === 'Lionel Postwar - Science') {
+    if (_scType === 'Science Set' || _scTab === SHEET_TABS.science) {
       if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
       try { await _saveScienceConstructionItem('Science Sets', 'scienceData'); } catch(e) { showToast('Error: '+e.message); }
       if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Save →'; }
       return;
     }
-    if (_scType === 'Construction Set' || _scTab === 'Lionel Postwar - Construction') {
+    if (_scType === 'Construction Set' || _scTab === SHEET_TABS.construction) {
       if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
       try { await _saveScienceConstructionItem('Construction Sets', 'constructionData'); } catch(e) { showToast('Error: '+e.message); }
       if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Save →'; }
