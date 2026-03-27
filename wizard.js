@@ -1190,6 +1190,19 @@ function renderWizardStep() {
     else if (wizard.tab === 'want')   wizModal.classList.add('wiz-want');
     else if (wizard.tab === 'forsale') wizModal.classList.add('wiz-forsale');
     else if (wizard.tab === 'sold')   wizModal.classList.add('wiz-sold');
+
+    // Dynamic width: widen for multi-column conditionDetails, reset otherwise
+    const _grp = wizard.data._itemGrouping || '';
+    const _isMultiCol = s.type === 'conditionDetails' && ['engine_tender','aa','ab','aba'].includes(_grp);
+    if (_isMultiCol) {
+      const _numCols = _grp === 'aba' ? 3 : 2;
+      const _wideW = Math.min(window.innerWidth - 32, 280 * _numCols + 40);
+      wizModal.style.maxWidth = _wideW + 'px';
+      wizModal.style.height = 'min(90vh, 720px)';
+    } else {
+      wizModal.style.maxWidth = '520px';
+      wizModal.style.height = '580px';
+    }
   }
   const progBar = document.getElementById('wizard-progress');
   if (progBar) {
@@ -1867,6 +1880,15 @@ function renderWizardStep() {
       _qe1FullBtn.disabled = true;
       _qe1SaveBtn.disabled = true;
       _qe1SaveBtn.style.opacity = '0.5';
+      // Carry forward condition values from QE1 sliders to regular keys
+      var _sl = document.getElementById('qe1-slider-lead');
+      if (_sl) wizard.data.condition = parseInt(_sl.value) || 7;
+      var _ts = document.getElementById('qe1-slider-tender');
+      if (_ts) wizard.data.tenderCondition = parseInt(_ts.value) || 7;
+      var _u2 = document.getElementById('qe1-slider-u2');
+      if (_u2) wizard.data.unit2Condition = parseInt(_u2.value) || 7;
+      var _u3 = document.getElementById('qe1-slider-u3');
+      if (_u3) wizard.data.unit3Condition = parseInt(_u3.value) || 7;
       wizard.data.entryMode = 'full';
       renderWizardStep();
       setTimeout(function() { wizardNext(); }, 120);
@@ -4206,14 +4228,19 @@ function renderWizardStep() {
       let html = '<div class="cd-col" style="flex:1;min-width:' + (_isMobile ? '100%' : '200px') + ';background:var(--surface2);border-radius:10px;padding:0.85rem;border:1px solid var(--border)">';
       html += '<div style="font-weight:700;font-size:0.85rem;color:var(--accent2);margin-bottom:0.75rem;padding-bottom:0.5rem;border-bottom:1px solid var(--border)">' + col.label + (col.sublabel ? ' <span style=\"font-weight:400;color:var(--text-dim);font-size:0.78rem\">(' + col.sublabel + ')</span>' : '') + '</div>';
       
-      // Condition slider — always shown (set mode pre-fills from set-level condition)
-      {
+      // Condition slider — skip if already set on QE1/entryMode step
+      if (!wizard.data[condKey]) {
         html += '<div style="margin-bottom:0.65rem"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">'
           + '<span style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em">Condition</span>'
           + '<span id="cd-cond-val-' + col.id + '" style="font-family:var(--font-mono);font-size:1.1rem;color:var(--accent);font-weight:700">' + condVal + '</span></div>'
           + '<input type="range" min="1" max="10" value="' + condVal + '" style="width:100%;accent-color:var(--accent)"'
           + ' oninput="wizard.data[\'' + condKey + '\']=parseInt(this.value);document.getElementById(\'cd-cond-val-' + col.id + '\').textContent=this.value">'
           + '<div style="display:flex;justify-content:space-between;font-size:0.6rem;color:var(--text-dim)"><span>Poor</span><span>Excellent</span></div></div>';
+      } else {
+        // Show condition as a compact read-only badge
+        html += '<div style="margin-bottom:0.65rem;display:flex;align-items:center;gap:0.5rem">'
+          + '<span style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em">Condition:</span>'
+          + '<span style="font-family:var(--font-mono);font-size:1.05rem;color:var(--accent);font-weight:700">' + condVal + '/10</span></div>';
       }
 
       // All Original
@@ -4316,7 +4343,7 @@ function renderWizardStep() {
     
     // Build the multi-column layout
     const _cdWrap = document.createElement('div');
-    _cdWrap.style.cssText = 'padding-top:0.25rem;max-height:65vh;overflow-y:auto;-webkit-overflow-scrolling:touch';
+    _cdWrap.style.cssText = 'padding-top:0.25rem';
     
     let _cdHtml = '<div style="display:flex;gap:0.5rem;' + (_isMobile ? 'flex-direction:column' : '') + '">';
     _cdCols.forEach(function(col) {
