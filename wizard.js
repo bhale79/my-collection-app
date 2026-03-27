@@ -6232,8 +6232,9 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
   // Quick Entry always closes — no follow-up questions
   localStorage.removeItem('lv_personal_cache');
   localStorage.removeItem('lv_personal_cache_ts');
+  d._saveComplete = true;
   showToast('\u2713 ' + setNum + ' saved \u2014 ' + savedItems.length + ' item' + (savedItems.length !== 1 ? 's' : '') + ' in your collection!');
-  closeWizard();
+  _doCloseWizard();
   buildDashboard();
   renderBrowse();
 }
@@ -6372,8 +6373,9 @@ async function saveSet() {
 
   localStorage.removeItem('lv_personal_cache');
   localStorage.removeItem('lv_personal_cache_ts');
+  wizard.data._saveComplete = true;
   showToast('\u2713 ' + (setNum || 'Set') + ' complete \u2014 ' + saved.length + ' item' + (saved.length !== 1 ? 's' : '') + ' in your collection!');
-  closeWizard();
+  _doCloseWizard();
   buildDashboard();
   renderBrowse();
 }
