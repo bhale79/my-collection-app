@@ -6248,7 +6248,7 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
       nextInventoryId(),                   // N: Inventory ID
     ];
     await sheetsAppend(state.personalSheetId, 'My Sets!A:A', [mySetsRow]);
-    const msKey = `${setNum}|${year}`;
+    const msKey = `${setNum}|${year}|temp_${Date.now()}`;
     state.mySetsData[msKey] = {
       row: 99999, setNum, setName: resolvedSet ? (resolvedSet.setName || '') : '',
       year, condition: String(condition), estWorth: worth, datePurchased: '',
@@ -6421,7 +6421,7 @@ async function saveSet() {
       nextInventoryId(),                   // N: Inventory ID
     ];
     await sheetsAppend(state.personalSheetId, 'My Sets!A:A', [mySetsRow]);
-    const msKey = `${setNum}|${year}`;
+    const msKey = `${setNum}|${year}|temp_${Date.now()}`;
     state.mySetsData[msKey] = {
       row: 99999, setNum, setName: _resolvedSet ? (_resolvedSet.setName || '') : '',
       year, condition: mySetsRow[3], estWorth: d._setWorth || '', datePurchased: '',
