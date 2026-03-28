@@ -2662,8 +2662,7 @@ function renderWizardStep() {
       + '</div>';
     setTimeout(function() { var i = document.getElementById('pe-val'); if(i) i.focus(); }, 50);
 
-
-    } else if (s.type === 'pricePaid') {
+  } else if (s.type === 'pricePaid') {
     const itemVal = wizard.data.priceItem || '';
     body.innerHTML = `
       <div style="padding-top:0.75rem">
