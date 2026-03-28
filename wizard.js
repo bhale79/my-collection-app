@@ -18,7 +18,6 @@ function getSteps(tab) {
     ...(state.userDefinedTabs||[]).map(t => t.id)];
   if (tab && _allEphTabs.includes(tab)) {
     const isMockup  = tab === 'mockups';
-    const isCatalog = tab === 'catalogs';
     const _userTabDef = (state.userDefinedTabs||[]).find(t => t.id === tab);
 
     // ── Instruction Sheet flow ──
@@ -223,23 +222,7 @@ function getSteps(tab) {
     }
 
 
-    if (isCatalog) {
-      return [
-        { id: 'cat_type',        title: 'What type of catalog is this?',          type: 'choice3',
-          choices: ['Consumer','Dealer','Advance','Other'] },
-        { id: 'cat_year',        title: 'What year is the catalog?',              type: 'postwarYear' },
-        { id: 'cat_hasMailer',   title: 'Does it have the envelope or mailer?',   type: 'choice2',
-          choices: ['Yes','No'] },
-        { id: 'cat_extras',      title: 'Condition, value & notes',               type: 'catalogExtras', optional: true },
-        { id: 'cat_photos',      title: 'Add photos of the catalog',              type: 'drivePhotos', label: 'Catalog',
-          views: [
-            { key: 'COVER',   label: 'Front Cover',  abbr: 'Front' },
-            { key: 'BACK',    label: 'Back Cover',   abbr: 'Back'  },
-          ],
-          optional: true },
-        { id: 'cat_confirm',     title: 'Ready to save the catalog!',             type: 'confirm' },
-      ];
-    }
+    // Catalog flow handled via Paper Items → Catalog type (saves to Catalogs tab)
 
     const steps = [
       { id: 'eph_title', title: isMockup ? 'What is the mock-up title or name?' : ('What is the title of this ' + (_userTabDef ? _userTabDef.label : 'item') + '?'), type: 'text', placeholder: isMockup ? 'e.g. 2344 Santa Fe Prototype' : 'e.g. 1957 Consumer Catalog' },
@@ -2679,59 +2662,8 @@ function renderWizardStep() {
       + '</div>';
     setTimeout(function() { var i = document.getElementById('pe-val'); if(i) i.focus(); }, 50);
 
-  } else if (s.type === 'catalogExtras') {
-    // ── Combined condition + price + value + date + notes for catalogs ──
-    const _catCond = wizard.data.cat_condition || 7;
-    const _catPaid = wizard.data.cat_pricePaid  || '';
-    const _catVal  = wizard.data.cat_estValue    || '';
-    const _catDate = wizard.data.cat_dateAcquired|| '';
-    const _catNote = wizard.data.cat_notes       || '';
-    body.innerHTML = '<div style="padding-top:0.5rem;display:flex;flex-direction:column;gap:0.9rem">'
-      + '<div>'
-      +   '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">'
-      +     '<span style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim)">Condition</span>'
-      +     '<span id="cat-cond-val" style="font-family:var(--font-mono);font-size:1.1rem;color:var(--accent);font-weight:700">' + _catCond + '</span></div>'
-      +   '<input type="range" min="1" max="10" value="' + _catCond + '" style="width:100%;accent-color:var(--accent)"'
-      +   ' oninput="wizard.data.cat_condition=parseInt(this.value);document.getElementById(\'cat-cond-val\').textContent=this.value">'
-      +   '<div style="display:flex;justify-content:space-between;font-size:0.6rem;color:var(--text-dim)"><span>Poor</span><span>Excellent</span></div>'
-      + '</div>'
-      + '<div>'
-      +   '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.35rem">What Did You Pay? ($)</div>'
-      +   '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.9rem">'
-      +     '<span style="color:var(--text-dim)">$</span>'
-      +     '<input type="number" id="cat-paid" value="' + _catPaid + '" placeholder="0.00" min="0" step="0.01"'
-      +     ' style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem"'
-      +     ' oninput="wizard.data.cat_pricePaid=this.value">'
-      +   '</div>'
-      + '</div>'
-      + '<div>'
-      +   '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.35rem">Est. Worth ($)</div>'
-      +   '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.9rem">'
-      +     '<span style="color:var(--text-dim)">$</span>'
-      +     '<input type="number" id="cat-val" value="' + _catVal + '" placeholder="0.00" min="0" step="0.01"'
-      +     ' style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem"'
-      +     ' oninput="wizard.data.cat_estValue=this.value">'
-      +   '</div>'
-      + '</div>'
-      + '<div>'
-      +   '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.35rem">Date Acquired</div>'
-      +   '<div style="position:relative;display:flex;align-items:center">'
-      +   '<input type="date" id="cat-date" value="' + _catDate + '"'
-      +   ' style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.6rem 2.5rem 0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;color-scheme:dark"'
-      +   ' oninput="wizard.data.cat_dateAcquired=this.value">'
-      +   '<button type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById(&quot;cat-date&quot;).showPicker();" style="position:absolute;right:0.4rem;cursor:pointer;font-size:1rem;color:var(--accent2);background:none;border:none;padding:0.3rem;line-height:1;touch-action:manipulation">\uD83D\uDCC5</button>'
-      +   '</div>'
-      + '</div>'
-      + '<div>'
-      +   '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.35rem">Notes</div>'
-      +   '<textarea id="cat-notes" rows="3" placeholder="e.g. Excellent condition, still in mailing envelope"'
-      +   ' style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;resize:none"'
-      +   ' oninput="wizard.data.cat_notes=this.value">' + _catNote + '</textarea>'
-      + '</div>'
-      + '<div style="font-size:0.75rem;color:var(--text-dim)">All fields optional — press Next to skip</div>'
-      + '</div>';
 
-  } else if (s.type === 'pricePaid') {
+    } else if (s.type === 'pricePaid') {
     const itemVal = wizard.data.priceItem || '';
     body.innerHTML = `
       <div style="padding-top:0.75rem">
@@ -6008,12 +5940,6 @@ async function _wizardNextCore() {
       showToast('Please enter an estimated worth.'); return;
     }
   }
-  // catalogExtras: est worth required
-  if (s.type === 'catalogExtras') {
-    if (!(wizard.data.cat_estValue || '').trim()) {
-      showToast('Please enter an estimated worth.'); return;
-    }
-  }
   // drivePhotos with moneyField (IS flow): est worth required
   if (s.type === 'drivePhotos' && s.moneyField) {
     if (!(wizard.data[s.moneyField.key] || '').trim()) {
@@ -6090,13 +6016,7 @@ async function _wizardNextCore() {
     return;
   }
 
-  // Catalog confirm — must be checked BEFORE generic confirm
-  if (s.id === 'cat_confirm') {
-    if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
-    try { await saveCatalogItem(); } catch(e) { showToast('Error: '+e.message); }
-    if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Save →'; }
-    return;
-  }
+
 
   // Ephemera confirm — must be checked BEFORE generic confirm
   const _ephTabIds = ['paper','mockups','other',...(state.userDefinedTabs||[]).map(t=>t.id)];
@@ -6105,6 +6025,13 @@ async function _wizardNextCore() {
     if (wizard.data.eph_paperType === 'Instruction Sheet') {
       if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
       try { await saveInstructionSheet(); } catch(e) { showToast('Error: '+e.message); }
+      if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Save →'; }
+      return;
+    }
+    // If paper type is Catalog, route to Catalogs tab save
+    if (wizard.data.eph_paperType === 'Catalog') {
+      if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
+      try { await _saveCatalogFromPaper(); } catch(e) { showToast('Error: '+e.message); }
       if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Save →'; }
       return;
     }
@@ -6585,29 +6512,36 @@ async function saveInstructionSheet() {
   }
 }
 
-async function saveCatalogItem() {
+async function _saveCatalogFromPaper() {
   const d = wizard.data;
-  // Title = "Year Type Catalog" e.g. "1957 Consumer Catalog"
-  const typeLabel = d.cat_type || '';
-  const yearLabel = d.cat_year || '';
-  const folderName = [yearLabel, typeLabel, 'Catalog'].filter(Boolean).join(' ');
-  const title = folderName;
-  const itemNum = generateEphemeraItemNum('catalogs', yearLabel, typeLabel);
+  const picked = d.eph_catalogPick;
+  const subType = d.eph_paperSubType || '';
+  const year = picked ? (picked.year || '') : (d.eph_year || '');
+  const title = picked ? picked.title : (d.eph_title || [year, subType, 'Catalog'].filter(Boolean).join(' '));
 
-  // Create photo folder and upload photos if any
+  // Simplify sub-type to catalog type for item number generation
+  const _ctMap = {
+    'Consumer Postwar':'Consumer', 'Consumer Pre-war':'Consumer',
+    'Advance/Dealer':'Advance', 'Display':'Other', 'Accessory':'Other',
+    'HO':'Other', 'Science/Other':'Other'
+  };
+  const simpleType = _ctMap[subType] || subType || 'Other';
+  const itemNum = generateEphemeraItemNum('catalogs', year, simpleType);
+
+  // Upload photos if any
   let photoFolderLink = '';
-  const photoObj = d.cat_photos || {};
-  if (Object.keys(photoObj).length > 0 || true) {
+  const photoObj = d.eph_photos || {};
+  const hasPhotos = Object.values(photoObj).some(v => v && v.file);
+  if (hasPhotos) {
     try {
       await driveEnsureSetup();
-      // Create "Catalogs" subfolder under vault if needed
       if (!driveCache.catalogsId) {
         driveCache.catalogsId = await driveFindOrCreateFolder('Catalog Photos', driveCache.vaultId);
         localStorage.setItem('lv_catalogs_id', driveCache.catalogsId);
       }
+      const folderName = title.substring(0, 60);
       const catFolderId = await driveFindOrCreateFolder(folderName, driveCache.catalogsId);
       photoFolderLink = 'https://drive.google.com/drive/folders/' + catFolderId;
-      // Upload any photos
       for (const [viewKey, fileObj] of Object.entries(photoObj)) {
         if (!fileObj || !fileObj.file) continue;
         try {
@@ -6618,23 +6552,24 @@ async function saveCatalogItem() {
     } catch(e) { console.warn('Drive folder:', e); }
   }
 
+  // Build row matching Catalogs tab layout: ItemID, Type, Year, HasMailer, Condition, PricePaid, EstValue, DateAcq, Notes, PhotoLink
   const row = [
     itemNum,
-    d.cat_type || '',
-    d.cat_year || '',
-    d.cat_hasMailer || 'No',
-    d.cat_condition || '',
-    d.cat_pricePaid || '',
-    d.cat_estValue || '',
-    d.cat_dateAcquired || '',
-    d.cat_notes || '',
+    subType || '',
+    year,
+    '',                         // Has Envelope/Mailer — not asked in paper flow
+    d.eph_condition || '',
+    d.eph_pricePaid || '',
+    d.eph_estValue || '',
+    d.eph_dateAcquired || '',
+    d.eph_notes || '',
     photoFolderLink,
   ];
   try {
-    // Ensure Catalogs tab exists with proper headers before appending
     await ensureEphemeraSheets(state.personalSheetId);
-    const appendResult = await sheetsAppend(state.personalSheetId, 'Catalogs!A:J', [row]);
-    // Reload catalog rows from sheet to get accurate row numbers
+    await sheetsAppend(state.personalSheetId, 'Catalogs!A:J', [row]);
+    // Reload catalog data from sheet
+    if (!state.ephemeraData) state.ephemeraData = {};
     if (!state.ephemeraData.catalogs) state.ephemeraData.catalogs = {};
     try {
       const freshCat = await sheetsGet(state.personalSheetId, 'Catalogs!A3:J');
@@ -6652,22 +6587,20 @@ async function saveCatalogItem() {
         };
       });
     } catch(e) {
-      // Fallback: add optimistically
       const newKey = Date.now();
       state.ephemeraData.catalogs[newKey] = {
         row: newKey, itemNum, title,
-        catType: d.cat_type || '', year: d.cat_year || '',
-        hasMailer: d.cat_hasMailer || 'No', condition: d.cat_condition || '',
-        pricePaid: d.cat_pricePaid || '', estValue: d.cat_estValue || '',
-        dateAcquired: d.cat_dateAcquired || '',
-        notes: d.cat_notes || '', photoLink: photoFolderLink,
+        catType: subType, year, hasMailer: '',
+        condition: d.eph_condition || '', pricePaid: d.eph_pricePaid || '',
+        estValue: d.eph_estValue || '', dateAcquired: d.eph_dateAcquired || '',
+        notes: d.eph_notes || '', photoLink: photoFolderLink,
       };
     }
     showToast('✓ ' + title + ' saved!');
-    closeWizard();
-    buildDashboard(); // refresh stats
-    populateFilters(); // refresh type dropdown to include new catalog type
-    renderBrowse();    // always refresh so it appears immediately
+    _doCloseWizard();
+    buildDashboard();
+    populateFilters();
+    renderBrowse();
   } catch(e) {
     showToast('Error saving: ' + e.message);
   }

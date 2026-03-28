@@ -426,7 +426,15 @@ const PANEL_CATALOG = [
         ephs.push({ ...s, _src:'eph', tabId:'construction', _ephEmoji:'🔧', title: s.itemNum + ' ' + (s.description||''), estValue: s.estValue||'' });
       });
       return [...trains, ...ephs]
-        .sort((a, b) => (b.row || 0) - (a.row || 0))
+        .sort((a, b) => {
+          // Sort by date acquired/purchased (most recent first), then row as tiebreaker
+          const da = a.datePurchased || a.dateAcquired || '';
+          const db = b.datePurchased || b.dateAcquired || '';
+          if (da && db) return db.localeCompare(da);
+          if (da && !db) return -1;
+          if (!da && db) return 1;
+          return (b.row || 0) - (a.row || 0);
+        })
         .slice(0, 8)
         .map(function(pd) {
           if (pd._src === 'eph') {
