@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.79';
+const APP_VERSION = 'v0.9.80';
 const APP_DATE    = 'March 2026';
 
 // Right-side-view placeholder image (base64 PNG) — used in wizard photo steps, dashboard, reports

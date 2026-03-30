@@ -229,7 +229,7 @@ function getSteps(tab) {
     ];
     if (isMockup) steps.push(
       { id: 'eph_itemNumRef', title: 'Related item number (if known)', type: 'text', placeholder: 'e.g. 2344', optional: true },
-      { id: 'eph_productionStatus', title: 'Production status', type: 'choice3', choices: ['Produced as shown','Modified before production','Never produced'] },
+      { id: 'eph_productionStatus', title: 'Production status', type: 'choice3', choices: ['Concept, never produced','Pre Production Concept','Produced as Shown Concept'] },
       { id: 'eph_provenance', title: 'Provenance / history (optional)', type: 'textarea', optional: true },
     );
     steps.push(
