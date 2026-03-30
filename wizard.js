@@ -241,6 +241,8 @@ function getSteps(tab) {
       { id: 'eph_pricePaid', title: 'Price Paid ($)', type: 'money', placeholder: '0.00', optional: true },
       { id: 'eph_estValue', title: 'Est. Worth ($)', type: 'money', placeholder: '0.00' },
       { id: 'eph_dateAcquired', title: 'Date acquired', type: 'date', optional: true },
+    );
+    if (!isMockup) steps.push(
       { id: 'eph_notes', title: 'Notes (optional)', type: 'textarea', optional: true },
       { id: 'eph_photos', title: 'Add photos (optional)', type: 'drivePhotos', label: 'EPH',
         views: [
@@ -249,6 +251,8 @@ function getSteps(tab) {
           { key: 'PHOTO-3', label: 'Other',   abbr: 'Other'  },
         ],
         optional: true },
+    );
+    steps.push(
       { id: 'eph_confirm', title: (d) => 'Looking good! Ready to save your ' + getItemLabel(d) + '?', type: 'confirm' },
     );
     return steps;
