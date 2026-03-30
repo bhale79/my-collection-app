@@ -3,8 +3,15 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.83';
+const APP_VERSION = 'v0.9.84';
 const APP_DATE    = 'March 2026';
+
+// ── Master catalog sheet ID (read-only, shared across all users) ──
+const MASTER_SHEET_ID = '1Y9-cg8C1CkIqy0RQ66DfP7fmGrE3IGBpyJbtdfYx8q0';
+
+// ── Admin config ──
+const ADMIN_EMAIL  = 'bhale@ipd-llc.com';
+const ADMIN_EMAILS = ['bhale@ipd-llc.com'];
 
 // ── Era definitions (future-proof: add Marx PW, Lionel MPC, etc.) ──
 const ERAS = [

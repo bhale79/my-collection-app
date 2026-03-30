@@ -321,7 +321,7 @@ function _buildBetaGate() {
         '<div id="beta-error" style="display:none;font-size:0.8rem;color:var(--accent);margin-bottom:0.75rem">Invalid code. Please check with your invite contact.</div>' +
         '<button onclick="_checkBetaCode()" style="width:100%;padding:0.75rem;border:none;border-radius:8px;background:var(--accent);color:#fff;font-family:var(--font-body);font-size:0.95rem;font-weight:600;cursor:pointer;transition:background 0.15s" onmouseenter="this.style.background=\'#d84800\'" onmouseleave="this.style.background=\'var(--accent)\'">Enter Beta</button>' +
       '</div>' +
-      '<p style="font-size:0.75rem;color:var(--text-dim);margin-top:1.25rem">Don\'t have a code? Contact <a href="mailto:bhale@ipd-llc.com" style="color:var(--accent2);text-decoration:none">bhale@ipd-llc.com</a> to request access.</p>' +
+      '<p style="font-size:0.75rem;color:var(--text-dim);margin-top:1.25rem">Don\'t have a code? Contact <a href="mailto:' + ADMIN_EMAIL + '" style="color:var(--accent2);text-decoration:none">' + ADMIN_EMAIL + '</a> to request access.</p>' +
     '</div>';
 }
 
@@ -628,7 +628,7 @@ function initGoogle() {
   // Check for existing session — master ID is hardcoded, just need saved user
   const savedUser = localStorage.getItem('lv_user');
   const savedPersonalId = localStorage.getItem('lv_personal_id');
-  state.masterSheetId = '1Y9-cg8C1CkIqy0RQ66DfP7fmGrE3IGBpyJbtdfYx8q0';
+  state.masterSheetId = MASTER_SHEET_ID;
   localStorage.setItem('lv_master_id', state.masterSheetId);
 
   if (savedUser) {
@@ -751,7 +751,7 @@ function onTokenReceived(resp) {
   }
 
   // Master sheet is hardcoded
-  state.masterSheetId = '1Y9-cg8C1CkIqy0RQ66DfP7fmGrE3IGBpyJbtdfYx8q0';
+  state.masterSheetId = MASTER_SHEET_ID;
   localStorage.setItem('lv_master_id', state.masterSheetId);
 
   // Always sync from Drive config to ensure correct sheet ID across devices
@@ -1347,7 +1347,7 @@ const MASTER_TABS = [
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '65';
+  const _CACHE_VER = '66';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
@@ -6141,7 +6141,7 @@ function _buildContactModal() {
       '<p style="font-size:0.88rem;color:var(--text);line-height:1.65;margin-bottom:1rem">' +
         'Found an error in the catalog or set list? Have a suggestion? We\'d love to hear from you.' +
       '</p>' +
-      '<a href="mailto:bhale@ipd-llc.com" style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.6rem 1.1rem;border-radius:8px;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.88rem;font-weight:600;text-decoration:none">' +
+      '<a href="mailto:' + ADMIN_EMAIL + '" style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.6rem 1.1rem;border-radius:8px;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.88rem;font-weight:600;text-decoration:none">' +
         '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>' +
         'Send an Email' +
       '</a>' +

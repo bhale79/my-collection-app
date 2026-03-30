@@ -242,7 +242,7 @@ function buildPrefsPage() {
       </div>
       <div class="pref-row">
         <div class="pref-row-label"><strong>Send Feedback</strong><span>Report a bug or suggest a feature</span></div>
-        <a href="mailto:bhale@ipd-llc.com?subject=The Rail Roster Feedback" class="pref-btn" style="text-decoration:none">Email ↗</a>
+        <a href="mailto:${ADMIN_EMAIL}?subject=The Rail Roster Feedback" class="pref-btn" style="text-decoration:none">Email ↗</a>
       </div>
       </div>
     </div>`;
@@ -406,7 +406,7 @@ var _QA_ITEMS = [
 var _QA_STATE_KEY = 'lv_qa_checklist';
 
 function _isAdmin() {
-  return !!(state.user && state.user.email === 'bhale@ipd-llc.com');
+  return !!(state.user && ADMIN_EMAILS.includes(state.user.email));
 }
 
 function _maybeShowAdminPrefs() {
