@@ -28,7 +28,8 @@ function buildPrefsPage() {
 
     <!-- ── 1. Account ─────────────────────────── -->
     <div class="pref-section">
-      <div class="pref-section-title">Account</div>
+      <div class="pref-section-title" onclick="_togglePrefSection(this)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">Account <span style="font-size:0.7rem;color:var(--text-dim);transition:transform 0.2s">▼</span></div>
+      <div class="pref-section-body">
       <div class="pref-account-card">
         ${avatarHtml}
         <div style="flex:1;min-width:0">
@@ -40,7 +41,7 @@ function buildPrefsPage() {
       <div class="pref-row">
         <div class="pref-row-label">
           <strong>My Collection Sheet</strong>
-          <span>Open your Google Sheet — read-only recommended</span>
+          <span>Open your Google Sheet</span>
         </div>
         <div style="display:flex;gap:0.5rem;align-items:center;flex-shrink:0">
           <a id="nav-sheet-link-p" href="${sheetId ? 'https://docs.google.com/spreadsheets/d/'+sheetId : '#'}" target="_blank"
@@ -57,253 +58,192 @@ function buildPrefsPage() {
       <div class="pref-row">
         <div class="pref-row-label">
           <strong>Rebuild Dashboard Tab</strong>
-          <span>Updates branding and mascot image on your Google Sheet's Dashboard tab</span>
+          <span>Updates branding on your Google Sheet</span>
         </div>
         <button class="pref-btn" onclick="_rebuildDashboardTab()">Rebuild</button>
       </div>
+      </div>
     </div>
 
-    <!-- ── 2. Collection Settings ─────────────── -->
+    <!-- ── 2. Collection ──────────────────────── -->
     <div class="pref-section">
-      <div class="pref-section-title">Collection Settings</div>
+      <div class="pref-section-title" onclick="_togglePrefSection(this)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">Collection <span style="font-size:0.7rem;color:var(--text-dim);transition:transform 0.2s">▶</span></div>
+      <div class="pref-section-body" style="display:none">
       <div class="pref-row">
-        <div class="pref-row-label">
-          <strong>Track Storage Location</strong>
-          <span>Adds a location step in the entry wizard</span>
-        </div>
+        <div class="pref-row-label"><strong>Track Storage Location</strong><span>Adds a location step in the wizard</span></div>
         ${toggle('location', 'lv_location_enabled', 'false')}
       </div>
       <div class="pref-row">
-        <div class="pref-row-label">
-          <strong>Track Year Made</strong>
-          <span>Adds a "Year Made" step when adding items</span>
-        </div>
+        <div class="pref-row-label"><strong>Track Year Made</strong><span>Adds a "Year Made" step</span></div>
         ${toggle('yearMade', 'lv_year_made_enabled', 'true')}
       </div>
       <div class="pref-row">
-        <div class="pref-row-label">
-          <strong>Show Quick Entry badge ⚡</strong>
-          <span>Highlights items with incomplete details</span>
-        </div>
+        <div class="pref-row-label"><strong>Show Quick Entry badge ⚡</strong><span>Highlights items with incomplete details</span></div>
         ${toggle('qeBadge', 'lv_qe_badge_enabled', 'true')}
       </div>
-
       <div class="pref-row">
-        <div class="pref-row-label">
-          <strong>Default: All Original</strong>
-          <span>Pre-selected answer when adding an item</span>
-        </div>
-        <select class="pref-select" onchange="_prefSet('lv_def_allOriginal', this.value)">
-          <option value="Yes" ${_prefGet('lv_def_allOriginal','Yes')==='Yes'?'selected':''}>Yes</option><option value="No" ${_prefGet('lv_def_allOriginal','Yes')==='No'?'selected':''}>No</option><option value="Unknown" ${_prefGet('lv_def_allOriginal','Yes')==='Unknown'?'selected':''}>Unknown</option>
-        </select>
-      </div>
-      <div class="pref-row">
-        <div class="pref-row-label">
-          <strong>Default: Has Box</strong>
-          <span>Pre-selected answer when adding an item</span>
-        </div>
-        <select class="pref-select" onchange="_prefSet('lv_def_hasBox', this.value)">
-          <option value="Yes" ${_prefGet('lv_def_hasBox','No')==='Yes'?'selected':''}>Yes</option><option value="No" ${_prefGet('lv_def_hasBox','No')==='No'?'selected':''}>No</option>
-        </select>
-      </div>
-      <div class="pref-row">
-        <div class="pref-row-label">
-          <strong>Default: Instruction Sheet</strong>
-          <span>Pre-selected answer when adding an item</span>
-        </div>
-        <select class="pref-select" onchange="_prefSet('lv_def_hasIS', this.value)">
-          <option value="Yes" ${_prefGet('lv_def_hasIS','No')==='Yes'?'selected':''}>Yes</option><option value="No" ${_prefGet('lv_def_hasIS','No')==='No'?'selected':''}>No</option>
-        </select>
-      </div>
-      <div class="pref-row">
-        <div class="pref-row-label">
-          <strong>Default: Error Item</strong>
-          <span>Pre-selected answer when adding an item</span>
-        </div>
-        <select class="pref-select" onchange="_prefSet('lv_def_isError', this.value)">
-          <option value="Yes" ${_prefGet('lv_def_isError','No')==='Yes'?'selected':''}>Yes</option><option value="No" ${_prefGet('lv_def_isError','No')==='No'?'selected':''}>No</option>
-        </select>
-      </div>
-      <div class="pref-row">
-        <div class="pref-row-label">
-          <strong>Default: Master (Outer) Box</strong>
-          <span>Pre-selected answer when adding an item</span>
-        </div>
-        <select class="pref-select" onchange="_prefSet('lv_def_masterBox', this.value)">
-          <option value="Yes" ${_prefGet('lv_def_masterBox','No')==='Yes'?'selected':''}>Yes</option><option value="No" ${_prefGet('lv_def_masterBox','No')==='No'?'selected':''}>No</option>
-        </select>
-      </div>
-      <div class="pref-row">
-        <div class="pref-row-label">
-          <strong>Default Condition</strong>
-          <span>Starting value for the condition slider in the wizard</span>
-        </div>
-        <select class="pref-select" id="pref-def-cond" onchange="_prefSet('lv_default_cond', this.value)">
-          ${[...Array(10)].map((_,i)=>{const v=i+1; return `<option value="${v}" ${_prefGet('lv_default_cond','7')===String(v)?'selected':''}>${v} — ${['','Heavily worn','Very rough','Worn','Good','Good Plus','Very Good','VG+','Excellent','Exc+','Mint'][v]}</option>`;}).join('')}
-        </select>
-      </div>
-      <div class="pref-row">
-        <div class="pref-row-label">
-          <strong>Items Per Page</strong>
-          <span>How many items show in the browse list at once</span>
-        </div>
+        <div class="pref-row-label"><strong>Items Per Page</strong><span>Browse list page size</span></div>
         <select class="pref-select" id="pref-page-size" onchange="_prefSet('lv_page_size', this.value); state.pageSize=parseInt(this.value); state.currentPage=1; if(document.getElementById('page-browse').classList.contains('active')) renderBrowse()">
           ${[25,50,100,200].map(n=>`<option value="${n}" ${_prefGet('lv_page_size','50')===String(n)?'selected':''}>${n}</option>`).join('')}
         </select>
       </div>
-    </div>
 
-    <!-- ── 2b. Add-Item Categories ────────────── -->
-    <div class="pref-section">
-      <div class="pref-section-title">Add-Item Categories</div>
-      <div style="font-size:0.78rem;color:var(--text-dim);padding:0 0.2rem 0.5rem;line-height:1.4">Choose which buttons appear on the "What would you like to add?" screen.</div>
+      <div style="font-size:0.78rem;font-weight:600;color:var(--text-mid);padding:0.75rem 0.2rem 0.35rem;letter-spacing:0.03em;text-transform:uppercase">Defaults</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.35rem 0.6rem">
+        <div class="pref-row" style="padding:0.45rem 0.6rem">
+          <div class="pref-row-label"><strong>All Original</strong></div>
+          <select class="pref-select" style="min-width:72px" onchange="_prefSet('lv_def_allOriginal', this.value)">
+            <option value="Yes" ${_prefGet('lv_def_allOriginal','Yes')==='Yes'?'selected':''}>Yes</option><option value="No" ${_prefGet('lv_def_allOriginal','Yes')==='No'?'selected':''}>No</option><option value="Unknown" ${_prefGet('lv_def_allOriginal','Yes')==='Unknown'?'selected':''}>Unknown</option>
+          </select>
+        </div>
+        <div class="pref-row" style="padding:0.45rem 0.6rem">
+          <div class="pref-row-label"><strong>Has Box</strong></div>
+          <select class="pref-select" style="min-width:72px" onchange="_prefSet('lv_def_hasBox', this.value)">
+            <option value="Yes" ${_prefGet('lv_def_hasBox','No')==='Yes'?'selected':''}>Yes</option><option value="No" ${_prefGet('lv_def_hasBox','No')==='No'?'selected':''}>No</option>
+          </select>
+        </div>
+        <div class="pref-row" style="padding:0.45rem 0.6rem">
+          <div class="pref-row-label"><strong>Instruction Sheet</strong></div>
+          <select class="pref-select" style="min-width:72px" onchange="_prefSet('lv_def_hasIS', this.value)">
+            <option value="Yes" ${_prefGet('lv_def_hasIS','No')==='Yes'?'selected':''}>Yes</option><option value="No" ${_prefGet('lv_def_hasIS','No')==='No'?'selected':''}>No</option>
+          </select>
+        </div>
+        <div class="pref-row" style="padding:0.45rem 0.6rem">
+          <div class="pref-row-label"><strong>Error Item</strong></div>
+          <select class="pref-select" style="min-width:72px" onchange="_prefSet('lv_def_isError', this.value)">
+            <option value="Yes" ${_prefGet('lv_def_isError','No')==='Yes'?'selected':''}>Yes</option><option value="No" ${_prefGet('lv_def_isError','No')==='No'?'selected':''}>No</option>
+          </select>
+        </div>
+        <div class="pref-row" style="padding:0.45rem 0.6rem">
+          <div class="pref-row-label"><strong>Master Box</strong></div>
+          <select class="pref-select" style="min-width:72px" onchange="_prefSet('lv_def_masterBox', this.value)">
+            <option value="Yes" ${_prefGet('lv_def_masterBox','No')==='Yes'?'selected':''}>Yes</option><option value="No" ${_prefGet('lv_def_masterBox','No')==='No'?'selected':''}>No</option>
+          </select>
+        </div>
+        <div class="pref-row" style="padding:0.45rem 0.6rem">
+          <div class="pref-row-label"><strong>Condition</strong></div>
+          <select class="pref-select" style="min-width:72px" id="pref-def-cond" onchange="_prefSet('lv_default_cond', this.value)">
+            ${[...Array(10)].map((_,i)=>{const v=i+1; return `<option value="${v}" ${_prefGet('lv_default_cond','7')===String(v)?'selected':''}>${v}</option>`;}).join('')}
+          </select>
+        </div>
+      </div>
+
+      <div style="font-size:0.78rem;font-weight:600;color:var(--text-mid);padding:0.75rem 0.2rem 0.35rem;letter-spacing:0.03em;text-transform:uppercase">Add-Item Categories</div>
+      <div style="font-size:0.75rem;color:var(--text-dim);padding:0 0.2rem 0.4rem;line-height:1.4">Show or hide buttons on the "What would you like to add?" screen.</div>
       ${_buildWizCatToggles()}
+      </div>
     </div>
 
     <!-- ── 3. Display ─────────────────────────── -->
     <div class="pref-section">
-      <div class="pref-section-title">Display</div>
+      <div class="pref-section-title" onclick="_togglePrefSection(this)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">Display <span style="font-size:0.7rem;color:var(--text-dim);transition:transform 0.2s">▶</span></div>
+      <div class="pref-section-body" style="display:none">
       <div class="pref-row">
-        <div class="pref-row-label">
-          <strong>Theme</strong>
-          <span>App color scheme</span>
-        </div>
+        <div class="pref-row-label"><strong>Theme</strong><span>App color scheme</span></div>
         <select class="pref-select" id="pref-theme" onchange="_prefSet('lv_theme', this.value); applyTheme(); buildPrefsPage()">
           ${['dark','light','system'].map(t=>`<option value="${t}" ${_prefGet('lv_theme','dark')===t?'selected':''}>${{dark:'🌙 Dark',light:'☀️ Light',system:'💻 System'}[t]}</option>`).join('')}
         </select>
       </div>
       <div class="pref-row">
-        <div class="pref-row-label">
-          <strong>Currency Symbol</strong>
-          <span>Shown next to prices throughout the app</span>
-        </div>
+        <div class="pref-row-label"><strong>Currency Symbol</strong></div>
         <select class="pref-select" id="pref-currency" onchange="_prefSet('lv_currency', this.value)">
           ${['$','€','£','¥','CA$','AU$'].map(c=>`<option value="${c}" ${_prefGet('lv_currency','$')===c?'selected':''}>${c}</option>`).join('')}
         </select>
       </div>
       <div class="pref-row">
-        <div class="pref-row-label">
-          <strong>Date Format</strong>
-          <span>How dates appear in reports and detail views</span>
-        </div>
+        <div class="pref-row-label"><strong>Date Format</strong></div>
         <select class="pref-select" id="pref-datefmt" onchange="_prefSet('lv_date_fmt', this.value)">
           ${[['MM/DD/YYYY','MM/DD/YYYY'],['DD/MM/YYYY','DD/MM/YYYY'],['YYYY-MM-DD','YYYY-MM-DD']].map(([v,l])=>`<option value="${v}" ${_prefGet('lv_date_fmt','MM/DD/YYYY')===v?'selected':''}>${l}</option>`).join('')}
         </select>
       </div>
       <div class="pref-row">
-        <div class="pref-row-label">
-          <strong>Upgrade Condition Threshold</strong>
-          <span>Flag owned items below this condition as upgrade candidates</span>
-        </div>
+        <div class="pref-row-label"><strong>Upgrade Condition Threshold</strong><span>Flag items below this condition</span></div>
         <select class="pref-select" id="pref-upgrade-thresh" onchange="_prefSet('lv_upgrade_thresh', this.value)">
-          <option value="1" id="ut-1">1 or below</option>
-          <option value="2" id="ut-2">2 or below</option>
-          <option value="3" id="ut-3">3 or below</option>
-          <option value="4" id="ut-4">4 or below</option>
-          <option value="5" id="ut-5">5 or below</option>
-          <option value="6" id="ut-6">6 or below</option>
-          <option value="7" id="ut-7" selected>7 or below</option>
-          <option value="8" id="ut-8">8 or below</option>
-          <option value="9" id="ut-9">9 or below</option>
+          <option value="1" id="ut-1">1 or below</option><option value="2" id="ut-2">2 or below</option><option value="3" id="ut-3">3 or below</option>
+          <option value="4" id="ut-4">4 or below</option><option value="5" id="ut-5">5 or below</option><option value="6" id="ut-6">6 or below</option>
+          <option value="7" id="ut-7" selected>7 or below</option><option value="8" id="ut-8">8 or below</option><option value="9" id="ut-9">9 or below</option>
         </select>
-        <script>
-          (function(){ var s=document.getElementById('pref-upgrade-thresh'); if(s){ var v=localStorage.getItem('lv_upgrade_thresh')||'7'; s.value=v; } })();
-        </script>
+        <script>(function(){ var s=document.getElementById('pref-upgrade-thresh'); if(s){ var v=localStorage.getItem('lv_upgrade_thresh')||'7'; s.value=v; } })();</script>
       </div>
       <div class="pref-row">
-        <div class="pref-row-label">
-          <strong>Show Accuracy Disclaimer</strong>
-          <span>Warning banner on Master Catalog and Complete Sets pages</span>
-        </div>
+        <div class="pref-row-label"><strong>Show Accuracy Disclaimer</strong><span>Warning banner on catalog pages</span></div>
         ${toggle('disclaimer', 'lv_show_disclaimer', 'true')}
+      </div>
       </div>
     </div>
 
-    <!-- ── 4. Data & Backup ───────────────────── -->
+    <!-- ── 4. Data ────────────────────────────── -->
     <div class="pref-section">
-      <div class="pref-section-title">Data &amp; Backup</div>
+      <div class="pref-section-title" onclick="_togglePrefSection(this)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">Data <span style="font-size:0.7rem;color:var(--text-dim);transition:transform 0.2s">▶</span></div>
+      <div class="pref-section-body" style="display:none">
       <div class="pref-row">
-        <div class="pref-row-label">
-          <strong>Export Full Collection</strong>
-          <span>Download everything as a CSV spreadsheet</span>
-        </div>
+        <div class="pref-row-label"><strong>Export Full Collection</strong><span>Download as CSV spreadsheet</span></div>
         <button class="pref-btn" onclick="exportFullCollection()">Download CSV</button>
       </div>
       <div class="pref-row">
-        <div class="pref-row-label">
-          <strong>Last Synced</strong>
-          <span id="pref-cache-ts">${cacheDateStr} · ${cacheSize}</span>
-        </div>
+        <div class="pref-row-label"><strong>Last Synced</strong><span id="pref-cache-ts">${cacheDateStr} · ${cacheSize}</span></div>
         <button class="pref-btn" onclick="forceRefreshData().then(()=>buildPrefsPage())">Sync Now</button>
       </div>
       <div class="pref-row">
-        <div class="pref-row-label">
-          <strong>Clear Local Cache</strong>
-          <span>Forces a full reload from Google Sheets on next launch</span>
-        </div>
+        <div class="pref-row-label"><strong>Clear Local Cache</strong><span>Full reload from Google Sheets on next launch</span></div>
         <button class="pref-btn danger" onclick="_clearCacheOnly()">Clear Cache</button>
       </div>
-    </div>
 
-    <!-- ── 5. About ───────────────────────────── -->
-    <div class="pref-section">
-      <div class="pref-section-title">Dashboard Cards</div>
+      <div style="font-size:0.78rem;font-weight:600;color:var(--text-mid);padding:0.75rem 0.2rem 0.35rem;letter-spacing:0.03em;text-transform:uppercase">Dashboard</div>
       <div class="pref-row" style="flex-direction:column;align-items:flex-start;gap:0.4rem">
-        <div style="font-size:0.82rem;color:var(--text-dim);line-height:1.6">
-          You can have up to <strong style="color:var(--text)">5 stat cards</strong> on your dashboard. Click any card on the dashboard to change what it shows, or click the <strong style="color:var(--text)">+ Add card</strong> button to add a new one.
+        <div style="font-size:0.82rem;color:var(--text-dim);line-height:1.5">
+          Up to <strong style="color:var(--text)">5 stat cards</strong> on your dashboard. Click any card to change it.
         </div>
-        <button onclick="showPage('dashboard', document.querySelector('.nav-item[onclick*=dashboard]')); setTimeout(function(){ _openCardPopup(${_getSlots().indexOf(null) >= 0 ? _getSlots().indexOf(null) : 0}); }, 150);" style="padding:0.35rem 0.8rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-size:0.8rem;cursor:pointer;margin-top:0.2rem">
+        <button onclick="showPage('dashboard', document.querySelector('.nav-item[onclick*=dashboard]')); setTimeout(function(){ _openCardPopup(${_getSlots().indexOf(null) >= 0 ? _getSlots().indexOf(null) : 0}); }, 150);" style="padding:0.35rem 0.8rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-size:0.8rem;cursor:pointer">
           Go to Dashboard →
         </button>
       </div>
-    </div>
 
-    <!-- ── Collector's Market Est. ───────────── -->
-    <div class="pref-section">
-      <div class="pref-section-title">Collector's Market Est.</div>
+      <div style="font-size:0.78rem;font-weight:600;color:var(--text-mid);padding:0.75rem 0.2rem 0.35rem;letter-spacing:0.03em;text-transform:uppercase">Collector's Market</div>
       <div id="vault-prefs-row"></div>
+      </div>
     </div>
 
+    <!-- ── Admin Tools (admin only) ───────────── -->
     <div class="pref-section" id="admin-health-section" style="display:none">
-      <div class="pref-section-title">App Health Check</div>
+      <div class="pref-section-title" onclick="_togglePrefSection(this)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">Admin Tools <span style="font-size:0.7rem;color:var(--text-dim);transition:transform 0.2s">▶</span></div>
+      <div class="pref-section-body" style="display:none">
       <div class="pref-row">
-        <div class="pref-row-label"><strong>Run Health Check</strong><span>Verify all app functions and data are wired up correctly</span></div>
+        <div class="pref-row-label"><strong>Run Health Check</strong><span>Verify all app functions and data</span></div>
         <button class="pref-btn" id="health-check-btn" onclick="_runHealthCheck()">Run Check</button>
       </div>
       <div class="pref-row" style="margin-top:0.25rem">
-        <div class="pref-row-label"><strong>Copy to Console</strong><span>Copy the script &mdash; paste into browser console (F12) for detailed output</span></div>
+        <div class="pref-row-label"><strong>Copy to Console</strong><span>Copy script for browser console (F12)</span></div>
         <button class="pref-btn" id="hc-copy-btn" onclick="_copyHealthCheckScript()">Copy Script</button>
       </div>
       <div id="health-check-output" style="display:none;margin-top:0.75rem;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:0.85rem 1rem;font-size:0.75rem;font-family:var(--font-mono);line-height:1.8;max-height:320px;overflow-y:auto"></div>
       <div class="pref-row" style="margin-top:0.25rem">
-        <div class="pref-row-label"><strong>Backfill Inventory IDs</strong><span>Fix legacy For Sale / Sold / Upgrade entries missing per-copy Inventory IDs</span></div>
+        <div class="pref-row-label"><strong>Backfill Inventory IDs</strong><span>Fix legacy entries missing IDs</span></div>
         <button class="pref-btn" id="backfill-invid-btn" onclick="_runBackfillInventoryIds()">Run Backfill</button>
       </div>
       <div id="backfill-invid-output" style="display:none;margin-top:0.75rem;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:0.85rem 1rem;font-size:0.75rem;font-family:var(--font-mono);line-height:1.8;max-height:320px;overflow-y:auto"></div>
       <div class="pref-row" style="margin-top:0.25rem">
-        <div class="pref-row-label"><strong>Backfill All Collection IDs</strong><span>Assign Inventory IDs to any My Collection, IS, Science, Construction, or My Sets rows missing them</span></div>
+        <div class="pref-row-label"><strong>Backfill All Collection IDs</strong><span>Assign IDs to all rows missing them</span></div>
         <button class="pref-btn" id="backfill-all-btn" onclick="_runBackfillAllIds()">Run Backfill</button>
       </div>
       <div id="backfill-all-output" style="display:none;margin-top:0.75rem;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:0.85rem 1rem;font-size:0.75rem;font-family:var(--font-mono);line-height:1.8;max-height:320px;overflow-y:auto"></div>
+      </div>
     </div>
 
-        <div class="pref-section">
-      <div class="pref-section-title">About</div>
-        <div class="pref-row">
+    <!-- ── About ──────────────────────────────── -->
+    <div class="pref-section">
+      <div class="pref-section-title" onclick="_togglePrefSection(this)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">About <span style="font-size:0.7rem;color:var(--text-dim);transition:transform 0.2s">▶</span></div>
+      <div class="pref-section-body" style="display:none">
+      <div class="pref-row">
         <div class="pref-row-label"><strong>The Rail Roster</strong><span>${APP_VERSION} · ${APP_DATE}</span></div>
       </div>
       <div class="pref-row">
-        <div class="pref-row-label">
-          <strong>Master Catalog</strong>
-          <span id="pref-catalog-count">${state.masterData?.length?.toLocaleString() || '—'} items loaded</span>
-        </div>
+        <div class="pref-row-label"><strong>Master Catalog</strong><span id="pref-catalog-count">${state.masterData?.length?.toLocaleString() || '—'} items loaded</span></div>
       </div>
       <div class="pref-row">
-        <div class="pref-row-label">
-          <strong>Send Feedback</strong>
-          <span>Report a bug or suggest a feature</span>
-        </div>
+        <div class="pref-row-label"><strong>Send Feedback</strong><span>Report a bug or suggest a feature</span></div>
         <a href="mailto:bhale@ipd-llc.com?subject=The Rail Roster Feedback" class="pref-btn" style="text-decoration:none">Email ↗</a>
+      </div>
       </div>
     </div>`;
 
@@ -836,4 +776,17 @@ function _toggleWizCat(catId, on) {
   try { saved = JSON.parse(localStorage.getItem('rr_wizard_cats') || '{}'); } catch(e) {}
   saved[catId] = on;
   localStorage.setItem('rr_wizard_cats', JSON.stringify(saved));
+}
+
+function _togglePrefSection(titleEl) {
+  var body = titleEl.nextElementSibling;
+  var arrow = titleEl.querySelector('span');
+  if (!body) return;
+  if (body.style.display === 'none') {
+    body.style.display = '';
+    if (arrow) arrow.textContent = '▼';
+  } else {
+    body.style.display = 'none';
+    if (arrow) arrow.textContent = '▶';
+  }
 }

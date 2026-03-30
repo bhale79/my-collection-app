@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.82';
+const APP_VERSION = 'v0.9.83';
 const APP_DATE    = 'March 2026';
 
 // ── Era definitions (future-proof: add Marx PW, Lionel MPC, etc.) ──
