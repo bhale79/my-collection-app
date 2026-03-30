@@ -3951,7 +3951,7 @@ function renderWizardStep() {
     const _ingVal = wizard.data.itemNum || '';
     const _ingGrouping = wizard.data._itemGrouping || '';
     const _ingBoxOnly = wizard.data.boxOnly || false;
-    const _ingPreFilled = !!wizard.matchedItem && !!_ingVal;
+    const _ingPreFilled = !!wizard.data._fillItemMode && !!wizard.matchedItem && !!_ingVal;
     
     const _ingWrap = document.createElement('div');
     _ingWrap.style.cssText = 'padding-top:0.5rem';
