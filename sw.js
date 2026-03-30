@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v71';
+const CACHE_NAME = 'mca-v72';
 
 const SHELL_FILES = [
   './index.html',
@@ -27,6 +27,12 @@ const SHELL_FILES = [
   './share.js',
   './sheet-builder.js',
   './conductor.png',
+  './img/icon_engine.png',
+  './img/icon_tender.png',
+  './img/icon_a_powered.jpg',
+  './img/icon_a_dummy.png',
+  './img/icon_b_unit.png',
+  './img/icon_freight.png',
   './icon-192.png',
   './icon-512.png',
   'https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Merriweather+Sans:ital,wght@0,300;0,400;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap'
