@@ -153,6 +153,13 @@ function buildPrefsPage() {
       </div>
     </div>
 
+    <!-- ── 2b. Add-Item Categories ────────────── -->
+    <div class="pref-section">
+      <div class="pref-section-title">Add-Item Categories</div>
+      <div style="font-size:0.78rem;color:var(--text-dim);padding:0 0.2rem 0.5rem;line-height:1.4">Choose which buttons appear on the "What would you like to add?" screen.</div>
+      ${_buildWizCatToggles()}
+    </div>
+
     <!-- ── 3. Display ─────────────────────────── -->
     <div class="pref-section">
       <div class="pref-section-title">Display</div>
@@ -787,4 +794,46 @@ async function _runBackfillAllIds() {
 
   out.innerHTML = lines.join('<br>');
   if (btn) { btn.disabled = false; btn.textContent = 'Run Backfill'; }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Wizard Category Preferences
+// ═══════════════════════════════════════════════════════════════
+
+function _buildWizCatToggles() {
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem('rr_wizard_cats') || '{}'); } catch(e) {}
+  var prefs = Object.assign({}, DEFAULT_WIZARD_CATEGORIES, saved);
+
+  var cats = [
+    { id: 'lionel',  label: 'Cataloged Item #', desc: 'Train, car, accessory' },
+    { id: 'set',     label: 'Complete Set',     desc: 'Outfit box with components' },
+    { id: 'paper',   label: 'Paper Item',       desc: 'Catalog, ad, flyer' },
+    { id: 'mockups', label: 'Mock-Up',          desc: 'Pre-production prototype' },
+    { id: 'other',   label: 'Other Item',       desc: 'Accessory, display' },
+    { id: 'manual',  label: 'Manual Entry',     desc: 'Any item, any era' },
+  ];
+
+  var html = '';
+  cats.forEach(function(c) {
+    var checked = prefs[c.id] !== false;
+    html += '<div class="pref-row">'
+      + '<div class="pref-row-label">'
+      + '<strong>' + c.label + '</strong>'
+      + '<span>' + c.desc + '</span>'
+      + '</div>'
+      + '<label class="pref-toggle">'
+      + '<input type="checkbox" ' + (checked ? 'checked' : '')
+      + ' onchange="_toggleWizCat(\'' + c.id + '\', this.checked)">'
+      + '<div class="pref-toggle-track"></div>'
+      + '</label></div>';
+  });
+  return html;
+}
+
+function _toggleWizCat(catId, on) {
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem('rr_wizard_cats') || '{}'); } catch(e) {}
+  saved[catId] = on;
+  localStorage.setItem('rr_wizard_cats', JSON.stringify(saved));
 }

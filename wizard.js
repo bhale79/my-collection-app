@@ -1245,17 +1245,41 @@ function renderWizardStep() {
 
   if (s.type === 'itemCategory') {
     const _userTabs = state.userDefinedTabs || [];
-    const _cats = [
-      { id: 'lionel',   label: 'Item #',  desc: 'Train, car, accessory with a catalog number', emoji: '🚂', color: 'var(--accent)' },
+    const _allCats = [
+      { id: 'lionel',   label: 'Cataloged Item #',  desc: 'Train, car, accessory with a catalog number', emoji: '🚂', color: 'var(--accent)' },
       { id: 'set',      label: 'Complete Set',   desc: 'Outfit box with loco, cars & accessories grouped together', emoji: '🎁', color: '#e67e22' },
       { id: 'paper',    label: 'Paper Item',       desc: 'Catalog, ad, flyer, instruction sheet, article, box insert', emoji: '📄', color: '#3498db' },
       { id: 'mockups',  label: 'Mock-Up',          desc: 'Pre-production prototype',                          emoji: '🔩', color: '#9b59b6' },
       { id: 'other',    label: 'Other Item',       desc: 'Accessory, display, anything else',                 emoji: '📦', color: '#27ae60' },
       { id: 'manual',   label: 'Manual Entry',     desc: 'Any item, any era, any manufacturer — no catalog lookup', emoji: '✏️', color: '#6c757d' },
     ];
+    // Filter by saved preferences
+    var _savedCats = {};
+    try { _savedCats = JSON.parse(localStorage.getItem('rr_wizard_cats') || '{}'); } catch(e) {}
+    const _catPrefs = Object.assign({}, DEFAULT_WIZARD_CATEGORIES, _savedCats);
+    const _cats = _allCats.filter(function(c) { return _catPrefs[c.id] !== false; });
+    // Era pill bar
+    const _curEra = wizard.data._era || localStorage.getItem('rr_default_era') || (ERAS[0] && ERAS[0].id) || '';
+    if (!wizard.data._era) wizard.data._era = _curEra;
+    const _eraLabel = (ERAS.find(function(e) { return e.id === _curEra; }) || {}).label || _curEra;
     const cur = wizard.data.itemCategory || '';
-    body.innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:0.5rem;padding-top:0.25rem;max-height:60vh;overflow-y:auto">
+    var _pillHtml = '';
+    if (ERAS.length >= 1) {
+      _pillHtml = '<div style="display:flex;gap:0.4rem;margin-bottom:0.75rem;flex-wrap:wrap">';
+      ERAS.forEach(function(era) {
+        var sel = era.id === _curEra;
+        _pillHtml += '<button onclick="wizard.data._era=\'' + era.id + '\';renderWizardStep()" style="'
+          + 'padding:0.35rem 0.85rem;border-radius:20px;font-family:var(--font-head);font-size:0.75rem;'
+          + 'font-weight:700;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer;transition:all 0.15s;'
+          + 'border:1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';'
+          + 'background:' + (sel ? 'var(--accent)' : 'transparent') + ';'
+          + 'color:' + (sel ? 'white' : 'var(--text-mid)') + '">'
+          + era.label + '</button>';
+      });
+      _pillHtml += '</div>';
+    }
+    body.innerHTML = _pillHtml + `
+      <div style="display:flex;flex-direction:column;gap:0.5rem;max-height:55vh;overflow-y:auto">
         ${_cats.map(c => `
           <button onclick="wizardChooseCategory('${c.id}')" style="
             display:flex;align-items:center;gap:0.85rem;padding:0.75rem 1rem;
