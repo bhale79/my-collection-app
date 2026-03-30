@@ -745,7 +745,7 @@ function onTokenReceived(resp) {
       state.user = { name: info.given_name || info.name || 'User', email: info.email };
       localStorage.setItem('lv_user', JSON.stringify(state.user));
       updateUserUI();
-    });
+    }).catch(e => { console.warn('[Auth] User info fetch failed (non-fatal):', e); });
   } else {
     updateUserUI();
   }
@@ -1347,7 +1347,7 @@ const MASTER_TABS = [
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '67';
+  const _CACHE_VER = '68';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
