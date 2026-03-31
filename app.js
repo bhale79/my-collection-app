@@ -1291,14 +1291,13 @@ function _patchMasterData() {
     s.items = s.items.map(_fixItem);
   });
 
-  // Fix 726 RR: COTT page lumps 726/726RR/736 together — move RR variations to 726RR
-  var rrIdx = 1;
-  (state.masterData || []).forEach(m => {
-    if (m.itemNum === '726' && /\bRR\b/.test(m.description)) {
-      m.itemNum = '726RR';
-      m.variation = String(rrIdx++);
-    }
-  });
+  // Fix 726 RR: remove stale V7/V8 under 726 if 726RR already has COTT entries
+  var has726RR = (state.masterData || []).some(m => m.itemNum === '726RR' && m.source === 'COTT');
+  if (has726RR) {
+    state.masterData = (state.masterData || []).filter(m =>
+      !(m.itemNum === '726' && /\bRR\b/.test(m.description))
+    );
+  }
 }
 
 function _inferMissingYears() {
@@ -1414,7 +1413,7 @@ const MASTER_TABS = [
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '72';
+  const _CACHE_VER = '73';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
