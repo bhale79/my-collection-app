@@ -1290,6 +1290,15 @@ function _patchMasterData() {
     if (s.dieselDummy) s.dieselDummy = _fixItem(s.dieselDummy);
     s.items = s.items.map(_fixItem);
   });
+
+  // Fix 726 RR: COTT page lumps 726/726RR/736 together — move RR variations to 726RR
+  var rrIdx = 1;
+  (state.masterData || []).forEach(m => {
+    if (m.itemNum === '726' && /\bRR\b/.test(m.description)) {
+      m.itemNum = '726RR';
+      m.variation = String(rrIdx++);
+    }
+  });
 }
 
 async function loadAllData() {
@@ -1347,7 +1356,7 @@ const MASTER_TABS = [
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '70';
+  const _CACHE_VER = '71';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
