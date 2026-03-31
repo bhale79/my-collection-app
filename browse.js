@@ -1,3 +1,24 @@
+// ── Era-aware browse tab visibility ──
+function _updateBrowseTabsForEra() {
+  // Tabs only shown for eras that have them
+  var _pwOnly = ['sets','science','construction','paper','other','service','is'];
+  _pwOnly.forEach(function(t) {
+    var btn = document.getElementById('btab-' + t);
+    if (btn) btn.style.display = SHEET_TABS[t === 'service' ? 'serviceTools' : t === 'is' ? 'instrSheets' : t] ? '' : 'none';
+  });
+  // Catalogs: always show if era has catalogs tab
+  var catBtn = document.getElementById('btab-catalogs');
+  if (catBtn) catBtn.style.display = SHEET_TABS.catalogs ? '' : 'none';
+  // Always show items
+  var itemsBtn = document.getElementById('btab-items');
+  if (itemsBtn) itemsBtn.style.display = '';
+  // If current visible tab is hidden, switch to items
+  var activeTab = document.querySelector('[id^="btab-"][style*="border-bottom: 2px solid var(--accent)"], [id^="btab-"][style*="border-bottom:2px solid var(--accent)"]');
+  if (activeTab && activeTab.style.display === 'none') {
+    renderBrowseTab('items');
+  }
+}
+
 // ══════════════════════════════════════════════════════════════
 //  browse.js — Browse Page, Filters, Tab Renderers
 //  Extracted from app.js (Session 63)
@@ -436,16 +457,18 @@ function renderMockupsOtherTab() {
 
 
 // ── Generic renderer for master data sub-tabs (Science, Construction, Paper, Other, Service Tools) ──
-const _MASTER_TAB_MAP = {
-  science: SHEET_TABS.science,
-  construction: SHEET_TABS.construction,
-  paper: SHEET_TABS.paper,
-  other: SHEET_TABS.other,
-  service: SHEET_TABS.serviceTools,
-};
+function _getMasterTabMap() {
+  return {
+    science: SHEET_TABS.science,
+    construction: SHEET_TABS.construction,
+    paper: SHEET_TABS.paper,
+    other: SHEET_TABS.other,
+    service: SHEET_TABS.serviceTools,
+  };
+}
 
 function renderMasterSubTab(tabKey) {
-  const masterTab = _MASTER_TAB_MAP[tabKey];
+  const masterTab = _getMasterTabMap()[tabKey];
   if (!masterTab) return;
   const tbody = document.getElementById(tabKey + '-tbody');
   const countEl = document.getElementById(tabKey + '-count');
@@ -507,6 +530,7 @@ function renderMasterSubTab(tabKey) {
 }
 
 function renderBrowse() {
+  _updateBrowseTabsForEra();
   const { type, road, owned, unowned, boxed, search } = state.filters;
   // Base list: masterData + any personal-only items (e.g. 2343-P not in master)
   const masterNums = new Set(state.masterData.map(m => _displayItemNum(m) + '|' + (m.variation||'')));

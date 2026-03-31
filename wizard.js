@@ -1259,16 +1259,16 @@ function renderWizardStep() {
     const _catPrefs = Object.assign({}, DEFAULT_WIZARD_CATEGORIES, _savedCats);
     const _cats = _allCats.filter(function(c) { return _catPrefs[c.id] !== false; });
     // Era pill bar
-    const _curEra = wizard.data._era || localStorage.getItem('rr_default_era') || (ERAS[0] && ERAS[0].id) || '';
+    const _curEra = wizard.data._era || localStorage.getItem('rr_default_era') || _currentEra || 'pw';
     if (!wizard.data._era) wizard.data._era = _curEra;
-    const _eraLabel = (ERAS.find(function(e) { return e.id === _curEra; }) || {}).label || _curEra;
+    const _eraLabel = (ERAS[_curEra] || {}).label || _curEra;
     const cur = wizard.data.itemCategory || '';
     var _pillHtml = '';
-    if (ERAS.length >= 1) {
+    if (Object.keys(ERAS).length >= 1) {
       _pillHtml = '<div style="display:flex;gap:0.4rem;margin-bottom:0.75rem;flex-wrap:wrap">';
-      ERAS.forEach(function(era) {
+      Object.values(ERAS).forEach(function(era) {
         var sel = era.id === _curEra;
-        _pillHtml += '<button onclick="wizard.data._era=\'' + era.id + '\';renderWizardStep()" style="'
+        _pillHtml += '<button onclick="switchEra(\'' + era.id + '\');wizard.data._era=\'' + era.id + '\';" style="'
           + 'padding:0.35rem 0.85rem;border-radius:20px;font-family:var(--font-head);font-size:0.75rem;'
           + 'font-weight:700;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer;transition:all 0.15s;'
           + 'border:1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';'

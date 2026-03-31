@@ -469,9 +469,16 @@ function _buildAppShell() {
       '</button>' +
     '</div>' +
     '<div class="nav-section">' +
-      '<button class="nav-item" onclick="showPage(\'browse\', this); resetFilters(); renderBrowse();" data-ctip="Opens the master list of Postwar Items.">' +
+      '<div style="padding:0.3rem 0.5rem 0.5rem">' +
+        '<select id="era-select" onchange="switchEra(this.value)" style="width:100%;padding:0.45rem 0.5rem;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text);font-family:var(--font-body);font-size:0.82rem;cursor:pointer">' +
+          '<option value="pw"' + (_currentEra==='pw'?' selected':'') + '>Postwar (1945-1969)</option>' +
+          '<option value="mpc"' + (_currentEra==='mpc'?' selected':'') + '>MPC (1970-1986)</option>' +
+          '<option value="mod"' + (_currentEra==='mod'?' selected':'') + '>Modern (1987-Today)</option>' +
+        '</select>' +
+      '</div>' +
+      '<button class="nav-item" onclick="showPage(\'browse\', this); resetFilters(); renderBrowse();" data-ctip="Opens the master list for the selected era.">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>' +
-        'Postwar Master List<span class="nav-badge" id="nav-total" style="background:#f8e8c0;color:#1a1a1a">\u2014</span>' +
+        '<span id="nav-master-label">' + (ERAS[_currentEra] ? ERAS[_currentEra].label : 'Postwar') + ' Master List</span><span class="nav-badge" id="nav-total" style="background:#f8e8c0;color:#1a1a1a">\u2014</span>' +
       '</button>' +
       '<button class="nav-item" onclick="showPage(\'browse\', this); filterOwned()" data-ctip="This is your inventory list.">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>' +
@@ -1387,33 +1394,65 @@ async function loadAllData() {
   }
 }
 
-// ── Master sheet tab name config (single source of truth) ────
-// To rename a tab or add new ones, update this object only.
-const SHEET_TABS = {
-  items:        'Lionel PW - Items',
-  science:      'Lionel PW - Science',
-  construction: 'Lionel PW - Construction',
-  paper:        'Lionel PW - Paper',
-  other:        'Lionel PW - Other',
-  serviceTools: 'Lionel PW - Service Tools',
-  catalogs:     'Lionel PW - Catalogs',
-  companions:   'Lionel PW - Companions',
-  sets:         'Lionel PW - Sets',
-  instrSheets:  'Lionel PW - Instr Sheets',
-};
-// Tabs that contain master inventory data (loaded via batchGet)
-const MASTER_TABS = [
-  SHEET_TABS.items,
-  SHEET_TABS.science,
-  SHEET_TABS.construction,
-  SHEET_TABS.paper,
-  SHEET_TABS.other,
-  SHEET_TABS.serviceTools,
-];
+// ── Master sheet tab name config (era-aware — single source of truth) ────
+// SHEET_TABS contents are swapped when the user changes era.
+var SHEET_TABS = {};
+var _currentEra = localStorage.getItem('lv_era') || 'pw';
+function _applyEraTabs(era) {
+  Object.keys(SHEET_TABS).forEach(function(k) { delete SHEET_TABS[k]; });
+  Object.assign(SHEET_TABS, ERA_TABS[era] || ERA_TABS.pw);
+}
+_applyEraTabs(_currentEra);
+// Dynamic: returns only master-inventory tabs that exist for the current era
+function _getMasterTabs() {
+  return MASTER_TAB_KEYS.filter(function(k) { return !!SHEET_TABS[k]; })
+    .map(function(k) { return SHEET_TABS[k]; });
+}
+
+// ── Switch era: swap tabs, clear caches, reload ──
+async function switchEra(era) {
+  if (!ERAS[era]) return;
+  _currentEra = era;
+  localStorage.setItem('lv_era', era);
+  _applyEraTabs(era);
+  // Clear master caches so fresh load happens
+  localStorage.removeItem('lv_master_cache');
+  localStorage.removeItem('lv_master_cache_ts');
+  localStorage.removeItem('lv_catalog_ref_cache');
+  localStorage.removeItem('lv_catalog_ref_ts');
+  localStorage.removeItem('lv_is_ref_cache');
+  localStorage.removeItem('lv_is_ref_ts');
+  // Reset state data
+  state.masterData = [];
+  state.setData = [];
+  state.companionData = [];
+  state.partnerMap = {};
+  state.catalogRefData = [];
+  state.isRefData = [];
+  // Update sidebar label
+  var _mlbl = document.getElementById('nav-master-label');
+  if (_mlbl) _mlbl.textContent = ERAS[era].label + ' Master List';
+  var _sel = document.getElementById('era-select');
+  if (_sel) _sel.value = era;
+  // Reload data
+  showLoadingOverlay('Switching to ' + ERAS[era].label + ' era…');
+  try {
+    await loadMasterData();
+    if (SHEET_TABS.sets) await loadSetsData();
+    if (SHEET_TABS.companions) await loadCompanionData();
+    if (SHEET_TABS.companions || SHEET_TABS.sets) buildPartnerMap();
+    await loadCatalogRefData();
+    if (SHEET_TABS.instrSheets) await loadISRefData();
+    await loadPersonalData();
+    if (typeof renderBrowse === 'function') renderBrowse();
+    if (typeof buildDashboard === 'function') buildDashboard();
+  } catch(e) { console.error('[switchEra]', e); }
+  hideLoadingOverlay();
+}
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '73';
+  const _CACHE_VER = '74';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
@@ -1453,11 +1492,12 @@ async function loadMasterData() {
 async function _fetchMasterTabs() {
   // Try multi-tab batchGet first, fall back to old single-tab
   try {
-    const ranges = MASTER_TABS.map(t => `${t}!A2:P`);
+    var _mt = _getMasterTabs();
+    const ranges = _mt.map(t => `${t}!A2:P`);
     const res = await sheetsBatchGet(state.masterSheetId, ranges);
     const allRows = [];
     (res.valueRanges || []).forEach((vr, i) => {
-      const tabName = MASTER_TABS[i];
+      const tabName = _mt[i];
       (vr.values || []).forEach(r => {
         allRows.push(parseMasterRow(r, tabName));
       });
@@ -1530,6 +1570,7 @@ async function loadCatalogRefData() {
   }
   try {
     let res;
+    if (!SHEET_TABS.catalogs) { state.catalogRefData = []; return; }
     try { res = await sheetsGet(state.masterSheetId, SHEET_TABS.catalogs + '!A2:D'); }
     catch(_) { res = await sheetsGet(state.masterSheetId, 'catalogs!A2:D'); }
     const rows = (res && res.values) || [];
@@ -1550,6 +1591,7 @@ async function loadCatalogRefData() {
 }
 
 async function loadISRefData() {
+  if (!SHEET_TABS.instrSheets) { state.isRefData = []; return; }
   // Fetch Instruction Sheets tab from master sheet
   // Columns: A=IS ID, B=Item Number, C=Description, D=Category, E=Variations, F=Notes
   const CACHE_KEY = 'lv_is_ref_cache';
@@ -1603,7 +1645,7 @@ async function loadSetData() {
     if (cached && (Date.now() - cachedAt) < 24*60*60*1000) {
       state.setData = JSON.parse(cached);
       // Background refresh
-      sheetsGet(state.masterSheetId, SHEET_TABS.sets + '!A2:U').catch(() => sheetsGet(state.masterSheetId, 'Master Set list!A2:U')).then(res => {
+      (SHEET_TABS.sets ? sheetsGet(state.masterSheetId, SHEET_TABS.sets + '!A2:U').catch(() => sheetsGet(state.masterSheetId, 'Master Set list!A2:U')) : Promise.resolve({values:[]})).then(res => {
         if (res && res.values) {
           parseSetRows(res.values);
           localStorage.setItem('lv_set_cache', JSON.stringify(state.setData));
@@ -1613,6 +1655,7 @@ async function loadSetData() {
       return;
     }
     let res;
+    if (!SHEET_TABS.sets) { state.setData = []; return; }
     try { res = await sheetsGet(state.masterSheetId, SHEET_TABS.sets + '!A2:U'); }
     catch(_) { res = await sheetsGet(state.masterSheetId, 'Master Set list!A2:U'); }
     parseSetRows((res && res.values) || []);
@@ -1627,7 +1670,7 @@ async function loadCompanionData() {
     const cachedAt = parseInt(localStorage.getItem('lv_companion_cache_ts') || '0');
     if (cached && (Date.now() - cachedAt) < 24*60*60*1000) {
       state.companionData = JSON.parse(cached);
-      sheetsGet(state.masterSheetId, SHEET_TABS.companions + '!A2:E').catch(() => sheetsGet(state.masterSheetId, 'Companions!A2:E')).then(res => {
+      (SHEET_TABS.companions ? sheetsGet(state.masterSheetId, SHEET_TABS.companions + '!A2:E').catch(() => sheetsGet(state.masterSheetId, 'Companions!A2:E')) : Promise.resolve({values:[]})).then(res => {
         if (res && res.values) {
           parseCompanionRows(res.values);
           localStorage.setItem('lv_companion_cache', JSON.stringify(state.companionData));
@@ -1637,6 +1680,7 @@ async function loadCompanionData() {
       return;
     }
     let res;
+    if (!SHEET_TABS.companions) { state.companionData = []; return; }
     try { res = await sheetsGet(state.masterSheetId, SHEET_TABS.companions + '!A2:E'); }
     catch(_) { res = await sheetsGet(state.masterSheetId, 'Companions!A2:E'); }
     parseCompanionRows((res && res.values) || []);
