@@ -1301,6 +1301,63 @@ function _patchMasterData() {
   });
 }
 
+function _inferMissingYears() {
+  // Phase 1: Set-based — map each set component to its set year(s)
+  var setYears = {};
+  (state.setData || []).forEach(function(s) {
+    if (!s.year) return;
+    var yrs = [];
+    (s.year.match(/\d{4}/g) || []).forEach(function(y) { yrs.push(parseInt(y)); });
+    if (!yrs.length) return;
+    s.items.forEach(function(comp) {
+      if (!comp) return;
+      [normalizeItemNum(comp), baseItemNum(comp)].forEach(function(k) {
+        if (!k) return;
+        if (!setYears[k]) setYears[k] = [];
+        yrs.forEach(function(y) { if (setYears[k].indexOf(y) < 0) setYears[k].push(y); });
+      });
+    });
+  });
+  var fixed = 0;
+  (state.masterData || []).forEach(function(m) {
+    if (m.yearProd) return;
+    var years = setYears[normalizeItemNum(m.itemNum)] || setYears[baseItemNum(m.itemNum)];
+    if (years && years.length) {
+      years.sort(function(a,b){return a-b;});
+      m.yearProd = years[0] === years[years.length-1] ? String(years[0]) : years[0] + ' - ' + years[years.length-1];
+      fixed++;
+    }
+  });
+  if (fixed) console.log('[YearInfer] Set-based: filled ' + fixed + ' items');
+
+  // Phase 2: Sibling — another variation of same item has a year
+  var itemYears = {};
+  (state.masterData || []).forEach(function(m) {
+    if (m.yearProd && !itemYears[m.itemNum]) itemYears[m.itemNum] = m.yearProd;
+  });
+  var sib = 0;
+  (state.masterData || []).forEach(function(m) {
+    if (!m.yearProd && itemYears[m.itemNum]) { m.yearProd = itemYears[m.itemNum]; sib++; }
+  });
+  if (sib) console.log('[YearInfer] Sibling: filled ' + sib + ' items');
+
+  // Phase 3: Companion — engine↔tender year sharing
+  (state.masterData || []).forEach(function(m) {
+    if (m.yearProd && !itemYears[m.itemNum]) itemYears[m.itemNum] = m.yearProd;
+  });
+  var comp = 0;
+  (state.masterData || []).forEach(function(m) {
+    if (m.yearProd) return;
+    var num = normalizeItemNum(m.itemNum);
+    var engine = num.replace(/[WTX]+$/, '');
+    if (engine !== num && itemYears[engine]) { m.yearProd = itemYears[engine]; comp++; return; }
+    ['W','T'].forEach(function(suf) {
+      if (!m.yearProd && itemYears[num + suf]) { m.yearProd = itemYears[num + suf]; comp++; }
+    });
+  });
+  if (comp) console.log('[YearInfer] Companion: filled ' + comp + ' items');
+}
+
 async function loadAllData() {
   showLoading();
   try {
@@ -1308,6 +1365,7 @@ async function loadAllData() {
     // Load master data (uses cache if fresh) and personal data in parallel
     await Promise.all([loadMasterData(), loadPersonalData(), loadSetData(), loadCompanionData(), loadCatalogRefData(), loadISRefData()]);
     _patchMasterData();
+    _inferMissingYears();
     buildPartnerMap();
     buildApp();
     showOnboarding();
@@ -1356,7 +1414,7 @@ const MASTER_TABS = [
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '71';
+  const _CACHE_VER = '72';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
