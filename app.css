@@ -1035,7 +1035,8 @@
 
   /* ── Dashboard action buttons: desktop shows row, mobile shows side-by-side panels ── */
   .dash-mobile-actions { display: none; }
-  .dash-desktop-actions { display: flex; }
+  .dash-desktop-actions { display: flex; gap: 0.5rem; }
+  .dash-desktop-actions .btn { min-width: 0; white-space: nowrap; font-size: 0.78rem !important; padding: 0.5rem 0.7rem !important; }
   @media (max-width: 640px) {
     .dash-mobile-actions { display: flex !important; gap: 0.5rem; width: 100%; }
     .dash-desktop-actions { display: none !important; }
