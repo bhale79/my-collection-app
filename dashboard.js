@@ -55,17 +55,17 @@ var CARD_CATALOG = [
     id: 'owned', label: 'Items I Own', color: '#3aad70',
     compute: function(state) {
       var items = _ownedNonBox(state);
-      var catalogCount = items.length;
-      // Add ephemera/IS/science/construction counts
-      var otherCount = 0;
-      Object.values(state.ephemeraData||{}).forEach(function(b) { otherCount += Object.keys(b).length; });
-      otherCount += Object.keys(state.isData||{}).length;
-      otherCount += Object.keys(state.scienceData||{}).length;
-      otherCount += Object.keys(state.constructionData||{}).length;
-      var grand = catalogCount + otherCount;
-      // Era breakdown for cataloged items
+      // Count all owned items including ephemera/IS/science/construction
+      var extraCount = 0;
+      Object.values(state.ephemeraData||{}).forEach(function(b) { extraCount += Object.keys(b).length; });
+      extraCount += Object.keys(state.isData||{}).length;
+      extraCount += Object.keys(state.scienceData||{}).length;
+      extraCount += Object.keys(state.constructionData||{}).length;
+      var grand = items.length + extraCount;
+      // Era breakdown — collection items by their era tag, ephemera/IS/science/construction are PW
       var byEra = {};
       items.forEach(function(pd) { var e = _eraOf(pd); byEra[e] = (byEra[e]||0) + 1; });
+      byEra['pw'] = (byEra['pw']||0) + extraCount;
       var lines = '';
       Object.keys(ERAS).forEach(function(ek) {
         if (byEra[ek]) {
@@ -73,10 +73,6 @@ var CARD_CATALOG = [
             + '<span>' + ERAS[ek].label + '</span><span>' + byEra[ek].toLocaleString() + '</span></div>';
         }
       });
-      if (otherCount > 0) {
-        lines += '<div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--text-mid);margin-top:2px">'
-          + '<span>Other Items</span><span>' + otherCount + '</span></div>';
-      }
       return { html: '<div class="stat-value">' + grand.toLocaleString() + '</div>'
         + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:1px">Total</div>'
         + lines };
