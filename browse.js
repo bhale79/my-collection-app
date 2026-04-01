@@ -136,6 +136,32 @@ function _roadComboClear() {
   _roadComboSelect('', '');
 }
 
+
+// ── Alias-aware search: expands abbreviations & nicknames ──
+function _aliasSearch(haystack, query) {
+  // Direct match first (fast path)
+  if (haystack.includes(query)) return true;
+  // Check if query matches any alias group — if so, test all terms in that group
+  var aliases = SEARCH_ALIASES[query];
+  if (aliases) {
+    for (var i = 0; i < aliases.length; i++) {
+      if (haystack.includes(aliases[i])) return true;
+    }
+  }
+  // Also check if query is a partial match of any alias key
+  // e.g. typing "fairbank" should still find the "fairbanks-morse" alias group
+  var keys = Object.keys(SEARCH_ALIASES);
+  for (var k = 0; k < keys.length; k++) {
+    if (keys[k].includes(query) || query.includes(keys[k])) {
+      var terms = SEARCH_ALIASES[keys[k]];
+      for (var j = 0; j < terms.length; j++) {
+        if (haystack.includes(terms[j])) return true;
+      }
+    }
+  }
+  return false;
+}
+
 function populateFilters() {
   const types = [...new Set(state.masterData.map(i => i.itemType).filter(Boolean))].sort();
   const roads = [...new Set(state.masterData.map(i => i.roadName).filter(Boolean))].sort();
@@ -573,7 +599,8 @@ function renderMasterSubTab(tabKey) {
   }).filter(function(r) {
     if (r.item._tab !== masterTab) return false;
     if (!q) return true;
-    return (r.item.itemNum + ' ' + (r.item.itemType||'') + ' ' + (r.item.description||'') + ' ' + (r.item.varDetail||'')).toLowerCase().includes(q);
+    var _h = (r.item.itemNum + ' ' + (r.item.roadName||'') + ' ' + (r.item.itemType||'') + ' ' + (r.item.description||'') + ' ' + (r.item.varDetail||'')).toLowerCase();
+    return _aliasSearch(_h, q);
   });
 
   if (countEl) countEl.textContent = items.length.toLocaleString() + ' item' + (items.length !== 1 ? 's' : '');
@@ -708,7 +735,7 @@ function renderBrowse() {
     if (road && item.roadName !== road) return false;
     if (search) {
       const haystack = `${item.itemNum} ${item.roadName||''} ${item.description||''} ${item.itemType||''}`.toLowerCase();
-      if (!haystack.includes(search)) return false;
+      if (!_aliasSearch(haystack, search)) return false;
     }
     return true;
   });
