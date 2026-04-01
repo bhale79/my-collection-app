@@ -471,7 +471,7 @@ function _buildAppShell() {
     '<div class="nav-section">' +
       '<button class="nav-item" onclick="showPage(\'browse\', this); resetFilters(); renderBrowse();" data-ctip="Opens the cataloged item master list.">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>' +
-        'Cataloged Item Master List<span class="nav-badge" id="nav-total" style="background:#f8e8c0;color:#1a1a1a">\u2014</span>' +
+        'Cataloged Item Master List' +
       '</button>' +
       '<button class="nav-item" onclick="showPage(\'browse\', this); filterOwned()" data-ctip="This is your inventory list.">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>' +
@@ -1443,7 +1443,7 @@ async function switchEra(era) {
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '75';
+  const _CACHE_VER = '76';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');

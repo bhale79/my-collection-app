@@ -292,7 +292,7 @@ function renderBrowseTab(tab) {
   if (disclaimer) disclaimer.style.display = (onItems && _prefGet('lv_show_disclaimer', 'true') === 'true') ? 'flex' : 'none';
   if (identBtn) identBtn.style.display = inCollection ? 'none' : (onItems ? '' : 'none');
 
-  const titleEl = document.getElementById('browse-page-title');
+  const titleEl = document.getElementById('browse-title-text');
   const mTitles = { items:'Master Catalog', sets:'Set Master List', catalogs:'Catalog List', science:'Science Sets', construction:'Construction Sets', paper:'Paper Items', other:'Other Items', service:'Service Tools', is:'Instruction Sheet List' };
   const cTitles = { items:'My Collection', sets:'My Sets', catalogs:'My Catalogs & Paper Items', mockups:'My Mock-ups & Other Items' };
   if (titleEl) titleEl.textContent = (inCollection ? cTitles : mTitles)[state._browseTab] || 'Master Catalog';

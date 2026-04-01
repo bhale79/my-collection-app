@@ -20,9 +20,9 @@
   <link rel="manifest" href="manifest.json">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>The Rail Roster — Postwar Train Collection Tracker</title>
-<link rel="stylesheet" href="./app.css?v=93">
-<link rel="stylesheet" href="./tutorial.css?v=93">
-<link rel="stylesheet" href="./vault-styles.css?v=93">
+<link rel="stylesheet" href="./app.css?v=94">
+<link rel="stylesheet" href="./tutorial.css?v=94">
+<link rel="stylesheet" href="./vault-styles.css?v=94">
 </head>
 <body>
 
@@ -147,7 +147,8 @@ document.addEventListener('touchmove', function(){}, {passive: true});
       <!-- ── Browse ── -->
       <div class="page" id="page-browse">
         <div class="page-title" style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem">
-          <span id="browse-page-title" style="display:flex;align-items:center;gap:0.75rem">Master Catalog
+          <span id="browse-page-title" style="display:flex;align-items:center;gap:0.75rem">
+            <span id="browse-title-text">Master Catalog</span>
             <select id="era-select" onchange="switchEra(this.value)" style="padding:0.4rem 0.6rem;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text);font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer">
               <option value="pw">Postwar (1945-1969)</option>
               <option value="mpc">MPC (1970-1986)</option>
@@ -697,22 +698,22 @@ document.addEventListener('touchmove', function(){}, {passive: true});
 <!-- identify-modal is built dynamically by wizard.js -->
 </div>
 
-<script src="./config.js?v=93"></script>
-<script src="./app.js?v=93"></script>
-<script src="./sheets.js?v=93"></script>
-<script src="./drive.js?v=93"></script>
-<script src="./browse.js?v=93"></script>
-<script src="./dashboard.js?v=93"></script>
-<script src="./sheet-builder.js?v=93"></script>
+<script src="./config.js?v=94"></script>
+<script src="./app.js?v=94"></script>
+<script src="./sheets.js?v=94"></script>
+<script src="./drive.js?v=94"></script>
+<script src="./browse.js?v=94"></script>
+<script src="./dashboard.js?v=94"></script>
+<script src="./sheet-builder.js?v=94"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="./wizard.js?v=93"></script>
-<script src="./tutorial.js?v=93"></script>
-<script src="./vault.js?v=93"></script>
-<script src="./reports.js?v=93"></script>
-<script src="./prefs.js?v=93"></script>
-<script src="./tools.js?v=93"></script>
+<script src="./wizard.js?v=94"></script>
+<script src="./tutorial.js?v=94"></script>
+<script src="./vault.js?v=94"></script>
+<script src="./reports.js?v=94"></script>
+<script src="./prefs.js?v=94"></script>
+<script src="./tools.js?v=94"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="./share.js?v=93"></script>
+<script src="./share.js?v=94"></script>
 
 <script>
 // ── PWA Service Worker Registration ─────────────────────────────
