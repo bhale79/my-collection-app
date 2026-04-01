@@ -1426,24 +1426,26 @@ async function switchEra(era) {
   var _sel = document.getElementById('era-select');
   if (_sel) _sel.value = era;
   // Reload data
-  showLoadingOverlay('Switching to ' + ERAS[era].label + ' era…');
+  showLoading();
+  showToast('Switching to ' + ERAS[era].label + ' era…');
   try {
     await loadMasterData();
-    if (SHEET_TABS.sets) await loadSetsData();
+    if (SHEET_TABS.sets) await loadSetData();
     if (SHEET_TABS.companions) await loadCompanionData();
     if (SHEET_TABS.companions || SHEET_TABS.sets) buildPartnerMap();
     await loadCatalogRefData();
     if (SHEET_TABS.instrSheets) await loadISRefData();
     await loadPersonalData();
+    populateFilters();
     if (typeof renderBrowse === 'function') renderBrowse();
     if (typeof buildDashboard === 'function') buildDashboard();
-  } catch(e) { console.error('[switchEra]', e); }
-  hideLoadingOverlay();
+    showToast(ERAS[era].label + ' era loaded — ' + (state.masterData||[]).length + ' items');
+  } catch(e) { console.error('[switchEra]', e); showToast('Era switch error: ' + e.message); }
 }
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '78';
+  const _CACHE_VER = '79';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
