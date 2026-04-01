@@ -1257,7 +1257,11 @@ function renderWizardStep() {
     var _savedCats = {};
     try { _savedCats = JSON.parse(localStorage.getItem('rr_wizard_cats') || '{}'); } catch(e) {}
     const _catPrefs = Object.assign({}, DEFAULT_WIZARD_CATEGORIES, _savedCats);
-    const _cats = _allCats.filter(function(c) { return _catPrefs[c.id] !== false; });
+    var _cats = _allCats.filter(function(c) { return _catPrefs[c.id] !== false; });
+    // MPC/Modern: only show cataloged items and manual entry
+    if (_curEra !== 'pw') {
+      _cats = _cats.filter(function(c) { return c.id === 'lionel' || c.id === 'manual'; });
+    }
     // Era pill bar
     const _curEra = wizard.data._era || localStorage.getItem('rr_default_era') || _currentEra || 'pw';
     if (!wizard.data._era) wizard.data._era = _curEra;
@@ -1268,7 +1272,7 @@ function renderWizardStep() {
       _pillHtml = '<div style="display:flex;gap:0.4rem;margin-bottom:0.75rem;flex-wrap:wrap">';
       Object.values(ERAS).forEach(function(era) {
         var sel = era.id === _curEra;
-        _pillHtml += '<button onclick="switchEra(\'' + era.id + '\');wizard.data._era=\'' + era.id + '\';" style="'
+        _pillHtml += '<button onclick="wizard.data._era=\'' + era.id + '\';renderWizardStep();" style="'
           + 'padding:0.35rem 0.85rem;border-radius:20px;font-family:var(--font-head);font-size:0.75rem;'
           + 'font-weight:700;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer;transition:all 0.15s;'
           + 'border:1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';'
@@ -4597,7 +4601,11 @@ function renderWizardStep() {
 
 }
 
-function wizardChooseCategory(catId) {
+async function wizardChooseCategory(catId) {
+  // Switch era if wizard era differs from current loaded era
+  if (wizard.data._era && wizard.data._era !== _currentEra) {
+    await switchEra(wizard.data._era);
+  }
   if (catId === '__new__') {
     // Prompt for custom category name
     const name = prompt('Enter a name for your custom category:');
@@ -6874,7 +6882,7 @@ async function saveWizardItem() {
           boxInvId,
           boxGroupId,
           d.location || '',        // Location (col W)
-          (_currentEra || 'pw'), // Era (col X)
+          ((wizard && wizard.data && wizard.data._era) || _currentEra || 'pw'), // Era (col X)
           '',                    // Manufacturer (col Y)
         ];
 
@@ -6949,7 +6957,7 @@ async function saveWizardItem() {
         d._existingInventoryId || d._photoInventoryId || nextInventoryId(),  // Inventory ID (col U)
         '',  // Group ID (col V) — filled in below for grouped items
         d.location || '',  // Location (col W)
-        (_currentEra || 'pw'), // Era (col X)
+        ((wizard && wizard.data && wizard.data._era) || _currentEra || 'pw'), // Era (col X)
         '',                    // Manufacturer (col Y)
         ];
       }
@@ -6986,7 +6994,7 @@ async function saveWizardItem() {
       nextInventoryId(),  // Inventory ID
       groupId,  // Group ID — shared across set
       d.location || '',  // Location (col W) — same as unit 1
-      (_currentEra || 'pw'), // Era (col X)
+      ((wizard && wizard.data && wizard.data._era) || _currentEra || 'pw'), // Era (col X)
       '',                    // Manufacturer (col Y)
     ];
     await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u2Row]);
@@ -7011,7 +7019,7 @@ async function saveWizardItem() {
         nextInventoryId(),  // Inventory ID
         groupId,  // Group ID — shared across set
         d.location || '',  // Location (col W) — same as unit 1
-        (_currentEra || 'pw'), // Era (col X)
+        ((wizard && wizard.data && wizard.data._era) || _currentEra || 'pw'), // Era (col X)
         '',                    // Manufacturer (col Y)
       ];
       await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u3Row]);
@@ -7064,7 +7072,7 @@ async function saveWizardItem() {
       nextInventoryId(),  // Inventory ID
       groupId,  // Group ID — shared with engine
       d.location || '',  // Location (col W) — same as engine
-      (_currentEra || 'pw'), // Era (col X)
+      ((wizard && wizard.data && wizard.data._era) || _currentEra || 'pw'), // Era (col X)
       '',                    // Manufacturer (col Y)
     ];
     await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [tRow]);
@@ -7318,7 +7326,7 @@ async function saveWizardItem() {
           mbInvId,      // Inventory ID
           groupId,      // Group ID — shared with set
           d.location || '',  // Location (col W) — same as lead unit
-          (_currentEra || 'pw'), // Era (col X)
+          ((wizard && wizard.data && wizard.data._era) || _currentEra || 'pw'), // Era (col X)
           '',                    // Manufacturer (col Y)
         ];
         await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [mbRow]);
