@@ -20,9 +20,9 @@
   <link rel="manifest" href="manifest.json">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>The Rail Roster — Postwar Train Collection Tracker</title>
-<link rel="stylesheet" href="./app.css?v=97">
-<link rel="stylesheet" href="./tutorial.css?v=97">
-<link rel="stylesheet" href="./vault-styles.css?v=97">
+<link rel="stylesheet" href="./app.css?v=98">
+<link rel="stylesheet" href="./tutorial.css?v=98">
+<link rel="stylesheet" href="./vault-styles.css?v=98">
 </head>
 <body>
 
@@ -192,9 +192,12 @@ document.addEventListener('touchmove', function(){}, {passive: true});
             <option value="">All Types</option>
           </select>
 
-          <select class="filter-select" id="filter-road" onchange="applyFilters()">
-            <option value="">All Roads</option>
-          </select>
+          <div class="road-combo" id="road-combo">
+            <input type="text" id="filter-road-input" class="filter-select" placeholder="All Roads" autocomplete="off"
+              onfocus="_roadComboOpen()" oninput="_roadComboFilter(this.value)">
+            <button id="road-combo-clear" class="road-combo-clear" onclick="_roadComboClear()" style="display:none" title="Clear">&times;</button>
+            <div id="road-combo-list" class="road-combo-list" style="display:none"></div>
+          </div>
           <div style="display:flex;align-items:center;gap:0.4rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0.35rem 0.65rem;flex:1;max-width:320px">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
             <input id="browse-search" type="text" placeholder="Search item #, road, description…" oninput="onPageSearch(this.value,'browse')" style="border:none;background:none;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;width:100%">
@@ -700,22 +703,22 @@ document.addEventListener('touchmove', function(){}, {passive: true});
 <!-- identify-modal is built dynamically by wizard.js -->
 </div>
 
-<script src="./config.js?v=97"></script>
-<script src="./app.js?v=97"></script>
-<script src="./sheets.js?v=97"></script>
-<script src="./drive.js?v=97"></script>
-<script src="./browse.js?v=97"></script>
-<script src="./dashboard.js?v=97"></script>
-<script src="./sheet-builder.js?v=97"></script>
+<script src="./config.js?v=98"></script>
+<script src="./app.js?v=98"></script>
+<script src="./sheets.js?v=98"></script>
+<script src="./drive.js?v=98"></script>
+<script src="./browse.js?v=98"></script>
+<script src="./dashboard.js?v=98"></script>
+<script src="./sheet-builder.js?v=98"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="./wizard.js?v=97"></script>
-<script src="./tutorial.js?v=97"></script>
-<script src="./vault.js?v=97"></script>
-<script src="./reports.js?v=97"></script>
-<script src="./prefs.js?v=97"></script>
-<script src="./tools.js?v=97"></script>
+<script src="./wizard.js?v=98"></script>
+<script src="./tutorial.js?v=98"></script>
+<script src="./vault.js?v=98"></script>
+<script src="./reports.js?v=98"></script>
+<script src="./prefs.js?v=98"></script>
+<script src="./tools.js?v=98"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="./share.js?v=97"></script>
+<script src="./share.js?v=98"></script>
 
 <script>
 // ── PWA Service Worker Registration ─────────────────────────────

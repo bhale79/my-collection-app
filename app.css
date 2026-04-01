@@ -1043,3 +1043,14 @@
     #dash-greeting { display: none !important; }
   }
 </style>
+
+/* ── Road Name Searchable Combobox ── */
+.road-combo { position:relative; display:inline-block; min-width:180px; }
+.road-combo input { width:100%; box-sizing:border-box; cursor:pointer; }
+.road-combo-clear { position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; color:var(--text-dim); font-size:1.1rem; cursor:pointer; padding:0 4px; line-height:1; z-index:2; }
+.road-combo-clear:hover { color:var(--text); }
+.road-combo-list { position:absolute; top:100%; left:0; right:0; max-height:280px; overflow-y:auto; background:var(--bg-card); border:1px solid var(--border); border-radius:0 0 8px 8px; box-shadow:0 4px 12px rgba(0,0,0,0.25); z-index:100; }
+.road-combo-list .road-opt { padding:0.45rem 0.7rem; font-size:0.84rem; font-family:var(--font-body); color:var(--text); cursor:pointer; border-bottom:1px solid var(--border); }
+.road-combo-list .road-opt:last-child { border-bottom:none; }
+.road-combo-list .road-opt:hover, .road-combo-list .road-opt.active { background:rgba(212,168,67,0.15); }
+.road-combo-list .road-opt .road-count { float:right; font-size:0.75rem; color:var(--text-dim); }

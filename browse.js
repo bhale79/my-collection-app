@@ -48,6 +48,94 @@ function _displayItemNum(item) {
   return num;
 }
 
+
+// ── Road Name Searchable Combobox ──
+window._roadComboValue = '';
+window._allRoads = [];
+
+function _roadComboBuild() {
+  var list = document.getElementById('road-combo-list');
+  if (!list) return;
+  list.innerHTML = '';
+  _roadComboRender(window._allRoads, list);
+}
+
+function _roadComboRender(roads, list) {
+  if (!list) list = document.getElementById('road-combo-list');
+  if (!list) return;
+  list.innerHTML = '';
+  // "All Roads" option
+  var allOpt = document.createElement('div');
+  allOpt.className = 'road-opt';
+  allOpt.textContent = 'All Roads';
+  allOpt.onclick = function() { _roadComboSelect('', 'All Roads'); };
+  list.appendChild(allOpt);
+  // Filtered roads
+  roads.forEach(function(r) {
+    var opt = document.createElement('div');
+    opt.className = 'road-opt';
+    opt.innerHTML = r.name + '<span class="road-count">' + r.count + '</span>';
+    opt.onclick = function() { _roadComboSelect(r.name, r.name); };
+    list.appendChild(opt);
+  });
+}
+
+function _roadComboOpen() {
+  var list = document.getElementById('road-combo-list');
+  var input = document.getElementById('filter-road-input');
+  if (!list) return;
+  input.select();
+  _roadComboRender(window._allRoads, list);
+  list.style.display = 'block';
+  // Close on outside click
+  setTimeout(function() {
+    document.addEventListener('click', _roadComboOutside, { once: true, capture: true });
+  }, 10);
+}
+
+function _roadComboOutside(e) {
+  var combo = document.getElementById('road-combo');
+  if (combo && !combo.contains(e.target)) {
+    _roadComboClose();
+  } else {
+    // Re-attach listener if click was inside combo
+    setTimeout(function() {
+      document.addEventListener('click', _roadComboOutside, { once: true, capture: true });
+    }, 10);
+  }
+}
+
+function _roadComboClose() {
+  var list = document.getElementById('road-combo-list');
+  if (list) list.style.display = 'none';
+}
+
+function _roadComboFilter(query) {
+  var list = document.getElementById('road-combo-list');
+  if (!list) return;
+  var q = (query || '').toLowerCase().trim();
+  var filtered = q ? window._allRoads.filter(function(r) {
+    return r.name.toLowerCase().indexOf(q) >= 0;
+  }) : window._allRoads;
+  _roadComboRender(filtered, list);
+  list.style.display = 'block';
+}
+
+function _roadComboSelect(value, label) {
+  var input = document.getElementById('filter-road-input');
+  var clearBtn = document.getElementById('road-combo-clear');
+  window._roadComboValue = value;
+  if (input) input.value = value ? label : '';
+  if (input) input.placeholder = value ? '' : 'All Roads';
+  if (clearBtn) clearBtn.style.display = value ? 'block' : 'none';
+  _roadComboClose();
+  applyFilters();
+}
+
+function _roadComboClear() {
+  _roadComboSelect('', '');
+}
+
 function populateFilters() {
   const types = [...new Set(state.masterData.map(i => i.itemType).filter(Boolean))].sort();
   const roads = [...new Set(state.masterData.map(i => i.roadName).filter(Boolean))].sort();
@@ -82,8 +170,11 @@ function populateFilters() {
     const o = document.createElement('option'); o.value = t.label; o.textContent = '⭐ ' + t.label; typeEl.appendChild(o);
   });
 
-  const roadEl = document.getElementById('filter-road');
-  roads.slice(0, 80).forEach(r => { const o = document.createElement('option'); o.value = r; o.textContent = r; roadEl.appendChild(o); });
+  // Store all roads for the combobox (with counts)
+  var _roadCounts = {};
+  state.masterData.forEach(function(i) { if (i.roadName) _roadCounts[i.roadName] = (_roadCounts[i.roadName]||0) + 1; });
+  window._allRoads = roads.map(function(r) { return { name: r, count: _roadCounts[r] || 0 }; });
+  _roadComboBuild();
 }
 
 // ── Browse filter popup ──────────────────────────────────────────
@@ -110,7 +201,7 @@ function updateFilterBadge() {
   const btn   = document.getElementById('browse-filter-btn');
   if (!badge) return;
   const t = (document.getElementById('filter-type')?.value || '').trim();
-  const r = (document.getElementById('filter-road')?.value || '').trim();
+  const r = (window._roadComboValue || '').trim();
   const count = (t ? 1 : 0) + (r ? 1 : 0);
   badge.textContent = count;
   badge.style.display = count > 0 ? 'inline' : 'none';
@@ -120,9 +211,8 @@ function updateFilterBadge() {
 
 function clearBrowseFilters() {
   const ft = document.getElementById('filter-type');
-  const fr = document.getElementById('filter-road');
   if (ft) ft.value = '';
-  if (fr) fr.value = '';
+  _roadComboClear();
   updateFilterBadge();
   applyFilters();
 }
@@ -130,7 +220,7 @@ function clearBrowseFilters() {
 function applyFilters() {
   state.filters.type = document.getElementById('filter-type').value;
   state.filters.quickEntry = ''; // QE filter only applies in My Collection view
-  state.filters.road = document.getElementById('filter-road').value;
+  state.filters.road = window._roadComboValue || '';
   state.filters.wantList = false;
   state.currentPage = 1;
   renderBrowse();
@@ -169,7 +259,7 @@ function resetFilters() {
   state.filters.quickEntry = '';
   state.currentPage = 1;
   document.getElementById('filter-type').value = '';
-  document.getElementById('filter-road').value = '';
+  _roadComboClear();
   updateFilterBadge();
   state._browseTab = 'items';
   renderBrowseTab('items');
