@@ -815,14 +815,19 @@ async function _runBackfillEra() {
     var sheetId = state.personalSheetId;
     if (!sheetId) throw new Error('No personal sheet ID');
 
-    // 1. Build ranges for all era master tabs (just col A = item numbers)
+    // 1. Build ranges for item-bearing master tabs only (skip companions/sets/IS/catalogs)
     var ranges = [];
     var rangeEra = []; // parallel array: which era each range belongs to
+    var itemKeys = typeof MASTER_TAB_KEYS !== 'undefined' ? MASTER_TAB_KEYS : ['items'];
     Object.keys(ERA_TABS).forEach(function(eraKey) {
       var tabs = ERA_TABS[eraKey];
-      Object.keys(tabs).forEach(function(tabKey) {
-        ranges.push(tabs[tabKey] + '!A2:A');
-        rangeEra.push(eraKey);
+      // For each era, only query tabs that hold browseable items
+      var keysToQuery = (eraKey === 'pw') ? itemKeys : ['items'];
+      keysToQuery.forEach(function(tabKey) {
+        if (tabs[tabKey]) {
+          ranges.push(tabs[tabKey] + '!A2:A');
+          rangeEra.push(eraKey);
+        }
       });
     });
 
