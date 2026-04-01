@@ -32,6 +32,7 @@ const ERA_TABS = {
     catalogs:     'Lionel PW - Catalogs',
     companions:   'Lionel PW - Companions',
     sets:         'Lionel PW - Sets',
+    instrSheets:  'Lionel PW - Instruction Sheets',
   },
   mpc: {
     items:    'Lionel MPC - Items',
