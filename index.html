@@ -20,9 +20,9 @@
   <link rel="manifest" href="manifest.json">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>The Rail Roster — Postwar Train Collection Tracker</title>
-<link rel="stylesheet" href="./app.css?v=92">
-<link rel="stylesheet" href="./tutorial.css?v=92">
-<link rel="stylesheet" href="./vault-styles.css?v=92">
+<link rel="stylesheet" href="./app.css?v=93">
+<link rel="stylesheet" href="./tutorial.css?v=93">
+<link rel="stylesheet" href="./vault-styles.css?v=93">
 </head>
 <body>
 
@@ -147,7 +147,13 @@ document.addEventListener('touchmove', function(){}, {passive: true});
       <!-- ── Browse ── -->
       <div class="page" id="page-browse">
         <div class="page-title" style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem">
-          <span id="browse-page-title">Master Catalog</span>
+          <span id="browse-page-title" style="display:flex;align-items:center;gap:0.75rem">Master Catalog
+            <select id="era-select" onchange="switchEra(this.value)" style="padding:0.4rem 0.6rem;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text);font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer">
+              <option value="pw">Postwar (1945-1969)</option>
+              <option value="mpc">MPC (1970-1986)</option>
+              <option value="mod">Modern (1987-Today)</option>
+            </select>
+          </span>
           <div style="display:flex;gap:0.5rem;align-items:center">
             <button class="btn" id="identify-btn" onclick="openIdentify(null)" style="display:flex;align-items:center;gap:0.4rem;border:1.5px solid var(--gold);color:var(--gold);background:rgba(212,168,67,0.1);font-weight:600;font-size:0.88rem;padding:0.6rem 1rem" title="Identify an unlabeled item by photo">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
@@ -691,22 +697,22 @@ document.addEventListener('touchmove', function(){}, {passive: true});
 <!-- identify-modal is built dynamically by wizard.js -->
 </div>
 
-<script src="./config.js?v=92"></script>
-<script src="./app.js?v=92"></script>
-<script src="./sheets.js?v=92"></script>
-<script src="./drive.js?v=92"></script>
-<script src="./browse.js?v=92"></script>
-<script src="./dashboard.js?v=92"></script>
-<script src="./sheet-builder.js?v=92"></script>
+<script src="./config.js?v=93"></script>
+<script src="./app.js?v=93"></script>
+<script src="./sheets.js?v=93"></script>
+<script src="./drive.js?v=93"></script>
+<script src="./browse.js?v=93"></script>
+<script src="./dashboard.js?v=93"></script>
+<script src="./sheet-builder.js?v=93"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="./wizard.js?v=92"></script>
-<script src="./tutorial.js?v=92"></script>
-<script src="./vault.js?v=92"></script>
-<script src="./reports.js?v=92"></script>
-<script src="./prefs.js?v=92"></script>
-<script src="./tools.js?v=92"></script>
+<script src="./wizard.js?v=93"></script>
+<script src="./tutorial.js?v=93"></script>
+<script src="./vault.js?v=93"></script>
+<script src="./reports.js?v=93"></script>
+<script src="./prefs.js?v=93"></script>
+<script src="./tools.js?v=93"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="./share.js?v=92"></script>
+<script src="./share.js?v=93"></script>
 
 <script>
 // ── PWA Service Worker Registration ─────────────────────────────

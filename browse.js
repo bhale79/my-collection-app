@@ -1,5 +1,8 @@
 // ── Era-aware browse tab visibility ──
 function _updateBrowseTabsForEra() {
+  // Sync era dropdown on browse page
+  var _esel = document.getElementById('era-select');
+  if (_esel && _esel.value !== _currentEra) _esel.value = _currentEra;
   // Tabs only shown for eras that have them
   var _pwOnly = ['sets','science','construction','paper','other','service','is'];
   _pwOnly.forEach(function(t) {

@@ -469,16 +469,9 @@ function _buildAppShell() {
       '</button>' +
     '</div>' +
     '<div class="nav-section">' +
-      '<div style="padding:0.3rem 0.5rem 0.5rem">' +
-        '<select id="era-select" onchange="switchEra(this.value)" style="width:100%;padding:0.45rem 0.5rem;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text);font-family:var(--font-body);font-size:0.82rem;cursor:pointer">' +
-          '<option value="pw"' + (_currentEra==='pw'?' selected':'') + '>Postwar (1945-1969)</option>' +
-          '<option value="mpc"' + (_currentEra==='mpc'?' selected':'') + '>MPC (1970-1986)</option>' +
-          '<option value="mod"' + (_currentEra==='mod'?' selected':'') + '>Modern (1987-Today)</option>' +
-        '</select>' +
-      '</div>' +
-      '<button class="nav-item" onclick="showPage(\'browse\', this); resetFilters(); renderBrowse();" data-ctip="Opens the master list for the selected era.">' +
+      '<button class="nav-item" onclick="showPage(\'browse\', this); resetFilters(); renderBrowse();" data-ctip="Opens the cataloged item master list.">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>' +
-        '<span id="nav-master-label">' + (ERAS[_currentEra] ? ERAS[_currentEra].label : 'Postwar') + ' Master List</span><span class="nav-badge" id="nav-total" style="background:#f8e8c0;color:#1a1a1a">\u2014</span>' +
+        'Cataloged Item Master List<span class="nav-badge" id="nav-total" style="background:#f8e8c0;color:#1a1a1a">\u2014</span>' +
       '</button>' +
       '<button class="nav-item" onclick="showPage(\'browse\', this); filterOwned()" data-ctip="This is your inventory list.">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>' +
@@ -1429,9 +1422,7 @@ async function switchEra(era) {
   state.partnerMap = {};
   state.catalogRefData = [];
   state.isRefData = [];
-  // Update sidebar label
-  var _mlbl = document.getElementById('nav-master-label');
-  if (_mlbl) _mlbl.textContent = ERAS[era].label + ' Master List';
+  // Update browse page era dropdown
   var _sel = document.getElementById('era-select');
   if (_sel) _sel.value = era;
   // Reload data
@@ -1452,7 +1443,7 @@ async function switchEra(era) {
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '74';
+  const _CACHE_VER = '75';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
