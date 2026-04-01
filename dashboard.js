@@ -131,14 +131,15 @@ var CARD_CATALOG = [
       Object.keys(ERAS).forEach(function(ek) {
         var owned = byEra[ek] || 0;
         var total = (ek === _currentEra) ? state.masterData.length : _getEraMasterTotal(ek);
-        var pct = (total && total > 0) ? (owned/total*100) : 0;
-        var pctStr = total ? pct.toFixed(1) + '%' : '—';
-        var barWidth = total ? Math.max(pct, 0.5) : 0;
+        if (total === null || total === undefined) total = 0;
+        var pct = total > 0 ? (owned/total*100) : 0;
+        var pctStr = total > 0 ? pct.toFixed(1) + '%' : '—';
+        var barWidth = total > 0 ? Math.max(pct, 0.5) : 0;
         var color = eraColors[ek] || '#888';
         html += '<div style="margin-top:' + (html ? '5px' : '2px') + '">'
           + '<div style="display:flex;justify-content:space-between;font-size:0.7rem;margin-bottom:2px">'
           + '<span style="color:var(--text-mid)">' + ERAS[ek].label + '</span>'
-          + '<span style="color:' + color + ';font-weight:600">' + owned + (total ? ' / ' + total.toLocaleString() : '') + '</span>'
+          + '<span style="color:' + color + ';font-weight:600">' + owned + (total > 0 ? ' / ' + total.toLocaleString() : '') + '</span>'
           + '</div>'
           + '<div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden">'
           + '<div style="width:' + barWidth + '%;height:100%;background:' + color + ';border-radius:2px;min-width:' + (owned > 0 ? '3px' : '0') + '"></div>'
