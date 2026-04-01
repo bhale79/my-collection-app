@@ -1751,12 +1751,19 @@ function renderWizardStep() {
     return;
 
     } else if (s.type === 'entryMode') {
-    // ── QE Step 1: Combined item number + condition + save screen ──
+    // Auto-select full entry (QE renderer needs rebuild — code was lost in a prior session)
+    wizard.data.entryMode = 'full';
+    wizard.step++;
+    while (wizard.step < wizard.steps.length - 1 && wizard.steps[wizard.step].skipIf && wizard.steps[wizard.step].skipIf(wizard.data)) {
+      wizard.step++;
+    }
+    renderWizardStep();
+    return;
+
+    // ── QE Step 1 placeholder — full rebuild needed ──
     var _qe1D = wizard.data;
     var _qe1ItemNum = (_qe1D.itemNum || '').trim();
     var _qe1BoxOnly = _qe1D.boxOnly || false;
-
-    // Unit icons — external files (moved from inline base64 to reduce wizard.js size)
     var _qe1Icons = {
       engine:    './img/icon_engine.png',
       tender:    './img/icon_tender.png',
@@ -1765,12 +1772,7 @@ function renderWizardStep() {
       b_unit:    './img/icon_b_unit.png',
       freight:   './img/icon_freight.png',
     };
-    _qe1Wrap.appendChild(_qe1SaveBtn);
-    _qe1Wrap.appendChild(_qe1Divider);
-    _qe1Wrap.appendChild(_qe1FullBtn);
-
-    body.innerHTML = '';
-    body.appendChild(_qe1Wrap);
+    body.innerHTML = '<div class="empty-state"><p>Loading...</p></div>';
 
     // ── Inner helpers (closures over _qe1Icons, wizard.data, etc.) ──
 
@@ -4466,7 +4468,7 @@ function renderWizardStep() {
     };
     const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','wantErrorPhotos','photosMasterBox','boxOnly','entryMode','_setId','_rawItemNum','matchedItem','_partialMatches','_partialQuery','_itemGrouping','_fromWantList','_fromWantKey','_returnPage','_manualEntry','_drivePhotos','_setMode','_setGroupId','_setFinalItems','_setItemIndex','_setItemsSaved','_setEntryMode','_resolvedSet','_setLocoNum','_setPrice','_setDate','_setWorth','_setCondition','_setHasBoxChecked','_setWantPhotos','_setPhotoThenSave','_prefilledCondition','_setQEPhotos','set_hasBox','set_boxCond','set_boxPhotos','set_notes','_suggestions_cache','_completingQuickEntry','_existingGroupId','_fillItemMode','_wizSaveLock','_qeSaving','_photoInventoryId','_saveComplete']);
     // Skip set_num from summary if it's already shown in the header
-    if (_resolvedSet || wizard.data.set_num) _skipKeys.add('set_num');
+    if (wizard.data._resolvedSet || wizard.data.set_num) _skipKeys.add('set_num');
     // Skip notes from summary for tabs that have inline notes on confirm step
     if (['want','forsale','sold'].includes(wizard.tab)) _skipKeys.add('notes');
     // In set mode, hide tender/unit/masterBox/error fields from confirm (each set item is standalone)
