@@ -344,7 +344,7 @@ function buildDashboard() {
 
   const soldCount = Object.keys(state.soldData).length;
   const wantCount = total - owned - soldCount;
-  document.getElementById('nav-total').textContent = total.toLocaleString();
+  var _nt = document.getElementById('nav-total'); if (_nt) _nt.textContent = total.toLocaleString();
   document.getElementById('nav-owned').textContent = owned.toLocaleString();
   const wantListCount = Object.keys(state.wantData).length;
   document.getElementById('nav-wanted2').textContent = wantListCount.toLocaleString();
