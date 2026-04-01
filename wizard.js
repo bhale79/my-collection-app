@@ -1257,13 +1257,13 @@ function renderWizardStep() {
     var _savedCats = {};
     try { _savedCats = JSON.parse(localStorage.getItem('rr_wizard_cats') || '{}'); } catch(e) {}
     const _catPrefs = Object.assign({}, DEFAULT_WIZARD_CATEGORIES, _savedCats);
+    // Era pill bar
+    const _curEra = wizard.data._era || localStorage.getItem('rr_default_era') || _currentEra || 'pw';
     var _cats = _allCats.filter(function(c) { return _catPrefs[c.id] !== false; });
     // MPC/Modern: only show cataloged items and manual entry
     if (_curEra !== 'pw') {
       _cats = _cats.filter(function(c) { return c.id === 'lionel' || c.id === 'manual'; });
     }
-    // Era pill bar
-    const _curEra = wizard.data._era || localStorage.getItem('rr_default_era') || _currentEra || 'pw';
     if (!wizard.data._era) wizard.data._era = _curEra;
     const _eraLabel = (ERAS[_curEra] || {}).label || _curEra;
     const cur = wizard.data.itemCategory || '';
