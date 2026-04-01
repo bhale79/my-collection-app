@@ -811,7 +811,7 @@ function _updateGroupingButtons() {
   html += '<button onclick="_selectBoxOnly()" style="flex:' + _btnFlexBox + ';min-width:0;padding:0.5rem 0.6rem;border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:var(--font-body);white-space:normal;word-break:break-word;text-align:center;line-height:1.2;'
     + 'border:2px solid ' + (_boxSelected ? 'var(--accent2)' : 'var(--border)') + ';'
     + 'background:' + (_boxSelected ? 'rgba(201,146,42,0.12)' : 'var(--surface2)') + ';'
-    + 'color:' + (_boxSelected ? 'var(--accent2)' : 'var(--text-mid)') + '">Box only</button>';
+    + 'color:' + (_boxSelected ? 'var(--accent2)' : 'var(--text-mid)') + '">Just the Box</button>';
   html += '</div>';
   container.innerHTML = html;
 }
@@ -5581,7 +5581,11 @@ function lookupItem(num) {
         <span style="color:var(--green)">✓ Found:</span> ${match.roadName || match.itemType || ''} · ${match.yearProd || ''} · ${match.itemType || ''}
         ${match.variation ? '<br><span style="color:var(--text-dim)">Note: multiple variations exist — select on next step</span>' : ''}
         ${hasBoxOnlyRow ? `<div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid rgba(255,255,255,0.08)">
-          <span style="color:var(--accent2)">📦 A box for this item is already in your collection — it will be automatically grouped with this item.</span>
+          <span style="color:var(--accent2)">📦 A box for this item is already in your collection.</span>
+          <label style="display:flex;align-items:center;gap:0.5rem;margin-top:0.4rem;cursor:pointer;font-size:0.82rem;color:var(--text-mid)">
+            <input type="checkbox" id="wiz-group-box" checked onchange="wizard.data._groupWithExistingBox=this.checked" style="width:16px;height:16px;cursor:pointer">
+            Group this item with the existing box
+          </label>
         </div>` : ''}
       </div>`;
     } else {
@@ -7106,7 +7110,8 @@ async function saveWizardItem() {
       }
 
       // Auto-group with existing standalone box: if a -BOX row already exists for this item, adopt it into the group
-      if (groupId) {
+      // Only group if user opted in (checkbox on item number step, default: true)
+      if (groupId && d._groupWithExistingBox !== false) {
         const existingBoxEntry = Object.values(state.personalData).find(pd =>
           pd.itemNum === itemNum + '-BOX' && pd.owned && !pd.groupId
         );
