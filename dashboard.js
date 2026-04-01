@@ -28,9 +28,18 @@ function _ownedNonBox(state) {
 }
 
 function _eraOf(pd) {
-  // Returns era key for a personal data item. Falls back to 'pw' for items saved before era support.
+  // Returns era key for a personal data item. Handles various era formats.
   var e = (pd.era || '').toLowerCase().trim();
   if (e && ERAS[e]) return e;
+  // Map full names and variants to era keys
+  if (e === 'postwar' || e === 'post-war' || e === 'manual') return 'pw';
+  if (e === 'modern' || e === 'mod') return 'mod';
+  if (e === 'mpc') return 'mpc';
+  // Check label matches (e.g. 'Postwar' from ERAS.pw.label)
+  var keys = Object.keys(ERAS);
+  for (var i = 0; i < keys.length; i++) {
+    if (ERAS[keys[i]].label.toLowerCase() === e) return keys[i];
+  }
   return 'pw';
 }
 
