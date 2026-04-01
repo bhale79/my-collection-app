@@ -1443,7 +1443,7 @@ async function switchEra(era) {
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '77';
+  const _CACHE_VER = '78';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
@@ -5638,7 +5638,7 @@ function buildSoldPage() {
     }).join('') : '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">💰</div><p>No sold items yet</p></div></td></tr>';
   }
 
-  document.getElementById('nav-sold').textContent = Object.keys(state.soldData).length;
+  var _ns = document.getElementById('nav-sold'); if (_ns) _ns.textContent = Object.keys(state.soldData).length;
 }
 
 function clearPageSearch(name) {

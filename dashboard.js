@@ -345,9 +345,9 @@ function buildDashboard() {
   const soldCount = Object.keys(state.soldData).length;
   const wantCount = total - owned - soldCount;
   var _nt = document.getElementById('nav-total'); if (_nt) _nt.textContent = total.toLocaleString();
-  document.getElementById('nav-owned').textContent = owned.toLocaleString();
+  var _no = document.getElementById('nav-owned'); if (_no) _no.textContent = owned.toLocaleString();
   const wantListCount = Object.keys(state.wantData).length;
-  document.getElementById('nav-wanted2').textContent = wantListCount.toLocaleString();
+  var _nw = document.getElementById('nav-wanted2'); if (_nw) _nw.textContent = wantListCount.toLocaleString();
   const _upgradeCount = Object.values(state.upgradeData).length;
   const _upgradeEl = document.getElementById('nav-upgrade-count');
   if (_upgradeEl) _upgradeEl.textContent = _upgradeCount > 0 ? _upgradeCount.toLocaleString() : '—';
