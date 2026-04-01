@@ -56,13 +56,6 @@ var CARD_CATALOG = [
     compute: function(state) {
       var items = _ownedNonBox(state);
       var total = items.length;
-      // Add ephemera/IS/science/construction counts
-      var extra = 0;
-      Object.values(state.ephemeraData||{}).forEach(function(b) { extra += Object.keys(b).length; });
-      extra += Object.keys(state.isData||{}).length;
-      extra += Object.keys(state.scienceData||{}).length;
-      extra += Object.keys(state.constructionData||{}).length;
-      var grand = total + extra;
       // Era breakdown
       var byEra = {};
       items.forEach(function(pd) { var e = _eraOf(pd); byEra[e] = (byEra[e]||0) + 1; });
@@ -73,7 +66,7 @@ var CARD_CATALOG = [
             + '<span>' + ERAS[ek].label + '</span><span>' + byEra[ek].toLocaleString() + '</span></div>';
         }
       });
-      return { html: '<div class="stat-value">' + grand.toLocaleString() + '</div>'
+      return { html: '<div class="stat-value">' + total.toLocaleString() + '</div>'
         + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:1px">Total</div>'
         + lines };
     }
@@ -114,7 +107,7 @@ var CARD_CATALOG = [
       html += '<div style="text-align:center;flex:1;min-width:36px"><div style="font-size:1.15rem;font-weight:700;color:var(--text)">' + wantCount + '</div><div style="font-size:0.62rem;color:var(--text-dim)">want</div></div>';
       html += '<div style="text-align:center;flex:1;min-width:36px"><div style="font-size:1.15rem;font-weight:700;color:var(--text)">' + fsCount + '</div><div style="font-size:0.62rem;color:var(--text-dim)">for sale</div></div>';
       html += '<div style="text-align:center;flex:1;min-width:36px"><div style="font-size:1.15rem;font-weight:700;color:var(--text)">' + soldCount + '</div><div style="font-size:0.62rem;color:var(--text-dim)">sold</div></div>';
-      html += '<div style="text-align:center;flex:1;min-width:36px"><div style="font-size:1.15rem;font-weight:700;color:' + (qeCount > 0 ? '#e67e22' : 'var(--text)') + '">' + qeCount + '</div><div style="font-size:0.62rem;color:var(--text-dim)">QE</div></div>';
+      html += '<div style="text-align:center;flex:1;min-width:36px"><div style="font-size:1.15rem;font-weight:700;color:' + (qeCount > 0 ? '#e67e22' : 'var(--text)') + '">' + qeCount + '</div><div style="font-size:0.62rem;color:var(--text-dim)">Quick Entry</div></div>';
       html += '</div>';
       return { html: html };
     }
@@ -130,7 +123,7 @@ var CARD_CATALOG = [
       var html = '';
       Object.keys(ERAS).forEach(function(ek) {
         var owned = byEra[ek] || 0;
-        var total = _getEraMasterTotal(ek);
+        var total = (ek === _currentEra) ? state.masterData.length : _getEraMasterTotal(ek);
         var pct = (total && total > 0) ? (owned/total*100) : 0;
         var pctStr = total ? pct.toFixed(1) + '%' : '—';
         var barWidth = total ? Math.max(pct, 0.5) : 0;
