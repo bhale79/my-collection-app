@@ -36,13 +36,17 @@ function _eraOf(pd) {
 
 function _cacheEraMasterTotal() {
   // Cache current era's master data total for cross-era dashboard cards
-  if (typeof _currentEra !== 'undefined' && state.masterData) {
+  // Only cache when data has actually loaded (length > 0) to avoid overwriting with 0
+  if (typeof _currentEra !== 'undefined' && state.masterData && state.masterData.length > 0) {
     try { localStorage.setItem('lv_era_total_' + _currentEra, state.masterData.length); } catch(e) {}
   }
 }
 
 function _getEraMasterTotal(eraKey) {
-  try { var v = localStorage.getItem('lv_era_total_' + eraKey); if (v) return parseInt(v); } catch(e) {}
+  try {
+    var v = localStorage.getItem('lv_era_total_' + eraKey);
+    if (v) { var n = parseInt(v); if (n > 0) return n; }
+  } catch(e) {}
   return null;
 }
 
@@ -130,8 +134,12 @@ var CARD_CATALOG = [
       var html = '';
       Object.keys(ERAS).forEach(function(ek) {
         var owned = byEra[ek] || 0;
-        var total = (ek === _currentEra) ? state.masterData.length : _getEraMasterTotal(ek);
-        if (total === null || total === undefined) total = 0;
+        var total;
+        if (ek === _currentEra && state.masterData.length > 0) {
+          total = state.masterData.length;
+        } else {
+          total = _getEraMasterTotal(ek) || 0;
+        }
         var pct = total > 0 ? (owned/total*100) : 0;
         var pctStr = total > 0 ? pct.toFixed(1) + '%' : '—';
         var barWidth = total > 0 ? Math.max(pct, 0.5) : 0;
