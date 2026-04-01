@@ -13,61 +13,193 @@
 // ══════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════════
-// DASHBOARD CARD CATALOG — 5 independent slots
+// HELPERS
+// ══════════════════════════════════════════════════════════════════
+function _ownedNonBox(state) {
+  // Returns array of owned personalData entries, excluding pure box-only rows
+  return Object.values(state.personalData).filter(function(pd) {
+    if (!pd.owned) return false;
+    var c = (pd.condition||'').toString().trim();
+    var p = (pd.priceItem||'').toString().trim();
+    var noCond  = !c || c === 'N/A';
+    var noPrice = !p || p === 'N/A';
+    return !(pd.hasBox === 'Yes' && noCond && noPrice);
+  });
+}
+
+function _eraOf(pd) {
+  // Returns era key for a personal data item. Falls back to 'pw' for items saved before era support.
+  var e = (pd.era || '').toLowerCase().trim();
+  if (e && ERAS[e]) return e;
+  return 'pw';
+}
+
+function _cacheEraMasterTotal() {
+  // Cache current era's master data total for cross-era dashboard cards
+  if (typeof _currentEra !== 'undefined' && state.masterData) {
+    try { localStorage.setItem('lv_era_total_' + _currentEra, state.masterData.length); } catch(e) {}
+  }
+}
+
+function _getEraMasterTotal(eraKey) {
+  try { var v = localStorage.getItem('lv_era_total_' + eraKey); if (v) return parseInt(v); } catch(e) {}
+  return null;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// DASHBOARD CARD CATALOG
 // Each slot: {id:'engines'} or null for empty
 // ══════════════════════════════════════════════════════════════════
-const CARD_CATALOG = [
+var CARD_CATALOG = [
   {
     id: 'owned', label: 'Items I Own', color: '#3aad70',
     compute: function(state) {
-      const allOwned = Object.values(state.personalData).filter(pd => {
-        if (!pd.owned) return false;
-        const condVal = (pd.condition||'').toString().trim();
-        const priceVal = (pd.priceItem||'').toString().trim();
-        const noCondition = !condVal || condVal === 'N/A';
-        const noItemPrice = !priceVal || priceVal === 'N/A';
-        return !(pd.hasBox === 'Yes' && noCondition && noItemPrice);
-      }).length;
-      let ephCount = 0;
-      Object.values(state.ephemeraData||{}).forEach(b => { ephCount += Object.keys(b).length; });
-      const isCount = Object.keys(state.isData||{}).length;
-      const sciCount = Object.keys(state.scienceData||{}).length;
-      const conCount = Object.keys(state.constructionData||{}).length;
-      const extraCount = ephCount + isCount + sciCount + conCount;
-      const total = allOwned + extraCount;
-      return { value: total.toLocaleString(), sub: extraCount > 0 ? 'incl. ' + extraCount + ' other items' : 'including variations' };
+      var items = _ownedNonBox(state);
+      var total = items.length;
+      // Add ephemera/IS/science/construction counts
+      var extra = 0;
+      Object.values(state.ephemeraData||{}).forEach(function(b) { extra += Object.keys(b).length; });
+      extra += Object.keys(state.isData||{}).length;
+      extra += Object.keys(state.scienceData||{}).length;
+      extra += Object.keys(state.constructionData||{}).length;
+      var grand = total + extra;
+      // Era breakdown
+      var byEra = {};
+      items.forEach(function(pd) { var e = _eraOf(pd); byEra[e] = (byEra[e]||0) + 1; });
+      var lines = '';
+      Object.keys(ERAS).forEach(function(ek) {
+        if (byEra[ek]) {
+          lines += '<div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--text-mid);margin-top:2px">'
+            + '<span>' + ERAS[ek].label + '</span><span>' + byEra[ek].toLocaleString() + '</span></div>';
+        }
+      });
+      return { html: '<div class="stat-value">' + grand.toLocaleString() + '</div>'
+        + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:1px">Total</div>'
+        + lines };
     }
   },
   {
     id: 'value', label: 'Collection Value', color: '#c9922a',
     compute: function(state) {
-      let total = 0;
-      Object.values(state.personalData).filter(pd=>pd.owned).forEach(pd => {
+      var total = 0;
+      Object.values(state.personalData).filter(function(pd){return pd.owned;}).forEach(function(pd) {
         if (pd.userEstWorth) total += parseFloat(pd.userEstWorth)||0;
       });
-      Object.values(state.ephemeraData||{}).forEach(b => { Object.values(b).forEach(it => { if (it.estValue) total += parseFloat(it.estValue)||0; }); });
-      Object.values(state.isData||{}).forEach(is => { if (is.estValue) total += parseFloat(is.estValue)||0; });
-      Object.values(state.scienceData||{}).forEach(s => { if (s.estValue) total += parseFloat(s.estValue)||0; });
-      Object.values(state.constructionData||{}).forEach(s => { if (s.estValue) total += parseFloat(s.estValue)||0; });
+      Object.values(state.ephemeraData||{}).forEach(function(b) { Object.values(b).forEach(function(it) { if (it.estValue) total += parseFloat(it.estValue)||0; }); });
+      Object.values(state.isData||{}).forEach(function(is) { if (is.estValue) total += parseFloat(is.estValue)||0; });
+      Object.values(state.scienceData||{}).forEach(function(s) { if (s.estValue) total += parseFloat(s.estValue)||0; });
+      Object.values(state.constructionData||{}).forEach(function(s) { if (s.estValue) total += parseFloat(s.estValue)||0; });
       return { value: total > 0 ? '$' + Math.round(total).toLocaleString() : '—', sub: 'estimated worth' };
     }
   },
   {
-    id: 'catalog', label: 'Catalog Items I Own', color: '#3498db',
+    id: 'catalog', label: 'Catalog Coverage', color: '#3498db',
     compute: function(state) {
-      const catNums = new Set(state.masterData.map(m => normalizeItemNum(m.itemNum)));
-      const ownedNums = new Set(Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum)));
-      const unique = [...ownedNums].filter(n=>catNums.has(n)).length;
-      const pct = catNums.size > 0 ? (unique/catNums.size*100).toFixed(1) : 0;
-      return { value: unique.toLocaleString(), sub: pct + '% of all items cataloged' };
+      var catNums = new Set(state.masterData.map(function(m) { return normalizeItemNum(m.itemNum); }));
+      var ownedNums = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).map(function(pd){return normalizeItemNum(pd.itemNum);}));
+      var unique = 0;
+      ownedNums.forEach(function(n) { if (catNums.has(n)) unique++; });
+      var pct = catNums.size > 0 ? (unique/catNums.size*100).toFixed(1) : 0;
+      return { value: unique.toLocaleString(), sub: pct + '% of ' + (ERAS[_currentEra]||{}).label + ' catalog' };
+    }
+  },
+  {
+    id: 'activity', label: 'Activity', color: '#e67e22',
+    compute: function(state) {
+      var wantCount = Object.keys(state.wantData||{}).length;
+      var fsCount = Object.keys(state.forSaleData||{}).length;
+      var soldCount = Object.keys(state.soldData||{}).length;
+      var qeCount = Object.values(state.personalData).filter(function(pd) { return pd.owned && pd.quickEntry; }).length;
+      var html = '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:4px">';
+      html += '<div style="text-align:center;flex:1;min-width:36px"><div style="font-size:1.15rem;font-weight:700;color:var(--text)">' + wantCount + '</div><div style="font-size:0.62rem;color:var(--text-dim)">want</div></div>';
+      html += '<div style="text-align:center;flex:1;min-width:36px"><div style="font-size:1.15rem;font-weight:700;color:var(--text)">' + fsCount + '</div><div style="font-size:0.62rem;color:var(--text-dim)">for sale</div></div>';
+      html += '<div style="text-align:center;flex:1;min-width:36px"><div style="font-size:1.15rem;font-weight:700;color:var(--text)">' + soldCount + '</div><div style="font-size:0.62rem;color:var(--text-dim)">sold</div></div>';
+      html += '<div style="text-align:center;flex:1;min-width:36px"><div style="font-size:1.15rem;font-weight:700;color:' + (qeCount > 0 ? '#e67e22' : 'var(--text)') + '">' + qeCount + '</div><div style="font-size:0.62rem;color:var(--text-dim)">QE</div></div>';
+      html += '</div>';
+      return { html: html };
+    }
+  },
+  {
+    id: 'eraProgress', label: 'Era Progress', color: '#8e44ad',
+    compute: function(state) {
+      _cacheEraMasterTotal();
+      var items = _ownedNonBox(state);
+      var byEra = {};
+      items.forEach(function(pd) { var e = _eraOf(pd); byEra[e] = (byEra[e]||0) + 1; });
+      var eraColors = { pw: '#3aad70', mpc: '#3498db', mod: '#8e44ad' };
+      var html = '';
+      Object.keys(ERAS).forEach(function(ek) {
+        var owned = byEra[ek] || 0;
+        var total = _getEraMasterTotal(ek);
+        var pct = (total && total > 0) ? (owned/total*100) : 0;
+        var pctStr = total ? pct.toFixed(1) + '%' : '—';
+        var barWidth = total ? Math.max(pct, 0.5) : 0;
+        var color = eraColors[ek] || '#888';
+        html += '<div style="margin-top:' + (html ? '5px' : '2px') + '">'
+          + '<div style="display:flex;justify-content:space-between;font-size:0.7rem;margin-bottom:2px">'
+          + '<span style="color:var(--text-mid)">' + ERAS[ek].label + '</span>'
+          + '<span style="color:' + color + ';font-weight:600">' + owned + (total ? ' / ' + total.toLocaleString() : '') + '</span>'
+          + '</div>'
+          + '<div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden">'
+          + '<div style="width:' + barWidth + '%;height:100%;background:' + color + ';border-radius:2px;min-width:' + (owned > 0 ? '3px' : '0') + '"></div>'
+          + '</div>'
+          + '</div>';
+      });
+      return { html: html };
+    }
+  },
+  {
+    id: 'topRoads', label: 'Top Road Names', color: '#d4a843',
+    compute: function(state) {
+      var roads = {};
+      Object.values(state.personalData).filter(function(pd){return pd.owned;}).forEach(function(pd) {
+        var master = state.masterData.find(function(m) { return normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum); });
+        var road = master ? (master.roadName||'').trim() : '';
+        if (road && road !== '—' && road !== 'N/A') roads[road] = (roads[road]||0) + 1;
+      });
+      var sorted = Object.entries(roads).sort(function(a,b){return b[1]-a[1];}).slice(0,5);
+      if (sorted.length === 0) return { html: '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:4px">No road names yet</div>' };
+      var html = '';
+      sorted.forEach(function(r) {
+        html += '<div style="display:flex;justify-content:space-between;font-size:0.72rem;margin-top:3px">'
+          + '<span style="color:var(--text-mid);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:6px">' + r[0] + '</span>'
+          + '<span style="color:var(--text);font-weight:600;flex-shrink:0">' + r[1] + '</span></div>';
+      });
+      return { html: html };
+    }
+  },
+  {
+    id: 'collectionByType', label: 'Collection by Type', color: '#e74c3c',
+    compute: function(state) {
+      var owned = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).map(function(pd){return normalizeItemNum(pd.itemNum);}));
+      var types = { 'Engines':0, 'Freight':0, 'Passenger':0, 'Cabooses':0, 'Accessories':0 };
+      state.masterData.forEach(function(m) {
+        if (!owned.has(normalizeItemNum(m.itemNum))) return;
+        var t = (m.itemType||'').toLowerCase();
+        if (t.includes('steam')||t.includes('diesel')||t.includes('electric')||t.includes('locomotive')||t.includes('motor')) types['Engines']++;
+        else if (t.includes('caboose')) types['Cabooses']++;
+        else if (t.includes('passenger')) types['Passenger']++;
+        else if (t.includes('freight')||t.includes('box car')||t.includes('boxcar')||t.includes('gondola')||t.includes('hopper')||t.includes('tank')||t.includes('flat')||t.includes('crane')||t.includes('dump')) types['Freight']++;
+        else if (t.includes('accessor')) types['Accessories']++;
+      });
+      var html = '';
+      Object.entries(types).forEach(function(e) {
+        if (e[1] > 0) {
+          html += '<div style="display:flex;justify-content:space-between;font-size:0.72rem;margin-top:3px">'
+            + '<span style="color:var(--text-mid)">' + e[0] + '</span>'
+            + '<span style="color:var(--text);font-weight:600">' + e[1] + '</span></div>';
+        }
+      });
+      if (!html) html = '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:4px">No items yet</div>';
+      return { html: html };
     }
   },
   {
     id: 'engines', label: 'Total Engines', color: '#e74c3c',
     compute: function(state) {
-      const owned = new Set(Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum)));
-      const count = state.masterData.filter(m => {
-        const t = (m.itemType||'').toLowerCase();
+      var owned = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).map(function(pd){return normalizeItemNum(pd.itemNum);}));
+      var count = state.masterData.filter(function(m) {
+        var t = (m.itemType||'').toLowerCase();
         return (t.includes('steam')||t.includes('diesel')||t.includes('electric')||t.includes('locomotive')) && owned.has(normalizeItemNum(m.itemNum));
       }).length;
       return { value: count.toLocaleString(), sub: 'locomotives in collection' };
@@ -76,17 +208,17 @@ const CARD_CATALOG = [
   {
     id: 'cabooses', label: 'Total Cabooses', color: '#c0392b',
     compute: function(state) {
-      const owned = new Set(Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum)));
-      const count = state.masterData.filter(m => (m.itemType||'').toLowerCase().includes('caboose') && owned.has(normalizeItemNum(m.itemNum))).length;
+      var owned = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).map(function(pd){return normalizeItemNum(pd.itemNum);}));
+      var count = state.masterData.filter(function(m) { return (m.itemType||'').toLowerCase().includes('caboose') && owned.has(normalizeItemNum(m.itemNum)); }).length;
       return { value: count.toLocaleString(), sub: 'cabooses in collection' };
     }
   },
   {
     id: 'freight', label: 'Total Freight Cars', color: '#8e44ad',
     compute: function(state) {
-      const owned = new Set(Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum)));
-      const count = state.masterData.filter(m => {
-        const t = (m.itemType||'').toLowerCase();
+      var owned = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).map(function(pd){return normalizeItemNum(pd.itemNum);}));
+      var count = state.masterData.filter(function(m) {
+        var t = (m.itemType||'').toLowerCase();
         return (t.includes('freight')||t.includes('box car')||t.includes('boxcar')||t.includes('gondola')||t.includes('hopper')||t.includes('tank')||t.includes('flat')) && owned.has(normalizeItemNum(m.itemNum));
       }).length;
       return { value: count.toLocaleString(), sub: 'freight cars in collection' };
@@ -95,67 +227,67 @@ const CARD_CATALOG = [
   {
     id: 'passenger', label: 'Total Passenger Cars', color: '#2980b9',
     compute: function(state) {
-      const owned = new Set(Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum)));
-      const count = state.masterData.filter(m => (m.itemType||'').toLowerCase().includes('passenger') && owned.has(normalizeItemNum(m.itemNum))).length;
+      var owned = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).map(function(pd){return normalizeItemNum(pd.itemNum);}));
+      var count = state.masterData.filter(function(m) { return (m.itemType||'').toLowerCase().includes('passenger') && owned.has(normalizeItemNum(m.itemNum)); }).length;
       return { value: count.toLocaleString(), sub: 'passenger cars in collection' };
     }
   },
   {
     id: 'accessories', label: 'Total Accessories', color: '#16a085',
     compute: function(state) {
-      const owned = new Set(Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum)));
-      const count = state.masterData.filter(m => (m.itemType||'').toLowerCase().includes('accessor') && owned.has(normalizeItemNum(m.itemNum))).length;
+      var owned = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).map(function(pd){return normalizeItemNum(pd.itemNum);}));
+      var count = state.masterData.filter(function(m) { return (m.itemType||'').toLowerCase().includes('accessor') && owned.has(normalizeItemNum(m.itemNum)); }).length;
       return { value: count.toLocaleString(), sub: 'accessories in collection' };
     }
   },
   {
     id: 'sets', label: 'Total Sets', color: '#d35400',
     compute: function(state) {
-      const owned = new Set(Object.values(state.personalData).filter(pd=>pd.owned).map(pd=>normalizeItemNum(pd.itemNum)));
-      const count = state.masterData.filter(m => (m.itemType||'').toLowerCase().includes('set') && owned.has(normalizeItemNum(m.itemNum))).length;
+      var owned = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).map(function(pd){return normalizeItemNum(pd.itemNum);}));
+      var count = state.masterData.filter(function(m) { return (m.itemType||'').toLowerCase().includes('set') && owned.has(normalizeItemNum(m.itemNum)); }).length;
       return { value: count.toLocaleString(), sub: 'sets in collection' };
     }
   },
   {
     id: 'photos', label: 'Items with Photos', color: '#f39c12',
     compute: function(state) {
-      const count = Object.values(state.personalData).filter(pd => pd.owned && pd.photoItem).length;
-      const total = Object.values(state.personalData).filter(pd => pd.owned).length;
+      var count = Object.values(state.personalData).filter(function(pd) { return pd.owned && pd.photoItem; }).length;
+      var total = Object.values(state.personalData).filter(function(pd) { return pd.owned; }).length;
       return { value: count.toLocaleString(), sub: count === 0 ? 'add photos in item detail' : 'of ' + total + ' items have photos' };
     }
   },
   {
     id: 'forsale', label: 'For Sale', color: '#e67e22',
     compute: function(state) {
-      const items = Object.values(state.forSaleData||{});
-      const count = items.length;
-      const total = items.reduce((s,i) => s + (parseFloat(i.askingPrice)||0), 0);
+      var items = Object.values(state.forSaleData||{});
+      var count = items.length;
+      var total = items.reduce(function(s,i) { return s + (parseFloat(i.askingPrice)||0); }, 0);
       return { value: count.toLocaleString() + (count===1?' item':' items'), sub: total > 0 ? '$' + Math.round(total).toLocaleString() + ' total asking' : 'no asking prices set' };
     }
   }
-];;
+];
 
-const MAX_CARDS = 5;
-const _DEFAULT_SLOTS = [{id:'owned'},{id:'value'},{id:'catalog'},null,null];
+var MAX_CARDS = 5;
+var _DEFAULT_SLOTS = [{id:'owned'},{id:'value'},{id:'eraProgress'},{id:'activity'},null];
 
 function _getSlots() {
   try {
-    const saved = _prefGet('lv_dash_slots','');
+    var saved = _prefGet('lv_dash_slots','');
     if (saved) return JSON.parse(saved);
   } catch(e) {}
   // Migrate from old flat array format if present
   try {
-    const oldSaved = _prefGet('lv_dash_cards','');
+    var oldSaved = _prefGet('lv_dash_cards','');
     if (oldSaved) {
-      const oldArr = JSON.parse(oldSaved);
+      var oldArr = JSON.parse(oldSaved);
       if (Array.isArray(oldArr)) {
-        const migrated = [null,null,null,null,null];
+        var migrated = [null,null,null,null,null];
         oldArr.slice(0,5).forEach(function(id,i) { migrated[i] = {id:id}; });
         return migrated;
       }
     }
   } catch(e) {}
-  return _DEFAULT_SLOTS.map(s => s ? Object.assign({},s) : null);
+  return _DEFAULT_SLOTS.map(function(s) { return s ? Object.assign({},s) : null; });
 }
 
 function _saveSlots(slots) {
@@ -165,16 +297,16 @@ function _saveSlots(slots) {
 // ── Card edit popup ───────────────────────────────────────────────
 function _openCardPopup(slotIdx) {
   _closeCardPopup();
-  const slots = _getSlots();
-  const slot   = slots[slotIdx] || null;
-  const currentId = slot ? slot.id : '';
+  var slots = _getSlots();
+  var slot   = slots[slotIdx] || null;
+  var currentId = slot ? slot.id : '';
 
-  const popup = document.createElement('div');
+  var popup = document.createElement('div');
   popup.id = 'card-popup';
   popup.style.cssText = 'position:fixed;z-index:99990;background:var(--surface,#161c34);border:1px solid var(--border,#2a3a5c);border-radius:12px;padding:1rem;box-shadow:0 8px 32px rgba(0,0,0,0.5);min-width:240px;max-width:280px';
 
-  const opts = CARD_CATALOG.map(function(c) {
-    const lbl = c.label;
+  var opts = CARD_CATALOG.map(function(c) {
+    var lbl = c.label;
     return '<option value="' + c.id + '"' + (c.id === currentId ? ' selected' : '') + '>' + lbl + '</option>';
   }).join('');
   popup.innerHTML =
@@ -246,67 +378,61 @@ function _onCardPopupChange(slotIdx, newId) {
 }
 
 function buildDashboard() {
-  const total = state.masterData.length;
+  var total = state.masterData.length;
+
+  // Cache current era's master total for era progress cards
+  _cacheEraMasterTotal();
 
   // Count ALL owned entries including box-only rows
-  const allOwned = Object.values(state.personalData).filter(pd => {
-    if (!pd.owned) return false;
-    // Exclude pure box-only rows (has box but NO item condition AND NO item price)
-    const condVal = pd.condition?.toString().trim();
-    const priceVal = pd.priceItem?.toString().trim();
-    const noCondition = !condVal || condVal === '' || condVal === 'N/A';
-    const noItemPrice = !priceVal || priceVal === '' || priceVal === 'N/A';
-    const isBoxOnly = pd.hasBox === 'Yes' && noCondition && noItemPrice;
-    return !isBoxOnly; // count everything except pure box-only rows
-  });
-  const owned = allOwned.length;
-  const pct = total > 0 ? Math.round((owned / total) * 100) : 0;
+  var allOwned = _ownedNonBox(state);
+  var owned = allOwned.length;
+  var pct = total > 0 ? Math.round((owned / total) * 100) : 0;
 
-  let totalValue = 0, condSum = 0, condCount = 0, boxedCount = 0, origCount = 0;
+  var totalValue = 0, condSum = 0, condCount = 0, boxedCount = 0, origCount = 0;
   // Count value across ALL owned rows (items + boxes)
-  const allOwnedEntries = Object.values(state.personalData).filter(pd => pd.owned);
-  allOwnedEntries.forEach(pd => {
+  var allOwnedEntries = Object.values(state.personalData).filter(function(pd) { return pd.owned; });
+  allOwnedEntries.forEach(function(pd) {
     if (pd.userEstWorth) totalValue += parseFloat(pd.userEstWorth) || 0;
   });
   // Add ephemera values
-  let ephemeraCount = 0;
-  Object.values(state.ephemeraData || {}).forEach(bucket => {
-    Object.values(bucket).forEach(item => {
+  var ephemeraCount = 0;
+  Object.values(state.ephemeraData || {}).forEach(function(bucket) {
+    Object.values(bucket).forEach(function(item) {
       ephemeraCount++;
       if (item.estValue) totalValue += parseFloat(item.estValue) || 0;
     });
   });
   // Add instruction sheet values
-  let isCount = 0;
-  Object.values(state.isData || {}).forEach(is => {
+  var isCount = 0;
+  Object.values(state.isData || {}).forEach(function(is) {
     isCount++;
     if (is.estValue) totalValue += parseFloat(is.estValue) || 0;
   });
   // Add science set values
-  let sciCount = 0;
-  Object.values(state.scienceData || {}).forEach(s => {
+  var sciCount = 0;
+  Object.values(state.scienceData || {}).forEach(function(s) {
     sciCount++;
     if (s.estValue) totalValue += parseFloat(s.estValue) || 0;
   });
   // Add construction set values
-  let conCount = 0;
-  Object.values(state.constructionData || {}).forEach(s => {
+  var conCount = 0;
+  Object.values(state.constructionData || {}).forEach(function(s) {
     conCount++;
     if (s.estValue) totalValue += parseFloat(s.estValue) || 0;
   });
 
-  allOwned.forEach(pd => {
-    if (pd.condition && pd.condition !== 'N/A') { const c = parseInt(pd.condition); if (!isNaN(c)) { condSum += c; condCount++; } }
+  allOwned.forEach(function(pd) {
+    if (pd.condition && pd.condition !== 'N/A') { var c = parseInt(pd.condition); if (!isNaN(c)) { condSum += c; condCount++; } }
     if (pd.hasBox === 'Yes') boxedCount++;
     if (pd.allOriginal === 'Yes') origCount++;
   });
 
-  const totalOwned = owned + ephemeraCount + isCount + sciCount + conCount;
+  var totalOwned = owned + ephemeraCount + isCount + sciCount + conCount;
   // ── Render dashboard stat cards (slot-based) ─────────────────
-  const _statsGrid = document.getElementById('stats-grid');
+  var _statsGrid = document.getElementById('stats-grid');
   if (_statsGrid) {
-    const slots = _getSlots();
-    const activeSlots = slots.map(function(slot,i){return{slot,i};}).filter(function(s){return s.slot!==null;});
+    var slots = _getSlots();
+    var activeSlots = slots.map(function(slot,i){return{slot:slot,i:i};}).filter(function(s){return s.slot!==null;});
     if (activeSlots.length === 0) {
       _statsGrid.innerHTML =
         '<button onclick="_openCardPopup(0)" style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 1rem;border-radius:8px;border:1.5px dashed var(--border,#2a3a5c);background:transparent;color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer" ' +
@@ -317,17 +443,23 @@ function buildDashboard() {
       _statsGrid.style.cssText = 'display:flex;padding:0.25rem 0;margin-bottom:0.5rem';
     } else {
       _statsGrid.style.cssText = '';
-      let html = activeSlots.map(function(s) {
-        const slot = s.slot, i = s.i;
-        const card = CARD_CATALOG.find(function(c){return c.id===slot.id;});
+      var html = activeSlots.map(function(s) {
+        var slot = s.slot, i = s.i;
+        var card = CARD_CATALOG.find(function(c){return c.id===slot.id;});
         if (!card) return '';
-        const result = card.compute(state, i);
-        const cardLabel = card.label;
+        var result = card.compute(state, i);
+        var cardLabel = card.label;
+        var inner;
+        if (result.html) {
+          inner = '<div class="stat-label">' + cardLabel + '</div>' + result.html;
+        } else {
+          inner = '<div class="stat-label">' + cardLabel + '</div>'
+            + '<div class="stat-value">' + result.value + '</div>'
+            + '<div class="stat-sub">' + result.sub + '</div>';
+        }
         return '<div class="stat-card" id="dash-card-' + i + '" style="--card-accent:' + card.color + ';cursor:pointer;position:relative" onclick="_openCardPopup(' + i + ')" title="Click to customize">'
           + '<div style="position:absolute;top:6px;right:8px;font-size:0.65rem;color:var(--text-dim);opacity:0.45">✎</div>'
-          + '<div class="stat-label">' + cardLabel + '</div>'
-          + '<div class="stat-value">' + result.value + '</div>'
-          + '<div class="stat-sub">' + result.sub + '</div>'
+          + inner
           + '</div>';
       }).join('');
       if (activeSlots.length < MAX_CARDS) {
@@ -342,23 +474,23 @@ function buildDashboard() {
     }
   }
 
-  const soldCount = Object.keys(state.soldData).length;
-  const wantCount = total - owned - soldCount;
+  var soldCount = Object.keys(state.soldData).length;
+  var wantCount = total - owned - soldCount;
   var _nt = document.getElementById('nav-total'); if (_nt) _nt.textContent = total.toLocaleString();
   var _no = document.getElementById('nav-owned'); if (_no) _no.textContent = owned.toLocaleString();
-  const wantListCount = Object.keys(state.wantData).length;
+  var wantListCount = Object.keys(state.wantData).length;
   var _nw = document.getElementById('nav-wanted2'); if (_nw) _nw.textContent = wantListCount.toLocaleString();
-  const _upgradeCount = Object.values(state.upgradeData).length;
-  const _upgradeEl = document.getElementById('nav-upgrade-count');
+  var _upgradeCount = Object.values(state.upgradeData).length;
+  var _upgradeEl = document.getElementById('nav-upgrade-count');
   if (_upgradeEl) _upgradeEl.textContent = _upgradeCount > 0 ? _upgradeCount.toLocaleString() : '—';
   // Quick Entry badge count
-  const _qeCount = Object.values(state.personalData).filter(pd => pd.owned && pd.quickEntry).length;
-  const _qeBadge = document.getElementById('nav-qe-count');
+  var _qeCount = Object.values(state.personalData).filter(function(pd) { return pd.owned && pd.quickEntry; }).length;
+  var _qeBadge = document.getElementById('nav-qe-count');
   if (_qeBadge) _qeBadge.textContent = _qeCount > 0 ? _qeCount : '0';
-  const _mnavQeBadge = document.getElementById('mnav-qe-badge');
+  var _mnavQeBadge = document.getElementById('mnav-qe-badge');
   if (_mnavQeBadge) { if (_qeCount > 0) { _mnavQeBadge.style.display='flex'; _mnavQeBadge.textContent=_qeCount; } else { _mnavQeBadge.style.display='none'; } }
   if (document.getElementById('nav-sold')) document.getElementById('nav-sold').textContent = soldCount;
-  const fsCount = Object.keys(state.forSaleData).length;
+  var fsCount = Object.keys(state.forSaleData).length;
   if (document.getElementById('nav-forsale')) document.getElementById('nav-forsale').textContent = fsCount;
 
 
@@ -397,39 +529,39 @@ function buildDashboard() {
 
 
 // ── Dashboard Panel System ─────────────────────────────────────────────────
-const PANEL_CATALOG = [
+var PANEL_CATALOG = [
   {
     id: 'recent',
     label: 'Recent Additions',
     icon: '🕐',
-    navFn: "showPage('browse', document.querySelector('.nav-item[onclick*=\'renderBrowse\']')); resetFilters(); renderBrowse();",
+    navFn: "showPage('browse', document.querySelector('.nav-item[onclick*=\\'renderBrowse\\']')); resetFilters(); renderBrowse();",
     render: function(state) {
-      const trains = Object.values(state.personalData).filter(pd => pd.owned)
-        .map(pd => ({ ...pd, _src: 'train' }));
-      const ephMap = { catalogs:'📒', paper:'📄', mockups:'🔩', other:'📦' };
-      const ephs = [];
-      Object.entries(state.ephemeraData || {}).forEach(([tabId, bucket]) => {
-        Object.values(bucket).forEach(it => {
-          ephs.push({ ...it, _src:'eph', tabId, _ephEmoji: ephMap[tabId]||'⭐' });
+      var trains = Object.values(state.personalData).filter(function(pd) { return pd.owned; })
+        .map(function(pd) { return Object.assign({}, pd, { _src: 'train' }); });
+      var ephMap = { catalogs:'📒', paper:'📄', mockups:'🔩', other:'📦' };
+      var ephs = [];
+      Object.entries(state.ephemeraData || {}).forEach(function(entry) {
+        var tabId = entry[0], bucket = entry[1];
+        Object.values(bucket).forEach(function(it) {
+          ephs.push(Object.assign({}, it, { _src:'eph', tabId:tabId, _ephEmoji: ephMap[tabId]||'⭐' }));
         });
       });
       // Instruction Sheets
-      Object.values(state.isData || {}).forEach(is => {
-        ephs.push({ ...is, _src:'eph', tabId:'is', _ephEmoji:'📋', title: 'IS ' + (is.sheetNum||''), estValue: is.estValue||'' });
+      Object.values(state.isData || {}).forEach(function(is) {
+        ephs.push(Object.assign({}, is, { _src:'eph', tabId:'is', _ephEmoji:'📋', title: 'IS ' + (is.sheetNum||''), estValue: is.estValue||'' }));
       });
       // Science Sets
-      Object.values(state.scienceData || {}).forEach(s => {
-        ephs.push({ ...s, _src:'eph', tabId:'science', _ephEmoji:'🔬', title: s.itemNum + ' ' + (s.description||''), estValue: s.estValue||'' });
+      Object.values(state.scienceData || {}).forEach(function(s) {
+        ephs.push(Object.assign({}, s, { _src:'eph', tabId:'science', _ephEmoji:'🔬', title: s.itemNum + ' ' + (s.description||''), estValue: s.estValue||'' }));
       });
       // Construction Sets
-      Object.values(state.constructionData || {}).forEach(s => {
-        ephs.push({ ...s, _src:'eph', tabId:'construction', _ephEmoji:'🔧', title: s.itemNum + ' ' + (s.description||''), estValue: s.estValue||'' });
+      Object.values(state.constructionData || {}).forEach(function(s) {
+        ephs.push(Object.assign({}, s, { _src:'eph', tabId:'construction', _ephEmoji:'🔧', title: s.itemNum + ' ' + (s.description||''), estValue: s.estValue||'' }));
       });
-      return [...trains, ...ephs]
-        .sort((a, b) => {
-          // Sort by date acquired/purchased (most recent first), then row as tiebreaker
-          const da = a.datePurchased || a.dateAcquired || '';
-          const db = b.datePurchased || b.dateAcquired || '';
+      return trains.concat(ephs)
+        .sort(function(a, b) {
+          var da = a.datePurchased || a.dateAcquired || '';
+          var db = b.datePurchased || b.dateAcquired || '';
           if (da && db) return db.localeCompare(da);
           if (da && !db) return -1;
           if (!da && db) return 1;
@@ -438,20 +570,20 @@ const PANEL_CATALOG = [
         .slice(0, 8)
         .map(function(pd) {
           if (pd._src === 'eph') {
-            const val = pd.estValue ? '$' + parseFloat(pd.estValue).toLocaleString() : '';
+            var val = pd.estValue ? '$' + parseFloat(pd.estValue).toLocaleString() : '';
             return _panelRow(
               pd._ephEmoji, pd.title || '—', '', val,
               'goToMyCollection()', null
             );
           }
-          const master = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum));
-          const name = master ? (master.roadName || master.itemType || pd.itemNum) : pd.itemNum;
-          const price = pd.priceItem ? '$' + parseFloat(pd.priceItem).toLocaleString() : '';
-          const date = pd.datePurchased || '';
-          const meta = [date, price].filter(Boolean).join(' · ');
-          const idx = master ? state.masterData.indexOf(master) : -1;
-          const hasPhoto = !!pd.photoItem;
-          const groupBadge = pd.groupId ? ' <span style="font-size:0.55rem;color:var(--accent3);vertical-align:super" title="Grouped">🔗</span>' : '';
+          var master = state.masterData.find(function(m) { return normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum); });
+          var name = master ? (master.roadName || master.itemType || pd.itemNum) : pd.itemNum;
+          var price = pd.priceItem ? '$' + parseFloat(pd.priceItem).toLocaleString() : '';
+          var date = pd.datePurchased || '';
+          var meta = [date, price].filter(Boolean).join(' · ');
+          var idx = master ? state.masterData.indexOf(master) : -1;
+          var hasPhoto = !!pd.photoItem;
+          var groupBadge = pd.groupId ? ' <span style="font-size:0.55rem;color:var(--accent3);vertical-align:super" title="Grouped">🔗</span>' : '';
           return _panelRow('🚂', pd.itemNum + (pd.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + pd.variation + '</span>' : '') + groupBadge, name, meta,
             idx >= 0 ? 'showItemDetailPage(' + idx + ')' : 'goToMyCollection()', hasPhoto ? pd.photoItem : null
           );
@@ -464,18 +596,18 @@ const PANEL_CATALOG = [
     icon: '⭐',
     navFn: "goToWantList();",
     render: function(state) {
-      const priOrder = { High: 0, Medium: 1, Low: 2 };
-      const priColor = { High: 'var(--accent)', Medium: 'var(--accent2,#8b5cf6)', Low: 'var(--text-dim)' };
+      var priOrder = { High: 0, Medium: 1, Low: 2 };
+      var priColor = { High: 'var(--accent)', Medium: 'var(--accent2,#8b5cf6)', Low: 'var(--text-dim)' };
       return Object.values(state.wantData)
-        .sort((a, b) => ((priOrder[a.priority] ?? 1) - (priOrder[b.priority] ?? 1)))
+        .sort(function(a, b) { return ((priOrder[a.priority] || 1) - (priOrder[b.priority] || 1)); })
         .slice(0, 8)
         .map(function(w) {
-          const master = state.masterData.find(m => m.itemNum === w.itemNum);
-          const name = master ? (master.roadName || master.itemType || w.itemNum) : w.itemNum;
-          const price = w.expectedPrice ? '$' + parseFloat(w.expectedPrice).toLocaleString() : '';
-          const pc = priColor[w.priority] || 'var(--text-dim)';
-          const badge = '<span style="font-size:0.72rem;font-weight:600;color:' + pc + ';border:1px solid ' + pc + ';border-radius:3px;padding:0.1rem 0.3rem;flex-shrink:0">' + (w.priority || 'Med') + '</span>';
-          const idx = master ? state.masterData.indexOf(master) : -1;
+          var master = state.masterData.find(function(m) { return m.itemNum === w.itemNum; });
+          var name = master ? (master.roadName || master.itemType || w.itemNum) : w.itemNum;
+          var price = w.expectedPrice ? '$' + parseFloat(w.expectedPrice).toLocaleString() : '';
+          var pc = priColor[w.priority] || 'var(--text-dim)';
+          var badge = '<span style="font-size:0.72rem;font-weight:600;color:' + pc + ';border:1px solid ' + pc + ';border-radius:3px;padding:0.1rem 0.3rem;flex-shrink:0">' + (w.priority || 'Med') + '</span>';
+          var idx = master ? state.masterData.indexOf(master) : -1;
           return _panelRow('⭐', w.itemNum + (w.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + w.variation + '</span>' : ''), name, price,
             idx >= 0 ? 'showItemDetailPage(' + idx + ')' : 'goToWantList()', null, badge
           );
@@ -486,18 +618,18 @@ const PANEL_CATALOG = [
     id: 'forsale',
     label: 'For Sale',
     icon: '🏷️',
-    navFn: "showPage('forsale', document.querySelector('.nav-item[onclick*=\'buildForSalePage\']')); buildForSalePage();",
+    navFn: "showPage('forsale', document.querySelector('.nav-item[onclick*=\\'buildForSalePage\\']')); buildForSalePage();",
     render: function(state) {
       return Object.values(state.forSaleData)
-        .sort((a, b) => (parseFloat(b.askingPrice) || 0) - (parseFloat(a.askingPrice) || 0))
+        .sort(function(a, b) { return (parseFloat(b.askingPrice) || 0) - (parseFloat(a.askingPrice) || 0); })
         .slice(0, 8)
         .map(function(fs) {
-          const master = state.masterData.find(m => m.itemNum === fs.itemNum) || {};
-          const name = master.roadName || master.itemType || '';
-          const price = fs.askingPrice ? '$' + parseFloat(fs.askingPrice).toLocaleString() : 'No price';
-          const idx = master ? state.masterData.indexOf(master) : -1;
-          const pd = state.personalData[fs.itemNum + '|' + (fs.variation||'')] || {};
-          const hasPhoto = !!pd.photoItem;
+          var master = state.masterData.find(function(m) { return m.itemNum === fs.itemNum; }) || {};
+          var name = master.roadName || master.itemType || '';
+          var price = fs.askingPrice ? '$' + parseFloat(fs.askingPrice).toLocaleString() : 'No price';
+          var idx = master ? state.masterData.indexOf(master) : -1;
+          var pd = state.personalData[fs.itemNum + '|' + (fs.variation||'')] || {};
+          var hasPhoto = !!pd.photoItem;
           return _panelRow('🏷️', fs.itemNum + (fs.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + fs.variation + '</span>' : ''), name, price,
             idx >= 0 ? 'showItemDetailPage(' + idx + ')' : 'showPage(\'forsale\', document.querySelector(\'.nav-item[onclick*=buildForSalePage]\'));buildForSalePage();',
             hasPhoto ? pd.photoItem : null
@@ -509,22 +641,19 @@ const PANEL_CATALOG = [
     id: 'value',
     label: 'Highest Value Items',
     icon: '💰',
-    navFn: "showPage('browse', document.querySelector('.nav-item[onclick*=\'filterOwned\']')); filterOwned();",
+    navFn: "showPage('browse', document.querySelector('.nav-item[onclick*=\\'filterOwned\\']')); filterOwned();",
     render: function(state) {
       return Object.values(state.personalData)
-        .filter(pd => pd.owned && (pd.priceComplete || pd.priceItem))
-        .map(pd => ({
-          ...pd,
-          _val: parseFloat(pd.priceComplete || pd.priceItem || 0)
-        }))
-        .sort((a, b) => b._val - a._val)
+        .filter(function(pd) { return pd.owned && (pd.priceComplete || pd.priceItem); })
+        .map(function(pd) { return Object.assign({}, pd, { _val: parseFloat(pd.priceComplete || pd.priceItem || 0) }); })
+        .sort(function(a, b) { return b._val - a._val; })
         .slice(0, 8)
         .map(function(pd) {
-          const master = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum));
-          const name = master ? (master.roadName || master.itemType || pd.itemNum) : pd.itemNum;
-          const price = '$' + pd._val.toLocaleString();
-          const idx = master ? state.masterData.indexOf(master) : -1;
-          const hasPhoto = !!pd.photoItem;
+          var master = state.masterData.find(function(m) { return normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum); });
+          var name = master ? (master.roadName || master.itemType || pd.itemNum) : pd.itemNum;
+          var price = '$' + pd._val.toLocaleString();
+          var idx = master ? state.masterData.indexOf(master) : -1;
+          var hasPhoto = !!pd.photoItem;
           return _panelRow('💰', pd.itemNum + (pd.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + pd.variation + '</span>' : ''), name, price,
             idx >= 0 ? 'showItemDetailPage(' + idx + ')' : 'goToMyCollection()', hasPhoto ? pd.photoItem : null
           );
@@ -535,29 +664,29 @@ const PANEL_CATALOG = [
     id: 'upgrades',
     label: 'Upgrade Targets',
     icon: '↑',
-    navFn: "showPage('upgrade', document.querySelector('.nav-item[onclick*=\'buildUpgradePage\']')); buildUpgradePage();",
+    navFn: "showPage('upgrade', document.querySelector('.nav-item[onclick*=\\'buildUpgradePage\\']')); buildUpgradePage();",
     render: function(state) {
-      const thresh = parseInt(_prefGet('lv_upgrade_thresh', '7'));
-      const entries = Object.values(state.upgradeData || {});
-      const priorityOrder = { High: 0, Medium: 1, Low: 2 };
+      var thresh = parseInt(_prefGet('lv_upgrade_thresh', '7'));
+      var entries = Object.values(state.upgradeData || {});
+      var priorityOrder = { High: 0, Medium: 1, Low: 2 };
       return entries
-        .sort((a, b) => {
-          const pA = priorityOrder[a.priority] ?? 1;
-          const pB = priorityOrder[b.priority] ?? 1;
+        .sort(function(a, b) {
+          var pA = priorityOrder[a.priority] || 1;
+          var pB = priorityOrder[b.priority] || 1;
           if (pA !== pB) return pA - pB;
-          const pdA = Object.values(state.personalData).find(p => p.owned && p.itemNum === a.itemNum && (p.variation||'') === (a.variation||''));
-          const pdB = Object.values(state.personalData).find(p => p.owned && p.itemNum === b.itemNum && (p.variation||'') === (b.variation||''));
+          var pdA = Object.values(state.personalData).find(function(p) { return p.owned && p.itemNum === a.itemNum && (p.variation||'') === (a.variation||''); });
+          var pdB = Object.values(state.personalData).find(function(p) { return p.owned && p.itemNum === b.itemNum && (p.variation||'') === (b.variation||''); });
           return (parseInt(pdA && pdA.condition || 99)) - (parseInt(pdB && pdB.condition || 99));
         })
         .slice(0, 8)
         .map(function(u) {
-          const pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === u.itemNum && (p.variation||'') === (u.variation||''));
-          const master = state.masterData.find(m => m.itemNum === u.itemNum);
-          const name = master ? (master.roadName || master.itemType || u.itemNum) : u.itemNum;
-          const cond = pd && pd.condition ? parseInt(pd.condition) : null;
-          const meta = [cond ? 'Cond: ' + cond : '', u.targetCondition ? '→ ' + u.targetCondition : ''].filter(Boolean).join(' ');
-          const idx = master ? state.masterData.indexOf(master) : -1;
-          const hasPhoto = pd && !!pd.photoItem;
+          var pd = Object.values(state.personalData).find(function(p) { return p.owned && p.itemNum === u.itemNum && (p.variation||'') === (u.variation||''); });
+          var master = state.masterData.find(function(m) { return m.itemNum === u.itemNum; });
+          var name = master ? (master.roadName || master.itemType || u.itemNum) : u.itemNum;
+          var cond = pd && pd.condition ? parseInt(pd.condition) : null;
+          var meta = [cond ? 'Cond: ' + cond : '', u.targetCondition ? '→ ' + u.targetCondition : ''].filter(Boolean).join(' ');
+          var idx = master ? state.masterData.indexOf(master) : -1;
+          var hasPhoto = pd && !!pd.photoItem;
           return _panelRow('↑', u.itemNum + (u.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim);">' + u.variation + '</span>' : ''), name, meta,
             idx >= 0 ? 'showItemDetailPage(' + idx + ')' : "showPage('upgrade',null);buildUpgradePage()", hasPhoto ? pd.photoItem : null
           );
@@ -568,10 +697,10 @@ const PANEL_CATALOG = [
 
 // Shared row renderer for all panels
 function _panelRow(icon, itemHtml, name, meta, onclick, photoUrl, extraBadge) {
-  const _placeholderImg = (typeof _RSV_PLACEHOLDER_PNG !== 'undefined')
+  var _placeholderImg = (typeof _RSV_PLACEHOLDER_PNG !== 'undefined')
     ? '<img src="' + _RSV_PLACEHOLDER_PNG + '" style="width:32px;height:32px;object-fit:cover;border-radius:5px;flex-shrink:0;border:1px solid var(--border);opacity:0.75">'
     : '<div style="width:32px;height:32px;border-radius:5px;background:var(--surface2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1rem">' + icon + '</div>';
-  const thumb = photoUrl
+  var thumb = photoUrl
     ? '<img src="' + photoUrl + '" style="width:32px;height:32px;object-fit:cover;border-radius:5px;flex-shrink:0;border:1px solid var(--border)" onerror="this.style.display=\'none\'">'
     : (icon === '🚂' ? _placeholderImg : '<div style="width:32px;height:32px;border-radius:5px;background:var(--surface2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1rem">' + icon + '</div>');
   return '<div onclick="' + onclick + '" class="dash-row-hover" style="display:flex;align-items:center;gap:0.55rem;padding:0.45rem 0;border-bottom:1px solid var(--border);cursor:pointer">'
@@ -588,11 +717,11 @@ function _panelRow(icon, itemHtml, name, meta, onclick, photoUrl, extraBadge) {
     + '</div>';
 }
 
-const _DEFAULT_PANELS = [{id:'recent'}, {id:'wants'}];
+var _DEFAULT_PANELS = [{id:'recent'}, {id:'wants'}];
 
 function _getPanels() {
   try {
-    const saved = _prefGet('lv_dash_panels', '');
+    var saved = _prefGet('lv_dash_panels', '');
     if (saved) return JSON.parse(saved);
   } catch(e) {}
   return [{ id: 'recent' }, { id: 'wants' }];
@@ -606,14 +735,14 @@ function _openPanelPopup(panelIdx) {
   var existing = document.getElementById('panel-popup');
   if (existing) { existing.remove(); return; }
 
-  const panels = _getPanels();
-  const currentId = panels[panelIdx] ? panels[panelIdx].id : 'recent';
+  var panels = _getPanels();
+  var currentId = panels[panelIdx] ? panels[panelIdx].id : 'recent';
 
-  const popup = document.createElement('div');
+  var popup = document.createElement('div');
   popup.id = 'panel-popup';
   popup.style.cssText = 'position:fixed;z-index:99990;background:var(--surface,#161c34);border:1px solid var(--border,#2a3a5c);border-radius:12px;padding:1rem;box-shadow:0 8px 32px rgba(0,0,0,0.5);min-width:220px;max-width:260px';
 
-  const opts = PANEL_CATALOG.map(function(p) {
+  var opts = PANEL_CATALOG.map(function(p) {
     return '<option value="' + p.id + '"' + (p.id === currentId ? ' selected' : '') + '>' + p.icon + ' ' + p.label + '</option>';
   }).join('');
 
@@ -678,4 +807,3 @@ function _onPanelPopupChange(panelIdx, newId) {
     }
   }, 60);
 }
-

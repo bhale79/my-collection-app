@@ -82,7 +82,7 @@
   /* ── Accessibility: minimum font sizes for readability ─────── */
   /* Floor: nothing below 0.75rem (12px) for labels/badges, 0.85rem (13.6px) for body text */
   .nav-label { font-size: 0.7rem !important; }
-  .stat-label { font-size: 0.75rem !important; }
+  .stat-label { font-size: 0.68rem !important; }
   .section-title { font-size: 0.75rem !important; }
   .owned-badge.yes, .owned-badge.no, .owned-badge.want, .owned-badge.forsale { font-size: 0.72rem !important; }
   .mobile-nav-item { font-size: 0.72rem !important; }
@@ -269,22 +269,18 @@
     color: var(--text-dim); font-weight: 400; letter-spacing: 0; }
 
   /* Stat cards */
-  .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1rem; }
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); gap: 0.6rem; }
   .stat-card {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 1.25rem; position: relative; overflow: hidden;
+    padding: 0.75rem 0.85rem; position: relative; overflow: hidden;
     transition: border-color 0.2s, transform 0.15s;
   }
   .stat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--card-accent,var(--accent)); }
   .stat-card:hover { border-color: var(--border-light,#354870); transform: translateY(-1px); }
-  .stat-card::before {
-    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
-    background: var(--accent-color, var(--accent));
-  }
-  .stat-label { font-family: var(--font-head); font-size: 0.6rem; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 0.4rem; }
-  .stat-value { font-family: var(--font-head); font-size: 2.2rem; font-weight: 700; letter-spacing: 0.02em;
+  .stat-label { font-family: var(--font-head); font-size: 0.58rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 0.25rem; }
+  .stat-value { font-family: var(--font-head); font-size: 1.6rem; font-weight: 700; letter-spacing: 0.02em;
     line-height: 1; color: var(--text); }
-  .stat-sub { font-size: 0.75rem; color: var(--text-dim); margin-top: 0.3rem; }
+  .stat-sub { font-size: 0.7rem; color: var(--text-dim); margin-top: 0.2rem; }
 
   .section-title { font-family: var(--font-head); font-size: 0.68rem; font-weight: 600;
     letter-spacing: 0.18em; text-transform: uppercase;
@@ -839,8 +835,8 @@
     .browse-card-name { font-size: 1rem !important; }
     .browse-card-sub { font-size: 0.85rem !important; }
     .cat-name { font-size: 0.95rem !important; }
-    .stat-value { font-size: 2.4rem !important; }
-    .stat-label { font-size: 0.78rem !important; }
+    .stat-value { font-size: 1.8rem !important; }
+    .stat-label { font-size: 0.68rem !important; }
     .page-title { font-size: 1.5rem !important; }
     .modal-title { font-size: 1.2rem !important; }
     .info-field .info-val { font-size: 1rem !important; }
@@ -865,8 +861,8 @@
       padding-left: max(0.75rem, env(safe-area-inset-left));
       padding-right: max(0.75rem, env(safe-area-inset-right));
     }
-    /* Bigger stat cards on mobile */
-    .stat-card { padding: 1rem; }
+    /* Compact stat cards on mobile */
+    .stat-card { padding: 0.7rem 0.8rem; }
     .stat-val { font-size: 1.6rem; }
     /* Search bar full width */
     #search-input { width: 100%; }

@@ -6874,7 +6874,7 @@ async function saveWizardItem() {
           boxInvId,
           boxGroupId,
           d.location || '',        // Location (col W)
-          '',                    // Era (col X)
+          (_currentEra || 'pw'), // Era (col X)
           '',                    // Manufacturer (col Y)
         ];
 
@@ -6949,7 +6949,7 @@ async function saveWizardItem() {
         d._existingInventoryId || d._photoInventoryId || nextInventoryId(),  // Inventory ID (col U)
         '',  // Group ID (col V) — filled in below for grouped items
         d.location || '',  // Location (col W)
-        '',                    // Era (col X)
+        (_currentEra || 'pw'), // Era (col X)
         '',                    // Manufacturer (col Y)
         ];
       }
@@ -6986,7 +6986,7 @@ async function saveWizardItem() {
       nextInventoryId(),  // Inventory ID
       groupId,  // Group ID — shared across set
       d.location || '',  // Location (col W) — same as unit 1
-      '',                    // Era (col X)
+      (_currentEra || 'pw'), // Era (col X)
       '',                    // Manufacturer (col Y)
     ];
     await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u2Row]);
@@ -7011,7 +7011,7 @@ async function saveWizardItem() {
         nextInventoryId(),  // Inventory ID
         groupId,  // Group ID — shared across set
         d.location || '',  // Location (col W) — same as unit 1
-        '',                    // Era (col X)
+        (_currentEra || 'pw'), // Era (col X)
         '',                    // Manufacturer (col Y)
       ];
       await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u3Row]);
@@ -7064,7 +7064,7 @@ async function saveWizardItem() {
       nextInventoryId(),  // Inventory ID
       groupId,  // Group ID — shared with engine
       d.location || '',  // Location (col W) — same as engine
-      '',                    // Era (col X)
+      (_currentEra || 'pw'), // Era (col X)
       '',                    // Manufacturer (col Y)
     ];
     await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [tRow]);
@@ -7318,7 +7318,7 @@ async function saveWizardItem() {
           mbInvId,      // Inventory ID
           groupId,      // Group ID — shared with set
           d.location || '',  // Location (col W) — same as lead unit
-          '',                    // Era (col X)
+          (_currentEra || 'pw'), // Era (col X)
           '',                    // Manufacturer (col Y)
         ];
         await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [mbRow]);
