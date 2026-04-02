@@ -143,15 +143,10 @@ var CARD_CATALOG = [
       var html = '';
       Object.keys(ERAS).forEach(function(ek) {
         var owned = byEra[ek] || 0;
+        // Simple: current era = live count, other eras = localStorage
         var total = 0;
-        // 1. In-memory on ERAS object (set by _cacheEraMasterTotal, always accurate)
-        if (ERAS[ek] && ERAS[ek]._total > 0) {
-          total = ERAS[ek]._total;
-        // 2. Current era's live data
-        } else if (ek === _currentEra && state.masterData && state.masterData.length > 0) {
-          total = state.masterData.length;
-          ERAS[ek]._total = total;
-        // 3. localStorage fallback for other eras
+        if (ek === _currentEra) {
+          total = (state.masterData || []).length;
         } else {
           total = _getEraMasterTotal(ek) || 0;
         }
