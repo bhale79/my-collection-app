@@ -1445,7 +1445,7 @@ async function switchEra(era) {
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '95';
+  const _CACHE_VER = '96';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
@@ -1463,10 +1463,12 @@ async function loadMasterData() {
   if (cached && cacheAge < CACHE_TTL) {
     try {
       state.masterData = JSON.parse(cached);
+      if (typeof ERAS !== 'undefined' && _currentEra) { ERAS[_currentEra]._total = state.masterData.length; try { localStorage.setItem('lv_era_total_' + _currentEra, state.masterData.length); } catch(e) {} }
       // Background refresh from multi-tab
       _fetchMasterTabs().then(allRows => {
         if (allRows.length) {
           state.masterData = _deduplicateMaster(allRows);
+          if (typeof ERAS !== 'undefined' && _currentEra) { ERAS[_currentEra]._total = state.masterData.length; try { localStorage.setItem('lv_era_total_' + _currentEra, state.masterData.length); } catch(e) {} }
           localStorage.setItem('lv_master_cache', JSON.stringify(state.masterData));
           localStorage.setItem('lv_master_cache_ts', Date.now().toString());
           if (typeof renderBrowse === 'function') renderBrowse();
@@ -1478,6 +1480,7 @@ async function loadMasterData() {
 
   const allRows = await _fetchMasterTabs();
   state.masterData = _deduplicateMaster(allRows);
+  if (typeof ERAS !== 'undefined' && _currentEra) { ERAS[_currentEra]._total = state.masterData.length; try { localStorage.setItem('lv_era_total_' + _currentEra, state.masterData.length); } catch(e) {} }
   localStorage.setItem('lv_master_cache', JSON.stringify(state.masterData));
   localStorage.setItem('lv_master_cache_ts', Date.now().toString());
 }
@@ -1548,6 +1551,7 @@ function parseMasterRows(rows) {
   state.masterData = _deduplicateMaster(
     rows.map(r => parseMasterRow(r, SHEET_TABS.items))
   );
+  if (typeof ERAS !== 'undefined' && _currentEra) { ERAS[_currentEra]._total = state.masterData.length; try { localStorage.setItem('lv_era_total_' + _currentEra, state.masterData.length); } catch(e) {} }
 }
 
 async function loadCatalogRefData() {
