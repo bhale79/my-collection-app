@@ -44,9 +44,9 @@ function _eraOf(pd) {
 }
 
 function _cacheEraMasterTotal() {
-  // Cache current era's master data total for cross-era dashboard cards
-  // Only cache when data has actually loaded (length > 0) to avoid overwriting with 0
+  // Store current era's master data total on the ERAS object AND localStorage
   if (typeof _currentEra !== 'undefined' && state.masterData && state.masterData.length > 0) {
+    ERAS[_currentEra]._total = state.masterData.length;
     try { localStorage.setItem('lv_era_total_' + _currentEra, state.masterData.length); } catch(e) {}
   }
 }
@@ -143,9 +143,15 @@ var CARD_CATALOG = [
       var html = '';
       Object.keys(ERAS).forEach(function(ek) {
         var owned = byEra[ek] || 0;
-        var total;
-        if (ek === _currentEra && state.masterData.length > 0) {
+        var total = 0;
+        // 1. In-memory on ERAS object (set by _cacheEraMasterTotal, always accurate)
+        if (ERAS[ek] && ERAS[ek]._total > 0) {
+          total = ERAS[ek]._total;
+        // 2. Current era's live data
+        } else if (ek === _currentEra && state.masterData && state.masterData.length > 0) {
           total = state.masterData.length;
+          ERAS[ek]._total = total;
+        // 3. localStorage fallback for other eras
         } else {
           total = _getEraMasterTotal(ek) || 0;
         }
@@ -476,7 +482,7 @@ function buildDashboard() {
             + '<div class="stat-sub">' + result.sub + '</div>';
         }
         return '<div class="stat-card" id="dash-card-' + i + '" style="--card-accent:' + card.color + ';cursor:pointer;position:relative" onclick="_openCardPopup(' + i + ')" title="Click to customize">'
-          + '<div style="position:absolute;top:6px;right:8px;font-size:0.65rem;color:var(--text-dim);opacity:0.45">✎</div>'
+
           + inner
           + '</div>';
       }).join('');
@@ -527,9 +533,7 @@ function buildDashboard() {
           ? '<span style="cursor:pointer;text-decoration:none" onclick="' + panelDef.navFn + '" title="Go to ' + panelDef.label + '">' + panelDef.icon + ' ' + panelDef.label + ' <span style="font-size:0.65rem;opacity:0.5">›</span></span>'
           : '<span>' + panelDef.icon + ' ' + panelDef.label + '</span>';
         headerEl.innerHTML = titleHtml
-          + '<button onclick="_openPanelPopup(' + i + ')" title="Change panel" '
-          + 'style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:0.75rem;padding:0.1rem 0.3rem;border-radius:4px;opacity:0.55;line-height:1" '
-          + 'onmouseover="this.style.opacity=\'1\'" onmouseout="this.style.opacity=\'0.55\'">✎</button>';
+;
       }
 
       // Render panel body
