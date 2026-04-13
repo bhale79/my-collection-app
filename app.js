@@ -244,15 +244,26 @@ function nextInventoryId() {
   _scanMax(state.mySetsData);
   return String(max + 1);
 }
-function _buildGroupBoxRow(unitNum, boxCond, boxPhotoLink, groupId, datePurchased, leadItemNum) {
+// Look up known box variations from master data for a given item number
+function getBoxVariations(itemNum) {
+  if (!itemNum || !state.masterData) return [];
+  var num = (itemNum || '').replace(/-(P|T|BOX|MBOX)$/i, '');
+  var boxes = state.masterData.filter(function(m) {
+    return m._tab === 'Lionel PW - Boxes' && (m.itemNum === num || m.itemNum === itemNum || baseItemNum(m.itemNum) === baseItemNum(num));
+  });
+  return boxes;
+}
+function _buildGroupBoxRow(unitNum, boxCond, boxPhotoLink, groupId, datePurchased, leadItemNum, boxVariation, boxVariationDesc) {
+  var noteText = 'Box for ' + unitNum;
+  if (boxVariationDesc) noteText += ' — ' + boxVariationDesc;
   return [
-    unitNum + '-BOX', '',
+    unitNum + '-BOX', boxVariation || '',
     boxCond || '', '',
     '', '', '',
     'Yes',
     boxCond || '',
     '', boxPhotoLink || '',
-    'Box for ' + unitNum,
+    noteText,
     datePurchased || '',
     '',
     unitNum,
@@ -1491,7 +1502,7 @@ async function switchEra(era) {
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
   // Master data stored in IndexedDB (too large for localStorage)
-  const _CACHE_VER = '101';
+  const _CACHE_VER = '102';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     idbRemove('lv_master_cache');
     localStorage.removeItem('lv_master_cache');  // clean up old localStorage entry

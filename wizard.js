@@ -304,6 +304,12 @@ function getSteps(tab) {
       return [
         { id: 'itemNumGrouping',  title: 'Item Number',       type: 'itemNumGrouping' },
         { id: 'boxCondDetails',   title: (d) => 'Box condition — ' + getItemLabel(d), type: 'boxCondDetails' },
+        { id: 'boxVariation', title: (d) => 'Which box type do you have?', type: 'boxVariationPicker',
+          skipIf: (d) => {
+            if (typeof getBoxVariations !== 'function') return true;
+            var vars = getBoxVariations(d.itemNum);
+            return vars.length < 2;
+          } },
         { id: 'boxPurchaseValue', title: 'Purchase & Value',  type: 'boxPurchaseValue' },
         { id: 'confirm',          title: 'Ready to save box info!', type: 'confirm' },
       ];
@@ -351,6 +357,15 @@ function getSteps(tab) {
         type: 'drivePhotos', label: 'Item',
         photoBanner: { color: '#2980b9', label: (d) => '\u{1F7E6} PHOTOS: No. ' + (d.itemNum || '') + ' ' + (getItemLabel(d) || '').charAt(0).toUpperCase() + (getItemLabel(d) || '').slice(1) },
         note: (d) => isPaired(d) ? 'Engine photos only — tender photos next.' : '' },
+      // ── Box variation picker (only if 2+ known box types in master data) ──
+      { id: 'boxVariation', title: (d) => 'Which box type do you have?', type: 'boxVariationPicker',
+        skipIf: (d) => {
+          if (d.hasBox !== 'Yes') return true;
+          if (typeof getBoxVariations !== 'function') return true;
+          var vars = getBoxVariations(d.itemNum);
+          return vars.length < 2;
+        } },
+
       { id: 'photosBox',  title: (d) => 'Add photos of the ' + getItemLabel(d) + ' box',
         type: 'drivePhotos', label: 'Box',
         photoBanner: { color: '#8B4513', label: (d) => '\u{1F7EB} PHOTOS: No. ' + (d.itemNum || '') + ' — BOX' },
@@ -2317,6 +2332,51 @@ function renderWizardStep() {
 
       </div>`;
     setTimeout(initCondDesc, 60);
+
+  } else if (s.type === 'boxVariationPicker') {
+    // ── Box variation picker: shows known box types from master data ──
+    var _bvItemNum = (wizard.data.itemNum || '').trim();
+    var _bvVars = typeof getBoxVariations === 'function' ? getBoxVariations(_bvItemNum) : [];
+    var _bvVal = wizard.data.boxVariation || '';
+    var _bvCards = _bvVars.map(function(bv) {
+      var isSelected = _bvVal === (bv.variation || bv.itemNum);
+      var descText = bv.description || '';
+      // Strip trailing year codes for display
+      var dispDesc = descText.replace(/,\s*\d{1,3}\s*$/, '').trim();
+      return '<button onclick="wizardChooseBoxVariation(\'' + (bv.variation || bv.itemNum).replace(/'/g, "\\'") + '\', \'' + dispDesc.replace(/'/g, "\\'") + '\')" style="'
+        + 'display:flex;flex-direction:column;gap:0.3rem;padding:0.85rem 1rem;'
+        + 'border-radius:10px;text-align:left;width:100%;cursor:pointer;'
+        + 'font-family:var(--font-body);transition:all 0.15s;'
+        + 'border:2px solid ' + (isSelected ? '#8B4513' : 'var(--border)') + ';'
+        + 'background:' + (isSelected ? 'rgba(139,69,19,0.12)' : 'var(--surface2)') + ';'
+        + 'color:var(--text);'
+        + '">'
+        + '<div style="display:flex;align-items:center;gap:0.6rem;width:100%">'
+        + '<span style="font-family:var(--font-mono);font-size:1rem;font-weight:600;color:' + (isSelected ? '#8B4513' : 'var(--accent2)') + ';min-width:2rem">'
+        + (bv.variation || '—') + '</span>'
+        + '<span style="font-size:0.88rem;flex:1">' + dispDesc + '</span>'
+        + '</div>'
+        + '</button>';
+    });
+    // Add "Other / Not Listed" option
+    var _bvOtherSel = _bvVal === '_other';
+    _bvCards.push('<button onclick="wizardChooseBoxVariation(\'_other\', \'Not listed\')" style="'
+      + 'display:flex;align-items:center;gap:0.6rem;padding:0.85rem 1rem;'
+      + 'border-radius:10px;text-align:left;width:100%;cursor:pointer;'
+      + 'font-family:var(--font-body);transition:all 0.15s;'
+      + 'border:2px solid ' + (_bvOtherSel ? '#8B4513' : 'var(--border)') + ';'
+      + 'background:' + (_bvOtherSel ? 'rgba(139,69,19,0.12)' : 'var(--surface2)') + ';'
+      + 'color:var(--text);'
+      + '">'
+      + '<span style="font-family:var(--font-mono);font-size:1rem;font-weight:600;color:var(--text-dim);min-width:2rem">?</span>'
+      + '<span style="font-size:0.88rem;color:var(--text-mid)">Other / Not Listed</span>'
+      + '</button>');
+
+    body.innerHTML = '<div style="padding-top:0.5rem">'
+      + '<div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:0.75rem">'
+      + 'We found ' + _bvVars.length + ' known box type' + (_bvVars.length > 1 ? 's' : '') + ' for No. ' + _bvItemNum + ':</div>'
+      + '<div style="display:flex;flex-direction:column;gap:0.5rem">' + _bvCards.join('') + '</div>'
+      + '</div>';
 
   } else if (s.type === 'choice2' || s.type === 'choice3') {
     const val = wizard.data[s.id] || '';
@@ -5149,6 +5209,12 @@ function wizardChooseVariation(variation) {
   setTimeout(() => wizardNext(), 150);
 }
 
+function wizardChooseBoxVariation(variation, desc) {
+  wizard.data.boxVariation = variation === '_other' ? '' : variation;
+  wizard.data.boxVariationDesc = variation === '_other' ? '' : (desc || '');
+  setTimeout(() => wizardNext(), 150);
+}
+
 
 let itemLookupTimer;
 let _suggestionIndex = -1;
@@ -5832,6 +5898,12 @@ async function _wizardNextCore() {
     if (_bcg === 'engine_tender' && !wizard.data.tenderBoxCond) wizard.data.tenderBoxCond = 7;
     if ((_bcg === 'aa' || _bcg === 'ab') && !wizard.data.unit2BoxCond) wizard.data.unit2BoxCond = 7;
     if (_bcg === 'aba') { if (!wizard.data.unit2BoxCond) wizard.data.unit2BoxCond = 7; if (!wizard.data.unit3BoxCond) wizard.data.unit3BoxCond = 7; }
+  }
+  // boxVariationPicker: require a selection
+  if (s.type === 'boxVariationPicker') {
+    if (!wizard.data.boxVariation && wizard.data.boxVariation !== '') {
+      showToast('Please select a box type.'); return;
+    }
   }
   // boxPurchaseValue: all optional
   if (s.type === 'boxPurchaseValue') { /* all optional */ }
@@ -6877,14 +6949,18 @@ async function saveWizardItem() {
           }
         }
 
+        const _boVar = d.boxVariation || variation;
+        const _boDesc = d.boxVariationDesc || '';
+        var _boNote = (d.notes || '').trim() || 'Box for ' + itemNum;
+        if (_boDesc && _boNote === 'Box for ' + itemNum) _boNote += ' — ' + _boDesc;
         const boxRow = [
-          boxItemNum, variation,
+          boxItemNum, _boVar,
           d.boxCond || '', '',     // condition = box condition, allOriginal
           '', d.priceBox || '', '', // no item price, box price, no complete
           'Yes',                   // hasBox — this IS a box
           d.boxCond || '',
           '', boxPhotos[0] || '',  // no item photo; box photo
-          (d.notes || '').trim() || 'Box for ' + itemNum,
+          _boNote,
           d.purchaseDate || '',
           d.userEstWorth || '',
           itemNum,                 // matchedTo = the item this box belongs to
@@ -7219,13 +7295,17 @@ async function saveWizardItem() {
       try {
         // Unit 1 box
         if (d.hasBox === 'Yes') {
-          const u1BoxRow = _buildGroupBoxRow(itemNum, d.boxCond || row[8], boxPhotos[0] || row[10] || '', groupId, d.datePurchased, itemNum);
+          const _bxVar = d.boxVariation || '';
+          const _bxDesc = d.boxVariationDesc || '';
+          const u1BoxRow = _buildGroupBoxRow(itemNum, d.boxCond || row[8], boxPhotos[0] || row[10] || '', groupId, d.datePurchased, itemNum, _bxVar, _bxDesc);
           await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u1BoxRow]);
+          var _bxNote = 'Box for ' + itemNum;
+          if (_bxDesc) _bxNote += ' — ' + _bxDesc;
           state.personalData[u1BoxRow[20]] = {
-            row: 99999, itemNum: itemNum + '-BOX', variation: '',
+            row: 99999, itemNum: itemNum + '-BOX', variation: _bxVar,
             status: 'Owned', owned: true,
             condition: d.boxCond || row[8] || '', hasBox: 'Yes', boxCond: d.boxCond || row[8] || '',
-            notes: 'Box for ' + itemNum, matchedTo: itemNum,
+            notes: _bxNote, matchedTo: itemNum,
             inventoryId: u1BoxRow[20], groupId: groupId,
           };
         }
