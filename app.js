@@ -1404,6 +1404,49 @@ function _getMasterTabs() {
     .map(function(k) { return SHEET_TABS[k]; });
 }
 
+// ── IndexedDB cache helper (for large data that exceeds localStorage quota) ──
+var _idbReady = null;
+function _openIDB() {
+  if (_idbReady) return _idbReady;
+  _idbReady = new Promise(function(resolve, reject) {
+    var req = indexedDB.open('RailRosterCache', 1);
+    req.onupgradeneeded = function() { req.result.createObjectStore('cache'); };
+    req.onsuccess = function() { resolve(req.result); };
+    req.onerror = function() { reject(req.error); };
+  });
+  return _idbReady;
+}
+function idbGet(key) {
+  return _openIDB().then(function(db) {
+    return new Promise(function(resolve) {
+      var tx = db.transaction('cache', 'readonly');
+      var req = tx.objectStore('cache').get(key);
+      req.onsuccess = function() { resolve(req.result); };
+      req.onerror = function() { resolve(null); };
+    });
+  }).catch(function() { return null; });
+}
+function idbSet(key, value) {
+  return _openIDB().then(function(db) {
+    return new Promise(function(resolve) {
+      var tx = db.transaction('cache', 'readwrite');
+      tx.objectStore('cache').put(value, key);
+      tx.oncomplete = function() { resolve(); };
+      tx.onerror = function() { resolve(); };
+    });
+  }).catch(function() {});
+}
+function idbRemove(key) {
+  return _openIDB().then(function(db) {
+    return new Promise(function(resolve) {
+      var tx = db.transaction('cache', 'readwrite');
+      tx.objectStore('cache').delete(key);
+      tx.oncomplete = function() { resolve(); };
+      tx.onerror = function() { resolve(); };
+    });
+  }).catch(function() {});
+}
+
 // ── Switch era: swap tabs, clear caches, reload ──
 async function switchEra(era) {
   if (!ERAS[era]) return;
@@ -1411,7 +1454,7 @@ async function switchEra(era) {
   localStorage.setItem('lv_era', era);
   _applyEraTabs(era);
   // Clear master caches so fresh load happens
-  localStorage.removeItem('lv_master_cache');
+  idbRemove('lv_master_cache');
   localStorage.removeItem('lv_master_cache_ts');
   localStorage.removeItem('lv_catalog_ref_cache');
   localStorage.removeItem('lv_catalog_ref_ts');
@@ -1447,9 +1490,11 @@ async function switchEra(era) {
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '98';
+  // Master data stored in IndexedDB (too large for localStorage)
+  const _CACHE_VER = '99';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
-    localStorage.removeItem('lv_master_cache');
+    idbRemove('lv_master_cache');
+    localStorage.removeItem('lv_master_cache');  // clean up old localStorage entry
     localStorage.removeItem('lv_personal_cache');
     localStorage.removeItem('lv_catalog_ref_cache');
     localStorage.removeItem('lv_catalog_ref_ts');
@@ -1457,21 +1502,21 @@ async function loadMasterData() {
     localStorage.removeItem('lv_is_ref_ts');
     localStorage.setItem('lv_cache_ver', _CACHE_VER);
   }
-  const cached = localStorage.getItem('lv_master_cache');
+  var cached = await idbGet('lv_master_cache');
   const cachedAt = parseInt(localStorage.getItem('lv_master_cache_ts') || '0');
   const cacheAge = Date.now() - cachedAt;
   const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
   if (cached && cacheAge < CACHE_TTL) {
     try {
-      state.masterData = JSON.parse(cached);
+      state.masterData = cached;
       if (typeof ERAS !== 'undefined' && _currentEra) { ERAS[_currentEra]._total = state.masterData.length; try { localStorage.setItem('lv_era_total_' + _currentEra, state.masterData.length); } catch(e) {} }
       // Background refresh from multi-tab
       _fetchMasterTabs().then(allRows => {
         if (allRows.length) {
           state.masterData = _deduplicateMaster(allRows);
           if (typeof ERAS !== 'undefined' && _currentEra) { ERAS[_currentEra]._total = state.masterData.length; try { localStorage.setItem('lv_era_total_' + _currentEra, state.masterData.length); } catch(e) {} }
-          localStorage.setItem('lv_master_cache', JSON.stringify(state.masterData));
+          idbSet('lv_master_cache', state.masterData);
           localStorage.setItem('lv_master_cache_ts', Date.now().toString());
           if (typeof renderBrowse === 'function') renderBrowse();
         }
@@ -1483,7 +1528,7 @@ async function loadMasterData() {
   const allRows = await _fetchMasterTabs();
   state.masterData = _deduplicateMaster(allRows);
   if (typeof ERAS !== 'undefined' && _currentEra) { ERAS[_currentEra]._total = state.masterData.length; try { localStorage.setItem('lv_era_total_' + _currentEra, state.masterData.length); } catch(e) {} }
-  localStorage.setItem('lv_master_cache', JSON.stringify(state.masterData));
+  idbSet('lv_master_cache', state.masterData);
   localStorage.setItem('lv_master_cache_ts', Date.now().toString());
 }
 
