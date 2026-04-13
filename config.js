@@ -41,8 +41,7 @@ const ERA_TABS = {
   },
   mpc: {
     items:    'MPC-Modern',
-    catalogs: 'Lionel MPC - Catalogs',
-    modCatalogs: 'Lionel Mod - Catalogs',
+    catalogs: 'MPC-Modern - Catalogs',
   },
 };
 
