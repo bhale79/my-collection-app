@@ -3,8 +3,8 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.92';
-const APP_DATE    = 'March 2026';
+const APP_VERSION = 'v0.9.93';
+const APP_DATE    = 'April 2026';
 
 // ── Master catalog sheet ID (read-only, shared across all users) ──
 const MASTER_SHEET_ID = '1Y9-cg8C1CkIqy0RQ66DfP7fmGrE3IGBpyJbtdfYx8q0';
@@ -15,15 +15,20 @@ const ADMIN_EMAILS = ['bhale@ipd-llc.com'];
 
 // ── Era definitions ──
 const ERAS = {
-  pw:  { id: 'pw',  label: 'Postwar',  years: '1945-1969', prefix: 'Lionel PW' },
-  mpc: { id: 'mpc', label: 'MPC',      years: '1970-1986', prefix: 'Lionel MPC' },
-  mod: { id: 'mod', label: 'Modern',   years: '1987-Today', prefix: 'Lionel Mod' },
+  prewar: { id: 'prewar', label: 'Pre-War',  years: '1901-1942', prefix: 'Lionel Pre-War' },
+  pw:     { id: 'pw',     label: 'Postwar',  years: '1945-1969', prefix: 'Lionel PW' },
+  mpc:    { id: 'mpc',    label: 'MPC/Modern', years: '1970-Today', prefix: 'Lionel' },
 };
 
 // ── Master sheet tab names per era ──
 const ERA_TABS = {
+  prewar: {
+    items:    'Pre-War',
+    catalogs: 'Lionel Pre-War - Catalogs',
+  },
   pw: {
     items:        'Lionel PW - Items',
+    boxes:        'Lionel PW - Boxes',
     science:      'Lionel PW - Science',
     construction: 'Lionel PW - Construction',
     paper:        'Lionel PW - Paper',
@@ -35,17 +40,14 @@ const ERA_TABS = {
     instrSheets:  'Lionel PW - Instruction Sheets',
   },
   mpc: {
-    items:    'Lionel MPC - Items',
+    items:    'MPC-Modern',
     catalogs: 'Lionel MPC - Catalogs',
-  },
-  mod: {
-    items:    'Lionel Mod - Items',
-    catalogs: 'Lionel Mod - Catalogs',
+    modCatalogs: 'Lionel Mod - Catalogs',
   },
 };
 
 // ── Keys that hold browseable master inventory (not catalogs/companions/sets/IS) ──
-const MASTER_TAB_KEYS = ['items','science','construction','paper','other','serviceTools'];
+const MASTER_TAB_KEYS = ['items','boxes','science','construction','paper','other','serviceTools'];
 
 // ── Default wizard category visibility ──
 const DEFAULT_WIZARD_CATEGORIES = {
