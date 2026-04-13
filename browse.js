@@ -373,13 +373,14 @@ function renderBrowseTab(tab) {
   state._browseTab = tab || 'items';
 
   // IS tab: master catalog only. Mockups tab: collection only.
-  // Hide master-only tabs when in collection view
+  // Hide master-only tabs when in collection view OR when current era lacks them
+  var _tabKeyMap = {'btab-science':'science','btab-construction':'construction','btab-paper':'paper','btab-other':'other','btab-service':'serviceTools'};
   ['btab-science','btab-construction','btab-paper','btab-other','btab-service'].forEach(function(id) {
     var b = document.getElementById(id);
-    if (b) b.style.display = inCollection ? 'none' : '';
+    if (b) b.style.display = (inCollection || !SHEET_TABS[_tabKeyMap[id]]) ? 'none' : '';
   });
   const isBtn = document.getElementById('btab-is');
-  if (isBtn) isBtn.style.display = inCollection ? 'none' : '';
+  if (isBtn) isBtn.style.display = (inCollection || !SHEET_TABS.instrSheets) ? 'none' : '';
   const moBtn = document.getElementById('btab-mockups');
   if (moBtn) moBtn.style.display = inCollection ? '' : 'none';
   const catBtn = document.getElementById('btab-catalogs');
