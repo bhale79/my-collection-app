@@ -1391,6 +1391,8 @@ async function loadAllData() {
 // SHEET_TABS contents are swapped when the user changes era.
 var SHEET_TABS = {};
 var _currentEra = localStorage.getItem('lv_era') || 'pw';
+// Migration: 'mod' era was merged into 'mpc' (MPC/Modern combined)
+if (_currentEra === 'mod') { _currentEra = 'mpc'; try { localStorage.setItem('lv_era', 'mpc'); } catch(e) {} }
 function _applyEraTabs(era) {
   Object.keys(SHEET_TABS).forEach(function(k) { delete SHEET_TABS[k]; });
   Object.assign(SHEET_TABS, ERA_TABS[era] || ERA_TABS.pw);
@@ -1445,7 +1447,7 @@ async function switchEra(era) {
 
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
-  const _CACHE_VER = '97';
+  const _CACHE_VER = '98';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     localStorage.removeItem('lv_master_cache');
     localStorage.removeItem('lv_personal_cache');
@@ -1489,7 +1491,7 @@ async function _fetchMasterTabs() {
   // Try multi-tab batchGet first, fall back to old single-tab
   try {
     var _mt = _getMasterTabs();
-    const ranges = _mt.map(t => `${t}!A2:P`);
+    const ranges = _mt.map(t => `${t}!A2:R`);
     const res = await sheetsBatchGet(state.masterSheetId, ranges);
     const allRows = [];
     (res.valueRanges || []).forEach((vr, i) => {
@@ -1504,8 +1506,8 @@ async function _fetchMasterTabs() {
   }
   // Fallback: old single-tab approach
   try {
-    let res = await sheetsGet(state.masterSheetId, 'Master Inventory!A2:O');
-    if (!res.values) res = await sheetsGet(state.masterSheetId, 'Sheet1!A2:O');
+    let res = await sheetsGet(state.masterSheetId, 'Master Inventory!A2:R');
+    if (!res.values) res = await sheetsGet(state.masterSheetId, 'Sheet1!A2:R');
     return (res.values || []).map(r => parseMasterRow(r, SHEET_TABS.items));
   } catch(e2) {
     console.warn('[Master] Legacy fallback also failed:', e2.message);
@@ -1520,17 +1522,19 @@ function parseMasterRow(r, tabName) {
     subType:      r[2]  || '',
     unit:         r[3]  || '',
     poweredDummy: r[4]  || '',
-    roadName:     r[5]  || '',
-    description:  r[6]  || '',
-    yearProd:     r[7]  || '',
-    variation:    r[8]  || '',
-    varDesc:      r[9]  || '',
-    refLink:      r[10] || '',
-    notes:        r[11] || '',
-    marketVal:    r[12] || '',
-    source:       r[13] || '',
-    cottCode:     r[14] || '',
-    originalDesc: r[15] || '',
+    control:      r[5]  || '',
+    roadName:     r[6]  || '',
+    description:  r[7]  || '',
+    gauge:        r[8]  || '',
+    yearProd:     r[9]  || '',
+    variation:    r[10] || '',
+    varDesc:      r[11] || '',
+    refLink:      r[12] || '',
+    notes:        r[13] || '',
+    marketVal:    r[14] || '',
+    source:       r[15] || '',
+    cottCode:     r[16] || '',
+    originalDesc: r[17] || '',
     _tab:         tabName,
   };
 }
@@ -3954,8 +3958,10 @@ function browseRowClick(event, idx) {
       ['Type', item.itemType || '—'],
       ['Road / Name', item.roadName || '—'],
       ['Year', item.yearProd || '—'],
-      ['Market Value', item.marketVal ? '$' + parseFloat(item.marketVal).toLocaleString() : '—'],
     ];
+    if (item.control) rows.push(['Control', item.control]);
+    if (item.gauge) rows.push(['Gauge', item.gauge]);
+    rows.push(['Market Value', item.marketVal ? '$' + parseFloat(item.marketVal).toLocaleString() : '—']);
     rows.forEach(function(r) {
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;gap:0.75rem;margin-bottom:0.4rem;font-size:0.85rem';
@@ -4270,6 +4276,8 @@ function _buildItemModal() {
             '<div class="info-field"><label>Item Type</label><div class="info-val" id="mi-type"></div></div>' +
             '<div class="info-field"><label>Year Produced</label><div class="info-val" id="mi-year"></div></div>' +
             '<div class="info-field"><label>Road Name</label><div class="info-val" id="mi-road"></div></div>' +
+            '<div class="info-field" id="mi-control-wrap"><label>Control</label><div class="info-val" id="mi-control"></div></div>' +
+            '<div class="info-field" id="mi-gauge-wrap"><label>Gauge</label><div class="info-val" id="mi-gauge"></div></div>' +
             '<div class="info-field"><label>Variation</label><div class="info-val" id="mi-var"></div></div>' +
             '<div class="info-field"><label>Est. Market Value</label><div class="info-val market-val" id="mi-market"></div></div>' +
             '<div class="info-field"><label>COTT Reference</label><div class="info-val" id="mi-ref"></div></div>' +
@@ -4387,6 +4395,10 @@ function openItem(idx) {
   document.getElementById('mi-type').textContent = item.itemType || '—';
   document.getElementById('mi-year').textContent = item.yearProd || '—';
   document.getElementById('mi-road').textContent = item.roadName || '—';
+  if (item.control) { document.getElementById('mi-control').textContent = item.control; document.getElementById('mi-control-wrap').style.display = ''; }
+  else { document.getElementById('mi-control-wrap').style.display = 'none'; }
+  if (item.gauge) { document.getElementById('mi-gauge').textContent = item.gauge; document.getElementById('mi-gauge-wrap').style.display = ''; }
+  else { document.getElementById('mi-gauge-wrap').style.display = 'none'; }
   document.getElementById('mi-var').textContent = item.variation || '(no variation)';
   document.getElementById('mi-market').textContent = item.marketVal ? '$' + parseFloat(item.marketVal).toLocaleString() : '—';
   document.getElementById('mi-ref').innerHTML = item.refLink ? `<a href="${item.refLink}" target="_blank">View on COTT ↗</a>` : '—';
