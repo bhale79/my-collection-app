@@ -7266,6 +7266,17 @@ async function saveWizardItem() {
       if (collectionEntry?.row) {
         await sheetsDeleteRow(state.personalSheetId, 'My Collection', collectionEntry.row);
       }
+      // Bugfix 2026-04-14: clear any matching For Sale row when an item is marked sold.
+      // Wizard sold path used to leave a stale row on the For Sale tab even though the
+      // item was also in Sold. Mirror the cleanup that markForSaleAsSold already does.
+      try {
+        const fsKey = `${itemNum}|${soldVariation}`;
+        const fsEntry = state.forSaleData && state.forSaleData[fsKey];
+        if (fsEntry && fsEntry.row) {
+          await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry.row}:I${fsEntry.row}`, [['','','','','','','','','']]);
+          delete state.forSaleData[fsKey];
+        }
+      } catch(e) { console.warn('[Sold] clearing For Sale row failed:', e); }
       // Move photo folder to Sold in Drive
       if (collectionEntry?.itemNum) {
         try { await driveMoveToSold(collectionEntry.itemNum); } catch(e) { console.warn('Drive move failed:', e); }
