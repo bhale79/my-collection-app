@@ -40,10 +40,28 @@ const ERROR_VIEWS = [
 ];
 
 // Returns a human-friendly label for the item type (for wizard questions)
+// Bugfix 2026-04-14: was using state.masterData.find() which returned the FIRST
+// match for the item number — could pick an unrelated tab (e.g. "Box") or a stray
+// catalog row with the wrong itemType. Now we (a) filter to non-Box rows, (b) prefer
+// the row whose variation matches d.variation when one is provided, and (c) fall
+// back to whatever non-Box row we have.
 function getItemLabel(d) {
-  // Try master data lookup first
-  const itemNum = (d.itemNum || '').trim().replace(/-[PD]$/, '');
-  const master = state.masterData.find(m => m.itemNum === itemNum || m.itemNum === d.itemNum);
+  const rawNum = (d.itemNum || '').trim();
+  const itemNum = rawNum.replace(/-[PD]$/, '');
+  const want = (d.variation || '').toString();
+  const candidates = state.masterData.filter(m =>
+    (m.itemNum === itemNum || m.itemNum === rawNum) &&
+    !((m.itemType || '').toLowerCase() === 'box')
+  );
+  let master = null;
+  if (want) {
+    master = candidates.find(m => (m.variation || '').toString() === want);
+  }
+  if (!master) master = candidates[0];
+  if (!master) {
+    // Last-resort fallback to the original any-row lookup
+    master = state.masterData.find(m => m.itemNum === itemNum || m.itemNum === rawNum);
+  }
   const t = (master && master.itemType) ? master.itemType.toLowerCase() : '';
   if (t.includes('steam') || t.includes('diesel') || t.includes('electric')) return 'locomotive';
   if (t.includes('freight') || t.includes('car')) return 'car';
