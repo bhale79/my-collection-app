@@ -75,10 +75,12 @@ var CARD_CATALOG = [
       extraCount += Object.keys(state.scienceData||{}).length;
       extraCount += Object.keys(state.constructionData||{}).length;
       var grand = items.length + extraCount;
-      // Era breakdown — collection items by their era tag, ephemera/IS/science/construction are PW
+      // Bugfix 2026-04-14: per-era breakdown now counts ONLY collection items by their
+      // era tag — does NOT lump ephemera/IS/science/construction into PW. That rollup
+      // caused Items I Own's Postwar number to be +N higher than Era Progress's Postwar
+      // number, since extras aren't all PW (catalogs/IS span all eras).
       var byEra = {};
       items.forEach(function(pd) { var e = _eraOf(pd); byEra[e] = (byEra[e]||0) + 1; });
-      byEra['pw'] = (byEra['pw']||0) + extraCount;
       var lines = '';
       Object.keys(ERAS).forEach(function(ek) {
         if (byEra[ek]) {
@@ -86,6 +88,11 @@ var CARD_CATALOG = [
             + '<span>' + ERAS[ek].label + '</span><span>' + byEra[ek].toLocaleString() + '</span></div>';
         }
       });
+      // Show extras (paper/IS/science/construction) on their own line so users still see them
+      if (extraCount > 0) {
+        lines += '<div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--text-mid);margin-top:2px">'
+          + '<span>Paper / Sets</span><span>' + extraCount.toLocaleString() + '</span></div>';
+      }
       return { html: '<div class="stat-value">' + grand.toLocaleString() + '</div>'
         + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:1px">Total</div>'
         + lines };
