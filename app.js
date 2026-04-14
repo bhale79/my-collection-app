@@ -1502,7 +1502,7 @@ async function switchEra(era) {
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
   // Master data stored in IndexedDB (too large for localStorage)
-  const _CACHE_VER = '102';
+  const _CACHE_VER = '103';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     idbRemove('lv_master_cache');
     localStorage.removeItem('lv_master_cache');  // clean up old localStorage entry
@@ -2616,12 +2616,17 @@ function openPhotoWizard(itemNum, variation, pdKey) {
   document.getElementById('wizard-modal').classList.add('open');
   document.body.style.overflow = 'hidden';
   // Skip to the photosItem step
-  const autoSkip = new Set(['tab','itemNum','variation','itemPicker','entryMode','condition','allOriginal','notOriginalDesc',
-    'hasBox','boxCond','hasIS','is_sheetNum','is_condition','pricePaid','datePurchased','userEstWorth','yearMade',
+  // NOTE: step IDs must match the current collection-tab step list in wizard.js.
+  // Added 2026-04-14: itemCategory, itemNumGrouping, conditionDetails, purchaseValue, boxVariation
+  // (these are the current step IDs that used to be 'tab'/'itemNum'/'condition'/etc.)
+  const autoSkip = new Set(['tab','itemCategory','itemNum','itemNumGrouping','variation','itemPicker','entryMode',
+    'conditionDetails','condition','allOriginal','notOriginalDesc',
+    'hasBox','boxCond','hasIS','is_sheetNum','is_condition',
+    'purchaseValue','pricePaid','datePurchased','userEstWorth','yearMade',
     'tenderAllOriginal','tenderNotOriginalDesc','unit2AllOriginal','unit2NotOriginalDesc',
     'unit3AllOriginal','unit3NotOriginalDesc','wantTenderPhotos','tenderMatch','dieselSetQ','setMatch','setType',
     'unit2ItemNum','unit3ItemNum','setUnit2Num','setUnit3Num',
-    'wantTogetherPhotos','photosTogether','boxOnly','wantBoxPhotos',
+    'wantTogetherPhotos','photosTogether','boxOnly','wantBoxPhotos','boxVariation',
     'hasMasterBox','masterBoxCond','masterBoxNotes','photosMasterBox',
     'purchaseDate','photosBox']);
   while (wizard.step < wizard.steps.length - 1) {
@@ -3705,7 +3710,10 @@ function showItemPanel(idx, pdKey, mode) {
       const valWrap = document.createElement('div');
       valWrap.style.cssText = 'flex:1';
 
-      if (mode === 'edit' && activeKey === f.key) {
+      // Bugfix 2026-04-14: skip edit branch for null-keyed fields (COTT Reference, Error)
+      // and for readonly/link types — otherwise activeKey===null matches f.key===null on
+      // initial render and renders an editable input for read-only fields.
+      if (mode === 'edit' && f.key != null && f.type !== 'readonly' && f.type !== 'link' && activeKey === f.key) {
         // Show input
         let inp;
         if (f.type === 'select') {
