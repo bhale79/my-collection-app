@@ -2613,6 +2613,9 @@ function openPhotoWizard(itemNum, variation, pdKey) {
             hasBox: pd.hasBox || '', _updatePdKey: pdKey, _photoOnly: true },
     steps: getSteps('collection'), matchedItem: null
   };
+  // Bugfix 2026-04-14: wizard modal may not be built yet (only built by openWizard).
+  // Without this call, getElementById('wizard-modal') returns null and throws.
+  if (typeof _buildWizardModal === 'function') _buildWizardModal();
   document.getElementById('wizard-modal').classList.add('open');
   document.body.style.overflow = 'hidden';
   // Skip to the photosItem step
