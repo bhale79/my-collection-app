@@ -223,6 +223,21 @@ function buildPrefsPage() {
       </div>
     </div>
 
+    <!-- ── Help & Tips ──────────────────────────── -->
+    <div class="pref-section">
+      <div class="pref-section-title" onclick="_togglePrefSection(this)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">Help &amp; Tips <span style="font-size:0.7rem;color:var(--text-dim);transition:transform 0.2s">▶</span></div>
+      <div class="pref-section-body" style="display:none">
+      <div class="pref-row">
+        <div class="pref-row-label"><strong>Welcome Tour</strong><span>See the quick intro again</span></div>
+        <button class="pref-btn" onclick="if(typeof showWelcomeCard==='function') showWelcomeCard(true)">Show</button>
+      </div>
+      <div class="pref-row">
+        <div class="pref-row-label"><strong>Reset Tips</strong><span>Re-enable the contextual hints on empty pages</span></div>
+        <button class="pref-btn" onclick="if(typeof resetContextualHints==='function'){resetContextualHints();showToast('Tips re-enabled. Visit a list page to see them.');}">Reset</button>
+      </div>
+      </div>
+    </div>
+
     <!-- ── About ──────────────────────────────── -->
     <div class="pref-section">
       <div class="pref-section-title" onclick="_togglePrefSection(this)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">About <span style="font-size:0.7rem;color:var(--text-dim);transition:transform 0.2s">▶</span></div>
