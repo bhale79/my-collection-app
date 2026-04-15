@@ -3301,7 +3301,7 @@ async function removeCollectionItem(itemNum, variation, row) {
     // else fall through to remove just this one item
   } else {
     // Standalone item — simple confirm
-    if (!confirm('Remove No. ' + itemNum + (variation ? ' (Var. ' + variation + ')' : '') + ' from your collection?')) return;
+    if (!(await appConfirm('Remove No. ' + itemNum + (variation ? ' (Var. ' + variation + ')' : '') + ' from your collection?', { danger: true, ok: 'Remove' }))) return;
   }
 
   // ── Remove single item ──
@@ -4824,12 +4824,29 @@ function _checkWantPartners(itemNum, variation, priority, maxPrice, notes) {
       try {
         const row = [c.itemNum, '', priority || 'Medium', maxPrice || '', notes || ''];
         await sheetsAppend(state.personalSheetId, 'Want List!A:A', [row]);
+        // Bugfix 2026-04-14: optimistically add partner to state.wantData so the
+        // Want List table shows the new partners immediately instead of waiting
+        // for the 1.2s refresh. Session 102 observed partners not appearing.
+        const pKey = `${c.itemNum}|`;
+        if (!state.wantData[pKey]) {
+          state.wantData[pKey] = {
+            row: 99999, // placeholder; overwritten on next sheet sync
+            itemNum: c.itemNum,
+            variation: '',
+            priority: priority || 'Medium',
+            expectedPrice: maxPrice || '',
+            notes: notes || '',
+          };
+        }
         added++;
       } catch(e) { console.warn('[WantPartner] Failed to add', c.itemNum, e); }
     }
     if (added) {
       _cachePersonalData();
       showToast('✓ Added ' + added + ' partner' + (added > 1 ? 's' : '') + ' to Want List');
+      // Render immediately with the optimistic state, then refresh from server
+      try { buildWantPage(); } catch(e) {}
+      try { buildDashboard(); } catch(e) {}
       setTimeout(async () => {
         await loadPersonalData();
         buildWantPage();
@@ -5011,7 +5028,7 @@ async function ephemeraDelete(tabId, rowKey) {
   const item = (state.ephemeraData[tabId] || {})[rowKey];
   if (!item) return;
   const label = (_ephTabNames[tabId] || tabId);
-  if (!confirm('Remove "' + (item.title || item.itemNum || label) + '" from your collection?')) return;
+  if (!(await appConfirm('Remove "' + (item.title || item.itemNum || label) + '" from your collection?', { danger: true, ok: 'Remove' }))) return;
   // Blank sheet row if we have an actual row number
   if (item.row && typeof item.row === 'number' && item.row >= 3 && item.row < 1000000) {
     const lastCol = _ephTabCols[tabId] || 'J';
@@ -5405,7 +5422,7 @@ function showWantDesc(idx) {
 
 // ── Want List Actions ──────────────────────────────────────────
 async function removeWantItem(itemNum, variation, row) {
-  if (!confirm('Remove this item from your Want List?')) return;
+  if (!(await appConfirm('Remove this item from your Want List?', { danger: true, ok: 'Remove' }))) return;
   const key = `${itemNum}|${variation}`;
   if (row) {
     await sheetsUpdate(state.personalSheetId, `Want List!A${row}:E${row}`, [['','','','','']]);
@@ -5910,7 +5927,7 @@ async function _removeUpgradeFromCollection(itemNum, variation) {
 }
 
 async function removeForSaleItem(itemNum, variation, row) {
-  if (!confirm('Remove this item from your For Sale list?')) return;
+  if (!(await appConfirm('Remove this item from your For Sale list?', { danger: true, ok: 'Remove' }))) return;
   const fsKey = `${itemNum}|${variation}`;
   if (row) {
     await sheetsUpdate(state.personalSheetId, `For Sale!A${row}:I${row}`, [['','','','','','','','','']]);
@@ -5925,7 +5942,7 @@ async function _removeForSaleFromDetail(idx, itemNum, variation) {
   const fsKey = `${itemNum}|${variation}`;
   const fsEntry = state.forSaleData[fsKey];
   if (!fsEntry) { showToast('Item is not on For Sale list'); return; }
-  if (!confirm('Remove No. ' + itemNum + ' from your For Sale list?')) return;
+  if (!(await appConfirm('Remove No. ' + itemNum + ' from your For Sale list?', { danger: true, ok: 'Remove' }))) return;
   if (fsEntry.row) {
     await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry.row}:I${fsEntry.row}`, [['','','','','','','','','']]);
   }
@@ -5938,7 +5955,7 @@ async function _removeForSaleFromDetail(idx, itemNum, variation) {
 }
 
 async function removeForSaleAndCollection(itemNum, variation, fsRow) {
-  if (!confirm('Remove this item from For Sale AND your collection? This cannot be undone.')) return;
+  if (!(await appConfirm('Remove this item from For Sale AND your collection? This cannot be undone.', { danger: true, ok: 'Remove Both' }))) return;
   const key = `${itemNum}|${variation}`;
   // Remove from For Sale tab
   if (fsRow) {
