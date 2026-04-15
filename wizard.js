@@ -597,6 +597,21 @@ function closeWizard() {
     _confirmSetCancel();
     return;
   }
+  // Bugfix 2026-04-14: confirm before discarding entered data.
+  // Was silently closing the wizard (losing item#, condition, prices, photos, etc.)
+  // Only prompt if the user has actually committed to an item (has item#) or
+  // entered meaningful values (condition, pricePaid, userEstWorth, notes, photos).
+  var d = (wizard && wizard.data) || {};
+  var _hasData = !!(
+    d.itemNum || d.variation || d.condition || d.pricePaid || d.priceItem ||
+    d.userEstWorth || d.notes || d.salePrice || d.askingPrice ||
+    (d._drivePhotos && d._drivePhotos.length > 0) || d.manualItemNum
+  );
+  if (_hasData) {
+    if (!confirm('Cancel and discard the info you\'ve entered? This cannot be undone.')) {
+      return; // user chose to continue editing
+    }
+  }
   _doCloseWizard();
 }
 
@@ -4512,7 +4527,17 @@ function renderWizardStep() {
     }
 
   } else if (s.type === 'confirm') {
-    const item = wizard.matchedItem;
+    let item = wizard.matchedItem;
+    // Bugfix 2026-04-14: if the user picked a specific variation in the wizard,
+    // re-fetch the master row for that exact variation so the header + details
+    // reflect the picked variation (was showing Var 1 because matchedItem was
+    // whichever master row .find() hit first).
+    if (item && wizard.data.variation && String(item.variation || '') !== String(wizard.data.variation)) {
+      const _specific = (state.masterData || []).find(m =>
+        m.itemNum === item.itemNum && String(m.variation || '') === String(wizard.data.variation)
+      );
+      if (_specific) item = _specific;
+    }
     const _isEph = ['catalogs','paper','mockups','other',...(state.userDefinedTabs||[]).map(t=>t.id)].includes(wizard.tab);
     const _keyLabels = {
       itemCategory:'Category', cat_type:'Type', cat_year:'Year',
@@ -5909,8 +5934,23 @@ async function _wizardNextCore() {
   }
   // purchaseValue: est worth is required
   if (s.type === 'purchaseValue') {
-    if (!(wizard.data.userEstWorth || '').trim()) {
-      showToast('Please enter an estimated worth.'); return;
+    var _pvWorth = String(wizard.data.userEstWorth || '').trim();
+    if (!_pvWorth || parseFloat(_pvWorth) <= 0) {
+      // Bugfix 2026-04-14: was silently blocking — now highlight the field red + show inline message
+      showToast('Please enter an estimated worth greater than 0.', 4000, true);
+      var _pvInput = document.getElementById('pv-worth');
+      if (_pvInput) {
+        var _pvBox = _pvInput.closest('div');
+        if (_pvBox) {
+          _pvBox.style.border = '2px solid #e04028';
+          _pvBox.style.boxShadow = '0 0 0 3px rgba(224,64,40,0.2)';
+          _pvInput.focus();
+          setTimeout(function() {
+            _pvBox.style.border = ''; _pvBox.style.boxShadow = '';
+          }, 3000);
+        }
+      }
+      return;
     }
   }
   // boxCondDetails: commit slider defaults if user never moved them
