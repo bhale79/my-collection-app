@@ -738,6 +738,92 @@ function _resetSignInButton() {
   if (window._signInSafetyTimer) { clearTimeout(window._signInSafetyTimer); window._signInSafetyTimer = null; }
 }
 
+// ══════════════════════════════════════════════════════════════
+// Welcome card (Option C) + contextual hints (Option D)
+// Built 2026-04-14. Replaces the auto-launching tutorial tour.
+//
+// showWelcomeCard(force) — single-page intro modal. Auto-shows once for
+//   brand-new users, replayable from Preferences → Help & Tips → Show.
+//
+// maybeShowContextualHint(spotId, message, anchorEl) — shows a small
+//   dismissable hint banner once per spotId. Persists dismissal in
+//   localStorage. Used by empty-state list pages.
+//
+// resetContextualHints() — un-dismisses all hints (Preferences action).
+// ══════════════════════════════════════════════════════════════
+const WELCOME_SEEN_KEY = 'lv_welcome_seen';
+const HINT_PREFIX = 'lv_hint_';
+
+function showWelcomeCard(force) {
+  if (!force && localStorage.getItem(WELCOME_SEEN_KEY) === '1') return;
+  const existing = document.getElementById('rr-welcome-card');
+  if (existing) existing.remove();
+  const ov = document.createElement('div');
+  ov.id = 'rr-welcome-card';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:99998;display:flex;align-items:flex-start;justify-content:center;padding:18px;overflow-y:auto';
+  ov.innerHTML =
+    '<div style="background:var(--surface,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;max-width:480px;width:100%;padding:20px 22px 18px;color:var(--text,#eee);font-family:var(--font-body,sans-serif);max-height:calc(100vh - 36px);overflow-y:auto;-webkit-overflow-scrolling:touch;margin:auto 0;box-shadow:0 12px 40px rgba(0,0,0,0.5)">'
+    + '<div style="text-align:center;margin-bottom:8px;font-size:1.4rem">🚂</div>'
+    + '<div style="font-family:var(--font-head,sans-serif);font-size:1.35rem;text-align:center;font-weight:700;margin-bottom:4px">Welcome to <span style="color:var(--accent,#e04028)">The Rail Roster</span></div>'
+    + '<div style="text-align:center;font-size:0.8rem;color:var(--text-dim,#888);margin-bottom:14px;letter-spacing:0.04em">Your Lionel collection, organized.</div>'
+    + '<div style="font-size:0.88rem;color:var(--text-mid,#bbb);line-height:1.55;margin-bottom:14px">Three things to know:</div>'
+
+    + '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;padding:10px 12px;background:var(--surface2,#222);border-radius:9px;border:1px solid var(--border,#333)">'
+    +   '<div style="font-size:1.5rem;flex-shrink:0">📷</div>'
+    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Add fast.</strong> Tap <em>Add to Collection</em>, then either type the item number or scan the box barcode (modern items only). The catalog fills in everything we know.</div>'
+    + '</div>'
+
+    + '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;padding:10px 12px;background:var(--surface2,#222);border-radius:9px;border:1px solid var(--border,#333)">'
+    +   '<div style="font-size:1.5rem;flex-shrink:0">📋</div>'
+    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Organize.</strong> Use the lists in the side menu — Collection, Want List, For Sale, Sold, Upgrade — to track every item through its lifecycle.</div>'
+    + '</div>'
+
+    + '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:18px;padding:10px 12px;background:var(--surface2,#222);border-radius:9px;border:1px solid var(--border,#333)">'
+    +   '<div style="font-size:1.5rem;flex-shrink:0">💾</div>'
+    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Your data, your control.</strong> Everything saves to your own Google Sheet &amp; Drive. Open them anytime from Preferences → Account.</div>'
+    + '</div>'
+
+    + '<div style="font-size:0.78rem;color:var(--text-dim,#888);line-height:1.5;margin-bottom:14px;text-align:center">Need this again? Preferences → Help &amp; Tips → Show Welcome Tour.</div>'
+
+    + '<div style="display:flex;justify-content:center">'
+    +   '<button id="rr-welcome-go" style="padding:0.7rem 1.6rem;border-radius:9px;border:none;background:var(--accent,#e04028);color:#fff;font-weight:600;font-family:inherit;font-size:0.95rem;cursor:pointer">Got it — let\'s go</button>'
+    + '</div>'
+    + '</div>';
+  document.body.appendChild(ov);
+  ov.querySelector('#rr-welcome-go').onclick = function() {
+    localStorage.setItem(WELCOME_SEEN_KEY, '1');
+    ov.remove();
+  };
+}
+window.showWelcomeCard = showWelcomeCard;
+
+function maybeShowContextualHint(spotId, message, anchorEl) {
+  if (!spotId || !message) return;
+  if (localStorage.getItem(HINT_PREFIX + spotId) === '1') return;
+  if (!anchorEl) return;
+  // Avoid duplicates if the page re-renders
+  const existingHint = anchorEl.querySelector(':scope > .rr-ctx-hint[data-hint-id="' + spotId + '"]');
+  if (existingHint) return;
+  const hint = document.createElement('div');
+  hint.className = 'rr-ctx-hint';
+  hint.dataset.hintId = spotId;
+  hint.style.cssText = 'background:rgba(232,64,28,0.1);border:1px solid var(--accent,#e04028);border-radius:10px;padding:10px 12px;margin:0 0 12px;display:flex;align-items:flex-start;gap:10px;font-size:0.85rem;color:var(--text-mid,#bbb);line-height:1.5';
+  hint.innerHTML =
+    '<div style="font-size:1.1rem;flex-shrink:0;color:var(--accent,#e04028)">💡</div>'
+    + '<div style="flex:1">' + message + '</div>'
+    + '<button onclick="(function(b){localStorage.setItem(\'' + HINT_PREFIX + spotId + '\',\'1\');b.closest(\'.rr-ctx-hint\').remove();})(this)" style="background:none;border:none;color:var(--text-dim,#888);font-size:1.1rem;cursor:pointer;padding:0 0.2rem;line-height:1;flex-shrink:0" title="Got it, hide this">×</button>';
+  anchorEl.insertBefore(hint, anchorEl.firstChild);
+}
+window.maybeShowContextualHint = maybeShowContextualHint;
+
+function resetContextualHints() {
+  // Clear every hint dismissal flag
+  Object.keys(localStorage).forEach(function(k) {
+    if (k.startsWith(HINT_PREFIX)) localStorage.removeItem(k);
+  });
+}
+window.resetContextualHints = resetContextualHints;
+
 function onGoogleSignIn(response) {
   const payload = parseJwt(response.credential);
   state.user = { name: payload.given_name, email: payload.email, picture: payload.picture };
@@ -2267,12 +2353,11 @@ function buildApp() {
   const _locToggle = document.getElementById('pref-location-toggle');
   if (_locToggle) _locToggle.checked = _prefLocEnabled;
   // Browse, Sold, For Sale, Want, Reports built lazily on first nav via showPage()
-  // Tutorial is NOT auto-launched for first-time users as of 2026-04-14.
-  // Brad's feedback: the old tutorial was confusing and users shouldn't be
-  // forced through a tour they might not want. Users can open the tutorial
-  // manually from the menu if they need it. If we decide to auto-launch a
-  // revamped tour in the future, re-enable tutCheckAutoLaunch() here.
-  // if (typeof tutCheckAutoLaunch === 'function') tutCheckAutoLaunch();
+  // Tutorial is NOT auto-launched. Replaced 2026-04-14 with showWelcomeCard
+  // (Option C: single-page welcome) + maybeShowContextualHint (Option D:
+  // dismissable hints on empty pages). Welcome card shows once for brand-new
+  // users. Replayable from Preferences → Help & Tips.
+  if (typeof showWelcomeCard === 'function') showWelcomeCard(false);
   // Initialize back-button interception after app is ready
   _initBackButton();
 }
@@ -5312,6 +5397,11 @@ function ephemeraSold(tabId, rowKey) {
 }
 
 function buildWantPage() {
+  // Contextual hint for empty Want List (Option D, 2026-04-14)
+  if (typeof maybeShowContextualHint === 'function' && Object.keys(state.wantData || {}).length === 0) {
+    var _wpcAnchor = document.getElementById('want-page') || document.getElementById('want-list-container') || document.querySelector('.page-want');
+    if (_wpcAnchor) maybeShowContextualHint('want_empty', '<strong>Want List</strong> tracks items you\'re still looking for. Tap <em>Add to Want List</em> to add your first.', _wpcAnchor);
+  }
   const isMobile = window.innerWidth <= 640;
   const _wq = (state._wantSearch || '').toLowerCase();
   const _wp = state._wantPriority || '';
@@ -5762,6 +5852,11 @@ function soldSortBy(field) {
 }
 
 function buildSoldPage() {
+  // Contextual hint for empty Sold List
+  if (typeof maybeShowContextualHint === 'function' && Object.keys(state.soldData || {}).length === 0) {
+    var _spcAnchor = document.getElementById('sold-page') || document.querySelector('.page-sold');
+    if (_spcAnchor) maybeShowContextualHint('sold_empty', '<strong>Sold List</strong> records items you\'ve sold. From My Collection, click <em>Add to Sold</em> on any item to log a sale.', _spcAnchor);
+  }
   // Initialize sort/filter state if needed
   if (!state._soldSortField) state._soldSortField = 'dateSold';
   if (!state._soldSortDir) state._soldSortDir = 'desc';
@@ -5910,6 +6005,11 @@ function clearPageSearch(name) {
 }
 
 function buildForSalePage() {
+  // Contextual hint for empty For Sale List
+  if (typeof maybeShowContextualHint === 'function' && Object.keys(state.forSaleData || {}).length === 0) {
+    var _fpcAnchor = document.getElementById('forsale-page') || document.querySelector('.page-forsale');
+    if (_fpcAnchor) maybeShowContextualHint('forsale_empty', '<strong>For Sale List</strong> tracks items you\'re selling. From My Collection, click <em>Add to For Sale</em> on any item to list it.', _fpcAnchor);
+  }
   const _fq = (state._forsaleSearch || '').toLowerCase();
   const fsEntries = Object.values(state.forSaleData).filter(fs => {
     if (!_fq) return true;
