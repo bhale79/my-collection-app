@@ -889,9 +889,12 @@ var accessToken = null;
 let _tokenIsInitial = true;
 
 function onTokenReceived(resp) {
-  // Reset sign-in button regardless of success/failure so user can retry
-  try { _resetSignInButton(); } catch(e) {}
+  // Bugfix 2026-04-14: only clear the sign-in overlay on ERROR path.
+  // On SUCCESS path, leave the overlay up until showApp() runs — otherwise
+  // the auth screen flashes for 2-3 seconds between token arrival and
+  // dashboard render. showApp() calls _hideSignInOverlayWhenAppReady().
   if (resp.error) {
+    try { _resetSignInButton(); } catch(e) {}
     console.error('Token error:', resp);
     // If silent token refresh failed, prompt user to sign in again
     if (resp.error === 'interaction_required' || resp.error === 'login_required') {
