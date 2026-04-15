@@ -671,13 +671,13 @@ function renderBrowse() {
       const _baseNum = pd.itemNum.replace(/-(P|T|BOX|MBOX)$/i, '');
       const _baseItem = _baseNum !== pd.itemNum
         ? (state.masterData.find(m => m.itemNum === _baseNum && (!pd.variation || m.variation === pd.variation))
-           || state.masterData.find(m => m.itemNum === _baseNum))
+           || findMaster(_baseNum))
         : null;
       // Fallback: if no suffix match, still try to find master entry by item number alone
       // (handles cases like 2426W saved with no variation but master has variations)
       const _masterFallback = _baseItem ? null
         : (state.masterData.find(m => m.itemNum === pd.itemNum && (!pd.variation || m.variation === pd.variation))
-           || state.masterData.find(m => m.itemNum === pd.itemNum));
+           || findMaster(pd.itemNum));
       const _refItem = _baseItem || _masterFallback;
       return {
         itemNum: pd.itemNum, variation: pd.variation || '',
