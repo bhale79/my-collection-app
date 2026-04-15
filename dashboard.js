@@ -632,7 +632,7 @@ var PANEL_CATALOG = [
         .sort(function(a, b) { return ((priOrder[a.priority] || 1) - (priOrder[b.priority] || 1)); })
         .slice(0, 8)
         .map(function(w) {
-          var master = state.masterData.find(function(m) { return m.itemNum === w.itemNum; });
+          var master = findMaster(w.itemNum);
           var name = master ? (master.roadName || master.itemType || w.itemNum) : w.itemNum;
           var price = w.expectedPrice ? '$' + parseFloat(w.expectedPrice).toLocaleString() : '';
           var pc = priColor[w.priority] || 'var(--text-dim)';
@@ -654,7 +654,7 @@ var PANEL_CATALOG = [
         .sort(function(a, b) { return (parseFloat(b.askingPrice) || 0) - (parseFloat(a.askingPrice) || 0); })
         .slice(0, 8)
         .map(function(fs) {
-          var master = state.masterData.find(function(m) { return m.itemNum === fs.itemNum; }) || {};
+          var master = findMaster(fs.itemNum) || {};
           var name = master.roadName || master.itemType || '';
           var price = fs.askingPrice ? '$' + parseFloat(fs.askingPrice).toLocaleString() : 'No price';
           var idx = master ? state.masterData.indexOf(master) : -1;
@@ -711,7 +711,7 @@ var PANEL_CATALOG = [
         .slice(0, 8)
         .map(function(u) {
           var pd = Object.values(state.personalData).find(function(p) { return p.owned && p.itemNum === u.itemNum && (p.variation||'') === (u.variation||''); });
-          var master = state.masterData.find(function(m) { return m.itemNum === u.itemNum; });
+          var master = findMaster(u.itemNum);
           var name = master ? (master.roadName || master.itemType || u.itemNum) : u.itemNum;
           var cond = pd && pd.condition ? parseInt(pd.condition) : null;
           var meta = [cond ? 'Cond: ' + cond : '', u.targetCondition ? '→ ' + u.targetCondition : ''].filter(Boolean).join(' ');
