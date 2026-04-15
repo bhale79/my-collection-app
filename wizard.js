@@ -345,7 +345,7 @@ function getSteps(tab) {
       { id: 'purchaseValue', title: 'Purchase & Value', type: 'purchaseValue',
         skipIf: d => {
           if (d._setMode) return true;
-          const _m = wizard.matchedItem || state.masterData.find(function(m) { return m.itemNum === (d.itemNum||''); });
+          const _m = wizard.matchedItem || findMaster((d.itemNum||''));
           const _t = (_m && _m.itemType) ? _m.itemType : '';
           if (['Science Set','Construction Set','Catalog','Instruction Sheet'].includes(_t)) return true;
           if (_t.toLowerCase().includes('paper') || _t.toLowerCase().includes('catalog')) return true;
@@ -699,7 +699,7 @@ function completeQuickEntry(itemNum, variation, globalIdx, pdInvId) {
   // Strip powered/dummy suffix to get base item number for master lookup and wizard
   var baseItemNum = itemNum.replace(/-(P|D|T)$/i, '');
   var master = state.masterData.find(function(m) { return m.itemNum === baseItemNum && (!variation || m.variation === variation); })
-            || state.masterData.find(function(m) { return m.itemNum === baseItemNum; });
+            || findMaster(baseItemNum);
 
   // Detect power suffix so the save re-applies it correctly
   var _unitPower = '';
@@ -1253,7 +1253,7 @@ function renderWizardStep() {
     const _idx   = wizard.data._setItemIndex || 0;
     const _total = wizard.data._setFinalItems.length;
     const _cur   = wizard.data.itemNum || wizard.data._setFinalItems[_idx] || '';
-    const _master = state.masterData.find(m => m.itemNum === _cur);
+    const _master = findMaster(_cur);
     const _type  = (_master && _master.itemType) ? _master.itemType : '';
     _titleEl.innerHTML =
       `<div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:0.5rem 0.75rem;margin-bottom:0.35rem">` +
@@ -1476,7 +1476,7 @@ function renderWizardStep() {
           ${s.note && s.note(wizard.data) ? `<div style="font-size:0.8rem;color:var(--accent2);margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(201,146,42,0.1);border-radius:6px">${s.note(wizard.data)}</div>` : ''}
         <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
         ${(() => {
-          const singleItem = state.masterData.find(i => i.itemNum === itemNum);
+          const singleItem = findMaster(itemNum);
           return singleItem && singleItem.refLink
             ? '<a href="' + singleItem.refLink + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:0.4rem;margin-top:0.75rem;font-size:0.82rem;color:var(--accent2);text-decoration:none;padding:0.4rem 0.75rem;border:1px solid rgba(201,146,42,0.3);border-radius:6px;background:rgba(201,146,42,0.08)">View on COTT ↗</a>'
             : '';
@@ -1838,7 +1838,7 @@ function renderWizardStep() {
         // Try to pick variation-aware tender from varDesc first
         var _varTender = '';
         if (wizard.data.variation && _t.length > 1) {
-          var _vm = state.masterData.find(function(m) { return m.itemNum === n && m.variation === wizard.data.variation; });
+          var _vm = findMaster(n, wizard.data.variation);
           if (_vm && _vm.varDesc) {
             var _tdMatch = _vm.varDesc.match(/\b(\d{3,4}[TW]X?)\b/i);
             if (_tdMatch) {
@@ -2994,7 +2994,7 @@ function renderWizardStep() {
     tmContainer.appendChild(tmIntroEl);
 
     tmCandidates.forEach(function(num) {
-      const masterItem = state.masterData.find(function(m) { return m.itemNum === num; });
+      const masterItem = findMaster(num);
       const desc = masterItem ? (masterItem.roadName || masterItem.description || masterItem.itemType || '') : '';
       const owned = Object.values(state.personalData).find(function(pd) { return pd.itemNum === num; });
       const sel = tmCurrent === num;
@@ -3437,7 +3437,7 @@ function renderWizardStep() {
     // Check item type for custom views (Science/Construction/Catalog/Paper/IS)
     let views = s.views;
     if (!views) {
-      const _phMaster = wizard.matchedItem || state.masterData.find(function(m) { return m.itemNum === (wizard.data.itemNum||''); });
+      const _phMaster = wizard.matchedItem || findMaster((wizard.data.itemNum||''));
       const _phType = (_phMaster && _phMaster.itemType) ? _phMaster.itemType : '';
       if (['Science Set','Construction Set'].includes(_phType) && s.label === 'Item') {
         views = [
@@ -4082,7 +4082,7 @@ function renderWizardStep() {
     // Detect item type for field hiding
     // _cdIsSimplified = Science/Construction: hide IS, Master Box, Error (keep All Original, Has Box)
     // _cdIsPaperLike = Catalog/Paper/IS/Other/Service: hide ALL toggles (All Original, Has Box, IS, Master Box, Error)
-    const _cdMaster = wizard.matchedItem || state.masterData.find(function(m) { return m.itemNum === _cdItemNum; });
+    const _cdMaster = wizard.matchedItem || findMaster(_cdItemNum);
     const _cdItemType = (_cdMaster && _cdMaster.itemType) ? _cdMaster.itemType : '';
     const _cdMasterTab = (_cdMaster && _cdMaster._tab) ? _cdMaster._tab : '';
     const _cdIsSimplified = ['Science Set','Construction Set'].includes(_cdItemType);
@@ -5131,7 +5131,7 @@ function _filterCollPicker(q) {
   var html = '';
   owned.forEach(function(entry) {
     var pdKey = entry[0], pd = entry[1];
-    var master = state.masterData.find(function(m) { return m.itemNum === pd.itemNum && m.variation === (pd.variation||''); }) || {};
+    var master = findMaster(pd.itemNum, (pd.variation||'')) || {};
     var alreadyListed = wizard.tab === 'forsale' ? !!state.forSaleData[pd.itemNum + '|' + (pd.variation||'')] : false;
     html += '<div onclick="_selectCollItem(\'' + pdKey.replace(/'/g,"\\'") + '\')" style="'
       + 'display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.75rem;cursor:pointer;'
@@ -5158,7 +5158,7 @@ function _filterCollPicker(q) {
 function _selectCollItem(pdKey) {
   var pd = state.personalData[pdKey];
   if (!pd) return;
-  var master = state.masterData.find(function(m) { return m.itemNum === pd.itemNum && m.variation === (pd.variation||''); });
+  var master = findMaster(pd.itemNum, (pd.variation||''));
   var idx = master ? state.masterData.indexOf(master) : -1;
 
   if (wizard.tab === 'forsale') {
@@ -5222,7 +5222,7 @@ function _renderFullPickList(q) {
     if (!e[1].owned) return false;
     if (!q) return true;
     var pd = e[1];
-    var master = state.masterData.find(function(m) { return m.itemNum === pd.itemNum && m.variation === (pd.variation||''); }) || {};
+    var master = findMaster(pd.itemNum, (pd.variation||'')) || {};
     return (pd.itemNum||'').toLowerCase().includes(q)
       || (master.roadName||'').toLowerCase().includes(q)
       || (master.itemType||'').toLowerCase().includes(q)
@@ -5238,7 +5238,7 @@ function _renderFullPickList(q) {
   var html = '';
   owned.forEach(function(entry) {
     var pdKey = entry[0], pd = entry[1];
-    var master = state.masterData.find(function(m) { return m.itemNum === pd.itemNum && m.variation === (pd.variation||''); }) || {};
+    var master = findMaster(pd.itemNum, (pd.variation||'')) || {};
     var fsKey = pd.itemNum + '|' + (pd.variation||'');
     var alreadyListed = wizard.tab === 'forsale' ? !!state.forSaleData[fsKey] : !!state.soldData[fsKey];
 
@@ -5955,7 +5955,7 @@ async function _wizardNextCore() {
       if (!wizard.data.unit3Condition) wizard.data.unit3Condition = 7;
     }
     // For simplified types (Catalog/Paper/IS/Science/Construction) est worth is embedded and required
-    const _valMaster = wizard.matchedItem || state.masterData.find(function(m) { return m.itemNum === (wizard.data.itemNum||''); });
+    const _valMaster = wizard.matchedItem || findMaster((wizard.data.itemNum||''));
     const _valType = (_valMaster && _valMaster.itemType) ? _valMaster.itemType : '';
     const _valIsEmbedded = ['Science Set','Construction Set','Catalog','Instruction Sheet'].includes(_valType)
       || _valType.toLowerCase().includes('paper') || _valType.toLowerCase().includes('catalog');
