@@ -601,7 +601,12 @@ function closeWizard() {
   // Was silently closing the wizard (losing item#, condition, prices, photos, etc.)
   // Only prompt if the user has actually committed to an item (has item#) or
   // entered meaningful values (condition, pricePaid, userEstWorth, notes, photos).
+  // Followup 2026-04-14: skip the prompt when the wizard is closing AFTER a
+  // successful save (d._saveComplete is set by save handlers) — prompt was
+  // firing on save-close, making the user think the item was discarded
+  // when it had actually been saved.
   var d = (wizard && wizard.data) || {};
+  if (d._saveComplete) { _doCloseWizard(); return; }
   var _hasData = !!(
     d.itemNum || d.variation || d.condition || d.pricePaid || d.priceItem ||
     d.userEstWorth || d.notes || d.salePrice || d.askingPrice ||
