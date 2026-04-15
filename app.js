@@ -409,6 +409,17 @@ function _buildAuthScreen() {
         'Continue with Google' +
       '</button>' +
       '<p class="auth-note">You\'ll be asked to allow access to Google Sheets and Google Drive. This is how the app reads and saves your collection data. We never see your password.</p>' +
+      // Bugfix 2026-04-14: help for users without a Google account.
+      '<div style="margin-top:1.25rem;padding:0.9rem 1rem;background:var(--surface2);border:1px solid var(--border);border-radius:10px;text-align:left">' +
+        '<div style="font-size:0.82rem;font-weight:600;color:var(--cream);margin-bottom:0.35rem">Don\'t have a Google account?</div>' +
+        '<p style="font-size:0.78rem;color:var(--text-mid);line-height:1.55;margin:0 0 0.5rem">A Google account is required so your collection and photos stay in <strong style="color:var(--text)">your own</strong> Google Sheet &amp; Drive. It\'s free and takes ~2 minutes to create.</p>' +
+        '<ol style="font-size:0.78rem;color:var(--text-mid);line-height:1.7;margin:0 0 0.6rem 1rem;padding:0">' +
+          '<li>Go to <a href="https://accounts.google.com/signup" target="_blank" rel="noopener" style="color:var(--accent2)">accounts.google.com/signup</a></li>' +
+          '<li>Follow the prompts to create your free account</li>' +
+          '<li>Come back here and tap <em>Continue with Google</em></li>' +
+        '</ol>' +
+        '<a href="https://accounts.google.com/signup" target="_blank" rel="noopener" style="display:inline-block;font-size:0.78rem;color:var(--accent);font-weight:600;text-decoration:none">Create Google account \u2197</a>' +
+      '</div>' +
     '</div>';
 }
 
@@ -692,7 +703,39 @@ function initGoogle() {
 function handleSignIn() {
   // Use GIS popup flow — it caches consent so users only approve once
   // Popups work after user click (not blocked when triggered by button)
-  tokenClient.requestAccessToken({ prompt: '' });
+  // Bugfix 2026-04-14: disable the sign-in button + show spinner so users
+  // don't double-tap during the 10-15s Google redirect round-trip. Resets
+  // on auth failure so user can retry.
+  var _btn = document.querySelector('.btn-google');
+  if (_btn) {
+    if (_btn.dataset.signing === '1') return; // already in flight, ignore re-taps
+    _btn.dataset.signing = '1';
+    _btn.dataset.origHtml = _btn.innerHTML;
+    _btn.disabled = true;
+    _btn.style.opacity = '0.7';
+    _btn.style.cursor = 'wait';
+    _btn.innerHTML = '<span class="btn-spinner" style="display:inline-block;width:16px;height:16px;border:2px solid rgba(0,0,0,0.15);border-top-color:#333;border-radius:50%;animation:spin 0.7s linear infinite;margin-right:0.6rem;vertical-align:middle"></span>Signing you in…';
+    // Safety: if Google popup is cancelled/closed, re-enable after 45s
+    window._signInSafetyTimer = setTimeout(function() { _resetSignInButton(); }, 45000);
+  }
+  try {
+    tokenClient.requestAccessToken({ prompt: '' });
+  } catch (e) {
+    _resetSignInButton();
+    if (typeof showToast === 'function') showToast('Sign-in failed: ' + e.message, 4000, true);
+  }
+}
+
+function _resetSignInButton() {
+  var _btn = document.querySelector('.btn-google');
+  if (_btn && _btn.dataset.signing === '1') {
+    _btn.dataset.signing = '';
+    _btn.disabled = false;
+    _btn.style.opacity = '';
+    _btn.style.cursor = '';
+    if (_btn.dataset.origHtml) _btn.innerHTML = _btn.dataset.origHtml;
+  }
+  if (window._signInSafetyTimer) { clearTimeout(window._signInSafetyTimer); window._signInSafetyTimer = null; }
 }
 
 function onGoogleSignIn(response) {
@@ -717,6 +760,8 @@ var accessToken = null;
 let _tokenIsInitial = true;
 
 function onTokenReceived(resp) {
+  // Reset sign-in button regardless of success/failure so user can retry
+  try { _resetSignInButton(); } catch(e) {}
   if (resp.error) {
     console.error('Token error:', resp);
     // If silent token refresh failed, prompt user to sign in again
@@ -2222,8 +2267,12 @@ function buildApp() {
   const _locToggle = document.getElementById('pref-location-toggle');
   if (_locToggle) _locToggle.checked = _prefLocEnabled;
   // Browse, Sold, For Sale, Want, Reports built lazily on first nav via showPage()
-  // Auto-launch tutorial for first-time users
-  if (typeof tutCheckAutoLaunch === 'function') tutCheckAutoLaunch();
+  // Tutorial is NOT auto-launched for first-time users as of 2026-04-14.
+  // Brad's feedback: the old tutorial was confusing and users shouldn't be
+  // forced through a tour they might not want. Users can open the tutorial
+  // manually from the menu if they need it. If we decide to auto-launch a
+  // revamped tour in the future, re-enable tutCheckAutoLaunch() here.
+  // if (typeof tutCheckAutoLaunch === 'function') tutCheckAutoLaunch();
   // Initialize back-button interception after app is ready
   _initBackButton();
 }
