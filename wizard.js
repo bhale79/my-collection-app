@@ -4705,10 +4705,16 @@ function renderWizardStep() {
         + '<div style="font-weight:600;margin-top:0.2rem">' + (_resolvedSet.setName || '') + '</div>'
         + (_resolvedSet.year ? '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.1rem">' + _resolvedSet.year + '</div>' : '') + '</div>';
     } else if (!_isEph && item) {
+      // Bugfix 2026-04-14: second line now shows the item description (was showing
+      // redundant roadName/itemType which duplicates the third line).
+      var _cfDesc = item.description || item.roadName || item.itemType || '';
+      var _cfMeta = [item.roadName, item.yearProd, item.itemType].filter(function(x) {
+        return x && x !== item.description;
+      }).join(' · ');
       confirmHtml += '<div style="background:var(--surface2);border-radius:8px;padding:0.85rem;margin-bottom:1rem">'
         + '<div style="font-family:var(--font-mono);color:var(--accent2);font-size:0.8rem">No. ' + item.itemNum + (item.variation ? ' — Var ' + item.variation : '') + '</div>'
-        + '<div style="font-weight:600;margin-top:0.2rem">' + (item.roadName || item.itemType || '') + '</div>'
-        + '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.1rem">' + (item.yearProd || '') + ' · ' + (item.itemType || '') + '</div></div>';
+        + '<div style="font-weight:600;margin-top:0.2rem">' + _cfDesc + '</div>'
+        + (_cfMeta ? '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.1rem">' + _cfMeta + '</div>' : '') + '</div>';
     } else if (!_isEph) {
       confirmHtml += '<div style="background:var(--surface2);border-radius:8px;padding:0.85rem;margin-bottom:1rem">'
         + '<div style="font-family:var(--font-mono);color:var(--accent2)">' + (wizard.data.itemCategory === 'set' ? 'Set ' : 'Item ') + (wizard.data.itemNum || wizard.data.set_num || '?') + (wizard.data.variation ? ' Var ' + wizard.data.variation : '') + '</div>'
