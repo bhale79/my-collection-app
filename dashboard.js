@@ -584,12 +584,18 @@ var PANEL_CATALOG = [
       });
       return trains.concat(ephs)
         .sort(function(a, b) {
+          // Bugfix 2026-04-14: was sorting by date first, pushing newly added
+          // items (no date yet) to the bottom of the list. Sort by row number
+          // primarily so new adds (higher row or optimistic 99999) bubble to top;
+          // date used only as a tiebreaker for items with equal row.
+          var rA = a.row || 0, rB = b.row || 0;
+          if (rA !== rB) return rB - rA;
           var da = a.datePurchased || a.dateAcquired || '';
           var db = b.datePurchased || b.dateAcquired || '';
           if (da && db) return db.localeCompare(da);
           if (da && !db) return -1;
           if (!da && db) return 1;
-          return (b.row || 0) - (a.row || 0);
+          return 0;
         })
         .slice(0, 8)
         .map(function(pd) {
