@@ -1526,6 +1526,18 @@ function renderWizardStep() {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
           Don't know the number? Identify by photo
         </button>` : ''}
+        ${s.id === 'itemNum' && (wizard.data._era === 'mod' || wizard.data._era === 'mpc') ? `
+        <button onclick="_wizScanBarcode()" style="
+          width:100%;margin-top:0.5rem;padding:0.65rem 1rem;
+          border-radius:8px;border:1.5px dashed #2980b9;
+          background:rgba(41,128,185,0.08);color:#2980b9;
+          font-family:var(--font-head);font-size:0.78rem;font-weight:600;
+          letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;
+          display:flex;align-items:center;justify-content:center;gap:0.5rem;
+          transition:all 0.15s
+        ">
+          📷 Scan Barcode
+        </button>` : ''}
         ${showBoxOnly ? `
         <label onclick="toggleBoxOnly()" style="
           display:flex;align-items:center;gap:0.75rem;padding:0.85rem 1rem;margin-top:0.75rem;
@@ -8087,3 +8099,38 @@ function pickerHandleFile(inputEl, isCamera) {
   uploadWizardPhoto(file, sid, vk);
 }
 
+
+
+// ══════════════════════════════════════════════════════════════
+//  Barcode scan handler — wired to the 📷 Scan Barcode button on
+//  the item-number step. Only visible for MPC/Modern era. Delegates
+//  scanning to barcode.js which handles camera + BarcodeDetector.
+// ══════════════════════════════════════════════════════════════
+function _wizScanBarcode() {
+  if (typeof window.openBarcodeScanner !== 'function') {
+    showToast && showToast('Barcode scanner not loaded', 3000, true);
+    return;
+  }
+  const eraHint = (wizard && wizard.data && wizard.data._era) || '';
+  window.openBarcodeScanner(function(result) {
+    // On successful scan: fill the item number field and advance if possible
+    if (!wizard || !wizard.data) return;
+    if (result.itemNum) {
+      wizard.data.itemNum = result.itemNum;
+      if (result.variation) wizard.data.variation = result.variation;
+      if (result.masterItem) wizard.matchedItem = result.masterItem;
+      // Non-Lionel phase-2 flows: just prefill, let user advance manually
+      if (result.phase2 || result.unknownPrefix) {
+        showToast && showToast(result.statusMessage || 'Type the item# manually', 3500);
+        renderWizardStep();
+        return;
+      }
+      showToast && showToast('✓ ' + (result.statusMessage || ('Scanned ' + result.itemNum)), 2500);
+      // Advance to next step
+      wizard.step++;
+      renderWizardStep();
+    }
+  }, function() {
+    // Cancelled — user can type the item# instead
+  }, eraHint);
+}
