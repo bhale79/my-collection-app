@@ -3810,10 +3810,18 @@ function renderWizardStep() {
 
   } else if (s.type === 'pickSoldItem') {
     const itemNum = (wizard.data.itemNum || '').trim();
+    // Bugfix 2026-04-14: dedupe by (itemNum, variation) — was showing same item twice
+    // when the collection row AND a companion (box/for-sale) row both matched.
+    const _seenSold = new Set();
     const matchKeys = Object.keys(state.personalData).filter(k => {
       const pd = state.personalData[k];
-      // Show all owned rows for this item number
-      return pd.itemNum === itemNum && pd.owned;
+      if (!(pd.itemNum === itemNum && pd.owned)) return false;
+      // Skip box-only rows (their itemNum ends in -BOX) — they're not sellable as main item
+      if (String(pd.itemNum || '').endsWith('-BOX')) return false;
+      const dk = pd.itemNum + '|' + (pd.variation || '');
+      if (_seenSold.has(dk)) return false;
+      _seenSold.add(dk);
+      return true;
     });
       const selected = wizard.data.selectedSoldKey || '';
     body.innerHTML = `
@@ -3853,9 +3861,16 @@ function renderWizardStep() {
 
   } else if (s.type === 'pickForSaleItem') {
     const itemNum = (wizard.data.itemNum || '').trim();
+    // Bugfix 2026-04-14: dedupe by (itemNum, variation) — same fix as pickSoldItem
+    const _seenFs = new Set();
     const matchKeys = Object.keys(state.personalData).filter(k => {
       const pd = state.personalData[k];
-      return pd.itemNum === itemNum && pd.owned;
+      if (!(pd.itemNum === itemNum && pd.owned)) return false;
+      if (String(pd.itemNum || '').endsWith('-BOX')) return false;
+      const dk = pd.itemNum + '|' + (pd.variation || '');
+      if (_seenFs.has(dk)) return false;
+      _seenFs.add(dk);
+      return true;
     });
     const selected = wizard.data.selectedForSaleKey || '';
     body.innerHTML = `
@@ -7971,6 +7986,42 @@ function _qeSelectChip(container, selected) {
   selected.style.background  = 'rgba(232,64,28,0.12)';
   selected.style.color       = 'var(--accent)';
 }
+
+// ══════════════════════════════════════════════════════════════
+// appConfirm — in-app replacement for native confirm().
+// Returns a Promise<boolean>. Unlike window.confirm() (which is a
+// blocking OS-level modal that hung Claude in Chrome + sometimes
+// gets stuck on mobile), this is a non-blocking overlay that
+// styles with the app theme.
+//
+// Usage: if (await appConfirm('Are you sure?')) { ... }
+// ══════════════════════════════════════════════════════════════
+function appConfirm(message, opts) {
+  opts = opts || {};
+  const title = opts.title || 'Confirm';
+  const okText = opts.ok || 'Yes';
+  const cancelText = opts.cancel || 'No';
+  const danger = !!opts.danger;
+  return new Promise(function(resolve) {
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:99998;display:flex;align-items:center;justify-content:center;padding:1rem';
+    ov.innerHTML = '<div style="max-width:420px;width:100%;background:var(--surface,#1a1a2e);border:1px solid var(--border,#333);border-radius:14px;padding:1.25rem 1.25rem 1rem;color:var(--text,#eee);font-family:var(--font-body,sans-serif);box-shadow:0 10px 40px rgba(0,0,0,0.5)">'
+      + '<div style="font-size:1rem;font-weight:600;margin-bottom:0.55rem">' + title + '</div>'
+      + '<div style="font-size:0.9rem;line-height:1.45;color:var(--text-mid,#bbb);margin-bottom:1.1rem">' + message + '</div>'
+      + '<div style="display:flex;gap:0.5rem;justify-content:flex-end">'
+      + '<button id="_ac-no" style="padding:0.55rem 1.05rem;border-radius:8px;border:1px solid var(--border,#444);background:transparent;color:var(--text-dim,#aaa);font-family:inherit;cursor:pointer">' + cancelText + '</button>'
+      + '<button id="_ac-yes" style="padding:0.55rem 1.15rem;border-radius:8px;border:none;background:' + (danger ? '#c0392b' : 'var(--accent,#e04028)') + ';color:#fff;font-weight:600;font-family:inherit;cursor:pointer">' + okText + '</button>'
+      + '</div></div>';
+    document.body.appendChild(ov);
+    const done = function(val) { ov.remove(); resolve(val); };
+    ov.querySelector('#_ac-no').onclick = function() { done(false); };
+    ov.querySelector('#_ac-yes').onclick = function() { done(true); };
+    // ESC closes as cancel
+    const keyHandler = function(e) { if (e.key === 'Escape') { document.removeEventListener('keydown', keyHandler); done(false); } };
+    document.addEventListener('keydown', keyHandler, { once: true });
+  });
+}
+window.appConfirm = appConfirm;
 
 function showToast(msg, duration, isError) {
   let t = document.getElementById('toast');
