@@ -175,17 +175,23 @@ function vaultShowOptInModal(fromPrefs) {
 
   const modal = document.createElement('div');
   modal.id = 'vault-optin-modal';
+  // Bugfix 2026-04-14: modal was taller than phone viewport; "Yes, I'll Contribute"
+  // button was off-screen and the outer flex container didn't scroll. Added
+  // max-height + scroll on the inner panel, aligned top on mobile, and reduced
+  // padding so buttons stay visible.
   modal.style.cssText = `
     position:fixed;inset:0;background:rgba(0,0,0,0.72);
-    display:flex;align-items:center;justify-content:center;
-    z-index:9999;padding:20px;
+    display:flex;align-items:flex-start;justify-content:center;
+    z-index:9999;padding:20px;overflow-y:auto;
   `;
 
   modal.innerHTML = `
     <div style="
       background:var(--surface);border:1px solid var(--border);
-      border-radius:14px;max-width:500px;width:100%;padding:32px;
+      border-radius:14px;max-width:500px;width:100%;padding:22px 22px 20px;
       font-family:var(--font-body);position:relative;
+      max-height:calc(100vh - 40px);overflow-y:auto;
+      -webkit-overflow-scrolling:touch;margin:auto 0;
     ">
       <div style="font-family:var(--font-head);font-size:1.3rem;color:var(--text);margin-bottom:6px;letter-spacing:0.04em">
         Collector's Market Est.
@@ -215,7 +221,7 @@ function vaultShowOptInModal(fromPrefs) {
         </div>
       </div>
 
-      <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;position:sticky;bottom:0;background:var(--surface);padding-top:8px">
         ${!isOptedIn ? `
           <button onclick="vaultConfirmOptIn()" style="
             flex:1;padding:11px 20px;border-radius:8px;border:none;
