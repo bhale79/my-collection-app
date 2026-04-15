@@ -703,21 +703,15 @@ function initGoogle() {
 function handleSignIn() {
   // Use GIS popup flow — it caches consent so users only approve once
   // Popups work after user click (not blocked when triggered by button)
-  // Bugfix 2026-04-14: disable the sign-in button + show spinner so users
-  // don't double-tap during the 10-15s Google redirect round-trip. Resets
-  // on auth failure so user can retry.
-  var _btn = document.querySelector('.btn-google');
-  if (_btn) {
-    if (_btn.dataset.signing === '1') return; // already in flight, ignore re-taps
-    _btn.dataset.signing = '1';
-    _btn.dataset.origHtml = _btn.innerHTML;
-    _btn.disabled = true;
-    _btn.style.opacity = '0.7';
-    _btn.style.cursor = 'wait';
-    _btn.innerHTML = '<span class="btn-spinner" style="display:inline-block;width:16px;height:16px;border:2px solid rgba(0,0,0,0.15);border-top-color:#333;border-radius:50%;animation:spin 0.7s linear infinite;margin-right:0.6rem;vertical-align:middle"></span>Signing you in…';
-    // Safety: if Google popup is cancelled/closed, re-enable after 45s
-    window._signInSafetyTimer = setTimeout(function() { _resetSignInButton(); }, 45000);
-  }
+  // Bugfix 2026-04-14: cover the sign-in screen with a full overlay during
+  // the OAuth round-trip so users don't see "Sign in to get started" again
+  // after they pick their account (the 5-15s window before token arrives).
+  if (window._signInInFlight) return; // ignore re-taps
+  window._signInInFlight = true;
+  _showSignInLoadingOverlay();
+  // Safety: if Google popup is cancelled/closed silently, restore screen after 45s
+  if (window._signInSafetyTimer) clearTimeout(window._signInSafetyTimer);
+  window._signInSafetyTimer = setTimeout(function() { _resetSignInButton(); }, 45000);
   try {
     tokenClient.requestAccessToken({ prompt: '' });
   } catch (e) {
@@ -726,7 +720,31 @@ function handleSignIn() {
   }
 }
 
+function _showSignInLoadingOverlay() {
+  var existing = document.getElementById('signin-loading-overlay');
+  if (existing) return;
+  var ov = document.createElement('div');
+  ov.id = 'signin-loading-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:var(--bg,#0d0d1a);z-index:99997;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text,#eee);font-family:var(--font-body,sans-serif);padding:1rem';
+  ov.innerHTML =
+    '<div style="text-align:center;max-width:340px">'
+    +   '<div style="font-family:var(--font-head,sans-serif);font-size:1.6rem;font-weight:700;margin-bottom:1.5rem">'
+    +     'THE <span style="color:var(--accent,#e04028)">RAIL</span> ROSTER'
+    +   '</div>'
+    +   '<div style="display:inline-block;width:44px;height:44px;border:3px solid rgba(255,255,255,0.15);border-top-color:var(--accent,#e04028);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:1.2rem"></div>'
+    +   '<div style="font-size:1rem;color:var(--text,#eee);margin-bottom:0.4rem">Signing you in…</div>'
+    +   '<div style="font-size:0.8rem;color:var(--text-dim,#888);line-height:1.5">If a Google popup appeared, finish picking your account.<br>This usually takes a few seconds.</div>'
+    + '</div>';
+  document.body.appendChild(ov);
+}
+
 function _resetSignInButton() {
+  // Hide the loading overlay (sign-in failed or was cancelled)
+  var ov = document.getElementById('signin-loading-overlay');
+  if (ov) ov.remove();
+  window._signInInFlight = false;
+  if (window._signInSafetyTimer) { clearTimeout(window._signInSafetyTimer); window._signInSafetyTimer = null; }
+  // Re-enable the .btn-google button (legacy state from earlier inline-spinner version)
   var _btn = document.querySelector('.btn-google');
   if (_btn && _btn.dataset.signing === '1') {
     _btn.dataset.signing = '';
@@ -735,8 +753,23 @@ function _resetSignInButton() {
     _btn.style.cursor = '';
     if (_btn.dataset.origHtml) _btn.innerHTML = _btn.dataset.origHtml;
   }
+}
+
+// Hide the loading overlay once the app actually shows (token success path).
+// Hooked separately because onTokenReceived already calls _resetSignInButton
+// on the error branch; on success we want the overlay to persist visually
+// through showApp() until the dashboard renders, then disappear.
+function _hideSignInOverlayWhenAppReady() {
+  var ov = document.getElementById('signin-loading-overlay');
+  if (!ov) return;
+  // Fade out so the transition feels smoother than a hard cut
+  ov.style.transition = 'opacity 0.25s';
+  ov.style.opacity = '0';
+  setTimeout(function() { if (ov && ov.parentNode) ov.remove(); }, 280);
+  window._signInInFlight = false;
   if (window._signInSafetyTimer) { clearTimeout(window._signInSafetyTimer); window._signInSafetyTimer = null; }
 }
+window._hideSignInOverlayWhenAppReady = _hideSignInOverlayWhenAppReady;
 
 // ══════════════════════════════════════════════════════════════
 // Welcome card (Option C) + contextual hints (Option D)
@@ -1081,6 +1114,9 @@ function showApp() {
   _appEl.classList.add('active');
   requestAnimationFrame(() => { _appEl.style.transition = 'opacity 0.3s ease'; _appEl.style.opacity = '1'; });
   updateUserUI();
+  // Bugfix 2026-04-14: dismiss the sign-in loading overlay once the app
+  // is rendered so the user doesn't see the auth screen flash back.
+  if (typeof _hideSignInOverlayWhenAppReady === 'function') _hideSignInOverlayWhenAppReady();
   if (typeof tutShowHelpBtn === 'function') tutShowHelpBtn();
   const hr = new Date().getHours();
   const _greet = hr < 12 ? 'Good Morning' : hr < 17 ? 'Good Afternoon' : 'Good Evening';
