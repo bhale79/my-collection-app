@@ -248,9 +248,16 @@ function nextInventoryId() {
 function getBoxVariations(itemNum) {
   if (!itemNum || !state.masterData) return [];
   var num = (itemNum || '').replace(/-(P|T|BOX|MBOX)$/i, '');
+  // Perf 2026-04-14: memoize by itemNum — called repeatedly during wizard
+  // renders and used to re-scan 18K master rows each time.
+  var cacheKey = num + '|' + itemNum;
+  if (state._boxVarCache && state._boxVarCache.has(cacheKey)) {
+    return state._boxVarCache.get(cacheKey);
+  }
   var boxes = state.masterData.filter(function(m) {
     return m._tab === 'Lionel PW - Boxes' && (m.itemNum === num || m.itemNum === itemNum || baseItemNum(m.itemNum) === baseItemNum(num));
   });
+  if (state._boxVarCache) state._boxVarCache.set(cacheKey, boxes);
   return boxes;
 }
 function _buildGroupBoxRow(unitNum, boxCond, boxPhotoLink, groupId, datePurchased, leadItemNum, boxVariation, boxVariationDesc) {
@@ -1308,6 +1315,7 @@ function _patchMasterData() {
     state.masterData = (state.masterData || []).filter(m =>
       !(m.itemNum === '726' && /\bRR\b/.test(m.description))
     );
+    _rebuildMasterIndex();
   }
 }
 
@@ -1473,6 +1481,7 @@ async function switchEra(era) {
   localStorage.removeItem('lv_is_ref_ts');
   // Reset state data
   state.masterData = [];
+  _rebuildMasterIndex();
   state.setData = [];
   state.companionData = [];
   state.partnerMap = {};
@@ -1521,11 +1530,13 @@ async function loadMasterData() {
   if (cached && cacheAge < CACHE_TTL) {
     try {
       state.masterData = cached;
+      _rebuildMasterIndex();
       if (typeof ERAS !== 'undefined' && _currentEra) { ERAS[_currentEra]._total = state.masterData.length; try { localStorage.setItem('lv_era_total_' + _currentEra, state.masterData.length); } catch(e) {} }
       // Background refresh from multi-tab
       _fetchMasterTabs().then(allRows => {
         if (allRows.length) {
           state.masterData = _deduplicateMaster(allRows);
+          _rebuildMasterIndex();
           if (typeof ERAS !== 'undefined' && _currentEra) { ERAS[_currentEra]._total = state.masterData.length; try { localStorage.setItem('lv_era_total_' + _currentEra, state.masterData.length); } catch(e) {} }
           idbSet('lv_master_cache', state.masterData);
           localStorage.setItem('lv_master_cache_ts', Date.now().toString());
@@ -1538,6 +1549,7 @@ async function loadMasterData() {
 
   const allRows = await _fetchMasterTabs();
   state.masterData = _deduplicateMaster(allRows);
+  _rebuildMasterIndex();
   if (typeof ERAS !== 'undefined' && _currentEra) { ERAS[_currentEra]._total = state.masterData.length; try { localStorage.setItem('lv_era_total_' + _currentEra, state.masterData.length); } catch(e) {} }
   idbSet('lv_master_cache', state.masterData);
   localStorage.setItem('lv_master_cache_ts', Date.now().toString());
@@ -1611,8 +1623,61 @@ function parseMasterRows(rows) {
   state.masterData = _deduplicateMaster(
     rows.map(r => parseMasterRow(r, SHEET_TABS.items))
   );
+  _rebuildMasterIndex();
   if (typeof ERAS !== 'undefined' && _currentEra) { ERAS[_currentEra]._total = state.masterData.length; try { localStorage.setItem('lv_era_total_' + _currentEra, state.masterData.length); } catch(e) {} }
 }
+
+// ══════════════════════════════════════════════════════════════
+// Fast master-data lookups (2026-04-14 perf pass)
+//
+// Was doing findMaster(X) ~77 places.
+// Linear scan across 18K rows per call = noticeable lag when adding
+// items. Now we index once on load and look up by item# in O(1).
+//
+// Also memoize getBoxVariations which is called 3x per add-flow.
+// ══════════════════════════════════════════════════════════════
+state.masterByItem = new Map();          // itemNum -> [master rows]
+state._boxVarCache = new Map();          // itemNum -> cached getBoxVariations result
+
+function _rebuildMasterIndex() {
+  const m = new Map();
+  const rows = state.masterData || [];
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r) continue;
+    const k = String(r.itemNum || '').trim();
+    if (!k) continue;
+    let bucket = m.get(k);
+    if (!bucket) { bucket = []; m.set(k, bucket); }
+    bucket.push(r);
+  }
+  state.masterByItem = m;
+  state._boxVarCache = new Map();        // bust box-variation cache on reindex
+}
+
+// Find first master row matching itemNum (+ optional variation). O(1) lookup.
+function findMaster(itemNum, variation) {
+  if (!itemNum) return null;
+  const k = String(itemNum).trim();
+  const bucket = state.masterByItem && state.masterByItem.get(k);
+  if (!bucket || !bucket.length) return null;
+  if (variation != null && variation !== '') {
+    const want = String(variation);
+    const hit = bucket.find(r => String(r.variation || '') === want);
+    if (hit) return hit;
+  }
+  return bucket[0];
+}
+
+// Return ALL master rows for a given itemNum. O(1) lookup.
+function findAllMaster(itemNum) {
+  if (!itemNum) return [];
+  const k = String(itemNum).trim();
+  return (state.masterByItem && state.masterByItem.get(k)) || [];
+}
+window.findMaster = findMaster;
+window.findAllMaster = findAllMaster;
+window._rebuildMasterIndex = _rebuildMasterIndex;
 
 async function loadCatalogRefData() {
   // Fetch Catalogs tab from master sheet — used by paper item wizard for searchable picker
@@ -2215,7 +2280,7 @@ function buildQuickEntryList() {
     qeItems.forEach(function(pd) {
     var master = state.masterData.find(function(m) {
       return m.itemNum === pd.itemNum && (!pd.variation || m.variation === pd.variation);
-    }) || state.masterData.find(function(m) { return m.itemNum === pd.itemNum; });
+    }) || findMaster(pd.itemNum);
     var itemName = master ? (master.roadName || master.description || master.itemType || '') : '';
     var itemType = master ? (master.itemType || '') : '';
     var itemYear = master ? (master.yearProd || '') : '';
@@ -2361,7 +2426,7 @@ function showItemDetailPage(idx) {
     const _baseNum = pd.itemNum.replace(/-(P|T|BOX|MBOX)$/i, '');
     if (_baseNum !== pd.itemNum) {
       _baseItem = state.masterData.find(m => m.itemNum === _baseNum && (!pd.variation || m.variation === pd.variation))
-               || state.masterData.find(m => m.itemNum === _baseNum);
+               || findMaster(_baseNum);
     }
   }
   const it = item || {
@@ -3457,7 +3522,7 @@ function _renderPickFsList(q) {
     if (!e[1].owned) return false;
     if (!q) return true;
     var pd = e[1];
-    var master = state.masterData.find(function(m) { return m.itemNum === pd.itemNum && m.variation === (pd.variation||''); }) || {};
+    var master = findMaster(pd.itemNum, (pd.variation||'')) || {};
     return (pd.itemNum||'').toLowerCase().includes(q)
       || (master.roadName||'').toLowerCase().includes(q)
       || (master.itemType||'').toLowerCase().includes(q)
@@ -3475,7 +3540,7 @@ function _renderPickFsList(q) {
   var html = '';
   owned.forEach(function(entry) {
     var pdKey = entry[0], pd = entry[1];
-    var master = state.masterData.find(function(m) { return m.itemNum === pd.itemNum && m.variation === (pd.variation||''); }) || {};
+    var master = findMaster(pd.itemNum, (pd.variation||'')) || {};
     var fsKey = pd.itemNum + '|' + (pd.variation||'');
     var alreadyListed = !!state.forSaleData[fsKey];
     var idx = state.masterData.indexOf(master);
@@ -4531,7 +4596,7 @@ function fillItemFromBoxRow() {
       _fillItemMode: true, // flag so we can pre-set item number
     },
     steps: getSteps('collection'),
-    matchedItem: state.masterData.find(i => i.itemNum === item.itemNum) || null,
+    matchedItem: findMaster(item.itemNum) || null,
   };
   // Advance past tab and itemNum steps since we already know them
   wizard.step = 2; // start at condition step
@@ -5196,7 +5261,7 @@ function buildWantPage() {
       const _setMatch = _wt === 'Set' && state.setData && state.setData.find(s => s.setNum === w.itemNum);
       if (_wt === 'Set' && !_setMatch) return false;
       if (_wt !== 'Set') {
-        const _master = state.masterData.find(m => m.itemNum === w.itemNum);
+        const _master = findMaster(w.itemNum);
         if (!_master || (_master.itemType || '') !== _wt) return false;
       }
     }
@@ -5447,7 +5512,7 @@ function moveWantToCollection(itemNum, variation) {
     // Look up master row (prefer variation match; fall back to any variation)
     const master = state.masterData.find(m =>
       m.itemNum === itemNum && (!variation || String(m.variation||'') === String(variation))
-    ) || state.masterData.find(m => m.itemNum === itemNum);
+    ) || findMaster(itemNum);
 
     // Seed everything we know
     wizard.data._fromWantList = true;
@@ -6262,7 +6327,7 @@ function showSetDetail(setNum) {
   chipsWrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.3rem;margin-bottom:' + (s.alts.length ? '0.9rem' : (s.notes ? '0.9rem' : '0')) + ';';
   s.items.forEach(n => {
     // Look up the item name from master data for a richer chip
-    const master = state.masterData.find(m => m.itemNum === n);
+    const master = findMaster(n);
     const label = master ? (master.roadName || master.description || master.itemType || '') : '';
     const chip = document.createElement('div');
     chip.style.cssText = 'display:flex;flex-direction:column;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:0.3rem 0.55rem;cursor:default';
@@ -6406,7 +6471,7 @@ function buildUpgradePage() {
     // Priority filter
     if (_up && (u.priority || 'Medium') !== _up) return false;
     if (_uq) {
-      const master = state.masterData.find(m => m.itemNum === u.itemNum) || {};
+      const master = findMaster(u.itemNum) || {};
       if (!(u.itemNum||'').toLowerCase().includes(_uq)
         && !(master.roadName||'').toLowerCase().includes(_uq)
         && !(u.notes||'').toLowerCase().includes(_uq)) return false;
@@ -6464,7 +6529,7 @@ function buildUpgradePage() {
     if (cardsEl) cardsEl.style.display = 'flex';
     cardsEl.innerHTML = entries.map(u => {
       const pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === u.itemNum && (p.variation||'') === (u.variation||''));
-      const master = state.masterData.find(m => m.itemNum === u.itemNum);
+      const master = findMaster(u.itemNum);
       const name = master ? (master.roadName || master.itemType || '') : '';
       const cond = pd && pd.condition ? parseInt(pd.condition) : null;
       const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
@@ -6505,7 +6570,7 @@ function buildUpgradePage() {
     if (cardsEl) cardsEl.style.display = 'none';
     tbody.innerHTML = entries.map((u, idx) => {
       const pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === u.itemNum && (p.variation||'') === (u.variation||''));
-      const master = state.masterData.find(m => m.itemNum === u.itemNum);
+      const master = findMaster(u.itemNum);
       const name = master ? (master.roadName || master.itemType || '') : '';
       const cond = pd && pd.condition ? parseInt(pd.condition) : null;
       const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
@@ -6546,7 +6611,7 @@ function _toggleUpgradePhoto(id, photoUrl) {
 }
 
 function _upgradeViewMine(itemNum, variation) {
-  const master = state.masterData.find(m => m.itemNum === itemNum);
+  const master = findMaster(itemNum);
   if (master) {
     showItemDetailPage(state.masterData.indexOf(master));
   } else {
@@ -6561,7 +6626,7 @@ function showAddToUpgradeModal(itemNum, variation, pdRow) {
     pd = state.personalData[`${itemNum}|${variation||''}|${pdRow}`];
   }
   if (!pd) pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === itemNum && (p.variation||'') === (variation||''));
-  const master = state.masterData.find(m => m.itemNum === itemNum);
+  const master = findMaster(itemNum);
   const name = master ? (master.roadName || master.itemType || itemNum) : itemNum;
   const myCond = pd && pd.condition ? pd.condition : '';
 
@@ -6667,7 +6732,7 @@ async function removeUpgradeItem(itemNum, variation, row) {
 function upgradeGotIt(itemNum, variation) {
   const old = document.getElementById('upgrade-gotit-modal');
   if (old) old.remove();
-  const master = state.masterData.find(m => m.itemNum === itemNum);
+  const master = findMaster(itemNum);
   const name = master ? (master.roadName || master.itemType || itemNum) : itemNum;
   const overlay = document.createElement('div');
   overlay.id = 'upgrade-gotit-modal';
@@ -6704,7 +6769,7 @@ async function _upgradeGotItFinish(itemNum, variation, action) {
   if (upgradeEntry) await removeUpgradeItem(itemNum, variation, upgradeEntry.row);
   if (action === 'forsale') {
     // Navigate to for sale flow for this item
-    const master = state.masterData.find(m => m.itemNum === itemNum);
+    const master = findMaster(itemNum);
     const idx = master ? state.masterData.indexOf(master) : -1;
     if (idx >= 0) collectionActionForSale(idx, itemNum, variation);
     else showToast('Navigate to My Collection to list for sale');
