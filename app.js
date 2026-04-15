@@ -1944,15 +1944,19 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   const newForSale = {};
   const newMySetsData = {};
 
-  // Fetch all tabs in parallel
-  const [collRes, soldRes, forSaleRes, wantRes, upgradeRes,
-         catRes, paperRes, mockRes, otherRes, isRes,
-         sciRes, conRes, mySetsRes] = await Promise.all([
+  // Perf 2026-04-14 (Phase B): split into primary + secondary fetches.
+  // Primary tabs (5) are needed immediately for dashboard + list pages.
+  // Secondary tabs (8) are loaded after primary commits state so UI renders
+  // faster. Total wait time drops from max-of-13-fetches to max-of-5.
+  const [collRes, soldRes, forSaleRes, wantRes, upgradeRes] = await Promise.all([
     sheetsGet(sheetId, 'My Collection!A3:Y').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Sold!A3:I').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'For Sale!A3:I').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Want List!A3:E').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Upgrade List!A3:G').catch(() => ({values:[]})),
+  ]);
+  // Secondary tabs fire off in parallel, NOT awaited in the main flow
+  const _secondaryFetch = Promise.all([
     sheetsGet(sheetId, 'Catalogs!A3:J').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Paper Items!A3:N').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Mock-Ups!A3:Q').catch(() => ({values:[]})),
@@ -1962,6 +1966,10 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     sheetsGet(sheetId, 'Construction Sets!A3:O').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'My Sets!A3:N').catch(() => ({values:[]})),
   ]);
+  // Defaults — overwritten once the secondary promise resolves below
+  let catRes={values:[]}, paperRes={values:[]}, mockRes={values:[]},
+      otherRes={values:[]}, isRes={values:[]}, sciRes={values:[]},
+      conRes={values:[]}, mySetsRes={values:[]};
 
   // My Collection
   (collRes.values || []).forEach((r, idx) => {
@@ -2032,9 +2040,31 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     };
   });
 
-  // Instruction Sheets
-  const _isRows = (isRes && isRes.values) || [];
-  _isRows.forEach((r, idx) => {
+  // ── PRIMARY COMMIT — commit collection/sold/forSale/want to state first
+  // so the UI can render from fresh primary data while secondary (ephemera,
+  // IS, science, construction, mySets) continues loading in the background.
+  if (forceOverwrite || Object.keys(newPersonal).length > 0 || Object.keys(state.personalData).length === 0) {
+    state.personalData = newPersonal;
+  }
+  if (forceOverwrite || Object.keys(newSold).length > 0 || Object.keys(state.soldData).length === 0) {
+    state.soldData = newSold;
+  }
+  if (forceOverwrite || Object.keys(newForSale).length > 0 || Object.keys(state.forSaleData).length === 0) {
+    state.forSaleData = newForSale;
+  }
+  if (forceOverwrite || Object.keys(newWant).length > 0 || Object.keys(state.wantData).length === 0) {
+    state.wantData = newWant;
+  }
+
+  // Kick off secondary parsing asynchronously — does not block function return.
+  _secondaryFetch.then(async function(results) {
+    const [catRes2, paperRes2, mockRes2, otherRes2, isRes2, sciRes2, conRes2, mySetsRes2] = results;
+    isRes = isRes2; catRes = catRes2; paperRes = paperRes2; mockRes = mockRes2;
+    otherRes = otherRes2; sciRes = sciRes2; conRes = conRes2; mySetsRes = mySetsRes2;
+
+    // Instruction Sheets
+    const _isRows = (isRes && isRes.values) || [];
+    _isRows.forEach((r, idx) => {
     if (!r[0] || r[0] === 'Sheet #' || r[0] === 'Instruction Sheets') return;
     const _rowNum = idx + 3;
     const _isInvId = r[6] || '';
@@ -2157,26 +2187,19 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     };
   });
 
-  // ── Commit to state ──
-  // forceOverwrite: always replace (used by Sync button)
-  // Normal load: only replace if sheet returned data (protects optimistic items)
-  if (forceOverwrite || Object.keys(newPersonal).length > 0 || Object.keys(state.personalData).length === 0) {
-    state.personalData = newPersonal;
-  }
-  if (forceOverwrite || Object.keys(newSold).length > 0 || Object.keys(state.soldData).length === 0) {
-    state.soldData = newSold;
-  }
-  if (forceOverwrite || Object.keys(newForSale).length > 0 || Object.keys(state.forSaleData).length === 0) {
-    state.forSaleData = newForSale;
-  }
-  if (forceOverwrite || Object.keys(newWant).length > 0 || Object.keys(state.wantData).length === 0) {
-    state.wantData = newWant;
-  }
-  state.isData = newIsData;
-  state.scienceData = newScienceData;
-  state.constructionData = newConstructionData;
-  state.ephemeraData = newEphemera;
-  state.mySetsData = newMySetsData;
+    // ── Commit secondary to state ──
+    // (primary tabs — personalData/soldData/forSaleData/wantData — already
+    // committed earlier. This block only handles secondary/ephemera tabs.)
+    state.isData = newIsData;
+    state.scienceData = newScienceData;
+    state.constructionData = newConstructionData;
+    state.ephemeraData = newEphemera;
+    state.mySetsData = newMySetsData;
+    _cachePersonalData();
+    // Re-render dashboard now that secondary counts are in
+    try { if (typeof buildDashboard === 'function') buildDashboard(); } catch(e) {}
+    try { if (typeof renderBrowse === 'function') renderBrowse(); } catch(e) {}
+  }).catch(function(e) { console.warn('[Secondary personal data fetch]', e); });
 }
 
 // ── BUILD APP ───────────────────────────────────────────────────
