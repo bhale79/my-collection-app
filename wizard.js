@@ -4130,27 +4130,30 @@ function renderWizardStep() {
     }
 
     // Determine columns
+    // Bugfix 2026-04-14: include the master description on each column so users
+    // can visually verify the item after a barcode scan (where they only see the #).
+    const _cdMainDesc = (_cdMaster && (_cdMaster.description || _cdMaster.roadName || _cdMaster.itemType)) || '';
     const _cdCols = [];
     if (_cdGrouping === 'engine_tender') {
       const _tenders = getMatchingTenders(_cdItemNum);
       const _tenderNum = wizard.data.tenderMatch || (_tenders.length > 0 ? _tenders[0] : '');
-      _cdCols.push({ id: 'main', label: '\u{1F682} No. ' + _cdItemNum, prefix: '', isEngine: true });
+      _cdCols.push({ id: 'main', label: '\u{1F682} No. ' + _cdItemNum, prefix: '', isEngine: true, description: _cdMainDesc });
       _cdCols.push({ id: 'tender', label: '\u{1F4E6} Tender: ' + _tenderNum, prefix: 'tender', isTender: true });
     } else if (_cdGrouping === 'aa') {
-      _cdCols.push({ id: 'main', label: '\u{1F535} A Unit: ' + _cdItemNum + '-P', prefix: '', sublabel: 'Powered' });
+      _cdCols.push({ id: 'main', label: '\u{1F535} A Unit: ' + _cdItemNum + '-P', prefix: '', sublabel: 'Powered', description: _cdMainDesc });
       _cdCols.push({ id: 'unit2', label: '\u{1F535} A Unit: ' + _cdItemNum + '-D', prefix: 'unit2', sublabel: 'Dummy' });
     } else if (_cdGrouping === 'ab') {
       const _bUnit = getSetPartner(_cdItemNum) || (_cdItemNum + 'C');
-      _cdCols.push({ id: 'main', label: '\u{1F535} A Unit: ' + _cdItemNum + '-P', prefix: '', sublabel: 'Powered' });
+      _cdCols.push({ id: 'main', label: '\u{1F535} A Unit: ' + _cdItemNum + '-P', prefix: '', sublabel: 'Powered', description: _cdMainDesc });
       _cdCols.push({ id: 'unit2', label: '\u{1F535} B Unit: ' + _bUnit, prefix: 'unit2' });
     } else if (_cdGrouping === 'aba') {
       const _bUnit2 = getSetPartner(_cdItemNum) || (_cdItemNum + 'C');
-      _cdCols.push({ id: 'main', label: '\u{1F535} A Unit: ' + _cdItemNum + '-P', prefix: '', sublabel: 'Powered' });
+      _cdCols.push({ id: 'main', label: '\u{1F535} A Unit: ' + _cdItemNum + '-P', prefix: '', sublabel: 'Powered', description: _cdMainDesc });
       _cdCols.push({ id: 'unit2', label: '\u{1F535} B Unit: ' + _bUnit2, prefix: 'unit2' });
       _cdCols.push({ id: 'unit3', label: '\u{1F535} A Unit: ' + _cdItemNum + '-D', prefix: 'unit3', sublabel: 'Dummy' });
     } else {
       // Single item
-      _cdCols.push({ id: 'main', label: 'No. ' + _cdItemNum, prefix: '' });
+      _cdCols.push({ id: 'main', label: 'No. ' + _cdItemNum, prefix: '', description: _cdMainDesc });
     }
     
     const _colCount = _cdCols.length;
@@ -4192,7 +4195,9 @@ function renderWizardStep() {
       };
       
       let html = '<div class="cd-col" style="flex:1;min-width:' + (_isMobile ? '100%' : '200px') + ';background:var(--surface2);border-radius:10px;padding:0.75rem;border:1px solid var(--border)">';
-      html += '<div style="font-weight:700;font-size:0.82rem;color:var(--accent2);margin-bottom:0.5rem;padding-bottom:0.4rem;border-bottom:1px solid var(--border)">' + col.label + (col.sublabel ? ' <span style=\"font-weight:400;color:var(--text-dim);font-size:0.75rem\">(' + col.sublabel + ')</span>' : '') + '</div>';
+      html += '<div style="font-weight:700;font-size:0.82rem;color:var(--accent2);padding-bottom:0.2rem">' + col.label + (col.sublabel ? ' <span style=\"font-weight:400;color:var(--text-dim);font-size:0.75rem\">(' + col.sublabel + ')</span>' : '') + '</div>'
+        + (col.description ? '<div style="font-size:0.78rem;color:var(--text-mid);font-style:italic;margin-bottom:0.35rem;line-height:1.35">' + String(col.description).replace(/</g,'&lt;') + '</div>' : '')
+        + '<div style="margin-bottom:0.5rem;padding-bottom:0.4rem;border-bottom:1px solid var(--border)"></div>';
       
       // Condition — compact read-only badge if already set, slider if not
       if (!wizard.data[condKey]) {
