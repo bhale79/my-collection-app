@@ -692,7 +692,12 @@ function initGoogle() {
   } else if (_isBetaVerified()) {
     // Beta code already entered — show auth screen
     document.getElementById('beta-gate').style.display = 'none';
-    document.getElementById('auth-screen').style.display = 'flex';
+    // Bugfix 2026-04-14: if we're in the middle of an OAuth sign-in flow,
+    // don't flash the auth screen behind the overlay. The overlay is already
+    // shown by the window.onload handler that checks sessionStorage.
+    var _midSignIn = false;
+    try { _midSignIn = sessionStorage.getItem('lv_signing_in') === '1'; } catch(e) {}
+    document.getElementById('auth-screen').style.display = _midSignIn ? 'none' : 'flex';
   } else {
     // New user, no beta code — show the gate, hide auth
     document.getElementById('auth-screen').style.display = 'none';
@@ -705,9 +710,12 @@ function handleSignIn() {
   // Popups work after user click (not blocked when triggered by button)
   // Bugfix 2026-04-14: cover the sign-in screen with a full overlay during
   // the OAuth round-trip so users don't see "Sign in to get started" again
-  // after they pick their account (the 5-15s window before token arrives).
+  // after they pick their account. Persist the flag in sessionStorage too
+  // so that if mobile Chrome reloads the page on OAuth return, we still
+  // show the overlay during boot.
   if (window._signInInFlight) return; // ignore re-taps
   window._signInInFlight = true;
+  try { sessionStorage.setItem('lv_signing_in', '1'); } catch(e) {}
   _showSignInLoadingOverlay();
   // Safety: if Google popup is cancelled/closed silently, restore screen after 45s
   if (window._signInSafetyTimer) clearTimeout(window._signInSafetyTimer);
@@ -743,6 +751,7 @@ function _resetSignInButton() {
   var ov = document.getElementById('signin-loading-overlay');
   if (ov) ov.remove();
   window._signInInFlight = false;
+  try { sessionStorage.removeItem('lv_signing_in'); } catch(e) {}
   if (window._signInSafetyTimer) { clearTimeout(window._signInSafetyTimer); window._signInSafetyTimer = null; }
   // Re-enable the .btn-google button (legacy state from earlier inline-spinner version)
   var _btn = document.querySelector('.btn-google');
@@ -767,6 +776,7 @@ function _hideSignInOverlayWhenAppReady() {
   ov.style.opacity = '0';
   setTimeout(function() { if (ov && ov.parentNode) ov.remove(); }, 280);
   window._signInInFlight = false;
+  try { sessionStorage.removeItem('lv_signing_in'); } catch(e) {}
   if (window._signInSafetyTimer) { clearTimeout(window._signInSafetyTimer); window._signInSafetyTimer = null; }
 }
 window._hideSignInOverlayWhenAppReady = _hideSignInOverlayWhenAppReady;
@@ -6999,6 +7009,15 @@ function parseJwt(token) {
 
 // ── INIT ────────────────────────────────────────────────────────
 window.onload = () => {
+  // If a sign-in was in progress when the page reloaded (mobile Chrome
+  // sometimes reloads on OAuth return), show the overlay immediately so
+  // users don't see the auth screen flash before the token callback fires.
+  try {
+    if (sessionStorage.getItem('lv_signing_in') === '1' && typeof _showSignInLoadingOverlay === 'function') {
+      _showSignInLoadingOverlay();
+      window._signInInFlight = true;
+    }
+  } catch(e) {}
   if (typeof google !== 'undefined') initGoogle();
 };
 
