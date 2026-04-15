@@ -5435,28 +5435,51 @@ async function removeWantItem(itemNum, variation, row) {
 }
 
 function moveWantToCollection(itemNum, variation) {
-  // Open collection wizard pre-filled from want list item
+  // Bugfix 2026-04-14: was opening the full wizard at the era/category picker.
+  // The want-list entry already tells us everything the lookup steps would ask, so
+  // pre-fill all of that (era, item#, variation, grouping, entry mode, category)
+  // and land on Condition & Details — the user only needs to fill what's new:
+  // condition, price paid, est worth, optional photos.
   openWizard('collection');
-  // Short delay to let wizard initialize
   setTimeout(function() {
     if (!window.wizard) return;
+
+    // Look up master row (prefer variation match; fall back to any variation)
+    const master = state.masterData.find(m =>
+      m.itemNum === itemNum && (!variation || String(m.variation||'') === String(variation))
+    ) || state.masterData.find(m => m.itemNum === itemNum);
+
+    // Seed everything we know
     wizard.data._fromWantList = true;
     wizard.data._fromWantKey = `${itemNum}|${variation}`;
     wizard.data._rawItemNum = itemNum;
     wizard.data.itemNum = itemNum;
     if (variation) wizard.data.variation = variation;
-    // Try to find master match
-    const master = state.masterData.find(m => m.itemNum === itemNum && (!variation || m.variation === variation));
+    wizard.data.itemCategory = 'lionel';      // skips era picker
+    wizard.data._itemGrouping = wizard.data._itemGrouping || 'single'; // default; user can change later via Edit Group
+    wizard.data.entryMode = wizard.data.entryMode || 'full'; // skips entryMode picker
+
     if (master) {
-      wizard.data.matchedItem = master;
+      wizard.matchedItem = master;
+      // Infer era so the later save writes to the right era sheet
+      if (!wizard.data._era) {
+        var _tab = String(master._tab || '').toLowerCase();
+        if (_tab.includes('mpc') || _tab.includes('modern')) wizard.data._era = 'mod';
+        else if (_tab.includes('pre-war') || _tab.includes('prewar')) wizard.data._era = 'prewar';
+        else wizard.data._era = 'pw';
+      }
     }
-    // Land on itemNumGrouping step so the user sees grouping buttons
-    // (AA/AB/ABA for F3/Alco, engine+tender for steamers, single for freight)
-    const steps = getSteps('collection');
-    const groupIdx = steps.findIndex(s => s.id === 'itemNumGrouping');
-    if (groupIdx >= 0) {
-      wizard.step = groupIdx;
-      renderWizardStep();
+
+    // Rebuild step list and advance to Condition & Details
+    wizard.steps = getSteps('collection');
+    var targetIdx = wizard.steps.findIndex(function(s) { return s.id === 'conditionDetails'; });
+    // Fallback if the step id changes in a future refactor
+    if (targetIdx < 0) targetIdx = wizard.steps.findIndex(function(s) { return s.id === 'itemNumGrouping'; });
+    wizard.step = targetIdx >= 0 ? targetIdx : 0;
+    renderWizardStep();
+
+    if (typeof showToast === 'function') {
+      showToast('Moving ' + itemNum + ' to Collection — just fill in Condition + Price', 3000);
     }
   }, 150);
 }
