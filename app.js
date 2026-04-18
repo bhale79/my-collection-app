@@ -1682,16 +1682,33 @@ async function switchEra(era) {
     if (SHEET_TABS.instrSheets) await loadISRefData();
     await loadPersonalData();
     populateFilters();
+    // If a cross-era search was in flight, re-apply the search term now that data is loaded
+    if (state._pendingSearch) {
+      var _ps = state._pendingSearch;
+      state._pendingSearch = null;
+      state.filters.search = _ps.toLowerCase();
+      var _sInput = document.getElementById('browse-search');
+      if (_sInput) _sInput.value = _ps;
+      // Make sure we're on the browse page so the user sees the results
+      if (typeof showPage === 'function') showPage('browse');
+    }
     if (typeof renderBrowse === 'function') renderBrowse();
     if (typeof buildDashboard === 'function') buildDashboard();
     showToast(ERAS[era].label + ' era loaded — ' + (state.masterData||[]).length + ' items');
   } catch(e) { console.error('[switchEra]', e); showToast('Era switch error: ' + e.message); }
 }
 
+// ── Cross-era search: switch era and re-run the current search term ──
+function _searchInOtherEra(era, searchTerm) {
+  if (!ERAS[era] || era === _currentEra) return;
+  state._pendingSearch = searchTerm || '';
+  switchEra(era);
+}
+
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
   // Master data stored in IndexedDB (too large for localStorage)
-  const _CACHE_VER = '107';
+  const _CACHE_VER = '108';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     idbRemove('lv_master_cache');
     localStorage.removeItem('lv_master_cache');  // clean up old localStorage entry

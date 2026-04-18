@@ -41,6 +41,52 @@ function _refreshBrowseHeaders() {
   thead.innerHTML = isAtlas ? _atlasBrowseHeaders() : _lionelBrowseHeaders();
 }
 
+// ── Cross-era search banner ──
+// When a search term is active on the master catalog, show a banner offering to
+// re-run the same search in other eras. Button click switches era + preserves term.
+function _renderCrossEraSearchBanner(searchTerm) {
+  var BANNER_ID = 'cross-era-search-banner';
+  var existing = document.getElementById(BANNER_ID);
+  // Remove banner if no search or on My Collection view
+  if (!searchTerm || !searchTerm.trim() || state.filters.owned) {
+    if (existing) existing.remove();
+    return;
+  }
+  // Build list of OTHER eras (skip current)
+  var otherEras = Object.keys(ERAS).filter(function(k) { return k !== _currentEra; });
+  if (!otherEras.length) { if (existing) existing.remove(); return; }
+  // HTML-escape the search term for safe display + safe JS string arg
+  var esc = String(searchTerm).replace(/[<>"'&]/g, function(c){
+    return {'<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','&':'&amp;'}[c];
+  });
+  var jsArg = String(searchTerm).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  var btns = otherEras.map(function(k) {
+    var lbl = (ERAS[k] && ERAS[k].label) || k;
+    return '<button onclick="_searchInOtherEra(\'' + k + '\', \'' + jsArg + '\')" '
+      + 'style="padding:0.35rem 0.75rem;border-radius:6px;border:1px solid var(--border);'
+      + 'background:var(--surface2);color:var(--text);font-family:var(--font-body);'
+      + 'font-size:0.78rem;font-weight:600;cursor:pointer;white-space:nowrap" '
+      + 'title="Search &quot;' + esc + '&quot; in ' + lbl + '">Search ' + lbl + '</button>';
+  }).join('');
+  var html = '<div id="' + BANNER_ID + '" '
+    + 'style="display:flex;flex-wrap:wrap;align-items:center;gap:0.5rem;'
+    + 'margin:0.4rem 0 0.6rem;padding:0.55rem 0.75rem;'
+    + 'background:var(--surface);border:1px solid var(--border);border-radius:8px">'
+    + '<span style="font-size:0.78rem;color:var(--text-dim);font-family:var(--font-body)">'
+    + 'Not finding it? Search &ldquo;<strong style="color:var(--text)">' + esc + '</strong>&rdquo; in&nbsp;</span>'
+    + btns
+    + '</div>';
+  if (existing) {
+    existing.outerHTML = html;
+  } else {
+    // Insert just above the items table container
+    var host = document.querySelector('#page-browse .item-table');
+    if (host && host.parentNode) {
+      host.insertAdjacentHTML('beforebegin', html);
+    }
+  }
+}
+
 // ══════════════════════════════════════════════════════════════
 //  browse.js — Browse Page, Filters, Tab Renderers
 //  Extracted from app.js (Session 63)
@@ -675,6 +721,7 @@ function renderMasterSubTab(tabKey) {
 function renderBrowse() {
   _updateBrowseTabsForEra();
   const { type, road, owned, unowned, boxed, search } = state.filters;
+  if (typeof _renderCrossEraSearchBanner === 'function') _renderCrossEraSearchBanner(search);
   // Base list: masterData + any personal-only items (e.g. 2343-P not in master)
   const masterNums = new Set(state.masterData.map(m => _displayItemNum(m) + '|' + (m.variation||'')));
   const personalOnlyItems = Object.values(state.personalData)
