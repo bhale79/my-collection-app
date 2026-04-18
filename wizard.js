@@ -6274,8 +6274,8 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
       invId,                             // U: Inventory ID
       groupId,                           // V: Group ID
       '',                                // W: Location
-      'Postwar',                         // X: Era
-      'Lionel',                          // Y: Manufacturer
+      'Postwar',                         // X: Era (Sets are Postwar-only feature)
+      _getEraManufacturer(),             // Y: Manufacturer
     ];
 
     try {
@@ -6287,7 +6287,7 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
         boxPhoto: '', notes: row[11], datePurchased: '', userEstWorth: isEngine ? worth : '',
         matchedTo: '', setId, yearMade: year, isError: '', errorDesc: '',
         quickEntry: 'Yes', inventoryId: invId, groupId, location: '',
-        era: 'Postwar', manufacturer: 'Lionel', owned: true,
+        era: 'Postwar', manufacturer: _getEraManufacturer(), owned: true,
       };
       savedItems.push(itemNum);
     } catch(e) {
@@ -7062,7 +7062,7 @@ async function saveWizardItem() {
           boxGroupId,
           d.location || '',        // Location (col W)
           ((wizard && wizard.data && wizard.data._era) || _currentEra || 'pw'), // Era (col X)
-          '',                    // Manufacturer (col Y)
+          _getEraManufacturer(),  // Manufacturer (col Y)
         ];
 
         if (existing && existing.row && existing.itemNum === boxItemNum) {
@@ -7085,7 +7085,7 @@ async function saveWizardItem() {
           matchedTo: itemNum,
           inventoryId: boxInvId, groupId: boxGroupId,
           location: d.location || '',
-          era: '', manufacturer: '',
+          era: (typeof _currentEra !== 'undefined' ? _currentEra : ''), manufacturer: _getEraManufacturer(),
         };
 
         d._saveComplete = true;
@@ -7137,7 +7137,7 @@ async function saveWizardItem() {
         '',  // Group ID (col V) — filled in below for grouped items
         d.location || '',  // Location (col W)
         ((wizard && wizard.data && wizard.data._era) || _currentEra || 'pw'), // Era (col X)
-        '',                    // Manufacturer (col Y)
+        _getEraManufacturer(),  // Manufacturer (col Y)
         ];
       }
       // ── SET UNIT SAVE: if diesel set, save unit2 (and unit3) rows with shared Set ID ──
@@ -7174,7 +7174,7 @@ async function saveWizardItem() {
       groupId,  // Group ID — shared across set
       d.location || '',  // Location (col W) — same as unit 1
       ((wizard && wizard.data && wizard.data._era) || _currentEra || 'pw'), // Era (col X)
-      '',                    // Manufacturer (col Y)
+      _getEraManufacturer(),  // Manufacturer (col Y)
     ];
     await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u2Row]);
 
@@ -7199,7 +7199,7 @@ async function saveWizardItem() {
         groupId,  // Group ID — shared across set
         d.location || '',  // Location (col W) — same as unit 1
         ((wizard && wizard.data && wizard.data._era) || _currentEra || 'pw'), // Era (col X)
-        '',                    // Manufacturer (col Y)
+        _getEraManufacturer(),  // Manufacturer (col Y)
       ];
       await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u3Row]);
       // Update u2Row matchedTo to also reference u3Num
@@ -7252,7 +7252,7 @@ async function saveWizardItem() {
       groupId,  // Group ID — shared with engine
       d.location || '',  // Location (col W) — same as engine
       ((wizard && wizard.data && wizard.data._era) || _currentEra || 'pw'), // Era (col X)
-      '',                    // Manufacturer (col Y)
+      _getEraManufacturer(),  // Manufacturer (col Y)
     ];
     await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [tRow]);
     // Update engine row matchedTo to point to tender
@@ -7522,7 +7522,7 @@ async function saveWizardItem() {
           groupId,      // Group ID — shared with set
           d.location || '',  // Location (col W) — same as lead unit
           ((wizard && wizard.data && wizard.data._era) || _currentEra || 'pw'), // Era (col X)
-          '',                    // Manufacturer (col Y)
+          _getEraManufacturer(),  // Manufacturer (col Y)
         ];
         await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [mbRow]);
         // Add to local state
@@ -7597,7 +7597,7 @@ async function saveWizardItem() {
         datePurchased: d.datePurchased || '',
         inventoryId: _optInvId, groupId: groupId || '',
         location: d.location || '',
-        era: '', manufacturer: '',
+        era: (typeof _currentEra !== 'undefined' ? _currentEra : ''), manufacturer: _getEraManufacturer(),
       };
     } else if (tab === 'sold') {
       state.soldData[`${itemNum}|${variation}`] = {
@@ -7754,7 +7754,7 @@ async function quickEntryAdd() {
         yearMade: '', isError: '', errorDesc: '', quickEntry: true,
         inventoryId: invId, groupId: r.groupId||'',
         location: '',
-        era: '', manufacturer: '',
+        era: (typeof _currentEra !== 'undefined' ? _currentEra : ''), manufacturer: _getEraManufacturer(),
       };
     }
 

@@ -41,18 +41,31 @@ const PERSONAL_HEADERS = [
 ];
 const SOLD_HEADERS = [
   'Item Number','Variation','Copy #','Condition (1-10)','Item Only Price Paid',
-  'Sale Price','Date Sold','Notes','Inventory ID'
+  'Sale Price','Date Sold','Notes','Inventory ID','Manufacturer'
 ];
 const FOR_SALE_HEADERS = [
   'Item Number','Variation','Condition (1-10)','Asking Price',
-  'Date Listed','Notes','Original Price Paid','Est. Worth','Inventory ID'
+  'Date Listed','Notes','Original Price Paid','Est. Worth','Inventory ID','Manufacturer'
 ];
 const WANT_HEADERS = [
-  'Item Number','Variation','Priority','Expected Price','Notes'
+  'Item Number','Variation','Priority','Expected Price','Notes','Manufacturer'
 ];
 const UPGRADE_HEADERS = [
-  'Item Number','Variation','Priority','Target Condition','Max Price','Notes','Inventory ID'
+  'Item Number','Variation','Priority','Target Condition','Max Price','Notes','Inventory ID','Manufacturer'
 ];
+
+// ── Manufacturer helper ──
+// Returns the manufacturer name for the current era (e.g. "Lionel", "Atlas").
+// Reads from ERAS[_currentEra].manufacturer. Defaults to "Lionel" (backward compat).
+function _getEraManufacturer() {
+  try {
+    if (typeof ERAS !== 'undefined' && typeof _currentEra !== 'undefined'
+        && ERAS[_currentEra] && ERAS[_currentEra].manufacturer) {
+      return ERAS[_currentEra].manufacturer;
+    }
+  } catch(e) {}
+  return 'Lionel';
+}
 
 // Ephemera tab definitions — shared structure, one tab per category
 const EPHEMERA_TABS = [
@@ -1227,13 +1240,13 @@ async function initPersonalSheet(sheetId) {
 
   // Write headers to all tabs
   await sheetsUpdate(sheetId, 'Sold!A1:A1',      [['Sold']]);
-  await sheetsUpdate(sheetId, 'Sold!A2:I2',      [SOLD_HEADERS]);
+  await sheetsUpdate(sheetId, 'Sold!A2:J2',      [SOLD_HEADERS]);
   await sheetsUpdate(sheetId, 'For Sale!A1:A1',   [['For Sale']]);
-  await sheetsUpdate(sheetId, 'For Sale!A2:I2',   [FOR_SALE_HEADERS]);
+  await sheetsUpdate(sheetId, 'For Sale!A2:J2',   [FOR_SALE_HEADERS]);
   await sheetsUpdate(sheetId, 'Want List!A1:A1',    [['Want List']]);
-  await sheetsUpdate(sheetId, 'Want List!A2:E2',    [WANT_HEADERS]);
+  await sheetsUpdate(sheetId, 'Want List!A2:F2',    [WANT_HEADERS]);
   await sheetsUpdate(sheetId, 'Upgrade List!A1:A1', [['Upgrade List']]);
-  await sheetsUpdate(sheetId, 'Upgrade List!A2:G2', [UPGRADE_HEADERS]);
+  await sheetsUpdate(sheetId, 'Upgrade List!A2:H2', [UPGRADE_HEADERS]);
 
   // Ephemera tabs
   await ensureEphemeraSheets(sheetId);
@@ -1264,19 +1277,19 @@ async function ensurePersonalHeaders(sheetId) {
       // Write headers for newly created tabs
       if (!existingTabs.includes('Sold')) {
         await sheetsUpdate(sheetId, 'Sold!A1:A1', [['Sold']]);
-        await sheetsUpdate(sheetId, 'Sold!A2:I2', [SOLD_HEADERS]);
+        await sheetsUpdate(sheetId, 'Sold!A2:J2', [SOLD_HEADERS]);
       }
       if (!existingTabs.includes('For Sale')) {
         await sheetsUpdate(sheetId, 'For Sale!A1:A1', [['For Sale']]);
-        await sheetsUpdate(sheetId, 'For Sale!A2:I2', [FOR_SALE_HEADERS]);
+        await sheetsUpdate(sheetId, 'For Sale!A2:J2', [FOR_SALE_HEADERS]);
       }
       if (!existingTabs.includes('Want List')) {
         await sheetsUpdate(sheetId, 'Want List!A1:A1', [['Want List']]);
-        await sheetsUpdate(sheetId, 'Want List!A2:E2', [WANT_HEADERS]);
+        await sheetsUpdate(sheetId, 'Want List!A2:F2', [WANT_HEADERS]);
       }
       if (!existingTabs.includes('Upgrade List')) {
         await sheetsUpdate(sheetId, 'Upgrade List!A1:A1', [['Upgrade List']]);
-        await sheetsUpdate(sheetId, 'Upgrade List!A2:G2', [UPGRADE_HEADERS]);
+        await sheetsUpdate(sheetId, 'Upgrade List!A2:H2', [UPGRADE_HEADERS]);
       }
       console.log('[Setup] Created missing tabs:', toCreate.map(t => t.addSheet.properties.title).join(', '));
     }
@@ -1301,16 +1314,38 @@ async function ensurePersonalHeaders(sheetId) {
 
     // Repair Upgrade List headers if missing or wrong
     try {
-      const upgRes = await sheetsGet(sheetId, 'Upgrade List!A2:G2');
+      const upgRes = await sheetsGet(sheetId, 'Upgrade List!A2:H2');
       const upgCurrent = (upgRes.values && upgRes.values[0]) || [];
       const upgNeedsUpdate = UPGRADE_HEADERS.some((h, i) => upgCurrent[i] !== h);
       if (upgNeedsUpdate) {
         await sheetsUpdate(sheetId, 'Upgrade List!A1:A1', [['Upgrade List']]);
-        await sheetsUpdate(sheetId, 'Upgrade List!A2:G2', [UPGRADE_HEADERS]);
+        await sheetsUpdate(sheetId, 'Upgrade List!A2:H2', [UPGRADE_HEADERS]);
         console.log('[Headers] Upgrade List headers repaired');
       }
     } catch(e) {
       console.warn('[Headers] Upgrade List header check failed:', e.message);
+    }
+
+    // Repair Sold / For Sale / Want List headers (Manufacturer column added — new users ok,
+    // older users need this to pick up the schema change without data loss).
+    var _tabsToCheck = [
+      { name: 'Sold',      range: 'Sold!A2:J2',      headers: SOLD_HEADERS     },
+      { name: 'For Sale',  range: 'For Sale!A2:J2',  headers: FOR_SALE_HEADERS },
+      { name: 'Want List', range: 'Want List!A2:F2', headers: WANT_HEADERS     },
+    ];
+    for (var _i = 0; _i < _tabsToCheck.length; _i++) {
+      var _t = _tabsToCheck[_i];
+      try {
+        var _hr = await sheetsGet(sheetId, _t.range);
+        var _cur = (_hr.values && _hr.values[0]) || [];
+        var _need = _t.headers.some(function(h, i) { return _cur[i] !== h; });
+        if (_need) {
+          await sheetsUpdate(sheetId, _t.range, [_t.headers]);
+          console.log('[Headers] ' + _t.name + ' headers repaired');
+        }
+      } catch(e) {
+        console.warn('[Headers] ' + _t.name + ' header check failed:', e.message);
+      }
     }
   } catch(e) {
     console.warn('[Headers] ensurePersonalHeaders failed:', e.message);
@@ -1745,7 +1780,7 @@ function _searchInOtherEra(era, searchTerm) {
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
   // Master data stored in IndexedDB (too large for localStorage)
-  const _CACHE_VER = '110';
+  const _CACHE_VER = '111';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     idbRemove('lv_master_cache');
     localStorage.removeItem('lv_master_cache');  // clean up old localStorage entry
@@ -2190,10 +2225,10 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // faster. Total wait time drops from max-of-13-fetches to max-of-5.
   const [collRes, soldRes, forSaleRes, wantRes, upgradeRes] = await Promise.all([
     sheetsGet(sheetId, 'My Collection!A3:Y').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Sold!A3:I').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'For Sale!A3:I').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Want List!A3:E').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Upgrade List!A3:G').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Sold!A3:J').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'For Sale!A3:J').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Want List!A3:F').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Upgrade List!A3:H').catch(() => ({values:[]})),
   ]);
   // Secondary tabs fire off in parallel, NOT awaited in the main flow
   const _secondaryFetch = Promise.all([
@@ -2244,6 +2279,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
       copy: r[2]||'1', condition: r[3]||'', priceItem: r[4]||'',
       salePrice: r[5]||'', dateSold: r[6]||'', notes: r[7]||'',
       inventoryId: r[8]||'',
+      manufacturer: r[9] || 'Lionel',
     };
   });
 
@@ -2256,6 +2292,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
       condition: r[2]||'', askingPrice: r[3]||'', dateListed: r[4]||'',
       notes: r[5]||'', originalPrice: r[6]||'', estWorth: r[7]||'',
       inventoryId: r[8]||'',
+      manufacturer: r[9] || 'Lionel',
     };
   });
 
@@ -2266,6 +2303,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     newWant[key] = {
       row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
       priority: r[2]||'Medium', expectedPrice: r[3]||'', notes: r[4]||'',
+      manufacturer: r[5] || 'Lionel',
     };
   });
 
@@ -2277,6 +2315,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
       row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
       priority: r[2]||'Medium', targetCondition: r[3]||'', maxPrice: r[4]||'', notes: r[5]||'',
       inventoryId: r[6]||'',
+      manufacturer: r[7] || 'Lionel',
     };
   });
 
@@ -3301,12 +3340,13 @@ function _checkGroupBeforeForSale(globalIdx, pdKey) {
           aPd.priceItem || '',
           aPd.userEstWorth || '',
           aPd.inventoryId || '',
+          aPd.manufacturer || _getEraManufacturer(),
         ];
         const existingFs = state.forSaleData[fsKey];
         if (existingFs && existingFs.row) {
-          await sheetsUpdate(sheetId, 'For Sale!A' + existingFs.row + ':I' + existingFs.row, [fsRow]);
+          await sheetsUpdate(sheetId, 'For Sale!A' + existingFs.row + ':J' + existingFs.row, [fsRow]);
         } else {
-          await sheetsAppend(sheetId, 'For Sale!A:I', [fsRow]);
+          await sheetsAppend(sheetId, 'For Sale!A:J', [fsRow]);
         }
         state.forSaleData[fsKey] = {
           row: existingFs ? existingFs.row : 99999,
@@ -4950,17 +4990,17 @@ async function saveItem() {
     // Remove from Sold tab if it was there
     const soldEntry = state.soldData[key];
     if (soldEntry && soldEntry.row) {
-      await sheetsUpdate(state.personalSheetId, `Sold!A${soldEntry.row}:I${soldEntry.row}`, [['','','','','','','','','']]);
+      await sheetsUpdate(state.personalSheetId, `Sold!A${soldEntry.row}:J${soldEntry.row}`, [['','','','','','','','','','']]);
     }
     // Remove from Want List if it was there
     const wantEntry = state.wantData[key];
     if (wantEntry && wantEntry.row) {
-      await sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry.row}:E${wantEntry.row}`, [['','','','','']]);
+      await sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry.row}:F${wantEntry.row}`, [['','','','','','']]);
     }
     // Remove from For Sale if it was there
     const fsEntry = state.forSaleData[key];
     if (fsEntry && fsEntry.row) {
-      await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry.row}:I${fsEntry.row}`, [['','','','','','','','','']]);
+      await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry.row}:J${fsEntry.row}`, [['','','','','','','','','','']]);
     }
 
   } else if (currentStatus === 'ForSale') {
@@ -4975,22 +5015,23 @@ async function saveItem() {
       existing?.priceItem || '',
       existing?.userEstWorth || '',
       existing?.inventoryId || '',
+      existing?.manufacturer || _getEraManufacturer(),
     ];
     const fsEntry2 = state.forSaleData[key];
     if (fsEntry2 && fsEntry2.row) {
-      await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry2.row}:I${fsEntry2.row}`, [forSaleRow]);
+      await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry2.row}:J${fsEntry2.row}`, [forSaleRow]);
     } else {
       await sheetsAppend(state.personalSheetId, 'For Sale!A:A', [forSaleRow]);
     }
     // Remove from Sold if it was there
     const soldEntry2 = state.soldData[key];
     if (soldEntry2 && soldEntry2.row) {
-      await sheetsUpdate(state.personalSheetId, `Sold!A${soldEntry2.row}:I${soldEntry2.row}`, [['','','','','','','','','']]);
+      await sheetsUpdate(state.personalSheetId, `Sold!A${soldEntry2.row}:J${soldEntry2.row}`, [['','','','','','','','','','']]);
     }
     // Remove from Want if it was there
     const wantEntry2 = state.wantData[key];
     if (wantEntry2 && wantEntry2.row) {
-      await sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry2.row}:E${wantEntry2.row}`, [['','','','','']]);
+      await sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry2.row}:F${wantEntry2.row}`, [['','','','','','']]);
     }
 
   } else if (currentStatus === 'Sold') {
@@ -5002,7 +5043,7 @@ async function saveItem() {
     // Remove from For Sale if it was there
     const fsEntry3 = state.forSaleData[key];
     if (fsEntry3 && fsEntry3.row) {
-      await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry3.row}:I${fsEntry3.row}`, [['','','','','','','','','']]);
+      await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry3.row}:J${fsEntry3.row}`, [['','','','','','','','','','']]);
     }
     // Write to Sold tab
     const soldRow = [
@@ -5012,12 +5053,13 @@ async function saveItem() {
       document.getElementById('fc-date-sold').value,
       document.getElementById('fc-notes').value,
       existing?.inventoryId || '',
+      existing?.manufacturer || _getEraManufacturer(),
     ];
     const soldEntry = state.soldData[key];
     if (soldEntry && soldEntry.row) {
-      await sheetsUpdate(state.personalSheetId, `Sold!A${soldEntry.row}:I${soldEntry.row}`, [soldRow]);
+      await sheetsUpdate(state.personalSheetId, `Sold!A${soldEntry.row}:J${soldEntry.row}`, [soldRow]);
     } else {
-      await sheetsAppend(state.personalSheetId, 'Sold!A:I', [soldRow]);
+      await sheetsAppend(state.personalSheetId, 'Sold!A:J', [soldRow]);
     }
 
   } else if (currentStatus === 'Want') {
@@ -5033,10 +5075,11 @@ async function saveItem() {
       document.getElementById('fc-want-priority').value,
       document.getElementById('fc-want-price').value,
       document.getElementById('fc-want-notes').value,
+      _getEraManufacturer(),
     ];
     const wantEntry = state.wantData[key];
     if (wantEntry && wantEntry.row) {
-      await sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry.row}:E${wantEntry.row}`, [wantRow]);
+      await sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry.row}:F${wantEntry.row}`, [wantRow]);
     } else {
       await sheetsAppend(state.personalSheetId, 'Want List!A:A', [wantRow]);
     }
@@ -5155,7 +5198,7 @@ function _checkWantPartners(itemNum, variation, priority, maxPrice, notes) {
     let added = 0;
     for (const c of selected) {
       try {
-        const row = [c.itemNum, '', priority || 'Medium', maxPrice || '', notes || ''];
+        const row = [c.itemNum, '', priority || 'Medium', maxPrice || '', notes || '', _getEraManufacturer()];
         await sheetsAppend(state.personalSheetId, 'Want List!A:A', [row]);
         // Bugfix 2026-04-14: optimistically add partner to state.wantData so the
         // Want List table shows the new partners immediately instead of waiting
@@ -5423,9 +5466,10 @@ function ephemeraForSale(tabId, rowKey) {
       '',                          // original price paid
       item.estValue || '',
       '',                          // inventory ID (not applicable for ephemera)
+      _getEraManufacturer(),       // manufacturer
     ];
     try {
-      await sheetsAppend(state.personalSheetId, 'For Sale!A:I', [row]);
+      await sheetsAppend(state.personalSheetId, 'For Sale!A:J', [row]);
       showToast('✓ Listed for sale');
     } catch(e) { showToast('Error listing: ' + e.message, 3000, true); }
   };
@@ -5486,9 +5530,10 @@ function ephemeraSold(tabId, rowKey) {
       dateSold,
       title,       // notes = title as description
       '',          // inventory ID (not applicable for ephemera)
+      _getEraManufacturer(),  // manufacturer
     ];
     try {
-      await sheetsAppend(state.personalSheetId, 'Sold!A:I', [row]);
+      await sheetsAppend(state.personalSheetId, 'Sold!A:J', [row]);
       if (removeIt) {
         // Remove from ephemera sheet and state
         if (item.row && typeof item.row === 'number' && item.row >= 3 && item.row < 1000000) {
@@ -5763,7 +5808,7 @@ async function removeWantItem(itemNum, variation, row) {
   if (!(await appConfirm('Remove this item from your Want List?', { danger: true, ok: 'Remove' }))) return;
   const key = `${itemNum}|${variation}`;
   if (row) {
-    await sheetsUpdate(state.personalSheetId, `Want List!A${row}:E${row}`, [['','','','','']]);
+    await sheetsUpdate(state.personalSheetId, `Want List!A${row}:F${row}`, [['','','','','','']]);
   }
   delete state.wantData[key];
   _cachePersonalData();
@@ -6226,17 +6271,18 @@ async function markForSaleAsSold(itemNum, variation, askingPrice) {
     dateSold,
     fs.notes || '',
     fs.inventoryId || '',
+    fs.manufacturer || _getEraManufacturer(),
   ];
   const existingSold = state.soldData[fsKey];
   if (existingSold?.row) {
-    await sheetsUpdate(state.personalSheetId, `Sold!A${existingSold.row}:I${existingSold.row}`, [soldRow]);
+    await sheetsUpdate(state.personalSheetId, `Sold!A${existingSold.row}:J${existingSold.row}`, [soldRow]);
   } else {
-    await sheetsAppend(state.personalSheetId, 'Sold!A:I', [soldRow]);
+    await sheetsAppend(state.personalSheetId, 'Sold!A:J', [soldRow]);
   }
 
   // Remove from For Sale tab
   if (fs.row) {
-    await sheetsUpdate(state.personalSheetId, `For Sale!A${fs.row}:I${fs.row}`, [['','','','','','','','','']]);
+    await sheetsUpdate(state.personalSheetId, `For Sale!A${fs.row}:J${fs.row}`, [['','','','','','','','','','']]);
   }
 
   // Remove from My Collection — match by inventoryId (which is now the state key)
@@ -6271,7 +6317,7 @@ async function _removeForSaleFromCollection(itemNum, variation) {
   const fs = state.forSaleData[fsKey];
   if (!fs) { showToast('Item not found on For Sale list'); return; }
   if (fs.row) {
-    await sheetsUpdate(state.personalSheetId, `For Sale!A${fs.row}:I${fs.row}`, [['','','','','','','','','']]);
+    await sheetsUpdate(state.personalSheetId, `For Sale!A${fs.row}:J${fs.row}`, [['','','','','','','','','','']]);
   }
   delete state.forSaleData[fsKey];
   _cachePersonalData();
@@ -6286,7 +6332,7 @@ async function _removeUpgradeFromCollection(itemNum, variation) {
   const ug = state.upgradeData[key];
   if (!ug) { showToast('Item not found on Upgrade list'); return; }
   if (ug.row) {
-    await sheetsUpdate(state.personalSheetId, `Upgrade List!A${ug.row}:G${ug.row}`, [['','','','','','','']]);
+    await sheetsUpdate(state.personalSheetId, `Upgrade List!A${ug.row}:H${ug.row}`, [['','','','','','','','']]);
   }
   delete state.upgradeData[key];
   _cachePersonalData();
@@ -6301,7 +6347,7 @@ async function removeForSaleItem(itemNum, variation, row) {
   if (!(await appConfirm('Remove this item from your For Sale list?', { danger: true, ok: 'Remove' }))) return;
   const fsKey = `${itemNum}|${variation}`;
   if (row) {
-    await sheetsUpdate(state.personalSheetId, `For Sale!A${row}:I${row}`, [['','','','','','','','','']]);
+    await sheetsUpdate(state.personalSheetId, `For Sale!A${row}:J${row}`, [['','','','','','','','','','']]);
   }
   delete state.forSaleData[fsKey];
   _cachePersonalData();
@@ -6315,7 +6361,7 @@ async function _removeForSaleFromDetail(idx, itemNum, variation) {
   if (!fsEntry) { showToast('Item is not on For Sale list'); return; }
   if (!(await appConfirm('Remove No. ' + itemNum + ' from your For Sale list?', { danger: true, ok: 'Remove' }))) return;
   if (fsEntry.row) {
-    await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry.row}:I${fsEntry.row}`, [['','','','','','','','','']]);
+    await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry.row}:J${fsEntry.row}`, [['','','','','','','','','','']]);
   }
   delete state.forSaleData[fsKey];
   _cachePersonalData();
@@ -6330,7 +6376,7 @@ async function removeForSaleAndCollection(itemNum, variation, fsRow) {
   const key = `${itemNum}|${variation}`;
   // Remove from For Sale tab
   if (fsRow) {
-    await sheetsUpdate(state.personalSheetId, `For Sale!A${fsRow}:I${fsRow}`, [['','','','','','','','','']]);
+    await sheetsUpdate(state.personalSheetId, `For Sale!A${fsRow}:J${fsRow}`, [['','','','','','','','','','']]);
   }
   delete state.forSaleData[key];
   // Remove from My Collection tab — use findPDKey for correct 3-part key
@@ -6963,18 +7009,18 @@ async function saveUpgradeItem(itemNum, variation, existingRow, invId) {
   const targetCond = document.getElementById('upg-target-cond')?.value || '';
   const maxPrice = document.getElementById('upg-max-price')?.value || '';
   const notes = document.getElementById('upg-notes')?.value || '';
-  const row = [itemNum, variation||'', priority, targetCond, maxPrice, notes, invId || ''];
+  const row = [itemNum, variation||'', priority, targetCond, maxPrice, notes, invId || '', _getEraManufacturer()];
   const key = `${itemNum}|${variation||''}`;
   const sheetId = state.personalSheetId;
   if (!sheetId) { showToast('Not connected to a sheet'); return; }
   try {
     if (existingRow > 0) {
-      await sheetsUpdate(sheetId, `Upgrade List!A${existingRow}:G${existingRow}`, [row]);
+      await sheetsUpdate(sheetId, `Upgrade List!A${existingRow}:H${existingRow}`, [row]);
     } else {
-      await sheetsAppend(sheetId, 'Upgrade List!A:G', [row]);
+      await sheetsAppend(sheetId, 'Upgrade List!A:H', [row]);
     }
     // Reload data
-    const res = await sheetsGet(sheetId, 'Upgrade List!A3:G');
+    const res = await sheetsGet(sheetId, 'Upgrade List!A3:H');
     state.upgradeData = {};
     (res.values || []).forEach((r, idx) => {
       if (!r[0] || r[0] === 'Item Number') return;
@@ -6982,6 +7028,7 @@ async function saveUpgradeItem(itemNum, variation, existingRow, invId) {
         row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
         priority: r[2]||'Medium', targetCondition: r[3]||'', maxPrice: r[4]||'', notes: r[5]||'',
         inventoryId: r[6]||'',
+        manufacturer: r[7] || 'Lionel',
       };
     });
     const modal = document.getElementById('upgrade-add-modal');
@@ -7000,7 +7047,7 @@ async function removeUpgradeItem(itemNum, variation, row) {
   const key = `${itemNum}|${variation||''}`;
   if (!state.personalSheetId) return;
   try {
-    await sheetsUpdate(state.personalSheetId, `Upgrade List!A${row}:G${row}`, [['','','','','','','']]);
+    await sheetsUpdate(state.personalSheetId, `Upgrade List!A${row}:H${row}`, [['','','','','','','','']]);
     delete state.upgradeData[key];
     showToast('Removed from Upgrade List');
     buildUpgradePage();
