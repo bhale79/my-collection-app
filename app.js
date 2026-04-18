@@ -1691,7 +1691,7 @@ async function switchEra(era) {
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
   // Master data stored in IndexedDB (too large for localStorage)
-  const _CACHE_VER = '105';
+  const _CACHE_VER = '106';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     idbRemove('lv_master_cache');
     localStorage.removeItem('lv_master_cache');  // clean up old localStorage entry
@@ -1739,7 +1739,7 @@ async function _fetchMasterTabs() {
   // Try multi-tab batchGet first, fall back to old single-tab
   try {
     var _mt = _getMasterTabs();
-    const ranges = _mt.map(t => `${t}!A2:R`);
+    const ranges = _mt.map(t => `${t}!A2:U`);
     const res = await sheetsBatchGet(state.masterSheetId, ranges);
     const allRows = [];
     (res.valueRanges || []).forEach((vr, i) => {
@@ -1754,8 +1754,8 @@ async function _fetchMasterTabs() {
   }
   // Fallback: old single-tab approach
   try {
-    let res = await sheetsGet(state.masterSheetId, 'Master Inventory!A2:R');
-    if (!res.values) res = await sheetsGet(state.masterSheetId, 'Sheet1!A2:R');
+    let res = await sheetsGet(state.masterSheetId, 'Master Inventory!A2:U');
+    if (!res.values) res = await sheetsGet(state.masterSheetId, 'Sheet1!A2:U');
     return (res.values || []).map(r => parseMasterRow(r, SHEET_TABS.items));
   } catch(e2) {
     console.warn('[Master] Legacy fallback also failed:', e2.message);
