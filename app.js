@@ -1691,7 +1691,7 @@ async function switchEra(era) {
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
   // Master data stored in IndexedDB (too large for localStorage)
-  const _CACHE_VER = '104';
+  const _CACHE_VER = '105';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     idbRemove('lv_master_cache');
     localStorage.removeItem('lv_master_cache');  // clean up old localStorage entry
@@ -1783,6 +1783,10 @@ function parseMasterRow(r, tabName) {
     source:       r[15] || '',
     cottCode:     r[16] || '',
     originalDesc: r[17] || '',
+    // Unified-schema extension columns (used by Atlas rows; blank for Lionel rows):
+    category:     r[18] || '',
+    trackPower:   r[19] || '',
+    msrp:         r[20] || '',
     _tab:         tabName,
   };
 }
@@ -1791,7 +1795,9 @@ function _deduplicateMaster(rows) {
   const seen = new Set();
   return rows.filter(m => {
     if (!m.itemNum) return false;
-    const key = m.itemNum + '|' + (m.roadName || '') + '|' + m.variation + '|' + (m.poweredDummy || '') + '|' + (m.description || '');
+    // trackPower included so Atlas rail variants (3-Rail TMCC vs 2-Rail DC, etc.)
+    // are NOT deduped into one row. Blank for Lionel rows so behavior is unchanged.
+    const key = m.itemNum + '|' + (m.roadName || '') + '|' + m.variation + '|' + (m.poweredDummy || '') + '|' + (m.description || '') + '|' + (m.trackPower || '');
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
