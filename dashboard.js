@@ -290,6 +290,46 @@ var CARD_CATALOG = [
       var total = items.reduce(function(s,i) { return s + (parseFloat(i.askingPrice)||0); }, 0);
       return { value: count.toLocaleString() + (count===1?' item':' items'), sub: total > 0 ? '$' + Math.round(total).toLocaleString() + ' total asking' : 'no asking prices set' };
     }
+  },
+  {
+    // Atlas-specific: breakdown of the Atlas catalog by Category and Line.
+    // Reads from state.masterData (Atlas era only). Fields used: itemType (Category) and notes (Line).
+    id: 'atlasCatalog', label: 'Atlas Catalog', color: '#16a085',
+    compute: function(state) {
+      var rows = state.masterData || [];
+      var byCat = {};
+      var byLine = {};
+      rows.forEach(function(m) {
+        var c = (m.itemType || m.category || 'Unknown').trim();
+        var l = (m.notes || 'Unknown').trim();
+        byCat[c] = (byCat[c] || 0) + 1;
+        byLine[l] = (byLine[l] || 0) + 1;
+      });
+      var total = rows.length;
+      // If we're not actually on Atlas era, show a friendly hint
+      if (typeof _currentEra !== 'undefined' && _currentEra !== 'atlas') {
+        return { html: '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:4px">'
+          + 'Switch to <strong>Atlas O</strong> era to see catalog breakdown.</div>' };
+      }
+      // Sort categories largest first
+      var catEntries = Object.entries(byCat).sort(function(a,b){ return b[1]-a[1]; });
+      var lineEntries = Object.entries(byLine).sort(function(a,b){ return b[1]-a[1]; });
+      function _row(label, count) {
+        var pct = total > 0 ? (count/total*100) : 0;
+        return '<div style="display:flex;justify-content:space-between;font-size:0.7rem;margin-top:2px">'
+          + '<span style="color:var(--text-mid)">' + label + '</span>'
+          + '<span style="color:var(--text);font-weight:600">' + count.toLocaleString()
+          + ' <span style="color:var(--text-dim);font-weight:400">(' + pct.toFixed(0) + '%)</span></span>'
+          + '</div>';
+      }
+      var html = '<div class="stat-value">' + total.toLocaleString() + '</div>'
+        + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:1px">total items</div>'
+        + '<div style="font-size:0.62rem;font-weight:700;letter-spacing:0.08em;color:var(--text-dim);text-transform:uppercase;margin-top:6px">By Category</div>'
+        + catEntries.map(function(e){ return _row(e[0], e[1]); }).join('')
+        + '<div style="font-size:0.62rem;font-weight:700;letter-spacing:0.08em;color:var(--text-dim);text-transform:uppercase;margin-top:6px">By Line</div>'
+        + lineEntries.map(function(e){ return _row(e[0], e[1]); }).join('');
+      return { html: html };
+    }
   }
 ];
 
