@@ -169,6 +169,21 @@ function buildPrefsPage() {
         <div class="pref-row-label"><strong>Show Accuracy Disclaimer</strong><span>Warning banner on catalog pages</span></div>
         ${toggle('disclaimer', 'lv_show_disclaimer', 'true')}
       </div>
+
+      <div style="font-size:0.78rem;font-weight:600;color:var(--text-mid);padding:0.75rem 0.2rem 0.35rem;letter-spacing:0.03em;text-transform:uppercase">What I Collect</div>
+      <div class="pref-row" style="flex-direction:column;align-items:flex-start;gap:0.4rem">
+        <div style="font-size:0.78rem;color:var(--text-dim);line-height:1.5">Uncheck eras you don't collect — they'll be hidden from the era dropdown and search banner. ${_isAdmin() ? '<em style="color:var(--accent2)">Admin view — all eras always visible to you.</em>' : ''}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:0.55rem;width:100%">
+          ${Object.keys(ERAS).map(function(k) {
+            var enabled = _getEnabledEras().indexOf(k) >= 0;
+            var lbl = ERAS[k].label + (ERAS[k].years ? ' <span style="color:var(--text-dim);font-weight:400">(' + ERAS[k].years + ')</span>' : '');
+            return '<label style="display:flex;align-items:center;gap:0.45rem;padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);font-size:0.8rem">'
+              + '<input type="checkbox" ' + (enabled ? 'checked' : '') + ' onchange="_togglePrefEra(\'' + k + '\', this.checked)" style="accent-color:var(--accent);width:1rem;height:1rem;cursor:pointer"> '
+              + lbl
+              + '</label>';
+          }).join('')}
+        </div>
+      </div>
       </div>
     </div>
 
@@ -589,6 +604,29 @@ function _toggleWizCat(catId, on) {
   try { saved = JSON.parse(localStorage.getItem('rr_wizard_cats') || '{}'); } catch(e) {}
   saved[catId] = on;
   localStorage.setItem('rr_wizard_cats', JSON.stringify(saved));
+}
+
+// ── "What I Collect" era toggle handler ──
+// Adds/removes an era from the user's enabled-eras pref. Updates the era
+// dropdown visibility immediately. Refuses to disable the LAST remaining era
+// (must keep at least one selected) unless user is admin.
+function _togglePrefEra(eraId, on) {
+  var enabled = _getEnabledEras();
+  if (on) {
+    if (enabled.indexOf(eraId) < 0) enabled.push(eraId);
+  } else {
+    var nonAdminCount = enabled.filter(function(e) { return e !== eraId; }).length;
+    if (nonAdminCount === 0 && !_isAdmin()) {
+      showToast('Keep at least one era selected.');
+      // Re-tick the box visually
+      buildPrefsPage();
+      return;
+    }
+    enabled = enabled.filter(function(e) { return e !== eraId; });
+  }
+  _setEnabledEras(enabled);
+  if (typeof _applyEraVisibility === 'function') _applyEraVisibility();
+  showToast((ERAS[eraId] && ERAS[eraId].label || eraId) + (on ? ' enabled' : ' hidden') + '.');
 }
 
 function _togglePrefSection(titleEl) {

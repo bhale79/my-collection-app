@@ -1646,6 +1646,41 @@ function idbRemove(key) {
   }).catch(function() {});
 }
 
+// ── Era preferences: which eras the user collects (admin override) ──
+// Default: all eras enabled. Admin (per ADMIN_EMAILS in config.js) always sees all.
+function _getEnabledEras() {
+  try {
+    var saved = localStorage.getItem('lv_collect_eras');
+    if (saved) {
+      var arr = JSON.parse(saved);
+      if (Array.isArray(arr) && arr.length) return arr;
+    }
+  } catch(e) {}
+  return Object.keys(ERAS); // default: all
+}
+function _setEnabledEras(arr) {
+  try { localStorage.setItem('lv_collect_eras', JSON.stringify(arr || [])); } catch(e) {}
+}
+function _isEraEnabled(era) {
+  // Admins always see every era regardless of preferences
+  if (typeof _isAdmin === 'function' && _isAdmin()) return true;
+  var enabled = _getEnabledEras();
+  return enabled.indexOf(era) >= 0;
+}
+// Hide era-dropdown options the user has disabled. Always keep the CURRENT era
+// visible so the user can switch away even if it's disabled.
+function _applyEraVisibility() {
+  var sel = document.getElementById('era-select');
+  if (!sel) return;
+  var isAdmin = (typeof _isAdmin === 'function' && _isAdmin());
+  var enabled = _getEnabledEras();
+  Array.from(sel.options).forEach(function(opt) {
+    var visible = isAdmin || enabled.indexOf(opt.value) >= 0 || opt.value === _currentEra;
+    opt.style.display = visible ? '' : 'none';
+    opt.disabled = !visible;
+  });
+}
+
 // ── Switch era: swap tabs, clear caches, reload ──
 async function switchEra(era) {
   if (!ERAS[era]) return;
@@ -1670,6 +1705,8 @@ async function switchEra(era) {
   // Update browse page era dropdown
   var _sel = document.getElementById('era-select');
   if (_sel) _sel.value = era;
+  // Re-apply visibility (hides eras the user opted out of)
+  if (typeof _applyEraVisibility === 'function') _applyEraVisibility();
   // Reload data
   showLoading();
   showToast('Switching to ' + ERAS[era].label + ' era…');
@@ -1708,7 +1745,7 @@ function _searchInOtherEra(era, searchTerm) {
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
   // Master data stored in IndexedDB (too large for localStorage)
-  const _CACHE_VER = '109';
+  const _CACHE_VER = '110';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     idbRemove('lv_master_cache');
     localStorage.removeItem('lv_master_cache');  // clean up old localStorage entry
@@ -2412,6 +2449,8 @@ function buildApp() {
   buildDashboard();
   _maybeShowAdminPrefs();
   _applyDisclaimerPref();
+  // Apply era-dropdown visibility based on user prefs (admin sees all)
+  if (typeof _applyEraVisibility === 'function') _applyEraVisibility();
   // Upgrade count badge
   const _uEl = document.getElementById('nav-upgrade-count');
   if (_uEl) { const _uc = Object.values(state.upgradeData||{}).length; _uEl.textContent = _uc > 0 ? _uc.toLocaleString() : '—'; }

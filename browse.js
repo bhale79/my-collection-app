@@ -52,8 +52,13 @@ function _renderCrossEraSearchBanner(searchTerm) {
     if (existing) existing.remove();
     return;
   }
-  // Build list of OTHER eras (skip current)
-  var otherEras = Object.keys(ERAS).filter(function(k) { return k !== _currentEra; });
+  // Build list of OTHER eras (skip current). Honor user's enabled-eras pref
+  // so disabled eras don't show in the search-banner.
+  var otherEras = Object.keys(ERAS).filter(function(k) {
+    if (k === _currentEra) return false;
+    if (typeof _isEraEnabled === 'function' && !_isEraEnabled(k)) return false;
+    return true;
+  });
   if (!otherEras.length) { if (existing) existing.remove(); return; }
   // HTML-escape the search term for safe display + safe JS string arg
   var esc = String(searchTerm).replace(/[<>"'&]/g, function(c){
