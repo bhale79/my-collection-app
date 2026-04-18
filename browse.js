@@ -20,6 +20,25 @@ function _updateBrowseTabsForEra() {
   if (activeTab && activeTab.style.display === 'none') {
     renderBrowseTab('items');
   }
+  // Refresh table headers for the current era (Atlas vs Lionel layouts differ)
+  if (typeof _refreshBrowseHeaders === 'function' && !state.filters.owned) {
+    _refreshBrowseHeaders();
+  }
+}
+
+// ── Era-aware master catalog table headers ──
+// Lionel eras use Road/Variation columns; Atlas uses Sub Type/Track-Power/MSRP.
+function _atlasBrowseHeaders() {
+  return '<th>Item #</th><th>Type</th><th>Sub Type</th><th>Description</th><th>Track/Power</th><th>MSRP</th><th>Year</th><th>Owned</th>';
+}
+function _lionelBrowseHeaders() {
+  return '<th>Item #</th><th>Type</th><th>Road / Name</th><th>Descr.</th><th>Var.</th><th>Var. Descr.</th><th>Year</th><th>Owned</th>';
+}
+function _refreshBrowseHeaders() {
+  var thead = document.querySelector('#page-browse .item-table thead tr');
+  if (!thead) return;
+  var isAtlas = (typeof _currentEra !== 'undefined' && _currentEra === 'atlas');
+  thead.innerHTML = isAtlas ? _atlasBrowseHeaders() : _lionelBrowseHeaders();
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -268,9 +287,12 @@ function resetFilters() {
   }
   const idBtn = document.getElementById('identify-btn');
   if (idBtn) idBtn.style.display = '';
-  // Restore table headers to default
+  // Restore table headers to default (era-aware)
   const thead = document.querySelector('#page-browse .item-table thead tr');
-  if (thead) thead.innerHTML = '<th>Item #</th><th>Type</th><th>Road / Name</th><th>Descr.</th><th>Var.</th><th>Var. Descr.</th><th>Year</th><th>Owned</th>';
+  if (thead) {
+    var _isAtlasEra = (typeof _currentEra !== 'undefined' && _currentEra === 'atlas');
+    thead.innerHTML = _isAtlasEra ? _atlasBrowseHeaders() : _lionelBrowseHeaders();
+  }
   var _tbl = document.querySelector('#page-browse .item-table');
   if (_tbl) _tbl.classList.remove('collection-view');
   var _leg = document.getElementById('collection-icon-legend');
@@ -1086,10 +1108,17 @@ function renderBrowse() {
           <span id="cam-${item.itemNum}-${item.variation||''}" style="margin-left:5px;font-size:0.85rem;cursor:pointer;display:none" onclick="event.stopPropagation();openPhotoFolder('${item.itemNum}','${pd&&pd.photoItem?pd.photoItem:''}')" title="Open photo folder">📷</span>
         </td>
         <td><span class="tag">${item.itemType || '—'}</span></td>
+        ${(_currentEra === 'atlas') ? `
+        <td>${item.subType || '<span class="text-dim">—</span>'}</td>
+        <td>${item.description || '<span class="text-dim">—</span>'}</td>
+        <td>${item.trackPower || '<span class="text-dim">—</span>'}</td>
+        <td class="text-dim">${item.msrp ? '$' + parseFloat(String(item.msrp).replace(/[^0-9.]/g,'')).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) : '—'}</td>
+        ` : `
         <td>${item.roadName || '<span class="text-dim">—</span>'}</td>
         <td>${item.description || '<span class="text-dim">—</span>'}</td>
         <td>${item.variation || '<span class="text-dim">—</span>'}</td>
         <td>${vdCell}</td>
+        `}
         <td class="text-dim">${item.yearProd || '—'}</td>
         <td><span class="owned-badge ${badgeClass}">${badgeText}</span></td>
       </tr>`;
