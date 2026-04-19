@@ -3184,7 +3184,17 @@ function renderWizardStep() {
         //   4. Refreshes the suggestion list.
         //
         // Helper below is defined once and reused for both directions.
-        var _anyLabel = (_isfUi && _isfUi.anyLabel) || '(any)';
+        // NOTE: _isfUi and the _esc helper from the render block live in
+        // a DIFFERENT scope than this setTimeout callback. Read config
+        // directly from window.ITEM_SEARCH_FILTERS and use a local _esc.
+        var _isfCfgCb  = window.ITEM_SEARCH_FILTERS || {};
+        var _isfUiCb   = _isfCfgCb.ui || {};
+        var _anyLabel  = _isfUiCb.anyLabel || '(any)';
+        function _escCb(s) {
+          return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
         function _refreshFilterDropdown(selId, fieldName, otherFieldName, otherValue, currentVal, stateKey) {
           var sel = document.getElementById(selId);
           if (!sel) return;
@@ -3194,12 +3204,12 @@ function renderWizardStep() {
           var values = (typeof getMasterDistinct === 'function')
             ? getMasterDistinct(fieldName, predicate)
             : [];
-          var opts = '<option value="">' + _esc(_anyLabel) + '</option>';
+          var opts = '<option value="">' + _escCb(_anyLabel) + '</option>';
           var stillValid = false;
           values.forEach(function(v) {
             var selFlag = v === currentVal;
             if (selFlag) stillValid = true;
-            opts += '<option value="' + _esc(v) + '"' + (selFlag ? ' selected' : '') + '>' + _esc(v) + '</option>';
+            opts += '<option value="' + _escCb(v) + '"' + (selFlag ? ' selected' : '') + '>' + _escCb(v) + '</option>';
           });
           sel.innerHTML = opts;
           if (currentVal && !stillValid) {
