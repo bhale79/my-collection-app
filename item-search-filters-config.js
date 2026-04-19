@@ -28,7 +28,21 @@ window.ITEM_SEARCH_FILTERS = {
     typeLabel:    'Type',
     roadLabel:    'Road name',
     hint:         'Pick a type or road to narrow the list — or just type to search.',
-    cottLinkLabel:'COTT \u2197',   // "↗" opens in new tab visual cue
+    // Reference-link label resolution. Patterns are matched against the
+    // refLink URL in order; first match wins. Add a new source later by
+    // adding another { match: /…/i, label: '…' } entry — no code changes.
+    // The default is used when no pattern matches (e.g. Greenberg Books,
+    // train-shop listings, etc.).
+    linkLabel: {
+      patterns: [
+        { match: /atlas(rr)?\.com/i,          label: 'Atlas \u2197' },
+        { match: /cott|collectorsoftinplate/i, label: 'COTT \u2197'  },
+      ],
+      default:   'View \u2197',
+      emptyLink: '',             // shown when refLink is blank (nothing)
+    },
+    // Kept for backward-compat if any caller still reads cottLinkLabel.
+    cottLinkLabel:'COTT \u2197',
   },
   sizing: {
     fontPx:       14,
