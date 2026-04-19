@@ -1,0 +1,36 @@
+# ──────────────────────────────────────────────────────────────────
+# The Rail Roster — .gitignore
+# Anything matched here is BLOCKED from being committed by `git add`.
+# Critical for keeping tokens, credentials, and secrets out of the
+# public repo.
+# ──────────────────────────────────────────────────────────────────
+
+# ── Tokens / credentials — NEVER commit ──
+token.txt
+token*.txt
+*token.txt
+gh_*.txt
+pat.txt
+pat_*.txt
+*pat.txt
+auth.*
+*.key
+*.pem
+*.p12
+.env
+.env.*
+secrets/
+.secrets/
+
+# ── OS / editor noise ──
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~
+~$*
+
+# ── Local caches / build artifacts ──
+node_modules/
+.cache/
+*.log
