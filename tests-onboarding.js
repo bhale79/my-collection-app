@@ -998,6 +998,31 @@
         }
     }},
 
+    { name: '120 filters: getMasterDistinct accepts a predicate for cross-filtering', fn: function() {
+        if (typeof getMasterDistinct !== 'function') return fail('getMasterDistinct missing');
+        // Inject a small synthetic dataset of known shape to exercise the predicate.
+        if (!window.state || !Array.isArray(state.masterData)) return okMsg('no master data — skipped');
+        var marker1 = '__TRR_CROSS_1__', marker2 = '__TRR_CROSS_2__';
+        var rowA = { itemNum: marker1, itemType: 'Caboose', roadName: 'Nickel Plate', description: 'A' };
+        var rowB = { itemNum: marker2, itemType: 'Locomotive', roadName: 'Nickel Plate', description: 'B' };
+        var rowC = { itemNum: marker1 + 'c', itemType: 'Caboose', roadName: 'Santa Fe', description: 'C' };
+        state.masterData.unshift(rowA, rowB, rowC);
+        try {
+          var cabooseRoads = getMasterDistinct('roadName', function(m) { return m.itemType === 'Caboose'; });
+          if (cabooseRoads.indexOf('Nickel Plate') === -1) return fail('Caboose predicate missed Nickel Plate');
+          if (cabooseRoads.indexOf('Santa Fe')     === -1) return fail('Caboose predicate missed Santa Fe');
+          // Types for Santa Fe should be Caboose only (from our synthetic rows)
+          var sfTypes = getMasterDistinct('itemType', function(m) { return m.roadName === 'Santa Fe' && (m.itemNum === marker1 + 'c'); });
+          if (sfTypes.length !== 1 || sfTypes[0] !== 'Caboose')
+            return fail('expected ["Caboose"] for Santa Fe synthetic, got ' + JSON.stringify(sfTypes));
+          return okMsg();
+        } finally {
+          state.masterData = state.masterData.filter(function(m) {
+            return m.itemNum !== marker1 && m.itemNum !== marker2 && m.itemNum !== marker1 + 'c';
+          });
+        }
+    }},
+
     //  ── Performance sentinel ──
     { name: '70 perf: buildPartnerMap under 50ms on current data', fn: function() {
         if (typeof buildPartnerMap !== 'function') return fail('buildPartnerMap missing');
