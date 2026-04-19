@@ -1023,6 +1023,49 @@
         }
     }},
 
+    { name: '121 filters: empty query + Type set shows filter-matched suggestions (no typing required)', fn: async function() {
+        if (typeof updateItemSuggestions !== 'function') return fail('updateItemSuggestions missing');
+        if (!window.state || !Array.isArray(state.masterData)) return okMsg('no master data — skipped');
+        if (!window.wizard) window.wizard = { tab: 'collection', data: {} };
+        else { wizard.tab = 'collection'; wizard.data = wizard.data || {}; }
+        var box = document.getElementById('wiz-suggestions');
+        var created = false;
+        if (!box) {
+          box = document.createElement('div');
+          box.id = 'wiz-suggestions';
+          box.style.cssText = 'display:none;flex-direction:column;max-height:340px;overflow-y:auto';
+          document.body.appendChild(box);
+          created = true;
+        }
+        var marker = '__TRR_FILTER_ONLY__';
+        var row = { itemNum: marker, itemType: 'TestOnlyType_Z', roadName: 'TestRoad_Z', subType: 'SomeSub', varDesc: '', description: 'Visible via filter only', refLink: '', _tab: 'Test' };
+        state.masterData.unshift(row);
+        try {
+          // With no filters AND empty query → box should be hidden.
+          wizard.data._searchFilterType = '';
+          wizard.data._searchFilterRoad = '';
+          updateItemSuggestions('');
+          if (box.style.display !== 'none') return fail('box should be hidden when no filter and empty query');
+          // With Type filter set AND empty query → suggestions should show.
+          wizard.data._searchFilterType = 'TestOnlyType_Z';
+          updateItemSuggestions('');
+          var rows = box.querySelectorAll('[data-idx]');
+          if (rows.length < 1) return fail('expected ≥ 1 row with Type filter set, got ' + rows.length);
+          var found = Array.from(rows).some(function(r) { return r.dataset.roadName === 'TestRoad_Z'; });
+          if (!found) return fail('synthetic row not surfaced by filter-only search');
+          // Clearing the filter with empty query → box hides again
+          wizard.data._searchFilterType = '';
+          updateItemSuggestions('');
+          if (box.style.display !== 'none') return fail('box should re-hide when filter cleared');
+          return okMsg();
+        } finally {
+          state.masterData = state.masterData.filter(function(m) { return m.itemNum !== marker; });
+          wizard.data._searchFilterType = '';
+          wizard.data._searchFilterRoad = '';
+          if (created && box.parentNode) box.parentNode.removeChild(box);
+        }
+    }},
+
     //  ── Performance sentinel ──
     { name: '70 perf: buildPartnerMap under 50ms on current data', fn: function() {
         if (typeof buildPartnerMap !== 'function') return fail('buildPartnerMap missing');
