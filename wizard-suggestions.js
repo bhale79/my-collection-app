@@ -186,10 +186,13 @@ function updateItemSuggestions(query) {
 
     const seen = new Set();
     state.masterData.forEach(m => {
-      // Filter dropdowns: exact match on itemType and roadName. Items with
-      // blank values on the filtered field are hidden when a filter is set.
-      if (_filterType && (m.itemType || '') !== _filterType) return;
-      if (_filterRoad && (m.roadName || '') !== _filterRoad) return;
+      // Filter dropdowns: trim BOTH sides so stray whitespace in the
+      // master sheet doesn't silently hide matches. The dropdown options
+      // come from getMasterDistinct which already trims its output, so
+      // comparing raw m.itemType / m.roadName would miss rows that have
+      // " Lehigh Valley " or "Caboose\n" in the source data.
+      if (_filterType && String(m.itemType || '').trim() !== _filterType) return;
+      if (_filterRoad && String(m.roadName || '').trim() !== _filterRoad) return;
 
       const haystack = ((m.roadName || '') + ' ' + (m.description || '') + ' ' + (m.varDesc || '') + ' ' + (m.itemType || '')).toLowerCase();
 
