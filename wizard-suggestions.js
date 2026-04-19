@@ -482,7 +482,11 @@ function handleSuggestionKey(e) {
       e.preventDefault();
       btns[_suggestionIndex].click();
     } else {
-      wizardNext();
+      // Enter without a highlighted row used to call wizardNext() — which
+      // advanced the wizard with whatever raw text was typed (e.g.
+      // "nashville") as the item number. Block that. To advance, the user
+      // must either tap a suggestion or arrow-down then Enter.
+      e.preventDefault();
     }
   } else if (e.key === 'Escape') {
     if (el) { el.style.display = 'none'; }
