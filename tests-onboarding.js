@@ -475,10 +475,18 @@
         return okMsg('enabled=' + m.enabled);
     }},
 
-    { name: '94 migration: stub function returns {moved:false} while disabled', fn: async function() {
-        if (typeof migrateItemBetweenTabs !== 'function') return fail('migrateItemBetweenTabs missing');
-        var r = await migrateItemBetweenTabs('9999', 'MPC-Modern', 'Atlas O');
-        if (!r || r.moved !== false) return fail('expected {moved:false} got ' + JSON.stringify(r));
+    { name: '94 migration: three-step functions exist + route validation works', fn: async function() {
+        var miss = ['migrationFindItem','migrationAppendToDest','migrationClearSource','openMigrationModal']
+          .filter(function(f) { return typeof window[f] !== 'function'; });
+        if (miss.length) return fail('missing: ' + miss.join(', '));
+        // Route validation: trying a disallowed route should throw
+        try {
+          await migrationFindItem('9999', 'Lionel PW - Items', 'Atlas O');
+          return fail('expected route-denied throw');
+        } catch (e) {
+          if (!/route not allowed|Route not allowed/i.test(e.message || String(e)))
+            return fail('wrong error: ' + (e.message || e));
+        }
         return okMsg();
     }},
 
