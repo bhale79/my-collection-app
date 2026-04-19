@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.118';
+const APP_VERSION = 'v0.9.119';
 const APP_DATE    = 'April 2026';
 
 // ── Master catalog sheet ID (read-only, shared across all users) ──
