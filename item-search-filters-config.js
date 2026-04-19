@@ -30,16 +30,20 @@ window.ITEM_SEARCH_FILTERS = {
     hint:         'Pick a type or road to narrow the list — or just type to search.',
     // Reference-link label resolution. Patterns are matched against the
     // refLink URL in order; first match wins. Add a new source later by
-    // adding another { match: /…/i, label: '…' } entry — no code changes.
-    // The default is used when no pattern matches (e.g. Greenberg Books,
-    // train-shop listings, etc.).
+    // adding another pattern — no code changes.
+    // `short` is used on compact rows (suggestion list, variation picker
+    // buttons). `verbose` is used on standalone buttons (single-item
+    // refLink button). `label` is accepted as a legacy alias for `short`.
     linkLabel: {
       patterns: [
-        { match: /atlas(rr)?\.com/i,          label: 'Atlas \u2197' },
-        { match: /cott|collectorsoftinplate/i, label: 'COTT \u2197'  },
+        { match: /atlas(rr)?\.com/i,           short: 'Atlas \u2197', verbose: 'View on Atlas \u2197' },
+        { match: /cott|collectorsoftinplate/i, short: 'COTT \u2197',  verbose: 'View on COTT \u2197'  },
       ],
-      default:   'View \u2197',
-      emptyLink: '',             // shown when refLink is blank (nothing)
+      defaultShort:   'View \u2197',
+      defaultVerbose: 'View reference \u2197',
+      // Legacy alias — older callers may still read `default`.
+      default:        'View \u2197',
+      emptyLink:      '',
     },
     // Kept for backward-compat if any caller still reads cottLinkLabel.
     cottLinkLabel:'COTT \u2197',
@@ -57,4 +61,31 @@ window.ITEM_SEARCH_FILTERS = {
   // use wizard.data._returnPage personal inventory and the dropdowns are
   // not useful there.
   applyToTabs: ['collection', 'want'],
+};
+
+// ─── Shared resolver ──────────────────────────────────────────────
+// window.resolveRefLabel(url [, { verbose: true }])
+//   → 'Atlas ↗' / 'View on Atlas ↗' / 'COTT ↗' / 'View ↗' etc.
+//
+// Walks ITEM_SEARCH_FILTERS.ui.linkLabel.patterns; first match wins.
+// Falls back to defaultShort / defaultVerbose when nothing matches.
+// Returns '' for an empty URL so callers can `if (label) …`.
+//
+// Used by wizard-suggestions.js (compact suggestion rows) and wizard.js
+// (single-item button, variation picker). Keeping resolution in ONE place
+// means "change how Atlas links are labeled" is a one-line edit in config.
+window.resolveRefLabel = function(url, opts) {
+  if (!url) return '';
+  var cfg = (window.ITEM_SEARCH_FILTERS && window.ITEM_SEARCH_FILTERS.ui) || {};
+  var ll  = cfg.linkLabel || {};
+  var wantVerbose = !!(opts && opts.verbose);
+  var patterns = ll.patterns || [];
+  for (var i = 0; i < patterns.length; i++) {
+    var p = patterns[i];
+    if (!p || !p.match || !p.match.test || !p.match.test(url)) continue;
+    if (wantVerbose) return p.verbose || p.short || p.label || '';
+    return p.short || p.label || '';
+  }
+  if (wantVerbose) return ll.defaultVerbose || ll.default || '';
+  return ll.defaultShort || ll.default || '';
 };
