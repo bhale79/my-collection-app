@@ -923,6 +923,45 @@
         return okMsg();
     }},
 
+    { name: '118 filters: bare candidate dropped when populated sibling exists (no phantom rows)', fn: async function() {
+        if (typeof updateItemSuggestions !== 'function') return fail('updateItemSuggestions missing');
+        if (!window.state || !Array.isArray(state.masterData)) return okMsg('no master data — skipped');
+        if (!window.wizard) window.wizard = { tab: 'collection', data: {} };
+        else { wizard.tab = 'collection'; wizard.data = wizard.data || {}; }
+        var box = document.getElementById('wiz-suggestions');
+        var created = false;
+        if (!box) {
+          box = document.createElement('div');
+          box.id = 'wiz-suggestions';
+          box.style.display = 'none';
+          document.body.appendChild(box);
+          created = true;
+        }
+        // Inject two synthetic master rows for a fake itemNum: one bare, one populated.
+        var marker = '__TRR_TEST_ITEM__';
+        var bareRow = { itemNum: marker, roadName:'', subType:'', varDesc:'', description:'', itemType:'Locomotive', refLink:'', _tab:'Test' };
+        var infoRow = { itemNum: marker, roadName:'', subType:'C-628', varDesc:'', description:'Louisville & Nashville 9999', itemType:'Locomotive', refLink:'', _tab:'Test' };
+        state.masterData.unshift(bareRow, infoRow);
+        try {
+          wizard.data._searchFilterType = '';
+          wizard.data._searchFilterRoad = '';
+          updateItemSuggestions(marker.toLowerCase());
+          var rows = box.querySelectorAll('[data-idx]');
+          if (rows.length === 0) return fail('no rows rendered for synthetic query');
+          // The bare row (all disambiguator fields blank) must be dropped.
+          if (rows.length > 1) return fail('expected 1 row, got ' + rows.length + ' — phantom bare row not filtered');
+          // The surviving row should have line 2 (details present)
+          var lines = rows[0].children;
+          if (lines.length < 2) return fail('surviving row is missing line-2 details');
+          if (!/C-628/.test(lines[1].textContent || '')) return fail('line-2 missing expected subType');
+          return okMsg();
+        } finally {
+          // Remove synthetic rows
+          state.masterData = state.masterData.filter(function(m) { return m.itemNum !== marker; });
+          if (created && box.parentNode) box.parentNode.removeChild(box);
+        }
+    }},
+
     //  ── Performance sentinel ──
     { name: '70 perf: buildPartnerMap under 50ms on current data', fn: function() {
         if (typeof buildPartnerMap !== 'function') return fail('buildPartnerMap missing');
