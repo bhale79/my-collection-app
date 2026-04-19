@@ -248,6 +248,12 @@ function buildPrefsPage() {
         <button class="pref-btn" id="hc-copy-btn" onclick="_copyHealthCheckScript()">Copy Script</button>
       </div>
       <div id="health-check-output" style="display:none;margin-top:0.75rem;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:0.85rem 1rem;font-size:0.75rem;font-family:var(--font-mono);line-height:1.8;max-height:320px;overflow-y:auto"></div>
+      ${(window.MIGRATION && window.MIGRATION.enabled) ? `
+      <div class="pref-row" style="margin-top:0.5rem;border-top:1px solid var(--border);padding-top:0.7rem">
+        <div class="pref-row-label"><strong>${(window.MIGRATION.ui || {}).adminButtonLabel || 'Move Item Between Tabs'}</strong><span>${(window.MIGRATION.ui || {}).adminButtonHint || ''}</span></div>
+        <button class="pref-btn" onclick="if(typeof openMigrationModal==='function')openMigrationModal()">Open Tool</button>
+      </div>
+      ` : ''}
 
 
 
