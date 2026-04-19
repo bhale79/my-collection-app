@@ -243,7 +243,20 @@ function updateItemSuggestions(query) {
   el.appendChild(countBar);
 
   const _cfg   = (window.ITEM_SEARCH_FILTERS && window.ITEM_SEARCH_FILTERS.ui) || {};
-  const _cottLabel = _cfg.cottLinkLabel || 'COTT \u2197';
+  // Label resolver: walks linkLabel.patterns and returns the first match's
+  // label, else linkLabel.default, else the legacy cottLinkLabel. Keeps
+  // every reference source (COTT, Atlas, future Greenberg, etc.) in ONE
+  // config file per the centralized-config rule.
+  const _resolveRefLabel = function(url) {
+    if (!url) return '';
+    var ll = _cfg.linkLabel || {};
+    var patterns = ll.patterns || [];
+    for (var i = 0; i < patterns.length; i++) {
+      var p = patterns[i];
+      if (p && p.match && p.match.test && p.match.test(url)) return p.label || '';
+    }
+    return ll.default || _cfg.cottLinkLabel || 'View \u2197';
+  };
 
   candidates.forEach(function(c, i) {
     // NOTE: using a <div role="button"> instead of <button> so we can safely
@@ -274,15 +287,16 @@ function updateItemSuggestions(query) {
       row.appendChild(subSpan);
     }
 
-    // COTT reference link — lets the user verify the exact item before
-    // selecting. stopPropagation so tapping the link opens the external
-    // page instead of selecting the suggestion.
+    // Reference link — lets the user verify the exact item before
+    // selecting. Label is URL-resolved (Atlas.com → Atlas ↗, COTT → COTT ↗,
+    // else → View ↗). stopPropagation so tapping the link opens the
+    // external page instead of selecting the suggestion.
     if (c.refLink) {
       const refA = document.createElement('a');
       refA.href = c.refLink;
       refA.target = '_blank';
       refA.rel = 'noopener';
-      refA.textContent = _cottLabel;
+      refA.textContent = _resolveRefLabel(c.refLink);
       refA.onclick = function(ev) { ev.stopPropagation(); };
       refA.style.cssText = 'font-size:0.75rem;color:var(--accent2);text-decoration:none;'
         + 'padding:0.25rem 0.55rem;border:1px solid rgba(201,146,42,0.35);border-radius:6px;'
