@@ -149,7 +149,12 @@ function updateItemSuggestions(query) {
   const el = document.getElementById('wiz-suggestions');
   if (!el) return;
   const q = (query || '').trim().toLowerCase();
-  if (q.length < 1) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  // Allow filter-only queries (Type or Road selected with empty text) to
+  // show results without requiring the user to type anything. Only hide
+  // the suggestion box when there's no query AND no active filter.
+  var _hasFilter = !!(window.wizard && wizard.data &&
+    (wizard.data._searchFilterType || wizard.data._searchFilterRoad));
+  if (q.length < 1 && !_hasFilter) { el.style.display = 'none'; el.innerHTML = ''; return; }
 
   const tab = wizard.tab;
   let candidates = [];
