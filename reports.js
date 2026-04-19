@@ -20,6 +20,21 @@ function buildReport() {
 
   if (type === 'insurance') {
     // ── Insurance Report ─────────────────────────────────────
+    // All user-visible copy + column list come from INSURANCE_REPORT
+    // (insurance-config.js). Edit there, not here.
+    const CFG = (typeof INSURANCE_REPORT !== 'undefined') ? INSURANCE_REPORT : {
+      title: 'Model Train Collection — Insurance Documentation',
+      columns: [
+        { key:'photo', label:'Photo', type:'photo' },
+        { key:'itemNum', label:'Item #', type:'itemnum' },
+        { key:'description', label:'Description', type:'text' },
+        { key:'variation', label:'Variation', type:'dim' },
+        { key:'condition', label:'Cond.', type:'text', align:'center' },
+        { key:'hasBox', label:'Box', type:'text', align:'center' },
+        { key:'estWorth', label:'Est. Worth', type:'money', align:'right' },
+        { key:'notes', label:'Notes', type:'dim' },
+      ],
+    };
     const ownerName = state.user?.name || '';
     const dateStr   = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
 
@@ -43,8 +58,10 @@ function buildReport() {
     });
 
     let totalWorth = 0;
+    let totalPaid  = 0;
     ownedItems.forEach(pd => {
       totalWorth += parseFloat(pd.userEstWorth || 0);
+      totalPaid  += parseFloat(pd.priceComplete || pd.priceItem || 0);
     });
 
     // Inject header above table
@@ -56,75 +73,120 @@ function buildReport() {
       tableWrap.parentNode.insertBefore(hdrEl, tableWrap);
     }
     hdrEl.style.display = '';
+    // Build meta lines from the template in config
+    const metaVals = {
+      ownerName: ownerName || '—',
+      dateStr:   dateStr,
+      itemCount: ownedItems.length.toLocaleString(),
+      totalWorth: Math.round(totalWorth).toLocaleString(),
+    };
+    const metaHtml = (CFG.metaTemplate || []).map(line => {
+      // Simple {placeholder} replacement
+      const filled = line.replace(/\{(\w+)\}/g, (_, k) => metaVals[k] != null ? metaVals[k] : '');
+      return '<span>' + filled + '</span>';
+    }).join('');
     hdrEl.innerHTML = `
       <div class="ins-report-header">
-        <div class="ins-report-title">Lionel Postwar Collection — Insurance Documentation</div>
-        <div class="ins-report-meta">
-          ${ownerName ? `<span>Owner: <strong>${ownerName}</strong></span>` : ''}
-          <span>Generated: <strong>${dateStr}</strong></span>
-          <span>Items: <strong>${ownedItems.length.toLocaleString()}</strong></span>
-        </div>
+        <div class="ins-report-title">${CFG.title || 'Insurance Documentation'}</div>
+        ${CFG.subtitle ? `<div class="ins-report-subtitle" style="font-size:0.82rem;color:var(--text-mid);margin-top:0.25rem">${CFG.subtitle}</div>` : ''}
+        <div class="ins-report-meta">${metaHtml}</div>
       </div>
       <div class="ins-report-totals">
+        ${totalPaid > 0 ? `<span>Total Paid: <strong>$${Math.round(totalPaid).toLocaleString()}</strong></span>` : ''}
         ${totalWorth > 0 ? `<span>Total Est. Worth: <strong>$${Math.round(totalWorth).toLocaleString()}</strong></span>` : ''}
-        <span style="color:var(--text-dim);font-size:0.78rem">Est. Worth = user-entered value for insurance purposes</span>
+        ${CFG.totalsNote ? `<span style="color:var(--text-dim);font-size:0.78rem">${CFG.totalsNote}</span>` : ''}
       </div>`;
 
-    thead.innerHTML = `<tr>
-      <th>Photo</th>
-      <th>Item #</th>
-      <th>Description</th>
-      <th>Variation</th>
-      <th>Cond.</th>
-      <th>All Orig.</th>
-      <th>Box</th>
-      <th>Box Cond.</th>
-      <th>Est. Worth</th>
-      <th>Notes</th>
-    </tr>`;
+    // ── Build thead + tbody from CFG.columns ─────────────────
+    thead.innerHTML = '<tr>' + (CFG.columns || []).map(c =>
+      '<th' + (c.align ? ' style="text-align:' + c.align + '"' : '') + '>' + c.label + '</th>'
+    ).join('') + '</tr>';
+
+    function _cellValue(col, pd, master, photoId) {
+      switch (col.key) {
+        case 'photo':       return { html: `<div id="${photoId}" class="ins-photo-placeholder" style="font-size:0.6rem;line-height:1.3">No<br>Photo</div>` };
+        case 'itemNum':     return { html: `<span class="item-num">${pd.itemNum || ''}</span>` };
+        case 'description': return { text: master.roadName || master.description || master.itemType || '—' };
+        case 'year':        return { text: pd.yearMade || master.yearProd || '—' };
+        case 'variation':   return { text: pd.variation || '—' };
+        case 'condition':   return { text: pd.condition || '—' };
+        case 'allOriginal': return { text: pd.allOriginal || '—' };
+        case 'hasBox':      return { text: pd.hasBox || '—' };
+        case 'boxCond':     return { text: pd.boxCond || '—' };
+        case 'estWorth':    return { text: pd.userEstWorth ? '$' + parseFloat(pd.userEstWorth).toLocaleString() : '—' };
+        case 'pricePaid': {
+          const paid = pd.priceComplete || pd.priceItem;
+          return { text: paid ? '$' + parseFloat(paid).toLocaleString() : '—' };
+        }
+        case 'notes':       return { text: pd.notes || '' };
+        default:            return { text: (pd[col.key] != null ? String(pd[col.key]) : '—') };
+      }
+    }
 
     tbody.innerHTML = ownedItems.map((pd, idx) => {
       const master = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum)) || {};
-      const desc   = master.roadName || master.description || master.itemType || '—';
-      const year   = pd.yearMade || master.yearProd || '—';
-      const worth  = pd.userEstWorth ? '$' + parseFloat(pd.userEstWorth).toLocaleString() : '—';
       const photoId = 'ins-photo-' + idx;
-      return `<tr>
-        <td><div id="${photoId}" class="ins-photo-placeholder" style="font-size:0.6rem;line-height:1.3">No<br>Photo</div></td>
-        <td><span class="item-num">${pd.itemNum}</span></td>
-        <td>${desc}</td>
-        <td style="font-size:0.78rem;color:var(--text-dim)">${pd.variation || '—'}</td>
-        <td style="text-align:center">${pd.condition || '—'}</td>
-        <td style="text-align:center">${pd.allOriginal || '—'}</td>
-        <td style="text-align:center">${pd.hasBox || '—'}</td>
-        <td style="text-align:center">${pd.boxCond || '—'}</td>
-        <td style="font-family:var(--font-mono);color:var(--accent2)">${worth}</td>
-        <td style="font-size:0.77rem;color:var(--text-dim);max-width:160px">${pd.notes || ''}</td>
-      </tr>`;
-    }).join('') || '<tr><td colspan="10" class="ui-empty">No owned items yet</td></tr>';
+      const cells = (CFG.columns || []).map(c => {
+        const v = _cellValue(c, pd, master, photoId);
+        let style = '';
+        if (c.align) style += `text-align:${c.align};`;
+        if (c.type === 'dim')   style += 'font-size:0.77rem;color:var(--text-dim);max-width:160px;';
+        if (c.type === 'money') style += 'font-family:var(--font-mono);color:var(--accent2);';
+        return `<td${style ? ` style="${style}"` : ''}>${v.html != null ? v.html : (v.text != null ? v.text : '—')}</td>`;
+      }).join('');
+      return '<tr>' + cells + '</tr>';
+    }).join('') || `<tr><td colspan="${(CFG.columns || []).length}" class="ui-empty">No owned items yet</td></tr>`;
 
-    // Async: load first photo for each item
-    ownedItems.forEach((pd, idx) => {
-      if (!pd.photoItem) return;
-      const container = document.getElementById('ins-photo-' + idx);
-      if (!container) return;
-      driveGetFolderPhotos(pd.photoItem).then(photos => {
-        if (!photos || !photos.length) return;
-        const img = document.createElement('img');
-        img.className = 'ins-photo';
-        img.alt = pd.itemNum;
-        container.innerHTML = '';
-        container.appendChild(img);
-        loadDriveThumb(photos[0].id, img, container);
+    // Async: load first photo for each item (only if photo column exists)
+    const hasPhotoCol = (CFG.columns || []).some(c => c.key === 'photo');
+    if (hasPhotoCol) {
+      ownedItems.forEach((pd, idx) => {
+        if (!pd.photoItem) return;
+        const container = document.getElementById('ins-photo-' + idx);
+        if (!container) return;
+        driveGetFolderPhotos(pd.photoItem).then(photos => {
+          if (!photos || !photos.length) return;
+          const img = document.createElement('img');
+          img.className = 'ins-photo';
+          img.alt = pd.itemNum;
+          container.innerHTML = '';
+          container.appendChild(img);
+          loadDriveThumb(photos[0].id, img, container);
+        });
       });
-    });
+    }
+
+    // ── Signature / certification footer ─────────────────────
+    let footEl = document.getElementById('ins-report-foot');
+    if (!footEl) {
+      footEl = document.createElement('div');
+      footEl.id = 'ins-report-foot';
+      tableWrap.parentNode.insertBefore(footEl, tableWrap.nextSibling);
+    }
+    footEl.style.display = '';
+    footEl.innerHTML = `
+      <div class="ins-report-footer" style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border)">
+        ${CFG.footerCertification ? `<div style="font-size:0.85rem;color:var(--text-mid);line-height:1.55;margin-bottom:1.5rem;font-style:italic">${CFG.footerCertification}</div>` : ''}
+        <div style="display:flex;gap:2rem;flex-wrap:wrap;margin-top:1rem">
+          <div style="flex:1;min-width:240px">
+            <div style="border-bottom:1px solid var(--text);height:2.2rem"></div>
+            <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.25rem">${CFG.signatureLabel || 'Owner signature'}</div>
+          </div>
+          <div style="flex:0.5;min-width:140px">
+            <div style="border-bottom:1px solid var(--text);height:2.2rem"></div>
+            <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.25rem">${CFG.dateLabel || 'Date'}</div>
+          </div>
+        </div>
+      </div>`;
 
     return;
   } // end insurance
 
-  // Hide insurance header when switching to other report types
+  // Hide insurance header + footer when switching to other report types
   const _insHdr = document.getElementById('ins-report-hdr');
   if (_insHdr) _insHdr.style.display = 'none';
+  const _insFoot = document.getElementById('ins-report-foot');
+  if (_insFoot) _insFoot.style.display = 'none';
 
   if (type === 'wantlist') {
     thead.innerHTML = '<tr><th>Item #</th><th>Type</th><th>Description</th><th>Variation Description</th><th>Est. Market Value</th></tr>';

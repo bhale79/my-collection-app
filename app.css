@@ -1102,3 +1102,31 @@
 .road-combo-list .road-opt:last-child { border-bottom:none; }
 .road-combo-list .road-opt:hover, .road-combo-list .road-opt.active { background:rgba(212,168,67,0.15); }
 .road-combo-list .road-opt .road-count { float:right; font-size:0.75rem; color:var(--text-dim); }
+
+/* ── Insurance report print styles (Session 112) ── */
+/* When the user prints, hide app chrome and show just the report content. */
+@media print {
+  .sidebar, .mobile-nav, .tut-help-widget, #tut-help-widget, #tut-overlay,
+  #gmail-help-overlay, #onboarding-map-overlay, #onboarding-return-bar,
+  .header, #mnav, .nav-toggle, .report-controls, .qa-fab, #qa-panel,
+  #export-report-btn, #report-type, select, button {
+    display: none !important;
+  }
+  body, html { background: #fff !important; color: #000 !important; }
+  .main, #main-content, #page-reports, #page-reports * {
+    background: #fff !important;
+    color: #000 !important;
+    box-shadow: none !important;
+  }
+  #ins-report-hdr .ins-report-title { color: #000; font-size: 18pt; }
+  #ins-report-hdr .ins-report-meta span,
+  #ins-report-hdr .ins-report-subtitle { color: #333; }
+  #ins-report-foot { color: #000 !important; }
+  #ins-report-foot .ins-report-footer div[style*="border-bottom"] { border-bottom-color: #000 !important; }
+  .ins-photo-placeholder { background: #eee !important; color: #666 !important; border: 1px solid #999; }
+  table { page-break-inside: auto; }
+  tr { page-break-inside: avoid; }
+  thead { display: table-header-group; }   /* repeat headers per page */
+  .item-table th, .item-table td { border: 1px solid #888 !important; padding: 4pt 6pt; font-size: 9pt; }
+  .item-num { color: #000 !important; font-weight: bold; }
+}
