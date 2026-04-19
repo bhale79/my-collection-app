@@ -98,8 +98,10 @@ function openWizard(tab) {
   wizard = { step: 0, tab: tab, data: { tab: tab, _returnPage: _returnPage }, steps: getSteps(tab), matchedItem: null };
   document.getElementById('wizard-modal').classList.add('open');
   document.body.style.overflow = 'hidden';
-  // Push a history entry so the back button steps through the wizard
-  history.pushState({ appPage: 'wizard', step: 0 }, '', '');
+  // Register with BackStack so device back cleanly steps through wizard
+  // steps (and closes on step 1). Replaces the old in-line pushState
+  // because BackStack handles history entry pushing itself.
+  if (window.BackStack) window.BackStack.push('wizard', _wizardBackHandler);
   // Skip old-style 'choice' tab picker — but NOT itemCategory (we want that shown)
   if (wizard.steps[0] && wizard.steps[0].type === 'choice') {
     wizard.step = 1;
@@ -146,7 +148,30 @@ function _doCloseWizard() {
   const returnTo = wizard && wizard.data && wizard.data._returnPage;
   document.getElementById('wizard-modal').classList.remove('open');
   document.body.style.overflow = '';
+  // Rewind the BackStack entry we pushed on openWizard. If BackStack itself
+  // triggered this close (device back on step 1), the entry is already gone
+  // and pop() is a no-op; safe either way.
+  if (window.BackStack) window.BackStack.pop('wizard');
   if (returnTo) showPage(returnTo);
+}
+
+// Called by BackStack when the user hits the device back button with the
+// wizard open. Step > 0 → walk back one step (respects skipIf / set-mode
+// filtering via wizardBack()). Step 0 → run closeWizard() which keeps the
+// cancel-confirm guard if the user has entered data.
+function _wizardBackHandler() {
+  // BackStack has already popped our entry when it dispatched us.
+  if (!wizard || wizard.step <= 0) {
+    closeWizard();   // may show cancel-confirm if data entered
+  } else {
+    wizardBack();
+  }
+  // If the wizard is still open (user stepped back, OR declined the cancel
+  // confirm), re-push so the next device-back press still routes here.
+  var wizModal = document.getElementById('wizard-modal');
+  if (wizModal && wizModal.classList.contains('open')) {
+    if (window.BackStack) window.BackStack.push('wizard', _wizardBackHandler);
+  }
 }
 
 async function _confirmSetCancel() {
