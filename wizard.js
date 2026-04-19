@@ -541,9 +541,13 @@ function renderWizardStep() {
         <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
         ${(() => {
           const singleItem = findMaster(itemNum);
-          return singleItem && singleItem.refLink
-            ? '<a href="' + singleItem.refLink + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:0.4rem;margin-top:0.75rem;font-size:0.82rem;color:var(--accent2);text-decoration:none;padding:0.4rem 0.75rem;border:1px solid rgba(201,146,42,0.3);border-radius:6px;background:rgba(201,146,42,0.08)">View on COTT ↗</a>'
-            : '';
+          if (!singleItem || !singleItem.refLink) return '';
+          // Verbose label (e.g. "View on Atlas ↗") resolves per URL from
+          // item-search-filters-config.js — previously hardcoded to COTT.
+          const _label = (typeof window.resolveRefLabel === 'function')
+            ? window.resolveRefLabel(singleItem.refLink, { verbose: true })
+            : 'View reference \u2197';
+          return '<a href="' + singleItem.refLink + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:0.4rem;margin-top:0.75rem;font-size:0.82rem;color:var(--accent2);text-decoration:none;padding:0.4rem 0.75rem;border:1px solid rgba(201,146,42,0.3);border-radius:6px;background:rgba(201,146,42,0.08)">' + _label + '</a>';
         })()}
 
         </div>`;
@@ -555,7 +559,15 @@ function renderWizardStep() {
           <div style="display:flex;flex-direction:column;gap:0.5rem" id="var-cards">
             ${[{variation:'', varDesc:'No specific variation / not sure', refLink:''}, ...variations].map(v => {
               const isSelected = val===v.variation;
-              const cottLink = v.refLink ? `<a href="${v.refLink}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.75rem;color:var(--accent2);text-decoration:none;padding:0.2rem 0.5rem;border:1px solid rgba(201,146,42,0.3);border-radius:5px;background:rgba(201,146,42,0.08);flex-shrink:0;white-space:nowrap">COTT ↗</a>` : '';
+              // Short label resolves per URL (Atlas ↗ / COTT ↗ / View ↗) —
+              // previously hardcoded to "COTT ↗" for every row including
+              // Atlas items. See item-search-filters-config.js.
+              const _refShort = v.refLink
+                ? ((typeof window.resolveRefLabel === 'function')
+                    ? window.resolveRefLabel(v.refLink)
+                    : 'View \u2197')
+                : '';
+              const cottLink = v.refLink ? `<a href="${v.refLink}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.75rem;color:var(--accent2);text-decoration:none;padding:0.2rem 0.5rem;border:1px solid rgba(201,146,42,0.3);border-radius:5px;background:rgba(201,146,42,0.08);flex-shrink:0;white-space:nowrap">${_refShort}</a>` : '';
               return `
               <button onclick="wizardChooseVariation('${v.variation}')" style="
                 display:flex;flex-direction:column;gap:0.4rem;padding:0.85rem 1rem;
