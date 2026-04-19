@@ -1780,7 +1780,7 @@ function _searchInOtherEra(era, searchTerm) {
 async function loadMasterData() {
   // Use cached master data for instant load, refresh in background
   // Master data stored in IndexedDB (too large for localStorage)
-  const _CACHE_VER = '118';
+  const _CACHE_VER = '119';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     idbRemove('lv_master_cache');
     localStorage.removeItem('lv_master_cache');  // clean up old localStorage entry
