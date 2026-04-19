@@ -962,6 +962,42 @@
         }
     }},
 
+    { name: '119 filters: line 2 renders with non-zero height when details populated', fn: async function() {
+        if (typeof updateItemSuggestions !== 'function') return fail('updateItemSuggestions missing');
+        if (!window.state || !Array.isArray(state.masterData)) return okMsg('no master data — skipped');
+        if (!window.wizard) window.wizard = { tab: 'collection', data: {} };
+        else { wizard.tab = 'collection'; wizard.data = wizard.data || {}; }
+        // Put the dropdown into the real DOM so offsetHeight works.
+        var box = document.getElementById('wiz-suggestions');
+        var created = false;
+        if (!box) {
+          box = document.createElement('div');
+          box.id = 'wiz-suggestions';
+          box.style.cssText = 'display:flex;flex-direction:column;max-height:340px;overflow-y:auto';
+          document.body.appendChild(box);
+          created = true;
+        }
+        var marker = '__TRR_TEST_ROW_HEIGHT__';
+        var infoRow = { itemNum: marker, roadName:'Test Road', subType:'Test Subtype', varDesc:'', description:'A description that should make line 2 render with non-zero height', itemType:'Locomotive', refLink:'', _tab:'Test' };
+        state.masterData.unshift(infoRow);
+        try {
+          wizard.data._searchFilterType = '';
+          wizard.data._searchFilterRoad = '';
+          updateItemSuggestions(marker.toLowerCase());
+          var row = box.querySelector('[data-idx]');
+          if (!row) return fail('no row rendered');
+          if (row.children.length < 2) return fail('expected 2 child lines, got ' + row.children.length);
+          var line2 = row.children[1];
+          if (!line2.textContent) return fail('line 2 has no text content');
+          // offsetHeight > 0 only works if element is in actual layout — but even on a detached root this is reliable enough
+          if (line2.offsetHeight === 0) return fail('line 2 rendered at 0 height (rows are being compressed by parent flex)');
+          return okMsg('line2 h=' + line2.offsetHeight + 'px');
+        } finally {
+          state.masterData = state.masterData.filter(function(m) { return m.itemNum !== marker; });
+          if (created && box.parentNode) box.parentNode.removeChild(box);
+        }
+    }},
+
     //  ── Performance sentinel ──
     { name: '70 perf: buildPartnerMap under 50ms on current data', fn: function() {
         if (typeof buildPartnerMap !== 'function') return fail('buildPartnerMap missing');
