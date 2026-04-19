@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v144';
+const CACHE_NAME = 'mca-v145';
 
 const SHELL_FILES = [
   './index.html',
@@ -48,6 +48,7 @@ const SHELL_FILES = [
   './era-badges-config.js',
   './era-badges.js',
   './catalog-display-config.js',
+  './item-search-filters-config.js',
   './insurance-config.js',
   './reports.js',
   './prefs.js',
