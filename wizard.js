@@ -3221,8 +3221,10 @@ function renderWizardStep() {
         }
 
         var _typeSel = document.getElementById('wiz-search-type');
+        console.log('[WIZ-WIRE] typeSel found?', !!_typeSel);
         if (_typeSel) {
           _typeSel.addEventListener('change', function() {
+            console.log('[WIZ-WIRE] TYPE changed to:', this.value);
             wizard.data._searchFilterType = this.value || '';
             _refreshFilterDropdown(
               'wiz-search-road', 'roadName',
@@ -3235,8 +3237,10 @@ function renderWizardStep() {
           });
         }
         var _roadSel = document.getElementById('wiz-search-road');
+        console.log('[WIZ-WIRE] roadSel found?', !!_roadSel);
         if (_roadSel) {
           _roadSel.addEventListener('change', function() {
+            console.log('[WIZ-WIRE] ROAD changed to:', this.value);
             wizard.data._searchFilterRoad = this.value || '';
             _refreshFilterDropdown(
               'wiz-search-type', 'itemType',
