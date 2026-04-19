@@ -146,6 +146,7 @@ function handleUnitNumKey(e, field) {
 }
 
 function updateItemSuggestions(query) {
+  console.log('[UIS-RAW] called with query=', JSON.stringify(query), '| ft=', window.wizard?.data?._searchFilterType, '| fr=', window.wizard?.data?._searchFilterRoad, '| el?', !!document.getElementById('wiz-suggestions'));
   var _DBG = !!(window.wizard && wizard.data && (wizard.data._searchFilterType || wizard.data._searchFilterRoad));
   const el = document.getElementById('wiz-suggestions');
   if (_DBG) console.log('[UIS] enter query=', JSON.stringify(query), 'el?', !!el);
