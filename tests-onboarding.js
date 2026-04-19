@@ -780,13 +780,30 @@
         var c = window.ITEM_SEARCH_FILTERS || {};
         var ll = (c.ui || {}).linkLabel || {};
         if (!ll.patterns || !ll.patterns.length) return fail('linkLabel.patterns missing');
-        // Find each expected pattern
         var atlasHit = ll.patterns.some(function(p) { return p.match && p.match.test && p.match.test('https://www.atlasrr.com/items/123'); });
         var cottHit  = ll.patterns.some(function(p) { return p.match && p.match.test && p.match.test('https://cott.somewhere/ref/6464'); });
         if (!atlasHit) return fail('no pattern matched atlasrr.com URL');
         if (!cottHit)  return fail('no pattern matched cott URL');
-        // Default fallback needs to be non-empty
-        if (!ll.default) return fail('linkLabel.default missing');
+        if (!(ll.defaultShort || ll.default)) return fail('linkLabel.defaultShort/default missing');
+        if (!(ll.defaultVerbose || ll.default)) return fail('linkLabel.defaultVerbose/default missing');
+        return okMsg();
+    }},
+
+    { name: '113 filters: resolveRefLabel() returns short + verbose for each source', fn: async function() {
+        if (typeof window.resolveRefLabel !== 'function') return fail('window.resolveRefLabel missing');
+        var cases = [
+          { url: 'https://www.atlasrr.com/x', expectShort: /atlas/i, expectVerbose: /view on .*atlas/i },
+          { url: 'http://cott.example/x',     expectShort: /cott/i,  expectVerbose: /view on .*cott/i  },
+          { url: 'https://greenberg-books.example/x', expectShort: /view/i, expectVerbose: /view/i },
+          { url: '',                           expectShort: /^$/,     expectVerbose: /^$/ },
+        ];
+        for (var i = 0; i < cases.length; i++) {
+          var cse = cases[i];
+          var s = window.resolveRefLabel(cse.url);
+          var v = window.resolveRefLabel(cse.url, { verbose: true });
+          if (!cse.expectShort.test(s)) return fail('short for ' + JSON.stringify(cse.url) + ' = "' + s + '"');
+          if (!cse.expectVerbose.test(v)) return fail('verbose for ' + JSON.stringify(cse.url) + ' = "' + v + '"');
+        }
         return okMsg();
     }},
 
