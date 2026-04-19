@@ -146,19 +146,22 @@ function handleUnitNumKey(e, field) {
 }
 
 function updateItemSuggestions(query) {
-  console.log('[UIS-RAW] called with query=', JSON.stringify(query), '| ft=', window.wizard?.data?._searchFilterType, '| fr=', window.wizard?.data?._searchFilterRoad, '| el?', !!document.getElementById('wiz-suggestions'));
-  var _DBG = !!(window.wizard && wizard.data && (wizard.data._searchFilterType || wizard.data._searchFilterRoad));
+  // NOTE: `wizard` in wizard.js is declared with `let` at script top-level,
+  // which creates a global LEXICAL binding (visible to other scripts) but
+  // does NOT create a property on `window`. So `window.wizard` is undefined
+  // even when `wizard` itself is fully populated. Reference the lexical
+  // binding directly. typeof guard avoids ReferenceError if a future
+  // refactor changes the load order.
+  var _w = (typeof wizard !== 'undefined') ? wizard : null;
   const el = document.getElementById('wiz-suggestions');
-  if (_DBG) console.log('[UIS] enter query=', JSON.stringify(query), 'el?', !!el);
   if (!el) return;
   const q = (query || '').trim().toLowerCase();
   // Allow filter-only queries (Type or Road selected with empty text) to
   // show results without requiring the user to type anything. Only hide
   // the suggestion box when there's no query AND no active filter.
-  var _hasFilter = !!(window.wizard && wizard.data &&
-    (wizard.data._searchFilterType || wizard.data._searchFilterRoad));
-  if (_DBG) console.log('[UIS] q=', JSON.stringify(q), 'hasFilter=', _hasFilter, 'ft=', wizard?.data?._searchFilterType, 'fr=', wizard?.data?._searchFilterRoad, 'tab=', wizard?.tab);
-  if (q.length < 1 && !_hasFilter) { if (_DBG) console.log('[UIS] early return: empty query + no filter'); el.style.display = 'none'; el.innerHTML = ''; return; }
+  var _hasFilter = !!(_w && _w.data &&
+    (_w.data._searchFilterType || _w.data._searchFilterRoad));
+  if (q.length < 1 && !_hasFilter) { el.style.display = 'none'; el.innerHTML = ''; return; }
 
   const tab = wizard.tab;
   let candidates = [];
@@ -236,7 +239,6 @@ function updateItemSuggestions(query) {
       }
     });
 
-    if (_DBG) console.log('[UIS] after loop: candidates=', candidates.length);
     // Post-filter: drop "bare" candidates (all disambiguator fields blank)
     // when a more-informative candidate with the same itemNum exists.
     // The master sheet has phantom/placeholder rows for some items that
@@ -252,7 +254,6 @@ function updateItemSuggestions(query) {
       // Drop only if a sibling populated row exists for this itemNum.
       return !_informative.has(c.num);
     });
-    if (_DBG) console.log('[UIS] after phantom filter: candidates=', candidates.length);
   }
 
   // Sort: for number searches, starts-with first; for text searches, keep natural order
@@ -267,8 +268,7 @@ function updateItemSuggestions(query) {
     });
   }
 
-  if (_DBG) console.log('[UIS] before render: candidates=', candidates.length);
-  if (candidates.length === 0) { if (_DBG) console.log('[UIS] early return: 0 candidates'); el.style.display = 'none'; el.innerHTML = ''; return; }
+  if (candidates.length === 0) { el.style.display = 'none'; el.innerHTML = ''; return; }
 
   _suggestionIndex = -1;
   el.innerHTML = '';
@@ -387,7 +387,6 @@ function updateItemSuggestions(query) {
     el.appendChild(row);
   });
   el.style.display = 'flex';
-  if (_DBG) console.log('[UIS] rendered rows=', candidates.length, 'box display=', el.style.display, 'children=', el.children.length);
 }
 
 // Distinct non-blank values of a master-row field, for populating the
