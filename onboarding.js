@@ -26,6 +26,9 @@
     _removeOverlay();
     _mountOverlay();
     _renderScreen();
+    // Device back = skip the tour (same as the in-modal "Skip tour" button).
+    // In-tour Next/Back handle cross-screen navigation separately.
+    if (window.BackStack) window.BackStack.push('onboarding-tour', _completeSilently);
   }
   window.showFeatureMap = showFeatureMap;
 
@@ -35,6 +38,16 @@
   // Session 112: open a small standalone modal showing the GIF demo list.
   // Placeholders today; once TUTORIAL_GIFS.demos have gifUrl populated the
   // buttons become launchers (same _openGifModal used by the Help menu).
+  function _closeGifsPreviewSilently() {
+    var el = document.getElementById('onboard-gifs-preview');
+    if (el) el.remove();
+  }
+  function onboardCloseGifsPreview() {
+    _closeGifsPreviewSilently();
+    if (window.BackStack) window.BackStack.pop('onboard-gifs-preview');
+  }
+  window.onboardCloseGifsPreview = onboardCloseGifsPreview;
+
   function onboardShowGifsPreview() {
     var cfg = window.TUTORIAL_GIFS || {};
     var existing = document.getElementById('onboard-gifs-preview');
@@ -63,17 +76,18 @@
       '<div style="background:var(--surface);border-radius:14px;max-width:560px;width:100%;padding:1.4rem;box-shadow:0 20px 60px rgba(0,0,0,0.5);margin:auto 0">' +
         '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.8rem">' +
           '<div style="font-family:var(--font-head);font-size:1.3rem;font-weight:700;color:var(--text)">' + _escape(cfg.sectionTitle || 'Watch how it works') + '</div>' +
-          '<button onclick="document.getElementById(\'onboard-gifs-preview\').remove()" aria-label="Close" style="background:none;border:none;color:var(--text-mid);font-size:1.6rem;cursor:pointer;padding:0.2rem 0.5rem;line-height:1">\u00D7</button>' +
+          '<button onclick="onboardCloseGifsPreview()" aria-label="Close" style="background:none;border:none;color:var(--text-mid);font-size:1.6rem;cursor:pointer;padding:0.2rem 0.5rem;line-height:1">\u00D7</button>' +
         '</div>' +
         (cfg.sectionNote ? '<div style="font-size:' + s.small + ';color:var(--text-dim);margin-bottom:0.8rem;font-style:italic">' + _escape(cfg.sectionNote) + '</div>' : '') +
         '<div>' + list + '</div>' +
         '<div style="font-size:' + s.small + ';color:var(--text-dim);margin-top:1.2rem;padding-top:0.8rem;border-top:1px solid var(--border);text-align:center">You can also find these in the <strong>Help menu</strong> any time.</div>' +
         '<div style="text-align:center;margin-top:1rem">' +
-          '<button onclick="document.getElementById(\'onboard-gifs-preview\').remove()" style="padding:0.8rem 1.6rem;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:' + s.body + ';font-weight:700;cursor:pointer;min-height:' + s.btnH + '">Back to tour</button>' +
+          '<button onclick="onboardCloseGifsPreview()" style="padding:0.8rem 1.6rem;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:' + s.body + ';font-weight:700;cursor:pointer;min-height:' + s.btnH + '">Back to tour</button>' +
         '</div>' +
       '</div>';
-    ov.onclick = function(e) { if (e.target === ov) ov.remove(); };
+    ov.onclick = function(e) { if (e.target === ov) onboardCloseGifsPreview(); };
     document.body.appendChild(ov);
+    if (window.BackStack) window.BackStack.push('onboard-gifs-preview', _closeGifsPreviewSilently);
   }
   window.onboardShowGifsPreview = onboardShowGifsPreview;
 
@@ -543,6 +557,13 @@
   }
 
   function _complete() {
+    _completeSilently();
+    if (window.BackStack) window.BackStack.pop('onboarding-tour');
+  }
+
+  // Same teardown without touching BackStack — used when BackStack itself
+  // triggered the close (device-back press already popped its own entry).
+  function _completeSilently() {
     _persistSeen();
     _removeOverlay();
     _hideReturnBar();
