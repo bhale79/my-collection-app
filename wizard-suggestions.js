@@ -290,12 +290,18 @@ function updateItemSuggestions(query) {
     row.dataset.idx = i;
     // box-sizing + max-width keep the row bounded; horizontal scroll is
     // prevented at the roadSpan level (min-width:0 + ellipsis) so we
-    // deliberately do NOT set overflow:hidden on the row — that was
-    // clipping line 2 when it combined with flex-column height quirks.
+    // deliberately do NOT set overflow:hidden on the row.
+    //
+    // flex-shrink:0 is CRITICAL: the parent #wiz-suggestions is a flex
+    // column with max-height:340px. Without flex-shrink:0 here, many
+    // matches get VERTICALLY COMPRESSED to fit (each row squeezed below
+    // its natural content height — line 2 rendered at height 0). With
+    // flex-shrink:0 the rows keep their natural height and the parent's
+    // overflow-y:auto handles scrolling.
     row.style.cssText = 'text-align:left;width:100%;padding:0.55rem 0.75rem;border:none;background:transparent;'
       + 'border-radius:6px;cursor:pointer;color:var(--text);font-family:var(--font-body);'
       + 'display:flex;flex-direction:column;gap:0.18rem;min-height:44px;'
-      + 'box-sizing:border-box;max-width:100%';
+      + 'box-sizing:border-box;max-width:100%;flex-shrink:0';
     row.onmouseenter = function() { highlightSuggestion(i); };
     row.dataset.roadName = c.roadName || '';
     row.onclick = function() { selectSuggestion(c.num, c.roadName || ''); };
