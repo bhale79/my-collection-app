@@ -32,6 +32,51 @@
   function onboardReopenTour() { showFeatureMap(); }
   window.onboardReopenTour = onboardReopenTour;
 
+  // Session 112: open a small standalone modal showing the GIF demo list.
+  // Placeholders today; once TUTORIAL_GIFS.demos have gifUrl populated the
+  // buttons become launchers (same _openGifModal used by the Help menu).
+  function onboardShowGifsPreview() {
+    var cfg = window.TUTORIAL_GIFS || {};
+    var existing = document.getElementById('onboard-gifs-preview');
+    if (existing) existing.remove();
+    var ov = document.createElement('div');
+    ov.id = 'onboard-gifs-preview';
+    var s = _styles();
+    ov.style.cssText =
+      'position:fixed;inset:0;background:rgba(10,14,20,0.90);z-index:' + (s.z + 5) + ';' +
+      'display:flex;align-items:flex-start;justify-content:center;padding:1.5rem;overflow-y:auto';
+    var list = (cfg.demos || []).map(function(d) {
+      var comingSoon = !d.gifUrl;
+      var badge = comingSoon
+        ? '<span style="font-size:' + s.small + ';color:var(--text-dim);font-style:italic">' + _escape(cfg.comingSoonBadge || 'Coming soon') + '</span>'
+        : '<span style="font-size:' + s.small + ';color:#27ae60;font-weight:600">Ready</span>';
+      return '<div style="display:flex;align-items:center;gap:0.75rem;padding:0.9rem 0;border-bottom:1px solid var(--border)">' +
+        '<div style="font-size:1.5rem">\uD83C\uDFAC</div>' +
+        '<div style="flex:1">' +
+          '<div style="font-weight:600;font-size:' + s.body + ';color:var(--text)">' + _escape(d.title || '') + '</div>' +
+          (d.description ? '<div style="font-size:' + s.small + ';color:var(--text-mid);margin-top:0.15rem">' + _escape(d.description) + '</div>' : '') +
+        '</div>' +
+        badge +
+      '</div>';
+    }).join('');
+    ov.innerHTML =
+      '<div style="background:var(--surface);border-radius:14px;max-width:560px;width:100%;padding:1.4rem;box-shadow:0 20px 60px rgba(0,0,0,0.5);margin:auto 0">' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.8rem">' +
+          '<div style="font-family:var(--font-head);font-size:1.3rem;font-weight:700;color:var(--text)">' + _escape(cfg.sectionTitle || 'Watch how it works') + '</div>' +
+          '<button onclick="document.getElementById(\'onboard-gifs-preview\').remove()" aria-label="Close" style="background:none;border:none;color:var(--text-mid);font-size:1.6rem;cursor:pointer;padding:0.2rem 0.5rem;line-height:1">\u00D7</button>' +
+        '</div>' +
+        (cfg.sectionNote ? '<div style="font-size:' + s.small + ';color:var(--text-dim);margin-bottom:0.8rem;font-style:italic">' + _escape(cfg.sectionNote) + '</div>' : '') +
+        '<div>' + list + '</div>' +
+        '<div style="font-size:' + s.small + ';color:var(--text-dim);margin-top:1.2rem;padding-top:0.8rem;border-top:1px solid var(--border);text-align:center">You can also find these in the <strong>Help menu</strong> any time.</div>' +
+        '<div style="text-align:center;margin-top:1rem">' +
+          '<button onclick="document.getElementById(\'onboard-gifs-preview\').remove()" style="padding:0.8rem 1.6rem;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:' + s.body + ';font-weight:700;cursor:pointer;min-height:' + s.btnH + '">Back to tour</button>' +
+        '</div>' +
+      '</div>';
+    ov.onclick = function(e) { if (e.target === ov) ov.remove(); };
+    document.body.appendChild(ov);
+  }
+  window.onboardShowGifsPreview = onboardShowGifsPreview;
+
   function onboardNext() {
     if (_screen === 2) _savePrefsFromForm();   // save whatever was ticked
     _screen = Math.min(TOTAL_SCREENS + 1, _screen + 1);
@@ -248,7 +293,21 @@
       'margin-bottom:1.3rem">';
     (window.FEATURE_MAP || []).forEach(function(f) { cards += _buildCardHtml(f); });
     cards += '</div>';
-    wrap.innerHTML = intro + cards;
+    // Session 112: link to GIFs section of Help menu (closes onboarding
+    // arc from earlier user ask: "mentioned or ability to click on it").
+    var gifsLink = '';
+    if (window.TUTORIAL_GIFS && (window.TUTORIAL_GIFS.demos || []).length) {
+      gifsLink =
+        '<div style="text-align:center;margin:0.3rem 0 1rem">' +
+          '<button onclick="onboardShowGifsPreview()" style="' +
+            'background:none;border:1px dashed var(--border);border-radius:10px;' +
+            'padding:0.8rem 1.2rem;color:var(--accent);font-family:var(--font-body);' +
+            'font-size:' + s.linkBtn + ';cursor:pointer;min-height:' + s.btnH + ';font-weight:600">' +
+            '\uD83C\uDFAC  Watch how-to demos \u2192' +
+          '</button>' +
+        '</div>';
+    }
+    wrap.innerHTML = intro + cards + gifsLink;
     // Restore scroll position if returning from a preview
     setTimeout(function() {
       if (_lastCardId) {

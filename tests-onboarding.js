@@ -496,6 +496,42 @@
         return (Array.isArray(g.demos) && g.demos.length) ? okMsg(g.demos.length + ' demos configured') : fail('TUTORIAL_GIFS.demos missing/empty');
     }},
 
+    //  ── Era badges (Session 112) ──
+    { name: '96 badges: ERA_BADGES config + helpers exposed', fn: function() {
+        if (!window.ERA_BADGES) return fail('ERA_BADGES missing');
+        if (typeof eraForTab !== 'function') return fail('eraForTab missing');
+        if (typeof eraBadgeHTML !== 'function') return fail('eraBadgeHTML missing');
+        return okMsg();
+    }},
+
+    { name: '97 badges: eraForTab resolves known tabs', fn: function() {
+        var cases = [
+          ['Lionel PW - Items', 'pw'],
+          ['MPC-Modern', 'mpc'],
+          ['Atlas O', 'atlas'],
+          ['Pre-War', 'prewar'],
+        ];
+        var fails = [];
+        cases.forEach(function(c) {
+          var got = eraForTab(c[0]);
+          if (got !== c[1]) fails.push(c[0] + '→' + got + ' expected ' + c[1]);
+        });
+        return fails.length ? fail(fails.join(', ')) : okMsg();
+    }},
+
+    { name: '98 badges: eraBadgeHTML returns markup for known tab, empty for unknown', fn: function() {
+        var html = eraBadgeHTML('Lionel PW - Items');
+        if (!/era-badge/.test(html)) return fail('known tab produced empty/wrong HTML: ' + html);
+        var unknown = eraBadgeHTML('NotARealTab');
+        if (unknown !== '') return fail('unknown tab should return empty string, got: ' + unknown);
+        return okMsg();
+    }},
+
+    //  ── Feature Map → GIFs link (Session 112) ──
+    { name: '99 gifsLink: onboardShowGifsPreview global exists', fn: function() {
+        return typeof onboardShowGifsPreview === 'function' ? okMsg() : fail('missing');
+    }},
+
     //  ── Performance sentinel ──
     { name: '70 perf: buildPartnerMap under 50ms on current data', fn: function() {
         if (typeof buildPartnerMap !== 'function') return fail('buildPartnerMap missing');
