@@ -713,6 +713,69 @@
         return okMsg();
     }},
 
+    //  ── Item-search filters + COTT link (Session 113b) ──
+    { name: '109 filters: ITEM_SEARCH_FILTERS config exposed', fn: function() {
+        var c = window.ITEM_SEARCH_FILTERS;
+        if (!c) return fail('ITEM_SEARCH_FILTERS missing');
+        if (!c.ui || !c.sizing) return fail('config shape wrong (need ui + sizing)');
+        if (!c.applyToTabs || c.applyToTabs.indexOf('collection') === -1)
+          return fail('applyToTabs should include "collection"');
+        return okMsg();
+    }},
+
+    { name: '110 filters: getMasterDistinct returns sorted non-blank values', fn: function() {
+        if (typeof getMasterDistinct !== 'function') return fail('getMasterDistinct missing');
+        var roads = getMasterDistinct('roadName');
+        if (!Array.isArray(roads)) return fail('expected array');
+        // Verify sorted + non-blank
+        for (var i = 0; i < roads.length; i++) {
+          if (!roads[i] || !roads[i].trim().length) return fail('blank value at idx ' + i);
+          if (i > 0 && roads[i-1].localeCompare(roads[i]) > 0) return fail('not sorted at idx ' + i);
+        }
+        return okMsg(roads.length + ' roads');
+    }},
+
+    { name: '111 filters: updateItemSuggestions respects Type/Road filters', fn: async function() {
+        if (typeof updateItemSuggestions !== 'function') return fail('updateItemSuggestions missing');
+        if (!window.wizard) window.wizard = { tab: 'collection', data: {} };
+        else { wizard.tab = 'collection'; wizard.data = wizard.data || {}; }
+        // Need the suggestions container to exist
+        var box = document.getElementById('wiz-suggestions');
+        var created = false;
+        if (!box) {
+          box = document.createElement('div');
+          box.id = 'wiz-suggestions';
+          box.style.display = 'none';
+          document.body.appendChild(box);
+          created = true;
+        }
+        try {
+          // Baseline: unfiltered search for a common letter returns some rows
+          wizard.data._searchFilterType = '';
+          wizard.data._searchFilterRoad = '';
+          updateItemSuggestions('a');
+          var unfilteredCount = box.querySelectorAll('[data-idx]').length;
+          // Pick an actual road that exists in the data
+          var roads = getMasterDistinct('roadName');
+          if (!roads.length) return okMsg('no road names in data — skipped filter check');
+          wizard.data._searchFilterRoad = roads[0];
+          updateItemSuggestions('a');
+          var filteredCount = box.querySelectorAll('[data-idx]').length;
+          if (filteredCount > unfilteredCount) return fail('filter INCREASED results (was ' + unfilteredCount + ', now ' + filteredCount + ')');
+          // Check every surviving row's dataset.roadName matches the filter
+          var rows = box.querySelectorAll('[data-idx]');
+          for (var i = 0; i < rows.length; i++) {
+            if (rows[i].dataset.roadName !== roads[0])
+              return fail('row ' + i + ' has road "' + rows[i].dataset.roadName + '" expected "' + roads[0] + '"');
+          }
+        } finally {
+          wizard.data._searchFilterType = '';
+          wizard.data._searchFilterRoad = '';
+          if (created && box.parentNode) box.parentNode.removeChild(box);
+        }
+        return okMsg();
+    }},
+
     //  ── Performance sentinel ──
     { name: '70 perf: buildPartnerMap under 50ms on current data', fn: function() {
         if (typeof buildPartnerMap !== 'function') return fail('buildPartnerMap missing');
