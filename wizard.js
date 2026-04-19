@@ -157,17 +157,24 @@ function _doCloseWizard() {
 
 // Called by BackStack when the user hits the device back button with the
 // wizard open. Step > 0 → walk back one step (respects skipIf / set-mode
-// filtering via wizardBack()). Step 0 → run closeWizard() which keeps the
-// cancel-confirm guard if the user has entered data.
+// filtering via wizardBack()). Step 0 → close silently.
+//
+// Step 0 deliberately skips the discard-confirm dialog in closeWizard()
+// because on the first step the only "data" present is typically a raw
+// search query (e.g. "nashville") the user typed into the item-lookup
+// box — oninput sets wizard.data.itemNum while typing. That's not a
+// commitment worth prompting over. Once the user has picked a specific
+// item and stepped forward, closeWizard's guard still applies via the
+// toolbar Cancel button.
 function _wizardBackHandler() {
   // BackStack has already popped our entry when it dispatched us.
   if (!wizard || wizard.step <= 0) {
-    closeWizard();   // may show cancel-confirm if data entered
+    _doCloseWizard();
   } else {
     wizardBack();
   }
-  // If the wizard is still open (user stepped back, OR declined the cancel
-  // confirm), re-push so the next device-back press still routes here.
+  // If the wizard is still open (user stepped back), re-push so the next
+  // device-back press still routes here.
   var wizModal = document.getElementById('wizard-modal');
   if (wizModal && wizModal.classList.contains('open')) {
     if (window.BackStack) window.BackStack.push('wizard', _wizardBackHandler);
