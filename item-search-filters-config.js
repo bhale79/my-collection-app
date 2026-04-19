@@ -61,6 +61,21 @@ window.ITEM_SEARCH_FILTERS = {
   // use wizard.data._returnPage personal inventory and the dropdowns are
   // not useful there.
   applyToTabs: ['collection', 'want'],
+
+  // Fields from a master row used to build the line-2 disambiguator on a
+  // suggestion row. Joined with ` · ` in order, blanks skipped. Trimmed to
+  // rowDetailsMaxLen. Reorder / add / remove to change what shows — no
+  // code edits needed.
+  rowDetailsFields: ['subType', 'varDesc', 'description'],
+  rowDetailsSep:    ' \u00B7 ',
+  rowDetailsMaxLen: 110,
+
+  // Dedup key for the suggestion list. Keep `itemNum` first; other fields
+  // extend the key so variations with distinct subType/varDesc/etc do
+  // NOT collapse into a single row (which was hiding real differences).
+  // Fields included must also be pushed onto the candidate object in
+  // wizard-suggestions.js.
+  dedupKeyFields:   ['itemNum', 'roadName', 'subType', 'varDesc'],
 };
 
 // ─── Shared resolver ──────────────────────────────────────────────
