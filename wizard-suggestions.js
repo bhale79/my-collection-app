@@ -201,19 +201,25 @@ function updateItemSuggestions(query) {
 
       if (!matches) return;
 
-      // Deduplicate by itemNum+roadName so items with multiple road names each get a row
-      const _dedupeKey = m.itemNum + '|' + (m.roadName || '');
+      // Dedup key fields come from config so variations with different
+      // subType/varDesc/etc don't collapse into a single row (was hiding
+      // real differences on rows that looked identical).
+      var _dedupFields = (window.ITEM_SEARCH_FILTERS && window.ITEM_SEARCH_FILTERS.dedupKeyFields)
+        || ['itemNum', 'roadName'];
+      var _dedupeKey = _dedupFields.map(function(f) { return (m[f] || ''); }).join('|');
       if (!seen.has(_dedupeKey)) {
         seen.add(_dedupeKey);
         const road = m.roadName || '';
-        const desc = [road, m.description].filter(Boolean).join(' \u2014 ');
         candidates.push({
-          num:      m.itemNum,
-          roadName: road,
-          itemType: m.itemType || '',
-          refLink:  m.refLink  || '',   // surfaces COTT ↗ link on suggestion row
-          label:    m.itemNum,
-          sub:      desc.substring(0, 55),
+          num:         m.itemNum,
+          roadName:    road,
+          itemType:    m.itemType    || '',
+          subType:     m.subType     || '',
+          varDesc:     m.varDesc     || '',
+          description: m.description || '',
+          trackPower:  m.trackPower  || '',
+          refLink:     m.refLink     || '',
+          label:       m.itemNum,
         });
       }
     });
@@ -251,16 +257,24 @@ function updateItemSuggestions(query) {
     return url ? (_cfg.cottLinkLabel || 'View \u2197') : '';
   };
 
+  // Config-driven row-2 recipe: which fields to join, with what separator,
+  // capped length so a verbose description doesn't blow the row height.
+  var _rowFields = (window.ITEM_SEARCH_FILTERS && window.ITEM_SEARCH_FILTERS.rowDetailsFields)
+    || ['subType', 'varDesc', 'description'];
+  var _rowSep    = (window.ITEM_SEARCH_FILTERS && window.ITEM_SEARCH_FILTERS.rowDetailsSep) || ' \u00B7 ';
+  var _rowMaxLen = (window.ITEM_SEARCH_FILTERS && window.ITEM_SEARCH_FILTERS.rowDetailsMaxLen) || 110;
+
   candidates.forEach(function(c, i) {
-    // NOTE: using a <div role="button"> instead of <button> so we can safely
-    // nest a real <a> for the COTT ↗ reference link without invalid HTML.
+    // Outer row is a column flex so we get a visual line-1 (item# + road
+    // + reference link) over a line-2 (details). Role="button" lets us
+    // nest a real <a> for the reference link without invalid HTML.
     const row = document.createElement('div');
     row.setAttribute('role', 'button');
     row.setAttribute('tabindex', '0');
     row.dataset.idx = i;
-    row.style.cssText = 'text-align:left;width:100%;padding:0.65rem 0.75rem;border:none;background:transparent;'
+    row.style.cssText = 'text-align:left;width:100%;padding:0.55rem 0.75rem;border:none;background:transparent;'
       + 'border-radius:6px;cursor:pointer;color:var(--text);font-family:var(--font-body);'
-      + 'display:flex;align-items:baseline;gap:0.5rem;min-height:44px';
+      + 'display:flex;flex-direction:column;gap:0.18rem;min-height:44px';
     row.onmouseenter = function() { highlightSuggestion(i); };
     row.dataset.roadName = c.roadName || '';
     row.onclick = function() { selectSuggestion(c.num, c.roadName || ''); };
@@ -268,22 +282,28 @@ function updateItemSuggestions(query) {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectSuggestion(c.num, c.roadName || ''); }
     };
 
+    // ── Line 1 ── item# · road name · reference link (far right)
+    const line1 = document.createElement('div');
+    line1.style.cssText = 'display:flex;align-items:baseline;gap:0.5rem;width:100%';
+
     const numSpan = document.createElement('span');
     numSpan.style.cssText = 'font-family:var(--font-mono);font-weight:600;color:var(--accent2);font-size:0.95rem;flex-shrink:0';
     numSpan.textContent = c.num;
-    row.appendChild(numSpan);
+    line1.appendChild(numSpan);
 
-    if (c.sub) {
-      const subSpan = document.createElement('span');
-      subSpan.style.cssText = 'font-size:0.75rem;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1';
-      subSpan.textContent = c.sub;
-      row.appendChild(subSpan);
+    if (c.roadName) {
+      const roadSpan = document.createElement('span');
+      roadSpan.style.cssText = 'font-size:0.82rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1';
+      roadSpan.textContent = c.roadName;
+      line1.appendChild(roadSpan);
+    } else {
+      // Spacer so the reference link stays pinned right even with no road.
+      const spacer = document.createElement('span');
+      spacer.style.cssText = 'flex:1';
+      line1.appendChild(spacer);
     }
 
-    // Reference link — lets the user verify the exact item before
-    // selecting. Label is URL-resolved (Atlas.com → Atlas ↗, COTT → COTT ↗,
-    // else → View ↗). stopPropagation so tapping the link opens the
-    // external page instead of selecting the suggestion.
+    // Reference link — Atlas ↗ / COTT ↗ / View ↗ per URL.
     if (c.refLink) {
       const refA = document.createElement('a');
       refA.href = c.refLink;
@@ -291,10 +311,25 @@ function updateItemSuggestions(query) {
       refA.rel = 'noopener';
       refA.textContent = _resolveRefLabel(c.refLink);
       refA.onclick = function(ev) { ev.stopPropagation(); };
-      refA.style.cssText = 'font-size:0.75rem;color:var(--accent2);text-decoration:none;'
-        + 'padding:0.25rem 0.55rem;border:1px solid rgba(201,146,42,0.35);border-radius:6px;'
+      refA.style.cssText = 'font-size:0.72rem;color:var(--accent2);text-decoration:none;'
+        + 'padding:0.2rem 0.5rem;border:1px solid rgba(201,146,42,0.35);border-radius:6px;'
         + 'background:rgba(201,146,42,0.08);flex-shrink:0;white-space:nowrap;font-weight:600';
-      row.appendChild(refA);
+      line1.appendChild(refA);
+    }
+    row.appendChild(line1);
+
+    // ── Line 2 ── disambiguator (subType · varDesc · description, etc.)
+    var _detailsParts = _rowFields
+      .map(function(f) { return (c[f] || '').toString().trim(); })
+      .filter(function(v) { return v.length > 0; });
+    var _details = _detailsParts.join(_rowSep);
+    if (_details.length > _rowMaxLen) _details = _details.substring(0, _rowMaxLen - 1) + '\u2026';
+    if (_details) {
+      const line2 = document.createElement('div');
+      line2.style.cssText = 'font-size:0.72rem;color:var(--text-dim);line-height:1.35;'
+        + 'white-space:normal;overflow:hidden';
+      line2.textContent = _details;
+      row.appendChild(line2);
     }
 
     el.appendChild(row);
