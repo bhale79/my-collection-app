@@ -36,14 +36,25 @@
       ';display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:1.5rem';
     ov.appendChild(_buildChooser());
     document.body.appendChild(ov);
+    // Device-back button: close the whole Gmail help modal.
+    // In-modal "← Back" button is a separate control that flips path→chooser.
+    if (window.BackStack) window.BackStack.push('gmail-help', _closeSilently);
   }
   window.gmailShowHelp = gmailShowHelp;
 
   function gmailCloseHelp() {
+    _closeSilently();
+    if (window.BackStack) window.BackStack.pop('gmail-help');
+  }
+  window.gmailCloseHelp = gmailCloseHelp;
+
+  // Called either by voluntary close (gmailCloseHelp) or by BackStack on a
+  // device-back press. The difference: only the voluntary path pops the
+  // BackStack entry — BackStack already removes it when it triggers us.
+  function _closeSilently() {
     _removeExisting();
     _currentPath = null;
   }
-  window.gmailCloseHelp = gmailCloseHelp;
 
   function gmailShowPath(pathId) {
     var cfg = window.GMAIL_HELP || {};
@@ -54,17 +65,25 @@
     if (!ov) { gmailShowHelp(); ov = document.getElementById('gmail-help-overlay'); }
     ov.innerHTML = '';
     ov.appendChild(_buildPath(path));
+    // Second stack level: device-back from a path view goes back to the
+    // chooser (same as the in-modal ← Back button), not straight out.
+    if (window.BackStack) window.BackStack.push('gmail-help:path', _backToChooserSilently);
   }
   window.gmailShowPath = gmailShowPath;
 
   function gmailBackToChooser() {
+    _backToChooserSilently();
+    if (window.BackStack) window.BackStack.pop('gmail-help:path');
+  }
+  window.gmailBackToChooser = gmailBackToChooser;
+
+  function _backToChooserSilently() {
     _currentPath = null;
     var ov = document.getElementById('gmail-help-overlay');
     if (!ov) return;
     ov.innerHTML = '';
     ov.appendChild(_buildChooser());
   }
-  window.gmailBackToChooser = gmailBackToChooser;
 
   function gmailPrintGuide(pathId) {
     var cfg = window.GMAIL_HELP || {};
