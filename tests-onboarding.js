@@ -807,6 +807,67 @@
         return okMsg();
     }},
 
+    { name: '114 filters: dedupKeyFields + rowDetailsFields configured', fn: function() {
+        var c = window.ITEM_SEARCH_FILTERS || {};
+        if (!Array.isArray(c.dedupKeyFields) || c.dedupKeyFields.indexOf('itemNum') === -1)
+          return fail('dedupKeyFields must include itemNum');
+        if (!Array.isArray(c.rowDetailsFields) || !c.rowDetailsFields.length)
+          return fail('rowDetailsFields missing or empty');
+        return okMsg();
+    }},
+
+    { name: '115 filters: suggestion rows render line-1 + line-2 when details present', fn: async function() {
+        if (typeof updateItemSuggestions !== 'function') return fail('updateItemSuggestions missing');
+        if (!window.state || !Array.isArray(state.masterData)) return okMsg('no master data — skipped');
+        if (!window.wizard) window.wizard = { tab: 'collection', data: {} };
+        else { wizard.tab = 'collection'; wizard.data = wizard.data || {}; }
+        var box = document.getElementById('wiz-suggestions');
+        var created = false;
+        if (!box) {
+          box = document.createElement('div');
+          box.id = 'wiz-suggestions';
+          box.style.display = 'none';
+          document.body.appendChild(box);
+          created = true;
+        }
+        try {
+          wizard.data._searchFilterType = '';
+          wizard.data._searchFilterRoad = '';
+          // Find a query that returns at least one candidate with details
+          var queries = ['a', 'e', 'i', '1', '2'];
+          var foundDetailsRow = false;
+          var foundAnyRow = false;
+          for (var qi = 0; qi < queries.length && !foundDetailsRow; qi++) {
+            updateItemSuggestions(queries[qi]);
+            var rows = box.querySelectorAll('[data-idx]');
+            if (!rows.length) continue;
+            foundAnyRow = true;
+            for (var ri = 0; ri < rows.length; ri++) {
+              // Each row should have a line-1 (first child div with flex-row)
+              var children = rows[ri].children;
+              if (children.length < 1) return fail('row has no children');
+              // If there's a second child, it's the details line
+              if (children.length >= 2 && children[1].textContent && children[1].textContent.trim().length > 0) {
+                foundDetailsRow = true;
+                break;
+              }
+            }
+          }
+          if (!foundAnyRow) return okMsg('no rows matched common letters — skipped');
+          // Not a failure if none of the shown items happened to have details,
+          // but we should at least verify the row STRUCTURE is column-flex.
+          var anyRow = box.querySelector('[data-idx]');
+          if (anyRow) {
+            var style = anyRow.style.cssText || '';
+            if (style.indexOf('flex-direction:column') === -1 && style.indexOf('column') === -1)
+              return fail('row not using column flex layout');
+          }
+          return foundDetailsRow ? okMsg() : okMsg('structure OK; no shown rows had details content');
+        } finally {
+          if (created && box.parentNode) box.parentNode.removeChild(box);
+        }
+    }},
+
     //  ── Performance sentinel ──
     { name: '70 perf: buildPartnerMap under 50ms on current data', fn: function() {
         if (typeof buildPartnerMap !== 'function') return fail('buildPartnerMap missing');
