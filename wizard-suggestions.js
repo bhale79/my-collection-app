@@ -288,13 +288,14 @@ function updateItemSuggestions(query) {
     row.setAttribute('role', 'button');
     row.setAttribute('tabindex', '0');
     row.dataset.idx = i;
-    // overflow:hidden + box-sizing: row NEVER exceeds container width.
-    // Without these, a long road name could push the row wider and force
-    // horizontal scroll on the whole suggestions dropdown.
+    // box-sizing + max-width keep the row bounded; horizontal scroll is
+    // prevented at the roadSpan level (min-width:0 + ellipsis) so we
+    // deliberately do NOT set overflow:hidden on the row — that was
+    // clipping line 2 when it combined with flex-column height quirks.
     row.style.cssText = 'text-align:left;width:100%;padding:0.55rem 0.75rem;border:none;background:transparent;'
       + 'border-radius:6px;cursor:pointer;color:var(--text);font-family:var(--font-body);'
       + 'display:flex;flex-direction:column;gap:0.18rem;min-height:44px;'
-      + 'overflow:hidden;box-sizing:border-box;max-width:100%';
+      + 'box-sizing:border-box;max-width:100%';
     row.onmouseenter = function() { highlightSuggestion(i); };
     row.dataset.roadName = c.roadName || '';
     row.onclick = function() { selectSuggestion(c.num, c.roadName || ''); };
@@ -349,13 +350,15 @@ function updateItemSuggestions(query) {
     if (_details.length > _rowMaxLen) _details = _details.substring(0, _rowMaxLen - 1) + '\u2026';
     if (_details) {
       const line2 = document.createElement('div');
-      // -webkit-line-clamp:2 wraps to exactly 2 visual lines and ellipsises
-      // beyond that. word-break protects against very long tokens (e.g. a
-      // URL snippet) blowing the row width. Supported in all modern
-      // browsers (Chrome/Safari/Firefox/Edge).
-      line2.style.cssText = 'font-size:0.72rem;color:var(--text-dim);line-height:1.35;'
-        + 'display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;'
-        + 'overflow:hidden;word-break:break-word;overflow-wrap:anywhere';
+      // 2-line visual cap via max-height + line-height. This is more
+      // reliable than `display:-webkit-box + -webkit-line-clamp` which
+      // has rendering quirks inside a flex-column parent with overflow.
+      // Text wraps naturally; anything past ~2 lines is clipped.
+      // word-break keeps very long tokens from blowing the width.
+      line2.style.cssText = 'font-size:0.82rem;color:var(--text-mid);line-height:1.35;'
+        + 'word-break:break-word;overflow-wrap:anywhere;'
+        + 'max-height:calc(2 * 1.35em);overflow:hidden;'
+        + 'width:100%';
       line2.textContent = _details;
       row.appendChild(line2);
     }
