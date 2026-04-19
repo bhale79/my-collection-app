@@ -48,6 +48,11 @@
      'onboard-gifs-preview', 'migration-overlay', 'rb-overlay'].forEach(function(id) {
       var el = $(id); if (el) el.remove();
     });
+    // Wizard modal needs the 'open' class stripped, not removal, since
+    // it's a persistent DOM element built once.
+    var wiz = $('wizard-modal');
+    if (wiz) { wiz.classList.remove('open'); }
+    try { document.body.style.overflow = ''; } catch(e){}
     // Keep the BackStack clean between tests so nothing bleeds across cases.
     if (window.BackStack && typeof window.BackStack.clear === 'function') {
       window.BackStack.clear();
@@ -613,6 +618,84 @@
         history.back();
         await wait(100);
         if ($('gmail-help-overlay')) return fail('modal not closed on second back press');
+        return okMsg();
+    }},
+
+    { name: '106 wizard: openWizard registers BackStack entry', fn: async function() {
+        if (typeof openWizard !== 'function') return fail('openWizard missing');
+        if (typeof _doCloseWizard !== 'function') return fail('_doCloseWizard missing');
+        var BS = window.BackStack;
+        BS.clear();
+        try {
+          openWizard('collection');
+          await wait(60);
+          if (!BS.has('wizard')) { _doCloseWizard(); return fail('BackStack entry not pushed by openWizard'); }
+          _doCloseWizard();
+          await wait(60);
+          if (BS.has('wizard')) return fail('BackStack entry not removed by _doCloseWizard');
+        } catch (e) { _doCloseWizard(); throw e; }
+        return okMsg();
+    }},
+
+    { name: '107 wizard: device back on step 1 closes the wizard (no lingering overlay)', fn: async function() {
+        if (typeof openWizard !== 'function' || typeof _wizardBackHandler !== 'function') return fail('wizard funcs missing');
+        var BS = window.BackStack;
+        BS.clear();
+        // Stub confirm so the cancel guard never blocks the test — we're
+        // simulating the empty-state case, but also defensive if state leaks.
+        var realConfirm = window.confirm;
+        window.confirm = function() { return true; };
+        try {
+          openWizard('collection');
+          await wait(60);
+          if (typeof wizard === 'undefined' || wizard.step !== 0) {
+            _doCloseWizard();
+            return fail('wizard did not initialize at step 0 (got ' + (typeof wizard === 'undefined' ? 'undefined' : wizard.step) + ')');
+          }
+          // Simulate device back
+          history.back();
+          await wait(150);
+          var mod = document.getElementById('wizard-modal');
+          var stillOpen = mod && mod.classList.contains('open');
+          if (stillOpen) { _doCloseWizard(); return fail('wizard still open after device back on step 1'); }
+          if (BS.has('wizard')) return fail('BackStack entry still present after close');
+        } finally {
+          window.confirm = realConfirm;
+        }
+        return okMsg();
+    }},
+
+    { name: '108 wizard: device back on step 2 steps back to step 1 (does not close)', fn: async function() {
+        if (typeof openWizard !== 'function' || typeof _wizardBackHandler !== 'function') return fail('wizard funcs missing');
+        var BS = window.BackStack;
+        BS.clear();
+        try {
+          openWizard('collection');
+          await wait(60);
+          if (typeof wizard === 'undefined') { _doCloseWizard(); return fail('wizard not initialized'); }
+          // Manually advance to step 2-ish; skip to first non-skipped step after 0
+          wizard.step = 1;
+          if (typeof renderWizardStep === 'function') renderWizardStep();
+          var prevStep = wizard.step;
+          history.back();
+          await wait(150);
+          var mod = document.getElementById('wizard-modal');
+          if (!mod || !mod.classList.contains('open')) {
+            // wizard closed — unexpected
+            _doCloseWizard();
+            return fail('wizard closed on back from step ' + prevStep + ' (should have stepped back)');
+          }
+          if (wizard.step >= prevStep) {
+            _doCloseWizard();
+            return fail('wizard.step did not decrease (was ' + prevStep + ', now ' + wizard.step + ')');
+          }
+          if (!BS.has('wizard')) {
+            _doCloseWizard();
+            return fail('BackStack entry not re-pushed after step-back');
+          }
+          _doCloseWizard();
+          await wait(40);
+        } catch (e) { _doCloseWizard(); throw e; }
         return okMsg();
     }},
 
