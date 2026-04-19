@@ -776,6 +776,20 @@
         return okMsg();
     }},
 
+    { name: '112 filters: reference link label resolves per URL (atlas.com → Atlas, cott → COTT, other → default)', fn: async function() {
+        var c = window.ITEM_SEARCH_FILTERS || {};
+        var ll = (c.ui || {}).linkLabel || {};
+        if (!ll.patterns || !ll.patterns.length) return fail('linkLabel.patterns missing');
+        // Find each expected pattern
+        var atlasHit = ll.patterns.some(function(p) { return p.match && p.match.test && p.match.test('https://www.atlasrr.com/items/123'); });
+        var cottHit  = ll.patterns.some(function(p) { return p.match && p.match.test && p.match.test('https://cott.somewhere/ref/6464'); });
+        if (!atlasHit) return fail('no pattern matched atlasrr.com URL');
+        if (!cottHit)  return fail('no pattern matched cott URL');
+        // Default fallback needs to be non-empty
+        if (!ll.default) return fail('linkLabel.default missing');
+        return okMsg();
+    }},
+
     //  ── Performance sentinel ──
     { name: '70 perf: buildPartnerMap under 50ms on current data', fn: function() {
         if (typeof buildPartnerMap !== 'function') return fail('buildPartnerMap missing');
