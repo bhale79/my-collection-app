@@ -167,15 +167,22 @@ function buildPartnerMap() {
   });
 
   // 3. Master data: poweredDummy field marks diesel A/B units
-  (state.masterData || []).forEach(m => {
+  // Pre-build a Set of normalized item numbers for O(1) B-unit existence checks.
+  // (Was O(N) .some() inside an O(N) forEach — quadratic. Now linear.)
+  const _masterNumSet = new Set();
+  const _md = state.masterData || [];
+  for (let i = 0; i < _md.length; i++) {
+    _masterNumSet.add(normalizeItemNum(_md[i].itemNum));
+  }
+  _md.forEach(m => {
     const num = normalizeItemNum(m.itemNum);
     if ((m.poweredDummy || '').match(/^(P|D)$/i)) {
       ensure(num).isDiesel = true;
     }
-    // Check for B-unit existence (itemNum + 'C')
+    // Check for B-unit existence (itemNum + 'C') via the prebuilt Set
     if (!num.endsWith('C')) {
       const bNum = num + 'C';
-      if (state.masterData.some(mm => normalizeItemNum(mm.itemNum) === bNum)) {
+      if (_masterNumSet.has(bNum)) {
         const e = ensure(num);
         e.isDiesel = true;
         e.bUnit = e.bUnit || bNum;
