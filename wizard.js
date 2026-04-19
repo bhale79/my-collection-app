@@ -3035,6 +3035,68 @@ function renderWizardStep() {
       _prompt.textContent = 'How are you adding this item?';
       _ingWrap.appendChild(_prompt);
     } else {
+      // ── Type + Road filter dropdowns (above the search input) ──
+      // All config-driven per item-search-filters-config.js. Only rendered
+      // for tabs in applyToTabs (collection / want), only if distinct
+      // values in current era master data meet showOnlyIfAtLeast threshold.
+      const _isfCfg = window.ITEM_SEARCH_FILTERS || {};
+      const _isfUi  = _isfCfg.ui || {};
+      const _isfSz  = _isfCfg.sizing || {};
+      const _isfApply = (_isfCfg.applyToTabs || []).indexOf(wizard.tab) !== -1;
+      // Small local escape — wizard.js does not ship a global one.
+      function _esc(s) {
+        return String(s == null ? '' : s)
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+      }
+      if (_isfApply && typeof getMasterDistinct === 'function') {
+        var _isfTypes = getMasterDistinct('itemType');
+        var _isfRoads = getMasterDistinct('roadName');
+        var _isfMin = _isfCfg.showOnlyIfAtLeast || 2;
+        var _isfShowType = _isfTypes.length >= _isfMin;
+        var _isfShowRoad = _isfRoads.length >= _isfMin;
+        if (_isfShowType || _isfShowRoad) {
+          var _isfFilterBar = document.createElement('div');
+          _isfFilterBar.style.cssText =
+            'display:flex;gap:' + (_isfSz.gapPx || 8) + 'px;margin-bottom:0.5rem;flex-wrap:wrap';
+          var _mkDrop = function(fieldId, label, values, currentVal) {
+            var wrap = document.createElement('div');
+            wrap.style.cssText = 'flex:1;min-width:130px';
+            var opts = '<option value="">' + _esc(_isfUi.anyLabel || '(any)') + '</option>' +
+              values.map(function(v) {
+                var sel = v === currentVal ? ' selected' : '';
+                return '<option value="' + _esc(v) + '"' + sel + '>' + _esc(v) + '</option>';
+              }).join('');
+            wrap.innerHTML =
+              '<div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:0.2rem;' +
+                'letter-spacing:0.06em;text-transform:uppercase;font-weight:600">' + _esc(label) + '</div>' +
+              '<select id="' + fieldId + '" style="' +
+                'width:100%;padding:0.5rem 0.65rem;font-size:' + (_isfSz.fontPx || 14) + 'px;' +
+                'background:var(--surface2);color:var(--text);border:1px solid var(--border);' +
+                'border-radius:8px;min-height:' + (_isfSz.minHeightPx || 44) + 'px' +
+              '">' + opts + '</select>';
+            return wrap;
+          };
+          if (_isfShowType) {
+            _isfFilterBar.appendChild(_mkDrop(
+              'wiz-search-type', _isfUi.typeLabel || 'Type',
+              _isfTypes, wizard.data._searchFilterType || ''));
+          }
+          if (_isfShowRoad) {
+            _isfFilterBar.appendChild(_mkDrop(
+              'wiz-search-road', _isfUi.roadLabel || 'Road name',
+              _isfRoads, wizard.data._searchFilterRoad || ''));
+          }
+          _ingWrap.appendChild(_isfFilterBar);
+          if (_isfUi.hint) {
+            var _isfHint = document.createElement('div');
+            _isfHint.style.cssText = 'font-size:0.72rem;color:var(--text-dim);margin-bottom:0.55rem;font-style:italic';
+            _isfHint.textContent = _isfUi.hint;
+            _ingWrap.appendChild(_isfHint);
+          }
+        }
+      }
+
       // Normal entry — show item number input
       const _ingInputRow = document.createElement('div');
       _ingInputRow.style.cssText = 'display:flex;gap:0.5rem;align-items:flex-start';
@@ -3092,6 +3154,24 @@ function renderWizardStep() {
           inp.focus();
           inp.addEventListener('input', debounceItemLookup);
           if (inp.value) { updateItemSuggestions(inp.value); }
+        }
+        // Wire Type + Road filter dropdowns (if present) — persist choice
+        // on wizard.data and refresh the suggestion list immediately.
+        var _typeSel = document.getElementById('wiz-search-type');
+        if (_typeSel) {
+          _typeSel.addEventListener('change', function() {
+            wizard.data._searchFilterType = this.value || '';
+            var _i = document.getElementById('wiz-input');
+            updateItemSuggestions(_i ? _i.value : '');
+          });
+        }
+        var _roadSel = document.getElementById('wiz-search-road');
+        if (_roadSel) {
+          _roadSel.addEventListener('change', function() {
+            wizard.data._searchFilterRoad = this.value || '';
+            var _i = document.getElementById('wiz-input');
+            updateItemSuggestions(_i ? _i.value : '');
+          });
         }
       } else {
         // Override title for pre-filled items
