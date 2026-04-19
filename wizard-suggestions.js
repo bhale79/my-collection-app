@@ -272,9 +272,13 @@ function updateItemSuggestions(query) {
     row.setAttribute('role', 'button');
     row.setAttribute('tabindex', '0');
     row.dataset.idx = i;
+    // overflow:hidden + box-sizing: row NEVER exceeds container width.
+    // Without these, a long road name could push the row wider and force
+    // horizontal scroll on the whole suggestions dropdown.
     row.style.cssText = 'text-align:left;width:100%;padding:0.55rem 0.75rem;border:none;background:transparent;'
       + 'border-radius:6px;cursor:pointer;color:var(--text);font-family:var(--font-body);'
-      + 'display:flex;flex-direction:column;gap:0.18rem;min-height:44px';
+      + 'display:flex;flex-direction:column;gap:0.18rem;min-height:44px;'
+      + 'overflow:hidden;box-sizing:border-box;max-width:100%';
     row.onmouseenter = function() { highlightSuggestion(i); };
     row.dataset.roadName = c.roadName || '';
     row.onclick = function() { selectSuggestion(c.num, c.roadName || ''); };
@@ -284,7 +288,7 @@ function updateItemSuggestions(query) {
 
     // ── Line 1 ── item# · road name · reference link (far right)
     const line1 = document.createElement('div');
-    line1.style.cssText = 'display:flex;align-items:baseline;gap:0.5rem;width:100%';
+    line1.style.cssText = 'display:flex;align-items:baseline;gap:0.5rem;width:100%;min-width:0';
 
     const numSpan = document.createElement('span');
     numSpan.style.cssText = 'font-family:var(--font-mono);font-weight:600;color:var(--accent2);font-size:0.95rem;flex-shrink:0';
@@ -293,13 +297,16 @@ function updateItemSuggestions(query) {
 
     if (c.roadName) {
       const roadSpan = document.createElement('span');
-      roadSpan.style.cssText = 'font-size:0.82rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1';
+      // min-width:0 is required for flex-child ellipsis to actually shrink
+      // below content width — without it, long road names force the row
+      // wider and horizontal scroll appears.
+      roadSpan.style.cssText = 'font-size:0.82rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0';
       roadSpan.textContent = c.roadName;
       line1.appendChild(roadSpan);
     } else {
       // Spacer so the reference link stays pinned right even with no road.
       const spacer = document.createElement('span');
-      spacer.style.cssText = 'flex:1';
+      spacer.style.cssText = 'flex:1;min-width:0';
       line1.appendChild(spacer);
     }
 
@@ -326,8 +333,13 @@ function updateItemSuggestions(query) {
     if (_details.length > _rowMaxLen) _details = _details.substring(0, _rowMaxLen - 1) + '\u2026';
     if (_details) {
       const line2 = document.createElement('div');
+      // -webkit-line-clamp:2 wraps to exactly 2 visual lines and ellipsises
+      // beyond that. word-break protects against very long tokens (e.g. a
+      // URL snippet) blowing the row width. Supported in all modern
+      // browsers (Chrome/Safari/Firefox/Edge).
       line2.style.cssText = 'font-size:0.72rem;color:var(--text-dim);line-height:1.35;'
-        + 'white-space:normal;overflow:hidden';
+        + 'display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;'
+        + 'overflow:hidden;word-break:break-word;overflow-wrap:anywhere';
       line2.textContent = _details;
       row.appendChild(line2);
     }
