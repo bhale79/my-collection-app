@@ -442,6 +442,52 @@
         }
     }},
 
+    //  ── Save path (scaffold — non-destructive) ──
+    // These tests verify the presence and shape of the wizard save path
+    // without actually writing to Google Sheets. Full integration tests
+    // that use a TEST_AUTO_ guarded row are deferred; the guard pattern
+    // is documented in MIGRATION / save-path scaffold notes.
+    { name: '90 save: saveItem function exists globally', fn: function() {
+        return typeof saveItem === 'function' ? okMsg() : fail('saveItem not global');
+    }},
+
+    { name: '91 save: state.personalData is the expected shape', fn: function() {
+        if (!state || typeof state.personalData !== 'object') return fail('state.personalData missing');
+        // Pick one entry (if any) and verify it has the expected shape
+        var sample = Object.values(state.personalData || {})[0];
+        if (!sample) return okMsg('(no personalData entries to sample — pass by default)');
+        var required = ['itemNum'];
+        var miss = required.filter(function(k) { return sample[k] === undefined; });
+        return miss.length ? fail('sample missing: ' + miss.join(', ')) : okMsg();
+    }},
+
+    { name: '92 save: CONSTRUCTION_HEADERS + MY_SETS_HEADERS are defined', fn: function() {
+        var ok1 = Array.isArray(typeof CONSTRUCTION_HEADERS !== 'undefined' ? CONSTRUCTION_HEADERS : null);
+        var ok2 = Array.isArray(typeof MY_SETS_HEADERS !== 'undefined' ? MY_SETS_HEADERS : null);
+        return (ok1 && ok2) ? okMsg() : fail('headers: CONSTRUCTION_HEADERS=' + ok1 + ' MY_SETS_HEADERS=' + ok2);
+    }},
+
+    //  ── Migration scaffold (Phase: MPC → Atlas) ──
+    { name: '93 migration: MIGRATION config exposed with routes', fn: function() {
+        var m = window.MIGRATION || {};
+        if (typeof m.enabled !== 'boolean') return fail('MIGRATION.enabled missing');
+        if (!m.routes || typeof m.routes !== 'object') return fail('MIGRATION.routes missing');
+        return okMsg('enabled=' + m.enabled);
+    }},
+
+    { name: '94 migration: stub function returns {moved:false} while disabled', fn: async function() {
+        if (typeof migrateItemBetweenTabs !== 'function') return fail('migrateItemBetweenTabs missing');
+        var r = await migrateItemBetweenTabs('9999', 'MPC-Modern', 'Atlas O');
+        if (!r || r.moved !== false) return fail('expected {moved:false} got ' + JSON.stringify(r));
+        return okMsg();
+    }},
+
+    //  ── Tutorial GIFs scaffold (Phase D) ──
+    { name: '95 gifs: TUTORIAL_GIFS config exposed', fn: function() {
+        var g = window.TUTORIAL_GIFS || {};
+        return (Array.isArray(g.demos) && g.demos.length) ? okMsg(g.demos.length + ' demos configured') : fail('TUTORIAL_GIFS.demos missing/empty');
+    }},
+
     //  ── Performance sentinel ──
     { name: '70 perf: buildPartnerMap under 50ms on current data', fn: function() {
         if (typeof buildPartnerMap !== 'function') return fail('buildPartnerMap missing');
