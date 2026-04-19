@@ -365,7 +365,7 @@ function openReportBuilder(editId) {
       <div style="padding:1rem 1.25rem 0;flex-shrink:0">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.65rem">
           <div style="font-family:var(--font-head);font-size:1.05rem;font-weight:700">${existing?'Edit Report':'Build a Report'}</div>
-          <button onclick="document.getElementById('rb-overlay').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer;padding:0.2rem 0.5rem;border-radius:6px">✕</button>
+          <button onclick="_rbCloseOverlay()" style="background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer;padding:0.2rem 0.5rem;border-radius:6px">✕</button>
         </div>
         <input type="text" id="rb-name" value="${(_rbState.name||'').replace(/"/g,'&quot;')}"
           placeholder="Report name (e.g. Unboxed Locomotives)…"
@@ -379,7 +379,7 @@ function openReportBuilder(editId) {
       </div>
       <div class="rb-body" id="rb-body" style="flex:1;overflow-y:auto;padding:1rem 1.25rem;-webkit-overflow-scrolling:touch"></div>
       <div style="padding:0.85rem 1.25rem;border-top:1px solid var(--border);display:flex;gap:0.6rem;flex-shrink:0">
-        <button onclick="document.getElementById('rb-overlay').remove()"
+        <button onclick="_rbCloseOverlay()"
           style="flex:1;padding:0.7rem;border-radius:9px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.88rem;cursor:pointer">Cancel</button>
         <button onclick="_rbSave()"
           style="flex:2;padding:0.7rem;border-radius:9px;border:none;background:var(--accent2);color:white;font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer">Save Report</button>
@@ -387,6 +387,19 @@ function openReportBuilder(editId) {
     </div>`;
   document.body.appendChild(ov);
   _rbShowTab('columns');
+  if (window.BackStack) window.BackStack.push('report-builder', _rbCloseOverlaySilently);
+}
+
+// Voluntary close (X, Cancel) — removes the overlay AND rewinds BackStack.
+function _rbCloseOverlay() {
+  _rbCloseOverlaySilently();
+  if (window.BackStack) window.BackStack.pop('report-builder');
+}
+
+// Silent close — used when BackStack itself triggered the close on a
+// device-back press (BackStack has already popped its own entry).
+function _rbCloseOverlaySilently() {
+  document.getElementById('rb-overlay')?.remove();
 }
 
 function _rbShowTab(tab) {
@@ -556,7 +569,7 @@ function _rbSave() {
   else state.savedReports.push(_rbState);
   localStorage.setItem('lv_saved_reports', JSON.stringify(state.savedReports));
   _rbRefreshDropdown();
-  document.getElementById('rb-overlay')?.remove();
+  _rbCloseOverlay();
   const sel = document.getElementById('report-type');
   if (sel) { sel.value = 'custom:'+_rbState.id; buildReport(); _rbUpdateCustomControls(); }
   showToast('✓ Report "'+_rbState.name+'" saved');
