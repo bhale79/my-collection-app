@@ -242,20 +242,13 @@ function updateItemSuggestions(query) {
   countBar.textContent = candidates.length + ' match' + (candidates.length !== 1 ? 'es' : '') + ' — tap to select or keep typing to filter';
   el.appendChild(countBar);
 
-  const _cfg   = (window.ITEM_SEARCH_FILTERS && window.ITEM_SEARCH_FILTERS.ui) || {};
-  // Label resolver: walks linkLabel.patterns and returns the first match's
-  // label, else linkLabel.default, else the legacy cottLinkLabel. Keeps
-  // every reference source (COTT, Atlas, future Greenberg, etc.) in ONE
-  // config file per the centralized-config rule.
+  const _cfg = (window.ITEM_SEARCH_FILTERS && window.ITEM_SEARCH_FILTERS.ui) || {};
+  // Shared resolver from item-search-filters-config.js — returns short
+  // label like "Atlas ↗" / "COTT ↗" / "View ↗" based on URL. Fallback to
+  // legacy cottLinkLabel keeps this safe if the config is missing.
   const _resolveRefLabel = function(url) {
-    if (!url) return '';
-    var ll = _cfg.linkLabel || {};
-    var patterns = ll.patterns || [];
-    for (var i = 0; i < patterns.length; i++) {
-      var p = patterns[i];
-      if (p && p.match && p.match.test && p.match.test(url)) return p.label || '';
-    }
-    return ll.default || _cfg.cottLinkLabel || 'View \u2197';
+    if (typeof window.resolveRefLabel === 'function') return window.resolveRefLabel(url);
+    return url ? (_cfg.cottLinkLabel || 'View \u2197') : '';
   };
 
   candidates.forEach(function(c, i) {
