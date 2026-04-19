@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v135';
+const CACHE_NAME = 'mca-v136';
 
 const SHELL_FILES = [
   './index.html',
@@ -38,6 +38,8 @@ const SHELL_FILES = [
   './onboarding-config.js',
   './gmail-help.js',
   './onboarding.js',
+  './a11y-config.js',
+  './a11y.js',
   './vault.js',
   './reports.js',
   './prefs.js',

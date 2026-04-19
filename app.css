@@ -36,6 +36,58 @@
     --header-h:  60px;
   }
 
+  /* ── High-Contrast theme (Session 112, accessibility) ─────── */
+  /* Applied via document.documentElement.dataset.theme = "high-contrast". */
+  /* Uses pure black/white for maximum legibility, stronger borders,     */
+  /* and a brighter accent. Everything else keeps its existing layout.    */
+  html[data-theme="high-contrast"] {
+    --bg:        #000000;
+    --surface:   #000000;
+    --surface2:  #0a0a0a;
+    --surface3:  #141414;
+    --border:    #ffffff;
+    --border-hi: #ffff00;
+    --accent:    #ffb000;
+    --accent-dk: #cc8c00;
+    --accent2:   #ffff00;
+    --accent3:   #00eaff;
+    --text:      #ffffff;
+    --text-dim:  #c0c0c0;
+    --text-mid:  #e0e0e0;
+    --green:     #00ff40;
+    --green-light:#80ff80;
+    --red:       #ff4040;
+    --gold:      #ffff00;
+    --gold-light:#ffff80;
+    --navy:      #000000;
+    --cream:     #ffffff;
+  }
+  /* Reinforce borders so UI boundaries are clearer in HC mode */
+  html[data-theme="high-contrast"] .nav-item,
+  html[data-theme="high-contrast"] .stat-card,
+  html[data-theme="high-contrast"] .panel,
+  html[data-theme="high-contrast"] .item-table th,
+  html[data-theme="high-contrast"] .item-table td,
+  html[data-theme="high-contrast"] button,
+  html[data-theme="high-contrast"] select,
+  html[data-theme="high-contrast"] input[type="text"],
+  html[data-theme="high-contrast"] input[type="search"] {
+    border-width: 2px !important;
+  }
+  html[data-theme="high-contrast"] a { text-decoration: underline; }
+  html[data-theme="high-contrast"] .main {
+    /* Override .main's light-mode colors when HC is active */
+    --bg:        #000000;
+    --surface:   #000000;
+    --surface2:  #0a0a0a;
+    --surface3:  #141414;
+    --border:    #ffffff;
+    --text:      #ffffff;
+    --text-dim:  #c0c0c0;
+    --text-mid:  #e0e0e0;
+    background:  #000000;
+  }
+
   /* ── Light mode for main content area ─────────────────────── */
   .main {
     --bg:        #f8e8c0;

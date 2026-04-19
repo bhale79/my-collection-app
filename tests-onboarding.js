@@ -375,6 +375,73 @@
         return small.length ? fail('undersized: ' + small.join('; ')) : okMsg();
     }},
 
+    //  ── Accessibility (Session 112: font-size + high-contrast) ──
+    { name: '80 a11y: A11Y config exposes fontScale + theme + ui', fn: function() {
+        var a = window.A11Y || {};
+        if (!a.fontScale || !Array.isArray(a.fontScale.options) || !a.fontScale.options.length)
+          return fail('A11Y.fontScale.options missing/empty');
+        if (!a.theme || !Array.isArray(a.theme.options) || !a.theme.options.length)
+          return fail('A11Y.theme.options missing/empty');
+        var hcPresent = a.theme.options.some(function(o) { return o.key === 'high-contrast'; });
+        return hcPresent ? okMsg() : fail('high-contrast theme option missing from A11Y.theme');
+    }},
+
+    { name: '81 a11y: applyFontScale + setFontScale globals exist', fn: function() {
+        var miss = ['applyFontScale','setFontScale'].filter(function(fn) { return typeof window[fn] !== 'function'; });
+        return miss.length ? fail('missing: ' + miss.join(', ')) : okMsg();
+    }},
+
+    { name: '82 a11y: setFontScale persists + updates html font-size', fn: function() {
+        var origScale = localStorage.getItem('lv_font_scale');
+        var origFontSize = document.documentElement.style.fontSize;
+        try {
+          setFontScale('large');
+          var stored = localStorage.getItem('lv_font_scale');
+          var applied = document.documentElement.style.fontSize;
+          if (stored !== 'large') return fail('lv_font_scale=' + stored);
+          if (!/115%/.test(applied)) return fail('html fontSize=' + applied + ' expected 115%');
+          return okMsg();
+        } finally {
+          // Restore whatever was there before
+          if (origScale === null) localStorage.removeItem('lv_font_scale');
+          else localStorage.setItem('lv_font_scale', origScale);
+          if (origFontSize) document.documentElement.style.fontSize = origFontSize;
+          else document.documentElement.style.fontSize = '';
+          applyFontScale();
+        }
+    }},
+
+    { name: '83 a11y: invalid font-scale key falls back to default', fn: function() {
+        var orig = localStorage.getItem('lv_font_scale');
+        try {
+          localStorage.setItem('lv_font_scale', 'bogus-value');
+          applyFontScale();
+          var applied = document.documentElement.style.fontSize;
+          // default is 'normal' = 100%
+          return /100%/.test(applied) ? okMsg() : fail('fallback didn\'t reset; fontSize=' + applied);
+        } finally {
+          if (orig === null) localStorage.removeItem('lv_font_scale');
+          else localStorage.setItem('lv_font_scale', orig);
+          applyFontScale();
+        }
+    }},
+
+    { name: '84 a11y: high-contrast theme sets documentElement.dataset.theme', fn: function() {
+        var origTheme = localStorage.getItem('lv_theme');
+        var origDataset = document.documentElement.dataset.theme;
+        try {
+          localStorage.setItem('lv_theme', 'high-contrast');
+          if (typeof applyTheme === 'function') applyTheme();
+          var set = document.documentElement.dataset.theme;
+          return set === 'high-contrast' ? okMsg() : fail('dataset.theme=' + set);
+        } finally {
+          if (origTheme === null) localStorage.removeItem('lv_theme');
+          else localStorage.setItem('lv_theme', origTheme);
+          if (typeof applyTheme === 'function') applyTheme();
+          if (origDataset) document.documentElement.dataset.theme = origDataset;
+        }
+    }},
+
     //  ── Performance sentinel ──
     { name: '70 perf: buildPartnerMap under 50ms on current data', fn: function() {
         if (typeof buildPartnerMap !== 'function') return fail('buildPartnerMap missing');

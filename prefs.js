@@ -139,9 +139,25 @@ function buildPrefsPage() {
       <div class="pref-section-title" onclick="_togglePrefSection(this)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">Display <span style="font-size:0.7rem;color:var(--text-dim);transition:transform 0.2s">▶</span></div>
       <div class="pref-section-body" style="display:none">
       <div class="pref-row">
-        <div class="pref-row-label"><strong>Theme</strong><span>App color scheme</span></div>
+        <div class="pref-row-label"><strong>${(window.A11Y && window.A11Y.ui && window.A11Y.ui.themeLabel) || 'Theme'}</strong><span>${(window.A11Y && window.A11Y.ui && window.A11Y.ui.themeHint) || 'App color scheme'}</span></div>
         <select class="pref-select" id="pref-theme" onchange="_prefSet('lv_theme', this.value); applyTheme(); buildPrefsPage()">
-          ${['dark','light','system'].map(t=>`<option value="${t}" ${_prefGet('lv_theme','dark')===t?'selected':''}>${{dark:'🌙 Dark',light:'☀️ Light',system:'💻 System'}[t]}</option>`).join('')}
+          ${(() => {
+            var opts = (window.A11Y && window.A11Y.theme && window.A11Y.theme.options) || [
+              {key:'dark',label:'🌙 Dark'},{key:'light',label:'☀️ Light'},{key:'system',label:'💻 System'}
+            ];
+            var current = _prefGet((window.A11Y && window.A11Y.theme && window.A11Y.theme.storageKey) || 'lv_theme', (window.A11Y && window.A11Y.theme && window.A11Y.theme.defaultKey) || 'dark');
+            return opts.map(function(o){ return '<option value="'+o.key+'"'+(current===o.key?' selected':'')+'>'+o.label+'</option>'; }).join('');
+          })()}
+        </select>
+      </div>
+      <div class="pref-row">
+        <div class="pref-row-label"><strong>${(window.A11Y && window.A11Y.ui && window.A11Y.ui.fontScaleLabel) || 'Text Size'}</strong><span>${(window.A11Y && window.A11Y.ui && window.A11Y.ui.fontScaleHint) || 'Makes all text in the app bigger or smaller.'}</span></div>
+        <select class="pref-select" id="pref-font-scale" onchange="setFontScale(this.value); buildPrefsPage()">
+          ${(() => {
+            var cfg = (window.A11Y && window.A11Y.fontScale) || { options: [{key:'normal',label:'Normal',pct:100}], defaultKey: 'normal', storageKey: 'lv_font_scale' };
+            var current = _prefGet(cfg.storageKey, cfg.defaultKey);
+            return (cfg.options || []).map(function(o){ return '<option value="'+o.key+'"'+(current===o.key?' selected':'')+'>'+o.label+' ('+o.pct+'%)</option>'; }).join('');
+          })()}
         </select>
       </div>
       <div class="pref-row">
