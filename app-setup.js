@@ -53,17 +53,18 @@ function _buildAuthScreen() {
         'Continue with Google' +
       '</button>' +
       '<p class="auth-note">You\'ll be asked to allow access to Google Sheets and Google Drive. This is how the app reads and saves your collection data. We never see your password.</p>' +
-      // Bugfix 2026-04-14: help for users without a Google account.
-      '<div style="margin-top:1.25rem;padding:0.9rem 1rem;background:var(--surface2);border:1px solid var(--border);border-radius:10px;text-align:left">' +
-        '<div style="font-size:0.82rem;font-weight:600;color:var(--cream);margin-bottom:0.35rem">Don\'t have a Google account?</div>' +
-        '<p style="font-size:0.78rem;color:var(--text-mid);line-height:1.55;margin:0 0 0.5rem">A Google account is required so your collection and photos stay in <strong style="color:var(--text)">your own</strong> Google Sheet &amp; Drive. It\'s free and takes ~2 minutes to create.</p>' +
-        '<ol style="font-size:0.78rem;color:var(--text-mid);line-height:1.7;margin:0 0 0.6rem 1rem;padding:0">' +
-          '<li>Go to <a href="https://accounts.google.com/signup" target="_blank" rel="noopener" style="color:var(--accent2)">accounts.google.com/signup</a></li>' +
-          '<li>Follow the prompts to create your free account</li>' +
-          '<li>Come back here and tap <em>Continue with Google</em></li>' +
-        '</ol>' +
-        '<a href="https://accounts.google.com/signup" target="_blank" rel="noopener" style="display:inline-block;font-size:0.78rem;color:var(--accent);font-weight:600;text-decoration:none">Create Google account \u2197</a>' +
-      '</div>' +
+      // Session 112: Gmail help — large plain-language button that opens a
+      // chooser modal (gmail-help.js). Copy lives in onboarding-config.js.
+      '<button onclick="if(typeof gmailShowHelp===\'function\')gmailShowHelp();" style="' +
+        'display:block;width:100%;margin-top:1rem;padding:0.9rem 1rem;' +
+        'background:var(--surface2);border:1px solid var(--border);border-radius:10px;' +
+        'color:var(--text);font-family:var(--font-body);font-size:0.95rem;font-weight:600;' +
+        'cursor:pointer;text-align:left;min-height:52px;line-height:1.4">' +
+        '\uD83D\uDCAC  Need help with Gmail?' +
+        '<div style="font-size:0.78rem;color:var(--text-mid);font-weight:400;margin-top:0.25rem">' +
+          'Step-by-step help for signing in, password reset, or creating an account.' +
+        '</div>' +
+      '</button>' +
     '</div>';
 }
 
@@ -237,22 +238,23 @@ function closeOnboarding() { var o = document.getElementById("onboarding-overlay
 
 function showOnboarding() {
   if (localStorage.getItem('lv_onboarded')) return;
+  // Session 112: new feature-map onboarding (onboarding.js) replaces the
+  // old 3-bullet welcome modal. lv_onboarded is now set by onboardFinish /
+  // onboardSkipTour so we don't persist until the user actually completes
+  // or skips the tour — gives them a second chance if they close the tab.
+  if (typeof showFeatureMap === 'function') {
+    showFeatureMap();
+    return;
+  }
+  // Fallback (onboarding.js not loaded for any reason): minimal safe welcome.
   localStorage.setItem('lv_onboarded', '1');
-  const ov = document.createElement('div');
+  var ov = document.createElement('div');
   ov.id = 'onboarding-overlay';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,20,0.92);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
-  ov.innerHTML = '<div style="background:var(--surface);border-radius:18px;max-width:380px;width:100%;padding:2rem;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5)">'
-    + '<div style="margin-bottom:0.75rem;display:flex;justify-content:center"><img src="' + _RSV_PLACEHOLDER_PNG + '" style="width:90px;height:auto;opacity:0.9;border-radius:6px"></div>'
-    + '<div style="font-family:var(--font-head);font-size:1.5rem;font-weight:700;margin-bottom:0.5rem;color:var(--text)">Welcome to <span style=\"color:var(--accent)\">The Rail Roster</span></div>'
-    + '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.7;margin-bottom:1.5rem">Your personal postwar train collection manager. Here\'s how it works:</div>'
-    + '<div style="display:flex;flex-direction:column;gap:0.75rem;text-align:left;margin-bottom:1.5rem">'
-    + '<div style="display:flex;gap:0.75rem;align-items:flex-start"><div style="background:var(--accent);color:white;border-radius:50%;width:26px;height:26px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem">1</div><div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:var(--text)">Browse the Master Catalog</strong><br>Over 2,000 postwar items pre-loaded — engines, cars, accessories and more.</div></div>'
-    + '<div style="display:flex;gap:0.75rem;align-items:flex-start"><div style="background:var(--accent);color:white;border-radius:50%;width:26px;height:26px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem">2</div><div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:var(--text)">Add items you own</strong><br>Tap Add Item, enter the number, and answer a few simple questions.</div></div>'
-    + '<div style="display:flex;gap:0.75rem;align-items:flex-start"><div style="background:var(--accent);color:white;border-radius:50%;width:26px;height:26px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.85rem">3</div><div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:var(--text)">Track your collection</strong><br>Photos, condition, value, want list — all saved to your Google account.</div></div>'
-    + '</div>'
-    + '<button onclick="closeOnboarding()" style="width:100%;padding:0.9rem;border-radius:12px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-size:1rem;font-weight:700;cursor:pointer">Get Started →</button>'
-    + '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.75rem">Tip: Use Quick Entry to log items fast, then fill in details later.</div>'
-    + '</div>';
+  ov.innerHTML = '<div style="background:var(--surface);border-radius:18px;max-width:380px;width:100%;padding:2rem;text-align:center">' +
+    '<div style="font-family:var(--font-head);font-size:1.5rem;font-weight:700;margin-bottom:0.75rem">Welcome to The Rail Roster</div>' +
+    '<button onclick="closeOnboarding()" style="width:100%;padding:0.9rem;border-radius:12px;border:none;background:var(--accent);color:white;font-size:1rem;font-weight:700;cursor:pointer">Get Started</button>' +
+    '</div>';
   document.body.appendChild(ov);
 }
 
