@@ -173,8 +173,19 @@ function updateItemSuggestions(query) {
     const numPart = qParts[0];
     const keyParts = qParts.slice(1).filter(p => p.length > 0);
 
+    // Active filter values from the Type / Road dropdowns (blank = any).
+    // These live on wizard.data so they survive step navigation but get
+    // reset when the wizard closes.
+    const _filterType = (wizard.data && wizard.data._searchFilterType) || '';
+    const _filterRoad = (wizard.data && wizard.data._searchFilterRoad) || '';
+
     const seen = new Set();
     state.masterData.forEach(m => {
+      // Filter dropdowns: exact match on itemType and roadName. Items with
+      // blank values on the filtered field are hidden when a filter is set.
+      if (_filterType && (m.itemType || '') !== _filterType) return;
+      if (_filterRoad && (m.roadName || '') !== _filterRoad) return;
+
       const haystack = ((m.roadName || '') + ' ' + (m.description || '') + ' ' + (m.varDesc || '') + ' ' + (m.itemType || '')).toLowerCase();
 
       let matches = false;
@@ -195,8 +206,15 @@ function updateItemSuggestions(query) {
       if (!seen.has(_dedupeKey)) {
         seen.add(_dedupeKey);
         const road = m.roadName || '';
-        const desc = [road, m.description].filter(Boolean).join(' — ');
-        candidates.push({ num: m.itemNum, roadName: road, label: m.itemNum, sub: desc.substring(0, 55) });
+        const desc = [road, m.description].filter(Boolean).join(' \u2014 ');
+        candidates.push({
+          num:      m.itemNum,
+          roadName: road,
+          itemType: m.itemType || '',
+          refLink:  m.refLink  || '',   // surfaces COTT ↗ link on suggestion row
+          label:    m.itemNum,
+          sub:      desc.substring(0, 55),
+        });
       }
     });
   }
@@ -224,35 +242,88 @@ function updateItemSuggestions(query) {
   countBar.textContent = candidates.length + ' match' + (candidates.length !== 1 ? 'es' : '') + ' — tap to select or keep typing to filter';
   el.appendChild(countBar);
 
+  const _cfg   = (window.ITEM_SEARCH_FILTERS && window.ITEM_SEARCH_FILTERS.ui) || {};
+  const _cottLabel = _cfg.cottLinkLabel || 'COTT \u2197';
+
   candidates.forEach(function(c, i) {
-    const btn = document.createElement('button');
-    btn.dataset.idx = i;
-    btn.style.cssText = 'text-align:left;width:100%;padding:0.65rem 0.75rem;border:none;background:transparent;'
-      + 'border-radius:6px;cursor:pointer;color:var(--text);font-family:var(--font-body);display:flex;align-items:baseline;gap:0.5rem;min-height:44px';
-    btn.onmouseenter = function() { highlightSuggestion(i); };
-    btn.dataset.roadName = c.roadName || '';
-    btn.onclick = function() { selectSuggestion(c.num, c.roadName || ''); };
+    // NOTE: using a <div role="button"> instead of <button> so we can safely
+    // nest a real <a> for the COTT ↗ reference link without invalid HTML.
+    const row = document.createElement('div');
+    row.setAttribute('role', 'button');
+    row.setAttribute('tabindex', '0');
+    row.dataset.idx = i;
+    row.style.cssText = 'text-align:left;width:100%;padding:0.65rem 0.75rem;border:none;background:transparent;'
+      + 'border-radius:6px;cursor:pointer;color:var(--text);font-family:var(--font-body);'
+      + 'display:flex;align-items:baseline;gap:0.5rem;min-height:44px';
+    row.onmouseenter = function() { highlightSuggestion(i); };
+    row.dataset.roadName = c.roadName || '';
+    row.onclick = function() { selectSuggestion(c.num, c.roadName || ''); };
+    row.onkeydown = function(e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectSuggestion(c.num, c.roadName || ''); }
+    };
+
     const numSpan = document.createElement('span');
     numSpan.style.cssText = 'font-family:var(--font-mono);font-weight:600;color:var(--accent2);font-size:0.95rem;flex-shrink:0';
     numSpan.textContent = c.num;
-    btn.appendChild(numSpan);
+    row.appendChild(numSpan);
+
     if (c.sub) {
       const subSpan = document.createElement('span');
-      subSpan.style.cssText = 'font-size:0.75rem;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+      subSpan.style.cssText = 'font-size:0.75rem;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1';
       subSpan.textContent = c.sub;
-      btn.appendChild(subSpan);
+      row.appendChild(subSpan);
     }
-    el.appendChild(btn);
+
+    // COTT reference link — lets the user verify the exact item before
+    // selecting. stopPropagation so tapping the link opens the external
+    // page instead of selecting the suggestion.
+    if (c.refLink) {
+      const refA = document.createElement('a');
+      refA.href = c.refLink;
+      refA.target = '_blank';
+      refA.rel = 'noopener';
+      refA.textContent = _cottLabel;
+      refA.onclick = function(ev) { ev.stopPropagation(); };
+      refA.style.cssText = 'font-size:0.75rem;color:var(--accent2);text-decoration:none;'
+        + 'padding:0.25rem 0.55rem;border:1px solid rgba(201,146,42,0.35);border-radius:6px;'
+        + 'background:rgba(201,146,42,0.08);flex-shrink:0;white-space:nowrap;font-weight:600';
+      row.appendChild(refA);
+    }
+
+    el.appendChild(row);
   });
   el.style.display = 'flex';
 }
+
+// Distinct non-blank values of a master-row field, for populating the
+// Type / Road dropdowns on the search step.  Uses state.masterData which
+// is already scoped to the currently-active era, so results are era-aware
+// automatically. Caller passes 'itemType' or 'roadName'.
+function getMasterDistinct(fieldName, extraPredicate) {
+  var set = new Set();
+  if (!window.state || !Array.isArray(state.masterData)) return [];
+  state.masterData.forEach(function(m) {
+    var v = (m && m[fieldName]) ? String(m[fieldName]).trim() : '';
+    if (!v) return;
+    if (typeof extraPredicate === 'function' && !extraPredicate(m)) return;
+    set.add(v);
+  });
+  var out = Array.from(set);
+  out.sort(function(a, b) { return a.localeCompare(b); });
+  var cfg = window.ITEM_SEARCH_FILTERS || {};
+  if (cfg.maxOptions && out.length > cfg.maxOptions) out = out.slice(0, cfg.maxOptions);
+  return out;
+}
+window.getMasterDistinct = getMasterDistinct;
 
 
 function highlightSuggestion(idx) {
   _suggestionIndex = idx;
   const el = document.getElementById('wiz-suggestions');
   if (!el) return;
-  el.querySelectorAll('button').forEach(function(btn, i) {
+  // Selector updated: rows are now <div role="button"> so we can nest the
+  // COTT ↗ anchor inside. Look up by dataset.idx to match the right rows.
+  el.querySelectorAll('[data-idx]').forEach(function(btn, i) {
     btn.style.background = i === idx ? 'var(--surface2)' : 'transparent';
   });
 }
@@ -355,7 +426,9 @@ function selectMockupRef(num) {
 
 function handleSuggestionKey(e) {
   const el = document.getElementById('wiz-suggestions');
-  const btns = el ? el.querySelectorAll('button') : [];
+  // Selector covers both legacy <button> rows (mockup ref picker) and the
+  // new <div role="button"> rows in the main item suggestions list.
+  const btns = el ? el.querySelectorAll('[data-idx]') : [];
   if (e.key === 'ArrowDown') {
     e.preventDefault();
     highlightSuggestion(Math.min(_suggestionIndex + 1, btns.length - 1));
