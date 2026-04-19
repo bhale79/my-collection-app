@@ -223,6 +223,22 @@ function updateItemSuggestions(query) {
         });
       }
     });
+
+    // Post-filter: drop "bare" candidates (all disambiguator fields blank)
+    // when a more-informative candidate with the same itemNum exists.
+    // The master sheet has phantom/placeholder rows for some items that
+    // were surfacing as duplicate bare rows after Session 113's expanded
+    // dedup key. Populated variations always take priority.
+    var _informative = new Set();
+    candidates.forEach(function(c) {
+      if (c.subType || c.varDesc || c.description) _informative.add(c.num);
+    });
+    candidates = candidates.filter(function(c) {
+      var hasInfo = !!(c.subType || c.varDesc || c.description);
+      if (hasInfo) return true;
+      // Drop only if a sibling populated row exists for this itemNum.
+      return !_informative.has(c.num);
+    });
   }
 
   // Sort: for number searches, starts-with first; for text searches, keep natural order
