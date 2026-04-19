@@ -68,7 +68,11 @@ window.ITEM_SEARCH_FILTERS = {
   // code edits needed.
   rowDetailsFields: ['subType', 'varDesc', 'description'],
   rowDetailsSep:    ' \u00B7 ',
-  rowDetailsMaxLen: 110,
+  // Char cap is just a safety net — CSS line-clamp in wizard-suggestions.js
+  // visually limits line 2 to 2 lines with ellipsis. Bumped from 110 so
+  // users see more context when a row wraps (no horizontal scroll because
+  // of word-wrap + line-clamp).
+  rowDetailsMaxLen: 200,
 
   // Dedup key for the suggestion list. Keep `itemNum` first; other fields
   // extend the key so variations with distinct subType/varDesc/etc do
