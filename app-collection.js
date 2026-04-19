@@ -1722,6 +1722,21 @@ function browseRowClick(event, idx) {
     if (item.control) rows.push(['Control', item.control]);
     if (item.gauge) rows.push(['Gauge', item.gauge]);
     rows.push(['Market Value', item.marketVal ? '$' + parseFloat(item.marketVal).toLocaleString() : '—']);
+    // Session 112: surface manufacturer-specific extra fields (Atlas category,
+    // rail power, MSRP, etc.) driven by CATALOG_DISPLAY.extraFields config.
+    // Row appears only when the field is populated on the master row.
+    if (typeof CATALOG_DISPLAY !== 'undefined' && Array.isArray(CATALOG_DISPLAY.extraFields)) {
+      CATALOG_DISPLAY.extraFields.forEach(function(fld) {
+        var v = item[fld.key];
+        if (v === undefined || v === null || v === '') return;
+        var display = String(v);
+        if (fld.format === 'money') {
+          var num = parseFloat(v);
+          if (!isNaN(num)) display = '$' + num.toLocaleString();
+        }
+        rows.push([fld.label, display]);
+      });
+    }
     rows.forEach(function(r) {
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;gap:0.75rem;margin-bottom:0.4rem;font-size:0.85rem';
