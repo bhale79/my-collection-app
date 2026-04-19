@@ -868,6 +868,61 @@
         }
     }},
 
+    { name: '116 search: Enter without highlighted row does NOT advance the wizard', fn: async function() {
+        if (typeof handleSuggestionKey !== 'function') return fail('handleSuggestionKey missing');
+        if (!window.wizard) window.wizard = { step: 0, tab: 'collection', data: {} };
+        else { wizard.step = 0; wizard.tab = 'collection'; wizard.data = wizard.data || {}; }
+        var initialStep = wizard.step;
+        // Simulate an Enter keypress with no suggestion highlighted
+        var prevented = false;
+        var fakeEvent = {
+          key: 'Enter',
+          preventDefault: function() { prevented = true; },
+        };
+        // Also stub wizardNext so we'd notice if the old behavior sneaks back
+        var realWizardNext = window.wizardNext;
+        var advanceTried = false;
+        window.wizardNext = function() { advanceTried = true; };
+        try {
+          handleSuggestionKey(fakeEvent);
+        } finally {
+          window.wizardNext = realWizardNext;
+        }
+        if (!prevented) return fail('Enter was not preventDefault()ed');
+        if (advanceTried) return fail('Enter still called wizardNext');
+        if (wizard.step !== initialStep) return fail('wizard.step changed (was ' + initialStep + ', now ' + wizard.step + ')');
+        return okMsg();
+    }},
+
+    { name: '117 wizard: device back on step 1 closes silently (no confirm) even with search text', fn: async function() {
+        if (typeof openWizard !== 'function' || typeof _wizardBackHandler !== 'function') return fail('wizard funcs missing');
+        var BS = window.BackStack;
+        BS.clear();
+        // Sentinel: any confirm() call means the bug is back.
+        var realConfirm = window.confirm;
+        var confirmCalls = 0;
+        window.confirm = function() { confirmCalls++; return true; };
+        try {
+          openWizard('collection');
+          await wait(60);
+          if (typeof wizard === 'undefined') { _doCloseWizard(); return fail('wizard not initialized'); }
+          wizard.step = 0;
+          // Simulate typing a search query (what the oninput handler does).
+          wizard.data.itemNum = 'nashville';
+          history.back();
+          await wait(150);
+          var mod = document.getElementById('wizard-modal');
+          if (mod && mod.classList.contains('open')) {
+            _doCloseWizard();
+            return fail('wizard still open after device back on step 1');
+          }
+          if (confirmCalls > 0) return fail('discard confirm fired — bug still present');
+        } finally {
+          window.confirm = realConfirm;
+        }
+        return okMsg();
+    }},
+
     //  ── Performance sentinel ──
     { name: '70 perf: buildPartnerMap under 50ms on current data', fn: function() {
         if (typeof buildPartnerMap !== 'function') return fail('buildPartnerMap missing');
