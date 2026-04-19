@@ -810,10 +810,14 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   parseEphemeraRows(paperRes.values, newEphemera.paper);
   parseEphemeraRows(otherRes.values, newEphemera.other);
   // Re-populate type filter now that ephemera data is loaded (only if already populated)
+  // Session 112: guard filter-road element too — it can be null if the user
+  // hasn't visited the Browse page yet, which caused the TypeError warning.
   if (typeof populateFilters === 'function' && document.getElementById('filter-type') &&
       document.getElementById('filter-type').options.length > 1) {
-    document.getElementById('filter-type').innerHTML = '<option value="">All Types</option>';
-    document.getElementById('filter-road').innerHTML = '<option value="">All Roads</option>';
+    var _ftype = document.getElementById('filter-type');
+    var _froad = document.getElementById('filter-road');
+    if (_ftype) _ftype.innerHTML = '<option value="">All Types</option>';
+    if (_froad) _froad.innerHTML = '<option value="">All Roads</option>';
     populateFilters();
   }
 
