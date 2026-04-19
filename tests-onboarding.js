@@ -44,9 +44,14 @@
   function fail(msg)  { return { ok: false, msg: msg || 'failed' }; }
 
   function cleanupAllOverlays() {
-    ['onboarding-map-overlay', 'gmail-help-overlay', 'onboarding-return-bar'].forEach(function(id) {
+    ['onboarding-map-overlay', 'gmail-help-overlay', 'onboarding-return-bar',
+     'onboard-gifs-preview', 'migration-overlay', 'rb-overlay'].forEach(function(id) {
       var el = $(id); if (el) el.remove();
     });
+    // Keep the BackStack clean between tests so nothing bleeds across cases.
+    if (window.BackStack && typeof window.BackStack.clear === 'function') {
+      window.BackStack.clear();
+    }
   }
 
   function snapshotLS(keys) {
@@ -530,6 +535,99 @@
     //  ── Feature Map → GIFs link (Session 112) ──
     { name: '99 gifsLink: onboardShowGifsPreview global exists', fn: function() {
         return typeof onboardShowGifsPreview === 'function' ? okMsg() : fail('missing');
+    }},
+
+    //  ── Back-button / BackStack (Session 113) ──
+    { name: '100 backstack: BackStack API exposed', fn: function() {
+        if (!window.BackStack) return fail('BackStack global missing');
+        var missing = ['push','pop','has','size','clear'].filter(function(m) {
+          return typeof window.BackStack[m] !== 'function';
+        });
+        return missing.length ? fail('missing methods: ' + missing.join(', ')) : okMsg();
+    }},
+
+    { name: '101 backstack: push/pop size accounting', fn: async function() {
+        var BS = window.BackStack;
+        BS.clear();
+        var size0 = BS.size();
+        BS.push('test-a', function(){});
+        BS.push('test-b', function(){});
+        if (BS.size() !== size0 + 2) return fail('expected size ' + (size0+2) + ' got ' + BS.size());
+        if (!BS.has('test-a') || !BS.has('test-b')) return fail('has() missed pushed ids');
+        BS.pop('test-b');
+        // history.back is async — wait a frame before checking
+        await wait(50);
+        if (BS.size() !== size0 + 1) return fail('after pop expected ' + (size0+1) + ' got ' + BS.size());
+        BS.pop('test-a');
+        await wait(50);
+        if (BS.size() !== size0) return fail('after final pop expected ' + size0 + ' got ' + BS.size());
+        return okMsg();
+    }},
+
+    { name: '102 backstack: popstate runs closeFn and removes entry', fn: async function() {
+        var BS = window.BackStack;
+        BS.clear();
+        var closed = false;
+        BS.push('test-popstate', function() { closed = true; });
+        if (!BS.has('test-popstate')) return fail('push did not register');
+        // Simulate the device back press
+        history.back();
+        await wait(100);
+        if (!closed) return fail('closeFn never fired on popstate');
+        if (BS.has('test-popstate')) return fail('entry not removed after popstate');
+        return okMsg();
+    }},
+
+    { name: '103 backstack: gmail help back-press closes the modal', fn: async function() {
+        if (typeof gmailShowHelp !== 'function') return fail('gmailShowHelp missing');
+        var BS = window.BackStack;
+        BS.clear();
+        gmailShowHelp();
+        await wait(50);
+        if (!$('gmail-help-overlay')) return fail('modal did not open');
+        if (!BS.has('gmail-help')) return fail('BackStack entry missing after open');
+        history.back();
+        await wait(100);
+        if ($('gmail-help-overlay')) return fail('modal still present after back press');
+        if (BS.has('gmail-help')) return fail('BackStack entry not removed after back');
+        return okMsg();
+    }},
+
+    { name: '104 backstack: gmail help path-view back-press returns to chooser', fn: async function() {
+        if (typeof gmailShowHelp !== 'function' || typeof gmailShowPath !== 'function') return fail('gmail funcs missing');
+        var BS = window.BackStack;
+        BS.clear();
+        gmailShowHelp();
+        await wait(30);
+        gmailShowPath('forgot');
+        await wait(30);
+        if (!BS.has('gmail-help:path')) return fail('nested path entry not pushed');
+        // Device back should drop the path entry and show the chooser again,
+        // not close the whole modal.
+        history.back();
+        await wait(100);
+        if (!$('gmail-help-overlay')) return fail('modal closed instead of returning to chooser');
+        if (BS.has('gmail-help:path')) return fail('path entry not removed after back');
+        if (!BS.has('gmail-help')) return fail('base gmail-help entry should still be present');
+        // One more back should now close the whole modal.
+        history.back();
+        await wait(100);
+        if ($('gmail-help-overlay')) return fail('modal not closed on second back press');
+        return okMsg();
+    }},
+
+    { name: '105 backstack: empty stack falls through (does not throw)', fn: async function() {
+        var BS = window.BackStack;
+        BS.clear();
+        // Fire a popstate event manually with no entries on the stack.
+        // BackStack should no-op and NOT throw.
+        try {
+          window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
+        } catch (e) {
+          return fail('popstate with empty stack threw: ' + (e.message || e));
+        }
+        await wait(30);
+        return okMsg();
     }},
 
     //  ── Performance sentinel ──
