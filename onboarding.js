@@ -53,7 +53,8 @@
         '</div>' +
         '<button onclick="onboardSkipTour()" style="' +
           'background:none;border:none;color:var(--text-mid);' +
-          'font-size:' + s.small + ';cursor:pointer;padding:0.4rem 0.6rem;font-family:var(--font-body);' +
+          'font-size:' + s.linkBtn + ';cursor:pointer;padding:0.85rem 1rem;' +
+          'min-height:' + s.btnH + ';min-width:88px;font-family:var(--font-body);' +
           'text-decoration:underline">' +
           _escape(u.skipTourLabel || 'Skip tour') +
         '</button>' +
@@ -184,10 +185,11 @@
         _escape(f.description || '') +
       '</div>' +
       '<button onclick="onboardPreviewFeature(\'' + _escape(f.id) + '\')" style="' +
-        'align-self:flex-start;background:none;border:none;padding:0.5rem 0 0.2rem;' +
+        'align-self:stretch;background:none;border:none;' +
+        'padding:0.9rem 0.4rem;margin:0.3rem -0.4rem -0.3rem;' +
         'color:' + _escape(f.accentColor || 'var(--accent)') + ';font-weight:600;' +
-        'font-size:' + s.small + ';cursor:pointer;font-family:var(--font-body);' +
-        'text-decoration:underline">' +
+        'font-size:' + s.linkBtn + ';cursor:pointer;font-family:var(--font-body);' +
+        'text-decoration:underline;text-align:left;min-height:' + s.btnH + '">' +
         previewLabel +
       '</button>' +
       '</div>';
@@ -254,6 +256,9 @@
       body:      (u.bodyFontPx      || 18) + 'px',
       head:      (u.headingFontPx   || 28) + 'px',
       small:     (u.smallFontPx     || 15) + 'px',
+      // linkBtn: in-between size for text-link buttons that still need to
+      // be tap-target compliant. Older-user friendly (Session 112).
+      linkBtn:   ((u.linkFontPx || u.smallFontPx || 15) + 1) + 'px',
       cardTitle: ((u.bodyFontPx || 18) + 4) + 'px',
       btnH:      (u.buttonMinHeightPx || 52) + 'px',
       btnR:      (u.buttonRadiusPx    || 12) + 'px',

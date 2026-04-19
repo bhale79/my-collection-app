@@ -13,7 +13,8 @@ const ONBOARD_UI = {
   // Minimum font size (px) for all onboarding text. Older users need larger.
   bodyFontPx:        18,
   headingFontPx:     28,
-  smallFontPx:       15,      // used only for footnotes / "skip"
+  smallFontPx:       15,      // used only for footnotes
+  linkFontPx:        16,      // text-link buttons ("See it in the app", "Skip tour")
   buttonMinHeightPx: 52,      // tap-target; 48 is minimum, 52 gives some margin
   buttonRadiusPx:    12,
   cardRadiusPx:      14,
