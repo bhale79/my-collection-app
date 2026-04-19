@@ -234,7 +234,10 @@ function _buildAppShell() {
 
 // ── Token receipt / lifecycle / sign-out / account menu moved to app-auth.js (Session 110, Round 2 Chunk 11) ──
 
-function closeOnboarding() { var o = document.getElementById("onboarding-overlay"); if (o) o.remove(); setTimeout(function() { if (typeof vaultShowOptInModal === "function" && !localStorage.getItem("lv_vault_optin")) vaultShowOptInModal(false); }, 600); }
+// Session 112: community opt-in is now Screen 3 of the onboarding flow
+// (see onboarding.js). closeOnboarding only handles the legacy fallback
+// overlay; the surprise-popup behavior is gone — no more auto-fired modal.
+function closeOnboarding() { var o = document.getElementById("onboarding-overlay"); if (o) o.remove(); }
 
 function showOnboarding() {
   if (localStorage.getItem('lv_onboarded')) return;

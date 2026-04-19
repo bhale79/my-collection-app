@@ -25,9 +25,71 @@ const ONBOARD_UI = {
   welcomeSubtitle:   'Your personal train collection, organized.',
   welcomeIntro:      'Here\'s a quick look at what you can do. Tap "See it in the app" on any card to try it right now.',
   getStartedLabel:   'Get Started',
+  nextLabel:         'Next \u2192',
+  backLabel:         '\u2190 Back',
   skipTourLabel:     'Skip tour',
   tourBackBarLabel:  '\u2190 Back to the tour',
   tourReopenLabel:   'Take the tour again',
+
+  // Progress indicator (1 of 3 etc.)
+  progressTemplate:  'Step {n} of {total}',
+};
+
+// ──────────────────────────────────────────────────────────────
+// WHAT_I_COLLECT — Screen 2 of onboarding.
+// Era rows are generated from ERAS (config.js) — do NOT hardcode era
+// names here. To change which eras appear or their labels, edit ERAS.
+// ──────────────────────────────────────────────────────────────
+const WHAT_I_COLLECT = {
+  title:       'What do you collect?',
+  subtitle:    'Pick the eras you\'re interested in. You can change this anytime in Preferences.',
+  helperNote:  'Leaving all four turned on is the simplest choice — you can refine later.',
+  saveLabel:   'Save and continue \u2192',
+  skipLabel:   'Skip (keep all eras)',
+
+  // What order the eras show up in the list. Must match keys in ERAS.
+  // If a new era is added, add its key here to make it appear.
+  eraOrder:    ['prewar', 'pw', 'mpc', 'atlas'],
+
+  // Accent color per era — pulled into card styling.
+  eraColors: {
+    prewar: '#8e7cc3',   // purple
+    pw:     'var(--accent)',
+    mpc:    '#27ae60',   // green
+    atlas:  '#2980b9',   // blue
+  },
+};
+
+// ──────────────────────────────────────────────────────────────
+// COMMUNITY_OPTIN — Screen 3 of onboarding.
+// The localStorage flag (lv_vault_optin) is written by vaultSetOptIn()
+// from vault.js. We just render a friendlier first-run UI for the same
+// decision. The existing Preferences-screen modal stays reachable later.
+// ──────────────────────────────────────────────────────────────
+const COMMUNITY_OPTIN = {
+  title:       'Help build the Collector\'s Market Est.',
+  subtitle:    'Crowd-Sourced Market Values & Rarity Scores',
+
+  paragraphs: [
+    'We\'re building something that doesn\'t exist anywhere else — real market values and rarity scores based on actual collector data, not guesswork.',
+    'If you contribute, your item numbers, variation, condition, your estimated worth, and sold prices are submitted anonymously. A random code ties your submissions together — your name, email, and identity are never attached. Even we cannot trace it back to you.',
+    'Contributors unlock market values and rarity scores once we reach 300 collections. You can opt out and have your data deleted any time.',
+  ],
+
+  submittedTitle: 'What gets submitted',
+  submittedList: [
+    { ok: true,  text: 'Item number and variation' },
+    { ok: true,  text: 'Condition grade' },
+    { ok: true,  text: 'Your estimated worth' },
+    { ok: true,  text: 'Sold price (if recorded)' },
+    { ok: false, text: 'Your name, email, or any identifying information — never' },
+  ],
+
+  yesLabel:     'Yes, I\'ll contribute',
+  noLabel:      'Not right now',
+  finishLabel:  'Finish \u2713',
+  doneMessage:  'Thanks! You\'re all set. Tap Finish to start adding items.',
+  doneOptedOut: 'No problem — you can opt in anytime from Preferences. Tap Finish to begin.',
 };
 
 // ──────────────────────────────────────────────────────────────
@@ -165,6 +227,8 @@ const GMAIL_HELP = {
 };
 
 // Expose globals for use in gmail-help.js + onboarding.js
-window.ONBOARD_UI   = ONBOARD_UI;
-window.FEATURE_MAP  = FEATURE_MAP;
-window.GMAIL_HELP   = GMAIL_HELP;
+window.ONBOARD_UI      = ONBOARD_UI;
+window.FEATURE_MAP     = FEATURE_MAP;
+window.GMAIL_HELP      = GMAIL_HELP;
+window.WHAT_I_COLLECT  = WHAT_I_COLLECT;
+window.COMMUNITY_OPTIN = COMMUNITY_OPTIN;
