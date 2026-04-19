@@ -3198,8 +3198,10 @@ function renderWizardStep() {
         function _refreshFilterDropdown(selId, fieldName, otherFieldName, otherValue, currentVal, stateKey) {
           var sel = document.getElementById(selId);
           if (!sel) return;
+          // Trim both sides — dropdown values are trimmed by getMasterDistinct
+          // so raw-compare can miss rows with whitespace in the source sheet.
           var predicate = otherValue
-            ? function(m) { return (m && (m[otherFieldName] || '') === otherValue); }
+            ? function(m) { return (m && String(m[otherFieldName] || '').trim() === otherValue); }
             : null;
           var values = (typeof getMasterDistinct === 'function')
             ? getMasterDistinct(fieldName, predicate)
