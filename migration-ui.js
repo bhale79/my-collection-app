@@ -25,14 +25,20 @@
     _st = { step: 1, preview: null, destRowNum: null };
     _mount();
     _render();
+    if (window.BackStack) window.BackStack.push('migration', _closeSilently);
   }
   window.openMigrationModal = openMigrationModal;
 
   function closeMigrationModal() {
+    _closeSilently();
+    if (window.BackStack) window.BackStack.pop('migration');
+  }
+  window.closeMigrationModal = closeMigrationModal;
+
+  function _closeSilently() {
     var ov = $('migration-overlay'); if (ov) ov.remove();
     _st = { step: 1, preview: null, destRowNum: null };
   }
-  window.closeMigrationModal = closeMigrationModal;
 
   // ─── Mount / render ───────────────────────────────────────
 
