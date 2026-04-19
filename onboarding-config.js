@@ -53,7 +53,7 @@ const FEATURE_MAP = [
     description: 'Every item you own — searchable, sortable, with photos and condition.',
     icon:        '\uD83D\uDCE6',                // package icon
     accentColor: '#2980b9',                     // blue
-    targetPage:  'collection',
+    targetPage:  'browse',
     screenshot:  '',
   },
   {
@@ -80,7 +80,7 @@ const FEATURE_MAP = [
     description: 'Track what you\'re selling and keep a history of what you\'ve sold — and for how much.',
     icon:        '\uD83D\uDCB0',                // money bag
     accentColor: '#27ae60',                     // green
-    targetPage:  'for-sale',
+    targetPage:  'forsale',
     screenshot:  '',
   },
   {
