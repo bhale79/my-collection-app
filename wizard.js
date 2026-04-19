@@ -3174,12 +3174,50 @@ function renderWizardStep() {
           inp.addEventListener('input', debounceItemLookup);
           if (inp.value) { updateItemSuggestions(inp.value); }
         }
-        // Wire Type + Road filter dropdowns (if present) — persist choice
-        // on wizard.data and refresh the suggestion list immediately.
+        // Wire Type + Road filter dropdowns. Each change:
+        //   1. Persists its choice on wizard.data
+        //   2. Repopulates the OTHER dropdown so only values that exist in
+        //      combination with the current selection appear (e.g. pick
+        //      Type=Caboose → Road list narrows to roads that have cabooses).
+        //   3. If the other dropdown's previously-selected value is no
+        //      longer available, it's silently cleared (state too).
+        //   4. Refreshes the suggestion list.
+        //
+        // Helper below is defined once and reused for both directions.
+        var _anyLabel = (_isfUi && _isfUi.anyLabel) || '(any)';
+        function _refreshFilterDropdown(selId, fieldName, otherFieldName, otherValue, currentVal, stateKey) {
+          var sel = document.getElementById(selId);
+          if (!sel) return;
+          var predicate = otherValue
+            ? function(m) { return (m && (m[otherFieldName] || '') === otherValue); }
+            : null;
+          var values = (typeof getMasterDistinct === 'function')
+            ? getMasterDistinct(fieldName, predicate)
+            : [];
+          var opts = '<option value="">' + _esc(_anyLabel) + '</option>';
+          var stillValid = false;
+          values.forEach(function(v) {
+            var selFlag = v === currentVal;
+            if (selFlag) stillValid = true;
+            opts += '<option value="' + _esc(v) + '"' + (selFlag ? ' selected' : '') + '>' + _esc(v) + '</option>';
+          });
+          sel.innerHTML = opts;
+          if (currentVal && !stillValid) {
+            sel.value = '';
+            if (stateKey && wizard && wizard.data) wizard.data[stateKey] = '';
+          }
+        }
+
         var _typeSel = document.getElementById('wiz-search-type');
         if (_typeSel) {
           _typeSel.addEventListener('change', function() {
             wizard.data._searchFilterType = this.value || '';
+            _refreshFilterDropdown(
+              'wiz-search-road', 'roadName',
+              'itemType', wizard.data._searchFilterType,
+              wizard.data._searchFilterRoad || '',
+              '_searchFilterRoad'
+            );
             var _i = document.getElementById('wiz-input');
             updateItemSuggestions(_i ? _i.value : '');
           });
@@ -3188,6 +3226,12 @@ function renderWizardStep() {
         if (_roadSel) {
           _roadSel.addEventListener('change', function() {
             wizard.data._searchFilterRoad = this.value || '';
+            _refreshFilterDropdown(
+              'wiz-search-type', 'itemType',
+              'roadName', wizard.data._searchFilterRoad,
+              wizard.data._searchFilterType || '',
+              '_searchFilterType'
+            );
             var _i = document.getElementById('wiz-input');
             updateItemSuggestions(_i ? _i.value : '');
           });
