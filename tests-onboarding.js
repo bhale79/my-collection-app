@@ -699,6 +699,62 @@
         return okMsg();
     }},
 
+    { name: '120 wizard: back from step 1 with itemCategory set closes wizard (no loop)', fn: async function() {
+        // Regression test for the bug where, once the user picks an
+        // itemCategory in step 0, step 0 gets skipIf → true. Hitting
+        // back from step 1 used to forward-scan and land back on step 1,
+        // silently looping. Now wizardBack() returns false in that case
+        // and the handler closes the wizard.
+        if (typeof openWizard !== 'function' || typeof _wizardBackHandler !== 'function') return fail('wizard funcs missing');
+        if (typeof wizardBack !== 'function') return fail('wizardBack missing');
+        var BS = window.BackStack;
+        BS.clear();
+        // Stub confirm so we don't hang on discard prompt if data leaks in
+        var realConfirm = window.confirm;
+        window.confirm = function() { return true; };
+        try {
+          openWizard('collection');
+          await wait(60);
+          if (typeof wizard === 'undefined') { _doCloseWizard(); return fail('wizard not initialized'); }
+          // Simulate user picking an item category — mark step 0 skippable
+          wizard.data.itemCategory = 'Lionel';
+          // Advance to the first visible step after 0 (itemNumGrouping)
+          wizard.step = 1;
+          if (typeof renderWizardStep === 'function') renderWizardStep();
+          await wait(40);
+          // wizardBack() alone should report "can't go back" (false)
+          var moved = wizardBack();
+          if (moved !== false) {
+            _doCloseWizard();
+            return fail('wizardBack() should return false when no earlier visible step; got ' + moved);
+          }
+          // wizard.step should NOT have changed
+          if (wizard.step !== 1) {
+            _doCloseWizard();
+            return fail('wizardBack() changed wizard.step (was 1, now ' + wizard.step + ')');
+          }
+          // Now simulate device back — _wizardBackHandler should close the wizard
+          // Re-push entry first (wizardBack() above did not close)
+          BS.clear();
+          BS.push('wizard', _wizardBackHandler);
+          history.back();
+          await wait(150);
+          var mod = document.getElementById('wizard-modal');
+          if (mod && mod.classList.contains('open')) {
+            _doCloseWizard();
+            return fail('wizard still open after device back on step 1 with itemCategory set');
+          }
+          if (BS.has('wizard')) {
+            return fail('BackStack entry not cleaned up after close');
+          }
+        } finally {
+          window.confirm = realConfirm;
+          var mod2 = document.getElementById('wizard-modal');
+          if (mod2 && mod2.classList.contains('open')) _doCloseWizard();
+        }
+        return okMsg();
+    }},
+
     { name: '105 backstack: empty stack falls through (does not throw)', fn: async function() {
         var BS = window.BackStack;
         BS.clear();
