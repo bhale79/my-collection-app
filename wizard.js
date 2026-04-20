@@ -258,6 +258,133 @@ function closeWizardOnOverlay(e) {
 
 // ── Step interaction handlers (moved to wizard-handlers.js — Session 110, Round 1 Chunk 6) ──
 
+// Session 115: Type + Road filter helpers. The itemNumGrouping renderer
+// (collection tab) has inline code that builds these dropdowns — and
+// now the want-tab itemNum step reuses the same UI via these helpers
+// so users can narrow their search in both flows. Event wiring reads
+// wizard.data._searchFilterType / _searchFilterRoad which
+// updateItemSuggestions already honors; no search-side changes needed.
+//
+// Returns a DOM element (container) with the filter dropdowns, or null
+// when filters shouldn't render (tab not in applyToTabs, insufficient
+// distinct values, or getMasterDistinct unavailable).
+function _buildItemSearchFiltersDOM() {
+  var cfg = window.ITEM_SEARCH_FILTERS || {};
+  var ui  = cfg.ui || {};
+  var sz  = cfg.sizing || {};
+  var applies = (cfg.applyToTabs || []).indexOf(wizard.tab) !== -1;
+  if (!applies) return null;
+  if (typeof getMasterDistinct !== 'function') return null;
+
+  var types = getMasterDistinct('itemType');
+  var roads = getMasterDistinct('roadName');
+  var minCount = cfg.showOnlyIfAtLeast || 2;
+  var showType = types.length >= minCount;
+  var showRoad = roads.length >= minCount;
+  if (!showType && !showRoad) return null;
+
+  function esc(v) {
+    return String(v == null ? '' : v)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  var container = document.createElement('div');
+  var bar = document.createElement('div');
+  bar.style.cssText = 'display:flex;gap:' + (sz.gapPx || 8) + 'px;margin-bottom:0.5rem;flex-wrap:wrap';
+
+  function mkDrop(fieldId, label, values, currentVal) {
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'flex:1;min-width:130px';
+    var opts = '<option value="">' + esc(ui.anyLabel || '(any)') + '</option>' +
+      values.map(function(v) {
+        var sel = v === currentVal ? ' selected' : '';
+        return '<option value="' + esc(v) + '"' + sel + '>' + esc(v) + '</option>';
+      }).join('');
+    wrap.innerHTML =
+      '<div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:0.2rem;' +
+        'letter-spacing:0.06em;text-transform:uppercase;font-weight:600">' + esc(label) + '</div>' +
+      '<select id="' + fieldId + '" style="' +
+        'width:100%;padding:0.5rem 0.65rem;font-size:' + (sz.fontPx || 14) + 'px;' +
+        'background:var(--surface2);color:var(--text);border:1px solid var(--border);' +
+        'border-radius:8px;min-height:' + (sz.minHeightPx || 44) + 'px' +
+      '">' + opts + '</select>';
+    return wrap;
+  }
+
+  if (showType) bar.appendChild(mkDrop('wiz-search-type', ui.typeLabel || 'Type',       types, wizard.data._searchFilterType || ''));
+  if (showRoad) bar.appendChild(mkDrop('wiz-search-road', ui.roadLabel || 'Road name',  roads, wizard.data._searchFilterRoad || ''));
+  container.appendChild(bar);
+
+  if (ui.hint) {
+    var hint = document.createElement('div');
+    hint.style.cssText = 'font-size:0.72rem;color:var(--text-dim);margin-bottom:0.55rem;font-style:italic';
+    hint.textContent = ui.hint;
+    container.appendChild(hint);
+  }
+  return container;
+}
+
+// Wires change events on the #wiz-search-type / #wiz-search-road selects
+// currently in the DOM. Cross-filters (picking Type narrows Road list and
+// vice-versa), updates the suggestion list, and attaches RoadTypeahead so
+// users can type instead of scroll through 1,300+ roads.
+function _wireItemSearchFilters() {
+  var cfg = window.ITEM_SEARCH_FILTERS || {};
+  var ui  = cfg.ui || {};
+  var anyLabel = ui.anyLabel || '(any)';
+  function esc(v) {
+    return String(v == null ? '' : v)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function refreshDropdown(selId, fieldName, otherFieldName, otherValue, currentVal, stateKey) {
+    var sel = document.getElementById(selId);
+    if (!sel) return;
+    var predicate = otherValue
+      ? function(m) { return (m && String(m[otherFieldName] || '').trim() === otherValue); }
+      : null;
+    var values = (typeof getMasterDistinct === 'function') ? getMasterDistinct(fieldName, predicate) : [];
+    var opts = '<option value="">' + esc(anyLabel) + '</option>';
+    var stillValid = false;
+    values.forEach(function(v) {
+      var selFlag = v === currentVal;
+      if (selFlag) stillValid = true;
+      opts += '<option value="' + esc(v) + '"' + (selFlag ? ' selected' : '') + '>' + esc(v) + '</option>';
+    });
+    sel.innerHTML = opts;
+    if (currentVal && !stillValid) {
+      sel.value = '';
+      if (stateKey && wizard && wizard.data) wizard.data[stateKey] = '';
+    }
+    if (window.RoadTypeahead && typeof RoadTypeahead.refresh === 'function') {
+      RoadTypeahead.refresh(sel);
+    }
+  }
+  var typeSel = document.getElementById('wiz-search-type');
+  if (typeSel) {
+    typeSel.addEventListener('change', function() {
+      wizard.data._searchFilterType = this.value || '';
+      refreshDropdown('wiz-search-road', 'roadName', 'itemType', wizard.data._searchFilterType, wizard.data._searchFilterRoad || '', '_searchFilterRoad');
+      var i = document.getElementById('wiz-input');
+      if (typeof updateItemSuggestions === 'function') updateItemSuggestions(i ? i.value : '');
+    });
+  }
+  var roadSel = document.getElementById('wiz-search-road');
+  if (roadSel) {
+    roadSel.addEventListener('change', function() {
+      wizard.data._searchFilterRoad = this.value || '';
+      refreshDropdown('wiz-search-type', 'itemType', 'roadName', wizard.data._searchFilterRoad, wizard.data._searchFilterType || '', '_searchFilterType');
+      var i = document.getElementById('wiz-input');
+      if (typeof updateItemSuggestions === 'function') updateItemSuggestions(i ? i.value : '');
+    });
+  }
+  if (window.RoadTypeahead && typeof RoadTypeahead.attach === 'function') {
+    if (typeSel) RoadTypeahead.attach(typeSel);
+    if (roadSel) RoadTypeahead.attach(roadSel);
+  }
+}
+
 // Session 115: grouping-choice helpers called by inline onchange on the
 // Confirm-step checkboxes / radios. Kept on window so the inline
 // handlers can find them regardless of load order.
@@ -921,6 +1048,21 @@ function renderWizardStep() {
       </div>`;
     setTimeout(() => {
       const inp = document.getElementById('wiz-input');
+      // Session 115: on the want-tab itemNum step, insert the Type +
+      // Road filter bar above the input so users can narrow the
+      // suggestion list the same way the collection tab already does.
+      // Safe no-op on other tabs (helper returns null).
+      if (s.id === 'itemNum' && wizard.tab === 'want' && inp && inp.parentElement) {
+        try {
+          var _filters = _buildItemSearchFiltersDOM();
+          if (_filters) {
+            // Parent is the <div style="flex:1">; insert filter bar
+            // above the input so it reads top-to-bottom naturally.
+            inp.parentElement.insertBefore(_filters, inp);
+            _wireItemSearchFilters();
+          }
+        } catch(e) { console.warn('[want filters]', e); }
+      }
       if (inp) {
         inp.focus();
         if (s.id === 'itemNum') {
