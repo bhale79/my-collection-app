@@ -941,23 +941,25 @@ function renderWizardStep() {
 
     body.innerHTML = '';
     const wrap = document.createElement('div');
-    wrap.style.cssText = 'display:flex;flex-direction:column;gap:0.65rem;padding-top:0.25rem';
+    // Session 115: tighter gap (0.65rem -> 0.45rem) so the whole set-
+    // entry-mode screen fits without scrolling on a 580px-tall modal.
+    wrap.style.cssText = 'display:flex;flex-direction:column;gap:0.45rem;padding-top:0.15rem';
 
-    // ── Set info banner ──
+    // ── Set info banner (tightened) ──
     const banner = document.createElement('div');
-    banner.style.cssText = 'background:var(--surface2);border:1px solid var(--accent2);border-radius:8px;padding:0.5rem 0.8rem';
+    banner.style.cssText = 'background:var(--surface2);border:1px solid var(--accent2);border-radius:8px;padding:0.4rem 0.75rem';
     const setLabel = _seSet ? _seSet.setNum + (_seSet.setName ? ' — ' + _seSet.setName : '') : 'Set';
-    banner.innerHTML = '<div style="font-family:var(--font-mono);font-weight:700;color:var(--accent2);font-size:0.92rem">' + setLabel + '</div>'
-      + '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:2px">' + _seItems.length + ' items · ' + (_seSet && _seSet.year ? _seSet.year : '') + ' · ' + (_seSet && _seSet.gauge ? _seSet.gauge : '') + '</div>';
+    banner.innerHTML = '<div style="font-family:var(--font-mono);font-weight:700;color:var(--accent2);font-size:0.88rem;line-height:1.2">' + setLabel + '</div>'
+      + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:2px">' + _seItems.length + ' items · ' + (_seSet && _seSet.year ? _seSet.year : '') + ' · ' + (_seSet && _seSet.gauge ? _seSet.gauge : '') + '</div>';
     wrap.appendChild(banner);
 
-    // ── Condition slider ──
+    // ── Condition slider (tightened) ──
     const condWrap = document.createElement('div');
-    condWrap.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">'
-      + '<span style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim)">Overall Condition</span>'
-      + '<span id="se-cond-val" style="font-family:var(--font-mono);font-size:1.1rem;color:var(--accent);font-weight:700">' + _seCondVal + '</span></div>'
-      + '<input type="range" id="se-cond-slider" min="1" max="10" value="' + _seCondVal + '" style="width:100%;accent-color:var(--accent)">'
-      + '<div style="display:flex;justify-content:space-between;font-size:0.65rem;color:var(--text-dim)"><span>Poor</span><span>Excellent</span></div>';
+    condWrap.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">'
+      + '<span style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim)">Overall Condition</span>'
+      + '<span id="se-cond-val" style="font-family:var(--font-mono);font-size:1.05rem;color:var(--accent);font-weight:700">' + _seCondVal + '</span></div>'
+      + '<input type="range" id="se-cond-slider" min="1" max="10" value="' + _seCondVal + '" style="width:100%;accent-color:var(--accent);margin:0">'
+      + '<div style="display:flex;justify-content:space-between;font-size:0.6rem;color:var(--text-dim);margin-top:-2px"><span>Poor</span><span>Excellent</span></div>';
     wrap.appendChild(condWrap);
 
     // ── Three-column row: Est Worth | Set Box checkbox | QE Photo ──
@@ -991,31 +993,34 @@ function renderWizardStep() {
     threeRow.appendChild(photoCol);
     wrap.appendChild(threeRow);
 
-    // ── Quick Entry Save button + note ──
-    const qeSaveBtn = document.createElement('button');
-    qeSaveBtn.type = 'button';
-    qeSaveBtn.id = 'se-qe-save';
-    qeSaveBtn.style.cssText = 'width:100%;padding:0.7rem;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-size:0.86rem;font-weight:600;cursor:pointer;margin-top:0.15rem';
-    qeSaveBtn.textContent = '\u26a1 Save quick entry';
-    wrap.appendChild(qeSaveBtn);
+    // Session 115: side-by-side [Full Entry] [Save Quick Entry] row —
+    // replaces the vertically-stacked big-QE-button + divider + Full-
+    // button layout that pushed Full Entry below the fold on most
+    // screens. Now both options are visible without scrolling, and a
+    // small helper line above the buttons tells the user what
+    // Quick Entry does differently.
+    const qeHelp = document.createElement('div');
+    qeHelp.style.cssText = 'font-size:0.7rem;color:var(--text-dim);line-height:1.45;text-align:center;padding:0 0.5rem;margin-top:0.1rem';
+    qeHelp.innerHTML = 'Quick Entry: one condition, one price, shared Group ID. Full Entry: walk each item one-by-one.';
+    wrap.appendChild(qeHelp);
 
-    const qeNote = document.createElement('div');
-    qeNote.style.cssText = 'font-size:0.72rem;color:var(--text-dim);line-height:1.5;text-align:center;padding:0 0.5rem';
-    qeNote.textContent = 'All items get the same condition. Price stored under the engine row. All items share a Group ID.';
-    wrap.appendChild(qeNote);
-
-    // ── Divider + Full Entry button ──
-    const divider = document.createElement('div');
-    divider.style.cssText = 'text-align:center;font-size:0.78rem;color:var(--text-dim);padding:0.2rem 0';
-    divider.textContent = 'or continue on with the:';
-    wrap.appendChild(divider);
-
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:0.5rem;align-items:stretch;margin-top:0.25rem';
+    // Full Entry on the left — primary (orange)
     const fullBtn = document.createElement('button');
     fullBtn.type = 'button';
     fullBtn.id = 'se-full-btn';
-    fullBtn.style.cssText = 'width:100%;padding:0.7rem;border-radius:10px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.86rem;font-weight:700;cursor:pointer';
-    fullBtn.textContent = 'Full entry \u2192';
-    wrap.appendChild(fullBtn);
+    fullBtn.style.cssText = 'flex:1;padding:0.7rem 0.5rem;border-radius:10px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.86rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.4rem';
+    fullBtn.innerHTML = '\u{1F4CB} Full Entry \u2192';
+    btnRow.appendChild(fullBtn);
+    // Save Quick Entry on the right — secondary (outlined)
+    const qeSaveBtn = document.createElement('button');
+    qeSaveBtn.type = 'button';
+    qeSaveBtn.id = 'se-qe-save';
+    qeSaveBtn.style.cssText = 'flex:1;padding:0.7rem 0.5rem;border-radius:10px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.86rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.4rem';
+    qeSaveBtn.innerHTML = '\u26a1 Save Quick Entry';
+    btnRow.appendChild(qeSaveBtn);
+    wrap.appendChild(btnRow);
 
     body.appendChild(wrap);
 
@@ -1088,7 +1093,7 @@ function renderWizardStep() {
           await _quickEntrySaveSet(cond, worth, {});
         } catch(e) {
           saveBtn.disabled = false;
-          saveBtn.textContent = '\u26a1 Save quick entry';
+          saveBtn.innerHTML = '\u26a1 Save Quick Entry';
           if (_seFullBtn) { _seFullBtn.disabled = false; _seFullBtn.style.opacity = '1'; }
           showToast('\u274c Save failed: ' + e.message, 5000);
         }
