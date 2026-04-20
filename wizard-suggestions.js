@@ -345,6 +345,18 @@ function updateItemSuggestions(query) {
     numSpan.textContent = c.num;
     line1.appendChild(numSpan);
 
+    // Session 115: show itemType next to the number so users can tell
+    // apart rows that share an itemNum but differ in kind — e.g. the
+    // 773 Accessory vs the 773 Steam Engine at the same item number.
+    if (c.itemType) {
+      const typeSpan = document.createElement('span');
+      typeSpan.style.cssText = 'font-size:0.7rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;'
+        + 'color:var(--text-dim);background:var(--surface2);border:1px solid var(--border);'
+        + 'padding:0.1rem 0.4rem;border-radius:4px;flex-shrink:0;white-space:nowrap';
+      typeSpan.textContent = c.itemType;
+      line1.appendChild(typeSpan);
+    }
+
     if (c.roadName) {
       const roadSpan = document.createElement('span');
       // min-width:0 is required for flex-child ellipsis to actually shrink
