@@ -3122,11 +3122,15 @@ function renderWizardStep() {
         }
       }
 
-      // Normal entry — show item number input
+      // Normal entry — show item number input + inline "Box Only" checkbox
+      // (Session 115: checkbox moved here so it lives next to the input
+      // instead of as a separate card below the Found banner. Checking it
+      // BEFORE picking a suggestion routes to the box-only flow; leaving
+      // it unchecked lets the suggestion tap auto-advance as before.)
       const _ingInputRow = document.createElement('div');
       _ingInputRow.style.cssText = 'display:flex;gap:0.5rem;align-items:flex-start';
       _ingInputRow.innerHTML = `
-        <div style="flex:1">
+        <div style="flex:1;min-width:0">
           <input type="text" id="wiz-input" value="${_ingVal}" placeholder="e.g. 726, 2046, 6464-1"
             autocomplete="off"
             style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
@@ -3134,7 +3138,22 @@ function renderWizardStep() {
             oninput="wizard.data.itemNum=this.value; updateItemSuggestions(this.value); _updateGroupingButtons();"
             onkeydown="handleSuggestionKey(event)">
           <div id="wiz-suggestions" style="display:none;flex-direction:column;gap:1px;margin-top:4px;max-height:340px;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;-webkit-overflow-scrolling:touch"></div>
-        </div>`;
+        </div>
+        <label onclick="toggleBoxOnly()" data-box-only-checkbox="1" style="
+          display:flex;align-items:center;gap:0.45rem;flex-shrink:0;
+          padding:0.75rem 0.7rem;border-radius:8px;cursor:pointer;transition:all 0.15s;
+          border:2px solid ${_ingBoxOnly ? 'var(--accent2)' : 'var(--border)'};
+          background:${_ingBoxOnly ? 'rgba(201,146,42,0.1)' : 'var(--surface2)'};
+        ">
+          <div style="
+            width:18px;height:18px;border-radius:4px;flex-shrink:0;
+            border:2px solid ${_ingBoxOnly ? 'var(--accent2)' : 'var(--border)'};
+            background:${_ingBoxOnly ? 'var(--accent2)' : 'transparent'};
+            display:flex;align-items:center;justify-content:center;
+            font-size:0.7rem;color:white;font-weight:700;
+          ">${_ingBoxOnly ? '&#10003;' : ''}</div>
+          <span style="font-size:0.82rem;font-weight:600;white-space:nowrap;color:${_ingBoxOnly ? 'var(--accent2)' : 'var(--text-mid)'}">Box Only</span>
+        </label>`;
       _ingWrap.appendChild(_ingInputRow);
       
       // Match display

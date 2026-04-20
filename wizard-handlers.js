@@ -83,60 +83,37 @@ function _updateGroupingButtons() {
     buttons = [];
   }
 
-  container.style.display = 'block';
   const current = wizard.data._itemGrouping || '';
   const _boxSelected = wizard.data.boxOnly || false;
 
-  // Session 115 UX change: the old "Just the Box" button lived alongside
-  // "Item"/"Engine+Tender"/etc. buttons, which made the user choose between
-  // two top-level paths. That's now a single path: pick your grouping (if
-  // there's a real choice to make), then optionally tick the checkbox
-  // below to mark it as box-only. For simple items with no grouping
-  // branches (freight, accessory, paper), the grouping buttons section is
-  // hidden entirely — the checkbox alone is enough.
-  if (buttons.length === 0 && !_boxSelected) {
-    wizard.data._itemGrouping = 'single';
+  // Session 115: box-only checkbox now lives next to the item input
+  // (see wizard.js itemNumGrouping render). This container only holds
+  // the grouping buttons (engine/tender/diesel configs) — which are
+  // suppressed when box-only is active, since box-only implies a
+  // single item with no grouping choice.
+  if (buttons.length === 0 || _boxSelected) {
+    if (buttons.length === 0 && !_boxSelected) {
+      wizard.data._itemGrouping = 'single';
+    }
+    container.style.display = 'none';
+    container.innerHTML = '';
+    return;
   }
 
-  let html = '';
+  container.style.display = 'block';
+  let html = '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.4rem">How are you entering this item?</div>';
+  html += '<div class="wiz-grp-btns-row" style="display:flex;flex-wrap:wrap;gap:0.35rem">';
   const _isMobile = window.innerWidth <= 640;
-
-  // Grouping buttons — only render when there's a real grouping choice
-  // AND box-only isn't already selected (box-only implies single item).
-  if (buttons.length > 0 && !_boxSelected) {
-    html += '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.4rem">How are you entering this item?</div>';
-    html += '<div class="wiz-grp-btns-row" style="display:flex;flex-wrap:wrap;gap:0.35rem">';
-    const _btnFlex = _isMobile ? '1 1 calc(50% - 0.35rem)' : '1';
-    buttons.forEach(function(btn) {
-      const sel = current === btn.id;
-      html += '<button onclick="_selectGrouping(\'' + btn.id + '\')" style="flex:' + _btnFlex + ';min-width:0;padding:0.5rem 0.6rem;border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:var(--font-body);white-space:normal;word-break:break-word;text-align:center;line-height:1.2;'
-        + 'border:2px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';'
-        + 'background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--surface2)') + ';'
-        + 'color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + '">'
-        + btn.label + '</button>';
-    });
-    html += '</div>';
-  }
-
-  // Box-only checkbox — always shown once an item number is entered.
-  html += '<label onclick="toggleBoxOnly()" data-box-only-checkbox="1" style="'
-    + 'display:flex;align-items:center;gap:0.75rem;padding:0.65rem 0.85rem;'
-    + 'margin-top:' + ((buttons.length > 0 && !_boxSelected) ? '0.55rem' : '0.35rem') + ';'
-    + 'border-radius:10px;border:2px solid ' + (_boxSelected ? 'var(--accent2)' : 'var(--border)') + ';'
-    + 'background:' + (_boxSelected ? 'rgba(201,146,42,0.1)' : 'var(--surface2)') + ';'
-    + 'cursor:pointer;transition:all 0.15s;">'
-    + '<div style="width:20px;height:20px;border-radius:5px;flex-shrink:0;'
-    + 'border:2px solid ' + (_boxSelected ? 'var(--accent2)' : 'var(--border)') + ';'
-    + 'background:' + (_boxSelected ? 'var(--accent2)' : 'transparent') + ';'
-    + 'display:flex;align-items:center;justify-content:center;'
-    + 'font-size:0.8rem;color:white;font-weight:700;">'
-    + (_boxSelected ? '&#10003;' : '')
-    + '</div>'
-    + '<div>'
-    + '<div style="font-weight:600;font-size:0.9rem;color:var(--text)">I only have the box (no contents)</div>'
-    + '<div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.1rem">Skip item condition; track this box separately</div>'
-    + '</div>'
-    + '</label>';
+  const _btnFlex = _isMobile ? '1 1 calc(50% - 0.35rem)' : '1';
+  buttons.forEach(function(btn) {
+    const sel = current === btn.id;
+    html += '<button onclick="_selectGrouping(\'' + btn.id + '\')" style="flex:' + _btnFlex + ';min-width:0;padding:0.5rem 0.6rem;border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:var(--font-body);white-space:normal;word-break:break-word;text-align:center;line-height:1.2;'
+      + 'border:2px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';'
+      + 'background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--surface2)') + ';'
+      + 'color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + '">'
+      + btn.label + '</button>';
+  });
+  html += '</div>';
 
   container.innerHTML = html;
 }

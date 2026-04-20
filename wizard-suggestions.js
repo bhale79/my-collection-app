@@ -457,20 +457,20 @@ function selectSuggestion(num, roadName) {
   if (_curStep && _curStep.type === 'itemNumGrouping') {
     // Update grouping buttons first
     _updateGroupingButtons();
-    // Session 115: stay whenever the grouping container has any
-    // interactive content — real grouping buttons (engine/tender/diesel
-    // configs) OR the box-only checkbox. Only auto-advance when the
-    // container is fully empty, which currently never happens once an
-    // item number has been entered. Requires one Next click for plain
-    // items so the box-only option is discoverable.
+    // Session 115: the box-only checkbox now lives in the input row
+    // (not in the grouping container), so only real grouping buttons
+    // (engine/tender/diesel configs) should block auto-advance. Plain
+    // items — freight, accessory, paper — auto-advance on suggestion tap
+    // as before. If the user wanted box-only, they checked it before
+    // tapping the row; that state is already persisted on wizard.data.
     const _grpEl = document.getElementById('wiz-grouping-btns');
-    const _hasInteractive = _grpEl && _grpEl.style.display !== 'none'
-      && _grpEl.querySelector('button, label[data-box-only-checkbox]');
-    if (_hasInteractive) {
-      // Stay on this screen — user needs to pick a grouping or confirm
+    const _hasGroupingButtons = _grpEl && _grpEl.style.display !== 'none'
+      && _grpEl.querySelector('button');
+    if (_hasGroupingButtons) {
+      // Stay on this screen — user needs to pick a grouping
       return;
     }
-    // No grouping UI at all — set single and advance (legacy safety net)
+    // No grouping UI at all — set single and advance
     wizard.data._itemGrouping = 'single';
   } else if (_curStep && _curStep.type === 'entryMode') {
     // QE Step 1: update match display + sliders without advancing
