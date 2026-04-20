@@ -805,6 +805,46 @@
         return okMsg();
     }},
 
+    { name: '126 wizard: findGroupingCandidates — item↔instruction-sheet (v0.9.166)', fn: async function() {
+        // Session 115 Stage 4: when adding a regular item and the user
+        // owns an instruction sheet for it (in state.isData with matching
+        // linkedItem and no groupId), that IS should appear as a
+        // grouping candidate. Reverse direction (adding an IS while
+        // owning the item) already has its own prompt inside the IS
+        // wizard and isn't in scope here.
+        if (typeof findGroupingCandidates !== 'function') return fail('findGroupingCandidates missing');
+        var realPD = state.personalData;
+        var realIS = state.isData;
+        try {
+          state.personalData = {};
+          state.isData = {
+            'is1': { row: 5,  sheetNum: '726-IS', linkedItem: '726', groupId: '', condition: 8 },
+            'is2': { row: 6,  sheetNum: 'M-2046', linkedItem: '2046', groupId: 'GRP-EXISTING', condition: 7 },
+            'is3': { row: 7,  sheetNum: '773-IS', linkedItem: '773', groupId: '', condition: 6 },
+          };
+
+          // (a) Adding item 726 — IS 726-IS should be a candidate
+          var a = findGroupingCandidates({ itemNum: '726', boxOnly: false });
+          if (a.length !== 1 || a[0].type !== 'is' || a[0].itemNum !== '726-IS') {
+            return fail('(a) expected IS 726-IS candidate for item 726; got ' + JSON.stringify(a));
+          }
+          if (a[0].flagKey !== '_groupWithExistingIS') return fail('(a) wrong flagKey: ' + a[0].flagKey);
+          if (a[0].invKey !== 'is_is1') return fail('(a) invKey should prefix with is_; got ' + a[0].invKey);
+
+          // (b) Adding item 2046 — IS exists but already in a group, should be excluded
+          var b = findGroupingCandidates({ itemNum: '2046', boxOnly: false });
+          if (b.length !== 0) return fail('(b) already-grouped IS should be excluded; got ' + b.length);
+
+          // (c) Adding a BOX for 726 — IS stage is skipped in box-only mode
+          var c = findGroupingCandidates({ itemNum: '726', boxOnly: true });
+          if (c.length !== 0) return fail('(c) IS should not appear in box-only mode; got ' + c.length);
+        } finally {
+          state.personalData = realPD;
+          state.isData = realIS;
+        }
+        return okMsg();
+    }},
+
     { name: '125 wizard: findGroupingCandidates — engine↔tender + A↔B partner (v0.9.165)', fn: async function() {
         // Session 115 Stages 2+3: partner-map based grouping detection.
         // Stubs state.partnerMap so the getMatchingTenders/Locos/SetPartner

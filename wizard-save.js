@@ -869,7 +869,8 @@ async function saveWizardItem() {
          d._groupWithExistingBox === true
       || d._groupWithExistingTender === true
       || d._groupWithExistingEngine === true
-      || d._groupWithExistingPartner === true;
+      || d._groupWithExistingPartner === true
+      || d._groupWithExistingIS === true;
     if (_anyOptIn) {
       var _preCands = (typeof findGroupingCandidates === 'function')
         ? findGroupingCandidates(d) : [];
@@ -1160,11 +1161,12 @@ async function saveWizardItem() {
       }
 
       // Session 115: general "adopt candidates into the group" block.
-      // Walks findGroupingCandidates(d) — which covers item↔box,
-      // engine↔tender, and A↔B partner — and applies the new groupId
+      // Walks findGroupingCandidates(d) — covers item↔box, engine↔tender,
+      // A↔B partner, and instruction sheets — and applies the new groupId
       // to each candidate the user opted into on the Confirm step.
-      // Replaces the original box-only block; future grouping types
-      // just need to extend findGroupingCandidates + accept a flagKey.
+      // Type-aware sheet/column routing: IS candidates update the
+      // Instruction Sheets tab column H; everything else updates the
+      // My Collection tab column V.
       if (groupId) {
         var _postCands = (typeof findGroupingCandidates === 'function')
           ? findGroupingCandidates(d) : [];
@@ -1172,7 +1174,7 @@ async function saveWizardItem() {
           // Each flag has its own default/representation:
           //   _groupWithExistingBox  — default linked (treat null/undef as true)
           //   boxGroupSuggest        — explicit 'Yes' (default 'Yes' set in UI)
-          //   _groupWithExistingTender / Engine / Partner — explicit true
+          //   _groupWithExistingTender / Engine / Partner / IS — explicit true
           var opted;
           if (c.flagKey === '_groupWithExistingBox') {
             opted = d._groupWithExistingBox !== false;
@@ -1186,8 +1188,14 @@ async function saveWizardItem() {
           if (!pdRow || pdRow.groupId) return;
           pdRow.groupId = groupId;
           if (pdRow.row && pdRow.row !== 99999) {
-            sheetsUpdate(state.personalSheetId, `My Collection!V${pdRow.row}`, [[groupId]])
-              .catch(function(e) { console.warn('Auto-group backfill for ' + c.itemNum + ':', e); });
+            // Route to the right sheet/column by candidate type
+            if (c.type === 'is') {
+              sheetsUpdate(state.personalSheetId, `Instruction Sheets!H${pdRow.row}`, [[groupId]])
+                .catch(function(e) { console.warn('Auto-group IS backfill for ' + c.itemNum + ':', e); });
+            } else {
+              sheetsUpdate(state.personalSheetId, `My Collection!V${pdRow.row}`, [[groupId]])
+                .catch(function(e) { console.warn('Auto-group backfill for ' + c.itemNum + ':', e); });
+            }
           }
         });
       }

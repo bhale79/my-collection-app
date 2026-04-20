@@ -380,6 +380,33 @@ function findGroupingCandidates(d) {
       }
     }
   }
+
+  // Stage 4: Item ↔ Instruction Sheet. Only surfaces when adding a
+  // regular item (not a box) — the reverse direction (adding an IS
+  // while owning the item) is already handled inside the IS wizard
+  // flow (is_groupChoice step) and lives on a separate Google Sheet
+  // tab, so nothing to do here for that direction.
+  if (!isAddingBox && state.isData && typeof state.isData === 'object') {
+    var isKeys = Object.keys(state.isData);
+    for (var j = 0; j < isKeys.length; j++) {
+      var isKey = isKeys[j];
+      var isEntry = state.isData[isKey];
+      if (!isEntry) continue;
+      if (isEntry.groupId) continue;
+      var linked = String(isEntry.linkedItem || '').trim();
+      if (linked !== num) continue;
+      out.push({
+        type: 'is',
+        itemNum: isEntry.sheetNum || ('IS-' + isKey),
+        invKey: 'is_' + isKey,
+        pd: isEntry,
+        label: 'Instruction sheet ' + (isEntry.sheetNum || '#' + isKey)
+          + (isEntry.condition ? ' (condition ' + isEntry.condition + ')' : ''),
+        flagKey: '_groupWithExistingIS',
+      });
+    }
+  }
+
   return out;
 }
 
@@ -4199,6 +4226,8 @@ function renderWizardStep() {
           wizard.data._groupWithExistingEngine = true;
         } else if (c.flagKey === '_groupWithExistingPartner' && wizard.data._groupWithExistingPartner == null) {
           wizard.data._groupWithExistingPartner = true;
+        } else if (c.flagKey === '_groupWithExistingIS' && wizard.data._groupWithExistingIS == null) {
+          wizard.data._groupWithExistingIS = true;
         }
       });
       confirmHtml += '<div style="background:var(--surface2);border:1.5px solid var(--accent2);border-radius:10px;padding:0.85rem;margin-bottom:1rem">'
