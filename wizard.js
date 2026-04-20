@@ -3218,6 +3218,11 @@ function renderWizardStep() {
             sel.value = '';
             if (stateKey && wizard && wizard.data) wizard.data[stateKey] = '';
           }
+          // Re-sync the typeahead overlay if one is attached — the visible
+          // input text needs to reflect the (possibly cleared) selection.
+          if (window.RoadTypeahead && typeof RoadTypeahead.refresh === 'function') {
+            RoadTypeahead.refresh(sel);
+          }
         }
 
         var _typeSel = document.getElementById('wiz-search-type');
@@ -3247,6 +3252,14 @@ function renderWizardStep() {
             var _i = document.getElementById('wiz-input');
             updateItemSuggestions(_i ? _i.value : '');
           });
+        }
+        // Wrap both dropdowns in the type-to-filter overlay so users can
+        // start typing instead of scrolling through 1,300+ roads. The
+        // helper is additive — if it fails to load, the plain selects
+        // still work.
+        if (window.RoadTypeahead && typeof RoadTypeahead.attach === 'function') {
+          if (_typeSel) RoadTypeahead.attach(_typeSel);
+          if (_roadSel) RoadTypeahead.attach(_roadSel);
         }
       } else {
         // Override title for pre-filled items
