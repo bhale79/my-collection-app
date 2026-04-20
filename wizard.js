@@ -36,7 +36,7 @@ function _buildWizardModal() {
       '</div>' +
       '<div class="modal-body" id="wizard-body" style="flex:1;overflow-y:auto;min-height:0"></div>' +
       '<div class="modal-footer">' +
-        '<button class="btn btn-secondary" id="wizard-back-btn" onclick="wizardBack()" style="display:none">&#x2190; Back</button>' +
+        '<button class="btn btn-secondary" id="wizard-back-btn" onclick="if(!wizardBack())_doCloseWizard();" style="display:none">&#x2190; Back</button>' +
         '<button class="btn btn-secondary" onclick="closeWizard()">Cancel</button>' +
         '<button class="btn btn-primary" id="wizard-next-btn" onclick="wizardNext()">Next &#x2192;</button>' +
       '</div>' +
@@ -171,7 +171,13 @@ function _wizardBackHandler() {
   if (!wizard || wizard.step <= 0) {
     _doCloseWizard();
   } else {
-    wizardBack();
+    // wizardBack() now returns false when no earlier visible step exists
+    // (e.g. user on step 1, step 0 was itemCategory and is now skipIf→true
+    // because they've picked a category). In that case, "back" should
+    // close the wizard cleanly — silently, matching the step-0 close
+    // path above — not loop back onto the same step.
+    var moved = wizardBack();
+    if (!moved) { _doCloseWizard(); return; }
   }
   // If the wizard is still open (user stepped back), re-push so the next
   // device-back press still routes here.
@@ -3987,8 +3993,14 @@ function renderWizardStep() {
 
 // ── Suggestion engines (moved to wizard-suggestions.js — Session 110, Round 1 Chunk 1) ──
 
+// Returns:
+//   true  — wizard.step moved to an earlier visible step (re-rendered)
+//   false — no earlier visible step exists. Caller decides what to do
+//           (close the wizard, show cancel prompt, etc.). This prevents
+//           the silent loop that previously landed the user back on the
+//           current step when all prior steps had skipIf → true.
 function wizardBack() {
-  if (wizard.step <= 0) return;
+  if (wizard.step <= 0) return false;
   // Clear save locks — user is navigating back, not saving
   if (wizard.data) {
     wizard.data._wizSaveLock = false;
@@ -4007,19 +4019,13 @@ function wizardBack() {
     if (!isSkipped && !isSetBlocked) break;
     target--;
   }
-  // If we ran past the beginning, stay on the first non-skipped step going forward
-  if (target < 0) {
-    target = 0;
-    while (target < wizard.steps.length) {
-      const st = wizard.steps[target];
-      const isSkipped = (st.skipIf && st.skipIf(wizard.data));
-      const isSetBlocked = (_setFwdSkip && _setFwdSkip.has(st.id));
-      if (!isSkipped && !isSetBlocked) break;
-      target++;
-    }
-  }
+  // If no earlier visible step exists, do NOT forward-scan (that just
+  // lands us back on the current step and the wizard appears stuck).
+  // Signal the caller so it can close the wizard cleanly.
+  if (target < 0) return false;
   wizard.step = target;
   renderWizardStep();
+  return true;
 }
 
 function wizardNextWithYearCheck() {
