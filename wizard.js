@@ -3224,6 +3224,11 @@ function renderWizardStep() {
             sel.value = '';
             if (stateKey && wizard && wizard.data) wizard.data[stateKey] = '';
           }
+          // Re-sync the typeahead overlay if one is attached — the visible
+          // input text needs to reflect the (possibly cleared) selection.
+          if (window.RoadTypeahead && typeof RoadTypeahead.refresh === 'function') {
+            RoadTypeahead.refresh(sel);
+          }
         }
 
         var _typeSel = document.getElementById('wiz-search-type');
@@ -3254,10 +3259,16 @@ function renderWizardStep() {
             updateItemSuggestions(_i ? _i.value : '');
           });
         }
-        // NOTE: RoadTypeahead.attach() calls removed in v0.9.152 —
-        // caused a back-button regression (root cause still TBD). The
-        // helper stays in the repo and is loaded by index.html so it's
-        // ready to re-wire once the interaction bug is fixed.
+        // Wrap both dropdowns in the type-to-filter overlay so users can
+        // start typing instead of scrolling through 1,300+ roads. Helper
+        // is additive — if it fails to load, the plain selects still
+        // work. (Back-button regression from v0.9.151 turned out to be
+        // unrelated — root cause was wizardBack() forward-scan, fixed
+        // in v0.9.153.)
+        if (window.RoadTypeahead && typeof RoadTypeahead.attach === 'function') {
+          if (_typeSel) RoadTypeahead.attach(_typeSel);
+          if (_roadSel) RoadTypeahead.attach(_roadSel);
+        }
       } else {
         // Override title for pre-filled items
         var _tEl = document.getElementById('wizard-title');
