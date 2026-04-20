@@ -805,6 +805,61 @@
         return okMsg();
     }},
 
+    { name: '124 wizard: findGroupingCandidates — item↔box bidirectional (v0.9.164)', fn: async function() {
+        // Session 115 Stage 1: grouping detector for item↔box. Verifies:
+        //   (a) adding a regular item returns the matching -BOX row
+        //   (b) adding a box (boxOnly=true) returns the matching item
+        //   (c) candidates already in a group are excluded
+        //   (d) non-owned rows are excluded
+        if (typeof findGroupingCandidates !== 'function') return fail('findGroupingCandidates missing');
+        var realPersonal = state.personalData;
+        try {
+          // Seed a fake collection
+          state.personalData = {
+            'k1': { itemNum: '55',     owned: true, groupId: '', condition: 7 },
+            'k2': { itemNum: '55-BOX', owned: true, groupId: '', boxCond: 8 },
+            'k3': { itemNum: '60',     owned: true, groupId: '' },
+            'k4': { itemNum: '60-BOX', owned: true, groupId: 'GRP-60-EXISTING' }, // already grouped
+            'k5': { itemNum: '70-BOX', owned: false, groupId: '' }, // not owned
+          };
+
+          // (a) Adding item 55 — should find the matching -BOX
+          var cands1 = findGroupingCandidates({ itemNum: '55', boxOnly: false });
+          if (cands1.length !== 1) return fail('(a) expected 1 candidate for item 55; got ' + cands1.length);
+          if (cands1[0].type !== 'box' || cands1[0].itemNum !== '55-BOX') {
+            return fail('(a) wrong candidate: ' + JSON.stringify(cands1[0]));
+          }
+          if (cands1[0].flagKey !== '_groupWithExistingBox') {
+            return fail('(a) flagKey should be _groupWithExistingBox; got ' + cands1[0].flagKey);
+          }
+
+          // (b) Adding a box for 55 — should find the matching plain item
+          var cands2 = findGroupingCandidates({ itemNum: '55', boxOnly: true });
+          if (cands2.length !== 1) return fail('(b) expected 1 candidate for box 55; got ' + cands2.length);
+          if (cands2[0].type !== 'item' || cands2[0].itemNum !== '55') {
+            return fail('(b) wrong candidate: ' + JSON.stringify(cands2[0]));
+          }
+          if (cands2[0].flagKey !== 'boxGroupSuggest') {
+            return fail('(b) flagKey should be boxGroupSuggest; got ' + cands2[0].flagKey);
+          }
+
+          // (c) Adding item 60 — matching box is already grouped, should be excluded
+          var cands3 = findGroupingCandidates({ itemNum: '60', boxOnly: false });
+          if (cands3.length !== 0) return fail('(c) candidates with existing groupId should be excluded; got ' + cands3.length);
+
+          // (d) Adding item 70 — matching box exists but isn't owned, should be excluded
+          var cands4 = findGroupingCandidates({ itemNum: '70', boxOnly: false });
+          if (cands4.length !== 0) return fail('(d) non-owned candidates should be excluded; got ' + cands4.length);
+
+          // (e) Empty item number — returns empty list without error
+          var cands5 = findGroupingCandidates({ itemNum: '', boxOnly: false });
+          if (cands5.length !== 0) return fail('(e) empty itemNum should return []; got ' + cands5.length);
+        } finally {
+          state.personalData = realPersonal;
+        }
+        return okMsg();
+    }},
+
     { name: '123 wizard: Back past entryMode step does not bounce forward (v0.9.162)', fn: async function() {
         // Regression: entryMode step's render code auto-advances because
         // the Quick Entry UI was removed in a prior session. Without

@@ -258,6 +258,65 @@ function closeWizardOnOverlay(e) {
 
 // ── Step interaction handlers (moved to wizard-handlers.js — Session 110, Round 1 Chunk 6) ──
 
+// Session 115: unified grouping-candidate detector. Given the current
+// wizard data, returns owned personal-data rows that could naturally
+// group with the thing being added. Sets are deliberately excluded —
+// the Set Builder function handles outfit-set linking.
+//
+// Stage 1 (this commit): item ↔ box bidirectional.
+// Later stages will extend this to engine↔tender, A↔B/powered↔dummy,
+// and item↔instruction-sheet. Adding a stage is a matter of pushing
+// more entries into `out`; downstream (Confirm step + save) already
+// iterates `findGroupingCandidates()` generically.
+//
+// Each candidate:
+//   { type:'box'|'item', itemNum, invKey, pd, label, flagKey }
+// flagKey is the wizard.data field that toggles whether to link:
+//   '_groupWithExistingBox' for the item→box direction (truthy = link)
+//   'boxGroupSuggest'        for the box→item direction ('Yes' = link)
+function findGroupingCandidates(d) {
+  if (!d) return [];
+  if (typeof state === 'undefined' || !state || !state.personalData) return [];
+  var num = (d.itemNum || '').toString().trim();
+  if (!num) return [];
+  var isAddingBox = !!d.boxOnly;
+  var out = [];
+  var keys = Object.keys(state.personalData);
+  for (var i = 0; i < keys.length; i++) {
+    var k = keys[i];
+    var pd = state.personalData[k];
+    if (!pd || !pd.owned) continue;
+    // Already in a shared group? Skip — we don't re-link what's linked.
+    if (pd.groupId) continue;
+    if (isAddingBox) {
+      // Adding a box → look for the matching plain item
+      if (pd.itemNum === num && String(pd.itemNum).indexOf('-BOX') < 0) {
+        out.push({
+          type: 'item',
+          itemNum: pd.itemNum,
+          invKey: k,
+          pd: pd,
+          label: 'Item No. ' + pd.itemNum + (pd.condition ? ' (condition ' + pd.condition + ')' : ''),
+          flagKey: 'boxGroupSuggest',
+        });
+      }
+    } else {
+      // Adding a regular item → look for matching -BOX rows
+      if (pd.itemNum === num + '-BOX') {
+        out.push({
+          type: 'box',
+          itemNum: pd.itemNum,
+          invKey: k,
+          pd: pd,
+          label: 'Box for No. ' + num + (pd.boxCond ? ' (box condition ' + pd.boxCond + ')' : ''),
+          flagKey: '_groupWithExistingBox',
+        });
+      }
+    }
+  }
+  return out;
+}
+
 // Session 115: persistent "Adding No. X — Description" banner shown at
 // the top of every wizard step once we know what's being added. Nothing
 // renders until the user has picked / typed an item number (or, for the
@@ -4049,6 +4108,60 @@ function renderWizardStep() {
         + '<div style="font-family:var(--font-mono);color:var(--accent2)">' + (wizard.data.itemCategory === 'set' ? 'Set ' : 'Item ') + (wizard.data.itemNum || wizard.data.set_num || '?') + (wizard.data.variation ? ' Var ' + wizard.data.variation : '') + '</div>'
         + '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.2rem">' + (wizard.data.itemCategory === 'set' ? 'Will be added to your Want List' : 'Not found in master inventory — will save with entered data') + '</div></div>';
     }
+    // Session 115: grouping-candidate section. When the user already owns
+    // something that naturally groups with this new item (currently:
+    // item ↔ box), surface it as a checkbox so they can explicitly opt
+    // in/out of linking. The checkbox binds back to the existing flag
+    // (_groupWithExistingBox or boxGroupSuggest) that the save logic
+    // already reads — the Confirm step is just a visible surface.
+    var _grpCands = (typeof findGroupingCandidates === 'function')
+      ? findGroupingCandidates(wizard.data) : [];
+    if (_grpCands.length > 0) {
+      // Default each candidate to "linked". For item→box that means
+      // _groupWithExistingBox stays truthy (default true already).
+      // For box→item that means boxGroupSuggest defaults to 'Yes'.
+      _grpCands.forEach(function(c) {
+        if (c.flagKey === 'boxGroupSuggest' && !wizard.data.boxGroupSuggest) {
+          wizard.data.boxGroupSuggest = 'Yes';
+        } else if (c.flagKey === '_groupWithExistingBox' && wizard.data._groupWithExistingBox == null) {
+          wizard.data._groupWithExistingBox = true;
+        }
+      });
+      confirmHtml += '<div style="background:var(--surface2);border:1.5px solid var(--accent2);border-radius:10px;padding:0.85rem;margin-bottom:1rem">'
+        + '<div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.45rem">'
+        +   '<span style="font-size:1rem;line-height:1">\u{1F517}</span>'
+        +   '<div style="font-weight:700;color:var(--accent2);font-size:0.92rem">'
+        +     'Link with existing ' + (_grpCands.length > 1 ? 'items' : 'item') + '?'
+        +   '</div>'
+        + '</div>'
+        + '<div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.6rem">'
+        +   'You already own '
+        +   (_grpCands.length === 1 ? 'this related item' : 'these related items')
+        +   '. Linking keeps them grouped in photos and reports.'
+        + '</div>';
+      _grpCands.forEach(function(c) {
+        var linked;
+        if (c.flagKey === 'boxGroupSuggest') {
+          linked = wizard.data.boxGroupSuggest === 'Yes';
+        } else {
+          linked = wizard.data._groupWithExistingBox !== false;
+        }
+        var handler;
+        if (c.flagKey === 'boxGroupSuggest') {
+          handler = 'wizard.data.boxGroupSuggest=this.checked?\'Yes\':\'No\'';
+        } else {
+          handler = 'wizard.data._groupWithExistingBox=this.checked';
+        }
+        confirmHtml += '<label style="display:flex;align-items:center;gap:0.65rem;padding:0.55rem 0.7rem;margin-top:0.35rem;'
+          + 'border-radius:8px;background:var(--bg);border:1px solid var(--border);cursor:pointer">'
+          + '<input type="checkbox" ' + (linked ? 'checked' : '') + ' onchange="' + handler + '" '
+          + 'style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent2);flex-shrink:0">'
+          + '<span style="font-size:0.85rem;color:var(--text)">' + c.label + '</span>'
+          + '</label>';
+      });
+      confirmHtml += '</div>';
+    }
+
     confirmHtml += '<div style="display:flex;flex-direction:column;gap:0.3rem;font-size:0.83rem">';
     _summaryEntries.forEach(function(entry) {
       var k = entry[0], v = entry[1];

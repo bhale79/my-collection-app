@@ -859,6 +859,23 @@ async function saveWizardItem() {
   const _hasAnyBox = d.hasBox === 'Yes' || _isPairedCheck || _isSetCheck;
   let groupId = d._existingGroupId || (_hasAnyBox ? ('GRP-' + _rawItemNum + '-' + Date.now()) : '');
 
+  // Session 115: if the user opted to link with an existing -BOX row on
+  // the Confirm step, mint a groupId even when the new item itself has
+  // no box attached. Without this, the auto-group block below never
+  // fires (its `if (groupId && ...)` guard returns falsy), so the
+  // "Link with existing box?" checkbox silently did nothing for the
+  // common case of an item without its own box. Scoped to the
+  // collection tab since the _groupWithExistingBox flag is only set
+  // there.
+  if (!groupId && tab === 'collection' && d._groupWithExistingBox === true) {
+    const _hasExistingBox = Object.values(state.personalData).some(pd =>
+      pd.itemNum === itemNum + '-BOX' && pd.owned
+    );
+    if (_hasExistingBox) {
+      groupId = 'GRP-' + _rawItemNum + '-' + Date.now();
+    }
+  }
+
   // Hoisted to function scope — used by both collection save and group box save blocks
   let row;
   let isSetSave = false;
