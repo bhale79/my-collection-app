@@ -859,20 +859,23 @@ async function saveWizardItem() {
   const _hasAnyBox = d.hasBox === 'Yes' || _isPairedCheck || _isSetCheck;
   let groupId = d._existingGroupId || (_hasAnyBox ? ('GRP-' + _rawItemNum + '-' + Date.now()) : '');
 
-  // Session 115: if the user opted to link with an existing -BOX row on
-  // the Confirm step, mint a groupId even when the new item itself has
-  // no box attached. Without this, the auto-group block below never
-  // fires (its `if (groupId && ...)` guard returns falsy), so the
-  // "Link with existing box?" checkbox silently did nothing for the
-  // common case of an item without its own box. Scoped to the
-  // collection tab since the _groupWithExistingBox flag is only set
-  // there.
-  if (!groupId && tab === 'collection' && d._groupWithExistingBox === true) {
-    const _hasExistingBox = Object.values(state.personalData).some(pd =>
-      pd.itemNum === itemNum + '-BOX' && pd.owned
-    );
-    if (_hasExistingBox) {
-      groupId = 'GRP-' + _rawItemNum + '-' + Date.now();
+  // Session 115: mint a groupId when the user opted to link ANY
+  // candidate on the Confirm step (box, tender, engine, or A/B
+  // partner) — even when the new item itself has no box/tender of its
+  // own. Without this, the linking flags silently did nothing for any
+  // "plain item with related-item already owned" case.
+  if (!groupId && tab === 'collection') {
+    var _anyOptIn =
+         d._groupWithExistingBox === true
+      || d._groupWithExistingTender === true
+      || d._groupWithExistingEngine === true
+      || d._groupWithExistingPartner === true;
+    if (_anyOptIn) {
+      var _preCands = (typeof findGroupingCandidates === 'function')
+        ? findGroupingCandidates(d) : [];
+      if (_preCands.length > 0) {
+        groupId = 'GRP-' + _rawItemNum + '-' + Date.now();
+      }
     }
   }
 
@@ -1156,19 +1159,37 @@ async function saveWizardItem() {
         await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
       }
 
-      // Auto-group with existing standalone box: if a -BOX row already exists for this item, adopt it into the group
-      // Only group if user opted in (checkbox on item number step, default: true)
-      if (groupId && d._groupWithExistingBox !== false) {
-        const existingBoxEntry = Object.values(state.personalData).find(pd =>
-          pd.itemNum === itemNum + '-BOX' && pd.owned && !pd.groupId
-        );
-        if (existingBoxEntry) {
-          existingBoxEntry.groupId = groupId;
-          if (existingBoxEntry.row && existingBoxEntry.row !== 99999) {
-            sheetsUpdate(state.personalSheetId, `My Collection!V${existingBoxEntry.row}`, [[groupId]])
-              .catch(e => console.warn('Auto-group box backfill:', e));
+      // Session 115: general "adopt candidates into the group" block.
+      // Walks findGroupingCandidates(d) — which covers item↔box,
+      // engine↔tender, and A↔B partner — and applies the new groupId
+      // to each candidate the user opted into on the Confirm step.
+      // Replaces the original box-only block; future grouping types
+      // just need to extend findGroupingCandidates + accept a flagKey.
+      if (groupId) {
+        var _postCands = (typeof findGroupingCandidates === 'function')
+          ? findGroupingCandidates(d) : [];
+        _postCands.forEach(function(c) {
+          // Each flag has its own default/representation:
+          //   _groupWithExistingBox  — default linked (treat null/undef as true)
+          //   boxGroupSuggest        — explicit 'Yes' (default 'Yes' set in UI)
+          //   _groupWithExistingTender / Engine / Partner — explicit true
+          var opted;
+          if (c.flagKey === '_groupWithExistingBox') {
+            opted = d._groupWithExistingBox !== false;
+          } else if (c.flagKey === 'boxGroupSuggest') {
+            opted = d.boxGroupSuggest === 'Yes';
+          } else {
+            opted = d[c.flagKey] === true;
           }
-        }
+          if (!opted) return;
+          var pdRow = c.pd;
+          if (!pdRow || pdRow.groupId) return;
+          pdRow.groupId = groupId;
+          if (pdRow.row && pdRow.row !== 99999) {
+            sheetsUpdate(state.personalSheetId, `My Collection!V${pdRow.row}`, [[groupId]])
+              .catch(function(e) { console.warn('Auto-group backfill for ' + c.itemNum + ':', e); });
+          }
+        });
       }
 
     } else if (tab === 'forsale') {

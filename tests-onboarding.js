@@ -805,6 +805,72 @@
         return okMsg();
     }},
 
+    { name: '125 wizard: findGroupingCandidates — engine↔tender + A↔B partner (v0.9.165)', fn: async function() {
+        // Session 115 Stages 2+3: partner-map based grouping detection.
+        // Stubs state.partnerMap so the getMatchingTenders/Locos/SetPartner
+        // helpers resolve without depending on real master data.
+        if (typeof findGroupingCandidates !== 'function') return fail('findGroupingCandidates missing');
+        var realPD = state.personalData;
+        var realPM = state.partnerMap;
+        try {
+          state.partnerMap = {
+            '2037':  { tenders: ['6026W'],       locos: [],        isDiesel: false, configs: [] },
+            '6026W': { tenders: [],              locos: ['2037'],  isDiesel: false, configs: [] },
+            '2343':  { tenders: [], locos: [], bUnit: '2343C', isDiesel: true, configs: ['AB'] },
+            '2343C': { tenders: [], locos: [], aUnit: '2343',  isDiesel: true, configs: [] },
+          };
+          state.personalData = {
+            'a': { itemNum: '6026W', owned: true, groupId: '', condition: 8 },
+            'b': { itemNum: '2037',  owned: true, groupId: '', condition: 7 },
+            'c': { itemNum: '2343',  owned: true, groupId: '', condition: 6 },
+            'd': { itemNum: '2343C', owned: true, groupId: '', condition: 6 },
+          };
+
+          // Adding 2037 (engine): owned tender 6026W should be a candidate
+          var a = findGroupingCandidates({ itemNum: '2037', boxOnly: false });
+          if (a.length !== 1 || a[0].type !== 'tender' || a[0].itemNum !== '6026W') {
+            return fail('engine→tender: expected tender 6026W; got ' + JSON.stringify(a));
+          }
+          if (a[0].flagKey !== '_groupWithExistingTender') {
+            return fail('engine→tender: flagKey wrong: ' + a[0].flagKey);
+          }
+
+          // Adding 6026W (tender): owned engine 2037 should be a candidate
+          var b = findGroupingCandidates({ itemNum: '6026W', boxOnly: false });
+          if (b.length !== 1 || b[0].type !== 'engine' || b[0].itemNum !== '2037') {
+            return fail('tender→engine: expected engine 2037; got ' + JSON.stringify(b));
+          }
+          if (b[0].flagKey !== '_groupWithExistingEngine') {
+            return fail('tender→engine: flagKey wrong: ' + b[0].flagKey);
+          }
+
+          // Adding 2343 (A-unit): owned 2343C (B-unit) should be partner candidate
+          var c = findGroupingCandidates({ itemNum: '2343', boxOnly: false });
+          if (c.length !== 1 || c[0].type !== 'partner' || c[0].itemNum !== '2343C') {
+            return fail('A→B: expected partner 2343C; got ' + JSON.stringify(c));
+          }
+          if (c[0].flagKey !== '_groupWithExistingPartner') {
+            return fail('A→B: flagKey wrong: ' + c[0].flagKey);
+          }
+          if (c[0].label.indexOf('B-unit') < 0) {
+            return fail('A→B: label should mention B-unit; got ' + c[0].label);
+          }
+
+          // Adding 2343C (B-unit): owned 2343 (A-unit) should be partner candidate
+          var d2 = findGroupingCandidates({ itemNum: '2343C', boxOnly: false });
+          if (d2.length !== 1 || d2[0].type !== 'partner' || d2[0].itemNum !== '2343') {
+            return fail('B→A: expected partner 2343; got ' + JSON.stringify(d2));
+          }
+          if (d2[0].label.indexOf('Paired unit') < 0) {
+            return fail('B→A: label should say Paired unit; got ' + d2[0].label);
+          }
+        } finally {
+          state.personalData = realPD;
+          state.partnerMap = realPM;
+        }
+        return okMsg();
+    }},
+
     { name: '124 wizard: findGroupingCandidates — item↔box bidirectional (v0.9.164)', fn: async function() {
         // Session 115 Stage 1: grouping detector for item↔box. Verifies:
         //   (a) adding a regular item returns the matching -BOX row

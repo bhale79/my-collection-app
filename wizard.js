@@ -281,6 +281,37 @@ function findGroupingCandidates(d) {
   if (!num) return [];
   var isAddingBox = !!d.boxOnly;
   var out = [];
+
+  // Build target sets — the item numbers we'd group with, keyed by type.
+  // Box ↔ item uses suffix matching; tender / engine / partner use the
+  // partner map (app.js — getMatchingTenders, getMatchingLocos,
+  // getSetPartner). Gracefully no-op when those helpers aren't loaded.
+  var boxTargets     = new Set();
+  var itemTargets    = new Set();
+  var tenderTargets  = new Set();
+  var engineTargets  = new Set();
+  var partnerTargets = new Set();
+
+  if (isAddingBox) {
+    itemTargets.add(num);
+  } else {
+    boxTargets.add(num + '-BOX');
+    // Stage 2: Engine ↔ Tender
+    if (typeof getMatchingTenders === 'function') {
+      try { getMatchingTenders(num).forEach(function(t) { tenderTargets.add(String(t).trim()); }); } catch(e) {}
+    }
+    if (typeof getMatchingLocos === 'function') {
+      try { getMatchingLocos(num).forEach(function(e) { engineTargets.add(String(e).trim()); }); } catch(e) {}
+    }
+    // Stage 3: A-unit ↔ B-unit
+    if (typeof getSetPartner === 'function') {
+      try {
+        var partner = getSetPartner(num);
+        if (partner) partnerTargets.add(String(partner).trim());
+      } catch(e) {}
+    }
+  }
+
   var keys = Object.keys(state.personalData);
   for (var i = 0; i < keys.length; i++) {
     var k = keys[i];
@@ -288,28 +319,63 @@ function findGroupingCandidates(d) {
     if (!pd || !pd.owned) continue;
     // Already in a shared group? Skip — we don't re-link what's linked.
     if (pd.groupId) continue;
+    var pdNum = String(pd.itemNum || '').trim();
+    if (!pdNum) continue;
+
     if (isAddingBox) {
       // Adding a box → look for the matching plain item
-      if (pd.itemNum === num && String(pd.itemNum).indexOf('-BOX') < 0) {
+      if (itemTargets.has(pdNum) && pdNum.indexOf('-BOX') < 0) {
         out.push({
           type: 'item',
-          itemNum: pd.itemNum,
+          itemNum: pdNum,
           invKey: k,
           pd: pd,
-          label: 'Item No. ' + pd.itemNum + (pd.condition ? ' (condition ' + pd.condition + ')' : ''),
+          label: 'Item No. ' + pdNum + (pd.condition ? ' (condition ' + pd.condition + ')' : ''),
           flagKey: 'boxGroupSuggest',
         });
       }
     } else {
-      // Adding a regular item → look for matching -BOX rows
-      if (pd.itemNum === num + '-BOX') {
+      if (boxTargets.has(pdNum)) {
         out.push({
           type: 'box',
-          itemNum: pd.itemNum,
+          itemNum: pdNum,
           invKey: k,
           pd: pd,
           label: 'Box for No. ' + num + (pd.boxCond ? ' (box condition ' + pd.boxCond + ')' : ''),
           flagKey: '_groupWithExistingBox',
+        });
+      } else if (tenderTargets.has(pdNum)) {
+        out.push({
+          type: 'tender',
+          itemNum: pdNum,
+          invKey: k,
+          pd: pd,
+          label: 'Tender No. ' + pdNum + (pd.condition ? ' (condition ' + pd.condition + ')' : ''),
+          flagKey: '_groupWithExistingTender',
+        });
+      } else if (engineTargets.has(pdNum)) {
+        out.push({
+          type: 'engine',
+          itemNum: pdNum,
+          invKey: k,
+          pd: pd,
+          label: 'Engine No. ' + pdNum + (pd.condition ? ' (condition ' + pd.condition + ')' : ''),
+          flagKey: '_groupWithExistingEngine',
+        });
+      } else if (partnerTargets.has(pdNum)) {
+        // Label disambiguates which side is the partner: if the one
+        // the user owns ends in "C", call it the B-unit; otherwise
+        // "paired unit" covers the generic A-unit case.
+        var partnerLabel = pdNum.toUpperCase().endsWith('C')
+          ? 'B-unit No. '
+          : 'Paired unit No. ';
+        out.push({
+          type: 'partner',
+          itemNum: pdNum,
+          invKey: k,
+          pd: pd,
+          label: partnerLabel + pdNum + (pd.condition ? ' (condition ' + pd.condition + ')' : ''),
+          flagKey: '_groupWithExistingPartner',
         });
       }
     }
@@ -4117,14 +4183,22 @@ function renderWizardStep() {
     var _grpCands = (typeof findGroupingCandidates === 'function')
       ? findGroupingCandidates(wizard.data) : [];
     if (_grpCands.length > 0) {
-      // Default each candidate to "linked". For item→box that means
-      // _groupWithExistingBox stays truthy (default true already).
-      // For box→item that means boxGroupSuggest defaults to 'Yes'.
+      // Default each candidate to "linked". _groupWithExistingBox uses
+      // a default-true convention (treat null/undef as true); the newer
+      // stage-2/3 flags default to explicit true; boxGroupSuggest
+      // defaults to 'Yes'. Setting these here means Save can just read
+      // the flag without special-casing each type.
       _grpCands.forEach(function(c) {
         if (c.flagKey === 'boxGroupSuggest' && !wizard.data.boxGroupSuggest) {
           wizard.data.boxGroupSuggest = 'Yes';
         } else if (c.flagKey === '_groupWithExistingBox' && wizard.data._groupWithExistingBox == null) {
           wizard.data._groupWithExistingBox = true;
+        } else if (c.flagKey === '_groupWithExistingTender' && wizard.data._groupWithExistingTender == null) {
+          wizard.data._groupWithExistingTender = true;
+        } else if (c.flagKey === '_groupWithExistingEngine' && wizard.data._groupWithExistingEngine == null) {
+          wizard.data._groupWithExistingEngine = true;
+        } else if (c.flagKey === '_groupWithExistingPartner' && wizard.data._groupWithExistingPartner == null) {
+          wizard.data._groupWithExistingPartner = true;
         }
       });
       confirmHtml += '<div style="background:var(--surface2);border:1.5px solid var(--accent2);border-radius:10px;padding:0.85rem;margin-bottom:1rem">'
@@ -4140,17 +4214,17 @@ function renderWizardStep() {
         +   '. Linking keeps them grouped in photos and reports.'
         + '</div>';
       _grpCands.forEach(function(c) {
-        var linked;
+        var linked, handler;
         if (c.flagKey === 'boxGroupSuggest') {
           linked = wizard.data.boxGroupSuggest === 'Yes';
-        } else {
-          linked = wizard.data._groupWithExistingBox !== false;
-        }
-        var handler;
-        if (c.flagKey === 'boxGroupSuggest') {
           handler = 'wizard.data.boxGroupSuggest=this.checked?\'Yes\':\'No\'';
-        } else {
+        } else if (c.flagKey === '_groupWithExistingBox') {
+          linked = wizard.data._groupWithExistingBox !== false;
           handler = 'wizard.data._groupWithExistingBox=this.checked';
+        } else {
+          // stage 2/3 flags default to true and bind with assignment
+          linked = wizard.data[c.flagKey] !== false;
+          handler = 'wizard.data[\'' + c.flagKey + '\']=this.checked';
         }
         confirmHtml += '<label style="display:flex;align-items:center;gap:0.65rem;padding:0.55rem 0.7rem;margin-top:0.35rem;'
           + 'border-radius:8px;background:var(--bg);border:1px solid var(--border);cursor:pointer">'
