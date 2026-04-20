@@ -34,6 +34,10 @@ function _buildWizardModal() {
           '<div id="wizard-progress" style="height:100%;border-radius:4px;background:var(--accent);transition:width 0.3s ease;width:0%"></div>' +
         '</div>' +
       '</div>' +
+      // Session 115: persistent "Adding No. 55 — Motorized Unit" banner
+      // shown on every step once an item number is known. Populated by
+      // _renderAddingBanner() in renderWizardStep.
+      '<div id="wizard-adding-banner" style="padding:0 1.5rem"></div>' +
       '<div class="modal-body" id="wizard-body" style="flex:1;overflow-y:auto;min-height:0"></div>' +
       '<div class="modal-footer">' +
         '<button class="btn btn-secondary" id="wizard-back-btn" onclick="if(!wizardBack())_doCloseWizard();" style="display:none">&#x2190; Back</button>' +
@@ -254,6 +258,71 @@ function closeWizardOnOverlay(e) {
 
 // ── Step interaction handlers (moved to wizard-handlers.js — Session 110, Round 1 Chunk 6) ──
 
+// Session 115: persistent "Adding No. X — Description" banner shown at
+// the top of every wizard step once we know what's being added. Nothing
+// renders until the user has picked / typed an item number (or, for the
+// Set flow, a set number). Colour + label adapt to box-only and to the
+// want/for-sale/sold tabs so the user always sees the correct context.
+function _renderAddingBanner() {
+  var el = document.getElementById('wizard-adding-banner');
+  if (!el) return;
+  if (typeof wizard === 'undefined' || !wizard) { el.innerHTML = ''; return; }
+  var d = wizard.data || {};
+
+  // Resolve the "what" being added — pick whichever item/set id the
+  // current flow uses. Empty -> hide the banner entirely.
+  var num = (d.itemNum || d.manualItemNum || d.set_num || d.is_linkedItem || '').toString().trim();
+  if (!num && d._resolvedSet && d._resolvedSet.setNum) num = d._resolvedSet.setNum;
+  if (!num) { el.innerHTML = ''; return; }
+
+  // Resolve the description. Prefer master-sheet description; fall back
+  // to roadName, itemType, or user-typed manualDesc for manual entries.
+  var desc = '';
+  var match = (typeof findMaster === 'function') ? findMaster(num) : null;
+  if (match) {
+    desc = match.description || match.roadName || match.itemType || '';
+  } else if (d.manualDesc) {
+    desc = d.manualDesc;
+  } else if (d._resolvedSet && d._resolvedSet.setName) {
+    desc = d._resolvedSet.setName;
+  }
+
+  // Flow-aware prefix: box-only, paper/set/mock, tab context (want/forsale/sold)
+  var isBox  = !!d.boxOnly;
+  var isSet  = !!(d._setMode || (d.itemCategory === 'set'));
+  var tab    = wizard.tab || 'collection';
+  var verb;
+  if (tab === 'want')         verb = 'Adding to Want List';
+  else if (tab === 'forsale') verb = 'Adding to For Sale';
+  else if (tab === 'sold')    verb = 'Recording Sale of';
+  else                        verb = 'Adding';
+  var prefix = isBox ? (verb + ' a box for')
+             : isSet ? (verb + ' a set:')
+             : verb;
+  var accentColor = isBox ? 'var(--accent2)' : 'var(--accent)';
+  var icon        = isBox ? '\u{1F4E6}' : (isSet ? '\u{1F381}' : '\u{1F682}');
+
+  // Escape user-visible strings — descriptions can contain ampersands etc.
+  function _e(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  el.innerHTML =
+    '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.45rem 0.7rem;margin-top:0.55rem;'
+      + 'background:var(--surface2);border-radius:6px;'
+      + 'border-left:3px solid ' + accentColor + ';'
+      + 'font-size:0.8rem;color:var(--text-mid);overflow:hidden">'
+    +   '<span style="flex-shrink:0;font-size:0.95rem;line-height:1">' + icon + '</span>'
+    +   '<span style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;color:var(--text-dim);flex-shrink:0;white-space:nowrap">' + _e(prefix) + '</span>'
+    +   '<span style="font-family:var(--font-mono);font-weight:700;color:var(--accent2);font-size:0.88rem;flex-shrink:0;white-space:nowrap">No.&nbsp;' + _e(num) + '</span>'
+    +   (desc
+          ? '<span style="color:var(--text-mid);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1">&mdash; ' + _e(desc) + '</span>'
+          : '')
+    + '</div>';
+}
+
 function renderWizardStep() {
   // Always restore Next button (entryMode step hides it)
   const _nb = document.getElementById('wizard-next-btn');
@@ -324,6 +393,7 @@ function renderWizardStep() {
   }
 
   document.getElementById('wizard-step-label').textContent = `Step ${current} of ${total}`;
+  _renderAddingBanner();
   const _titleText = typeof s.title === 'function' ? s.title(wizard.data) : s.title;
   const _titleEl = document.getElementById('wizard-title');
   if (wizard.data._setMode && wizard.data._setFinalItems) {
