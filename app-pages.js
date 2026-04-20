@@ -593,7 +593,12 @@ function moveWantToCollection(itemNum, variation) {
   // condition, price paid, est worth, optional photos.
   openWizard('collection');
   setTimeout(function() {
-    if (!window.wizard) return;
+    // Session 115 fix: `wizard` is declared `let` at the top of
+    // wizard.js — a lexical global, NOT a property of window. The
+    // previous `!window.wizard` guard always returned truthy, so this
+    // callback exited early and the pre-fill / step-skip never ran,
+    // leaving the user stuck on the itemCategory picker.
+    if (typeof wizard === 'undefined' || !wizard) return;
 
     // Look up master row (prefer variation match; fall back to any variation)
     const master = state.masterData.find(m =>
