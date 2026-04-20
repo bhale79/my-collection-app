@@ -3,8 +3,28 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.150';
+const APP_VERSION = 'v0.9.151';
 const APP_DATE    = 'April 2026';
+
+// ═══════════════════════════════════════════════════════════════════
+// ROAD_TYPEAHEAD_CONFIG — behavior for the type-to-filter overlay used
+// on the wizard step-1 Type/Road dropdowns (and any future <select>).
+// Tune behavior in ONE place:
+//   minChars     — require N chars before filtering (0 = show on focus)
+//   maxResults   — cap rows rendered per query (safety for long lists)
+//   matchMode    — 'starts-then-contains' or 'contains'
+//   placeholder  — default prompt text in the overlay input
+//   anyLabel     — fallback label if the select has no "(any)" option
+//   noMatchText  — text shown when no roads match the current filter
+// ═══════════════════════════════════════════════════════════════════
+window.ROAD_TYPEAHEAD_CONFIG = {
+  minChars:    0,
+  maxResults:  100,
+  matchMode:   'starts-then-contains',
+  placeholder: 'Type to filter…',
+  anyLabel:    '(any)',
+  noMatchText: 'No matches — clear to see all',
+};
 
 // ── Master catalog sheet ID (read-only, shared across all users) ──
 const MASTER_SHEET_ID = '1Y9-cg8C1CkIqy0RQ66DfP7fmGrE3IGBpyJbtdfYx8q0';
