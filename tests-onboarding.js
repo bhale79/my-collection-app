@@ -1083,6 +1083,115 @@
           : fail('median ' + Math.round(median) + 'ms > ' + TEST_CONFIG.buildPartnerMapMaxMs + 'ms');
     }},
 
+    //  ── Road Typeahead ──
+    { name: '116 typeahead: RoadTypeahead + config present', fn: function() {
+        if (!window.RoadTypeahead) return fail('RoadTypeahead missing');
+        if (typeof RoadTypeahead.attach !== 'function') return fail('attach() missing');
+        if (typeof RoadTypeahead.refresh !== 'function') return fail('refresh() missing');
+        if (!window.ROAD_TYPEAHEAD_CONFIG) return fail('ROAD_TYPEAHEAD_CONFIG missing');
+        return okMsg('RoadTypeahead + config exposed');
+    }},
+
+    { name: '117 typeahead: attach() wraps select with input + list', fn: function() {
+        if (!window.RoadTypeahead) return fail('RoadTypeahead missing');
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px';
+        document.body.appendChild(host);
+        try {
+          var sel = document.createElement('select');
+          ['', 'Pennsylvania', 'New York Central', 'Santa Fe'].forEach(function(v) {
+            var o = document.createElement('option');
+            o.value = v === '' ? '' : v;
+            o.textContent = v === '' ? '(any)' : v;
+            sel.appendChild(o);
+          });
+          host.appendChild(sel);
+          RoadTypeahead.attach(sel);
+          var wrap = sel.parentNode;
+          if (!wrap || !wrap.classList.contains('road-ty-wrap')) return fail('wrapper not created');
+          var input = wrap.querySelector('.road-ty-input');
+          var list = wrap.querySelector('.road-ty-list');
+          if (!input) return fail('input not created');
+          if (!list) return fail('list not created');
+          if (sel.style.display !== 'none') return fail('original select still visible');
+          return okMsg('select wrapped with input + list');
+        } finally {
+          if (host.parentNode) host.parentNode.removeChild(host);
+        }
+    }},
+
+    { name: '118 typeahead: typing filters options (starts-then-contains)', fn: async function() {
+        if (!window.RoadTypeahead) return fail('RoadTypeahead missing');
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px';
+        document.body.appendChild(host);
+        try {
+          var sel = document.createElement('select');
+          ['', 'Pennsylvania', 'Penn Central', 'New York Central', 'Santa Fe', 'Reading'].forEach(function(v) {
+            var o = document.createElement('option');
+            o.value = v === '' ? '' : v;
+            o.textContent = v === '' ? '(any)' : v;
+            sel.appendChild(o);
+          });
+          host.appendChild(sel);
+          RoadTypeahead.attach(sel);
+          var wrap = sel.parentNode;
+          var input = wrap.querySelector('.road-ty-input');
+          // Simulate typing "penn"
+          input.focus();
+          input.value = 'penn';
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          await new Promise(function(r) { setTimeout(r, 10); });
+          var opts = wrap.querySelectorAll('.road-ty-option');
+          // Expect (any) + Pennsylvania + Penn Central (starts), no Santa Fe
+          var labels = [];
+          for (var i = 0; i < opts.length; i++) labels.push(opts[i].textContent);
+          if (labels.indexOf('Santa Fe') >= 0) return fail('Santa Fe should be filtered out: ' + labels.join(', '));
+          if (labels.indexOf('Pennsylvania') < 0) return fail('Pennsylvania missing');
+          if (labels.indexOf('Penn Central') < 0) return fail('Penn Central missing');
+          return okMsg('filtered to: ' + labels.join(', '));
+        } finally {
+          if (host.parentNode) host.parentNode.removeChild(host);
+        }
+    }},
+
+    { name: '119 typeahead: picking an option sets select.value and fires change', fn: async function() {
+        if (!window.RoadTypeahead) return fail('RoadTypeahead missing');
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px';
+        document.body.appendChild(host);
+        try {
+          var sel = document.createElement('select');
+          ['', 'Pennsylvania', 'Santa Fe'].forEach(function(v) {
+            var o = document.createElement('option');
+            o.value = v; o.textContent = v || '(any)';
+            sel.appendChild(o);
+          });
+          host.appendChild(sel);
+          var changed = 0;
+          sel.addEventListener('change', function() { changed++; });
+          RoadTypeahead.attach(sel);
+          var wrap = sel.parentNode;
+          var input = wrap.querySelector('.road-ty-input');
+          input.focus();
+          await new Promise(function(r) { setTimeout(r, 5); });
+          // Find the Santa Fe option and simulate mousedown (our pick trigger)
+          var opts = wrap.querySelectorAll('.road-ty-option');
+          var target = null;
+          for (var i = 0; i < opts.length; i++) {
+            if (opts[i].textContent === 'Santa Fe') { target = opts[i]; break; }
+          }
+          if (!target) return fail('Santa Fe option not rendered');
+          var ev = new Event('mousedown', { bubbles: true, cancelable: true });
+          target.dispatchEvent(ev);
+          if (sel.value !== 'Santa Fe') return fail('select.value=' + sel.value);
+          if (changed < 1) return fail('change event did not fire');
+          return okMsg('value set + change fired');
+        } finally {
+          if (host.parentNode) host.parentNode.removeChild(host);
+        }
+    }},
+
   ];
 
   // ──────────────────────────────────────────────────────────────
