@@ -75,14 +75,20 @@ window.ITEM_SEARCH_FILTERS = {
   // of word-wrap + line-clamp).
   rowDetailsMaxLen: 200,
 
-  // Dedup key for the suggestion list. Session 115 behavior:
-  // the item-number search step should show ONE row per item number +
-  // road name (the parent-level choice). Variation picking happens on a
-  // later step, so subType/varDesc are deliberately NOT in the key —
-  // otherwise a user searching "55" sees every variation of 55 as its
-  // own row. The line-2 disambiguator still shows variation details for
-  // the first match, which is enough context to confirm the right item.
-  dedupKeyFields:   ['itemNum', 'roadName'],
+  // Dedup key for the suggestion list. Session 115 iteration:
+  // one row per (itemNum, roadName, itemType). subType and varDesc
+  // are deliberately NOT in the key — variation picking happens on
+  // a later wizard step, so "55" still collapses its many Motorized
+  // Unit variations to a single row.
+  //
+  // Why itemType is in the key (Brad's 773 report): without it,
+  // item 773 collides across an Accessory (Track Fish Plate Set)
+  // and a Steam Engine (Hudson Locomotive) because both rows carry
+  // blank roadName. Dedup kept only the first row encountered — the
+  // Accessory — and silently hid the engine the user was looking
+  // for. Keying on itemType keeps each distinct product visible
+  // while variations of the same product still collapse cleanly.
+  dedupKeyFields:   ['itemNum', 'roadName', 'itemType'],
 };
 
 // ─── Shared resolver ──────────────────────────────────────────────
