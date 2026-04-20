@@ -102,7 +102,7 @@ function _buildAppShell() {
   header.className = 'header';
   header.innerHTML =
     '<div class="header-logo" style="display:flex;align-items:flex-end;gap:0.6rem;align-self:stretch;height:100%">' +
-      '<img src="img/conductor-header.png?v=200" alt="" aria-hidden="true" style="height:48px;width:auto;flex-shrink:0;display:block">' +
+      '<img src="img/conductor-header.png?v=201" alt="" aria-hidden="true" style="height:48px;width:auto;flex-shrink:0;display:block">' +
       '<div style="font-family:var(--font-head);font-size:1.8rem;font-weight:700;color:var(--cream);letter-spacing:0.06em;text-transform:uppercase;line-height:1;padding-bottom:6px">The <span style="color:var(--accent)">Rail</span> Roster</div>' +
     '</div>' +
     '<div class="header-right" style="position:relative">' +
