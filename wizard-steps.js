@@ -348,8 +348,15 @@ function getSteps(tab) {
         skipIf: (d) => { if (d._completingQuickEntry) return true; var num = d.itemNum || ''; var vars = state.masterData.filter(function(m) { return m.itemNum === num && m.variation; }); return vars.length === 0; } },
 
       // ── Entry Mode (Full/Quick) ──
+      // Session 115: Quick Entry UI was lost in a prior session; the
+      // entryMode render now auto-advances unconditionally (see
+      // wizard.js ~line 893). That auto-advance breaks Back navigation
+      // because wizardBack lands here and then the render forwards it
+      // right back to the originating step. Marking skipIf:true means
+      // both forward and backward navigation skip this step cleanly
+      // until the QE UI is reintroduced.
       { id: 'entryMode', title: (d) => 'How would you like to add this ' + getItemLabel(d) + '?',
-        type: 'entryMode', skipIf: (d) => d._completingQuickEntry || !!d._setMode },
+        type: 'entryMode', skipIf: () => true },
 
       // ── SCREEN 3: Condition & Details (multi-column) ──
       { id: 'conditionDetails', title: 'Condition & Details', type: 'conditionDetails' },

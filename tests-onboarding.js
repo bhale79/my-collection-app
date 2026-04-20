@@ -805,6 +805,40 @@
         return okMsg();
     }},
 
+    { name: '123 wizard: Back past entryMode step does not bounce forward (v0.9.162)', fn: async function() {
+        // Regression: entryMode step's render code auto-advances because
+        // the Quick Entry UI was removed in a prior session. Without
+        // skipIf:true on the step, wizardBack lands on entryMode and the
+        // render immediately forwards back to the originating step, so
+        // the Back button appears broken on any step after entryMode.
+        // This test walks the collection step list and asserts entryMode
+        // is marked as always-skipped.
+        if (typeof getSteps !== 'function') return fail('getSteps missing');
+        // Ensure we're testing the regular Lionel flow (no manual, no
+        // box-only, no ephemera redirect).
+        var savedCat = (typeof wizard !== 'undefined' && wizard && wizard.data) ? wizard.data.itemCategory : undefined;
+        var savedBox = (typeof wizard !== 'undefined' && wizard && wizard.data) ? wizard.data.boxOnly : undefined;
+        try {
+          if (typeof wizard !== 'undefined' && wizard && wizard.data) {
+            wizard.data.itemCategory = 'lionel';
+            wizard.data.boxOnly = false;
+          }
+          var steps = getSteps('collection');
+          var em = steps.find(function(s) { return s.id === 'entryMode'; });
+          if (!em) return fail('entryMode step missing from collection flow');
+          if (typeof em.skipIf !== 'function') return fail('entryMode.skipIf should be a function');
+          // skipIf must return true for a plain flow (no _completingQuickEntry, no _setMode).
+          var skipped = em.skipIf({});
+          if (skipped !== true) return fail('entryMode.skipIf should always return true while QE UI is removed; got ' + skipped);
+        } finally {
+          if (typeof wizard !== 'undefined' && wizard && wizard.data) {
+            wizard.data.itemCategory = savedCat;
+            wizard.data.boxOnly = savedBox;
+          }
+        }
+        return okMsg();
+    }},
+
     { name: '122 wizard: dedup key collapses variations to one row per (itemNum, roadName)', fn: async function() {
         // Session 115 fix: dedupKeyFields is now ['itemNum', 'roadName'] —
         // variations with different subType/varDesc are collapsed into a
