@@ -901,9 +901,24 @@ function renderWizardStep() {
       </div>`;
 
   } else if (s.type === 'variation') {
-    // Look up all variations for the entered item number
+    // Look up all variations for the entered item number, SCOPED to the
+    // itemType (and roadName) the user picked on the search step.
+    // Without this scope, item 773 mixes Accessory's fish-plate-set
+    // variations into a list meant to show Steam Engine tender pairings.
     const itemNum = wizard.data.itemNum || '';
-    const _allVars = state.masterData.filter(i => i.itemNum === itemNum && i.variation);
+    const _varType = (wizard.matchedItem && wizard.matchedItem.itemType)
+      || wizard.data._suggestedItemType
+      || '';
+    const _varRoad = (wizard.matchedItem && wizard.matchedItem.roadName)
+      || wizard.data._suggestedRoadName
+      || '';
+    const _allVars = state.masterData.filter(i => {
+      if (i.itemNum !== itemNum) return false;
+      if (!i.variation) return false;
+      if (_varType && String(i.itemType || '').trim() !== String(_varType).trim()) return false;
+      if (_varRoad && String(i.roadName || '').trim() !== String(_varRoad).trim()) return false;
+      return true;
+    });
     // Deduplicate by variation number (safety net against doubled data)
     const _seenVars = new Set();
     const variations = _allVars.filter(v => {

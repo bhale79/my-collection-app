@@ -331,9 +331,9 @@ function updateItemSuggestions(query) {
       + 'box-sizing:border-box;max-width:100%;flex-shrink:0';
     row.onmouseenter = function() { highlightSuggestion(i); };
     row.dataset.roadName = c.roadName || '';
-    row.onclick = function() { selectSuggestion(c.num, c.roadName || ''); };
+    row.onclick = function() { selectSuggestion(c.num, c.roadName || '', c.itemType || ''); };
     row.onkeydown = function(e) {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectSuggestion(c.num, c.roadName || ''); }
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectSuggestion(c.num, c.roadName || '', c.itemType || ''); }
     };
 
     // ── Line 1 ── item# · road name · reference link (far right)
@@ -454,9 +454,15 @@ function highlightSuggestion(idx) {
   });
 }
 
-function selectSuggestion(num, roadName) {
+function selectSuggestion(num, roadName, itemType) {
   wizard.data.itemNum = num;
   if (roadName) wizard.data._suggestedRoadName = roadName;
+  // Session 115: remember the itemType the user picked so downstream
+  // steps (lookupItem match, variation picker) can scope their queries
+  // to the right product. Without this, searching '773' and picking
+  // the Steam Engine row dropped the user onto a variation list that
+  // included the Accessory's fish-plate-set variations too.
+  if (itemType) wizard.data._suggestedItemType = itemType;
   wizard.data._partialMatches = [];
   const inp = document.getElementById('wiz-input');
   if (inp) inp.value = num;
@@ -589,7 +595,31 @@ function debounceItemLookup(e) {
 }
 
 function lookupItem(num) {
-  const match = state.masterData.find(i => i.itemNum.toLowerCase() === num.trim().toLowerCase());
+  // Session 115: prefer the master row matching the itemType (and
+  // roadName) the user picked from the suggestion list. The bare
+  // `find(...itemNum === num)` would stop at whichever row came first
+  // in iteration order — e.g., for item 773 that returned the
+  // Accessory row even if the user had picked the Steam Engine.
+  const _numLC = num.trim().toLowerCase();
+  const _d = (typeof wizard !== 'undefined' && wizard && wizard.data) ? wizard.data : null;
+  const _prefType = _d && _d._suggestedItemType ? String(_d._suggestedItemType).trim() : '';
+  const _prefRoad = _d && _d._suggestedRoadName ? String(_d._suggestedRoadName).trim() : '';
+  let match = null;
+  if (_prefType) {
+    match = state.masterData.find(i =>
+      i.itemNum.toLowerCase() === _numLC &&
+      String(i.itemType || '').trim() === _prefType &&
+      (!_prefRoad || String(i.roadName || '').trim() === _prefRoad)
+    );
+    // Fallback: type match alone if road-filtered version doesn't hit
+    if (!match) {
+      match = state.masterData.find(i =>
+        i.itemNum.toLowerCase() === _numLC &&
+        String(i.itemType || '').trim() === _prefType
+      );
+    }
+  }
+  if (!match) match = state.masterData.find(i => i.itemNum.toLowerCase() === _numLC);
   wizard.matchedItem = match || null;
   const el = document.getElementById('wiz-match');
   if (!el) return;

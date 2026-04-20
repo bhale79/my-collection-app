@@ -274,8 +274,24 @@ function getSteps(tab) {
 
   const base = [
     { id: 'itemNum',    title: 'What is the item number?',       type: 'text',     placeholder: 'e.g. 726, 2046, 6464-1' },
+    // Session 115: same itemType/roadName scope as the collection
+    // flow's variation step — prevents cross-itemType variation leakage
+    // (e.g. Accessory fish-plate-set variations appearing when user
+    // picked a Steam Engine with the same item number).
     { id: 'variation',  title: 'Which variation is it?',                type: 'variation', optional: true,
-        skipIf: (d) => { var num = d.itemNum || ''; var vars = state.masterData.filter(function(m) { return m.itemNum === num && m.variation; }); return vars.length === 0; } },
+        skipIf: (d) => {
+          var num = d.itemNum || '';
+          var mt = (wizard.matchedItem && wizard.matchedItem.itemType) || d._suggestedItemType || '';
+          var mr = (wizard.matchedItem && wizard.matchedItem.roadName) || d._suggestedRoadName || '';
+          var vars = state.masterData.filter(function(m) {
+            if (m.itemNum !== num) return false;
+            if (!m.variation) return false;
+            if (mt && String(m.itemType || '').trim() !== String(mt).trim()) return false;
+            if (mr && String(m.roadName || '').trim() !== String(mr).trim()) return false;
+            return true;
+          });
+          return vars.length === 0;
+        } },
   ];
 
   if (tab === 'collection') {
@@ -344,8 +360,25 @@ function getSteps(tab) {
         skipIf: (d) => !d._partialMatches || d._partialMatches.length === 0 },
 
       // ── SCREEN 2: Variation (auto-skip for no/single variations) ──
+      // Session 115: skipIf now filters variations by the selected
+      // itemType so a 773 Accessory (which has 0 variations of its own
+      // kind) skips this step cleanly instead of showing Steam-Engine
+      // or Box variations that belong to a different product.
       { id: 'variation',  title: 'Which variation is it?', type: 'variation', optional: true,
-        skipIf: (d) => { if (d._completingQuickEntry) return true; var num = d.itemNum || ''; var vars = state.masterData.filter(function(m) { return m.itemNum === num && m.variation; }); return vars.length === 0; } },
+        skipIf: (d) => {
+          if (d._completingQuickEntry) return true;
+          var num = d.itemNum || '';
+          var mt = (wizard.matchedItem && wizard.matchedItem.itemType) || d._suggestedItemType || '';
+          var mr = (wizard.matchedItem && wizard.matchedItem.roadName) || d._suggestedRoadName || '';
+          var vars = state.masterData.filter(function(m) {
+            if (m.itemNum !== num) return false;
+            if (!m.variation) return false;
+            if (mt && String(m.itemType || '').trim() !== String(mt).trim()) return false;
+            if (mr && String(m.roadName || '').trim() !== String(mr).trim()) return false;
+            return true;
+          });
+          return vars.length === 0;
+        } },
 
       // ── Entry Mode (Full/Quick) ──
       // Session 115: Quick Entry UI was lost in a prior session; the
