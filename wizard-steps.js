@@ -461,6 +461,10 @@ function getSteps(tab) {
       { id: 'itemNum',      title: 'What is the item number?',      type: 'text',        placeholder: 'e.g. 726, 2046, 6464-1' },
       { id: 'pickForSaleItem', title: 'Which item are you listing?',       type: 'pickForSaleItem',
         skipIf: (d) => {
+          // Session 115: when launched from an item detail page the
+          // caller pre-fills selectedForSaleKey — the user already
+          // chose WHICH physical copy, so don't make them pick again.
+          if (d.selectedForSaleKey && d.selectedForSaleKey !== '__new__') return true;
           const _num = (d.itemNum||'').trim();
           const matches = Object.values(state.personalData).filter(p => p.itemNum === _num && p.owned);
           return matches.length === 0;
@@ -482,6 +486,9 @@ function getSteps(tab) {
       { id: 'itemNum',      title: 'What is the item number?',      type: 'text',        placeholder: 'e.g. 726, 2046, 6464-1' },
       { id: 'pickSoldItem', title: 'Which item are you selling?',          type: 'pickSoldItem',
         skipIf: (d) => {
+          // Session 115: pre-filled via sellFromCollection — caller
+          // already picked the physical copy, so skip the picker.
+          if (d.selectedSoldKey && d.selectedSoldKey !== '__new__') return true;
           const _num = (d.itemNum||'').trim();
           const matches = Object.values(state.personalData).filter(p => p.itemNum === _num && p.owned);
           return matches.length === 0; // not in collection — skip picker
