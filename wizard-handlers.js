@@ -122,6 +122,27 @@ function _selectGrouping(groupId) {
   wizard.data.boxOnly = false;
   wizard.data._itemGrouping = groupId;
   const itemNum = (wizard.data.itemNum || '').trim();
+
+  // Session 115: picking an engine-related grouping button tells us
+  // the user wants the locomotive row, not some other itemType with
+  // the same item number (e.g. 773 Accessory Fish Plate Set). Find
+  // the engine row and lock matchedItem + _suggestedItemType to it so
+  // the variation picker (and every downstream step) stays scoped to
+  // the right product.
+  const _engineGroupings = ['engine','engine_tender','custom_tender','a_powered','a_dummy','aa','ab','aba'];
+  if (_engineGroupings.indexOf(groupId) !== -1) {
+    const _curType = String((wizard.matchedItem && wizard.matchedItem.itemType) || '');
+    if (!/engine|loco/i.test(_curType)) {
+      const _engineRow = state.masterData.find(function(m) {
+        return m.itemNum === itemNum && /engine|loco/i.test(String(m.itemType || ''));
+      });
+      if (_engineRow) {
+        wizard.matchedItem = _engineRow;
+        wizard.data._suggestedItemType = _engineRow.itemType || '';
+        if (_engineRow.roadName) wizard.data._suggestedRoadName = _engineRow.roadName;
+      }
+    }
+  }
   
   // Map grouping to existing data fields used by saveWizardItem
   if (groupId === 'engine') {
