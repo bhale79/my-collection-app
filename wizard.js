@@ -578,8 +578,17 @@ function _renderAddingBanner() {
 
   // Resolve the description. Prefer master-sheet description; fall back
   // to roadName, itemType, or user-typed manualDesc for manual entries.
+  // Session 115: prefer wizard.matchedItem when it matches the current
+  // num — it already honors the user's itemType pick. findMaster is a
+  // last-resort fallback that just returns the first bucket row, which
+  // can be a wrong itemType (e.g. 773 Accessory vs 773 Steam Engine).
   var desc = '';
-  var match = (typeof findMaster === 'function') ? findMaster(num) : null;
+  var match = null;
+  if (wizard.matchedItem && String(wizard.matchedItem.itemNum || '').trim() === num) {
+    match = wizard.matchedItem;
+  } else if (typeof findMaster === 'function') {
+    match = findMaster(num);
+  }
   if (match) {
     desc = match.description || match.roadName || match.itemType || '';
   } else if (d.manualDesc) {
@@ -4702,8 +4711,37 @@ async function _wizardNextCore() {
     const _numPart = _inputParts[0];
     const _keyParts = _inputParts.slice(1).filter(p => p.length > 0);
 
-    // Check for exact match first
-    const _exactMatch = state.masterData.find(i => i.itemNum.toLowerCase() === _rawInput.toLowerCase());
+    // Check for exact match first. Session 115: prefer the row matching
+    // the user's picked itemType (+ roadName) from the suggestion click
+    // so wizardNext doesn't clobber the right match with whichever row
+    // happens to come first in iteration order (e.g. the Accessory
+    // Fish Plate Set for item 773 when the user picked Steam Engine).
+    let _exactMatch = null;
+    const _rawLC = _rawInput.toLowerCase();
+    const _prefType = (wizard.data && wizard.data._suggestedItemType) || '';
+    const _prefRoad = (wizard.data && wizard.data._suggestedRoadName) || '';
+    if (_prefType) {
+      _exactMatch = state.masterData.find(i =>
+        i.itemNum.toLowerCase() === _rawLC &&
+        String(i.itemType || '').trim() === String(_prefType).trim() &&
+        (!_prefRoad || String(i.roadName || '').trim() === String(_prefRoad).trim())
+      );
+      if (!_exactMatch) {
+        _exactMatch = state.masterData.find(i =>
+          i.itemNum.toLowerCase() === _rawLC &&
+          String(i.itemType || '').trim() === String(_prefType).trim()
+        );
+      }
+    }
+    // Also honor an already-set matchedItem if it's for this itemNum
+    // (e.g. _selectGrouping re-resolved it to the engine row).
+    if (!_exactMatch && wizard.matchedItem && wizard.matchedItem.itemNum &&
+        String(wizard.matchedItem.itemNum).toLowerCase() === _rawLC) {
+      _exactMatch = wizard.matchedItem;
+    }
+    if (!_exactMatch) {
+      _exactMatch = state.masterData.find(i => i.itemNum.toLowerCase() === _rawLC);
+    }
 
     if (!_exactMatch) {
       // No exact match — look for partial matches (items whose number contains the input)
