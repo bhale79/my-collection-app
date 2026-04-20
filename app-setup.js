@@ -101,9 +101,9 @@ function _buildAppShell() {
   var header = document.createElement('header');
   header.className = 'header';
   header.innerHTML =
-    '<div class="header-logo" style="display:flex;align-items:center;gap:0.6rem">' +
-      '<img src="img/conductor-header.png?v=198" alt="" aria-hidden="true" style="height:60px;width:auto;flex-shrink:0;display:block">' +
-      '<div style="font-family:var(--font-head);font-size:1.4rem;font-weight:700;color:var(--cream);letter-spacing:0.06em;text-transform:uppercase;line-height:1">The <span style="color:var(--accent)">Rail</span> Roster</div>' +
+    '<div class="header-logo" style="display:flex;align-items:flex-end;gap:0.6rem">' +
+      '<img src="img/conductor-header.png?v=199" alt="" aria-hidden="true" style="height:48px;width:auto;flex-shrink:0;display:block">' +
+      '<div style="font-family:var(--font-head);font-size:1.8rem;font-weight:700;color:var(--cream);letter-spacing:0.06em;text-transform:uppercase;line-height:1;padding-bottom:2px">The <span style="color:var(--accent)">Rail</span> Roster</div>' +
     '</div>' +
     '<div class="header-right" style="position:relative">' +
       '<div class="user-chip" id="user-chip" onclick="toggleAccountMenu()" role="button" aria-haspopup="true">' +
