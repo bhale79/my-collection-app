@@ -4224,12 +4224,17 @@ function renderWizardStep() {
         + '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.2rem">' + (wizard.data.itemCategory === 'set' ? 'Will be added to your Want List' : 'Not found in master inventory — will save with entered data') + '</div></div>';
     }
     // Session 115: grouping-candidate section. When the user already owns
-    // something that naturally groups with this new item (currently:
-    // item ↔ box), surface it as a checkbox so they can explicitly opt
-    // in/out of linking. The checkbox binds back to the existing flag
-    // (_groupWithExistingBox or boxGroupSuggest) that the save logic
-    // already reads — the Confirm step is just a visible surface.
-    var _grpCands = (typeof findGroupingCandidates === 'function')
+    // something that naturally groups with this new item, surface it as
+    // a checkbox / radio group on the Confirm step. Checkboxes bind to
+    // the existing flags and wizard.data._groupingLinkChoices; the save
+    // logic applies a shared Group ID to each picked candidate.
+    //
+    // Scope: only show on the collection add flow. Listing for sale,
+    // recording a sale, and adding to the want list are metadata
+    // changes on items that already exist (or aspirational in the
+    // want-list case), not new collection adds — grouping doesn't
+    // apply. Keep the grouping UI out of those flows entirely.
+    var _grpCands = (wizard.tab === 'collection' && typeof findGroupingCandidates === 'function')
       ? findGroupingCandidates(wizard.data) : [];
     if (_grpCands.length > 0) {
       // Session 115 fix: group candidates by type so each physical
