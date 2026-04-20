@@ -258,6 +258,28 @@ function closeWizardOnOverlay(e) {
 
 // ── Step interaction handlers (moved to wizard-handlers.js — Session 110, Round 1 Chunk 6) ──
 
+// Session 115: grouping-choice helpers called by inline onchange on the
+// Confirm-step checkboxes / radios. Kept on window so the inline
+// handlers can find them regardless of load order.
+window._grpToggleOne = function(invKey, checked) {
+  if (typeof wizard === 'undefined' || !wizard || !wizard.data) return;
+  if (!wizard.data._groupingLinkChoices) wizard.data._groupingLinkChoices = {};
+  wizard.data._groupingLinkChoices[invKey] = !!checked;
+};
+window._grpPickRadio = function(type, selectedInvKey) {
+  if (typeof wizard === 'undefined' || !wizard || !wizard.data) return;
+  if (!wizard.data._groupingLinkChoices) wizard.data._groupingLinkChoices = {};
+  // Turn off every candidate of this type, then turn on the one picked.
+  // Works for the "None" case (selectedInvKey === '') which leaves all
+  // of this type off.
+  var cands = (typeof findGroupingCandidates === 'function')
+    ? findGroupingCandidates(wizard.data) : [];
+  cands.forEach(function(c) {
+    if (c.type !== type) return;
+    wizard.data._groupingLinkChoices[c.invKey] = (c.invKey === selectedInvKey);
+  });
+};
+
 // Session 115: unified grouping-candidate detector. Given the current
 // wizard data, returns owned personal-data rows that could naturally
 // group with the thing being added. Sets are deliberately excluded —
@@ -4210,26 +4232,29 @@ function renderWizardStep() {
     var _grpCands = (typeof findGroupingCandidates === 'function')
       ? findGroupingCandidates(wizard.data) : [];
     if (_grpCands.length > 0) {
-      // Default each candidate to "linked". _groupWithExistingBox uses
-      // a default-true convention (treat null/undef as true); the newer
-      // stage-2/3 flags default to explicit true; boxGroupSuggest
-      // defaults to 'Yes'. Setting these here means Save can just read
-      // the flag without special-casing each type.
+      // Session 115 fix: group candidates by type so each physical
+      // relationship is represented at-most-once. A box can only go
+      // with ONE owned unit; an engine pairs with ONE tender; etc.
+      // Within a type: single-select (checkbox if count=1, radios +
+      // "None" if count>=2). Across types: independent choices.
+      if (!wizard.data._groupingLinkChoices) wizard.data._groupingLinkChoices = {};
+      var _byType = {};
       _grpCands.forEach(function(c) {
-        if (c.flagKey === 'boxGroupSuggest' && !wizard.data.boxGroupSuggest) {
-          wizard.data.boxGroupSuggest = 'Yes';
-        } else if (c.flagKey === '_groupWithExistingBox' && wizard.data._groupWithExistingBox == null) {
-          wizard.data._groupWithExistingBox = true;
-        } else if (c.flagKey === '_groupWithExistingTender' && wizard.data._groupWithExistingTender == null) {
-          wizard.data._groupWithExistingTender = true;
-        } else if (c.flagKey === '_groupWithExistingEngine' && wizard.data._groupWithExistingEngine == null) {
-          wizard.data._groupWithExistingEngine = true;
-        } else if (c.flagKey === '_groupWithExistingPartner' && wizard.data._groupWithExistingPartner == null) {
-          wizard.data._groupWithExistingPartner = true;
-        } else if (c.flagKey === '_groupWithExistingIS' && wizard.data._groupWithExistingIS == null) {
-          wizard.data._groupWithExistingIS = true;
+        if (!_byType[c.type]) _byType[c.type] = [];
+        _byType[c.type].push(c);
+      });
+      // Default: first candidate of each type is selected, rest off.
+      // Only initializes; existing user choices are preserved.
+      Object.keys(_byType).forEach(function(t) {
+        var list = _byType[t];
+        var anyInit = list.some(function(c) { return c.invKey in wizard.data._groupingLinkChoices; });
+        if (!anyInit) {
+          list.forEach(function(c, i) {
+            wizard.data._groupingLinkChoices[c.invKey] = (i === 0);
+          });
         }
       });
+
       confirmHtml += '<div style="background:var(--surface2);border:1.5px solid var(--accent2);border-radius:10px;padding:0.85rem;margin-bottom:1rem">'
         + '<div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.45rem">'
         +   '<span style="font-size:1rem;line-height:1">\u{1F517}</span>'
@@ -4242,25 +4267,54 @@ function renderWizardStep() {
         +   (_grpCands.length === 1 ? 'this related item' : 'these related items')
         +   '. Linking keeps them grouped in photos and reports.'
         + '</div>';
-      _grpCands.forEach(function(c) {
-        var linked, handler;
-        if (c.flagKey === 'boxGroupSuggest') {
-          linked = wizard.data.boxGroupSuggest === 'Yes';
-          handler = 'wizard.data.boxGroupSuggest=this.checked?\'Yes\':\'No\'';
-        } else if (c.flagKey === '_groupWithExistingBox') {
-          linked = wizard.data._groupWithExistingBox !== false;
-          handler = 'wizard.data._groupWithExistingBox=this.checked';
+
+      Object.keys(_byType).forEach(function(t) {
+        var list = _byType[t];
+        if (list.length === 1) {
+          // Single candidate of this type → checkbox
+          var c = list[0];
+          var linked = wizard.data._groupingLinkChoices[c.invKey] !== false;
+          var handler = '_grpToggleOne(\'' + c.invKey + '\', this.checked)';
+          confirmHtml += '<label style="display:flex;align-items:center;gap:0.65rem;padding:0.55rem 0.7rem;margin-top:0.35rem;'
+            + 'border-radius:8px;background:var(--bg);border:1px solid var(--border);cursor:pointer">'
+            + '<input type="checkbox" ' + (linked ? 'checked' : '') + ' onchange="' + handler + '" '
+            + 'style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent2);flex-shrink:0">'
+            + '<span style="font-size:0.85rem;color:var(--text)">' + c.label + '</span>'
+            + '</label>';
         } else {
-          // stage 2/3 flags default to true and bind with assignment
-          linked = wizard.data[c.flagKey] !== false;
-          handler = 'wizard.data[\'' + c.flagKey + '\']=this.checked';
+          // 2+ candidates of same type → radio group (pick one, or None)
+          var radioName = 'grp-type-' + t;
+          var noneSelected = !list.some(function(c) { return wizard.data._groupingLinkChoices[c.invKey]; });
+          var typeLabel;
+          switch (t) {
+            case 'box':     typeLabel = 'Which box?'; break;
+            case 'item':    typeLabel = 'Which item does this box go with?'; break;
+            case 'tender':  typeLabel = 'Which tender?'; break;
+            case 'engine':  typeLabel = 'Which engine?'; break;
+            case 'partner': typeLabel = 'Which partner unit?'; break;
+            case 'is':      typeLabel = 'Which instruction sheet?'; break;
+            default:        typeLabel = 'Pick one'; break;
+          }
+          confirmHtml += '<div style="margin-top:0.55rem;padding:0.5rem 0.65rem;background:var(--bg);border:1px solid var(--border);border-radius:8px">'
+            + '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);margin-bottom:0.35rem;font-weight:600">'
+            +   typeLabel + '</div>';
+          list.forEach(function(c) {
+            var sel = !!wizard.data._groupingLinkChoices[c.invKey];
+            var handler = '_grpPickRadio(\'' + t + '\', \'' + c.invKey + '\')';
+            confirmHtml += '<label style="display:flex;align-items:center;gap:0.55rem;padding:0.35rem 0.25rem;cursor:pointer">'
+              + '<input type="radio" name="' + radioName + '" ' + (sel ? 'checked' : '') + ' onchange="' + handler + '" '
+              + 'style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent2);flex-shrink:0">'
+              + '<span style="font-size:0.85rem;color:var(--text)">' + c.label + '</span>'
+              + '</label>';
+          });
+          // "None" option so the user can opt out of linking this type entirely
+          confirmHtml += '<label style="display:flex;align-items:center;gap:0.55rem;padding:0.35rem 0.25rem;cursor:pointer;border-top:1px dashed var(--border);margin-top:0.2rem;padding-top:0.4rem">'
+            + '<input type="radio" name="' + radioName + '" ' + (noneSelected ? 'checked' : '') + ' onchange="_grpPickRadio(\'' + t + '\', \'\')" '
+            + 'style="width:15px;height:15px;cursor:pointer;accent-color:var(--text-dim);flex-shrink:0">'
+            + '<span style="font-size:0.82rem;color:var(--text-dim)">None \u2014 don\u2019t link</span>'
+            + '</label>';
+          confirmHtml += '</div>';
         }
-        confirmHtml += '<label style="display:flex;align-items:center;gap:0.65rem;padding:0.55rem 0.7rem;margin-top:0.35rem;'
-          + 'border-radius:8px;background:var(--bg);border:1px solid var(--border);cursor:pointer">'
-          + '<input type="checkbox" ' + (linked ? 'checked' : '') + ' onchange="' + handler + '" '
-          + 'style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent2);flex-shrink:0">'
-          + '<span style="font-size:0.85rem;color:var(--text)">' + c.label + '</span>'
-          + '</label>';
       });
       confirmHtml += '</div>';
     }

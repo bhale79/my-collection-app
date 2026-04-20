@@ -860,23 +860,24 @@ async function saveWizardItem() {
   let groupId = d._existingGroupId || (_hasAnyBox ? ('GRP-' + _rawItemNum + '-' + Date.now()) : '');
 
   // Session 115: mint a groupId when the user opted to link ANY
-  // candidate on the Confirm step (box, tender, engine, or A/B
-  // partner) — even when the new item itself has no box/tender of its
-  // own. Without this, the linking flags silently did nothing for any
-  // "plain item with related-item already owned" case.
+  // candidate on the Confirm step (box, tender, engine, A/B partner,
+  // or instruction sheet). Per-candidate choices live on
+  // d._groupingLinkChoices (new map); legacy type-level flags are
+  // honored as a fallback for any caller that didn't build the map.
   if (!groupId && tab === 'collection') {
-    var _anyOptIn =
-         d._groupWithExistingBox === true
-      || d._groupWithExistingTender === true
-      || d._groupWithExistingEngine === true
-      || d._groupWithExistingPartner === true
-      || d._groupWithExistingIS === true;
-    if (_anyOptIn) {
-      var _preCands = (typeof findGroupingCandidates === 'function')
-        ? findGroupingCandidates(d) : [];
-      if (_preCands.length > 0) {
-        groupId = 'GRP-' + _rawItemNum + '-' + Date.now();
+    var _preCands = (typeof findGroupingCandidates === 'function')
+      ? findGroupingCandidates(d) : [];
+    var _anyOptIn = _preCands.some(function(c) {
+      if (d._groupingLinkChoices && (c.invKey in d._groupingLinkChoices)) {
+        return d._groupingLinkChoices[c.invKey] === true;
       }
+      // Legacy fallback — type-level flag
+      if (c.flagKey === '_groupWithExistingBox') return d._groupWithExistingBox !== false;
+      if (c.flagKey === 'boxGroupSuggest')       return d.boxGroupSuggest === 'Yes';
+      return d[c.flagKey] === true;
+    });
+    if (_anyOptIn && _preCands.length > 0) {
+      groupId = 'GRP-' + _rawItemNum + '-' + Date.now();
     }
   }
 
@@ -902,9 +903,27 @@ async function saveWizardItem() {
         const boxInvId = nextInventoryId();
         let boxGroupId = '';
 
-        // If user said Yes to grouping, find or create a Group ID shared with the item
+        // If user said Yes to grouping, find or create a Group ID shared with the item.
+        // Session 115: when the Confirm step showed multiple candidates of
+        // the same type (e.g. user owns 3 copies of item 55), the radio
+        // group recorded exactly ONE selected invKey in
+        // d._groupingLinkChoices. Honor that choice here instead of
+        // blindly grabbing the first match — that previously linked the
+        // box to whichever copy Object.values hit first, ignoring the
+        // user's pick.
         if (d.boxGroupSuggest === 'Yes') {
-          const existingItem = Object.values(state.personalData).find(pd => pd.itemNum === itemNum && pd.owned);
+          let existingItem = null;
+          if (d._groupingLinkChoices) {
+            const _pickedKey = Object.keys(d._groupingLinkChoices).find(function(k) {
+              return d._groupingLinkChoices[k] === true && state.personalData[k];
+            });
+            if (_pickedKey) existingItem = state.personalData[_pickedKey];
+          }
+          if (!existingItem) {
+            // Fallback (legacy / no per-candidate choices recorded):
+            // first owned matching item.
+            existingItem = Object.values(state.personalData).find(pd => pd.itemNum === itemNum && pd.owned);
+          }
           if (existingItem) {
             if (existingItem.groupId) {
               // Item already has a group — join it
@@ -1171,12 +1190,14 @@ async function saveWizardItem() {
         var _postCands = (typeof findGroupingCandidates === 'function')
           ? findGroupingCandidates(d) : [];
         _postCands.forEach(function(c) {
-          // Each flag has its own default/representation:
-          //   _groupWithExistingBox  — default linked (treat null/undef as true)
-          //   boxGroupSuggest        — explicit 'Yes' (default 'Yes' set in UI)
-          //   _groupWithExistingTender / Engine / Partner / IS — explicit true
+          // Per-candidate choice from the Confirm step is the source
+          // of truth. Each type renders single-select (radio) when
+          // there are multiple candidates, so at most one invKey per
+          // type will be true. Fallback: legacy type-level flags.
           var opted;
-          if (c.flagKey === '_groupWithExistingBox') {
+          if (d._groupingLinkChoices && (c.invKey in d._groupingLinkChoices)) {
+            opted = d._groupingLinkChoices[c.invKey] === true;
+          } else if (c.flagKey === '_groupWithExistingBox') {
             opted = d._groupWithExistingBox !== false;
           } else if (c.flagKey === 'boxGroupSuggest') {
             opted = d.boxGroupSuggest === 'Yes';

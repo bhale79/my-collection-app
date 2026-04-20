@@ -805,6 +805,46 @@
         return okMsg();
     }},
 
+    { name: '127 wizard: _grpPickRadio enforces single-select within a type (v0.9.167)', fn: async function() {
+        // Session 115 fix: user owned 3 copies of item 55 and added a
+        // box; the grouping prompt pre-checked all three. A physical box
+        // goes with exactly one copy, so the UI now renders radios (one
+        // selected + "None") and _grpPickRadio should ensure only one
+        // invKey of that type is true in _groupingLinkChoices.
+        if (typeof _grpPickRadio !== 'function') return fail('_grpPickRadio missing');
+        if (typeof findGroupingCandidates !== 'function') return fail('findGroupingCandidates missing');
+        if (typeof wizard === 'undefined') return fail('wizard global missing');
+        var realPD = state.personalData;
+        var realChoices = wizard.data && wizard.data._groupingLinkChoices;
+        try {
+          state.personalData = {
+            'x1': { itemNum: '55', owned: true, groupId: '', condition: 7 },
+            'x2': { itemNum: '55', owned: true, groupId: '', condition: 7 },
+            'x3': { itemNum: '55', owned: true, groupId: '', condition: 9 },
+          };
+          wizard.data = wizard.data || {};
+          wizard.data.itemNum = '55';
+          wizard.data.boxOnly = true;
+          wizard.data._groupingLinkChoices = { 'x1': true, 'x2': true, 'x3': true };
+
+          // Pick x2 — should flip x1 and x3 to false, x2 stays true
+          _grpPickRadio('item', 'x2');
+          var c = wizard.data._groupingLinkChoices;
+          if (c.x2 !== true)  return fail('x2 should be true; got ' + c.x2);
+          if (c.x1 !== false) return fail('x1 should be false after picking x2; got ' + c.x1);
+          if (c.x3 !== false) return fail('x3 should be false after picking x2; got ' + c.x3);
+
+          // Pick "None" — all three should be false
+          _grpPickRadio('item', '');
+          c = wizard.data._groupingLinkChoices;
+          if (c.x1 || c.x2 || c.x3) return fail('"None" should unset all; got ' + JSON.stringify(c));
+        } finally {
+          state.personalData = realPD;
+          if (wizard && wizard.data) wizard.data._groupingLinkChoices = realChoices;
+        }
+        return okMsg();
+    }},
+
     { name: '126 wizard: findGroupingCandidates — item↔instruction-sheet (v0.9.166)', fn: async function() {
         // Session 115 Stage 4: when adding a regular item and the user
         // owns an instruction sheet for it (in state.isData with matching
