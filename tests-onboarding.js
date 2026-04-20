@@ -699,17 +699,18 @@
         return okMsg();
     }},
 
-    { name: '120 wizard: back from step 1 with itemCategory set closes wizard (no loop)', fn: async function() {
-        // Regression test for the bug where, once the user picks an
-        // itemCategory in step 0, step 0 gets skipIf → true. Hitting
-        // back from step 1 used to forward-scan and land back on step 1,
-        // silently looping. Now wizardBack() returns false in that case
-        // and the handler closes the wizard.
+    { name: '120 wizard: back from step 1 with itemCategory set reopens category chooser', fn: async function() {
+        // Session 115 UX change: when the user is on step 1 (itemNumGrouping)
+        // and hits back, we no longer close the wizard. Instead we un-skip
+        // the itemCategory step by clearing wizard.data.itemCategory, so
+        // the "What would you like to add?" screen reappears. This lets
+        // the user change their category pick without cancelling the
+        // whole add flow. The previous behavior (v0.9.153) was to close;
+        // the bug before THAT was to silently re-render the same step.
         if (typeof openWizard !== 'function' || typeof _wizardBackHandler !== 'function') return fail('wizard funcs missing');
         if (typeof wizardBack !== 'function') return fail('wizardBack missing');
         var BS = window.BackStack;
         BS.clear();
-        // Stub confirm so we don't hang on discard prompt if data leaks in
         var realConfirm = window.confirm;
         window.confirm = function() { return true; };
         try {
@@ -717,37 +718,137 @@
           await wait(60);
           if (typeof wizard === 'undefined') { _doCloseWizard(); return fail('wizard not initialized'); }
           // Simulate user picking an item category — mark step 0 skippable
-          wizard.data.itemCategory = 'Lionel';
+          wizard.data.itemCategory = 'lionel';
           // Advance to the first visible step after 0 (itemNumGrouping)
           wizard.step = 1;
           if (typeof renderWizardStep === 'function') renderWizardStep();
           await wait(40);
-          // wizardBack() alone should report "can't go back" (false)
+          // wizardBack() should now return TRUE, unskip itemCategory, and
+          // land wizard.step on the itemCategory step index (normally 0).
           var moved = wizardBack();
-          if (moved !== false) {
+          if (moved !== true) {
             _doCloseWizard();
-            return fail('wizardBack() should return false when no earlier visible step; got ' + moved);
+            return fail('wizardBack() should return true and reopen category chooser; got ' + moved);
           }
-          // wizard.step should NOT have changed
-          if (wizard.step !== 1) {
+          if (wizard.data.itemCategory !== '') {
             _doCloseWizard();
-            return fail('wizardBack() changed wizard.step (was 1, now ' + wizard.step + ')');
+            return fail('itemCategory should be cleared to unskip the step; got ' + JSON.stringify(wizard.data.itemCategory));
           }
-          // Now simulate device back — _wizardBackHandler should close the wizard
-          // Re-push entry first (wizardBack() above did not close)
-          BS.clear();
-          BS.push('wizard', _wizardBackHandler);
-          history.back();
-          await wait(150);
-          var mod = document.getElementById('wizard-modal');
-          if (mod && mod.classList.contains('open')) {
+          var _catStepIdx = wizard.steps.findIndex(function(s) { return s.type === 'itemCategory'; });
+          if (wizard.step !== _catStepIdx) {
             _doCloseWizard();
-            return fail('wizard still open after device back on step 1 with itemCategory set');
+            return fail('wizard.step should be itemCategory (' + _catStepIdx + '); got ' + wizard.step);
           }
-          if (BS.has('wizard')) {
-            return fail('BackStack entry not cleaned up after close');
+          // A second Back from the itemCategory step (no earlier step, no
+          // category set) should fall through to close — _wizardBackHandler
+          // sees wizardBack() return false and calls _doCloseWizard().
+          var moved2 = wizardBack();
+          if (moved2 !== false) {
+            _doCloseWizard();
+            return fail('second wizardBack() from itemCategory should return false; got ' + moved2);
           }
         } finally {
+          window.confirm = realConfirm;
+          var mod2 = document.getElementById('wizard-modal');
+          if (mod2 && mod2.classList.contains('open')) _doCloseWizard();
+        }
+        return okMsg();
+    }},
+
+    { name: '121 wizard: era filter leak guard — Postwar search excludes Modern rows', fn: async function() {
+        // Session 115 fix: updateItemSuggestions and getMasterDistinct now
+        // filter state.masterData by wizard.data._era via ERA_TABS. Stub
+        // state.masterData with a mix of tabs and verify the era filter
+        // only surfaces the matching era's rows.
+        if (typeof updateItemSuggestions !== 'function') return fail('updateItemSuggestions missing');
+        if (typeof window.ERA_TABS === 'undefined') return fail('ERA_TABS missing');
+        var BS = window.BackStack;
+        BS.clear();
+        var realConfirm = window.confirm;
+        window.confirm = function() { return true; };
+        var realMaster = state.masterData;
+        try {
+          openWizard('collection');
+          await wait(60);
+          if (typeof wizard === 'undefined') { _doCloseWizard(); return fail('wizard not initialized'); }
+          // Craft a mixed-era master array: one row per era, same itemNum
+          state.masterData = [
+            { itemNum: '55', itemType: 'Motorized Unit', roadName: '', description: 'Postwar test row',  _tab: (ERA_TABS.pw  && ERA_TABS.pw.items)  || 'Lionel PW - Items' },
+            { itemNum: '55', itemType: 'Modern Loco',    roadName: '', description: 'MPC/Modern test row', _tab: (ERA_TABS.mpc && ERA_TABS.mpc.items) || 'MPC-Modern' },
+          ];
+          wizard.data._era = 'pw';
+          wizard.data.itemNum = '55';
+          // Render a hidden suggestions host if one isn't on the page
+          var host = document.getElementById('wiz-suggestions');
+          if (!host) {
+            host = document.createElement('div');
+            host.id = 'wiz-suggestions';
+            host.style.display = 'none';
+            document.body.appendChild(host);
+          }
+          updateItemSuggestions('55');
+          var html = host.innerHTML || '';
+          if (html.indexOf('Postwar test row') < 0) {
+            _doCloseWizard();
+            return fail('Postwar row should appear in suggestions when era=pw');
+          }
+          if (html.indexOf('MPC/Modern test row') >= 0) {
+            _doCloseWizard();
+            return fail('MPC/Modern row leaked into Postwar search');
+          }
+        } finally {
+          state.masterData = realMaster;
+          window.confirm = realConfirm;
+          var mod2 = document.getElementById('wizard-modal');
+          if (mod2 && mod2.classList.contains('open')) _doCloseWizard();
+        }
+        return okMsg();
+    }},
+
+    { name: '122 wizard: dedup key collapses variations to one row per (itemNum, roadName)', fn: async function() {
+        // Session 115 fix: dedupKeyFields is now ['itemNum', 'roadName'] —
+        // variations with different subType/varDesc are collapsed into a
+        // single suggestion row, deferring variation selection to a later
+        // step in the wizard. This test seeds master with three variations
+        // of a fake item and confirms only one row appears.
+        if (typeof updateItemSuggestions !== 'function') return fail('updateItemSuggestions missing');
+        if (!window.ITEM_SEARCH_FILTERS || !Array.isArray(ITEM_SEARCH_FILTERS.dedupKeyFields)) return fail('dedupKeyFields missing');
+        var k = ITEM_SEARCH_FILTERS.dedupKeyFields;
+        if (k.length !== 2 || k[0] !== 'itemNum' || k[1] !== 'roadName') {
+          return fail('dedupKeyFields should be [itemNum, roadName]; got ' + JSON.stringify(k));
+        }
+        var BS = window.BackStack;
+        BS.clear();
+        var realConfirm = window.confirm;
+        window.confirm = function() { return true; };
+        var realMaster = state.masterData;
+        try {
+          openWizard('collection');
+          await wait(60);
+          if (typeof wizard === 'undefined') { _doCloseWizard(); return fail('wizard not initialized'); }
+          var pwTab = (ERA_TABS.pw && ERA_TABS.pw.items) || 'Lionel PW - Items';
+          state.masterData = [
+            { itemNum: '999', itemType: 'Test', roadName: 'TestRoad', subType: 'A', varDesc: 'var A', description: 'desc A', _tab: pwTab },
+            { itemNum: '999', itemType: 'Test', roadName: 'TestRoad', subType: 'B', varDesc: 'var B', description: 'desc B', _tab: pwTab },
+            { itemNum: '999', itemType: 'Test', roadName: 'TestRoad', subType: 'C', varDesc: 'var C', description: 'desc C', _tab: pwTab },
+          ];
+          wizard.data._era = 'pw';
+          wizard.data.itemNum = '999';
+          var host = document.getElementById('wiz-suggestions');
+          if (!host) {
+            host = document.createElement('div');
+            host.id = 'wiz-suggestions';
+            host.style.display = 'none';
+            document.body.appendChild(host);
+          }
+          updateItemSuggestions('999');
+          var rows = host.querySelectorAll('[data-idx]');
+          if (rows.length !== 1) {
+            _doCloseWizard();
+            return fail('expected 1 collapsed suggestion row for item 999; got ' + rows.length);
+          }
+        } finally {
+          state.masterData = realMaster;
           window.confirm = realConfirm;
           var mod2 = document.getElementById('wizard-modal');
           if (mod2 && mod2.classList.contains('open')) _doCloseWizard();

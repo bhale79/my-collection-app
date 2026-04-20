@@ -191,8 +191,20 @@ function updateItemSuggestions(query) {
     const _filterType = (wizard.data && wizard.data._searchFilterType) || '';
     const _filterRoad = (wizard.data && wizard.data._searchFilterRoad) || '';
 
+    // Session 115 fix: era scope guard. If the wizard has a selected era
+    // (set at wizard start or via the era pill), restrict suggestions to
+    // rows whose master-sheet tab belongs to that era. Prevents MPC/Modern
+    // or Atlas rows from leaking into a Postwar search even when
+    // state.masterData hasn't been re-scoped.
+    var _eraTabSet = null;
+    if (wizard.data && wizard.data._era && window.ERA_TABS && ERA_TABS[wizard.data._era]) {
+      _eraTabSet = new Set(Object.values(ERA_TABS[wizard.data._era]));
+    }
+
     const seen = new Set();
     state.masterData.forEach(m => {
+      // Era scope — skip rows from other eras (see Session 115 note above).
+      if (_eraTabSet && m._tab && !_eraTabSet.has(m._tab)) return;
       // Filter dropdowns: trim BOTH sides so stray whitespace in the
       // master sheet doesn't silently hide matches. The dropdown options
       // come from getMasterDistinct which already trims its output, so
@@ -396,7 +408,15 @@ function updateItemSuggestions(query) {
 function getMasterDistinct(fieldName, extraPredicate) {
   var set = new Set();
   if (!window.state || !Array.isArray(state.masterData)) return [];
+  // Session 115 fix: same era scope guard as updateItemSuggestions — so
+  // dropdowns only surface Types / Roads that exist in the active era.
+  var _eraTabSet = null;
+  if (typeof wizard !== 'undefined' && wizard && wizard.data && wizard.data._era
+      && window.ERA_TABS && ERA_TABS[wizard.data._era]) {
+    _eraTabSet = new Set(Object.values(ERA_TABS[wizard.data._era]));
+  }
   state.masterData.forEach(function(m) {
+    if (_eraTabSet && m && m._tab && !_eraTabSet.has(m._tab)) return;
     var v = (m && m[fieldName]) ? String(m[fieldName]).trim() : '';
     if (!v) return;
     if (typeof extraPredicate === 'function' && !extraPredicate(m)) return;
@@ -437,14 +457,20 @@ function selectSuggestion(num, roadName) {
   if (_curStep && _curStep.type === 'itemNumGrouping') {
     // Update grouping buttons first
     _updateGroupingButtons();
-    // Check if buttons are now visible — if so, wait for user to pick one
+    // Session 115: stay whenever the grouping container has any
+    // interactive content — real grouping buttons (engine/tender/diesel
+    // configs) OR the box-only checkbox. Only auto-advance when the
+    // container is fully empty, which currently never happens once an
+    // item number has been entered. Requires one Next click for plain
+    // items so the box-only option is discoverable.
     const _grpEl = document.getElementById('wiz-grouping-btns');
-    const _hasButtons = _grpEl && _grpEl.style.display !== 'none' && _grpEl.innerHTML.indexOf('button') >= 0;
-    if (_hasButtons) {
-      // Stay on this screen — user needs to pick a grouping
+    const _hasInteractive = _grpEl && _grpEl.style.display !== 'none'
+      && _grpEl.querySelector('button, label[data-box-only-checkbox]');
+    if (_hasInteractive) {
+      // Stay on this screen — user needs to pick a grouping or confirm
       return;
     }
-    // No grouping buttons (freight car, accessory, etc.) — set single and advance
+    // No grouping UI at all — set single and advance (legacy safety net)
     wizard.data._itemGrouping = 'single';
   } else if (_curStep && _curStep.type === 'entryMode') {
     // QE Step 1: update match display + sliders without advancing
@@ -615,8 +641,16 @@ function lookupItem(num) {
     const hasBoxOnlyRow = boxOnlyKeys.length > 0;
 
     if (match) {
+      // Session 115 fix: don't duplicate itemType when it already served as
+      // the roadName fallback. Build the header parts, skip blanks, skip
+      // same-string repeats.
+      var _mInfoParts = [];
+      if (match.roadName) _mInfoParts.push(match.roadName);
+      if (match.yearProd) _mInfoParts.push(match.yearProd);
+      if (match.itemType && match.itemType !== match.roadName) _mInfoParts.push(match.itemType);
+      var _mInfo = _mInfoParts.join(' \u00B7 ') || '(no details)';
       el.innerHTML = `<div style="background:rgba(46,204,113,0.1);border:1px solid var(--green);border-radius:8px;padding:0.65rem 0.85rem;font-size:0.82rem">
-        <span style="color:var(--green)">✓ Found:</span> ${match.roadName || match.itemType || ''} · ${match.yearProd || ''} · ${match.itemType || ''}
+        <span style="color:var(--green)">✓ Found:</span> ${_mInfo}
         ${match.variation ? '<br><span style="color:var(--text-dim)">Note: multiple variations exist — select on next step</span>' : ''}
         ${hasBoxOnlyRow ? `<div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid rgba(255,255,255,0.08)">
           <span style="color:var(--accent2)">📦 A box for this item is already in your collection.</span>

@@ -74,12 +74,14 @@ window.ITEM_SEARCH_FILTERS = {
   // of word-wrap + line-clamp).
   rowDetailsMaxLen: 200,
 
-  // Dedup key for the suggestion list. Keep `itemNum` first; other fields
-  // extend the key so variations with distinct subType/varDesc/etc do
-  // NOT collapse into a single row (which was hiding real differences).
-  // Fields included must also be pushed onto the candidate object in
-  // wizard-suggestions.js.
-  dedupKeyFields:   ['itemNum', 'roadName', 'subType', 'varDesc'],
+  // Dedup key for the suggestion list. Session 115 behavior:
+  // the item-number search step should show ONE row per item number +
+  // road name (the parent-level choice). Variation picking happens on a
+  // later step, so subType/varDesc are deliberately NOT in the key —
+  // otherwise a user searching "55" sees every variation of 55 as its
+  // own row. The line-2 disambiguator still shows variation details for
+  // the first match, which is enough context to confirm the right item.
+  dedupKeyFields:   ['itemNum', 'roadName'],
 };
 
 // ─── Shared resolver ──────────────────────────────────────────────

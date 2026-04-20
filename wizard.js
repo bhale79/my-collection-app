@@ -4030,10 +4030,27 @@ function wizardBack() {
     if (!isSkipped && !isSetBlocked) break;
     target--;
   }
-  // If no earlier visible step exists, do NOT forward-scan (that just
-  // lands us back on the current step and the wizard appears stuck).
-  // Signal the caller so it can close the wizard cleanly.
-  if (target < 0) return false;
+  // Session 115 fix: if no earlier visible step exists BUT there's an
+  // itemCategory step that was auto-skipped (because user already picked a
+  // category), un-skip it so Back reopens the "What would you like to add?"
+  // screen. Exception: if the wizard was pre-filled from Browse
+  // (_fillItemMode), the user didn't originally go through itemCategory —
+  // close the wizard and return them to where they came from.
+  if (target < 0) {
+    if (!wizard.data._fillItemMode) {
+      const _catIdx = wizard.steps.findIndex(function(s) { return s.type === 'itemCategory'; });
+      if (_catIdx >= 0 && _catIdx < wizard.step) {
+        // Clear itemCategory so skipIf becomes false and the step renders.
+        // Also clear dependent flags (manual-entry path sets its own flag).
+        wizard.data.itemCategory = '';
+        wizard.data._manualEntry = false;
+        wizard.step = _catIdx;
+        renderWizardStep();
+        return true;
+      }
+    }
+    return false;
+  }
   wizard.step = target;
   renderWizardStep();
   return true;
