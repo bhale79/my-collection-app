@@ -440,20 +440,23 @@ let _lastBrowseHash = '';
 // ── Browse Tab Controller ─────────────────────────────────────────────────────
 function renderBrowseTab(tab) {
   const inCollection = !!state.filters.owned;
-  if (tab === 'is' && inCollection) tab = 'items';
+  // Session 115: mockups has no master equivalent; everything else is
+  // navigable in both views. Collection view now filters each tab's
+  // render to owned data instead of redirecting clicks back to Items.
   if (tab === 'mockups' && !inCollection) tab = 'items';
-  if (['science','construction','paper','other','service'].includes(tab) && inCollection) tab = 'items';
   state._browseTab = tab || 'items';
 
-  // IS tab: master catalog only. Mockups tab: collection only.
-  // Hide master-only tabs when in collection view OR when current era lacks them
+  // Tab button visibility:
+  //   - Science/Construction/Paper/Other/Service/IS: hide only if the
+  //     active era doesn't carry that sheet tab. Visible in both views.
+  //   - Mockups: collection view only (it's user-data only).
   var _tabKeyMap = {'btab-science':'science','btab-construction':'construction','btab-paper':'paper','btab-other':'other','btab-service':'serviceTools'};
   ['btab-science','btab-construction','btab-paper','btab-other','btab-service'].forEach(function(id) {
     var b = document.getElementById(id);
-    if (b) b.style.display = (inCollection || !SHEET_TABS[_tabKeyMap[id]]) ? 'none' : '';
+    if (b) b.style.display = !SHEET_TABS[_tabKeyMap[id]] ? 'none' : '';
   });
   const isBtn = document.getElementById('btab-is');
-  if (isBtn) isBtn.style.display = (inCollection || !SHEET_TABS.instrSheets) ? 'none' : '';
+  if (isBtn) isBtn.style.display = !SHEET_TABS.instrSheets ? 'none' : '';
   const moBtn = document.getElementById('btab-mockups');
   if (moBtn) moBtn.style.display = inCollection ? '' : 'none';
   const catBtn = document.getElementById('btab-catalogs');
@@ -598,6 +601,35 @@ function renderISTab() {
   const countEl = document.getElementById('is-count');
   if (!tbody) return;
   const q = (document.getElementById('is-search')?.value || '').trim().toLowerCase();
+  const inColl = !!state.filters.owned;
+
+  // Session 115: collection view shows the user's owned Instruction
+  // Sheets from state.isData rather than the master IS catalog.
+  if (inColl) {
+    const ownedRows = Object.values(state.isData || {}).filter(function(is) {
+      if (!q) return true;
+      return ((is.sheetNum || '') + ' ' + (is.linkedItem || '') + ' ' + (is.notes || '')).toLowerCase().includes(q);
+    });
+    if (countEl) countEl.textContent = ownedRows.length.toLocaleString() + ' sheet' + (ownedRows.length !== 1 ? 's' : '');
+    if (!ownedRows.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-dim)">No instruction sheets in your collection yet</td></tr>';
+      return;
+    }
+    tbody.innerHTML = ownedRows.map(function(is) {
+      const cond = is.condition ? 'Cond ' + is.condition : '—';
+      const worth = is.estValue ? '$' + parseFloat(is.estValue).toLocaleString() : '—';
+      return '<tr>'
+        + '<td><span style="font-family:var(--font-mono);color:var(--accent2)">' + (is.sheetNum || '—') + '</span></td>'
+        + '<td style="font-family:var(--font-mono);font-size:0.85rem">' + (is.linkedItem || '—') + '</td>'
+        + '<td style="font-size:0.85rem">' + (is.notes || '—') + '</td>'
+        + '<td style="font-size:0.82rem;color:var(--text-mid)">' + cond + '</td>'
+        + '<td style="font-size:0.82rem;color:var(--text-mid)">' + worth + '</td>'
+        + '</tr>';
+    }).join('');
+    return;
+  }
+
+  // Master catalog view (existing behavior)
   const sheets = (state.isRefData || []).filter(s => {
     if (!q) return true;
     return (s.id + ' ' + s.itemNumber + ' ' + s.description + ' ' + s.category).toLowerCase().includes(q);
@@ -649,6 +681,111 @@ function renderMockupsOtherTab() {
 }
 
 
+// ── Collection-view renderer for Science / Construction / Paper / Other / Service sub-tabs ──
+// Session 115: replaces the "redirect all these tabs to Items" behavior
+// that existed before. Each tab now shows the user's owned entries from
+// its appropriate personal-data bucket. Service tools have no dedicated
+// bucket (items would go to personalData), so filter state.personalData
+// by master-sheet _tab for that one.
+function _renderOwnedSubTab(tabKey) {
+  const tbody = document.getElementById(tabKey + '-tbody');
+  const countEl = document.getElementById(tabKey + '-count');
+  if (!tbody) return;
+  const q = (document.getElementById(tabKey + '-search')?.value || '').trim().toLowerCase();
+
+  let rows = [];
+  if (tabKey === 'science') {
+    Object.values(state.scienceData || {}).forEach(function(s) {
+      rows.push({
+        itemNum: s.itemNum || '—',
+        itemType: 'Science Set',
+        description: s.description || s.varDetail || '—',
+        variation: s.variation || '—',
+        varDetail: s.varDetail || '',
+        year: s.year || '—',
+      });
+    });
+  } else if (tabKey === 'construction') {
+    Object.values(state.constructionData || {}).forEach(function(s) {
+      rows.push({
+        itemNum: s.itemNum || '—',
+        itemType: 'Construction Set',
+        description: s.description || s.varDetail || '—',
+        variation: s.variation || '—',
+        varDetail: s.varDetail || '',
+        year: s.year || '—',
+      });
+    });
+  } else if (tabKey === 'paper') {
+    Object.values((state.ephemeraData && state.ephemeraData.paper) || {}).forEach(function(p) {
+      rows.push({
+        itemNum: p.itemNum || '—',
+        itemType: p.paperType || 'Paper',
+        description: p.title || p.description || '—',
+        variation: '—',
+        varDetail: '',
+        year: p.year || '—',
+      });
+    });
+  } else if (tabKey === 'other') {
+    Object.values((state.ephemeraData && state.ephemeraData.other) || {}).forEach(function(o) {
+      rows.push({
+        itemNum: o.itemNum || '—',
+        itemType: 'Other',
+        description: o.title || o.description || '—',
+        variation: '—',
+        varDetail: '',
+        year: o.year || '—',
+      });
+    });
+  } else if (tabKey === 'service') {
+    // No dedicated bucket — look at personalData items whose master
+    // row lives on the Service Tools sheet.
+    const svcTab = (SHEET_TABS && SHEET_TABS.serviceTools) || '';
+    Object.values(state.personalData || {}).forEach(function(pd) {
+      if (!pd || !pd.owned) return;
+      const master = typeof findMaster === 'function' ? findMaster(pd.itemNum) : null;
+      if (!master || master._tab !== svcTab) return;
+      rows.push({
+        itemNum: pd.itemNum || '—',
+        itemType: (master && master.itemType) || 'Service Tool',
+        description: (master && master.description) || '—',
+        variation: pd.variation || (master && master.variation) || '—',
+        varDetail: (master && master.varDetail) || '',
+        year: (master && master.yearProd) || '—',
+      });
+    });
+  }
+
+  const filtered = rows.filter(function(r) {
+    if (!q) return true;
+    var h = (r.itemNum + ' ' + r.itemType + ' ' + r.description + ' ' + r.variation + ' ' + r.varDetail).toLowerCase();
+    return h.includes(q);
+  });
+
+  if (countEl) countEl.textContent = filtered.length.toLocaleString() + ' item' + (filtered.length !== 1 ? 's' : '');
+
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-dim)">'
+      + (rows.length === 0 ? 'Nothing here in your collection yet' : 'No matches')
+      + '</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(function(r) {
+    var vd = r.varDetail || '';
+    if (vd.length > 80) vd = vd.substring(0, 77) + '…';
+    return '<tr>'
+      + '<td><span class="item-num">' + r.itemNum + '</span></td>'
+      + '<td><span class="tag">' + r.itemType + '</span></td>'
+      + '<td>' + r.description + '</td>'
+      + '<td>' + r.variation + '</td>'
+      + '<td>' + (vd || '<span class="text-dim">—</span>') + '</td>'
+      + '<td class="text-dim">' + r.year + '</td>'
+      + '</tr>';
+  }).join('');
+}
+
 // ── Generic renderer for master data sub-tabs (Science, Construction, Paper, Other, Service Tools) ──
 function _getMasterTabMap() {
   return {
@@ -661,6 +798,13 @@ function _getMasterTabMap() {
 }
 
 function renderMasterSubTab(tabKey) {
+  // Session 115: in My Collection view, show only items the user owns
+  // from the appropriate personal-data bucket instead of the master
+  // catalog. Action buttons per row come in a follow-up commit.
+  if (state.filters && state.filters.owned) {
+    _renderOwnedSubTab(tabKey);
+    return;
+  }
   const masterTab = _getMasterTabMap()[tabKey];
   if (!masterTab) return;
   const tbody = document.getElementById(tabKey + '-tbody');
