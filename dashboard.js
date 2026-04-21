@@ -543,7 +543,21 @@ function buildDashboard() {
   var soldCount = Object.keys(state.soldData).length;
   var wantCount = total - owned - soldCount;
   var _nt = document.getElementById('nav-total'); if (_nt) _nt.textContent = total.toLocaleString();
-  var _no = document.getElementById('nav-owned'); if (_no) _no.textContent = owned.toLocaleString();
+  // Session 115: nav-owned counts ALL owned items across every collection
+  // type — Lionel items, owned sets, catalogs, paper, instruction sheets,
+  // science/construction sets, mockups, and user-defined ephemera. Matches
+  // the new unified My Collection page ("All" tab total).
+  var _allOwnedCount = owned;
+  if (state.mySetsData)       _allOwnedCount += Object.keys(state.mySetsData).length;
+  if (state.isData)           _allOwnedCount += Object.keys(state.isData).length;
+  if (state.scienceData)      _allOwnedCount += Object.keys(state.scienceData).length;
+  if (state.constructionData) _allOwnedCount += Object.keys(state.constructionData).length;
+  if (state.ephemeraData) {
+    Object.values(state.ephemeraData).forEach(function(bucket) {
+      _allOwnedCount += Object.keys(bucket || {}).length;
+    });
+  }
+  var _no = document.getElementById('nav-owned'); if (_no) _no.textContent = _allOwnedCount.toLocaleString();
   var wantListCount = Object.keys(state.wantData).length;
   var _nw = document.getElementById('nav-wanted2'); if (_nw) _nw.textContent = wantListCount.toLocaleString();
   var _upgradeCount = Object.values(state.upgradeData).length;

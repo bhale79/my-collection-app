@@ -766,6 +766,7 @@ function showPage(name, clickedEl) {
   document.getElementById('page-' + name).classList.add('active');
   if (clickedEl) clickedEl.classList.add('active');
   if (name === 'browse') renderBrowse();
+  if (name === 'collection' && typeof buildCollectionPage === 'function') buildCollectionPage();
   if (name === 'reports') buildReport();
   if (name === 'sold') buildSoldPage();
   if (name === 'forsale') buildForSalePage();

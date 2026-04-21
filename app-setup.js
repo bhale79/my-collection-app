@@ -148,9 +148,9 @@ function _buildAppShell() {
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>' +
         'Cataloged Item Master List' +
       '</button>' +
-      '<button class="nav-item" onclick="showPage(\'browse\', this); filterOwned()" data-ctip="This is your inventory list.">' +
+      '<button class="nav-item" onclick="showPage(\'collection\', this)" data-ctip="Your full collection — items, sets, catalogs, paper, and more.">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>' +
-        'My Collection List<span class="nav-badge" id="nav-owned" style="background:#f8e8c0;color:#1a1a1a">\u2014</span>' +
+        'My Collection<span class="nav-badge" id="nav-owned" style="background:#f8e8c0;color:#1a1a1a">\u2014</span>' +
       '</button>' +
       '<button class="nav-item" onclick="showPage(\'want\', this); buildWantPage();" data-ctip="Your want list \u2014 great to take to a train show.">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +

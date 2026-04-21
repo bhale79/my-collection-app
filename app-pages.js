@@ -26,6 +26,298 @@
 // renderBrowse, sheetsGet/sheetsAppend/sheetsUpdate/sheetsDeleteRow,
 // findMaster, partner-map helpers, and many more.
 
+// ═══════════════════════════════════════════════════════════════════
+// Session 115: Unified My Collection page
+//
+// Replaces the old "Browse page with owned=true filter" hack. Single
+// page, single sidebar entry, one tabbed view that covers every kind
+// of thing you own: Lionel items, outfit sets, catalogs, paper items,
+// instruction sheets, science sets, construction sets, plus anything
+// user-added via custom ephemera tabs or mock-ups.
+//
+// Default tab: "All" (everything, sorted by most-recent add).
+// Per-type tabs render only that slice; counts on tab labels.
+// Actions per row are intentionally scoped down for this pass — click
+// a Lionel item opens its detail page (existing UX), other types show
+// a compact summary only. List-for-sale / record-sale / upgrade flows
+// remain exactly as they are; only the view is unified here.
+//
+// Page: index.html <div id="page-collection">
+// Entry: showPage('collection') — wired in app.js
+// ═══════════════════════════════════════════════════════════════════
+
+// Tab registry — id must match the normalized `type` set by
+// _collectAllOwnedItems() so per-tab filtering is a one-liner.
+const _COLLECTION_TABS = [
+  { id: 'all',          label: 'All',           emoji: '📋' },
+  { id: 'items',        label: 'Items',         emoji: '🚂' },
+  { id: 'sets',         label: 'Sets',          emoji: '🎁' },
+  { id: 'catalogs',     label: 'Catalogs',      emoji: '📒' },
+  { id: 'paper',        label: 'Paper',         emoji: '📄' },
+  { id: 'is',           label: 'IS',            emoji: '📘' },
+  { id: 'science',      label: 'Science',       emoji: '🔬' },
+  { id: 'construction', label: 'Construction',  emoji: '🔧' },
+  { id: 'other',        label: 'Other',         emoji: '📦' },
+];
+
+// Walk every data bucket and produce a flat, normalized list of owned
+// items. Each record: { type, key, title, subtitle, extras, date,
+// _savedAt, source, openFn }. The Collection page renders these
+// directly; the tab filter + search operate on them.
+function _collectAllOwnedItems() {
+  const out = [];
+
+  // ── Items (Lionel trains) ────────────────────────────────────────
+  Object.entries(state.personalData || {}).forEach(function(entry) {
+    const key = entry[0], pd = entry[1];
+    if (!pd || !pd.owned) return;
+    // Skip -BOX standalone rows — they show under "Items" already
+    // as part of their parent row via group ID; duplicating them in
+    // the list would just clutter it.
+    if (String(pd.itemNum || '').toUpperCase().endsWith('-BOX')) return;
+    const master = typeof findMaster === 'function' ? findMaster(pd.itemNum) : null;
+    const road = pd.roadName || (master && master.roadName) || '';
+    const desc = (master && (master.description || master.itemType)) || '';
+    const extras = [];
+    if (pd.condition) extras.push('Condition ' + pd.condition);
+    if (pd.hasBox === 'Yes') extras.push('✓ Has box');
+    if (pd.userEstWorth) extras.push('$' + parseFloat(pd.userEstWorth).toLocaleString());
+    const idx = master && state.masterData ? state.masterData.indexOf(master) : -1;
+    out.push({
+      type:    'items',
+      key:     'pd|' + key,
+      title:   String(pd.itemNum || '') + (pd.variation ? ' Var ' + pd.variation : ''),
+      subtitle: road || desc,
+      extras:  extras.join(' · '),
+      date:    pd.datePurchased || '',
+      _savedAt: pd._savedAt || 0,
+      openFn:  idx >= 0 ? "showItemDetailPage(" + idx + ")" : "goToMyCollection()",
+    });
+  });
+
+  // ── Owned sets (My Sets tab) ─────────────────────────────────────
+  Object.entries(state.mySetsData || {}).forEach(function(entry) {
+    const key = entry[0], s = entry[1];
+    if (!s) return;
+    const extras = [];
+    if (s.condition) extras.push('Condition ' + s.condition);
+    if (s.hasSetBox === 'Yes') extras.push('✓ Has set box');
+    if (s.estValue) extras.push('$' + parseFloat(s.estValue).toLocaleString());
+    out.push({
+      type:    'sets',
+      key:     'set|' + key,
+      title:   String(s.setNum || s.itemNum || ''),
+      subtitle: s.setName || s.description || '',
+      extras:  extras.join(' · '),
+      date:    s.dateAcquired || s.datePurchased || '',
+      _savedAt: s._savedAt || 0,
+      openFn:  '',
+    });
+  });
+
+  // ── Catalogs / Paper / Mockups / Other / user-defined ────────────
+  // 'catalogs' and 'paper' map 1:1 to their own tabs.
+  // 'mockups' + 'other' + any user-defined buckets fold into "Other".
+  Object.entries(state.ephemeraData || {}).forEach(function(entry) {
+    const tabId = entry[0], bucket = entry[1];
+    Object.entries(bucket || {}).forEach(function(bEntry) {
+      const key = bEntry[0], it = bEntry[1];
+      if (!it) return;
+      let type;
+      if (tabId === 'catalogs') type = 'catalogs';
+      else if (tabId === 'paper') type = 'paper';
+      else type = 'other';  // mockups / other / user-defined
+      const extras = [];
+      if (it.year) extras.push(it.year);
+      if (it.condition) extras.push('Cond ' + it.condition);
+      if (it.estValue) extras.push('$' + parseFloat(it.estValue).toLocaleString());
+      const subtitleParts = [];
+      if (it.catType) subtitleParts.push(it.catType);
+      else if (it.paperType) subtitleParts.push(it.paperType);
+      if (it.description) subtitleParts.push(it.description);
+      out.push({
+        type:    type,
+        key:     'eph|' + tabId + '|' + key,
+        title:   it.title || it.itemNum || '(untitled)',
+        subtitle: subtitleParts.join(' · '),
+        extras:  extras.join(' · '),
+        date:    it.dateAcquired || '',
+        _savedAt: it._savedAt || 0,
+        openFn:  '',
+      });
+    });
+  });
+
+  // ── Instruction Sheets ──────────────────────────────────────────
+  Object.entries(state.isData || {}).forEach(function(entry) {
+    const key = entry[0], is = entry[1];
+    if (!is) return;
+    const extras = [];
+    if (is.year) extras.push(is.year);
+    if (is.condition) extras.push('Cond ' + is.condition);
+    if (is.estValue) extras.push('$' + parseFloat(is.estValue).toLocaleString());
+    out.push({
+      type:    'is',
+      key:     'is|' + key,
+      title:   'IS ' + (is.sheetNum || key),
+      subtitle: is.linkedItem ? 'For item ' + is.linkedItem : '',
+      extras:  extras.join(' · '),
+      date:    is.dateAcquired || '',
+      _savedAt: is._savedAt || 0,
+      openFn:  '',
+    });
+  });
+
+  // ── Science Sets ─────────────────────────────────────────────────
+  Object.entries(state.scienceData || {}).forEach(function(entry) {
+    const key = entry[0], s = entry[1];
+    if (!s) return;
+    const extras = [];
+    if (s.condition) extras.push('Cond ' + s.condition);
+    if (s.estValue) extras.push('$' + parseFloat(s.estValue).toLocaleString());
+    out.push({
+      type:    'science',
+      key:     'sci|' + key,
+      title:   String(s.itemNum || ''),
+      subtitle: s.description || '',
+      extras:  extras.join(' · '),
+      date:    s.dateAcquired || '',
+      _savedAt: s._savedAt || 0,
+      openFn:  '',
+    });
+  });
+
+  // ── Construction Sets ────────────────────────────────────────────
+  Object.entries(state.constructionData || {}).forEach(function(entry) {
+    const key = entry[0], s = entry[1];
+    if (!s) return;
+    const extras = [];
+    if (s.condition) extras.push('Cond ' + s.condition);
+    if (s.estValue) extras.push('$' + parseFloat(s.estValue).toLocaleString());
+    out.push({
+      type:    'construction',
+      key:     'con|' + key,
+      title:   String(s.itemNum || ''),
+      subtitle: s.description || '',
+      extras:  extras.join(' · '),
+      date:    s.dateAcquired || '',
+      _savedAt: s._savedAt || 0,
+      openFn:  '',
+    });
+  });
+
+  return out;
+}
+
+function _collectionRowHTML(it, emoji) {
+  const extras = it.extras || '';
+  const date = it.date ? '<span style="color:var(--text-dim);font-size:0.72rem;white-space:nowrap">' + it.date + '</span>' : '';
+  const onclick = it.openFn ? ('onclick="' + it.openFn.replace(/"/g, '&quot;') + '" style="cursor:pointer"') : '';
+  return '<div ' + onclick + ' style="display:flex;align-items:center;gap:0.75rem;padding:0.7rem 0.9rem;border-bottom:1px solid var(--border);transition:background 0.12s" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
+    + '<span style="font-size:1.1rem;flex-shrink:0">' + emoji + '</span>'
+    + '<div style="flex:1;min-width:0">'
+    +   '<div style="display:flex;align-items:baseline;gap:0.6rem;min-width:0">'
+    +     '<span style="font-family:var(--font-mono);font-weight:600;color:var(--accent);font-size:0.95rem">' + (it.title || '—') + '</span>'
+    +     (it.subtitle ? '<span style="color:var(--text);font-size:0.82rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0">' + it.subtitle + '</span>' : '')
+    +   '</div>'
+    +   (extras ? '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">' + extras + '</div>' : '')
+    + '</div>'
+    + date
+    + '</div>';
+}
+
+function buildCollectionPage() {
+  const container = document.getElementById('page-collection');
+  if (!container) return;
+
+  const activeTab = state._collectionTab || 'all';
+  const search = (state._collectionSearch || '').trim().toLowerCase();
+
+  // Gather + filter + sort
+  const all = _collectAllOwnedItems();
+  const counts = { all: all.length };
+  _COLLECTION_TABS.forEach(function(t) { if (t.id !== 'all') counts[t.id] = 0; });
+  all.forEach(function(it) { counts[it.type] = (counts[it.type] || 0) + 1; });
+
+  let filtered = all.filter(function(it) {
+    if (activeTab !== 'all' && it.type !== activeTab) return false;
+    if (search) {
+      const hay = ((it.title || '') + ' ' + (it.subtitle || '') + ' ' + (it.extras || '')).toLowerCase();
+      if (!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  filtered.sort(function(a, b) {
+    const sA = a._savedAt || 0, sB = b._savedAt || 0;
+    if (sA !== sB) return sB - sA;
+    if (a.date && b.date && a.date !== b.date) return b.date.localeCompare(a.date);
+    return (a.title || '').localeCompare(b.title || '');
+  });
+
+  // Render
+  const emojiByType = {};
+  _COLLECTION_TABS.forEach(function(t) { emojiByType[t.id] = t.emoji; });
+
+  const tabBarHTML = '<div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:1rem">'
+    + _COLLECTION_TABS.map(function(t) {
+        const isActive = t.id === activeTab;
+        const n = counts[t.id] || 0;
+        return '<button onclick="_collectionSetTab(\'' + t.id + '\')" style="'
+          + 'padding:0.4rem 0.85rem;border-radius:7px;cursor:pointer;'
+          + 'font-family:var(--font-body);font-size:0.82rem;font-weight:600;'
+          + 'display:inline-flex;align-items:center;gap:0.4rem;'
+          + 'border:1.5px solid ' + (isActive ? 'var(--accent)' : 'var(--border)') + ';'
+          + 'background:' + (isActive ? 'rgba(232,64,28,0.15)' : 'var(--surface2)') + ';'
+          + 'color:' + (isActive ? 'var(--accent)' : 'var(--text-mid)') + '">'
+          + '<span>' + t.emoji + '</span>'
+          + '<span>' + t.label + '</span>'
+          + '<span style="font-size:0.72rem;color:var(--text-dim);font-weight:500">' + n + '</span>'
+          + '</button>';
+      }).join('')
+    + '</div>';
+
+  const listHTML = filtered.length > 0
+    ? '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden">'
+      + filtered.map(function(it) { return _collectionRowHTML(it, emojiByType[it.type] || '•'); }).join('')
+      + '</div>'
+    : '<div style="padding:2rem;text-align:center;color:var(--text-dim);font-size:0.9rem">'
+      + (search ? 'No matches for "' + search.replace(/</g,'&lt;') + '"' : 'Nothing here yet. Add items from the Dashboard.')
+      + '</div>';
+
+  container.innerHTML =
+      '<div class="page-title" style="display:flex;align-items:baseline;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.5rem">'
+    +   '<span>My Collection</span>'
+    +   '<span style="font-family:var(--font-body);font-size:0.82rem;color:var(--text-dim);font-weight:400">'
+    +     filtered.length.toLocaleString() + ' of ' + all.length.toLocaleString() + ' ' + (activeTab === 'all' ? 'items' : _COLLECTION_TABS.find(function(t){return t.id===activeTab;}).label.toLowerCase())
+    +   '</span>'
+    + '</div>'
+    + '<div style="margin-bottom:0.75rem">'
+    +   '<input type="search" placeholder="Search by title, item #, road name…" value="' + (state._collectionSearch || '').replace(/"/g,'&quot;') + '" '
+    +     'oninput="_collectionSetSearch(this.value)" '
+    +     'style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;'
+    +     'padding:0.55rem 0.85rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none">'
+    + '</div>'
+    + tabBarHTML
+    + listHTML;
+}
+
+function _collectionSetTab(tabId) {
+  state._collectionTab = tabId;
+  buildCollectionPage();
+}
+
+function _collectionSetSearch(val) {
+  state._collectionSearch = val;
+  // Debounce the rebuild a touch so typing doesn't restart the render on every keystroke
+  clearTimeout(state._collectionSearchTimer);
+  state._collectionSearchTimer = setTimeout(buildCollectionPage, 120);
+}
+
+window.buildCollectionPage  = buildCollectionPage;
+window._collectionSetTab    = _collectionSetTab;
+window._collectionSetSearch = _collectionSetSearch;
+
 function buildEphemeraPage() {
   // Rebuild tab buttons to include user-defined tabs
   const tabBar = document.getElementById('ephemera-tabs');
