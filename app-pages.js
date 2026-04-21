@@ -277,8 +277,15 @@ function buildCollectionPage() {
       }).join('')
     + '</div>';
 
+  // Session 115 fix: the original list wrapper had `overflow:hidden`
+  // (for rounded corners) which, combined with .page.active's
+  // display:contents, swallowed mousewheel scroll events before they
+  // could bubble to the scrollable .main container. Dropped the
+  // hidden overflow; the rounded-corner artifact (the first row's
+  // top border joining the wrapper's rounded corner) is cosmetic and
+  // fine vs. a broken scroll.
   const listHTML = filtered.length > 0
-    ? '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden">'
+    ? '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px">'
       + filtered.map(function(it) { return _collectionRowHTML(it, emojiByType[it.type] || '•'); }).join('')
       + '</div>'
     : '<div style="padding:2rem;text-align:center;color:var(--text-dim);font-size:0.9rem">'
