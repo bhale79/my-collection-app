@@ -624,18 +624,22 @@ var PANEL_CATALOG = [
       });
       return trains.concat(ephs)
         .sort(function(a, b) {
-          // Bugfix 2026-04-14: was sorting by date first, pushing newly added
-          // items (no date yet) to the bottom of the list. Sort by row number
-          // primarily so new adds (higher row or optimistic 99999) bubble to top;
-          // date used only as a tiebreaker for items with equal row.
-          var rA = a.row || 0, rB = b.row || 0;
-          if (rA !== rB) return rB - rA;
+          // Session 115 sort:
+          //   1) _savedAt (set by save handlers on new additions this
+          //      session) — covers cross-type recency since row numbers
+          //      aren't comparable across tabs (catalog at Catalogs!A5
+          //      isn't "older" than a train at My Collection!A800).
+          //   2) User-entered purchase / acquisition date
+          //   3) Row number as last-resort tiebreaker within a tab
+          var sA = a._savedAt || 0, sB = b._savedAt || 0;
+          if (sA !== sB) return sB - sA;
           var da = a.datePurchased || a.dateAcquired || '';
           var db = b.datePurchased || b.dateAcquired || '';
-          if (da && db) return db.localeCompare(da);
+          if (da && db && da !== db) return db.localeCompare(da);
           if (da && !db) return -1;
           if (!da && db) return 1;
-          return 0;
+          var rA = a.row || 0, rB = b.row || 0;
+          return rB - rA;
         })
         .slice(0, 8)
         .map(function(pd) {

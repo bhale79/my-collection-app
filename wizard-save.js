@@ -19,6 +19,17 @@
 //   - saveWizardItem — the main collection-save function (the big one)
 // ═══════════════════════════════════════════════════════════════
 
+// Session 115: tiny stamp used by every save handler. Lets the Dashboard's
+// Recent Additions card sort cross-type adds by "when saved this session"
+// — row numbers aren't comparable across tabs (Catalogs!A5 isn't "older"
+// than My Collection!A800), and user-entered dates are often blank at
+// save time. This timestamp survives just this session in memory; on
+// reload the card falls back to user dates / row order.
+function _stampSaved(obj) {
+  if (obj && typeof obj === 'object') obj._savedAt = Date.now();
+  return obj;
+}
+
 // Generate a system item number for ephemera/non-train items
 // Catalogs:  80YY-CON/ADV/DLR/OTH
 // Paper:     81YY-PAP
@@ -150,6 +161,7 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
         quickEntry: 'Yes', inventoryId: invId, groupId, location: '',
         era: 'Postwar', manufacturer: _getEraManufacturer(), owned: true,
       };
+      _stampSaved(state.personalData[invId]);
       savedItems.push(itemNum);
     } catch(e) {
       console.warn('Error saving set item ' + itemNum + ':', e);
@@ -430,6 +442,7 @@ async function saveInstructionSheet() {
       inventoryId: isStandaloneInvId, groupId: resolvedGroupId, formCode: d.is_formCode||'',
       pricePaid: d.is_pricePaid||'', estValue: d.is_estValue||'',
     };
+    _stampSaved(state.isData[newKey]);
     showToast('✓ Instruction Sheet ' + sheetNum + ' saved!');
     closeWizard();
     buildDashboard();
@@ -513,6 +526,12 @@ async function _saveCatalogFromPaper() {
           notes: r[8]||'', photoLink: r[9]||'',
         };
       });
+      // Session 115: the re-fetch wipes any _savedAt we might have set pre-fetch.
+      // Stamp it on the entry whose itemNum matches the one we just saved so the
+      // Dashboard's Recent Additions card puts this catalog at the top.
+      Object.values(state.ephemeraData.catalogs).forEach(function(c) {
+        if (c && c.itemNum === itemNum) _stampSaved(c);
+      });
     } catch(e) {
       const newKey = Date.now();
       state.ephemeraData.catalogs[newKey] = {
@@ -522,6 +541,7 @@ async function _saveCatalogFromPaper() {
         estValue: d.eph_estValue || '', dateAcquired: d.eph_dateAcquired || '',
         notes: d.eph_notes || '', photoLink: photoFolderLink,
       };
+      _stampSaved(state.ephemeraData.catalogs[newKey]);
     }
     showToast('✓ ' + title + ' saved!');
     _doCloseWizard();
@@ -619,6 +639,7 @@ async function saveEphemeraItem() {
         paperType: (d.eph_paperType||'') + (d.eph_paperSubType ? ' — ' + d.eph_paperSubType : ''), itemNumRef: d.eph_itemNumRef||'',
       };
     }
+    _stampSaved(bucket[newKey]);
     state.ephemeraData[tab] = bucket;
     showToast('✓ ' + (d.eph_title||'Item') + ' saved!');
     closeWizard();
@@ -740,6 +761,7 @@ async function _saveManualEntry() {
     location,
     era: 'Manual', manufacturer,
   };
+  _stampSaved(state.personalData[invId]);
 
   _cachePersonalData();
   closeWizard();
@@ -988,6 +1010,7 @@ async function saveWizardItem() {
           location: d.location || '',
           era: (typeof _currentEra !== 'undefined' ? _currentEra : ''), manufacturer: _getEraManufacturer(),
         };
+        _stampSaved(state.personalData[boxInvId]);
 
         d._saveComplete = true;
         closeWizard();
@@ -1340,6 +1363,7 @@ async function saveWizardItem() {
             notes: _bxNote, matchedTo: itemNum,
             inventoryId: u1BoxRow[20], groupId: groupId,
           };
+          _stampSaved(state.personalData[u1BoxRow[20]]);
         }
         // Unit 2 box (set save)
         if (isSetSave && d.unit2HasBox === 'Yes' && d.unit2ItemNum) {
@@ -1353,6 +1377,7 @@ async function saveWizardItem() {
             notes: 'Box for ' + u2Num, matchedTo: u2Num,
             inventoryId: u2BoxRow[20], groupId: groupId,
           };
+          _stampSaved(state.personalData[u2BoxRow[20]]);
         }
         // Unit 3 box (ABA save)
         if (isSetSave && d.setType === 'ABA' && d.unit3HasBox === 'Yes') {
@@ -1366,6 +1391,7 @@ async function saveWizardItem() {
             notes: 'Box for ' + u3Num, matchedTo: u3Num,
             inventoryId: u3BoxRow[20], groupId: groupId,
           };
+          _stampSaved(state.personalData[u3BoxRow[20]]);
         }
         // Tender box (paired save)
         if (isPairedSave && d.tenderHasBox === 'Yes') {
@@ -1379,6 +1405,7 @@ async function saveWizardItem() {
             notes: 'Box for ' + tNum, matchedTo: tNum,
             inventoryId: tBoxRow[20], groupId: groupId,
           };
+          _stampSaved(state.personalData[tBoxRow[20]]);
         }
       } catch(e) { console.warn('Group box row save error:', e); }
     }
@@ -1412,6 +1439,7 @@ async function saveWizardItem() {
           year: '', condition: d.is_condition || '', notes: '', photoLink: isPhotoLink,
           inventoryId: isInvId, groupId: groupId, formCode: d.is_formCode||'',
         };
+        _stampSaved(state.isData[newISKey]);
       } catch(e) { console.warn('IS save error:', e); }
     }
 
@@ -1463,6 +1491,7 @@ async function saveWizardItem() {
           matchedTo: itemNum, setId: setId || '',
           inventoryId: mbInvId, groupId: groupId,
         };
+        _stampSaved(state.personalData[mbInvId]);
       } catch(e) { console.warn('Master box save error:', e); }
     }
 
@@ -1527,6 +1556,7 @@ async function saveWizardItem() {
         location: d.location || '',
         era: (typeof _currentEra !== 'undefined' ? _currentEra : ''), manufacturer: _getEraManufacturer(),
       };
+      _stampSaved(state.personalData[_optInvId]);
     } else if (tab === 'sold') {
       state.soldData[`${itemNum}|${variation}`] = {
         row: 99999, itemNum, variation,
