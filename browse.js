@@ -615,15 +615,23 @@ function renderISTab() {
       tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-dim)">No instruction sheets in your collection yet</td></tr>';
       return;
     }
+    const isKeyByEntry = new Map();
+    Object.keys(state.isData || {}).forEach(function(k) { isKeyByEntry.set(state.isData[k], k); });
     tbody.innerHTML = ownedRows.map(function(is) {
       const cond = is.condition ? 'Cond ' + is.condition : '—';
       const worth = is.estValue ? '$' + parseFloat(is.estValue).toLocaleString() : '—';
+      const k = isKeyByEntry.get(is) || '';
+      const actionsHTML = k
+        ? '<button onclick="event.stopPropagation();_collectionRemove(\'is\',\'' + String(k).replace(/\\/g, '\\\\').replace(/\'/g, '\\\'') + '\')" '
+          + 'style="padding:0.25rem 0.5rem;border-radius:5px;font-size:0.7rem;cursor:pointer;font-family:var(--font-body);border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);margin-left:0.25rem">Remove</button>'
+        : '';
       return '<tr>'
         + '<td><span style="font-family:var(--font-mono);color:var(--accent2)">' + (is.sheetNum || '—') + '</span></td>'
         + '<td style="font-family:var(--font-mono);font-size:0.85rem">' + (is.linkedItem || '—') + '</td>'
         + '<td style="font-size:0.85rem">' + (is.notes || '—') + '</td>'
         + '<td style="font-size:0.82rem;color:var(--text-mid)">' + cond + '</td>'
         + '<td style="font-size:0.82rem;color:var(--text-mid)">' + worth + '</td>'
+        + (actionsHTML ? '<td style="text-align:right;white-space:nowrap">' + actionsHTML + '</td>' : '')
         + '</tr>';
     }).join('');
     return;
@@ -695,7 +703,8 @@ function _renderOwnedSubTab(tabKey) {
 
   let rows = [];
   if (tabKey === 'science') {
-    Object.values(state.scienceData || {}).forEach(function(s) {
+    Object.entries(state.scienceData || {}).forEach(function(entry) {
+      const k = entry[0], s = entry[1];
       rows.push({
         itemNum: s.itemNum || '—',
         itemType: 'Science Set',
@@ -703,10 +712,12 @@ function _renderOwnedSubTab(tabKey) {
         variation: s.variation || '—',
         varDetail: s.varDetail || '',
         year: s.year || '—',
+        _actionsHTML: _collectionActionsHTML('science', k, s),
       });
     });
   } else if (tabKey === 'construction') {
-    Object.values(state.constructionData || {}).forEach(function(s) {
+    Object.entries(state.constructionData || {}).forEach(function(entry) {
+      const k = entry[0], s = entry[1];
       rows.push({
         itemNum: s.itemNum || '—',
         itemType: 'Construction Set',
@@ -714,10 +725,12 @@ function _renderOwnedSubTab(tabKey) {
         variation: s.variation || '—',
         varDetail: s.varDetail || '',
         year: s.year || '—',
+        _actionsHTML: _collectionActionsHTML('construction', k, s),
       });
     });
   } else if (tabKey === 'paper') {
-    Object.values((state.ephemeraData && state.ephemeraData.paper) || {}).forEach(function(p) {
+    Object.entries((state.ephemeraData && state.ephemeraData.paper) || {}).forEach(function(entry) {
+      const k = entry[0], p = entry[1];
       rows.push({
         itemNum: p.itemNum || '—',
         itemType: p.paperType || 'Paper',
@@ -725,10 +738,12 @@ function _renderOwnedSubTab(tabKey) {
         variation: '—',
         varDetail: '',
         year: p.year || '—',
+        _actionsHTML: _collectionActionsHTML('paper', k, p),
       });
     });
   } else if (tabKey === 'other') {
-    Object.values((state.ephemeraData && state.ephemeraData.other) || {}).forEach(function(o) {
+    Object.entries((state.ephemeraData && state.ephemeraData.other) || {}).forEach(function(entry) {
+      const k = entry[0], o = entry[1];
       rows.push({
         itemNum: o.itemNum || '—',
         itemType: 'Other',
@@ -736,13 +751,15 @@ function _renderOwnedSubTab(tabKey) {
         variation: '—',
         varDetail: '',
         year: o.year || '—',
+        _actionsHTML: _collectionActionsHTML('other', k, o),
       });
     });
   } else if (tabKey === 'service') {
     // No dedicated bucket — look at personalData items whose master
     // row lives on the Service Tools sheet.
     const svcTab = (SHEET_TABS && SHEET_TABS.serviceTools) || '';
-    Object.values(state.personalData || {}).forEach(function(pd) {
+    Object.entries(state.personalData || {}).forEach(function(entry) {
+      const k = entry[0], pd = entry[1];
       if (!pd || !pd.owned) return;
       const master = typeof findMaster === 'function' ? findMaster(pd.itemNum) : null;
       if (!master || master._tab !== svcTab) return;
@@ -753,6 +770,7 @@ function _renderOwnedSubTab(tabKey) {
         variation: pd.variation || (master && master.variation) || '—',
         varDetail: (master && master.varDetail) || '',
         year: (master && master.yearProd) || '—',
+        _actionsHTML: _collectionActionsHTML('service', k, pd),
       });
     });
   }
@@ -782,9 +800,102 @@ function _renderOwnedSubTab(tabKey) {
       + '<td>' + r.variation + '</td>'
       + '<td>' + (vd || '<span class="text-dim">—</span>') + '</td>'
       + '<td class="text-dim">' + r.year + '</td>'
+      + (r._actionsHTML ? '<td style="text-align:right;white-space:nowrap">' + r._actionsHTML + '</td>' : '')
       + '</tr>';
   }).join('');
 }
+
+// Session 115: row-level action buttons for non-Items collection tabs.
+// Paper / Other already have ephemeraDelete / ephemeraForSale /
+// ephemeraSold; Science / Construction / IS / Service get bespoke
+// delete handlers below. ForSale / Sold / Upgrade for non-ephemera
+// types will come in a follow-up commit.
+function _collectionActionsHTML(type, key, entry) {
+  const esc = function(s) { return String(s == null ? '' : s).replace(/'/g, "\\'"); };
+  const btnStyle = 'padding:0.25rem 0.5rem;border-radius:5px;font-size:0.7rem;cursor:pointer;font-family:var(--font-body);border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);margin-left:0.25rem';
+  const keyArg = "'" + esc(key) + "'";
+  const typeArg = "'" + esc(type) + "'";
+  const removeBtn = '<button onclick="event.stopPropagation();_collectionRemove(' + typeArg + ',' + keyArg + ')" style="' + btnStyle + '">Remove</button>';
+  // Extra actions for paper/other via the existing ephemera helpers
+  if (type === 'paper' || type === 'other') {
+    const fsBtn = '<button onclick="event.stopPropagation();ephemeraForSale(\'' + type + '\',' + keyArg + ')" style="' + btnStyle + ';border-color:#f39c12;color:#f39c12">Add to For Sale</button>';
+    const sdBtn = '<button onclick="event.stopPropagation();ephemeraSold(\'' + type + '\',' + keyArg + ')" style="' + btnStyle + ';border-color:#2ecc71;color:#2ecc71">Add to Sold</button>';
+    return fsBtn + sdBtn + removeBtn;
+  }
+  return removeBtn;
+}
+
+// Dispatch remove to the right handler based on the source bucket.
+async function _collectionRemove(type, key) {
+  if (type === 'paper' || type === 'other' || type === 'catalogs' || type === 'mockups') {
+    if (typeof ephemeraDelete === 'function') ephemeraDelete(type, key);
+    return;
+  }
+  if (type === 'science' || type === 'construction') {
+    _removeScienceOrConstruction(type, key);
+    return;
+  }
+  if (type === 'is') {
+    _removeInstructionSheet(key);
+    return;
+  }
+  if (type === 'service') {
+    const pd = state.personalData[key];
+    if (!pd) return;
+    if (typeof removeCollectionItem === 'function') {
+      removeCollectionItem(pd.itemNum, pd.variation || '', pd.row);
+    }
+    return;
+  }
+}
+
+async function _removeScienceOrConstruction(type, key) {
+  const bucket = (type === 'science') ? state.scienceData : state.constructionData;
+  const entry = bucket && bucket[key];
+  if (!entry) return;
+  const label = entry.description || entry.itemNum || (type === 'science' ? 'science set' : 'construction set');
+  var ok = (typeof appConfirm === 'function')
+    ? await appConfirm('Remove "' + label + '" from your collection?', { danger: true, ok: 'Remove' })
+    : confirm('Remove "' + label + '" from your collection?');
+  if (!ok) return;
+  const sheetName = (type === 'science') ? 'Science Sets' : 'Construction Sets';
+  if (entry.row && typeof entry.row === 'number' && entry.row >= 3 && entry.row < 1000000) {
+    // Sheet has 15 columns (A–O) — blank them all
+    const blanks = [Array(15).fill('')];
+    sheetsUpdate(state.personalSheetId, sheetName + '!A' + entry.row + ':O' + entry.row, blanks)
+      .catch(function(e) { console.warn('remove ' + type + ' row', e); });
+  }
+  delete bucket[key];
+  if (typeof _cachePersonalData === 'function') _cachePersonalData();
+  showToast('✓ Removed from collection');
+  renderBrowse();
+  buildDashboard();
+}
+
+async function _removeInstructionSheet(key) {
+  const entry = state.isData && state.isData[key];
+  if (!entry) return;
+  const label = entry.sheetNum || 'this instruction sheet';
+  var ok = (typeof appConfirm === 'function')
+    ? await appConfirm('Remove "' + label + '" from your collection?', { danger: true, ok: 'Remove' })
+    : confirm('Remove "' + label + '" from your collection?');
+  if (!ok) return;
+  if (entry.row && typeof entry.row === 'number' && entry.row >= 3 && entry.row < 1000000) {
+    // IS sheet has 11 columns (A–K)
+    const blanks = [Array(11).fill('')];
+    sheetsUpdate(state.personalSheetId, 'Instruction Sheets!A' + entry.row + ':K' + entry.row, blanks)
+      .catch(function(e) { console.warn('remove IS row', e); });
+  }
+  delete state.isData[key];
+  if (typeof _cachePersonalData === 'function') _cachePersonalData();
+  showToast('✓ Removed from collection');
+  renderBrowse();
+  buildDashboard();
+}
+
+window._collectionRemove = _collectionRemove;
+window._removeScienceOrConstruction = _removeScienceOrConstruction;
+window._removeInstructionSheet = _removeInstructionSheet;
 
 // ── Generic renderer for master data sub-tabs (Science, Construction, Paper, Other, Service Tools) ──
 function _getMasterTabMap() {
