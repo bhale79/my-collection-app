@@ -509,12 +509,17 @@ function renderSetsTab() {
   const inColl = !!state.filters.owned;
   const q = (document.getElementById('sets-search')?.value || '').trim().toLowerCase();
 
-  // Build owned set lookup from My Sets personal tab
-  const ownedSets = {};  // keyed by setNum lowercase
-  Object.values(state.mySetsData || {}).forEach(ms => {
-    const k = (ms.setNum || '').toLowerCase();
-    if (!ownedSets[k]) ownedSets[k] = [];
-    ownedSets[k].push(ms);
+  // Build owned set lookup from My Sets personal tab.
+  // Session 115: also keep the My Sets KEY for each entry so action
+  // buttons can dispatch to _collection* handlers correctly.
+  const ownedSets = {};       // keyed by setNum lowercase -> [mySet entries]
+  const mySetKeyByEntry = new Map();
+  Object.entries(state.mySetsData || {}).forEach(function(entry) {
+    const k = entry[0], ms = entry[1];
+    const setKey = (ms.setNum || '').toLowerCase();
+    if (!ownedSets[setKey]) ownedSets[setKey] = [];
+    ownedSets[setKey].push(ms);
+    mySetKeyByEntry.set(ms, k);
   });
 
   const sets = (state.setData || []).filter(s => {
@@ -548,6 +553,12 @@ function renderSetsTab() {
         + (isQE ? ' <span style="color:#e67e22;font-size:0.68rem;font-weight:700" title="Quick Entry">⚡</span>' : '')
         + (worthStr ? `<div style="font-size:0.72rem;color:var(--text-mid);margin-top:2px">${worthStr}</div>` : '')
       : '<span style="color:var(--text-dim);font-size:0.75rem">—</span>';
+    // Session 115: action buttons on owned set rows in collection view.
+    let actionsHTML = '';
+    if (inColl && owned && mySet && typeof _collectionActionsHTML === 'function') {
+      const setKey = mySetKeyByEntry.get(mySet);
+      if (setKey) actionsHTML = _collectionActionsHTML('sets', setKey, mySet);
+    }
     return `<tr onclick="showRefItemPopup(&apos;set&apos;,${si})" style="cursor:pointer${owned ? ';background:rgba(46,204,113,0.04)' : ''}">
       <td><span style="font-family:var(--font-mono);color:var(--accent2)">${s.setNum}</span></td>
       <td style="font-size:0.88rem">${s.setName || '—'}</td>
@@ -555,6 +566,7 @@ function renderSetsTab() {
       <td style="font-size:0.85rem;color:var(--text-mid)">${s.gauge || '—'}</td>
       <td style="font-size:0.82rem">${itemChips || '—'}</td>
       <td style="text-align:center">${ownedBadge}</td>
+      ${inColl ? '<td onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">' + actionsHTML + '</td>' : ''}
     </tr>`;
   }).join('');
 }
@@ -565,33 +577,53 @@ function renderCatalogsTab() {
   if (!tbody) return;
   const inColl = !!state.filters.owned;
   const q = (document.getElementById('catalogs-search')?.value || '').trim().toLowerCase();
-  const ownedEphCats = inColl ? Object.values(state.ephemeraData?.catalogs || {}) : [];
+  // Session 115: keep ephemera catalog keys so action buttons can
+  // dispatch to ephemeraDelete / ForSale / Sold by key.
+  const ephOwnedEntries = inColl ? Object.entries(state.ephemeraData?.catalogs || {}) : [];
+  const ownedEphCats = ephOwnedEntries.map(function(e) { return e[1]; });
+  const ephKeyByItemNum = new Map();
+  ephOwnedEntries.forEach(function(e) { ephKeyByItemNum.set(String((e[1] && e[1].itemNum) || '').toLowerCase(), e[0]); });
   const ownedCatIds = new Set(ownedEphCats.map(c => (c.itemNum||'').toLowerCase()));
   const cats = (state.catalogRefData || []).filter(c => {
     if (inColl && !ownedCatIds.has(c.id.toLowerCase())) return false;
     if (!q) return true;
     return (c.id + ' ' + c.year + ' ' + c.type + ' ' + c.title).toLowerCase().includes(q);
   });
-  const total = cats.length + ownedEphCats.length;
+  const total = cats.length + (inColl ? ephOwnedEntries.length : 0);
   const emptyMsg = inColl ? 'No catalogs or paper items in your collection yet' : 'No catalogs found';
   if (countEl) countEl.textContent = total.toLocaleString() + ' item' + (total !== 1 ? 's' : '');
-  if (!total) { tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text-dim)">${emptyMsg}</td></tr>`; return; }
-  const ephRows = ownedEphCats.map(c => `<tr>
-    <td><span style="font-family:var(--font-mono);color:var(--accent2)">${c.itemNum||'—'}</span></td>
-    <td style="font-size:0.85rem;color:var(--text-mid)">${c.year||'—'}</td>
-    <td style="font-size:0.85rem">${c.catType||'—'}</td>
-    <td style="font-size:0.88rem">${c.title||'—'}${c.hasMailer==='Yes'?' <span style="font-size:0.7rem;color:var(--accent2)">(w/ mailer)</span>':''}</td>
-  </tr>`).join('');
+  if (!total) { tbody.innerHTML = `<tr><td colspan="${inColl ? 5 : 4}" style="text-align:center;padding:2rem;color:var(--text-dim)">${emptyMsg}</td></tr>`; return; }
+  const ephRows = ephOwnedEntries.map(function(entry) {
+    const k = entry[0], c = entry[1];
+    const actionsHTML = inColl && typeof _collectionActionsHTML === 'function'
+      ? _collectionActionsHTML('catalogs', k, c) : '';
+    return '<tr>'
+      + '<td><span style="font-family:var(--font-mono);color:var(--accent2)">' + (c.itemNum || '—') + '</span></td>'
+      + '<td style="font-size:0.85rem;color:var(--text-mid)">' + (c.year || '—') + '</td>'
+      + '<td style="font-size:0.85rem">' + (c.catType || '—') + '</td>'
+      + '<td style="font-size:0.88rem">' + (c.title || '—') + (c.hasMailer === 'Yes' ? ' <span style="font-size:0.7rem;color:var(--accent2)">(w/ mailer)</span>' : '') + '</td>'
+      + (inColl ? '<td style="text-align:right;white-space:nowrap">' + actionsHTML + '</td>' : '')
+      + '</tr>';
+  }).join('');
   window._browseFilteredCats = cats;
   tbody.innerHTML = cats.map((c, ci) => {
     const _catOwned = ownedCatIds.has(c.id.toLowerCase());
     const _catBadge = _catOwned ? '<span style="display:inline-block;font-size:0.6rem;font-weight:700;color:#2ecc71;border:1px solid #2ecc71;border-radius:3px;padding:0 3px;margin-left:4px;vertical-align:middle">✓</span>' : '';
     const _catBg = _catOwned ? 'background:rgba(46,204,113,0.04);' : '';
+    let actionsHTML = '';
+    if (inColl && _catOwned && typeof _collectionActionsHTML === 'function') {
+      const ephKey = ephKeyByItemNum.get(c.id.toLowerCase());
+      if (ephKey) {
+        const ephEntry = state.ephemeraData.catalogs[ephKey];
+        actionsHTML = _collectionActionsHTML('catalogs', ephKey, ephEntry);
+      }
+    }
     return `<tr onclick="showRefItemPopup(&apos;catalog&apos;,${ci})" style="cursor:pointer;${_catBg}">
     <td><span style="font-family:var(--font-mono);color:var(--accent2)">${c.id}</span>${_catBadge}</td>
     <td style="font-size:0.85rem;color:var(--text-mid)">${c.year || '—'}</td>
     <td style="font-size:0.85rem">${c.type || '—'}</td>
     <td style="font-size:0.88rem">${c.title || '—'}</td>
+    ${inColl ? '<td onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">' + actionsHTML + '</td>' : ''}
   </tr>`;
   }).join('') + ephRows;
 }
@@ -663,28 +695,54 @@ function renderMockupsOtherTab() {
   const tbody = document.getElementById('mockups-tbody');
   const countEl = document.getElementById('mockups-count');
   if (!tbody) return;
+  const inColl = !!state.filters.owned;
   const q = (document.getElementById('mockups-search')?.value || '').trim().toLowerCase();
+  // Session 115: keep srcType + key on each row so action buttons can
+  // dispatch to ephemeraDelete / ForSale / Sold per bucket.
   const rows = [];
-  Object.values(state.ephemeraData?.mockups || {}).forEach(it => {
-    rows.push({ type:'Mock-Up', tc:'#9b59b6', id:it.title||it.itemNumRef||'—', desc:it.description||'—', year:it.year||'—', cond:it.condition||'—', val:it.estValue?'$'+parseFloat(it.estValue).toLocaleString():'—' });
+  Object.entries(state.ephemeraData?.mockups || {}).forEach(function(entry) {
+    const k = entry[0], it = entry[1];
+    rows.push({
+      srcType: 'mockups', key: k, _raw: it,
+      type:'Mock-Up', tc:'#9b59b6',
+      id: it.title || it.itemNumRef || '—',
+      desc: it.description || '—',
+      year: it.year || '—',
+      cond: it.condition || '—',
+      val:  it.estValue ? '$' + parseFloat(it.estValue).toLocaleString() : '—',
+    });
   });
-  Object.values(state.ephemeraData?.other || {}).forEach(it => {
-    rows.push({ type:'Other', tc:'#27ae60', id:it.title||it.itemNum||'—', desc:it.description||'—', year:it.year||'—', cond:it.condition||'—', val:it.estValue?'$'+parseFloat(it.estValue).toLocaleString():'—' });
+  Object.entries(state.ephemeraData?.other || {}).forEach(function(entry) {
+    const k = entry[0], it = entry[1];
+    rows.push({
+      srcType: 'other', key: k, _raw: it,
+      type:'Other', tc:'#27ae60',
+      id: it.title || it.itemNum || '—',
+      desc: it.description || '—',
+      year: it.year || '—',
+      cond: it.condition || '—',
+      val:  it.estValue ? '$' + parseFloat(it.estValue).toLocaleString() : '—',
+    });
   });
   const filtered = rows.filter(r => !q || (r.type+' '+r.id+' '+r.desc).toLowerCase().includes(q));
   if (countEl) countEl.textContent = filtered.length.toLocaleString() + ' item' + (filtered.length!==1?'s':'');
   if (!filtered.length) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-dim)">${rows.length?'No items match':'No mock-ups or other items in your collection yet'}</td></tr>`;
+    tbody.innerHTML = '<tr><td colspan="' + (inColl ? 7 : 6) + '" style="text-align:center;padding:2rem;color:var(--text-dim)">' + (rows.length ? 'No items match' : 'No mock-ups or other items in your collection yet') + '</td></tr>';
     return;
   }
-  tbody.innerHTML = filtered.map(r => `<tr>
-    <td><span style="font-size:0.72rem;font-weight:700;padding:2px 7px;border-radius:4px;background:${r.tc}22;color:${r.tc}">${r.type}</span></td>
-    <td style="font-size:0.88rem;color:var(--accent2)">${r.id}</td>
-    <td style="font-size:0.85rem;color:var(--text-mid)">${r.desc}</td>
-    <td style="font-size:0.85rem;color:var(--text-dim)">${r.year}</td>
-    <td style="font-size:0.85rem">${r.cond}</td>
-    <td style="font-size:0.85rem;color:var(--accent2)">${r.val}</td>
-  </tr>`).join('');
+  tbody.innerHTML = filtered.map(function(r) {
+    const actionsHTML = inColl && typeof _collectionActionsHTML === 'function'
+      ? _collectionActionsHTML(r.srcType, r.key, r._raw) : '';
+    return '<tr>'
+      + '<td><span style="font-size:0.72rem;font-weight:700;padding:2px 7px;border-radius:4px;background:' + r.tc + '22;color:' + r.tc + '">' + r.type + '</span></td>'
+      + '<td style="font-size:0.88rem;color:var(--accent2)">' + r.id + '</td>'
+      + '<td style="font-size:0.85rem;color:var(--text-mid)">' + r.desc + '</td>'
+      + '<td style="font-size:0.85rem;color:var(--text-dim)">' + r.year + '</td>'
+      + '<td style="font-size:0.85rem">' + r.cond + '</td>'
+      + '<td style="font-size:0.85rem;color:var(--accent2)">' + r.val + '</td>'
+      + (inColl ? '<td style="text-align:right;white-space:nowrap">' + actionsHTML + '</td>' : '')
+      + '</tr>';
+  }).join('');
 }
 
 
@@ -832,6 +890,7 @@ async function _collectionRemove(type, key) {
   }
   if (type === 'science' || type === 'construction') return _removeScienceOrConstruction(type, key);
   if (type === 'is')                                  return _removeInstructionSheet(key);
+  if (type === 'sets')                                return _removeOwnedSet(key);
   if (type === 'service') {
     const pd = state.personalData[key];
     if (!pd) return;
@@ -843,22 +902,30 @@ async function _collectionRemove(type, key) {
 }
 
 function _collectionForSale(type, key) {
-  if (type === 'paper' || type === 'other') return ephemeraForSale(type, key);
+  // Paper / Other / Catalogs / Mockups all live in state.ephemeraData
+  // and have an existing ephemeraForSale flow that handles their row
+  // shape correctly. Use it directly.
+  if (type === 'paper' || type === 'other' || type === 'catalogs' || type === 'mockups') {
+    return ephemeraForSale(type, key);
+  }
   if (type === 'service') return _serviceCollectionAction('forsale', key);
+  // Science / Construction / IS / Sets — generic modal
   return _ncShowFsSoldModal(type, key, 'forsale');
 }
 
 function _collectionSold(type, key) {
-  if (type === 'paper' || type === 'other') return ephemeraSold(type, key);
+  if (type === 'paper' || type === 'other' || type === 'catalogs' || type === 'mockups') {
+    return ephemeraSold(type, key);
+  }
   if (type === 'service') return _serviceCollectionAction('sold', key);
   return _ncShowFsSoldModal(type, key, 'sold');
 }
 
 function _collectionUpgrade(type, key) {
   if (type === 'service') return _serviceCollectionAction('upgrade', key);
-  // Paper / other / science / construction / is — show simple upgrade
-  // modal that writes into the Upgrade tab. Falls back to the existing
-  // showAddToUpgradeModal for service tools (state.personalData).
+  // Paper / other / catalogs / mockups / science / construction / is /
+  // sets — single upgrade modal. _getNonLionelEntry handles the lookup
+  // for each type.
   return _ncShowUpgradeModal(type, key);
 }
 
@@ -884,14 +951,17 @@ function _getNonLionelEntry(type, key) {
   if (type === 'science')      return state.scienceData ? state.scienceData[key] : null;
   if (type === 'construction') return state.constructionData ? state.constructionData[key] : null;
   if (type === 'is')           return state.isData ? state.isData[key] : null;
-  if (type === 'paper')        return (state.ephemeraData && state.ephemeraData.paper) ? state.ephemeraData.paper[key] : null;
-  if (type === 'other')        return (state.ephemeraData && state.ephemeraData.other) ? state.ephemeraData.other[key] : null;
+  if (type === 'paper')        return (state.ephemeraData && state.ephemeraData.paper)    ? state.ephemeraData.paper[key]    : null;
+  if (type === 'other')        return (state.ephemeraData && state.ephemeraData.other)    ? state.ephemeraData.other[key]    : null;
+  if (type === 'catalogs')     return (state.ephemeraData && state.ephemeraData.catalogs) ? state.ephemeraData.catalogs[key] : null;
+  if (type === 'mockups')      return (state.ephemeraData && state.ephemeraData.mockups)  ? state.ephemeraData.mockups[key]  : null;
+  if (type === 'sets')         return state.mySetsData ? state.mySetsData[key] : null;
   return null;
 }
 
 // Resolve an itemNum + display title for a non-Lionel entry.
-// IS uses sheetNum as the saleable identifier; everything else uses
-// the entry's itemNum.
+// IS uses sheetNum as the saleable identifier; sets use setNum;
+// everything else uses the entry's itemNum.
 function _ncIdentifiers(type, entry) {
   if (!entry) return { itemNum: '', variation: '', title: '' };
   if (type === 'is') {
@@ -901,11 +971,39 @@ function _ncIdentifiers(type, entry) {
       title: 'IS ' + (entry.sheetNum || '') + (entry.linkedItem ? ' (for ' + entry.linkedItem + ')' : ''),
     };
   }
+  if (type === 'sets') {
+    return {
+      itemNum: entry.setNum || entry.itemNum || '',
+      variation: '',
+      title: entry.setName || entry.description || entry.setNum || '',
+    };
+  }
   return {
     itemNum: entry.itemNum || '',
     variation: entry.variation || '',
     title: entry.description || entry.title || entry.itemNum || '',
   };
+}
+
+// Remove an owned set from the My Sets tab.
+async function _removeOwnedSet(key) {
+  const entry = state.mySetsData && state.mySetsData[key];
+  if (!entry) return;
+  const label = entry.setName || entry.setNum || 'this set';
+  var ok = (typeof appConfirm === 'function')
+    ? await appConfirm('Remove "' + label + '" from your collection?', { danger: true, ok: 'Remove' })
+    : confirm('Remove "' + label + '" from your collection?');
+  if (!ok) return;
+  if (entry.row && typeof entry.row === 'number' && entry.row >= 3 && entry.row < 1000000) {
+    const blanks = [Array(14).fill('')];
+    sheetsUpdate(state.personalSheetId, 'My Sets!A' + entry.row + ':N' + entry.row, blanks)
+      .catch(function(e) { console.warn('remove set row', e); });
+  }
+  delete state.mySetsData[key];
+  if (typeof _cachePersonalData === 'function') _cachePersonalData();
+  showToast('✓ Removed from collection');
+  if (typeof renderBrowse === 'function') renderBrowse();
+  if (typeof buildDashboard === 'function') buildDashboard();
 }
 
 // ── Generic For Sale / Sold modal for science / construction / is ──
