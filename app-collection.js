@@ -28,7 +28,57 @@
 // partner-map helpers, photo/drive helpers, showToast, and many more.
 
 // ── My Collection Detail Popup ──
+// Session 115: shared "back from item detail" handler. Restores the
+// Browse page to the exact tab + ownership filter the user was on
+// before they entered the detail view. Falls back to a clean
+// filterOwned() if no captured state exists (first-time visit).
+function _detailBackToBrowse() {
+  showPage('browse');
+  var ls = window._lastBrowseState;
+  if (ls) {
+    delete window._lastBrowseState;
+    if (ls.owned) {
+      // Reapply collection view, then jump to the saved tab
+      if (typeof filterOwned === 'function') filterOwned();
+      if (ls.tab && ls.tab !== 'items' && typeof renderBrowseTab === 'function') {
+        state._browseTab = ls.tab;
+        renderBrowseTab(ls.tab);
+      }
+    } else {
+      // Master browse — restore type / road / search filters too
+      if (state.filters) {
+        state.filters.owned = false;
+        state.filters.type   = ls.filterType || '';
+        state.filters.road   = ls.filterRoad || '';
+        state.filters.search = ls.search     || '';
+      }
+      if (typeof renderBrowse === 'function') renderBrowse();
+      if (ls.tab && typeof renderBrowseTab === 'function') {
+        state._browseTab = ls.tab;
+        renderBrowseTab(ls.tab);
+      }
+    }
+  } else if (typeof filterOwned === 'function') {
+    filterOwned();
+  }
+}
+window._detailBackToBrowse = _detailBackToBrowse;
+
 function showItemDetailPage(idx) {
+  // Session 115: capture which Browse tab + filter state the user
+  // came from so the Back button restores the same tab on return.
+  // Was: Back always called filterOwned() which forced _browseTab to
+  // 'items', so clicking into a Set / Catalog / etc. and hitting back
+  // dropped you onto the Items tab regardless of where you started.
+  if (window._detailReturn !== 'tools') {
+    window._lastBrowseState = {
+      tab:        state._browseTab || 'items',
+      owned:      !!state.filters.owned,
+      filterType: state.filters.type || '',
+      filterRoad: state.filters.road || '',
+      search:     state.filters.search || '',
+    };
+  }
   const item = idx >= 0 ? state.masterData[idx] : null;
   let pd = null, pdKey = null;
   if (item) {
@@ -82,7 +132,7 @@ function showItemDetailPage(idx) {
   // ── HEADER ──
   const _fromTools = window._detailReturn === 'tools';
   const _backLabel = _fromTools ? 'Back to Collection Tools' : 'Back to Collection';
-  const _backFn    = _fromTools ? 'delete window._detailReturn;showPage(&apos;tools&apos;);buildToolsPage()' : 'showPage(&apos;browse&apos;);filterOwned()';
+  const _backFn    = _fromTools ? 'delete window._detailReturn;showPage(&apos;tools&apos;);buildToolsPage()' : '_detailBackToBrowse()';
   let html = `
   <div style="margin-bottom:1.5rem">
     <button onclick="${_backFn}" style="background:none;border:none;color:#2980b9;font-family:var(--font-body);font-size:1.1rem;font-weight:700;cursor:pointer;padding:0;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.4rem">
