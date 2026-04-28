@@ -621,9 +621,8 @@ function renderISTab() {
       const cond = is.condition ? 'Cond ' + is.condition : '—';
       const worth = is.estValue ? '$' + parseFloat(is.estValue).toLocaleString() : '—';
       const k = isKeyByEntry.get(is) || '';
-      const actionsHTML = k
-        ? '<button onclick="event.stopPropagation();_collectionRemove(\'is\',\'' + String(k).replace(/\\/g, '\\\\').replace(/\'/g, '\\\'') + '\')" '
-          + 'style="padding:0.25rem 0.5rem;border-radius:5px;font-size:0.7rem;cursor:pointer;font-family:var(--font-body);border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);margin-left:0.25rem">Remove</button>'
+      const actionsHTML = k && typeof _collectionActionsHTML === 'function'
+        ? _collectionActionsHTML('is', k, is)
         : '';
       return '<tr>'
         + '<td><span style="font-family:var(--font-mono);color:var(--accent2)">' + (is.sheetNum || '—') + '</span></td>'
@@ -806,39 +805,33 @@ function _renderOwnedSubTab(tabKey) {
 }
 
 // Session 115: row-level action buttons for non-Items collection tabs.
-// Paper / Other already have ephemeraDelete / ephemeraForSale /
-// ephemeraSold; Science / Construction / IS / Service get bespoke
-// delete handlers below. ForSale / Sold / Upgrade for non-ephemera
-// types will come in a follow-up commit.
+// All four actions (Add to For Sale, Add to Sold, Add to Upgrade, Remove)
+// are now wired across every non-Items type. Each type dispatches to
+// the right backend:
+//   paper / other          -> existing ephemera helpers
+//   science / construction -> new _ncShow* modals + Science/Construction sheet
+//   is                     -> new _ncShow* modals + Instruction Sheets sheet
+//   service                -> existing Lionel collection-action funcs
 function _collectionActionsHTML(type, key, entry) {
   const esc = function(s) { return String(s == null ? '' : s).replace(/'/g, "\\'"); };
   const btnStyle = 'padding:0.25rem 0.5rem;border-radius:5px;font-size:0.7rem;cursor:pointer;font-family:var(--font-body);border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);margin-left:0.25rem';
   const keyArg = "'" + esc(key) + "'";
   const typeArg = "'" + esc(type) + "'";
-  const removeBtn = '<button onclick="event.stopPropagation();_collectionRemove(' + typeArg + ',' + keyArg + ')" style="' + btnStyle + '">Remove</button>';
-  // Extra actions for paper/other via the existing ephemera helpers
-  if (type === 'paper' || type === 'other') {
-    const fsBtn = '<button onclick="event.stopPropagation();ephemeraForSale(\'' + type + '\',' + keyArg + ')" style="' + btnStyle + ';border-color:#f39c12;color:#f39c12">Add to For Sale</button>';
-    const sdBtn = '<button onclick="event.stopPropagation();ephemeraSold(\'' + type + '\',' + keyArg + ')" style="' + btnStyle + ';border-color:#2ecc71;color:#2ecc71">Add to Sold</button>';
-    return fsBtn + sdBtn + removeBtn;
-  }
-  return removeBtn;
+  const fsBtn = '<button onclick="event.stopPropagation();_collectionForSale(' + typeArg + ',' + keyArg + ')" style="' + btnStyle + ';border-color:#f39c12;color:#f39c12">Add to For Sale</button>';
+  const sdBtn = '<button onclick="event.stopPropagation();_collectionSold(' + typeArg + ',' + keyArg + ')" style="' + btnStyle + ';border-color:#2ecc71;color:#2ecc71">Add to Sold</button>';
+  const upBtn = '<button onclick="event.stopPropagation();_collectionUpgrade(' + typeArg + ',' + keyArg + ')" style="' + btnStyle + ';border-color:#8b5cf6;color:#8b5cf6">Add to Upgrade</button>';
+  const rmBtn = '<button onclick="event.stopPropagation();_collectionRemove(' + typeArg + ',' + keyArg + ')" style="' + btnStyle + '">Remove</button>';
+  return fsBtn + sdBtn + upBtn + rmBtn;
 }
 
-// Dispatch remove to the right handler based on the source bucket.
+// ── Dispatchers ─────────────────────────────────────────────────────
 async function _collectionRemove(type, key) {
   if (type === 'paper' || type === 'other' || type === 'catalogs' || type === 'mockups') {
     if (typeof ephemeraDelete === 'function') ephemeraDelete(type, key);
     return;
   }
-  if (type === 'science' || type === 'construction') {
-    _removeScienceOrConstruction(type, key);
-    return;
-  }
-  if (type === 'is') {
-    _removeInstructionSheet(key);
-    return;
-  }
+  if (type === 'science' || type === 'construction') return _removeScienceOrConstruction(type, key);
+  if (type === 'is')                                  return _removeInstructionSheet(key);
   if (type === 'service') {
     const pd = state.personalData[key];
     if (!pd) return;
@@ -848,6 +841,257 @@ async function _collectionRemove(type, key) {
     return;
   }
 }
+
+function _collectionForSale(type, key) {
+  if (type === 'paper' || type === 'other') return ephemeraForSale(type, key);
+  if (type === 'service') return _serviceCollectionAction('forsale', key);
+  return _ncShowFsSoldModal(type, key, 'forsale');
+}
+
+function _collectionSold(type, key) {
+  if (type === 'paper' || type === 'other') return ephemeraSold(type, key);
+  if (type === 'service') return _serviceCollectionAction('sold', key);
+  return _ncShowFsSoldModal(type, key, 'sold');
+}
+
+function _collectionUpgrade(type, key) {
+  if (type === 'service') return _serviceCollectionAction('upgrade', key);
+  // Paper / other / science / construction / is — show simple upgrade
+  // modal that writes into the Upgrade tab. Falls back to the existing
+  // showAddToUpgradeModal for service tools (state.personalData).
+  return _ncShowUpgradeModal(type, key);
+}
+
+// ── Service tools dispatch (uses existing Lionel flows) ─────────────
+function _serviceCollectionAction(action, pdKey) {
+  const pd = state.personalData[pdKey];
+  if (!pd) return;
+  const master = typeof findMaster === 'function' ? findMaster(pd.itemNum) : null;
+  const globalIdx = master && state.masterData ? state.masterData.indexOf(master) : -1;
+  const itemNum = pd.itemNum;
+  const variation = pd.variation || '';
+  if (action === 'forsale' && typeof collectionActionForSale === 'function') {
+    collectionActionForSale(globalIdx, itemNum, variation, pd.row);
+  } else if (action === 'sold' && typeof collectionActionSold === 'function') {
+    collectionActionSold(globalIdx, itemNum, variation, pd.row);
+  } else if (action === 'upgrade' && typeof showAddToUpgradeModal === 'function') {
+    showAddToUpgradeModal(itemNum, variation, pd.row);
+  }
+}
+
+// ── Generic "non-Lionel" entry lookup ───────────────────────────────
+function _getNonLionelEntry(type, key) {
+  if (type === 'science')      return state.scienceData ? state.scienceData[key] : null;
+  if (type === 'construction') return state.constructionData ? state.constructionData[key] : null;
+  if (type === 'is')           return state.isData ? state.isData[key] : null;
+  if (type === 'paper')        return (state.ephemeraData && state.ephemeraData.paper) ? state.ephemeraData.paper[key] : null;
+  if (type === 'other')        return (state.ephemeraData && state.ephemeraData.other) ? state.ephemeraData.other[key] : null;
+  return null;
+}
+
+// Resolve an itemNum + display title for a non-Lionel entry.
+// IS uses sheetNum as the saleable identifier; everything else uses
+// the entry's itemNum.
+function _ncIdentifiers(type, entry) {
+  if (!entry) return { itemNum: '', variation: '', title: '' };
+  if (type === 'is') {
+    return {
+      itemNum: entry.sheetNum || ('IS-' + (entry.row || '')),
+      variation: '',
+      title: 'IS ' + (entry.sheetNum || '') + (entry.linkedItem ? ' (for ' + entry.linkedItem + ')' : ''),
+    };
+  }
+  return {
+    itemNum: entry.itemNum || '',
+    variation: entry.variation || '',
+    title: entry.description || entry.title || entry.itemNum || '',
+  };
+}
+
+// ── Generic For Sale / Sold modal for science / construction / is ──
+function _ncShowFsSoldModal(type, key, action) {
+  const entry = _getNonLionelEntry(type, key);
+  if (!entry) return;
+  const ids = _ncIdentifiers(type, entry);
+  const isSold = action === 'sold';
+  const title = ids.title || ids.itemNum;
+  const today = new Date().toISOString().slice(0, 10);
+  const condition = entry.condition || '';
+  const estValue  = entry.estValue || '';
+  const accent = isSold ? '#2ecc71' : '#f39c12';
+  const heading = isSold ? 'Mark as Sold' : 'List For Sale';
+  const cta     = isSold ? '💰 Mark as Sold' : '🏷️ List For Sale';
+
+  const ov = document.createElement('div');
+  ov.id = '_nc-action-modal';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10010;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+  ov.innerHTML =
+      '<div style="background:var(--surface);border-radius:14px;padding:1.5rem;max-width:380px;width:100%;border:1px solid var(--border)">'
+    +   '<div style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:0.2rem">' + heading + '</div>'
+    +   '<div style="font-family:var(--font-mono);color:var(--accent);font-size:0.88rem;margin-bottom:0.15rem">' + (ids.itemNum || '—') + '</div>'
+    +   '<div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:1rem">' + title + '</div>'
+    +   '<div style="margin-bottom:0.7rem">'
+    +     '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.06em">' + (isSold ? 'Sale Price ($)' : 'Asking Price ($)') + '</div>'
+    +     '<input type="number" id="_nc-price" min="0" step="0.01" placeholder="0.00" value="' + (estValue || '') + '" '
+    +       'style="width:100%;padding:0.5rem 0.7rem;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font-mono);font-size:0.95rem;outline:none;box-sizing:border-box">'
+    +   '</div>'
+    +   '<div style="margin-bottom:1.1rem">'
+    +     '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.06em">' + (isSold ? 'Date Sold' : 'Date Listed') + '</div>'
+    +     '<input type="date" id="_nc-date" value="' + today + '" '
+    +       'style="width:100%;padding:0.5rem 0.7rem;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box">'
+    +   '</div>'
+    +   (isSold
+        ? '<div style="margin-bottom:1.1rem">'
+        +   '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.06em">Also remove from collection?</div>'
+        +   '<div style="display:flex;gap:0.5rem">'
+        +     '<label style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;cursor:pointer"><input type="radio" name="_nc-rm" id="_nc-rm-yes" checked> Yes, remove it</label>'
+        +     '<label style="display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;cursor:pointer"><input type="radio" name="_nc-rm" id="_nc-rm-no"> Keep in collection</label>'
+        +   '</div>'
+        + '</div>'
+        : '')
+    +   '<div style="display:flex;gap:0.6rem">'
+    +     '<button onclick="document.getElementById(\'_nc-action-modal\').remove()" '
+    +       'style="flex:1;padding:0.65rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);cursor:pointer">Cancel</button>'
+    +     '<button id="_nc-save" '
+    +       'style="flex:2;padding:0.65rem;border-radius:8px;border:none;background:' + accent + ';color:white;font-family:var(--font-body);font-weight:600;cursor:pointer">' + cta + '</button>'
+    +   '</div>'
+    + '</div>';
+  document.body.appendChild(ov);
+
+  document.getElementById('_nc-save').onclick = async function() {
+    const price = document.getElementById('_nc-price').value;
+    const date  = document.getElementById('_nc-date').value;
+    const removeIt = isSold ? document.getElementById('_nc-rm-yes').checked : false;
+    ov.remove();
+    try {
+      if (isSold) {
+        // Sold sheet columns: Item#, Variation, Copy#, Condition, PricePaid, SalePrice, DateSold, Notes, InventoryID, Manufacturer
+        const row = [
+          ids.itemNum, ids.variation, '1',
+          condition, '', // priceItem unknown for non-Lionel
+          price, date, title,
+          '',
+          (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : ''),
+        ];
+        await sheetsAppend(state.personalSheetId, 'Sold!A:J', [row]);
+        if (removeIt) await _ncRemoveSourceRow(type, key);
+        showToast('✓ Marked as sold');
+      } else {
+        // For Sale columns: Item#, Variation, Condition, AskingPrice, DateListed, Notes, OrigPrice, EstWorth, InventoryID, Manufacturer
+        const row = [
+          ids.itemNum, ids.variation,
+          condition, price, date, title,
+          '', estValue || '',
+          '',
+          (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : ''),
+        ];
+        await sheetsAppend(state.personalSheetId, 'For Sale!A:J', [row]);
+        showToast('✓ Listed for sale');
+      }
+      if (typeof renderBrowse === 'function') renderBrowse();
+      if (typeof buildDashboard === 'function') buildDashboard();
+    } catch(e) {
+      showToast('Error: ' + e.message, 4000, true);
+    }
+  };
+}
+
+// Remove the source row across all non-Lionel buckets.
+async function _ncRemoveSourceRow(type, key) {
+  const entry = _getNonLionelEntry(type, key);
+  if (!entry) return;
+  const sheetMap = {
+    science: { name: 'Science Sets', cols: 15 },
+    construction: { name: 'Construction Sets', cols: 15 },
+    is: { name: 'Instruction Sheets', cols: 11 },
+    paper: { name: 'Paper Items', cols: 14 },
+    other: { name: 'Other Lionel', cols: 14 },
+  };
+  const cfg = sheetMap[type];
+  if (!cfg) return;
+  if (entry.row && typeof entry.row === 'number' && entry.row >= 3 && entry.row < 1000000) {
+    const lastCol = String.fromCharCode(64 + cfg.cols);
+    const blanks = [Array(cfg.cols).fill('')];
+    sheetsUpdate(state.personalSheetId, cfg.name + '!A' + entry.row + ':' + lastCol + entry.row, blanks)
+      .catch(function(e) { console.warn('remove source row ' + type, e); });
+  }
+  // Remove from local state
+  if (type === 'science')      delete state.scienceData[key];
+  else if (type === 'construction') delete state.constructionData[key];
+  else if (type === 'is')      delete state.isData[key];
+  else if (type === 'paper' || type === 'other') {
+    if (state.ephemeraData && state.ephemeraData[type]) delete state.ephemeraData[type][key];
+  }
+  if (typeof _cachePersonalData === 'function') _cachePersonalData();
+}
+
+// ── Generic Upgrade modal for paper / other / science / construction / is ──
+function _ncShowUpgradeModal(type, key) {
+  const entry = _getNonLionelEntry(type, key);
+  if (!entry) return;
+  const ids = _ncIdentifiers(type, entry);
+  const title = ids.title || ids.itemNum;
+
+  const ov = document.createElement('div');
+  ov.id = '_nc-upgrade-modal';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10010;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+  ov.innerHTML =
+      '<div style="background:var(--surface);border-radius:14px;padding:1.5rem;max-width:380px;width:100%;border:1px solid var(--border)">'
+    +   '<div style="font-family:var(--font-head);font-size:1rem;font-weight:700;color:#8b5cf6;margin-bottom:0.2rem">↑ Add to Upgrade List</div>'
+    +   '<div style="font-family:var(--font-mono);color:var(--accent);font-size:0.88rem;margin-bottom:0.15rem">' + (ids.itemNum || '—') + '</div>'
+    +   '<div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:1rem">' + title + '</div>'
+    +   '<div style="margin-bottom:0.75rem">'
+    +     '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.06em">Priority</div>'
+    +     '<select id="_nc-up-pri" style="width:100%;padding:0.5rem 0.7rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none">'
+    +       '<option value="High">High</option><option value="Medium" selected>Medium</option><option value="Low">Low</option>'
+    +     '</select>'
+    +   '</div>'
+    +   '<div style="margin-bottom:1.1rem">'
+    +     '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.06em">Max price (optional)</div>'
+    +     '<input type="number" id="_nc-up-price" min="0" step="0.01" placeholder="0.00" '
+    +       'style="width:100%;padding:0.5rem 0.7rem;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font-mono);font-size:0.95rem;outline:none;box-sizing:border-box">'
+    +   '</div>'
+    +   '<div style="display:flex;gap:0.6rem">'
+    +     '<button onclick="document.getElementById(\'_nc-upgrade-modal\').remove()" '
+    +       'style="flex:1;padding:0.65rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);cursor:pointer">Cancel</button>'
+    +     '<button id="_nc-up-save" '
+    +       'style="flex:2;padding:0.65rem;border-radius:8px;border:none;background:#8b5cf6;color:white;font-family:var(--font-body);font-weight:600;cursor:pointer">↑ Add</button>'
+    +   '</div>'
+    + '</div>';
+  document.body.appendChild(ov);
+
+  document.getElementById('_nc-up-save').onclick = async function() {
+    const priority = document.getElementById('_nc-up-pri').value || 'Medium';
+    const price    = document.getElementById('_nc-up-price').value || '';
+    ov.remove();
+    try {
+      // Upgrade tab columns assumed: Item#, Variation, Priority, MaxPrice,
+      // Notes, DateAdded. Match the schema saveUpgradeItem writes.
+      const row = [
+        ids.itemNum, ids.variation,
+        priority, price,
+        title, // notes
+        new Date().toISOString().slice(0, 10),
+      ];
+      await sheetsAppend(state.personalSheetId, 'Upgrade!A:F', [row]);
+      // Local state mirror
+      if (!state.upgradeData) state.upgradeData = {};
+      state.upgradeData[ids.itemNum + '|' + ids.variation] = {
+        itemNum: ids.itemNum, variation: ids.variation,
+        priority, expectedPrice: price,
+        notes: title, dateAdded: new Date().toISOString().slice(0, 10),
+      };
+      showToast('✓ Added to Upgrade list');
+      if (typeof buildDashboard === 'function') buildDashboard();
+    } catch(e) {
+      showToast('Error: ' + e.message, 4000, true);
+    }
+  };
+}
+
+window._collectionForSale = _collectionForSale;
+window._collectionSold    = _collectionSold;
+window._collectionUpgrade = _collectionUpgrade;
 
 async function _removeScienceOrConstruction(type, key) {
   const bucket = (type === 'science') ? state.scienceData : state.constructionData;
