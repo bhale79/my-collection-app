@@ -2088,8 +2088,14 @@ function showRefItemPopup(type, idx) {
     if (!s) return;
     title = 'Set ' + s.setNum;
     subtitle = s.setName || '';
-    // Check ownership from My Sets data
-    var _mySet = Object.values(state.mySetsData || {}).find(ms => ms.setNum === s.setNum && (!ms.year || ms.year === s.year));
+    // Check ownership from My Sets data — capture the bucket key too
+    // so we can deep-link "View Full Details" into showNonItemDetailPage.
+    var _mySetEntry = Object.entries(state.mySetsData || {}).find(function(ent) {
+      var ms = ent[1];
+      return ms.setNum === s.setNum && (!ms.year || ms.year === s.year);
+    });
+    var _mySetKey = _mySetEntry ? _mySetEntry[0] : null;
+    var _mySet    = _mySetEntry ? _mySetEntry[1] : null;
     details = [
       ['Year', s.year || '—'],
       ['Gauge', s.gauge || '—'],
@@ -2172,10 +2178,17 @@ function showRefItemPopup(type, idx) {
   if (type === 'set') {
     var _s = (window._browseFilteredSets || [])[idx];
     if (_s) { _itemNum = _s.setNum; _itemType = 'Set'; _description = _s.setName || ''; _year = _s.year || ''; }
-    _setOwned = !!Object.values(state.mySetsData || {}).find(ms => ms.setNum === _itemNum && (!ms.year || ms.year === _year));
+    // Reuse the entry we already looked up above so we have the key.
+    _setOwned = !!_mySetKey;
     if (_setOwned) {
-      addBtn.style.cssText = 'margin-top:1.25rem;width:100%;background:#27ae6022;border:1.5px solid #27ae60;border-radius:10px;padding:0.75rem;line-height:1.25;color:#27ae60;font-family:var(--font-body);font-size:0.92rem;font-weight:700;cursor:default';
-      addBtn.innerHTML = '✓ In Your Collection';
+      // Session 116: instead of a non-clickable "✓ In Your Collection"
+      // badge, surface a real "View Full Details" button that opens
+      // the new generic detail page for this set. Brad wanted the
+      // modal preserved (quick-look) AND a path to the full page.
+      addBtn.style.cssText = 'margin-top:1.25rem;width:100%;background:rgba(41,128,185,0.1);border:1.5px solid #2980b9;border-radius:10px;padding:0.75rem;line-height:1.25;color:#2980b9;font-family:var(--font-body);font-size:0.92rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem';
+      addBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>'
+        + '<span>View Full Details</span>';
+      addBtn._mySetKeyForDetail = _mySetKey;
     }
   } else if (type === 'catalog') {
     var _c = (window._browseFilteredCats || [])[idx];
@@ -2188,7 +2201,14 @@ function showRefItemPopup(type, idx) {
     overlay.remove();
     // Sets get their own wizard flow
     if (type === 'set') {
-      if (_setOwned) return;  // Already owned — button is just a badge
+      // Session 116: owned sets — open the new detail page instead
+      // of being a dead-end badge.
+      if (_setOwned) {
+        if (addBtn._mySetKeyForDetail && typeof showNonItemDetailPage === 'function') {
+          showNonItemDetailPage('sets', addBtn._mySetKeyForDetail);
+        }
+        return;
+      }
       addSetToCollection(_itemNum, _description);
       return;
     }
