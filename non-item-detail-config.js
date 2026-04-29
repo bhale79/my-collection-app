@@ -99,6 +99,36 @@
       sheetTab:        'Catalogs',
       sheetCols:       'A:J',
       bucketPath:      'ephemeraData.catalogs',
+
+      // Full column → entry-key map. Used by the edit modal to
+      // rebuild the row when writing back to Sheets, so non-editable
+      // columns (like photoLink) are preserved in place.
+      rowSchema: [
+        { col: 'A', key: 'itemNum' },
+        { col: 'B', key: 'catType' },
+        { col: 'C', key: 'year' },
+        { col: 'D', key: 'hasMailer' },
+        { col: 'E', key: 'condition' },
+        { col: 'F', key: 'pricePaid' },
+        { col: 'G', key: 'estValue' },
+        { col: 'H', key: 'dateAcquired' },
+        { col: 'I', key: 'notes' },
+        { col: 'J', key: 'photoLink' },
+      ],
+
+      // Editable subset surfaced by the Update Info modal.
+      // locked:true → input is read-only/grayed (Brad's preference).
+      editFields: [
+        { key: 'itemNum',      label: 'Catalog #',           type: 'text',     locked: true },
+        { key: 'catType',      label: 'Type',                type: 'select',   options: ['Consumer Postwar','Advance Catalog','Dealer Catalog','Service Manual','Other'] },
+        { key: 'year',         label: 'Year',                type: 'text' },
+        { key: 'hasMailer',    label: 'Has Envelope/Mailer', type: 'yesno' },
+        { key: 'condition',    label: 'Condition (1-10)',    type: 'number',   min: 1, max: 10 },
+        { key: 'pricePaid',    label: 'Price Paid ($)',      type: 'money' },
+        { key: 'estValue',     label: 'Est. Worth ($)',      type: 'money' },
+        { key: 'dateAcquired', label: 'Date Acquired',       type: 'date' },
+        { key: 'notes',        label: 'Notes',               type: 'textarea' },
+      ],
     },
 
     // ── Paper ────────────────────────────────────────────────────

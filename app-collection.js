@@ -270,16 +270,206 @@ function showNonItemDetailPage(type, key) {
 }
 window.showNonItemDetailPage = showNonItemDetailPage;
 
-// Update Info & Add Pictures — Phase 1 stub.
-// For Commit 1 this just informs the user the rich edit modal is
-// coming next. The action buttons (For Sale / Sold / Upgrade /
-// Remove) and back-nav already work end-to-end.
+// ── Generic Update Info Modal (Session 116) ────────────────────────
+// Renders an edit form driven by cfg.editFields, gathers new values,
+// rebuilds the full row from cfg.rowSchema (so non-editable columns
+// like photoLink are preserved untouched), writes the row to the
+// user's Google Sheet, updates state, and re-renders the detail page.
+//
+// Locked fields render as a styled-disabled input — Brad's preference
+// is to lock the item number / catalog ID so changes don't orphan
+// existing Sheet rows.
 function _nonItemDetailEdit(type, key) {
-  if (typeof showToast === 'function') {
-    showToast('Update Info coming in the next pass — for now use the action buttons or the Drive link to add photos.', 4500);
+  var cfg = (window.NON_ITEM_DETAIL_CONFIG || {})[type];
+  if (!cfg || !Array.isArray(cfg.editFields) || !cfg.editFields.length) {
+    if (typeof showToast === 'function') showToast('Edit not configured for this type yet.', 3500);
+    return;
   }
+  // Resolve entry from bucketPath
+  var bucket = state;
+  cfg.bucketPath.split('.').forEach(function(seg) { bucket = bucket && bucket[seg]; });
+  var entry = bucket ? bucket[key] : null;
+  if (!entry) {
+    if (typeof showToast === 'function') showToast('Record not found.', 3000, true);
+    return;
+  }
+
+  // Build the modal
+  var ov = document.createElement('div');
+  ov.id = '_ni-edit-modal';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10010;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+  ov.onclick = function(e) { if (e.target === ov) ov.remove(); };
+
+  var box = document.createElement('div');
+  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;max-height:85vh;overflow-y:auto;padding:1.5rem;position:relative';
+
+  var hdr = document.createElement('div');
+  hdr.style.cssText = 'font-family:var(--font-head);font-size:1.05rem;color:var(--accent);margin-bottom:0.25rem';
+  hdr.textContent = 'Update ' + (cfg.label || 'Item') + ' Info';
+  box.appendChild(hdr);
+
+  var sub = document.createElement('div');
+  sub.style.cssText = 'font-size:0.85rem;color:var(--text-mid);margin-bottom:1.25rem';
+  sub.textContent = (cfg.itemNumDisplay(entry) || '') + (entry.title ? (' — ' + entry.title) : '');
+  box.appendChild(sub);
+
+  // Render an input for each editField
+  var inputsByKey = {};
+  cfg.editFields.forEach(function(f) {
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'margin-bottom:0.85rem';
+
+    var lbl = document.createElement('label');
+    lbl.style.cssText = 'display:block;font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.25rem;font-weight:600';
+    lbl.textContent = f.label + (f.locked ? '  (locked)' : '');
+    wrap.appendChild(lbl);
+
+    var current = entry[f.key];
+    if (current == null) current = '';
+    var inp;
+
+    if (f.type === 'textarea') {
+      inp = document.createElement('textarea');
+      inp.rows = 3;
+      inp.value = String(current);
+      inp.style.cssText = 'width:100%;padding:0.55rem 0.7rem;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box;resize:vertical';
+    } else if (f.type === 'select') {
+      inp = document.createElement('select');
+      inp.style.cssText = 'width:100%;padding:0.55rem 0.7rem;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box';
+      // Allow blank option
+      var opt0 = document.createElement('option');
+      opt0.value = ''; opt0.textContent = '— select —';
+      inp.appendChild(opt0);
+      (f.options || []).forEach(function(o) {
+        var opt = document.createElement('option');
+        opt.value = o; opt.textContent = o;
+        if (String(current) === o) opt.selected = true;
+        inp.appendChild(opt);
+      });
+    } else if (f.type === 'yesno') {
+      inp = document.createElement('select');
+      inp.style.cssText = 'width:100%;padding:0.55rem 0.7rem;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box';
+      ['','Yes','No'].forEach(function(v) {
+        var opt = document.createElement('option');
+        opt.value = v; opt.textContent = v || '— select —';
+        if (String(current) === v) opt.selected = true;
+        inp.appendChild(opt);
+      });
+    } else {
+      inp = document.createElement('input');
+      inp.value = String(current);
+      if (f.type === 'number') {
+        inp.type = 'number';
+        if (f.min != null) inp.min = f.min;
+        if (f.max != null) inp.max = f.max;
+        if (f.step != null) inp.step = f.step;
+      } else if (f.type === 'money') {
+        inp.type = 'number'; inp.step = '0.01'; inp.min = '0';
+      } else if (f.type === 'date') {
+        inp.type = 'date';
+      } else {
+        inp.type = 'text';
+      }
+      inp.style.cssText = 'width:100%;padding:0.55rem 0.7rem;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box';
+    }
+
+    if (f.locked) {
+      inp.disabled = true;
+      inp.style.opacity = '0.55';
+      inp.style.cursor = 'not-allowed';
+      inp.style.background = 'var(--surface2)';
+    }
+
+    inputsByKey[f.key] = inp;
+    wrap.appendChild(inp);
+    box.appendChild(wrap);
+  });
+
+  // Buttons
+  var btnRow = document.createElement('div');
+  btnRow.style.cssText = 'display:flex;gap:0.5rem;justify-content:flex-end;margin-top:1.25rem;border-top:1px solid var(--border);padding-top:1rem';
+
+  var cancelBtn = document.createElement('button');
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.style.cssText = 'padding:0.55rem 1rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;font-weight:600';
+  cancelBtn.onclick = function() { ov.remove(); };
+
+  var saveBtn = document.createElement('button');
+  saveBtn.textContent = 'Save Changes';
+  saveBtn.style.cssText = 'padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #2980b9;background:#2980b9;color:#fff;font-family:var(--font-body);font-size:0.88rem;cursor:pointer;font-weight:700';
+  saveBtn.onclick = function() {
+    if (saveBtn._busy) return;
+    saveBtn._busy = true;
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving…';
+    _saveNonItemEdit(type, key, entry, cfg, inputsByKey)
+      .then(function() {
+        ov.remove();
+        if (typeof showToast === 'function') showToast('✓ Changes saved');
+        // Re-render the detail page so the user sees their edits
+        if (typeof showNonItemDetailPage === 'function') showNonItemDetailPage(type, key);
+      })
+      .catch(function(err) {
+        console.error('non-item edit save failed:', err);
+        saveBtn._busy = false;
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save Changes';
+        if (typeof showToast === 'function') showToast('Save failed — ' + (err && err.message ? err.message : 'try again'), 4500, true);
+      });
+  };
+
+  btnRow.appendChild(cancelBtn);
+  btnRow.appendChild(saveBtn);
+  box.appendChild(btnRow);
+
+  ov.appendChild(box);
+  document.body.appendChild(ov);
 }
 window._nonItemDetailEdit = _nonItemDetailEdit;
+
+// Internal helper: gather form values, update entry in state, rebuild
+// the full Sheet row using cfg.rowSchema, write it via sheetsUpdate.
+async function _saveNonItemEdit(type, key, entry, cfg, inputsByKey) {
+  if (!cfg.rowSchema || !cfg.sheetTab) {
+    throw new Error('Sheet row schema missing for ' + type);
+  }
+  // Apply input values onto entry (skip locked fields — they retain
+  // their existing value since the input is disabled).
+  cfg.editFields.forEach(function(f) {
+    if (f.locked) return;
+    var inp = inputsByKey[f.key];
+    if (!inp) return;
+    var val = inp.value == null ? '' : String(inp.value).trim();
+    entry[f.key] = val;
+  });
+  // Recompute derived fields where the renderer expects them
+  if (type === 'catalogs') {
+    entry.title = [entry.year, entry.catType, 'Catalog'].filter(Boolean).join(' ');
+  }
+
+  // Rebuild the full row from rowSchema (preserves non-editable cols).
+  var rowVals = cfg.rowSchema.map(function(c) {
+    var v = entry[c.key];
+    return v == null ? '' : v;
+  });
+
+  // Compute range. cfg.rowSchema[0].col → first column,
+  // cfg.rowSchema[last].col → last.
+  var firstCol = cfg.rowSchema[0].col;
+  var lastCol  = cfg.rowSchema[cfg.rowSchema.length - 1].col;
+  var rowNum   = entry.row;
+  if (!rowNum || typeof rowNum !== 'number') {
+    throw new Error('Row number missing on entry — cannot save');
+  }
+  var range = cfg.sheetTab + '!' + firstCol + rowNum + ':' + lastCol + rowNum;
+
+  if (typeof sheetsUpdate !== 'function') throw new Error('sheetsUpdate unavailable');
+  await sheetsUpdate(state.personalSheetId, range, [rowVals]);
+
+  // Refresh local cache so other views pick up the change
+  if (typeof _cachePersonalData === 'function') _cachePersonalData();
+}
+window._saveNonItemEdit = _saveNonItemEdit;
 
 function _nonItemDetailPhotos(type, key) {
   // For Commit 1: open the Drive folder if one exists; otherwise toast.
