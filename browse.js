@@ -771,6 +771,7 @@ function _renderOwnedSubTab(tabKey) {
     Object.entries(state.scienceData || {}).forEach(function(entry) {
       const k = entry[0], s = entry[1];
       rows.push({
+        _type: 'science', _key: k,
         itemNum: s.itemNum || '—',
         itemType: 'Science Set',
         description: s.description || s.varDetail || '—',
@@ -784,6 +785,7 @@ function _renderOwnedSubTab(tabKey) {
     Object.entries(state.constructionData || {}).forEach(function(entry) {
       const k = entry[0], s = entry[1];
       rows.push({
+        _type: 'construction', _key: k,
         itemNum: s.itemNum || '—',
         itemType: 'Construction Set',
         description: s.description || s.varDetail || '—',
@@ -797,6 +799,7 @@ function _renderOwnedSubTab(tabKey) {
     Object.entries((state.ephemeraData && state.ephemeraData.paper) || {}).forEach(function(entry) {
       const k = entry[0], p = entry[1];
       rows.push({
+        _type: 'paper', _key: k,
         itemNum: p.itemNum || '—',
         itemType: p.paperType || 'Paper',
         description: p.title || p.description || '—',
@@ -810,6 +813,7 @@ function _renderOwnedSubTab(tabKey) {
     Object.entries((state.ephemeraData && state.ephemeraData.other) || {}).forEach(function(entry) {
       const k = entry[0], o = entry[1];
       rows.push({
+        _type: 'other', _key: k,
         itemNum: o.itemNum || '—',
         itemType: 'Other',
         description: o.title || o.description || '—',
@@ -829,6 +833,7 @@ function _renderOwnedSubTab(tabKey) {
       const master = typeof findMaster === 'function' ? findMaster(pd.itemNum) : null;
       if (!master || master._tab !== svcTab) return;
       rows.push({
+        _type: 'service', _key: k,
         itemNum: pd.itemNum || '—',
         itemType: (master && master.itemType) || 'Service Tool',
         description: (master && master.description) || '—',
@@ -858,14 +863,18 @@ function _renderOwnedSubTab(tabKey) {
   tbody.innerHTML = filtered.map(function(r) {
     var vd = r.varDetail || '';
     if (vd.length > 80) vd = vd.substring(0, 77) + '…';
-    return '<tr>'
+    // Session 116: row navigates to generic detail page. Action-cell
+    // clicks already stop propagation so the buttons still work.
+    var _kEsc = String(r._key).replace(/'/g, "\\'");
+    var _trOpen = '<tr onclick="showNonItemDetailPage(&apos;' + r._type + '&apos;,&apos;' + _kEsc + '&apos;)" style="cursor:pointer">';
+    return _trOpen
       + '<td><span class="item-num">' + r.itemNum + '</span></td>'
       + '<td><span class="tag">' + r.itemType + '</span></td>'
       + '<td>' + r.description + '</td>'
       + '<td>' + r.variation + '</td>'
       + '<td>' + (vd || '<span class="text-dim">—</span>') + '</td>'
       + '<td class="text-dim">' + r.year + '</td>'
-      + (r._actionsHTML ? '<td style="text-align:right;white-space:nowrap">' + r._actionsHTML + '</td>' : '')
+      + (r._actionsHTML ? '<td onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">' + r._actionsHTML + '</td>' : '')
       + '</tr>';
   }).join('');
 }
