@@ -64,6 +64,239 @@ function _detailBackToBrowse() {
 }
 window._detailBackToBrowse = _detailBackToBrowse;
 
+// ── Generic Non-Item Detail Page (Session 116) ─────────────────────
+// Renders the same layout as showItemDetailPage, but config-driven so
+// every non-Items tab (Sets, Catalogs, Mockups, Paper, Other, Science,
+// Construction, IS, Service Tools) gets a consistent detail view.
+//
+// Inputs:
+//   type — one of the keys in NON_ITEM_DETAIL_CONFIG
+//   key  — the bucket key for that record (e.g. mySetsData[key])
+//
+// What it renders:
+//   • Header: Back button + title + subtitle + type badge + ✓ IN COLLECTION
+//   • Action toolbar: Update Info, Record Sale, List for Sale,
+//                     Add to Upgrade, Remove
+//   • Details card: fields() from config + Notes block
+//   • Photos card: reads photoFolder() and shows Drive thumbnails
+//
+// Update Info, photo upload, and edit are handled by:
+//   _nonItemDetailEdit(type, key)   — opens edit modal (Phase 2)
+//   _nonItemDetailPhotos(type, key) — opens photo upload (uses Drive folder)
+function showNonItemDetailPage(type, key) {
+  var cfg = (window.NON_ITEM_DETAIL_CONFIG || {})[type];
+  if (!cfg) {
+    if (typeof showToast === 'function') showToast('Detail view not configured for ' + type, 3000, true);
+    return;
+  }
+  // Resolve entry from bucketPath like 'ephemeraData.catalogs'
+  var bucket = state;
+  var bucketKey = '';
+  cfg.bucketPath.split('.').forEach(function(seg) {
+    bucket = bucket && bucket[seg];
+    bucketKey = seg;
+  });
+  if (!bucket || !bucket[key]) {
+    if (typeof showToast === 'function') showToast('Record not found', 3000, true);
+    return;
+  }
+  var entry = bucket[key];
+
+  // Capture browse state so Back returns to the right tab + filters
+  if (window._detailReturn !== 'tools') {
+    window._lastBrowseState = {
+      tab:        state._browseTab || 'items',
+      owned:      !!state.filters.owned,
+      filterType: state.filters.type || '',
+      filterRoad: state.filters.road || '',
+      search:     state.filters.search || '',
+    };
+  }
+
+  showPage('itemdetail');
+  var container = document.getElementById('item-detail-content');
+  if (!container) return;
+
+  // Pull data via config
+  var pageTitle = cfg.pageTitle(entry) || '—';
+  var subtitle  = cfg.subtitle(entry)  || '';
+  var typeBadge = cfg.typeBadge(entry) || '';
+  var year      = cfg.year(entry)      || '';
+  var fields    = (cfg.fields(entry) || []).filter(function(f) { return f.val != null && f.val !== ''; });
+  var notes     = cfg.notes(entry) || '';
+  var photoLink = cfg.photoFolder(entry) || '';
+
+  // For Sale state lookup (uses itemNum + variation pair like Items)
+  var keyItemNum  = cfg.itemNumDisplay(entry) || '';
+  var keyVar      = entry.variation || '';
+  var fsEntry     = state.forSaleData && state.forSaleData[keyItemNum + '|' + keyVar];
+  var isForSale   = !!fsEntry;
+  var fsPrice     = fsEntry ? '$' + parseFloat(fsEntry.askingPrice || 0).toLocaleString() : '';
+
+  // Condition pip
+  var cond      = entry.condition ? parseInt(entry.condition) : null;
+  var condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
+
+  var typeArg = "'" + String(type).replace(/'/g, "\\'") + "'";
+  var keyArg  = "'" + String(key).replace(/'/g, "\\'") + "'";
+
+  // Back button (mirror Items' tools-flow handling)
+  var fromTools = window._detailReturn === 'tools';
+  var backLabel = fromTools ? 'Back to Collection Tools' : 'Back to Collection';
+  var backFn    = fromTools ? 'delete window._detailReturn;showPage(&apos;tools&apos;);buildToolsPage()' : '_detailBackToBrowse()';
+
+  // ── HEADER ──
+  var html = ''
+    + '<div style="margin-bottom:1.5rem">'
+    +   '<button onclick="' + backFn + '" style="background:none;border:none;color:#2980b9;font-family:var(--font-body);font-size:1.1rem;font-weight:700;cursor:pointer;padding:0;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.4rem">'
+    +     '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>'
+    +     backLabel
+    +   '</button>'
+    +   '<div style="display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap">'
+    +     '<div style="flex:1;min-width:0">'
+    +       '<div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.25rem">'
+    +         '<span style="font-family:var(--font-head);font-size:1.6rem;color:var(--accent);letter-spacing:0.03em">' + pageTitle + '</span>'
+    +         (isForSale ? '<span style="font-size:1rem;color:var(--gold);font-family:var(--font-head);letter-spacing:0.02em">— on the sale list for ' + fsPrice + '</span>' : '')
+    +         (typeBadge ? '<span class="tag">' + typeBadge + '</span>' : '')
+    +         (year ? '<span style="font-size:0.82rem;color:var(--text-dim)">' + year + '</span>' : '')
+    +       '</div>'
+    +       (subtitle ? '<div style="font-size:1.05rem;color:var(--text);margin-bottom:0.2rem">' + subtitle + '</div>' : '')
+    +     '</div>'
+    +     '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.4rem;flex-shrink:0">'
+    +       '<span class="owned-badge ' + (isForSale ? 'forsale' : 'yes') + '" style="font-size:0.85rem">' + (isForSale ? '🏷️ For Sale' : '✓ In Collection') + '</span>'
+    +       (cond ? '<span style="font-size:0.85rem"><span class="condition-pip ' + condClass + '"></span> ' + cond + '/10</span>' : '')
+    +     '</div>'
+    +   '</div>'
+    + '</div>';
+
+  // ── ACTION TOOLBAR ──
+  html += '<div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap">';
+  html +=   '<button onclick="_nonItemDetailEdit(' + typeArg + ',' + keyArg + ')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2980b9;background:rgba(41,128,185,0.1);color:#2980b9;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
+       +     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>'
+       +     'Update Info &amp; Add Pictures'
+       +   '</button>';
+  html +=   '<button onclick="_collectionSold(' + typeArg + ',' + keyArg + ')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
+       +     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>'
+       +     'Record Sale'
+       +   '</button>';
+  if (!isForSale) {
+    html += '<button onclick="_collectionForSale(' + typeArg + ',' + keyArg + ')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
+         +   '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>'
+         +   'List for Sale'
+         + '</button>';
+  }
+  html +=   '<button onclick="_collectionUpgrade(' + typeArg + ',' + keyArg + ')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
+       +     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>'
+       +     'Add to Upgrade List'
+       +   '</button>';
+  html +=   '<button onclick="_collectionRemove(' + typeArg + ',' + keyArg + ')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
+       +     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>'
+       +     'Remove from Collection'
+       +   '</button>';
+  html += '</div>';
+
+  // ── DETAILS CARD ──
+  html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem;margin-bottom:1.5rem">'
+       +    '<div style="font-family:var(--font-head);font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent2);margin-bottom:0.75rem">Details</div>';
+  if (fields.length) {
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.6rem 1.5rem">'
+         + fields.map(function(d) {
+             return '<div style="display:flex;justify-content:space-between;padding:0.35rem 0;border-bottom:1px solid var(--border)">'
+                  +   '<span style="font-size:0.78rem;color:var(--text-dim);font-weight:600">' + d.label + '</span>'
+                  +   '<span style="font-size:0.85rem;color:var(--text);text-align:right">' + d.val + '</span>'
+                  + '</div>';
+           }).join('')
+         + '</div>';
+  } else {
+    html += '<div style="color:var(--text-dim);font-size:0.85rem">No details recorded yet — use Update Info to fill them in.</div>';
+  }
+  if (notes) {
+    html += '<div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border)">'
+         +   '<div style="font-size:0.78rem;color:var(--text-dim);font-weight:600;margin-bottom:0.3rem">Notes</div>'
+         +   '<div style="font-size:0.85rem;color:var(--text);line-height:1.6">' + notes + '</div>'
+         + '</div>';
+  }
+  html += '</div>';
+
+  // ── PHOTOS CARD ──
+  html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem">'
+       +    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">'
+       +      '<div style="font-family:var(--font-head);font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent2)">Photos</div>'
+       +      (photoLink ? '<a href="' + photoLink + '" target="_blank" rel="noopener" style="font-size:0.75rem;color:var(--accent2);text-decoration:none">Open Drive Folder ↗</a>' : '')
+       +    '</div>'
+       +    '<div id="ni-detail-photos" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:0.75rem;min-height:80px">'
+       +      (photoLink
+              ? '<div style="grid-column:1/-1;text-align:center;padding:1rem;color:var(--text-dim);font-size:0.82rem"><div class="spinner" style="margin:0 auto 0.5rem;width:20px;height:20px;border-width:2px"></div>Loading photos...</div>'
+              : '<div style="grid-column:1/-1;text-align:center;padding:2rem 1rem;color:var(--text-dim)">'
+                + '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3" style="margin:0 auto 0.5rem;display:block"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>'
+                + '<div style="font-size:0.85rem;margin-bottom:0.5rem">No photos uploaded yet</div>'
+                + '<button onclick="_nonItemDetailPhotos(' + typeArg + ',' + keyArg + ')" style="padding:0.4rem 0.8rem;border-radius:7px;border:1.5px solid var(--gold);background:rgba(212,168,67,0.08);color:var(--gold);font-family:var(--font-body);font-size:0.78rem;cursor:pointer;font-weight:600">Add Photos</button>'
+                + '</div>')
+       +    '</div>'
+       + '</div>';
+
+  container.innerHTML = html;
+
+  // Async-load Drive thumbnails when a photo folder URL is set
+  if (photoLink && typeof driveGetFolderPhotos === 'function') {
+    driveGetFolderPhotos(photoLink).then(function(photos) {
+      var el = document.getElementById('ni-detail-photos');
+      if (!el) return;
+      if (!photos || photos.length === 0) {
+        el.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:2rem 1rem;color:var(--text-dim)">'
+          + '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3" style="margin:0 auto 0.5rem;display:block"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>'
+          + '<div style="font-size:0.85rem;margin-bottom:0.5rem">No photos in folder</div>'
+          + '<button onclick="_nonItemDetailPhotos(' + typeArg + ',' + keyArg + ')" style="padding:0.4rem 0.8rem;border-radius:7px;border:1.5px solid var(--gold);background:rgba(212,168,67,0.08);color:var(--gold);font-family:var(--font-body);font-size:0.78rem;cursor:pointer;font-weight:600">Add Photos</button>'
+          + '</div>';
+        return;
+      }
+      el.innerHTML = photos.map(function(p) {
+        return '<a href="' + p.view + '" target="_blank" rel="noopener" style="display:block;border-radius:8px;overflow:hidden;background:var(--surface2);aspect-ratio:1;position:relative">'
+          + '<img id="nip-' + p.id + '" style="width:100%;height:100%;object-fit:cover;border-radius:8px;transition:opacity 0.3s" alt="' + (p.name||'Photo') + '">'
+          + '<div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.6));padding:0.3rem 0.5rem">'
+          + '<div style="font-size:0.65rem;color:#fff;font-family:var(--font-head);letter-spacing:0.05em;text-transform:uppercase">' + (p.name||'').replace(/\.[^.]+$/,'') + '</div>'
+          + '</div></a>';
+      }).join('');
+      photos.forEach(function(p) {
+        var imgEl = document.getElementById('nip-' + p.id);
+        if (imgEl && typeof loadDriveThumb === 'function') loadDriveThumb(p.id, imgEl, imgEl.parentElement);
+      });
+    }).catch(function(e) {
+      console.warn('Non-item photo gallery load:', e);
+      var el = document.getElementById('ni-detail-photos');
+      if (el) el.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:1rem;color:var(--text-dim);font-size:0.82rem">Could not load photos</div>';
+    });
+  }
+}
+window.showNonItemDetailPage = showNonItemDetailPage;
+
+// Update Info & Add Pictures — Phase 1 stub.
+// For Commit 1 this just informs the user the rich edit modal is
+// coming next. The action buttons (For Sale / Sold / Upgrade /
+// Remove) and back-nav already work end-to-end.
+function _nonItemDetailEdit(type, key) {
+  if (typeof showToast === 'function') {
+    showToast('Update Info coming in the next pass — for now use the action buttons or the Drive link to add photos.', 4500);
+  }
+}
+window._nonItemDetailEdit = _nonItemDetailEdit;
+
+function _nonItemDetailPhotos(type, key) {
+  // For Commit 1: open the Drive folder if one exists; otherwise toast.
+  var cfg = (window.NON_ITEM_DETAIL_CONFIG || {})[type];
+  if (!cfg) return;
+  var bucket = state;
+  cfg.bucketPath.split('.').forEach(function(seg) { bucket = bucket && bucket[seg]; });
+  var entry = bucket ? bucket[key] : null;
+  var url = entry ? cfg.photoFolder(entry) : '';
+  if (url) {
+    window.open(url, '_blank', 'noopener');
+  } else if (typeof showToast === 'function') {
+    showToast('Photo folder not set up for this record yet — coming soon.', 4000);
+  }
+}
+window._nonItemDetailPhotos = _nonItemDetailPhotos;
+
 function showItemDetailPage(idx) {
   // Session 115: capture which Browse tab + filter state the user
   // came from so the Back button restores the same tab on return.

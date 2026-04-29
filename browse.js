@@ -593,16 +593,20 @@ function renderCatalogsTab() {
   const emptyMsg = inColl ? 'No catalogs or paper items in your collection yet' : 'No catalogs found';
   if (countEl) countEl.textContent = total.toLocaleString() + ' item' + (total !== 1 ? 's' : '');
   if (!total) { tbody.innerHTML = `<tr><td colspan="${inColl ? 5 : 4}" style="text-align:center;padding:2rem;color:var(--text-dim)">${emptyMsg}</td></tr>`; return; }
+  // Session 116: collection-view rows now navigate to the new
+  // showNonItemDetailPage so click-into-detail-then-Back returns to
+  // the same tab + filters (same UX as Items tab).
   const ephRows = ephOwnedEntries.map(function(entry) {
     const k = entry[0], c = entry[1];
     const actionsHTML = inColl && typeof _collectionActionsHTML === 'function'
       ? _collectionActionsHTML('catalogs', k, c) : '';
-    return '<tr>'
+    const kEsc = String(k).replace(/'/g, "\\'");
+    return '<tr onclick="showNonItemDetailPage(&apos;catalogs&apos;,&apos;' + kEsc + '&apos;)" style="cursor:pointer">'
       + '<td><span style="font-family:var(--font-mono);color:var(--accent2)">' + (c.itemNum || '—') + '</span></td>'
       + '<td style="font-size:0.85rem;color:var(--text-mid)">' + (c.year || '—') + '</td>'
       + '<td style="font-size:0.85rem">' + (c.catType || '—') + '</td>'
       + '<td style="font-size:0.88rem">' + (c.title || '—') + (c.hasMailer === 'Yes' ? ' <span style="font-size:0.7rem;color:var(--accent2)">(w/ mailer)</span>' : '') + '</td>'
-      + (inColl ? '<td style="text-align:right;white-space:nowrap">' + actionsHTML + '</td>' : '')
+      + (inColl ? '<td onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">' + actionsHTML + '</td>' : '')
       + '</tr>';
   }).join('');
   window._browseFilteredCats = cats;
@@ -611,14 +615,18 @@ function renderCatalogsTab() {
     const _catBadge = _catOwned ? '<span style="display:inline-block;font-size:0.6rem;font-weight:700;color:#2ecc71;border:1px solid #2ecc71;border-radius:3px;padding:0 3px;margin-left:4px;vertical-align:middle">✓</span>' : '';
     const _catBg = _catOwned ? 'background:rgba(46,204,113,0.04);' : '';
     let actionsHTML = '';
+    let _rowClick = `showRefItemPopup(&apos;catalog&apos;,${ci})`;
     if (inColl && _catOwned && typeof _collectionActionsHTML === 'function') {
       const ephKey = ephKeyByItemNum.get(c.id.toLowerCase());
       if (ephKey) {
         const ephEntry = state.ephemeraData.catalogs[ephKey];
         actionsHTML = _collectionActionsHTML('catalogs', ephKey, ephEntry);
+        // Owned in collection view → open detail page instead of master popup
+        const kEsc = String(ephKey).replace(/'/g, "\\'");
+        _rowClick = `showNonItemDetailPage(&apos;catalogs&apos;,&apos;${kEsc}&apos;)`;
       }
     }
-    return `<tr onclick="showRefItemPopup(&apos;catalog&apos;,${ci})" style="cursor:pointer;${_catBg}">
+    return `<tr onclick="${_rowClick}" style="cursor:pointer;${_catBg}">
     <td><span style="font-family:var(--font-mono);color:var(--accent2)">${c.id}</span>${_catBadge}</td>
     <td style="font-size:0.85rem;color:var(--text-mid)">${c.year || '—'}</td>
     <td style="font-size:0.85rem">${c.type || '—'}</td>

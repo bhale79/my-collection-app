@@ -4,12 +4,13 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v197';
+const CACHE_NAME = 'mca-v198';
 
 const SHELL_FILES = [
   './index.html',
   './manifest.json',
   './config.js',
+  './non-item-detail-config.js',
   './back-stack.js',
   './road-typeahead.js',
   './app.css',
