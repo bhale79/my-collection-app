@@ -664,13 +664,15 @@ function renderISTab() {
       const actionsHTML = k && typeof _collectionActionsHTML === 'function'
         ? _collectionActionsHTML('is', k, is)
         : '';
-      return '<tr>'
+      // Session 116: row navigates to the generic detail page.
+      const kEsc = String(k).replace(/'/g, "\\'");
+      return '<tr onclick="showNonItemDetailPage(&apos;is&apos;,&apos;' + kEsc + '&apos;)" style="cursor:pointer">'
         + '<td><span style="font-family:var(--font-mono);color:var(--accent2)">' + (is.sheetNum || '—') + '</span></td>'
         + '<td style="font-family:var(--font-mono);font-size:0.85rem">' + (is.linkedItem || '—') + '</td>'
         + '<td style="font-size:0.85rem">' + (is.notes || '—') + '</td>'
         + '<td style="font-size:0.82rem;color:var(--text-mid)">' + cond + '</td>'
         + '<td style="font-size:0.82rem;color:var(--text-mid)">' + worth + '</td>'
-        + (actionsHTML ? '<td style="text-align:right;white-space:nowrap">' + actionsHTML + '</td>' : '')
+        + (actionsHTML ? '<td onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">' + actionsHTML + '</td>' : '')
         + '</tr>';
     }).join('');
     return;
@@ -741,14 +743,19 @@ function renderMockupsOtherTab() {
   tbody.innerHTML = filtered.map(function(r) {
     const actionsHTML = inColl && typeof _collectionActionsHTML === 'function'
       ? _collectionActionsHTML(r.srcType, r.key, r._raw) : '';
-    return '<tr>'
+    // Session 116: row navigates to the generic detail page. srcType
+    // is already 'mockups' or 'other' so it routes to the right
+    // bucket via NON_ITEM_DETAIL_CONFIG.
+    const kEsc = String(r.key).replace(/'/g, "\\'");
+    const trOpen = '<tr onclick="showNonItemDetailPage(&apos;' + r.srcType + '&apos;,&apos;' + kEsc + '&apos;)" style="cursor:pointer">';
+    return trOpen
       + '<td><span style="font-size:0.72rem;font-weight:700;padding:2px 7px;border-radius:4px;background:' + r.tc + '22;color:' + r.tc + '">' + r.type + '</span></td>'
       + '<td style="font-size:0.88rem;color:var(--accent2)">' + r.id + '</td>'
       + '<td style="font-size:0.85rem;color:var(--text-mid)">' + r.desc + '</td>'
       + '<td style="font-size:0.85rem;color:var(--text-dim)">' + r.year + '</td>'
       + '<td style="font-size:0.85rem">' + r.cond + '</td>'
       + '<td style="font-size:0.85rem;color:var(--accent2)">' + r.val + '</td>'
-      + (inColl ? '<td style="text-align:right;white-space:nowrap">' + actionsHTML + '</td>' : '')
+      + (inColl ? '<td onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">' + actionsHTML + '</td>' : '')
       + '</tr>';
   }).join('');
 }
