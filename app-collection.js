@@ -280,6 +280,21 @@ window.showNonItemDetailPage = showNonItemDetailPage;
 // is to lock the item number / catalog ID so changes don't orphan
 // existing Sheet rows.
 function _nonItemDetailEdit(type, key) {
+  // Service Tools share the regular Items code path, so delegate to
+  // the existing showItemPanel / updateCollectionItem flow rather
+  // than the generic non-item modal. That keeps box/item photos,
+  // partner item handling, and inventory ID logic working correctly.
+  if (type === 'service') {
+    var pd = state.personalData ? state.personalData[key] : null;
+    if (!pd) { if (typeof showToast === 'function') showToast('Service tool not found', 3000, true); return; }
+    var master = typeof findMaster === 'function' ? findMaster(pd.itemNum) : null;
+    var masterIdx = master && state.masterData ? state.masterData.indexOf(master) : -1;
+    if (typeof updateCollectionItem === 'function') {
+      updateCollectionItem(masterIdx, key);
+      return;
+    }
+  }
+
   var cfg = (window.NON_ITEM_DETAIL_CONFIG || {})[type];
   if (!cfg || !Array.isArray(cfg.editFields) || !cfg.editFields.length) {
     if (typeof showToast === 'function') showToast('Edit not configured for this type yet.', 3500);
@@ -448,8 +463,13 @@ async function _saveNonItemEdit(type, key, entry, cfg, inputsByKey) {
   }
 
   // Rebuild the full row from rowSchema (preserves non-editable cols).
+  // Some keys (e.g. Sets' quickEntry) are stored as booleans in state
+  // but written as Yes/No strings in the sheet — boolToYesNo flag.
   var rowVals = cfg.rowSchema.map(function(c) {
     var v = entry[c.key];
+    if (c.boolToYesNo) {
+      v = v ? 'Yes' : (v === false || v === '' ? 'No' : (v || ''));
+    }
     return v == null ? '' : v;
   });
 
