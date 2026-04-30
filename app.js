@@ -578,6 +578,17 @@ async function loadAllErasMode() {
     // Personal data is already cross-era; load it once.
     await loadPersonalData();
     populateFilters();
+    // Session 117: cross-era search — if a search term was queued from
+    // _searchInOtherEra('all', ...), apply it now so the user lands on
+    // results across every era without typing again.
+    if (state._pendingSearch) {
+      var _ps = state._pendingSearch;
+      state._pendingSearch = null;
+      state.filters.search = _ps.toLowerCase();
+      var _sInput = document.getElementById('browse-search');
+      if (_sInput) _sInput.value = _ps;
+      if (typeof showPage === 'function') showPage('browse');
+    }
     if (typeof renderBrowse === 'function') renderBrowse();
     if (typeof buildDashboard === 'function') buildDashboard();
   } catch (e) {
