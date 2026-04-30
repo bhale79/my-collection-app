@@ -102,6 +102,27 @@
         { key: 'datePurchased', label: 'Date Purchased',       type: 'date' },
         { key: 'notes',         label: 'Notes',                type: 'textarea' },
       ],
+      // Photo upload — Sets are dynamic. The slots are: one for the
+      // set box + one per item in the master set definition.
+      photoRootName:   'Set Photos',
+      photoFolderName: function(e) { return e.setNum || 'untitled-set'; },
+      photoLinkKey:    'photoLink',
+      photoViews: function(e) {
+        var views = [{ key: 'BOX', label: 'Set Box' }];
+        try {
+          var master = (window.state && Array.isArray(state.setData))
+            ? state.setData.find(function(s) {
+                return s.setNum === e.setNum && (!e.year || !s.year || s.year === e.year);
+              })
+            : null;
+          if (master && Array.isArray(master.items)) {
+            master.items.forEach(function(num) {
+              views.push({ key: String(num), label: 'Item ' + num });
+            });
+          }
+        } catch(err) { /* fall through with just the box slot */ }
+        return views;
+      },
     },
 
     // ── Catalogs ─────────────────────────────────────────────────
@@ -239,6 +260,16 @@
         { key: 'dateAcquired', label: 'Date Acquired',      type: 'date' },
         { key: 'notes',        label: 'Notes',              type: 'textarea' },
       ],
+      // Photo upload — Paper items get a Front + Back, like catalogs
+      photoRootName:   'Ephemera Photos',
+      photoFolderName: function(e) { return e.itemNum || e.title || 'untitled-paper'; },
+      photoLinkKey:    'photoLink',
+      photoViews: function(e) {
+        return [
+          { key: 'FRONT', label: 'Front' },
+          { key: 'BACK',  label: 'Back' },
+        ];
+      },
     },
 
     // ── Mockups ──────────────────────────────────────────────────
@@ -309,6 +340,18 @@
         { key: 'dateAcquired',     label: 'Date Acquired',       type: 'date' },
         { key: 'notes',            label: 'Notes',               type: 'textarea' },
       ],
+      // Photo upload — Mock-ups are 3D objects, give 4 angles
+      photoRootName:   'Ephemera Photos',
+      photoFolderName: function(e) { return e.itemNum || e.title || 'untitled-mockup'; },
+      photoLinkKey:    'photoLink',
+      photoViews: function(e) {
+        return [
+          { key: 'FRONT', label: 'Front' },
+          { key: 'BACK',  label: 'Back' },
+          { key: 'SIDE',  label: 'Side' },
+          { key: 'TOP',   label: 'Top' },
+        ];
+      },
     },
 
     // ── Other (Ephemera "Other" bucket) ──────────────────────────
@@ -364,6 +407,18 @@
         { key: 'dateAcquired', label: 'Date Acquired',    type: 'date' },
         { key: 'notes',        label: 'Notes',            type: 'textarea' },
       ],
+      // Photo upload — Other items get 3 generic slots since the
+      // category covers everything from store displays to misc gear.
+      photoRootName:   'Ephemera Photos',
+      photoFolderName: function(e) { return e.itemNum || e.title || 'untitled-other'; },
+      photoLinkKey:    'photoLink',
+      photoViews: function(e) {
+        return [
+          { key: 'PHOTO 1', label: 'Photo 1' },
+          { key: 'PHOTO 2', label: 'Photo 2' },
+          { key: 'PHOTO 3', label: 'Photo 3' },
+        ];
+      },
     },
 
     // ── Science ──────────────────────────────────────────────────
@@ -425,6 +480,17 @@
         { key: 'dateAcquired', label: 'Date Acquired',         type: 'date' },
         { key: 'notes',        label: 'Notes',                 type: 'textarea' },
       ],
+      // Photo upload — Science sets: box top, box front, contents shot
+      photoRootName:   'Science Photos',
+      photoFolderName: function(e) { return e.itemNum || 'untitled-science'; },
+      photoLinkKey:    'photoLink',
+      photoViews: function(e) {
+        return [
+          { key: 'BOX TOP',   label: 'Box Top' },
+          { key: 'BOX FRONT', label: 'Box Front' },
+          { key: 'CONTENTS',  label: 'Open (Contents)' },
+        ];
+      },
     },
 
     // ── Construction ─────────────────────────────────────────────
@@ -486,6 +552,17 @@
         { key: 'dateAcquired', label: 'Date Acquired',         type: 'date' },
         { key: 'notes',        label: 'Notes',                 type: 'textarea' },
       ],
+      // Photo upload — Construction sets share Science's view layout
+      photoRootName:   'Construction Photos',
+      photoFolderName: function(e) { return e.itemNum || 'untitled-construction'; },
+      photoLinkKey:    'photoLink',
+      photoViews: function(e) {
+        return [
+          { key: 'BOX TOP',   label: 'Box Top' },
+          { key: 'BOX FRONT', label: 'Box Front' },
+          { key: 'CONTENTS',  label: 'Open (Contents)' },
+        ];
+      },
     },
 
     // ── Instruction Sheets ───────────────────────────────────────
@@ -537,6 +614,16 @@
         { key: 'estValue',   label: 'Est. Worth ($)',   type: 'money' },
         { key: 'notes',      label: 'Notes',            type: 'textarea' },
       ],
+      // Photo upload — IS gets a Front + Back like catalogs
+      photoRootName:   'Instruction Sheets Photos',
+      photoFolderName: function(e) { return e.sheetNum || 'untitled-is'; },
+      photoLinkKey:    'photoLink',
+      photoViews: function(e) {
+        return [
+          { key: 'FRONT', label: 'Front' },
+          { key: 'BACK',  label: 'Back' },
+        ];
+      },
     },
 
     // ── Service Tools (uses regular personalData like Items) ─────
