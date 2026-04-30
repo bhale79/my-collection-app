@@ -57,7 +57,9 @@ function _renderCrossEraSearchBanner(searchTerm) {
   // enabled-eras preference so disabled eras don't show in the banner.
   var otherEras = Object.keys(ERAS).filter(function(k) {
     if (k === _currentEra) return false;
-    if (k === 'all') return false;
+    // Session 117: keep the 'all' meta-era as an option — clicking it
+    // switches to All Collection mode and re-runs the same search across
+    // every era at once (cross-era search without era-by-era hopping).
     if (typeof _isEraEnabled === 'function' && !_isEraEnabled(k)) return false;
     return true;
   });
