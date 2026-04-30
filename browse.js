@@ -1784,7 +1784,7 @@ function renderBrowse() {
           <span id="cam-${item.itemNum}-${item.variation||''}" style="margin-left:5px;font-size:0.85rem;cursor:pointer;display:none" onclick="event.stopPropagation();openPhotoFolder('${item.itemNum}','${pd&&pd.photoItem?pd.photoItem:''}')" title="Open photo folder">📷</span>
         </td>
         <td><span class="tag">${item.itemType || '—'}</span></td>
-        ${(_currentEra === 'atlas') ? `
+        ${((_currentEra === 'atlas') || (item && item._tab === 'Atlas O')) ? `
         <td>${item.subType || '<span class="text-dim">—</span>'}</td>
         <td>${item.description || '<span class="text-dim">—</span>'}</td>
         <td>${item.trackPower || '<span class="text-dim">—</span>'}</td>
