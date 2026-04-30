@@ -16,6 +16,12 @@ const ERA_BADGES = {
   showInBrowse: true,
   showInDetail: true,
 
+  // Session 117: when true (default), badges are only rendered while the
+  // user has the meta-era 'all' selected. In single-era mode, the user
+  // already knows the era, so the chip is just visual noise. Flip to
+  // false to always show badges.
+  showOnlyInAllMode: true,
+
   // Short labels (2-4 chars) for the badge. Keyed by era id from ERAS.
   shortLabel: {
     prewar: 'PRE',
