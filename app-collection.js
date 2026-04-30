@@ -491,21 +491,219 @@ async function _saveNonItemEdit(type, key, entry, cfg, inputsByKey) {
 }
 window._saveNonItemEdit = _saveNonItemEdit;
 
+// ── Generic Photo Upload Modal (Session 116, Commit 7) ─────────────
+// Renders a slot per cfg.photoViews(entry). Each slot lets the user
+// pick a single image. On Save the modal:
+//   1. Ensures the type's root folder exists under the user's vault
+//      (e.g. "Catalog Photos") — creates it on first use.
+//   2. Ensures the per-record subfolder exists (e.g.
+//      "Catalog Photos/8055-CON/") — creates on first use.
+//   3. Uploads each chosen file with a deterministic name like
+//      "8055-CON FRONT.jpg" so the gallery can label it later.
+//   4. Saves the folder URL into entry.photoLink (and writes it to
+//      the user's Sheet so it persists across reloads).
+//   5. Re-renders the detail page so the new photos appear.
 function _nonItemDetailPhotos(type, key) {
-  // For Commit 1: open the Drive folder if one exists; otherwise toast.
+  // Service Tools delegate to the existing item photo flow.
+  if (type === 'service') {
+    var pdSvc = state.personalData ? state.personalData[key] : null;
+    if (!pdSvc) { if (typeof showToast === 'function') showToast('Service tool not found', 3000, true); return; }
+    var masterSvc = typeof findMaster === 'function' ? findMaster(pdSvc.itemNum) : null;
+    var masterIdxSvc = masterSvc && state.masterData ? state.masterData.indexOf(masterSvc) : -1;
+    if (typeof showItemPanel === 'function') {
+      showItemPanel(masterIdxSvc, key, 'edit');
+      return;
+    }
+  }
+
   var cfg = (window.NON_ITEM_DETAIL_CONFIG || {})[type];
-  if (!cfg) return;
+  if (!cfg || typeof cfg.photoViews !== 'function') {
+    if (typeof showToast === 'function') showToast('Photo upload not configured for this type yet.', 3500);
+    return;
+  }
   var bucket = state;
   cfg.bucketPath.split('.').forEach(function(seg) { bucket = bucket && bucket[seg]; });
   var entry = bucket ? bucket[key] : null;
-  var url = entry ? cfg.photoFolder(entry) : '';
-  if (url) {
-    window.open(url, '_blank', 'noopener');
-  } else if (typeof showToast === 'function') {
-    showToast('Photo folder not set up for this record yet — coming soon.', 4000);
+  if (!entry) { if (typeof showToast === 'function') showToast('Record not found.', 3000, true); return; }
+
+  var views = cfg.photoViews(entry) || [];
+  if (!views.length) {
+    if (typeof showToast === 'function') showToast('No photo slots configured for this type.', 3500);
+    return;
   }
+
+  // Build modal
+  var ov = document.createElement('div');
+  ov.id = '_ni-photos-modal';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10010;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+  ov.onclick = function(e) { if (e.target === ov && !ov._uploading) ov.remove(); };
+
+  var box = document.createElement('div');
+  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:560px;width:100%;max-height:85vh;overflow-y:auto;padding:1.5rem;position:relative';
+
+  var hdr = document.createElement('div');
+  hdr.style.cssText = 'font-family:var(--font-head);font-size:1.05rem;color:var(--accent);margin-bottom:0.25rem';
+  hdr.textContent = 'Add Photos — ' + (cfg.label || 'Item');
+  box.appendChild(hdr);
+
+  var sub = document.createElement('div');
+  sub.style.cssText = 'font-size:0.85rem;color:var(--text-mid);margin-bottom:1rem';
+  sub.textContent = (cfg.itemNumDisplay(entry) || '') + (entry.title ? (' — ' + entry.title) : '');
+  box.appendChild(sub);
+
+  var hint = document.createElement('div');
+  hint.style.cssText = 'font-size:0.78rem;color:var(--text-dim);margin-bottom:1rem;line-height:1.5';
+  hint.innerHTML = 'Pick a file for each slot you want to upload. You can leave slots empty and come back to add more later. Photos save to <strong>' + cfg.photoRootName + '/' + (cfg.photoFolderName(entry) || '') + '/</strong> in your Drive.';
+  box.appendChild(hint);
+
+  // Build a row per view slot
+  var fileInputsByView = {};
+  views.forEach(function(v) {
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:0.75rem;padding:0.6rem 0;border-bottom:1px solid var(--border)';
+
+    var lblWrap = document.createElement('div');
+    lblWrap.style.cssText = 'flex:0 0 140px;font-size:0.82rem;color:var(--text);font-weight:600';
+    lblWrap.textContent = v.label;
+    row.appendChild(lblWrap);
+
+    var fi = document.createElement('input');
+    fi.type = 'file';
+    fi.accept = 'image/*';
+    fi.style.cssText = 'flex:1;font-size:0.82rem;color:var(--text-mid)';
+    row.appendChild(fi);
+
+    fileInputsByView[v.key] = fi;
+    box.appendChild(row);
+  });
+
+  var status = document.createElement('div');
+  status.id = '_ni-photos-status';
+  status.style.cssText = 'font-size:0.82rem;color:var(--text-dim);margin-top:1rem;min-height:1.2em';
+  box.appendChild(status);
+
+  var btnRow = document.createElement('div');
+  btnRow.style.cssText = 'display:flex;gap:0.5rem;justify-content:flex-end;margin-top:1rem;border-top:1px solid var(--border);padding-top:1rem';
+
+  var cancelBtn = document.createElement('button');
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.style.cssText = 'padding:0.55rem 1rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;font-weight:600';
+  cancelBtn.onclick = function() { if (!ov._uploading) ov.remove(); };
+
+  var saveBtn = document.createElement('button');
+  saveBtn.textContent = 'Upload Photos';
+  saveBtn.style.cssText = 'padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid var(--gold);background:var(--gold);color:#000;font-family:var(--font-body);font-size:0.88rem;cursor:pointer;font-weight:700';
+  saveBtn.onclick = function() {
+    // Collect chosen files
+    var picks = [];
+    views.forEach(function(v) {
+      var inp = fileInputsByView[v.key];
+      if (inp && inp.files && inp.files.length > 0) {
+        picks.push({ view: v, file: inp.files[0] });
+      }
+    });
+    if (!picks.length) {
+      if (typeof showToast === 'function') showToast('Pick at least one photo first.', 3000);
+      return;
+    }
+    if (saveBtn._busy) return;
+    saveBtn._busy = true;
+    ov._uploading = true;
+    saveBtn.disabled = true;
+    cancelBtn.disabled = true;
+    saveBtn.textContent = 'Uploading…';
+
+    _uploadNonItemPhotos(type, key, entry, cfg, picks, function(msg) {
+      status.textContent = msg;
+    })
+      .then(function() {
+        ov.remove();
+        if (typeof showToast === 'function') showToast('✓ Photos uploaded');
+        // Re-render the detail page so photos card shows fresh thumbs
+        if (typeof showNonItemDetailPage === 'function') showNonItemDetailPage(type, key);
+      })
+      .catch(function(err) {
+        console.error('[non-item photo upload]', err);
+        ov._uploading = false;
+        saveBtn._busy = false;
+        saveBtn.disabled = false;
+        cancelBtn.disabled = false;
+        saveBtn.textContent = 'Upload Photos';
+        status.style.color = 'var(--accent)';
+        status.textContent = 'Upload failed: ' + (err && err.message ? err.message : 'try again');
+      });
+  };
+
+  btnRow.appendChild(cancelBtn);
+  btnRow.appendChild(saveBtn);
+  box.appendChild(btnRow);
+  ov.appendChild(box);
+  document.body.appendChild(ov);
 }
 window._nonItemDetailPhotos = _nonItemDetailPhotos;
+
+// Internal: ensure the type's photo root folder exists under the
+// user's vault, returning the folder ID. Caches via driveCache so
+// we don't hit Drive on every upload.
+async function _ensureNonItemPhotoRoot(rootName) {
+  if (typeof driveEnsureSetup === 'function') await driveEnsureSetup();
+  if (!driveCache || !driveCache.vaultId) throw new Error('Drive vault not ready — try signing in again');
+  driveCache._niRoots = driveCache._niRoots || {};
+  if (driveCache._niRoots[rootName]) return driveCache._niRoots[rootName];
+  var id = await driveFindOrCreateFolder(rootName, driveCache.vaultId);
+  driveCache._niRoots[rootName] = id;
+  return id;
+}
+
+// Internal: do the actual uploads + persist the folder URL.
+// picks = [{ view: {key, label}, file: File }, ...]
+// progressCb = function(msg) — called with status updates
+async function _uploadNonItemPhotos(type, key, entry, cfg, picks, progressCb) {
+  if (typeof driveEnsureSetup !== 'function' || typeof driveFindOrCreateFolder !== 'function' || typeof driveUploadFile !== 'function') {
+    throw new Error('Drive helpers unavailable');
+  }
+  progressCb && progressCb('Preparing Drive folder…');
+  var rootId = await _ensureNonItemPhotoRoot(cfg.photoRootName);
+  var subName = (cfg.photoFolderName(entry) || 'untitled').toString();
+  var folderId = await driveFindOrCreateFolder(subName, rootId);
+  var folderUrl = (typeof driveFolderLink === 'function')
+    ? driveFolderLink(folderId)
+    : ('https://drive.google.com/drive/folders/' + folderId);
+
+  // Upload each file in turn (sequential keeps order + bandwidth sane)
+  for (var i = 0; i < picks.length; i++) {
+    var p = picks[i];
+    progressCb && progressCb('Uploading ' + (i + 1) + ' of ' + picks.length + '…');
+    var ext = '.jpg';
+    var origName = p.file.name || '';
+    var dot = origName.lastIndexOf('.');
+    if (dot > 0 && dot < origName.length - 1) ext = origName.substring(dot);
+    var fileName = subName + ' ' + p.view.key + ext;
+    await driveUploadFile(p.file, fileName, folderId);
+  }
+
+  // Save the folder URL onto the entry + write it to the sheet so
+  // it persists across reloads. If the entry already had a URL we
+  // still re-save (harmless) so the row stays in sync.
+  var linkKey = cfg.photoLinkKey || 'photoLink';
+  if (entry[linkKey] !== folderUrl) {
+    entry[linkKey] = folderUrl;
+    if (cfg.rowSchema && cfg.sheetTab && entry.row && typeof sheetsUpdate === 'function') {
+      var rowVals = cfg.rowSchema.map(function(c) {
+        var v = entry[c.key];
+        if (c.boolToYesNo) v = v ? 'Yes' : (v === false || v === '' ? 'No' : (v || ''));
+        return v == null ? '' : v;
+      });
+      var firstCol = cfg.rowSchema[0].col;
+      var lastCol  = cfg.rowSchema[cfg.rowSchema.length - 1].col;
+      var range = cfg.sheetTab + '!' + firstCol + entry.row + ':' + lastCol + entry.row;
+      progressCb && progressCb('Saving photo link to your sheet…');
+      await sheetsUpdate(state.personalSheetId, range, [rowVals]);
+    }
+  }
+  if (typeof _cachePersonalData === 'function') _cachePersonalData();
+}
+window._uploadNonItemPhotos = _uploadNonItemPhotos;
 
 function showItemDetailPage(idx) {
   // Session 115: capture which Browse tab + filter state the user

@@ -159,6 +159,25 @@
         { key: 'dateAcquired', label: 'Date Acquired',       type: 'date' },
         { key: 'notes',        label: 'Notes',               type: 'textarea' },
       ],
+
+      // Photo upload config (Session 116, Commit 7)
+      // photoRootName  → the top-level Drive folder created under
+      //                  the user's vault on first upload
+      // photoFolderName(entry) → the per-record subfolder name
+      // photoLinkKey   → which entry key stores the folder URL
+      //                  (also referenced in rowSchema for save)
+      // photoViews(entry) → ordered list of slots the user uploads
+      //                  to. Each slot's key becomes the trailing
+      //                  filename token, e.g. '8055-CON FRONT.jpg'.
+      photoRootName:   'Catalog Photos',
+      photoFolderName: function(e) { return e.itemNum || e.title || 'untitled'; },
+      photoLinkKey:    'photoLink',
+      photoViews: function(e) {
+        return [
+          { key: 'FRONT', label: 'Front Cover' },
+          { key: 'BACK',  label: 'Back Cover' },
+        ];
+      },
     },
 
     // ── Paper ────────────────────────────────────────────────────
