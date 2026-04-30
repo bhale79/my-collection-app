@@ -36,6 +36,15 @@
   function eraBadgeHTML(tabName, opts) {
     var cfg = window.ERA_BADGES || {};
     if (!cfg.enabled) return '';
+    // Session 117: gate to All mode only by default. The badge purpose
+    // is to tell the user which era a row came from when the unified
+    // collection is being shown. In single-era mode the answer is
+    // obvious from the dropdown. Override with showOnlyInAllMode:false
+    // in era-badges-config.js if you want them everywhere.
+    if (cfg.showOnlyInAllMode) {
+      var curEra = (typeof _currentEra !== 'undefined') ? _currentEra : null;
+      if (curEra !== 'all') return '';
+    }
     var eraKey = eraForTab(tabName);
     if (!eraKey) return '';
     var shortLabel = (cfg.shortLabel && cfg.shortLabel[eraKey]) || eraKey.toUpperCase();
