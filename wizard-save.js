@@ -25,6 +25,35 @@
 // than My Collection!A800), and user-entered dates are often blank at
 // save time. This timestamp survives just this session in memory; on
 // reload the card falls back to user dates / row order.
+
+// ── _resolveSaveEra (Session 117) ─────────────────────────────────────
+// Returns a real era id (never 'all', never empty) for stamping the Era
+// column on rows we save to the personal sheet. Resolution order:
+//   1. wizard.data._era (if set and not 'all')
+//   2. wizard.matchedItem._era (if available and not 'all')
+//   3. localStorage 'rr_default_era' (user-saved era preference)
+//   4. _currentEra (if a real era — never 'all')
+//   5. 'pw' fallback
+// Bug context: in All Collection mode (_currentEra === 'all'), the
+// previous inline `_currentEra || 'pw'` could stamp the literal 'all'
+// onto rows when wizard.data._era hadn't been set, breaking era
+// filters and dashboard counts. This helper is the single guard.
+function _resolveSaveEra() {
+  function _isReal(e) { return !!e && e !== 'all'; }
+  try {
+    if (typeof wizard !== 'undefined' && wizard && wizard.data) {
+      if (_isReal(wizard.data._era)) return wizard.data._era;
+      if (wizard.matchedItem && _isReal(wizard.matchedItem._era)) return wizard.matchedItem._era;
+    }
+  } catch(e) {}
+  try {
+    var pref = localStorage.getItem('rr_default_era');
+    if (_isReal(pref)) return pref;
+  } catch(e) {}
+  if (typeof _currentEra !== 'undefined' && _isReal(_currentEra)) return _currentEra;
+  return 'pw';
+}
+
 function _stampSaved(obj) {
   if (obj && typeof obj === 'object') obj._savedAt = Date.now();
   return obj;
@@ -984,7 +1013,7 @@ async function saveWizardItem() {
           boxInvId,
           boxGroupId,
           d.location || '',        // Location (col W)
-          ((wizard && wizard.data && wizard.data._era) || _currentEra || 'pw'), // Era (col X)
+          _resolveSaveEra(), // Era (col X)
           _getEraManufacturer(),  // Manufacturer (col Y)
         ];
 
@@ -1008,7 +1037,7 @@ async function saveWizardItem() {
           matchedTo: itemNum,
           inventoryId: boxInvId, groupId: boxGroupId,
           location: d.location || '',
-          era: (typeof _currentEra !== 'undefined' ? _currentEra : ''), manufacturer: _getEraManufacturer(),
+          era: _resolveSaveEra(), manufacturer: _getEraManufacturer(),
         };
         _stampSaved(state.personalData[boxInvId]);
 
@@ -1060,7 +1089,7 @@ async function saveWizardItem() {
         d._existingInventoryId || d._photoInventoryId || nextInventoryId(),  // Inventory ID (col U)
         '',  // Group ID (col V) — filled in below for grouped items
         d.location || '',  // Location (col W)
-        ((wizard && wizard.data && wizard.data._era) || _currentEra || 'pw'), // Era (col X)
+        _resolveSaveEra(), // Era (col X)
         _getEraManufacturer(),  // Manufacturer (col Y)
         ];
       }
@@ -1097,7 +1126,7 @@ async function saveWizardItem() {
       nextInventoryId(),  // Inventory ID
       groupId,  // Group ID — shared across set
       d.location || '',  // Location (col W) — same as unit 1
-      ((wizard && wizard.data && wizard.data._era) || _currentEra || 'pw'), // Era (col X)
+      _resolveSaveEra(), // Era (col X)
       _getEraManufacturer(),  // Manufacturer (col Y)
     ];
     await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u2Row]);
@@ -1122,7 +1151,7 @@ async function saveWizardItem() {
         nextInventoryId(),  // Inventory ID
         groupId,  // Group ID — shared across set
         d.location || '',  // Location (col W) — same as unit 1
-        ((wizard && wizard.data && wizard.data._era) || _currentEra || 'pw'), // Era (col X)
+        _resolveSaveEra(), // Era (col X)
         _getEraManufacturer(),  // Manufacturer (col Y)
       ];
       await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u3Row]);
@@ -1175,7 +1204,7 @@ async function saveWizardItem() {
       nextInventoryId(),  // Inventory ID
       groupId,  // Group ID — shared with engine
       d.location || '',  // Location (col W) — same as engine
-      ((wizard && wizard.data && wizard.data._era) || _currentEra || 'pw'), // Era (col X)
+      _resolveSaveEra(), // Era (col X)
       _getEraManufacturer(),  // Manufacturer (col Y)
     ];
     await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [tRow]);
@@ -1477,7 +1506,7 @@ async function saveWizardItem() {
           mbInvId,      // Inventory ID
           groupId,      // Group ID — shared with set
           d.location || '',  // Location (col W) — same as lead unit
-          ((wizard && wizard.data && wizard.data._era) || _currentEra || 'pw'), // Era (col X)
+          _resolveSaveEra(), // Era (col X)
           _getEraManufacturer(),  // Manufacturer (col Y)
         ];
         await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [mbRow]);
@@ -1554,7 +1583,7 @@ async function saveWizardItem() {
         datePurchased: d.datePurchased || '',
         inventoryId: _optInvId, groupId: groupId || '',
         location: d.location || '',
-        era: (typeof _currentEra !== 'undefined' ? _currentEra : ''), manufacturer: _getEraManufacturer(),
+        era: _resolveSaveEra(), manufacturer: _getEraManufacturer(),
       };
       _stampSaved(state.personalData[_optInvId]);
     } else if (tab === 'sold') {
