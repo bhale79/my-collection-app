@@ -289,6 +289,13 @@ function _nonItemDetailEdit(type, key) {
     if (!pd) { if (typeof showToast === 'function') showToast('Service tool not found', 3000, true); return; }
     var master = typeof findMaster === 'function' ? findMaster(pd.itemNum) : null;
     var masterIdx = master && state.masterData ? state.masterData.indexOf(master) : -1;
+    // Audit fix #1 (Session 116): if the master row isn't loaded
+    // (e.g. a different era is selected), updateCollectionItem(-1, ...)
+    // would silently misbehave. Toast and bail instead.
+    if (!master || masterIdx < 0) {
+      if (typeof showToast === 'function') showToast('Switch to the Postwar era to edit this Service Tool — its catalog row isn\'t loaded.', 4500, true);
+      return;
+    }
     if (typeof updateCollectionItem === 'function') {
       updateCollectionItem(masterIdx, key);
       return;
@@ -510,6 +517,12 @@ function _nonItemDetailPhotos(type, key) {
     if (!pdSvc) { if (typeof showToast === 'function') showToast('Service tool not found', 3000, true); return; }
     var masterSvc = typeof findMaster === 'function' ? findMaster(pdSvc.itemNum) : null;
     var masterIdxSvc = masterSvc && state.masterData ? state.masterData.indexOf(masterSvc) : -1;
+    // Audit fix #1: bail with a helpful toast if the master row isn't
+    // loaded (era not selected) instead of falling through with -1.
+    if (!masterSvc || masterIdxSvc < 0) {
+      if (typeof showToast === 'function') showToast('Switch to the Postwar era to add photos for this Service Tool — its catalog row isn\'t loaded.', 4500, true);
+      return;
+    }
     if (typeof showItemPanel === 'function') {
       showItemPanel(masterIdxSvc, key, 'edit');
       return;
@@ -555,6 +568,23 @@ function _nonItemDetailPhotos(type, key) {
   hint.style.cssText = 'font-size:0.78rem;color:var(--text-dim);margin-bottom:1rem;line-height:1.5';
   hint.innerHTML = 'Pick a file for each slot you want to upload. You can leave slots empty and come back to add more later. Photos save to <strong>' + cfg.photoRootName + '/' + (cfg.photoFolderName(entry) || '') + '/</strong> in your Drive.';
   box.appendChild(hint);
+
+  // Audit fix #2 (Session 116): when a user opens Add Photos on a Set
+  // and the master setData hasn't been loaded for the relevant era,
+  // photoViews falls back to just the Set Box slot. Without a banner,
+  // the user thinks that's all they can upload. Surface a warning so
+  // they can switch eras first if they want item-level slots too.
+  if (type === 'sets' && window.state && Array.isArray(state.setData)) {
+    var masterFound = state.setData.some(function(s) {
+      return s.setNum === entry.setNum && (!entry.year || !s.year || s.year === entry.year);
+    });
+    if (!masterFound) {
+      var warn = document.createElement('div');
+      warn.style.cssText = 'font-size:0.8rem;background:rgba(230,126,34,0.1);border:1px solid #e67e22;color:#e67e22;border-radius:8px;padding:0.6rem 0.8rem;margin-bottom:1rem;line-height:1.5';
+      warn.innerHTML = '⚠️ Only the Set Box slot is available. Switch to the era this set belongs to (likely Postwar) and re-open Add Photos to see item slots for each piece.';
+      box.appendChild(warn);
+    }
+  }
 
   // Build a row per view slot
   var fileInputsByView = {};
@@ -655,6 +685,32 @@ async function _ensureNonItemPhotoRoot(rootName) {
   return id;
 }
 
+// Internal helpers for audit fix #3 — replace-on-reupload behavior.
+// Drive lets a folder hold multiple files with the same name, so we
+// have to look one up by name + parent and trash it before uploading
+// the new version. Both helpers fail soft (return null / swallow
+// errors) so the upload itself can proceed even if Drive's index is
+// briefly inconsistent.
+async function _findDriveFileByName(folderId, fileName) {
+  if (!folderId || !fileName || typeof driveRequest !== 'function') return null;
+  try {
+    var safe = String(fileName).replace(/'/g, "\\'");
+    var q = encodeURIComponent("name='" + safe + "' and '" + folderId + "' in parents and trashed=false");
+    var res = await driveRequest('GET', '/files?q=' + q + '&fields=files(id,name)');
+    if (res && res.files && res.files.length) return res.files[0].id;
+  } catch (e) {
+    console.warn('[non-item photo] _findDriveFileByName error:', e);
+  }
+  return null;
+}
+async function _trashDriveFile(fileId) {
+  if (!fileId || typeof driveRequest !== 'function') return;
+  // PATCH with trashed=true — moves to Drive trash (recoverable),
+  // does NOT permanently delete. Honors the "no permanent delete"
+  // safety convention.
+  await driveRequest('PATCH', '/files/' + fileId, { trashed: true });
+}
+
 // Internal: do the actual uploads + persist the folder URL.
 // picks = [{ view: {key, label}, file: File }, ...]
 // progressCb = function(msg) — called with status updates
@@ -670,7 +726,14 @@ async function _uploadNonItemPhotos(type, key, entry, cfg, picks, progressCb) {
     ? driveFolderLink(folderId)
     : ('https://drive.google.com/drive/folders/' + folderId);
 
-  // Upload each file in turn (sequential keeps order + bandwidth sane)
+  // Upload each file in turn (sequential keeps order + bandwidth sane).
+  // Audit fix #3 (Session 116): if a file with the same name already
+  // exists in the folder, move it to Drive trash before uploading the
+  // new one. Without this, re-uploading the Front Cover slot creates
+  // a second '8055-CON FRONT.jpg' in Drive and the gallery shows
+  // both. Trash (not permanent delete) means Brad can recover from
+  // Drive's trash if he ever needs the previous version back.
+  var replacedCount = 0;
   for (var i = 0; i < picks.length; i++) {
     var p = picks[i];
     progressCb && progressCb('Uploading ' + (i + 1) + ' of ' + picks.length + '…');
@@ -679,7 +742,26 @@ async function _uploadNonItemPhotos(type, key, entry, cfg, picks, progressCb) {
     var dot = origName.lastIndexOf('.');
     if (dot > 0 && dot < origName.length - 1) ext = origName.substring(dot);
     var fileName = subName + ' ' + p.view.key + ext;
+    // Find any existing file with the same name in this folder.
+    var existingId = await _findDriveFileByName(folderId, fileName);
+    if (existingId) {
+      progressCb && progressCb('Replacing existing photo (' + (i + 1) + ' of ' + picks.length + ')…');
+      try {
+        await _trashDriveFile(existingId);
+        replacedCount++;
+      } catch (e) {
+        // Non-fatal — fall through to upload, Drive will have the dup
+        console.warn('[non-item photo] could not trash old version:', e);
+      }
+    }
     await driveUploadFile(p.file, fileName, folderId);
+  }
+  if (replacedCount > 0 && typeof showToast === 'function') {
+    // Quick informational toast after success — user knows the prior
+    // file was moved to Drive trash, not silently overwritten.
+    setTimeout(function() {
+      showToast('Replaced ' + replacedCount + ' existing photo' + (replacedCount === 1 ? '' : 's') + ' (old version' + (replacedCount === 1 ? '' : 's') + ' in Drive trash).', 4000);
+    }, 700);
   }
 
   // Save the folder URL onto the entry + write it to the sheet so
