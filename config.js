@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.195';
+const APP_VERSION = 'v0.9.196';
 const APP_DATE    = 'April 2026';
 
 // ═══════════════════════════════════════════════════════════════════
@@ -35,11 +35,17 @@ const ADMIN_EMAILS = ['bhale@ipd-llc.com'];
 
 // ── Era definitions ──
 const ERAS = {
+  // 'all' is a meta-era that loads & caches data from every real era
+  // and presents a unified collection. Used as the default for new
+  // users (Session 116). Real eras follow.
+  all:    { id: 'all',    label: 'All Collection', years: 'All Eras',   prefix: '',               manufacturer: '', _isAll: true },
   prewar: { id: 'prewar', label: 'Pre-War',     years: '1901-1942',  prefix: 'Lionel Pre-War', manufacturer: 'Lionel' },
   pw:     { id: 'pw',     label: 'Postwar',     years: '1945-1969',  prefix: 'Lionel PW',      manufacturer: 'Lionel' },
   mpc:    { id: 'mpc',    label: 'MPC/Modern',  years: '1970-Today', prefix: 'Lionel',         manufacturer: 'Lionel' },
   atlas:  { id: 'atlas',  label: 'Atlas O',     years: 'All',        prefix: 'Atlas O',        manufacturer: 'Atlas' },
 };
+// Real-era IDs in load priority order (excluding 'all' meta-era).
+const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas'];
 
 // ── Master sheet tab names per era ──
 const ERA_TABS = {

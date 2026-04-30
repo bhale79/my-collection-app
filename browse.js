@@ -52,10 +52,12 @@ function _renderCrossEraSearchBanner(searchTerm) {
     if (existing) existing.remove();
     return;
   }
-  // Build list of OTHER eras (skip current). Honor user's enabled-eras pref
-  // so disabled eras don't show in the search-banner.
+  // Build list of OTHER eras (skip current AND the 'all' meta-era —
+  // it's not a real era you can switch a search to). Honor user's
+  // enabled-eras preference so disabled eras don't show in the banner.
   var otherEras = Object.keys(ERAS).filter(function(k) {
     if (k === _currentEra) return false;
+    if (k === 'all') return false;
     if (typeof _isEraEnabled === 'function' && !_isEraEnabled(k)) return false;
     return true;
   });

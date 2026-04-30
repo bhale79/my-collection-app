@@ -119,7 +119,28 @@ async function loadAllData() {
   showLoading();
   try {
     loadUserDefinedTabs();
-    // Load master data (uses cache if fresh) and personal data in parallel
+    // Session 116: 'all' meta-era has its own orchestrator that
+    // hydrates from per-era IDB caches in parallel and refreshes
+    // each era from Sheets in sequence in the background.
+    if (_currentEra === 'all' && typeof loadAllErasMode === 'function') {
+      await loadAllErasMode();
+      _patchMasterData();
+      _inferMissingYears();
+      buildApp();
+      showOnboarding();
+      if (typeof vaultInit === 'function') vaultInit();
+      if (state.personalSheetId) {
+        driveWriteConfig({
+          personalSheetId: state.personalSheetId,
+          vaultId: driveCache.vaultId || '',
+          photosId: driveCache.photosId || '',
+          soldPhotosId: driveCache.soldPhotosId || '',
+        }).catch(e => console.warn('Config refresh:', e));
+        _maybeRenamePersonalSheet().catch(e => console.warn('Sheet rename:', e));
+      }
+      return;
+    }
+    // Single-era mode — load master data (uses cache if fresh) and personal data in parallel
     await Promise.all([loadMasterData(), loadPersonalData(), loadSetData(), loadCompanionData(), loadCatalogRefData(), loadISRefData()]);
     _patchMasterData();
     _inferMissingYears();
@@ -151,21 +172,40 @@ async function loadAllData() {
 // ══════════════════════════════════════════════════════════════════════
 
 async function loadMasterData() {
-  // Use cached master data for instant load, refresh in background
-  // Master data stored in IndexedDB (too large for localStorage)
-  const _CACHE_VER = '124';
+  // Use cached master data for instant load, refresh in background.
+  // Master data stored in IndexedDB (too large for localStorage).
+  // Session 116: cache keys are now era-suffixed so each era's
+  // master data sticks around independently. This is what makes
+  // 'all' mode fast on warm load — every era hydrates from its
+  // own IDB cache rather than re-fetching from Sheets.
+  const _CACHE_VER = '125';
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
+    // Wipe legacy single-key caches from prior versions; per-era keys
+    // take their place.
     idbRemove('lv_master_cache');
-    localStorage.removeItem('lv_master_cache');  // clean up old localStorage entry
+    localStorage.removeItem('lv_master_cache');
+    localStorage.removeItem('lv_master_cache_ts');
     localStorage.removeItem('lv_personal_cache');
     localStorage.removeItem('lv_catalog_ref_cache');
     localStorage.removeItem('lv_catalog_ref_ts');
     localStorage.removeItem('lv_is_ref_cache');
     localStorage.removeItem('lv_is_ref_ts');
+    localStorage.removeItem('lv_set_cache');
+    localStorage.removeItem('lv_set_cache_ts');
+    localStorage.removeItem('lv_companion_cache');
+    localStorage.removeItem('lv_companion_cache_ts');
     localStorage.setItem('lv_cache_ver', _CACHE_VER);
   }
-  var cached = await idbGet('lv_master_cache');
-  const cachedAt = parseInt(localStorage.getItem('lv_master_cache_ts') || '0');
+
+  // 'all' meta-era is handled by loadAllErasMode in app.js — it
+  // orchestrates per-era loads and merges results. Loaders never
+  // run with _currentEra === 'all' directly.
+  if (_currentEra === 'all') return;
+
+  const _IDB_KEY = 'lv_master_cache_' + _currentEra;
+  const _TS_KEY  = 'lv_master_cache_ts_' + _currentEra;
+  var cached = await idbGet(_IDB_KEY);
+  const cachedAt = parseInt(localStorage.getItem(_TS_KEY) || '0');
   const cacheAge = Date.now() - cachedAt;
   const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -173,18 +213,24 @@ async function loadMasterData() {
     try {
       state.masterData = cached;
       _rebuildMasterIndex();
-      if (typeof ERAS !== 'undefined' && _currentEra) { ERAS[_currentEra]._total = state.masterData.length; try { localStorage.setItem('lv_era_total_' + _currentEra, state.masterData.length); } catch(e) {} }
-      // Background refresh from multi-tab
-      _fetchMasterTabs().then(allRows => {
-        if (allRows.length) {
-          state.masterData = _deduplicateMaster(allRows);
-          _rebuildMasterIndex();
-          if (typeof ERAS !== 'undefined' && _currentEra) { ERAS[_currentEra]._total = state.masterData.length; try { localStorage.setItem('lv_era_total_' + _currentEra, state.masterData.length); } catch(e) {} }
-          idbSet('lv_master_cache', state.masterData);
-          localStorage.setItem('lv_master_cache_ts', Date.now().toString());
-          if (typeof renderBrowse === 'function') renderBrowse();
-        }
-      }).catch(() => {});
+      if (typeof ERAS !== 'undefined' && _currentEra && ERAS[_currentEra]) { ERAS[_currentEra]._total = state.masterData.length; try { localStorage.setItem('lv_era_total_' + _currentEra, state.masterData.length); } catch(e) {} }
+      // Background refresh from multi-tab — but skip when called from
+      // the loadAllErasMode orchestrator. Without the guard, the
+      // detached .then() would resolve after the orchestrator has
+      // moved on to a different era and overwrite state.masterData
+      // with stale-era data.
+      if (!window._skipBackgroundRefresh) {
+        _fetchMasterTabs().then(allRows => {
+          if (allRows.length) {
+            state.masterData = _deduplicateMaster(allRows);
+            _rebuildMasterIndex();
+            if (typeof ERAS !== 'undefined' && _currentEra && ERAS[_currentEra]) { ERAS[_currentEra]._total = state.masterData.length; try { localStorage.setItem('lv_era_total_' + _currentEra, state.masterData.length); } catch(e) {} }
+            idbSet(_IDB_KEY, state.masterData);
+            localStorage.setItem(_TS_KEY, Date.now().toString());
+            if (typeof renderBrowse === 'function') renderBrowse();
+          }
+        }).catch(() => {});
+      }
       return;
     } catch(e) {}
   }
@@ -192,9 +238,9 @@ async function loadMasterData() {
   const allRows = await _fetchMasterTabs();
   state.masterData = _deduplicateMaster(allRows);
   _rebuildMasterIndex();
-  if (typeof ERAS !== 'undefined' && _currentEra) { ERAS[_currentEra]._total = state.masterData.length; try { localStorage.setItem('lv_era_total_' + _currentEra, state.masterData.length); } catch(e) {} }
-  idbSet('lv_master_cache', state.masterData);
-  localStorage.setItem('lv_master_cache_ts', Date.now().toString());
+  if (typeof ERAS !== 'undefined' && _currentEra && ERAS[_currentEra]) { ERAS[_currentEra]._total = state.masterData.length; try { localStorage.setItem('lv_era_total_' + _currentEra, state.masterData.length); } catch(e) {} }
+  idbSet(_IDB_KEY, state.masterData);
+  localStorage.setItem(_TS_KEY, Date.now().toString());
 }
 
 async function _fetchMasterTabs() {
@@ -330,8 +376,9 @@ window._rebuildMasterIndex = _rebuildMasterIndex;
 async function loadCatalogRefData() {
   // Fetch Catalogs tab from master sheet — used by paper item wizard for searchable picker
   // Columns: A=Catalog ID, B=Year, C=Type, D=Title
-  const CACHE_KEY = 'lv_catalog_ref_cache';
-  const CACHE_TS  = 'lv_catalog_ref_ts';
+  if (_currentEra === 'all') return; // 'all' is handled by app.js orchestrator
+  const CACHE_KEY = 'lv_catalog_ref_cache_' + _currentEra;
+  const CACHE_TS  = 'lv_catalog_ref_ts_'  + _currentEra;
   const TTL = 24 * 60 * 60 * 1000; // 24 hours
   const cached = localStorage.getItem(CACHE_KEY);
   const cachedAt = parseInt(localStorage.getItem(CACHE_TS) || '0');
@@ -361,11 +408,12 @@ async function loadCatalogRefData() {
 }
 
 async function loadISRefData() {
+  if (_currentEra === 'all') return; // 'all' handled by orchestrator
   if (!SHEET_TABS.instrSheets) { state.isRefData = []; return; }
   // Fetch Instruction Sheets tab from master sheet
   // Columns: A=IS ID, B=Item Number, C=Description, D=Category, E=Variations, F=Notes
-  const CACHE_KEY = 'lv_is_ref_cache';
-  const CACHE_TS  = 'lv_is_ref_ts';
+  const CACHE_KEY = 'lv_is_ref_cache_' + _currentEra;
+  const CACHE_TS  = 'lv_is_ref_ts_'  + _currentEra;
   const TTL = 24 * 60 * 60 * 1000;
   const cached = localStorage.getItem(CACHE_KEY);
   const cachedAt = parseInt(localStorage.getItem(CACHE_TS) || '0');
@@ -409,19 +457,25 @@ async function loadISRefData() {
 }
 
 async function loadSetData() {
+  if (_currentEra === 'all') return; // 'all' handled by orchestrator
+  const SET_CACHE = 'lv_set_cache_' + _currentEra;
+  const SET_TS    = 'lv_set_cache_ts_'  + _currentEra;
   try {
-    const cached = localStorage.getItem('lv_set_cache');
-    const cachedAt = parseInt(localStorage.getItem('lv_set_cache_ts') || '0');
+    const cached = localStorage.getItem(SET_CACHE);
+    const cachedAt = parseInt(localStorage.getItem(SET_TS) || '0');
     if (cached && (Date.now() - cachedAt) < 24*60*60*1000) {
       state.setData = JSON.parse(cached);
-      // Background refresh
-      (SHEET_TABS.sets ? sheetsGet(state.masterSheetId, SHEET_TABS.sets + '!A2:U').catch(() => sheetsGet(state.masterSheetId, 'Master Set list!A2:U')) : Promise.resolve({values:[]})).then(res => {
-        if (res && res.values) {
-          parseSetRows(res.values);
-          localStorage.setItem('lv_set_cache', JSON.stringify(state.setData));
-          localStorage.setItem('lv_set_cache_ts', Date.now().toString());
-        }
-      }).catch(() => {});
+      // Background refresh — skip during all-eras orchestration to
+      // avoid the late .then() clobbering another era's slice.
+      if (!window._skipBackgroundRefresh) {
+        (SHEET_TABS.sets ? sheetsGet(state.masterSheetId, SHEET_TABS.sets + '!A2:U').catch(() => sheetsGet(state.masterSheetId, 'Master Set list!A2:U')) : Promise.resolve({values:[]})).then(res => {
+          if (res && res.values) {
+            parseSetRows(res.values);
+            localStorage.setItem(SET_CACHE, JSON.stringify(state.setData));
+            localStorage.setItem(SET_TS, Date.now().toString());
+          }
+        }).catch(() => {});
+      }
       return;
     }
     let res;
@@ -429,24 +483,29 @@ async function loadSetData() {
     try { res = await sheetsGet(state.masterSheetId, SHEET_TABS.sets + '!A2:U'); }
     catch(_) { res = await sheetsGet(state.masterSheetId, 'Master Set list!A2:U'); }
     parseSetRows((res && res.values) || []);
-    localStorage.setItem('lv_set_cache', JSON.stringify(state.setData));
-    localStorage.setItem('lv_set_cache_ts', Date.now().toString());
+    localStorage.setItem(SET_CACHE, JSON.stringify(state.setData));
+    localStorage.setItem(SET_TS, Date.now().toString());
   } catch(e) { console.warn('loadSetData:', e); state.setData = []; }
 }
 
 async function loadCompanionData() {
+  if (_currentEra === 'all') return; // 'all' handled by orchestrator
+  const COMP_CACHE = 'lv_companion_cache_' + _currentEra;
+  const COMP_TS    = 'lv_companion_cache_ts_'  + _currentEra;
   try {
-    const cached = localStorage.getItem('lv_companion_cache');
-    const cachedAt = parseInt(localStorage.getItem('lv_companion_cache_ts') || '0');
+    const cached = localStorage.getItem(COMP_CACHE);
+    const cachedAt = parseInt(localStorage.getItem(COMP_TS) || '0');
     if (cached && (Date.now() - cachedAt) < 24*60*60*1000) {
       state.companionData = JSON.parse(cached);
-      (SHEET_TABS.companions ? sheetsGet(state.masterSheetId, SHEET_TABS.companions + '!A2:E').catch(() => sheetsGet(state.masterSheetId, 'Companions!A2:E')) : Promise.resolve({values:[]})).then(res => {
-        if (res && res.values) {
-          parseCompanionRows(res.values);
-          localStorage.setItem('lv_companion_cache', JSON.stringify(state.companionData));
-          localStorage.setItem('lv_companion_cache_ts', Date.now().toString());
-        }
-      }).catch(() => {});
+      if (!window._skipBackgroundRefresh) {
+        (SHEET_TABS.companions ? sheetsGet(state.masterSheetId, SHEET_TABS.companions + '!A2:E').catch(() => sheetsGet(state.masterSheetId, 'Companions!A2:E')) : Promise.resolve({values:[]})).then(res => {
+          if (res && res.values) {
+            parseCompanionRows(res.values);
+            localStorage.setItem(COMP_CACHE, JSON.stringify(state.companionData));
+            localStorage.setItem(COMP_TS, Date.now().toString());
+          }
+        }).catch(() => {});
+      }
       return;
     }
     let res;
@@ -454,8 +513,8 @@ async function loadCompanionData() {
     try { res = await sheetsGet(state.masterSheetId, SHEET_TABS.companions + '!A2:E'); }
     catch(_) { res = await sheetsGet(state.masterSheetId, 'Companions!A2:E'); }
     parseCompanionRows((res && res.values) || []);
-    localStorage.setItem('lv_companion_cache', JSON.stringify(state.companionData));
-    localStorage.setItem('lv_companion_cache_ts', Date.now().toString());
+    localStorage.setItem(COMP_CACHE, JSON.stringify(state.companionData));
+    localStorage.setItem(COMP_TS, Date.now().toString());
   } catch(e) { console.warn('loadCompanionData:', e); state.companionData = []; }
 }
 

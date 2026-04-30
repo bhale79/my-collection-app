@@ -344,12 +344,20 @@ var state = {
 // ── Master sheet tab name config (era-aware — single source of truth) ────
 // SHEET_TABS contents are swapped when the user changes era.
 var SHEET_TABS = {};
-var _currentEra = localStorage.getItem('lv_era') || 'pw';
+// Session 116: 'all' is the new default for new users — shows the
+// whole collection across every era. Existing users keep their
+// previously selected era (lv_era).
+var _currentEra = localStorage.getItem('lv_era') || 'all';
 // Migration: 'mod' era was merged into 'mpc' (MPC/Modern combined)
 if (_currentEra === 'mod') { _currentEra = 'mpc'; try { localStorage.setItem('lv_era', 'mpc'); } catch(e) {} }
 function _applyEraTabs(era) {
   Object.keys(SHEET_TABS).forEach(function(k) { delete SHEET_TABS[k]; });
-  Object.assign(SHEET_TABS, ERA_TABS[era] || ERA_TABS.pw);
+  // 'all' is a meta-era — fall back to the most data-rich real era
+  // (pw) for SHEET_TABS so any code that reads SHEET_TABS during a
+  // multi-era load gets sensible defaults. Real era loads still
+  // re-apply per-era tabs as they iterate.
+  var realEra = (era === 'all') ? 'pw' : era;
+  Object.assign(SHEET_TABS, ERA_TABS[realEra] || ERA_TABS.pw);
 }
 _applyEraTabs(_currentEra);
 // Dynamic: returns only master-inventory tabs that exist for the current era
@@ -417,6 +425,8 @@ function _setEnabledEras(arr) {
   try { localStorage.setItem('lv_collect_eras', JSON.stringify(arr || [])); } catch(e) {}
 }
 function _isEraEnabled(era) {
+  // 'all' meta-era is always available regardless of preferences
+  if (era === 'all') return true;
   // Admins always see every era regardless of preferences
   if (typeof _isAdmin === 'function' && _isAdmin()) return true;
   var enabled = _getEnabledEras();
@@ -439,17 +449,14 @@ function _applyEraVisibility() {
 // ── Switch era: swap tabs, clear caches, reload ──
 async function switchEra(era) {
   if (!ERAS[era]) return;
+  // Session 116: 'all' is the meta-era — orchestrate all real eras.
+  if (era === 'all') return loadAllErasMode();
+
   _currentEra = era;
   localStorage.setItem('lv_era', era);
   _applyEraTabs(era);
-  // Clear master caches so fresh load happens
-  idbRemove('lv_master_cache');
-  localStorage.removeItem('lv_master_cache_ts');
-  localStorage.removeItem('lv_catalog_ref_cache');
-  localStorage.removeItem('lv_catalog_ref_ts');
-  localStorage.removeItem('lv_is_ref_cache');
-  localStorage.removeItem('lv_is_ref_ts');
-  // Reset state data
+  // Reset state data — per-era IDB caches stay intact so other eras
+  // can still hydrate quickly when the user comes back to them.
   state.masterData = [];
   _rebuildMasterIndex();
   state.setData = [];
@@ -481,13 +488,189 @@ async function switchEra(era) {
       state.filters.search = _ps.toLowerCase();
       var _sInput = document.getElementById('browse-search');
       if (_sInput) _sInput.value = _ps;
-      // Make sure we're on the browse page so the user sees the results
       if (typeof showPage === 'function') showPage('browse');
     }
     if (typeof renderBrowse === 'function') renderBrowse();
     if (typeof buildDashboard === 'function') buildDashboard();
     showToast(ERAS[era].label + ' era loaded — ' + (state.masterData||[]).length + ' items');
   } catch(e) { console.error('[switchEra]', e); showToast('Era switch error: ' + e.message); }
+}
+
+// ── Load 'All Collection' meta-era ────────────────────────────────
+// Session 116: hydrates state.masterData (and set/catalog/IS/companion
+// data) from per-era IDB caches in parallel, then sequentially refreshes
+// each era from Sheets in the background. Each item is tagged with
+// `_era` so renderers can show era badges or filter when desired.
+//
+// UX: dashboard + collection light up in ~1-2s from cache. Refresh
+// happens in the background — user is already clicking around while
+// each era's fresh data lands and triggers a re-render.
+async function loadAllErasMode() {
+  _currentEra = 'all';
+  localStorage.setItem('lv_era', 'all');
+  _applyEraTabs('all'); // SHEET_TABS gets pw fallback for bystander code
+
+  // Update dropdown
+  var _sel = document.getElementById('era-select');
+  if (_sel) _sel.value = 'all';
+  if (typeof _applyEraVisibility === 'function') _applyEraVisibility();
+
+  // Reset state — we're about to rebuild it cross-era
+  state.masterData = [];
+  state.setData = [];
+  state.companionData = [];
+  state.partnerMap = {};
+  state.catalogRefData = [];
+  state.isRefData = [];
+  _rebuildMasterIndex();
+
+  showLoading();
+  showToast('Loading all eras…');
+
+  // Step 1: Hydrate from per-era IDB caches in parallel for instant
+  // first paint. Each cache may or may not exist depending on whether
+  // the user has visited that era before.
+  var realEras = (typeof REAL_ERA_IDS !== 'undefined' && Array.isArray(REAL_ERA_IDS))
+    ? REAL_ERA_IDS.slice()
+    : ['pw', 'mpc', 'prewar', 'atlas'];
+  var hydrated = 0;
+  try {
+    var masterCaches = await Promise.all(realEras.map(function(e) {
+      return idbGet('lv_master_cache_' + e).catch(function() { return null; });
+    }));
+    masterCaches.forEach(function(arr, i) {
+      if (Array.isArray(arr) && arr.length) {
+        var era = realEras[i];
+        // Tag each row with its era of origin
+        arr.forEach(function(m) { if (!m._era) m._era = era; });
+        state.masterData = state.masterData.concat(arr);
+        hydrated++;
+      }
+    });
+    // Hydrate set/catalog/IS/companion from localStorage caches in
+    // parallel as well (they're small, fast to JSON.parse).
+    realEras.forEach(function(era) {
+      try {
+        var s = localStorage.getItem('lv_set_cache_' + era);
+        if (s) {
+          var arr = JSON.parse(s);
+          if (Array.isArray(arr)) { arr.forEach(function(x){ if (!x._era) x._era = era; }); state.setData = state.setData.concat(arr); }
+        }
+        var c = localStorage.getItem('lv_catalog_ref_cache_' + era);
+        if (c) {
+          var carr = JSON.parse(c);
+          if (Array.isArray(carr)) { carr.forEach(function(x){ if (!x._era) x._era = era; }); state.catalogRefData = state.catalogRefData.concat(carr); }
+        }
+        var ix = localStorage.getItem('lv_is_ref_cache_' + era);
+        if (ix) {
+          var iarr = JSON.parse(ix);
+          if (Array.isArray(iarr)) { iarr.forEach(function(x){ if (!x._era) x._era = era; }); state.isRefData = state.isRefData.concat(iarr); }
+        }
+        var co = localStorage.getItem('lv_companion_cache_' + era);
+        if (co) {
+          var carr2 = JSON.parse(co);
+          if (Array.isArray(carr2)) { carr2.forEach(function(x){ if (!x._era) x._era = era; }); state.companionData = state.companionData.concat(carr2); }
+        }
+      } catch (e) { /* skip stale cache */ }
+    });
+    _rebuildMasterIndex();
+    if (state.companionData.length || state.setData.length) buildPartnerMap();
+    // Personal data is already cross-era; load it once.
+    await loadPersonalData();
+    populateFilters();
+    if (typeof renderBrowse === 'function') renderBrowse();
+    if (typeof buildDashboard === 'function') buildDashboard();
+  } catch (e) {
+    console.warn('[loadAllErasMode] cache hydration error:', e);
+  }
+
+  if (hydrated === 0) {
+    showToast('Loading every era from your sheet — first time may take ~15s…', 5000);
+  } else {
+    showToast(hydrated + ' era' + (hydrated === 1 ? '' : 's') + ' loaded from cache. Refreshing in background…', 3500);
+  }
+
+  // Step 2: Sequentially refresh each era from Sheets in the background
+  // while the user is already interacting. Each era's fresh data
+  // replaces the cached version of that era only — other eras stay
+  // intact. The _skipBackgroundRefresh flag suppresses the loaders'
+  // own stale-while-revalidate background refresh so a late .then()
+  // can't clobber the wrong era's data.
+  (async function refreshAllErasInBackground() {
+    var savedEra = _currentEra;
+    var savedTabs = Object.assign({}, SHEET_TABS);
+    window._skipBackgroundRefresh = true;
+    for (var i = 0; i < realEras.length; i++) {
+      var era = realEras[i];
+      try {
+        // Temporarily make the regular loaders see this era so they
+        // pull from the right SHEET_TABS and write to the right cache
+        // keys (the loaders read _currentEra for cache keys).
+        _currentEra = era;
+        _applyEraTabs(era);
+
+        // Capture current state buckets so we can replace just this
+        // era's slice after the load.
+        var priorMaster = state.masterData;
+        var priorSets = state.setData;
+        var priorCats = state.catalogRefData;
+        var priorIS = state.isRefData;
+        var priorComps = state.companionData;
+
+        // Stash empty buckets for the loaders to write into.
+        state.masterData = [];
+        state.setData = [];
+        state.catalogRefData = [];
+        state.isRefData = [];
+        state.companionData = [];
+
+        await loadMasterData();
+        if (SHEET_TABS.sets) await loadSetData();
+        if (SHEET_TABS.companions) await loadCompanionData();
+        await loadCatalogRefData();
+        if (SHEET_TABS.instrSheets) await loadISRefData();
+
+        // Tag the fresh data with its era
+        state.masterData.forEach(function(m){ m._era = era; });
+        state.setData.forEach(function(s){ s._era = era; });
+        state.catalogRefData.forEach(function(c){ c._era = era; });
+        state.isRefData.forEach(function(s){ s._era = era; });
+        state.companionData.forEach(function(c){ c._era = era; });
+
+        // Merge fresh era data with the OTHER eras' data already in state.
+        var freshMaster = state.masterData;
+        var freshSets = state.setData;
+        var freshCats = state.catalogRefData;
+        var freshIS = state.isRefData;
+        var freshComps = state.companionData;
+
+        state.masterData = priorMaster.filter(function(m){ return m._era !== era; }).concat(freshMaster);
+        state.setData = priorSets.filter(function(s){ return s._era !== era; }).concat(freshSets);
+        state.catalogRefData = priorCats.filter(function(c){ return c._era !== era; }).concat(freshCats);
+        state.isRefData = priorIS.filter(function(s){ return s._era !== era; }).concat(freshIS);
+        state.companionData = priorComps.filter(function(c){ return c._era !== era; }).concat(freshComps);
+      } catch (e) {
+        console.warn('[loadAllErasMode] refresh ' + era + ' failed:', e);
+      }
+    }
+    // Restore meta-era state
+    _currentEra = savedEra;
+    Object.keys(SHEET_TABS).forEach(function(k){ delete SHEET_TABS[k]; });
+    Object.assign(SHEET_TABS, savedTabs);
+    window._skipBackgroundRefresh = false;
+
+    // Final rebuilds + render with full fresh data
+    _rebuildMasterIndex();
+    if (state.companionData.length || state.setData.length) buildPartnerMap();
+    populateFilters();
+    if (typeof renderBrowse === 'function') renderBrowse();
+    if (typeof buildDashboard === 'function') buildDashboard();
+    showToast('All eras up to date — ' + (state.masterData||[]).length + ' items', 2500);
+  })().catch(function(e) {
+    window._skipBackgroundRefresh = false;
+    console.error('[loadAllErasMode] background refresh failed:', e);
+    showToast('Some era data could not refresh — using cached version.', 4000, true);
+  });
 }
 
 // ── Cross-era search: switch era and re-run the current search term ──

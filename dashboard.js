@@ -83,6 +83,7 @@ var CARD_CATALOG = [
       items.forEach(function(pd) { var e = _eraOf(pd); byEra[e] = (byEra[e]||0) + 1; });
       var lines = '';
       Object.keys(ERAS).forEach(function(ek) {
+        if (ek === 'all') return; // 'all' is a meta-era, never a data bucket
         if (byEra[ek]) {
           lines += '<div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--text-mid);margin-top:2px">'
             + '<span>' + ERAS[ek].label + '</span><span>' + byEra[ek].toLocaleString() + '</span></div>';
@@ -149,10 +150,18 @@ var CARD_CATALOG = [
       var eraColors = { pw: '#3aad70', mpc: '#3498db', mod: '#8e44ad' };
       var html = '';
       Object.keys(ERAS).forEach(function(ek) {
+        if (ek === 'all') return; // 'all' is a meta-era, never a data bucket
         var owned = byEra[ek] || 0;
-        // Simple: current era = live count, other eras = localStorage
+        // Simple: current era = live count, other eras = localStorage.
+        // In 'all' mode the live state.masterData has every era mixed,
+        // so we still defer to the per-era localStorage cache.
         var total = 0;
-        if (ek === _currentEra) {
+        if (_currentEra === 'all') {
+          // Count items from this era in the unified masterData
+          var stored = _getEraMasterTotal(ek);
+          if (stored) total = stored;
+          else total = (state.masterData || []).filter(function(m){return m._era === ek;}).length;
+        } else if (ek === _currentEra) {
           total = (state.masterData || []).length;
         } else {
           total = _getEraMasterTotal(ek) || 0;
