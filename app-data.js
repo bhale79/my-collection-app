@@ -243,10 +243,24 @@ async function loadMasterData() {
   localStorage.setItem(_TS_KEY, Date.now().toString());
 }
 
-async function _fetchMasterTabs() {
+async function _fetchMasterTabs(era) {
+  // Session 117 (Phase 2 #6): added optional `era` param so loadAllErasMode
+  // can fetch every era's tabs in parallel without mutating SHEET_TABS.
+  // When called without `era`, behavior is unchanged (uses _getMasterTabs() / SHEET_TABS).
+  var _mt;
+  var _itemsTabForFallback;
+  if (era && typeof ERA_TABS !== 'undefined' && ERA_TABS[era]) {
+    var _eraTabs = ERA_TABS[era];
+    _mt = (typeof MASTER_TAB_KEYS !== 'undefined' ? MASTER_TAB_KEYS : ['items'])
+            .map(function(k) { return _eraTabs[k]; })
+            .filter(Boolean);
+    _itemsTabForFallback = _eraTabs.items;
+  } else {
+    _mt = _getMasterTabs();
+    _itemsTabForFallback = SHEET_TABS.items;
+  }
   // Try multi-tab batchGet first, fall back to old single-tab
   try {
-    var _mt = _getMasterTabs();
     const ranges = _mt.map(t => `${t}!A2:U`);
     const res = await sheetsBatchGet(state.masterSheetId, ranges);
     const allRows = [];
@@ -258,13 +272,13 @@ async function _fetchMasterTabs() {
     });
     if (allRows.length > 0) return allRows;
   } catch(e) {
-    console.warn('[Master] batchGet failed, trying legacy single tab:', e.message);
+    console.warn('[Master] batchGet failed' + (era ? ' for era ' + era : '') + ', trying legacy single tab:', e.message);
   }
   // Fallback: old single-tab approach
   try {
     let res = await sheetsGet(state.masterSheetId, 'Master Inventory!A2:U');
     if (!res.values) res = await sheetsGet(state.masterSheetId, 'Sheet1!A2:U');
-    return (res.values || []).map(r => parseMasterRow(r, SHEET_TABS.items));
+    return (res.values || []).map(r => parseMasterRow(r, _itemsTabForFallback));
   } catch(e2) {
     console.warn('[Master] Legacy fallback also failed:', e2.message);
     return [];
