@@ -277,6 +277,14 @@ function populateFilters() {
   state.masterData.forEach(function(i) { if (i.roadName) _roadCounts[i.roadName] = (_roadCounts[i.roadName]||0) + 1; });
   window._allRoads = roads.map(function(r) { return { name: r, count: _roadCounts[r] || 0 }; });
   _roadComboBuild();
+
+  // Session 119: re-sync dropdown to whatever filter is held in state.
+  // Era-switch rebuilds this dropdown which used to silently blank the
+  // visual selection even though state.filters.type was still active.
+  // The browser silently no-ops if the value isn't in the new options
+  // (self-healing — old raw itemType values from pre-bucket era).
+  if (typeEl) typeEl.value = state.filters.type || '';
+  if (typeof updateFilterBadge === 'function') updateFilterBadge();
 }
 
 // ── Browse filter popup ──────────────────────────────────────────
@@ -1358,21 +1366,31 @@ function renderBrowse() {
   // Session 117: master-browse view in All mode + no search = 30K+ rows. Show
   // a friendly prompt instead and bail before any heavy filtering/rendering.
   // (Doesn't fire on My Collection — that view is bounded by what the user owns.)
+  // Session 119: bypass gate when a Type or Road filter is set — those narrow
+  // results enough that rendering is bounded and the user clearly wants to
+  // see results without typing a search.
+  const _hasFilter = !!(type || road);
   if (!owned && typeof _currentEra !== 'undefined' && _currentEra === 'all'
-      && (!search || !search.trim())) {
+      && (!search || !search.trim()) && !_hasFilter) {
     const _gtbody = document.getElementById('browse-tbody');
     if (_gtbody) _gtbody.innerHTML = '<tr><td colspan="9"><div class="empty-state" style="padding:3rem 1rem;text-align:center">'
       + '<div style="font-size:2.5rem;margin-bottom:0.75rem">🔍</div>'
       + '<p style="font-weight:600;margin-bottom:0.4rem">All Collection — type to search</p>'
       + '<p style="font-size:0.85rem;color:var(--text-dim);margin-bottom:0.6rem">There are 30,000+ items across every era. Type an item number, road name, or description to find anything.</p>'
-      + '<p style="font-size:0.78rem;color:var(--text-dim);font-style:italic">Or pick a specific era from the dropdown to browse normally.</p>'
+      + '<p style="font-size:0.78rem;color:var(--text-dim);font-style:italic">Or pick a specific era from the dropdown — or a Type/Road filter — to browse normally.</p>'
       + '</div></td></tr>';
     const _gcards = document.getElementById('browse-cards');
     if (_gcards) _gcards.innerHTML = '';
     const _gpag = document.getElementById('browse-pagination');
     if (_gpag) _gpag.style.display = 'none';
+    // Session 119: clear ALL three count/info elements so leftover stale text
+    // (e.g. "0 items" from a previous zero-result render) doesn't linger.
     const _gcount = document.getElementById('browse-count');
     if (_gcount) _gcount.textContent = '';
+    const _grc = document.getElementById('result-count');
+    if (_grc) _grc.textContent = '';
+    const _gpi = document.getElementById('page-info');
+    if (_gpi) _gpi.textContent = '';
     return;
   }
 
