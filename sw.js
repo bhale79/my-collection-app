@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v217';
+const CACHE_NAME = 'mca-v218';
 
 const SHELL_FILES = [
   './index.html',
@@ -125,4 +125,14 @@ self.addEventListener('fetch', event => {
       })
     )
   );
+});
+
+// Listen for SKIP_WAITING message from page so a new SW can activate
+// immediately on deploy instead of waiting for tabs to close.
+// (skipWaiting() is also called in install, but this covers the case
+// where the new SW is already installed and sitting in "waiting" state.)
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
