@@ -237,10 +237,12 @@ function _aliasSearch(haystack, query) {
 }
 
 function populateFilters() {
-  const types = [...new Set(state.masterData.map(i => i.itemType).filter(Boolean))].sort();
   const roads = [...new Set(state.masterData.map(i => i.roadName).filter(Boolean))].sort();
 
   const typeEl = document.getElementById('filter-type');
+  // Session 118 Phase C: reset dropdown to fix triple-rebuild bug AND populate from TYPE_BUCKETS (clean tier-1 buckets, alphabetical by short label).
+  typeEl.innerHTML = '<option value="">All Types</option>';
+  const types = (window.TYPE_BUCKETS || []).map(function(b){ return b.label; });
   types.forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; typeEl.appendChild(o); });
 
   // Add ephemera types as a group
@@ -1460,7 +1462,9 @@ function renderBrowse() {
         || type.toLowerCase() === 'instruction sheet'
         || Object.values(state.ephemeraData.catalogs||{}).some(it=>(it.catType||'').toLowerCase()===type.toLowerCase());
       if (_isEphFilter) return false; // hide all train rows when filtering to ephemera
-      if (item.itemType !== type) return false;
+      // Session 118 Phase C: compare against bucket label (Steam, Diesel, Boxcar...) instead of raw itemType.
+      var _bucketLabel = (typeof getTypeBucketLabel === 'function') ? getTypeBucketLabel(item) : item.itemType;
+      if (_bucketLabel !== type) return false;
     }
     if (road && item.roadName !== road) return false;
     if (search) {
