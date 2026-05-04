@@ -1,3 +1,8 @@
+// Session 118 Phase E1: display-only helper that returns the short bucket label for a master item
+// (Steam, Diesel, Boxcar, etc.) when type-groups.js is loaded; otherwise falls back to raw itemType.
+// Used in suggestion cards, photo headers, and detail panels — does NOT change matching/save logic.
+function _typeLabel(m){ return (typeof getTypeBucketLabel === 'function') ? getTypeBucketLabel(m) : ((m && m.itemType) || ''); }
+
 // Picker state — declared at top so available to all onclick handlers
 // ── _pickerStepId / _pickerViewKey state moved to wizard-photos.js (Session 110, Chunk 4) ──
 
@@ -590,7 +595,7 @@ function _renderAddingBanner() {
     match = findMaster(num);
   }
   if (match) {
-    desc = match.description || match.roadName || match.itemType || '';
+    desc = match.description || match.roadName || _typeLabel(match) || '';
   } else if (d.manualDesc) {
     desc = d.manualDesc;
   } else if (d._resolvedSet && d._resolvedSet.setName) {
@@ -711,7 +716,7 @@ function renderWizardStep() {
     const _total = wizard.data._setFinalItems.length;
     const _cur   = wizard.data.itemNum || wizard.data._setFinalItems[_idx] || '';
     const _master = findMaster(_cur);
-    const _type  = (_master && _master.itemType) ? _master.itemType : '';
+    const _type  = _typeLabel(_master);
     _titleEl.innerHTML =
       `<div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:0.5rem 0.75rem;margin-bottom:0.35rem">` +
         `<span style="font-size:0.62rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#e67e22;white-space:nowrap">🎁 Set — Item ${_idx + 1} of ${_total}</span>` +
@@ -1669,7 +1674,7 @@ function renderWizardStep() {
       if (m) {
         wizard.matchedItem = m;
         if (md) {
-          var desc = m.roadName ? m.roadName + ' ' + m.itemType : (m.itemType || m.description || '');
+          var desc = m.roadName ? m.roadName + ' ' + _typeLabel(m) : (_typeLabel(m) || m.description || '');
           md.textContent = '\u2713 ' + desc + (m.yearFrom ? ' \xb7 ' + m.yearFrom : '');
         }
       } else {
@@ -2499,7 +2504,7 @@ function renderWizardStep() {
 
     tmCandidates.forEach(function(num) {
       const masterItem = findMaster(num);
-      const desc = masterItem ? (masterItem.roadName || masterItem.description || masterItem.itemType || '') : '';
+      const desc = masterItem ? (masterItem.roadName || masterItem.description || _typeLabel(masterItem) || '') : '';
       const owned = Object.values(state.personalData).find(function(pd) { return pd.itemNum === num; });
       const sel = tmCurrent === num;
 
@@ -2852,7 +2857,7 @@ function renderWizardStep() {
             ${isManual ? '<span style="font-size:0.62rem;background:rgba(52,152,219,0.15);color:#3498db;border-radius:4px;padding:1px 6px;font-weight:700">ADDED BY YOU</span>' : ''}
           </div>
           ${master ? `<div style="font-size:0.82rem;color:var(--text-mid);margin-top:0.2rem">${[master.roadName, master.description].filter(Boolean).join(' · ')}</div>` : ''}
-          ${master && master.itemType ? `<div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.1rem">${master.itemType}${master.yearProd?' · '+master.yearProd:''}</div>` : ''}`;
+          ${master && master.itemType ? `<div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.1rem">${_typeLabel(master)}${master.yearProd?' · '+master.yearProd:''}</div>` : ''}`;
         body.appendChild(itemHdr);
 
         // Have / No
@@ -3467,7 +3472,7 @@ function renderWizardStep() {
       const _hdr = document.createElement('div');
       _hdr.style.cssText = 'background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:0.85rem 1rem;margin-bottom:0.75rem';
       _hdr.innerHTML = '<div style="font-family:var(--font-head);font-size:1.2rem;color:var(--accent);letter-spacing:0.03em;font-weight:700">No. ' + _ingVal + '</div>'
-        + '<div style="font-size:0.82rem;color:var(--text-mid);margin-top:0.15rem">' + (_mi.roadName || _mi.itemType || '') + ((_mi.roadName || _mi.itemType) && _mi.description ? ' — ' : '') + (_mi.description || '') + '</div>';
+        + '<div style="font-size:0.82rem;color:var(--text-mid);margin-top:0.15rem">' + (_mi.roadName || _typeLabel(_mi) || '') + ((_mi.roadName || _typeLabel(_mi)) && _mi.description ? ' — ' : '') + (_mi.description || '') + '</div>';
       _ingWrap.appendChild(_hdr);
       
       const _prompt = document.createElement('div');
@@ -3806,7 +3811,7 @@ function renderWizardStep() {
     // Determine columns
     // Bugfix 2026-04-14: include the master description on each column so users
     // can visually verify the item after a barcode scan (where they only see the #).
-    const _cdMainDesc = (_cdMaster && (_cdMaster.description || _cdMaster.roadName || _cdMaster.itemType)) || '';
+    const _cdMainDesc = (_cdMaster && (_cdMaster.description || _cdMaster.roadName || _typeLabel(_cdMaster))) || '';
     const _cdCols = [];
     if (_cdGrouping === 'engine_tender') {
       const _tenders = getMatchingTenders(_cdItemNum);
@@ -4381,8 +4386,8 @@ function renderWizardStep() {
     } else if (!_isEph && item) {
       // Bugfix 2026-04-14: second line now shows the item description (was showing
       // redundant roadName/itemType which duplicates the third line).
-      var _cfDesc = item.description || item.roadName || item.itemType || '';
-      var _cfMeta = [item.roadName, item.yearProd, item.itemType].filter(function(x) {
+      var _cfDesc = item.description || item.roadName || _typeLabel(item) || '';
+      var _cfMeta = [item.roadName, item.yearProd, _typeLabel(item)].filter(function(x) {
         return x && x !== item.description;
       }).join(' · ');
       confirmHtml += '<div style="background:var(--surface2);border-radius:8px;padding:0.85rem;margin-bottom:1rem">'
