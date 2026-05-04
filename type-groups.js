@@ -184,9 +184,38 @@
     return id;
   }
 
+  // ── Wizard quick-entry icon mapping (Session 119) ──
+  // Single source of truth for which app-shell icon shows next to the
+  // condition slider in Quick Entry. Three icons are available:
+  //   'engine'  — img/icon_engine.png   (default — locomotives, accessories, sets, etc.)
+  //   'tender'  — img/icon_tender.png   (steam tenders only)
+  //   'freight' — img/icon_freight.png  (rolling stock that gets pulled)
+  // Buckets not listed fall through to 'engine'.
+  var BUCKET_TO_ICON = {
+    'Tender':     'tender',
+    // Rolling stock that gets pulled by an engine
+    'Boxcar':     'freight',
+    'Caboose':    'freight',
+    'Flatcar':    'freight',
+    'Gondola':    'freight',
+    'Hopper':     'freight',
+    'Intermodal': 'freight',
+    'Operating':  'freight',
+    'Passenger':  'freight',
+    'Stock':      'freight',
+    'Tank':       'freight',
+  };
+
+  function getBucketIcon(item) {
+    if (typeof getTypeBucketLabel !== 'function') return 'engine';
+    return BUCKET_TO_ICON[getTypeBucketLabel(item)] || 'engine';
+  }
+
   // Expose globally
   window.TYPE_BUCKETS = TYPE_BUCKETS;
   window.MANUAL_TYPE_OVERRIDES = MANUAL_TYPE_OVERRIDES;
   window.getTypeBucket = getTypeBucket;
   window.getTypeBucketLabel = getTypeBucketLabel;
+  window.BUCKET_TO_ICON = BUCKET_TO_ICON;
+  window.getBucketIcon = getBucketIcon;
 })();

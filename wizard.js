@@ -1547,13 +1547,12 @@ function renderWizardStep() {
       } else if (grp === 'a_dummy') {
         html += _sl('qe1-slider-lead', 'a_dummy', 'Condition', '#6a5e48', 'opacity:0.65');
       } else {
-        var iconKey = 'engine';
-        var _mi = wizard.matchedItem;
-        if (_mi) {
-          var _mt = (_mi.itemType || '').toLowerCase();
-          if (_mt.indexOf('tender') >= 0) iconKey = 'tender';
-          else if (_mt.indexOf('freight') >= 0 || _mt.indexOf(' car') >= 0) iconKey = 'freight';
-        }
+        // Session 119: bucket-driven icon selection (single source of truth in
+        // type-groups.js). Replaces a 3-line substring heuristic that gave
+        // cabooses + one-word "Boxcar" rows the engine icon by accident.
+        var iconKey = (typeof getBucketIcon === 'function')
+          ? getBucketIcon(wizard.matchedItem || {})
+          : 'engine';
         var _slLabel = wizard.data.boxOnly ? 'Box Condition' : 'Condition';
         html += _sl('qe1-slider-lead', iconKey, _slLabel, '#d4a843', '');
       }
