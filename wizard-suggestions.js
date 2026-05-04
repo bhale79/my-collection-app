@@ -353,7 +353,7 @@ function updateItemSuggestions(query) {
       typeSpan.style.cssText = 'font-size:0.7rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;'
         + 'color:var(--text-dim);background:var(--surface2);border:1px solid var(--border);'
         + 'padding:0.1rem 0.4rem;border-radius:4px;flex-shrink:0;white-space:nowrap';
-      typeSpan.textContent = c.itemType;
+      typeSpan.textContent = (typeof getTypeBucketLabel === 'function') ? getTypeBucketLabel(c) : c.itemType;
       line1.appendChild(typeSpan);
     }
 
@@ -643,7 +643,7 @@ function lookupItem(num) {
     } else {
       if (match) {
         el.innerHTML = `<div style="background:rgba(201,146,42,0.1);border:1px solid var(--accent2);border-radius:8px;padding:0.65rem 0.85rem;font-size:0.82rem">
-          <span style="color:var(--accent2)">Not in your collection</span> · ${match.roadName || match.itemType || ''} · ${match.yearProd || ''}<br>
+          <span style="color:var(--accent2)">Not in your collection</span> · ${match.roadName || (typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(match) : match.itemType) || ''} · ${match.yearProd || ''}<br>
           <span style="color:var(--text-dim)">You can still enter details manually</span>
         </div>`;
       } else {
@@ -661,7 +661,7 @@ function lookupItem(num) {
     if (match) {
       el.innerHTML = `<div style="border-radius:8px;padding:0.65rem 0.85rem;font-size:0.82rem;
         background:rgba(46,204,113,0.1);border:1px solid var(--green)">
-        <div><span style="color:var(--green)">✓ Found in catalog:</span> ${match.roadName || match.itemType || ''} · ${match.yearProd || ''}</div>
+        <div><span style="color:var(--green)">✓ Found in catalog:</span> ${match.roadName || (typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(match) : match.itemType) || ''} · ${match.yearProd || ''}</div>
         <div style="margin-top:0.4rem;padding-top:0.4rem;border-top:1px solid rgba(255,255,255,0.08)">
           ${inCollection
             ? `<span style="color:var(--green)">✓ In your collection</span> · Condition: ${pd.condition || '?'} · Has box: ${pd.hasBox || 'No'}`
@@ -689,7 +689,7 @@ function lookupItem(num) {
       var _mInfoParts = [];
       if (match.roadName) _mInfoParts.push(match.roadName);
       if (match.yearProd) _mInfoParts.push(match.yearProd);
-      if (match.itemType && match.itemType !== match.roadName) _mInfoParts.push(match.itemType);
+      if (match.itemType && match.itemType !== match.roadName) _mInfoParts.push((typeof getTypeBucketLabel === 'function') ? getTypeBucketLabel(match) : match.itemType);
       var _mInfo = _mInfoParts.join(' \u00B7 ') || '(no details)';
       el.innerHTML = `<div style="background:rgba(46,204,113,0.1);border:1px solid var(--green);border-radius:8px;padding:0.65rem 0.85rem;font-size:0.82rem">
         <span style="color:var(--green)">✓ Found:</span> ${_mInfo}
