@@ -1352,6 +1352,28 @@ function renderBrowse() {
   _updateBrowseTabsForEra();
   const { type, road, owned, unowned, boxed, search } = state.filters;
   if (typeof _renderCrossEraSearchBanner === 'function') _renderCrossEraSearchBanner(search);
+
+  // Session 117: master-browse view in All mode + no search = 30K+ rows. Show
+  // a friendly prompt instead and bail before any heavy filtering/rendering.
+  // (Doesn't fire on My Collection — that view is bounded by what the user owns.)
+  if (!owned && typeof _currentEra !== 'undefined' && _currentEra === 'all'
+      && (!search || !search.trim())) {
+    const _gtbody = document.getElementById('browse-tbody');
+    if (_gtbody) _gtbody.innerHTML = '<tr><td colspan="9"><div class="empty-state" style="padding:3rem 1rem;text-align:center">'
+      + '<div style="font-size:2.5rem;margin-bottom:0.75rem">🔍</div>'
+      + '<p style="font-weight:600;margin-bottom:0.4rem">All Collection — type to search</p>'
+      + '<p style="font-size:0.85rem;color:var(--text-dim);margin-bottom:0.6rem">There are 30,000+ items across every era. Type an item number, road name, or description to find anything.</p>'
+      + '<p style="font-size:0.78rem;color:var(--text-dim);font-style:italic">Or pick a specific era from the dropdown to browse normally.</p>'
+      + '</div></td></tr>';
+    const _gcards = document.getElementById('browse-cards');
+    if (_gcards) _gcards.innerHTML = '';
+    const _gpag = document.getElementById('browse-pagination');
+    if (_gpag) _gpag.style.display = 'none';
+    const _gcount = document.getElementById('browse-count');
+    if (_gcount) _gcount.textContent = '';
+    return;
+  }
+
   // Base list: masterData + any personal-only items (e.g. 2343-P not in master)
   const masterNums = new Set(state.masterData.map(m => _displayItemNum(m) + '|' + (m.variation||'')));
   const personalOnlyItems = Object.values(state.personalData)
@@ -1396,8 +1418,16 @@ function renderBrowse() {
         _personalOnly: true
       };
     });
+  // Session 117: master browse in All Collection mode pulls items from EVERY
+  // era's items tab — not just the SHEET_TABS.items fallback (which would be PW only).
+  // Empty-state gate above prevents rendering all 30K+ rows when no search is active.
+  const _allItemTabs = (typeof REAL_ERA_IDS !== 'undefined')
+    ? REAL_ERA_IDS.map(function(e){ return (typeof ERA_TABS !== 'undefined' && ERA_TABS[e]) ? ERA_TABS[e].items : null; }).filter(Boolean)
+    : [];
   const baseList = owned ? [...state.masterData, ...personalOnlyItems]
-    : state.masterData.filter(function(m) { return m._tab === SHEET_TABS.items || !m._tab; });
+    : (_currentEra === 'all'
+        ? state.masterData.filter(function(m) { return (m._tab && _allItemTabs.indexOf(m._tab) >= 0) || !m._tab; })
+        : state.masterData.filter(function(m) { return m._tab === SHEET_TABS.items || !m._tab; }));
 
   state.filteredData = baseList.filter(item => {
     const _dispNum = _displayItemNum(item);
