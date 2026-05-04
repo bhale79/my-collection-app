@@ -880,7 +880,7 @@ function _renderOwnedSubTab(tabKey) {
     var _trOpen = '<tr onclick="showNonItemDetailPage(&apos;' + r._type + '&apos;,&apos;' + _kEsc + '&apos;)" style="cursor:pointer">';
     return _trOpen
       + '<td><span class="item-num">' + r.itemNum + '</span>' + ((typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML('Lionel PW - Items') : '') + '</td>'
-      + '<td><span class="tag">' + r.itemType + '</span></td>'
+      + '<td><span class="tag">' + (typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(r) : r.itemType) + '</span></td>'
       + '<td>' + r.description + '</td>'
       + '<td>' + r.variation + '</td>'
       + '<td>' + (vd || '<span class="text-dim">—</span>') + '</td>'
@@ -1339,7 +1339,7 @@ function renderMasterSubTab(tabKey) {
     var _rowBg = _ownedCopies > 0 ? 'background:rgba(46,204,113,0.04);' : '';
     return '<tr onclick="browseRowClick(event, ' + r.globalIdx + ')" style="cursor:pointer;' + _rowBg + '">' +
       '<td><span class="item-num">' + _dispNum + '</span>' + _ownBadge + '</td>' +
-      '<td><span class="tag">' + (item.itemType || '—') + '</span></td>' +
+      '<td><span class="tag">' + ((typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(item) : item.itemType) || '—') + '</span></td>' +
       '<td>' + (item.description || '<span class="text-dim">—</span>') + '</td>' +
       '<td>' + (item.variation || '<span class="text-dim">—</span>') + '</td>' +
       '<td>' + (vd || '<span class="text-dim">—</span>') + '</td>' +
@@ -1735,7 +1735,7 @@ function renderBrowse() {
               <span style="display:flex;gap:0.2rem;align-items:center">${_statusIcons}</span>
             </div>
             <div class="browse-card-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.roadName || item.itemType || '—'}</div>
-            <div class="browse-card-sub" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${[item.itemType, item.yearProd].filter(Boolean).join(' · ')}</div>
+            <div class="browse-card-sub" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${[(typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(item) : item.itemType), item.yearProd].filter(Boolean).join(' · ')}</div>
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.25rem;flex-shrink:0">
             ${cond ? `<span style="font-size:0.72rem"><span class="condition-pip ${condClass}"></span>${cond}</span>` : ''}
@@ -1754,7 +1754,7 @@ function renderBrowse() {
       const _descFull  = _descParts.join(' · ') || item.description || '—';
       const _descShort = _descFull.length > 42 ? _descFull.substring(0, 40) + '…' : _descFull;
       const _varText   = item.variation ? ` <span style="font-size:0.72rem;color:var(--text-dim);background:var(--surface2);padding:1px 5px;border-radius:4px;margin-left:3px">${item.variation}</span>` : '';
-      const _typeText = item.itemType || '<span style="color:var(--text-dim)">—</span>';
+      const _typeText = (typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(item) : item.itemType) || '<span style="color:var(--text-dim)">—</span>';
       const _estWorth = pd && pd.userEstWorth ? '$' + parseFloat(pd.userEstWorth).toLocaleString() : '<span style="color:var(--text-dim)">—</span>';
       // Per-copy For Sale / Upgrade detection using inventoryId
       const _fsEntry = state.forSaleData[`${_dispNum}|${item.variation||''}`] || state.forSaleData[`${item.itemNum}|${item.variation||''}`];
@@ -1815,7 +1815,7 @@ function renderBrowse() {
           ${item.refLink ? `<a href="${item.refLink}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="View on COTT" style="margin-left:5px;vertical-align:middle;color:var(--text-dim);opacity:0.6;text-decoration:none;display:inline-flex" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : ''}
           <span id="cam-${item.itemNum}-${item.variation||''}" style="margin-left:5px;font-size:0.85rem;cursor:pointer;display:none" onclick="event.stopPropagation();openPhotoFolder('${item.itemNum}','${pd&&pd.photoItem?pd.photoItem:''}')" title="Open photo folder">📷</span>
         </td>
-        <td><span class="tag">${item.itemType || '—'}</span></td>
+        <td><span class="tag">${(typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(item) : item.itemType) || '—'}</span></td>
         ${((_currentEra === 'atlas') || (item && item._tab === 'Atlas O')) ? `
         <td>${item.subType || '<span class="text-dim">—</span>'}</td>
         <td>${item.description || '<span class="text-dim">—</span>'}</td>
