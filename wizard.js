@@ -281,7 +281,8 @@ function _buildItemSearchFiltersDOM() {
   if (!applies) return null;
   if (typeof getMasterDistinct !== 'function') return null;
 
-  var types = getMasterDistinct('itemType');
+  // Session 119: 22 clean tier-1 buckets (Steam, Diesel, Boxcar...) instead of 40 raw itemType synonyms.
+  var types = (window.TYPE_BUCKETS || []).map(function(b){ return b.label; });
   var roads = getMasterDistinct('roadName');
   var minCount = cfg.showOnlyIfAtLeast || 2;
   var showType = types.length >= minCount;
@@ -346,10 +347,20 @@ function _wireItemSearchFilters() {
   function refreshDropdown(selId, fieldName, otherFieldName, otherValue, currentVal, stateKey) {
     var sel = document.getElementById(selId);
     if (!sel) return;
-    var predicate = otherValue
-      ? function(m) { return (m && String(m[otherFieldName] || '').trim() === otherValue); }
-      : null;
-    var values = (typeof getMasterDistinct === 'function') ? getMasterDistinct(fieldName, predicate) : [];
+    // Session 119: bucket-aware. Type dropdown always shows 22 clean tier-1 buckets (no narrowing).
+    // Road predicate uses bucket label when filtering by Type, so picking "Steam" matches both
+    // Steam Engine and Steam Locomotive items in the master sheet.
+    var values;
+    if (fieldName === 'itemType') {
+      values = (window.TYPE_BUCKETS || []).map(function(b){ return b.label; });
+    } else {
+      var predicate = otherValue
+        ? (otherFieldName === 'itemType'
+            ? function(m) { return m && (typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(m) : String(m.itemType || '').trim()) === otherValue; }
+            : function(m) { return (m && String(m[otherFieldName] || '').trim() === otherValue); })
+        : null;
+      values = (typeof getMasterDistinct === 'function') ? getMasterDistinct(fieldName, predicate) : [];
+    }
     var opts = '<option value="">' + esc(anyLabel) + '</option>';
     var stillValid = false;
     values.forEach(function(v) {
@@ -3495,7 +3506,8 @@ function renderWizardStep() {
           .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
       }
       if (_isfApply && typeof getMasterDistinct === 'function') {
-        var _isfTypes = getMasterDistinct('itemType');
+        // Session 119: 22 clean tier-1 buckets (matches browse Phase C).
+        var _isfTypes = (window.TYPE_BUCKETS || []).map(function(b){ return b.label; });
         var _isfRoads = getMasterDistinct('roadName');
         var _isfMin = _isfCfg.showOnlyIfAtLeast || 2;
         var _isfShowType = _isfTypes.length >= _isfMin;
@@ -3643,14 +3655,22 @@ function renderWizardStep() {
         function _refreshFilterDropdown(selId, fieldName, otherFieldName, otherValue, currentVal, stateKey) {
           var sel = document.getElementById(selId);
           if (!sel) return;
-          // Trim both sides — dropdown values are trimmed by getMasterDistinct
-          // so raw-compare can miss rows with whitespace in the source sheet.
-          var predicate = otherValue
-            ? function(m) { return (m && String(m[otherFieldName] || '').trim() === otherValue); }
-            : null;
-          var values = (typeof getMasterDistinct === 'function')
-            ? getMasterDistinct(fieldName, predicate)
-            : [];
+          // Session 119: bucket-aware (same logic as refreshDropdown helper above).
+          // Type dropdown always shows 22 tier-1 buckets; Road predicate uses bucket label
+          // when filtering by Type so synonyms (Steam Engine + Steam Locomotive) match together.
+          var values;
+          if (fieldName === 'itemType') {
+            values = (window.TYPE_BUCKETS || []).map(function(b){ return b.label; });
+          } else {
+            var predicate = otherValue
+              ? (otherFieldName === 'itemType'
+                  ? function(m) { return m && (typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(m) : String(m.itemType || '').trim()) === otherValue; }
+                  : function(m) { return (m && String(m[otherFieldName] || '').trim() === otherValue); })
+              : null;
+            values = (typeof getMasterDistinct === 'function')
+              ? getMasterDistinct(fieldName, predicate)
+              : [];
+          }
           var opts = '<option value="">' + _escCb(_anyLabel) + '</option>';
           var stillValid = false;
           values.forEach(function(v) {

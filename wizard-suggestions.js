@@ -206,11 +206,14 @@ function updateItemSuggestions(query) {
       // Era scope — skip rows from other eras (see Session 115 note above).
       if (_eraTabSet && m._tab && !_eraTabSet.has(m._tab)) return;
       // Filter dropdowns: trim BOTH sides so stray whitespace in the
-      // master sheet doesn't silently hide matches. The dropdown options
-      // come from getMasterDistinct which already trims its output, so
-      // comparing raw m.itemType / m.roadName would miss rows that have
-      // " Lehigh Valley " or "Caboose\n" in the source data.
-      if (_filterType && String(m.itemType || '').trim() !== _filterType) return;
+      // master sheet doesn't silently hide matches.
+      // Session 119: Type filter compares against tier-1 bucket label
+      // (matches browse Phase C). Picking "Steam" correctly includes both
+      // Steam Engine and Steam Locomotive items.
+      if (_filterType) {
+        var _bucketLabel = (typeof getTypeBucketLabel === 'function') ? getTypeBucketLabel(m) : String(m.itemType || '').trim();
+        if (_bucketLabel !== _filterType) return;
+      }
       if (_filterRoad && String(m.roadName || '').trim() !== _filterRoad) return;
 
       const haystack = ((m.roadName || '') + ' ' + (m.description || '') + ' ' + (m.varDesc || '') + ' ' + (m.itemType || '')).toLowerCase();
