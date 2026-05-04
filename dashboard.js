@@ -15,6 +15,19 @@
 // ══════════════════════════════════════════════════════════════════
 // HELPERS
 // ══════════════════════════════════════════════════════════════════
+// Session 118 Phase D: bucket-aware category mapping for dashboard counts.
+function _bucketIs(item, allowed) {
+  if (typeof getTypeBucket !== 'function') return false;
+  return allowed.indexOf(getTypeBucket(item)) !== -1;
+}
+var _ENGINE_BUCKETS = ['Steam Locomotive','Diesel Locomotive','Electric Locomotive','Motorized Unit'];
+var _TENDER_BUCKETS = ['Tender'];
+var _FREIGHT_BUCKETS = ['Boxcar','Hopper','Tank Car','Flatcar','Gondola','Stock Car','Intermodal','Operating Freight'];
+var _PASSENGER_BUCKETS = ['Passenger Car'];
+var _CABOOSE_BUCKETS = ['Caboose'];
+var _ACCESSORY_BUCKETS = ['Accessory','Track','Transformer/Power','Service Station Tool'];
+var _SET_BUCKETS = ['Set'];
+
 function _ownedNonBox(state) {
   // Returns array of owned personalData entries, excluding pure box-only rows
   return Object.values(state.personalData).filter(function(pd) {
@@ -207,15 +220,15 @@ var CARD_CATALOG = [
     id: 'collectionByType', label: 'Collection by Type', color: '#e74c3c',
     compute: function(state) {
       var owned = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).map(function(pd){return normalizeItemNum(pd.itemNum);}));
-      var types = { 'Engines':0, 'Freight':0, 'Passenger':0, 'Cabooses':0, 'Accessories':0 };
+      var types = { 'Engines':0, 'Tenders':0, 'Freight':0, 'Passenger':0, 'Cabooses':0, 'Accessories':0 };
       state.masterData.forEach(function(m) {
         if (!owned.has(normalizeItemNum(m.itemNum))) return;
-        var t = (m.itemType||'').toLowerCase();
-        if (t.includes('steam')||t.includes('diesel')||t.includes('electric')||t.includes('locomotive')||t.includes('motor')) types['Engines']++;
-        else if (t.includes('caboose')) types['Cabooses']++;
-        else if (t.includes('passenger')) types['Passenger']++;
-        else if (t.includes('freight')||t.includes('box car')||t.includes('boxcar')||t.includes('gondola')||t.includes('hopper')||t.includes('tank')||t.includes('flat')||t.includes('crane')||t.includes('dump')) types['Freight']++;
-        else if (t.includes('accessor')) types['Accessories']++;
+        if (_bucketIs(m, _ENGINE_BUCKETS)) types['Engines']++;
+        else if (_bucketIs(m, _TENDER_BUCKETS)) types['Tenders']++;
+        else if (_bucketIs(m, _CABOOSE_BUCKETS)) types['Cabooses']++;
+        else if (_bucketIs(m, _PASSENGER_BUCKETS)) types['Passenger']++;
+        else if (_bucketIs(m, _FREIGHT_BUCKETS)) types['Freight']++;
+        else if (_bucketIs(m, _ACCESSORY_BUCKETS)) types['Accessories']++;
       });
       var html = '';
       Object.entries(types).forEach(function(e) {
@@ -234,8 +247,7 @@ var CARD_CATALOG = [
     compute: function(state) {
       var owned = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).map(function(pd){return normalizeItemNum(pd.itemNum);}));
       var count = state.masterData.filter(function(m) {
-        var t = (m.itemType||'').toLowerCase();
-        return (t.includes('steam')||t.includes('diesel')||t.includes('electric')||t.includes('locomotive')) && owned.has(normalizeItemNum(m.itemNum));
+        return _bucketIs(m, _ENGINE_BUCKETS) && owned.has(normalizeItemNum(m.itemNum));
       }).length;
       return { value: count.toLocaleString(), sub: 'locomotives in collection' };
     }
@@ -244,7 +256,7 @@ var CARD_CATALOG = [
     id: 'cabooses', label: 'Total Cabooses', color: '#c0392b',
     compute: function(state) {
       var owned = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).map(function(pd){return normalizeItemNum(pd.itemNum);}));
-      var count = state.masterData.filter(function(m) { return (m.itemType||'').toLowerCase().includes('caboose') && owned.has(normalizeItemNum(m.itemNum)); }).length;
+      var count = state.masterData.filter(function(m) { return _bucketIs(m, _CABOOSE_BUCKETS) && owned.has(normalizeItemNum(m.itemNum)); }).length;
       return { value: count.toLocaleString(), sub: 'cabooses in collection' };
     }
   },
@@ -253,8 +265,7 @@ var CARD_CATALOG = [
     compute: function(state) {
       var owned = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).map(function(pd){return normalizeItemNum(pd.itemNum);}));
       var count = state.masterData.filter(function(m) {
-        var t = (m.itemType||'').toLowerCase();
-        return (t.includes('freight')||t.includes('box car')||t.includes('boxcar')||t.includes('gondola')||t.includes('hopper')||t.includes('tank')||t.includes('flat')) && owned.has(normalizeItemNum(m.itemNum));
+        return _bucketIs(m, _FREIGHT_BUCKETS) && owned.has(normalizeItemNum(m.itemNum));
       }).length;
       return { value: count.toLocaleString(), sub: 'freight cars in collection' };
     }
@@ -263,7 +274,7 @@ var CARD_CATALOG = [
     id: 'passenger', label: 'Total Passenger Cars', color: '#2980b9',
     compute: function(state) {
       var owned = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).map(function(pd){return normalizeItemNum(pd.itemNum);}));
-      var count = state.masterData.filter(function(m) { return (m.itemType||'').toLowerCase().includes('passenger') && owned.has(normalizeItemNum(m.itemNum)); }).length;
+      var count = state.masterData.filter(function(m) { return _bucketIs(m, _PASSENGER_BUCKETS) && owned.has(normalizeItemNum(m.itemNum)); }).length;
       return { value: count.toLocaleString(), sub: 'passenger cars in collection' };
     }
   },
@@ -271,7 +282,7 @@ var CARD_CATALOG = [
     id: 'accessories', label: 'Total Accessories', color: '#16a085',
     compute: function(state) {
       var owned = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).map(function(pd){return normalizeItemNum(pd.itemNum);}));
-      var count = state.masterData.filter(function(m) { return (m.itemType||'').toLowerCase().includes('accessor') && owned.has(normalizeItemNum(m.itemNum)); }).length;
+      var count = state.masterData.filter(function(m) { return _bucketIs(m, _ACCESSORY_BUCKETS) && owned.has(normalizeItemNum(m.itemNum)); }).length;
       return { value: count.toLocaleString(), sub: 'accessories in collection' };
     }
   },
@@ -279,7 +290,7 @@ var CARD_CATALOG = [
     id: 'sets', label: 'Total Sets', color: '#d35400',
     compute: function(state) {
       var owned = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).map(function(pd){return normalizeItemNum(pd.itemNum);}));
-      var count = state.masterData.filter(function(m) { return (m.itemType||'').toLowerCase().includes('set') && owned.has(normalizeItemNum(m.itemNum)); }).length;
+      var count = state.masterData.filter(function(m) { return _bucketIs(m, _SET_BUCKETS) && owned.has(normalizeItemNum(m.itemNum)); }).length;
       return { value: count.toLocaleString(), sub: 'sets in collection' };
     }
   },
