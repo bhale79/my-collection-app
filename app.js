@@ -611,6 +611,37 @@ async function loadAllErasMode() {
     var savedEra = _currentEra;
     var savedTabs = Object.assign({}, SHEET_TABS);
     window._skipBackgroundRefresh = true;
+
+    // Phase 2 #6 (Session 117): parallel master fetch.
+    // Was sequential — each loop iteration awaited loadMasterData() which
+    // internally awaited _fetchMasterTabs(). Now we Promise.all the four
+    // _fetchMasterTabs(era) calls in parallel, dropping cold load from
+    // ~15-20s to ~6-10s. If the parallel block fails for any reason,
+    // _phase6OK stays false and the sequential loop below falls back to
+    // the original behavior.
+    var _phase6OK = false;
+    try {
+      var _pmRows = await Promise.all(realEras.map(function(_era) {
+        return _fetchMasterTabs(_era).then(function(rows) {
+          var deduped = _deduplicateMaster(rows);
+          deduped.forEach(function(m) { m._era = _era; });
+          idbSet('lv_master_cache_' + _era, deduped);
+          try { localStorage.setItem('lv_master_cache_ts_' + _era, Date.now().toString()); } catch(e) {}
+          return deduped;
+        });
+      }));
+      // Replace state.masterData with the freshly-merged set across all eras.
+      state.masterData = [];
+      _pmRows.forEach(function(rows) { state.masterData = state.masterData.concat(rows); });
+      _rebuildMasterIndex();
+      _phase6OK = true;
+      // Show the user fresh master data right away while sets/companions
+      // continue loading sequentially below.
+      if (typeof renderBrowse === 'function') renderBrowse();
+    } catch (e) {
+      console.warn('[loadAllErasMode] parallel master fetch failed, falling back to sequential:', e);
+    }
+
     for (var i = 0; i < realEras.length; i++) {
       var era = realEras[i];
       try {
@@ -629,33 +660,39 @@ async function loadAllErasMode() {
         var priorComps = state.companionData;
 
         // Stash empty buckets for the loaders to write into.
-        state.masterData = [];
+        // Phase 2 #6: leave state.masterData alone if parallel master fetch
+        // already populated it. Sequential master fallback only runs when
+        // _phase6OK is false (parallel block crashed).
+        if (!_phase6OK) state.masterData = [];
         state.setData = [];
         state.catalogRefData = [];
         state.isRefData = [];
         state.companionData = [];
 
-        await loadMasterData();
+        if (!_phase6OK) await loadMasterData();
         if (SHEET_TABS.sets) await loadSetData();
         if (SHEET_TABS.companions) await loadCompanionData();
         await loadCatalogRefData();
         if (SHEET_TABS.instrSheets) await loadISRefData();
 
-        // Tag the fresh data with its era
-        state.masterData.forEach(function(m){ m._era = era; });
+        // Tag the fresh data with its era (master already tagged in parallel block)
+        if (!_phase6OK) state.masterData.forEach(function(m){ m._era = era; });
         state.setData.forEach(function(s){ s._era = era; });
         state.catalogRefData.forEach(function(c){ c._era = era; });
         state.isRefData.forEach(function(s){ s._era = era; });
         state.companionData.forEach(function(c){ c._era = era; });
 
         // Merge fresh era data with the OTHER eras' data already in state.
-        var freshMaster = state.masterData;
+        // Master already merged in parallel block.
         var freshSets = state.setData;
         var freshCats = state.catalogRefData;
         var freshIS = state.isRefData;
         var freshComps = state.companionData;
 
-        state.masterData = priorMaster.filter(function(m){ return m._era !== era; }).concat(freshMaster);
+        if (!_phase6OK) {
+          var freshMaster = state.masterData;
+          state.masterData = priorMaster.filter(function(m){ return m._era !== era; }).concat(freshMaster);
+        }
         state.setData = priorSets.filter(function(s){ return s._era !== era; }).concat(freshSets);
         state.catalogRefData = priorCats.filter(function(c){ return c._era !== era; }).concat(freshCats);
         state.isRefData = priorIS.filter(function(s){ return s._era !== era; }).concat(freshIS);
