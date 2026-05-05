@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.213';
+const APP_VERSION = 'v0.9.214';
 const APP_DATE    = 'April 2026';
 
 // ═══════════════════════════════════════════════════════════════════
@@ -43,7 +43,7 @@ const ERAS = {
   pw:     { id: 'pw',     label: 'Postwar',     years: '1945-1969',  prefix: 'Lionel PW',      manufacturer: 'Lionel' },
   mpc:    { id: 'mpc',    label: 'MPC/Modern',  years: '1970-Today', prefix: 'Lionel',         manufacturer: 'Lionel' },
   atlas:  { id: 'atlas',  label: 'Atlas O',     years: 'All',        prefix: 'Atlas O',        manufacturer: 'Atlas' },
-  mth:    { id: 'mth',    label: 'MTH',         years: '2016-2020',  prefix: 'MTH',            manufacturer: 'MTH' },
+  mth:    { id: 'mth',    label: 'MTH',         years: '2011-2020',  prefix: 'MTH',            manufacturer: 'MTH' },
 };
 // Real-era IDs in load priority order (excluding 'all' meta-era).
 const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas', 'mth'];
