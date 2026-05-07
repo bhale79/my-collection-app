@@ -1395,9 +1395,14 @@ function renderBrowse() {
   }
 
   // Base list: masterData + any personal-only items (e.g. 2343-P not in master)
+  // Era filter: when in My Collection mode with a specific era, exclude
+  // personal-only items whose master row isn't loaded for this era. They
+  // belong to a different era (or to 'all' mode which loads everything).
   const masterNums = new Set(state.masterData.map(m => _displayItemNum(m) + '|' + (m.variation||'')));
+  const _eraFilterPersonalOnly = state.filters.owned && typeof _currentEra !== 'undefined' && _currentEra !== 'all';
   const personalOnlyItems = Object.values(state.personalData)
     .filter(pd => pd.owned && !masterNums.has(pd.itemNum + '|' + (pd.variation||'')))
+    .filter(pd => !_eraFilterPersonalOnly)
     .map(pd => {
       // Infer type from item number suffix for personal-only items
       let _poType = pd.itemType || '';
