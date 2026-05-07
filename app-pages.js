@@ -71,6 +71,8 @@ function _collectAllOwnedItems() {
   Object.entries(state.personalData || {}).forEach(function(entry) {
     const key = entry[0], pd = entry[1];
     if (!pd || !pd.owned) return;
+    // Era filter: skip items not in the currently selected era
+    if (typeof _isInCurrentEra === 'function' && !_isInCurrentEra(pd.itemNum)) return;
     // Skip -BOX standalone rows — they show under "Items" already
     // as part of their parent row via group ID; duplicating them in
     // the list would just clutter it.
@@ -639,6 +641,8 @@ function buildWantPage() {
   if (_wsEl && _wsEl.value !== _ws) _wsEl.value = _ws;
   const totalCount = Object.keys(state.wantData).length;
   const entries = Object.values(state.wantData).filter(w => {
+    // Era filter: skip if item not in current era
+    if (typeof _isInCurrentEra === 'function' && !_isInCurrentEra(w.itemNum)) return false;
     // Priority filter
     if (_wp && (w.priority || 'Medium') !== _wp) return false;
     // Type filter — lookup master to get item type
@@ -1093,11 +1097,13 @@ function buildSoldPage() {
   const _sq = (state._soldSearch || '').toLowerCase();
   const _typeFilter = (state._soldFilterType || '').toLowerCase();
 
-  // Enrich with master data
-  let soldEntries = Object.values(state.soldData).map(sd => {
-    const master = state.masterData.find(i => i.itemNum === sd.itemNum && i.variation === sd.variation) || {};
-    return { ...sd, _type: master.itemType || '', _roadName: master.roadName || '', _master: master };
-  });
+  // Enrich with master data (with era filter)
+  let soldEntries = Object.values(state.soldData)
+    .filter(sd => typeof _isInCurrentEra !== 'function' || _isInCurrentEra(sd.itemNum))
+    .map(sd => {
+      const master = state.masterData.find(i => i.itemNum === sd.itemNum && i.variation === sd.variation) || {};
+      return { ...sd, _type: master.itemType || '', _roadName: master.roadName || '', _master: master };
+    });
 
   // Populate type filter dropdown (before filtering)
   const allTypes = [...new Set(soldEntries.map(e => e._type).filter(Boolean))].sort();
@@ -1240,6 +1246,8 @@ function buildForSalePage() {
   }
   const _fq = (state._forsaleSearch || '').toLowerCase();
   const fsEntries = Object.values(state.forSaleData).filter(fs => {
+    // Era filter
+    if (typeof _isInCurrentEra === 'function' && !_isInCurrentEra(fs.itemNum)) return false;
     if (!_fq) return true;
     const master = state.masterData.find(i => i.itemNum === fs.itemNum && i.variation === fs.variation) || {};
     return (fs.itemNum||'').toLowerCase().includes(_fq)
@@ -1850,6 +1858,8 @@ function buildUpgradePage() {
   const totalCount = Object.keys(state.upgradeData).length;
 
   let entries = Object.values(state.upgradeData).filter(u => {
+    // Era filter
+    if (typeof _isInCurrentEra === 'function' && !_isInCurrentEra(u.itemNum)) return false;
     // Priority filter
     if (_up && (u.priority || 'Medium') !== _up) return false;
     if (_uq) {

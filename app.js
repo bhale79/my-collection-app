@@ -67,6 +67,21 @@ function _getEraManufacturer() {
   return 'Lionel';
 }
 
+// ── Era filter helper for personal lists ──
+// Returns true if the given item should be visible in the currently
+// selected era. When _currentEra is 'all', everything is visible.
+// For specific eras, looks up the master row and compares its _era tag.
+// Items whose master row isn't in the loaded era data return false.
+function _isInCurrentEra(itemNum) {
+  if (typeof _currentEra === 'undefined' || _currentEra === 'all') return true;
+  if (typeof findMaster !== 'function' || !state.masterData) return true;
+  var m = findMaster(itemNum);
+  if (!m) return false;
+  return m._era === _currentEra;
+}
+
+
+
 // Ephemera tab definitions — shared structure, one tab per category
 const EPHEMERA_TABS = [
   { id: 'catalogs',   label: 'Catalogs',    emoji: '📒', color: '#e67e22' },
