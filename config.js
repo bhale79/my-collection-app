@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.215';
+const APP_VERSION = 'v0.9.216';
 const APP_DATE    = 'April 2026';
 
 // ═══════════════════════════════════════════════════════════════════
@@ -39,9 +39,9 @@ const ERAS = {
   // and presents a unified collection. Used as the default for new
   // users (Session 116). Real eras follow.
   all:    { id: 'all',    label: 'All Collection', years: 'All Eras',   prefix: '',               manufacturer: '', _isAll: true },
-  prewar: { id: 'prewar', label: 'Pre-War',     years: '1901-1942',  prefix: 'Lionel Pre-War', manufacturer: 'Lionel' },
-  pw:     { id: 'pw',     label: 'Postwar',     years: '1945-1969',  prefix: 'Lionel PW',      manufacturer: 'Lionel' },
-  mpc:    { id: 'mpc',    label: 'MPC/Modern',  years: '1970-Today', prefix: 'Lionel',         manufacturer: 'Lionel' },
+  prewar: { id: 'prewar', label: 'Lionel Pre-War',     years: '1901-1942',  prefix: 'Lionel Pre-War', manufacturer: 'Lionel' },
+  pw:     { id: 'pw',     label: 'Lionel Postwar',     years: '1945-1969',  prefix: 'Lionel PW',      manufacturer: 'Lionel' },
+  mpc:    { id: 'mpc',    label: 'Lionel MPC/Modern',  years: '1970-Today', prefix: 'Lionel',         manufacturer: 'Lionel' },
   atlas:  { id: 'atlas',  label: 'Atlas O',     years: 'All',        prefix: 'Atlas O',        manufacturer: 'Atlas' },
   mth_o:        { id: 'mth_o',        label: 'MTH O',         years: '2000-2020', prefix: 'MTH O',        manufacturer: 'MTH' },
   mth_ho:       { id: 'mth_ho',       label: 'MTH HO',        years: '2006-2019', prefix: 'MTH HO',       manufacturer: 'MTH' },
