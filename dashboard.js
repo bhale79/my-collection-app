@@ -97,6 +97,8 @@ var CARD_CATALOG = [
       var lines = '';
       Object.keys(ERAS).forEach(function(ek) {
         if (ek === 'all') return; // 'all' is a meta-era, never a data bucket
+        // Respect Preferences "What I collect" — hide disabled eras
+        if (typeof _isEraEnabled === 'function' && !_isEraEnabled(ek)) return;
         if (byEra[ek]) {
           lines += '<div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--text-mid);margin-top:2px">'
             + '<span>' + ERAS[ek].label + '</span><span>' + byEra[ek].toLocaleString() + '</span></div>';
@@ -164,6 +166,8 @@ var CARD_CATALOG = [
       var html = '';
       Object.keys(ERAS).forEach(function(ek) {
         if (ek === 'all') return; // 'all' is a meta-era, never a data bucket
+        // Respect Preferences "What I collect" — hide disabled eras
+        if (typeof _isEraEnabled === 'function' && !_isEraEnabled(ek)) return;
         var owned = byEra[ek] || 0;
         // Simple: current era = live count, other eras = localStorage.
         // In 'all' mode the live state.masterData has every era mixed,
