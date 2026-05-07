@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.214';
+const APP_VERSION = 'v0.9.215';
 const APP_DATE    = 'April 2026';
 
 // ═══════════════════════════════════════════════════════════════════
@@ -43,10 +43,14 @@ const ERAS = {
   pw:     { id: 'pw',     label: 'Postwar',     years: '1945-1969',  prefix: 'Lionel PW',      manufacturer: 'Lionel' },
   mpc:    { id: 'mpc',    label: 'MPC/Modern',  years: '1970-Today', prefix: 'Lionel',         manufacturer: 'Lionel' },
   atlas:  { id: 'atlas',  label: 'Atlas O',     years: 'All',        prefix: 'Atlas O',        manufacturer: 'Atlas' },
-  mth:    { id: 'mth',    label: 'MTH',         years: '2011-2020',  prefix: 'MTH',            manufacturer: 'MTH' },
+  mth_o:        { id: 'mth_o',        label: 'MTH O',         years: '2000-2020', prefix: 'MTH O',        manufacturer: 'MTH' },
+  mth_ho:       { id: 'mth_ho',       label: 'MTH HO',        years: '2006-2019', prefix: 'MTH HO',       manufacturer: 'MTH' },
+  mth_s:        { id: 'mth_s',        label: 'MTH S Gauge',   years: '2013-2019', prefix: 'MTH S Gauge',  manufacturer: 'MTH' },
+  mth_tinplate: { id: 'mth_tinplate', label: 'MTH Tinplate',  years: '2001-2020', prefix: 'MTH Tinplate', manufacturer: 'MTH' },
+  mth_g:        { id: 'mth_g',        label: 'MTH G Scale',   years: '2001-2019', prefix: 'MTH G Scale',  manufacturer: 'MTH' },
 };
 // Real-era IDs in load priority order (excluding 'all' meta-era).
-const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas', 'mth'];
+const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g'];
 
 // ── Master sheet tab names per era ──
 const ERA_TABS = {
@@ -74,8 +78,20 @@ const ERA_TABS = {
   atlas: {
     items:    'Atlas O',
   },
-  mth: {
+  mth_o: {
     items:    'MTH O',
+  },
+  mth_ho: {
+    items:    'MTH HO',
+  },
+  mth_s: {
+    items:    'MTH S Gauge',
+  },
+  mth_tinplate: {
+    items:    'MTH Tinplate',
+  },
+  mth_g: {
+    items:    'MTH G Scale',
   },
 };
 
