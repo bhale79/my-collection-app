@@ -438,20 +438,13 @@ function _confirmDoneEdit(key) {
   if (slider) wizard.data[key] = parseInt(slider.value);
   var v = wizard.data[key] || '';
   var isMoney = window._cfMoney && window._cfMoney.indexOf(key) >= 0;
-  var dispVal = isMoney && parseFloat(v) ? '$' + parseFloat(v).toLocaleString() : v;
+  var dispVal = isMoney && parseFloat(v) ? _currencySymbol() + parseFloat(v).toLocaleString() : v;
   if (valEl) valEl.textContent = dispVal;
   if (btnEl) btnEl.style.display = '';
 }
 
-function _pvRefreshYear(yr) {
-  wizard.data.yearMade = String(yr);
-  document.querySelectorAll('.pv-yr-btn').forEach(function(btn) {
-    var sel = btn.dataset.yr === String(yr);
-    btn.style.border = '1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)');
-    btn.style.background = sel ? 'rgba(232,64,28,0.15)' : 'var(--bg)';
-    btn.style.color = sel ? 'var(--accent)' : 'var(--text-mid)';
-  });
-}
+// _pvRefreshYear removed Session 120 — only called by .pv-yr-btn elements that were never rendered.
+
 
 function _pvToggleMasterBox(val) {
   wizard.data.hasMasterBox = val;

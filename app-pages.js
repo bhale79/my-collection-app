@@ -83,7 +83,7 @@ function _collectAllOwnedItems() {
     const extras = [];
     if (pd.condition) extras.push('Condition ' + pd.condition);
     if (pd.hasBox === 'Yes') extras.push('✓ Has box');
-    if (pd.userEstWorth) extras.push('$' + parseFloat(pd.userEstWorth).toLocaleString());
+    if (pd.userEstWorth) extras.push(_currencySymbol() + parseFloat(pd.userEstWorth).toLocaleString());
     const idx = master && state.masterData ? state.masterData.indexOf(master) : -1;
     out.push({
       type:    'items',
@@ -104,7 +104,7 @@ function _collectAllOwnedItems() {
     const extras = [];
     if (s.condition) extras.push('Condition ' + s.condition);
     if (s.hasSetBox === 'Yes') extras.push('✓ Has set box');
-    if (s.estValue) extras.push('$' + parseFloat(s.estValue).toLocaleString());
+    if (s.estValue) extras.push(_currencySymbol() + parseFloat(s.estValue).toLocaleString());
     out.push({
       type:    'sets',
       key:     'set|' + key,
@@ -132,7 +132,7 @@ function _collectAllOwnedItems() {
       const extras = [];
       if (it.year) extras.push(it.year);
       if (it.condition) extras.push('Cond ' + it.condition);
-      if (it.estValue) extras.push('$' + parseFloat(it.estValue).toLocaleString());
+      if (it.estValue) extras.push(_currencySymbol() + parseFloat(it.estValue).toLocaleString());
       const subtitleParts = [];
       if (it.catType) subtitleParts.push(it.catType);
       else if (it.paperType) subtitleParts.push(it.paperType);
@@ -157,7 +157,7 @@ function _collectAllOwnedItems() {
     const extras = [];
     if (is.year) extras.push(is.year);
     if (is.condition) extras.push('Cond ' + is.condition);
-    if (is.estValue) extras.push('$' + parseFloat(is.estValue).toLocaleString());
+    if (is.estValue) extras.push(_currencySymbol() + parseFloat(is.estValue).toLocaleString());
     out.push({
       type:    'is',
       key:     'is|' + key,
@@ -176,7 +176,7 @@ function _collectAllOwnedItems() {
     if (!s) return;
     const extras = [];
     if (s.condition) extras.push('Cond ' + s.condition);
-    if (s.estValue) extras.push('$' + parseFloat(s.estValue).toLocaleString());
+    if (s.estValue) extras.push(_currencySymbol() + parseFloat(s.estValue).toLocaleString());
     out.push({
       type:    'science',
       key:     'sci|' + key,
@@ -195,7 +195,7 @@ function _collectAllOwnedItems() {
     if (!s) return;
     const extras = [];
     if (s.condition) extras.push('Cond ' + s.condition);
-    if (s.estValue) extras.push('$' + parseFloat(s.estValue).toLocaleString());
+    if (s.estValue) extras.push(_currencySymbol() + parseFloat(s.estValue).toLocaleString());
     out.push({
       type:    'construction',
       key:     'con|' + key,
@@ -213,7 +213,7 @@ function _collectAllOwnedItems() {
 
 function _collectionRowHTML(it, emoji) {
   const extras = it.extras || '';
-  const date = it.date ? '<span style="color:var(--text-dim);font-size:0.72rem;white-space:nowrap">' + it.date + '</span>' : '';
+  const date = it.date ? '<span style="color:var(--text-dim);font-size:0.72rem;white-space:nowrap">' + _formatDate(it.date) + '</span>' : '';
   const onclick = it.openFn ? ('onclick="' + it.openFn.replace(/"/g, '&quot;') + '" style="cursor:pointer"') : '';
   return '<div ' + onclick + ' style="display:flex;align-items:center;gap:0.75rem;padding:0.7rem 0.9rem;border-bottom:1px solid var(--border);transition:background 0.12s" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
     + '<span style="font-size:1.1rem;flex-shrink:0">' + emoji + '</span>'
@@ -364,7 +364,7 @@ function switchEphTab(tabId, btn) {
   }
 
   container.innerHTML = items.sort((a,b) => (b.row||0)-(a.row||0)).map(item => {
-    const val = item.estValue ? '$' + parseFloat(item.estValue).toLocaleString() : '';
+    const val = item.estValue ? _currencySymbol() + parseFloat(item.estValue).toLocaleString() : '';
     const cond = item.condition ? item.condition + '/10' : '';
     const isCatalog2 = tabId === 'catalogs';
     const subtitle = [
@@ -406,8 +406,8 @@ function openEphemeraDetail(tabId, rowKey) {
     ['Year',              item.year || '—'],
     ['Has Envelope/Mailer', item.hasMailer || 'No'],
     ['Condition',         item.condition ? item.condition + '/10' : '—'],
-    ['Est. Value',        item.estValue ? '$' + parseFloat(item.estValue).toLocaleString() : '—'],
-    ['Date Acquired',     item.dateAcquired || '—'],
+    ['Est. Value',        item.estValue ? _currencySymbol() + parseFloat(item.estValue).toLocaleString() : '—'],
+    ['Date Acquired',     _formatDate(item.dateAcquired) || '—'],
     ['Notes',             item.notes || '—'],
   ] : isMockup ? [
     ['Title', item.title],
@@ -421,8 +421,8 @@ function openEphemeraDetail(tabId, rowKey) {
     ['Dimensions', item.dimensions || '—'],
     ['Provenance', item.provenance || '—'],
     ['Lionel Verified', item.lionelVerified || '—'],
-    ['Est. Value', item.estValue ? '$' + parseFloat(item.estValue).toLocaleString() : '—'],
-    ['Date Acquired', item.dateAcquired || '—'],
+    ['Est. Value', item.estValue ? _currencySymbol() + parseFloat(item.estValue).toLocaleString() : '—'],
+    ['Date Acquired', _formatDate(item.dateAcquired) || '—'],
     ['Notes', item.notes || '—'],
   ] : [
     ['Title', item.title],
@@ -431,8 +431,8 @@ function openEphemeraDetail(tabId, rowKey) {
     ['Manufacturer', item.manufacturer || 'Lionel'],
     ['Condition', item.condition ? item.condition + '/10' : '—'],
     ['Quantity', item.quantity || '1'],
-    ['Est. Value', item.estValue ? '$' + parseFloat(item.estValue).toLocaleString() : '—'],
-    ['Date Acquired', item.dateAcquired || '—'],
+    ['Est. Value', item.estValue ? _currencySymbol() + parseFloat(item.estValue).toLocaleString() : '—'],
+    ['Date Acquired', _formatDate(item.dateAcquired) || '—'],
     ['Notes', item.notes || '—'],
   ];
 
@@ -788,7 +788,7 @@ function buildWantPage() {
         <td>${_isSet ? '<span class="text-dim">—</span>' : (w.variation || '<span class="text-dim">—</span>')}</td>
         <td>${varCell}</td>
         <td><span style="color:${pColor};font-weight:500">${w.priority || 'Medium'}</span></td>
-        <td class="market-val">${w.expectedPrice ? '$' + parseFloat(w.expectedPrice).toLocaleString() : '<span class="text-dim">—</span>'}</td>
+        <td class="market-val">${w.expectedPrice ? _currencySymbol() + parseFloat(w.expectedPrice).toLocaleString() : '<span class="text-dim">—</span>'}</td>
         <td style="white-space:nowrap">
           ${!_wDInShare ? `<button onclick="moveWantToCollection('${w.itemNum}','${(w.variation||'').replace(/'/g,"\\'")}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);margin-right:0.25rem" title="Add to My Collection">+ Collection</button>
           <button onclick="wantFindOnEbay('${w.itemNum}','${(roadName||'').replace(/'/g,"\\'")}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);margin-right:0.25rem" title="Search eBay">eBay</button>
@@ -1174,7 +1174,7 @@ function buildSoldPage() {
   const countEl = document.getElementById('sold-stat-count');
   const totalEl = document.getElementById('sold-stat-total');
   if (countEl) countEl.textContent = soldEntries.length.toLocaleString();
-  if (totalEl) totalEl.textContent = totalRevenue > 0 ? '$' + Math.round(totalRevenue).toLocaleString() : '$0';
+  if (totalEl) totalEl.textContent = totalRevenue > 0 ? _currencySymbol() + Math.round(totalRevenue).toLocaleString() : '$0';
 
   // Result count
   const rcEl = document.getElementById('sold-result-count');
@@ -1205,7 +1205,7 @@ function buildSoldPage() {
             <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${sd.itemNum}</span>
             ${sd.variation ? `<span style="font-size:0.72rem;color:var(--text-dim);margin-left:0.4rem">${sd.variation}</span>` : ''}
             ${sd._roadName ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">${sd._roadName}</div>` : ''}
-            <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${[sd._type, sd.condition ? 'Cond: '+sd.condition : '', sd.dateSold].filter(Boolean).join(' · ')}</div>
+            <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${[sd._type, sd.condition ? 'Cond: '+sd.condition : '', _formatDate(sd.dateSold)].filter(Boolean).join(' · ')}</div>
           </div>
           <div style="text-align:right;flex-shrink:0">
             ${sd.salePrice ? `<div style="font-family:var(--font-mono);color:#2ecc71;font-size:1.1rem;font-weight:600">$${parseFloat(sd.salePrice).toLocaleString()}</div>` : '<div style="color:var(--text-dim);font-size:0.8rem">No price</div>'}
@@ -1223,8 +1223,8 @@ function buildSoldPage() {
         <td>${sd._roadName || '—'}</td>
         <td>${sd.variation || '—'}</td>
         <td>${sd.condition || '—'}</td>
-        <td class="market-val">${sd.salePrice ? '$' + parseFloat(sd.salePrice).toLocaleString() : '—'}</td>
-        <td class="text-dim">${sd.dateSold || '—'}</td>
+        <td class="market-val">${sd.salePrice ? _currencySymbol() + parseFloat(sd.salePrice).toLocaleString() : '—'}</td>
+        <td class="text-dim">${_formatDate(sd.dateSold) || '—'}</td>
       </tr>`;
     }).join('') : '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">💰</div><p>No sold items yet</p></div></td></tr>';
   }
@@ -1261,7 +1261,7 @@ function buildForSalePage() {
   const countEl = document.getElementById('forsale-stat-count');
   const totalEl = document.getElementById('forsale-stat-total');
   if (countEl) countEl.textContent = fsEntries.length.toLocaleString();
-  if (totalEl) totalEl.textContent = totalAsking > 0 ? '$' + Math.round(totalAsking).toLocaleString() : '$0';
+  if (totalEl) totalEl.textContent = totalAsking > 0 ? _currencySymbol() + Math.round(totalAsking).toLocaleString() : '$0';
 
   const isMobileFs = window.innerWidth <= 640;
   const fsCardsEl = document.getElementById('forsale-cards');
@@ -1287,7 +1287,7 @@ function buildForSalePage() {
               <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${fs.itemNum}</span>
               ${fs.variation ? `<span style="font-size:0.72rem;color:var(--text-dim);margin-left:0.4rem">${fs.variation}</span>` : ''}
               ${master.roadName ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">${master.roadName}</div>` : ''}
-              <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${[master.itemType, fs.condition ? 'Cond: '+fs.condition : '', fs.dateListed ? 'Listed: '+fs.dateListed : ''].filter(Boolean).join(' · ')}</div>
+              <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${[master.itemType, fs.condition ? 'Cond: '+fs.condition : '', fs.dateListed ? 'Listed: '+_formatDate(fs.dateListed) : ''].filter(Boolean).join(' · ')}</div>
               ${estWorth ? `<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.1rem">Est. Worth: $${parseFloat(estWorth).toLocaleString()}</div>` : ''}
               ${fs.notes ? `<div style="font-size:0.72rem;color:var(--text-mid);margin-top:0.15rem;font-style:italic">${fs.notes.length > 60 ? fs.notes.substring(0,57)+'…' : fs.notes}</div>` : ''}
             </div>
@@ -1319,9 +1319,9 @@ function buildForSalePage() {
         <td><span class="tag">${master.itemType || '—'}</span></td>
         <td>${master.roadName || '—'}</td>
         <td>${fs.condition || '—'}</td>
-        <td class="market-val" style="color:#e67e22">${fs.askingPrice ? '$' + parseFloat(fs.askingPrice).toLocaleString() : '—'}</td>
-        <td class="text-dim">${estWorth ? '$' + parseFloat(estWorth).toLocaleString() : '—'}</td>
-        <td class="text-dim">${fs.dateListed || '—'}</td>
+        <td class="market-val" style="color:#e67e22">${fs.askingPrice ? _currencySymbol() + parseFloat(fs.askingPrice).toLocaleString() : '—'}</td>
+        <td class="text-dim">${estWorth ? _currencySymbol() + parseFloat(estWorth).toLocaleString() : '—'}</td>
+        <td class="text-dim">${_formatDate(fs.dateListed) || '—'}</td>
         <td style="white-space:nowrap">
           ${!_fsDInShare ? `<button onclick="markForSaleAsSold('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}','${fs.askingPrice||''}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);margin-right:0.3rem">Mark as Sold</button>
           <button onclick="removeForSaleItem('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}',${fs.row})" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);margin-right:0.3rem">Back to Collection</button>
@@ -1976,7 +1976,7 @@ function buildUpgradePage() {
         <td>${cond !== null ? `<span class="condition-pip ${condClass}" style="margin-right:3px"></span>${cond}` : '<span class="text-dim">—</span>'}</td>
         <td style="color:#8b5cf6;font-weight:600">${u.targetCondition || '<span class="text-dim">—</span>'}</td>
         <td><span style="color:${pColor};font-weight:500">${u.priority||'Medium'}</span></td>
-        <td class="market-val">${u.maxPrice ? '$' + parseFloat(u.maxPrice).toLocaleString() : '<span class="text-dim">—</span>'}</td>
+        <td class="market-val">${u.maxPrice ? _currencySymbol() + parseFloat(u.maxPrice).toLocaleString() : '<span class="text-dim">—</span>'}</td>
         <td style="font-size:0.8rem;color:var(--text-dim);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(u.notes||'').replace(/"/g,'&quot;')}">${u.notes || '<span class="text-dim">—</span>'}</td>
         <td style="white-space:nowrap">
           ${hasPhoto ? `<button onclick="event.stopPropagation();_toggleUpgradePhoto('${photoId}','${(pd.photoItem||'').replace(/'/g,"\\'")}')" style="padding:0.25rem 0.4rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);margin-right:0.2rem" title="Toggle photo">📷</button>` : ''}

@@ -977,6 +977,40 @@ function onPageSearch(val, page) {
 function _prefGet(key, def) { const v = localStorage.getItem(key); return v === null ? def : v; }
 function _prefSet(key, val) { localStorage.setItem(key, val); }
 
+// ── Currency / Date formatting helpers (Session 120) ─────────────
+// Single source of truth for how prices and dates render across the app.
+// Reads lv_currency / lv_date_fmt prefs (set in Preferences). Every place
+// that displays a price or a date should route through these — never
+// hardcode '$' or call toLocaleDateString() directly on user-facing data.
+
+function _currencySymbol() { return _prefGet('lv_currency', '$'); }
+
+// Format a number as a price with the user's currency symbol. Returns
+// empty string for null / undefined / '' / NaN so callers can do
+// `price ? _formatPrice(price) : '—'` without extra null checks.
+function _formatPrice(val) {
+  if (val === null || val === undefined || val === '') return '';
+  var n = parseFloat(val);
+  if (isNaN(n)) return '';
+  return _currencySymbol() + n.toLocaleString();
+}
+
+// Format a date string (or Date) per the user's date format pref.
+// Accepts ISO strings ('2026-04-19'), Date objects, or empty.
+// Returns '' for blank input; original string for unparseable.
+function _formatDate(input) {
+  if (input === null || input === undefined || input === '') return '';
+  var d = (input instanceof Date) ? input : new Date(input);
+  if (isNaN(d.getTime())) return String(input);
+  var fmt = _prefGet('lv_date_fmt', 'YYYY-MM-DD');
+  var yyyy = d.getFullYear();
+  var mm = String(d.getMonth() + 1).padStart(2, '0');
+  var dd = String(d.getDate()).padStart(2, '0');
+  if (fmt === 'MM/DD/YYYY') return mm + '/' + dd + '/' + yyyy;
+  if (fmt === 'DD/MM/YYYY') return dd + '/' + mm + '/' + yyyy;
+  return yyyy + '-' + mm + '-' + dd;
+}
+
 // ── Theme ────────────────────────────────────────────────────────
 function applyTheme() {
   const theme = _prefGet('lv_theme', 'dark');

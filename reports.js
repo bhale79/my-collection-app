@@ -113,10 +113,10 @@ function buildReport() {
         case 'allOriginal': return { text: pd.allOriginal || '—' };
         case 'hasBox':      return { text: pd.hasBox || '—' };
         case 'boxCond':     return { text: pd.boxCond || '—' };
-        case 'estWorth':    return { text: pd.userEstWorth ? '$' + parseFloat(pd.userEstWorth).toLocaleString() : '—' };
+        case 'estWorth':    return { text: pd.userEstWorth ? _currencySymbol() + parseFloat(pd.userEstWorth).toLocaleString() : '—' };
         case 'pricePaid': {
           const paid = pd.priceComplete || pd.priceItem;
-          return { text: paid ? '$' + parseFloat(paid).toLocaleString() : '—' };
+          return { text: paid ? _currencySymbol() + parseFloat(paid).toLocaleString() : '—' };
         }
         case 'notes':       return { text: pd.notes || '' };
         default:            return { text: (pd[col.key] != null ? String(pd[col.key]) : '—') };
@@ -197,7 +197,7 @@ function buildReport() {
         <td><span class="tag">${i.itemType || '—'}</span></td>
         <td>${i.roadName || i.description || '—'}</td>
         <td>${i.varDesc || i.variation || '—'}</td>
-        <td class="market-val">${i.marketVal ? '$'+parseFloat(i.marketVal).toLocaleString() : '—'}</td>
+        <td class="market-val">${i.marketVal ? _currencySymbol()+parseFloat(i.marketVal).toLocaleString() : '—'}</td>
       </tr>`).join('') || '<tr><td colspan="5" class="ui-empty">All items owned! 🎉</td></tr>';
 
   } else if (type === 'collection') {
@@ -214,8 +214,8 @@ function buildReport() {
         <td>${pd.condition || '—'}</td>
         <td>${pd.hasBox || '—'}</td>
         <td>${pd.allOriginal || '—'}</td>
-        <td class="market-val">${pd.priceItem ? '$'+parseFloat(pd.priceItem).toLocaleString() : '—'}</td>
-        <td class="market-val">${pd.priceComplete ? '$'+parseFloat(pd.priceComplete).toLocaleString() : '—'}</td>
+        <td class="market-val">${pd.priceItem ? _currencySymbol()+parseFloat(pd.priceItem).toLocaleString() : '—'}</td>
+        <td class="market-val">${pd.priceComplete ? _currencySymbol()+parseFloat(pd.priceComplete).toLocaleString() : '—'}</td>
       </tr>`;
     }).join('') || '<tr><td colspan="10" class="ui-empty">No owned items yet</td></tr>';
 
@@ -238,7 +238,7 @@ function buildReport() {
         <td>${c.owned}</td>
         <td>${c.total}</td>
         <td>${c.total > 0 ? Math.round(c.owned/c.total*100) + '%' : '—'}</td>
-        <td class="market-val">${c.value > 0 ? '$'+Math.round(c.value).toLocaleString() : '—'}</td>
+        <td class="market-val">${c.value > 0 ? _currencySymbol()+Math.round(c.value).toLocaleString() : '—'}</td>
       </tr>`).join('');
 
   } else if (type === 'missing-box') {
@@ -254,7 +254,7 @@ function buildReport() {
         <td><span class="tag">${i.itemType || '—'}</span></td>
         <td>${i.roadName || '—'}</td>
         <td>${pd.condition || '—'}</td>
-        <td class="market-val">${i.marketVal ? '$'+parseFloat(i.marketVal).toLocaleString() : '—'}</td>
+        <td class="market-val">${i.marketVal ? _currencySymbol()+parseFloat(i.marketVal).toLocaleString() : '—'}</td>
       </tr>`;
     }).join('') || '<tr><td colspan="5" class="ui-empty">All owned items have boxes!</td></tr>';
   }

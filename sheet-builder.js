@@ -324,7 +324,7 @@ async function _writeDashboardContent(sheetId) {
   const upgradeCount = Object.keys(state.upgradeData || {}).length;
   const soldCount    = Object.keys(state.soldData    || {}).length;
 
-  const valueStr = totalValue > 0 ? '$' + Math.round(totalValue).toLocaleString() : '—';
+  const valueStr = totalValue > 0 ? _currencySymbol() + Math.round(totalValue).toLocaleString() : '—';
 
   const rows = [
     // Row 1: App title (A1), mascot formula (F1)

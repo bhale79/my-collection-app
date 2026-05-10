@@ -125,7 +125,7 @@ var CARD_CATALOG = [
       Object.values(state.isData||{}).forEach(function(is) { if (is.estValue) total += parseFloat(is.estValue)||0; });
       Object.values(state.scienceData||{}).forEach(function(s) { if (s.estValue) total += parseFloat(s.estValue)||0; });
       Object.values(state.constructionData||{}).forEach(function(s) { if (s.estValue) total += parseFloat(s.estValue)||0; });
-      return { value: total > 0 ? '$' + Math.round(total).toLocaleString() : '—', sub: 'estimated worth' };
+      return { value: total > 0 ? _currencySymbol() + Math.round(total).toLocaleString() : '—', sub: 'estimated worth' };
     }
   },
   {
@@ -312,7 +312,7 @@ var CARD_CATALOG = [
       var items = Object.values(state.forSaleData||{});
       var count = items.length;
       var total = items.reduce(function(s,i) { return s + (parseFloat(i.askingPrice)||0); }, 0);
-      return { value: count.toLocaleString() + (count===1?' item':' items'), sub: total > 0 ? '$' + Math.round(total).toLocaleString() + ' total asking' : 'no asking prices set' };
+      return { value: count.toLocaleString() + (count===1?' item':' items'), sub: total > 0 ? _currencySymbol() + Math.round(total).toLocaleString() + ' total asking' : 'no asking prices set' };
     }
   },
   {
@@ -587,12 +587,22 @@ function buildDashboard() {
   var _upgradeCount = Object.values(state.upgradeData).length;
   var _upgradeEl = document.getElementById('nav-upgrade-count');
   if (_upgradeEl) _upgradeEl.textContent = _upgradeCount > 0 ? _upgradeCount.toLocaleString() : '—';
-  // Quick Entry badge count
+  // Quick Entry badge count — respect lv_qe_badge_enabled pref so the
+  // badge stays hidden across reload + dashboard rebuild. (Session 120)
   var _qeCount = Object.values(state.personalData).filter(function(pd) { return pd.owned && pd.quickEntry; }).length;
+  var _qeBadgeEnabled = (typeof _prefGet === 'function')
+    ? _prefGet('lv_qe_badge_enabled', 'true') === 'true'
+    : true;
   var _qeBadge = document.getElementById('nav-qe-count');
-  if (_qeBadge) _qeBadge.textContent = _qeCount > 0 ? _qeCount : '0';
+  if (_qeBadge) {
+    _qeBadge.textContent = _qeCount > 0 ? _qeCount : '0';
+    _qeBadge.style.display = _qeBadgeEnabled ? '' : 'none';
+  }
   var _mnavQeBadge = document.getElementById('mnav-qe-badge');
-  if (_mnavQeBadge) { if (_qeCount > 0) { _mnavQeBadge.style.display='flex'; _mnavQeBadge.textContent=_qeCount; } else { _mnavQeBadge.style.display='none'; } }
+  if (_mnavQeBadge) {
+    if (_qeBadgeEnabled && _qeCount > 0) { _mnavQeBadge.style.display='flex'; _mnavQeBadge.textContent=_qeCount; }
+    else { _mnavQeBadge.style.display='none'; }
+  }
   if (document.getElementById('nav-sold')) document.getElementById('nav-sold').textContent = soldCount;
   var fsCount = Object.keys(state.forSaleData).length;
   if (document.getElementById('nav-forsale')) document.getElementById('nav-forsale').textContent = fsCount;
@@ -682,7 +692,7 @@ var PANEL_CATALOG = [
         .slice(0, 8)
         .map(function(pd) {
           if (pd._src === 'eph') {
-            var val = pd.estValue ? '$' + parseFloat(pd.estValue).toLocaleString() : '';
+            var val = pd.estValue ? _currencySymbol() + parseFloat(pd.estValue).toLocaleString() : '';
             return _panelRow(
               pd._ephEmoji, pd.title || '—', '', val,
               'goToMyCollection()', null
@@ -690,7 +700,7 @@ var PANEL_CATALOG = [
           }
           var master = state.masterData.find(function(m) { return normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum); });
           var name = master ? (master.roadName || master.itemType || pd.itemNum) : pd.itemNum;
-          var price = pd.priceItem ? '$' + parseFloat(pd.priceItem).toLocaleString() : '';
+          var price = pd.priceItem ? _currencySymbol() + parseFloat(pd.priceItem).toLocaleString() : '';
           var date = pd.datePurchased || '';
           var meta = [date, price].filter(Boolean).join(' · ');
           var idx = master ? state.masterData.indexOf(master) : -1;
@@ -716,7 +726,7 @@ var PANEL_CATALOG = [
         .map(function(w) {
           var master = findMaster(w.itemNum);
           var name = master ? (master.roadName || master.itemType || w.itemNum) : w.itemNum;
-          var price = w.expectedPrice ? '$' + parseFloat(w.expectedPrice).toLocaleString() : '';
+          var price = w.expectedPrice ? _currencySymbol() + parseFloat(w.expectedPrice).toLocaleString() : '';
           var pc = priColor[w.priority] || 'var(--text-dim)';
           var badge = '<span style="font-size:0.72rem;font-weight:600;color:' + pc + ';border:1px solid ' + pc + ';border-radius:3px;padding:0.1rem 0.3rem;flex-shrink:0">' + (w.priority || 'Med') + '</span>';
           var idx = master ? state.masterData.indexOf(master) : -1;
@@ -738,7 +748,7 @@ var PANEL_CATALOG = [
         .map(function(fs) {
           var master = findMaster(fs.itemNum) || {};
           var name = master.roadName || master.itemType || '';
-          var price = fs.askingPrice ? '$' + parseFloat(fs.askingPrice).toLocaleString() : 'No price';
+          var price = fs.askingPrice ? _currencySymbol() + parseFloat(fs.askingPrice).toLocaleString() : 'No price';
           var idx = master ? state.masterData.indexOf(master) : -1;
           var pd = state.personalData[fs.itemNum + '|' + (fs.variation||'')] || {};
           var hasPhoto = !!pd.photoItem;
@@ -763,7 +773,7 @@ var PANEL_CATALOG = [
         .map(function(pd) {
           var master = state.masterData.find(function(m) { return normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum); });
           var name = master ? (master.roadName || master.itemType || pd.itemNum) : pd.itemNum;
-          var price = '$' + pd._val.toLocaleString();
+          var price = _currencySymbol() + pd._val.toLocaleString();
           var idx = master ? state.masterData.indexOf(master) : -1;
           var hasPhoto = !!pd.photoItem;
           return _panelRow('💰', pd.itemNum + (pd.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + pd.variation + '</span>' : ''), name, price,

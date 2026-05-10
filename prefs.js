@@ -73,9 +73,6 @@ function buildPrefsPage() {
         <div class="pref-row-label"><strong>Track Storage Location</strong><span>Adds a location step in the wizard</span></div>
         ${toggle('location', 'lv_location_enabled', 'false')}
       </div>
-      <div class="pref-row">
-        <div class="pref-row-label"><strong>Track Year Made</strong><span>Adds a "Year Made" step</span></div>
-        ${toggle('yearMade', 'lv_year_made_enabled', 'true')}
       </div>
       <div class="pref-row">
         <div class="pref-row-label"><strong>Show Quick Entry badge ⚡</strong><span>Highlights items with incomplete details</span></div>
@@ -509,18 +506,43 @@ function _onPrefChange(id, val) {
     if (b1) b1.style.display = hide ? 'none' : '';
     if (b2) b2.style.display = hide ? 'none' : '';
   }
-  if (id === 'yearMade') {
-    // Stored — wizard reads lv_year_made_enabled at step render time (hooked below)
-  }
   if (id === 'disclaimer') {
     _applyDisclaimerPref();
   }
 }
 
 function _clearCacheOnly() {
-  localStorage.removeItem('lv_personal_cache');
-  localStorage.removeItem('lv_personal_cache_ts');
-  showToast('Cache cleared — will reload from sheet on next launch');
+  // Wipe ALL cache layers so the next launch is a true fresh load:
+  //   1. personal data cache
+  //   2. master / catalog / companion / set / IS-ref / era-total caches (all eras)
+  //   3. service-worker caches (fetched assets)
+  // Auth tokens, user prefs, vault id, sheet ids etc. are preserved so
+  // the user does NOT have to re-sign-in or re-onboard. (Session 120)
+  var CACHE_PREFIXES = [
+    'lv_personal_cache',
+    'lv_master_cache',
+    'lv_catalog_ref',
+    'lv_companion_cache',
+    'lv_set_cache',
+    'lv_is_ref_cache',
+    'lv_era_total'
+  ];
+  var removed = 0;
+  var keys = [];
+  for (var i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i));
+  keys.forEach(function(k) {
+    if (!k) return;
+    if (CACHE_PREFIXES.some(function(p) { return k.indexOf(p) === 0; })) {
+      localStorage.removeItem(k);
+      removed++;
+    }
+  });
+  if (typeof caches !== 'undefined' && caches.keys) {
+    caches.keys().then(function(names) {
+      names.forEach(function(n) { caches.delete(n); });
+    }).catch(function() {});
+  }
+  showToast('Cleared ' + removed + ' cache entries — will reload from sheet on next launch');
   buildPrefsPage();
 }
 

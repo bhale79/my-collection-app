@@ -579,7 +579,7 @@ function runDuplicateChecker() {
       var invId    = pd.inventoryId || '—';
       var condStr  = pd.condition ? pd.condition + '/10' : '—';
       var condColor = pd.condition ? (pd.condition >= 8 ? '#2ecc71' : pd.condition >= 5 ? '#d4a843' : '#e74c3c') : 'var(--text-dim)';
-      var price    = pd.priceItem ? '$' + parseFloat(pd.priceItem).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
+      var price    = pd.priceItem ? _currencySymbol() + parseFloat(pd.priceItem).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
       var isQE     = pd.quickEntry ? ' <span style="font-size:0.65rem;background:#27ae60;color:#fff;border-radius:3px;padding:1px 4px;margin-left:3px">⚡QE</span>' : '';
       var hasBox   = pd.hasBox === 'Yes' ? ' <span style="font-size:0.65rem;color:var(--text-dim)">📦</span>' : '';
 

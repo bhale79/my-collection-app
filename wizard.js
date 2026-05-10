@@ -2229,95 +2229,7 @@ function renderWizardStep() {
       </div>`;
     setTimeout(() => { const i = document.getElementById('wiz-input'); if(i) i.focus(); }, 50);
 
-  } else if (s.type === 'yearMade') {
-    var wData = wizard.data;
-    var _itmNum  = (wData.itemNum  || '').trim();
-    var _vartn = (wData.variation || '').trim();
-    var _match = state.masterData.find(function(m) {
-        return normalizeItemNum(m.itemNum) === normalizeItemNum(_itmNum) && (!_vartn || m.variation === _vartn);
-      }) || state.masterData.find(function(m) { return normalizeItemNum(m.itemNum) === normalizeItemNum(_itmNum); });
-    var yearRange = _match ? (_match.yearProd || '') : '';
-    var curr = wData.yearMade || '';
-
-    // Parse yearRange into individual year integers
-    var rangeYears = [];
-    if (yearRange) {
-      yearRange.split(/[,;]/).forEach(function(part) {
-        part = part.trim();
-        var rm = part.match(/^(\d{4})\s*[\-\u2013]\s*(\d{2,4})$/);
-        if (rm) {
-          var st = parseInt(rm[1]), en = parseInt(rm[2]);
-          if (en < 100) en = Math.floor(st/100)*100 + en;
-          for (var y = st; y <= Math.min(en, st+25); y++) rangeYears.push(y);
-        } else if (/^\d{4}$/.test(part)) {
-          rangeYears.push(parseInt(part));
-        }
-      });
-      rangeYears = rangeYears.filter(function(v,i,a){ return a.indexOf(v)===i; }).sort(function(a,b){return a-b;});
-    }
-    wizard._yearRangeYears = rangeYears;
-
-    var yearWrap = document.createElement('div');
-    yearWrap.style.cssText = 'padding-top:0.75rem';
-
-    if (rangeYears.length > 0) {
-      var hdr = document.createElement('div');
-      hdr.style.cssText = 'font-size:0.78rem;font-weight:600;color:#2980b9;margin-bottom:0.5rem';
-      hdr.textContent = 'Known production years — tap to select:';
-      yearWrap.appendChild(hdr);
-
-      var grid = document.createElement('div');
-      grid.id = 'year-btn-grid';
-      grid.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.85rem';
-      rangeYears.forEach(function(yr) {
-        var btn = document.createElement('button');
-        var isSel = String(yr) === String(curr);
-        btn.style.cssText = 'padding:0.45rem 0.8rem;border-radius:8px;font-family:var(--font-mono);font-size:0.9rem;font-weight:600;cursor:pointer;transition:all 0.15s;'
-          + (isSel ? 'border:2px solid var(--accent);background:rgba(232,64,28,0.15);color:var(--accent)'
-                   : 'border:1.5px solid var(--border);background:var(--surface2);color:var(--text-mid)');
-        btn.textContent = yr;
-        btn.onclick = (function(yrVal) { return function() {
-          wizard.data.yearMade = String(yrVal);
-          var inp2 = document.getElementById('wiz-year-input');
-          if (inp2) inp2.value = yrVal;
-          document.querySelectorAll('#year-btn-grid button').forEach(function(b) {
-            var s2 = b.textContent === String(yrVal);
-            b.style.border = s2 ? '2px solid var(--accent)' : '1.5px solid var(--border)';
-            b.style.background = s2 ? 'rgba(232,64,28,0.15)' : 'var(--surface2)';
-            b.style.color = s2 ? 'var(--accent)' : 'var(--text-mid)';
-          });
-          var w2 = document.getElementById('year-range-warning');
-          if (w2) w2.remove();
-          setTimeout(function() { wizardNext(); }, 120);
-        }; })(yr);
-        grid.appendChild(btn);
-      });
-      yearWrap.appendChild(grid);
-    }
-
-    var manualLbl = document.createElement('div');
-    manualLbl.style.cssText = 'font-size:0.75rem;color:var(--text-dim);margin-bottom:0.3rem';
-    manualLbl.textContent = rangeYears.length > 0 ? 'Or type a year manually:' : 'Enter the year:';
-    yearWrap.appendChild(manualLbl);
-
-    var yearInp = document.createElement('input');
-    yearInp.type = 'number'; yearInp.id = 'wiz-year-input';
-    yearInp.value = curr; yearInp.placeholder = 'e.g. 1952';
-    yearInp.style.cssText = 'width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem;color:var(--text);font-family:var(--font-mono);font-size:1.2rem;outline:none;letter-spacing:0.1em';
-    yearInp.oninput = function() { wizard.data.yearMade = yearInp.value; };
-    yearInp.onkeydown = function(e) { if (e.key === 'Enter') yearMadeNext(); };
-    yearWrap.appendChild(yearInp);
-
-    var skiphint = document.createElement('div');
-    skiphint.style.cssText = 'font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem';
-    skiphint.textContent = 'Optional — press Next to skip.';
-    yearWrap.appendChild(skiphint);
-
-    body.innerHTML = '';
-    body.appendChild(yearWrap);
-    setTimeout(function() { var i = document.getElementById('wiz-year-input'); if(i) i.focus(); }, 50);
-
-
+  // yearMade step renderer removed Session 120 (dead code; no flow injects this step)
   } else if (s.type === 'postwarYear') {
     var _pwCurr = wizard.data[s.id] || '';
     var _pwWrap = document.createElement('div');
@@ -4524,7 +4436,7 @@ function renderWizardStep() {
       var k = entry[0], v = entry[1];
       var label = _keyLabels[k] || k.replace(/^(cat_|eph_)/,'').replace(/([A-Z])/g,' $1').replace(/_/g,' ').toLowerCase().replace(/^./,function(c){return c.toUpperCase();});
       var isMoney = _moneyKeys.indexOf(k) >= 0;
-      var dispVal = isMoney && parseFloat(v) ? '$' + parseFloat(v).toLocaleString() : v;
+      var dispVal = isMoney && parseFloat(v) ? _currencySymbol() + parseFloat(v).toLocaleString() : v;
       confirmHtml += '<div style="display:flex;align-items:center;gap:0.4rem;padding:0.3rem 0.5rem;border-radius:6px;background:var(--surface2)">'
         + '<span style="color:var(--text-dim);min-width:120px;flex-shrink:0;font-size:0.78rem">' + label + '</span>'
         + '<span id="confirm-val-' + k + '" style="flex:1;word-break:break-word">' + dispVal + '</span>'
@@ -4615,30 +4527,7 @@ function wizardBack() {
   return true;
 }
 
-function wizardNextWithYearCheck() {
-  const yr = parseInt(wizard.data.yearMade);
-  const rangeYears = wizard._yearRangeYears || [];
-  if (yr && rangeYears.length > 0 && !rangeYears.includes(yr)) {
-    const min = rangeYears[0], max = rangeYears[rangeYears.length - 1];
-    // Show inline warning
-    const existing = document.getElementById('year-range-warning');
-    if (existing) existing.remove();
-    const warn = document.createElement('div');
-    warn.id = 'year-range-warning';
-    warn.style.cssText = 'margin-top:0.75rem;padding:0.75rem 1rem;border-radius:10px;background:rgba(201,146,42,0.12);border:1px solid rgba(201,146,42,0.5);font-size:0.82rem;color:var(--text)';
-    warn.innerHTML = '<div style="font-weight:600;color:var(--accent2);margin-bottom:0.4rem">⚠️ Just a heads up!</div>'
-      + '<div style="color:var(--text-mid);margin-bottom:0.65rem">The known production range for this item is <strong>' + min + '–' + max + '</strong>. '
-      + 'The year <strong>' + yr + '</strong> is outside that range — no problem if you know something we don\'t!</div>'
-      + '<div style="display:flex;gap:0.5rem">'
-      + '<button onclick="wizardNext()" style="flex:1;padding:0.5rem;border-radius:8px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Yes, continue</button>'
-      + '<button onclick="(function(){var w=document.getElementById(\'year-range-warning\');if(w)w.remove();wizard.data.yearMade=\'\';var i=document.getElementById(\'wiz-year-input\');if(i){i.value=\'\';i.focus();}})()" style="flex:1;padding:0.5rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">No, re-enter</button>'
-      + '</div>';
-    const body = document.getElementById('wizard-body');
-    if (body) body.appendChild(warn);
-    return;
-  }
-  wizardNext();
-}
+// wizardNextWithYearCheck removed Session 120 (was never called)
 
 function initCondDesc() {
   var _descs = {1:'Heavily worn, broken or missing parts',2:'Very rough, significant damage',3:'Worn, chipping or rust present',4:'Good — visible play wear',5:'Good plus — light wear throughout',6:'Very Good — minor wear only',7:'Very Good plus — light marks, sharp detail',8:'Excellent — near perfect, very light handling',9:'Excellent plus — virtually no flaws',10:'Mint — appears unrun, like new'};
@@ -4648,36 +4537,9 @@ function initCondDesc() {
   if (sl) sl.addEventListener('input', _upd);
 }
 
-function yearMadeReenter() {
-  var w = document.getElementById("year-range-warning"); if (w) w.remove();
-  wizard.data.yearMade = "";
-  var i = document.getElementById("wiz-year-input"); if (i) { i.value = ""; i.focus(); }
-}
+// yearMadeReenter removed Session 120
 
-function yearMadeNext() {
-  var yr = parseInt(wizard.data.yearMade);
-  var rangeYears = wizard._yearRangeYears || [];
-  var warn = document.getElementById('year-range-warning');
-  if (warn) warn.remove();
-  if (yr && rangeYears.length > 0 && rangeYears.indexOf(yr) === -1) {
-    var min = rangeYears[0], max = rangeYears[rangeYears.length - 1];
-    var warnDiv = document.createElement('div');
-    warnDiv.id = 'year-range-warning';
-    warnDiv.style.cssText = 'margin-top:0.75rem;padding:0.75rem 1rem;border-radius:10px;background:rgba(201,146,42,0.1);border:1px solid rgba(201,146,42,0.45);font-size:0.82rem';
-    warnDiv.innerHTML = '<div style="font-weight:600;color:var(--accent2);margin-bottom:0.35rem">Just a heads up!</div>'
-      + '<div style="color:var(--text-mid);line-height:1.5;margin-bottom:0.65rem">The known production years for this item are <strong>' + min + '\u2013' + max + '</strong>. '
-      + 'You entered <strong>' + yr + '</strong> \u2014 that\'s outside the suggested range. Want to continue anyway?</div>'
-      + '<div style="display:flex;gap:0.5rem">'
-      + '<button onclick="wizardAdvance()" style="flex:1;padding:0.5rem;border-radius:8px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Yes, continue</button>'
-      + '<button onclick="yearMadeReenter()" style="flex:1;padding:0.5rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">No, re-enter</button>'
-      + '</div>';
-    var bdy = document.getElementById('wizard-body');
-    if (bdy) bdy.appendChild(warnDiv);
-    return;
-  }
-  // Year is fine — advance directly without going through the yearMade check again
-  wizardAdvance();
-}
+// yearMadeNext removed Session 120
 
 // Advances wizard without triggering yearMade intercept — called by yearMadeNext
 async function wizardAdvance() {
@@ -4696,11 +4558,7 @@ async function wizardNext() {
   const steps = wizard.steps;
   const s = steps[wizard.step];
 
-  // yearMade step: hand off to yearMadeNext for range check; it calls wizardAdvance when done
-  if (s && s.type === 'yearMade') {
-    yearMadeNext();
-    return;
-  }
+  // yearMade intercept removed Session 120
 
   await _wizardNextCore();
 }

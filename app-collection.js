@@ -131,7 +131,7 @@ function showNonItemDetailPage(type, key) {
   var keyVar      = entry.variation || '';
   var fsEntry     = state.forSaleData && state.forSaleData[keyItemNum + '|' + keyVar];
   var isForSale   = !!fsEntry;
-  var fsPrice     = fsEntry ? '$' + parseFloat(fsEntry.askingPrice || 0).toLocaleString() : '';
+  var fsPrice     = fsEntry ? _currencySymbol() + parseFloat(fsEntry.askingPrice || 0).toLocaleString() : '';
 
   // Condition pip
   var cond      = entry.condition ? parseInt(entry.condition) : null;
@@ -849,7 +849,7 @@ function showItemDetailPage(idx) {
   const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
   const isForSale = !!state.forSaleData[`${it.itemNum}|${it.variation||''}`];
   const _fsEntry = state.forSaleData[`${it.itemNum}|${it.variation||''}`];
-  const _fsPrice = _fsEntry ? '$' + parseFloat(_fsEntry.askingPrice || 0).toLocaleString() : '';
+  const _fsPrice = _fsEntry ? _currencySymbol() + parseFloat(_fsEntry.askingPrice || 0).toLocaleString() : '';
   const groupMembers = pd && pd.groupId ? Object.values(state.personalData).filter(p => p.groupId === pd.groupId && p.itemNum !== it.itemNum) : [];
 
   // ── HEADER ──
@@ -915,12 +915,12 @@ function showItemDetailPage(idx) {
     { label: 'All Original', val: pd && pd.allOriginal && pd.allOriginal !== 'Unknown' ? pd.allOriginal : null },
     { label: 'Not Original', val: pd && pd.notOriginalDesc ? pd.notOriginalDesc : null },
     { label: 'Has Box', val: pd ? (pd.hasBox === 'Yes' ? '\u2705 Yes' + (pd.boxCond ? ` (${pd.boxCond}/10)` : '') : pd.hasBox === 'No' ? 'No' : null) : null },
-    { label: 'Price Paid (Item)', val: pd && pd.priceItem ? '$' + parseFloat(pd.priceItem).toLocaleString() : null },
-    { label: 'Price Paid (Box)', val: pd && pd.priceBox ? '$' + parseFloat(pd.priceBox).toLocaleString() : null },
-    { label: 'Price Paid (Complete)', val: pd && pd.priceComplete ? '$' + parseFloat(pd.priceComplete).toLocaleString() : null },
-    { label: 'Est. Worth', val: pd && pd.userEstWorth ? '$' + parseFloat(pd.userEstWorth).toLocaleString() : null },
-    { label: 'Market Value', val: it.marketVal && !isNaN(parseFloat(it.marketVal)) ? '$' + parseFloat(it.marketVal).toLocaleString() : null },
-    { label: 'Date Purchased', val: pd && pd.datePurchased ? pd.datePurchased : null },
+    { label: 'Price Paid (Item)', val: pd && pd.priceItem ? _currencySymbol() + parseFloat(pd.priceItem).toLocaleString() : null },
+    { label: 'Price Paid (Box)', val: pd && pd.priceBox ? _currencySymbol() + parseFloat(pd.priceBox).toLocaleString() : null },
+    { label: 'Price Paid (Complete)', val: pd && pd.priceComplete ? _currencySymbol() + parseFloat(pd.priceComplete).toLocaleString() : null },
+    { label: 'Est. Worth', val: pd && pd.userEstWorth ? _currencySymbol() + parseFloat(pd.userEstWorth).toLocaleString() : null },
+    { label: 'Market Value', val: it.marketVal && !isNaN(parseFloat(it.marketVal)) ? _currencySymbol() + parseFloat(it.marketVal).toLocaleString() : null },
+    { label: 'Date Purchased', val: pd && pd.datePurchased ? _formatDate(pd.datePurchased) : null },
     { label: 'Year Made', val: pd && pd.yearMade ? pd.yearMade : null },
     { label: 'Location', val: pd && pd.location ? pd.location : null },
     { label: 'Inventory ID', val: pd && pd.inventoryId ? pd.inventoryId : null },
@@ -1342,8 +1342,8 @@ function _checkGroupBeforeForSale(globalIdx, pdKey) {
     + '</tr>'
     + _itemRows.map(r => '<tr style="border-top:1px solid var(--border)">'
       + '<td style="padding:0.4rem 0.6rem;font-family:var(--font-mono);font-weight:600;color:var(--accent)">' + r.num + '</td>'
-      + (_hasPaid ? '<td style="text-align:right;padding:0.4rem 0.6rem;color:var(--text-mid)">' + (r.paid > 0 ? '$' + r.paid.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2}) : '—') + '</td>' : '')
-      + (_hasWorth ? '<td style="text-align:right;padding:0.4rem 0.6rem;color:var(--gold)">' + (r.worth > 0 ? '$' + r.worth.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2}) : '—') + '</td>' : '')
+      + (_hasPaid ? '<td style="text-align:right;padding:0.4rem 0.6rem;color:var(--text-mid)">' + (r.paid > 0 ? _currencySymbol() + r.paid.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2}) : '—') + '</td>' : '')
+      + (_hasWorth ? '<td style="text-align:right;padding:0.4rem 0.6rem;color:var(--gold)">' + (r.worth > 0 ? _currencySymbol() + r.worth.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2}) : '—') + '</td>' : '')
       + '</tr>').join('')
     + ((_hasPaid || _hasWorth) ? '<tr style="border-top:2px solid var(--border);background:var(--surface2)">'
       + '<td style="padding:0.4rem 0.6rem;font-weight:700;font-size:0.75rem;color:var(--text)">Total</td>'
@@ -1541,8 +1541,8 @@ function _checkSetBeforeAction(pdKey, proceed) {
       const _price     = _priceItem ? parseFloat(_priceItem[1].priceItem) : 0;
       const _worth     = _worthItem ? parseFloat(_worthItem[1].userEstWorth) : 0;
       const _count     = allGroup.length;
-      const _perPrice  = _price  ? '$' + (_price  / _count).toFixed(2) : null;
-      const _perWorth  = _worth  ? '$' + (_worth  / _count).toFixed(2) : null;
+      const _perPrice  = _price  ? _currencySymbol() + (_price  / _count).toFixed(2) : null;
+      const _perWorth  = _worth  ? _currencySymbol() + (_worth  / _count).toFixed(2) : null;
 
       // Show price-split modal
       const o2 = document.createElement('div');
@@ -2494,7 +2494,7 @@ function browseRowClick(event, idx) {
     ];
     if (item.control) rows.push(['Control', item.control]);
     if (item.gauge) rows.push(['Gauge', item.gauge]);
-    rows.push(['Market Value', item.marketVal ? '$' + parseFloat(item.marketVal).toLocaleString() : '—']);
+    rows.push(['Market Value', item.marketVal ? _currencySymbol() + parseFloat(item.marketVal).toLocaleString() : '—']);
     // Session 112: surface manufacturer-specific extra fields (Atlas category,
     // rail power, MSRP, etc.) driven by CATALOG_DISPLAY.extraFields config.
     // Row appears only when the field is populated on the master row.
@@ -2505,7 +2505,7 @@ function browseRowClick(event, idx) {
         var display = String(v);
         if (fld.format === 'money') {
           var num = parseFloat(v);
-          if (!isNaN(num)) display = '$' + num.toLocaleString();
+          if (!isNaN(num)) display = _currencySymbol() + num.toLocaleString();
         }
         rows.push([fld.label, display]);
       });
@@ -2594,7 +2594,7 @@ function showRefItemPopup(type, idx) {
     ];
     if (_mySet) {
       if (_mySet.condition) details.push(['Condition', _mySet.condition + '/10']);
-      if (_mySet.estWorth) details.push(['Est. Worth', '$' + parseFloat(_mySet.estWorth).toLocaleString()]);
+      if (_mySet.estWorth) details.push(['Est. Worth', _currencySymbol() + parseFloat(_mySet.estWorth).toLocaleString()]);
       if (_mySet.hasSetBox === 'Yes') details.push(['Set Box', '✓ Yes' + (_mySet.boxCondition ? ' (' + _mySet.boxCondition + '/10)' : '')]);
       if (_mySet.notes) details.push(['Notes', _mySet.notes]);
     }
@@ -2968,7 +2968,7 @@ function openItem(idx) {
   if (item.gauge) { document.getElementById('mi-gauge').textContent = item.gauge; document.getElementById('mi-gauge-wrap').style.display = ''; }
   else { document.getElementById('mi-gauge-wrap').style.display = 'none'; }
   document.getElementById('mi-var').textContent = item.variation || '(no variation)';
-  document.getElementById('mi-market').textContent = item.marketVal ? '$' + parseFloat(item.marketVal).toLocaleString() : '—';
+  document.getElementById('mi-market').textContent = item.marketVal ? _currencySymbol() + parseFloat(item.marketVal).toLocaleString() : '—';
   document.getElementById('mi-ref').innerHTML = item.refLink ? `<a href="${item.refLink}" target="_blank">View on COTT ↗</a>` : '—';
   document.getElementById('mi-desc').textContent = item.description || 'No description available.';
   const vd = document.getElementById('mi-varDesc-wrap');

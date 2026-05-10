@@ -318,7 +318,7 @@ async function _buildPDF(items, fields, message) {
     var itemType = master.itemType || pd.itemType || '';
     var condition = pd.condition || fs.condition || '';
     var hasBox  = pd.hasBox || '';
-    var price   = fs.askingPrice ? ('$' + parseFloat(fs.askingPrice).toLocaleString()) : (pd.userEstWorth ? 'Est. $' + parseFloat(pd.userEstWorth).toLocaleString() : (want.maxPrice ? 'Max $' + parseFloat(want.maxPrice).toLocaleString() : ''));
+    var price   = fs.askingPrice ? (_currencySymbol() + parseFloat(fs.askingPrice).toLocaleString()) : (pd.userEstWorth ? 'Est. $' + parseFloat(pd.userEstWorth).toLocaleString() : (want.maxPrice ? 'Max $' + parseFloat(want.maxPrice).toLocaleString() : ''));
     var notes   = pd.notes || fs.notes || want.notes || '';
 
     // Estimate card height
