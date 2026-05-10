@@ -118,7 +118,8 @@ var CARD_CATALOG = [
     id: 'value', label: 'Collection Value', color: '#c9922a',
     compute: function(state) {
       var total = 0;
-      Object.values(state.personalData).filter(function(pd){return pd.owned;}).forEach(function(pd) {
+      // Session 121: respect Preferences "What I Collect" in 'all' mode.
+      Object.values(state.personalData).filter(function(pd){return pd.owned;}).filter(_pdEraEnabled).forEach(function(pd) {
         if (pd.userEstWorth) total += parseFloat(pd.userEstWorth)||0;
       });
       Object.values(state.ephemeraData||{}).forEach(function(b) { Object.values(b).forEach(function(it) { if (it.estValue) total += parseFloat(it.estValue)||0; }); });
@@ -131,6 +132,13 @@ var CARD_CATALOG = [
   {
     id: 'catalog', label: 'Catalog Coverage', color: '#3498db',
     compute: function(state) {
+      // Session 121: catalog coverage is per-era by nature. In 'all' mode prompt
+      // the user to pick a specific era — the "X% of catalog" math can't roll
+      // up cleanly when each era's catalog is a different size.
+      if (typeof _currentEra !== 'undefined' && _currentEra === 'all') {
+        return { html: '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:4px">'
+          + 'Switch to a specific era to see catalog coverage.</div>' };
+      }
       var catNums = new Set(state.masterData.map(function(m) { return normalizeItemNum(m.itemNum); }));
       var ownedNums = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).map(function(pd){return normalizeItemNum(pd.itemNum);}));
       var unique = 0;
@@ -142,10 +150,11 @@ var CARD_CATALOG = [
   {
     id: 'activity', label: 'Activity', color: '#e67e22',
     compute: function(state) {
-      var wantCount = Object.keys(state.wantData||{}).length;
-      var fsCount = Object.keys(state.forSaleData||{}).length;
-      var soldCount = Object.keys(state.soldData||{}).length;
-      var qeCount = Object.values(state.personalData).filter(function(pd) { return pd.owned && pd.quickEntry; }).length;
+      // Session 121: respect Preferences "What I Collect" in 'all' mode.
+      var wantCount = Object.keys(_filterByEraPref(state.wantData||{})).length;
+      var fsCount = Object.keys(_filterByEraPref(state.forSaleData||{})).length;
+      var soldCount = Object.keys(_filterByEraPref(state.soldData||{})).length;
+      var qeCount = Object.values(state.personalData).filter(function(pd) { return pd.owned && pd.quickEntry; }).filter(_pdEraEnabled).length;
       var html = '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:4px">';
       html += '<div style="text-align:center;flex:1;min-width:36px"><div style="font-size:1.15rem;font-weight:700;color:var(--text)">' + wantCount + '</div><div style="font-size:0.62rem;color:var(--text-dim)">want</div></div>';
       html += '<div style="text-align:center;flex:1;min-width:36px"><div style="font-size:1.15rem;font-weight:700;color:var(--text)">' + fsCount + '</div><div style="font-size:0.62rem;color:var(--text-dim)">for sale</div></div>';
@@ -204,7 +213,8 @@ var CARD_CATALOG = [
     id: 'topRoads', label: 'Top Road Names', color: '#d4a843',
     compute: function(state) {
       var roads = {};
-      Object.values(state.personalData).filter(function(pd){return pd.owned;}).forEach(function(pd) {
+      // Session 121: respect Preferences "What I Collect" in 'all' mode.
+      Object.values(state.personalData).filter(function(pd){return pd.owned;}).filter(_pdEraEnabled).forEach(function(pd) {
         var master = state.masterData.find(function(m) { return normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum); });
         var road = master ? (master.roadName||'').trim() : '';
         if (road && road !== '—' && road !== 'N/A') roads[road] = (roads[road]||0) + 1;
@@ -223,7 +233,8 @@ var CARD_CATALOG = [
   {
     id: 'collectionByType', label: 'Collection by Type', color: '#e74c3c',
     compute: function(state) {
-      var owned = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).map(function(pd){return normalizeItemNum(pd.itemNum);}));
+      // Session 121: respect Preferences "What I Collect" in 'all' mode.
+      var owned = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).filter(_pdEraEnabled).map(function(pd){return normalizeItemNum(pd.itemNum);}));
       var types = { 'Engines':0, 'Tenders':0, 'Freight':0, 'Passenger':0, 'Cabooses':0, 'Accessories':0 };
       state.masterData.forEach(function(m) {
         if (!owned.has(normalizeItemNum(m.itemNum))) return;
@@ -249,7 +260,7 @@ var CARD_CATALOG = [
   {
     id: 'engines', label: 'Total Engines', color: '#e74c3c',
     compute: function(state) {
-      var owned = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).map(function(pd){return normalizeItemNum(pd.itemNum);}));
+      var owned = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).filter(_pdEraEnabled).map(function(pd){return normalizeItemNum(pd.itemNum);}));
       var count = state.masterData.filter(function(m) {
         return _bucketIs(m, _ENGINE_BUCKETS) && owned.has(normalizeItemNum(m.itemNum));
       }).length;
@@ -259,7 +270,7 @@ var CARD_CATALOG = [
   {
     id: 'cabooses', label: 'Total Cabooses', color: '#c0392b',
     compute: function(state) {
-      var owned = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).map(function(pd){return normalizeItemNum(pd.itemNum);}));
+      var owned = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).filter(_pdEraEnabled).map(function(pd){return normalizeItemNum(pd.itemNum);}));
       var count = state.masterData.filter(function(m) { return _bucketIs(m, _CABOOSE_BUCKETS) && owned.has(normalizeItemNum(m.itemNum)); }).length;
       return { value: count.toLocaleString(), sub: 'cabooses in collection' };
     }
@@ -267,7 +278,7 @@ var CARD_CATALOG = [
   {
     id: 'freight', label: 'Total Freight Cars', color: '#8e44ad',
     compute: function(state) {
-      var owned = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).map(function(pd){return normalizeItemNum(pd.itemNum);}));
+      var owned = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).filter(_pdEraEnabled).map(function(pd){return normalizeItemNum(pd.itemNum);}));
       var count = state.masterData.filter(function(m) {
         return _bucketIs(m, _FREIGHT_BUCKETS) && owned.has(normalizeItemNum(m.itemNum));
       }).length;
@@ -277,7 +288,7 @@ var CARD_CATALOG = [
   {
     id: 'passenger', label: 'Total Passenger Cars', color: '#2980b9',
     compute: function(state) {
-      var owned = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).map(function(pd){return normalizeItemNum(pd.itemNum);}));
+      var owned = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).filter(_pdEraEnabled).map(function(pd){return normalizeItemNum(pd.itemNum);}));
       var count = state.masterData.filter(function(m) { return _bucketIs(m, _PASSENGER_BUCKETS) && owned.has(normalizeItemNum(m.itemNum)); }).length;
       return { value: count.toLocaleString(), sub: 'passenger cars in collection' };
     }
@@ -285,7 +296,7 @@ var CARD_CATALOG = [
   {
     id: 'accessories', label: 'Total Accessories', color: '#16a085',
     compute: function(state) {
-      var owned = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).map(function(pd){return normalizeItemNum(pd.itemNum);}));
+      var owned = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).filter(_pdEraEnabled).map(function(pd){return normalizeItemNum(pd.itemNum);}));
       var count = state.masterData.filter(function(m) { return _bucketIs(m, _ACCESSORY_BUCKETS) && owned.has(normalizeItemNum(m.itemNum)); }).length;
       return { value: count.toLocaleString(), sub: 'accessories in collection' };
     }
@@ -293,7 +304,7 @@ var CARD_CATALOG = [
   {
     id: 'sets', label: 'Total Sets', color: '#d35400',
     compute: function(state) {
-      var owned = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).map(function(pd){return normalizeItemNum(pd.itemNum);}));
+      var owned = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).filter(_pdEraEnabled).map(function(pd){return normalizeItemNum(pd.itemNum);}));
       var count = state.masterData.filter(function(m) { return _bucketIs(m, _SET_BUCKETS) && owned.has(normalizeItemNum(m.itemNum)); }).length;
       return { value: count.toLocaleString(), sub: 'sets in collection' };
     }
@@ -301,15 +312,17 @@ var CARD_CATALOG = [
   {
     id: 'photos', label: 'Items with Photos', color: '#f39c12',
     compute: function(state) {
-      var count = Object.values(state.personalData).filter(function(pd) { return pd.owned && pd.photoItem; }).length;
-      var total = Object.values(state.personalData).filter(function(pd) { return pd.owned; }).length;
+      // Session 121: respect Preferences "What I Collect" in 'all' mode.
+      var count = Object.values(state.personalData).filter(function(pd) { return pd.owned && pd.photoItem; }).filter(_pdEraEnabled).length;
+      var total = Object.values(state.personalData).filter(function(pd) { return pd.owned; }).filter(_pdEraEnabled).length;
       return { value: count.toLocaleString(), sub: count === 0 ? 'add photos in item detail' : 'of ' + total + ' items have photos' };
     }
   },
   {
     id: 'forsale', label: 'For Sale', color: '#e67e22',
     compute: function(state) {
-      var items = Object.values(state.forSaleData||{});
+      // Session 121: respect Preferences "What I Collect" in 'all' mode.
+      var items = Object.values(_filterByEraPref(state.forSaleData||{}));
       var count = items.length;
       var total = items.reduce(function(s,i) { return s + (parseFloat(i.askingPrice)||0); }, 0);
       return { value: count.toLocaleString() + (count===1?' item':' items'), sub: total > 0 ? _currencySymbol() + Math.round(total).toLocaleString() + ' total asking' : 'no asking prices set' };
@@ -648,7 +661,10 @@ var PANEL_CATALOG = [
     icon: '🕐',
     navFn: "showPage('browse', document.querySelector('.nav-item[onclick*=\\'renderBrowse\\']')); resetFilters(); renderBrowse();",
     render: function(state) {
+      // Session 121: filter trains by Preferences "What I Collect" in 'all' mode.
+      // Ephemera/IS/Science/Construction are cross-era by nature, so they're not filtered.
       var trains = Object.values(state.personalData).filter(function(pd) { return pd.owned; })
+        .filter(_pdEraEnabled)
         .map(function(pd) { return Object.assign({}, pd, { _src: 'train' }); });
       var ephMap = { catalogs:'📒', paper:'📄', mockups:'🔩', other:'📦' };
       var ephs = [];
@@ -720,7 +736,8 @@ var PANEL_CATALOG = [
     render: function(state) {
       var priOrder = { High: 0, Medium: 1, Low: 2 };
       var priColor = { High: 'var(--accent)', Medium: 'var(--accent2,#8b5cf6)', Low: 'var(--text-dim)' };
-      return Object.values(state.wantData)
+      // Session 121: respect Preferences "What I Collect" in 'all' mode.
+      return Object.values(_filterByEraPref(state.wantData))
         .sort(function(a, b) { return ((priOrder[a.priority] || 1) - (priOrder[b.priority] || 1)); })
         .slice(0, 8)
         .map(function(w) {
@@ -742,7 +759,8 @@ var PANEL_CATALOG = [
     icon: '🏷️',
     navFn: "showPage('forsale', document.querySelector('.nav-item[onclick*=\\'buildForSalePage\\']')); buildForSalePage();",
     render: function(state) {
-      return Object.values(state.forSaleData)
+      // Session 121: respect Preferences "What I Collect" in 'all' mode.
+      return Object.values(_filterByEraPref(state.forSaleData))
         .sort(function(a, b) { return (parseFloat(b.askingPrice) || 0) - (parseFloat(a.askingPrice) || 0); })
         .slice(0, 8)
         .map(function(fs) {
@@ -765,8 +783,10 @@ var PANEL_CATALOG = [
     icon: '💰',
     navFn: "showPage('browse', document.querySelector('.nav-item[onclick*=\\'filterOwned\\']')); filterOwned();",
     render: function(state) {
+      // Session 121: respect Preferences "What I Collect" in 'all' mode.
       return Object.values(state.personalData)
         .filter(function(pd) { return pd.owned && (pd.priceComplete || pd.priceItem); })
+        .filter(_pdEraEnabled)
         .map(function(pd) { return Object.assign({}, pd, { _val: parseFloat(pd.priceComplete || pd.priceItem || 0) }); })
         .sort(function(a, b) { return b._val - a._val; })
         .slice(0, 8)
@@ -789,7 +809,8 @@ var PANEL_CATALOG = [
     navFn: "showPage('upgrade', document.querySelector('.nav-item[onclick*=\\'buildUpgradePage\\']')); buildUpgradePage();",
     render: function(state) {
       var thresh = parseInt(_prefGet('lv_upgrade_thresh', '7'));
-      var entries = Object.values(state.upgradeData || {});
+      // Session 121: respect Preferences "What I Collect" in 'all' mode.
+      var entries = Object.values(_filterByEraPref(state.upgradeData || {}));
       var priorityOrder = { High: 0, Medium: 1, Low: 2 };
       return entries
         .sort(function(a, b) {

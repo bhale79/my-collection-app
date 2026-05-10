@@ -447,6 +447,55 @@ function _isEraEnabled(era) {
   var enabled = _getEnabledEras();
   return enabled.indexOf(era) >= 0;
 }
+
+// ── Session 121 ─ Era-pref filter helpers for dashboard cards & panels ────────
+// In 'all' mode the dashboard would otherwise count items from eras the user
+// has disabled in Preferences > "What I Collect". These helpers are NO-OPs
+// outside 'all' mode (single-era data is already filtered by data load).
+// Use _filterByEraPref(arrayOrMap) at the start of any card/panel render.
+function _itemEraKey(item) {
+  // Returns canonical era key (pw / mpc / mod / atlas / etc.) for any item that
+  // has an itemNum. Tries item.era first (personalData carries it), falls back
+  // to an O(1) master-catalog lookup via findMaster().
+  if (!item) return null;
+  if (item.era) {
+    var e = (item.era || '').toLowerCase().trim();
+    if (typeof ERAS !== 'undefined' && ERAS[e]) return e;
+    if (e === 'postwar' || e === 'post-war' || e === 'manual') return 'pw';
+    if (e === 'modern' || e === 'mod') return 'mod';
+    if (e === 'mpc') return 'mpc';
+    if (typeof ERAS !== 'undefined') {
+      var keys = Object.keys(ERAS);
+      for (var i = 0; i < keys.length; i++) {
+        if (ERAS[keys[i]].label && ERAS[keys[i]].label.toLowerCase() === e) return keys[i];
+      }
+    }
+  }
+  if (item.itemNum && typeof findMaster === 'function') {
+    var m = findMaster(item.itemNum, item.variation);
+    if (m && m._era) return m._era;
+  }
+  return null;
+}
+function _pdEraEnabled(item) {
+  if (typeof _currentEra === 'undefined' || _currentEra !== 'all') return true;
+  var era = _itemEraKey(item);
+  if (!era) return true;            // unknown era → keep (don't accidentally hide untagged data)
+  return _isEraEnabled(era);
+}
+function _filterByEraPref(items) {
+  if (typeof _currentEra === 'undefined' || _currentEra !== 'all') return items;
+  if (Array.isArray(items)) return items.filter(_pdEraEnabled);
+  if (items && typeof items === 'object') {
+    var out = {};
+    Object.keys(items).forEach(function(k) {
+      if (_pdEraEnabled(items[k])) out[k] = items[k];
+    });
+    return out;
+  }
+  return items;
+}
+
 // Hide era-dropdown options the user has disabled. Always keep the CURRENT era
 // visible so the user can switch away even if it's disabled.
 function _applyEraVisibility() {
