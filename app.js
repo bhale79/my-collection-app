@@ -1000,12 +1000,25 @@ function _formatPrice(val) {
 // Returns '' for blank input; original string for unparseable.
 function _formatDate(input) {
   if (input === null || input === undefined || input === '') return '';
-  var d = (input instanceof Date) ? input : new Date(input);
-  if (isNaN(d.getTime())) return String(input);
   var fmt = _prefGet('lv_date_fmt', 'YYYY-MM-DD');
-  var yyyy = d.getFullYear();
-  var mm = String(d.getMonth() + 1).padStart(2, '0');
-  var dd = String(d.getDate()).padStart(2, '0');
+  var yyyy, mm, dd;
+  // Timezone-safe path: parse YYYY-MM-DD strings directly without Date()
+  // to avoid UTC-midnight → local-day-before drift in western timezones.
+  if (typeof input === 'string') {
+    var iso = input.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) { yyyy = iso[1]; mm = iso[2]; dd = iso[3]; }
+    else {
+      var us = input.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      if (us) { yyyy = us[3]; mm = us[1].padStart(2,'0'); dd = us[2].padStart(2,'0'); }
+    }
+  }
+  if (!yyyy) {
+    var d = (input instanceof Date) ? input : new Date(input);
+    if (isNaN(d.getTime())) return String(input);
+    yyyy = d.getFullYear();
+    mm = String(d.getMonth() + 1).padStart(2, '0');
+    dd = String(d.getDate()).padStart(2, '0');
+  }
   if (fmt === 'MM/DD/YYYY') return mm + '/' + dd + '/' + yyyy;
   if (fmt === 'DD/MM/YYYY') return dd + '/' + mm + '/' + yyyy;
   return yyyy + '-' + mm + '-' + dd;
