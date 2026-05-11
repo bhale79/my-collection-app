@@ -102,11 +102,26 @@ function _phScalesFor(mfr) {
   return out;
 }
 
-// Era -> list of section keys available on that era (Items / Sets / Catalogs / ...).
+// Section keys that exist as browseable tabs (boxes / companions are sheets but not tabs).
+var _PH_NON_TAB_SECTIONS = { boxes: 1, companions: 1 };
+
+// Era -> list of section keys available on that era as actual browse tabs.
 function _phSectionsFor(era) {
   if (typeof ERA_TABS !== 'object' || !ERA_TABS || !ERA_TABS[era]) return ['items'];
-  return Object.keys(ERA_TABS[era]);
+  return Object.keys(ERA_TABS[era]).filter(function(k) { return !_PH_NON_TAB_SECTIONS[k]; });
 }
+
+// ERA_TABS section key <-> browse-tab DOM id key.
+var _PH_SECTION_TO_TAB = {
+  items: 'items', sets: 'sets', catalogs: 'catalogs',
+  science: 'science', construction: 'construction', paper: 'paper',
+  other: 'other', serviceTools: 'service', instrSheets: 'is',
+};
+var _PH_TAB_TO_SECTION = {
+  items: 'items', sets: 'sets', catalogs: 'catalogs',
+  science: 'science', construction: 'construction', paper: 'paper',
+  other: 'other', service: 'serviceTools', is: 'instrSheets',
+};
 
 function _phLabelFor(level, id) {
   var WIC = (typeof window !== 'undefined' && window.WHAT_I_COLLECT) || {};
@@ -121,6 +136,27 @@ function _renderHierarchyChips() {
   var host = document.getElementById('hierarchy-chip-row');
   if (!host) return;
   var st = _phState();
+  // Step 2: sync chip state to live _currentEra + active browse tab so the
+  // chip row reflects whatever the old dropdown / tab strip is showing.
+  // 'all' meta-era stays as-is (no single mfr/scale/era maps to it).
+  try {
+    if (typeof _currentEra !== 'undefined' && _currentEra && _currentEra !== 'all'
+        && typeof ERAS !== 'undefined' && ERAS[_currentEra]) {
+      var WIC = (typeof window !== 'undefined' && window.WHAT_I_COLLECT) || {};
+      var ETS = WIC.ERA_TO_SCALE || {};
+      var liveMfr = (ERAS[_currentEra].manufacturer || '').toLowerCase();
+      var liveScale = ETS[_currentEra];
+      if (liveMfr) st.manufacturer = liveMfr;
+      if (liveScale) st.scale = liveScale;
+      // mixed-scale (null) keeps prior scale chip value
+      st.era = _currentEra;
+    }
+    if (typeof state !== 'undefined' && state && state._browseTab) {
+      var tabSec = _PH_TAB_TO_SECTION[state._browseTab] || state._browseTab;
+      st.section = tabSec;
+    }
+    _phSave(st);
+  } catch(e) {}
   var chipStyle = 'padding:0.32rem 0.65rem;border-radius:14px;border:1.5px solid var(--border);'
                 + 'background:var(--bg-card);color:var(--text);font-family:var(--font-body);'
                 + 'font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;'
@@ -138,7 +174,7 @@ function _renderHierarchyChips() {
          +  'onclick="_openLevelPicker(\'' + level + '\')">'
          +  lbl + ' ▾</button>';
   });
-  html += '<span style="' + noteStyle + '">Step 1 preview — not yet wired to filtering</span>';
+  html += '<span style="' + noteStyle + '">New browse hierarchy — still in beta alongside the old controls</span>';
   host.innerHTML = html;
 }
 
@@ -227,7 +263,29 @@ function _setHierarchyChoice(level, value) {
     if (se3.indexOf(st.section) < 0) st.section = se3[0] || 'items';
   }
   _phSave(st);
-  _renderHierarchyChips();
+
+  // Step 2: apply the chip choice to the live app.
+  // Order matters: era switch first (async — loads data), then section.
+  var needEra = (typeof _currentEra === 'undefined' || _currentEra !== st.era);
+  var doSection = function() {
+    if (!st.section) return;
+    var tab = _PH_SECTION_TO_TAB[st.section] || st.section;
+    if (typeof renderBrowseTab === 'function'
+        && typeof state !== 'undefined' && state._browseTab !== tab) {
+      try { renderBrowseTab(tab); } catch(e) {}
+    }
+  };
+  if (needEra && st.era && typeof switchEra === 'function') {
+    var p = switchEra(st.era);
+    if (p && typeof p.then === 'function') {
+      p.then(doSection, doSection);
+    } else {
+      doSection();
+    }
+  } else {
+    doSection();
+    _renderHierarchyChips();
+  }
 }
 
 // Expose for inline onclick handlers
@@ -783,6 +841,8 @@ function renderBrowseTab(tab) {
   else if (state._browseTab === 'other') renderMasterSubTab('other');
   else if (state._browseTab === 'service') renderMasterSubTab('service');
   else if (state._browseTab === 'mockups') renderMockupsOtherTab();
+  // Step 2: keep hierarchy chip row in sync when the old tab strip is used.
+  if (typeof _renderHierarchyChips === 'function') _renderHierarchyChips();
 }
 
 function renderSetsTab() {
