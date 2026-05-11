@@ -973,7 +973,7 @@ function _renderOwnedSubTab(tabKey) {
     var _kEsc = String(r._key).replace(/'/g, "\\'");
     var _trOpen = '<tr onclick="showNonItemDetailPage(&apos;' + r._type + '&apos;,&apos;' + _kEsc + '&apos;)" style="cursor:pointer">';
     return _trOpen
-      + '<td><span class="item-num">' + r.itemNum + '</span>' + ((typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML('Lionel PW - Items') : '') + '</td>'
+      + '<td><span class="item-num">' + r.itemNum + '</span>' + ((typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(r._tab || 'Lionel PW - Items') : '') + '</td>'
       + '<td><span class="tag">' + (typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(r) : r.itemType) + '</span></td>'
       + '<td>' + r.description + '</td>'
       + '<td>' + r.variation + '</td>'

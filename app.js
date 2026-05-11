@@ -290,7 +290,9 @@ function getBoxVariations(itemNum) {
     return state._boxVarCache.get(cacheKey);
   }
   var boxes = state.masterData.filter(function(m) {
-    return m._tab === 'Lionel PW - Boxes' && (m.itemNum === num || m.itemNum === itemNum || baseItemNum(m.itemNum) === baseItemNum(num));
+    // Session 132: read tab name from config so renames don't break this check
+    var _boxesTab = (typeof ERA_TABS !== 'undefined' && ERA_TABS.pw && ERA_TABS.pw.boxes) || 'Lionel PW - Boxes';
+    return m._tab === _boxesTab && (m.itemNum === num || m.itemNum === itemNum || baseItemNum(m.itemNum) === baseItemNum(num));
   });
   if (state._boxVarCache) state._boxVarCache.set(cacheKey, boxes);
   return boxes;

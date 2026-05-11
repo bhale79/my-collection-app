@@ -920,12 +920,21 @@ function moveWantToCollection(itemNum, variation) {
 
     if (master) {
       wizard.matchedItem = master;
-      // Infer era so the later save writes to the right era sheet
+      // Session 132: era inference now uses eraForTab() (era-badges.js), which
+      // auto-resolves via ERA_TABS — handles Atlas + all 5 MTH eras correctly.
+      // Old code only matched 'mpc'/'modern'/'pre-war'/'prewar' substrings and
+      // defaulted everything else to 'pw' (wrong for Atlas/MTH items).
       if (!wizard.data._era) {
-        var _tab = String(master._tab || '').toLowerCase();
-        if (_tab.includes('mpc') || _tab.includes('modern')) wizard.data._era = 'mod';
-        else if (_tab.includes('pre-war') || _tab.includes('prewar')) wizard.data._era = 'prewar';
-        else wizard.data._era = 'pw';
+        var _inferredEra = (typeof eraForTab === 'function') ? eraForTab(master._tab) : null;
+        if (_inferredEra) {
+          wizard.data._era = _inferredEra;
+        } else {
+          // Fallback to old substring matching if eraForTab unavailable
+          var _tab = String(master._tab || '').toLowerCase();
+          if (_tab.includes('mpc') || _tab.includes('modern')) wizard.data._era = 'mpc';
+          else if (_tab.includes('pre-war') || _tab.includes('prewar')) wizard.data._era = 'prewar';
+          else wizard.data._era = 'pw';
+        }
       }
     }
 
