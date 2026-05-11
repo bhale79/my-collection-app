@@ -124,7 +124,7 @@ function buildReport() {
             '<td style="padding:0.2rem 0;text-align:right;color:var(--accent2);font-family:var(--font-mono)">' + (t.worth > 0 ? '$' + Math.round(t.worth).toLocaleString() : '—') + '</td>' +
             '</tr>';
         }).join('');
-        return '<div class="ins-report-mfr-breakdown" style="margin-top:0.6rem;padding:0.55rem 0.75rem;background:var(--surface2);border-radius:6px;font-size:0.82rem">' +
+        return '<div class="ins-report-mfr-breakdown" style="margin-top:0.6rem;padding:0.55rem 0.75rem;background:var(--surface2);border-radius:6px;font-size:0.82rem;width:100%">' +
           '<div style="font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.35rem">Totals by Manufacturer</div>' +
           '<table style="width:100%;font-size:0.82rem"><thead>' +
           '<tr style="color:var(--text-dim);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.06em">' +
