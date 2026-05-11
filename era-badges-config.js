@@ -24,10 +24,16 @@ const ERA_BADGES = {
 
   // Short labels (2-4 chars) for the badge. Keyed by era id from ERAS.
   shortLabel: {
-    prewar: 'PRE',
-    pw:     'PW',
-    mpc:    'MPC',
-    atlas:  'ATL',
+    prewar:       'PRE',
+    pw:           'PW',
+    mpc:          'MPC',
+    atlas:        'ATL',
+    // Session 124: MTH eras
+    mth_o:        'MO',
+    mth_ho:       'MHO',
+    mth_s:        'MS',
+    mth_tinplate: 'MTP',
+    mth_g:        'MG',
   },
 
   // Tab-name → era-id mapping. Used when we only have the `_tab` string

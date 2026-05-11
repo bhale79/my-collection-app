@@ -49,14 +49,20 @@ const WHAT_I_COLLECT = {
 
   // What order the eras show up in the list. Must match keys in ERAS.
   // If a new era is added, add its key here to make it appear.
-  eraOrder:    ['prewar', 'pw', 'mpc', 'atlas'],
+  eraOrder:    ['prewar', 'pw', 'mpc', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g'],
 
   // Accent color per era — pulled into card styling.
   eraColors: {
-    prewar: '#8e7cc3',   // purple
-    pw:     'var(--accent)',
-    mpc:    '#27ae60',   // green
-    atlas:  '#2980b9',   // blue
+    prewar:       '#8e7cc3',   // purple
+    pw:           'var(--accent)',
+    mpc:          '#27ae60',   // green
+    atlas:        '#2980b9',   // blue
+    // Session 124: MTH era colors
+    mth_o:        '#e74c3c',   // red — flagship MTH O
+    mth_ho:       '#ec407a',   // pink — HO smaller scale
+    mth_s:        '#d4ac0d',   // mustard — S Gauge
+    mth_tinplate: '#607d8b',   // slate gray — metallic tinplate feel
+    mth_g:        '#00897b',   // teal — outdoor G scale
   },
 };
 
