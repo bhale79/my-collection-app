@@ -69,6 +69,36 @@ const WHAT_I_COLLECT = {
     mod_ho:       '#fdcb6e',   // gold
     mod_s:        '#95a5a6',   // silver — S Gauge metallic vibe
   },
+
+  // ── Session 136: Scale preference (Tier 3.14) ──
+  // Five canonical scales. Disabling a scale hides every era of every
+  // manufacturer in that scale, plus per-item filtering for mixed-scale
+  // eras (Pre-War) via the gauge field.
+  SCALES: {
+    o:        { id: 'o',        label: 'O Gauge',                  default: true  },
+    ho:       { id: 'ho',       label: 'HO Scale',                 default: false },
+    s:        { id: 's',        label: 'S Gauge',                  default: false },
+    g:        { id: 'g',        label: 'G / One Gauge',            default: false },
+    standard: { id: 'standard', label: 'Standard / OO / Tinplate', default: false },
+  },
+
+  // Era key -> scale id. null = mixed scale (Pre-War) -> falls back to
+  // per-item gauge field inspection in _scaleOfItem().
+  ERA_TO_SCALE: {
+    prewar:       null,
+    pw:           'o',
+    mpc:          'o',
+    atlas:        'o',
+    pw_ho:        'ho',
+    mpc_ho:       'ho',
+    mod_ho:       'ho',
+    mod_s:        's',
+    mth_o:        'o',
+    mth_ho:       'ho',
+    mth_s:        's',
+    mth_tinplate: 'standard',
+    mth_g:        'g',
+  },
 };
 
 // ──────────────────────────────────────────────────────────────

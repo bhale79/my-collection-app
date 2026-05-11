@@ -447,7 +447,70 @@ function _isEraEnabled(era) {
   // Admins always see every era regardless of preferences
   if (typeof _isAdmin === 'function' && _isAdmin()) return true;
   var enabled = _getEnabledEras();
-  return enabled.indexOf(era) >= 0;
+  if (enabled.indexOf(era) < 0) return false;
+  // Session 136: also gate by scale preference. An era is enabled only if its
+  // scale is also enabled. Mixed-scale eras (Pre-War) get null here and are
+  // always considered scale-enabled at the era level; per-item gauge filtering
+  // happens in _pdEraEnabled via _scaleOfItem().
+  var sc = _scaleOfEra(era);
+  if (sc === null) return true;
+  return _isScaleEnabled(sc);
+}
+
+// ── Session 136 ─ Scale preference helpers (Tier 3.14) ────────────────────────
+// Default: all scales enabled. User can disable scales they don't collect to
+// hide every era of every manufacturer in that scale. Admins always see all.
+function _getEnabledScales() {
+  try {
+    var saved = localStorage.getItem('lv_collect_scales');
+    if (saved) {
+      var arr = JSON.parse(saved);
+      if (Array.isArray(arr) && arr.length) return arr;
+    }
+  } catch(e) {}
+  // Default: every scale in WHAT_I_COLLECT.SCALES
+  var defaults = [];
+  if (typeof WHAT_I_COLLECT !== 'undefined' && WHAT_I_COLLECT.SCALES) {
+    Object.keys(WHAT_I_COLLECT.SCALES).forEach(function(k) { defaults.push(k); });
+  }
+  return defaults;
+}
+function _setEnabledScales(arr) {
+  try { localStorage.setItem('lv_collect_scales', JSON.stringify(arr || [])); } catch(e) {}
+}
+function _isScaleEnabled(scaleId) {
+  if (!scaleId) return true; // unknown scale -> don't hide
+  if (typeof _isAdmin === 'function' && _isAdmin()) return true;
+  return _getEnabledScales().indexOf(scaleId) >= 0;
+}
+// Era -> scale id. null for mixed-scale eras (Pre-War).
+function _scaleOfEra(era) {
+  if (!era || era === 'all') return null;
+  if (typeof WHAT_I_COLLECT !== 'undefined' && WHAT_I_COLLECT.ERA_TO_SCALE
+      && Object.prototype.hasOwnProperty.call(WHAT_I_COLLECT.ERA_TO_SCALE, era)) {
+    return WHAT_I_COLLECT.ERA_TO_SCALE[era];
+  }
+  return null;
+}
+// Item -> scale id. Uses _scaleOfEra first; falls back to gauge field for
+// mixed-scale eras like Pre-War. Returns null if unknown (caller treats null
+// as "don't hide" for safety).
+function _scaleOfItem(item) {
+  if (!item) return null;
+  var era = _itemEraKey ? _itemEraKey(item) : ((item._era || item.era || '').toLowerCase());
+  var eraScale = _scaleOfEra(era);
+  if (eraScale) return eraScale;
+  var g = String(item.gauge || '').toLowerCase().trim();
+  if (!g) return null;
+  if (g === 'standard gauge' || g === 'standard/o gauge' || g.indexOf('2-7/8') === 0) return 'standard';
+  if (g === 'oo scale' || g === 'oo') return 'standard';
+  if (g.indexOf('tinplate') >= 0) return 'standard';
+  if (g === 'ho scale' || g === 'ho') return 'ho';
+  if (g === 's gauge' || g === 's' || g === 's scale') return 's';
+  if (g === 'g scale' || g === 'g' || g === 'g/one gauge' || g === 'g / one gauge') return 'g';
+  // O variants: 'o gauge', 'o', 'o27', 'o72'
+  if (g.charAt(0) === 'o') return 'o';
+  return null;
 }
 
 // ── Session 121 ─ Era-pref filter helpers for dashboard cards & panels ────────
@@ -480,10 +543,25 @@ function _itemEraKey(item) {
   return null;
 }
 function _pdEraEnabled(item) {
-  if (typeof _currentEra === 'undefined' || _currentEra !== 'all') return true;
+  if (typeof _currentEra === 'undefined' || _currentEra !== 'all') {
+    // Single-era mode: data is already era-filtered. Still apply scale filter
+    // for mixed-scale eras (Pre-War) so disabling Standard/OO hides Pre-War
+    // Standard Gauge items even within the Pre-War era view.
+    if (typeof _scaleOfItem === 'function') {
+      var s1 = _scaleOfItem(item);
+      if (s1 && !_isScaleEnabled(s1)) return false;
+    }
+    return true;
+  }
   var era = _itemEraKey(item);
   if (!era) return true;            // unknown era → keep (don't accidentally hide untagged data)
-  return _isEraEnabled(era);
+  if (!_isEraEnabled(era)) return false;
+  // Session 136: also filter by item scale (handles Pre-War per-item gauge).
+  if (typeof _scaleOfItem === 'function') {
+    var s2 = _scaleOfItem(item);
+    if (s2 && !_isScaleEnabled(s2)) return false;
+  }
+  return true;
 }
 function _filterByEraPref(items) {
   if (typeof _currentEra === 'undefined' || _currentEra !== 'all') return items;
