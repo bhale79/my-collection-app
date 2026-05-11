@@ -96,7 +96,9 @@ function _phState() {
     var raw = localStorage.getItem('lv_browse_filter_state');
     if (raw) return JSON.parse(raw);
   } catch(e) {}
-  return { manufacturer: 'lionel', scale: 'o', era: 'pw', section: 'items' };
+  // Step 3b: default is Any/Any/Any/Items for first-time users.
+  // Existing users restore their last filter combo from localStorage above.
+  return { manufacturer: 'any', scale: 'any', era: 'any', section: 'items' };
 }
 function _phSave(st) {
   try { localStorage.setItem('lv_browse_filter_state', JSON.stringify(st)); } catch(e) {}
@@ -114,8 +116,11 @@ function _phErasFor(mfr, scale) {
     if (k === 'all') return;
     var e = ERAS[k];
     if (!e || !e.manufacturer) return;
-    if (e.manufacturer.toLowerCase() !== mfr) return;
+    // Step 3b: mfr='any' passes the manufacturer gate; specific mfr must match.
+    if (mfr !== 'any' && e.manufacturer.toLowerCase() !== mfr) return;
     var es = ETS[k];
+    // Step 3b: scale='any' passes the scale gate; otherwise must match.
+    if (scale === 'any') { out.push(k); return; }
     if (es === scale) { out.push(k); return; }
     if (es === null && (scale === 'o' || scale === 'standard')) out.push(k);
   });
@@ -124,9 +129,11 @@ function _phErasFor(mfr, scale) {
 
 // Manufacturer -> list of scale ids that have at least one era available.
 function _phScalesFor(mfr) {
-  var out = [];
+  // Step 3b: mfr='any' -> all scales across all manufacturers.
   var WIC = (typeof window !== 'undefined' && window.WHAT_I_COLLECT) || {};
   var SCs = WIC.SCALES || {};
+  if (mfr === 'any') return Object.keys(SCs);
+  var out = [];
   Object.keys(SCs).forEach(function(sid) {
     if (_phErasFor(mfr, sid).length > 0) out.push(sid);
   });
@@ -156,6 +163,12 @@ var _PH_TAB_TO_SECTION = {
 
 function _phLabelFor(level, id) {
   var WIC = (typeof window !== 'undefined' && window.WHAT_I_COLLECT) || {};
+  // Step 3b: 'any' is the explicit wildcard. Each level has its own label.
+  if (id === 'any') {
+    if (level === 'manufacturer') return 'Any Manufacturer';
+    if (level === 'scale')        return 'Any Scale';
+    if (level === 'era')          return 'Any Era';
+  }
   if (level === 'manufacturer') return (WIC.MANUFACTURERS && WIC.MANUFACTURERS[id] && WIC.MANUFACTURERS[id].label) || id;
   if (level === 'scale')        return (WIC.SCALES && WIC.SCALES[id] && WIC.SCALES[id].label) || id;
   if (level === 'era')          return (ERAS && ERAS[id] && ERAS[id].label) || id;
@@ -225,13 +238,17 @@ function _openLevelPicker(level) {
   var options = [];
   var WIC = (typeof window !== 'undefined' && window.WHAT_I_COLLECT) || {};
   if (level === 'manufacturer') {
+    // Step 3b: 'Any Manufacturer' first.
+    options.push({ id: 'any', label: 'Any Manufacturer' });
     var MFs = WIC.MANUFACTURERS || {};
     Object.keys(MFs).forEach(function(k) { options.push({ id: k, label: MFs[k].label }); });
   } else if (level === 'scale') {
+    options.push({ id: 'any', label: 'Any Scale' });
     _phScalesFor(st.manufacturer).forEach(function(sid) {
       options.push({ id: sid, label: _phLabelFor('scale', sid) });
     });
   } else if (level === 'era') {
+    options.push({ id: 'any', label: 'Any Era' });
     _phErasFor(st.manufacturer, st.scale).forEach(function(eid) {
       options.push({ id: eid, label: _phLabelFor('era', eid) });
     });
@@ -310,37 +327,39 @@ function _setHierarchyChoice(level, value) {
   }
   var st = _phState();
   st[level] = value;
-  if (level === 'manufacturer') {
-    var sc = _phScalesFor(value);
-    st.scale = sc[0] || 'o';
-    var er = _phErasFor(value, st.scale);
-    st.era = er[0] || '';
-    var se = _phSectionsFor(st.era);
-    st.section = se[0] || 'items';
-  } else if (level === 'scale') {
-    var er2 = _phErasFor(st.manufacturer, value);
-    st.era = er2[0] || '';
-    var se2 = _phSectionsFor(st.era);
-    st.section = se2[0] || 'items';
-  } else if (level === 'era') {
+  // Step 3b: cascade behavior
+  //   * Picking 'any' at any level: no cascade reset. Keep other levels.
+  //   * Picking specific value: only reset descendants if they're now invalid.
+  if (level === 'manufacturer' && value !== 'any') {
+    if (st.scale !== 'any' && _phScalesFor(value).indexOf(st.scale) < 0) st.scale = 'any';
+    if (st.era !== 'any' && _phErasFor(value, st.scale).indexOf(st.era) < 0) st.era = 'any';
+  } else if (level === 'scale' && value !== 'any') {
+    if (st.era !== 'any' && _phErasFor(st.manufacturer, value).indexOf(st.era) < 0) st.era = 'any';
+  } else if (level === 'era' && value !== 'any') {
     var se3 = _phSectionsFor(value);
     if (se3.indexOf(st.section) < 0) st.section = se3[0] || 'items';
   }
   _phSave(st);
 
-  // Step 2: apply the chip choice to the live app.
-  // Order matters: era switch first (async — loads data), then section.
-  var needEra = (typeof _currentEra === 'undefined' || _currentEra !== st.era);
+  // Step 3b: target era depends on whether ANY level is 'any'.
+  //   * any of mfr/scale/era is 'any' -> 'all' meta-era (cross-era load).
+  //   * all three specific -> single-era load.
+  var hasAny = (st.manufacturer === 'any') || (st.scale === 'any') || (st.era === 'any');
+  var targetEra = hasAny ? 'all' : st.era;
+  var needEra = (typeof _currentEra === 'undefined' || _currentEra !== targetEra);
   var doSection = function() {
     if (!st.section) return;
     var tab = _PH_SECTION_TO_TAB[st.section] || st.section;
     if (typeof renderBrowseTab === 'function'
         && typeof state !== 'undefined' && state._browseTab !== tab) {
       try { renderBrowseTab(tab); } catch(e) {}
+    } else if (typeof renderBrowse === 'function') {
+      // Same tab but chip state changed (e.g. mfr filter) — re-render.
+      renderBrowse();
     }
   };
-  if (needEra && st.era && typeof switchEra === 'function') {
-    var p = switchEra(st.era);
+  if (needEra && targetEra && typeof switchEra === 'function') {
+    var p = switchEra(targetEra);
     if (p && typeof p.then === 'function') {
       p.then(doSection, doSection);
     } else {
@@ -1778,7 +1797,14 @@ function renderBrowse() {
   // Session 119: bypass gate when a Type or Road filter is set — those narrow
   // results enough that rendering is bounded and the user clearly wants to
   // see results without typing a search.
-  const _hasFilter = !!(type || road);
+  // Step 3b: chip state tightens the gate — if user picked any specific
+  // mfr/scale/era, we have a manageable subset and should render rather
+  // than show the 'type to search' empty state.
+  var _stp3b = (typeof _phState === 'function') ? _phState() : null;
+  var _chipNarrow = !!(_stp3b && ((_stp3b.manufacturer && _stp3b.manufacturer !== 'any')
+                                 || (_stp3b.scale && _stp3b.scale !== 'any')
+                                 || (_stp3b.era && _stp3b.era !== 'any')));
+  const _hasFilter = !!(type || road) || _chipNarrow;
   if (!owned && typeof _currentEra !== 'undefined' && _currentEra === 'all'
       && (!search || !search.trim()) && !_hasFilter) {
     const _gtbody = document.getElementById('browse-tbody');
@@ -1898,6 +1924,40 @@ function renderBrowse() {
       var _bucketLabel = (typeof getTypeBucketLabel === 'function') ? getTypeBucketLabel(item) : item.itemType;
       if (_bucketLabel !== type) return false;
     }
+    // Step 3b: chip-state-aware filter (only relevant in 'all' meta-era mode).
+    if (_currentEra === 'all' && _stp3b) {
+      if (_stp3b.manufacturer && _stp3b.manufacturer !== 'any') {
+        var _itmMfr = '';
+        if (typeof _manufacturerOfItem === 'function') _itmMfr = (_manufacturerOfItem(item) || '').toLowerCase();
+        if (!_itmMfr && item._tab) {
+          var _tlc = String(item._tab).toLowerCase();
+          if (_tlc.indexOf('lionel') === 0)     _itmMfr = 'lionel';
+          else if (_tlc.indexOf('atlas') === 0) _itmMfr = 'atlas';
+          else if (_tlc.indexOf('mth') === 0)   _itmMfr = 'mth';
+        }
+        if (_itmMfr !== _stp3b.manufacturer) return false;
+      }
+      if (_stp3b.scale && _stp3b.scale !== 'any') {
+        var _itmScale = '';
+        if (typeof _scaleOfItem === 'function') _itmScale = (_scaleOfItem(item) || '').toLowerCase();
+        if (_itmScale && _itmScale !== _stp3b.scale) return false;
+      }
+      if (_stp3b.era && _stp3b.era !== 'any') {
+        var _itmEra = (typeof _itemEraKey === 'function') ? (_itemEraKey(item) || '') : '';
+        if (!_itmEra && item._tab) {
+          // Best-effort: match _tab against ERA_TABS entries to find era key.
+          var _ets = (typeof ERA_TABS !== 'undefined') ? ERA_TABS : {};
+          for (var _ek in _ets) {
+            var _tabs = _ets[_ek] || {};
+            for (var _sk in _tabs) {
+              if (_tabs[_sk] === item._tab) { _itmEra = _ek; break; }
+            }
+            if (_itmEra) break;
+          }
+        }
+        if (_itmEra !== _stp3b.era) return false;
+      }
+    }
     if (road && item.roadName !== road) return false;
     if (search) {
       const haystack = `${item.itemNum} ${item.roadName||''} ${item.description||''} ${item.itemType||''}`.toLowerCase();
@@ -1926,6 +1986,31 @@ function renderBrowse() {
       const numB = (leadB||'').replace(/[^0-9]/g,'');
       if (numA !== numB) return (parseInt(numA)||0) - (parseInt(numB)||0);
       return (leadA||'').localeCompare(leadB||'') || (a.itemNum||'').localeCompare(b.itemNum||'');
+    });
+  }
+  // Step 3b: when mfr=any in 'all' meta-era mode, group by Lionel -> MTH -> Atlas,
+  // then by item number within each manufacturer. Applies to non-owned views only;
+  // My Collection has its own group-aware sort above.
+  if (!state.filters.owned && _currentEra === 'all' && _stp3b && _stp3b.manufacturer === 'any') {
+    var _MFR_ORDER = { lionel: 1, mth: 2, atlas: 3 };
+    var _mfrOf = function(it) {
+      var m = (typeof _manufacturerOfItem === 'function') ? _manufacturerOfItem(it) : '';
+      if (!m && it && it._tab) {
+        var t = String(it._tab).toLowerCase();
+        if (t.indexOf('lionel') === 0) m = 'lionel';
+        else if (t.indexOf('atlas') === 0) m = 'atlas';
+        else if (t.indexOf('mth') === 0) m = 'mth';
+      }
+      return (m || '').toLowerCase();
+    };
+    state.filteredData.sort(function(a, b) {
+      var aOrd = _MFR_ORDER[_mfrOf(a)] || 99;
+      var bOrd = _MFR_ORDER[_mfrOf(b)] || 99;
+      if (aOrd !== bOrd) return aOrd - bOrd;
+      var aNum = parseInt((a.itemNum||'').replace(/[^0-9]/g,'')) || 0;
+      var bNum = parseInt((b.itemNum||'').replace(/[^0-9]/g,'')) || 0;
+      if (aNum !== bNum) return aNum - bNum;
+      return (a.itemNum||'').localeCompare(b.itemNum||'');
     });
   }
   const total = state.filteredData.length;

@@ -368,6 +368,18 @@ var SHEET_TABS = {};
 // Sessions 136-138. Falls back to 'all' if prefs unknown (truly brand
 // new user before they've gone through onboarding).
 function _smartDefaultEra() {
+  // Step 3b: chip state is the source of truth for initial era. If any of
+  // mfr/scale/era is 'any', we use the 'all' meta-era so the cross-era loader
+  // pulls everything. Specific era chip wins otherwise.
+  try {
+    var rawCh = localStorage.getItem('lv_browse_filter_state');
+    if (rawCh) {
+      var ch = JSON.parse(rawCh) || {};
+      var anyOn = (ch.manufacturer === 'any') || (ch.scale === 'any') || (ch.era === 'any');
+      if (anyOn) return 'all';
+      if (ch.era && typeof ERAS !== 'undefined' && ERAS[ch.era]) return ch.era;
+    }
+  } catch(e) {}
   try {
     var saved = localStorage.getItem('lv_era');
     if (saved) return saved;
