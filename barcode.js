@@ -14,6 +14,19 @@
 //  Requires: BarcodeDetector API (Chrome/Edge/Safari modern).
 // ══════════════════════════════════════════════════════════════
 
+// ── Session 139 (Tier 3.18) ── Era gating for the barcode scanner UI ──
+// Returns true if the given era key supports barcode lookup. UPCs weren't
+// standardized until ~1973-74, so all pre-1970 Lionel eras hide the button.
+// Modern Lionel HO/S, all MTH, Atlas, and future K-Line/Menards SHOW it.
+function eraSupportsBarcode(era) {
+  if (!era) return false;
+  var SHOW = ['mod','mpc','atlas',
+              'mth_o','mth_ho','mth_s','mth_tinplate','mth_g',
+              'mod_ho','mod_s'];
+  return SHOW.indexOf(String(era).toLowerCase()) >= 0;
+}
+window.eraSupportsBarcode = eraSupportsBarcode;
+
 (function() {
   const EXPLAINER_ACK_KEY = 'lv_barcode_explainer_ack';
 

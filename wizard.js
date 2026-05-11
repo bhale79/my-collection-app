@@ -1046,7 +1046,7 @@ function renderWizardStep() {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
           Don't know the number? Identify by photo
         </button>` : ''}
-        ${s.id === 'itemNum' && (wizard.data._era === 'mod' || wizard.data._era === 'mpc') ? `
+        ${s.id === 'itemNum' && (typeof eraSupportsBarcode === 'function' ? eraSupportsBarcode(wizard.data._era) : (wizard.data._era === 'mod' || wizard.data._era === 'mpc')) ? `
         <button onclick="_wizScanBarcode()" style="
           width:100%;margin-top:0.5rem;padding:0.65rem 1rem;
           border-radius:8px;border:1.5px dashed #2980b9;
