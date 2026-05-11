@@ -1,6 +1,6 @@
 // type-groups.js
 // Centralized type bucket configuration for The Rail Roster.
-// Single source of truth for the 22 tier-1 type buckets.
+// Single source of truth for the 23 tier-1 type buckets. (Trolley added Session 123.)
 // Built and verified in Session 118 (2026-05-04) — 100% coverage of 32,571 master items.
 //
 // USAGE:
@@ -15,7 +15,7 @@
 (function () {
   'use strict';
 
-  // ── 22 TIER-1 BUCKETS (alphabetical by short label, per design choice in Session 118) ──
+  // ── 23 TIER-1 BUCKETS (alphabetical by short label) — Trolley added Session 123 ──
   var TYPE_BUCKETS = [
     { id: 'Accessory',            label: 'Accessory'    },
     { id: 'Boxcar',               label: 'Boxcar'       },
@@ -38,7 +38,8 @@
     { id: 'Stock Car',            label: 'Stock'        },
     { id: 'Tank Car',             label: 'Tank'         },
     { id: 'Tender',               label: 'Tender'       },
-    { id: 'Track',                label: 'Track'        }
+    { id: 'Track',                label: 'Track'        },
+    { id: 'Trolley',              label: 'Trolley'      }
   ];
 
   // ── MANUAL OVERRIDES — item numbers where the description is too vague to bucket via rules ──
@@ -121,10 +122,13 @@
     if (it === 'Passenger Car') return 'Passenger Car';
     if (it === 'Caboose') return 'Caboose';
     if (it === 'Science Set') return 'Science Set';
-    if (it === 'Set' || it === 'Set Box' || it === 'Construction Set' || it === 'Test Set') return 'Set';
-    if (it === 'Track') return 'Track';
+    if (it === 'Set' || it === 'Set Box' || it === 'Construction Set' || it === 'Test Set' || it === 'Diesel Set') return 'Set';
+    if (it === 'Track' || it === 'Switches' || it === 'Crossing') return 'Track';
     if (it === 'Transformer' || it === 'Transformer/Power') return 'Transformer/Power';
     if (it === 'Service Station Tool' || it === 'Service Tool') return 'Service Station Tool';
+    // Session 123: Trolley as own bucket, Interurban + Subway Car as Passenger Cars
+    if (it === 'Trolley') return 'Trolley';
+    if (it === 'Interurban' || it === 'Subway Car') return 'Passenger Car';
     if (it === 'Accessory' || it === 'Billboard' || it === 'Electronics' || it === 'Parts/Supplies' || it === 'Dealer Layout') return 'Accessory';
     if (it === 'Box' || it === 'Box Reference' || it === 'Form' || it === 'Magazine' || it === 'Salesman Brochure' || it === 'Catalog' || it === 'Service Manual' || it === 'Newsletter' || it === 'Stock Certificate' || it === 'Inspection Tag' || it === 'Wartime Paper' || it === 'Memorabilia' || it === 'Lionel Other' || it === 'Nabisco Promotion' || it === 'Paper') return 'Paper / Box / Misc';
 
@@ -204,6 +208,7 @@
     'Passenger':  'freight',
     'Stock':      'freight',
     'Tank':       'freight',
+    'Trolley':    'freight',
   };
 
   function getBucketIcon(item) {
