@@ -59,9 +59,24 @@ function buildReport() {
 
     let totalWorth = 0;
     let totalPaid  = 0;
+    // Session 144 (Tier 4.21): also accumulate per-manufacturer totals for the
+    // breakdown block below the single-totals row. Only shown when 2+ mfrs.
+    const _mfrTotals = {};
     ownedItems.forEach(pd => {
-      totalWorth += parseFloat(pd.userEstWorth || 0);
-      totalPaid  += parseFloat(pd.priceComplete || pd.priceItem || 0);
+      const w = parseFloat(pd.userEstWorth || 0);
+      const p = parseFloat(pd.priceComplete || pd.priceItem || 0);
+      totalWorth += w;
+      totalPaid  += p;
+      let mfr = (pd.manufacturer || '').toString();
+      if (!mfr && typeof _manufacturerOfItem === 'function') {
+        mfr = _manufacturerOfItem(pd) || '';
+        if (mfr) mfr = mfr.charAt(0).toUpperCase() + mfr.slice(1);
+      }
+      if (!mfr) mfr = 'Lionel';
+      if (!_mfrTotals[mfr]) _mfrTotals[mfr] = { worth: 0, paid: 0, count: 0 };
+      _mfrTotals[mfr].worth += w;
+      _mfrTotals[mfr].paid  += p;
+      _mfrTotals[mfr].count++;
     });
 
     // Inject header above table
@@ -95,7 +110,31 @@ function buildReport() {
         ${totalPaid > 0 ? `<span>Total Paid: <strong>$${Math.round(totalPaid).toLocaleString()}</strong></span>` : ''}
         ${totalWorth > 0 ? `<span>Total Est. Worth: <strong>$${Math.round(totalWorth).toLocaleString()}</strong></span>` : ''}
         ${CFG.totalsNote ? `<span style="color:var(--text-dim);font-size:0.78rem">${CFG.totalsNote}</span>` : ''}
-      </div>`;
+      </div>
+      ${(function() {
+        // Session 144 (Tier 4.21): per-manufacturer breakdown when 2+ mfrs.
+        const _keys = Object.keys(_mfrTotals).sort();
+        if (_keys.length < 2) return '';
+        const _rows = _keys.map(function(m) {
+          const t = _mfrTotals[m];
+          return '<tr>' +
+            '<td style="padding:0.2rem 0.6rem 0.2rem 0">' + m + '</td>' +
+            '<td style="padding:0.2rem 0.6rem;text-align:right;color:var(--text-dim)">' + t.count.toLocaleString() + ' items</td>' +
+            '<td style="padding:0.2rem 0.6rem;text-align:right">' + (t.paid > 0 ? '$' + Math.round(t.paid).toLocaleString() : '—') + '</td>' +
+            '<td style="padding:0.2rem 0;text-align:right;color:var(--accent2);font-family:var(--font-mono)">' + (t.worth > 0 ? '$' + Math.round(t.worth).toLocaleString() : '—') + '</td>' +
+            '</tr>';
+        }).join('');
+        return '<div class="ins-report-mfr-breakdown" style="margin-top:0.6rem;padding:0.55rem 0.75rem;background:var(--surface2);border-radius:6px;font-size:0.82rem">' +
+          '<div style="font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.35rem">Totals by Manufacturer</div>' +
+          '<table style="width:100%;font-size:0.82rem"><thead>' +
+          '<tr style="color:var(--text-dim);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.06em">' +
+          '<th style="text-align:left;padding:0.1rem 0.6rem 0.25rem 0;font-weight:600">Maker</th>' +
+          '<th style="text-align:right;padding:0.1rem 0.6rem 0.25rem;font-weight:600">Items</th>' +
+          '<th style="text-align:right;padding:0.1rem 0.6rem 0.25rem;font-weight:600">Paid</th>' +
+          '<th style="text-align:right;padding:0.1rem 0 0.25rem;font-weight:600">Est. Worth</th>' +
+          '</tr></thead>' +
+          '<tbody>' + _rows + '</tbody></table></div>';
+      })()}`;
 
     // ── Build thead + tbody from CFG.columns ─────────────────
     thead.innerHTML = '<tr>' + (CFG.columns || []).map(c =>
@@ -222,6 +261,8 @@ function buildReport() {
   } else if (type === 'value') {
     thead.innerHTML = '<tr><th>Category</th><th>Owned</th><th>Total in Master</th><th>% Complete</th><th>Est. Collection Value</th></tr>';
     const cats = {};
+    // Session 144 (Tier 4.21): also build per-manufacturer summary
+    const _vMfr = {};
     state.masterData.forEach(i => {
       const t = i.itemType || 'Other';
       if (!cats[t]) cats[t] = { total: 0, owned: 0, value: 0 };
@@ -229,10 +270,31 @@ function buildReport() {
       const pd = state.personalData[`${i.itemNum}|${i.variation}`];
       if (pd?.owned) {
         cats[t].owned++;
-        cats[t].value += parseFloat(pd.priceComplete || pd.priceItem || 0);
+        const v = parseFloat(pd.priceComplete || pd.priceItem || 0);
+        cats[t].value += v;
+        let m = (pd.manufacturer || '').toString();
+        if (!m && typeof _manufacturerOfItem === 'function') {
+          m = _manufacturerOfItem(pd) || '';
+          if (m) m = m.charAt(0).toUpperCase() + m.slice(1);
+        }
+        if (!m) m = 'Lionel';
+        if (!_vMfr[m]) _vMfr[m] = { owned: 0, value: 0 };
+        _vMfr[m].owned++;
+        _vMfr[m].value += v;
       }
     });
-    tbody.innerHTML = Object.entries(cats).sort((a,b)=>b[1].owned-a[1].owned).map(([name, c]) => `
+    // Insert "Summary by Manufacturer" rows at the top when 2+ mfrs present
+    const _vMfrKeys = Object.keys(_vMfr).sort();
+    let _vSummary = '';
+    if (_vMfrKeys.length >= 2) {
+      _vSummary = '<tr style="background:var(--surface2);font-weight:600"><td colspan="5" style="padding:0.45rem 0.6rem;font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim)">Summary by Manufacturer</td></tr>';
+      _vSummary += _vMfrKeys.map(function(m) {
+        const t = _vMfr[m];
+        return '<tr style="background:var(--surface2)"><td style="padding-left:1rem"><strong>' + m + '</strong></td><td>' + t.owned.toLocaleString() + '</td><td>—</td><td>—</td><td class="market-val">' + (t.value > 0 ? _currencySymbol() + Math.round(t.value).toLocaleString() : '—') + '</td></tr>';
+      }).join('');
+      _vSummary += '<tr><td colspan="5" style="padding:0.4rem 0;font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);border-top:1px solid var(--border)">By Category</td></tr>';
+    }
+    tbody.innerHTML = _vSummary + Object.entries(cats).sort((a,b)=>b[1].owned-a[1].owned).map(([name, c]) => `
       <tr>
         <td>${name}</td>
         <td>${c.owned}</td>
