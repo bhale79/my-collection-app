@@ -313,12 +313,20 @@ async function vaultSubmitData() {
     for (const [key, pd] of Object.entries(state.personalData)) {
       if (!pd.condition) continue;  // skip items with no condition set
       const parts = key.split('|');
+      // Session 135: include manufacturer so the Vault backend can optionally
+      // segment market data by brand (Lionel vs Atlas vs MTH). Falls back to
+      // ERAS[pd.era].manufacturer for items where the column is blank (legacy
+      // data), and finally to 'Lionel' as a safe default.
+      var _mfr = pd.manufacturer
+        || (pd.era && typeof ERAS !== 'undefined' && ERAS[pd.era] && ERAS[pd.era].manufacturer)
+        || 'Lionel';
       items.push({
-        item_num:   parts[0] || '',
-        variation:  parts[1] || '',
-        condition:  pd.condition    || '',
-        est_worth:  parseFloat(pd.userEstWorth || pd.estWorth || pd.est_worth || 0),
-        sold_price: parseFloat(pd.soldPrice || pd.sold_price || 0),
+        item_num:     parts[0] || '',
+        variation:    parts[1] || '',
+        condition:    pd.condition    || '',
+        est_worth:    parseFloat(pd.userEstWorth || pd.estWorth || pd.est_worth || 0),
+        sold_price:   parseFloat(pd.soldPrice || pd.sold_price || 0),
+        manufacturer: _mfr,
       });
     }
   }
