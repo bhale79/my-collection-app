@@ -27,18 +27,29 @@ function _updateBrowseTabsForEra() {
 }
 
 // ── Era-aware master catalog table headers ──
-// Lionel eras use Road/Variation columns; Atlas uses Sub Type/Track-Power/MSRP.
+// Lionel eras use Road/Variation columns; Atlas uses Sub Type/Track-Power/MSRP;
+// MTH (Session 129) uses Road/Description/Category/Track-Power to surface the
+// Premier vs RailKing product-line distinction and rail configuration.
 function _atlasBrowseHeaders() {
   return '<th>Item #</th><th>Type</th><th>Sub Type</th><th>Description</th><th>Track/Power</th><th>MSRP</th><th>Year</th><th>Owned</th>';
 }
 function _lionelBrowseHeaders() {
   return '<th>Item #</th><th>Type</th><th>Road / Name</th><th>Descr.</th><th>Var.</th><th>Var. Descr.</th><th>Year</th><th>Owned</th>';
 }
+function _mthBrowseHeaders() {
+  return '<th>Item #</th><th>Type</th><th>Road / Name</th><th>Descr.</th><th>Category</th><th>Track/Power</th><th>Year</th><th>Owned</th>';
+}
 function _refreshBrowseHeaders() {
   var thead = document.querySelector('#page-browse .item-table thead tr');
   if (!thead) return;
-  var isAtlas = (typeof _currentEra !== 'undefined' && _currentEra === 'atlas');
-  thead.innerHTML = isAtlas ? _atlasBrowseHeaders() : _lionelBrowseHeaders();
+  var era = (typeof _currentEra !== 'undefined') ? _currentEra : '';
+  if (era === 'atlas') {
+    thead.innerHTML = _atlasBrowseHeaders();
+  } else if (era.indexOf('mth_') === 0) {
+    thead.innerHTML = _mthBrowseHeaders();
+  } else {
+    thead.innerHTML = _lionelBrowseHeaders();
+  }
 }
 
 // ── Cross-era search banner ──
@@ -422,8 +433,14 @@ function resetFilters() {
   // Restore table headers to default (era-aware)
   const thead = document.querySelector('#page-browse .item-table thead tr');
   if (thead) {
-    var _isAtlasEra = (typeof _currentEra !== 'undefined' && _currentEra === 'atlas');
-    thead.innerHTML = _isAtlasEra ? _atlasBrowseHeaders() : _lionelBrowseHeaders();
+    // Session 129: consolidated to use the same 3-way (Atlas / MTH / Lionel)
+    // logic as _refreshBrowseHeaders so MTH eras get the correct headers here too.
+    if (typeof _refreshBrowseHeaders === 'function') {
+      _refreshBrowseHeaders();
+    } else {
+      var _isAtlasEra = (typeof _currentEra !== 'undefined' && _currentEra === 'atlas');
+      thead.innerHTML = _isAtlasEra ? _atlasBrowseHeaders() : _lionelBrowseHeaders();
+    }
   }
   var _tbl = document.querySelector('#page-browse .item-table');
   if (_tbl) _tbl.classList.remove('collection-view');
@@ -1915,12 +1932,17 @@ function renderBrowse() {
         <td>${item.description || '<span class="text-dim">—</span>'}</td>
         <td>${item.trackPower || '<span class="text-dim">—</span>'}</td>
         <td class="text-dim">${item.msrp ? '$' + parseFloat(String(item.msrp).replace(/[^0-9.]/g,'')).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) : '—'}</td>
+        ` : (((_currentEra && _currentEra.indexOf('mth_') === 0) || (item && item._tab && item._tab.indexOf('MTH ') === 0)) ? `
+        <td>${item.roadName || '<span class="text-dim">—</span>'}</td>
+        <td>${item.description || '<span class="text-dim">—</span>'}</td>
+        <td>${item.category || '<span class="text-dim">—</span>'}</td>
+        <td>${item.trackPower || '<span class="text-dim">—</span>'}</td>
         ` : `
         <td>${item.roadName || '<span class="text-dim">—</span>'}</td>
         <td>${item.description || '<span class="text-dim">—</span>'}</td>
         <td>${item.variation || '<span class="text-dim">—</span>'}</td>
         <td>${vdCell}</td>
-        `}
+        `)}
         <td class="text-dim">${item.yearProd || '—'}</td>
         <td><span class="owned-badge ${badgeClass}">${badgeText}</span></td>
       </tr>`;
