@@ -361,6 +361,34 @@ function _rebuildMasterIndex() {
   }
   state.masterByItem = m;
   state._boxVarCache = new Map();        // bust box-variation cache on reindex
+  // Session 127: also build the per-era search index used by cross-scope
+  // search. Fire-and-forget IDB write — never blocks the UI.
+  if (typeof _writeSearchIndex === 'function') _writeSearchIndex();
+}
+
+// ── Session 127 ─ Per-era search index for cross-scope search ───────────────
+// Compact subset of fields written to IDB at lv_search_index_<era>, used by
+// _crossScopeSearch() in app.js. Skipped in 'all' meta-era mode — the per-era
+// indexes are built when each individual era is loaded.
+function _writeSearchIndex() {
+  if (typeof _currentEra === 'undefined' || _currentEra === 'all') return;
+  if (!state.masterData || !state.masterData.length) return;
+  const era = _currentEra;
+  const rows = state.masterData;
+  const compact = new Array(rows.length);
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    compact[i] = {
+      n: r.itemNum     || '',
+      r: r.roadName    || '',
+      d: r.description || '',
+      t: r.itemType    || '',
+      v: r.variation   || '',
+      e: era,
+    };
+  }
+  // Fire-and-forget — IDB writes shouldn't block UI flow.
+  idbSet('lv_search_index_' + era, compact);
 }
 
 // Find first master row matching itemNum (+ optional variation). O(1) lookup.

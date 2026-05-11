@@ -579,6 +579,26 @@ async function switchEra(era) {
       if (_sInput) _sInput.value = _ps;
       if (typeof showPage === 'function') showPage('browse');
     }
+    // Session 127: cross-scope search click-through — open the requested item's
+    // detail page after the new era's data finishes loading.
+    if (state._pendingOpen) {
+      var _po = state._pendingOpen;
+      state._pendingOpen = null;
+      var _idx = (state.masterData || []).findIndex(function(m) {
+        if (!m) return false;
+        if (typeof normalizeItemNum === 'function') {
+          if (normalizeItemNum(m.itemNum) !== normalizeItemNum(_po.itemNum)) return false;
+        } else if ((m.itemNum || '') !== _po.itemNum) {
+          return false;
+        }
+        if (_po.variation === '' || _po.variation == null) return true;
+        return (m.variation || '') === _po.variation;
+      });
+      if (_idx >= 0 && typeof showItemDetailPage === 'function') {
+        if (typeof showPage === 'function') showPage('browse');
+        showItemDetailPage(_idx);
+      }
+    }
     if (typeof renderBrowse === 'function') renderBrowse();
     if (typeof buildDashboard === 'function') buildDashboard();
     showToast(ERAS[era].label + ' era loaded — ' + (state.masterData||[]).length + ' items');
@@ -677,6 +697,26 @@ async function loadAllErasMode() {
       var _sInput = document.getElementById('browse-search');
       if (_sInput) _sInput.value = _ps;
       if (typeof showPage === 'function') showPage('browse');
+    }
+    // Session 127: cross-scope search click-through — open the requested item's
+    // detail page after the new era's data finishes loading.
+    if (state._pendingOpen) {
+      var _po = state._pendingOpen;
+      state._pendingOpen = null;
+      var _idx = (state.masterData || []).findIndex(function(m) {
+        if (!m) return false;
+        if (typeof normalizeItemNum === 'function') {
+          if (normalizeItemNum(m.itemNum) !== normalizeItemNum(_po.itemNum)) return false;
+        } else if ((m.itemNum || '') !== _po.itemNum) {
+          return false;
+        }
+        if (_po.variation === '' || _po.variation == null) return true;
+        return (m.variation || '') === _po.variation;
+      });
+      if (_idx >= 0 && typeof showItemDetailPage === 'function') {
+        if (typeof showPage === 'function') showPage('browse');
+        showItemDetailPage(_idx);
+      }
     }
     if (typeof renderBrowse === 'function') renderBrowse();
     if (typeof buildDashboard === 'function') buildDashboard();
@@ -814,6 +854,61 @@ async function loadAllErasMode() {
 function _searchInOtherEra(era, searchTerm) {
   if (!ERAS[era] || era === _currentEra) return;
   state._pendingSearch = searchTerm || '';
+  switchEra(era);
+}
+
+// ── Session 127 ─ Cross-scope search (across all eras' indexes) ─────────────
+// Reads pre-built per-era search indexes from IDB in parallel and filters by
+// query. Falls back to the era's full master cache if its index hasn't been
+// built yet (first-time-in-all-mode-without-visiting-individual-eras case).
+// Skips the current era — those results are already shown in the browse table.
+async function _crossScopeSearch(query) {
+  if (!query || !String(query).trim()) return [];
+  const q = String(query).toLowerCase().trim();
+  const eras = (typeof REAL_ERA_IDS !== 'undefined' && Array.isArray(REAL_ERA_IDS))
+    ? REAL_ERA_IDS
+    : ['pw','mpc','prewar','atlas','mth_o','mth_ho','mth_s','mth_tinplate','mth_g'];
+  const curEra = (typeof _currentEra !== 'undefined') ? _currentEra : '';
+  const buckets = await Promise.all(eras.map(async function(era) {
+    if (era === curEra) return { era: era, rows: [] };
+    let idx = await idbGet('lv_search_index_' + era);
+    if (idx && Array.isArray(idx) && idx.length) return { era: era, rows: idx };
+    const master = await idbGet('lv_master_cache_' + era);
+    if (master && Array.isArray(master)) {
+      const rows = master.map(function(r) {
+        return {
+          n: r.itemNum || '', r: r.roadName || '', d: r.description || '',
+          t: r.itemType || '', v: r.variation || '', e: era,
+        };
+      });
+      return { era: era, rows: rows };
+    }
+    return { era: era, rows: [] };
+  }));
+  const results = [];
+  buckets.forEach(function(entry) {
+    if (!entry.rows.length) return;
+    entry.rows.forEach(function(row) {
+      if (
+        (row.n && row.n.toLowerCase().indexOf(q) >= 0) ||
+        (row.r && row.r.toLowerCase().indexOf(q) >= 0) ||
+        (row.d && row.d.toLowerCase().indexOf(q) >= 0) ||
+        (row.t && row.t.toLowerCase().indexOf(q) >= 0) ||
+        (row.v && row.v.toLowerCase().indexOf(q) >= 0)
+      ) {
+        results.push(row);
+      }
+    });
+  });
+  return results;
+}
+
+// Open a cross-scope search result: switch to that era, then show item detail
+// once the era's data has loaded. Uses the same _pendingOpen handler that the
+// switchEra + loadAllErasMode post-load blocks know to consume.
+function _openInOtherEra(itemNum, era, variation) {
+  if (typeof ERAS === 'undefined' || !ERAS[era] || era === _currentEra) return;
+  state._pendingOpen = { itemNum: itemNum, variation: variation || '', era: era };
   switchEra(era);
 }
 

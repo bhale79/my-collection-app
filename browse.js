@@ -96,6 +96,63 @@ function _renderCrossEraSearchBanner(searchTerm) {
   }
 }
 
+// ── Session 127 ─ Cross-scope search trigger + result renderer ──────────────
+// Called from the banner button when an in-scope search returns 0 results and
+// the user wants to broaden the search to every other era they have access to.
+async function _triggerCrossScopeSearch() {
+  if (typeof _crossScopeSearch !== 'function') return;
+  var area = document.getElementById('cross-scope-search-area');
+  if (area) {
+    area.innerHTML = '<div style="padding:2rem 1rem;text-align:center;color:var(--text-dim)">'
+      + '<div style="font-size:1.5rem;margin-bottom:0.5rem">🔍</div>'
+      + '<p>Searching across all your eras\u2026</p></div>';
+  }
+  var query = state.filters.search || '';
+  var results = await _crossScopeSearch(query);
+  if (!area) area = document.getElementById('cross-scope-search-area');
+  if (!area) return;
+  if (!results || results.length === 0) {
+    area.innerHTML = '<div style="padding:2rem 1rem;text-align:center;color:var(--text-dim)">'
+      + '<div style="font-size:2rem;margin-bottom:0.5rem">\ud83e\udd14</div>'
+      + '<p style="font-weight:600">No matches anywhere</p>'
+      + '<p style="font-size:0.85rem;margin-top:0.4rem">Not in any of your other eras either.</p>'
+      + '</div>';
+    return;
+  }
+  function _esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function _jsArg(s) {
+    return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  }
+  var colors = (window.WHAT_I_COLLECT && window.WHAT_I_COLLECT.eraColors) || {};
+  var html = '<div style="padding:0.75rem 0.5rem">'
+    + '<p style="font-weight:600;margin:0 0 0.6rem;text-align:center">Found ' + results.length + ' result' + (results.length===1?'':'s') + ' in your other eras</p>'
+    + '<div style="display:flex;flex-direction:column;gap:0.4rem;text-align:left;max-width:760px;margin:0 auto">';
+  results.forEach(function(r) {
+    var era = (typeof ERAS !== 'undefined' && ERAS[r.e]) || {};
+    var eraLabel = era.label || r.e;
+    var accent = colors[r.e] || 'var(--accent)';
+    var nEsc = _esc(r.n);
+    var rEsc = _esc(r.r);
+    var dEsc = _esc(r.d);
+    var vEsc = _esc(r.v);
+    var dShort = dEsc.length > 100 ? (dEsc.substring(0,100) + '\u2026') : dEsc;
+    html += '<div onclick="_openInOtherEra(\'' + _jsArg(r.n) + '\', \'' + r.e + '\', \'' + _jsArg(r.v) + '\')" '
+      + 'style="display:flex;align-items:center;gap:0.5rem;padding:0.55rem 0.65rem;border-radius:7px;border:1px solid var(--border);background:var(--surface);cursor:pointer">'
+      + '<span style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:0.62rem;font-weight:700;letter-spacing:0.05em;color:#fff;background:' + accent + ';white-space:nowrap;flex-shrink:0">' + _esc(eraLabel) + '</span>'
+      + '<span style="font-weight:600;font-size:0.9rem;flex-shrink:0">' + nEsc + (vEsc ? ' <span style="color:var(--text-dim);font-weight:400;font-size:0.78rem">' + vEsc + '</span>' : '') + '</span>'
+      + (rEsc ? '<span style="color:var(--text-mid);font-size:0.82rem;white-space:nowrap">' + rEsc + '</span>' : '')
+      + (dShort ? '<span style="color:var(--text-dim);font-size:0.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0">' + dShort + '</span>' : '')
+      + '</div>';
+  });
+  html += '</div></div>';
+  area.innerHTML = html;
+}
+window._triggerCrossScopeSearch = _triggerCrossScopeSearch;
+
 // ══════════════════════════════════════════════════════════════
 //  browse.js — Browse Page, Filters, Tab Renderers
 //  Extracted from app.js (Session 63)
@@ -1870,9 +1927,28 @@ function renderBrowse() {
     }
   });
 
+  // Session 127: cross-scope search banner. When search has content and the
+  // current era has no in-scope matches, offer to search across all the user's
+  // other eras (powered by the pre-built per-era search indexes in IDB).
+  const _ssTerm = (state.filters.search || '').trim();
+  const _showCrossScope = _ssTerm && rowsHtml.length === 0 && !state.filters.owned;
+  const _ssEsc = _showCrossScope
+    ? _ssTerm.replace(/[<>"'&]/g, function(c){ return {'<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','&':'&amp;'}[c]; })
+    : '';
+  const _ssEraLabel = (typeof _currentEra !== 'undefined' && ERAS[_currentEra] && ERAS[_currentEra].label)
+    ? ERAS[_currentEra].label : 'this era';
+  const _crossScopeBanner = _showCrossScope
+    ? ('<div id="cross-scope-search-area" style="padding:2rem 1rem;text-align:center">'
+      + '<div style="font-size:2rem;margin-bottom:0.5rem">🔍</div>'
+      + '<p style="font-weight:600;margin-bottom:0.4rem">No matches in ' + _ssEraLabel + ' for &ldquo;<span style="color:var(--accent)">' + _ssEsc + '</span>&rdquo;</p>'
+      + '<p style="font-size:0.85rem;color:var(--text-dim);margin-bottom:0.9rem">Want to look across your other manufacturers and eras?</p>'
+      + '<button onclick="_triggerCrossScopeSearch()" style="padding:0.55rem 1rem;border-radius:7px;border:1px solid var(--border);background:var(--accent);color:#fff;font-family:var(--font-body);font-size:0.9rem;font-weight:600;cursor:pointer">Search across all your eras</button>'
+      + '</div>')
+    : '';
+
   const emptyHtml = isMobile
-    ? '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🔍</div><p>No items match your filters</p></div>'
-    : '<tr><td colspan="' + (state.filters.owned ? '7' : '8') + '"><div class="empty-state"><div class="empty-icon">🔍</div><p>No items match your filters</p><p style="font-size:0.8rem;color:var(--text-dim);margin-top:0.25rem">Try clearing some filters</p></div></td></tr>';
+    ? (_crossScopeBanner || '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🔍</div><p>No items match your filters</p></div>')
+    : '<tr><td colspan="' + (state.filters.owned ? '7' : '8') + '">' + (_crossScopeBanner || '<div class="empty-state"><div class="empty-icon">🔍</div><p>No items match your filters</p><p style="font-size:0.8rem;color:var(--text-dim);margin-top:0.25rem">Try clearing some filters</p></div>') + '</td></tr>';
 
   if (isMobile) {
     let _ephCardsHtml = '';
