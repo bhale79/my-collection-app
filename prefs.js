@@ -183,21 +183,6 @@ function buildPrefsPage() {
         ${toggle('disclaimer', 'lv_show_disclaimer', 'true')}
       </div>
 
-      <div style="font-size:0.78rem;font-weight:600;color:var(--text-mid);padding:0.75rem 0.2rem 0.35rem;letter-spacing:0.03em;text-transform:uppercase">Manufacturers I Collect</div>
-      <div class="pref-row" style="flex-direction:column;align-items:flex-start;gap:0.4rem">
-        <div style="font-size:0.78rem;color:var(--text-dim);line-height:1.5">Uncheck manufacturers you don't collect — every era of that manufacturer gets hidden.</div>
-        <div style="display:flex;flex-wrap:wrap;gap:0.55rem;width:100%">
-          ${Object.keys((window.WHAT_I_COLLECT && window.WHAT_I_COLLECT.MANUFACTURERS) || {}).map(function(k) {
-            var mfr = window.WHAT_I_COLLECT.MANUFACTURERS[k];
-            var enabled = _getEnabledManufacturers().indexOf(k) >= 0;
-            return '<label style="display:flex;align-items:center;gap:0.45rem;padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);font-size:0.8rem">'
-              + '<input type="checkbox" ' + (enabled ? 'checked' : '') + ' onchange="_togglePrefMfr(\'' + k + '\', this.checked)" style="accent-color:var(--accent);width:1rem;height:1rem;cursor:pointer"> '
-              + mfr.label
-              + '</label>';
-          }).join('')}
-        </div>
-      </div>
-
       <div style="font-size:0.78rem;font-weight:600;color:var(--text-mid);padding:0.75rem 0.2rem 0.35rem;letter-spacing:0.03em;text-transform:uppercase">Scales I Collect</div>
       <div class="pref-row" style="flex-direction:column;align-items:flex-start;gap:0.4rem">
         <div style="font-size:0.78rem;color:var(--text-dim);line-height:1.5">Uncheck scales you don't collect — every era of every manufacturer in that scale gets hidden.</div>
@@ -213,18 +198,48 @@ function buildPrefsPage() {
         </div>
       </div>
 
-      <div style="font-size:0.78rem;font-weight:600;color:var(--text-mid);padding:0.75rem 0.2rem 0.35rem;letter-spacing:0.03em;text-transform:uppercase">What I Collect</div>
+      <div style="font-size:0.78rem;font-weight:600;color:var(--text-mid);padding:0.75rem 0.2rem 0.35rem;letter-spacing:0.03em;text-transform:uppercase">Manufacturers I Collect</div>
       <div class="pref-row" style="flex-direction:column;align-items:flex-start;gap:0.4rem">
-        <div style="font-size:0.78rem;color:var(--text-dim);line-height:1.5">Uncheck eras you don't collect — they'll be hidden from the era dropdown and search banner. ${_isAdmin() ? '<em style="color:var(--accent2)">Admin view — all eras always visible to you.</em>' : ''}</div>
+        <div style="font-size:0.78rem;color:var(--text-dim);line-height:1.5">Uncheck manufacturers you don't collect — every era of that manufacturer gets hidden.</div>
         <div style="display:flex;flex-wrap:wrap;gap:0.55rem;width:100%">
-          ${Object.keys(ERAS).map(function(k) {
-            var enabled = _getEnabledEras().indexOf(k) >= 0;
-            var lbl = ERAS[k].label + (ERAS[k].years ? ' <span style="color:var(--text-dim);font-weight:400">(' + ERAS[k].years + ')</span>' : '');
+          ${Object.keys((window.WHAT_I_COLLECT && window.WHAT_I_COLLECT.MANUFACTURERS) || {}).map(function(k) {
+            var mfr = window.WHAT_I_COLLECT.MANUFACTURERS[k];
+            var enabled = _getEnabledManufacturers().indexOf(k) >= 0;
             return '<label style="display:flex;align-items:center;gap:0.45rem;padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);font-size:0.8rem">'
-              + '<input type="checkbox" ' + (enabled ? 'checked' : '') + ' onchange="_togglePrefEra(\'' + k + '\', this.checked)" style="accent-color:var(--accent);width:1rem;height:1rem;cursor:pointer"> '
-              + lbl
+              + '<input type="checkbox" ' + (enabled ? 'checked' : '') + ' onchange="_togglePrefMfr(\'' + k + '\', this.checked)" style="accent-color:var(--accent);width:1rem;height:1rem;cursor:pointer"> '
+              + mfr.label
               + '</label>';
           }).join('')}
+        </div>
+      </div>
+
+      <div style="font-size:0.78rem;font-weight:600;color:var(--text-mid);padding:0.75rem 0.2rem 0.35rem;letter-spacing:0.03em;text-transform:uppercase">Eras I Collect</div>
+      <div class="pref-row" style="flex-direction:column;align-items:flex-start;gap:0.4rem">
+        <div style="font-size:0.78rem;color:var(--text-dim);line-height:1.5">Uncheck eras you don't collect — they'll be hidden from the era dropdown and search banner. Hidden eras automatically reappear when their manufacturer and scale are enabled above. ${_isAdmin() ? '<em style="color:var(--accent2)">Admin view — all eras always visible to you.</em>' : ''}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:0.55rem;width:100%">
+          ${(function() {
+            // Session 138: Eras list filtered to only those whose manufacturer AND
+            // scale are both enabled above. Skips 'all' meta-era (not in picker).
+            var visible = Object.keys(ERAS).filter(function(k) {
+              if (k === 'all') return false;
+              var mfr = String((ERAS[k] && ERAS[k].manufacturer) || '').toLowerCase();
+              if (mfr && typeof _isManufacturerEnabled === 'function' && !_isManufacturerEnabled(mfr)) return false;
+              var sc = (typeof _scaleOfEra === 'function') ? _scaleOfEra(k) : null;
+              if (sc && typeof _isScaleEnabled === 'function' && !_isScaleEnabled(sc)) return false;
+              return true;
+            });
+            if (!visible.length) {
+              return '<div style="color:var(--text-dim);font-size:0.78rem;font-style:italic;padding:0.5rem 0">No eras visible. Enable a manufacturer and a scale above to see era options.</div>';
+            }
+            return visible.map(function(k) {
+              var enabled = _getEnabledEras().indexOf(k) >= 0;
+              var lbl = ERAS[k].label + (ERAS[k].years ? ' <span style="color:var(--text-dim);font-weight:400">(' + ERAS[k].years + ')</span>' : '');
+              return '<label style="display:flex;align-items:center;gap:0.45rem;padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);font-size:0.8rem">'
+                + '<input type="checkbox" ' + (enabled ? 'checked' : '') + ' onchange="_togglePrefEra(\'' + k + '\', this.checked)" style="accent-color:var(--accent);width:1rem;height:1rem;cursor:pointer"> '
+                + lbl
+                + '</label>';
+            }).join('');
+          })()}
         </div>
       </div>
       </div>
@@ -722,6 +737,8 @@ function _togglePrefScale(scaleId, on) {
   if (typeof _applyEraVisibility === 'function') _applyEraVisibility();
   if (typeof buildDashboard === 'function') buildDashboard();
   if (typeof renderBrowse === 'function') renderBrowse();
+  // Session 138: re-render so the Eras list filter updates
+  buildPrefsPage();
 }
 
 // Session 137: manufacturer toggle handler — parallel to scale + era. When
@@ -743,7 +760,8 @@ function _togglePrefMfr(mfrId, on) {
   if (typeof _applyEraVisibility === 'function') _applyEraVisibility();
   if (typeof buildDashboard === 'function') buildDashboard();
   if (typeof renderBrowse === 'function') renderBrowse();
-  showToast((ERAS[eraId] && ERAS[eraId].label || eraId) + (on ? ' enabled' : ' hidden') + '.');
+  // Session 138: re-render so the Eras list filter updates
+  buildPrefsPage();
 }
 
 function _togglePrefSection(titleEl) {
