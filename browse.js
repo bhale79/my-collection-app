@@ -52,6 +52,191 @@ function _refreshBrowseHeaders() {
   }
 }
 
+// ── Phase 5 Step 1: hierarchy chip row (visual preview) ──
+// Renders a chip row above the era-bar showing the new filter hierarchy:
+// Manufacturer > Scale > Era > Section. Clicking a chip opens a picker that
+// updates state and re-renders the chips — but no filtering is wired up yet.
+// State lives in localStorage so it survives reloads. Step 2 will wire this
+// up to actually filter the master list and remove the old era-select + tab
+// strip. For Step 1 this exists only to let Brad eyeball the hierarchy shape.
+
+function _phState() {
+  try {
+    var raw = localStorage.getItem('lv_browse_filter_state');
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  return { manufacturer: 'lionel', scale: 'o', era: 'pw', section: 'items' };
+}
+function _phSave(st) {
+  try { localStorage.setItem('lv_browse_filter_state', JSON.stringify(st)); } catch(e) {}
+}
+
+// Manufacturer + scale -> list of era keys. Pre-War (null scale = mixed) is
+// shown under O and Standard for now — Phase 3 will split it into per-scale
+// tabs, at which point this fallback can go away.
+function _phErasFor(mfr, scale) {
+  var out = [];
+  if (typeof ERAS !== 'object' || !ERAS) return out;
+  var WIC = (typeof window !== 'undefined' && window.WHAT_I_COLLECT) || {};
+  var ETS = WIC.ERA_TO_SCALE || {};
+  Object.keys(ERAS).forEach(function(k) {
+    if (k === 'all') return;
+    var e = ERAS[k];
+    if (!e || !e.manufacturer) return;
+    if (e.manufacturer.toLowerCase() !== mfr) return;
+    var es = ETS[k];
+    if (es === scale) { out.push(k); return; }
+    if (es === null && (scale === 'o' || scale === 'standard')) out.push(k);
+  });
+  return out;
+}
+
+// Manufacturer -> list of scale ids that have at least one era available.
+function _phScalesFor(mfr) {
+  var out = [];
+  var WIC = (typeof window !== 'undefined' && window.WHAT_I_COLLECT) || {};
+  var SCs = WIC.SCALES || {};
+  Object.keys(SCs).forEach(function(sid) {
+    if (_phErasFor(mfr, sid).length > 0) out.push(sid);
+  });
+  return out;
+}
+
+// Era -> list of section keys available on that era (Items / Sets / Catalogs / ...).
+function _phSectionsFor(era) {
+  if (typeof ERA_TABS !== 'object' || !ERA_TABS || !ERA_TABS[era]) return ['items'];
+  return Object.keys(ERA_TABS[era]);
+}
+
+function _phLabelFor(level, id) {
+  var WIC = (typeof window !== 'undefined' && window.WHAT_I_COLLECT) || {};
+  if (level === 'manufacturer') return (WIC.MANUFACTURERS && WIC.MANUFACTURERS[id] && WIC.MANUFACTURERS[id].label) || id;
+  if (level === 'scale')        return (WIC.SCALES && WIC.SCALES[id] && WIC.SCALES[id].label) || id;
+  if (level === 'era')          return (ERAS && ERAS[id] && ERAS[id].label) || id;
+  if (level === 'section')      return id ? (id.charAt(0).toUpperCase() + id.slice(1)) : 'Items';
+  return id;
+}
+
+function _renderHierarchyChips() {
+  var host = document.getElementById('hierarchy-chip-row');
+  if (!host) return;
+  var st = _phState();
+  var chipStyle = 'padding:0.32rem 0.65rem;border-radius:14px;border:1.5px solid var(--border);'
+                + 'background:var(--bg-card);color:var(--text);font-family:var(--font-body);'
+                + 'font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;'
+                + 'align-items:center;gap:0.25rem;line-height:1';
+  var sepStyle  = 'color:var(--text-dim);font-weight:700;opacity:0.45;font-size:0.95rem';
+  var labelStyle = 'font-size:0.62rem;font-weight:700;letter-spacing:0.09em;'
+                 + 'text-transform:uppercase;color:var(--text-dim);margin-right:0.15rem';
+  var noteStyle = 'margin-left:auto;font-size:0.68rem;color:var(--text-dim);font-style:italic';
+  var levels = ['manufacturer','scale','era','section'];
+  var html = '<span style="' + labelStyle + '">New Filters (Preview)</span>';
+  levels.forEach(function(level, i) {
+    var lbl = _phLabelFor(level, st[level]);
+    if (i > 0) html += '<span style="' + sepStyle + '">›</span>';
+    html += '<button type="button" style="' + chipStyle + '" '
+         +  'onclick="_openLevelPicker(\'' + level + '\')">'
+         +  lbl + ' ▾</button>';
+  });
+  html += '<span style="' + noteStyle + '">Step 1 preview — not yet wired to filtering</span>';
+  host.innerHTML = html;
+}
+
+function _openLevelPicker(level) {
+  var st = _phState();
+  var options = [];
+  var WIC = (typeof window !== 'undefined' && window.WHAT_I_COLLECT) || {};
+  if (level === 'manufacturer') {
+    var MFs = WIC.MANUFACTURERS || {};
+    Object.keys(MFs).forEach(function(k) { options.push({ id: k, label: MFs[k].label }); });
+  } else if (level === 'scale') {
+    _phScalesFor(st.manufacturer).forEach(function(sid) {
+      options.push({ id: sid, label: _phLabelFor('scale', sid) });
+    });
+  } else if (level === 'era') {
+    _phErasFor(st.manufacturer, st.scale).forEach(function(eid) {
+      options.push({ id: eid, label: _phLabelFor('era', eid) });
+    });
+  } else if (level === 'section') {
+    _phSectionsFor(st.era).forEach(function(s) {
+      options.push({ id: s, label: _phLabelFor('section', s) });
+    });
+  }
+  if (!options.length) options.push({ id: '', label: '(none available)' });
+
+  var overlayId = 'ph-picker-overlay';
+  var existing = document.getElementById(overlayId);
+  if (existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = overlayId;
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;'
+                       + 'display:flex;align-items:center;justify-content:center;padding:1rem';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  var modal = document.createElement('div');
+  modal.style.cssText = 'background:var(--bg-card);border-radius:12px;padding:1.1rem;'
+                     + 'max-width:340px;width:100%;max-height:80vh;overflow:auto;'
+                     + 'border:1px solid var(--border)';
+  var head = level.charAt(0).toUpperCase() + level.slice(1);
+  var heading = document.createElement('div');
+  heading.style.cssText = 'font-weight:700;font-size:0.95rem;margin-bottom:0.55rem';
+  heading.textContent = 'Pick ' + head;
+  modal.appendChild(heading);
+  options.forEach(function(opt) {
+    var isCur = (st[level] === opt.id);
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.style.cssText = 'display:block;width:100%;text-align:left;'
+                     + 'padding:0.55rem 0.7rem;margin-bottom:0.28rem;border-radius:6px;'
+                     + 'border:1.5px solid ' + (isCur ? 'var(--accent)' : 'var(--border)') + ';'
+                     + 'background:' + (isCur ? 'rgba(232,64,28,0.08)' : 'var(--bg-card)') + ';'
+                     + 'color:var(--text);cursor:pointer;font-family:var(--font-body);'
+                     + 'font-size:0.85rem;font-weight:' + (isCur ? '700' : '500');
+    btn.textContent = opt.label + (isCur ? '   ✓' : '');
+    btn.onclick = function() { _setHierarchyChoice(level, opt.id); overlay.remove(); };
+    modal.appendChild(btn);
+  });
+  var close = document.createElement('button');
+  close.type = 'button';
+  close.style.cssText = 'margin-top:0.55rem;width:100%;padding:0.45rem;border-radius:6px;'
+                     + 'border:1.5px solid var(--border);background:none;color:var(--text-dim);'
+                     + 'cursor:pointer;font-family:var(--font-body);font-size:0.8rem';
+  close.textContent = 'Cancel';
+  close.onclick = function() { overlay.remove(); };
+  modal.appendChild(close);
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+}
+
+function _setHierarchyChoice(level, value) {
+  var st = _phState();
+  st[level] = value;
+  if (level === 'manufacturer') {
+    var sc = _phScalesFor(value);
+    st.scale = sc[0] || 'o';
+    var er = _phErasFor(value, st.scale);
+    st.era = er[0] || '';
+    var se = _phSectionsFor(st.era);
+    st.section = se[0] || 'items';
+  } else if (level === 'scale') {
+    var er2 = _phErasFor(st.manufacturer, value);
+    st.era = er2[0] || '';
+    var se2 = _phSectionsFor(st.era);
+    st.section = se2[0] || 'items';
+  } else if (level === 'era') {
+    var se3 = _phSectionsFor(value);
+    if (se3.indexOf(st.section) < 0) st.section = se3[0] || 'items';
+  }
+  _phSave(st);
+  _renderHierarchyChips();
+}
+
+// Expose for inline onclick handlers
+if (typeof window !== 'undefined') {
+  window._openLevelPicker      = _openLevelPicker;
+  window._renderHierarchyChips = _renderHierarchyChips;
+  window._setHierarchyChoice   = _setHierarchyChoice;
+}
+
 // ── Cross-era search banner ──
 // When a search term is active on the master catalog, show a banner offering to
 // re-run the same search in other eras. Button click switches era + preserves term.
@@ -1444,6 +1629,7 @@ function renderMasterSubTab(tabKey) {
 
 function renderBrowse() {
   _updateBrowseTabsForEra();
+  if (typeof _renderHierarchyChips === 'function') _renderHierarchyChips();
   const { type, road, owned, unowned, boxed, search } = state.filters;
   if (typeof _renderCrossEraSearchBanner === 'function') _renderCrossEraSearchBanner(search);
 
