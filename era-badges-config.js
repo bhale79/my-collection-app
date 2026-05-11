@@ -34,6 +34,11 @@ const ERA_BADGES = {
     mth_s:        'MS',
     mth_tinplate: 'MTP',
     mth_g:        'MG',
+    // Session 128: Lionel HO + S sub-eras
+    pw_ho:        'PWHO',
+    mpc_ho:       'MPCHO',
+    mod_ho:       'MODHO',
+    mod_s:        'MODS',
   },
 
   // Tab-name → era-id mapping. Used when we only have the `_tab` string
@@ -41,9 +46,9 @@ const ERA_BADGES = {
   // Primary items tabs are auto-detected from ERA_TABS.*.items, but
   // other per-era tabs (boxes, paper, etc.) need this explicit mapping.
   tabToEra: {
-    // Pre-War
-    'Pre-War': 'prewar',
-    'Lionel Pre-War - Catalogs': 'prewar',
+    // Pre-War (Session 128: renamed in Google Sheet to include 'Lionel' prefix)
+    'Lionel Pre-War':           'prewar',
+    'Lionel Pre-War - Catalogs':'prewar',
     // Postwar — all Lionel PW - * tabs count as PW
     'Lionel PW - Items':        'pw',
     'Lionel PW - Boxes':        'pw',
@@ -52,11 +57,16 @@ const ERA_BADGES = {
     'Lionel PW - Paper':        'pw',
     'Lionel PW - Other':        'pw',
     'Lionel PW - Service Tools':'pw',
-    // MPC/Modern
-    'MPC-Modern':               'mpc',
-    'MPC-Modern - Catalogs':    'mpc',
+    // MPC/Modern (Session 128: renamed to include 'Lionel' prefix)
+    'Lionel MPC-Modern':            'mpc',
+    'Lionel MPC-Modern - Catalogs': 'mpc',
     // Atlas
     'Atlas O':                  'atlas',
+    // Session 128: Lionel HO + S sub-era tabs (auto-resolved via ERA_TABS too)
+    'Lionel PW HO - Items':       'pw_ho',
+    'Lionel MPC HO - Items':      'mpc_ho',
+    'Lionel Modern HO - Items':   'mod_ho',
+    'Lionel Modern S - Items':    'mod_s',
   },
 };
 

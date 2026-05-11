@@ -49,7 +49,7 @@ const WHAT_I_COLLECT = {
 
   // What order the eras show up in the list. Must match keys in ERAS.
   // If a new era is added, add its key here to make it appear.
-  eraOrder:    ['prewar', 'pw', 'mpc', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g'],
+  eraOrder:    ['prewar', 'pw', 'pw_ho', 'mpc', 'mpc_ho', 'mod_ho', 'mod_s', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g'],
 
   // Accent color per era — pulled into card styling.
   eraColors: {
@@ -63,6 +63,11 @@ const WHAT_I_COLLECT = {
     mth_s:        '#d4ac0d',   // mustard — S Gauge
     mth_tinplate: '#607d8b',   // slate gray — metallic tinplate feel
     mth_g:        '#00897b',   // teal — outdoor G scale
+    // Session 128: Lionel HO + S sub-era colors
+    pw_ho:        '#8e44ad',   // deep purple
+    mpc_ho:       '#00b894',   // mint
+    mod_ho:       '#fdcb6e',   // gold
+    mod_s:        '#95a5a6',   // silver — S Gauge metallic vibe
   },
 };
 

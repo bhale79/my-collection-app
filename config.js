@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.228';
+const APP_VERSION = 'v0.9.229';
 const APP_DATE    = 'April 2026';
 
 // ═══════════════════════════════════════════════════════════════════
@@ -48,14 +48,20 @@ const ERAS = {
   mth_s:        { id: 'mth_s',        label: 'MTH S Gauge',   years: '2013-2019', prefix: 'MTH S Gauge',  manufacturer: 'MTH' },
   mth_tinplate: { id: 'mth_tinplate', label: 'MTH Tinplate',  years: '2001-2020', prefix: 'MTH Tinplate', manufacturer: 'MTH' },
   mth_g:        { id: 'mth_g',        label: 'MTH G Scale',   years: '2001-2019', prefix: 'MTH G Scale',  manufacturer: 'MTH' },
+  // Session 128: Lionel HO + S sub-eras. Sheet tabs scaffolded but mostly empty
+  // — Brad will populate them with actual HO/S items over time.
+  pw_ho:        { id: 'pw_ho',        label: 'Lionel Postwar HO', years: '1957-1966', prefix: 'Lionel PW HO',      manufacturer: 'Lionel' },
+  mpc_ho:       { id: 'mpc_ho',       label: 'Lionel MPC HO',     years: '1974-1977', prefix: 'Lionel MPC HO',     manufacturer: 'Lionel' },
+  mod_ho:       { id: 'mod_ho',       label: 'Lionel Modern HO',  years: '2000-Today', prefix: 'Lionel Modern HO', manufacturer: 'Lionel' },
+  mod_s:        { id: 'mod_s',        label: 'Lionel Modern S',   years: '2008-Today', prefix: 'Lionel Modern S',  manufacturer: 'Lionel' },
 };
 // Real-era IDs in load priority order (excluding 'all' meta-era).
-const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g'];
+const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'pw_ho', 'mpc_ho', 'mod_ho', 'mod_s'];
 
 // ── Master sheet tab names per era ──
 const ERA_TABS = {
   prewar: {
-    items:    'Pre-War',
+    items:    'Lionel Pre-War',
     catalogs: 'Lionel Pre-War - Catalogs',
   },
   pw: {
@@ -72,8 +78,8 @@ const ERA_TABS = {
     instrSheets:  'Lionel PW - Instruction Sheets',
   },
   mpc: {
-    items:    'MPC-Modern',
-    catalogs: 'MPC-Modern - Catalogs',
+    items:    'Lionel MPC-Modern',
+    catalogs: 'Lionel MPC-Modern - Catalogs',
   },
   atlas: {
     items:    'Atlas O',
@@ -92,6 +98,19 @@ const ERA_TABS = {
   },
   mth_g: {
     items:    'MTH G Scale',
+  },
+  // Session 128: Lionel HO + S sub-era sheet tabs (scaffolded, may be empty)
+  pw_ho: {
+    items:    'Lionel PW HO - Items',
+  },
+  mpc_ho: {
+    items:    'Lionel MPC HO - Items',
+  },
+  mod_ho: {
+    items:    'Lionel Modern HO - Items',
+  },
+  mod_s: {
+    items:    'Lionel Modern S - Items',
   },
 };
 
