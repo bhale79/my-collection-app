@@ -187,7 +187,13 @@ async function quickEntryAdd() {
     for (const r of rows) {
       const isLead = r === rows[0];
       const invId = isLead ? _qeLeadInvId : nextInventoryId();
-      const row = [r.itemNum, r.variation, r.condition||'','','','','','','',(isLead ? _qePhotoLink : ''),'', r.notes,'',(isLead ? _qeEstWorth : ''),r.matchedTo,r.setId,'','','','Yes', invId, r.groupId||'', '', '', ''];
+      // Session 143 (Tier 4.25): populate Era (col 23) and Manufacturer (col 24)
+      // for QE-saved rows so non-Lionel items don't fall back to 'Lionel' default
+      // after a cache refresh. The in-memory state.personalData entry below
+      // already had these set correctly; the sheet row was missing them.
+      const _qeEra = (typeof _currentEra !== 'undefined' ? _currentEra : '');
+      const _qeMfr = (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : '');
+      const row = [r.itemNum, r.variation, r.condition||'','','','','','','',(isLead ? _qePhotoLink : ''),'', r.notes,'',(isLead ? _qeEstWorth : ''),r.matchedTo,r.setId,'','','','Yes', invId, r.groupId||'', '', _qeEra, _qeMfr];
       const actualRow = await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
       state.personalData[invId] = {
         row: actualRow, itemNum: r.itemNum, variation: r.variation,
