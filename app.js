@@ -621,7 +621,7 @@ async function loadAllErasMode() {
   // the user has visited that era before.
   var realEras = (typeof REAL_ERA_IDS !== 'undefined' && Array.isArray(REAL_ERA_IDS))
     ? REAL_ERA_IDS.slice()
-    : ['pw', 'mpc', 'prewar', 'atlas'];
+    : ['pw', 'mpc', 'prewar', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g'];
   var hydrated = 0;
   try {
     var masterCaches = await Promise.all(realEras.map(function(e) {
