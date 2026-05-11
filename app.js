@@ -361,10 +361,39 @@ var state = {
 // ── Master sheet tab name config (era-aware — single source of truth) ────
 // SHEET_TABS contents are swapped when the user changes era.
 var SHEET_TABS = {};
-// Session 116: 'all' is the new default for new users — shows the
-// whole collection across every era. Existing users keep their
-// previously selected era (lv_era).
-var _currentEra = localStorage.getItem('lv_era') || 'all';
+
+// ── Session 142 (Tier 4.23) ── Smart default era for new users ──
+// If the user has saved lv_era, use that (returning user). Otherwise pick
+// the most-likely flagship era based on their Mfr + Scale prefs from
+// Sessions 136-138. Falls back to 'all' if prefs unknown (truly brand
+// new user before they've gone through onboarding).
+function _smartDefaultEra() {
+  try {
+    var saved = localStorage.getItem('lv_era');
+    if (saved) return saved;
+    var rawM = localStorage.getItem('lv_collect_mfrs');
+    var rawS = localStorage.getItem('lv_collect_scales');
+    var mfrs   = rawM ? JSON.parse(rawM) : [];
+    var scales = rawS ? JSON.parse(rawS) : [];
+    if (!Array.isArray(mfrs)   || !mfrs.length)   return 'all';  // first-time-ever default
+    if (!Array.isArray(scales) || !scales.length) return 'all';
+    var hasMfr   = function(m) { return mfrs.indexOf(m) >= 0; };
+    var hasScale = function(s) { return scales.indexOf(s) >= 0; };
+    // Priority order — Lionel collectors are most common, Postwar is flagship
+    if (hasMfr('lionel') && hasScale('o'))        return 'pw';
+    if (hasMfr('lionel') && hasScale('ho'))       return 'mod_ho';
+    if (hasMfr('lionel') && hasScale('s'))        return 'mod_s';
+    if (hasMfr('lionel') && hasScale('standard')) return 'prewar';
+    if (hasMfr('atlas')  && hasScale('o'))        return 'atlas';
+    if (hasMfr('mth')    && hasScale('o'))        return 'mth_o';
+    if (hasMfr('mth')    && hasScale('ho'))       return 'mth_ho';
+    if (hasMfr('mth')    && hasScale('s'))        return 'mth_s';
+    if (hasMfr('mth')    && hasScale('g'))        return 'mth_g';
+    if (hasMfr('mth')    && hasScale('standard')) return 'mth_tinplate';
+  } catch(e) {}
+  return 'all';
+}
+var _currentEra = _smartDefaultEra();
 // Migration: 'mod' era was merged into 'mpc' (MPC/Modern combined)
 if (_currentEra === 'mod') { _currentEra = 'mpc'; try { localStorage.setItem('lv_era', 'mpc'); } catch(e) {} }
 function _applyEraTabs(era) {
