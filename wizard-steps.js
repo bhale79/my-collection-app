@@ -336,6 +336,9 @@ function getSteps(tab) {
         { id: 'boxCondDetails',   title: (d) => 'Box condition — ' + getItemLabel(d), type: 'boxCondDetails' },
         { id: 'boxVariation', title: (d) => 'Which box type do you have?', type: 'boxVariationPicker',
           skipIf: (d) => {
+            // Session 140 (Tier 3.19): Lionel-only step — box-variation data
+            // lives on the Lionel PW - Boxes tab and is Lionel-specific by design.
+            if (typeof _wizardMfr === 'function' && _wizardMfr() !== 'lionel') return true;
             if (typeof getBoxVariations !== 'function') return true;
             var vars = getBoxVariations(d.itemNum);
             return vars.length < 2;
@@ -435,6 +438,9 @@ function getSteps(tab) {
       // ── Box variation picker (only if 2+ known box types in master data) ──
       { id: 'boxVariation', title: (d) => 'Which box type do you have?', type: 'boxVariationPicker',
         skipIf: (d) => {
+          // Session 140 (Tier 3.19): Lionel-only step — box-variation data
+          // lives on the Lionel PW - Boxes tab and is Lionel-specific by design.
+          if (typeof _wizardMfr === 'function' && _wizardMfr() !== 'lionel') return true;
           if (d.hasBox !== 'Yes') return true;
           if (typeof getBoxVariations !== 'function') return true;
           var vars = getBoxVariations(d.itemNum);
@@ -450,11 +456,14 @@ function getSteps(tab) {
       { id: 'photosTenderItem', title: (d) => 'Add photos of the tender',
         type: 'drivePhotos', label: 'Item', tenderMode: true,
         photoBanner: { color: '#27ae60', label: (d) => '\u{1F7E9} PHOTOS: Tender ' + (d.tenderMatch || '') },
-        skipIf: (d) => !isPaired(d) },
+        // Session 140 (Tier 3.19): Lionel-only step — steam-loco-plus-tender
+        // pairing exists only for Lionel via the PW Companions tab.
+        skipIf: (d) => (typeof _wizardMfr === 'function' && _wizardMfr() !== 'lionel') || !isPaired(d) },
       { id: 'photosTenderBox',  title: (d) => 'Add photos of the tender box',
         type: 'drivePhotos', label: 'Box', tenderMode: true,
         photoBanner: { color: '#8B4513', label: (d) => '\u{1F7EB} PHOTOS: Tender ' + (d.tenderMatch || '') + ' — BOX' },
-        skipIf: (d) => !isPaired(d) || d.tenderHasBox !== 'Yes' },
+        // Session 140 (Tier 3.19): Lionel-only step (tender pairing).
+        skipIf: (d) => (typeof _wizardMfr === 'function' && _wizardMfr() !== 'lionel') || !isPaired(d) || d.tenderHasBox !== 'Yes' },
 
       // ── Unit 2 photos (diesel set) ──
       { id: 'photosUnit2Item', title: (d) => 'Add photos of the ' + (d.unit2ItemNum || 'B unit'),

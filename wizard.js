@@ -99,6 +99,22 @@ function _buildWizardModal() {
   }
 }
 
+// ── Session 140 (Tier 3.19) ── Wizard manufacturer helper ──
+// Returns the lowercase manufacturer for the current wizard context, derived
+// from wizard.data._era via _manufacturerOfEra (defined in app.js Session 137).
+// Used to gate Lionel-specific steps explicitly rather than via implicit
+// data-presence checks (skipIf when no companions tab match, etc.).
+function _wizardMfr() {
+  try {
+    if (typeof wizard === 'undefined' || !wizard.data) return '';
+    var era = wizard.data._era || (typeof _currentEra !== 'undefined' ? _currentEra : '');
+    if (typeof _manufacturerOfEra === 'function') {
+      return (_manufacturerOfEra(era) || '').toLowerCase();
+    }
+  } catch(e) {}
+  return '';
+}
+
 function openWizard(tab) {
   _buildWizardModal();
   // Start wizard pre-set to a specific tab, skipping the tab picker step
