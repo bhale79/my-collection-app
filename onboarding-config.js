@@ -99,6 +99,16 @@ const WHAT_I_COLLECT = {
     mth_tinplate: 'standard',
     mth_g:        'g',
   },
+
+  // ── Session 137: Manufacturer preference (Tier 3.15) ──
+  // Each ERAS entry already has `.manufacturer` ('Lionel'/'Atlas'/'MTH').
+  // This config just lists the user-selectable manufacturer IDs (lowercase
+  // for localStorage stability) and their human labels.
+  MANUFACTURERS: {
+    lionel: { id: 'lionel', label: 'Lionel', default: true  },
+    atlas:  { id: 'atlas',  label: 'Atlas',  default: false },
+    mth:    { id: 'mth',    label: 'MTH',    default: false },
+  },
 };
 
 // ──────────────────────────────────────────────────────────────

@@ -183,6 +183,21 @@ function buildPrefsPage() {
         ${toggle('disclaimer', 'lv_show_disclaimer', 'true')}
       </div>
 
+      <div style="font-size:0.78rem;font-weight:600;color:var(--text-mid);padding:0.75rem 0.2rem 0.35rem;letter-spacing:0.03em;text-transform:uppercase">Manufacturers I Collect</div>
+      <div class="pref-row" style="flex-direction:column;align-items:flex-start;gap:0.4rem">
+        <div style="font-size:0.78rem;color:var(--text-dim);line-height:1.5">Uncheck manufacturers you don't collect — every era of that manufacturer gets hidden.</div>
+        <div style="display:flex;flex-wrap:wrap;gap:0.55rem;width:100%">
+          ${Object.keys((window.WHAT_I_COLLECT && window.WHAT_I_COLLECT.MANUFACTURERS) || {}).map(function(k) {
+            var mfr = window.WHAT_I_COLLECT.MANUFACTURERS[k];
+            var enabled = _getEnabledManufacturers().indexOf(k) >= 0;
+            return '<label style="display:flex;align-items:center;gap:0.45rem;padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);font-size:0.8rem">'
+              + '<input type="checkbox" ' + (enabled ? 'checked' : '') + ' onchange="_togglePrefMfr(\'' + k + '\', this.checked)" style="accent-color:var(--accent);width:1rem;height:1rem;cursor:pointer"> '
+              + mfr.label
+              + '</label>';
+          }).join('')}
+        </div>
+      </div>
+
       <div style="font-size:0.78rem;font-weight:600;color:var(--text-mid);padding:0.75rem 0.2rem 0.35rem;letter-spacing:0.03em;text-transform:uppercase">Scales I Collect</div>
       <div class="pref-row" style="flex-direction:column;align-items:flex-start;gap:0.4rem">
         <div style="font-size:0.78rem;color:var(--text-dim);line-height:1.5">Uncheck scales you don't collect — every era of every manufacturer in that scale gets hidden.</div>
@@ -704,6 +719,27 @@ function _togglePrefScale(scaleId, on) {
     enabled = enabled.filter(function(s) { return s !== scaleId; });
   }
   _setEnabledScales(enabled);
+  if (typeof _applyEraVisibility === 'function') _applyEraVisibility();
+  if (typeof buildDashboard === 'function') buildDashboard();
+  if (typeof renderBrowse === 'function') renderBrowse();
+}
+
+// Session 137: manufacturer toggle handler — parallel to scale + era. When
+// user disables a manufacturer, every era of that manufacturer becomes hidden.
+function _togglePrefMfr(mfrId, on) {
+  var enabled = _getEnabledManufacturers();
+  if (on) {
+    if (enabled.indexOf(mfrId) < 0) enabled.push(mfrId);
+  } else {
+    var nonAdminCount = enabled.filter(function(m) { return m !== mfrId; }).length;
+    if (nonAdminCount === 0 && !_isAdmin()) {
+      showToast('Keep at least one manufacturer selected.');
+      buildPrefsPage();
+      return;
+    }
+    enabled = enabled.filter(function(m) { return m !== mfrId; });
+  }
+  _setEnabledManufacturers(enabled);
   if (typeof _applyEraVisibility === 'function') _applyEraVisibility();
   if (typeof buildDashboard === 'function') buildDashboard();
   if (typeof renderBrowse === 'function') renderBrowse();

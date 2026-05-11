@@ -448,6 +448,9 @@ function _isEraEnabled(era) {
   if (typeof _isAdmin === 'function' && _isAdmin()) return true;
   var enabled = _getEnabledEras();
   if (enabled.indexOf(era) < 0) return false;
+  // Session 137: gate by manufacturer preference first.
+  var mfr = (typeof _manufacturerOfEra === 'function') ? _manufacturerOfEra(era) : null;
+  if (mfr && !_isManufacturerEnabled(mfr)) return false;
   // Session 136: also gate by scale preference. An era is enabled only if its
   // scale is also enabled. Mixed-scale eras (Pre-War) get null here and are
   // always considered scale-enabled at the era level; per-item gauge filtering
@@ -513,6 +516,48 @@ function _scaleOfItem(item) {
   return null;
 }
 
+// ── Session 137 ─ Manufacturer preference helpers (Tier 3.15) ─────────────────
+// Parallel to the era + scale pref pattern. Default: all manufacturers in
+// WHAT_I_COLLECT.MANUFACTURERS are enabled. Admins always see all.
+function _getEnabledManufacturers() {
+  try {
+    var saved = localStorage.getItem('lv_collect_mfrs');
+    if (saved) {
+      var arr = JSON.parse(saved);
+      if (Array.isArray(arr) && arr.length) return arr;
+    }
+  } catch(e) {}
+  var defaults = [];
+  if (typeof WHAT_I_COLLECT !== 'undefined' && WHAT_I_COLLECT.MANUFACTURERS) {
+    Object.keys(WHAT_I_COLLECT.MANUFACTURERS).forEach(function(k) { defaults.push(k); });
+  }
+  return defaults;
+}
+function _setEnabledManufacturers(arr) {
+  try { localStorage.setItem('lv_collect_mfrs', JSON.stringify(arr || [])); } catch(e) {}
+}
+function _isManufacturerEnabled(mfrId) {
+  if (!mfrId) return true; // unknown manufacturer -> don't hide
+  if (typeof _isAdmin === 'function' && _isAdmin()) return true;
+  return _getEnabledManufacturers().indexOf(String(mfrId).toLowerCase()) >= 0;
+}
+// Era -> manufacturer id. Reads ERAS[era].manufacturer (already exists) and
+// lowercases for the config-key match.
+function _manufacturerOfEra(era) {
+  if (!era || era === 'all') return null;
+  if (typeof ERAS !== 'undefined' && ERAS[era] && ERAS[era].manufacturer) {
+    return String(ERAS[era].manufacturer).toLowerCase();
+  }
+  return null;
+}
+// Item -> manufacturer id. Uses pd.manufacturer if set, else derives from era.
+function _manufacturerOfItem(item) {
+  if (!item) return null;
+  if (item.manufacturer) return String(item.manufacturer).toLowerCase();
+  var era = (typeof _itemEraKey === 'function') ? _itemEraKey(item) : ((item._era || item.era || '').toLowerCase());
+  return _manufacturerOfEra(era);
+}
+
 // ── Session 121 ─ Era-pref filter helpers for dashboard cards & panels ────────
 // In 'all' mode the dashboard would otherwise count items from eras the user
 // has disabled in Preferences > "What I Collect". These helpers are NO-OPs
@@ -543,25 +588,21 @@ function _itemEraKey(item) {
   return null;
 }
 function _pdEraEnabled(item) {
-  if (typeof _currentEra === 'undefined' || _currentEra !== 'all') {
-    // Single-era mode: data is already era-filtered. Still apply scale filter
-    // for mixed-scale eras (Pre-War) so disabling Standard/OO hides Pre-War
-    // Standard Gauge items even within the Pre-War era view.
-    if (typeof _scaleOfItem === 'function') {
-      var s1 = _scaleOfItem(item);
-      if (s1 && !_isScaleEnabled(s1)) return false;
-    }
-    return true;
+  // Session 137: in single-era mode AND 'all' mode, also gate by item's
+  // manufacturer + scale. Era check only applies in 'all' mode.
+  if (typeof _manufacturerOfItem === 'function') {
+    var m1 = _manufacturerOfItem(item);
+    if (m1 && !_isManufacturerEnabled(m1)) return false;
   }
-  var era = _itemEraKey(item);
-  if (!era) return true;            // unknown era → keep (don't accidentally hide untagged data)
-  if (!_isEraEnabled(era)) return false;
-  // Session 136: also filter by item scale (handles Pre-War per-item gauge).
   if (typeof _scaleOfItem === 'function') {
-    var s2 = _scaleOfItem(item);
-    if (s2 && !_isScaleEnabled(s2)) return false;
+    var s1 = _scaleOfItem(item);
+    if (s1 && !_isScaleEnabled(s1)) return false;
   }
-  return true;
+  if (typeof _currentEra === 'undefined' || _currentEra !== 'all') return true;
+  // 'all' mode also applies the era pref
+  var era = _itemEraKey(item);
+  if (!era) return true;
+  return _isEraEnabled(era);
 }
 function _filterByEraPref(items) {
   if (typeof _currentEra === 'undefined' || _currentEra !== 'all') return items;
