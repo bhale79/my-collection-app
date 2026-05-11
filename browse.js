@@ -242,7 +242,10 @@ function populateFilters() {
   const typeEl = document.getElementById('filter-type');
   // Session 118 Phase C: reset dropdown to fix triple-rebuild bug AND populate from TYPE_BUCKETS (clean tier-1 buckets, alphabetical by short label).
   typeEl.innerHTML = '<option value="">All Types</option>';
-  const types = (window.TYPE_BUCKETS || []).map(function(b){ return b.label; });
+  // Session 125: only show buckets present in current era's masterData.
+  const types = (typeof _bucketsInCurrentEra === 'function')
+    ? _bucketsInCurrentEra()
+    : (window.TYPE_BUCKETS || []).map(function(b){ return b.label; });
   types.forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; typeEl.appendChild(o); });
 
   // Add ephemera types as a group
@@ -252,25 +255,32 @@ function populateFilters() {
     Object.values(state.ephemeraData.catalogs||{}).map(it=>it.catType).filter(Boolean)
   )].sort();
   const hasCatalogs = Object.keys(state.ephemeraData.catalogs||{}).length > 0;
-  const hasOtherEph = ['paper','mockups','other'].some(k => Object.keys(state.ephemeraData[k]||{}).length > 0);
+  const hasPaper    = Object.keys(state.ephemeraData.paper||{}).length > 0;
+  const hasMockups  = Object.keys(state.ephemeraData.mockups||{}).length > 0;
+  const hasOther    = Object.keys(state.ephemeraData.other||{}).length > 0;
+  const hasIS       = Object.keys(state.isData||{}).length > 0;
   const userEph = (state.userDefinedTabs||[]).filter(t => Object.keys(state.ephemeraData[t.id]||{}).length > 0);
+  const hasAnyEph = hasCatalogs || hasPaper || hasMockups || hasOther || hasIS || userEph.length > 0;
 
-  // Always add a separator then ephemera/collection categories
-  const sep = document.createElement('option');
-  sep.disabled = true; sep.textContent = '── My Collection ──';
-  typeEl.appendChild(sep);
-  // Catalog with subtypes
-  const oCat = document.createElement('option'); oCat.value = 'Catalog'; oCat.textContent = '📒 Catalogs (all)'; typeEl.appendChild(oCat);
-  catSubTypes.forEach(ct => {
-    const o2 = document.createElement('option'); o2.value = ct; o2.textContent = '  ' + ct + ' Catalog'; typeEl.appendChild(o2);
-  });
-  const oPaper = document.createElement('option'); oPaper.value = 'Paper Item'; oPaper.textContent = '📄 Paper Items'; typeEl.appendChild(oPaper);
-  const oMock = document.createElement('option'); oMock.value = 'Mock-Up'; oMock.textContent = '🔩 Mock-Ups'; typeEl.appendChild(oMock);
-  const oOther = document.createElement('option'); oOther.value = 'Other Lionel'; oOther.textContent = '📦 Other Lionel'; typeEl.appendChild(oOther);
-  const oIS = document.createElement('option'); oIS.value = 'Instruction Sheet'; oIS.textContent = '📋 Instruction Sheets'; typeEl.appendChild(oIS);
-  userEph.forEach(t => {
-    const o = document.createElement('option'); o.value = t.label; o.textContent = '⭐ ' + t.label; typeEl.appendChild(o);
-  });
+  // Session 125: only show "My Collection" ephemera section if user actually has any.
+  if (hasAnyEph) {
+    const sep = document.createElement('option');
+    sep.disabled = true; sep.textContent = '── My Collection ──';
+    typeEl.appendChild(sep);
+    if (hasCatalogs) {
+      const oCat = document.createElement('option'); oCat.value = 'Catalog'; oCat.textContent = '📒 Catalogs (all)'; typeEl.appendChild(oCat);
+      catSubTypes.forEach(ct => {
+        const o2 = document.createElement('option'); o2.value = ct; o2.textContent = '  ' + ct + ' Catalog'; typeEl.appendChild(o2);
+      });
+    }
+    if (hasPaper)   { const o = document.createElement('option'); o.value = 'Paper Item';   o.textContent = '📄 Paper Items';        typeEl.appendChild(o); }
+    if (hasMockups) { const o = document.createElement('option'); o.value = 'Mock-Up';      o.textContent = '🔩 Mock-Ups';           typeEl.appendChild(o); }
+    if (hasOther)   { const o = document.createElement('option'); o.value = 'Other Lionel'; o.textContent = '📦 Other Lionel';       typeEl.appendChild(o); }
+    if (hasIS)      { const o = document.createElement('option'); o.value = 'Instruction Sheet'; o.textContent = '📋 Instruction Sheets'; typeEl.appendChild(o); }
+    userEph.forEach(t => {
+      const o = document.createElement('option'); o.value = t.label; o.textContent = '⭐ ' + t.label; typeEl.appendChild(o);
+    });
+  }
 
   // Store all roads for the combobox (with counts)
   var _roadCounts = {};

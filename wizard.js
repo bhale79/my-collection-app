@@ -282,7 +282,7 @@ function _buildItemSearchFiltersDOM() {
   if (typeof getMasterDistinct !== 'function') return null;
 
   // Session 119: 22 clean tier-1 buckets (Steam, Diesel, Boxcar...) instead of 40 raw itemType synonyms.
-  var types = (window.TYPE_BUCKETS || []).map(function(b){ return b.label; });
+  var types = ((typeof _bucketsInCurrentEra === 'function') ? _bucketsInCurrentEra() : (window.TYPE_BUCKETS || []).map(function(b){ return b.label; }));
   var roads = getMasterDistinct('roadName');
   var minCount = cfg.showOnlyIfAtLeast || 2;
   var showType = types.length >= minCount;
@@ -352,7 +352,7 @@ function _wireItemSearchFilters() {
     // Steam Engine and Steam Locomotive items in the master sheet.
     var values;
     if (fieldName === 'itemType') {
-      values = (window.TYPE_BUCKETS || []).map(function(b){ return b.label; });
+      values = ((typeof _bucketsInCurrentEra === 'function') ? _bucketsInCurrentEra() : (window.TYPE_BUCKETS || []).map(function(b){ return b.label; }));
     } else {
       var predicate = otherValue
         ? (otherFieldName === 'itemType'
@@ -3418,7 +3418,7 @@ function renderWizardStep() {
       }
       if (_isfApply && typeof getMasterDistinct === 'function') {
         // Session 119: 22 clean tier-1 buckets (matches browse Phase C).
-        var _isfTypes = (window.TYPE_BUCKETS || []).map(function(b){ return b.label; });
+        var _isfTypes = ((typeof _bucketsInCurrentEra === 'function') ? _bucketsInCurrentEra() : (window.TYPE_BUCKETS || []).map(function(b){ return b.label; }));
         var _isfRoads = getMasterDistinct('roadName');
         var _isfMin = _isfCfg.showOnlyIfAtLeast || 2;
         var _isfShowType = _isfTypes.length >= _isfMin;
@@ -3571,7 +3571,7 @@ function renderWizardStep() {
           // when filtering by Type so synonyms (Steam Engine + Steam Locomotive) match together.
           var values;
           if (fieldName === 'itemType') {
-            values = (window.TYPE_BUCKETS || []).map(function(b){ return b.label; });
+            values = ((typeof _bucketsInCurrentEra === 'function') ? _bucketsInCurrentEra() : (window.TYPE_BUCKETS || []).map(function(b){ return b.label; }));
           } else {
             var predicate = otherValue
               ? (otherFieldName === 'itemType'

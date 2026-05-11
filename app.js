@@ -496,6 +496,31 @@ function _filterByEraPref(items) {
   return items;
 }
 
+// ── Session 125 ─ Type-filter dropdown helper ───────────────────────────────
+// Returns the subset of canonical TYPE_BUCKETS that actually have at least one
+// item in the current era's masterData. Replaces hardcoded lists like
+//   (window.TYPE_BUCKETS || []).map(b => b.label)
+// in browse.js + wizard.js so Atlas/MTH eras don't show Lionel-only types like
+// Tender, Trolley, Operating Freight when those eras have none of them.
+// Preserves the canonical (alphabetical-by-short-label) order from TYPE_BUCKETS.
+function _bucketsInCurrentEra() {
+  if (!state || !state.masterData || !state.masterData.length) {
+    // Before data loads, fall back to all buckets so dropdowns aren't empty.
+    return (window.TYPE_BUCKETS || []).map(function(b){ return b.label; });
+  }
+  if (typeof getTypeBucketLabel !== 'function') {
+    return (window.TYPE_BUCKETS || []).map(function(b){ return b.label; });
+  }
+  var present = Object.create(null);
+  for (var i = 0; i < state.masterData.length; i++) {
+    var lbl = getTypeBucketLabel(state.masterData[i]);
+    if (lbl) present[lbl] = true;
+  }
+  return (window.TYPE_BUCKETS || [])
+    .filter(function(b){ return present[b.label]; })
+    .map(function(b){ return b.label; });
+}
+
 // Hide era-dropdown options the user has disabled. Always keep the CURRENT era
 // visible so the user can switch away even if it's disabled.
 function _applyEraVisibility() {
