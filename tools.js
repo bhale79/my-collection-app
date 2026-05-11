@@ -7,9 +7,22 @@
 function buildToolsPage() {
   var container = document.getElementById('page-tools');
   if (!container) return;
-  container.innerHTML =
-    '<div class="page-title" style="margin-bottom:1.5rem">Collection Tools</div>' +
-    // Group Finder card
+
+  // ── Session 141 (Tier 3.17) ──
+  // Tools split into Universal (any manufacturer) and Lionel-Specific.
+  // The Lionel section hides entirely if the user has disabled Lionel in
+  // Preferences > Manufacturers I Collect. Future tools per the brainstorm
+  // (MTH ABA detection, Atlas track-power tools, etc.) get their own
+  // sections when they ship.
+
+  var SECTION_HEADER = function(label, note) {
+    return '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim);margin:1.25rem 0 0.6rem;padding-bottom:0.35rem;border-bottom:1px solid var(--border)">' + label +
+      (note ? '<span style="font-weight:400;letter-spacing:0;text-transform:none;margin-left:0.6rem;font-style:italic;color:var(--text-dim)">' + note + '</span>' : '') +
+      '</div>';
+  };
+
+  // ── Tool card markups ──
+  var CARD_GROUP_FINDER =
     '<div class="tools-card">' +
       '<div class="tools-card-title">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>' +
@@ -18,8 +31,31 @@ function buildToolsPage() {
       '<div class="tools-card-desc">Scans your collection for engine/tender pairs, boxes, and instruction sheets that belong together but aren\'t yet linked. Review each suggestion and group them with one click.</div>' +
       '<button onclick="runGroupFinder()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan My Collection</button>' +
       '<div id="group-finder-results" style="margin-top:1rem"></div>' +
-    '</div>' +
-    // Set Builder card
+    '</div>';
+
+  var CARD_DUPLICATE_CHECKER =
+    '<div class="tools-card">' +
+      '<div class="tools-card-title">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d4a843" stroke-width="2"><rect x="2" y="2" width="13" height="13" rx="2"/><rect x="9" y="9" width="13" height="13" rx="2"/><line x1="12" y1="6" x2="12" y2="12"/><line x1="9" y1="9" x2="15" y2="9"/></svg>' +
+        'Duplicate Checker' +
+      '</div>' +
+      '<div class="tools-card-desc">Scans your collection for items you own more than once — same item number and variation. Review each duplicate group to decide which copy to keep, sell, or remove.</div>' +
+      '<button onclick="runDuplicateChecker()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #d4a843;background:rgba(212,168,67,0.1);color:#d4a843;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan for Duplicates</button>' +
+      '<div id="duplicate-checker-results" style="margin-top:1rem"></div>' +
+    '</div>';
+
+  var CARD_SHEET_PROTECTION =
+    '<div class="tools-card">' +
+      '<div class="tools-card-title">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>' +
+        'Sheet Protection' +
+      '</div>' +
+      '<div class="tools-card-desc">Lock your Google Sheet data tabs to prevent accidental edits. The app always has full access regardless of lock state — this only blocks manual editing in Google Sheets.</div>' +
+      '<div id="sheet-lock-status" style="margin-bottom:0.6rem;font-size:0.82rem;color:var(--text-dim)">Checking status…</div>' +
+      '<button id="sheet-lock-btn" onclick="toggleSheetLock()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Checking…</button>' +
+    '</div>';
+
+  var CARD_SET_BUILDER =
     '<div class="tools-card">' +
       '<div class="tools-card-title">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0891b2" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>' +
@@ -40,18 +76,9 @@ function buildToolsPage() {
         '<button onclick="runSetBuilder()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #0891b2;background:rgba(8,145,178,0.1);color:#0891b2;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan Sets</button>' +
       '</div>' +
       '<div id="set-builder-results" style="margin-top:0.5rem"></div>' +
-    '</div>' +
-    // Duplicate Checker card
-    '<div class="tools-card">' +
-      '<div class="tools-card-title">' +
-        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d4a843" stroke-width="2"><rect x="2" y="2" width="13" height="13" rx="2"/><rect x="9" y="9" width="13" height="13" rx="2"/><line x1="12" y1="6" x2="12" y2="12"/><line x1="9" y1="9" x2="15" y2="9"/></svg>' +
-        'Duplicate Checker' +
-      '</div>' +
-      '<div class="tools-card-desc">Scans your collection for items you own more than once — same item number and variation. Review each duplicate group to decide which copy to keep, sell, or remove.</div>' +
-      '<button onclick="runDuplicateChecker()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #d4a843;background:rgba(212,168,67,0.1);color:#d4a843;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan for Duplicates</button>' +
-      '<div id="duplicate-checker-results" style="margin-top:1rem"></div>' +
-    '</div>' +
-    // Companion Suggester card
+    '</div>';
+
+  var CARD_COMPANION_SUGGESTER =
     '<div class="tools-card">' +
       '<div class="tools-card-title">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3a9e68" stroke-width="2"><circle cx="9" cy="9" r="4"/><path d="M20 20c0-3.31-2.69-6-6-6H9a6 6 0 0 0-6 6"/><path d="M19 8l2 2-2 2"/><path d="M15 10h6"/></svg>' +
@@ -60,17 +87,24 @@ function buildToolsPage() {
       '<div class="tools-card-desc">Scans your entire collection for missing companions — tenders without their engine, B units without their A unit, and engines without their tender or B unit. Add any missing piece straight to your Want List.</div>' +
       '<button onclick="runCompanionSuggester()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #3a9e68;background:rgba(58,158,104,0.1);color:#3a9e68;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan My Collection</button>' +
       '<div id="companion-suggester-results" style="margin-top:1rem"></div>' +
-    '</div>' +
-
-    '<div class="tools-card">' +
-      '<div class="tools-card-title">' +
-        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>' +
-        'Sheet Protection' +
-      '</div>' +
-      '<div class="tools-card-desc">Lock your Google Sheet data tabs to prevent accidental edits. The app always has full access regardless of lock state — this only blocks manual editing in Google Sheets.</div>' +
-      '<div id="sheet-lock-status" style="margin-bottom:0.6rem;font-size:0.82rem;color:var(--text-dim)">Checking status…</div>' +
-      '<button id="sheet-lock-btn" onclick="toggleSheetLock()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Checking…</button>' +
     '</div>';
+
+  // ── Compose page ──
+  var showLionelSection = (typeof _isManufacturerEnabled !== 'function') || _isManufacturerEnabled('lionel');
+
+  var html = '<div class="page-title" style="margin-bottom:1.5rem">Collection Tools</div>';
+  html += SECTION_HEADER('Universal Tools', 'Work across all manufacturers');
+  html += CARD_GROUP_FINDER;
+  html += CARD_DUPLICATE_CHECKER;
+  html += CARD_SHEET_PROTECTION;
+
+  if (showLionelSection) {
+    html += SECTION_HEADER('Lionel-Specific Tools', 'Use Lionel catalog data (sets + companions tabs)');
+    html += CARD_SET_BUILDER;
+    html += CARD_COMPANION_SUGGESTER;
+  }
+
+  container.innerHTML = html;
 
   // Check lock state after render
   setTimeout(refreshSheetLockUI, 100);
