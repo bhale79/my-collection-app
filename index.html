@@ -20,9 +20,9 @@
   <link rel="manifest" href="manifest.json">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>The Rail Roster — Postwar Train Collection Tracker</title>
-<link rel="stylesheet" href="./app.css?v=283">
-<link rel="stylesheet" href="./tutorial.css?v=283">
-<link rel="stylesheet" href="./vault-styles.css?v=283">
+<link rel="stylesheet" href="./app.css?v=284">
+<link rel="stylesheet" href="./tutorial.css?v=284">
+<link rel="stylesheet" href="./vault-styles.css?v=284">
 </head>
 <body>
 
@@ -165,36 +165,16 @@ document.addEventListener('touchmove', function(){}, {passive: true});
           </div>
         </div>
 
-        <div id="hierarchy-chip-row" style="display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center;margin-bottom:0.55rem;padding:0.5rem 0.65rem;background:var(--surface2);border-radius:8px;border:1px solid var(--border)"></div>
-
-        <div id="era-bar" style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.6rem">
-          <span style="font-size:0.82rem;font-weight:600;color:var(--text-dim);font-family:var(--font-body)">Era:</span>
-          <select id="era-select" onchange="switchEra(this.value)" style="padding:0.4rem 0.7rem;border-radius:6px;border:1.5px solid var(--border);background:var(--bg-card);color:var(--text);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer;min-width:200px">
-            <option value="all">All Collection (every era)</option>
-            <option value="prewar">Lionel Pre-War (1901-1942)</option>
-            <option value="pw">Lionel Postwar (1945-1969)</option>
-            <option value="mpc">Lionel MPC/Modern (1970-Today)</option>
-            <option value="atlas">Atlas O (All Years)</option>
-            <option value="mth_o">MTH O (2000-2020)</option>
-            <option value="mth_ho">MTH HO (2006-2019)</option>
-            <option value="mth_s">MTH S Gauge (2013-2019)</option>
-            <option value="mth_tinplate">MTH Tinplate (2001-2020)</option>
-            <option value="mth_g">MTH G Scale (2001-2019)</option>
-          </select>
+        <div id="hierarchy-chip-row" style="display:flex;flex-wrap:wrap;gap:0.45rem;align-items:center;margin-bottom:0.65rem;padding:0.5rem 0.65rem;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">
+          <div id="hierarchy-chips" style="display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center"></div>
+          <div style="flex:1;min-width:180px;display:flex;align-items:center;gap:0.4rem;background:var(--bg-card);border:1.5px solid var(--border);border-radius:14px;padding:0.22rem 0.6rem">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.5;flex-shrink:0"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input id="browse-search" type="text" placeholder="Search description, road, item #…" oninput="onPageSearch(this.value,'browse')" style="border:none;background:none;color:var(--text);font-family:var(--font-body);font-size:0.78rem;outline:none;width:100%;line-height:1.4;padding:0.12rem 0">
+          </div>
         </div>
 
-        <div id="browse-tab-bar" style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:0.85rem">
-          <button id="btab-items"    onclick="renderBrowseTab('items')"    style="padding:0.5rem 1.1rem;font-size:0.82rem;font-weight:600;font-family:var(--font-body);background:none;border:none;border-bottom:2px solid var(--accent);margin-bottom:-2px;color:var(--accent);cursor:pointer">Items</button>
-          <button id="btab-sets"     onclick="renderBrowseTab('sets')"     style="padding:0.5rem 1.1rem;font-size:0.82rem;font-weight:600;font-family:var(--font-body);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-dim);cursor:pointer">Sets</button>
-          <button id="btab-catalogs" onclick="renderBrowseTab('catalogs')" style="padding:0.5rem 1.1rem;font-size:0.82rem;font-weight:600;font-family:var(--font-body);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-dim);cursor:pointer">Catalogs</button>
-          <button id="btab-science"  onclick="renderBrowseTab('science')"  style="padding:0.5rem 1.1rem;font-size:0.82rem;font-weight:600;font-family:var(--font-body);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-dim);cursor:pointer">Science</button>
-          <button id="btab-construction" onclick="renderBrowseTab('construction')" style="padding:0.5rem 1.1rem;font-size:0.82rem;font-weight:600;font-family:var(--font-body);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-dim);cursor:pointer">Construction</button>
-          <button id="btab-paper"   onclick="renderBrowseTab('paper')"    style="padding:0.5rem 1.1rem;font-size:0.82rem;font-weight:600;font-family:var(--font-body);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-dim);cursor:pointer">Paper</button>
-          <button id="btab-other"   onclick="renderBrowseTab('other')"    style="padding:0.5rem 1.1rem;font-size:0.82rem;font-weight:600;font-family:var(--font-body);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-dim);cursor:pointer">Other</button>
-          <button id="btab-service" onclick="renderBrowseTab('service')"  style="padding:0.5rem 1.1rem;font-size:0.82rem;font-weight:600;font-family:var(--font-body);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-dim);cursor:pointer">Service Tools</button>
-          <button id="btab-is"       onclick="renderBrowseTab('is')"       style="padding:0.5rem 1.1rem;font-size:0.82rem;font-weight:600;font-family:var(--font-body);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-dim);cursor:pointer">Instr. Sheets</button>
-          <button id="btab-mockups"  onclick="renderBrowseTab('mockups')"  style="display:none;padding:0.5rem 1.1rem;font-size:0.82rem;font-weight:600;font-family:var(--font-body);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;color:var(--text-dim);cursor:pointer">Mock-ups &amp; Other Items</button>
-        </div>
+        
+        
 
         <div id="disclaimer-browse" style="display:none;align-items:flex-start;gap:0.6rem;background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.35);border-radius:9px;padding:0.6rem 0.85rem;margin-bottom:0.85rem;font-size:0.78rem;color:var(--text-dim);line-height:1.55">
           <span style="font-size:1rem;flex-shrink:0;margin-top:0.05rem">⚠️</span>
@@ -207,10 +187,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
           </select>
 
           
-          <div style="display:flex;align-items:center;gap:0.4rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0.35rem 0.65rem;flex:1;max-width:320px">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            <input id="browse-search" type="text" placeholder="Search item #, road, description…" oninput="onPageSearch(this.value,'browse')" style="border:none;background:none;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;width:100%">
-          </div>
+          
           <span style="margin-left:auto;font-size:0.8rem;color:var(--text-dim)" id="result-count"></span>
         </div>
 
@@ -712,55 +689,55 @@ document.addEventListener('touchmove', function(){}, {passive: true});
 <!-- identify-modal is built dynamically by wizard.js -->
 </div>
 
-<script src="./config.js?v=283"></script>
-<script src="./type-groups.js?v=283"></script>
-<script src="./back-stack.js?v=283"></script>
-<script src="./road-typeahead.js?v=283"></script>
-<script src="./a11y-config.js?v=283"></script>
-<script src="./a11y.js?v=283"></script>
-<script src="./wizard-utils.js?v=283"></script>
-<script src="./app.js?v=283"></script>
-<script src="./sheets.js?v=283"></script>
-<script src="./drive.js?v=283"></script>
-<script src="./browse.js?v=283"></script>
-<script src="./dashboard.js?v=283"></script>
-<script src="./sheet-builder.js?v=283"></script>
+<script src="./config.js?v=284"></script>
+<script src="./type-groups.js?v=284"></script>
+<script src="./back-stack.js?v=284"></script>
+<script src="./road-typeahead.js?v=284"></script>
+<script src="./a11y-config.js?v=284"></script>
+<script src="./a11y.js?v=284"></script>
+<script src="./wizard-utils.js?v=284"></script>
+<script src="./app.js?v=284"></script>
+<script src="./sheets.js?v=284"></script>
+<script src="./drive.js?v=284"></script>
+<script src="./browse.js?v=284"></script>
+<script src="./dashboard.js?v=284"></script>
+<script src="./sheet-builder.js?v=284"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="./wizard-pdlookup.js?v=283"></script>
-<script src="./wizard-suggestions.js?v=283"></script>
-<script src="./wizard-steps.js?v=283"></script>
-<script src="./wizard.js?v=283"></script>
-<script src="./wizard-photos.js?v=283"></script>
-<script src="./wizard-pickers.js?v=283"></script>
-<script src="./wizard-handlers.js?v=283"></script>
-<script src="./wizard-quickentry.js?v=283"></script>
-<script src="./wizard-save.js?v=283"></script>
-<script src="./app-misc.js?v=283"></script>
-<script src="./app-auth.js?v=283"></script>
-<script src="./app-setup.js?v=283"></script>
-<script src="./app-data.js?v=283"></script>
-<script src="./app-pages.js?v=283"></script>
-<script src="./app-collection.js?v=283"></script>
-<script src="./barcode.js?v=283"></script>
-<script src="./tutorial.js?v=283"></script>
-<script src="./tutorial-gifs-config.js?v=283"></script>
-<script src="./migration-config.js?v=283"></script>
-<script src="./migration-ui.js?v=283"></script>
-<script src="./onboarding-config.js?v=283"></script>
-<script src="./gmail-help.js?v=283"></script>
-<script src="./onboarding.js?v=283"></script>
-<script src="./vault.js?v=283"></script>
-<script src="./era-badges-config.js?v=283"></script>
-<script src="./era-badges.js?v=283"></script>
-<script src="./catalog-display-config.js?v=283"></script>
-<script src="./non-item-detail-config.js?v=283"></script>
-<script src="./item-search-filters-config.js?v=283"></script>
-<script src="./insurance-config.js?v=283"></script>
-<script src="./reports.js?v=283"></script>
-<script src="./prefs.js?v=283"></script>
-<script src="./tools.js?v=283"></script>
+<script src="./wizard-pdlookup.js?v=284"></script>
+<script src="./wizard-suggestions.js?v=284"></script>
+<script src="./wizard-steps.js?v=284"></script>
+<script src="./wizard.js?v=284"></script>
+<script src="./wizard-photos.js?v=284"></script>
+<script src="./wizard-pickers.js?v=284"></script>
+<script src="./wizard-handlers.js?v=284"></script>
+<script src="./wizard-quickentry.js?v=284"></script>
+<script src="./wizard-save.js?v=284"></script>
+<script src="./app-misc.js?v=284"></script>
+<script src="./app-auth.js?v=284"></script>
+<script src="./app-setup.js?v=284"></script>
+<script src="./app-data.js?v=284"></script>
+<script src="./app-pages.js?v=284"></script>
+<script src="./app-collection.js?v=284"></script>
+<script src="./barcode.js?v=284"></script>
+<script src="./tutorial.js?v=284"></script>
+<script src="./tutorial-gifs-config.js?v=284"></script>
+<script src="./migration-config.js?v=284"></script>
+<script src="./migration-ui.js?v=284"></script>
+<script src="./onboarding-config.js?v=284"></script>
+<script src="./gmail-help.js?v=284"></script>
+<script src="./onboarding.js?v=284"></script>
+<script src="./vault.js?v=284"></script>
+<script src="./era-badges-config.js?v=284"></script>
+<script src="./era-badges.js?v=284"></script>
+<script src="./catalog-display-config.js?v=284"></script>
+<script src="./non-item-detail-config.js?v=284"></script>
+<script src="./item-search-filters-config.js?v=284"></script>
+<script src="./insurance-config.js?v=284"></script>
+<script src="./reports.js?v=284"></script>
+<script src="./prefs.js?v=284"></script>
+<script src="./tools.js?v=284"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="./share.js?v=283"></script>
+<script src="./share.js?v=284"></script>
 
 <script>
 // ── PWA Service Worker Registration (auto-update) ───────────────

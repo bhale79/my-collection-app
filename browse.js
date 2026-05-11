@@ -133,7 +133,7 @@ function _phLabelFor(level, id) {
 }
 
 function _renderHierarchyChips() {
-  var host = document.getElementById('hierarchy-chip-row');
+  var host = document.getElementById('hierarchy-chips');
   if (!host) return;
   var st = _phState();
   // Step 2: sync chip state to live _currentEra + active browse tab so the
@@ -166,7 +166,7 @@ function _renderHierarchyChips() {
                  + 'text-transform:uppercase;color:var(--text-dim);margin-right:0.15rem';
   var noteStyle = 'margin-left:auto;font-size:0.68rem;color:var(--text-dim);font-style:italic';
   var levels = ['manufacturer','scale','era','section'];
-  var html = '<span style="' + labelStyle + '">New Filters (Preview)</span>';
+  var html = '<span style="' + labelStyle + '">Filters</span>';
   levels.forEach(function(level, i) {
     var lbl = _phLabelFor(level, st[level]);
     if (i > 0) html += '<span style="' + sepStyle + '">›</span>';
@@ -174,7 +174,6 @@ function _renderHierarchyChips() {
          +  'onclick="_openLevelPicker(\'' + level + '\')">'
          +  lbl + ' ▾</button>';
   });
-  html += '<span style="' + noteStyle + '">New browse hierarchy — still in beta alongside the old controls</span>';
   host.innerHTML = html;
 }
 
@@ -774,7 +773,22 @@ function removeQEFilter() {
 // ── filterByType (from between non-browse blocks) ───────────
 function filterByType(type) { document.getElementById('filter-type').value = type; showPage('browse'); applyFilters(); }
 
-function buildBrowse() { renderBrowse(); }
+function buildBrowse() {
+  // Step 3a: restore the section the user last had open (from chip state).
+  try {
+    var _raw = localStorage.getItem('lv_browse_filter_state');
+    if (_raw) {
+      var _st = JSON.parse(_raw);
+      var _savedSec = (_st && _st.section) ? _st.section : 'items';
+      var _tab = (typeof _PH_SECTION_TO_TAB !== 'undefined' && _PH_SECTION_TO_TAB[_savedSec]) || _savedSec;
+      if (_tab && _tab !== 'items' && typeof renderBrowseTab === 'function') {
+        renderBrowseTab(_tab);
+        return;
+      }
+    }
+  } catch(e) {}
+  renderBrowse();
+}
 
 let _lastBrowseHash = '';
 
