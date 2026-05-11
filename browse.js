@@ -32,7 +32,18 @@ function _updateBrowseTabsForEra() {
 // WHAT_I_COLLECT.MANUFACTURERS color/label. Returns a full <td>...</td>.
 function _mfrBadge(item) {
   try {
-    var mfr = (typeof _manufacturerOfItem === 'function') ? _manufacturerOfItem(item) : '';
+    var mfr = '';
+    if (typeof _manufacturerOfItem === 'function') {
+      mfr = _manufacturerOfItem(item) || '';
+    }
+    // Fallback: master-catalog items carry _tab (e.g. 'Lionel PW - Items',
+    // 'Atlas O', 'MTH O') but not always a usable era field. Parse _tab.
+    if (!mfr && item && item._tab) {
+      var t = String(item._tab).toLowerCase();
+      if (t.indexOf('lionel') === 0)      mfr = 'lionel';
+      else if (t.indexOf('atlas') === 0)  mfr = 'atlas';
+      else if (t.indexOf('mth') === 0)    mfr = 'mth';
+    }
     if (!mfr) return '<td><span style="color:var(--text-dim);font-size:0.7rem">—</span></td>';
     var WIC = (typeof window !== 'undefined' && window.WHAT_I_COLLECT) || {};
     var mc = (WIC.MANUFACTURERS && WIC.MANUFACTURERS[mfr.toLowerCase()]) || null;
@@ -194,6 +205,18 @@ function _renderHierarchyChips() {
          +  'onclick="_openLevelPicker(\'' + level + '\')">'
          +  lbl + ' ▾</button>';
   });
+  // S149 follow-up: Type filter rendered as a 5th chip when Section = Items.
+  // Source of truth stays the hidden #filter-type <select>; the chip reads
+  // and writes that element so populateFilters/applyFilters keep working.
+  if (st.section === 'items') {
+    var _ftSel = document.getElementById('filter-type');
+    var _tVal  = _ftSel ? _ftSel.value : '';
+    var _tLbl  = _tVal || 'All Types';
+    html += '<span style="' + sepStyle + '">›</span>';
+    html += '<button type="button" style="' + chipStyle + '" '
+         +  'onclick="_openLevelPicker(\'type\')">'
+         +  _tLbl + ' ▾</button>';
+  }
   host.innerHTML = html;
 }
 
@@ -216,6 +239,17 @@ function _openLevelPicker(level) {
     _phSectionsFor(st.era).forEach(function(s) {
       options.push({ id: s, label: _phLabelFor('section', s) });
     });
+  } else if (level === 'type') {
+    // Pull options from the live #filter-type <select>. populateFilters()
+    // refreshes that select per-era, so we always get the current bucket set.
+    var _ftSel = document.getElementById('filter-type');
+    if (_ftSel) {
+      for (var oi = 0; oi < _ftSel.options.length; oi++) {
+        var o = _ftSel.options[oi];
+        var lblText = o.textContent || o.value || '';
+        options.push({ id: o.value, label: lblText });
+      }
+    }
   }
   if (!options.length) options.push({ id: '', label: '(none available)' });
 
@@ -224,13 +258,13 @@ function _openLevelPicker(level) {
   if (existing) existing.remove();
   var overlay = document.createElement('div');
   overlay.id = overlayId;
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;'
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;'
                        + 'display:flex;align-items:center;justify-content:center;padding:1rem';
   overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
   var modal = document.createElement('div');
   modal.style.cssText = 'background:var(--bg-card);border-radius:12px;padding:1.1rem;'
                      + 'max-width:340px;width:100%;max-height:80vh;overflow:auto;'
-                     + 'border:1px solid var(--border)';
+                     + 'border:1px solid var(--border);box-shadow:0 12px 36px rgba(0,0,0,0.5)';
   var head = level.charAt(0).toUpperCase() + level.slice(1);
   var heading = document.createElement('div');
   heading.style.cssText = 'font-weight:700;font-size:0.95rem;margin-bottom:0.55rem';
@@ -263,6 +297,17 @@ function _openLevelPicker(level) {
 }
 
 function _setHierarchyChoice(level, value) {
+  // S149 follow-up: type chip writes to the hidden #filter-type select
+  // and reuses the existing applyFilters() flow. Doesn't persist to chip state.
+  if (level === 'type') {
+    var _ftSel = document.getElementById('filter-type');
+    if (_ftSel) {
+      _ftSel.value = value || '';
+      if (typeof applyFilters === 'function') applyFilters();
+    }
+    if (typeof _renderHierarchyChips === 'function') _renderHierarchyChips();
+    return;
+  }
   var st = _phState();
   st[level] = value;
   if (level === 'manufacturer') {
