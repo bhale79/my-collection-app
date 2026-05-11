@@ -1948,6 +1948,21 @@ function renderWizardStep() {
           ">${c}</button>`).join('')}
       </div>`;
 
+  } else if (s.type === 'eraConfirm') {
+    // Session 133: read-only confirmation of an era-specific master field
+    // (e.g. Atlas trackPower or MTH category). Pre-displays the catalog value;
+    // user taps the global Next button to advance. No editable UI; no save
+    // changes needed since the value lives on the master row.
+    var _ecMatched = wizard.matchedItem || (typeof findMaster === 'function' ? findMaster(wizard.data.itemNum) : null);
+    var _ecVal = (_ecMatched && s.field && _ecMatched[s.field]) ? _ecMatched[s.field] : '';
+    var _ecLabel = s.label || '';
+    body.innerHTML =
+      '<div style="padding:1.5rem 1rem;text-align:center">' +
+      (_ecLabel ? '<div style="font-size:0.78rem;color:var(--text-dim);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.6rem">' + _ecLabel + '</div>' : '') +
+      '<div style="font-size:1.6rem;font-weight:700;color:var(--accent);margin-bottom:0.7rem">' + (_ecVal || '—') + '</div>' +
+      '<div style="font-size:0.78rem;color:var(--text-dim);font-style:italic;max-width:280px;margin:0 auto">From the catalog. Tap Next to confirm.</div>' +
+      '</div>';
+
   } else if (s.type === 'choiceSearch') {
     // Searchable choice list — type to filter, click to select
     const csVal     = wizard.data[s.id] || '';

@@ -394,6 +394,27 @@ function getSteps(tab) {
       // ── SCREEN 3: Condition & Details (multi-column) ──
       { id: 'conditionDetails', title: 'Condition & Details', type: 'conditionDetails' },
 
+      // ── Session 133: era-specific confirmation steps ──
+      // Atlas items confirm their Track/Power. MTH items confirm their Category
+      // (Premier / RailKing / etc.). Both are READ-ONLY confirmations sourced
+      // from the matched master row. Skips cleanly when no master match or no
+      // relevant data populated.
+      { id: 'atlasTrackPower', title: 'Track configuration', type: 'eraConfirm',
+        field: 'trackPower', label: 'Track / Power',
+        skipIf: (d) => {
+          if (wizard.data._era !== 'atlas') return true;
+          var m = wizard.matchedItem || (typeof findMaster === 'function' ? findMaster(d.itemNum) : null);
+          return !m || !m.trackPower;
+        } },
+      { id: 'mthCategory', title: 'MTH product line', type: 'eraConfirm',
+        field: 'category', label: 'Category',
+        skipIf: (d) => {
+          var era = wizard.data._era || '';
+          if (era.indexOf('mth_') !== 0) return true;
+          var m = wizard.matchedItem || (typeof findMaster === 'function' ? findMaster(d.itemNum) : null);
+          return !m || !m.category;
+        } },
+
       // ── SCREEN 4: Purchase & Value (combined) ──
       // Skipped for simplified types (embedded in conditionDetails)
       { id: 'purchaseValue', title: 'Purchase & Value', type: 'purchaseValue',
