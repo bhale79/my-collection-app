@@ -105,9 +105,12 @@ const WHAT_I_COLLECT = {
   // This config just lists the user-selectable manufacturer IDs (lowercase
   // for localStorage stability) and their human labels.
   MANUFACTURERS: {
-    lionel: { id: 'lionel', label: 'Lionel', default: true  },
-    atlas:  { id: 'atlas',  label: 'Atlas',  default: false },
-    mth:    { id: 'mth',    label: 'MTH',    default: false },
+    // Order matters: Lionel -> MTH -> Atlas (Brad's preferred order, S148).
+    // This is the order shown in chip pickers AND the sort order when
+    // Mfr=Any (Phase 5 Step 3b cross-manufacturer view).
+    lionel: { id: 'lionel', label: 'Lionel', color: 'var(--accent)', default: true  },
+    mth:    { id: 'mth',    label: 'MTH',    color: '#e74c3c',       default: false },
+    atlas:  { id: 'atlas',  label: 'Atlas',  color: '#2980b9',       default: false },
   },
 };
 

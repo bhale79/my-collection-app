@@ -26,18 +26,38 @@ function _updateBrowseTabsForEra() {
   }
 }
 
+
+// Phase 5 Step 3a follow-up: manufacturer badge for the first column of each
+// master-browse row. Uses _manufacturerOfItem (from app.js, Session 137) +
+// WHAT_I_COLLECT.MANUFACTURERS color/label. Returns a full <td>...</td>.
+function _mfrBadge(item) {
+  try {
+    var mfr = (typeof _manufacturerOfItem === 'function') ? _manufacturerOfItem(item) : '';
+    if (!mfr) return '<td><span style="color:var(--text-dim);font-size:0.7rem">—</span></td>';
+    var WIC = (typeof window !== 'undefined' && window.WHAT_I_COLLECT) || {};
+    var mc = (WIC.MANUFACTURERS && WIC.MANUFACTURERS[mfr.toLowerCase()]) || null;
+    var lbl = (mc && mc.label) || mfr;
+    var col = (mc && mc.color) || 'var(--text-dim)';
+    return '<td><span style="display:inline-block;padding:0.13rem 0.5rem;'
+         + 'border-radius:10px;background:' + col + ';color:#fff;'
+         + 'font-size:0.62rem;font-weight:700;letter-spacing:0.06em;'
+         + 'text-transform:uppercase;white-space:nowrap;line-height:1.2">'
+         + lbl + '</span></td>';
+  } catch(e) { return '<td><span style="color:var(--text-dim);font-size:0.7rem">—</span></td>'; }
+}
+
 // ── Era-aware master catalog table headers ──
 // Lionel eras use Road/Variation columns; Atlas uses Sub Type/Track-Power/MSRP;
 // MTH (Session 129) uses Road/Description/Category/Track-Power to surface the
 // Premier vs RailKing product-line distinction and rail configuration.
 function _atlasBrowseHeaders() {
-  return '<th>Item #</th><th>Type</th><th>Sub Type</th><th>Description</th><th>Track/Power</th><th>MSRP</th><th>Year</th><th>Owned</th>';
+  return '<th>Mfr.</th><th>Item #</th><th>Type</th><th>Sub Type</th><th>Description</th><th>Track/Power</th><th>MSRP</th><th>Year</th><th>Owned</th>';
 }
 function _lionelBrowseHeaders() {
-  return '<th>Item #</th><th>Type</th><th>Road / Name</th><th>Descr.</th><th>Var.</th><th>Var. Descr.</th><th>Year</th><th>Owned</th>';
+  return '<th>Mfr.</th><th>Item #</th><th>Type</th><th>Road / Name</th><th>Descr.</th><th>Var.</th><th>Var. Descr.</th><th>Year</th><th>Owned</th>';
 }
 function _mthBrowseHeaders() {
-  return '<th>Item #</th><th>Type</th><th>Road / Name</th><th>Descr.</th><th>Category</th><th>Track/Power</th><th>Year</th><th>Owned</th>';
+  return '<th>Mfr.</th><th>Item #</th><th>Type</th><th>Road / Name</th><th>Descr.</th><th>Category</th><th>Track/Power</th><th>Year</th><th>Owned</th>';
 }
 function _refreshBrowseHeaders() {
   var thead = document.querySelector('#page-browse .item-table thead tr');
@@ -1717,7 +1737,7 @@ function renderBrowse() {
   if (!owned && typeof _currentEra !== 'undefined' && _currentEra === 'all'
       && (!search || !search.trim()) && !_hasFilter) {
     const _gtbody = document.getElementById('browse-tbody');
-    if (_gtbody) _gtbody.innerHTML = '<tr><td colspan="9"><div class="empty-state" style="padding:3rem 1rem;text-align:center">'
+    if (_gtbody) _gtbody.innerHTML = '<tr><td colspan="10"><div class="empty-state" style="padding:3rem 1rem;text-align:center">'
       + '<div style="font-size:2.5rem;margin-bottom:0.75rem">🔍</div>'
       + '<p style="font-weight:600;margin-bottom:0.4rem">All Collection — type to search</p>'
       + '<p style="font-size:0.85rem;color:var(--text-dim);margin-bottom:0.6rem">There are 30,000+ items across every era. Type an item number, road name, or description to find anything.</p>'
@@ -1937,7 +1957,7 @@ function renderBrowse() {
   let _ephRowsHtml = '';
   if (_ephemeraRows.length) {
     _ephRowsHtml = _ephemeraRows.map(r => {
-      if (r._divider) return `<tr><td colspan="${state.filters.owned ? '7' : '8'}" style="padding:0.5rem 0.75rem;background:var(--surface2);font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:${r.color};text-transform:uppercase;border-top:2px solid ${r.color}33">${r.label}</td></tr>`;
+      if (r._divider) return `<tr><td colspan="${state.filters.owned ? '8' : '9'}" style="padding:0.5rem 0.75rem;background:var(--surface2);font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:${r.color};text-transform:uppercase;border-top:2px solid ${r.color}33">${r.label}</td></tr>`;
       const it = r.item;
       const cond = it.condition ? parseInt(it.condition) : null;
       const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
@@ -2181,6 +2201,7 @@ function renderBrowse() {
       const _isQuick = pd && pd.quickEntry;
       const _eraBadgeHtml = (typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(item._tab) : '';
       return `<tr onclick="browseRowClick(event, ${globalIdx})" style="cursor:pointer${_isQuick ? ';opacity:0.78' : ''}" title="${_isErrCar ? '⚠ Error car: ' + (pd.errorDesc||'see notes') : _isQuick ? '⚡ Quick Entry — details not yet filled in' : ''}">
+        ${_mfrBadge(item)}
         <td>
           <span class="item-num">${_displayItemNum(item)}${_isErrCar ? '<sup style="color:var(--accent);font-size:0.65rem">*</sup>' : ''}${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(\''+item.itemNum+'\',\''+((item.variation||'').replace(/\'/g,"\\\\'"))+'\','+globalIdx+',\''+(pd.inventoryId||'')+'\')" style="font-size:0.6rem;background:#27ae60;color:#fff;border-radius:3px;padding:1px 4px;vertical-align:middle;font-weight:600;cursor:pointer" title="Complete this Quick Entry">⚡</span>' : ''}</span>${_eraBadgeHtml}
           ${item.refLink ? `<a href="${item.refLink}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="View on COTT" style="margin-left:5px;vertical-align:middle;color:var(--text-dim);opacity:0.6;text-decoration:none;display:inline-flex" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : ''}
@@ -2230,7 +2251,7 @@ function renderBrowse() {
 
   const emptyHtml = isMobile
     ? (_crossScopeBanner || '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🔍</div><p>No items match your filters</p></div>')
-    : '<tr><td colspan="' + (state.filters.owned ? '7' : '8') + '">' + (_crossScopeBanner || '<div class="empty-state"><div class="empty-icon">🔍</div><p>No items match your filters</p><p style="font-size:0.8rem;color:var(--text-dim);margin-top:0.25rem">Try clearing some filters</p></div>') + '</td></tr>';
+    : '<tr><td colspan="' + (state.filters.owned ? '8' : '9') + '">' + (_crossScopeBanner || '<div class="empty-state"><div class="empty-icon">🔍</div><p>No items match your filters</p><p style="font-size:0.8rem;color:var(--text-dim);margin-top:0.25rem">Try clearing some filters</p></div>') + '</td></tr>';
 
   if (isMobile) {
     let _ephCardsHtml = '';
