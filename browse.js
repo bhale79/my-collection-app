@@ -2338,12 +2338,18 @@ function renderBrowse() {
           <span id="cam-${item.itemNum}-${item.variation||''}" style="margin-left:5px;font-size:0.85rem;cursor:pointer;display:none" onclick="event.stopPropagation();openPhotoFolder('${item.itemNum}','${pd&&pd.photoItem?pd.photoItem:''}')" title="Open photo folder">📷</span>
         </td>
         <td><span class="tag">${(typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(item) : item.itemType) || '—'}</span></td>
-        ${((_currentEra === 'atlas') || (item && item._tab === 'Atlas O')) ? `
+        ${((_currentEra === 'atlas') || (item && item._tab === 'Atlas O')) ? (
+        _currentEra === 'all' ? `
+        <td>${item.description || '<span class="text-dim">—</span>'}</td>
+        <td>${item.subType || '<span class="text-dim">—</span>'}</td>
+        <td>${item.trackPower || '<span class="text-dim">—</span>'}</td>
+        <td class="text-dim">${item.msrp ? '$' + parseFloat(String(item.msrp).replace(/[^0-9.]/g,'')).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) : '—'}</td>
+        ` : `
         <td>${item.subType || '<span class="text-dim">—</span>'}</td>
         <td>${item.description || '<span class="text-dim">—</span>'}</td>
         <td>${item.trackPower || '<span class="text-dim">—</span>'}</td>
         <td class="text-dim">${item.msrp ? '$' + parseFloat(String(item.msrp).replace(/[^0-9.]/g,'')).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) : '—'}</td>
-        ` : (((_currentEra && _currentEra.indexOf('mth_') === 0) || (item && item._tab && item._tab.indexOf('MTH ') === 0)) ? `
+        `) : (((_currentEra && _currentEra.indexOf('mth_') === 0) || (item && item._tab && item._tab.indexOf('MTH ') === 0)) ? `
         <td>${item.roadName || '<span class="text-dim">—</span>'}</td>
         <td>${item.description || '<span class="text-dim">—</span>'}</td>
         <td>${item.category || '<span class="text-dim">—</span>'}</td>
