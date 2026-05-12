@@ -499,6 +499,7 @@ function _externalSiteLabel(url) {
   if (lc.indexOf('atlasrr') >= 0)             return 'Atlas';
   if (lc.indexOf('atlas.com') >= 0)           return 'Atlas';
   if (lc.indexOf('atlasmodel') >= 0)          return 'Atlas';
+  if (lc.indexOf('lionel.com') >= 0)          return 'Lionel';
   if (lc.indexOf('centerlineoftrains') >= 0)  return 'COTT';
   if (lc.indexOf('cott') >= 0)                return 'COTT';
   return 'External';
@@ -513,6 +514,14 @@ function _itemExternalLinkHTML(item) {
   } else if (item._tab && String(item._tab).toLowerCase().indexOf('mth') === 0
              && item.itemNum) {
     url = 'https://www.mthtrains.com/products/' + encodeURIComponent(item.itemNum);
+  } else if (item._tab && String(item._tab).toLowerCase().indexOf('lionel') === 0
+             && item.itemNum) {
+    // S152 follow-up: lionel.com search indexes items from 2011 forward.
+    // Year-gate the link so pre-2011 items don't get a useless button.
+    var _lyMatch = String(item.yearProd || '').match(/(\d{4})/);
+    if (_lyMatch && parseInt(_lyMatch[1], 10) >= 2011) {
+      url = 'https://www.lionel.com/search?query=' + encodeURIComponent(item.itemNum);
+    }
   }
   if (!url) return '';
   var title = 'View on ' + _externalSiteLabel(url);
