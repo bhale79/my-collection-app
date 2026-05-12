@@ -910,6 +910,11 @@ async function loadAllErasMode() {
     // ~15-20s to ~6-10s. If the parallel block fails for any reason,
     // _phase6OK stays false and the sequential loop below falls back to
     // the original behavior.
+    // S151 follow-up: surface a small 'X of Y eras loaded' indicator while
+    // the parallel fetch is in flight. Each per-era promise increments loaded.
+    state.loading = state.loading || {};
+    state.loading.allEras = { total: realEras.length, loaded: 0, refreshing: true };
+    if (typeof _renderAllLoadingIndicator === 'function') _renderAllLoadingIndicator();
     var _phase6OK = false;
     try {
       var _pmRows = await Promise.all(realEras.map(function(_era) {
@@ -918,6 +923,11 @@ async function loadAllErasMode() {
           deduped.forEach(function(m) { m._era = _era; });
           idbSet('lv_master_cache_' + _era, deduped);
           try { localStorage.setItem('lv_master_cache_ts_' + _era, Date.now().toString()); } catch(e) {}
+          // Step S151: tick the loading indicator.
+          if (state.loading && state.loading.allEras) {
+            state.loading.allEras.loaded++;
+            if (typeof _renderAllLoadingIndicator === 'function') _renderAllLoadingIndicator();
+          }
           return deduped;
         });
       }));
@@ -926,11 +936,23 @@ async function loadAllErasMode() {
       _pmRows.forEach(function(rows) { state.masterData = state.masterData.concat(rows); });
       _rebuildMasterIndex();
       _phase6OK = true;
+      // S151: parallel master fetch done — clear loading indicator. Sets/
+      // companions still load sequentially below but those are smaller/faster
+      // and the user already has all the master items.
+      if (state.loading && state.loading.allEras) {
+        state.loading.allEras.refreshing = false;
+        if (typeof _renderAllLoadingIndicator === 'function') _renderAllLoadingIndicator();
+      }
       // Show the user fresh master data right away while sets/companions
       // continue loading sequentially below.
       if (typeof renderBrowse === 'function') renderBrowse();
     } catch (e) {
       console.warn('[loadAllErasMode] parallel master fetch failed, falling back to sequential:', e);
+      // S151: still mark refresh done so the indicator clears.
+      if (state.loading && state.loading.allEras) {
+        state.loading.allEras.refreshing = false;
+        if (typeof _renderAllLoadingIndicator === 'function') _renderAllLoadingIndicator();
+      }
     }
 
     for (var i = 0; i < realEras.length; i++) {

@@ -372,11 +372,41 @@ function _setHierarchyChoice(level, value) {
 }
 
 // Expose for inline onclick handlers
+if (typeof window !== 'undefined' && !document.getElementById('_spin-kf-style')) {
+  var _spinSty = document.createElement('style');
+  _spinSty.id = '_spin-kf-style';
+  _spinSty.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
+  document.head.appendChild(_spinSty);
+}
 if (typeof window !== 'undefined') {
   window._openLevelPicker      = _openLevelPicker;
   window._renderHierarchyChips = _renderHierarchyChips;
   window._setHierarchyChoice   = _setHierarchyChoice;
 }
+
+// S151: small 'X of Y eras loaded' indicator next to result-count, shown
+// while loadAllErasMode background refresh is in flight. Updated by app.js
+// after each era's master fetch completes.
+function _renderAllLoadingIndicator() {
+  var le = state.loading && state.loading.allEras;
+  var ind = document.getElementById('all-loading-indicator');
+  if (!le || !le.refreshing) {
+    if (ind && ind.parentNode) ind.parentNode.removeChild(ind);
+    return;
+  }
+  if (!ind) {
+    var rc = document.getElementById('result-count');
+    if (!rc) return;
+    ind = document.createElement('span');
+    ind.id = 'all-loading-indicator';
+    ind.style.cssText = 'margin-left:0.4rem;color:var(--accent);font-style:italic;'
+                     + 'font-size:0.78rem;display:inline-flex;align-items:center;gap:0.3rem';
+    rc.appendChild(ind);
+  }
+  ind.innerHTML = '<span style="display:inline-block;width:10px;height:10px;border:2px solid var(--accent);border-top-color:transparent;border-radius:50%;animation:spin 0.7s linear infinite"></span>'
+               + ' loading more eras (' + le.loaded + '/' + le.total + ')…';
+}
+if (typeof window !== 'undefined') window._renderAllLoadingIndicator = _renderAllLoadingIndicator;
 
 // ── Cross-era search banner ──
 // When a search term is active on the master catalog, show a banner offering to
@@ -2083,6 +2113,8 @@ function renderBrowse() {
   const ephTotal = _ephemeraRows.filter(r=>r._eph).length;
   const displayTotal = total + ephTotal;
   document.getElementById('result-count').textContent = `${displayTotal.toLocaleString()} items`;
+  // S151: append all-mode loading indicator if background refresh is running.
+  if (typeof _renderAllLoadingIndicator === 'function') _renderAllLoadingIndicator();
   document.getElementById('page-info').textContent = `Showing ${start+1}–${Math.min(start+state.pageSize, total)} of ${total.toLocaleString()} trains${ephTotal ? ' + ' + ephTotal + ' other' : ''}`;
 
   // Rows
