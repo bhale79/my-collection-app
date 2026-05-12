@@ -483,6 +483,37 @@ function _renderAllLoadingIndicator() {
 }
 if (typeof window !== 'undefined') window._renderAllLoadingIndicator = _renderAllLoadingIndicator;
 
+// S151 follow-up: per-item external reference link. Returns inline HTML for
+// a small external-link icon. Atlas items use item.refLink (set from the
+// sheet) and label 'View on Atlas'. MTH items derive a URL from the item
+// number using the mthtrains.com /products/{itemNum} pattern. Lionel items
+// have no external catalog wired up yet.
+function _itemExternalLinkHTML(item) {
+  if (!item) return '';
+  var url = '', title = '';
+  if (item.refLink) {
+    url = item.refLink;
+    title = 'View on Atlas';
+  } else if (item._tab && String(item._tab).toLowerCase().indexOf('mth') === 0
+             && item.itemNum) {
+    url = 'https://www.mthtrains.com/products/' + encodeURIComponent(item.itemNum);
+    title = 'View on MTH';
+  }
+  if (!url) return '';
+  return '<a href="' + url + '" target="_blank" rel="noopener" '
+       + 'onclick="event.stopPropagation()" title="' + title + '" '
+       + 'style="margin-left:5px;vertical-align:middle;color:var(--text-dim);'
+       + 'opacity:0.6;text-decoration:none;display:inline-flex" '
+       + 'onmouseover="this.style.opacity=\'1\'" '
+       + 'onmouseout="this.style.opacity=\'0.6\'">'
+       + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" '
+       + 'stroke="currentColor" stroke-width="2.5">'
+       + '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>'
+       + '<polyline points="15,3 21,3 21,9"/>'
+       + '<line x1="10" y1="14" x2="21" y2="3"/></svg></a>';
+}
+if (typeof window !== 'undefined') window._itemExternalLinkHTML = _itemExternalLinkHTML;
+
 // ── Cross-era search banner ──
 // When a search term is active on the master catalog, show a banner offering to
 // re-run the same search in other eras. Button click switches era + preserves term.
@@ -2437,7 +2468,7 @@ function renderBrowse() {
         ${_mfrBadge(item)}
         <td>
           <span class="item-num">${_displayItemNum(item)}${_isErrCar ? '<sup style="color:var(--accent);font-size:0.65rem">*</sup>' : ''}${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(\''+item.itemNum+'\',\''+((item.variation||'').replace(/\'/g,"\\\\'"))+'\','+globalIdx+',\''+(pd.inventoryId||'')+'\')" style="font-size:0.6rem;background:#27ae60;color:#fff;border-radius:3px;padding:1px 4px;vertical-align:middle;font-weight:600;cursor:pointer" title="Complete this Quick Entry">⚡</span>' : ''}</span>${_eraBadgeHtml}
-          ${item.refLink ? `<a href="${item.refLink}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="View on COTT" style="margin-left:5px;vertical-align:middle;color:var(--text-dim);opacity:0.6;text-decoration:none;display:inline-flex" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : ''}
+          ${_itemExternalLinkHTML(item)}
           <span id="cam-${item.itemNum}-${item.variation||''}" style="margin-left:5px;font-size:0.85rem;cursor:pointer;display:none" onclick="event.stopPropagation();openPhotoFolder('${item.itemNum}','${pd&&pd.photoItem?pd.photoItem:''}')" title="Open photo folder">📷</span>
         </td>
         <td><span class="tag">${(typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(item) : item.itemType) || '—'}</span></td>
