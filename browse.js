@@ -389,6 +389,12 @@ function _renderCrossEraSearchBanner(searchTerm) {
     if (existing) existing.remove();
     return;
   }
+  // S151 follow-up: in 'all' meta-era mode the search already spans every
+  // era, so offering 'search in [other era]' is noise. Skip the banner.
+  if (typeof _currentEra !== 'undefined' && _currentEra === 'all') {
+    if (existing) existing.remove();
+    return;
+  }
   // Build list of OTHER eras (skip current AND the 'all' meta-era —
   // it's not a real era you can switch a search to). Honor user's
   // enabled-eras preference so disabled eras don't show in the banner.

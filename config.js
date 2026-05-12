@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.250';
+const APP_VERSION = 'v0.9.251';
 const APP_DATE    = 'April 2026';
 
 // ═══════════════════════════════════════════════════════════════════
@@ -148,7 +148,7 @@ const SEARCH_ALIAS_GROUPS = [
   ['nkp', 'nickel plate', 'nickel plate road'],
   ['drgw', 'd&rgw', 'denver and rio grande western', 'rio grande'],
   ['dlw', 'dl&w', 'lackawanna', 'delaware lackawanna'],
-  ['l&n', 'ln', 'louisville and nashville'],
+  ['l&n', 'louisville and nashville'],  // 'ln' removed S151 — Atlas uses (LN) for Low Nose
   ['n&w', 'nw', 'norfolk and western'],
   ['ns', 'norfolk southern'],
   ['cn', 'canadian national'],
@@ -178,7 +178,7 @@ const SEARCH_ALIAS_GROUPS = [
   ['frisco', 'slsf'],
   ['cnw', 'c&nw', 'chicago and northwestern'],
   ['cb&q', 'cbq', 'burlington'],
-  ['l&n', 'ln', 'louisville and nashville'],
+  ['l&n', 'louisville and nashville'],  // 'ln' removed S151 — Atlas uses (LN) for Low Nose
   ['gg1', 'gg-1'],
   ['usmc', 'united states marine corps', 'u.s. marines', 'us marines'],
   ['usn', 'u.s. navy', 'us navy'],
