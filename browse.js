@@ -485,7 +485,7 @@ if (typeof window !== 'undefined') window._renderAllLoadingIndicator = _renderAl
 
 // S151 follow-up: per-item external reference link. Returns inline HTML for
 // a small external-link icon. Atlas items use item.refLink (set from the
-// sheet); label derived from URL via _externalSiteLabel. MTH items derive a URL from the item
+// sheet) and label 'View on Atlas'. MTH items derive a URL from the item
 // number using the mthtrains.com /products/{itemNum} pattern. Lionel items
 // have no external catalog wired up yet.
 // S152 fix: label the external-link button by destination, not by manufacturer.
@@ -2616,4 +2616,4 @@ function renderBrowse() {
   paginEl.innerHTML = btns;
 }
 
-function goPage(p) { state.currentPage = p; renderBrowse(); document.getElementById('main-conten
+function goPage(p) { state.currentPage = p; renderBrowse(); document.getElementById('main-content').scrollTop = 0; }
