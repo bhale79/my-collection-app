@@ -485,21 +485,37 @@ if (typeof window !== 'undefined') window._renderAllLoadingIndicator = _renderAl
 
 // S151 follow-up: per-item external reference link. Returns inline HTML for
 // a small external-link icon. Atlas items use item.refLink (set from the
-// sheet) and label 'View on Atlas'. MTH items derive a URL from the item
+// sheet); label derived from URL via _externalSiteLabel. MTH items derive a URL from the item
 // number using the mthtrains.com /products/{itemNum} pattern. Lionel items
 // have no external catalog wired up yet.
+// S152 fix: label the external-link button by destination, not by manufacturer.
+// Detection is hostname-based: mthtrains.com -> 'MTH'; atlas.com/atlasrr.com
+// -> 'Atlas'; centerlineoftrains.com or anything with 'cott' -> 'COTT'.
+// Falls back to 'External' for unknown hosts.
+function _externalSiteLabel(url) {
+  if (!url) return 'External';
+  var lc = String(url).toLowerCase();
+  if (lc.indexOf('mthtrains') >= 0)           return 'MTH';
+  if (lc.indexOf('atlasrr') >= 0)             return 'Atlas';
+  if (lc.indexOf('atlas.com') >= 0)           return 'Atlas';
+  if (lc.indexOf('atlasmodel') >= 0)          return 'Atlas';
+  if (lc.indexOf('centerlineoftrains') >= 0)  return 'COTT';
+  if (lc.indexOf('cott') >= 0)                return 'COTT';
+  return 'External';
+}
+if (typeof window !== 'undefined') window._externalSiteLabel = _externalSiteLabel;
+
 function _itemExternalLinkHTML(item) {
   if (!item) return '';
-  var url = '', title = '';
+  var url = '';
   if (item.refLink) {
     url = item.refLink;
-    title = 'View on Atlas';
   } else if (item._tab && String(item._tab).toLowerCase().indexOf('mth') === 0
              && item.itemNum) {
     url = 'https://www.mthtrains.com/products/' + encodeURIComponent(item.itemNum);
-    title = 'View on MTH';
   }
   if (!url) return '';
+  var title = 'View on ' + _externalSiteLabel(url);
   return '<a href="' + url + '" target="_blank" rel="noopener" '
        + 'onclick="event.stopPropagation()" title="' + title + '" '
        + 'style="margin-left:5px;vertical-align:middle;color:var(--text-dim);'
@@ -2600,4 +2616,4 @@ function renderBrowse() {
   paginEl.innerHTML = btns;
 }
 
-function goPage(p) { state.currentPage = p; renderBrowse(); document.getElementById('main-content').scrollTop = 0; }
+function goPage(p) { state.currentPage = p; renderBrowse(); document.getElementById('main-conten
