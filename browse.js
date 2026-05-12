@@ -502,6 +502,7 @@ function _externalSiteLabel(url) {
   if (lc.indexOf('lionel.com') >= 0)          return 'Lionel';
   if (lc.indexOf('centerlineoftrains') >= 0)  return 'COTT';
   if (lc.indexOf('cott') >= 0)                return 'COTT';
+  if (lc.indexOf('google.com') >= 0)          return 'Google';
   return 'External';
 }
 if (typeof window !== 'undefined') window._externalSiteLabel = _externalSiteLabel;
@@ -516,11 +517,16 @@ function _itemExternalLinkHTML(item) {
     url = 'https://www.mthtrains.com/products/' + encodeURIComponent(item.itemNum);
   } else if (item._tab && String(item._tab).toLowerCase().indexOf('lionel') === 0
              && item.itemNum) {
-    // S152 follow-up: lionel.com search indexes items from 2011 forward.
-    // Year-gate the link so pre-2011 items don't get a useless button.
+    // S152 follow-up: lionel.com search covers items from 2011 forward.
+    // Pre-2011 (MPC + early Modern) fall through to a Google search using
+    // manufacturer + item number + road name when present.
     var _lyMatch = String(item.yearProd || '').match(/(\d{4})/);
     if (_lyMatch && parseInt(_lyMatch[1], 10) >= 2011) {
       url = 'https://www.lionel.com/search?query=' + encodeURIComponent(item.itemNum);
+    } else {
+      // Tier 2 fallback: Google search.
+      var _gq = 'Lionel ' + item.itemNum + (item.roadName ? ' ' + item.roadName : '');
+      url = 'https://www.google.com/search?q=' + encodeURIComponent(_gq);
     }
   }
   if (!url) return '';
