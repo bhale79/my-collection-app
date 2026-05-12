@@ -507,28 +507,31 @@ function _externalSiteLabel(url) {
 }
 if (typeof window !== 'undefined') window._externalSiteLabel = _externalSiteLabel;
 
-function _itemExternalLinkHTML(item) {
+// S152 follow-up: pure-URL version used by both row icon and item detail page.
+// Returns the external destination URL for an item, or '' if none. Centralises
+// the Atlas/MTH/Lionel/Google branching so app-collection.js can reuse it.
+function _itemExternalLinkURL(item) {
   if (!item) return '';
-  var url = '';
-  if (item.refLink) {
-    url = item.refLink;
-  } else if (item._tab && String(item._tab).toLowerCase().indexOf('mth') === 0
-             && item.itemNum) {
-    url = 'https://www.mthtrains.com/products/' + encodeURIComponent(item.itemNum);
-  } else if (item._tab && String(item._tab).toLowerCase().indexOf('lionel') === 0
-             && item.itemNum) {
-    // S152 follow-up: lionel.com search covers items from 2011 forward.
-    // Pre-2011 (MPC + early Modern) fall through to a Google search using
-    // manufacturer + item number + road name when present.
-    var _lyMatch = String(item.yearProd || '').match(/(\d{4})/);
-    if (_lyMatch && parseInt(_lyMatch[1], 10) >= 2011) {
-      url = 'https://www.lionel.com/search?query=' + encodeURIComponent(item.itemNum);
-    } else {
-      // Tier 2 fallback: Google search.
-      var _gq = 'Lionel ' + item.itemNum + (item.roadName ? ' ' + item.roadName : '');
-      url = 'https://www.google.com/search?q=' + encodeURIComponent(_gq);
-    }
+  if (item.refLink) return item.refLink;
+  if (item._tab && String(item._tab).toLowerCase().indexOf('mth') === 0
+      && item.itemNum) {
+    return 'https://www.mthtrains.com/products/' + encodeURIComponent(item.itemNum);
   }
+  if (item._tab && String(item._tab).toLowerCase().indexOf('lionel') === 0
+      && item.itemNum) {
+    var _lyMatch2 = String(item.yearProd || '').match(/(\d{4})/);
+    if (_lyMatch2 && parseInt(_lyMatch2[1], 10) >= 2011) {
+      return 'https://www.lionel.com/search?query=' + encodeURIComponent(item.itemNum);
+    }
+    var _gq2 = 'Lionel ' + item.itemNum + (item.roadName ? ' ' + item.roadName : '');
+    return 'https://www.google.com/search?q=' + encodeURIComponent(_gq2);
+  }
+  return '';
+}
+if (typeof window !== 'undefined') window._itemExternalLinkURL = _itemExternalLinkURL;
+
+function _itemExternalLinkHTML(item) {
+  var url = _itemExternalLinkURL(item);
   if (!url) return '';
   var title = 'View on ' + _externalSiteLabel(url);
   return '<a href="' + url + '" target="_blank" rel="noopener" '

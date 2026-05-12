@@ -874,7 +874,7 @@ function showItemDetailPage(idx) {
         <div style="font-size:1.05rem;color:var(--text);margin-bottom:0.2rem">${it.roadName || ''}</div>
         ${it.description ? `<div style="font-size:0.85rem;color:var(--text-mid);line-height:1.5;margin-top:0.3rem"><strong style="color:var(--text)">Description:</strong> ${it.description}</div>` : ''}
         ${it.varDesc ? `<div style="font-size:0.85rem;color:var(--text-mid);line-height:1.5;margin-top:0.3rem"><strong style="color:var(--text)">Variation Description:</strong> ${it.varDesc}</div>` : ''}
-        ${it.refLink ? `<a href="${it.refLink}" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent2);text-decoration:none;display:inline-flex;align-items:center;gap:0.3rem;margin-top:0.4rem">View on ${(typeof _externalSiteLabel === "function" ? _externalSiteLabel(it.refLink) : "Atlas")} <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : ''}
+        ${(function(){ var _u = (typeof _itemExternalLinkURL==='function')?_itemExternalLinkURL(it):(it.refLink||''); return _u ? `<a href="${_u}" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent2);text-decoration:none;display:inline-flex;align-items:center;gap:0.3rem;margin-top:0.4rem">View on ${(typeof _externalSiteLabel === "function" ? _externalSiteLabel(_u) : "External")} <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : ''; })()}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.4rem;flex-shrink:0">
         <span class="owned-badge ${isForSale ? 'forsale' : 'yes'}" style="font-size:0.85rem">${isForSale ? '\ud83c\udff7\ufe0f For Sale' : '\u2713 In Collection'}</span>
@@ -2036,7 +2036,8 @@ function showItemPanel(idx, pdKey, mode) {
     { label: 'Date Purchased',key: 'datePurchased', val: pd.datePurchased || '—', type: 'date' },
     { label: 'Notes',         key: 'notes',         val: pd.notes || '—',         type: 'text' },
     { label: 'Location',      key: 'location',      val: pd.location || '—',      type: 'text' },
-    ...(item.refLink ? [{ label: 'Reference', key: null, val: item.refLink, type: 'readonly' }] : []),
+    ...(((typeof _itemExternalLinkURL === 'function') ? _itemExternalLinkURL(item) : item.refLink)
+      ? [{ label: 'Reference', key: null, val: ((typeof _itemExternalLinkURL === 'function') ? _itemExternalLinkURL(item) : item.refLink), type: 'readonly' }] : []),
     ...(pd.isError === 'Yes' || item.errorDesc ? [{ label: 'Error', key: null, val: pd.errorDesc || '—', type: 'readonly' }] : []),
   ];
 
@@ -2535,15 +2536,16 @@ function browseRowClick(event, idx) {
       descSec.textContent = item.description;
       vdBox.appendChild(descSec);
     }
-    if (item.refLink) {
+    var _detailUrl = (typeof _itemExternalLinkURL === 'function') ? _itemExternalLinkURL(item) : (item.refLink || '');
+    if (_detailUrl) {
       const cottRow = document.createElement('div');
       cottRow.style.cssText = 'margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border)';
       const cottA = document.createElement('a');
-      cottA.href = item.refLink;
+      cottA.href = _detailUrl;
       cottA.target = '_blank';
       cottA.rel = 'noopener';
       cottA.style.cssText = 'font-size:0.82rem;color:#2980b9;text-decoration:none;display:inline-flex;align-items:center;gap:0.35rem';
-      cottA.innerHTML = 'View on ' + (typeof _externalSiteLabel === 'function' ? _externalSiteLabel(item.refLink) : 'Atlas') + ' <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+      cottA.innerHTML = 'View on ' + (typeof _externalSiteLabel === 'function' ? _externalSiteLabel(_detailUrl) : 'External') + ' <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
       cottRow.appendChild(cottA);
       vdBox.appendChild(cottRow);
     }
@@ -2969,7 +2971,7 @@ function openItem(idx) {
   else { document.getElementById('mi-gauge-wrap').style.display = 'none'; }
   document.getElementById('mi-var').textContent = item.variation || '(no variation)';
   document.getElementById('mi-market').textContent = item.marketVal ? _currencySymbol() + parseFloat(item.marketVal).toLocaleString() : '—';
-  document.getElementById('mi-ref').innerHTML = item.refLink ? `<a href="${item.refLink}" target="_blank">View on ${(typeof _externalSiteLabel === "function" ? _externalSiteLabel(item.refLink) : "Atlas")} ↗</a>` : '—';
+  document.getElementById('mi-ref').innerHTML = (function(){ var _u3 = (typeof _itemExternalLinkURL === 'function') ? _itemExternalLinkURL(item) : (item.refLink || ''); return _u3 ? `<a href="${_u3}" target="_blank">View on ${(typeof _externalSiteLabel === "function" ? _externalSiteLabel(_u3) : "External")} ↗</a>` : '—'; })();
   document.getElementById('mi-desc').textContent = item.description || 'No description available.';
   const vd = document.getElementById('mi-varDesc-wrap');
   if (item.varDesc) { document.getElementById('mi-varDesc').textContent = item.varDesc; vd.style.display = 'block'; }
