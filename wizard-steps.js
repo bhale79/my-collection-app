@@ -515,6 +515,19 @@ function getSteps(tab) {
         photoBanner: { color: '#9b59b6', label: () => '\u{1F7EA} PHOTOS: Master Box' },
         skipIf: (d) => d.hasMasterBox !== 'Yes' },
 
+      // ── Year / Era (S153): fires only when master.yearProd is missing.
+      // Lets the user enter a year directly OR pick a period (Pre-war /
+      // Postwar / Modern). The era picks save a representative year so
+      // _itemEraPeriod() classifies the row correctly via the same year
+      // parser. Master items with a known yearProd skip this step cleanly.
+      { id: 'yearMade', title: 'When was this made?', type: 'yearMade',
+        skipIf: (d) => {
+          if (d.yearMade) return true;
+          var m = wizard.matchedItem || (typeof findMaster === 'function' ? findMaster(d.itemNum) : null);
+          if (m && m.yearProd) return true;
+          return false;
+        } },
+
       // ── Confirm & Save ──
       { id: 'confirm', title: (d) => 'Looking good! Ready to save your ' + getItemLabel(d) + '?', type: 'confirm' },
     ];

@@ -2260,7 +2260,39 @@ function renderWizardStep() {
       </div>`;
     setTimeout(() => { const i = document.getElementById('wiz-input'); if(i) i.focus(); }, 50);
 
-  // yearMade step renderer removed Session 120 (dead code; no flow injects this step)
+  // S153: yearMade renderer — re-added (was removed S120 as dead code).
+  // Fires only when master.yearProd is missing. Captures either a precise
+  // year via text input, or an era pick (Pre-war / Postwar / Modern) which
+  // saves a representative year so the chip-filter classifier works.
+  } else if (s.type === 'yearMade') {
+    var _ymVal = wizard.data[s.id] || '';
+    var _ymYear = new Date().getFullYear();
+    body.innerHTML = ''
+      + '<div style="padding-top:0.5rem">'
+      +   '<div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:0.7rem;line-height:1.45">'
+      +     'We don\'t have a year for this item in the catalog. Enter the year if you know it, or pick an era below.'
+      +   '</div>'
+      +   '<input type="number" id="wiz-input" value="' + _ymVal + '" placeholder="e.g. 1957" '
+      +     'min="1900" max="' + _ymYear + '" '
+      +     'style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;'
+      +     'padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none" '
+      +     'oninput="wizard.data[\'' + s.id + '\']=this.value" '
+      +     'onkeydown="if(event.key===\'Enter\')wizardNext()">'
+      +   '<div style="margin-top:1.1rem;font-size:0.78rem;font-weight:700;letter-spacing:0.04em;'
+      +     'text-transform:uppercase;color:var(--text-dim);margin-bottom:0.5rem">Or pick an era:</div>'
+      +   '<div style="display:flex;flex-wrap:wrap;gap:0.5rem">'
+      +     '<button type="button" onclick="wizard.data[\'' + s.id + '\']=\'1930\';wizardNext()" '
+      +       'style="padding:0.55rem 0.9rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-family:var(--font-body);font-size:0.85rem;font-weight:600">'
+      +     'Pre-war (before 1944)</button>'
+      +     '<button type="button" onclick="wizard.data[\'' + s.id + '\']=\'1955\';wizardNext()" '
+      +       'style="padding:0.55rem 0.9rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-family:var(--font-body);font-size:0.85rem;font-weight:600">'
+      +     'Postwar (1945\u20131969)</button>'
+      +     '<button type="button" onclick="wizard.data[\'' + s.id + '\']=\'1990\';wizardNext()" '
+      +       'style="padding:0.55rem 0.9rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-family:var(--font-body);font-size:0.85rem;font-weight:600">'
+      +     'Modern (1970\u2013today)</button>'
+      +   '</div>'
+      + '</div>';
+    setTimeout(function() { var i = document.getElementById('wiz-input'); if (i) i.focus(); }, 50);
   } else if (s.type === 'postwarYear') {
     var _pwCurr = wizard.data[s.id] || '';
     var _pwWrap = document.createElement('div');

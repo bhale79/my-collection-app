@@ -119,7 +119,7 @@ var _ERA_KEY_TO_PERIOD = {
 };
 function _itemEraPeriod(item) {
   if (!item) return null;
-  // Step 1: parse first 4-digit year from yearProd. Handles '1955',
+  // Step 1a: parse first 4-digit year from yearProd. Handles '1955',
   // '1957-1966', 'October 2005', etc.
   var y = item.yearProd;
   if (y) {
@@ -131,8 +131,19 @@ function _itemEraPeriod(item) {
       if (yr && yr >= 1970)               return 'modern';
     }
   }
-  // Step 2: fall back to internal era key.
-  var eraKey = item._era || item.era;
+  // Step 1b (S153): yearMade (user-entered on personal row, or matched
+  // master row that includes it). Same regex parse.
+  var ym = item.yearMade;
+  if (ym) {
+    var m2 = String(ym).match(/(\d{4})/);
+    if (m2) {
+      var yr2 = parseInt(m2[1], 10);
+      if (yr2 && yr2 < 1944)               return 'prewar';
+      if (yr2 && yr2 >= 1945 && yr2 <= 1969) return 'postwar';
+      if (yr2 && yr2 >= 1970)               return 'modern';
+    }
+  }
+  // Step 2: fall back to internal era key.  var eraKey = item._era || item.era;
   if (eraKey && _ERA_KEY_TO_PERIOD[eraKey]) return _ERA_KEY_TO_PERIOD[eraKey];
   // Step 3: try _tab → era via reverse ERA_TABS lookup.
   if (item._tab && typeof ERA_TABS !== 'undefined') {
