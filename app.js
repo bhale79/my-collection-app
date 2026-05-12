@@ -374,10 +374,9 @@ function _smartDefaultEra() {
   try {
     var rawCh = localStorage.getItem('lv_browse_filter_state');
     if (rawCh) {
-      var ch = JSON.parse(rawCh) || {};
-      var anyOn = (ch.manufacturer === 'any') || (ch.scale === 'any') || (ch.era === 'any');
-      if (anyOn) return 'all';
-      if (ch.era && typeof ERAS !== 'undefined' && ERAS[ch.era]) return ch.era;
+      // S151: chip era is now a time period — always means cross-era load.
+      // Any chip state with valid mfr/scale/era/section -> 'all' meta-era.
+      return 'all';
     }
   } catch(e) {}
   try {

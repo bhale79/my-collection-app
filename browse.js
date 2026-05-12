@@ -91,13 +91,80 @@ function _refreshBrowseHeaders() {
 // up to actually filter the master list and remove the old era-select + tab
 // strip. For Step 1 this exists only to let Brad eyeball the hierarchy shape.
 
+// S151: time-period era model. Each item maps to one of three periods
+// based on its production year. Falls back to internal era key for items
+// missing yearProd (catalog refs, sets, etc.).
+var _ERA_PERIODS = ['prewar', 'postwar', 'modern'];
+var _ERA_PERIOD_LABELS = {
+  any:     'Any Era',
+  prewar:  'Pre-war (before 1944)',
+  postwar: 'Postwar (1945–1969)',
+  modern:  'Modern (1970–today)',
+};
+// Internal era key -> time period (used as fallback when item has no yearProd).
+var _ERA_KEY_TO_PERIOD = {
+  prewar:       'prewar',
+  pw:           'postwar',
+  pw_ho:        'postwar',
+  mpc:          'modern',
+  mpc_ho:       'modern',
+  mod_ho:       'modern',
+  mod_s:        'modern',
+  atlas:        'modern',
+  mth_o:        'modern',
+  mth_ho:       'modern',
+  mth_s:        'modern',
+  mth_tinplate: 'modern',
+  mth_g:        'modern',
+};
+function _itemEraPeriod(item) {
+  if (!item) return null;
+  // Step 1: parse first 4-digit year from yearProd. Handles '1955',
+  // '1957-1966', 'October 2005', etc.
+  var y = item.yearProd;
+  if (y) {
+    var m = String(y).match(/(\d{4})/);
+    if (m) {
+      var yr = parseInt(m[1], 10);
+      if (yr && yr < 1944)               return 'prewar';
+      if (yr && yr >= 1945 && yr <= 1969) return 'postwar';
+      if (yr && yr >= 1970)               return 'modern';
+    }
+  }
+  // Step 2: fall back to internal era key.
+  var eraKey = item._era || item.era;
+  if (eraKey && _ERA_KEY_TO_PERIOD[eraKey]) return _ERA_KEY_TO_PERIOD[eraKey];
+  // Step 3: try _tab → era via reverse ERA_TABS lookup.
+  if (item._tab && typeof ERA_TABS !== 'undefined') {
+    for (var ek in ERA_TABS) {
+      var tabs = ERA_TABS[ek] || {};
+      for (var sk in tabs) {
+        if (tabs[sk] === item._tab) return _ERA_KEY_TO_PERIOD[ek] || null;
+      }
+    }
+  }
+  return null;
+}
+if (typeof window !== 'undefined') window._itemEraPeriod = _itemEraPeriod;
+
 function _phState() {
   try {
     var raw = localStorage.getItem('lv_browse_filter_state');
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      var st = JSON.parse(raw);
+      // S151: migrate legacy era keys to time periods.
+      // 'pw'/'pw_ho' → 'postwar'; everything else internal → 'modern'.
+      // 'prewar' stays as-is (also the period name). 'all' → 'any'.
+      if (st && st.era && st.era !== 'any' && st.era !== 'prewar'
+          && st.era !== 'postwar' && st.era !== 'modern') {
+        if (st.era === 'all') st.era = 'any';
+        else if (st.era === 'pw' || st.era === 'pw_ho') st.era = 'postwar';
+        else st.era = 'modern';
+      }
+      return st;
+    }
   } catch(e) {}
-  // Step 3b: default is Any/Any/Any/Items for first-time users.
-  // Existing users restore their last filter combo from localStorage above.
+  // Step 3b default: Any/Any/Any/Items.
   return { manufacturer: 'any', scale: 'any', era: 'any', section: 'items' };
 }
 function _phSave(st) {
@@ -108,23 +175,9 @@ function _phSave(st) {
 // shown under O and Standard for now — Phase 3 will split it into per-scale
 // tabs, at which point this fallback can go away.
 function _phErasFor(mfr, scale) {
-  var out = [];
-  if (typeof ERAS !== 'object' || !ERAS) return out;
-  var WIC = (typeof window !== 'undefined' && window.WHAT_I_COLLECT) || {};
-  var ETS = WIC.ERA_TO_SCALE || {};
-  Object.keys(ERAS).forEach(function(k) {
-    if (k === 'all') return;
-    var e = ERAS[k];
-    if (!e || !e.manufacturer) return;
-    // Step 3b: mfr='any' passes the manufacturer gate; specific mfr must match.
-    if (mfr !== 'any' && e.manufacturer.toLowerCase() !== mfr) return;
-    var es = ETS[k];
-    // Step 3b: scale='any' passes the scale gate; otherwise must match.
-    if (scale === 'any') { out.push(k); return; }
-    if (es === scale) { out.push(k); return; }
-    if (es === null && (scale === 'o' || scale === 'standard')) out.push(k);
-  });
-  return out;
+  // S151: era is now a time period independent of mfr/scale. Always three.
+  // Items with no matching mfr+scale in a given period just show empty results.
+  return _ERA_PERIODS.slice();
 }
 
 // Manufacturer -> list of scale ids that have at least one era available.
@@ -143,10 +196,34 @@ function _phScalesFor(mfr) {
 // Section keys that exist as browseable tabs (boxes / companions are sheets but not tabs).
 var _PH_NON_TAB_SECTIONS = { boxes: 1, companions: 1 };
 
-// Era -> list of section keys available on that era as actual browse tabs.
+// S151: era can be a time period (prewar/postwar/modern) or 'any'. Return
+// the union of sections across internal eras that fall in that period.
+var _PERIOD_TO_INTERNAL_ERAS = {
+  prewar:  ['prewar'],
+  postwar: ['pw', 'pw_ho'],
+  modern:  ['mpc', 'mpc_ho', 'mod_ho', 'mod_s', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g'],
+};
 function _phSectionsFor(era) {
-  if (typeof ERA_TABS !== 'object' || !ERA_TABS || !ERA_TABS[era]) return ['items'];
-  return Object.keys(ERA_TABS[era]).filter(function(k) { return !_PH_NON_TAB_SECTIONS[k]; });
+  if (typeof ERA_TABS !== 'object' || !ERA_TABS) return ['items'];
+  // Period value: union across all internal eras in that period.
+  if (_PERIOD_TO_INTERNAL_ERAS[era]) {
+    var seen = {};
+    _PERIOD_TO_INTERNAL_ERAS[era].forEach(function(k) {
+      if (ERA_TABS[k]) Object.keys(ERA_TABS[k]).forEach(function(s) {
+        if (!_PH_NON_TAB_SECTIONS[s]) seen[s] = 1;
+      });
+    });
+    return Object.keys(seen);
+  }
+  // 'any' or fallback: union across ALL real eras.
+  var seen2 = {};
+  Object.keys(ERA_TABS).forEach(function(k) {
+    if (k === 'all') return;
+    Object.keys(ERA_TABS[k] || {}).forEach(function(s) {
+      if (!_PH_NON_TAB_SECTIONS[s]) seen2[s] = 1;
+    });
+  });
+  return Object.keys(seen2).length ? Object.keys(seen2) : ['items'];
 }
 
 // ERA_TABS section key <-> browse-tab DOM id key.
@@ -171,7 +248,7 @@ function _phLabelFor(level, id) {
   }
   if (level === 'manufacturer') return (WIC.MANUFACTURERS && WIC.MANUFACTURERS[id] && WIC.MANUFACTURERS[id].label) || id;
   if (level === 'scale')        return (WIC.SCALES && WIC.SCALES[id] && WIC.SCALES[id].label) || id;
-  if (level === 'era')          return (ERAS && ERAS[id] && ERAS[id].label) || id;
+  if (level === 'era')          return _ERA_PERIOD_LABELS[id] || id;
   if (level === 'section')      return id ? (id.charAt(0).toUpperCase() + id.slice(1)) : 'Items';
   return id;
 }
@@ -341,11 +418,9 @@ function _setHierarchyChoice(level, value) {
   }
   _phSave(st);
 
-  // Step 3b: target era depends on whether ANY level is 'any'.
-  //   * any of mfr/scale/era is 'any' -> 'all' meta-era (cross-era load).
-  //   * all three specific -> single-era load.
-  var hasAny = (st.manufacturer === 'any') || (st.scale === 'any') || (st.era === 'any');
-  var targetEra = hasAny ? 'all' : st.era;
+  // S151: era is always a period (prewar/postwar/modern) or 'any' — both
+  // span multiple internal eras, so targetEra is always 'all' meta-era.
+  var targetEra = 'all';
   var needEra = (typeof _currentEra === 'undefined' || _currentEra !== targetEra);
   var doSection = function() {
     if (!st.section) return;
@@ -1979,19 +2054,9 @@ function renderBrowse() {
         if (_itmScale && _itmScale !== _stp3b.scale) return false;
       }
       if (_stp3b.era && _stp3b.era !== 'any') {
-        var _itmEra = (typeof _itemEraKey === 'function') ? (_itemEraKey(item) || '') : '';
-        if (!_itmEra && item._tab) {
-          // Best-effort: match _tab against ERA_TABS entries to find era key.
-          var _ets = (typeof ERA_TABS !== 'undefined') ? ERA_TABS : {};
-          for (var _ek in _ets) {
-            var _tabs = _ets[_ek] || {};
-            for (var _sk in _tabs) {
-              if (_tabs[_sk] === item._tab) { _itmEra = _ek; break; }
-            }
-            if (_itmEra) break;
-          }
-        }
-        if (_itmEra !== _stp3b.era) return false;
+        // S151: chip era is a time period (prewar/postwar/modern).
+        var _itmPeriod = (typeof _itemEraPeriod === 'function') ? _itemEraPeriod(item) : null;
+        if (_itmPeriod !== _stp3b.era) return false;
       }
     }
     if (road && item.roadName !== road) return false;
