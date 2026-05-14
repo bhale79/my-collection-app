@@ -55,28 +55,64 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     return { itemNumCandidates: [], code5: upc.substring(6, 11) };
   }
 
-  // ── Look up item# in master ──
-  function findMasterItem(candidates) {
-    if (!candidates || candidates.length === 0) return null;
-    if (typeof state === 'undefined' || !state.masterData) return null;
-    for (const cand of candidates) {
-      const match = state.masterData.find(m =>
-        m.itemNum === cand ||
-        m.itemNum === cand.replace(/^6-/, '') ||
-        m.itemNum === ('6-' + cand)
-      );
-      if (match) return match;
+  // ── Look up item#(s) in master — returns ALL matches (Session 154) ──
+  // A Lionel UPC only carries the last 5 digits, so reissues that share
+  // those 5 digits (26200 / 1926200 / 2026200 …) all map to one scan.
+  // Return every candidate so the caller can disambiguate with the user.
+  function findMasterItems(candidates) {
+    if (!candidates || candidates.length === 0) return [];
+    if (typeof state === 'undefined' || !state.masterData) return [];
+    var out = [];
+    var seen = {};
+    function addAll(pred) {
+      state.masterData.forEach(function(m) {
+        if (!pred(m)) return;
+        var key = (m.itemNum || '') + '|' + (m.variation || '') + '|' + (m._tab || '');
+        if (seen[key]) return;
+        seen[key] = 1;
+        out.push(m);
+      });
     }
-    // Fallback: any master row whose last 5 digits match
+    // Pass 1: exact match on any candidate (with/without 6- prefix) — best matches first
+    candidates.forEach(function(cand) {
+      addAll(function(m) {
+        return m.itemNum === cand
+          || m.itemNum === cand.replace(/^6-/, '')
+          || m.itemNum === ('6-' + cand);
+      });
+    });
+    // Pass 2: fuzzy — any master row whose last-5 digits match the scanned code
     if (candidates[0]) {
-      const tail = candidates[0].replace(/^6-/, '').slice(-5);
-      const fuzzy = state.masterData.find(m => {
-        const n = String(m.itemNum || '').replace(/\D+/g, '');
+      var tail = candidates[0].replace(/^6-/, '').slice(-5);
+      addAll(function(m) {
+        var n = String(m.itemNum || '').replace(/\D+/g, '');
         return n.length >= 5 && n.slice(-5) === tail;
       });
-      if (fuzzy) return fuzzy;
     }
-    return null;
+    return out;
+  }
+  // Back-compat single-result helper (first match or null).
+  function findMasterItem(candidates) {
+    var all = findMasterItems(candidates);
+    return all.length ? all[0] : null;
+  }
+  // HTML-escape helper for picker rendering.
+  function _bcEsc(s) {
+    return String(s == null ? '' : s).replace(/[<>"'&]/g, function(c) {
+      return {'<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','&':'&amp;'}[c];
+    });
+  }
+  // Build a "view this item" URL — reuse the app's smart helper if present,
+  // else fall back to a Lionel.com search.
+  function _bcViewUrl(m) {
+    try {
+      if (typeof _itemExternalLinkURL === 'function') {
+        var u = _itemExternalLinkURL(m);
+        if (u) return u;
+      }
+    } catch (e) {}
+    var num = String((m && m.itemNum) || '').replace(/^6-/, '');
+    return 'https://www.lionel.com/search?query=' + encodeURIComponent(num);
   }
 
   // ── Main entry ──
@@ -161,6 +197,29 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           if (barcodes && barcodes.length > 0) {
             const bc = barcodes[0];
             const result = decodeBarcode(bc, eraHint);
+            if (result.handled && result.multipleMatches) {
+              // Ambiguous scan — stop the camera and show the candidate picker.
+              statusEl.textContent = result.statusMessage;
+              statusEl.style.color = '#ffd27d';
+              cleanup();
+              const chosen = await showCandidatePicker(result.candidates, result);
+              if (chosen) {
+                if (onScanned) onScanned({
+                  handled: true,
+                  rawBarcode: result.rawBarcode,
+                  format: result.format,
+                  upc: result.upc,
+                  manufacturer: 'Lionel',
+                  itemNum: chosen.itemNum,
+                  variation: chosen.variation || '',
+                  masterItem: chosen,
+                  isSet: String(chosen.itemType || '').toLowerCase() === 'set',
+                });
+              } else {
+                if (onCancel) onCancel();
+              }
+              return;
+            }
             if (result.handled) {
               statusEl.textContent = result.statusMessage || 'Detected!';
               statusEl.style.color = result.error ? '#ff9580' : '#a6e87e';
@@ -195,8 +254,9 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       const info = UPC_PREFIXES[prefix];
       if (info && info.mfr === 'Lionel') {
         const parsed = info.parse(upc12);
-        const master = findMasterItem(parsed.itemNumCandidates);
-        if (master) {
+        const matches = findMasterItems(parsed.itemNumCandidates);
+        if (matches.length === 1) {
+          const master = matches[0];
           return {
             handled: true,
             rawBarcode: raw,
@@ -208,6 +268,20 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             masterItem: master,
             statusMessage: 'Found ' + master.itemNum + ' — ' + (master.description || '').substring(0, 40),
             isSet: String(master.itemType || '').toLowerCase() === 'set',
+          };
+        }
+        if (matches.length > 1) {
+          // Scanned 5 digits match several items — let the user pick.
+          return {
+            handled: true,
+            rawBarcode: raw,
+            format: fmt,
+            upc: upc12,
+            manufacturer: 'Lionel',
+            multipleMatches: true,
+            candidates: matches,
+            code5: parsed.code5,
+            statusMessage: matches.length + ' possible matches — pick the right one',
           };
         }
         // Lionel prefix but not in master — offer manual entry with item# pre-filled
@@ -280,6 +354,58 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     return { handled: false, statusMessage: 'Barcode seen but not recognized — hold steady…' };
   }
 
+  // ── Candidate picker (Session 154) — shown when a scanned 5-digit code
+  //    matches multiple master items. Resolves to the chosen master row,
+  //    or null if the user cancels. ──
+  function showCandidatePicker(candidates, scanResult) {
+    return new Promise(function(resolve) {
+      var overlay = document.createElement('div');
+      overlay.id = 'barcode-candidate-overlay';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1rem';
+      var rowsHtml = candidates.map(function(m, idx) {
+        var yr   = m.yearProd || m.yearMade || '';
+        var meta = [yr, m.roadName || '', m.itemType || ''].filter(Boolean).map(_bcEsc).join(' &middot; ');
+        var desc = _bcEsc(String(m.description || '').substring(0, 70));
+        var url  = _bcViewUrl(m);
+        return '<div class="bc-cand" data-idx="' + idx + '" '
+          + 'style="display:flex;align-items:center;gap:0.6rem;padding:0.7rem 0.8rem;border-radius:10px;'
+          + 'background:#222;border:1px solid #444;cursor:pointer;margin-bottom:0.5rem">'
+          + '<div style="flex:1;min-width:0">'
+          +   '<div style="font-weight:700;color:#fff;font-size:0.95rem">' + _bcEsc(m.itemNum) + '</div>'
+          +   (meta ? '<div style="font-size:0.8rem;color:#aaa;margin-top:0.1rem">' + meta + '</div>' : '')
+          +   (desc ? '<div style="font-size:0.78rem;color:#888;margin-top:0.1rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + desc + '</div>' : '')
+          + '</div>'
+          + '<a href="' + _bcEsc(url) + '" target="_blank" rel="noopener" class="bc-view" '
+          +   'style="flex-shrink:0;padding:0.4rem 0.7rem;border-radius:8px;background:#333;border:1px solid #555;'
+          +   'color:#9ecbff;font-size:0.78rem;text-decoration:none;white-space:nowrap">View &#8599;</a>'
+          + '</div>';
+      }).join('');
+      overlay.innerHTML = ''
+        + '<div style="width:100%;max-width:520px;display:flex;flex-direction:column;gap:0.6rem">'
+        +   '<div style="color:#fff;font-family:var(--font-head,sans-serif);font-size:1.1rem;text-align:center">Which one did you scan?</div>'
+        +   '<div style="color:#aaa;font-size:0.8rem;text-align:center">The barcode ends in <strong style="color:#ffd27d">' + _bcEsc((scanResult && scanResult.code5) || '') + '</strong> &mdash; these items all share those digits. Tap the right one, or use View to check a photo.</div>'
+        +   '<div style="overflow-y:auto;max-height:58vh;margin-top:0.3rem">' + rowsHtml + '</div>'
+        +   '<button id="bc-cand-cancel" style="padding:0.8rem;border-radius:10px;border:1px solid #444;background:#222;color:#eee;font-size:0.95rem;font-family:inherit;cursor:pointer">Cancel</button>'
+        + '</div>';
+      document.body.appendChild(overlay);
+      overlay.querySelectorAll('.bc-cand').forEach(function(el) {
+        el.addEventListener('click', function() {
+          var idx = parseInt(el.getAttribute('data-idx'), 10);
+          overlay.remove();
+          resolve(candidates[idx] || null);
+        });
+      });
+      // View links open in a new tab without selecting the row.
+      overlay.querySelectorAll('.bc-view').forEach(function(a) {
+        a.addEventListener('click', function(ev) { ev.stopPropagation(); });
+      });
+      overlay.querySelector('#bc-cand-cancel').addEventListener('click', function() {
+        overlay.remove();
+        resolve(null);
+      });
+    });
+  }
+
   // ── First-time explainer ──
   function showExplainer() {
     return new Promise((resolve) => {
@@ -307,5 +433,5 @@ window.eraSupportsBarcode = eraSupportsBarcode;
 
   // Expose globally
   window.openBarcodeScanner = openBarcodeScanner;
-  window._barcodeDebug = { decodeBarcode, findMasterItem, UPC_PREFIXES };
+  window._barcodeDebug = { decodeBarcode, findMasterItem, findMasterItems, showCandidatePicker, UPC_PREFIXES };
 })();
