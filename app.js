@@ -381,7 +381,8 @@ function _smartDefaultEra() {
   } catch(e) {}
   try {
     var saved = localStorage.getItem('lv_era');
-    if (saved) return saved;
+    // Session 154: only honor the saved era if it's still a valid ERAS key.
+    if (saved && typeof ERAS !== 'undefined' && ERAS[saved]) return saved;
     var rawM = localStorage.getItem('lv_collect_mfrs');
     var rawS = localStorage.getItem('lv_collect_scales');
     var mfrs   = rawM ? JSON.parse(rawM) : [];
@@ -407,6 +408,12 @@ function _smartDefaultEra() {
 var _currentEra = _smartDefaultEra();
 // Migration: 'mod' era was merged into 'mpc' (MPC/Modern combined)
 if (_currentEra === 'mod') { _currentEra = 'mpc'; try { localStorage.setItem('lv_era', 'mpc'); } catch(e) {} }
+// Session 154: self-heal orphaned era keys. If the saved era is no longer a
+// valid ERAS key (e.g. a manufacturer era that was removed), fall back to the
+// 'all' meta-era — otherwise the browse chip filter silently never applies.
+if (typeof ERAS === 'undefined' || !ERAS[_currentEra]) {
+  _currentEra = 'all'; try { localStorage.setItem('lv_era', 'all'); } catch(e) {}
+}
 function _applyEraTabs(era) {
   Object.keys(SHEET_TABS).forEach(function(k) { delete SHEET_TABS[k]; });
   // 'all' is a meta-era — fall back to the most data-rich real era
