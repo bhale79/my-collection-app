@@ -135,9 +135,20 @@
       year:            function(e) { return e.year || ''; },
       description:     function(e) { return e.title || ''; },
       fields: function(e) {
+        // Session 154: pull the catalog's physical description from the master
+        // catalog reference data (matched by Catalog ID). Display-time lookup —
+        // the personal sheet doesn't store it. Falls through gracefully if the
+        // catalog isn't in the master ref set.
+        var _catDesc = null;
+        try {
+          var _ref = ((typeof state !== 'undefined' && state.catalogRefData) || [])
+            .find(function(c) { return c && c.id === e.itemNum; });
+          if (_ref && _ref.description) _catDesc = _ref.description;
+        } catch (_e) {}
         return [
           { label: 'Year',          val: plain(e.year) },
           { label: 'Type',          val: plain(e.catType) },
+          { label: 'Description',   val: plain(_catDesc) },
           { label: 'Has Mailer',    val: yesNo(e.hasMailer) },
           { label: 'Condition',     val: e.condition ? (e.condition + '/10') : null },
           { label: 'Price Paid',    val: money(e.pricePaid) },
