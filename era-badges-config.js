@@ -39,6 +39,9 @@ const ERA_BADGES = {
     mpc_ho:       'MPCHO',
     mod_ho:       'MODHO',
     mod_s:        'MODS',
+    // Session 154: Weaver lines
+    weaver_ultra: 'WUL',
+    weaver_gold:  'WGL',
   },
 
   // Tab-name → era-id mapping. Used when we only have the `_tab` string
@@ -67,6 +70,9 @@ const ERA_BADGES = {
     'Lionel MPC HO - Items':      'mpc_ho',
     'Lionel Modern HO - Items':   'mod_ho',
     'Lionel Modern S - Items':    'mod_s',
+    // Session 154: Weaver lines
+    'Weaver Ultra Line':          'weaver_ultra',
+    'Weaver Gold Line':           'weaver_gold',
   },
 };
 

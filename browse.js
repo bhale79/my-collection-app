@@ -116,6 +116,8 @@ var _ERA_KEY_TO_PERIOD = {
   mth_s:        'modern',
   mth_tinplate: 'modern',
   mth_g:        'modern',
+  weaver_ultra: 'modern',
+  weaver_gold:  'modern',
 };
 function _itemEraPeriod(item) {
   if (!item) return null;
@@ -212,7 +214,7 @@ var _PH_NON_TAB_SECTIONS = { boxes: 1, companions: 1 };
 var _PERIOD_TO_INTERNAL_ERAS = {
   prewar:  ['prewar'],
   postwar: ['pw', 'pw_ho'],
-  modern:  ['mpc', 'mpc_ho', 'mod_ho', 'mod_s', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g'],
+  modern:  ['mpc', 'mpc_ho', 'mod_ho', 'mod_s', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver_ultra', 'weaver_gold'],
 };
 function _phSectionsFor(era) {
   if (typeof ERA_TABS !== 'object' || !ERA_TABS) return ['items'];
