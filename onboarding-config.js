@@ -68,9 +68,8 @@ const WHAT_I_COLLECT = {
     mpc_ho:       '#00b894',   // mint
     mod_ho:       '#fdcb6e',   // gold
     mod_s:        '#95a5a6',   // silver — S Gauge metallic vibe
-    // Session 154: Weaver lines
-    weaver_ultra: '#16a085',   // teal — Weaver Ultra Line
-    weaver_gold:  '#c9a227',   // gold — Weaver Gold Line
+    // Session 154: Weaver
+    weaver:       '#16a085',   // teal — Weaver
   },
 
   // ── Session 136: Scale preference (Tier 3.14) ──
@@ -101,8 +100,7 @@ const WHAT_I_COLLECT = {
     mth_s:        's',
     mth_tinplate: 'standard',
     mth_g:        'g',
-    weaver_ultra: 'o',
-    weaver_gold:  'o',
+    weaver:       'o',
   },
 
   // ── Session 137: Manufacturer preference (Tier 3.15) ──

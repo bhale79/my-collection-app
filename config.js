@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.263';
+const APP_VERSION = 'v0.9.264';
 const APP_DATE    = 'April 2026';
 
 // ═══════════════════════════════════════════════════════════════════
@@ -55,13 +55,12 @@ const ERAS = {
   mod_ho:       { id: 'mod_ho',       label: 'Lionel Modern HO',  years: '2000-Today', prefix: 'Lionel Modern HO', manufacturer: 'Lionel' },
   mod_s:        { id: 'mod_s',        label: 'Lionel Modern S',   years: '2008-Today', prefix: 'Lionel Modern S',  manufacturer: 'Lionel' },
   // Session 154: Weaver — O-scale manufacturer. "Ultra Line" / "Gold Line" are
-  // model classes, NOT time-eras; modeled here as two data sources (one per
-  // master tab). The user-facing Era filter stays prewar/postwar/modern.
-  weaver_ultra: { id: 'weaver_ultra', label: 'Weaver Ultra Line', years: 'All',        prefix: 'Weaver Ultra Line', manufacturer: 'Weaver' },
-  weaver_gold:  { id: 'weaver_gold',  label: 'Weaver Gold Line',  years: 'All',        prefix: 'Weaver Gold Line',  manufacturer: 'Weaver' },
+  // model classes captured in the Category column, NOT separate data sources.
+  // The user-facing Era filter stays prewar/postwar/modern.
+  weaver: { id: 'weaver', label: 'Weaver O', years: 'All',        prefix: 'Weaver O', manufacturer: 'Weaver' },
 };
 // Real-era IDs in load priority order (excluding 'all' meta-era).
-const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'pw_ho', 'mpc_ho', 'mod_ho', 'mod_s', 'weaver_ultra', 'weaver_gold'];
+const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'pw_ho', 'mpc_ho', 'mod_ho', 'mod_s', 'weaver'];
 
 // ── Master sheet tab names per era ──
 const ERA_TABS = {
@@ -117,11 +116,8 @@ const ERA_TABS = {
   mod_s: {
     items:    'Lionel Modern S - Items',
   },
-  weaver_ultra: {
-    items:    'Weaver Ultra Line',
-  },
-  weaver_gold: {
-    items:    'Weaver Gold Line',
+  weaver: {
+    items:    'Weaver O',
   },
 };
 
