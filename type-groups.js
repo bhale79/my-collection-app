@@ -119,6 +119,13 @@
     }
 
     // ── DIRECT itemType MATCHES ──
+    // Session 154: MTH-specific freight type names. These names short-circuit
+    // before the Freight body-style block, so they need explicit mapping.
+    // (The Freight regex below would classify these same descriptions identically.)
+    if (it === 'Operating Car') return 'Operating Freight';
+    if (it === 'Crane Car') return 'Operating Freight';
+    if (it === 'Auto Carrier') return 'Intermodal';
+    if (it === 'Slag Car') return 'Hopper';
     if (it === 'Passenger Car') return 'Passenger Car';
     if (it === 'Caboose') return 'Caboose';
     if (it === 'Science Set') return 'Science Set';
