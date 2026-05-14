@@ -2128,7 +2128,11 @@ function renderBrowse() {
       if (_stp3b.scale && _stp3b.scale !== 'any') {
         var _itmScale = '';
         if (typeof _scaleOfItem === 'function') _itmScale = (_scaleOfItem(item) || '').toLowerCase();
-        if (_itmScale && _itmScale !== _stp3b.scale) return false;
+        // Session 154: exclude items that don't DEFINITIVELY match the chosen
+        // scale — including items of unknown scale (e.g. pre-war rows with a
+        // blank gauge field). Previously `_itmScale && ...` let those leak into
+        // every scale filter (pre-war items appearing under "HO Scale").
+        if (_itmScale !== _stp3b.scale) return false;
       }
       if (_stp3b.era && _stp3b.era !== 'any') {
         // S151: chip era is a time period (prewar/postwar/modern).
