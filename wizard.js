@@ -2065,13 +2065,17 @@ function renderWizardStep() {
         const picked = cpVal && cpVal.id === it.id;
         const label = it.title + (it.year && !it.title.includes(it.year) ? ' (' + it.year + ')' : '');
         const searchAttr = (it.title + ' ' + it.year + ' ' + it.type).toLowerCase().replace(/"/g, '');
+        const descLine = it.description
+          ? '<div style="font-size:0.72rem;color:var(--text-dim);font-weight:400;margin-top:0.15rem">'
+              + String(it.description).replace(/</g, '&lt;') + '</div>'
+          : '';
         listHTML += '<button onclick="wizardPickCatalog(' + idx + ')" data-search="' + searchAttr + '" style="'
           + 'padding:0.5rem 0.75rem;border-radius:8px;text-align:left;cursor:pointer;width:100%;'
           + 'border:2px solid ' + (picked ? 'var(--accent)' : 'var(--border)') + ';'
           + 'background:' + (picked ? 'rgba(232,64,28,0.15)' : 'var(--surface2)') + ';'
           + 'color:' + (picked ? 'var(--accent)' : 'var(--text-mid)') + ';'
           + 'font-family:var(--font-body);font-size:0.82rem;font-weight:500;transition:all 0.15s;margin-bottom:0.3rem">'
-          + label + '</button>';
+          + label + descLine + '</button>';
       });
     }
     body.innerHTML = '<div style="padding-top:0.5rem">'

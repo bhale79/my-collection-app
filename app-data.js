@@ -417,7 +417,7 @@ window._rebuildMasterIndex = _rebuildMasterIndex;
 
 async function loadCatalogRefData() {
   // Fetch Catalogs tab from master sheet — used by paper item wizard for searchable picker
-  // Columns: A=Catalog ID, B=Year, C=Type, D=Title
+  // Columns: A=Catalog ID, B=Year, C=Type, D=Title, E=Has Envelope/Mailer, F=Notes, G=Description
   if (_currentEra === 'all') return; // 'all' is handled by app.js orchestrator
   const CACHE_KEY = 'lv_catalog_ref_cache_' + _currentEra;
   const CACHE_TS  = 'lv_catalog_ref_ts_'  + _currentEra;
@@ -430,16 +430,17 @@ async function loadCatalogRefData() {
   try {
     let res;
     if (!SHEET_TABS.catalogs) { state.catalogRefData = []; return; }
-    try { res = await sheetsGet(state.masterSheetId, SHEET_TABS.catalogs + '!A2:D'); }
-    catch(_) { res = await sheetsGet(state.masterSheetId, 'catalogs!A2:D'); }
+    try { res = await sheetsGet(state.masterSheetId, SHEET_TABS.catalogs + '!A2:G'); }
+    catch(_) { res = await sheetsGet(state.masterSheetId, 'catalogs!A2:G'); }
     const rows = (res && res.values) || [];
     state.catalogRefData = rows
       .filter(r => r[0] && r[3] && r[0] !== 'Catalog ID') // skip header/empty
       .map(r => ({
-        id:    r[0] || '',
-        year:  r[1] || '',
-        type:  r[2] || '',
-        title: r[3] || '',
+        id:          r[0] || '',
+        year:        r[1] || '',
+        type:        r[2] || '',
+        title:       r[3] || '',
+        description: r[6] || '',
       }));
     localStorage.setItem(CACHE_KEY, JSON.stringify(state.catalogRefData));
     localStorage.setItem(CACHE_TS, Date.now().toString());
