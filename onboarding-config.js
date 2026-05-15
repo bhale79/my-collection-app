@@ -70,6 +70,8 @@ const WHAT_I_COLLECT = {
     mod_s:        '#95a5a6',   // silver — S Gauge metallic vibe
     // Session 154: Weaver
     weaver:       '#16a085',   // teal — Weaver
+    // Session 155: RMT
+    rmt:          '#e67e22',   // orange — RMT
   },
 
   // ── Session 136: Scale preference (Tier 3.14) ──
@@ -101,6 +103,7 @@ const WHAT_I_COLLECT = {
     mth_tinplate: 'standard',
     mth_g:        'g',
     weaver:       'o',
+    rmt:          'o',
   },
 
   // ── Session 137: Manufacturer preference (Tier 3.15) ──
@@ -115,6 +118,7 @@ const WHAT_I_COLLECT = {
     mth:    { id: 'mth',    label: 'MTH',    color: '#e74c3c',       default: false },
     atlas:  { id: 'atlas',  label: 'Atlas',  color: '#2980b9',       default: false },
     weaver: { id: 'weaver', label: 'Weaver', color: '#16a085',       default: false },
+    rmt:    { id: 'rmt',    label: 'RMT',    color: '#e67e22',       default: false },
   },
 };
 

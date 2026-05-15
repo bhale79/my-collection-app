@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.268';
+const APP_VERSION = 'v0.9.269';
 const APP_DATE    = 'April 2026';
 
 // ═══════════════════════════════════════════════════════════════════
@@ -58,9 +58,11 @@ const ERAS = {
   // model classes captured in the Category column, NOT separate data sources.
   // The user-facing Era filter stays prewar/postwar/modern.
   weaver: { id: 'weaver', label: 'Weaver O', years: 'All',        prefix: 'Weaver O', manufacturer: 'Weaver' },
+  // Session 155: RMT (Ready Made Trains) — O-gauge manufacturer.
+  rmt:    { id: 'rmt',    label: 'RMT O',    years: 'All',        prefix: 'RMT O',    manufacturer: 'RMT' },
 };
 // Real-era IDs in load priority order (excluding 'all' meta-era).
-const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'pw_ho', 'mpc_ho', 'mod_ho', 'mod_s', 'weaver'];
+const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'pw_ho', 'mpc_ho', 'mod_ho', 'mod_s', 'weaver', 'rmt'];
 
 // ── Master sheet tab names per era ──
 const ERA_TABS = {
@@ -118,6 +120,9 @@ const ERA_TABS = {
   },
   weaver: {
     items:    'Weaver O',
+  },
+  rmt: {
+    items:    'RMT O',
   },
 };
 

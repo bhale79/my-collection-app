@@ -41,6 +41,8 @@ const ERA_BADGES = {
     mod_s:        'MODS',
     // Session 154: Weaver
     weaver:       'WVR',
+    // Session 155: RMT
+    rmt:          'RMT',
   },
 
   // Tab-name → era-id mapping. Used when we only have the `_tab` string
@@ -71,6 +73,8 @@ const ERA_BADGES = {
     'Lionel Modern S - Items':    'mod_s',
     // Session 154: Weaver
     'Weaver O':                   'weaver',
+    // Session 155: RMT
+    'RMT O':                      'rmt',
   },
 };
 
