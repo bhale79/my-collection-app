@@ -1111,6 +1111,10 @@ function renderBrowseTab(tab) {
   if (filterBar) filterBar.style.display = onItems ? '' : 'none';
   if (disclaimer) disclaimer.style.display = (onItems && _prefGet('lv_show_disclaimer', 'true') === 'true') ? 'flex' : 'none';
   if (identBtn) identBtn.style.display = inCollection ? 'none' : (onItems ? '' : 'none');
+  // Session 157: top search bar is items-only; each sub-panel (catalogs,
+  // sets, IS, science, etc.) has its own search input.
+  const searchWrap = document.getElementById('browse-search-wrap');
+  if (searchWrap) searchWrap.style.display = onItems ? '' : 'none';
 
   const titleEl = document.getElementById('browse-title-text');
   const mTitles = { items:'Master Catalog', sets:'Set Master List', catalogs:'Catalog List', science:'Science Sets', construction:'Construction Sets', paper:'Paper Items', other:'Other Items', service:'Service Tools', is:'Instruction Sheet List' };
