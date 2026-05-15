@@ -364,7 +364,9 @@ function _openLevelPicker(level) {
   if (existing) existing.remove();
   var overlay = document.createElement('div');
   overlay.id = overlayId;
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;'
+  // Session 160: bumped overlay opacity from 0.7 to 0.92 so underlying
+  // page text doesn't bleed through and make the modal hard to read.
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9999;'
                        + 'display:flex;align-items:center;justify-content:center;padding:1rem';
   overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
   var modal = document.createElement('div');
