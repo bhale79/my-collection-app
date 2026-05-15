@@ -1010,19 +1010,19 @@ function filterOwned(qe) {
   // Update tab visibility for collection context
   state._browseTab = 'items';
   renderBrowseTab('items');
-  // Session 158: QE-only checkbox at the right edge of the search bar.
-  // Replaces the older "All Items / Quick Entry / Complete" dropdown that
-  // lived in the now-hidden .filter-bar row. Single-purpose toggle: tick = QE only.
+  // Session 158/159: QE-only checkbox positioned OUTSIDE the search bar,
+  // as a sibling to the right. Single-purpose toggle: tick = QE only.
   setTimeout(function() {
     if (document.getElementById('qe-only-toggle')) return;
     var wrap = document.getElementById('browse-search-wrap');
-    if (!wrap) return;
+    if (!wrap || !wrap.parentNode) return;
     var lbl = document.createElement('label');
     lbl.id = 'qe-only-toggle';
     lbl.title = 'Show only Quick Entry items';
-    lbl.style.cssText = 'display:flex;align-items:center;gap:0.3rem;flex-shrink:0;'
-      + 'font-size:0.75rem;color:var(--text-dim);cursor:pointer;'
-      + 'padding-left:0.5rem;border-left:1px solid var(--border);margin-left:0.4rem;'
+    lbl.style.cssText = 'display:flex;align-items:center;gap:0.35rem;flex-shrink:0;'
+      + 'font-size:0.8rem;color:var(--text-dim);cursor:pointer;'
+      + 'padding:0.35rem 0.7rem;background:var(--bg-card);'
+      + 'border:1.5px solid var(--border);border-radius:14px;'
       + 'white-space:nowrap;user-select:none';
     var cb = document.createElement('input');
     cb.type = 'checkbox';
@@ -1037,7 +1037,8 @@ function filterOwned(qe) {
     var txt = document.createElement('span');
     txt.textContent = '⚡ QE only';
     lbl.appendChild(txt);
-    wrap.appendChild(lbl);
+    // Insert as sibling immediately AFTER the search bar wrapper
+    wrap.parentNode.insertBefore(lbl, wrap.nextSibling);
   }, 50);
 }
 
