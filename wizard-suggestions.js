@@ -202,8 +202,16 @@ function updateItemSuggestions(query) {
     }
 
     const seen = new Set();
+    // Session 156: Box Only — hide Boxes-tab rows unless the user explicitly
+    // asked for boxes via the Box Only checkbox. Keeps the Step 1 list clean
+    // (only one row per number) for normal item searches.
+    var _wantBoxes = !!(wizard.data && wizard.data.boxOnly);
     state.masterData.forEach(m => {
       // Era scope — skip rows from other eras (see Session 115 note above).
+      var _isBoxRow = !!(typeof SHEET_TABS !== 'undefined'
+                      && SHEET_TABS.boxes && m._tab === SHEET_TABS.boxes);
+      if (_isBoxRow !== _wantBoxes) return;
+      // (Session 156 box guard above; era guard below.)
       if (_eraTabSet && m._tab && !_eraTabSet.has(m._tab)) return;
       // Filter dropdowns: trim BOTH sides so stray whitespace in the
       // master sheet doesn't silently hide matches.
@@ -269,6 +277,18 @@ function updateItemSuggestions(query) {
       // Drop only if a sibling populated row exists for this itemNum.
       return !_informative.has(c.num);
     });
+
+    // Session 156: collapse to ONE row per itemNum. When multiple
+    // variations share the number, prefer the "parent" row (blank
+    // roadName) so the Step 1 list shows a single clean label per item;
+    // the user picks the variation on the next wizard step.
+    var _byNum = {};
+    candidates.forEach(function(c) {
+      var n = c.num;
+      if (!_byNum[n]) { _byNum[n] = c; return; }
+      if (!c.roadName && _byNum[n].roadName) { _byNum[n] = c; }
+    });
+    candidates = Object.values(_byNum);
   }
 
   // Sort: for number searches, starts-with first; for text searches, keep natural order
@@ -360,20 +380,12 @@ function updateItemSuggestions(query) {
       line1.appendChild(typeSpan);
     }
 
-    if (c.roadName) {
-      const roadSpan = document.createElement('span');
-      // min-width:0 is required for flex-child ellipsis to actually shrink
-      // below content width — without it, long road names force the row
-      // wider and horizontal scroll appears.
-      roadSpan.style.cssText = 'font-size:0.82rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0';
-      roadSpan.textContent = c.roadName;
-      line1.appendChild(roadSpan);
-    } else {
-      // Spacer so the reference link stays pinned right even with no road.
-      const spacer = document.createElement('span');
-      spacer.style.cssText = 'flex:1;min-width:0';
-      line1.appendChild(spacer);
-    }
+    // Session 156: road name suppressed from Step 1 list — variations
+    // get chosen on the next wizard step. Spacer keeps the reference
+    // link pinned right.
+    const spacer = document.createElement('span');
+    spacer.style.cssText = 'flex:1;min-width:0';
+    line1.appendChild(spacer);
 
     // Reference link — Atlas ↗ / COTT ↗ / View ↗ per URL.
     if (c.refLink) {
