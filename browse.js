@@ -1010,35 +1010,43 @@ function filterOwned(qe) {
   // Update tab visibility for collection context
   state._browseTab = 'items';
   renderBrowseTab('items');
-  // Show QE filter toggle in filter bar when in My Collection
+  // Session 158: QE-only checkbox at the right edge of the search bar.
+  // Replaces the older "All Items / Quick Entry / Complete" dropdown that
+  // lived in the now-hidden .filter-bar row. Single-purpose toggle: tick = QE only.
   setTimeout(function() {
-    var existing = document.getElementById('filter-quick-inline');
-    if (!existing) {
-      var fb = document.querySelector('.filter-bar');
-      if (!fb) return;
-      var sel = document.createElement('select');
-      sel.id = 'filter-quick-inline';
-      sel.className = 'filter-select';
-      sel.title = 'Quick Entry filter';
-      sel.innerHTML = '<option value="">All Items</option>'
-        + '<option value="quick">&#9889; Quick Entry</option>'
-        + '<option value="complete">&#10003; Complete</option>';
-      sel.value = state.filters.quickEntry || '';
-      sel.onchange = function() { state.filters.quickEntry = this.value; renderBrowse(); };
-      // Insert after first child (type filter)
-      var typeFilter = fb.querySelector('#filter-type');
-      if (typeFilter && typeFilter.nextSibling) {
-        fb.insertBefore(sel, typeFilter.nextSibling);
-      } else {
-        fb.appendChild(sel);
-      }
-    }
+    if (document.getElementById('qe-only-toggle')) return;
+    var wrap = document.getElementById('browse-search-wrap');
+    if (!wrap) return;
+    var lbl = document.createElement('label');
+    lbl.id = 'qe-only-toggle';
+    lbl.title = 'Show only Quick Entry items';
+    lbl.style.cssText = 'display:flex;align-items:center;gap:0.3rem;flex-shrink:0;'
+      + 'font-size:0.75rem;color:var(--text-dim);cursor:pointer;'
+      + 'padding-left:0.5rem;border-left:1px solid var(--border);margin-left:0.4rem;'
+      + 'white-space:nowrap;user-select:none';
+    var cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.id = 'qe-only-cb';
+    cb.checked = state.filters.quickEntry === 'quick';
+    cb.style.cssText = 'margin:0;cursor:pointer;accent-color:var(--accent)';
+    cb.onchange = function() {
+      state.filters.quickEntry = this.checked ? 'quick' : '';
+      renderBrowse();
+    };
+    lbl.appendChild(cb);
+    var txt = document.createElement('span');
+    txt.textContent = '⚡ QE only';
+    lbl.appendChild(txt);
+    wrap.appendChild(lbl);
   }, 50);
 }
 
 function removeQEFilter() {
-  var el = document.getElementById('filter-quick-inline');
+  // Session 158: clean up checkbox (newer UI) AND legacy dropdown if present.
+  var el = document.getElementById('qe-only-toggle');
   if (el) el.remove();
+  var legacy = document.getElementById('filter-quick-inline');
+  if (legacy) legacy.remove();
   state.filters.quickEntry = '';
 }
 
