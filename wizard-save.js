@@ -1050,16 +1050,18 @@ async function saveWizardItem() {
 
       }
       {
-        const _paired = d.tenderMatch && d.tenderMatch !== 'none';
-        const enginePrice = _paired
-          ? (d.priceItem ? (parseFloat(d.priceItem)/2).toFixed(2) : '')
-          : (d.priceItem || '');
-        const engineWorth = _paired
-          ? (d.userEstWorth ? (parseFloat(d.userEstWorth)/2).toFixed(2) : '')
-          : (d.userEstWorth || '');
-        const calcComplete = _paired
-          ? (enginePrice ? parseFloat(enginePrice) : 0)
-          : ((parseFloat(d.priceItem)||0) + (parseFloat(d.priceBox)||0));
+        // Session 163: paired engine+tender saves used to divide priceItem
+        // and userEstWorth by 2, halving the values the user typed. The
+        // tender row already writes blank to those columns (see PAIRED SAVE
+        // block below), so the engine row should carry the FULL amount.
+        const enginePrice = d.priceItem || '';
+        const engineWorth = d.userEstWorth || '';
+        const calcComplete = (parseFloat(d.priceItem)||0) + (parseFloat(d.priceBox)||0);
+        // Session 163: capture engine inv ID into a variable so the tender
+        // row can use (engineInvId + 1) — fixes the dupe-ID bug where both
+        // rows landed at the same number because nextInventoryId() scans
+        // state.personalData which isn't updated mid-save.
+        const _engineInvId = d._existingInventoryId || d._photoInventoryId || nextInventoryId();
         row = [
           itemNum, variation,
           d.condition || '',
@@ -1086,7 +1088,7 @@ async function saveWizardItem() {
         d.isError === 'Yes' ? 'Yes' : 'No',  // Is Error (col R)
         d.isError === 'Yes' ? (d.errorDesc || '') : '',  // Error Description (col S)
         '',  // Quick Entry (col T) — blank = normal full entry
-        d._existingInventoryId || d._photoInventoryId || nextInventoryId(),  // Inventory ID (col U)
+        _engineInvId,  // Inventory ID (col U) — Session 163: captured into var so tender can use engineInvId+1
         '',  // Group ID (col V) — filled in below for grouped items
         d.location || '',  // Location (col W)
         _resolveSaveEra(), // Era (col X)
@@ -1201,7 +1203,7 @@ async function saveWizardItem() {
       '',          // $0 worth — worth is on the engine row
       itemNum,     // matchedTo = engine number
       '', '', d.tenderIsError === 'Yes' ? 'Yes' : '', d.tenderIsError === 'Yes' ? (d.tenderErrorDesc || '') : '', '',  // setId, yearMade, isError, errorDesc, quickEntry
-      nextInventoryId(),  // Inventory ID
+      String(parseInt(_engineInvId) + 1),  // Inventory ID — Session 163: was nextInventoryId() which returned same ID twice
       groupId,  // Group ID — shared with engine
       d.location || '',  // Location (col W) — same as engine
       _resolveSaveEra(), // Era (col X)
