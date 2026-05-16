@@ -1133,6 +1133,138 @@ function buildApp() {
   if (typeof showWelcomeCard === 'function') showWelcomeCard(false);
   // Initialize back-button interception after app is ready
   _initBackButton();
+  // Session 162: kick off background preloading of OTHER eras' master data
+  // so subsequent era-switches are instant. Runs 3s after init to let the
+  // user's chosen era render and breathe first.
+  setTimeout(function() {
+    try { _preloadOtherErasInBackground(); } catch(e) { console.warn('[preload] start failed', e); }
+  }, 3000);
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Session 162: Background era preloader.
+// Fetches every OTHER era's master tabs in the background and writes the
+// result to per-era IDB cache (lv_master_cache_<era>). Once cached, era
+// switches are instant (loadMasterData checks IDB first).
+//
+// Runs 2 in parallel — kind to Google Sheets, finishes in ~30-60s on a
+// typical connection. Stops immediately if the user switches eras (no
+// point burning bandwidth on data they're now using directly).
+//
+// A small status pill in the bottom-right shows progress. Click ✕ to
+// dismiss early.
+// ──────────────────────────────────────────────────────────────────────
+var _preloadActive = false;
+var _preloadStartEra = null;
+
+async function _preloadOtherErasInBackground() {
+  if (_preloadActive) return;
+  if (typeof _currentEra === 'undefined' || _currentEra === 'all') return;
+  if (typeof REAL_ERA_IDS === 'undefined' || !Array.isArray(REAL_ERA_IDS)) return;
+
+  _preloadActive = true;
+  _preloadStartEra = _currentEra;
+
+  // Eras eligible for preload: not current, not 'all', cache stale or missing.
+  var TTL = 24 * 60 * 60 * 1000;
+  var now = Date.now();
+  var eligible = [];
+  for (var i = 0; i < REAL_ERA_IDS.length; i++) {
+    var era = REAL_ERA_IDS[i];
+    if (era === _currentEra) continue;
+    if (!ERAS || !ERAS[era]) continue;
+    var ts = parseInt(localStorage.getItem('lv_master_cache_ts_' + era) || '0', 10);
+    if (now - ts > TTL) eligible.push(era);
+  }
+
+  if (!eligible.length) { _preloadActive = false; return; }
+
+  var pill = _showPreloadPill(eligible.length);
+  var done = 0;
+  var idx = 0;
+
+  function fetchOne() {
+    if (idx >= eligible.length) return Promise.resolve();
+    if (_currentEra !== _preloadStartEra) return Promise.resolve(); // user switched eras
+    var era = eligible[idx++];
+    _updatePreloadPill(pill, done, eligible.length, era);
+    return _fetchMasterTabs(era)
+      .then(function(rows) {
+        if (!rows || !rows.length) return;
+        var deduped = (typeof _deduplicateMaster === 'function') ? _deduplicateMaster(rows) : rows;
+        idbSet('lv_master_cache_' + era, deduped);
+        localStorage.setItem('lv_master_cache_ts_' + era, Date.now().toString());
+        if (typeof ERAS !== 'undefined' && ERAS[era]) {
+          ERAS[era]._total = deduped.length;
+          try { localStorage.setItem('lv_era_total_' + era, deduped.length); } catch(e) {}
+        }
+      })
+      .catch(function(e) { console.warn('[preload] era ' + era + ' failed:', e); })
+      .then(function() {
+        done++;
+        _updatePreloadPill(pill, done, eligible.length, '');
+        return fetchOne();
+      });
+  }
+
+  // Two workers running in parallel
+  Promise.all([fetchOne(), fetchOne()]).then(function() {
+    _hidePreloadPill(pill);
+    _preloadActive = false;
+  });
+}
+
+function _showPreloadPill(total) {
+  var existing = document.getElementById('preload-status-pill');
+  if (existing) existing.remove();
+  var pill = document.createElement('div');
+  pill.id = 'preload-status-pill';
+  pill.style.cssText = 'position:fixed;bottom:18px;right:18px;z-index:1000;'
+    + 'background:var(--surface);color:var(--text-dim);'
+    + 'border:1px solid var(--border);border-radius:18px;'
+    + 'padding:0.45rem 0.85rem;font-size:0.78rem;font-family:var(--font-body);'
+    + 'display:flex;align-items:center;gap:0.55rem;'
+    + 'box-shadow:0 4px 14px rgba(0,0,0,0.25);opacity:0.94';
+  var dot = document.createElement('span');
+  dot.style.cssText = 'display:inline-block;width:8px;height:8px;border-radius:50%;'
+    + 'background:var(--accent2,#c9922a);animation:none';
+  pill.appendChild(dot);
+  var msg = document.createElement('span');
+  msg.id = 'preload-status-msg';
+  msg.textContent = 'Preloading 0 of ' + total + ' eras…';
+  pill.appendChild(msg);
+  var x = document.createElement('button');
+  x.textContent = '✕';
+  x.title = 'Hide this notice';
+  x.style.cssText = 'background:none;border:none;color:var(--text-dim);'
+    + 'cursor:pointer;font-size:0.85rem;padding:0 0 0 0.35rem;opacity:0.7';
+  x.onclick = function() { pill.remove(); };
+  pill.appendChild(x);
+  document.body.appendChild(pill);
+  return pill;
+}
+
+function _updatePreloadPill(pill, done, total, eraJustStarted) {
+  if (!pill || !pill.isConnected) return;
+  var msg = document.getElementById('preload-status-msg');
+  if (!msg) return;
+  var label = (eraJustStarted && ERAS && ERAS[eraJustStarted]) ? ERAS[eraJustStarted].label : '';
+  msg.textContent = label
+    ? 'Preloading ' + (done + 1) + ' of ' + total + ' — ' + label + '…'
+    : 'Preloaded ' + done + ' of ' + total;
+}
+
+function _hidePreloadPill(pill) {
+  if (!pill || !pill.isConnected) return;
+  var msg = document.getElementById('preload-status-msg');
+  if (msg) msg.textContent = 'All eras cached ✓';
+  setTimeout(function() {
+    if (pill && pill.isConnected) {
+      pill.style.transition = 'opacity 0.6s ease-out';
+      pill.style.opacity = '0';
+      setTimeout(function() { if (pill && pill.isConnected) pill.remove(); }, 700);
+    }
+  }, 2500);
 }
 
 function showLoading() {
