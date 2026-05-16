@@ -309,6 +309,14 @@ function _wizScanBarcode() {
       wizard.data.itemNum = result.itemNum;
       if (result.variation) wizard.data.variation = result.variation;
       if (result.masterItem) wizard.matchedItem = result.masterItem;
+      // Session 167: cross-era support. If the scanner found this item in a
+      // different era's IDB cache, the matched item carries an _era tag.
+      // Adopt it so _resolveSaveEra() writes the row to the correct tab.
+      if (result.masterItem && result.masterItem._era) {
+        wizard.data._era = result.masterItem._era;
+      } else if (result.era) {
+        wizard.data._era = result.era;
+      }
       // Non-Lionel phase-2 flows: just prefill, let user advance manually
       if (result.phase2 || result.unknownPrefix) {
         showToast && showToast(result.statusMessage || 'Type the item# manually', 3500);

@@ -59,13 +59,16 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   // A Lionel UPC only carries the last 5 digits, so reissues that share
   // those 5 digits (26200 / 1926200 / 2026200 …) all map to one scan.
   // Return every candidate so the caller can disambiguate with the user.
-  function findMasterItems(candidates) {
-    if (!candidates || candidates.length === 0) return [];
-    if (typeof state === 'undefined' || !state.masterData) return [];
+  // Session 167: cross-era lookup. First scan state.masterData (the era
+  // currently loaded into memory). If no hit, scan every other era's IDB
+  // cache filled by the Session 162 preloader. Each hit gets tagged with
+  // its source era so the wizard can route the save correctly.
+  function _matchInArray(arr, candidates) {
+    if (!arr || !arr.length) return [];
     var out = [];
     var seen = {};
     function addAll(pred) {
-      state.masterData.forEach(function(m) {
+      arr.forEach(function(m) {
         if (!pred(m)) return;
         var key = (m.itemNum || '') + '|' + (m.variation || '') + '|' + (m._tab || '');
         if (seen[key]) return;
@@ -73,7 +76,6 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         out.push(m);
       });
     }
-    // Pass 1: exact match on any candidate (with/without 6- prefix) — best matches first
     candidates.forEach(function(cand) {
       addAll(function(m) {
         return m.itemNum === cand
@@ -81,7 +83,6 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           || m.itemNum === ('6-' + cand);
       });
     });
-    // Pass 2: fuzzy — any master row whose last-5 digits match the scanned code
     if (candidates[0]) {
       var tail = candidates[0].replace(/^6-/, '').slice(-5);
       addAll(function(m) {
@@ -91,9 +92,36 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     }
     return out;
   }
-  // Back-compat single-result helper (first match or null).
-  function findMasterItem(candidates) {
-    var all = findMasterItems(candidates);
+  async function findMasterItems(candidates) {
+    if (!candidates || candidates.length === 0) return [];
+    // Pass A — current era (in memory, fast)
+    if (typeof state !== 'undefined' && state.masterData && state.masterData.length) {
+      var current = _matchInArray(state.masterData, candidates);
+      if (current.length) return current;
+    }
+    // Pass B — every other era's IDB cache (populated by Session 162 preloader)
+    if (typeof REAL_ERA_IDS === 'undefined' || !Array.isArray(REAL_ERA_IDS)) return [];
+    if (typeof idbGet !== 'function') return [];
+    var curEra = (typeof _currentEra !== 'undefined') ? _currentEra : null;
+    for (var i = 0; i < REAL_ERA_IDS.length; i++) {
+      var era = REAL_ERA_IDS[i];
+      if (era === curEra) continue;
+      try {
+        var cached = await idbGet('lv_master_cache_' + era);
+        if (!cached || !cached.length) continue;
+        var hits = _matchInArray(cached, candidates);
+        if (hits.length) {
+          // Tag every hit with its source era so the wizard adopts it.
+          hits.forEach(function(h) { if (!h._era) h._era = era; });
+          return hits;
+        }
+      } catch(e) {}
+    }
+    return [];
+  }
+  // Back-compat single-result helper (first match or null). Async now.
+  async function findMasterItem(candidates) {
+    var all = await findMasterItems(candidates);
     return all.length ? all[0] : null;
   }
   // HTML-escape helper for picker rendering.
@@ -196,7 +224,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           const barcodes = await detector.detect(video);
           if (barcodes && barcodes.length > 0) {
             const bc = barcodes[0];
-            const result = decodeBarcode(bc, eraHint);
+            const result = await decodeBarcode(bc, eraHint);
             if (result.handled && result.multipleMatches) {
               // Ambiguous scan — stop the camera and show the candidate picker.
               statusEl.textContent = result.statusMessage;
@@ -239,7 +267,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   }
 
   // ── Decode & route ──
-  function decodeBarcode(bc, eraHint) {
+  // Session 167: async because findMasterItems now reads cross-era IDB caches.
+  async function decodeBarcode(bc, eraHint) {
     const raw = (bc.rawValue || '').trim();
     const fmt = bc.format;
 
@@ -254,7 +283,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       const info = UPC_PREFIXES[prefix];
       if (info && info.mfr === 'Lionel') {
         const parsed = info.parse(upc12);
-        const matches = findMasterItems(parsed.itemNumCandidates);
+        const matches = await findMasterItems(parsed.itemNumCandidates);
         if (matches.length === 1) {
           const master = matches[0];
           return {
@@ -323,7 +352,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
 
     // Code 128 / Code 39 — likely MTH SKU like "10-1035", "30-1056", "40-1035"
     if ((fmt === 'code_128' || fmt === 'code_39') && /^\d{2}-\d{3,5}(-\d+)?$/.test(raw)) {
-      const master = findMasterItem([raw]);
+      const master = await findMasterItem([raw]);
       if (master) {
         return {
           handled: true,
