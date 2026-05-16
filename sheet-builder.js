@@ -5,7 +5,7 @@
 // ══════════════════════════════════════════════════════════════════
 
 // Bump this number to push a visual refresh to all users on next sync
-const SHEET_FORMAT_VER = 2;
+const SHEET_FORMAT_VER = 3; // Session 164: bumped — Dashboard cells now live formulas
 
 // ── Color palette ──────────────────────────────────────────────────
 const SB = {
@@ -241,6 +241,20 @@ async function applySheetFormatting(sheetId) {
         }},
         fields: 'userEnteredFormat(backgroundColor,textFormat,verticalAlignment,horizontalAlignment)'
       }},
+      // Session 164: explicit NUMBER format for all stat value cells so
+      // counts don't show as "$52" because of a leftover currency format.
+      // Currency/text formulas (Collection Value, Avg Condition) wrap their
+      // result in TEXT(...) so the cell format doesn't matter for them.
+      { repeatCell: {
+        range: { sheetId: dashId, startRowIndex: 5, endRowIndex: 9, startColumnIndex: 1, endColumnIndex: 2 },
+        cell: { userEnteredFormat: { numberFormat: { type: 'NUMBER', pattern: '#,##0' } } },
+        fields: 'userEnteredFormat.numberFormat'
+      }},
+      { repeatCell: {
+        range: { sheetId: dashId, startRowIndex: 5, endRowIndex: 9, startColumnIndex: 4, endColumnIndex: 5 },
+        cell: { userEnteredFormat: { numberFormat: { type: 'NUMBER', pattern: '#,##0' } } },
+        fields: 'userEnteredFormat.numberFormat'
+      }},
       // Cols F-H rows 5-9 — navy bg
       { repeatCell: {
         range: { sheetId: dashId, startRowIndex: 4, endRowIndex: 10, startColumnIndex: 5, endColumnIndex: 8 },
@@ -326,28 +340,54 @@ async function _writeDashboardContent(sheetId) {
 
   const valueStr = totalValue > 0 ? _currencySymbol() + Math.round(totalValue).toLocaleString() : '—';
 
+  // Session 164: replace static values with LIVE FORMULAS so the dashboard
+  // stays accurate even when the user edits the personal sheet directly
+  // (e.g. deletes rows). Locomotives stays as a static value because it
+  // requires a join against master-data Item Type — that can only be
+  // computed by the app at sync time.
   const rows = [
     // Row 1: App title (A1), mascot formula (F1)
     ['THE RAIL ROSTER', '', '', '', '', `=IMAGE("${CONDUCTOR_URL}",1)`],
     // Row 2: User name
     [`${firstName}'s Collection`, '', '', '', '', ''],
-    // Row 3: Last synced
-    [`Last synced: ${now}`, '', '', '', '', ''],
+    // Row 3: Last app sync timestamp (formulas are live so this is just an
+    // FYI for the Locomotives count, which IS app-managed)
+    [`Last app sync: ${now}`, '', '', '', '', ''],
     // Row 4: spacer
     ['', '', '', '', '', ''],
     // Row 5: Section headers
     ['MY COLLECTION', '', '', 'ACTIVITY', '', ''],
-    // Rows 6-9: Stats  [label, value, divider, label, value]
-    ['Items in Collection', totalItems.toLocaleString(), '', 'Locomotives',    engines.toLocaleString(), ''],
-    ['Collection Value',    valueStr,                    '', 'Avg Condition',  avgCond + ' / 10',        ''],
-    ['Want List',           wantCount.toLocaleString(),  '', 'For Sale',       forSaleCount.toLocaleString(), ''],
-    ['Upgrade List',        upgradeCount.toLocaleString(),'','Items Sold',     soldCount.toLocaleString(), ''],
+    // Rows 6-9: Stats. Most are live formulas; Locomotives stays static.
+    // Data on each tab starts at row 3 (row 1 = label, row 2 = headers).
+    ['Items in Collection',
+       `=IFERROR(MAX(0,COUNTA('My Collection'!A:A)-2),0)`,
+       '', 'Locomotives',
+       engines.toLocaleString(),
+       ''],
+    ['Collection Value',
+       `=IFERROR(TEXT(SUM('My Collection'!N3:N), "$#,##0"), "—")`,
+       '', 'Avg Condition',
+       `=IFERROR(ROUND(AVERAGE('My Collection'!C3:C),1) & " / 10", "—")`,
+       ''],
+    ['Want List',
+       `=IFERROR(MAX(0,COUNTA('Want List'!A:A)-2),0)`,
+       '', 'For Sale',
+       `=IFERROR(MAX(0,COUNTA('For Sale'!A:A)-2),0)`,
+       ''],
+    ['Upgrade List',
+       `=IFERROR(MAX(0,COUNTA('Upgrade List'!A:A)-2),0)`,
+       '', 'Items Sold',
+       `=IFERROR(MAX(0,COUNTA('Sold'!A:A)-2),0)`,
+       ''],
     // Row 10: spacer
     ['', '', '', '', '', ''],
     // Row 11: footer
     ['Open The Rail Roster app to manage your collection  ·  This sheet is read-only', '', '', '', '', ''],
   ];
 
+  // Session 164: USE_FORMULAS — switch from 'USER_ENTERED' default which
+  // would have written formulas as strings. sheetsUpdate already handles
+  // this; just verify formulas survive the write.
   await sheetsUpdate(sheetId, 'Dashboard!A1:F11', rows);
 }
 
