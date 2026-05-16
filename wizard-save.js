@@ -1061,7 +1061,7 @@ async function saveWizardItem() {
         // row can use (engineInvId + 1) — fixes the dupe-ID bug where both
         // rows landed at the same number because nextInventoryId() scans
         // state.personalData which isn't updated mid-save.
-        const _engineInvId = d._existingInventoryId || d._photoInventoryId || nextInventoryId();
+        var _engineInvId = d._existingInventoryId || d._photoInventoryId || nextInventoryId();  // Session 165 hotfix: var, not const, so tender block at line 1206 can reference it
         row = [
           itemNum, variation,
           d.condition || '',
