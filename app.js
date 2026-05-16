@@ -1138,6 +1138,28 @@ function buildApp() {
 function showLoading() {
   const tb = document.getElementById('browse-tbody');
   if (tb) tb.innerHTML = '<tr><td colspan="9"><div class="loading" style="padding:3rem;flex-direction:column;gap:0.75rem"><div class="spinner" style="width:36px;height:36px;border-width:3px"></div><div style="font-size:0.9rem;color:var(--text-dim)">Loading The Rail Roster…</div><div style="font-size:0.75rem;color:var(--text-dim);opacity:0.7">Fetching master inventory</div></div></td></tr>';
+  // Session 161 watchdog: if the splash is still visible 4s later AND master
+  // data has actually loaded, force a re-render. If that throws, show a
+  // recovery message with a Refresh button instead of leaving the user stuck.
+  setTimeout(function() {
+    var tb2 = document.getElementById('browse-tbody');
+    if (!tb2) return;
+    if (tb2.innerHTML.indexOf('Loading The Rail Roster') === -1) return;
+    if (!state.masterData || state.masterData.length === 0) return;
+    try {
+      if (typeof renderBrowse === 'function') renderBrowse();
+    } catch(e) {
+      console.error('[watchdog] renderBrowse failed:', e);
+    }
+    // Re-check after the retry — if STILL stuck, replace splash with error UI.
+    var tb3 = document.getElementById('browse-tbody');
+    if (tb3 && tb3.innerHTML.indexOf('Loading The Rail Roster') !== -1) {
+      tb3.innerHTML = '<tr><td colspan="10" style="padding:1.75rem;text-align:center;color:var(--text-dim);font-size:0.88rem">'
+        + 'The catalog finished loading but the page didn\'t refresh. '
+        + '<button onclick="location.reload()" style="margin-left:0.5rem;padding:0.35rem 0.9rem;border-radius:7px;border:1.5px solid var(--accent);background:rgba(232,64,28,0.1);color:var(--accent);cursor:pointer;font-weight:600">Reload</button>'
+        + '</td></tr>';
+    }
+  }, 4000);
 }
 
 // ── DASHBOARD ───────────────────────────────────────────────────
