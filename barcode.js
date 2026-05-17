@@ -124,6 +124,50 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     var all = await findMasterItems(candidates);
     return all.length ? all[0] : null;
   }
+  // Session 169: exact-only variant for OCR scans — same as findMasterItems
+  // but without the fuzzy last-5 fallback that masks bad OCR extractions.
+  async function _findMasterItemsExact(candidates) {
+    if (!candidates || candidates.length === 0) return [];
+    function _exactMatch(arr, cands) {
+      if (!arr || !arr.length) return [];
+      var out = [];
+      var seen = {};
+      cands.forEach(function(cand) {
+        arr.forEach(function(m) {
+          var match = m.itemNum === cand
+            || m.itemNum === cand.replace(/^6-/, '')
+            || m.itemNum === ('6-' + cand);
+          if (!match) return;
+          var key = (m.itemNum || '') + '|' + (m.variation || '') + '|' + (m._tab || '');
+          if (seen[key]) return;
+          seen[key] = 1;
+          out.push(m);
+        });
+      });
+      return out;
+    }
+    if (typeof state !== 'undefined' && state.masterData && state.masterData.length) {
+      var current = _exactMatch(state.masterData, candidates);
+      if (current.length) return current;
+    }
+    if (typeof REAL_ERA_IDS === 'undefined' || !Array.isArray(REAL_ERA_IDS)) return [];
+    if (typeof idbGet !== 'function') return [];
+    var curEra = (typeof _currentEra !== 'undefined') ? _currentEra : null;
+    for (var i = 0; i < REAL_ERA_IDS.length; i++) {
+      var era = REAL_ERA_IDS[i];
+      if (era === curEra) continue;
+      try {
+        var cached = await idbGet('lv_master_cache_' + era);
+        if (!cached || !cached.length) continue;
+        var hits = _exactMatch(cached, candidates);
+        if (hits.length) {
+          hits.forEach(function(h) { if (!h._era) h._era = era; });
+          return hits;
+        }
+      } catch(e) {}
+    }
+    return [];
+  }
   // HTML-escape helper for picker rendering.
   function _bcEsc(s) {
     return String(s == null ? '' : s).replace(/[<>"'&]/g, function(c) {
@@ -491,21 +535,45 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     return _tesseractLoadingPromise;
   }
 
-  // Item-number patterns we recognize in OCR output. Order matters —
-  // longer/more-specific patterns first so RMT-99417 wins over plain 99417.
+  // Session 169: tightened item-number patterns to require KNOWN
+  // manufacturer prefixes. The previous version matched any \d{2}-\d{3,5}
+  // group which caught dates, prices, page numbers, and fragments of UPCs.
+  // Each pattern now requires a real prefix that maps to a real catalog.
   var ITEM_PATTERNS = [
+    // RMT — always starts with the RMT marker
     { re: /\bRMT[\s\-]\d{3,5}(?:[\s\-]\d{1,4})?\b/g,         mfr: 'RMT' },
+    // K-Line — "K" + 4-5 digits + dash + 4-5 digits + optional letter pair
     { re: /\bK\d{4,5}[\s\-]\d{4,5}[A-Z]{0,2}\b/gi,             mfr: 'K-Line' },
-    { re: /\b6[\s\-]\d{4,5}\b/g,                                  mfr: 'Lionel' },
-    { re: /\b\d{2}[\s\-]\d{3,5}(?:[\s\-]\d{1,3}|[A-Z])?\b/g, mfr: 'MTH'    },
-    { re: /\b\d{3}[\s\-]\d{4}\b/g,                                mfr: 'Menards'},
+    // Lionel — starts with "6-" or "6 ", followed by 4-6 digits
+    { re: /\b6[\s\-]\d{4,6}\b/g,                                  mfr: 'Lionel' },
+    // MTH — known scale-line prefixes 10/20/30/40/50/60/70/80/90, then 4-5 digits, optional -N or trailing letter
+    { re: /\b(?:10|20|30|40|50|60|70|80|90)[\s\-]\d{4,5}(?:[\s\-]\d{1,3}|[A-Z])?\b/g, mfr: 'MTH'    },
+    // Menards Gold Line — 275-XXXX or 279-XXXX (per Brad's samples)
+    { re: /\b(?:275|279)[\s\-]\d{4}\b/g,                          mfr: 'Menards'},
   ];
+  // Session 169: strip UPC-shaped digit runs before extracting candidates.
+  // UPCs are 12 or 13 digits, often printed with single-digit spacing
+  // ("0 23922 36814 0"). Their middle 5 digits often look like a valid
+  // item number to a loose regex, so we blank them out.
+  function _stripUPCs(text) {
+    if (!text) return '';
+    // 12-digit (UPC-A) with optional spaces between digits
+    text = text.replace(/\b\d[\s]?\d{5}[\s]?\d{5}[\s]?\d\b/g, ' ');
+    // 13-digit (EAN-13)
+    text = text.replace(/\b\d[\s]?\d{6}[\s]?\d{5}[\s]?\d\b/g, ' ');
+    // Plain 10+ consecutive digits (continuous strings)
+    text = text.replace(/\d{10,}/g, ' ');
+    return text;
+  }
   function _extractItemNumberCandidates(text) {
+    var clean = _stripUPCs(text || '');
     var out = [];
     var seen = {};
     ITEM_PATTERNS.forEach(function(p) {
       var m;
-      while ((m = p.re.exec(text)) !== null) {
+      // Reset lastIndex because the regex objects are reused.
+      p.re.lastIndex = 0;
+      while ((m = p.re.exec(clean)) !== null) {
         var hit = m[0].replace(/\s+/g, '-').toUpperCase();
         if (seen[hit]) continue;
         seen[hit] = 1;
@@ -605,7 +673,10 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         var lookupCands = [raw];
         if (raw.indexOf('6-') === 0) lookupCands.push(raw.substring(2));
         else if (/^\d/.test(raw))   lookupCands.push('6-' + raw);
-        var hits = await findMasterItems(lookupCands);
+        // Session 169: OCR mode uses EXACT match only (no fuzzy last-5 fallback)
+        // because OCR misreads turn into false matches via fuzzy. Barcode flow
+        // still uses fuzzy because UPCs map cleanly to Lionel item numbers.
+        var hits = await _findMasterItemsExact(lookupCands);
         if (hits.length === 1) {
           var m = hits[0];
           cleanup();
