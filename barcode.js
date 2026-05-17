@@ -462,5 +462,212 @@ window.eraSupportsBarcode = eraSupportsBarcode;
 
   // Expose globally
   window.openBarcodeScanner = openBarcodeScanner;
+
+  // ══════════════════════════════════════════════════════════════════
+  // Session 168: OCR LABEL SCANNER
+  //
+  // Lazy-loads Tesseract.js from CDN on first use, opens the camera with
+  // a simple "Capture" button, OCRs the full frame, extracts item-number
+  // patterns, looks them up cross-era via findMasterItems, returns the
+  // best match. No barcode required — works on any printed label.
+  //
+  // Public API: window.openLabelScanner(onFound, onCancel)
+  //   onFound(result) — result has same shape as openBarcodeScanner:
+  //     { handled, itemNum, variation, masterItem, statusMessage, ... }
+  //   onCancel() — user dismissed the scanner without picking.
+  // ══════════════════════════════════════════════════════════════════
+  var _tesseractLoadingPromise = null;
+  function _ensureTesseract() {
+    if (window.Tesseract) return Promise.resolve(window.Tesseract);
+    if (_tesseractLoadingPromise) return _tesseractLoadingPromise;
+    _tesseractLoadingPromise = new Promise(function(resolve, reject) {
+      var s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+      s.async = true;
+      s.onload = function() { resolve(window.Tesseract); };
+      s.onerror = function() { reject(new Error('Failed to load Tesseract.js')); };
+      document.head.appendChild(s);
+    });
+    return _tesseractLoadingPromise;
+  }
+
+  // Item-number patterns we recognize in OCR output. Order matters —
+  // longer/more-specific patterns first so RMT-99417 wins over plain 99417.
+  var ITEM_PATTERNS = [
+    { re: /\bRMT[\s\-]\d{3,5}(?:[\s\-]\d{1,4})?\b/g,         mfr: 'RMT' },
+    { re: /\bK\d{4,5}[\s\-]\d{4,5}[A-Z]{0,2}\b/gi,             mfr: 'K-Line' },
+    { re: /\b6[\s\-]\d{4,5}\b/g,                                  mfr: 'Lionel' },
+    { re: /\b\d{2}[\s\-]\d{3,5}(?:[\s\-]\d{1,3}|[A-Z])?\b/g, mfr: 'MTH'    },
+    { re: /\b\d{3}[\s\-]\d{4}\b/g,                                mfr: 'Menards'},
+  ];
+  function _extractItemNumberCandidates(text) {
+    var out = [];
+    var seen = {};
+    ITEM_PATTERNS.forEach(function(p) {
+      var m;
+      while ((m = p.re.exec(text)) !== null) {
+        var hit = m[0].replace(/\s+/g, '-').toUpperCase();
+        if (seen[hit]) continue;
+        seen[hit] = 1;
+        out.push({ raw: hit, mfr: p.mfr });
+      }
+    });
+    return out;
+  }
+
+  async function openLabelScanner(onFound, onCancel) {
+    var Tesseract;
+    var preflightMsg = 'Loading scanner (one-time)…';
+    var loaderOverlay = _makeBusyOverlay(preflightMsg);
+    try {
+      Tesseract = await _ensureTesseract();
+    } catch (e) {
+      loaderOverlay.remove();
+      showToast && showToast('Could not load OCR engine. Check your connection.', 4000, true);
+      if (onCancel) onCancel();
+      return;
+    }
+    loaderOverlay.remove();
+
+    // Build camera UI — simpler than the barcode loop: one Capture button.
+    var stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }, audio: false
+      });
+    } catch (e) {
+      showToast && showToast('Camera permission denied.', 4000, true);
+      if (onCancel) onCancel();
+      return;
+    }
+
+    var overlay = document.createElement('div');
+    overlay.id = 'label-scanner-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:99999;'
+      + 'display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1rem;gap:0.85rem';
+    overlay.innerHTML = ''
+      + '<div style="color:#fff;font-family:var(--font-head,sans-serif);font-size:1.1rem">📷 Scan Item Label</div>'
+      + '<div style="position:relative;width:100%;max-width:520px">'
+      + '  <video id="lbl-video" autoplay playsinline muted style="width:100%;border-radius:12px;background:#000"></video>'
+      + '  <div style="position:absolute;inset:8% 12%;border:2px dashed rgba(255,255,255,0.6);border-radius:10px;pointer-events:none"></div>'
+      + '</div>'
+      + '<div id="lbl-status" style="color:#ccc;font-size:0.85rem;text-align:center;min-height:1.4em">Aim camera at the item-number label, then tap Capture.</div>'
+      + '<div style="display:flex;gap:0.6rem;width:100%;max-width:520px">'
+      + '  <button id="lbl-cancel" style="flex:1;padding:0.75rem;border-radius:9px;border:1.5px solid #555;background:transparent;color:#ccc;font-family:var(--font-head,sans-serif);font-size:0.9rem;cursor:pointer">Cancel</button>'
+      + '  <button id="lbl-capture" style="flex:2;padding:0.85rem;border-radius:9px;border:none;background:var(--accent,#e8401c);color:#fff;font-family:var(--font-head,sans-serif);font-size:1rem;font-weight:700;cursor:pointer">📸 Capture</button>'
+      + '</div>';
+    document.body.appendChild(overlay);
+    var video = document.getElementById('lbl-video');
+    video.srcObject = stream;
+    await new Promise(function(r) { video.addEventListener('loadedmetadata', r, { once: true }); });
+
+    function cleanup() {
+      try { stream.getTracks().forEach(function(t){ t.stop(); }); } catch (e) {}
+      if (overlay && overlay.isConnected) overlay.remove();
+    }
+    var statusEl = document.getElementById('lbl-status');
+    document.getElementById('lbl-cancel').onclick = function() { cleanup(); if (onCancel) onCancel(); };
+    document.getElementById('lbl-capture').onclick = async function() {
+      var captureBtn = this;
+      captureBtn.disabled = true;
+      captureBtn.textContent = 'Reading…';
+      statusEl.textContent = 'Reading text from the label — 3-5 seconds…';
+      // Snapshot the current frame.
+      var canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0);
+      try {
+        // Crop to the dashed guide (center 76% x 84%) so background noise drops.
+        var sx = Math.floor(canvas.width * 0.12);
+        var sy = Math.floor(canvas.height * 0.08);
+        var sw = canvas.width  - 2 * sx;
+        var sh = canvas.height - 2 * sy;
+        var crop = document.createElement('canvas');
+        crop.width = sw; crop.height = sh;
+        crop.getContext('2d').drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+        var ocr = await Tesseract.recognize(crop, 'eng', {
+          // No logger to keep things quiet; default progress prints to console.
+        });
+        var text = (ocr && ocr.data && ocr.data.text) || '';
+        var cands = _extractItemNumberCandidates(text);
+        if (!cands.length) {
+          statusEl.textContent = 'No item number detected — try again or type manually.';
+          captureBtn.disabled = false;
+          captureBtn.textContent = '📸 Try again';
+          return;
+        }
+        // Resolve the first candidate against master data (cross-era).
+        var best = cands[0];
+        var raw = best.raw;
+        // Generate match-candidate variants: as-is, without 6- prefix, with 6- prefix.
+        var lookupCands = [raw];
+        if (raw.indexOf('6-') === 0) lookupCands.push(raw.substring(2));
+        else if (/^\d/.test(raw))   lookupCands.push('6-' + raw);
+        var hits = await findMasterItems(lookupCands);
+        if (hits.length === 1) {
+          var m = hits[0];
+          cleanup();
+          if (onFound) onFound({
+            handled: true,
+            itemNum: m.itemNum,
+            variation: m.variation || '',
+            masterItem: m,
+            manufacturer: best.mfr,
+            statusMessage: 'Found ' + m.itemNum + ' — ' + (m.description || '').substring(0, 40),
+          });
+          return;
+        }
+        if (hits.length > 1) {
+          // Show the candidate picker (reuse showCandidatePicker if available).
+          cleanup();
+          var chosen = (typeof showCandidatePicker === 'function')
+            ? await showCandidatePicker(hits, { code5: raw })
+            : hits[0];
+          if (chosen) {
+            if (onFound) onFound({
+              handled: true,
+              itemNum: chosen.itemNum,
+              variation: chosen.variation || '',
+              masterItem: chosen,
+              manufacturer: best.mfr,
+              statusMessage: 'Found ' + chosen.itemNum,
+            });
+          } else if (onCancel) {
+            onCancel();
+          }
+          return;
+        }
+        // No hit in master — return the raw candidate so wizard pre-fills it.
+        cleanup();
+        if (onFound) onFound({
+          handled: true,
+          itemNum: raw,
+          variation: '',
+          notInMaster: true,
+          manufacturer: best.mfr,
+          statusMessage: 'Detected ' + raw + ' — not in our catalog, adding manually…',
+        });
+      } catch (e) {
+        statusEl.textContent = 'Scan failed: ' + (e && e.message ? e.message : 'unknown error');
+        captureBtn.disabled = false;
+        captureBtn.textContent = '📸 Try again';
+      }
+    };
+  }
+
+  function _makeBusyOverlay(msg) {
+    var d = document.createElement('div');
+    d.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99998;'
+      + 'display:flex;align-items:center;justify-content:center;color:#fff;'
+      + 'font-family:var(--font-head,sans-serif);font-size:0.95rem;text-align:center;padding:1rem';
+    d.textContent = msg || 'Loading…';
+    document.body.appendChild(d);
+    return d;
+  }
+
+  window.openLabelScanner = openLabelScanner;
+  window._extractItemNumberCandidates = _extractItemNumberCandidates;
   window._barcodeDebug = { decodeBarcode, findMasterItem, findMasterItems, showCandidatePicker, UPC_PREFIXES };
 })();

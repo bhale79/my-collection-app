@@ -332,3 +332,38 @@ function _wizScanBarcode() {
     // Cancelled — user can type the item# instead
   }, eraHint);
 }
+
+// ══════════════════════════════════════════════════════════════
+// Session 168: OCR Label scanner — pairs with the Scan Barcode
+// button. Snaps a photo of the box-end label, OCRs it, extracts
+// the item number, looks it up cross-era and fills the wizard.
+// ══════════════════════════════════════════════════════════════
+function _wizScanLabel() {
+  if (typeof window.openLabelScanner !== 'function') {
+    showToast && showToast('Label scanner not loaded', 3000, true);
+    return;
+  }
+  window.openLabelScanner(function(result) {
+    if (!wizard || !wizard.data) return;
+    if (!result || !result.itemNum) return;
+    wizard.data.itemNum = result.itemNum;
+    if (result.variation) wizard.data.variation = result.variation;
+    if (result.masterItem) wizard.matchedItem = result.masterItem;
+    // Adopt the matched era so save routes to the right tab (same as
+    // Session 167 cross-era barcode lookup).
+    if (result.masterItem && result.masterItem._era) {
+      wizard.data._era = result.masterItem._era;
+    }
+    if (result.notInMaster) {
+      showToast && showToast(result.statusMessage || 'Detected — fill in details manually', 3500);
+      renderWizardStep();
+      return;
+    }
+    showToast && showToast('✓ ' + (result.statusMessage || ('Scanned ' + result.itemNum)), 2500);
+    // Advance to next wizard step
+    wizard.step++;
+    renderWizardStep();
+  }, function() {
+    // Cancelled — leave wizard as-is, user can type manually
+  });
+}

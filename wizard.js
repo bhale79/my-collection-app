@@ -3598,6 +3598,15 @@ function renderWizardStep() {
         _ingScanBtn.innerHTML = '📷 Scan Barcode';
         _ingWrap.appendChild(_ingScanBtn);
       }
+      // Session 168: Scan Label (OCR) — for boxes without barcodes, or when
+      // the user prefers to scan the printed item-number label directly.
+      {
+        const _ingLabelBtn = document.createElement('button');
+        _ingLabelBtn.onclick = function() { if (typeof _wizScanLabel === 'function') _wizScanLabel(); };
+        _ingLabelBtn.style.cssText = 'width:100%;margin-top:0.5rem;padding:0.65rem 1rem;border-radius:8px;border:1.5px dashed #16a085;background:rgba(22,160,133,0.08);color:#16a085;font-family:var(--font-head);font-size:0.78rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;transition:all 0.15s';
+        _ingLabelBtn.innerHTML = '🔠 Scan Label (OCR)';
+        _ingWrap.appendChild(_ingLabelBtn);
+      }
     }
     
     body.innerHTML = '';
