@@ -2227,6 +2227,10 @@ function renderBrowse() {
   // Show ephemera if: owned view, searching, or type filter is an ephemera category
   const _showEph = state.filters.owned || sq || Object.keys(_ephTypeMap).some(k => k.toLowerCase() === tf);
   // Instruction Sheets in browse
+  // Map IS entries to their state.isData keys so we can attach action
+  // buttons (For Sale / Sold / Upgrade / Remove) via _collectionActionsHTML.
+  const _isKeyByEntry = new Map();
+  Object.keys(state.isData || {}).forEach(function(k) { _isKeyByEntry.set(state.isData[k], k); });
   if (_showEph || tf === 'instruction sheet') {
     const isItems = Object.values(state.isData || {});
     const isFiltered = isItems.filter(it => {
@@ -2300,6 +2304,7 @@ function renderBrowse() {
             <td><span class="tag" style="border-color:#16a085;color:#16a085;background:#16a08518">Instr. Sheet</span></td>
             <td></td><td></td>
             <td style="text-align:center;white-space:nowrap"><span style="color:var(--text-dim);font-size:0.75rem">For #${it.linkedItem || '—'}</span></td>
+            <td onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">${(typeof _collectionActionsHTML === 'function' && _isKeyByEntry.get(it)) ? _collectionActionsHTML('is', _isKeyByEntry.get(it), it) : ''}</td>
           </tr>`;
         }
         return `<tr onclick="openISDetail(${it.row})" style="cursor:pointer">
