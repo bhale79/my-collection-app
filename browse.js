@@ -2281,7 +2281,17 @@ function renderBrowse() {
   document.getElementById('result-count').textContent = `${displayTotal.toLocaleString()} items`;
   // S151: append all-mode loading indicator if background refresh is running.
   if (typeof _renderAllLoadingIndicator === 'function') _renderAllLoadingIndicator();
-  document.getElementById('page-info').textContent = `Showing ${start+1}–${Math.min(start+state.pageSize, total)} of ${total.toLocaleString()} trains${ephTotal ? ' + ' + ephTotal + ' other' : ''}`;
+  // Page-info text — handle the zero-main-items case so we don't say
+  // "Showing 1-0 of 0 trains" when only ephemera/IS rows exist.
+  let _pageInfo;
+  if (total === 0 && ephTotal > 0) {
+    _pageInfo = `Showing ${ephTotal} other item${ephTotal !== 1 ? 's' : ''}`;
+  } else if (total === 0) {
+    _pageInfo = 'No items';
+  } else {
+    _pageInfo = `Showing ${start+1}–${Math.min(start+state.pageSize, total)} of ${total.toLocaleString()} train${total !== 1 ? 's' : ''}${ephTotal ? ' + ' + ephTotal + ' other' : ''}`;
+  }
+  document.getElementById('page-info').textContent = _pageInfo;
 
   // Rows
   const tbody = document.getElementById('browse-tbody');
@@ -2297,14 +2307,20 @@ function renderBrowse() {
       const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
       if (r._is) {
         if (state.filters.owned) {
-          return `<tr onclick="openISDetail(${it.row})" style="cursor:pointer">
+          // Use the real state.isData key (inventoryId when present, else row #)
+          // — passing it.row directly silently failed when key was an inventoryId.
+          const _isKey = _isKeyByEntry.get(it) || it.row;
+          const _isKeyArg = "'" + String(_isKey).replace(/'/g, "\\'") + "'";
+          const _isActions = (typeof _collectionActionsHTML === 'function' && _isKey)
+            ? _collectionActionsHTML('is', _isKey, it) : '';
+          return `<tr onclick="openISDetail(${_isKeyArg})" style="cursor:pointer">
             <td><span style="font-family:var(--font-mono);font-size:0.85rem;color:#16a085;font-weight:600">${it.sheetNum}</span></td>
             <td><span class="text-dim">—</span></td>
-            <td style="text-align:center"><button onclick="event.stopPropagation();openISDetail(${it.row})" style="padding:0.25rem 0.6rem;border-radius:6px;border:1px solid #16a085;background:#16a08518;color:#16a085;font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">Details</button></td>
+            <td style="text-align:center"><button onclick="event.stopPropagation();openISDetail(${_isKeyArg})" style="padding:0.25rem 0.6rem;border-radius:6px;border:1px solid #16a085;background:#16a08518;color:#16a085;font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">Details</button></td>
             <td><span class="tag" style="border-color:#16a085;color:#16a085;background:#16a08518">Instr. Sheet</span></td>
-            <td></td><td></td>
-            <td style="text-align:center;white-space:nowrap"><span style="color:var(--text-dim);font-size:0.75rem">For #${it.linkedItem || '—'}</span></td>
-            <td onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">${(typeof _collectionActionsHTML === 'function' && _isKeyByEntry.get(it)) ? _collectionActionsHTML('is', _isKeyByEntry.get(it), it) : ''}</td>
+            <td><span style="color:var(--text-dim);font-size:0.75rem">For #${it.linkedItem || '—'}</span></td>
+            <td></td>
+            <td onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">${_isActions}</td>
           </tr>`;
         }
         return `<tr onclick="openISDetail(${it.row})" style="cursor:pointer">
@@ -2658,17 +2674,23 @@ function renderBrowse() {
     });
   }
 
-  // Pagination
+  // Pagination — only render when there are multiple pages of main items.
+  // Filters out the previously-shown page "0" when total === 0, and hides
+  // the pager entirely on a single-page result.
   const paginEl = document.getElementById('pagination-btns');
-  let btns = '';
-  if (state.currentPage > 1) btns += `<button class="page-btn" onclick="goPage(${state.currentPage-1})">‹</button>`;
-  const range = [1, ...Array.from({length: pages}, (_,i)=>i+1).filter(p => Math.abs(p - state.currentPage) <= 2), pages];
-  [...new Set(range)].sort((a,b)=>a-b).forEach((p, i, arr) => {
-    if (i > 0 && arr[i-1] < p - 1) btns += `<span style="padding:0 4px;color:var(--text-dim)">…</span>`;
-    btns += `<button class="page-btn ${p === state.currentPage ? 'active' : ''}" onclick="goPage(${p})">${p}</button>`;
-  });
-  if (state.currentPage < pages) btns += `<button class="page-btn" onclick="goPage(${state.currentPage+1})">›</button>`;
-  paginEl.innerHTML = btns;
+  if (pages <= 1) {
+    paginEl.innerHTML = '';
+  } else {
+    let btns = '';
+    if (state.currentPage > 1) btns += `<button class="page-btn" onclick="goPage(${state.currentPage-1})">‹</button>`;
+    const range = [1, ...Array.from({length: pages}, (_,i)=>i+1).filter(p => Math.abs(p - state.currentPage) <= 2), pages];
+    [...new Set(range)].filter(p => p >= 1).sort((a,b)=>a-b).forEach((p, i, arr) => {
+      if (i > 0 && arr[i-1] < p - 1) btns += `<span style="padding:0 4px;color:var(--text-dim)">…</span>`;
+      btns += `<button class="page-btn ${p === state.currentPage ? 'active' : ''}" onclick="goPage(${p})">${p}</button>`;
+    });
+    if (state.currentPage < pages) btns += `<button class="page-btn" onclick="goPage(${state.currentPage+1})">›</button>`;
+    paginEl.innerHTML = btns;
+  }
 }
 
 function goPage(p) { state.currentPage = p; renderBrowse(); document.getElementById('main-content').scrollTop = 0; }
