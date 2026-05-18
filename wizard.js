@@ -122,6 +122,14 @@ function openWizard(tab) {
   const _activePg = document.querySelector('.page.active');
   const _returnPage = _activePg ? _activePg.id.replace('page-', '') : 'dashboard';
   wizard = { step: 0, tab: tab, data: { tab: tab, _returnPage: _returnPage }, steps: getSteps(tab), matchedItem: null };
+  // Phase 2 streamline (Session post-216): for collection adds, default
+  // itemCategory to 'lionel' so the category-picker step auto-skips. The
+  // user can still switch to Set/Paper/Mock-Up/Other/Manual via the chip
+  // row on the Item Number step.
+  if (tab === 'collection') {
+    wizard.data.itemCategory = 'lionel';
+    wizard.steps = getSteps(tab);
+  }
   document.getElementById('wizard-modal').classList.add('open');
   document.body.style.overflow = 'hidden';
   // Register with BackStack so device back cleanly steps through wizard
@@ -3614,6 +3622,34 @@ function renderWizardStep() {
         _ingLabelBtn.style.cssText = 'width:100%;margin-top:0.5rem;padding:0.65rem 1rem;border-radius:8px;border:1.5px dashed #16a085;background:rgba(22,160,133,0.08);color:#16a085;font-family:var(--font-head);font-size:0.78rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;transition:all 0.15s';
         _ingLabelBtn.innerHTML = '🔠 Scan Label (OCR)';
         _ingWrap.appendChild(_ingLabelBtn);
+      }
+      // Phase 2 streamline: "Adding something else?" chip row replaces the
+      // old standalone category picker (Step 1). Only shown on the default
+      // cataloged-item flow for the collection tab; clicking a chip routes
+      // through wizardChooseCategory() which rebuilds the wizard for the
+      // selected flow (set / paper / mockups / other / manual).
+      if (wizard.tab === 'collection' && wizard.data.itemCategory === 'lionel' && !_ingBoxOnly) {
+        const _altLabel = document.createElement('div');
+        _altLabel.style.cssText = 'font-size:0.75rem;color:var(--text-dim);margin-top:1rem;margin-bottom:0.35rem;text-align:center;font-style:italic';
+        _altLabel.textContent = 'Adding something else?';
+        _ingWrap.appendChild(_altLabel);
+        const _altChips = document.createElement('div');
+        _altChips.style.cssText = 'display:flex;gap:0.35rem;flex-wrap:wrap;justify-content:center';
+        const _altCats = [
+          { id: 'set',     label: '🎁 Set' },
+          { id: 'paper',   label: '📄 Paper' },
+          { id: 'mockups', label: '🔩 Mock-Up' },
+          { id: 'other',   label: '📦 Other' },
+          { id: 'manual',  label: '✏️ Manual' },
+        ];
+        _altChips.innerHTML = _altCats.map(function(c) {
+          return '<button onclick="wizardChooseCategory(\'' + c.id + '\')" style="' +
+            'padding:0.35rem 0.75rem;border-radius:14px;border:1px solid var(--border);' +
+            'background:var(--surface2);color:var(--text-mid);' +
+            'font-family:var(--font-body);font-size:0.78rem;cursor:pointer;' +
+            'transition:all 0.15s;white-space:nowrap">' + c.label + '</button>';
+        }).join('');
+        _ingWrap.appendChild(_altChips);
       }
     }
     
