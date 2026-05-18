@@ -47,6 +47,7 @@ function _buildWizardModal() {
       '<div class="modal-footer">' +
         '<button class="btn btn-secondary" id="wizard-back-btn" onclick="if(!wizardBack())_doCloseWizard();" style="display:none">&#x2190; Back</button>' +
         '<button class="btn btn-secondary" onclick="closeWizard()">Cancel</button>' +
+        '<button class="btn btn-secondary" id="wizard-skip-photos-btn" onclick="wizardSkipAllPhotos()" style="display:none">&#x23ED; Skip All Photos</button>' +
         '<button class="btn btn-primary" id="wizard-next-btn" onclick="wizardNext()">Next &#x2192;</button>' +
       '</div>' +
     '</div>';
@@ -673,9 +674,13 @@ function renderWizardStep() {
   const steps = wizard.tab ? getSteps(wizard.tab) : getSteps(null);
   wizard.steps = steps;
 
-  // Skip steps based on skipIf
+  // Skip steps based on skipIf — and also auto-skip any drivePhotos step
+  // when the user has pressed "Skip All Photos" (sets wizard.data._skipAllPhotos)
   let step = wizard.step;
-  while (step < steps.length - 1 && steps[step].skipIf && steps[step].skipIf(wizard.data)) {
+  while (step < steps.length - 1 && (
+    (steps[step].skipIf && steps[step].skipIf(wizard.data)) ||
+    (wizard.data._skipAllPhotos && steps[step].type === 'drivePhotos')
+  )) {
     step++;
     wizard.step = step;
   }
@@ -756,6 +761,9 @@ function renderWizardStep() {
   }
   document.getElementById('wizard-progress').style.width = pct + '%';
   document.getElementById('wizard-back-btn').style.display = step > 0 ? 'inline-flex' : 'none';
+  // Phase 1 streamline: Skip-All-Photos button visible only on drivePhotos steps
+  const _skipPhotosBtn = document.getElementById('wizard-skip-photos-btn');
+  if (_skipPhotosBtn) _skipPhotosBtn.style.display = (s.type === 'drivePhotos') ? 'inline-flex' : 'none';
   const autoAdvanceTypes = new Set(['choice','choice2','choice3','choiceSearch','pickRow','pickSoldItem','pickForSaleItem']); // 'variation' removed — Next needed when item has no variations
   // New consolidated types always use Next button
   // setMatch and setUnit2Num need Next button (user may interact multiple times)
@@ -4619,6 +4627,15 @@ function initCondDesc() {
 
 // yearMadeNext removed Session 120
 
+// Phase 1 streamline: skip every remaining drivePhotos step in this flow.
+// Sets a flag the renderWizardStep skip-loop checks on each step transition.
+function wizardSkipAllPhotos() {
+  if (!wizard || !wizard.data) return;
+  wizard.data._skipAllPhotos = true;
+  wizard.step++;
+  renderWizardStep();
+}
+
 // Advances wizard without triggering yearMade intercept — called by yearMadeNext
 async function wizardAdvance() {
   const _nextBtn = document.getElementById('wizard-next-btn');
@@ -4983,17 +5000,4 @@ async function _wizardNextCore() {
 // ── appConfirm + showToast (moved to wizard-utils.js — Session 110, Round 1 Chunk 3) ──
 
 
-// ── Identify by Photo + Photo Source Picker + Barcode scan moved to wizard-photos.js (Session 110, Chunk 4) ──
-
-
-// ══════════════════════════════════════════════════════════════════
-// VIEW PICTURES PAGE
-// ══════════════════════════════════════════════════════════════════
-
-let _photosCurrentItem = null;  // { pd, masterItem }
-let _photosFiles = [];          // array of { id, name, mediaUrl }
-let _photosIdx = 0;             // current photo index
-let _photosFolderLink = '';     // Drive folder URL
-
-// ── Ticker (scrolling thumbnails) ─────────────────────────────
-let _tickerItems = [];       // items with photos
+// ── Ident
