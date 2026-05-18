@@ -144,7 +144,8 @@ function _itemEraPeriod(item) {
       if (yr2 && yr2 >= 1970)               return 'modern';
     }
   }
-  // Step 2: fall back to internal era key.  var eraKey = item._era || item.era;
+  // Step 2: fall back to internal era key.
+  var eraKey = item._era || item.era;
   if (eraKey && _ERA_KEY_TO_PERIOD[eraKey]) return _ERA_KEY_TO_PERIOD[eraKey];
   // Step 3: try _tab → era via reverse ERA_TABS lookup.
   if (item._tab && typeof ERA_TABS !== 'undefined') {
