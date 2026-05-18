@@ -168,10 +168,6 @@ function _buildAppShell() {
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>' +
         'Sold Items<span class="nav-badge" id="nav-sold" style="background:#f8e8c0;color:#1a1a1a">\u2014</span>' +
       '</button>' +
-      '<button class="nav-item" id="nav-quickentry-btn" onclick="showPage(\'quickentry\', this); buildQuickEntryList();" data-ctip="Items quickly uploaded to fill in details later.">' +
-        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
-        'Quick Entry List<span class="nav-badge" id="nav-qe-count" style="background:#f8e8c0;color:#1a1a1a">\u2014</span>' +
-      '</button>' +
     '</div>' +
     '<div class="nav-section">' +
       '<button class="nav-item" onclick="showPage(\'vault\', this); vaultRenderPage()" data-page="vault" data-ctip="Community market values, buy/sale trends, and rarity scores.">' +

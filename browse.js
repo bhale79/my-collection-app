@@ -1013,9 +1013,14 @@ function filterOwned(qe) {
   // Update tab visibility for collection context
   state._browseTab = 'items';
   renderBrowseTab('items');
-  // Session 158/159: QE-only checkbox positioned OUTSIDE the search bar,
-  // as a sibling to the right. Single-purpose toggle: tick = QE only.
+  // QE-only checkbox removed (Phase 3 streamline) — Quick Entry is being
+  // deprecated. Block the injection and also strip any stale element.
   setTimeout(function() {
+    var stale = document.getElementById('qe-only-toggle');
+    if (stale) stale.remove();
+    return;
+    // (legacy body retained below but unreachable; will be deleted in a follow-up.)
+    // eslint-disable-next-line no-unreachable
     if (document.getElementById('qe-only-toggle')) return;
     var wrap = document.getElementById('browse-search-wrap');
     if (!wrap || !wrap.parentNode) return;
@@ -2408,7 +2413,6 @@ function renderBrowse() {
         ? `<div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:nowrap;font-size:0.68rem;color:var(--text-dim);padding:0.3rem 0.5rem;background:var(--surface2);border:1px solid var(--border);border-radius:7px;margin-bottom:0.5rem;overflow:hidden">
             <span style="font-weight:600;color:var(--text-mid);flex-shrink:0">Key:</span>
             <span style="flex-shrink:0">🔗 Grouped</span>
-            <span style="flex-shrink:0">⚡ QE</span>
             <span style="flex-shrink:0">📷 Photo</span>
             <button onclick="event.stopPropagation();_prefSet('lv_show_coll_legend','false');renderBrowse()" style="margin-left:auto;flex-shrink:0;background:none;border:none;color:var(--text-dim);font-size:0.68rem;cursor:pointer;padding:0 0.2rem;text-decoration:underline">Hide</button>
           </div>`
