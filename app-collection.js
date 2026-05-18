@@ -1748,6 +1748,15 @@ async function removeCollectionItem(itemNum, variation, row) {
           fsRowsToDelete.push(sibFs.row);
           delete state.forSaleData[sibFsKey];
         }
+        // 2026-05-18: also clear Upgrade row for each sibling when removing the group.
+        var sibUgKey = sib.itemNum + '|' + (sib.variation || '');
+        var sibUg = state.upgradeData && state.upgradeData[sibUgKey];
+        if (sibUg && sibUg.row) {
+          try {
+            await sheetsUpdate(state.personalSheetId, 'Upgrade List!A' + sibUg.row + ':H' + sibUg.row, [['','','','','','','','']]);
+          } catch(e) { console.warn('Upgrade cleanup (group):', e); }
+          delete state.upgradeData[sibUgKey];
+        }
         if (sibKey) delete state.personalData[sibKey];
       }
       // Delete For Sale rows bottom-to-top
@@ -1786,6 +1795,15 @@ async function removeCollectionItem(itemNum, variation, row) {
       _adjustRowsAfterDelete(state.forSaleData, fsEntry.row);
     } catch(e) { console.warn('For Sale cleanup:', e); }
     delete state.forSaleData[fsKey];
+  }
+  // 2026-05-18: also remove from Upgrade list if listed.
+  var ugKey = itemNum + '|' + (variation || '');
+  var ugEntry = state.upgradeData && state.upgradeData[ugKey];
+  if (ugEntry && ugEntry.row) {
+    try {
+      await sheetsUpdate(state.personalSheetId, 'Upgrade List!A' + ugEntry.row + ':H' + ugEntry.row, [['','','','','','','','']]);
+    } catch(e) { console.warn('Upgrade cleanup:', e); }
+    delete state.upgradeData[ugKey];
   }
   if (pdKey) delete state.personalData[pdKey];
   if (_delRow && _delRow !== 99999) _adjustRowsAfterDelete(state.personalData, _delRow);

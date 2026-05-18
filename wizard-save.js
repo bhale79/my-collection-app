@@ -1352,6 +1352,16 @@ async function saveWizardItem() {
           delete state.forSaleData[fsKey];
         }
       } catch(e) { console.warn('[Sold] clearing For Sale row failed:', e); }
+      // 2026-05-18: also clear matching Upgrade row when sold. Without this the
+      // Upgrade list shows a phantom row for an item the user no longer owns.
+      try {
+        const ugKey = `${itemNum}|${soldVariation}`;
+        const ugEntry = state.upgradeData && state.upgradeData[ugKey];
+        if (ugEntry && ugEntry.row) {
+          await sheetsUpdate(state.personalSheetId, `Upgrade List!A${ugEntry.row}:H${ugEntry.row}`, [['','','','','','','','']]);
+          delete state.upgradeData[ugKey];
+        }
+      } catch(e) { console.warn('[Sold] clearing Upgrade row failed:', e); }
       // Move photo folder to Sold in Drive
       if (collectionEntry?.itemNum) {
         try { await driveMoveToSold(collectionEntry.itemNum); } catch(e) { console.warn('Drive move failed:', e); }
