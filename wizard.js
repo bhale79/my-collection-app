@@ -3492,7 +3492,10 @@ function renderWizardStep() {
       const _isfCfg = window.ITEM_SEARCH_FILTERS || {};
       const _isfUi  = _isfCfg.ui || {};
       const _isfSz  = _isfCfg.sizing || {};
-      const _isfApply = (_isfCfg.applyToTabs || []).indexOf(wizard.tab) !== -1;
+      // Phase 2b streamline: Type/Road filter dropdowns disabled — they
+      // don't help when adding (user has item in hand, knows the number).
+      // The setTimeout wiring below silently no-ops when dropdowns aren't rendered.
+      const _isfApply = false;
       // Small local escape — wizard.js does not ship a global one.
       function _esc(s) {
         return String(s == null ? '' : s)
