@@ -440,20 +440,42 @@ function useIdentifiedItem() {
   const raw = (document.getElementById('identify-manual-input').value || '').trim();
   if (!raw) { showToast('Enter the item number you found', 2500, true); return; }
 
-  // Try to extract a Lionel item number from a longer pasted description
-  // Lionel postwar numbers: 1-4 digits, optionally followed by letters (e.g. 736, 2046, 3349, 736W, 2046W, 221C)
-  const extracted = extractLionelNumber(raw);
-  if (!extracted) { showToast('Could not find an item number — try pasting just the number', 3000, true); return; }
+  // Use the smart extractor (same as auto-paste). This handles labeled AI
+  // Overview text, hedges, and multi-format item numbers — not just the
+  // narrow bare-number patterns the old extractLionelNumber matched.
+  const meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(raw) : {};
+  const extracted = meta.itemNum || extractLionelNumber(raw);
 
-  // If we had to extract (user pasted a description), show what we pulled
-  if (extracted !== raw) {
-    document.getElementById('identify-manual-input').value = extracted;
-    showToast('Found item #' + extracted, 2000);
-    // Small delay so they see the extraction, then proceed
-    setTimeout(function() { _applyIdentifiedItem(extracted); }, 800);
+  if (!extracted) {
+    if (meta._hedge) {
+      showToast("Google couldn't identify a specific item number — type one below or try a different photo", 4000, true);
+    } else {
+      showToast('Could not find an item number — try pasting just the number', 3000, true);
+    }
     return;
   }
 
+  // Stash the rich metadata on wizard.data the same way the auto-paste does,
+  // so the banner + manual-entry routing have access to it.
+  if (typeof wizard !== 'undefined' && wizard && wizard.data) {
+    if (meta.year)         wizard.data._identifyYear     = meta.year;
+    if (meta.roadName)     wizard.data._identifyRoadName = meta.roadName;
+    if (meta.subType)      wizard.data._identifySubType  = meta.subType;
+    if (meta.wheels)       wizard.data._identifyWheels   = meta.wheels;
+    if (meta.cabNum)       wizard.data._identifyCabNum   = meta.cabNum;
+    if (meta.manufacturer) wizard.data._identifyMfrFound = meta.manufacturer;
+    if (meta.variation)    wizard.data._identifyVariation= meta.variation;
+    wizard.data._identifyMeta = meta;
+  }
+
+  // If we extracted from a richer text (not a bare item#), show what we pulled
+  // and pause briefly before applying so the user sees it.
+  if (extracted !== raw) {
+    document.getElementById('identify-manual-input').value = extracted;
+    showToast('Found item #' + extracted + (meta.roadName ? ' ' + meta.roadName : ''), 2000);
+    setTimeout(function() { _applyIdentifiedItem(extracted); }, 700);
+    return;
+  }
   _applyIdentifiedItem(extracted);
 }
 
