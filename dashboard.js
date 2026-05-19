@@ -154,12 +154,11 @@ var CARD_CATALOG = [
       var wantCount = Object.keys(_filterByEraPref(state.wantData||{})).length;
       var fsCount = Object.keys(_filterByEraPref(state.forSaleData||{})).length;
       var soldCount = Object.keys(_filterByEraPref(state.soldData||{})).length;
-      var qeCount = Object.values(state.personalData).filter(function(pd) { return pd.owned && pd.quickEntry; }).filter(_pdEraEnabled).length;
+      // Phase 3 streamline: Quick Entry tile removed from Activity card.
       var html = '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:4px">';
       html += '<div style="text-align:center;flex:1;min-width:36px"><div style="font-size:1.15rem;font-weight:700;color:var(--text)">' + wantCount + '</div><div style="font-size:0.62rem;color:var(--text-dim)">want</div></div>';
       html += '<div style="text-align:center;flex:1;min-width:36px"><div style="font-size:1.15rem;font-weight:700;color:var(--text)">' + fsCount + '</div><div style="font-size:0.62rem;color:var(--text-dim)">for sale</div></div>';
       html += '<div style="text-align:center;flex:1;min-width:36px"><div style="font-size:1.15rem;font-weight:700;color:var(--text)">' + soldCount + '</div><div style="font-size:0.62rem;color:var(--text-dim)">sold</div></div>';
-      html += '<div style="text-align:center;flex:1;min-width:36px"><div style="font-size:1.15rem;font-weight:700;color:' + (qeCount > 0 ? '#e67e22' : 'var(--text)') + '">' + qeCount + '</div><div style="font-size:0.62rem;color:var(--text-dim)">Quick Entry</div></div>';
       html += '</div>';
       return { html: html };
     }
