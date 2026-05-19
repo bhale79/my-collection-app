@@ -4853,6 +4853,27 @@ async function _wizardNextCore() {
     if (!_exactMatch) {
       _exactMatch = state.masterData.find(i => i.itemNum.toLowerCase() === _rawLC);
     }
+    // Hyphen-variant fallback (2026-05-18). Some manufacturers store item
+    // numbers with a hyphen before the letter suffix (Weaver "1076-L") while
+    // Google Lens / casual text drops it ("1076L"). Try both forms before
+    // declaring no exact match.
+    if (!_exactMatch) {
+      const _variants = [];
+      const _mNoHyphen = _rawLC.match(/^(\d{2,5})([a-z]+)$/);     // 1076L -> 1076-L
+      if (_mNoHyphen) _variants.push(_mNoHyphen[1] + '-' + _mNoHyphen[2]);
+      const _mHyphen = _rawLC.match(/^(\d{2,5})-([a-z]+)$/);      // 1076-L -> 1076L
+      if (_mHyphen) _variants.push(_mHyphen[1] + _mHyphen[2]);
+      for (const _v of _variants) {
+        const _hit = state.masterData.find(i => i.itemNum.toLowerCase() === _v);
+        if (_hit) {
+          _exactMatch = _hit;
+          // Canonicalize wizard.data.itemNum to the master form so the
+          // personal-sheet save and subsequent lookups all align.
+          wizard.data.itemNum = _hit.itemNum;
+          break;
+        }
+      }
+    }
 
     if (!_exactMatch) {
       // No exact match — look for partial matches (items whose number contains the input)
