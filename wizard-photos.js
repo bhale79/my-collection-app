@@ -325,16 +325,22 @@ async function _identifySearchLens() {
         _identifyStagedFileId = null;
       }
     }, 10 * 60 * 1000);
-    // Build the text query from scale + type + manufacturer chips.
+    // Build the text query from scale + type + manufacturer chips. We frame
+    // the question to Google so the AI Overview returns ALL the wizard fields
+    // we care about (item#, year, road, cab#, type) — not just the item#.
+    // Our paste-back parser then extracts each field into wizard.data.
     const scale = (document.getElementById('id-scale') || {}).value || '';
     const type  = (document.getElementById('id-type')  || {}).value || '';
     const mfrCbs = document.querySelectorAll('#id-mfr-chips input[type="checkbox"]:checked');
     let mfrs = Array.from(mfrCbs).map(function(cb) { return cb.dataset.mfrCb; }).filter(function(m) { return m && m !== 'Not sure'; });
-    let q = [scale, type].filter(Boolean).join(' ').trim();
-    if (mfrs.length) {
-      q += (q ? ' ' : '') + mfrs.join(' or ');
-    }
-    q += (q ? ' ' : '') + 'need the item number';
+    // Subject: "<scale> <type>" — e.g. "O gauge engine" — or fallback "model train".
+    var subject = [scale, type].filter(Boolean).join(' ').trim() || 'model train';
+    var mfrPhrase = mfrs.length ? ' possibly made by ' + mfrs.join(' or ') : '';
+    // Ask Google for every field the wizard will need. The phrasing matches
+    // what produced the structured "Likely Item Numbers" Overview Brad got
+    // in testing — the more specific the asks, the cleaner the answer.
+    var q = 'What is the item number, year made, road name, cab number, and locomotive class or body style for this '
+          + subject + mfrPhrase + '?';
     const url = 'https://www.google.com/searchbyimage?image_url=' + encodeURIComponent(staged.url) + '&q=' + encodeURIComponent(q);
     window.open(url, '_blank');
     if (searchBtn) { searchBtn.disabled = false; searchBtn.innerHTML = origText; }
