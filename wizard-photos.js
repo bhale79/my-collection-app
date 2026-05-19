@@ -154,16 +154,57 @@ async function uploadWizardPhoto(file, stepId, viewKey) {
 // IDENTIFY BY PHOTO — Google Lens
 // ══════════════════════════════════════════════════════════════════
 
+// Phase: auto-paste handler captured while the Identify modal is open. The
+// user comes back from Google Lens, presses Ctrl+V anywhere on the page, and
+// we instantly extract the Lionel item number + advance the wizard. Skips
+// the manual click-into-input / paste / click "Use This Item Number" steps.
+let _identifyPasteHandler = null;
+
 function openIdentify(context) {
   _identifyCallerContext = context;
   _identifySelectedNum = null;
-  document.getElementById('identify-modal').classList.add('open');
+  const modal = document.getElementById('identify-modal');
+  modal.classList.add('open');
+  // Auto-focus the input so a bare Ctrl+V lands in it as a normal paste.
+  setTimeout(function() {
+    var inp = document.getElementById('identify-manual-input');
+    if (inp) { inp.value = ''; inp.focus(); inp.select(); }
+  }, 80);
+  // Attach a document-level paste handler that captures any Ctrl/Cmd+V
+  // anywhere on the page while the modal is open. Extracts the item # and
+  // applies it automatically — no extra clicks.
+  _identifyPasteHandler = function(e) {
+    if (!modal.classList.contains('open')) return;
+    var txt = '';
+    try {
+      txt = (e.clipboardData || window.clipboardData).getData('text') || '';
+    } catch(err) { return; }
+    txt = (txt || '').trim();
+    if (!txt) return;
+    var extracted = extractLionelNumber(txt);
+    if (!extracted) {
+      // No clean number — just let the paste happen normally into the input
+      // so the user can edit it. Don't auto-apply.
+      return;
+    }
+    // We have a hit — eat the paste event, fill the input visibly, then apply.
+    e.preventDefault();
+    var inp = document.getElementById('identify-manual-input');
+    if (inp) inp.value = extracted;
+    showToast('Found item #' + extracted, 1500);
+    setTimeout(function() { _applyIdentifiedItem(extracted); }, 400);
+  };
+  document.addEventListener('paste', _identifyPasteHandler, true);
 }
 
 function closeIdentify() {
   document.getElementById('identify-modal').classList.remove('open');
   _identifyCallerContext = null;
   _identifySelectedNum = null;
+  if (_identifyPasteHandler) {
+    document.removeEventListener('paste', _identifyPasteHandler, true);
+    _identifyPasteHandler = null;
+  }
 }
 
 function openGoogleLens() {
