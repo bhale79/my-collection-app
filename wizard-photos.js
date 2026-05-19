@@ -288,8 +288,12 @@ function extractLionelNumber(text) {
 
 function _applyIdentifiedItem(num) {
   _identifySelectedNum = num;
+  // Snapshot the caller context BEFORE closeIdentify nulls it out — otherwise
+  // the wizard branch below would never fire (pre-existing bug exposed by the
+  // new auto-paste path).
+  const _caller = _identifyCallerContext;
   closeIdentify();
-  if (_identifyCallerContext === 'wizard') {
+  if (_caller === 'wizard') {
     const inp = document.getElementById('wiz-input');
     if (inp) {
       inp.value = num;
