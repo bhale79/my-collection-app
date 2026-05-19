@@ -181,20 +181,31 @@ function openIdentify(context) {
     } catch(err) { return; }
     txt = (txt || '').trim();
     if (!txt) return;
-    var extracted = extractLionelNumber(txt);
+    // Run the smart metadata extractor as the single source of truth.
+    // It handles hedge detection so we don't grab a cab# disguised as item#.
+    var meta = extractIdentifyMetadata(txt);
+    var extracted = meta.itemNum;
     if (!extracted) {
-      // No clean number — just let the paste happen normally into the input
-      // so the user can edit it. Don't auto-apply.
+      if (meta._hedge) {
+        // AI Overview hedged ("reflecting the cab number", "no specific SKU",
+        // etc). Do NOT auto-apply — that's how Brad ended up with a wrong
+        // Lionel 3460 instead of a Weaver 1076-L. Eat the paste and prompt.
+        e.preventDefault();
+        if (typeof showToast === 'function') {
+          showToast("Google couldn't identify a specific item number — type one below or try a different photo", 4500, true);
+        }
+        var inpH = document.getElementById('identify-manual-input');
+        if (inpH) { inpH.value = ''; inpH.focus(); }
+        return;
+      }
+      // No item# and no hedge — let paste fall through to the input naturally
+      // so the user can edit/type one themselves.
       return;
     }
     // We have a hit — eat the paste event, fill the input visibly, then apply.
     e.preventDefault();
     var inp = document.getElementById('identify-manual-input');
     if (inp) inp.value = extracted;
-    // Parse the FULL pasted text for additional metadata (year/road/cab#/...).
-    // Each found field gets stashed on wizard.data so subsequent steps and
-    // the banner can pre-populate from it.
-    var meta = extractIdentifyMetadata(txt);
     if (typeof wizard !== 'undefined' && wizard && wizard.data) {
       if (meta.year)         wizard.data._identifyYear     = meta.year;
       if (meta.roadName)     wizard.data._identifyRoadName = meta.roadName;
@@ -345,22 +356,28 @@ async function _identifySearchLens() {
         _identifyStagedFileId = null;
       }
     }, 10 * 60 * 1000);
-    // Build the text query from scale + type + manufacturer chips. We frame
-    // the question to Google so the AI Overview returns ALL the wizard fields
-    // we care about (item#, year, road, cab#, type) — not just the item#.
-    // Our paste-back parser then extracts each field into wizard.data.
+    // Build the text query from scale + type + manufacturer chips. The prompt
+    // is explicit about wanting the manufacturer's catalog SKU (not the cab
+    // number printed on the model) — without that distinction, AI Overview
+    // falls back to cab numbers when no SKU is widely indexed online (which
+    // is what bit us on Weaver items).
     const scale = (document.getElementById('id-scale') || {}).value || '';
     const type  = (document.getElementById('id-type')  || {}).value || '';
     const mfrCbs = document.querySelectorAll('#id-mfr-chips input[type="checkbox"]:checked');
     let mfrs = Array.from(mfrCbs).map(function(cb) { return cb.dataset.mfrCb; }).filter(function(m) { return m && m !== 'Not sure'; });
-    // Subject: "<scale> <type>" — e.g. "O gauge engine" — or fallback "model train".
     var subject = [scale, type].filter(Boolean).join(' ').trim() || 'model train';
-    var mfrPhrase = mfrs.length ? ' possibly made by ' + mfrs.join(' or ') : '';
-    // Ask Google for every field the wizard will need. The phrasing matches
-    // what produced the structured "Likely Item Numbers" Overview Brad got
-    // in testing — the more specific the asks, the cleaner the answer.
-    var q = 'What is the item number, year made, road name, cab number, and locomotive class or body style for this '
-          + subject + mfrPhrase + '?';
+    var mfrPhrase = mfrs.length ? ', possibly made by ' + mfrs.join(' or ') : '';
+    // Structured prompt — asks for each field on its own line with explicit
+    // labels. AI Overview tends to mirror this format in its answer, which
+    // makes our labeled-field parser much more reliable. Also tells the AI
+    // which sources to lean on (Trainz, train-station.com, lionelsupport.com).
+    var q = 'Identify this ' + subject + mfrPhrase + '. Provide each on its own line: '
+          + 'Manufacturer SKU or catalog number (the unique product code from the catalog, NOT the cab number printed on the model); '
+          + 'Year manufactured; '
+          + 'Road name (the railroad represented); '
+          + 'Cab number printed on the model; '
+          + 'Locomotive class or body style. '
+          + 'Cite sources like Trainz, train-station.com, lionelsupport.com, or manufacturer catalogs.';
     const url = 'https://www.google.com/searchbyimage?image_url=' + encodeURIComponent(staged.url) + '&q=' + encodeURIComponent(q);
     window.open(url, '_blank');
     if (searchBtn) { searchBtn.disabled = false; searchBtn.innerHTML = origText; }
@@ -531,35 +548,139 @@ const _IDENTIFY_VARIATIONS = [
   { re: /Command/i,             val: 'Command' },
 ];
 
+// Phrases the AI uses when it's NOT actually providing an item number —
+// often when it can't find a catalog SKU it falls back to the cab number
+// and labels it "item number" with a hedge. Detecting these phrases lets
+// us refuse to extract the cab# as an item#.
+const _IDENTIFY_HEDGE_PATTERNS = [
+  /reflecting the cab number/i,
+  /reflecting the road number/i,
+  /same as (?:the )?cab (?:number)?/i,
+  /is the cab number/i,
+  /no specific (?:catalog|sku|product|item) number/i,
+  /often (?:listed |referenced |sold )?(?:in auctions )?as part of/i,
+  /(?:I (?:do not|don[''’]t) have|I cannot find) (?:a |the )?specific (?:catalog|sku|item|product) number/i,
+  /(?:could not|cannot) (?:identify|find|determine) (?:a |the )?(?:specific |exact )?(?:item|catalog|product|sku)/i,
+  /\bunknown\b/i,
+];
+
+function _hasHedge(s) {
+  if (!s || typeof s !== 'string') return false;
+  return _IDENTIFY_HEDGE_PATTERNS.some(function(re) { return re.test(s); });
+}
+
+// Parse "Label: value" lines out of the pasted AI Overview blob. We split
+// on common bullet/separator characters so each line is examined alone.
+// Returns a map keyed by lowercase label.
+function _extractLabeledFields(text) {
+  const out = {};
+  const lines = String(text).split(/\r?\n|[•·*\u2022]/);
+  for (const line of lines) {
+    // Allow optional leading markdown bold (**Label:**) and trailing comma.
+    const m = line.match(/^\s*\**\s*([A-Z][A-Za-z\s/'’\-]+?)\s*\**\s*[::]\s*(.+?)\s*$/);
+    if (!m) continue;
+    const label = m[1].toLowerCase().trim();
+    const value = m[2].trim();
+    if (label.length > 1 && label.length < 40 && value) {
+      out[label] = value;
+    }
+  }
+  return out;
+}
+
 function extractIdentifyMetadata(text) {
   if (!text || typeof text !== 'string') return {};
   const out = {};
   const raw = text.trim();
   if (!raw) return out;
 
-  // Item number (reuses the multi-format parser).
-  const num = extractLionelNumber(raw);
-  if (num) out.itemNum = num;
-
-  // Road name — first match in priority order.
-  for (const pair of _IDENTIFY_ROAD_NAMES) {
-    const needle = pair[0];
-    // Build word-boundary regex with special-char escaping.
-    const escaped = needle.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/&/g, '\\&');
-    try {
-      const re = new RegExp('\\b' + escaped + '\\b', 'i');
-      if (re.test(raw)) { out.roadName = pair[1]; break; }
-    } catch(e) { /* skip malformed entry */ }
+  // ── Step 1: try labeled-field parsing first (AI Overview's structured response) ──
+  const labels = _extractLabeledFields(raw);
+  // Possible label names for each field — AI may phrase them differently.
+  const _itemNumLabels  = ['manufacturer sku','manufacturer\'s sku','sku','catalog number','catalog #','catalog no','product number','manufacturer\'s catalog number','item number','item #','item no','manufacturer product number'];
+  const _yearLabels     = ['year manufactured','year made','year produced','year','manufactured','produced','date'];
+  const _roadLabels     = ['road name','railroad','road','railway'];
+  const _cabLabels      = ['cab number','cab #','cab no','locomotive number','engine number','road number'];
+  const _classLabels    = ['locomotive class','class','body style','body type','wheel arrangement','type'];
+  const _mfrLabels      = ['manufacturer','maker','made by','brand'];
+  function _pickLabel(map, candidates) {
+    for (const c of candidates) {
+      if (map[c]) return map[c];
+    }
+    return null;
   }
 
-  // Year — 4 digits in plausible model-train production range.
-  const yearMatch = raw.match(/\b(19[0-9]{2}|20[0-2][0-9]|2030)\b/);
-  if (yearMatch) out.year = yearMatch[1];
+  const lblItem  = _pickLabel(labels, _itemNumLabels);
+  const lblYear  = _pickLabel(labels, _yearLabels);
+  const lblRoad  = _pickLabel(labels, _roadLabels);
+  const lblCab   = _pickLabel(labels, _cabLabels);
+  const lblClass = _pickLabel(labels, _classLabels);
+  const lblMfr   = _pickLabel(labels, _mfrLabels);
 
-  // Cab number — "#3460", "No. 3460", "number 3460". Must not be an item#
-  // pattern (which has a hyphen). Cap at 5 digits, no hyphen.
-  const cabMatch = raw.match(/(?:#|No\.?\s?|number\s)(\d{2,5})(?![\d-])/i);
-  if (cabMatch) out.cabNum = cabMatch[1];
+  // Item number — use labeled value only if it doesn't contain a hedge phrase.
+  if (lblItem && !_hasHedge(lblItem)) {
+    const labelNum = extractLionelNumber(lblItem);
+    if (labelNum) out.itemNum = labelNum;
+  }
+  // Fallback: pattern-match against full text. BUT skip if the full text has a
+  // dominant hedge phrase indicating the AI couldn't find a real SKU — in that
+  // case extracting any bare number is more likely to be the cab# than an item#.
+  if (!out.itemNum && !_hasHedge(raw)) {
+    const num = extractLionelNumber(raw);
+    if (num) out.itemNum = num;
+  }
+  // If we still don't have an item#, flag the result so the caller knows the
+  // extraction was uncertain. The caller can show a confirmation modal etc.
+  if (!out.itemNum && _hasHedge(raw)) {
+    out._hedge = true;
+  }
+
+  // Road name — prefer labeled value, fall back to dictionary scan of raw.
+  if (lblRoad) {
+    // Find the first known road that appears in the labeled value.
+    for (const pair of _IDENTIFY_ROAD_NAMES) {
+      try {
+        const re = new RegExp('\\b' + pair[0].replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/&/g, '\\&') + '\\b', 'i');
+        if (re.test(lblRoad)) { out.roadName = pair[1]; break; }
+      } catch(e) {}
+    }
+    // If the labeled value didn't match our dictionary, still record it as-is.
+    if (!out.roadName) out.roadName = lblRoad.replace(/\([^)]*\)/g,'').trim();
+  } else {
+    for (const pair of _IDENTIFY_ROAD_NAMES) {
+      const escaped = pair[0].replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/&/g, '\\&');
+      try {
+        const re = new RegExp('\\b' + escaped + '\\b', 'i');
+        if (re.test(raw)) { out.roadName = pair[1]; break; }
+      } catch(e) {}
+    }
+  }
+
+  // Year — prefer labeled value, then raw text. Plausible 1900-2030.
+  function _grabYear(s) {
+    if (!s) return null;
+    const m = String(s).match(/\b(19[0-9]{2}|20[0-2][0-9]|2030)\b/);
+    return m ? m[1] : null;
+  }
+  out.year = _grabYear(lblYear) || _grabYear(raw) || undefined;
+  if (!out.year) delete out.year;
+
+  // Cab number — prefer labeled value (which is unambiguous), else regex on raw.
+  function _grabCab(s) {
+    if (!s) return null;
+    // First try standalone digits in labeled value.
+    const m1 = String(s).match(/\b(\d{2,5})\b/);
+    if (m1) return m1[1];
+    return null;
+  }
+  if (lblCab) {
+    const c = _grabCab(lblCab);
+    if (c) out.cabNum = c;
+  }
+  if (!out.cabNum) {
+    const cabMatch = raw.match(/(?:#|No\.?\s?|number\s)(\d{2,5})(?![\d-])/i);
+    if (cabMatch) out.cabNum = cabMatch[1];
+  }
 
   // Wheel arrangement — e.g. 4-6-4, 2-8-2, 4-6-6-4. Guard against MTH item
   // numbers (20-3132-1) which also match \d-\d-\d. Heuristic: wheel digits
