@@ -703,6 +703,27 @@ function _renderAddingBanner() {
   } else if (d._resolvedSet && d._resolvedSet.setName) {
     desc = d._resolvedSet.setName;
   }
+  // Fallback: when no master match yet (common for items found via Lens that
+  // aren't in our master tabs), build a description from the Identify-modal
+  // hints (scale + type + manufacturer list) so the banner still tells the
+  // user what they're working on. Example: "O gauge engine (possibly Weaver
+  // or Williams)".
+  if (!desc) {
+    var _hintScale = (d._identifyScaleHint || '').toString().trim();
+    var _hintType  = (d._identifyTypeHint  || '').toString().trim();
+    var _hintMfrs  = Array.isArray(d._identifyMfrHints) ? d._identifyMfrHints.slice() : [];
+    var _hintParts = [];
+    if (_hintScale) _hintParts.push(_hintScale);
+    if (_hintType)  _hintParts.push(_hintType);
+    var _hintHead = _hintParts.join(' ');
+    if (_hintHead && _hintMfrs.length) {
+      desc = _hintHead + ' (possibly ' + _hintMfrs.join(' or ') + ')';
+    } else if (_hintHead) {
+      desc = _hintHead;
+    } else if (_hintMfrs.length) {
+      desc = 'possibly ' + _hintMfrs.join(' or ');
+    }
+  }
 
   // Flow-aware prefix: box-only, paper/set/mock, tab context (want/forsale/sold)
   var isBox  = !!d.boxOnly;
