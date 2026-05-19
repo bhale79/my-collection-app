@@ -213,7 +213,8 @@ function openIdentify(context) {
     var _mfrHints = _getSelectedIdentifyMfrs();
     var _candidates = _findMasterCandidates(meta, _mfrHints, 3);
     if (_candidates.length >= 2) {
-      // Multiple plausible master rows — show chooser.
+      // Multiple plausible master rows — show chooser. Chooser's "None of
+      // these" button routes to manual entry with the same pre-fill.
       _identifyShowMasterChooser(_candidates, meta, txt);
       return;
     }
@@ -221,6 +222,17 @@ function openIdentify(context) {
       // One strong master candidate — use IT, not the AI's SKU.
       extracted = _candidates[0].row.itemNum;
       if (inp) inp.value = extracted;
+    }
+    // Phase B: if there's NO master match for the extracted SKU AND no good
+    // descriptive candidate either, this is an item we haven't catalogued.
+    // Route to Manual Entry with the extracted metadata pre-filling fields.
+    if (_candidates.length === 0 && typeof findMaster === 'function') {
+      var _direct = findMaster(extracted);
+      if (!_direct) {
+        closeIdentify();
+        _identifyRouteToManualEntry(extracted, meta, _mfrHints);
+        return;
+      }
     }
     // Manufacturer mismatch check: if the user picked specific manufacturers
     // in the Identify modal AND the extracted item# is found in our master
@@ -898,8 +910,10 @@ function _identifyShowMasterChooser(candidates, meta, fullText) {
   });
   overlay.querySelector('#id-chooser-none').addEventListener('click', function() {
     document.body.removeChild(overlay);
-    var inp = document.getElementById('identify-manual-input');
-    if (inp) { inp.value = ''; inp.focus(); }
+    // None matched — route to manual entry with the extracted metadata so the
+    // user can add this uncatalogued item without retyping everything.
+    closeIdentify();
+    _identifyRouteToManualEntry((meta && meta.itemNum) || '', meta, _getSelectedIdentifyMfrs());
   });
 }
 
@@ -964,6 +978,75 @@ function _identifyConfirmMfrMismatch(itemNum, fullText, meta) {
     var inp = document.getElementById('identify-manual-input');
     if (inp) { inp.focus(); inp.select(); }
   };
+}
+
+// Map extracted Lens sub-type (Hudson, GP-9, Boxcar, etc.) onto the wizard's
+// Manual Entry "Item Type" bucket (Steam Engine, Diesel Engine, Freight Car...).
+function _mapSubTypeToManualType(subType) {
+  if (!subType) return '';
+  var s = String(subType).toLowerCase();
+  // Steam locomotive classes.
+  if (/(?:hudson|pacific|berkshire|mikado|northern|mountain|atlantic|big boy|challenger|mallet|ten[-\s]?wheeler|camelback|mogul|consolidation|dockside|trainmaster.*steam)/i.test(s)) return 'Steam Engine';
+  // Diesel locomotive classes.
+  if (/(?:gp[-\s]?\d|sd[-\s]?\d|^f\d|^fa[-\s]?\d|^fb[-\s]?\d|^e[789]|nw[-\s]?\d|rs[-\s]?\d|u\d{2}[bc]|pa[-\s]?\d|geep|switcher|trainmaster)/i.test(s)) return 'Diesel Engine';
+  // Body styles for rolling stock.
+  if (/(?:boxcar|reefer|hopper|gondola|flatcar|tank car|stock car)/i.test(s)) return 'Freight Car';
+  if (/caboose/i.test(s)) return 'Caboose';
+  if (/(?:coach|pullman|vista dome|diner|baggage|passenger)/i.test(s)) return 'Passenger Car';
+  if (/(?:track|switch)/i.test(s)) return 'Track';
+  if (/(?:transformer|powerhouse|powermaster)/i.test(s)) return 'Transformer';
+  return 'Other';
+}
+
+// Compose a free-text description from extracted metadata fields. Order matches
+// how a collector would write it: road, sub-type/class, wheels, #cab, variation.
+function _composeManualDescFromMeta(meta) {
+  if (!meta) return '';
+  var parts = [];
+  if (meta.roadName) parts.push(meta.roadName);
+  if (meta.subType)  parts.push(meta.subType);
+  if (meta.wheels)   parts.push(meta.wheels);
+  if (meta.cabNum)   parts.push('#' + meta.cabNum);
+  if (meta.variation && parts.indexOf(meta.variation) === -1) parts.push('(' + meta.variation + ')');
+  return parts.join(' ').trim();
+}
+
+// ROUTE — when no master match exists for the extracted Lens metadata, pivot
+// the wizard into Manual Entry mode and pre-fill the manual fields from what
+// we extracted. The user just clicks through, editing anything wrong.
+// Returns true if routing happened (so the caller can stop).
+function _identifyRouteToManualEntry(itemNum, meta, userMfrs) {
+  if (typeof wizard === 'undefined' || !wizard) return false;
+  if (wizard.tab !== 'collection') return false;  // only routes collection adds
+  meta = meta || {};
+  // Pre-fill manual entry data BEFORE switching the wizard flow.
+  wizard.data._manualEntry = true;
+  wizard.data.itemCategory = 'manual';
+  // Manufacturer — prefer first user-picked chip; fall back to extracted mfr.
+  var mfr = (userMfrs && userMfrs.length ? userMfrs[0] : '') || meta.manufacturer || '';
+  if (mfr) wizard.data.manualManufacturer = mfr;
+  // Item #
+  if (itemNum) wizard.data.manualItemNum = itemNum;
+  // Item type bucket
+  var bucket = _mapSubTypeToManualType(meta.subType);
+  if (bucket) wizard.data.manualItemType = bucket;
+  // Description (free text)
+  var desc = _composeManualDescFromMeta(meta);
+  if (desc) wizard.data.manualDesc = desc;
+  // Year
+  if (meta.year) wizard.data.manualYear = meta.year;
+  // Rebuild the wizard steps for the manual flow and start from step 0.
+  if (typeof getSteps === 'function') {
+    wizard.steps = getSteps('collection');
+  }
+  wizard.step = 0;
+  // Run the skipIf loop so we land on the first interactive step (skipping
+  // itemCategory since we already set it).
+  if (typeof renderWizardStep === 'function') renderWizardStep();
+  if (typeof showToast === 'function') {
+    showToast('Adding manually \u2014 fields pre-filled from Lens. Edit anything and click Next.', 4000);
+  }
+  return true;
 }
 
 function _applyIdentifiedItem(num) {
