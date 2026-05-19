@@ -167,7 +167,7 @@ function _buildWizardModal() {
       +     '<div style="margin-top:0.4rem;font-size:0.72rem;color:var(--text-dim)">Tip: if Google can\'t identify a real item number, you can type one below.</div>'
       +   '</details>'
       +   '<div style="font-size:0.7rem;color:var(--text-dim);text-align:center;margin:0.5rem 0 0.4rem">\u2014 or paste the item # you found \u2014</div>'
-      +   '<input id="identify-manual-input" type="text" placeholder="e.g. 736, 2046W, 3349, 20-3132-1" onkeydown="if(event.key===\'Enter\'){event.preventDefault();useIdentifiedItem();}" style="width:100%;padding:0.5rem 0.65rem;border-radius:7px;background:var(--surface2);border:1.5px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:0.9rem;box-sizing:border-box;margin-bottom:0.5rem">'
+      +   '<textarea id="identify-manual-input" rows="2" placeholder="e.g. 736 or paste Lens response (Enter=submit, Shift+Enter=newline)" onkeydown="if(event.key===\'Enter\' && !event.shiftKey){event.preventDefault();useIdentifiedItem();}" style="width:100%;padding:0.5rem 0.65rem;border-radius:7px;background:var(--surface2);border:1.5px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:0.9rem;box-sizing:border-box;margin-bottom:0.5rem;resize:vertical;min-height:2.4rem;line-height:1.3"></textarea>'
       +   '<button onclick="useIdentifiedItem()" style="width:100%;padding:0.6rem;border-radius:9px;background:var(--surface2);border:1.5px solid var(--gold);color:var(--gold);font-family:var(--font-head);font-size:0.9rem;letter-spacing:0.04em;cursor:pointer">Use This Item Number</button>'
       + '</div>';
     document.body.appendChild(_identEl);
