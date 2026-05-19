@@ -489,6 +489,18 @@ async function wizardChooseCategory(catId) {
   if (catId === 'manual') {
     // Manual entry stays in collection tab but uses its own step list
     wizard.data._manualEntry = true;
+    // Bug 2 (Session 154): clear stale cataloged-flow state when user
+    // pivots to Manual. Without this, wizard.data.itemNum from a typed
+    // entry or Identify-by-Photo parse persists and downstream code
+    // (save, dedup, reports) reads the wrong number even though the
+    // banner correctly prefers manualItemNum.
+    delete wizard.data.itemNum;
+    delete wizard.data._itemGrouping;
+    delete wizard.data._partialMatches;
+    delete wizard.data._partialQuery;
+    delete wizard.data._suggestedItemType;
+    delete wizard.data._suggestedRoadName;
+    wizard.matchedItem = null;
     wizard.steps = getSteps('collection');
     wizard.step = 0;
     renderWizardStep();

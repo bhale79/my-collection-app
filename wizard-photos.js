@@ -444,11 +444,26 @@ function useIdentifiedItem() {
   // Overview text, hedges, and multi-format item numbers — not just the
   // narrow bare-number patterns the old extractLionelNumber matched.
   const meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(raw) : {};
-  const extracted = meta.itemNum || extractLionelNumber(raw);
+  // Bug 1 (Session 154): respect meta._hedge — when the parser flagged the
+  // input as hedged (year-as-SKU, sku==cabNum, "reflecting the cab number"
+  // phrasing, etc.), DO NOT fall back to extractLionelNumber. The fallback
+  // re-extracts whatever bare 4-5 digit number it can find — which is
+  // exactly what the hedge was trying to suppress.
+  const extracted = meta._hedge ? null : (meta.itemNum || extractLionelNumber(raw));
 
   if (!extracted) {
     if (meta._hedge) {
-      showToast("Google couldn't identify a specific item number — type one below or try a different photo", 4000, true);
+      // Stash meta + route to manual entry with what we DO know
+      // (road, year, type, etc.) so the user only has to type the item#.
+      if (typeof wizard !== 'undefined' && wizard && wizard.data) {
+        wizard.data._identifyMeta = meta;
+      }
+      showToast("Google couldn't pin down the item number — enter it manually below", 4000, true);
+      if (_identifyCallerContext === 'wizard' && typeof _identifyRouteToManualEntry === 'function') {
+        var _hMfrs = (typeof _getSelectedIdentifyMfrs === 'function') ? _getSelectedIdentifyMfrs() : [];
+        closeIdentify();
+        _identifyRouteToManualEntry('', meta, _hMfrs);
+      }
     } else {
       showToast('Could not find an item number — try pasting just the number', 3000, true);
     }
@@ -466,6 +481,31 @@ function useIdentifiedItem() {
     if (meta.manufacturer) wizard.data._identifyMfrFound = meta.manufacturer;
     if (meta.variation)    wizard.data._identifyVariation= meta.variation;
     wizard.data._identifyMeta = meta;
+  }
+
+  // Bug 1b (Session 154): mirror the paste handler's master-first +
+  // route-to-manual logic so the Submit-button path doesn't synthesize a
+  // fake catalog match for items that simply aren't in our master.
+  if (_identifyCallerContext === 'wizard') {
+    var _uiMfrs = (typeof _getSelectedIdentifyMfrs === 'function') ? _getSelectedIdentifyMfrs() : [];
+    var _uiCands = (typeof _findMasterCandidates === 'function') ? _findMasterCandidates(meta, _uiMfrs, 3) : [];
+    if (_uiCands.length >= 2 && typeof _identifyShowMasterChooser === 'function') {
+      _identifyShowMasterChooser(_uiCands, meta, raw);
+      return;
+    }
+    if (_uiCands.length === 1) {
+      var _uiPick = _uiCands[0].row.itemNum;
+      _applyIdentifiedItem(_uiPick);
+      return;
+    }
+    if (_uiCands.length === 0 && typeof findMaster === 'function') {
+      var _uiDirect = findMaster(extracted);
+      if (!_uiDirect && typeof _identifyRouteToManualEntry === 'function') {
+        closeIdentify();
+        _identifyRouteToManualEntry(extracted, meta, _uiMfrs);
+        return;
+      }
+    }
   }
 
   // If we extracted from a richer text (not a bare item#), show what we pulled

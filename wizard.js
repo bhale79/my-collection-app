@@ -1160,7 +1160,15 @@ function renderWizardStep() {
     }
 
   } else if (s.type === 'text') {
-    const val = wizard.data[s.id] || '';
+    let val = wizard.data[s.id] || '';
+    // Bug 3 (Session 154): when Identify-by-Photo routed user to Manual Entry
+    // and hedged the SKU (or the user picked Manual after extract), pre-fill
+    // manualItemNum from the extracted SKU on the meta blob — user
+    // shouldn't have to retype what we already parsed.
+    if (s.id === 'manualItemNum' && !val && wizard.data._identifyMeta && wizard.data._identifyMeta.itemNum) {
+      val = String(wizard.data._identifyMeta.itemNum);
+      wizard.data.manualItemNum = val;
+    }
     const showBoxOnly = s.id === 'itemNum' && wizard.tab === 'collection';
     const boxOnlyChecked = wizard.data.boxOnly || false;
     const _showCollPicker = s.id === 'itemNum' && (wizard.tab === 'forsale' || wizard.tab === 'sold');
