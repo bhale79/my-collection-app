@@ -813,6 +813,14 @@ function extractIdentifyMetadata(text) {
     out._hedge = true;
     delete out.itemNum;
   }
+  // Same defense for the labeled YEAR. We saw the bare regex catching
+  // "2024" from "Year Manufactured: 2024" and treating it as a Lionel
+  // postwar item# (2024 is a real C&O F3 A-unit). If they're equal, the
+  // year leaked into the SKU slot — hedge.
+  if (out.itemNum && out.year && out.itemNum === out.year) {
+    out._hedge = true;
+    delete out.itemNum;
+  }
 
   return out;
 }
