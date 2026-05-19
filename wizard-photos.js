@@ -565,9 +565,13 @@ const _IDENTIFY_HEDGE_PATTERNS = [
   /same as (?:the )?cab (?:number)?/i,
   /is the cab number/i,
   /no specific (?:catalog|sku|product|item) number/i,
-  /often (?:listed |referenced |sold )?(?:in auctions )?as part of/i,
+  // Broader "often listed as" — drops the strict "as part of" requirement so
+  // "often listed as Weaver 3460 Brass" gets caught too.
+  /often (?:listed|referenced|sold|called|known)\s+as\b/i,
   /(?:I (?:do not|don[''’]t) have|I cannot find) (?:a |the )?specific (?:catalog|sku|item|product) number/i,
   /(?:could not|cannot) (?:identify|find|determine) (?:a |the )?(?:specific |exact )?(?:item|catalog|product|sku)/i,
+  // Hedging phrases the AI uses when it's guessing — pretty strong signal.
+  /\b(?:likely|probably|approximately)\b.*\b(?:1990s|2000s|2010s|early|late|mid)\b/i,
   /\bunknown\b/i,
 ];
 
@@ -728,6 +732,16 @@ function extractIdentifyMetadata(text) {
   // Variation flag.
   for (const v of _IDENTIFY_VARIATIONS) {
     if (v.re.test(raw)) { out.variation = v.val; break; }
+  }
+
+  // Post-extraction sanity check: if the AI's labeled SKU equals the labeled
+  // cab number, it's almost certainly a fallback (no real SKU available).
+  // We saw this on the Weaver Blue Goose where Google returned
+  // "Manufacturer SKU: 3460" and "Cab Number: 3460" — both the same digit.
+  // Treat as hedged and reject the item#.
+  if (out.itemNum && out.cabNum && out.itemNum === out.cabNum) {
+    out._hedge = true;
+    delete out.itemNum;
   }
 
   return out;
