@@ -1022,6 +1022,17 @@ function _identifyRouteToManualEntry(itemNum, meta, userMfrs) {
   if (typeof wizard === 'undefined' || !wizard) return false;
   if (wizard.tab !== 'collection') return false;  // only routes collection adds
   meta = meta || {};
+  // CLEAR stale cataloged-flow state so the ADDING banner + downstream code
+  // don't use values from a previous interaction (e.g. user typed an item#
+  // on Step 1, then came in via Lens — banner would otherwise show the
+  // earlier typed value instead of the new manual SKU).
+  delete wizard.data.itemNum;
+  delete wizard.data._itemGrouping;
+  delete wizard.data._partialMatches;
+  delete wizard.data._partialQuery;
+  delete wizard.data._suggestedItemType;
+  delete wizard.data._suggestedRoadName;
+  wizard.matchedItem = null;
   // Pre-fill manual entry data BEFORE switching the wizard flow.
   wizard.data._manualEntry = true;
   wizard.data.itemCategory = 'manual';
