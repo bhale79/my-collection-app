@@ -509,7 +509,13 @@ function extractLionelNumber(text) {
   ];
   for (const pat of embedded) {
     const m = raw.match(pat);
-    if (m) return m[1].toUpperCase();
+    if (!m) continue;
+    const cand = m[1].toUpperCase();
+    // Reject obvious ordinals (20TH, 21ST, 22ND, 23RD, 4TH, 100TH, etc).
+    // These show up in marketing text like "20th Anniversary" and would
+    // otherwise get treated as an item number.
+    if (/^\d+(?:TH|ST|ND|RD)$/.test(cand)) continue;
+    return cand;
   }
   return null;
 }
@@ -646,8 +652,19 @@ function extractIdentifyMetadata(text) {
   const _classLabels    = ['locomotive class','class','body style','body type','wheel arrangement','type'];
   const _mfrLabels      = ['manufacturer','maker','made by','brand'];
   function _pickLabel(map, candidates) {
+    // Exact-match pass first (fastest, highest precision).
     for (const c of candidates) {
       if (map[c]) return map[c];
+    }
+    // Substring pass — handles compound labels like "Manufacturer SKU / Catalog
+    // Number" which doesn't match any single candidate exactly but contains
+    // both "manufacturer sku" and "catalog number". The first map entry whose
+    // KEY contains any candidate string wins.
+    const mapKeys = Object.keys(map);
+    for (const c of candidates) {
+      for (const k of mapKeys) {
+        if (k.indexOf(c) !== -1) return map[k];
+      }
     }
     return null;
   }
