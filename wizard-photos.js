@@ -206,10 +206,26 @@ function openIdentify(context) {
     e.preventDefault();
     var inp = document.getElementById('identify-manual-input');
     if (inp) inp.value = extracted;
+    // Master-first matching (2026-05-18). Before trusting the AI's SKU, check
+    // if YOUR master sheet has rows that match the extracted descriptive
+    // metadata (road, sub-type, cab#, etc.). If multiple candidates, let user
+    // pick from real master SKUs. The AI's SKU is only the fallback.
+    var _mfrHints = _getSelectedIdentifyMfrs();
+    var _candidates = _findMasterCandidates(meta, _mfrHints, 3);
+    if (_candidates.length >= 2) {
+      // Multiple plausible master rows — show chooser.
+      _identifyShowMasterChooser(_candidates, meta, txt);
+      return;
+    }
+    if (_candidates.length === 1) {
+      // One strong master candidate — use IT, not the AI's SKU.
+      extracted = _candidates[0].row.itemNum;
+      if (inp) inp.value = extracted;
+    }
     // Manufacturer mismatch check: if the user picked specific manufacturers
     // in the Identify modal AND the extracted item# is found in our master
     // under a tab that doesn't match those mfrs, warn before auto-applying.
-    if (_identifyHasMfrMismatch(extracted, _getSelectedIdentifyMfrs())) {
+    if (_identifyHasMfrMismatch(extracted, _mfrHints)) {
       _identifyConfirmMfrMismatch(extracted, txt, meta);
       return;
     }
@@ -774,6 +790,117 @@ function _buildSyntheticMatchFromMeta(num, meta, scaleHint) {
     source: 'Lens identify',
     _synthetic: true,
   };
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Master-first matching — score master rows against extracted Lens metadata
+// so we can use OUR curated catalog as the source of truth for the SKU
+// instead of trusting Google's AI Overview (which is inconsistent for
+// under-documented manufacturers like Weaver).
+// ══════════════════════════════════════════════════════════════════
+
+// Score one master row against the metadata bag we got from Lens.
+// Higher score = stronger evidence this row is the right item.
+function _scoreMasterAgainstMeta(row, meta) {
+  if (!row || !meta) return 0;
+  var score = 0;
+  var desc = String(row.description || '').toLowerCase();
+  var rname = String(row.roadName || '').toLowerCase();
+  var stype = String(row.subType || row.itemType || '').toLowerCase();
+  var vdesc = String(row.varDesc || '').toLowerCase();
+  var hay   = desc + ' ' + rname + ' ' + stype + ' ' + vdesc;
+  // Road name match (very strong signal).
+  if (meta.roadName && (rname.indexOf(meta.roadName.toLowerCase()) !== -1 || hay.indexOf(meta.roadName.toLowerCase()) !== -1)) score += 3;
+  // Sub-type / locomotive class match.
+  if (meta.subType && (stype.indexOf(meta.subType.toLowerCase()) !== -1 || hay.indexOf(meta.subType.toLowerCase()) !== -1)) score += 2;
+  // Wheel arrangement appears in description.
+  if (meta.wheels && hay.indexOf(meta.wheels.toLowerCase()) !== -1) score += 1;
+  // Cab number appears anywhere in the row's text.
+  if (meta.cabNum && hay.indexOf(meta.cabNum.toLowerCase()) !== -1) score += 2;
+  // Year match (just one row out of many will match a specific year).
+  if (meta.year && String(row.yearProd || '').indexOf(meta.year) !== -1) score += 1;
+  // Variation hint (3-Rail / 2-Rail / brass etc.)
+  if (meta.variation && hay.indexOf(meta.variation.toLowerCase()) !== -1) score += 1;
+  return score;
+}
+
+// Filter masterData down to rows whose _tab matches at least one of the
+// user-selected manufacturer hints. Returns all rows if no hints / "Not sure".
+function _filterMasterByMfrHints(mfrHints) {
+  if (typeof state === 'undefined' || !state.masterData) return [];
+  if (!mfrHints || !mfrHints.length) return state.masterData;
+  return state.masterData.filter(function(row) {
+    if (!row._tab) return false;
+    var tabLC = String(row._tab).toLowerCase();
+    for (var i = 0; i < mfrHints.length; i++) {
+      var hint = String(mfrHints[i]).toLowerCase();
+      var simple = hint.replace(/[^a-z0-9]/g, '');
+      if (tabLC.indexOf(hint) !== -1 || tabLC.indexOf(simple) !== -1) return true;
+    }
+    return false;
+  });
+}
+
+// Find candidate master rows that score well against the metadata.
+// Returns array of {row, score} sorted descending. Threshold filters out
+// weak matches so we don't bury the user under irrelevant options.
+function _findMasterCandidates(meta, mfrHints, minScore) {
+  minScore = minScore || 3;
+  var pool = _filterMasterByMfrHints(mfrHints);
+  var scored = [];
+  for (var i = 0; i < pool.length; i++) {
+    var s = _scoreMasterAgainstMeta(pool[i], meta);
+    if (s >= minScore) scored.push({ row: pool[i], score: s });
+  }
+  scored.sort(function(a, b) { return b.score - a.score; });
+  return scored;
+}
+
+// Modal chooser shown when multiple master rows look like reasonable
+// candidates for the pasted Lens response. User picks one or cancels.
+function _identifyShowMasterChooser(candidates, meta, fullText) {
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:10002;display:flex;align-items:center;justify-content:center;padding:1rem';
+  var html = '<div style="background:var(--surface);border:1.5px solid var(--accent);border-radius:14px;max-width:520px;width:100%;padding:1.25rem;max-height:88vh;overflow-y:auto">'
+    + '<div style="font-family:var(--font-head);font-size:1rem;color:var(--accent);margin-bottom:0.4rem">\ud83d\udd0d Pick the matching item</div>'
+    + '<div style="font-size:0.82rem;color:var(--text-mid);line-height:1.5;margin-bottom:0.9rem">'
+    +   'Google identified this as ' + (meta.subType ? '<strong>' + meta.subType + '</strong> ' : '') + (meta.roadName ? '<strong>' + meta.roadName + '</strong>' : '') + '. '
+    +   'Your master sheet has these candidates \u2014 pick the one that matches:'
+    + '</div>';
+  html += '<div style="display:flex;flex-direction:column;gap:0.4rem">';
+  var max = Math.min(candidates.length, 8);
+  for (var i = 0; i < max; i++) {
+    var c = candidates[i];
+    var r = c.row;
+    var lblNum  = r.itemNum || '';
+    var lblDesc = [r.roadName, r.description].filter(Boolean).join(' — ') || (r.itemType || '');
+    var lblYear = r.yearProd ? ('\u2002\u00b7\u2002' + r.yearProd) : '';
+    var lblTab  = r._tab ? ('\u2002\u00b7\u2002' + r._tab) : '';
+    html += '<button data-pick-num="' + String(lblNum).replace(/"/g,'&quot;') + '" style="text-align:left;padding:0.65rem 0.85rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;display:flex;flex-direction:column;gap:0.2rem">'
+      +    '<span style="font-family:var(--font-mono);font-weight:700;color:var(--accent2)">' + lblNum + '</span>'
+      +    '<span style="font-size:0.78rem;color:var(--text-mid);line-height:1.4">' + lblDesc + '</span>'
+      +    '<span style="font-size:0.7rem;color:var(--text-dim)">score ' + c.score + lblYear + lblTab + '</span>'
+      + '</button>';
+  }
+  html += '</div>'
+    + '<button id="id-chooser-none" style="margin-top:0.7rem;width:100%;padding:0.55rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer">None of these \u2014 I\'ll type the item # below</button>'
+    + '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+  // Wire pick buttons
+  Array.from(overlay.querySelectorAll('button[data-pick-num]')).forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var picked = btn.getAttribute('data-pick-num');
+      document.body.removeChild(overlay);
+      // The picked SKU is the source of truth. Re-apply with that.
+      _applyIdentifiedItem(picked);
+    });
+  });
+  overlay.querySelector('#id-chooser-none').addEventListener('click', function() {
+    document.body.removeChild(overlay);
+    var inp = document.getElementById('identify-manual-input');
+    if (inp) { inp.value = ''; inp.focus(); }
+  });
 }
 
 // Return the currently-checked manufacturer chips (excluding "Not sure").
