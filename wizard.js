@@ -91,12 +91,78 @@ function _buildWizardModal() {
     document.body.appendChild(_pickerEl);
   }
 
-  // Build identify modal if not already present
+  // Build identify modal v2 if not already present.
+  // Photo drop / file picker + scale + type + multi-mfr hints + Drive-staged Lens search.
   if (!document.getElementById('identify-modal')) {
     var _identEl = document.createElement('div');
     _identEl.id = 'identify-modal';
-    _identEl.innerHTML = "<div id=\"identify-panel\"><div style=\"display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem\"><div style=\"font-family:var(--font-head);font-size:1.05rem;color:var(--text);letter-spacing:0.04em\">Identify by Photo</div><button onclick=\"closeIdentify()\" style=\"background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer;line-height:1\">\u2715</button></div><div style=\"font-size:0.82rem;color:var(--text-mid);margin-bottom:0.9rem;line-height:1.5\">Use Google Lens to identify your item from a photo, then paste the item number below.</div><button onclick=\"openGoogleLens()\" style=\"width:100%;padding:0.7rem;border-radius:9px;background:var(--accent);border:none;color:#fff;font-family:var(--font-head);font-size:0.95rem;letter-spacing:0.05em;cursor:pointer;margin-bottom:0.75rem\">Open Google Lens \u2197</button><div style=\"font-size:0.78rem;color:var(--text-dim);margin-bottom:0.4rem\">Paste or type the item number you found:</div><input id=\"identify-manual-input\" type=\"text\" placeholder=\"e.g. 736, 2046W, 3349\" style=\"width:100%;padding:0.5rem 0.65rem;border-radius:7px;background:var(--surface2);border:1.5px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:0.9rem;box-sizing:border-box;margin-bottom:0.65rem\"><button onclick=\"useIdentifiedItem()\" style=\"width:100%;padding:0.6rem;border-radius:9px;background:var(--surface2);border:1.5px solid var(--gold);color:var(--gold);font-family:var(--font-head);font-size:0.9rem;letter-spacing:0.04em;cursor:pointer\">Use This Item Number</button></div>";
+    var _isMobileIm = (window.innerWidth <= 768) || ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    var _photoButtons = _isMobileIm
+      ? '<button type="button" id="id-take-photo" style="flex:1;padding:0.6rem;border-radius:9px;border:1.5px solid var(--accent);background:rgba(232,64,28,0.08);color:var(--accent);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">\ud83d\udcf7 Take Photo</button>'
+        + '<button type="button" id="id-pick-photo" style="flex:1;padding:0.6rem;border-radius:9px;border:1.5px solid var(--accent2);background:rgba(201,146,42,0.08);color:var(--accent2);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">\ud83d\uddbc\ufe0f From Gallery</button>'
+      : '<button type="button" id="id-pick-photo" style="flex:1;padding:0.7rem;border-radius:9px;border:1.5px dashed var(--accent2);background:rgba(201,146,42,0.06);color:var(--accent2);font-family:var(--font-body);font-weight:600;font-size:0.9rem;cursor:pointer">\ud83d\udcc1 Upload Photo</button>';
+    var _mfrChips = ['Lionel','MTH','Atlas','K-Line','Weaver','Williams','RMT','Not sure'].map(function(m) {
+      return '<label class="id-mfr-chip" data-mfr="' + m + '" style="display:inline-flex;align-items:center;gap:0.35rem;padding:0.35rem 0.7rem;border-radius:14px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-mid);font-size:0.78rem;cursor:pointer;user-select:none">'
+        + '<input type="checkbox" data-mfr-cb="' + m + '" style="margin:0;cursor:pointer">'
+        + '<span>' + m + '</span></label>';
+    }).join(' ');
+    _identEl.innerHTML =
+      '<div id="identify-panel">'
+      +   '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">'
+      +     '<div style="font-family:var(--font-head);font-size:1.05rem;color:var(--text);letter-spacing:0.04em">Identify by Photo</div>'
+      +     '<button onclick="closeIdentify()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer;line-height:1">\u2715</button>'
+      +   '</div>'
+      +   '<div id="id-photo-area" style="margin-bottom:0.85rem">'
+      +     '<div id="id-photo-preview" style="display:none;position:relative;border-radius:10px;overflow:hidden;border:1.5px solid var(--accent2);background:#000;text-align:center;margin-bottom:0.4rem">'
+      +       '<img id="id-photo-img" style="max-width:100%;max-height:180px;display:block;margin:0 auto">'
+      +       '<button id="id-photo-clear" type="button" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.7);border:1px solid var(--border);color:#fff;border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:0.9rem">\u2715</button>'
+      +     '</div>'
+      +     '<div id="id-photo-buttons" style="display:flex;gap:0.4rem">' + _photoButtons + '</div>'
+      +     '<input type="file" id="id-file-camera" accept="image/*" capture="environment" style="display:none">'
+      +     '<input type="file" id="id-file-gallery" accept="image/*" style="display:none">'
+      +   '</div>'
+      +   '<div style="display:flex;gap:0.4rem;margin-bottom:0.6rem">'
+      +     '<div style="flex:1">'
+      +       '<label style="font-size:0.7rem;color:var(--text-dim);letter-spacing:0.06em;text-transform:uppercase;font-weight:600;display:block;margin-bottom:0.2rem">Scale</label>'
+      +       '<select id="id-scale" style="width:100%;padding:0.5rem;border-radius:7px;background:var(--surface2);border:1.5px solid var(--border);color:var(--text);font-size:0.85rem">'
+      +         '<option value="">(any)</option>'
+      +         '<option value="O gauge">O Gauge</option>'
+      +         '<option value="S gauge">S Gauge</option>'
+      +         '<option value="HO scale">HO</option>'
+      +         '<option value="G scale">G Scale</option>'
+      +         '<option value="Standard gauge">Standard Gauge</option>'
+      +         '<option value="OO scale">OO</option>'
+      +       '</select>'
+      +     '</div>'
+      +     '<div style="flex:1">'
+      +       '<label style="font-size:0.7rem;color:var(--text-dim);letter-spacing:0.06em;text-transform:uppercase;font-weight:600;display:block;margin-bottom:0.2rem">Type</label>'
+      +       '<select id="id-type" style="width:100%;padding:0.5rem;border-radius:7px;background:var(--surface2);border:1.5px solid var(--border);color:var(--text);font-size:0.85rem">'
+      +         '<option value="">(any)</option>'
+      +         '<option value="engine">Engine</option>'
+      +         '<option value="boxcar">Boxcar</option>'
+      +         '<option value="caboose">Caboose</option>'
+      +         '<option value="passenger car">Passenger Car</option>'
+      +         '<option value="flatcar">Flatcar</option>'
+      +         '<option value="hopper">Hopper</option>'
+      +         '<option value="tank car">Tank Car</option>'
+      +         '<option value="gondola">Gondola</option>'
+      +         '<option value="accessory">Accessory</option>'
+      +         '<option value="set">Set</option>'
+      +       '</select>'
+      +     '</div>'
+      +   '</div>'
+      +   '<div style="margin-bottom:0.75rem">'
+      +     '<label style="font-size:0.7rem;color:var(--text-dim);letter-spacing:0.06em;text-transform:uppercase;font-weight:600;display:block;margin-bottom:0.3rem">Manufacturer (pick any that might apply)</label>'
+      +     '<div id="id-mfr-chips" style="display:flex;flex-wrap:wrap;gap:0.3rem">' + _mfrChips + '</div>'
+      +   '</div>'
+      +   '<button id="id-search-btn" type="button" disabled style="width:100%;padding:0.75rem;border-radius:9px;background:var(--surface2);border:1.5px solid var(--border);color:var(--text-dim);font-family:var(--font-head);font-size:0.95rem;letter-spacing:0.05em;cursor:not-allowed;margin-bottom:0.5rem">\ud83d\udd0d Search Google Lens \u2197</button>'
+      +   '<div style="font-size:0.7rem;color:var(--text-dim);text-align:center;margin:0.5rem 0 0.4rem">\u2014 or paste the item # you found \u2014</div>'
+      +   '<input id="identify-manual-input" type="text" placeholder="e.g. 736, 2046W, 3349, 20-3132-1" style="width:100%;padding:0.5rem 0.65rem;border-radius:7px;background:var(--surface2);border:1.5px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:0.9rem;box-sizing:border-box;margin-bottom:0.5rem">'
+      +   '<button onclick="useIdentifiedItem()" style="width:100%;padding:0.6rem;border-radius:9px;background:var(--surface2);border:1.5px solid var(--gold);color:var(--gold);font-family:var(--font-head);font-size:0.9rem;letter-spacing:0.04em;cursor:pointer">Use This Item Number</button>'
+      + '</div>';
     document.body.appendChild(_identEl);
+    // Wire interactive bits AFTER DOM insert (handlers live in wizard-photos.js).
+    if (typeof _wireIdentifyModalV2 === 'function') _wireIdentifyModalV2();
   }
 }
 

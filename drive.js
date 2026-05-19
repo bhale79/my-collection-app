@@ -531,3 +531,51 @@ async function driveMoveSheetToVault(sheetId) {
   });
 }
 
+
+// ── Lens Staging — temporary public Drive upload for "Identify by Photo" ──
+// Photos uploaded here are made readable by anyone with the link so
+// Google Lens can fetch them via uploadbyurl. The cleanup helper trashes
+// the file shortly after to limit exposure.
+
+async function driveStageLensPhoto(file) {
+  // Ensure vault is initialized.
+  if (!driveCache.vaultId) {
+    var _stored = localStorage.getItem('lv_vault_id');
+    if (_stored) driveCache.vaultId = _stored;
+  }
+  if (!driveCache.vaultId) {
+    throw new Error('Drive vault not initialized — please sign in first');
+  }
+  // Find or create the "_Lens Staging" subfolder (underscore prefix keeps it sorted to top in the vault).
+  if (!driveCache.lensStagingId) {
+    driveCache.lensStagingId = await driveFindOrCreateFolder('_Lens Staging', driveCache.vaultId);
+  }
+  // Upload the file.
+  var name = 'lens_' + Date.now() + '_' + (file.name || 'photo.jpg').replace(/[^a-zA-Z0-9._-]/g, '_');
+  var uploaded = await driveUploadFile(file, name, driveCache.lensStagingId);
+  if (!uploaded || !uploaded.id) throw new Error('Lens staging upload failed');
+  // Set permission: anyone with the link can read. Required so Lens can fetch.
+  try {
+    await driveRequest('POST', '/files/' + uploaded.id + '/permissions?fields=id', {
+      role: 'reader',
+      type: 'anyone',
+    });
+  } catch(e) {
+    console.error('[Lens] Could not make staged photo public:', e);
+    throw new Error('Could not make photo public for Lens — check Drive permissions');
+  }
+  // Build the public direct-download URL. Lens needs a URL that returns the raw bytes,
+  // not the Drive viewer page. The export/uc endpoint works for any-with-link files.
+  var publicUrl = 'https://drive.google.com/uc?export=download&id=' + uploaded.id;
+  return { id: uploaded.id, url: publicUrl };
+}
+
+async function driveCleanupLensStaging(fileId) {
+  if (!fileId) return;
+  try {
+    // Move to trash rather than hard-delete — safer fallback if user wants the file back.
+    await driveRequest('PATCH', '/files/' + fileId + '?fields=id', { trashed: true });
+  } catch(e) {
+    console.warn('[Lens] Cleanup failed (non-fatal):', e);
+  }
+}

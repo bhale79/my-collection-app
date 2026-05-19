@@ -205,9 +205,156 @@ function closeIdentify() {
     document.removeEventListener('paste', _identifyPasteHandler, true);
     _identifyPasteHandler = null;
   }
+  // v2: reset photo state so next open starts fresh. Drive cleanup is on its
+  // own 10-minute timer (set when search fires) — we don't trigger it here
+  // because the user might just be paste-confirming and we want the public
+  // URL to keep working briefly.
+  _identifyPhotoFile = null;
+  var _preview = document.getElementById('id-photo-preview');
+  var _img = document.getElementById('id-photo-img');
+  var _btns = document.getElementById('id-photo-buttons');
+  if (_preview) _preview.style.display = 'none';
+  if (_img) _img.src = '';
+  if (_btns) _btns.style.display = 'flex';
+  var _cam = document.getElementById('id-file-camera');
+  var _gal = document.getElementById('id-file-gallery');
+  if (_cam) _cam.value = '';
+  if (_gal) _gal.value = '';
 }
 
+// ── Identify modal v2 state + handlers ──
+// Photo file the user dropped/picked. Cleared on modal close.
+let _identifyPhotoFile = null;
+let _identifyStagedFileId = null;  // for cleanup after Lens search
+let _identifyStagedTimer = null;
+
+// Wired up after the modal DOM is inserted (called from wizard.js _buildWizardModal).
+function _wireIdentifyModalV2() {
+  // Photo input wiring — supports mobile (camera + gallery) and desktop (gallery only).
+  const camInput  = document.getElementById('id-file-camera');
+  const galInput  = document.getElementById('id-file-gallery');
+  const takeBtn   = document.getElementById('id-take-photo');
+  const pickBtn   = document.getElementById('id-pick-photo');
+  const clearBtn  = document.getElementById('id-photo-clear');
+  const preview   = document.getElementById('id-photo-preview');
+  const previewImg= document.getElementById('id-photo-img');
+  const photoBtns = document.getElementById('id-photo-buttons');
+  const searchBtn = document.getElementById('id-search-btn');
+  if (!searchBtn) return;
+  function _setPhoto(file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    _identifyPhotoFile = file;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      previewImg.src = ev.target.result;
+      if (preview) preview.style.display = 'block';
+      if (photoBtns) photoBtns.style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+    _updateSearchButton();
+  }
+  function _clearPhoto() {
+    _identifyPhotoFile = null;
+    if (preview) preview.style.display = 'none';
+    if (previewImg) previewImg.src = '';
+    if (photoBtns) photoBtns.style.display = 'flex';
+    if (camInput) camInput.value = '';
+    if (galInput) galInput.value = '';
+    _updateSearchButton();
+  }
+  function _updateSearchButton() {
+    if (_identifyPhotoFile) {
+      searchBtn.disabled = false;
+      searchBtn.style.background = 'var(--accent)';
+      searchBtn.style.borderColor = 'var(--accent)';
+      searchBtn.style.color = '#fff';
+      searchBtn.style.cursor = 'pointer';
+    } else {
+      searchBtn.disabled = true;
+      searchBtn.style.background = 'var(--surface2)';
+      searchBtn.style.borderColor = 'var(--border)';
+      searchBtn.style.color = 'var(--text-dim)';
+      searchBtn.style.cursor = 'not-allowed';
+    }
+  }
+  if (takeBtn) takeBtn.addEventListener('click', function() { camInput && camInput.click(); });
+  if (pickBtn) pickBtn.addEventListener('click', function() { galInput && galInput.click(); });
+  if (camInput) camInput.addEventListener('change', function() { if (camInput.files[0]) _setPhoto(camInput.files[0]); });
+  if (galInput) galInput.addEventListener('change', function() { if (galInput.files[0]) _setPhoto(galInput.files[0]); });
+  if (clearBtn) clearBtn.addEventListener('click', _clearPhoto);
+  // Manufacturer chip toggle styling.
+  const chipsWrap = document.getElementById('id-mfr-chips');
+  if (chipsWrap) {
+    chipsWrap.addEventListener('change', function(e) {
+      const cb = e.target;
+      if (!cb || cb.tagName !== 'INPUT') return;
+      const label = cb.closest('label');
+      if (!label) return;
+      if (cb.checked) {
+        label.style.borderColor = 'var(--accent)';
+        label.style.background = 'rgba(232,64,28,0.12)';
+        label.style.color = 'var(--text)';
+      } else {
+        label.style.borderColor = 'var(--border)';
+        label.style.background = 'var(--surface2)';
+        label.style.color = 'var(--text-mid)';
+      }
+    });
+  }
+  // The big search button → does the Drive upload + Lens open.
+  searchBtn.addEventListener('click', _identifySearchLens);
+  _updateSearchButton();
+}
+
+async function _identifySearchLens() {
+  if (!_identifyPhotoFile) return;
+  const searchBtn = document.getElementById('id-search-btn');
+  const origText = searchBtn ? searchBtn.innerHTML : '';
+  if (searchBtn) { searchBtn.disabled = true; searchBtn.innerHTML = '\u23F3 Staging photo\u2026'; }
+  try {
+    if (typeof driveStageLensPhoto !== 'function') {
+      throw new Error('Drive integration not loaded — please refresh and try again');
+    }
+    const staged = await driveStageLensPhoto(_identifyPhotoFile);
+    _identifyStagedFileId = staged.id;
+    // Schedule auto-cleanup in 10 minutes so the public photo doesn't linger.
+    if (_identifyStagedTimer) clearTimeout(_identifyStagedTimer);
+    _identifyStagedTimer = setTimeout(function() {
+      if (_identifyStagedFileId) {
+        driveCleanupLensStaging(_identifyStagedFileId);
+        _identifyStagedFileId = null;
+      }
+    }, 10 * 60 * 1000);
+    // Build the text query from scale + type + manufacturer chips.
+    const scale = (document.getElementById('id-scale') || {}).value || '';
+    const type  = (document.getElementById('id-type')  || {}).value || '';
+    const mfrCbs = document.querySelectorAll('#id-mfr-chips input[type="checkbox"]:checked');
+    let mfrs = Array.from(mfrCbs).map(function(cb) { return cb.dataset.mfrCb; }).filter(function(m) { return m && m !== 'Not sure'; });
+    let q = [scale, type].filter(Boolean).join(' ').trim();
+    if (mfrs.length) {
+      q += (q ? ' ' : '') + mfrs.join(' or ');
+    }
+    q += (q ? ' ' : '') + 'need the item number';
+    const url = 'https://www.google.com/searchbyimage?image_url=' + encodeURIComponent(staged.url) + '&q=' + encodeURIComponent(q);
+    window.open(url, '_blank');
+    if (searchBtn) { searchBtn.disabled = false; searchBtn.innerHTML = origText; }
+    // Save mfr hints on wizard.data so paste-back can bias master lookup later.
+    if (typeof wizard !== 'undefined' && wizard && wizard.data) {
+      wizard.data._identifyMfrHints  = mfrs;
+      wizard.data._identifyScaleHint = scale;
+      wizard.data._identifyTypeHint  = type;
+    }
+  } catch(e) {
+    console.error('[Lens] Search failed:', e);
+    if (typeof showToast === 'function') showToast('Lens search failed: ' + e.message, 4000, true);
+    if (searchBtn) { searchBtn.disabled = false; searchBtn.innerHTML = origText; }
+  }
+}
+
+// Legacy entry point — kept for backward compat. Now just triggers the v2 flow.
 function openGoogleLens() {
+  // If photo is staged, do the smart flow. Otherwise fall back to plain Lens.
+  if (_identifyPhotoFile) { _identifySearchLens(); return; }
   window.open('https://lens.google.com', '_blank');
 }
 
