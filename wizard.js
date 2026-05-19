@@ -687,31 +687,44 @@ function _renderAddingBanner() {
   if (typeof wizard === 'undefined' || !wizard) { el.innerHTML = ''; return; }
   var d = wizard.data || {};
 
-  // Resolve the "what" being added — pick whichever item/set id the
-  // current flow uses. Empty -> hide the banner entirely.
-  var num = (d.itemNum || d.manualItemNum || d.set_num || d.is_linkedItem || '').toString().trim();
-  if (!num && d._resolvedSet && d._resolvedSet.setNum) num = d._resolvedSet.setNum;
+  // Resolve the "what" being added. CRITICAL: in manual-entry mode we use
+  // manualItemNum ONLY and skip master lookup — the wizard's regular
+  // itemNum field might still hold a stale value typed earlier (e.g. a year
+  // the user accidentally entered), and findMaster on that stale value
+  // would surface an unrelated catalog row (this is how the banner ended
+  // up reading "ADDING No. 2024 — Chesapeake & Ohio 'a' Unit" when the
+  // user pasted a Lens response with year 2024).
+  var _inManual = (d._manualEntry === true) || (d.itemCategory === 'manual');
+  var num;
+  if (_inManual) {
+    num = (d.manualItemNum || '').toString().trim();
+  } else {
+    num = (d.itemNum || d.manualItemNum || d.set_num || d.is_linkedItem || '').toString().trim();
+    if (!num && d._resolvedSet && d._resolvedSet.setNum) num = d._resolvedSet.setNum;
+  }
   if (!num) { el.innerHTML = ''; return; }
 
-  // Resolve the description. Prefer master-sheet description; fall back
-  // to roadName, itemType, or user-typed manualDesc for manual entries.
-  // Session 115: prefer wizard.matchedItem when it matches the current
-  // num — it already honors the user's itemType pick. findMaster is a
-  // last-resort fallback that just returns the first bucket row, which
-  // can be a wrong itemType (e.g. 773 Accessory vs 773 Steam Engine).
+  // Resolve the description. In manual mode, prefer the user-typed manualDesc
+  // and skip findMaster (which would surface unrelated catalog rows because
+  // the manualItemNum isn't a master entry). In cataloged mode, master
+  // lookup gives the rich description.
   var desc = '';
-  var match = null;
-  if (wizard.matchedItem && String(wizard.matchedItem.itemNum || '').trim() === num) {
-    match = wizard.matchedItem;
-  } else if (typeof findMaster === 'function') {
-    match = findMaster(num);
-  }
-  if (match) {
-    desc = match.description || match.roadName || _typeLabel(match) || '';
-  } else if (d.manualDesc) {
-    desc = d.manualDesc;
-  } else if (d._resolvedSet && d._resolvedSet.setName) {
-    desc = d._resolvedSet.setName;
+  if (_inManual) {
+    desc = d.manualDesc || '';
+  } else {
+    var match = null;
+    if (wizard.matchedItem && String(wizard.matchedItem.itemNum || '').trim() === num) {
+      match = wizard.matchedItem;
+    } else if (typeof findMaster === 'function') {
+      match = findMaster(num);
+    }
+    if (match) {
+      desc = match.description || match.roadName || _typeLabel(match) || '';
+    } else if (d.manualDesc) {
+      desc = d.manualDesc;
+    } else if (d._resolvedSet && d._resolvedSet.setName) {
+      desc = d._resolvedSet.setName;
+    }
   }
   // Fallback: when no master match yet (common for items found via Lens that
   // aren't in our master tabs), build a description from the Identify-modal
