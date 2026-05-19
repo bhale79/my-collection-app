@@ -202,10 +202,17 @@ function openIdentify(context) {
       // so the user can edit/type one themselves.
       return;
     }
-    // We have a hit — eat the paste event, fill the input visibly, then apply.
+    // We have a hit — eat the paste event, fill the input visibly.
     e.preventDefault();
     var inp = document.getElementById('identify-manual-input');
     if (inp) inp.value = extracted;
+    // Manufacturer mismatch check: if the user picked specific manufacturers
+    // in the Identify modal AND the extracted item# is found in our master
+    // under a tab that doesn't match those mfrs, warn before auto-applying.
+    if (_identifyHasMfrMismatch(extracted, _getSelectedIdentifyMfrs())) {
+      _identifyConfirmMfrMismatch(extracted, txt, meta);
+      return;
+    }
     if (typeof wizard !== 'undefined' && wizard && wizard.data) {
       if (meta.year)         wizard.data._identifyYear     = meta.year;
       if (meta.roadName)     wizard.data._identifyRoadName = meta.roadName;
@@ -752,6 +759,69 @@ function _buildSyntheticMatchFromMeta(num, meta, scaleHint) {
     gauge: scaleHint || '',
     source: 'Lens identify',
     _synthetic: true,
+  };
+}
+
+// Return the currently-checked manufacturer chips (excluding "Not sure").
+function _getSelectedIdentifyMfrs() {
+  try {
+    const cbs = document.querySelectorAll('#id-mfr-chips input[type="checkbox"]:checked');
+    return Array.from(cbs).map(function(cb) { return cb.dataset.mfrCb; })
+      .filter(function(m) { return m && m !== 'Not sure'; });
+  } catch(e) { return []; }
+}
+
+// Returns true when the extracted item# matches a master row but that row's
+// manufacturer (derived from its _tab) doesn't include any of the mfrs the
+// user picked in the Identify modal. Loose match — substring case-insensitive.
+function _identifyHasMfrMismatch(itemNum, userMfrs) {
+  if (!itemNum || !userMfrs || !userMfrs.length) return false;
+  if (typeof findMaster !== 'function') return false;
+  var match = findMaster(itemNum);
+  if (!match || !match._tab) return false;
+  var tabLC = String(match._tab).toLowerCase();
+  // If ANY of the user's selected mfrs appear in the tab name, it's fine.
+  for (var i = 0; i < userMfrs.length; i++) {
+    var mfrLC = String(userMfrs[i]).toLowerCase();
+    // Strip non-alphanumerics for loose match: "K-Line" matches "kline" tab.
+    var simple = mfrLC.replace(/[^a-z0-9]/g, '');
+    if (tabLC.indexOf(mfrLC) !== -1 || tabLC.indexOf(simple) !== -1) return false;
+  }
+  return true;  // No mfr in user's picks matched the tab name.
+}
+
+// Confirmation dialog: extracted item is in master but its manufacturer
+// doesn't match the user's hint. Show what we found, let user accept the
+// master match anyway or cancel and edit.
+function _identifyConfirmMfrMismatch(itemNum, fullText, meta) {
+  var match = (typeof findMaster === 'function') ? findMaster(itemNum) : null;
+  var tabLabel = match && match._tab ? match._tab : '(unknown tab)';
+  var userMfrs = _getSelectedIdentifyMfrs();
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10001;display:flex;align-items:center;justify-content:center;padding:1rem';
+  overlay.innerHTML =
+    '<div style="background:var(--surface);border:1.5px solid var(--accent);border-radius:14px;max-width:440px;width:100%;padding:1.25rem">'
+    + '<div style="font-family:var(--font-head);font-size:1rem;color:var(--accent);margin-bottom:0.5rem">\u26a0\ufe0f Manufacturer mismatch</div>'
+    + '<div style="font-size:0.85rem;color:var(--text);line-height:1.5;margin-bottom:0.4rem">'
+    +   'We found <strong>' + itemNum + '</strong> in your master sheet, but on the <strong>' + tabLabel + '</strong> tab.'
+    + '</div>'
+    + '<div style="font-size:0.85rem;color:var(--text-mid);line-height:1.5;margin-bottom:0.95rem">'
+    +   'You picked <strong>' + userMfrs.join(' or ') + '</strong> as the manufacturer. These don\'t match.'
+    + '</div>'
+    + '<div style="display:flex;flex-direction:column;gap:0.5rem">'
+    +   '<button id="id-mfr-accept" style="padding:0.65rem;border-radius:8px;border:1.5px solid var(--accent);background:var(--accent);color:#fff;font-family:var(--font-body);font-weight:600;font-size:0.88rem;cursor:pointer">Use ' + itemNum + ' from ' + tabLabel + ' anyway</button>'
+    +   '<button id="id-mfr-cancel" style="padding:0.55rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Cancel \u2014 I\'ll edit the item # below</button>'
+    + '</div>'
+    + '</div>';
+  document.body.appendChild(overlay);
+  overlay.querySelector('#id-mfr-accept').onclick = function() {
+    document.body.removeChild(overlay);
+    _applyIdentifiedItem(itemNum);
+  };
+  overlay.querySelector('#id-mfr-cancel').onclick = function() {
+    document.body.removeChild(overlay);
+    var inp = document.getElementById('identify-manual-input');
+    if (inp) { inp.focus(); inp.select(); }
   };
 }
 
