@@ -952,11 +952,34 @@ function _findMasterCandidates(meta, mfrHints, minScore) {
 
 // Modal chooser shown when multiple master rows look like reasonable
 // candidates for the pasted Lens response. User picks one or cancels.
+// Bug 7 (Session 154): added X close button, Escape key handler, backdrop
+// click-to-close, and stale-DOM cleanup so multiple invocations don't
+// leave ghost overlays behind.
 function _identifyShowMasterChooser(candidates, meta, fullText) {
+  // Remove any existing chooser overlay before rendering a new one.
+  var _existing = document.querySelectorAll('[data-identify-chooser]');
+  _existing.forEach(function(el) { if (el.parentNode) el.parentNode.removeChild(el); });
+
   var overlay = document.createElement('div');
+  overlay.setAttribute('data-identify-chooser', '1');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:10002;display:flex;align-items:center;justify-content:center;padding:1rem';
-  var html = '<div style="background:var(--surface);border:1.5px solid var(--accent);border-radius:14px;max-width:520px;width:100%;padding:1.25rem;max-height:88vh;overflow-y:auto">'
-    + '<div style="font-family:var(--font-head);font-size:1rem;color:var(--accent);margin-bottom:0.4rem">\ud83d\udd0d Pick the matching item</div>'
+
+  function _closeChooser() {
+    if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    document.removeEventListener('keydown', _onChooserKey, true);
+  }
+  function _onChooserKey(e) {
+    if (e.key === 'Escape') { e.preventDefault(); _closeChooser(); }
+  }
+  document.addEventListener('keydown', _onChooserKey, true);
+  // Backdrop click closes.
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) _closeChooser();
+  });
+
+  var html = '<div style="background:var(--surface);border:1.5px solid var(--accent);border-radius:14px;max-width:520px;width:100%;padding:1.25rem;max-height:88vh;overflow-y:auto;position:relative">'
+    + '<button id="id-chooser-close" aria-label="Close" style="position:absolute;top:0.35rem;right:0.55rem;background:none;border:none;color:var(--text-dim);font-size:1.5rem;line-height:1;cursor:pointer;padding:0.15rem 0.5rem;border-radius:6px">\u00d7</button>'
+    + '<div style="font-family:var(--font-head);font-size:1rem;color:var(--accent);margin-bottom:0.4rem;padding-right:1.5rem">\ud83d\udd0d Pick the matching item</div>'
     + '<div style="font-size:0.82rem;color:var(--text-mid);line-height:1.5;margin-bottom:0.9rem">'
     +   'Google identified this as ' + (meta.subType ? '<strong>' + meta.subType + '</strong> ' : '') + (meta.roadName ? '<strong>' + meta.roadName + '</strong>' : '') + '. '
     +   'Your master sheet has these candidates \u2014 pick the one that matches:'
@@ -967,7 +990,7 @@ function _identifyShowMasterChooser(candidates, meta, fullText) {
     var c = candidates[i];
     var r = c.row;
     var lblNum  = r.itemNum || '';
-    var lblDesc = [r.roadName, r.description].filter(Boolean).join(' — ') || (r.itemType || '');
+    var lblDesc = [r.roadName, r.description].filter(Boolean).join(' \u2014 ') || (r.itemType || '');
     var lblYear = r.yearProd ? ('\u2002\u00b7\u2002' + r.yearProd) : '';
     var lblTab  = r._tab ? ('\u2002\u00b7\u2002' + r._tab) : '';
     html += '<button data-pick-num="' + String(lblNum).replace(/"/g,'&quot;') + '" style="text-align:left;padding:0.65rem 0.85rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;display:flex;flex-direction:column;gap:0.2rem">'
@@ -981,17 +1004,19 @@ function _identifyShowMasterChooser(candidates, meta, fullText) {
     + '</div>';
   overlay.innerHTML = html;
   document.body.appendChild(overlay);
+  // Wire X close button
+  overlay.querySelector('#id-chooser-close').addEventListener('click', _closeChooser);
   // Wire pick buttons
   Array.from(overlay.querySelectorAll('button[data-pick-num]')).forEach(function(btn) {
     btn.addEventListener('click', function() {
       var picked = btn.getAttribute('data-pick-num');
-      document.body.removeChild(overlay);
+      _closeChooser();
       // The picked SKU is the source of truth. Re-apply with that.
       _applyIdentifiedItem(picked);
     });
   });
   overlay.querySelector('#id-chooser-none').addEventListener('click', function() {
-    document.body.removeChild(overlay);
+    _closeChooser();
     // None matched — route to manual entry with the extracted metadata so the
     // user can add this uncatalogued item without retyping everything.
     closeIdentify();
