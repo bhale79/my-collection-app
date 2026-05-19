@@ -480,6 +480,7 @@ function extractLionelNumber(text) {
     /^\d{2}-\d{4}-\d{1,3}$/,           // MTH 3-part
     /^\d{2}-\d{4}$/,                     // MTH 2-part
     /^[67]-\d{4,5}$/,                     // Lionel Modern / K-Line
+    /^\d{7}(?:-\d{2,3})?$/,             // Lionel Modern 7-digit set/SKU (e.g. 2431470, 2431470-200)
     /^\d{3,5}-\d{1,3}$/,                 // Lionel Postwar with variation
     /^\d{1,5}[A-Z]{0,2}$/i,               // Lionel Postwar bare (strip leading zeros)
   ];
@@ -498,6 +499,8 @@ function extractLionelNumber(text) {
     /\b(\d{2}-\d{4}-\d{1,3})\b/,                        // MTH 3-part
     /\b([67]-\d{4,5})\b/,                                 // Lionel Modern / K-Line
     /\b(\d{2}-\d{4})\b/,                                 // MTH 2-part
+    /\b(\d{7}-\d{2,3})\b/,                               // Lionel Modern 7-digit with variation (2431470-200)
+    /\b(\d{7})\b/,                                        // Lionel Modern 7-digit bare (2431470)
     /\b(\d{3,5}-\d{1,3})\b/,                             // Postwar with variation (6464-1)
     /\b(\d{3,5}[A-Z]{1,2})\b/,                            // Postwar with letters (1076L, 2046W) — must beat keyword to avoid cab# false matches
     /(?:no\.?|item|#|number|sku|lionel|atlas|mth|weaver|williams|rmt)\s*[:\-]?\s*(\d{2,5}[A-Z]{0,2})\b/i,  // keyword + number
