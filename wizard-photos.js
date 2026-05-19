@@ -206,40 +206,27 @@ function openIdentify(context) {
     e.preventDefault();
     var inp = document.getElementById('identify-manual-input');
     if (inp) inp.value = extracted;
-    // Master-first matching (2026-05-18). Before trusting the AI's SKU, check
-    // if YOUR master sheet has rows that match the extracted descriptive
-    // metadata (road, sub-type, cab#, etc.). If multiple candidates, let user
-    // pick from real master SKUs. The AI's SKU is only the fallback.
+    // Bug 6 (Session 154): SKU-first priority. When the AI gave us a SKU,
+    // consult master directly — don't fall through to descriptive scoring
+    // (which has shown false-negatives where the correct SKU isn't among
+    // the candidates). If master hits, apply; if not, route to manual.
     var _mfrHints = _getSelectedIdentifyMfrs();
-    var _candidates = _findMasterCandidates(meta, _mfrHints, 3);
-    if (_candidates.length >= 2) {
-      // Multiple plausible master rows — show chooser. Chooser's "None of
-      // these" button routes to manual entry with the same pre-fill.
-      _identifyShowMasterChooser(_candidates, meta, txt);
-      return;
-    }
-    if (_candidates.length === 1) {
-      // One strong master candidate — use IT, not the AI's SKU.
-      extracted = _candidates[0].row.itemNum;
-      if (inp) inp.value = extracted;
-    }
-    // Phase B: if there's NO master match for the extracted SKU AND no good
-    // descriptive candidate either, this is an item we haven't catalogued.
-    // Route to Manual Entry with the extracted metadata pre-filling fields.
-    if (_candidates.length === 0 && typeof findMaster === 'function') {
+    if (typeof findMaster === 'function') {
       var _direct = findMaster(extracted);
-      if (!_direct) {
+      if (_direct) {
+        // Cataloged hit — but still check for mfr mismatch before applying.
+        if (_identifyHasMfrMismatch(extracted, _mfrHints)) {
+          _identifyConfirmMfrMismatch(extracted, txt, meta);
+          return;
+        }
+        // fall through to meta-stash + applyIdentifiedItem below
+      } else {
+        // No master hit for the AI's SKU — non-cataloged item. Route
+        // straight to Manual Entry. No chooser detour.
         closeIdentify();
         _identifyRouteToManualEntry(extracted, meta, _mfrHints);
         return;
       }
-    }
-    // Manufacturer mismatch check: if the user picked specific manufacturers
-    // in the Identify modal AND the extracted item# is found in our master
-    // under a tab that doesn't match those mfrs, warn before auto-applying.
-    if (_identifyHasMfrMismatch(extracted, _mfrHints)) {
-      _identifyConfirmMfrMismatch(extracted, txt, meta);
-      return;
     }
     if (typeof wizard !== 'undefined' && wizard && wizard.data) {
       if (meta.year)         wizard.data._identifyYear     = meta.year;
@@ -483,24 +470,23 @@ function useIdentifiedItem() {
     wizard.data._identifyMeta = meta;
   }
 
-  // Bug 1b (Session 154): mirror the paste handler's master-first +
-  // route-to-manual logic so the Submit-button path doesn't synthesize a
-  // fake catalog match for items that simply aren't in our master.
+  // Bug 6 (Session 154): SKU-first priority. When the AI gave us a SKU,
+  // check master DIRECTLY. If found → apply (skip chooser). If not found →
+  // route to manual entry (skip chooser). The descriptive chooser had
+  // false-negatives where the correct SKU wasn't among the candidates.
   if (_identifyCallerContext === 'wizard') {
     var _uiMfrs = (typeof _getSelectedIdentifyMfrs === 'function') ? _getSelectedIdentifyMfrs() : [];
-    var _uiCands = (typeof _findMasterCandidates === 'function') ? _findMasterCandidates(meta, _uiMfrs, 3) : [];
-    if (_uiCands.length >= 2 && typeof _identifyShowMasterChooser === 'function') {
-      _identifyShowMasterChooser(_uiCands, meta, raw);
-      return;
-    }
-    if (_uiCands.length === 1) {
-      var _uiPick = _uiCands[0].row.itemNum;
-      _applyIdentifiedItem(_uiPick);
-      return;
-    }
-    if (_uiCands.length === 0 && typeof findMaster === 'function') {
+    if (typeof findMaster === 'function') {
       var _uiDirect = findMaster(extracted);
-      if (!_uiDirect && typeof _identifyRouteToManualEntry === 'function') {
+      if (_uiDirect) {
+        // Cataloged hit — but still check for mfr mismatch before applying.
+        if (typeof _identifyHasMfrMismatch === 'function' && _identifyHasMfrMismatch(extracted, _uiMfrs)) {
+          _identifyConfirmMfrMismatch(extracted, raw, meta);
+          return;
+        }
+        // fall through to the normal apply path
+      } else if (typeof _identifyRouteToManualEntry === 'function') {
+        // No master hit — non-cataloged item. Route to manual entry directly.
         closeIdentify();
         _identifyRouteToManualEntry(extracted, meta, _uiMfrs);
         return;
