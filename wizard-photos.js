@@ -739,9 +739,13 @@ function extractIdentifyMetadata(text) {
   const lblMfr   = _pickLabel(labels, _mfrLabels);
 
   // Item number — use labeled value only if it doesn't contain a hedge phrase.
+  // Track whether itemNum came from the explicit label so the year-equality
+  // hedge below can trust labeled SKUs even when they look like years
+  // (e.g. Lionel postwar 1666, 2024, 2046, 2055 are real SKUs).
+  let _itemFromLabel = false;
   if (lblItem && !_hasHedge(lblItem)) {
     const labelNum = extractLionelNumber(lblItem);
-    if (labelNum) out.itemNum = labelNum;
+    if (labelNum) { out.itemNum = labelNum; _itemFromLabel = true; }
   }
   // Fallback: pattern-match against full text. BUT skip if the full text has a
   // dominant hedge phrase indicating the AI couldn't find a real SKU — in that
@@ -853,11 +857,13 @@ function extractIdentifyMetadata(text) {
     out._hedge = true;
     delete out.itemNum;
   }
-  // Same defense for the labeled YEAR. We saw the bare regex catching
-  // "2024" from "Year Manufactured: 2024" and treating it as a Lionel
-  // postwar item# (2024 is a real C&O F3 A-unit). If they're equal, the
-  // year leaked into the SKU slot — hedge.
-  if (out.itemNum && out.year && out.itemNum === out.year) {
+  // Same defense for the YEAR. We saw the bare regex catching "2024" from
+  // "Year Manufactured: 2024" and treating it as a Lionel postwar item#.
+  // But only fire when itemNum came from the bare-text fallback — when
+  // it was explicitly labeled "Manufacturer SKU: 2024", trust the label.
+  // Real Lionel postwar SKUs (1666, 2024, 2046, 2055…) plausibly equal
+  // common years.
+  if (out.itemNum && out.year && out.itemNum === out.year && !_itemFromLabel) {
     out._hedge = true;
     delete out.itemNum;
   }
