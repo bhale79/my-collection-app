@@ -233,19 +233,54 @@ function useIdentifiedItem() {
 }
 
 function extractLionelNumber(text) {
-  // If it's already just a number (with optional letter suffix), use it directly
-  if (/^\d{1,5}[A-Z]?[A-Z]?$/i.test(text)) return text.toUpperCase().replace(/^0+/, '') || text;
+  // Multi-manufacturer item-number extractor. Tries patterns in order of
+  // specificity so e.g. "20-3132-1" is recognized as an MTH 3-part number
+  // before any sub-string falls back to Lionel postwar.
+  //
+  // Recognized formats (in priority order):
+  //   1. MTH 3-part        20-3132-1         (most common modern MTH)
+  //   2. MTH 2-part        20-3132           (older MTH SKUs)
+  //   3. Lionel Modern     6-30135 / 7-11193 (single-digit prefix, K-Line included)
+  //   4. Lionel Postwar    6464-1            (variation suffix)
+  //   5. Lionel Postwar    736 / 2046W / 221C (1-5 digits + optional letters)
+  //   6. Bare 4-5 digit    5876              (Atlas / Weaver / RMT / Williams fallback)
+  //
+  // Returns null if nothing parseable found.
+  if (!text || typeof text !== 'string') return null;
+  const raw = text.trim();
+  if (!raw) return null;
 
-  // Try to find a Lionel-style number in the text
-  // Common patterns: "No. 3349", "#3349", "Item 3349", "Lionel 3349", or just a standalone number
-  const patterns = [
-    /(?:no\.?|item|#|number|lionel)\s*(\d{2,5}[A-Z]{0,2})/i,  // "No. 3349", "Item 3349"
-    /\b(\d{3,5}[A-Z]{0,2})\b/,                                  // standalone 3-5 digit number
-    /\b(\d{2}[A-Z]{1,2})\b/,                                    // 2-digit + letters like "44W"
+  // Step 1 — input is ALREADY a clean item number on its own line. Return as-is.
+  const directPatterns = [
+    /^\d{2}-\d{4}-\d{1,3}$/,           // MTH 3-part
+    /^\d{2}-\d{4}$/,                     // MTH 2-part
+    /^[67]-\d{4,5}$/,                     // Lionel Modern / K-Line
+    /^\d{3,5}-\d{1,3}$/,                 // Lionel Postwar with variation
+    /^\d{1,5}[A-Z]{0,2}$/i,               // Lionel Postwar bare (strip leading zeros)
   ];
+  for (const pat of directPatterns) {
+    if (pat.test(raw)) {
+      // Strip leading zeros only for the plain-digit postwar pattern.
+      const out = pat.toString().includes("\\d{1,5}[A-Z]") ? raw.replace(/^0+/, '') || raw : raw;
+      return out.toUpperCase();
+    }
+  }
 
-  for (const pattern of patterns) {
-    const m = text.match(pattern);
+  // Step 2 — item number embedded in longer text (typical Lens result).
+  // Order: most specific first. Keyword prefixes ("No.", "Item", "SKU") help
+  // disambiguate when multiple numbers appear in the pasted blob.
+  const embedded = [
+    /\b(\d{2}-\d{4}-\d{1,3})\b/,                        // MTH 3-part
+    /\b([67]-\d{4,5})\b/,                                 // Lionel Modern / K-Line
+    /\b(\d{2}-\d{4})\b/,                                 // MTH 2-part
+    /\b(\d{3,5}-\d{1,3})\b/,                             // Postwar with variation
+    /(?:no\.?|item|#|number|sku|lionel|atlas|mth|weaver|williams|rmt)\s*[:\-]?\s*(\d{2,5}[A-Z]{0,2})\b/i,  // keyword + number
+    /\b(\d{3,5}[A-Z]{1,2})\b/,                            // Postwar with letters (e.g. 2046W)
+    /\b(\d{4,5})\b/,                                      // Bare 4-5 digit (Atlas/etc)
+    /\b(\d{2}[A-Z]{1,2})\b/,                              // Short like 44W
+  ];
+  for (const pat of embedded) {
+    const m = raw.match(pat);
     if (m) return m[1].toUpperCase();
   }
   return null;
