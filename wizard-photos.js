@@ -191,7 +191,27 @@ function openIdentify(context) {
     e.preventDefault();
     var inp = document.getElementById('identify-manual-input');
     if (inp) inp.value = extracted;
-    showToast('Found item #' + extracted, 1500);
+    // Parse the FULL pasted text for additional metadata (year/road/cab#/...).
+    // Each found field gets stashed on wizard.data so subsequent steps and
+    // the banner can pre-populate from it.
+    var meta = extractIdentifyMetadata(txt);
+    if (typeof wizard !== 'undefined' && wizard && wizard.data) {
+      if (meta.year)         wizard.data._identifyYear     = meta.year;
+      if (meta.roadName)     wizard.data._identifyRoadName = meta.roadName;
+      if (meta.subType)      wizard.data._identifySubType  = meta.subType;
+      if (meta.wheels)       wizard.data._identifyWheels   = meta.wheels;
+      if (meta.cabNum)       wizard.data._identifyCabNum   = meta.cabNum;
+      if (meta.manufacturer) wizard.data._identifyMfrFound = meta.manufacturer;
+      if (meta.variation)    wizard.data._identifyVariation= meta.variation;
+      // Stash the raw meta blob for downstream consumers.
+      wizard.data._identifyMeta = meta;
+    }
+    // Build the toast: lead with item#, append a couple of extracted fields
+    // so the user sees what we recognized before the modal closes.
+    var bits = ['Found item #' + extracted];
+    if (meta.roadName) bits.push(meta.roadName);
+    if (meta.year)     bits.push('(' + meta.year + ')');
+    showToast(bits.join(' '), 1800);
     setTimeout(function() { _applyIdentifiedItem(extracted); }, 400);
   };
   document.addEventListener('paste', _identifyPasteHandler, true);
@@ -426,9 +446,9 @@ function extractLionelNumber(text) {
     /\b(\d{2}-\d{4}-\d{1,3})\b/,                        // MTH 3-part
     /\b([67]-\d{4,5})\b/,                                 // Lionel Modern / K-Line
     /\b(\d{2}-\d{4})\b/,                                 // MTH 2-part
-    /\b(\d{3,5}-\d{1,3})\b/,                             // Postwar with variation
+    /\b(\d{3,5}-\d{1,3})\b/,                             // Postwar with variation (6464-1)
+    /\b(\d{3,5}[A-Z]{1,2})\b/,                            // Postwar with letters (1076L, 2046W) — must beat keyword to avoid cab# false matches
     /(?:no\.?|item|#|number|sku|lionel|atlas|mth|weaver|williams|rmt)\s*[:\-]?\s*(\d{2,5}[A-Z]{0,2})\b/i,  // keyword + number
-    /\b(\d{3,5}[A-Z]{1,2})\b/,                            // Postwar with letters (e.g. 2046W)
     /\b(\d{4,5})\b/,                                      // Bare 4-5 digit (Atlas/etc)
     /\b(\d{2}[A-Z]{1,2})\b/,                              // Short like 44W
   ];
@@ -439,14 +459,206 @@ function extractLionelNumber(text) {
   return null;
 }
 
+// ══════════════════════════════════════════════════════════════════
+// Lens AI Overview metadata extractor
+//
+// Pulls multi-field structured data out of arbitrary text that the user
+// pasted (typically from Google Lens / Search "AI Overview"). Each
+// recognizable field is returned as a separate property; missing fields
+// are simply omitted. Caller decides where each field lands on wizard.data.
+// ══════════════════════════════════════════════════════════════════
+
+// Curated list of common Lionel/MTH/Atlas/etc road names. Order matters:
+// longer / more-specific entries first so "Atchison Topeka Santa Fe" wins
+// over "Santa Fe" when both appear. We also accept common abbreviations
+// next to the full name (ATSF, PRR, etc).
+const _IDENTIFY_ROAD_NAMES = [
+  ['Atchison Topeka Santa Fe', 'Santa Fe'], ['ATSF', 'Santa Fe'],
+  ['Santa Fe', 'Santa Fe'],
+  ['Pennsylvania Railroad', 'Pennsylvania'], ['PRR', 'Pennsylvania'],
+  ['Pennsylvania', 'Pennsylvania'],
+  ['New York Central', 'New York Central'], ['NYC', 'New York Central'],
+  ['Baltimore & Ohio', 'B&O'], ['Baltimore and Ohio', 'B&O'], ['B&O', 'B&O'],
+  ['Chesapeake & Ohio', 'C&O'], ['Chesapeake and Ohio', 'C&O'], ['C&O', 'C&O'],
+  ['Norfolk & Western', 'N&W'], ['N&W', 'N&W'],
+  ['Norfolk Southern', 'Norfolk Southern'], ['Union Pacific', 'Union Pacific'], ['UP', 'Union Pacific'],
+  ['Southern Pacific', 'Southern Pacific'], ['Burlington Northern', 'Burlington Northern'],
+  ['Burlington', 'Burlington'], ['CB&Q', 'Burlington'],
+  ['Northern Pacific', 'Northern Pacific'], ['Great Northern', 'Great Northern'],
+  ['Erie Lackawanna', 'Erie Lackawanna'], ['Erie', 'Erie'],
+  ['New Haven', 'New Haven'], ['Lehigh Valley', 'Lehigh Valley'],
+  ['Wabash', 'Wabash'], ['Milwaukee Road', 'Milwaukee Road'],
+  ['Strasburg', 'Strasburg'], ['Lionel Lines', 'Lionel Lines'],
+  ['Long Island Rail Road', 'Long Island'], ['LIRR', 'Long Island'],
+  ['CSX', 'CSX'], ['BNSF', 'BNSF'], ['Conrail', 'Conrail'],
+  ['Reading', 'Reading'], ['Western Pacific', 'Western Pacific'],
+  ['Rio Grande', 'Rio Grande'], ['D&RGW', 'Rio Grande'],
+  ['Polar Express', 'Polar Express'], ['Christmas', 'Christmas'],
+  ['Hershey', 'Hershey'], ['Coca-Cola', 'Coca-Cola'],
+  ['Jersey Central', 'Jersey Central'], ['Clinchfield', 'Clinchfield'],
+  ['Southern Railway', 'Southern Railway'], ['Southern', 'Southern'],
+  ['Illinois Central', 'Illinois Central'], ['IC', 'Illinois Central'],
+  ['Canadian National', 'Canadian National'], ['CN', 'Canadian National'],
+  ['Canadian Pacific', 'Canadian Pacific'], ['CP', 'Canadian Pacific'],
+];
+
+const _IDENTIFY_SUBTYPES = [
+  'Big Boy', 'Challenger', 'Mallet', 'Hudson', 'Pacific', 'Berkshire', 'Mikado',
+  'Northern', 'Mountain', 'Atlantic', 'Ten-Wheeler', 'Camelback', 'Mogul',
+  'Consolidation', 'Dockside', 'Switcher', 'Trainmaster',
+  'GP-7', 'GP-9', 'GP-20', 'GP-30', 'GP-35', 'GP-38', 'GP-40',
+  'SD-7', 'SD-9', 'SD-40', 'SD-45', 'SD-70', 'SD-80', 'SD-90',
+  'F3', 'F7', 'F9', 'FA-1', 'FA-2', 'FB-1', 'FB-2',
+  'E7', 'E8', 'E9', 'NW-2', 'RS-3', 'RS-11', 'U25B', 'U28B', 'U33C',
+  'PA-1', 'PA-2', 'Geep',
+  'Boxcar', 'Reefer', 'Hopper', 'Gondola', 'Flatcar', 'Tank Car', 'Caboose',
+  'Stock Car', 'Coach', 'Pullman', 'Vista Dome', 'Diner', 'Baggage',
+];
+
+const _IDENTIFY_MFRS = ['Lionel', 'MTH', 'Atlas', 'K-Line', 'Weaver', 'Williams', 'RMT', 'American Flyer'];
+
+const _IDENTIFY_VARIATIONS = [
+  { re: /3[-\s]?rail/i,         val: '3-Rail' },
+  { re: /2[-\s]?rail/i,         val: '2-Rail' },
+  { re: /brass/i,               val: 'Brass' },
+  { re: /die[-\s]?cast/i,       val: 'Die-Cast' },
+  { re: /scale/i,               val: 'Scale' },
+  { re: /Heritage/i,            val: 'Heritage' },
+  { re: /LEGACY/i,              val: 'LEGACY' },
+  { re: /TMCC/i,                val: 'TMCC' },
+  { re: /DCS/i,                 val: 'DCS' },
+  { re: /Conventional/i,        val: 'Conventional' },
+  { re: /Command/i,             val: 'Command' },
+];
+
+function extractIdentifyMetadata(text) {
+  if (!text || typeof text !== 'string') return {};
+  const out = {};
+  const raw = text.trim();
+  if (!raw) return out;
+
+  // Item number (reuses the multi-format parser).
+  const num = extractLionelNumber(raw);
+  if (num) out.itemNum = num;
+
+  // Road name — first match in priority order.
+  for (const pair of _IDENTIFY_ROAD_NAMES) {
+    const needle = pair[0];
+    // Build word-boundary regex with special-char escaping.
+    const escaped = needle.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/&/g, '\\&');
+    try {
+      const re = new RegExp('\\b' + escaped + '\\b', 'i');
+      if (re.test(raw)) { out.roadName = pair[1]; break; }
+    } catch(e) { /* skip malformed entry */ }
+  }
+
+  // Year — 4 digits in plausible model-train production range.
+  const yearMatch = raw.match(/\b(19[0-9]{2}|20[0-2][0-9]|2030)\b/);
+  if (yearMatch) out.year = yearMatch[1];
+
+  // Cab number — "#3460", "No. 3460", "number 3460". Must not be an item#
+  // pattern (which has a hyphen). Cap at 5 digits, no hyphen.
+  const cabMatch = raw.match(/(?:#|No\.?\s?|number\s)(\d{2,5})(?![\d-])/i);
+  if (cabMatch) out.cabNum = cabMatch[1];
+
+  // Wheel arrangement — e.g. 4-6-4, 2-8-2, 4-6-6-4. Guard against MTH item
+  // numbers (20-3132-1) which also match \d-\d-\d. Heuristic: wheel digits
+  // are typically single 1-2 digit groups separated by single hyphens AND
+  // the surrounding context doesn't include the longer MTH pattern.
+  const wheelMatches = raw.matchAll(/\b(\d{1,2}-\d{1,2}-\d{1,2}(?:-\d{1,2})?)\b/g);
+  for (const wm of wheelMatches) {
+    const candidate = wm[1];
+    // Reject if it looks like part of a longer MTH item number.
+    const idx = wm.index || 0;
+    const surrounding = raw.slice(Math.max(0, idx - 3), idx + candidate.length + 3);
+    if (/\d{2}-\d{4}-\d/.test(surrounding)) continue;
+    // Reject if any part is > 12 (real wheel arrangements are 0..12).
+    const parts = candidate.split('-').map(Number);
+    if (parts.some(p => p > 12)) continue;
+    out.wheels = candidate;
+    break;
+  }
+
+  // Sub-type / locomotive class.
+  for (const st of _IDENTIFY_SUBTYPES) {
+    const escaped = st.replace(/[-]/g, '[-\\s]?');
+    try {
+      const re = new RegExp('\\b' + escaped + '\\b', 'i');
+      if (re.test(raw)) { out.subType = st; break; }
+    } catch(e) {}
+  }
+
+  // Manufacturer — match against known list.
+  for (const mfr of _IDENTIFY_MFRS) {
+    const escaped = mfr.replace(/[-]/g, '[-\\s]?');
+    try {
+      const re = new RegExp('\\b' + escaped + '\\b', 'i');
+      if (re.test(raw)) { out.manufacturer = mfr; break; }
+    } catch(e) {}
+  }
+
+  // Variation flag.
+  for (const v of _IDENTIFY_VARIATIONS) {
+    if (v.re.test(raw)) { out.variation = v.val; break; }
+  }
+
+  return out;
+}
+
+// Build a "synthetic" master-shaped item record from extracted Lens metadata.
+// Used when the pasted item# doesn't match anything in our master tabs — we
+// inject this into wizard.matchedItem so the wizard's subsequent steps and
+// the ADDING banner have something to display.
+function _buildSyntheticMatchFromMeta(num, meta, scaleHint) {
+  if (!num) return null;
+  meta = meta || {};
+  const descParts = [];
+  if (meta.roadName) descParts.push(meta.roadName);
+  if (meta.subType) descParts.push(meta.subType);
+  if (meta.wheels) descParts.push(meta.wheels);
+  if (meta.cabNum) descParts.push('#' + meta.cabNum);
+  if (meta.variation) descParts.push('(' + meta.variation + ')');
+  const desc = descParts.join(' ').trim();
+  return {
+    itemNum: num,
+    itemType: meta.subType || '',
+    subType: meta.subType || '',
+    roadName: meta.roadName || '',
+    description: desc,
+    yearProd: meta.year || '',
+    variation: '',
+    varDesc: meta.variation || '',
+    gauge: scaleHint || '',
+    source: 'Lens identify',
+    _synthetic: true,
+  };
+}
+
 function _applyIdentifiedItem(num) {
   _identifySelectedNum = num;
   // Snapshot the caller context BEFORE closeIdentify nulls it out — otherwise
   // the wizard branch below would never fire (pre-existing bug exposed by the
   // new auto-paste path).
   const _caller = _identifyCallerContext;
+  // Snapshot extracted meta + scale hint before closeIdentify clears state.
+  const _meta = (typeof wizard !== 'undefined' && wizard && wizard.data && wizard.data._identifyMeta) || {};
+  const _scaleHint = (typeof wizard !== 'undefined' && wizard && wizard.data && wizard.data._identifyScaleHint) || '';
   closeIdentify();
   if (_caller === 'wizard') {
+    // If the item isn't in master, pre-seed wizard.matchedItem with a
+    // synthetic record built from the extracted Lens metadata. wizardNext's
+    // existing logic honors an already-set matchedItem when no real master
+    // hit is found — so the wizard's later steps + the ADDING banner all
+    // see populated road name / description / year / etc.
+    if (typeof findMaster === 'function') {
+      var _existingMaster = findMaster(num);
+      if (!_existingMaster) {
+        var _synth = _buildSyntheticMatchFromMeta(num, _meta, _scaleHint);
+        if (_synth && typeof wizard !== 'undefined' && wizard) {
+          wizard.matchedItem = _synth;
+        }
+      }
+    }
     const inp = document.getElementById('wiz-input');
     if (inp) {
       inp.value = num;
