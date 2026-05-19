@@ -278,20 +278,30 @@ function updateItemSuggestions(query) {
       return !_informative.has(c.num);
     });
 
-    // Session 156: collapse to ONE row per itemNum. When multiple
-    // variations share the number, prefer the "parent" row (blank
-    // roadName) so the Step 1 list shows a single clean label per item;
-    // the user picks the variation on the next wizard step.
-    var _byNum = {};
-    candidates.forEach(function(c) {
-      var n = c.num;
-      if (!_byNum[n]) { _byNum[n] = c; return; }
-      if (!c.roadName && _byNum[n].roadName) { _byNum[n] = c; }
-    });
-    candidates = Object.values(_byNum);
+    // Bug 8 (Session 154): Session 156's _byNum collapse was REMOVED —
+    // it was forcing one-row-per-itemNum and hiding the 773 Hudson
+    // engine behind the 773 Track row. The config-level dedup at
+    // line ~247 already keys on (itemNum, roadName, itemType) which
+    // keeps distinct KINDS visible while still collapsing variations
+    // within the same kind (5 Hudson variants → 1 Steam Loco row).
+    // The sort below uses itemTypePriority to float engines to the top.
   }
 
-  // Sort: for number searches, starts-with first; for text searches, keep natural order
+  // Bug 8 (Session 154): itemType priority. When the same itemNum has
+  // multiple kinds (Hudson + Track + Set + Paper for "773"), float the
+  // engine/car rows to the top and sink ephemera to the bottom.
+  function _itemTypePriority(it) {
+    if (!it) return 99;
+    var matchers = (window.ITEM_SEARCH_FILTERS && window.ITEM_SEARCH_FILTERS.itemTypePriority) || [];
+    for (var i = 0; i < matchers.length; i++) {
+      var m = matchers[i];
+      if (m && m.match && m.match.test && m.match.test(it)) return m.priority;
+    }
+    return (window.ITEM_SEARCH_FILTERS && window.ITEM_SEARCH_FILTERS.itemTypePriorityDefault) || 50;
+  }
+
+  // Sort: for number searches, starts-with first; within same itemNum,
+  // sort by itemType priority so engines surface above track/paper.
   const startsWithDigit = /^\d/.test(q);
   if (startsWithDigit) {
     candidates.sort((a, b) => {
@@ -299,7 +309,17 @@ function updateItemSuggestions(query) {
       const bStarts = b.num.toLowerCase().startsWith(q.split(' ')[0]);
       if (aStarts && !bStarts) return -1;
       if (!aStarts && bStarts) return 1;
-      return a.num.localeCompare(b.num);
+      const numCmp = a.num.localeCompare(b.num);
+      if (numCmp !== 0) return numCmp;
+      // Same itemNum — use itemType priority (lower number wins).
+      return _itemTypePriority(a.itemType) - _itemTypePriority(b.itemType);
+    });
+  } else {
+    // Text searches: still group same-itemNum rows by priority.
+    candidates.sort((a, b) => {
+      const numCmp = a.num.localeCompare(b.num);
+      if (numCmp !== 0) return numCmp;
+      return _itemTypePriority(a.itemType) - _itemTypePriority(b.itemType);
     });
   }
 

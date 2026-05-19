@@ -89,6 +89,25 @@ window.ITEM_SEARCH_FILTERS = {
   // for. Keying on itemType keeps each distinct product visible
   // while variations of the same product still collapse cleanly.
   dedupKeyFields:   ['itemNum', 'roadName', 'itemType'],
+
+  // Bug 8 (Session 154): when the same item number has multiple
+  // kinds in master (e.g. 773 is BOTH the Hudson engine AND the
+  // Model Builder Track Fish Plate Set), the suggestion list used
+  // to collapse them to ONE row — hiding the engine behind the
+  // alphabetically-first Track row. Now we keep all kinds and
+  // sort by this priority so engines float to the top, ephemera
+  // sinks to the bottom.
+  //
+  // First match wins. Lower priority number = higher in the list.
+  itemTypePriority: [
+    { match: /(locomotive|engine)/i, priority: 10 },
+    { match: /tender/i,              priority: 20 },
+    { match: /(car|caboose|hopper|gondola|reefer|tank|stock|boxcar|flatcar|passenger|freight)/i, priority: 30 },
+    { match: /^set$/i,               priority: 40 },
+    { match: /(track|switch|transformer|accessory|signal|crossing|bridge|tower|station|building|operating)/i, priority: 50 },
+    { match: /(paper|box|misc|instruction|catalog|companion|service)/i, priority: 90 },
+  ],
+  itemTypePriorityDefault: 60,
 };
 
 // ─── Shared resolver ──────────────────────────────────────────────
