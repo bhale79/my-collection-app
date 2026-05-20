@@ -787,10 +787,11 @@ async function _uploadNonItemPhotos(type, key, entry, cfg, picks, progressCb) {
 }
 window._uploadNonItemPhotos = _uploadNonItemPhotos;
 
-function showItemDetailPage(idx) {
+function showItemDetailPage(idx, copyInvId) {
   // Bug 12 (Session 154): remember which item the detail page is showing so
   // savePhotoOnlyUpdate can re-render it after a photo is added.
   window._lastDetailIdx = idx;
+  window._lastDetailCopyInv = copyInvId || null;
   // Session 115: capture which Browse tab + filter state the user
   // came from so the Back button restores the same tab on return.
   // Was: Back always called filterOwned() which forced _browseTab to
@@ -810,6 +811,16 @@ function showItemDetailPage(idx) {
   if (item) {
     pdKey = findPDKey(item.itemNum, item.variation);
     pd = pdKey ? state.personalData[pdKey] : null;
+    // Bug 15 (Session 154): when a specific copy was clicked (item owned in
+    // multiple copies), select THAT copy by inventory ID so its box/IS/
+    // condition/photos show — not just the first matching copy.
+    if (copyInvId) {
+      var _ckey = Object.keys(state.personalData).find(function(k){
+        var p = state.personalData[k];
+        return p && p.owned && String(p.inventoryId) === String(copyInvId) && p.itemNum === item.itemNum;
+      });
+      if (_ckey) { pdKey = _ckey; pd = state.personalData[_ckey]; }
+    }
   } else {
     const poKey = window._poKeys ? window._poKeys[-(idx+1000)] : null;
     pd = poKey ? state.personalData[poKey] : null;
@@ -854,6 +865,13 @@ function showItemDetailPage(idx) {
   const _fsEntry = state.forSaleData[`${it.itemNum}|${it.variation||''}`];
   const _fsPrice = _fsEntry ? _currencySymbol() + parseFloat(_fsEntry.askingPrice || 0).toLocaleString() : '';
   const groupMembers = pd && pd.groupId ? Object.values(state.personalData).filter(p => p.groupId === pd.groupId && p.itemNum !== it.itemNum) : [];
+  // Bug 15 (Session 154): include grouped instruction sheets (separate isData
+  // store) so the detail page lists the IS as part of this item.
+  if (pd && pd.groupId && state.isData) {
+    Object.values(state.isData).forEach(function(_is){
+      if (_is && _is.groupId === pd.groupId) groupMembers.push({ itemNum: _is.sheetNum || ((_is.linkedItem||'') + '-IS'), variation: '', _isIS: true });
+    });
+  }
 
   // ── HEADER ──
   const _fromTools = window._detailReturn === 'tools';
@@ -1343,6 +1361,13 @@ function _checkGroupBeforeForSale(globalIdx, pdKey) {
   // Find siblings in same group
   const siblings = Object.entries(state.personalData)
     .filter(([k, p]) => k !== pdKey && p.groupId === pd.groupId && p.owned);
+  // Bug 15 (Session 154): include grouped instruction sheets so "sell as a
+  // set" lists the IS too (it lives in the separate isData store).
+  Object.entries(state.isData || {}).forEach(([k, _is]) => {
+    if (_is && _is.groupId === pd.groupId) {
+      siblings.push([k, { itemNum: _is.sheetNum || ((_is.linkedItem||'') + '-IS'), userEstWorth: _is.estValue || '', _isIS: true }]);
+    }
+  });
   // No siblings? Proceed normally
   if (!siblings.length) { listForSaleFromCollection(globalIdx, pdKey); return; }
 
