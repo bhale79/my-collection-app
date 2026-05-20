@@ -1529,16 +1529,29 @@ async function saveWizardItem() {
             await driveUploadPhoto(fileObj.file, fname, isFolderId).catch(e => console.warn(e));
           }
         }
+        // Session 154: an instruction sheet is now a normal grouped item (like
+        // a box) — itemNum is always {parent}-IS so it folds via the -IS tag.
+        // The user's own sheet number / form code go into the notes.
         const isInvId = nextInventoryId();
-        const isRow = [isSheetNum, itemNum, '', d.is_condition || '', '', isPhotoLink, isInvId, groupId, d.is_formCode||''];
-        await sheetsAppend(state.personalSheetId, 'Instruction Sheets!A:A', [isRow]);
-        const newISKey = Date.now();
-        state.isData[newISKey] = {
-          row: newISKey, sheetNum: isSheetNum, linkedItem: itemNum,
-          year: '', condition: d.is_condition || '', notes: '', photoLink: isPhotoLink,
-          inventoryId: isInvId, groupId: groupId, formCode: d.is_formCode||'',
+        const _isItemNum = itemNum + '-IS';
+        let _isNotes = '';
+        if (isSheetNum && isSheetNum !== _isItemNum) _isNotes = 'Sheet ' + isSheetNum;
+        if (d.is_formCode) _isNotes += (_isNotes ? ' \u00B7 ' : '') + 'Form ' + d.is_formCode;
+        // My Collection row (25 cols A-Y), same shape boxes use.
+        const isRow = [
+          _isItemNum, '', d.is_condition || '', '', '', '', '', '', '',
+          isPhotoLink || '', '', _isNotes, d.datePurchased || '', '', itemNum,
+          '', '', '', '', '', isInvId, groupId, '', '', '',
+        ];
+        await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [isRow]);
+        state.personalData[isInvId] = {
+          row: 99999, itemNum: _isItemNum, variation: '',
+          status: 'Owned', owned: true,
+          condition: d.is_condition || '', notes: _isNotes,
+          photoItem: isPhotoLink || '', matchedTo: itemNum,
+          inventoryId: isInvId, groupId: groupId,
         };
-        _stampSaved(state.isData[newISKey]);
+        _stampSaved(state.personalData[isInvId]);
       } catch(e) { console.warn('IS save error:', e); }
     }
 

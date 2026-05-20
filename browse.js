@@ -540,14 +540,14 @@ function _isCollectionCompanion(pd) {
   if (parts.length < 3) return false;
   var leadNum = parts.slice(1, -1).join('-');
   if (!leadNum) return false;
-  var base = String(pd.itemNum || '').replace(/-(BOX|MBOX)$/i, '');
+  var base = String(pd.itemNum || '').replace(/-(BOX|MBOX|IS)$/i, '');
   if (base === leadNum) return false; // this row IS the lead
   // Non-lead member — fold it in only when the lead item is actually owned,
   // so an orphaned group (lead removed) still shows its remaining members.
   var pdata = (typeof state !== 'undefined' && state.personalData) ? state.personalData : {};
   var leadOwned = Object.values(pdata).some(function(p) {
     return p && p.owned && p.groupId === pd.groupId
-      && String(p.itemNum || '').replace(/-(BOX|MBOX)$/i, '') === leadNum
+      && String(p.itemNum || '').replace(/-(BOX|MBOX|IS)$/i, '') === leadNum
       && !/-(BOX|MBOX)$/i.test(p.itemNum || '');
   });
   return leadOwned;
