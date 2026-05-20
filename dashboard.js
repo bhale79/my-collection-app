@@ -49,7 +49,7 @@ function _eraOf(pd) {
   var e = (pd.era || '').toLowerCase().trim();
   if (e && ERAS[e]) return e;
   // Map full names and variants to era keys
-  if (e === 'postwar' || e === 'post-war' || e === 'manual') return 'pw';
+  if (e === 'postwar' || e === 'post-war') return 'pw';
   if (e === 'modern' || e === 'mod') return 'mod';
   if (e === 'mpc') return 'mpc';
   // Check label matches (e.g. 'Postwar' from ERAS.pw.label)
@@ -57,6 +57,13 @@ function _eraOf(pd) {
   for (var i = 0; i < keys.length; i++) {
     if (ERAS[keys[i]].label.toLowerCase() === e) return keys[i];
   }
+  // Push 1 (Session 154): when era is unknown/'manual', infer from the saved
+  // manufacturer so MTH/Atlas/etc. items don't all fall into Postwar.
+  var _mfr = (pd.manufacturer || '').toLowerCase().trim();
+  if (_mfr.indexOf('mth') === 0)    return 'mth_o';
+  if (_mfr.indexOf('atlas') === 0)  return 'atlas';
+  if (_mfr.indexOf('weaver') === 0) return 'weaver';
+  if (_mfr.indexOf('rmt') === 0)    return 'rmt';
   return 'pw';
 }
 

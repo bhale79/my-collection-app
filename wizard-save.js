@@ -720,7 +720,7 @@ async function savePhotoOnlyUpdate() {
 
 async function _saveManualEntry() {
   const d = wizard.data;
-  const itemNum = (d.manualItemNum || '').trim();
+  const itemNum = _normalizeEnteredItemNum(d.manualItemNum || '');
   if (!itemNum) { showToast('Please enter an item number'); return; }
 
   const manufacturer = (d.manualManufacturer || '').trim();
@@ -809,7 +809,7 @@ async function _saveManualEntry() {
 async function _saveScienceConstructionItem(sheetTabName, stateKey) {
   const d = wizard.data;
   const master = wizard.matchedItem || {};
-  const itemNum = (d.itemNum || '').trim();
+  const itemNum = _normalizeEnteredItemNum(d.itemNum || '');
   const variation = String(d.variation || master.variation || '').trim();
   const description = master.description || master.roadName || master.itemType || '';
   const year = master.yearProd || d.yearMade || '';
@@ -883,6 +883,19 @@ async function _saveScienceConstructionItem(sheetTabName, stateKey) {
   if (state._browseTab === 'construction' && typeof renderMasterSubTab === 'function') renderMasterSubTab('construction');
 }
 
+// Push 1 (Session 154): strip prefixes a user may type into an item-number
+// field — "mth No. 20-93699" -> "20-93699", "Lionel 736" -> "736" — so the
+// stored item number is clean and can match the catalog. Only normalizes when
+// there's whitespace AND the extracted token has digits (so a legit
+// multi-word manual name like "Custom Caboose" is left alone).
+function _normalizeEnteredItemNum(raw) {
+  raw = (raw == null ? '' : raw).toString().trim();
+  if (!raw || !/\s/.test(raw)) return raw;
+  var tok = (typeof _extractSearchItemNum === 'function') ? _extractSearchItemNum(raw) : '';
+  if (tok && /\d/.test(tok)) return tok;
+  return raw;
+}
+
 async function saveWizardItem() {
   const d = wizard.data;
   // Guard: prevent any save if a save already completed this wizard session
@@ -905,7 +918,7 @@ async function saveWizardItem() {
   if (d._qeSaving) { console.warn('[Save] Blocked — QE save already in progress'); return; }
   const tab = wizard.tab;
   // Apply powered/dummy suffix to A units (B units ending in C are never powered)
-  const _rawItemNum = (d.itemNum || d.set_num || '').trim();
+  const _rawItemNum = _normalizeEnteredItemNum(d.itemNum || d.set_num || '');
   const _pdSuffix = (raw, power) => {
     if (!power || raw.endsWith('C')) return raw;
     return raw + (power === 'Powered' ? '-P' : '-D');
