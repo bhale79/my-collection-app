@@ -726,7 +726,13 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     if (!r[0] || r[0] === 'Item Number') return;
     const rowNum = idx + 3;
     const _invId = r[20] || '';
-    const key = _invId || `${r[0]}|${r[1] || ''}|${rowNum}`;
+    let key = _invId || `${r[0]}|${r[1] || ''}|${rowNum}`;
+    // Bug 14 (Session 154): a box row can carry the SAME Inventory ID as its
+    // parent item (a save-time timing collision). Keying solely by Inventory
+    // ID then lets the box (processed second) overwrite the item (first),
+    // dropping the item from memory. Disambiguate on collision so both rows
+    // survive — the item keeps the clean Inventory-ID key.
+    if (newPersonal[key]) key = key + '|' + rowNum;
     newPersonal[key] = {
       row: rowNum, itemNum: r[0]||'', variation: r[1]||'',
       status: 'Owned', owned: true,

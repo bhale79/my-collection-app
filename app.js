@@ -264,6 +264,10 @@ function normalizeItemNum(n) {
 function baseItemNum(n) {
   return normalizeItemNum(n).replace(/[-]?[PDTC]$/i, '');
 }
+// Bug 14 (Session 154): track IDs handed out this session but not yet
+// committed to state — e.g. an item's ID assigned moments before its box's —
+// so back-to-back saves don't collide on the same Inventory ID.
+var _issuedInvIds = {};
 function nextInventoryId() {
   let max = 0;
   const _scanMax = (obj) => {
@@ -277,7 +281,10 @@ function nextInventoryId() {
   _scanMax(state.scienceData);
   _scanMax(state.constructionData);
   _scanMax(state.mySetsData);
-  return String(max + 1);
+  Object.keys(_issuedInvIds).forEach(function(k){ var n=parseInt(k); if(!isNaN(n)&&n>max) max=n; });
+  var next = String(max + 1);
+  _issuedInvIds[next] = true;
+  return next;
 }
 // Look up known box variations from master data for a given item number
 function getBoxVariations(itemNum) {
