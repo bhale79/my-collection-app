@@ -466,7 +466,8 @@ async function saveInstructionSheet() {
   const _isItemNum = (resolvedGroupId && linkedItem)
     ? linkedItem + '-IS'
     : (/-IS$/i.test(String(sheetNum)) ? String(sheetNum) : sheetNum + '-IS');
-  let _isNotes = (d.is_notes || '').trim();
+  let _isNotes = (resolvedGroupId && linkedItem) ? ('Instruction Sheet for ' + linkedItem) : '';
+  if (d.is_notes) _isNotes += (_isNotes ? ' \u00B7 ' : '') + String(d.is_notes).trim();
   if (d.is_formCode) _isNotes += (_isNotes ? ' \u00B7 ' : '') + 'Form ' + d.is_formCode;
   const row = [
     _isItemNum, '', d.is_condition||'', '', d.is_pricePaid||'', '', '', '', '',
@@ -1569,9 +1570,9 @@ async function saveWizardItem() {
         // The user's own sheet number / form code go into the notes.
         const isInvId = nextInventoryId();
         const _isItemNum = itemNum + '-IS';
-        let _isNotes = '';
-        if (isSheetNum && isSheetNum !== _isItemNum) _isNotes = 'Sheet ' + isSheetNum;
-        if (d.is_formCode) _isNotes += (_isNotes ? ' \u00B7 ' : '') + 'Form ' + d.is_formCode;
+        let _isNotes = 'Instruction Sheet for ' + itemNum;
+        if (isSheetNum && isSheetNum !== _isItemNum) _isNotes += ' \u00B7 Sheet ' + isSheetNum;
+        if (d.is_formCode) _isNotes += ' \u00B7 Form ' + d.is_formCode;
         // My Collection row (25 cols A-Y), same shape boxes use.
         const isRow = [
           _isItemNum, '', d.is_condition || '', '', '', '', '', '', '',
