@@ -34,14 +34,32 @@ function _ownedNonBox(state) {
   // so the nav badge matches the collection list (which hides grouped boxes).
   return Object.values(state.personalData).filter(function(pd) {
     if (!pd.owned) return false;
-    if (typeof window !== 'undefined' && typeof window._isGroupedBoxRow === 'function'
-        && window._isGroupedBoxRow(pd)) return false;
+    if (typeof window !== 'undefined' && typeof window._isCollectionCompanion === 'function'
+        && window._isCollectionCompanion(pd)) return false;
     var c = (pd.condition||'').toString().trim();
     var p = (pd.priceItem||'').toString().trim();
     var noCond  = !c || c === 'N/A';
     var noPrice = !p || p === 'N/A';
     return !(pd.hasBox === 'Yes' && noCond && noPrice);
   });
+}
+
+// Push 2 (Session 154): count only standalone instruction sheets — an IS
+// linked to an item the user owns is a companion (folds into that item) and
+// should not add to the collection total.
+function _standaloneISCount(state) {
+  var n = 0;
+  Object.values(state.isData || {}).forEach(function(is) {
+    var linked = (is && is.linkedItem ? is.linkedItem : '').toString().trim();
+    if (!linked) { n++; return; }
+    var ownedParent = Object.values(state.personalData || {}).some(function(p) {
+      if (!p || !p.owned) return false;
+      var base = String(p.itemNum || '').replace(/-(BOX|MBOX)$/i, '');
+      return p.itemNum === linked || base === linked;
+    });
+    if (!ownedParent) n++;
+  });
+  return n;
 }
 
 function _eraOf(pd) {
@@ -95,7 +113,7 @@ var CARD_CATALOG = [
       // Count all owned items including ephemera/IS/science/construction
       var extraCount = 0;
       Object.values(state.ephemeraData||{}).forEach(function(b) { extraCount += Object.keys(b).length; });
-      extraCount += Object.keys(state.isData||{}).length;
+      extraCount += _standaloneISCount(state);
       extraCount += Object.keys(state.scienceData||{}).length;
       extraCount += Object.keys(state.constructionData||{}).length;
       var grand = items.length + extraCount;
@@ -596,7 +614,7 @@ function buildDashboard() {
   // the new unified My Collection page ("All" tab total).
   var _allOwnedCount = owned;
   if (state.mySetsData)       _allOwnedCount += Object.keys(state.mySetsData).length;
-  if (state.isData)           _allOwnedCount += Object.keys(state.isData).length;
+  if (state.isData)           _allOwnedCount += _standaloneISCount(state);
   if (state.scienceData)      _allOwnedCount += Object.keys(state.scienceData).length;
   if (state.constructionData) _allOwnedCount += Object.keys(state.constructionData).length;
   if (state.ephemeraData) {

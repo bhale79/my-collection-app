@@ -527,6 +527,33 @@ function _isGroupedBoxRow(pd) {
 }
 if (typeof window !== 'undefined' && !window._isGroupedBoxRow) window._isGroupedBoxRow = _isGroupedBoxRow;
 
+// Push 2 (Session 154): true when this owned row is a "companion" that should
+// fold into its group's lead item — i.e. a grouped box, OR a non-lead member
+// of a group (tender, extra set car, etc.) whose lead item is also owned.
+// Used to count + display each group as a single item. Lead number is the
+// segment embedded in the groupId: GRP-{leadNum}-{timestamp}.
+function _isCollectionCompanion(pd) {
+  if (!pd || !pd.owned) return false;
+  if (typeof _isGroupedBoxRow === 'function' && _isGroupedBoxRow(pd)) return true;
+  if (!pd.groupId) return false;
+  var parts = String(pd.groupId).split('-');
+  if (parts.length < 3) return false;
+  var leadNum = parts.slice(1, -1).join('-');
+  if (!leadNum) return false;
+  var base = String(pd.itemNum || '').replace(/-(BOX|MBOX)$/i, '');
+  if (base === leadNum) return false; // this row IS the lead
+  // Non-lead member — fold it in only when the lead item is actually owned,
+  // so an orphaned group (lead removed) still shows its remaining members.
+  var pdata = (typeof state !== 'undefined' && state.personalData) ? state.personalData : {};
+  var leadOwned = Object.values(pdata).some(function(p) {
+    return p && p.owned && p.groupId === pd.groupId
+      && String(p.itemNum || '').replace(/-(BOX|MBOX)$/i, '') === leadNum
+      && !/-(BOX|MBOX)$/i.test(p.itemNum || '');
+  });
+  return leadOwned;
+}
+if (typeof window !== 'undefined' && !window._isCollectionCompanion) window._isCollectionCompanion = _isCollectionCompanion;
+
 function _externalSiteLabel(url) {
   if (!url) return 'External';
   var lc = String(url).toLowerCase();
@@ -2133,6 +2160,9 @@ function renderBrowse() {
     const isWanted = !!state.wantData[`${item.itemNum}|${item.variation}`];
     if (state.filters.wantList && !isWanted) return false;
     if (owned && !isOwned) return false;
+    // Push 2 (Session 154): hide companion rows (grouped box, tender, extra set
+    // car) so each group shows as one item via its lead.
+    if (owned && pd && typeof _isCollectionCompanion === 'function' && _isCollectionCompanion(pd)) return false;
     if (unowned && (isOwned || isWanted)) return false;
     if (boxed && !hasBox) return false;
     // Quick Entry filter — only applies when item is owned
