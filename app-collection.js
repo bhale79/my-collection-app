@@ -2026,6 +2026,26 @@ function updateCollectionItem(idx, pdKey) {
   showItemPanel(idx, pdKey, 'edit');
 }
 
+// Delete a single collection photo. Moves the Drive file to TRASH (recoverable
+// from Google Drive) rather than permanently deleting it, after a confirmation.
+async function _deleteCollectionPhoto(fileId, fileName, wrapEl) {
+  if (!fileId) return;
+  var label = String(fileName || 'photo').replace(/\.[^.]+$/, '');
+  var ok = (typeof appConfirm === 'function')
+    ? await appConfirm('Delete photo "' + label + '"?\n\nIt will be moved to your Google Drive trash, where you can still recover it.', { danger: true, ok: 'Delete' })
+    : confirm('Delete photo "' + label + '"? (Moves to Google Drive trash — recoverable)');
+  if (!ok) return;
+  try {
+    if (typeof driveRequest !== 'function') throw new Error('Drive not available');
+    await driveRequest('PATCH', '/files/' + fileId, { trashed: true });
+    if (wrapEl && wrapEl.parentNode) wrapEl.parentNode.removeChild(wrapEl);
+    if (typeof showToast === 'function') showToast('\u2713 Photo deleted (moved to Drive trash)');
+  } catch(e) {
+    console.error('Delete photo error:', e);
+    if (typeof showToast === 'function') showToast('Could not delete photo \u2014 please try again', 4000, true);
+  }
+}
+
 function showItemPanel(idx, pdKey, mode) {
   const pd = state.personalData[pdKey] || {};
   const item = state.masterData[idx] || {
@@ -2186,11 +2206,14 @@ function showItemPanel(idx, pdKey, mode) {
       tr2.innerHTML = '';
       photos.forEach(function(p) {
         const isRSV = p.name.toUpperCase().includes('RSV');
+        // Wrapper so the delete (x) button can be positioned over the thumb.
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'position:relative;display:inline-block;flex-shrink:0';
         const a = document.createElement('a');
         a.href = p.view; a.target = '_blank';
         a.title = p.name.replace(/\.[^.]+$/, '');
         a.style.cssText = 'display:inline-block;border-radius:8px;overflow:hidden;border:2px solid '
-          + (isRSV ? '#2980b9' : 'var(--border)') + ';flex-shrink:0';
+          + (isRSV ? '#2980b9' : 'var(--border)') + ';';
         const img = document.createElement('img');
         img.style.cssText = 'width:80px;height:80px;object-fit:cover;display:block;background:var(--surface2)';
         img.alt = p.name.replace(/\.[^.]+$/, '').split(' ').pop();
@@ -2201,7 +2224,22 @@ function showItemPanel(idx, pdKey, mode) {
         lbl.textContent = p.name.replace(/\.[^.]+$/, '').split(' ').pop();
         a.appendChild(img);
         a.appendChild(lbl);
-        tr2.appendChild(a);
+        wrap.appendChild(a);
+        // Delete (x) button — moves the file to Drive trash (recoverable).
+        const del = document.createElement('button');
+        del.title = 'Delete this photo';
+        del.setAttribute('aria-label', 'Delete this photo');
+        del.innerHTML = '\u00d7';
+        del.style.cssText = 'position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;'
+          + 'border:1.5px solid #fff;background:rgba(231,76,60,0.95);color:#fff;font-size:14px;line-height:1;'
+          + 'cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;z-index:2;'
+          + 'box-shadow:0 1px 3px rgba(0,0,0,0.4)';
+        del.onclick = function(e) {
+          e.preventDefault(); e.stopPropagation();
+          _deleteCollectionPhoto(p.id, p.name, wrap);
+        };
+        wrap.appendChild(del);
+        tr2.appendChild(wrap);
       });
 
     } catch(e) {
