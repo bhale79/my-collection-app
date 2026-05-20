@@ -59,7 +59,7 @@ function _buildWizardModal() {
       '<div class="modal-footer">' +
         '<button class="btn btn-secondary" id="wizard-back-btn" onclick="if(!wizardBack())_doCloseWizard();" style="display:none">&#x2190; Back</button>' +
         '<button class="btn btn-secondary" onclick="closeWizard()">Cancel</button>' +
-        '<button class="btn btn-secondary" id="wizard-skip-photos-btn" onclick="wizardSkipAllPhotos()" style="display:none">&#x23ED; Skip All Photos</button>' +
+        '<button class="btn btn-secondary" id="wizard-skip-photos-btn" onclick="wizardSkipAllPhotos()" style="display:none">&#x23ED; Save &amp; Skip to Review</button>' +
         '<button class="btn btn-primary" id="wizard-next-btn" onclick="wizardNext()">Next &#x2192;</button>' +
       '</div>' +
     '</div>';
@@ -4823,8 +4823,18 @@ function initCondDesc() {
 
 // Phase 1 streamline: skip every remaining drivePhotos step in this flow.
 // Sets a flag the renderWizardStep skip-loop checks on each step transition.
-function wizardSkipAllPhotos() {
+async function wizardSkipAllPhotos() {
   if (!wizard || !wizard.data) return;
+  // Bug 11 (Session 154): wait for any in-flight photo uploads so photos the
+  // user just added persist into the save instead of being dropped by the
+  // async race. Brief "Saving photos…" state while we wait.
+  var _btn = document.getElementById('wizard-skip-photos-btn');
+  var _origHtml = _btn ? _btn.innerHTML : '';
+  if ((wizard.data._photoUploadsInFlight || 0) > 0 && typeof _awaitPhotoUploads === 'function') {
+    if (_btn) { _btn.disabled = true; _btn.innerHTML = 'Saving photos\u2026'; }
+    await _awaitPhotoUploads();
+    if (_btn) { _btn.disabled = false; _btn.innerHTML = _origHtml; }
+  }
   wizard.data._skipAllPhotos = true;
   wizard.step++;
   renderWizardStep();

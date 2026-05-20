@@ -881,6 +881,11 @@ async function saveWizardItem() {
   const d = wizard.data;
   // Guard: prevent any save if a save already completed this wizard session
   if (d._saveComplete) { console.warn('[Save] Blocked — save already completed this wizard session'); return; }
+  // Bug 11 (Session 154): make sure any in-flight photo uploads have finished
+  // so their Drive URLs are in photosItem before we build the row.
+  if (typeof _awaitPhotoUploads === 'function' && (d._photoUploadsInFlight || 0) > 0) {
+    await _awaitPhotoUploads();
+  }
   // Guard: prevent double-save if QE path already fired
   if (d._qeSaving) { console.warn('[Save] Blocked — QE save already in progress'); return; }
   const tab = wizard.tab;

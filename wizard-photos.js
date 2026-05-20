@@ -116,6 +116,10 @@ async function uploadWizardPhoto(file, stepId, viewKey) {
     zone.appendChild(prog2);
   }
 
+  // Bug 11 (Session 154): track in-flight uploads so Skip-All-Photos and the
+  // final save can wait for them — otherwise a quick skip advances before the
+  // Drive upload lands and the photo URL never reaches photosItem.
+  if (wizard && wizard.data) wizard.data._photoUploadsInFlight = (wizard.data._photoUploadsInFlight || 0) + 1;
   try {
     // Pass inventoryId for per-copy subfolder (collection items only)
     // Auto-allocate if not yet assigned (first photo triggers creation)
@@ -147,8 +151,22 @@ async function uploadWizardPhoto(file, stepId, viewKey) {
     showToast('Photo upload failed: ' + e.message);
   } finally {
     if (prog) prog.style.display = 'none';
+    if (wizard && wizard.data) wizard.data._photoUploadsInFlight = Math.max(0, (wizard.data._photoUploadsInFlight || 1) - 1);
   }
 }
+
+// Bug 11 (Session 154): resolve once all in-flight photo uploads finish (or a
+// safety timeout elapses). Called by Skip-All-Photos and the final save so a
+// photo added moments earlier is guaranteed to be in photosItem before save.
+async function _awaitPhotoUploads(maxMs) {
+  maxMs = maxMs || 20000;
+  var start = Date.now();
+  while (wizard && wizard.data && (wizard.data._photoUploadsInFlight || 0) > 0) {
+    if (Date.now() - start > maxMs) break;
+    await new Promise(function(r) { setTimeout(r, 150); });
+  }
+}
+if (typeof window !== 'undefined') window._awaitPhotoUploads = _awaitPhotoUploads;
 
 // ══════════════════════════════════════════════════════════════════
 // IDENTIFY BY PHOTO — Google Lens
