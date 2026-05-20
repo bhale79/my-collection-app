@@ -44,6 +44,19 @@ function _ownedNonBox(state) {
   });
 }
 
+// For Sale entries with grouped companions (box / instruction sheet) folded
+// out, so a group counts as ONE — mirrors _ownedNonBox for the collection.
+function _forSaleLeads(state) {
+  var src = (typeof _filterByEraPref === 'function') ? _filterByEraPref(state.forSaleData || {}) : (state.forSaleData || {});
+  var out = {};
+  Object.keys(src).forEach(function(k){
+    var fs = src[k];
+    if (typeof window !== 'undefined' && typeof window._fsIsGroupedCompanion === 'function' && window._fsIsGroupedCompanion(fs)) return;
+    out[k] = fs;
+  });
+  return out;
+}
+
 // Push 2 (Session 154): count only standalone instruction sheets — an IS
 // linked to an item the user owns is a companion (folds into that item) and
 // should not add to the collection total.
@@ -181,7 +194,7 @@ var CARD_CATALOG = [
     compute: function(state) {
       // Session 121: respect Preferences "What I Collect" in 'all' mode.
       var wantCount = Object.keys(_filterByEraPref(state.wantData||{})).length;
-      var fsCount = Object.keys(_filterByEraPref(state.forSaleData||{})).length;
+      var fsCount = Object.keys(_forSaleLeads(state)).length;
       var soldCount = Object.keys(_filterByEraPref(state.soldData||{})).length;
       // Phase 3 streamline: Quick Entry tile removed from Activity card.
       var html = '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:4px">';
@@ -350,7 +363,7 @@ var CARD_CATALOG = [
     id: 'forsale', label: 'For Sale', color: '#e67e22',
     compute: function(state) {
       // Session 121: respect Preferences "What I Collect" in 'all' mode.
-      var items = Object.values(_filterByEraPref(state.forSaleData||{}));
+      var items = Object.values(_forSaleLeads(state));
       var count = items.length;
       var total = items.reduce(function(s,i) { return s + (parseFloat(i.askingPrice)||0); }, 0);
       return { value: count.toLocaleString() + (count===1?' item':' items'), sub: total > 0 ? _currencySymbol() + Math.round(total).toLocaleString() + ' total asking' : 'no asking prices set' };
@@ -645,7 +658,7 @@ function buildDashboard() {
     else { _mnavQeBadge.style.display='none'; }
   }
   if (document.getElementById('nav-sold')) document.getElementById('nav-sold').textContent = soldCount;
-  var fsCount = Object.keys(state.forSaleData).length;
+  var fsCount = Object.values(state.forSaleData).filter(function(fs){ return !(typeof window !== 'undefined' && typeof window._fsIsGroupedCompanion === 'function' && window._fsIsGroupedCompanion(fs)); }).length;
   if (document.getElementById('nav-forsale')) document.getElementById('nav-forsale').textContent = fsCount;
 
 
@@ -788,7 +801,7 @@ var PANEL_CATALOG = [
     navFn: "showPage('forsale', document.querySelector('.nav-item[onclick*=\\'buildForSalePage\\']')); buildForSalePage();",
     render: function(state) {
       // Session 121: respect Preferences "What I Collect" in 'all' mode.
-      return Object.values(_filterByEraPref(state.forSaleData))
+      return Object.values(_forSaleLeads(state))
         .sort(function(a, b) { return (parseFloat(b.askingPrice) || 0) - (parseFloat(a.askingPrice) || 0); })
         .slice(0, 8)
         .map(function(fs) {

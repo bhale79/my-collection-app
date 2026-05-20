@@ -1255,6 +1255,9 @@ function buildForSalePage() {
   }
   const _fq = (state._forsaleSearch || '').toLowerCase();
   const fsEntries = Object.values(state.forSaleData).filter(fs => {
+    // Grouped companions (box / instruction sheet) fold into their lead —
+    // show and count the group as ONE item, like the collection list.
+    if (typeof window !== 'undefined' && typeof window._fsIsGroupedCompanion === 'function' && window._fsIsGroupedCompanion(fs)) return false;
     // Era filter
     if (typeof _isInCurrentEra === 'function' && !_isInCurrentEra(fs.itemNum)) return false;
     if (!_fq) return true;
@@ -1350,6 +1353,8 @@ async function markForSaleAsSold(itemNum, variation, askingPrice) {
   const dateSold = new Date().toISOString().split('T')[0];
   const fsKey = `${itemNum}|${variation}`;
   const fs = state.forSaleData[fsKey] || {};
+  // Capture group members BEFORE the lead is deleted (we need its groupId link).
+  const _grpMembers = (typeof window !== 'undefined' && typeof window._fsGroupMembers === 'function') ? window._fsGroupMembers(fs) : null;
 
   // Write to Sold tab
   const soldRow = [
@@ -1386,6 +1391,26 @@ async function markForSaleAsSold(itemNum, variation, askingPrice) {
   if (collEntry?.row) {
     await sheetsUpdate(state.personalSheetId, `My Collection!A${collEntry.row}:Y${collEntry.row}`, [['','','','','','','','','','','','','','','','','','','','','','','','','']]);
     delete state.personalData[collKey];
+  }
+
+  // ── Cascade: this Sold row covers the WHOLE group (one price). Remove
+  // every other grouped piece from My Collection, Instruction Sheets, For Sale.
+  if (_grpMembers) {
+    for (const _m of _grpMembers.pd) {
+      if (_m.key === collKey) continue;
+      if (_m.rec && _m.rec.row) { try { await sheetsUpdate(state.personalSheetId, `My Collection!A${_m.rec.row}:Y${_m.rec.row}`, [['','','','','','','','','','','','','','','','','','','','','','','','','']]); } catch(e){} }
+      delete state.personalData[_m.key];
+    }
+    for (const _m of _grpMembers.is) {
+      if (_m.rec && _m.rec.row) { try { await sheetsUpdate(state.personalSheetId, `Instruction Sheets!A${_m.rec.row}:K${_m.rec.row}`, [['','','','','','','','','','','']]); } catch(e){} }
+      if (state.isData) delete state.isData[_m.key];
+    }
+    for (const _f of _grpMembers.fs) {
+      const _mk = (_f.itemNum||'') + '|' + (_f.variation||'');
+      if (_mk === fsKey) continue;
+      if (_f.row) { try { await sheetsUpdate(state.personalSheetId, `For Sale!A${_f.row}:J${_f.row}`, [['','','','','','','','','','']]); } catch(e){} }
+      delete state.forSaleData[_mk];
+    }
   }
 
   // Optimistic state update

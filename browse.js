@@ -554,6 +554,65 @@ function _isCollectionCompanion(pd) {
 }
 if (typeof window !== 'undefined' && !window._isCollectionCompanion) window._isCollectionCompanion = _isCollectionCompanion;
 
+// ── For Sale grouped-item helpers (Session 154) ─────────────────────────────
+// The For Sale tab has no Group ID column, so resolve a row's group through its
+// Inventory ID against the collection / instruction-sheet records (which DO
+// carry groupId). Lets the For Sale list collapse a group to ONE row + count,
+// and lets list actions cascade across every piece.
+function _fsGroupId(fs) {
+  if (!fs) return '';
+  var itemNum   = (typeof fs === 'string') ? fs : (fs.itemNum || '');
+  var variation = (typeof fs === 'object' && fs) ? (fs.variation || '') : '';
+  var invId     = (typeof fs === 'object' && fs) ? (fs.inventoryId || '') : '';
+  var pdata = (typeof state !== 'undefined' && state.personalData) ? state.personalData : {};
+  var pd = (invId && pdata[invId]) || pdata[itemNum + '|' + variation] || null;
+  if (!pd && invId) pd = Object.values(pdata).find(function(p){ return p && p.inventoryId === invId; }) || null;
+  if (pd && pd.groupId) return pd.groupId;
+  var idata = (typeof state !== 'undefined' && state.isData) ? state.isData : {};
+  var isRec = Object.values(idata).find(function(r){
+    return r && ((invId && r.inventoryId === invId) || r.sheetNum === itemNum || ((r.linkedItem || '') + '-IS') === itemNum);
+  });
+  if (isRec && isRec.groupId) return isRec.groupId;
+  return '';
+}
+
+function _fsGroupLeadNum(gid) {
+  var parts = String(gid || '').split('-');
+  if (parts.length < 3) return '';
+  return parts.slice(1, -1).join('-'); // GRP-{leadNum}-{ts} -> leadNum (keeps hyphens)
+}
+
+function _fsIsGroupedCompanion(fs) {
+  var gid = _fsGroupId(fs);
+  if (!gid) return false;
+  var leadNum = _fsGroupLeadNum(gid);
+  if (!leadNum) return false;
+  var itemNum = (typeof fs === 'string') ? fs : (fs.itemNum || '');
+  var base = String(itemNum).replace(/-(BOX|MBOX|IS)$/i, '');
+  return base !== leadNum; // true = non-lead piece (box / instruction sheet)
+}
+
+// Every member of a For Sale row's group: its sibling For Sale rows, plus the
+// collection + instruction-sheet records sharing the groupId.
+function _fsGroupMembers(fs) {
+  var out = { fs: [fs], pd: [], is: [] };
+  var gid = _fsGroupId(fs);
+  if (!gid) return out;
+  var fdata = (typeof state !== 'undefined' && state.forSaleData) ? state.forSaleData : {};
+  Object.values(fdata).forEach(function(f){ if (f !== fs && _fsGroupId(f) === gid) out.fs.push(f); });
+  var pdata = (typeof state !== 'undefined' && state.personalData) ? state.personalData : {};
+  Object.keys(pdata).forEach(function(k){ if (pdata[k] && pdata[k].groupId === gid) out.pd.push({ key: k, rec: pdata[k] }); });
+  var idata = (typeof state !== 'undefined' && state.isData) ? state.isData : {};
+  Object.keys(idata).forEach(function(k){ if (idata[k] && idata[k].groupId === gid) out.is.push({ key: k, rec: idata[k] }); });
+  return out;
+}
+
+if (typeof window !== 'undefined') {
+  if (!window._fsGroupId) window._fsGroupId = _fsGroupId;
+  if (!window._fsIsGroupedCompanion) window._fsIsGroupedCompanion = _fsIsGroupedCompanion;
+  if (!window._fsGroupMembers) window._fsGroupMembers = _fsGroupMembers;
+}
+
 function _externalSiteLabel(url) {
   if (!url) return 'External';
   var lc = String(url).toLowerCase();
