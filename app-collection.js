@@ -1564,330 +1564,92 @@ function collectionActionSold(globalIdx, itemNum, variation, pdRow) {
   _checkSetBeforeAction(pdKey, () => sellFromCollection(globalIdx, pdKey));
 }
 
+// Returns a friendly label for a group member based on its item-number suffix.
+function _grpKind(num) {
+  var u = String(num || '').toUpperCase();
+  if (u.endsWith('-MBOX')) return 'master carton';
+  if (u.endsWith('-BOX'))  return 'box';
+  if (u.endsWith('-IS'))   return 'instruction sheet';
+  return 'item';
+}
+
+// Session 154 redesign: when selling a grouped item, let the user check which
+// pieces are part of THIS sale (sold together for one price). Unchecked pieces
+// stay in the collection (unlinked). Also offers "break up group" (unlink all,
+// keep everything) for cases like trashing a bad box or losing a piece.
 function _checkSetBeforeAction(pdKey, proceed) {
   const pd = state.personalData[pdKey] || {};
   if (!pd.groupId) { proceed(); return; }
-  // Check if this groupId has other members
-  const siblings = Object.entries(state.personalData)
-    .filter(([k, p]) => k !== pdKey && p.groupId === pd.groupId);
-  // Bug 18 (Session 154): grouped instruction sheets live in a separate store —
-  // include them in the group count so the modal reflects the full set.
-  const _isSibCount = Object.values(state.isData || {}).filter(_is => _is && _is.groupId === pd.groupId).length;
-  const _grpTotal = siblings.length + _isSibCount + 1;
-  if (!siblings.length && !_isSibCount) { proceed(); return; }
-  // Show set breakup modal
-  const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
-  overlay.innerHTML = `
-    <div style="background:var(--surface);border-radius:16px;padding:1.5rem;max-width:380px;width:100%;border:1px solid var(--border)">
-      <div style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:0.4rem">This item is part of a set</div>
-      <div style="font-size:0.84rem;color:var(--text-mid);margin-bottom:1.25rem">
-        ${pd.setNum ? 'Set ' + pd.setNum + ' · ' : ''}${_grpTotal} items share this group.
-        What would you like to do?
-      </div>
-      <div style="display:flex;flex-direction:column;gap:0.5rem">
-        <button id="_setaction-proceed" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid #27ae60;background:rgba(39,174,96,0.1);color:#27ae60;font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer;text-align:left">
-          Continue — list as incomplete set<br>
-          <span style="font-weight:400;font-size:0.78rem;color:var(--text-dim)">Other set items keep their group ID</span>
-        </button>
-        <button id="_setaction-break" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid var(--accent);background:rgba(232,64,28,0.08);color:var(--accent);font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer;text-align:left">
-          Break up the set<br>
-          <span style="font-weight:400;font-size:0.78rem;color:var(--text-dim)">Removes group from all ${_grpTotal} items</span>
-        </button>
-        <button id="_setaction-cancel" style="padding:0.75rem;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Cancel</button>
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
-  document.getElementById('_setaction-proceed').onclick = () => { overlay.remove(); proceed(); };
-  document.getElementById('_setaction-cancel').onclick  = () => overlay.remove();
-  document.getElementById('_setaction-break').onclick   = async () => {
-    overlay.remove();
-    const allGroup = [[pdKey, pd], ...siblings];
-
-    // Check if any item has a purchase price (stored on loco)
-    const _priceItem = allGroup.find(([,p]) => p.priceItem && parseFloat(p.priceItem) > 0);
-    const _worthItem = allGroup.find(([,p]) => p.userEstWorth && parseFloat(p.userEstWorth) > 0);
-    const _hasMoney  = _priceItem || _worthItem;
-
-    if (_hasMoney) {
-      const _locoNum   = (_priceItem || _worthItem)[1].itemNum;
-      const _price     = _priceItem ? parseFloat(_priceItem[1].priceItem) : 0;
-      const _worth     = _worthItem ? parseFloat(_worthItem[1].userEstWorth) : 0;
-      const _count     = allGroup.length;
-      const _perPrice  = _price  ? _currencySymbol() + (_price  / _count).toFixed(2) : null;
-      const _perWorth  = _worth  ? _currencySymbol() + (_worth  / _count).toFixed(2) : null;
-
-      // Show price-split modal
-      const o2 = document.createElement('div');
-      o2.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
-      o2.innerHTML = `
-        <div style="background:var(--surface);border-radius:16px;padding:1.5rem;max-width:380px;width:100%;border:1px solid var(--border)">
-          <div style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:0.4rem">What about the price?</div>
-          <div style="font-size:0.84rem;color:var(--text-mid);margin-bottom:1.1rem">
-            ${_price ? 'Purchase price of <strong style="color:var(--text)">$' + _price.toFixed(2) + '</strong>' : ''}
-            ${_price && _worth ? ' and ' : ''}
-            ${_worth ? 'estimated value of <strong style="color:var(--text)">$' + _worth.toFixed(2) + '</strong>' : ''}
-            ${_price || _worth ? ' is stored on the locomotive <span style="font-family:var(--font-mono);color:var(--accent);font-weight:600">' + _locoNum + '</span>.' : ''}
-          </div>
-          <div style="display:flex;flex-direction:column;gap:0.5rem">
-            <button id="_split-even" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid #27ae60;background:rgba(39,174,96,0.1);color:#27ae60;font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer;text-align:left">
-              Split evenly across all ${_count} items<br>
-              <span style="font-weight:400;font-size:0.78rem;color:var(--text-dim)">${[_perPrice ? _perPrice + ' per item (price)' : '', _perWorth ? _perWorth + ' per item (value)' : ''].filter(Boolean).join(' · ')}</span>
-            </button>
-            <button id="_split-assign" style="padding:0.8rem 1rem;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer;text-align:left">
-              Assign value to each item<br>
-              <span style="font-weight:400;font-size:0.78rem;color:var(--text-dim)">Enter price &amp; value individually for each piece</span>
-            </button>
-            <button id="_split-clear" style="padding:0.8rem 1rem;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer;text-align:left">
-              Clear it<br>
-              <span style="font-weight:400;font-size:0.78rem">Remove price &amp; value from all items</span>
-            </button>
-          </div>
-        </div>`;
-      document.body.appendChild(o2);
-
-      const _doBreak = async (splitMode, customValues) => {
-        o2.remove();
-        for (const [k, p] of allGroup) {
-          let newPrice, newWorth;
-          if (splitMode === 'even') {
-            newPrice = _price ? (_price / _count).toFixed(2) : '';
-            newWorth = _worth ? (_worth / _count).toFixed(2) : '';
-          } else if (splitMode === 'clear') {
-            newPrice = '';
-            newWorth = '';
-          } else if (splitMode === 'assign' && customValues) {
-            newPrice = customValues[k]?.price ?? '';
-            newWorth = customValues[k]?.worth ?? '';
-          } else {
-            newPrice = p.priceItem || '';
-            newWorth = p.userEstWorth || '';
-          }
-          state.personalData[k] = { ...p, groupId: '', priceItem: newPrice, userEstWorth: newWorth };
-          if (p.row) {
-            sheetsUpdate(state.personalSheetId, 'My Collection!E' + p.row, [[newPrice]])
-              .catch(e => console.warn('price split row', p.row, e));
-            sheetsUpdate(state.personalSheetId, 'My Collection!N' + p.row, [[newWorth]])
-              .catch(e => console.warn('worth split row', p.row, e));
-            sheetsUpdate(state.personalSheetId, 'My Collection!V' + p.row, [['']])
-              .catch(e => console.warn('clear groupId row', p.row, e));
-          }
-        }
-        _cachePersonalData();
-        const _msg = splitMode === 'even'
-          ? 'Set broken up — price split evenly across ' + _count + ' items'
-          : splitMode === 'clear'
-          ? 'Set broken up — price & value cleared'
-          : splitMode === 'assign'
-          ? 'Set broken up — values assigned per item'
-          : 'Set broken up';
-        showToast(_msg);
-        proceed();
-      };
-
-      // Assign individually — show per-item input screen
-      document.getElementById('_split-assign').onclick = () => {
-        o2.remove();
-        const perEven = { price: _price ? (_price/_count).toFixed(2) : '', worth: _worth ? (_worth/_count).toFixed(2) : '' };
-
-        const o3 = document.createElement('div');
-        o3.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:flex-end;justify-content:center';
-        const sheet = document.createElement('div');
-        sheet.style.cssText = 'background:var(--surface);border-radius:16px 16px 0 0;padding:1.25rem;width:100%;max-width:520px;max-height:85vh;overflow-y:auto;-webkit-overflow-scrolling:touch';
-
-        let html = `<div style="font-family:var(--font-head);font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim);text-align:center;margin-bottom:0.85rem">Assign Price &amp; Value per Item</div>`;
-        html += `<div style="display:grid;grid-template-columns:1fr 90px 90px;gap:0.3rem;margin-bottom:0.4rem;padding:0 0.1rem">
-          <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim)">Item</div>
-          <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);text-align:center">Paid ($)</div>
-          <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);text-align:center">Worth ($)</div>
-        </div>`;
-
-        allGroup.forEach(([k, p], i) => {
-          const master = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(p.itemNum));
-          const desc = master ? (master.roadName || master.description || '') : '';
-          const safeKey = 'assign_' + i;
-          html += `<div style="display:grid;grid-template-columns:1fr 90px 90px;gap:0.3rem;align-items:center;margin-bottom:0.45rem;padding:0.4rem 0.5rem;background:var(--surface2);border-radius:8px">
-            <div>
-              <div style="font-family:var(--font-mono);font-size:0.85rem;font-weight:700;color:var(--accent)">${p.itemNum}</div>
-              ${desc ? `<div style="font-size:0.7rem;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${desc}</div>` : ''}
-            </div>
-            <input type="number" id="${safeKey}_price" value="${perEven.price}" min="0" step="0.01" placeholder="0.00"
-              style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:0.4rem 0.5rem;color:var(--text);font-family:var(--font-mono);font-size:0.85rem;text-align:right;outline:none;box-sizing:border-box">
-            <input type="number" id="${safeKey}_worth" value="${perEven.worth}" min="0" step="0.01" placeholder="0.00"
-              style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:0.4rem 0.5rem;color:var(--text);font-family:var(--font-mono);font-size:0.85rem;text-align:right;outline:none;box-sizing:border-box">
-          </div>`;
-        });
-
-        html += `<div style="display:flex;gap:0.6rem;margin-top:0.75rem;padding-bottom:0.25rem">
-          <button id="_assign-cancel" style="flex:1;padding:0.7rem;border-radius:9px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.88rem;cursor:pointer">Cancel</button>
-          <button id="_assign-save" style="flex:2;padding:0.7rem;border-radius:9px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer">Save &amp; Break Up</button>
-        </div>`;
-
-        sheet.innerHTML = html;
-        o3.appendChild(sheet);
-        document.body.appendChild(o3);
-
-        document.getElementById('_assign-cancel').onclick = () => o3.remove();
-        document.getElementById('_assign-save').onclick = () => {
-          const customValues = {};
-          allGroup.forEach(([k], i) => {
-            const safeKey = 'assign_' + i;
-            customValues[k] = {
-              price: document.getElementById(safeKey + '_price')?.value || '',
-              worth: document.getElementById(safeKey + '_worth')?.value || '',
-            };
-          });
-          o3.remove();
-          _doBreak('assign', customValues);
-        };
-      };
-
-      document.getElementById('_split-even').onclick  = () => _doBreak('even');
-      document.getElementById('_split-clear').onclick = () => _doBreak('clear');
-
-    } else {
-      // No price data — just clear group IDs
-      for (const [k, p] of allGroup) {
-        state.personalData[k] = { ...p, groupId: '' };
-        if (p.row) {
-          sheetsUpdate(state.personalSheetId, 'My Collection!V' + p.row, [['']])
-            .catch(e => console.warn('Clear groupId row', p.row, e));
-        }
-      }
-      _cachePersonalData();
-      showToast('Set broken up — items are now individual');
-      proceed();
+  // Companions: personalData siblings + instruction sheets sharing the group.
+  var comps = Object.entries(state.personalData)
+    .filter(function(e){ return e[0] !== pdKey && e[1].groupId === pd.groupId && e[1].owned; })
+    .map(function(e){ return { key:e[0], source:'pd', num:e[1].itemNum, kind:_grpKind(e[1].itemNum) }; });
+  Object.entries(state.isData || {}).forEach(function(e){
+    if (e[1] && e[1].groupId === pd.groupId) {
+      comps.push({ key:e[0], source:'is', num:(e[1].sheetNum || ((e[1].linkedItem||'') + '-IS')), kind:'instruction sheet' });
     }
+  });
+  if (!comps.length) { proceed(); return; }
+
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+  var leadKind = _grpKind(pd.itemNum);
+  var rowsHtml = '<label style="display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.6rem;border-radius:8px;background:var(--surface2);margin-bottom:0.4rem;opacity:0.85">'
+      + '<input type="checkbox" checked disabled style="width:18px;height:18px">'
+      + '<span style="font-family:var(--font-mono);font-weight:700;color:var(--accent)">' + pd.itemNum + '</span>'
+      + '<span style="font-size:0.78rem;color:var(--text-dim)">' + leadKind + ' — selling</span></label>';
+  rowsHtml += comps.map(function(c,i){
+    return '<label style="display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.6rem;border-radius:8px;background:var(--surface2);margin-bottom:0.4rem;cursor:pointer">'
+      + '<input type="checkbox" id="_gsel_' + i + '" checked style="width:18px;height:18px;cursor:pointer">'
+      + '<span style="font-family:var(--font-mono);font-weight:700;color:var(--accent)">' + c.num + '</span>'
+      + '<span style="font-size:0.78rem;color:var(--text-dim)">' + c.kind + '</span></label>';
+  }).join('');
+
+  overlay.innerHTML = '<div style="background:var(--surface);border-radius:16px;padding:1.5rem;max-width:400px;width:100%;border:1px solid var(--border)">'
+    + '<div style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:0.3rem">This item is part of a group</div>'
+    + '<div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:0.9rem">Check the pieces included in this sale — unchecked pieces stay in your collection.</div>'
+    + rowsHtml
+    + '<div style="display:flex;flex-direction:column;gap:0.5rem;margin-top:0.9rem">'
+    + '<button id="_gs-sell" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid #27ae60;background:rgba(39,174,96,0.1);color:#27ae60;font-family:var(--font-body);font-size:0.9rem;font-weight:700;cursor:pointer;text-align:left">Continue to Sale →<br><span style="font-weight:400;font-size:0.76rem;color:var(--text-dim)">Enter one price for everything checked</span></button>'
+    + '<button id="_gs-break" style="padding:0.7rem 1rem;border-radius:10px;border:1.5px solid var(--accent2);background:rgba(201,146,42,0.08);color:var(--accent2);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer;text-align:left">Break up group (don’t sell)<br><span style="font-weight:400;font-size:0.74rem;color:var(--text-dim)">Unlink all pieces, keep them in your collection</span></button>'
+    + '<button id="_gs-cancel" style="padding:0.6rem;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Cancel</button>'
+    + '</div></div>';
+  document.body.appendChild(overlay);
+
+  document.getElementById('_gs-cancel').onclick = function(){ overlay.remove(); };
+
+  document.getElementById('_gs-sell').onclick = function(){
+    var sellPd=[], sellIs=[], ungroupPd=[], ungroupIs=[];
+    comps.forEach(function(c,i){
+      var cb = document.getElementById('_gsel_' + i);
+      var checked = cb && cb.checked;
+      if (c.source === 'pd') { (checked ? sellPd : ungroupPd).push(c.key); }
+      else { (checked ? sellIs : ungroupIs).push(c.key); }
+    });
+    window._pendingGroupSell = { sellPd:sellPd, sellIs:sellIs, ungroupPd:ungroupPd, ungroupIs:ungroupIs };
+    overlay.remove();
+    proceed();
+  };
+
+  document.getElementById('_gs-break').onclick = async function(){
+    overlay.remove();
+    var pdKeys = [pdKey].concat(comps.filter(function(c){return c.source==='pd';}).map(function(c){return c.key;}));
+    for (var i=0;i<pdKeys.length;i++) {
+      var p = state.personalData[pdKeys[i]];
+      if (p) { p.groupId=''; if (p.row) { try { await sheetsUpdate(state.personalSheetId,'My Collection!V'+p.row,[['']]); } catch(e){} } }
+    }
+    var isComps = comps.filter(function(c){return c.source==='is';});
+    for (var j=0;j<isComps.length;j++) {
+      var ip = state.isData[isComps[j].key];
+      if (ip) { ip.groupId=''; if (ip.row) { try { await sheetsUpdate(state.personalSheetId,'Instruction Sheets!H'+ip.row,[['']]); } catch(e){} } }
+    }
+    _cachePersonalData();
+    if (typeof renderBrowse==='function') renderBrowse();
+    if (typeof buildDashboard==='function') buildDashboard();
+    showToast('✓ Group broken up — all pieces kept in your collection');
   };
 }
 
-async function removeCollectionItem(itemNum, variation, row) {
-  // Check if this item is part of a group with other members
-  // Use row to disambiguate if multiple copies exist
-  var pdKey = findPDKeyByRow(itemNum, variation, row);
-  var thisPd = pdKey ? state.personalData[pdKey] : null;
-  var groupId = thisPd && thisPd.groupId;
-  var groupSiblings = groupId
-    ? Object.values(state.personalData).filter(p => p.groupId === groupId && p.owned)
-    : [];
-  var isGrouped = groupSiblings.length > 1;
-
-  if (isGrouped) {
-    // Show choice modal — remove just this item or the whole group
-    var groupLabels = groupSiblings.map(p => p.itemNum).join(' + ');
-    var choice = await new Promise(function(resolve) {
-      var siblings = groupSiblings.filter(p => p.itemNum !== itemNum).map(p => p.itemNum).join(', ');
-      var overlay = document.createElement('div');
-      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9500;display:flex;align-items:center;justify-content:center;padding:1rem';
-      overlay.innerHTML = `
-        <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:1.5rem;max-width:360px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
-          <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;color:var(--accent);text-transform:uppercase;margin-bottom:0.5rem">Remove Item</div>
-          <div style="font-size:0.9rem;color:var(--text);margin-bottom:0.2rem;line-height:1.5">
-            Item <strong>${itemNum}</strong> is grouped with <strong>${siblings}</strong>.
-          </div>
-          <div style="font-size:0.85rem;color:var(--text-mid);margin-bottom:1.25rem;line-height:1.5">Do you want to remove just this item, or all items in the group?</div>
-          <div style="display:flex;flex-direction:column;gap:0.5rem">
-            <button id="rm-just-one" style="padding:0.55rem 1rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left;line-height:1.4">
-              Remove <strong>${itemNum}</strong> only
-            </button>
-            <button id="rm-all-group" style="padding:0.55rem 1rem;border-radius:8px;border:1.5px solid var(--accent);background:rgba(240,80,8,0.08);color:var(--accent);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left;font-weight:600;line-height:1.4">
-              Remove all grouped items (${groupLabels})
-            </button>
-            <button id="rm-cancel" style="padding:0.45rem 1rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;margin-top:0.25rem">Cancel</button>
-          </div>
-        </div>`;
-      document.body.appendChild(overlay);
-      overlay.querySelector('#rm-just-one').onclick  = function() { document.body.removeChild(overlay); resolve('one'); };
-      overlay.querySelector('#rm-all-group').onclick = function() { document.body.removeChild(overlay); resolve('all'); };
-      overlay.querySelector('#rm-cancel').onclick    = function() { document.body.removeChild(overlay); resolve('cancel'); };
-    });
-    if (choice === 'cancel') return;
-
-    if (choice === 'all') {
-      // Remove every item in the group — delete from bottom to top to avoid row shift issues
-      var sortedSibs = groupSiblings.slice().sort(function(a, b) { return (b.row || 0) - (a.row || 0); });
-      var fsRowsToDelete = [];
-      for (var sib of sortedSibs) {
-        var sibKey = sib.inventoryId || findPDKeyByRow(sib.itemNum, sib.variation, sib.row);
-        if (sib.row && sib.row !== 99999) {
-          try {
-            await sheetsDeleteRow(state.personalSheetId, 'My Collection', sib.row);
-            _adjustRowsAfterDelete(state.personalData, sib.row);
-          } catch(e) { console.warn('Remove group row error:', sib.itemNum, e); }
-        }
-        var sibFsKey = sib.itemNum + '|' + (sib.variation || '');
-        var sibFs = state.forSaleData[sibFsKey];
-        if (sibFs && sibFs.row) {
-          fsRowsToDelete.push(sibFs.row);
-          delete state.forSaleData[sibFsKey];
-        }
-        // 2026-05-18: also clear Upgrade row for each sibling when removing the group.
-        var sibUgKey = sib.itemNum + '|' + (sib.variation || '');
-        var sibUg = state.upgradeData && state.upgradeData[sibUgKey];
-        if (sibUg && sibUg.row) {
-          try {
-            await sheetsUpdate(state.personalSheetId, 'Upgrade List!A' + sibUg.row + ':H' + sibUg.row, [['','','','','','','','']]);
-          } catch(e) { console.warn('Upgrade cleanup (group):', e); }
-          delete state.upgradeData[sibUgKey];
-        }
-        if (sibKey) delete state.personalData[sibKey];
-      }
-      // Delete For Sale rows bottom-to-top
-      fsRowsToDelete.sort(function(a, b) { return b - a; });
-      for (var fsRow of fsRowsToDelete) {
-        try {
-          await sheetsDeleteRow(state.personalSheetId, 'For Sale', fsRow);
-          _adjustRowsAfterDelete(state.forSaleData, fsRow);
-        } catch(e) { console.warn('FS cleanup:', e); }
-      }
-      _cachePersonalData();
-      renderBrowse();
-      buildDashboard();
-      showToast('✓ Removed ' + groupSiblings.length + ' grouped items');
-      return;
-    }
-    // else fall through to remove just this one item
-  } else {
-    // Standalone item — simple confirm
-    if (!(await appConfirm('Remove No. ' + itemNum + (variation ? ' (Var. ' + variation + ')' : '') + ' from your collection?', { danger: true, ok: 'Remove' }))) return;
-  }
-
-  // ── Remove single item ──
-  var _delRow = thisPd ? thisPd.row : row;
-  if (_delRow && _delRow !== 99999) {
-    try {
-      await sheetsDeleteRow(state.personalSheetId, 'My Collection', _delRow);
-    } catch(e) { console.error('Remove row error:', e); showToast('Error removing item — please try again', 3000, true); return; }
-  }
-  // Also remove from For Sale if listed
-  var fsKey = itemNum + '|' + (variation || '');
-  var fsEntry = state.forSaleData[fsKey];
-  if (fsEntry && fsEntry.row) {
-    try {
-      await sheetsDeleteRow(state.personalSheetId, 'For Sale', fsEntry.row);
-      _adjustRowsAfterDelete(state.forSaleData, fsEntry.row);
-    } catch(e) { console.warn('For Sale cleanup:', e); }
-    delete state.forSaleData[fsKey];
-  }
-  // 2026-05-18: also remove from Upgrade list if listed.
-  var ugKey = itemNum + '|' + (variation || '');
-  var ugEntry = state.upgradeData && state.upgradeData[ugKey];
-  if (ugEntry && ugEntry.row) {
-    try {
-      await sheetsUpdate(state.personalSheetId, 'Upgrade List!A' + ugEntry.row + ':H' + ugEntry.row, [['','','','','','','','']]);
-    } catch(e) { console.warn('Upgrade cleanup:', e); }
-    delete state.upgradeData[ugKey];
-  }
-  if (pdKey) delete state.personalData[pdKey];
-  if (_delRow && _delRow !== 99999) _adjustRowsAfterDelete(state.personalData, _delRow);
-  _cachePersonalData();
-  renderBrowse();
-  buildDashboard();
-  showToast('✓ Removed from collection');
-}
-
-// After deleting a sheet row, decrement .row on all in-memory records above that row.
-// This keeps row numbers accurate without a full background reload.
 function _adjustRowsAfterDelete(dataObj, deletedRow) {
   if (!deletedRow || deletedRow === 99999) return;
   Object.values(dataObj).forEach(rec => {

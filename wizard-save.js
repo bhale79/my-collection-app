@@ -1370,6 +1370,31 @@ async function saveWizardItem() {
       } else {
         await sheetsAppend(state.personalSheetId, 'Sold!A:I', [row]);
       }
+      // Bug 19 (Session 154): group sale — handle the other selected pieces
+      // BEFORE deleting the lead row (clearing rows doesn't shift row numbers
+      // the way a delete does, so companion rows stay valid).
+      if (window._pendingGroupSell) {
+        var _gs = window._pendingGroupSell;
+        for (var _i=0; _i<(_gs.sellPd||[]).length; _i++) {
+          var _sp = state.personalData[_gs.sellPd[_i]];
+          if (_sp && _sp.row) { try { await sheetsUpdate(state.personalSheetId, 'My Collection!A'+_sp.row+':Y'+_sp.row, [['','','','','','','','','','','','','','','','','','','','','','','','','']]); } catch(e){} }
+          delete state.personalData[_gs.sellPd[_i]];
+        }
+        for (var _j=0; _j<(_gs.sellIs||[]).length; _j++) {
+          var _ip = (state.isData||{})[_gs.sellIs[_j]];
+          if (_ip && _ip.row) { try { await sheetsUpdate(state.personalSheetId, 'Instruction Sheets!A'+_ip.row+':K'+_ip.row, [['','','','','','','','','','','']]); } catch(e){} }
+          if (state.isData) delete state.isData[_gs.sellIs[_j]];
+        }
+        for (var _k=0; _k<(_gs.ungroupPd||[]).length; _k++) {
+          var _up = state.personalData[_gs.ungroupPd[_k]];
+          if (_up && _up.row) { try { await sheetsUpdate(state.personalSheetId, 'My Collection!V'+_up.row, [['']]); } catch(e){} if (_up) _up.groupId=''; }
+        }
+        for (var _m=0; _m<(_gs.ungroupIs||[]).length; _m++) {
+          var _uip = (state.isData||{})[_gs.ungroupIs[_m]];
+          if (_uip && _uip.row) { try { await sheetsUpdate(state.personalSheetId, 'Instruction Sheets!H'+_uip.row, [['']]); } catch(e){} if (_uip) _uip.groupId=''; }
+        }
+        window._pendingGroupSell = null;
+      }
       // Delete the row from My Collection
       if (collectionEntry?.row) {
         await sheetsDeleteRow(state.personalSheetId, 'My Collection', collectionEntry.row);
