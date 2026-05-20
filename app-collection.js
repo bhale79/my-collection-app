@@ -173,7 +173,7 @@ function showNonItemDetailPage(type, key) {
   html += '<div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap">';
   html +=   '<button onclick="_nonItemDetailEdit(' + typeArg + ',' + keyArg + ')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2980b9;background:rgba(41,128,185,0.1);color:#2980b9;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
        +     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>'
-       +     'Update Info &amp; Add Pictures'
+       +     'Update Info/Pictures'
        +   '</button>';
   html +=   '<button onclick="_collectionSold(' + typeArg + ',' + keyArg + ')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
        +     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>'
@@ -913,7 +913,7 @@ function showItemDetailPage(idx, copyInvId) {
   <div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap">
     <button onclick="showItemDetailPage_edit(${idx})" data-ctip="Edit this item's details and add photos all in one place." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2980b9;background:rgba(41,128,185,0.1);color:#2980b9;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-      Update Info &amp; Add Pictures
+      Update Info/Pictures
     </button>
     <button onclick="collectionActionSold(${idx},'${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}',${pd && pd.row ? pd.row : 0})" data-ctip="Did you sell something? Record that here." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
@@ -1053,7 +1053,6 @@ function showItemDetailPage(idx, copyInvId) {
           + '<div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.6));padding:0.3rem 0.5rem">'
           + '<div style="font-size:0.65rem;color:#fff;font-family:var(--font-head);letter-spacing:0.05em;text-transform:uppercase">' + (p.name||'').replace(/\.[^.]+$/,'') + '</div>'
           + '</div></a>'
-          + '<button onclick="event.preventDefault();event.stopPropagation();_deleteCollectionPhoto(\'' + p.id + '\',\'' + _pn + '\', this.parentElement)" title="Delete this photo" aria-label="Delete this photo" style="position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;border:1.5px solid #fff;background:rgba(231,76,60,0.95);color:#fff;font-size:15px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;z-index:2;box-shadow:0 1px 3px rgba(0,0,0,0.4)">\u00d7</button>'
           + '</div>';
       }).join('');
       // Load each photo thumbnail
@@ -1571,7 +1570,11 @@ function _checkSetBeforeAction(pdKey, proceed) {
   // Check if this groupId has other members
   const siblings = Object.entries(state.personalData)
     .filter(([k, p]) => k !== pdKey && p.groupId === pd.groupId);
-  if (!siblings.length) { proceed(); return; }
+  // Bug 18 (Session 154): grouped instruction sheets live in a separate store —
+  // include them in the group count so the modal reflects the full set.
+  const _isSibCount = Object.values(state.isData || {}).filter(_is => _is && _is.groupId === pd.groupId).length;
+  const _grpTotal = siblings.length + _isSibCount + 1;
+  if (!siblings.length && !_isSibCount) { proceed(); return; }
   // Show set breakup modal
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
@@ -1579,7 +1582,7 @@ function _checkSetBeforeAction(pdKey, proceed) {
     <div style="background:var(--surface);border-radius:16px;padding:1.5rem;max-width:380px;width:100%;border:1px solid var(--border)">
       <div style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:0.4rem">This item is part of a set</div>
       <div style="font-size:0.84rem;color:var(--text-mid);margin-bottom:1.25rem">
-        ${pd.setNum ? 'Set ' + pd.setNum + ' · ' : ''}${siblings.length + 1} items share this group.
+        ${pd.setNum ? 'Set ' + pd.setNum + ' · ' : ''}${_grpTotal} items share this group.
         What would you like to do?
       </div>
       <div style="display:flex;flex-direction:column;gap:0.5rem">
@@ -1589,7 +1592,7 @@ function _checkSetBeforeAction(pdKey, proceed) {
         </button>
         <button id="_setaction-break" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid var(--accent);background:rgba(232,64,28,0.08);color:var(--accent);font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer;text-align:left">
           Break up the set<br>
-          <span style="font-weight:400;font-size:0.78rem;color:var(--text-dim)">Removes group from all ${siblings.length + 1} items</span>
+          <span style="font-weight:400;font-size:0.78rem;color:var(--text-dim)">Removes group from all ${_grpTotal} items</span>
         </button>
         <button id="_setaction-cancel" style="padding:0.75rem;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Cancel</button>
       </div>
