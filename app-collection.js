@@ -1537,28 +1537,13 @@ function _checkGroupBeforeForSale(globalIdx, pdKey) {
   };
 
   // ── SELL INDIVIDUALLY ──
-  document.getElementById('_grpfs-indiv').onclick = async () => {
-    const indivBtn = document.getElementById('_grpfs-indiv');
-    if (indivBtn) { indivBtn.disabled = true; indivBtn.textContent = 'Breaking group…'; }
-    try {
-      const sheetId = state.personalSheetId;
-      // Remove groupId from ALL items in this group
-      for (const [aKey, aPd] of allItems) {
-        if (aPd.row && aPd.row !== 99999) {
-          await sheetsUpdate(sheetId, 'My Collection!V' + aPd.row, [['']]);
-        }
-        aPd.groupId = '';
-      }
-      overlay.remove();
-      showToast('Group broken up — now list your item');
-      renderBrowse();
-      // Proceed to normal For Sale wizard for just this item
-      listForSaleFromCollection(globalIdx, pdKey);
-    } catch(e) {
-      console.error('Group break error:', e);
-      showToast('❌ Error: ' + e.message, 5000, true);
-      if (indivBtn) { indivBtn.disabled = false; indivBtn.textContent = 'Sell individually'; }
-    }
+  document.getElementById('_grpfs-indiv').onclick = () => {
+    // Session 154: DON'T break the group now — that left a half-dismantled
+    // group if the user cancelled at the price step. List the lead and defer
+    // the ungroup until the For Sale row actually saves (cancel-safe).
+    overlay.remove();
+    listForSaleFromCollection(globalIdx, pdKey);
+    if (typeof wizard !== 'undefined' && wizard.data) wizard.data._ungroupOnForSaleSave = pd.groupId;
   };
 }
 

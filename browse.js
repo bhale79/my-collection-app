@@ -2153,7 +2153,7 @@ function renderBrowse() {
   const personalOnlyItems = Object.values(state.personalData)
     .filter(pd => pd.owned && !masterNums.has(pd.itemNum + '|' + (pd.variation||'')))
     .filter(pd => !_eraFilterPersonalOnly)
-    .filter(pd => !_isGroupedBoxRow(pd))
+    .filter(pd => !(typeof _isCollectionCompanion === 'function' ? _isCollectionCompanion(pd) : _isGroupedBoxRow(pd)))
     .map(pd => {
       // Infer type from item number suffix for personal-only items
       let _poType = pd.itemType || '';
@@ -2161,6 +2161,7 @@ function renderBrowse() {
       if (!_poType) {
         if (_num.endsWith('-MBOX'))      _poType = 'Master Carton';
         else if (_num.endsWith('-BOX'))  _poType = 'Box';
+        else if (_num.endsWith('-IS'))   _poType = 'Instruction Sheet';
         else if (_num.endsWith('-P'))    _poType = 'Powered Unit';
         else if (_num.endsWith('-T'))    _poType = 'Dummy Unit';
       }

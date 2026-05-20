@@ -459,20 +459,32 @@ async function saveInstructionSheet() {
     } catch(e) { console.warn('IS photo folder:', e); }
   }
 
+  // Session 154: a sheet is now a normal My Collection item. Grouped (linked
+  // to an item) -> {linkedItem}-IS so it folds like a box; standalone ->
+  // {sheetNum}-IS so it stays recognizable and counts. Form code -> notes.
   const isStandaloneInvId = nextInventoryId();
-  const row = [sheetNum, linkedItem, d.is_year||'', d.is_condition||'', d.is_notes||'', photoLink, isStandaloneInvId, resolvedGroupId, d.is_formCode||'', d.is_pricePaid||'', d.is_estValue||''];
+  const _isItemNum = (resolvedGroupId && linkedItem)
+    ? linkedItem + '-IS'
+    : (/-IS$/i.test(String(sheetNum)) ? String(sheetNum) : sheetNum + '-IS');
+  let _isNotes = (d.is_notes || '').trim();
+  if (d.is_formCode) _isNotes += (_isNotes ? ' \u00B7 ' : '') + 'Form ' + d.is_formCode;
+  const row = [
+    _isItemNum, '', d.is_condition||'', '', d.is_pricePaid||'', '', '', '', '',
+    photoLink || '', '', _isNotes, '', d.is_estValue||'', linkedItem || '',
+    '', d.is_year||'', '', '', '', isStandaloneInvId, resolvedGroupId || '', '', '', '',
+  ];
   try {
-    await ensureEphemeraSheets(state.personalSheetId);
-    await sheetsAppend(state.personalSheetId, 'Instruction Sheets!A:A', [row]);
-    const newKey = Date.now();
-    state.isData[newKey] = {
-      row: newKey, sheetNum, linkedItem, year: d.is_year||'',
-      condition: d.is_condition||'', notes: d.is_notes||'', photoLink,
-      inventoryId: isStandaloneInvId, groupId: resolvedGroupId, formCode: d.is_formCode||'',
-      pricePaid: d.is_pricePaid||'', estValue: d.is_estValue||'',
+    await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
+    state.personalData[isStandaloneInvId] = {
+      row: 99999, itemNum: _isItemNum, variation: '',
+      status: 'Owned', owned: true,
+      condition: d.is_condition||'', notes: _isNotes,
+      photoItem: photoLink || '', matchedTo: linkedItem || '',
+      priceItem: d.is_pricePaid||'', userEstWorth: d.is_estValue||'', yearMade: d.is_year||'',
+      inventoryId: isStandaloneInvId, groupId: resolvedGroupId || '',
     };
-    _stampSaved(state.isData[newKey]);
-    showToast('✓ Instruction Sheet ' + sheetNum + ' saved!');
+    _stampSaved(state.personalData[isStandaloneInvId]);
+    showToast('✓ Instruction Sheet ' + (sheetNum || _isItemNum) + ' saved!');
     closeWizard();
     buildDashboard();
     renderBrowse();
@@ -1347,6 +1359,29 @@ async function saveWizardItem() {
         dateListed: row[4], notes: row[5], originalPrice: fsOrigPrice, estWorth: fsEstWorth,
         inventoryId: collectionEntry?.inventoryId || '',
       };
+      // Session 154: "Sell individually" deferred the group-break to here so a
+      // cancelled wizard never dismantles the group. Now the sale saved, so
+      // ungroup the rest (they stay in the collection as standalone items).
+      if (d._ungroupOnForSaleSave) {
+        var _ugid = d._ungroupOnForSaleSave;
+        for (var _uk in state.personalData) {
+          var _up = state.personalData[_uk];
+          if (_up && _up.groupId === _ugid) {
+            if (_up.row && _up.row !== 99999) { try { await sheetsUpdate(state.personalSheetId, 'My Collection!V' + _up.row, [['']]); } catch(e){} }
+            _up.groupId = '';
+          }
+        }
+        if (state.isData) {
+          for (var _ik in state.isData) {
+            var _ip = state.isData[_ik];
+            if (_ip && _ip.groupId === _ugid) {
+              if (_ip.row) { try { await sheetsUpdate(state.personalSheetId, 'Instruction Sheets!H' + _ip.row, [['']]); } catch(e){} }
+              _ip.groupId = '';
+            }
+          }
+        }
+        d._ungroupOnForSaleSave = null;
+      }
 
     } else if (tab === 'sold') {
       const collectionEntry = d.selectedSoldKey ? state.personalData[d.selectedSoldKey] : null;
