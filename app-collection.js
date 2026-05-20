@@ -1687,6 +1687,134 @@ async function _breakUpGroupFromDetail(idx, itemNum, variation) {
   if (typeof showItemDetailPage === 'function') showItemDetailPage(idx, window._lastDetailCopyInv);
 }
 
+// Restored Session 154: shared collection-item removal used by the list
+// Remove buttons and the detail-page Remove. For grouped items it offers
+// remove-just-this vs remove-whole-group.
+async function removeCollectionItem(itemNum, variation, row) {
+  // Check if this item is part of a group with other members
+  // Use row to disambiguate if multiple copies exist
+  var pdKey = findPDKeyByRow(itemNum, variation, row);
+  var thisPd = pdKey ? state.personalData[pdKey] : null;
+  var groupId = thisPd && thisPd.groupId;
+  var groupSiblings = groupId
+    ? Object.values(state.personalData).filter(p => p.groupId === groupId && p.owned)
+    : [];
+  var isGrouped = groupSiblings.length > 1;
+
+  if (isGrouped) {
+    // Show choice modal — remove just this item or the whole group
+    var groupLabels = groupSiblings.map(p => p.itemNum).join(' + ');
+    var choice = await new Promise(function(resolve) {
+      var siblings = groupSiblings.filter(p => p.itemNum !== itemNum).map(p => p.itemNum).join(', ');
+      var overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9500;display:flex;align-items:center;justify-content:center;padding:1rem';
+      overlay.innerHTML = `
+        <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:1.5rem;max-width:360px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
+          <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;color:var(--accent);text-transform:uppercase;margin-bottom:0.5rem">Remove Item</div>
+          <div style="font-size:0.9rem;color:var(--text);margin-bottom:0.2rem;line-height:1.5">
+            Item <strong>${itemNum}</strong> is grouped with <strong>${siblings}</strong>.
+          </div>
+          <div style="font-size:0.85rem;color:var(--text-mid);margin-bottom:1.25rem;line-height:1.5">Do you want to remove just this item, or all items in the group?</div>
+          <div style="display:flex;flex-direction:column;gap:0.5rem">
+            <button id="rm-just-one" style="padding:0.55rem 1rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left;line-height:1.4">
+              Remove <strong>${itemNum}</strong> only
+            </button>
+            <button id="rm-all-group" style="padding:0.55rem 1rem;border-radius:8px;border:1.5px solid var(--accent);background:rgba(240,80,8,0.08);color:var(--accent);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left;font-weight:600;line-height:1.4">
+              Remove all grouped items (${groupLabels})
+            </button>
+            <button id="rm-cancel" style="padding:0.45rem 1rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;margin-top:0.25rem">Cancel</button>
+          </div>
+        </div>`;
+      document.body.appendChild(overlay);
+      overlay.querySelector('#rm-just-one').onclick  = function() { document.body.removeChild(overlay); resolve('one'); };
+      overlay.querySelector('#rm-all-group').onclick = function() { document.body.removeChild(overlay); resolve('all'); };
+      overlay.querySelector('#rm-cancel').onclick    = function() { document.body.removeChild(overlay); resolve('cancel'); };
+    });
+    if (choice === 'cancel') return;
+
+    if (choice === 'all') {
+      // Remove every item in the group — delete from bottom to top to avoid row shift issues
+      var sortedSibs = groupSiblings.slice().sort(function(a, b) { return (b.row || 0) - (a.row || 0); });
+      var fsRowsToDelete = [];
+      for (var sib of sortedSibs) {
+        var sibKey = sib.inventoryId || findPDKeyByRow(sib.itemNum, sib.variation, sib.row);
+        if (sib.row && sib.row !== 99999) {
+          try {
+            await sheetsDeleteRow(state.personalSheetId, 'My Collection', sib.row);
+            _adjustRowsAfterDelete(state.personalData, sib.row);
+          } catch(e) { console.warn('Remove group row error:', sib.itemNum, e); }
+        }
+        var sibFsKey = sib.itemNum + '|' + (sib.variation || '');
+        var sibFs = state.forSaleData[sibFsKey];
+        if (sibFs && sibFs.row) {
+          fsRowsToDelete.push(sibFs.row);
+          delete state.forSaleData[sibFsKey];
+        }
+        // 2026-05-18: also clear Upgrade row for each sibling when removing the group.
+        var sibUgKey = sib.itemNum + '|' + (sib.variation || '');
+        var sibUg = state.upgradeData && state.upgradeData[sibUgKey];
+        if (sibUg && sibUg.row) {
+          try {
+            await sheetsUpdate(state.personalSheetId, 'Upgrade List!A' + sibUg.row + ':H' + sibUg.row, [['','','','','','','','']]);
+          } catch(e) { console.warn('Upgrade cleanup (group):', e); }
+          delete state.upgradeData[sibUgKey];
+        }
+        if (sibKey) delete state.personalData[sibKey];
+      }
+      // Delete For Sale rows bottom-to-top
+      fsRowsToDelete.sort(function(a, b) { return b - a; });
+      for (var fsRow of fsRowsToDelete) {
+        try {
+          await sheetsDeleteRow(state.personalSheetId, 'For Sale', fsRow);
+          _adjustRowsAfterDelete(state.forSaleData, fsRow);
+        } catch(e) { console.warn('FS cleanup:', e); }
+      }
+      _cachePersonalData();
+      renderBrowse();
+      buildDashboard();
+      showToast('✓ Removed ' + groupSiblings.length + ' grouped items');
+      return;
+    }
+    // else fall through to remove just this one item
+  } else {
+    // Standalone item — simple confirm
+    if (!(await appConfirm('Remove No. ' + itemNum + (variation ? ' (Var. ' + variation + ')' : '') + ' from your collection?', { danger: true, ok: 'Remove' }))) return;
+  }
+
+  // ── Remove single item ──
+  var _delRow = thisPd ? thisPd.row : row;
+  if (_delRow && _delRow !== 99999) {
+    try {
+      await sheetsDeleteRow(state.personalSheetId, 'My Collection', _delRow);
+    } catch(e) { console.error('Remove row error:', e); showToast('Error removing item — please try again', 3000, true); return; }
+  }
+  // Also remove from For Sale if listed
+  var fsKey = itemNum + '|' + (variation || '');
+  var fsEntry = state.forSaleData[fsKey];
+  if (fsEntry && fsEntry.row) {
+    try {
+      await sheetsDeleteRow(state.personalSheetId, 'For Sale', fsEntry.row);
+      _adjustRowsAfterDelete(state.forSaleData, fsEntry.row);
+    } catch(e) { console.warn('For Sale cleanup:', e); }
+    delete state.forSaleData[fsKey];
+  }
+  // 2026-05-18: also remove from Upgrade list if listed.
+  var ugKey = itemNum + '|' + (variation || '');
+  var ugEntry = state.upgradeData && state.upgradeData[ugKey];
+  if (ugEntry && ugEntry.row) {
+    try {
+      await sheetsUpdate(state.personalSheetId, 'Upgrade List!A' + ugEntry.row + ':H' + ugEntry.row, [['','','','','','','','']]);
+    } catch(e) { console.warn('Upgrade cleanup:', e); }
+    delete state.upgradeData[ugKey];
+  }
+  if (pdKey) delete state.personalData[pdKey];
+  if (_delRow && _delRow !== 99999) _adjustRowsAfterDelete(state.personalData, _delRow);
+  _cachePersonalData();
+  renderBrowse();
+  buildDashboard();
+  showToast('✓ Removed from collection');
+}
+
 function _adjustRowsAfterDelete(dataObj, deletedRow) {
   if (!deletedRow || deletedRow === 99999) return;
   Object.values(dataObj).forEach(rec => {
