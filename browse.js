@@ -541,14 +541,14 @@ function _isCollectionCompanion(pd) {
   var leadNum = parts.slice(1, -1).join('-');
   if (!leadNum) return false;
   var base = String(pd.itemNum || '').replace(/-(BOX|MBOX|IS)$/i, '');
-  if (base === leadNum) return false; // this row IS the lead
+  if (base === leadNum && !/-(BOX|MBOX|IS)$/i.test(String(pd.itemNum || ''))) return false; // this row IS the lead
   // Non-lead member — fold it in only when the lead item is actually owned,
   // so an orphaned group (lead removed) still shows its remaining members.
   var pdata = (typeof state !== 'undefined' && state.personalData) ? state.personalData : {};
   var leadOwned = Object.values(pdata).some(function(p) {
     return p && p.owned && p.groupId === pd.groupId
       && String(p.itemNum || '').replace(/-(BOX|MBOX|IS)$/i, '') === leadNum
-      && !/-(BOX|MBOX)$/i.test(p.itemNum || '');
+      && !/-(BOX|MBOX|IS)$/i.test(p.itemNum || '');
   });
   return leadOwned;
 }
@@ -589,7 +589,7 @@ function _fsIsGroupedCompanion(fs) {
   if (!leadNum) return false;
   var itemNum = (typeof fs === 'string') ? fs : (fs.itemNum || '');
   var base = String(itemNum).replace(/-(BOX|MBOX|IS)$/i, '');
-  return base !== leadNum; // true = non-lead piece (box / instruction sheet)
+  return !(base === leadNum && !/-(BOX|MBOX|IS)$/i.test(String(itemNum))); // companion = any group member that isn't the lead
 }
 
 // Every member of a For Sale row's group: its sibling For Sale rows, plus the
