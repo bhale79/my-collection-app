@@ -1492,43 +1492,43 @@ function _checkGroupBeforeForSale(globalIdx, pdKey) {
     try {
       const today = new Date().toISOString().split('T')[0];
       const sheetId = state.personalSheetId;
-      // Lead item gets full price
-      for (let i = 0; i < allItems.length; i++) {
-        const [aKey, aPd] = allItems[i];
-        const isLead = i === 0;
-        const fsKey = aPd.itemNum + '|' + (aPd.variation || '');
-        const fsRow = [
-          aPd.itemNum, aPd.variation || '',
-          aPd.condition || '',
-          isLead ? askingPrice : '',
-          today,
-          isLead ? 'Set sale: ' + itemList : 'Set price on ' + pd.itemNum + ' — set sale: ' + itemList,
-          aPd.priceItem || '',
-          aPd.userEstWorth || '',
-          aPd.inventoryId || '',
-          aPd.manufacturer || _getEraManufacturer(),
-        ];
-        const existingFs = state.forSaleData[fsKey];
-        if (existingFs && existingFs.row) {
-          await sheetsUpdate(sheetId, 'For Sale!A' + existingFs.row + ':J' + existingFs.row, [fsRow]);
-        } else {
-          await sheetsAppend(sheetId, 'For Sale!A:J', [fsRow]);
-        }
-        state.forSaleData[fsKey] = {
-          row: existingFs ? existingFs.row : 99999,
-          itemNum: aPd.itemNum, variation: aPd.variation || '',
-          condition: aPd.condition || '', askingPrice: isLead ? askingPrice : '',
-          dateListed: today,
-          notes: fsRow[5], originalPrice: aPd.priceItem || '',
-          estWorth: aPd.userEstWorth || '',
-          inventoryId: aPd.inventoryId || '',
-        };
+      // Session 154: list ONLY the lead row for the whole set (one price). The
+      // box / instruction sheet stay in the collection, grouped — they do NOT
+      // get their own For Sale rows. The For Sale list resolves the group via
+      // the lead's Inventory ID and its actions cascade across every piece.
+      const fsKey = pd.itemNum + '|' + (pd.variation || '');
+      const fsRow = [
+        pd.itemNum, pd.variation || '',
+        pd.condition || '',
+        askingPrice,
+        today,
+        'Set sale: ' + itemList,
+        pd.priceItem || '',
+        pd.userEstWorth || '',
+        pd.inventoryId || '',
+        pd.manufacturer || _getEraManufacturer(),
+      ];
+      const existingFs = state.forSaleData[fsKey];
+      if (existingFs && existingFs.row) {
+        await sheetsUpdate(sheetId, 'For Sale!A' + existingFs.row + ':J' + existingFs.row, [fsRow]);
+      } else {
+        await sheetsAppend(sheetId, 'For Sale!A:J', [fsRow]);
       }
+      state.forSaleData[fsKey] = {
+        row: existingFs ? existingFs.row : 99999,
+        itemNum: pd.itemNum, variation: pd.variation || '',
+        condition: pd.condition || '', askingPrice: askingPrice,
+        dateListed: today,
+        notes: fsRow[5], originalPrice: pd.priceItem || '',
+        estWorth: pd.userEstWorth || '',
+        inventoryId: pd.inventoryId || '',
+      };
       overlay.remove();
       _cachePersonalData();
       buildForSalePage();
+      if (typeof buildDashboard === 'function') buildDashboard();
       renderBrowse();
-      showToast('✓ ' + allItems.length + ' items listed for sale as a set!');
+      showToast('✓ Set listed for sale for ' + _currencySymbol() + parseFloat(askingPrice).toLocaleString());
     } catch(e) {
       console.error('Group for sale error:', e);
       showToast('❌ Error: ' + e.message, 5000, true);
