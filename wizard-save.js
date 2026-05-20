@@ -714,7 +714,7 @@ async function savePhotoOnlyUpdate() {
   // photo shows immediately instead of requiring a back-out / refresh.
   if (typeof window._lastDetailIdx === 'number' && window._lastDetailIdx >= 0
       && typeof showItemDetailPage === 'function') {
-    setTimeout(function() { showItemDetailPage(window._lastDetailIdx); }, 0);
+    setTimeout(function() { showItemDetailPage(window._lastDetailIdx, window._lastDetailCopyInv); }, 0);
   }
 }
 

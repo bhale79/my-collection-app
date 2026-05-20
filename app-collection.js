@@ -949,6 +949,8 @@ function showItemDetailPage(idx, copyInvId) {
     { label: 'Year Made', val: pd && pd.yearMade ? pd.yearMade : null },
     { label: 'Location', val: pd && pd.location ? pd.location : null },
     { label: 'Inventory ID', val: pd && pd.inventoryId ? pd.inventoryId : null },
+    { label: 'Instruction Sheet', val: pd ? (((groupMembers && groupMembers.some(function(m){return m._isIS;})) || (state.isData && Object.values(state.isData).some(function(_is){ return _is && _is.linkedItem === it.itemNum; }))) ? '\u2705 Yes' : 'No') : null },
+    { label: 'Error Item', val: pd ? ((pd.isError === 'Yes') ? '\u26a0\ufe0f Yes' + (pd.errorDesc ? ' \u2014 ' + String(pd.errorDesc).replace(/</g,'&lt;') : '') : 'No') : null },
   ].filter(d => d.val);
 
   const matchedTo = pd && pd.matchedTo ? pd.matchedTo : '';
@@ -1040,11 +1042,15 @@ function showItemDetailPage(idx, copyInvId) {
         return;
       }
       el.innerHTML = photos.map(function(p) {
-        return '<a href="' + p.view + '" target="_blank" rel="noopener" style="display:block;border-radius:8px;overflow:hidden;background:var(--surface2);aspect-ratio:1;position:relative">'
+        var _pn = (p.name||'').replace(/'/g,"\\'");
+        return '<div style="position:relative">'
+          + '<a href="' + p.view + '" target="_blank" rel="noopener" style="display:block;border-radius:8px;overflow:hidden;background:var(--surface2);aspect-ratio:1;position:relative">'
           + '<img id="idp-' + p.id + '" style="width:100%;height:100%;object-fit:cover;border-radius:8px;transition:opacity 0.3s" alt="' + (p.name||'Photo') + '">'
           + '<div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.6));padding:0.3rem 0.5rem">'
           + '<div style="font-size:0.65rem;color:#fff;font-family:var(--font-head);letter-spacing:0.05em;text-transform:uppercase">' + (p.name||'').replace(/\.[^.]+$/,'') + '</div>'
-          + '</div></a>';
+          + '</div></a>'
+          + '<button onclick="event.preventDefault();event.stopPropagation();_deleteCollectionPhoto(\'' + p.id + '\',\'' + _pn + '\', this.parentElement)" title="Delete this photo" aria-label="Delete this photo" style="position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;border:1.5px solid #fff;background:rgba(231,76,60,0.95);color:#fff;font-size:15px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;z-index:2;box-shadow:0 1px 3px rgba(0,0,0,0.4)">\u00d7</button>'
+          + '</div>';
       }).join('');
       // Load each photo thumbnail
       photos.forEach(function(p) {
@@ -2070,7 +2076,7 @@ async function _deleteCollectionPhoto(fileId, fileName, wrapEl) {
     // before the card re-fetches the folder listing.
     if (typeof window._lastDetailIdx === 'number' && window._lastDetailIdx >= 0
         && typeof showItemDetailPage === 'function') {
-      setTimeout(function() { showItemDetailPage(window._lastDetailIdx); }, 200);
+      setTimeout(function() { showItemDetailPage(window._lastDetailIdx, window._lastDetailCopyInv); }, 200);
     }
   } catch(e) {
     console.error('Delete photo error:', e);
@@ -2464,7 +2470,7 @@ function showItemPanel(idx, pdKey, mode) {
         // Re-render the detail page so edited fields + photos show immediately.
         if (typeof window._lastDetailIdx === 'number' && window._lastDetailIdx >= 0
             && typeof showItemDetailPage === 'function') {
-          showItemDetailPage(window._lastDetailIdx);
+          showItemDetailPage(window._lastDetailIdx, window._lastDetailCopyInv);
         }
       } catch(e) {
         saveBtn.textContent = '💾 Save All Changes'; saveBtn.disabled = false;
