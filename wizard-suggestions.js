@@ -145,6 +145,21 @@ function handleUnitNumKey(e, field) {
   }
 }
 
+// Bug 9 (Session 154): pull the item-number token out of a longer query
+// like "MTH Premier 20-93699" or "Lionel 736 berkshire" so the lookup
+// matches on the number, not the whole descriptive string. Returns the
+// first token with 2+ digits or a digit-hyphen-digit shape; else the
+// first token (legacy behavior for pure text searches).
+function _extractSearchItemNum(query) {
+  if (!query) return '';
+  var toks = String(query).trim().split(/\s+/);
+  for (var i = 0; i < toks.length; i++) {
+    var t = toks[i];
+    if (/\d{2,}/.test(t) || /\d-\d/.test(t)) return t;
+  }
+  return toks[0] || '';
+}
+
 function updateItemSuggestions(query) {
   // NOTE: `wizard` in wizard.js is declared with `let` at script top-level,
   // which creates a global LEXICAL binding (visible to other scripts) but
@@ -180,10 +195,15 @@ function updateItemSuggestions(query) {
   } else {
     // Collection + Want: search master list by item number OR description/road name
     // Detect search mode: if query starts with a digit, prioritize item number matching
-    const startsWithDigit = /^\d/.test(q);
+    // Bug 9 (Session 154): extract the item-number token from anywhere in
+    // the query (handles "MTH Premier 20-93699"), and treat manufacturer/
+    // line words as non-filtering context.
+    const _searchNum = _extractSearchItemNum(q);
+    const startsWithDigit = /\d{2,}/.test(_searchNum) || /\d-\d/.test(_searchNum);
     const qParts = q.split(/\s+/);
-    const numPart = qParts[0];
-    const keyParts = qParts.slice(1).filter(p => p.length > 0);
+    const numPart = _searchNum;
+    const _stopWords = new Set((window.ITEM_SEARCH_FILTERS && window.ITEM_SEARCH_FILTERS.searchStopWords) || []);
+    const keyParts = qParts.filter(p => p && p !== _searchNum && !_stopWords.has(p));
 
     // Active filter values from the Type / Road dropdowns (blank = any).
     // These live on wizard.data so they survive step navigation but get
@@ -635,7 +655,10 @@ function lookupItem(num) {
   // `find(...itemNum === num)` would stop at whichever row came first
   // in iteration order — e.g., for item 773 that returned the
   // Accessory row even if the user had picked the Steam Engine.
-  const _numLC = num.trim().toLowerCase();
+  // Bug 9 (Session 154): match on the item-number token, not the full
+  // descriptive string the user may have typed.
+  const _searchNum = (typeof _extractSearchItemNum === 'function') ? _extractSearchItemNum(num) : num;
+  const _numLC = _searchNum.trim().toLowerCase();
   const _d = (typeof wizard !== 'undefined' && wizard && wizard.data) ? wizard.data : null;
   const _prefType = _d && _d._suggestedItemType ? String(_d._suggestedItemType).trim() : '';
   const _prefRoad = _d && _d._suggestedRoadName ? String(_d._suggestedRoadName).trim() : '';
@@ -658,7 +681,7 @@ function lookupItem(num) {
   wizard.matchedItem = match || null;
   const el = document.getElementById('wiz-match');
   if (!el) return;
-  const trimmed = num.trim();
+  const trimmed = _searchNum.trim();
   if (!trimmed) { el.innerHTML = ''; return; }
 
   if (wizard.tab === 'sold' || wizard.tab === 'forsale') {

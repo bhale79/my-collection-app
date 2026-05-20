@@ -3,6 +3,18 @@
 // Used in suggestion cards, photo headers, and detail panels — does NOT change matching/save logic.
 function _typeLabel(m){ return (typeof getTypeBucketLabel === 'function') ? getTypeBucketLabel(m) : ((m && m.itemType) || ''); }
 
+// Bug 10 (Session 154): compose "Road Name — Description" for banners and
+// item cards so users see the road (e.g. "Norfolk Southern — 50' Dbl. Door
+// Plugged Box Car"). Skips the prefix when the road is already inside the
+// description, and falls back to whichever piece is present.
+function _composeRoadDesc(m) {
+  if (!m) return '';
+  var rd = String(m.roadName || '').trim();
+  var ds = String(m.description || _typeLabel(m) || '').trim();
+  if (rd && ds && ds.toLowerCase().indexOf(rd.toLowerCase()) === -1) return rd + ' \u2014 ' + ds;
+  return ds || rd;
+}
+
 // Picker state — declared at top so available to all onclick handlers
 // ── _pickerStepId / _pickerViewKey state moved to wizard-photos.js (Session 110, Chunk 4) ──
 
@@ -719,7 +731,7 @@ function _renderAddingBanner() {
       match = findMaster(num);
     }
     if (match) {
-      desc = match.description || match.roadName || _typeLabel(match) || '';
+      desc = _composeRoadDesc(match);
     } else if (d.manualDesc) {
       desc = d.manualDesc;
     } else if (d._resolvedSet && d._resolvedSet.setName) {
@@ -3993,7 +4005,7 @@ function renderWizardStep() {
     // Determine columns
     // Bugfix 2026-04-14: include the master description on each column so users
     // can visually verify the item after a barcode scan (where they only see the #).
-    const _cdMainDesc = (_cdMaster && (_cdMaster.description || _cdMaster.roadName || _typeLabel(_cdMaster))) || '';
+    const _cdMainDesc = _composeRoadDesc(_cdMaster);
     const _cdCols = [];
     if (_cdGrouping === 'engine_tender') {
       const _tenders = getMatchingTenders(_cdItemNum);

@@ -108,6 +108,18 @@ window.ITEM_SEARCH_FILTERS = {
     { match: /(paper|box|misc|instruction|catalog|companion|service)/i, priority: 90 },
   ],
   itemTypePriorityDefault: 60,
+
+  // Bug 9 (Session 154): when the user types a descriptive query like
+  // "MTH Premier 20-93699" or "Lionel 736 berkshire", these words are
+  // manufacturer/product-line context that won't appear in a master
+  // row's description. They're stripped before the remaining words are
+  // used as description filters, so the item-number token still matches.
+  // (The item-number token itself is detected separately.)
+  searchStopWords: [
+    'mth', 'lionel', 'atlas', 'weaver', 'williams', 'rmt', 'k-line', 'kline',
+    'menards', 'bachmann', 'premier', 'railking', 'rail-king', 'tinplate',
+    'standard', 'o', 'ho', 's', 'g', 'gauge', 'scale', 'the', 'by',
+  ],
 };
 
 // ─── Shared resolver ──────────────────────────────────────────────
