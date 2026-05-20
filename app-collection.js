@@ -932,6 +932,10 @@ function showItemDetailPage(idx, copyInvId) {
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
       Add to Upgrade List
     </button>
+    ${(pd && pd.groupId) ? `<button onclick="_breakUpGroupFromDetail(${idx},'${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}')" data-ctip="Unlink the pieces in this group — they all stay in your collection." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:rgba(201,146,42,0.1);color:var(--accent2);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      Break Up Group
+    </button>` : ''}
     <button onclick="_removeFromCollectionDetail(${idx},'${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}')" data-ctip="Remove this item from your collection." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e74c3c;background:rgba(231,76,60,0.1);color:#e74c3c;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
       Remove from Collection
@@ -1561,7 +1565,7 @@ function _checkGroupBeforeForSale(globalIdx, pdKey) {
 function collectionActionSold(globalIdx, itemNum, variation, pdRow) {
   var pdKey = pdRow ? findPDKeyByRow(itemNum, variation, pdRow) : findPDKey(itemNum, variation);
   if (!pdKey) { showToast('Item not found in collection', 3000, true); return; }
-  _checkSetBeforeAction(pdKey, () => sellFromCollection(globalIdx, pdKey));
+  _checkSetBeforeAction(pdKey, globalIdx, function(saleIdx, saleKey){ sellFromCollection(saleIdx, saleKey); });
 }
 
 // Returns a friendly label for a group member based on its item-number suffix.
@@ -1573,32 +1577,35 @@ function _grpKind(num) {
   return 'item';
 }
 
-// Session 154 redesign: when selling a grouped item, let the user check which
-// pieces are part of THIS sale (sold together for one price). Unchecked pieces
-// stay in the collection (unlinked). Also offers "break up group" (unlink all,
-// keep everything) for cases like trashing a bad box or losing a piece.
-function _checkSetBeforeAction(pdKey, proceed) {
+// Session 154 v2 redesign (Brad): when selling a grouped item, show EVERY piece
+// as a toggleable checkbox (including the lead item itself) so the user can sell
+// any subset — e.g. just the box. Unchecked pieces are unlinked from the group
+// and stay in the collection. The whole sale is recorded for ONE price.
+// "Break up group" without selling now lives on the item detail page instead.
+//   proceed(saleIdx, saleKey) opens the sell wizard anchored on the first checked
+//   piece (which may be a companion box, not the lead).
+function _checkSetBeforeAction(pdKey, leadIdx, proceed) {
   const pd = state.personalData[pdKey] || {};
-  if (!pd.groupId) { proceed(); return; }
-  // Companions: personalData siblings + instruction sheets sharing the group.
-  var comps = Object.entries(state.personalData)
-    .filter(function(e){ return e[0] !== pdKey && e[1].groupId === pd.groupId && e[1].owned; })
-    .map(function(e){ return { key:e[0], source:'pd', num:e[1].itemNum, kind:_grpKind(e[1].itemNum) }; });
-  Object.entries(state.isData || {}).forEach(function(e){
-    if (e[1] && e[1].groupId === pd.groupId) {
-      comps.push({ key:e[0], source:'is', num:(e[1].sheetNum || ((e[1].linkedItem||'') + '-IS')), kind:'instruction sheet' });
-    }
-  });
-  if (!comps.length) { proceed(); return; }
+  // Unified piece list: lead first, then companions (pd siblings + instruction sheets).
+  var pieces = [{ key: pdKey, source: 'pd', num: pd.itemNum, kind: _grpKind(pd.itemNum), idx: leadIdx }];
+  if (pd.groupId) {
+    Object.entries(state.personalData).forEach(function(e){
+      if (e[0] !== pdKey && e[1].groupId === pd.groupId && e[1].owned) {
+        pieces.push({ key: e[0], source: 'pd', num: e[1].itemNum, kind: _grpKind(e[1].itemNum), idx: -1 });
+      }
+    });
+    Object.entries(state.isData || {}).forEach(function(e){
+      if (e[1] && e[1].groupId === pd.groupId) {
+        pieces.push({ key: e[0], source: 'is', num: (e[1].sheetNum || ((e[1].linkedItem||'') + '-IS')), kind: 'instruction sheet', idx: -1 });
+      }
+    });
+  }
+  // Not a group (or only the lead) — go straight to the sell wizard.
+  if (pieces.length <= 1) { proceed(leadIdx, pdKey); return; }
 
   var overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
-  var leadKind = _grpKind(pd.itemNum);
-  var rowsHtml = '<label style="display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.6rem;border-radius:8px;background:var(--surface2);margin-bottom:0.4rem;opacity:0.85">'
-      + '<input type="checkbox" checked disabled style="width:18px;height:18px">'
-      + '<span style="font-family:var(--font-mono);font-weight:700;color:var(--accent)">' + pd.itemNum + '</span>'
-      + '<span style="font-size:0.78rem;color:var(--text-dim)">' + leadKind + ' — selling</span></label>';
-  rowsHtml += comps.map(function(c,i){
+  var rowsHtml = pieces.map(function(c, i){
     return '<label style="display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.6rem;border-radius:8px;background:var(--surface2);margin-bottom:0.4rem;cursor:pointer">'
       + '<input type="checkbox" id="_gsel_' + i + '" checked style="width:18px;height:18px;cursor:pointer">'
       + '<span style="font-family:var(--font-mono);font-weight:700;color:var(--accent)">' + c.num + '</span>'
@@ -1606,48 +1613,93 @@ function _checkSetBeforeAction(pdKey, proceed) {
   }).join('');
 
   overlay.innerHTML = '<div style="background:var(--surface);border-radius:16px;padding:1.5rem;max-width:400px;width:100%;border:1px solid var(--border)">'
-    + '<div style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:0.3rem">This item is part of a group</div>'
-    + '<div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:0.9rem">Check the pieces included in this sale — unchecked pieces stay in your collection.</div>'
+    + '<div style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:0.3rem">Sell from this group</div>'
+    + '<div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:0.9rem">Check the pieces you’re selling. They’re sold together for one price.</div>'
     + rowsHtml
+    + '<div style="font-size:0.76rem;color:var(--accent2);background:rgba(201,146,42,0.1);border-radius:6px;padding:0.5rem 0.7rem;margin-top:0.2rem">Unchecked pieces are unlinked and stay in your collection.</div>'
     + '<div style="display:flex;flex-direction:column;gap:0.5rem;margin-top:0.9rem">'
-    + '<button id="_gs-sell" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid #27ae60;background:rgba(39,174,96,0.1);color:#27ae60;font-family:var(--font-body);font-size:0.9rem;font-weight:700;cursor:pointer;text-align:left">Continue to Sale →<br><span style="font-weight:400;font-size:0.76rem;color:var(--text-dim)">Enter one price for everything checked</span></button>'
-    + '<button id="_gs-break" style="padding:0.7rem 1rem;border-radius:10px;border:1.5px solid var(--accent2);background:rgba(201,146,42,0.08);color:var(--accent2);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer;text-align:left">Break up group (don’t sell)<br><span style="font-weight:400;font-size:0.74rem;color:var(--text-dim)">Unlink all pieces, keep them in your collection</span></button>'
+    + '<button id="_gs-sell" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid #27ae60;background:rgba(39,174,96,0.1);color:#27ae60;font-family:var(--font-body);font-size:0.9rem;font-weight:700;cursor:pointer;text-align:left">Continue to Sale →<br><span style="font-weight:400;font-size:0.76rem;color:var(--text-dim)">Sell the checked piece(s) for one price</span></button>'
     + '<button id="_gs-cancel" style="padding:0.6rem;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Cancel</button>'
     + '</div></div>';
   document.body.appendChild(overlay);
 
+  function _updateSellBtn(){
+    var any = false;
+    for (var i = 0; i < pieces.length; i++){ var cb = document.getElementById('_gsel_' + i); if (cb && cb.checked) { any = true; break; } }
+    var btn = document.getElementById('_gs-sell');
+    btn.disabled = !any;
+    btn.style.opacity = any ? '1' : '0.45';
+    btn.style.cursor = any ? 'pointer' : 'not-allowed';
+  }
+  for (var i = 0; i < pieces.length; i++){ var cb = document.getElementById('_gsel_' + i); if (cb) cb.onchange = _updateSellBtn; }
+  _updateSellBtn();
+
   document.getElementById('_gs-cancel').onclick = function(){ overlay.remove(); };
 
   document.getElementById('_gs-sell').onclick = function(){
-    var sellPd=[], sellIs=[], ungroupPd=[], ungroupIs=[];
-    comps.forEach(function(c,i){
+    var checked = [], unchecked = [];
+    pieces.forEach(function(c, i){
       var cb = document.getElementById('_gsel_' + i);
-      var checked = cb && cb.checked;
-      if (c.source === 'pd') { (checked ? sellPd : ungroupPd).push(c.key); }
-      else { (checked ? sellIs : ungroupIs).push(c.key); }
+      (cb && cb.checked ? checked : unchecked).push(c);
     });
-    window._pendingGroupSell = { sellPd:sellPd, sellIs:sellIs, ungroupPd:ungroupPd, ungroupIs:ungroupIs };
+    if (!checked.length) return;
+    // The sale must anchor on a real My Collection row (a 'pd' piece) since that
+    // row is written to Sold and then removed. Selling only an instruction sheet
+    // isn't supported.
+    var primary = checked.find(function(c){ return c.source === 'pd'; });
+    if (!primary) { showToast('Include the item or its box in the sale.', 3500, true); return; }
+    var sellPd = [], sellIs = [], ungroupPd = [], ungroupIs = [];
+    checked.forEach(function(c){
+      if (c.key === primary.key) return;
+      if (c.source === 'pd') sellPd.push(c.key); else sellIs.push(c.key);
+    });
+    unchecked.forEach(function(c){
+      if (c.source === 'pd') ungroupPd.push(c.key); else ungroupIs.push(c.key);
+    });
+    window._pendingGroupSell = { sellPd: sellPd, sellIs: sellIs, ungroupPd: ungroupPd, ungroupIs: ungroupIs };
     overlay.remove();
-    proceed();
+    proceed(primary.idx >= 0 ? primary.idx : -1, primary.key);
   };
+}
 
-  document.getElementById('_gs-break').onclick = async function(){
-    overlay.remove();
-    var pdKeys = [pdKey].concat(comps.filter(function(c){return c.source==='pd';}).map(function(c){return c.key;}));
-    for (var i=0;i<pdKeys.length;i++) {
-      var p = state.personalData[pdKeys[i]];
-      if (p) { p.groupId=''; if (p.row) { try { await sheetsUpdate(state.personalSheetId,'My Collection!V'+p.row,[['']]); } catch(e){} } }
-    }
-    var isComps = comps.filter(function(c){return c.source==='is';});
-    for (var j=0;j<isComps.length;j++) {
-      var ip = state.isData[isComps[j].key];
-      if (ip) { ip.groupId=''; if (ip.row) { try { await sheetsUpdate(state.personalSheetId,'Instruction Sheets!H'+ip.row,[['']]); } catch(e){} } }
-    }
-    _cachePersonalData();
-    if (typeof renderBrowse==='function') renderBrowse();
-    if (typeof buildDashboard==='function') buildDashboard();
-    showToast('✓ Group broken up — all pieces kept in your collection');
-  };
+// Standalone "Break Up Group" — unlink every piece sharing this group and keep
+// them ALL in the collection. For cases where the user is NOT selling (e.g.
+// trashing a bad box, or noting a lost piece). Lives on the item detail page.
+async function _breakUpGroup(pdKey) {
+  var pd = state.personalData[pdKey];
+  if (!pd || !pd.groupId) return;
+  var gid = pd.groupId;
+  var pdKeys = [pdKey];
+  Object.entries(state.personalData).forEach(function(e){
+    if (e[0] !== pdKey && e[1].groupId === gid) pdKeys.push(e[0]);
+  });
+  for (var i = 0; i < pdKeys.length; i++){
+    var p = state.personalData[pdKeys[i]];
+    if (p) { p.groupId = ''; if (p.row && p.row !== 99999) { try { await sheetsUpdate(state.personalSheetId, 'My Collection!V' + p.row, [['']]); } catch(e){} } }
+  }
+  var isKeys = [];
+  Object.entries(state.isData || {}).forEach(function(e){ if (e[1] && e[1].groupId === gid) isKeys.push(e[0]); });
+  for (var j = 0; j < isKeys.length; j++){
+    var ip = state.isData[isKeys[j]];
+    if (ip) { ip.groupId = ''; if (ip.row && ip.row !== 99999) { try { await sheetsUpdate(state.personalSheetId, 'Instruction Sheets!H' + ip.row, [['']]); } catch(e){} } }
+  }
+  if (typeof _cachePersonalData === 'function') _cachePersonalData();
+}
+
+async function _breakUpGroupFromDetail(idx, itemNum, variation) {
+  var pdKey = (typeof _detailPdKey === 'function') ? _detailPdKey({ itemNum: itemNum, variation: variation }) : ((typeof findPDKey === 'function') ? findPDKey(itemNum, variation) : null);
+  if (!pdKey) { showToast('Item not found in collection', 3000, true); return; }
+  var pd = state.personalData[pdKey] || {};
+  if (!pd.groupId) { showToast('This item isn’t part of a group.', 3000); return; }
+  var ok = (typeof appConfirm === 'function')
+    ? await appConfirm('Break up this group? All pieces stay in your collection but will no longer be linked together.', { ok: 'Break Up' })
+    : confirm('Break up this group? All pieces stay in your collection but will no longer be linked together.');
+  if (!ok) return;
+  await _breakUpGroup(pdKey);
+  if (typeof renderBrowse === 'function') renderBrowse();
+  if (typeof buildDashboard === 'function') buildDashboard();
+  showToast('✓ Group broken up — all pieces kept in your collection');
+  if (typeof showItemDetailPage === 'function') showItemDetailPage(idx, window._lastDetailCopyInv);
 }
 
 function _adjustRowsAfterDelete(dataObj, deletedRow) {
@@ -1668,6 +1720,7 @@ function sellFromCollection(idx, pdKey) {
   // Open sell wizard pre-filled with item info
   wizard = { step: 0, tab: 'sold', data: {
     tab: 'sold',
+    selectedSoldKey: pdKey,
     itemNum: item.itemNum,
     variation: item.variation || '',
     condition: pd.condition || '',
