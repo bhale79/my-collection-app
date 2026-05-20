@@ -56,8 +56,10 @@ window.ITEM_SEARCH_FILTERS = {
     minHeightPx:  44,   // tap target — matches existing A11Y minimum
     gapPx:        8,
   },
-  maxOptions:         400,   // dropdowns cap at this many options; beyond
-                             // this the user is better off using text search
+  maxOptions:         100000, // effectively uncapped — the type-to-search box
+                             // (RoadTypeahead) makes long lists searchable, so a
+                             // low cap just hid late-alphabet roads (Nashville,
+                             // Norfolk, Pennsylvania...). Session 154 fix.
   showOnlyIfAtLeast:  2,     // need at least 2 distinct values for a
                              // dropdown to be worth showing
   // Tabs where filter dropdowns apply. Personal-data tabs (sold, forsale)

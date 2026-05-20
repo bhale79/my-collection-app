@@ -944,6 +944,19 @@ function renderWizardStep() {
     var _pillHtml = '';
     if (Object.keys(ERAS).length >= 1) {
       _pillHtml = '<div style="display:flex;gap:0.4rem;margin-bottom:0.75rem;flex-wrap:wrap">';
+      // Session 154: want-list lookups can span the whole catalog. _era='all'
+      // has no ERA_TABS entry, so getMasterDistinct + updateItemSuggestions
+      // both fall through to scanning every era. Gated to the want flow so the
+      // collection-add flow is unchanged.
+      if (wizard.tab === 'want') {
+        var _selAll = _curEra === 'all';
+        _pillHtml += '<button onclick="wizard.data._era=\'all\';renderWizardStep();" style="'
+          + 'padding:0.35rem 0.85rem;border-radius:20px;font-family:var(--font-head);font-size:0.75rem;'
+          + 'font-weight:700;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer;transition:all 0.15s;'
+          + 'border:1.5px solid ' + (_selAll ? 'var(--accent)' : 'var(--border)') + ';'
+          + 'background:' + (_selAll ? 'var(--accent)' : 'transparent') + ';'
+          + 'color:' + (_selAll ? 'white' : 'var(--text-mid)') + '">All eras</button>';
+      }
       Object.values(ERAS).forEach(function(era) {
         var sel = era.id === _curEra;
         _pillHtml += '<button onclick="wizard.data._era=\'' + era.id + '\';renderWizardStep();" style="'
