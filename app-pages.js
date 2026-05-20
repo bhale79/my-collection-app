@@ -1433,15 +1433,23 @@ async function _removeUpgradeFromCollection(itemNum, variation) {
 }
 
 async function removeForSaleItem(itemNum, variation, row) {
-  if (!(await appConfirm('Remove this item from your For Sale list?', { danger: true, ok: 'Remove' }))) return;
   const fsKey = `${itemNum}|${variation}`;
-  if (row) {
-    await sheetsUpdate(state.personalSheetId, `For Sale!A${row}:J${row}`, [['','','','','','','','','','']]);
+  const _lead = state.forSaleData[fsKey] || { itemNum: itemNum, variation: variation, row: row };
+  const _grp = (typeof window !== 'undefined' && typeof window._fsGroupMembers === 'function') ? window._fsGroupMembers(_lead) : null;
+  const _isGroup = !!(_grp && _grp.fs.length > 1);
+  if (!(await appConfirm(_isGroup
+        ? 'Take this whole group off your For Sale list? All ' + _grp.fs.length + ' pieces stay in your collection.'
+        : 'Remove this item from your For Sale list?', { danger: true, ok: 'Remove' }))) return;
+  const _members = _isGroup ? _grp.fs : [_lead];
+  for (const _f of _members) {
+    const _mk = (_f.itemNum||'') + '|' + (_f.variation||'');
+    if (_f.row) { try { await sheetsUpdate(state.personalSheetId, `For Sale!A${_f.row}:J${_f.row}`, [['','','','','','','','','','']]); } catch(e){} }
+    delete state.forSaleData[_mk];
   }
-  delete state.forSaleData[fsKey];
   _cachePersonalData();
   buildForSalePage();
-  showToast('✓ Removed from For Sale');
+  buildDashboard();
+  showToast(_isGroup ? '✓ Group removed from For Sale' : '✓ Removed from For Sale');
 }
 
 async function _removeForSaleFromDetail(idx, itemNum, variation) {
@@ -1461,25 +1469,46 @@ async function _removeForSaleFromDetail(idx, itemNum, variation) {
 }
 
 async function removeForSaleAndCollection(itemNum, variation, fsRow) {
-  if (!(await appConfirm('Remove this item from For Sale AND your collection? This cannot be undone.', { danger: true, ok: 'Remove Both' }))) return;
   const key = `${itemNum}|${variation}`;
-  // Remove from For Sale tab
-  if (fsRow) {
-    await sheetsUpdate(state.personalSheetId, `For Sale!A${fsRow}:J${fsRow}`, [['','','','','','','','','','']]);
+  const _lead = state.forSaleData[key] || { itemNum: itemNum, variation: variation, row: fsRow };
+  const _grp = (typeof window !== 'undefined' && typeof window._fsGroupMembers === 'function') ? window._fsGroupMembers(_lead) : null;
+  const _isGroup = !!(_grp && (_grp.fs.length > 1 || _grp.pd.length > 1 || _grp.is.length > 0));
+  if (!(await appConfirm(_isGroup
+        ? 'Remove this whole group from For Sale AND your collection? This cannot be undone.'
+        : 'Remove this item from For Sale AND your collection? This cannot be undone.', { danger: true, ok: 'Remove Both' }))) return;
+  // For Sale rows (all members)
+  const _fsMembers = (_grp && _grp.fs.length) ? _grp.fs : [_lead];
+  for (const _f of _fsMembers) {
+    const _mk = (_f.itemNum||'') + '|' + (_f.variation||'');
+    if (_f.row) { try { await sheetsUpdate(state.personalSheetId, `For Sale!A${_f.row}:J${_f.row}`, [['','','','','','','','','','']]); } catch(e){} }
+    delete state.forSaleData[_mk];
   }
-  delete state.forSaleData[key];
-  // Remove from My Collection tab — use findPDKey for correct 3-part key
-  const collKey = findPDKey(itemNum, variation);
-  const collEntry = collKey ? state.personalData[collKey] : null;
-  if (collEntry && collEntry.row) {
-    await sheetsUpdate(state.personalSheetId, `My Collection!A${collEntry.row}:Y${collEntry.row}`, [['','','','','','','','','','','','','','','','','','','','','','','','','']]);  // 25 cols A-Y
+  // My Collection rows (all members) — fall back to findPDKey when not grouped
+  if (_grp && _grp.pd.length) {
+    for (const _m of _grp.pd) {
+      if (_m.rec && _m.rec.row) { try { await sheetsUpdate(state.personalSheetId, `My Collection!A${_m.rec.row}:Y${_m.rec.row}`, [['','','','','','','','','','','','','','','','','','','','','','','','','']]); } catch(e){} }
+      delete state.personalData[_m.key];
+    }
+  } else {
+    const collKey = findPDKey(itemNum, variation);
+    const collEntry = collKey ? state.personalData[collKey] : null;
+    if (collEntry && collEntry.row) {
+      await sheetsUpdate(state.personalSheetId, `My Collection!A${collEntry.row}:Y${collEntry.row}`, [['','','','','','','','','','','','','','','','','','','','','','','','','']]);
+    }
+    if (collKey) delete state.personalData[collKey];
   }
-  if (collKey) delete state.personalData[collKey];
+  // Instruction sheets (all members)
+  if (_grp && _grp.is.length) {
+    for (const _m of _grp.is) {
+      if (_m.rec && _m.rec.row) { try { await sheetsUpdate(state.personalSheetId, `Instruction Sheets!A${_m.rec.row}:K${_m.rec.row}`, [['','','','','','','','','','','']]); } catch(e){} }
+      if (state.isData) delete state.isData[_m.key];
+    }
+  }
   _cachePersonalData();
   buildForSalePage();
   buildDashboard();
   renderBrowse();
-  showToast('✓ Item removed');
+  showToast(_isGroup ? '✓ Group removed' : '✓ Item removed');
 }
 
 
