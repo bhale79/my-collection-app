@@ -2040,6 +2040,13 @@ async function _deleteCollectionPhoto(fileId, fileName, wrapEl) {
     await driveRequest('PATCH', '/files/' + fileId, { trashed: true });
     if (wrapEl && wrapEl.parentNode) wrapEl.parentNode.removeChild(wrapEl);
     if (typeof showToast === 'function') showToast('\u2713 Photo deleted (moved to Drive trash)');
+    // Refresh the detail page PHOTOS card behind the modal so it reflects the
+    // deletion without a manual refresh. Small delay lets Drive's trash settle
+    // before the card re-fetches the folder listing.
+    if (typeof window._lastDetailIdx === 'number' && window._lastDetailIdx >= 0
+        && typeof showItemDetailPage === 'function') {
+      setTimeout(function() { showItemDetailPage(window._lastDetailIdx); }, 200);
+    }
   } catch(e) {
     console.error('Delete photo error:', e);
     if (typeof showToast === 'function') showToast('Could not delete photo \u2014 please try again', 4000, true);
@@ -2429,6 +2436,11 @@ function showItemPanel(idx, pdKey, mode) {
         overlay.remove();
         showToast('✓ Item updated!');
         buildDashboard();
+        // Re-render the detail page so edited fields + photos show immediately.
+        if (typeof window._lastDetailIdx === 'number' && window._lastDetailIdx >= 0
+            && typeof showItemDetailPage === 'function') {
+          showItemDetailPage(window._lastDetailIdx);
+        }
       } catch(e) {
         saveBtn.textContent = '💾 Save All Changes'; saveBtn.disabled = false;
         showToast('Error: ' + e.message);
