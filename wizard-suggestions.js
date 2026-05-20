@@ -210,6 +210,8 @@ function updateItemSuggestions(query) {
     // reset when the wizard closes.
     const _filterType = (wizard.data && wizard.data._searchFilterType) || '';
     const _filterRoad = (wizard.data && wizard.data._searchFilterRoad) || '';
+    const _filterMfr = (wizard.data && wizard.data._searchFilterManufacturer) || '';
+    const _filterScale = (wizard.data && wizard.data._searchFilterScale) || '';
 
     // Session 115 fix: era scope guard. If the wizard has a selected era
     // (set at wizard start or via the era pill), restrict suggestions to
@@ -243,6 +245,14 @@ function updateItemSuggestions(query) {
         if (_bucketLabel !== _filterType) return;
       }
       if (_filterRoad && String(m.roadName || '').trim() !== _filterRoad) return;
+      if (_filterMfr) {
+        var _mMfr = (typeof ERAS !== 'undefined' && ERAS[m._era] && ERAS[m._era].manufacturer) || '';
+        if (_mMfr !== _filterMfr) return;
+      }
+      if (_filterScale) {
+        var _mScale = (typeof ERA_SCALE !== 'undefined' && ERA_SCALE[m._era]) || '';
+        if (_mScale !== _filterScale) return;
+      }
 
       const haystack = ((m.roadName || '') + ' ' + (m.description || '') + ' ' + (m.varDesc || '') + ' ' + (m.itemType || '')).toLowerCase();
 

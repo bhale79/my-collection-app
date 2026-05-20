@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.345';
+const APP_VERSION = 'v0.9.346';
 const APP_DATE    = 'April 2026';
 
 // ═══════════════════════════════════════════════════════════════════
@@ -65,6 +65,17 @@ const ERAS = {
 const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'pw_ho', 'mpc_ho', 'mod_ho', 'mod_s', 'weaver', 'rmt'];
 
 // ── Master sheet tab names per era ──
+// Session 154: scale per era — drives the want-list Scale filter (master
+// Gauge column is only ~10% populated, so derive scale from the era).
+const ERA_SCALE = {
+  prewar: 'Standard', mth_tinplate: 'Standard',
+  pw: 'O', mpc: 'O', atlas: 'O', mth_o: 'O', weaver: 'O', rmt: 'O',
+  pw_ho: 'HO', mpc_ho: 'HO', mod_ho: 'HO', mth_ho: 'HO',
+  mth_s: 'S', mod_s: 'S',
+  mth_g: 'G',
+};
+if (typeof window !== 'undefined') window.ERA_SCALE = ERA_SCALE;
+
 const ERA_TABS = {
   prewar: {
     items:    'Lionel Pre-War',

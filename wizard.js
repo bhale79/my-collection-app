@@ -204,7 +204,13 @@ function _wizardMfr() {
   return '';
 }
 
-function openWizard(tab) {
+async function openWizard(tab) {
+  // Session 154: Want lookups span the whole catalog — load every era first
+  // (instant if cached) so search isn't capped to the current era.
+  if (tab === 'want' && typeof _currentEra !== 'undefined' && _currentEra !== 'all'
+      && typeof loadAllErasMode === 'function') {
+    try { await loadAllErasMode(); } catch(e) { console.warn('[want all-eras load]', e); }
+  }
   _buildWizardModal();
   // Start wizard pre-set to a specific tab, skipping the tab picker step
   const _activePg = document.querySelector('.page.active');
@@ -216,6 +222,13 @@ function openWizard(tab) {
   // row on the Item Number step.
   if (tab === 'collection') {
     wizard.data.itemCategory = 'lionel';
+    wizard.steps = getSteps(tab);
+  }
+  // Session 154: Want skips the category/era picker and lands on the catalog
+  // search, scoped to All Collection so any item is findable.
+  if (tab === 'want') {
+    wizard.data.itemCategory = 'lionel';
+    wizard.data._era = 'all';
     wizard.steps = getSteps(tab);
   }
   document.getElementById('wizard-modal').classList.add('open');
@@ -397,10 +410,17 @@ function _buildItemSearchFiltersDOM() {
   // Session 119: 22 clean tier-1 buckets (Steam, Diesel, Boxcar...) instead of 40 raw itemType synonyms.
   var types = ((typeof _bucketsInCurrentEra === 'function') ? _bucketsInCurrentEra() : (window.TYPE_BUCKETS || []).map(function(b){ return b.label; }));
   var roads = getMasterDistinct('roadName');
+  // Session 154: Manufacturer + Scale options from the era config. Shown only
+  // in All-Collection mode (the want flow) where multiple makers/scales mix.
+  var _allMode = (wizard.data && wizard.data._era === 'all');
+  var mfrs = (function(){ var seen={}, out=[]; if (typeof ERAS!=='undefined') Object.keys(ERAS).forEach(function(k){ var m=ERAS[k]&&ERAS[k].manufacturer; if(m&&!seen[m]){seen[m]=1;out.push(m);} }); return out.sort(); })();
+  var scales = (function(){ var seen={}, out=[]; if (typeof ERA_SCALE!=='undefined') Object.keys(ERA_SCALE).forEach(function(k){ var v=ERA_SCALE[k]; if(v&&!seen[v]){seen[v]=1;out.push(v);} }); return out.sort(); })();
   var minCount = cfg.showOnlyIfAtLeast || 2;
   var showType = types.length >= minCount;
   var showRoad = roads.length >= minCount;
-  if (!showType && !showRoad) return null;
+  var showMfr = _allMode && mfrs.length >= minCount;
+  var showScale = _allMode && scales.length >= minCount;
+  if (!showType && !showRoad && !showMfr && !showScale) return null;
 
   function esc(v) {
     return String(v == null ? '' : v)
@@ -433,6 +453,8 @@ function _buildItemSearchFiltersDOM() {
 
   if (showType) bar.appendChild(mkDrop('wiz-search-type', ui.typeLabel || 'Type',       types, wizard.data._searchFilterType || ''));
   if (showRoad) bar.appendChild(mkDrop('wiz-search-road', ui.roadLabel || 'Road name',  roads, wizard.data._searchFilterRoad || ''));
+  if (showMfr)   bar.appendChild(mkDrop('wiz-search-mfr',   'Manufacturer', mfrs,   wizard.data._searchFilterManufacturer || ''));
+  if (showScale) bar.appendChild(mkDrop('wiz-search-scale', 'Scale',        scales, wizard.data._searchFilterScale || ''));
   container.appendChild(bar);
 
   if (ui.hint) {
@@ -504,6 +526,22 @@ function _wireItemSearchFilters() {
     roadSel.addEventListener('change', function() {
       wizard.data._searchFilterRoad = this.value || '';
       refreshDropdown('wiz-search-type', 'itemType', 'roadName', wizard.data._searchFilterRoad, wizard.data._searchFilterType || '', '_searchFilterType');
+      var i = document.getElementById('wiz-input');
+      if (typeof updateItemSuggestions === 'function') updateItemSuggestions(i ? i.value : '');
+    });
+  }
+  var mfrSel = document.getElementById('wiz-search-mfr');
+  if (mfrSel) {
+    mfrSel.addEventListener('change', function() {
+      wizard.data._searchFilterManufacturer = this.value || '';
+      var i = document.getElementById('wiz-input');
+      if (typeof updateItemSuggestions === 'function') updateItemSuggestions(i ? i.value : '');
+    });
+  }
+  var scaleSel = document.getElementById('wiz-search-scale');
+  if (scaleSel) {
+    scaleSel.addEventListener('change', function() {
+      wizard.data._searchFilterScale = this.value || '';
       var i = document.getElementById('wiz-input');
       if (typeof updateItemSuggestions === 'function') updateItemSuggestions(i ? i.value : '');
     });
@@ -944,19 +982,6 @@ function renderWizardStep() {
     var _pillHtml = '';
     if (Object.keys(ERAS).length >= 1) {
       _pillHtml = '<div style="display:flex;gap:0.4rem;margin-bottom:0.75rem;flex-wrap:wrap">';
-      // Session 154: want-list lookups can span the whole catalog. _era='all'
-      // has no ERA_TABS entry, so getMasterDistinct + updateItemSuggestions
-      // both fall through to scanning every era. Gated to the want flow so the
-      // collection-add flow is unchanged.
-      if (wizard.tab === 'want') {
-        var _selAll = _curEra === 'all';
-        _pillHtml += '<button onclick="wizard.data._era=\'all\';renderWizardStep();" style="'
-          + 'padding:0.35rem 0.85rem;border-radius:20px;font-family:var(--font-head);font-size:0.75rem;'
-          + 'font-weight:700;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer;transition:all 0.15s;'
-          + 'border:1.5px solid ' + (_selAll ? 'var(--accent)' : 'var(--border)') + ';'
-          + 'background:' + (_selAll ? 'var(--accent)' : 'transparent') + ';'
-          + 'color:' + (_selAll ? 'white' : 'var(--text-mid)') + '">All eras</button>';
-      }
       Object.values(ERAS).forEach(function(era) {
         var sel = era.id === _curEra;
         _pillHtml += '<button onclick="wizard.data._era=\'' + era.id + '\';renderWizardStep();" style="'
