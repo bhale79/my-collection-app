@@ -710,6 +710,12 @@ async function savePhotoOnlyUpdate() {
     if (c1) c1.style.display = 'inline';
     if (c2) c2.style.display = 'inline';
   }
+  // Bug 12 (Session 154): re-render the item detail page so the newly added
+  // photo shows immediately instead of requiring a back-out / refresh.
+  if (typeof window._lastDetailIdx === 'number' && window._lastDetailIdx >= 0
+      && typeof showItemDetailPage === 'function') {
+    setTimeout(function() { showItemDetailPage(window._lastDetailIdx); }, 0);
+  }
 }
 
 async function _saveManualEntry() {
@@ -885,6 +891,15 @@ async function saveWizardItem() {
   // so their Drive URLs are in photosItem before we build the row.
   if (typeof _awaitPhotoUploads === 'function' && (d._photoUploadsInFlight || 0) > 0) {
     await _awaitPhotoUploads();
+  }
+  // Bug 12 (Session 154): photo-only flows must NEVER append a new row. If we
+  // reached the full save in photo-only mode (e.g. the skip button advanced to
+  // the confirm step), redirect to the update path that writes the photo link
+  // to the EXISTING row — this is what was creating duplicate item rows.
+  if (d._photoOnly && d._updatePdKey && state.personalData && state.personalData[d._updatePdKey]
+      && typeof savePhotoOnlyUpdate === 'function') {
+    await savePhotoOnlyUpdate();
+    return;
   }
   // Guard: prevent double-save if QE path already fired
   if (d._qeSaving) { console.warn('[Save] Blocked — QE save already in progress'); return; }

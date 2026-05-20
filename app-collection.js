@@ -788,6 +788,9 @@ async function _uploadNonItemPhotos(type, key, entry, cfg, picks, progressCb) {
 window._uploadNonItemPhotos = _uploadNonItemPhotos;
 
 function showItemDetailPage(idx) {
+  // Bug 12 (Session 154): remember which item the detail page is showing so
+  // savePhotoOnlyUpdate can re-render it after a photo is added.
+  window._lastDetailIdx = idx;
   // Session 115: capture which Browse tab + filter state the user
   // came from so the Back button restores the same tab on return.
   // Was: Back always called filterOwned() which forced _browseTab to

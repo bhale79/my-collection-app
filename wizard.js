@@ -4835,6 +4835,13 @@ async function wizardSkipAllPhotos() {
     await _awaitPhotoUploads();
     if (_btn) { _btn.disabled = false; _btn.innerHTML = _origHtml; }
   }
+  // Bug 12 (Session 154): in photo-only mode (adding a photo to an EXISTING
+  // item), the skip button must write the photo to the existing row and close
+  // — NOT advance into the full add flow, which appends a duplicate row.
+  if (wizard.data._photoOnly && wizard.data._updatePdKey && typeof savePhotoOnlyUpdate === 'function') {
+    await savePhotoOnlyUpdate();
+    return;
+  }
   wizard.data._skipAllPhotos = true;
   wizard.step++;
   renderWizardStep();
