@@ -910,6 +910,10 @@ function showItemDetailPage(idx) {
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
       Add to Upgrade List
     </button>
+    <button onclick="_removeFromCollectionDetail(${idx},'${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}')" data-ctip="Remove this item from your collection." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e74c3c;background:rgba(231,76,60,0.1);color:#e74c3c;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      Remove from Collection
+    </button>
   </div>`;
 
   // ── DETAILS GRID ──
@@ -1040,6 +1044,27 @@ function showItemDetailPage(idx) {
 }
 
 // Helper functions for item detail page action buttons
+// Detail-page Remove: delegate to the shared removeCollectionItem (which
+// handles the confirm prompt, grouped-item modal, sheet deletion, and
+// For-Sale/Upgrade cleanup), then navigate back to the list if the item is
+// actually gone (i.e. the user didn't cancel the confirm).
+async function _removeFromCollectionDetail(idx, itemNum, variation) {
+  variation = (variation === '&apos;' || variation == null) ? '' : variation;
+  var pdKey = (typeof findPDKey === 'function') ? findPDKey(itemNum, variation) : null;
+  var pd = pdKey ? state.personalData[pdKey] : null;
+  var row = pd ? pd.row : null;
+  if (typeof removeCollectionItem === 'function') {
+    await removeCollectionItem(itemNum, variation, row);
+  }
+  var stillOwned = Object.values(state.personalData || {}).some(function(p) {
+    return p && p.owned && p.itemNum === itemNum && (p.variation || '') === (variation || '');
+  });
+  if (!stillOwned) {
+    if (typeof _detailBackToBrowse === 'function') _detailBackToBrowse();
+    else if (typeof showPage === 'function') showPage('browse');
+  }
+}
+
 function showItemDetailPage_edit(idx) {
   const item = idx >= 0 ? state.masterData[idx] : null;
   if (!item) return;
