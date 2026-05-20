@@ -276,7 +276,10 @@ function updateItemSuggestions(query) {
           varDesc:     m.varDesc     || '',
           description: m.description || '',
           trackPower:  m.trackPower  || '',
-          refLink:     m.refLink     || '',
+          // Bug 10b (Session 154): MTH/Lionel items have no stored refLink;
+          // generate one from the item number via the shared browse.js helper
+          // so the suggestion row shows "MTH \u2197" / "Lionel \u2197".
+          refLink:     m.refLink || ((typeof window._itemExternalLinkURL === 'function') ? window._itemExternalLinkURL(m) : ''),
           label:       m.itemNum,
         });
       }

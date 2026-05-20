@@ -38,6 +38,9 @@ window.ITEM_SEARCH_FILTERS = {
       patterns: [
         { match: /atlas(rr)?\.com/i,           short: 'Atlas \u2197', verbose: 'View on Atlas \u2197' },
         { match: /cott|collectorsoftinplate/i, short: 'COTT \u2197',  verbose: 'View on COTT \u2197'  },
+        { match: /mthtrains/i,                  short: 'MTH \u2197',    verbose: 'View on MTH \u2197'    },
+        { match: /lionel\.com/i,                short: 'Lionel \u2197', verbose: 'View on Lionel \u2197' },
+        { match: /google\.com/i,                short: 'Google \u2197', verbose: 'Search Google \u2197' },
       ],
       defaultShort:   'View \u2197',
       defaultVerbose: 'View reference \u2197',

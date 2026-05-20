@@ -782,6 +782,13 @@ function _renderAddingBanner() {
       .replace(/"/g, '&quot;');
   }
 
+  // Bug 10b (Session 154): external catalog link (MTH/Lionel/Atlas) shown
+  // inline after the description. Reuses browse.js helper; only renders when
+  // a master match exists (manual-entry items have no catalog page).
+  var _bannerExt = '';
+  if (typeof match !== 'undefined' && match && typeof window._itemExternalLinkHTML === 'function') {
+    _bannerExt = window._itemExternalLinkHTML(match) || '';
+  }
   el.innerHTML =
     '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.45rem 0.7rem;margin-top:0.55rem;'
       + 'background:var(--surface2);border-radius:6px;'
@@ -792,7 +799,8 @@ function _renderAddingBanner() {
     +   '<span style="font-family:var(--font-mono);font-weight:700;color:var(--accent2);font-size:0.88rem;flex-shrink:0;white-space:nowrap">No.&nbsp;' + _e(num) + '</span>'
     +   (desc
           ? '<span style="color:var(--text-mid);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1">&mdash; ' + _e(desc) + '</span>'
-          : '')
+          : '<span style="flex:1"></span>')
+    +   (_bannerExt ? '<span style="flex-shrink:0">' + _bannerExt + '</span>' : '')
     + '</div>';
 }
 
@@ -4068,8 +4076,17 @@ function renderWizardStep() {
       };
       
       let html = '<div class="cd-col" style="flex:1;min-width:' + (_isMobile ? '100%' : '200px') + ';background:var(--surface2);border-radius:10px;padding:0.75rem;border:1px solid var(--border)">';
+      var _cdExtLink = '';
+      if (col.id === 'main' && _cdMaster && typeof window._itemExternalLinkURL === 'function') {
+        var _cdU = window._itemExternalLinkURL(_cdMaster);
+        if (_cdU) {
+          var _cdLbl = (typeof window._externalSiteLabel === 'function') ? window._externalSiteLabel(_cdU) : 'External';
+          _cdExtLink = '<div style="margin-bottom:0.35rem"><a href="' + _cdU + '" target="_blank" rel="noopener" style="font-size:0.74rem;color:var(--accent2);text-decoration:none">View on ' + _cdLbl + ' \u2197</a></div>';
+        }
+      }
       html += '<div style="font-weight:700;font-size:0.82rem;color:var(--accent2);padding-bottom:0.2rem">' + col.label + (col.sublabel ? ' <span style=\"font-weight:400;color:var(--text-dim);font-size:0.75rem\">(' + col.sublabel + ')</span>' : '') + '</div>'
         + (col.description ? '<div style="font-size:0.78rem;color:var(--text-mid);font-style:italic;margin-bottom:0.35rem;line-height:1.35">' + String(col.description).replace(/</g,'&lt;') + '</div>' : '')
+        + _cdExtLink
         + '<div style="margin-bottom:0.5rem;padding-bottom:0.4rem;border-bottom:1px solid var(--border)"></div>';
       
       // Condition — compact read-only badge if already set, slider if not
