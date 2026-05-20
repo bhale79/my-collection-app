@@ -2534,9 +2534,11 @@ function renderBrowse() {
       const _isAnyUG = !!_ugEntry;
       // Count how many copies of this item exist in collection
       const _copyCount = Object.values(state.personalData).filter(p => p.itemNum === item.itemNum && (p.variation||'') === (item.variation||'') && p.owned).length;
-      // Status icons — only show on the specific copy that's listed
-      const _listIcons = (_isThisCopyFS ? '<span title="This copy is For Sale" style="font-size:0.7rem;color:#e67e22;margin-left:4px;vertical-align:middle">🏷️</span>' : '')
-        + (_isThisCopyUG ? '<span title="This copy is on Upgrade list" style="font-size:0.7rem;color:#8b5cf6;margin-left:4px;vertical-align:middle">↑</span>' : '');
+      // Status badges — render on a line UNDER the item number (Brad's
+      // request) so they read clearly and don't drift under the Var column.
+      const _statusBadges = (_isThisCopyFS ? '<span style="display:inline-block;font-size:0.6rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#e67e22;background:rgba(230,126,34,0.12);border:1px solid #e67e22;border-radius:4px;padding:0 5px;line-height:1.4">🏷️ For Sale</span>' : '')
+        + (_isThisCopyUG ? '<span style="display:inline-block;font-size:0.6rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#8b5cf6;background:rgba(139,92,246,0.12);border:1px solid #8b5cf6;border-radius:4px;padding:0 5px;line-height:1.4;margin-left:3px">↑ Upgrade</span>' : '');
+      const _listIcons = _statusBadges ? '<div style="margin-top:3px">' + _statusBadges + '</div>' : '';
       const _shareKeyD = item.itemNum + '|' + (item.variation||'') + '|' + (pd && pd.row ? pd.row : 0);
       const _inShareModeD = typeof isShareMode === 'function' && isShareMode('collection');
       const _isShareSelectedD = _inShareModeD && window._shareItems && window._shareItems[_shareKeyD];
