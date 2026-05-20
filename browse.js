@@ -2237,6 +2237,32 @@ function renderBrowse() {
       return (a.itemNum||'').localeCompare(b.itemNum||'');
     });
   }
+  // Option A (Session 154): in My Collection, show one row per owned COPY.
+  // A master item owned multiple times collapses to one row because
+  // renderBrowse iterates masterData once. Expand each such item so every
+  // copy (each inventory ID) gets its own row, carrying its specific pd so
+  // condition / photos / For-Sale status / row actions are per-copy.
+  if (state.filters.owned) {
+    var _expandedFD = [];
+    state.filteredData.forEach(function(it) {
+      if (it._personalOnly) { _expandedFD.push(it); return; }
+      var _dnp = _displayItemNum(it);
+      var _copiesFD = Object.values(state.personalData).filter(function(p) {
+        return p && p.owned
+          && p.itemNum === _dnp && (p.variation || '') === (it.variation || '')
+          && !String(p.itemNum || '').toUpperCase().endsWith('-BOX');
+      });
+      if (_copiesFD.length <= 1) { _expandedFD.push(it); return; }
+      _copiesFD.sort(function(a, b) { return (parseInt(a.inventoryId) || 0) - (parseInt(b.inventoryId) || 0); });
+      _copiesFD.forEach(function(cp) {
+        var _clone = Object.assign({}, it);
+        _clone._copyPd = cp;
+        _clone._origItem = it;
+        _expandedFD.push(_clone);
+      });
+    });
+    state.filteredData = _expandedFD;
+  }
   const total = state.filteredData.length;
   const pages = Math.ceil(total / state.pageSize);
   const start = (state.currentPage - 1) * state.pageSize;
@@ -2447,12 +2473,12 @@ function renderBrowse() {
   }
 
   const rowsHtml = pageData.map((item, i) => {
-    const pd = item._personalOnly ? item : findPD(_displayItemNum(item), item.variation);
+    const pd = item._copyPd ? item._copyPd : (item._personalOnly ? item : findPD(_displayItemNum(item), item.variation));
     const isOwned = item._personalOnly ? true : (pd?.owned || false);
     const isWanted = !!state.wantData[`${item.itemNum}|${item.variation}`];
     const cond = pd?.condition ? parseInt(pd.condition) : null;
     const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
-    let globalIdx = state.masterData.indexOf(item);
+    let globalIdx = state.masterData.indexOf(item._origItem || item);
     // For _personalOnly items not in masterData, use negative index via global array
     if (globalIdx < 0 && item._personalOnly) {
       const poKey = findPDKey(_displayItemNum(item), item.variation);
