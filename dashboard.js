@@ -29,9 +29,13 @@ var _ACCESSORY_BUCKETS = ['Accessory','Track','Transformer/Power','Service Stati
 var _SET_BUCKETS = ['Set'];
 
 function _ownedNonBox(state) {
-  // Returns array of owned personalData entries, excluding pure box-only rows
+  // Returns array of owned personalData entries, excluding pure box-only rows.
+  // Bug 13 (Session 154): also exclude -BOX rows grouped with an owned item
+  // so the nav badge matches the collection list (which hides grouped boxes).
   return Object.values(state.personalData).filter(function(pd) {
     if (!pd.owned) return false;
+    if (typeof window !== 'undefined' && typeof window._isGroupedBoxRow === 'function'
+        && window._isGroupedBoxRow(pd)) return false;
     var c = (pd.condition||'').toString().trim();
     var p = (pd.priceItem||'').toString().trim();
     var noCond  = !c || c === 'N/A';

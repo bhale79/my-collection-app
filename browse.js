@@ -507,6 +507,26 @@ if (typeof window !== 'undefined') window._renderAllLoadingIndicator = _renderAl
 // Detection is hostname-based: mthtrains.com -> 'MTH'; atlas.com/atlasrr.com
 // -> 'Atlas'; centerlineoftrains.com or anything with 'cott' -> 'COTT'.
 // Falls back to 'External' for unknown hosts.
+// Bug 13 (Session 154): true when this -BOX row is grouped with an owned
+// NON-box item (by groupId or by parent item number). Such boxes are shown
+// as "Has Box" + the grouped icon on the parent, so they should not appear
+// as their own line / be counted. Standalone box-only rows (no owned parent)
+// return false here and still show.
+function _isGroupedBoxRow(pd) {
+  if (!pd) return false;
+  var num = String(pd.itemNum || '').toUpperCase();
+  if (!num.endsWith('-BOX')) return false;
+  var parent = pd.itemNum.replace(/-BOX$/i, '');
+  var pdata = (typeof state !== 'undefined' && state.personalData) ? state.personalData : {};
+  return Object.values(pdata).some(function(p) {
+    if (!p || !p.owned) return false;
+    if (String(p.itemNum || '').toUpperCase().endsWith('-BOX')) return false;
+    if (pd.groupId && p.groupId && p.groupId === pd.groupId) return true;
+    return p.itemNum === parent;
+  });
+}
+if (typeof window !== 'undefined' && !window._isGroupedBoxRow) window._isGroupedBoxRow = _isGroupedBoxRow;
+
 function _externalSiteLabel(url) {
   if (!url) return 'External';
   var lc = String(url).toLowerCase();
@@ -2047,6 +2067,7 @@ function renderBrowse() {
   const personalOnlyItems = Object.values(state.personalData)
     .filter(pd => pd.owned && !masterNums.has(pd.itemNum + '|' + (pd.variation||'')))
     .filter(pd => !_eraFilterPersonalOnly)
+    .filter(pd => !_isGroupedBoxRow(pd))
     .map(pd => {
       // Infer type from item number suffix for personal-only items
       let _poType = pd.itemType || '';
