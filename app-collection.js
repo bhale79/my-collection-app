@@ -946,7 +946,7 @@ function showItemDetailPage(idx, copyInvId) {
     { label: 'Has Box', val: pd ? (pd.hasBox === 'Yes' ? '\u2705 Yes' + (pd.boxCond ? ` (${pd.boxCond}/10)` : '') : pd.hasBox === 'No' ? 'No' : null) : null },
     { label: 'Price Paid (Item)', val: pd && pd.priceItem ? _currencySymbol() + parseFloat(pd.priceItem).toLocaleString() : null },
     { label: 'Price Paid (Box)', val: pd && pd.priceBox ? _currencySymbol() + parseFloat(pd.priceBox).toLocaleString() : null },
-    { label: 'Price Paid (Complete)', val: pd && pd.priceComplete ? _currencySymbol() + parseFloat(pd.priceComplete).toLocaleString() : null },
+    { label: 'Price Paid (Complete)', val: (pd && pd.priceComplete && (parseFloat(pd.priceComplete) || 0) !== (parseFloat(pd.priceItem) || 0)) ? _currencySymbol() + parseFloat(pd.priceComplete).toLocaleString() : null },
     { label: 'Est. Worth', val: pd && pd.userEstWorth ? _currencySymbol() + parseFloat(pd.userEstWorth).toLocaleString() : null },
     { label: 'Market Value', val: it.marketVal && !isNaN(parseFloat(it.marketVal)) ? _currencySymbol() + parseFloat(it.marketVal).toLocaleString() : null },
     { label: 'Date Purchased', val: pd && pd.datePurchased ? _formatDate(pd.datePurchased) : null },
