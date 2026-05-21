@@ -37,7 +37,8 @@ const PERSONAL_HEADERS = [
   'Box Condition (1-10)','Item Photo Link','Box Photo Link','Notes',
   'Date Purchased','User Est. Worth','Matched Tender/Engine','Set ID','Year Made',
   'Is Error','Error Description','Quick Entry','Inventory ID','Group ID','Location',
-  'Era','Manufacturer'
+  'Era','Manufacturer',
+  'Item Type','Road Name','Road Number','Description','Custom Name'
 ];
 const SOLD_HEADERS = [
   'Item Number','Variation','Copy #','Condition (1-10)','Item Only Price Paid',

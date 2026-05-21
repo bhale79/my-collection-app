@@ -347,10 +347,10 @@ async function initPersonalSheet(sheetId) {
   if (rows.length === 0 || !rows[0] || rows[0].length === 0) {
     // Brand new sheet — write title row 1 and headers row 2
     await sheetsUpdate(sheetId, 'My Collection!A1:A1', [['My Collection']]);
-    await sheetsUpdate(sheetId, 'My Collection!A2:Y2', [PERSONAL_HEADERS]);
+    await sheetsUpdate(sheetId, 'My Collection!A2:AD2', [PERSONAL_HEADERS]);
   } else if (rows.length === 1 || !rows[1] || rows[1].length < 13) {
     // Has title but missing/old headers — rewrite row 2
-    await sheetsUpdate(sheetId, 'My Collection!A2:Y2', [PERSONAL_HEADERS]);
+    await sheetsUpdate(sheetId, 'My Collection!A2:AD2', [PERSONAL_HEADERS]);
   }
   // Get existing sheet tab names
   const metaRes = await fetch(
@@ -432,13 +432,13 @@ async function ensurePersonalHeaders(sheetId) {
     }
 
     // Fetch current row 2 headers (A2:Y2 — 25 cols)
-    const res = await sheetsGet(sheetId, 'My Collection!A2:Y2');
+    const res = await sheetsGet(sheetId, 'My Collection!A2:AD2');
     const current = (res.values && res.values[0]) || [];
 
     // Check each expected header — write the full row if anything is missing or wrong
     const needsUpdate = PERSONAL_HEADERS.some((h, i) => current[i] !== h);
     if (needsUpdate) {
-      await sheetsUpdate(sheetId, 'My Collection!A2:Y2', [PERSONAL_HEADERS]);
+      await sheetsUpdate(sheetId, 'My Collection!A2:AD2', [PERSONAL_HEADERS]);
       console.log('[Headers] My Collection headers repaired');
     }
 
@@ -601,7 +601,7 @@ async function createPersonalSheet() {
 
   // 3. Write headers and create all tabs
   await sheetsUpdate(state.personalSheetId, 'My Collection!A1:A1', [['My Collection']]);
-  await sheetsUpdate(state.personalSheetId, 'My Collection!A2:Y2', [PERSONAL_HEADERS]);
+  await sheetsUpdate(state.personalSheetId, 'My Collection!A2:AD2', [PERSONAL_HEADERS]);
   await initPersonalSheet(state.personalSheetId);
 
   // 4. Move the sheet file into the vault folder
