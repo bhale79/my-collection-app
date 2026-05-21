@@ -1019,54 +1019,51 @@ function renderWizardStep() {
       </div>`;
 
   } else if (s.type === 'manualManufacturer') {
-    const _mfrs = ['Lionel', 'American Flyer', 'Marx', 'Ives', 'Kusan', 'Williams'];
+    const _cfg = window.MANUAL_MANUFACTURERS || { common: ['Lionel'], all: ['Lionel'] };
+    const _common = _cfg.common || [];
+    const _all = _cfg.all || [];
     const cur = wizard.data.manualManufacturer || '';
+    const _esc = function(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
     body.innerHTML =
-      '<div style="display:flex;flex-direction:column;gap:0.5rem;padding-top:0.25rem">' +
-        _mfrs.map(m =>
-          '<button onclick="wizard.data.manualManufacturer=\'' + m.replace(/'/g, "\\'") + '\';renderWizardStep()" style="' +
-            'display:flex;align-items:center;gap:0.75rem;padding:0.7rem 1rem;' +
-            'border-radius:10px;border:2px solid ' + (cur === m ? 'var(--accent)' : 'var(--border)') + ';' +
-            'background:' + (cur === m ? 'var(--accent)22' : 'var(--surface2)') + ';' +
-            'color:var(--text);cursor:pointer;font-family:var(--font-body);width:100%;font-size:0.92rem;font-weight:600;text-align:left' +
-          '">' + m + '</button>'
-        ).join('') +
+      '<div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:0.45rem">Tap a common maker, or search/type any other below.</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem">' +
+        _common.map(function(m){
+          var sel = (cur === m);
+          return '<button onclick="wizard.data.manualManufacturer=' + JSON.stringify(m).replace(/"/g,'&quot;') + ';renderWizardStep()" style="' +
+            'padding:0.6rem 0.8rem;border-radius:9px;border:2px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';' +
+            'background:' + (sel ? 'var(--accent)22' : 'var(--surface2)') + ';color:var(--text);cursor:pointer;' +
+            'font-family:var(--font-body);font-size:0.9rem;font-weight:600;text-align:left">' + _esc(m) + '</button>';
+        }).join('') +
       '</div>' +
-      '<div style="margin-top:0.75rem">' +
-        '<label style="font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.3rem">Or type a manufacturer:</label>' +
-        '<input type="text" id="manual-mfr-input" value="' + ((_mfrs.includes(cur) ? '' : cur) || '').replace(/"/g, '&quot;') + '"' +
-          ' placeholder="e.g. Dorfan, Hafner, Unique Art"' +
-          ' oninput="wizard.data.manualManufacturer=this.value.trim();' +
-            'document.querySelectorAll(\'#wizard-body button\').forEach(b=>b.style.border=\'2px solid var(--border)\');' +
-            'document.querySelectorAll(\'#wizard-body button\').forEach(b=>b.style.background=\'var(--surface2)\')"' +
-          ' style="width:100%;padding:0.6rem 0.75rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box">' +
+      '<div style="margin-top:0.7rem">' +
+        '<label style="font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.3rem">Search all makers or type your own</label>' +
+        '<input type="text" id="manual-mfr-input" list="manual-mfr-list" autocomplete="off" value="' + _esc(cur) + '" placeholder="Start typing — e.g. Dorfan, Sunset, Menards" oninput="wizard.data.manualManufacturer=this.value.trim()" style="width:100%;padding:0.6rem 0.75rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box">' +
+        '<datalist id="manual-mfr-list">' + _all.map(function(m){ return '<option value="' + _esc(m) + '">'; }).join('') + '</datalist>' +
       '</div>';
 
   } else if (s.type === 'manualItemType') {
-    const _types = [
-      ['Steam Engine', '🚂'], ['Diesel Engine', '🚄'], ['Electric Engine', '⚡'],
-      ['Freight Car', '🚃'], ['Passenger Car', '🚋'], ['Caboose', '🔴'],
-      ['Accessory', '🏗️'], ['Track', '🛤️'], ['Transformer', '🔌'],
-      ['Rolling Stock', '📦'], ['Other', '❓'],
-    ];
+    const _cfg = window.MANUAL_ITEM_TYPES || { common: ['Steam Engine'], all: ['Steam Engine'] };
+    const _common = _cfg.common || [];
+    const _all = _cfg.all || [];
     const cur = wizard.data.manualItemType || '';
+    const _emoji = {'Steam Engine':'🚂','Diesel Engine':'🚄','Electric Engine':'⚡','Freight Car':'🚃','Passenger Car':'🚋','Caboose':'🔴','Accessory':'🏗️','Track':'🛤️','Transformer':'🔌','Rolling Stock':'📦','Paper':'📄','Other':'❓'};
+    const _esc = function(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
     body.innerHTML =
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;padding-top:0.25rem">' +
-        _types.map(([t, emoji]) =>
-          '<button onclick="wizard.data.manualItemType=\'' + t.replace(/'/g, "\\'") + '\';renderWizardStep()" style="' +
-            'display:flex;align-items:center;gap:0.5rem;padding:0.55rem 0.7rem;' +
-            'border-radius:8px;border:2px solid ' + (cur === t ? 'var(--accent)' : 'var(--border)') + ';' +
-            'background:' + (cur === t ? 'var(--accent)22' : 'var(--surface2)') + ';' +
-            'color:var(--text);cursor:pointer;font-family:var(--font-body);font-size:0.82rem;font-weight:600;text-align:left' +
-          '"><span style=\"font-size:1.1rem\">' + emoji + '</span>' + t + '</button>'
-        ).join('') +
+      '<div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:0.45rem">Tap a common type, or search/type any other below.</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem">' +
+        _common.map(function(t){
+          var sel = (cur === t);
+          return '<button onclick="wizard.data.manualItemType=' + JSON.stringify(t).replace(/"/g,'&quot;') + ';renderWizardStep()" style="' +
+            'display:flex;align-items:center;gap:0.5rem;padding:0.55rem 0.7rem;border-radius:8px;border:2px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';' +
+            'background:' + (sel ? 'var(--accent)22' : 'var(--surface2)') + ';color:var(--text);cursor:pointer;' +
+            'font-family:var(--font-body);font-size:0.84rem;font-weight:600;text-align:left">' +
+            (_emoji[t] ? '<span style="font-size:1.05rem">' + _emoji[t] + '</span>' : '') + _esc(t) + '</button>';
+        }).join('') +
       '</div>' +
-      '<div style="margin-top:0.6rem">' +
-        '<input type="text" id="manual-type-input" value="' + ((_types.some(([t])=>t===cur) ? '' : cur) || '').replace(/"/g, '&quot;') + '"' +
-          ' placeholder="Or type a custom type"' +
-          ' oninput="wizard.data.manualItemType=this.value.trim();' +
-            'document.querySelectorAll(\'#wizard-body button\').forEach(b=>{b.style.border=\'2px solid var(--border)\';b.style.background=\'var(--surface2)\';})"' +
-          ' style="width:100%;padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;box-sizing:border-box">' +
+      '<div style="margin-top:0.7rem">' +
+        '<label style="font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.3rem">Search all types or type your own</label>' +
+        '<input type="text" id="manual-type-input" list="manual-type-list" autocomplete="off" value="' + _esc(cur) + '" placeholder="Start typing — e.g. Hopper, Crane, Stock Car" oninput="wizard.data.manualItemType=this.value.trim()" style="width:100%;padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;box-sizing:border-box">' +
+        '<datalist id="manual-type-list">' + _all.map(function(t){ return '<option value="' + _esc(t) + '">'; }).join('') + '</datalist>' +
       '</div>';
 
   } else if (s.type === 'manualDescribe') {
