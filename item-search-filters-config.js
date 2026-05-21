@@ -72,7 +72,7 @@ window.ITEM_SEARCH_FILTERS = {
   // rowDetailsMaxLen. Session 115 simplification: show only the
   // parent-level `description` — subType/varDesc cluttered rows with
   // variation-specific details that belong on the next step, not here.
-  rowDetailsFields: ['description'],
+  rowDetailsFields: ['roadName', 'description'],
   rowDetailsSep:    ' \u00B7 ',
   // Char cap is just a safety net — CSS line-clamp in wizard-suggestions.js
   // visually limits line 2 to 2 lines with ellipsis. Bumped from 110 so

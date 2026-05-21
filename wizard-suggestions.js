@@ -519,6 +519,25 @@ function updateItemSuggestions(query) {
       line1.appendChild(typeSpan);
     }
 
+    // Session 158: compact rail-type chip (3-Rail / 2-Rail) so multi-rail
+    // catalogs (Weaver/Atlas/MTH) are distinguishable at a glance — the two
+    // rows for one model (e.g. Weaver 1016-L 3-rail vs 1016-S 2-rail) look
+    // identical otherwise. Derived from the track/power field; absent for
+    // Lionel (field blank) so those rows stay clean.
+    var _railLabel = '';
+    if (c.trackPower) {
+      var _railMatch = String(c.trackPower).match(/(\d)\s*-?\s*rail/i);
+      if (_railMatch) _railLabel = _railMatch[1] + '-Rail';
+    }
+    if (_railLabel) {
+      const railSpan = document.createElement('span');
+      railSpan.style.cssText = 'font-size:0.7rem;font-weight:700;letter-spacing:0.04em;'
+        + 'color:var(--accent2);background:rgba(201,146,42,0.10);border:1px solid rgba(201,146,42,0.35);'
+        + 'padding:0.1rem 0.4rem;border-radius:4px;flex-shrink:0;white-space:nowrap';
+      railSpan.textContent = _railLabel;
+      line1.appendChild(railSpan);
+    }
+
     // Session 156: road name suppressed from Step 1 list — variations
     // get chosen on the next wizard step. Spacer keeps the reference
     // link pinned right.
