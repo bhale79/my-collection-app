@@ -20,6 +20,47 @@
 let itemLookupTimer;
 let _suggestionIndex = -1;
 
+// ── Session 157 ── All-eras fallback dataset for wizard search ──────────
+// Builds (once, then caches) a merged master array spanning every real era
+// WITHOUT changing the app's current era or state.masterData. Powers the
+// "current era, fall back to all" behavior so an item from another
+// manufacturer/era (e.g. a Weaver loco while browsing Postwar) stays
+// findable. Hydrates from each era's IDB cache first (instant); fetches any
+// era not yet cached from Sheets and caches it for next time.
+let _allErasSearchCache = null;
+let _allErasSearchPromise = null;
+function _getAllErasMasterForSearch(force) {
+  if (_allErasSearchCache && !force) return Promise.resolve(_allErasSearchCache);
+  if (_allErasSearchPromise && !force) return _allErasSearchPromise;
+  _allErasSearchPromise = (async function() {
+    var eras = (typeof REAL_ERA_IDS !== 'undefined' && Array.isArray(REAL_ERA_IDS)) ? REAL_ERA_IDS.slice() : [];
+    var out = [];
+    for (var i = 0; i < eras.length; i++) {
+      var era = eras[i];
+      var rows = null;
+      try { if (typeof idbGet === 'function') rows = await idbGet('lv_master_cache_' + era); } catch (e) { rows = null; }
+      if ((!Array.isArray(rows) || !rows.length) && typeof _fetchMasterTabs === 'function') {
+        try {
+          var fetched = await _fetchMasterTabs(era);
+          rows = (typeof _deduplicateMaster === 'function') ? _deduplicateMaster(fetched) : fetched;
+          if (Array.isArray(rows) && rows.length && typeof idbSet === 'function') {
+            try { idbSet('lv_master_cache_' + era, rows); localStorage.setItem('lv_master_cache_ts_' + era, Date.now().toString()); } catch (e) {}
+          }
+        } catch (e) { /* skip this era on failure; others still load */ }
+      }
+      if (Array.isArray(rows) && rows.length) {
+        for (var j = 0; j < rows.length; j++) { if (rows[j] && !rows[j]._era) rows[j]._era = era; }
+        out = out.concat(rows);
+      }
+    }
+    _allErasSearchCache = out;
+    _allErasSearchPromise = null;
+    return out;
+  })();
+  return _allErasSearchPromise;
+}
+window._getAllErasMasterForSearch = _getAllErasMasterForSearch;
+
 function updateSetSuggestions(query) {
   const el = document.getElementById('wiz-suggestions');
   if (!el) return;
@@ -153,8 +194,17 @@ function handleUnitNumKey(e, field) {
 function _extractSearchItemNum(query) {
   if (!query) return '';
   var toks = String(query).trim().split(/\s+/);
+  // Session 157: a steam-loco wheel arrangement like "0-6-0", "4-6-4",
+  // "2-8-2" or "4-6-6-4" has the digit-hyphen-digit shape and was being
+  // mistaken for an item number, forcing a (failing) item-number match.
+  // Skip tokens that are PURELY a wheel arrangement (3+ groups of 1-2
+  // digits) so they fall through to description matching instead. Real
+  // item numbers (2343, 736, MTH "20-3132-1") are unaffected — 20-3132-1
+  // has a 4-digit group so it is not a wheel arrangement.
+  var _WHEEL = /^\d{1,2}(?:-\d{1,2}){2,}$/;
   for (var i = 0; i < toks.length; i++) {
     var t = toks[i];
+    if (_WHEEL.test(t)) continue;
     if (/\d{2,}/.test(t) || /\d-\d/.test(t)) return t;
   }
   return toks[0] || '';
@@ -204,6 +254,12 @@ function updateItemSuggestions(query) {
     const numPart = _searchNum;
     const _stopWords = new Set((window.ITEM_SEARCH_FILTERS && window.ITEM_SEARCH_FILTERS.searchStopWords) || []);
     const keyParts = qParts.filter(p => p && p !== _searchNum && !_stopWords.has(p));
+    // Session 157: for a pure-text search, strip ONLY stop words (maker /
+    // line / filler words like "weaver", "lionel", "gauge") and keep every
+    // real description word, including the first one. keyParts must NOT be
+    // reused here — it also drops the first word (the item-number token),
+    // which would broaden "usra switcher" to all switchers.
+    const _textParts = qParts.filter(p => p && !_stopWords.has(p));
 
     // Active filter values from the Type / Road dropdowns (blank = any).
     // These live on wizard.data so they survive step navigation but get
@@ -223,18 +279,22 @@ function updateItemSuggestions(query) {
       _eraTabSet = new Set(Object.values(ERA_TABS[wizard.data._era]));
     }
 
-    const seen = new Set();
+    var seen = new Set();
     // Session 156: Box Only — hide Boxes-tab rows unless the user explicitly
     // asked for boxes via the Box Only checkbox. Keeps the Step 1 list clean
     // (only one row per number) for normal item searches.
     var _wantBoxes = !!(wizard.data && wizard.data.boxOnly);
-    state.masterData.forEach(m => {
+    // Session 157: per-row scan factored into a helper so it can run twice —
+    // once scoped to the current era (primary) and, if that finds nothing,
+    // once across ALL eras (fallback). `_applyEraGuard` toggles era scope.
+    function _scanRows(_dataset, _applyEraGuard) {
+      (_dataset || []).forEach(m => {
       // Era scope — skip rows from other eras (see Session 115 note above).
       var _isBoxRow = !!(typeof SHEET_TABS !== 'undefined'
                       && SHEET_TABS.boxes && m._tab === SHEET_TABS.boxes);
       if (_isBoxRow !== _wantBoxes) return;
       // (Session 156 box guard above; era guard below.)
-      if (_eraTabSet && m._tab && !_eraTabSet.has(m._tab)) return;
+      if (_applyEraGuard && _eraTabSet && m._tab && !_eraTabSet.has(m._tab)) return;
       // Filter dropdowns: trim BOTH sides so stray whitespace in the
       // master sheet doesn't silently hide matches.
       // Session 119: Type filter compares against tier-1 bucket label
@@ -264,7 +324,7 @@ function updateItemSuggestions(query) {
         matches = true;
       } else {
         // Text-only search: match anywhere in road name, description, or item type
-        matches = qParts.every(kp => haystack.includes(kp));
+        matches = _textParts.length > 0 && _textParts.every(kp => haystack.includes(kp));
       }
 
       if (!matches) return;
@@ -293,7 +353,33 @@ function updateItemSuggestions(query) {
           label:       m.itemNum,
         });
       }
-    });
+      });
+    }
+
+    // Session 157: primary pass — scoped to the current era (unchanged).
+    _scanRows(state.masterData, true);
+
+    // Session 157: "current era, fall back to all". If the era-scoped pass
+    // found nothing AND we're inside a specific era (not the 'all' meta-era),
+    // widen to the whole catalog via a side dataset that never touches the
+    // app's current view/era. Pre-warmed on wizard open; if not ready yet,
+    // kick the load and re-render when it lands.
+    var _eraScoped = !!_eraTabSet;
+    if (candidates.length === 0 && q.length >= 1 && _eraScoped
+        && wizard.data && wizard.data._era && wizard.data._era !== 'all'
+        && tab !== 'sold' && tab !== 'forsale') {
+      var _allData = (typeof _allErasSearchCache !== 'undefined') ? _allErasSearchCache : null;
+      if (_allData && _allData.length) {
+        seen = new Set();
+        candidates = [];
+        _scanRows(_allData, false);
+      } else if (typeof _getAllErasMasterForSearch === 'function') {
+        _getAllErasMasterForSearch().then(function() {
+          var _inp = document.getElementById('wiz-input');
+          if (_inp && String(_inp.value || '').trim().toLowerCase() === q) updateItemSuggestions(_inp.value);
+        }).catch(function() {});
+      }
+    }
 
     // Post-filter: drop "bare" candidates (all disambiguator fields blank)
     // when a more-informative candidate with the same itemNum exists.

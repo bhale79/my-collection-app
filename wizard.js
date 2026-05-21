@@ -223,6 +223,13 @@ async function openWizard(tab) {
   if (tab === 'collection') {
     wizard.data.itemCategory = 'lionel';
     wizard.steps = getSteps(tab);
+    // Session 157: pre-warm the all-eras fallback dataset so that if the
+    // user searches for an item outside the current era, the widened search
+    // is instant. Non-blocking; never changes the current view/era.
+    if (typeof _currentEra !== 'undefined' && _currentEra !== 'all'
+        && typeof _getAllErasMasterForSearch === 'function') {
+      _getAllErasMasterForSearch().catch(function(){});
+    }
   }
   // Session 154: Want skips the category/era picker and lands on the catalog
   // search, scoped to All Collection so any item is findable.
