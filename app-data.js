@@ -699,7 +699,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // Secondary tabs (8) are loaded after primary commits state so UI renders
   // faster. Total wait time drops from max-of-13-fetches to max-of-5.
   const [collRes, soldRes, forSaleRes, wantRes, upgradeRes] = await Promise.all([
-    sheetsGet(sheetId, 'My Collection!A3:Y').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'My Collection!A3:AD').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Sold!A3:J').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'For Sale!A3:J').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Want List!A3:F').catch(() => ({values:[]})),
@@ -748,6 +748,8 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
       inventoryId: r[20]||'', groupId: r[21]||'',
       location: r[22]||'',
       era: r[23]||'', manufacturer: r[24]||'',
+      itemType: r[25]||'', roadName: r[26]||'', roadNumber: r[27]||'',
+      description: r[28]||'', customName: r[29]||'',
     };
   });
 

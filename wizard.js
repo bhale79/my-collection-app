@@ -1069,6 +1069,24 @@ function renderWizardStep() {
           ' style="width:100%;padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;box-sizing:border-box">' +
       '</div>';
 
+  } else if (s.type === 'manualDescribe') {
+    const d = wizard.data;
+    const _esc = function(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+    const _inStyle = 'width:100%;padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.9rem;box-sizing:border-box;outline:none';
+    const _lblStyle = 'font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.25rem';
+    body.innerHTML =
+      '<div style="display:flex;flex-direction:column;gap:0.7rem;padding-top:0.25rem">' +
+        '<div><label style="' + _lblStyle + '">Road name (optional)</label>' +
+          '<input type="text" id="manual-roadname" value="' + _esc(d.manualRoadName) + '" placeholder="e.g. B&amp;O / Baltimore and Ohio" oninput="wizard.data.manualRoadName=this.value" style="' + _inStyle + '"></div>' +
+        '<div><label style="' + _lblStyle + '">Road number / cab # (optional)</label>' +
+          '<input type="text" id="manual-roadnum" value="' + _esc(d.manualRoadNumber) + '" placeholder="e.g. 606" oninput="wizard.data.manualRoadNumber=this.value" style="' + _inStyle + '"></div>' +
+        '<div><label style="' + _lblStyle + '">Description (optional)</label>' +
+          '<textarea id="manual-desc" rows="2" placeholder="e.g. black USRA switcher, illuminated cab" oninput="wizard.data.manualDesc=this.value" style="' + _inStyle + ';resize:vertical">' + _esc(d.manualDesc) + '</textarea></div>' +
+        '<div><label style="' + _lblStyle + '">Give it your own name (optional)</label>' +
+          '<input type="text" id="manual-customname" value="' + _esc(d.manualCustomName) + '" placeholder="Leave blank to auto-name it" oninput="wizard.data.manualCustomName=this.value" style="' + _inStyle + '"></div>' +
+        '<div style="font-size:0.72rem;color:var(--text-dim);font-style:italic">Leave the name blank and we will build one from the maker, road, type and number.</div>' +
+      '</div>';
+
   } else if (s.type === 'manualPurchaseValue') {
     const d = wizard.data;
     body.innerHTML =
@@ -4515,6 +4533,7 @@ function renderWizardStep() {
       eph_lionelVerified:'Lionel Verified',
       location:'Storage Location',
       manualManufacturer:'Manufacturer', manualItemNum:'Item Number', manualItemType:'Item Type',
+      manualRoadName:'Road Name', manualRoadNumber:'Road Number', manualCustomName:'Name',
       manualDesc:'Description', manualYear:'Year Made', manualCondition:'Condition',
       manualHasBox:'Has Box', manualBoxCond:'Box Condition', manualNotes:'Notes',
       isError:'Error Item', errorDesc:'Error Description',

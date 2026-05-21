@@ -731,10 +731,40 @@ async function savePhotoOnlyUpdate() {
   }
 }
 
+// Session 166: build a readable display name for a manually-entered item.
+// Used when the item has no catalog number — the composed name is written to
+// the item-number slot so it shows + reloads everywhere with no extra wiring.
+// Custom name wins; otherwise maker + road + type + #road-number, falling back
+// to description when there is no road and no number.
+function _composeItemName(p) {
+  p = p || {};
+  var custom = (p.customName || '').toString().trim();
+  if (custom) return custom;
+  var mfr = (p.manufacturer || '').toString().trim();
+  var road = (p.roadName || '').toString().trim();
+  var type = (p.itemType || '').toString().trim();
+  var num = (p.roadNumber || '').toString().trim().replace(/^#/, '');
+  var desc = (p.description || '').toString().trim();
+  var segs = [];
+  if (mfr) segs.push(mfr);
+  if (road) {
+    segs.push(road);
+    if (type) segs.push(type);
+    if (num) segs.push('#' + num);
+  } else {
+    if (type) segs.push(type);
+    if (num) segs.push('#' + num);
+    else if (desc) segs.push(desc);
+  }
+  return segs.join(' \u00B7 ') || (mfr || 'Unnamed item');
+}
+if (typeof window !== 'undefined') window._composeItemName = _composeItemName;
+
 async function _saveManualEntry() {
   const d = wizard.data;
   const itemNum = _normalizeEnteredItemNum(d.manualItemNum || '');
-  if (!itemNum) { showToast('Please enter an item number'); return; }
+  // Session 166: item number is optional now — no-number items get an
+  // auto-generated display name (see displayId below).
 
   const manufacturer = (d.manualManufacturer || '').trim();
   const itemType = d.manualItemType || '';
@@ -748,6 +778,13 @@ async function _saveManualEntry() {
   const userEstWorth = d.userEstWorth || '';
   const datePurchased = d.datePurchased || '';
   const location = d.location || '';
+  const roadName = (d.manualRoadName || '').trim();
+  const roadNumber = (d.manualRoadNumber || '').trim();
+  const customName = (d.manualCustomName || '').trim();
+  // For a no-number item this composed name is stored in the item-number
+  // slot so it displays + reloads with no extra wiring.
+  const _composedName = _composeItemName({ manufacturer: manufacturer, roadName: roadName, itemType: itemType, roadNumber: roadNumber, description: description, customName: customName });
+  const displayId = itemNum || _composedName;
   const invId = nextInventoryId();
 
   // Upload photos if present
@@ -763,7 +800,7 @@ async function _saveManualEntry() {
 
   // Construct 25-column row (A-Y)
   const row = [
-    itemNum,          // A: Item Number
+    displayId,        // A: Item Number (auto-name when none entered)
     '',               // B: Variation
     condition,        // C: Condition
     '',               // D: All Original
@@ -788,13 +825,18 @@ async function _saveManualEntry() {
     location,         // W: Location
     'Manual',         // X: Era
     manufacturer,     // Y: Manufacturer
+    itemType,         // Z: Item Type
+    roadName,         // AA: Road Name
+    roadNumber,       // AB: Road Number
+    description,      // AC: Description
+    customName,       // AD: Custom Name
   ];
 
   await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
 
   // Optimistic state update
   state.personalData[invId] = {
-    row: 99999, itemNum, variation: '',
+    row: 99999, itemNum: displayId, variation: '',
     status: 'Owned', owned: true,
     condition, allOriginal: '',
     priceItem, priceBox: '', priceComplete: row[6],
@@ -807,6 +849,7 @@ async function _saveManualEntry() {
     quickEntry: false,
     inventoryId: invId, groupId: '',
     location,
+    itemType: itemType, roadName: roadName, roadNumber: roadNumber, description: description, customName: customName,
     era: 'Manual', manufacturer,
   };
   _stampSaved(state.personalData[invId]);
