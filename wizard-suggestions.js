@@ -343,7 +343,9 @@ function updateItemSuggestions(query) {
           else if (_tl.indexOf('weaver') === 0) _mMfr = 'Weaver';
           else if (_tl.indexOf('rmt') === 0) _mMfr = 'RMT';
         }
-        if (_mMfr !== _effMfr) return;
+        // Session 173: case-insensitive — _manufacturerOfItem returns lowercase
+        // ('lionel') while typed/dropdown values are capitalized ('Lionel').
+        if (String(_mMfr).toLowerCase() !== String(_effMfr).toLowerCase()) return;
       }
       if (_typedPeriod && _periodOfRow(m) !== _typedPeriod) return;
       if (_filterScale) {
