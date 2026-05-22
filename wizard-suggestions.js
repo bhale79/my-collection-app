@@ -276,6 +276,24 @@ function updateItemSuggestions(query) {
     const _filterRoad = (wizard.data && wizard.data._searchFilterRoad) || '';
     const _filterMfr = (wizard.data && wizard.data._searchFilterManufacturer) || '';
     const _filterScale = (wizard.data && wizard.data._searchFilterScale) || '';
+    // Session 172: typed maker/period words act as FILTERS (so "lionel seaboard"
+    // shows only Lionel and "postwar hudson" only Postwar) instead of being
+    // ignored. Recognized words are pulled out of the text match below.
+    var _MFR_WORDS = { lionel:'Lionel', atlas:'Atlas', mth:'MTH', weaver:'Weaver', rmt:'RMT', williams:'Williams', marx:'Marx', menards:'Menards', bachmann:'Bachmann', kline:'K-Line', 'k-line':'K-Line' };
+    var _PERIOD_WORDS = { prewar:'prewar', 'pre-war':'prewar', postwar:'postwar', 'post-war':'postwar', modern:'modern' };
+    var _typedMfr = '', _typedPeriod = '';
+    qParts.forEach(function(p){ if (_MFR_WORDS[p]) _typedMfr = _MFR_WORDS[p]; if (_PERIOD_WORDS[p]) _typedPeriod = _PERIOD_WORDS[p]; });
+    var _effMfr = _filterMfr || _typedMfr;   // dropdown filter wins, else typed word
+    var _searchParts = qParts.filter(function(p){ return p && !_stopWords.has(p) && !_MFR_WORDS[p] && !_PERIOD_WORDS[p]; });
+    function _periodOfRow(m){
+      var e = (m && m._era) || '';
+      if (e === 'prewar') return 'prewar';
+      if (e === 'pw' || e === 'pw_ho') return 'postwar';
+      if (e === 'mpc' || e === 'mpc_ho' || e === 'mod_ho' || e === 'mod_s') return 'modern';
+      var y = parseInt(String((m && m.yearProd) || '').slice(0,4), 10);
+      if (y) { if (y <= 1942) return 'prewar'; if (y <= 1969) return 'postwar'; return 'modern'; }
+      return '';
+    }
 
     // Session 115 fix: era scope guard. If the wizard has a selected era
     // (set at wizard start or via the era pill), restrict suggestions to
@@ -313,7 +331,7 @@ function updateItemSuggestions(query) {
         if (_bucketLabel !== _filterType) return;
       }
       if (_filterRoad && String(m.roadName || '').trim() !== _filterRoad) return;
-      if (_filterMfr) {
+      if (_effMfr) {
         // Session 171: derive manufacturer robustly (handles rows without _era).
         var _mMfr = (typeof _manufacturerOfItem === 'function') ? (_manufacturerOfItem(m) || '') : '';
         if (!_mMfr && typeof ERAS !== 'undefined' && ERAS[m._era]) _mMfr = ERAS[m._era].manufacturer || '';
@@ -325,8 +343,9 @@ function updateItemSuggestions(query) {
           else if (_tl.indexOf('weaver') === 0) _mMfr = 'Weaver';
           else if (_tl.indexOf('rmt') === 0) _mMfr = 'RMT';
         }
-        if (_mMfr !== _filterMfr) return;
+        if (_mMfr !== _effMfr) return;
       }
+      if (_typedPeriod && _periodOfRow(m) !== _typedPeriod) return;
       if (_filterScale) {
         var _mScale = (typeof ERA_SCALE !== 'undefined' && ERA_SCALE[m._era]) || '';
         if (_mScale !== _filterScale) return;
@@ -342,7 +361,7 @@ function updateItemSuggestions(query) {
         matches = true;
       } else {
         // Text-only search: match anywhere in road name, description, or item type
-        matches = _textParts.length > 0 && _textParts.every(kp => haystack.includes(kp));
+        matches = _searchParts.length > 0 ? _searchParts.every(kp => haystack.includes(kp)) : !!(_effMfr || _typedPeriod || _filterType || _filterRoad || _filterScale);
       }
 
       if (!matches) return;
