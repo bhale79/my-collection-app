@@ -425,8 +425,9 @@ function _buildItemSearchFiltersDOM() {
   var minCount = cfg.showOnlyIfAtLeast || 2;
   var showType = types.length >= minCount;
   var showRoad = roads.length >= minCount;
-  var showMfr = _allMode && mfrs.length >= minCount;
-  var showScale = _allMode && scales.length >= minCount;
+  var _showAdvanced = _allMode || wizard.tab === 'collection';
+  var showMfr = _showAdvanced && mfrs.length >= minCount;
+  var showScale = _showAdvanced && scales.length >= minCount;
   if (!showType && !showRoad && !showMfr && !showScale) return null;
 
   function esc(v) {
@@ -1258,7 +1259,7 @@ function renderWizardStep() {
           style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
           padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none"
           autocomplete="off"
-          oninput="wizard.data['${s.id}']=this.value; if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='itemNum') updateItemSuggestions(this.value); if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='set_num') updateSetSuggestions(this.value); if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='eph_itemNumRef') updateMockupRefSuggestions(this.value); ${_showCollPicker ? '_filterCollPicker(this.value)' : ''}"
+          oninput="wizard.data['${s.id}']=this.value; if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='itemNum') debouncedItemSuggestions(this.value); if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='set_num') updateSetSuggestions(this.value); if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='eph_itemNumRef') updateMockupRefSuggestions(this.value); ${_showCollPicker ? '_filterCollPicker(this.value)' : ''}"
           onkeydown="handleSuggestionKey(event)">
         <div id="wiz-suggestions" style="display:none;flex-direction:column;gap:1px;margin-top:4px;max-height:340px;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;-webkit-overflow-scrolling:touch"></div>
         ${s.optional ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>' : ''}
@@ -1322,7 +1323,7 @@ function renderWizardStep() {
       // Road filter bar above the input so users can narrow the
       // suggestion list the same way the collection tab already does.
       // Safe no-op on other tabs (helper returns null).
-      if (s.id === 'itemNum' && wizard.tab === 'want' && inp && inp.parentElement) {
+      if (s.id === 'itemNum' && (wizard.tab === 'want' || wizard.tab === 'collection') && inp && inp.parentElement) {
         try {
           var _filters = _buildItemSearchFiltersDOM();
           if (_filters) {
@@ -3762,7 +3763,7 @@ function renderWizardStep() {
             autocomplete="off"
             style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
             padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none;box-sizing:border-box"
-            oninput="wizard.data.itemNum=this.value; updateItemSuggestions(this.value); _updateGroupingButtons();"
+            oninput="wizard.data.itemNum=this.value; debouncedItemSuggestions(this.value); _updateGroupingButtons();"
             onkeydown="handleSuggestionKey(event)">
           <div id="wiz-suggestions" style="display:none;flex-direction:column;gap:1px;margin-top:4px;max-height:340px;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;-webkit-overflow-scrolling:touch"></div>
         </div>

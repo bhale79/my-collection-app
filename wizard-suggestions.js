@@ -18,6 +18,14 @@
 // ═══════════════════════════════════════════════════════════════
 
 let itemLookupTimer;
+// Session 171: debounce the suggestion scan so typing stays smooth even on
+// a large all-eras dataset (was running the full scan on every keystroke).
+var _itemSuggestTimer;
+function debouncedItemSuggestions(val){
+  clearTimeout(_itemSuggestTimer);
+  _itemSuggestTimer = setTimeout(function(){ updateItemSuggestions(val); }, 250);
+}
+if (typeof window !== 'undefined') window.debouncedItemSuggestions = debouncedItemSuggestions;
 let _suggestionIndex = -1;
 
 // ── Session 157 ── All-eras fallback dataset for wizard search ──────────
@@ -306,7 +314,17 @@ function updateItemSuggestions(query) {
       }
       if (_filterRoad && String(m.roadName || '').trim() !== _filterRoad) return;
       if (_filterMfr) {
-        var _mMfr = (typeof ERAS !== 'undefined' && ERAS[m._era] && ERAS[m._era].manufacturer) || '';
+        // Session 171: derive manufacturer robustly (handles rows without _era).
+        var _mMfr = (typeof _manufacturerOfItem === 'function') ? (_manufacturerOfItem(m) || '') : '';
+        if (!_mMfr && typeof ERAS !== 'undefined' && ERAS[m._era]) _mMfr = ERAS[m._era].manufacturer || '';
+        if (!_mMfr && m._tab) {
+          var _tl = String(m._tab).toLowerCase();
+          if (_tl.indexOf('lionel') === 0) _mMfr = 'Lionel';
+          else if (_tl.indexOf('atlas') === 0) _mMfr = 'Atlas';
+          else if (_tl.indexOf('mth') === 0) _mMfr = 'MTH';
+          else if (_tl.indexOf('weaver') === 0) _mMfr = 'Weaver';
+          else if (_tl.indexOf('rmt') === 0) _mMfr = 'RMT';
+        }
         if (_mMfr !== _filterMfr) return;
       }
       if (_filterScale) {
