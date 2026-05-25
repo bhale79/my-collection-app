@@ -683,6 +683,7 @@ async function saveEphemeraItem() {
     }
     _stampSaved(bucket[newKey]);
     state.ephemeraData[tab] = bucket;
+    buildDashboard();  // Session 174: refresh Items-I-Own + Collection Value so the new mock-up/paper/other item counts immediately (was only done for catalogs)
     showToast('✓ ' + (d.eph_title||'Item') + ' saved!');
     closeWizard();
     if (state.filters.owned) renderBrowse();
