@@ -34,6 +34,12 @@ function _ownedNonBox(state) {
   // so the nav badge matches the collection list (which hides grouped boxes).
   return Object.values(state.personalData).filter(function(pd) {
     if (!pd.owned) return false;
+    // Session 176: a box / master-carton is an accessory, never counted as a
+    // separate owned item (matches the collection list, which hides boxes).
+    // Without this an orphaned -BOX row inflates Items-I-Own yet is invisible in
+    // the list — looking like "item counted but missing".
+    var _n176 = String(pd.itemNum || '').toUpperCase();
+    if (_n176.endsWith('-BOX') || _n176.endsWith('-MBOX')) return false;
     if (typeof window !== 'undefined' && typeof window._isCollectionCompanion === 'function'
         && window._isCollectionCompanion(pd)) return false;
     var c = (pd.condition||'').toString().trim();

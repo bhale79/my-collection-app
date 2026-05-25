@@ -256,6 +256,42 @@ function getGroupMembers(itemNum) {
   if (!pd || !pd.groupId) return [];
   return Object.values(state.personalData).filter(p => p.groupId === pd.groupId);
 }
+
+// ── Shared, idempotent box cleanup for ALL sell paths (Session 176) ──
+// A box / master-carton is an accessory of its item, never a separate listing.
+// Whenever an item is sold — via the dashboard "Record a Sale" / wizard sold
+// path OR the For-Sale "Mark as Sold" shortcut — its -BOX / -MBOX companions
+// must come off My Collection too, or they strand as orphan rows that inflate
+// the Items-I-Own count and never appear in the list. Centralised here so every
+// sell path behaves the same. Matches companions by explicit name AND groupId,
+// blanks the sheet row (keeps other rows' numbers valid) and drops the state
+// entry. Safe to call twice — a second call simply finds nothing.
+async function _cleanupSoldItemBoxes(leadItemNum, leadGroupId) {
+  try {
+    if (!state || !state.personalData) return 0;
+    var lead = String(leadItemNum || '');
+    var boxNames = [ (lead + '-BOX').toUpperCase(), (lead + '-MBOX').toUpperCase() ];
+    var keys = Object.keys(state.personalData).filter(function(k) {
+      var p = state.personalData[k];
+      if (!p || !p.owned || !p.itemNum) return false;
+      var num = String(p.itemNum).toUpperCase();
+      if (!(num.endsWith('-BOX') || num.endsWith('-MBOX'))) return false;
+      if (boxNames.indexOf(num) !== -1) return true;
+      if (leadGroupId && p.groupId && p.groupId === leadGroupId) return true;
+      return false;
+    });
+    var blank = [['','','','','','','','','','','','','','','','','','','','','','','','','']];
+    for (var i = 0; i < keys.length; i++) {
+      var bp = state.personalData[keys[i]];
+      if (bp && bp.row && bp.row !== 99999) {
+        try { await sheetsUpdate(state.personalSheetId, 'My Collection!A' + bp.row + ':Y' + bp.row, blank); } catch(e) {}
+      }
+      delete state.personalData[keys[i]];
+    }
+    return keys.length;
+  } catch(e) { console.warn('[Sold] box cleanup:', e); return 0; }
+}
+window._cleanupSoldItemBoxes = _cleanupSoldItemBoxes;
 function normalizeItemNum(n) {
   const s = (n || '').toString().trim();
   return s.match(/^\d+\.0$/) ? s.slice(0, -2) : s;

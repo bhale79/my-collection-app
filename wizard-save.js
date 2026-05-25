@@ -1480,6 +1480,13 @@ async function saveWizardItem() {
         }
         window._pendingGroupSell = null;
       }
+      // Session 176: ALWAYS clear the item's box / master-carton companion(s).
+      // On the dashboard "Record a Sale" path _pendingGroupSell is null, so the
+      // box was never removed and stranded as an orphan -BOX row. Run this BEFORE
+      // the lead row delete so the box's stored row number is still valid.
+      if (typeof _cleanupSoldItemBoxes === 'function') {
+        try { await _cleanupSoldItemBoxes(itemNum, collectionEntry && collectionEntry.groupId); } catch(e) {}
+      }
       // Delete the row from My Collection
       if (collectionEntry?.row) {
         await sheetsDeleteRow(state.personalSheetId, 'My Collection', collectionEntry.row);

@@ -1348,7 +1348,10 @@ function buildForSalePage() {
 }
 
 async function markForSaleAsSold(itemNum, variation, askingPrice) {
-  const salePrice = prompt('Sale price? (leave blank for asking price)', askingPrice || '');
+  const salePrice = (typeof appPrompt === 'function')
+    ? await appPrompt('Enter the price it sold for. Leave blank to use the asking price.', askingPrice || '',
+        { title: 'Record sale', type: 'number', prefix: (typeof _currencySymbol === 'function' ? _currencySymbol() : '$'), ok: 'Mark sold' })
+    : prompt('Sale price? (leave blank for asking price)', askingPrice || '');
   if (salePrice === null) return; // cancelled
   const dateSold = new Date().toISOString().split('T')[0];
   const fsKey = `${itemNum}|${variation}`;
@@ -1413,6 +1416,11 @@ async function markForSaleAsSold(itemNum, variation, askingPrice) {
     }
   }
 
+  // Session 176: belt-and-suspenders — make sure any -BOX / -MBOX companion is
+  // gone too (shared with the wizard sold path), so no orphan box is left behind.
+  if (typeof _cleanupSoldItemBoxes === 'function') {
+    try { await _cleanupSoldItemBoxes(itemNum, (collEntry && collEntry.groupId) || fs.groupId); } catch(e) {}
+  }
   // Optimistic state update
   state.soldData[fsKey] = { row: existingSold?.row || 99999, itemNum, variation, condition: fs.condition, salePrice: salePrice || askingPrice, dateSold, notes: fs.notes };
   delete state.forSaleData[fsKey];

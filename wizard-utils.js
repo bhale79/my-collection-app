@@ -98,6 +98,47 @@ function appConfirm(message, opts) {
 }
 window.appConfirm = appConfirm;
 
+// In-app text / number prompt — replaces the native blocking prompt(), which
+// freezes automated tests and looks out of place. Returns the entered string,
+// or null if cancelled. Mirrors appConfirm's styling. (Session 176)
+function appPrompt(message, defaultValue, opts) {
+  opts = opts || {};
+  var title = opts.title || 'Enter a value';
+  var okText = opts.ok || 'OK';
+  var cancelText = opts.cancel || 'Cancel';
+  var inputType = opts.type || 'text';
+  var prefix = opts.prefix || '';
+  return new Promise(function(resolve) {
+    var ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:99998;display:flex;align-items:center;justify-content:center;padding:1rem';
+    var safeVal = String(defaultValue == null ? '' : defaultValue).replace(/"/g, '&quot;');
+    var numAttrs = (inputType === 'number') ? ' inputmode="decimal" step="any"' : '';
+    ov.innerHTML = '<div style="max-width:420px;width:100%;background:var(--surface,#1a1a2e);border:1px solid var(--border,#333);border-radius:14px;padding:1.25rem;color:var(--text,#eee);font-family:var(--font-body,sans-serif);box-shadow:0 10px 40px rgba(0,0,0,0.5)">'
+      + '<div style="font-size:1rem;font-weight:600;margin-bottom:0.55rem">' + title + '</div>'
+      + '<div style="font-size:0.9rem;line-height:1.45;color:var(--text-mid,#bbb);margin-bottom:0.9rem">' + message + '</div>'
+      + '<div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:1.1rem">'
+      + (prefix ? '<span style="font-size:1rem;color:var(--text-dim,#aaa)">' + prefix + '</span>' : '')
+      + '<input id="_ap-input" type="' + inputType + '"' + numAttrs + ' value="' + safeVal + '" style="flex:1;padding:0.6rem 0.7rem;border-radius:8px;border:1px solid var(--border,#444);background:var(--surface2,#222);color:var(--text,#eee);font-family:inherit;font-size:0.95rem"></div>'
+      + '<div style="display:flex;gap:0.5rem;justify-content:flex-end">'
+      + '<button id="_ap-cancel" style="padding:0.55rem 1.05rem;border-radius:8px;border:1px solid var(--border,#444);background:transparent;color:var(--text-dim,#aaa);font-family:inherit;cursor:pointer">' + cancelText + '</button>'
+      + '<button id="_ap-ok" style="padding:0.55rem 1.15rem;border-radius:8px;border:none;background:var(--accent,#e04028);color:#fff;font-weight:600;font-family:inherit;cursor:pointer">' + okText + '</button>'
+      + '</div></div>';
+    document.body.appendChild(ov);
+    var inp = ov.querySelector('#_ap-input');
+    var keyHandler;
+    var done = function(val) { ov.remove(); if (keyHandler) document.removeEventListener('keydown', keyHandler); resolve(val); };
+    keyHandler = function(e) {
+      if (e.key === 'Escape') done(null);
+      else if (e.key === 'Enter') done(inp ? inp.value : null);
+    };
+    document.addEventListener('keydown', keyHandler);
+    ov.querySelector('#_ap-cancel').onclick = function() { done(null); };
+    ov.querySelector('#_ap-ok').onclick = function() { done(inp ? inp.value : ''); };
+    setTimeout(function() { if (inp) { inp.focus(); inp.select(); } }, 30);
+  });
+}
+window.appPrompt = appPrompt;
+
 function showToast(msg, duration, isError) {
   let t = document.getElementById('toast');
   if (t) t.remove();
