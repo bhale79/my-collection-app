@@ -4150,17 +4150,15 @@ function renderWizardStep() {
         + _cdExtLink
         + '<div style="margin-bottom:0.5rem;padding-bottom:0.4rem;border-bottom:1px solid var(--border)"></div>';
       
-      // Condition — compact read-only badge if already set, slider if not
-      if (!wizard.data[condKey]) {
-        html += '<div style="margin-bottom:0.5rem"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">'
-          + '<span style="font-size:0.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em">Condition</span>'
-          + '<span id="cd-cond-val-' + col.id + '" style="font-family:var(--font-mono);font-size:0.95rem;color:var(--accent);font-weight:700">' + condVal + '</span></div>'
-          + '<input type="range" min="1" max="10" value="' + condVal + '" style="width:100%;accent-color:var(--accent)"'
-          + ' oninput="wizard.data[\'' + condKey + '\']=parseInt(this.value);document.getElementById(\'cd-cond-val-' + col.id + '\').textContent=this.value">'
-          + '<div style="display:flex;justify-content:space-between;font-size:0.55rem;color:var(--text-dim)"><span>Poor</span><span>Excellent</span></div></div>';
-      } else {
-        html += _inlineRow('Condition', '<span style="font-family:var(--font-mono);font-size:0.95rem;color:var(--accent);font-weight:700">' + condVal + '/10</span>', '0.5rem');
-      }
+      // Condition — Session 176: ALWAYS render the slider so it stays adjustable.
+      // (It used to collapse to a read-only badge once condition had any value,
+      // which made it un-editable whenever a default/prior value was present.)
+      html += '<div style="margin-bottom:0.5rem"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">'
+        + '<span style="font-size:0.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em">Condition</span>'
+        + '<span id="cd-cond-val-' + col.id + '" style="font-family:var(--font-mono);font-size:0.95rem;color:var(--accent);font-weight:700">' + condVal + '</span></div>'
+        + '<input type="range" min="1" max="10" value="' + condVal + '" style="width:100%;accent-color:var(--accent)"'
+        + ' oninput="wizard.data[\'' + condKey + '\']=parseInt(this.value);document.getElementById(\'cd-cond-val-' + col.id + '\').textContent=this.value">'
+        + '<div style="display:flex;justify-content:space-between;font-size:0.55rem;color:var(--text-dim)"><span>Poor</span><span>Excellent</span></div></div>';
 
       // All Original — inline row
       if (!_cdIsPaperLike) {
