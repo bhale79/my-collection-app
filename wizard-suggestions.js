@@ -233,7 +233,8 @@ function updateItemSuggestions(query) {
   // show results without requiring the user to type anything. Only hide
   // the suggestion box when there's no query AND no active filter.
   var _hasFilter = !!(_w && _w.data &&
-    (_w.data._searchFilterType || _w.data._searchFilterRoad));
+    (_w.data._searchFilterType || _w.data._searchFilterRoad
+     || _w.data._searchFilterManufacturer || _w.data._searchFilterPeriod));
   if (q.length < 1 && !_hasFilter) { el.style.display = 'none'; el.innerHTML = ''; return; }
 
   const tab = wizard.tab;
@@ -276,6 +277,7 @@ function updateItemSuggestions(query) {
     const _filterRoad = (wizard.data && wizard.data._searchFilterRoad) || '';
     const _filterMfr = (wizard.data && wizard.data._searchFilterManufacturer) || '';
     const _filterScale = (wizard.data && wizard.data._searchFilterScale) || '';
+    const _filterPeriod = (wizard.data && wizard.data._searchFilterPeriod) || '';   // Session 176: Era dropdown
     // Session 172: typed maker/period words act as FILTERS (so "lionel seaboard"
     // shows only Lionel and "postwar hudson" only Postwar) instead of being
     // ignored. Recognized words are pulled out of the text match below.
@@ -284,12 +286,15 @@ function updateItemSuggestions(query) {
     var _typedMfr = '', _typedPeriod = '';
     qParts.forEach(function(p){ if (_MFR_WORDS[p]) _typedMfr = _MFR_WORDS[p]; if (_PERIOD_WORDS[p]) _typedPeriod = _PERIOD_WORDS[p]; });
     var _effMfr = _filterMfr || _typedMfr;   // dropdown filter wins, else typed word
+    var _effPeriod = _filterPeriod || _typedPeriod;   // Session 176: Era dropdown wins, else typed period word
     var _searchParts = qParts.filter(function(p){ return p && !_stopWords.has(p) && !_MFR_WORDS[p] && !_PERIOD_WORDS[p]; });
     function _periodOfRow(m){
       var e = (m && m._era) || '';
       if (e === 'prewar') return 'prewar';
       if (e === 'pw' || e === 'pw_ho') return 'postwar';
-      if (e === 'mpc' || e === 'mpc_ho' || e === 'mod_ho' || e === 'mod_s') return 'modern';
+      // Session 176: any other tagged era (mpc/modern + ALL non-Lionel makers —
+      // Atlas, MTH, Weaver, RMT, etc.) counts as Modern.
+      if (e) return 'modern';
       var y = parseInt(String((m && m.yearProd) || '').slice(0,4), 10);
       if (y) { if (y <= 1942) return 'prewar'; if (y <= 1969) return 'postwar'; return 'modern'; }
       return '';
@@ -347,7 +352,7 @@ function updateItemSuggestions(query) {
         // ('lionel') while typed/dropdown values are capitalized ('Lionel').
         if (String(_mMfr).toLowerCase() !== String(_effMfr).toLowerCase()) return;
       }
-      if (_typedPeriod && _periodOfRow(m) !== _typedPeriod) return;
+      if (_effPeriod && _periodOfRow(m) !== _effPeriod) return;
       if (_filterScale) {
         var _mScale = (typeof ERA_SCALE !== 'undefined' && ERA_SCALE[m._era]) || '';
         if (_mScale !== _filterScale) return;
@@ -363,7 +368,7 @@ function updateItemSuggestions(query) {
         matches = true;
       } else {
         // Text-only search: match anywhere in road name, description, or item type
-        matches = _searchParts.length > 0 ? _searchParts.every(kp => haystack.includes(kp)) : !!(_effMfr || _typedPeriod || _filterType || _filterRoad || _filterScale);
+        matches = _searchParts.length > 0 ? _searchParts.every(kp => haystack.includes(kp)) : !!(_effMfr || _effPeriod || _filterType || _filterRoad || _filterScale);
       }
 
       if (!matches) return;
@@ -404,7 +409,8 @@ function updateItemSuggestions(query) {
     // app's current view/era. Pre-warmed on wizard open; if not ready yet,
     // kick the load and re-render when it lands.
     var _eraScoped = !!_eraTabSet;
-    if (candidates.length === 0 && q.length >= 1 && _eraScoped
+    var _anyDropFilter = !!(_filterMfr || _filterPeriod || _filterType);  // Session 176
+    if (candidates.length === 0 && (q.length >= 1 || _anyDropFilter) && _eraScoped
         && wizard.data && wizard.data._era && wizard.data._era !== 'all'
         && tab !== 'sold' && tab !== 'forsale') {
       var _allData = (typeof _allErasSearchCache !== 'undefined') ? _allErasSearchCache : null;
@@ -486,10 +492,18 @@ function updateItemSuggestions(query) {
   _suggestionIndex = -1;
   el.innerHTML = '';
 
+  // Session 176: cap rendered rows so a broad filter (e.g. all of one
+  // manufacturer/era) can't try to draw thousands of rows and freeze the list.
+  var _totalMatches = candidates.length;
+  var _RENDER_CAP = 75;
+  if (candidates.length > _RENDER_CAP) candidates = candidates.slice(0, _RENDER_CAP);
+
   // Count header
   const countBar = document.createElement('div');
   countBar.style.cssText = 'padding:0.3rem 0.75rem 0.4rem;font-size:0.72rem;color:var(--text-dim);border-bottom:1px solid var(--border);margin-bottom:2px;flex-shrink:0';
-  countBar.textContent = candidates.length + ' match' + (candidates.length !== 1 ? 'es' : '') + ' — tap to select or keep typing to filter';
+  countBar.textContent = (_totalMatches > _RENDER_CAP)
+    ? (_totalMatches + ' matches — showing first ' + _RENDER_CAP + '; narrow with filters or typing')
+    : (_totalMatches + ' match' + (_totalMatches !== 1 ? 'es' : '') + ' — tap to select or keep typing to filter');
   el.appendChild(countBar);
 
   const _cfg = (window.ITEM_SEARCH_FILTERS && window.ITEM_SEARCH_FILTERS.ui) || {};

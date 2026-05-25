@@ -24,7 +24,7 @@
 
 window.ITEM_SEARCH_FILTERS = {
   ui: {
-    anyLabel:     '(any)',
+    anyLabel:     'All',
     typeLabel:    'Type',
     roadLabel:    'Road name',
     hint:         'Pick a type or road to narrow the list — or just type to search.',

@@ -428,7 +428,9 @@ function _buildItemSearchFiltersDOM() {
   var _showAdvanced = _allMode || wizard.tab === 'collection';
   var showMfr = _showAdvanced && mfrs.length >= minCount;
   var showScale = _showAdvanced && scales.length >= minCount;
-  if (!showType && !showRoad && !showMfr && !showScale) return null;
+  // Session 176: the collection (add) tab always shows the filter bar because the
+  // Era dropdown is a fixed list, so don't bail even if type/road/mfr/scale are thin.
+  if (wizard.tab !== 'collection' && !showType && !showRoad && !showMfr && !showScale) return null;
 
   function esc(v) {
     return String(v == null ? '' : v)
@@ -459,10 +461,43 @@ function _buildItemSearchFiltersDOM() {
     return wrap;
   }
 
-  if (showType) bar.appendChild(mkDrop('wiz-search-type', ui.typeLabel || 'Type',       types, wizard.data._searchFilterType || ''));
-  if (showRoad) bar.appendChild(mkDrop('wiz-search-road', ui.roadLabel || 'Road name',  roads, wizard.data._searchFilterRoad || ''));
-  if (showMfr)   bar.appendChild(mkDrop('wiz-search-mfr',   'Manufacturer', mfrs,   wizard.data._searchFilterManufacturer || ''));
-  if (showScale) bar.appendChild(mkDrop('wiz-search-scale', 'Scale',        scales, wizard.data._searchFilterScale || ''));
+  // mkDrop variant for value/label pairs (used by the Era dropdown).
+  function mkDropPairs(fieldId, label, pairs, currentVal) {
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'flex:1;min-width:130px';
+    var opts = '<option value="">' + esc(ui.anyLabel || 'All') + '</option>' +
+      pairs.map(function(p) {
+        var sel = p.value === currentVal ? ' selected' : '';
+        return '<option value="' + esc(p.value) + '"' + sel + '>' + esc(p.label) + '</option>';
+      }).join('');
+    wrap.innerHTML =
+      '<div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:0.2rem;' +
+        'letter-spacing:0.06em;text-transform:uppercase;font-weight:600">' + esc(label) + '</div>' +
+      '<select id="' + fieldId + '" style="' +
+        'width:100%;padding:0.5rem 0.65rem;font-size:' + (sz.fontPx || 14) + 'px;' +
+        'background:var(--surface2);color:var(--text);border:1px solid var(--border);' +
+        'border-radius:8px;min-height:' + (sz.minHeightPx || 44) + 'px' +
+      '">' + opts + '</select>';
+    return wrap;
+  }
+  var _eraPairs = [
+    { value: 'prewar',  label: 'Pre-War' },
+    { value: 'postwar', label: 'Postwar' },
+    { value: 'modern',  label: 'Modern' },
+  ];
+
+  if (wizard.tab === 'collection') {
+    // Session 176: the add screen shows exactly Manufacturer / Era / Type, each
+    // defaulting to "All". Road/Scale are intentionally omitted to keep it simple.
+    if (mfrs.length) bar.appendChild(mkDrop('wiz-search-mfr', 'Manufacturer', mfrs, wizard.data._searchFilterManufacturer || ''));
+    bar.appendChild(mkDropPairs('wiz-search-era', 'Era', _eraPairs, wizard.data._searchFilterPeriod || ''));
+    if (showType) bar.appendChild(mkDrop('wiz-search-type', ui.typeLabel || 'Type', types, wizard.data._searchFilterType || ''));
+  } else {
+    if (showType) bar.appendChild(mkDrop('wiz-search-type', ui.typeLabel || 'Type',       types, wizard.data._searchFilterType || ''));
+    if (showRoad) bar.appendChild(mkDrop('wiz-search-road', ui.roadLabel || 'Road name',  roads, wizard.data._searchFilterRoad || ''));
+    if (showMfr)   bar.appendChild(mkDrop('wiz-search-mfr',   'Manufacturer', mfrs,   wizard.data._searchFilterManufacturer || ''));
+    if (showScale) bar.appendChild(mkDrop('wiz-search-scale', 'Scale',        scales, wizard.data._searchFilterScale || ''));
+  }
   container.appendChild(bar);
 
   if (ui.hint) {
@@ -542,6 +577,22 @@ function _wireItemSearchFilters() {
   if (mfrSel) {
     mfrSel.addEventListener('change', function() {
       wizard.data._searchFilterManufacturer = this.value || '';
+      // Session 176: non-Lionel makers (Atlas/MTH/Weaver/RMT/...) are all Modern —
+      // auto-set the Era filter to Modern when one is chosen.
+      var _mv = String(this.value || '').toLowerCase();
+      var _eraSel2 = document.getElementById('wiz-search-era');
+      if (_mv && _mv !== 'lionel') {
+        wizard.data._searchFilterPeriod = 'modern';
+        if (_eraSel2) _eraSel2.value = 'modern';
+      }
+      var i = document.getElementById('wiz-input');
+      if (typeof updateItemSuggestions === 'function') updateItemSuggestions(i ? i.value : '');
+    });
+  }
+  var eraSel = document.getElementById('wiz-search-era');
+  if (eraSel) {
+    eraSel.addEventListener('change', function() {
+      wizard.data._searchFilterPeriod = this.value || '';
       var i = document.getElementById('wiz-input');
       if (typeof updateItemSuggestions === 'function') updateItemSuggestions(i ? i.value : '');
     });
