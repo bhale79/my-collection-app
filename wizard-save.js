@@ -1756,7 +1756,7 @@ async function saveWizardItem() {
         priceBox: d.priceBox || '',
         priceComplete: d.priceComplete || '',
         hasBox: d.hasBox || 'No',
-        boxCond: d.boxCondition || '',
+        boxCond: d.boxCond || '',
         notes: d.notes || '',
         datePurchased: d.datePurchased || '',
         inventoryId: _optInvId, groupId: groupId || '',
