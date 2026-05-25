@@ -700,7 +700,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // faster. Total wait time drops from max-of-13-fetches to max-of-5.
   const [collRes, soldRes, forSaleRes, wantRes, upgradeRes] = await Promise.all([
     sheetsGet(sheetId, 'My Collection!A3:AD').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Sold!A3:J').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Sold!A3:T').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'For Sale!A3:J').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Want List!A3:F').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Upgrade List!A3:H').catch(() => ({values:[]})),
@@ -753,16 +753,22 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     };
   });
 
-  // Sold
+  // Sold — Session 176: each sale is its own row (a history). Key uniquely by
+  // sheet row so two sales of the same item number don't collide/overwrite. Read
+  // snapshot columns 10-19 so each record keeps its own details + photos.
   (soldRes.values || []).forEach((r, idx) => {
     if (!r[0] || r[0] === 'Item Number') return;
-    const key = `${r[0]}|${r[1]||''}`;
+    const key = 'sold-' + (idx+3);
     newSold[key] = {
-      row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
+      row: idx+3, key: key, itemNum: r[0]||'', variation: r[1]||'',
       copy: r[2]||'1', condition: r[3]||'', priceItem: r[4]||'',
       salePrice: r[5]||'', dateSold: r[6]||'', notes: r[7]||'',
       inventoryId: r[8]||'',
       manufacturer: r[9] || 'Lionel',
+      allOriginal: r[10]||'', hasBox: r[11]||'', boxCond: r[12]||'',
+      photoItem: r[13]||'', photoBox: r[14]||'',
+      roadName: r[15]||'', description: r[16]||'',
+      userEstWorth: r[17]||'', datePurchased: r[18]||'', year: r[19]||'',
     };
   });
 

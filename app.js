@@ -42,7 +42,11 @@ const PERSONAL_HEADERS = [
 ];
 const SOLD_HEADERS = [
   'Item Number','Variation','Copy #','Condition (1-10)','Item Only Price Paid',
-  'Sale Price','Date Sold','Notes','Inventory ID','Manufacturer'
+  'Sale Price','Date Sold','Notes','Inventory ID','Manufacturer',
+  // Session 176: snapshot columns so each sale is a self-contained record
+  // (kept even after the item leaves My Collection) — its own details + photos.
+  'All Original','Has Box','Box Condition (1-10)','Item Photo Link','Box Photo Link',
+  'Road Name','Description','Est. Worth','Date Purchased','Year'
 ];
 const FOR_SALE_HEADERS = [
   'Item Number','Variation','Condition (1-10)','Asking Price',
@@ -292,6 +296,71 @@ async function _cleanupSoldItemBoxes(leadItemNum, leadGroupId) {
   } catch(e) { console.warn('[Sold] box cleanup:', e); return 0; }
 }
 window._cleanupSoldItemBoxes = _cleanupSoldItemBoxes;
+
+// ── Sale-history helpers (Session 176) ──
+// Sold is now a history: multiple sales can share the same item number (you may
+// buy & sell the same catalog number more than once over the years). soldData is
+// keyed uniquely per sale, so the old state.soldData[itemNum|variation] lookups
+// no longer work — use these scans instead.
+function _salesFor(itemNum, variation) {
+  var v = variation || '';
+  var out = [];
+  var sd = state.soldData || {};
+  Object.keys(sd).forEach(function(k){
+    var s = sd[k];
+    if (s && s.itemNum === itemNum && (s.variation || '') === v) out.push(s);
+  });
+  return out;
+}
+function _latestSale(itemNum, variation) {
+  var arr = _salesFor(itemNum, variation);
+  if (!arr.length) return null;
+  arr.sort(function(a, b){ return String(b.dateSold || '').localeCompare(String(a.dateSold || '')); });
+  return arr[0];
+}
+window._salesFor = _salesFor;
+window._latestSale = _latestSale;
+
+// Session 176: ONE builder for a 20-column Sold row so every sale path snapshots
+// the same details + photos. `opts.src` is the owned collection entry to copy
+// condition/box/photo/road/etc. from; explicit opts win over src.
+function _buildSoldRow(opts) {
+  opts = opts || {};
+  var src = opts.src || {};
+  var master = (typeof findMaster === 'function' && opts.itemNum) ? (findMaster(opts.itemNum) || {}) : {};
+  var pick = function(a, b, c) {
+    if (a !== undefined && a !== null && a !== '' && a !== 'N/A') return a;
+    if (b !== undefined && b !== null && b !== '' && b !== 'N/A') return b;
+    return (c === undefined ? '' : c);
+  };
+  return [
+    pick(opts.itemNum, src.itemNum),
+    pick(opts.variation, src.variation),
+    opts.copy || '1',
+    pick(opts.condition, src.condition),
+    pick(opts.pricePaid, src.priceItem),
+    opts.salePrice || '',
+    opts.dateSold || new Date().toISOString().split('T')[0],
+    opts.notes || '',
+    pick(opts.inventoryId, src.inventoryId),
+    pick(opts.manufacturer, src.manufacturer, (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : 'Lionel')),
+    pick(src.allOriginal),
+    pick(src.hasBox),
+    pick(src.boxCond),
+    pick(src.photoItem),
+    pick(src.photoBox),
+    pick(src.roadName, master.roadName),
+    pick(src.description, master.description),
+    pick(src.userEstWorth),
+    pick(src.datePurchased),
+    pick(src.yearMade, master.yearProd),
+  ];
+}
+window._buildSoldRow = _buildSoldRow;
+// Unique transient key for an optimistic Sold entry (replaced by the row-based
+// key on the next data reload).
+function _newSoldKey() { return 'sold-opt-' + Date.now() + '-' + Math.floor(Math.random() * 100000); }
+window._newSoldKey = _newSoldKey;
 function normalizeItemNum(n) {
   const s = (n || '').toString().trim();
   return s.match(/^\d+\.0$/) ? s.slice(0, -2) : s;

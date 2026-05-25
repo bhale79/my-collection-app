@@ -3047,7 +3047,7 @@ function openItem(idx) {
   else { vd.style.display = 'none'; }
 
   // Personal data - check owned, for sale, sold, and want
-  const sd = state.soldData[key] || {};
+  const sd = (typeof _latestSale === 'function' ? _latestSale(item.itemNum, item.variation) : null) || {};
   const fs = state.forSaleData[key] || {};
   const wd = state.wantData[key] || {};
   const itemStatus = pd.owned ? 'Owned' : fs.itemNum ? 'ForSale' : sd.itemNum ? 'Sold' : wd.itemNum ? 'Want' : '';
@@ -3186,11 +3186,8 @@ async function saveItem() {
     } else {
       await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [ownedRow]);
     }
-    // Remove from Sold tab if it was there
-    const soldEntry = state.soldData[key];
-    if (soldEntry && soldEntry.row) {
-      await sheetsUpdate(state.personalSheetId, `Sold!A${soldEntry.row}:J${soldEntry.row}`, [['','','','','','','','','','']]);
-    }
+    // Session 176: do NOT clear Sold rows when re-owning — Sold is now a
+    // permanent sale history (each past sale stays as its own record).
     // Remove from Want List if it was there
     const wantEntry = state.wantData[key];
     if (wantEntry && wantEntry.row) {
@@ -3222,11 +3219,8 @@ async function saveItem() {
     } else {
       await sheetsAppend(state.personalSheetId, 'For Sale!A:A', [forSaleRow]);
     }
-    // Remove from Sold if it was there
-    const soldEntry2 = state.soldData[key];
-    if (soldEntry2 && soldEntry2.row) {
-      await sheetsUpdate(state.personalSheetId, `Sold!A${soldEntry2.row}:J${soldEntry2.row}`, [['','','','','','','','','','']]);
-    }
+    // Session 176: do NOT clear Sold rows when listing for sale — preserve the
+    // full sale history.
     // Remove from Want if it was there
     const wantEntry2 = state.wantData[key];
     if (wantEntry2 && wantEntry2.row) {
@@ -3244,22 +3238,19 @@ async function saveItem() {
     if (fsEntry3 && fsEntry3.row) {
       await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry3.row}:J${fsEntry3.row}`, [['','','','','','','','','','']]);
     }
-    // Write to Sold tab
-    const soldRow = [
-      item.itemNum, item.variation || '', copy, condition,
-      existing?.priceItem || document.getElementById('fc-price-item').value,
-      document.getElementById('fc-sale-price').value,
-      document.getElementById('fc-date-sold').value,
-      document.getElementById('fc-notes').value,
-      existing?.inventoryId || '',
-      existing?.manufacturer || _getEraManufacturer(),
-    ];
-    const soldEntry = state.soldData[key];
-    if (soldEntry && soldEntry.row) {
-      await sheetsUpdate(state.personalSheetId, `Sold!A${soldEntry.row}:J${soldEntry.row}`, [soldRow]);
-    } else {
-      await sheetsAppend(state.personalSheetId, 'Sold!A:J', [soldRow]);
-    }
+    // Write to Sold tab — Session 176: each sale its own row (append) + snapshot.
+    const soldRow = _buildSoldRow({
+      itemNum: item.itemNum, variation: item.variation || '', copy: copy,
+      condition: condition,
+      pricePaid: (existing && existing.priceItem) || document.getElementById('fc-price-item').value,
+      salePrice: document.getElementById('fc-sale-price').value,
+      dateSold: document.getElementById('fc-date-sold').value,
+      notes: document.getElementById('fc-notes').value,
+      inventoryId: (existing && existing.inventoryId) || '',
+      manufacturer: (existing && existing.manufacturer) || '',
+      src: existing || {},
+    });
+    await sheetsAppend(state.personalSheetId, 'Sold!A:T', [soldRow]);
 
   } else if (currentStatus === 'Want') {
     // Remove from My Collection if present

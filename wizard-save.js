@@ -1444,22 +1444,17 @@ async function saveWizardItem() {
       const soldCondition = d.condition || (collectionEntry?.condition !== 'N/A' ? collectionEntry?.condition : '') || '';
       const soldPricePaid = d.priceItem || (collectionEntry?.priceItem !== 'N/A' ? collectionEntry?.priceItem : '') || '';
 
-      const row = [
-        itemNum, soldVariation, '1',
-        soldCondition,
-        soldPricePaid,
-        d.salePrice || '',
-        d.dateSold || '',
-        ( d.notes || '' ).trim(),
-        collectionEntry?.inventoryId || '',
-      ];
-      const soldKey = `${itemNum}|${soldVariation}`;
-      const existingSold = state.soldData[soldKey];
-      if (existingSold?.row) {
-        await sheetsUpdate(state.personalSheetId, `Sold!A${existingSold.row}:I${existingSold.row}`, [row]);
-      } else {
-        await sheetsAppend(state.personalSheetId, 'Sold!A:I', [row]);
-      }
+      // Session 176: each sale is its own row — ALWAYS append, never overwrite.
+      // Build the full 20-col snapshot (details + photos) from the collection entry.
+      const row = _buildSoldRow({
+        itemNum: itemNum, variation: soldVariation, copy: '1',
+        condition: soldCondition, pricePaid: soldPricePaid,
+        salePrice: d.salePrice || '', dateSold: d.dateSold || '',
+        notes: (d.notes || '').trim(),
+        inventoryId: collectionEntry ? collectionEntry.inventoryId : '',
+        src: collectionEntry || {},
+      });
+      await sheetsAppend(state.personalSheetId, 'Sold!A:T', [row]);
       // Bug 19 (Session 154): group sale — handle the other selected pieces
       // BEFORE deleting the lead row (clearing rows doesn't shift row numbers
       // the way a delete does, so companion rows stay valid).
@@ -1770,12 +1765,13 @@ async function saveWizardItem() {
       };
       _stampSaved(state.personalData[_optInvId]);
     } else if (tab === 'sold') {
-      state.soldData[`${itemNum}|${variation}`] = {
-        row: 99999, itemNum, variation,
+      var _osk = _newSoldKey();
+      state.soldData[_osk] = {
+        row: 99999, key: _osk, itemNum, variation,
         condition: d.condition || '',
         priceItem: d.priceItem || '',
         salePrice: d.salePrice || '',
-        dateSold: d.dateSold || '',
+        dateSold: d.dateSold || (new Date().toISOString().split('T')[0]),
         notes: d.notes || '',
       };
     } else if (tab === 'want') {

@@ -377,7 +377,7 @@ async function initPersonalSheet(sheetId) {
 
   // Write headers to all tabs
   await sheetsUpdate(sheetId, 'Sold!A1:A1',      [['Sold']]);
-  await sheetsUpdate(sheetId, 'Sold!A2:J2',      [SOLD_HEADERS]);
+  await sheetsUpdate(sheetId, 'Sold!A2:T2',      [SOLD_HEADERS]);
   await sheetsUpdate(sheetId, 'For Sale!A1:A1',   [['For Sale']]);
   await sheetsUpdate(sheetId, 'For Sale!A2:J2',   [FOR_SALE_HEADERS]);
   await sheetsUpdate(sheetId, 'Want List!A1:A1',    [['Want List']]);
@@ -414,7 +414,7 @@ async function ensurePersonalHeaders(sheetId) {
       // Write headers for newly created tabs
       if (!existingTabs.includes('Sold')) {
         await sheetsUpdate(sheetId, 'Sold!A1:A1', [['Sold']]);
-        await sheetsUpdate(sheetId, 'Sold!A2:J2', [SOLD_HEADERS]);
+        await sheetsUpdate(sheetId, 'Sold!A2:T2', [SOLD_HEADERS]);
       }
       if (!existingTabs.includes('For Sale')) {
         await sheetsUpdate(sheetId, 'For Sale!A1:A1', [['For Sale']]);
@@ -466,7 +466,7 @@ async function ensurePersonalHeaders(sheetId) {
     // Repair Sold / For Sale / Want List headers (Manufacturer column added — new users ok,
     // older users need this to pick up the schema change without data loss).
     var _tabsToCheck = [
-      { name: 'Sold',      range: 'Sold!A2:J2',      headers: SOLD_HEADERS     },
+      { name: 'Sold',      range: 'Sold!A2:T2',      headers: SOLD_HEADERS     },
       { name: 'For Sale',  range: 'For Sale!A2:J2',  headers: FOR_SALE_HEADERS },
       { name: 'Want List', range: 'Want List!A2:F2', headers: WANT_HEADERS     },
     ];

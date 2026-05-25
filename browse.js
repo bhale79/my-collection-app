@@ -2249,7 +2249,10 @@ function renderBrowse() {
     }
     const isOwned = item._personalOnly ? true : (pd?.owned || false);
     const hasBox = pd?.hasBox === 'Yes';
-    const isSold = !!state.soldData[`${_displayItemNum(item)}|${item.variation}`] || !!state.soldData[`${item.itemNum}|${item.variation}`];
+    // Session 176: Sold is now a history. Only hide an item as "sold" if it isn't
+    // currently owned again — re-owned items must still appear in browse.
+    const isSold = !isOwned && (typeof _latestSale === 'function')
+      && (!!_latestSale(_displayItemNum(item), item.variation) || !!_latestSale(item.itemNum, item.variation));
     if (isSold) return false;
     const isWanted = !!state.wantData[`${item.itemNum}|${item.variation}`];
     if (state.filters.wantList && !isWanted) return false;

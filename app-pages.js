@@ -1111,7 +1111,7 @@ function buildSoldPage() {
     .filter(sd => typeof _isInCurrentEra !== 'function' || _isInCurrentEra(sd.itemNum))
     .map(sd => {
       const master = state.masterData.find(i => i.itemNum === sd.itemNum && i.variation === sd.variation) || {};
-      return { ...sd, _type: master.itemType || '', _roadName: master.roadName || '', _master: master };
+      return { ...sd, _type: master.itemType || '', _roadName: sd.roadName || master.roadName || '', _master: master };
     });
 
   // Populate type filter dropdown (before filtering)
@@ -1208,7 +1208,7 @@ function buildSoldPage() {
     if (soldCardsEl) soldCardsEl.style.display = 'flex';
     if (soldTableWrap) soldTableWrap.style.display = 'none';
     if (soldCardsEl) soldCardsEl.innerHTML = soldEntries.length ? soldEntries.map(sd => {
-      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem">
+      return `<div onclick="showSoldDetailPage('${sd.key}')" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem;cursor:pointer">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div>
             <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${sd.itemNum}</span>
@@ -1226,7 +1226,7 @@ function buildSoldPage() {
     if (soldCardsEl) soldCardsEl.style.display = 'none';
     if (soldTableWrap) soldTableWrap.style.display = '';
     tbody.innerHTML = soldEntries.length ? soldEntries.map(sd => {
-      return `<tr>
+      return `<tr onclick="showSoldDetailPage('${sd.key}')" style="cursor:pointer">
         <td><span class="item-num">${sd.itemNum}</span></td>
         <td><span class="tag">${sd._type || '—'}</span></td>
         <td>${sd._roadName || '—'}</td>
@@ -1240,6 +1240,137 @@ function buildSoldPage() {
 
   var _ns = document.getElementById('nav-sold'); if (_ns) _ns.textContent = Object.keys(state.soldData).length;
 }
+
+// ── Sold-record detail view (Session 176) ──────────────────────────
+// Each sale is its own self-contained record. Tap a row on the Sold list to
+// see its snapshot details + photos here. Reuses the Drive photo loader.
+function showSoldDetailPage(key) {
+  var sd = (state.soldData || {})[key];
+  if (!sd) { if (typeof showToast === 'function') showToast('Sale record not found', 3000, true); return; }
+  var master = (state.masterData || []).find(function(i){ return i.itemNum === sd.itemNum && i.variation === (sd.variation || ''); }) || {};
+  var roadName = sd.roadName || master.roadName || '';
+  var desc = sd.description || master.description || '';
+  var photoLink = sd.photoItem || sd.photoBox || '';
+  var cur = (typeof _currencySymbol === 'function') ? _currencySymbol() : '$';
+  var money = function(v){ if (v === '' || v == null) return null; var n = parseFloat(v); return isNaN(n) ? null : (cur + n.toLocaleString()); };
+  var fmtDate = (typeof _formatDate === 'function') ? _formatDate : function(x){ return x; };
+  if (typeof showPage === 'function') showPage('itemdetail');
+  var container = document.getElementById('item-detail-content');
+  if (!container) return;
+  var titleNum = sd.itemNum ? ('No. ' + sd.itemNum) : (desc || 'Sold item');
+  var keyArg = "'" + String(key).replace(/'/g, "\\'") + "'";
+
+  var fields = [
+    { label: 'Sale Price',     val: money(sd.salePrice) },
+    { label: 'Date Sold',      val: sd.dateSold ? fmtDate(sd.dateSold) : null },
+    { label: 'Price Paid',     val: money(sd.priceItem) },
+    { label: 'Condition',      val: sd.condition ? (sd.condition + '/10') : null },
+    { label: 'All Original',   val: (sd.allOriginal && sd.allOriginal !== 'Unknown') ? sd.allOriginal : null },
+    { label: 'Had Box',        val: sd.hasBox === 'Yes' ? 'Yes' : (sd.hasBox === 'No' ? 'No' : null) },
+    { label: 'Box Condition',  val: sd.boxCond ? (sd.boxCond + '/10') : null },
+    { label: 'Road Name',      val: roadName || null },
+    { label: 'Est. Worth',     val: money(sd.userEstWorth) },
+    { label: 'Date Purchased', val: sd.datePurchased ? fmtDate(sd.datePurchased) : null },
+    { label: 'Manufacturer',   val: sd.manufacturer || null },
+    { label: 'Variation',      val: sd.variation || null },
+  ].filter(function(f){ return f.val != null && f.val !== ''; });
+
+  var html = ''
+    + '<div style="margin-bottom:1.5rem">'
+    +   '<button onclick="showPage(\'sold\');buildSoldPage()" style="background:none;border:none;color:#2980b9;font-family:var(--font-body);font-size:1.1rem;font-weight:700;cursor:pointer;padding:0;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.4rem">'
+    +     '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg> Back to Sold'
+    +   '</button>'
+    +   '<div style="display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap">'
+    +     '<div style="flex:1;min-width:0">'
+    +       '<div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.25rem">'
+    +         '<span style="font-family:var(--font-head);font-size:1.6rem;color:var(--accent);letter-spacing:0.03em">' + titleNum + '</span>'
+    +         '<span class="tag">Sold</span>'
+    +         (sd.dateSold ? '<span style="font-size:0.82rem;color:var(--text-dim)">' + fmtDate(sd.dateSold) + '</span>' : '')
+    +       '</div>'
+    +       ((roadName || desc) ? '<div style="font-size:1.05rem;color:var(--text);margin-bottom:0.2rem">' + (roadName || desc) + '</div>' : '')
+    +     '</div>'
+    +     '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.2rem;flex-shrink:0">'
+    +       (sd.salePrice ? '<span style="font-family:var(--font-mono);color:#2ecc71;font-size:1.3rem;font-weight:700">' + cur + parseFloat(sd.salePrice).toLocaleString() + '</span>' : '')
+    +       '<span style="font-size:0.72rem;color:var(--text-dim)">sold for</span>'
+    +     '</div>'
+    +   '</div>'
+    + '</div>';
+
+  html += '<div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap">'
+    +   '<button onclick="_removeSoldRecord(' + keyArg + ')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
+    +     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg> Remove this sale record'
+    +   '</button>'
+    + '</div>';
+
+  html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem;margin-bottom:1.5rem">'
+    +   '<div style="font-family:var(--font-head);font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent2);margin-bottom:0.75rem">Sale Details</div>';
+  if (fields.length) {
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.6rem 1.5rem">'
+      + fields.map(function(d){
+          return '<div style="display:flex;justify-content:space-between;padding:0.35rem 0;border-bottom:1px solid var(--border)">'
+            + '<span style="font-size:0.78rem;color:var(--text-dim);font-weight:600">' + d.label + '</span>'
+            + '<span style="font-size:0.85rem;color:var(--text);text-align:right">' + d.val + '</span></div>';
+        }).join('')
+      + '</div>';
+  } else {
+    html += '<div style="color:var(--text-dim);font-size:0.85rem">No details recorded.</div>';
+  }
+  if (sd.notes) {
+    html += '<div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border)">'
+      + '<div style="font-size:0.78rem;color:var(--text-dim);font-weight:600;margin-bottom:0.3rem">Notes</div>'
+      + '<div style="font-size:0.85rem;color:var(--text);line-height:1.6">' + sd.notes + '</div></div>';
+  }
+  html += '</div>';
+
+  html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem">'
+    +   '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">'
+    +     '<div style="font-family:var(--font-head);font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent2)">Photos</div>'
+    +     (photoLink ? '<a href="' + photoLink + '" target="_blank" rel="noopener" style="font-size:0.75rem;color:var(--accent2);text-decoration:none">Open Drive Folder &#8599;</a>' : '')
+    +   '</div>'
+    +   '<div id="sold-detail-photos" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:0.75rem;min-height:80px">'
+    +     (photoLink
+            ? '<div style="grid-column:1/-1;text-align:center;padding:1rem;color:var(--text-dim);font-size:0.82rem"><div class="spinner" style="margin:0 auto 0.5rem;width:20px;height:20px;border-width:2px"></div>Loading photos...</div>'
+            : '<div style="grid-column:1/-1;text-align:center;padding:2rem 1rem;color:var(--text-dim)"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3" style="margin:0 auto 0.5rem;display:block"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg><div style="font-size:0.85rem">No photos saved with this sale</div></div>')
+    +   '</div>'
+    + '</div>';
+
+  container.innerHTML = html;
+
+  if (photoLink && typeof driveGetFolderPhotos === 'function') {
+    driveGetFolderPhotos(photoLink).then(function(photos){
+      var el = document.getElementById('sold-detail-photos');
+      if (!el) return;
+      if (!photos || !photos.length) { el.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:1.5rem;color:var(--text-dim);font-size:0.82rem">No photos in folder</div>'; return; }
+      el.innerHTML = photos.map(function(p){
+        return '<a href="' + p.view + '" target="_blank" rel="noopener" style="display:block;border-radius:8px;overflow:hidden;background:var(--surface2);aspect-ratio:1;position:relative">'
+          + '<img id="sdp-' + p.id + '" style="width:100%;height:100%;object-fit:cover;border-radius:8px" alt="' + (p.name || 'Photo') + '"></a>';
+      }).join('');
+      photos.forEach(function(p){ var img = document.getElementById('sdp-' + p.id); if (img && typeof loadDriveThumb === 'function') loadDriveThumb(p.id, img, img.parentElement); });
+    }).catch(function(e){ console.warn('Sold photo load:', e); var el = document.getElementById('sold-detail-photos'); if (el) el.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:1rem;color:var(--text-dim);font-size:0.82rem">Could not load photos</div>'; });
+  }
+}
+window.showSoldDetailPage = showSoldDetailPage;
+
+async function _removeSoldRecord(key) {
+  var sd = (state.soldData || {})[key];
+  if (!sd) { if (typeof showToast === 'function') showToast('Sale record not found', 3000, true); return; }
+  var ok = (typeof appConfirm === 'function')
+    ? await appConfirm('Remove this sale record? This deletes the saved sale (price, date, and photo snapshot) from your Sold history. It cannot be undone.', { danger: true, ok: 'Remove', title: 'Remove sale record' })
+    : confirm('Remove this sale record?');
+  if (!ok) return;
+  try {
+    if (sd.row && sd.row !== 99999) {
+      await sheetsUpdate(state.personalSheetId, 'Sold!A' + sd.row + ':T' + sd.row, [Array(20).fill('')]);
+    }
+  } catch(e) { console.warn('[Sold] remove record:', e); }
+  delete state.soldData[key];
+  if (typeof _cachePersonalData === 'function') _cachePersonalData();
+  if (typeof showToast === 'function') showToast('✓ Sale record removed');
+  if (typeof showPage === 'function') showPage('sold');
+  buildSoldPage();
+  if (typeof buildDashboard === 'function') buildDashboard();
+}
+window._removeSoldRecord = _removeSoldRecord;
 
 function clearPageSearch(name) {
   const map = { browse: 'browse-search', sold: 'sold-search', want: 'want-search' };
@@ -1359,30 +1490,8 @@ async function markForSaleAsSold(itemNum, variation, askingPrice) {
   // Capture group members BEFORE the lead is deleted (we need its groupId link).
   const _grpMembers = (typeof window !== 'undefined' && typeof window._fsGroupMembers === 'function') ? window._fsGroupMembers(fs) : null;
 
-  // Write to Sold tab
-  const soldRow = [
-    itemNum, variation, '1',
-    fs.condition || '',
-    fs.originalPrice || '',
-    salePrice || askingPrice || '',
-    dateSold,
-    fs.notes || '',
-    fs.inventoryId || '',
-    fs.manufacturer || _getEraManufacturer(),
-  ];
-  const existingSold = state.soldData[fsKey];
-  if (existingSold?.row) {
-    await sheetsUpdate(state.personalSheetId, `Sold!A${existingSold.row}:J${existingSold.row}`, [soldRow]);
-  } else {
-    await sheetsAppend(state.personalSheetId, 'Sold!A:J', [soldRow]);
-  }
-
-  // Remove from For Sale tab
-  if (fs.row) {
-    await sheetsUpdate(state.personalSheetId, `For Sale!A${fs.row}:J${fs.row}`, [['','','','','','','','','','']]);
-  }
-
-  // Remove from My Collection — match by inventoryId (which is now the state key)
+  // Session 176: resolve the owned collection entry FIRST so the sale can
+  // snapshot its details + photos; then each sale appends its own 20-col Sold row.
   let collKey = null;
   if (fs.inventoryId && state.personalData[fs.inventoryId]) {
     collKey = fs.inventoryId;
@@ -1391,6 +1500,27 @@ async function markForSaleAsSold(itemNum, variation, askingPrice) {
     collKey = findPDKey(itemNum, variation);
   }
   const collEntry = collKey ? state.personalData[collKey] : null;
+
+  // Write to Sold tab — ALWAYS append (each sale its own row), full snapshot.
+  const soldRow = _buildSoldRow({
+    itemNum: itemNum, variation: variation, copy: '1',
+    condition: fs.condition || (collEntry && collEntry.condition) || '',
+    pricePaid: fs.originalPrice || (collEntry && collEntry.priceItem) || '',
+    salePrice: salePrice || askingPrice || '',
+    dateSold: dateSold,
+    notes: fs.notes || '',
+    inventoryId: fs.inventoryId || (collEntry && collEntry.inventoryId) || '',
+    manufacturer: fs.manufacturer || (collEntry && collEntry.manufacturer) || '',
+    src: collEntry || {},
+  });
+  await sheetsAppend(state.personalSheetId, 'Sold!A:T', [soldRow]);
+
+  // Remove from For Sale tab
+  if (fs.row) {
+    await sheetsUpdate(state.personalSheetId, `For Sale!A${fs.row}:J${fs.row}`, [['','','','','','','','','','']]);
+  }
+
+  // Remove from My Collection
   if (collEntry?.row) {
     await sheetsUpdate(state.personalSheetId, `My Collection!A${collEntry.row}:Y${collEntry.row}`, [['','','','','','','','','','','','','','','','','','','','','','','','','']]);
     delete state.personalData[collKey];
@@ -1421,8 +1551,21 @@ async function markForSaleAsSold(itemNum, variation, askingPrice) {
   if (typeof _cleanupSoldItemBoxes === 'function') {
     try { await _cleanupSoldItemBoxes(itemNum, (collEntry && collEntry.groupId) || fs.groupId); } catch(e) {}
   }
-  // Optimistic state update
-  state.soldData[fsKey] = { row: existingSold?.row || 99999, itemNum, variation, condition: fs.condition, salePrice: salePrice || askingPrice, dateSold, notes: fs.notes };
+  // Optimistic state update — unique key so each sale is its own row.
+  var _osk = (typeof _newSoldKey === 'function') ? _newSoldKey() : ('sold-opt-' + Date.now());
+  state.soldData[_osk] = {
+    row: 99999, key: _osk, itemNum, variation,
+    condition: fs.condition || (collEntry && collEntry.condition) || '',
+    priceItem: fs.originalPrice || (collEntry && collEntry.priceItem) || '',
+    salePrice: salePrice || askingPrice, dateSold, notes: fs.notes || '',
+    photoItem: (collEntry && collEntry.photoItem) || '', photoBox: (collEntry && collEntry.photoBox) || '',
+    roadName: (collEntry && collEntry.roadName) || '', description: (collEntry && collEntry.description) || '',
+    userEstWorth: (collEntry && collEntry.userEstWorth) || '', hasBox: (collEntry && collEntry.hasBox) || '',
+    boxCond: (collEntry && collEntry.boxCond) || '', allOriginal: (collEntry && collEntry.allOriginal) || '',
+    datePurchased: (collEntry && collEntry.datePurchased) || '',
+    inventoryId: fs.inventoryId || (collEntry && collEntry.inventoryId) || '',
+    manufacturer: fs.manufacturer || (collEntry && collEntry.manufacturer) || '',
+  };
   delete state.forSaleData[fsKey];
 
   _cachePersonalData();
