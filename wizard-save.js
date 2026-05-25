@@ -1434,7 +1434,12 @@ async function saveWizardItem() {
       }
 
     } else if (tab === 'sold') {
-      const collectionEntry = d.selectedSoldKey ? state.personalData[d.selectedSoldKey] : null;
+      // Session 176: the dashboard "Record a Sale" path (openWizard('sold')) never
+      // sets selectedSoldKey, so fall back to a lookup by item number. That resolves
+      // the real collection row (and its exact -P/-D itemNum) so the box cleanup
+      // below can find and remove the matching -BOX companion.
+      let _collKey = d.selectedSoldKey || (typeof findPDKey === 'function' ? findPDKey(itemNum, variation) : null);
+      const collectionEntry = _collKey ? state.personalData[_collKey] : null;
       const soldVariation = collectionEntry ? (collectionEntry.variation || '') : variation;
       const soldCondition = d.condition || (collectionEntry?.condition !== 'N/A' ? collectionEntry?.condition : '') || '';
       const soldPricePaid = d.priceItem || (collectionEntry?.priceItem !== 'N/A' ? collectionEntry?.priceItem : '') || '';
@@ -1485,12 +1490,15 @@ async function saveWizardItem() {
       // box was never removed and stranded as an orphan -BOX row. Run this BEFORE
       // the lead row delete so the box's stored row number is still valid.
       if (typeof _cleanupSoldItemBoxes === 'function') {
-        try { await _cleanupSoldItemBoxes(itemNum, collectionEntry && collectionEntry.groupId); } catch(e) {}
+        try { await _cleanupSoldItemBoxes((collectionEntry && collectionEntry.itemNum) || itemNum, collectionEntry && collectionEntry.groupId); } catch(e) {}
       }
       // Delete the row from My Collection
       if (collectionEntry?.row) {
         await sheetsDeleteRow(state.personalSheetId, 'My Collection', collectionEntry.row);
       }
+      // Session 176: drop the sold item from state right away so Items-I-Own and the
+      // collection list update immediately (don't wait for the background reload).
+      if (_collKey && state.personalData[_collKey]) delete state.personalData[_collKey];
       // Bugfix 2026-04-14: clear any matching For Sale row when an item is marked sold.
       // Wizard sold path used to leave a stale row on the For Sale tab even though the
       // item was also in Sold. Mirror the cleanup that markForSaleAsSold already does.
