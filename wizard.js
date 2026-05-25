@@ -3833,6 +3833,10 @@ function renderWizardStep() {
           ">${_ingBoxOnly ? '&#10003;' : ''}</div>
           <span style="font-size:0.82rem;font-weight:600;white-space:nowrap;color:${_ingBoxOnly ? 'var(--accent2)' : 'var(--text-mid)'}">Box Only</span>
         </label>`;
+      // Session 176: Manufacturer / Era / Type filter bar above the search box.
+      if (wizard.tab === 'collection' && typeof _buildItemSearchFiltersDOM === 'function') {
+        try { var _ingFilters = _buildItemSearchFiltersDOM(); if (_ingFilters) _ingWrap.appendChild(_ingFilters); } catch(e) { console.warn('[add filters]', e); }
+      }
       _ingWrap.appendChild(_ingInputRow);
       
       // Match display
@@ -3938,90 +3942,10 @@ function renderWizardStep() {
         // NOTE: _isfUi and the _esc helper from the render block live in
         // a DIFFERENT scope than this setTimeout callback. Read config
         // directly from window.ITEM_SEARCH_FILTERS and use a local _esc.
-        var _isfCfgCb  = window.ITEM_SEARCH_FILTERS || {};
-        var _isfUiCb   = _isfCfgCb.ui || {};
-        var _anyLabel  = _isfUiCb.anyLabel || '(any)';
-        function _escCb(s) {
-          return String(s == null ? '' : s)
-            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-        }
-        function _refreshFilterDropdown(selId, fieldName, otherFieldName, otherValue, currentVal, stateKey) {
-          var sel = document.getElementById(selId);
-          if (!sel) return;
-          // Session 119: bucket-aware (same logic as refreshDropdown helper above).
-          // Type dropdown always shows 22 tier-1 buckets; Road predicate uses bucket label
-          // when filtering by Type so synonyms (Steam Engine + Steam Locomotive) match together.
-          var values;
-          if (fieldName === 'itemType') {
-            values = ((typeof _bucketsInCurrentEra === 'function') ? _bucketsInCurrentEra() : (window.TYPE_BUCKETS || []).map(function(b){ return b.label; }));
-          } else {
-            var predicate = otherValue
-              ? (otherFieldName === 'itemType'
-                  ? function(m) { return m && (typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(m) : String(m.itemType || '').trim()) === otherValue; }
-                  : function(m) { return (m && String(m[otherFieldName] || '').trim() === otherValue); })
-              : null;
-            values = (typeof getMasterDistinct === 'function')
-              ? getMasterDistinct(fieldName, predicate)
-              : [];
-          }
-          var opts = '<option value="">' + _escCb(_anyLabel) + '</option>';
-          var stillValid = false;
-          values.forEach(function(v) {
-            var selFlag = v === currentVal;
-            if (selFlag) stillValid = true;
-            opts += '<option value="' + _escCb(v) + '"' + (selFlag ? ' selected' : '') + '>' + _escCb(v) + '</option>';
-          });
-          sel.innerHTML = opts;
-          if (currentVal && !stillValid) {
-            sel.value = '';
-            if (stateKey && wizard && wizard.data) wizard.data[stateKey] = '';
-          }
-          // Re-sync the typeahead overlay if one is attached — the visible
-          // input text needs to reflect the (possibly cleared) selection.
-          if (window.RoadTypeahead && typeof RoadTypeahead.refresh === 'function') {
-            RoadTypeahead.refresh(sel);
-          }
-        }
-
-        var _typeSel = document.getElementById('wiz-search-type');
-        if (_typeSel) {
-          _typeSel.addEventListener('change', function() {
-            wizard.data._searchFilterType = this.value || '';
-            _refreshFilterDropdown(
-              'wiz-search-road', 'roadName',
-              'itemType', wizard.data._searchFilterType,
-              wizard.data._searchFilterRoad || '',
-              '_searchFilterRoad'
-            );
-            var _i = document.getElementById('wiz-input');
-            updateItemSuggestions(_i ? _i.value : '');
-          });
-        }
-        var _roadSel = document.getElementById('wiz-search-road');
-        if (_roadSel) {
-          _roadSel.addEventListener('change', function() {
-            wizard.data._searchFilterRoad = this.value || '';
-            _refreshFilterDropdown(
-              'wiz-search-type', 'itemType',
-              'roadName', wizard.data._searchFilterRoad,
-              wizard.data._searchFilterType || '',
-              '_searchFilterType'
-            );
-            var _i = document.getElementById('wiz-input');
-            updateItemSuggestions(_i ? _i.value : '');
-          });
-        }
-        // Wrap both dropdowns in the type-to-filter overlay so users can
-        // start typing instead of scrolling through 1,300+ roads. Helper
-        // is additive — if it fails to load, the plain selects still
-        // work. (Back-button regression from v0.9.151 turned out to be
-        // unrelated — root cause was wizardBack() forward-scan, fixed
-        // in v0.9.153.)
-        if (window.RoadTypeahead && typeof RoadTypeahead.attach === 'function') {
-          if (_typeSel) RoadTypeahead.attach(_typeSel);
-          if (_roadSel) RoadTypeahead.attach(_roadSel);
-        }
+        // Session 176: wire the Manufacturer / Era / Type filter dropdowns via
+        // the shared helper (handles Era + auto-Modern). Replaces the old
+        // inline Type/Road-only wiring so the new dropdowns work + no double-bind.
+        if (typeof _wireItemSearchFilters === 'function') _wireItemSearchFilters();
       } else {
         // Override title for pre-filled items
         var _tEl = document.getElementById('wizard-title');
