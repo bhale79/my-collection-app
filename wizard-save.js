@@ -1412,6 +1412,11 @@ async function saveWizardItem() {
         for (var _uk in state.personalData) {
           var _up = state.personalData[_uk];
           if (_up && _up.groupId === _ugid) {
+            // Session 175: keep the box / master-carton grouped to its item so it
+            // sells WITH the item. Without this, listing "individually" unlinked
+            // the box, and selling the item later stranded it as an orphan -BOX
+            // row. Other companions (tender, A/B unit, IS) still ungroup.
+            if (/-BOX$|-MBOX$/i.test(String(_up.itemNum || ''))) continue;
             if (_up.row && _up.row !== 99999) { try { await sheetsUpdate(state.personalSheetId, 'My Collection!V' + _up.row, [['']]); } catch(e){} }
             _up.groupId = '';
           }
