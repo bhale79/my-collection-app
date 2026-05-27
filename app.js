@@ -186,7 +186,17 @@ function buildPartnerMap() {
     }
   });
 
-  // 3. Master data: poweredDummy field marks diesel A/B units
+  // 3. Master data: poweredDummy field marks diesel A/B units.
+  // Session 155: TIGHTENED — only treat as a paired A/B candidate when the
+  // sub-type matches a known F-unit / Alco / E-unit body style, OR when a
+  // B-unit partner (item+C) exists in master. Switchers, GP, SD etc. that
+  // have poweredDummy = P/D no longer get the A/AA/AB/ABA prompts.
+  function _isPairedDieselSubType(st) {
+    if (!st) return false;
+    var s = String(st).toUpperCase();
+    // F3, F7, F9, FA, FA-1/FA-2, FB, PA, PA-1/PA-2, PB, E7, E8, E9
+    return /\bF[379]\b|\bF[A|B]\b|\bF[A|B]-?\d?\b|\bP[A|B]\b|\bP[A|B]-?\d?\b|\bE[789]\b/.test(s);
+  }
   // Pre-build a Set of normalized item numbers for O(1) B-unit existence checks.
   // (Was O(N) .some() inside an O(N) forEach — quadratic. Now linear.)
   const _masterNumSet = new Set();
@@ -196,10 +206,16 @@ function buildPartnerMap() {
   }
   _md.forEach(m => {
     const num = normalizeItemNum(m.itemNum);
-    if ((m.poweredDummy || '').match(/^(P|D)$/i)) {
+    const pdMatch = (m.poweredDummy || '').match(/^(P|D)$/i);
+    const isPaired = _isPairedDieselSubType(m.subType);
+    // Only flag as paired-diesel candidate if poweredDummy + sub-type matches
+    if (pdMatch && isPaired) {
       ensure(num).isDiesel = true;
     }
     // Check for B-unit existence (itemNum + 'C') via the prebuilt Set
+    // B-unit existence is sufficient evidence on its own — sub-type check
+    // not required (some PW catalog entries lack a sub-type but DO have a
+    // B-unit partner, e.g. early Lionel F-units).
     if (!num.endsWith('C')) {
       const bNum = num + 'C';
       if (_masterNumSet.has(bNum)) {
@@ -212,8 +228,8 @@ function buildPartnerMap() {
         ensure(bNum).aUnit = ensure(bNum).aUnit || num;
       }
     }
-    // Any diesel with poweredDummy always supports AA
-    if ((m.poweredDummy || '').match(/^(P|D)$/i) && !num.endsWith('C')) {
+    // AA configuration: requires paired-diesel sub-type. Switchers no longer get AA.
+    if (pdMatch && isPaired && !num.endsWith('C')) {
       addUnique(ensure(num).configs, 'AA');
     }
   });

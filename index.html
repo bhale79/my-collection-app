@@ -20,9 +20,9 @@
   <link rel="manifest" href="manifest.json">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>The Rail Roster — Postwar Train Collection Tracker</title>
-<link rel="stylesheet" href="./app.css?v=415">
-<link rel="stylesheet" href="./tutorial.css?v=415">
-<link rel="stylesheet" href="./vault-styles.css?v=415">
+<link rel="stylesheet" href="./app.css?v=416">
+<link rel="stylesheet" href="./tutorial.css?v=416">
+<link rel="stylesheet" href="./vault-styles.css?v=416">
 </head>
 <body>
 
@@ -505,6 +505,12 @@ document.addEventListener('touchmove', function(){}, {passive: true});
             <option value="Medium">Medium</option>
             <option value="Low">Low</option>
           </select>
+          <select id="want-era-filter" onchange="state._wantEra=this.value; buildWantPage()" style="padding:0.38rem 0.6rem;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:var(--font-body);font-size:0.82rem">
+            <option value="">All Eras</option>
+            <option value="prewar">Pre-War</option>
+            <option value="postwar">Post-War</option>
+            <option value="modern">Modern</option>
+          </select>
           <select id="want-type-filter" onchange="state._wantType=this.value; buildWantPage()" style="padding:0.38rem 0.6rem;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:var(--font-body);font-size:0.82rem">
             <option value="">All Types</option>
             <option value="Steam Engine">Steam Engine</option>
@@ -690,56 +696,56 @@ document.addEventListener('touchmove', function(){}, {passive: true});
 <!-- identify-modal is built dynamically by wizard.js -->
 </div>
 
-<script src="./config.js?v=415"></script>
-<script src="./type-groups.js?v=415"></script>
-<script src="./back-stack.js?v=415"></script>
-<script src="./road-typeahead.js?v=415"></script>
-<script src="./a11y-config.js?v=415"></script>
-<script src="./a11y.js?v=415"></script>
-<script src="./wizard-utils.js?v=415"></script>
-<script src="./app.js?v=415"></script>
-<script src="./sheets.js?v=415"></script>
-<script src="./drive.js?v=415"></script>
-<script src="./backup.js?v=415"></script>
-<script src="./browse.js?v=415"></script>
-<script src="./dashboard.js?v=415"></script>
-<script src="./sheet-builder.js?v=415"></script>
+<script src="./config.js?v=416"></script>
+<script src="./type-groups.js?v=416"></script>
+<script src="./back-stack.js?v=416"></script>
+<script src="./road-typeahead.js?v=416"></script>
+<script src="./a11y-config.js?v=416"></script>
+<script src="./a11y.js?v=416"></script>
+<script src="./wizard-utils.js?v=416"></script>
+<script src="./app.js?v=416"></script>
+<script src="./sheets.js?v=416"></script>
+<script src="./drive.js?v=416"></script>
+<script src="./backup.js?v=416"></script>
+<script src="./browse.js?v=416"></script>
+<script src="./dashboard.js?v=416"></script>
+<script src="./sheet-builder.js?v=416"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="./wizard-pdlookup.js?v=415"></script>
-<script src="./wizard-suggestions.js?v=415"></script>
-<script src="./wizard-steps.js?v=415"></script>
-<script src="./wizard.js?v=415"></script>
-<script src="./wizard-photos.js?v=415"></script>
-<script src="./wizard-pickers.js?v=415"></script>
-<script src="./wizard-handlers.js?v=415"></script>
-<script src="./wizard-quickentry.js?v=415"></script>
-<script src="./wizard-save.js?v=415"></script>
-<script src="./app-misc.js?v=415"></script>
-<script src="./app-auth.js?v=415"></script>
-<script src="./app-setup.js?v=415"></script>
-<script src="./app-data.js?v=415"></script>
-<script src="./app-pages.js?v=415"></script>
-<script src="./app-collection.js?v=415"></script>
-<script src="./barcode.js?v=415"></script>
-<script src="./tutorial.js?v=415"></script>
-<script src="./tutorial-gifs-config.js?v=415"></script>
-<script src="./migration-config.js?v=415"></script>
-<script src="./migration-ui.js?v=415"></script>
-<script src="./onboarding-config.js?v=415"></script>
-<script src="./gmail-help.js?v=415"></script>
-<script src="./onboarding.js?v=415"></script>
-<script src="./vault.js?v=415"></script>
-<script src="./era-badges-config.js?v=415"></script>
-<script src="./era-badges.js?v=415"></script>
-<script src="./catalog-display-config.js?v=415"></script>
-<script src="./non-item-detail-config.js?v=415"></script>
-<script src="./item-search-filters-config.js?v=415"></script>
-<script src="./insurance-config.js?v=415"></script>
-<script src="./reports.js?v=415"></script>
-<script src="./prefs.js?v=415"></script>
-<script src="./tools.js?v=415"></script>
+<script src="./wizard-pdlookup.js?v=416"></script>
+<script src="./wizard-suggestions.js?v=416"></script>
+<script src="./wizard-steps.js?v=416"></script>
+<script src="./wizard.js?v=416"></script>
+<script src="./wizard-photos.js?v=416"></script>
+<script src="./wizard-pickers.js?v=416"></script>
+<script src="./wizard-handlers.js?v=416"></script>
+<script src="./wizard-quickentry.js?v=416"></script>
+<script src="./wizard-save.js?v=416"></script>
+<script src="./app-misc.js?v=416"></script>
+<script src="./app-auth.js?v=416"></script>
+<script src="./app-setup.js?v=416"></script>
+<script src="./app-data.js?v=416"></script>
+<script src="./app-pages.js?v=416"></script>
+<script src="./app-collection.js?v=416"></script>
+<script src="./barcode.js?v=416"></script>
+<script src="./tutorial.js?v=416"></script>
+<script src="./tutorial-gifs-config.js?v=416"></script>
+<script src="./migration-config.js?v=416"></script>
+<script src="./migration-ui.js?v=416"></script>
+<script src="./onboarding-config.js?v=416"></script>
+<script src="./gmail-help.js?v=416"></script>
+<script src="./onboarding.js?v=416"></script>
+<script src="./vault.js?v=416"></script>
+<script src="./era-badges-config.js?v=416"></script>
+<script src="./era-badges.js?v=416"></script>
+<script src="./catalog-display-config.js?v=416"></script>
+<script src="./non-item-detail-config.js?v=416"></script>
+<script src="./item-search-filters-config.js?v=416"></script>
+<script src="./insurance-config.js?v=416"></script>
+<script src="./reports.js?v=416"></script>
+<script src="./prefs.js?v=416"></script>
+<script src="./tools.js?v=416"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="./share.js?v=415"></script>
+<script src="./share.js?v=416"></script>
 
 <script>
 // ── PWA Service Worker Registration (auto-update) ───────────────

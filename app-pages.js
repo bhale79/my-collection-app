@@ -631,10 +631,13 @@ function buildWantPage() {
   const _wq = (state._wantSearch || '').toLowerCase();
   const _wp = state._wantPriority || '';
   const _wt = state._wantType || '';
+  const _we = state._wantEra || '';          // Session 155: era filter
   const _ws = state._wantSort || 'priority';
   // Sync dropdowns with state
   const _wpEl = document.getElementById('want-priority-filter');
   if (_wpEl && _wpEl.value !== _wp) _wpEl.value = _wp;
+  const _weEl = document.getElementById('want-era-filter');  // Session 155
+  if (_weEl && _weEl.value !== _we) _weEl.value = _we;
   const _wtEl = document.getElementById('want-type-filter');
   if (_wtEl && _wtEl.value !== _wt) _wtEl.value = _wt;
   const _wsEl = document.getElementById('want-sort');
@@ -643,6 +646,12 @@ function buildWantPage() {
   const entries = Object.values(state.wantData).filter(w => {
     // Era filter: skip if item not in current era
     if (typeof _isInCurrentEra === 'function' && !_isInCurrentEra(w.itemNum)) return false;
+    // Session 155: user-selected era period filter (prewar / postwar / modern)
+    if (_we && typeof _itemEraPeriod === 'function') {
+      var _wMaster = (typeof findMaster === 'function') ? findMaster(w.itemNum) : null;
+      if (!_wMaster) return false;
+      if (_itemEraPeriod(_wMaster) !== _we) return false;
+    }
     // Priority filter
     if (_wp && (w.priority || 'Medium') !== _wp) return false;
     // Type filter — lookup master to get item type
@@ -690,7 +699,7 @@ function buildWantPage() {
   const priorityColor = { High: 'var(--accent)', Medium: 'var(--accent2)', Low: 'var(--text-dim)' };
 
   if (entries.length === 0) {
-    const hasFilters = _wq || _wp || _wt;
+    const hasFilters = _wq || _wp || _wt || _we;
     const emptyIcon = hasFilters ? '🔍' : '❤️';
     const emptyMsg = hasFilters ? 'No items match your filters' : 'Your want list is empty';
     const emptyTip = hasFilters ? 'Try adjusting your search or filters' : 'Add items you\'re looking for';
