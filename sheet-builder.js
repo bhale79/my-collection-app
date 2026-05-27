@@ -5,7 +5,7 @@
 // ══════════════════════════════════════════════════════════════════
 
 // Bump this number to push a visual refresh to all users on next sync
-const SHEET_FORMAT_VER = 3; // Session 164: bumped — Dashboard cells now live formulas
+const SHEET_FORMAT_VER = 4; // Session 155: extend to all 13 tabs, branded row 1, hidden noise cols
 
 // ── Color palette ──────────────────────────────────────────────────
 const SB = {
@@ -23,6 +23,7 @@ const CONDUCTOR_URL = 'https://raw.githubusercontent.com/bhale79/my-collection-a
 
 async function applySheetFormatting(sheetId) {
   if (!sheetId || !accessToken) return;
+  let _wasLocked = false;  // accessible from catch handler
   try {
     // ── 1. Fetch metadata ──────────────────────────────────────────
     const metaRes = await fetch(
@@ -49,6 +50,17 @@ async function applySheetFormatting(sheetId) {
         return;
       }
     }
+
+    // Session 155: unlock structural protections before formatting,
+    // because warningOnly:false protection would otherwise block our writes.
+    try {
+      const _lockState = await getSheetLockState(sheetId);
+      _wasLocked = _lockState.locked;
+      if (_wasLocked && typeof unlockSheetTabs === 'function') {
+        await unlockSheetTabs(sheetId);
+        console.log('[Format] Unlocked sheet for formatting');
+      }
+    } catch(e) { console.warn('[Format] Pre-format unlock failed:', e); }
 
     // ── 3. Create Dashboard tab if missing ─────────────────────────
     if (needsDash) {
@@ -88,10 +100,25 @@ async function applySheetFormatting(sheetId) {
       }}));
 
     // ── 5. Data tab header + freeze + banding ─────────────────────
-    const DATA_TABS = ['My Collection','Sold','For Sale','Want List','Upgrade List'];
+    const DATA_TABS = ['My Collection','Sold','For Sale','Want List','Upgrade List','Catalogs','Paper Items','Mock-Ups','Other Lionel','Instruction Sheets','Science Sets','Construction Sets','My Sets'];
     const dataReqs = DATA_TABS.filter(t => tabMap.hasOwnProperty(t)).flatMap(tab => {
       const sid = tabMap[tab];
       return [
+        // Row 1 — branded title bar: navy bg, gold bold text (matches Dashboard)
+        { repeatCell: {
+          range: { sheetId: sid, startRowIndex: 0, endRowIndex: 1 },
+          cell: { userEnteredFormat: {
+            backgroundColor: SB.navy,
+            textFormat: { bold: true, foregroundColor: SB.gold, fontSize: 13, fontFamily: 'Arial' },
+            verticalAlignment: 'MIDDLE', horizontalAlignment: 'LEFT', padding: { left: 8 }
+          }},
+          fields: 'userEnteredFormat(backgroundColor,textFormat,verticalAlignment,horizontalAlignment,padding)'
+        }},
+        { updateDimensionProperties: {
+          range: { sheetId: sid, dimension: 'ROWS', startIndex: 0, endIndex: 1 },
+          properties: { pixelSize: 30 }, fields: 'pixelSize'
+        }},
+        // Row 2 — column header band (unchanged)
         { repeatCell: {
           range: { sheetId: sid, startRowIndex: 1, endRowIndex: 2 },
           cell: { userEnteredFormat: {
@@ -115,6 +142,30 @@ async function applySheetFormatting(sheetId) {
         }}}
       ];
     });
+
+    // Session 155: hide noise columns on My Collection by default.
+    // (User can unhide manually in Sheets; app only sets visibility on apply,
+    // never overrides user choice after that.)
+    // 14=Matched Tender, 15=Set ID, 17=Is Error, 18=Error Desc,
+    // 19=Quick Entry, 20=Inventory ID, 21=Group ID.
+    const HIDE_COL_RANGES = [
+      { start: 14, end: 16 },   // cols O, P
+      { start: 17, end: 22 },   // cols R, S, T, U, V
+    ];
+    const hideReqs = tabMap.hasOwnProperty('My Collection')
+      ? HIDE_COL_RANGES.map(r => ({
+          updateDimensionProperties: {
+            range: {
+              sheetId: tabMap['My Collection'],
+              dimension: 'COLUMNS',
+              startIndex: r.start,
+              endIndex:   r.end,
+            },
+            properties: { hiddenByUser: true },
+            fields: 'hiddenByUser'
+          }
+        }))
+      : [];
 
     // ── 6. Dashboard formatting requests ──────────────────────────
     const dashReqs = [
@@ -280,7 +331,7 @@ async function applySheetFormatting(sheetId) {
     ];
 
     // ── 7. Send all format requests ────────────────────────────────
-    const allReqs = [...tabColorReqs, ...dataReqs, ...dashReqs];
+    const allReqs = [...tabColorReqs, ...dataReqs, ...hideReqs, ...dashReqs];
     await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
@@ -294,8 +345,19 @@ async function applySheetFormatting(sheetId) {
     await sheetsUpdate(sheetId, 'Dashboard!A50', [[SHEET_FORMAT_VER]]);
     console.log('[SheetFormat] Applied v' + SHEET_FORMAT_VER);
 
+    // Session 155: re-apply structural protections after formatting completes.
+    if (_wasLocked && typeof lockSheetTabs === 'function') {
+      try {
+        await lockSheetTabs(sheetId);
+        console.log('[Format] Re-locked sheet after formatting');
+      } catch(e) { console.warn('[Format] Re-lock failed:', e); }
+    }
   } catch(e) {
     console.warn('[SheetFormat] Non-fatal:', e.message);
+    // Try to re-lock even if formatting threw, so we don't leave sheet unlocked
+    if (_wasLocked && typeof lockSheetTabs === 'function') {
+      try { await lockSheetTabs(sheetId); } catch(_) {}
+    }
   }
 }
 
@@ -406,7 +468,9 @@ async function getSheetLockState(sheetId) {
     const ids = [];
     (data.sheets || []).forEach(s => {
       (s.protectedRanges || []).forEach(p => {
-        if (p.description === 'boxcar-data-lock') ids.push(p.protectedRangeId);
+        // Session 155: recognize current + legacy descriptions
+        if (p.description === 'railroster-structural-v1' ||
+            p.description === 'boxcar-data-lock') ids.push(p.protectedRangeId);
       });
     });
     return { locked: ids.length > 0, protectionIds: ids };
