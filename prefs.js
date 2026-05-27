@@ -62,6 +62,20 @@ function buildPrefsPage() {
         </div>
         <button class="pref-btn" onclick="_rebuildDashboardTab()">Rebuild</button>
       </div>
+      <div class="pref-row">
+        <div class="pref-row-label">
+          <strong>Back Up My Collection</strong>
+          <span>Saves a snapshot to your Google Drive</span>
+        </div>
+        <button class="pref-btn" onclick="uiBackupNow()">Back Up Now</button>
+      </div>
+      <div class="pref-row">
+        <div class="pref-row-label">
+          <strong>View Backups</strong>
+          <span>See your saved snapshots in Google Drive</span>
+        </div>
+        <button class="pref-btn" onclick="uiBackupList()">View</button>
+      </div>
       </div>
     </div>
 
