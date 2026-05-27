@@ -335,6 +335,10 @@ function buildPrefsPage() {
         <div class="pref-row-label"><strong>Reset Tips</strong><span>Re-enable the contextual hints on empty pages</span></div>
         <button class="pref-btn" onclick="if(typeof resetContextualHints==='function'){resetContextualHints();showToast('Tips re-enabled. Visit a list page to see them.');}">Reset</button>
       </div>
+      <div class="pref-row">
+        <div class="pref-row-label"><strong>How to Undo a Mistake</strong><span>Google's built-in version history</span></div>
+        <button class="pref-btn" onclick="_uiShowVersionHistoryHelp()">Show</button>
+      </div>
       </div>
     </div>
 
@@ -823,3 +827,68 @@ async function _uiApplySheetProtection() {
   }
 }
 window._uiApplySheetProtection = _uiApplySheetProtection;
+
+
+// ── Version-history help modal (Session 155) ───────────────────
+function _uiShowVersionHistoryHelp() {
+  let existing = document.getElementById('vh-help-modal');
+  if (existing) existing.remove();
+
+  const sheetId = state.personalSheetId || '';
+  const sheetUrl = sheetId
+    ? 'https://docs.google.com/spreadsheets/d/' + sheetId
+    : 'https://sheets.google.com';
+
+  const modal = document.createElement('div');
+  modal.id = 'vh-help-modal';
+  modal.style.cssText =
+    'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;' +
+    'display:flex;align-items:center;justify-content:center;padding:1rem';
+  modal.innerHTML =
+    '<div style="background:var(--surface,#fff);color:var(--text,#111);' +
+      'border-radius:12px;max-width:560px;width:100%;max-height:85vh;' +
+      'display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.4)">' +
+      '<div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border,#ddd);' +
+        'display:flex;align-items:center;justify-content:space-between">' +
+        '<strong style="font-size:1.05rem">How to Undo a Mistake</strong>' +
+        '<button onclick="document.getElementById(\'vh-help-modal\').remove()" ' +
+          'style="background:none;border:none;color:var(--text,#111);' +
+          'font-size:1.5rem;cursor:pointer;line-height:1;padding:0 0.25rem">×</button>' +
+      '</div>' +
+      '<div style="padding:1.25rem;overflow:auto;line-height:1.55;font-size:0.92rem">' +
+        '<p style="margin:0 0 0.85rem 0">Google Sheets keeps <strong>every version</strong> of your sheet automatically. ' +
+        'If you accidentally delete something, change the wrong cell, or want to go back to how things were yesterday, ' +
+        'you can restore an earlier version in about 30 seconds.</p>' +
+        '<p style="margin:0 0 0.5rem 0;font-weight:600">Steps:</p>' +
+        '<ol style="margin:0 0 1rem 0;padding-left:1.4rem">' +
+          '<li style="margin-bottom:0.4rem">Open your Google Sheet ' +
+            '(use the <em>Open Sheet</em> button in Preferences, or tap below).</li>' +
+          '<li style="margin-bottom:0.4rem">In Google Sheets, click <strong>File → Version history → See version history</strong>.</li>' +
+          '<li style="margin-bottom:0.4rem">A panel opens on the right showing every change, grouped by day. Click any version to preview it.</li>' +
+          '<li style="margin-bottom:0.4rem">Found the version you want? Click <strong>Restore this version</strong> at the top.</li>' +
+        '</ol>' +
+        '<div style="background:var(--surface-alt,#f4f4f4);border-left:3px solid var(--accent,#4a7);' +
+          'padding:0.7rem 0.9rem;border-radius:6px;margin:1rem 0">' +
+          '<strong style="display:block;margin-bottom:0.25rem">Tip</strong>' +
+          'Version history is fine-grained (every change tracked). For bigger rollbacks — like restoring your collection ' +
+          'to exactly how it was a week ago — use the <strong>Back Up My Collection</strong> + <strong>View Backups</strong> ' +
+          'buttons in Preferences instead.</div>' +
+        '<p style="margin:1rem 0 0 0;font-size:0.85rem;color:var(--text-dim,#777)">' +
+          'Both methods are non-destructive — they don\'t throw away your current state, they just give you a way back.</p>' +
+      '</div>' +
+      '<div style="padding:0.85rem 1.25rem;border-top:1px solid var(--border,#ddd);' +
+        'display:flex;gap:0.5rem;justify-content:flex-end">' +
+        '<button onclick="document.getElementById(\'vh-help-modal\').remove()" ' +
+          'style="background:none;border:1px solid var(--border,#ddd);color:var(--text,#111);' +
+          'padding:0.45rem 0.9rem;border-radius:6px;cursor:pointer">Close</button>' +
+        '<a href="' + sheetUrl + '" target="_blank" rel="noopener" ' +
+          'style="background:var(--accent,#4a7);color:#fff;text-decoration:none;' +
+          'padding:0.5rem 0.95rem;border-radius:6px;font-weight:600">Open My Sheet ↗</a>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function(e) {
+    if (e.target === modal) modal.remove();
+  });
+}
+window._uiShowVersionHistoryHelp = _uiShowVersionHistoryHelp;
