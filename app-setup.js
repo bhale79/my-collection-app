@@ -607,6 +607,14 @@ async function createPersonalSheet() {
   // 4. Move the sheet file into the vault folder
   try { await driveMoveSheetToVault(state.personalSheetId); } catch(e) { console.warn('Could not move sheet to vault:', e); }
 
+  // 4b. Apply structural protections on the brand-new sheet (Session 155)
+  try {
+    if (typeof lockSheetTabs === 'function') {
+      await lockSheetTabs(state.personalSheetId);
+      localStorage.setItem('lv_sheet_protected_v1', '1');
+    }
+  } catch(e) { console.warn('[SheetLock] Initial apply failed (non-fatal):', e); }
+
   // 5. Write config to Drive so other devices can find this sheet
   await driveWriteConfig({
     personalSheetId: state.personalSheetId,

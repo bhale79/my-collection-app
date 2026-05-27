@@ -421,22 +421,11 @@ function onTokenReceived(resp) {
 }
 
 // Refresh token when page resumes from background (e.g. returning from camera on mobile)
-// ── Auto-lock sheet when app is closed ────────────────────────
-function _autoLockOnClose() {
-  if (!state.personalSheetId || typeof lockSheetTabs !== 'function') return;
-  // Use sendBeacon-style fire-and-forget — best effort on close
-  lockSheetTabs(state.personalSheetId).catch(() => {});
-}
-window.addEventListener('beforeunload', _autoLockOnClose);
-document.addEventListener('pagehide', _autoLockOnClose);
+// (Session 155: removed auto-lock on visibilitychange/beforeunload.
+//  lockSheetTabs is now structural-only and applied once on sign-in / via the
+//  "Re-apply Protection" button in Preferences — no per-pause API noise.)
 
 document.addEventListener('visibilitychange', function() {
-  // Auto-lock sheet when app is hidden/closed
-  if (document.visibilityState === 'hidden' && state.personalSheetId) {
-    if (typeof lockSheetTabs === 'function') {
-      lockSheetTabs(state.personalSheetId).catch(() => {});
-    }
-  }
   if (document.visibilityState === 'visible' && state.user) {
     var expiry = parseInt(localStorage.getItem('lv_token_expiry') || '0');
     var savedToken = localStorage.getItem('lv_token');

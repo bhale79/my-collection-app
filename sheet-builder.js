@@ -415,13 +415,45 @@ async function getSheetLockState(sheetId) {
   }
 }
 
+// Centralized config — every tweakable value lives here.
+// Bump LOCK_DESCRIPTION when changing the set of protected ranges so old
+// protections get cleaned up.
+const LOCK_CONFIG = {
+  description: 'railroster-structural-v1',
+  legacyDescriptions: ['boxcar-data-lock'],  // older versions, cleaned up on next lock
+  // Tabs whose row 1 (title) and row 2 (headers) get locked.
+  headerTabs: ['My Collection','Sold','For Sale','Want List','Upgrade List',
+               'Catalogs','Paper Items','Mock-Ups','Other Lionel',
+               'Instruction Sheets','Science Sets','Construction Sets','My Sets'],
+  // Tabs locked entirely (no row/col bounds = whole sheet).
+  fullLockTabs: ['Dashboard'],
+  // My Collection technical columns to lock (0-indexed column numbers from PERSONAL_HEADERS).
+  // 14=Matched Tender, 15=Set ID, 17=Is Error, 18=Error Description,
+  // 19=Quick Entry, 20=Inventory ID, 21=Group ID.
+  myCollectionTechColRanges: [
+    { start: 14, end: 16 },   // Matched Tender + Set ID  (cols O, P)
+    { start: 17, end: 22 },   // Is Error..Group ID       (cols R, S, T, U, V)
+  ],
+};
+
 async function lockSheetTabs(sheetId) {
   if (!sheetId || !accessToken) return;
   try {
-    // Remove any existing protections first to avoid duplicates
-    const existing = await getSheetLockState(sheetId);
-    if (existing.protectionIds.length > 0) {
-      const removeReqs = existing.protectionIds.map(id => ({ deleteProtectedRange: { protectedRangeId: id } }));
+    // 1. Remove ALL existing protections (current + legacy descriptions) so we never duplicate.
+    const allDescriptions = [LOCK_CONFIG.description].concat(LOCK_CONFIG.legacyDescriptions);
+    const stateRes = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets(properties.sheetId,properties.title,properties.gridProperties,protectedRanges)`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    const stateData = await stateRes.json();
+    const toRemove = [];
+    (stateData.sheets || []).forEach(s => {
+      (s.protectedRanges || []).forEach(p => {
+        if (allDescriptions.indexOf(p.description) >= 0) toRemove.push(p.protectedRangeId);
+      });
+    });
+    if (toRemove.length > 0) {
+      const removeReqs = toRemove.map(id => ({ deleteProtectedRange: { protectedRangeId: id } }));
       await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
@@ -429,33 +461,81 @@ async function lockSheetTabs(sheetId) {
       });
     }
 
-    // Get sheet IDs for all data tabs
-    const metaRes = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-    const meta = await metaRes.json();
-    const DATA_TABS = ['My Collection','Sold','For Sale','Want List','Upgrade List','Catalogs','Paper Items','Mock-Ups','Other Lionel','Instruction Sheets','Science Sets','Construction Sets','My Sets'];
+    // 2. Build sheet-id lookup + col-count lookup from the already-fetched metadata
     const tabMap = {};
-    (meta.sheets || []).forEach(s => { tabMap[s.properties.title] = s.properties.sheetId; });
+    const tabCols = {};
+    (stateData.sheets || []).forEach(s => {
+      tabMap[s.properties.title] = s.properties.sheetId;
+      tabCols[s.properties.title] = (s.properties.gridProperties || {}).columnCount || 26;
+    });
 
-    const requests = DATA_TABS.filter(t => tabMap.hasOwnProperty(t)).map(t => ({
-      addProtectedRange: {
-        protectedRange: {
-          range: { sheetId: tabMap[t] },
-          description: 'boxcar-data-lock',
-          warningOnly: true,
+    const requests = [];
+
+    // 3. Lock rows 1-2 on every data tab (the title + header bands)
+    LOCK_CONFIG.headerTabs.forEach(tabName => {
+      if (!tabMap.hasOwnProperty(tabName)) return;
+      requests.push({
+        addProtectedRange: {
+          protectedRange: {
+            range: {
+              sheetId: tabMap[tabName],
+              startRowIndex: 0,
+              endRowIndex: 2,
+              startColumnIndex: 0,
+              endColumnIndex: tabCols[tabName],
+            },
+            description: LOCK_CONFIG.description,
+            warningOnly: false,
+          }
         }
-      }
-    }));
+      });
+    });
 
-    if (!requests.length) return;
+    // 4. Lock entire Dashboard / other full-lock tabs
+    LOCK_CONFIG.fullLockTabs.forEach(tabName => {
+      if (!tabMap.hasOwnProperty(tabName)) return;
+      requests.push({
+        addProtectedRange: {
+          protectedRange: {
+            range: { sheetId: tabMap[tabName] },
+            description: LOCK_CONFIG.description,
+            warningOnly: false,
+          }
+        }
+      });
+    });
+
+    // 5. Lock My Collection technical columns (rows 3+ only — leave headers in headerTab lock)
+    if (tabMap.hasOwnProperty('My Collection')) {
+      LOCK_CONFIG.myCollectionTechColRanges.forEach(colRange => {
+        requests.push({
+          addProtectedRange: {
+            protectedRange: {
+              range: {
+                sheetId: tabMap['My Collection'],
+                startRowIndex: 2,                  // row 3 onward (skip the header range)
+                startColumnIndex: colRange.start,
+                endColumnIndex: colRange.end,
+              },
+              description: LOCK_CONFIG.description,
+              warningOnly: false,
+            }
+          }
+        });
+      });
+    }
+
+    if (!requests.length) {
+      console.log('[SheetLock] Nothing to lock');
+      return;
+    }
+
     await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ requests })
     });
-    console.log('[SheetLock] Tabs locked');
+    console.log('[SheetLock] Applied', requests.length, 'structural protections');
   } catch(e) {
     console.warn('[SheetLock] Lock failed:', e.message);
     throw e;
