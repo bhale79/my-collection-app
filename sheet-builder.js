@@ -5,7 +5,7 @@
 // ══════════════════════════════════════════════════════════════════
 
 // Bump this number to push a visual refresh to all users on next sync
-const SHEET_FORMAT_VER = 5; // Session 155 Push B: dropdown validation + currency/date formatting
+const SHEET_FORMAT_VER = 6; // Session 155 v6: banding fix, freeze col A, wrap+center headers, auto-resize cols
 
 // ── Color palette ──────────────────────────────────────────────────
 const SB = {
@@ -103,8 +103,10 @@ async function applySheetFormatting(sheetId) {
     const DATA_TABS = ['My Collection','Sold','For Sale','Want List','Upgrade List','Catalogs','Paper Items','Mock-Ups','Other Lionel','Instruction Sheets','Science Sets','Construction Sets','My Sets'];
     const dataReqs = DATA_TABS.filter(t => tabMap.hasOwnProperty(t)).flatMap(tab => {
       const sid = tabMap[tab];
+      // Session 155 v6: header wrap, banding fix, My Collection gets col-A freeze
+      const isMyCollection = (tab === 'My Collection');
       return [
-        // Row 1 — branded title bar: navy bg, gold bold text (matches Dashboard)
+        // Row 1 — branded title bar
         { repeatCell: {
           range: { sheetId: sid, startRowIndex: 0, endRowIndex: 1 },
           cell: { userEnteredFormat: {
@@ -118,24 +120,38 @@ async function applySheetFormatting(sheetId) {
           range: { sheetId: sid, dimension: 'ROWS', startIndex: 0, endIndex: 1 },
           properties: { pixelSize: 30 }, fields: 'pixelSize'
         }},
-        // Row 2 — column header band (unchanged)
+        // Row 2 — column header band, v6: wrapStrategy WRAP added
         { repeatCell: {
           range: { sheetId: sid, startRowIndex: 1, endRowIndex: 2 },
           cell: { userEnteredFormat: {
             backgroundColor: SB.navyMid,
             textFormat: { bold: true, foregroundColor: SB.white, fontSize: 9 },
-            verticalAlignment: 'MIDDLE', horizontalAlignment: 'CENTER'
+            verticalAlignment: 'MIDDLE', horizontalAlignment: 'CENTER',
+            wrapStrategy: 'WRAP',
           }},
-          fields: 'userEnteredFormat(backgroundColor,textFormat,verticalAlignment,horizontalAlignment)'
+          fields: 'userEnteredFormat(backgroundColor,textFormat,verticalAlignment,horizontalAlignment,wrapStrategy)'
         }},
+        // Row 2 height bump for wrapped 2-line headers
+        { updateDimensionProperties: {
+          range: { sheetId: sid, dimension: 'ROWS', startIndex: 1, endIndex: 2 },
+          properties: { pixelSize: 40 }, fields: 'pixelSize'
+        }},
+        // Freeze rows 1-2; My Collection also freezes column A
         { updateSheetProperties: {
-          properties: { sheetId: sid, gridProperties: { frozenRowCount: 2 } },
-          fields: 'gridProperties.frozenRowCount'
+          properties: {
+            sheetId: sid,
+            gridProperties: isMyCollection
+              ? { frozenRowCount: 2, frozenColumnCount: 1 }
+              : { frozenRowCount: 2 }
+          },
+          fields: isMyCollection
+            ? 'gridProperties.frozenRowCount,gridProperties.frozenColumnCount'
+            : 'gridProperties.frozenRowCount'
         }},
+        // Row banding — v6: NO headerColor (was causing navy row 3)
         { addBanding: { bandedRange: {
           range: { sheetId: sid, startRowIndex: 2, endRowIndex: 1000 },
           rowProperties: {
-            headerColor:     SB.navyMid,
             firstBandColor:  { red: 0.957, green: 0.961, blue: 0.976 },
             secondBandColor: SB.white,
           }
@@ -265,6 +281,19 @@ async function applySheetFormatting(sheetId) {
         });
       });
     }
+
+    // Session 155 v6: auto-resize columns on every data tab
+    // (sizes each col to its longest content; hidden cols stay hidden)
+    const autoResizeReqs = DATA_TABS.filter(t => tabMap.hasOwnProperty(t)).map(t => ({
+      autoResizeDimensions: {
+        dimensions: {
+          sheetId: tabMap[t],
+          dimension: 'COLUMNS',
+          startIndex: 0,
+          endIndex: 30,
+        }
+      }
+    }));
 
     // ── 6. Dashboard formatting requests ──────────────────────────
     const dashReqs = [
@@ -430,7 +459,7 @@ async function applySheetFormatting(sheetId) {
     ];
 
     // ── 7. Send all format requests ────────────────────────────────
-    const allReqs = [...tabColorReqs, ...dataReqs, ...hideReqs, ...mcReqs, ...dashReqs];
+    const allReqs = [...tabColorReqs, ...dataReqs, ...hideReqs, ...mcReqs, ...dashReqs, ...autoResizeReqs];
     await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
