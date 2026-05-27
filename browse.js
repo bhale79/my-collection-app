@@ -939,7 +939,37 @@ function _aliasSearch(haystack, query) {
 }
 
 function populateFilters() {
-  const roads = [...new Set(state.masterData.map(i => i.roadName).filter(Boolean))].sort();
+  // Session 155: deduplicate road-name dropdown via normalizer (safety net
+  // against future drift after the master cleanup). Picks the most-popular
+  // spelling per normalized group as the dropdown's display label.
+  function _normRoadKey(s) {
+    if (!s) return '';
+    return String(s).toLowerCase()
+      .replace(/[\u2020\u2021\u00b1\u00ae*\u2013\u2014]/g, '')   // strip footnote / symbol marks
+      .replace(/ & /g, ' and ').replace(/&/g, ' and ')
+      .replace(/[-/]/g, ' ')
+      .replace(/[^\w\s]/g, ' ')
+      .replace(/\s+/g, ' ').trim();
+  }
+  const _roadGroupsTmp = {};       // normKey -> [{raw, count}]
+  const _rawRoadCounts = {};       // raw spelling -> count (for legacy callers)
+  state.masterData.forEach(function(i) {
+    if (!i.roadName) return;
+    _rawRoadCounts[i.roadName] = (_rawRoadCounts[i.roadName] || 0) + 1;
+    const k = _normRoadKey(i.roadName);
+    if (!_roadGroupsTmp[k]) _roadGroupsTmp[k] = [];
+    _roadGroupsTmp[k].push({ raw: i.roadName });
+  });
+  const _roadDeduped = Object.keys(_roadGroupsTmp).map(function(k) {
+    const variants = _roadGroupsTmp[k];
+    const byRaw = {};
+    variants.forEach(function(v) { byRaw[v.raw] = (byRaw[v.raw] || 0) + 1; });
+    const sortedRaws = Object.keys(byRaw).sort(function(a, b) { return byRaw[b] - byRaw[a]; });
+    const canonical = sortedRaws[0];
+    const total = variants.length;
+    return { canonical: canonical, count: total };
+  }).sort(function(a, b) { return a.canonical.localeCompare(b.canonical); });
+  const roads = _roadDeduped.map(function(r) { return r.canonical; });
 
   const typeEl = document.getElementById('filter-type');
   // Session 118 Phase C: reset dropdown to fix triple-rebuild bug AND populate from TYPE_BUCKETS (clean tier-1 buckets, alphabetical by short label).
@@ -984,10 +1014,9 @@ function populateFilters() {
     });
   }
 
-  // Store all roads for the combobox (with counts)
-  var _roadCounts = {};
-  state.masterData.forEach(function(i) { if (i.roadName) _roadCounts[i.roadName] = (_roadCounts[i.roadName]||0) + 1; });
-  window._allRoads = roads.map(function(r) { return { name: r, count: _roadCounts[r] || 0 }; });
+  // Store all roads for the combobox (with counts) — Session 155: counts now
+  // reflect the normalized group total (sum across all variants), not raw spelling.
+  window._allRoads = _roadDeduped.map(function(r) { return { name: r.canonical, count: r.count }; });
   _roadComboBuild();
 
   // Session 119: re-sync dropdown to whatever filter is held in state.
