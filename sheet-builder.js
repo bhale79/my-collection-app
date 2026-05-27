@@ -5,7 +5,7 @@
 // ══════════════════════════════════════════════════════════════════
 
 // Bump this number to push a visual refresh to all users on next sync
-const SHEET_FORMAT_VER = 4; // Session 155: extend to all 13 tabs, branded row 1, hidden noise cols
+const SHEET_FORMAT_VER = 5; // Session 155 Push B: dropdown validation + currency/date formatting
 
 // ── Color palette ──────────────────────────────────────────────────
 const SB = {
@@ -166,6 +166,105 @@ async function applySheetFormatting(sheetId) {
           }
         }))
       : [];
+
+    // ─────────────────────────────────────────────────────────────
+    // Session 155 Push B: data validation + number formatting on My Collection
+    // Centralized config — one place to tweak column maps if schema changes.
+    // ─────────────────────────────────────────────────────────────
+    const MC_VALIDATION = {
+      yesNoCols:   [3, 7, 17, 19],   // All Original, Has Box, Is Error, Quick Entry
+      cond1to10:   [2, 8],           // Condition, Box Condition
+      currencyCols:[4, 5, 6, 13],    // Item Only Price, Box Only Price, Item+Box Complete, User Est. Worth
+      dateCols:    [12],             // Date Purchased
+    };
+    const DATA_START_ROW = 2;        // row 3 onward (skip title+header)
+
+    let mcReqs = [];
+    if (tabMap.hasOwnProperty('My Collection')) {
+      const mcSid = tabMap['My Collection'];
+
+      // Yes/No dropdowns
+      MC_VALIDATION.yesNoCols.forEach(c => {
+        mcReqs.push({
+          setDataValidation: {
+            range: {
+              sheetId: mcSid,
+              startRowIndex: DATA_START_ROW, endRowIndex: 5000,
+              startColumnIndex: c, endColumnIndex: c + 1,
+            },
+            rule: {
+              condition: {
+                type: 'ONE_OF_LIST',
+                values: [
+                  { userEnteredValue: 'Yes' },
+                  { userEnteredValue: 'No'  },
+                ],
+              },
+              strict: false,           // soft validation — warns, allows manual override
+              showCustomUi: true,      // shows the dropdown arrow in the cell
+            }
+          }
+        });
+      });
+
+      // 1-10 condition number validation
+      MC_VALIDATION.cond1to10.forEach(c => {
+        mcReqs.push({
+          setDataValidation: {
+            range: {
+              sheetId: mcSid,
+              startRowIndex: DATA_START_ROW, endRowIndex: 5000,
+              startColumnIndex: c, endColumnIndex: c + 1,
+            },
+            rule: {
+              condition: {
+                type: 'NUMBER_BETWEEN',
+                values: [
+                  { userEnteredValue: '1'  },
+                  { userEnteredValue: '10' },
+                ],
+              },
+              strict: false,
+              inputMessage: 'Enter a number from 1 (poor) to 10 (mint).',
+            }
+          }
+        });
+      });
+
+      // Currency format ($#,##0.00)
+      MC_VALIDATION.currencyCols.forEach(c => {
+        mcReqs.push({
+          repeatCell: {
+            range: {
+              sheetId: mcSid,
+              startRowIndex: DATA_START_ROW, endRowIndex: 5000,
+              startColumnIndex: c, endColumnIndex: c + 1,
+            },
+            cell: { userEnteredFormat: {
+              numberFormat: { type: 'CURRENCY', pattern: '$#,##0.00' }
+            }},
+            fields: 'userEnteredFormat.numberFormat'
+          }
+        });
+      });
+
+      // Date format (yyyy-mm-dd)
+      MC_VALIDATION.dateCols.forEach(c => {
+        mcReqs.push({
+          repeatCell: {
+            range: {
+              sheetId: mcSid,
+              startRowIndex: DATA_START_ROW, endRowIndex: 5000,
+              startColumnIndex: c, endColumnIndex: c + 1,
+            },
+            cell: { userEnteredFormat: {
+              numberFormat: { type: 'DATE', pattern: 'yyyy-mm-dd' }
+            }},
+            fields: 'userEnteredFormat.numberFormat'
+          }
+        });
+      });
+    }
 
     // ── 6. Dashboard formatting requests ──────────────────────────
     const dashReqs = [
@@ -331,7 +430,7 @@ async function applySheetFormatting(sheetId) {
     ];
 
     // ── 7. Send all format requests ────────────────────────────────
-    const allReqs = [...tabColorReqs, ...dataReqs, ...hideReqs, ...dashReqs];
+    const allReqs = [...tabColorReqs, ...dataReqs, ...hideReqs, ...mcReqs, ...dashReqs];
     await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
