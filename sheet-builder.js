@@ -5,7 +5,7 @@
 // ══════════════════════════════════════════════════════════════════
 
 // Bump this number to push a visual refresh to all users on next sync
-const SHEET_FORMAT_VER = 8; // Session 155 v8: removed malformed padding field that was causing batchUpdate to fail with 400
+const SHEET_FORMAT_VER = 9; // Session 155 v9: delete existing banding before adding new (was the REAL cause of silent format failures)
 
 // ── Color palette ──────────────────────────────────────────────────
 const SB = {
@@ -465,8 +465,34 @@ async function applySheetFormatting(sheetId, opts) {
       }},
     ];
 
-    // ── 7. Send all format requests ────────────────────────────────
-    const allReqs = [...tabColorReqs, ...dataReqs, ...hideReqs, ...mcReqs, ...dashReqs, ...autoResizeReqs];
+    // ── 7. Fetch existing banding so we can delete-then-re-add ────
+    // Sheets API rejects addBanding if a banded range already exists on the
+    // same range. We have to delete first. (Was the silent killer of every
+    // batchUpdate when applySheetFormatting ran more than once.)
+    let deleteBandingReqs = [];
+    try {
+      const bandMetaRes = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets(properties.title,bandedRanges.bandedRangeId)`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      const bandMeta = await bandMetaRes.json();
+      const dataTabsSet = new Set(DATA_TABS.concat(['Dashboard']));
+      (bandMeta.sheets || []).forEach(s => {
+        if (!dataTabsSet.has(s.properties.title)) return;
+        (s.bandedRanges || []).forEach(b => {
+          if (b.bandedRangeId) {
+            deleteBandingReqs.push({ deleteBanding: { bandedRangeId: b.bandedRangeId } });
+          }
+        });
+      });
+      if (deleteBandingReqs.length) {
+        console.log('[SheetFormat] Will delete', deleteBandingReqs.length, 'existing banding(s) before re-adding');
+      }
+    } catch(e) { console.warn('[SheetFormat] Could not fetch existing bandings:', e); }
+
+    // ── 8. Send all format requests ────────────────────────────────
+    // deleteBandingReqs MUST come first so addBanding in dataReqs succeeds
+    const allReqs = [...deleteBandingReqs, ...tabColorReqs, ...dataReqs, ...hideReqs, ...mcReqs, ...dashReqs, ...autoResizeReqs];
     // v8: check response — Google batchUpdate returns 400 with a body explaining
     // which request failed. Don't write the version stamp if batch failed!
     const batchRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
