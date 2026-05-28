@@ -35,37 +35,42 @@ async function _maybeRenamePersonalSheet() {
 // My Collection column layout. Field names are stable; positions can change
 // just by reordering this array (column reorder = 1-line edit).
 // Derived: PERSONAL_HEADERS, PERSONAL_FIELD_INDEX, personalColLetter() etc.
+// Session 156 (Push 2): reordered to match Brad's manual rearrangement +
+// 2 new master-derived columns (D: masterDescription, H: variationDescription).
+// CHANGED ORDER. Affects every positional row read/write in the app.
 const PERSONAL_SCHEMA = [
-  { field: 'itemNum',         header: 'Item Number' },
-  { field: 'variation',       header: 'Variation' },
-  { field: 'condition',       header: 'Condition (1-10)' },
-  { field: 'allOriginal',     header: 'All Original' },
-  { field: 'priceItem',       header: 'Item Only Price' },
-  { field: 'priceBox',        header: 'Box Only Price' },
-  { field: 'priceComplete',   header: 'Item+Box Complete' },
-  { field: 'hasBox',          header: 'Has Box' },
-  { field: 'boxCond',         header: 'Box Condition (1-10)' },
-  { field: 'photoItem',       header: 'Item Photo Link' },
-  { field: 'photoBox',        header: 'Box Photo Link' },
-  { field: 'notes',           header: 'Notes' },
-  { field: 'datePurchased',   header: 'Date Purchased' },
-  { field: 'userEstWorth',    header: 'User Est. Worth' },
-  { field: 'matchedTo',       header: 'Matched Tender/Engine' },
-  { field: 'setId',           header: 'Set ID' },
-  { field: 'yearMade',        header: 'Year Made' },
-  { field: 'isError',         header: 'Is Error' },
-  { field: 'errorDesc',       header: 'Error Description' },
-  { field: 'quickEntry',      header: 'Quick Entry' },
-  { field: 'inventoryId',     header: 'Inventory ID' },
-  { field: 'groupId',         header: 'Group ID' },
-  { field: 'location',        header: 'Location' },
-  { field: 'era',             header: 'Era' },
-  { field: 'manufacturer',    header: 'Manufacturer' },
-  { field: 'itemType',        header: 'Item Type' },
-  { field: 'roadName',        header: 'Road Name' },
-  { field: 'roadNumber',      header: 'Road Number' },
-  { field: 'description',     header: 'Description' },
-  { field: 'customName',      header: 'Custom Name' },
+  { field: 'itemNum',              header: 'Item Number' },
+  { field: 'manufacturer',         header: 'Manufacturer' },
+  { field: 'itemType',             header: 'Item Type' },
+  { field: 'masterDescription',    header: 'Master Description' },     // NEW — auto from master
+  { field: 'roadName',             header: 'Road Name' },
+  { field: 'roadNumber',           header: 'Road Number' },
+  { field: 'variation',            header: 'Variation' },
+  { field: 'variationDescription', header: 'Variation Description' },  // NEW — auto from master
+  { field: 'condition',            header: 'Condition (1-10)' },
+  { field: 'userEstWorth',         header: 'User Est. Worth' },
+  { field: 'notes',                header: 'Notes' },
+  { field: 'allOriginal',          header: 'All Original' },
+  { field: 'priceItem',            header: 'Item Only Price' },
+  { field: 'priceBox',             header: 'Box Only Price' },
+  { field: 'priceComplete',        header: 'Item+Box Complete' },
+  { field: 'hasBox',               header: 'Has Box' },
+  { field: 'boxCond',              header: 'Box Condition (1-10)' },
+  { field: 'photoItem',            header: 'Item Photo Link' },
+  { field: 'photoBox',             header: 'Box Photo Link' },
+  { field: 'datePurchased',        header: 'Date Purchased' },
+  { field: 'matchedTo',            header: 'Matched Tender/Engine' },
+  { field: 'setId',                header: 'Set ID' },
+  { field: 'yearMade',             header: 'Year Made' },
+  { field: 'isError',              header: 'Is Error' },
+  { field: 'errorDesc',            header: 'Error Description' },
+  { field: 'quickEntry',           header: 'Quick Entry' },
+  { field: 'inventoryId',          header: 'Inventory ID' },
+  { field: 'groupId',              header: 'Group ID' },
+  { field: 'location',             header: 'Location' },
+  { field: 'era',                  header: 'Era' },
+  { field: 'description',          header: 'Description' },
+  { field: 'customName',           header: 'Custom Name' },
 ];
 const PERSONAL_HEADERS = PERSONAL_SCHEMA.map(s => s.header);
 const PERSONAL_FIELD_INDEX = {};
@@ -99,7 +104,32 @@ function personalFullRowRange(rowNum) {
   return 'My Collection!A' + rowNum + ':' + lastCol + rowNum;
 }
 
-// Build a row array from a field-name → value map, leaving omitted fields blank
+// Master-description helpers (Session 156). Look up description/varDesc from
+// master data by itemNum (+ optional variation). Return '' for box rows
+// (itemNums ending in -BOX or -MBOX) so boxes don't inherit a parent's text.
+function _isBoxItemNum(itemNum) {
+  if (!itemNum) return false;
+  return /-(M)?BOX$/i.test(String(itemNum).trim());
+}
+function _lookupMasterDesc(itemNum) {
+  if (!itemNum) return '';
+  if (_isBoxItemNum(itemNum)) return '';
+  if (typeof findMaster !== 'function') return '';
+  const m = findMaster(itemNum);
+  return (m && m.description) ? String(m.description) : '';
+}
+function _lookupMasterVarDesc(itemNum, variation) {
+  if (!itemNum) return '';
+  if (_isBoxItemNum(itemNum)) return '';
+  if (typeof findMaster !== 'function') return '';
+  if (variation == null || variation === '') return '';
+  const m = findMaster(itemNum, variation);
+  return (m && m.varDesc) ? String(m.varDesc) : '';
+}
+
+// Build a row array from a field-name → value map, leaving omitted fields blank.
+// Session 156: auto-populates masterDescription + variationDescription from master
+// data if itemNum is provided and those fields aren't explicitly set.
 function buildPersonalRow(fields) {
   const row = new Array(PERSONAL_HEADERS.length).fill('');
   if (!fields) return row;
@@ -109,6 +139,17 @@ function buildPersonalRow(fields) {
       row[i] = fields[k];
     }
   });
+  // Auto-populate the 2 master-derived columns if not explicitly provided.
+  const inum = fields.itemNum || '';
+  const vari = fields.variation || '';
+  const mdi = PERSONAL_FIELD_INDEX.masterDescription;
+  const vdi = PERSONAL_FIELD_INDEX.variationDescription;
+  if (mdi !== undefined && (fields.masterDescription === undefined || fields.masterDescription === '')) {
+    row[mdi] = _lookupMasterDesc(inum);
+  }
+  if (vdi !== undefined && (fields.variationDescription === undefined || fields.variationDescription === '')) {
+    row[vdi] = _lookupMasterVarDesc(inum, vari);
+  }
   return row;
 }
 
@@ -120,6 +161,8 @@ if (typeof window !== 'undefined') {
   window.personalBlankRow = personalBlankRow;
   window.personalFullRowRange = personalFullRowRange;
   window.buildPersonalRow = buildPersonalRow;
+  window._lookupMasterDesc = _lookupMasterDesc;
+  window._lookupMasterVarDesc = _lookupMasterVarDesc;
 }
 const SOLD_HEADERS = [
   'Item Number','Variation','Copy #','Condition (1-10)','Item Only Price Paid',
@@ -510,22 +553,21 @@ function getBoxVariations(itemNum) {
 function _buildGroupBoxRow(unitNum, boxCond, boxPhotoLink, groupId, datePurchased, leadItemNum, boxVariation, boxVariationDesc) {
   var noteText = 'Box for ' + unitNum;
   if (boxVariationDesc) noteText += ' — ' + boxVariationDesc;
-  return [
-    unitNum + '-BOX', boxVariation || '',
-    boxCond || '', '',
-    '', '', '',
-    'Yes',
-    boxCond || '',
-    '', boxPhotoLink || '',
-    noteText,
-    datePurchased || '',
-    '',
-    unitNum,
-    '', '', '', '', '',
-    nextInventoryId(),
-    groupId,
-    '', '', '',
-  ];
+  // Session 156: uses buildPersonalRow so the field map is schema-agnostic.
+  // -BOX items skip master description auto-populate by design (Brad's call).
+  return buildPersonalRow({
+    itemNum:      unitNum + '-BOX',
+    variation:    boxVariation || '',
+    condition:    boxCond || '',
+    boxCond:      boxCond || '',
+    hasBox:       'Yes',
+    photoBox:     boxPhotoLink || '',
+    notes:        noteText,
+    datePurchased: datePurchased || '',
+    matchedTo:    unitNum,
+    inventoryId:  nextInventoryId(),
+    groupId:      groupId,
+  });
 }
 function genSetId(baseNum) {
   return 'SET-' + baseNum + '-' + Date.now();

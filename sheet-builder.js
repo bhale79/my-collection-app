@@ -5,7 +5,7 @@
 // ══════════════════════════════════════════════════════════════════
 
 // Bump this number to push a visual refresh to all users on next sync
-const SHEET_FORMAT_VER = 10; // Session 155 v10: idempotent deleteBanding (run delete as separate sub-batch; ignore 'BandedRange not found' errors)
+const SHEET_FORMAT_VER = 11; // Session 156 v11: column reorder Push 2 — schema reordered to match Brad's manual sheet layout + 2 NEW master-derived cols. Hidden ranges, validation positions, and currency/date cols updated to match.
 
 // ── Color palette ──────────────────────────────────────────────────
 const SB = {
@@ -169,11 +169,12 @@ async function applySheetFormatting(sheetId, opts) {
     // Session 155: hide noise columns on My Collection by default.
     // (User can unhide manually in Sheets; app only sets visibility on apply,
     // never overrides user choice after that.)
-    // 14=Matched Tender, 15=Set ID, 17=Is Error, 18=Error Desc,
-    // 19=Quick Entry, 20=Inventory ID, 21=Group ID.
+    // Session 156: new schema positions —
+    //   20=Matched Tender, 21=Set ID, 23=Is Error, 24=Error Desc,
+    //   25=Quick Entry, 26=Inventory ID, 27=Group ID.
     const HIDE_COL_RANGES = [
-      { start: 14, end: 16 },   // cols O, P
-      { start: 17, end: 22 },   // cols R, S, T, U, V
+      { start: 20, end: 22 },   // cols U, V (matchedTo, setId)
+      { start: 23, end: 28 },   // cols X, Y, Z, AA, AB (isError, errorDesc, quickEntry, inventoryId, groupId)
     ];
     const hideReqs = tabMap.hasOwnProperty('My Collection')
       ? HIDE_COL_RANGES.map(r => ({
@@ -194,11 +195,12 @@ async function applySheetFormatting(sheetId, opts) {
     // Session 155 Push B: data validation + number formatting on My Collection
     // Centralized config — one place to tweak column maps if schema changes.
     // ─────────────────────────────────────────────────────────────
+    // Session 156 (Push 2): re-mapped to new 32-col schema
     const MC_VALIDATION = {
-      yesNoCols:   [3, 7, 17, 19],   // All Original, Has Box, Is Error, Quick Entry
-      cond1to10:   [2, 8],           // Condition, Box Condition
-      currencyCols:[4, 5, 6, 13],    // Item Only Price, Box Only Price, Item+Box Complete, User Est. Worth
-      dateCols:    [12],             // Date Purchased
+      yesNoCols:   [11, 15, 23, 25], // All Original, Has Box, Is Error, Quick Entry
+      cond1to10:   [8, 16],          // Condition, Box Condition
+      currencyCols:[9, 12, 13, 14],  // User Est. Worth, Item Only Price, Box Only Price, Item+Box Complete
+      dateCols:    [19],             // Date Purchased
     };
     const DATA_START_ROW = 2;        // row 3 onward (skip title+header)
 

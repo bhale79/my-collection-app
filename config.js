@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.385';
+const APP_VERSION = 'v0.9.386';
 const APP_DATE    = 'April 2026';
 
 // ═══════════════════════════════════════════════════════════════════
@@ -50,10 +50,6 @@ const ERAS = {
   mth_g:        { id: 'mth_g',        label: 'MTH G Scale',   years: '2001-2019', prefix: 'MTH G Scale',  manufacturer: 'MTH' },
   // Session 128: Lionel HO + S sub-eras. Sheet tabs scaffolded but mostly empty
   // — Brad will populate them with actual HO/S items over time.
-  pw_ho:        { id: 'pw_ho',        label: 'Lionel Postwar HO', years: '1957-1966', prefix: 'Lionel PW HO',      manufacturer: 'Lionel' },
-  mpc_ho:       { id: 'mpc_ho',       label: 'Lionel MPC HO',     years: '1974-1977', prefix: 'Lionel MPC HO',     manufacturer: 'Lionel' },
-  mod_ho:       { id: 'mod_ho',       label: 'Lionel Modern HO',  years: '2000-Today', prefix: 'Lionel Modern HO', manufacturer: 'Lionel' },
-  mod_s:        { id: 'mod_s',        label: 'Lionel Modern S',   years: '2008-Today', prefix: 'Lionel Modern S',  manufacturer: 'Lionel' },
   // Session 154: Weaver — O-scale manufacturer. "Ultra Line" / "Gold Line" are
   // model classes captured in the Category column, NOT separate data sources.
   // The user-facing Era filter stays prewar/postwar/modern.
@@ -62,7 +58,7 @@ const ERAS = {
   rmt:    { id: 'rmt',    label: 'RMT O',    years: 'All',        prefix: 'RMT O',    manufacturer: 'RMT' },
 };
 // Real-era IDs in load priority order (excluding 'all' meta-era).
-const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'pw_ho', 'mpc_ho', 'mod_ho', 'mod_s', 'weaver', 'rmt'];
+const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver', 'rmt'];
 
 // ── Master sheet tab names per era ──
 // Session 154: scale per era — drives the want-list Scale filter (master
@@ -70,8 +66,8 @@ const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas', 'mth_o', 'mth_ho', 'mth_s'
 const ERA_SCALE = {
   prewar: 'Standard', mth_tinplate: 'Standard',
   pw: 'O', mpc: 'O', atlas: 'O', mth_o: 'O', weaver: 'O', rmt: 'O',
-  pw_ho: 'HO', mpc_ho: 'HO', mod_ho: 'HO', mth_ho: 'HO',
-  mth_s: 'S', mod_s: 'S',
+  mth_ho: 'HO',
+  mth_s: 'S',
   mth_g: 'G',
 };
 if (typeof window !== 'undefined') window.ERA_SCALE = ERA_SCALE;
@@ -116,19 +112,8 @@ const ERA_TABS = {
   mth_g: {
     items:    'MTH G Scale',
   },
-  // Session 128: Lionel HO + S sub-era sheet tabs (scaffolded, may be empty)
-  pw_ho: {
-    items:    'Lionel PW HO - Items',
-  },
-  mpc_ho: {
-    items:    'Lionel MPC HO - Items',
-  },
-  mod_ho: {
-    items:    'Lionel Modern HO - Items',
-  },
-  mod_s: {
-    items:    'Lionel Modern S - Items',
-  },
+  // Session 156: pw_ho/mpc_ho/mod_ho/mod_s scaffolded entries removed — tabs were never created in master sheet, were causing 400 spam on sign-in.
+  // Restore here if/when those master tabs get built.
   weaver: {
     items:    'Weaver O',
   },

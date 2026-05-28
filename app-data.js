@@ -243,6 +243,8 @@ async function loadMasterData() {
   localStorage.setItem(_TS_KEY, Date.now().toString());
 }
 
+// Session 156: one-time skip flag for the Master Inventory legacy fallback
+let _legacyFallbackBlocked = false;
 async function _fetchMasterTabs(era) {
   // Session 117 (Phase 2 #6): added optional `era` param so loadAllErasMode
   // can fetch every era's tabs in parallel without mutating SHEET_TABS.
@@ -275,12 +277,15 @@ async function _fetchMasterTabs(era) {
     console.warn('[Master] batchGet failed' + (era ? ' for era ' + era : '') + ', trying legacy single tab:', e.message);
   }
   // Fallback: old single-tab approach
+  // Session 156: skip after first failure — was spamming 400s ~5x per sign-in
+  if (_legacyFallbackBlocked) return [];
   try {
     let res = await sheetsGet(state.masterSheetId, 'Master Inventory!A2:U');
     if (!res.values) res = await sheetsGet(state.masterSheetId, 'Sheet1!A2:U');
     return (res.values || []).map(r => parseMasterRow(r, _itemsTabForFallback));
   } catch(e2) {
-    console.warn('[Master] Legacy fallback also failed:', e2.message);
+    console.warn('[Master] Legacy fallback also failed (will skip on subsequent calls):', e2.message);
+    _legacyFallbackBlocked = true;
     return [];
   }
 }

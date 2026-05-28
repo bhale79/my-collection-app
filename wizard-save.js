@@ -150,34 +150,24 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
     const master = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum));
     const variation = master ? (master.variation || '') : '';
 
-    // Build personal sheet row (25 columns A-Y)
-    const row = [
-      itemNum,                           // A: Item Number
-      variation,                         // B: Variation
-      String(condition),                 // C: Condition
-      '',                                // D: All Original
-      isEngine ? worth : '',             // E: Item Only Price
-      '',                                // F: Box Only Price
-      '',                                // G: Item+Box Complete
-      'No',                              // H: Has Box
-      '',                                // I: Box Condition
-      photoLink,                         // J: Item Photo Link
-      '',                                // K: Box Photo Link
-      isEngine ? '' : ('Part of set ' + setNum + ' \u2014 price on ' + items[0]), // L: Notes
-      '',                                // M: Date Purchased
-      isEngine ? worth : '',             // N: User Est. Worth
-      '',                                // O: Matched Tender/Engine
-      setId,                             // P: Set ID
-      year,                              // Q: Year Made
-      '',                                // R: Is Error
-      '',                                // S: Error Description
-      'Yes',                             // T: Quick Entry
-      invId,                             // U: Inventory ID
-      groupId,                           // V: Group ID
-      '',                                // W: Location
-      'Postwar',                         // X: Era (Sets are Postwar-only feature)
-      _getEraManufacturer(),             // Y: Manufacturer
-    ];
+    // Build personal sheet row — Session 156 buildPersonalRow form
+    const row = buildPersonalRow({
+      itemNum: itemNum,
+      variation: variation,
+      condition: String(condition),
+      priceItem: isEngine ? worth : '',
+      hasBox: 'No',
+      photoItem: photoLink,
+      notes: isEngine ? '' : ('Part of set ' + setNum + ' \u2014 price on ' + items[0]),
+      userEstWorth: isEngine ? worth : '',
+      setId: setId,
+      yearMade: year,
+      quickEntry: 'Yes',
+      inventoryId: invId,
+      groupId: groupId,
+      era: 'Postwar',
+      manufacturer: _getEraManufacturer(),
+    });
 
     try {
       const actualRow = await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
@@ -185,7 +175,7 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
         row: actualRow, itemNum, variation, condition: String(condition),
         allOriginal: '', priceItem: isEngine ? worth : '', priceBox: '',
         priceComplete: '', hasBox: 'No', boxCondition: '', itemPhoto: photoLink,
-        boxPhoto: '', notes: row[11], datePurchased: '', userEstWorth: isEngine ? worth : '',
+        boxPhoto: '', notes: row[PERSONAL_FIELD_INDEX.notes], datePurchased: '', userEstWorth: isEngine ? worth : '',
         matchedTo: '', setId, yearMade: year, isError: '', errorDesc: '',
         quickEntry: 'Yes', inventoryId: invId, groupId, location: '',
         era: 'Postwar', manufacturer: _getEraManufacturer(), owned: true,
@@ -469,11 +459,18 @@ async function saveInstructionSheet() {
   let _isNotes = (resolvedGroupId && linkedItem) ? ('Instruction Sheet for ' + linkedItem) : '';
   if (d.is_notes) _isNotes += (_isNotes ? ' \u00B7 ' : '') + String(d.is_notes).trim();
   if (d.is_formCode) _isNotes += (_isNotes ? ' \u00B7 ' : '') + 'Form ' + d.is_formCode;
-  const row = [
-    _isItemNum, '', d.is_condition||'', '', d.is_pricePaid||'', '', '', '', '',
-    photoLink || '', '', _isNotes, '', d.is_estValue||'', linkedItem || '',
-    '', d.is_year||'', '', '', '', isStandaloneInvId, resolvedGroupId || '', '', '', '',
-  ];
+  const row = buildPersonalRow({
+    itemNum: _isItemNum,
+    condition: d.is_condition || '',
+    priceItem: d.is_pricePaid || '',
+    photoItem: photoLink || '',
+    notes: _isNotes,
+    userEstWorth: d.is_estValue || '',
+    matchedTo: linkedItem || '',
+    yearMade: d.is_year || '',
+    inventoryId: isStandaloneInvId,
+    groupId: resolvedGroupId || '',
+  });
   try {
     await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
     state.personalData[isStandaloneInvId] = {
@@ -799,39 +796,30 @@ async function _saveManualEntry() {
   // Build description + type as combined notes/description
   const fullDesc = [itemType, description].filter(Boolean).join(' — ');
 
-  // Construct 25-column row (A-Y)
-  const row = [
-    displayId,        // A: Item Number (auto-name when none entered)
-    '',               // B: Variation
-    condition,        // C: Condition
-    '',               // D: All Original
-    priceItem,        // E: Item Only Price
-    '',               // F: Box Only Price
-    priceItem ? parseFloat(priceItem).toFixed(2) : '',  // G: Item+Box Complete
-    hasBox,           // H: Has Box
-    boxCond,          // I: Box Condition
-    photoLink,        // J: Item Photo Link
-    '',               // K: Box Photo Link
-    (fullDesc ? fullDesc + (notes ? ' | ' + notes : '') : notes) || '',  // L: Notes
-    datePurchased,    // M: Date Purchased
-    userEstWorth,     // N: User Est. Worth
-    '',               // O: Matched Tender/Engine
-    '',               // P: Set ID
-    year,             // Q: Year Made
-    'No',             // R: Is Error
-    '',               // S: Error Description
-    '',               // T: Quick Entry
-    invId,            // U: Inventory ID
-    '',               // V: Group ID
-    location,         // W: Location
-    'Manual',         // X: Era
-    manufacturer,     // Y: Manufacturer
-    itemType,         // Z: Item Type
-    roadName,         // AA: Road Name
-    roadNumber,       // AB: Road Number
-    description,      // AC: Description
-    customName,       // AD: Custom Name
-  ];
+  // Construct row — Session 156 buildPersonalRow form
+  const row = buildPersonalRow({
+    itemNum: displayId,
+    condition: condition,
+    priceItem: priceItem,
+    priceComplete: priceItem ? parseFloat(priceItem).toFixed(2) : '',
+    hasBox: hasBox,
+    boxCond: boxCond,
+    photoItem: photoLink,
+    notes: (fullDesc ? fullDesc + (notes ? ' | ' + notes : '') : notes) || '',
+    datePurchased: datePurchased,
+    userEstWorth: userEstWorth,
+    yearMade: year,
+    isError: 'No',
+    inventoryId: invId,
+    location: location,
+    era: 'Manual',
+    manufacturer: manufacturer,
+    itemType: itemType,
+    roadName: roadName,
+    roadNumber: roadNumber,
+    description: description,
+    customName: customName,
+  });
 
   await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
 
@@ -840,10 +828,10 @@ async function _saveManualEntry() {
     row: 99999, itemNum: displayId, variation: '',
     status: 'Owned', owned: true,
     condition, allOriginal: '',
-    priceItem, priceBox: '', priceComplete: row[6],
+    priceItem, priceBox: '', priceComplete: row[PERSONAL_FIELD_INDEX.priceComplete],
     hasBox, boxCond,
     photoItem: photoLink, photoBox: '',
-    notes: row[11],
+    notes: row[PERSONAL_FIELD_INDEX.notes],
     datePurchased, userEstWorth,
     matchedTo: '', setId: '',
     yearMade: year, isError: 'No', errorDesc: '',
@@ -1088,28 +1076,29 @@ async function saveWizardItem() {
         const _boDesc = d.boxVariationDesc || '';
         var _boNote = (d.notes || '').trim() || 'Box for ' + itemNum;
         if (_boDesc && _boNote === 'Box for ' + itemNum) _boNote += ' — ' + _boDesc;
-        const boxRow = [
-          boxItemNum, _boVar,
-          d.boxCond || '', '',     // condition = box condition, allOriginal
-          '', d.priceBox || '', '', // no item price, box price, no complete
-          'Yes',                   // hasBox — this IS a box
-          d.boxCond || '',
-          '', boxPhotos[0] || '',  // no item photo; box photo
-          _boNote,
-          d.purchaseDate || '',
-          d.userEstWorth || '',
-          itemNum,                 // matchedTo = the item this box belongs to
-          '', '', '', '', '',      // setId, yearMade, isError, errorDesc, quickEntry
-          boxInvId,
-          boxGroupId,
-          d.location || '',        // Location (col W)
-          _resolveSaveEra(), // Era (col X)
-          _getEraManufacturer(),  // Manufacturer (col Y)
-        ];
+        // Session 156: boxRow via buildPersonalRow
+        const boxRow = buildPersonalRow({
+          itemNum: boxItemNum,
+          variation: _boVar,
+          condition: d.boxCond || '',
+          priceBox: d.priceBox || '',
+          hasBox: 'Yes',
+          boxCond: d.boxCond || '',
+          photoBox: boxPhotos[0] || '',
+          notes: _boNote,
+          datePurchased: d.purchaseDate || '',
+          userEstWorth: d.userEstWorth || '',
+          matchedTo: itemNum,
+          inventoryId: boxInvId,
+          groupId: boxGroupId,
+          location: d.location || '',
+          era: _resolveSaveEra(),
+          manufacturer: _getEraManufacturer(),
+        });
 
         if (existing && existing.row && existing.itemNum === boxItemNum) {
           // Update existing BOX row
-          await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:Y${existing.row}`, [boxRow]);
+          await sheetsUpdate(state.personalSheetId, personalFullRowRange(existing.row), [boxRow]);
         } else {
           await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [boxRow]);
         }
@@ -1152,44 +1141,43 @@ async function saveWizardItem() {
         // rows landed at the same number because nextInventoryId() scans
         // state.personalData which isn't updated mid-save.
         var _engineInvId = d._existingInventoryId || d._photoInventoryId || nextInventoryId();  // Session 165 hotfix: var, not const, so tender block at line 1206 can reference it
-        row = [
-          itemNum, variation,
-          d.condition || '',
-          d.allOriginal || '',
-          enginePrice,
-          d.priceBox || '',
-          calcComplete > 0 ? calcComplete.toFixed(2) : '',
-          d.hasBox || 'No',
-          d.boxCond || '',
-          photos[0] || '',
-          boxPhotos[0] || '',
-          [
+        // Session 156: paired engine row via buildPersonalRow
+        row = buildPersonalRow({
+          itemNum: itemNum,
+          variation: variation,
+          condition: d.condition || '',
+          allOriginal: d.allOriginal || '',
+          priceItem: enginePrice,
+          priceBox: d.priceBox || '',
+          priceComplete: calcComplete > 0 ? calcComplete.toFixed(2) : '',
+          hasBox: d.hasBox || 'No',
+          boxCond: d.boxCond || '',
+          photoItem: photos[0] || '',
+          photoBox: boxPhotos[0] || '',
+          notes: [
             d.notOriginalDesc ? 'Modifications: ' + d.notOriginalDesc.trim() : '',
             (d.notes || '').trim(),
             (d._setMode && (d._setItemIndex || 0) > 0 && d._resolvedSet)
               ? 'Part of set ' + d._resolvedSet.setNum + ' — price & value on ' + (d._setLocoNum || d._setFinalItems[0] || 'locomotive')
               : '',
           ].filter(Boolean).join(' | '),
-          d.datePurchased || '',
-          engineWorth,
-          d.tenderMatch && d.tenderMatch !== 'none' ? d.tenderMatch : '',
-          '',  // Set ID — filled in after save if set unit
-          d.yearMade || '',  // Year Made (col Q)
-        d.isError === 'Yes' ? 'Yes' : 'No',  // Is Error (col R)
-        d.isError === 'Yes' ? (d.errorDesc || '') : '',  // Error Description (col S)
-        '',  // Quick Entry (col T) — blank = normal full entry
-        _engineInvId,  // Inventory ID (col U) — Session 163: captured into var so tender can use engineInvId+1
-        '',  // Group ID (col V) — filled in below for grouped items
-        d.location || '',  // Location (col W)
-        _resolveSaveEra(), // Era (col X)
-        _getEraManufacturer(),  // Manufacturer (col Y)
-        ];
+          datePurchased: d.datePurchased || '',
+          userEstWorth: engineWorth,
+          matchedTo: d.tenderMatch && d.tenderMatch !== 'none' ? d.tenderMatch : '',
+          yearMade: d.yearMade || '',
+          isError: d.isError === 'Yes' ? 'Yes' : 'No',
+          errorDesc: d.isError === 'Yes' ? (d.errorDesc || '') : '',
+          inventoryId: _engineInvId,
+          location: d.location || '',
+          era: _resolveSaveEra(),
+          manufacturer: _getEraManufacturer(),
+        });
       }
       // ── SET UNIT SAVE: if diesel set, save unit2 (and unit3) rows with shared Set ID ──
   isSetSave = d.setMatch === 'set-now';
   setId = d._setId || '';
   // Apply Group ID to unit 1 row
-  if (groupId && row.length >= 22) { row[21] = groupId; }
+  if (groupId) { row[PERSONAL_FIELD_INDEX.groupId] = groupId; }
 
   if (isSetSave && d.unit2ItemNum) {
     const _u2Raw = (d.unit2ItemNum || '').trim();
@@ -1201,64 +1189,62 @@ async function saveWizardItem() {
       return baseNote ? baseNote + '; ' + ref : ref;
     };
 
-    const u2Row = [
-      u2Num, '',
-      d.unit2Condition || '',
-      d.unit2AllOriginal || '',
-      '', '', '',   // $0 — price is on unit 1
-      d.unit2HasBox || 'No',
-      d.unit2BoxCond || '',
-      '', '',
-      setPriceNote((d.notes || '').trim(), itemNum),
-      d.datePurchased || '',
-      '',           // $0 worth — worth is on unit 1
-      itemNum,      // matchedTo = suffixed A unit
-      setId,
-      '', d.unit2IsError === 'Yes' ? 'Yes' : '', d.unit2IsError === 'Yes' ? (d.unit2ErrorDesc || '') : '', '',  // yearMade, isError, errorDesc, quickEntry
-      nextInventoryId(),  // Inventory ID
-      groupId,  // Group ID — shared across set
-      d.location || '',  // Location (col W) — same as unit 1
-      _resolveSaveEra(), // Era (col X)
-      _getEraManufacturer(),  // Manufacturer (col Y)
-    ];
+    // Session 156: u2Row via buildPersonalRow
+    const u2Row = buildPersonalRow({
+      itemNum: u2Num,
+      condition: d.unit2Condition || '',
+      allOriginal: d.unit2AllOriginal || '',
+      hasBox: d.unit2HasBox || 'No',
+      boxCond: d.unit2BoxCond || '',
+      notes: setPriceNote((d.notes || '').trim(), itemNum),
+      datePurchased: d.datePurchased || '',
+      matchedTo: itemNum,
+      setId: setId,
+      isError: d.unit2IsError === 'Yes' ? 'Yes' : '',
+      errorDesc: d.unit2IsError === 'Yes' ? (d.unit2ErrorDesc || '') : '',
+      inventoryId: nextInventoryId(),
+      groupId: groupId,
+      location: d.location || '',
+      era: _resolveSaveEra(),
+      manufacturer: _getEraManufacturer(),
+    });
     await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u2Row]);
 
     // Unit 3 (ABA second A unit)
     if (d.setType === 'ABA') {
       const u3Num = _pdSuffix((d.unit3ItemNum || _rawItemNum).trim(), d.unit3Power);
-      const u3Row = [
-        u3Num, '',
-        d.unit3Condition || '',
-        d.unit3AllOriginal || '',
-        '', '', '',   // $0 — price is on unit 1
-        d.unit3HasBox || 'No',
-        d.unit3BoxCond || '',
-        '', '',
-        setPriceNote((d.notes || '').trim(), itemNum),
-        d.datePurchased || '',
-        '',           // $0 worth — worth is on unit 1
-        u2Num,        // matchedTo = B unit
-        setId,
-        '', d.unit3IsError === 'Yes' ? 'Yes' : '', d.unit3IsError === 'Yes' ? (d.unit3ErrorDesc || '') : '', '',  // yearMade, isError, errorDesc, quickEntry
-        nextInventoryId(),  // Inventory ID
-        groupId,  // Group ID — shared across set
-        d.location || '',  // Location (col W) — same as unit 1
-        _resolveSaveEra(), // Era (col X)
-        _getEraManufacturer(),  // Manufacturer (col Y)
-      ];
+      // Session 156: u3Row via buildPersonalRow
+      const u3Row = buildPersonalRow({
+        itemNum: u3Num,
+        condition: d.unit3Condition || '',
+        allOriginal: d.unit3AllOriginal || '',
+        hasBox: d.unit3HasBox || 'No',
+        boxCond: d.unit3BoxCond || '',
+        notes: setPriceNote((d.notes || '').trim(), itemNum),
+        datePurchased: d.datePurchased || '',
+        matchedTo: u2Num,
+        setId: setId,
+        isError: d.unit3IsError === 'Yes' ? 'Yes' : '',
+        errorDesc: d.unit3IsError === 'Yes' ? (d.unit3ErrorDesc || '') : '',
+        inventoryId: nextInventoryId(),
+        groupId: groupId,
+        location: d.location || '',
+        era: _resolveSaveEra(),
+        manufacturer: _getEraManufacturer(),
+      });
       await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u3Row]);
       // Update u2Row matchedTo to also reference u3Num
 
     }
 
     // Update unit 1 row to include setId
-    row[15] = setId;
-    row[14] = row[14] || u2Num; // matchedTo
+    row[PERSONAL_FIELD_INDEX.setId] = setId;
+    row[PERSONAL_FIELD_INDEX.matchedTo] = row[PERSONAL_FIELD_INDEX.matchedTo] || u2Num;
   }
 
   // Link-to-existing: just tag unit 1 with the existing set's setId
   if (d.setMatch === 'link' && d._setId) {
-    row[15] = d._setId;
+    row[PERSONAL_FIELD_INDEX.setId] = d._setId;
     // Update the existing unit's setId if it doesn't have one
     const existingUnit = Object.values(state.personalData).find(pd =>
       pd.itemNum === (itemNum.endsWith('C') ? itemNum.slice(0,-1) : itemNum+'C')
@@ -1279,29 +1265,28 @@ async function saveWizardItem() {
       const nonOrigFlag = d.tenderIsNonOriginal ? '; non-original tender' : '';
       return (d.notes ? d.notes.trim() + '; ' + ref : ref) + nonOrigFlag;
     })();
-    const tRow = [
-      tNum, tVariation,
-      d.tenderCondition || '',
-      d.tenderAllOriginal || '',
-      '', '',  '',  // $0 — full price is on the engine row
-      d.tenderHasBox || 'No',
-      d.tenderBoxCond || '',
-      '',          // photo — filed separately under tender folder
-      '',          // box photo
-      tenderNote,
-      d.datePurchased || '',
-      '',          // $0 worth — worth is on the engine row
-      itemNum,     // matchedTo = engine number
-      '', '', d.tenderIsError === 'Yes' ? 'Yes' : '', d.tenderIsError === 'Yes' ? (d.tenderErrorDesc || '') : '', '',  // setId, yearMade, isError, errorDesc, quickEntry
-      String(parseInt(_engineInvId) + 1),  // Inventory ID — Session 163: was nextInventoryId() which returned same ID twice
-      groupId,  // Group ID — shared with engine
-      d.location || '',  // Location (col W) — same as engine
-      _resolveSaveEra(), // Era (col X)
-      _getEraManufacturer(),  // Manufacturer (col Y)
-    ];
+    // Session 156: tRow (tender) via buildPersonalRow
+    const tRow = buildPersonalRow({
+      itemNum: tNum,
+      variation: tVariation,
+      condition: d.tenderCondition || '',
+      allOriginal: d.tenderAllOriginal || '',
+      hasBox: d.tenderHasBox || 'No',
+      boxCond: d.tenderBoxCond || '',
+      notes: tenderNote,
+      datePurchased: d.datePurchased || '',
+      matchedTo: itemNum,
+      isError: d.tenderIsError === 'Yes' ? 'Yes' : '',
+      errorDesc: d.tenderIsError === 'Yes' ? (d.tenderErrorDesc || '') : '',
+      inventoryId: String(parseInt(_engineInvId) + 1),
+      groupId: groupId,
+      location: d.location || '',
+      era: _resolveSaveEra(),
+      manufacturer: _getEraManufacturer(),
+    });
     await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [tRow]);
     // Update engine row matchedTo to point to tender
-    row[14] = tNum;
+    row[PERSONAL_FIELD_INDEX.matchedTo] = tNum;
   }
 
   // Cross-link: if a tender/engine was matched, update that item's matchedTo column too
@@ -1317,7 +1302,7 @@ async function saveWizardItem() {
 
   if (d._fillItemMode && existing?.row) {
         // Updating existing row with new item details (e.g. filling in a quick-entry row)
-        await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:Y${existing.row}`, [row]);
+        await sheetsUpdate(state.personalSheetId, personalFullRowRange(existing.row), [row]);
       } else {
         // Always append for a plain new collection add — never overwrite existing rows
         await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
@@ -1462,7 +1447,7 @@ async function saveWizardItem() {
         var _gs = window._pendingGroupSell;
         for (var _i=0; _i<(_gs.sellPd||[]).length; _i++) {
           var _sp = state.personalData[_gs.sellPd[_i]];
-          if (_sp && _sp.row) { try { await sheetsUpdate(state.personalSheetId, 'My Collection!A'+_sp.row+':Y'+_sp.row, [['','','','','','','','','','','','','','','','','','','','','','','','','']]); } catch(e){} }
+          if (_sp && _sp.row) { try { await sheetsUpdate(state.personalSheetId, personalFullRowRange(_sp.row), [personalBlankRow()]); } catch(e){} }
           delete state.personalData[_gs.sellPd[_i]];
         }
         for (var _j=0; _j<(_gs.sellIs||[]).length; _j++) {
@@ -1546,14 +1531,14 @@ async function saveWizardItem() {
         if (d.hasBox === 'Yes') {
           const _bxVar = d.boxVariation || '';
           const _bxDesc = d.boxVariationDesc || '';
-          const u1BoxRow = _buildGroupBoxRow(itemNum, d.boxCond || row[8], boxPhotos[0] || row[10] || '', groupId, d.datePurchased, itemNum, _bxVar, _bxDesc);
+          const u1BoxRow = _buildGroupBoxRow(itemNum, d.boxCond || row[PERSONAL_FIELD_INDEX.boxCond], boxPhotos[0] || row[PERSONAL_FIELD_INDEX.photoBox] || '', groupId, d.datePurchased, itemNum, _bxVar, _bxDesc);
           await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u1BoxRow]);
           var _bxNote = 'Box for ' + itemNum;
           if (_bxDesc) _bxNote += ' — ' + _bxDesc;
           state.personalData[u1BoxRow[20]] = {
             row: 99999, itemNum: itemNum + '-BOX', variation: _bxVar,
             status: 'Owned', owned: true,
-            condition: d.boxCond || row[8] || '', hasBox: 'Yes', boxCond: d.boxCond || row[8] || '',
+            condition: d.boxCond || row[PERSONAL_FIELD_INDEX.boxCond] || '', hasBox: 'Yes', boxCond: d.boxCond || row[PERSONAL_FIELD_INDEX.boxCond] || '',
             notes: _bxNote, matchedTo: itemNum,
             inventoryId: u1BoxRow[20], groupId: groupId,
           };
@@ -1632,12 +1617,17 @@ async function saveWizardItem() {
         let _isNotes = 'Instruction Sheet for ' + itemNum;
         if (isSheetNum && isSheetNum !== _isItemNum) _isNotes += ' \u00B7 Sheet ' + isSheetNum;
         if (d.is_formCode) _isNotes += ' \u00B7 Form ' + d.is_formCode;
-        // My Collection row (25 cols A-Y), same shape boxes use.
-        const isRow = [
-          _isItemNum, '', d.is_condition || '', '', '', '', '', '', '',
-          isPhotoLink || '', '', _isNotes, d.datePurchased || '', '', itemNum,
-          '', '', '', '', '', isInvId, groupId, '', '', '',
-        ];
+        // Session 156: isRow via buildPersonalRow
+        const isRow = buildPersonalRow({
+          itemNum: _isItemNum,
+          condition: d.is_condition || '',
+          photoItem: isPhotoLink || '',
+          notes: _isNotes,
+          datePurchased: d.datePurchased || '',
+          matchedTo: itemNum,
+          inventoryId: isInvId,
+          groupId: groupId,
+        });
         await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [isRow]);
         state.personalData[isInvId] = {
           row: 99999, itemNum: _isItemNum, variation: '',
@@ -1668,25 +1658,23 @@ async function saveWizardItem() {
             await driveUploadPhoto(fileObj.file, fname, mbFolderId).catch(e => console.warn(e));
           }
         }
-        const mbRow = [
-          mbItemNum, '',
-          d.masterBoxCond || '', '',  // condition, allOriginal
-          '', '', '',   // prices — $0, value is on unit 1
-          'Yes',        // hasBox — the master box IS a box
-          d.masterBoxCond || '',
-          '', mbPhotoLink,  // no item photo, box photo = master box photos
-          (d.masterBoxNotes || '').trim() || 'Master box for ' + _rawItemNum + ' set',
-          d.datePurchased || '',
-          '',           // $0 worth — worth is on unit 1
-          itemNum,      // matchedTo = primary unit
-          setId || '',  // Set ID
-          '', '', '', '',  // yearMade, isError, errorDesc, quickEntry
-          mbInvId,      // Inventory ID
-          groupId,      // Group ID — shared with set
-          d.location || '',  // Location (col W) — same as lead unit
-          _resolveSaveEra(), // Era (col X)
-          _getEraManufacturer(),  // Manufacturer (col Y)
-        ];
+        // Session 156: mbRow (master box) via buildPersonalRow
+        const mbRow = buildPersonalRow({
+          itemNum: mbItemNum,
+          condition: d.masterBoxCond || '',
+          hasBox: 'Yes',
+          boxCond: d.masterBoxCond || '',
+          photoBox: mbPhotoLink,
+          notes: (d.masterBoxNotes || '').trim() || 'Master box for ' + _rawItemNum + ' set',
+          datePurchased: d.datePurchased || '',
+          matchedTo: itemNum,
+          setId: setId || '',
+          inventoryId: mbInvId,
+          groupId: groupId,
+          location: d.location || '',
+          era: _resolveSaveEra(),
+          manufacturer: _getEraManufacturer(),
+        });
         await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [mbRow]);
         // Add to local state
         state.personalData[mbInvId] = {
@@ -1741,7 +1729,7 @@ async function saveWizardItem() {
 
     // ── Optimistic update: inject directly into state so item appears immediately ──
     // Don't wait for Sheets to propagate — add it to state right now
-    const _optInvId = row && row[20] ? row[20] : ('temp_' + Date.now());
+    const _optInvId = row && row[PERSONAL_FIELD_INDEX.inventoryId] ? row[PERSONAL_FIELD_INDEX.inventoryId] : ('temp_' + Date.now());
     // For updates (completing QE), remove old key first then insert under inventoryId
     if (d._fillTargetKey && d._fillTargetKey !== _optInvId && state.personalData[d._fillTargetKey]) {
       delete state.personalData[d._fillTargetKey];
