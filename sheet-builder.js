@@ -5,7 +5,7 @@
 // ══════════════════════════════════════════════════════════════════
 
 // Bump this number to push a visual refresh to all users on next sync
-const SHEET_FORMAT_VER = 6; // Session 155 v6: banding fix, freeze col A, wrap+center headers, auto-resize cols
+const SHEET_FORMAT_VER = 7; // Session 155 v7: force-mode bypass for Rebuild button; previous v6 partially failed silently
 
 // ── Color palette ──────────────────────────────────────────────────
 const SB = {
@@ -21,8 +21,12 @@ const SB = {
 
 const CONDUCTOR_URL = 'https://raw.githubusercontent.com/bhale79/my-collection-app/main/conductor-list.png';
 
-async function applySheetFormatting(sheetId) {
+async function applySheetFormatting(sheetId, opts) {
+  // Session 155 v7: opts.force=true bypasses the version check (used by
+  // the "Rebuild Dashboard Tab" button so user can force a full re-apply
+  // even when storedVer matches code's SHEET_FORMAT_VER).
   if (!sheetId || !accessToken) return;
+  const _force = !!(opts && opts.force);
   let _wasLocked = false;  // accessible from catch handler
   try {
     // ── 1. Fetch metadata ──────────────────────────────────────────
@@ -44,10 +48,13 @@ async function applySheetFormatting(sheetId) {
       );
       const verData = await verRes.json();
       const storedVer = parseInt(((verData.values || [[]])[0] || [])[0] || '0');
-      if (storedVer >= SHEET_FORMAT_VER) {
+      if (!_force && storedVer >= SHEET_FORMAT_VER) {
         // Just refresh stats content, skip full format
         await _writeDashboardContent(sheetId);
         return;
+      }
+      if (_force) {
+        console.log('[SheetFormat] Force mode: bypassing version check (storedVer=' + storedVer + ', code=' + SHEET_FORMAT_VER + ')');
       }
     }
 

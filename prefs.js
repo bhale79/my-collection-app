@@ -686,7 +686,7 @@ async function _rebuildDashboardTab() {
   }
   try {
     showToast('Refreshing sheet styling…', 2500);
-    await applySheetFormatting(state.personalSheetId);
+    await applySheetFormatting(state.personalSheetId, { force: true });
     showToast('Sheet refreshed!');
   } catch(e) {
     console.error('Refresh sheet styling failed:', e);
