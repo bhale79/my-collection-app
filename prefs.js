@@ -658,8 +658,16 @@ let _ephCurrentTab = 'catalogs';
 
 
 // ── Rebuild Dashboard Tab ──────────────────────────────────────
+let _rebuildInProgress = false;
 async function _rebuildDashboardTab() {
+  if (_rebuildInProgress) {
+    console.log('[Prefs] Rebuild already running, ignoring duplicate click');
+    return;
+  }
+  _rebuildInProgress = true;
+  setTimeout(function(){ _rebuildInProgress = false; }, 30000);   // safety auto-reset after 30s
   if (!state.personalSheetId) {
+    _rebuildInProgress = false;
     showToast('No personal sheet connected', 3000, true);
     return;
   }
@@ -691,6 +699,8 @@ async function _rebuildDashboardTab() {
   } catch(e) {
     console.error('Refresh sheet styling failed:', e);
     showToast('Failed to refresh: ' + (e.message || ''), 4000, true);
+  } finally {
+    _rebuildInProgress = false;
   }
 }
 

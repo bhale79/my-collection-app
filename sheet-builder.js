@@ -5,7 +5,7 @@
 // ══════════════════════════════════════════════════════════════════
 
 // Bump this number to push a visual refresh to all users on next sync
-const SHEET_FORMAT_VER = 9; // Session 155 v9: delete existing banding before adding new (was the REAL cause of silent format failures)
+const SHEET_FORMAT_VER = 10; // Session 155 v10: idempotent deleteBanding (run delete as separate sub-batch; ignore 'BandedRange not found' errors)
 
 // ── Color palette ──────────────────────────────────────────────────
 const SB = {
@@ -490,9 +490,26 @@ async function applySheetFormatting(sheetId, opts) {
       }
     } catch(e) { console.warn('[SheetFormat] Could not fetch existing bandings:', e); }
 
+    // ── 7b. Delete existing bandings in a SEPARATE batch (v10).
+    // This way "No BandedRange with id" errors don't tank the whole format apply.
+    // (Happens when applySheetFormatting fires concurrently — second call tries
+    // to delete bandings the first call already removed.)
+    if (deleteBandingReqs.length) {
+      try {
+        const delRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ requests: deleteBandingReqs })
+        });
+        if (!delRes.ok) {
+          const t = await delRes.text();
+          console.warn('[SheetFormat] deleteBanding batch had errors (proceeding anyway):', t.substring(0, 200));
+        }
+      } catch(e) { console.warn('[SheetFormat] deleteBanding batch threw (proceeding):', e); }
+    }
+
     // ── 8. Send all format requests ────────────────────────────────
-    // deleteBandingReqs MUST come first so addBanding in dataReqs succeeds
-    const allReqs = [...deleteBandingReqs, ...tabColorReqs, ...dataReqs, ...hideReqs, ...mcReqs, ...dashReqs, ...autoResizeReqs];
+    const allReqs = [...tabColorReqs, ...dataReqs, ...hideReqs, ...mcReqs, ...dashReqs, ...autoResizeReqs];
     // v8: check response — Google batchUpdate returns 400 with a body explaining
     // which request failed. Don't write the version stamp if batch failed!
     const batchRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
