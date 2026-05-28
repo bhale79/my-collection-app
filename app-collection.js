@@ -1208,7 +1208,7 @@ async function openPhotoFolder(itemNum, storedLink) {
     });
     if (_pfKey && state.personalData[_pfKey].row) {
       state.personalData[_pfKey].photoItem = freshLink;
-      sheetsUpdate(state.personalSheetId, 'My Collection!J' + state.personalData[_pfKey].row, [[freshLink]]).catch(function(e) { console.warn('Photo link update:', e); });
+      sheetsUpdate(state.personalSheetId, 'My Collection!' + personalColLetter('photoItem') + state.personalData[_pfKey].row, [[freshLink]]).catch(function(e) { console.warn('Photo link update:', e); });
     }
   } catch(e) { showToast('Could not open Drive folder: ' + e.message); }
 }
@@ -1660,7 +1660,7 @@ async function _breakUpGroup(pdKey) {
   });
   for (var i = 0; i < pdKeys.length; i++){
     var p = state.personalData[pdKeys[i]];
-    if (p) { p.groupId = ''; if (p.row && p.row !== 99999) { try { await sheetsUpdate(state.personalSheetId, 'My Collection!V' + p.row, [['']]); } catch(e){} } }
+    if (p) { p.groupId = ''; if (p.row && p.row !== 99999) { try { await sheetsUpdate(state.personalSheetId, 'My Collection!' + personalColLetter('groupId') + p.row, [['']]); } catch(e){} } }
   }
   var isKeys = [];
   Object.entries(state.isData || {}).forEach(function(e){ if (e[1] && e[1].groupId === gid) isKeys.push(e[0]); });

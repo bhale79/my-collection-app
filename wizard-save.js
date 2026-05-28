@@ -705,7 +705,7 @@ async function savePhotoOnlyUpdate() {
   if (folderLink && pd.row) {
     // Write folder link to col J (index 9) of the existing row
     try {
-      await sheetsUpdate(state.personalSheetId, 'My Collection!J' + pd.row, [[folderLink]]);
+      await sheetsUpdate(state.personalSheetId, 'My Collection!' + personalColLetter('photoItem') + pd.row, [[folderLink]]);
       pd.photoItem = folderLink;
       showToast('✓ Photos saved!');
     } catch(e) {
@@ -1264,7 +1264,7 @@ async function saveWizardItem() {
       pd.itemNum === (itemNum.endsWith('C') ? itemNum.slice(0,-1) : itemNum+'C')
     );
     if (existingUnit && existingUnit.row && !existingUnit.setId) {
-      sheetsUpdate(state.personalSheetId, 'My Collection!P' + existingUnit.row, [[d._setId]])
+      sheetsUpdate(state.personalSheetId, 'My Collection!' + personalColLetter('setId') + existingUnit.row, [[d._setId]])
         .catch(e => console.warn('Set ID backfill:', e));
     }
   }
@@ -1310,7 +1310,7 @@ async function saveWizardItem() {
     const matchedEntry = Object.values(state.personalData).find(pd => pd.itemNum === matchedNum);
     if (matchedEntry && matchedEntry.row) {
       // Update col O (index 14) of the matched row
-      sheetsUpdate(state.personalSheetId, `My Collection!O${matchedEntry.row}`, [[itemNum]]).catch(e => console.warn('Cross-link update:', e));
+      sheetsUpdate(state.personalSheetId, 'My Collection!' + personalColLetter('matchedTo') + matchedEntry.row, [[itemNum]]).catch(e => console.warn('Cross-link update:', e));
       matchedEntry.matchedTo = itemNum;
     }
   }
@@ -1358,7 +1358,7 @@ async function saveWizardItem() {
               sheetsUpdate(state.personalSheetId, `Instruction Sheets!H${pdRow.row}`, [[groupId]])
                 .catch(function(e) { console.warn('Auto-group IS backfill for ' + c.itemNum + ':', e); });
             } else {
-              sheetsUpdate(state.personalSheetId, `My Collection!V${pdRow.row}`, [[groupId]])
+              sheetsUpdate(state.personalSheetId, 'My Collection!' + personalColLetter('groupId') + pdRow.row, [[groupId]])
                 .catch(function(e) { console.warn('Auto-group backfill for ' + c.itemNum + ':', e); });
             }
           }
@@ -1417,7 +1417,7 @@ async function saveWizardItem() {
             // the box, and selling the item later stranded it as an orphan -BOX
             // row. Other companions (tender, A/B unit, IS) still ungroup.
             if (/-BOX$|-MBOX$/i.test(String(_up.itemNum || ''))) continue;
-            if (_up.row && _up.row !== 99999) { try { await sheetsUpdate(state.personalSheetId, 'My Collection!V' + _up.row, [['']]); } catch(e){} }
+            if (_up.row && _up.row !== 99999) { try { await sheetsUpdate(state.personalSheetId, 'My Collection!' + personalColLetter('groupId') + _up.row, [['']]); } catch(e){} }
             _up.groupId = '';
           }
         }

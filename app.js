@@ -31,15 +31,96 @@ async function _maybeRenamePersonalSheet() {
     });
   } catch(e) { console.warn('Sheet rename error (non-fatal):', e); }
 }
-const PERSONAL_HEADERS = [
-  'Item Number','Variation','Condition (1-10)','All Original',
-  'Item Only Price','Box Only Price','Item+Box Complete','Has Box',
-  'Box Condition (1-10)','Item Photo Link','Box Photo Link','Notes',
-  'Date Purchased','User Est. Worth','Matched Tender/Engine','Set ID','Year Made',
-  'Is Error','Error Description','Quick Entry','Inventory ID','Group ID','Location',
-  'Era','Manufacturer',
-  'Item Type','Road Name','Road Number','Description','Custom Name'
+// Session 155 v11: PERSONAL_SCHEMA is the SINGLE SOURCE OF TRUTH for
+// My Collection column layout. Field names are stable; positions can change
+// just by reordering this array (column reorder = 1-line edit).
+// Derived: PERSONAL_HEADERS, PERSONAL_FIELD_INDEX, personalColLetter() etc.
+const PERSONAL_SCHEMA = [
+  { field: 'itemNum',         header: 'Item Number' },
+  { field: 'variation',       header: 'Variation' },
+  { field: 'condition',       header: 'Condition (1-10)' },
+  { field: 'allOriginal',     header: 'All Original' },
+  { field: 'priceItem',       header: 'Item Only Price' },
+  { field: 'priceBox',        header: 'Box Only Price' },
+  { field: 'priceComplete',   header: 'Item+Box Complete' },
+  { field: 'hasBox',          header: 'Has Box' },
+  { field: 'boxCond',         header: 'Box Condition (1-10)' },
+  { field: 'photoItem',       header: 'Item Photo Link' },
+  { field: 'photoBox',        header: 'Box Photo Link' },
+  { field: 'notes',           header: 'Notes' },
+  { field: 'datePurchased',   header: 'Date Purchased' },
+  { field: 'userEstWorth',    header: 'User Est. Worth' },
+  { field: 'matchedTo',       header: 'Matched Tender/Engine' },
+  { field: 'setId',           header: 'Set ID' },
+  { field: 'yearMade',        header: 'Year Made' },
+  { field: 'isError',         header: 'Is Error' },
+  { field: 'errorDesc',       header: 'Error Description' },
+  { field: 'quickEntry',      header: 'Quick Entry' },
+  { field: 'inventoryId',     header: 'Inventory ID' },
+  { field: 'groupId',         header: 'Group ID' },
+  { field: 'location',        header: 'Location' },
+  { field: 'era',             header: 'Era' },
+  { field: 'manufacturer',    header: 'Manufacturer' },
+  { field: 'itemType',        header: 'Item Type' },
+  { field: 'roadName',        header: 'Road Name' },
+  { field: 'roadNumber',      header: 'Road Number' },
+  { field: 'description',     header: 'Description' },
+  { field: 'customName',      header: 'Custom Name' },
 ];
+const PERSONAL_HEADERS = PERSONAL_SCHEMA.map(s => s.header);
+const PERSONAL_FIELD_INDEX = {};
+PERSONAL_SCHEMA.forEach((s, i) => { PERSONAL_FIELD_INDEX[s.field] = i; });
+
+// Spreadsheet column letter (A, B, ..., Z, AA, AB, AC, AD, ...) for a field
+function personalColLetter(fieldName) {
+  const idx = PERSONAL_FIELD_INDEX[fieldName];
+  if (idx === undefined) {
+    console.warn('[personalColLetter] unknown field:', fieldName);
+    return 'A';
+  }
+  let n = idx + 1;   // 1-indexed column number
+  let s = '';
+  while (n > 0) {
+    n--;
+    s = String.fromCharCode(65 + (n % 26)) + s;
+    n = Math.floor(n / 26);
+  }
+  return s;
+}
+
+// Blank row sized to the schema — used to clear a row
+function personalBlankRow() {
+  return new Array(PERSONAL_HEADERS.length).fill('');
+}
+
+// Full-row range like "My Collection!A123:AD123"
+function personalFullRowRange(rowNum) {
+  const lastCol = personalColLetter(PERSONAL_SCHEMA[PERSONAL_SCHEMA.length - 1].field);
+  return 'My Collection!A' + rowNum + ':' + lastCol + rowNum;
+}
+
+// Build a row array from a field-name → value map, leaving omitted fields blank
+function buildPersonalRow(fields) {
+  const row = new Array(PERSONAL_HEADERS.length).fill('');
+  if (!fields) return row;
+  Object.keys(fields).forEach(k => {
+    const i = PERSONAL_FIELD_INDEX[k];
+    if (i !== undefined && fields[k] !== undefined && fields[k] !== null) {
+      row[i] = fields[k];
+    }
+  });
+  return row;
+}
+
+if (typeof window !== 'undefined') {
+  window.PERSONAL_SCHEMA = PERSONAL_SCHEMA;
+  window.PERSONAL_HEADERS = PERSONAL_HEADERS;
+  window.PERSONAL_FIELD_INDEX = PERSONAL_FIELD_INDEX;
+  window.personalColLetter = personalColLetter;
+  window.personalBlankRow = personalBlankRow;
+  window.personalFullRowRange = personalFullRowRange;
+  window.buildPersonalRow = buildPersonalRow;
+}
 const SOLD_HEADERS = [
   'Item Number','Variation','Copy #','Condition (1-10)','Item Only Price Paid',
   'Sale Price','Date Sold','Notes','Inventory ID','Manufacturer',

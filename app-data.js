@@ -721,36 +721,25 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
       otherRes={values:[]}, isRes={values:[]}, sciRes={values:[]},
       conRes={values:[]}, mySetsRes={values:[]};
 
-  // My Collection
+  // My Collection (Session 155 v11: schema-driven parser)
   (collRes.values || []).forEach((r, idx) => {
-    if (!r[0] || r[0] === 'Item Number') return;
+    const itemNumCol = PERSONAL_FIELD_INDEX.itemNum;
+    if (!r[itemNumCol] || r[itemNumCol] === 'Item Number') return;
     const rowNum = idx + 3;
-    const _invId = r[20] || '';
-    let key = _invId || `${r[0]}|${r[1] || ''}|${rowNum}`;
+    const invIdCol = PERSONAL_FIELD_INDEX.inventoryId;
+    const varCol = PERSONAL_FIELD_INDEX.variation;
+    const _invId = r[invIdCol] || '';
+    let key = _invId || `${r[itemNumCol]}|${r[varCol] || ''}|${rowNum}`;
     // Bug 14 (Session 154): a box row can carry the SAME Inventory ID as its
-    // parent item (a save-time timing collision). Keying solely by Inventory
-    // ID then lets the box (processed second) overwrite the item (first),
-    // dropping the item from memory. Disambiguate on collision so both rows
-    // survive — the item keeps the clean Inventory-ID key.
+    // parent item — disambiguate on collision so both survive.
     if (newPersonal[key]) key = key + '|' + rowNum;
-    newPersonal[key] = {
-      row: rowNum, itemNum: r[0]||'', variation: r[1]||'',
-      status: 'Owned', owned: true,
-      condition: r[2]||'', allOriginal: r[3]||'',
-      priceItem: r[4]||'', priceBox: r[5]||'', priceComplete: r[6]||'',
-      hasBox: r[7]||'', boxCond: r[8]||'',
-      photoItem: r[9]||'', photoBox: r[10]||'',
-      notes: r[11]||'', datePurchased: r[12]||'',
-      userEstWorth: r[13]||'', matchedTo: r[14]||'',
-      setId: r[15]||'', yearMade: r[16]||'',
-      isError: r[17]||'', errorDesc: r[18]||'',
-      quickEntry: r[19] === 'Yes',
-      inventoryId: r[20]||'', groupId: r[21]||'',
-      location: r[22]||'',
-      era: r[23]||'', manufacturer: r[24]||'',
-      itemType: r[25]||'', roadName: r[26]||'', roadNumber: r[27]||'',
-      description: r[28]||'', customName: r[29]||'',
-    };
+    const obj = { row: rowNum, status: 'Owned', owned: true };
+    PERSONAL_SCHEMA.forEach((s, i) => {
+      obj[s.field] = r[i] || '';
+    });
+    // Special: quickEntry stored as 'Yes'/'No' but consumed as boolean
+    obj.quickEntry = (obj.quickEntry === 'Yes');
+    newPersonal[key] = obj;
   });
 
   // Sold — Session 176: each sale is its own row (a history). Key uniquely by
