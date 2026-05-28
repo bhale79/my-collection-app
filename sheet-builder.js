@@ -5,7 +5,7 @@
 // ══════════════════════════════════════════════════════════════════
 
 // Bump this number to push a visual refresh to all users on next sync
-const SHEET_FORMAT_VER = 7; // Session 155 v7: force-mode bypass for Rebuild button; previous v6 partially failed silently
+const SHEET_FORMAT_VER = 8; // Session 155 v8: removed malformed padding field that was causing batchUpdate to fail with 400
 
 // ── Color palette ──────────────────────────────────────────────────
 const SB = {
@@ -113,15 +113,15 @@ async function applySheetFormatting(sheetId, opts) {
       // Session 155 v6: header wrap, banding fix, My Collection gets col-A freeze
       const isMyCollection = (tab === 'My Collection');
       return [
-        // Row 1 — branded title bar
+        // Row 1 — branded title bar (v8: removed padding; Sheets API requires all 4 sides or none)
         { repeatCell: {
           range: { sheetId: sid, startRowIndex: 0, endRowIndex: 1 },
           cell: { userEnteredFormat: {
             backgroundColor: SB.navy,
             textFormat: { bold: true, foregroundColor: SB.gold, fontSize: 13, fontFamily: 'Arial' },
-            verticalAlignment: 'MIDDLE', horizontalAlignment: 'LEFT', padding: { left: 8 }
+            verticalAlignment: 'MIDDLE', horizontalAlignment: 'CENTER'
           }},
-          fields: 'userEnteredFormat(backgroundColor,textFormat,verticalAlignment,horizontalAlignment,padding)'
+          fields: 'userEnteredFormat(backgroundColor,textFormat,verticalAlignment,horizontalAlignment)'
         }},
         { updateDimensionProperties: {
           range: { sheetId: sid, dimension: 'ROWS', startIndex: 0, endIndex: 1 },
@@ -467,16 +467,23 @@ async function applySheetFormatting(sheetId, opts) {
 
     // ── 7. Send all format requests ────────────────────────────────
     const allReqs = [...tabColorReqs, ...dataReqs, ...hideReqs, ...mcReqs, ...dashReqs, ...autoResizeReqs];
-    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+    // v8: check response — Google batchUpdate returns 400 with a body explaining
+    // which request failed. Don't write the version stamp if batch failed!
+    const batchRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ requests: allReqs })
     });
+    if (!batchRes.ok) {
+      const errBody = await batchRes.text();
+      console.error('[SheetFormat] batchUpdate FAILED:', batchRes.status, errBody);
+      throw new Error('batchUpdate failed: ' + batchRes.status);
+    }
 
     // ── 8. Write dashboard content ─────────────────────────────────
     await _writeDashboardContent(sheetId);
 
-    // ── 9. Version stamp ───────────────────────────────────────────
+    // ── 9. Version stamp (only on success — guarded by above throw) ────
     await sheetsUpdate(sheetId, 'Dashboard!A50', [[SHEET_FORMAT_VER]]);
     console.log('[SheetFormat] Applied v' + SHEET_FORMAT_VER);
 
