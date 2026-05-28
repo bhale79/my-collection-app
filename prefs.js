@@ -663,17 +663,34 @@ async function _rebuildDashboardTab() {
     showToast('No personal sheet connected', 3000, true);
     return;
   }
-  if (typeof _writeDashboardContent !== 'function') {
-    showToast('Sheet builder not loaded — refresh and try again', 3000, true);
+  // Session 155 v6: call applySheetFormatting (has built-in version check).
+  // If sheet is at current version, it just refreshes Dashboard stats.
+  // If older, runs full format apply (headers, banding, freeze, hide cols,
+  // dropdowns, currency/date, auto-resize). This lets the user trigger a
+  // style refresh without signing out / back in.
+  if (typeof applySheetFormatting !== 'function') {
+    // Fallback to old behavior if newer fn isn't loaded
+    if (typeof _writeDashboardContent !== 'function') {
+      showToast('Sheet builder not loaded — refresh and try again', 3000, true);
+      return;
+    }
+    try {
+      showToast('Rebuilding Dashboard tab...', 2000);
+      await _writeDashboardContent(state.personalSheetId);
+      showToast('Dashboard tab updated!');
+    } catch(e) {
+      console.error('Rebuild dashboard failed:', e);
+      showToast('Failed to rebuild: ' + e.message, 4000, true);
+    }
     return;
   }
   try {
-    showToast('Rebuilding Dashboard tab...', 2000);
-    await _writeDashboardContent(state.personalSheetId);
-    showToast('Dashboard tab updated!');
+    showToast('Refreshing sheet styling…', 2500);
+    await applySheetFormatting(state.personalSheetId);
+    showToast('Sheet refreshed!');
   } catch(e) {
-    console.error('Rebuild dashboard failed:', e);
-    showToast('Failed to rebuild: ' + e.message, 4000, true);
+    console.error('Refresh sheet styling failed:', e);
+    showToast('Failed to refresh: ' + (e.message || ''), 4000, true);
   }
 }
 
