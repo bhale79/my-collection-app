@@ -995,7 +995,7 @@ function renderWizardStep() {
     _titleEl.textContent = _titleText;
   }
   document.getElementById('wizard-progress').style.width = pct + '%';
-  document.getElementById('wizard-back-btn').style.display = step > 0 ? 'inline-flex' : 'none';
+  document.getElementById('wizard-back-btn').style.display = current > 1 ? 'inline-flex' : 'none';
   // Phase 1 streamline: Skip-All-Photos button visible only on drivePhotos steps
   const _skipPhotosBtn = document.getElementById('wizard-skip-photos-btn');
   if (_skipPhotosBtn) _skipPhotosBtn.style.display = (s.type === 'drivePhotos') ? 'inline-flex' : 'none';
@@ -1014,63 +1014,7 @@ function renderWizardStep() {
 
   const body = document.getElementById('wizard-body');
 
-  if (s.type === 'itemCategory') {
-    const _userTabs = state.userDefinedTabs || [];
-    const _allCats = [
-      { id: 'lionel',   label: 'Cataloged Item #',  desc: 'Train, car, accessory with a catalog number', emoji: '🚂', color: 'var(--accent)' },
-      { id: 'set',      label: 'Complete Set',   desc: 'Outfit box with loco, cars & accessories grouped together', emoji: '🎁', color: '#e67e22' },
-      { id: 'paper',    label: 'Paper Item',       desc: 'Catalog, ad, flyer, instruction sheet, article, box insert', emoji: '📄', color: '#3498db' },
-      { id: 'mockups',  label: 'Mock-Up',          desc: 'Pre-production prototype',                          emoji: '🔩', color: '#9b59b6' },
-      { id: 'other',    label: 'Other Item',       desc: 'Accessory, display, anything else',                 emoji: '📦', color: '#27ae60' },
-      { id: 'manual',   label: 'Manual Entry',     desc: 'Any item, any era, any manufacturer — no catalog lookup', emoji: '✏️', color: '#6c757d' },
-    ];
-    // Filter by saved preferences
-    var _savedCats = {};
-    try { _savedCats = JSON.parse(localStorage.getItem('rr_wizard_cats') || '{}'); } catch(e) {}
-    const _catPrefs = Object.assign({}, DEFAULT_WIZARD_CATEGORIES, _savedCats);
-    // Era pill bar
-    const _curEra = wizard.data._era || localStorage.getItem('rr_default_era') || _currentEra || 'pw';
-    var _cats = _allCats.filter(function(c) { return _catPrefs[c.id] !== false; });
-    // MPC/Modern: only show cataloged items and manual entry
-    if (_curEra !== 'pw') {
-      _cats = _cats.filter(function(c) { return c.id === 'lionel' || c.id === 'manual'; });
-    }
-    if (!wizard.data._era) wizard.data._era = _curEra;
-    const _eraLabel = (ERAS[_curEra] || {}).label || _curEra;
-    const cur = wizard.data.itemCategory || '';
-    var _pillHtml = '';
-    if (Object.keys(ERAS).length >= 1) {
-      _pillHtml = '<div style="display:flex;gap:0.4rem;margin-bottom:0.75rem;flex-wrap:wrap">';
-      Object.values(ERAS).forEach(function(era) {
-        var sel = era.id === _curEra;
-        _pillHtml += '<button onclick="wizard.data._era=\'' + era.id + '\';renderWizardStep();" style="'
-          + 'padding:0.35rem 0.85rem;border-radius:20px;font-family:var(--font-head);font-size:0.75rem;'
-          + 'font-weight:700;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer;transition:all 0.15s;'
-          + 'border:1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';'
-          + 'background:' + (sel ? 'var(--accent)' : 'transparent') + ';'
-          + 'color:' + (sel ? 'white' : 'var(--text-mid)') + '">'
-          + era.label + '</button>';
-      });
-      _pillHtml += '</div>';
-    }
-    body.innerHTML = _pillHtml + `
-      <div style="display:flex;flex-direction:column;gap:0.5rem;max-height:55vh;overflow-y:auto">
-        ${_cats.map(c => `
-          <button onclick="wizardChooseCategory('${c.id}')" style="
-            display:flex;align-items:center;gap:0.85rem;padding:0.75rem 1rem;
-            border-radius:10px;border:2px solid ${cur===c.id ? c.color : 'var(--border)'};
-            background:${cur===c.id ? c.color+'22' : 'var(--surface2)'};
-            color:var(--text);cursor:pointer;text-align:left;font-family:var(--font-body);width:100%
-          ">
-            <span style="font-size:1.3rem;width:28px;text-align:center;flex-shrink:0">${c.emoji}</span>
-            <div>
-              <div style="font-weight:600;font-size:0.9rem">${c.label}</div>
-              <div style="font-size:0.82rem;color:var(--text-mid);margin-top:0.1rem">${c.desc}</div>
-            </div>
-          </button>`).join('')}
-      </div>`;
-
-  } else if (s.type === 'manualManufacturer') {
+  if (s.type === 'manualManufacturer') {
     const _cfg = window.MANUAL_MANUFACTURERS || { common: ['Lionel'], all: ['Lionel'] };
     const _common = _cfg.common || [];
     const _all = _cfg.all || [];
@@ -4816,27 +4760,10 @@ function wizardBack() {
     if (!isSkipped && !isSetBlocked) break;
     target--;
   }
-  // Session 115 fix: if no earlier visible step exists BUT there's an
-  // itemCategory step that was auto-skipped (because user already picked a
-  // category), un-skip it so Back reopens the "What would you like to add?"
-  // screen. Exception: if the wizard was pre-filled from Browse
-  // (_fillItemMode), the user didn't originally go through itemCategory —
-  // close the wizard and return them to where they came from.
-  if (target < 0) {
-    if (!wizard.data._fillItemMode) {
-      const _catIdx = wizard.steps.findIndex(function(s) { return s.type === 'itemCategory'; });
-      if (_catIdx >= 0 && _catIdx < wizard.step) {
-        // Clear itemCategory so skipIf becomes false and the step renders.
-        // Also clear dependent flags (manual-entry path sets its own flag).
-        wizard.data.itemCategory = '';
-        wizard.data._manualEntry = false;
-        wizard.step = _catIdx;
-        renderWizardStep();
-        return true;
-      }
-    }
-    return false;
-  }
+  // Session 159: removed Session-115 itemCategory revive. The era-picker step
+  // is gone; if Back can't find an earlier visible step, just refuse — Step 1
+  // hides Back anyway via current > 1 check at render time.
+  if (target < 0) return false;
   wizard.step = target;
   renderWizardStep();
   return true;

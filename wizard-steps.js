@@ -299,8 +299,6 @@ function getSteps(tab) {
     if (wizard.data.itemCategory === 'manual') {
       wizard.data._manualEntry = true;
       return [
-        { id: 'itemCategory', title: 'What would you like to add?', type: 'itemCategory',
-          skipIf: (d) => !!d.itemCategory },
         { id: 'manualManufacturer', title: 'Who made this item?', type: 'manualManufacturer' },
         { id: 'manualItemNum', title: 'Do you know the item number?', type: 'text', placeholder: 'e.g. 726, S321, 999 (or leave blank and tap Next)', optional: true },
         { id: 'manualItemType', title: 'What type of item is this?', type: 'manualItemType' },
@@ -351,8 +349,6 @@ function getSteps(tab) {
     const isSetNow = (d) => d.setMatch === 'set-now';
 
     return [
-      { id: 'itemCategory', title: 'What would you like to add?', type: 'itemCategory',
-        skipIf: (d) => !!d.itemCategory },
 
       // ── SCREEN 1: Item Number + Grouping ──
       { id: 'itemNumGrouping', title: 'Item Number', type: 'itemNumGrouping' },
@@ -584,8 +580,6 @@ function getSteps(tab) {
       { id: 'set_num', title: 'What set are you looking for?', type: 'text', placeholder: 'Search by set # or item # (e.g. 1775, 736)' },
     ] : base;
     return [
-      { id: 'itemCategory', title: 'What would you like to add?', type: 'itemCategory',
-        skipIf: (d) => !!d.itemCategory },
       ..._wantSteps,
       { id: 'priority',      title: 'How high is your priority for this item?', type: 'choice3', choices: ['High','Medium','Low'] },
       { id: 'expectedPrice', title: 'What do you expect to pay?',               type: 'money',   placeholder: '0.00', optional: true },
