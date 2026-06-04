@@ -88,7 +88,7 @@ function _collectAllOwnedItems() {
     out.push({
       type:    'items',
       key:     'pd|' + key,
-      title:   String(pd.itemNum || '') + (pd.variation ? ' Var ' + pd.variation : ''),
+      title:   _composeItemNumHTML(pd.itemNum, pd.variation),
       subtitle: road || desc,
       extras:  extras.join(' · '),
       date:    pd.datePurchased || '',
@@ -209,6 +209,43 @@ function _collectAllOwnedItems() {
   });
 
   return out;
+}
+
+// Session 159: composite item-number display for the 5 list views.
+// Renders "773 🔗 2426W" for engine+tender pairs (or any matched partner);
+// just "773" for solo items. The variation number is dropped from list
+// views — it lives in the detail page where there's room to show it
+// labeled properly ("Variation 1 of 12").
+function _composeItemNumHTML(itemNum, variation) {
+  var num = String(itemNum || '');
+  if (!num) return '';
+  var pd = (state.personalData || {})[num + '|' + (variation || '')];
+  var partner = pd && pd.matchedTo ? String(pd.matchedTo).trim() : '';
+  if (partner && partner.toLowerCase() !== 'none') {
+    return num
+      + ' <span style="opacity:0.55;font-size:0.82em;vertical-align:1px" title="Linked with ' + partner + '">🔗</span> '
+      + partner;
+  }
+  return num;
+}
+
+// Find the master row index for showItemDetailPage. Tolerant of trailing
+// -P/-C/-T suffixes (set members) that don't have their own master row.
+function _itemMasterIdx(itemNum, variation) {
+  if (!state.masterData) return -1;
+  var num = String(itemNum || '');
+  var v = variation === undefined ? '' : String(variation || '');
+  var idx = state.masterData.findIndex(function(m) {
+    return m.itemNum === num && (m.variation === v || (!v && !m.variation));
+  });
+  if (idx >= 0) return idx;
+  idx = state.masterData.findIndex(function(m) { return m.itemNum === num; });
+  if (idx >= 0) return idx;
+  var stripped = num.replace(/-[PCT]$/, '');
+  if (stripped !== num) {
+    idx = state.masterData.findIndex(function(m) { return m.itemNum === stripped; });
+  }
+  return idx;
 }
 
 function _collectionRowHTML(it, emoji) {
@@ -792,7 +829,7 @@ function buildWantPage() {
       const _wDSelected = _wDInShare && window._shareItems && window._shareItems[_wDShareKey];
       if (_wDInShare) { if (!window._shareDataMap) window._shareDataMap = {}; window._shareDataMap[_wDShareKey] = { itemNum: w.itemNum, variation: w.variation||'', want: w, master: master }; }
       return `<tr id="share-card-${_wDShareKey}" ${_wDInShare ? 'onclick="toggleShareItem(\'' + _wDShareKey + '\')"' : ''} style="cursor:${_wDInShare ? 'pointer' : 'default'}${_wDSelected ? ';outline:2px solid #3a9e68;background:rgba(58,158,104,0.06)' : ''}">
-        <td><span class="item-num">${_wDInShare ? '<input type="checkbox" id="share-cb-' + _wDShareKey + '" ' + (_wDSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _wDShareKey + '\')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">' : ''}${w.itemNum}</span>${_isSet ? ' <span style="font-size:0.62rem;color:#e67e22;font-weight:600;vertical-align:middle">SET</span>' : ''}</td>
+        <td><span class="item-num">${_wDInShare ? '<input type="checkbox" id="share-cb-' + _wDShareKey + '" ' + (_wDSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _wDShareKey + '\')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">' : ''}${_composeItemNumHTML(w.itemNum, w.variation)}</span>${_isSet ? ' <span style="font-size:0.62rem;color:#e67e22;font-weight:600;vertical-align:middle">SET</span>' : ''}</td>
         <td>${_displayRoad || '<span class="text-dim">—</span>'}</td>
         <td>${_isSet ? '<span class="text-dim">—</span>' : (w.variation || '<span class="text-dim">—</span>')}</td>
         <td>${varCell}</td>
@@ -1220,7 +1257,7 @@ function buildSoldPage() {
       return `<div onclick="showSoldDetailPage('${sd.key}')" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem;cursor:pointer">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div>
-            <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${sd.itemNum}</span>
+            <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${_composeItemNumHTML(sd.itemNum, sd.variation)}</span>
             ${sd.variation ? `<span style="font-size:0.72rem;color:var(--text-dim);margin-left:0.4rem">${sd.variation}</span>` : ''}
             ${sd._roadName ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">${sd._roadName}</div>` : ''}
             <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${[sd._type, sd.condition ? 'Cond: '+sd.condition : '', _formatDate(sd.dateSold)].filter(Boolean).join(' · ')}</div>
@@ -1236,7 +1273,7 @@ function buildSoldPage() {
     if (soldTableWrap) soldTableWrap.style.display = '';
     tbody.innerHTML = soldEntries.length ? soldEntries.map(sd => {
       return `<tr onclick="showSoldDetailPage('${sd.key}')" style="cursor:pointer">
-        <td><span class="item-num">${sd.itemNum}</span></td>
+        <td><span class="item-num">${_composeItemNumHTML(sd.itemNum, sd.variation)}</span></td>
         <td><span class="tag">${sd._type || '—'}</span></td>
         <td>${sd._roadName || '—'}</td>
         <td>${sd.variation || '—'}</td>
@@ -1436,8 +1473,7 @@ function buildForSalePage() {
           <div style="display:flex;align-items:flex-start;gap:0.5rem">
             ${_fsInShare ? '<input type="checkbox" id="share-cb-' + _fsShareKey + '" ' + (_fsSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _fsShareKey + '\')" style="width:1.1rem;height:1.1rem;accent-color:#3a9e68;flex-shrink:0;margin-top:0.2rem">' : ''}
             <div>
-              <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${fs.itemNum}</span>
-              ${fs.variation ? `<span style="font-size:0.72rem;color:var(--text-dim);margin-left:0.4rem">${fs.variation}</span>` : ''}
+              <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${_composeItemNumHTML(fs.itemNum, fs.variation)}</span>
               ${master.roadName ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">${master.roadName}</div>` : ''}
               <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${[master.itemType, fs.condition ? 'Cond: '+fs.condition : '', fs.dateListed ? 'Listed: '+_formatDate(fs.dateListed) : ''].filter(Boolean).join(' · ')}</div>
               ${estWorth ? `<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.1rem">Est. Worth: $${parseFloat(estWorth).toLocaleString()}</div>` : ''}
@@ -1449,9 +1485,9 @@ function buildForSalePage() {
           </div>
         </div>
         ${!_fsInShare ? `<div style="display:flex;gap:0.4rem;margin-top:0.6rem;flex-wrap:wrap">
-          <button onclick="markForSaleAsSold('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}','${fs.askingPrice||''}')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600">Mark as Sold</button>
-          <button onclick="removeForSaleItem('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}',${fs.row})" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Back to Collection</button>
-          <button onclick="removeForSaleAndCollection('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}',${fs.row})" style="flex:0 0 auto;padding:0.4rem 0.6rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid #e74c3c;background:rgba(231,76,60,0.10);color:#e74c3c;font-family:var(--font-body)">Remove</button>
+          <button onclick="event.stopPropagation();markForSaleAsSold('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}','${fs.askingPrice||''}')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600">Mark as Sold</button>
+          <button onclick="event.stopPropagation();removeForSaleItem('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}',${fs.row})" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Back to Collection</button>
+          <button onclick="event.stopPropagation();removeForSaleAndCollection('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}',${fs.row})" style="flex:0 0 auto;padding:0.4rem 0.6rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid #e74c3c;background:rgba(231,76,60,0.10);color:#e74c3c;font-family:var(--font-body)">Remove</button>
         </div>` : ''}
       </div>`;
     }).join('') : '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🏷️</div><p>No items listed for sale</p></div>';
@@ -1466,8 +1502,12 @@ function buildForSalePage() {
       const _fsDInShare = typeof isShareMode === 'function' && isShareMode('forsale');
       const _fsDSelected = _fsDInShare && window._shareItems && window._shareItems[_fsDShareKey];
       if (_fsDInShare) { if (!window._shareDataMap) window._shareDataMap = {}; window._shareDataMap[_fsDShareKey] = { itemNum: fs.itemNum, variation: fs.variation||'', fs: fs, master: master }; }
-      return `<tr id="share-card-${_fsDShareKey}" ${_fsDInShare ? 'onclick="toggleShareItem(\'' + _fsDShareKey + '\')"' : ''} style="cursor:${_fsDInShare ? 'pointer' : 'default'}${_fsDSelected ? ';outline:2px solid #3a9e68;background:rgba(58,158,104,0.06)' : ''}">
-        <td><span class="item-num">${_fsDInShare ? '<input type="checkbox" id="share-cb-' + _fsDShareKey + '" ' + (_fsDSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _fsDShareKey + '\')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">' : ''}${fs.itemNum}</span>${fs.variation ? ' <span style="font-size:0.72rem;color:var(--text-dim)">' + fs.variation + '</span>' : ''}</td>
+      const _fsDMasterIdx = _itemMasterIdx(fs.itemNum, fs.variation);
+      const _fsDClickAttr = _fsDInShare
+        ? `onclick="toggleShareItem('${_fsDShareKey}')"`
+        : (_fsDMasterIdx >= 0 ? `onclick="window._detailReturn='forsale';showItemDetailPage(${_fsDMasterIdx})"` : '');
+      return `<tr id="share-card-${_fsDShareKey}" ${_fsDClickAttr} style="cursor:${_fsDInShare || _fsDMasterIdx >= 0 ? 'pointer' : 'default'}${_fsDSelected ? ';outline:2px solid #3a9e68;background:rgba(58,158,104,0.06)' : ''}">
+        <td><span class="item-num">${_fsDInShare ? '<input type="checkbox" id="share-cb-' + _fsDShareKey + '" ' + (_fsDSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _fsDShareKey + '\')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">' : ''}${_composeItemNumHTML(fs.itemNum, fs.variation)}</span></td>
         <td><span class="tag">${master.itemType || '—'}</span></td>
         <td>${master.roadName || '—'}</td>
         <td>${fs.condition || '—'}</td>
@@ -1475,9 +1515,9 @@ function buildForSalePage() {
         <td class="text-dim">${estWorth ? _currencySymbol() + parseFloat(estWorth).toLocaleString() : '—'}</td>
         <td class="text-dim">${_formatDate(fs.dateListed) || '—'}</td>
         <td style="white-space:nowrap">
-          ${!_fsDInShare ? `<button onclick="markForSaleAsSold('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}','${fs.askingPrice||''}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);margin-right:0.3rem">Mark as Sold</button>
-          <button onclick="removeForSaleItem('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}',${fs.row})" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);margin-right:0.3rem">Back to Collection</button>
-          <button onclick="removeForSaleAndCollection('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}',${fs.row})" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #e74c3c;background:rgba(231,76,60,0.10);color:#e74c3c;font-family:var(--font-body)">Remove</button>` : ''}
+          ${!_fsDInShare ? `<button onclick="event.stopPropagation();markForSaleAsSold('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}','${fs.askingPrice||''}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);margin-right:0.3rem">Mark as Sold</button>
+          <button onclick="event.stopPropagation();removeForSaleItem('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}',${fs.row})" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);margin-right:0.3rem">Back to Collection</button>
+          <button onclick="event.stopPropagation();removeForSaleAndCollection('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}',${fs.row})" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #e74c3c;background:rgba(231,76,60,0.10);color:#e74c3c;font-family:var(--font-body)">Remove</button>` : ''}
         </td>
       </tr>`;
     }).join('') : '<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🏷️</div><p>No items listed for sale</p></div></td></tr>';
@@ -2156,7 +2196,7 @@ function buildUpgradePage() {
         <div style="display:flex;align-items:flex-start;gap:0.5rem">
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap">
-              <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${u.itemNum}</span>
+              <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${_composeItemNumHTML(u.itemNum, u.variation)}</span>
               ${u.variation ? `<span style="font-size:0.72rem;color:var(--text-dim)">${u.variation}</span>` : ''}
               <span style="font-size:0.65rem;font-weight:600;color:${pColor};border:1px solid ${pColor};border-radius:4px;padding:0.1rem 0.4rem">${u.priority||'Medium'}</span>
             </div>
@@ -2194,7 +2234,7 @@ function buildUpgradePage() {
       const hasPhoto = pd && !!pd.photoItem;
       const photoId = `upgphoto-d-${idx}`;
       return `<tr>
-        <td><span class="item-num">${u.itemNum}</span>${u.variation ? ' <span style="font-size:0.72rem;color:var(--text-dim)">' + u.variation + '</span>' : ''}</td>
+        <td><span class="item-num">${_composeItemNumHTML(u.itemNum, u.variation)}</span></td>
         <td style="color:var(--text-mid)">${name || '<span class="text-dim">—</span>'}</td>
         <td>${cond !== null ? `<span class="condition-pip ${condClass}" style="margin-right:3px"></span>${cond}` : '<span class="text-dim">—</span>'}</td>
         <td style="color:#8b5cf6;font-weight:600">${u.targetCondition || '<span class="text-dim">—</span>'}</td>
