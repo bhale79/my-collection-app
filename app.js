@@ -588,8 +588,11 @@ var state = {
   personalData: {},    // keyed by "itemNum|variation" -> personal row (owned items)
   soldData: {},        // keyed by "itemNum|variation" -> sold row
   forSaleData: {},     // keyed by "itemNum|variation" -> for sale row
+  forSaleByInv: {},    // Session 159 — same entries also keyed by inventoryId
+                       // to support per-copy lookups for duplicate-owned items
   wantData: {},
-  upgradeData: {},        // keyed by "itemNum|variation" -> want list row
+  upgradeData: {},        // keyed by "itemNum|variation" -> upgrade list row
+  upgradeByInv: {},       // Session 159 — same entries also keyed by inventoryId
   isData: {},             // keyed by row# -> instruction sheet data
   scienceData: {},        // keyed by row# -> science set personal data
   constructionData: {},   // keyed by row# -> construction set personal data
@@ -1561,6 +1564,8 @@ async function forceRefreshData() {
     state.personalData = {};
     state.soldData = {};
     state.forSaleData = {};
+    state.forSaleByInv = {};
+    state.upgradeByInv = {};
     state.wantData = {};
     await _loadPersonalFromSheets(state.personalSheetId, true);
     _cachePersonalData();

@@ -17,6 +17,18 @@
 // MY_SETS_HEADERS, EPHEMERA_TABS, and sheets.js/drive.js helpers.
 
 // ── Post-load data patches (correct known errors in master sheet) ──
+// Session 159: per-copy lookup helpers for forSale + upgrade.
+// state.forSaleByInv / state.upgradeByInv are populated at load time
+// alongside the legacy itemNum|variation-keyed state.forSaleData /
+// state.upgradeData. These helpers return the entry for a specific
+// inventory id, or undefined if none. Used by Phase 2 readers that
+// need to distinguish between duplicate copies of the same item.
+window._fsByInv = function(invId) {
+  return invId ? (state.forSaleByInv || {})[invId] : undefined;
+};
+window._ugByInv = function(invId) {
+  return invId ? (state.upgradeByInv || {})[invId] : undefined;
+};
 function _patchMasterData() {
   // Fix 6017: itemType should be 'Caboose' not 'Accessory'
   (state.masterData || []).forEach(m => {
@@ -767,16 +779,23 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   });
 
   // For Sale
+  // Session 159: also build a secondary index keyed by inventoryId so
+  // per-copy lookups (when the user owns duplicates of the same item)
+  // can disambiguate. Primary state.forSaleData keying is unchanged for
+  // backward compatibility with existing readers.
+  const newForSaleByInv = {};
   (forSaleRes.values || []).forEach((r, idx) => {
     if (!r[0] || r[0] === 'Item Number') return;
     const key = `${r[0]}|${r[1]||''}`;
-    newForSale[key] = {
+    const entry = {
       row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
       condition: r[2]||'', askingPrice: r[3]||'', dateListed: r[4]||'',
       notes: r[5]||'', originalPrice: r[6]||'', estWorth: r[7]||'',
       inventoryId: r[8]||'',
       manufacturer: r[9] || 'Lionel',
     };
+    newForSale[key] = entry;
+    if (entry.inventoryId) newForSaleByInv[entry.inventoryId] = entry;
   });
 
   // Want List
@@ -791,15 +810,19 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   });
 
   // Upgrade List
+  // Session 159: also build inventoryId-keyed map for per-copy lookups.
+  state.upgradeByInv = {};
   (upgradeRes.values || []).forEach((r, idx) => {
     if (!r[0] || r[0] === 'Item Number') return;
     const key = `${r[0]}|${r[1]||''}`;
-    state.upgradeData[key] = {
+    const entry = {
       row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
       priority: r[2]||'Medium', targetCondition: r[3]||'', maxPrice: r[4]||'', notes: r[5]||'',
       inventoryId: r[6]||'',
       manufacturer: r[7] || 'Lionel',
     };
+    state.upgradeData[key] = entry;
+    if (entry.inventoryId) state.upgradeByInv[entry.inventoryId] = entry;
   });
 
   // ── PRIMARY COMMIT — commit collection/sold/forSale/want to state first
@@ -813,6 +836,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   }
   if (forceOverwrite || Object.keys(newForSale).length > 0 || Object.keys(state.forSaleData).length === 0) {
     state.forSaleData = newForSale;
+    state.forSaleByInv = newForSaleByInv;
   }
   if (forceOverwrite || Object.keys(newWant).length > 0 || Object.keys(state.wantData).length === 0) {
     state.wantData = newWant;
