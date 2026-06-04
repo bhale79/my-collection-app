@@ -19,6 +19,66 @@ function _composeRoadDesc(m) {
 // ── _pickerStepId / _pickerViewKey state moved to wizard-photos.js (Session 110, Chunk 4) ──
 
 // ── ADD ITEM WIZARD ─────────────────────────────────────────────
+
+// Session 159: variation-aware tender helpers — must live at global scope
+// so they're available on Step 3 regardless of whether QE Step 1 ever rendered.
+window.getTenderCandidates = function(engineNum, pickedVarNum) {
+  var out = [];
+  var seen = new Set();
+  var data = (window.state && state.masterData) || [];
+  var engineVars = data.filter(function(m) {
+    return String(m.itemNum||'').trim() === String(engineNum||'').trim();
+  });
+  function tenderForCode(code) {
+    if (!code) return null;
+    for (var i = 0; i < data.length; i++) {
+      var m = data[i];
+      var c = String(m.cottCode || m.COTTCode || m['COTT Code'] || '').trim();
+      var t = String(m.itemType || m['Item Type'] || '').toLowerCase();
+      if (c === code && t.indexOf('tender') !== -1) return m;
+    }
+    return null;
+  }
+  engineVars.forEach(function(v) {
+    var code = String(v.cottCode || v.COTTCode || v['COTT Code'] || '').trim();
+    var slashIdx = code.indexOf('/');
+    if (slashIdx < 0) return;
+    var prefix = code.match(/^([A-Z]+)/);
+    if (!prefix) return;
+    var tenderCode = prefix[1] + code.slice(slashIdx + 1);
+    var t = tenderForCode(tenderCode);
+    if (t) {
+      var key = String(t.itemNum).trim();
+      if (!seen.has(key)) {
+        seen.add(key);
+        out.push({
+          itemNum: t.itemNum,
+          year: t.yearProduced || t['Year Produced'] || '',
+          varNum: t.varNum || t['Variation #'] || 1,
+          variationSpecific: String(v.varNum || v['Variation #'] || 1) === String(pickedVarNum || ''),
+        });
+      }
+    }
+  });
+  out.sort(function(a, b) {
+    if (a.variationSpecific && !b.variationSpecific) return -1;
+    if (!a.variationSpecific && b.variationSpecific) return 1;
+    return String(a.itemNum).localeCompare(String(b.itemNum));
+  });
+  return out;
+};
+
+window._pickTender = function(tNum) {
+  var known = (typeof getMatchingTenders === 'function')
+    ? getMatchingTenders((wizard.data.itemNum||'').trim()) : [];
+  wizard.data.tenderMatch = tNum;
+  wizard.data.tenderIsNonOriginal = (tNum && tNum !== 'Unknown') && !known.includes(tNum);
+  wizard.data._tenderConfirmed = true;
+  var modal = document.getElementById('tender-picker-modal');
+  if (modal) modal.remove();
+  if (typeof renderWizardStep === 'function') renderWizardStep();
+};
+
 let wizard = {
   step: 0,
   tab: null,       // 'collection' | 'sold' | 'want'
@@ -1680,72 +1740,6 @@ function renderWizardStep() {
         // Session 159: re-render Step 3 to reflect the new tender choice
         renderWizardStep();
       }
-    };
-
-    // Session 159: variation-aware tender candidate list using COTT slash codes.
-    // Walks all master rows for this engine, parses each variation's COTT slash
-    // code (e.g. "SE0175/0176" -> tender code "SE0176"), looks up the tender
-    // row, and returns a deduped list with the variation-specific one first.
-    window.getTenderCandidates = function(engineNum, pickedVarNum) {
-      var out = [];
-      var seen = new Set();
-      var data = (window.state && state.masterData) || [];
-      // First find all variations of this engine
-      var engineVars = data.filter(function(m) {
-        return String(m.itemNum||'').trim() === String(engineNum||'').trim();
-      });
-      // Helper to look up a tender by COTT code
-      function tenderForCode(code) {
-        if (!code) return null;
-        for (var i = 0; i < data.length; i++) {
-          var m = data[i];
-          var c = String(m.cottCode || m.COTTCode || m['COTT Code'] || '').trim();
-          var t = String(m.itemType || m['Item Type'] || '').toLowerCase();
-          if (c === code && t.indexOf('tender') !== -1) return m;
-        }
-        return null;
-      }
-      // For each variation, parse the slash code and find the tender
-      engineVars.forEach(function(v) {
-        var code = String(v.cottCode || v.COTTCode || v['COTT Code'] || '').trim();
-        var slashIdx = code.indexOf('/');
-        if (slashIdx < 0) return;
-        var prefix = code.match(/^([A-Z]+)/);
-        if (!prefix) return;
-        var tenderCode = prefix[1] + code.slice(slashIdx + 1);
-        var t = tenderForCode(tenderCode);
-        if (t) {
-          var key = String(t.itemNum).trim();
-          if (!seen.has(key)) {
-            seen.add(key);
-            out.push({
-              itemNum: t.itemNum,
-              year: t.yearProduced || t['Year Produced'] || '',
-              varNum: t.varNum || t['Variation #'] || 1,
-              variationSpecific: String(v.varNum || v['Variation #'] || 1) === String(pickedVarNum || ''),
-            });
-          }
-        }
-      });
-      // Sort: variation-specific first, then by item number
-      out.sort(function(a, b) {
-        if (a.variationSpecific && !b.variationSpecific) return -1;
-        if (!a.variationSpecific && b.variationSpecific) return 1;
-        return String(a.itemNum).localeCompare(String(b.itemNum));
-      });
-      return out;
-    };
-
-    // Session 159: user picked a tender from the Step 3 picker (radio or modal).
-    // Sets confirmed flag + re-renders.
-    window._pickTender = function(tNum) {
-      var known = getMatchingTenders((wizard.data.itemNum||'').trim());
-      wizard.data.tenderMatch = tNum;
-      wizard.data.tenderIsNonOriginal = (tNum && tNum !== 'Unknown') && !known.includes(tNum);
-      wizard.data._tenderConfirmed = true;
-      var modal = document.getElementById('tender-picker-modal');
-      if (modal) modal.remove();
-      renderWizardStep();
     };
 
     // Render grouping buttons (no auto-advance)
