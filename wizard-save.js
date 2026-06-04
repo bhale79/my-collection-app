@@ -1804,6 +1804,17 @@ async function saveWizardItem() {
 
   } catch(e) {
     console.error('Save error:', e, '| accessToken:', accessToken ? 'present' : 'MISSING');
-    showToast('❌ Save failed: ' + e.message, 8000, true);
+    // Session 159: friendly re-sign-in path when OAuth token expired
+    if (e && e.message === 'SESSION_EXPIRED') {
+      showToast('🔐 Your sign-in expired — please sign in again to save.', 6000, true);
+      try {
+        var _au = document.getElementById('auth-screen');
+        var _ap = document.getElementById('app');
+        if (_au) _au.style.display = 'flex';
+        if (_ap) _ap.classList.remove('active');
+      } catch(_se) { console.warn('show auth-screen failed:', _se); }
+    } else {
+      showToast('❌ Save failed: ' + e.message, 8000, true);
+    }
   }
 }

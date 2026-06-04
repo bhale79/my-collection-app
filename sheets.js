@@ -25,17 +25,23 @@ async function sheetsGet(spreadsheetId, range) {
   const isMaster = spreadsheetId === state.masterSheetId;
   const useApiKey = isMaster && API_KEY && API_KEY !== 'YOUR_API_KEY';
   const urlRange = _encodeRange(range);
-  const url = useApiKey
-    ? `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${urlRange}?key=${API_KEY}`
-    : `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${urlRange}`;
-  const headers = useApiKey
-    ? {}
-    : { Authorization: `Bearer ${accessToken}` };
-  const res = await fetch(url, { headers });
-  if (!res.ok) {
-    const errBody = await res.text().catch(() => '');
-    throw new Error(`Sheets read failed (${res.status}): ${errBody.slice(0, 200)}`);
+  if (useApiKey) {
+    // Public master read — no bearer token, won't 401 for auth reasons.
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${urlRange}?key=${API_KEY}`;
+    const res = await fetch(url, { headers: {} });
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      throw new Error(`Sheets read failed (${res.status}): ${errBody.slice(0, 200)}`);
+    }
+    return res.json();
   }
+  // Session 159: wrap bearer-token reads in _withTokenRetry so expired tokens
+  // silently refresh + retry instead of bombing the save (sheetsAppend calls
+  // sheetsGet internally to find the next empty row).
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${urlRange}`;
+  const res = await _withTokenRetry(() => fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  }));
   return res.json();
 }
 
@@ -45,15 +51,20 @@ async function sheetsBatchGet(spreadsheetId, ranges) {
   const isMaster = spreadsheetId === state.masterSheetId;
   const useApiKey = isMaster && API_KEY && API_KEY !== 'YOUR_API_KEY';
   const params = ranges.map(r => 'ranges=' + _encodeRange(r)).join('&');
-  const url = useApiKey
-    ? `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchGet?${params}&key=${API_KEY}`
-    : `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchGet?${params}`;
-  const headers = useApiKey ? {} : { Authorization: `Bearer ${accessToken}` };
-  const res = await fetch(url, { headers });
-  if (!res.ok) {
-    const errBody = await res.text().catch(() => '');
-    throw new Error(`Sheets batchGet failed (${res.status}): ${errBody.slice(0, 200)}`);
+  if (useApiKey) {
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchGet?${params}&key=${API_KEY}`;
+    const res = await fetch(url, { headers: {} });
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      throw new Error(`Sheets batchGet failed (${res.status}): ${errBody.slice(0, 200)}`);
+    }
+    return res.json();
   }
+  // Session 159: wrap bearer-token reads in _withTokenRetry
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchGet?${params}`;
+  const res = await _withTokenRetry(() => fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  }));
   return res.json();
 }
 
@@ -86,12 +97,20 @@ async function _withTokenRetry(fetchFn) {
       const prevCallback = tokenClient.callback;
       tokenClient.callback = (resp) => {
         tokenClient.callback = prevCallback;
-        if (resp.error) { reject(new Error('Token refresh failed: ' + resp.error)); return; }
+        if (resp.error) {
+          // Session 159: typed sentinel so catch blocks can show friendly re-sign-in prompt
+          if (resp.error === 'interaction_required' || resp.error === 'login_required' || resp.error === 'consent_required') {
+            reject(new Error('SESSION_EXPIRED'));
+          } else {
+            reject(new Error('Token refresh failed: ' + resp.error));
+          }
+          return;
+        }
         accessToken = resp.access_token;
         resolve();
       };
       tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
-      setTimeout(() => reject(new Error('Token refresh timed out')), 8000);
+      setTimeout(() => reject(new Error('SESSION_EXPIRED')), 8000);
     });
     const retryRes = await fetchFn();
     if (!retryRes.ok) {
