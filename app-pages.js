@@ -2288,12 +2288,25 @@ function _upgradeViewMine(itemNum, variation) {
 }
 
 function showAddToUpgradeModal(itemNum, variation, pdRow) {
-  const existing = state.upgradeData[`${itemNum}|${variation||''}`] || {};
+  // Session 159 Phase 2: look up the EXACT copy the user clicked on,
+  // not just any matching itemNum/variation. The previous lookup
+  // (state.personalData[`${itemNum}|${variation}|${pdRow}`]) was wrong
+  // — state.personalData is keyed by inventoryId, not by that composite.
+  // So the lookup always returned undefined, fell through to first-match,
+  // and grabbed copy #1 even when the user clicked copy #2.
   let pd;
-  if (pdRow) {
-    pd = state.personalData[`${itemNum}|${variation||''}|${pdRow}`];
+  if (pdRow && typeof findPDKeyByRow === 'function') {
+    const _pdKey = findPDKeyByRow(itemNum, variation, pdRow);
+    if (_pdKey) pd = state.personalData[_pdKey];
   }
   if (!pd) pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === itemNum && (p.variation||'') === (variation||''));
+  // Look up the existing upgrade entry by THIS copy's inventoryId first,
+  // falling back to itemNum|variation for legacy upgrade rows that have
+  // a blank inventoryId column.
+  const _invId = pd && pd.inventoryId ? pd.inventoryId : '';
+  const existing = (_invId && state.upgradeByInv && state.upgradeByInv[_invId])
+    || state.upgradeData[`${itemNum}|${variation||''}`]
+    || {};
   const master = findMaster(itemNum);
   const name = master ? (master.roadName || master.itemType || itemNum) : itemNum;
   const myCond = pd && pd.condition ? pd.condition : '';
