@@ -4865,6 +4865,18 @@ function renderWizardStep() {
 //           the silent loop that previously landed the user back on the
 //           current step when all prior steps had skipIf → true.
 function wizardBack() {
+  // Session 159: on Step 3 with engine+tender after user confirmed a tender,
+  // Back returns to the picker mode instead of jumping back to Step 2.
+  // Second Back press (picker mode) goes to Step 2 normally.
+  var _curS = wizard.steps[wizard.step];
+  if (_curS && _curS.type === 'conditionDetails' &&
+      wizard.data._itemGrouping === 'engine_tender' &&
+      wizard.data._tenderConfirmed) {
+    wizard.data._tenderConfirmed = false;
+    renderWizardStep();
+    return true;
+  }
+
   if (wizard.step <= 0) return false;
   // Clear save locks — user is navigating back, not saving
   if (wizard.data) {

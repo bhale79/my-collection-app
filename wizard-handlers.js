@@ -64,7 +64,6 @@ function _updateGroupingButtons() {
     buttons = [
       { id: 'engine', label: 'Engine Only' },
       { id: 'engine_tender', label: 'Engine + Tender' },
-      { id: 'custom_tender', label: 'Engine + Non-Standard Tender' },
     ];
   } else if (hasLocos && !isF3Alco) {
     // Standalone tender being entered
@@ -129,7 +128,7 @@ function _selectGrouping(groupId) {
   // the engine row and lock matchedItem + _suggestedItemType to it so
   // the variation picker (and every downstream step) stays scoped to
   // the right product.
-  const _engineGroupings = ['engine','engine_tender','custom_tender','a_powered','a_dummy','aa','ab','aba'];
+  const _engineGroupings = ['engine','engine_tender','a_powered','a_dummy','aa','ab','aba'];
   if (_engineGroupings.indexOf(groupId) !== -1) {
     const _curType = String((wizard.matchedItem && wizard.matchedItem.itemType) || '');
     if (!/engine|loco/i.test(_curType)) {
@@ -154,12 +153,6 @@ function _selectGrouping(groupId) {
     wizard.data.tenderMatch = tenders.length > 0 ? tenders[0] : '';
     wizard.data.setMatch = '';
     wizard.data.unitPower = '';
-  } else if (groupId === 'custom_tender') {
-    // Show input for any tender number — user-defined pairing
-    wizard.data.setMatch = '';
-    wizard.data.unitPower = '';
-    _showCustomTenderInput(itemNum);
-    return; // Don't auto-advance — wait for user input
   } else if (groupId === 'a_powered') {
     wizard.data.unitPower = 'Powered';
     wizard.data.setMatch = 'standalone';

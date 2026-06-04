@@ -54,6 +54,11 @@
     if (_ignoreNextPopstate) {
       _ignoreNextPopstate = false;
       _log('ignoring self-triggered popstate');
+      // Session 159: also stop propagation so app.js's dashboard back handler
+      // doesn't see this and flash "Press back again to exit" after wizard close.
+      if (typeof e.stopImmediatePropagation === 'function') {
+        e.stopImmediatePropagation();
+      }
       return;
     }
     if (!_stack.length) {
