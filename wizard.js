@@ -1595,6 +1595,7 @@ function renderWizardStep() {
         }
         wizard.data.tenderMatch = _varTender || (_t.length > 0 ? _t[0] : '');
         wizard.data.tenderIsNonOriginal = false;
+        wizard.data._tenderConfirmed = false;  // Session 159: require user confirmation on Step 3
         wizard.data.setMatch = ''; wizard.data.unitPower = '';
       } else if (gid === 'a_powered') {
         wizard.data.unitPower = 'Powered'; wizard.data.setMatch = 'standalone'; wizard.data.tenderMatch = '';
@@ -1663,6 +1664,10 @@ function renderWizardStep() {
       wizard.data.tenderMatch = tNum;
       wizard.data.tenderIsNonOriginal = !known.includes(tNum);
       wizard.data._qeMultiResolved = false;
+      // Session 159: if invoked from Step 3 (no qe1 label), confirm + re-render
+      var _step3Active = wizard.steps && wizard.steps[wizard.step] &&
+                         wizard.steps[wizard.step].type === 'conditionDetails';
+      if (_step3Active) wizard.data._tenderConfirmed = true;
       var modal = document.getElementById('tender-picker-modal');
       if (modal) modal.remove();
       // Update tender label in DOM without full re-render
@@ -1671,7 +1676,76 @@ function renderWizardStep() {
         var nonOrig = wizard.data.tenderIsNonOriginal;
         lbl.innerHTML = 'TENDER <span style="font-family:var(--font-mono);font-weight:700;color:' + (nonOrig ? '#f39c12' : '#8b5cf6') + '">' + tNum + (nonOrig ? ' &#x26A0;' : '') + '</span>'
           + '<button type="button" onclick="_showTenderPicker()" style="margin-left:0.4rem;padding:0.15rem 0.5rem;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-size:0.65rem;font-family:var(--font-body);cursor:pointer;white-space:nowrap">Not yours?</button>';
+      } else if (_step3Active) {
+        // Session 159: re-render Step 3 to reflect the new tender choice
+        renderWizardStep();
       }
+    };
+
+    // Session 159: variation-aware tender candidate list using COTT slash codes.
+    // Walks all master rows for this engine, parses each variation's COTT slash
+    // code (e.g. "SE0175/0176" -> tender code "SE0176"), looks up the tender
+    // row, and returns a deduped list with the variation-specific one first.
+    window.getTenderCandidates = function(engineNum, pickedVarNum) {
+      var out = [];
+      var seen = new Set();
+      var data = (window.state && state.masterData) || [];
+      // First find all variations of this engine
+      var engineVars = data.filter(function(m) {
+        return String(m.itemNum||'').trim() === String(engineNum||'').trim();
+      });
+      // Helper to look up a tender by COTT code
+      function tenderForCode(code) {
+        if (!code) return null;
+        for (var i = 0; i < data.length; i++) {
+          var m = data[i];
+          var c = String(m.cottCode || m.COTTCode || m['COTT Code'] || '').trim();
+          var t = String(m.itemType || m['Item Type'] || '').toLowerCase();
+          if (c === code && t.indexOf('tender') !== -1) return m;
+        }
+        return null;
+      }
+      // For each variation, parse the slash code and find the tender
+      engineVars.forEach(function(v) {
+        var code = String(v.cottCode || v.COTTCode || v['COTT Code'] || '').trim();
+        var slashIdx = code.indexOf('/');
+        if (slashIdx < 0) return;
+        var prefix = code.match(/^([A-Z]+)/);
+        if (!prefix) return;
+        var tenderCode = prefix[1] + code.slice(slashIdx + 1);
+        var t = tenderForCode(tenderCode);
+        if (t) {
+          var key = String(t.itemNum).trim();
+          if (!seen.has(key)) {
+            seen.add(key);
+            out.push({
+              itemNum: t.itemNum,
+              year: t.yearProduced || t['Year Produced'] || '',
+              varNum: t.varNum || t['Variation #'] || 1,
+              variationSpecific: String(v.varNum || v['Variation #'] || 1) === String(pickedVarNum || ''),
+            });
+          }
+        }
+      });
+      // Sort: variation-specific first, then by item number
+      out.sort(function(a, b) {
+        if (a.variationSpecific && !b.variationSpecific) return -1;
+        if (!a.variationSpecific && b.variationSpecific) return 1;
+        return String(a.itemNum).localeCompare(String(b.itemNum));
+      });
+      return out;
+    };
+
+    // Session 159: user picked a tender from the Step 3 picker (radio or modal).
+    // Sets confirmed flag + re-renders.
+    window._pickTender = function(tNum) {
+      var known = getMatchingTenders((wizard.data.itemNum||'').trim());
+      wizard.data.tenderMatch = tNum;
+      wizard.data.tenderIsNonOriginal = (tNum && tNum !== 'Unknown') && !known.includes(tNum);
+      wizard.data._tenderConfirmed = true;
+      var modal = document.getElementById('tender-picker-modal');
+      if (modal) modal.remove();
+      renderWizardStep();
     };
 
     // Render grouping buttons (no auto-advance)
@@ -3999,7 +4073,18 @@ function renderWizardStep() {
       const _tenders = getMatchingTenders(_cdItemNum);
       const _tenderNum = wizard.data.tenderMatch || (_tenders.length > 0 ? _tenders[0] : '');
       _cdCols.push({ id: 'main', label: '\u{1F682} No. ' + _cdItemNum, prefix: '', isEngine: true, description: _cdMainDesc });
-      _cdCols.push({ id: 'tender', label: '\u{1F4E6} Tender: ' + _tenderNum, prefix: 'tender', isTender: true });
+      // Session 159: tender column shows picker UI until user confirms.
+      const _tConf = !!wizard.data._tenderConfirmed;
+      const _tCandidates = window.getTenderCandidates ?
+        window.getTenderCandidates(_cdItemNum, wizard.data.variation) : [];
+      _cdCols.push({
+        id: 'tender', prefix: 'tender', isTender: true,
+        label: _tConf
+          ? ('\u{1F4E6} Tender: ' + (wizard.data.tenderMatch === 'Unknown' ? 'Unknown' : _tenderNum))
+          : '\u{1F4E6} Tender',
+        pickerMode: !_tConf,
+        candidates: _tCandidates,
+      });
     } else if (_cdGrouping === 'aa') {
       _cdCols.push({ id: 'main', label: '\u{1F535} A Unit: ' + _cdItemNum + '-P', prefix: '', sublabel: 'Powered', description: _cdMainDesc });
       _cdCols.push({ id: 'unit2', label: '\u{1F535} A Unit: ' + _cdItemNum + '-D', prefix: 'unit2', sublabel: 'Dummy' });
@@ -4068,7 +4153,52 @@ function renderWizardStep() {
         + (col.description ? '<div style="font-size:0.78rem;color:var(--text-mid);font-style:italic;margin-bottom:0.35rem;line-height:1.35">' + String(col.description).replace(/</g,'&lt;') + '</div>' : '')
         + _cdExtLink
         + '<div style="margin-bottom:0.5rem;padding-bottom:0.4rem;border-bottom:1px solid var(--border)"></div>';
-      
+
+      // Session 159: tender picker mode. Show radio candidates instead of
+      // condition fields until the user confirms which tender they have.
+      if (col.pickerMode && col.isTender) {
+        html += '<div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.5rem;font-style:italic">Which tender came with it?</div>';
+        var _selTender = wizard.data.tenderMatch || '';
+        var _cands = col.candidates || [];
+        if (_cands.length === 0) {
+          // No documented pairings - fall back to known tenders for this engine
+          var _kt = getMatchingTenders((wizard.data.itemNum||'').trim());
+          _cands = _kt.map(function(n) { return { itemNum: n, year: '', varNum: 1, variationSpecific: false }; });
+        }
+        var _rad = function(val, label, sub) {
+          var sel = _selTender === val;
+          return '<button type="button" onclick="_pickTender(\''+ val + '\')" '
+            + 'style="display:flex;align-items:center;gap:0.6rem;width:100%;padding:0.55rem 0.75rem;margin-bottom:0.35rem;'
+            + 'border-radius:8px;border:1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';'
+            + 'background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)') + ';'
+            + 'color:var(--text);cursor:pointer;text-align:left;font-family:var(--font-body)">'
+            + '<span style="width:14px;height:14px;border-radius:50%;border:2px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';'
+            + 'background:' + (sel ? 'var(--accent)' : 'transparent') + ';flex-shrink:0"></span>'
+            + '<div style="flex:1;min-width:0">'
+            + '<div style="font-weight:600;font-size:0.85rem">' + label + '</div>'
+            + (sub ? '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.1rem">' + sub + '</div>' : '')
+            + '</div></button>';
+        };
+        _cands.forEach(function(c) {
+          var sub = c.variationSpecific
+            ? 'Paired with this variation' + (c.year ? ' (' + c.year + ')' : '')
+            : 'Also documented with this engine' + (c.year ? ' (' + c.year + ')' : '');
+          html += _rad(c.itemNum, c.itemNum, sub);
+        });
+        // "Other tender" - opens the existing search modal
+        html += '<button type="button" onclick="_showTenderPicker()" '
+          + 'style="display:flex;align-items:center;gap:0.6rem;width:100%;padding:0.55rem 0.75rem;margin-bottom:0.35rem;'
+          + 'border-radius:8px;border:1.5px dashed var(--border);background:var(--bg);color:var(--text-dim);'
+          + 'cursor:pointer;text-align:left;font-family:var(--font-body);font-size:0.82rem">'
+          + '<span style="font-size:1rem">\u{1F50D}</span>'
+          + '<span>Other tender - search by number</span></button>';
+        // "Don't know" - saves as Unknown
+        html += _rad('Unknown', "Don't know", 'Save with tender unknown');
+        html += '<div style="font-size:0.7rem;color:var(--text-dim);font-style:italic;margin-top:0.5rem;text-align:center">Need to remove the tender? Go Back and pick Engine only.</div>';
+        html += '</div>';
+        return html;
+      }
+
       // Condition — Session 176: ALWAYS render the slider so it stays adjustable.
       // (It used to collapse to a read-only badge once condition had any value,
       // which made it un-editable whenever a default/prior value was present.)
@@ -4854,6 +4984,12 @@ async function _wizardNextCore() {
   }
   if (s.type === 'itemNumGrouping' && !(wizard.data.itemNum || '').trim()) {
     showToast('Please enter an item number.'); return;
+  }
+  // Session 159: require user to confirm which tender came with the engine
+  if (s.type === 'conditionDetails' &&
+      wizard.data._itemGrouping === 'engine_tender' &&
+      !wizard.data._tenderConfirmed) {
+    showToast('Please pick which tender came with this engine.'); return;
   }
   if (s.type === 'itemNumGrouping') {
     const _rawInput = (wizard.data.itemNum || '').trim();
