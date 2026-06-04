@@ -219,8 +219,21 @@ function _collectAllOwnedItems() {
 function _composeItemNumHTML(itemNum, variation) {
   var num = String(itemNum || '');
   if (!num) return '';
-  var pd = (state.personalData || {})[num + '|' + (variation || '')];
+  // Session 159 fix: use findPD (indexed lookup) not direct state.personalData[key].
+  // Real storage keys differ from "itemNum|variation" — findPD maps via _pdIndex.
+  var pd = (typeof findPD === 'function') ? findPD(num, variation) : null;
   var partner = pd && pd.matchedTo ? String(pd.matchedTo).trim() : '';
+  // Fallback: if no explicit matchedTo but row has a groupId, find other group members
+  if ((!partner || partner.toLowerCase() === 'none') && pd && pd.groupId) {
+    var gid = pd.groupId;
+    var partners = [];
+    Object.values(state.personalData || {}).forEach(function(p) {
+      if (p && p.groupId === gid && p.itemNum !== num) {
+        partners.push(p.itemNum);
+      }
+    });
+    if (partners.length > 0) partner = partners.join(' / ');
+  }
   if (partner && partner.toLowerCase() !== 'none') {
     return num
       + ' <span style="opacity:0.55;font-size:0.82em;vertical-align:1px" title="Linked with ' + partner + '">🔗</span> '
