@@ -1,4 +1,20 @@
 // ── Era-aware browse tab visibility ──
+// Session 159 Phase 2d: when the cache has no inventoryId to disambiguate
+// duplicates, badge only the FIRST owned copy (lowest sheet row). Matches the
+// historical "first match wins" behavior so only one copy lights up.
+function _isFirstOwnedCopyByRow(itemNum, variation, pdRow) {
+  if (!state.personalData) return false;
+  var lowest = null;
+  var v = variation || '';
+  Object.values(state.personalData).forEach(function(p) {
+    if (!p || !p.owned) return;
+    if (p.itemNum !== itemNum) return;
+    if ((p.variation || '') !== v) return;
+    if (lowest === null || (p.row && p.row < lowest)) lowest = p.row;
+  });
+  return lowest !== null && pdRow === lowest;
+}
+
 function _updateBrowseTabsForEra() {
   // Sync era dropdown on browse page
   var _esel = document.getElementById('era-select');
@@ -2683,8 +2699,9 @@ function renderBrowse() {
       const _ugLegacyM = state.upgradeData[`${_mDispNum}|${item.variation||''}`] || state.upgradeData[`${item.itemNum}|${item.variation||''}`];
       const _fsEntryM = _fsThisCopyM || _fsLegacyM;
       const _ugEntryM = _ugThisCopyM || _ugLegacyM;
-      const _isThisCopyFS = !!_fsThisCopyM || (!!_fsLegacyM && !_fsLegacyM.inventoryId);
-      const _isThisCopyUG = !!_ugThisCopyM || (!!_ugLegacyM && !_ugLegacyM.inventoryId);
+      const _isFirstM = pd && pd.row ? _isFirstOwnedCopyByRow(item.itemNum, item.variation, pd.row) : false;
+      const _isThisCopyFS = !!_fsThisCopyM || (!!_fsLegacyM && !_fsLegacyM.inventoryId && _isFirstM);
+      const _isThisCopyUG = !!_ugThisCopyM || (!!_ugLegacyM && !_ugLegacyM.inventoryId && _isFirstM);
       const _statusIcons = (_isThisCopyFS ? '<span title="This copy is For Sale" style="font-size:0.8rem">🏷️</span>' : '')
                          + (_isThisCopyUG ? '<span title="This copy on Upgrade list" style="font-size:0.8rem;color:#8b5cf6">↑</span>' : '')
                          + (_isGrouped ? '<span title="Grouped item" style="font-size:0.8rem">🔗</span>' : '')
@@ -2733,8 +2750,9 @@ function renderBrowse() {
       const _ugLegacy = state.upgradeData[`${_dispNum}|${item.variation||''}`] || state.upgradeData[`${item.itemNum}|${item.variation||''}`];
       const _fsEntry = _fsThisCopy || _fsLegacy;
       const _ugEntry = _ugThisCopy || _ugLegacy;
-      const _isThisCopyFS = !!_fsThisCopy || (!!_fsLegacy && !_fsLegacy.inventoryId);
-      const _isThisCopyUG = !!_ugThisCopy || (!!_ugLegacy && !_ugLegacy.inventoryId);
+      const _isFirstD = pd && pd.row ? _isFirstOwnedCopyByRow(item.itemNum, item.variation, pd.row) : false;
+      const _isThisCopyFS = !!_fsThisCopy || (!!_fsLegacy && !_fsLegacy.inventoryId && _isFirstD);
+      const _isThisCopyUG = !!_ugThisCopy || (!!_ugLegacy && !_ugLegacy.inventoryId && _isFirstD);
       const _isAnyFS = !!_fsEntry;
       const _isAnyUG = !!_ugEntry;
       // Count how many copies of this item exist in collection

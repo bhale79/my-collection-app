@@ -133,8 +133,12 @@ function showNonItemDetailPage(type, key) {
   var _ndInvId    = entry && entry.inventoryId ? entry.inventoryId : '';
   var _ndByInvHit = _ndInvId && state.forSaleByInv ? state.forSaleByInv[_ndInvId] : null;
   var _ndLegacy   = state.forSaleData && state.forSaleData[keyItemNum + '|' + keyVar];
+  // Session 159 Phase 2d: first-copy fallback for non-item detail (rarely has duplicates)
+  var _ndIsFirst  = entry && entry.row && typeof _isFirstOwnedCopyByRow === 'function'
+    ? _isFirstOwnedCopyByRow(entry.itemNum || keyItemNum, entry.variation || keyVar, entry.row)
+    : true;
   var fsEntry     = _ndByInvHit || _ndLegacy;
-  var isForSale   = !!_ndByInvHit || (!!_ndLegacy && !_ndLegacy.inventoryId);
+  var isForSale   = !!_ndByInvHit || (!!_ndLegacy && !_ndLegacy.inventoryId && _ndIsFirst);
   var fsPrice     = fsEntry ? _currencySymbol() + parseFloat(fsEntry.askingPrice || 0).toLocaleString() : '';
 
   // Condition pip
@@ -884,8 +888,12 @@ function showItemDetailPage(idx, copyInvId) {
   const _detailInvId = pd && pd.inventoryId ? pd.inventoryId : '';
   const _fsByInvHit = _detailInvId && state.forSaleByInv ? state.forSaleByInv[_detailInvId] : null;
   const _fsLegacyHit = state.forSaleData[`${it.itemNum}|${it.variation||''}`];
+  // Session 159 Phase 2d: if no inventoryId disambiguator, only show on first owned copy by row
+  const _isFirstDetail = pd && pd.row && typeof _isFirstOwnedCopyByRow === 'function'
+    ? _isFirstOwnedCopyByRow(it.itemNum, it.variation, pd.row)
+    : true;  // single-copy items: badge always
   const _fsEntry = _fsByInvHit || _fsLegacyHit;
-  const isForSale = !!_fsByInvHit || (!!_fsLegacyHit && !_fsLegacyHit.inventoryId);
+  const isForSale = !!_fsByInvHit || (!!_fsLegacyHit && !_fsLegacyHit.inventoryId && _isFirstDetail);
   const _fsPrice = _fsEntry ? _currencySymbol() + parseFloat(_fsEntry.askingPrice || 0).toLocaleString() : '';
   const groupMembers = pd && pd.groupId ? Object.values(state.personalData).filter(p => p.groupId === pd.groupId && p.itemNum !== it.itemNum) : [];
   // Bug 15 (Session 154): include grouped instruction sheets (separate isData
