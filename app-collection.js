@@ -1533,7 +1533,7 @@ function _checkGroupBeforeForSale(globalIdx, pdKey) {
       } else {
         await sheetsAppend(sheetId, 'For Sale!A:J', [fsRow]);
       }
-      state.forSaleData[fsKey] = {
+      const _grpFsEntry = {
         row: existingFs ? existingFs.row : 99999,
         itemNum: pd.itemNum, variation: pd.variation || '',
         condition: pd.condition || '', askingPrice: askingPrice,
@@ -1542,6 +1542,9 @@ function _checkGroupBeforeForSale(globalIdx, pdKey) {
         estWorth: pd.userEstWorth || '',
         inventoryId: pd.inventoryId || '',
       };
+      state.forSaleData[fsKey] = _grpFsEntry;
+      // Session 159 Phase 2c: also write to inventoryId-keyed map
+      if (_grpFsEntry.inventoryId && state.forSaleByInv) state.forSaleByInv[_grpFsEntry.inventoryId] = _grpFsEntry;
       overlay.remove();
       _cachePersonalData();
       buildForSalePage();

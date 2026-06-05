@@ -64,6 +64,20 @@ const _COLLECTION_TABS = [
 // items. Each record: { type, key, title, subtitle, extras, date,
 // _savedAt, source, openFn }. The Collection page renders these
 // directly; the tab filter + search operate on them.
+
+// Session 159 Phase 2c: also remove from inventoryId map when deleting from forSaleData.
+// Centralized helper to avoid duplicating the lookup at every delete site.
+function _fsCacheRemove(fsKey) {
+  const _e = state.forSaleData[fsKey];
+  if (_e && _e.inventoryId && state.forSaleByInv) delete state.forSaleByInv[_e.inventoryId];
+  delete state.forSaleData[fsKey];
+}
+function _ugCacheRemove(ugKey) {
+  const _e = state.upgradeData[ugKey];
+  if (_e && _e.inventoryId && state.upgradeByInv) delete state.upgradeByInv[_e.inventoryId];
+  delete state.upgradeData[ugKey];
+}
+
 function _collectAllOwnedItems() {
   const out = [];
 
@@ -1661,6 +1675,9 @@ async function _removeUpgradeFromCollection(itemNum, variation) {
   if (ug.row) {
     await sheetsUpdate(state.personalSheetId, `Upgrade List!A${ug.row}:H${ug.row}`, [['','','','','','','','']]);
   }
+  // Session 159 Phase 2c: also remove from inventoryId map
+  const _delUg = state.upgradeData[key];
+  if (_delUg && _delUg.inventoryId && state.upgradeByInv) delete state.upgradeByInv[_delUg.inventoryId];
   delete state.upgradeData[key];
   _cachePersonalData();
   showToast('✓ Removed from Upgrade List');
@@ -2374,14 +2391,17 @@ async function saveUpgradeItem(itemNum, variation, existingRow, invId) {
     // Reload data
     const res = await sheetsGet(sheetId, 'Upgrade List!A3:H');
     state.upgradeData = {};
+    state.upgradeByInv = {};  // Session 159 Phase 2c: rebuild inv-keyed map too
     (res.values || []).forEach((r, idx) => {
       if (!r[0] || r[0] === 'Item Number') return;
-      state.upgradeData[`${r[0]}|${r[1]||''}`] = {
+      const _ugEntry = {
         row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
         priority: r[2]||'Medium', targetCondition: r[3]||'', maxPrice: r[4]||'', notes: r[5]||'',
         inventoryId: r[6]||'',
         manufacturer: r[7] || 'Lionel',
       };
+      state.upgradeData[`${r[0]}|${r[1]||''}`] = _ugEntry;
+      if (_ugEntry.inventoryId) state.upgradeByInv[_ugEntry.inventoryId] = _ugEntry;
     });
     const modal = document.getElementById('upgrade-add-modal');
     if (modal) modal.remove();

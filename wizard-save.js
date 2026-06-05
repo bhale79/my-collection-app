@@ -1383,12 +1383,15 @@ async function saveWizardItem() {
         await sheetsAppend(state.personalSheetId, 'For Sale!A:I', [row]);
       }
       // Optimistic update
-      state.forSaleData[fsKey] = {
+      const _fsEntry = {
         row: existingFs?.row || 99999, itemNum, variation: fsVariation,
         condition: fsCondition, askingPrice: d.askingPrice || '',
         dateListed: row[4], notes: row[5], originalPrice: fsOrigPrice, estWorth: fsEstWorth,
         inventoryId: collectionEntry?.inventoryId || '',
       };
+      state.forSaleData[fsKey] = _fsEntry;
+      // Session 159 Phase 2c: also write to inventoryId-keyed map
+      if (_fsEntry.inventoryId && state.forSaleByInv) state.forSaleByInv[_fsEntry.inventoryId] = _fsEntry;
       // Session 154: "Sell individually" deferred the group-break to here so a
       // cancelled wizard never dismantles the group. Now the sale saved, so
       // ungroup the rest (they stay in the collection as standalone items).
@@ -1487,6 +1490,8 @@ async function saveWizardItem() {
         const fsEntry = state.forSaleData && state.forSaleData[fsKey];
         if (fsEntry && fsEntry.row) {
           await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry.row}:I${fsEntry.row}`, [['','','','','','','','','']]);
+          // Session 159 Phase 2c: also remove from inventoryId map
+          if (fsEntry && fsEntry.inventoryId && state.forSaleByInv) delete state.forSaleByInv[fsEntry.inventoryId];
           delete state.forSaleData[fsKey];
         }
       } catch(e) { console.warn('[Sold] clearing For Sale row failed:', e); }
@@ -1497,6 +1502,8 @@ async function saveWizardItem() {
         const ugEntry = state.upgradeData && state.upgradeData[ugKey];
         if (ugEntry && ugEntry.row) {
           await sheetsUpdate(state.personalSheetId, `Upgrade List!A${ugEntry.row}:H${ugEntry.row}`, [['','','','','','','','']]);
+          // Session 159 Phase 2c: also remove from inventoryId map
+          if (ugEntry && ugEntry.inventoryId && state.upgradeByInv) delete state.upgradeByInv[ugEntry.inventoryId];
           delete state.upgradeData[ugKey];
         }
       } catch(e) { console.warn('[Sold] clearing Upgrade row failed:', e); }

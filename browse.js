@@ -2012,11 +2012,19 @@ function _ncShowUpgradeModal(type, key) {
       await sheetsAppend(state.personalSheetId, 'Upgrade!A:F', [row]);
       // Local state mirror
       if (!state.upgradeData) state.upgradeData = {};
-      state.upgradeData[ids.itemNum + '|' + ids.variation] = {
+      if (!state.upgradeByInv) state.upgradeByInv = {};
+      const _brUgEntry = {
         itemNum: ids.itemNum, variation: ids.variation,
         priority, expectedPrice: price,
         notes: title, dateAdded: new Date().toISOString().slice(0, 10),
       };
+      state.upgradeData[ids.itemNum + '|' + ids.variation] = _brUgEntry;
+      // Session 159 Phase 2c: also write to inventoryId-keyed map if pd has an inventoryId
+      const _brPd = Object.values(state.personalData||{}).find(function(p){ return p.itemNum===ids.itemNum && (p.variation||'')===(ids.variation||'') && p.owned; });
+      if (_brPd && _brPd.inventoryId) {
+        _brUgEntry.inventoryId = _brPd.inventoryId;
+        state.upgradeByInv[_brPd.inventoryId] = _brUgEntry;
+      }
       showToast('✓ Added to Upgrade list');
       if (typeof buildDashboard === 'function') buildDashboard();
     } catch(e) {
