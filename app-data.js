@@ -720,7 +720,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     sheetsGet(sheetId, 'Sold!A3:T').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'For Sale!A3:J').catch(() => ({values:[]})),
     sheetsGet(sheetId, 'Want List!A3:F').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Upgrade List!A3:H').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Upgrade List!A3:H').catch((e) => { console.warn('[Upgrade load failed]', e && e.message); return {values:[]}; }),
   ]);
   // Secondary tabs fire off in parallel, NOT awaited in the main flow
   const _secondaryFetch = Promise.all([
@@ -824,6 +824,35 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     state.upgradeData[key] = entry;
     if (entry.inventoryId) state.upgradeByInv[entry.inventoryId] = entry;
   });
+
+  // Session 159 Phase 2e: self-heal if the initial upgrade fetch came back
+  // empty but personal data shows the user has items. Could be a transient
+  // auth/network blip on the parallel Promise.all. Try once more.
+  if (Object.keys(state.upgradeData).length === 0 && (upgradeRes.values || []).length === 0) {
+    sheetsGet(sheetId, 'Upgrade List!A3:H').then(function(retryRes) {
+      var added = 0;
+      (retryRes.values || []).forEach(function(r, idx) {
+        if (!r[0] || r[0] === 'Item Number') return;
+        var entry = {
+          row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
+          priority: r[2]||'Medium', targetCondition: r[3]||'', maxPrice: r[4]||'', notes: r[5]||'',
+          inventoryId: r[6]||'',
+          manufacturer: r[7] || 'Lionel',
+        };
+        state.upgradeData[r[0]+'|'+(r[1]||'')] = entry;
+        if (entry.inventoryId) state.upgradeByInv[entry.inventoryId] = entry;
+        added++;
+      });
+      if (added > 0) {
+        console.log('[Upgrade self-heal] picked up', added, 'rows on retry');
+        // Refresh visible UI
+        if (typeof buildDashboard === 'function') buildDashboard();
+        if (typeof renderBrowse === 'function') renderBrowse();
+        var _badge = document.getElementById('nav-upgrade-count');
+        if (_badge) _badge.textContent = Object.values(state.upgradeData).length.toLocaleString();
+      }
+    }).catch(function(e) { console.warn('[Upgrade self-heal failed]', e && e.message); });
+  }
 
   // ── PRIMARY COMMIT — commit collection/sold/forSale/want to state first
   // so the UI can render from fresh primary data while secondary (ephemera,
