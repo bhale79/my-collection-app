@@ -662,6 +662,26 @@ async function loadPersonalData() {
       state.constructionData = _pd.constructionData || {};
       state.ephemeraData  = _pd.ephemeraData  || { catalogs:{}, paper:{}, mockups:{}, other:{} };
       state.mySetsData   = _pd.mySetsData   || {};
+      // Session 159 Phase 2g: restore upgrade + byInv maps from cache too.
+      // Without this, the cache-hit fast path returned early without populating
+      // upgradeData, leaving badges broken until the user did something that
+      // re-fetched the sheet.
+      state.upgradeData  = _pd.upgradeData  || {};
+      state.forSaleByInv = _pd.forSaleByInv || {};
+      state.upgradeByInv = _pd.upgradeByInv || {};
+      // Rebuild byInv maps if they're missing from older cache snapshots
+      if (!state.forSaleByInv || Object.keys(state.forSaleByInv).length === 0) {
+        state.forSaleByInv = {};
+        Object.values(state.forSaleData || {}).forEach(function(fs) {
+          if (fs && fs.inventoryId) state.forSaleByInv[fs.inventoryId] = fs;
+        });
+      }
+      if (!state.upgradeByInv || Object.keys(state.upgradeByInv).length === 0) {
+        state.upgradeByInv = {};
+        Object.values(state.upgradeData || {}).forEach(function(ug) {
+          if (ug && ug.inventoryId) state.upgradeByInv[ug.inventoryId] = ug;
+        });
+      }
       // Only background-refresh if cache is older than 5 minutes
       if ((Date.now() - _ptime) > _BG_REFRESH) {
         _loadPersonalFromSheets(state.personalSheetId).then(() => {
@@ -686,7 +706,10 @@ function _cachePersonalData() {
       personalData: state.personalData,
       soldData: state.soldData,
       forSaleData: state.forSaleData,
+      forSaleByInv: state.forSaleByInv,  // Session 159 Phase 2g
       wantData: state.wantData,
+      upgradeData: state.upgradeData,    // Session 159 Phase 2g — was missing!
+      upgradeByInv: state.upgradeByInv,  // Session 159 Phase 2g
       isData: state.isData,
       scienceData: state.scienceData,
       constructionData: state.constructionData,
@@ -1023,3 +1046,4 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     try { if (typeof renderBrowse === 'function') renderBrowse(); } catch(e) {}
   }).catch(function(e) { console.warn('[Secondary personal data fetch]', e); });
 }
+
