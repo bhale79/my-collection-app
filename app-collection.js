@@ -126,11 +126,15 @@ function showNonItemDetailPage(type, key) {
   var notes     = cfg.notes(entry) || '';
   var photoLink = cfg.photoFolder(entry) || '';
 
-  // For Sale state lookup (uses itemNum + variation pair like Items)
+  // For Sale state lookup — Session 159 Phase 2b: check the per-copy
+  // inventoryId-keyed map first so badges reflect THIS copy specifically.
   var keyItemNum  = cfg.itemNumDisplay(entry) || '';
   var keyVar      = entry.variation || '';
-  var fsEntry     = state.forSaleData && state.forSaleData[keyItemNum + '|' + keyVar];
-  var isForSale   = !!fsEntry;
+  var _ndInvId    = entry && entry.inventoryId ? entry.inventoryId : '';
+  var _ndByInvHit = _ndInvId && state.forSaleByInv ? state.forSaleByInv[_ndInvId] : null;
+  var _ndLegacy   = state.forSaleData && state.forSaleData[keyItemNum + '|' + keyVar];
+  var fsEntry     = _ndByInvHit || _ndLegacy;
+  var isForSale   = !!_ndByInvHit || (!!_ndLegacy && !_ndLegacy.inventoryId);
   var fsPrice     = fsEntry ? _currencySymbol() + parseFloat(fsEntry.askingPrice || 0).toLocaleString() : '';
 
   // Condition pip
@@ -876,8 +880,12 @@ function showItemDetailPage(idx, copyInvId) {
 
   const cond = pd && pd.condition ? parseInt(pd.condition) : null;
   const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
-  const isForSale = !!state.forSaleData[`${it.itemNum}|${it.variation||''}`];
-  const _fsEntry = state.forSaleData[`${it.itemNum}|${it.variation||''}`];
+  // Session 159 Phase 2b: detail page For Sale badge by THIS copy's inventoryId.
+  const _detailInvId = pd && pd.inventoryId ? pd.inventoryId : '';
+  const _fsByInvHit = _detailInvId && state.forSaleByInv ? state.forSaleByInv[_detailInvId] : null;
+  const _fsLegacyHit = state.forSaleData[`${it.itemNum}|${it.variation||''}`];
+  const _fsEntry = _fsByInvHit || _fsLegacyHit;
+  const isForSale = !!_fsByInvHit || (!!_fsLegacyHit && !_fsLegacyHit.inventoryId);
   const _fsPrice = _fsEntry ? _currencySymbol() + parseFloat(_fsEntry.askingPrice || 0).toLocaleString() : '';
   const groupMembers = pd && pd.groupId ? Object.values(state.personalData).filter(p => p.groupId === pd.groupId && p.itemNum !== it.itemNum) : [];
   // Bug 15 (Session 154): include grouped instruction sheets (separate isData

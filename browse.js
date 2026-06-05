@@ -2662,13 +2662,21 @@ function renderBrowse() {
       const _isQE = pd && pd.quickEntry;
       const _isGrouped = pd && pd.groupId;
       const _hasPhoto = pd && pd.photoItem;
-      // Per-copy For Sale / Upgrade detection
+      // Session 159 Phase 2b: per-copy detection via inventoryId-keyed maps.
+      // state.forSaleByInv / upgradeByInv carry an entry per inventoryId, so
+      // multiple copies of the same item can each show the right badge.
+      // Falls back to the legacy itemNum|variation map for older entries
+      // that don't have an inventoryId stored.
       const _mDispNum = _displayItemNum(item);
-      const _fsEntryM = state.forSaleData[`${_mDispNum}|${item.variation||''}`] || state.forSaleData[`${item.itemNum}|${item.variation||''}`];
-      const _ugEntryM = state.upgradeData[`${_mDispNum}|${item.variation||''}`] || state.upgradeData[`${item.itemNum}|${item.variation||''}`];
       const _myInvIdM = pd && pd.inventoryId ? pd.inventoryId : '';
-      const _isThisCopyFS = _fsEntryM && (_myInvIdM && _fsEntryM.inventoryId ? _fsEntryM.inventoryId === _myInvIdM : !_fsEntryM.inventoryId);
-      const _isThisCopyUG = _ugEntryM && (_myInvIdM && _ugEntryM.inventoryId ? _ugEntryM.inventoryId === _myInvIdM : !_ugEntryM.inventoryId);
+      const _fsThisCopyM = _myInvIdM && state.forSaleByInv ? state.forSaleByInv[_myInvIdM] : null;
+      const _ugThisCopyM = _myInvIdM && state.upgradeByInv ? state.upgradeByInv[_myInvIdM] : null;
+      const _fsLegacyM = state.forSaleData[`${_mDispNum}|${item.variation||''}`] || state.forSaleData[`${item.itemNum}|${item.variation||''}`];
+      const _ugLegacyM = state.upgradeData[`${_mDispNum}|${item.variation||''}`] || state.upgradeData[`${item.itemNum}|${item.variation||''}`];
+      const _fsEntryM = _fsThisCopyM || _fsLegacyM;
+      const _ugEntryM = _ugThisCopyM || _ugLegacyM;
+      const _isThisCopyFS = !!_fsThisCopyM || (!!_fsLegacyM && !_fsLegacyM.inventoryId);
+      const _isThisCopyUG = !!_ugThisCopyM || (!!_ugLegacyM && !_ugLegacyM.inventoryId);
       const _statusIcons = (_isThisCopyFS ? '<span title="This copy is For Sale" style="font-size:0.8rem">🏷️</span>' : '')
                          + (_isThisCopyUG ? '<span title="This copy on Upgrade list" style="font-size:0.8rem;color:#8b5cf6">↑</span>' : '')
                          + (_isGrouped ? '<span title="Grouped item" style="font-size:0.8rem">🔗</span>' : '')
@@ -2708,13 +2716,17 @@ function renderBrowse() {
       const _varText   = item.variation ? ` <span style="font-size:0.72rem;color:var(--text-dim);background:var(--surface2);padding:1px 5px;border-radius:4px;margin-left:3px">${item.variation}</span>` : '';
       const _typeText = (typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(item) : item.itemType) || '<span style="color:var(--text-dim)">—</span>';
       const _estWorth = pd && pd.userEstWorth ? '$' + parseFloat(pd.userEstWorth).toLocaleString() : '<span style="color:var(--text-dim)">—</span>';
-      // Per-copy For Sale / Upgrade detection using inventoryId
-      const _fsEntry = state.forSaleData[`${_dispNum}|${item.variation||''}`] || state.forSaleData[`${item.itemNum}|${item.variation||''}`];
-      const _ugEntry = state.upgradeData[`${_dispNum}|${item.variation||''}`] || state.upgradeData[`${item.itemNum}|${item.variation||''}`];
+      // Session 159 Phase 2b: per-copy detection via inventoryId-keyed maps.
+      // See mobile branch above for explanation.
       const _myInvId = pd && pd.inventoryId ? pd.inventoryId : '';
-      // This specific copy is for sale if: (a) inventoryId matches, or (b) legacy entry without inventoryId
-      const _isThisCopyFS = _fsEntry && (_myInvId && _fsEntry.inventoryId ? _fsEntry.inventoryId === _myInvId : !_fsEntry.inventoryId);
-      const _isThisCopyUG = _ugEntry && (_myInvId && _ugEntry.inventoryId ? _ugEntry.inventoryId === _myInvId : !_ugEntry.inventoryId);
+      const _fsThisCopy = _myInvId && state.forSaleByInv ? state.forSaleByInv[_myInvId] : null;
+      const _ugThisCopy = _myInvId && state.upgradeByInv ? state.upgradeByInv[_myInvId] : null;
+      const _fsLegacy = state.forSaleData[`${_dispNum}|${item.variation||''}`] || state.forSaleData[`${item.itemNum}|${item.variation||''}`];
+      const _ugLegacy = state.upgradeData[`${_dispNum}|${item.variation||''}`] || state.upgradeData[`${item.itemNum}|${item.variation||''}`];
+      const _fsEntry = _fsThisCopy || _fsLegacy;
+      const _ugEntry = _ugThisCopy || _ugLegacy;
+      const _isThisCopyFS = !!_fsThisCopy || (!!_fsLegacy && !_fsLegacy.inventoryId);
+      const _isThisCopyUG = !!_ugThisCopy || (!!_ugLegacy && !_ugLegacy.inventoryId);
       const _isAnyFS = !!_fsEntry;
       const _isAnyUG = !!_ugEntry;
       // Count how many copies of this item exist in collection
