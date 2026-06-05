@@ -825,11 +825,15 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     if (entry.inventoryId) state.upgradeByInv[entry.inventoryId] = entry;
   });
 
-  // Session 159 Phase 2e: self-heal if the initial upgrade fetch came back
-  // empty but personal data shows the user has items. Could be a transient
-  // auth/network blip on the parallel Promise.all. Try once more.
-  if (Object.keys(state.upgradeData).length === 0 && (upgradeRes.values || []).length === 0) {
+  // Session 159 Phase 2f: ALWAYS verify upgrade load completed, log + retry.
+  // The Phase 2e conditional retry didn't fire — too restrictive. Now we
+  // always log the initial state and retry if empty.
+  console.log('[Upgrade load] initial state has', Object.keys(state.upgradeData).length, 'entries; fetch returned', (upgradeRes.values || []).length, 'rows');
+  setTimeout(function() {
+    if (Object.keys(state.upgradeData).length > 0) return;
+    console.log('[Upgrade self-heal] state empty after load — retrying fetch...');
     sheetsGet(sheetId, 'Upgrade List!A3:H').then(function(retryRes) {
+      console.log('[Upgrade self-heal] retry returned', (retryRes.values || []).length, 'rows');
       var added = 0;
       (retryRes.values || []).forEach(function(r, idx) {
         if (!r[0] || r[0] === 'Item Number') return;
@@ -845,14 +849,13 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
       });
       if (added > 0) {
         console.log('[Upgrade self-heal] picked up', added, 'rows on retry');
-        // Refresh visible UI
         if (typeof buildDashboard === 'function') buildDashboard();
         if (typeof renderBrowse === 'function') renderBrowse();
         var _badge = document.getElementById('nav-upgrade-count');
         if (_badge) _badge.textContent = Object.values(state.upgradeData).length.toLocaleString();
       }
     }).catch(function(e) { console.warn('[Upgrade self-heal failed]', e && e.message); });
-  }
+  }, 1500);
 
   // ── PRIMARY COMMIT — commit collection/sold/forSale/want to state first
   // so the UI can render from fresh primary data while secondary (ephemera,
