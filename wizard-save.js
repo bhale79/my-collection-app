@@ -1375,8 +1375,15 @@ async function saveWizardItem() {
         fsEstWorth,
         collectionEntry?.inventoryId || '',
       ];
-      const fsKey = `${itemNum}|${fsVariation}`;
-      const existingFs = state.forSaleData[fsKey];
+      // Phase 3: state.forSaleData is keyed by inventoryId. Look up the existing
+      // row by the collection entry's inventoryId; fall back to a one-time scan
+      // for legacy rows that pre-date the inventoryId column.
+      const _fsInvId = collectionEntry?.inventoryId || '';
+      let existingFs = _fsInvId ? state.forSaleData[_fsInvId] : null;
+      if (!existingFs && _fsInvId) {
+        // legacy-row-N fallback: locate by inventoryId in entry
+        existingFs = Object.values(state.forSaleData || {}).find(function(e) { return e && e.inventoryId === _fsInvId; });
+      }
       if (existingFs?.row) {
         await sheetsUpdate(state.personalSheetId, `For Sale!A${existingFs.row}:I${existingFs.row}`, [row]);
       } else {
@@ -1387,11 +1394,10 @@ async function saveWizardItem() {
         row: existingFs?.row || 99999, itemNum, variation: fsVariation,
         condition: fsCondition, askingPrice: d.askingPrice || '',
         dateListed: row[4], notes: row[5], originalPrice: fsOrigPrice, estWorth: fsEstWorth,
-        inventoryId: collectionEntry?.inventoryId || '',
+        inventoryId: _fsInvId,
       };
-      state.forSaleData[fsKey] = _fsEntry;
-      // Session 159 Phase 2c: also write to inventoryId-keyed map
-      if (_fsEntry.inventoryId && state.forSaleByInv) state.forSaleByInv[_fsEntry.inventoryId] = _fsEntry;
+      const _fsKey = _fsInvId || ('legacy-row-' + (existingFs?.row || 99999));
+      state.forSaleData[_fsKey] = _fsEntry;
       // Session 154: "Sell individually" deferred the group-break to here so a
       // cancelled wizard never dismantles the group. Now the sale saved, so
       // ungroup the rest (they stay in the collection as standalone items).
@@ -1486,24 +1492,38 @@ async function saveWizardItem() {
       // Wizard sold path used to leave a stale row on the For Sale tab even though the
       // item was also in Sold. Mirror the cleanup that markForSaleAsSold already does.
       try {
-        const fsKey = `${itemNum}|${soldVariation}`;
-        const fsEntry = state.forSaleData && state.forSaleData[fsKey];
+        // Phase 3: look up For Sale by the sold item's inventoryId. The
+        // collectionEntry is the item being sold so its inventoryId is the key.
+        const _soldInvId = collectionEntry?.inventoryId || '';
+        let fsEntry = _soldInvId ? state.forSaleData[_soldInvId] : null;
+        let fsKey = _soldInvId;
+        if (!fsEntry) {
+          // Legacy fallback: scan for matching itemNum|variation
+          const _ent = Object.entries(state.forSaleData || {}).find(function(e) {
+            return e[1] && e[1].itemNum === itemNum && (e[1].variation || '') === (soldVariation || '');
+          });
+          if (_ent) { fsKey = _ent[0]; fsEntry = _ent[1]; }
+        }
         if (fsEntry && fsEntry.row) {
           await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry.row}:I${fsEntry.row}`, [['','','','','','','','','']]);
-          // Session 159 Phase 2c: also remove from inventoryId map
-          if (fsEntry && fsEntry.inventoryId && state.forSaleByInv) delete state.forSaleByInv[fsEntry.inventoryId];
           delete state.forSaleData[fsKey];
         }
       } catch(e) { console.warn('[Sold] clearing For Sale row failed:', e); }
       // 2026-05-18: also clear matching Upgrade row when sold. Without this the
       // Upgrade list shows a phantom row for an item the user no longer owns.
       try {
-        const ugKey = `${itemNum}|${soldVariation}`;
-        const ugEntry = state.upgradeData && state.upgradeData[ugKey];
+        // Phase 3: look up Upgrade by the sold item's inventoryId.
+        const _soldInvId2 = collectionEntry?.inventoryId || '';
+        let ugEntry = _soldInvId2 ? state.upgradeData[_soldInvId2] : null;
+        let ugKey = _soldInvId2;
+        if (!ugEntry) {
+          const _ent = Object.entries(state.upgradeData || {}).find(function(e) {
+            return e[1] && e[1].itemNum === itemNum && (e[1].variation || '') === (soldVariation || '');
+          });
+          if (_ent) { ugKey = _ent[0]; ugEntry = _ent[1]; }
+        }
         if (ugEntry && ugEntry.row) {
           await sheetsUpdate(state.personalSheetId, `Upgrade List!A${ugEntry.row}:H${ugEntry.row}`, [['','','','','','','','']]);
-          // Session 159 Phase 2c: also remove from inventoryId map
-          if (ugEntry && ugEntry.inventoryId && state.upgradeByInv) delete state.upgradeByInv[ugEntry.inventoryId];
           delete state.upgradeData[ugKey];
         }
       } catch(e) { console.warn('[Sold] clearing Upgrade row failed:', e); }

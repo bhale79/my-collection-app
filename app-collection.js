@@ -126,19 +126,11 @@ function showNonItemDetailPage(type, key) {
   var notes     = cfg.notes(entry) || '';
   var photoLink = cfg.photoFolder(entry) || '';
 
-  // For Sale state lookup — Session 159 Phase 2b: check the per-copy
-  // inventoryId-keyed map first so badges reflect THIS copy specifically.
-  var keyItemNum  = cfg.itemNumDisplay(entry) || '';
-  var keyVar      = entry.variation || '';
+  // Phase 3: For Sale state lookup is by THIS copy's inventoryId.
+  // state.forSaleData is keyed by inventoryId, so a direct lookup works.
   var _ndInvId    = entry && entry.inventoryId ? entry.inventoryId : '';
-  var _ndByInvHit = _ndInvId && state.forSaleByInv ? state.forSaleByInv[_ndInvId] : null;
-  var _ndLegacy   = state.forSaleData && state.forSaleData[keyItemNum + '|' + keyVar];
-  // Session 159 Phase 2d: first-copy fallback for non-item detail (rarely has duplicates)
-  var _ndIsFirst  = entry && entry.row && typeof _isFirstOwnedCopyByRow === 'function'
-    ? _isFirstOwnedCopyByRow(entry.itemNum || keyItemNum, entry.variation || keyVar, entry.row)
-    : true;
-  var fsEntry     = _ndByInvHit || _ndLegacy;
-  var isForSale   = !!_ndByInvHit || (!!_ndLegacy && !_ndLegacy.inventoryId && _ndIsFirst);
+  var fsEntry     = _ndInvId ? state.forSaleData[_ndInvId] : null;
+  var isForSale   = !!fsEntry;
   var fsPrice     = fsEntry ? _currencySymbol() + parseFloat(fsEntry.askingPrice || 0).toLocaleString() : '';
 
   // Condition pip
@@ -884,16 +876,10 @@ function showItemDetailPage(idx, copyInvId) {
 
   const cond = pd && pd.condition ? parseInt(pd.condition) : null;
   const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
-  // Session 159 Phase 2b: detail page For Sale badge by THIS copy's inventoryId.
+  // Phase 3: detail page For Sale badge by THIS copy's inventoryId.
   const _detailInvId = pd && pd.inventoryId ? pd.inventoryId : '';
-  const _fsByInvHit = _detailInvId && state.forSaleByInv ? state.forSaleByInv[_detailInvId] : null;
-  const _fsLegacyHit = state.forSaleData[`${it.itemNum}|${it.variation||''}`];
-  // Session 159 Phase 2d: if no inventoryId disambiguator, only show on first owned copy by row
-  const _isFirstDetail = pd && pd.row && typeof _isFirstOwnedCopyByRow === 'function'
-    ? _isFirstOwnedCopyByRow(it.itemNum, it.variation, pd.row)
-    : true;  // single-copy items: badge always
-  const _fsEntry = _fsByInvHit || _fsLegacyHit;
-  const isForSale = !!_fsByInvHit || (!!_fsLegacyHit && !_fsLegacyHit.inventoryId && _isFirstDetail);
+  const _fsEntry = _detailInvId ? state.forSaleData[_detailInvId] : null;
+  const isForSale = !!_fsEntry;
   const _fsPrice = _fsEntry ? _currencySymbol() + parseFloat(_fsEntry.askingPrice || 0).toLocaleString() : '';
   const groupMembers = pd && pd.groupId ? Object.values(state.personalData).filter(p => p.groupId === pd.groupId && p.itemNum !== it.itemNum) : [];
   // Bug 15 (Session 154): include grouped instruction sheets (separate isData
@@ -947,7 +933,7 @@ function showItemDetailPage(idx, copyInvId) {
       Record Sale
     </button>
     ${isForSale
-      ? `<button onclick="_removeForSaleFromDetail(${idx},'${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}')" data-ctip="Remove this item from your For Sale list and keep it in your collection." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:rgba(230,126,34,0.25);color:#e67e22;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
+      ? `<button onclick="_removeForSaleFromDetail(${idx},'${_detailInvId}')" data-ctip="Remove this item from your For Sale list and keep it in your collection." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:rgba(230,126,34,0.25);color:#e67e22;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
       Remove from For Sale
     </button>`
@@ -1295,9 +1281,8 @@ function showOwnedItemMenu(idx, pdKey) {
     '#2ecc71', 'rgba(46,204,113,0.1)',
     function() { overlay.remove(); sellFromCollection(idx, pdKey); }
   ));
-  // Check if already listed for sale
-  const _fsKey = pd.itemNum + '|' + (pd.variation || '');
-  const _alreadyForSale = !!state.forSaleData[_fsKey];
+  // Phase 3: check if already listed for sale by THIS copy's inventoryId.
+  const _alreadyForSale = !!(pd.inventoryId && state.forSaleData[pd.inventoryId]);
   box.appendChild(mkBtn(
     _alreadyForSale
       ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg> Update For Sale Listing'
@@ -1523,7 +1508,8 @@ function _checkGroupBeforeForSale(globalIdx, pdKey) {
       // box / instruction sheet stay in the collection, grouped — they do NOT
       // get their own For Sale rows. The For Sale list resolves the group via
       // the lead's Inventory ID and its actions cascade across every piece.
-      const fsKey = pd.itemNum + '|' + (pd.variation || '');
+      // Phase 3: key for the For Sale entry is the lead pd's inventoryId.
+      const _grpFsKey = pd.inventoryId || ('legacy-row-' + (pd.row || 99999));
       const fsRow = [
         pd.itemNum, pd.variation || '',
         pd.condition || '',
@@ -1535,7 +1521,7 @@ function _checkGroupBeforeForSale(globalIdx, pdKey) {
         pd.inventoryId || '',
         pd.manufacturer || _getEraManufacturer(),
       ];
-      const existingFs = state.forSaleData[fsKey];
+      const existingFs = state.forSaleData[_grpFsKey];
       if (existingFs && existingFs.row) {
         await sheetsUpdate(sheetId, 'For Sale!A' + existingFs.row + ':J' + existingFs.row, [fsRow]);
       } else {
@@ -1550,9 +1536,7 @@ function _checkGroupBeforeForSale(globalIdx, pdKey) {
         estWorth: pd.userEstWorth || '',
         inventoryId: pd.inventoryId || '',
       };
-      state.forSaleData[fsKey] = _grpFsEntry;
-      // Session 159 Phase 2c: also write to inventoryId-keyed map
-      if (_grpFsEntry.inventoryId && state.forSaleByInv) state.forSaleByInv[_grpFsEntry.inventoryId] = _grpFsEntry;
+      state.forSaleData[_grpFsKey] = _grpFsEntry;
       overlay.remove();
       _cachePersonalData();
       buildForSalePage();
@@ -1774,15 +1758,25 @@ async function removeCollectionItem(itemNum, variation, row) {
             _adjustRowsAfterDelete(state.personalData, sib.row);
           } catch(e) { console.warn('Remove group row error:', sib.itemNum, e); }
         }
-        var sibFsKey = sib.itemNum + '|' + (sib.variation || '');
-        var sibFs = state.forSaleData[sibFsKey];
+        // Phase 3: prefer sibling's inventoryId for For Sale + Upgrade cleanup.
+        var sibInv = sib.inventoryId || '';
+        var sibFsKey = sibInv && state.forSaleData[sibInv] ? sibInv : null;
+        if (!sibFsKey && sibInv) {
+          var _sf = Object.entries(state.forSaleData || {}).find(function(e){ return e[1] && e[1].inventoryId === sibInv; });
+          if (_sf) sibFsKey = _sf[0];
+        }
+        var sibFs = sibFsKey ? state.forSaleData[sibFsKey] : null;
         if (sibFs && sibFs.row) {
           fsRowsToDelete.push(sibFs.row);
           delete state.forSaleData[sibFsKey];
         }
         // 2026-05-18: also clear Upgrade row for each sibling when removing the group.
-        var sibUgKey = sib.itemNum + '|' + (sib.variation || '');
-        var sibUg = state.upgradeData && state.upgradeData[sibUgKey];
+        var sibUgKey = sibInv && state.upgradeData && state.upgradeData[sibInv] ? sibInv : null;
+        if (!sibUgKey && sibInv) {
+          var _su = Object.entries(state.upgradeData || {}).find(function(e){ return e[1] && e[1].inventoryId === sibInv; });
+          if (_su) sibUgKey = _su[0];
+        }
+        var sibUg = sibUgKey ? state.upgradeData[sibUgKey] : null;
         if (sibUg && sibUg.row) {
           try {
             await sheetsUpdate(state.personalSheetId, 'Upgrade List!A' + sibUg.row + ':H' + sibUg.row, [['','','','','','','','']]);
@@ -1818,9 +1812,15 @@ async function removeCollectionItem(itemNum, variation, row) {
       await sheetsDeleteRow(state.personalSheetId, 'My Collection', _delRow);
     } catch(e) { console.error('Remove row error:', e); showToast('Error removing item — please try again', 3000, true); return; }
   }
-  // Also remove from For Sale if listed
-  var fsKey = itemNum + '|' + (variation || '');
-  var fsEntry = state.forSaleData[fsKey];
+  // Phase 3: also remove from For Sale + Upgrade if listed — look up by THIS
+  // copy's inventoryId so we don't strip another copy's listing.
+  var _thisInv = thisPd ? thisPd.inventoryId : '';
+  var fsKey = _thisInv && state.forSaleData[_thisInv] ? _thisInv : null;
+  if (!fsKey && _thisInv) {
+    var _fsEnt = Object.entries(state.forSaleData || {}).find(function(e){ return e[1] && e[1].inventoryId === _thisInv; });
+    if (_fsEnt) fsKey = _fsEnt[0];
+  }
+  var fsEntry = fsKey ? state.forSaleData[fsKey] : null;
   if (fsEntry && fsEntry.row) {
     try {
       await sheetsDeleteRow(state.personalSheetId, 'For Sale', fsEntry.row);
@@ -1829,8 +1829,12 @@ async function removeCollectionItem(itemNum, variation, row) {
     delete state.forSaleData[fsKey];
   }
   // 2026-05-18: also remove from Upgrade list if listed.
-  var ugKey = itemNum + '|' + (variation || '');
-  var ugEntry = state.upgradeData && state.upgradeData[ugKey];
+  var ugKey = _thisInv && state.upgradeData && state.upgradeData[_thisInv] ? _thisInv : null;
+  if (!ugKey && _thisInv) {
+    var _ugEnt = Object.entries(state.upgradeData || {}).find(function(e){ return e[1] && e[1].inventoryId === _thisInv; });
+    if (_ugEnt) ugKey = _ugEnt[0];
+  }
+  var ugEntry = ugKey ? state.upgradeData[ugKey] : null;
   if (ugEntry && ugEntry.row) {
     try {
       await sheetsUpdate(state.personalSheetId, 'Upgrade List!A' + ugEntry.row + ':H' + ugEntry.row, [['','','','','','','','']]);
@@ -1891,9 +1895,8 @@ function listForSaleFromCollection(idx, pdKey) {
     roadName: pd.roadName || '', itemType: pd.itemType || '',
     yearProd: pd.yearMade || '', marketVal: '',
   };
-  // Pre-fill from collection data and existing for-sale listing
-  const fsKey = pd.itemNum + '|' + (pd.variation || '');
-  const existingFs = state.forSaleData[fsKey] || {};
+  // Pre-fill from collection data and existing for-sale listing (Phase 3: by inventoryId)
+  const existingFs = (pd.inventoryId && state.forSaleData[pd.inventoryId]) || {};
   wizard = { step: 0, tab: 'forsale', data: {
     tab: 'forsale',
     itemNum: item.itemNum,
@@ -1991,8 +1994,8 @@ function _renderPickFsList(q) {
   owned.forEach(function(entry) {
     var pdKey = entry[0], pd = entry[1];
     var master = findMaster(pd.itemNum, (pd.variation||'')) || {};
-    var fsKey = pd.itemNum + '|' + (pd.variation||'');
-    var alreadyListed = !!state.forSaleData[fsKey];
+    // Phase 3: check by inventoryId of the specific copy
+    var alreadyListed = !!(pd.inventoryId && state.forSaleData[pd.inventoryId]);
     var idx = state.masterData.indexOf(master);
     if (idx < 0) idx = -1;
 
@@ -3077,9 +3080,12 @@ function openItem(idx) {
   else { vd.style.display = 'none'; }
 
   // Personal data - check owned, for sale, sold, and want
+  // Phase 3: For Sale lookup by THIS pd's inventoryId. Want is one-per-item
+  // and still keyed by composite (left untouched per Phase 3 scope).
   const sd = (typeof _latestSale === 'function' ? _latestSale(item.itemNum, item.variation) : null) || {};
-  const fs = state.forSaleData[key] || {};
-  const wd = state.wantData[key] || {};
+  const fs = (pd && pd.inventoryId && state.forSaleData[pd.inventoryId]) || {};
+  const _wantKey = item.itemNum + '|' + (item.variation || '');
+  const wd = state.wantData[_wantKey] || {};
   const itemStatus = pd.owned ? 'Owned' : fs.itemNum ? 'ForSale' : sd.itemNum ? 'Sold' : wd.itemNum ? 'Want' : '';
   currentStatus = itemStatus || '';
   setStatus(itemStatus || 'Want');
@@ -3181,14 +3187,22 @@ function setStatus(status) {
 async function saveItem() {
   if (!state.currentItem) return;
   const { item } = state.currentItem;
-  const key = `${item.itemNum}|${item.variation}`;
+  // Phase 3: personalData is inventoryId-keyed. Find the existing copy (if any)
+  // via findPDKey (value scan). pdKey is the canonical storage key.
+  const _saveItemPdKey = (typeof findPDKey === 'function') ? findPDKey(item.itemNum, item.variation) : null;
+  const _saveItemPd = _saveItemPdKey ? state.personalData[_saveItemPdKey] : null;
+  const key = _saveItemPdKey || `${item.itemNum}|${item.variation}`;
+  // Want List is still keyed by composite (one entry per item by design).
+  const _wantKeySI = `${item.itemNum}|${item.variation || ''}`;
+  // Phase 3: For Sale is keyed by inventoryId. Look it up off the matched pd.
+  const _fsKeySI = (_saveItemPd && _saveItemPd.inventoryId) || null;
 
   const copy = document.getElementById('fc-copy').value;
   const condition = document.getElementById('fc-condition').value;
 
   if (currentStatus === 'Owned') {
     // Write/update in My Collection tab
-    const _ex = state.personalData[key] || {};
+    const _ex = _saveItemPd || {};
     const ownedRow = [
       item.itemNum, item.variation || '', copy, condition,
       document.getElementById('fc-original').value,
@@ -3210,7 +3224,7 @@ async function saveItem() {
       _ex.era || '',        // Era (col X)
       _ex.manufacturer || '', // Manufacturer (col Y)
     ];
-    const existing = state.personalData[key];
+    const existing = _saveItemPd;
     if (existing && existing.row) {
       await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:Y${existing.row}`, [ownedRow]);
     } else {
@@ -3219,19 +3233,19 @@ async function saveItem() {
     // Session 176: do NOT clear Sold rows when re-owning — Sold is now a
     // permanent sale history (each past sale stays as its own record).
     // Remove from Want List if it was there
-    const wantEntry = state.wantData[key];
+    const wantEntry = state.wantData[_wantKeySI];
     if (wantEntry && wantEntry.row) {
       await sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry.row}:F${wantEntry.row}`, [['','','','','','']]);
     }
     // Remove from For Sale if it was there
-    const fsEntry = state.forSaleData[key];
+    const fsEntry = _fsKeySI ? state.forSaleData[_fsKeySI] : null;
     if (fsEntry && fsEntry.row) {
       await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry.row}:J${fsEntry.row}`, [['','','','','','','','','','']]);
     }
 
   } else if (currentStatus === 'ForSale') {
     // Write to For Sale tab (keep in collection too — it's still yours)
-    const existing = state.personalData[key];
+    const existing = _saveItemPd;
     const forSaleRow = [
       item.itemNum, item.variation || '',
       condition,
@@ -3243,7 +3257,7 @@ async function saveItem() {
       existing?.inventoryId || '',
       existing?.manufacturer || _getEraManufacturer(),
     ];
-    const fsEntry2 = state.forSaleData[key];
+    const fsEntry2 = _fsKeySI ? state.forSaleData[_fsKeySI] : null;
     if (fsEntry2 && fsEntry2.row) {
       await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry2.row}:J${fsEntry2.row}`, [forSaleRow]);
     } else {
@@ -3252,19 +3266,19 @@ async function saveItem() {
     // Session 176: do NOT clear Sold rows when listing for sale — preserve the
     // full sale history.
     // Remove from Want if it was there
-    const wantEntry2 = state.wantData[key];
+    const wantEntry2 = state.wantData[_wantKeySI];
     if (wantEntry2 && wantEntry2.row) {
       await sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry2.row}:F${wantEntry2.row}`, [['','','','','','']]);
     }
 
   } else if (currentStatus === 'Sold') {
     // Remove from My Collection
-    const existing = state.personalData[key];
+    const existing = _saveItemPd;
     if (existing && existing.row) {
       await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:Y${existing.row}`, [['','','','','','','','','','','','','','','','','','','','','','','','','']]);  // 25 cols A-Y
     }
     // Remove from For Sale if it was there
-    const fsEntry3 = state.forSaleData[key];
+    const fsEntry3 = _fsKeySI ? state.forSaleData[_fsKeySI] : null;
     if (fsEntry3 && fsEntry3.row) {
       await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry3.row}:J${fsEntry3.row}`, [['','','','','','','','','','']]);
     }

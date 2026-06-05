@@ -2026,21 +2026,17 @@ function _ncShowUpgradeModal(type, key) {
         new Date().toISOString().slice(0, 10),
       ];
       await sheetsAppend(state.personalSheetId, 'Upgrade!A:F', [row]);
-      // Local state mirror
+      // Local state mirror — Phase 3: state.upgradeData is inventoryId-keyed.
       if (!state.upgradeData) state.upgradeData = {};
-      if (!state.upgradeByInv) state.upgradeByInv = {};
+      const _brPd = Object.values(state.personalData||{}).find(function(p){ return p.itemNum===ids.itemNum && (p.variation||'')===(ids.variation||'') && p.owned; });
       const _brUgEntry = {
         itemNum: ids.itemNum, variation: ids.variation,
         priority, expectedPrice: price,
         notes: title, dateAdded: new Date().toISOString().slice(0, 10),
+        inventoryId: (_brPd && _brPd.inventoryId) || '',
       };
-      state.upgradeData[ids.itemNum + '|' + ids.variation] = _brUgEntry;
-      // Session 159 Phase 2c: also write to inventoryId-keyed map if pd has an inventoryId
-      const _brPd = Object.values(state.personalData||{}).find(function(p){ return p.itemNum===ids.itemNum && (p.variation||'')===(ids.variation||'') && p.owned; });
-      if (_brPd && _brPd.inventoryId) {
-        _brUgEntry.inventoryId = _brPd.inventoryId;
-        state.upgradeByInv[_brPd.inventoryId] = _brUgEntry;
-      }
+      const _brUgKey = _brUgEntry.inventoryId || ('legacy-row-' + Date.now());
+      state.upgradeData[_brUgKey] = _brUgEntry;
       showToast('✓ Added to Upgrade list');
       if (typeof buildDashboard === 'function') buildDashboard();
     } catch(e) {
@@ -2672,8 +2668,10 @@ function renderBrowse() {
     // Bug 15 (Session 154): inventory ID of the specific copy this row
     // represents, so clicking it opens THAT copy's detail (not the first).
     var _copyInv = (item._copyPd && item._copyPd.inventoryId) || (pd && pd.inventoryId) || '';
-    const isForSale = !!state.forSaleData[`${_displayItemNum(item)}|${item.variation||''}`] || !!state.forSaleData[`${item.itemNum}|${item.variation||''}`];
-    const _isUpgradeM = !!state.upgradeData[`${_displayItemNum(item)}|${item.variation||''}`] || !!state.upgradeData[`${item.itemNum}|${item.variation||''}`];
+    // Phase 3: per-copy badges — check by THIS copy's inventoryId only.
+    const _outerInvId = pd && pd.inventoryId ? pd.inventoryId : '';
+    const isForSale = !!(_outerInvId && state.forSaleData[_outerInvId]);
+    const _isUpgradeM = !!(_outerInvId && state.upgradeData[_outerInvId]);
     const badgeClass = isOwned ? (isForSale ? 'forsale' : 'yes') : isWanted ? 'want' : 'no';
     const badgeText  = isOwned ? (isForSale ? '🏷️ For Sale' : (_isUpgradeM ? '↑ Upgrade' : '✓ Owned')) : isWanted ? '★ Want' : '—';
     const _mv = parseFloat(item.marketVal);
@@ -2686,22 +2684,14 @@ function renderBrowse() {
       const _isQE = pd && pd.quickEntry;
       const _isGrouped = pd && pd.groupId;
       const _hasPhoto = pd && pd.photoItem;
-      // Session 159 Phase 2b: per-copy detection via inventoryId-keyed maps.
-      // state.forSaleByInv / upgradeByInv carry an entry per inventoryId, so
-      // multiple copies of the same item can each show the right badge.
-      // Falls back to the legacy itemNum|variation map for older entries
-      // that don't have an inventoryId stored.
-      const _mDispNum = _displayItemNum(item);
+      // Phase 3: per-copy detection — direct inventoryId lookup, no legacy
+      // fallback (data is migrated; rows without inventoryId are stored under
+      // synthetic legacy-row-N keys and won't collide with other copies).
       const _myInvIdM = pd && pd.inventoryId ? pd.inventoryId : '';
-      const _fsThisCopyM = _myInvIdM && state.forSaleByInv ? state.forSaleByInv[_myInvIdM] : null;
-      const _ugThisCopyM = _myInvIdM && state.upgradeByInv ? state.upgradeByInv[_myInvIdM] : null;
-      const _fsLegacyM = state.forSaleData[`${_mDispNum}|${item.variation||''}`] || state.forSaleData[`${item.itemNum}|${item.variation||''}`];
-      const _ugLegacyM = state.upgradeData[`${_mDispNum}|${item.variation||''}`] || state.upgradeData[`${item.itemNum}|${item.variation||''}`];
-      const _fsEntryM = _fsThisCopyM || _fsLegacyM;
-      const _ugEntryM = _ugThisCopyM || _ugLegacyM;
-      const _isFirstM = pd && pd.row ? _isFirstOwnedCopyByRow(item.itemNum, item.variation, pd.row) : false;
-      const _isThisCopyFS = !!_fsThisCopyM || (!!_fsLegacyM && !_fsLegacyM.inventoryId && _isFirstM);
-      const _isThisCopyUG = !!_ugThisCopyM || (!!_ugLegacyM && !_ugLegacyM.inventoryId && _isFirstM);
+      const _fsEntryM = _myInvIdM ? state.forSaleData[_myInvIdM] : null;
+      const _ugEntryM = _myInvIdM ? state.upgradeData[_myInvIdM] : null;
+      const _isThisCopyFS = !!_fsEntryM;
+      const _isThisCopyUG = !!_ugEntryM;
       const _statusIcons = (_isThisCopyFS ? '<span title="This copy is For Sale" style="font-size:0.8rem">🏷️</span>' : '')
                          + (_isThisCopyUG ? '<span title="This copy on Upgrade list" style="font-size:0.8rem;color:#8b5cf6">↑</span>' : '')
                          + (_isGrouped ? '<span title="Grouped item" style="font-size:0.8rem">🔗</span>' : '')
@@ -2741,18 +2731,12 @@ function renderBrowse() {
       const _varText   = item.variation ? ` <span style="font-size:0.72rem;color:var(--text-dim);background:var(--surface2);padding:1px 5px;border-radius:4px;margin-left:3px">${item.variation}</span>` : '';
       const _typeText = (typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(item) : item.itemType) || '<span style="color:var(--text-dim)">—</span>';
       const _estWorth = pd && pd.userEstWorth ? '$' + parseFloat(pd.userEstWorth).toLocaleString() : '<span style="color:var(--text-dim)">—</span>';
-      // Session 159 Phase 2b: per-copy detection via inventoryId-keyed maps.
-      // See mobile branch above for explanation.
+      // Phase 3: per-copy detection — direct inventoryId lookup only.
       const _myInvId = pd && pd.inventoryId ? pd.inventoryId : '';
-      const _fsThisCopy = _myInvId && state.forSaleByInv ? state.forSaleByInv[_myInvId] : null;
-      const _ugThisCopy = _myInvId && state.upgradeByInv ? state.upgradeByInv[_myInvId] : null;
-      const _fsLegacy = state.forSaleData[`${_dispNum}|${item.variation||''}`] || state.forSaleData[`${item.itemNum}|${item.variation||''}`];
-      const _ugLegacy = state.upgradeData[`${_dispNum}|${item.variation||''}`] || state.upgradeData[`${item.itemNum}|${item.variation||''}`];
-      const _fsEntry = _fsThisCopy || _fsLegacy;
-      const _ugEntry = _ugThisCopy || _ugLegacy;
-      const _isFirstD = pd && pd.row ? _isFirstOwnedCopyByRow(item.itemNum, item.variation, pd.row) : false;
-      const _isThisCopyFS = !!_fsThisCopy || (!!_fsLegacy && !_fsLegacy.inventoryId && _isFirstD);
-      const _isThisCopyUG = !!_ugThisCopy || (!!_ugLegacy && !_ugLegacy.inventoryId && _isFirstD);
+      const _fsEntry = _myInvId ? state.forSaleData[_myInvId] : null;
+      const _ugEntry = _myInvId ? state.upgradeData[_myInvId] : null;
+      const _isThisCopyFS = !!_fsEntry;
+      const _isThisCopyUG = !!_ugEntry;
       const _isAnyFS = !!_fsEntry;
       const _isAnyUG = !!_ugEntry;
       // Count how many copies of this item exist in collection
@@ -2768,10 +2752,10 @@ function renderBrowse() {
       if (_inShareModeD) { if (!window._shareDataMap) window._shareDataMap = {}; window._shareDataMap[_shareKeyD] = { itemNum: item.itemNum, variation: item.variation||'', pd: pd, master: item }; }
       // Smart buttons based on per-copy list status
       const _fsBtn = _isThisCopyFS
-        ? `<button onclick="event.stopPropagation();_removeForSaleFromCollection('${_dispNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:#e67e22;color:#fff;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">Remove from For Sale</button>`
+        ? `<button onclick="event.stopPropagation();_removeForSaleFromCollection('${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:#e67e22;color:#fff;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">Remove from For Sale</button>`
         : `<button onclick="event.stopPropagation();collectionActionForSale(${globalIdx},'${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">Add to For Sale</button>`;
       const _upgBtn = _isThisCopyUG
-        ? `<button onclick="event.stopPropagation();_removeUpgradeFromCollection('${_dispNum}','${_escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:#8b5cf6;color:#fff;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">Remove from Upgrade</button>`
+        ? `<button onclick="event.stopPropagation();_removeUpgradeFromCollection('${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:#8b5cf6;color:#fff;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">Remove from Upgrade</button>`
         : `<button onclick="event.stopPropagation();showAddToUpgradeModal('${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">Add to Upgrade</button>`;
       return `<tr id="share-card-${_shareKeyD}" onclick="${_inShareModeD ? 'toggleShareItem(\'' + _shareKeyD + '\')' : 'showItemDetailPage(' + globalIdx + ", '" + _copyInv + "')"}" style="cursor:pointer${_isQuick ? ';opacity:0.82' : ''}${_isShareSelectedD ? ';outline:2px solid #3a9e68;background:rgba(58,158,104,0.06)' : ''}" data-group="${_groupId}" data-item="${item.itemNum}">
         <td style="white-space:nowrap">

@@ -17,17 +17,14 @@
 // MY_SETS_HEADERS, EPHEMERA_TABS, and sheets.js/drive.js helpers.
 
 // ── Post-load data patches (correct known errors in master sheet) ──
-// Session 159: per-copy lookup helpers for forSale + upgrade.
-// state.forSaleByInv / state.upgradeByInv are populated at load time
-// alongside the legacy itemNum|variation-keyed state.forSaleData /
-// state.upgradeData. These helpers return the entry for a specific
-// inventory id, or undefined if none. Used by Phase 2 readers that
-// need to distinguish between duplicate copies of the same item.
+// Phase 3 (Session 159 follow-up): state.forSaleData and state.upgradeData
+// are keyed by inventoryId directly. These thin helpers remain in place for
+// any callers that still call them — they're just a direct lookup now.
 window._fsByInv = function(invId) {
-  return invId ? (state.forSaleByInv || {})[invId] : undefined;
+  return invId ? (state.forSaleData || {})[invId] : undefined;
 };
 window._ugByInv = function(invId) {
-  return invId ? (state.upgradeByInv || {})[invId] : undefined;
+  return invId ? (state.upgradeData || {})[invId] : undefined;
 };
 function _patchMasterData() {
   // Fix 6017: itemType should be 'Caboose' not 'Accessory'
@@ -667,20 +664,25 @@ async function loadPersonalData() {
       // upgradeData, leaving badges broken until the user did something that
       // re-fetched the sheet.
       state.upgradeData  = _pd.upgradeData  || {};
-      state.forSaleByInv = _pd.forSaleByInv || {};
-      state.upgradeByInv = _pd.upgradeByInv || {};
-      // Rebuild byInv maps if they're missing from older cache snapshots
-      if (!state.forSaleByInv || Object.keys(state.forSaleByInv).length === 0) {
-        state.forSaleByInv = {};
-        Object.values(state.forSaleData || {}).forEach(function(fs) {
-          if (fs && fs.inventoryId) state.forSaleByInv[fs.inventoryId] = fs;
+      // Phase 3: forSaleData + upgradeData are now keyed by inventoryId
+      // directly. If we restored an OLD cache snapshot (composite keys),
+      // rebuild as inventoryId-keyed so readers don't see legacy keys.
+      function _reKeyByInv(map) {
+        var out = {};
+        Object.values(map || {}).forEach(function(e) {
+          if (!e) return;
+          var k = e.inventoryId || ('legacy-row-' + (e.row || Math.random().toString(36).slice(2)));
+          out[k] = e;
         });
+        return out;
       }
-      if (!state.upgradeByInv || Object.keys(state.upgradeByInv).length === 0) {
-        state.upgradeByInv = {};
-        Object.values(state.upgradeData || {}).forEach(function(ug) {
-          if (ug && ug.inventoryId) state.upgradeByInv[ug.inventoryId] = ug;
-        });
+      var _fsKeys = Object.keys(state.forSaleData || {});
+      if (_fsKeys.some(function(k){ return k.indexOf('|') >= 0; })) {
+        state.forSaleData = _reKeyByInv(state.forSaleData);
+      }
+      var _ugKeys = Object.keys(state.upgradeData || {});
+      if (_ugKeys.some(function(k){ return k.indexOf('|') >= 0; })) {
+        state.upgradeData = _reKeyByInv(state.upgradeData);
       }
       // Only background-refresh if cache is older than 5 minutes
       if ((Date.now() - _ptime) > _BG_REFRESH) {
@@ -705,11 +707,9 @@ function _cachePersonalData() {
     const _snap = {
       personalData: state.personalData,
       soldData: state.soldData,
-      forSaleData: state.forSaleData,
-      forSaleByInv: state.forSaleByInv,  // Session 159 Phase 2g
+      forSaleData: state.forSaleData,    // Phase 3 — keyed by inventoryId
       wantData: state.wantData,
-      upgradeData: state.upgradeData,    // Session 159 Phase 2g — was missing!
-      upgradeByInv: state.upgradeByInv,  // Session 159 Phase 2g
+      upgradeData: state.upgradeData,    // Phase 3 — keyed by inventoryId
       isData: state.isData,
       scienceData: state.scienceData,
       constructionData: state.constructionData,
@@ -802,23 +802,20 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   });
 
   // For Sale
-  // Session 159: also build a secondary index keyed by inventoryId so
-  // per-copy lookups (when the user owns duplicates of the same item)
-  // can disambiguate. Primary state.forSaleData keying is unchanged for
-  // backward compatibility with existing readers.
-  const newForSaleByInv = {};
+  // Phase 3: key by inventoryId so per-copy disambiguation is automatic.
+  // Rows without an inventoryId fall back to a synthetic legacy-row key.
   (forSaleRes.values || []).forEach((r, idx) => {
     if (!r[0] || r[0] === 'Item Number') return;
-    const key = `${r[0]}|${r[1]||''}`;
+    const _row = idx + 3;
     const entry = {
-      row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
+      row: _row, itemNum: r[0]||'', variation: r[1]||'',
       condition: r[2]||'', askingPrice: r[3]||'', dateListed: r[4]||'',
       notes: r[5]||'', originalPrice: r[6]||'', estWorth: r[7]||'',
       inventoryId: r[8]||'',
       manufacturer: r[9] || 'Lionel',
     };
+    const key = entry.inventoryId || ('legacy-row-' + _row);
     newForSale[key] = entry;
-    if (entry.inventoryId) newForSaleByInv[entry.inventoryId] = entry;
   });
 
   // Want List
@@ -833,19 +830,19 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   });
 
   // Upgrade List
-  // Session 159: also build inventoryId-keyed map for per-copy lookups.
-  state.upgradeByInv = {};
+  // Phase 3: key state.upgradeData by inventoryId directly. Rows without an
+  // inventoryId fall back to a synthetic legacy-row key.
   (upgradeRes.values || []).forEach((r, idx) => {
     if (!r[0] || r[0] === 'Item Number') return;
-    const key = `${r[0]}|${r[1]||''}`;
+    const _row = idx + 3;
     const entry = {
-      row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
+      row: _row, itemNum: r[0]||'', variation: r[1]||'',
       priority: r[2]||'Medium', targetCondition: r[3]||'', maxPrice: r[4]||'', notes: r[5]||'',
       inventoryId: r[6]||'',
       manufacturer: r[7] || 'Lionel',
     };
+    const key = entry.inventoryId || ('legacy-row-' + _row);
     state.upgradeData[key] = entry;
-    if (entry.inventoryId) state.upgradeByInv[entry.inventoryId] = entry;
   });
 
   // Session 159 Phase 2f: ALWAYS verify upgrade load completed, log + retry.
@@ -866,8 +863,8 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
           inventoryId: r[6]||'',
           manufacturer: r[7] || 'Lionel',
         };
-        state.upgradeData[r[0]+'|'+(r[1]||'')] = entry;
-        if (entry.inventoryId) state.upgradeByInv[entry.inventoryId] = entry;
+        var _key = entry.inventoryId || ('legacy-row-' + (idx+3));
+        state.upgradeData[_key] = entry;
         added++;
       });
       if (added > 0) {
@@ -891,7 +888,6 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   }
   if (forceOverwrite || Object.keys(newForSale).length > 0 || Object.keys(state.forSaleData).length === 0) {
     state.forSaleData = newForSale;
-    state.forSaleByInv = newForSaleByInv;
   }
   if (forceOverwrite || Object.keys(newWant).length > 0 || Object.keys(state.wantData).length === 0) {
     state.wantData = newWant;

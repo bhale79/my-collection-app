@@ -585,19 +585,16 @@ var state = {
   isError: false,
   personalSheetId: null,
   masterData: [],      // all rows from master sheet
-  personalData: {},    // keyed by "itemNum|variation" -> personal row (owned items)
+  personalData: {},    // Phase 3 — keyed by inventoryId -> personal row (owned items)
   soldData: {},        // keyed by "itemNum|variation" -> sold row
-  forSaleData: {},     // keyed by "itemNum|variation" -> for sale row
-  forSaleByInv: {},    // Session 159 — same entries also keyed by inventoryId
-                       // to support per-copy lookups for duplicate-owned items
+  forSaleData: {},     // Phase 3 — keyed by inventoryId -> for sale row
   wantData: {},
-  upgradeData: {},        // keyed by "itemNum|variation" -> upgrade list row
-  upgradeByInv: {},       // Session 159 — same entries also keyed by inventoryId
+  upgradeData: {},     // Phase 3 — keyed by inventoryId -> upgrade list row
   isData: {},             // keyed by row# -> instruction sheet data
   scienceData: {},        // keyed by row# -> science set personal data
   constructionData: {},   // keyed by row# -> construction set personal data
   setData: [],         // all rows from Master Set list (read-only reference)
-  mySetsData: {},      // keyed by "setNum|year" -> owned set record from personal My Sets tab
+  mySetsData: {},      // Phase 3 — keyed by inventoryId -> owned set record from personal My Sets tab
   companionData: [],   // all rows from Companions tab (engine/tender/B-unit relationships)
   catalogRefData: [],  // all rows from master Catalogs tab (reference list for paper item wizard)
   isRefData: [],       // all rows from master Instruction Sheets tab (reference list for IS wizard)
@@ -1564,8 +1561,7 @@ async function forceRefreshData() {
     state.personalData = {};
     state.soldData = {};
     state.forSaleData = {};
-    state.forSaleByInv = {};
-    state.upgradeByInv = {};
+    state.upgradeData = {};
     state.wantData = {};
     await _loadPersonalFromSheets(state.personalSheetId, true);
     _cachePersonalData();

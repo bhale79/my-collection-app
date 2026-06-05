@@ -65,17 +65,19 @@ const _COLLECTION_TABS = [
 // _savedAt, source, openFn }. The Collection page renders these
 // directly; the tab filter + search operate on them.
 
-// Session 159 Phase 2c: also remove from inventoryId map when deleting from forSaleData.
-// Centralized helper to avoid duplicating the lookup at every delete site.
-function _fsCacheRemove(fsKey) {
-  const _e = state.forSaleData[fsKey];
-  if (_e && _e.inventoryId && state.forSaleByInv) delete state.forSaleByInv[_e.inventoryId];
-  delete state.forSaleData[fsKey];
+// Phase 3: forSale + upgrade caches are keyed by inventoryId only.
+// These helpers stay so any straggling callers compile, but they're just
+// a direct delete now.
+function _fsCacheRemove(fsKey) { delete state.forSaleData[fsKey]; }
+function _ugCacheRemove(ugKey) { delete state.upgradeData[ugKey]; }
+// Phase 3: helper for the For Sale list — derive a stable storage key from
+// the entry itself, NOT the (itemNum|variation) composite that collides on
+// duplicate-owned items. Used inside list renderers + delete handlers.
+function _fsEntryKey(fs) {
+  return (fs && fs.inventoryId) ? fs.inventoryId : ('legacy-row-' + (fs && fs.row ? fs.row : 0));
 }
-function _ugCacheRemove(ugKey) {
-  const _e = state.upgradeData[ugKey];
-  if (_e && _e.inventoryId && state.upgradeByInv) delete state.upgradeByInv[_e.inventoryId];
-  delete state.upgradeData[ugKey];
+function _ugEntryKey(ug) {
+  return (ug && ug.inventoryId) ? ug.inventoryId : ('legacy-row-' + (ug && ug.row ? ug.row : 0));
 }
 
 function _collectAllOwnedItems() {
@@ -1489,7 +1491,7 @@ function buildForSalePage() {
     if (fsTableWrap) fsTableWrap.style.display = 'none';
     if (fsCardsEl) fsCardsEl.innerHTML = fsEntries.length ? fsEntries.map(fs => {
       const master = state.masterData.find(i => i.itemNum === fs.itemNum && i.variation === fs.variation) || {};
-      const collPd = state.personalData[fs.itemNum + '|' + (fs.variation||'')] || {};
+      const collPd = (fs.inventoryId && state.personalData[fs.inventoryId]) || {};
       const estWorth = fs.estWorth || collPd.userEstWorth || '';
       const _fsShareKey = fs.itemNum + '|' + (fs.variation||'') + '|' + (fs.row||0);
       const _fsInShare = typeof isShareMode === 'function' && isShareMode('forsale');
@@ -1512,9 +1514,9 @@ function buildForSalePage() {
           </div>
         </div>
         ${!_fsInShare ? `<div style="display:flex;gap:0.4rem;margin-top:0.6rem;flex-wrap:wrap">
-          <button onclick="event.stopPropagation();markForSaleAsSold('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}','${fs.askingPrice||''}')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600">Mark as Sold</button>
-          <button onclick="event.stopPropagation();removeForSaleItem('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}',${fs.row})" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Back to Collection</button>
-          <button onclick="event.stopPropagation();removeForSaleAndCollection('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}',${fs.row})" style="flex:0 0 auto;padding:0.4rem 0.6rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid #e74c3c;background:rgba(231,76,60,0.10);color:#e74c3c;font-family:var(--font-body)">Remove</button>
+          <button onclick="event.stopPropagation();markForSaleAsSold('${_fsEntryKey(fs)}','${fs.askingPrice||''}')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600">Mark as Sold</button>
+          <button onclick="event.stopPropagation();removeForSaleItem('${_fsEntryKey(fs)}')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Back to Collection</button>
+          <button onclick="event.stopPropagation();removeForSaleAndCollection('${_fsEntryKey(fs)}')" style="flex:0 0 auto;padding:0.4rem 0.6rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid #e74c3c;background:rgba(231,76,60,0.10);color:#e74c3c;font-family:var(--font-body)">Remove</button>
         </div>` : ''}
       </div>`;
     }).join('') : '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🏷️</div><p>No items listed for sale</p></div>';
@@ -1523,7 +1525,7 @@ function buildForSalePage() {
     if (fsTableWrap) fsTableWrap.style.display = '';
     if (tbody) tbody.innerHTML = fsEntries.length ? fsEntries.map(fs => {
       const master = state.masterData.find(i => i.itemNum === fs.itemNum && i.variation === fs.variation) || {};
-      const collPd = state.personalData[fs.itemNum + '|' + (fs.variation||'')] || {};
+      const collPd = (fs.inventoryId && state.personalData[fs.inventoryId]) || {};
       const estWorth = fs.estWorth || collPd.userEstWorth || '';
       const _fsDShareKey = fs.itemNum + '|' + (fs.variation||'') + '|' + (fs.row||0);
       const _fsDInShare = typeof isShareMode === 'function' && isShareMode('forsale');
@@ -1542,9 +1544,9 @@ function buildForSalePage() {
         <td class="text-dim">${estWorth ? _currencySymbol() + parseFloat(estWorth).toLocaleString() : '—'}</td>
         <td class="text-dim">${_formatDate(fs.dateListed) || '—'}</td>
         <td style="white-space:nowrap">
-          ${!_fsDInShare ? `<button onclick="event.stopPropagation();markForSaleAsSold('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}','${fs.askingPrice||''}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);margin-right:0.3rem">Mark as Sold</button>
-          <button onclick="event.stopPropagation();removeForSaleItem('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}',${fs.row})" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);margin-right:0.3rem">Back to Collection</button>
-          <button onclick="event.stopPropagation();removeForSaleAndCollection('${fs.itemNum}','${(fs.variation||'').replace(/'/g,"\\'")}',${fs.row})" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #e74c3c;background:rgba(231,76,60,0.10);color:#e74c3c;font-family:var(--font-body)">Remove</button>` : ''}
+          ${!_fsDInShare ? `<button onclick="event.stopPropagation();markForSaleAsSold('${_fsEntryKey(fs)}','${fs.askingPrice||''}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);margin-right:0.3rem">Mark as Sold</button>
+          <button onclick="event.stopPropagation();removeForSaleItem('${_fsEntryKey(fs)}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);margin-right:0.3rem">Back to Collection</button>
+          <button onclick="event.stopPropagation();removeForSaleAndCollection('${_fsEntryKey(fs)}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #e74c3c;background:rgba(231,76,60,0.10);color:#e74c3c;font-family:var(--font-body)">Remove</button>` : ''}
         </td>
       </tr>`;
     }).join('') : '<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🏷️</div><p>No items listed for sale</p></div></td></tr>';
@@ -1554,15 +1556,19 @@ function buildForSalePage() {
   if (navBadge) navBadge.textContent = fsEntries.length;
 }
 
-async function markForSaleAsSold(itemNum, variation, askingPrice) {
+// Phase 3: signature is now (fsKey, askingPrice). fsKey is the entry's
+// inventoryId (or 'legacy-row-N' fallback) — the same key used to store the
+// entry in state.forSaleData. itemNum / variation are derived from the entry.
+async function markForSaleAsSold(fsKey, askingPrice) {
+  const fs = state.forSaleData[fsKey] || {};
+  const itemNum = fs.itemNum || '';
+  const variation = fs.variation || '';
   const salePrice = (typeof appPrompt === 'function')
     ? await appPrompt('Enter the price it sold for. Leave blank to use the asking price.', askingPrice || '',
         { title: 'Record sale', type: 'number', prefix: (typeof _currencySymbol === 'function' ? _currencySymbol() : '$'), ok: 'Mark sold' })
     : prompt('Sale price? (leave blank for asking price)', askingPrice || '');
   if (salePrice === null) return; // cancelled
   const dateSold = new Date().toISOString().split('T')[0];
-  const fsKey = `${itemNum}|${variation}`;
-  const fs = state.forSaleData[fsKey] || {};
   // Capture group members BEFORE the lead is deleted (we need its groupId link).
   const _grpMembers = (typeof window !== 'undefined' && typeof window._fsGroupMembers === 'function') ? window._fsGroupMembers(fs) : null;
 
@@ -1572,7 +1578,7 @@ async function markForSaleAsSold(itemNum, variation, askingPrice) {
   if (fs.inventoryId && state.personalData[fs.inventoryId]) {
     collKey = fs.inventoryId;
   }
-  if (!collKey) {
+  if (!collKey && typeof findPDKey === 'function') {
     collKey = findPDKey(itemNum, variation);
   }
   const collEntry = collKey ? state.personalData[collKey] : null;
@@ -1615,7 +1621,7 @@ async function markForSaleAsSold(itemNum, variation, askingPrice) {
       if (state.isData) delete state.isData[_m.key];
     }
     for (const _f of _grpMembers.fs) {
-      const _mk = (_f.itemNum||'') + '|' + (_f.variation||'');
+      const _mk = _fsEntryKey(_f);
       if (_mk === fsKey) continue;
       if (_f.row) { try { await sheetsUpdate(state.personalSheetId, `For Sale!A${_f.row}:J${_f.row}`, [['','','','','','','','','','']]); } catch(e){} }
       delete state.forSaleData[_mk];
@@ -1652,10 +1658,17 @@ async function markForSaleAsSold(itemNum, variation, askingPrice) {
   showToast('✓ Marked as sold!');
 }
 
-// Remove from For Sale list (called from My Collection row button)
-async function _removeForSaleFromCollection(itemNum, variation) {
-  const fsKey = `${itemNum}|${variation||''}`;
-  const fs = state.forSaleData[fsKey];
+// Phase 3: signature is now (inventoryId). Called from My Collection row button.
+async function _removeForSaleFromCollection(inventoryId) {
+  let fs = inventoryId ? state.forSaleData[inventoryId] : null;
+  let fsKey = inventoryId;
+  if (!fs && inventoryId) {
+    // legacy fallback — scan entries for one whose inventoryId matches
+    const _ent = Object.entries(state.forSaleData || {}).find(function(e) {
+      return e[1] && e[1].inventoryId === inventoryId;
+    });
+    if (_ent) { fsKey = _ent[0]; fs = _ent[1]; }
+  }
   if (!fs) { showToast('Item not found on For Sale list'); return; }
   if (fs.row) {
     await sheetsUpdate(state.personalSheetId, `For Sale!A${fs.row}:J${fs.row}`, [['','','','','','','','','','']]);
@@ -1667,17 +1680,20 @@ async function _removeForSaleFromCollection(itemNum, variation) {
   buildDashboard();
 }
 
-// Remove from Upgrade list (called from My Collection row button)
-async function _removeUpgradeFromCollection(itemNum, variation) {
-  const key = `${itemNum}|${variation||''}`;
-  const ug = state.upgradeData[key];
+// Phase 3: signature is now (inventoryId). Called from My Collection row button.
+async function _removeUpgradeFromCollection(inventoryId) {
+  let ug = inventoryId ? state.upgradeData[inventoryId] : null;
+  let key = inventoryId;
+  if (!ug && inventoryId) {
+    const _ent = Object.entries(state.upgradeData || {}).find(function(e) {
+      return e[1] && e[1].inventoryId === inventoryId;
+    });
+    if (_ent) { key = _ent[0]; ug = _ent[1]; }
+  }
   if (!ug) { showToast('Item not found on Upgrade list'); return; }
   if (ug.row) {
     await sheetsUpdate(state.personalSheetId, `Upgrade List!A${ug.row}:H${ug.row}`, [['','','','','','','','']]);
   }
-  // Session 159 Phase 2c: also remove from inventoryId map
-  const _delUg = state.upgradeData[key];
-  if (_delUg && _delUg.inventoryId && state.upgradeByInv) delete state.upgradeByInv[_delUg.inventoryId];
   delete state.upgradeData[key];
   _cachePersonalData();
   showToast('✓ Removed from Upgrade List');
@@ -1687,9 +1703,11 @@ async function _removeUpgradeFromCollection(itemNum, variation) {
   if (badge) { const c = Object.values(state.upgradeData).length; badge.textContent = c > 0 ? c : '—'; }
 }
 
-async function removeForSaleItem(itemNum, variation, row) {
-  const fsKey = `${itemNum}|${variation}`;
-  const _lead = state.forSaleData[fsKey] || { itemNum: itemNum, variation: variation, row: row };
+// Phase 3: signature is now (fsKey). fsKey is the inventoryId (or
+// 'legacy-row-N' fallback) of the For Sale entry to remove.
+async function removeForSaleItem(fsKey) {
+  const _lead = state.forSaleData[fsKey] || {};
+  if (!_lead.itemNum) { showToast('Item not found on For Sale list'); return; }
   const _grp = (typeof window !== 'undefined' && typeof window._fsGroupMembers === 'function') ? window._fsGroupMembers(_lead) : null;
   const _isGroup = !!(_grp && _grp.fs.length > 1);
   if (!(await appConfirm(_isGroup
@@ -1697,7 +1715,7 @@ async function removeForSaleItem(itemNum, variation, row) {
         : 'Remove this item from your For Sale list?', { danger: true, ok: 'Remove' }))) return;
   const _members = _isGroup ? _grp.fs : [_lead];
   for (const _f of _members) {
-    const _mk = (_f.itemNum||'') + '|' + (_f.variation||'');
+    const _mk = _fsEntryKey(_f);
     if (_f.row) { try { await sheetsUpdate(state.personalSheetId, `For Sale!A${_f.row}:J${_f.row}`, [['','','','','','','','','','']]); } catch(e){} }
     delete state.forSaleData[_mk];
   }
@@ -1707,11 +1725,19 @@ async function removeForSaleItem(itemNum, variation, row) {
   showToast(_isGroup ? '✓ Group removed from For Sale' : '✓ Removed from For Sale');
 }
 
-async function _removeForSaleFromDetail(idx, itemNum, variation) {
-  const fsKey = `${itemNum}|${variation}`;
-  const fsEntry = state.forSaleData[fsKey];
+// Phase 3: signature is now (idx, inventoryId). Look up the For Sale entry
+// by inventoryId; fall back to a scan for legacy rows without an inventoryId.
+async function _removeForSaleFromDetail(idx, inventoryId) {
+  let fsEntry = inventoryId ? state.forSaleData[inventoryId] : null;
+  let fsKey = inventoryId;
+  if (!fsEntry && inventoryId) {
+    const _ent = Object.entries(state.forSaleData || {}).find(function(e) {
+      return e[1] && e[1].inventoryId === inventoryId;
+    });
+    if (_ent) { fsKey = _ent[0]; fsEntry = _ent[1]; }
+  }
   if (!fsEntry) { showToast('Item is not on For Sale list'); return; }
-  if (!(await appConfirm('Remove No. ' + itemNum + ' from your For Sale list?', { danger: true, ok: 'Remove' }))) return;
+  if (!(await appConfirm('Remove No. ' + fsEntry.itemNum + ' from your For Sale list?', { danger: true, ok: 'Remove' }))) return;
   if (fsEntry.row) {
     await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry.row}:J${fsEntry.row}`, [['','','','','','','','','','']]);
   }
@@ -1723,9 +1749,13 @@ async function _removeForSaleFromDetail(idx, itemNum, variation) {
   showItemDetailPage(idx);
 }
 
-async function removeForSaleAndCollection(itemNum, variation, fsRow) {
-  const key = `${itemNum}|${variation}`;
-  const _lead = state.forSaleData[key] || { itemNum: itemNum, variation: variation, row: fsRow };
+// Phase 3: signature is now (fsKey). fsKey is the inventoryId (or
+// 'legacy-row-N' fallback) of the For Sale entry to remove.
+async function removeForSaleAndCollection(fsKey) {
+  const _lead = state.forSaleData[fsKey] || {};
+  if (!_lead.itemNum) { showToast('Item not found on For Sale list'); return; }
+  const itemNum = _lead.itemNum;
+  const variation = _lead.variation || '';
   const _grp = (typeof window !== 'undefined' && typeof window._fsGroupMembers === 'function') ? window._fsGroupMembers(_lead) : null;
   const _isGroup = !!(_grp && (_grp.fs.length > 1 || _grp.pd.length > 1 || _grp.is.length > 0));
   if (!(await appConfirm(_isGroup
@@ -1734,18 +1764,20 @@ async function removeForSaleAndCollection(itemNum, variation, fsRow) {
   // For Sale rows (all members)
   const _fsMembers = (_grp && _grp.fs.length) ? _grp.fs : [_lead];
   for (const _f of _fsMembers) {
-    const _mk = (_f.itemNum||'') + '|' + (_f.variation||'');
+    const _mk = _fsEntryKey(_f);
     if (_f.row) { try { await sheetsUpdate(state.personalSheetId, `For Sale!A${_f.row}:J${_f.row}`, [['','','','','','','','','','']]); } catch(e){} }
     delete state.forSaleData[_mk];
   }
-  // My Collection rows (all members) — fall back to findPDKey when not grouped
+  // My Collection rows (all members) — prefer the lead's inventoryId for single-item case
   if (_grp && _grp.pd.length) {
     for (const _m of _grp.pd) {
       if (_m.rec && _m.rec.row) { try { await sheetsUpdate(state.personalSheetId, `My Collection!A${_m.rec.row}:Y${_m.rec.row}`, [['','','','','','','','','','','','','','','','','','','','','','','','','']]); } catch(e){} }
       delete state.personalData[_m.key];
     }
   } else {
-    const collKey = findPDKey(itemNum, variation);
+    // Phase 3: prefer the lead's inventoryId for the collection lookup so duplicate copies don't collide.
+    let collKey = _lead.inventoryId && state.personalData[_lead.inventoryId] ? _lead.inventoryId : null;
+    if (!collKey && typeof findPDKey === 'function') collKey = findPDKey(itemNum, variation);
     const collEntry = collKey ? state.personalData[collKey] : null;
     if (collEntry && collEntry.row) {
       await sheetsUpdate(state.personalSheetId, `My Collection!A${collEntry.row}:Y${collEntry.row}`, [['','','','','','','','','','','','','','','','','','','','','','','','','']]);
@@ -2242,11 +2274,11 @@ function buildUpgradePage() {
         </div>
         <div id="${photoId}" style="display:none;margin-top:0.5rem"><img src="${pd && pd.photoItem ? pd.photoItem : ''}" style="max-width:100%;max-height:180px;border-radius:8px;object-fit:contain" onerror="this.parentElement.style.display='none'"></div>
         <div style="display:flex;gap:0.35rem;margin-top:0.6rem;flex-wrap:wrap">
-          <button onclick="event.stopPropagation();_upgradeViewMine('${u.itemNum}','${escVar}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600">View Mine</button>
+          <button onclick="event.stopPropagation();_upgradeViewMine('${_ugEntryKey(u)}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600">View Mine</button>
           <button onclick="event.stopPropagation();wantFindOnEbay('${u.itemNum}','${(name||'').replace(/'/g,"\\'")}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);font-weight:600">eBay</button>
           <button onclick="event.stopPropagation();wantSearchOtherSites('${u.itemNum}','${(name||'').replace(/'/g,"\\'")}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #2980b9;background:rgba(41,128,185,0.12);color:#2980b9;font-family:var(--font-body);font-weight:600">Search</button>
-          <button onclick="event.stopPropagation();upgradeGotIt('${u.itemNum}','${escVar}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600">✓ Got It</button>
-          <button onclick="event.stopPropagation();removeUpgradeItem('${u.itemNum}','${escVar}',${u.row})" style="flex:0 0 auto;padding:0.4rem 0.6rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>
+          <button onclick="event.stopPropagation();upgradeGotIt('${_ugEntryKey(u)}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600">✓ Got It</button>
+          <button onclick="event.stopPropagation();removeUpgradeItem('${_ugEntryKey(u)}')" style="flex:0 0 auto;padding:0.4rem 0.6rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>
         </div>
       </div>`;
     }).join('');
@@ -2273,11 +2305,11 @@ function buildUpgradePage() {
         <td style="font-size:0.8rem;color:var(--text-dim);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(u.notes||'').replace(/"/g,'&quot;')}">${u.notes || '<span class="text-dim">—</span>'}</td>
         <td style="white-space:nowrap">
           ${hasPhoto ? `<button onclick="event.stopPropagation();_toggleUpgradePhoto('${photoId}','${(pd.photoItem||'').replace(/'/g,"\\'")}')" style="padding:0.25rem 0.4rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);margin-right:0.2rem" title="Toggle photo">📷</button>` : ''}
-          <button onclick="_upgradeViewMine('${u.itemNum}','${escVar}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">View Mine</button>
+          <button onclick="_upgradeViewMine('${_ugEntryKey(u)}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">View Mine</button>
           <button onclick="wantFindOnEbay('${u.itemNum}','${(name||'').replace(/'/g,"\\'")}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);margin-right:0.2rem">eBay</button>
           <button onclick="wantSearchOtherSites('${u.itemNum}','${(name||'').replace(/'/g,"\\'")}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2980b9;background:rgba(41,128,185,0.12);color:#2980b9;font-family:var(--font-body);margin-right:0.2rem">Search</button>
-          <button onclick="upgradeGotIt('${u.itemNum}','${escVar}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">✓ Got It</button>
-          <button onclick="removeUpgradeItem('${u.itemNum}','${escVar}',${u.row})" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>
+          <button onclick="upgradeGotIt('${_ugEntryKey(u)}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">✓ Got It</button>
+          <button onclick="removeUpgradeItem('${_ugEntryKey(u)}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>
         </td>
       </tr>
       <tr id="${photoId}-row" style="display:none"><td colspan="8" style="padding:0.5rem 1rem;background:var(--surface2)"><img src="${pd && pd.photoItem ? pd.photoItem : ''}" style="max-height:160px;border-radius:6px;object-fit:contain" onerror="this.parentElement.parentElement.style.display='none'"></td></tr>`;
@@ -2295,8 +2327,12 @@ function _toggleUpgradePhoto(id, photoUrl) {
   target.style.display = showing ? 'none' : '';
 }
 
-function _upgradeViewMine(itemNum, variation) {
-  const master = findMaster(itemNum);
+// Phase 3: signature is now (ugKey). The entry has the itemNum + inventoryId
+// pointing at the user's actual owned copy.
+function _upgradeViewMine(ugKey) {
+  const ug = state.upgradeData[ugKey];
+  if (!ug) { showToast('Upgrade entry not found'); return; }
+  const master = findMaster(ug.itemNum);
   if (master) {
     showItemDetailPage(state.masterData.indexOf(master));
   } else {
@@ -2317,13 +2353,17 @@ function showAddToUpgradeModal(itemNum, variation, pdRow) {
     if (_pdKey) pd = state.personalData[_pdKey];
   }
   if (!pd) pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === itemNum && (p.variation||'') === (variation||''));
-  // Look up the existing upgrade entry by THIS copy's inventoryId first,
-  // falling back to itemNum|variation for legacy upgrade rows that have
-  // a blank inventoryId column.
+  // Phase 3: state.upgradeData is keyed by inventoryId. Look up by THIS copy's
+  // inventoryId; fall back to a one-time scan for legacy rows whose entry has
+  // a blank Inventory ID column (they'd be stored under legacy-row-N keys).
   const _invId = pd && pd.inventoryId ? pd.inventoryId : '';
-  const existing = (_invId && state.upgradeByInv && state.upgradeByInv[_invId])
-    || state.upgradeData[`${itemNum}|${variation||''}`]
-    || {};
+  let existing = (_invId && state.upgradeData[_invId]) || null;
+  if (!existing && _invId) {
+    existing = Object.values(state.upgradeData || {}).find(function(e) {
+      return e && e.inventoryId === _invId;
+    }) || null;
+  }
+  existing = existing || {};
   const master = findMaster(itemNum);
   const name = master ? (master.roadName || master.itemType || itemNum) : itemNum;
   const myCond = pd && pd.condition ? pd.condition : '';
@@ -2373,13 +2413,14 @@ function showAddToUpgradeModal(itemNum, variation, pdRow) {
   document.body.appendChild(overlay);
 }
 
+// Phase 3: signature unchanged (modal already passes invId). Reload after
+// save keys by inventoryId directly.
 async function saveUpgradeItem(itemNum, variation, existingRow, invId) {
   const priority = document.getElementById('upg-priority')?.value || 'Medium';
   const targetCond = document.getElementById('upg-target-cond')?.value || '';
   const maxPrice = document.getElementById('upg-max-price')?.value || '';
   const notes = document.getElementById('upg-notes')?.value || '';
   const row = [itemNum, variation||'', priority, targetCond, maxPrice, notes, invId || '', _getEraManufacturer()];
-  const key = `${itemNum}|${variation||''}`;
   const sheetId = state.personalSheetId;
   if (!sheetId) { showToast('Not connected to a sheet'); return; }
   try {
@@ -2388,20 +2429,20 @@ async function saveUpgradeItem(itemNum, variation, existingRow, invId) {
     } else {
       await sheetsAppend(sheetId, 'Upgrade List!A:H', [row]);
     }
-    // Reload data
+    // Reload data — key by inventoryId
     const res = await sheetsGet(sheetId, 'Upgrade List!A3:H');
     state.upgradeData = {};
-    state.upgradeByInv = {};  // Session 159 Phase 2c: rebuild inv-keyed map too
     (res.values || []).forEach((r, idx) => {
       if (!r[0] || r[0] === 'Item Number') return;
+      const _row = idx + 3;
       const _ugEntry = {
-        row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
+        row: _row, itemNum: r[0]||'', variation: r[1]||'',
         priority: r[2]||'Medium', targetCondition: r[3]||'', maxPrice: r[4]||'', notes: r[5]||'',
         inventoryId: r[6]||'',
         manufacturer: r[7] || 'Lionel',
       };
-      state.upgradeData[`${r[0]}|${r[1]||''}`] = _ugEntry;
-      if (_ugEntry.inventoryId) state.upgradeByInv[_ugEntry.inventoryId] = _ugEntry;
+      const _k = _ugEntry.inventoryId || ('legacy-row-' + _row);
+      state.upgradeData[_k] = _ugEntry;
     });
     const modal = document.getElementById('upgrade-add-modal');
     if (modal) modal.remove();
@@ -2415,12 +2456,15 @@ async function saveUpgradeItem(itemNum, variation, existingRow, invId) {
   }
 }
 
-async function removeUpgradeItem(itemNum, variation, row) {
-  const key = `${itemNum}|${variation||''}`;
+// Phase 3: signature is now (ugKey). ugKey is the inventoryId (or
+// 'legacy-row-N' fallback) of the Upgrade entry to remove.
+async function removeUpgradeItem(ugKey) {
   if (!state.personalSheetId) return;
+  const ug = state.upgradeData[ugKey];
+  if (!ug || !ug.row) { showToast('Upgrade entry not found'); return; }
   try {
-    await sheetsUpdate(state.personalSheetId, `Upgrade List!A${row}:H${row}`, [['','','','','','','','']]);
-    delete state.upgradeData[key];
+    await sheetsUpdate(state.personalSheetId, `Upgrade List!A${ug.row}:H${ug.row}`, [['','','','','','','','']]);
+    delete state.upgradeData[ugKey];
     showToast('Removed from Upgrade List');
     buildUpgradePage();
     buildDashboard();
@@ -2431,9 +2475,13 @@ async function removeUpgradeItem(itemNum, variation, row) {
   }
 }
 
-function upgradeGotIt(itemNum, variation) {
+// Phase 3: signature is now (ugKey). Look up the entry to render its display name.
+function upgradeGotIt(ugKey) {
   const old = document.getElementById('upgrade-gotit-modal');
   if (old) old.remove();
+  const ug = state.upgradeData[ugKey];
+  if (!ug) { showToast('Upgrade entry not found'); return; }
+  const itemNum = ug.itemNum;
   const master = findMaster(itemNum);
   const name = master ? (master.roadName || master.itemType || itemNum) : itemNum;
   const overlay = document.createElement('div');
@@ -2453,22 +2501,24 @@ function upgradeGotIt(itemNum, variation) {
       <div id="upg-gotit-added" style="display:none">
         <p style="font-size:0.85rem;color:var(--text);margin-bottom:0.75rem;line-height:1.5">What would you like to do with your old one?</p>
         <div style="display:flex;flex-direction:column;gap:0.4rem">
-          <button onclick="_upgradeGotItFinish('${itemNum}','${(variation||'').replace(/'/g,"\\'")}','keep')" style="padding:0.5rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left">Keep both copies</button>
-          <button onclick="_upgradeGotItFinish('${itemNum}','${(variation||'').replace(/'/g,"\\'")}','forsale')" style="padding:0.5rem;border-radius:8px;border:1.5px solid #e67e22;background:rgba(230,126,34,0.08);color:#e67e22;font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left">🏷️ List old one for sale</button>
-          <button onclick="_upgradeGotItFinish('${itemNum}','${(variation||'').replace(/'/g,"\\'")}','remove')" style="padding:0.5rem;border-radius:8px;border:1.5px solid var(--accent);background:rgba(240,80,8,0.08);color:var(--accent);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left">Remove old entry from collection</button>
+          <button onclick="_upgradeGotItFinish('${ugKey}','keep')" style="padding:0.5rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left">Keep both copies</button>
+          <button onclick="_upgradeGotItFinish('${ugKey}','forsale')" style="padding:0.5rem;border-radius:8px;border:1.5px solid #e67e22;background:rgba(230,126,34,0.08);color:#e67e22;font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left">🏷️ List old one for sale</button>
+          <button onclick="_upgradeGotItFinish('${ugKey}','remove')" style="padding:0.5rem;border-radius:8px;border:1.5px solid var(--accent);background:rgba(240,80,8,0.08);color:var(--accent);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left">Remove old entry from collection</button>
         </div>
       </div>
     </div>`;
   document.body.appendChild(overlay);
 }
 
-async function _upgradeGotItFinish(itemNum, variation, action) {
+// Phase 3: signature is now (ugKey, action).
+async function _upgradeGotItFinish(ugKey, action) {
   const modal = document.getElementById('upgrade-gotit-modal');
   if (modal) modal.remove();
-  const key = `${itemNum}|${variation||''}`;
-  const upgradeEntry = state.upgradeData[key];
+  const upgradeEntry = state.upgradeData[ugKey];
+  const itemNum = upgradeEntry ? upgradeEntry.itemNum : '';
+  const variation = upgradeEntry ? (upgradeEntry.variation || '') : '';
   // Remove from upgrade list
-  if (upgradeEntry) await removeUpgradeItem(itemNum, variation, upgradeEntry.row);
+  if (upgradeEntry) await removeUpgradeItem(ugKey);
   if (action === 'forsale') {
     // Navigate to for sale flow for this item
     const master = findMaster(itemNum);
@@ -2476,7 +2526,13 @@ async function _upgradeGotItFinish(itemNum, variation, action) {
     if (idx >= 0) collectionActionForSale(idx, itemNum, variation);
     else showToast('Navigate to My Collection to list for sale');
   } else if (action === 'remove') {
-    const pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === itemNum && (p.variation||'') === (variation||''));
+    // Phase 3: prefer the upgrade entry's inventoryId so we remove the exact copy.
+    let pd = null;
+    if (upgradeEntry && upgradeEntry.inventoryId && state.personalData[upgradeEntry.inventoryId]) {
+      pd = state.personalData[upgradeEntry.inventoryId];
+    } else {
+      pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === itemNum && (p.variation||'') === (variation||''));
+    }
     if (pd) await removeCollectionItem(itemNum, variation, pd.row);
     else showToast('Item not found in collection');
   } else {
