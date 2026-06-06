@@ -964,7 +964,7 @@ function showItemDetailPage(idx, copyInvId) {
     { label: 'Price Paid (Item)', val: pd && pd.priceItem ? _currencySymbol() + parseFloat(pd.priceItem).toLocaleString() : null },
     { label: 'Price Paid (Box)', val: pd && pd.priceBox ? _currencySymbol() + parseFloat(pd.priceBox).toLocaleString() : null },
     { label: 'Price Paid (Complete)', val: (pd && pd.priceComplete && (parseFloat(pd.priceComplete) || 0) !== (parseFloat(pd.priceItem) || 0)) ? _currencySymbol() + parseFloat(pd.priceComplete).toLocaleString() : null },
-    { label: 'Est. Worth', val: pd && pd.userEstWorth ? _currencySymbol() + parseFloat(pd.userEstWorth).toLocaleString() : null },
+    { label: 'Est. Worth', val: (function(){ var _v = pd && pd.userEstWorth ? parseFloat(pd.userEstWorth) : NaN; return isFinite(_v) ? _currencySymbol() + _v.toLocaleString() : null; })() },
     { label: 'Market Value', val: it.marketVal && !isNaN(parseFloat(it.marketVal)) ? _currencySymbol() + parseFloat(it.marketVal).toLocaleString() : null },
     { label: 'Date Purchased', val: pd && pd.datePurchased ? _formatDate(pd.datePurchased) : null },
     { label: 'Year Made', val: pd && pd.yearMade ? pd.yearMade : null },
@@ -3476,4 +3476,5 @@ function _checkWantPartners(itemNum, variation, priority, maxPrice, notes) {
     }
   };
 }
+
 
