@@ -301,28 +301,30 @@ async function _fetchMasterTabs(era) {
 
 function parseMasterRow(r, tabName) {
   return {
-    itemNum:      r[0]  || '',
-    itemType:     r[1]  || '',
-    subType:      r[2]  || '',
-    unit:         r[3]  || '',
-    poweredDummy: r[4]  || '',
-    control:      r[5]  || '',
-    roadName:     r[6]  || '',
-    description:  r[7]  || '',
-    gauge:        r[8]  || '',
-    yearProd:     r[9]  || '',
-    variation:    r[10] || '',
-    varDesc:      r[11] || '',
-    refLink:      r[12] || '',
-    notes:        r[13] || '',
-    marketVal:    r[14] || '',
-    source:       r[15] || '',
-    cottCode:     r[16] || '',
-    originalDesc: r[17] || '',
+    itemNum:      r[0]  !== null && r[0]  !== undefined && r[0]  !== '' ? String(r[0])  : '',
+    // Phase 3k: coerce all fields to strings — UNFORMATTED_VALUE returns
+    // numbers/dates raw, but the rest of the app expects string fields.
+    itemType:     r[1]  !== null && r[1]  !== undefined && r[1]  !== '' ? String(r[1])  : '',
+    subType:      r[2]  !== null && r[2]  !== undefined && r[2]  !== '' ? String(r[2])  : '',
+    unit:         r[3]  !== null && r[3]  !== undefined && r[3]  !== '' ? String(r[3])  : '',
+    poweredDummy: r[4]  !== null && r[4]  !== undefined && r[4]  !== '' ? String(r[4])  : '',
+    control:      r[5]  !== null && r[5]  !== undefined && r[5]  !== '' ? String(r[5])  : '',
+    roadName:     r[6]  !== null && r[6]  !== undefined && r[6]  !== '' ? String(r[6])  : '',
+    description:  r[7]  !== null && r[7]  !== undefined && r[7]  !== '' ? String(r[7])  : '',
+    gauge:        r[8]  !== null && r[8]  !== undefined && r[8]  !== '' ? String(r[8])  : '',
+    yearProd:     r[9]  !== null && r[9]  !== undefined && r[9]  !== '' ? String(r[9])  : '',
+    variation:    r[10] !== null && r[10] !== undefined && r[10] !== '' ? String(r[10]) : '',
+    varDesc:      r[11] !== null && r[11] !== undefined && r[11] !== '' ? String(r[11]) : '',
+    refLink:      r[12] !== null && r[12] !== undefined && r[12] !== '' ? String(r[12]) : '',
+    notes:        r[13] !== null && r[13] !== undefined && r[13] !== '' ? String(r[13]) : '',
+    marketVal:    r[14] !== null && r[14] !== undefined && r[14] !== '' ? String(r[14]) : '',
+    source:       r[15] !== null && r[15] !== undefined && r[15] !== '' ? String(r[15]) : '',
+    cottCode:     r[16] !== null && r[16] !== undefined && r[16] !== '' ? String(r[16]) : '',
+    originalDesc: r[17] !== null && r[17] !== undefined && r[17] !== '' ? String(r[17]) : '',
     // Unified-schema extension columns (used by Atlas rows; blank for Lionel rows):
-    category:     r[18] || '',
-    trackPower:   r[19] || '',
-    msrp:         r[20] || '',
+    category:     r[18] !== null && r[18] !== undefined && r[18] !== '' ? String(r[18]) : '',
+    trackPower:   r[19] !== null && r[19] !== undefined && r[19] !== '' ? String(r[19]) : '',
+    msrp:         r[20] !== null && r[20] !== undefined && r[20] !== '' ? String(r[20]) : '',
     _tab:         tabName,
   };
 }
@@ -1103,6 +1105,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     try { if (typeof renderBrowse === 'function') renderBrowse(); } catch(e) {}
   }).catch(function(e) { console.warn('[Secondary personal data fetch]', e); });
 }
+
 
 
 
