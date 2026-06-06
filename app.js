@@ -1383,9 +1383,16 @@ function buildApp() {
   _applyDisclaimerPref();
   // Apply era-dropdown visibility based on user prefs (admin sees all)
   if (typeof _applyEraVisibility === 'function') _applyEraVisibility();
-  // Upgrade count badge
+  // Wishlist badge: combined Want + Upgrade count (Session 161+).
+  // Previously only counted state.upgradeData, so on hard refresh the badge
+  // showed '—' for users with only Want entries until they clicked the nav.
   const _uEl = document.getElementById('nav-wishlist-count');
-  if (_uEl) { const _uc = Object.values(state.upgradeData||{}).length; _uEl.textContent = _uc > 0 ? _uc.toLocaleString() : '—'; }
+  if (_uEl) {
+    const _wc = Object.values(state.wantData||{}).length;
+    const _uc = Object.values(state.upgradeData||{}).length;
+    const _total = _wc + _uc;
+    _uEl.textContent = _total > 0 ? _total.toLocaleString() : '—';
+  }
   // Wire up the Google Sheet link in the sidebar
   const sheetLink = document.getElementById('nav-sheet-link');
   if (sheetLink && state.personalSheetId) {
