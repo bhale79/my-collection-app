@@ -4310,6 +4310,65 @@ function renderWizardStep() {
       _cdHtml += '</div>';
     }
 
+    // ── Wishlist cleanup banner (Session 161+) ──
+    // If the item being added matches a Want or Upgrade entry by itemNum+variation,
+    // surface a checkbox so the user can opt to remove it from the wishlist on save.
+    // Skipped when _fromWantList/_fromUpgradeList are set (those trigger auto-cleanup).
+    (function _cdInjectWishlistBanner() {
+      if (wizard.data._fromWantList || wizard.data._fromUpgradeList) {
+        wizard.data._cleanupWishlistMatches = null;
+        return;
+      }
+      var _itemNum = (wizard.data.itemNum || '').toString().trim();
+      var _var = (wizard.data.variation || '').toString().trim();
+      if (!_itemNum) {
+        wizard.data._cleanupWishlistMatches = null;
+        return;
+      }
+      var matches = [];
+      Object.keys(state.wantData || {}).forEach(function(k) {
+        var w = state.wantData[k];
+        if (!w) return;
+        if (String(w.itemNum||'').trim() === _itemNum
+            && String(w.variation||'').trim() === _var) {
+          matches.push({ key: k, row: w.row, listType: 'Want',
+            label: w.itemNum + (w.variation ? ' var ' + w.variation : '') });
+        }
+      });
+      Object.keys(state.upgradeData || {}).forEach(function(k) {
+        var u = state.upgradeData[k];
+        if (!u) return;
+        if (String(u.itemNum||'').trim() === _itemNum
+            && String(u.variation||'').trim() === _var) {
+          matches.push({ key: k, row: u.row, listType: 'Upgrade',
+            label: u.itemNum + (u.variation ? ' var ' + u.variation : '') });
+        }
+      });
+      // Preserve any prior unchecked decisions from this wizard run.
+      var prior = wizard.data._cleanupWishlistMatches || [];
+      matches.forEach(function(m) {
+        var prev = prior.find(function(p) { return p && p.row === m.row && p.listType === m.listType; });
+        if (prev) m.unchecked = !!prev.unchecked;
+      });
+      wizard.data._cleanupWishlistMatches = matches;
+      if (matches.length === 0) return;
+      var typeColor = function(t) { return t === 'Want' ? '#3b82f6' : '#8b5cf6'; };
+      var typeBg = function(t) { return t === 'Want' ? 'rgba(59,130,246,0.10)' : 'rgba(139,92,246,0.10)'; };
+      // Render a slim banner above the conditionDetails body.
+      var banner = '<div style="background:var(--surface2);border:1px solid var(--border);border-left:3px solid #f59e0b;border-radius:8px;padding:0.65rem 0.9rem;margin:0 0 0.85rem 0;font-family:var(--font-body)">'
+        + '<div style="font-size:0.78rem;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.4rem">On your wishlist</div>'
+        + matches.map(function(m, i) {
+            return '<label style="display:flex;align-items:center;gap:0.6rem;padding:0.3rem 0;cursor:pointer">'
+              + '<input type="checkbox" data-wlmatch="' + i + '" ' + (m.unchecked ? '' : 'checked') + ' '
+              + 'onchange="if(wizard.data._cleanupWishlistMatches&&wizard.data._cleanupWishlistMatches[' + i + ']){wizard.data._cleanupWishlistMatches[' + i + '].unchecked=!this.checked;}" '
+              + 'style="width:16px;height:16px;cursor:pointer">'
+              + '<span style="flex:1;font-size:0.85rem;color:var(--text)">Remove from <span style="font-weight:700;color:' + typeColor(m.listType) + ';background:' + typeBg(m.listType) + ';padding:0.05rem 0.45rem;border-radius:4px;text-transform:uppercase;font-size:0.7rem;letter-spacing:0.04em">' + m.listType + '</span> list when saved</span>'
+              + '</label>';
+          }).join('')
+        + '</div>';
+      _cdHtml = banner + _cdHtml;
+    })();
+
     _cdWrap.innerHTML = _cdHtml;
     body.innerHTML = '';
     body.appendChild(_cdWrap);

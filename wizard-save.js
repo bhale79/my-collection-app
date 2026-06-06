@@ -1797,6 +1797,38 @@ async function saveWizardItem() {
       }
       delete state.wantData[d._fromWantKey];
       buildWantPage();
+      if (typeof showToast === 'function') showToast('Removed from Want list', 2500);
+    }
+    // ── If this came from the Upgrade List, clean up the upgrade entry ──
+    if (d._fromUpgradeList && d._fromUpgradeKey && tab === 'collection') {
+      const ugEntry = state.upgradeData[d._fromUpgradeKey];
+      if (ugEntry && ugEntry.row) {
+        sheetsUpdate(state.personalSheetId, `Want-Upgrade List!A${ugEntry.row}:I${ugEntry.row}`, [['','','','','','','','','']]).catch(e => console.warn('Upgrade cleanup error:', e));
+      }
+      delete state.upgradeData[d._fromUpgradeKey];
+      if (typeof buildUpgradePage === 'function') buildUpgradePage();
+      if (typeof showToast === 'function') showToast('Removed from Upgrade list', 2500);
+    }
+    // ── General case: user added an item that happens to match a wishlist entry.
+    // The banner on the conditionDetails step sets d._cleanupWishlistMatches with
+    // any matching entry's identifying info. We only clean rows the user
+    // confirmed (checkbox stayed checked).
+    if (d._cleanupWishlistMatches && Array.isArray(d._cleanupWishlistMatches) && tab === 'collection') {
+      d._cleanupWishlistMatches.forEach(function(m) {
+        if (!m || !m.row || m.unchecked) return;
+        sheetsUpdate(state.personalSheetId,
+          `Want-Upgrade List!A${m.row}:I${m.row}`,
+          [['','','','','','','','','']]
+        ).catch(e => console.warn('Wishlist cleanup error:', e));
+        if (m.listType === 'Upgrade' && m.key && state.upgradeData) delete state.upgradeData[m.key];
+        if (m.listType === 'Want'    && m.key && state.wantData)    delete state.wantData[m.key];
+      });
+      if (typeof buildUpgradePage === 'function') buildUpgradePage();
+      if (typeof buildWantPage    === 'function') buildWantPage();
+      var _removed = d._cleanupWishlistMatches.filter(m => m && !m.unchecked).length;
+      if (_removed > 0 && typeof showToast === 'function') {
+        showToast('Removed from ' + (_removed > 1 ? 'wishlist entries' : (d._cleanupWishlistMatches[0].listType + ' list')), 2500);
+      }
     }
 
     // ── Optimistic update: inject directly into state so item appears immediately ──

@@ -1010,6 +1010,10 @@ function moveWantToCollection(itemNum, variation) {
     wizard.data.itemCategory = 'lionel';      // skips era picker
     wizard.data._itemGrouping = wizard.data._itemGrouping || 'single'; // default; user can change later via Edit Group
     wizard.data.entryMode = wizard.data.entryMode || 'full'; // skips entryMode picker
+    // Pre-fill suggested condition + price from want entry's target hints
+    const _w = (state.wantData || {})[`${itemNum}|${variation}`] || {};
+    if (_w.targetCondition) wizard.data._prefilledCondition = _w.targetCondition;
+    if (_w.expectedPrice) wizard.data._suggestedPricePaid = _w.expectedPrice;
 
     if (master) {
       wizard.matchedItem = master;
@@ -2652,8 +2656,63 @@ async function removeUpgradeItem(ugKey) {
 
 // Phase 3: signature is now (ugKey). Look up the entry to render its display name.
 function upgradeGotIt(ugKey) {
-  const old = document.getElementById('upgrade-gotit-modal');
-  if (old) old.remove();
+  // Brad's preference (Session 161+): "Got It" should open the Add wizard
+  // pre-filled with the item info + target condition/price as suggestions so
+  // the user can capture condition / price-paid / photos in one flow.
+  // Wishlist cleanup is handled via the wizard's banner + save hook.
+  const _old = document.getElementById('upgrade-gotit-modal');
+  if (_old) _old.remove();
+  const ug = state.upgradeData[ugKey];
+  if (!ug) { showToast('Upgrade entry not found'); return; }
+  const itemNum = ug.itemNum;
+  const variation = ug.variation || '';
+  openWizard('collection');
+  setTimeout(function() {
+    if (typeof wizard === 'undefined' || !wizard) return;
+    // Look up master row (prefer variation match; fall back to any)
+    const master = state.masterData.find(m =>
+      m.itemNum === itemNum && (!variation || String(m.variation||'') === String(variation))
+    ) || findMaster(itemNum);
+    // Seed
+    wizard.data._fromUpgradeList = true;
+    wizard.data._fromUpgradeKey = ugKey;
+    wizard.data._rawItemNum = itemNum;
+    wizard.data.itemNum = itemNum;
+    if (variation) wizard.data.variation = variation;
+    wizard.data.itemCategory = 'lionel';
+    wizard.data._itemGrouping = wizard.data._itemGrouping || 'single';
+    wizard.data.entryMode = wizard.data.entryMode || 'full';
+    // Pre-fill suggested condition + price from upgrade target / max price
+    if (ug.targetCondition) wizard.data._prefilledCondition = ug.targetCondition;
+    if (ug.maxPrice) wizard.data._suggestedPricePaid = ug.maxPrice;
+    if (master) {
+      wizard.matchedItem = master;
+      if (!wizard.data._era) {
+        var _inferredEra = (typeof eraForTab === 'function') ? eraForTab(master._tab) : null;
+        if (_inferredEra) {
+          wizard.data._era = _inferredEra;
+        } else {
+          var _tab = String(master._tab || '').toLowerCase();
+          if (_tab.includes('mpc') || _tab.includes('modern')) wizard.data._era = 'mpc';
+          else if (_tab.includes('pre-war') || _tab.includes('prewar')) wizard.data._era = 'prewar';
+          else wizard.data._era = 'pw';
+        }
+      }
+    }
+    // Advance through the lookup steps to land on Condition & Details
+    var skipIds = new Set(['itemNumGrouping','itemPicker','variation','entryMode','itemCategory']);
+    while (wizard.step < wizard.steps.length - 1) {
+      var s = wizard.steps[wizard.step];
+      if (skipIds.has(s.id) || (s.skipIf && s.skipIf(wizard.data))) wizard.step++;
+      else break;
+    }
+    if (typeof renderWizardStep === 'function') renderWizardStep();
+  }, 0);
+}
+
+// Legacy stub kept so old onclick handlers from any cached HTML don't 500.
+function _upgradeGotItModalLegacy(ugKey) { upgradeGotIt(ugKey); }
+function _upgradeGotItOldStart(ugKey) {
   const ug = state.upgradeData[ugKey];
   if (!ug) { showToast('Upgrade entry not found'); return; }
   const itemNum = ug.itemNum;
