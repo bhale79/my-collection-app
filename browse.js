@@ -2730,7 +2730,8 @@ function renderBrowse() {
       const _descShort = _descFull.length > 42 ? _descFull.substring(0, 40) + '…' : _descFull;
       const _varText   = item.variation ? ` <span style="font-size:0.72rem;color:var(--text-dim);background:var(--surface2);padding:1px 5px;border-radius:4px;margin-left:3px">${item.variation}</span>` : '';
       const _typeText = (typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(item) : item.itemType) || '<span style="color:var(--text-dim)">—</span>';
-      const _estWorth = pd && pd.userEstWorth ? '$' + parseFloat(pd.userEstWorth).toLocaleString() : '<span style="color:var(--text-dim)">—</span>';
+      const _ewNum = pd && pd.userEstWorth ? parseFloat(pd.userEstWorth) : NaN;
+      const _estWorth = isFinite(_ewNum) ? '$' + _ewNum.toLocaleString() : '<span style="color:var(--text-dim)">—</span>';
       // Phase 3: per-copy detection — direct inventoryId lookup only.
       const _myInvId = pd && pd.inventoryId ? pd.inventoryId : '';
       const _fsEntry = _myInvId ? state.forSaleData[_myInvId] : null;
