@@ -1999,6 +1999,12 @@ async function saveWizardItem() {
         buildSoldPage();
         buildForSalePage();
         renderBrowse();
+        // Brad (Session 161+): the Want/Upgrade page render was missing here,
+        // so after loadPersonalData replaced state.wantData, the page stayed
+        // stuck on whatever render fired at save time. Now both Want and
+        // Upgrade get a refresh from the background sync.
+        if (typeof buildWantPage === 'function') buildWantPage();
+        if (typeof buildUpgradePage === 'function') buildUpgradePage();
       } catch(e) { console.warn('Background sync after save:', e); }
     }, _syncDelay);
 
