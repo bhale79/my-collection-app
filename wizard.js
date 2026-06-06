@@ -5371,6 +5371,17 @@ async function _wizardNextCore() {
     wizard.step++;
   }
 
+  // Brad request (Session 161+): if we're on the For Sale tab and the next
+  // step is pickForSaleItem, auto-trigger the reroute to the full collection
+  // flow. The user wants the same screens as a normal Add to Collection plus
+  // a Sale Price step at the end — never the short For Sale flow.
+  if (wizard.tab === 'forsale' && wizard.steps[wizard.step]
+      && wizard.steps[wizard.step].id === 'pickForSaleItem'
+      && typeof wizardPickForSaleItem === 'function') {
+    wizardPickForSaleItem('__new__');
+    return;
+  }
+
   // Push history so the back button returns to the previous step
   history.pushState({ appPage: 'wizard', step: wizard.step }, '', '');
 
