@@ -1580,6 +1580,68 @@ function buildForSalePage() {
 // Phase 3: signature is now (fsKey, askingPrice). fsKey is the entry's
 // inventoryId (or 'legacy-row-N' fallback) — the same key used to store the
 // entry in state.forSaleData. itemNum / variation are derived from the entry.
+
+// ── Convert linked Upgrade entry to Want when its owned copy is sold ──
+// When a user sells the copy that an Upgrade entry is targeting (linked by
+// inventoryId), the upgrade should become a Want — user no longer owns it
+// but still wants one in the desired condition. Updates the sheet row in
+// place (changes List Type, clears Target Condition + Upgrading Inventory ID)
+// and shuffles state.upgradeData -> state.wantData.
+async function _convertUpgradeToWantOnSell(soldInventoryId) {
+  if (!soldInventoryId) return;
+  // Find any upgrade entry that pointed at this inventoryId
+  var ugEntry = null;
+  var ugKey = null;
+  Object.keys(state.upgradeData || {}).forEach(function(k) {
+    var e = state.upgradeData[k];
+    if (e && String(e.inventoryId) === String(soldInventoryId)) {
+      ugEntry = e; ugKey = k;
+    }
+  });
+  if (!ugEntry || !ugEntry.row) return;
+  // Build a Want-flavored 9-col row at the same row. List Type='Want', clear
+  // Target Condition + Upgrading Inventory ID. Keep priority, target price
+  // (becomes the want's expected price), notes, manufacturer.
+  // Cols: A=Item, B=Var, C=List Type, D=Priority, E=Target Price,
+  //       F=Target Condition, G=Upgrading Inventory ID, H=Notes, I=Manufacturer
+  var wuRow = [
+    ugEntry.itemNum || '',
+    ugEntry.variation || '',
+    'Want',
+    ugEntry.priority || 'Medium',
+    ugEntry.maxPrice || '',  // expected price for Want
+    '',                       // target condition cleared
+    '',                       // upgrading inventory id cleared
+    ugEntry.notes || '',
+    ugEntry.manufacturer || 'Lionel',
+  ];
+  try {
+    await sheetsUpdate(state.personalSheetId,
+      'Want-Upgrade List!A' + ugEntry.row + ':I' + ugEntry.row, [wuRow]);
+    // Update state: remove from upgradeData, add to wantData
+    delete state.upgradeData[ugKey];
+    if (!state.wantData) state.wantData = {};
+    var wantKey = (ugEntry.itemNum || '') + '|' + (ugEntry.variation || '');
+    state.wantData[wantKey] = {
+      row: ugEntry.row,
+      itemNum: ugEntry.itemNum || '',
+      variation: ugEntry.variation || '',
+      priority: ugEntry.priority || 'Medium',
+      expectedPrice: ugEntry.maxPrice || '',
+      notes: ugEntry.notes || '',
+      manufacturer: ugEntry.manufacturer || 'Lionel',
+      listType: 'Want',
+    };
+    if (typeof showToast === 'function') {
+      showToast('Upgrade entry moved to Want list', 2500);
+    }
+    if (typeof _cachePersonalData === 'function') _cachePersonalData();
+  } catch (e) {
+    console.warn('[Upgrade->Want convert] failed:', e && e.message);
+  }
+}
+if (typeof window !== 'undefined') window._convertUpgradeToWantOnSell = _convertUpgradeToWantOnSell;
+
 async function markForSaleAsSold(fsKey, askingPrice) {
   const fs = state.forSaleData[fsKey] || {};
   const itemNum = fs.itemNum || '';
@@ -1617,6 +1679,9 @@ async function markForSaleAsSold(fsKey, askingPrice) {
     src: collEntry || {},
   });
   await sheetsAppend(state.personalSheetId, 'Sold!A:T', [soldRow]);
+
+  // If this sold copy had an Upgrade entry linked to it, convert to Want.
+  await _convertUpgradeToWantOnSell(fs.inventoryId || (collEntry && collEntry.inventoryId));
 
   // Remove from For Sale tab — Phase 3e: guard against synthetic row=99999
   // from optimistic local writes that never got the real sheet row written back.

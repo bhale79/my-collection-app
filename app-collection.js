@@ -3341,6 +3341,11 @@ async function saveItem() {
     });
     await sheetsAppend(state.personalSheetId, 'Sold!A:T', [soldRow]);
 
+    // If this sold copy had an Upgrade entry linked to it, convert to Want.
+    if (typeof _convertUpgradeToWantOnSell === 'function') {
+      await _convertUpgradeToWantOnSell((existing && existing.inventoryId) || '');
+    }
+
   } else if (currentStatus === 'Want') {
     // Remove from My Collection if present
     const existing = state.personalData[key];
