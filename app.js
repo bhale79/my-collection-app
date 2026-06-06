@@ -1393,12 +1393,13 @@ function _injectQuickActionsBar() {
   var btn = function(handler, label, color, bg, svg) {
     return '<button class="btn qa-tr-btn" onclick="' + handler + '" style="display:flex;align-items:center;gap:0.35rem;font-size:0.78rem;padding:0.45rem 0.65rem;border:1.5px solid ' + color + ';color:' + color + ';background:' + bg + ';font-weight:600">' + svg + label + '</button>';
   };
+  // Labels and colors match the dashboard's button bar exactly.
   var actionsHtml =
-      btn("startWizardFor('collection')", '+ Add to My Collection', 'var(--accent)', 'rgba(232,64,28,0.12)', svgPlus)
-    + btn("startWizardFor('want')",       '+ Add to Want List',     '#3b82f6',       'rgba(59,130,246,0.10)', svgHeart)
-    + btn("pickItemForUpgrade()",         '+ Add Upgrade',          '#8b5cf6',       'rgba(139,92,246,0.10)', svgUpgrade)
-    + btn("startWizardFor('forsale')",    '+ Add to For Sale List', '#e67e22',       'rgba(230,126,34,0.12)', svgTag)
-    + btn("startWizardFor('sold')",       '$ Record a Sale',        '#2ecc71',       'rgba(46,204,113,0.12)', svgDollar);
+      btn("startWizardFor('collection')", 'Add to My Collection', 'var(--accent)', 'rgba(232,64,28,0.12)', svgPlus)
+    + btn("startWizardFor('want')",       'Add to Want List',     '#2980b9',       'rgba(41,128,185,0.12)', svgHeart)
+    + btn("pickItemForUpgrade()",         'Add Upgrade',          '#8b5cf6',       'rgba(139,92,246,0.12)', svgUpgrade)
+    + btn("startWizardFor('forsale')",    'Add to For Sale List', '#e67e22',       'rgba(230,126,34,0.12)', svgTag)
+    + btn("startWizardFor('sold')",       'Record a Sale',        '#2ecc71',       'rgba(46,204,113,0.12)', svgDollar);
 
   QA_PAGES.forEach(function(pid) {
     var p = document.getElementById(pid);

@@ -20,9 +20,9 @@
   <link rel="manifest" href="manifest.json">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>The Rail Roster — Postwar Train Collection Tracker</title>
-<link rel="stylesheet" href="./app.css?v=500">
-<link rel="stylesheet" href="./tutorial.css?v=500">
-<link rel="stylesheet" href="./vault-styles.css?v=500">
+<link rel="stylesheet" href="./app.css?v=501">
+<link rel="stylesheet" href="./tutorial.css?v=501">
+<link rel="stylesheet" href="./vault-styles.css?v=501">
 </head>
 <body>
 
@@ -60,6 +60,10 @@ document.addEventListener('touchmove', function(){}, {passive: true});
             <button class="btn" onclick="startWizardFor('want')" style="display:flex;align-items:center;gap:0.35rem;font-size:0.78rem;padding:0.45rem 0.65rem;border:1.5px solid #2980b9;color:#2980b9;background:rgba(41,128,185,0.12);font-weight:600">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z"/></svg>
               Add to Want List
+            </button>
+            <button class="btn" onclick="pickItemForUpgrade()" style="display:flex;align-items:center;gap:0.35rem;font-size:0.78rem;padding:0.45rem 0.65rem;border:1.5px solid #8b5cf6;color:#8b5cf6;background:rgba(139,92,246,0.12);font-weight:600">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+              Add Upgrade
             </button>
             <button class="btn" onclick="startWizardFor('forsale')" style="display:flex;align-items:center;gap:0.35rem;font-size:0.78rem;padding:0.45rem 0.65rem;border:1.5px solid #e67e22;color:#e67e22;background:rgba(230,126,34,0.12);font-weight:600">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
@@ -686,56 +690,56 @@ document.addEventListener('touchmove', function(){}, {passive: true});
 <!-- identify-modal is built dynamically by wizard.js -->
 </div>
 
-<script src="./config.js?v=500"></script>
-<script src="./type-groups.js?v=500"></script>
-<script src="./back-stack.js?v=500"></script>
-<script src="./road-typeahead.js?v=500"></script>
-<script src="./a11y-config.js?v=500"></script>
-<script src="./a11y.js?v=500"></script>
-<script src="./wizard-utils.js?v=500"></script>
-<script src="./app.js?v=500"></script>
-<script src="./sheets.js?v=500"></script>
-<script src="./drive.js?v=500"></script>
-<script src="./backup.js?v=500"></script>
-<script src="./browse.js?v=500"></script>
-<script src="./dashboard.js?v=500"></script>
-<script src="./sheet-builder.js?v=500"></script>
+<script src="./config.js?v=501"></script>
+<script src="./type-groups.js?v=501"></script>
+<script src="./back-stack.js?v=501"></script>
+<script src="./road-typeahead.js?v=501"></script>
+<script src="./a11y-config.js?v=501"></script>
+<script src="./a11y.js?v=501"></script>
+<script src="./wizard-utils.js?v=501"></script>
+<script src="./app.js?v=501"></script>
+<script src="./sheets.js?v=501"></script>
+<script src="./drive.js?v=501"></script>
+<script src="./backup.js?v=501"></script>
+<script src="./browse.js?v=501"></script>
+<script src="./dashboard.js?v=501"></script>
+<script src="./sheet-builder.js?v=501"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="./wizard-pdlookup.js?v=500"></script>
-<script src="./wizard-suggestions.js?v=500"></script>
-<script src="./wizard-steps.js?v=500"></script>
-<script src="./wizard.js?v=500"></script>
-<script src="./wizard-photos.js?v=500"></script>
-<script src="./wizard-pickers.js?v=500"></script>
-<script src="./wizard-handlers.js?v=500"></script>
-<script src="./wizard-quickentry.js?v=500"></script>
-<script src="./wizard-save.js?v=500"></script>
-<script src="./app-misc.js?v=500"></script>
-<script src="./app-auth.js?v=500"></script>
-<script src="./app-setup.js?v=500"></script>
-<script src="./app-data.js?v=500"></script>
-<script src="./app-pages.js?v=500"></script>
-<script src="./app-collection.js?v=500"></script>
-<script src="./barcode.js?v=500"></script>
-<script src="./tutorial.js?v=500"></script>
-<script src="./tutorial-gifs-config.js?v=500"></script>
-<script src="./migration-config.js?v=500"></script>
-<script src="./migration-ui.js?v=500"></script>
-<script src="./onboarding-config.js?v=500"></script>
-<script src="./gmail-help.js?v=500"></script>
-<script src="./onboarding.js?v=500"></script>
-<script src="./vault.js?v=500"></script>
-<script src="./era-badges-config.js?v=500"></script>
-<script src="./era-badges.js?v=500"></script>
-<script src="./catalog-display-config.js?v=500"></script>
-<script src="./non-item-detail-config.js?v=500"></script>
-<script src="./item-search-filters-config.js?v=500"></script>
-<script src="./insurance-config.js?v=500"></script>
-<script src="./reports.js?v=500"></script>
-<script src="./prefs.js?v=500"></script>
-<script src="./tools.js?v=500"></script>
+<script src="./wizard-pdlookup.js?v=501"></script>
+<script src="./wizard-suggestions.js?v=501"></script>
+<script src="./wizard-steps.js?v=501"></script>
+<script src="./wizard.js?v=501"></script>
+<script src="./wizard-photos.js?v=501"></script>
+<script src="./wizard-pickers.js?v=501"></script>
+<script src="./wizard-handlers.js?v=501"></script>
+<script src="./wizard-quickentry.js?v=501"></script>
+<script src="./wizard-save.js?v=501"></script>
+<script src="./app-misc.js?v=501"></script>
+<script src="./app-auth.js?v=501"></script>
+<script src="./app-setup.js?v=501"></script>
+<script src="./app-data.js?v=501"></script>
+<script src="./app-pages.js?v=501"></script>
+<script src="./app-collection.js?v=501"></script>
+<script src="./barcode.js?v=501"></script>
+<script src="./tutorial.js?v=501"></script>
+<script src="./tutorial-gifs-config.js?v=501"></script>
+<script src="./migration-config.js?v=501"></script>
+<script src="./migration-ui.js?v=501"></script>
+<script src="./onboarding-config.js?v=501"></script>
+<script src="./gmail-help.js?v=501"></script>
+<script src="./onboarding.js?v=501"></script>
+<script src="./vault.js?v=501"></script>
+<script src="./era-badges-config.js?v=501"></script>
+<script src="./era-badges.js?v=501"></script>
+<script src="./catalog-display-config.js?v=501"></script>
+<script src="./non-item-detail-config.js?v=501"></script>
+<script src="./item-search-filters-config.js?v=501"></script>
+<script src="./insurance-config.js?v=501"></script>
+<script src="./reports.js?v=501"></script>
+<script src="./prefs.js?v=501"></script>
+<script src="./tools.js?v=501"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="./share.js?v=500"></script>
+<script src="./share.js?v=501"></script>
 
 <script>
 // ── PWA Service Worker Registration (auto-update) ───────────────
