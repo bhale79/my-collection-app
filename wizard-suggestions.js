@@ -643,20 +643,31 @@ function updateItemSuggestions(query) {
 // Type / Road dropdowns on the search step.  Uses state.masterData which
 // is already scoped to the currently-active era, so results are era-aware
 // automatically. Caller passes 'itemType' or 'roadName'.
-// Heuristic: a real road name should not start with a digit, must contain
-// at least one letter, and shouldn't read like a description blurb. The
-// master catalog has dirty data where description-y values leaked into the
-// roadName column for some rows ("3.0", "33 Gallon", "3200 Series Subway
-// Set Add"). This rejects the obvious noise so the dropdown stays usable.
+// The master sheet has tabs that aren't really item tabs (Sets has tender
+// item#s in col G; Catalogs tabs have catalog descriptions; Weaver O has
+// no header row so its first row leaks in; Companions / Instruction Sheets
+// have no road name). When we pull distinct roadName values for the
+// dropdown, skip rows from those non-item tabs entirely.
+var _NON_ROAD_TABS = {
+  'Lionel PW - Sets': 1,
+  'Lionel PW - Companions': 1,
+  'Lionel PW - Catalogs': 1,
+  'Lionel PW - Instruction Sheets': 1,
+  'Lionel Pre-War - Catalogs': 1,
+  'Lionel MPC-Modern - Catalogs': 1,
+};
+
+// A real road name shouldn't start with a digit, must contain letters, and
+// shouldn't be an outrageous-length blurb. Conservative checks only — we
+// don't keyword-filter words like 'Plate' or 'Road' or 'Series' because
+// those appear in real road names (Nickel Plate Road, State Series, etc.).
 function _isLikelyRoadName(v) {
   if (!v) return false;
   v = String(v).trim();
   if (!v) return false;
-  if (/^\d/.test(v)) return false;               // starts with a digit -> not a road
-  if (!/[a-zA-Z]/.test(v)) return false;          // no letters -> not a name
-  if (v.length > 35) return false;                // descriptions tend to be long
-  // Description-like keywords that show up in master row names but aren't road names.
-  if (/\b(gallon|series|car set|add|adapter|insert|connector|wire|bulb|plate|kit|track|switch|controller|transformer|tank capacity)\b/i.test(v)) return false;
+  if (/^\d/.test(v)) return false;          // starts with a digit -> not a road
+  if (!/[a-zA-Z]/.test(v)) return false;     // no letters -> not a name
+  if (v.length > 60) return false;           // very long -> probably a description
   return true;
 }
 
@@ -672,10 +683,11 @@ function getMasterDistinct(fieldName, extraPredicate) {
   }
   state.masterData.forEach(function(m) {
     if (_eraTabSet && m && m._tab && !_eraTabSet.has(m._tab)) return;
+    // For roadName: skip rows from tabs that don't actually have a road name column.
+    if (fieldName === 'roadName' && m && m._tab && _NON_ROAD_TABS[m._tab]) return;
     var v = (m && m[fieldName]) ? String(m[fieldName]).trim() : '';
     if (!v) return;
     if (typeof extraPredicate === 'function' && !extraPredicate(m)) return;
-    // For roadName field, gate with heuristic to reject obvious noise.
     if (fieldName === 'roadName' && !_isLikelyRoadName(v)) return;
     set.add(v);
   });
