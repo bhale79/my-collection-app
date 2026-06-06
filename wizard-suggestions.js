@@ -643,6 +643,23 @@ function updateItemSuggestions(query) {
 // Type / Road dropdowns on the search step.  Uses state.masterData which
 // is already scoped to the currently-active era, so results are era-aware
 // automatically. Caller passes 'itemType' or 'roadName'.
+// Heuristic: a real road name should not start with a digit, must contain
+// at least one letter, and shouldn't read like a description blurb. The
+// master catalog has dirty data where description-y values leaked into the
+// roadName column for some rows ("3.0", "33 Gallon", "3200 Series Subway
+// Set Add"). This rejects the obvious noise so the dropdown stays usable.
+function _isLikelyRoadName(v) {
+  if (!v) return false;
+  v = String(v).trim();
+  if (!v) return false;
+  if (/^\d/.test(v)) return false;               // starts with a digit -> not a road
+  if (!/[a-zA-Z]/.test(v)) return false;          // no letters -> not a name
+  if (v.length > 35) return false;                // descriptions tend to be long
+  // Description-like keywords that show up in master row names but aren't road names.
+  if (/\b(gallon|series|car set|add|adapter|insert|connector|wire|bulb|plate|kit|track|switch|controller|transformer|tank capacity)\b/i.test(v)) return false;
+  return true;
+}
+
 function getMasterDistinct(fieldName, extraPredicate) {
   var set = new Set();
   if (!window.state || !Array.isArray(state.masterData)) return [];
@@ -658,6 +675,8 @@ function getMasterDistinct(fieldName, extraPredicate) {
     var v = (m && m[fieldName]) ? String(m[fieldName]).trim() : '';
     if (!v) return;
     if (typeof extraPredicate === 'function' && !extraPredicate(m)) return;
+    // For roadName field, gate with heuristic to reject obvious noise.
+    if (fieldName === 'roadName' && !_isLikelyRoadName(v)) return;
     set.add(v);
   });
   var out = Array.from(set);
