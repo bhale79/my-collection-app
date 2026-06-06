@@ -2286,6 +2286,15 @@ function showContactModal() {
 // UPGRADE LIST
 // ══════════════════════════════════════════════════════════════════
 
+// Strip the internal [grp:xxx] marker from a notes string before display.
+// Loader normally parses it out and stores it as entry.groupId, but cached
+// state from before that fix can still carry the marker. Defensive cleanup.
+function _wlStripGrp(notes) {
+  if (!notes) return '';
+  return String(notes).replace(/^\[grp:[^\]]+\]\s*/, '');
+}
+if (typeof window !== 'undefined') window._wlStripGrp = _wlStripGrp;
+
 function buildUpgradePage() {
   // Combined Want/Upgrade page (Session 161+). state._wishlistFilter controls
   // which slice is shown: 'all' (default) | 'want' | 'upgrade'. Pull entries
@@ -2328,7 +2337,7 @@ function buildUpgradePage() {
       const master = findMaster(u.itemNum) || {};
       if (!(u.itemNum||'').toLowerCase().includes(_uq)
         && !(master.roadName||'').toLowerCase().includes(_uq)
-        && !(u.notes||'').toLowerCase().includes(_uq)) return false;
+        && !_wlStripGrp(u.notes||'').toLowerCase().includes(_uq)) return false;
     }
     return true;
   });
@@ -2413,7 +2422,7 @@ function buildUpgradePage() {
               ${u.targetCondition ? `<span style="font-size:0.75rem;color:#8b5cf6">→ Target: ${u.targetCondition}</span>` : ''}
               ${_priceVal ? `<span style="font-size:0.75rem;color:var(--accent2);font-family:var(--font-mono)">${_priceLabel}$${parseFloat(_priceVal).toLocaleString()}</span>` : ''}
             </div>
-            ${u.notes ? `<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${u.notes}</div>` : ''}
+            ${_wlStripGrp(u.notes) ? `<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${_wlStripGrp(u.notes)}</div>` : ''}
           </div>
           ${!_isWant && hasPhoto ? `<button onclick="event.stopPropagation();_toggleUpgradePhoto('${photoId}','${pd.photoItem.replace(/'/g,"\\'")}')" style="background:none;border:none;font-size:1.1rem;cursor:pointer;flex-shrink:0" title="View my photo">📷</button>` : ''}
         </div>
@@ -2459,7 +2468,7 @@ function buildUpgradePage() {
         <td style="color:#8b5cf6;font-weight:600">${u.targetCondition || '<span class="text-dim">—</span>'}</td>
         <td><span style="color:${pColor};font-weight:500">${u.priority||'Medium'}</span></td>
         <td class="market-val">${_priceVal ? _currencySymbol() + parseFloat(_priceVal).toLocaleString() : '<span class="text-dim">—</span>'}</td>
-        <td style="font-size:0.8rem;color:var(--text-dim);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(u.notes||'').replace(/"/g,'&quot;')}">${u.notes || '<span class="text-dim">—</span>'}</td>
+        <td style="font-size:0.8rem;color:var(--text-dim);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_wlStripGrp(u.notes||'').replace(/"/g,'&quot;')}">${_wlStripGrp(u.notes) || '<span class="text-dim">—</span>'}</td>
         <td style="white-space:nowrap">
           ${!_isWant && hasPhoto ? `<button onclick="event.stopPropagation();_toggleUpgradePhoto('${photoId}','${(pd.photoItem||'').replace(/'/g,"\\'")}')" style="padding:0.25rem 0.4rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);margin-right:0.2rem" title="Toggle photo">📷</button>` : ''}
           ${!_isWant ? `<button onclick="_upgradeViewMine('${_ugEntryKey(u)}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">View Mine</button>` : ''}

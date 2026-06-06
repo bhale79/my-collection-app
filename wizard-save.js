@@ -1620,11 +1620,13 @@ async function saveWizardItem() {
         } else {
           const wuAppendRow = [row[0], row[1], 'Want', row[2], row[3], _wTargetCond, '', _notesWithGrp, row[5]];
           await sheetsAppend(state.personalSheetId, 'Want-Upgrade List!A:I', [wuAppendRow]);
-          // Optimistic state mirror
+          // Optimistic state mirror — store CLEAN notes (without [grp:xxx])
+          // and the parsed groupId as a separate field, matching how the
+          // loader will parse it back when next fetched.
           state.wantData[_wKey] = {
             row: 99999, itemNum: _w.num, variation: _w.variation || '',
             priority: _wPriority, expectedPrice: _wPrice,
-            targetCondition: _wTargetCond, notes: _notesWithGrp,
+            targetCondition: _wTargetCond, notes: _wNotes,
             manufacturer: _wMfr, listType: 'Want', groupId: _wGroupId,
           };
         }
