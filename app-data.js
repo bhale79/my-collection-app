@@ -774,7 +774,12 @@ function _cachePersonalData() {
     };
     localStorage.setItem('lv_personal_cache', JSON.stringify(_snap));
     localStorage.setItem('lv_personal_cache_ts', Date.now().toString());
-  } catch(e) {}
+  } catch(e) {
+    // Audit M8: surface localStorage quota errors. iOS Safari and quota-limited
+    // browsers fail silently here — Brad has reported "the app keeps re-fetching
+    // every time" symptoms that trace back to this swallow.
+    console.warn('[cache write failed]', e && e.message);
+  }
 }
 
 async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
@@ -796,21 +801,21 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // faster. Total wait time drops from max-of-13-fetches to max-of-5.
   const [collRes, soldRes, forSaleRes, wantRes, upgradeRes] = await Promise.all([
     sheetsGet(sheetId, 'My Collection!A3:AF').catch((e) => { console.warn('[My Collection load failed]', e && e.message); return {values:[]}; }),
-    sheetsGet(sheetId, 'Sold!A3:T').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'For Sale!A3:J').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Want List!A3:F').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Sold!A3:T').catch((e) => { console.warn('[Sold load failed]', e && e.message); return {values:[]}; }),
+    sheetsGet(sheetId, 'For Sale!A3:J').catch((e) => { console.warn('[For Sale load failed]', e && e.message); return {values:[]}; }),
+    sheetsGet(sheetId, 'Want List!A3:F').catch((e) => { console.warn('[Want List load failed]', e && e.message); return {values:[]}; }),
     sheetsGet(sheetId, 'Upgrade List!A3:H').catch((e) => { console.warn('[Upgrade load failed]', e && e.message); return {values:[]}; }),
   ]);
   // Secondary tabs fire off in parallel, NOT awaited in the main flow
   const _secondaryFetch = Promise.all([
-    sheetsGet(sheetId, 'Catalogs!A3:J').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Paper Items!A3:N').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Mock-Ups!A3:Q').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Other Lionel!A3:N').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Instruction Sheets!A3:K').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Science Sets!A3:O').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'Construction Sets!A3:O').catch(() => ({values:[]})),
-    sheetsGet(sheetId, 'My Sets!A3:N').catch(() => ({values:[]})),
+    sheetsGet(sheetId, 'Catalogs!A3:J').catch((e) => { console.warn('[Catalogs load failed]', e && e.message); return {values:[]}; }),
+    sheetsGet(sheetId, 'Paper Items!A3:N').catch((e) => { console.warn('[Paper Items load failed]', e && e.message); return {values:[]}; }),
+    sheetsGet(sheetId, 'Mock-Ups!A3:Q').catch((e) => { console.warn('[Mock-Ups load failed]', e && e.message); return {values:[]}; }),
+    sheetsGet(sheetId, 'Other Lionel!A3:N').catch((e) => { console.warn('[Other Lionel load failed]', e && e.message); return {values:[]}; }),
+    sheetsGet(sheetId, 'Instruction Sheets!A3:K').catch((e) => { console.warn('[Instruction Sheets load failed]', e && e.message); return {values:[]}; }),
+    sheetsGet(sheetId, 'Science Sets!A3:O').catch((e) => { console.warn('[Science Sets load failed]', e && e.message); return {values:[]}; }),
+    sheetsGet(sheetId, 'Construction Sets!A3:O').catch((e) => { console.warn('[Construction Sets load failed]', e && e.message); return {values:[]}; }),
+    sheetsGet(sheetId, 'My Sets!A3:N').catch((e) => { console.warn('[My Sets load failed]', e && e.message); return {values:[]}; }),
   ]);
   // Defaults — overwritten once the secondary promise resolves below
   let catRes={values:[]}, paperRes={values:[]}, mockRes={values:[]},
@@ -1071,7 +1076,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
 
   // User-defined tabs — load their sheet data
   const _utPromises = (state.userDefinedTabs||[]).map(ut =>
-    sheetsGet(sheetId, ut.label + '!A3:J').catch(() => ({values:[]}))
+    sheetsGet(sheetId, ut.label + '!A3:J').catch((e) => { console.warn('[Custom tab ' + ut.label + ' load failed]', e && e.message); return {values:[]}; })
       .then(utRes => parseEphemeraRows(utRes.values, newEphemera[ut.id]))
       .catch(() => {})
   );
@@ -1103,7 +1108,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     // Re-render dashboard now that secondary counts are in
     try { if (typeof buildDashboard === 'function') buildDashboard(); } catch(e) {}
     try { if (typeof renderBrowse === 'function') renderBrowse(); } catch(e) {}
-  }).catch(function(e) { console.warn('[Secondary personal data fetch]', e); });
+  }).catch(function(e) { console.warn('[Secondary personal data fetch failed]', e && e.message); });
 }
 
 

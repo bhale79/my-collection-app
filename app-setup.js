@@ -338,8 +338,11 @@ async function completeSetup() {
 
 async function initPersonalSheet(sheetId) {
   // Write My Collection title + headers if empty
+  // Audit M1: read full 32-col range so we can detect drift in cols 14-32.
+  // Old code read A1:M2 (13 cols) and used `rows[1].length < 13` which would
+  // never fire if cols 1-13 were present even when 14-32 were stale/missing.
   const res = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/My%20Collection!A1:M2`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/My%20Collection!A1:AF2`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
   const data = await res.json();
@@ -348,8 +351,8 @@ async function initPersonalSheet(sheetId) {
     // Brand new sheet — write title row 1 and headers row 2
     await sheetsUpdate(sheetId, 'My Collection!A1:A1', [['My Collection']]);
     await sheetsUpdate(sheetId, 'My Collection!A2:AF2', [PERSONAL_HEADERS]);
-  } else if (rows.length === 1 || !rows[1] || rows[1].length < 13) {
-    // Has title but missing/old headers — rewrite row 2
+  } else if (rows.length === 1 || !rows[1] || rows[1].length < PERSONAL_HEADERS.length) {
+    // Has title but missing/old headers — rewrite the full row 2
     await sheetsUpdate(sheetId, 'My Collection!A2:AF2', [PERSONAL_HEADERS]);
   }
   // Get existing sheet tab names
