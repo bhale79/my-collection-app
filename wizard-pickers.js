@@ -267,13 +267,39 @@ function _renderFullPickList(q) {
 
 function wizardPickForSaleItem(key) {
   wizard.data.selectedForSaleKey = key;
-  if (key !== '__new__') {
-    const pd = state.personalData[key];
-    if (pd) {
-      if (pd.condition && pd.condition !== 'N/A') wizard.data.condition = parseInt(pd.condition);
-      if (pd.priceItem && pd.priceItem !== 'N/A') wizard.data.originalPrice = pd.priceItem;
-      if (pd.userEstWorth) wizard.data.estWorth = pd.userEstWorth;
+  if (key === '__new__') {
+    // Brad's preference (Session 161+): an item being listed for sale that
+    // isn't in the collection should go through the full Add-to-Collection
+    // wizard plus a tacked-on Sale Price + Date Listed at the end. On save,
+    // the item lands in My Collection AND For Sale.
+    var _seedItemNum = (wizard.data.itemNum || '').trim();
+    wizard.data._alsoListForSale = true;
+    wizard.data._returnPage = wizard.data._returnPage || 'forsale';
+    wizard.data.itemCategory = 'lionel';
+    wizard.data._itemGrouping = wizard.data._itemGrouping || 'single';
+    wizard.data.entryMode = wizard.data.entryMode || 'full';
+    // Swap to collection flow
+    wizard.tab = 'collection';
+    wizard.steps = getSteps('collection');
+    wizard.step = 0;
+    // Pre-fill matched master if the item# is known
+    if (_seedItemNum) {
+      wizard.data._rawItemNum = _seedItemNum;
+      var _m = (typeof findMaster === 'function') ? findMaster(_seedItemNum) : null;
+      if (_m) {
+        wizard.matchedItem = _m;
+        var _inferredEra = (typeof eraForTab === 'function') ? eraForTab(_m._tab) : null;
+        if (_inferredEra) wizard.data._era = _inferredEra;
+      }
     }
+    if (typeof renderWizardStep === 'function') renderWizardStep();
+    return;
+  }
+  const pd = state.personalData[key];
+  if (pd) {
+    if (pd.condition && pd.condition !== 'N/A') wizard.data.condition = parseInt(pd.condition);
+    if (pd.priceItem && pd.priceItem !== 'N/A') wizard.data.originalPrice = pd.priceItem;
+    if (pd.userEstWorth) wizard.data.estWorth = pd.userEstWorth;
   }
   setTimeout(() => wizardNext(), 150);
 }

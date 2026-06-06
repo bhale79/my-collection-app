@@ -1789,6 +1789,50 @@ async function saveWizardItem() {
     d._saveComplete = true;
     closeWizard();
 
+    // ── If _alsoListForSale flag is set (For Sale page → "Not in my collection"),
+    // ── append a For Sale row for the newly-saved collection item. ──
+    if (d._alsoListForSale && tab === 'collection') {
+      try {
+        // Resolve the inventoryId from the just-saved row, or fall back to a synthetic key.
+        var _alfInvId = (row && PERSONAL_FIELD_INDEX && row[PERSONAL_FIELD_INDEX.inventoryId])
+          ? String(row[PERSONAL_FIELD_INDEX.inventoryId])
+          : '';
+        var _alfFsRow = [
+          d.itemNum || '',
+          d.variation || '',
+          String(d.condition || ''),
+          String(d.forSale_salePrice || ''),     // Asking price
+          d.forSale_dateListed || '',             // Date listed
+          d.notes || '',                          // Notes pulled from condition-details
+          String(d.priceItem || ''),              // Original price paid
+          String(d.userEstWorth || ''),           // Est worth
+          _alfInvId,
+          (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : 'Lionel'),
+        ];
+        await sheetsAppend(state.personalSheetId, 'For Sale!A:J', [_alfFsRow]);
+        // Mirror into state for instant rendering
+        if (!state.forSaleData) state.forSaleData = {};
+        var _alfKey = _alfInvId || ('legacy-row-' + Date.now());
+        state.forSaleData[_alfKey] = {
+          row: 99999,  // optimistic placeholder; next sheet refetch fills the real row
+          itemNum: d.itemNum || '',
+          variation: d.variation || '',
+          condition: String(d.condition || ''),
+          askingPrice: String(d.forSale_salePrice || ''),
+          dateListed: d.forSale_dateListed || '',
+          notes: d.notes || '',
+          originalPrice: String(d.priceItem || ''),
+          estWorth: String(d.userEstWorth || ''),
+          inventoryId: _alfInvId,
+          manufacturer: (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : 'Lionel'),
+        };
+        if (typeof showToast === 'function') showToast('Listed for sale at $' + (d.forSale_salePrice || '0'), 2800);
+        if (typeof buildForSalePage === 'function') buildForSalePage();
+      } catch(e) {
+        console.warn('[alsoListForSale] write failed:', e && e.message);
+      }
+    }
+
     // ── If this came from the Want List, clean up the want entry ──
     if (d._fromWantList && d._fromWantKey && tab === 'collection') {
       const wantEntry = state.wantData[d._fromWantKey];

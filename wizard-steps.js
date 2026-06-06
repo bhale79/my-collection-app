@@ -523,6 +523,16 @@ function getSteps(tab) {
           return false;
         } },
 
+      // ── For-Sale path (Session 161+): when _alsoListForSale flag is set
+      // — meaning the user landed here from the For Sale page after picking
+      // "Not in my collection" — tack on a Sale Price + Date Listed before
+      // confirm. The save handler will also append a For Sale row pointing
+      // at the new inventoryId.
+      { id: 'forSale_salePrice', title: 'What is your asking price?', type: 'money', placeholder: '0.00',
+        skipIf: (d) => !d._alsoListForSale },
+      { id: 'forSale_dateListed', title: 'Date listed', type: 'date', optional: true,
+        skipIf: (d) => !d._alsoListForSale },
+
       // ── Confirm & Save ──
       { id: 'confirm', title: (d) => 'Looking good! Ready to save your ' + getItemLabel(d) + '?', type: 'confirm' },
     ];
