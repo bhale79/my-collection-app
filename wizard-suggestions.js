@@ -855,11 +855,22 @@ function handleSuggestionKey(e) {
       e.preventDefault();
       btns[_suggestionIndex].click();
     } else {
-      // Enter without a highlighted row used to call wizardNext() — which
-      // advanced the wizard with whatever raw text was typed (e.g.
-      // "nashville") as the item number. Block that. To advance, the user
-      // must either tap a suggestion or arrow-down then Enter.
-      e.preventDefault();
+      // Brad request (Session 161+): if a master match already exists for
+      // the typed value (item# was recognized in the catalog), Enter should
+      // advance to the next wizard step. Still block Enter when the typed
+      // value is non-numeric raw text with no master match (the original
+      // guard prevented "nashville" from advancing as an itemNum).
+      var _typed = (typeof wizard !== 'undefined' && wizard && wizard.data && wizard.data.itemNum) ? String(wizard.data.itemNum).trim() : '';
+      var _hasMatch = typeof wizard !== 'undefined' && wizard && wizard.matchedItem;
+      // Allow advance when we have a master match, OR the typed value looks
+      // like an item number (alphanumeric+dash, not pure prose).
+      var _looksLikeItemNum = /^[A-Za-z0-9][A-Za-z0-9\-]*$/.test(_typed) && _typed.length <= 12;
+      if (_hasMatch || _looksLikeItemNum) {
+        e.preventDefault();
+        if (typeof wizardNext === 'function') wizardNext();
+      } else {
+        e.preventDefault();
+      }
     }
   } else if (e.key === 'Escape') {
     if (el) { el.style.display = 'none'; }

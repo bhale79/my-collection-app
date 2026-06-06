@@ -546,9 +546,12 @@ function getSteps(tab) {
           // caller pre-fills selectedForSaleKey — the user already
           // chose WHICH physical copy, so don't make them pick again.
           if (d.selectedForSaleKey && d.selectedForSaleKey !== '__new__') return true;
-          const _num = (d.itemNum||'').trim();
-          const matches = Object.values(state.personalData).filter(p => p.itemNum === _num && p.owned);
-          return matches.length === 0;
+          // Brad (Session 161+): DO NOT skip when matches.length === 0.
+          // The user needs to see the "Not in my collection — enter details
+          // manually" button so they can opt into the full Add to Collection
+          // reroute. Skipping here meant the user advanced straight to
+          // condition/hasBox without ever getting variation or the reroute.
+          return false;
         }
       },
       { id: 'condition',    title: 'What condition is the item?',         type: 'slider',      min:1, max:10,
