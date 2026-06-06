@@ -722,12 +722,16 @@ async function loadPersonalData() {
             fsRes.values.forEach(function(r, idx) {
               if (!r[0] || r[0] === 'Item Number') return;
               var row = idx + 3;
+              // Phase 3j parity: coerce UNFORMATTED_VALUE numeric returns to String.
+              // Without this, variation/itemNum/condition can be numbers and
+              // any downstream .replace() / .toUpperCase() throws.
+              var _s = function(v) { return (v !== null && v !== undefined && v !== '') ? String(v) : ''; };
               var entry = {
-                row: row, itemNum: r[0]||'', variation: r[1]||'',
-                condition: r[2]||'', askingPrice: r[3]||'', dateListed: r[4]||'',
-                notes: r[5]||'', originalPrice: r[6]||'', estWorth: r[7]||'',
-                inventoryId: r[8]||'',
-                manufacturer: r[9] || 'Lionel',
+                row: row, itemNum: _s(r[0]), variation: _s(r[1]),
+                condition: _s(r[2]), askingPrice: _s(r[3]), dateListed: _s(r[4]),
+                notes: _s(r[5]), originalPrice: _s(r[6]), estWorth: _s(r[7]),
+                inventoryId: _s(r[8]),
+                manufacturer: _s(r[9]) || 'Lionel',
               };
               newFs[entry.inventoryId || ('legacy-row-' + row)] = entry;
             });
@@ -746,11 +750,13 @@ async function loadPersonalData() {
             ugRes.values.forEach(function(r, idx) {
               if (!r[0] || r[0] === 'Item Number') return;
               var row = idx + 3;
+              // Phase 3j parity: coerce to String to survive UNFORMATTED_VALUE numerics.
+              var _us = function(v) { return (v !== null && v !== undefined && v !== '') ? String(v) : ''; };
               var entry = {
-                row: row, itemNum: r[0]||'', variation: r[1]||'',
-                priority: r[2]||'Medium', targetCondition: r[3]||'', maxPrice: r[4]||'', notes: r[5]||'',
-                inventoryId: r[6]||'',
-                manufacturer: r[7] || 'Lionel',
+                row: row, itemNum: _us(r[0]), variation: _us(r[1]),
+                priority: _us(r[2]) || 'Medium', targetCondition: _us(r[3]), maxPrice: _us(r[4]), notes: _us(r[5]),
+                inventoryId: _us(r[6]),
+                manufacturer: _us(r[7]) || 'Lionel',
               };
               newUg[entry.inventoryId || ('legacy-row-' + row)] = entry;
             });
@@ -950,11 +956,13 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
       var added = 0;
       (retryRes.values || []).forEach(function(r, idx) {
         if (!r[0] || r[0] === 'Item Number') return;
+        // Phase 3j parity: coerce to String for UNFORMATTED_VALUE safety.
+        var _hs = function(v) { return (v !== null && v !== undefined && v !== '') ? String(v) : ''; };
         var entry = {
-          row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
-          priority: r[2]||'Medium', targetCondition: r[3]||'', maxPrice: r[4]||'', notes: r[5]||'',
-          inventoryId: r[6]||'',
-          manufacturer: r[7] || 'Lionel',
+          row: idx+3, itemNum: _hs(r[0]), variation: _hs(r[1]),
+          priority: _hs(r[2]) || 'Medium', targetCondition: _hs(r[3]), maxPrice: _hs(r[4]), notes: _hs(r[5]),
+          inventoryId: _hs(r[6]),
+          manufacturer: _hs(r[7]) || 'Lionel',
         };
         var _key = entry.inventoryId || ('legacy-row-' + (idx+3));
         state.upgradeData[_key] = entry;
