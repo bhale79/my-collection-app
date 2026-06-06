@@ -977,6 +977,7 @@ async function removeWantItem(itemNum, variation, row) {
   delete state.wantData[key];
   _cachePersonalData();
   buildWantPage();
+  if (typeof buildUpgradePage === 'function') buildUpgradePage();
   buildDashboard();
   showToast('✓ Removed from Want List');
 }
