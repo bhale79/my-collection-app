@@ -684,13 +684,67 @@ async function loadPersonalData() {
       if (_ugKeys.some(function(k){ return k.indexOf('|') >= 0; })) {
         state.upgradeData = _reKeyByInv(state.upgradeData);
       }
-      // Only background-refresh if cache is older than 5 minutes
+      // Only background-refresh full personal data if cache is older than 5 minutes
       if ((Date.now() - _ptime) > _BG_REFRESH) {
         _loadPersonalFromSheets(state.personalSheetId).then(() => {
           _cachePersonalData();
           buildDashboard();
           renderBrowse();
         }).catch(() => {});
+      } else {
+        // Phase 3b: ALWAYS refresh forSale + upgrade after cache restore.
+        // These are small lookup tables; if the cache has stale (or empty)
+        // entries from a failed prior fetch, we need fresh data immediately
+        // so badges render correctly on first paint.
+        Promise.all([
+          sheetsGet(state.personalSheetId, 'For Sale!A3:J').catch(() => null),
+          sheetsGet(state.personalSheetId, 'Upgrade List!A3:H').catch(() => null),
+        ]).then(function(results) {
+          var fsRes = results[0];
+          var ugRes = results[1];
+          var changed = false;
+          if (fsRes && fsRes.values) {
+            var newFs = {};
+            fsRes.values.forEach(function(r, idx) {
+              if (!r[0] || r[0] === 'Item Number') return;
+              var row = idx + 3;
+              var entry = {
+                row: row, itemNum: r[0]||'', variation: r[1]||'',
+                condition: r[2]||'', askingPrice: r[3]||'', dateListed: r[4]||'',
+                notes: r[5]||'', originalPrice: r[6]||'', estWorth: r[7]||'',
+                inventoryId: r[8]||'',
+                manufacturer: r[9] || 'Lionel',
+              };
+              newFs[entry.inventoryId || ('legacy-row-' + row)] = entry;
+            });
+            state.forSaleData = newFs;
+            changed = true;
+          }
+          if (ugRes && ugRes.values) {
+            var newUg = {};
+            ugRes.values.forEach(function(r, idx) {
+              if (!r[0] || r[0] === 'Item Number') return;
+              var row = idx + 3;
+              var entry = {
+                row: row, itemNum: r[0]||'', variation: r[1]||'',
+                priority: r[2]||'Medium', targetCondition: r[3]||'', maxPrice: r[4]||'', notes: r[5]||'',
+                inventoryId: r[6]||'',
+                manufacturer: r[7] || 'Lionel',
+              };
+              newUg[entry.inventoryId || ('legacy-row-' + row)] = entry;
+            });
+            state.upgradeData = newUg;
+            changed = true;
+          }
+          if (changed) {
+            console.log('[Phase 3b] forSale + upgrade fresh-fetch:',
+              Object.keys(state.forSaleData||{}).length, 'fs,',
+              Object.keys(state.upgradeData||{}).length, 'ug');
+            _cachePersonalData();
+            if (typeof buildDashboard === 'function') buildDashboard();
+            if (typeof renderBrowse === 'function') renderBrowse();
+          }
+        }).catch(function(e) { console.warn('[Phase 3b] post-cache refresh failed:', e && e.message); });
       }
       return;
     } catch(e) {}
@@ -1042,4 +1096,5 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     try { if (typeof renderBrowse === 'function') renderBrowse(); } catch(e) {}
   }).catch(function(e) { console.warn('[Secondary personal data fetch]', e); });
 }
+
 
