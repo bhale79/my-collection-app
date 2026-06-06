@@ -643,10 +643,14 @@ function buildDashboard() {
   }
   var _no = document.getElementById('nav-owned'); if (_no) _no.textContent = _allOwnedCount.toLocaleString();
   var wantListCount = Object.keys(state.wantData).length;
-  var _nw = document.getElementById('nav-wishlist-count'); if (_nw) _nw.textContent = (wantListCount + (Object.keys(state.upgradeData||{}).length)).toLocaleString();
-  var _upgradeCount = Object.values(state.upgradeData).length;
-  var _upgradeEl = document.getElementById('nav-wishlist-count');
-  if (_upgradeEl) _upgradeEl.textContent = _upgradeCount > 0 ? _upgradeCount.toLocaleString() : '—';
+  // Single source of truth for the Want/Upgrade nav badge: combined want+upgrade count.
+  // (Previously a second update overwrote with upgrade-only and set '—' when 0 — bug
+  // from before the Want/Upgrade combine.)
+  var _nw = document.getElementById('nav-wishlist-count');
+  if (_nw) {
+    var _wishTotal = wantListCount + Object.keys(state.upgradeData||{}).length;
+    _nw.textContent = _wishTotal > 0 ? _wishTotal.toLocaleString() : '—';
+  }
   // Quick Entry badge count — respect lv_qe_badge_enabled pref so the
   // badge stays hidden across reload + dashboard rebuild. (Session 120)
   var _qeCount = Object.values(state.personalData).filter(function(pd) { return pd.owned && pd.quickEntry; }).length;
