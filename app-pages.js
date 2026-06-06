@@ -2500,6 +2500,62 @@ function _upgradeViewMine(ugKey) {
   }
 }
 
+// ── Pick item for Upgrade entry (Session 161+) ──
+// Opens a picker modal listing the user's owned items so they can choose
+// which one to target with a new Upgrade entry. After selecting, opens the
+// existing showAddToUpgradeModal flow with the picked item's details.
+function pickItemForUpgrade() {
+  // Build a unique list of owned items (deduped by inventoryId to avoid
+  // showing the same copy twice across box/MBOX joins).
+  var owned = Object.values(state.personalData || {}).filter(function(p) {
+    return p && p.owned && p.itemNum && !String(p.itemNum||'').endsWith('-BOX')
+      && !String(p.itemNum||'').endsWith('-MBOX');
+  });
+  if (owned.length === 0) {
+    showToast('Your collection is empty — add items first', 3000, true);
+    return;
+  }
+  // Sort by item# for easier scanning.
+  owned.sort(function(a, b) {
+    return String(a.itemNum||'').localeCompare(String(b.itemNum||''), undefined, {numeric: true});
+  });
+  var _old = document.getElementById('upgrade-pick-modal');
+  if (_old) _old.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'upgrade-pick-modal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10001;display:flex;align-items:center;justify-content:center;padding:1.25rem';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  var rowsHtml = owned.map(function(p) {
+    var master = findMaster(p.itemNum) || {};
+    var name = master.roadName || master.itemType || '';
+    var cond = p.condition ? parseInt(p.condition) : null;
+    var condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
+    var escVar = (p.variation||'').replace(/'/g, "\\'");
+    return '<button onclick="document.getElementById(\'upgrade-pick-modal\').remove();'
+      + 'showAddToUpgradeModal(\''+p.itemNum+'\',\''+escVar+'\','+(p.row||0)+')" '
+      + 'style="display:flex;align-items:center;gap:0.6rem;padding:0.65rem 0.85rem;border-radius:8px;'
+      + 'background:var(--surface2);border:1px solid var(--border);width:100%;cursor:pointer;'
+      + 'font-family:var(--font-body);text-align:left;margin-bottom:0.35rem">'
+      + '<div style="flex:1;min-width:0">'
+      +   '<div style="font-family:var(--font-mono);color:var(--accent);font-size:0.92rem;font-weight:600">'
+      +     p.itemNum + (p.variation ? ' <span style="color:var(--text-dim);font-size:0.78rem">var '+p.variation+'</span>' : '')
+      +   '</div>'
+      +   (name ? '<div style="font-size:0.78rem;color:var(--text-mid);margin-top:0.15rem">'+name+'</div>' : '')
+      + '</div>'
+      + (cond !== null ? '<span style="font-size:0.78rem;display:flex;align-items:center;gap:0.3rem"><span class="condition-pip '+condClass+'"></span>'+cond+'</span>' : '')
+      + '</button>';
+  }).join('');
+  overlay.innerHTML =
+    '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:480px;width:100%;padding:1.4rem;position:relative;max-height:80vh;display:flex;flex-direction:column">'
+    + '<button onclick="document.getElementById(\'upgrade-pick-modal\').remove()" style="position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">\u2715</button>'
+    + '<div style="font-family:var(--font-head);font-size:1.15rem;color:#8b5cf6;margin-bottom:0.25rem">\u2191 Add to Upgrade List</div>'
+    + '<div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:1rem">Pick the item you\'d like to upgrade.</div>'
+    + '<div style="overflow-y:auto;flex:1">' + rowsHtml + '</div>'
+    + '</div>';
+  document.body.appendChild(overlay);
+}
+if (typeof window !== 'undefined') window.pickItemForUpgrade = pickItemForUpgrade;
+
 function showAddToUpgradeModal(itemNum, variation, pdRow) {
   // Session 159 Phase 2: look up the EXACT copy the user clicked on,
   // not just any matching itemNum/variation. The previous lookup
