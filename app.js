@@ -428,7 +428,7 @@ async function _cleanupSoldItemBoxes(leadItemNum, leadGroupId) {
     for (var i = 0; i < keys.length; i++) {
       var bp = state.personalData[keys[i]];
       if (bp && bp.row && bp.row !== 99999) {
-        try { await sheetsUpdate(state.personalSheetId, 'My Collection!A' + bp.row + ':Y' + bp.row, blank); } catch(e) {}
+        try { await sheetsUpdate(state.personalSheetId, personalFullRowRange(bp.row), [personalBlankRow()]); } catch(e) {}
       }
       delete state.personalData[keys[i]];
     }

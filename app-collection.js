@@ -3320,7 +3320,7 @@ async function saveItem() {
     // Remove from My Collection
     const existing = _saveItemPd;
     if (existing && existing.row) {
-      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:Y${existing.row}`, [['','','','','','','','','','','','','','','','','','','','','','','','','']]);  // 25 cols A-Y
+      await sheetsUpdate(state.personalSheetId, personalFullRowRange(existing.row), [personalBlankRow()]);  // 25 cols A-Y
     }
     // Remove from For Sale if it was there
     const fsEntry3 = _fsKeySI ? state.forSaleData[_fsKeySI] : null;
@@ -3345,7 +3345,7 @@ async function saveItem() {
     // Remove from My Collection if present
     const existing = state.personalData[key];
     if (existing && existing.row) {
-      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:Y${existing.row}`, [['','','','','','','','','','','','','','','','','','','','','','','','','']]);  // 25 cols A-Y
+      await sheetsUpdate(state.personalSheetId, personalFullRowRange(existing.row), [personalBlankRow()]);  // 25 cols A-Y
     }
     // Write/update Want List tab
     const wantRow = [

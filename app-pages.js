@@ -1626,7 +1626,7 @@ async function markForSaleAsSold(fsKey, askingPrice) {
 
   // Remove from My Collection
   if (collEntry?.row) {
-    await sheetsUpdate(state.personalSheetId, `My Collection!A${collEntry.row}:Y${collEntry.row}`, [['','','','','','','','','','','','','','','','','','','','','','','','','']]);
+    await sheetsUpdate(state.personalSheetId, personalFullRowRange(collEntry.row), [personalBlankRow()]);
     delete state.personalData[collKey];
   }
 
@@ -1635,7 +1635,7 @@ async function markForSaleAsSold(fsKey, askingPrice) {
   if (_grpMembers) {
     for (const _m of _grpMembers.pd) {
       if (_m.key === collKey) continue;
-      if (_m.rec && _m.rec.row) { try { await sheetsUpdate(state.personalSheetId, `My Collection!A${_m.rec.row}:Y${_m.rec.row}`, [['','','','','','','','','','','','','','','','','','','','','','','','','']]); } catch(e){} }
+      if (_m.rec && _m.rec.row) { try { await sheetsUpdate(state.personalSheetId, personalFullRowRange(_m.rec.row), [personalBlankRow()]); } catch(e){} }
       delete state.personalData[_m.key];
     }
     for (const _m of _grpMembers.is) {
@@ -1793,7 +1793,7 @@ async function removeForSaleAndCollection(fsKey) {
   // My Collection rows (all members) — prefer the lead's inventoryId for single-item case
   if (_grp && _grp.pd.length) {
     for (const _m of _grp.pd) {
-      if (_m.rec && _m.rec.row) { try { await sheetsUpdate(state.personalSheetId, `My Collection!A${_m.rec.row}:Y${_m.rec.row}`, [['','','','','','','','','','','','','','','','','','','','','','','','','']]); } catch(e){} }
+      if (_m.rec && _m.rec.row) { try { await sheetsUpdate(state.personalSheetId, personalFullRowRange(_m.rec.row), [personalBlankRow()]); } catch(e){} }
       delete state.personalData[_m.key];
     }
   } else {
@@ -1802,7 +1802,7 @@ async function removeForSaleAndCollection(fsKey) {
     if (!collKey && typeof findPDKey === 'function') collKey = findPDKey(itemNum, variation);
     const collEntry = collKey ? state.personalData[collKey] : null;
     if (collEntry && collEntry.row) {
-      await sheetsUpdate(state.personalSheetId, `My Collection!A${collEntry.row}:Y${collEntry.row}`, [['','','','','','','','','','','','','','','','','','','','','','','','','']]);
+      await sheetsUpdate(state.personalSheetId, personalFullRowRange(collEntry.row), [personalBlankRow()]);
     }
     if (collKey) delete state.personalData[collKey];
   }
