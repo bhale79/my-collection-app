@@ -1559,7 +1559,7 @@ async function saveWizardItem() {
         // Audit H10: guard 99999 placeholder rows.
         if (ugEntry && ugEntry.row && ugEntry.row !== 99999 && ugEntry.row < 100000) {
           try {
-            await sheetsUpdate(state.personalSheetId, `Upgrade List!A${ugEntry.row}:H${ugEntry.row}`, [['','','','','','','','']]);
+            await sheetsUpdate(state.personalSheetId, `Want-Upgrade List!A${ugEntry.row}:I${ugEntry.row}`, [['','','','','','','','','']]);
           } catch (e) {
             console.warn('[H10] Upgrade clear failed at row ' + ugEntry.row + ':', e && e.message);
           }
@@ -1582,9 +1582,13 @@ async function saveWizardItem() {
       ];
       const existing = state.wantData[key];
       if (existing?.row) {
-        await sheetsUpdate(state.personalSheetId, `Want List!A${existing.row}:F${existing.row}`, [row]);
+        // Want-Upgrade combined: write to 9-col tab with List Type='Want'.
+        const wuRow = [row[0], row[1], 'Want', row[2], row[3], '', '', row[4], row[5]];
+        await sheetsUpdate(state.personalSheetId, `Want-Upgrade List!A${existing.row}:I${existing.row}`, [wuRow]);
       } else {
-        await sheetsAppend(state.personalSheetId, 'Want List!A:F', [row]);  // Audit #11: consistent with UPDATE range
+        // Want-Upgrade combined: append to 9-col tab with List Type='Want'.
+        const wuAppendRow = [row[0], row[1], 'Want', row[2], row[3], '', '', row[4], row[5]];
+        await sheetsAppend(state.personalSheetId, 'Want-Upgrade List!A:I', [wuAppendRow]);
       }
       // After save, prompt about groupable partners (tender, A/B unit)
       if (typeof _checkWantPartners === 'function') {
@@ -1789,7 +1793,7 @@ async function saveWizardItem() {
     if (d._fromWantList && d._fromWantKey && tab === 'collection') {
       const wantEntry = state.wantData[d._fromWantKey];
       if (wantEntry && wantEntry.row) {
-        sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry.row}:F${wantEntry.row}`, [['','','','','','']]).catch(e => console.warn('Want cleanup error:', e));
+        sheetsUpdate(state.personalSheetId, `Want-Upgrade List!A${wantEntry.row}:I${wantEntry.row}`, [['','','','','','','','','']]).catch(e => console.warn('Want cleanup error:', e));
       }
       delete state.wantData[d._fromWantKey];
       buildWantPage();

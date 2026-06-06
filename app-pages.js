@@ -971,7 +971,7 @@ async function removeWantItem(itemNum, variation, row) {
   if (!(await appConfirm('Remove this item from your Want List?', { danger: true, ok: 'Remove' }))) return;
   const key = `${itemNum}|${variation}`;
   if (row) {
-    await sheetsUpdate(state.personalSheetId, `Want List!A${row}:F${row}`, [['','','','','','']]);
+    await sheetsUpdate(state.personalSheetId, `Want-Upgrade List!A${row}:I${row}`, [['','','','','','','','','']]);
   }
   delete state.wantData[key];
   _cachePersonalData();
@@ -1734,7 +1734,7 @@ async function _removeUpgradeFromCollection(inventoryId) {
   }
   if (!ug) { showToast('Item not found on Upgrade list'); return; }
   if (ug.row) {
-    await sheetsUpdate(state.personalSheetId, `Upgrade List!A${ug.row}:H${ug.row}`, [['','','','','','','','']]);
+    await sheetsUpdate(state.personalSheetId, `Want-Upgrade List!A${ug.row}:I${ug.row}`, [['','','','','','','','','']]);
   }
   delete state.upgradeData[key];
   _cachePersonalData();
@@ -2467,12 +2467,18 @@ async function saveUpgradeItem(itemNum, variation, existingRow, invId) {
   if (!sheetId) { showToast('Not connected to a sheet'); return; }
   try {
     if (existingRow > 0) {
-      await sheetsUpdate(sheetId, `Upgrade List!A${existingRow}:H${existingRow}`, [row]);
+      // Want-Upgrade combined: write 9-col row with List Type='Upgrade'.
+      // Old 8-col [itemNum,var,priority,targetCond,maxPrice,notes,invId,mfr]
+      // -> 9-col [itemNum,var,'Upgrade',priority,targetPrice,targetCond,invId,notes,mfr]
+      const _wuRow = [row[0], row[1], 'Upgrade', row[2], row[4], row[3], row[6], row[5], row[7]];
+      await sheetsUpdate(sheetId, `Want-Upgrade List!A${existingRow}:I${existingRow}`, [_wuRow]);
     } else {
-      await sheetsAppend(sheetId, 'Upgrade List!A:H', [row]);
+      // Want-Upgrade combined: append 9-col row with List Type='Upgrade'.
+      const _wuAppendRow = [row[0], row[1], 'Upgrade', row[2], row[4], row[3], row[6], row[5], row[7]];
+      await sheetsAppend(sheetId, 'Want-Upgrade List!A:I', [_wuAppendRow]);
     }
     // Reload data — key by inventoryId
-    const res = await sheetsGet(sheetId, 'Upgrade List!A3:H');
+    const res = await sheetsGet(sheetId, 'Want-Upgrade List!A3:I');
     state.upgradeData = {};
     (res.values || []).forEach((r, idx) => {
       if (!r[0] || r[0] === 'Item Number') return;
@@ -2509,7 +2515,7 @@ async function removeUpgradeItem(ugKey) {
   const ug = state.upgradeData[ugKey];
   if (!ug || !ug.row) { showToast('Upgrade entry not found'); return; }
   try {
-    await sheetsUpdate(state.personalSheetId, `Upgrade List!A${ug.row}:H${ug.row}`, [['','','','','','','','']]);
+    await sheetsUpdate(state.personalSheetId, `Want-Upgrade List!A${ug.row}:I${ug.row}`, [['','','','','','','','','']]);
     delete state.upgradeData[ugKey];
     showToast('Removed from Upgrade List');
     buildUpgradePage();

@@ -187,6 +187,14 @@ const WANT_HEADERS = [
 const UPGRADE_HEADERS = [
   'Item Number','Variation','Priority','Target Condition','Max Price','Notes','Inventory ID','Manufacturer'
 ];
+// Combined Want/Upgrade tab (Session 161+). One tab replaces 'Want List' +
+// 'Upgrade List' with a List Type column (Want or Upgrade). The loader splits
+// rows by List Type into state.wantData and state.upgradeData so existing
+// read paths keep working with no changes.
+const WISHLIST_HEADERS = [
+  'Item Number','Variation','List Type','Priority','Target Price',
+  'Target Condition','Upgrading Inventory ID','Notes','Manufacturer'
+];
 
 // ── Manufacturer helper ──
 // Returns the manufacturer name for the current era (e.g. "Lionel", "Atlas").

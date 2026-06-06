@@ -93,8 +93,7 @@ async function applySheetFormatting(sheetId, opts) {
       'My Collection': { red: 0.118, green: 0.227, blue: 0.373 },
       'Sold':          { red: 0.153, green: 0.682, blue: 0.376 },
       'For Sale':      { red: 0.902, green: 0.494, blue: 0.133 },
-      'Want List':     { red: 0.161, green: 0.502, blue: 0.725 },
-      'Upgrade List':  { red: 0.545, green: 0.361, blue: 0.965 },
+      'Want-Upgrade List': { red: 0.353, green: 0.431, blue: 0.845 },  // combined (blend of want-blue + upgrade-purple)
       'Catalogs':      { red: 0.827, green: 0.651, blue: 0.263 },
       'Paper Items':   { red: 0.086, green: 0.627, blue: 0.522 },
       'Mock-Ups':      { red: 0.608, green: 0.349, blue: 0.714 },
@@ -107,7 +106,7 @@ async function applySheetFormatting(sheetId, opts) {
       }}));
 
     // ── 5. Data tab header + freeze + banding ─────────────────────
-    const DATA_TABS = ['My Collection','Sold','For Sale','Want List','Upgrade List','Catalogs','Paper Items','Mock-Ups','Other Lionel','Instruction Sheets','Science Sets','Construction Sets','My Sets'];
+    const DATA_TABS = ['My Collection','Sold','For Sale','Want-Upgrade List','Catalogs','Paper Items','Mock-Ups','Other Lionel','Instruction Sheets','Science Sets','Construction Sets','My Sets'];
     const dataReqs = DATA_TABS.filter(t => tabMap.hasOwnProperty(t)).flatMap(tab => {
       const sid = tabMap[tab];
       // Session 155 v6: header wrap, banding fix, My Collection gets col-A freeze
@@ -618,16 +617,15 @@ async function _writeDashboardContent(sheetId) {
        '', 'Avg Condition',
        `=IFERROR(ROUND(AVERAGE('My Collection'!C3:C),1) & " / 10", "—")`,
        ''],
-    ['Want List',
-       `=IFERROR(MAX(0,COUNTA('Want List'!A:A)-2),0)`,
+    ['Want-Upgrade List',
+       // Combined count (Want + Upgrade together, since they share one tab now).
+       `=IFERROR(MAX(0,COUNTA('Want-Upgrade List'!A:A)-2),0)`,
        '', 'For Sale',
        `=IFERROR(MAX(0,COUNTA('For Sale'!A:A)-2),0)`,
        ''],
-    ['Upgrade List',
-       `=IFERROR(MAX(0,COUNTA('Upgrade List'!A:A)-2),0)`,
-       '', 'Items Sold',
+    ['Items Sold',
        `=IFERROR(MAX(0,COUNTA('Sold'!A:A)-2),0)`,
-       ''],
+       '', '', '', ''],
     // Row 10: spacer
     ['', '', '', '', '', ''],
     // Row 11: footer
@@ -673,7 +671,7 @@ const LOCK_CONFIG = {
   description: 'railroster-structural-v1',
   legacyDescriptions: ['boxcar-data-lock'],  // older versions, cleaned up on next lock
   // Tabs whose row 1 (title) and row 2 (headers) get locked.
-  headerTabs: ['My Collection','Sold','For Sale','Want List','Upgrade List',
+  headerTabs: ['My Collection','Sold','For Sale','Want-Upgrade List',
                'Catalogs','Paper Items','Mock-Ups','Other Lionel',
                'Instruction Sheets','Science Sets','Construction Sets','My Sets'],
   // Tabs locked entirely (no row/col bounds = whole sheet).

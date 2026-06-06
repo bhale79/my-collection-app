@@ -1790,7 +1790,7 @@ async function removeCollectionItem(itemNum, variation, row) {
         var sibUg = sibUgKey ? state.upgradeData[sibUgKey] : null;
         if (sibUg && sibUg.row) {
           try {
-            await sheetsUpdate(state.personalSheetId, 'Upgrade List!A' + sibUg.row + ':H' + sibUg.row, [['','','','','','','','']]);
+            await sheetsUpdate(state.personalSheetId, 'Want-Upgrade List!A' + sibUg.row + ':I' + sibUg.row, [['','','','','','','','','']]);
           } catch(e) { console.warn('Upgrade cleanup (group):', e); }
           delete state.upgradeData[sibUgKey];
         }
@@ -1848,7 +1848,7 @@ async function removeCollectionItem(itemNum, variation, row) {
   var ugEntry = ugKey ? state.upgradeData[ugKey] : null;
   if (ugEntry && ugEntry.row) {
     try {
-      await sheetsUpdate(state.personalSheetId, 'Upgrade List!A' + ugEntry.row + ':H' + ugEntry.row, [['','','','','','','','']]);
+      await sheetsUpdate(state.personalSheetId, 'Want-Upgrade List!A' + ugEntry.row + ':I' + ugEntry.row, [['','','','','','','','','']]);
     } catch(e) { console.warn('Upgrade cleanup:', e); }
     delete state.upgradeData[ugKey];
   }
@@ -3280,7 +3280,7 @@ async function saveItem() {
     // Remove from Want List if it was there
     const wantEntry = state.wantData[_wantKeySI];
     if (wantEntry && wantEntry.row) {
-      await sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry.row}:F${wantEntry.row}`, [['','','','','','']]);
+      await sheetsUpdate(state.personalSheetId, `Want-Upgrade List!A${wantEntry.row}:I${wantEntry.row}`, [['','','','','','','','','']]);
     }
     // Remove from For Sale if it was there
     const fsEntry = _fsKeySI ? state.forSaleData[_fsKeySI] : null;
@@ -3313,7 +3313,7 @@ async function saveItem() {
     // Remove from Want if it was there
     const wantEntry2 = state.wantData[_wantKeySI];
     if (wantEntry2 && wantEntry2.row) {
-      await sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry2.row}:F${wantEntry2.row}`, [['','','','','','']]);
+      await sheetsUpdate(state.personalSheetId, `Want-Upgrade List!A${wantEntry2.row}:I${wantEntry2.row}`, [['','','','','','','','','']]);
     }
 
   } else if (currentStatus === 'Sold') {
@@ -3358,9 +3358,13 @@ async function saveItem() {
     ];
     const wantEntry = state.wantData[key];
     if (wantEntry && wantEntry.row) {
-      await sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry.row}:F${wantEntry.row}`, [wantRow]);
+      // Want-Upgrade combined: write 9-col row with List Type='Want'.
+      const _wuRow = [wantRow[0], wantRow[1], 'Want', wantRow[2], wantRow[3], '', '', wantRow[4], wantRow[5]];
+      await sheetsUpdate(state.personalSheetId, `Want-Upgrade List!A${wantEntry.row}:I${wantEntry.row}`, [_wuRow]);
     } else {
-      await sheetsAppend(state.personalSheetId, 'Want List!A:A', [wantRow]);
+      // Want-Upgrade combined: append 9-col row with List Type='Want'.
+      const _wuAppendRow = [wantRow[0], wantRow[1], 'Want', wantRow[2], wantRow[3], '', '', wantRow[4], wantRow[5]];
+      await sheetsAppend(state.personalSheetId, 'Want-Upgrade List!A:I', [_wuAppendRow]);
     }
     // Store info for partner prompt — shown after modal closes
     window._pendingWantPartner = {
@@ -3478,7 +3482,9 @@ function _checkWantPartners(itemNum, variation, priority, maxPrice, notes) {
     for (const c of selected) {
       try {
         const row = [c.itemNum, '', priority || 'Medium', maxPrice || '', notes || '', _getEraManufacturer()];
-        await sheetsAppend(state.personalSheetId, 'Want List!A:A', [row]);
+        // Want-Upgrade combined: append partner 9-col row with List Type='Want'.
+        const _wuPartnerRow = [row[0], row[1], 'Want', row[2], row[3], '', '', row[4], row[5]];
+        await sheetsAppend(state.personalSheetId, 'Want-Upgrade List!A:I', [_wuPartnerRow]);
         // Bugfix 2026-04-14: optimistically add partner to state.wantData so the
         // Want List table shows the new partners immediately instead of waiting
         // for the 1.2s refresh. Session 102 observed partners not appearing.

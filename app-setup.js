@@ -367,8 +367,8 @@ async function initPersonalSheet(sheetId) {
   const toCreate = [];
   if (!existingTabs.includes('Sold'))      toCreate.push({ addSheet: { properties: { title: 'Sold' } } });
   if (!existingTabs.includes('For Sale'))  toCreate.push({ addSheet: { properties: { title: 'For Sale' } } });
-  if (!existingTabs.includes('Want List'))    toCreate.push({ addSheet: { properties: { title: 'Want List' } } });
-  if (!existingTabs.includes('Upgrade List')) toCreate.push({ addSheet: { properties: { title: 'Upgrade List' } } });
+  // Want-Upgrade combined (Session 161+): one tab replaces 'Want List' + 'Upgrade List'.
+  if (!existingTabs.includes('Want-Upgrade List')) toCreate.push({ addSheet: { properties: { title: 'Want-Upgrade List' } } });
 
   if (toCreate.length > 0) {
     await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
@@ -383,10 +383,9 @@ async function initPersonalSheet(sheetId) {
   await sheetsUpdate(sheetId, 'Sold!A2:T2',      [SOLD_HEADERS]);
   await sheetsUpdate(sheetId, 'For Sale!A1:A1',   [['For Sale']]);
   await sheetsUpdate(sheetId, 'For Sale!A2:J2',   [FOR_SALE_HEADERS]);
-  await sheetsUpdate(sheetId, 'Want List!A1:A1',    [['Want List']]);
-  await sheetsUpdate(sheetId, 'Want List!A2:F2',    [WANT_HEADERS]);
-  await sheetsUpdate(sheetId, 'Upgrade List!A1:A1', [['Upgrade List']]);
-  await sheetsUpdate(sheetId, 'Upgrade List!A2:H2', [UPGRADE_HEADERS]);
+  // Want-Upgrade combined (Session 161+): 9-col schema with List Type column.
+  await sheetsUpdate(sheetId, 'Want-Upgrade List!A1:A1', [['Want-Upgrade List']]);
+  await sheetsUpdate(sheetId, 'Want-Upgrade List!A2:I2', [WISHLIST_HEADERS]);
 
   // Ephemera tabs
   await ensureEphemeraSheets(sheetId);
@@ -406,8 +405,8 @@ async function ensurePersonalHeaders(sheetId) {
     const toCreate = [];
     if (!existingTabs.includes('Sold'))      toCreate.push({ addSheet: { properties: { title: 'Sold' } } });
     if (!existingTabs.includes('For Sale'))  toCreate.push({ addSheet: { properties: { title: 'For Sale' } } });
-    if (!existingTabs.includes('Want List'))    toCreate.push({ addSheet: { properties: { title: 'Want List' } } });
-    if (!existingTabs.includes('Upgrade List')) toCreate.push({ addSheet: { properties: { title: 'Upgrade List' } } });
+    // Want-Upgrade combined: single tab replaces the old pair.
+    if (!existingTabs.includes('Want-Upgrade List')) toCreate.push({ addSheet: { properties: { title: 'Want-Upgrade List' } } });
     if (toCreate.length > 0) {
       await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
         method: 'POST',
@@ -423,13 +422,9 @@ async function ensurePersonalHeaders(sheetId) {
         await sheetsUpdate(sheetId, 'For Sale!A1:A1', [['For Sale']]);
         await sheetsUpdate(sheetId, 'For Sale!A2:J2', [FOR_SALE_HEADERS]);
       }
-      if (!existingTabs.includes('Want List')) {
-        await sheetsUpdate(sheetId, 'Want List!A1:A1', [['Want List']]);
-        await sheetsUpdate(sheetId, 'Want List!A2:F2', [WANT_HEADERS]);
-      }
-      if (!existingTabs.includes('Upgrade List')) {
-        await sheetsUpdate(sheetId, 'Upgrade List!A1:A1', [['Upgrade List']]);
-        await sheetsUpdate(sheetId, 'Upgrade List!A2:H2', [UPGRADE_HEADERS]);
+      if (!existingTabs.includes('Want-Upgrade List')) {
+        await sheetsUpdate(sheetId, 'Want-Upgrade List!A1:A1', [['Want-Upgrade List']]);
+        await sheetsUpdate(sheetId, 'Want-Upgrade List!A2:I2', [WISHLIST_HEADERS]);
       }
       console.log('[Setup] Created missing tabs:', toCreate.map(t => t.addSheet.properties.title).join(', '));
     }
@@ -452,18 +447,18 @@ async function ensurePersonalHeaders(sheetId) {
       await sheetsUpdate(sheetId, 'My Collection!A1', [['My Collection']]);
     }
 
-    // Repair Upgrade List headers if missing or wrong
+    // Repair Want-Upgrade List headers if missing or wrong (combined tab, Session 161+).
     try {
-      const upgRes = await sheetsGet(sheetId, 'Upgrade List!A2:H2');
-      const upgCurrent = (upgRes.values && upgRes.values[0]) || [];
-      const upgNeedsUpdate = UPGRADE_HEADERS.some((h, i) => upgCurrent[i] !== h);
-      if (upgNeedsUpdate) {
-        await sheetsUpdate(sheetId, 'Upgrade List!A1:A1', [['Upgrade List']]);
-        await sheetsUpdate(sheetId, 'Upgrade List!A2:H2', [UPGRADE_HEADERS]);
-        console.log('[Headers] Upgrade List headers repaired');
+      const wuRes = await sheetsGet(sheetId, 'Want-Upgrade List!A2:I2');
+      const wuCurrent = (wuRes.values && wuRes.values[0]) || [];
+      const wuNeedsUpdate = WISHLIST_HEADERS.some((h, i) => wuCurrent[i] !== h);
+      if (wuNeedsUpdate) {
+        await sheetsUpdate(sheetId, 'Want-Upgrade List!A1:A1', [['Want-Upgrade List']]);
+        await sheetsUpdate(sheetId, 'Want-Upgrade List!A2:I2', [WISHLIST_HEADERS]);
+        console.log('[Headers] Want-Upgrade List headers repaired');
       }
     } catch(e) {
-      console.warn('[Headers] Upgrade List header check failed:', e.message);
+      console.warn('[Headers] Want-Upgrade List header check failed:', e.message);
     }
 
     // Repair Sold / For Sale / Want List headers (Manufacturer column added — new users ok,
@@ -471,7 +466,7 @@ async function ensurePersonalHeaders(sheetId) {
     var _tabsToCheck = [
       { name: 'Sold',      range: 'Sold!A2:T2',      headers: SOLD_HEADERS     },
       { name: 'For Sale',  range: 'For Sale!A2:J2',  headers: FOR_SALE_HEADERS },
-      { name: 'Want List', range: 'Want List!A2:F2', headers: WANT_HEADERS     },
+
     ];
     for (var _i = 0; _i < _tabsToCheck.length; _i++) {
       var _t = _tabsToCheck[_i];
@@ -653,7 +648,9 @@ async function syncUserDefinedTabsFromSheet(sheetId) {
     const titles = ((meta.sheets || []).map(s => s.properties && s.properties.title).filter(Boolean));
     // Canonical (non-user) tabs to filter out
     const canonical = new Set([
-      'My Collection', 'Sold', 'For Sale', 'Want List', 'Upgrade List',
+      'My Collection', 'Sold', 'For Sale', 'Want-Upgrade List',
+      // Legacy names kept so users with un-migrated sheets still treat them as canonical:
+      'Want List', 'Upgrade List',
       'Catalogs', 'Paper Items', 'Mock-Ups', 'Other Lionel',
       'Instruction Sheets', 'Science Sets', 'Construction Sets', 'My Sets',
       'Dashboard',

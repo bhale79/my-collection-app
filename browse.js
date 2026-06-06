@@ -2042,7 +2042,9 @@ function _ncShowUpgradeModal(type, key) {
         (_brOwnedPd && _brOwnedPd.inventoryId) || '',
         (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : 'Lionel'),
       ];
-      await sheetsAppend(state.personalSheetId, 'Upgrade List!A:H', [row]);
+      // Want-Upgrade combined: append 9-col row with List Type='Upgrade'.
+      const _wuRow = [row[0], row[1], 'Upgrade', row[2], row[4], row[3], row[6], row[5], row[7]];
+      await sheetsAppend(state.personalSheetId, 'Want-Upgrade List!A:I', [_wuRow]);
       // Local state mirror — Phase 3: state.upgradeData is inventoryId-keyed.
       if (!state.upgradeData) state.upgradeData = {};
       const _brPd = Object.values(state.personalData||{}).find(function(p){ return p.itemNum===ids.itemNum && (p.variation||'')===(ids.variation||'') && p.owned; });

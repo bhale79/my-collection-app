@@ -651,6 +651,19 @@ async function loadPersonalData() {
   }
   if (!state.personalSheetId) return;
 
+  // Cache schema version. Bump this whenever the on-disk shape of any field
+  // in lv_personal_cache changes so old caches are skipped (Session 161+: the
+  // Want-Upgrade combined tab introduced new state.wantData/upgradeData shapes
+  // with a listType field).
+  const _PERSONAL_CACHE_VER = 'wu1';
+  const _pcacheVer = localStorage.getItem('lv_personal_cache_ver') || '';
+  if (_pcacheVer !== _PERSONAL_CACHE_VER) {
+    // Old cache predates the current schema — drop it so we fetch fresh.
+    localStorage.removeItem('lv_personal_cache');
+    localStorage.removeItem('lv_personal_cache_ts');
+    localStorage.setItem('lv_personal_cache_ver', _PERSONAL_CACHE_VER);
+    console.log('[Cache] Personal cache version mismatch, cleared (was', JSON.stringify(_pcacheVer), 'now', _PERSONAL_CACHE_VER + ')');
+  }
   // Use cached personal data for instant load (2 hour TTL)
   const _pcache = localStorage.getItem('lv_personal_cache');
   const _ptime  = parseInt(localStorage.getItem('lv_personal_cache_ts') || '0');
@@ -712,7 +725,7 @@ async function loadPersonalData() {
         // so badges render correctly on first paint.
         Promise.all([
           sheetsGet(state.personalSheetId, 'For Sale!A3:J').catch(() => null),
-          sheetsGet(state.personalSheetId, 'Upgrade List!A3:H').catch(() => null),
+          sheetsGet(state.personalSheetId, 'Want-Upgrade List!A3:I').catch(() => null),
         ]).then(function(results) {
           var fsRes = results[0];
           var ugRes = results[1];
@@ -746,19 +759,39 @@ async function loadPersonalData() {
             changed = true;
           }
           if (ugRes && ugRes.values) {
+            // Want-Upgrade combined: same fetch returns BOTH Want and Upgrade
+            // rows. Split into newUg + newWant and refresh both state slices.
             var newUg = {};
+            var newWant = {};
             ugRes.values.forEach(function(r, idx) {
               if (!r[0] || r[0] === 'Item Number') return;
               var row = idx + 3;
               // Phase 3j parity: coerce to String to survive UNFORMATTED_VALUE numerics.
               var _us = function(v) { return (v !== null && v !== undefined && v !== '') ? String(v) : ''; };
-              var entry = {
-                row: row, itemNum: _us(r[0]), variation: _us(r[1]),
-                priority: _us(r[2]) || 'Medium', targetCondition: _us(r[3]), maxPrice: _us(r[4]), notes: _us(r[5]),
-                inventoryId: _us(r[6]),
-                manufacturer: _us(r[7]) || 'Lionel',
-              };
-              newUg[entry.inventoryId || ('legacy-row-' + row)] = entry;
+              var listType = _us(r[2]).toLowerCase();
+              if (listType === 'upgrade') {
+                var entry = {
+                  row: row, itemNum: _us(r[0]), variation: _us(r[1]),
+                  priority: _us(r[3]) || 'Medium', targetCondition: _us(r[5]),
+                  maxPrice: _us(r[4]),  // Target Price column
+                  notes: _us(r[7]),
+                  inventoryId: _us(r[6]),  // Upgrading Inventory ID column
+                  manufacturer: _us(r[8]) || 'Lionel',
+                  listType: 'Upgrade',
+                };
+                newUg[entry.inventoryId || ('legacy-row-' + row)] = entry;
+              } else {
+                // Want (or empty/unknown defaults to Want)
+                var wantKey = _us(r[0]) + '|' + _us(r[1]);
+                newWant[wantKey] = {
+                  row: row, itemNum: _us(r[0]), variation: _us(r[1]),
+                  priority: _us(r[3]) || 'Medium',
+                  expectedPrice: _us(r[4]),  // Target Price -> expectedPrice
+                  notes: _us(r[7]),
+                  manufacturer: _us(r[8]) || 'Lionel',
+                  listType: 'Want',
+                };
+              }
             });
             // Audit NEW #5 fix: preserve optimistic 99999 entries on merge.
             Object.keys(state.upgradeData || {}).forEach(function(k) {
@@ -766,6 +799,12 @@ async function loadPersonalData() {
               if (e && e.row === 99999 && !newUg[k]) newUg[k] = e;
             });
             state.upgradeData = newUg;
+            // Also refresh wantData from the same fetch (combined tab).
+            Object.keys(state.wantData || {}).forEach(function(k) {
+              var e = state.wantData[k];
+              if (e && e.row === 99999 && !newWant[k]) newWant[k] = e;
+            });
+            state.wantData = newWant;
             changed = true;
           }
           if (changed) {
@@ -830,12 +869,11 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // Primary tabs (5) are needed immediately for dashboard + list pages.
   // Secondary tabs (8) are loaded after primary commits state so UI renders
   // faster. Total wait time drops from max-of-13-fetches to max-of-5.
-  const [collRes, soldRes, forSaleRes, wantRes, upgradeRes] = await Promise.all([
+  const [collRes, soldRes, forSaleRes, wishlistRes] = await Promise.all([
     sheetsGet(sheetId, 'My Collection!A3:AF').catch((e) => { console.warn('[My Collection load failed]', e && e.message); return {values:[]}; }),
     sheetsGet(sheetId, 'Sold!A3:T').catch((e) => { console.warn('[Sold load failed]', e && e.message); return {values:[]}; }),
     sheetsGet(sheetId, 'For Sale!A3:J').catch((e) => { console.warn('[For Sale load failed]', e && e.message); return {values:[]}; }),
-    sheetsGet(sheetId, 'Want List!A3:F').catch((e) => { console.warn('[Want List load failed]', e && e.message); return {values:[]}; }),
-    sheetsGet(sheetId, 'Upgrade List!A3:H').catch((e) => { console.warn('[Upgrade load failed]', e && e.message); return {values:[]}; }),
+    sheetsGet(sheetId, 'Want-Upgrade List!A3:I').catch((e) => { console.warn('[Want-Upgrade load failed]', e && e.message); return {values:[]}; }),
   ]);
   // Secondary tabs fire off in parallel, NOT awaited in the main flow
   const _secondaryFetch = Promise.all([
@@ -915,33 +953,42 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     newForSale[key] = entry;
   });
 
-  // Want List
-  (wantRes.values || []).forEach((r, idx) => {
-    if (!r[0] || r[0] === 'Item Number') return;
-    const key = `${String(r[0]||'')}|${String(r[1]||'')}`;
-    const _ws = (v) => (v !== null && v !== undefined && v !== '') ? String(v) : '';
-    newWant[key] = {
-      row: idx+3, itemNum: _ws(r[0]), variation: _ws(r[1]),
-      priority: _ws(r[2]) || 'Medium', expectedPrice: _ws(r[3]), notes: _ws(r[4]),
-      manufacturer: _ws(r[5]) || 'Lionel',
-    };
-  });
-
-  // Upgrade List
-  // Phase 3: key state.upgradeData by inventoryId directly. Rows without an
-  // inventoryId fall back to a synthetic legacy-row key.
-  (upgradeRes.values || []).forEach((r, idx) => {
+  // Want-Upgrade List (combined tab, Session 161+)
+  // New schema: A=Item#, B=Variation, C=List Type, D=Priority, E=Target Price,
+  // F=Target Condition, G=Upgrading Inventory ID, H=Notes, I=Manufacturer.
+  // Split rows by List Type (col C) into newWant + state.upgradeData with the
+  // SAME shape the rest of the app already expects (so no downstream changes).
+  (wishlistRes.values || []).forEach((r, idx) => {
     if (!r[0] || r[0] === 'Item Number') return;
     const _row = idx + 3;
-    const _us = (v) => (v !== null && v !== undefined && v !== '') ? String(v) : '';
-    const entry = {
-      row: _row, itemNum: _us(r[0]), variation: _us(r[1]),
-      priority: _us(r[2]) || 'Medium', targetCondition: _us(r[3]), maxPrice: _us(r[4]), notes: _us(r[5]),
-      inventoryId: _us(r[6]),
-      manufacturer: _us(r[7]) || 'Lionel',
-    };
-    const key = entry.inventoryId || ('legacy-row-' + _row);
-    state.upgradeData[key] = entry;
+    const _wu = (v) => (v !== null && v !== undefined && v !== '') ? String(v) : '';
+    const listType = _wu(r[2]).toLowerCase();
+    if (listType === 'upgrade') {
+      // Phase 3 keying: by Upgrading Inventory ID (col G = index 6)
+      const entry = {
+        row: _row, itemNum: _wu(r[0]), variation: _wu(r[1]),
+        priority: _wu(r[3]) || 'Medium',
+        targetCondition: _wu(r[5]),
+        maxPrice: _wu(r[4]),  // Target Price -> maxPrice (legacy field name)
+        notes: _wu(r[7]),
+        inventoryId: _wu(r[6]),  // Upgrading Inventory ID -> inventoryId (legacy)
+        manufacturer: _wu(r[8]) || 'Lionel',
+        listType: 'Upgrade',
+      };
+      const key = entry.inventoryId || ('legacy-row-' + _row);
+      state.upgradeData[key] = entry;
+    } else {
+      // Default to Want (covers 'Want', empty, or anything unrecognized)
+      const key = `${_wu(r[0])}|${_wu(r[1])}`;
+      newWant[key] = {
+        row: _row, itemNum: _wu(r[0]), variation: _wu(r[1]),
+        priority: _wu(r[3]) || 'Medium',
+        expectedPrice: _wu(r[4]),  // Target Price -> expectedPrice (legacy)
+        notes: _wu(r[7]),
+        manufacturer: _wu(r[8]) || 'Lionel',
+        listType: 'Want',
+      };
+    }
   });
 
   // Session 159 Phase 2f: ALWAYS verify upgrade load completed, log + retry.
@@ -951,18 +998,23 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   setTimeout(function() {
     if (Object.keys(state.upgradeData).length > 0) return;
     console.log('[Upgrade self-heal] state empty after load — retrying fetch...');
-    sheetsGet(sheetId, 'Upgrade List!A3:H').then(function(retryRes) {
+    sheetsGet(sheetId, 'Want-Upgrade List!A3:I').then(function(retryRes) {
       console.log('[Upgrade self-heal] retry returned', (retryRes.values || []).length, 'rows');
       var added = 0;
       (retryRes.values || []).forEach(function(r, idx) {
         if (!r[0] || r[0] === 'Item Number') return;
         // Phase 3j parity: coerce to String for UNFORMATTED_VALUE safety.
         var _hs = function(v) { return (v !== null && v !== undefined && v !== '') ? String(v) : ''; };
+        // New schema: only pick up Upgrade rows here (self-heal is upgrade-only)
+        if (_hs(r[2]).toLowerCase() !== 'upgrade') return;
         var entry = {
           row: idx+3, itemNum: _hs(r[0]), variation: _hs(r[1]),
-          priority: _hs(r[2]) || 'Medium', targetCondition: _hs(r[3]), maxPrice: _hs(r[4]), notes: _hs(r[5]),
-          inventoryId: _hs(r[6]),
-          manufacturer: _hs(r[7]) || 'Lionel',
+          priority: _hs(r[3]) || 'Medium', targetCondition: _hs(r[5]),
+          maxPrice: _hs(r[4]),  // Target Price column
+          notes: _hs(r[7]),
+          inventoryId: _hs(r[6]),  // Upgrading Inventory ID column
+          manufacturer: _hs(r[8]) || 'Lionel',
+          listType: 'Upgrade',
         };
         var _key = entry.inventoryId || ('legacy-row-' + (idx+3));
         state.upgradeData[_key] = entry;

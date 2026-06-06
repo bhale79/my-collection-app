@@ -483,7 +483,9 @@ async function toolAddToWantList(itemNum, setIdx) {
   var wantRow = [itemNum, variation, '', '', 'Added via Set Builder tool'];
 
   try {
-    await sheetsAppend(state.personalSheetId, 'Want List!A:A', [wantRow]);
+    // Want-Upgrade combined: append 9-col row with List Type='Want'.
+    var _wuRow = [wantRow[0], wantRow[1], 'Want', wantRow[2], wantRow[3], '', '', wantRow[4], wantRow[5]];
+    await sheetsAppend(state.personalSheetId, 'Want-Upgrade List!A:I', [_wuRow]);
     // Update in-memory want data
     var wantKey = itemNum + '|' + variation;
     state.wantData[wantKey] = { itemNum: itemNum, variation: variation, notes: wantRow[4] };
@@ -827,7 +829,9 @@ async function companionAddToWantList(companionNum, engineIdx, suggIdx) {
   var wantRow = [companionNum, variation, '', '', 'Added via Companion Suggester'];
 
   try {
-    await sheetsAppend(state.personalSheetId, 'Want List!A:A', [wantRow]);
+    // Want-Upgrade combined: append 9-col row with List Type='Want'.
+    var _wuRow = [wantRow[0], wantRow[1], 'Want', wantRow[2], wantRow[3], '', '', wantRow[4], wantRow[5]];
+    await sheetsAppend(state.personalSheetId, 'Want-Upgrade List!A:I', [_wuRow]);
     var wantKey = companionNum + '|' + variation;
     state.wantData[wantKey] = { itemNum: companionNum, variation: variation, notes: wantRow[4] };
     showToast('★ ' + companionNum + ' added to Want List', 2500);
