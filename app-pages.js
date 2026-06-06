@@ -1604,13 +1604,15 @@ async function _convertUpgradeToWantOnSell(soldInventoryId) {
   // (becomes the want's expected price), notes, manufacturer.
   // Cols: A=Item, B=Var, C=List Type, D=Priority, E=Target Price,
   //       F=Target Condition, G=Upgrading Inventory ID, H=Notes, I=Manufacturer
+  // Brad's preference: keep Target Condition when an Upgrade becomes a Want.
+  // Only clear the Upgrading Inventory ID (since the user no longer owns the copy).
   var wuRow = [
     ugEntry.itemNum || '',
     ugEntry.variation || '',
     'Want',
     ugEntry.priority || 'Medium',
     ugEntry.maxPrice || '',  // expected price for Want
-    '',                       // target condition cleared
+    ugEntry.targetCondition || '',  // PRESERVED — target condition stays
     '',                       // upgrading inventory id cleared
     ugEntry.notes || '',
     ugEntry.manufacturer || 'Lionel',
@@ -1628,6 +1630,7 @@ async function _convertUpgradeToWantOnSell(soldInventoryId) {
       variation: ugEntry.variation || '',
       priority: ugEntry.priority || 'Medium',
       expectedPrice: ugEntry.maxPrice || '',
+      targetCondition: ugEntry.targetCondition || '',  // PRESERVED
       notes: ugEntry.notes || '',
       manufacturer: ugEntry.manufacturer || 'Lionel',
       listType: 'Want',
@@ -2402,7 +2405,7 @@ function buildUpgradePage() {
             ${name ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">${name}</div>` : ''}
             <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.25rem;flex-wrap:wrap">
               ${!_isWant && cond !== null ? `<span style="font-size:0.75rem"><span class="condition-pip ${condClass}"></span>Mine: ${cond}</span>` : ''}
-              ${!_isWant && u.targetCondition ? `<span style="font-size:0.75rem;color:#8b5cf6">→ Target: ${u.targetCondition}</span>` : ''}
+              ${u.targetCondition ? `<span style="font-size:0.75rem;color:#8b5cf6">→ Target: ${u.targetCondition}</span>` : ''}
               ${_priceVal ? `<span style="font-size:0.75rem;color:var(--accent2);font-family:var(--font-mono)">${_priceLabel}$${parseFloat(_priceVal).toLocaleString()}</span>` : ''}
             </div>
             ${u.notes ? `<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${u.notes}</div>` : ''}
@@ -2448,7 +2451,7 @@ function buildUpgradePage() {
         </td>
         <td style="color:var(--text-mid)">${name || '<span class="text-dim">—</span>'}</td>
         <td>${!_isWant && cond !== null ? `<span class="condition-pip ${condClass}" style="margin-right:3px"></span>${cond}` : '<span class="text-dim">—</span>'}</td>
-        <td style="color:#8b5cf6;font-weight:600">${!_isWant && u.targetCondition ? u.targetCondition : '<span class="text-dim">—</span>'}</td>
+        <td style="color:#8b5cf6;font-weight:600">${u.targetCondition || '<span class="text-dim">—</span>'}</td>
         <td><span style="color:${pColor};font-weight:500">${u.priority||'Medium'}</span></td>
         <td class="market-val">${_priceVal ? _currencySymbol() + parseFloat(_priceVal).toLocaleString() : '<span class="text-dim">—</span>'}</td>
         <td style="font-size:0.8rem;color:var(--text-dim);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(u.notes||'').replace(/"/g,'&quot;')}">${u.notes || '<span class="text-dim">—</span>'}</td>
@@ -2596,11 +2599,20 @@ async function saveUpgradeItem(itemNum, variation, existingRow, invId) {
       const _row = idx + 3;
       // Row-builder String coercion (memory rule): UNFORMATTED_VALUE returns numbers.
       const _s = (v) => (v !== null && v !== undefined && v !== '') ? String(v) : '';
+      // Want-Upgrade 9-col schema (Session 161+):
+      // A=Item#, B=Var, C=ListType, D=Priority, E=Target Price,
+      // F=Target Condition, G=Upgrading Inventory ID, H=Notes, I=Manufacturer.
+      // Skip Want rows in this post-save Upgrade refresh.
+      if (_s(r[2]).toLowerCase() !== 'upgrade') return;
       const _ugEntry = {
         row: _row, itemNum: _s(r[0]), variation: _s(r[1]),
-        priority: _s(r[2]) || 'Medium', targetCondition: _s(r[3]), maxPrice: _s(r[4]), notes: _s(r[5]),
-        inventoryId: _s(r[6]),
-        manufacturer: _s(r[7]) || 'Lionel',
+        priority: _s(r[3]) || 'Medium',
+        targetCondition: _s(r[5]),
+        maxPrice: _s(r[4]),  // Target Price column
+        notes: _s(r[7]),
+        inventoryId: _s(r[6]),  // Upgrading Inventory ID column
+        manufacturer: _s(r[8]) || 'Lionel',
+        listType: 'Upgrade',
       };
       const _k = _ugEntry.inventoryId || ('legacy-row-' + _row);
       state.upgradeData[_k] = _ugEntry;

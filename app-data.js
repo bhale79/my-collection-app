@@ -787,6 +787,7 @@ async function loadPersonalData() {
                   row: row, itemNum: _us(r[0]), variation: _us(r[1]),
                   priority: _us(r[3]) || 'Medium',
                   expectedPrice: _us(r[4]),  // Target Price -> expectedPrice
+                  targetCondition: _us(r[5]),  // Brad: keep Target on Want
                   notes: _us(r[7]),
                   manufacturer: _us(r[8]) || 'Lionel',
                   listType: 'Want',
@@ -984,6 +985,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
         row: _row, itemNum: _wu(r[0]), variation: _wu(r[1]),
         priority: _wu(r[3]) || 'Medium',
         expectedPrice: _wu(r[4]),  // Target Price -> expectedPrice (legacy)
+        targetCondition: _wu(r[5]),  // Brad's preference: track Target on Want too
         notes: _wu(r[7]),
         manufacturer: _wu(r[8]) || 'Lionel',
         listType: 'Want',

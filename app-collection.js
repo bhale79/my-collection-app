@@ -3016,6 +3016,9 @@ function _buildItemModal() {
           '<div id="want-fields" style="display:none;margin-bottom:0.75rem">' +
             '<div class="form-grid">' +
               '<div class="form-field"><label>Priority</label><select id="fc-want-priority"><option value="High">High</option><option value="Medium" selected>Medium</option><option value="Low">Low</option></select></div>' +
+              '<div class="form-field"><label>Target Condition</label><select id="fc-want-target"><option value="">Any</option>' +
+                Array.from({length:10},(_,i)=>10-i).map(v=>'<option value="'+v+'">'+v+'</option>').join('') +
+              '</select></div>' +
               '<div class="form-field"><label>Expected Price ($)</label><input type="number" id="fc-want-price" placeholder="0.00" min="0" step="0.01"></div>' +
             '</div>' +
             '<div class="form-field full" style="margin-top:0.5rem"><label>Notes</label><input type="text" id="fc-want-notes" placeholder="Why you want it, where to find it\u2026"></div>' +
@@ -3125,6 +3128,8 @@ function openItem(idx) {
   document.getElementById('fc-date-listed').value = fs.dateListed || '';
   document.getElementById('fc-want-priority').value = wd.priority || 'Medium';
   document.getElementById('fc-want-price').value = wd.expectedPrice || '';
+  var _wtEl = document.getElementById('fc-want-target');
+  if (_wtEl) _wtEl.value = wd.targetCondition || '';
   document.getElementById('fc-want-notes').value = wd.notes || '';
 
   // copy field removed
@@ -3360,15 +3365,16 @@ async function saveItem() {
       document.getElementById('fc-want-price').value,
       document.getElementById('fc-want-notes').value,
       _getEraManufacturer(),
+      (document.getElementById('fc-want-target') && document.getElementById('fc-want-target').value) || '',
     ];
     const wantEntry = state.wantData[key];
     if (wantEntry && wantEntry.row) {
       // Want-Upgrade combined: write 9-col row with List Type='Want'.
-      const _wuRow = [wantRow[0], wantRow[1], 'Want', wantRow[2], wantRow[3], '', '', wantRow[4], wantRow[5]];
+      const _wuRow = [wantRow[0], wantRow[1], 'Want', wantRow[2], wantRow[3], wantRow[6] || '', '', wantRow[4], wantRow[5]];
       await sheetsUpdate(state.personalSheetId, `Want-Upgrade List!A${wantEntry.row}:I${wantEntry.row}`, [_wuRow]);
     } else {
       // Want-Upgrade combined: append 9-col row with List Type='Want'.
-      const _wuAppendRow = [wantRow[0], wantRow[1], 'Want', wantRow[2], wantRow[3], '', '', wantRow[4], wantRow[5]];
+      const _wuAppendRow = [wantRow[0], wantRow[1], 'Want', wantRow[2], wantRow[3], wantRow[6] || '', '', wantRow[4], wantRow[5]];
       await sheetsAppend(state.personalSheetId, 'Want-Upgrade List!A:I', [_wuAppendRow]);
     }
     // Store info for partner prompt — shown after modal closes
