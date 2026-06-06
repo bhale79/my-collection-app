@@ -327,7 +327,7 @@ async function completeSetup() {
   // Initialize personal sheet headers
   try {
     await initPersonalSheet(personalId);
-    applySheetFormatting(personalId).catch(() => {});
+    applySheetFormatting(personalId).catch((e) => console.warn('[applySheetFormatting failed]', e && e.message));
     showApp();
     loadAllData();
   } catch(e) {

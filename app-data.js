@@ -661,6 +661,11 @@ async function loadPersonalData() {
       state.constructionData = _pd.constructionData || {};
       state.ephemeraData  = _pd.ephemeraData  || { catalogs:{}, paper:{}, mockups:{}, other:{} };
       state.mySetsData   = _pd.mySetsData   || {};
+      // Audit M2: restore user-defined tabs (custom buckets disappeared on
+      // cache-hit reload until next sheet refetch).
+      if (_pd.userDefinedTabs && Array.isArray(_pd.userDefinedTabs)) {
+        state.userDefinedTabs = _pd.userDefinedTabs;
+      }
       // Session 159 Phase 2g: restore upgrade + byInv maps from cache too.
       // Without this, the cache-hit fast path returned early without populating
       // upgradeData, leaving badges broken until the user did something that
@@ -771,6 +776,7 @@ function _cachePersonalData() {
       constructionData: state.constructionData,
       ephemeraData: state.ephemeraData,
       mySetsData: state.mySetsData,
+      userDefinedTabs: state.userDefinedTabs || [], // Audit M2: persist user-defined tabs
     };
     localStorage.setItem('lv_personal_cache', JSON.stringify(_snap));
     localStorage.setItem('lv_personal_cache_ts', Date.now().toString());

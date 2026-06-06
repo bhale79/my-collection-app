@@ -114,7 +114,12 @@ function _isBoxItemNum(itemNum) {
 function _lookupMasterDesc(itemNum) {
   if (!itemNum) return '';
   if (_isBoxItemNum(itemNum)) return '';
-  if (typeof findMaster !== 'function') return '';
+  if (typeof findMaster !== 'function') {
+    // Audit L2: master data not loaded yet — auto-populated col stays blank
+    // until next save. Note in console so this is debuggable if it happens.
+    if (typeof console !== 'undefined') console.debug('[_lookupMasterDesc] findMaster not yet loaded for ' + itemNum);
+    return '';
+  }
   const m = findMaster(itemNum);
   return (m && m.description) ? String(m.description) : '';
 }
@@ -593,6 +598,7 @@ var state = {
   isData: {},             // keyed by row# -> instruction sheet data
   scienceData: {},        // keyed by row# -> science set personal data
   constructionData: {},   // keyed by row# -> construction set personal data
+  partnerMap: {},      // Audit L4: built by buildPartnerMap from companions + sets
   setData: [],         // all rows from Master Set list (read-only reference)
   mySetsData: {},      // Phase 3 — keyed by inventoryId -> owned set record from personal My Sets tab
   companionData: [],   // all rows from Companions tab (engine/tender/B-unit relationships)
@@ -1574,7 +1580,7 @@ async function forceRefreshData() {
     buildQuickEntryList && buildQuickEntryList();
     showToast('✓ Synced from Google Sheet');
     // Update sheet dashboard in background — non-blocking
-    applySheetFormatting(state.personalSheetId).catch(() => {});
+    applySheetFormatting(state.personalSheetId).catch((e) => console.warn('[applySheetFormatting failed]', e && e.message));
   } catch(e) {
     console.error('Sync error:', e);
     showToast('Sync failed: ' + e.message, 5000, true);
@@ -1764,6 +1770,18 @@ function _formatPrice(val) {
 // Format a date string (or Date) per the user's date format pref.
 // Accepts ISO strings ('2026-04-19'), Date objects, or empty.
 // Returns '' for blank input; original string for unparseable.
+// Audit M5: defensive currency parser. Phase 3i made API return raw numbers,
+// but if a user hand-edits a sheet cell to a $-prefixed string, parseFloat()
+// returns NaN. Use this anywhere money-like values are read from user input
+// or untrusted sources.
+function _money(v) {
+  if (v === null || v === undefined || v === '') return 0;
+  if (typeof v === 'number') return isFinite(v) ? v : 0;
+  var n = parseFloat(String(v).replace(/[$,\s]/g, ''));
+  return isFinite(n) ? n : 0;
+}
+if (typeof window !== 'undefined') window._money = _money;
+
 function _formatDate(input) {
   if (input === null || input === undefined || input === '') return '';
   var fmt = _prefGet('lv_date_fmt', 'YYYY-MM-DD');

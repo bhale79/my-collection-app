@@ -533,7 +533,7 @@ function openEphemeraDetail(tabId, rowKey) {
 // ── Ephemera Actions ─────────────────────────────────────────────
 
 const _ephTabNames  = { catalogs:'Catalogs', paper:'Paper Items', mockups:'Mock-Ups', other:'Other Lionel' };
-const _ephTabCols   = { catalogs:'I', paper:'J', mockups:'O', other:'J' };
+const _ephTabCols   = { catalogs:'J', paper:'N', mockups:'Q', other:'N' }; // Audit M3: previous widths left trailing cols alive on delete
 
 async function ephemeraDelete(tabId, rowKey) {
   const item = (state.ephemeraData[tabId] || {})[rowKey];
