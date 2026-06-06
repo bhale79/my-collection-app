@@ -1100,22 +1100,6 @@ function toggleFilter(name) {
   renderBrowse();
 }
 
-// Session 170: Manual-only filter. Self-contained (manages its own active
-// styling) so it does not depend on toggle-chip CSS that may not exist.
-function toggleManualFilter() {
-  state.filters.manual = !state.filters.manual;
-  var b = document.getElementById('toggle-manual');
-  if (b) {
-    var on = state.filters.manual;
-    b.style.background  = on ? 'var(--accent)'   : 'var(--surface2)';
-    b.style.color       = on ? '#fff'            : 'var(--text-mid)';
-    b.style.borderColor = on ? 'var(--accent)'   : 'var(--border)';
-  }
-  state.currentPage = 1;
-  renderBrowse();
-}
-if (typeof window !== 'undefined') window.toggleManualFilter = toggleManualFilter;
-
 function resetFilters() {
   // Restore Master Catalog title and Identify button
   const titleEl = document.querySelector('#page-browse > .page-title > span');
@@ -1146,8 +1130,6 @@ function resetFilters() {
   state.filters.unowned = false;
   state.filters.boxed = false;
   state.filters.wantList = false;
-  state.filters.manual = false;
-  var _mb = document.getElementById('toggle-manual'); if (_mb) { _mb.style.background='var(--surface2)'; _mb.style.color='var(--text-mid)'; _mb.style.borderColor='var(--border)'; }
   state.filters.type = '';
   state.filters.road = '';
   state.filters.quickEntry = '';
@@ -2310,11 +2292,6 @@ function renderBrowse() {
     // (e.g. master "205" Science Set should not match personal "205-P" diesel)
     if (pd && pd.itemNum !== _dispNum) pd = null;
     pd = pd || (item._personalOnly ? item : null);
-    // Session 170: Manual-only filter — show only hand-entered items (era 'Manual').
-    if (state.filters.manual) {
-      var _mEra = (pd && pd.era) || item.era || item._era || '';
-      if (_mEra !== 'Manual') return false;
-    }
     const isOwned = item._personalOnly ? true : (pd?.owned || false);
     const hasBox = pd?.hasBox === 'Yes';
     // Session 176: Sold is now a history. Only hide an item as "sold" if it isn't
