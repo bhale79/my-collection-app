@@ -654,21 +654,24 @@ function ephemeraSold(tabId, rowKey) {
     const dateSold  = document.getElementById('eph-sold-date').value;
     const removeIt  = document.getElementById('eph-rm-yes').checked;
     ov.remove();
-    // Write to Sold sheet: Item#, Variation, Copy#, Condition, PricePaid, SalePrice, DateSold, Notes
-    const row = [
-      item.itemNum || label,
-      '',          // variation
-      '1',         // copy
-      item.condition || '',
-      item.estValue || '',
-      salePrice,
-      dateSold,
-      title,       // notes = title as description
-      '',          // inventory ID (not applicable for ephemera)
-      _getEraManufacturer(),  // manufacturer
-    ];
+    // Audit H4 fix: use _buildSoldRow helper for full 20-col schema.
+    // The old 10-col write left cols K-T (allOriginal, hasBox, boxCond,
+    // photoItem, photoBox, roadName, description, userEstWorth,
+    // datePurchased, year) blank or zombie-filled from prior rows.
+    const row = _buildSoldRow({
+      itemNum: item.itemNum || label,
+      variation: '',
+      copy: '1',
+      condition: item.condition || '',
+      pricePaid: item.estValue || '',
+      salePrice: salePrice,
+      dateSold: dateSold,
+      notes: title,
+      inventoryId: '',
+      manufacturer: _getEraManufacturer(),
+    });
     try {
-      await sheetsAppend(state.personalSheetId, 'Sold!A:J', [row]);
+      await sheetsAppend(state.personalSheetId, 'Sold!A:T', [row]);
       if (removeIt) {
         // Remove from ephemera sheet and state
         if (item.row && typeof item.row === 'number' && item.row >= 3 && item.row < 1000000) {

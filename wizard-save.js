@@ -1365,6 +1365,7 @@ async function saveWizardItem() {
         if (extras.length) fsNotes = fsNotes ? fsNotes + ' | ' + extras.join(', ') : extras.join(', ');
       }
 
+      // Audit H3 fix: include Manufacturer column. FOR_SALE_HEADERS is 10 cols.
       const row = [
         itemNum, fsVariation,
         fsCondition,
@@ -1374,6 +1375,7 @@ async function saveWizardItem() {
         fsOrigPrice,
         fsEstWorth,
         collectionEntry?.inventoryId || '',
+        collectionEntry?.manufacturer || (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : 'Lionel'),
       ];
       // Phase 3: state.forSaleData is keyed by inventoryId. Look up the existing
       // row by the collection entry's inventoryId; fall back to a one-time scan
@@ -1385,9 +1387,9 @@ async function saveWizardItem() {
         existingFs = Object.values(state.forSaleData || {}).find(function(e) { return e && e.inventoryId === _fsInvId; });
       }
       if (existingFs?.row) {
-        await sheetsUpdate(state.personalSheetId, `For Sale!A${existingFs.row}:I${existingFs.row}`, [row]);
+        await sheetsUpdate(state.personalSheetId, `For Sale!A${existingFs.row}:J${existingFs.row}`, [row]);
       } else {
-        await sheetsAppend(state.personalSheetId, 'For Sale!A:I', [row]);
+        await sheetsAppend(state.personalSheetId, 'For Sale!A:J', [row]);
       }
       // Optimistic update
       const _fsEntry = {
@@ -1505,7 +1507,7 @@ async function saveWizardItem() {
           if (_ent) { fsKey = _ent[0]; fsEntry = _ent[1]; }
         }
         if (fsEntry && fsEntry.row) {
-          await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry.row}:I${fsEntry.row}`, [['','','','','','','','','']]);
+          await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry.row}:J${fsEntry.row}`, [['','','','','','','','','','']]);
           delete state.forSaleData[fsKey];
         }
       } catch(e) { console.warn('[Sold] clearing For Sale row failed:', e); }
@@ -1533,15 +1535,17 @@ async function saveWizardItem() {
       }
 
     } else if (tab === 'want') {
+      // Audit H6 fix: include Manufacturer column. WANT_HEADERS is 6 cols.
       const row = [
         itemNum, variation,
         d.priority || 'Medium',
         d.expectedPrice || '',
         ( d.notes || '' ).trim(),
+        (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : 'Lionel'),
       ];
       const existing = state.wantData[key];
       if (existing?.row) {
-        await sheetsUpdate(state.personalSheetId, `Want List!A${existing.row}:E${existing.row}`, [row]);
+        await sheetsUpdate(state.personalSheetId, `Want List!A${existing.row}:F${existing.row}`, [row]);
       } else {
         await sheetsAppend(state.personalSheetId, 'Want List!A:A', [row]);
       }
@@ -1748,7 +1752,7 @@ async function saveWizardItem() {
     if (d._fromWantList && d._fromWantKey && tab === 'collection') {
       const wantEntry = state.wantData[d._fromWantKey];
       if (wantEntry && wantEntry.row) {
-        sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry.row}:E${wantEntry.row}`, [['','','','','']]).catch(e => console.warn('Want cleanup error:', e));
+        sheetsUpdate(state.personalSheetId, `Want List!A${wantEntry.row}:F${wantEntry.row}`, [['','','','','','']]).catch(e => console.warn('Want cleanup error:', e));
       }
       delete state.wantData[d._fromWantKey];
       buildWantPage();

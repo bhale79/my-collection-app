@@ -1917,15 +1917,24 @@ function _ncShowFsSoldModal(type, key, action) {
     ov.remove();
     try {
       if (isSold) {
-        // Sold sheet columns: Item#, Variation, Copy#, Condition, PricePaid, SalePrice, DateSold, Notes, InventoryID, Manufacturer
-        const row = [
-          ids.itemNum, ids.variation, '1',
-          condition, '', // priceItem unknown for non-Lionel
-          price, date, title,
-          '',
-          (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : ''),
-        ];
-        await sheetsAppend(state.personalSheetId, 'Sold!A:J', [row]);
+        // Audit H4 fix: use _buildSoldRow helper for full 20-col schema.
+        const row = (typeof _buildSoldRow === 'function')
+          ? _buildSoldRow({
+              itemNum: ids.itemNum,
+              variation: ids.variation,
+              copy: '1',
+              condition: condition,
+              pricePaid: '',
+              salePrice: price,
+              dateSold: date,
+              notes: title,
+              inventoryId: '',
+              manufacturer: (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : ''),
+            })
+          : [ ids.itemNum, ids.variation, '1', condition, '', price, date, title, '',
+              (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : ''),
+              '','','','','','','','','','' ];
+        await sheetsAppend(state.personalSheetId, 'Sold!A:T', [row]);
         if (removeIt) await _ncRemoveSourceRow(type, key);
         showToast('✓ Marked as sold');
       } else {
@@ -2017,15 +2026,23 @@ function _ncShowUpgradeModal(type, key) {
     const price    = document.getElementById('_nc-up-price').value || '';
     ov.remove();
     try {
-      // Upgrade tab columns assumed: Item#, Variation, Priority, MaxPrice,
-      // Notes, DateAdded. Match the schema saveUpgradeItem writes.
+      // Audit H5 fix: tab name was 'Upgrade' (wrong) + 6-col range. Real schema
+      // is 'Upgrade List' with 8 cols matching UPGRADE_HEADERS: itemNum,
+      // variation, priority, targetCondition, maxPrice, notes, inventoryId,
+      // manufacturer. saveUpgradeItem already uses this layout — match it.
+      const _brOwnedPd = Object.values(state.personalData||{}).find(function(p){
+        return p && p.owned && p.itemNum === ids.itemNum && (p.variation||'') === (ids.variation||'');
+      });
       const row = [
         ids.itemNum, ids.variation,
-        priority, price,
+        priority,
+        '',    // targetCondition (not collected on this quick path)
+        price, // maxPrice
         title, // notes
-        new Date().toISOString().slice(0, 10),
+        (_brOwnedPd && _brOwnedPd.inventoryId) || '',
+        (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : 'Lionel'),
       ];
-      await sheetsAppend(state.personalSheetId, 'Upgrade!A:F', [row]);
+      await sheetsAppend(state.personalSheetId, 'Upgrade List!A:H', [row]);
       // Local state mirror — Phase 3: state.upgradeData is inventoryId-keyed.
       if (!state.upgradeData) state.upgradeData = {};
       const _brPd = Object.values(state.personalData||{}).find(function(p){ return p.itemNum===ids.itemNum && (p.variation||'')===(ids.variation||'') && p.owned; });
