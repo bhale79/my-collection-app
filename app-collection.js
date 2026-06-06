@@ -1564,6 +1564,17 @@ function _checkGroupBeforeForSale(globalIdx, pdKey) {
 function collectionActionSold(globalIdx, itemNum, variation, pdRow) {
   var pdKey = pdRow ? findPDKeyByRow(itemNum, variation, pdRow) : findPDKey(itemNum, variation);
   if (!pdKey) { showToast('Item not found in collection', 3000, true); return; }
+  // Phase 3d: if the item is already on the For Sale list, route to the
+  // simple "Record sale" price prompt (markForSaleAsSold) instead of the
+  // full sell-from-collection wizard. The wizard is meant for items being
+  // sold OUTSIDE the For Sale flow; once the user has listed it for sale,
+  // the price + condition are already set and we just need the final price.
+  var pd = state.personalData[pdKey] || {};
+  var fsEntry = pd.inventoryId ? state.forSaleData[pd.inventoryId] : null;
+  if (fsEntry && typeof markForSaleAsSold === 'function') {
+    markForSaleAsSold(pd.inventoryId, fsEntry.askingPrice || '');
+    return;
+  }
   _checkSetBeforeAction(pdKey, globalIdx, function(saleIdx, saleKey){ sellFromCollection(saleIdx, saleKey); });
 }
 
