@@ -6,7 +6,7 @@ const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googlea
 const API_KEY = ''; // Set your Google Cloud API key in settings if needed
 // Gemini Vision API key — get a free key at https://aistudio.google.com/app/apikey
 // Paste your key here to enable photo-based item identification
-let GEMINI_KEY = localStorage.getItem('lv_gemini_key') || '';
+var GEMINI_KEY = localStorage.getItem('lv_gemini_key') || '';
 // Sheet name is dynamic — built from user's first name at sign-in
 function _getPersonalSheetName() {
   const firstName = (state.user?.name || '').split(' ')[0] || 'My';
@@ -584,7 +584,7 @@ function genSetId(baseNum) {
 
 // ── STATE ───────────────────────────────────────────────────────
 // ── Cached preference values (read once at startup, updated on change) ──
-let _prefLocEnabled = localStorage.getItem('lv_location_enabled') === 'true';
+var _prefLocEnabled = localStorage.getItem('lv_location_enabled') === 'true';
 
 var state = {
   user: null,

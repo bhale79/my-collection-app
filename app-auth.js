@@ -297,7 +297,7 @@ var accessToken = null;
 })();
 
 // Track whether this is the first token receipt (triggers full load) or a background refresh (just updates token)
-let _tokenIsInitial = true;
+var _tokenIsInitial = true;
 
 function onTokenReceived(resp) {
   // Bugfix 2026-04-14: only clear the sign-in overlay on ERROR path.

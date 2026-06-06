@@ -3186,7 +3186,7 @@ function closeModal() {
 
 function closeModalOnOverlay(e) { if (e.target === document.getElementById('item-modal')) closeModal(); }
 
-let currentStatus = 'Want';
+var currentStatus = 'Want';
 
 function setStatus(status) {
   currentStatus = status;

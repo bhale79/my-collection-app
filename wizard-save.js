@@ -1582,7 +1582,7 @@ async function saveWizardItem() {
       if (existing?.row) {
         await sheetsUpdate(state.personalSheetId, `Want List!A${existing.row}:F${existing.row}`, [row]);
       } else {
-        await sheetsAppend(state.personalSheetId, 'Want List!A:A', [row]);
+        await sheetsAppend(state.personalSheetId, 'Want List!A:F', [row]);  // Audit #11: consistent with UPDATE range
       }
       // After save, prompt about groupable partners (tender, A/B unit)
       if (typeof _checkWantPartners === 'function') {

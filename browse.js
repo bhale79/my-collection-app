@@ -1259,7 +1259,7 @@ function buildBrowse() {
   renderBrowse();
 }
 
-let _lastBrowseHash = '';
+var _lastBrowseHash = '';
 
 // ── Browse Tab Controller ─────────────────────────────────────────────────────
 function renderBrowseTab(tab) {

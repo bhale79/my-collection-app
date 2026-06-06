@@ -128,6 +128,13 @@ async function loadAllData() {
   showLoading();
   try {
     loadUserDefinedTabs();
+    // Audit NEW #9: also sync from sheet metadata so custom tabs survive
+    // across devices. Fires once per load — idempotent.
+    if (state.personalSheetId && typeof syncUserDefinedTabsFromSheet === 'function') {
+      syncUserDefinedTabsFromSheet(state.personalSheetId).catch(function(e) {
+        console.warn('[UserTabs initial sync]', e && e.message);
+      });
+    }
     // Session 116: 'all' meta-era has its own orchestrator that
     // hydrates from per-era IDB caches in parallel and refreshes
     // each era from Sheets in sequence in the background.
@@ -253,7 +260,7 @@ async function loadMasterData() {
 }
 
 // Session 156: one-time skip flag for the Master Inventory legacy fallback
-let _legacyFallbackBlocked = false;
+var _legacyFallbackBlocked = false;
 async function _fetchMasterTabs(era) {
   // Session 117 (Phase 2 #6): added optional `era` param so loadAllErasMode
   // can fetch every era's tabs in parallel without mutating SHEET_TABS.

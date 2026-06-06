@@ -636,6 +636,47 @@ function loadUserDefinedTabs() {
     state.userDefinedTabs = JSON.parse(localStorage.getItem('lv_user_tabs') || '[]');
   } catch(e) { state.userDefinedTabs = []; }
 }
+// Audit NEW #9: cross-device backfill of userDefinedTabs from the sheet.
+// localStorage only persists per-device, so a user signing in on a second
+// browser sees no custom tabs until they recreate them. Walk the sheet tabs
+// metadata, find any tab whose title doesn't match a known canonical tab,
+// and add it as a user-defined tab. Idempotent — adds only new ones.
+async function syncUserDefinedTabsFromSheet(sheetId) {
+  if (!sheetId || !accessToken) return;
+  try {
+    const res = await fetch(
+      'https://sheets.googleapis.com/v4/spreadsheets/' + sheetId + '?fields=sheets.properties.title',
+      { headers: { Authorization: 'Bearer ' + accessToken } }
+    );
+    if (!res.ok) return;
+    const meta = await res.json();
+    const titles = ((meta.sheets || []).map(s => s.properties && s.properties.title).filter(Boolean));
+    // Canonical (non-user) tabs to filter out
+    const canonical = new Set([
+      'My Collection', 'Sold', 'For Sale', 'Want List', 'Upgrade List',
+      'Catalogs', 'Paper Items', 'Mock-Ups', 'Other Lionel',
+      'Instruction Sheets', 'Science Sets', 'Construction Sets', 'My Sets',
+      'Dashboard',
+    ]);
+    const known = new Set((state.userDefinedTabs || []).map(t => t.label));
+    let added = 0;
+    titles.forEach(t => {
+      if (canonical.has(t) || known.has(t)) return;
+      // Treat unknown tabs as user-defined. id is slug-ified label.
+      const id = t.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+      state.userDefinedTabs = state.userDefinedTabs || [];
+      state.userDefinedTabs.push({ id: id, label: t });
+      added++;
+    });
+    if (added > 0) {
+      saveUserDefinedTabs();
+      console.log('[UserTabs] backfilled', added, 'tabs from sheet metadata');
+    }
+  } catch(e) {
+    console.warn('[UserTabs sync failed]', e && e.message);
+  }
+}
+if (typeof window !== 'undefined') window.syncUserDefinedTabsFromSheet = syncUserDefinedTabsFromSheet;
 function saveUserDefinedTabs() {
   localStorage.setItem('lv_user_tabs', JSON.stringify(state.userDefinedTabs));
 }
