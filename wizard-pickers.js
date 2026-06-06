@@ -282,12 +282,14 @@ function wizardPickForSaleItem(key) {
     wizard.tab = 'collection';
     wizard.steps = getSteps('collection');
     wizard.step = 0;
-    // Pre-fill matched master if the item# is known
+    // Use the seed item# to infer era so the wizard skips the era picker.
+    // DON'T pre-pin wizard.matchedItem — that would constrain the variation
+    // step's lookup to one specific itemType+roadName combo and skip variation
+    // selection. Let the user pick the variation organically.
     if (_seedItemNum) {
       wizard.data._rawItemNum = _seedItemNum;
       var _m = (typeof findMaster === 'function') ? findMaster(_seedItemNum) : null;
       if (_m) {
-        wizard.matchedItem = _m;
         var _inferredEra = (typeof eraForTab === 'function') ? eraForTab(_m._tab) : null;
         if (_inferredEra) wizard.data._era = _inferredEra;
       }
