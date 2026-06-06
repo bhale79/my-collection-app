@@ -1923,7 +1923,7 @@ async function saveWizardItem() {
     buildDashboard();
     buildSoldPage();
     buildForSalePage();
-    if (tab === 'want') buildWantPage();
+    if (tab === 'want') { buildWantPage(); if (typeof buildUpgradePage === 'function') buildUpgradePage(); }
     renderBrowse();
     showToast(`✓ Item ${itemNum} added to ${tab === 'collection' ? 'My Collection' : tab === 'forsale' ? 'For Sale' : tab === 'sold' ? 'Sold' : 'Want List'}!`);
 
