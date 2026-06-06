@@ -2431,24 +2431,43 @@ function showItemPanel(idx, pdKey, mode) {
       const priceItem = pd.priceItem || '';
       const priceBox = pd.priceBox || '';
       const calc = (parseFloat(priceItem)||0) + (parseFloat(priceBox)||0);
-      const newRow = [
-        item.itemNum, item.variation || '',
-        pd.condition || '', pd.allOriginal || '',
-        priceItem, priceBox, calc > 0 ? calc.toFixed(2) : '',
-        pd.hasBox || '', pd.boxCond || '',
-        pd.photoItem || '', pd.photoBox || '',
-        pd.notes || '', pd.datePurchased || '',
-        pd.userEstWorth || '', pd.matchedTo || '',
-        pd.setId || '', pd.yearMade || '',
-        pd.isError || '', pd.errorDesc || '',
-        pd.quickEntry ? 'Yes' : '',
-        pd.inventoryId || '', pd.groupId || '',
-        pd.location || '',  // Location (col W)
-        pd.era || '',        // Era (col X)
-        pd.manufacturer || '', // Manufacturer (col Y)
-      ];
+      // H1 fix (Session 159): use schema-driven buildPersonalRow + full row range.
+      // The old 25-cell array was in pre-Session-156 column order; every column
+      // from B onward landed in the wrong cell on a 32-col schema sheet.
+      const newRow = buildPersonalRow({
+        itemNum: item.itemNum,
+        variation: item.variation || '',
+        condition: pd.condition || '',
+        allOriginal: pd.allOriginal || '',
+        priceItem: priceItem,
+        priceBox: priceBox,
+        priceComplete: calc > 0 ? calc.toFixed(2) : '',
+        hasBox: pd.hasBox || '',
+        boxCond: pd.boxCond || '',
+        photoItem: pd.photoItem || '',
+        photoBox: pd.photoBox || '',
+        notes: pd.notes || '',
+        datePurchased: pd.datePurchased || '',
+        userEstWorth: pd.userEstWorth || '',
+        matchedTo: pd.matchedTo || '',
+        setId: pd.setId || '',
+        yearMade: pd.yearMade || '',
+        isError: pd.isError || '',
+        errorDesc: pd.errorDesc || '',
+        quickEntry: pd.quickEntry ? 'Yes' : '',
+        inventoryId: pd.inventoryId || '',
+        groupId: pd.groupId || '',
+        location: pd.location || '',
+        era: pd.era || '',
+        manufacturer: pd.manufacturer || '',
+        itemType: pd.itemType || '',
+        roadName: pd.roadName || '',
+        roadNumber: pd.roadNumber || '',
+        description: pd.description || '',
+        customName: pd.customName || '',
+      });
       try {
-        await sheetsUpdate(state.personalSheetId, 'My Collection!A' + pd.row + ':Y' + pd.row, [newRow]);
+        await sheetsUpdate(state.personalSheetId, personalFullRowRange(pd.row), [newRow]);
         state.personalData[pdKey] = Object.assign({}, pd, { priceComplete: calc > 0 ? calc.toFixed(2) : '' });
         overlay.remove();
         showToast('✓ Item updated!');
@@ -3214,30 +3233,45 @@ async function saveItem() {
   if (currentStatus === 'Owned') {
     // Write/update in My Collection tab
     const _ex = _saveItemPd || {};
-    const ownedRow = [
-      item.itemNum, item.variation || '', copy, condition,
-      document.getElementById('fc-original').value,
-      document.getElementById('fc-price-item').value,
-      document.getElementById('fc-price-box').value,
-      document.getElementById('fc-price-complete').value,
-      document.getElementById('fc-has-box').value,
-      document.getElementById('fc-box-cond').value,
-      document.getElementById('fc-photo-item').value,
-      document.getElementById('fc-photo-box').value,
-      document.getElementById('fc-notes').value,
-      _ex.datePurchased || '', _ex.userEstWorth || '',
-      _ex.matchedTo || '', _ex.setId || '', _ex.yearMade || '',
-      _ex.isError || '', _ex.errorDesc || '',
-      _ex.quickEntry ? 'Yes' : '',  // preserve Quick Entry flag
-      _ex.inventoryId || nextInventoryId(),  // auto-assign if new
-      _ex.groupId || '',
-      _ex.location || '',  // Location (col W)
-      _ex.era || '',        // Era (col X)
-      _ex.manufacturer || '', // Manufacturer (col Y)
-    ];
+    // H1 fix (Session 159): use schema-driven buildPersonalRow + full row range.
+    // The old 25-cell positional array was in pre-Session-156 order; every
+    // column from B onward landed in the wrong cell on a 32-col schema sheet.
+    // Note: there is no 'copy' field in the current schema, so we drop it.
+    const ownedRow = buildPersonalRow({
+      itemNum: item.itemNum,
+      variation: item.variation || '',
+      condition: condition,
+      allOriginal: document.getElementById('fc-original').value,
+      priceItem: document.getElementById('fc-price-item').value,
+      priceBox: document.getElementById('fc-price-box').value,
+      priceComplete: document.getElementById('fc-price-complete').value,
+      hasBox: document.getElementById('fc-has-box').value,
+      boxCond: document.getElementById('fc-box-cond').value,
+      photoItem: document.getElementById('fc-photo-item').value,
+      photoBox: document.getElementById('fc-photo-box').value,
+      notes: document.getElementById('fc-notes').value,
+      datePurchased: _ex.datePurchased || '',
+      userEstWorth: _ex.userEstWorth || '',
+      matchedTo: _ex.matchedTo || '',
+      setId: _ex.setId || '',
+      yearMade: _ex.yearMade || '',
+      isError: _ex.isError || '',
+      errorDesc: _ex.errorDesc || '',
+      quickEntry: _ex.quickEntry ? 'Yes' : '',
+      inventoryId: _ex.inventoryId || nextInventoryId(),
+      groupId: _ex.groupId || '',
+      location: _ex.location || '',
+      era: _ex.era || '',
+      manufacturer: _ex.manufacturer || '',
+      itemType: _ex.itemType || '',
+      roadName: _ex.roadName || '',
+      roadNumber: _ex.roadNumber || '',
+      description: _ex.description || '',
+      customName: _ex.customName || '',
+    });
     const existing = _saveItemPd;
     if (existing && existing.row) {
-      await sheetsUpdate(state.personalSheetId, `My Collection!A${existing.row}:Y${existing.row}`, [ownedRow]);
+      await sheetsUpdate(state.personalSheetId, personalFullRowRange(existing.row), [ownedRow]);
     } else {
       await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [ownedRow]);
     }
@@ -3476,5 +3510,6 @@ function _checkWantPartners(itemNum, variation, priority, maxPrice, notes) {
     }
   };
 }
+
 
 
