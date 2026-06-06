@@ -1965,7 +1965,17 @@ async function saveWizardItem() {
     buildDashboard();
     buildSoldPage();
     buildForSalePage();
-    if (tab === 'want') { buildWantPage(); if (typeof buildUpgradePage === 'function') buildUpgradePage(); }
+    if (tab === 'want') {
+      buildWantPage();
+      if (typeof buildUpgradePage === 'function') buildUpgradePage();
+      // Safety net: re-run the Want/Upgrade render after the wizard modal close
+      // transition completes. Inline call sometimes fired before DOM settled,
+      // leaving the page stale until the user clicked the nav.
+      setTimeout(function() {
+        if (typeof buildUpgradePage === 'function') buildUpgradePage();
+        if (typeof buildDashboard === 'function') buildDashboard();
+      }, 250);
+    }
     renderBrowse();
     showToast(`✓ Item ${itemNum} added to ${tab === 'collection' ? 'My Collection' : tab === 'forsale' ? 'For Sale' : tab === 'sold' ? 'Sold' : 'Want List'}!`);
 
