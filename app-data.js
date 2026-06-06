@@ -459,11 +459,11 @@ async function loadCatalogRefData() {
     state.catalogRefData = rows
       .filter(r => r[0] && r[3] && r[0] !== 'Catalog ID') // skip header/empty
       .map(r => ({
-        id:          r[0] || '',
-        year:        r[1] || '',
-        type:        r[2] || '',
-        title:       r[3] || '',
-        description: r[6] || '',
+        id:          String(r[0] || ''),
+        year:        String(r[1] || ''),
+        type:        String(r[2] || ''),
+        title:       String(r[3] || ''),
+        description: String(r[6] || ''),
       }));
     localStorage.setItem(CACHE_KEY, JSON.stringify(state.catalogRefData));
     localStorage.setItem(CACHE_TS, Date.now().toString());
@@ -508,12 +508,12 @@ async function loadISRefData() {
     state.isRefData = rows
       .filter(r => r[0] && r[2] && r[0] !== 'Instruction Sheet ID')
       .map(r => ({
-        id:          r[0] || '',
-        itemNumber:  r[1] || '',
-        description: r[2] || '',
-        category:    r[3] || '',
-        variations:  r[4] || '',
-        notes:       r[5] || '',
+        id:          String(r[0] || ''),
+        itemNumber:  String(r[1] || ''),
+        description: String(r[2] || ''),
+        category:    String(r[3] || ''),
+        variations:  String(r[4] || ''),
+        notes:       String(r[5] || ''),
       }));
     localStorage.setItem(CACHE_KEY, JSON.stringify(state.isRefData));
     localStorage.setItem(CACHE_TS, Date.now().toString());
@@ -588,11 +588,11 @@ function parseCompanionRows(rows) {
   state.companionData = rows
     .filter(r => r[0] && r[2])
     .map(r => ({
-      engineNum:     (r[0] || '').trim(),
-      engineVar:     (r[1] || '').trim(),
-      companionNum:  (r[2] || '').trim(),
-      companionType: (r[3] || '').trim(),
-      notes:         (r[4] || '').trim(),
+      engineNum:     String(r[0] || '').trim(),
+      engineVar:     String(r[1] || '').trim(),
+      companionNum:  String(r[2] || '').trim(),
+      companionType: String(r[3] || '').trim(),
+      notes:         String(r[4] || '').trim(),
     }));
 }
 
@@ -600,21 +600,21 @@ function parseSetRows(rows) {
   state.setData = rows
     .filter(r => r[0])
     .map(r => ({
-      setNum:      (r[0]  || '').trim(),
-      setName:     (r[1]  || '').trim(),
-      year:        (r[2]  || '').trim(),
-      gauge:       (r[3]  || '').trim(),
-      price:       (r[4]  || '').trim(),
-      steam:       (r[5]  || '').trim(),
-      tender:      (r[6]  || '').trim(),
-      dieselPow:   (r[7]  || '').trim(),
-      dieselB:     (r[8]  || '').trim(),
-      dieselDummy: (r[9]  || '').trim(),
+      setNum:      String(r[0]  || '').trim(),
+      setName:     String(r[1]  || '').trim(),
+      year:        String(r[2]  || '').trim(),
+      gauge:       String(r[3]  || '').trim(),
+      price:       String(r[4]  || '').trim(),
+      steam:       String(r[5]  || '').trim(),
+      tender:      String(r[6]  || '').trim(),
+      dieselPow:   String(r[7]  || '').trim(),
+      dieselB:     String(r[8]  || '').trim(),
+      dieselDummy: String(r[9]  || '').trim(),
       // All component item numbers in one flat array (cols F–T)
       items:    [r[5],r[6],r[7],r[8],r[9],r[10],r[11],r[12],r[13],r[14],r[15],r[16],r[17],r[18],r[19]]
                   .map(v => (v||'').trim()).filter(Boolean),
       alts:     [],   // no longer used — all components are in items[]
-      notes:    (r[20] || '').trim(),
+      notes:    String(r[20] || '').trim(),
     }));
 }
 
@@ -918,7 +918,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // Want List
   (wantRes.values || []).forEach((r, idx) => {
     if (!r[0] || r[0] === 'Item Number') return;
-    const key = `${r[0]}|${r[1]||''}`;
+    const key = `${String(r[0]||'')}|${String(r[1]||'')}`;
     const _ws = (v) => (v !== null && v !== undefined && v !== '') ? String(v) : '';
     newWant[key] = {
       row: idx+3, itemNum: _ws(r[0]), variation: _ws(r[1]),
@@ -1005,13 +1005,13 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     _isRows.forEach((r, idx) => {
     if (!r[0] || r[0] === 'Sheet #' || r[0] === 'Instruction Sheets') return;
     const _rowNum = idx + 3;
-    const _isInvId = r[6] || '';
+    const _isInvId = String(r[6] || '');
     const key = _isInvId || _rowNum;
     newIsData[key] = {
-      row: _rowNum, sheetNum: r[0]||'', linkedItem: r[1]||'', year: r[2]||'',
-      condition: r[3]||'', notes: r[4]||'', photoLink: r[5]||'',
-      inventoryId: _isInvId, groupId: r[7]||'', formCode: r[8]||'',
-      pricePaid: r[9]||'', estValue: r[10]||'',
+      row: _rowNum, sheetNum: String(r[0]||''), linkedItem: String(r[1]||''), year: String(r[2]||''),
+      condition: String(r[3]||''), notes: String(r[4]||''), photoLink: String(r[5]||''),
+      inventoryId: _isInvId, groupId: String(r[7]||''), formCode: String(r[8]||''),
+      pricePaid: String(r[9]||''), estValue: String(r[10]||''),
     };
   });
 
@@ -1020,14 +1020,14 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     (res.values || []).forEach((r, idx) => {
       if (!r[0] || r[0] === 'Item Number' || r[0] === tabTitle) return;
       const _rowNum = idx + 3;
-      const _stInvId = r[13] || '';
+      const _stInvId = String(r[13] || '');
       const key = _stInvId || _rowNum;
       bucket[key] = {
-        row: _rowNum, itemNum: String(r[0]||''), variation: String(r[1]||''), description: r[2]||'', year: r[3]||'',
-        condition: r[4]||'', allOriginal: r[5]||'', hasCase: r[6]||'',
-        caseCond: r[7]||'', pricePaid: r[8]||'', estValue: r[9]||'',
-        photoLink: r[10]||'', notes: r[11]||'', dateAcquired: r[12]||'',
-        inventoryId: r[13]||'', groupId: r[14]||'',
+        row: _rowNum, itemNum: String(r[0]||''), variation: String(r[1]||''), description: String(r[2]||''), year: String(r[3]||''),
+        condition: String(r[4]||''), allOriginal: String(r[5]||''), hasCase: String(r[6]||''),
+        caseCond: String(r[7]||''), pricePaid: String(r[8]||''), estValue: String(r[9]||''),
+        photoLink: String(r[10]||''), notes: String(r[11]||''), dateAcquired: String(r[12]||''),
+        inventoryId: String(r[13]||''), groupId: String(r[14]||''),
       };
     });
   }
@@ -1038,14 +1038,14 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   (mySetsRes.values || []).forEach((r, idx) => {
     if (!r[0] || r[0] === 'Set Number') return;
     const rowNum = idx + 3;
-    const _msInvId = r[13] || '';
-    const key = _msInvId || `${r[0]}|${r[2] || ''}|${rowNum}`;
+    const _msInvId = String(r[13] || '');
+    const key = _msInvId || `${r[0]}|${String(r[2] || '')}|${rowNum}`;
     newMySetsData[key] = {
-      row: rowNum, setNum: r[0]||'', setName: r[1]||'', year: r[2]||'',
-      condition: r[3]||'', estWorth: r[4]||'', datePurchased: r[5]||'',
-      groupId: r[6]||'', setId: r[7]||'', hasSetBox: r[8]||'',
-      boxCondition: r[9]||'', photoLink: r[10]||'', notes: r[11]||'',
-      quickEntry: r[12] === 'Yes', inventoryId: r[13]||'',
+      row: rowNum, setNum: String(r[0]||''), setName: String(r[1]||''), year: String(r[2]||''),
+      condition: String(r[3]||''), estWorth: String(r[4]||''), datePurchased: String(r[5]||''),
+      groupId: String(r[6]||''), setId: String(r[7]||''), hasSetBox: String(r[8]||''),
+      boxCondition: String(r[9]||''), photoLink: String(r[10]||''), notes: String(r[11]||''),
+      quickEntry: r[12] === 'Yes', inventoryId: String(r[13]||''),
     };
   });
 
@@ -1061,17 +1061,17 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
       const hasItemId = /^(\d{4}-[A-Z]+|[A-Z]{2,4}-\d{4}|[A-Z]{2,4}-\d{3}$)/.test(r[0]);
       if (hasItemId) {
         bucket[key] = {
-          row: key, itemNum: r[0]||'', title: r[1]||'', description: r[2]||'', year: r[3]||'',
-          manufacturer: r[4]||'Lionel', condition: r[5]||'', quantity: r[6]||'1',
-          pricePaid: r[7]||'', estValue: r[8]||'', photoLink: r[9]||'', notes: r[10]||'', dateAcquired: r[11]||'',
-          paperType: r[12]||'', itemNumRef: r[13]||'',
+          row: key, itemNum: String(r[0]||''), title: String(r[1]||''), description: String(r[2]||''), year: String(r[3]||''),
+          manufacturer: String(r[4]||'Lionel'), condition: String(r[5]||''), quantity: String(r[6]||'1'),
+          pricePaid: String(r[7]||''), estValue: String(r[8]||''), photoLink: String(r[9]||''), notes: String(r[10]||''), dateAcquired: String(r[11]||''),
+          paperType: String(r[12]||''), itemNumRef: String(r[13]||''),
         };
       } else {
         // Legacy row without Item ID — predates Price Paid column
         bucket[key] = {
-          row: key, itemNum: '', title: r[0]||'', description: r[1]||'', year: r[2]||'',
-          manufacturer: r[3]||'Lionel', condition: r[4]||'', quantity: r[5]||'1',
-          pricePaid: '', estValue: r[6]||'', photoLink: r[7]||'', notes: r[8]||'', dateAcquired: r[9]||'',
+          row: key, itemNum: '', title: String(r[0]||''), description: String(r[1]||''), year: String(r[2]||''),
+          manufacturer: String(r[3]||'Lionel'), condition: String(r[4]||''), quantity: String(r[5]||'1'),
+          pricePaid: '', estValue: String(r[6]||''), photoLink: String(r[7]||''), notes: String(r[8]||''), dateAcquired: String(r[9]||''),
           paperType: '', itemNumRef: '',
         };
       }
@@ -1083,14 +1083,14 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     if (!r[0] || r[0] === 'Item ID' || r[0] === 'Type' || r[0] === 'Catalogs') return;
     const key = idx + 3;
     // Columns: ItemID(0) Type(1) Year(2) HasMailer(3) Condition(4) PricePaid(5) EstValue(6) DateAcq(7) Notes(8) PhotoLink(9)
-    const catType = r[1]||'';
-    const year = r[2]||'';
+    const catType = String(r[1]||'');
+    const year = String(r[2]||'');
     const title = [year, catType, 'Catalog'].filter(Boolean).join(' ');
     newEphemera.catalogs[key] = {
-      row: key, itemNum: r[0]||'', title,
-      catType, year, hasMailer: r[3]||'No',
-      condition: r[4]||'', pricePaid: r[5]||'', estValue: r[6]||'', dateAcquired: r[7]||'',
-      notes: r[8]||'', photoLink: r[9]||'',
+      row: key, itemNum: String(r[0]||''), title,
+      catType, year, hasMailer: String(r[3]||'No'),
+      condition: String(r[4]||''), pricePaid: String(r[5]||''), estValue: String(r[6]||''), dateAcquired: String(r[7]||''),
+      notes: String(r[8]||''), photoLink: String(r[9]||''),
     };
   });
   parseEphemeraRows(paperRes.values, newEphemera.paper);
@@ -1120,12 +1120,12 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     if (!r[0] || r[0] === 'Item ID' || r[0] === 'Title') return;
     const key = idx + 3;
     newEphemera.mockups[key] = {
-      row: key, itemNum: r[0]||'', title: r[1]||'', itemNumRef: r[2]||'', description: r[3]||'',
-      year: r[4]||'', manufacturer: r[5]||'Lionel', condition: r[6]||'',
-      productionStatus: r[7]||'', material: r[8]||'', dimensions: r[9]||'',
-      provenance: r[10]||'', lionelVerified: r[11]||'',
-      pricePaid: r[12]||'', estValue: r[13]||'',
-      photoLink: r[14]||'', notes: r[15]||'', dateAcquired: r[16]||'',
+      row: key, itemNum: String(r[0]||''), title: String(r[1]||''), itemNumRef: String(r[2]||''), description: String(r[3]||''),
+      year: String(r[4]||''), manufacturer: String(r[5]||'Lionel'), condition: String(r[6]||''),
+      productionStatus: String(r[7]||''), material: String(r[8]||''), dimensions: String(r[9]||''),
+      provenance: String(r[10]||''), lionelVerified: String(r[11]||''),
+      pricePaid: String(r[12]||''), estValue: String(r[13]||''),
+      photoLink: String(r[14]||''), notes: String(r[15]||''), dateAcquired: String(r[16]||''),
     };
   });
 

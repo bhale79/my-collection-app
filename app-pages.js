@@ -2477,11 +2477,13 @@ async function saveUpgradeItem(itemNum, variation, existingRow, invId) {
     (res.values || []).forEach((r, idx) => {
       if (!r[0] || r[0] === 'Item Number') return;
       const _row = idx + 3;
+      // Row-builder String coercion (memory rule): UNFORMATTED_VALUE returns numbers.
+      const _s = (v) => (v !== null && v !== undefined && v !== '') ? String(v) : '';
       const _ugEntry = {
-        row: _row, itemNum: r[0]||'', variation: r[1]||'',
-        priority: r[2]||'Medium', targetCondition: r[3]||'', maxPrice: r[4]||'', notes: r[5]||'',
-        inventoryId: r[6]||'',
-        manufacturer: r[7] || 'Lionel',
+        row: _row, itemNum: _s(r[0]), variation: _s(r[1]),
+        priority: _s(r[2]) || 'Medium', targetCondition: _s(r[3]), maxPrice: _s(r[4]), notes: _s(r[5]),
+        inventoryId: _s(r[6]),
+        manufacturer: _s(r[7]) || 'Lionel',
       };
       const _k = _ugEntry.inventoryId || ('legacy-row-' + _row);
       state.upgradeData[_k] = _ugEntry;

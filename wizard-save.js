@@ -555,14 +555,16 @@ async function _saveCatalogFromPaper() {
       state.ephemeraData.catalogs = {};
       (freshCat.values || []).forEach((r, idx) => {
         if (!r[0] || r[0] === 'Item ID' || r[0] === 'Type' || r[0] === 'Catalogs') return;
+        // Row-builder String coercion (memory rule).
+        const _s = (v) => (v !== null && v !== undefined && v !== '') ? String(v) : '';
         const key = idx + 3;
-        const catType2 = r[1]||''; const year2 = r[2]||'';
+        const catType2 = _s(r[1]); const year2 = _s(r[2]);
         const t = [year2, catType2, 'Catalog'].filter(Boolean).join(' ');
         state.ephemeraData.catalogs[key] = {
-          row: key, itemNum: r[0]||'', title: t,
-          catType: catType2, year: year2, hasMailer: r[3]||'No',
-          condition: r[4]||'', pricePaid: r[5]||'', estValue: r[6]||'', dateAcquired: r[7]||'',
-          notes: r[8]||'', photoLink: r[9]||'',
+          row: key, itemNum: _s(r[0]), title: t,
+          catType: catType2, year: year2, hasMailer: _s(r[3]) || 'No',
+          condition: _s(r[4]), pricePaid: _s(r[5]), estValue: _s(r[6]), dateAcquired: _s(r[7]),
+          notes: _s(r[8]), photoLink: _s(r[9]),
         };
       });
       // Session 115: the re-fetch wipes any _savedAt we might have set pre-fetch.
