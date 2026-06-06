@@ -451,7 +451,30 @@ function handleSignOut() {
   localStorage.removeItem('lv_user');
   localStorage.removeItem('lv_token');
   localStorage.removeItem('lv_token_expiry');
+  // Audit H9: clear localStorage cache + every in-memory state slice so a
+  // shared-browser user B doesn't see user A's collection.
+  localStorage.removeItem('lv_personal_cache');
+  localStorage.removeItem('lv_personal_cache_ts');
   state.user = null;
+  state.personalSheetId = null;
+  state.masterSheetId = null;
+  state.personalData = {};
+  state.soldData = {};
+  state.forSaleData = {};
+  state.wantData = {};
+  state.upgradeData = {};
+  state.mySetsData = {};
+  state.isData = {};
+  state.scienceData = {};
+  state.constructionData = {};
+  state.ephemeraData = { catalogs:{}, paper:{}, mockups:{}, other:{} };
+  state.partnerMap = {};
+  state.masterData = [];
+  state.setData = [];
+  state.companionData = [];
+  state.catalogRefData = [];
+  state.isRefData = [];
+  state.userDefinedTabs = [];
   _tokenIsInitial = true; // ensure next sign-in triggers full data load
   document.getElementById('auth-screen').style.display = 'flex';
   document.getElementById('app').classList.remove('active');

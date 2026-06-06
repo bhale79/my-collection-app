@@ -1506,8 +1506,16 @@ async function saveWizardItem() {
           });
           if (_ent) { fsKey = _ent[0]; fsEntry = _ent[1]; }
         }
-        if (fsEntry && fsEntry.row) {
-          await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry.row}:J${fsEntry.row}`, [['','','','','','','','','','']]);
+        // Audit H10: guard 99999 placeholder rows. Try a fresh lookup before write.
+        if (fsEntry && fsEntry.row && fsEntry.row !== 99999 && fsEntry.row < 100000) {
+          try {
+            await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry.row}:J${fsEntry.row}`, [['','','','','','','','','','']]);
+          } catch (e) {
+            console.warn('[H10] For Sale clear failed at row ' + fsEntry.row + ':', e && e.message);
+          }
+          delete state.forSaleData[fsKey];
+        } else if (fsEntry) {
+          // synthetic row — just clean the in-memory entry; sheet row will be tidied on next Sync
           delete state.forSaleData[fsKey];
         }
       } catch(e) { console.warn('[Sold] clearing For Sale row failed:', e); }
@@ -1524,8 +1532,13 @@ async function saveWizardItem() {
           });
           if (_ent) { ugKey = _ent[0]; ugEntry = _ent[1]; }
         }
-        if (ugEntry && ugEntry.row) {
-          await sheetsUpdate(state.personalSheetId, `Upgrade List!A${ugEntry.row}:H${ugEntry.row}`, [['','','','','','','','']]);
+        // Audit H10: guard 99999 placeholder rows.
+        if (ugEntry && ugEntry.row && ugEntry.row !== 99999 && ugEntry.row < 100000) {
+          try {
+            await sheetsUpdate(state.personalSheetId, `Upgrade List!A${ugEntry.row}:H${ugEntry.row}`, [['','','','','','','','']]);
+          } catch (e) {
+            console.warn('[H10] Upgrade clear failed at row ' + ugEntry.row + ':', e && e.message);
+          }
           delete state.upgradeData[ugKey];
         }
       } catch(e) { console.warn('[Sold] clearing Upgrade row failed:', e); }

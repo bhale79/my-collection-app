@@ -1768,9 +1768,24 @@ function _formatDate(input) {
   if (input === null || input === undefined || input === '') return '';
   var fmt = _prefGet('lv_date_fmt', 'YYYY-MM-DD');
   var yyyy, mm, dd;
+  // Audit H8: Sheets API UNFORMATTED_VALUE returns dates as Excel serial
+  // numbers (days since 1899-12-30). Detect serial-shaped values and convert
+  // to a real Date. Serial 25569 = 1970-01-01; values above ~25500 and below
+  // ~80000 (year ~2089) are date-shaped.
+  var _serialNum = (typeof input === 'number') ? input
+                  : (typeof input === 'string' && /^\d{4,5}(\.\d+)?$/.test(input) ? parseFloat(input) : NaN);
+  if (isFinite(_serialNum) && _serialNum > 25000 && _serialNum < 80000) {
+    var _ms = Math.round((_serialNum - 25569) * 86400000);
+    var _sd = new Date(_ms);
+    if (!isNaN(_sd.getTime())) {
+      yyyy = _sd.getUTCFullYear();
+      mm = String(_sd.getUTCMonth() + 1).padStart(2, '0');
+      dd = String(_sd.getUTCDate()).padStart(2, '0');
+    }
+  }
   // Timezone-safe path: parse YYYY-MM-DD strings directly without Date()
   // to avoid UTC-midnight → local-day-before drift in western timezones.
-  if (typeof input === 'string') {
+  if (!yyyy && typeof input === 'string') {
     var iso = input.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (iso) { yyyy = iso[1]; mm = iso[2]; dd = iso[3]; }
     else {
