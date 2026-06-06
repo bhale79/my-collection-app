@@ -1597,9 +1597,31 @@ async function markForSaleAsSold(fsKey, askingPrice) {
   });
   await sheetsAppend(state.personalSheetId, 'Sold!A:T', [soldRow]);
 
-  // Remove from For Sale tab
-  if (fs.row) {
-    await sheetsUpdate(state.personalSheetId, `For Sale!A${fs.row}:J${fs.row}`, [['','','','','','','','','','']]);
+  // Remove from For Sale tab — Phase 3e: guard against synthetic row=99999
+  // from optimistic local writes that never got the real sheet row written back.
+  if (fs.row && fs.row > 0 && fs.row < 1000) {
+    try {
+      await sheetsUpdate(state.personalSheetId, `For Sale!A${fs.row}:J${fs.row}`, [['','','','','','','','','','']]);
+    } catch (e) {
+      console.warn('[Phase 3e] For Sale row clear failed at row ' + fs.row + ':', e && e.message);
+    }
+  } else if (fs.inventoryId) {
+    // Synthetic / unknown row — fetch the For Sale tab and find the real row by inventoryId
+    try {
+      const fsAll = await sheetsGet(state.personalSheetId, 'For Sale!A3:J');
+      const targetInv = String(fs.inventoryId);
+      let realRow = -1;
+      (fsAll.values || []).forEach((r, idx) => {
+        if (String(r[8] || '') === targetInv) realRow = idx + 3;
+      });
+      if (realRow > 0 && realRow < 1000) {
+        await sheetsUpdate(state.personalSheetId, `For Sale!A${realRow}:J${realRow}`, [['','','','','','','','','','']]);
+      } else {
+        console.warn('[Phase 3e] For Sale row for inventoryId ' + targetInv + ' not found on sheet');
+      }
+    } catch (e) {
+      console.warn('[Phase 3e] For Sale row lookup/clear failed:', e && e.message);
+    }
   }
 
   // Remove from My Collection
@@ -2541,4 +2563,5 @@ async function _upgradeGotItFinish(ugKey, action) {
     showToast('✓ Upgrade complete — entry removed from list');
   }
 }
+
 
