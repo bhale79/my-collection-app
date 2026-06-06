@@ -27,7 +27,7 @@ async function sheetsGet(spreadsheetId, range) {
   const urlRange = _encodeRange(range);
   if (useApiKey) {
     // Public master read — no bearer token, won't 401 for auth reasons.
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${urlRange}?key=${API_KEY}`;
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${urlRange}?key=${API_KEY}&valueRenderOption=UNFORMATTED_VALUE`;
     const res = await fetch(url, { headers: {} });
     if (!res.ok) {
       const errBody = await res.text().catch(() => '');
@@ -38,7 +38,7 @@ async function sheetsGet(spreadsheetId, range) {
   // Session 159: wrap bearer-token reads in _withTokenRetry so expired tokens
   // silently refresh + retry instead of bombing the save (sheetsAppend calls
   // sheetsGet internally to find the next empty row).
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${urlRange}`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${urlRange}?valueRenderOption=UNFORMATTED_VALUE`;
   const res = await _withTokenRetry(() => fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
   }));
@@ -52,7 +52,7 @@ async function sheetsBatchGet(spreadsheetId, ranges) {
   const useApiKey = isMaster && API_KEY && API_KEY !== 'YOUR_API_KEY';
   const params = ranges.map(r => 'ranges=' + _encodeRange(r)).join('&');
   if (useApiKey) {
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchGet?${params}&key=${API_KEY}`;
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchGet?${params}&key=${API_KEY}&valueRenderOption=UNFORMATTED_VALUE`;
     const res = await fetch(url, { headers: {} });
     if (!res.ok) {
       const errBody = await res.text().catch(() => '');
@@ -61,7 +61,7 @@ async function sheetsBatchGet(spreadsheetId, ranges) {
     return res.json();
   }
   // Session 159: wrap bearer-token reads in _withTokenRetry
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchGet?${params}`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchGet?${params}&valueRenderOption=UNFORMATTED_VALUE`;
   const res = await _withTokenRetry(() => fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
   }));
@@ -206,3 +206,4 @@ async function sheetsDeleteRow(spreadsheetId, sheetName, rowNumber) {
     })
   }));
 }
+
