@@ -1573,26 +1573,68 @@ async function saveWizardItem() {
 
     } else if (tab === 'want') {
       // Audit H6 fix: include Manufacturer column. WANT_HEADERS is 6 cols.
-      const row = [
-        itemNum, variation,
-        d.priority || 'Medium',
-        d.expectedPrice || '',
-        ( d.notes || '' ).trim(),
-        (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : 'Lionel'),
-      ];
-      const existing = state.wantData[key];
-      if (existing?.row) {
-        // Want-Upgrade combined: write to 9-col tab with List Type='Want'.
-        const wuRow = [row[0], row[1], 'Want', row[2], row[3], '', '', row[4], row[5]];
-        await sheetsUpdate(state.personalSheetId, `Want-Upgrade List!A${existing.row}:I${existing.row}`, [wuRow]);
-      } else {
-        // Want-Upgrade combined: append to 9-col tab with List Type='Want'.
-        const wuAppendRow = [row[0], row[1], 'Want', row[2], row[3], '', '', row[4], row[5]];
-        await sheetsAppend(state.personalSheetId, 'Want-Upgrade List!A:I', [wuAppendRow]);
+      const _wMfr = (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : 'Lionel');
+      const _wPriority = d.priority || 'Medium';
+      const _wPrice = d.expectedPrice || '';
+      const _wNotes = (d.notes || '').trim();
+      const _wTargetCond = (d.targetCondition != null && d.targetCondition !== '') ? String(d.targetCondition) : '';
+
+      // Brad (Session 161+): if the user picked a grouping in the wizard
+      // (engine+tender / AA / AB / ABA), build a list of partner item#s and
+      // write a Want row for EACH item with a shared groupId. Single items
+      // skip the partner list and write one row.
+      var _wPartners = [];
+      var _wGrp = d._itemGrouping || 'single';
+      if (_wGrp === 'engine_tender' && d.tenderMatch && d.tenderMatch !== 'none') {
+        _wPartners.push({ num: String(d.tenderMatch), variation: '' });
+      } else if ((_wGrp === 'aa' || _wGrp === 'ab' || _wGrp === 'aba') && d.unit2ItemNum) {
+        _wPartners.push({ num: String(d.unit2ItemNum), variation: '' });
+        if (_wGrp === 'aba' && d.unit3ItemNum) {
+          _wPartners.push({ num: String(d.unit3ItemNum), variation: '' });
+        }
       }
-      // After save, prompt about groupable partners (tender, A/B unit)
-      if (typeof _checkWantPartners === 'function') {
-        setTimeout(() => _checkWantPartners(itemNum, variation, row[2], row[3], row[4]), 500);
+
+      // Generate a groupId shared by all partners (incl. the lead item) when grouping is set.
+      var _wGroupId = '';
+      if (_wPartners.length > 0) {
+        _wGroupId = (typeof genGroupId === 'function') ? genGroupId() :
+          ('grp-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7));
+      }
+
+      // Build full list of items to save (lead + partners).
+      var _wAllItems = [{ num: itemNum, variation: variation }].concat(_wPartners);
+
+      for (const _w of _wAllItems) {
+        var _wKey = (_w.num + '|' + (_w.variation || ''));
+        const row = [_w.num, _w.variation || '', _wPriority, _wPrice, _wNotes, _wMfr];
+        const existing = state.wantData[_wKey];
+        // Want-Upgrade combined 9-col schema: [item#, var, ListType, priority,
+        // targetPrice, targetCondition, upgradingInvId, notes, manufacturer].
+        // For Want rows we also store groupId in the Notes column suffix when
+        // partners exist, so the renderer can show paperclip grouping. (Notes
+        // field carries "[grp:<id>] <user notes>" if grouped.)
+        var _notesWithGrp = _wGroupId ? ('[grp:' + _wGroupId + '] ' + _wNotes).trim() : _wNotes;
+        if (existing && existing.row) {
+          const wuRow = [row[0], row[1], 'Want', row[2], row[3], _wTargetCond, '', _notesWithGrp, row[5]];
+          await sheetsUpdate(state.personalSheetId, `Want-Upgrade List!A${existing.row}:I${existing.row}`, [wuRow]);
+        } else {
+          const wuAppendRow = [row[0], row[1], 'Want', row[2], row[3], _wTargetCond, '', _notesWithGrp, row[5]];
+          await sheetsAppend(state.personalSheetId, 'Want-Upgrade List!A:I', [wuAppendRow]);
+          // Optimistic state mirror
+          state.wantData[_wKey] = {
+            row: 99999, itemNum: _w.num, variation: _w.variation || '',
+            priority: _wPriority, expectedPrice: _wPrice,
+            targetCondition: _wTargetCond, notes: _notesWithGrp,
+            manufacturer: _wMfr, listType: 'Want', groupId: _wGroupId,
+          };
+        }
+      }
+
+      // Only run the post-save partner prompt when the wizard's own grouping
+      // didn't already capture a partner (so single-item saves still get the
+      // "also add tender?" prompt).
+      if (_wPartners.length === 0 && typeof _checkWantPartners === 'function') {
+        setTimeout(() => _checkWantPartners(itemNum, variation, _wPriority, _wPrice, _wNotes), 500);
       }
     }
 

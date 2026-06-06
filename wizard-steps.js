@@ -587,16 +587,47 @@ function getSteps(tab) {
       { id: 'confirm',      title: 'Ready to save!',                       type: 'confirm' },
     ];
   } else { // want
-    // If user chose 'set', show set number input with set suggestions
+    // Session 161+ (Brad): the Want flow now mirrors the Add to Collection
+    // flow for item identification and grouping. Engine+Tender / AA / AB / ABA
+    // pickers behave the same as collection; saved entries split into multiple
+    // Want rows sharing one groupId. Set mode keeps its set-number-first path.
     const _wantSetMode = wizard.data.itemCategory === 'set';
-    const _wantSteps = _wantSetMode ? [
-      { id: 'set_num', title: 'What set are you looking for?', type: 'text', placeholder: 'Search by set # or item # (e.g. 1775, 736)' },
-    ] : base;
+    if (_wantSetMode) {
+      return [
+        { id: 'set_num', title: 'What set are you looking for?', type: 'text', placeholder: 'Search by set # or item # (e.g. 1775, 736)' },
+        { id: 'priority',      title: 'How high is your priority for this item?', type: 'choice3', choices: ['High','Medium','Low'] },
+        { id: 'targetCondition', title: 'Target condition (1-10)', type: 'slider', min: 1, max: 10, optional: true },
+        { id: 'expectedPrice', title: 'What do you expect to pay?',               type: 'money',   placeholder: '0.00', optional: true },
+        { id: 'confirm',       title: 'Ready to add to Want List!',               type: 'confirm' },
+      ];
+    }
     return [
-      ..._wantSteps,
+      // Item Number + Grouping picker (Single/Engine+Tender/AA/AB/ABA) — same as collection
+      { id: 'itemNumGrouping', title: 'Item Number', type: 'itemNumGrouping' },
+      { id: 'itemPicker', title: 'Select an item', type: 'itemPicker',
+        skipIf: (d) => !d._partialMatches || d._partialMatches.length === 0 },
+      { id: 'variation', title: 'Which variation is it?', type: 'variation', optional: true,
+        skipIf: (d) => {
+          var num = d.itemNum || '';
+          var mt = (wizard.matchedItem && wizard.matchedItem.itemType) || d._suggestedItemType || '';
+          var mr = (wizard.matchedItem && wizard.matchedItem.roadName) || d._suggestedRoadName || '';
+          var vars = state.masterData.filter(function(m) {
+            if (m.itemNum !== num) return false;
+            if (!m.variation) return false;
+            if (mt && String(m.itemType || '').trim() !== String(mt).trim()) return false;
+            if (mr && String(m.roadName || '').trim() !== String(mr).trim()) return false;
+            return true;
+          });
+          return vars.length === 0;
+        } },
+      // Pick which tender pairs with the engine (only for engine_tender grouping).
+      { id: 'tenderMatch', title: 'Which tender came with this engine?', type: 'tenderMatch',
+        skipIf: (d) => d._itemGrouping !== 'engine_tender' },
+      // Want-specific tail
       { id: 'priority',      title: 'How high is your priority for this item?', type: 'choice3', choices: ['High','Medium','Low'] },
-      { id: 'expectedPrice', title: 'What do you expect to pay?',               type: 'money',   placeholder: '0.00', optional: true },
-      { id: 'confirm',       title: 'Ready to add to Want List!',               type: 'confirm' },
+      { id: 'targetCondition', title: 'Target condition (1-10)', type: 'slider', min: 1, max: 10, optional: true },
+      { id: 'expectedPrice', title: 'What do you expect to pay?', type: 'money', placeholder: '0.00', optional: true },
+      { id: 'confirm',       title: 'Ready to add to Want List!', type: 'confirm' },
     ];
   }
 }
