@@ -724,6 +724,13 @@ async function loadPersonalData() {
               };
               newFs[entry.inventoryId || ('legacy-row-' + row)] = entry;
             });
+            // Audit NEW #5 fix: merge instead of wholesale replace. Preserve
+            // any optimistic entries (row=99999) that a user-initiated save
+            // added between the cache restore and this background fetch.
+            Object.keys(state.forSaleData || {}).forEach(function(k) {
+              var e = state.forSaleData[k];
+              if (e && e.row === 99999 && !newFs[k]) newFs[k] = e;
+            });
             state.forSaleData = newFs;
             changed = true;
           }
@@ -739,6 +746,11 @@ async function loadPersonalData() {
                 manufacturer: r[7] || 'Lionel',
               };
               newUg[entry.inventoryId || ('legacy-row-' + row)] = entry;
+            });
+            // Audit NEW #5 fix: preserve optimistic 99999 entries on merge.
+            Object.keys(state.upgradeData || {}).forEach(function(k) {
+              var e = state.upgradeData[k];
+              if (e && e.row === 99999 && !newUg[k]) newUg[k] = e;
             });
             state.upgradeData = newUg;
             changed = true;

@@ -90,6 +90,17 @@ async function _withTokenRetry(fetchFn) {
   if (!accessToken) throw new Error('Not signed in — please reload and sign in again');
 
   const res = await fetchFn();
+  // Audit NEW #7: retry on 429 (rate limit) with Retry-After or 2s backoff.
+  if (res.status === 429) {
+    var _ra = parseInt(res.headers && res.headers.get && res.headers.get('Retry-After') || '0');
+    var _waitMs = (isNaN(_ra) || _ra <= 0) ? 2000 : Math.min(_ra * 1000, 30000);
+    console.warn('[Sheets] 429 rate limited — backing off ' + _waitMs + 'ms');
+    await new Promise(function(r){ setTimeout(r, _waitMs); });
+    res = await fetchFn();
+    if (res.status === 429) {
+      console.warn('[Sheets] 429 persists after backoff — caller must handle');
+    }
+  }
   if (res.status === 401 || res.status === 403) {
     if (!tokenClient) throw new Error('Cannot refresh token — please reload');
     await new Promise((resolve, reject) => {

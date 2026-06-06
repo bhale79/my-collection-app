@@ -429,7 +429,6 @@ async function _cleanupSoldItemBoxes(leadItemNum, leadGroupId) {
       if (leadGroupId && p.groupId && p.groupId === leadGroupId) return true;
       return false;
     });
-    var blank = [['','','','','','','','','','','','','','','','','','','','','','','','','']];
     for (var i = 0; i < keys.length; i++) {
       var bp = state.personalData[keys[i]];
       if (bp && bp.row && bp.row !== 99999) {
@@ -532,6 +531,11 @@ function nextInventoryId() {
   _scanMax(state.scienceData);
   _scanMax(state.constructionData);
   _scanMax(state.mySetsData);
+  // Audit NEW #8 fix: also scan for-sale/upgrade/want data so we don't
+  // re-issue an inventoryId that's already in use in another list.
+  _scanMax(state.forSaleData);
+  _scanMax(state.upgradeData);
+  _scanMax(state.wantData);
   Object.keys(_issuedInvIds).forEach(function(k){ var n=parseInt(k); if(!isNaN(n)&&n>max) max=n; });
   var next = String(max + 1);
   _issuedInvIds[next] = true;

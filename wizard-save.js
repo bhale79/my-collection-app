@@ -1063,10 +1063,23 @@ async function saveWizardItem() {
               existingItem.groupId = boxGroupId;
               const existingInvId = existingItem.inventoryId || nextInventoryId();
               if (!existingItem.inventoryId) existingItem.inventoryId = existingInvId;
-              // Backfill Group ID + Inventory ID on existing item row (cols U-V)
+              // Audit NEW #1 fix: write to schema-derived columns. Hardcoded U,V
+              // were inventoryId+groupId pre-Session-156; after the reorder
+              // they're matchedTo+setId, so this was silently corrupting fields.
               if (existingItem.row && existingItem.row !== 99999) {
-                sheetsUpdate(state.personalSheetId, `My Collection!U${existingItem.row}:V${existingItem.row}`, [[existingInvId, boxGroupId]])
-                  .catch(e => console.warn('Box group backfill:', e));
+                var _invCol = personalColLetter('inventoryId');
+                var _grpCol = personalColLetter('groupId');
+                // Write each col separately since they're not adjacent in the
+                // post-Session-156 layout (AA and AB happen to be adjacent —
+                // safe to combine — but be defensive in case schema changes).
+                sheetsUpdate(state.personalSheetId,
+                  'My Collection!' + _invCol + existingItem.row + ':' + _invCol + existingItem.row,
+                  [[existingInvId]])
+                  .catch(e => console.warn('Inventory ID backfill:', e));
+                sheetsUpdate(state.personalSheetId,
+                  'My Collection!' + _grpCol + existingItem.row + ':' + _grpCol + existingItem.row,
+                  [[boxGroupId]])
+                  .catch(e => console.warn('Group ID backfill:', e));
               }
             }
           }
@@ -1468,7 +1481,16 @@ async function saveWizardItem() {
         }
         for (var _k=0; _k<(_gs.ungroupPd||[]).length; _k++) {
           var _up = state.personalData[_gs.ungroupPd[_k]];
-          if (_up && _up.row) { try { await sheetsUpdate(state.personalSheetId, 'My Collection!V'+_up.row, [['']]); } catch(e){} if (_up) _up.groupId=''; }
+          if (_up && _up.row) {
+            // Audit NEW #2 fix: hardcoded col V was groupId pre-Session-156,
+            // post-reorder it's setId. Use personalColLetter('groupId') for the
+            // right column (currently AB).
+            try {
+              var _gcUngroup = personalColLetter('groupId');
+              await sheetsUpdate(state.personalSheetId, 'My Collection!' + _gcUngroup + _up.row, [['']]);
+            } catch(e){}
+            if (_up) _up.groupId='';
+          }
         }
         for (var _m=0; _m<(_gs.ungroupIs||[]).length; _m++) {
           var _uip = (state.isData||{})[_gs.ungroupIs[_m]];

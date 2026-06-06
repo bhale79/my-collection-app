@@ -285,9 +285,12 @@ async function confirmGroupItems(idx) {
     for (var i = 0; i < group.length; i++) {
       var pd = group[i];
       if (!pd.row) continue;
-      // Column V (index 21) is groupId — write just that column
+      // Audit NEW #3 fix: col V was groupId pre-Session-156; after the reorder
+      // it's setId. Use personalColLetter('groupId') so this lands in the right
+      // column regardless of future schema changes.
+      var _grpCol = (typeof personalColLetter === 'function') ? personalColLetter('groupId') : 'AB';
       await sheetsUpdate(state.personalSheetId,
-        'My Collection!V' + pd.row + ':V' + pd.row,
+        'My Collection!' + _grpCol + pd.row + ':' + _grpCol + pd.row,
         [[groupId]]);
       // Update in-memory state
       var pdKey = findPDKey(pd.itemNum, pd.variation);
@@ -519,8 +522,11 @@ async function toolCreateSet(idx) {
       for (var j = 0; j < matches.length; j++) {
         var pd = matches[j];
         if (!pd.row) continue;
+        // Audit NEW #4 fix: col P was setId pre-Session-156; after the reorder
+        // P is hasBox. Use personalColLetter('setId') for the right column.
+        var _sidCol = (typeof personalColLetter === 'function') ? personalColLetter('setId') : 'V';
         await sheetsUpdate(state.personalSheetId,
-          'My Collection!P' + pd.row + ':P' + pd.row,
+          'My Collection!' + _sidCol + pd.row + ':' + _sidCol + pd.row,
           [[setIdStr]]);
         // Update in-memory state
         var pdKey = findPDKey(pd.itemNum, pd.variation);

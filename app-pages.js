@@ -68,6 +68,20 @@ const _COLLECTION_TABS = [
 // Phase 3: forSale + upgrade caches are keyed by inventoryId only.
 // These helpers stay so any straggling callers compile, but they're just
 // a direct delete now.
+// Audit NEW #6: convert any date-shaped value to a sortable numeric. Handles
+// Excel serial numbers (returned raw by Phase 3i UNFORMATTED_VALUE), ISO date
+// strings, and US date strings.
+function _dateForSort(v) {
+  if (v === null || v === undefined || v === '') return 0;
+  var s = String(v).trim();
+  if (/^\d{4,5}(\.\d+)?$/.test(s)) {
+    var n = parseFloat(s);
+    if (n > 25000 && n < 80000) return n;
+  }
+  var d = new Date(s);
+  return isNaN(d.getTime()) ? 0 : d.getTime() / 86400000;
+}
+
 function _fsCacheRemove(fsKey) { delete state.forSaleData[fsKey]; }
 function _ugCacheRemove(ugKey) { delete state.upgradeData[ugKey]; }
 // Phase 3: helper for the For Sale list — derive a stable storage key from
@@ -1228,7 +1242,10 @@ function buildSoldPage() {
     } else if (sf === 'condition') {
       va = parseFloat(a.condition) || 0; vb = parseFloat(b.condition) || 0;
     } else if (sf === 'dateSold') {
-      va = a.dateSold || ''; vb = b.dateSold || '';
+      // Audit NEW #6 fix: after Phase 3i, dates may be Excel serial numbers
+      // coerced to strings like "45123". Lexicographic compare ("45123" < "2025")
+      // sorts wrong. Coerce to numeric serial via _parseDateValue helper.
+      va = _dateForSort(a.dateSold); vb = _dateForSort(b.dateSold);
     } else if (sf === 'type') {
       va = (a._type || '').toLowerCase(); vb = (b._type || '').toLowerCase();
     } else if (sf === 'roadName') {
