@@ -1384,7 +1384,7 @@ function buildApp() {
   // Apply era-dropdown visibility based on user prefs (admin sees all)
   if (typeof _applyEraVisibility === 'function') _applyEraVisibility();
   // Upgrade count badge
-  const _uEl = document.getElementById('nav-upgrade-count');
+  const _uEl = document.getElementById('nav-wishlist-count');
   if (_uEl) { const _uc = Object.values(state.upgradeData||{}).length; _uEl.textContent = _uc > 0 ? _uc.toLocaleString() : '—'; }
   // Wire up the Google Sheet link in the sidebar
   const sheetLink = document.getElementById('nav-sheet-link');

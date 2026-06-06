@@ -774,8 +774,9 @@ function buildWantPage() {
       : 'Showing ' + entries.length + ' of ' + totalCount;
   }
   // Keep nav count badge in sync
-  const countBadge = document.getElementById('nav-wanted2');
-  if (countBadge) countBadge.textContent = totalCount.toLocaleString();
+  // Updated for combined Wishlist nav badge.
+  const countBadge = document.getElementById('nav-wishlist-count');
+  if (countBadge) countBadge.textContent = (totalCount + Object.keys(state.upgradeData||{}).length).toLocaleString();
   const cardsEl = document.getElementById('want-cards');
   const tableEl = document.getElementById('want-table');
   const tbody   = document.getElementById('want-tbody');
@@ -1741,7 +1742,7 @@ async function _removeUpgradeFromCollection(inventoryId) {
   showToast('✓ Removed from Upgrade List');
   renderBrowse();
   buildDashboard();
-  const badge = document.getElementById('nav-upgrade-count');
+  const badge = document.getElementById('nav-wishlist-count');
   if (badge) { const c = Object.values(state.upgradeData).length; badge.textContent = c > 0 ? c : '—'; }
 }
 
@@ -2213,18 +2214,39 @@ function showContactModal() {
 // ══════════════════════════════════════════════════════════════════
 
 function buildUpgradePage() {
+  // Combined Want/Upgrade page (Session 161+). state._wishlistFilter controls
+  // which slice is shown: 'all' (default) | 'want' | 'upgrade'. Pull entries
+  // from BOTH state.wantData and state.upgradeData, tag with listType.
   const isMobile = window.innerWidth <= 640;
   const _uq = (state._upgradeSearch || '').toLowerCase();
   const _sort = state._upgradeSort || 'priority';
   const _up = state._upgradePriority || '';
-  const thresh = parseInt(_prefGet('lv_upgrade_thresh', '7'));
-  const _threshFilter = state._upgradeThreshFilter !== false; // default on
+  const _wf = state._wishlistFilter || 'all';
   // Sync dropdowns with state
   const _upEl = document.getElementById('upgrade-priority-filter');
   if (_upEl && _upEl.value !== _up) _upEl.value = _up;
-  const totalCount = Object.keys(state.upgradeData).length;
+  // Sync filter chip active styling
+  document.querySelectorAll('#wishlist-filter-chip .wf-chip').forEach(function(btn) {
+    var active = btn.getAttribute('data-wf') === _wf;
+    btn.style.background = active ? 'var(--accent)' : 'transparent';
+    btn.style.color = active ? 'var(--bg)' : 'var(--text-dim)';
+    btn.style.fontWeight = active ? '700' : '600';
+  });
 
-  let entries = Object.values(state.upgradeData).filter(u => {
+  const wantTotal = Object.keys(state.wantData || {}).length;
+  const upgradeTotal = Object.keys(state.upgradeData || {}).length;
+  const totalCount = wantTotal + upgradeTotal;
+
+  // Build merged entries list. Each entry carries listType for downstream rendering.
+  const _collect = [];
+  if (_wf === 'all' || _wf === 'upgrade') {
+    Object.values(state.upgradeData || {}).forEach(u => _collect.push(Object.assign({}, u, { listType: 'Upgrade' })));
+  }
+  if (_wf === 'all' || _wf === 'want') {
+    Object.values(state.wantData || {}).forEach(w => _collect.push(Object.assign({}, w, { listType: 'Want' })));
+  }
+
+  let entries = _collect.filter(u => {
     // Era filter
     if (typeof _isInCurrentEra === 'function' && !_isInCurrentEra(u.itemNum)) return false;
     // Priority filter
@@ -2234,11 +2256,6 @@ function buildUpgradePage() {
       if (!(u.itemNum||'').toLowerCase().includes(_uq)
         && !(master.roadName||'').toLowerCase().includes(_uq)
         && !(u.notes||'').toLowerCase().includes(_uq)) return false;
-    }
-    if (_threshFilter) {
-      const pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === u.itemNum && (p.variation||'') === (u.variation||''));
-      const cond = pd && pd.condition ? parseInt(pd.condition) : null;
-      if (cond !== null && cond > thresh) return false;
     }
     return true;
   });
@@ -2255,15 +2272,16 @@ function buildUpgradePage() {
     entries.sort((a, b) => (a.itemNum||'').localeCompare(b.itemNum||'', undefined, {numeric:true}));
   }
 
-  // Update badge
-  const badge = document.getElementById('nav-upgrade-count');
-  if (badge) badge.textContent = totalCount > 0 ? totalCount : '—';
+  // Update combined wishlist badge (Want + Upgrade total).
+  const badge = document.getElementById('nav-wishlist-count');
+  if (badge) badge.textContent = totalCount > 0 ? totalCount : '\u2014';
   // Count display
   const upgradeCountEl = document.getElementById('upgrade-count');
   if (upgradeCountEl) {
-    upgradeCountEl.textContent = entries.length === totalCount
-      ? totalCount + ' item' + (totalCount !== 1 ? 's' : '')
-      : 'Showing ' + entries.length + ' of ' + totalCount;
+    const labelTotal = (_wf === 'want') ? wantTotal : (_wf === 'upgrade') ? upgradeTotal : totalCount;
+    upgradeCountEl.textContent = entries.length === labelTotal
+      ? labelTotal + ' item' + (labelTotal !== 1 ? 's' : '')
+      : 'Showing ' + entries.length + ' of ' + labelTotal;
   }
 
   const cardsEl = document.getElementById('upgrade-cards');
@@ -2273,10 +2291,14 @@ function buildUpgradePage() {
   const priorityColor = { High: 'var(--accent)', Medium: 'var(--accent2)', Low: 'var(--text-dim)' };
 
   if (entries.length === 0) {
-    const hasFilters = _uq || _up || (_threshFilter && totalCount > 0);
-    const emptyIcon = hasFilters ? '🔍' : '↑';
-    const emptyMsg = hasFilters ? 'No items match your filters' : 'Your upgrade list is empty';
-    const emptyTip = hasFilters ? 'Try adjusting your search or filters' : 'Add items from My Collection that you\'d like in better condition';
+    const hasFilters = _uq || _up || _wf !== 'all';
+    const emptyIcon = hasFilters ? '🔍' : '★';
+    const emptyMsg = hasFilters
+      ? 'No items match your filters'
+      : 'Your want/upgrade list is empty';
+    const emptyTip = hasFilters
+      ? 'Try adjusting your search or filters'
+      : 'Add items you\'re hunting for from My Collection or the catalog';
     const empty = `<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">${emptyIcon}</div><p>${emptyMsg}</p><p style="font-size:0.8rem;margin-top:0.5rem">${emptyTip}</p></div>`;
     if (cardsEl) cardsEl.innerHTML = empty;
     if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="ui-empty">' + emptyMsg + '</td></tr>';
@@ -2296,31 +2318,43 @@ function buildUpgradePage() {
       const escVar = (u.variation||'').replace(/'/g,"\\'");
       const photoId = `upgphoto-m-${u.itemNum}-${u.variation||''}`.replace(/[^a-zA-Z0-9-]/g,'_');
       const hasPhoto = pd && !!pd.photoItem;
+      // List Type chip — Want gets sky-blue, Upgrade gets purple.
+      const _isWant = u.listType === 'Want';
+      const _ltColor = _isWant ? '#3b82f6' : '#8b5cf6';
+      const _ltBg    = _isWant ? 'rgba(59,130,246,0.12)' : 'rgba(139,92,246,0.12)';
+      const _escName = (name||'').replace(/'/g,"\\'");
+      const _priceLabel = _isWant ? 'Want: ' : 'Max: ';
+      const _priceVal = _isWant ? u.expectedPrice : u.maxPrice;
       return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem">
         <div style="display:flex;align-items:flex-start;gap:0.5rem">
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap">
               <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${_composeItemNumHTML(u.itemNum, u.variation)}</span>
               ${u.variation ? `<span style="font-size:0.72rem;color:var(--text-dim)">${u.variation}</span>` : ''}
+              <span style="font-size:0.6rem;font-weight:700;color:${_ltColor};background:${_ltBg};border-radius:4px;padding:0.1rem 0.4rem;text-transform:uppercase;letter-spacing:0.05em">${u.listType||'Want'}</span>
               <span style="font-size:0.65rem;font-weight:600;color:${pColor};border:1px solid ${pColor};border-radius:4px;padding:0.1rem 0.4rem">${u.priority||'Medium'}</span>
             </div>
             ${name ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">${name}</div>` : ''}
             <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.25rem;flex-wrap:wrap">
-              ${cond !== null ? `<span style="font-size:0.75rem"><span class="condition-pip ${condClass}"></span>Mine: ${cond}</span>` : ''}
-              ${u.targetCondition ? `<span style="font-size:0.75rem;color:#8b5cf6">→ Target: ${u.targetCondition}</span>` : ''}
-              ${u.maxPrice ? `<span style="font-size:0.75rem;color:var(--accent2);font-family:var(--font-mono)">Max: $${parseFloat(u.maxPrice).toLocaleString()}</span>` : ''}
+              ${!_isWant && cond !== null ? `<span style="font-size:0.75rem"><span class="condition-pip ${condClass}"></span>Mine: ${cond}</span>` : ''}
+              ${!_isWant && u.targetCondition ? `<span style="font-size:0.75rem;color:#8b5cf6">→ Target: ${u.targetCondition}</span>` : ''}
+              ${_priceVal ? `<span style="font-size:0.75rem;color:var(--accent2);font-family:var(--font-mono)">${_priceLabel}$${parseFloat(_priceVal).toLocaleString()}</span>` : ''}
             </div>
             ${u.notes ? `<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${u.notes}</div>` : ''}
           </div>
-          ${hasPhoto ? `<button onclick="event.stopPropagation();_toggleUpgradePhoto('${photoId}','${pd.photoItem.replace(/'/g,"\\'")}')" style="background:none;border:none;font-size:1.1rem;cursor:pointer;flex-shrink:0" title="View my photo">📷</button>` : ''}
+          ${!_isWant && hasPhoto ? `<button onclick="event.stopPropagation();_toggleUpgradePhoto('${photoId}','${pd.photoItem.replace(/'/g,"\\'")}')" style="background:none;border:none;font-size:1.1rem;cursor:pointer;flex-shrink:0" title="View my photo">📷</button>` : ''}
         </div>
-        <div id="${photoId}" style="display:none;margin-top:0.5rem"><img src="${pd && pd.photoItem ? pd.photoItem : ''}" style="max-width:100%;max-height:180px;border-radius:8px;object-fit:contain" onerror="this.parentElement.style.display='none'"></div>
+        ${!_isWant ? `<div id="${photoId}" style="display:none;margin-top:0.5rem"><img src="${pd && pd.photoItem ? pd.photoItem : ''}" style="max-width:100%;max-height:180px;border-radius:8px;object-fit:contain" onerror="this.parentElement.style.display='none'"></div>` : ''}
         <div style="display:flex;gap:0.35rem;margin-top:0.6rem;flex-wrap:wrap">
-          <button onclick="event.stopPropagation();_upgradeViewMine('${_ugEntryKey(u)}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600">View Mine</button>
-          <button onclick="event.stopPropagation();wantFindOnEbay('${u.itemNum}','${(name||'').replace(/'/g,"\\'")}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);font-weight:600">eBay</button>
-          <button onclick="event.stopPropagation();wantSearchOtherSites('${u.itemNum}','${(name||'').replace(/'/g,"\\'")}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #2980b9;background:rgba(41,128,185,0.12);color:#2980b9;font-family:var(--font-body);font-weight:600">Search</button>
-          <button onclick="event.stopPropagation();upgradeGotIt('${_ugEntryKey(u)}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600">✓ Got It</button>
-          <button onclick="event.stopPropagation();removeUpgradeItem('${_ugEntryKey(u)}')" style="flex:0 0 auto;padding:0.4rem 0.6rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>
+          ${!_isWant ? `<button onclick="event.stopPropagation();_upgradeViewMine('${_ugEntryKey(u)}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600">View Mine</button>` : ''}
+          <button onclick="event.stopPropagation();wantFindOnEbay('${u.itemNum}','${_escName}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);font-weight:600">eBay</button>
+          <button onclick="event.stopPropagation();wantSearchOtherSites('${u.itemNum}','${_escName}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #2980b9;background:rgba(41,128,185,0.12);color:#2980b9;font-family:var(--font-body);font-weight:600">Search</button>
+          ${_isWant
+            ? `<button onclick="event.stopPropagation();moveWantToCollection('${u.itemNum}','${escVar}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600">+ Collection</button>`
+            : `<button onclick="event.stopPropagation();upgradeGotIt('${_ugEntryKey(u)}')" style="flex:1;min-width:0;padding:0.4rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600">✓ Got It</button>`}
+          ${_isWant
+            ? `<button onclick="event.stopPropagation();removeWantItem('${u.itemNum}','${escVar}',${u.row})" style="flex:0 0 auto;padding:0.4rem 0.6rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>`
+            : `<button onclick="event.stopPropagation();removeUpgradeItem('${_ugEntryKey(u)}')" style="flex:0 0 auto;padding:0.4rem 0.6rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>`}
         </div>
       </div>`;
     }).join('');
@@ -2328,34 +2362,46 @@ function buildUpgradePage() {
     if (tableEl) tableEl.style.display = '';
     if (cardsEl) cardsEl.style.display = 'none';
     tbody.innerHTML = entries.map((u, idx) => {
-      const pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === u.itemNum && (p.variation||'') === (u.variation||''));
+      const _isWant = u.listType === 'Want';
+      const pd = _isWant ? null : Object.values(state.personalData).find(p => p.owned && p.itemNum === u.itemNum && (p.variation||'') === (u.variation||''));
       const master = findMaster(u.itemNum);
       const name = master ? (master.roadName || master.itemType || '') : '';
       const cond = pd && pd.condition ? parseInt(pd.condition) : null;
       const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
       const pColor = priorityColor[u.priority] || 'var(--text-dim)';
       const escVar = (u.variation||'').replace(/'/g,"\\'");
+      const escName = (name||'').replace(/'/g,"\\'");
       const hasPhoto = pd && !!pd.photoItem;
       const photoId = `upgphoto-d-${idx}`;
+      const _ltColor = _isWant ? '#3b82f6' : '#8b5cf6';
+      const _ltBg    = _isWant ? 'rgba(59,130,246,0.12)' : 'rgba(139,92,246,0.12)';
+      const _priceVal = _isWant ? u.expectedPrice : u.maxPrice;
       return `<tr>
-        <td><span class="item-num">${_composeItemNumHTML(u.itemNum, u.variation)}</span></td>
+        <td>
+          <span class="item-num">${_composeItemNumHTML(u.itemNum, u.variation)}</span>
+          <span style="display:inline-block;margin-left:0.4rem;font-size:0.6rem;font-weight:700;color:${_ltColor};background:${_ltBg};border-radius:4px;padding:0.1rem 0.4rem;text-transform:uppercase;letter-spacing:0.05em;vertical-align:middle">${u.listType||'Want'}</span>
+        </td>
         <td style="color:var(--text-mid)">${name || '<span class="text-dim">—</span>'}</td>
-        <td>${cond !== null ? `<span class="condition-pip ${condClass}" style="margin-right:3px"></span>${cond}` : '<span class="text-dim">—</span>'}</td>
-        <td style="color:#8b5cf6;font-weight:600">${u.targetCondition || '<span class="text-dim">—</span>'}</td>
+        <td>${!_isWant && cond !== null ? `<span class="condition-pip ${condClass}" style="margin-right:3px"></span>${cond}` : '<span class="text-dim">—</span>'}</td>
+        <td style="color:#8b5cf6;font-weight:600">${!_isWant && u.targetCondition ? u.targetCondition : '<span class="text-dim">—</span>'}</td>
         <td><span style="color:${pColor};font-weight:500">${u.priority||'Medium'}</span></td>
-        <td class="market-val">${u.maxPrice ? _currencySymbol() + parseFloat(u.maxPrice).toLocaleString() : '<span class="text-dim">—</span>'}</td>
+        <td class="market-val">${_priceVal ? _currencySymbol() + parseFloat(_priceVal).toLocaleString() : '<span class="text-dim">—</span>'}</td>
         <td style="font-size:0.8rem;color:var(--text-dim);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(u.notes||'').replace(/"/g,'&quot;')}">${u.notes || '<span class="text-dim">—</span>'}</td>
         <td style="white-space:nowrap">
-          ${hasPhoto ? `<button onclick="event.stopPropagation();_toggleUpgradePhoto('${photoId}','${(pd.photoItem||'').replace(/'/g,"\\'")}')" style="padding:0.25rem 0.4rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);margin-right:0.2rem" title="Toggle photo">📷</button>` : ''}
-          <button onclick="_upgradeViewMine('${_ugEntryKey(u)}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">View Mine</button>
-          <button onclick="wantFindOnEbay('${u.itemNum}','${(name||'').replace(/'/g,"\\'")}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);margin-right:0.2rem">eBay</button>
-          <button onclick="wantSearchOtherSites('${u.itemNum}','${(name||'').replace(/'/g,"\\'")}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2980b9;background:rgba(41,128,185,0.12);color:#2980b9;font-family:var(--font-body);margin-right:0.2rem">Search</button>
-          <button onclick="upgradeGotIt('${_ugEntryKey(u)}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">✓ Got It</button>
-          <button onclick="removeUpgradeItem('${_ugEntryKey(u)}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>
+          ${!_isWant && hasPhoto ? `<button onclick="event.stopPropagation();_toggleUpgradePhoto('${photoId}','${(pd.photoItem||'').replace(/'/g,"\\'")}')" style="padding:0.25rem 0.4rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);margin-right:0.2rem" title="Toggle photo">📷</button>` : ''}
+          ${!_isWant ? `<button onclick="_upgradeViewMine('${_ugEntryKey(u)}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">View Mine</button>` : ''}
+          <button onclick="wantFindOnEbay('${u.itemNum}','${escName}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);margin-right:0.2rem">eBay</button>
+          <button onclick="wantSearchOtherSites('${u.itemNum}','${escName}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2980b9;background:rgba(41,128,185,0.12);color:#2980b9;font-family:var(--font-body);margin-right:0.2rem">Search</button>
+          ${_isWant
+            ? `<button onclick="moveWantToCollection('${u.itemNum}','${escVar}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">+ Collection</button>`
+            : `<button onclick="upgradeGotIt('${_ugEntryKey(u)}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">✓ Got It</button>`}
+          ${_isWant
+            ? `<button onclick="removeWantItem('${u.itemNum}','${escVar}',${u.row})" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>`
+            : `<button onclick="removeUpgradeItem('${_ugEntryKey(u)}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>`}
         </td>
       </tr>
-      <tr id="${photoId}-row" style="display:none"><td colspan="8" style="padding:0.5rem 1rem;background:var(--surface2)"><img src="${pd && pd.photoItem ? pd.photoItem : ''}" style="max-height:160px;border-radius:6px;object-fit:contain" onerror="this.parentElement.parentElement.style.display='none'"></td></tr>`;
-    }).join('') || '<tr><td colspan="8" class="ui-empty">No items on upgrade list</td></tr>';
+      ${!_isWant ? `<tr id="${photoId}-row" style="display:none"><td colspan="8" style="padding:0.5rem 1rem;background:var(--surface2)"><img src="${pd && pd.photoItem ? pd.photoItem : ''}" style="max-height:160px;border-radius:6px;object-fit:contain" onerror="this.parentElement.parentElement.style.display='none'"></td></tr>` : ''}`;
+    }).join('') || '<tr><td colspan="8" class="ui-empty">No items on want/upgrade list</td></tr>';
   }
 }
 
@@ -2500,7 +2546,7 @@ async function saveUpgradeItem(itemNum, variation, existingRow, invId) {
     buildDashboard();
     if (typeof renderBrowse === 'function') renderBrowse();  // Phase 3c: refresh badges
     if (typeof _cachePersonalData === 'function') _cachePersonalData();
-    const badge = document.getElementById('nav-upgrade-count');
+    const badge = document.getElementById('nav-wishlist-count');
     if (badge) badge.textContent = Object.values(state.upgradeData).length.toLocaleString();
   } catch(e) {
     showToast('Error saving — check connection');
@@ -2520,7 +2566,7 @@ async function removeUpgradeItem(ugKey) {
     showToast('Removed from Upgrade List');
     buildUpgradePage();
     buildDashboard();
-    const badge = document.getElementById('nav-upgrade-count');
+    const badge = document.getElementById('nav-wishlist-count');
     if (badge) { const c = Object.values(state.upgradeData).length; badge.textContent = c > 0 ? c : '—'; }
   } catch(e) {
     showToast('Error removing item');

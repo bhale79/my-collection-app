@@ -643,9 +643,9 @@ function buildDashboard() {
   }
   var _no = document.getElementById('nav-owned'); if (_no) _no.textContent = _allOwnedCount.toLocaleString();
   var wantListCount = Object.keys(state.wantData).length;
-  var _nw = document.getElementById('nav-wanted2'); if (_nw) _nw.textContent = wantListCount.toLocaleString();
+  var _nw = document.getElementById('nav-wishlist-count'); if (_nw) _nw.textContent = (wantListCount + (Object.keys(state.upgradeData||{}).length)).toLocaleString();
   var _upgradeCount = Object.values(state.upgradeData).length;
-  var _upgradeEl = document.getElementById('nav-upgrade-count');
+  var _upgradeEl = document.getElementById('nav-wishlist-count');
   if (_upgradeEl) _upgradeEl.textContent = _upgradeCount > 0 ? _upgradeCount.toLocaleString() : '—';
   // Quick Entry badge count — respect lv_qe_badge_enabled pref so the
   // badge stays hidden across reload + dashboard rebuild. (Session 120)

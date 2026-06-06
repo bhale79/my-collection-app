@@ -1024,8 +1024,8 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
         console.log('[Upgrade self-heal] picked up', added, 'rows on retry');
         if (typeof buildDashboard === 'function') buildDashboard();
         if (typeof renderBrowse === 'function') renderBrowse();
-        var _badge = document.getElementById('nav-upgrade-count');
-        if (_badge) _badge.textContent = Object.values(state.upgradeData).length.toLocaleString();
+        var _badge = document.getElementById('nav-wishlist-count');
+        if (_badge) _badge.textContent = (Object.keys(state.wantData||{}).length + Object.keys(state.upgradeData||{}).length).toLocaleString();
       }
     }).catch(function(e) { console.warn('[Upgrade self-heal failed]', e && e.message); });
   }, 1500);
