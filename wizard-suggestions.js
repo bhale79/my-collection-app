@@ -671,8 +671,18 @@ function _isLikelyRoadName(v) {
   return true;
 }
 
+// Pick the better casing when two variants of the same road name exist
+// across tabs (e.g. Weaver O ALL-CAPS vs MPC-Modern Title Case). Title case
+// wins over all-caps; if both are title-cased or both all-caps, longer wins.
+function _preferredCasing(a, b) {
+  var aUpper = a === a.toUpperCase();
+  var bUpper = b === b.toUpperCase();
+  if (aUpper && !bUpper) return b;
+  if (!aUpper && bUpper) return a;
+  return a.length >= b.length ? a : b;
+}
+
 function getMasterDistinct(fieldName, extraPredicate) {
-  var set = new Set();
   if (!window.state || !Array.isArray(state.masterData)) return [];
   // Session 115 fix: same era scope guard as updateItemSuggestions — so
   // dropdowns only surface Types / Roads that exist in the active era.
@@ -681,18 +691,28 @@ function getMasterDistinct(fieldName, extraPredicate) {
       && window.ERA_TABS && ERA_TABS[wizard.data._era]) {
     _eraTabSet = new Set(Object.values(ERA_TABS[wizard.data._era]));
   }
+  // For roadName we collect into a Map keyed by uppercase so case-insensitive
+  // duplicates (LOUISVILLE & NASHVILLE vs Louisville & Nashville) collapse
+  // to a single dropdown entry. For other fields we use a regular Set.
+  var caseInsensitive = (fieldName === 'roadName');
+  var bag = caseInsensitive ? new Map() : new Set();
   state.masterData.forEach(function(m) {
     if (_eraTabSet && m && m._tab && !_eraTabSet.has(m._tab)) return;
-    // For roadName: skip rows from tabs that don't actually have a road name column.
     if (fieldName === 'roadName' && m && m._tab && _NON_ROAD_TABS[m._tab]) return;
     var v = (m && m[fieldName]) ? String(m[fieldName]).trim() : '';
     if (!v) return;
     if (typeof extraPredicate === 'function' && !extraPredicate(m)) return;
     if (fieldName === 'roadName' && !_isLikelyRoadName(v)) return;
-    set.add(v);
+    if (caseInsensitive) {
+      var key = v.toUpperCase();
+      var prior = bag.get(key);
+      bag.set(key, prior ? _preferredCasing(prior, v) : v);
+    } else {
+      bag.add(v);
+    }
   });
-  var out = Array.from(set);
-  out.sort(function(a, b) { return a.localeCompare(b); });
+  var out = caseInsensitive ? Array.from(bag.values()) : Array.from(bag);
+  out.sort(function(a, b) { return a.localeCompare(b, undefined, { sensitivity: 'base' }); });
   var cfg = window.ITEM_SEARCH_FILTERS || {};
   if (cfg.maxOptions && out.length > cfg.maxOptions) out = out.slice(0, cfg.maxOptions);
   return out;
