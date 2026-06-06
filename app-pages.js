@@ -2448,6 +2448,8 @@ async function saveUpgradeItem(itemNum, variation, existingRow, invId) {
     if (modal) modal.remove();
     showToast('✓ Added to Upgrade List');
     buildDashboard();
+    if (typeof renderBrowse === 'function') renderBrowse();  // Phase 3c: refresh badges
+    if (typeof _cachePersonalData === 'function') _cachePersonalData();
     const badge = document.getElementById('nav-upgrade-count');
     if (badge) badge.textContent = Object.values(state.upgradeData).length.toLocaleString();
   } catch(e) {
