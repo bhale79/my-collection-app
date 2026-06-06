@@ -829,7 +829,9 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     if (newPersonal[key]) key = key + '|' + rowNum;
     const obj = { row: rowNum, status: 'Owned', owned: true };
     PERSONAL_SCHEMA.forEach((s, i) => {
-      obj[s.field] = r[i] || '';
+      // Phase 3j: coerce to string. UNFORMATTED_VALUE returns numbers/dates raw,
+      // but the rest of the app assumes string fields (e.g. .replace() on variation).
+      obj[s.field] = (r[i] !== null && r[i] !== undefined && r[i] !== '') ? String(r[i]) : '';
     });
     // Special: quickEntry stored as 'Yes'/'No' but consumed as boolean
     obj.quickEntry = (obj.quickEntry === 'Yes');
@@ -842,16 +844,17 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   (soldRes.values || []).forEach((r, idx) => {
     if (!r[0] || r[0] === 'Item Number') return;
     const key = 'sold-' + (idx+3);
+    const _ss = (v) => (v !== null && v !== undefined && v !== '') ? String(v) : '';
     newSold[key] = {
-      row: idx+3, key: key, itemNum: r[0]||'', variation: r[1]||'',
-      copy: r[2]||'1', condition: r[3]||'', priceItem: r[4]||'',
-      salePrice: r[5]||'', dateSold: r[6]||'', notes: r[7]||'',
-      inventoryId: r[8]||'',
-      manufacturer: r[9] || 'Lionel',
-      allOriginal: r[10]||'', hasBox: r[11]||'', boxCond: r[12]||'',
-      photoItem: r[13]||'', photoBox: r[14]||'',
-      roadName: r[15]||'', description: r[16]||'',
-      userEstWorth: r[17]||'', datePurchased: r[18]||'', year: r[19]||'',
+      row: idx+3, key: key, itemNum: _ss(r[0]), variation: _ss(r[1]),
+      copy: _ss(r[2]) || '1', condition: _ss(r[3]), priceItem: _ss(r[4]),
+      salePrice: _ss(r[5]), dateSold: _ss(r[6]), notes: _ss(r[7]),
+      inventoryId: _ss(r[8]),
+      manufacturer: _ss(r[9]) || 'Lionel',
+      allOriginal: _ss(r[10]), hasBox: _ss(r[11]), boxCond: _ss(r[12]),
+      photoItem: _ss(r[13]), photoBox: _ss(r[14]),
+      roadName: _ss(r[15]), description: _ss(r[16]),
+      userEstWorth: _ss(r[17]), datePurchased: _ss(r[18]), year: _ss(r[19]),
     };
   });
 
@@ -861,12 +864,14 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   (forSaleRes.values || []).forEach((r, idx) => {
     if (!r[0] || r[0] === 'Item Number') return;
     const _row = idx + 3;
+    // Phase 3j: coerce numeric-from-UNFORMATTED_VALUE fields to strings
+    const _s = (v) => (v !== null && v !== undefined && v !== '') ? String(v) : '';
     const entry = {
-      row: _row, itemNum: r[0]||'', variation: r[1]||'',
-      condition: r[2]||'', askingPrice: r[3]||'', dateListed: r[4]||'',
-      notes: r[5]||'', originalPrice: r[6]||'', estWorth: r[7]||'',
-      inventoryId: r[8]||'',
-      manufacturer: r[9] || 'Lionel',
+      row: _row, itemNum: _s(r[0]), variation: _s(r[1]),
+      condition: _s(r[2]), askingPrice: _s(r[3]), dateListed: _s(r[4]),
+      notes: _s(r[5]), originalPrice: _s(r[6]), estWorth: _s(r[7]),
+      inventoryId: _s(r[8]),
+      manufacturer: _s(r[9]) || 'Lionel',
     };
     const key = entry.inventoryId || ('legacy-row-' + _row);
     newForSale[key] = entry;
@@ -876,10 +881,11 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   (wantRes.values || []).forEach((r, idx) => {
     if (!r[0] || r[0] === 'Item Number') return;
     const key = `${r[0]}|${r[1]||''}`;
+    const _ws = (v) => (v !== null && v !== undefined && v !== '') ? String(v) : '';
     newWant[key] = {
-      row: idx+3, itemNum: r[0]||'', variation: r[1]||'',
-      priority: r[2]||'Medium', expectedPrice: r[3]||'', notes: r[4]||'',
-      manufacturer: r[5] || 'Lionel',
+      row: idx+3, itemNum: _ws(r[0]), variation: _ws(r[1]),
+      priority: _ws(r[2]) || 'Medium', expectedPrice: _ws(r[3]), notes: _ws(r[4]),
+      manufacturer: _ws(r[5]) || 'Lionel',
     };
   });
 
@@ -889,11 +895,12 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   (upgradeRes.values || []).forEach((r, idx) => {
     if (!r[0] || r[0] === 'Item Number') return;
     const _row = idx + 3;
+    const _us = (v) => (v !== null && v !== undefined && v !== '') ? String(v) : '';
     const entry = {
-      row: _row, itemNum: r[0]||'', variation: r[1]||'',
-      priority: r[2]||'Medium', targetCondition: r[3]||'', maxPrice: r[4]||'', notes: r[5]||'',
-      inventoryId: r[6]||'',
-      manufacturer: r[7] || 'Lionel',
+      row: _row, itemNum: _us(r[0]), variation: _us(r[1]),
+      priority: _us(r[2]) || 'Medium', targetCondition: _us(r[3]), maxPrice: _us(r[4]), notes: _us(r[5]),
+      inventoryId: _us(r[6]),
+      manufacturer: _us(r[7]) || 'Lionel',
     };
     const key = entry.inventoryId || ('legacy-row-' + _row);
     state.upgradeData[key] = entry;
@@ -1096,5 +1103,6 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     try { if (typeof renderBrowse === 'function') renderBrowse(); } catch(e) {}
   }).catch(function(e) { console.warn('[Secondary personal data fetch]', e); });
 }
+
 
 
