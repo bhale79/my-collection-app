@@ -994,7 +994,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // Session 159 Phase 2f: ALWAYS verify upgrade load completed, log + retry.
   // The Phase 2e conditional retry didn't fire — too restrictive. Now we
   // always log the initial state and retry if empty.
-  console.log('[Upgrade load] initial state has', Object.keys(state.upgradeData).length, 'entries; fetch returned', (upgradeRes.values || []).length, 'rows');
+  console.log('[Wishlist load] initial state has', Object.keys(state.upgradeData).length, 'upgrade entries; fetch returned', (wishlistRes.values || []).length, 'rows');
   setTimeout(function() {
     if (Object.keys(state.upgradeData).length > 0) return;
     console.log('[Upgrade self-heal] state empty after load — retrying fetch...');
