@@ -1375,6 +1375,40 @@ function _openInOtherEra(itemNum, era, variation) {
 // ── Master/Catalog/IS/Set/Companion/Personal data loaders moved to app-data.js (Session 111, Round 2 Chunk 13) ──
 
 // ── BUILD APP ───────────────────────────────────────────────────
+// ── Uniform Quick Actions bar (Session 161+, Brad) ──
+// Injects 5 quick-action buttons at the top of every list-style page:
+//   My Collection / Cataloged Master, Want/Upgrade, For Sale, Sold.
+// One helper, one HTML template, idempotent — re-running is safe.
+function _injectQuickActionsBar() {
+  var QA_PAGES = ['page-browse', 'page-upgrade', 'page-forsale', 'page-sold'];
+  // SVG snippets shared with the dashboard's existing buttons so visuals match.
+  var svgPlus     = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+  var svgHeart    = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z"/></svg>';
+  var svgUpgrade  = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
+  var svgTag      = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>';
+  var svgDollar   = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>';
+  var btn = function(handler, label, color, bg, svg) {
+    return '<button class="btn" onclick="' + handler + '" style="display:flex;align-items:center;gap:0.35rem;font-size:0.78rem;padding:0.45rem 0.65rem;border:1.5px solid ' + color + ';color:' + color + ';background:' + bg + ';font-weight:600">' + svg + label + '</button>';
+  };
+  var barHtml =
+    '<div class="qa-actions-bar" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.85rem;">'
+    + btn("startWizardFor('collection')", '+ Add to My Collection', 'var(--accent)', 'rgba(232,64,28,0.12)', svgPlus)
+    + btn("startWizardFor('want')",       '+ Add to Want List',     '#3b82f6',       'rgba(59,130,246,0.10)', svgHeart)
+    + btn("pickItemForUpgrade()",         '+ Add Upgrade',          '#8b5cf6',       'rgba(139,92,246,0.10)', svgUpgrade)
+    + btn("startWizardFor('forsale')",    '+ Add to For Sale List', '#e67e22',       'rgba(230,126,34,0.12)', svgTag)
+    + btn("startWizardFor('sold')",       '$ Record a Sale',        '#2ecc71',       'rgba(46,204,113,0.12)', svgDollar)
+    + '</div>';
+  QA_PAGES.forEach(function(pid) {
+    var p = document.getElementById(pid);
+    if (!p) return;
+    if (p.querySelector(':scope > .qa-actions-bar')) return;  // already injected
+    var temp = document.createElement('div');
+    temp.innerHTML = barHtml;
+    p.insertBefore(temp.firstChild, p.firstChild);
+  });
+}
+if (typeof window !== 'undefined') window._injectQuickActionsBar = _injectQuickActionsBar;
+
 function buildApp() {
   showApp();
   populateFilters();
@@ -1399,6 +1433,7 @@ function buildApp() {
     sheetLink.href = 'https://docs.google.com/spreadsheets/d/' + state.personalSheetId;
   }
   buildQuickEntryList();
+  _injectQuickActionsBar();
   // Initialize location preference toggle
   const _locToggle = document.getElementById('pref-location-toggle');
   if (_locToggle) _locToggle.checked = _prefLocEnabled;
