@@ -1421,22 +1421,46 @@ function _injectQuickActionsBar() {
     container.innerHTML = actionsHtml;
     title.appendChild(container);
 
-    // Brad (Session 161+): move the page-specific Share button OUT of the
-    // title row into a new right-aligned strip BELOW the title so it sits
-    // under the Record-A-Sale button. For page-upgrade this places it on
-    // the same row as the All/Want/Upgrade filter chip.
+    // Brad (Session 161+): relocate the page-specific Share button below the
+    // title row so it sits under Record-A-Sale.
+    // - On page-upgrade, the existing filter-chip row sits right below the
+    //   title — put Share into THAT row, right-aligned, so it shares the line.
+    // - On other pages, create a small strip below the title.
     var shareBtn = title.querySelector('[id^="share-btn-"]');
     if (shareBtn) {
-      // Drop any old relocation strip on subsequent re-runs.
+      // Drop any prior relocation strip.
       var oldStrip = p.querySelector(':scope > .qa-share-strip');
-      if (oldStrip) oldStrip.remove();
-      var strip = document.createElement('div');
-      strip.className = 'qa-share-strip';
-      strip.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:0.5rem';
-      strip.appendChild(shareBtn);
-      // Insert immediately AFTER the title row.
-      if (title.nextSibling) p.insertBefore(strip, title.nextSibling);
-      else p.appendChild(strip);
+      if (oldStrip) {
+        // If the share button was placed inside this strip earlier, move it back to a fresh container below.
+        oldStrip.remove();
+      }
+      if (pid === 'page-upgrade') {
+        // Find the row that contains the wishlist-filter-chip and append Share to it.
+        var filterChip = p.querySelector('#wishlist-filter-chip');
+        var filterRow = filterChip ? filterChip.parentElement : null;
+        if (filterRow) {
+          // Stretch the row to space-between if not already.
+          if (!filterRow.style.justifyContent) filterRow.style.justifyContent = 'space-between';
+          // Push Share to the right by ensuring it has margin-left:auto.
+          shareBtn.style.marginLeft = 'auto';
+          filterRow.appendChild(shareBtn);
+        } else {
+          // Fallback — strip below title.
+          var s = document.createElement('div');
+          s.className = 'qa-share-strip';
+          s.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:0.5rem';
+          s.appendChild(shareBtn);
+          if (title.nextSibling) p.insertBefore(s, title.nextSibling);
+          else p.appendChild(s);
+        }
+      } else {
+        var strip = document.createElement('div');
+        strip.className = 'qa-share-strip';
+        strip.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:0.5rem';
+        strip.appendChild(shareBtn);
+        if (title.nextSibling) p.insertBefore(strip, title.nextSibling);
+        else p.appendChild(strip);
+      }
     }
   });
 }
