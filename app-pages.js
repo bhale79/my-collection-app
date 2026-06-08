@@ -2413,7 +2413,7 @@ function buildUpgradePage() {
     cardsEl.innerHTML = entries.map(u => {
       const pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === u.itemNum && (p.variation||'') === (u.variation||''));
       const master = findMaster(u.itemNum);
-      const name = master ? (master.roadName || master.itemType || '') : '';
+      const name = master ? (master.roadName || '') : '';  // Road Name column shows ONLY roadName — itemType fallback removed (was lying about road name)
       const cond = pd && pd.condition ? parseInt(pd.condition) : null;
       const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
       const pColor = priorityColor[u.priority] || 'var(--text-dim)';
@@ -2467,7 +2467,7 @@ function buildUpgradePage() {
       const _isWant = u.listType === 'Want';
       const pd = _isWant ? null : Object.values(state.personalData).find(p => p.owned && p.itemNum === u.itemNum && (p.variation||'') === (u.variation||''));
       const master = findMaster(u.itemNum);
-      const name = master ? (master.roadName || master.itemType || '') : '';
+      const name = master ? (master.roadName || '') : '';  // Road Name column shows ONLY roadName — itemType fallback removed (was lying about road name)
       const cond = pd && pd.condition ? parseInt(pd.condition) : null;
       const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
       const pColor = priorityColor[u.priority] || 'var(--text-dim)';
