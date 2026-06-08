@@ -2481,9 +2481,15 @@ function buildUpgradePage() {
           roadName: name || '',
         };
       }
-      return `<tr id="share-card-${_wuShareKey}" ${_wuInShare ? `onclick="toggleShareItem('${_wuShareKey}')"` : ''} style="${_wuInShare ? 'cursor:pointer;' : ''}${_wuSelected ? 'outline:2px solid #3a9e68;background:rgba(58,158,104,0.06)' : ''}">
+      var _wuTrAttrs = '';
+      var _wuCheckbox = '';
+      if (_wuInShare) {
+        _wuTrAttrs = ' id="share-card-' + _wuShareKey + '" onclick="toggleShareItem(\'' + _wuShareKey + '\')" style="cursor:pointer;' + (_wuSelected ? 'outline:2px solid #3a9e68;background:rgba(58,158,104,0.06);' : '') + '"';
+        _wuCheckbox = '<input type="checkbox" id="share-cb-' + _wuShareKey + '" ' + (_wuSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _wuShareKey + '\')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">';
+      }
+      return `<tr${_wuTrAttrs}>
         <td>
-          ${_wuInShare ? `<input type="checkbox" id="share-cb-${_wuShareKey}" ${_wuSelected ? 'checked' : ''} onclick="event.stopPropagation();toggleShareItem('${_wuShareKey}')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">` : ''}<span class="item-num">${_composeItemNumHTML(u.itemNum, u.variation)}</span>
+          ${_wuCheckbox}<span class="item-num">${_composeItemNumHTML(u.itemNum, u.variation)}</span>
           <span style="display:inline-block;margin-left:0.4rem;font-size:0.6rem;font-weight:700;color:${_ltColor};background:${_ltBg};border-radius:4px;padding:0.1rem 0.4rem;text-transform:uppercase;letter-spacing:0.05em;vertical-align:middle">${u.listType||'Want'}</span>
         </td>
         <td style="color:var(--text-mid)">${name || '<span class="text-dim">—</span>'}</td>
