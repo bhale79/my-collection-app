@@ -1393,10 +1393,13 @@ function _injectQuickActionsBar() {
   var btn = function(handler, label, color, bg, svg) {
     return '<button class="btn qa-tr-btn" onclick="' + handler + '" style="display:flex;align-items:center;gap:0.35rem;font-size:0.78rem;padding:0.45rem 0.65rem;border:1.5px solid ' + color + ';color:' + color + ';background:' + bg + ';font-weight:600">' + svg + label + '</button>';
   };
-  // Compact UI: 4 Add-* buttons collapse into one + Add dropdown.
-  // Record a Sale stays standalone.
+  // Compact UI: ALL actions (Add to Collection/Want/Upgrade/ForSale, Record a Sale,
+  // Share) collapse into one + Add dropdown menu. Share is context-aware: it
+  // routes through _qaShareCurrentPage which picks the right source by the
+  // currently active page.
   var svgChevron = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>';
-  var addBtnHtml =
+  var svgShare = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>';
+  var actionsHtml =
     '<span class="qa-add-dropdown-wrap">'
     + '<button class="btn qa-tr-btn qa-add-btn" onclick="_qaToggleAddMenu(event)" style="display:flex;align-items:center;gap:0.35rem;font-size:0.78rem;padding:0.45rem 0.65rem;border:1.5px solid var(--accent);color:var(--accent);background:rgba(232,64,28,0.12);font-weight:600">'
     +   svgPlus + 'Add' + svgChevron
@@ -1406,9 +1409,11 @@ function _injectQuickActionsBar() {
     +   '<button onclick="_qaCloseAdd();startWizardFor(\'want\')"><span style="color:#2980b9;display:inline-flex">' + svgHeart + '</span>Add to Want List</button>'
     +   '<button onclick="_qaCloseAdd();pickItemForUpgrade()"><span style="color:#8b5cf6;display:inline-flex">' + svgUpgrade + '</span>Add Upgrade</button>'
     +   '<button onclick="_qaCloseAdd();startWizardFor(\'forsale\')"><span style="color:#e67e22;display:inline-flex">' + svgTag + '</span>Add to For Sale List</button>'
+    +   '<div style="height:1px;background:var(--border);margin:0.25rem 0.4rem"></div>'
+    +   '<button onclick="_qaCloseAdd();startWizardFor(\'sold\')"><span style="color:#2ecc71;display:inline-flex">' + svgDollar + '</span>Record a Sale</button>'
+    +   '<button onclick="_qaCloseAdd();_qaShareCurrentPage()"><span style="color:#3a9e68;display:inline-flex">' + svgShare + '</span>Share This Page</button>'
     + '</div>'
     + '</span>';
-  var actionsHtml = addBtnHtml + btn("startWizardFor('sold')", 'Record a Sale', '#2ecc71', 'rgba(46,204,113,0.12)', svgDollar);
 
   QA_PAGES.forEach(function(pid) {
     var p = document.getElementById(pid);
@@ -1490,6 +1495,24 @@ function _qaCloseAdd() {
   document.querySelectorAll('.qa-add-dropdown-menu').forEach(function(m) { m.style.display = 'none'; });
   document.removeEventListener('click', _qaCloseAddOnOutside);
 }
+// Share router: pick the right source for the currently active page.
+function _qaShareCurrentPage() {
+  var pid = '';
+  try {
+    var active = document.querySelector('.page.active');
+    pid = active ? active.id : '';
+  } catch(e) {}
+  if (typeof startShareMode !== 'function') return;
+  if (pid === 'page-upgrade')      startShareMode('upgrade');
+  else if (pid === 'page-forsale') startShareMode('forsale');
+  else if (pid === 'page-want')    startShareMode('want');
+  else if (pid === 'page-browse')  startShareMode('collection');
+  else {
+    if (typeof showToast === 'function') showToast('Share is available on Collection, Want/Upgrade, and For Sale pages', 3000);
+  }
+}
+if (typeof window !== 'undefined') window._qaShareCurrentPage = _qaShareCurrentPage;
+
 function _applyCompactMode() {
   try {
     var on = (typeof _prefGet === 'function') ? (_prefGet('lv_compact_mode', 'false') === 'true') : false;

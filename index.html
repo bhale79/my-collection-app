@@ -20,9 +20,9 @@
   <link rel="manifest" href="manifest.json">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>The Rail Roster — Postwar Train Collection Tracker</title>
-<link rel="stylesheet" href="./app.css?v=509">
-<link rel="stylesheet" href="./tutorial.css?v=509">
-<link rel="stylesheet" href="./vault-styles.css?v=509">
+<link rel="stylesheet" href="./app.css?v=510">
+<link rel="stylesheet" href="./tutorial.css?v=510">
+<link rel="stylesheet" href="./vault-styles.css?v=510">
 </head>
 <body>
 
@@ -380,10 +380,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
         <div class="page-title" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
           <span>Items For Sale</span>
           <div style="display:flex;gap:0.5rem">
-            <button id="share-btn-forsale" class="btn" onclick="startShareMode('forsale')" style="display:flex;align-items:center;gap:0.4rem;border:1.5px solid #3a9e68;color:#3a9e68;background:rgba(58,158,104,0.1);font-weight:600;font-size:0.85rem;padding:0.5rem 0.9rem">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-              Share
-            </button>
+
 
           </div>
         </div>
@@ -477,10 +474,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
       <div class="page" id="page-want">
         <div class="page-title" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
           <span>Want List</span>
-          <button id="share-btn-want" class="btn" onclick="startShareMode('want')" style="display:flex;align-items:center;gap:0.4rem;border:1.5px solid #3a9e68;color:#3a9e68;background:rgba(58,158,104,0.1);font-weight:600;font-size:0.85rem;padding:0.5rem 0.9rem">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-            Share
-          </button>
+
         </div>
         <div style="display:flex;justify-content:flex-end;margin-bottom:0.75rem">
           <button class="btn btn-primary" onclick="startWizardFor('want')" style="display:flex;align-items:center;gap:0.4rem">
@@ -548,10 +542,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
       <div class="page" id="page-upgrade">
         <div class="page-title" style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem">
           <span>Want/Upgrade List</span>
-          <button id="share-btn-upgrade" class="btn" onclick="startShareMode('upgrade')" style="display:flex;align-items:center;gap:0.4rem;border:1.5px solid #3a9e68;color:#3a9e68;background:rgba(58,158,104,0.1);font-weight:600;font-size:0.85rem;padding:0.5rem 0.9rem">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-            Share
-          </button>
+
         </div>
         <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem">
           <select id="wishlist-filter-dropdown" onchange="state._wishlistFilter=this.value; buildUpgradePage()" style="padding:0.38rem 0.6rem;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:var(--font-body);font-size:0.82rem">
@@ -691,56 +682,56 @@ document.addEventListener('touchmove', function(){}, {passive: true});
 <!-- identify-modal is built dynamically by wizard.js -->
 </div>
 
-<script src="./config.js?v=509"></script>
-<script src="./type-groups.js?v=509"></script>
-<script src="./back-stack.js?v=509"></script>
-<script src="./road-typeahead.js?v=509"></script>
-<script src="./a11y-config.js?v=509"></script>
-<script src="./a11y.js?v=509"></script>
-<script src="./wizard-utils.js?v=509"></script>
-<script src="./app.js?v=509"></script>
-<script src="./sheets.js?v=509"></script>
-<script src="./drive.js?v=509"></script>
-<script src="./backup.js?v=509"></script>
-<script src="./browse.js?v=509"></script>
-<script src="./dashboard.js?v=509"></script>
-<script src="./sheet-builder.js?v=509"></script>
+<script src="./config.js?v=510"></script>
+<script src="./type-groups.js?v=510"></script>
+<script src="./back-stack.js?v=510"></script>
+<script src="./road-typeahead.js?v=510"></script>
+<script src="./a11y-config.js?v=510"></script>
+<script src="./a11y.js?v=510"></script>
+<script src="./wizard-utils.js?v=510"></script>
+<script src="./app.js?v=510"></script>
+<script src="./sheets.js?v=510"></script>
+<script src="./drive.js?v=510"></script>
+<script src="./backup.js?v=510"></script>
+<script src="./browse.js?v=510"></script>
+<script src="./dashboard.js?v=510"></script>
+<script src="./sheet-builder.js?v=510"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="./wizard-pdlookup.js?v=509"></script>
-<script src="./wizard-suggestions.js?v=509"></script>
-<script src="./wizard-steps.js?v=509"></script>
-<script src="./wizard.js?v=509"></script>
-<script src="./wizard-photos.js?v=509"></script>
-<script src="./wizard-pickers.js?v=509"></script>
-<script src="./wizard-handlers.js?v=509"></script>
-<script src="./wizard-quickentry.js?v=509"></script>
-<script src="./wizard-save.js?v=509"></script>
-<script src="./app-misc.js?v=509"></script>
-<script src="./app-auth.js?v=509"></script>
-<script src="./app-setup.js?v=509"></script>
-<script src="./app-data.js?v=509"></script>
-<script src="./app-pages.js?v=509"></script>
-<script src="./app-collection.js?v=509"></script>
-<script src="./barcode.js?v=509"></script>
-<script src="./tutorial.js?v=509"></script>
-<script src="./tutorial-gifs-config.js?v=509"></script>
-<script src="./migration-config.js?v=509"></script>
-<script src="./migration-ui.js?v=509"></script>
-<script src="./onboarding-config.js?v=509"></script>
-<script src="./gmail-help.js?v=509"></script>
-<script src="./onboarding.js?v=509"></script>
-<script src="./vault.js?v=509"></script>
-<script src="./era-badges-config.js?v=509"></script>
-<script src="./era-badges.js?v=509"></script>
-<script src="./catalog-display-config.js?v=509"></script>
-<script src="./non-item-detail-config.js?v=509"></script>
-<script src="./item-search-filters-config.js?v=509"></script>
-<script src="./insurance-config.js?v=509"></script>
-<script src="./reports.js?v=509"></script>
-<script src="./prefs.js?v=509"></script>
-<script src="./tools.js?v=509"></script>
+<script src="./wizard-pdlookup.js?v=510"></script>
+<script src="./wizard-suggestions.js?v=510"></script>
+<script src="./wizard-steps.js?v=510"></script>
+<script src="./wizard.js?v=510"></script>
+<script src="./wizard-photos.js?v=510"></script>
+<script src="./wizard-pickers.js?v=510"></script>
+<script src="./wizard-handlers.js?v=510"></script>
+<script src="./wizard-quickentry.js?v=510"></script>
+<script src="./wizard-save.js?v=510"></script>
+<script src="./app-misc.js?v=510"></script>
+<script src="./app-auth.js?v=510"></script>
+<script src="./app-setup.js?v=510"></script>
+<script src="./app-data.js?v=510"></script>
+<script src="./app-pages.js?v=510"></script>
+<script src="./app-collection.js?v=510"></script>
+<script src="./barcode.js?v=510"></script>
+<script src="./tutorial.js?v=510"></script>
+<script src="./tutorial-gifs-config.js?v=510"></script>
+<script src="./migration-config.js?v=510"></script>
+<script src="./migration-ui.js?v=510"></script>
+<script src="./onboarding-config.js?v=510"></script>
+<script src="./gmail-help.js?v=510"></script>
+<script src="./onboarding.js?v=510"></script>
+<script src="./vault.js?v=510"></script>
+<script src="./era-badges-config.js?v=510"></script>
+<script src="./era-badges.js?v=510"></script>
+<script src="./catalog-display-config.js?v=510"></script>
+<script src="./non-item-detail-config.js?v=510"></script>
+<script src="./item-search-filters-config.js?v=510"></script>
+<script src="./insurance-config.js?v=510"></script>
+<script src="./reports.js?v=510"></script>
+<script src="./prefs.js?v=510"></script>
+<script src="./tools.js?v=510"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="./share.js?v=509"></script>
+<script src="./share.js?v=510"></script>
 
 <script>
 // ── PWA Service Worker Registration (auto-update) ───────────────
