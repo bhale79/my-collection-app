@@ -20,6 +20,7 @@ function startShareMode(source) {
   // Rebuild the current page so checkboxes appear
   if (source === 'collection') { renderBrowse(); }
   else if (source === 'want')  { buildWantPage(); }
+  else if (source === 'upgrade') { if (typeof buildUpgradePage === 'function') buildUpgradePage(); }
   else if (source === 'forsale') { buildForSalePage(); }
 }
 
@@ -38,6 +39,7 @@ function cancelShareMode() {
   var pid = activePage.id;
   if (pid === 'page-browse')       renderBrowse();
   else if (pid === 'page-want')    buildWantPage();
+  else if (pid === 'page-upgrade') { if (typeof buildUpgradePage === 'function') buildUpgradePage(); }
   else if (pid === 'page-forsale') buildForSalePage();
 }
 
