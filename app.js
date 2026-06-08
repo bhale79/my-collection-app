@@ -1420,6 +1420,24 @@ function _injectQuickActionsBar() {
     container.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;margin-left:auto';
     container.innerHTML = actionsHtml;
     title.appendChild(container);
+
+    // Brad (Session 161+): move the page-specific Share button OUT of the
+    // title row into a new right-aligned strip BELOW the title so it sits
+    // under the Record-A-Sale button. For page-upgrade this places it on
+    // the same row as the All/Want/Upgrade filter chip.
+    var shareBtn = title.querySelector('[id^="share-btn-"]');
+    if (shareBtn) {
+      // Drop any old relocation strip on subsequent re-runs.
+      var oldStrip = p.querySelector(':scope > .qa-share-strip');
+      if (oldStrip) oldStrip.remove();
+      var strip = document.createElement('div');
+      strip.className = 'qa-share-strip';
+      strip.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:0.5rem';
+      strip.appendChild(shareBtn);
+      // Insert immediately AFTER the title row.
+      if (title.nextSibling) p.insertBefore(strip, title.nextSibling);
+      else p.appendChild(strip);
+    }
   });
 }
 if (typeof window !== 'undefined') window._injectQuickActionsBar = _injectQuickActionsBar;

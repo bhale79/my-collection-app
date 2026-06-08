@@ -2319,6 +2319,15 @@ function buildUpgradePage() {
   const upgradeTotal = Object.keys(state.upgradeData || {}).length;
   const totalCount = wantTotal + upgradeTotal;
 
+  // Share-mode setup (Session 161+): when share button on this page triggers
+  // share mode, render inline checkboxes on each row and populate _shareDataMap
+  // so the share builder finds the entries by key.
+  const _wuInShare = (typeof _shareMode !== 'undefined' && _shareMode)
+    && (typeof _shareSource !== 'undefined' && _shareSource === 'upgrade');
+  if (_wuInShare) {
+    window._shareDataMap = window._shareDataMap || {};
+  }
+
   // Build merged entries list. Each entry carries listType for downstream rendering.
   const _collect = [];
   if (_wf === 'all' || _wf === 'upgrade') {
@@ -2458,9 +2467,23 @@ function buildUpgradePage() {
       const _ltColor = _isWant ? '#3b82f6' : '#8b5cf6';
       const _ltBg    = _isWant ? 'rgba(59,130,246,0.12)' : 'rgba(139,92,246,0.12)';
       const _priceVal = _isWant ? u.expectedPrice : u.maxPrice;
-      return `<tr>
+      // Share-mode: unique key + register in _shareDataMap.
+      const _wuShareKey = _wuInShare ? ('wu-' + (u.itemNum||'') + '-' + (u.variation||'') + '-' + (u.listType||'')) : '';
+      const _wuSelected = _wuInShare && typeof _shareItems !== 'undefined' && _shareItems[_wuShareKey];
+      if (_wuInShare) {
+        window._shareDataMap[_wuShareKey] = {
+          itemNum: u.itemNum, variation: u.variation || '',
+          listType: u.listType || 'Want', priority: u.priority || 'Medium',
+          notes: _wlStripGrp(u.notes || ''),
+          price: _priceVal || '',
+          targetCondition: u.targetCondition || '',
+          manufacturer: u.manufacturer || '',
+          roadName: name || '',
+        };
+      }
+      return `<tr id="share-card-${_wuShareKey}" ${_wuInShare ? `onclick="toggleShareItem('${_wuShareKey}')"` : ''} style="${_wuInShare ? 'cursor:pointer;' : ''}${_wuSelected ? 'outline:2px solid #3a9e68;background:rgba(58,158,104,0.06)' : ''}">
         <td>
-          <span class="item-num">${_composeItemNumHTML(u.itemNum, u.variation)}</span>
+          ${_wuInShare ? `<input type="checkbox" id="share-cb-${_wuShareKey}" ${_wuSelected ? 'checked' : ''} onclick="event.stopPropagation();toggleShareItem('${_wuShareKey}')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">` : ''}<span class="item-num">${_composeItemNumHTML(u.itemNum, u.variation)}</span>
           <span style="display:inline-block;margin-left:0.4rem;font-size:0.6rem;font-weight:700;color:${_ltColor};background:${_ltBg};border-radius:4px;padding:0.1rem 0.4rem;text-transform:uppercase;letter-spacing:0.05em;vertical-align:middle">${u.listType||'Want'}</span>
         </td>
         <td style="color:var(--text-mid)">${name || '<span class="text-dim">—</span>'}</td>
