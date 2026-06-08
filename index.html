@@ -20,9 +20,9 @@
   <link rel="manifest" href="manifest.json">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>The Rail Roster — Postwar Train Collection Tracker</title>
-<link rel="stylesheet" href="./app.css?v=511">
-<link rel="stylesheet" href="./tutorial.css?v=511">
-<link rel="stylesheet" href="./vault-styles.css?v=511">
+<link rel="stylesheet" href="./app.css?v=512">
+<link rel="stylesheet" href="./tutorial.css?v=512">
+<link rel="stylesheet" href="./vault-styles.css?v=512">
 </head>
 <body>
 
@@ -200,7 +200,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
               <tr>
                 <th>Item #</th>
                 <th>Type</th>
-                <th>Road / Name</th>
+                <th>Road Name</th>
                 <th>Var.</th>
                 <th>Var. Descr.</th>
                 <th>Year</th>
@@ -346,7 +346,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
               <option value="salePrice">Sale Price</option>
               <option value="condition">Condition</option>
               <option value="type">Type</option>
-              <option value="roadName">Road / Name</option>
+              <option value="roadName">Road Name</option>
             </select>
             <button id="sold-sort-dir-btn" onclick="state._soldSortDir=state._soldSortDir==='asc'?'desc':'asc';buildSoldPage()" style="padding:0.35rem 0.6rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-size:0.82rem;font-family:var(--font-body)">↓ Newest</button>
             <div style="display:flex;align-items:center;gap:0.4rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0.35rem 0.65rem;flex:1;max-width:320px">
@@ -361,13 +361,13 @@ document.addEventListener('touchmove', function(){}, {passive: true});
           <table class="item-table">
             <thead>
               <tr>
-                <th style="cursor:pointer" onclick="soldSortBy('itemNum')">Item # <span id="sold-sort-i-itemNum"></span></th>
-                <th style="cursor:pointer" onclick="soldSortBy('type')">Type <span id="sold-sort-i-type"></span></th>
-                <th style="cursor:pointer" onclick="soldSortBy('roadName')">Road / Name <span id="sold-sort-i-roadName"></span></th>
-                <th>Variation</th>
-                <th style="cursor:pointer" onclick="soldSortBy('condition')">Condition <span id="sold-sort-i-condition"></span></th>
-                <th style="cursor:pointer" onclick="soldSortBy('salePrice')">Sale Price <span id="sold-sort-i-salePrice"></span></th>
-                <th style="cursor:pointer" onclick="soldSortBy('dateSold')">Date Sold <span id="sold-sort-i-dateSold"></span></th>
+                <th style="cursor:pointer;white-space:nowrap;width:80px" onclick="soldSortBy('itemNum')">Item # <span id="sold-sort-i-itemNum"></span></th>
+                <th style="cursor:pointer;white-space:nowrap;width:120px" onclick="soldSortBy('type')">Type <span id="sold-sort-i-type"></span></th>
+                <th style="cursor:pointer;white-space:nowrap;min-width:140px" onclick="soldSortBy('roadName')">Road Name <span id="sold-sort-i-roadName"></span></th>
+                <th style="white-space:nowrap;width:80px">Variation</th>
+                <th style="cursor:pointer;white-space:nowrap;width:75px" onclick="soldSortBy('condition')">Condition <span id="sold-sort-i-condition"></span></th>
+                <th style="cursor:pointer;white-space:nowrap;width:90px" onclick="soldSortBy('salePrice')">Sale Price <span id="sold-sort-i-salePrice"></span></th>
+                <th style="cursor:pointer;white-space:nowrap;width:100px" onclick="soldSortBy('dateSold')">Date Sold <span id="sold-sort-i-dateSold"></span></th>
               </tr>
             </thead>
             <tbody id="sold-tbody"></tbody>
@@ -413,7 +413,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
               <tr>
                 <th>Item #</th>
                 <th>Type</th>
-                <th>Road / Name</th>
+                <th>Road Name</th>
                 <th>Cond</th>
                 <th>Asking Price</th>
                 <th>Est. Worth</th>
@@ -525,7 +525,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
             <thead>
               <tr>
                 <th>Item #</th>
-                <th>Road / Name</th>
+                <th>Road Name</th>
                 <th>Var.</th>
                 <th>Var. Description</th>
                 <th>Priority</th>
@@ -573,7 +573,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
             <thead>
               <tr>
                 <th>Item #</th>
-                <th>Road / Name</th>
+                <th>Road Name</th>
                 <th>Manufacturer</th>
                 <th>Target</th>
                 <th>Priority</th>
@@ -682,56 +682,56 @@ document.addEventListener('touchmove', function(){}, {passive: true});
 <!-- identify-modal is built dynamically by wizard.js -->
 </div>
 
-<script src="./config.js?v=511"></script>
-<script src="./type-groups.js?v=511"></script>
-<script src="./back-stack.js?v=511"></script>
-<script src="./road-typeahead.js?v=511"></script>
-<script src="./a11y-config.js?v=511"></script>
-<script src="./a11y.js?v=511"></script>
-<script src="./wizard-utils.js?v=511"></script>
-<script src="./app.js?v=511"></script>
-<script src="./sheets.js?v=511"></script>
-<script src="./drive.js?v=511"></script>
-<script src="./backup.js?v=511"></script>
-<script src="./browse.js?v=511"></script>
-<script src="./dashboard.js?v=511"></script>
-<script src="./sheet-builder.js?v=511"></script>
+<script src="./config.js?v=512"></script>
+<script src="./type-groups.js?v=512"></script>
+<script src="./back-stack.js?v=512"></script>
+<script src="./road-typeahead.js?v=512"></script>
+<script src="./a11y-config.js?v=512"></script>
+<script src="./a11y.js?v=512"></script>
+<script src="./wizard-utils.js?v=512"></script>
+<script src="./app.js?v=512"></script>
+<script src="./sheets.js?v=512"></script>
+<script src="./drive.js?v=512"></script>
+<script src="./backup.js?v=512"></script>
+<script src="./browse.js?v=512"></script>
+<script src="./dashboard.js?v=512"></script>
+<script src="./sheet-builder.js?v=512"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="./wizard-pdlookup.js?v=511"></script>
-<script src="./wizard-suggestions.js?v=511"></script>
-<script src="./wizard-steps.js?v=511"></script>
-<script src="./wizard.js?v=511"></script>
-<script src="./wizard-photos.js?v=511"></script>
-<script src="./wizard-pickers.js?v=511"></script>
-<script src="./wizard-handlers.js?v=511"></script>
-<script src="./wizard-quickentry.js?v=511"></script>
-<script src="./wizard-save.js?v=511"></script>
-<script src="./app-misc.js?v=511"></script>
-<script src="./app-auth.js?v=511"></script>
-<script src="./app-setup.js?v=511"></script>
-<script src="./app-data.js?v=511"></script>
-<script src="./app-pages.js?v=511"></script>
-<script src="./app-collection.js?v=511"></script>
-<script src="./barcode.js?v=511"></script>
-<script src="./tutorial.js?v=511"></script>
-<script src="./tutorial-gifs-config.js?v=511"></script>
-<script src="./migration-config.js?v=511"></script>
-<script src="./migration-ui.js?v=511"></script>
-<script src="./onboarding-config.js?v=511"></script>
-<script src="./gmail-help.js?v=511"></script>
-<script src="./onboarding.js?v=511"></script>
-<script src="./vault.js?v=511"></script>
-<script src="./era-badges-config.js?v=511"></script>
-<script src="./era-badges.js?v=511"></script>
-<script src="./catalog-display-config.js?v=511"></script>
-<script src="./non-item-detail-config.js?v=511"></script>
-<script src="./item-search-filters-config.js?v=511"></script>
-<script src="./insurance-config.js?v=511"></script>
-<script src="./reports.js?v=511"></script>
-<script src="./prefs.js?v=511"></script>
-<script src="./tools.js?v=511"></script>
+<script src="./wizard-pdlookup.js?v=512"></script>
+<script src="./wizard-suggestions.js?v=512"></script>
+<script src="./wizard-steps.js?v=512"></script>
+<script src="./wizard.js?v=512"></script>
+<script src="./wizard-photos.js?v=512"></script>
+<script src="./wizard-pickers.js?v=512"></script>
+<script src="./wizard-handlers.js?v=512"></script>
+<script src="./wizard-quickentry.js?v=512"></script>
+<script src="./wizard-save.js?v=512"></script>
+<script src="./app-misc.js?v=512"></script>
+<script src="./app-auth.js?v=512"></script>
+<script src="./app-setup.js?v=512"></script>
+<script src="./app-data.js?v=512"></script>
+<script src="./app-pages.js?v=512"></script>
+<script src="./app-collection.js?v=512"></script>
+<script src="./barcode.js?v=512"></script>
+<script src="./tutorial.js?v=512"></script>
+<script src="./tutorial-gifs-config.js?v=512"></script>
+<script src="./migration-config.js?v=512"></script>
+<script src="./migration-ui.js?v=512"></script>
+<script src="./onboarding-config.js?v=512"></script>
+<script src="./gmail-help.js?v=512"></script>
+<script src="./onboarding.js?v=512"></script>
+<script src="./vault.js?v=512"></script>
+<script src="./era-badges-config.js?v=512"></script>
+<script src="./era-badges.js?v=512"></script>
+<script src="./catalog-display-config.js?v=512"></script>
+<script src="./non-item-detail-config.js?v=512"></script>
+<script src="./item-search-filters-config.js?v=512"></script>
+<script src="./insurance-config.js?v=512"></script>
+<script src="./reports.js?v=512"></script>
+<script src="./prefs.js?v=512"></script>
+<script src="./tools.js?v=512"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="./share.js?v=511"></script>
+<script src="./share.js?v=512"></script>
 
 <script>
 // ── PWA Service Worker Registration (auto-update) ───────────────
