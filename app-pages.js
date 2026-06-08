@@ -2307,23 +2307,22 @@ function buildUpgradePage() {
   // Sync dropdowns with state
   const _upEl = document.getElementById('upgrade-priority-filter');
   if (_upEl && _upEl.value !== _up) _upEl.value = _up;
-  // Sync filter chip active styling
-  document.querySelectorAll('#wishlist-filter-chip .wf-chip').forEach(function(btn) {
-    var active = btn.getAttribute('data-wf') === _wf;
-    btn.style.background = active ? 'var(--accent)' : 'transparent';
-    btn.style.color = active ? 'var(--bg)' : 'var(--text-dim)';
-    btn.style.fontWeight = active ? '700' : '600';
-  });
+  // Sync filter dropdown with state
+  var _wfDrop = document.getElementById('wishlist-filter-dropdown');
+  if (_wfDrop && _wfDrop.value !== _wf) _wfDrop.value = _wf;
 
   const wantTotal = Object.keys(state.wantData || {}).length;
   const upgradeTotal = Object.keys(state.upgradeData || {}).length;
   const totalCount = wantTotal + upgradeTotal;
 
-  // Share-mode setup (Session 161+): when share button on this page triggers
-  // share mode, render inline checkboxes on each row and populate _shareDataMap
-  // so the share builder finds the entries by key.
-  const _wuInShare = (typeof _shareMode !== 'undefined' && _shareMode)
-    && (typeof _shareSource !== 'undefined' && _shareSource === 'upgrade');
+  // Share-mode setup (Session 161+): use window._shareMode/_shareSource
+  // explicitly so the closure can't shadow either reference.
+  const _wuInShare = !!(window._shareMode && window._shareSource === 'upgrade');
+  if (typeof console !== 'undefined' && console.log) {
+    console.log('[buildUpgradePage] _wuInShare =', _wuInShare,
+      'window._shareMode =', window._shareMode,
+      'window._shareSource =', window._shareSource);
+  }
   if (_wuInShare) {
     window._shareDataMap = window._shareDataMap || {};
   }

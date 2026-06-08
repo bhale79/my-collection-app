@@ -1435,13 +1435,10 @@ function _injectQuickActionsBar() {
         oldStrip.remove();
       }
       if (pid === 'page-upgrade') {
-        // Find the row that contains the wishlist-filter-chip and append Share to it.
-        var filterChip = p.querySelector('#wishlist-filter-chip');
-        var filterRow = filterChip ? filterChip.parentElement : null;
+        // Brad: dropdown replaced the chip — put Share at the right end of the row that contains the new dropdown + search + filters.
+        var filterDrop = p.querySelector('#wishlist-filter-dropdown');
+        var filterRow = filterDrop ? filterDrop.parentElement : null;
         if (filterRow) {
-          // Stretch the row to space-between if not already.
-          if (!filterRow.style.justifyContent) filterRow.style.justifyContent = 'space-between';
-          // Push Share to the right by ensuring it has margin-left:auto.
           shareBtn.style.marginLeft = 'auto';
           filterRow.appendChild(shareBtn);
         } else {
