@@ -1285,6 +1285,12 @@ function buildSoldPage() {
   const totalEl = document.getElementById('sold-stat-total');
   if (countEl) countEl.textContent = soldEntries.length.toLocaleString();
   if (totalEl) totalEl.textContent = totalRevenue > 0 ? _currencySymbol() + Math.round(totalRevenue).toLocaleString() : '$0';
+  // Brad (Session 161+): write the inline title-row stats too.
+  var _stEl = document.getElementById('sold-title-stats');
+  if (_stEl) {
+    var _stRev = totalRevenue > 0 ? _currencySymbol() + Math.round(totalRevenue).toLocaleString() : (_currencySymbol() + '0');
+    _stEl.textContent = '· ' + soldEntries.length.toLocaleString() + ' sold · ' + _stRev + ' revenue';
+  }
 
   // Result count
   const rcEl = document.getElementById('sold-result-count');
@@ -1506,6 +1512,12 @@ function buildForSalePage() {
   const totalEl = document.getElementById('forsale-stat-total');
   if (countEl) countEl.textContent = fsEntries.length.toLocaleString();
   if (totalEl) totalEl.textContent = totalAsking > 0 ? _currencySymbol() + Math.round(totalAsking).toLocaleString() : '$0';
+  // Brad (Session 161+): write the inline title-row stats too.
+  var _fsStEl = document.getElementById('forsale-title-stats');
+  if (_fsStEl) {
+    var _fsAsk = totalAsking > 0 ? _currencySymbol() + Math.round(totalAsking).toLocaleString() : (_currencySymbol() + '0');
+    _fsStEl.textContent = '· ' + fsEntries.length.toLocaleString() + ' listed · ' + _fsAsk + ' asking';
+  }
 
   const isMobileFs = window.innerWidth <= 640;
   const fsCardsEl = document.getElementById('forsale-cards');
