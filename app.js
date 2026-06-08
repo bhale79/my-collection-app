@@ -1393,13 +1393,22 @@ function _injectQuickActionsBar() {
   var btn = function(handler, label, color, bg, svg) {
     return '<button class="btn qa-tr-btn" onclick="' + handler + '" style="display:flex;align-items:center;gap:0.35rem;font-size:0.78rem;padding:0.45rem 0.65rem;border:1.5px solid ' + color + ';color:' + color + ';background:' + bg + ';font-weight:600">' + svg + label + '</button>';
   };
-  // Labels and colors match the dashboard's button bar exactly.
-  var actionsHtml =
-      btn("startWizardFor('collection')", 'Add to My Collection', 'var(--accent)', 'rgba(232,64,28,0.12)', svgPlus)
-    + btn("startWizardFor('want')",       'Add to Want List',     '#2980b9',       'rgba(41,128,185,0.12)', svgHeart)
-    + btn("pickItemForUpgrade()",         'Add Upgrade',          '#8b5cf6',       'rgba(139,92,246,0.12)', svgUpgrade)
-    + btn("startWizardFor('forsale')",    'Add to For Sale List', '#e67e22',       'rgba(230,126,34,0.12)', svgTag)
-    + btn("startWizardFor('sold')",       'Record a Sale',        '#2ecc71',       'rgba(46,204,113,0.12)', svgDollar);
+  // Compact UI: 4 Add-* buttons collapse into one + Add dropdown.
+  // Record a Sale stays standalone.
+  var svgChevron = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>';
+  var addBtnHtml =
+    '<span class="qa-add-dropdown-wrap">'
+    + '<button class="btn qa-tr-btn qa-add-btn" onclick="_qaToggleAddMenu(event)" style="display:flex;align-items:center;gap:0.35rem;font-size:0.78rem;padding:0.45rem 0.65rem;border:1.5px solid var(--accent);color:var(--accent);background:rgba(232,64,28,0.12);font-weight:600">'
+    +   svgPlus + 'Add' + svgChevron
+    + '</button>'
+    + '<div class="qa-add-dropdown-menu" style="display:none">'
+    +   '<button onclick="_qaCloseAdd();startWizardFor(\'collection\')"><span style="color:var(--accent);display:inline-flex">' + svgPlus + '</span>Add to My Collection</button>'
+    +   '<button onclick="_qaCloseAdd();startWizardFor(\'want\')"><span style="color:#2980b9;display:inline-flex">' + svgHeart + '</span>Add to Want List</button>'
+    +   '<button onclick="_qaCloseAdd();pickItemForUpgrade()"><span style="color:#8b5cf6;display:inline-flex">' + svgUpgrade + '</span>Add Upgrade</button>'
+    +   '<button onclick="_qaCloseAdd();startWizardFor(\'forsale\')"><span style="color:#e67e22;display:inline-flex">' + svgTag + '</span>Add to For Sale List</button>'
+    + '</div>'
+    + '</span>';
+  var actionsHtml = addBtnHtml + btn("startWizardFor('sold')", 'Record a Sale', '#2ecc71', 'rgba(46,204,113,0.12)', svgDollar);
 
   QA_PAGES.forEach(function(pid) {
     var p = document.getElementById(pid);
@@ -1463,6 +1472,37 @@ function _injectQuickActionsBar() {
 }
 if (typeof window !== 'undefined') window._injectQuickActionsBar = _injectQuickActionsBar;
 
+function _qaToggleAddMenu(e) {
+  if (e && e.stopPropagation) e.stopPropagation();
+  var btn = e && e.currentTarget ? e.currentTarget : null;
+  var menu = btn ? btn.parentElement.querySelector('.qa-add-dropdown-menu') : null;
+  if (!menu) return;
+  var showing = menu.style.display !== 'none';
+  document.querySelectorAll('.qa-add-dropdown-menu').forEach(function(m) { m.style.display = 'none'; });
+  menu.style.display = showing ? 'none' : 'flex';
+  if (!showing) setTimeout(function() { document.addEventListener('click', _qaCloseAddOnOutside); }, 0);
+}
+function _qaCloseAddOnOutside(e) {
+  if (e.target.closest && e.target.closest('.qa-add-dropdown-wrap')) return;
+  _qaCloseAdd();
+}
+function _qaCloseAdd() {
+  document.querySelectorAll('.qa-add-dropdown-menu').forEach(function(m) { m.style.display = 'none'; });
+  document.removeEventListener('click', _qaCloseAddOnOutside);
+}
+function _applyCompactMode() {
+  try {
+    var on = (typeof _prefGet === 'function') ? (_prefGet('lv_compact_mode', 'false') === 'true') : false;
+    document.body.classList.toggle('compact-mode', on);
+  } catch(e) {}
+}
+if (typeof window !== 'undefined') {
+  window._qaToggleAddMenu = _qaToggleAddMenu;
+  window._qaCloseAdd = _qaCloseAdd;
+  window._applyCompactMode = _applyCompactMode;
+}
+
+
 function buildApp() {
   showApp();
   populateFilters();
@@ -1488,6 +1528,7 @@ function buildApp() {
   }
   buildQuickEntryList();
   _injectQuickActionsBar();
+  _applyCompactMode();
   // Initialize location preference toggle
   const _locToggle = document.getElementById('pref-location-toggle');
   if (_locToggle) _locToggle.checked = _prefLocEnabled;

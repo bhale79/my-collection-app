@@ -2628,15 +2628,21 @@ function renderBrowse() {
     if (legendEl) {
       const showLegend = _prefGet('lv_show_coll_legend', 'true') === 'true';
       legendEl.style.display = '';
+      // Combined Key + items-count single line; the count is also pulled into the title row below.
+      var _ownedTotalCount = (typeof state.filters !== 'undefined' && state.filters.owned)
+        ? Object.values(state.personalData || {}).filter(function(pd) { return pd && pd.owned; }).length
+        : 0;
       legendEl.innerHTML = showLegend
-        ? `<div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:nowrap;font-size:0.68rem;color:var(--text-dim);padding:0.3rem 0.5rem;background:var(--surface2);border:1px solid var(--border);border-radius:7px;margin-bottom:0.5rem;overflow:hidden">
+        ? `<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:nowrap;font-size:0.7rem;color:var(--text-dim);padding:0.18rem 0.1rem;border-bottom:1px solid var(--border);margin-bottom:0.35rem;overflow:hidden">
             <span style="font-weight:600;color:var(--text-mid);flex-shrink:0">Key:</span>
             <span style="flex-shrink:0">🔗 Grouped</span>
             <span style="flex-shrink:0">📷 Photo</span>
-            <button onclick="event.stopPropagation();_prefSet('lv_show_coll_legend','false');renderBrowse()" style="margin-left:auto;flex-shrink:0;background:none;border:none;color:var(--text-dim);font-size:0.68rem;cursor:pointer;padding:0 0.2rem;text-decoration:underline">Hide</button>
+            <button onclick="event.stopPropagation();_prefSet('lv_show_coll_legend','false');renderBrowse()" style="flex-shrink:0;background:none;border:none;color:var(--text-dim);font-size:0.7rem;cursor:pointer;padding:0 0.2rem;text-decoration:underline">hide</button>
+            <span style="margin-left:auto;color:var(--text-dim);font-size:0.72rem">${_ownedTotalCount.toLocaleString()} items</span>
           </div>`
-        : `<div style="display:flex;justify-content:flex-end;margin-bottom:0.35rem">
-            <button onclick="event.stopPropagation();_prefSet('lv_show_coll_legend','true');renderBrowse()" style="background:none;border:none;color:var(--text-dim);font-size:0.72rem;cursor:pointer;padding:0;text-decoration:underline">Show icon key</button>
+        : `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.35rem;font-size:0.72rem;color:var(--text-dim);border-bottom:1px solid var(--border);padding-bottom:0.18rem">
+            <button onclick="event.stopPropagation();_prefSet('lv_show_coll_legend','true');renderBrowse()" style="background:none;border:none;color:var(--text-dim);font-size:0.7rem;cursor:pointer;padding:0;text-decoration:underline">show icon key</button>
+            <span>${_ownedTotalCount.toLocaleString()} items</span>
           </div>`;
     }
   } else {

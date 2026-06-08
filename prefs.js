@@ -203,6 +203,10 @@ function buildPrefsPage() {
         <div class="pref-row-label"><strong>Show Accuracy Disclaimer</strong><span>Warning banner on catalog pages</span></div>
         ${toggle('disclaimer', 'lv_show_disclaimer', 'true')}
       </div>
+      <div class="pref-row">
+        <div class="pref-row-label"><strong>Compact Mode</strong><span>Denser table rows, smaller fonts, hide the icon key. Maximizes the rows you see.</span></div>
+        ${toggle('compact', 'lv_compact_mode', 'false')}
+      </div>
 
       <div style="font-size:0.78rem;font-weight:600;color:var(--text-mid);padding:0.75rem 0.2rem 0.35rem;letter-spacing:0.03em;text-transform:uppercase">Scales I Collect</div>
       <div class="pref-row" style="flex-direction:column;align-items:flex-start;gap:0.4rem">
@@ -578,6 +582,9 @@ function _onPrefChange(id, val) {
   }
   if (id === 'disclaimer') {
     _applyDisclaimerPref();
+  }
+  if (id === 'compact') {
+    if (typeof _applyCompactMode === 'function') _applyCompactMode();
   }
 }
 

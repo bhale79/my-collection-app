@@ -1130,3 +1130,54 @@
   .item-table th, .item-table td { border: 1px solid #888 !important; padding: 4pt 6pt; font-size: 9pt; }
   .item-num { color: #000 !important; font-weight: bold; }
 }
+
+
+/* Compact UI (Session 161+) ============================================== */
+.table-wrap thead th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--surface);
+  box-shadow: 0 1px 0 var(--border);
+}
+.qa-add-dropdown-wrap { position: relative; display: inline-flex; }
+.qa-add-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 230px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.35rem;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.35);
+  z-index: 50;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.qa-add-dropdown-menu button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.7rem;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  cursor: pointer;
+  border-radius: 7px;
+  text-align: left;
+}
+.qa-add-dropdown-menu button:hover { background: var(--surface2); }
+body.compact-mode .table-wrap td,
+body.compact-mode .table-wrap th {
+  padding-top: 0.35rem !important;
+  padding-bottom: 0.35rem !important;
+  font-size: 0.78rem !important;
+}
+body.compact-mode #coll-icon-legend { display: none !important; }
+body.compact-mode .qa-tr-actions .qa-tr-btn {
+  padding: 0.3rem 0.5rem !important;
+  font-size: 0.72rem !important;
+}
