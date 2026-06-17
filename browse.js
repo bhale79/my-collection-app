@@ -1326,7 +1326,7 @@ function renderBrowseTab(tab) {
   const disclaimer = document.getElementById('disclaimer-browse');
   const identBtn = document.getElementById('identify-btn');
   const onItems = state._browseTab === 'items';
-  if (filterBar) filterBar.style.display = onItems ? '' : 'none';
+  if (filterBar) filterBar.style.display = (onItems && !state.filters.owned) ? '' : 'none';
   if (disclaimer) disclaimer.style.display = (onItems && _prefGet('lv_show_disclaimer', 'true') === 'true') ? 'flex' : 'none';
   if (identBtn) identBtn.style.display = inCollection ? 'none' : (onItems ? '' : 'none');
   // Session 157: top search bar is items-only; each sub-panel (catalogs,
@@ -2696,17 +2696,11 @@ function renderBrowse() {
     var _le = document.getElementById('coll-icon-legend');
     if (_le) { _le.style.display = 'none'; _le.innerHTML = ''; }
     // Count = owned pieces that have an item number, excluding boxes/master cartons.
-    var _ownedItemCount = Object.values(state.personalData || {}).filter(function(pd) {
-      if (!pd || !pd.owned) return false;
-      var n = String(pd.itemNum || '').toUpperCase();
-      return !/-MBOX$/.test(n) && !/-BOX$/.test(n);
-    }).length;
     var _tSpan = document.querySelector('#page-browse > .page-title > span');
     if (_tSpan) {
       _tSpan.innerHTML = 'My Collection List '
         + '<span style="font-family:var(--font-body);font-size:0.8rem;color:var(--text-dim);font-weight:400;letter-spacing:0;text-transform:none">'
-        + _ownedItemCount.toLocaleString() + ' item' + (_ownedItemCount !== 1 ? 's' : '') + '</span> '
-        + '<span title="\uD83D\uDD17 Grouped \u00B7 \uD83D\uDCF7 Photo" style="cursor:help;color:var(--text-dim);font-size:0.7rem;border:1px solid var(--border);border-radius:50%;padding:0 0.34rem;font-weight:700;text-transform:none">i</span>';
+        + displayTotal.toLocaleString() + ' item' + (displayTotal !== 1 ? 's' : '') + '</span>';
     }
   } else {
     var _le2 = document.getElementById('coll-icon-legend');
