@@ -79,7 +79,7 @@ function _mfrBadge(item) {
 var _COLL_COLS = [
   { col: 'mfr',   label: 'Mfr.' },
   { col: 'num',   label: 'Item #' },
-  { col: 'var',   label: 'Var.' },
+  { col: 'var',   label: 'Var.', noSort: true },
   { col: 'type',  label: 'Type' },
   { col: 'desc',  label: 'Description' },
   { col: 'worth', label: 'Est. Worth' }
@@ -89,8 +89,9 @@ function _renderCollectionHeader() {
   if (!thead) return;
   var cs = state._collSort || {};
   var html = _COLL_COLS.map(function(c) {
-    var arrow = (cs.col === c.col) ? (cs.dir === 'desc' ? ' \u25BC' : ' \u25B2') : '';
     var align = (c.col === 'worth') ? 'text-align:right;' : '';
+    if (c.noSort) { return '<th style="white-space:nowrap;' + align + '">' + c.label + '</th>'; }
+    var arrow = (cs.col === c.col) ? (cs.dir === 'desc' ? ' \u25BC' : ' \u25B2') : '';
     return '<th onclick="_collSortBy(\'' + c.col + '\')" style="cursor:pointer;white-space:nowrap;' + align + '" title="Sort by ' + c.label + '">' + c.label + arrow + '</th>';
   }).join('');
   html += '<th style="text-align:right;white-space:nowrap">Actions</th>';
