@@ -2577,7 +2577,7 @@ function buildUpgradePage() {
             <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap">
               <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${_wuItemNumHTML(u)}</span>
               ${u.variation ? `<span style="font-size:0.72rem;color:var(--text-dim)">${u.variation}</span>` : ''}
-              <span style="font-size:0.6rem;font-weight:700;color:${_ltColor};background:${_ltBg};border-radius:4px;padding:0.1rem 0.4rem;text-transform:uppercase;letter-spacing:0.05em">${u.listType||'Want'}</span>
+              ${!_isWant ? `<span style="font-size:0.6rem;font-weight:700;color:${_ltColor};background:${_ltBg};border-radius:4px;padding:0.1rem 0.4rem;text-transform:uppercase;letter-spacing:0.05em">${u.listType||'Want'}</span>` : ''}
               <span style="font-size:0.65rem;font-weight:600;color:${pColor};border:1px solid ${pColor};border-radius:4px;padding:0.1rem 0.4rem">${u.priority||'Medium'}</span>
             </div>
             ${name ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">${name}</div>` : ''}
@@ -2649,7 +2649,7 @@ function buildUpgradePage() {
       return `<tr${_wuTrAttrs}>
         <td>
           ${_wuCheckbox}<span class="item-num">${_wuItemNumHTML(u)}</span>
-          <span style="display:inline-block;margin-left:0.4rem;font-size:0.6rem;font-weight:700;color:${_ltColor};background:${_ltBg};border-radius:4px;padding:0.1rem 0.4rem;text-transform:uppercase;letter-spacing:0.05em;vertical-align:middle">${u.listType||'Want'}</span>
+          ${!_isWant ? `<span style="display:inline-block;margin-left:0.4rem;font-size:0.6rem;font-weight:700;color:${_ltColor};background:${_ltBg};border-radius:4px;padding:0.1rem 0.4rem;text-transform:uppercase;letter-spacing:0.05em;vertical-align:middle">${u.listType||'Want'}</span>` : ''}
         </td>
         <td style="color:var(--text-mid)">${name || '<span class="text-dim">—</span>'}</td>
         <td style="font-size:0.82rem;color:var(--text-mid)">${u.manufacturer || '<span class="text-dim">—</span>'}</td>
