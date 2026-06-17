@@ -131,7 +131,28 @@ function _refreshBrowseHeaders() {
   } else {
     thead.innerHTML = _lionelBrowseHeaders();
   }
+  // Make common master columns clickable to sort.
+  var _mcMap = { 'Mfr.':'mfr', 'Item #':'num', 'Type':'type', 'Road / Name':'road', 'Year':'year' };
+  var _cs = state._mcSort || {};
+  Array.prototype.forEach.call(thead.querySelectorAll('th'), function(th){
+    var lbl = th.textContent.trim();
+    var key = _mcMap[lbl];
+    if (!key) return;
+    th.style.cursor = 'pointer';
+    th.style.whiteSpace = 'nowrap';
+    th.title = 'Sort by ' + lbl;
+    th.setAttribute('onclick', "_mcSortBy('" + key + "')");
+    th.textContent = lbl + (_cs.col === key ? (_cs.dir === 'desc' ? ' \u25BC' : ' \u25B2') : '');
+  });
 }
+function _mcSortBy(col) {
+  var cs = state._mcSort;
+  if (cs && cs.col === col) { cs.dir = (cs.dir === 'asc') ? 'desc' : 'asc'; }
+  else { state._mcSort = { col: col, dir: 'asc' }; }
+  if (typeof _refreshBrowseHeaders === 'function') _refreshBrowseHeaders();
+  if (typeof renderBrowse === 'function') renderBrowse();
+}
+if (typeof window !== 'undefined') window._mcSortBy = _mcSortBy;
 
 // ── Phase 5 Step 1: hierarchy chip row (visual preview) ──
 // Renders a chip row above the era-bar showing the new filter hierarchy:
@@ -2474,6 +2495,25 @@ function renderBrowse() {
       var bNum = parseInt((b.itemNum||'').replace(/[^0-9]/g,'')) || 0;
       if (aNum !== bNum) return aNum - bNum;
       return (a.itemNum||'').localeCompare(b.itemNum||'');
+    });
+  }
+  // Master catalog: user-selected column sort (header click).
+  if (!state.filters.owned && state._mcSort && state._mcSort.col) {
+    var _mc = state._mcSort.col, _md = (state._mcSort.dir === 'desc') ? -1 : 1;
+    var _mnum = (_mc === 'num' || _mc === 'year');
+    var _mval = function(it) {
+      if (_mc === 'mfr') return (typeof _manufacturerOfItem === 'function' ? (_manufacturerOfItem(it) || '') : '');
+      if (_mc === 'num') return parseInt(String(it.itemNum || '').replace(/[^0-9]/g, '')) || 0;
+      if (_mc === 'type') return (typeof getTypeBucketLabel === 'function' ? (getTypeBucketLabel(it) || '') : (it.itemType || ''));
+      if (_mc === 'road') return (it.roadName || '');
+      if (_mc === 'year') return parseInt(String(it.yearProd || '').replace(/[^0-9]/g, '')) || 0;
+      return '';
+    };
+    state.filteredData.sort(function(a, b) {
+      var va = _mval(a), vb = _mval(b), r;
+      if (_mnum) r = va - vb; else r = String(va).localeCompare(String(vb), undefined, { numeric: true, sensitivity: 'base' });
+      if (r === 0) r = (a.itemNum || '').localeCompare(b.itemNum || '', undefined, { numeric: true });
+      return r * _md;
     });
   }
   // Option A (Session 154): in My Collection, show one row per owned COPY.

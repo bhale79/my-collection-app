@@ -1252,3 +1252,7 @@ body.compact-mode .qa-tr-actions .qa-tr-btn {
   #page-sold .item-table th:nth-child(5), #page-sold .item-table td:nth-child(5),
   #page-sold .item-table th:nth-child(8), #page-sold .item-table td:nth-child(8) { display: none; }
 }
+
+/* ── Cataloged Master List: tighter rows ── */
+#page-browse .item-table:not(.collection-view) td,
+#page-browse .item-table:not(.collection-view) th { padding: 0.45rem 0.6rem; }
