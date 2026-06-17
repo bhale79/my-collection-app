@@ -2028,6 +2028,7 @@ function showPage(name, clickedEl) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelectorAll('.mobile-nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
+  if (name !== 'itemdetail') { try { delete window._detailReturn; } catch (e) {} }
   if (clickedEl) clickedEl.classList.add('active');
   if (name === 'browse') renderBrowse();
   if (name === 'collection' && typeof buildCollectionPage === 'function') buildCollectionPage();

@@ -296,7 +296,8 @@ function _itemMasterIdx(itemNum, variation) {
 function _wantViewDetail(itemNum, variation) {
   var idx = _itemMasterIdx(itemNum, variation);
   if (idx >= 0 && typeof showItemDetailPage === 'function') {
-    showItemDetailPage(idx);
+    window._detailReturn = 'want';
+    showItemDetailPage(idx, null, { wantMode: true });
   } else if (typeof showToast === 'function') {
     showToast('Item details not found in catalog');
   }

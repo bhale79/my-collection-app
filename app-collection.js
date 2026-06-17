@@ -798,7 +798,8 @@ async function _uploadNonItemPhotos(type, key, entry, cfg, picks, progressCb) {
 }
 window._uploadNonItemPhotos = _uploadNonItemPhotos;
 
-function showItemDetailPage(idx, copyInvId) {
+function showItemDetailPage(idx, copyInvId, opts) {
+  var _wantMode = !!(opts && opts.wantMode);
   // Bug 12 (Session 154): remember which item the detail page is showing so
   // savePhotoOnlyUpdate can re-render it after a photo is added.
   window._lastDetailIdx = idx;
@@ -837,6 +838,7 @@ function showItemDetailPage(idx, copyInvId) {
     pd = poKey ? state.personalData[poKey] : null;
     pdKey = poKey;
   }
+  if (_wantMode) { pd = null; pdKey = null; }
   // Bug 17 (Session 154): remember the exact copy the detail page is showing
   // so toolbar actions (edit/sell/forsale/remove/upgrade) target THIS copy,
   // not the first matching one.
@@ -891,9 +893,16 @@ function showItemDetailPage(idx, copyInvId) {
   }
 
   // ── HEADER ──
-  const _fromTools = window._detailReturn === 'tools';
-  const _backLabel = _fromTools ? 'Back to Collection Tools' : 'Back to Collection';
-  const _backFn    = _fromTools ? 'delete window._detailReturn;showPage(&apos;tools&apos;);buildToolsPage()' : '_detailBackToBrowse()';
+  const _detRet = window._detailReturn;
+  let _backLabel = 'Back to Collection';
+  let _backFn    = '_detailBackToBrowse()';
+  if (_wantMode || _detRet === 'want') {
+    _backLabel = 'Back to Want List';
+    _backFn    = 'delete window._detailReturn;showPage(&apos;upgrade&apos;)';
+  } else if (_detRet === 'tools') {
+    _backLabel = 'Back to Collection Tools';
+    _backFn    = 'delete window._detailReturn;showPage(&apos;tools&apos;);buildToolsPage()';
+  }
   let html = `
   <div style="margin-bottom:1.5rem">
     <button onclick="${_backFn}" style="background:none;border:none;color:#2980b9;font-family:var(--font-body);font-size:1.1rem;font-weight:700;cursor:pointer;padding:0;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.4rem">
@@ -915,13 +924,23 @@ function showItemDetailPage(idx, copyInvId) {
         ${(function(){ var _u = (typeof _itemExternalLinkURL==='function')?_itemExternalLinkURL(it):(it.refLink||''); return _u ? `<a href="${_u}" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent2);text-decoration:none;display:inline-flex;align-items:center;gap:0.3rem;margin-top:0.4rem">View on ${(typeof _externalSiteLabel === "function" ? _externalSiteLabel(_u) : "External")} <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : ''; })()}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.4rem;flex-shrink:0">
-        <span class="owned-badge ${isForSale ? 'forsale' : 'yes'}" style="font-size:0.85rem">${isForSale ? '\ud83c\udff7\ufe0f For Sale' : '\u2713 In Collection'}</span>
-        ${cond ? `<span style="font-size:0.85rem"><span class="condition-pip ${condClass}"></span> ${cond}/10</span>` : ''}
+        ${_wantMode
+          ? `<span class="owned-badge" style="font-size:0.85rem;background:rgba(59,130,246,0.12);color:#3b82f6;border:1px solid #3b82f6">\u2605 On Want List</span>`
+          : `<span class="owned-badge ${isForSale ? 'forsale' : 'yes'}" style="font-size:0.85rem">${isForSale ? '\ud83c\udff7\ufe0f For Sale' : '\u2713 In Collection'}</span>
+        ${cond ? `<span style="font-size:0.85rem"><span class="condition-pip ${condClass}"></span> ${cond}/10</span>` : ''}`}
       </div>
     </div>
   </div>`;
 
   // ── ACTION TOOLBAR ──
+  if (_wantMode) {
+    html += `
+  <div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap">
+    <button onclick="wantFindOnEbay('${it.itemNum}','${(it.roadName||'').replace(/'/g,"&apos;")}')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600">Find on eBay</button>
+    <button onclick="wantSearchOtherSites('${it.itemNum}','${(it.roadName||'').replace(/'/g,"&apos;")}')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2980b9;background:rgba(41,128,185,0.1);color:#2980b9;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600">Search Other Sites</button>
+    <button onclick="moveWantToCollection('${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600">+ Add to Collection</button>
+  </div>`;
+  } else {
   html += `
   <div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap">
     <button onclick="showItemDetailPage_edit(${idx})" data-ctip="Edit this item's details and add photos all in one place." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2980b9;background:rgba(41,128,185,0.1);color:#2980b9;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
@@ -954,6 +973,7 @@ function showItemDetailPage(idx, copyInvId) {
       Remove from Collection
     </button>
   </div>`;
+  }
 
   // ── DETAILS GRID ──
   const details = [
@@ -1041,7 +1061,7 @@ function showItemDetailPage(idx, copyInvId) {
 
   // ── PHOTO GALLERY ──
   const _photoLink = pd && pd.photoItem ? pd.photoItem : '';
-  html += `<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem">
+  if (!_wantMode) html += `<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
       <div style="font-family:var(--font-head);font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent2)">Photos</div>
       ${_photoLink ? `<a href="${_photoLink}" target="_blank" rel="noopener" style="font-size:0.75rem;color:var(--accent2);text-decoration:none">Open Drive Folder \u2197</a>` : ''}
