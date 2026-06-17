@@ -410,17 +410,19 @@
   /* Collection view: fills container width, no horizontal scroll */
   #page-browse .item-table.collection-view { table-layout: fixed; width: 100%; min-width: 0; }
   #page-browse .item-table.collection-view th:nth-child(1),
-  #page-browse .item-table.collection-view td:nth-child(1) { width: 100px; }
-  #page-browse .item-table.collection-view th:nth-child(2),
-  #page-browse .item-table.collection-view td:nth-child(2) { width: 52px; }
-  #page-browse .item-table.collection-view th:nth-child(3),
-  #page-browse .item-table.collection-view td:nth-child(3) { width: 80px; }
-  #page-browse .item-table.collection-view th:nth-child(4),
-  #page-browse .item-table.collection-view td:nth-child(4) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #page-browse .item-table.collection-view th:nth-child(5),
-  #page-browse .item-table.collection-view td:nth-child(5) { width: 82px; }
-  #page-browse .item-table.collection-view th:nth-child(6),
-  #page-browse .item-table.collection-view td:nth-child(6) { width: 240px; text-align: right; }
+  #page-browse .item-table.collection-view td:nth-child(1) { width: 60px; }
+  .item-table.collection-view th:nth-child(2),
+  #page-browse .item-table.collection-view td:nth-child(2) { width: 90px; }
+  .item-table.collection-view th:nth-child(3),
+  #page-browse .item-table.collection-view td:nth-child(3) { width: 48px; }
+  .item-table.collection-view th:nth-child(4),
+  #page-browse .item-table.collection-view td:nth-child(4) { width: 74px; }
+  .item-table.collection-view th:nth-child(5),
+  #page-browse .item-table.collection-view td:nth-child(5) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item-table.collection-view th:nth-child(6),
+  #page-browse .item-table.collection-view td:nth-child(6) { width: 76px; }
+  .item-table.collection-view th:nth-child(7),
+  #page-browse .item-table.collection-view td:nth-child(7) { width: 210px; text-align: right; }
   /* Compact action buttons — wrap text so they don't force horizontal scroll */
   #page-browse .item-table.collection-view td:last-child button {
     white-space: normal; line-height: 1.15; padding: 0.2rem 0.3rem; max-width: 58px; text-align: center;

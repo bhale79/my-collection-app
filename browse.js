@@ -73,6 +73,38 @@ function _mfrBadge(item) {
   } catch(e) { return '<td><span style="color:var(--text-dim);font-size:0.7rem">—</span></td>'; }
 }
 
+// ── My Collection: sortable table header (Session 162+) ──
+// Columns: Mfr | Item # | Var. | Type | Description | Est. Worth | Actions.
+// Clicking a header sorts by it; clicking again flips direction.
+var _COLL_COLS = [
+  { col: 'mfr',   label: 'Mfr.' },
+  { col: 'num',   label: 'Item #' },
+  { col: 'var',   label: 'Var.' },
+  { col: 'type',  label: 'Type' },
+  { col: 'desc',  label: 'Description' },
+  { col: 'worth', label: 'Est. Worth' }
+];
+function _renderCollectionHeader() {
+  var thead = document.querySelector('#page-browse .item-table thead tr');
+  if (!thead) return;
+  var cs = state._collSort || {};
+  var html = _COLL_COLS.map(function(c) {
+    var arrow = (cs.col === c.col) ? (cs.dir === 'desc' ? ' \u25BC' : ' \u25B2') : '';
+    var align = (c.col === 'worth') ? 'text-align:right;' : '';
+    return '<th onclick="_collSortBy(\'' + c.col + '\')" style="cursor:pointer;white-space:nowrap;' + align + '" title="Sort by ' + c.label + '">' + c.label + arrow + '</th>';
+  }).join('');
+  html += '<th style="text-align:right;white-space:nowrap">Actions</th>';
+  thead.innerHTML = html;
+}
+function _collSortBy(col) {
+  var cs = state._collSort;
+  if (cs && cs.col === col) { cs.dir = (cs.dir === 'asc') ? 'desc' : 'asc'; }
+  else { state._collSort = { col: col, dir: 'asc' }; }
+  _renderCollectionHeader();
+  if (typeof renderBrowse === 'function') renderBrowse();
+}
+if (typeof window !== 'undefined') { window._renderCollectionHeader = _renderCollectionHeader; window._collSortBy = _collSortBy; }
+
 // ── Era-aware master catalog table headers ──
 // Lionel eras use Road/Variation columns; Atlas uses Sub Type/Track-Power/MSRP;
 // MTH (Session 129) uses Road/Description/Category/Track-Power to surface the
@@ -1165,8 +1197,7 @@ function filterOwned(qe) {
     _btnArea.insertBefore(_shareBtn, _btnArea.firstChild);
   }
   // Update table headers for collection view
-  const thead = document.querySelector('#page-browse .item-table thead tr');
-  if (thead) thead.innerHTML = '<th style="width:110px">Item #</th><th style="width:60px">Var.</th><th style="width:90px">Type</th><th>Description</th><th style="width:90px">Est. Worth</th><th style="width:260px;text-align:right">Actions</th>';
+  if (typeof _renderCollectionHeader === 'function') _renderCollectionHeader();
   var _tbl2 = document.querySelector('#page-browse .item-table');
   if (_tbl2) _tbl2.classList.add('collection-view');
   var _leg = document.getElementById('collection-icon-legend');
@@ -2363,7 +2394,8 @@ function renderBrowse() {
   });
 
   // Sort My Collection: by item number, with grouped items together
-  if (state.filters.owned) {
+  // (default). Skipped when the user has clicked a column header to sort.
+  if (state.filters.owned && !(state._collSort && state._collSort.col)) {
     state.filteredData.sort((a, b) => {
       const pdA = findPD(_displayItemNum(a), a.variation) || {};
       const pdB = findPD(_displayItemNum(b), b.variation) || {};
@@ -2383,6 +2415,35 @@ function renderBrowse() {
       if (numA !== numB) return (parseInt(numA)||0) - (parseInt(numB)||0);
       return (leadA||'').localeCompare(leadB||'') || (a.itemNum||'').localeCompare(b.itemNum||'');
     });
+  }
+  // My Collection: user-selected column sort (header click).
+  if (state.filters.owned && state._collSort && state._collSort.col) {
+    var _cs = state._collSort;
+    var _dir = (_cs.dir === 'desc') ? -1 : 1;
+    var _col = _cs.col;
+    var _numeric = (_col === 'num' || _col === 'worth');
+    var _keyed = state.filteredData.map(function(it) {
+      var pd = findPD(_displayItemNum(it), it.variation) || {};
+      var _rt = [it.roadName, it.itemType].filter(Boolean).join(' \u00b7 ') || it.description || '';
+      var _w = parseFloat(pd.userEstWorth);
+      return {
+        it: it,
+        mfr: (typeof _manufacturerOfItem === 'function' ? (_manufacturerOfItem(it) || '') : ''),
+        num: parseInt(String(_displayItemNum(it)).replace(/[^0-9]/g, '')) || 0,
+        var: (it.variation || ''),
+        type: (typeof getTypeBucketLabel === 'function' ? (getTypeBucketLabel(it) || '') : (it.itemType || '')),
+        desc: _rt,
+        worth: isFinite(_w) ? _w : -1
+      };
+    });
+    _keyed.sort(function(a, b) {
+      var r;
+      if (_numeric) { r = a[_col === 'num' ? 'num' : 'worth'] - b[_col === 'num' ? 'num' : 'worth']; }
+      else { r = String(a[_col]).localeCompare(String(b[_col]), undefined, { numeric: true, sensitivity: 'base' }); }
+      if (r === 0) r = (a.it.itemNum || '').localeCompare(b.it.itemNum || '', undefined, { numeric: true });
+      return r * _dir;
+    });
+    state.filteredData = _keyed.map(function(x) { return x.it; });
   }
   // Step 3b: when mfr=any in 'all' meta-era mode, group by Lionel -> MTH -> Atlas,
   // then by item number within each manufacturer. Applies to non-owned views only;
@@ -2761,6 +2822,7 @@ function renderBrowse() {
         ? `<button onclick="event.stopPropagation();_removeUpgradeFromCollection('${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:#8b5cf6;color:#fff;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">Remove from Upgrade</button>`
         : `<button onclick="event.stopPropagation();showAddToUpgradeModal('${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">Add to Upgrade</button>`;
       return `<tr id="share-card-${_shareKeyD}" onclick="${_inShareModeD ? 'toggleShareItem(\'' + _shareKeyD + '\')' : 'showItemDetailPage(' + globalIdx + ", '" + _copyInv + "')"}" style="cursor:pointer${_isQuick ? ';opacity:0.82' : ''}${_isShareSelectedD ? ';outline:2px solid #3a9e68;background:rgba(58,158,104,0.06)' : ''}" data-group="${_groupId}" data-item="${item.itemNum}">
+        ${_mfrBadge(item)}
         <td style="white-space:nowrap">
           ${_inShareModeD ? '<input type="checkbox" id="share-cb-' + _shareKeyD + '" ' + (_isShareSelectedD ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _shareKeyD + '\')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">' : ''}
           <span class="item-num">${_displayItemNum(item)}</span>${_noNumTag(item.itemNum)}${(typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(item._tab) : ''}
