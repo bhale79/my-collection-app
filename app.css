@@ -422,7 +422,14 @@
   .item-table.collection-view th:nth-child(6),
   #page-browse .item-table.collection-view td:nth-child(6) { width: 58px; }
   .item-table.collection-view th:nth-child(7),
-  #page-browse .item-table.collection-view td:nth-child(7) { width: 200px; text-align: right; }
+  #page-browse .item-table.collection-view td:nth-child(7) { width: 250px; text-align: right; }
+  /* Actions buttons wrap within their column instead of forcing sideways scroll */
+  #page-browse .item-table.collection-view .coll-actions-cell { white-space: normal; }
+  /* Phones: drop the Actions column; tap a row to open its detail (all actions there) */
+  @media (max-width: 760px) {
+    #page-browse .item-table.collection-view th:nth-child(7),
+    #page-browse .item-table.collection-view td:nth-child(7) { display: none; }
+  }
   /* Tighter rows + headers to fit more on a page */
   #page-browse .item-table.collection-view td { padding: 0.4rem 0.55rem; vertical-align: top; }
   #page-browse .item-table.collection-view th { padding: 0.4rem 0.55rem; line-height: 1.1; }
