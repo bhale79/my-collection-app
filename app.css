@@ -1213,3 +1213,24 @@ body.compact-mode .qa-tr-actions .qa-tr-btn {
   #page-upgrade .item-table th:nth-child(7), #page-upgrade .item-table td:nth-child(7),
   #page-upgrade .item-table th:nth-child(8), #page-upgrade .item-table td:nth-child(8) { display: none; }
 }
+
+/* ── For Sale list: density, fit-to-width, responsive ── */
+#page-forsale .item-table { table-layout: fixed; width: 100%; }
+#page-forsale .item-table td, #page-forsale .item-table th { padding: 0.42rem 0.55rem; }
+#page-forsale .item-table th { line-height: 1.15; }
+#page-forsale .item-table th:nth-child(1), #page-forsale .item-table td:nth-child(1) { width: 54px; }
+#page-forsale .item-table th:nth-child(2), #page-forsale .item-table td:nth-child(2) { width: 116px; overflow: hidden; text-overflow: ellipsis; }
+#page-forsale .item-table th:nth-child(3), #page-forsale .item-table td:nth-child(3) { width: 70px; }
+#page-forsale .item-table td:nth-child(4) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#page-forsale .item-table th:nth-child(5), #page-forsale .item-table td:nth-child(5) { width: 48px; }
+#page-forsale .item-table th:nth-child(6), #page-forsale .item-table td:nth-child(6) { width: 86px; }
+#page-forsale .item-table th:nth-child(7), #page-forsale .item-table td:nth-child(7) { width: 84px; }
+#page-forsale .item-table th:nth-child(8), #page-forsale .item-table td:nth-child(8) { width: 88px; }
+#page-forsale .item-table th:nth-child(9), #page-forsale .item-table td:nth-child(9) { width: 200px; }
+#page-forsale .item-table td:last-child { white-space: normal; }
+@media (max-width: 760px) {
+  #page-forsale .item-table th:nth-child(3), #page-forsale .item-table td:nth-child(3),
+  #page-forsale .item-table th:nth-child(7), #page-forsale .item-table td:nth-child(7),
+  #page-forsale .item-table th:nth-child(8), #page-forsale .item-table td:nth-child(8),
+  #page-forsale .item-table th:nth-child(9), #page-forsale .item-table td:nth-child(9) { display: none; }
+}

@@ -1552,6 +1552,50 @@ function clearPageSearch(name) {
   // Don't clear — keep search term when returning to same page
 }
 
+// ── For Sale list: sortable headers + catalog pairing (Session 162+) ──
+var _FS_COLS = [
+  { col: 'mfr', label: 'Mfr.' }, { col: 'num', label: 'Item #' },
+  { col: 'type', label: 'Type' }, { col: 'road', label: 'Road Name' },
+  { col: 'cond', label: 'Cond' }, { col: 'price', label: 'Asking Price' },
+  { col: 'worth', label: 'Est. Worth' }, { col: 'listed', label: 'Listed' }
+];
+function _fsMaster(fs) { return state.masterData.find(function(i){ return i.itemNum===fs.itemNum && i.variation===fs.variation; }) || {}; }
+function _fsSortVal(fs, col) {
+  var m = _fsMaster(fs);
+  if (col==='mfr') return (typeof _manufacturerOfItem==='function' ? (_manufacturerOfItem(m.itemNum?m:fs)||'') : '');
+  if (col==='num') return parseInt(String(fs.itemNum||'').replace(/[^0-9]/g,''))||0;
+  if (col==='type') return (m.itemType||'').toLowerCase();
+  if (col==='road') return (m.roadName||'').toLowerCase();
+  if (col==='cond') return parseFloat(fs.condition)||0;
+  if (col==='price') return parseFloat(fs.askingPrice)||0;
+  if (col==='worth') { var c=(fs.inventoryId && state.personalData[fs.inventoryId])||{}; return parseFloat(fs.estWorth||c.userEstWorth)||0; }
+  if (col==='listed') return fs.dateListed||'';
+  return '';
+}
+function _renderFsHeader() {
+  var thead = document.querySelector('#page-forsale .item-table thead tr');
+  if (!thead) return;
+  var cs = state._fsSort || {};
+  var html = _FS_COLS.map(function(c){
+    var arrow = (cs.col===c.col)?(cs.dir==='desc'?' \u25BC':' \u25B2'):'';
+    return '<th onclick="_fsSortBy(\''+c.col+'\')" style="cursor:pointer;white-space:nowrap" title="Sort by '+c.label+'">'+c.label+arrow+'</th>';
+  }).join('');
+  html += '<th style="white-space:nowrap">Actions</th>';
+  thead.innerHTML = html;
+}
+function _fsSortBy(col) {
+  var cs = state._fsSort;
+  if (cs && cs.col===col) { cs.dir = (cs.dir==='asc')?'desc':'asc'; }
+  else { state._fsSort = { col: col, dir: 'asc' }; }
+  buildForSalePage();
+}
+function _fsItemNumHTML(fs) {
+  var num = String(fs.itemNum||'');
+  if (fs._mergedTender) return num + ' <span style="opacity:0.6;font-size:0.8em" title="Engine + tender (paired)">\uD83D\uDD17</span> <span style="font-size:0.85em;color:var(--text-mid)">' + fs._mergedTender + '</span>';
+  return num;
+}
+if (typeof window!=='undefined'){ window._fsSortBy=_fsSortBy; window._renderFsHeader=_renderFsHeader; }
+
 function buildForSalePage() {
   // Contextual hint for empty For Sale List
   if (typeof maybeShowContextualHint === 'function' && Object.keys(state.forSaleData || {}).length === 0) {
@@ -1559,7 +1603,7 @@ function buildForSalePage() {
     if (_fpcAnchor) maybeShowContextualHint('forsale_empty', '<strong>For Sale List</strong> tracks items you\'re selling. From My Collection, click <em>Add to For Sale</em> on any item to list it.', _fpcAnchor);
   }
   const _fq = (state._forsaleSearch || '').toLowerCase();
-  const fsEntries = Object.values(state.forSaleData).filter(fs => {
+  let fsEntries = Object.values(state.forSaleData).filter(fs => {
     // Grouped companions (box / instruction sheet) fold into their lead —
     // show and count the group as ONE item, like the collection list.
     if (typeof window !== 'undefined' && typeof window._fsIsGroupedCompanion === 'function' && window._fsIsGroupedCompanion(fs)) return false;
@@ -1586,6 +1630,32 @@ function buildForSalePage() {
     _fsStEl.textContent = '· ' + fsEntries.length.toLocaleString() + ' listed · ' + _fsAsk + ' asking';
   }
 
+  // Sort by header selection
+  if (state._fsSort && state._fsSort.col) {
+    var _fc = state._fsSort.col, _fd = (state._fsSort.dir==='desc')?-1:1;
+    var _fnum = (_fc==='num'||_fc==='cond'||_fc==='price'||_fc==='worth');
+    fsEntries.sort(function(a,b){
+      var va=_fsSortVal(a,_fc), vb=_fsSortVal(b,_fc), r;
+      if (_fnum) r=va-vb; else r=String(va).localeCompare(String(vb),undefined,{numeric:true});
+      if (r===0) r=(a.itemNum||'').localeCompare(b.itemNum||'',undefined,{numeric:true});
+      return r*_fd;
+    });
+  }
+  // Group engine + tender into one row (catalog pairing); stats above stay pre-merge.
+  (function _fsGroupPairs(){
+    var byNum={}; fsEntries.forEach(function(e){ if(!byNum[e.itemNum]) byNum[e.itemNum]=e; });
+    var absorbed={};
+    fsEntries.forEach(function(e){
+      if (absorbed[e.itemNum]) return;
+      if (typeof isLocomotive==='function' && isLocomotive(e.itemNum)) {
+        var t=(typeof getMatchingTenders==='function')?(getMatchingTenders(e.itemNum)||[]):[];
+        for (var i=0;i<t.length;i++){ var tn=t[i];
+          if (tn&&tn!==e.itemNum&&byNum[tn]&&!absorbed[tn]){ e._mergedTender=tn; absorbed[tn]=true; break; } }
+      }
+    });
+    if (Object.keys(absorbed).length) fsEntries=fsEntries.filter(function(e){ return !absorbed[e.itemNum]; });
+  })();
+  if (typeof _renderFsHeader==='function') _renderFsHeader();
   const isMobileFs = window.innerWidth <= 640;
   const fsCardsEl = document.getElementById('forsale-cards');
   const fsTableWrap = document.getElementById('forsale-table-wrap');
@@ -1607,7 +1677,7 @@ function buildForSalePage() {
           <div style="display:flex;align-items:flex-start;gap:0.5rem">
             ${_fsInShare ? '<input type="checkbox" id="share-cb-' + _fsShareKey + '" ' + (_fsSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _fsShareKey + '\')" style="width:1.1rem;height:1.1rem;accent-color:#3a9e68;flex-shrink:0;margin-top:0.2rem">' : ''}
             <div>
-              <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${_composeItemNumHTML(fs.itemNum, fs.variation)}</span>
+              <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${_fsItemNumHTML(fs)}</span>
               ${master.roadName ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">${master.roadName}</div>` : ''}
               <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${[master.itemType, fs.condition ? 'Cond: '+fs.condition : '', fs.dateListed ? 'Listed: '+_formatDate(fs.dateListed) : ''].filter(Boolean).join(' · ')}</div>
               ${estWorth ? `<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.1rem">Est. Worth: $${parseFloat(estWorth).toLocaleString()}</div>` : ''}
@@ -1641,20 +1711,21 @@ function buildForSalePage() {
         ? `onclick="toggleShareItem('${_fsDShareKey}')"`
         : (_fsDMasterIdx >= 0 ? `onclick="window._detailReturn='forsale';showItemDetailPage(${_fsDMasterIdx})"` : '');
       return `<tr id="share-card-${_fsDShareKey}" ${_fsDClickAttr} style="cursor:${_fsDInShare || _fsDMasterIdx >= 0 ? 'pointer' : 'default'}${_fsDSelected ? ';outline:2px solid #3a9e68;background:rgba(58,158,104,0.06)' : ''}">
-        <td><span class="item-num">${_fsDInShare ? '<input type="checkbox" id="share-cb-' + _fsDShareKey + '" ' + (_fsDSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _fsDShareKey + '\')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">' : ''}${_composeItemNumHTML(fs.itemNum, fs.variation)}</span></td>
+        ${typeof _mfrBadge==='function' ? _mfrBadge(master) : '<td>—</td>'}
+        <td><span class="item-num">${_fsDInShare ? '<input type="checkbox" id="share-cb-' + _fsDShareKey + '" ' + (_fsDSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _fsDShareKey + '\')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">' : ''}${_fsItemNumHTML(fs)}</span></td>
         <td><span class="tag">${master.itemType || '—'}</span></td>
         <td>${master.roadName || '—'}</td>
         <td>${fs.condition || '—'}</td>
         <td class="market-val" style="color:#e67e22">${fs.askingPrice ? _currencySymbol() + parseFloat(fs.askingPrice).toLocaleString() : '—'}</td>
         <td class="text-dim">${estWorth ? _currencySymbol() + parseFloat(estWorth).toLocaleString() : '—'}</td>
         <td class="text-dim">${_formatDate(fs.dateListed) || '—'}</td>
-        <td style="white-space:nowrap">
-          ${!_fsDInShare ? `<button onclick="event.stopPropagation();markForSaleAsSold('${_fsEntryKey(fs)}','${fs.askingPrice||''}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);margin-right:0.3rem">Mark as Sold</button>
-          <button onclick="event.stopPropagation();removeForSaleItem('${_fsEntryKey(fs)}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);margin-right:0.3rem">Back to Collection</button>
+        <td style="white-space:normal">
+          ${!_fsDInShare ? `<button onclick="event.stopPropagation();markForSaleAsSold('${_fsEntryKey(fs)}','${fs.askingPrice||''}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);margin-right:0.3rem" title="Mark as sold">Sold</button>
+          <button onclick="event.stopPropagation();removeForSaleItem('${_fsEntryKey(fs)}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);margin-right:0.3rem" title="Take off sale, keep in collection">Unlist</button>
           <button onclick="event.stopPropagation();removeForSaleAndCollection('${_fsEntryKey(fs)}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #e74c3c;background:rgba(231,76,60,0.10);color:#e74c3c;font-family:var(--font-body)">Remove</button>` : ''}
         </td>
       </tr>`;
-    }).join('') : '<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🏷️</div><p>No items listed for sale</p></div></td></tr>';
+    }).join('') : '<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">🏷️</div><p>No items listed for sale</p></div></td></tr>';
   }
 
   const navBadge = document.getElementById('nav-forsale');
