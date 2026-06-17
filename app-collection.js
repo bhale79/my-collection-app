@@ -800,6 +800,8 @@ window._uploadNonItemPhotos = _uploadNonItemPhotos;
 
 function showItemDetailPage(idx, copyInvId, opts) {
   var _wantMode = !!(opts && opts.wantMode);
+  var _wantEntry = opts && opts.wantEntry;
+  var _wantPartner = (opts && opts.wantPartner) || '';
   // Bug 12 (Session 154): remember which item the detail page is showing so
   // savePhotoOnlyUpdate can re-render it after a photo is added.
   window._lastDetailIdx = idx;
@@ -912,7 +914,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
     <div style="display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap">
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.25rem">
-          <span style="font-family:var(--font-head);font-size:1.6rem;color:var(--accent);letter-spacing:0.03em">${String(it.itemNum||'').indexOf(' ')===-1 ? 'No. ' + it.itemNum + (it.poweredDummy === 'P' ? '-P' : it.poweredDummy === 'D' ? '-D' : '') : it.itemNum}</span>${typeof window._noNumTag==='function' ? window._noNumTag(it.itemNum) : ''}
+          <span style="font-family:var(--font-head);font-size:1.6rem;color:var(--accent);letter-spacing:0.03em">${_wantMode ? ('Wanted: ' + it.itemNum + (_wantPartner ? ' with a ' + _wantPartner : '')) : (String(it.itemNum||'').indexOf(' ')===-1 ? 'No. ' + it.itemNum + (it.poweredDummy === 'P' ? '-P' : it.poweredDummy === 'D' ? '-D' : '') : it.itemNum)}</span>${typeof window._noNumTag==='function' ? window._noNumTag(it.itemNum) : ''}
           ${isForSale ? `<span style="font-size:1rem;color:var(--gold);font-family:var(--font-head);letter-spacing:0.02em">— on the sale list for ${_fsPrice}</span>` : ''}
           ${it.variation ? `<span style="font-size:0.9rem;color:var(--text-dim);background:var(--surface2);border-radius:6px;padding:0.15rem 0.6rem">Var. ${it.variation}</span>` : ''}
           ${it.itemType ? `<span class="tag">${it.itemType}</span>` : ''}
@@ -976,7 +978,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
   }
 
   // ── DETAILS GRID ──
-  const details = [
+  let details = [
     { label: 'Condition', val: cond ? `<span class="condition-pip ${condClass}"></span> ${cond}/10` : null },
     { label: 'All Original', val: pd && pd.allOriginal && pd.allOriginal !== 'Unknown' ? pd.allOriginal : null },
     { label: 'Not Original', val: pd && pd.notOriginalDesc ? pd.notOriginalDesc : null },
@@ -993,6 +995,14 @@ function showItemDetailPage(idx, copyInvId, opts) {
     { label: 'Instruction Sheet', val: pd ? (((groupMembers && groupMembers.some(function(m){return m._isIS;})) || (state.isData && Object.values(state.isData).some(function(_is){ return _is && _is.linkedItem === it.itemNum; }))) ? '\u2705 Yes' : 'No') : null },
     { label: 'Error Item', val: pd ? ((pd.isError === 'Yes') ? '\u26a0\ufe0f Yes' + (pd.errorDesc ? ' \u2014 ' + String(pd.errorDesc).replace(/</g,'&lt;') : '') : 'No') : null },
   ].filter(d => d.val);
+  if (_wantMode) {
+    var _wmPrice = _wantEntry ? (_wantEntry.expectedPrice || _wantEntry.maxPrice) : '';
+    details = [
+      { label: 'Condition Target', val: _wantEntry && _wantEntry.targetCondition ? _wantEntry.targetCondition : null },
+      { label: 'Priority', val: _wantEntry && _wantEntry.priority ? _wantEntry.priority : null },
+      { label: 'Max Price', val: _wmPrice ? _currencySymbol() + parseFloat(_wmPrice).toLocaleString() : null },
+    ].filter(function(d){ return d.val; });
+  }
 
   const matchedTo = pd && pd.matchedTo ? pd.matchedTo : '';
   const setId = pd && pd.setId ? pd.setId : '';
@@ -1050,10 +1060,11 @@ function showItemDetailPage(idx, copyInvId, opts) {
   }
 
   // Notes
-  if (pd && pd.notes) {
+  var _wmNotes = (_wantMode && _wantEntry && _wantEntry.notes) ? (typeof _wlStripGrp === 'function' ? _wlStripGrp(_wantEntry.notes) : _wantEntry.notes) : '';
+  if ((pd && pd.notes) || _wmNotes) {
     html += `<div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border)">
       <div style="font-size:0.78rem;color:var(--text-dim);font-weight:600;margin-bottom:0.3rem">Notes</div>
-      <div style="font-size:0.85rem;color:var(--text);line-height:1.6">${pd.notes}</div>
+      <div style="font-size:0.85rem;color:var(--text);line-height:1.6">${pd && pd.notes ? pd.notes : _wmNotes}</div>
     </div>`;
   }
 

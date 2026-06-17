@@ -272,6 +272,28 @@ function _composeItemNumHTML(itemNum, variation) {
   return num;
 }
 
+// Partner item for a Want/Upgrade entry, for the want detail heading
+// ("Wanted: 726 with a 2426W"). Checks the entry's [grp:] note marker
+// first, then falls back to the owned copy's matchedTo / groupId.
+function _wantPartner(itemNum, variation, entry) {
+  if (entry && entry.notes) {
+    var m = String(entry.notes).match(/^\[grp:([^\]]+)\]/);
+    if (m && m[1]) return m[1].trim();
+  }
+  if (typeof findPD === 'function') {
+    var pd = findPD(itemNum, variation);
+    if (pd && pd.matchedTo && String(pd.matchedTo).toLowerCase() !== 'none') return String(pd.matchedTo).trim();
+    if (pd && pd.groupId) {
+      var partners = [];
+      Object.values(state.personalData || {}).forEach(function(p){
+        if (p && p.groupId === pd.groupId && p.itemNum !== itemNum) partners.push(p.itemNum);
+      });
+      if (partners.length) return partners.join(' / ');
+    }
+  }
+  return '';
+}
+
 // Find the master row index for showItemDetailPage. Tolerant of trailing
 // -P/-C/-T suffixes (set members) that don't have their own master row.
 function _itemMasterIdx(itemNum, variation) {
@@ -296,8 +318,20 @@ function _itemMasterIdx(itemNum, variation) {
 function _wantViewDetail(itemNum, variation) {
   var idx = _itemMasterIdx(itemNum, variation);
   if (idx >= 0 && typeof showItemDetailPage === 'function') {
+    var _v = variation || '';
+    var entry = null;
+    var pools = [state.wantData, state.upgradeData];
+    for (var pi = 0; pi < pools.length && !entry; pi++) {
+      var pool = pools[pi] || {};
+      var keys = Object.keys(pool);
+      for (var ki = 0; ki < keys.length; ki++) {
+        var e = pool[keys[ki]];
+        if (e && e.itemNum === itemNum && (e.variation || '') === _v) { entry = e; break; }
+      }
+    }
+    var partner = (typeof _wantPartner === 'function') ? _wantPartner(itemNum, variation, entry) : '';
     window._detailReturn = 'want';
-    showItemDetailPage(idx, null, { wantMode: true });
+    showItemDetailPage(idx, null, { wantMode: true, wantEntry: entry, wantPartner: partner });
   } else if (typeof showToast === 'function') {
     showToast('Item details not found in catalog');
   }
