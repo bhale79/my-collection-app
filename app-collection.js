@@ -902,6 +902,9 @@ function showItemDetailPage(idx, copyInvId, opts) {
   if (_wantMode || _detRet === 'want') {
     _backLabel = 'Back to Want List';
     _backFn    = 'delete window._detailReturn;showPage(&apos;upgrade&apos;)';
+  } else if (_detRet === 'forsale') {
+    _backLabel = 'Back to Sale List';
+    _backFn    = 'delete window._detailReturn;showPage(&apos;forsale&apos;)';
   } else if (_detRet === 'tools') {
     _backLabel = 'Back to Collection Tools';
     _backFn    = 'delete window._detailReturn;showPage(&apos;tools&apos;);buildToolsPage()';
