@@ -2807,9 +2807,8 @@ function renderBrowse() {
       const _copyCount = Object.values(state.personalData).filter(p => p.itemNum === item.itemNum && (p.variation||'') === (item.variation||'') && p.owned).length;
       // Status badges — render on a line UNDER the item number (Brad's
       // request) so they read clearly and don't drift under the Var column.
-      const _statusBadges = (_isThisCopyFS ? '<span style="display:inline-block;font-size:0.6rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#e67e22;background:rgba(230,126,34,0.12);border:1px solid #e67e22;border-radius:4px;padding:0 5px;line-height:1.4">🏷️ For Sale</span>' : '')
-        + (_isThisCopyUG ? '<span style="display:inline-block;font-size:0.6rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#8b5cf6;background:rgba(139,92,246,0.12);border:1px solid #8b5cf6;border-radius:4px;padding:0 5px;line-height:1.4;margin-left:3px">↑ Upgrade</span>' : '');
-      const _listIcons = _statusBadges ? '<div style="margin-top:3px">' + _statusBadges + '</div>' : '';
+      const _statusBadges = (_isThisCopyFS ? '<span title="On the For Sale list" style="font-size:0.82rem;margin-left:3px;vertical-align:middle">🏷️</span>' : '')
+        + (_isThisCopyUG ? '<span title="On the Upgrade list" style="font-size:0.74rem;margin-left:3px;color:#8b5cf6;font-weight:700;vertical-align:middle">↑</span>' : '');
       const _shareKeyD = item.itemNum + '|' + (item.variation||'') + '|' + (pd && pd.row ? pd.row : 0);
       const _inShareModeD = typeof isShareMode === 'function' && isShareMode('collection');
       const _isShareSelectedD = _inShareModeD && window._shareItems && window._shareItems[_shareKeyD];
@@ -2831,8 +2830,8 @@ function renderBrowse() {
             ${_groupId ? '<span style="font-size:0.6rem;color:var(--accent3)" title="Grouped">🔗</span>' : ''}
             ${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(\''+item.itemNum+'\',\''+_escVar+'\','+globalIdx+',\''+(pd.inventoryId||'')+'\')" style="font-size:0.72rem;background:#27ae60;color:#fff;border-radius:4px;padding:1px 5px;cursor:pointer;font-weight:700" title="Complete this Quick Entry">⚡</span>' : ''}
             ${pd && pd.photoItem ? '<span style="font-size:0.78rem;opacity:0.75" title="Has photo">📷</span>' : ''}
+            ${_statusBadges}
           </div>
-          ${_listIcons}
         </td>
         <td style="white-space:nowrap">${item.variation ? '<span style="font-size:0.78rem;color:var(--text-mid)">' + item.variation + '</span>' : '<span style="color:var(--text-dim)">—</span>'}</td>
         <td style="font-size:0.78rem;color:var(--text-dim)">${_typeText}</td>
