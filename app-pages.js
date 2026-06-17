@@ -2374,6 +2374,45 @@ function _wlStripGrp(notes) {
 }
 if (typeof window !== 'undefined') window._wlStripGrp = _wlStripGrp;
 
+// ── Want/Upgrade list: sortable headers (Session 162+) ──
+var _WU_COLS = [
+  { col: 'num',      label: 'Item #' },
+  { col: 'road',     label: 'Road Name' },
+  { col: 'mfr',      label: 'Manufacturer' },
+  { col: 'cond',     label: 'Condition Target' },
+  { col: 'priority', label: 'Priority' },
+  { col: 'price',    label: 'Max Price' },
+  { col: 'notes',    label: 'Notes', noSort: true }
+];
+function _wuSortVal(u, col) {
+  if (col === 'num') return parseInt(String(u.itemNum || '').replace(/[^0-9]/g, '')) || 0;
+  if (col === 'road') { var m = (typeof findMaster === 'function' ? findMaster(u.itemNum) : null) || {}; return (m.roadName || '').toLowerCase(); }
+  if (col === 'mfr') return (u.manufacturer || '').toLowerCase();
+  if (col === 'cond') return parseFloat(u.targetCondition) || 0;
+  if (col === 'priority') { var o = { High: 0, Medium: 1, Low: 2 }; return (o[u.priority] != null ? o[u.priority] : 1); }
+  if (col === 'price') return parseFloat(u.expectedPrice || u.maxPrice) || 0;
+  return '';
+}
+function _renderWuHeader() {
+  var thead = document.querySelector('#upgrade-table thead tr');
+  if (!thead) return;
+  var cs = state._wuSort || {};
+  var html = _WU_COLS.map(function(c) {
+    if (c.noSort) return '<th style="white-space:nowrap">' + c.label + '</th>';
+    var arrow = (cs.col === c.col) ? (cs.dir === 'desc' ? ' \u25BC' : ' \u25B2') : '';
+    return '<th onclick="_wuSortBy(\'' + c.col + '\')" style="cursor:pointer;white-space:nowrap" title="Sort by ' + c.label + '">' + c.label + arrow + '</th>';
+  }).join('');
+  html += '<th style="white-space:nowrap">Actions</th>';
+  thead.innerHTML = html;
+}
+function _wuSortBy(col) {
+  var cs = state._wuSort;
+  if (cs && cs.col === col) { cs.dir = (cs.dir === 'asc') ? 'desc' : 'asc'; }
+  else { state._wuSort = { col: col, dir: 'asc' }; }
+  buildUpgradePage();
+}
+if (typeof window !== 'undefined') { window._wuSortBy = _wuSortBy; window._renderWuHeader = _renderWuHeader; }
+
 function buildUpgradePage() {
   // Combined Want/Upgrade page (Session 161+). state._wishlistFilter controls
   // which slice is shown: 'all' (default) | 'want' | 'upgrade'. Pull entries
@@ -2430,7 +2469,16 @@ function buildUpgradePage() {
   });
 
   const priorityOrder = { High: 0, Medium: 1, Low: 2 };
-  if (_sort === 'priority') {
+  if (state._wuSort && state._wuSort.col) {
+    var _wc = state._wuSort.col, _wd = (state._wuSort.dir === 'desc') ? -1 : 1;
+    var _wnum = (_wc === 'num' || _wc === 'cond' || _wc === 'priority' || _wc === 'price');
+    entries.sort(function(a, b) {
+      var va = _wuSortVal(a, _wc), vb = _wuSortVal(b, _wc), r;
+      if (_wnum) r = va - vb; else r = String(va).localeCompare(String(vb), undefined, { numeric: true });
+      if (r === 0) r = (a.itemNum || '').localeCompare(b.itemNum || '', undefined, { numeric: true });
+      return r * _wd;
+    });
+  } else if (_sort === 'priority') {
     entries.sort((a, b) => (priorityOrder[a.priority]??1) - (priorityOrder[b.priority]??1));
   } else if (_sort === 'condition') {
     entries.sort((a, b) => {
@@ -2455,6 +2503,7 @@ function buildUpgradePage() {
 
   const cardsEl = document.getElementById('upgrade-cards');
   const tableEl = document.getElementById('upgrade-table');
+  if (typeof _renderWuHeader === 'function') _renderWuHeader();
   const tbody   = document.getElementById('upgrade-tbody');
 
   const priorityColor = { High: 'var(--accent)', Medium: 'var(--accent2)', Low: 'var(--text-dim)' };

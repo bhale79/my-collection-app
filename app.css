@@ -1193,3 +1193,22 @@ body.compact-mode .qa-tr-actions .qa-tr-btn {
   padding: 0.3rem 0.5rem !important;
   font-size: 0.72rem !important;
 }
+
+/* ── Want/Upgrade list: density, fit-to-width, responsive ── */
+#page-upgrade .item-table { table-layout: fixed; width: 100%; }
+#page-upgrade .item-table td, #page-upgrade .item-table th { padding: 0.42rem 0.55rem; }
+#page-upgrade .item-table th { line-height: 1.15; }
+#page-upgrade .item-table th:nth-child(1), #page-upgrade .item-table td:nth-child(1) { width: 90px; }
+#page-upgrade .item-table td:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#page-upgrade .item-table th:nth-child(3), #page-upgrade .item-table td:nth-child(3) { width: 74px; }
+#page-upgrade .item-table th:nth-child(4), #page-upgrade .item-table td:nth-child(4) { width: 62px; }
+#page-upgrade .item-table th:nth-child(5), #page-upgrade .item-table td:nth-child(5) { width: 60px; }
+#page-upgrade .item-table th:nth-child(6), #page-upgrade .item-table td:nth-child(6) { width: 66px; }
+#page-upgrade .item-table th:nth-child(7), #page-upgrade .item-table td:nth-child(7) { width: 108px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#page-upgrade .item-table th:nth-child(8), #page-upgrade .item-table td:nth-child(8) { width: 186px; }
+#page-upgrade .item-table td:last-child { white-space: normal; }
+@media (max-width: 760px) {
+  #page-upgrade .item-table th:nth-child(3), #page-upgrade .item-table td:nth-child(3),
+  #page-upgrade .item-table th:nth-child(7), #page-upgrade .item-table td:nth-child(7),
+  #page-upgrade .item-table th:nth-child(8), #page-upgrade .item-table td:nth-child(8) { display: none; }
+}
