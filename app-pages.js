@@ -291,6 +291,17 @@ function _itemMasterIdx(itemNum, variation) {
   return idx;
 }
 
+// Open the catalog item-detail page for a Want/Upgrade row (Session 162+).
+// Reuses showItemDetailPage; _itemMasterIdx tolerates -P/-C/-T set suffixes.
+function _wantViewDetail(itemNum, variation) {
+  var idx = _itemMasterIdx(itemNum, variation);
+  if (idx >= 0 && typeof showItemDetailPage === 'function') {
+    showItemDetailPage(idx);
+  } else if (typeof showToast === 'function') {
+    showToast('Item details not found in catalog');
+  }
+}
+
 function _collectionRowHTML(it, emoji) {
   const extras = it.extras || '';
   const date = it.date ? '<span style="color:var(--text-dim);font-size:0.72rem;white-space:nowrap">' + _formatDate(it.date) + '</span>' : '';
@@ -2427,7 +2438,7 @@ function buildUpgradePage() {
       const _escName = (name||'').replace(/'/g,"\\'");
       const _priceLabel = _isWant ? 'Want: ' : 'Max: ';
       const _priceVal = _isWant ? u.expectedPrice : u.maxPrice;
-      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem">
+      return `<div onclick="_wantViewDetail('${u.itemNum}','${escVar}')" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem;cursor:pointer">
         <div style="display:flex;align-items:flex-start;gap:0.5rem">
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap">
@@ -2497,6 +2508,10 @@ function buildUpgradePage() {
       if (_wuInShare) {
         _wuTrAttrs = ' id="share-card-' + _wuShareKey + '" onclick="toggleShareItem(\'' + _wuShareKey + '\')" style="cursor:pointer;' + (_wuSelected ? 'outline:2px solid #3a9e68;background:rgba(58,158,104,0.06);' : '') + '"';
         _wuCheckbox = '<input type="checkbox" id="share-cb-' + _wuShareKey + '" ' + (_wuSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _wuShareKey + '\')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">';
+      } else {
+        // Non-share mode: clicking the row opens the catalog item detail page.
+        var _escVarAttr = (u.variation||'').replace(/'/g,"\\'");
+        _wuTrAttrs = ' onclick="_wantViewDetail(\'' + u.itemNum + '\',\'' + _escVarAttr + '\')" style="cursor:pointer" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'"';
       }
       return `<tr${_wuTrAttrs}>
         <td>
@@ -2511,15 +2526,15 @@ function buildUpgradePage() {
         <td style="font-size:0.8rem;color:var(--text-dim);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_wlStripGrp(u.notes||'').replace(/"/g,'&quot;')}">${_wlStripGrp(u.notes) || '<span class="text-dim">—</span>'}</td>
         <td style="white-space:nowrap">
           ${!_isWant && hasPhoto ? `<button onclick="event.stopPropagation();_toggleUpgradePhoto('${photoId}','${(pd.photoItem||'').replace(/'/g,"\\'")}')" style="padding:0.25rem 0.4rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);margin-right:0.2rem" title="Toggle photo">📷</button>` : ''}
-          ${!_isWant ? `<button onclick="_upgradeViewMine('${_ugEntryKey(u)}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">View Mine</button>` : ''}
-          <button onclick="wantFindOnEbay('${u.itemNum}','${escName}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);margin-right:0.2rem">eBay</button>
-          <button onclick="wantSearchOtherSites('${u.itemNum}','${escName}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2980b9;background:rgba(41,128,185,0.12);color:#2980b9;font-family:var(--font-body);margin-right:0.2rem">Search</button>
+          ${!_isWant ? `<button onclick="event.stopPropagation();_upgradeViewMine('${_ugEntryKey(u)}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">View Mine</button>` : ''}
+          <button onclick="event.stopPropagation();wantFindOnEbay('${u.itemNum}','${escName}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);margin-right:0.2rem">eBay</button>
+          <button onclick="event.stopPropagation();wantSearchOtherSites('${u.itemNum}','${escName}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2980b9;background:rgba(41,128,185,0.12);color:#2980b9;font-family:var(--font-body);margin-right:0.2rem">Search</button>
           ${_isWant
-            ? `<button onclick="moveWantToCollection('${u.itemNum}','${escVar}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">+ Collection</button>`
-            : `<button onclick="upgradeGotIt('${_ugEntryKey(u)}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">✓ Got It</button>`}
+            ? `<button onclick="event.stopPropagation();moveWantToCollection('${u.itemNum}','${escVar}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">+ Collection</button>`
+            : `<button onclick="event.stopPropagation();upgradeGotIt('${_ugEntryKey(u)}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">✓ Got It</button>`}
           ${_isWant
-            ? `<button onclick="removeWantItem('${u.itemNum}','${escVar}',${u.row})" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>`
-            : `<button onclick="removeUpgradeItem('${_ugEntryKey(u)}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>`}
+            ? `<button onclick="event.stopPropagation();removeWantItem('${u.itemNum}','${escVar}',${u.row})" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>`
+            : `<button onclick="event.stopPropagation();removeUpgradeItem('${_ugEntryKey(u)}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>`}
         </td>
       </tr>
       ${!_isWant ? `<tr id="${photoId}-row" style="display:none"><td colspan="8" style="padding:0.5rem 1rem;background:var(--surface2)"><img src="${pd && pd.photoItem ? pd.photoItem : ''}" style="max-height:160px;border-radius:6px;object-fit:contain" onerror="this.parentElement.parentElement.style.display='none'"></td></tr>` : ''}`;
