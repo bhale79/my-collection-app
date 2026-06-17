@@ -92,7 +92,8 @@ function _renderCollectionHeader() {
     var align = (c.col === 'worth') ? 'text-align:right;' : '';
     if (c.noSort) { return '<th style="white-space:nowrap;' + align + '">' + c.label + '</th>'; }
     var arrow = (cs.col === c.col) ? (cs.dir === 'desc' ? ' \u25BC' : ' \u25B2') : '';
-    return '<th onclick="_collSortBy(\'' + c.col + '\')" style="cursor:pointer;white-space:nowrap;' + align + '" title="Sort by ' + c.label + '">' + c.label + arrow + '</th>';
+    var _wsp = (c.col === 'worth') ? 'white-space:normal;' : 'white-space:nowrap;';
+    return '<th onclick="_collSortBy(\'' + c.col + '\')" style="cursor:pointer;' + _wsp + align + '" title="Sort by ' + c.label + '">' + c.label + arrow + '</th>';
   }).join('');
   html += '<th style="text-align:right;white-space:nowrap">Actions</th>';
   thead.innerHTML = html;
@@ -1156,6 +1157,8 @@ function resetFilters() {
   }
   var _tbl = document.querySelector('#page-browse .item-table');
   if (_tbl) _tbl.classList.remove('collection-view');
+  var _fbMaster = document.querySelector('#page-browse .filter-bar');
+  if (_fbMaster) _fbMaster.style.display = '';
   var _leg = document.getElementById('collection-icon-legend');
   if (_leg) _leg.style.display = 'none';
   removeQEFilter();
@@ -1199,6 +1202,8 @@ function filterOwned(qe) {
   }
   // Update table headers for collection view
   if (typeof _renderCollectionHeader === 'function') _renderCollectionHeader();
+  var _fbOwned = document.querySelector('#page-browse .filter-bar');
+  if (_fbOwned) _fbOwned.style.display = 'none';
   var _tbl2 = document.querySelector('#page-browse .item-table');
   if (_tbl2) _tbl2.classList.add('collection-view');
   var _leg = document.getElementById('collection-icon-legend');
@@ -2684,32 +2689,26 @@ function renderBrowse() {
     if (cardsEl) cardsEl.style.display = 'none';
   }
 
-  // ── Icon legend bar (My Collection only) ──
+  // ── My Collection: show piece-count in the title, hide the old legend line ──
   if (state.filters.owned) {
-    const legendEl = document.getElementById('coll-icon-legend');
-    if (legendEl) {
-      const showLegend = _prefGet('lv_show_coll_legend', 'true') === 'true';
-      legendEl.style.display = '';
-      // Combined Key + items-count single line; the count is also pulled into the title row below.
-      var _ownedTotalCount = (typeof state.filters !== 'undefined' && state.filters.owned)
-        ? Object.values(state.personalData || {}).filter(function(pd) { return pd && pd.owned; }).length
-        : 0;
-      legendEl.innerHTML = showLegend
-        ? `<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:nowrap;font-size:0.7rem;color:var(--text-dim);padding:0.18rem 0.1rem;border-bottom:1px solid var(--border);margin-bottom:0.35rem;overflow:hidden">
-            <span style="font-weight:600;color:var(--text-mid);flex-shrink:0">Key:</span>
-            <span style="flex-shrink:0">🔗 Grouped</span>
-            <span style="flex-shrink:0">📷 Photo</span>
-            <button onclick="event.stopPropagation();_prefSet('lv_show_coll_legend','false');renderBrowse()" style="flex-shrink:0;background:none;border:none;color:var(--text-dim);font-size:0.7rem;cursor:pointer;padding:0 0.2rem;text-decoration:underline">hide</button>
-            <span style="margin-left:auto;color:var(--text-dim);font-size:0.72rem">${_ownedTotalCount.toLocaleString()} items</span>
-          </div>`
-        : `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.35rem;font-size:0.72rem;color:var(--text-dim);border-bottom:1px solid var(--border);padding-bottom:0.18rem">
-            <button onclick="event.stopPropagation();_prefSet('lv_show_coll_legend','true');renderBrowse()" style="background:none;border:none;color:var(--text-dim);font-size:0.7rem;cursor:pointer;padding:0;text-decoration:underline">show icon key</button>
-            <span>${_ownedTotalCount.toLocaleString()} items</span>
-          </div>`;
+    var _le = document.getElementById('coll-icon-legend');
+    if (_le) { _le.style.display = 'none'; _le.innerHTML = ''; }
+    // Count = owned pieces that have an item number, excluding boxes/master cartons.
+    var _ownedItemCount = Object.values(state.personalData || {}).filter(function(pd) {
+      if (!pd || !pd.owned) return false;
+      var n = String(pd.itemNum || '').toUpperCase();
+      return !/-MBOX$/.test(n) && !/-BOX$/.test(n);
+    }).length;
+    var _tSpan = document.querySelector('#page-browse > .page-title > span');
+    if (_tSpan) {
+      _tSpan.innerHTML = 'My Collection List '
+        + '<span style="font-family:var(--font-body);font-size:0.8rem;color:var(--text-dim);font-weight:400;letter-spacing:0;text-transform:none">'
+        + _ownedItemCount.toLocaleString() + ' item' + (_ownedItemCount !== 1 ? 's' : '') + '</span> '
+        + '<span title="\uD83D\uDD17 Grouped \u00B7 \uD83D\uDCF7 Photo" style="cursor:help;color:var(--text-dim);font-size:0.7rem;border:1px solid var(--border);border-radius:50%;padding:0 0.34rem;font-weight:700;text-transform:none">i</span>';
     }
   } else {
-    const legendEl = document.getElementById('coll-icon-legend');
-    if (legendEl) legendEl.style.display = 'none';
+    var _le2 = document.getElementById('coll-icon-legend');
+    if (_le2) _le2.style.display = 'none';
   }
 
   const rowsHtml = pageData.map((item, i) => {
@@ -2824,17 +2823,20 @@ function renderBrowse() {
         : `<button onclick="event.stopPropagation();showAddToUpgradeModal('${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">Add to Upgrade</button>`;
       return `<tr id="share-card-${_shareKeyD}" onclick="${_inShareModeD ? 'toggleShareItem(\'' + _shareKeyD + '\')' : 'showItemDetailPage(' + globalIdx + ", '" + _copyInv + "')"}" style="cursor:pointer${_isQuick ? ';opacity:0.82' : ''}${_isShareSelectedD ? ';outline:2px solid #3a9e68;background:rgba(58,158,104,0.06)' : ''}" data-group="${_groupId}" data-item="${item.itemNum}">
         ${_mfrBadge(item)}
-        <td style="white-space:nowrap">
+        <td>
           ${_inShareModeD ? '<input type="checkbox" id="share-cb-' + _shareKeyD + '" ' + (_isShareSelectedD ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _shareKeyD + '\')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">' : ''}
-          <span class="item-num">${_displayItemNum(item)}</span>${_noNumTag(item.itemNum)}${(typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(item._tab) : ''}
-          ${_groupId ? '<span style="font-size:0.55rem;color:var(--accent3);margin-left:4px;vertical-align:super" title="Grouped">🔗</span>' : ''}
-          ${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(\''+item.itemNum+'\',\''+_escVar+'\','+globalIdx+',\''+(pd.inventoryId||'')+'\')" style="margin-left:5px;font-size:0.72rem;background:#27ae60;color:#fff;border-radius:4px;padding:1px 5px;cursor:pointer;font-weight:700;vertical-align:middle" title="Complete this Quick Entry">⚡</span>' : ''}
-          ${pd && pd.photoItem ? '<span style="margin-left:4px;font-size:0.78rem;vertical-align:middle;opacity:0.75" title="Has photo">📷</span>' : ''}
+          <span class="item-num">${_displayItemNum(item)}</span>${_noNumTag(item.itemNum)}
+          <div style="margin-top:1px;line-height:1.1;white-space:nowrap">
+            ${(typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(item._tab) : ''}
+            ${_groupId ? '<span style="font-size:0.6rem;color:var(--accent3)" title="Grouped">🔗</span>' : ''}
+            ${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(\''+item.itemNum+'\',\''+_escVar+'\','+globalIdx+',\''+(pd.inventoryId||'')+'\')" style="font-size:0.72rem;background:#27ae60;color:#fff;border-radius:4px;padding:1px 5px;cursor:pointer;font-weight:700" title="Complete this Quick Entry">⚡</span>' : ''}
+            ${pd && pd.photoItem ? '<span style="font-size:0.78rem;opacity:0.75" title="Has photo">📷</span>' : ''}
+          </div>
           ${_listIcons}
         </td>
         <td style="white-space:nowrap">${item.variation ? '<span style="font-size:0.78rem;color:var(--text-mid)">' + item.variation + '</span>' : '<span style="color:var(--text-dim)">—</span>'}</td>
         <td style="font-size:0.78rem;color:var(--text-dim)">${_typeText}</td>
-        <td style="color:var(--text-mid);font-size:0.85rem">${_descShort}</td>
+        <td style="color:var(--text-mid);font-size:0.85rem" title="${(_descFull||'').replace(/"/g,'&quot;')}">${_descFull}</td>
         <td style="font-size:0.82rem;color:var(--gold);white-space:nowrap">${_estWorth}</td>
         <td style="text-align:right;white-space:nowrap">
           ${!_inShareModeD ? `${_fsBtn}

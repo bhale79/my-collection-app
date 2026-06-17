@@ -410,19 +410,22 @@
   /* Collection view: fills container width, no horizontal scroll */
   #page-browse .item-table.collection-view { table-layout: fixed; width: 100%; min-width: 0; }
   #page-browse .item-table.collection-view th:nth-child(1),
-  #page-browse .item-table.collection-view td:nth-child(1) { width: 60px; }
+  #page-browse .item-table.collection-view td:nth-child(1) { width: 54px; }
   .item-table.collection-view th:nth-child(2),
-  #page-browse .item-table.collection-view td:nth-child(2) { width: 90px; }
+  #page-browse .item-table.collection-view td:nth-child(2) { width: 64px; }
   .item-table.collection-view th:nth-child(3),
-  #page-browse .item-table.collection-view td:nth-child(3) { width: 48px; }
+  #page-browse .item-table.collection-view td:nth-child(3) { width: 44px; }
   .item-table.collection-view th:nth-child(4),
-  #page-browse .item-table.collection-view td:nth-child(4) { width: 74px; }
+  #page-browse .item-table.collection-view td:nth-child(4) { width: 66px; }
   .item-table.collection-view th:nth-child(5),
   #page-browse .item-table.collection-view td:nth-child(5) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .item-table.collection-view th:nth-child(6),
-  #page-browse .item-table.collection-view td:nth-child(6) { width: 76px; }
+  #page-browse .item-table.collection-view td:nth-child(6) { width: 58px; }
   .item-table.collection-view th:nth-child(7),
-  #page-browse .item-table.collection-view td:nth-child(7) { width: 210px; text-align: right; }
+  #page-browse .item-table.collection-view td:nth-child(7) { width: 200px; text-align: right; }
+  /* Tighter rows + headers to fit more on a page */
+  #page-browse .item-table.collection-view td { padding: 0.4rem 0.55rem; vertical-align: top; }
+  #page-browse .item-table.collection-view th { padding: 0.4rem 0.55rem; line-height: 1.1; }
   /* Compact action buttons — wrap text so they don't force horizontal scroll */
   #page-browse .item-table.collection-view td:last-child button {
     white-space: normal; line-height: 1.15; padding: 0.2rem 0.3rem; max-width: 58px; text-align: center;
