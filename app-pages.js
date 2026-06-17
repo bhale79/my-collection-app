@@ -2393,6 +2393,13 @@ function _wuSortVal(u, col) {
   if (col === 'price') return parseFloat(u.expectedPrice || u.maxPrice) || 0;
   return '';
 }
+function _wuItemNumHTML(u) {
+  var num = String(u.itemNum || '');
+  if (u._mergedTender) {
+    return num + ' <span style="opacity:0.6;font-size:0.8em" title="Engine + tender (paired)">\uD83D\uDD17</span> <span style="font-size:0.85em;color:var(--text-mid)">' + u._mergedTender + '</span>';
+  }
+  return num;
+}
 function _renderWuHeader() {
   var thead = document.querySelector('#upgrade-table thead tr');
   if (!thead) return;
@@ -2489,6 +2496,27 @@ function buildUpgradePage() {
     entries.sort((a, b) => (a.itemNum||'').localeCompare(b.itemNum||'', undefined, {numeric:true}));
   }
 
+  // Group engine + its tender into ONE row using the catalog partner map.
+  // The tender entry is absorbed into the locomotive entry (same list type).
+  (function _wuGroupPairs() {
+    var byNum = {};
+    entries.forEach(function(e) { if (!byNum[e.itemNum]) byNum[e.itemNum] = e; });
+    var absorbed = {};
+    entries.forEach(function(e) {
+      if (absorbed[e.itemNum]) return;
+      if (typeof isLocomotive === 'function' && isLocomotive(e.itemNum)) {
+        var tenders = (typeof getMatchingTenders === 'function') ? (getMatchingTenders(e.itemNum) || []) : [];
+        for (var i = 0; i < tenders.length; i++) {
+          var t = tenders[i];
+          if (t && t !== e.itemNum && byNum[t] && !absorbed[t] && byNum[t].listType === e.listType) {
+            e._mergedTender = t; absorbed[t] = true; break;
+          }
+        }
+      }
+    });
+    if (Object.keys(absorbed).length) entries = entries.filter(function(e) { return !absorbed[e.itemNum]; });
+  })();
+
   // Update combined wishlist badge (Want + Upgrade total).
   const badge = document.getElementById('nav-wishlist-count');
   if (badge) badge.textContent = totalCount > 0 ? totalCount : '\u2014';
@@ -2547,7 +2575,7 @@ function buildUpgradePage() {
         <div style="display:flex;align-items:flex-start;gap:0.5rem">
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap">
-              <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${_composeItemNumHTML(u.itemNum, u.variation)}</span>
+              <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${_wuItemNumHTML(u)}</span>
               ${u.variation ? `<span style="font-size:0.72rem;color:var(--text-dim)">${u.variation}</span>` : ''}
               <span style="font-size:0.6rem;font-weight:700;color:${_ltColor};background:${_ltBg};border-radius:4px;padding:0.1rem 0.4rem;text-transform:uppercase;letter-spacing:0.05em">${u.listType||'Want'}</span>
               <span style="font-size:0.65rem;font-weight:600;color:${pColor};border:1px solid ${pColor};border-radius:4px;padding:0.1rem 0.4rem">${u.priority||'Medium'}</span>
@@ -2620,7 +2648,7 @@ function buildUpgradePage() {
       }
       return `<tr${_wuTrAttrs}>
         <td>
-          ${_wuCheckbox}<span class="item-num">${_composeItemNumHTML(u.itemNum, u.variation)}</span>
+          ${_wuCheckbox}<span class="item-num">${_wuItemNumHTML(u)}</span>
           <span style="display:inline-block;margin-left:0.4rem;font-size:0.6rem;font-weight:700;color:${_ltColor};background:${_ltBg};border-radius:4px;padding:0.1rem 0.4rem;text-transform:uppercase;letter-spacing:0.05em;vertical-align:middle">${u.listType||'Want'}</span>
         </td>
         <td style="color:var(--text-mid)">${name || '<span class="text-dim">—</span>'}</td>
@@ -2629,7 +2657,7 @@ function buildUpgradePage() {
         <td><span style="color:${pColor};font-weight:500">${u.priority||'Medium'}</span></td>
         <td class="market-val">${_priceVal ? _currencySymbol() + parseFloat(_priceVal).toLocaleString() : '<span class="text-dim">—</span>'}</td>
         <td style="font-size:0.8rem;color:var(--text-dim);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_wlStripGrp(u.notes||'').replace(/"/g,'&quot;')}">${_wlStripGrp(u.notes) || '<span class="text-dim">—</span>'}</td>
-        <td style="white-space:nowrap">
+        <td style="white-space:normal">
           ${!_isWant && hasPhoto ? `<button onclick="event.stopPropagation();_toggleUpgradePhoto('${photoId}','${(pd.photoItem||'').replace(/'/g,"\\'")}')" style="padding:0.25rem 0.4rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);margin-right:0.2rem" title="Toggle photo">📷</button>` : ''}
           ${!_isWant ? `<button onclick="event.stopPropagation();_upgradeViewMine('${_ugEntryKey(u)}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">View Mine</button>` : ''}
           <button onclick="event.stopPropagation();wantFindOnEbay('${u.itemNum}','${escName}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);margin-right:0.2rem">eBay</button>

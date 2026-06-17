@@ -1198,7 +1198,8 @@ body.compact-mode .qa-tr-actions .qa-tr-btn {
 #page-upgrade .item-table { table-layout: fixed; width: 100%; }
 #page-upgrade .item-table td, #page-upgrade .item-table th { padding: 0.42rem 0.55rem; }
 #page-upgrade .item-table th { line-height: 1.15; }
-#page-upgrade .item-table th:nth-child(1), #page-upgrade .item-table td:nth-child(1) { width: 90px; }
+#page-upgrade .item-table th:nth-child(1), #page-upgrade .item-table td:nth-child(1) { width: 116px; overflow: hidden; text-overflow: ellipsis; }
+#page-upgrade .item-table td:last-child { white-space: normal; }
 #page-upgrade .item-table td:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #page-upgrade .item-table th:nth-child(3), #page-upgrade .item-table td:nth-child(3) { width: 74px; }
 #page-upgrade .item-table th:nth-child(4), #page-upgrade .item-table td:nth-child(4) { width: 62px; }
