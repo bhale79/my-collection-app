@@ -1189,8 +1189,10 @@ function filterOwned(qe) {
   }
   const idBtn = document.getElementById('identify-btn');
   if (idBtn) idBtn.style.display = 'none';
-  // Show Share button for collection view
-  var _btnArea = document.querySelector('#page-browse > .page-title > div');
+  // Show Share button for collection view — place it to the RIGHT of the + Add
+  // button (inside the quick-actions container) so both sit at the top-right.
+  var _qaActions = document.querySelector('#page-browse > .page-title > .qa-tr-actions');
+  var _btnArea = _qaActions || document.querySelector('#page-browse > .page-title > div');
   if (_btnArea && !document.getElementById('share-btn-collection')) {
     var _shareBtn = document.createElement('button');
     _shareBtn.id = 'share-btn-collection';
@@ -1198,7 +1200,7 @@ function filterOwned(qe) {
     _shareBtn.onclick = function() { if (typeof startShareMode === 'function') startShareMode('collection'); };
     _shareBtn.style.cssText = 'display:flex;align-items:center;gap:0.4rem;border:1.5px solid #3a9e68;color:#3a9e68;background:rgba(58,158,104,0.1);font-weight:600;font-size:0.85rem;padding:0.5rem 0.9rem';
     _shareBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> Share';
-    _btnArea.insertBefore(_shareBtn, _btnArea.firstChild);
+    _btnArea.appendChild(_shareBtn);
   }
   // Update table headers for collection view
   if (typeof _renderCollectionHeader === 'function') _renderCollectionHeader();
@@ -1324,7 +1326,7 @@ function renderBrowseTab(tab) {
   const disclaimer = document.getElementById('disclaimer-browse');
   const identBtn = document.getElementById('identify-btn');
   const onItems = state._browseTab === 'items';
-  if (filterBar) filterBar.style.display = (onItems && !state.filters.owned) ? '' : 'none';
+  if (filterBar) filterBar.style.display = onItems ? '' : 'none';
   if (disclaimer) disclaimer.style.display = (onItems && _prefGet('lv_show_disclaimer', 'true') === 'true') ? 'flex' : 'none';
   if (identBtn) identBtn.style.display = inCollection ? 'none' : (onItems ? '' : 'none');
   // Session 157: top search bar is items-only; each sub-panel (catalogs,
@@ -2694,11 +2696,17 @@ function renderBrowse() {
     var _le = document.getElementById('coll-icon-legend');
     if (_le) { _le.style.display = 'none'; _le.innerHTML = ''; }
     // Count = owned pieces that have an item number, excluding boxes/master cartons.
+    var _ownedItemCount = Object.values(state.personalData || {}).filter(function(pd) {
+      if (!pd || !pd.owned) return false;
+      var n = String(pd.itemNum || '').toUpperCase();
+      return !/-MBOX$/.test(n) && !/-BOX$/.test(n);
+    }).length;
     var _tSpan = document.querySelector('#page-browse > .page-title > span');
     if (_tSpan) {
       _tSpan.innerHTML = 'My Collection List '
         + '<span style="font-family:var(--font-body);font-size:0.8rem;color:var(--text-dim);font-weight:400;letter-spacing:0;text-transform:none">'
-        + displayTotal.toLocaleString() + ' item' + (displayTotal !== 1 ? 's' : '') + '</span>';
+        + _ownedItemCount.toLocaleString() + ' item' + (_ownedItemCount !== 1 ? 's' : '') + '</span> '
+        + '<span title="\uD83D\uDD17 Grouped \u00B7 \uD83D\uDCF7 Photo" style="cursor:help;color:var(--text-dim);font-size:0.7rem;border:1px solid var(--border);border-radius:50%;padding:0 0.34rem;font-weight:700;text-transform:none">i</span>';
     }
   } else {
     var _le2 = document.getElementById('coll-icon-legend');
