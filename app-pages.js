@@ -1276,7 +1276,7 @@ function buildSoldPage() {
     .filter(sd => typeof _isInCurrentEra !== 'function' || _isInCurrentEra(sd.itemNum))
     .map(sd => {
       const master = state.masterData.find(i => i.itemNum === sd.itemNum && i.variation === sd.variation) || {};
-      return { ...sd, _type: master.itemType || '', _roadName: sd.roadName || master.roadName || '', _master: master };
+      return { ...sd, _type: master.itemType || '', _roadName: sd.roadName || master.roadName || '', _master: master, _mfr: (typeof _manufacturerOfItem==='function' ? (_manufacturerOfItem(master.itemNum?master:sd)||'') : '') };
     });
 
   // Populate type filter dropdown (before filtering)
@@ -1319,6 +1319,8 @@ function buildSoldPage() {
       // coerced to strings like "45123". Lexicographic compare ("45123" < "2025")
       // sorts wrong. Coerce to numeric serial via _parseDateValue helper.
       va = _dateForSort(a.dateSold); vb = _dateForSort(b.dateSold);
+    } else if (sf === 'mfr') {
+      va = (a._mfr || '').toLowerCase(); vb = (b._mfr || '').toLowerCase();
     } else if (sf === 'type') {
       va = (a._type || '').toLowerCase(); vb = (b._type || '').toLowerCase();
     } else if (sf === 'roadName') {
@@ -1337,7 +1339,7 @@ function buildSoldPage() {
   }
 
   // Update column header sort indicators
-  ['itemNum','type','roadName','condition','salePrice','dateSold'].forEach(function(col) {
+  ['mfr','itemNum','type','roadName','condition','salePrice','dateSold'].forEach(function(col) {
     var el = document.getElementById('sold-sort-i-' + col);
     if (el) el.textContent = sf === col ? (state._soldSortDir === 'asc' ? '▲' : '▼') : '';
   });
@@ -1385,7 +1387,7 @@ function buildSoldPage() {
       return `<div onclick="showSoldDetailPage('${sd.key}')" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem;cursor:pointer">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div>
-            <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${_composeItemNumHTML(sd.itemNum, sd.variation)}</span>
+            <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${sd.itemNum || '—'}</span>
             ${sd.variation ? `<span style="font-size:0.72rem;color:var(--text-dim);margin-left:0.4rem">${sd.variation}</span>` : ''}
             ${sd._roadName ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">${sd._roadName}</div>` : ''}
             <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${[sd._type, sd.condition ? 'Cond: '+sd.condition : '', _formatDate(sd.dateSold)].filter(Boolean).join(' · ')}</div>
@@ -1401,7 +1403,8 @@ function buildSoldPage() {
     if (soldTableWrap) soldTableWrap.style.display = '';
     tbody.innerHTML = soldEntries.length ? soldEntries.map(sd => {
       return `<tr onclick="showSoldDetailPage('${sd.key}')" style="cursor:pointer">
-        <td><span class="item-num">${_composeItemNumHTML(sd.itemNum, sd.variation)}</span></td>
+        ${typeof _mfrBadge==='function' ? _mfrBadge(sd._master) : '<td>—</td>'}
+        <td><span class="item-num">${sd.itemNum || '—'}</span></td>
         <td><span class="tag">${sd._type || '—'}</span></td>
         <td>${sd._roadName || '—'}</td>
         <td>${sd.variation || '—'}</td>
@@ -1409,7 +1412,7 @@ function buildSoldPage() {
         <td class="market-val">${sd.salePrice ? _currencySymbol() + parseFloat(sd.salePrice).toLocaleString() : '—'}</td>
         <td class="text-dim">${_formatDate(sd.dateSold) || '—'}</td>
       </tr>`;
-    }).join('') : '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">💰</div><p>No sold items yet</p></div></td></tr>';
+    }).join('') : '<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">💰</div><p>No sold items yet</p></div></td></tr>';
   }
 
   var _ns = document.getElementById('nav-sold'); if (_ns) _ns.textContent = Object.keys(state.soldData).length;
