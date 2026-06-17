@@ -276,19 +276,33 @@ function _composeItemNumHTML(itemNum, variation) {
 // ("Wanted: 726 with a 2426W"). Checks the entry's [grp:] note marker
 // first, then falls back to the owned copy's matchedTo / groupId.
 function _wantPartner(itemNum, variation, entry) {
+  // 1) Group marker: [grp:ID] is an internal group ID, NOT an item number.
+  //    Resolve it to the OTHER want/upgrade entries sharing the same ID.
   if (entry && entry.notes) {
     var m = String(entry.notes).match(/^\[grp:([^\]]+)\]/);
-    if (m && m[1]) return m[1].trim();
+    if (m && m[1]) {
+      var gid = '[grp:' + m[1] + ']';
+      var partners = [];
+      [state.wantData, state.upgradeData].forEach(function(pool){
+        Object.values(pool || {}).forEach(function(e){
+          if (e && e.itemNum !== itemNum && e.notes && String(e.notes).indexOf(gid) === 0) {
+            if (partners.indexOf(e.itemNum) === -1) partners.push(e.itemNum);
+          }
+        });
+      });
+      if (partners.length) return partners.join(' / ');
+    }
   }
+  // 2) Fall back to the owned copy's matchedTo / groupId (same as the list link).
   if (typeof findPD === 'function') {
     var pd = findPD(itemNum, variation);
     if (pd && pd.matchedTo && String(pd.matchedTo).toLowerCase() !== 'none') return String(pd.matchedTo).trim();
     if (pd && pd.groupId) {
-      var partners = [];
+      var ps = [];
       Object.values(state.personalData || {}).forEach(function(p){
-        if (p && p.groupId === pd.groupId && p.itemNum !== itemNum) partners.push(p.itemNum);
+        if (p && p.groupId === pd.groupId && p.itemNum !== itemNum) ps.push(p.itemNum);
       });
-      if (partners.length) return partners.join(' / ');
+      if (ps.length) return ps.join(' / ');
     }
   }
   return '';
@@ -330,8 +344,15 @@ function _wantViewDetail(itemNum, variation) {
       }
     }
     var partner = (typeof _wantPartner === 'function') ? _wantPartner(itemNum, variation, entry) : '';
+    // Order engine-first: if the clicked item is a tender and the single
+    // partner is not, lead with the partner (e.g. '726 with a 2426W').
+    var _lead = itemNum, _second = partner;
+    if (partner && partner.indexOf(' / ') === -1 && typeof isTender === 'function' && isTender(itemNum) && !isTender(partner)) {
+      _lead = partner; _second = itemNum;
+    }
+    var heading = _lead + (_second ? ' with a ' + _second : '');
     window._detailReturn = 'want';
-    showItemDetailPage(idx, null, { wantMode: true, wantEntry: entry, wantPartner: partner });
+    showItemDetailPage(idx, null, { wantMode: true, wantEntry: entry, wantPartner: partner, wantHeading: heading });
   } else if (typeof showToast === 'function') {
     showToast('Item details not found in catalog');
   }

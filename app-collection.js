@@ -802,6 +802,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
   var _wantMode = !!(opts && opts.wantMode);
   var _wantEntry = opts && opts.wantEntry;
   var _wantPartner = (opts && opts.wantPartner) || '';
+  var _wantHeading = (opts && opts.wantHeading) || '';
   // Bug 12 (Session 154): remember which item the detail page is showing so
   // savePhotoOnlyUpdate can re-render it after a photo is added.
   window._lastDetailIdx = idx;
@@ -914,7 +915,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
     <div style="display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap">
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.25rem">
-          <span style="font-family:var(--font-head);font-size:1.6rem;color:var(--accent);letter-spacing:0.03em">${_wantMode ? ('Wanted: ' + it.itemNum + (_wantPartner ? ' with a ' + _wantPartner : '')) : (String(it.itemNum||'').indexOf(' ')===-1 ? 'No. ' + it.itemNum + (it.poweredDummy === 'P' ? '-P' : it.poweredDummy === 'D' ? '-D' : '') : it.itemNum)}</span>${typeof window._noNumTag==='function' ? window._noNumTag(it.itemNum) : ''}
+          <span style="font-family:var(--font-head);font-size:1.6rem;color:var(--accent);letter-spacing:0.03em">${_wantMode ? ('Wanted: ' + (_wantHeading || (it.itemNum + (_wantPartner ? ' with a ' + _wantPartner : '')))) : (String(it.itemNum||'').indexOf(' ')===-1 ? 'No. ' + it.itemNum + (it.poweredDummy === 'P' ? '-P' : it.poweredDummy === 'D' ? '-D' : '') : it.itemNum)}</span>${typeof window._noNumTag==='function' ? window._noNumTag(it.itemNum) : ''}
           ${isForSale ? `<span style="font-size:1rem;color:var(--gold);font-family:var(--font-head);letter-spacing:0.02em">— on the sale list for ${_fsPrice}</span>` : ''}
           ${it.variation ? `<span style="font-size:0.9rem;color:var(--text-dim);background:var(--surface2);border-radius:6px;padding:0.15rem 0.6rem">Var. ${it.variation}</span>` : ''}
           ${it.itemType ? `<span class="tag">${it.itemType}</span>` : ''}
