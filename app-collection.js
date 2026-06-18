@@ -1488,7 +1488,7 @@ function _checkGroupBeforeForSale(globalIdx, pdKey) {
         Are you selling this as a set or individually?
       </div>
       <div id="_grpfs-set-section" style="display:flex;flex-direction:column;gap:0.5rem">
-        <button id="_grpfs-set" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer;text-align:left">
+        <button id="_grpfs-set" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid #e67e22;background:#e67e22;color:#fff;font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer;text-align:left">
           Sell as a set<br>
           <span style="font-weight:400;font-size:0.78rem;color:var(--text-dim)">List all ${allItems.length} items together for one price</span>
         </button>

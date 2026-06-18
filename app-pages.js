@@ -2828,7 +2828,7 @@ function pickItemForUpgrade() {
 }
 if (typeof window !== 'undefined') window.pickItemForUpgrade = pickItemForUpgrade;
 
-function showAddToUpgradeModal(itemNum, variation, pdRow, invId) {
+function showAddToUpgradeModal(itemNum, variation, pdRow, invId, groupMode) {
   // Session 159 Phase 2: look up the EXACT copy the user clicked on,
   // not just any matching itemNum/variation. The previous lookup
   // (state.personalData[`${itemNum}|${variation}|${pdRow}`]) was wrong
@@ -2842,6 +2842,22 @@ function showAddToUpgradeModal(itemNum, variation, pdRow, invId) {
     if (_pdKey) pd = state.personalData[_pdKey];
   }
   if (!pd) pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === itemNum && (p.variation||'') === (variation||''));
+
+  // Session 162: grouped-row Upgrade chooser. If this copy is part of a group
+  // with more than one real piece (engine + tender, AA/AB/ABA — boxes and
+  // instruction sheets excluded), ask whole-set vs just-this (default: set).
+  // groupMode 'all'/'one' means the user already chose, so don't re-ask.
+  var _grpReal = (pd && pd.groupId)
+    ? Object.values(state.personalData).filter(function(p){
+        return p && p.groupId === pd.groupId && p.owned
+          && (typeof _grpKind !== 'function' || _grpKind(p.itemNum) === 'item');
+      })
+    : [];
+  if (!groupMode && _grpReal.length > 1) { _chooseUpgradeScope(itemNum, variation, pdRow, invId, pd); return; }
+  var _isAllUpg = (groupMode === 'all') && _grpReal.length > 1;
+  window._upgGroupPieces = _isAllUpg
+    ? _grpReal.map(function(p){ return { itemNum: p.itemNum, variation: p.variation || '', invId: p.inventoryId || '' }; })
+    : null;
   // Phase 3: state.upgradeData is keyed by inventoryId. Look up by THIS copy's
   // inventoryId; fall back to a one-time scan for legacy rows whose entry has
   // a blank Inventory ID column (they'd be stored under legacy-row-N keys).
@@ -2857,6 +2873,14 @@ function showAddToUpgradeModal(itemNum, variation, pdRow, invId) {
   const name = master ? (master.roadName || master.itemType || itemNum) : itemNum;
   const myCond = pd && pd.condition ? pd.condition : '';
 
+  var _escVarU = (variation||'').replace(/'/g, "\\'");
+  var _invU = pd && pd.inventoryId ? pd.inventoryId : '';
+  var _hdrNumHtml = _isAllUpg
+    ? '<div style="font-family:var(--font-mono);font-size:0.9rem;color:var(--accent);margin-bottom:0.1rem">Set: ' + _grpReal.map(function(p){ return p.itemNum; }).join(' + ') + '</div>'
+    : '<div style="font-family:var(--font-mono);font-size:0.9rem;color:var(--accent);margin-bottom:0.1rem">' + itemNum + (variation ? ' <span style="color:var(--text-dim);font-size:0.8rem">' + variation + '</span>' : '') + '</div>';
+  var _saveBtnHtml = _isAllUpg
+    ? '<button onclick="saveUpgradeGroup()" style="padding:0.6rem;border-radius:8px;background:#8b5cf6;color:#fff;border:none;font-family:var(--font-body);font-size:0.9rem;font-weight:600;cursor:pointer;margin-top:0.25rem">+ Add set (' + _grpReal.length + ' items) to Upgrade List</button>'
+    : '<button onclick="saveUpgradeItem(\'' + itemNum + '\',\'' + _escVarU + '\',' + (existing.row||0) + ',\'' + _invU + '\')" style="padding:0.6rem;border-radius:8px;background:#8b5cf6;color:#fff;border:none;font-family:var(--font-body);font-size:0.9rem;font-weight:600;cursor:pointer;margin-top:0.25rem">' + (existing.row ? 'Update Upgrade Entry' : '+ Add to Upgrade List') + '</button>';
   const old = document.getElementById('upgrade-add-modal');
   if (old) old.remove();
   const overlay = document.createElement('div');
@@ -2868,7 +2892,7 @@ function showAddToUpgradeModal(itemNum, variation, pdRow, invId) {
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:400px;width:100%;padding:1.5rem;position:relative">
       <button onclick="document.getElementById('upgrade-add-modal').remove()" style="position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">✕</button>
       <div style="font-family:var(--font-head);font-size:1.15rem;color:#8b5cf6;margin-bottom:0.25rem">↑ Add to Upgrade List</div>
-      <div style="font-family:var(--font-mono);font-size:0.9rem;color:var(--accent);margin-bottom:0.1rem">${itemNum}${variation ? ' <span style="color:var(--text-dim);font-size:0.8rem">' + variation + '</span>' : ''}</div>
+      ${_hdrNumHtml}
       <div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:1rem">${name}${myCond ? ' · Current condition: ' + myCond : ''}</div>
       <div style="display:flex;flex-direction:column;gap:0.75rem">
         <div>
@@ -2894,9 +2918,7 @@ function showAddToUpgradeModal(itemNum, variation, pdRow, invId) {
           <label style="font-size:0.78rem;color:var(--text-dim);display:block;margin-bottom:0.25rem">Notes</label>
           <textarea id="upg-notes" rows="2" placeholder="e.g. needs to have original box" style="width:100%;box-sizing:border-box;padding:0.4rem 0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;resize:vertical">${existing.notes||''}</textarea>
         </div>
-        <button onclick="saveUpgradeItem('${itemNum}','${(variation||'').replace(/'/g,"\\'")}',${existing.row||0},'${pd && pd.inventoryId ? pd.inventoryId : ''}')" style="padding:0.6rem;border-radius:8px;background:#8b5cf6;color:#fff;border:none;font-family:var(--font-body);font-size:0.9rem;font-weight:600;cursor:pointer;margin-top:0.25rem">
-          ${existing.row ? 'Update Upgrade Entry' : '+ Add to Upgrade List'}
-        </button>
+        ${_saveBtnHtml}
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -2904,6 +2926,83 @@ function showAddToUpgradeModal(itemNum, variation, pdRow, invId) {
 
 // Phase 3: signature unchanged (modal already passes invId). Reload after
 // save keys by inventoryId directly.
+// Session 162: chooser shown when Upgrade is tapped on a grouped row.
+// Whole-set is the emphasized default; "just this piece" is the secondary.
+function _chooseUpgradeScope(itemNum, variation, pdRow, invId, pd) {
+  var pieces = Object.values(state.personalData).filter(function(p){
+    return p && p.groupId === pd.groupId && p.owned
+      && (typeof _grpKind !== 'function' || _grpKind(p.itemNum) === 'item');
+  });
+  var listTxt = pieces.map(function(p){ return p.itemNum; }).join(' + ');
+  var _old = document.getElementById('upgrade-scope-modal');
+  if (_old) _old.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'upgrade-scope-modal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10002;display:flex;align-items:center;justify-content:center;padding:1.25rem';
+  overlay.onclick = function(e){ if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML =
+    '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:380px;width:100%;padding:1.5rem">'
+    + '<div style="font-family:var(--font-head);font-size:1.05rem;color:#8b5cf6;margin-bottom:0.3rem">↑ Add to Upgrade List</div>'
+    + '<div style="font-size:0.84rem;color:var(--text-mid);margin-bottom:1rem">This is a grouped item (<strong style="color:var(--text)">' + listTxt + '</strong>). Add the whole set, or just this piece?</div>'
+    + '<div style="display:flex;flex-direction:column;gap:0.5rem">'
+    + '<button id="_ugs-all" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid #8b5cf6;background:#8b5cf6;color:#fff;font-family:var(--font-body);font-size:0.9rem;font-weight:700;cursor:pointer;text-align:left">Upgrade the whole set<br><span style="font-weight:400;font-size:0.78rem;opacity:0.85">Add all ' + pieces.length + ' pieces to your Upgrade list</span></button>'
+    + '<button id="_ugs-one" style="padding:0.8rem 1rem;border-radius:10px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.9rem;font-weight:600;cursor:pointer;text-align:left">Just ' + itemNum + '<br><span style="font-weight:400;font-size:0.78rem;color:var(--text-dim)">Add only this piece</span></button>'
+    + '<button id="_ugs-cancel" style="padding:0.6rem;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Cancel</button>'
+    + '</div></div>';
+  document.body.appendChild(overlay);
+  document.getElementById('_ugs-all').onclick = function(){ overlay.remove(); showAddToUpgradeModal(itemNum, variation, pdRow, invId, 'all'); };
+  document.getElementById('_ugs-one').onclick = function(){ overlay.remove(); showAddToUpgradeModal(itemNum, variation, pdRow, invId, 'one'); };
+  document.getElementById('_ugs-cancel').onclick = function(){ overlay.remove(); };
+}
+
+// Session 162: save one Upgrade entry per piece of a grouped set, using the
+// single set of details entered once. Mirrors saveUpgradeItem's reload.
+async function saveUpgradeGroup() {
+  const priority = document.getElementById('upg-priority')?.value || 'Medium';
+  const targetCond = document.getElementById('upg-target-cond')?.value || '';
+  const maxPrice = document.getElementById('upg-max-price')?.value || '';
+  const notes = document.getElementById('upg-notes')?.value || '';
+  const pieces = window._upgGroupPieces || [];
+  const sheetId = state.personalSheetId;
+  if (!sheetId) { showToast('Not connected to a sheet'); return; }
+  if (!pieces.length) { showToast('No items to add'); return; }
+  try {
+    for (const pc of pieces) {
+      const mfr = (typeof _brandOfItem === 'function' && _brandOfItem(pc.itemNum)) || _getEraManufacturer();
+      const _wuRow = [pc.itemNum, pc.variation || '', 'Upgrade', priority, maxPrice, targetCond, pc.invId || '', notes, mfr];
+      const existing = pc.invId ? state.upgradeData[pc.invId] : null;
+      if (existing && existing.row > 0) {
+        await sheetsUpdate(sheetId, `Want-Upgrade List!A${existing.row}:I${existing.row}`, [_wuRow]);
+      } else {
+        await sheetsAppend(sheetId, 'Want-Upgrade List!A:I', [_wuRow]);
+      }
+    }
+    const res = await sheetsGet(sheetId, 'Want-Upgrade List!A3:I');
+    state.upgradeData = {};
+    (res.values || []).forEach((r, idx) => {
+      if (!r[0] || r[0] === 'Item Number') return;
+      const _row = idx + 3;
+      const _s = (v) => (v !== null && v !== undefined && v !== '') ? String(v) : '';
+      if (_s(r[2]).toLowerCase() !== 'upgrade') return;
+      const _ugEntry = { row: _row, itemNum: _s(r[0]), variation: _s(r[1]), priority: _s(r[3]) || 'Medium', targetCondition: _s(r[5]), maxPrice: _s(r[4]), notes: _s(r[7]), inventoryId: _s(r[6]), manufacturer: _s(r[8]) || 'Lionel', listType: 'Upgrade' };
+      const _k = _ugEntry.inventoryId || ('legacy-row-' + _row);
+      state.upgradeData[_k] = _ugEntry;
+    });
+    window._upgGroupPieces = null;
+    const modal = document.getElementById('upgrade-add-modal');
+    if (modal) modal.remove();
+    showToast('✓ Added ' + pieces.length + ' items to Upgrade List');
+    buildDashboard();
+    if (typeof renderBrowse === 'function') renderBrowse();
+    if (typeof _cachePersonalData === 'function') _cachePersonalData();
+    const badge = document.getElementById('nav-wishlist-count');
+    if (badge) badge.textContent = Object.values(state.upgradeData).length.toLocaleString();
+  } catch(e) {
+    showToast('Error saving — check connection');
+    console.error(e);
+  }
+}
+
 async function saveUpgradeItem(itemNum, variation, existingRow, invId) {
   const priority = document.getElementById('upg-priority')?.value || 'Medium';
   const targetCond = document.getElementById('upg-target-cond')?.value || '';
