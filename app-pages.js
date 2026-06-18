@@ -682,7 +682,7 @@ function ephemeraForSale(tabId, rowKey) {
       '',                          // original price paid
       item.estValue || '',
       '',                          // inventory ID (not applicable for ephemera)
-      _getEraManufacturer(),       // manufacturer
+      ((typeof _brandOfItem === 'function' && _brandOfItem(item.itemNum)) || _getEraManufacturer()),       // manufacturer
     ];
     try {
       await sheetsAppend(state.personalSheetId, 'For Sale!A:J', [row]);
@@ -749,7 +749,7 @@ function ephemeraSold(tabId, rowKey) {
       dateSold: dateSold,
       notes: title,
       inventoryId: '',
-      manufacturer: _getEraManufacturer(),
+      manufacturer: ((typeof _brandOfItem === 'function' && _brandOfItem(item.itemNum)) || _getEraManufacturer()),
     });
     try {
       await sheetsAppend(state.personalSheetId, 'Sold!A:T', [row]);
@@ -2908,7 +2908,7 @@ async function saveUpgradeItem(itemNum, variation, existingRow, invId) {
   const targetCond = document.getElementById('upg-target-cond')?.value || '';
   const maxPrice = document.getElementById('upg-max-price')?.value || '';
   const notes = document.getElementById('upg-notes')?.value || '';
-  const row = [itemNum, variation||'', priority, targetCond, maxPrice, notes, invId || '', _getEraManufacturer()];
+  const row = [itemNum, variation||'', priority, targetCond, maxPrice, notes, invId || '', ((typeof _brandOfItem === 'function' && _brandOfItem(itemNum)) || _getEraManufacturer())];
   const sheetId = state.personalSheetId;
   if (!sheetId) { showToast('Not connected to a sheet'); return; }
   try {

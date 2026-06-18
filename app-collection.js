@@ -1554,7 +1554,7 @@ function _checkGroupBeforeForSale(globalIdx, pdKey) {
         pd.priceItem || '',
         pd.userEstWorth || '',
         pd.inventoryId || '',
-        pd.manufacturer || _getEraManufacturer(),
+        pd.manufacturer || (typeof _brandOfItem === 'function' && _brandOfItem(pd.itemNum)) || _getEraManufacturer(),
       ];
       const existingFs = state.forSaleData[_grpFsKey];
       if (existingFs && existingFs.row) {
@@ -3340,7 +3340,7 @@ async function saveItem() {
       existing?.priceItem || '',
       existing?.userEstWorth || '',
       existing?.inventoryId || '',
-      existing?.manufacturer || _getEraManufacturer(),
+      existing?.manufacturer || (typeof _brandOfItem === 'function' && _brandOfItem(item.itemNum)) || _getEraManufacturer(),
     ];
     const fsEntry2 = _fsKeySI ? state.forSaleData[_fsKeySI] : null;
     if (fsEntry2 && fsEntry2.row) {
@@ -3399,7 +3399,7 @@ async function saveItem() {
       document.getElementById('fc-want-priority').value,
       document.getElementById('fc-want-price').value,
       document.getElementById('fc-want-notes').value,
-      _getEraManufacturer(),
+      (typeof _brandOfItem === 'function' && _brandOfItem(item.itemNum)) || _getEraManufacturer(),
       (document.getElementById('fc-want-target') && document.getElementById('fc-want-target').value) || '',
     ];
     const wantEntry = state.wantData[key];
@@ -3527,7 +3527,7 @@ function _checkWantPartners(itemNum, variation, priority, maxPrice, notes) {
     let added = 0;
     for (const c of selected) {
       try {
-        const row = [c.itemNum, '', priority || 'Medium', maxPrice || '', notes || '', _getEraManufacturer()];
+        const row = [c.itemNum, '', priority || 'Medium', maxPrice || '', notes || '', ((typeof _brandOfItem === 'function' && _brandOfItem(c.itemNum)) || _getEraManufacturer())];
         // Want-Upgrade combined: append partner 9-col row with List Type='Want'.
         const _wuPartnerRow = [row[0], row[1], 'Want', row[2], row[3], '', '', row[4], row[5]];
         await sheetsAppend(state.personalSheetId, 'Want-Upgrade List!A:I', [_wuPartnerRow]);

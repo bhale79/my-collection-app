@@ -1950,10 +1950,10 @@ function _ncShowFsSoldModal(type, key, action) {
               dateSold: date,
               notes: title,
               inventoryId: '',
-              manufacturer: (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : ''),
+              manufacturer: ((typeof _brandOfItem === 'function' && _brandOfItem(ids.itemNum)) || (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : '')),
             })
           : [ ids.itemNum, ids.variation, '1', condition, '', price, date, title, '',
-              (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : ''),
+              ((typeof _brandOfItem === 'function' && _brandOfItem(ids.itemNum)) || (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : '')),
               '','','','','','','','','','' ];
         await sheetsAppend(state.personalSheetId, 'Sold!A:T', [row]);
         if (removeIt) await _ncRemoveSourceRow(type, key);
@@ -1965,7 +1965,7 @@ function _ncShowFsSoldModal(type, key, action) {
           condition, price, date, title,
           '', estValue || '',
           '',
-          (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : ''),
+          ((typeof _brandOfItem === 'function' && _brandOfItem(ids.itemNum)) || (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : '')),
         ];
         await sheetsAppend(state.personalSheetId, 'For Sale!A:J', [row]);
         showToast('✓ Listed for sale');
@@ -2061,7 +2061,7 @@ function _ncShowUpgradeModal(type, key) {
         price, // maxPrice
         title, // notes
         (_brOwnedPd && _brOwnedPd.inventoryId) || '',
-        (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : 'Lionel'),
+        ((typeof _brandOfItem === 'function' && _brandOfItem(ids.itemNum)) || (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : 'Lionel')),
       ];
       // Want-Upgrade combined: append 9-col row with List Type='Upgrade'.
       const _wuRow = [row[0], row[1], 'Upgrade', row[2], row[4], row[3], row[6], row[5], row[7]];

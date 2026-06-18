@@ -1131,7 +1131,7 @@ async function saveWizardItem() {
           matchedTo: itemNum,
           inventoryId: boxInvId, groupId: boxGroupId,
           location: d.location || '',
-          era: _resolveSaveEra(), manufacturer: _getEraManufacturer(),
+          era: _resolveSaveEra(), manufacturer: ((typeof _brandOfItem === 'function' && _brandOfItem(itemNum)) || _getEraManufacturer()),
         };
         _stampSaved(state.personalData[boxInvId]);
 
@@ -1390,7 +1390,7 @@ async function saveWizardItem() {
         fsOrigPrice,
         fsEstWorth,
         collectionEntry?.inventoryId || '',
-        collectionEntry?.manufacturer || (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : 'Lionel'),
+        collectionEntry?.manufacturer || (typeof _brandOfItem === 'function' && _brandOfItem(itemNum)) || (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : 'Lionel'),
       ];
       // Phase 3: state.forSaleData is keyed by inventoryId. Look up the existing
       // row by the collection entry's inventoryId; fall back to a one-time scan
@@ -1573,7 +1573,7 @@ async function saveWizardItem() {
 
     } else if (tab === 'want') {
       // Audit H6 fix: include Manufacturer column. WANT_HEADERS is 6 cols.
-      const _wMfr = (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : 'Lionel');
+      const _wMfr = (typeof _brandOfItem === 'function' && _brandOfItem(itemNum)) || (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : 'Lionel');
       const _wPriority = d.priority || 'Medium';
       const _wPrice = d.expectedPrice || '';
       const _wNotes = (d.notes || '').trim();
@@ -1851,7 +1851,7 @@ async function saveWizardItem() {
           String(d.priceItem || ''),              // Original price paid
           String(d.userEstWorth || ''),           // Est worth
           _alfInvId,
-          (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : 'Lionel'),
+          ((typeof _brandOfItem === 'function' && _brandOfItem(d.itemNum)) || (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : 'Lionel')),
         ];
         await sheetsAppend(state.personalSheetId, 'For Sale!A:J', [_alfFsRow]);
         // Mirror into state for instant rendering
@@ -1868,7 +1868,7 @@ async function saveWizardItem() {
           originalPrice: String(d.priceItem || ''),
           estWorth: String(d.userEstWorth || ''),
           inventoryId: _alfInvId,
-          manufacturer: (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : 'Lionel'),
+          manufacturer: ((typeof _brandOfItem === 'function' && _brandOfItem(d.itemNum)) || (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : 'Lionel')),
         };
         if (typeof showToast === 'function') showToast('Listed for sale at $' + (d.forSale_salePrice || '0'), 2800);
         if (typeof buildForSalePage === 'function') buildForSalePage();
@@ -1941,7 +1941,7 @@ async function saveWizardItem() {
         datePurchased: d.datePurchased || '',
         inventoryId: _optInvId, groupId: groupId || '',
         location: d.location || '',
-        era: _resolveSaveEra(), manufacturer: _getEraManufacturer(),
+        era: _resolveSaveEra(), manufacturer: ((typeof _brandOfItem === 'function' && _brandOfItem(itemNum)) || _getEraManufacturer()),
       };
       _stampSaved(state.personalData[_optInvId]);
     } else if (tab === 'sold') {

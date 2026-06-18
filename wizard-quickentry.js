@@ -192,7 +192,7 @@ async function quickEntryAdd() {
       // after a cache refresh. The in-memory state.personalData entry below
       // already had these set correctly; the sheet row was missing them.
       const _qeEra = (typeof _currentEra !== 'undefined' ? _currentEra : '');
-      const _qeMfr = (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : '');
+      const _qeMfr = ((typeof _brandOfItem === 'function' && _brandOfItem(r.itemNum)) || (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : ''));
       const row = [r.itemNum, r.variation, r.condition||'','','','','','','',(isLead ? _qePhotoLink : ''),'', r.notes,'',(isLead ? _qeEstWorth : ''),r.matchedTo,r.setId,'','','','Yes', invId, r.groupId||'', '', _qeEra, _qeMfr];
       const actualRow = await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
       state.personalData[invId] = {
@@ -205,7 +205,7 @@ async function quickEntryAdd() {
         yearMade: '', isError: '', errorDesc: '', quickEntry: true,
         inventoryId: invId, groupId: r.groupId||'',
         location: '',
-        era: (typeof _currentEra !== 'undefined' ? _currentEra : ''), manufacturer: _getEraManufacturer(),
+        era: (typeof _currentEra !== 'undefined' ? _currentEra : ''), manufacturer: ((typeof _brandOfItem === 'function' && _brandOfItem(r.itemNum)) || _getEraManufacturer()),
       };
     }
 
