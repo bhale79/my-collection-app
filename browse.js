@@ -587,23 +587,27 @@ if (typeof window !== 'undefined' && !window._isGroupedBoxRow) window._isGrouped
 // of a group (tender, extra set car, etc.) whose lead item is also owned.
 // Used to count + display each group as a single item. Lead number is the
 // segment embedded in the groupId: GRP-{leadNum}-{timestamp}.
+// A group member is a COMPANION (folds into the lead) when it's a non-lead
+// piece: a tender, a dummy/trailer (-D/-T), a B-unit (-C), or a box (-BOX/-MBOX/-IS).
+// The lead is the engine / powered A-unit. Detected by suffix/type so it works
+// for engine+tender AND diesel AA/AB/ABA, regardless of the groupId's lead number.
+function _isGroupCompanionSfx(n) {
+  var sfx = String(n || '');
+  if (/-(D|T|C|BOX|MBOX|IS)$/i.test(sfx)) return true;
+  if (typeof isTender === 'function' && isTender(sfx)) return true;
+  return false;
+}
 function _isCollectionCompanion(pd) {
   if (!pd || !pd.owned) return false;
   if (typeof _isGroupedBoxRow === 'function' && _isGroupedBoxRow(pd)) return true;
   if (!pd.groupId) return false;
-  var parts = String(pd.groupId).split('-');
-  if (parts.length < 3) return false;
-  var leadNum = parts.slice(1, -1).join('-');
-  if (!leadNum) return false;
-  var base = String(pd.itemNum || '').replace(/-(BOX|MBOX|IS)$/i, '');
-  if (base === leadNum && !/-(BOX|MBOX|IS)$/i.test(String(pd.itemNum || ''))) return false; // this row IS the lead
-  // Non-lead member — fold it in only when the lead item is actually owned,
+  if (!_isGroupCompanionSfx(pd.itemNum)) return false; // this row is a lead-type piece
+  // Fold only when the group's lead (a non-companion member) is actually owned,
   // so an orphaned group (lead removed) still shows its remaining members.
   var pdata = (typeof state !== 'undefined' && state.personalData) ? state.personalData : {};
   var leadOwned = Object.values(pdata).some(function(p) {
-    return p && p.owned && p.groupId === pd.groupId
-      && String(p.itemNum || '').replace(/-(BOX|MBOX|IS)$/i, '') === leadNum
-      && !/-(BOX|MBOX|IS)$/i.test(p.itemNum || '');
+    return p && p.owned && p.groupId === pd.groupId && p.itemNum !== pd.itemNum
+      && !_isGroupCompanionSfx(p.itemNum);
   });
   return leadOwned;
 }
