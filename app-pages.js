@@ -3168,6 +3168,7 @@ function _renderPartsList() {
     return;
   }
   parts.sort(function (a, b) { return (b.dateAdded || '').localeCompare(a.dateAdded || ''); });
+  var _thumbs = [];
   listEl.innerHTML = parts.map(function (p) {
     var forLabel = '';
     if (p.forItem) {
@@ -3175,8 +3176,15 @@ function _renderPartsList() {
       forLabel = 'For ' + p.forItem + (m && m.roadName ? ' (' + m.roadName + ')' : '');
     }
     var esc = function (s) { return String(s || '').replace(/'/g, "\\'").replace(/"/g, '&quot;'); };
+    var thumb = '';
+    if (p.photo) {
+      var _fid = (p.photo.match(/\/d\/([a-zA-Z0-9_-]+)/) || [])[1];
+      if (_fid) { var _imgId = 'partthumb-' + p.row; _thumbs.push({ fid: _fid, id: _imgId });
+        thumb = '<a href="' + p.photo + '" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="flex-shrink:0"><div style="width:48px;height:48px;border-radius:8px;overflow:hidden;background:var(--surface2)"><img id="' + _imgId + '" style="width:100%;height:100%;object-fit:cover"></div></a>'; }
+    }
     return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem;margin-bottom:0.6rem">'
       + '<div style="display:flex;align-items:flex-start;gap:0.6rem;flex-wrap:wrap">'
+      + thumb
       + '<div style="flex:1;min-width:0">'
       + '<div style="font-weight:600;font-size:0.95rem;color:var(--text)">' + (p.description || '—') + '</div>'
       + '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.2rem">'
@@ -3192,6 +3200,7 @@ function _renderPartsList() {
       + '<button onclick="removePart(' + p.row + ')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #e74c3c;background:rgba(231,76,60,0.1);color:#e74c3c;font-family:var(--font-body);font-size:0.75rem;cursor:pointer">Remove</button>'
       + '</div></div></div>';
   }).join('');
+  _thumbs.forEach(function (t) { var el = document.getElementById(t.id); if (el && typeof loadDriveThumb === 'function') loadDriveThumb(t.fid, el, el.parentElement); });
 }
 
 function googlePart(partNum, forItem, desc) {
@@ -3231,6 +3240,12 @@ function showAddPartModal(existingId) {
     + '<input id="_part-num" type="text" value="' + String(existing.partNum || '').replace(/"/g, '&quot;') + '" placeholder="if you know it" style="width:100%;box-sizing:border-box;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.9rem;margin-bottom:0.7rem">'
     + '<label style="font-size:0.74rem;color:var(--text-dim);display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em">For which item? (optional)</label>'
     + '<select id="_part-for" style="width:100%;box-sizing:border-box;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.9rem;margin-bottom:0.7rem">' + ownedOpts + '</select>'
+    + '<label style="font-size:0.74rem;color:var(--text-dim);display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em">Reference Photo (optional)</label>'
+    + '<div style="margin-bottom:0.7rem">'
+    +   '<img id="_part-photo-preview" style="display:none;max-width:100%;max-height:170px;border-radius:8px;object-fit:contain;margin-bottom:0.4rem">'
+    +   '<input id="_part-photo-input" type="file" accept="image/*" capture="environment" onchange="_partPhotoPicked(event)" style="width:100%;font-size:0.82rem;color:var(--text)">'
+    +   '<div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.2rem">Snap a picture of the part to show a vendor at a show.</div>'
+    + '</div>'
     + '<label style="font-size:0.74rem;color:var(--text-dim);display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em">Notes (optional)</label>'
     + '<textarea id="_part-notes" rows="2" placeholder="anything else to remember" style="width:100%;box-sizing:border-box;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.9rem;resize:vertical;margin-bottom:1rem">' + String(existing.notes || '') + '</textarea>'
     + '<div style="display:flex;gap:0.6rem">'
@@ -3238,10 +3253,25 @@ function showAddPartModal(existingId) {
     + '<button onclick="savePart(' + (existing.row || 0) + ')" style="flex:2;padding:0.6rem;border-radius:8px;border:none;background:var(--accent);color:#fff;font-family:var(--font-body);font-weight:600;cursor:pointer">' + (existingId ? 'Save' : '+ Add Part') + '</button>'
     + '</div></div>';
   ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+  window._partPhotoFile = null;
   document.body.appendChild(ov);
   var di = document.getElementById('_part-desc'); if (di) di.focus();
+  if (existing.photo) {
+    var _fid = (existing.photo.match(/\/d\/([a-zA-Z0-9_-]+)/) || [])[1];
+    var _pp = document.getElementById('_part-photo-preview');
+    if (_fid && _pp && typeof loadDriveThumb === 'function') { _pp.style.display = 'block'; loadDriveThumb(_fid, _pp, _pp.parentElement); }
+  }
 }
 if (typeof window !== 'undefined') window.showAddPartModal = showAddPartModal;
+
+function _partPhotoPicked(ev) {
+  var file = ev && ev.target && ev.target.files && ev.target.files[0];
+  if (!file) return;
+  window._partPhotoFile = file;
+  var pp = document.getElementById('_part-photo-preview');
+  if (pp) { pp.src = URL.createObjectURL(file); pp.style.display = 'block'; }
+}
+if (typeof window !== 'undefined') window._partPhotoPicked = _partPhotoPicked;
 
 async function savePart(existingRow) {
   var desc = (document.getElementById('_part-desc') || {}).value || '';
@@ -3263,7 +3293,18 @@ async function savePart(existingRow) {
       var ex = Object.values(state.partsData || {}).find(function (p) { return p.row === existingRow; });
       id = ex ? ex.id : ('part-' + Date.now());
     } else { id = 'part-' + Date.now(); }
-    var row = [_t(id), desc, _t(partNum), _t(forItem), _t(forInv), '', notes, new Date().toISOString().split('T')[0]];
+    var photoLink = '';
+    if (existingRow > 0) { var _exp = Object.values(state.partsData || {}).find(function(p){ return p.row === existingRow; }); photoLink = (_exp && _exp.photo) || ''; }
+    if (window._partPhotoFile) {
+      try {
+        await driveEnsureSetup();
+        var _pf = await driveFindOrCreateFolder('Parts', driveCache.photosId);
+        var _up = await driveUploadPhoto(window._partPhotoFile, 'part-' + Date.now() + '.jpg', _pf);
+        if (_up && _up.id) photoLink = 'https://drive.google.com/file/d/' + _up.id + '/view';
+      } catch (pe) { console.warn('[Parts] photo upload failed', pe && pe.message); }
+      window._partPhotoFile = null;
+    }
+    var row = [_t(id), desc, _t(partNum), _t(forItem), _t(forInv), photoLink, notes, new Date().toISOString().split('T')[0]];
     if (existingRow > 0) {
       await sheetsUpdate(state.personalSheetId, 'Parts Needed!A' + existingRow + ':H' + existingRow, [row]);
     } else {
