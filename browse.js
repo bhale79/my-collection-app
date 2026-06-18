@@ -2297,6 +2297,7 @@ function renderBrowse() {
       const _refItem = _baseItem || _masterFallback;
       return {
         itemNum: pd.itemNum, variation: pd.variation || '',
+        manufacturer: pd.manufacturer || '',
         itemType: _poType || (_refItem ? _refItem.itemType : ''),
         roadName: pd.roadName || (_refItem ? _refItem.roadName : ''),
         description: _refItem ? _refItem.description : (pd.notes || ''),
@@ -2385,7 +2386,9 @@ function renderBrowse() {
         // scale — including items of unknown scale (e.g. pre-war rows with a
         // blank gauge field). Previously `_itmScale && ...` let those leak into
         // every scale filter (pre-war items appearing under "HO Scale").
-        if (_itmScale !== _stp3b.scale) return false;
+        // My Collection: never hide an owned item just because its scale is
+        // unknown (its catalog may not be loaded). Catalog browse stays strict.
+        if (_itmScale !== _stp3b.scale && !(state.filters.owned && !_itmScale)) return false;
       }
       if (_stp3b.era && _stp3b.era !== 'any') {
         // S151: chip era is a time period (prewar/postwar/modern).
