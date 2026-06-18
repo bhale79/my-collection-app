@@ -1794,7 +1794,7 @@ async function _collectionRemove(type, key) {
     const pd = state.personalData[key];
     if (!pd) return;
     if (typeof removeCollectionItem === 'function') {
-      removeCollectionItem(pd.itemNum, pd.variation || '', pd.row);
+      removeCollectionItem(pd.itemNum, pd.variation || '', pd.row, pd.inventoryId);
     }
     return;
   }
@@ -1837,11 +1837,11 @@ function _serviceCollectionAction(action, pdKey) {
   const itemNum = pd.itemNum;
   const variation = pd.variation || '';
   if (action === 'forsale' && typeof collectionActionForSale === 'function') {
-    collectionActionForSale(globalIdx, itemNum, variation, pd.row);
+    collectionActionForSale(globalIdx, itemNum, variation, pd.row, pd.inventoryId);
   } else if (action === 'sold' && typeof collectionActionSold === 'function') {
-    collectionActionSold(globalIdx, itemNum, variation, pd.row);
+    collectionActionSold(globalIdx, itemNum, variation, pd.row, pd.inventoryId);
   } else if (action === 'upgrade' && typeof showAddToUpgradeModal === 'function') {
-    showAddToUpgradeModal(itemNum, variation, pd.row);
+    showAddToUpgradeModal(itemNum, variation, pd.row, pd.inventoryId);
   }
 }
 
@@ -2805,7 +2805,7 @@ function renderBrowse() {
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.25rem;flex-shrink:0">
             ${cond ? `<span style="font-size:0.72rem"><span class="condition-pip ${condClass}"></span>${cond}</span>` : ''}
             ${marketVal ? `<span class="market-val" style="font-size:0.72rem">${marketVal}</span>` : ''}
-            ${!_inShareMode ? `<button onclick="event.stopPropagation();removeCollectionItem('${item.itemNum}','${_escVar}',${_pdRow})" style="padding:0.25rem 0.5rem;border-radius:6px;font-size:0.75rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);line-height:1" title="Remove from collection">✕</button>` : ''}
+            ${!_inShareMode ? `<button onclick="event.stopPropagation();removeCollectionItem('${item.itemNum}','${_escVar}',${_pdRow},'${_copyInv}')" style="padding:0.25rem 0.5rem;border-radius:6px;font-size:0.75rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);line-height:1" title="Remove from collection">✕</button>` : ''}
           </div>
         </div>
       </div>`;
@@ -2843,10 +2843,10 @@ function renderBrowse() {
       // Smart buttons based on per-copy list status
       const _fsBtn = _isThisCopyFS
         ? `<button onclick="event.stopPropagation();_removeForSaleFromCollection('${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:#e67e22;color:#fff;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Remove from For Sale list">Unlist</button>`
-        : `<button onclick="event.stopPropagation();collectionActionForSale(${globalIdx},'${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Add to For Sale list">For Sale</button>`;
+        : `<button onclick="event.stopPropagation();collectionActionForSale(${globalIdx},'${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0},'${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Add to For Sale list">For Sale</button>`;
       const _upgBtn = _isThisCopyUG
         ? `<button onclick="event.stopPropagation();_removeUpgradeFromCollection('${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:#8b5cf6;color:#fff;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Remove from Upgrade list">Un-Upg.</button>`
-        : `<button onclick="event.stopPropagation();showAddToUpgradeModal('${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Add to Upgrade list">Upgrade</button>`;
+        : `<button onclick="event.stopPropagation();showAddToUpgradeModal('${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0},'${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Add to Upgrade list">Upgrade</button>`;
       return `<tr id="share-card-${_shareKeyD}" onclick="${_inShareModeD ? 'toggleShareItem(\'' + _shareKeyD + '\')' : 'showItemDetailPage(' + globalIdx + ", '" + _copyInv + "')"}" style="cursor:pointer${_isQuick ? ';opacity:0.82' : ''}${_isShareSelectedD ? ';outline:2px solid #3a9e68;background:rgba(58,158,104,0.06)' : ''}" data-group="${_groupId}" data-item="${item.itemNum}">
         ${typeof _mfrBadge === 'function' ? _mfrBadge({ manufacturer: (pd && pd.manufacturer) || '' }) : '<td>\u2014</td>'}
         <td>
@@ -2866,9 +2866,9 @@ function renderBrowse() {
         <td style="font-size:0.82rem;color:var(--gold);white-space:nowrap">${_estWorth}</td>
         <td class="coll-actions-cell" style="text-align:right">
           ${!_inShareModeD ? `${_fsBtn}
-          <button onclick="event.stopPropagation();collectionActionSold(${globalIdx},'${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Mark as sold / add to Sold list">Sold</button>
+          <button onclick="event.stopPropagation();collectionActionSold(${globalIdx},'${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0},'${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Mark as sold / add to Sold list">Sold</button>
           ${_upgBtn}
-          <button onclick="event.stopPropagation();removeCollectionItem('${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>` : ''}
+          <button onclick="event.stopPropagation();removeCollectionItem('${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0},'${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>` : ''}
         </td>
       </tr>`;
     } else {

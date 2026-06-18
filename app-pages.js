@@ -2804,7 +2804,7 @@ function pickItemForUpgrade() {
     var condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
     var escVar = (p.variation||'').replace(/'/g, "\\'");
     return '<button onclick="document.getElementById(\'upgrade-pick-modal\').remove();'
-      + 'showAddToUpgradeModal(\''+p.itemNum+'\',\''+escVar+'\','+(p.row||0)+')" '
+      + 'showAddToUpgradeModal(\''+p.itemNum+'\',\''+escVar+'\','+(p.row||0)+',\''+(p.inventoryId||'')+'\')" '
       + 'style="display:flex;align-items:center;gap:0.6rem;padding:0.65rem 0.85rem;border-radius:8px;'
       + 'background:var(--surface2);border:1px solid var(--border);width:100%;cursor:pointer;'
       + 'font-family:var(--font-body);text-align:left;margin-bottom:0.35rem">'
@@ -2828,7 +2828,7 @@ function pickItemForUpgrade() {
 }
 if (typeof window !== 'undefined') window.pickItemForUpgrade = pickItemForUpgrade;
 
-function showAddToUpgradeModal(itemNum, variation, pdRow) {
+function showAddToUpgradeModal(itemNum, variation, pdRow, invId) {
   // Session 159 Phase 2: look up the EXACT copy the user clicked on,
   // not just any matching itemNum/variation. The previous lookup
   // (state.personalData[`${itemNum}|${variation}|${pdRow}`]) was wrong
@@ -2836,7 +2836,8 @@ function showAddToUpgradeModal(itemNum, variation, pdRow) {
   // So the lookup always returned undefined, fell through to first-match,
   // and grabbed copy #1 even when the user clicked copy #2.
   let pd;
-  if (pdRow && typeof findPDKeyByRow === 'function') {
+  if (invId && state.personalData[invId]) pd = state.personalData[invId];
+  if (!pd && pdRow && typeof findPDKeyByRow === 'function') {
     const _pdKey = findPDKeyByRow(itemNum, variation, pdRow);
     if (_pdKey) pd = state.personalData[_pdKey];
   }
@@ -3085,7 +3086,7 @@ async function _upgradeGotItFinish(ugKey, action) {
     // Navigate to for sale flow for this item
     const master = findMaster(itemNum);
     const idx = master ? state.masterData.indexOf(master) : -1;
-    if (idx >= 0) collectionActionForSale(idx, itemNum, variation);
+    if (idx >= 0) collectionActionForSale(idx, itemNum, variation, null, upgradeEntry ? upgradeEntry.inventoryId : '');
     else showToast('Navigate to My Collection to list for sale');
   } else if (action === 'remove') {
     // Phase 3: prefer the upgrade entry's inventoryId so we remove the exact copy.
@@ -3095,7 +3096,7 @@ async function _upgradeGotItFinish(ugKey, action) {
     } else {
       pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === itemNum && (p.variation||'') === (variation||''));
     }
-    if (pd) await removeCollectionItem(itemNum, variation, pd.row);
+    if (pd) await removeCollectionItem(itemNum, variation, pd.row, pd.inventoryId);
     else showToast('Item not found in collection');
   } else {
     showToast('✓ Upgrade complete — entry removed from list');

@@ -953,7 +953,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
       Update Info/Pictures
     </button>
-    <button onclick="collectionActionSold(${idx},'${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}',${pd && pd.row ? pd.row : 0})" data-ctip="Did you sell something? Record that here." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
+    <button onclick="collectionActionSold(${idx},'${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}',${pd && pd.row ? pd.row : 0},'${pd && pd.inventoryId ? pd.inventoryId : ''}')" data-ctip="Did you sell something? Record that here." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
       Record Sale
     </button>
@@ -962,11 +962,11 @@ function showItemDetailPage(idx, copyInvId, opts) {
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
       Remove from For Sale
     </button>`
-      : `<button onclick="collectionActionForSale(${idx},'${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}',${pd && pd.row ? pd.row : 0})" data-ctip="If you want to sell an item from your collection, you can list it for sale here." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
+      : `<button onclick="collectionActionForSale(${idx},'${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}',${pd && pd.row ? pd.row : 0},'${pd && pd.inventoryId ? pd.inventoryId : ''}')" data-ctip="If you want to sell an item from your collection, you can list it for sale here." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
       List for Sale
     </button>`}
-    <button onclick="showAddToUpgradeModal('${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}',${pd && pd.row ? pd.row : 0})" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
+    <button onclick="showAddToUpgradeModal('${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}',${pd && pd.row ? pd.row : 0},'${pd && pd.inventoryId ? pd.inventoryId : ''}')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
       Add to Upgrade List
     </button>
@@ -1135,7 +1135,7 @@ async function _removeFromCollectionDetail(idx, itemNum, variation) {
   var pd = pdKey ? state.personalData[pdKey] : null;
   var row = pd ? pd.row : null;
   if (typeof removeCollectionItem === 'function') {
-    await removeCollectionItem(itemNum, variation, row);
+    await removeCollectionItem(itemNum, variation, row, pd ? pd.inventoryId : '');
   }
   var stillOwned = Object.values(state.personalData || {}).some(function(p) {
     return p && p.owned && p.itemNum === itemNum && (p.variation || '') === (variation || '');
@@ -1417,8 +1417,9 @@ function _showSpecialOwnedMenu(idx, item, ownedItems) {
   document.body.appendChild(overlay);
 }
 
-function collectionActionForSale(globalIdx, itemNum, variation, pdRow) {
-  var pdKey = pdRow ? findPDKeyByRow(itemNum, variation, pdRow) : findPDKey(itemNum, variation);
+function collectionActionForSale(globalIdx, itemNum, variation, pdRow, invId) {
+  var pdKey = (invId && state.personalData[invId]) ? invId
+    : (pdRow ? findPDKeyByRow(itemNum, variation, pdRow) : findPDKey(itemNum, variation));
   if (!pdKey) { showToast('Item not found in collection', 3000, true); return; }
   _checkGroupBeforeForSale(globalIdx, pdKey);
 }
@@ -1598,8 +1599,9 @@ function _checkGroupBeforeForSale(globalIdx, pdKey) {
   };
 }
 
-function collectionActionSold(globalIdx, itemNum, variation, pdRow) {
-  var pdKey = pdRow ? findPDKeyByRow(itemNum, variation, pdRow) : findPDKey(itemNum, variation);
+function collectionActionSold(globalIdx, itemNum, variation, pdRow, invId) {
+  var pdKey = (invId && state.personalData[invId]) ? invId
+    : (pdRow ? findPDKeyByRow(itemNum, variation, pdRow) : findPDKey(itemNum, variation));
   if (!pdKey) { showToast('Item not found in collection', 3000, true); return; }
   // Phase 3d: if the item is already on the For Sale list, route to the
   // simple "Record sale" price prompt (markForSaleAsSold) instead of the
@@ -1752,10 +1754,10 @@ async function _breakUpGroupFromDetail(idx, itemNum, variation) {
 // Restored Session 154: shared collection-item removal used by the list
 // Remove buttons and the detail-page Remove. For grouped items it offers
 // remove-just-this vs remove-whole-group.
-async function removeCollectionItem(itemNum, variation, row) {
+async function removeCollectionItem(itemNum, variation, row, invId) {
   // Check if this item is part of a group with other members
-  // Use row to disambiguate if multiple copies exist
-  var pdKey = findPDKeyByRow(itemNum, variation, row);
+  // Use inventory id (preferred) or row to disambiguate if multiple copies exist
+  var pdKey = (invId && state.personalData[invId]) ? invId : findPDKeyByRow(itemNum, variation, row);
   var thisPd = pdKey ? state.personalData[pdKey] : null;
   var groupId = thisPd && thisPd.groupId;
   var groupSiblings = groupId
