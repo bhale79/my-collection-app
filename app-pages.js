@@ -1403,7 +1403,7 @@ function buildSoldPage() {
     if (soldTableWrap) soldTableWrap.style.display = '';
     tbody.innerHTML = soldEntries.length ? soldEntries.map(sd => {
       return `<tr onclick="showSoldDetailPage('${sd.key}')" style="cursor:pointer">
-        ${typeof _mfrBadge==='function' ? _mfrBadge(sd._master) : '<td>—</td>'}
+        ${typeof _mfrBadge==='function' ? _mfrBadge({ manufacturer: sd.manufacturer || '' }) : '<td>—</td>'}
         <td><span class="item-num">${sd.itemNum || '—'}</span></td>
         <td><span class="tag">${sd._type || '—'}</span></td>
         <td>${sd._roadName || '—'}</td>
@@ -1714,7 +1714,7 @@ function buildForSalePage() {
         ? `onclick="toggleShareItem('${_fsDShareKey}')"`
         : (_fsDMasterIdx >= 0 ? `onclick="window._detailReturn='forsale';showItemDetailPage(${_fsDMasterIdx})"` : '');
       return `<tr id="share-card-${_fsDShareKey}" ${_fsDClickAttr} style="cursor:${_fsDInShare || _fsDMasterIdx >= 0 ? 'pointer' : 'default'}${_fsDSelected ? ';outline:2px solid #3a9e68;background:rgba(58,158,104,0.06)' : ''}">
-        ${typeof _mfrBadge==='function' ? _mfrBadge(master) : '<td>—</td>'}
+        ${typeof _mfrBadge==='function' ? _mfrBadge({ manufacturer: fs.manufacturer || '' }) : '<td>—</td>'}
         <td><span class="item-num">${_fsDInShare ? '<input type="checkbox" id="share-cb-' + _fsDShareKey + '" ' + (_fsDSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _fsDShareKey + '\')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">' : ''}${_fsItemNumHTML(fs)}</span></td>
         <td><span class="tag">${master.itemType || '—'}</span></td>
         <td>${master.roadName || '—'}</td>
