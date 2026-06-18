@@ -162,6 +162,15 @@ function buildPersonalRow(fields) {
     var _mb = (typeof _brandOfItem === 'function') ? _brandOfItem(inum, vari) : '';
     if (_mb) row[_mfi] = _mb;
   }
+  // Force identifier columns to TEXT so Google's USER_ENTERED doesn't
+  // date-parse item numbers like "0401-1" into a (negative) serial number.
+  ['itemNum', 'matchedTo'].forEach(function (_k) {
+    var _ci = PERSONAL_FIELD_INDEX[_k];
+    if (_ci !== undefined && row[_ci] !== '' && row[_ci] !== null && row[_ci] !== undefined) {
+      var _v = String(row[_ci]);
+      if (_v.charAt(0) !== "'") row[_ci] = "'" + _v;
+    }
+  });
   return row;
 }
 
