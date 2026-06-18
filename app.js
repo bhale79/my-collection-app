@@ -2068,6 +2068,7 @@ function showPage(name, clickedEl) {
   if (name === 'reports') buildReport();
   if (name === 'sold') buildSoldPage();
   if (name === 'forsale') buildForSalePage();
+  if (name === 'parts' && typeof buildPartsPage === 'function') buildPartsPage();
   if (name === 'want') buildWantPage();
   if (name === 'sets') buildSetsPage();
   if (name === 'browse' || name === 'sets') _applyDisclaimerPref();

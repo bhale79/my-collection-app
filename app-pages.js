@@ -3103,3 +3103,182 @@ async function _upgradeGotItFinish(ugKey, action) {
 }
 
 
+
+// ════════════════════════════════════════════════════════════════════
+// PARTS NEEDED LIST (Session 162+) — standalone list of parts you're
+// hunting for. Free-form (description + optional part#), can link to an
+// owned item, has a Google search. Loaded on-demand (own sheet tab).
+// Columns A-H: Part ID, Description, Part Number, For Item, For Inventory ID,
+// Photo Link, Notes, Date Added.
+// ════════════════════════════════════════════════════════════════════
+async function _ensurePartsTab() {
+  if (!state.personalSheetId || typeof accessToken === 'undefined' || !accessToken) return false;
+  try {
+    var meta = await (await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + '?fields=sheets.properties',
+      { headers: { Authorization: 'Bearer ' + accessToken } })).json();
+    var exists = (meta.sheets || []).some(function (s) { return s.properties && s.properties.title === 'Parts Needed'; });
+    if (exists) return true;
+    await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + ':batchUpdate', {
+      method: 'POST', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requests: [{ addSheet: { properties: { title: 'Parts Needed', tabColor: { red: 0.62, green: 0.42, blue: 0.20 } } } }] })
+    });
+    await sheetsUpdate(state.personalSheetId, 'Parts Needed!A1', [['🔧 Parts Needed']]);
+    await sheetsUpdate(state.personalSheetId, 'Parts Needed!A2:H2',
+      [['Part ID', 'Description', 'Part Number', 'For Item', 'For Inventory ID', 'Photo Link', 'Notes', 'Date Added']]);
+    return true;
+  } catch (e) { console.warn('[Parts] ensure tab failed', e && e.message); return false; }
+}
+
+async function buildPartsPage() {
+  var listEl = document.getElementById('parts-list');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--text-dim)">Loading parts…</div>';
+  try {
+    await _ensurePartsTab();
+    var res = await sheetsGet(state.personalSheetId, 'Parts Needed!A3:H').catch(function () { return { values: [] }; });
+    var parts = {};
+    (res.values || []).forEach(function (r, idx) {
+      if (!r[0] || r[0] === 'Part ID') return;
+      var _s = function (v) { return (v !== null && v !== undefined && v !== '') ? String(v) : ''; };
+      parts['p' + (idx + 3)] = {
+        row: idx + 3, id: _s(r[0]), description: _s(r[1]), partNum: _s(r[2]),
+        forItem: _s(r[3]), forInv: _s(r[4]), photo: _s(r[5]), notes: _s(r[6]), dateAdded: _s(r[7])
+      };
+    });
+    state.partsData = parts;
+  } catch (e) { state.partsData = state.partsData || {}; }
+  _renderPartsList();
+}
+if (typeof window !== 'undefined') window.buildPartsPage = buildPartsPage;
+
+function _renderPartsList() {
+  var listEl = document.getElementById('parts-list');
+  if (!listEl) return;
+  var parts = Object.values(state.partsData || {});
+  var badge = document.getElementById('nav-parts');
+  if (badge) badge.textContent = parts.length || '—';
+  var cnt = document.getElementById('parts-count');
+  if (cnt) cnt.textContent = parts.length ? (' ' + parts.length + ' part' + (parts.length !== 1 ? 's' : '')) : '';
+  if (!parts.length) {
+    listEl.innerHTML = '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)">'
+      + '<div style="font-size:2.5rem;margin-bottom:0.5rem">🔧</div>'
+      + '<p>No parts on your list yet</p>'
+      + '<p style="font-size:0.8rem;margin-top:0.4rem">Add a part you need to track down at a show — a description, a part number, and which item it\'s for.</p>'
+      + '</div>';
+    return;
+  }
+  parts.sort(function (a, b) { return (b.dateAdded || '').localeCompare(a.dateAdded || ''); });
+  listEl.innerHTML = parts.map(function (p) {
+    var forLabel = '';
+    if (p.forItem) {
+      var m = (typeof findMaster === 'function') ? findMaster(p.forItem) : null;
+      forLabel = 'For ' + p.forItem + (m && m.roadName ? ' (' + m.roadName + ')' : '');
+    }
+    var esc = function (s) { return String(s || '').replace(/'/g, "\\'").replace(/"/g, '&quot;'); };
+    return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem;margin-bottom:0.6rem">'
+      + '<div style="display:flex;align-items:flex-start;gap:0.6rem;flex-wrap:wrap">'
+      + '<div style="flex:1;min-width:0">'
+      + '<div style="font-weight:600;font-size:0.95rem;color:var(--text)">' + (p.description || '—') + '</div>'
+      + '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.2rem">'
+      + (p.partNum ? '<span style="font-family:var(--font-mono);color:var(--accent2)">Part #' + p.partNum + '</span>' : '')
+      + (p.partNum && forLabel ? ' · ' : '')
+      + (forLabel ? '<span style="color:#8b5cf6">🔗 ' + forLabel + '</span>' : '')
+      + '</div>'
+      + (p.notes ? '<div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.2rem">' + p.notes + '</div>' : '')
+      + '</div>'
+      + '<div style="display:flex;gap:0.35rem;flex-wrap:wrap">'
+      + '<button onclick="googlePart(\'' + esc(p.partNum) + '\',\'' + esc(p.description) + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #2980b9;background:rgba(41,128,185,0.1);color:#2980b9;font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">Google</button>'
+      + '<button onclick="showAddPartModal(\'' + p.id + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.75rem;cursor:pointer">Edit</button>'
+      + '<button onclick="removePart(' + p.row + ')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #e74c3c;background:rgba(231,76,60,0.1);color:#e74c3c;font-family:var(--font-body);font-size:0.75rem;cursor:pointer">Remove</button>'
+      + '</div></div></div>';
+  }).join('');
+}
+
+function googlePart(partNum, desc) {
+  var q = ((partNum ? partNum + ' ' : '') + (desc || '') + ' Lionel part').trim();
+  window.open('https://www.google.com/search?q=' + encodeURIComponent(q), '_blank', 'noopener');
+}
+if (typeof window !== 'undefined') window.googlePart = googlePart;
+
+function showAddPartModal(existingId) {
+  var existing = null;
+  if (existingId) existing = Object.values(state.partsData || {}).find(function (p) { return p.id === existingId; });
+  existing = existing || {};
+  // Owned items for the "for item" link
+  var ownedOpts = '<option value="">— none —</option>';
+  var seen = {};
+  Object.values(state.personalData || {}).forEach(function (pd) {
+    if (!pd || !pd.owned) return;
+    var n = String(pd.itemNum || '');
+    if (!n || /-(BOX|MBOX|IS)$/i.test(n) || seen[pd.inventoryId || n]) return;
+    seen[pd.inventoryId || n] = true;
+    var m = (typeof findMaster === 'function') ? findMaster(n) : null;
+    var label = n + (m && m.roadName ? ' — ' + m.roadName : '');
+    var val = (pd.inventoryId || n);
+    var sel = (existing.forInv && existing.forInv === pd.inventoryId) || (!existing.forInv && existing.forItem === n) ? ' selected' : '';
+    ownedOpts += '<option value="' + val + '" data-item="' + n + '"' + sel + '>' + label + '</option>';
+  });
+  var ov = document.createElement('div');
+  ov.id = '_part-modal';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10050;display:flex;align-items:center;justify-content:center;padding:1.25rem';
+  ov.innerHTML = '<div style="background:var(--surface);border-radius:14px;padding:1.4rem;max-width:420px;width:100%;border:1px solid var(--border);max-height:90vh;overflow-y:auto">'
+    + '<div style="font-family:var(--font-head);font-size:1.05rem;font-weight:700;color:var(--accent);margin-bottom:0.9rem">🔧 ' + (existingId ? 'Edit Part' : 'Add a Part') + '</div>'
+    + '<label style="font-size:0.74rem;color:var(--text-dim);display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em">Description *</label>'
+    + '<input id="_part-desc" type="text" value="' + String(existing.description || '').replace(/"/g, '&quot;') + '" placeholder="e.g. pickup roller assembly" style="width:100%;box-sizing:border-box;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.9rem;margin-bottom:0.7rem">'
+    + '<label style="font-size:0.74rem;color:var(--text-dim);display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em">Part Number (optional)</label>'
+    + '<input id="_part-num" type="text" value="' + String(existing.partNum || '').replace(/"/g, '&quot;') + '" placeholder="if you know it" style="width:100%;box-sizing:border-box;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.9rem;margin-bottom:0.7rem">'
+    + '<label style="font-size:0.74rem;color:var(--text-dim);display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em">For which item? (optional)</label>'
+    + '<select id="_part-for" style="width:100%;box-sizing:border-box;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.9rem;margin-bottom:0.7rem">' + ownedOpts + '</select>'
+    + '<label style="font-size:0.74rem;color:var(--text-dim);display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em">Notes (optional)</label>'
+    + '<textarea id="_part-notes" rows="2" placeholder="anything else to remember" style="width:100%;box-sizing:border-box;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.9rem;resize:vertical;margin-bottom:1rem">' + String(existing.notes || '') + '</textarea>'
+    + '<div style="display:flex;gap:0.6rem">'
+    + '<button onclick="document.getElementById(\'_part-modal\').remove()" style="flex:1;padding:0.6rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);cursor:pointer">Cancel</button>'
+    + '<button onclick="savePart(' + (existing.row || 0) + ')" style="flex:2;padding:0.6rem;border-radius:8px;border:none;background:var(--accent);color:#fff;font-family:var(--font-body);font-weight:600;cursor:pointer">' + (existingId ? 'Save' : '+ Add Part') + '</button>'
+    + '</div></div>';
+  ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+  document.body.appendChild(ov);
+  var di = document.getElementById('_part-desc'); if (di) di.focus();
+}
+if (typeof window !== 'undefined') window.showAddPartModal = showAddPartModal;
+
+async function savePart(existingRow) {
+  var desc = (document.getElementById('_part-desc') || {}).value || '';
+  if (!desc.trim()) { if (typeof showToast === 'function') showToast('Please enter a description'); return; }
+  var partNum = (document.getElementById('_part-num') || {}).value || '';
+  var notes = (document.getElementById('_part-notes') || {}).value || '';
+  var sel = document.getElementById('_part-for');
+  var forInv = sel ? sel.value : '';
+  var forItem = '';
+  if (sel && sel.selectedIndex >= 0 && sel.options[sel.selectedIndex]) forItem = sel.options[sel.selectedIndex].getAttribute('data-item') || '';
+  // Force identifier columns to text (avoid USER_ENTERED date-parsing part numbers)
+  var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
+  var modal = document.getElementById('_part-modal'); if (modal) modal.remove();
+  if (typeof showToast === 'function') showToast('Saving…', 1500);
+  try {
+    await _ensurePartsTab();
+    var id = '';
+    if (existingRow > 0) {
+      var ex = Object.values(state.partsData || {}).find(function (p) { return p.row === existingRow; });
+      id = ex ? ex.id : ('part-' + Date.now());
+    } else { id = 'part-' + Date.now(); }
+    var row = [_t(id), desc, _t(partNum), _t(forItem), _t(forInv), '', notes, new Date().toISOString().split('T')[0]];
+    if (existingRow > 0) {
+      await sheetsUpdate(state.personalSheetId, 'Parts Needed!A' + existingRow + ':H' + existingRow, [row]);
+    } else {
+      await sheetsAppend(state.personalSheetId, 'Parts Needed!A:H', [row]);
+    }
+    if (typeof showToast === 'function') showToast('✓ Part saved');
+    buildPartsPage();
+  } catch (e) { if (typeof showToast === 'function') showToast('Save failed: ' + (e && e.message || ''), 4000, true); }
+}
+if (typeof window !== 'undefined') window.savePart = savePart;
+
+async function removePart(rowNum) {
+  if (!rowNum) return;
+  try {
+    await sheetsUpdate(state.personalSheetId, 'Parts Needed!A' + rowNum + ':H' + rowNum, [['', '', '', '', '', '', '', '']]);
+    if (typeof showToast === 'function') showToast('Part removed');
+    buildPartsPage();
+  } catch (e) { if (typeof showToast === 'function') showToast('Remove failed', 3000, true); }
+}
+if (typeof window !== 'undefined') window.removePart = removePart;
