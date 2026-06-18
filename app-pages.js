@@ -3295,6 +3295,7 @@ function _renderPartsList() {
       + (p.notes ? '<div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.2rem">' + p.notes + '</div>' : '')
       + '</div>'
       + '<div style="display:flex;gap:0.35rem;flex-wrap:wrap">'
+      + ((p.forInv && state.personalData && state.personalData[p.forInv]) ? '<button onclick="markPartInstalled(' + p.row + ')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #27ae60;background:rgba(39,174,96,0.12);color:#27ae60;font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">\u2713 Installed</button>' : '')
       + '<button onclick="googlePart(\'' + esc(p.partNum) + '\',\'' + esc(p.forItem) + '\',\'' + esc(p.description) + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #2980b9;background:rgba(41,128,185,0.1);color:#2980b9;font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">Google</button>'
       + '<button onclick="showAddPartModal(\'' + p.id + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.75rem;cursor:pointer">Edit</button>'
       + '<button onclick="removePart(' + p.row + ')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #e74c3c;background:rgba(231,76,60,0.1);color:#e74c3c;font-family:var(--font-body);font-size:0.75rem;cursor:pointer">Remove</button>'
@@ -3425,3 +3426,93 @@ async function removePart(rowNum) {
   } catch (e) { if (typeof showToast === 'function') showToast('Remove failed', 3000, true); }
 }
 if (typeof window !== 'undefined') window.removePart = removePart;
+
+// ════════════════════════════════════════════════════════════════════
+// Session 162: "Mark as installed" — push a found part onto its linked
+// collection item. Appends a timestamped line to the item's Notes, lets
+// the user flip All Original, then removes the part from the list.
+// ════════════════════════════════════════════════════════════════════
+function markPartInstalled(rowNum) {
+  var p = Object.values(state.partsData || {}).find(function (x) { return x.row === rowNum; });
+  if (!p) return;
+  var pd = p.forInv ? (state.personalData || {})[p.forInv] : null;
+  if (!pd) { if (typeof showToast === 'function') showToast('Linked item is not in your collection', 3500, true); return; }
+  var m = (typeof findMaster === 'function') ? findMaster(pd.itemNum) : null;
+  var itemLabel = pd.itemNum + (m && m.roadName ? ' \u2014 ' + m.roadName : '');
+  var today = new Date().toISOString().split('T')[0];
+  var _esc = function (str) { return String(str || '').replace(/"/g, '&quot;'); };
+  var IN = "width:100%;box-sizing:border-box;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.9rem;margin-bottom:0.7rem";
+  var LB = "font-size:0.74rem;color:var(--text-dim);display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em";
+  var ov = document.createElement('div');
+  ov.id = '_part-install-modal';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10060;display:flex;align-items:center;justify-content:center;padding:1.25rem';
+  ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+  ov.innerHTML = '<div style="background:var(--surface);border-radius:14px;padding:1.4rem;max-width:420px;width:100%;border:1px solid var(--border);max-height:90vh;overflow-y:auto">'
+    + '<div style="font-family:var(--font-head);font-size:1.05rem;font-weight:700;color:#27ae60;margin-bottom:0.3rem">\u2713 Mark Part Installed</div>'
+    + '<div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:0.9rem">Recording this on <strong style="color:var(--text)">' + itemLabel + '</strong>. The details below get added to that item\'s notes.</div>'
+    + '<label style="' + LB + '">Part installed *</label>'
+    + '<input id="_inst-desc" type="text" value="' + _esc(p.description) + '" style="' + IN + '">'
+    + '<label style="' + LB + '">Part Number</label>'
+    + '<input id="_inst-part" type="text" value="' + _esc(p.partNum) + '" placeholder="if you know it" style="' + IN + 'font-family:var(--font-mono)">'
+    + '<label style="' + LB + '">Price Paid</label>'
+    + '<input id="_inst-price" type="number" min="0" step="0.01" placeholder="e.g. 12.50" style="' + IN + 'font-family:var(--font-mono)">'
+    + '<label style="' + LB + '">Vendor</label>'
+    + '<input id="_inst-vendor" type="text" placeholder="e.g. eBay seller, train show" style="' + IN + '">'
+    + '<label style="' + LB + '">Date Installed</label>'
+    + '<input id="_inst-date" type="date" value="' + today + '" style="' + IN + '">'
+    + '<label style="' + LB + '">Still all original?</label>'
+    + '<select id="_inst-orig" style="' + IN + '">'
+    +   '<option value="No" selected>No \u2014 a part was replaced</option>'
+    +   '<option value="Yes">Yes \u2014 this is a correct original part</option>'
+    +   '<option value="Unknown">Unknown</option>'
+    + '</select>'
+    + '<div style="font-size:0.68rem;color:var(--text-dim);margin:-0.3rem 0 0.9rem">Adding a replacement part usually means it is no longer all original \u2014 change to Yes if this was a correct original part.</div>'
+    + '<div style="display:flex;gap:0.6rem">'
+    + '<button onclick="document.getElementById(\'_part-install-modal\').remove()" style="flex:1;padding:0.6rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);cursor:pointer">Cancel</button>'
+    + '<button onclick="_savePartInstalled(' + rowNum + ')" style="flex:2;padding:0.6rem;border-radius:8px;border:none;background:#27ae60;color:#fff;font-family:var(--font-body);font-weight:600;cursor:pointer">\u2713 Save to item</button>'
+    + '</div></div>';
+  document.body.appendChild(ov);
+  var di = document.getElementById('_inst-desc'); if (di) di.focus();
+}
+if (typeof window !== 'undefined') window.markPartInstalled = markPartInstalled;
+
+async function _savePartInstalled(rowNum) {
+  var p = Object.values(state.partsData || {}).find(function (x) { return x.row === rowNum; });
+  if (!p) return;
+  var pd = p.forInv ? (state.personalData || {})[p.forInv] : null;
+  if (!pd) { if (typeof showToast === 'function') showToast('Linked item not found', 3500, true); return; }
+  var g = function (id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
+  var desc = g('_inst-desc') || p.description || 'part';
+  var partNum = g('_inst-part');
+  var price = g('_inst-price');
+  var vendor = g('_inst-vendor');
+  var date = g('_inst-date') || new Date().toISOString().split('T')[0];
+  var orig = g('_inst-orig') || pd.allOriginal || '';
+  var line = date + ' \u2014 Installed ' + desc
+    + (partNum ? ' (part# ' + partNum + ')' : '')
+    + (price ? ', ' + (typeof _currencySymbol === 'function' ? _currencySymbol() : '$') + price : '')
+    + (vendor ? ' from ' + vendor : '');
+  var newNotes = pd.notes ? (pd.notes + '\n' + line) : line;
+  var modal = document.getElementById('_part-install-modal'); if (modal) modal.remove();
+  if (typeof showToast === 'function') showToast('Saving\u2026', 1500);
+  try {
+    var sheetId = state.personalSheetId;
+    if (pd.row && pd.row !== 99999 && typeof personalColLetter === 'function') {
+      await sheetsUpdate(sheetId, 'My Collection!' + personalColLetter('notes') + pd.row, [[newNotes]]);
+      if (orig && orig !== pd.allOriginal) {
+        await sheetsUpdate(sheetId, 'My Collection!' + personalColLetter('allOriginal') + pd.row, [[orig]]);
+      }
+    }
+    pd.notes = newNotes;
+    if (orig) pd.allOriginal = orig;
+    await removePart(rowNum);
+    if (typeof renderBrowse === 'function') renderBrowse();
+    if (typeof buildDashboard === 'function') buildDashboard();
+    if (typeof _cachePersonalData === 'function') _cachePersonalData();
+    if (typeof showToast === 'function') showToast('\u2713 Installed on ' + pd.itemNum + ' \u2014 added to its notes');
+  } catch (e) {
+    if (typeof showToast === 'function') showToast('Save failed: ' + (e && e.message || ''), 4000, true);
+  }
+}
+if (typeof window !== 'undefined') window._savePartInstalled = _savePartInstalled;
+

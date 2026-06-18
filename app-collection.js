@@ -213,7 +213,7 @@ function showNonItemDetailPage(type, key) {
   if (notes) {
     html += '<div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border)">'
          +   '<div style="font-size:0.78rem;color:var(--text-dim);font-weight:600;margin-bottom:0.3rem">Notes</div>'
-         +   '<div style="font-size:0.85rem;color:var(--text);line-height:1.6">' + notes + '</div>'
+         +   '<div style="font-size:0.85rem;color:var(--text);line-height:1.6;white-space:pre-wrap;word-break:break-word">' + notes + '</div>'
          + '</div>';
   }
   html += '</div>';
@@ -1070,7 +1070,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
   if ((pd && pd.notes) || _wmNotes) {
     html += `<div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border)">
       <div style="font-size:0.78rem;color:var(--text-dim);font-weight:600;margin-bottom:0.3rem">Notes</div>
-      <div style="font-size:0.85rem;color:var(--text);line-height:1.6">${pd && pd.notes ? pd.notes : _wmNotes}</div>
+      <div style="font-size:0.85rem;color:var(--text);line-height:1.6;white-space:pre-wrap;word-break:break-word">${pd && pd.notes ? pd.notes : _wmNotes}</div>
     </div>`;
   }
 
