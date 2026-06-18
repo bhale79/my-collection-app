@@ -262,7 +262,8 @@ var CARD_CATALOG = [
       var roads = {};
       // Session 121: respect Preferences "What I Collect" in 'all' mode.
       Object.values(state.personalData).filter(function(pd){return pd.owned;}).filter(_pdEraEnabled).forEach(function(pd) {
-        var master = state.masterData.find(function(m) { return normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum); });
+        var master = state.masterData.find(function(m) { return normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum) && (m.variation || '') === (pd.variation || ''); })
+            || state.masterData.find(function(m) { return normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum); });
         var road = master ? (master.roadName||'').trim() : '';
         if (road && road !== '—' && road !== 'N/A') roads[road] = (roads[road]||0) + 1;
       });
@@ -766,7 +767,8 @@ var PANEL_CATALOG = [
               'goToMyCollection()', null
             );
           }
-          var master = state.masterData.find(function(m) { return normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum); });
+          var master = state.masterData.find(function(m) { return normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum) && (m.variation || '') === (pd.variation || ''); })
+            || state.masterData.find(function(m) { return normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum); });
           var name = master ? (master.roadName || master.itemType || pd.itemNum) : pd.itemNum;
           var price = pd.priceItem ? _currencySymbol() + parseFloat(pd.priceItem).toLocaleString() : '';
           var date = pd.datePurchased || '';
@@ -776,7 +778,7 @@ var PANEL_CATALOG = [
           var _co = (typeof _ownedCompanions === 'function') ? _ownedCompanions(pd) : [];
           var groupBadge = _co.length ? ' <span style="font-size:0.72rem;color:var(--accent3);font-weight:600" title="Grouped with ' + _co.join(', ') + '">🔗 ' + _co.join(' ') + '</span>' : (pd.groupId ? ' <span style="font-size:0.55rem;color:var(--accent3);vertical-align:super" title="Grouped">🔗</span>' : '');
           return _panelRow('🚂', pd.itemNum + (pd.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + pd.variation + '</span>' : '') + groupBadge, name, meta,
-            idx >= 0 ? 'showItemDetailPage(' + idx + ')' : 'goToMyCollection()', hasPhoto ? pd.photoItem : null
+            idx >= 0 ? ('showItemDetailPage(' + idx + ", '" + (pd.inventoryId || '') + "')") : 'goToMyCollection()', hasPhoto ? pd.photoItem : null
           );
         }).join('') || '<div class="empty-state"><p>No items yet</p></div>';
     }
@@ -844,13 +846,14 @@ var PANEL_CATALOG = [
         .sort(function(a, b) { return b._val - a._val; })
         .slice(0, 8)
         .map(function(pd) {
-          var master = state.masterData.find(function(m) { return normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum); });
+          var master = state.masterData.find(function(m) { return normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum) && (m.variation || '') === (pd.variation || ''); })
+            || state.masterData.find(function(m) { return normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum); });
           var name = master ? (master.roadName || master.itemType || pd.itemNum) : pd.itemNum;
           var price = _currencySymbol() + pd._val.toLocaleString();
           var idx = master ? state.masterData.indexOf(master) : -1;
           var hasPhoto = !!pd.photoItem;
           return _panelRow('💰', pd.itemNum + (pd.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + pd.variation + '</span>' : ''), name, price,
-            idx >= 0 ? 'showItemDetailPage(' + idx + ')' : 'goToMyCollection()', hasPhoto ? pd.photoItem : null
+            idx >= 0 ? ('showItemDetailPage(' + idx + ", '" + (pd.inventoryId || '') + "')") : 'goToMyCollection()', hasPhoto ? pd.photoItem : null
           );
         }).join('') || '<div class="empty-state"><p>No valued items yet</p></div>';
     }
