@@ -1035,8 +1035,9 @@ function showItemDetailPage(idx, copyInvId, opts) {
         _mtIdx = -(_mtPoIdx + 1000);
       }
       const _mtClickable = _mtPdKey && _mtIdx !== -1;
+      var _mtInv = (state.personalData[_mtPdKey] && state.personalData[_mtPdKey].inventoryId) || '';
       html += `<div style="font-size:0.85rem;color:var(--text-mid);margin-bottom:0.3rem">${_mIcon} Matched to: ${_mtClickable
-        ? '<a href="javascript:void(0)" onclick="showItemDetailPage(' + _mtIdx + ')" style="color:var(--accent);font-weight:700;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;cursor:pointer">' + matchedTo + '</a>'
+        ? '<a href="javascript:void(0)" onclick="showItemDetailPage(' + _mtIdx + ", '" + _mtInv + "'" + ')" style="color:var(--accent);font-weight:700;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;cursor:pointer">' + matchedTo + '</a>'
         : '<strong style="color:var(--accent)">' + matchedTo + '</strong>'}</div>`;
     }
     if (setId) {
@@ -1046,6 +1047,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
       html += `<div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.3rem">Grouped with: ${groupMembers.map(m => {
         // Grouped items are always in the collection — look up via personalData
         const _gPdKey = findPDKey(m.itemNum, m.variation);
+        var _gInv = (state.personalData[_gPdKey] && state.personalData[_gPdKey].inventoryId) || '';
         if (_gPdKey) {
           // Check if also in masterData (positive index), otherwise use personal-only negative index
           let _gIdx = state.masterData.findIndex(md => md.itemNum === m.itemNum && (!m.variation || md.variation === m.variation));
@@ -1055,7 +1057,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
             if (_poIdx < 0) _poIdx = window._poKeys.push(_gPdKey) - 1;
             _gIdx = -(_poIdx + 1000);
           }
-          return '<a href="javascript:void(0)" onclick="showItemDetailPage(' + _gIdx + ')" style="color:var(--accent);font-family:var(--font-mono);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;cursor:pointer">' + m.itemNum + '</a>';
+          return '<a href="javascript:void(0)" onclick="showItemDetailPage(' + _gIdx + ", '" + _gInv + "'" + ')" style="color:var(--accent);font-family:var(--font-mono);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;cursor:pointer">' + m.itemNum + '</a>';
         }
         return '<span style="color:var(--accent);font-family:var(--font-mono)">' + m.itemNum + '</span>';
       }).join(', ')}</div>`;

@@ -847,7 +847,7 @@ var PANEL_CATALOG = [
           var pd = state.personalData[fs.itemNum + '|' + (fs.variation||'')] || {};
           var hasPhoto = !!pd.photoItem;
           return _panelRow('🏷️', fs.itemNum + (fs.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + fs.variation + '</span>' : ''), name, price,
-            idx >= 0 ? 'showItemDetailPage(' + idx + ')' : 'showPage(\'forsale\', document.querySelector(\'.nav-item[onclick*=buildForSalePage]\'));buildForSalePage();',
+            (fs.inventoryId ? ("_openOwnedByInvId('" + fs.inventoryId + "')") : (idx >= 0 ? 'showItemDetailPage(' + idx + ')' : 'showPage(\'forsale\', document.querySelector(\'.nav-item[onclick*=buildForSalePage]\'));buildForSalePage();')),
             hasPhoto ? pd.photoItem : null
           );
         }).join('') || '<div class="empty-state" style="padding:1.5rem 0"><p>No items listed for sale</p></div>';
@@ -908,7 +908,7 @@ var PANEL_CATALOG = [
           var idx = master ? state.masterData.indexOf(master) : -1;
           var hasPhoto = pd && !!pd.photoItem;
           return _panelRow('↑', u.itemNum + (u.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim);">' + u.variation + '</span>' : ''), name, meta,
-            idx >= 0 ? 'showItemDetailPage(' + idx + ')' : "showPage('upgrade',null);buildUpgradePage()", hasPhoto ? pd.photoItem : null
+            (u.inventoryId ? ("_openOwnedByInvId('" + u.inventoryId + "')") : (idx >= 0 ? 'showItemDetailPage(' + idx + ')' : "showPage('upgrade',null);buildUpgradePage()")), hasPhoto ? pd.photoItem : null
           );
         }).join('') || '<div class="empty-state"><p>No upgrade targets yet</p></div>';
     }

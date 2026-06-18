@@ -1712,7 +1712,7 @@ function buildForSalePage() {
       const _fsDMasterIdx = _itemMasterIdx(fs.itemNum, fs.variation);
       const _fsDClickAttr = _fsDInShare
         ? `onclick="toggleShareItem('${_fsDShareKey}')"`
-        : (_fsDMasterIdx >= 0 ? `onclick="window._detailReturn='forsale';showItemDetailPage(${_fsDMasterIdx})"` : '');
+        : (_fsDMasterIdx >= 0 ? `onclick="window._detailReturn='forsale';showItemDetailPage(${_fsDMasterIdx}, '${fs.inventoryId || ''}')"` : '');
       return `<tr id="share-card-${_fsDShareKey}" ${_fsDClickAttr} style="cursor:${_fsDInShare || _fsDMasterIdx >= 0 ? 'pointer' : 'default'}${_fsDSelected ? ';outline:2px solid #3a9e68;background:rgba(58,158,104,0.06)' : ''}">
         ${typeof _mfrBadge==='function' ? _mfrBadge({ manufacturer: fs.manufacturer || '' }) : '<td>—</td>'}
         <td><span class="item-num">${_fsDInShare ? '<input type="checkbox" id="share-cb-' + _fsDShareKey + '" ' + (_fsDSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _fsDShareKey + '\')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">' : ''}${_fsItemNumHTML(fs)}</span></td>
