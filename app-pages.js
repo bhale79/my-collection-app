@@ -3187,16 +3187,18 @@ function _renderPartsList() {
       + (p.notes ? '<div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.2rem">' + p.notes + '</div>' : '')
       + '</div>'
       + '<div style="display:flex;gap:0.35rem;flex-wrap:wrap">'
-      + '<button onclick="googlePart(\'' + esc(p.partNum) + '\',\'' + esc(p.description) + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #2980b9;background:rgba(41,128,185,0.1);color:#2980b9;font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">Google</button>'
+      + '<button onclick="googlePart(\'' + esc(p.partNum) + '\',\'' + esc(p.forItem) + '\',\'' + esc(p.description) + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #2980b9;background:rgba(41,128,185,0.1);color:#2980b9;font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">Google</button>'
       + '<button onclick="showAddPartModal(\'' + p.id + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.75rem;cursor:pointer">Edit</button>'
       + '<button onclick="removePart(' + p.row + ')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #e74c3c;background:rgba(231,76,60,0.1);color:#e74c3c;font-family:var(--font-body);font-size:0.75rem;cursor:pointer">Remove</button>'
       + '</div></div></div>';
   }).join('');
 }
 
-function googlePart(partNum, desc) {
-  var q = ((partNum ? partNum + ' ' : '') + (desc || '') + ' Lionel part').trim();
-  window.open('https://www.google.com/search?q=' + encodeURIComponent(q), '_blank', 'noopener');
+function googlePart(partNum, forItem, desc) {
+  var mfr = (forItem && typeof _brandOfItem === 'function') ? (_brandOfItem(forItem) || '') : '';
+  var idPart = partNum || forItem || '';
+  var q = [mfr, idPart, desc].filter(Boolean).join(' ').trim();
+  if (q) window.open('https://www.google.com/search?q=' + encodeURIComponent(q), '_blank', 'noopener');
 }
 if (typeof window !== 'undefined') window.googlePart = googlePart;
 
