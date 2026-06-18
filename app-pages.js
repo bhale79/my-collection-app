@@ -3197,8 +3197,8 @@ function _renderPartsList() {
 function googlePart(partNum, forItem, desc) {
   var mfr = (forItem && typeof _brandOfItem === 'function') ? (_brandOfItem(forItem) || '') : '';
   var idPart = partNum || forItem || '';
-  var q = [mfr, idPart, desc].filter(Boolean).join(' ').trim();
-  if (q) window.open('https://www.google.com/search?q=' + encodeURIComponent(q), '_blank', 'noopener');
+  var q = ['part for', mfr, idPart, desc].filter(Boolean).join(' ').trim();
+  if (q) window.open('https://www.google.com/search?tbm=shop&q=' + encodeURIComponent(q), '_blank', 'noopener');
 }
 if (typeof window !== 'undefined') window.googlePart = googlePart;
 
