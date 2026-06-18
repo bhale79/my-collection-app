@@ -1653,7 +1653,7 @@ function renderWizardStep() {
             }
           }
         }
-        wizard.data.tenderMatch = _varTender || (_t.length > 0 ? _t[0] : '');
+        wizard.data.tenderMatch = '';  // Brad: nothing pre-selected — user must pick a tender
         wizard.data.tenderIsNonOriginal = false;
         wizard.data._tenderConfirmed = false;  // Session 159: require user confirmation on Step 3
         wizard.data.setMatch = ''; wizard.data.unitPower = '';
@@ -4152,7 +4152,7 @@ function renderWizardStep() {
       // condition fields until the user confirms which tender they have.
       if (col.pickerMode && col.isTender) {
         html += '<div style="font-size:0.78rem;color:var(--text-mid);margin-bottom:0.5rem;font-style:italic">Which tender came with it?</div>';
-        var _selTender = wizard.data.tenderMatch || '';
+        var _selTender = wizard.data._tenderConfirmed ? (wizard.data.tenderMatch || '') : '';
         var _cands = col.candidates || [];
         if (_cands.length === 0) {
           // No documented pairings - fall back to known tenders for this engine
