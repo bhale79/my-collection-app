@@ -654,7 +654,19 @@ async function syncUserDefinedTabsFromSheet(sheetId) {
       'Catalogs', 'Paper Items', 'Mock-Ups', 'Other Lionel',
       'Instruction Sheets', 'Science Sets', 'Construction Sets', 'My Sets',
       'Dashboard',
+      // Standalone feature tabs that are NOT collection/ephemera tabs:
+      'Parts Needed',
     ]);
+    // Prune any reserved tab that was wrongly captured as user-defined before
+    // it was added to the canonical set above (e.g. 'Parts Needed').
+    if (state.userDefinedTabs && state.userDefinedTabs.length) {
+      const _before = state.userDefinedTabs.length;
+      state.userDefinedTabs = state.userDefinedTabs.filter(t => !canonical.has(t.label));
+      if (state.userDefinedTabs.length !== _before) {
+        saveUserDefinedTabs();
+        if (state.ephemeraData) { delete state.ephemeraData.parts_needed; }
+      }
+    }
     const known = new Set((state.userDefinedTabs || []).map(t => t.label));
     let added = 0;
     titles.forEach(t => {
