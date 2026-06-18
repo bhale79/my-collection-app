@@ -705,6 +705,27 @@ function buildDashboard() {
 }
 
 
+// Open a collection item's detail by its INVENTORY ID (unique per copy) —
+// resolves the exact owned copy, then finds its catalog row by item+variation.
+function _openOwnedByInvId(invId) {
+  if (!invId) { if (typeof goToMyCollection === 'function') goToMyCollection(); return; }
+  var pd = (state.personalData || {})[invId]
+    || Object.values(state.personalData || {}).find(function(p){ return p && String(p.inventoryId) === String(invId); });
+  if (!pd) { if (typeof goToMyCollection === 'function') goToMyCollection(); return; }
+  var idx = state.masterData.findIndex(function(m){ return m.itemNum === pd.itemNum && (m.variation || '') === (pd.variation || ''); });
+  if (idx < 0) idx = state.masterData.findIndex(function(m){ return m.itemNum === pd.itemNum; });
+  if (idx >= 0) { showItemDetailPage(idx, pd.inventoryId); return; }
+  // personal-only (no catalog row) — negative index via _poKeys, like the collection list
+  var key = Object.keys(state.personalData || {}).find(function(k){ return state.personalData[k] === pd; });
+  if (key) {
+    if (!window._poKeys) window._poKeys = [];
+    var poIdx = window._poKeys.indexOf(key);
+    if (poIdx < 0) poIdx = window._poKeys.push(key) - 1;
+    showItemDetailPage(-(poIdx + 1000), pd.inventoryId);
+  } else if (typeof goToMyCollection === 'function') { goToMyCollection(); }
+}
+if (typeof window !== 'undefined') window._openOwnedByInvId = _openOwnedByInvId;
+
 // ── Dashboard Panel System ─────────────────────────────────────────────────
 var PANEL_CATALOG = [
   {
@@ -778,7 +799,7 @@ var PANEL_CATALOG = [
           var _co = (typeof _ownedCompanions === 'function') ? _ownedCompanions(pd) : [];
           var groupBadge = _co.length ? ' <span style="font-size:0.72rem;color:var(--accent3);font-weight:600" title="Grouped with ' + _co.join(', ') + '">🔗 ' + _co.join(' ') + '</span>' : (pd.groupId ? ' <span style="font-size:0.55rem;color:var(--accent3);vertical-align:super" title="Grouped">🔗</span>' : '');
           return _panelRow('🚂', pd.itemNum + (pd.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + pd.variation + '</span>' : '') + groupBadge, name, meta,
-            idx >= 0 ? ('showItemDetailPage(' + idx + ", '" + (pd.inventoryId || '') + "')") : 'goToMyCollection()', hasPhoto ? pd.photoItem : null
+            (pd.inventoryId ? ("_openOwnedByInvId('" + pd.inventoryId + "')") : (idx >= 0 ? 'showItemDetailPage(' + idx + ')' : 'goToMyCollection()')), hasPhoto ? pd.photoItem : null
           );
         }).join('') || '<div class="empty-state"><p>No items yet</p></div>';
     }
@@ -853,7 +874,7 @@ var PANEL_CATALOG = [
           var idx = master ? state.masterData.indexOf(master) : -1;
           var hasPhoto = !!pd.photoItem;
           return _panelRow('💰', pd.itemNum + (pd.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + pd.variation + '</span>' : ''), name, price,
-            idx >= 0 ? ('showItemDetailPage(' + idx + ", '" + (pd.inventoryId || '') + "')") : 'goToMyCollection()', hasPhoto ? pd.photoItem : null
+            (pd.inventoryId ? ("_openOwnedByInvId('" + pd.inventoryId + "')") : (idx >= 0 ? 'showItemDetailPage(' + idx + ')' : 'goToMyCollection()')), hasPhoto ? pd.photoItem : null
           );
         }).join('') || '<div class="empty-state"><p>No valued items yet</p></div>';
     }
