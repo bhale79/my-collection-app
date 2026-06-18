@@ -345,6 +345,11 @@ function _renderHierarchyChips() {
                 + 'background:var(--bg-card);color:var(--text);font-family:var(--font-body);'
                 + 'font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;'
                 + 'align-items:center;gap:0.25rem;line-height:1';
+  var chipStyleActive = 'padding:0.32rem 0.65rem;border-radius:14px;border:1.5px solid var(--accent);'
+                + 'background:var(--accent);color:#fff;font-family:var(--font-body);'
+                + 'font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;'
+                + 'align-items:center;gap:0.25rem;line-height:1';
+  var _chipIsActive = function(label){ return !(label === 'Items' || label === 'All Types' || String(label).indexOf('Any ') === 0); };
   var sepStyle  = 'color:var(--text-dim);font-weight:700;opacity:0.45;font-size:0.95rem';
   var labelStyle = 'font-size:0.62rem;font-weight:700;letter-spacing:0.09em;'
                  + 'text-transform:uppercase;color:var(--text-dim);margin-right:0.15rem';
@@ -354,7 +359,7 @@ function _renderHierarchyChips() {
   levels.forEach(function(level, i) {
     var lbl = _phLabelFor(level, st[level]);
     if (i > 0) html += '<span style="' + sepStyle + '">›</span>';
-    html += '<button type="button" style="' + chipStyle + '" '
+    html += '<button type="button" style="' + (_chipIsActive(lbl) ? chipStyleActive : chipStyle) + '" '
          +  'onclick="_openLevelPicker(\'' + level + '\')">'
          +  lbl + ' ▾</button>';
   });
@@ -366,7 +371,7 @@ function _renderHierarchyChips() {
     var _tVal  = _ftSel ? _ftSel.value : '';
     var _tLbl  = _tVal || 'All Types';
     html += '<span style="' + sepStyle + '">›</span>';
-    html += '<button type="button" style="' + chipStyle + '" '
+    html += '<button type="button" style="' + (_chipIsActive(_tLbl) ? chipStyleActive : chipStyle) + '" '
          +  'onclick="_openLevelPicker(\'type\')">'
          +  _tLbl + ' ▾</button>';
   }
