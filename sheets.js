@@ -89,7 +89,7 @@ async function _withTokenRetry(fetchFn) {
   }
   if (!accessToken) throw new Error('Not signed in — please reload and sign in again');
 
-  const res = await fetchFn();
+  let res = await fetchFn();
   // Audit NEW #7: retry on 429 (rate limit) with Retry-After or 2s backoff.
   if (res.status === 429) {
     var _ra = parseInt(res.headers && res.headers.get && res.headers.get('Retry-After') || '0');
