@@ -608,6 +608,21 @@ function _isCollectionCompanion(pd) {
   return leadOwned;
 }
 if (typeof window !== 'undefined' && !window._isCollectionCompanion) window._isCollectionCompanion = _isCollectionCompanion;
+// Owned companion item numbers (tender, dummy, B-unit) sharing this item's
+// group — for the merged display 'engine \ud83d\udd17 tender'. Boxes/IS excluded.
+function _ownedCompanions(pd) {
+  if (!pd || !pd.groupId) return [];
+  var out = [];
+  Object.values(state.personalData || {}).forEach(function(p) {
+    if (p && p.owned && p.groupId === pd.groupId && p.itemNum !== pd.itemNum
+        && !/-(BOX|MBOX|IS)$/i.test(String(p.itemNum || ''))) {
+      var n = (typeof _displayItemNum === 'function') ? _displayItemNum(p) : p.itemNum;
+      if (n && out.indexOf(n) === -1) out.push(n);
+    }
+  });
+  return out;
+}
+if (typeof window !== 'undefined') window._ownedCompanions = _ownedCompanions;
 
 // ── For Sale grouped-item helpers (Session 154) ─────────────────────────────
 // The For Sale tab has no Group ID column, so resolve a row's group through its
@@ -2706,9 +2721,13 @@ function renderBrowse() {
     // Count = owned pieces that have an item number, excluding boxes/master cartons.
     var _tSpan = document.querySelector('#page-browse > .page-title > span');
     if (_tSpan) {
+      var _pieceCount = Object.values(state.personalData || {}).filter(function(p){
+        if (!p || !p.owned) return false;
+        return !/-(BOX|MBOX|IS)$/i.test(String(p.itemNum || '').toUpperCase());
+      }).length;
       _tSpan.innerHTML = 'My Collection List '
         + '<span style="font-family:var(--font-body);font-size:0.8rem;color:var(--text-dim);font-weight:400;letter-spacing:0;text-transform:none">'
-        + displayTotal.toLocaleString() + ' item' + (displayTotal !== 1 ? 's' : '') + '</span>';
+        + _pieceCount.toLocaleString() + ' item' + (_pieceCount !== 1 ? 's' : '') + '</span>';
     }
   } else {
     var _le2 = document.getElementById('coll-icon-legend');
@@ -2831,7 +2850,7 @@ function renderBrowse() {
           <span class="item-num">${_displayItemNum(item)}</span>${_noNumTag(item.itemNum)}
           <div style="margin-top:1px;line-height:1.1;white-space:nowrap">
             ${(typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(item._tab) : ''}
-            ${_groupId ? '<span style="font-size:0.6rem;color:var(--accent3)" title="Grouped">🔗</span>' : ''}
+            ${(function(){ var _co = (typeof _ownedCompanions === 'function') ? _ownedCompanions(pd) : []; if (_co.length) return '<span style="font-size:0.7rem;color:var(--accent3);font-weight:600" title="Grouped with ' + _co.join(', ') + '">🔗 ' + _co.join(' ') + '</span>'; return _groupId ? '<span style="font-size:0.6rem;color:var(--accent3)" title="Grouped">🔗</span>' : ''; })()}
             ${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(\''+item.itemNum+'\',\''+_escVar+'\','+globalIdx+',\''+(pd.inventoryId||'')+'\')" style="font-size:0.72rem;background:#27ae60;color:#fff;border-radius:4px;padding:1px 5px;cursor:pointer;font-weight:700" title="Complete this Quick Entry">⚡</span>' : ''}
             ${pd && pd.photoItem ? '<span style="font-size:0.78rem;opacity:0.75" title="Has photo">📷</span>' : ''}
             ${_statusBadges}
