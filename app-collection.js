@@ -1780,11 +1780,11 @@ async function removeCollectionItem(itemNum, variation, row, invId) {
           </div>
           <div style="font-size:0.85rem;color:var(--text-mid);margin-bottom:1.25rem;line-height:1.5">Do you want to remove just this item, or all items in the group?</div>
           <div style="display:flex;flex-direction:column;gap:0.5rem">
+            <button id="rm-all-group" style="padding:0.55rem 1rem;border-radius:8px;border:2px solid var(--accent);background:var(--accent);color:#fff;font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left;font-weight:700;line-height:1.4">
+              Remove all grouped items (${groupLabels})
+            </button>
             <button id="rm-just-one" style="padding:0.55rem 1rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left;line-height:1.4">
               Remove <strong>${itemNum}</strong> only
-            </button>
-            <button id="rm-all-group" style="padding:0.55rem 1rem;border-radius:8px;border:1.5px solid var(--accent);background:rgba(240,80,8,0.08);color:var(--accent);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left;font-weight:600;line-height:1.4">
-              Remove all grouped items (${groupLabels})
             </button>
             <button id="rm-cancel" style="padding:0.45rem 1rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;margin-top:0.25rem">Cancel</button>
           </div>
