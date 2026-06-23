@@ -39,7 +39,7 @@ function buildToolsPage() {
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d4a843" stroke-width="2"><rect x="2" y="2" width="13" height="13" rx="2"/><rect x="9" y="9" width="13" height="13" rx="2"/><line x1="12" y1="6" x2="12" y2="12"/><line x1="9" y1="9" x2="15" y2="9"/></svg>' +
         'Duplicate Checker' +
       '</div>' +
-      '<div class="tools-card-desc">Scans your collection for items you own more than once — same item number and variation. Review each duplicate group to decide which copy to keep, sell, or remove.</div>' +
+      '<div class="tools-card-desc">Works across all eras and manufacturers. Scans your collection for items you own more than once — same item number and variation. Review each duplicate group to decide which copy to keep, sell, or remove.</div>' +
       '<button onclick="runDuplicateChecker()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #d4a843;background:rgba(212,168,67,0.1);color:#d4a843;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan for Duplicates</button>' +
       '<div id="duplicate-checker-results" style="margin-top:1rem"></div>' +
     '</div>';
@@ -73,9 +73,9 @@ function buildToolsPage() {
     '<div class="tools-card">' +
       '<div class="tools-card-title">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3a9e68" stroke-width="2"><circle cx="9" cy="9" r="4"/><path d="M20 20c0-3.31-2.69-6-6-6H9a6 6 0 0 0-6 6"/><path d="M19 8l2 2-2 2"/><path d="M15 10h6"/></svg>' +
-        'Companion Suggester' +
+        'Companion Suggester \u00b7 Lionel Postwar' +
       '</div>' +
-      '<div class="tools-card-desc">Scans your entire collection for missing companions — tenders without their engine, B units without their A unit, and engines without their tender or B unit. Add any missing piece straight to your Want List.</div>' +
+      '<div class="tools-card-desc"><strong>Lionel postwar only.</strong> Scans your collection for missing Lionel postwar companions — tenders without their engine, B units without their A unit, and engines without their tender or B unit. Add any missing piece straight to your Want List.</div>' +
       '<button onclick="runCompanionSuggester()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #3a9e68;background:rgba(58,158,104,0.1);color:#3a9e68;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan My Collection</button>' +
       '<div id="companion-suggester-results" style="margin-top:1rem"></div>' +
     '</div>';
@@ -619,13 +619,29 @@ function runDuplicateChecker() {
   out.innerHTML = html;
 }
 
-function runCompanionSuggester() {
+async function runCompanionSuggester() {
   var out = document.getElementById('companion-suggester-results');
   if (!out) return;
   out.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem">Scanning…</div>';
 
+  // Companion Suggester is Lionel postwar only. Make sure the postwar companion
+  // list is loaded even in "all eras" mode (mirrors the Set Builder).
   if (!state.companionData || !state.companionData.length) {
-    out.innerHTML = '<div style="padding:0.75rem;background:rgba(240,80,8,0.08);border:1px solid rgba(240,80,8,0.25);border-radius:8px;color:var(--accent);font-size:0.85rem">Companion data not loaded yet — try again in a moment.</div>';
+    try {
+      var _cc = localStorage.getItem('lv_companion_cache_pw');
+      if (_cc) { var _ca = JSON.parse(_cc); if (Array.isArray(_ca) && _ca.length) state.companionData = _ca; }
+    } catch (e) {}
+  }
+  if (!state.companionData || !state.companionData.length) {
+    out.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem">Loading Lionel postwar companion data…</div>';
+    try {
+      var _ctab = (typeof SHEET_TABS !== 'undefined' && SHEET_TABS.companions) ? SHEET_TABS.companions : 'Lionel PW - Companions';
+      var _cr = await sheetsGet(state.masterSheetId, _ctab + '!A2:E');
+      if (_cr && _cr.values && typeof parseCompanionRows === 'function') parseCompanionRows(_cr.values);
+    } catch (e) {}
+  }
+  if (!state.companionData || !state.companionData.length) {
+    out.innerHTML = '<div style="padding:0.75rem;background:rgba(240,80,8,0.08);border:1px solid rgba(240,80,8,0.25);border-radius:8px;color:var(--accent);font-size:0.85rem">Could not load Lionel postwar companion data. Tap Sync, then Scan again.</div>';
     return;
   }
 
