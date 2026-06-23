@@ -76,13 +76,6 @@ function buildPrefsPage() {
         </div>
         <button class="pref-btn" onclick="uiBackupList()">View</button>
       </div>
-      <div class="pref-row">
-        <div class="pref-row-label">
-          <strong>Sheet Protection</strong>
-          <span id="pref-lock-status">${(localStorage.getItem('lv_sheet_protected_v1') === '1') ? '✓ Structural cells protected from accidental edits' : 'Not yet applied'}</span>
-        </div>
-        <button class="pref-btn" onclick="_uiApplySheetProtection()">${(localStorage.getItem('lv_sheet_protected_v1') === '1') ? 'Re-apply' : 'Apply Protection'}</button>
-      </div>
       </div>
     </div>
 
@@ -838,29 +831,6 @@ function _togglePrefSection(titleEl) {
 
 
 // ── Sheet protection (Session 155) ─────────────────────────────
-async function _uiApplySheetProtection() {
-  if (!state.personalSheetId) {
-    if (typeof showToast === 'function') showToast('Sign in first.');
-    return;
-  }
-  if (typeof lockSheetTabs !== 'function') {
-    if (typeof showToast === 'function') showToast('Lock function not loaded.');
-    return;
-  }
-  if (typeof showToast === 'function') showToast('Applying protection…');
-  try {
-    await lockSheetTabs(state.personalSheetId);
-    localStorage.setItem('lv_sheet_protected_v1', '1');
-    if (typeof showToast === 'function') showToast('Sheet protection applied.');
-    // Refresh the prefs row UI so status updates without page reload
-    const status = document.getElementById('pref-lock-status');
-    if (status) status.textContent = '✓ Structural cells protected from accidental edits';
-  } catch (e) {
-    console.error('[SheetLock] Apply failed:', e);
-    if (typeof showToast === 'function') showToast('Could not apply protection: ' + (e.message || ''));
-  }
-}
-window._uiApplySheetProtection = _uiApplySheetProtection;
 
 
 // ── Version-history help modal (Session 155) ───────────────────

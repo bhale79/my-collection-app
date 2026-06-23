@@ -44,16 +44,7 @@ function buildToolsPage() {
       '<div id="duplicate-checker-results" style="margin-top:1rem"></div>' +
     '</div>';
 
-  var CARD_SHEET_PROTECTION =
-    '<div class="tools-card">' +
-      '<div class="tools-card-title">' +
-        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>' +
-        'Sheet Protection' +
-      '</div>' +
-      '<div class="tools-card-desc">Lock your Google Sheet data tabs to prevent accidental edits. The app always has full access regardless of lock state — this only blocks manual editing in Google Sheets.</div>' +
-      '<div id="sheet-lock-status" style="margin-bottom:0.6rem;font-size:0.82rem;color:var(--text-dim)">Checking status…</div>' +
-      '<button id="sheet-lock-btn" onclick="toggleSheetLock()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Checking…</button>' +
-    '</div>';
+
 
   var CARD_SET_BUILDER =
     '<div class="tools-card">' +
@@ -96,7 +87,6 @@ function buildToolsPage() {
   html += SECTION_HEADER('Universal Tools', 'Work across all manufacturers');
   html += CARD_GROUP_FINDER;
   html += CARD_DUPLICATE_CHECKER;
-  html += CARD_SHEET_PROTECTION;
 
   if (showLionelSection) {
     html += SECTION_HEADER('Lionel-Specific Tools', 'Use Lionel catalog data (sets + companions tabs)');
@@ -106,59 +96,9 @@ function buildToolsPage() {
 
   container.innerHTML = html;
 
-  // Check lock state after render
-  setTimeout(refreshSheetLockUI, 100);
 }
 
-async function refreshSheetLockUI() {
-  var statusEl = document.getElementById('sheet-lock-status');
-  var btnEl    = document.getElementById('sheet-lock-btn');
-  if (!statusEl || !btnEl) return;
-  if (!state.personalSheetId) {
-    statusEl.textContent = 'No sheet connected.';
-    btnEl.style.display = 'none';
-    return;
-  }
-  try {
-    var result = await getSheetLockState(state.personalSheetId);
-    if (result.locked) {
-      statusEl.innerHTML = '<span style="color:#27ae60">🔒 Your data tabs are currently <strong>locked</strong> — safe from accidental edits.</span>';
-      btnEl.textContent  = 'Unlock Sheet';
-      btnEl.style.borderColor = '#e67e22';
-      btnEl.style.color       = '#e67e22';
-      btnEl.style.background  = 'rgba(230,126,34,0.1)';
-    } else {
-      statusEl.innerHTML = '<span style="color:var(--text-dim)">🔓 Your data tabs are <strong>unlocked</strong> — editable in Google Sheets.</span>';
-      btnEl.textContent  = 'Lock Sheet';
-      btnEl.style.borderColor = '#8b5cf6';
-      btnEl.style.color       = '#8b5cf6';
-      btnEl.style.background  = 'rgba(139,92,246,0.1)';
-    }
-    btnEl.style.display = '';
-  } catch(e) {
-    statusEl.textContent = 'Could not check lock status.';
-  }
-}
 
-async function toggleSheetLock() {
-  var btn = document.getElementById('sheet-lock-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Working…'; }
-  try {
-    var result = await getSheetLockState(state.personalSheetId);
-    if (result.locked) {
-      await unlockSheetTabs(state.personalSheetId);
-      showToast('🔓 Sheet unlocked — tabs are now editable in Google Sheets');
-    } else {
-      await lockSheetTabs(state.personalSheetId);
-      showToast('🔒 Sheet locked — tabs are protected from accidental edits');
-    }
-    await refreshSheetLockUI();
-  } catch(e) {
-    showToast('Sheet lock failed: ' + e.message, 5000, true);
-  } finally {
-    if (btn) btn.disabled = false;
-  }
-}
 
 // ── GROUP FINDER ─────────────────────────────────────────────────
 function runGroupFinder() {
