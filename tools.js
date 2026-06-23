@@ -50,9 +50,9 @@ function buildToolsPage() {
     '<div class="tools-card">' +
       '<div class="tools-card-title">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0891b2" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>' +
-        'Set Builder' +
+        'Set Builder \u00b7 Lionel Postwar' +
       '</div>' +
-      '<div class="tools-card-desc">Finds catalog sets you can form from items already in your collection. Choose how complete the set needs to be, then link owned pieces or add missing ones to your want list.</div>' +
+      '<div class="tools-card-desc"><strong>Lionel postwar sets only.</strong> Finds Lionel postwar catalog sets you can form from items already in your collection. Choose how complete the set needs to be, then link owned pieces or add missing ones to your want list.</div>' +
       '<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.85rem;flex-wrap:wrap">' +
         '<label style="font-size:0.85rem;color:var(--text-mid)">Show sets where I need</label>' +
         '<select id="set-threshold" style="padding:0.35rem 0.6rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem">' +
@@ -89,7 +89,7 @@ function buildToolsPage() {
   html += CARD_DUPLICATE_CHECKER;
 
   if (showLionelSection) {
-    html += SECTION_HEADER('Lionel-Specific Tools', 'Use Lionel catalog data (sets + companions tabs)');
+    html += SECTION_HEADER('Lionel-Specific Tools', 'Use Lionel postwar catalog data (sets + companions)');
     html += CARD_SET_BUILDER;
     html += CARD_COMPANION_SUGGESTER;
   }
@@ -253,15 +253,32 @@ async function confirmGroupItems(idx) {
 }
 
 // ── SET BUILDER ───────────────────────────────────────────────────
-function runSetBuilder() {
+async function runSetBuilder() {
   var out = document.getElementById('set-builder-results');
   if (!out) return;
 
   var threshold = parseInt(document.getElementById('set-threshold').value || '2');
   out.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem">Scanning sets…</div>';
 
+  // Set Builder is strictly Lionel postwar. Make sure the postwar set list is
+  // loaded even in "all eras" mode (where the era orchestrator can leave
+  // state.setData empty). Try the fast postwar cache, then the master tab.
   if (!state.setData || !state.setData.length) {
-    out.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem">Set data not loaded yet — try syncing from sheet first.</div>';
+    try {
+      var _c = localStorage.getItem('lv_set_cache_pw');
+      if (_c) { var _a = JSON.parse(_c); if (Array.isArray(_a) && _a.length) state.setData = _a; }
+    } catch (e) {}
+  }
+  if (!state.setData || !state.setData.length) {
+    out.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem">Loading Lionel postwar set data…</div>';
+    try {
+      var _tab = (typeof SHEET_TABS !== 'undefined' && SHEET_TABS.sets) ? SHEET_TABS.sets : 'Lionel PW - Sets';
+      var _r = await sheetsGet(state.masterSheetId, _tab + '!A2:U');
+      if (_r && _r.values && typeof parseSetRows === 'function') parseSetRows(_r.values);
+    } catch (e) {}
+  }
+  if (!state.setData || !state.setData.length) {
+    out.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem">Could not load Lionel postwar set data. Tap Sync, then Scan again.</div>';
     return;
   }
 
