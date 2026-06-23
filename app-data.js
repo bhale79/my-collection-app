@@ -612,7 +612,7 @@ function parseSetRows(rows) {
       dieselDummy: String(r[9]  || '').trim(),
       // All component item numbers in one flat array (cols F–T)
       items:    [r[5],r[6],r[7],r[8],r[9],r[10],r[11],r[12],r[13],r[14],r[15],r[16],r[17],r[18],r[19]]
-                  .map(v => (v||'').trim()).filter(Boolean),
+                  .map(v => String(v == null ? '' : v).trim()).filter(Boolean),
       alts:     [],   // no longer used — all components are in items[]
       notes:    String(r[20] || '').trim(),
     }));
