@@ -1076,7 +1076,25 @@ function moveWantToCollection(itemNum, variation) {
     wizard.data.itemNum = itemNum;
     if (variation) wizard.data.variation = variation;
     wizard.data.itemCategory = 'lionel';      // skips era picker
-    wizard.data._itemGrouping = wizard.data._itemGrouping || 'single'; // default; user can change later via Edit Group
+    // If this want item's companion (engine↔tender) is ALSO on the want list, set
+    // up the engine+tender pair so the wizard adds BOTH (Step 3 shows the tender +
+    // the paired save writes its row). Otherwise default to single.
+    var _wcNorm = function(x){ return (x || '').toString().trim().toUpperCase(); };
+    var _wcWantNums = Object.keys(state.wantData || {}).map(function(k){ return _wcNorm(k.split('|')[0]); });
+    var _wcTender = '';
+    (state.companionData || []).forEach(function(c){
+      if (_wcNorm(c.engineNum) === _wcNorm(itemNum)
+          && /tender/i.test(c.companionType || '')
+          && _wcWantNums.indexOf(_wcNorm(c.companionNum)) >= 0) {
+        _wcTender = String(c.companionNum || '');
+      }
+    });
+    if (_wcTender) {
+      wizard.data._itemGrouping = 'engine_tender';
+      wizard.data.tenderMatch = _wcTender;
+    } else {
+      wizard.data._itemGrouping = wizard.data._itemGrouping || 'single'; // default; user can change later via Edit Group
+    }
     wizard.data.entryMode = wizard.data.entryMode || 'full'; // skips entryMode picker
     // Pre-fill suggested condition + price from want entry's target hints
     const _w = (state.wantData || {})[`${itemNum}|${variation}`] || {};
