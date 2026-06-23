@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.523';
+const APP_VERSION = 'v0.9.524';
 const APP_DATE    = 'April 2026';
 
 // ═══════════════════════════════════════════════════════════════

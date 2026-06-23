@@ -3324,8 +3324,9 @@ function showAddPartModal(existingId) {
     var n = String(pd.itemNum || '');
     if (!n || /-(BOX|MBOX|IS)$/i.test(n) || seen[pd.inventoryId || n]) return;
     seen[pd.inventoryId || n] = true;
-    var m = (typeof findMaster === 'function') ? findMaster(n) : null;
-    var label = n + (m && m.roadName ? ' — ' + m.roadName : '');
+    var m = (typeof findMaster === 'function') ? (findMaster(n, pd.variation) || findMaster(n)) : null;
+    var _bits = m ? [m.roadName, m.description].filter(Boolean).join(' · ') : '';
+    var label = n + (_bits ? ' — ' + _bits : '');
     var val = (pd.inventoryId || n);
     var sel = (existing.forInv && existing.forInv === pd.inventoryId) || (!existing.forInv && existing.forItem === n) ? ' selected' : '';
     ownedOpts += '<option value="' + val + '" data-item="' + n + '"' + sel + '>' + label + '</option>';
@@ -3356,6 +3357,15 @@ function showAddPartModal(existingId) {
   ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
   window._partPhotoFile = null;
   document.body.appendChild(ov);
+  // Make the "For which item?" dropdown searchable (type an item # or road name).
+  if (window.RoadTypeahead && typeof RoadTypeahead.attach === 'function') {
+    var _pfSel = document.getElementById('_part-for');
+    if (_pfSel) {
+      RoadTypeahead.attach(_pfSel);
+      var _pfInp = _pfSel.parentNode && _pfSel.parentNode.querySelector('.road-ty-input');
+      if (_pfInp) _pfInp.placeholder = 'Type an item # or road name\u2026';
+    }
+  }
   var di = document.getElementById('_part-desc'); if (di) di.focus();
   if (existing.photo) {
     var _fid = (existing.photo.match(/\/d\/([a-zA-Z0-9_-]+)/) || [])[1];
