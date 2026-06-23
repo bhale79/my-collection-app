@@ -659,6 +659,30 @@ async function runCompanionSuggester() {
     Object.keys(state.wantData).map(function(k) { return norm(k.split('|')[0]); })
   );
 
+  // Role map: what role each item number plays (Engine / Tender / A Unit / B Unit),
+  // so we can tell whether an item already GROUPED/MATCHED with the anchor already
+  // fills the needed companion role — e.g. a 773 grouped with a 2426W tender is not
+  // "missing a tender" even though it doesn't own the catalog-default 773W.
+  var roleMap = {};
+  state.companionData.forEach(function(c) {
+    roleMap[norm(c.companionNum)] = c.companionType;                       // Tender / B Unit
+    roleMap[norm(c.engineNum)]    = (c.companionType === 'B Unit') ? 'A Unit' : 'Engine';
+  });
+  function _hasGroupedCompanion(anchorKey, role) {
+    var anchors = Object.values(state.personalData).filter(function(pd){ return pd.owned && norm(pd.itemNum) === anchorKey; });
+    return anchors.some(function(a){
+      return Object.values(state.personalData).some(function(p){
+        if (!p.owned || p.inventoryId === a.inventoryId) return false;
+        var linked = (a.groupId && p.groupId && a.groupId === p.groupId)
+                  || (a.matchedTo && norm(p.itemNum) === norm(a.matchedTo))
+                  || (p.matchedTo && norm(p.matchedTo) === anchorKey);
+        if (!linked) return false;
+        var pr = roleMap[norm(p.itemNum)];
+        return pr && norm(pr) === norm(role);
+      });
+    });
+  }
+
   // suggestMap: keyed by the owned item number, groups missing companions
   var suggestMap = {};
 
@@ -682,6 +706,9 @@ async function runCompanionSuggester() {
     } else {
       if (ownedNums.has(missingKey)) return;  // already own the companion
     }
+
+    // Already grouped/matched with an owned partner that fills this role -> not missing.
+    if (_hasGroupedCompanion(ownedKey, missingType)) return;
 
     if (!suggestMap[ownedKey]) suggestMap[ownedKey] = { ownedNum: ownedNum, suggestions: [] };
     suggestMap[ownedKey].suggestions.push({
