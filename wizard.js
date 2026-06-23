@@ -1870,7 +1870,7 @@ function renderWizardStep() {
         if (fi) fi.addEventListener('change', function() {
           if (fi.files && fi.files[0]) {
             wizard.data._qePhotoFile = fi.files[0];
-            btn.innerHTML = camIcon + ' \u2713 ' + fi.files[0].name.slice(0, 16);
+            btn.innerHTML = camIcon + ' \u2713 ' + fi.files[0].name.slice(0, 16).replace(/[&<>"]/g, function (ch) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]; });
             btn.style.color = '#3a9e68'; btn.style.borderColor = '#3a9e68';
           }
         });

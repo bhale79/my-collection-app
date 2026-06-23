@@ -671,8 +671,9 @@ function _smartDefaultEra() {
     if (saved && typeof ERAS !== 'undefined' && ERAS[saved]) return saved;
     var rawM = localStorage.getItem('lv_collect_mfrs');
     var rawS = localStorage.getItem('lv_collect_scales');
-    var mfrs   = rawM ? JSON.parse(rawM) : [];
-    var scales = rawS ? JSON.parse(rawS) : [];
+    var mfrs = [], scales = [];
+    try { if (rawM) mfrs = JSON.parse(rawM); } catch (e) { mfrs = []; }
+    try { if (rawS) scales = JSON.parse(rawS); } catch (e) { scales = []; }
     if (!Array.isArray(mfrs)   || !mfrs.length)   return 'all';  // first-time-ever default
     if (!Array.isArray(scales) || !scales.length) return 'all';
     var hasMfr   = function(m) { return mfrs.indexOf(m) >= 0; };

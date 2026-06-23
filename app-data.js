@@ -194,7 +194,7 @@ async function loadMasterData() {
   // master data sticks around independently. This is what makes
   // 'all' mode fast on warm load — every era hydrates from its
   // own IDB cache rather than re-fetching from Sheets.
-  const _CACHE_VER = '125';
+  const _CACHE_VER = (typeof CATALOG_CACHE_VER !== 'undefined' ? CATALOG_CACHE_VER : '125');
   if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
     // Wipe legacy single-key caches from prior versions; per-era keys
     // take their place.
@@ -537,8 +537,8 @@ async function loadSetData() {
         (SHEET_TABS.sets ? sheetsGet(state.masterSheetId, SHEET_TABS.sets + '!A2:U').catch(() => sheetsGet(state.masterSheetId, 'Master Set list!A2:U')) : Promise.resolve({values:[]})).then(res => {
           if (res && res.values) {
             parseSetRows(res.values);
-            localStorage.setItem(SET_CACHE, JSON.stringify(state.setData));
-            localStorage.setItem(SET_TS, Date.now().toString());
+            try { localStorage.setItem(SET_CACHE, JSON.stringify(state.setData));
+                  localStorage.setItem(SET_TS, Date.now().toString()); } catch (e) { /* quota — skip cache */ }
           }
         }).catch(() => {});
       }
@@ -567,8 +567,8 @@ async function loadCompanionData() {
         (SHEET_TABS.companions ? sheetsGet(state.masterSheetId, SHEET_TABS.companions + '!A2:E').catch(() => sheetsGet(state.masterSheetId, 'Companions!A2:E')) : Promise.resolve({values:[]})).then(res => {
           if (res && res.values) {
             parseCompanionRows(res.values);
-            localStorage.setItem(COMP_CACHE, JSON.stringify(state.companionData));
-            localStorage.setItem(COMP_TS, Date.now().toString());
+            try { localStorage.setItem(COMP_CACHE, JSON.stringify(state.companionData));
+                  localStorage.setItem(COMP_TS, Date.now().toString()); } catch (e) { /* quota — skip cache */ }
           }
         }).catch(() => {});
       }
@@ -655,7 +655,7 @@ async function loadPersonalData() {
   // in lv_personal_cache changes so old caches are skipped (Session 161+: the
   // Want-Upgrade combined tab introduced new state.wantData/upgradeData shapes
   // with a listType field).
-  const _PERSONAL_CACHE_VER = 'wu1';
+  const _PERSONAL_CACHE_VER = (typeof PERSONAL_CACHE_VER !== 'undefined' ? PERSONAL_CACHE_VER : 'wu1');
   const _pcacheVer = localStorage.getItem('lv_personal_cache_ver') || '';
   if (_pcacheVer !== _PERSONAL_CACHE_VER) {
     // Old cache predates the current schema — drop it so we fetch fresh.
