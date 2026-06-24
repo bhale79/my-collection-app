@@ -634,7 +634,7 @@ var state = {
   isRefData: [],       // all rows from master Instruction Sheets tab (reference list for IS wizard)
   filteredData: [],
   currentPage: 1,
-  pageSize: 50,
+  pageSize: (parseInt(localStorage.getItem('lv_page_size'), 10) || 50),
   filters: { owned: false, unowned: false, boxed: false, wantList: false, type: '', road: '', search: '', quickEntry: '' },
   currentItem: null,
 };
@@ -761,7 +761,7 @@ function idbRemove(key) {
 }
 
 // ── Era preferences: which eras the user collects (admin override) ──
-// Default: all eras enabled. Admin (per ADMIN_EMAILS in config.js) always sees all.
+// Default: all eras enabled.
 function _getEnabledEras() {
   try {
     var saved = localStorage.getItem('lv_collect_eras');
@@ -778,8 +778,6 @@ function _setEnabledEras(arr) {
 function _isEraEnabled(era) {
   // 'all' meta-era is always available regardless of preferences
   if (era === 'all') return true;
-  // Admins always see every era regardless of preferences
-  if (typeof _isAdmin === 'function' && _isAdmin()) return true;
   var enabled = _getEnabledEras();
   if (enabled.indexOf(era) < 0) return false;
   // Session 137: gate by manufacturer preference first.
@@ -817,7 +815,6 @@ function _setEnabledScales(arr) {
 }
 function _isScaleEnabled(scaleId) {
   if (!scaleId) return true; // unknown scale -> don't hide
-  if (typeof _isAdmin === 'function' && _isAdmin()) return true;
   return _getEnabledScales().indexOf(scaleId) >= 0;
 }
 // Era -> scale id. null for mixed-scale eras (Pre-War).
@@ -872,7 +869,6 @@ function _setEnabledManufacturers(arr) {
 }
 function _isManufacturerEnabled(mfrId) {
   if (!mfrId) return true; // unknown manufacturer -> don't hide
-  if (typeof _isAdmin === 'function' && _isAdmin()) return true;
   return _getEnabledManufacturers().indexOf(String(mfrId).toLowerCase()) >= 0;
 }
 // Era -> manufacturer id. Reads ERAS[era].manufacturer (already exists) and
@@ -998,10 +994,9 @@ function _bucketsInCurrentEra() {
 function _applyEraVisibility() {
   var sel = document.getElementById('era-select');
   if (!sel) return;
-  var isAdmin = (typeof _isAdmin === 'function' && _isAdmin());
   var enabled = _getEnabledEras();
   Array.from(sel.options).forEach(function(opt) {
-    var visible = isAdmin || enabled.indexOf(opt.value) >= 0 || opt.value === _currentEra;
+    var visible = enabled.indexOf(opt.value) >= 0 || opt.value === _currentEra;
     opt.style.display = visible ? '' : 'none';
     opt.disabled = !visible;
   });
@@ -1564,9 +1559,8 @@ function buildApp() {
   showApp();
   populateFilters();
   buildDashboard();
-  _maybeShowAdminPrefs();
   _applyDisclaimerPref();
-  // Apply era-dropdown visibility based on user prefs (admin sees all)
+  // Apply era-dropdown visibility based on user prefs
   if (typeof _applyEraVisibility === 'function') _applyEraVisibility();
   // Wishlist badge: combined Want + Upgrade count (Session 161+).
   // Previously only counted state.upgradeData, so on hard refresh the badge

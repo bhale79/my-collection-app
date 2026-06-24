@@ -11,7 +11,7 @@
 const MIGRATION = {
   // Turn the admin button on/off globally. Admin check inside migrateXxx
   // still applies regardless.
-  enabled: true,
+  enabled: false,
 
   // Source → list of allowed destinations. Only tabs present in
   // ERA_TABS (config.js) will show up as live options.

@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.530';
+const APP_VERSION = 'v0.9.531';
 const APP_DATE    = 'April 2026';
 
 // ═══════════════════════════════════════════════════════════════
@@ -47,7 +47,6 @@ const MASTER_SHEET_ID = '1Y9-cg8C1CkIqy0RQ66DfP7fmGrE3IGBpyJbtdfYx8q0';
 
 // ── Admin config ──
 const ADMIN_EMAIL  = 'bhale@ipd-llc.com';
-const ADMIN_EMAILS = ['bhale@ipd-llc.com'];
 
 // ── Era definitions ──
 const ERAS = {
@@ -141,15 +140,6 @@ const ERA_TABS = {
 // ── Keys that hold browseable master inventory (not catalogs/companions/sets/IS) ──
 const MASTER_TAB_KEYS = ['items','boxes','science','construction','paper','other','serviceTools'];
 
-// ── Default wizard category visibility ──
-const DEFAULT_WIZARD_CATEGORIES = {
-  lionel: true,
-  set: true,
-  paper: true,
-  mockups: false,
-  other: false,
-  manual: true,
-};
 
 
 // ── Search aliases: abbreviations & nicknames → canonical road names ──

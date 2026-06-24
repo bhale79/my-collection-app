@@ -139,9 +139,6 @@ function buildPrefsPage() {
         </div>
       </div>
 
-      <div style="font-size:0.78rem;font-weight:600;color:var(--text-mid);padding:0.75rem 0.2rem 0.35rem;letter-spacing:0.03em;text-transform:uppercase">Add-Item Categories</div>
-      <div style="font-size:0.75rem;color:var(--text-dim);padding:0 0.2rem 0.4rem;line-height:1.4">Show or hide buttons on the "What would you like to add?" screen.</div>
-      ${_buildWizCatToggles()}
       </div>
     </div>
 
@@ -233,7 +230,7 @@ function buildPrefsPage() {
 
       <div style="font-size:0.78rem;font-weight:600;color:var(--text-mid);padding:0.75rem 0.2rem 0.35rem;letter-spacing:0.03em;text-transform:uppercase">Eras I Collect</div>
       <div class="pref-row" style="flex-direction:column;align-items:flex-start;gap:0.4rem">
-        <div style="font-size:0.78rem;color:var(--text-dim);line-height:1.5">Uncheck eras you don't collect — they'll be hidden from the era dropdown and search banner. Hidden eras automatically reappear when their manufacturer and scale are enabled above. ${_isAdmin() ? '<em style="color:var(--accent2)">Admin view — all eras always visible to you.</em>' : ''}</div>
+        <div style="font-size:0.78rem;color:var(--text-dim);line-height:1.5">Uncheck eras you don't collect — they'll be hidden from the era dropdown and search banner. Hidden eras automatically reappear when their manufacturer and scale are enabled above.</div>
         <div style="display:flex;flex-wrap:wrap;gap:0.55rem;width:100%">
           ${(function() {
             // Session 138: Eras list filtered to only those whose manufacturer AND
@@ -295,31 +292,6 @@ function buildPrefsPage() {
       </div>
     </div>
 
-    <!-- ── Admin Tools (admin only) ───────────── -->
-    <div class="pref-section" id="admin-health-section" style="display:none">
-      <div class="pref-section-title" onclick="_togglePrefSection(this)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">Admin Tools <span style="font-size:0.7rem;color:var(--text-dim);transition:transform 0.2s">▶</span></div>
-      <div class="pref-section-body" style="display:none">
-      <div class="pref-row">
-        <div class="pref-row-label"><strong>Run Health Check</strong><span>Verify all app functions and data</span></div>
-        <button class="pref-btn" id="health-check-btn" onclick="_runHealthCheck()">Run Check</button>
-      </div>
-      <div class="pref-row" style="margin-top:0.25rem">
-        <div class="pref-row-label"><strong>Copy to Console</strong><span>Copy script for browser console (F12)</span></div>
-        <button class="pref-btn" id="hc-copy-btn" onclick="_copyHealthCheckScript()">Copy Script</button>
-      </div>
-      <div id="health-check-output" style="display:none;margin-top:0.75rem;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:0.85rem 1rem;font-size:0.75rem;font-family:var(--font-mono);line-height:1.8;max-height:320px;overflow-y:auto"></div>
-      ${(window.MIGRATION && window.MIGRATION.enabled) ? `
-      <div class="pref-row" style="margin-top:0.5rem;border-top:1px solid var(--border);padding-top:0.7rem">
-        <div class="pref-row-label"><strong>${(window.MIGRATION.ui || {}).adminButtonLabel || 'Move Item Between Tabs'}</strong><span>${(window.MIGRATION.ui || {}).adminButtonHint || ''}</span></div>
-        <button class="pref-btn" onclick="if(typeof openMigrationModal==='function')openMigrationModal()">Open Tool</button>
-      </div>
-      ` : ''}
-
-
-
-      </div>
-    </div>
-
     <!-- ── Help & Tips ──────────────────────────── -->
     <div class="pref-section">
       <div class="pref-section-title" onclick="_togglePrefSection(this)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">Help &amp; Tips <span style="font-size:0.7rem;color:var(--text-dim);transition:transform 0.2s">▶</span></div>
@@ -365,7 +337,6 @@ function buildPrefsPage() {
   if (typeof vaultRenderPrefsRow === 'function') {
     vaultRenderPrefsRow(document.getElementById('vault-prefs-row'));
   }
-  _maybeShowAdminPrefs();
 }
 
 
@@ -513,15 +484,6 @@ var _QA_ITEMS = [
 ];
 
 var _QA_STATE_KEY = 'lv_qa_checklist';
-
-function _isAdmin() {
-  return !!(state.user && ADMIN_EMAILS.includes(state.user.email));
-}
-
-function _maybeShowAdminPrefs() {
-  var sec = document.getElementById('admin-health-section');
-  if (sec) sec.style.display = _isAdmin() ? '' : 'none';
-}
 
 function _onDashCardToggle(id, checked) {
   let selected = _getDashCards();
@@ -709,44 +671,6 @@ async function _rebuildDashboardTab() {
 // Wizard Category Preferences
 // ═══════════════════════════════════════════════════════════════
 
-function _buildWizCatToggles() {
-  var saved = {};
-  try { saved = JSON.parse(localStorage.getItem('rr_wizard_cats') || '{}'); } catch(e) {}
-  var prefs = Object.assign({}, DEFAULT_WIZARD_CATEGORIES, saved);
-
-  var cats = [
-    { id: 'lionel',  label: 'Cataloged Item #', desc: 'Train, car, accessory' },
-    { id: 'set',     label: 'Complete Set',     desc: 'Outfit box with components' },
-    { id: 'paper',   label: 'Paper Item',       desc: 'Catalog, ad, flyer' },
-    { id: 'mockups', label: 'Mock-Up',          desc: 'Pre-production prototype' },
-    { id: 'other',   label: 'Other Item',       desc: 'Accessory, display' },
-    { id: 'manual',  label: 'Manual Entry',     desc: 'Any item, any era' },
-  ];
-
-  var html = '';
-  cats.forEach(function(c) {
-    var checked = prefs[c.id] !== false;
-    html += '<div class="pref-row">'
-      + '<div class="pref-row-label">'
-      + '<strong>' + c.label + '</strong>'
-      + '<span>' + c.desc + '</span>'
-      + '</div>'
-      + '<label class="pref-toggle">'
-      + '<input type="checkbox" ' + (checked ? 'checked' : '')
-      + ' onchange="_toggleWizCat(\'' + c.id + '\', this.checked)">'
-      + '<div class="pref-toggle-track"></div>'
-      + '</label></div>';
-  });
-  return html;
-}
-
-function _toggleWizCat(catId, on) {
-  var saved = {};
-  try { saved = JSON.parse(localStorage.getItem('rr_wizard_cats') || '{}'); } catch(e) {}
-  saved[catId] = on;
-  localStorage.setItem('rr_wizard_cats', JSON.stringify(saved));
-}
-
 // ── "What I Collect" era toggle handler ──
 // Adds/removes an era from the user's enabled-eras pref. Updates the era
 // dropdown visibility immediately. Refuses to disable the LAST remaining era
@@ -757,7 +681,7 @@ function _togglePrefEra(eraId, on) {
     if (enabled.indexOf(eraId) < 0) enabled.push(eraId);
   } else {
     var nonAdminCount = enabled.filter(function(e) { return e !== eraId; }).length;
-    if (nonAdminCount === 0 && !_isAdmin()) {
+    if (nonAdminCount === 0) {
       showToast('Keep at least one era selected.');
       // Re-tick the box visually
       buildPrefsPage();
@@ -778,7 +702,7 @@ function _togglePrefScale(scaleId, on) {
     if (enabled.indexOf(scaleId) < 0) enabled.push(scaleId);
   } else {
     var nonAdminCount = enabled.filter(function(s) { return s !== scaleId; }).length;
-    if (nonAdminCount === 0 && !_isAdmin()) {
+    if (nonAdminCount === 0) {
       showToast('Keep at least one scale selected.');
       buildPrefsPage();
       return;
@@ -801,7 +725,7 @@ function _togglePrefMfr(mfrId, on) {
     if (enabled.indexOf(mfrId) < 0) enabled.push(mfrId);
   } else {
     var nonAdminCount = enabled.filter(function(m) { return m !== mfrId; }).length;
-    if (nonAdminCount === 0 && !_isAdmin()) {
+    if (nonAdminCount === 0) {
       showToast('Keep at least one manufacturer selected.');
       buildPrefsPage();
       return;
