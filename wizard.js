@@ -1637,17 +1637,20 @@ function renderWizardStep() {
     // table (B Unit / A Dummy types). Single source of truth for diesel set grouping.
     function _qe1Partners(n) {
       var nn = normalizeItemNum(n);
+      var base = (typeof baseItemNum === 'function') ? baseItemNum(n) : String(n).replace(/[PDTC]$/i, '');
+      var nb = normalizeItemNum(base);
       var dummy = '', bunit = '';
       (state.masterData || []).forEach(function(m) {
         if (!m.itemNum) return;
         var mi = normalizeItemNum(m.itemNum);
         if (m.unit === 'A' && m.poweredDummy === 'D' && !dummy &&
-            (mi === normalizeItemNum(n + 'T') || mi === nn)) dummy = m.itemNum;
+            (mi === normalizeItemNum(base + 'T') || mi === nn || mi === nb)) dummy = m.itemNum;
         if (m.unit === 'B' && m.poweredDummy === 'C' && !bunit &&
-            mi === normalizeItemNum(n + 'C')) bunit = m.itemNum;
+            mi === normalizeItemNum(base + 'C')) bunit = m.itemNum;
       });
       (state.companionData || []).forEach(function(c) {
-        if (normalizeItemNum(c.engineNum) !== nn) return;
+        var en = normalizeItemNum(c.engineNum);
+        if (en !== nn && en !== nb) return;
         var ct = (c.companionType || '').toLowerCase();
         if (!bunit && /b\s*unit/.test(ct) && c.companionNum) bunit = String(c.companionNum);
         if (!dummy && /a\s*dummy/.test(ct) && c.companionNum) dummy = String(c.companionNum);
