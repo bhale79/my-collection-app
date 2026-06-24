@@ -2139,6 +2139,9 @@ function renderWizardStep() {
     // ── BOX: Price + Worth + Date + Notes + Location (combined) ──
     var _bpv = wizard.data;
     var _bpvLocList = [];
+    (typeof _getSavedLocations === 'function' ? _getSavedLocations() : []).forEach(function(l) {
+      if (l && l.name && !_bpvLocList.includes(l.name)) _bpvLocList.push(l.name);
+    });
     Object.values(state.personalData).forEach(function(pd) {
       if (pd.location && pd.location.trim() && !_bpvLocList.includes(pd.location.trim())) _bpvLocList.push(pd.location.trim());
     });
@@ -4446,7 +4449,9 @@ function renderWizardStep() {
         _pvAllLocs[loc] = (_pvAllLocs[loc] || 0) + 1;
       }
     });
-    const _pvLocList = Object.entries(_pvAllLocs).sort((a,b) => b[1]-a[1]).map(e => e[0]);
+    const _pvSavedLocs = (typeof _getSavedLocations === 'function') ? _getSavedLocations().map(function(l){ return l.name; }).filter(Boolean) : [];
+    const _pvRecentLocs = Object.entries(_pvAllLocs).sort((a,b) => b[1]-a[1]).map(e => e[0]).filter(function(n){ return _pvSavedLocs.indexOf(n) < 0; });
+    const _pvLocList = _pvSavedLocs.concat(_pvRecentLocs);
     const _pvLocEnabled = _prefLocEnabled;
     
     let _pvHtml = '<div style="padding-top:0.25rem;max-height:65vh;overflow-y:auto;-webkit-overflow-scrolling:touch">';

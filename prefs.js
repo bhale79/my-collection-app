@@ -509,6 +509,8 @@ function _onDashCardToggle(id, checked) {
 
 function _onPrefChange(id, val) {
   if (id === 'location') {
+    // Apply live so the wizard shows the location field without a reload
+    if (typeof _prefLocEnabled !== 'undefined') _prefLocEnabled = !!val;
     // Keep hidden toggle in sync
     const old = document.getElementById('pref-location-toggle');
     if (old) old.checked = val;
