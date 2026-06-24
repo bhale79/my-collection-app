@@ -50,20 +50,6 @@ function buildPrefsPage() {
       </div>
       <div class="pref-row">
         <div class="pref-row-label">
-          <strong>Sheet ID</strong>
-          <span id="pref-sheet-id" style="font-family:var(--font-mono);font-size:0.72rem;word-break:break-all">${sheetId || 'Not connected'}</span>
-        </div>
-        <button class="pref-btn" onclick="navigator.clipboard?.writeText('${sheetId}').then(()=>showToast('Copied'))">Copy</button>
-      </div>
-      <div class="pref-row">
-        <div class="pref-row-label">
-          <strong>Rebuild Dashboard Tab</strong>
-          <span>Updates branding on your Google Sheet</span>
-        </div>
-        <button class="pref-btn" onclick="_rebuildDashboardTab()">Rebuild</button>
-      </div>
-      <div class="pref-row">
-        <div class="pref-row-label">
           <strong>Back Up My Collection</strong>
           <span>Saves a snapshot to your Google Drive</span>
         </div>
