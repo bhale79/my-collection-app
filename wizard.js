@@ -3577,6 +3577,7 @@ function renderWizardStep() {
     const _locList = Object.entries(_allLocs)
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .map(e => e[0]);
+    const _savedLocs = (typeof _getSavedLocations === 'function') ? _getSavedLocations() : [];
 
     body.innerHTML = `
       <div style="padding-top:0.75rem">
@@ -3592,7 +3593,18 @@ function renderWizardStep() {
             background:var(--surface2);border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;
             max-height:180px;overflow-y:auto;z-index:10"></div>
         </div>
-        ${_locList.length > 0 ? `
+        ${_savedLocs.length > 0 ? `
+          <div style="margin-top:0.6rem">
+            <div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.35rem">Your locations</div>
+            <div style="display:flex;flex-wrap:wrap;gap:0.35rem">
+              ${_savedLocs.map(loc => `
+                <button type="button" class="loc-chip" onclick="document.getElementById('wiz-loc-input').value='${(loc.name||'').replace(/'/g, "\\'")}'; wizard.data['${s.id}']='${(loc.name||'').replace(/'/g, "\\'")}'; _highlightLocChip(this);"
+                  style="padding:0.35rem 0.7rem;border-radius:16px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.82rem;cursor:pointer;font-family:var(--font-body)${val === loc.name ? ';background:var(--accent);color:#fff;border-color:var(--accent)' : ''}">${loc.name}${loc.type ? ` <span style="font-size:0.68rem;color:var(--text-dim)">${loc.type}</span>` : ''}</button>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+        ${(_savedLocs.length === 0 && _locList.length > 0) ? `
           <div style="margin-top:0.6rem">
             <div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.35rem">Recent locations</div>
             <div id="wiz-loc-chips" style="display:flex;flex-wrap:wrap;gap:0.35rem">

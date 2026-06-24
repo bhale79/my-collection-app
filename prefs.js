@@ -70,9 +70,12 @@ function buildPrefsPage() {
       <div class="pref-section-title" onclick="_togglePrefSection(this)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">Collection <span style="font-size:0.7rem;color:var(--text-dim);transition:transform 0.2s">▶</span></div>
       <div class="pref-section-body" style="display:none">
       <div class="pref-row">
-        <div class="pref-row-label"><strong>Track Storage Location</strong><span>Adds a location step in the wizard</span></div>
+        <div class="pref-row-label"><strong>Track Storage Location</strong><span>Turn this on if your trains have set spots — like “Storage Unit 1” or “Tote A” — and you want to record where each item lives. You’ll be asked for a location as you add items.</span></div>
         ${toggle('location', 'lv_location_enabled', 'false')}
       </div>
+      <div class="pref-row">
+        <div class="pref-row-label"><strong>Storage Locations</strong><span>Set up your totes, shelves, rooms, etc. so you can tap one when adding items</span></div>
+        <button class="pref-btn" onclick="_openLocationsModal()">Manage</button>
       </div>
       <div class="pref-row">
         <div class="pref-row-label"><strong>Items Per Page</strong><span>How many rows show per page when browsing. More per page means less clicking through pages, but very large lists may load a little slower.</span></div>
@@ -713,6 +716,91 @@ function _togglePrefMfr(mfrId, on) {
   if (typeof renderBrowse === 'function') renderBrowse();
   // Session 138: re-render so the Eras list filter updates
   buildPrefsPage();
+}
+
+// ── Storage Locations (managed flat list) ─────────────────────
+var LOCATION_TYPES = ['Tote','Shelf','Room','Building','Storage Unit','Display Case','Other'];
+function _locEsc(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function _getSavedLocations(){
+  try { var a = JSON.parse(localStorage.getItem('lv_saved_locations') || '[]'); return Array.isArray(a) ? a : []; }
+  catch(e){ return []; }
+}
+function _setSavedLocations(arr){ localStorage.setItem('lv_saved_locations', JSON.stringify(arr || [])); }
+function _addSavedLocation(){
+  var nameEl = document.getElementById('loc-new-name'); var typeEl = document.getElementById('loc-new-type');
+  if (!nameEl) return;
+  var name = (nameEl.value || '').trim(); if (!name){ nameEl.focus(); return; }
+  var type = typeEl ? typeEl.value : '';
+  var locs = _getSavedLocations();
+  if (locs.some(function(l){ return (l.name||'').toLowerCase() === name.toLowerCase(); })){ showToast('That location already exists'); nameEl.value=''; nameEl.focus(); return; }
+  locs.push({ name: name, type: type });
+  _setSavedLocations(locs);
+  nameEl.value=''; nameEl.focus();
+  _renderLocList();
+}
+function _deleteSavedLocation(i){
+  var locs = _getSavedLocations(); if (i<0 || i>=locs.length) return;
+  locs.splice(i,1); _setSavedLocations(locs); _renderLocList();
+}
+function _seedLocationsFromItems(){
+  var locs = _getSavedLocations(); var have = {};
+  locs.forEach(function(l){ have[(l.name||'').toLowerCase()] = true; });
+  var added = 0;
+  Object.values((typeof state!=='undefined' && state.personalData) ? state.personalData : {}).forEach(function(pd){
+    if (pd && pd.location && pd.location.trim()){
+      var n = pd.location.trim();
+      if (!have[n.toLowerCase()]){ locs.push({ name: n, type: 'Other' }); have[n.toLowerCase()] = true; added++; }
+    }
+  });
+  _setSavedLocations(locs); _renderLocList();
+  showToast(added ? ('Added ' + added + ' location' + (added>1?'s':'')) : 'No new locations found');
+}
+function _renderLocList(){
+  var el = document.getElementById('loc-list'); if (!el) return;
+  var locs = _getSavedLocations();
+  if (!locs.length){ el.innerHTML = '<div style="color:var(--text-dim);font-size:0.82rem;font-style:italic;padding:0.5rem 0">No locations yet — add your first above.</div>'; return; }
+  el.innerHTML = locs.map(function(loc, i){
+    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;padding:0.5rem 0.65rem;border:1px solid var(--border);border-radius:8px;margin-bottom:0.35rem;background:var(--surface2)">'
+      + '<div><strong style="font-size:0.88rem;color:var(--text)">' + _locEsc(loc.name) + '</strong>'
+      + (loc.type ? ' <span style="font-size:0.72rem;color:var(--text-dim)">&middot; ' + _locEsc(loc.type) + '</span>' : '') + '</div>'
+      + '<button data-loc-del="' + i + '" title="Remove" style="background:none;border:none;color:var(--text-dim);font-size:1.2rem;cursor:pointer;line-height:1;padding:0 0.25rem">&times;</button>'
+      + '</div>';
+  }).join('');
+  el.querySelectorAll('[data-loc-del]').forEach(function(btn){
+    btn.addEventListener('click', function(){ _deleteSavedLocation(parseInt(btn.getAttribute('data-loc-del'),10)); });
+  });
+}
+function _openLocationsModal(){
+  var old = document.getElementById('loc-setup-modal'); if (old) old.remove();
+  var modal = document.createElement('div');
+  modal.id = 'loc-setup-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+  var typeOpts = LOCATION_TYPES.map(function(t){ return '<option value="'+t+'">'+t+'</option>'; }).join('');
+  modal.innerHTML =
+    '<div style="background:var(--surface);border-radius:14px;max-width:480px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.4);font-family:var(--font-body)">'
+    + '<div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">'
+    +   '<strong style="font-size:1.05rem;color:var(--text)">Storage Locations</strong>'
+    +   '<button id="loc-close" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1">&times;</button>'
+    + '</div>'
+    + '<div style="padding:1rem 1.25rem;overflow:auto;flex:1">'
+    +   '<div style="font-size:0.82rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.85rem">Add the places you keep your trains — totes, shelves, rooms, buildings, storage units. When you add an item, tap one instead of typing.</div>'
+    +   '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center">'
+    +     '<input id="loc-new-name" type="text" placeholder="e.g. Tote A" style="flex:1;min-width:140px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.55rem 0.7rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;box-sizing:border-box">'
+    +     '<select id="loc-new-type" class="pref-select" style="min-width:130px">' + typeOpts + '</select>'
+    +     '<button id="loc-add-btn" class="pref-btn">Add</button>'
+    +   '</div>'
+    +   '<div id="loc-list" style="margin-top:0.85rem"></div>'
+    +   '<button id="loc-seed-btn" class="pref-btn" style="margin-top:0.85rem;font-size:0.8rem">+ Add from items I already entered</button>'
+    + '</div>'
+    + '</div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function(e){ if (e.target === modal) modal.remove(); });
+  document.getElementById('loc-close').addEventListener('click', function(){ modal.remove(); });
+  document.getElementById('loc-add-btn').addEventListener('click', _addSavedLocation);
+  document.getElementById('loc-seed-btn').addEventListener('click', _seedLocationsFromItems);
+  var nm = document.getElementById('loc-new-name');
+  if (nm) nm.addEventListener('keydown', function(e){ if (e.key === 'Enter') _addSavedLocation(); });
+  _renderLocList();
 }
 
 function _togglePrefSection(titleEl) {
