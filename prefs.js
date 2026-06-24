@@ -155,18 +155,6 @@ function buildPrefsPage() {
         </select>
       </div>
       <div class="pref-row">
-        <div class="pref-row-label"><strong>Currency Symbol</strong></div>
-        <select class="pref-select" id="pref-currency" onchange="_prefSet('lv_currency', this.value)">
-          ${['$','€','£','¥','CA$','AU$'].map(c=>`<option value="${c}" ${_prefGet('lv_currency','$')===c?'selected':''}>${c}</option>`).join('')}
-        </select>
-      </div>
-      <div class="pref-row">
-        <div class="pref-row-label"><strong>Date Format</strong></div>
-        <select class="pref-select" id="pref-datefmt" onchange="_prefSet('lv_date_fmt', this.value)">
-          ${[['MM/DD/YYYY','MM/DD/YYYY'],['DD/MM/YYYY','DD/MM/YYYY'],['YYYY-MM-DD','YYYY-MM-DD']].map(([v,l])=>`<option value="${v}" ${_prefGet('lv_date_fmt','MM/DD/YYYY')===v?'selected':''}>${l}</option>`).join('')}
-        </select>
-      </div>
-      <div class="pref-row">
         <div class="pref-row-label"><strong>Upgrade Condition Threshold</strong><span>Flag items below this condition</span></div>
         <select class="pref-select" id="pref-upgrade-thresh" onchange="_prefSet('lv_upgrade_thresh', this.value)">
           <option value="1" id="ut-1">1 or below</option><option value="2" id="ut-2">2 or below</option><option value="3" id="ut-3">3 or below</option>
