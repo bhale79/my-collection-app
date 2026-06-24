@@ -2174,17 +2174,7 @@ function renderWizardStep() {
       + '<textarea id="bpv-notes" placeholder="e.g. Missing one flap, faded graphics" style="width:100%;min-height:60px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data.notes=this.value">' + (_bpv.notes || '') + '</textarea></div>';
 
     if (_prefLocEnabled) {
-      _bpvHtml += '<div style="margin-bottom:0.75rem">'
-        + '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">\uD83D\uDCCD Storage Location</div>'
-        + '<input type="text" id="bpv-location" value="' + (_bpv.location || '').replace(/"/g, '&quot;') + '" placeholder="e.g. Shelf 3, Tote 12" autocomplete="off" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box" oninput="wizard.data.location=this.value">';
-      if (_bpvLocList.length > 0) {
-        _bpvHtml += '<div style="display:flex;flex-wrap:wrap;gap:0.25rem;margin-top:0.35rem">';
-        _bpvLocList.slice(0, 8).forEach(function(loc) {
-          _bpvHtml += '<button type="button" onclick="document.getElementById(&apos;bpv-location&apos;).value=&apos;' + loc.replace(/'/g, '') + '&apos;;wizard.data.location=&apos;' + loc.replace(/'/g, '') + '&apos;;" style="padding:0.25rem 0.55rem;border-radius:12px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.75rem;cursor:pointer;font-family:var(--font-body)">' + loc + '</button>';
-        });
-        _bpvHtml += '</div>';
-      }
-      _bpvHtml += '</div>';
+      _bpvHtml += '<div style="margin-bottom:0.75rem">' + _wizLocationFieldHtml(_bpv.location || '') + '</div>';
     }
 
     _bpvHtml += '</div>';
@@ -4508,16 +4498,7 @@ function renderWizardStep() {
     
     // Location (if enabled)
     if (_pvLocEnabled) {
-      _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">\u{1F4CD} Storage Location</div>';
-      _pvHtml += '<input type="text" id="pv-location" value="' + (_pvD.location || '').replace(/"/g, '&quot;') + '" placeholder="e.g. Shelf 3, Tote 12" autocomplete="off" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box" oninput="wizard.data.location=this.value">';
-      if (_pvLocList.length > 0) {
-        _pvHtml += '<div style="display:flex;flex-wrap:wrap;gap:0.25rem;margin-top:0.35rem">';
-        _pvLocList.slice(0, 8).forEach(function(loc) {
-          _pvHtml += '<button type="button" onclick="document.getElementById(\'pv-location\').value=\'' + loc.replace(/'/g, "\\'") + '\';wizard.data.location=\'' + loc.replace(/'/g, "\\'") + '\';" style="padding:0.25rem 0.55rem;border-radius:12px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.75rem;cursor:pointer;font-family:var(--font-body)">' + loc + '</button>';
-        });
-        _pvHtml += '</div>';
-      }
-      _pvHtml += '</div>';
+      _pvHtml += '<div style="margin-bottom:0.75rem">' + _wizLocationFieldHtml(_pvD.location || '') + '</div>';
     }
     
     // Notes

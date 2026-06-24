@@ -1053,3 +1053,78 @@ function _highlightLocChipByValue(loc) {
     }
   });
 }
+
+
+// ── Wizard inline Storage Location picker: dropdown + quick-add ──
+function _wizLocSavedList() {
+  return (typeof _getSavedLocations === 'function') ? _getSavedLocations() : [];
+}
+function _wizLocEsc(v) {
+  return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function _wizLocOptionsHtml(selectedVal) {
+  var locs = _wizLocSavedList();
+  var sel = (selectedVal == null) ? '' : String(selectedVal);
+  var html = '<option value="">— Select location —</option>';
+  var typeOrder = (typeof LOCATION_TYPES !== 'undefined') ? LOCATION_TYPES.slice() : ['Tote','Shelf','Room','Building','Storage Unit','Display Case','Other'];
+  var groups = {}, names = [];
+  locs.forEach(function(l) {
+    if (!l || !l.name) return;
+    names.push(l.name);
+    var t = l.type || 'Other';
+    (groups[t] = groups[t] || []).push(l.name);
+  });
+  Object.keys(groups).forEach(function(t) { if (typeOrder.indexOf(t) < 0) typeOrder.push(t); });
+  typeOrder.forEach(function(t) {
+    var arr = groups[t]; if (!arr || !arr.length) return;
+    html += '<optgroup label="' + _wizLocEsc(t) + '">';
+    arr.forEach(function(n) { html += '<option value="' + _wizLocEsc(n) + '"' + (n === sel ? ' selected' : '') + '>' + _wizLocEsc(n) + '</option>'; });
+    html += '</optgroup>';
+  });
+  if (sel && names.indexOf(sel) < 0) {
+    html += '<option value="' + _wizLocEsc(sel) + '" selected>' + _wizLocEsc(sel) + ' (current)</option>';
+  }
+  return html;
+}
+function _wizLocationFieldHtml(currentVal) {
+  return '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">📍 Storage Location</div>'
+    + '<div style="display:flex;gap:0.4rem;align-items:center">'
+    + '<select id="wiz-loc-select" onchange="_wizLocSelect(this)" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.6rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box">'
+    + _wizLocOptionsHtml(currentVal)
+    + '</select>'
+    + '<button type="button" id="wiz-loc-newbtn" onclick="_wizLocToggleAdd(true)" style="white-space:nowrap;padding:0.55rem 0.7rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem;cursor:pointer">+ New</button>'
+    + '</div>'
+    + '<div id="wiz-loc-addrow" style="display:none;gap:0.4rem;margin-top:0.4rem">'
+    + '<input type="text" id="wiz-loc-newinput" placeholder="New location name" autocomplete="off" onkeydown="if(event.key===\'Enter\'){event.preventDefault();_wizLocAddNew();}" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.55rem 0.7rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box">'
+    + '<button type="button" onclick="_wizLocAddNew()" style="white-space:nowrap;padding:0.55rem 0.8rem;border-radius:8px;border:none;background:var(--accent);color:#fff;font-family:var(--font-body);font-size:0.82rem;font-weight:700;cursor:pointer">Add</button>'
+    + '</div>';
+}
+function _wizLocSelect(sel) {
+  if (typeof wizard !== 'undefined' && wizard && wizard.data) wizard.data.location = sel.value || '';
+}
+function _wizLocToggleAdd(show) {
+  var row = document.getElementById('wiz-loc-addrow');
+  var btn = document.getElementById('wiz-loc-newbtn');
+  if (row) row.style.display = show ? 'flex' : 'none';
+  if (btn) btn.style.display = show ? 'none' : '';
+  if (show) { var i = document.getElementById('wiz-loc-newinput'); if (i) i.focus(); }
+}
+function _wizLocAddNew() {
+  var input = document.getElementById('wiz-loc-newinput');
+  if (!input) return;
+  var name = (input.value || '').trim();
+  if (!name) { input.focus(); return; }
+  if (typeof _getSavedLocations === 'function' && typeof _setSavedLocations === 'function') {
+    var locs = _getSavedLocations();
+    if (!locs.some(function(l) { return (l.name || '').toLowerCase() === name.toLowerCase(); })) {
+      locs.push({ name: name, type: 'Other' });
+      _setSavedLocations(locs);
+    }
+  }
+  if (typeof wizard !== 'undefined' && wizard && wizard.data) wizard.data.location = name;
+  var sel = document.getElementById('wiz-loc-select');
+  if (sel) sel.innerHTML = _wizLocOptionsHtml(name);
+  input.value = '';
+  _wizLocToggleAdd(false);
+  if (typeof showToast === 'function') showToast('Added ' + name);
+}
