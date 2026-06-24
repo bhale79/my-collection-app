@@ -1076,31 +1076,70 @@ function moveWantToCollection(itemNum, variation) {
     wizard.data.itemNum = itemNum;
     if (variation) wizard.data.variation = variation;
     wizard.data.itemCategory = 'lionel';      // skips era picker
-    // If this want item's companion is ALSO on the want list, set up the matching
-    // grouping so the wizard adds BOTH (its proven paired/set save). Covers
-    // engine+tender and A + B-unit pairs (separate want entries). Otherwise single.
-    var _wcNorm = function(x){ return (x || '').toString().trim().toUpperCase(); };
-    var _wcWantNums = Object.keys(state.wantData || {}).map(function(k){ return _wcNorm(k.split('|')[0]); });
-    var _wcPartner = '', _wcType = '';
-    (state.companionData || []).forEach(function(c){
-      if (_wcNorm(c.engineNum) === _wcNorm(itemNum)
-          && _wcWantNums.indexOf(_wcNorm(c.companionNum)) >= 0) {
-        _wcPartner = String(c.companionNum || '');
-        _wcType    = c.companionType || '';
-      }
+    // If this want item's companions are ALSO on the want list, set up the matching
+    // grouping so the wizard adds the WHOLE group (its proven paired/set save).
+    // Covers engine+tender, A+B-unit (AB), A+dummy (AA) and A+B+dummy (ABA).
+    // Partners must be DISTINCT numbers also on the want list (so a single same-number
+    // AA want entry isn't silently expanded — user can still pick AA in the wizard).
+    var _wcN = function(x){ return (typeof normalizeItemNum === 'function') ? normalizeItemNum(x) : (x||'').toString().trim().toUpperCase(); };
+    var _wcWantSet = {};
+    Object.keys(state.wantData || {}).forEach(function(k){ _wcWantSet[_wcN(k.split('|')[0])] = true; });
+    var _wcBase = (typeof baseItemNum === 'function') ? baseItemNum(itemNum) : itemNum;
+    var _wcNN = _wcN(itemNum), _wcNB = _wcN(_wcBase);
+    // Candidate partners derived the SAME way the wizard does: role tags (+T dummy,
+    // +C B-unit) plus the companion table (Tender / B Unit / A Dummy).
+    var _pTender = '', _pBunit = '', _pDummy = '';
+    (state.masterData || []).forEach(function(m){
+      if (!m.itemNum) return; var mi = _wcN(m.itemNum);
+      if (m.unit === 'A' && m.poweredDummy === 'D' && !_pDummy && mi === _wcN(_wcBase + 'T')) _pDummy = m.itemNum;
+      if (m.unit === 'B' && m.poweredDummy === 'C' && !_pBunit && mi === _wcN(_wcBase + 'C')) _pBunit = m.itemNum;
     });
-    if (_wcPartner && /tender/i.test(_wcType)) {
+    (state.companionData || []).forEach(function(c){
+      var _en = _wcN(c.engineNum); if (_en !== _wcNN && _en !== _wcNB) return;
+      var _cn = String(c.companionNum || ''); if (_wcN(_cn) === _wcNN) return;   // skip same-number self-pairs
+      var _t = (c.companionType || '').toLowerCase();
+      if (/tender/.test(_t)) { if (!_pTender) _pTender = _cn; }
+      else if (/b\s*-?\s*unit/.test(_t)) { if (!_pBunit) _pBunit = _cn; }
+      else if (/a\s*dummy/.test(_t)) { if (!_pDummy) _pDummy = _cn; }
+    });
+    // Only pair partners that are ALSO on the want list, so we add the whole wanted group.
+    var _wcTender = _wcWantSet[_wcN(_pTender)] ? _pTender : '';
+    var _wcBunit  = _wcWantSet[_wcN(_pBunit)]  ? _pBunit  : '';
+    var _wcDummy  = _wcWantSet[_wcN(_pDummy)]  ? _pDummy  : '';
+    var _wcNewSetId = function(){ return (typeof genSetId === 'function') ? genSetId(itemNum) : ('set-' + Date.now()); };
+    if (_wcTender) {
       // Engine + Tender pair
       wizard.data._itemGrouping = 'engine_tender';
-      wizard.data.tenderMatch   = _wcPartner;
-    } else if (_wcPartner && /b\s*-?\s*unit/i.test(_wcType)) {
-      // Powered A unit + B unit pair (diesel set)
+      wizard.data.tenderMatch   = _wcTender;
+    } else if (_wcBunit && _wcDummy) {
+      // A powered + B unit + A dummy (ABA set)
+      wizard.data._itemGrouping = 'aba';
+      wizard.data.unitPower     = 'Powered';
+      wizard.data.setMatch      = 'set-now';
+      wizard.data.setType       = 'ABA';
+      wizard.data._setId        = _wcNewSetId();
+      wizard.data.unit2ItemNum  = _wcBunit;
+      wizard.data.unit3ItemNum  = _wcDummy;
+      wizard.data.unit3Power    = 'Dummy';
+      wizard.data.tenderMatch   = '';
+    } else if (_wcBunit) {
+      // A powered + B unit (AB set)
       wizard.data._itemGrouping = 'ab';
       wizard.data.unitPower     = 'Powered';
       wizard.data.setMatch      = 'set-now';
       wizard.data.setType       = 'AB';
-      wizard.data._setId        = (typeof genSetId === 'function') ? genSetId(itemNum) : ('set-' + Date.now());
-      wizard.data.unit2ItemNum  = _wcPartner;
+      wizard.data._setId        = _wcNewSetId();
+      wizard.data.unit2ItemNum  = _wcBunit;
+      wizard.data.tenderMatch   = '';
+    } else if (_wcDummy) {
+      // A powered + A dummy (AA set)
+      wizard.data._itemGrouping = 'aa';
+      wizard.data.unitPower     = 'Powered';
+      wizard.data.setMatch      = 'set-now';
+      wizard.data.setType       = 'AA';
+      wizard.data._setId        = _wcNewSetId();
+      wizard.data.unit2ItemNum  = _wcDummy;
+      wizard.data.unit2Power    = 'Dummy';
       wizard.data.tenderMatch   = '';
     } else {
       wizard.data._itemGrouping = wizard.data._itemGrouping || 'single'; // default; user can change later via Edit Group
