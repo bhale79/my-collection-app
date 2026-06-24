@@ -1633,6 +1633,28 @@ function renderWizardStep() {
 
     // ── Inner helpers (closures over _qe1Icons, wizard.data, etc.) ──
 
+    // Find AA dummy + AB B-unit partners from role tags (+T/+C) and the companion
+    // table (B Unit / A Dummy types). Single source of truth for diesel set grouping.
+    function _qe1Partners(n) {
+      var nn = normalizeItemNum(n);
+      var dummy = '', bunit = '';
+      (state.masterData || []).forEach(function(m) {
+        if (!m.itemNum) return;
+        var mi = normalizeItemNum(m.itemNum);
+        if (m.unit === 'A' && m.poweredDummy === 'D' && !dummy &&
+            (mi === normalizeItemNum(n + 'T') || mi === nn)) dummy = m.itemNum;
+        if (m.unit === 'B' && m.poweredDummy === 'C' && !bunit &&
+            mi === normalizeItemNum(n + 'C')) bunit = m.itemNum;
+      });
+      (state.companionData || []).forEach(function(c) {
+        if (normalizeItemNum(c.engineNum) !== nn) return;
+        var ct = (c.companionType || '').toLowerCase();
+        if (!bunit && /b\s*unit/.test(ct) && c.companionNum) bunit = String(c.companionNum);
+        if (!dummy && /a\s*dummy/.test(ct) && c.companionNum) dummy = String(c.companionNum);
+      });
+      return { dummy: dummy, bunit: bunit };
+    }
+
     // Grouping data mutation without auto-advance
     function _selectGroupingData(gid) {
       wizard.data._itemGrouping = gid;
@@ -1662,15 +1684,18 @@ function renderWizardStep() {
       } else if (gid === 'a_dummy') {
         wizard.data.unitPower = 'Dummy'; wizard.data.setMatch = 'standalone'; wizard.data.tenderMatch = '';
       } else if (gid === 'aa') {
+        var _pAA = _qe1Partners(n);
         wizard.data.unitPower = 'Powered'; wizard.data.setMatch = 'set-now'; wizard.data.setType = 'AA';
-        wizard.data._setId = genSetId(n); wizard.data.unit2ItemNum = n; wizard.data.unit2Power = 'Dummy'; wizard.data.tenderMatch = '';
+        wizard.data._setId = genSetId(n); wizard.data.unit2ItemNum = _pAA.dummy || n; wizard.data.unit2Power = 'Dummy'; wizard.data.tenderMatch = '';
       } else if (gid === 'ab') {
+        var _pAB = _qe1Partners(n);
         wizard.data.unitPower = 'Powered'; wizard.data.setMatch = 'set-now'; wizard.data.setType = 'AB';
-        wizard.data._setId = genSetId(n); wizard.data.unit2ItemNum = getSetPartner(n) || (n + 'C'); wizard.data.tenderMatch = '';
+        wizard.data._setId = genSetId(n); wizard.data.unit2ItemNum = _pAB.bunit || getSetPartner(n) || (n + 'C'); wizard.data.tenderMatch = '';
       } else if (gid === 'aba') {
+        var _pABA = _qe1Partners(n);
         wizard.data.unitPower = 'Powered'; wizard.data.setMatch = 'set-now'; wizard.data.setType = 'ABA';
-        wizard.data._setId = genSetId(n); wizard.data.unit2ItemNum = getSetPartner(n) || (n + 'C');
-        wizard.data.unit3ItemNum = n; wizard.data.unit3Power = 'Dummy'; wizard.data.tenderMatch = '';
+        wizard.data._setId = genSetId(n); wizard.data.unit2ItemNum = _pABA.bunit || getSetPartner(n) || (n + 'C');
+        wizard.data.unit3ItemNum = _pABA.dummy || n; wizard.data.unit3Power = 'Dummy'; wizard.data.tenderMatch = '';
       } else {
         wizard.data._itemGrouping = 'single'; wizard.data.tenderMatch = ''; wizard.data.setMatch = ''; wizard.data.unitPower = '';
       }
@@ -1751,19 +1776,18 @@ function renderWizardStep() {
       var hasTenders = getMatchingTenders(num).length > 0;
       var isF3 = isF3AlcoUnit(num);
       var isBU = num.endsWith('C');
+      var _qp = _qe1Partners(num);
       var btns = [];
       if (hasTenders && !isF3) {
         btns = [{ id: 'engine', label: 'Engine only' }, { id: 'engine_tender', label: 'Engine + Tender' }];
-      } else if (isF3 && !isBU) {
-        // Only show AA/AB/ABA configs that exist for this item in master data
-        var _qeSubs = new Set();
-        state.masterData.forEach(function(m) {
-          if (normalizeItemNum(m.itemNum) === normalizeItemNum(num) && m.subType) _qeSubs.add((m.subType||'').toUpperCase());
-        });
+      } else if ((isF3 || _qp.dummy || _qp.bunit) && !isBU) {
+        // 2026-06-23: drive AA/AB/ABA off real partner data (role tags +T/+C and the
+        // companion table's A-Dummy / B-Unit rows), NOT the SubType text which never
+        // held "AA"/"AB"/"ABA" (it holds "EMD F-3" / "Alco FA").
         btns = [{ id: 'a_powered', label: 'A Powered' }, { id: 'a_dummy', label: 'A Dummy' }];
-        if (Array.from(_qeSubs).some(function(s){return s.includes('AA');}))  btns.push({ id: 'aa',  label: 'AA set'  });
-        if (Array.from(_qeSubs).some(function(s){return s.includes('AB') && !s.includes('ABA');})) btns.push({ id: 'ab',  label: 'AB set'  });
-        if (Array.from(_qeSubs).some(function(s){return s.includes('ABA');})) btns.push({ id: 'aba', label: 'ABA set' });
+        if (_qp.dummy) btns.push({ id: 'aa',  label: 'AA set'  });
+        if (_qp.bunit) btns.push({ id: 'ab',  label: 'AB set'  });
+        if (_qp.dummy && _qp.bunit) btns.push({ id: 'aba', label: 'ABA set' });
       }
       if (!btns.length) { cont.style.display = 'none'; return; }
       cont.style.display = 'block';
