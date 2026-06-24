@@ -211,17 +211,6 @@ function _buildAppShell() {
     appBody.appendChild(existingMain);
   }
   app.appendChild(appBody);
-  // Apply the QE Badge pref now that the navbar exists. (Session 120 — 
-  // dashboard.js also re-applies on every rebuild; this catches the
-  // case where the user opens the app and never visits the dashboard.)
-  try {
-    if (typeof _prefGet === 'function' && _prefGet('lv_qe_badge_enabled', 'true') !== 'true') {
-      var _qeb = document.getElementById('nav-qe-count');
-      if (_qeb) _qeb.style.display = 'none';
-      var _mqeb = document.getElementById('mnav-qe-badge');
-      if (_mqeb) _mqeb.style.display = 'none';
-    }
-  } catch(e) {}
 }
 
 // ── OAuth + sign-in helpers moved to app-auth.js (Session 110, Round 2 Chunk 11) ──

@@ -89,10 +89,6 @@ function buildPrefsPage() {
       </div>
       </div>
       <div class="pref-row">
-        <div class="pref-row-label"><strong>Show Quick Entry badge ⚡</strong><span>Highlights items with incomplete details</span></div>
-        ${toggle('qeBadge', 'lv_qe_badge_enabled', 'true')}
-      </div>
-      <div class="pref-row">
         <div class="pref-row-label"><strong>Items Per Page</strong><span>Browse list page size</span></div>
         <select class="pref-select" id="pref-page-size" onchange="_prefSet('lv_page_size', this.value); state.pageSize=parseInt(this.value); state.currentPage=1; if(document.getElementById('page-browse').classList.contains('active')) renderBrowse()">
           ${[25,50,100,200].map(n=>`<option value="${n}" ${_prefGet('lv_page_size','50')===String(n)?'selected':''}>${n}</option>`).join('')}
@@ -526,14 +522,6 @@ function _onPrefChange(id, val) {
     // Keep hidden toggle in sync
     const old = document.getElementById('pref-location-toggle');
     if (old) old.checked = val;
-  }
-  if (id === 'qeBadge') {
-    // Show/hide QE badge in nav
-    const b1 = document.getElementById('nav-qe-count');
-    const b2 = document.getElementById('mnav-qe-badge');
-    const hide = !val;
-    if (b1) b1.style.display = hide ? 'none' : '';
-    if (b2) b2.style.display = hide ? 'none' : '';
   }
   if (id === 'disclaimer') {
     _applyDisclaimerPref();

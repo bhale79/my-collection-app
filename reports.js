@@ -557,9 +557,6 @@ function _rbFiltersHTML() {
       <div class="rb-filter-chips">${yneChips('allOriginal')}</div></div>
     <div class="rb-filter-row"><div class="rb-filter-label">Has Photo</div>
       <div class="rb-filter-chips">${yneChips('hasPhoto')}</div></div>
-    <div class="rb-filter-row"><div class="rb-filter-label">Quick Entry Items</div>
-      <div class="rb-filter-chips">${['Include','Exclude','Only'].map(v=>`<span class="rb-chip${
-        (!f.quickEntry&&v==='Include')||(f.quickEntry===v)?' selected':''}" onclick="_rbSetF('quickEntry','${v}',this)">${v}</span>`).join('')}</div></div>
     <div class="rb-filter-row"><div class="rb-filter-label">Condition (1–10)</div>
       <div class="rb-range">${fld('Min','condMin','min="1" max="10"')} <span style="color:var(--text-dim);font-size:0.85rem">to</span> ${fld('Max','condMax','min="1" max="10"')}</div></div>
     <div class="rb-filter-row"><div class="rb-filter-label">Year Made</div>

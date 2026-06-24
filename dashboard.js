@@ -652,22 +652,6 @@ function buildDashboard() {
     var _wishTotal = wantListCount + Object.keys(state.upgradeData||{}).length;
     _nw.textContent = _wishTotal > 0 ? _wishTotal.toLocaleString() : '—';
   }
-  // Quick Entry badge count — respect lv_qe_badge_enabled pref so the
-  // badge stays hidden across reload + dashboard rebuild. (Session 120)
-  var _qeCount = Object.values(state.personalData).filter(function(pd) { return pd.owned && pd.quickEntry; }).length;
-  var _qeBadgeEnabled = (typeof _prefGet === 'function')
-    ? _prefGet('lv_qe_badge_enabled', 'true') === 'true'
-    : true;
-  var _qeBadge = document.getElementById('nav-qe-count');
-  if (_qeBadge) {
-    _qeBadge.textContent = _qeCount > 0 ? _qeCount : '0';
-    _qeBadge.style.display = _qeBadgeEnabled ? '' : 'none';
-  }
-  var _mnavQeBadge = document.getElementById('mnav-qe-badge');
-  if (_mnavQeBadge) {
-    if (_qeBadgeEnabled && _qeCount > 0) { _mnavQeBadge.style.display='flex'; _mnavQeBadge.textContent=_qeCount; }
-    else { _mnavQeBadge.style.display='none'; }
-  }
   if (document.getElementById('nav-sold')) document.getElementById('nav-sold').textContent = soldCount;
   var fsCount = Object.values(state.forSaleData).filter(function(fs){ return !(typeof window !== 'undefined' && typeof window._fsIsGroupedCompanion === 'function' && window._fsIsGroupedCompanion(fs)); }).length;
   if (document.getElementById('nav-forsale')) document.getElementById('nav-forsale').textContent = fsCount;
