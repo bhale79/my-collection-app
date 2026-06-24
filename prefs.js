@@ -75,13 +75,14 @@ function buildPrefsPage() {
       </div>
       </div>
       <div class="pref-row">
-        <div class="pref-row-label"><strong>Items Per Page</strong><span>Browse list page size</span></div>
+        <div class="pref-row-label"><strong>Items Per Page</strong><span>How many rows show per page when browsing. More per page means less clicking through pages, but very large lists may load a little slower.</span></div>
         <select class="pref-select" id="pref-page-size" onchange="_prefSet('lv_page_size', this.value); state.pageSize=parseInt(this.value); state.currentPage=1; if(document.getElementById('page-browse').classList.contains('active')) renderBrowse()">
           ${[25,50,100,200].map(n=>`<option value="${n}" ${_prefGet('lv_page_size','50')===String(n)?'selected':''}>${n}</option>`).join('')}
         </select>
       </div>
 
       <div style="font-size:0.78rem;font-weight:600;color:var(--text-mid);padding:0.75rem 0.2rem 0.35rem;letter-spacing:0.03em;text-transform:uppercase">Defaults</div>
+      <div style="font-size:0.75rem;color:var(--text-dim);padding:0 0.2rem 0.4rem;line-height:1.4">Starting values for each new item you add — set these to what you collect most so there’s less to change during entry. You can still adjust any item individually.</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.35rem 0.6rem">
         <div class="pref-row" style="padding:0.45rem 0.6rem">
           <div class="pref-row-label"><strong>All Original</strong></div>
