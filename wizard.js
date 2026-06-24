@@ -4795,7 +4795,7 @@ function renderWizardStep() {
     } else if (!_isEph) {
       confirmHtml += '<div style="background:var(--surface2);border-radius:8px;padding:0.85rem;margin-bottom:1rem">'
         + '<div style="font-family:var(--font-mono);color:var(--accent2)">' + (wizard.data.itemCategory === 'set' ? 'Set ' : 'Item ') + (wizard.data.itemNum || wizard.data.set_num || '?') + (wizard.data.variation ? ' Var ' + wizard.data.variation : '') + '</div>'
-        + '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.2rem">' + (wizard.data.itemCategory === 'set' ? 'Will be added to your Want List' : 'Not found in master inventory — will save with entered data') + '</div></div>';
+        + '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.2rem">' + (wizard.data.itemCategory === 'set' ? 'Will be added to your Want List' : ((typeof _catalogReady === 'function' && !_catalogReady()) ? '⏳ Loading your catalog — one moment…' : 'Not found in master inventory — will save with entered data')) + '</div></div>';
     }
     // Session 115: grouping-candidate section. When the user already owns
     // something that naturally groups with this new item, surface it as

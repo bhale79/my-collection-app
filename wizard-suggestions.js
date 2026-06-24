@@ -994,7 +994,9 @@ function lookupItem(num) {
         </div>` : ''}
       </div>`;
     } else {
-      el.innerHTML = `<div style="font-size:0.8rem;color:var(--text-dim)">Not found in master inventory — will save anyway</div>`;
+      el.innerHTML = (typeof _catalogReady === 'function' && !_catalogReady())
+        ? `<div style="font-size:0.8rem;color:#e0a800">⏳ Loading your catalog — one moment…</div>`
+        : `<div style="font-size:0.8rem;color:var(--text-dim)">Not found in master inventory — will save anyway</div>`;
     }
   }
 }

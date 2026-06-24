@@ -1002,9 +1002,77 @@ function _applyEraVisibility() {
   });
 }
 
+// ── Catalog loading status (Tiers 1-3): pill, auto-recover, stall banner ──
+var _catWatchTimer = null, _catWatchStart = 0, _catLastLoaded = -1, _catProgressAt = 0;
+function _catalogReady() {
+  return !!(typeof state !== 'undefined' && state.masterData && state.masterData.length > 0);
+}
+function _wizRelookupIfOpen() {
+  try {
+    if (typeof wizard !== 'undefined' && wizard && wizard.data && document.getElementById('wiz-match') && typeof lookupItem === 'function') {
+      lookupItem(wizard.data.itemNum || '');
+    }
+  } catch(e) {}
+}
+function _catalogLoadingBegin() {
+  if (_catalogReady()) return;       // already have a catalog to search
+  if (_catWatchTimer) return;        // already watching
+  _catWatchStart = Date.now(); _catProgressAt = Date.now(); _catLastLoaded = -1;
+  _catalogPillShow();
+  _catWatchTimer = setInterval(_catalogLoadingTick, 700);
+}
+function _catalogLoadingTick() {
+  if (_catalogReady()) { _catalogLoadingEnd(true); return; }
+  var le = (typeof state !== 'undefined' && state.loading) ? state.loading.allEras : null;
+  var loaded = le ? le.loaded : 0;
+  if (loaded !== _catLastLoaded) { _catLastLoaded = loaded; _catProgressAt = Date.now(); _catalogStallBanner(false); }
+  _catalogPillShow();
+  // Stalled = no era completed for 14s (and at least 10s in) -> offer refresh.
+  if (Date.now() - _catProgressAt > 14000 && Date.now() - _catWatchStart > 10000) _catalogStallBanner(true);
+}
+function _catalogLoadingEnd(ready) {
+  if (_catWatchTimer) { clearInterval(_catWatchTimer); _catWatchTimer = null; }
+  _catalogPillHide();
+  _catalogStallBanner(false);
+  if (ready) _wizRelookupIfOpen();
+}
+function _catalogPillShow() {
+  if (document.getElementById('cat-stall-banner')) return; // banner replaces pill
+  var pill = document.getElementById('cat-loading-pill');
+  if (!pill) {
+    pill = document.createElement('div');
+    pill.id = 'cat-loading-pill';
+    pill.style.cssText = 'position:fixed;bottom:1.1rem;left:50%;transform:translateX(-50%);z-index:9998;background:var(--surface2,#222);border:1px solid var(--border,#444);border-radius:20px;padding:0.5rem 1rem;font-size:0.82rem;color:var(--text-mid,#ccc);box-shadow:0 4px 16px rgba(0,0,0,0.35);display:flex;align-items:center;gap:0.5rem;max-width:90vw';
+    document.body.appendChild(pill);
+  }
+  var le = (typeof state !== 'undefined' && state.loading) ? state.loading.allEras : null;
+  var prog = (le && le.total) ? (' ' + le.loaded + ' of ' + le.total) : '';
+  pill.innerHTML = '<span style="display:inline-block;width:12px;height:12px;border:2px solid var(--accent,#f05008);border-top-color:transparent;border-radius:50%;animation:spin 0.7s linear infinite"></span> Loading your catalog' + prog + '\u2026';
+}
+function _catalogPillHide() {
+  var pill = document.getElementById('cat-loading-pill');
+  if (pill && pill.parentNode) pill.parentNode.removeChild(pill);
+}
+function _catalogStallBanner(show) {
+  var b = document.getElementById('cat-stall-banner');
+  if (show) {
+    if (b) return;
+    _catalogPillHide();
+    b = document.createElement('div');
+    b.id = 'cat-stall-banner';
+    b.onclick = function() { location.reload(); };
+    b.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#7a1f1f;color:#fff;font:600 0.9rem/1.4 sans-serif;padding:0.85rem 1rem;text-align:center;cursor:pointer';
+    b.textContent = '\u26A0\uFE0F Your catalog is taking a while to load \u2014 tap here to refresh.';
+    document.body.appendChild(b);
+  } else if (b && b.parentNode) {
+    b.parentNode.removeChild(b);
+  }
+}
+
 // ── Switch era: swap tabs, clear caches, reload ──
 async function switchEra(era) {
   if (!ERAS[era]) return;
+  if (typeof _catalogLoadingBegin === 'function') _catalogLoadingBegin();
   // Session 116: 'all' is the meta-era — orchestrate all real eras.
   if (era === 'all') return loadAllErasMode();
 
@@ -1084,6 +1152,7 @@ async function switchEra(era) {
 async function loadAllErasMode() {
   _currentEra = 'all';
   localStorage.setItem('lv_era', 'all');
+  if (typeof _catalogLoadingBegin === 'function') _catalogLoadingBegin();
   _applyEraTabs('all'); // SHEET_TABS gets pw fallback for bystander code
 
   // Update dropdown
