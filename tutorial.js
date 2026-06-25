@@ -427,9 +427,10 @@ function _guidedTour(steps) {
   document.body.appendChild(callout);
 
   function place(el) {
+    callout.style.maxWidth = Math.min(340, window.innerWidth - 100) + 'px';
     if (!el) {
       hole.style.opacity = '0';
-      callout.style.left = Math.max(8, (window.innerWidth - (callout.offsetWidth || 300)) / 2) + 'px';
+      callout.style.left = Math.max(72, (window.innerWidth - (callout.offsetWidth || 300)) / 2) + 'px';
       callout.style.top  = Math.max(8, (window.innerHeight - (callout.offsetHeight || 160)) / 2) + 'px';
       return;
     }
@@ -440,7 +441,7 @@ function _guidedTour(steps) {
     hole.style.width = (r.width + pad * 2) + 'px';
     hole.style.height = (r.height + pad * 2) + 'px';
     var cw = callout.offsetWidth || 300, ch = callout.offsetHeight || 160;
-    var left = Math.min(Math.max(8, r.left), window.innerWidth - cw - 8), top;
+    var left = Math.min(Math.max(72, r.left), window.innerWidth - cw - 8), top;
     if (r.bottom + ch + 16 < window.innerHeight) top = r.bottom + 12;
     else if (r.top - ch - 16 > 8) top = r.top - ch - 12;
     else top = Math.max(8, (window.innerHeight - ch) / 2);
@@ -458,7 +459,8 @@ function _guidedTour(steps) {
     var step = steps[i], total = steps.length;
     curEl = resolve(step);
     callout.innerHTML =
-      '<div style="padding:0.85rem 0.95rem 0.7rem">'
+      '<img src="./conductor.png" alt="" style="position:absolute;left:-66px;bottom:-6px;width:84px;height:auto;pointer-events:none;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.45))" onerror="this.style.display=\'none\'">'
+      + '<div style="padding:0.85rem 0.95rem 0.7rem">'
       + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem">'
       +   '<strong style="font-size:0.98rem;color:var(--text,#eee);line-height:1.3">' + (step.title || '') + '</strong>'
       +   '<button type="button" id="gt-exit" title="Exit" style="background:none;border:none;color:var(--text-dim,#888);font-size:1.25rem;line-height:1;cursor:pointer;padding:0 0.1rem">×</button>'
