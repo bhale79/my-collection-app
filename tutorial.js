@@ -375,7 +375,7 @@ function openHelpHub() {
     + '</div>'
     + '<div style="padding:0.4rem 1.25rem 1.25rem;max-height:74vh;overflow-y:auto">'
     +   hdr('Getting Started')
-    +   row(X + "if(typeof onboardReopenTour==='function')onboardReopenTour();", '🚂', 'Take the tour', 'A quick walkthrough of what the app does')
+    +   row(X + "if(typeof startDashboardTour==='function')startDashboardTour();", '🚂', 'Take the tour', 'A guided, highlighted walkthrough of the Dashboard')
     +   hdr('How-To Guides')
     +   row(X + "tutStart('add-item');", '📦', 'Add an item')
     +   row(X + "tutStart('add-want');", '⭐', 'Add a want-list item')
@@ -395,3 +395,113 @@ function openHelpHub() {
   document.body.appendChild(modal);
 }
 window.openHelpHub = openHelpHub;
+
+
+// ═══════════════════════════════════════════════════════════════
+// GUIDED TOUR ENGINE (Phase 3) — spotlight + callout coach-marks.
+// Dims the page, highlights one live element at a time, explains it,
+// Back/Next/Exit. Reusable: pass [{selector, wrap?, title, body}].
+// ═══════════════════════════════════════════════════════════════
+function _gtEnd() {
+  ['gt-blocker','gt-hole','gt-callout'].forEach(function(id){
+    var e = document.getElementById(id); if (e && e.parentNode) e.parentNode.removeChild(e);
+  });
+  if (typeof window._gtCleanup === 'function') { try { window._gtCleanup(); } catch(e){} window._gtCleanup = null; }
+}
+function _guidedTour(steps) {
+  if (!steps || !steps.length) return;
+  _gtEnd();
+  var i = 0, curEl = null;
+  var blocker = document.createElement('div');
+  blocker.id = 'gt-blocker';
+  blocker.style.cssText = 'position:fixed;inset:0;z-index:99990;background:transparent';
+  blocker.addEventListener('click', function(e){ e.stopPropagation(); });
+  var hole = document.createElement('div');
+  hole.id = 'gt-hole';
+  hole.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;z-index:99991;border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,0.62);border:2px solid var(--accent,#f05008);pointer-events:none;transition:top 0.25s ease,left 0.25s ease,width 0.25s ease,height 0.25s ease,opacity 0.2s ease';
+  var callout = document.createElement('div');
+  callout.id = 'gt-callout';
+  callout.style.cssText = 'position:fixed;top:50%;left:50%;z-index:99992;max-width:330px;width:calc(100vw - 2rem);background:var(--surface,#1a1a2e);color:var(--text,#eee);border:1px solid var(--border,#333);border-radius:12px;box-shadow:0 10px 36px rgba(0,0,0,0.5);font-family:var(--font-body,sans-serif);transition:top 0.25s ease,left 0.25s ease';
+  document.body.appendChild(blocker);
+  document.body.appendChild(hole);
+  document.body.appendChild(callout);
+
+  function place(el) {
+    if (!el) {
+      hole.style.opacity = '0';
+      callout.style.left = Math.max(8, (window.innerWidth - (callout.offsetWidth || 300)) / 2) + 'px';
+      callout.style.top  = Math.max(8, (window.innerHeight - (callout.offsetHeight || 160)) / 2) + 'px';
+      return;
+    }
+    hole.style.opacity = '1';
+    var r = el.getBoundingClientRect(), pad = 6;
+    hole.style.top = (r.top - pad) + 'px';
+    hole.style.left = (r.left - pad) + 'px';
+    hole.style.width = (r.width + pad * 2) + 'px';
+    hole.style.height = (r.height + pad * 2) + 'px';
+    var cw = callout.offsetWidth || 300, ch = callout.offsetHeight || 160;
+    var left = Math.min(Math.max(8, r.left), window.innerWidth - cw - 8), top;
+    if (r.bottom + ch + 16 < window.innerHeight) top = r.bottom + 12;
+    else if (r.top - ch - 16 > 8) top = r.top - ch - 12;
+    else top = Math.max(8, (window.innerHeight - ch) / 2);
+    callout.style.left = left + 'px';
+    callout.style.top = top + 'px';
+  }
+  function resolve(step) {
+    if (!step.selector) return null;
+    var cands = document.querySelectorAll(step.selector), el = null;
+    for (var c = 0; c < cands.length; c++) { if (cands[c].offsetParent !== null) { el = cands[c]; break; } }
+    if (el && step.wrap) el = el.closest(step.wrap) || el;
+    return el;
+  }
+  function render() {
+    var step = steps[i], total = steps.length;
+    curEl = resolve(step);
+    callout.innerHTML =
+      '<div style="padding:0.85rem 0.95rem 0.7rem">'
+      + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem">'
+      +   '<strong style="font-size:0.98rem;color:var(--text,#eee);line-height:1.3">' + (step.title || '') + '</strong>'
+      +   '<button type="button" id="gt-exit" title="Exit" style="background:none;border:none;color:var(--text-dim,#888);font-size:1.25rem;line-height:1;cursor:pointer;padding:0 0.1rem">×</button>'
+      + '</div>'
+      + '<div style="font-size:0.84rem;color:var(--text-mid,#bbb);line-height:1.5;margin-top:0.35rem">' + (step.body || '') + '</div>'
+      + '</div>'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.55rem 0.9rem;border-top:1px solid var(--border,#333)">'
+      +   '<span style="font-size:0.72rem;color:var(--text-dim,#888)">Step ' + (i + 1) + ' of ' + total + '</span>'
+      +   '<div style="display:flex;gap:0.4rem">'
+      +     (i > 0 ? '<button type="button" id="gt-back" style="padding:0.4rem 0.7rem;border-radius:7px;border:1px solid var(--border,#333);background:var(--surface2,#222);color:var(--text,#eee);font-family:inherit;font-size:0.8rem;cursor:pointer">Back</button>' : '')
+      +     '<button type="button" id="gt-next" style="padding:0.4rem 0.85rem;border-radius:7px;border:none;background:var(--accent,#f05008);color:#fff;font-family:inherit;font-size:0.8rem;font-weight:700;cursor:pointer">' + (i === total - 1 ? 'Done' : 'Next →') + '</button>'
+      +   '</div>'
+      + '</div>';
+    if (curEl) { try { curEl.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch(e){} }
+    requestAnimationFrame(function(){ place(curEl); });
+    var nx = document.getElementById('gt-next'); if (nx) nx.onclick = function(){ if (i >= total - 1) _gtEnd(); else { i++; render(); } };
+    var bk = document.getElementById('gt-back'); if (bk) bk.onclick = function(){ if (i > 0) { i--; render(); } };
+    var ex = document.getElementById('gt-exit'); if (ex) ex.onclick = _gtEnd;
+  }
+  function onResize(){ place(curEl); }
+  window.addEventListener('resize', onResize);
+  window._gtCleanup = function(){ window.removeEventListener('resize', onResize); };
+  render();
+}
+window._guidedTour = _guidedTour;
+window._gtEnd = _gtEnd;
+
+function startDashboardTour() {
+  try { if (typeof showPage === 'function') showPage('dashboard'); } catch(e){}
+  var steps = [
+    { selector:'#stats-grid', title:'Your data cards',
+      body:'These show key numbers about your collection. <strong>Tap any card to swap it</strong> for a different stat — collection value, catalog coverage, counts by type, and more. You can show up to 5.' },
+    { selector:'#dash-panel-header-0', wrap:'.panel', title:'Recent Additions',
+      body:'The items you added most recently. <strong>Tap the panel\'s header</strong> to switch it to a different list — Top Want List, For Sale, Highest Value, and more.' },
+    { selector:'#dash-panel-header-1', wrap:'.panel', title:'Top Want List',
+      body:'What you\'re hunting for, ranked by priority. Same as the other panel — tap its header to change what it shows.' },
+    { selector:'.sidebar', title:'Your main areas',
+      body:'Jump to your Collection, Want/Upgrade list, For Sale, Sold, the catalog, Tools, Reports, and Preferences from here.' },
+    { selector:'.dash-desktop-actions, .dash-mobile-actions', title:'Add things fast',
+      body:'Start here to add an item to your Collection or Want List, list something For Sale, or record a sale.' },
+    { title:'You\'re all set!',
+      body:'That\'s the Dashboard. You can replay this tour anytime from <strong>Help → Take the tour</strong>.' }
+  ];
+  setTimeout(function(){ _guidedTour(steps); }, 220);
+}
+window.startDashboardTour = startDashboardTour;
