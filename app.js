@@ -2102,15 +2102,6 @@ function applyTheme() {
     // Force light mode everywhere — add light class to sidebar too
     if (sidebar) sidebar.classList.add('sidebar-light');
     document.documentElement.dataset.theme = 'light';
-  } else if (theme === 'system') {
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    if (sidebar) sidebar.classList.toggle('sidebar-light', !prefersDark);
-    document.documentElement.dataset.theme = prefersDark ? 'dark' : 'light';
-  } else if (theme === 'high-contrast') {
-    // Session 112 accessibility theme. CSS lives under
-    // html[data-theme="high-contrast"] in app.css.
-    if (sidebar) sidebar.classList.remove('sidebar-light');
-    document.documentElement.dataset.theme = 'high-contrast';
   } else {
     if (sidebar) sidebar.classList.remove('sidebar-light');
     document.documentElement.dataset.theme = 'dark';

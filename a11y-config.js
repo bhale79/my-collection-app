@@ -40,8 +40,6 @@ const A11Y = {
     options: [
       { key: 'dark',          label: '\uD83C\uDF19 Dark'          },
       { key: 'light',         label: '\u2600\uFE0F Light'         },
-      { key: 'system',        label: '\uD83D\uDCBB System'        },
-      { key: 'high-contrast', label: '\uD83D\uDD06 High Contrast' },
     ],
   },
 
