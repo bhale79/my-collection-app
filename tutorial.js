@@ -431,12 +431,18 @@ function _guidedTour(steps) {
   document.body.appendChild(hole);
   document.body.appendChild(callout);
 
+  function setMascot(rightSide) {
+    var m = document.getElementById('gt-mascot'); if (!m) return;
+    if (rightSide) { m.style.left = 'auto'; m.style.right = '-66px'; m.style.transform = 'scaleX(-1)'; }
+    else { m.style.right = 'auto'; m.style.left = '-66px'; m.style.transform = 'none'; }
+  }
   function place(el) {
     callout.style.maxWidth = Math.min(340, window.innerWidth - 100) + 'px';
     if (!el) {
       hole.style.opacity = '0';
       callout.style.left = Math.max(72, (window.innerWidth - (callout.offsetWidth || 300)) / 2) + 'px';
       callout.style.top  = Math.max(8, (window.innerHeight - (callout.offsetHeight || 160)) / 2) + 'px';
+      setMascot(false);
       return;
     }
     hole.style.opacity = '1';
@@ -446,10 +452,22 @@ function _guidedTour(steps) {
     hole.style.width = (r.width + pad * 2) + 'px';
     hole.style.height = (r.height + pad * 2) + 'px';
     var cw = callout.offsetWidth || 300, ch = callout.offsetHeight || 160;
-    var left = Math.min(Math.max(72, r.left), window.innerWidth - cw - 8), top;
-    if (r.bottom + ch + 16 < window.innerHeight) top = r.bottom + 12;
-    else if (r.top - ch - 16 > 8) top = r.top - ch - 12;
-    else top = Math.max(8, (window.innerHeight - ch) / 2);
+    var W = window.innerWidth, H = window.innerHeight, gap = 14, over = 72, m = 8;
+    var fitsBelow = (H - r.bottom) >= ch + gap + m;
+    var fitsAbove = r.top >= ch + gap + m;
+    var fitsRight = (W - r.right) >= cw + over + gap;
+    var fitsLeft  = r.left >= cw + over + gap;
+    var tall = r.height > H * 0.5;
+    var side;
+    if (tall) side = fitsRight ? 'right' : (fitsLeft ? 'left' : (fitsBelow ? 'below' : 'above'));
+    else side = fitsBelow ? 'below' : (fitsRight ? 'right' : (fitsAbove ? 'above' : (fitsLeft ? 'left' : 'below')));
+    var left, top;
+    if (side === 'right') { left = r.right + gap; top = Math.min(Math.max(m, r.top), H - ch - m); setMascot(true); }
+    else if (side === 'left') { left = r.left - cw - gap; top = Math.min(Math.max(m, r.top), H - ch - m); setMascot(false); }
+    else if (side === 'above') { top = r.top - ch - gap; left = Math.min(Math.max(over, r.left), W - cw - m); setMascot(false); }
+    else { top = r.bottom + gap; left = Math.min(Math.max(over, r.left), W - cw - m); setMascot(false); }
+    left = Math.min(Math.max(m, left), W - cw - m);
+    top = Math.min(Math.max(m, top), H - ch - m);
     callout.style.left = left + 'px';
     callout.style.top = top + 'px';
   }
@@ -464,7 +482,7 @@ function _guidedTour(steps) {
     var step = steps[i], total = steps.length;
     curEl = resolve(step);
     callout.innerHTML =
-      '<img src="./conductor.png" alt="" style="position:absolute;left:-66px;bottom:-6px;width:84px;height:auto;pointer-events:none;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.45))" onerror="this.style.display=\'none\'">'
+      '<img id="gt-mascot" src="./conductor.png" alt="" style="position:absolute;left:-66px;bottom:-6px;width:84px;height:auto;pointer-events:none;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.45))" onerror="this.style.display=\'none\'">'
       + '<div style="padding:0.85rem 0.95rem 0.7rem">'
       + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem">'
       +   '<strong style="font-size:0.98rem;color:var(--text,#eee);line-height:1.3">' + (step.title || '') + '</strong>'
