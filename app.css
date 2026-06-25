@@ -40,6 +40,31 @@
   /* Applied via document.documentElement.dataset.theme = "high-contrast". */
   /* Uses pure black/white for maximum legibility, stronger borders,     */
   /* and a brighter accent. Everything else keeps its existing layout.    */
+  /* ── Light theme — full cohesive light palette (chrome + content). ── */
+  /* Applied via document.documentElement.dataset.theme = "light". Reuses  */
+  /* the proven cream palette already used for .main so the sidebar,       */
+  /* modals and wizard match the (already-light) content area.             */
+  html[data-theme="light"] {
+    --bg:        #f8e8c0;
+    --surface:   #fffdf6;
+    --surface2:  #f5eeda;
+    --surface3:  #ede2cc;
+    --border:    #d4c8a8;
+    --border-hi: #c0b090;
+    --border-light: #d4c8a8;
+    --text:      #2a2015;
+    --text-dim:  #8a7e68;
+    --text-mid:  #5a4e38;
+    --navy:      #2a2015;
+    --cream:     #2a2015;
+    --accent2:   #b8860b;
+    --gold:      #b8860b;
+    background:  #f8e8c0;
+  }
+  html[data-theme="light"] body { background: #f8e8c0; }
+  html[data-theme="light"] .sidebar,
+  html[data-theme="light"] .sidebar-light { background: var(--surface); }
+
   html[data-theme="high-contrast"] {
     --bg:        #000000;
     --surface:   #000000;
