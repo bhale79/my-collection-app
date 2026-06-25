@@ -381,6 +381,9 @@ function openHelpHub() {
     + '<div style="padding:0.4rem 1.25rem 1.25rem;max-height:74vh;overflow-y:auto">'
     +   hdr('Getting Started')
     +   row(X + "if(typeof startDashboardTour==='function')startDashboardTour();", '🚂', 'Take the tour', 'A guided, highlighted walkthrough of the Dashboard')
+    +   hdr('Watch & Learn')
+    +   row(X + "if(typeof startLifecycleDemo==='function')startLifecycleDemo();", '🎬', 'Watch: an item lifecycle', 'See an item go from Want list to Sold')
+    +   row(X + "if(typeof startToolsDemo==='function')startToolsDemo();", '🛠️', 'Watch: Collection Tools', 'Find groups, sets, duplicates and gaps')
     +   hdr('How-To Guides')
     +   row(X + "tutStart('add-item');", '📦', 'Add an item')
     +   row(X + "tutStart('add-want');", '⭐', 'Add a want-list item')
@@ -530,3 +533,191 @@ function startDashboardTour() {
   setTimeout(function(){ _guidedTour(steps); }, 220);
 }
 window.startDashboardTour = startDashboardTour;
+
+
+// ═══════════════════════════════════════════════════════════════
+// LIFECYCLE DEMO "MOVIE" — scripted, self-contained, writes NO real
+// data. A sample item travels Want -> Collection -> Part -> For Sale
+// -> Sold (+ Upgrade), with an animated cursor and mascot narration.
+// ═══════════════════════════════════════════════════════════════
+function _dBtn(id, label, color) {
+  return '<span id="' + id + '" style="display:inline-block;padding:0.45rem 0.85rem;border-radius:8px;border:1.5px solid ' + color + ';color:' + color + ';background:rgba(255,255,255,0.05);font-size:0.82rem;font-weight:700;white-space:nowrap">' + label + '</span>';
+}
+function _dRow(id, num, name, right) {
+  return '<div id="' + id + '" style="display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.7rem;border:1px solid var(--border,#333);border-radius:8px;background:var(--surface2,#222);margin-bottom:0.45rem;font-size:0.83rem;color:var(--text,#eee)">'
+    + '<span style="font-family:var(--font-mono,monospace);color:var(--accent,#f05008);font-weight:700">' + num + '</span>'
+    + '<span style="flex:1;min-width:0">' + name + '</span>'
+    + (right || '') + '</div>';
+}
+function _dHead(t) {
+  return '<div style="font-size:0.68rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:var(--text-dim,#888);margin-bottom:0.65rem">' + t + '</div>';
+}
+function _dPill(text, color) {
+  return '<span style="display:inline-block;padding:0.1rem 0.45rem;border-radius:10px;border:1px solid ' + color + ';color:' + color + ';font-size:0.68rem;font-weight:700;margin-left:0.4rem">' + text + '</span>';
+}
+function _dField(label, val) {
+  return '<div style="margin-bottom:0.5rem"><div style="font-size:0.64rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim,#888);margin-bottom:0.15rem">' + label + '</div><div style="background:var(--bg,#0f1220);border:1px solid var(--border,#333);border-radius:7px;padding:0.4rem 0.6rem;color:var(--text,#eee);font-size:0.85rem">' + val + '</div></div>';
+}
+var _DEMO_LIFE = [
+  { title: 'Meet item No. 726', ms: 4200,
+    text: 'Let\'s follow a Lionel 726 Berkshire through its whole life in your roster — from wishlist to sold.',
+    html: _dHead('The star of our show') + '<div style="text-align:center;padding:0.8rem 0">'
+      + '<div style="font-size:2.4rem">🚂</div>'
+      + '<div style="font-family:var(--font-mono,monospace);font-size:1.4rem;color:var(--accent,#f05008);font-weight:700;margin-top:0.3rem">726</div>'
+      + '<div style="color:var(--text-mid,#bbb);font-size:0.85rem">2-8-4 Berkshire Steam Locomotive</div></div>' },
+  { title: 'Add it to your Want List', ms: 5000,
+    text: 'You don\'t own one yet, so you start hunting. From the Dashboard, tap Add to Want List.',
+    html: _dHead('Dashboard') + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap">'
+      + _dBtn('d1','+ Add to Collection','var(--accent,#f05008)')
+      + _dBtn('d1w','♥ Add to Want List','#2980b9')
+      + _dBtn('d1u','↑ Add Upgrade','#8b5cf6') + '</div>',
+    target: '#d1w' },
+  { title: 'Find it in the catalog', ms: 5000,
+    text: 'Type the number — 726 — and the catalog finds it instantly. Tap the match.',
+    html: _dHead('Add to Want List') + _dField('Item number','726') + _dRow('d2','726','2-8-4 Berkshire Steam Locomotive',''),
+    target: '#d2' },
+  { title: 'Set your target price', ms: 5000,
+    text: 'Note what you\'re willing to pay so you can spot a deal. Then Save.',
+    html: _dHead('Want details') + _dField('Target price','$250') + _dField('Priority','High')
+      + '<div style="text-align:right;margin-top:0.4rem">' + _dBtn('d3','Save to Want List','#2980b9') + '</div>',
+    target: '#d3' },
+  { title: 'It\'s on your Want List', ms: 4600,
+    text: 'Now it\'s tracked. Every time you shop, you know exactly what you\'re after.',
+    html: _dHead('Want / Upgrade List') + _dRow('d4','726','2-8-4 Berkshire' + _dPill('High','#e0a800'), '<span style="color:var(--text-dim,#888);font-size:0.78rem">$250</span>') },
+  { title: 'You found one!', ms: 5200,
+    text: 'At a show you snag a 726. Tap + Collection on the want item to move it in.',
+    html: _dHead('Want / Upgrade List') + _dRow('d5','726','2-8-4 Berkshire', _dBtn('d5b','+ Collection','#2ecc71')),
+    target: '#d5b' },
+  { title: 'Rate it & log what you paid', ms: 5200,
+    text: 'The wizard opens pre-filled. Set the condition and what you paid, then Save.',
+    html: _dHead('Add to Collection') + _dField('Condition (1-10)','8 — Excellent') + _dField('Paid','$210')
+      + '<div style="text-align:right;margin-top:0.4rem">' + _dBtn('d6','Save to Collection','var(--accent,#f05008)') + '</div>',
+    target: '#d6' },
+  { title: 'It\'s yours', ms: 4600,
+    text: 'The 726 moves into My Collection — and drops off the Want List automatically.',
+    html: _dHead('My Collection') + _dRow('d7','726','2-8-4 Berkshire' + _dPill('Owned','#2ecc71'), '<span style="color:var(--text-dim,#888);font-size:0.78rem">8/10</span>') },
+  { title: 'Need a part? Track it', ms: 5200,
+    text: 'Missing the smoke unit. Add it under Parts Needed so you can hunt it down at the next show.',
+    html: _dHead('Parts Needed') + _dField('Part','Smoke unit — for 726')
+      + '<div style="text-align:right;margin-top:0.4rem">' + _dBtn('d8','Add Part','#b08820') + '</div>',
+    target: '#d8' },
+  { title: 'Decide to sell it', ms: 5200,
+    text: 'Later you decide to part with it. Open the item and tap List for Sale, with an asking price.',
+    html: _dHead('Item 726 — details') + _dField('Asking price','$300')
+      + '<div style="text-align:right;margin-top:0.4rem">' + _dBtn('d9','List for Sale','#e67e22') + '</div>',
+    target: '#d9' },
+  { title: 'It\'s on the For Sale list', ms: 4600,
+    text: 'Your asking price sits next to the catalog market value, so buyers see the deal.',
+    html: _dHead('For Sale') + _dRow('d10','726','2-8-4 Berkshire', '<span style="color:#e67e22;font-size:0.78rem;font-weight:700">$300</span>') },
+  { title: 'Sold!', ms: 5200,
+    text: 'A buyer takes it for $285. Tap Mark as Sold and enter the final price.',
+    html: _dHead('Item 726 — for sale') + _dField('Final sale price','$285')
+      + '<div style="text-align:right;margin-top:0.4rem">' + _dBtn('d11','Mark as Sold','#2ecc71') + '</div>',
+    target: '#d11' },
+  { title: 'Into your sales history', ms: 4800,
+    text: 'The 726 moves to Sold Items — a permanent record of what you sold and for how much.',
+    html: _dHead('Sold Items') + _dRow('d12','726','2-8-4 Berkshire' + _dPill('Sold','#888'), '<span style="color:#2ecc71;font-size:0.78rem;font-weight:700">$285</span>') },
+  { title: 'One more: the Upgrade List', ms: 6800,
+    text: 'Say you\'d kept it but wanted a nicer copy. The Upgrade List tracks items you OWN but want to improve — set a target condition and max price, and "Got It" swaps in the better one when you find it.',
+    html: _dHead('Upgrade List') + _dRow('d13','726','2-8-4 Berkshire', '<span style="color:#8b5cf6;font-size:0.74rem">target 9/10 · max $320</span>') + '<div style="text-align:right;margin-top:0.3rem">' + _dBtn('d13b','Got It →','#8b5cf6') + '</div>' },
+  { title: 'That\'s the whole life cycle', ms: 5200,
+    text: 'Want → Collection → Parts → For Sale → Sold, plus upgrades along the way. Replay anytime from Help.',
+    html: '<div style="text-align:center;padding:0.9rem 0"><div style="font-size:2rem">🎉</div><div style="color:var(--text,#eee);font-weight:700;margin-top:0.4rem">You\'ve seen it end to end</div></div>' }
+];
+var _DEMO_TOOLS = [
+  { title: 'Collection Tools', ms: 4600,
+    text: 'These scan your collection to find hidden connections and gaps you\'d miss by hand.',
+    html: _dHead('Collection Tools') + '<div style="color:var(--text-mid,#bbb);font-size:0.85rem;line-height:1.55">Four scanners: <strong>Smart Group Finder</strong>, <strong>Duplicate Checker</strong>, <strong>Set Builder</strong>, and <strong>Companion Suggester</strong>.</div>' },
+  { title: 'Smart Group Finder', ms: 5400,
+    text: 'Finds engines, tenders, boxes and instruction sheets that belong together but aren\'t linked — and links them in one tap.',
+    html: _dHead('Smart Group Finder') + _dRow('t1a','675','Steam engine','') + _dRow('t1b','2466W','Tender','')
+      + '<div style="text-align:right">' + _dBtn('t1','Link as a pair','var(--accent,#f05008)') + '</div>',
+    target: '#t1' },
+  { title: 'Duplicate Checker', ms: 4800,
+    text: 'Spots anything you own more than once — so you never buy the same car twice.',
+    html: _dHead('Duplicate Checker') + _dRow('t2','6464-25','Great Northern boxcar' + _dPill('owned x2','#e0a800'),'') },
+  { title: 'Set Builder', ms: 5400,
+    text: 'Shows which complete sets you can assemble from pieces you already own — and what\'s missing.',
+    html: _dHead('Set Builder') + _dRow('t3','1425WS','Outfit set — you own 4 of 5','<span style="color:#e0a800;font-size:0.74rem">1 missing</span>')
+      + '<div style="text-align:right">' + _dBtn('t3b','Add missing to Want','#2980b9') + '</div>',
+    target: '#t3b' },
+  { title: 'Companion Suggester', ms: 5000,
+    text: 'Flags tenders without their engine, B-units without an A-unit, and other lonely halves.',
+    html: _dHead('Companion Suggester') + _dRow('t4','2426W','Tender — no engine yet','<span style="color:#888;font-size:0.74rem">needs 726</span>') },
+  { title: 'That\'s Collection Tools', ms: 4800,
+    text: 'Run them anytime from the Collection Tools page. Replay this demo from Help.',
+    html: '<div style="text-align:center;padding:0.9rem 0"><div style="font-size:1.9rem">🛠️</div><div style="color:var(--text,#eee);font-weight:700;margin-top:0.4rem">Smarter than sorting by hand</div></div>' }
+];
+function _demoEnd() { var m = document.getElementById('demo-modal'); if (m) { if (m._t) clearTimeout(m._t); m.remove(); } }
+function _demoPlay(title, scenes) {
+  _demoEnd();
+  var idx = 0, playing = true;
+  var modal = document.createElement('div');
+  modal.id = 'demo-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(8,10,18,0.92);display:flex;align-items:center;justify-content:center;padding:1rem;font-family:var(--font-body,sans-serif)';
+  var bc = 'padding:0.4rem 0.8rem;border-radius:7px;font-size:0.82rem;cursor:pointer;font-family:inherit';
+  modal.innerHTML =
+    '<div style="width:100%;max-width:680px;background:var(--surface,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;overflow:hidden;box-shadow:0 16px 50px rgba(0,0,0,0.6)">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.7rem 1rem;border-bottom:1px solid var(--border,#333);background:var(--surface2,#222)">'
+    +   '<strong style="color:var(--text,#eee);font-size:0.95rem">🎬 ' + title + '</strong>'
+    +   '<button id="demo-exit" style="background:none;border:none;color:var(--text-dim,#888);font-size:1.4rem;cursor:pointer;line-height:1">×</button>'
+    + '</div>'
+    + '<div id="demo-stage" style="position:relative;height:330px;background:var(--bg,#0f1220);border-bottom:1px solid var(--border,#333)">'
+    +   '<div id="demo-screen" style="position:absolute;inset:0;padding:1.1rem 1.2rem;overflow:auto"></div>'
+    +   '<img id="demo-cursor" alt="" style="position:absolute;left:50%;top:60%;width:24px;height:24px;opacity:0;transition:left 0.85s cubic-bezier(.45,0,.25,1),top 0.85s cubic-bezier(.45,0,.25,1),opacity 0.3s;pointer-events:none;z-index:6;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.6))">'
+    + '</div>'
+    + '<div style="display:flex;gap:0.7rem;align-items:flex-end;padding:0.85rem 1rem 0.5rem">'
+    +   '<img src="./conductor.png" alt="" style="width:52px;height:auto;flex-shrink:0" onerror="this.style.display=\'none\'">'
+    +   '<div style="flex:1;min-width:0">'
+    +     '<div id="demo-title" style="font-weight:700;color:var(--text,#eee);font-size:0.92rem"></div>'
+    +     '<div id="demo-text" style="color:var(--text-mid,#bbb);font-size:0.83rem;line-height:1.5;margin-top:0.15rem"></div>'
+    +   '</div>'
+    + '</div>'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.4rem 1rem 0.85rem">'
+    +   '<span id="demo-counter" style="font-size:0.72rem;color:var(--text-dim,#888)"></span>'
+    +   '<div style="display:flex;gap:0.4rem">'
+    +     '<button id="demo-back" style="' + bc + ';border:1px solid var(--border,#333);background:var(--surface2,#222);color:var(--text,#eee)">Back</button>'
+    +     '<button id="demo-play" style="' + bc + ';border:1px solid var(--border,#333);background:var(--surface2,#222);color:var(--text,#eee)">Pause</button>'
+    +     '<button id="demo-next" style="' + bc + ';border:none;background:var(--accent,#f05008);color:#fff;font-weight:700">Next →</button>'
+    +   '</div>'
+    + '</div>'
+    + '</div>';
+  document.body.appendChild(modal);
+  document.getElementById('demo-cursor').src = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M5 3 L5 19 L9.2 14.8 L12 21 L14 20.1 L11.2 14 L17 14 Z" fill="#ffffff" stroke="#111" stroke-width="1.2" stroke-linejoin="round"/></svg>');
+  function clearT(){ if (modal._t) { clearTimeout(modal._t); modal._t = null; } }
+  function schedule(ms){ clearT(); if (playing) modal._t = setTimeout(go, ms || 5000); }
+  function go(){ if (idx >= scenes.length - 1) { _demoEnd(); } else { idx++; render(); } }
+  function back(){ if (idx > 0) { idx--; render(); } }
+  function render(){
+    clearT();
+    var sc = scenes[idx];
+    var screen = document.getElementById('demo-screen');
+    screen.innerHTML = sc.html || '';
+    document.getElementById('demo-title').innerHTML = sc.title || '';
+    document.getElementById('demo-text').innerHTML = sc.text || '';
+    document.getElementById('demo-counter').textContent = 'Scene ' + (idx + 1) + ' of ' + scenes.length;
+    document.getElementById('demo-play').textContent = playing ? 'Pause' : 'Play';
+    var cur = document.getElementById('demo-cursor');
+    cur.style.opacity = '0';
+    if (sc.target) {
+      setTimeout(function(){
+        var t = screen.querySelector(sc.target); if (!t) return;
+        var sr = screen.getBoundingClientRect(), tr = t.getBoundingClientRect();
+        cur.style.opacity = '1';
+        cur.style.left = (tr.left - sr.left + tr.width * 0.5) + 'px';
+        cur.style.top = (tr.top - sr.top + tr.height * 0.5) + 'px';
+        setTimeout(function(){ t.style.transition = 'transform 0.15s'; t.style.transform = 'scale(0.93)'; setTimeout(function(){ t.style.transform = ''; }, 200); }, 880);
+      }, 400);
+    }
+    schedule(sc.ms);
+  }
+  document.getElementById('demo-exit').onclick = _demoEnd;
+  document.getElementById('demo-next').onclick = function(){ playing = false; clearT(); go(); var pb = document.getElementById('demo-play'); if (pb) pb.textContent = 'Play'; };
+  document.getElementById('demo-back').onclick = function(){ playing = false; clearT(); back(); var pb = document.getElementById('demo-play'); if (pb) pb.textContent = 'Play'; };
+  document.getElementById('demo-play').onclick = function(){ playing = !playing; this.textContent = playing ? 'Pause' : 'Play'; if (playing) schedule(900); else clearT(); };
+  render();
+}
+function startLifecycleDemo(){ _demoPlay('An Item\'s Life Cycle', _DEMO_LIFE); }
+function startToolsDemo(){ _demoPlay('Collection Tools', _DEMO_TOOLS); }
+window.startLifecycleDemo = startLifecycleDemo;
+window.startToolsDemo = startToolsDemo;
