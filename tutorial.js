@@ -213,7 +213,12 @@ function _buildTutorialUI() {
     '<img id="tut-help-conductor" src="./conductor.png">' +
     '<span id="tut-help-label">Need Help?</span>' +
     '<button id="tut-help-btn" onclick="void(0)">Help</button>';
-  document.body.appendChild(widget);
+  // Place the Need Help? widget inside the sidebar, under the Contact button.
+  (function(){
+    var _secs = document.querySelectorAll('.sidebar .nav-section');
+    var _foot = _secs.length ? _secs[_secs.length - 1] : document.querySelector('.sidebar');
+    (_foot || document.body).appendChild(widget);
+  })();
 
   // Help menu
   var menu = document.createElement('div');
