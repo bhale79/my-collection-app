@@ -18,8 +18,6 @@ const _TUT = (function() {
           msg: 'If the item has a matching tender, you\'ll see an <strong>Engine + Tender</strong> option. Tap it to add both pieces together — the app links them as a matched pair automatically.' },
         { title: 'Select a Variation',
           msg: 'Pick the variation that matches your item. Each variation includes a description from the Lionel reference catalog. You\'ll also see a <strong>COTT link</strong> that opens the item on the Collector\'s Old Time Trains site for more detail.' },
-        { title: 'Full vs Quick Entry',
-          msg: '<strong>Quick Entry</strong> saves immediately with no further questions — items are marked with a lightning bolt icon so you can fill details in later. Choose <strong>Full Entry</strong> to walk through all the fields now.' },
         { title: 'Condition',
           msg: 'Rate the condition from <strong>1 to 10</strong> — 10 is mint in the box, 1 is heavily worn. If you added an engine and tender, you\'ll rate each piece separately.' },
         { title: 'Purchase & Value',
@@ -194,25 +192,11 @@ function tutEnd()     { _TUT.end();     }
 
 // Help menu toggle
 function tutToggleMenu() {
+  // Phase 1: all Help triggers now open the unified Help Center.
+  if (typeof openHelpHub === 'function') { openHelpHub(); return; }
+  // Fallback to the legacy popup if the hub isn't available.
   const menu = document.getElementById('tut-help-menu');
-  if (!menu) return;
-  const isOpen = menu.style.display === 'block';
-  menu.style.display = isOpen ? 'none' : 'block';
-  if (!isOpen) {
-    // Close when clicking anywhere outside — but NOT if clicking the trigger buttons
-    setTimeout(() => {
-      document.addEventListener('click', function _close(e) {
-        const widget  = document.getElementById('tut-help-widget');
-        const mnavBtn = document.getElementById('mnav-help');
-        const clickedTrigger = (widget && widget.contains(e.target)) ||
-                               (mnavBtn && mnavBtn.contains(e.target));
-        if (!menu.contains(e.target) && !clickedTrigger) {
-          menu.style.display = 'none';
-          document.removeEventListener('click', _close);
-        }
-      });
-    }, 0);
-  }
+  if (menu) menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
 }
 
 function _buildTutorialUI() {
@@ -362,3 +346,52 @@ function tutCheckAutoLaunch() {
   document.addEventListener('scroll', _clearTip, true);
   document.addEventListener('click', _clearTip, true);
 })();
+
+
+// ═══════════════════════════════════════════════════════════════
+// HELP CENTER (Phase 1) — one hub, opened from the floating Help
+// button AND Preferences -> Help & Tips. Reuses existing actions.
+// ═══════════════════════════════════════════════════════════════
+function openHelpHub() {
+  var ex = document.getElementById('help-hub-modal'); if (ex) ex.remove();
+  var X = "document.getElementById('help-hub-modal').remove();";
+  var fb = (typeof ADMIN_EMAIL !== 'undefined') ? ADMIN_EMAIL : '';
+  var row = function(onclick, icon, label, desc) {
+    return '<button type="button" onclick="' + onclick + '" style="display:flex;gap:0.7rem;align-items:flex-start;width:100%;text-align:left;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.65rem 0.8rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;cursor:pointer;margin-bottom:0.4rem">'
+      + '<span style="font-size:1.15rem;flex-shrink:0;line-height:1.3">' + icon + '</span>'
+      + '<span style="line-height:1.35"><strong>' + label + '</strong>'
+      + (desc ? '<span style="display:block;font-size:0.75rem;color:var(--text-dim);margin-top:0.1rem">' + desc + '</span>' : '')
+      + '</span></button>';
+  };
+  var hdr = function(t) { return '<div style="font-size:0.72rem;font-weight:700;color:var(--text-mid);text-transform:uppercase;letter-spacing:0.05em;margin:0.95rem 0 0.5rem">' + t + '</div>'; };
+  var modal = document.createElement('div');
+  modal.id = 'help-hub-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding:1.25rem;overflow-y:auto';
+  modal.innerHTML =
+    '<div style="background:var(--surface);border-radius:16px;max-width:460px;width:100%;margin:auto;box-shadow:0 12px 40px rgba(0,0,0,0.5);font-family:var(--font-body)">'
+    + '<div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">'
+    +   '<strong style="font-size:1.1rem;color:var(--text)">📖 Help Center</strong>'
+    +   '<button type="button" onclick="' + X + '" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1;padding:0 0.25rem">×</button>'
+    + '</div>'
+    + '<div style="padding:0.4rem 1.25rem 1.25rem;max-height:74vh;overflow-y:auto">'
+    +   hdr('Getting Started')
+    +   row(X + "if(typeof onboardReopenTour==='function')onboardReopenTour();", '🚂', 'Take the tour', 'A quick walkthrough of what the app does')
+    +   hdr('How-To Guides')
+    +   row(X + "tutStart('add-item');", '📦', 'Add an item')
+    +   row(X + "tutStart('add-want');", '⭐', 'Add a want-list item')
+    +   row(X + "tutStart('want-to-collection');", '✅', 'Move a want item to your collection')
+    +   row(X + "tutStart('list-for-sale');", '🏷️', 'List an item for sale')
+    +   row(X + "tutStart('mark-sold');", '💰', 'Mark an item as sold')
+    +   row(X + "tutStart('remove-item');", '🗑️', 'Remove or delete an item')
+    +   row(X + "tutStart('reports');", '📊', 'Generate a report')
+    +   hdr('Tips & Recovery')
+    +   row(X + "if(typeof _uiShowVersionHistoryHelp==='function')_uiShowVersionHistoryHelp();", '↩️', 'How to undo a mistake', 'Restore an earlier version of your data')
+    +   row(X + "if(typeof resetContextualHints==='function'){resetContextualHints();if(typeof showToast==='function')showToast('Tips re-enabled. Visit a list page to see them.');}", '💡', 'Reset tips', 'Show the one-time hint bubbles again')
+    +   hdr('More')
+    +   row("window.location.href='mailto:" + fb + "?subject=The Rail Roster Feedback';", '✉️', 'Send feedback', 'Report a bug or suggest a feature')
+    + '</div>'
+    + '</div>';
+  modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
+}
+window.openHelpHub = openHelpHub;
