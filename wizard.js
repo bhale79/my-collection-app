@@ -1249,7 +1249,7 @@ function renderWizardStep() {
           const _label = (typeof window.resolveRefLabel === 'function')
             ? window.resolveRefLabel(singleItem.refLink, { verbose: true })
             : 'View reference \u2197';
-          return '<a href="' + singleItem.refLink + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:0.4rem;margin-top:0.75rem;font-size:0.82rem;color:var(--accent2);text-decoration:none;padding:0.4rem 0.75rem;border:1px solid rgba(201,146,42,0.3);border-radius:6px;background:rgba(201,146,42,0.08)">' + _label + '</a>';
+          return '<a href="' + ((typeof window.cottAnchorUrl==='function') ? window.cottAnchorUrl(singleItem.refLink, itemNum) : singleItem.refLink) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:0.4rem;margin-top:0.75rem;font-size:0.82rem;color:var(--accent2);text-decoration:none;padding:0.4rem 0.75rem;border:1px solid rgba(201,146,42,0.3);border-radius:6px;background:rgba(201,146,42,0.08)">' + _label + '</a>';
         })()}
 
         </div>`;
@@ -1276,7 +1276,7 @@ function renderWizardStep() {
                     ? window.resolveRefLabel(v.refLink)
                     : 'View \u2197')
                 : '';
-              const cottLink = v.refLink ? `<a href="${v.refLink}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.75rem;color:var(--accent2);text-decoration:none;padding:0.2rem 0.5rem;border:1px solid rgba(201,146,42,0.3);border-radius:5px;background:rgba(201,146,42,0.08);flex-shrink:0;white-space:nowrap">${_refShort}</a>` : '';
+              const cottLink = v.refLink ? `<a href="${(typeof window.cottAnchorUrl==='function') ? window.cottAnchorUrl(v.refLink, itemNum) : v.refLink}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.75rem;color:var(--accent2);text-decoration:none;padding:0.2rem 0.5rem;border:1px solid rgba(201,146,42,0.3);border-radius:5px;background:rgba(201,146,42,0.08);flex-shrink:0;white-space:nowrap">${_refShort}</a>` : '';
               return `
               <button onclick="wizardChooseVariation('${v.variation}')" style="
                 display:flex;flex-direction:column;gap:0.4rem;padding:0.85rem 1rem;

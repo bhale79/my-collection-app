@@ -707,7 +707,9 @@ if (typeof window !== 'undefined') window._externalSiteLabel = _externalSiteLabe
 // the Atlas/MTH/Lionel/Google branching so app-collection.js can reuse it.
 function _itemExternalLinkURL(item) {
   if (!item) return '';
-  if (item.refLink) return item.refLink;
+  // Deep-link COTT references straight to the item anchor (cott-anchors.js).
+  if (item.refLink) return (typeof window!=='undefined' && window.cottAnchorUrl)
+      ? window.cottAnchorUrl(item.refLink, item.itemNum) : item.refLink;
   if (item._tab && String(item._tab).toLowerCase().indexOf('mth') === 0
       && item.itemNum) {
     return 'https://www.mthtrains.com/products/' + encodeURIComponent(item.itemNum);
