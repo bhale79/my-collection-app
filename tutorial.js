@@ -552,7 +552,7 @@ function _dBtn(id, label, color) {
 function _dRow(id, num, name, right) {
   // Reuse the live list-row renderer so rows match the dashboard / list pages exactly.
   if (typeof _panelRow === 'function') {
-    return '<div id="' + id + '">' + _panelRow('\uD83D\uDE82', num, name, '', 'void(0)', null, right || '') + '</div>';
+    return '<div id="' + id + '" style="max-width:100%;overflow:hidden">' + _panelRow('\uD83D\uDE82', num, name, '', 'void(0)', null, right || '') + '</div>';
   }
   return '<div id="' + id + '" style="display:flex;align-items:center;gap:0.55rem;padding:0.45rem 0;border-bottom:1px solid var(--border)">'
     + '<span class="item-num" style="font-size:0.82rem">' + num + '</span>'
@@ -676,7 +676,7 @@ function _demoPlay(title, scenes) {
     +   '<button id="demo-exit" style="background:none;border:none;color:var(--text-dim,#888);font-size:1.4rem;cursor:pointer;line-height:1">×</button>'
     + '</div>'
     + '<div id="demo-stage" style="position:relative;height:330px;background:var(--bg,#0f1220);border-bottom:1px solid var(--border,#333)">'
-    +   '<div id="demo-screen" style="position:absolute;inset:0;padding:1.1rem 1.2rem;overflow:auto"></div>'
+    +   '<div id="demo-screen" style="position:absolute;inset:0;padding:1.1rem 1.2rem;overflow-y:auto;overflow-x:hidden"></div>'
     +   '<img id="demo-cursor" alt="" style="position:absolute;left:50%;top:60%;width:24px;height:24px;opacity:0;transition:left 0.85s cubic-bezier(.45,0,.25,1),top 0.85s cubic-bezier(.45,0,.25,1),opacity 0.3s;pointer-events:none;z-index:6;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.6))">'
     + '</div>'
     + '<div style="display:flex;gap:0.7rem;align-items:flex-end;padding:0.85rem 1rem 0.5rem">'
