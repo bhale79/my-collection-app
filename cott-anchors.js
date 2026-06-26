@@ -105,7 +105,16 @@
       if(!m) return refLink;                                   // not a COTT link
       var slug = m[1].toLowerCase();
       if(!Object.prototype.hasOwnProperty.call(PREFIX, slug)) return refLink;
-      var norm = String(itemNum == null ? '' : itemNum).toUpperCase().replace(/[^A-Z0-9]/g, '');
+      var raw = String(itemNum == null ? '' : itemNum);
+      // On the locomotive pages COTT anchors a POWERED A-unit and a B-unit by the
+      // engine's BASE number -- the powered 'P' and the B-unit 'C' are NOT part of
+      // the anchor (e.g. powered 211 -> LAL211, B-unit 2343C -> the 2343 section).
+      // Dummy 'D' and trailer 'T' DO appear in the anchor (LAL205D, LAL212T), so
+      // those are left untouched.
+      if (slug.indexOf('motive-power') === 0) {
+        raw = raw.replace(/(\d)-?[PC]$/i, '$1');
+      }
+      var norm = raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
       if(!norm) return refLink;
       var base = refLink.replace(/[#?].*$/, '').replace(/\/+$/, '');
       return base + '/#' + PREFIX[slug] + norm;
