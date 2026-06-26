@@ -4977,7 +4977,11 @@ function wizardBack() {
     const st = wizard.steps[target];
     const isSkipped = (st.skipIf && st.skipIf(wizard.data));
     const isSetBlocked = (_setFwdSkip && _setFwdSkip.has(st.id));
-    if (!isSkipped && !isSetBlocked) break;
+    // Mirror the forward render: when "Save & Skip to Review" was used,
+    // all photo steps are auto-skipped — Back must skip them too, or it
+    // lands on a photo step that immediately re-skips forward (no-op bug).
+    const isPhotoSkipped = (wizard.data._skipAllPhotos && st.type === 'drivePhotos');
+    if (!isSkipped && !isSetBlocked && !isPhotoSkipped) break;
     target--;
   }
   // Session 159: removed Session-115 itemCategory revive. The era-picker step
