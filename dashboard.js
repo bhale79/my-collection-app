@@ -606,7 +606,7 @@ function buildDashboard() {
         var cardLabel = card.label;
         var inner;
         if (result.html) {
-          inner = '<div class="stat-label">' + cardLabel + '</div>' + result.html;
+          inner = '<div class="stat-label">' + cardLabel + '</div><div class="stat-scroll">' + result.html + '</div>';
         } else {
           inner = '<div class="stat-label">' + cardLabel + '</div>'
             + '<div class="stat-value">' + result.value + '</div>'
