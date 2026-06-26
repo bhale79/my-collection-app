@@ -387,6 +387,32 @@ function buildPartnerMap() {
     }
   });
 
+  // ── Single-unit locomotives never come as A / AA / AB / ABA ──
+  // Switchers, GE 44-Ton, GP-7/9, Fairbanks-Morse, EP-5 rectifiers, GG-1
+  // electrics and motorized units are self-contained single pieces. Force
+  // them back to 'single' no matter how they got flagged (the Companions /
+  // Sets data can mislabel a partner). Cab units (EMD F-3, Alco FA, Alco
+  // A-Unit, generic Diesel Locomotive) are left alone so their real AA/AB/ABA
+  // grouping keeps working.
+  function _isSingleUnitSubType(st) {
+    if (!st) return false;
+    var s = String(st).toLowerCase();
+    return s.indexOf('switcher') >= 0
+        || s.indexOf('gp-7') >= 0 || s.indexOf('gp-9') >= 0
+        || s.indexOf('gp7')  >= 0 || s.indexOf('gp9')  >= 0
+        || s.indexOf('fairbanks') >= 0
+        || s.indexOf('rectifier') >= 0 || s.indexOf('ep-5') >= 0
+        || s.indexOf('gg-1') >= 0 || s.indexOf('gg1') >= 0
+        || s.indexOf('electric') >= 0
+        || s.indexOf('motorized') >= 0;
+  }
+  _md.forEach(function(m) {
+    if (!_isSingleUnitSubType(m.subType)) return;
+    [normalizeItemNum(m.itemNum), String(m.itemNum || '').trim()].forEach(function(k) {
+      if (k && map[k]) { map[k].isDiesel = false; map[k].configs = []; map[k].bUnit = ''; map[k].aUnit = ''; }
+    });
+  });
+
   state.partnerMap = map;
   console.log('[PartnerMap] Built:', Object.keys(map).length, 'items mapped');
 }
