@@ -1292,6 +1292,7 @@ function renderWizardStep() {
                     color:${isSelected ? 'var(--accent)' : 'var(--accent2)'};
                     min-width:2rem;
                   ">${v.variation || '—'}</span>
+                  ${v.cottCode ? '<span title="COTT photo code" style="font-family:var(--font-mono);font-size:0.68rem;color:var(--text-dim);border:1px solid var(--border);border-radius:4px;padding:0.05rem 0.35rem;flex-shrink:0">' + _vEsc(v.cottCode) + '</span>' : ''}
                   ${cottLink}
                 </div>
                 <span style="font-size:0.82rem;color:var(--text-mid);line-height:1.5;padding-left:0.1rem">${(v.variation && v.variation !== _vBaseNum) ? _vHl(v.varDesc || v.description || 'No description available') : _vEsc(v.varDesc || v.description || 'No description available')}</span>
