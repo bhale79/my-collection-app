@@ -119,7 +119,7 @@ function _buildWizardModal() {
       '<div class="modal-footer">' +
         '<button class="btn btn-secondary" id="wizard-back-btn" onclick="if(!wizardBack())_doCloseWizard();" style="display:none">&#x2190; Back</button>' +
         '<button class="btn btn-secondary" onclick="closeWizard()">Cancel</button>' +
-        '<button class="btn btn-secondary" id="wizard-skip-photos-btn" onclick="wizardSkipAllPhotos()" style="display:none">&#x23ED; Save &amp; Skip to Review</button>' +
+        '<button class="btn btn-secondary" id="wizard-skip-photos-btn" onclick="wizardSkipAllPhotos()" style="display:none">&#x2713; Done with Photos &#x2192;</button>' +
         '<button class="btn btn-primary" id="wizard-next-btn" onclick="wizardNext()">Next &#x2192;</button>' +
       '</div>' +
     '</div>';
@@ -5027,6 +5027,10 @@ async function wizardSkipAllPhotos() {
   if (wizard.data._photoOnly && wizard.data._updatePdKey && typeof savePhotoOnlyUpdate === 'function') {
     await savePhotoOnlyUpdate();
     return;
+  }
+  if ((wizard.data._photosAdded || 0) > 0 && typeof showToast === 'function') {
+    var _n = wizard.data._photosAdded;
+    showToast('\u2713 Saved your ' + _n + ' photo' + (_n > 1 ? 's' : ''));
   }
   wizard.data._skipAllPhotos = true;
   wizard.step++;

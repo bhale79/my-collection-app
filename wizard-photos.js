@@ -119,7 +119,7 @@ async function uploadWizardPhoto(file, stepId, viewKey) {
   // Bug 11 (Session 154): track in-flight uploads so Skip-All-Photos and the
   // final save can wait for them — otherwise a quick skip advances before the
   // Drive upload lands and the photo URL never reaches photosItem.
-  if (wizard && wizard.data) wizard.data._photoUploadsInFlight = (wizard.data._photoUploadsInFlight || 0) + 1;
+  if (wizard && wizard.data) { wizard.data._photoUploadsInFlight = (wizard.data._photoUploadsInFlight || 0) + 1; wizard.data._photosAdded = (wizard.data._photosAdded || 0) + 1; }
   try {
     // Pass inventoryId for per-copy subfolder (collection items only)
     // Auto-allocate if not yet assigned (first photo triggers creation)
