@@ -1255,9 +1255,16 @@ function renderWizardStep() {
         </div>`;
       setTimeout(() => { const i = document.getElementById('wiz-input'); if(i) i.focus(); }, 50);
     } else {
-      // Show variation cards with COTT link per variation
+      // Show variation cards with COTT link per variation.
+      // #1: highlight how each variation differs from the first one.
+      const _vEsc = (x) => String(x == null ? '' : x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      const _vBaseNum = variations.length ? variations[0].variation : null;
+      const _vBaseSet = new Set();
+      if (variations.length) { String(variations[0].varDesc || variations[0].description || '').toLowerCase().split(/\s+/).forEach((w) => { const c = w.replace(/[^a-z0-9]/g,''); if (c) _vBaseSet.add(c); }); }
+      const _vHl = (desc) => String(desc || '').split(/(\s+)/).map((tok) => { if (/^\s+$/.test(tok)) return tok; const c = tok.toLowerCase().replace(/[^a-z0-9]/g,''); const e = _vEsc(tok); return (c && !_vBaseSet.has(c)) ? '<span style="color:var(--accent);font-weight:700;background:rgba(232,64,28,0.14);border-radius:3px;padding:0 2px">' + e + '</span>' : e; }).join('');
       body.innerHTML = `
         <div style="padding-top:0.5rem">
+          ${variations.length > 1 ? '<div style="font-size:0.74rem;color:var(--text-dim);margin-bottom:0.5rem;padding:0 0.1rem">Highlighted words show how each variation differs from the <strong>first</strong> one.</div>' : ''}
           <div style="display:flex;flex-direction:column;gap:0.5rem" id="var-cards">
             ${[{variation:'', varDesc:'No specific variation / not sure', refLink:''}, ...variations].map(v => {
               const isSelected = val===v.variation;
@@ -1287,7 +1294,7 @@ function renderWizardStep() {
                   ">${v.variation || '—'}</span>
                   ${cottLink}
                 </div>
-                <span style="font-size:0.82rem;color:var(--text-mid);line-height:1.5;padding-left:0.1rem">${v.varDesc || v.description || 'No description available'}</span>
+                <span style="font-size:0.82rem;color:var(--text-mid);line-height:1.5;padding-left:0.1rem">${(v.variation && v.variation !== _vBaseNum) ? _vHl(v.varDesc || v.description || 'No description available') : _vEsc(v.varDesc || v.description || 'No description available')}</span>
               </button>`;
             }).join('')}
           </div>
