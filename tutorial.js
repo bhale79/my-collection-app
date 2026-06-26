@@ -382,6 +382,7 @@ function openHelpHub() {
     +   hdr('Getting Started')
     +   row(X + "if(typeof startDashboardTour==='function')startDashboardTour();", '🚂', 'Take the tour', 'A guided, highlighted walkthrough of the Dashboard')
     +   hdr('Watch & Learn')
+    +   row(X + "if(typeof startGuidedAddDemo==='function')startGuidedAddDemo();", '🎬', 'Watch: adding an item (live)', 'Auto-plays through the real Add screen, step by step')
     +   row(X + "if(typeof startLifecycleDemo==='function')startLifecycleDemo();", '🎬', 'Watch: an item lifecycle', 'See an item go from Want list to Sold')
     +   row(X + "if(typeof startToolsDemo==='function')startToolsDemo();", '🛠️', 'Watch: Collection Tools', 'Find groups, sets, duplicates and gaps')
     +   hdr('How-To Guides')
@@ -730,6 +731,101 @@ function _demoPlay(title, scenes) {
   document.getElementById('demo-play').onclick = function(){ playing = !playing; this.textContent = playing ? 'Pause' : 'Play'; if (playing) schedule(900); else clearT(); };
   render();
 }
+// ═══════════════════════════════════════════════════════════════
+// Guided "Add an item" walkthrough — AUTO-PLAYS the REAL wizard.
+// Opens the actual Add-to-Collection wizard, fills a sample (No. 773),
+// and auto-advances through every step while a coach box explains each
+// field, stopping at the final Save step WITHOUT saving anything.
+// Safety: saveWizardItem() is short-circuited whenever #wiz-coach exists.
+// ═══════════════════════════════════════════════════════════════
+var _COACH_STEPS = {
+  itemNumGrouping: ['Step 1 — Find the item', 'Type the catalog number — we filled in <b>773</b> (a Hudson). You can narrow a search with the <b>Manufacturer / Era / Type</b> filters, or tap <b>Identify by Photo</b> if you don’t know it. Once it’s found, choose how you’re entering it — here we pick <b>Engine + Tender</b>.'],
+  variation: ['Step 2 — Pick the variation', 'Postwar pieces came in many versions. Choose the exact one — the <b>highlighted words</b> show how each differs from the first. Not sure? Pick <b>No specific variation</b>. The small link jumps to the reference photo.'],
+  conditionDetails: ['Step 3 — Condition &amp; details', 'Slide <b>Condition</b> 1–10 and flag <b>Box</b>, <b>Instruction Sheet</b>, <b>Master Box</b> or <b>Error</b>. Because this engine has a tender, you choose <b>which tender</b> came with it and rate it too.'],
+  purchaseValue: ['Step 4 — Purchase &amp; value', 'Log <b>what you paid</b>, the <b>date</b>, and an <b>estimated worth</b> (required). In a multi-piece set the other units reference this price.'],
+  drivePhotos: ['Photos', 'Snap each angle — photos are stored in <b>your own Google Drive</b>. Add them now, or press <b>Done with Photos</b> to skip and add them later.'],
+  confirm: ['Last step — Save', 'This is the final review. In real use, pressing <b>Save</b> files it into <b>My Collection</b> (and drops it off your Want list if it was there). That’s the whole flow — <b>nothing was saved</b> in this walkthrough. Press <b>Replay</b> or <b>End</b>.']
+};
+var _coachPlaying = true, _coachTimer = null, _coachLastKey = null;
+function _coachDelayFor(s){ return s.id === 'itemNumGrouping' ? 5200 : 6500; }
+function _coachSetText(s){
+  var d = _COACH_STEPS[s.id] || _COACH_STEPS[s.type] || ['Follow the on-screen fields', 'Fill this in, then it advances on its own.'];
+  var t = document.getElementById('wiz-coach-title'), x = document.getElementById('wiz-coach-text');
+  if (t) t.innerHTML = d[0]; if (x) x.innerHTML = d[1];
+  var lab = document.getElementById('wiz-coach-step');
+  if (lab) lab.textContent = (document.getElementById('wizard-step-label') || {}).textContent || '';
+}
+function _coachDoItem(){
+  var inp = document.getElementById('wiz-input');
+  if (inp && inp.value !== '773') { inp.value = '773'; inp.dispatchEvent(new Event('input', { bubbles: true })); }
+  setTimeout(function(){ if (document.getElementById('wiz-coach') && typeof _selectGrouping === 'function') _selectGrouping('engine_tender'); }, 1200);
+}
+function _coachAct(s){
+  if (!document.querySelector('#wizard-modal.open') || !document.getElementById('wiz-coach')) return;
+  if (s.id === 'itemNumGrouping') { _coachDoItem(); return; }
+  if (s.id === 'conditionDetails') { try { if (typeof _pickTender === 'function') _pickTender('2426W'); } catch(e){} setTimeout(function(){ wizardNext(); }, 600); return; }
+  if (s.type === 'purchaseValue') {
+    wizard.data.priceItem = wizard.data.priceItem || '210';
+    wizard.data.userEstWorth = wizard.data.userEstWorth || '300';
+    var p = document.getElementById('pv-price'); if (p) p.value = '210';
+    var w = document.getElementById('pv-worth'); if (w) w.value = '300';
+    setTimeout(function(){ wizardNext(); }, 250); return;
+  }
+  if (s.type === 'drivePhotos') { wizard.data._skipAllPhotos = true; wizardNext(); return; }
+  wizardNext();
+}
+function _coachOnRender(){
+  if (!document.getElementById('wiz-coach')) return;
+  if (typeof wizard === 'undefined' || !wizard || !wizard.steps) return;
+  var s = wizard.steps[wizard.step]; if (!s) return;
+  _coachSetText(s);
+  var key = wizard.step + ':' + s.id;
+  if (key !== _coachLastKey) {
+    _coachLastKey = key;
+    if (s.id === 'confirm') {
+      _coachPlaying = false; clearTimeout(_coachTimer);
+      var pb = document.getElementById('wiz-coach-play'); if (pb) pb.style.display = 'none';
+      var rb = document.getElementById('wiz-coach-replay'); if (rb) rb.style.display = '';
+      return;
+    }
+    if (_coachPlaying) { clearTimeout(_coachTimer); _coachTimer = setTimeout(function(){ _coachAct(s); }, _coachDelayFor(s)); }
+  }
+}
+function _coachRemove(){ var c = document.getElementById('wiz-coach'); if (c) { if (c._wd) clearInterval(c._wd); clearTimeout(_coachTimer); c.remove(); } }
+function _coachEnd(){ _coachRemove(); try { if (typeof _doCloseWizard === 'function') _doCloseWizard(); var m = document.getElementById('wizard-modal'); if (m) m.classList.remove('open'); document.body.style.overflow = ''; } catch(e){} }
+function _coachTogglePlay(){
+  _coachPlaying = !_coachPlaying;
+  var pb = document.getElementById('wiz-coach-play'); if (pb) pb.textContent = _coachPlaying ? '⏸ Pause' : '▶ Play';
+  if (_coachPlaying) { _coachLastKey = null; _coachOnRender(); } else { clearTimeout(_coachTimer); }
+}
+function _coachReplay(){ _coachRemove(); try { if (typeof _doCloseWizard === 'function') _doCloseWizard(); var m = document.getElementById('wizard-modal'); if (m) m.classList.remove('open'); } catch(e){} setTimeout(startGuidedAddDemo, 250); }
+function _coachShow(){
+  if (document.getElementById('wiz-coach')) return;
+  var c = document.createElement('div'); c.id = 'wiz-coach';
+  c.style.cssText = 'position:fixed;left:18px;bottom:18px;width:360px;max-width:calc(100vw - 36px);z-index:100002;background:var(--surface,#1a1a2e);border:1px solid var(--accent,#e8401c);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,0.55);font-family:var(--font-body,sans-serif);overflow:hidden';
+  c.innerHTML = '<div style="display:flex;gap:0.6rem;align-items:flex-start;padding:0.85rem 0.95rem">'
+    + '<img src="./conductor.png" alt="" style="width:46px;height:auto;flex-shrink:0" onerror="this.style.display=\'none\'">'
+    + '<div style="flex:1;min-width:0"><div id="wiz-coach-title" style="font-weight:700;color:var(--text,#eee);font-size:0.92rem"></div>'
+    + '<div id="wiz-coach-text" style="color:var(--text-mid,#bbb);font-size:0.82rem;line-height:1.5;margin-top:0.2rem"></div></div></div>'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.35rem 0.95rem 0.7rem">'
+    + '<span id="wiz-coach-step" style="font-size:0.7rem;color:var(--text-dim,#888)"></span>'
+    + '<div style="display:flex;gap:0.4rem">'
+    + '<button id="wiz-coach-replay" onclick="_coachReplay()" style="display:none;background:var(--surface2,#222);border:1px solid var(--border,#333);color:var(--text,#eee);border-radius:7px;padding:0.3rem 0.6rem;font-size:0.75rem;cursor:pointer;font-family:inherit">↻ Replay</button>'
+    + '<button id="wiz-coach-play" onclick="_coachTogglePlay()" style="background:var(--surface2,#222);border:1px solid var(--border,#333);color:var(--text,#eee);border-radius:7px;padding:0.3rem 0.6rem;font-size:0.75rem;cursor:pointer;font-family:inherit">⏸ Pause</button>'
+    + '<button onclick="_coachEnd()" style="background:var(--accent,#e8401c);border:none;color:#fff;border-radius:7px;padding:0.3rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit">End</button></div></div>';
+  document.body.appendChild(c);
+  c._wd = setInterval(function(){ if (!document.querySelector('#wizard-modal.open')) { _coachRemove(); } }, 700);
+}
+function startGuidedAddDemo(){
+  _coachLastKey = null; _coachPlaying = true;
+  if (typeof startWizardFor === 'function') startWizardFor('collection');
+  else if (typeof openWizard === 'function') openWizard('collection');
+  var tries = 0;
+  (function w(){ var inp = document.getElementById('wiz-input'); if (!inp && tries++ < 60) return setTimeout(w, 80);
+    _coachShow(); setTimeout(_coachOnRender, 120);
+  })();
+}
+
 function startLifecycleDemo(){ _demoPlay('An Item\'s Life Cycle', _DEMO_LIFE); }
 function startToolsDemo(){ _demoPlay('Collection Tools', _DEMO_TOOLS); }
 window.startLifecycleDemo = startLifecycleDemo;

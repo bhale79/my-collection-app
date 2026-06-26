@@ -968,6 +968,8 @@ function renderWizardStep() {
 
   const steps = wizard.tab ? getSteps(wizard.tab) : getSteps(null);
   wizard.steps = steps;
+  // Guided walkthrough: when the coach is on screen, let it explain this step.
+  if (typeof document !== 'undefined' && document.getElementById('wiz-coach') && typeof _coachOnRender === 'function') setTimeout(_coachOnRender, 60);
 
   // Skip steps based on skipIf — and also auto-skip any drivePhotos step
   // when the user has pressed "Skip All Photos" (sets wizard.data._skipAllPhotos)

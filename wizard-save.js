@@ -945,6 +945,8 @@ function _normalizeEnteredItemNum(raw) {
 
 async function saveWizardItem() {
   const d = wizard.data;
+  // Guided walkthrough is on screen — never write to the sheet.
+  if (typeof document !== 'undefined' && document.getElementById('wiz-coach')) { if (typeof _coachPlaying !== 'undefined') _coachPlaying = false; return; }
   // Guard: prevent any save if a save already completed this wizard session
   if (d._saveComplete) { console.warn('[Save] Blocked — save already completed this wizard session'); return; }
   // Bug 11 (Session 154): make sure any in-flight photo uploads have finished
