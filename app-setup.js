@@ -146,15 +146,15 @@ function _buildAppShell() {
     '<div class="nav-section">' +
       '<button class="nav-item" onclick="showPage(\'browse\', this); filterOwned()" data-ctip="This is your inventory list.">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>' +
-        'My Collection List<span class="nav-badge" id="nav-owned" style="background:#f8e8c0;color:#1a1a1a">\u2014</span>' +
+        'My Collection<span class="nav-badge" id="nav-owned" style="background:#f8e8c0;color:#1a1a1a">\u2014</span>' +
       '</button>' +
       '<button class="nav-item" onclick="showPage(\'upgrade\', this); buildUpgradePage();" data-ctip="Things you\'re looking for \u2014 want list + upgrade targets, combined.">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +
-        'Want/Upgrade List<span class="nav-badge" id="nav-wishlist-count" style="background:#f8e8c0;color:#1a1a1a">\u2014</span>' +
+        'Want / Upgrade<span class="nav-badge" id="nav-wishlist-count" style="background:#f8e8c0;color:#1a1a1a">\u2014</span>' +
       '</button>' +
       '<button class="nav-item" onclick="showPage(\'forsale\', this); buildForSalePage();" data-ctip="Items you have listed for sale.">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>' +
-        'For Sale List<span class="nav-badge" id="nav-forsale" style="background:#f8e8c0;color:#1a1a1a">\u2014</span>' +
+        'For Sale<span class="nav-badge" id="nav-forsale" style="background:#f8e8c0;color:#1a1a1a">\u2014</span>' +
       '</button>' +
       '<button class="nav-item" onclick="showPage(\'sold\', this)" data-ctip="Items you have sold.">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>' +
@@ -166,7 +166,7 @@ function _buildAppShell() {
       '</button>' +
       '<button class="nav-item" onclick="showPage(\'browse\', this); resetFilters(); renderBrowse();" data-ctip="Opens the cataloged item master list.">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>' +
-        'Cataloged Item Master List' +
+        'Master Catalog' +
       '</button>' +
     '</div>' +
     '<div class="nav-section">' +
@@ -187,16 +187,16 @@ function _buildAppShell() {
         'Preferences' +
       '</button>' +
     '</div>' +
-    '<div class="nav-section" style="padding-top:0.75rem;border-top:1px solid var(--border)">' +
+    '<div class="nav-section" style="padding-top:0.5rem;border-top:1px solid var(--border)">' +
       '<button id="refresh-btn" onclick="forceRefreshData()" data-ctip="Reload your data straight from your sheet."' +
-        ' style="display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.75rem;border-radius:7px;color:var(--text-dim);font-size:0.82rem;background:none;border:none;width:100%;cursor:pointer;text-align:left;font-family:var(--font-body)"' +
+        ' style="display:flex;align-items:center;gap:0.6rem;padding:0.42rem 0.75rem;border-radius:7px;color:var(--text-dim);font-size:0.82rem;background:none;border:none;width:100%;cursor:pointer;text-align:left;font-family:var(--font-body)"' +
         ' onmouseover="this.style.background=\'rgba(255,255,255,0.06)\';this.style.color=\'var(--text)\'"' +
         ' onmouseout="this.style.background=\'none\';this.style.color=\'var(--text-dim)\'">' +
         '<svg id="refresh-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>' +
         'Sync from Sheet' +
       '</button>' +
       '<button onclick="showContactModal()"' +
-        ' style="display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.75rem;border-radius:7px;color:var(--text-dim);font-size:0.82rem;background:none;border:none;width:100%;cursor:pointer;text-align:left;font-family:var(--font-body)"' +
+        ' style="display:flex;align-items:center;gap:0.6rem;padding:0.42rem 0.75rem;border-radius:7px;color:var(--text-dim);font-size:0.82rem;background:none;border:none;width:100%;cursor:pointer;text-align:left;font-family:var(--font-body)"' +
         ' onmouseover="this.style.background=\'rgba(255,255,255,0.06)\';this.style.color=\'var(--text)\'"' +
         ' onmouseout="this.style.background=\'none\';this.style.color=\'var(--text-dim)\'">' +
         '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>' +
