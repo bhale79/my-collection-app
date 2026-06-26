@@ -540,23 +540,36 @@ window.startDashboardTour = startDashboardTour;
 // data. A sample item travels Want -> Collection -> Part -> For Sale
 // -> Sold (+ Upgrade), with an animated cursor and mascot narration.
 // ═══════════════════════════════════════════════════════════════
+function _dRgba(c, a) {
+  if (/^#([0-9a-fA-F]{6})$/.test(c)) { var n = parseInt(c.slice(1), 16); return 'rgba(' + ((n>>16)&255) + ',' + ((n>>8)&255) + ',' + (n&255) + ',' + a + ')'; }
+  return 'rgba(232,64,28,' + a + ')';
+}
+// ── Option-2 demo helpers: emit the app's REAL components/CSS (not sketches),
+//    so each scene looks like the live screen and tracks the user's theme. ──
 function _dBtn(id, label, color) {
-  return '<span id="' + id + '" style="display:inline-block;padding:0.45rem 0.85rem;border-radius:8px;border:1.5px solid ' + color + ';color:' + color + ';background:rgba(255,255,255,0.05);font-size:0.82rem;font-weight:700;white-space:nowrap">' + label + '</span>';
+  return '<button id="' + id + '" class="btn" style="display:inline-flex;align-items:center;gap:0.35rem;font-size:0.8rem;padding:0.5rem 0.8rem;border:1.5px solid ' + color + ';color:' + color + ';background:' + _dRgba(color, 0.12) + ';font-weight:600;cursor:default">' + label + '</button>';
 }
 function _dRow(id, num, name, right) {
-  return '<div id="' + id + '" style="display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.7rem;border:1px solid var(--border,#333);border-radius:8px;background:var(--surface2,#222);margin-bottom:0.45rem;font-size:0.83rem;color:var(--text,#eee)">'
-    + '<span style="font-family:var(--font-mono,monospace);color:var(--accent,#f05008);font-weight:700">' + num + '</span>'
-    + '<span style="flex:1;min-width:0">' + name + '</span>'
-    + (right || '') + '</div>';
+  // Reuse the live list-row renderer so rows match the dashboard / list pages exactly.
+  if (typeof _panelRow === 'function') {
+    return '<div id="' + id + '">' + _panelRow('\uD83D\uDE82', num, name, '', 'void(0)', null, right || '') + '</div>';
+  }
+  return '<div id="' + id + '" style="display:flex;align-items:center;gap:0.55rem;padding:0.45rem 0;border-bottom:1px solid var(--border)">'
+    + '<span class="item-num" style="font-size:0.82rem">' + num + '</span>'
+    + '<span style="flex:1;min-width:0;font-size:0.78rem;color:var(--text-mid)">' + name + '</span>' + (right || '') + '</div>';
 }
 function _dHead(t) {
-  return '<div style="font-size:0.68rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:var(--text-dim,#888);margin-bottom:0.65rem">' + t + '</div>';
+  // Real .section-title (accent bar + uppercase) used throughout the app.
+  return '<div class="section-title" style="margin-bottom:0.85rem">' + t + '</div>';
 }
 function _dPill(text, color) {
-  return '<span style="display:inline-block;padding:0.1rem 0.45rem;border-radius:10px;border:1px solid ' + color + ';color:' + color + ';font-size:0.68rem;font-weight:700;margin-left:0.4rem">' + text + '</span>';
+  return ' <span style="display:inline-block;padding:0.12rem 0.5rem;border-radius:10px;border:1px solid ' + color + ';color:' + color + ';font-size:0.66rem;font-weight:700;margin-left:0.4rem;vertical-align:middle">' + text + '</span>';
 }
 function _dField(label, val) {
-  return '<div style="margin-bottom:0.5rem"><div style="font-size:0.64rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim,#888);margin-bottom:0.15rem">' + label + '</div><div style="background:var(--bg,#0f1220);border:1px solid var(--border,#333);border-radius:7px;padding:0.4rem 0.6rem;color:var(--text,#eee);font-size:0.85rem">' + val + '</div></div>';
+  // Real wizard field — uppercase label + the app's input-box styling.
+  return '<div style="margin-bottom:0.7rem">'
+    + '<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.3rem">' + label + '</div>'
+    + '<div style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.9rem;color:var(--text);font-size:0.95rem">' + val + '</div></div>';
 }
 var _DEMO_LIFE = [
   { title: 'Meet item No. 726', ms: 4200,
