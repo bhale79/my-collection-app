@@ -1741,8 +1741,13 @@ function buildForSalePage() {
       const _fsShareKey = fs.itemNum + '|' + (fs.variation||'') + '|' + (fs.row||0);
       const _fsInShare = typeof isShareMode === 'function' && isShareMode('forsale');
       const _fsSelected = _fsInShare && window._shareItems && window._shareItems[_fsShareKey];
+      const _fsMasterIdx = (typeof _itemMasterIdx === 'function') ? _itemMasterIdx(fs.itemNum, fs.variation) : -1;
       if (_fsInShare) { if (!window._shareDataMap) window._shareDataMap = {}; window._shareDataMap[_fsShareKey] = { itemNum: fs.itemNum, variation: fs.variation||'', fs: fs, master: master }; }
-      return `<div id="share-card-${_fsShareKey}" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem${_fsSelected ? ';outline:2px solid #3a9e68' : ''}" ${_fsInShare ? 'onclick="toggleShareItem(\'' + _fsShareKey + '\')"' : ''}>
+      const _fsCardClick = _fsInShare
+        ? ('onclick="toggleShareItem(\'' + _fsShareKey + '\')"')
+        : (_fsMasterIdx >= 0 ? ('onclick="window._detailReturn=\'forsale\';showItemDetailPage(' + _fsMasterIdx + ', \'' + (fs.inventoryId || '') + '\')"') : '');
+      const _fsCardCursor = (_fsInShare || _fsMasterIdx >= 0) ? 'pointer' : 'default';
+      return `<div id="share-card-${_fsShareKey}" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem;cursor:${_fsCardCursor}${_fsSelected ? ';outline:2px solid #3a9e68' : ''}" ${_fsCardClick}>
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div style="display:flex;align-items:flex-start;gap:0.5rem">
             ${_fsInShare ? '<input type="checkbox" id="share-cb-' + _fsShareKey + '" ' + (_fsSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _fsShareKey + '\')" style="width:1.1rem;height:1.1rem;accent-color:#3a9e68;flex-shrink:0;margin-top:0.2rem">' : ''}
