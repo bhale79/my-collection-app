@@ -1743,10 +1743,11 @@ function buildForSalePage() {
       const _fsSelected = _fsInShare && window._shareItems && window._shareItems[_fsShareKey];
       const _fsMasterIdx = (typeof _itemMasterIdx === 'function') ? _itemMasterIdx(fs.itemNum, fs.variation) : -1;
       if (_fsInShare) { if (!window._shareDataMap) window._shareDataMap = {}; window._shareDataMap[_fsShareKey] = { itemNum: fs.itemNum, variation: fs.variation||'', fs: fs, master: master }; }
-      const _fsCardClick = _fsInShare
-        ? ('onclick="toggleShareItem(\'' + _fsShareKey + '\')"')
-        : (_fsMasterIdx >= 0 ? ('onclick="window._detailReturn=\'forsale\';showItemDetailPage(' + _fsMasterIdx + ', \'' + (fs.inventoryId || '') + '\')"') : '');
-      const _fsCardCursor = (_fsInShare || _fsMasterIdx >= 0) ? 'pointer' : 'default';
+      const _fsOpen = fs.inventoryId
+        ? ('window._detailReturn=\'forsale\';_openOwnedByInvId(\'' + fs.inventoryId + '\')')
+        : (_fsMasterIdx >= 0 ? ('window._detailReturn=\'forsale\';showItemDetailPage(' + _fsMasterIdx + ', \'\')') : '');
+      const _fsCardClick = _fsInShare ? ('onclick="toggleShareItem(\'' + _fsShareKey + '\')"') : (_fsOpen ? ('onclick="' + _fsOpen + '"') : '');
+      const _fsCardCursor = (_fsInShare || _fsOpen) ? 'pointer' : 'default';
       return `<div id="share-card-${_fsShareKey}" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem;cursor:${_fsCardCursor}${_fsSelected ? ';outline:2px solid #3a9e68' : ''}" ${_fsCardClick}>
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div style="display:flex;align-items:flex-start;gap:0.5rem">
@@ -1782,10 +1783,13 @@ function buildForSalePage() {
       const _fsDSelected = _fsDInShare && window._shareItems && window._shareItems[_fsDShareKey];
       if (_fsDInShare) { if (!window._shareDataMap) window._shareDataMap = {}; window._shareDataMap[_fsDShareKey] = { itemNum: fs.itemNum, variation: fs.variation||'', fs: fs, master: master }; }
       const _fsDMasterIdx = _itemMasterIdx(fs.itemNum, fs.variation);
+      const _fsDOpen = fs.inventoryId
+        ? `window._detailReturn='forsale';_openOwnedByInvId('${fs.inventoryId}')`
+        : (_fsDMasterIdx >= 0 ? `window._detailReturn='forsale';showItemDetailPage(${_fsDMasterIdx}, '')` : '');
       const _fsDClickAttr = _fsDInShare
         ? `onclick="toggleShareItem('${_fsDShareKey}')"`
-        : (_fsDMasterIdx >= 0 ? `onclick="window._detailReturn='forsale';showItemDetailPage(${_fsDMasterIdx}, '${fs.inventoryId || ''}')"` : '');
-      return `<tr id="share-card-${_fsDShareKey}" ${_fsDClickAttr} style="cursor:${_fsDInShare || _fsDMasterIdx >= 0 ? 'pointer' : 'default'}${_fsDSelected ? ';outline:2px solid #3a9e68;background:rgba(58,158,104,0.06)' : ''}">
+        : (_fsDOpen ? `onclick="${_fsDOpen}"` : '');
+      return `<tr id="share-card-${_fsDShareKey}" ${_fsDClickAttr} style="cursor:${_fsDInShare || _fsDOpen ? 'pointer' : 'default'}${_fsDSelected ? ';outline:2px solid #3a9e68;background:rgba(58,158,104,0.06)' : ''}">
         ${typeof _mfrBadge==='function' ? _mfrBadge({ manufacturer: fs.manufacturer || '' }) : '<td>—</td>'}
         <td><span class="item-num">${_fsDInShare ? '<input type="checkbox" id="share-cb-' + _fsDShareKey + '" ' + (_fsDSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _fsDShareKey + '\')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">' : ''}${_fsItemNumHTML(fs)}</span></td>
         <td><span class="tag">${master.itemType || '—'}</span></td>
