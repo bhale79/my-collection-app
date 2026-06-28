@@ -5,11 +5,11 @@
 // ══════════════════════════════════════════════════════════════════
 
 // Bump this number to push a visual refresh to all users on next sync
-const SHEET_FORMAT_VER = 11; // Session 156 v11: column reorder Push 2 — schema reordered to match Brad's manual sheet layout + 2 NEW master-derived cols. Hidden ranges, validation positions, and currency/date cols updated to match.
+const SHEET_FORMAT_VER = 12; // Session 165 v12: Dashboard header rebuilt to match the app (mascot left, multicolor Oswald title, app navy + orange underline bar) + no-white styling (hide gridlines, flood page with app bg).
 
 // ── Color palette ──────────────────────────────────────────────────
 const SB = {
-  navy:     { red: 0.063, green: 0.098, blue: 0.169 },   // #10182B banner
+  navy:     { red: 0.063, green: 0.098, blue: 0.169 },   // #10182B banner (data tabs)
   navyMid:  { red: 0.118, green: 0.227, blue: 0.373 },   // #1e3a5f section headers
   gold:     { red: 1.000, green: 0.878, blue: 0.376 },   // #FFDF60 accent gold
   goldBg:   { red: 0.996, green: 0.953, blue: 0.808 },   // #FEF3CE stat value bg
@@ -17,9 +17,16 @@ const SB = {
   dimText:  { red: 0.4, green: 0.4, blue: 0.4 },
   divider:  { red: 0.118, green: 0.227, blue: 0.373 },   // col C divider
   labelBg:  { red: 0.133, green: 0.196, blue: 0.31  },   // #223250 label rows
+  // App-matched dashboard palette (mirrors app.css :root).
+  appBg:    { red: 0.059, green: 0.071, blue: 0.125 },   // #0f1220 app page bg
+  appNavy:  { red: 0.102, green: 0.114, blue: 0.227 },   // #1a1d3a app header band
+  accent:   { red: 0.941, green: 0.314, blue: 0.031 },   // #f05008 app orange
+  cream:    { red: 0.973, green: 0.910, blue: 0.753 },   // #f8e8c0 app cream text
 };
 
 const CONDUCTOR_URL = 'https://raw.githubusercontent.com/bhale79/my-collection-app/main/conductor-list.png';
+// App header mascot — matches the app's top-left conductor exactly.
+const CONDUCTOR_HEADER_URL = 'https://raw.githubusercontent.com/bhale79/my-collection-app/main/img/conductor-header.png';
 
 async function applySheetFormatting(sheetId, opts) {
   // Session 155 v7: opts.force=true bypasses the version check (used by
@@ -305,10 +312,17 @@ async function applySheetFormatting(sheetId, opts) {
 
     // ── 6. Dashboard formatting requests ──────────────────────────
     const dashReqs = [
-      // Freeze row 3 (banner = rows 1-3)
+      // No-white: flood the ENTIRE Dashboard grid with the app page bg so no
+      // white rows/columns show anywhere (content formats below override this).
+      { repeatCell: {
+        range: { sheetId: dashId },
+        cell: { userEnteredFormat: { backgroundColor: SB.appBg } },
+        fields: 'userEnteredFormat.backgroundColor'
+      }},
+      // Freeze row 3 (banner = rows 1-3) + hide gridlines (no-white look)
       { updateSheetProperties: {
-        properties: { sheetId: dashId, gridProperties: { frozenRowCount: 3 } },
-        fields: 'gridProperties.frozenRowCount'
+        properties: { sheetId: dashId, gridProperties: { frozenRowCount: 3, hideGridlines: true } },
+        fields: 'gridProperties.frozenRowCount,gridProperties.hideGridlines'
       }},
       // Row heights
       { updateDimensionProperties: { range: { sheetId: dashId, dimension: 'ROWS', startIndex: 0, endIndex: 1 }, properties: { pixelSize: 48 }, fields: 'pixelSize' }},
@@ -327,51 +341,47 @@ async function applySheetFormatting(sheetId, opts) {
       { updateDimensionProperties: { range: { sheetId: dashId, dimension: 'COLUMNS', startIndex: 3, endIndex: 4 }, properties: { pixelSize: 190 }, fields: 'pixelSize' }},
       { updateDimensionProperties: { range: { sheetId: dashId, dimension: 'COLUMNS', startIndex: 4, endIndex: 5 }, properties: { pixelSize: 100 }, fields: 'pixelSize' }},
       { updateDimensionProperties: { range: { sheetId: dashId, dimension: 'COLUMNS', startIndex: 5, endIndex: 8 }, properties: { pixelSize: 60  }, fields: 'pixelSize' }},
-      // Banner rows 1-3 full width (A:H) — dark navy bg
+      // Banner rows 1-3 full width (A:H) — app header navy (#1a1d3a)
       { repeatCell: {
         range: { sheetId: dashId, startRowIndex: 0, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: 8 },
-        cell: { userEnteredFormat: { backgroundColor: SB.navy } },
+        cell: { userEnteredFormat: { backgroundColor: SB.appNavy } },
         fields: 'userEnteredFormat.backgroundColor'
       }},
-      // Row 1: app title — gold bold large
+      // Clear any stale header merges from prior format versions (old layout
+      // merged the mascot into F1:H3) before applying the new merges.
+      { unmergeCells: { range: { sheetId: dashId, startRowIndex: 0, endRowIndex: 4, startColumnIndex: 0, endColumnIndex: 8 } }},
+      // Mascot now lives on the LEFT (col A, rows 1-3) — matches the app header.
+      { mergeCells: { range: { sheetId: dashId, startRowIndex: 0, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: 1 }, mergeType: 'MERGE_ALL' }},
       { repeatCell: {
-        range: { sheetId: dashId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 5 },
+        range: { sheetId: dashId, startRowIndex: 0, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: 1 },
+        cell: { userEnteredFormat: { backgroundColor: SB.appNavy, horizontalAlignment: 'CENTER', verticalAlignment: 'MIDDLE' } },
+        fields: 'userEnteredFormat(backgroundColor,horizontalAlignment,verticalAlignment)'
+      }},
+      // Title spans B1:E1 — the rich-text "THE RAIL ROSTER" is written in
+      // _writeDashboardContent (multicolor runs can't be set via the values API).
+      { mergeCells: { range: { sheetId: dashId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 1, endColumnIndex: 5 }, mergeType: 'MERGE_ALL' }},
+      // Row 2: user name — cream medium (cols B:E)
+      { repeatCell: {
+        range: { sheetId: dashId, startRowIndex: 1, endRowIndex: 2, startColumnIndex: 1, endColumnIndex: 5 },
         cell: { userEnteredFormat: {
-          textFormat: { bold: true, foregroundColor: SB.gold, fontSize: 16, fontFamily: 'Arial' },
+          textFormat: { bold: false, foregroundColor: SB.cream, fontSize: 11 },
           verticalAlignment: 'MIDDLE'
         }},
         fields: 'userEnteredFormat(textFormat,verticalAlignment)'
       }},
-      // Row 2: user name — white medium
+      // Row 3: last synced — dim cream small (cols B:E)
       { repeatCell: {
-        range: { sheetId: dashId, startRowIndex: 1, endRowIndex: 2, startColumnIndex: 0, endColumnIndex: 5 },
-        cell: { userEnteredFormat: {
-          textFormat: { bold: false, foregroundColor: SB.white, fontSize: 11 },
-          verticalAlignment: 'MIDDLE'
-        }},
-        fields: 'userEnteredFormat(textFormat,verticalAlignment)'
-      }},
-      // Row 3: last synced — dim gold small
-      { repeatCell: {
-        range: { sheetId: dashId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: 5 },
+        range: { sheetId: dashId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 1, endColumnIndex: 5 },
         cell: { userEnteredFormat: {
           textFormat: { bold: false, foregroundColor: { red: 0.85, green: 0.78, blue: 0.55 }, fontSize: 9 },
           verticalAlignment: 'MIDDLE'
         }},
         fields: 'userEnteredFormat(textFormat,verticalAlignment)'
       }},
-      // Merge F1:H3 for mascot
-      { mergeCells: { range: { sheetId: dashId, startRowIndex: 0, endRowIndex: 3, startColumnIndex: 5, endColumnIndex: 8 }, mergeType: 'MERGE_ALL' }},
-      // Mascot cell format — center/middle
-      { repeatCell: {
-        range: { sheetId: dashId, startRowIndex: 0, endRowIndex: 3, startColumnIndex: 5, endColumnIndex: 8 },
-        cell: { userEnteredFormat: { horizontalAlignment: 'CENTER', verticalAlignment: 'MIDDLE' } },
-        fields: 'userEnteredFormat(horizontalAlignment,verticalAlignment)'
-      }},
-      // Row 4: spacer — navy
+      // Row 4: the app's orange underline bar (thin accent strip under the header)
       { repeatCell: {
         range: { sheetId: dashId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 0, endColumnIndex: 8 },
-        cell: { userEnteredFormat: { backgroundColor: SB.navy } },
+        cell: { userEnteredFormat: { backgroundColor: SB.accent } },
         fields: 'userEnteredFormat.backgroundColor'
       }},
       // Row 5: section headers — navyMid bg, gold text, bold, small caps
@@ -442,23 +452,23 @@ async function applySheetFormatting(sheetId, opts) {
         cell: { userEnteredFormat: { numberFormat: { type: 'NUMBER', pattern: '#,##0' } } },
         fields: 'userEnteredFormat.numberFormat'
       }},
-      // Cols F-H rows 5-9 — navy bg
+      // Cols F-H rows 5-9 — app page bg
       { repeatCell: {
         range: { sheetId: dashId, startRowIndex: 4, endRowIndex: 10, startColumnIndex: 5, endColumnIndex: 8 },
-        cell: { userEnteredFormat: { backgroundColor: SB.navy } },
+        cell: { userEnteredFormat: { backgroundColor: SB.appBg } },
         fields: 'userEnteredFormat.backgroundColor'
       }},
-      // Row 10: spacer — navy
+      // Row 10: spacer — app page bg
       { repeatCell: {
         range: { sheetId: dashId, startRowIndex: 9, endRowIndex: 10, startColumnIndex: 0, endColumnIndex: 8 },
-        cell: { userEnteredFormat: { backgroundColor: SB.navy } },
+        cell: { userEnteredFormat: { backgroundColor: SB.appBg } },
         fields: 'userEnteredFormat.backgroundColor'
       }},
       // Row 11: footer — dim italic small
       { repeatCell: {
         range: { sheetId: dashId, startRowIndex: 10, endRowIndex: 11, startColumnIndex: 0, endColumnIndex: 8 },
         cell: { userEnteredFormat: {
-          backgroundColor: SB.navy,
+          backgroundColor: SB.appBg,
           textFormat: { italic: true, foregroundColor: { red: 0.55, green: 0.6, blue: 0.65 }, fontSize: 8 },
           verticalAlignment: 'MIDDLE', horizontalAlignment: 'CENTER'
         }},
@@ -594,14 +604,14 @@ async function _writeDashboardContent(sheetId) {
   // requires a join against master-data Item Type — that can only be
   // computed by the app at sync time.
   const rows = [
-    // Row 1: App title (A1), mascot formula (F1)
-    ['THE RAIL ROSTER', '', '', '', '', `=IMAGE("${CONDUCTOR_URL}",1)`],
-    // Row 2: User name
-    [`${firstName}'s Collection`, '', '', '', '', ''],
-    // Row 3: Last app sync timestamp (formulas are live so this is just an
-    // FYI for the Locomotives count, which IS app-managed)
-    [`Last app sync: ${now}`, '', '', '', '', ''],
-    // Row 4: spacer
+    // Row 1: mascot on the LEFT (A1, merged A1:A3) + title in B1 (rich-text,
+    // written separately below so "RAIL" can be orange). Matches the app header.
+    [`=IMAGE("${CONDUCTOR_HEADER_URL}",1)`, '', '', '', '', ''],
+    // Row 2: User name (col B — col A is the mascot merge)
+    ['', `${firstName}'s Collection`, '', '', '', ''],
+    // Row 3: Last app sync timestamp (col B)
+    ['', `Last app sync: ${now}`, '', '', '', ''],
+    // Row 4: spacer (orange underline bar — formatted, no content)
     ['', '', '', '', '', ''],
     // Row 5: Section headers
     ['MY COLLECTION', '', '', 'ACTIVITY', '', ''],
@@ -636,6 +646,46 @@ async function _writeDashboardContent(sheetId) {
   // would have written formulas as strings. sheetsUpdate already handles
   // this; just verify formulas survive the write.
   await sheetsUpdate(sheetId, 'Dashboard!A1:F11', rows);
+
+  // ── Title (B1): rich text "THE RAIL ROSTER" so "RAIL" is orange, the rest
+  // cream — exactly like the app header. Multicolor runs in one cell can only
+  // be set via updateCells (textFormatRuns), not the values API.
+  try {
+    const TITLE = 'THE RAIL ROSTER';
+    const railStart = TITLE.indexOf('RAIL');
+    const railEnd   = railStart + 'RAIL'.length;
+    const dashMeta = await (await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties(sheetId,title)`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    )).json();
+    let dId = null;
+    (dashMeta.sheets || []).forEach(s => { if (s.properties.title === 'Dashboard') dId = s.properties.sheetId; });
+    if (dId != null) {
+      const cream  = { red: 0.973, green: 0.910, blue: 0.753 };
+      const orange = { red: 0.941, green: 0.314, blue: 0.031 };
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requests: [{ updateCells: {
+          start: { sheetId: dId, rowIndex: 0, columnIndex: 1 },
+          fields: 'userEnteredValue,userEnteredFormat(textFormat,verticalAlignment,horizontalAlignment,backgroundColor),textFormatRuns',
+          rows: [{ values: [{
+            userEnteredValue: { stringValue: TITLE },
+            userEnteredFormat: {
+              backgroundColor: { red: 0.102, green: 0.114, blue: 0.227 },
+              verticalAlignment: 'MIDDLE', horizontalAlignment: 'LEFT',
+              textFormat: { bold: true, fontFamily: 'Oswald', fontSize: 18, foregroundColor: cream }
+            },
+            textFormatRuns: [
+              { startIndex: 0,         format: { foregroundColor: cream } },
+              { startIndex: railStart, format: { foregroundColor: orange } },
+              { startIndex: railEnd,   format: { foregroundColor: cream } }
+            ]
+          }] }]
+        }}]})
+      });
+    }
+  } catch(e) { console.warn('[Dashboard] rich-text title write failed (non-fatal):', e); }
 }
 
 // ══════════════════════════════════════════════════════════════════
