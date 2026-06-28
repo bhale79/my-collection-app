@@ -153,6 +153,10 @@ async function shareAsCards() {
       var it = items[i];
       if (prog) prog.textContent = 'Building card ' + (i + 1) + ' of ' + items.length + '…';
       var pd = it.pd || (it.fs && it.fs.inventoryId && state.personalData[it.fs.inventoryId]) || {};
+      if (pd && pd.itemNum && String(pd.itemNum) !== String(it.itemNum)) {
+        var _cm = state.masterData.find(function (z) { return z.itemNum === pd.itemNum && (z.variation || '') === (pd.variation || ''); }) || state.masterData.find(function (z) { return z.itemNum === pd.itemNum; }) || it.master;
+        it = Object.assign({}, it, { itemNum: pd.itemNum, variation: pd.variation || '', master: _cm });
+      }
       var photoUrls = await _rrItemPhotoDataUrls(pd, allPhotos);
       var mainImg = photoUrls.length ? await _rrLoadImg(photoUrls[0]) : null;
       var card = _rrCard(_rrCardData(it, source), mainImg, source);
@@ -204,12 +208,14 @@ async function _sellSync() {
               ['', '', '', '', ''],
               ['Item #', 'Description', 'Condition', 'Box', 'Asking Price']];
   fs.forEach(function (e) {
-    var m = state.masterData.find(function (z) { return z.itemNum === e.itemNum && (z.variation || '') === (e.variation || ''); })
-         || state.masterData.find(function (z) { return z.itemNum === e.itemNum; }) || {};
     var pd = (e.inventoryId && state.personalData[e.inventoryId]) || {};
+    var num = pd.itemNum || e.itemNum || '';
+    var vr = pd.itemNum ? (pd.variation || '') : (e.variation || '');
+    var m = state.masterData.find(function (z) { return z.itemNum === num && (z.variation || '') === vr; })
+         || state.masterData.find(function (z) { return z.itemNum === num; }) || {};
     rows.push([
-      e.itemNum || '',
-      (m.roadName ? m.roadName + ' ' : '') + (m.itemType || '') + (e.variation ? ' (var ' + e.variation + ')' : ''),
+      num,
+      (m.roadName ? m.roadName + ' ' : '') + (m.itemType || '') + (vr ? ' (var ' + vr + ')' : ''),
       (e.condition || pd.condition) ? (e.condition || pd.condition) + '/10' : '',
       pd.hasBox === 'Yes' ? 'Yes' : '',
       e.askingPrice ? '$' + parseFloat(e.askingPrice).toLocaleString() : ''

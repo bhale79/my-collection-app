@@ -1659,8 +1659,13 @@ function _fsSortBy(col) {
   else { state._fsSort = { col: col, dir: 'asc' }; }
   buildForSalePage();
 }
+function _fsEff(fs) {
+  var pd = (fs && fs.inventoryId && typeof state!=='undefined' && state.personalData) ? state.personalData[fs.inventoryId] : null;
+  if (pd && pd.itemNum) return { itemNum: pd.itemNum, variation: pd.variation || '' };
+  return { itemNum: (fs ? fs.itemNum : '') || '', variation: (fs ? fs.variation : '') || '' };
+}
 function _fsItemNumHTML(fs) {
-  var num = String(fs.itemNum||'');
+  var num = String(_fsEff(fs).itemNum||'');
   if (fs._mergedTender) return num + ' <span style="opacity:0.6;font-size:0.8em" title="Engine + tender (paired)">\uD83D\uDD17</span> <span style="font-size:0.85em;color:var(--text-mid)">' + fs._mergedTender + '</span>';
   return num;
 }
@@ -1680,7 +1685,7 @@ function buildForSalePage() {
     // Era filter
     if (typeof _isInCurrentEra === 'function' && !_isInCurrentEra(fs.itemNum)) return false;
     if (!_fq) return true;
-    const master = state.masterData.find(i => i.itemNum === fs.itemNum && i.variation === fs.variation) || {};
+    const _fsx = _fsEff(fs); const master = state.masterData.find(i => i.itemNum === _fsx.itemNum && i.variation === _fsx.variation) || {};
     return (fs.itemNum||'').toLowerCase().includes(_fq)
       || (master.roadName||'').toLowerCase().includes(_fq)
       || (master.itemType||'').toLowerCase().includes(_fq)
@@ -1735,7 +1740,7 @@ function buildForSalePage() {
     if (fsCardsEl) fsCardsEl.style.display = 'flex';
     if (fsTableWrap) fsTableWrap.style.display = 'none';
     if (fsCardsEl) fsCardsEl.innerHTML = fsEntries.length ? fsEntries.map(fs => {
-      const master = state.masterData.find(i => i.itemNum === fs.itemNum && i.variation === fs.variation) || {};
+      const _fsx = _fsEff(fs); const master = state.masterData.find(i => i.itemNum === _fsx.itemNum && i.variation === _fsx.variation) || {};
       const collPd = (fs.inventoryId && state.personalData[fs.inventoryId]) || {};
       const estWorth = fs.estWorth || collPd.userEstWorth || '';
       const _fsShareKey = fs.itemNum + '|' + (fs.variation||'') + '|' + (fs.row||0);
@@ -1775,7 +1780,7 @@ function buildForSalePage() {
     if (fsCardsEl) fsCardsEl.style.display = 'none';
     if (fsTableWrap) fsTableWrap.style.display = '';
     if (tbody) tbody.innerHTML = fsEntries.length ? fsEntries.map(fs => {
-      const master = state.masterData.find(i => i.itemNum === fs.itemNum && i.variation === fs.variation) || {};
+      const _fsx = _fsEff(fs); const master = state.masterData.find(i => i.itemNum === _fsx.itemNum && i.variation === _fsx.variation) || {};
       const collPd = (fs.inventoryId && state.personalData[fs.inventoryId]) || {};
       const estWorth = fs.estWorth || collPd.userEstWorth || '';
       const _fsDShareKey = fs.itemNum + '|' + (fs.variation||'') + '|' + (fs.row||0);
