@@ -34,12 +34,22 @@ function _ownedTypeNumSet(state, buckets) {
   (state.masterData || []).forEach(function(m) { if (_bucketIs(m, buckets)) nums.add(normalizeItemNum(m.itemNum)); });
   return nums;
 }
+// Match an owned item to a type-set, trying its base number too — so powered/
+// dummy/B-unit variants (205-P, 218-D, 2343-C) match the catalog's base entry (205).
+function _pdMatchSet(pd, nums) {
+  if (nums.has(normalizeItemNum(pd.itemNum))) return true;
+  if (typeof baseItemNum === 'function') {
+    var b = baseItemNum(pd.itemNum);
+    if (b && nums.has(normalizeItemNum(b))) return true;
+  }
+  return false;
+}
 function _ownedTypeCount(state, buckets) {
   // Count OWNED items of a type, not master rows. One owned number matches
   // many master variation rows, so the old "filter masterData by owned"
   // massively over-counted (e.g. 122 cabooses for 62 items).
   var nums = _ownedTypeNumSet(state, buckets);
-  return _ownedNonBox(state).filter(_pdEraEnabled).filter(function(pd) { return nums.has(normalizeItemNum(pd.itemNum)); }).length;
+  return _ownedNonBox(state).filter(_pdEraEnabled).filter(function(pd) { return _pdMatchSet(pd, nums); }).length;
 }
 function _ownedNonBox(state) {
   // Returns array of owned personalData entries, excluding pure box-only rows.
@@ -303,13 +313,12 @@ var CARD_CATALOG = [
         return { html: '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:4px">Loading catalog\u2026</div>' };
       }
       _ownedList.forEach(function(pd) {
-        var _n = normalizeItemNum(pd.itemNum);
-        if (_eS.has(_n)) types['Engines']++;
-        else if (_tS.has(_n)) types['Tenders']++;
-        else if (_cS.has(_n)) types['Cabooses']++;
-        else if (_pS.has(_n)) types['Passenger']++;
-        else if (_fS.has(_n)) types['Freight']++;
-        else if (_aS.has(_n)) types['Accessories']++;
+        if (_pdMatchSet(pd, _eS)) types['Engines']++;
+        else if (_pdMatchSet(pd, _tS)) types['Tenders']++;
+        else if (_pdMatchSet(pd, _cS)) types['Cabooses']++;
+        else if (_pdMatchSet(pd, _pS)) types['Passenger']++;
+        else if (_pdMatchSet(pd, _fS)) types['Freight']++;
+        else if (_pdMatchSet(pd, _aS)) types['Accessories']++;
         else types['Other']++;
       });
       var html = '';
