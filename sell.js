@@ -142,7 +142,7 @@ async function shareAsCards() {
   if (source === 'upgrade') source = 'want';
   var items = (typeof _shareItems !== 'undefined') ? Object.values(_shareItems) : [];
   if (!items.length) { showToast('Select at least one item', 2500, true); return; }
-  var allPhotos = (function () { var el = document.getElementById('sf-allphotos'); return el ? el.checked : false; })();
+  var allPhotos = (function () { var r = document.querySelector('input[name="rr-photomode"]:checked'); return r ? r.value === 'all' : false; })();
   var msg = (document.getElementById('share-message') || {}).value || '';
   var prog = document.getElementById('share-progress'), acts = document.getElementById('share-builder-actions');
   if (prog) { prog.style.display = 'block'; prog.textContent = 'Building cards…'; }
@@ -152,6 +152,7 @@ async function shareAsCards() {
     for (var i = 0; i < items.length; i++) {
       var it = items[i];
       if (prog) prog.textContent = 'Building card ' + (i + 1) + ' of ' + items.length + '…';
+      try {
       var pd = it.pd || (it.fs && it.fs.inventoryId && state.personalData[it.fs.inventoryId]) || {};
       if (pd && pd.itemNum && String(pd.itemNum) !== String(it.itemNum)) {
         var _cm = state.masterData.find(function (z) { return z.itemNum === pd.itemNum && (z.variation || '') === (pd.variation || ''); }) || state.masterData.find(function (z) { return z.itemNum === pd.itemNum; }) || it.master;
@@ -163,22 +164,31 @@ async function shareAsCards() {
       files.push(await _canvasToFile(card, 'item-' + (it.itemNum || (i + 1)) + '.png'));
       var extra = allPhotos ? photoUrls : [];
       for (var p = 0; p < extra.length; p++) files.push(_dataUrlToFile(extra[p], (it.itemNum || 'item') + '-photo' + (p + 1) + '.jpg'));
+      } catch (itemErr) { console.warn('card build skipped for an item:', itemErr); }
     }
     var title = source === 'want' ? 'Items I am looking for' : (source === 'collection' ? 'From my collection' : 'Items for sale');
-    if (navigator.canShare && navigator.canShare({ files: files })) {
-      await navigator.share({ files: files, text: msg || title });
-      showToast('Shared!', 2000);
-      var m = document.getElementById('share-builder-modal'); if (m) m.remove();
-      if (typeof cancelShareMode === 'function') cancelShareMode();
-    } else {
-      for (var f = 0; f < files.length; f++) {
-        var url = URL.createObjectURL(files[f]); var a = document.createElement('a');
-        a.href = url; a.download = files[f].name; a.click(); (function (u) { setTimeout(function () { URL.revokeObjectURL(u); }, 4000); })(url);
+    var isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints || 0) > 1;
+    var canFileShare = !!(navigator.canShare && navigator.canShare({ files: files }));
+    if (isMobile && canFileShare) {
+      try {
+        await navigator.share({ files: files, text: msg || title });
+        showToast('Shared!', 2000);
+        var m = document.getElementById('share-builder-modal'); if (m) m.remove();
+        if (typeof cancelShareMode === 'function') cancelShareMode();
+        return;
+      } catch (err) {
+        if (err && err.name === 'AbortError') { if (acts) acts.style.display = 'flex'; if (prog) prog.style.display = 'none'; return; }
+        // share failed (e.g. lost gesture) — fall through to download
       }
-      showToast('Images downloaded — attach them to your email/text', 4000);
-      if (prog) prog.textContent = 'Downloaded ' + files.length + ' image(s). On desktop, attach them in Gmail.';
-      if (acts) acts.style.display = 'flex';
     }
+    // Desktop, or share unavailable/failed: download the images to attach.
+    for (var f = 0; f < files.length; f++) {
+      var url = URL.createObjectURL(files[f]); var a = document.createElement('a');
+      a.href = url; a.download = files[f].name; a.click(); (function (u) { setTimeout(function () { URL.revokeObjectURL(u); }, 4000); })(url);
+    }
+    showToast('Saved ' + files.length + ' image(s) — attach them to your email/text', 4000);
+    if (prog) prog.textContent = 'Saved ' + files.length + ' image(s) to your downloads.';
+    if (acts) acts.style.display = 'flex';
   } catch (err) {
     console.error('shareAsCards error:', err);
     if (err && err.name === 'AbortError') { if (acts) acts.style.display = 'flex'; if (prog) prog.style.display = 'none'; return; }

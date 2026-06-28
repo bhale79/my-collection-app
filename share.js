@@ -127,14 +127,17 @@ function openShareBuilder() {
       '<div style="margin-bottom:1.25rem">' +
         '<div style="font-size:0.78rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.6rem">Include in share</div>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">' +
-          _shareFieldCheck('sf-photo',   'Photo') +
           _shareFieldCheck('sf-itemnum', 'Item Number', true) +
           _shareFieldCheck('sf-vardesc', 'Variation Description', true) +
           _shareFieldCheck('sf-cond',    'Condition', true) +
           _shareFieldCheck('sf-box',     'Has Box', true) +
           _shareFieldCheck('sf-price',   'Asking / Est. Value', true) +
           _shareFieldCheck('sf-notes',   'Notes') +
-          _shareFieldCheck('sf-allphotos', 'All photos (every angle)') +
+        '</div>' +
+        '<div style="margin-top:0.75rem">' +
+          '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);margin-bottom:0.4rem">Photos</div>' +
+          '<label style="display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;color:var(--text);margin-bottom:0.35rem;cursor:pointer"><input type="radio" name="rr-photomode" value="main" checked style="accent-color:var(--accent);width:1rem;height:1rem">Main photo only</label>' +
+          '<label style="display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;color:var(--text);cursor:pointer"><input type="radio" name="rr-photomode" value="all" style="accent-color:var(--accent);width:1rem;height:1rem">All photos of item</label>' +
         '</div>' +
       '</div>' +
 
