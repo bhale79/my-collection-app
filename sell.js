@@ -57,7 +57,7 @@ function _rrCardData(it, source) {
   var chips = [];
   var price = '';
   if (source === 'forsale') {
-    if (fs.askingPrice) price = '$' + parseFloat(fs.askingPrice).toLocaleString();
+    if (fs.askingPrice) price = 'asking $' + parseFloat(fs.askingPrice).toLocaleString();
     if (fs.condition || pd.condition) chips.push('Condition ' + (fs.condition || pd.condition) + '/10');
     if (pd.hasBox === 'Yes') chips.push('Has box');
     if (pd.allOriginal === 'Yes') chips.push('All original');
