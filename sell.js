@@ -170,22 +170,17 @@ async function shareAsCards() {
     var isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints || 0) > 1;
     var canFileShare = !!(navigator.canShare && navigator.canShare({ files: files }));
     if (isMobile && canFileShare) {
-      try {
-        await navigator.share({ files: files, text: msg || title });
-        showToast('Shared!', 2000);
-        var m = document.getElementById('share-builder-modal'); if (m) m.remove();
-        if (typeof cancelShareMode === 'function') cancelShareMode();
-        return;
-      } catch (err) {
-        if (err && err.name === 'AbortError') { if (acts) acts.style.display = 'flex'; if (prog) prog.style.display = 'none'; return; }
-        // share failed (e.g. lost gesture) — fall through to download
+      // Cards are built. The share sheet must open from a FRESH tap (building the
+      // cards used up the original tap's user-gesture), so show a button to tap.
+      window._rrShareFiles = files; window._rrShareText = msg || title;
+      if (prog) prog.style.display = 'none';
+      if (acts) {
+        acts.style.display = 'flex';
+        acts.innerHTML = '<button onclick="_rrDoShareNow()" style="padding:0.75rem;border-radius:9px;border:none;background:#3a9e68;color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>Tap to share ' + files.length + ' image' + (files.length > 1 ? 's' : '') + '</button>';
       }
+      return;
     }
-    // Desktop, or share unavailable/failed: download the images to attach.
-    for (var f = 0; f < files.length; f++) {
-      var url = URL.createObjectURL(files[f]); var a = document.createElement('a');
-      a.href = url; a.download = files[f].name; a.click(); (function (u) { setTimeout(function () { URL.revokeObjectURL(u); }, 4000); })(url);
-    }
+    _rrDownloadFiles(files);
     showToast('Saved ' + files.length + ' image(s) — attach them to your email/text', 4000);
     if (prog) prog.textContent = 'Saved ' + files.length + ' image(s) to your downloads.';
     if (acts) acts.style.display = 'flex';
@@ -196,6 +191,28 @@ async function shareAsCards() {
     if (acts) acts.style.display = 'flex';
   }
 }
+
+function _rrDownloadFiles(files) {
+  for (var f = 0; f < files.length; f++) {
+    var url = URL.createObjectURL(files[f]); var a = document.createElement('a');
+    a.href = url; a.download = files[f].name; a.click(); (function (u) { setTimeout(function () { URL.revokeObjectURL(u); }, 4000); })(url);
+  }
+}
+function _rrDoShareNow() {
+  var files = window._rrShareFiles || [];
+  if (!files.length) return;
+  try {
+    navigator.share({ files: files, text: window._rrShareText || '' }).then(function () {
+      showToast('Shared!', 2000);
+      var m = document.getElementById('share-builder-modal'); if (m) m.remove();
+      if (typeof cancelShareMode === 'function') cancelShareMode();
+    }).catch(function (err) {
+      if (err && err.name === 'AbortError') return;
+      _rrDownloadFiles(files); showToast('Saved images to attach', 3000);
+    });
+  } catch (e) { _rrDownloadFiles(files); }
+}
+if (typeof window !== 'undefined') { window._rrDoShareNow = _rrDoShareNow; window._rrDownloadFiles = _rrDownloadFiles; }
 
 // ═══ TIER 2 — LIVE FOR-SALE SHEET ════════════════════════════════
 async function _sellEnsureSheet() {
