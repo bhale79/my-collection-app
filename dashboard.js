@@ -296,8 +296,13 @@ var CARD_CATALOG = [
     compute: function(state) {
       // Session 121: respect Preferences "What I Collect" in 'all' mode.
       var _eS=_ownedTypeNumSet(state,_ENGINE_BUCKETS), _tS=_ownedTypeNumSet(state,_TENDER_BUCKETS), _cS=_ownedTypeNumSet(state,_CABOOSE_BUCKETS), _pS=_ownedTypeNumSet(state,_PASSENGER_BUCKETS), _fS=_ownedTypeNumSet(state,_FREIGHT_BUCKETS), _aS=_ownedTypeNumSet(state,_ACCESSORY_BUCKETS);
-      var types = { 'Engines':0, 'Tenders':0, 'Freight':0, 'Passenger':0, 'Cabooses':0, 'Accessories':0 };
-      _ownedNonBox(state).filter(_pdEraEnabled).forEach(function(pd) {
+      var types = { 'Engines':0, 'Tenders':0, 'Freight':0, 'Passenger':0, 'Cabooses':0, 'Accessories':0, 'Other':0 };
+      var _ownedList = _ownedNonBox(state).filter(_pdEraEnabled);
+      // Catalog not loaded yet — can't classify; show loading rather than a wrong/empty breakdown.
+      if ((!state.masterData || state.masterData.length === 0) && _ownedList.length > 0) {
+        return { html: '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:4px">Loading catalog\u2026</div>' };
+      }
+      _ownedList.forEach(function(pd) {
         var _n = normalizeItemNum(pd.itemNum);
         if (_eS.has(_n)) types['Engines']++;
         else if (_tS.has(_n)) types['Tenders']++;
@@ -305,6 +310,7 @@ var CARD_CATALOG = [
         else if (_pS.has(_n)) types['Passenger']++;
         else if (_fS.has(_n)) types['Freight']++;
         else if (_aS.has(_n)) types['Accessories']++;
+        else types['Other']++;
       });
       var html = '';
       Object.entries(types).forEach(function(e) {
