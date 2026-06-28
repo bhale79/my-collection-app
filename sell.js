@@ -79,7 +79,7 @@ function _rrCardData(it, source) {
     sub: master.subType || master.itemType || 'Lionel Postwar'
   };
 }
-function _rrCard(d, photoImg, source) {
+function _rrCard(d, photoImg, source, photoIdx, photoTotal) {
   var W = 720, H = 900, c = document.createElement('canvas'); c.width = W; c.height = H;
   var x = c.getContext('2d');
   var accent = source === 'want' ? '#2980b9' : (source === 'collection' ? '#2ecc71' : '#e8401c');
@@ -94,6 +94,12 @@ function _rrCard(d, photoImg, source) {
     var iw = photoImg.width, ih = photoImg.height, s = Math.max((W - 72) / iw, ph / ih), dw = iw * s, dh = ih * s;
     x.drawImage(photoImg, 36 + ((W - 72) - dw) / 2, py + (ph - dh) / 2, dw, dh); x.restore();
   } else { x.fillStyle = '#46537a'; x.font = '400 20px Arial'; x.textAlign = 'center'; x.fillText('photo', W / 2, py + ph / 2); x.textAlign = 'left'; }
+  if (photoTotal && photoTotal > 1) {
+    var _lbl = (photoIdx || 1) + ' of ' + photoTotal;
+    x.font = '700 18px Arial'; var _lw = x.measureText(_lbl).width + 24;
+    x.fillStyle = 'rgba(0,0,0,0.55)'; _rrRound(x, 50, py + 14, _lw, 30, 15); x.fill();
+    x.fillStyle = '#fff'; x.textAlign = 'left'; x.fillText(_lbl, 62, py + 35);
+  }
   var by = py + ph + 58;
   x.fillStyle = '#fff'; x.font = '700 46px Arial'; x.fillText('No. ' + (d.num || ''), 36, by);
   if (d.price) { x.fillStyle = accent; x.font = '700 38px Arial'; x.textAlign = 'right'; x.fillText(d.price, W - 36, by); x.textAlign = 'left'; }
@@ -107,6 +113,29 @@ function _rrCard(d, photoImg, source) {
   if (d.note) { x.fillStyle = '#9aa3bd'; x.font = 'italic 20px Arial'; _rrWrap(x, '"' + d.note + '"', 36, cy + 52, W - 72, 26, 2); }
   x.strokeStyle = 'rgba(255,255,255,0.1)'; x.beginPath(); x.moveTo(36, H - 56); x.lineTo(W - 36, H - 56); x.stroke();
   x.fillStyle = '#6b769a'; x.font = '400 17px Arial'; x.fillText(d.sub || 'Lionel Postwar', 36, H - 30);
+  x.textAlign = 'right'; x.fillText('Shared from The Rail Roster', W - 36, H - 30); x.textAlign = 'left';
+  return c;
+}
+function _rrPhotoCard(num, photoImg, source, idx, total) {
+  var W = 720, H = 900, c = document.createElement('canvas'); c.width = W; c.height = H;
+  var x = c.getContext('2d');
+  var accent = source === 'want' ? '#2980b9' : (source === 'collection' ? '#2ecc71' : '#e8401c');
+  var badge = source === 'want' ? 'WANTED' : (source === 'collection' ? 'MY COLLECTION' : 'FOR SALE');
+  x.fillStyle = '#141a2e'; _rrRound(x, 0, 0, W, H, 28); x.fill();
+  x.fillStyle = '#e7d4a8'; x.font = '600 22px Arial'; x.textBaseline = 'alphabetic'; x.fillText('THE RAIL ROSTER', 36, 52);
+  x.font = '700 20px Arial'; var bw = x.measureText(badge).width + 40; x.fillStyle = accent;
+  _rrRound(x, W - 36 - bw, 30, bw, 38, 19); x.fill(); x.fillStyle = '#fff'; x.fillText(badge, W - 36 - bw + 20, 56);
+  var py = 84, ph = 680; x.fillStyle = '#1e2740'; _rrRound(x, 36, py, W - 72, ph, 16); x.fill();
+  if (photoImg) {
+    x.save(); _rrRound(x, 36, py, W - 72, ph, 16); x.clip();
+    var iw = photoImg.width, ih = photoImg.height, s = Math.max((W - 72) / iw, ph / ih), dw = iw * s, dh = ih * s;
+    x.drawImage(photoImg, 36 + ((W - 72) - dw) / 2, py + (ph - dh) / 2, dw, dh); x.restore();
+  } else { x.fillStyle = '#46537a'; x.font = '400 20px Arial'; x.textAlign = 'center'; x.fillText('photo', W / 2, py + ph / 2); x.textAlign = 'left'; }
+  var by = py + ph + 58;
+  x.fillStyle = '#fff'; x.font = '700 40px Arial'; x.textAlign = 'left'; x.fillText('No. ' + (num || ''), 36, by);
+  x.fillStyle = accent; x.font = '700 28px Arial'; x.textAlign = 'right'; x.fillText('Photo ' + idx + ' of ' + total, W - 36, by); x.textAlign = 'left';
+  x.strokeStyle = 'rgba(255,255,255,0.1)'; x.beginPath(); x.moveTo(36, H - 56); x.lineTo(W - 36, H - 56); x.stroke();
+  x.fillStyle = '#6b769a'; x.font = '400 17px Arial'; x.fillText('Additional photo', 36, H - 30);
   x.textAlign = 'right'; x.fillText('Shared from The Rail Roster', W - 36, H - 30); x.textAlign = 'left';
   return c;
 }
@@ -159,11 +188,17 @@ async function shareAsCards() {
         it = Object.assign({}, it, { itemNum: pd.itemNum, variation: pd.variation || '', master: _cm });
       }
       var photoUrls = await _rrItemPhotoDataUrls(pd, allPhotos);
-      var mainImg = photoUrls.length ? await _rrLoadImg(photoUrls[0]) : null;
-      var card = _rrCard(_rrCardData(it, source), mainImg, source);
-      files.push(await _canvasToFile(card, 'item-' + (it.itemNum || (i + 1)) + '.png'));
-      var extra = allPhotos ? photoUrls : [];
-      for (var p = 0; p < extra.length; p++) files.push(_dataUrlToFile(extra[p], (it.itemNum || 'item') + '-photo' + (p + 1) + '.jpg'));
+      var N = photoUrls.length;
+      var mainImg = N ? await _rrLoadImg(photoUrls[0]) : null;
+      var card = _rrCard(_rrCardData(it, source), mainImg, source, 1, N);
+      files.push(await _canvasToFile(card, 'item-' + (it.itemNum || (i + 1)) + '-1.png'));
+      if (allPhotos) {
+        for (var p = 1; p < N; p++) {
+          var pimg = await _rrLoadImg(photoUrls[p]);
+          var pcard = _rrPhotoCard(it.itemNum || '', pimg, source, p + 1, N);
+          files.push(await _canvasToFile(pcard, 'item-' + (it.itemNum || 'x') + '-' + (p + 1) + '.png'));
+        }
+      }
       } catch (itemErr) { console.warn('card build skipped for an item:', itemErr); }
     }
     var title = source === 'want' ? 'Items I am looking for' : (source === 'collection' ? 'From my collection' : 'Items for sale');
