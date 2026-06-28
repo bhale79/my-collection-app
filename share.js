@@ -134,6 +134,7 @@ function openShareBuilder() {
           _shareFieldCheck('sf-box',     'Has Box', true) +
           _shareFieldCheck('sf-price',   'Asking / Est. Value', true) +
           _shareFieldCheck('sf-notes',   'Notes') +
+          _shareFieldCheck('sf-allphotos', 'All photos (every angle)') +
         '</div>' +
       '</div>' +
 
@@ -145,13 +146,12 @@ function openShareBuilder() {
 
       // Action buttons
       '<div id="share-builder-actions" style="display:flex;flex-direction:column;gap:0.5rem">' +
-        '<button onclick="_doShare(\'pdf\')" style="padding:0.65rem;border-radius:9px;border:none;background:var(--accent);color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem">' +
-          '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>' +
-          'Download PDF' +
-        '</button>' +
-        '<button onclick="_doShare(\'drive\')" style="padding:0.65rem;border-radius:9px;border:1.5px solid #0891b2;background:rgba(8,145,178,0.1);color:#0891b2;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem">' +
+        '<button onclick="if(typeof shareAsCards===\'function\')shareAsCards()" style="padding:0.65rem;border-radius:9px;border:none;background:#3a9e68;color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem">' +
           '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>' +
-          'Share via Link (Email / Text)' +
+          'Share as images' +
+        '</button>' +
+        '<button onclick="_doShare(\'pdf\')" style="padding:0.55rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">' +
+          'Download as PDF instead' +
         '</button>' +
       '</div>' +
 
