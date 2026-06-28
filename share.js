@@ -257,7 +257,7 @@ async function _doShare(mode) {
 
 // ── Fetch a Drive photo as a base64 data URL ──────────────────────
 async function _fetchPhotoAsDataUrl(fileId) {
-  var token = state && state.token;
+  var token = (typeof accessToken !== 'undefined' && accessToken) ? accessToken : localStorage.getItem('lv_token');
   if (!token) return null;
   var res = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', {
     headers: { Authorization: 'Bearer ' + token }
