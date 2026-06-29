@@ -285,8 +285,7 @@ var CARD_CATALOG = [
       var roads = {};
       // Session 121: respect Preferences "What I Collect" in 'all' mode.
       Object.values(state.personalData).filter(function(pd){return pd.owned;}).filter(_pdEraEnabled).forEach(function(pd) {
-        var master = state.masterData.find(function(m) { return normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum) && (m.variation || '') === (pd.variation || ''); })
-            || state.masterData.find(function(m) { return normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum); });
+        var master = findMaster(pd.itemNum, pd.variation);
         var road = master ? (master.roadName||'').trim() : '';
         if (road && road !== '—' && road !== 'N/A') roads[road] = (roads[road]||0) + 1;
       });
@@ -791,8 +790,7 @@ var PANEL_CATALOG = [
               'goToMyCollection()', null
             );
           }
-          var master = state.masterData.find(function(m) { return normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum) && (m.variation || '') === (pd.variation || ''); })
-            || state.masterData.find(function(m) { return normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum); });
+          var master = findMaster(pd.itemNum, pd.variation);
           var name = master ? (master.roadName || master.itemType || pd.itemNum) : pd.itemNum;
           var price = pd.priceItem ? _currencySymbol() + parseFloat(pd.priceItem).toLocaleString() : '';
           var date = pd.datePurchased || '';
@@ -870,8 +868,7 @@ var PANEL_CATALOG = [
         .sort(function(a, b) { return b._val - a._val; })
         .slice(0, 8)
         .map(function(pd) {
-          var master = state.masterData.find(function(m) { return normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum) && (m.variation || '') === (pd.variation || ''); })
-            || state.masterData.find(function(m) { return normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum); });
+          var master = findMaster(pd.itemNum, pd.variation);
           var name = master ? (master.roadName || master.itemType || pd.itemNum) : pd.itemNum;
           var price = _currencySymbol() + pd._val.toLocaleString();
           var idx = master ? state.masterData.indexOf(master) : -1;

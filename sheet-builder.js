@@ -541,8 +541,7 @@ function _sheetCardModel(card, state) {
       case 'topRoads': {
         var roads = {};
         Object.values(state.personalData).filter(function (pd) { return pd.owned; }).filter(eraEnabled).forEach(function (pd) {
-          var master = state.masterData.find(function (m) { return normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum) && (m.variation || '') === (pd.variation || ''); })
-            || state.masterData.find(function (m) { return normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum); });
+          var master = (typeof findMaster==='function') ? findMaster(pd.itemNum, pd.variation) : null;
           var road = master ? (master.roadName || '').trim() : '';
           if (road && road !== '—' && road !== 'N/A') roads[road] = (roads[road] || 0) + 1;
         });

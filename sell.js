@@ -184,7 +184,7 @@ async function shareAsCards() {
       try {
       var pd = it.pd || (it.fs && it.fs.inventoryId && state.personalData[it.fs.inventoryId]) || {};
       if (pd && pd.itemNum && String(pd.itemNum) !== String(it.itemNum)) {
-        var _cm = state.masterData.find(function (z) { return z.itemNum === pd.itemNum && (z.variation || '') === (pd.variation || ''); }) || state.masterData.find(function (z) { return z.itemNum === pd.itemNum; }) || it.master;
+        var _cm = findMaster(pd.itemNum, pd.variation) || it.master;
         it = Object.assign({}, it, { itemNum: pd.itemNum, variation: pd.variation || '', master: _cm });
       }
       var photoUrls = await _rrItemPhotoDataUrls(pd, allPhotos);
@@ -273,8 +273,7 @@ async function _sellSync() {
     var pd = (e.inventoryId && state.personalData[e.inventoryId]) || {};
     var num = pd.itemNum || e.itemNum || '';
     var vr = pd.itemNum ? (pd.variation || '') : (e.variation || '');
-    var m = state.masterData.find(function (z) { return z.itemNum === num && (z.variation || '') === vr; })
-         || state.masterData.find(function (z) { return z.itemNum === num; }) || {};
+    var m = findMaster(num, vr) || {};
     rows.push([
       num,
       (m.roadName ? m.roadName + ' ' : '') + (m.itemType || '') + (vr ? ' (var ' + vr + ')' : ''),
@@ -326,7 +325,7 @@ async function _sellRevoke(email) {
 // ═══ TIER 3 — DATED PUBLIC PDF LINK ══════════════════════════════
 async function _sellDatedPdfLink() {
   var items = Object.values(state.forSaleData || {}).map(function (e) {
-    var m = state.masterData.find(function (z) { return z.itemNum === e.itemNum && (z.variation || '') === (e.variation || ''); }) || {};
+    var m = findMaster(e.itemNum, e.variation) || {};
     var pd = (e.inventoryId && state.personalData[e.inventoryId]) || {};
     return { itemNum: e.itemNum, variation: e.variation, master: m, pd: pd, fs: e };
   });

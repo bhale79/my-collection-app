@@ -142,7 +142,7 @@ async function loadAllData() {
       await loadAllErasMode();
       _patchMasterData();
       _inferMissingYears();
-      buildApp();
+      buildApp(); if (typeof _auditCatalogResolution === 'function') setTimeout(_auditCatalogResolution, 1500);
       showOnboarding();
       if (typeof vaultInit === 'function') vaultInit();
       if (state.personalSheetId) {
@@ -161,7 +161,7 @@ async function loadAllData() {
     _patchMasterData();
     _inferMissingYears();
     buildPartnerMap();
-    buildApp();
+    buildApp(); if (typeof _auditCatalogResolution === 'function') setTimeout(_auditCatalogResolution, 1500);
     showOnboarding();
     if (typeof vaultInit === 'function') vaultInit();
     // Re-write config after every successful load so all devices can always find the Sheet ID
@@ -415,34 +415,94 @@ function _writeSearchIndex() {
 }
 
 // Find first master row matching itemNum (+ optional variation). O(1) lookup.
+// ── Catalog resolver ────────────────────────────────────────────────
+// THE single source of truth for turning a collection item number into its
+// catalog row. Collection numbers carry suffixes (204-P powered, 204-D dummy,
+// 217C B-unit, NNNN-T trailer) but the catalog is indexed by the BASE number
+// ("204", "217"). Some base numbers ALSO collide with unrelated items (205 is
+// an Alco AND an accessory AND a science set), so when a suffix is present we
+// score candidates: prefer motive-power entries and match the powered/dummy/
+// B-unit/trailer role + variation. Always route catalog lookups through this.
+function _mIsMotive(t) { return /diesel|electric|locomotive|motoriz/i.test(String(t || '')); }
+function _mSuffix(num) { const m = String(num || '').trim().match(/-?([PDTC])$/i); return m ? m[1].toUpperCase() : ''; }
 function findMaster(itemNum, variation) {
   if (!itemNum) return null;
   const k = String(itemNum).trim();
-  let bucket = state.masterByItem && state.masterByItem.get(k);
-  // Suffix fallback: collection stores -P/-D/-C/-T (e.g. "204-P", "217C") but the
-  // catalog indexes the BASE number ("204", "217"). If the exact key misses, try
-  // the base number so powered/dummy/B-units still resolve their catalog info.
-  if ((!bucket || !bucket.length) && typeof baseItemNum === 'function') {
+  const exact = (state.masterByItem && state.masterByItem.get(k)) || [];
+  const suf = _mSuffix(k);
+  // Non-suffixed item whose exact key exists = the common case → keep legacy
+  // behavior exactly (variation match, else first) so nothing regresses.
+  if (!suf && exact.length) {
+    if (variation != null && variation !== '') {
+      const hit = exact.find(r => String(r.variation || '') === String(variation));
+      if (hit) return hit;
+    }
+    return exact[0];
+  }
+  // Build candidate pool = exact bucket + base bucket (for suffixed/missing).
+  let cands = exact.slice();
+  if (typeof baseItemNum === 'function') {
     const bk = baseItemNum(k);
-    if (bk && bk !== k) bucket = state.masterByItem && state.masterByItem.get(bk);
+    if (bk && bk !== k) {
+      ((state.masterByItem && state.masterByItem.get(bk)) || []).forEach(b => { if (cands.indexOf(b) < 0) cands.push(b); });
+    }
   }
-  if (!bucket || !bucket.length) return null;
-  if (variation != null && variation !== '') {
-    const want = String(variation);
-    const hit = bucket.find(r => String(r.variation || '') === want);
-    if (hit) return hit;
+  if (!cands.length) return null;
+  const want = (variation != null && variation !== '') ? String(variation) : null;
+  function score(m) {
+    let sc = 0;
+    if (suf) {
+      if (_mIsMotive(m.itemType)) sc += 4;
+      if (suf === 'P' && (m.poweredDummy === 'P' || m.unit === 'A')) sc += 2;
+      else if (suf === 'D' && m.poweredDummy === 'D') sc += 2;
+      else if (suf === 'C' && m.unit === 'B') sc += 2;
+      else if (suf === 'T' && (m.unit === 'T' || m.poweredDummy === 'T')) sc += 2;
+    }
+    if (want != null && String(m.variation || '') === want) sc += 1;
+    return sc;
   }
-  return bucket[0];
+  let best = cands[0], bestS = score(cands[0]);
+  for (let i = 1; i < cands.length; i++) { const sc = score(cands[i]); if (sc > bestS) { best = cands[i]; bestS = sc; } }
+  return best;
 }
 
 // Return ALL master rows for a given itemNum. O(1) lookup.
 function findAllMaster(itemNum) {
   if (!itemNum) return [];
   const k = String(itemNum).trim();
-  return (state.masterByItem && state.masterByItem.get(k)) || [];
+  let b = (state.masterByItem && state.masterByItem.get(k)) || [];
+  if (!b.length && typeof baseItemNum === 'function') {
+    const bk = baseItemNum(k);
+    if (bk && bk !== k) b = (state.masterByItem && state.masterByItem.get(bk)) || [];
+  }
+  return b;
 }
 window.findMaster = findMaster;
 window.findAllMaster = findAllMaster;
+
+// Tripwire: after data loads, warn (quietly, to the console) if any owned item
+// fails to resolve to a catalog entry — so a future suffix/grouping gap surfaces
+// instead of silently leaving blank Type/Description/Road. Runs once per session.
+var _catalogAuditDone = false;
+function _auditCatalogResolution() {
+  if (_catalogAuditDone) return;
+  try {
+    if (typeof state === 'undefined' || !state.personalData || typeof findMaster !== 'function') return;
+    if (!state.masterData || !state.masterData.length) return; // catalog not loaded yet — try again next build
+    var owned = Object.values(state.personalData).filter(function (pd) {
+      return pd && pd.owned && pd.itemNum && !(typeof _isBoxItemNum === 'function' && _isBoxItemNum(pd.itemNum));
+    });
+    if (!owned.length) return;
+    var bad = owned.filter(function (pd) { return !findMaster(pd.itemNum, pd.variation); });
+    _catalogAuditDone = true;
+    if (bad.length) {
+      console.warn('[Catalog Audit] ' + bad.length + ' owned item(s) did NOT resolve to a catalog entry (Type/Description/Road will be blank): ' + bad.slice(0, 25).map(function (p) { return p.itemNum; }).join(', '));
+    } else {
+      console.log('[Catalog Audit] OK — all ' + owned.length + ' owned items resolve to the catalog.');
+    }
+  } catch (e) { console.warn('[Catalog Audit] check failed:', e); }
+}
+window._auditCatalogResolution = _auditCatalogResolution;
 window._rebuildMasterIndex = _rebuildMasterIndex;
 
 async function loadCatalogRefData() {

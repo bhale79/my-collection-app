@@ -815,7 +815,7 @@ function buildWantPage() {
     }
     // Text search
     if (_wq) {
-      const master = state.masterData.find(m => m.itemNum === w.itemNum && (!w.variation || m.variation === w.variation)) || {};
+      const master = findMaster(w.itemNum, w.variation) || {};
       return (w.itemNum||'').toLowerCase().includes(_wq)
         || (master.roadName||'').toLowerCase().includes(_wq)
         || (master.itemType||'').toLowerCase().includes(_wq)
@@ -864,7 +864,7 @@ function buildWantPage() {
     if (tableEl) tableEl.style.display = 'none';
     if (cardsEl) cardsEl.style.display = 'flex';
     cardsEl.innerHTML = entries.map(w => {
-      const master = state.masterData.find(m => m.itemNum === w.itemNum && (!w.variation || m.variation === w.variation));
+      const master = findMaster(w.itemNum, w.variation);
       const name = master ? (master.roadName || master.description || master.itemType || '') : '';
       const pColor = priorityColor[w.priority] || 'var(--text-dim)';
       const masterIdx2 = master ? state.masterData.indexOf(master) : -1;
@@ -909,7 +909,7 @@ function buildWantPage() {
     // Store descriptions in a map to avoid quoting issues in onclick
     window._wantDescs = {};
     tbody.innerHTML = entries.map((w, idx) => {
-      const master = state.masterData.find(m => m.itemNum === w.itemNum && (!w.variation || m.variation === w.variation));
+      const master = findMaster(w.itemNum, w.variation);
       const roadName = master ? (master.roadName || '') : '';
       const varDesc  = master ? (master.varDesc || master.variationDesc || '') : '';
       const fullDesc = master ? (master.description || '') : '';
@@ -1065,9 +1065,7 @@ function moveWantToCollection(itemNum, variation) {
     if (typeof wizard === 'undefined' || !wizard) return;
 
     // Look up master row (prefer variation match; fall back to any variation)
-    const master = state.masterData.find(m =>
-      m.itemNum === itemNum && (!variation || String(m.variation||'') === String(variation))
-    ) || findMaster(itemNum);
+    const master = findMaster(itemNum, variation);
 
     // Seed everything we know
     wizard.data._fromWantList = true;
@@ -1342,7 +1340,7 @@ function buildSoldPage() {
   let soldEntries = Object.values(state.soldData)
     .filter(sd => typeof _isInCurrentEra !== 'function' || _isInCurrentEra(sd.itemNum))
     .map(sd => {
-      const master = state.masterData.find(i => i.itemNum === sd.itemNum && i.variation === sd.variation) || {};
+      const master = findMaster(sd.itemNum, sd.variation) || {};
       return { ...sd, _type: master.itemType || '', _roadName: sd.roadName || master.roadName || '', _master: master, _mfr: (typeof _manufacturerOfItem==='function' ? (_manufacturerOfItem(master.itemNum?master:sd)||'') : '') };
     });
 
@@ -1629,7 +1627,7 @@ var _FS_COLS = [
   { col: 'cond', label: 'Cond' }, { col: 'price', label: 'Asking Price' },
   { col: 'worth', label: 'Est. Worth' }, { col: 'listed', label: 'Listed' }
 ];
-function _fsMaster(fs) { return state.masterData.find(function(i){ return i.itemNum===fs.itemNum && i.variation===fs.variation; }) || {}; }
+function _fsMaster(fs) { return findMaster(fs.itemNum, fs.variation) || {}; }
 function _fsSortVal(fs, col) {
   var m = _fsMaster(fs);
   if (col==='mfr') return (typeof _manufacturerOfItem==='function' ? (_manufacturerOfItem(m.itemNum?m:fs)||'') : '');
@@ -1685,7 +1683,7 @@ function buildForSalePage() {
     // Era filter
     if (typeof _isInCurrentEra === 'function' && !_isInCurrentEra(fs.itemNum)) return false;
     if (!_fq) return true;
-    const _fsx = _fsEff(fs); const master = state.masterData.find(i => i.itemNum === _fsx.itemNum && i.variation === _fsx.variation) || {};
+    const _fsx = _fsEff(fs); const master = findMaster(_fsx.itemNum, _fsx.variation) || {};
     return (fs.itemNum||'').toLowerCase().includes(_fq)
       || (master.roadName||'').toLowerCase().includes(_fq)
       || (master.itemType||'').toLowerCase().includes(_fq)
@@ -1740,7 +1738,7 @@ function buildForSalePage() {
     if (fsCardsEl) fsCardsEl.style.display = 'flex';
     if (fsTableWrap) fsTableWrap.style.display = 'none';
     if (fsCardsEl) fsCardsEl.innerHTML = fsEntries.length ? fsEntries.map(fs => {
-      const _fsx = _fsEff(fs); const master = state.masterData.find(i => i.itemNum === _fsx.itemNum && i.variation === _fsx.variation) || {};
+      const _fsx = _fsEff(fs); const master = findMaster(_fsx.itemNum, _fsx.variation) || {};
       const collPd = (fs.inventoryId && state.personalData[fs.inventoryId]) || {};
       const estWorth = fs.estWorth || collPd.userEstWorth || '';
       const _fsShareKey = fs.itemNum + '|' + (fs.variation||'') + '|' + (fs.row||0);
@@ -1780,7 +1778,7 @@ function buildForSalePage() {
     if (fsCardsEl) fsCardsEl.style.display = 'none';
     if (fsTableWrap) fsTableWrap.style.display = '';
     if (tbody) tbody.innerHTML = fsEntries.length ? fsEntries.map(fs => {
-      const _fsx = _fsEff(fs); const master = state.masterData.find(i => i.itemNum === _fsx.itemNum && i.variation === _fsx.variation) || {};
+      const _fsx = _fsEff(fs); const master = findMaster(_fsx.itemNum, _fsx.variation) || {};
       const collPd = (fs.inventoryId && state.personalData[fs.inventoryId]) || {};
       const estWorth = fs.estWorth || collPd.userEstWorth || '';
       const _fsDShareKey = fs.itemNum + '|' + (fs.variation||'') + '|' + (fs.row||0);
@@ -3179,9 +3177,7 @@ function upgradeGotIt(ugKey) {
   setTimeout(function() {
     if (typeof wizard === 'undefined' || !wizard) return;
     // Look up master row (prefer variation match; fall back to any)
-    const master = state.masterData.find(m =>
-      m.itemNum === itemNum && (!variation || String(m.variation||'') === String(variation))
-    ) || findMaster(itemNum);
+    const master = findMaster(itemNum, variation);
     // Seed
     wizard.data._fromUpgradeList = true;
     wizard.data._fromUpgradeKey = ugKey;

@@ -49,8 +49,8 @@ function buildReport() {
 
     // Sort by itemType then itemNum
     ownedItems.sort((a, b) => {
-      const master_a = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(a.itemNum)) || {};
-      const master_b = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(b.itemNum)) || {};
+      const master_a = findMaster(a.itemNum, a.variation) || {};
+      const master_b = findMaster(b.itemNum, b.variation) || {};
       const typeA = master_a.itemType || 'ZZZ';
       const typeB = master_b.itemType || 'ZZZ';
       if (typeA !== typeB) return typeA.localeCompare(typeB);
@@ -163,7 +163,7 @@ function buildReport() {
     }
 
     tbody.innerHTML = ownedItems.map((pd, idx) => {
-      const master = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum)) || {};
+      const master = findMaster(pd.itemNum, pd.variation) || {};
       const photoId = 'ins-photo-' + idx;
       const cells = (CFG.columns || []).map(c => {
         const v = _cellValue(c, pd, master, photoId);
@@ -343,14 +343,14 @@ function exportReport() {
       return !(pd.hasBox === 'Yes' && noCondition && noItemPrice);
     });
     ownedItems.sort((a, b) => {
-      const ma = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(a.itemNum)) || {};
-      const mb = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(b.itemNum)) || {};
+      const ma = findMaster(a.itemNum, a.variation) || {};
+      const mb = findMaster(b.itemNum, b.variation) || {};
       if ((ma.itemType||'ZZZ') !== (mb.itemType||'ZZZ')) return (ma.itemType||'ZZZ').localeCompare(mb.itemType||'ZZZ');
       return (a.itemNum||'').localeCompare(b.itemNum||'', undefined, { numeric: true });
     });
     const esc = v => `"${(v||'').toString().replace(/"/g,'""')}"`;
     const rows = ownedItems.map(pd => {
-      const master = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum)) || {};
+      const master = findMaster(pd.itemNum, pd.variation) || {};
       return [
         esc(pd.itemNum), esc(master.roadName || master.description || ''),
         esc(master.itemType || ''), esc(pd.yearMade || master.yearProd || ''),
@@ -735,7 +735,7 @@ function _rbGetItems(def) {
     return !(pd.hasBox==='Yes' && noC && noP);
   }).map(pd => ({
     pd,
-    master: state.masterData.find(m=>normalizeItemNum(m.itemNum)===normalizeItemNum(pd.itemNum)) || {}
+    master: findMaster(pd.itemNum, pd.variation) || {}
   }));
 
   // Apply filters

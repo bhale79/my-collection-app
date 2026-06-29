@@ -147,6 +147,18 @@
     }
   }
 
+  // ── 11. Catalog resolution (suffixed/grouped engines) ─────────
+  if (typeof state !== 'undefined' && state.personalData && typeof findMaster === 'function') {
+    const ownedReal = Object.values(state.personalData).filter(pd => pd && pd.owned && pd.itemNum && !(typeof _isBoxItemNum === 'function' && _isBoxItemNum(pd.itemNum)));
+    if (!ownedReal.length) {
+      warn('catalog resolution', 'no owned items to check');
+    } else {
+      const unresolved = ownedReal.filter(pd => !findMaster(pd.itemNum, pd.variation));
+      if (unresolved.length === 0) pass('catalog resolution', ownedReal.length + ' owned items all resolve to the catalog');
+      else fail('catalog resolution', unresolved.length + ' owned item(s) have NO catalog match: ' + unresolved.slice(0, 20).map(p => p.itemNum).join(', '));
+    }
+  }
+
   // ── Print report ──────────────────────────────────────────────
   const passes = results.filter(r => r.s === OK).length;
   const fails  = results.filter(r => r.s === ERR).length;

@@ -147,7 +147,7 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
     const invId = nextInventoryId();
 
     // Match to master data for metadata
-    const master = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum));
+    const master = (typeof findMaster==='function') ? findMaster(itemNum) : state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum));
     const variation = master ? (master.variation || '') : '';
 
     // Build personal sheet row — Session 156 buildPersonalRow form
@@ -308,7 +308,7 @@ function launchSetItemWizard() {
     condition: d._setCondition || 7,
   };
   wizard.steps = getSteps('collection');
-  wizard.matchedItem = state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum)) || null;
+  wizard.matchedItem = ((typeof findMaster==='function') ? findMaster(itemNum) : state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum))) || null;
   if (wizard.matchedItem) {
     wizard.data.itemNum = wizard.matchedItem.itemNum; // use canonical form
   }
