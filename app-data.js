@@ -418,7 +418,14 @@ function _writeSearchIndex() {
 function findMaster(itemNum, variation) {
   if (!itemNum) return null;
   const k = String(itemNum).trim();
-  const bucket = state.masterByItem && state.masterByItem.get(k);
+  let bucket = state.masterByItem && state.masterByItem.get(k);
+  // Suffix fallback: collection stores -P/-D/-C/-T (e.g. "204-P", "217C") but the
+  // catalog indexes the BASE number ("204", "217"). If the exact key misses, try
+  // the base number so powered/dummy/B-units still resolve their catalog info.
+  if ((!bucket || !bucket.length) && typeof baseItemNum === 'function') {
+    const bk = baseItemNum(k);
+    if (bk && bk !== k) bucket = state.masterByItem && state.masterByItem.get(bk);
+  }
   if (!bucket || !bucket.length) return null;
   if (variation != null && variation !== '') {
     const want = String(variation);

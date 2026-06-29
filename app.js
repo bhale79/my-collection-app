@@ -155,6 +155,21 @@ function buildPersonalRow(fields) {
   if (vdi !== undefined && (fields.variationDescription === undefined || fields.variationDescription === '')) {
     row[vdi] = _lookupMasterVarDesc(inum, vari);
   }
+  // Auto-populate Item Type / Road Name / Road Number from the catalog when the
+  // caller didn't supply them (e.g. suffixed engines 204-P / 217C resolve via the
+  // base number now that findMaster has a base fallback). Manual items: findMaster
+  // returns null, so their caller-supplied values are kept.
+  if (typeof findMaster === 'function' && inum && !_isBoxItemNum(inum)) {
+    const _mm = findMaster(inum, vari);
+    if (_mm) {
+      [['itemType','itemType'],['roadName','roadName'],['roadNumber','roadNum']].forEach(function(pair){
+        const _ci = PERSONAL_FIELD_INDEX[pair[0]];
+        if (_ci !== undefined && (fields[pair[0]] === undefined || fields[pair[0]] === '') && _mm[pair[1]]) {
+          row[_ci] = String(_mm[pair[1]]);
+        }
+      });
+    }
+  }
   // Brand is a fact about the item: when the item is in the catalog, the
   // master decides the manufacturer (not the filter). Manual items keep theirs.
   var _mfi = PERSONAL_FIELD_INDEX.manufacturer;
