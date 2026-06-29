@@ -44,15 +44,10 @@ const INSURANCE_REPORT = {
     { key: 'photo',       label: 'Photo',       type: 'photo' },
     { key: 'itemNum',     label: 'Item #',      type: 'itemnum' },
     { key: 'description', label: 'Description', type: 'text' },
-    { key: 'year',        label: 'Year',        type: 'text',  align: 'center' },
-    { key: 'variation',   label: 'Variation',   type: 'dim' },
-    { key: 'condition',   label: 'Cond.',       type: 'text',  align: 'center' },
-    { key: 'allOriginal', label: 'All Orig.',   type: 'text',  align: 'center' },
+    { key: 'variation',   label: 'Variation #', type: 'dim' },
+    { key: 'condition',   label: 'Condition',   type: 'text',  align: 'center' },
     { key: 'hasBox',      label: 'Box',         type: 'text',  align: 'center' },
-    { key: 'boxCond',     label: 'Box Cond.',   type: 'text',  align: 'center' },
-    { key: 'pricePaid',   label: 'Paid',        type: 'money', align: 'right' },
-    { key: 'estWorth',    label: 'Est. Worth',  type: 'money', align: 'right' },
-    { key: 'notes',       label: 'Notes',       type: 'dim' },
+    { key: 'estWorth',    label: 'Value',       type: 'money', align: 'right' },
   ],
 
   // ──────────────────────────────────────────────────────────────

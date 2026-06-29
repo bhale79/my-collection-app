@@ -3,6 +3,18 @@
 // Loaded after app.js. Reads from state, _prefGet, sheetsGet.
 // ═══════════════════════════════════════════════════════════════
 
+var _wupView = 'all';
+function _setWupView(v){ _wupView = v; buildReport(); }
+function _wupControls(){
+  var tw = document.querySelector('#page-reports .table-wrap'); if(!tw) return;
+  var c = document.getElementById('wup-controls');
+  if(!c){ c=document.createElement('div'); c.id='wup-controls'; c.style.cssText='display:flex;gap:0.4rem;margin-bottom:0.75rem;flex-wrap:wrap'; tw.parentNode.insertBefore(c, tw); }
+  c.style.display='flex';
+  var views=[['all','All'],['want','Want'],['upgrade','Upgrade'],['parts','Parts']];
+  c.innerHTML = views.map(function(v){ var on=(_wupView===v[0]); return '<button onclick="_setWupView(\''+v[0]+'\')" style="padding:0.4rem 0.85rem;border-radius:7px;border:1.5px solid '+(on?'var(--accent2)':'var(--border)')+';background:'+(on?'rgba(180,140,60,0.12)':'var(--surface2)')+';color:'+(on?'var(--accent2)':'var(--text-mid)')+';font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer">'+v[1]+'</button>'; }).join('');
+}
+if (typeof window!=='undefined'){ window._setWupView=_setWupView; }
+
 function buildReport() {
   const type = document.getElementById('report-type')?.value || 'insurance';
 
@@ -17,6 +29,8 @@ function buildReport() {
   const thead = document.getElementById('report-thead');
   const tbody = document.getElementById('report-tbody');
   if (!thead || !tbody) return;
+  var _ih=document.getElementById('ins-report-hdr'); if(_ih) _ih.style.display='none';
+  var _wc0=document.getElementById('wup-controls'); if(_wc0) _wc0.style.display='none';
 
   if (type === 'insurance') {
     // ── Insurance Report ─────────────────────────────────────
@@ -107,34 +121,9 @@ function buildReport() {
         <div class="ins-report-meta">${metaHtml}</div>
       </div>
       <div class="ins-report-totals">
-        ${totalPaid > 0 ? `<span>Total Paid: <strong>$${Math.round(totalPaid).toLocaleString()}</strong></span>` : ''}
         ${totalWorth > 0 ? `<span>Total Est. Worth: <strong>$${Math.round(totalWorth).toLocaleString()}</strong></span>` : ''}
         ${CFG.totalsNote ? `<span style="color:var(--text-dim);font-size:0.78rem">${CFG.totalsNote}</span>` : ''}
-      </div>
-      ${(function() {
-        // Session 144 (Tier 4.21): per-manufacturer breakdown when 2+ mfrs.
-        const _keys = Object.keys(_mfrTotals).sort();
-        if (_keys.length < 2) return '';
-        const _rows = _keys.map(function(m) {
-          const t = _mfrTotals[m];
-          return '<tr>' +
-            '<td style="padding:0.2rem 0.6rem 0.2rem 0">' + m + '</td>' +
-            '<td style="padding:0.2rem 0.6rem;text-align:right;color:var(--text-dim)">' + t.count.toLocaleString() + ' items</td>' +
-            '<td style="padding:0.2rem 0.6rem;text-align:right">' + (t.paid > 0 ? '$' + Math.round(t.paid).toLocaleString() : '—') + '</td>' +
-            '<td style="padding:0.2rem 0;text-align:right;color:var(--accent2);font-family:var(--font-mono)">' + (t.worth > 0 ? '$' + Math.round(t.worth).toLocaleString() : '—') + '</td>' +
-            '</tr>';
-        }).join('');
-        return '<div class="ins-report-mfr-breakdown" style="margin-top:0.6rem;padding:0.55rem 0.75rem;background:var(--surface2);border-radius:6px;font-size:0.82rem;width:100%">' +
-          '<div style="font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.35rem">Totals by Manufacturer</div>' +
-          '<table style="width:100%;font-size:0.82rem"><thead>' +
-          '<tr style="color:var(--text-dim);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.06em">' +
-          '<th style="text-align:left;padding:0.1rem 0.6rem 0.25rem 0;font-weight:600">Maker</th>' +
-          '<th style="text-align:right;padding:0.1rem 0.6rem 0.25rem;font-weight:600">Items</th>' +
-          '<th style="text-align:right;padding:0.1rem 0.6rem 0.25rem;font-weight:600">Paid</th>' +
-          '<th style="text-align:right;padding:0.1rem 0 0.25rem;font-weight:600">Est. Worth</th>' +
-          '</tr></thead>' +
-          '<tbody>' + _rows + '</tbody></table></div>';
-      })()}`;
+      </div>`;
 
     // ── Build thead + tbody from CFG.columns ─────────────────
     thead.innerHTML = '<tr>' + (CFG.columns || []).map(c =>
@@ -227,98 +216,68 @@ function buildReport() {
   const _insFoot = document.getElementById('ins-report-foot');
   if (_insFoot) _insFoot.style.display = 'none';
 
-  if (type === 'wantlist') {
-    thead.innerHTML = '<tr><th>Item #</th><th>Type</th><th>Description</th><th>Variation Description</th><th>Est. Market Value</th></tr>';
-    const wants = state.masterData.filter(i => !state.personalData[`${i.itemNum}|${i.variation}`]?.owned);
-    tbody.innerHTML = wants.map(i => `
-      <tr>
-        <td><span class="item-num">${i.itemNum}</span></td>
-        <td><span class="tag">${i.itemType || '—'}</span></td>
-        <td>${i.roadName || i.description || '—'}</td>
-        <td>${i.varDesc || i.variation || '—'}</td>
-        <td class="market-val">${i.marketVal ? _currencySymbol()+parseFloat(i.marketVal).toLocaleString() : '—'}</td>
-      </tr>`).join('') || '<tr><td colspan="5" class="ui-empty">All items owned! 🎉</td></tr>';
-
-  } else if (type === 'collection') {
-    thead.innerHTML = '<tr><th>Item #</th><th>Type</th><th>Road Name</th><th>Variation</th><th>Copy #</th><th>Condition</th><th>Has Box</th><th>All Original</th><th>Item Price</th><th>Item+Box</th></tr>';
-    const owned = state.masterData.filter(i => state.personalData[`${i.itemNum}|${i.variation}`]?.owned);
-    tbody.innerHTML = owned.map(i => {
-      const pd = state.personalData[`${i.itemNum}|${i.variation}`];
-      return `<tr>
-        <td><span class="item-num">${i.itemNum}</span></td>
-        <td><span class="tag">${i.itemType || '—'}</span></td>
-        <td>${i.roadName || '—'}</td>
-        <td>${i.variation || '—'}</td>
-        <td>${pd.copy || '1'}</td>
-        <td>${pd.condition || '—'}</td>
-        <td>${pd.hasBox || '—'}</td>
-        <td>${pd.allOriginal || '—'}</td>
-        <td class="market-val">${pd.priceItem ? _currencySymbol()+parseFloat(pd.priceItem).toLocaleString() : '—'}</td>
-        <td class="market-val">${pd.priceComplete ? _currencySymbol()+parseFloat(pd.priceComplete).toLocaleString() : '—'}</td>
-      </tr>`;
-    }).join('') || '<tr><td colspan="10" class="ui-empty">No owned items yet</td></tr>';
-
-  } else if (type === 'value') {
-    thead.innerHTML = '<tr><th>Category</th><th>Owned</th><th>Total in Master</th><th>% Complete</th><th>Est. Collection Value</th></tr>';
-    const cats = {};
-    // Session 144 (Tier 4.21): also build per-manufacturer summary
-    const _vMfr = {};
-    state.masterData.forEach(i => {
-      const t = i.itemType || 'Other';
-      if (!cats[t]) cats[t] = { total: 0, owned: 0, value: 0 };
-      cats[t].total++;
-      const pd = state.personalData[`${i.itemNum}|${i.variation}`];
-      if (pd?.owned) {
-        cats[t].owned++;
-        const v = parseFloat(pd.priceComplete || pd.priceItem || 0);
-        cats[t].value += v;
-        let m = (pd.manufacturer || '').toString();
-        if (!m && typeof _manufacturerOfItem === 'function') {
-          m = _manufacturerOfItem(pd) || '';
-          if (m) m = m.charAt(0).toUpperCase() + m.slice(1);
-        }
-        if (!m) m = 'Lionel';
-        if (!_vMfr[m]) _vMfr[m] = { owned: 0, value: 0 };
-        _vMfr[m].owned++;
-        _vMfr[m].value += v;
-      }
+  if (type === 'collection') {
+    thead.innerHTML = '<tr><th>Item #</th><th>Description</th><th>Variation #</th><th>Condition</th><th>Box</th><th>All Original</th><th>Est. Worth</th><th>Location</th><th>Notes</th></tr>';
+    const owned = Object.values(state.personalData).filter(pd => {
+      if (!pd.owned) return false;
+      const c=(pd.condition||'').toString().trim(), pr=(pd.priceItem||'').toString().trim();
+      const noC=!c||c==='N/A', noP=!pr||pr==='N/A';
+      return !(pd.hasBox==='Yes' && noC && noP);
     });
-    // Insert "Summary by Manufacturer" rows at the top when 2+ mfrs present
-    const _vMfrKeys = Object.keys(_vMfr).sort();
-    let _vSummary = '';
-    if (_vMfrKeys.length >= 2) {
-      _vSummary = '<tr style="background:var(--surface2);font-weight:600"><td colspan="5" style="padding:0.45rem 0.6rem;font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim)">Summary by Manufacturer</td></tr>';
-      _vSummary += _vMfrKeys.map(function(m) {
-        const t = _vMfr[m];
-        return '<tr style="background:var(--surface2)"><td style="padding-left:1rem"><strong>' + m + '</strong></td><td>' + t.owned.toLocaleString() + '</td><td>—</td><td>—</td><td class="market-val">' + (t.value > 0 ? _currencySymbol() + Math.round(t.value).toLocaleString() : '—') + '</td></tr>';
-      }).join('');
-      _vSummary += '<tr><td colspan="5" style="padding:0.4rem 0;font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);border-top:1px solid var(--border)">By Category</td></tr>';
+    owned.sort((a,b)=>{
+      const ma=findMaster(a.itemNum,a.variation)||{}, mb=findMaster(b.itemNum,b.variation)||{};
+      if ((ma.itemType||'ZZZ')!==(mb.itemType||'ZZZ')) return (ma.itemType||'ZZZ').localeCompare(mb.itemType||'ZZZ');
+      return (a.itemNum||'').localeCompare(b.itemNum||'',undefined,{numeric:true});
+    });
+    tbody.innerHTML = owned.map(pd=>{
+      const m=findMaster(pd.itemNum,pd.variation)||{};
+      const desc=m.roadName||m.description||m.itemType||'—';
+      const worth=pd.userEstWorth?_currencySymbol()+parseFloat(pd.userEstWorth).toLocaleString():'—';
+      return `<tr>
+        <td><span class="item-num">${pd.itemNum||''}</span></td>
+        <td>${desc}</td>
+        <td>${pd.variation||'—'}</td>
+        <td style="text-align:center">${pd.condition||'—'}</td>
+        <td style="text-align:center">${pd.hasBox||'—'}</td>
+        <td style="text-align:center">${pd.allOriginal||'—'}</td>
+        <td class="market-val">${worth}</td>
+        <td>${pd.location||'—'}</td>
+        <td style="font-size:0.77rem;color:var(--text-dim)">${pd.notes||''}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="9" class="ui-empty">No owned items yet</td></tr>';
+
+  } else if (type === 'wantupgrade') {
+    // Lazy-load Parts (only fetched when the Parts page is opened).
+    if ((_wupView==='all'||_wupView==='parts') && !state.partsData) {
+      _wupControls();
+      tbody.innerHTML='<tr><td colspan="6" class="ui-empty">Loading…</td></tr>';
+      (async()=>{ try{ if(typeof _ensurePartsTab==='function') await _ensurePartsTab(); const res=await sheetsGet(state.personalSheetId,'Parts Needed!A3:H').catch(()=>({values:[]})); const parts={}; (res.values||[]).forEach((r,idx)=>{ if(!r[0]||r[0]==='Part ID')return; parts['p'+(idx+3)]={row:idx+3,id:r[0]||'',description:r[1]||'',partNum:r[2]||'',forItem:r[3]||'',forInv:r[4]||'',photo:r[5]||'',notes:r[6]||'',dateAdded:r[7]||''}; }); state.partsData=parts; }catch(e){ state.partsData={}; } var _sel=document.getElementById('report-type'); if(_sel && _sel.value==='wantupgrade') buildReport(); })();
+      return;
     }
-    tbody.innerHTML = _vSummary + Object.entries(cats).sort((a,b)=>b[1].owned-a[1].owned).map(([name, c]) => `
-      <tr>
-        <td>${name}</td>
-        <td>${c.owned}</td>
-        <td>${c.total}</td>
-        <td>${c.total > 0 ? Math.round(c.owned/c.total*100) + '%' : '—'}</td>
-        <td class="market-val">${c.value > 0 ? _currencySymbol()+Math.round(c.value).toLocaleString() : '—'}</td>
-      </tr>`).join('');
-
-  } else if (type === 'missing-box') {
-    thead.innerHTML = '<tr><th>Item #</th><th>Type</th><th>Road Name</th><th>Condition</th><th>Amount Paid</th></tr>';
-    const noBox = state.masterData.filter(i => {
-      const pd = state.personalData[`${i.itemNum}|${i.variation}`];
-      return pd?.owned && pd?.hasBox !== 'Yes';
-    });
-    tbody.innerHTML = noBox.map(i => {
-      const pd = state.personalData[`${i.itemNum}|${i.variation}`];
-      return `<tr>
-        <td><span class="item-num">${i.itemNum}</span></td>
-        <td><span class="tag">${i.itemType || '—'}</span></td>
-        <td>${i.roadName || '—'}</td>
-        <td>${pd.condition || '—'}</td>
-        <td class="market-val">${i.marketVal ? _currencySymbol()+parseFloat(i.marketVal).toLocaleString() : '—'}</td>
-      </tr>`;
-    }).join('') || '<tr><td colspan="5" class="ui-empty">All owned items have boxes!</td></tr>';
+    _wupControls();
+    thead.innerHTML = '<tr><th>Item / Part #</th><th>Description</th><th>Var #</th><th>Priority / Target</th><th>Target Price</th><th>Notes</th></tr>';
+    const esc=v=>(v==null?'':String(v));
+    const sect=(label,n)=>`<tr><td colspan="6" style="background:var(--surface2);font-weight:700;font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);padding:0.45rem 0.6rem">${label} (${n})</td></tr>`;
+    let html='';
+    const showWant=(_wupView==='all'||_wupView==='want');
+    const showUpg=(_wupView==='all'||_wupView==='upgrade');
+    const showParts=(_wupView==='all'||_wupView==='parts');
+    if (showWant) {
+      const w=Object.values(state.wantData||{});
+      html+=sect('Want List', w.length);
+      html+= w.length ? w.map(e=>{ const m=findMaster(e.itemNum,e.variation)||{}; const d=m.roadName||m.description||'—'; const pr=e.expectedPrice?_currencySymbol()+parseFloat(e.expectedPrice).toLocaleString():'—'; return `<tr><td><span class="item-num">${esc(e.itemNum)}</span></td><td>${d}</td><td>${esc(e.variation)||'—'}</td><td>${esc(e.priority)||'—'}</td><td class="market-val">${pr}</td><td style="font-size:0.77rem;color:var(--text-dim)">${esc(e.notes)}</td></tr>`; }).join('') : '<tr><td colspan="6" class="ui-empty">Nothing on your want list</td></tr>';
+    }
+    if (showUpg) {
+      const u=Object.values(state.upgradeData||{});
+      html+=sect('Upgrade List', u.length);
+      html+= u.length ? u.map(e=>{ const m=findMaster(e.itemNum,e.variation)||{}; const d=m.roadName||m.description||'—'; const tgt=[esc(e.priority),e.targetCondition?('→ cond '+e.targetCondition):''].filter(Boolean).join(' '); const pr=e.maxPrice?_currencySymbol()+parseFloat(e.maxPrice).toLocaleString():'—'; return `<tr><td><span class="item-num">${esc(e.itemNum)}</span></td><td>${d}</td><td>${esc(e.variation)||'—'}</td><td>${tgt||'—'}</td><td class="market-val">${pr}</td><td style="font-size:0.77rem;color:var(--text-dim)">${esc(e.notes)}</td></tr>`; }).join('') : '<tr><td colspan="6" class="ui-empty">Nothing on your upgrade list</td></tr>';
+    }
+    if (showParts) {
+      const pp=Object.values(state.partsData||{});
+      html+=sect('Parts Needed', pp.length);
+      html+= pp.length ? pp.map(e=>{ const forL=e.forItem?('for '+e.forItem):''; const d=[esc(e.description),forL].filter(Boolean).join(' — '); return `<tr><td><span class="item-num">${esc(e.partNum)||'—'}</span></td><td>${d||'—'}</td><td>—</td><td>—</td><td>—</td><td style="font-size:0.77rem;color:var(--text-dim)">${esc(e.notes)}</td></tr>`; }).join('') : '<tr><td colspan="6" class="ui-empty">No parts on your list</td></tr>';
+    }
+    tbody.innerHTML = html;
   }
 }
 
@@ -333,7 +292,7 @@ function exportReport() {
   }
 
   if (type === 'insurance') {
-    const headers = ['Item #','Description','Type','Year','Variation','Condition','All Original','Has Box','Box Condition','Est. Worth','Amount Paid','Notes','Photo Folder Link'];
+    const headers = ['Item #','Description','Variation #','Condition','Box','Est. Worth','Photo Folder Link'];
     const ownedItems = Object.values(state.personalData).filter(pd => {
       if (!pd.owned) return false;
       const condVal  = pd.condition?.toString().trim();
@@ -353,11 +312,9 @@ function exportReport() {
       const master = findMaster(pd.itemNum, pd.variation) || {};
       return [
         esc(pd.itemNum), esc(master.roadName || master.description || ''),
-        esc(master.itemType || ''), esc(pd.yearMade || master.yearProd || ''),
-        esc(pd.variation || ''), esc(pd.condition || ''), esc(pd.allOriginal || ''),
-        esc(pd.hasBox || ''), esc(pd.boxCond || ''),
-        esc(pd.userEstWorth || ''), esc(pd.priceComplete || pd.priceItem || ''),
-        esc(pd.notes || ''), esc(pd.photoItem || ''),
+        esc(pd.variation || ''), esc(pd.condition || ''),
+        esc(pd.hasBox || ''), esc(pd.userEstWorth || ''),
+        esc(pd.photoItem || ''),
       ].join(',');
     });
     const dateTag = new Date().toISOString().slice(0,10);
