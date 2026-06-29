@@ -1283,3 +1283,7 @@ body.compact-mode .qa-tr-actions .qa-tr-btn {
 /* ── Cataloged Master List: tighter rows ── */
 #page-browse .item-table:not(.collection-view) td,
 #page-browse .item-table:not(.collection-view) th { padding: 0.45rem 0.6rem; }
+
+@media print {
+  #page-reports .table-wrap { max-height: none !important; overflow: visible !important; }
+}

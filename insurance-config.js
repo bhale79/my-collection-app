@@ -21,7 +21,6 @@ const INSURANCE_REPORT = {
     'Owner: {ownerName}',
     'Generated: {dateStr}',
     'Items: {itemCount}',
-    'Total Estimated Worth: ${totalWorth}',
   ],
 
   // Footnote shown beside the totals.

@@ -20,9 +20,9 @@
   <link rel="manifest" href="manifest.json">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>The Rail Roster — Postwar Train Collection Tracker</title>
-<link rel="stylesheet" href="./app.css?v=627">
-<link rel="stylesheet" href="./tutorial.css?v=627">
-<link rel="stylesheet" href="./vault-styles.css?v=627">
+<link rel="stylesheet" href="./app.css?v=628">
+<link rel="stylesheet" href="./tutorial.css?v=628">
+<link rel="stylesheet" href="./vault-styles.css?v=628">
 </head>
 <body>
 
@@ -625,14 +625,23 @@ document.addEventListener('touchmove', function(){}, {passive: true});
             <button id="rb-edit-btn" onclick="_rbEditSelected()" style="padding:0.45rem 0.7rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-size:0.8rem;cursor:pointer">Edit</button>
             <button id="rb-del-btn"  onclick="_rbDeleteSelected()" style="padding:0.45rem 0.7rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--accent);font-family:var(--font-body);font-size:0.8rem;cursor:pointer">Delete</button>
           </span>
+          <button id="rep-pdf-btn" class="btn-export" onclick="exportReportPDF()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download PDF
+          </button>
+          <button id="rep-gdoc-btn" class="btn-export" onclick="exportReportGoogleDoc()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            Google Doc
+          </button>
           <button class="btn-export" onclick="exportReport()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Export CSV
           </button>
-          <button class="btn-export" onclick="window.print()">
+          <button id="rep-print-btn" class="btn-export" onclick="printReportWithPhotos()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6,9 6,2 18,2 18,9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
             Print
           </button>
+          <span id="rep-export-status" style="display:none;align-self:center;font-size:0.8rem;color:var(--text-dim)"></span>
         </div>
 
         <div class="table-wrap" style="margin-top:0;max-height:calc(100vh - 170px);overflow-y:auto">
@@ -692,58 +701,59 @@ document.addEventListener('touchmove', function(){}, {passive: true});
 <!-- identify-modal is built dynamically by wizard.js -->
 </div>
 
-<script src="./config.js?v=627"></script>
-<script src="./cott-anchors.js?v=627"></script>
-<script src="./type-groups.js?v=627"></script>
-<script src="./back-stack.js?v=627"></script>
-<script src="./road-typeahead.js?v=627"></script>
-<script src="./a11y-config.js?v=627"></script>
-<script src="./a11y.js?v=627"></script>
-<script src="./wizard-utils.js?v=627"></script>
-<script src="./app.js?v=627"></script>
-<script src="./sheets.js?v=627"></script>
-<script src="./drive.js?v=627"></script>
-<script src="./backup.js?v=627"></script>
-<script src="./browse.js?v=627"></script>
-<script src="./dashboard.js?v=627"></script>
-<script src="./sheet-builder.js?v=627"></script>
+<script src="./config.js?v=628"></script>
+<script src="./cott-anchors.js?v=628"></script>
+<script src="./type-groups.js?v=628"></script>
+<script src="./back-stack.js?v=628"></script>
+<script src="./road-typeahead.js?v=628"></script>
+<script src="./a11y-config.js?v=628"></script>
+<script src="./a11y.js?v=628"></script>
+<script src="./wizard-utils.js?v=628"></script>
+<script src="./app.js?v=628"></script>
+<script src="./sheets.js?v=628"></script>
+<script src="./drive.js?v=628"></script>
+<script src="./backup.js?v=628"></script>
+<script src="./browse.js?v=628"></script>
+<script src="./dashboard.js?v=628"></script>
+<script src="./sheet-builder.js?v=628"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="./wizard-pdlookup.js?v=627"></script>
-<script src="./wizard-suggestions.js?v=627"></script>
-<script src="./wizard-steps.js?v=627"></script>
-<script src="./wizard.js?v=627"></script>
-<script src="./wizard-photos.js?v=627"></script>
-<script src="./wizard-pickers.js?v=627"></script>
-<script src="./wizard-handlers.js?v=627"></script>
-<script src="./wizard-quickentry.js?v=627"></script>
-<script src="./wizard-save.js?v=627"></script>
-<script src="./app-misc.js?v=627"></script>
-<script src="./app-auth.js?v=627"></script>
-<script src="./app-setup.js?v=627"></script>
-<script src="./app-data.js?v=627"></script>
-<script src="./app-pages.js?v=627"></script>
-<script src="./app-collection.js?v=627"></script>
-<script src="./barcode.js?v=627"></script>
-<script src="./tutorial.js?v=627"></script>
-<script src="./tutorial-gifs-config.js?v=627"></script>
-<script src="./migration-config.js?v=627"></script>
-<script src="./migration-ui.js?v=627"></script>
-<script src="./onboarding-config.js?v=627"></script>
-<script src="./gmail-help.js?v=627"></script>
-<script src="./onboarding.js?v=627"></script>
-<script src="./vault.js?v=627"></script>
-<script src="./era-badges-config.js?v=627"></script>
-<script src="./era-badges.js?v=627"></script>
-<script src="./catalog-display-config.js?v=627"></script>
-<script src="./non-item-detail-config.js?v=627"></script>
-<script src="./item-search-filters-config.js?v=627"></script>
-<script src="./insurance-config.js?v=627"></script>
-<script src="./reports.js?v=627"></script>
-<script src="./prefs.js?v=627"></script>
-<script src="./tools.js?v=627"></script>
+<script src="./wizard-pdlookup.js?v=628"></script>
+<script src="./wizard-suggestions.js?v=628"></script>
+<script src="./wizard-steps.js?v=628"></script>
+<script src="./wizard.js?v=628"></script>
+<script src="./wizard-photos.js?v=628"></script>
+<script src="./wizard-pickers.js?v=628"></script>
+<script src="./wizard-handlers.js?v=628"></script>
+<script src="./wizard-quickentry.js?v=628"></script>
+<script src="./wizard-save.js?v=628"></script>
+<script src="./app-misc.js?v=628"></script>
+<script src="./app-auth.js?v=628"></script>
+<script src="./app-setup.js?v=628"></script>
+<script src="./app-data.js?v=628"></script>
+<script src="./app-pages.js?v=628"></script>
+<script src="./app-collection.js?v=628"></script>
+<script src="./barcode.js?v=628"></script>
+<script src="./tutorial.js?v=628"></script>
+<script src="./tutorial-gifs-config.js?v=628"></script>
+<script src="./migration-config.js?v=628"></script>
+<script src="./migration-ui.js?v=628"></script>
+<script src="./onboarding-config.js?v=628"></script>
+<script src="./gmail-help.js?v=628"></script>
+<script src="./onboarding.js?v=628"></script>
+<script src="./vault.js?v=628"></script>
+<script src="./era-badges-config.js?v=628"></script>
+<script src="./era-badges.js?v=628"></script>
+<script src="./catalog-display-config.js?v=628"></script>
+<script src="./non-item-detail-config.js?v=628"></script>
+<script src="./item-search-filters-config.js?v=628"></script>
+<script src="./insurance-config.js?v=628"></script>
+<script src="./reports.js?v=628"></script>
+<script src="./report-export.js?v=628"></script>
+<script src="./prefs.js?v=628"></script>
+<script src="./tools.js?v=628"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="./share.js?v=627"></script>
-<script src="./sell.js?v=627"></script>
+<script src="./share.js?v=628"></script>
+<script src="./sell.js?v=628"></script>
 
 <script>
 // ── PWA Service Worker Registration (auto-update) ───────────────
