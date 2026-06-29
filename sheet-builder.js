@@ -5,7 +5,7 @@
 // ══════════════════════════════════════════════════════════════════
 
 // Bump this number to push a visual refresh to all users on next sync
-const SHEET_FORMAT_VER = 15; // Session 165 v12: Dashboard header rebuilt to match the app (mascot left, multicolor Oswald title, app navy + orange underline bar) + no-white styling (hide gridlines, flood page with app bg).
+const SHEET_FORMAT_VER = 16; // Session 165 v12: Dashboard header rebuilt to match the app (mascot left, multicolor Oswald title, app navy + orange underline bar) + no-white styling (hide gridlines, flood page with app bg).
 
 // ── Color palette ──────────────────────────────────────────────────
 const SB = {
@@ -119,19 +119,25 @@ async function applySheetFormatting(sheetId, opts) {
       // Session 155 v6: header wrap, banding fix, My Collection gets col-A freeze
       const isMyCollection = (tab === 'My Collection');
       return [
-        // Row 1 — branded title bar (v8: removed padding; Sheets API requires all 4 sides or none)
+        // Row 1 — branded header bar matching the Dashboard (appNavy + Oswald cream
+        // + orange underline). The tab name stays in A1 (the app enforces it).
         { repeatCell: {
           range: { sheetId: sid, startRowIndex: 0, endRowIndex: 1 },
           cell: { userEnteredFormat: {
-            backgroundColor: SB.navy,
-            textFormat: { bold: true, foregroundColor: SB.gold, fontSize: 13, fontFamily: 'Arial' },
-            verticalAlignment: 'MIDDLE', horizontalAlignment: 'CENTER'
+            backgroundColor: SB.appNavy,
+            textFormat: { bold: true, foregroundColor: SB.cream, fontSize: 14, fontFamily: 'Oswald' },
+            verticalAlignment: 'MIDDLE', horizontalAlignment: 'LEFT'
           }},
           fields: 'userEnteredFormat(backgroundColor,textFormat,verticalAlignment,horizontalAlignment)'
         }},
+        // Orange underline bar (thick bottom border on row 1) — matches Dashboard.
+        { updateBorders: {
+          range: { sheetId: sid, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 32 },
+          bottom: { style: 'SOLID_THICK', color: SB.accent }
+        }},
         { updateDimensionProperties: {
           range: { sheetId: sid, dimension: 'ROWS', startIndex: 0, endIndex: 1 },
-          properties: { pixelSize: 30 }, fields: 'pixelSize'
+          properties: { pixelSize: 34 }, fields: 'pixelSize'
         }},
         // Row 2 — column header band, v6: wrapStrategy WRAP added
         { repeatCell: {
