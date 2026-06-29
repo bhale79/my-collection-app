@@ -5,7 +5,7 @@
 // ══════════════════════════════════════════════════════════════════
 
 // Bump this number to push a visual refresh to all users on next sync
-const SHEET_FORMAT_VER = 12; // Session 165 v12: Dashboard header rebuilt to match the app (mascot left, multicolor Oswald title, app navy + orange underline bar) + no-white styling (hide gridlines, flood page with app bg).
+const SHEET_FORMAT_VER = 13; // Session 165 v12: Dashboard header rebuilt to match the app (mascot left, multicolor Oswald title, app navy + orange underline bar) + no-white styling (hide gridlines, flood page with app bg).
 
 // ── Color palette ──────────────────────────────────────────────────
 const SB = {
@@ -330,10 +330,8 @@ async function applySheetFormatting(sheetId, opts) {
       { updateDimensionProperties: { range: { sheetId: dashId, dimension: 'ROWS', startIndex: 2, endIndex: 3 }, properties: { pixelSize: 20 }, fields: 'pixelSize' }},
       { updateDimensionProperties: { range: { sheetId: dashId, dimension: 'ROWS', startIndex: 3, endIndex: 4 }, properties: { pixelSize: 8  }, fields: 'pixelSize' }},
       { updateDimensionProperties: { range: { sheetId: dashId, dimension: 'ROWS', startIndex: 4, endIndex: 5 }, properties: { pixelSize: 22 }, fields: 'pixelSize' }},
-      // Stat rows 6-9
-      { updateDimensionProperties: { range: { sheetId: dashId, dimension: 'ROWS', startIndex: 5, endIndex: 9 }, properties: { pixelSize: 32 }, fields: 'pixelSize' }},
-      { updateDimensionProperties: { range: { sheetId: dashId, dimension: 'ROWS', startIndex: 9, endIndex: 10 }, properties: { pixelSize: 10 }, fields: 'pixelSize' }},
-      { updateDimensionProperties: { range: { sheetId: dashId, dimension: 'ROWS', startIndex: 10, endIndex: 11 }, properties: { pixelSize: 22 }, fields: 'pixelSize' }},
+      // (Body row heights + tile formatting are applied dynamically in
+      //  _writeDashboardContent — they depend on which cards are chosen.)
       // Column widths: A=190 B=100 C=12 D=190 E=100 F=60 G=60 H=60
       { updateDimensionProperties: { range: { sheetId: dashId, dimension: 'COLUMNS', startIndex: 0, endIndex: 1 }, properties: { pixelSize: 190 }, fields: 'pixelSize' }},
       { updateDimensionProperties: { range: { sheetId: dashId, dimension: 'COLUMNS', startIndex: 1, endIndex: 2 }, properties: { pixelSize: 100 }, fields: 'pixelSize' }},
@@ -383,96 +381,6 @@ async function applySheetFormatting(sheetId, opts) {
         range: { sheetId: dashId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 0, endColumnIndex: 8 },
         cell: { userEnteredFormat: { backgroundColor: SB.accent } },
         fields: 'userEnteredFormat.backgroundColor'
-      }},
-      // Row 5: section headers — navyMid bg, gold text, bold, small caps
-      { repeatCell: {
-        range: { sheetId: dashId, startRowIndex: 4, endRowIndex: 5, startColumnIndex: 0, endColumnIndex: 8 },
-        cell: { userEnteredFormat: {
-          backgroundColor: SB.navyMid,
-          textFormat: { bold: true, foregroundColor: SB.gold, fontSize: 8 },
-          horizontalAlignment: 'CENTER', verticalAlignment: 'MIDDLE'
-        }},
-        fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)'
-      }},
-      // Col C (divider) rows 5-10 — navy bg
-      { repeatCell: {
-        range: { sheetId: dashId, startRowIndex: 4, endRowIndex: 10, startColumnIndex: 2, endColumnIndex: 3 },
-        cell: { userEnteredFormat: { backgroundColor: SB.navyMid } },
-        fields: 'userEnteredFormat.backgroundColor'
-      }},
-      // Stat label cols A+D rows 6-9 — labelBg, white text, 10pt
-      { repeatCell: {
-        range: { sheetId: dashId, startRowIndex: 5, endRowIndex: 9, startColumnIndex: 0, endColumnIndex: 1 },
-        cell: { userEnteredFormat: {
-          backgroundColor: SB.labelBg,
-          textFormat: { bold: false, foregroundColor: SB.white, fontSize: 10 },
-          verticalAlignment: 'MIDDLE', horizontalAlignment: 'LEFT'
-        }},
-        fields: 'userEnteredFormat(backgroundColor,textFormat,verticalAlignment,horizontalAlignment)'
-      }},
-      { repeatCell: {
-        range: { sheetId: dashId, startRowIndex: 5, endRowIndex: 9, startColumnIndex: 3, endColumnIndex: 4 },
-        cell: { userEnteredFormat: {
-          backgroundColor: SB.labelBg,
-          textFormat: { bold: false, foregroundColor: SB.white, fontSize: 10 },
-          verticalAlignment: 'MIDDLE', horizontalAlignment: 'LEFT'
-        }},
-        fields: 'userEnteredFormat(backgroundColor,textFormat,verticalAlignment,horizontalAlignment)'
-      }},
-      // Stat value cols B+E rows 6-9 — goldBg, navy bold, 14pt, center
-      { repeatCell: {
-        range: { sheetId: dashId, startRowIndex: 5, endRowIndex: 9, startColumnIndex: 1, endColumnIndex: 2 },
-        cell: { userEnteredFormat: {
-          backgroundColor: SB.goldBg,
-          textFormat: { bold: true, foregroundColor: SB.navy, fontSize: 13 },
-          verticalAlignment: 'MIDDLE', horizontalAlignment: 'CENTER'
-        }},
-        fields: 'userEnteredFormat(backgroundColor,textFormat,verticalAlignment,horizontalAlignment)'
-      }},
-      { repeatCell: {
-        range: { sheetId: dashId, startRowIndex: 5, endRowIndex: 9, startColumnIndex: 4, endColumnIndex: 5 },
-        cell: { userEnteredFormat: {
-          backgroundColor: SB.goldBg,
-          textFormat: { bold: true, foregroundColor: SB.navy, fontSize: 13 },
-          verticalAlignment: 'MIDDLE', horizontalAlignment: 'CENTER'
-        }},
-        fields: 'userEnteredFormat(backgroundColor,textFormat,verticalAlignment,horizontalAlignment)'
-      }},
-      // Session 164: explicit NUMBER format for all stat value cells so
-      // counts don't show as "$52" because of a leftover currency format.
-      // Currency/text formulas (Collection Value, Avg Condition) wrap their
-      // result in TEXT(...) so the cell format doesn't matter for them.
-      { repeatCell: {
-        range: { sheetId: dashId, startRowIndex: 5, endRowIndex: 9, startColumnIndex: 1, endColumnIndex: 2 },
-        cell: { userEnteredFormat: { numberFormat: { type: 'NUMBER', pattern: '#,##0' } } },
-        fields: 'userEnteredFormat.numberFormat'
-      }},
-      { repeatCell: {
-        range: { sheetId: dashId, startRowIndex: 5, endRowIndex: 9, startColumnIndex: 4, endColumnIndex: 5 },
-        cell: { userEnteredFormat: { numberFormat: { type: 'NUMBER', pattern: '#,##0' } } },
-        fields: 'userEnteredFormat.numberFormat'
-      }},
-      // Cols F-H rows 5-9 — app page bg
-      { repeatCell: {
-        range: { sheetId: dashId, startRowIndex: 4, endRowIndex: 10, startColumnIndex: 5, endColumnIndex: 8 },
-        cell: { userEnteredFormat: { backgroundColor: SB.appBg } },
-        fields: 'userEnteredFormat.backgroundColor'
-      }},
-      // Row 10: spacer — app page bg
-      { repeatCell: {
-        range: { sheetId: dashId, startRowIndex: 9, endRowIndex: 10, startColumnIndex: 0, endColumnIndex: 8 },
-        cell: { userEnteredFormat: { backgroundColor: SB.appBg } },
-        fields: 'userEnteredFormat.backgroundColor'
-      }},
-      // Row 11: footer — dim italic small
-      { repeatCell: {
-        range: { sheetId: dashId, startRowIndex: 10, endRowIndex: 11, startColumnIndex: 0, endColumnIndex: 8 },
-        cell: { userEnteredFormat: {
-          backgroundColor: SB.appBg,
-          textFormat: { italic: true, foregroundColor: { red: 0.55, green: 0.6, blue: 0.65 }, fontSize: 8 },
-          verticalAlignment: 'MIDDLE', horizontalAlignment: 'CENTER'
-        }},
-        fields: 'userEnteredFormat(backgroundColor,textFormat,verticalAlignment,horizontalAlignment)'
       }},
     ];
 
@@ -557,135 +465,194 @@ async function applySheetFormatting(sheetId, opts) {
   }
 }
 
+// Build a sheet-friendly model for one dashboard card. Single-number cards
+// reuse the card's own compute() (so the numbers match the app exactly);
+// breakdown cards are re-derived into [name,count] rows using the same globals.
+function _sheetCardModel(card, state) {
+  var out = { label: card.label, value: '', sub: '', rows: null };
+  var r = {};
+  try { r = card.compute(state) || {}; } catch (e) { r = {}; }
+  if (r && r.value !== undefined && r.html === undefined) {
+    out.value = String(r.value); out.sub = r.sub || ''; return out;
+  }
+  var eraEnabled = (typeof _pdEraEnabled === 'function') ? _pdEraEnabled : function () { return true; };
+  try {
+    switch (card.id) {
+      case 'owned': {
+        var items = _ownedNonBox(state), extra = 0;
+        Object.values(state.ephemeraData || {}).forEach(function (b) { extra += Object.keys(b).length; });
+        if (typeof _standaloneISCount === 'function') extra += _standaloneISCount(state);
+        extra += Object.keys(state.scienceData || {}).length + Object.keys(state.constructionData || {}).length;
+        out.value = (items.length + extra).toLocaleString(); out.sub = 'total';
+        var byEra = {}; items.forEach(function (pd) { var e = _eraOf(pd); byEra[e] = (byEra[e] || 0) + 1; });
+        var rows = [];
+        Object.keys(ERAS).forEach(function (ek) {
+          if (ek === 'all') return;
+          if (typeof _isEraEnabled === 'function' && !_isEraEnabled(ek)) return;
+          if (byEra[ek]) rows.push([ERAS[ek].label, byEra[ek].toLocaleString()]);
+        });
+        if (extra > 0) rows.push(['Paper / Sets', extra.toLocaleString()]);
+        out.rows = rows; return out;
+      }
+      case 'activity': {
+        var w = Object.keys((typeof _filterByEraPref === 'function' ? _filterByEraPref(state.wantData || {}) : (state.wantData || {}))).length;
+        var fs = Object.keys(_forSaleLeads(state)).length;
+        var sd = Object.keys((typeof _filterByEraPref === 'function' ? _filterByEraPref(state.soldData || {}) : (state.soldData || {}))).length;
+        out.rows = [['Want', w], ['For Sale', fs], ['Sold', sd]]; return out;
+      }
+      case 'eraProgress': {
+        if (typeof _cacheEraMasterTotal === 'function') _cacheEraMasterTotal();
+        var items2 = _ownedNonBox(state), byEra2 = {};
+        items2.forEach(function (pd) { var e = _eraOf(pd); byEra2[e] = (byEra2[e] || 0) + 1; });
+        var rows2 = [];
+        Object.keys(ERAS).forEach(function (ek) {
+          if (ek === 'all') return;
+          if (typeof _isEraEnabled === 'function' && !_isEraEnabled(ek)) return;
+          var owned = byEra2[ek] || 0, total = 0;
+          if (typeof _currentEra !== 'undefined' && _currentEra === 'all') {
+            total = (typeof _getEraMasterTotal === 'function' && _getEraMasterTotal(ek)) || (state.masterData || []).filter(function (m) { return m._era === ek; }).length;
+          } else if (typeof _currentEra !== 'undefined' && ek === _currentEra) {
+            total = (state.masterData || []).length;
+          } else {
+            total = (typeof _getEraMasterTotal === 'function' && _getEraMasterTotal(ek)) || 0;
+          }
+          rows2.push([ERAS[ek].label, owned + (total > 0 ? ' / ' + total.toLocaleString() : '')]);
+        });
+        out.rows = rows2; return out;
+      }
+      case 'topRoads': {
+        var roads = {};
+        Object.values(state.personalData).filter(function (pd) { return pd.owned; }).filter(eraEnabled).forEach(function (pd) {
+          var master = state.masterData.find(function (m) { return normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum) && (m.variation || '') === (pd.variation || ''); })
+            || state.masterData.find(function (m) { return normalizeItemNum(m.itemNum) === normalizeItemNum(pd.itemNum); });
+          var road = master ? (master.roadName || '').trim() : '';
+          if (road && road !== '—' && road !== 'N/A') roads[road] = (roads[road] || 0) + 1;
+        });
+        var sorted = Object.entries(roads).sort(function (a, b) { return b[1] - a[1]; }).slice(0, 6);
+        out.rows = sorted.map(function (e) { return [e[0], e[1]]; });
+        if (!out.rows.length) out.sub = 'No road names yet';
+        return out;
+      }
+      case 'collectionByType': {
+        var eS = _ownedTypeNumSet(state, _ENGINE_BUCKETS), tS = _ownedTypeNumSet(state, _TENDER_BUCKETS), cS = _ownedTypeNumSet(state, _CABOOSE_BUCKETS),
+            pS = _ownedTypeNumSet(state, _PASSENGER_BUCKETS), fS = _ownedTypeNumSet(state, _FREIGHT_BUCKETS), aS = _ownedTypeNumSet(state, _ACCESSORY_BUCKETS);
+        var types = { Engines: 0, Tenders: 0, Freight: 0, Passenger: 0, Cabooses: 0, Accessories: 0, Other: 0 };
+        _ownedNonBox(state).filter(eraEnabled).forEach(function (pd) {
+          if (_pdMatchSet(pd, eS)) types.Engines++;
+          else if (_pdMatchSet(pd, tS)) types.Tenders++;
+          else if (_pdMatchSet(pd, cS)) types.Cabooses++;
+          else if (_pdMatchSet(pd, pS)) types.Passenger++;
+          else if (_pdMatchSet(pd, fS)) types.Freight++;
+          else if (_pdMatchSet(pd, aS)) types.Accessories++;
+          else types.Other++;
+        });
+        var rows3 = []; Object.entries(types).forEach(function (e) { if (e[1] > 0) rows3.push([e[0], e[1]]); });
+        out.rows = rows3; return out;
+      }
+      default:
+        out.value = '—'; out.sub = 'open the app to view'; return out;
+    }
+  } catch (e) { out.value = '—'; return out; }
+}
+
 async function _writeDashboardContent(sheetId) {
   if (!sheetId) return;
 
-  const userName = (state.user?.name || 'Collector');
-  const firstName = userName.split(' ')[0];
-  const now = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  var userName = (state.user && state.user.name) ? state.user.name : 'Collector';
+  var firstName = userName.split(' ')[0];
+  var now = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-  const ownedItems = Object.values(state.personalData).filter(pd => {
-    if (!pd.owned) return false;
-    const noC = !pd.condition || pd.condition === 'N/A';
-    const noP = !pd.priceItem || pd.priceItem === 'N/A';
-    return !(pd.hasBox === 'Yes' && noC && noP);
-  });
-  let ephCount = 0;
-  Object.values(state.ephemeraData || {}).forEach(b => { ephCount += Object.keys(b).length; });
-  const totalItems = ownedItems.length + ephCount;
-
-  let totalValue = 0;
-  ownedItems.forEach(pd => { if (pd.userEstWorth) totalValue += parseFloat(pd.userEstWorth) || 0; });
-  Object.values(state.ephemeraData || {}).forEach(b => {
-    Object.values(b).forEach(it => { if (it.estValue) totalValue += parseFloat(it.estValue) || 0; });
-  });
-
-  const condItems = ownedItems.filter(pd => pd.condition && !isNaN(parseFloat(pd.condition)));
-  const avgCond = condItems.length > 0
-    ? (condItems.reduce((s, pd) => s + parseFloat(pd.condition), 0) / condItems.length).toFixed(1)
-    : '—';
-
-  const engines = state.masterData.filter(m => {
-    const t = (m.itemType || '').toLowerCase();
-    return (t.includes('steam') || t.includes('diesel') || t.includes('electric') || t.includes('locomotive'))
-      && ownedItems.some(pd => normalizeItemNum(pd.itemNum) === normalizeItemNum(m.itemNum));
-  }).length;
-
-  const wantCount    = Object.keys(state.wantData    || {}).length;
-  const forSaleCount = Object.keys(state.forSaleData || {}).length;
-  const upgradeCount = Object.keys(state.upgradeData || {}).length;
-  const soldCount    = Object.keys(state.soldData    || {}).length;
-
-  const valueStr = totalValue > 0 ? _currencySymbol() + Math.round(totalValue).toLocaleString() : '—';
-
-  // Session 164: replace static values with LIVE FORMULAS so the dashboard
-  // stays accurate even when the user edits the personal sheet directly
-  // (e.g. deletes rows). Locomotives stays as a static value because it
-  // requires a join against master-data Item Type — that can only be
-  // computed by the app at sync time.
-  const rows = [
-    // Row 1: mascot on the LEFT (A1, merged A1:A3) + title in B1 (rich-text,
-    // written separately below so "RAIL" can be orange). Matches the app header.
-    [`=IMAGE("${CONDUCTOR_HEADER_URL}",4,80,65)`, '', '', '', '', ''],
-    // Row 2: User name (col B — col A is the mascot merge)
-    ['', `${firstName}'s Collection`, '', '', '', ''],
-    // Row 3: Last app sync timestamp (col B)
-    ['', `Last app sync: ${now}`, '', '', '', ''],
-    // Row 4: spacer (orange underline bar — formatted, no content)
-    ['', '', '', '', '', ''],
-    // Row 5: Section headers
-    ['MY COLLECTION', '', '', 'ACTIVITY', '', ''],
-    // Rows 6-9: Stats. Most are live formulas; Locomotives stays static.
-    // Data on each tab starts at row 3 (row 1 = label, row 2 = headers).
-    ['Items in Collection',
-       `=IFERROR(MAX(0,COUNTA('My Collection'!A:A)-2),0)`,
-       '', 'Locomotives',
-       engines.toLocaleString(),
-       ''],
-    ['Collection Value',
-       `=IFERROR(TEXT(SUM('My Collection'!N3:N), "$#,##0"), "—")`,
-       '', 'Avg Condition',
-       `=IFERROR(ROUND(AVERAGE('My Collection'!C3:C),1) & " / 10", "—")`,
-       ''],
-    ['Want-Upgrade List',
-       // Combined count (Want + Upgrade together, since they share one tab now).
-       `=IFERROR(MAX(0,COUNTA('Want-Upgrade List'!A:A)-2),0)`,
-       '', 'For Sale',
-       `=IFERROR(MAX(0,COUNTA('For Sale'!A:A)-2),0)`,
-       ''],
-    ['Items Sold',
-       `=IFERROR(MAX(0,COUNTA('Sold'!A:A)-2),0)`,
-       '', '', '', ''],
-    // Row 10: spacer
-    ['', '', '', '', '', ''],
-    // Row 11: footer
-    ['Open The Rail Roster app to manage your collection  ·  This sheet is read-only', '', '', '', '', ''],
-  ];
-
-  // Session 164: USE_FORMULAS — switch from 'USER_ENTERED' default which
-  // would have written formulas as strings. sheetsUpdate already handles
-  // this; just verify formulas survive the write.
-  await sheetsUpdate(sheetId, 'Dashboard!A1:F11', rows);
-
-  // ── Title (B1): rich text "THE RAIL ROSTER" so "RAIL" is orange, the rest
-  // cream — exactly like the app header. Multicolor runs in one cell can only
-  // be set via updateCells (textFormatRuns), not the values API.
+  // Resolve the Dashboard tab id (needed for rich-text title + tile formatting).
+  var dId = null;
   try {
-    const TITLE = 'THE RAIL ROSTER';
-    const railStart = TITLE.indexOf('RAIL');
-    const railEnd   = railStart + 'RAIL'.length;
-    const dashMeta = await (await fetch(
+    var meta = await (await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties(sheetId,title)`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     )).json();
-    let dId = null;
-    (dashMeta.sheets || []).forEach(s => { if (s.properties.title === 'Dashboard') dId = s.properties.sheetId; });
-    if (dId != null) {
-      const cream  = { red: 0.973, green: 0.910, blue: 0.753 };
-      const orange = { red: 0.941, green: 0.314, blue: 0.031 };
-      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requests: [{ updateCells: {
-          start: { sheetId: dId, rowIndex: 0, columnIndex: 1 },
-          fields: 'userEnteredValue,userEnteredFormat(textFormat,verticalAlignment,horizontalAlignment,backgroundColor),textFormatRuns',
-          rows: [{ values: [{
-            userEnteredValue: { stringValue: TITLE },
-            userEnteredFormat: {
-              backgroundColor: { red: 0.102, green: 0.114, blue: 0.227 },
-              verticalAlignment: 'MIDDLE', horizontalAlignment: 'LEFT',
-              textFormat: { bold: true, fontFamily: 'Oswald', fontSize: 18, foregroundColor: cream }
-            },
-            textFormatRuns: [
-              { startIndex: 0,         format: { foregroundColor: cream } },
-              { startIndex: railStart, format: { foregroundColor: orange } },
-              { startIndex: railEnd,   format: { foregroundColor: cream } }
-            ]
-          }] }]
-        }}]})
-      });
+    (meta.sheets || []).forEach(function (s) { if (s.properties.title === 'Dashboard') dId = s.properties.sheetId; });
+  } catch (e) { console.warn('[Dashboard] tab lookup failed:', e); }
+
+  // Header content: mascot (A1), name (B2), last-sync (B3). Title B1 = rich text below.
+  await sheetsUpdate(sheetId, 'Dashboard!A1:F3', [
+    [`=IMAGE("${CONDUCTOR_HEADER_URL}",4,80,65)`, '', '', '', '', ''],
+    ['', `${firstName}'s Collection`, '', '', '', ''],
+    ['', `Last app sync: ${now}`, '', '', '', '']
+  ]);
+
+  // Body = the app's chosen dashboard cards, laid out as a 2-column tile grid.
+  var BODY_START = 4, TILE_H = 9, TOTAL_ROWS = 46, NCOLS = 8;
+  var active = [];
+  try {
+    var slots = (typeof _getSlots === 'function') ? _getSlots() : [{ id: 'owned' }, { id: 'value' }, { id: 'eraProgress' }, { id: 'activity' }];
+    (slots || []).forEach(function (s) {
+      if (s && s.id && typeof CARD_CATALOG !== 'undefined') { var c = CARD_CATALOG.find(function (x) { return x.id === s.id; }); if (c) active.push(c); }
+    });
+  } catch (e) { console.warn('[Dashboard] slot read failed:', e); }
+  if (!active.length && typeof CARD_CATALOG !== 'undefined') {
+    ['owned', 'value', 'eraProgress', 'activity'].forEach(function (id) { var c = CARD_CATALOG.find(function (x) { return x.id === id; }); if (c) active.push(c); });
+  }
+  active = active.slice(0, 6);
+  var nbands = Math.max(1, Math.ceil(active.length / 2));
+  var models = active.map(function (c) { return _sheetCardModel(c, state); });
+
+  var body = [];
+  for (var r = 0; r < TOTAL_ROWS; r++) { body.push(new Array(NCOLS).fill('')); }
+  models.forEach(function (m, i) {
+    var band = Math.floor(i / 2), side = i % 2, top = band * TILE_H, tcol = side ? 3 : 0, ncol = side ? 4 : 1, limit = top + TILE_H - 1;
+    body[top][tcol] = (m.label || '').toUpperCase();
+    var line = top + 1;
+    if (m.value) {
+      if (m.rows && m.rows.length) { body[line][tcol] = 'Total'; body[line][ncol] = m.value; line++; }
+      else { body[line][tcol] = m.value; line++; if (m.sub) { body[line][tcol] = m.sub; line++; } }
     }
-  } catch(e) { console.warn('[Dashboard] rich-text title write failed (non-fatal):', e); }
+    if (m.rows && m.rows.length) {
+      m.rows.forEach(function (rw) { if (line < limit) { body[line][tcol] = rw[0]; body[line][ncol] = String(rw[1]); line++; } });
+    } else if (!m.value && m.sub) { body[line][tcol] = m.sub; }
+  });
+  var footerRow = nbands * TILE_H + 1;
+  if (footerRow < TOTAL_ROWS) body[footerRow][0] = 'Open The Rail Roster app to manage your collection  ·  This sheet is read-only';
+  await sheetsUpdate(sheetId, 'Dashboard!A5:H' + (5 + TOTAL_ROWS - 1), body);
+
+  if (dId == null) return;
+
+  // Tile formatting + rich-text title, in one batchUpdate.
+  var navyMid = { red: 0.118, green: 0.227, blue: 0.373 }, labelBg = { red: 0.133, green: 0.196, blue: 0.31 },
+      appBg = { red: 0.059, green: 0.071, blue: 0.125 }, gold = { red: 1.0, green: 0.878, blue: 0.376 },
+      white = { red: 1, green: 1, blue: 1 }, dim = { red: 0.7, green: 0.74, blue: 0.8 };
+  var reqs = [];
+  reqs.push({ repeatCell: { range: { sheetId: dId, startRowIndex: BODY_START, endRowIndex: BODY_START + TOTAL_ROWS, startColumnIndex: 0, endColumnIndex: 26 }, cell: { userEnteredFormat: { backgroundColor: appBg } }, fields: 'userEnteredFormat.backgroundColor' } });
+  reqs.push({ updateDimensionProperties: { range: { sheetId: dId, dimension: 'ROWS', startIndex: BODY_START, endIndex: BODY_START + nbands * TILE_H + 2 }, properties: { pixelSize: 20 }, fields: 'pixelSize' } });
+  models.forEach(function (m, i) {
+    var band = Math.floor(i / 2), side = i % 2, hdr = BODY_START + band * TILE_H, tcol = side ? 3 : 0, ncol = side ? 4 : 1, panelBot = hdr + TILE_H - 1;
+    reqs.push({ repeatCell: { range: { sheetId: dId, startRowIndex: hdr, endRowIndex: panelBot, startColumnIndex: tcol, endColumnIndex: ncol + 1 }, cell: { userEnteredFormat: { backgroundColor: labelBg } }, fields: 'userEnteredFormat.backgroundColor' } });
+    reqs.push({ repeatCell: { range: { sheetId: dId, startRowIndex: hdr + 1, endRowIndex: panelBot, startColumnIndex: tcol, endColumnIndex: ncol + 1 }, cell: { userEnteredFormat: { textFormat: { foregroundColor: white, fontSize: 9 }, verticalAlignment: 'MIDDLE', horizontalAlignment: 'LEFT' } }, fields: 'userEnteredFormat(textFormat,verticalAlignment,horizontalAlignment)' } });
+    reqs.push({ repeatCell: { range: { sheetId: dId, startRowIndex: hdr + 1, endRowIndex: panelBot, startColumnIndex: ncol, endColumnIndex: ncol + 1 }, cell: { userEnteredFormat: { textFormat: { foregroundColor: gold, bold: true, fontSize: 9 }, horizontalAlignment: 'RIGHT', verticalAlignment: 'MIDDLE' } }, fields: 'userEnteredFormat(textFormat,horizontalAlignment,verticalAlignment)' } });
+    reqs.push({ repeatCell: { range: { sheetId: dId, startRowIndex: hdr, endRowIndex: hdr + 1, startColumnIndex: tcol, endColumnIndex: ncol + 1 }, cell: { userEnteredFormat: { backgroundColor: navyMid, textFormat: { bold: true, foregroundColor: gold, fontSize: 9 }, horizontalAlignment: 'LEFT', verticalAlignment: 'MIDDLE' } }, fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)' } });
+    if (m.value && !(m.rows && m.rows.length)) {
+      reqs.push({ repeatCell: { range: { sheetId: dId, startRowIndex: hdr + 1, endRowIndex: hdr + 2, startColumnIndex: tcol, endColumnIndex: tcol + 1 }, cell: { userEnteredFormat: { textFormat: { bold: true, foregroundColor: gold, fontSize: 18 }, horizontalAlignment: 'LEFT', verticalAlignment: 'MIDDLE' } }, fields: 'userEnteredFormat(textFormat,horizontalAlignment,verticalAlignment)' } });
+      if (m.sub) reqs.push({ repeatCell: { range: { sheetId: dId, startRowIndex: hdr + 2, endRowIndex: hdr + 3, startColumnIndex: tcol, endColumnIndex: ncol + 1 }, cell: { userEnteredFormat: { textFormat: { foregroundColor: dim, fontSize: 8 } } }, fields: 'userEnteredFormat.textFormat' } });
+    }
+  });
+  reqs.push({ repeatCell: { range: { sheetId: dId, startRowIndex: BODY_START + footerRow, endRowIndex: BODY_START + footerRow + 1, startColumnIndex: 0, endColumnIndex: 8 }, cell: { userEnteredFormat: { backgroundColor: appBg, textFormat: { italic: true, foregroundColor: { red: 0.55, green: 0.6, blue: 0.65 }, fontSize: 8 }, horizontalAlignment: 'LEFT', verticalAlignment: 'MIDDLE' } }, fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)' } });
+
+  var TITLE = 'THE RAIL ROSTER', railStart = TITLE.indexOf('RAIL'), railEnd = railStart + 4;
+  var cream = { red: 0.973, green: 0.910, blue: 0.753 }, orange = { red: 0.941, green: 0.314, blue: 0.031 };
+  reqs.push({ updateCells: {
+    start: { sheetId: dId, rowIndex: 0, columnIndex: 1 },
+    fields: 'userEnteredValue,userEnteredFormat(textFormat,verticalAlignment,horizontalAlignment,backgroundColor),textFormatRuns',
+    rows: [{ values: [{
+      userEnteredValue: { stringValue: TITLE },
+      userEnteredFormat: { backgroundColor: { red: 0.102, green: 0.114, blue: 0.227 }, verticalAlignment: 'MIDDLE', horizontalAlignment: 'LEFT', textFormat: { bold: true, fontFamily: 'Oswald', fontSize: 18, foregroundColor: cream } },
+      textFormatRuns: [{ startIndex: 0, format: { foregroundColor: cream } }, { startIndex: railStart, format: { foregroundColor: orange } }, { startIndex: railEnd, format: { foregroundColor: cream } }]
+    }] }]
+  } });
+
+  try {
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+      method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requests: reqs })
+    });
+  } catch (e) { console.warn('[Dashboard] body/title format failed (non-fatal):', e); }
 }
 
 // ══════════════════════════════════════════════════════════════════
