@@ -5,7 +5,7 @@
 // ══════════════════════════════════════════════════════════════════
 
 // Bump this number to push a visual refresh to all users on next sync
-const SHEET_FORMAT_VER = 13; // Session 165 v12: Dashboard header rebuilt to match the app (mascot left, multicolor Oswald title, app navy + orange underline bar) + no-white styling (hide gridlines, flood page with app bg).
+const SHEET_FORMAT_VER = 14; // Session 165 v12: Dashboard header rebuilt to match the app (mascot left, multicolor Oswald title, app navy + orange underline bar) + no-white styling (hide gridlines, flood page with app bg).
 
 // ── Color palette ──────────────────────────────────────────────────
 const SB = {
@@ -321,7 +321,7 @@ async function applySheetFormatting(sheetId, opts) {
       }},
       // Freeze row 3 (banner = rows 1-3) + hide gridlines (no-white look)
       { updateSheetProperties: {
-        properties: { sheetId: dashId, gridProperties: { frozenRowCount: 3, hideGridlines: true } },
+        properties: { sheetId: dashId, gridProperties: { frozenRowCount: 6, hideGridlines: true } },
         fields: 'gridProperties.frozenRowCount,gridProperties.hideGridlines'
       }},
       // Row heights
@@ -562,14 +562,14 @@ async function _writeDashboardContent(sheetId) {
   var firstName = userName.split(' ')[0];
   var now = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-  // Resolve the Dashboard tab id (needed for rich-text title + tile formatting).
-  var dId = null;
+  // Resolve all tab ids (for the rich-text title + the nav buttons).
+  var ids = {}, dId = null;
   try {
     var meta = await (await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties(sheetId,title)`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     )).json();
-    (meta.sheets || []).forEach(function (s) { if (s.properties.title === 'Dashboard') dId = s.properties.sheetId; });
+    (meta.sheets || []).forEach(function (s) { ids[s.properties.title] = s.properties.sheetId; if (s.properties.title === 'Dashboard') dId = s.properties.sheetId; });
   } catch (e) { console.warn('[Dashboard] tab lookup failed:', e); }
 
   // Header content: mascot (A1), name (B2), last-sync (B3). Title B1 = rich text below.
@@ -579,62 +579,122 @@ async function _writeDashboardContent(sheetId) {
     ['', `Last app sync: ${now}`, '', '', '', '']
   ]);
 
-  // Body = the app's chosen dashboard cards, laid out as a 2-column tile grid.
-  var BODY_START = 4, TILE_H = 9, TOTAL_ROWS = 46, NCOLS = 8;
+  // Nav buttons: in-sheet links that jump to a tab without touching the tab strip.
+  function _btn(tab, label) { var g = ids[tab]; return (g != null) ? `=HYPERLINK("#gid=${g}","${label}")` : label; }
+
+  // Body: the app's chosen cards as compact 2-column tiles. Rows 5-6 = nav buttons.
+  var BTN_ROW0 = 0, BTN_ROW1 = 1;      // body-relative (sheet rows 5,6)
+  var TILES_START = 3;                  // body-relative (sheet row 8) — row 7 (idx2) is a gap
+  var TOTAL = 64, NCOLS = 8;
+
   var active = [];
   try {
     var slots = (typeof _getSlots === 'function') ? _getSlots() : [{ id: 'owned' }, { id: 'value' }, { id: 'eraProgress' }, { id: 'activity' }];
-    (slots || []).forEach(function (s) {
-      if (s && s.id && typeof CARD_CATALOG !== 'undefined') { var c = CARD_CATALOG.find(function (x) { return x.id === s.id; }); if (c) active.push(c); }
-    });
+    (slots || []).forEach(function (s) { if (s && s.id && typeof CARD_CATALOG !== 'undefined') { var c = CARD_CATALOG.find(function (x) { return x.id === s.id; }); if (c) active.push(c); } });
   } catch (e) { console.warn('[Dashboard] slot read failed:', e); }
   if (!active.length && typeof CARD_CATALOG !== 'undefined') {
     ['owned', 'value', 'eraProgress', 'activity'].forEach(function (id) { var c = CARD_CATALOG.find(function (x) { return x.id === id; }); if (c) active.push(c); });
   }
   active = active.slice(0, 6);
-  var nbands = Math.max(1, Math.ceil(active.length / 2));
   var models = active.map(function (c) { return _sheetCardModel(c, state); });
 
-  var body = [];
-  for (var r = 0; r < TOTAL_ROWS; r++) { body.push(new Array(NCOLS).fill('')); }
-  models.forEach(function (m, i) {
-    var band = Math.floor(i / 2), side = i % 2, top = band * TILE_H, tcol = side ? 3 : 0, ncol = side ? 4 : 1, limit = top + TILE_H - 1;
+  // Lines a tile needs (header + content), so tiles are sized to content (no dead space).
+  function _tileLines(m) {
+    var lines = 0;
+    if (m.value) { if (m.rows && m.rows.length) { lines += 1; } else { lines += 1 + (m.sub ? 1 : 0); } }
+    if (m.rows && m.rows.length) { lines += m.rows.length; }
+    else if (!m.value && m.sub) { lines += 1; }
+    return 1 + Math.max(lines, 1);
+  }
+  function _placeTile(body, m, top, tcol, ncol) {
     body[top][tcol] = (m.label || '').toUpperCase();
     var line = top + 1;
     if (m.value) {
       if (m.rows && m.rows.length) { body[line][tcol] = 'Total'; body[line][ncol] = m.value; line++; }
       else { body[line][tcol] = m.value; line++; if (m.sub) { body[line][tcol] = m.sub; line++; } }
     }
-    if (m.rows && m.rows.length) {
-      m.rows.forEach(function (rw) { if (line < limit) { body[line][tcol] = rw[0]; body[line][ncol] = String(rw[1]); line++; } });
-    } else if (!m.value && m.sub) { body[line][tcol] = m.sub; }
-  });
-  var footerRow = nbands * TILE_H + 1;
-  if (footerRow < TOTAL_ROWS) body[footerRow][0] = 'Open The Rail Roster app to manage your collection  ·  This sheet is read-only';
-  await sheetsUpdate(sheetId, 'Dashboard!A5:H' + (5 + TOTAL_ROWS - 1), body);
+    if (m.rows && m.rows.length) { m.rows.forEach(function (rw) { body[line][tcol] = rw[0]; body[line][ncol] = String(rw[1]); line++; }); }
+    else if (!m.value && m.sub) { body[line][tcol] = m.sub; }
+  }
+
+  var body = [];
+  for (var r = 0; r < TOTAL; r++) { body.push(new Array(NCOLS).fill('')); }
+
+  // Buttons (2x2): My Collection / Want / For Sale / Sold.
+  body[BTN_ROW0][0] = _btn('My Collection', '📋  My Collection');
+  body[BTN_ROW0][3] = _btn('Want-Upgrade List', '🔎  Want / Upgrade');
+  body[BTN_ROW1][0] = _btn('For Sale', '🏷️  For Sale');
+  body[BTN_ROW1][3] = _btn('Sold', '✅  Sold');
+
+  // Lay tiles into bands (each band = a pair; band height = the taller tile).
+  var bands = [];
+  var cursor = TILES_START;
+  for (var i = 0; i < models.length; i += 2) {
+    var L = models[i], R = (i + 1 < models.length) ? models[i + 1] : null;
+    var bh = Math.max(_tileLines(L), R ? _tileLines(R) : 0);
+    _placeTile(body, L, cursor, 0, 1);
+    if (R) _placeTile(body, R, cursor, 3, 4);
+    bands.push({ top: cursor, h: bh, hasR: !!R });
+    cursor += bh + 1;     // 1-row gap between bands
+  }
+  var footerRow = cursor;
+  if (footerRow < TOTAL) body[footerRow][0] = 'Open The Rail Roster app to manage your collection  ·  read-only';
+
+  await sheetsUpdate(sheetId, 'Dashboard!A5:H' + (5 + TOTAL - 1), body);
 
   if (dId == null) return;
 
-  // Tile formatting + rich-text title, in one batchUpdate.
+  // ── Formatting (tiles + buttons + title) in one batchUpdate. ──
+  var BODY_START = 4;  // sheet row 5 (0-based)
   var navyMid = { red: 0.118, green: 0.227, blue: 0.373 }, labelBg = { red: 0.133, green: 0.196, blue: 0.31 },
-      appBg = { red: 0.059, green: 0.071, blue: 0.125 }, gold = { red: 1.0, green: 0.878, blue: 0.376 },
-      white = { red: 1, green: 1, blue: 1 }, dim = { red: 0.7, green: 0.74, blue: 0.8 };
+      appBg = { red: 0.059, green: 0.071, blue: 0.125 }, accent = { red: 0.941, green: 0.314, blue: 0.031 },
+      gold = { red: 1.0, green: 0.878, blue: 0.376 }, white = { red: 1, green: 1, blue: 1 }, dim = { red: 0.7, green: 0.74, blue: 0.8 };
+  function S(rowBody) { return BODY_START + rowBody; }  // body row -> sheet row index
   var reqs = [];
-  reqs.push({ repeatCell: { range: { sheetId: dId, startRowIndex: BODY_START, endRowIndex: BODY_START + TOTAL_ROWS, startColumnIndex: 0, endColumnIndex: 26 }, cell: { userEnteredFormat: { backgroundColor: appBg } }, fields: 'userEnteredFormat.backgroundColor' } });
-  reqs.push({ updateDimensionProperties: { range: { sheetId: dId, dimension: 'ROWS', startIndex: BODY_START, endIndex: BODY_START + nbands * TILE_H + 2 }, properties: { pixelSize: 20 }, fields: 'pixelSize' } });
-  models.forEach(function (m, i) {
-    var band = Math.floor(i / 2), side = i % 2, hdr = BODY_START + band * TILE_H, tcol = side ? 3 : 0, ncol = side ? 4 : 1, panelBot = hdr + TILE_H - 1;
-    reqs.push({ repeatCell: { range: { sheetId: dId, startRowIndex: hdr, endRowIndex: panelBot, startColumnIndex: tcol, endColumnIndex: ncol + 1 }, cell: { userEnteredFormat: { backgroundColor: labelBg } }, fields: 'userEnteredFormat.backgroundColor' } });
-    reqs.push({ repeatCell: { range: { sheetId: dId, startRowIndex: hdr + 1, endRowIndex: panelBot, startColumnIndex: tcol, endColumnIndex: ncol + 1 }, cell: { userEnteredFormat: { textFormat: { foregroundColor: white, fontSize: 9 }, verticalAlignment: 'MIDDLE', horizontalAlignment: 'LEFT' } }, fields: 'userEnteredFormat(textFormat,verticalAlignment,horizontalAlignment)' } });
-    reqs.push({ repeatCell: { range: { sheetId: dId, startRowIndex: hdr + 1, endRowIndex: panelBot, startColumnIndex: ncol, endColumnIndex: ncol + 1 }, cell: { userEnteredFormat: { textFormat: { foregroundColor: gold, bold: true, fontSize: 9 }, horizontalAlignment: 'RIGHT', verticalAlignment: 'MIDDLE' } }, fields: 'userEnteredFormat(textFormat,horizontalAlignment,verticalAlignment)' } });
-    reqs.push({ repeatCell: { range: { sheetId: dId, startRowIndex: hdr, endRowIndex: hdr + 1, startColumnIndex: tcol, endColumnIndex: ncol + 1 }, cell: { userEnteredFormat: { backgroundColor: navyMid, textFormat: { bold: true, foregroundColor: gold, fontSize: 9 }, horizontalAlignment: 'LEFT', verticalAlignment: 'MIDDLE' } }, fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)' } });
-    if (m.value && !(m.rows && m.rows.length)) {
-      reqs.push({ repeatCell: { range: { sheetId: dId, startRowIndex: hdr + 1, endRowIndex: hdr + 2, startColumnIndex: tcol, endColumnIndex: tcol + 1 }, cell: { userEnteredFormat: { textFormat: { bold: true, foregroundColor: gold, fontSize: 18 }, horizontalAlignment: 'LEFT', verticalAlignment: 'MIDDLE' } }, fields: 'userEnteredFormat(textFormat,horizontalAlignment,verticalAlignment)' } });
-      if (m.sub) reqs.push({ repeatCell: { range: { sheetId: dId, startRowIndex: hdr + 2, endRowIndex: hdr + 3, startColumnIndex: tcol, endColumnIndex: ncol + 1 }, cell: { userEnteredFormat: { textFormat: { foregroundColor: dim, fontSize: 8 } } }, fields: 'userEnteredFormat.textFormat' } });
-    }
-  });
-  reqs.push({ repeatCell: { range: { sheetId: dId, startRowIndex: BODY_START + footerRow, endRowIndex: BODY_START + footerRow + 1, startColumnIndex: 0, endColumnIndex: 8 }, cell: { userEnteredFormat: { backgroundColor: appBg, textFormat: { italic: true, foregroundColor: { red: 0.55, green: 0.6, blue: 0.65 }, fontSize: 8 }, horizontalAlignment: 'LEFT', verticalAlignment: 'MIDDLE' } }, fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)' } });
 
+  // Clear stale formatting: flood body region appBg.
+  reqs.push({ repeatCell: { range: { sheetId: dId, startRowIndex: BODY_START, endRowIndex: BODY_START + TOTAL, startColumnIndex: 0, endColumnIndex: 26 }, cell: { userEnteredFormat: { backgroundColor: appBg } }, fields: 'userEnteredFormat.backgroundColor' } });
+  // Row heights: body rows 20px; button rows a bit taller.
+  reqs.push({ updateDimensionProperties: { range: { sheetId: dId, dimension: 'ROWS', startIndex: BODY_START, endIndex: S(footerRow) + 2 }, properties: { pixelSize: 20 }, fields: 'pixelSize' } });
+  reqs.push({ updateDimensionProperties: { range: { sheetId: dId, dimension: 'ROWS', startIndex: S(BTN_ROW0), endIndex: S(BTN_ROW1) + 1 }, properties: { pixelSize: 28 }, fields: 'pixelSize' } });
+
+  // Buttons: clear old merges, merge each into a wide button, style as accent pills.
+  reqs.push({ unmergeCells: { range: { sheetId: dId, startRowIndex: S(BTN_ROW0), endRowIndex: S(BTN_ROW1) + 1, startColumnIndex: 0, endColumnIndex: 8 } } });
+  [[BTN_ROW0, 0, 2], [BTN_ROW0, 3, 5], [BTN_ROW1, 0, 2], [BTN_ROW1, 3, 5]].forEach(function (b) {
+    reqs.push({ mergeCells: { range: { sheetId: dId, startRowIndex: S(b[0]), endRowIndex: S(b[0]) + 1, startColumnIndex: b[1], endColumnIndex: b[2] }, mergeType: 'MERGE_ALL' } });
+    reqs.push({ repeatCell: { range: { sheetId: dId, startRowIndex: S(b[0]), endRowIndex: S(b[0]) + 1, startColumnIndex: b[1], endColumnIndex: b[2] }, cell: { userEnteredFormat: { backgroundColor: accent, textFormat: { bold: true, foregroundColor: white, fontSize: 10, underline: false }, horizontalAlignment: 'CENTER', verticalAlignment: 'MIDDLE' } }, fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)' } });
+  });
+
+  // Tiles.
+  bands.forEach(function (band) {
+    var sides = [[0, 1]]; if (band.hasR) sides.push([3, 4]);
+    sides.forEach(function (cc) {
+      var tcol = cc[0], ncol = cc[1];
+      var hdr = S(band.top), bot = hdr + band.h;   // panel = band height (equal-height tiles)
+      // panel
+      reqs.push({ repeatCell: { range: { sheetId: dId, startRowIndex: hdr, endRowIndex: bot, startColumnIndex: tcol, endColumnIndex: ncol + 1 }, cell: { userEnteredFormat: { backgroundColor: labelBg } }, fields: 'userEnteredFormat.backgroundColor' } });
+      // content base (white left)
+      reqs.push({ repeatCell: { range: { sheetId: dId, startRowIndex: hdr + 1, endRowIndex: bot, startColumnIndex: tcol, endColumnIndex: ncol + 1 }, cell: { userEnteredFormat: { textFormat: { foregroundColor: white, fontSize: 9 }, verticalAlignment: 'MIDDLE', horizontalAlignment: 'LEFT' } }, fields: 'userEnteredFormat(textFormat,verticalAlignment,horizontalAlignment)' } });
+      // count column (gold right)
+      reqs.push({ repeatCell: { range: { sheetId: dId, startRowIndex: hdr + 1, endRowIndex: bot, startColumnIndex: ncol, endColumnIndex: ncol + 1 }, cell: { userEnteredFormat: { textFormat: { foregroundColor: gold, bold: true, fontSize: 9 }, horizontalAlignment: 'RIGHT', verticalAlignment: 'MIDDLE' } }, fields: 'userEnteredFormat(textFormat,horizontalAlignment,verticalAlignment)' } });
+      // header
+      reqs.push({ repeatCell: { range: { sheetId: dId, startRowIndex: hdr, endRowIndex: hdr + 1, startColumnIndex: tcol, endColumnIndex: ncol + 1 }, cell: { userEnteredFormat: { backgroundColor: navyMid, textFormat: { bold: true, foregroundColor: gold, fontSize: 9 }, horizontalAlignment: 'LEFT', verticalAlignment: 'MIDDLE' } }, fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)' } });
+    });
+  });
+  // Single-number cards: make the value big gold + sub dim (overlay).
+  models.forEach(function (m, i) {
+    if (!(m.value && !(m.rows && m.rows.length))) return;
+    var bandIdx = Math.floor(i / 2), side = i % 2;
+    if (bandIdx >= bands.length) return;
+    var top = bands[bandIdx].top, tcol = side ? 3 : 0, ncol = side ? 4 : 1;
+    reqs.push({ repeatCell: { range: { sheetId: dId, startRowIndex: S(top) + 1, endRowIndex: S(top) + 2, startColumnIndex: tcol, endColumnIndex: tcol + 1 }, cell: { userEnteredFormat: { textFormat: { bold: true, foregroundColor: gold, fontSize: 18 }, horizontalAlignment: 'LEFT', verticalAlignment: 'MIDDLE' } }, fields: 'userEnteredFormat(textFormat,horizontalAlignment,verticalAlignment)' } });
+    if (m.sub) reqs.push({ repeatCell: { range: { sheetId: dId, startRowIndex: S(top) + 2, endRowIndex: S(top) + 3, startColumnIndex: tcol, endColumnIndex: ncol + 1 }, cell: { userEnteredFormat: { textFormat: { foregroundColor: dim, fontSize: 8 } } }, fields: 'userEnteredFormat.textFormat' } });
+  });
+
+  // Footer.
+  reqs.push({ repeatCell: { range: { sheetId: dId, startRowIndex: S(footerRow), endRowIndex: S(footerRow) + 1, startColumnIndex: 0, endColumnIndex: 8 }, cell: { userEnteredFormat: { backgroundColor: appBg, textFormat: { italic: true, foregroundColor: { red: 0.55, green: 0.6, blue: 0.65 }, fontSize: 8 }, horizontalAlignment: 'LEFT', verticalAlignment: 'MIDDLE' } }, fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)' } });
+
+  // Rich-text title (B1).
   var TITLE = 'THE RAIL ROSTER', railStart = TITLE.indexOf('RAIL'), railEnd = railStart + 4;
   var cream = { red: 0.973, green: 0.910, blue: 0.753 }, orange = { red: 0.941, green: 0.314, blue: 0.031 };
   reqs.push({ updateCells: {
@@ -647,10 +707,11 @@ async function _writeDashboardContent(sheetId) {
     }] }]
   } });
 
+  var cleanReqs = reqs.filter(function (x) { return x; });
   try {
     await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
       method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ requests: reqs })
+      body: JSON.stringify({ requests: cleanReqs })
     });
   } catch (e) { console.warn('[Dashboard] body/title format failed (non-fatal):', e); }
 }
