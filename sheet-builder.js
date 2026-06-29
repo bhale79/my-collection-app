@@ -606,7 +606,7 @@ async function _writeDashboardContent(sheetId) {
   const rows = [
     // Row 1: mascot on the LEFT (A1, merged A1:A3) + title in B1 (rich-text,
     // written separately below so "RAIL" can be orange). Matches the app header.
-    [`=IMAGE("${CONDUCTOR_HEADER_URL}",1)`, '', '', '', '', ''],
+    [`=IMAGE("${CONDUCTOR_HEADER_URL}",4,80,65)`, '', '', '', '', ''],
     // Row 2: User name (col B — col A is the mascot merge)
     ['', `${firstName}'s Collection`, '', '', '', ''],
     // Row 3: Last app sync timestamp (col B)
