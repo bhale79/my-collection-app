@@ -590,7 +590,7 @@ function _rbSave() {
   if (idx>=0) state.savedReports[idx] = _rbState;
   else state.savedReports.push(_rbState);
   localStorage.setItem('lv_saved_reports', JSON.stringify(state.savedReports));
-  _rbRefreshDropdown();
+  _rbRefreshDropdown(); if (typeof renderReportLibrary==='function') renderReportLibrary();
   _rbCloseOverlay();
   const sel = document.getElementById('report-type');
   if (sel) { sel.value = 'custom:'+_rbState.id; buildReport(); _rbUpdateCustomControls(); }
@@ -617,7 +617,7 @@ function _rbRefreshDropdown() {
 function loadSavedReports() {
   try { state.savedReports = JSON.parse(localStorage.getItem('lv_saved_reports')||'[]'); }
   catch(e) { state.savedReports=[]; }
-  _rbRefreshDropdown();
+  _rbRefreshDropdown(); if (typeof renderReportLibrary==='function') renderReportLibrary();
 }
 
 function _rbUpdateCustomControls() {
@@ -642,7 +642,7 @@ function _rbDeleteSelected() {
   if (!confirm('Delete report "' + (rpt?.name||'this report') + '"?')) return;
   state.savedReports = (state.savedReports||[]).filter(r=>r.id!==id);
   localStorage.setItem('lv_saved_reports', JSON.stringify(state.savedReports));
-  _rbRefreshDropdown();
+  _rbRefreshDropdown(); if (typeof renderReportLibrary==='function') renderReportLibrary();
   sel.value = 'insurance';
   buildReport();
   _rbUpdateCustomControls();

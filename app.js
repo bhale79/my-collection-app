@@ -2161,7 +2161,7 @@ function showPage(name, clickedEl) {
   if (clickedEl) clickedEl.classList.add('active');
   if (name === 'browse') renderBrowse();
   if (name === 'collection' && typeof buildCollectionPage === 'function') buildCollectionPage();
-  if (name === 'reports') buildReport();
+  if (name === 'reports' && typeof renderReportLibrary === 'function') renderReportLibrary();
   if (name === 'sold') buildSoldPage();
   if (name === 'forsale') buildForSalePage();
   if (name === 'parts' && typeof buildPartsPage === 'function') buildPartsPage();

@@ -132,8 +132,10 @@ async function _insurancePDF() {
   doc.setFontSize(8); doc.setTextColor(90, 90, 90);
   doc.text('Owner signature', M, y + 12); doc.text('Date', pageW - M - 160, y + 12);
 
-  doc.save('insurance-report-' + new Date().toISOString().slice(0, 10) + '.pdf');
-  _repBtnDone('PDF downloaded');
+  var _fn = 'insurance-report-' + new Date().toISOString().slice(0, 10) + '.pdf';
+  try { _archiveBlob(doc.output('blob'), _fn, 'application/pdf'); } catch (e) {}
+  doc.save(_fn);
+  _repBtnDone('PDF downloaded · copy saved to "Past reports"');
 }
 
 // Generic table PDF (Full Collection / Want-Upgrade-Parts) from the rendered table.
@@ -160,8 +162,10 @@ function _tablePDF(type) {
   }
   if (heads.length) { doc.setFillColor(238, 238, 238); doc.rect(M, y - 4, pageW - M * 2, 18, 'F'); row(heads, true); }
   rows.forEach(function (r) { row(r, false); });
-  doc.save((type === 'collection' ? 'full-collection' : 'want-upgrade-parts') + '-' + new Date().toISOString().slice(0, 10) + '.pdf');
-  _repBtnDone('PDF downloaded');
+  var _fn2 = (type === 'collection' ? 'full-collection' : 'want-upgrade-parts') + '-' + new Date().toISOString().slice(0, 10) + '.pdf';
+  try { _archiveBlob(doc.output('blob'), _fn2, 'application/pdf'); } catch (e) {}
+  doc.save(_fn2);
+  _repBtnDone('PDF downloaded · copy saved to "Past reports"');
 }
 
 // ── Google Doc export (editable; sign / send / keep) ──
@@ -176,7 +180,9 @@ async function exportReportGoogleDoc() {
     var title = (type === 'insurance') ? 'Insurance Report' : (type === 'collection' ? 'Full Collection' : 'Want-Upgrade-Parts Report');
     title += ' — ' + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
     var boundary = '----rr' + Date.now();
+    var _folderId = null; try { _folderId = await _ensurePastReports(); } catch (e) {}
     var meta = { name: title, mimeType: 'application/vnd.google-apps.document' };
+    if (_folderId) meta.parents = [_folderId];
     var body = '--' + boundary + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' +
       JSON.stringify(meta) + '\r\n--' + boundary + '\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n' +
       html + '\r\n--' + boundary + '--';
@@ -251,8 +257,37 @@ async function printReportWithPhotos() {
   window.print();
 }
 
+// ── History archive: save a dated copy of every export to Drive "Past reports" ──
+var _pastReportsFolder = null;
+async function _ensurePastReports() {
+  if (_pastReportsFolder) return _pastReportsFolder;
+  if (typeof driveFindOrCreateFolder !== 'function') return null;
+  try { _pastReportsFolder = await driveFindOrCreateFolder('Past reports', 'root'); } catch (e) { console.warn('[Past reports] folder:', e); _pastReportsFolder = null; }
+  return _pastReportsFolder;
+}
+async function _archiveBlob(blob, name, mime) {
+  try {
+    if (!accessToken || !blob) return;
+    var folderId = await _ensurePastReports();
+    if (!folderId) return;
+    var meta = JSON.stringify({ name: name, parents: [folderId] });
+    var form = new FormData();
+    form.append('metadata', new Blob([meta], { type: 'application/json' }));
+    form.append('file', new Blob([blob], { type: mime || 'application/octet-stream' }));
+    await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+      method: 'POST', headers: { Authorization: 'Bearer ' + accessToken }, body: form
+    });
+  } catch (e) { console.warn('[Past reports] archive failed:', e); }
+}
+async function _openPastReports() {
+  try { var id = await _ensurePastReports(); if (id) window.open('https://drive.google.com/drive/folders/' + id, '_blank', 'noopener'); else alert('Could not open the Past reports folder.'); }
+  catch (e) { alert('Could not open the Past reports folder.'); }
+}
+
 if (typeof window !== 'undefined') {
   window.exportReportPDF = exportReportPDF;
+  window._openPastReports = _openPastReports;
+  window._archiveBlob = _archiveBlob;
   window.exportReportGoogleDoc = exportReportGoogleDoc;
   window.printReportWithPhotos = printReportWithPhotos;
 }

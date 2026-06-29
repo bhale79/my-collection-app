@@ -20,9 +20,9 @@
   <link rel="manifest" href="manifest.json">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>The Rail Roster — Postwar Train Collection Tracker</title>
-<link rel="stylesheet" href="./app.css?v=628">
-<link rel="stylesheet" href="./tutorial.css?v=628">
-<link rel="stylesheet" href="./vault-styles.css?v=628">
+<link rel="stylesheet" href="./app.css?v=629">
+<link rel="stylesheet" href="./tutorial.css?v=629">
+<link rel="stylesheet" href="./vault-styles.css?v=629">
 </head>
 <body>
 
@@ -611,44 +611,43 @@ document.addEventListener('touchmove', function(){}, {passive: true});
       <div class="page" id="page-reports">
         <div class="page-title">Reports</div>
 
-        <div class="report-controls">
-          <select class="filter-select" id="report-type" onchange="buildReport();_rbUpdateCustomControls()">
-            <option value="insurance">Insurance Report</option>
-            <option value="collection">Full Collection</option>
-            <option value="wantupgrade">Want / Upgrade / Parts</option>
-          </select>
-          <button onclick="openReportBuilder(null)" style="display:flex;align-items:center;gap:0.4rem;padding:0.55rem 1rem;border-radius:8px;border:1.5px solid var(--accent2);background:rgba(180,140,60,0.08);color:var(--accent2);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Build a Report
-          </button>
-          <span id="rb-custom-controls" style="display:none;gap:0.35rem;align-items:center">
-            <button id="rb-edit-btn" onclick="_rbEditSelected()" style="padding:0.45rem 0.7rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-size:0.8rem;cursor:pointer">Edit</button>
-            <button id="rb-del-btn"  onclick="_rbDeleteSelected()" style="padding:0.45rem 0.7rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--accent);font-family:var(--font-body);font-size:0.8rem;cursor:pointer">Delete</button>
-          </span>
-          <button id="rep-pdf-btn" class="btn-export" onclick="exportReportPDF()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Download PDF
-          </button>
-          <button id="rep-gdoc-btn" class="btn-export" onclick="exportReportGoogleDoc()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-            Google Doc
-          </button>
-          <button class="btn-export" onclick="exportReport()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Export CSV
-          </button>
-          <button id="rep-print-btn" class="btn-export" onclick="printReportWithPhotos()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6,9 6,2 18,2 18,9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-            Print
-          </button>
-          <span id="rep-export-status" style="display:none;align-self:center;font-size:0.8rem;color:var(--text-dim)"></span>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:1.1rem">
+          <div style="color:var(--text-dim);font-size:0.85rem;max-width:640px">Generate, preview, and export your collection reports. Every export is also saved, dated, to a <strong>Past reports</strong> folder in your Google Drive.</div>
+          <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+            <button onclick="openReportBuilder(null)" style="display:flex;align-items:center;gap:0.4rem;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:rgba(180,140,60,0.08);color:var(--accent2);font-family:var(--font-body);font-size:0.83rem;font-weight:600;cursor:pointer"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Build a Report</button>
+            <button onclick="_openPastReports()" style="display:flex;align-items:center;gap:0.4rem;padding:0.5rem 0.9rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-size:0.83rem;font-weight:600;cursor:pointer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg> Past Reports</button>
+          </div>
         </div>
 
-        <div class="table-wrap" style="margin-top:0;max-height:calc(100vh - 170px);overflow-y:auto">
-          <table class="report-table">
-            <thead id="report-thead"></thead>
-            <tbody id="report-tbody"></tbody>
-          </table>
+        <div id="report-library"></div>
+
+        <select id="report-type" style="display:none" onchange="_rbUpdateCustomControls()">
+          <option value="insurance">Insurance Report</option>
+          <option value="collection">Full Collection</option>
+          <option value="wantupgrade">Want / Upgrade / Parts</option>
+        </select>
+        <span id="rb-custom-controls" style="display:none"><button id="rb-edit-btn" onclick="_rbEditSelected()"></button><button id="rb-del-btn" onclick="_rbDeleteSelected()"></button></span>
+
+        <div id="report-preview-modal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.65);overflow:auto;padding:1.5rem 1rem">
+          <div style="max-width:1000px;margin:0 auto;background:var(--bg);border:1px solid var(--border);border-radius:14px;box-shadow:0 24px 70px rgba(0,0,0,.55);overflow:hidden">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;padding:0.8rem 1.1rem;border-bottom:1px solid var(--border);flex-wrap:wrap;position:sticky;top:0;background:var(--bg);z-index:2">
+              <strong id="rep-prev-title" style="font-size:1.05rem">Report</strong>
+              <div style="display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap">
+                <span id="rep-export-status" style="display:none;font-size:0.78rem;color:var(--text-dim)"></span>
+                <button id="rep-pdf-btn" class="btn-export" onclick="exportReportPDF()">PDF</button>
+                <button id="rep-gdoc-btn" class="btn-export" onclick="exportReportGoogleDoc()">Google Doc</button>
+                <button class="btn-export" onclick="exportReport()">CSV</button>
+                <button id="rep-print-btn" class="btn-export" onclick="printReportWithPhotos()">Print</button>
+                <button class="btn-export" onclick="_closeReportPreview()">&#10005; Close</button>
+              </div>
+            </div>
+            <div class="table-wrap" style="max-height:78vh;overflow:auto;padding:1rem">
+              <table class="report-table">
+                <thead id="report-thead"></thead>
+                <tbody id="report-tbody"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -701,59 +700,60 @@ document.addEventListener('touchmove', function(){}, {passive: true});
 <!-- identify-modal is built dynamically by wizard.js -->
 </div>
 
-<script src="./config.js?v=628"></script>
-<script src="./cott-anchors.js?v=628"></script>
-<script src="./type-groups.js?v=628"></script>
-<script src="./back-stack.js?v=628"></script>
-<script src="./road-typeahead.js?v=628"></script>
-<script src="./a11y-config.js?v=628"></script>
-<script src="./a11y.js?v=628"></script>
-<script src="./wizard-utils.js?v=628"></script>
-<script src="./app.js?v=628"></script>
-<script src="./sheets.js?v=628"></script>
-<script src="./drive.js?v=628"></script>
-<script src="./backup.js?v=628"></script>
-<script src="./browse.js?v=628"></script>
-<script src="./dashboard.js?v=628"></script>
-<script src="./sheet-builder.js?v=628"></script>
+<script src="./config.js?v=629"></script>
+<script src="./cott-anchors.js?v=629"></script>
+<script src="./type-groups.js?v=629"></script>
+<script src="./back-stack.js?v=629"></script>
+<script src="./road-typeahead.js?v=629"></script>
+<script src="./a11y-config.js?v=629"></script>
+<script src="./a11y.js?v=629"></script>
+<script src="./wizard-utils.js?v=629"></script>
+<script src="./app.js?v=629"></script>
+<script src="./sheets.js?v=629"></script>
+<script src="./drive.js?v=629"></script>
+<script src="./backup.js?v=629"></script>
+<script src="./browse.js?v=629"></script>
+<script src="./dashboard.js?v=629"></script>
+<script src="./sheet-builder.js?v=629"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="./wizard-pdlookup.js?v=628"></script>
-<script src="./wizard-suggestions.js?v=628"></script>
-<script src="./wizard-steps.js?v=628"></script>
-<script src="./wizard.js?v=628"></script>
-<script src="./wizard-photos.js?v=628"></script>
-<script src="./wizard-pickers.js?v=628"></script>
-<script src="./wizard-handlers.js?v=628"></script>
-<script src="./wizard-quickentry.js?v=628"></script>
-<script src="./wizard-save.js?v=628"></script>
-<script src="./app-misc.js?v=628"></script>
-<script src="./app-auth.js?v=628"></script>
-<script src="./app-setup.js?v=628"></script>
-<script src="./app-data.js?v=628"></script>
-<script src="./app-pages.js?v=628"></script>
-<script src="./app-collection.js?v=628"></script>
-<script src="./barcode.js?v=628"></script>
-<script src="./tutorial.js?v=628"></script>
-<script src="./tutorial-gifs-config.js?v=628"></script>
-<script src="./migration-config.js?v=628"></script>
-<script src="./migration-ui.js?v=628"></script>
-<script src="./onboarding-config.js?v=628"></script>
-<script src="./gmail-help.js?v=628"></script>
-<script src="./onboarding.js?v=628"></script>
-<script src="./vault.js?v=628"></script>
-<script src="./era-badges-config.js?v=628"></script>
-<script src="./era-badges.js?v=628"></script>
-<script src="./catalog-display-config.js?v=628"></script>
-<script src="./non-item-detail-config.js?v=628"></script>
-<script src="./item-search-filters-config.js?v=628"></script>
-<script src="./insurance-config.js?v=628"></script>
-<script src="./reports.js?v=628"></script>
-<script src="./report-export.js?v=628"></script>
-<script src="./prefs.js?v=628"></script>
-<script src="./tools.js?v=628"></script>
+<script src="./wizard-pdlookup.js?v=629"></script>
+<script src="./wizard-suggestions.js?v=629"></script>
+<script src="./wizard-steps.js?v=629"></script>
+<script src="./wizard.js?v=629"></script>
+<script src="./wizard-photos.js?v=629"></script>
+<script src="./wizard-pickers.js?v=629"></script>
+<script src="./wizard-handlers.js?v=629"></script>
+<script src="./wizard-quickentry.js?v=629"></script>
+<script src="./wizard-save.js?v=629"></script>
+<script src="./app-misc.js?v=629"></script>
+<script src="./app-auth.js?v=629"></script>
+<script src="./app-setup.js?v=629"></script>
+<script src="./app-data.js?v=629"></script>
+<script src="./app-pages.js?v=629"></script>
+<script src="./app-collection.js?v=629"></script>
+<script src="./barcode.js?v=629"></script>
+<script src="./tutorial.js?v=629"></script>
+<script src="./tutorial-gifs-config.js?v=629"></script>
+<script src="./migration-config.js?v=629"></script>
+<script src="./migration-ui.js?v=629"></script>
+<script src="./onboarding-config.js?v=629"></script>
+<script src="./gmail-help.js?v=629"></script>
+<script src="./onboarding.js?v=629"></script>
+<script src="./vault.js?v=629"></script>
+<script src="./era-badges-config.js?v=629"></script>
+<script src="./era-badges.js?v=629"></script>
+<script src="./catalog-display-config.js?v=629"></script>
+<script src="./non-item-detail-config.js?v=629"></script>
+<script src="./item-search-filters-config.js?v=629"></script>
+<script src="./insurance-config.js?v=629"></script>
+<script src="./reports.js?v=629"></script>
+<script src="./report-export.js?v=629"></script>
+<script src="./report-library.js?v=629"></script>
+<script src="./prefs.js?v=629"></script>
+<script src="./tools.js?v=629"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="./share.js?v=628"></script>
-<script src="./sell.js?v=628"></script>
+<script src="./share.js?v=629"></script>
+<script src="./sell.js?v=629"></script>
 
 <script>
 // ── PWA Service Worker Registration (auto-update) ───────────────
