@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 var _wupView = 'all';
+var _wupPartsLoading = false;
 function _setWupView(v){ _wupView = v; buildReport(); }
 function _wupControls(){
   var tw = document.querySelector('#page-reports .table-wrap'); if(!tw) return;
@@ -242,21 +243,15 @@ function buildReport() {
         <td style="text-align:center">${pd.allOriginal||'—'}</td>
         <td class="market-val">${worth}</td>
         <td>${pd.location||'—'}</td>
-        <td style="font-size:0.77rem;color:var(--text-dim)">${pd.notes||''}</td>
+        <td style="font-size:0.77rem;color:var(--text-dim)">${String(pd.notes||'').replace(/\s*\[grp:[^\]]*\]\s*/g,'').trim()}</td>
       </tr>`;
     }).join('') || '<tr><td colspan="9" class="ui-empty">No owned items yet</td></tr>';
 
   } else if (type === 'wantupgrade') {
-    // Lazy-load Parts (only fetched when the Parts page is opened).
-    if ((_wupView==='all'||_wupView==='parts') && !state.partsData) {
-      _wupControls();
-      tbody.innerHTML='<tr><td colspan="6" class="ui-empty">Loading…</td></tr>';
-      (async()=>{ try{ if(typeof _ensurePartsTab==='function') await _ensurePartsTab(); const res=await sheetsGet(state.personalSheetId,'Parts Needed!A3:H').catch(()=>({values:[]})); const parts={}; (res.values||[]).forEach((r,idx)=>{ if(!r[0]||r[0]==='Part ID')return; parts['p'+(idx+3)]={row:idx+3,id:r[0]||'',description:r[1]||'',partNum:r[2]||'',forItem:r[3]||'',forInv:r[4]||'',photo:r[5]||'',notes:r[6]||'',dateAdded:r[7]||''}; }); state.partsData=parts; }catch(e){ state.partsData={}; } var _sel=document.getElementById('report-type'); if(_sel && _sel.value==='wantupgrade') buildReport(); })();
-      return;
-    }
     _wupControls();
     thead.innerHTML = '<tr><th>Item / Part #</th><th>Description</th><th>Var #</th><th>Priority / Target</th><th>Target Price</th><th>Notes</th></tr>';
     const esc=v=>(v==null?'':String(v));
+    const cn=v=>String(v||'').replace(/\s*\[grp:[^\]]*\]\s*/g,'').trim();   // strip internal group tags
     const sect=(label,n)=>`<tr><td colspan="6" style="background:var(--surface2);font-weight:700;font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);padding:0.45rem 0.6rem">${label} (${n})</td></tr>`;
     let html='';
     const showWant=(_wupView==='all'||_wupView==='want');
@@ -265,17 +260,28 @@ function buildReport() {
     if (showWant) {
       const w=Object.values(state.wantData||{});
       html+=sect('Want List', w.length);
-      html+= w.length ? w.map(e=>{ const m=findMaster(e.itemNum,e.variation)||{}; const d=m.roadName||m.description||'—'; const pr=e.expectedPrice?_currencySymbol()+parseFloat(e.expectedPrice).toLocaleString():'—'; return `<tr><td><span class="item-num">${esc(e.itemNum)}</span></td><td>${d}</td><td>${esc(e.variation)||'—'}</td><td>${esc(e.priority)||'—'}</td><td class="market-val">${pr}</td><td style="font-size:0.77rem;color:var(--text-dim)">${esc(e.notes)}</td></tr>`; }).join('') : '<tr><td colspan="6" class="ui-empty">Nothing on your want list</td></tr>';
+      html+= w.length ? w.map(e=>{ const m=findMaster(e.itemNum,e.variation)||{}; const d=m.roadName||m.description||'—'; const pr=e.expectedPrice?_currencySymbol()+parseFloat(e.expectedPrice).toLocaleString():'—'; return `<tr><td><span class="item-num">${esc(e.itemNum)}</span></td><td>${d}</td><td>${esc(e.variation)||'—'}</td><td>${esc(e.priority)||'—'}</td><td class="market-val">${pr}</td><td style="font-size:0.77rem;color:var(--text-dim)">${cn(e.notes)}</td></tr>`; }).join('') : '<tr><td colspan="6" class="ui-empty">Nothing on your want list</td></tr>';
     }
     if (showUpg) {
       const u=Object.values(state.upgradeData||{});
       html+=sect('Upgrade List', u.length);
-      html+= u.length ? u.map(e=>{ const m=findMaster(e.itemNum,e.variation)||{}; const d=m.roadName||m.description||'—'; const tgt=[esc(e.priority),e.targetCondition?('→ cond '+e.targetCondition):''].filter(Boolean).join(' '); const pr=e.maxPrice?_currencySymbol()+parseFloat(e.maxPrice).toLocaleString():'—'; return `<tr><td><span class="item-num">${esc(e.itemNum)}</span></td><td>${d}</td><td>${esc(e.variation)||'—'}</td><td>${tgt||'—'}</td><td class="market-val">${pr}</td><td style="font-size:0.77rem;color:var(--text-dim)">${esc(e.notes)}</td></tr>`; }).join('') : '<tr><td colspan="6" class="ui-empty">Nothing on your upgrade list</td></tr>';
+      html+= u.length ? u.map(e=>{ const m=findMaster(e.itemNum,e.variation)||{}; const d=m.roadName||m.description||'—'; const tgt=[esc(e.priority),e.targetCondition?('→ cond '+e.targetCondition):''].filter(Boolean).join(' '); const pr=e.maxPrice?_currencySymbol()+parseFloat(e.maxPrice).toLocaleString():'—'; return `<tr><td><span class="item-num">${esc(e.itemNum)}</span></td><td>${d}</td><td>${esc(e.variation)||'—'}</td><td>${tgt||'—'}</td><td class="market-val">${pr}</td><td style="font-size:0.77rem;color:var(--text-dim)">${cn(e.notes)}</td></tr>`; }).join('') : '<tr><td colspan="6" class="ui-empty">Nothing on your upgrade list</td></tr>';
     }
     if (showParts) {
-      const pp=Object.values(state.partsData||{});
-      html+=sect('Parts Needed', pp.length);
-      html+= pp.length ? pp.map(e=>{ const forL=e.forItem?('for '+e.forItem):''; const d=[esc(e.description),forL].filter(Boolean).join(' — '); return `<tr><td><span class="item-num">${esc(e.partNum)||'—'}</span></td><td>${d||'—'}</td><td>—</td><td>—</td><td>—</td><td style="font-size:0.77rem;color:var(--text-dim)">${esc(e.notes)}</td></tr>`; }).join('') : '<tr><td colspan="6" class="ui-empty">No parts on your list</td></tr>';
+      if (!state.partsData) {
+        // Parts load lazily (only fetched when needed). Show a placeholder and
+        // fetch in the background so want/upgrade always render immediately.
+        html+=sect('Parts Needed', '…');
+        html+='<tr><td colspan="6" class="ui-empty">Loading parts…</td></tr>';
+        if (!_wupPartsLoading) {
+          _wupPartsLoading=true;
+          (async()=>{ try{ if(typeof _ensurePartsTab==='function') await _ensurePartsTab(); const res=await sheetsGet(state.personalSheetId,'Parts Needed!A3:H').catch(()=>({values:[]})); const parts={}; (res.values||[]).forEach((r,idx)=>{ if(!r[0]||r[0]==='Part ID')return; parts['p'+(idx+3)]={row:idx+3,id:r[0]||'',description:r[1]||'',partNum:r[2]||'',forItem:r[3]||'',forInv:r[4]||'',photo:r[5]||'',notes:r[6]||'',dateAdded:r[7]||''}; }); state.partsData=parts; }catch(e){ state.partsData={}; } _wupPartsLoading=false; var _sel=document.getElementById('report-type'); if(_sel && _sel.value==='wantupgrade') buildReport(); })();
+        }
+      } else {
+        const pp=Object.values(state.partsData||{});
+        html+=sect('Parts Needed', pp.length);
+        html+= pp.length ? pp.map(e=>{ const forL=e.forItem?('for '+e.forItem):''; const d=[esc(e.description),forL].filter(Boolean).join(' — '); return `<tr><td><span class="item-num">${esc(e.partNum)||'—'}</span></td><td>${d||'—'}</td><td>—</td><td>—</td><td>—</td><td style="font-size:0.77rem;color:var(--text-dim)">${cn(e.notes)}</td></tr>`; }).join('') : '<tr><td colspan="6" class="ui-empty">No parts on your list</td></tr>';
+      }
     }
     tbody.innerHTML = html;
   }
