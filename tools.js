@@ -15,9 +15,12 @@ function buildToolsPage() {
   // (MTH ABA detection, Atlas track-power tools, etc.) get their own
   // sections when they ship.
 
-  var SECTION_HEADER = function(label, note) {
-    return '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim);margin:1.25rem 0 0.6rem;padding-bottom:0.35rem;border-bottom:1px solid var(--border)">' + label +
-      (note ? '<span style="font-weight:400;letter-spacing:0;text-transform:none;margin-left:0.6rem;font-style:italic;color:var(--text-dim)">' + note + '</span>' : '') +
+  var SECTION_HEADER = function(id, label, note) {
+    return '<div onclick="_toolsToggleSection(\'' + id + '\')" style="cursor:pointer;font-size:0.72rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim);margin:1.25rem 0 0.6rem;padding-bottom:0.35rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:0.5rem">' +
+      '<span>' + label +
+        (note ? '<span style="font-weight:400;letter-spacing:0;text-transform:none;margin-left:0.6rem;font-style:italic;color:var(--text-dim)">' + note + '</span>' : '') +
+      '</span>' +
+      '<span id="' + id + '-caret" style="font-size:0.9rem;transition:transform 0.15s;flex-shrink:0">\u25be</span>' +
       '</div>';
   };
 
@@ -84,14 +87,15 @@ function buildToolsPage() {
   var showLionelSection = (typeof _isManufacturerEnabled !== 'function') || _isManufacturerEnabled('lionel');
 
   var html = '<div class="page-title" style="margin-bottom:1.5rem">Collection Tools</div>';
-  html += SECTION_HEADER('Universal Tools', 'Work across all manufacturers');
-  html += CARD_GROUP_FINDER;
-  html += CARD_DUPLICATE_CHECKER;
+  // Universal = works across every manufacturer (just the duplicate checker today).
+  html += SECTION_HEADER('universal', 'Universal Tools', 'Work across all manufacturers');
+  html += '<div id="universal-body">' + CARD_DUPLICATE_CHECKER + '</div>';
 
+  // Postwar Lionel = tools that rely on Lionel postwar catalog data (grouping,
+  // sets, companions). Smart Group Finder lives here (it's postwar-Lionel only).
   if (showLionelSection) {
-    html += SECTION_HEADER('Lionel-Specific Tools', 'Use Lionel postwar catalog data (sets + companions)');
-    html += CARD_SET_BUILDER;
-    html += CARD_COMPANION_SUGGESTER;
+    html += SECTION_HEADER('lionel', 'Postwar Lionel Collection Tools', 'Grouping, sets & companions');
+    html += '<div id="lionel-body">' + CARD_GROUP_FINDER + CARD_SET_BUILDER + CARD_COMPANION_SUGGESTER + '</div>';
   }
 
   container.innerHTML = html;
@@ -99,6 +103,17 @@ function buildToolsPage() {
 }
 
 
+
+// Collapsible Collection-Tools sections.
+function _toolsToggleSection(id) {
+  var body = document.getElementById(id + '-body');
+  var caret = document.getElementById(id + '-caret');
+  if (!body) return;
+  var hidden = (body.style.display === 'none');
+  body.style.display = hidden ? '' : 'none';
+  if (caret) caret.style.transform = hidden ? '' : 'rotate(-90deg)';
+}
+if (typeof window !== 'undefined') window._toolsToggleSection = _toolsToggleSection;
 
 // ── GROUP FINDER ─────────────────────────────────────────────────
 function runGroupFinder() {
