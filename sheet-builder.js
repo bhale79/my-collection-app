@@ -5,7 +5,7 @@
 // ══════════════════════════════════════════════════════════════════
 
 // Bump this number to push a visual refresh to all users on next sync
-const SHEET_FORMAT_VER = 16; // Session 165 v12: Dashboard header rebuilt to match the app (mascot left, multicolor Oswald title, app navy + orange underline bar) + no-white styling (hide gridlines, flood page with app bg).
+const SHEET_FORMAT_VER = 17; // Session 165 v12: Dashboard header rebuilt to match the app (mascot left, multicolor Oswald title, app navy + orange underline bar) + no-white styling (hide gridlines, flood page with app bg).
 
 // ── Color palette ──────────────────────────────────────────────────
 const SB = {
@@ -174,7 +174,20 @@ async function applySheetFormatting(sheetId, opts) {
             firstBandColor:  { red: 0.957, green: 0.961, blue: 0.976 },
             secondBandColor: SB.white,
           }
-        }}}
+        }}},
+        // Quick link back to the Dashboard, right of the tab name (merged C1:D1).
+        ...(dashId != null ? [
+          { mergeCells: { range: { sheetId: sid, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 2, endColumnIndex: 4 }, mergeType: 'MERGE_ALL' }},
+          { updateCells: {
+            start: { sheetId: sid, rowIndex: 0, columnIndex: 2 },
+            fields: 'userEnteredValue,userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)',
+            rows: [{ values: [{
+              userEnteredValue: { formulaValue: `=HYPERLINK("#gid=${dashId}","🏠 Dashboard")` },
+              userEnteredFormat: { backgroundColor: SB.accent, textFormat: { bold: true, foregroundColor: SB.white, fontSize: 10, underline: false }, horizontalAlignment: 'CENTER', verticalAlignment: 'MIDDLE' }
+            }] }]
+          }},
+          { updateBorders: { range: { sheetId: sid, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 2, endColumnIndex: 4 }, top: { style: 'SOLID_THICK', color: SB.navyMid }, bottom: { style: 'SOLID_THICK', color: SB.navyMid }, left: { style: 'SOLID_THICK', color: SB.navyMid }, right: { style: 'SOLID_THICK', color: SB.navyMid } }}
+        ] : [])
       ];
     });
 
