@@ -238,15 +238,14 @@
     return hits;
   }
   function _vpDoorCompare() {
-    function cell(url, label) {
+    function cell(src, label) {
       return '<div style="flex:1;text-align:center">'
-        + '<div style="height:118px;border-radius:8px;border:1px solid var(--border);background-image:url(\'' + url + '\');background-size:300% auto;background-position:50% 45%;background-repeat:no-repeat"></div>'
+        + '<img src="' + src + '" alt="' + label + ' door" style="width:100%;max-width:148px;border-radius:8px;border:1px solid var(--border);display:block;margin:0 auto">'
         + '<div style="font-size:0.78rem;color:var(--text-mid);margin-top:5px;font-weight:600">' + label + '</div></div>';
     }
-    return '<div style="display:flex;gap:10px;margin:8px 0 4px">'
-      + cell(VP_DOOR_IMG.single, 'Single block') + cell(VP_DOOR_IMG.multi, 'Multi block')
-      + '</div>'
-      + '<div style="font-size:0.7rem;color:var(--text-dim);text-align:right;margin-bottom:4px">door photos courtesy of <a href="https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--accent2)">COTT</a></div>';
+    return '<div style="display:flex;gap:10px;margin:8px 0 4px;align-items:flex-start">'
+      + cell('door-single.png', 'Single-block') + cell('door-multi.png', 'Multi-block')
+      + '</div>';
   }
   function _vpTermsPanel(texts) {
     var all = [], seen = {};
