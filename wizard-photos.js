@@ -108,6 +108,13 @@ async function uploadWizardPhoto(file, stepId, viewKey) {
     zone.appendChild(img);
     zone.appendChild(overlay);
     zone.appendChild(lbl);
+    // Optional crop affordance (Brad): tap the ✂ to crop, ignore it to keep the
+    // full photo. Adds NO step for users who don't crop.
+    var _cropBtn = document.createElement('button');
+    _cropBtn.type = 'button'; _cropBtn.title = 'Crop photo'; _cropBtn.textContent = '\u2702';
+    _cropBtn.style.cssText = 'position:absolute;top:3px;right:3px;z-index:6;width:26px;height:26px;border-radius:7px;border:none;background:rgba(0,0,0,0.62);color:#fff;font-size:14px;line-height:1;padding:0;cursor:pointer';
+    _cropBtn.onclick = function (e) { e.stopPropagation(); if (typeof _photoCropStart === 'function') _photoCropStart(file, stepId, viewKey, itemNum, blobThumb); };
+    zone.appendChild(_cropBtn);
     // Re-add progress spinner
     const prog2 = document.createElement('div');
     prog2.id = 'prog-' + stepId + '-' + viewKey;
