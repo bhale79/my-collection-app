@@ -34,6 +34,8 @@
     'single block doors': 'Boxcar doors molded as one solid panel.',
     'multi block doors': 'Boxcar doors molded as several ribbed panels.',
     'block doors': 'Boxcar doors molded as panels — "single" is one panel, "multi" is several ribbed panels.',
+    'single block': 'Boxcar doors molded as one solid panel.',
+    'multi block': 'Boxcar doors molded as several ribbed panels (multiple ribs/sections).',
     'roof nick': 'A small notch in the roof mold near one corner.',
     'spreader bar': 'A bar across the inside of a gondola/hopper; some molds have holes for it.',
     'sheave': 'The grooved pulley wheel on a crane boom.',
@@ -66,6 +68,7 @@
   };
   var VP_CLEAN = /^[a-z0-9][a-z0-9 \-"/]{0,28}$/;
   var VP_BAREKEY = { shell: 1, doors: 1, door: 1, lettering: 1, trucks: 1, truck: 1, roof: 1, frame: 1, stack: 1, hatch: 1, number: 1, couplers: 1, coupler: 1, rivets: 1, sheave: 1 };
+  var VP_OPT_SUFFIX = { doors: 'block', door: 'block' };
 
   function _vpClauses(t) {
     t = String(t || '').replace(/\s+/g, ' ').replace(/[”“]/g, '"').replace(VP_STRIP, ' ');
@@ -141,7 +144,8 @@
       var allclean = lab2.every(function (l) { return l && VP_CLEAN.test(l) && !VP_BAREKEY[l]; });
       var distinct = {}; lab2.forEach(function (l) { if (l) distinct[_vpNorm(l)] = 1; });
       if (Object.keys(distinct).length >= 2 && allclean) {
-        var o2 = {}; for (var d = 0; d < nV; d++) { o2[rows[d].variation] = lab2[d]; }
+        var o2 = {}, _suf = VP_OPT_SUFFIX[k];
+        for (var d = 0; d < nV; d++) { var _lv = lab2[d]; if (_suf && _lv && _lv.indexOf(_suf) < 0) _lv = _lv + ' ' + _suf; o2[rows[d].variation] = _lv; }
         out.push({ stem: VP_STEM[k] || ('The ' + k + ' is…'), type: 'cat', opts: o2, key: k });
       }
     });
