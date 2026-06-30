@@ -468,7 +468,7 @@ function closeWizardOnOverlay(e) {
 // distinct values, or getMasterDistinct unavailable).
 // Sticky Add-screen filters: remember Manufacturer + Era across adds (Brad).
 function _clearAddFilters() {
-  if (window.wizard && wizard.data) { wizard.data._searchFilterManufacturer = ''; wizard.data._searchFilterPeriod = ''; wizard.data._searchFilterType = ''; }
+  if (typeof wizard !== 'undefined' && wizard.data) { wizard.data._searchFilterManufacturer = ''; wizard.data._searchFilterPeriod = ''; wizard.data._searchFilterType = ''; }
   try { localStorage.removeItem('lv_add_mfr'); localStorage.removeItem('lv_add_era'); } catch (e) {}
   ['wiz-search-mfr', 'wiz-search-era', 'wiz-search-type'].forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ''; });
   var i = document.getElementById('wiz-input');
