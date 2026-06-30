@@ -213,7 +213,10 @@ function _extractSearchItemNum(query) {
   for (var i = 0; i < toks.length; i++) {
     var t = toks[i];
     if (_WHEEL.test(t)) continue;
-    if (/\d{2,}/.test(t) || /\d-\d/.test(t)) return t;
+    // Strip a single-digit MPC/modern Lionel product-line prefix ("6-8359" ->
+    // "8359", "7-11193" -> "11193") so it matches the bare master number.
+    // MTH "20-3132-1" (two-digit prefix) and postwar "6464-1" are unaffected.
+    if (/\d{2,}/.test(t) || /\d-\d/.test(t)) return t.replace(/^\d-/, '');
   }
   return toks[0] || '';
 }

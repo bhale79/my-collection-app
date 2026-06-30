@@ -447,6 +447,15 @@ function findMaster(itemNum, variation) {
       ((state.masterByItem && state.masterByItem.get(bk)) || []).forEach(b => { if (cands.indexOf(b) < 0) cands.push(b); });
     }
   }
+  // MPC / modern Lionel carry a single-digit product-line prefix ("6-8359",
+  // "7-11193") but the master indexes the bare number ("8359"). Strip a leading
+  // "N-" so Lens / typed entries resolve. Postwar "6464-1" is NOT affected (that
+  // is not an "N-" prefix). Also try the suffix-base of the stripped number.
+  const _mpc = k.replace(/^\d-/, '');
+  if (_mpc && _mpc !== k) {
+    ((state.masterByItem && state.masterByItem.get(_mpc)) || []).forEach(b => { if (cands.indexOf(b) < 0) cands.push(b); });
+    if (typeof baseItemNum === 'function') { const _mb = baseItemNum(_mpc); if (_mb && _mb !== _mpc) ((state.masterByItem && state.masterByItem.get(_mb)) || []).forEach(b => { if (cands.indexOf(b) < 0) cands.push(b); }); }
+  }
   if (!cands.length) return null;
   const want = (variation != null && variation !== '') ? String(variation) : null;
   function score(m) {
