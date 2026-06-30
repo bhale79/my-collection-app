@@ -1289,7 +1289,7 @@ function renderWizardStep() {
       if (variations.length) { String(variations[0].varDesc || variations[0].description || '').toLowerCase().split(/\s+/).forEach((w) => { const c = w.replace(/[^a-z0-9]/g,''); if (c) _vBaseSet.add(c); }); }
       const _vHl = (desc) => String(desc || '').split(/(\s+)/).map((tok) => { if (/^\s+$/.test(tok)) return tok; const c = tok.toLowerCase().replace(/[^a-z0-9]/g,''); const e = _vEsc(tok); return (c && !_vBaseSet.has(c)) ? '<span style="color:var(--accent);font-weight:700;background:rgba(232,64,28,0.14);border-radius:3px;padding:0 2px">' + e + '</span>' : e; }).join('');
       let _vpCanHelp=false;
-      try { window._vpRows = variations; window._vpItemNum = itemNum; _vpCanHelp = (typeof _vpGenerate==='function') && _vpGenerate(variations).length>0; } catch(e){}
+      try { window._vpRows = variations; window._vpItemNum = itemNum; window._vpItemType = _varType || (variations[0]&&variations[0].itemType) || ''; _vpCanHelp = (typeof _vpGenerate==='function') && _vpGenerate(variations).length>0; } catch(e){}
       body.innerHTML = `
         <div style="padding-top:0.5rem">
           ${variations.length > 1 ? '<div style="font-size:0.74rem;color:var(--text-dim);margin-bottom:0.5rem;padding:0 0.1rem">Highlighted words show how each variation differs from the <strong>first</strong> one.</div>' : ''}

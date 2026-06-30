@@ -70,6 +70,23 @@
   var VP_BAREKEY = { shell: 1, doors: 1, door: 1, lettering: 1, trucks: 1, truck: 1, roof: 1, frame: 1, stack: 1, hatch: 1, number: 1, couplers: 1, coupler: 1, rivets: 1, sheave: 1 };
   var VP_OPT_SUFFIX = { doors: 'block', door: 'block' };
   var VP_DOOR_IMG = { single: 'https://cornucopiaoftoytrains.com/wp-content/uploads/2023/01/IMG_1831-2.jpg', multi: 'https://cornucopiaoftoytrains.com/wp-content/uploads/2023/02/IMG_1900.jpg' };
+  var VP_GI_BASE = 'https://cornucopiaoftoytrains.com/';
+  var VP_GI_BYTYPE = {
+    'Boxcar': ['boxcars-general-information-a', '6464 boxcar general info'],
+    'Flatcar': ['flatcars-general-information-a', 'flatcar general info'],
+    'Tender': ['postwar-tenders-general', 'tender general info'],
+    'Passenger Car': ['passenger-general-type-passenger-cars', 'passenger-car general info'],
+    'Steam Locomotive': ['steam-general-type-locomotives', 'steam locomotive general info'],
+    'Caboose': ['general-information-about-sp-type-cabooses', 'SP-type caboose general info']
+  };
+  function _vpGiLink(slug, label) {
+    return '<a href="' + VP_GI_BASE + slug + '/" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--accent2);text-decoration:none">' + label + ' \u2197</a>';
+  }
+  function _vpGiFooter() {
+    var e = (VP && VP.itemType) ? VP_GI_BYTYPE[VP.itemType] : null;
+    if (!e) return '';
+    return '<div style="text-align:center;margin-top:10px;border-top:1px solid var(--border);padding-top:9px;font-size:0.78rem">' + _vpGiLink(e[0], e[1]) + '</div>';
+  }
 
   function _vpClauses(t) {
     t = String(t || '').replace(/\s+/g, ' ').replace(/[”“]/g, '"').replace(VP_STRIP, ' ');
@@ -173,7 +190,8 @@
       questions: qs,
       used: {},
       cands: rows.map(function (r) { return r.variation; }),
-      itemNum: window._vpItemNum || ''
+      itemNum: window._vpItemNum || '',
+      itemType: window._vpItemType || (rows[0] || {}).itemType || ''
     };
     _vpEnsureModal();
     var _vpm = document.getElementById('vp-modal'); _vpm.classList.add('open'); _vpm.style.display = 'flex';
@@ -235,13 +253,14 @@
     texts.forEach(function (tx) { _vpGlossHits(tx).forEach(function (h) { if (!seen[h[0]]) { seen[h[0]] = 1; all.push(h); } }); });
     var joined = texts.join(' ').toLowerCase();
     var doorPic = (/block|door/.test(joined)) ? _vpDoorCompare() : '';
-    if (!all.length && !doorPic) return '';
+    var topicLink = (/truck|coupler/.test(joined)) ? '<div style="margin-top:6px">' + _vpGiLink('postwar-trucks', 'Full trucks &amp; couplers guide on COTT') + '</div>' : '';
+    if (!all.length && !doorPic && !(/truck|coupler/.test(joined))) return '';
     var rows = all.map(function (h) {
       return '<div style="margin:6px 0"><span style="color:var(--accent2);font-weight:600">' + _vpEsc(_vpCap(h[0])) + '</span> — <span style="color:var(--text-mid)">' + _vpEsc(h[1]) + '</span></div>';
     }).join('');
     return '<details style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px">'
       + '<summary style="cursor:pointer;font-size:0.82rem;color:var(--accent2);list-style:none">What do these terms mean?</summary>'
-      + '<div style="font-size:0.82rem;line-height:1.5;margin-top:8px">' + doorPic + rows + '</div></details>';
+      + '<div style="font-size:0.82rem;line-height:1.5;margin-top:8px">' + doorPic + rows + topicLink + '</div></details>';
   }
 
   // pick the best unused question that splits current candidates
@@ -277,6 +296,7 @@
     html += '<button type="button" class="vpbtn" style="border-style:dashed;color:var(--text-dim)" onclick="_vpSkip()">Not sure / can’t tell</button>';
     html += _vpTermsPanel([q.stem].concat(labels));
     html += '<button type="button" onclick="closeVariationPicker()" style="display:block;margin:14px auto 4px;background:none;border:none;color:var(--text-dim);font-size:0.8rem;cursor:pointer">Cancel</button>';
+    html += _vpGiFooter();
     html += '</div>';
     sheet.innerHTML = html;
   }
@@ -311,6 +331,7 @@
     html += _vpCardHtml(id);
     html += '<button type="button" class="vpbtn vpacc" style="text-align:center;font-weight:600" onclick="_vpUse(\'' + _vpEsc(id) + '\')">Use Variation ' + _vpEsc(id) + '</button>';
     html += '<button type="button" class="vpbtn" style="text-align:center" onclick="_vpFinalistsAll()">Not this — show all</button>';
+    html += _vpGiFooter();
     html += '</div>';
     sheet.innerHTML = html;
   }
@@ -326,6 +347,7 @@
       html += '<button type="button" class="vpbtn" style="margin-top:-2px;text-align:center" onclick="_vpUse(\'' + _vpEsc(id) + '\')">Use Variation ' + _vpEsc(id) + '</button>';
     });
     html += '<button type="button" onclick="closeVariationPicker()" style="display:block;margin:14px auto 4px;background:none;border:none;color:var(--text-dim);font-size:0.8rem;cursor:pointer">Close — I’ll pick from the list</button>';
+    html += _vpGiFooter();
     html += '</div>';
     sheet.innerHTML = html;
   }
