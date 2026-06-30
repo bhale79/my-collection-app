@@ -1790,16 +1790,26 @@ function renderWizardStep() {
       var isF3 = isF3AlcoUnit(num);
       var isBU = num.endsWith('C');
       var _qp = _qe1Partners(num);
+      var _steamOpts = hasTenders;
+      var _dieselOpts = (isF3 || _qp.dummy || _qp.bunit) && !isBU;
+      // When a number is used by BOTH a steam loco AND an Alco diesel (e.g. 221, 224)
+      // and the user has the Type filter set to Steam or Diesel, honor that filter so
+      // only the matching grouping shows. The filter only DISAMBIGUATES a collision —
+      // it never removes the sole valid option for a pure-steam or pure-diesel number.
+      var _ft = ((state.filters && state.filters.type) || '').toLowerCase();
+      var _filtSteam = _ft.indexOf('steam') >= 0, _filtDiesel = _ft.indexOf('diesel') >= 0;
+      if (_steamOpts && _dieselOpts) {
+        if (_filtSteam && !_filtDiesel) _dieselOpts = false;
+        else if (_filtDiesel && !_filtSteam) _steamOpts = false;
+      }
       var btns = [];
       // Steam (or any loco with a matching tender) — engine / engine+tender.
-      if (hasTenders) {
+      if (_steamOpts) {
         btns.push({ id: 'engine', label: 'Engine only' }, { id: 'engine_tender', label: 'Engine + Tender' });
       }
-      // Alco/F-3 diesel that comes in A / AA / AB / ABA. Shown IN ADDITION to the
-      // steam options above when a number is used by BOTH a steam loco and an Alco
-      // diesel (e.g. 221, 224) so the user can pick what they actually have.
-      // (Driven off real partner data — role tags +T/+C + the companion A-Dummy/B-Unit rows.)
-      if ((isF3 || _qp.dummy || _qp.bunit) && !isBU) {
+      // Alco/F-3 diesel that comes in A / AA / AB / ABA (driven off real partner data —
+      // role tags +T/+C + the companion A-Dummy/B-Unit rows).
+      if (_dieselOpts) {
         btns.push({ id: 'a_powered', label: 'A Powered' }, { id: 'a_dummy', label: 'A Dummy' });
         if (_qp.dummy) btns.push({ id: 'aa',  label: 'AA set'  });
         if (_qp.bunit) btns.push({ id: 'ab',  label: 'AB set'  });
