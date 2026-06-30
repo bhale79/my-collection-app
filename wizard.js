@@ -1791,13 +1791,16 @@ function renderWizardStep() {
       var isBU = num.endsWith('C');
       var _qp = _qe1Partners(num);
       var btns = [];
-      if (hasTenders && !isF3) {
-        btns = [{ id: 'engine', label: 'Engine only' }, { id: 'engine_tender', label: 'Engine + Tender' }];
-      } else if ((isF3 || _qp.dummy || _qp.bunit) && !isBU) {
-        // 2026-06-23: drive AA/AB/ABA off real partner data (role tags +T/+C and the
-        // companion table's A-Dummy / B-Unit rows), NOT the SubType text which never
-        // held "AA"/"AB"/"ABA" (it holds "EMD F-3" / "Alco FA").
-        btns = [{ id: 'a_powered', label: 'A Powered' }, { id: 'a_dummy', label: 'A Dummy' }];
+      // Steam (or any loco with a matching tender) — engine / engine+tender.
+      if (hasTenders) {
+        btns.push({ id: 'engine', label: 'Engine only' }, { id: 'engine_tender', label: 'Engine + Tender' });
+      }
+      // Alco/F-3 diesel that comes in A / AA / AB / ABA. Shown IN ADDITION to the
+      // steam options above when a number is used by BOTH a steam loco and an Alco
+      // diesel (e.g. 221, 224) so the user can pick what they actually have.
+      // (Driven off real partner data — role tags +T/+C + the companion A-Dummy/B-Unit rows.)
+      if ((isF3 || _qp.dummy || _qp.bunit) && !isBU) {
+        btns.push({ id: 'a_powered', label: 'A Powered' }, { id: 'a_dummy', label: 'A Dummy' });
         if (_qp.dummy) btns.push({ id: 'aa',  label: 'AA set'  });
         if (_qp.bunit) btns.push({ id: 'ab',  label: 'AB set'  });
         if (_qp.dummy && _qp.bunit) btns.push({ id: 'aba', label: 'ABA set' });
@@ -1805,7 +1808,12 @@ function renderWizardStep() {
       if (!btns.length) { cont.style.display = 'none'; return; }
       cont.style.display = 'block';
       var cur = wizard.data._itemGrouping || '';
-      var html = '<div style="display:flex;flex-wrap:wrap;gap:0.3rem">';
+      var _hasSteamBtn = btns.some(function(b){ return b.id === 'engine'; });
+      var _hasDieselBtn = btns.some(function(b){ return b.id === 'a_powered' || b.id === 'aa' || b.id === 'ab' || b.id === 'aba'; });
+      var html = (_hasSteamBtn && _hasDieselBtn)
+        ? '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.4rem;line-height:1.4">This number belongs to both a <strong>steam locomotive</strong> and an <strong>Alco diesel</strong> — pick what you have.</div>'
+        : '';
+      html += '<div style="display:flex;flex-wrap:wrap;gap:0.3rem">';
       btns.forEach(function(b) {
         var sel = cur === b.id;
         html += '<button type="button" onclick="_qe1SelectGrouping(\'' + b.id + '\')" style="padding:0.38rem 0.7rem;border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:var(--font-body);'
