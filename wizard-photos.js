@@ -1269,10 +1269,18 @@ function showPhotoSourcePicker(stepId, viewKey) {
     if (camBtn)   camBtn.style.display = 'none'; // most desktops lack useful camera
   }
   document.getElementById('photo-picker-sheet').classList.add('open');
+  // Register with BackStack so the device/browser BACK button closes
+  // just this picker (returning to the view grid) instead of popping the
+  // whole wizard step. pop() is called from closePhotoPicker on any close.
+  if (window.BackStack) window.BackStack.push('photo-picker', closePhotoPicker);
 }
 
 function closePhotoPicker() {
   document.getElementById('photo-picker-sheet').classList.remove('open');
+  // Balance the BackStack entry pushed in showPhotoSourcePicker. Safe whether
+  // this close came from a button (Cancel/file-pick) or the back button itself
+  // (BackStack.pop no-ops if the entry was already removed by the back press).
+  if (window.BackStack) window.BackStack.pop('photo-picker');
   _pickerStepId = null;
   _pickerViewKey = null;
 }
