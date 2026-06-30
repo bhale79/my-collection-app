@@ -466,6 +466,16 @@ function closeWizardOnOverlay(e) {
 // Returns a DOM element (container) with the filter dropdowns, or null
 // when filters shouldn't render (tab not in applyToTabs, insufficient
 // distinct values, or getMasterDistinct unavailable).
+// Sticky Add-screen filters: remember Manufacturer + Era across adds (Brad).
+function _clearAddFilters() {
+  if (window.wizard && wizard.data) { wizard.data._searchFilterManufacturer = ''; wizard.data._searchFilterPeriod = ''; wizard.data._searchFilterType = ''; }
+  try { localStorage.removeItem('lv_add_mfr'); localStorage.removeItem('lv_add_era'); } catch (e) {}
+  ['wiz-search-mfr', 'wiz-search-era', 'wiz-search-type'].forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ''; });
+  var i = document.getElementById('wiz-input');
+  if (typeof updateItemSuggestions === 'function') updateItemSuggestions(i ? i.value : '');
+}
+if (typeof window !== 'undefined') window._clearAddFilters = _clearAddFilters;
+
 function _buildItemSearchFiltersDOM() {
   var cfg = window.ITEM_SEARCH_FILTERS || {};
   var ui  = cfg.ui || {};
@@ -473,6 +483,12 @@ function _buildItemSearchFiltersDOM() {
   var applies = (cfg.applyToTabs || []).indexOf(wizard.tab) !== -1;
   if (!applies) return null;
   if (typeof getMasterDistinct !== 'function') return null;
+  // Sticky filters: on a fresh add (wizard.data rebuilt), seed Manufacturer + Era
+  // from the user's last choice so they persist until cleared.
+  if (wizard.tab === 'collection') {
+    if (wizard.data._searchFilterManufacturer === undefined) { try { wizard.data._searchFilterManufacturer = localStorage.getItem('lv_add_mfr') || ''; } catch (e) { wizard.data._searchFilterManufacturer = ''; } }
+    if (wizard.data._searchFilterPeriod === undefined) { try { wizard.data._searchFilterPeriod = localStorage.getItem('lv_add_era') || ''; } catch (e) { wizard.data._searchFilterPeriod = ''; } }
+  }
 
   // Session 119: 22 clean tier-1 buckets (Steam, Diesel, Boxcar...) instead of 40 raw itemType synonyms.
   var types = ((typeof _bucketsInCurrentEra === 'function') ? _bucketsInCurrentEra() : (window.TYPE_BUCKETS || []).map(function(b){ return b.label; }));
@@ -552,6 +568,11 @@ function _buildItemSearchFiltersDOM() {
     if (mfrs.length) bar.appendChild(mkDrop('wiz-search-mfr', 'Manufacturer', mfrs, wizard.data._searchFilterManufacturer || ''));
     bar.appendChild(mkDropPairs('wiz-search-era', 'Era', _eraPairs, wizard.data._searchFilterPeriod || ''));
     if (showType) bar.appendChild(mkDrop('wiz-search-type', ui.typeLabel || 'Type', types, wizard.data._searchFilterType || ''));
+    // Clear-filters button (Manufacturer + Era are remembered between adds).
+    var _clrWrap = document.createElement('div');
+    _clrWrap.style.cssText = 'display:flex;align-items:flex-end';
+    _clrWrap.innerHTML = '<button type="button" onclick="_clearAddFilters()" style="padding:0.5rem 0.8rem;font-size:13px;background:var(--surface2);color:var(--text-mid);border:1px solid var(--border);border-radius:8px;min-height:' + (sz.minHeightPx || 44) + 'px;cursor:pointer;white-space:nowrap">Clear filters</button>';
+    bar.appendChild(_clrWrap);
   } else {
     if (showType) bar.appendChild(mkDrop('wiz-search-type', ui.typeLabel || 'Type',       types, wizard.data._searchFilterType || ''));
     if (showRoad) bar.appendChild(mkDrop('wiz-search-road', ui.roadLabel || 'Road name',  roads, wizard.data._searchFilterRoad || ''));
@@ -637,6 +658,7 @@ function _wireItemSearchFilters() {
   if (mfrSel) {
     mfrSel.addEventListener('change', function() {
       wizard.data._searchFilterManufacturer = this.value || '';
+      try { localStorage.setItem('lv_add_mfr', this.value || ''); } catch (e) {}
       // Session 176: non-Lionel makers (Atlas/MTH/Weaver/RMT/...) are all Modern —
       // auto-set the Era filter to Modern when one is chosen.
       var _mv = String(this.value || '').toLowerCase();
@@ -644,6 +666,7 @@ function _wireItemSearchFilters() {
       if (_mv && _mv !== 'lionel') {
         wizard.data._searchFilterPeriod = 'modern';
         if (_eraSel2) _eraSel2.value = 'modern';
+        try { localStorage.setItem('lv_add_era', 'modern'); } catch (e) {}
       }
       var i = document.getElementById('wiz-input');
       if (typeof updateItemSuggestions === 'function') updateItemSuggestions(i ? i.value : '');
@@ -653,6 +676,7 @@ function _wireItemSearchFilters() {
   if (eraSel) {
     eraSel.addEventListener('change', function() {
       wizard.data._searchFilterPeriod = this.value || '';
+      try { localStorage.setItem('lv_add_era', this.value || ''); } catch (e) {}
       var i = document.getElementById('wiz-input');
       if (typeof updateItemSuggestions === 'function') updateItemSuggestions(i ? i.value : '');
     });
