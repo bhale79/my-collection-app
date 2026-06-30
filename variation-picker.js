@@ -171,7 +171,7 @@
       itemNum: window._vpItemNum || ''
     };
     _vpEnsureModal();
-    document.getElementById('vp-modal').classList.add('open');
+    var _vpm = document.getElementById('vp-modal'); _vpm.classList.add('open'); _vpm.style.display = 'flex';
     if (window.BackStack) window.BackStack.push('variation-picker', closeVariationPicker);
     _vpRender();
   }
@@ -179,7 +179,7 @@
 
   function closeVariationPicker() {
     var m = document.getElementById('vp-modal');
-    if (m) m.classList.remove('open');
+    if (m) { m.classList.remove('open'); m.style.display = 'none'; }
     if (window.BackStack) window.BackStack.pop('variation-picker');
     VP = null;
   }

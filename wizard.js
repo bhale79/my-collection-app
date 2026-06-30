@@ -1293,9 +1293,12 @@ function renderWizardStep() {
       body.innerHTML = `
         <div style="padding-top:0.5rem">
           ${variations.length > 1 ? '<div style="font-size:0.74rem;color:var(--text-dim);margin-bottom:0.5rem;padding:0 0.1rem">Highlighted words show how each variation differs from the <strong>first</strong> one.</div>' : ''}
-          ${_vpCanHelp ? '<button type="button" onclick="openVariationPicker()" style="display:block;width:100%;margin:0 0 0.6rem;padding:0.7rem 1rem;border-radius:10px;border:2px solid var(--accent);background:rgba(232,64,28,0.10);color:var(--text);font-family:var(--font-body);font-size:0.9rem;font-weight:600;cursor:pointer">Help me pick my variation</button>' : ''}
+          <div style="display:flex;gap:0.5rem;margin-bottom:0.5rem">
+            ${_vpCanHelp ? `<button type="button" onclick="openVariationPicker()" style="flex:1;min-width:0;padding:0.45rem 0.6rem;border-radius:9px;border:2px solid var(--accent);background:rgba(232,64,28,0.10);color:var(--text);font-family:var(--font-body);font-size:0.8rem;font-weight:600;line-height:1.15;cursor:pointer">Help me pick my variation</button>` : ''}
+            <button type="button" onclick="wizardChooseVariation('')" style="flex:1;min-width:0;padding:0.45rem 0.6rem;border-radius:9px;border:2px solid ${val==='' ? 'var(--accent)' : 'var(--border)'};background:${val==='' ? 'rgba(232,64,28,0.12)' : 'var(--surface2)'};color:var(--text);font-family:var(--font-body);font-size:0.8rem;line-height:1.15;cursor:pointer">No specific variation / not sure</button>
+          </div>
           <div style="display:flex;flex-direction:column;gap:0.5rem" id="var-cards">
-            ${[{variation:'', varDesc:'No specific variation / not sure', refLink:''}, ...variations].map(v => {
+            ${variations.map(v => {
               const isSelected = val===v.variation;
               // Short label resolves per URL (Atlas ↗ / COTT ↗ / View ↗) —
               // previously hardcoded to "COTT ↗" for every row including
