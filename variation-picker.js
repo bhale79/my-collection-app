@@ -69,6 +69,7 @@
   var VP_CLEAN = /^[a-z0-9][a-z0-9 \-"/]{0,28}$/;
   var VP_BAREKEY = { shell: 1, doors: 1, door: 1, lettering: 1, trucks: 1, truck: 1, roof: 1, frame: 1, stack: 1, hatch: 1, number: 1, couplers: 1, coupler: 1, rivets: 1, sheave: 1 };
   var VP_OPT_SUFFIX = { doors: 'block', door: 'block' };
+  var VP_DOOR_IMG = { single: 'https://cornucopiaoftoytrains.com/wp-content/uploads/2023/01/IMG_1831-2.jpg', multi: 'https://cornucopiaoftoytrains.com/wp-content/uploads/2023/02/IMG_1900.jpg' };
 
   function _vpClauses(t) {
     t = String(t || '').replace(/\s+/g, ' ').replace(/[”“]/g, '"').replace(VP_STRIP, ' ');
@@ -218,16 +219,29 @@
     });
     return hits;
   }
+  function _vpDoorCompare() {
+    function cell(url, label) {
+      return '<div style="flex:1;text-align:center">'
+        + '<div style="height:118px;border-radius:8px;border:1px solid var(--border);background-image:url(\'' + url + '\');background-size:300% auto;background-position:50% 45%;background-repeat:no-repeat"></div>'
+        + '<div style="font-size:0.78rem;color:var(--text-mid);margin-top:5px;font-weight:600">' + label + '</div></div>';
+    }
+    return '<div style="display:flex;gap:10px;margin:8px 0 4px">'
+      + cell(VP_DOOR_IMG.single, 'Single block') + cell(VP_DOOR_IMG.multi, 'Multi block')
+      + '</div>'
+      + '<div style="font-size:0.7rem;color:var(--text-dim);text-align:right;margin-bottom:4px">door photos courtesy of <a href="https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--accent2)">COTT</a></div>';
+  }
   function _vpTermsPanel(texts) {
     var all = [], seen = {};
     texts.forEach(function (tx) { _vpGlossHits(tx).forEach(function (h) { if (!seen[h[0]]) { seen[h[0]] = 1; all.push(h); } }); });
-    if (!all.length) return '';
+    var joined = texts.join(' ').toLowerCase();
+    var doorPic = (/block|door/.test(joined)) ? _vpDoorCompare() : '';
+    if (!all.length && !doorPic) return '';
     var rows = all.map(function (h) {
       return '<div style="margin:6px 0"><span style="color:var(--accent2);font-weight:600">' + _vpEsc(_vpCap(h[0])) + '</span> — <span style="color:var(--text-mid)">' + _vpEsc(h[1]) + '</span></div>';
     }).join('');
     return '<details style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px">'
       + '<summary style="cursor:pointer;font-size:0.82rem;color:var(--accent2);list-style:none">What do these terms mean?</summary>'
-      + '<div style="font-size:0.82rem;line-height:1.5;margin-top:8px">' + rows + '</div></details>';
+      + '<div style="font-size:0.82rem;line-height:1.5;margin-top:8px">' + doorPic + rows + '</div></details>';
   }
 
   // pick the best unused question that splits current candidates
