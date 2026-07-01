@@ -4716,7 +4716,7 @@ function renderWizardStep() {
       }
     }
     const _summaryEntries = Object.entries(wizard.data).filter(function(e) {
-      return !_skipKeys.has(e[0]) && e[1] && e[1] !== '' && !e[0].startsWith('photos') && !Array.isArray(e[1]) && typeof e[1] !== 'object';
+      return !_skipKeys.has(e[0]) && !e[0].startsWith('_searchFilter') && e[1] && e[1] !== '' && !e[0].startsWith('photos') && !Array.isArray(e[1]) && typeof e[1] !== 'object';
     });
 
     const _yesNoKeys = ['hasIS','hasMasterBox','hasBox','tenderHasBox','unit2HasBox','unit3HasBox','isError','tenderIsError','unit2IsError','unit3IsError','cat_hasMailer','manualHasBox'];
