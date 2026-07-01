@@ -285,13 +285,14 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1rem';
     overlay.innerHTML = `
       <div style="width:100%;max-width:520px;display:flex;flex-direction:column;gap:1rem;align-items:center">
-        <div style="color:#fff;font-family:var(--font-head,sans-serif);font-size:1.1rem;text-align:center;position:relative;width:100%">📷 Scan the barcode<button id="bc-help" type="button" style="position:absolute;right:0;top:-4px;background:rgba(255,255,255,0.12);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:1rem;cursor:pointer">?</button></div>
+        <div style="color:#fff;font-family:var(--font-head,sans-serif);font-size:1.1rem;text-align:center;position:relative;width:100%">📷 Scan Barcode / Label<button id="bc-help" type="button" style="position:absolute;right:0;top:-4px;background:rgba(255,255,255,0.12);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:1rem;cursor:pointer">?</button></div>
         <div style="position:relative;width:100%;aspect-ratio:4/3;background:#000;border-radius:12px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
           <video id="bc-video" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover"></video>
           <div style="position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center">
-            <div style="width:80%;height:25%;border:2px dashed rgba(255,255,255,0.6);border-radius:8px"></div>
+            <div style="width:84%;height:52%;border:2px dashed rgba(255,255,255,0.6);border-radius:8px"></div>
           </div>
         </div>
+        <div style="color:#9fb4c8;font-size:0.8rem;text-align:center;width:100%;line-height:1.35">Make sure the barcode and/or item number is completely in the picture.</div>
         <div id="bc-controls" style="display:flex;gap:0.6rem;width:100%;align-items:center;justify-content:center">
           <button id="bc-torch" type="button" style="display:none;padding:0.5rem 0.9rem;border-radius:10px;border:1px solid #444;background:#222;color:#eee;font-size:0.85rem;cursor:pointer">🔦 Light</button>
           <div id="bc-zoomwrap" style="display:none;flex:1;max-width:240px;align-items:center;gap:0.4rem">
@@ -299,7 +300,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             <input id="bc-zoom" type="range" style="flex:1;accent-color:#e04028">
           </div>
         </div>
-        <div id="bc-status" style="color:#ccc;font-size:0.85rem;text-align:center;min-height:1.4em">Point camera at the barcode…</div>
+        <div id="bc-status" style="color:#ccc;font-size:0.85rem;text-align:center;min-height:1.4em">Fit the barcode & item number fully in the frame</div>
         <button id="bc-tolabel" type="button" style="width:100%;padding:0.7rem;border-radius:10px;border:1px solid #3a6ea5;background:rgba(58,110,165,0.18);color:#cfe3ff;font-size:0.9rem;font-family:inherit;cursor:pointer">📸 Can't scan? Read the label instead</button>
         <div style="display:flex;gap:0.6rem;width:100%">
           <button id="bc-cancel" style="flex:1;padding:0.8rem;border-radius:10px;border:1px solid #444;background:#222;color:#eee;font-size:0.95rem;font-family:inherit;cursor:pointer">Cancel</button>
@@ -382,7 +383,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     if (!nativeDetector) {
       statusEl.textContent = 'Loading scanner…';
       try { await _loadZXing(); } catch (e) { statusEl.textContent = 'Could not load the scanner — tap "Type Instead".'; statusEl.style.color = '#ff9580'; return; }
-      statusEl.textContent = 'Point camera at the barcode…';
+      statusEl.textContent = 'Fit the barcode & item number fully in the frame';
     }
 
     let _bcLastRaw = null, _bcConfirm = 0;
@@ -848,11 +849,11 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     var overlay = document.createElement('div');
     overlay.id = 'label-scanner-overlay';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:99999;'
-      + 'display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1rem;gap:0.85rem';
+      + 'display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:1rem;gap:0.7rem;overflow-y:auto';
     overlay.innerHTML = ''
       + '<div style="color:#fff;font-family:var(--font-head,sans-serif);font-size:1.1rem;position:relative;width:100%;max-width:520px;text-align:center">📷 Scan Item Label<button id="lbl-help" type="button" style="position:absolute;right:0;top:-4px;background:rgba(255,255,255,0.12);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:1rem;cursor:pointer">?</button></div>'
       + '<div style="position:relative;width:100%;max-width:520px">'
-      + '  <video id="lbl-video" autoplay playsinline muted style="width:100%;border-radius:12px;background:#000"></video>'
+      + '  <video id="lbl-video" autoplay playsinline muted style="width:100%;max-height:46vh;object-fit:contain;border-radius:12px;background:#000"></video>'
       + '  <div style="position:absolute;inset:8% 12%;border:2px dashed rgba(255,255,255,0.6);border-radius:10px;pointer-events:none"></div>'
       + '</div>'
       + '<div id="lbl-controls" style="display:flex;gap:0.6rem;width:100%;max-width:520px;align-items:center;justify-content:center">'
@@ -1152,11 +1153,12 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + '<p><strong style="color:var(--text,#fff)">Works for:</strong> Lionel (6-####), MTH (10/20/\u2026-####), K-Line, RMT, Menards Gold Line (275/279-####), plus Atlas and any box that prints “Item #…”. Other makers: type the number.</p>'
         + '<p><strong style="color:var(--text,#fff)">Tips:</strong> hold the label right-side up (OCR can’t read upside-down text), fill the dashed box, use good even light, avoid glare, hold steady, then tap Capture.</p>'
         + '<p>You will get a confirm screen \u2014 nothing is filled in until you say so.</p>'
-      : '<p><strong style="color:var(--text,#fff)">What it does:</strong> reads the UPC / SKU barcode and looks the item up in your catalog. Your camera stays on your device.</p>'
-        + '<p><strong style="color:var(--text,#fff)">Works for:</strong> Lionel UPCs and MTH SKU barcodes (10-####). Other makers: type the number for now.</p>'
-        + '<p><strong style="color:var(--text,#fff)">Tips:</strong> center the barcode in the dashed box, hold steady, good light. You will confirm the result before it fills.</p>';
+      : '<p><strong style="color:var(--text,#fff)">What it does:</strong> reads the UPC barcode and, on the same shot, reads the printed item number off the label — then cross-checks the two so you get the right item. Your camera stays on your device.</p>'
+        + '<p><strong style="color:var(--text,#fff)">Shared barcodes:</strong> some Lionel reissues share one barcode; the label reading tells them apart automatically, so you usually won’t have to pick.</p>'
+        + '<p><strong style="color:var(--text,#fff)">No barcode?</strong> tap “Read the label instead” to identify the box by its printed item number.</p>'
+        + '<p><strong style="color:var(--text,#fff)">Tips:</strong> fit the whole barcode AND the item number in the frame, hold the box right-side up and steady with good even light. You will confirm the result before anything fills.</p>';
     d.innerHTML = '<div style="max-width:420px;background:var(--surface,#1a1d3a);border-radius:16px;padding:18px;color:var(--text-mid,#ddd);font-size:0.88rem;line-height:1.5;font-family:var(--font-body,sans-serif)">'
-      + '<div style="font-size:1.05rem;font-weight:600;color:var(--text,#fff);margin-bottom:10px">' + (isLabel ? 'Scan Label \u2014 help' : 'Scan Barcode \u2014 help') + '</div>'
+      + '<div style="font-size:1.05rem;font-weight:600;color:var(--text,#fff);margin-bottom:10px">' + (isLabel ? 'Scan Label \u2014 help' : 'Scan Barcode / Label \u2014 help') + '</div>'
       + body
       + '<button data-close="1" style="display:block;width:100%;margin-top:12px;padding:11px;border-radius:10px;border:2px solid var(--accent,#e8401c);background:rgba(232,64,28,0.12);color:var(--text,#fff);font-weight:600;cursor:pointer">Got it</button></div>';
     d.addEventListener('click', function (e) { if ((e.target.getAttribute && e.target.getAttribute('data-close')) || e.target === d) d.remove(); });

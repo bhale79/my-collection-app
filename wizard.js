@@ -1382,7 +1382,7 @@ function renderWizardStep() {
           display:flex;align-items:center;justify-content:center;gap:0.5rem;
           transition:all 0.15s
         ">
-          📷 Scan Barcode
+          📷 Scan Barcode / Label
         </button>` : ''}
         ${showBoxOnly ? `
         <label onclick="toggleBoxOnly()" style="
@@ -3876,7 +3876,7 @@ function renderWizardStep() {
       _ingPhotoBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Don\x27t know the number? Identify by photo';
       _ingWrap.appendChild(_ingPhotoBtn);
 
-      // Scan Barcode + Scan Label (OCR) — mobile-only since they need a
+      // Scan Barcode / Label — mobile-only since it needs a
       // pointable camera against a real item/box. On desktop we show a
       // small note instead so the user knows the feature exists elsewhere.
       const _isMobileWiz = (window.innerWidth <= 768) || ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
@@ -3888,15 +3888,8 @@ function renderWizardStep() {
         const _ingScanBtn = document.createElement('button');
         _ingScanBtn.onclick = function() { if (typeof _wizScanBarcode === 'function') _wizScanBarcode(); };
         _ingScanBtn.style.cssText = 'width:100%;margin-top:0.5rem;padding:0.65rem 1rem;border-radius:8px;border:1.5px dashed #2980b9;background:rgba(41,128,185,0.08);color:#2980b9;font-family:var(--font-head);font-size:0.78rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;transition:all 0.15s';
-        _ingScanBtn.innerHTML = '📷 Scan Barcode';
+        _ingScanBtn.innerHTML = '📷 Scan Barcode / Label';
         _ingWrap.appendChild(_ingScanBtn);
-        // Session 168: Scan Label (OCR) — for boxes without barcodes, or when
-        // the user prefers to scan the printed item-number label directly.
-        const _ingLabelBtn = document.createElement('button');
-        _ingLabelBtn.onclick = function() { if (typeof _wizScanLabel === 'function') _wizScanLabel(); };
-        _ingLabelBtn.style.cssText = 'width:100%;margin-top:0.5rem;padding:0.65rem 1rem;border-radius:8px;border:1.5px dashed #16a085;background:rgba(22,160,133,0.08);color:#16a085;font-family:var(--font-head);font-size:0.78rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;transition:all 0.15s';
-        _ingLabelBtn.innerHTML = '🔠 Scan Label (OCR)';
-        _ingWrap.appendChild(_ingLabelBtn);
       } else {
         // Desktop substitute — small italic note pointing to mobile.
         const _scanNote = document.createElement('div');
