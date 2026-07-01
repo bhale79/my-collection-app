@@ -261,6 +261,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           </div>
         </div>
         <div id="bc-status" style="color:#ccc;font-size:0.85rem;text-align:center;min-height:1.4em">Point camera at the barcode…</div>
+        <button id="bc-tolabel" type="button" style="width:100%;padding:0.7rem;border-radius:10px;border:1px solid #3a6ea5;background:rgba(58,110,165,0.18);color:#cfe3ff;font-size:0.9rem;font-family:inherit;cursor:pointer">📸 Can't scan? Read the label instead</button>
         <div style="display:flex;gap:0.6rem;width:100%">
           <button id="bc-cancel" style="flex:1;padding:0.8rem;border-radius:10px;border:1px solid #444;background:#222;color:#eee;font-size:0.95rem;font-family:inherit;cursor:pointer">Cancel</button>
           <button id="bc-manual" style="flex:2;padding:0.8rem;border-radius:10px;border:none;background:#e04028;color:#fff;font-size:0.95rem;font-family:inherit;font-weight:600;cursor:pointer">Can't Read — Type Instead</button>
@@ -277,6 +278,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     const torchBtn = overlay.querySelector('#bc-torch');
     const zoomWrap = overlay.querySelector('#bc-zoomwrap');
     const zoomSlider = overlay.querySelector('#bc-zoom');
+    const toLabelBtn = overlay.querySelector('#bc-tolabel');
 
     let stream = null;
     let stopScanning = false;
@@ -289,6 +291,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
 
     cancelBtn.onclick = () => { cleanup(); if (onCancel) onCancel(); };
     manualBtn.onclick = () => { cleanup(); if (onCancel) onCancel(); };
+    // Always-available handoff to the OCR label reader (barcode damaged / not in UPC db / no barcode).
+    if (toLabelBtn) toLabelBtn.onclick = () => { cleanup(); openLabelScanner(onScanned, onCancel); };
 
     // Request camera
     try {
