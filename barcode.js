@@ -564,7 +564,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     // prints an explicit item label: Atlas "Item #0526-1", Lionel dealer "ITEM:611437",
     // "Item No. 123". Requires a #/:/No separator (so it never grabs "Item UPC").
     // Listed LAST so a specific-maker match above wins the de-dupe.
-    { re: /\bItem\s*(?:No\.?|#|:)\s*([0-9][0-9A-Za-z]*(?:-[0-9A-Za-z]+)*)\b/gi, mfr: '', cap: 1 },
+    { re: /\b(?:Item|ID)\s*(?:No\.?|#|:)\s*([0-9][0-9A-Za-z]*(?:-[0-9A-Za-z]+)*)\b/gi, mfr: '', cap: 1 },
   ];
   // Session 169: strip UPC-shaped digit runs before extracting candidates.
   // UPCs are 12 or 13 digits, often printed with single-digit spacing
@@ -605,6 +605,38 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         if (!seen[_l7[0]]) { seen[_l7[0]] = 1; out.push({ raw: _l7[0], mfr: 'Lionel' }); }
       }
     }
+    // Weaver / Quality Craft G-series (G1088-S) + U-series (U2956SD) catalog #s.
+    // Gated on Weaver context. Boxes list several variants (2-rail/3-rail/with-sound)
+    // -> each becomes a candidate so the user picks the checked one. (Brad 2026-07-01.)
+    if (/\bweaver\b|quality\s+craft/i.test(clean)) {
+      var _wre = /\b(?:G\d{3,4}(?:-[A-Z]{1,3})?|U\d{4}[A-Z]{2})\b/g, _wm;
+      while ((_wm = _wre.exec(clean)) !== null) {
+        var _wh = _wm[0].toUpperCase();
+        if (!seen[_wh]) { seen[_wh] = 1; out.push({ raw: _wh, mfr: 'Weaver' }); }
+      }
+    }
+    // Williams Electric Trains / Williams by Bachmann catalog + stock numbers.
+    // Gated strictly on Williams tokens — never bare "Electric Trains", because
+    // MTH's full company name is "M.T.H. Electric Trains". (Brad 2026-07-01: capture
+    // ONLY the true catalog/stock number.)
+    if (/\bWILLIAMS\b|by\s+bachmann|williamstrains|\bW\s+ELECTRIC\s+TRAINS\b/i.test(clean)) {
+      // STOCK # CAB120 / STOCK NO. 83212 / STOCK # #3212  (letter-prefixed or plain)
+      var _wsr = /\bSTOCK\s*(?:#|NO\.?|NUMBER)\s*#?\s*([A-Z]{0,4}\d{2,6})\b/gi, _wsm;
+      while ((_wsm = _wsr.exec(clean)) !== null) {
+        var _wsh = _wsm[1].toUpperCase();
+        if (!seen[_wsh]) { seen[_wsh] = 1; out.push({ raw: _wsh, mfr: 'Williams' }); }
+      }
+      // "NO. 5601" / "# 2612-D" — 3-4 digit catalog, optional -letter suffix.
+      // The leading (CAB) capture lets us SKIP road numbers like "CAB # 2368".
+      // 2-digit series numbers (WAL #60 / CLASSIC FREIGHT CAR NO.60) fail \\d{3,4}
+      // on purpose — those stay in the description.
+      var _wnr = /(\bCAB\b\s*)?(?:NO\.?|#)\s*(\d{3,4}(?:-[A-Z]{1,2})?)\b/gi, _wnm;
+      while ((_wnm = _wnr.exec(clean)) !== null) {
+        if (_wnm[1]) continue;            // CAB # #### -> road number, keep in description
+        var _wnh = _wnm[2].toUpperCase();
+        if (!seen[_wnh]) { seen[_wnh] = 1; out.push({ raw: _wnh, mfr: 'Williams' }); }
+      }
+    }
     if (out.some(function (c) { return !c.mfr; })) {
       var g = _mfrFromKeywords(clean);
       if (g) out.forEach(function (c) { if (!c.mfr) c.mfr = g; });
@@ -622,7 +654,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     if (/\bMENARDS\b/i.test(t)) return 'Menards';
     if (/\bK-?LINE\b/i.test(t)) return 'K-Line';
     if (/\bWILLIAMS\b/i.test(t)) return 'Williams';
-    if (/\bWEAVER\b/i.test(t)) return 'Weaver';
+    if (/\bWEAVER\b|quality\s+craft|bev-?bel/i.test(t)) return 'Weaver';
     if (/\bRMT\b|READY\s*MADE/i.test(t)) return 'RMT';
     return '';
   }
@@ -706,13 +738,33 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         var text = (ocr && ocr.data && ocr.data.text) || '';
         var cands = _extractItemNumberCandidates(text);
         if (!cands.length) {
+          // No catalog number on the box (common on Weaver/Quality Craft freight,
+          // which print only a description + road number). Offer the guessed
+          // description with a BLANK item number so the user can add/assign it.
+          var _dOnly = _bcDescriptionGuess(text, null);
+          if (_dOnly && _dOnly.replace(/[^a-z0-9]/gi, '').length >= 5) {
+            var _rd = { handled: true, itemNum: '', variation: '', notInMaster: true, noItemNum: true, manufacturer: _mfrFromKeywords(text) || '', labelDescription: _dOnly, description: _dOnly, statusMessage: 'No item number on the label — using the description' };
+            var _cd = await _bcConfirmCard(_rd);
+            if (_cd === 'use') { cleanup(); if (onFound) onFound(_rd); }
+            else if (_cd === 'manual') { cleanup(); if (onCancel) onCancel(); }
+            else { captureBtn.disabled = false; captureBtn.textContent = '📸 Capture'; statusEl.textContent = 'Aim at the item-number label — held right-side up — then tap Capture.'; }
+            return;
+          }
           statusEl.textContent = 'No item number found — hold the label right-side up, fill the dashed box, add light, hold steady, then Capture again.';
           captureBtn.disabled = false;
           captureBtn.textContent = '📸 Try again';
           return;
         }
-        // Resolve the first candidate against master data (cross-era).
-        var best = cands[0];
+        // If the box lists several variant numbers (e.g. Weaver 2-rail / 3-rail /
+        // with-sound), let the user pick which one is actually checked.
+        var best;
+        if (cands.length > 1) {
+          var _picked = await _bcPickCandidate(cands);
+          if (!_picked) { captureBtn.disabled = false; captureBtn.textContent = '📸 Capture'; statusEl.textContent = 'Aim at the item-number label — held right-side up — then tap Capture.'; return; }
+          best = _picked;
+        } else {
+          best = cands[0];
+        }
         var raw = best.raw;
         var labelDesc = _bcDescriptionGuess(text, raw);
         // Generate match-candidate variants: as-is, without 6- prefix, with 6- prefix.
@@ -772,7 +824,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   // the catalog. Rough by design — always shown for confirmation, never trusted.
   // Boilerplate / brand / feature-list / legal lines — never the road-name or
   // car-type we want in a description. Whole line is skipped if it matches.
-  var _BC_REJECT = /trademark|reproduced|under\s*licen|licensed|all\s*rights|patent|copyright|©|manufactured|made\s+(and|in)\b|litho|standards?\s+and\s+spec|gateway|corporation|model\s+railroad|accessories|\bfeatures?\b|for\s+ages|\bages?\s+\d|and\s+up\b|assembled|electric\s+trains|rail\s?king|www\.|https?:|\.com\b|set\s+contains|wheels?\s+and\s+axles|die-?cast|couplers?|\bcurves?\b|wheel\s+sets?|needlepoint|paint\s+schemes?|abs\s+bod|scale\s+dimension|(set|unit|car)\s+measures|fast-?angle|operates?\s+on|handrails|brake\s+wheels|proto-?sound|flywheel|transformers|electronic\s+(horn|reverse)|headlight|\bdcru\b|baked\s+enamel|stamped\s+steel|brass\s+trim|\bnickel\b|\bweighs\b|dimensions?:|each\s+car|sliding\s+car\s+door|mounting\s+pad|kadee|qty\s+per\s+case|proof\s+of\s+purchase|rolling\s+stock|master\s+(passenger|line|series|rolling)|premier\s+(locomotive|passenger|rolling)|founders?\s+series|motive\s+power|streamlighting|fully\s+furnished|furnished\s+interior|passenger\s+figures?|extruded\s+alum|legacy\s+(control|railsounds|and\s+bluetooth)|railsounds|freight\s?sounds|electro-?\s?coupler|bluetooth|\blvc\b|minimum\s+curve|sprung\s+trucks|opening\s+doors|all\s+new\s+road|activate\s+sounds|lionel\s+vision\s+line|powerhouse|circuit\s+breaker|over-?current|throttle|whistle\s+steam|fan-?driven|watts?\s+of\s+ac/i;
+  var _BC_REJECT = /trademark|reproduced|under\s*licen|licensed|all\s*rights|patent|copyright|©|manufactured|made\s+(and|in)\b|litho|standards?\s+and\s+spec|gateway|corporation|model\s+railroad|accessories|\bfeatures?\b|for\s+ages|\bages?\s+\d|and\s+up\b|assembled|electric\s+trains|rail\s?king|www\.|https?:|\.com\b|set\s+contains|wheels?\s+and\s+axles|die-?cast|couplers?|\bcurves?\b|wheel\s+sets?|needlepoint|paint\s+schemes?|abs\s+bod|scale\s+dimension|(set|unit|car)\s+measures|fast-?angle|operates?\s+on|handrails|brake\s+wheels|proto-?sound|flywheel|transformers|electronic\s+(horn|reverse)|headlight|\bdcru\b|baked\s+enamel|stamped\s+steel|brass\s+trim|\bnickel\b|\bweighs\b|dimensions?:|each\s+car|sliding\s+car\s+door|mounting\s+pad|kadee|qty\s+per\s+case|proof\s+of\s+purchase|rolling\s+stock|master\s+(passenger|line|series|rolling)|premier\s+(locomotive|passenger|rolling)|founders?\s+series|motive\s+power|streamlighting|fully\s+furnished|furnished\s+interior|passenger\s+figures?|extruded\s+alum|legacy\s+(control|railsounds|and\s+bluetooth)|railsounds|electro-?\s?coupler|bluetooth|\blvc\b|minimum\s+curve|sprung\s+trucks|opening\s+doors|all\s+new\s+road|activate\s+sounds|lionel\s+vision\s+line|powerhouse|circuit\s+breaker|over-?current|throttle|whistle\s+steam|fan-?driven|watts?\s+of\s+ac|quality\s+craft|weaver\s+models/i;
 
   function _bcDescGood(l) {
     if (!l) return false;
@@ -780,6 +832,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     var _tl = l.trim().toLowerCase().replace(/[^a-z0-9& ]/g,'').replace(/\s+/g,' ').trim();
     if (/^(atlas|lionel|mth|k-?line|williams|weaver|rmt|menards|locomotive|locomotives|aluminum|heavyweights?|streamlighting|premier|classic|o gauge|o scale|expansion pack|proof of purchase|visionline)$/.test(_tl)) return false;
     if (l.trim().length <= 22 && /^[\[(]?\s*\d\s*[- ]?\s*rail\b[\s\w\/]*[\])]?$/i.test(l.trim())) return false;
+    if (/^#\s*\d{1,6}$/.test(l.trim())) return true;   // bare road-number line (e.g. "#357") kept for the description
     var letters = (l.match(/[a-z]/gi) || []).length;
     var digits = (l.match(/\d/g) || []).length;
     return letters >= 4 && letters >= digits && !/^\$/.test(l) && l.length <= 60;
@@ -797,6 +850,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
               .replace(/for\s+ages\s+\d+\s*(and\s+up)?/gi, ' ')
               .replace(/for\s+\d+\s+years?\s+or\s+older/gi, ' ')
               .replace(/\bto\s+adult\b/gi, ' ')
+              .replace(/\b[0-9]\s*-?\s*rail\b/gi, ' ')
               .replace(/qty\s+per\s+case.*$/gi, ' ')
               .replace(/www\.[^\s]+|https?:\/\/[^\s]+/gi, ' ')
               .replace(/[™®]/g, '')
@@ -839,13 +893,39 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   }
 
   // ── Confirm-before-fill card (Session 180) ── resolves 'use' | 'rescan' | 'manual'
+  // Variant picker (2026-07-01): when a label lists several item numbers (Weaver
+  // 2-rail/3-rail/with-sound variants), show them all so the user taps the one that
+  // is actually checked. Resolves to the chosen {raw,mfr} candidate, or null.
+  function _bcPickCandidate(cands) {
+    return new Promise(function (resolve) {
+      var d = document.createElement('div');
+      d.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;padding:1rem';
+      var rows = cands.map(function (c, i) {
+        return '<button data-i="' + i + '" style="display:block;width:100%;text-align:left;margin-top:8px;padding:12px;border-radius:10px;border:1px solid var(--border,#444);background:#222;color:var(--text,#fff);font-family:var(--font-mono);font-size:1.05rem;font-weight:700;cursor:pointer">'
+          + _bcEsc(c.raw) + (c.mfr ? ' <span style="font-size:0.72rem;color:var(--text-dim,#999);font-weight:400">' + _bcEsc(c.mfr) + '</span>' : '') + '</button>';
+      }).join('');
+      d.innerHTML = '<div style="width:100%;max-width:420px;background:var(--surface,#1a1d3a);border:1px solid var(--border,#333);border-radius:16px;padding:18px;color:var(--text,#eee);font-family:var(--font-body,sans-serif)">'
+        + '<div style="font-size:0.95rem;font-weight:600;margin-bottom:4px">Which one is checked on the box?</div>'
+        + '<div style="font-size:0.78rem;color:var(--text-dim,#999);margin-bottom:6px">The label lists more than one number (2-rail / 3-rail / with sound). Tap the one that matches your item.</div>'
+        + rows
+        + '<button data-i="cancel" style="display:block;width:100%;margin-top:12px;padding:10px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);cursor:pointer">Cancel</button>'
+        + '</div>';
+      d.addEventListener('click', function (e) {
+        var t = e.target; while (t && t !== d && !(t.getAttribute && t.getAttribute('data-i'))) t = t.parentNode;
+        var v = t && t.getAttribute && t.getAttribute('data-i'); if (v === null || v === undefined) return;
+        d.remove(); resolve(v === 'cancel' ? null : cands[parseInt(v, 10)] || null);
+      });
+      document.body.appendChild(d);
+    });
+  }
+
   function _bcConfirmCard(info) {
     return new Promise(function (resolve) {
       var d = document.createElement('div');
       d.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;padding:1rem';
       var num = _bcEsc(info.itemNum || ''), mfr = _bcEsc(info.manufacturer || ''), desc = _bcEsc(info.description || '');
       d.innerHTML = '<div style="width:100%;max-width:420px;background:var(--surface,#1a1d3a);border:1px solid var(--border,#333);border-radius:16px;padding:18px;color:var(--text,#eee);font-family:var(--font-body,sans-serif)">'
-        + '<div style="font-size:0.78rem;color:var(--accent2,#c9922a);font-weight:600;margin-bottom:8px">' + (info.notInMaster ? 'Detected \u2014 not in your catalog' : 'Found it \u2014 use this?') + '</div>'
+        + '<div style="font-size:0.78rem;color:var(--accent2,#c9922a);font-weight:600;margin-bottom:8px">' + (info.noItemNum ? 'No item number on the label \u2014 add with this description?' : (info.notInMaster ? 'Detected \u2014 not in your catalog' : 'Found it \u2014 use this?')) + '</div>'
         + '<div style="font-family:var(--font-mono);font-size:1.15rem;font-weight:700;color:var(--accent,#e8401c)">' + num + (mfr ? ' <span style="font-size:0.72rem;color:var(--text-dim,#999);font-weight:400">' + mfr + '</span>' : '') + '</div>'
         + (desc ? '<div style="font-size:0.9rem;color:var(--text-mid,#ccc);margin-top:6px;line-height:1.4">' + desc + '</div>' : '<div style="font-size:0.8rem;color:var(--text-dim,#999);margin-top:6px">No description read from the label.</div>')
         + (info.notInMaster && info.description ? '<div style="font-size:0.7rem;color:var(--text-dim,#999);margin-top:5px">read from the label \u2014 you can edit it in the next steps.</div>' : '')
