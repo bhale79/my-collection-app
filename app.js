@@ -465,6 +465,41 @@ function getDieselConfigs(itemNum) {
   const p = _getPartner(itemNum);
   return p ? p.configs : [];
 }
+
+// ── Grouping options — SINGLE SOURCE OF TRUTH (Decision Map #1) ──
+// Given an item number, returns the grouping buttons it can use: [{id,label}].
+// Steam engines -> Engine Only / Engine + Tender. Alco/F-3 diesels -> A Powered /
+// A Dummy (+ AA/AB/ABA from partnerMap configs). Steam↔diesel COLLISION numbers
+// (221, 224) get BOTH sets; a Steam/Diesel Type filter disambiguates a collision.
+// Callers: _updateGroupingButtons (wizard-handlers.js), _qe1RenderGrouping
+// (wizard.js), _hasGrouping (app-collection.js). Update RAIL_ROSTER_DECISION_MAP.md
+// if this changes.
+function getGroupingOptions(itemNum, typeFilter) {
+  var base = String(itemNum || '').trim().replace(/-(P|D)$/i, '');
+  if (!base) return [];
+  var hasTenders = (typeof getMatchingTenders === 'function') && getMatchingTenders(base).length > 0;
+  var isF3Alco   = (typeof isF3AlcoUnit === 'function') && isF3AlcoUnit(base);
+  var isBUnit    = /C$/i.test(base);
+  var cfgs       = (typeof getDieselConfigs === 'function') ? (getDieselConfigs(base) || []) : [];
+  var steam  = !!hasTenders;
+  var diesel = !!isF3Alco && !isBUnit;
+  var ft = String(typeFilter != null ? typeFilter
+              : ((typeof state !== 'undefined' && state.filters && state.filters.type) || '')).toLowerCase();
+  var filtSteam = ft.indexOf('steam') >= 0, filtDiesel = ft.indexOf('diesel') >= 0;
+  if (steam && diesel) {
+    if (filtSteam && !filtDiesel) diesel = false;
+    else if (filtDiesel && !filtSteam) steam = false;
+  }
+  var btns = [];
+  if (steam) btns.push({ id: 'engine', label: 'Engine Only' }, { id: 'engine_tender', label: 'Engine + Tender' });
+  if (diesel) {
+    btns.push({ id: 'a_powered', label: 'A Powered' }, { id: 'a_dummy', label: 'A Dummy' });
+    if (cfgs.indexOf('AA')  >= 0) btns.push({ id: 'aa',  label: 'AA set'  });
+    if (cfgs.indexOf('AB')  >= 0) btns.push({ id: 'ab',  label: 'AB set'  });
+    if (cfgs.indexOf('ABA') >= 0) btns.push({ id: 'aba', label: 'ABA set' });
+  }
+  return btns;
+}
 function getGroupMembers(itemNum) {
   const pd = Object.values(state.personalData).find(p => p.itemNum === itemNum);
   if (!pd || !pd.groupId) return [];

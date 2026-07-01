@@ -45,42 +45,8 @@ function _updateGroupingButtons() {
   const _baseNum = itemNum.replace(/-(P|D)$/i, '');
   if (!itemNum) { container.style.display = 'none'; return; }
   
-  // Determine item type from master data sub-type
-  const hasTenders = getMatchingTenders(_baseNum).length > 0;
-  const hasLocos = getMatchingLocos(_baseNum).length > 0;
-  const isF3Alco = isF3AlcoUnit(_baseNum);
-  const isBUnit = _baseNum.endsWith('C');
-
-  // Use partnerMap for diesel configs
-  const _dieselConfigs = typeof getDieselConfigs === 'function' ? getDieselConfigs(_baseNum) : [];
-  const _hasAA  = _dieselConfigs.includes('AA');
-  const _hasAB  = _dieselConfigs.includes('AB');
-  const _hasABA = _dieselConfigs.includes('ABA');
-
-  let buttons = [];
-
-  // Steam/diesel COLLISION numbers (e.g. 221, 224 — both a 2-6-2 steam AND an
-  // Alco diesel) get BOTH sets of options. A browse Type filter (Steam/Diesel)
-  // narrows a collision to just that type. Mirrors _qe1RenderGrouping (wizard.js).
-  let _steamOpts  = hasTenders;             // has a tender pairing -> steam engine
-  let _dieselOpts = isF3Alco && !isBUnit;   // Alco/F3 A-unit -> diesel
-  const _ft = ((state.filters && state.filters.type) || '').toLowerCase();
-  const _filtSteam  = _ft.indexOf('steam')  !== -1;
-  const _filtDiesel = _ft.indexOf('diesel') !== -1;
-  if (_steamOpts && _dieselOpts) {
-    if (_filtSteam && !_filtDiesel) _dieselOpts = false;
-    else if (_filtDiesel && !_filtSteam) _steamOpts = false;
-  }
-  if (_steamOpts) {
-    buttons.push({ id: 'engine', label: 'Engine Only' }, { id: 'engine_tender', label: 'Engine + Tender' });
-  }
-  if (_dieselOpts) {
-    buttons.push({ id: 'a_powered', label: 'A Powered' }, { id: 'a_dummy', label: 'A Dummy' });
-    if (_hasAA)  buttons.push({ id: 'aa',  label: 'AA set'  });
-    if (_hasAB)  buttons.push({ id: 'ab',  label: 'AB set'  });
-    if (_hasABA) buttons.push({ id: 'aba', label: 'ABA set' });
-  }
-  // (standalone tender: hasLocos but no tenders of its own / not diesel -> no buttons)
+  // Grouping options — SINGLE SOURCE OF TRUTH (Decision Map #1, getGroupingOptions in app.js).
+  let buttons = (typeof getGroupingOptions === 'function') ? getGroupingOptions(itemNum) : [];
 
   const current = wizard.data._itemGrouping || '';
   const _boxSelected = wizard.data.boxOnly || false;

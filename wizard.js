@@ -1816,35 +1816,8 @@ function renderWizardStep() {
       if (!cont) return;
       var num = (wizard.data.itemNum || '').trim();
       if (!num) { cont.style.display = 'none'; return; }
-      var hasTenders = getMatchingTenders(num).length > 0;
-      var isF3 = isF3AlcoUnit(num);
-      var isBU = num.endsWith('C');
-      var _qp = _qe1Partners(num);
-      var _steamOpts = hasTenders;
-      var _dieselOpts = (isF3 || _qp.dummy || _qp.bunit) && !isBU;
-      // When a number is used by BOTH a steam loco AND an Alco diesel (e.g. 221, 224)
-      // and the user has the Type filter set to Steam or Diesel, honor that filter so
-      // only the matching grouping shows. The filter only DISAMBIGUATES a collision —
-      // it never removes the sole valid option for a pure-steam or pure-diesel number.
-      var _ft = ((state.filters && state.filters.type) || '').toLowerCase();
-      var _filtSteam = _ft.indexOf('steam') >= 0, _filtDiesel = _ft.indexOf('diesel') >= 0;
-      if (_steamOpts && _dieselOpts) {
-        if (_filtSteam && !_filtDiesel) _dieselOpts = false;
-        else if (_filtDiesel && !_filtSteam) _steamOpts = false;
-      }
-      var btns = [];
-      // Steam (or any loco with a matching tender) — engine / engine+tender.
-      if (_steamOpts) {
-        btns.push({ id: 'engine', label: 'Engine only' }, { id: 'engine_tender', label: 'Engine + Tender' });
-      }
-      // Alco/F-3 diesel that comes in A / AA / AB / ABA (driven off real partner data —
-      // role tags +T/+C + the companion A-Dummy/B-Unit rows).
-      if (_dieselOpts) {
-        btns.push({ id: 'a_powered', label: 'A Powered' }, { id: 'a_dummy', label: 'A Dummy' });
-        if (_qp.dummy) btns.push({ id: 'aa',  label: 'AA set'  });
-        if (_qp.bunit) btns.push({ id: 'ab',  label: 'AB set'  });
-        if (_qp.dummy && _qp.bunit) btns.push({ id: 'aba', label: 'ABA set' });
-      }
+      // Grouping options — SINGLE SOURCE OF TRUTH (Decision Map #1, getGroupingOptions in app.js).
+      var btns = (typeof getGroupingOptions === 'function') ? getGroupingOptions(num) : [];
       if (!btns.length) { cont.style.display = 'none'; return; }
       cont.style.display = 'block';
       var cur = wizard.data._itemGrouping || '';
