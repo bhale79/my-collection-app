@@ -1366,6 +1366,9 @@ function _wizScanLabel() {
       wizard.data._era = result.masterItem._era;
     }
     if (result.notInMaster) {
+      // Session 180: pre-fill the description read off the label (editable in the
+      // manual-entry Description step) so the user does not retype it.
+      if (result.labelDescription && !wizard.data.manualDesc) wizard.data.manualDesc = result.labelDescription;
       showToast && showToast(result.statusMessage || 'Detected — fill in details manually', 3500);
       renderWizardStep();
       return;

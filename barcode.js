@@ -209,7 +209,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1rem';
     overlay.innerHTML = `
       <div style="width:100%;max-width:520px;display:flex;flex-direction:column;gap:1rem;align-items:center">
-        <div style="color:#fff;font-family:var(--font-head,sans-serif);font-size:1.1rem;text-align:center">📷 Scan the barcode</div>
+        <div style="color:#fff;font-family:var(--font-head,sans-serif);font-size:1.1rem;text-align:center;position:relative;width:100%">📷 Scan the barcode<button id="bc-help" type="button" style="position:absolute;right:0;top:-4px;background:rgba(255,255,255,0.12);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:1rem;cursor:pointer">?</button></div>
         <div style="position:relative;width:100%;aspect-ratio:4/3;background:#000;border-radius:12px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
           <video id="bc-video" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover"></video>
           <div style="position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center">
@@ -229,6 +229,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     const statusEl = overlay.querySelector('#bc-status');
     const cancelBtn = overlay.querySelector('#bc-cancel');
     const manualBtn = overlay.querySelector('#bc-manual');
+    const helpBtn = overlay.querySelector('#bc-help'); if (helpBtn) helpBtn.onclick = () => _bcHelpPanel('barcode');
 
     let stream = null;
     let stopScanning = false;
@@ -295,7 +296,14 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             if (result.handled) {
               statusEl.textContent = result.statusMessage || 'Detected!';
               statusEl.style.color = result.error ? '#ff9580' : '#a6e87e';
-              await new Promise(r => setTimeout(r, 350));
+              await new Promise(r => setTimeout(r, 300));
+              if (result.itemNum) {
+                stopScanning = true;
+                const _bcChoice = await _bcConfirmCard({ itemNum: result.itemNum, manufacturer: result.manufacturer, description: (result.masterItem && result.masterItem.description) || '', notInMaster: result.notInMaster });
+                if (_bcChoice === 'use') { cleanup(); if (onScanned) onScanned(result); return; }
+                if (_bcChoice === 'manual') { cleanup(); if (onCancel) onCancel(); return; }
+                cleanup(); openBarcodeScanner(onScanned, onCancel, eraHint); return;
+              }
               cleanup();
               if (onScanned) onScanned(result);
               return;
@@ -550,6 +558,10 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     { re: /\b(?:10|20|30|40|50|60|70|80|90)[\s\-]\d{4,5}(?:[\s\-]\d{1,3}|[A-Z])?\b/g, mfr: 'MTH'    },
     // Menards Gold Line — 275-XXXX or 279-XXXX (per Brad's samples)
     { re: /\b(?:275|279)[\s\-]\d{4}\b/g,                          mfr: 'Menards'},
+    // Generic "Item #…" fallback (Session 180) — any box that prints an explicit
+    // item number: Atlas "Item #0526-1", etc. Captures just the number after the #.
+    // Listed LAST so a specific-maker match above wins the de-dupe.
+    { re: /\bItem\s*#\s*([0-9][0-9A-Za-z]*(?:-[0-9A-Za-z]+)*)\b/gi, mfr: '', cap: 1 },
   ];
   // Session 169: strip UPC-shaped digit runs before extracting candidates.
   // UPCs are 12 or 13 digits, often printed with single-digit spacing
@@ -574,13 +586,33 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       // Reset lastIndex because the regex objects are reused.
       p.re.lastIndex = 0;
       while ((m = p.re.exec(clean)) !== null) {
-        var hit = m[0].replace(/\s+/g, '-').toUpperCase();
+        var raw0 = (p.cap && m[p.cap]) ? m[p.cap] : m[0];
+        var hit = raw0.replace(/\s+/g, '-').toUpperCase();
         if (seen[hit]) continue;
         seen[hit] = 1;
         out.push({ raw: hit, mfr: p.mfr });
       }
     });
+    if (out.some(function (c) { return !c.mfr; })) {
+      var g = _mfrFromKeywords(clean);
+      if (g) out.forEach(function (c) { if (!c.mfr) c.mfr = g; });
+    }
     return out;
+  }
+
+  // Session 180: guess the maker from words printed on the box, for candidates
+  // that came from the generic "Item #" catch (which carries no maker).
+  function _mfrFromKeywords(t) {
+    t = String(t || '');
+    if (/\bATLAS\b/i.test(t)) return 'Atlas';
+    if (/\bLIONEL\b/i.test(t)) return 'Lionel';
+    if (/\bMTH\b|M\.?T\.?H\./i.test(t)) return 'MTH';
+    if (/\bMENARDS\b/i.test(t)) return 'Menards';
+    if (/\bK-?LINE\b/i.test(t)) return 'K-Line';
+    if (/\bWILLIAMS\b/i.test(t)) return 'Williams';
+    if (/\bWEAVER\b/i.test(t)) return 'Weaver';
+    if (/\bRMT\b|READY\s*MADE/i.test(t)) return 'RMT';
+    return '';
   }
 
   async function openLabelScanner(onFound, onCancel) {
@@ -614,7 +646,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:99999;'
       + 'display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1rem;gap:0.85rem';
     overlay.innerHTML = ''
-      + '<div style="color:#fff;font-family:var(--font-head,sans-serif);font-size:1.1rem">📷 Scan Item Label</div>'
+      + '<div style="color:#fff;font-family:var(--font-head,sans-serif);font-size:1.1rem;position:relative;width:100%;max-width:520px;text-align:center">📷 Scan Item Label<button id="lbl-help" type="button" style="position:absolute;right:0;top:-4px;background:rgba(255,255,255,0.12);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:1rem;cursor:pointer">?</button></div>'
       + '<div style="position:relative;width:100%;max-width:520px">'
       + '  <video id="lbl-video" autoplay playsinline muted style="width:100%;border-radius:12px;background:#000"></video>'
       + '  <div style="position:absolute;inset:8% 12%;border:2px dashed rgba(255,255,255,0.6);border-radius:10px;pointer-events:none"></div>'
@@ -635,6 +667,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     }
     var statusEl = document.getElementById('lbl-status');
     document.getElementById('lbl-cancel').onclick = function() { cleanup(); if (onCancel) onCancel(); };
+    var _lblHelp = document.getElementById('lbl-help'); if (_lblHelp) _lblHelp.onclick = function(){ _bcHelpPanel('label'); };
     document.getElementById('lbl-capture').onclick = async function() {
       var captureBtn = this;
       captureBtn.disabled = true;
@@ -661,7 +694,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         var text = (ocr && ocr.data && ocr.data.text) || '';
         var cands = _extractItemNumberCandidates(text);
         if (!cands.length) {
-          statusEl.textContent = 'No item number detected — try again or type manually.';
+          statusEl.textContent = 'No item number found — fill the dashed box with the label, add light, hold steady, then Capture again.';
           captureBtn.disabled = false;
           captureBtn.textContent = '📸 Try again';
           return;
@@ -669,6 +702,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // Resolve the first candidate against master data (cross-era).
         var best = cands[0];
         var raw = best.raw;
+        var labelDesc = _bcDescriptionGuess(text, raw);
         // Generate match-candidate variants: as-is, without 6- prefix, with 6- prefix.
         var lookupCands = [raw];
         if (raw.indexOf('6-') === 0) lookupCands.push(raw.substring(2));
@@ -679,15 +713,11 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         var hits = await _findMasterItemsExact(lookupCands);
         if (hits.length === 1) {
           var m = hits[0];
-          cleanup();
-          if (onFound) onFound({
-            handled: true,
-            itemNum: m.itemNum,
-            variation: m.variation || '',
-            masterItem: m,
-            manufacturer: best.mfr,
-            statusMessage: 'Found ' + m.itemNum + ' — ' + (m.description || '').substring(0, 40),
-          });
+          var _r1 = { handled: true, itemNum: m.itemNum, variation: m.variation || '', masterItem: m, manufacturer: best.mfr, description: (m.description || ''), statusMessage: 'Found ' + m.itemNum + ' — ' + (m.description || '').substring(0, 40) };
+          var _c1 = await _bcConfirmCard(_r1);
+          if (_c1 === 'use') { cleanup(); if (onFound) onFound(_r1); }
+          else if (_c1 === 'manual') { cleanup(); if (onCancel) onCancel(); }
+          else { captureBtn.disabled = false; captureBtn.textContent = '📸 Capture'; statusEl.textContent = 'Aim camera at the item-number label, then tap Capture.'; }
           return;
         }
         if (hits.length > 1) {
@@ -710,22 +740,88 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           }
           return;
         }
-        // No hit in master — return the raw candidate so wizard pre-fills it.
-        cleanup();
-        if (onFound) onFound({
-          handled: true,
-          itemNum: raw,
-          variation: '',
-          notInMaster: true,
-          manufacturer: best.mfr,
-          statusMessage: 'Detected ' + raw + ' — not in our catalog, adding manually…',
-        });
+        // No hit in master — offer raw candidate + label description for confirm.
+        var _r0 = { handled: true, itemNum: raw, variation: '', notInMaster: true, manufacturer: best.mfr, labelDescription: labelDesc, description: labelDesc, statusMessage: 'Detected ' + raw + ' — not in our catalog, adding manually…' };
+        var _c0 = await _bcConfirmCard(_r0);
+        if (_c0 === 'use') { cleanup(); if (onFound) onFound(_r0); }
+        else if (_c0 === 'manual') { cleanup(); if (onCancel) onCancel(); }
+        else { captureBtn.disabled = false; captureBtn.textContent = '📸 Capture'; statusEl.textContent = 'Aim camera at the item-number label, then tap Capture.'; }
       } catch (e) {
         statusEl.textContent = 'Scan failed: ' + (e && e.message ? e.message : 'unknown error');
         captureBtn.disabled = false;
         captureBtn.textContent = '📸 Try again';
       }
     };
+  }
+
+  // ── Description guess from OCR label text (Session 180) ──
+  // Pulls the meaningful words off the label (minus the item#, UPC digit-runs,
+  // prices and noise) as an EDITABLE starting description for items not yet in
+  // the catalog. Rough by design — always shown for confirmation, never trusted.
+  function _bcDescriptionGuess(text, itemNumRaw) {
+    if (!text) return '';
+    var t = _stripUPCs(String(text));
+    if (itemNumRaw) {
+      try { t = t.replace(new RegExp(String(itemNumRaw).replace(/[-\s]/g, '[-\\s]?').replace(/[.*+?^${}()|[\]\\]/g, function(c){return c;}), 'gi'), ' '); } catch (e) {}
+    }
+    t = t.replace(/\bItem\s*#?/gi, ' ').replace(/\bNo\.\s*#?/gi, ' ');
+    var lines = t.split(/[\n\r]+/).map(function (l) {
+      return l.replace(/\s+/g, ' ').replace(/^[\s\-\u2013\u2014:]+/, '').trim();
+    });
+    var good = [];
+    lines.forEach(function (l) {
+      if (/trademark|reproduced|under\s*licen|licensed|all\s*rights|patent|copyright|\u00a9/i.test(l)) return;
+      var letters = (l.match(/[a-z]/gi) || []).length;
+      var digits = (l.match(/\d/g) || []).length;
+      if (letters >= 4 && letters >= digits && !/^\$?\d/.test(l) && l.length <= 60) good.push(l);
+    });
+    if (!good.length) return '';
+    var ranked = good.slice().sort(function (a, b) { return b.length - a.length; }).slice(0, 2);
+    var picked = good.filter(function (l) { return ranked.indexOf(l) >= 0; });
+    var desc = picked.join(' - ').replace(/[|_~`^]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 90);
+    return desc;
+  }
+
+  // ── Confirm-before-fill card (Session 180) ── resolves 'use' | 'rescan' | 'manual'
+  function _bcConfirmCard(info) {
+    return new Promise(function (resolve) {
+      var d = document.createElement('div');
+      d.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;padding:1rem';
+      var num = _bcEsc(info.itemNum || ''), mfr = _bcEsc(info.manufacturer || ''), desc = _bcEsc(info.description || '');
+      d.innerHTML = '<div style="width:100%;max-width:420px;background:var(--surface,#1a1d3a);border:1px solid var(--border,#333);border-radius:16px;padding:18px;color:var(--text,#eee);font-family:var(--font-body,sans-serif)">'
+        + '<div style="font-size:0.78rem;color:var(--accent2,#c9922a);font-weight:600;margin-bottom:8px">' + (info.notInMaster ? 'Detected \u2014 not in your catalog' : 'Found it \u2014 use this?') + '</div>'
+        + '<div style="font-family:var(--font-mono);font-size:1.15rem;font-weight:700;color:var(--accent,#e8401c)">' + num + (mfr ? ' <span style="font-size:0.72rem;color:var(--text-dim,#999);font-weight:400">' + mfr + '</span>' : '') + '</div>'
+        + (desc ? '<div style="font-size:0.9rem;color:var(--text-mid,#ccc);margin-top:6px;line-height:1.4">' + desc + '</div>' : '<div style="font-size:0.8rem;color:var(--text-dim,#999);margin-top:6px">No description read from the label.</div>')
+        + (info.notInMaster && info.description ? '<div style="font-size:0.7rem;color:var(--text-dim,#999);margin-top:5px">read from the label \u2014 you can edit it in the next steps.</div>' : '')
+        + '<button data-a="use" style="display:block;width:100%;margin-top:14px;padding:12px;border-radius:10px;border:2px solid var(--accent,#e8401c);background:rgba(232,64,28,0.12);color:var(--text,#fff);font-weight:600;font-size:0.95rem;cursor:pointer">Use this</button>'
+        + '<div style="display:flex;gap:8px;margin-top:8px">'
+        + '<button data-a="rescan" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);cursor:pointer">Rescan</button>'
+        + '<button data-a="manual" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);cursor:pointer">Type it instead</button>'
+        + '</div></div>';
+      d.addEventListener('click', function (e) { var a = e.target && e.target.getAttribute && e.target.getAttribute('data-a'); if (a) { d.remove(); resolve(a); } });
+      document.body.appendChild(d);
+    });
+  }
+
+  // ── Help / info panel (Session 180) ──
+  function _bcHelpPanel(kind) {
+    var isLabel = kind === 'label';
+    var d = document.createElement('div');
+    d.style.cssText = 'position:fixed;inset:0;z-index:100001;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:1rem';
+    var body = isLabel
+      ? '<p><strong style="color:var(--text,#fff)">What it does:</strong> reads the printed item number \u2014 and, when it can, the description \u2014 off your box/label using on-device text recognition.</p>'
+        + '<p><strong style="color:var(--text,#fff)">Works for:</strong> Lionel (6-####), MTH (10/20/\u2026-####), K-Line, RMT, Menards Gold Line (275/279-####), plus Atlas and any box that prints “Item #…”. Other makers: type the number.</p>'
+        + '<p><strong style="color:var(--text,#fff)">Tips:</strong> fill the dashed box with the label, use good even light, avoid glare, hold steady, then tap Capture.</p>'
+        + '<p>You will get a confirm screen \u2014 nothing is filled in until you say so.</p>'
+      : '<p><strong style="color:var(--text,#fff)">What it does:</strong> reads the UPC / SKU barcode and looks the item up in your catalog. Your camera stays on your device.</p>'
+        + '<p><strong style="color:var(--text,#fff)">Works for:</strong> Lionel UPCs and MTH SKU barcodes (10-####). Other makers: type the number for now.</p>'
+        + '<p><strong style="color:var(--text,#fff)">Tips:</strong> center the barcode in the dashed box, hold steady, good light. You will confirm the result before it fills.</p>';
+    d.innerHTML = '<div style="max-width:420px;background:var(--surface,#1a1d3a);border-radius:16px;padding:18px;color:var(--text-mid,#ddd);font-size:0.88rem;line-height:1.5;font-family:var(--font-body,sans-serif)">'
+      + '<div style="font-size:1.05rem;font-weight:600;color:var(--text,#fff);margin-bottom:10px">' + (isLabel ? 'Scan Label \u2014 help' : 'Scan Barcode \u2014 help') + '</div>'
+      + body
+      + '<button data-close="1" style="display:block;width:100%;margin-top:12px;padding:11px;border-radius:10px;border:2px solid var(--accent,#e8401c);background:rgba(232,64,28,0.12);color:var(--text,#fff);font-weight:600;cursor:pointer">Got it</button></div>';
+    d.addEventListener('click', function (e) { if ((e.target.getAttribute && e.target.getAttribute('data-close')) || e.target === d) d.remove(); });
+    document.body.appendChild(d);
   }
 
   function _makeBusyOverlay(msg) {
@@ -740,5 +836,5 @@ window.eraSupportsBarcode = eraSupportsBarcode;
 
   window.openLabelScanner = openLabelScanner;
   window._extractItemNumberCandidates = _extractItemNumberCandidates;
-  window._barcodeDebug = { decodeBarcode, findMasterItem, findMasterItems, showCandidatePicker, UPC_PREFIXES };
+  window._barcodeDebug = { decodeBarcode, findMasterItem, findMasterItems, showCandidatePicker, UPC_PREFIXES, _bcDescriptionGuess, _extractItemNumberCandidates };
 })();
