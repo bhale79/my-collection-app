@@ -550,8 +550,10 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   var ITEM_PATTERNS = [
     // RMT — always starts with the RMT marker
     { re: /\bRMT[\s\-]\d{3,5}(?:[\s\-]\d{1,4})?\b/g,         mfr: 'RMT' },
-    // K-Line — "K" + 4-5 digits + dash + 4-5 digits + optional letter pair
-    { re: /\bK\d{4,5}[\s\-]\d{4,5}[A-Z]{0,2}\b/gi,             mfr: 'K-Line' },
+    // K-Line — covers K90002, K643401, K-7502, K-26002, K617-1055, K70-7507,
+    //   K4650- 40001 (dash+space), K6434A (trailing letter), K-3810-09135 (two-dash).
+    //   Trailing (?!...\d{2}[A-Za-z]) rejects proof-of-purchase codes like K3400-98DC.
+    { re: /\bK(?:[\s\-]?\d{2,6})(?:[\s\-]+\d{3,6})*[A-Z]{0,2}\b(?![\s\-]*\d{2}[A-Za-z])/gi, mfr: 'K-Line' },
     // Lionel — starts with "6-" or "6 ", followed by 4-6 digits
     { re: /\b6[\s\-]\d{4,6}\b/g,                                  mfr: 'Lionel' },
     // MTH — known scale-line prefixes 10/20/30/40/50/60/70/80/90, then 4-5 digits, optional -N or trailing letter
@@ -651,7 +653,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       + '  <video id="lbl-video" autoplay playsinline muted style="width:100%;border-radius:12px;background:#000"></video>'
       + '  <div style="position:absolute;inset:8% 12%;border:2px dashed rgba(255,255,255,0.6);border-radius:10px;pointer-events:none"></div>'
       + '</div>'
-      + '<div id="lbl-status" style="color:#ccc;font-size:0.85rem;text-align:center;min-height:1.4em">Aim camera at the item-number label, then tap Capture.</div>'
+      + '<div id="lbl-status" style="color:#ccc;font-size:0.85rem;text-align:center;min-height:1.4em">Aim at the item-number label — held right-side up — then tap Capture.</div>'
       + '<div style="display:flex;gap:0.6rem;width:100%;max-width:520px">'
       + '  <button id="lbl-cancel" style="flex:1;padding:0.75rem;border-radius:9px;border:1.5px solid #555;background:transparent;color:#ccc;font-family:var(--font-head,sans-serif);font-size:0.9rem;cursor:pointer">Cancel</button>'
       + '  <button id="lbl-capture" style="flex:2;padding:0.85rem;border-radius:9px;border:none;background:var(--accent,#e8401c);color:#fff;font-family:var(--font-head,sans-serif);font-size:1rem;font-weight:700;cursor:pointer">📸 Capture</button>'
@@ -694,7 +696,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         var text = (ocr && ocr.data && ocr.data.text) || '';
         var cands = _extractItemNumberCandidates(text);
         if (!cands.length) {
-          statusEl.textContent = 'No item number found — fill the dashed box with the label, add light, hold steady, then Capture again.';
+          statusEl.textContent = 'No item number found — hold the label right-side up, fill the dashed box, add light, hold steady, then Capture again.';
           captureBtn.disabled = false;
           captureBtn.textContent = '📸 Try again';
           return;
@@ -717,7 +719,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           var _c1 = await _bcConfirmCard(_r1);
           if (_c1 === 'use') { cleanup(); if (onFound) onFound(_r1); }
           else if (_c1 === 'manual') { cleanup(); if (onCancel) onCancel(); }
-          else { captureBtn.disabled = false; captureBtn.textContent = '📸 Capture'; statusEl.textContent = 'Aim camera at the item-number label, then tap Capture.'; }
+          else { captureBtn.disabled = false; captureBtn.textContent = '📸 Capture'; statusEl.textContent = 'Aim at the item-number label — held right-side up — then tap Capture.'; }
           return;
         }
         if (hits.length > 1) {
@@ -745,7 +747,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         var _c0 = await _bcConfirmCard(_r0);
         if (_c0 === 'use') { cleanup(); if (onFound) onFound(_r0); }
         else if (_c0 === 'manual') { cleanup(); if (onCancel) onCancel(); }
-        else { captureBtn.disabled = false; captureBtn.textContent = '📸 Capture'; statusEl.textContent = 'Aim camera at the item-number label, then tap Capture.'; }
+        else { captureBtn.disabled = false; captureBtn.textContent = '📸 Capture'; statusEl.textContent = 'Aim at the item-number label — held right-side up — then tap Capture.'; }
       } catch (e) {
         statusEl.textContent = 'Scan failed: ' + (e && e.message ? e.message : 'unknown error');
         captureBtn.disabled = false;
@@ -760,11 +762,14 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   // the catalog. Rough by design — always shown for confirmation, never trusted.
   // Boilerplate / brand / feature-list / legal lines — never the road-name or
   // car-type we want in a description. Whole line is skipped if it matches.
-  var _BC_REJECT = /trademark|reproduced|under\s*licen|licensed|all\s*rights|patent|copyright|©|manufactured|made\s+(and|in)\b|litho|standards?\s+and\s+spec|gateway|corporation|model\s+railroad|accessories|\bfeatures?\b|for\s+ages|\bages?\s+\d|and\s+up\b|assembled|electric\s+trains|rail\s?king|www\.|https?:|\.com\b|set\s+contains|wheels?\s+and\s+axles|die-?cast|couplers?|\bcurves?\b|wheel\s+sets?|needlepoint|paint\s+schemes?|abs\s+bod|scale\s+dimension|(set|unit|car)\s+measures|fast-?angle|operates?\s+on|handrails|brake\s+wheels|proto-?sound|flywheel|transformers|electronic\s+(horn|reverse)|headlight|\bdcru\b|baked\s+enamel|stamped\s+steel|brass\s+trim|\bnickel\b|\bweighs\b|dimensions?:|each\s+car|sliding\s+car\s+door|mounting\s+pad|kadee|qty\s+per\s+case/i;
+  var _BC_REJECT = /trademark|reproduced|under\s*licen|licensed|all\s*rights|patent|copyright|©|manufactured|made\s+(and|in)\b|litho|standards?\s+and\s+spec|gateway|corporation|model\s+railroad|accessories|\bfeatures?\b|for\s+ages|\bages?\s+\d|and\s+up\b|assembled|electric\s+trains|rail\s?king|www\.|https?:|\.com\b|set\s+contains|wheels?\s+and\s+axles|die-?cast|couplers?|\bcurves?\b|wheel\s+sets?|needlepoint|paint\s+schemes?|abs\s+bod|scale\s+dimension|(set|unit|car)\s+measures|fast-?angle|operates?\s+on|handrails|brake\s+wheels|proto-?sound|flywheel|transformers|electronic\s+(horn|reverse)|headlight|\bdcru\b|baked\s+enamel|stamped\s+steel|brass\s+trim|\bnickel\b|\bweighs\b|dimensions?:|each\s+car|sliding\s+car\s+door|mounting\s+pad|kadee|qty\s+per\s+case|proof\s+of\s+purchase|rolling\s+stock|master\s+(passenger|line|series|rolling)|premier\s+(locomotive|passenger|rolling)|founders?\s+series|motive\s+power|streamlighting|fully\s+furnished|furnished\s+interior|passenger\s+figures?|extruded\s+alum/i;
 
   function _bcDescGood(l) {
     if (!l) return false;
     if (_BC_REJECT.test(l)) return false;
+    var _tl = l.trim().toLowerCase().replace(/[^a-z0-9& ]/g,'').replace(/\s+/g,' ').trim();
+    if (/^(atlas|lionel|mth|k-?line|williams|weaver|rmt|menards|locomotive|locomotives|aluminum|heavyweights?|streamlighting|premier|classic|o gauge|o scale|expansion pack|proof of purchase)$/.test(_tl)) return false;
+    if (l.trim().length <= 22 && /^[\[(]?\s*\d\s*[- ]?\s*rail\b[\s\w\/]*[\])]?$/i.test(l.trim())) return false;
     var letters = (l.match(/[a-z]/gi) || []).length;
     var digits = (l.match(/\d/g) || []).length;
     return letters >= 4 && letters >= digits && !/^\$/.test(l) && l.length <= 60;
@@ -849,7 +854,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     var body = isLabel
       ? '<p><strong style="color:var(--text,#fff)">What it does:</strong> reads the printed item number \u2014 and, when it can, the description \u2014 off your box/label using on-device text recognition.</p>'
         + '<p><strong style="color:var(--text,#fff)">Works for:</strong> Lionel (6-####), MTH (10/20/\u2026-####), K-Line, RMT, Menards Gold Line (275/279-####), plus Atlas and any box that prints “Item #…”. Other makers: type the number.</p>'
-        + '<p><strong style="color:var(--text,#fff)">Tips:</strong> fill the dashed box with the label, use good even light, avoid glare, hold steady, then tap Capture.</p>'
+        + '<p><strong style="color:var(--text,#fff)">Tips:</strong> hold the label right-side up (OCR can’t read upside-down text), fill the dashed box, use good even light, avoid glare, hold steady, then tap Capture.</p>'
         + '<p>You will get a confirm screen \u2014 nothing is filled in until you say so.</p>'
       : '<p><strong style="color:var(--text,#fff)">What it does:</strong> reads the UPC / SKU barcode and looks the item up in your catalog. Your camera stays on your device.</p>'
         + '<p><strong style="color:var(--text,#fff)">Works for:</strong> Lionel UPCs and MTH SKU barcodes (10-####). Other makers: type the number for now.</p>'
