@@ -615,6 +615,21 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         if (!seen[_wh]) { seen[_wh] = 1; out.push({ raw: _wh, mfr: 'Weaver' }); }
       }
     }
+    // RMT / Ready Made Trains / American Railroad Legends (ex-Aristo-Craft) catalog #s.
+    // Gated on RMT/ARL context. Leading catalog number is the item number; the
+    // #road-number (#12453) stays in the description. Master convention (Brad
+    // 2026-07-01): store with an "RMT-" prefix, DROP a trailing letter (96422A ->
+    // RMT-96422), KEEP a -numeric suffix (92433-3 -> RMT-92433-3). Matches the 397
+    // existing RMT-O rows so the catalog lookup lines up. No regex lookbehind
+    // (older mobile Safari lacks it) - check the prior char in JS.
+    if (/\bRMT\b|ready\s+made\s+trains|american\s+railroad\s+legends|\bBOPPER\b|\bBEEP\b|aristo/i.test(clean)) {
+      var _rre = /\b(9\d{4})([A-Z])?((?:-\d{1,3})?)\b/g, _rm;
+      while ((_rm = _rre.exec(clean)) !== null) {
+        if (_rm.index > 0 && clean.charAt(_rm.index - 1) === '#') continue;   // road number
+        var _rh = ('RMT-' + _rm[1] + _rm[3]).toUpperCase();
+        if (!seen[_rh]) { seen[_rh] = 1; out.push({ raw: _rh, mfr: 'RMT' }); }
+      }
+    }
     // Williams Electric Trains / Williams by Bachmann catalog + stock numbers.
     // Gated strictly on Williams tokens — never bare "Electric Trains", because
     // MTH's full company name is "M.T.H. Electric Trains". (Brad 2026-07-01: capture
