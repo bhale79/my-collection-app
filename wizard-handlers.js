@@ -45,7 +45,7 @@ function _updateGroupingButtons() {
   if (!itemNum) { container.style.display = 'none'; return; }
   
   // Grouping options — SINGLE SOURCE OF TRUTH (Decision Map #1, getGroupingOptions in app.js).
-  let buttons = (typeof getGroupingOptions === 'function') ? getGroupingOptions(itemNum) : [];
+  let buttons = (typeof getGroupingOptions === 'function') ? getGroupingOptions(itemNum, (wizard.matchedItem && wizard.matchedItem.itemType) || wizard.data._suggestedItemType || undefined) : [];
 
   const current = wizard.data._itemGrouping || '';
   const _boxSelected = wizard.data.boxOnly || false;

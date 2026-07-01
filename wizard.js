@@ -1758,7 +1758,7 @@ function renderWizardStep() {
       var num = (wizard.data.itemNum || '').trim();
       if (!num) { cont.style.display = 'none'; return; }
       // Grouping options — SINGLE SOURCE OF TRUTH (Decision Map #1, getGroupingOptions in app.js).
-      var btns = (typeof getGroupingOptions === 'function') ? getGroupingOptions(num) : [];
+      var btns = (typeof getGroupingOptions === 'function') ? getGroupingOptions(num, (wizard.matchedItem && wizard.matchedItem.itemType) || wizard.data._suggestedItemType || undefined) : [];
       if (!btns.length) { cont.style.display = 'none'; return; }
       cont.style.display = 'block';
       var cur = wizard.data._itemGrouping || '';
