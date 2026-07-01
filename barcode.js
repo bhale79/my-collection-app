@@ -439,8 +439,10 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                 stopScanning = true;
                 // Always double-verify: read the label in the background; warn only if it conflicts.
                 const _bgVerify = (result.masterItem && !result.notInMaster) ? _bcLabelVerify(video) : null;
-                const _bcChoice = await _bcConfirmCard({ itemNum: result.itemNum, manufacturer: result.manufacturer, description: (result.masterItem && result.masterItem.description) || '', notInMaster: result.notInMaster, verifyPromise: _bgVerify, expectNum: String(result.itemNum || '').replace(/\D+/g, '') });
+                const _ci = { itemNum: result.itemNum, manufacturer: result.manufacturer, description: (result.masterItem && result.masterItem.description) || '', notInMaster: result.notInMaster, verifyPromise: _bgVerify, expectNum: String(result.itemNum || '').replace(/\D+/g, '') };
+                const _bcChoice = await _bcConfirmCard(_ci);
                 if (_bcChoice === 'use') { cleanup(); if (onScanned) onScanned(result); return; }
+                if (_bcChoice === 'uselabel') { cleanup(); if (onScanned && _ci._labelResult) onScanned(_ci._labelResult); return; }
                 if (_bcChoice === 'manual') { cleanup(); if (onCancel) onCancel(); return; }
                 cleanup(); openBarcodeScanner(onScanned, onCancel, eraHint); return;
               }
@@ -1126,7 +1128,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + '<button data-a="rescan" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);cursor:pointer">Rescan</button>'
         + '<button data-a="manual" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);cursor:pointer">Type it instead</button>'
         + '</div></div>';
-      d.addEventListener('click', function (e) { var a = e.target && e.target.getAttribute && e.target.getAttribute('data-a'); if (a) { d.remove(); resolve(a); } });
+      d.addEventListener('click', function (e) { var el = (e.target && e.target.closest) ? e.target.closest('[data-a]') : null; var a = el && el.getAttribute('data-a'); if (a) { d.remove(); resolve(a); } });
       document.body.appendChild(d);
       if (info.verifyPromise) {
         Promise.resolve(info.verifyPromise).then(function (lv) {
@@ -1136,7 +1138,28 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           var exp = String(info.expectNum || '').replace(/\D+/g, '');
           if (exp && nums.indexOf(exp) >= 0) { note.textContent = '✓ Confirmed by the label'; note.style.color = '#a6e87e'; return; }
           var diff = nums.filter(function (n) { return n && n.length >= 6 && n !== exp; });
-          if (diff.length) { note.innerHTML = '⚠ The label reads <strong>' + _bcEsc(diff[0]) + '</strong> but the barcode says <strong>' + _bcEsc(exp) + '</strong> — double-check the box.'; note.style.color = '#ffb27d'; }
+          if (diff.length) {
+            var _lblNum = diff[0];
+            note.innerHTML = '⚠ Barcode and label disagree — pick the right one:';
+            note.style.color = '#ffb27d';
+            // Look the label number up in the catalog so we can describe it, then
+            // offer BOTH the barcode match and the label match as choices.
+            Promise.resolve((typeof _findMasterItemsExact === 'function') ? _findMasterItemsExact([_lblNum, _lblNum.replace(/^6-/, ''), '6-' + _lblNum]) : []).then(function (hits) {
+              if (!d.isConnected) return;
+              var _lm = (hits && hits.length) ? hits[0] : null;
+              info._labelResult = _lm
+                ? { handled: true, itemNum: _lm.itemNum, variation: _lm.variation || '', masterItem: _lm, manufacturer: (_lm.mfr || info.manufacturer || ''), description: _lm.description || '', verifiedBy: 'label' }
+                : { handled: true, itemNum: _lblNum, variation: '', notInMaster: true, manufacturer: (info.manufacturer || ''), description: '' };
+              var _useBtn = d.querySelector('[data-a="use"]');
+              if (_useBtn) _useBtn.innerHTML = 'Use ' + _bcEsc(info.itemNum || '') + (info.description ? ' <span style="font-size:0.78rem;color:#ffe;font-weight:400">' + _bcEsc(info.description) + '</span>' : '') + ' <span style="font-size:0.72rem;opacity:0.75">(barcode)</span>';
+              var _lblDesc = _lm ? (_lm.description || _lm.roadName || '') : 'not in your catalog — read from the label';
+              var _lblBtn = document.createElement('button');
+              _lblBtn.setAttribute('data-a', 'uselabel');
+              _lblBtn.style.cssText = 'display:block;width:100%;margin-top:8px;padding:12px;border-radius:10px;border:2px solid #3a8ee6;background:rgba(58,142,230,0.14);color:var(--text,#fff);font-weight:600;font-size:0.95rem;cursor:pointer';
+              _lblBtn.innerHTML = 'Use ' + _bcEsc(_lblNum) + (_lblDesc ? ' <span style="font-size:0.78rem;color:#cfe3ff;font-weight:400">' + _bcEsc(_lblDesc) + '</span>' : '') + ' <span style="font-size:0.72rem;opacity:0.75">(label)</span>';
+              if (_useBtn && _useBtn.parentNode) _useBtn.parentNode.insertBefore(_lblBtn, _useBtn.nextSibling);
+            }).catch(function () {});
+          }
           else { note.textContent = 'Could not read the label to confirm.'; note.style.color = '#999'; }
         }).catch(function () {});
       }
