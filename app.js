@@ -715,10 +715,28 @@ function nextInventoryId() {
   _scanMax(state.upgradeData);
   _scanMax(state.wantData);
   Object.keys(_issuedInvIds).forEach(function(k){ var n=parseInt(k); if(!isNaN(n)&&n>max) max=n; });
+  // Persistent high-water-mark (inv-id hardening, v0.9.634): never re-issue an ID
+  // at or below the highest ever handed out — protects against a stale/partial
+  // in-memory snapshot that would otherwise reuse a number (caused 1931290 to
+  // collide with 8359 at inventoryId 97).
+  try { var _hwm = parseInt(localStorage.getItem('lv_inv_hwm')); if (!isNaN(_hwm) && _hwm > max) max = _hwm; } catch (e) {}
   var next = String(max + 1);
   _issuedInvIds[next] = true;
+  try { localStorage.setItem('lv_inv_hwm', next); } catch (e) {}
   return next;
 }
+// Raise the persistent inventory-ID watermark from all loaded lists. Monotonic —
+// only ever increases. Called after personal data loads so the watermark knows
+// the true global max even when only part of the collection is in memory.
+function _seedInvHwm() {
+  try {
+    var max = parseInt(localStorage.getItem('lv_inv_hwm')); if (isNaN(max)) max = 0;
+    var scan = function (obj) { Object.values(obj || {}).forEach(function (r) { var id = parseInt(r && r.inventoryId); if (!isNaN(id) && id > max) max = id; }); };
+    scan(state.personalData); scan(state.isData); scan(state.scienceData); scan(state.constructionData); scan(state.mySetsData); scan(state.forSaleData); scan(state.upgradeData); scan(state.wantData);
+    localStorage.setItem('lv_inv_hwm', String(max));
+  } catch (e) {}
+}
+if (typeof window !== 'undefined') window._seedInvHwm = _seedInvHwm;
 // Look up known box variations from master data for a given item number
 function getBoxVariations(itemNum) {
   if (!itemNum || !state.masterData) return [];

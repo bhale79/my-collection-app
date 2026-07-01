@@ -1114,6 +1114,9 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   if (forceOverwrite || Object.keys(newPersonal).length > 0 || Object.keys(state.personalData).length === 0) {
     state.personalData = newPersonal;
   }
+  // inv-id hardening (v0.9.634): re-seed the inventory-ID watermark from the
+  // freshly-loaded personal data so nextInventoryId() can never reuse a number.
+  if (typeof _seedInvHwm === 'function') _seedInvHwm();
   if (forceOverwrite || Object.keys(newSold).length > 0 || Object.keys(state.soldData).length === 0) {
     state.soldData = newSold;
   }
