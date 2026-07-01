@@ -187,14 +187,51 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     return 'https://www.lionel.com/search?query=' + encodeURIComponent(num);
   }
 
+  // ── Robust decode engine (barcode robustness update) ──────────────
+  // Native BarcodeDetector works on Android/Chromium but is ABSENT on all
+  // iOS/iPadOS browsers (WebKit). ZXing-WASM runs the proven ZXing decoder
+  // in the browser as a fallback so iPhones can scan too. Loaded lazily
+  // from jsDelivr only when the native API is missing.
+  var _zxingMod = null, _zxingLoading = null;
+  var _ZXING_ESM = 'https://cdn.jsdelivr.net/npm/zxing-wasm@3.1.0/dist/es/reader/index.js';
+  var _ZXING_WASM_BASE = 'https://cdn.jsdelivr.net/npm/zxing-wasm@3.1.0/dist/reader/';
+  function _loadZXing() {
+    if (_zxingMod) return Promise.resolve(_zxingMod);
+    if (_zxingLoading) return _zxingLoading;
+    _zxingLoading = import(_ZXING_ESM).then(function (mod) {
+      try { mod.setZXingModuleOverrides({ locateFile: function (path) { return (/\.wasm$/.test(path)) ? _ZXING_WASM_BASE + path : path; } }); } catch (e) {}
+      _zxingMod = mod; return mod;
+    });
+    return _zxingLoading;
+  }
+  // ZXing format names ("EAN13") -> BarcodeDetector-style ("ean_13") so the
+  // rest of decodeBarcode() sees one consistent vocabulary.
+  function _zxFmtToStd(f) {
+    var t = String(f || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    var m = { ean13: 'ean_13', upca: 'upc_a', upce: 'upc_e', ean8: 'ean_8', code128: 'code_128', code39: 'code_39' };
+    return m[t] || t;
+  }
+  // Unified detect: returns [{rawValue, format}] from whichever engine is active.
+  var _bcFrameCanvas = null, _bcFrameCtx = null;
+  async function _bcDetect(video, nativeDetector) {
+    if (nativeDetector) return await nativeDetector.detect(video);
+    var mod = _zxingMod;
+    if (!mod) return [];
+    var vw = video.videoWidth | 0, vh = video.videoHeight | 0;
+    if (!vw || !vh) return [];
+    if (!_bcFrameCanvas) { _bcFrameCanvas = document.createElement('canvas'); _bcFrameCtx = _bcFrameCanvas.getContext('2d', { willReadFrequently: true }); }
+    if (_bcFrameCanvas.width !== vw) _bcFrameCanvas.width = vw;
+    if (_bcFrameCanvas.height !== vh) _bcFrameCanvas.height = vh;
+    _bcFrameCtx.drawImage(video, 0, 0, vw, vh);
+    var img = _bcFrameCtx.getImageData(0, 0, vw, vh);
+    var res = await mod.readBarcodesFromImageData(img, { tryHarder: true, formats: ['EAN13', 'UPCA', 'EAN8', 'UPCE', 'Code128', 'Code39'], maxNumberOfSymbols: 1 });
+    return (res || []).filter(function (r) { return r.text; }).map(function (r) { return { rawValue: r.text, format: _zxFmtToStd(r.format) }; });
+  }
+
   // ── Main entry ──
   async function openBarcodeScanner(onScanned, onCancel, eraHint) {
-    // Support check
-    if (!('BarcodeDetector' in window)) {
-      showToast && showToast('Your browser does not support barcode scanning. Try Chrome or Edge.', 4000, true);
-      if (onCancel) onCancel();
-      return;
-    }
+    // Support check — native engine (Android/Chromium) OR ZXing-WASM fallback (iOS/Safari).
+    var _hasNativeBD = ('BarcodeDetector' in window);
 
     // First-time explainer
     if (!localStorage.getItem(EXPLAINER_ACK_KEY)) {
@@ -216,6 +253,13 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             <div style="width:80%;height:25%;border:2px dashed rgba(255,255,255,0.6);border-radius:8px"></div>
           </div>
         </div>
+        <div id="bc-controls" style="display:flex;gap:0.6rem;width:100%;align-items:center;justify-content:center">
+          <button id="bc-torch" type="button" style="display:none;padding:0.5rem 0.9rem;border-radius:10px;border:1px solid #444;background:#222;color:#eee;font-size:0.85rem;cursor:pointer">🔦 Light</button>
+          <div id="bc-zoomwrap" style="display:none;flex:1;max-width:240px;align-items:center;gap:0.4rem">
+            <span style="color:#aaa;font-size:0.78rem">Zoom</span>
+            <input id="bc-zoom" type="range" style="flex:1;accent-color:#e04028">
+          </div>
+        </div>
         <div id="bc-status" style="color:#ccc;font-size:0.85rem;text-align:center;min-height:1.4em">Point camera at the barcode…</div>
         <div style="display:flex;gap:0.6rem;width:100%">
           <button id="bc-cancel" style="flex:1;padding:0.8rem;border-radius:10px;border:1px solid #444;background:#222;color:#eee;font-size:0.95rem;font-family:inherit;cursor:pointer">Cancel</button>
@@ -230,6 +274,9 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     const cancelBtn = overlay.querySelector('#bc-cancel');
     const manualBtn = overlay.querySelector('#bc-manual');
     const helpBtn = overlay.querySelector('#bc-help'); if (helpBtn) helpBtn.onclick = () => _bcHelpPanel('barcode');
+    const torchBtn = overlay.querySelector('#bc-torch');
+    const zoomWrap = overlay.querySelector('#bc-zoomwrap');
+    const zoomSlider = overlay.querySelector('#bc-zoom');
 
     let stream = null;
     let stopScanning = false;
@@ -246,7 +293,12 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     // Request camera
     try {
       stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          advanced: [{ focusMode: 'continuous' }],
+        },
         audio: false,
       });
       video.srcObject = stream;
@@ -256,19 +308,50 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       return;
     }
 
-    // Start detection loop
-    const detector = new window.BarcodeDetector({
+    // Detection engine: native BarcodeDetector (Android/Chromium) or ZXing-WASM fallback (iOS/Safari).
+    const nativeDetector = _hasNativeBD ? new window.BarcodeDetector({
       formats: ['upc_a', 'ean_13', 'code_128', 'code_39']
-    });
+    }) : null;
 
     await new Promise(r => video.addEventListener('loadedmetadata', r, { once: true }));
 
+    // Tune the camera track: continuous focus, torch button, zoom slider (all capability-gated).
+    try {
+      const _bcTrack = stream.getVideoTracks()[0];
+      const _caps = (_bcTrack && _bcTrack.getCapabilities) ? _bcTrack.getCapabilities() : {};
+      if (_caps.focusMode && _caps.focusMode.indexOf('continuous') >= 0) {
+        try { await _bcTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch (e) {}
+      }
+      if (torchBtn && _caps.torch) {
+        torchBtn.style.display = '';
+        let _torchOn = false;
+        torchBtn.onclick = async () => { _torchOn = !_torchOn; try { await _bcTrack.applyConstraints({ advanced: [{ torch: _torchOn }] }); torchBtn.style.background = _torchOn ? '#e8a020' : '#222'; } catch (e) {} };
+      }
+      if (zoomWrap && zoomSlider && _caps.zoom) {
+        zoomWrap.style.display = 'flex';
+        zoomSlider.min = _caps.zoom.min; zoomSlider.max = _caps.zoom.max; zoomSlider.step = _caps.zoom.step || 0.1;
+        try { zoomSlider.value = (_bcTrack.getSettings && _bcTrack.getSettings().zoom) || _caps.zoom.min; } catch (e) {}
+        zoomSlider.oninput = async () => { try { await _bcTrack.applyConstraints({ advanced: [{ zoom: parseFloat(zoomSlider.value) }] }); } catch (e) {} };
+      }
+    } catch (e) {}
+
+    // On the fallback engine (iOS), warm up ZXing-WASM before the loop.
+    if (!nativeDetector) {
+      statusEl.textContent = 'Loading scanner…';
+      try { await _loadZXing(); } catch (e) { statusEl.textContent = 'Could not load the scanner — tap "Type Instead".'; statusEl.style.color = '#ff9580'; return; }
+      statusEl.textContent = 'Point camera at the barcode…';
+    }
+
+    let _bcLastRaw = null, _bcConfirm = 0;
     (async function loop() {
       while (!stopScanning) {
         try {
-          const barcodes = await detector.detect(video);
+          const barcodes = await _bcDetect(video, nativeDetector);
           if (barcodes && barcodes.length > 0) {
             const bc = barcodes[0];
+            // Two-read consensus: require the same value on two frames before accepting.
+            if (bc.rawValue === _bcLastRaw) { _bcConfirm++; } else { _bcLastRaw = bc.rawValue; _bcConfirm = 1; }
+            if (_bcConfirm < 2) { statusEl.textContent = 'Reading…'; statusEl.style.color = '#ffd27d'; await new Promise(r => setTimeout(r, 90)); continue; }
             const result = await decodeBarcode(bc, eraHint);
             if (result.handled && result.multipleMatches) {
               // Ambiguous scan — stop the camera and show the candidate picker.

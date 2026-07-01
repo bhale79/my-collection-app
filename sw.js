@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v638';
+const CACHE_NAME = 'mca-v639';
 
 const SHELL_FILES = [
   './index.html',
@@ -102,7 +102,8 @@ self.addEventListener('fetch', event => {
     url.includes('accounts.google.com') ||
     url.includes('drive.google.com') ||
     url.includes('sheets.google.com') ||
-    url.includes('cdnjs.cloudflare.com')
+    url.includes('cdnjs.cloudflare.com') ||
+    url.includes('jsdelivr.net')
   ) {
     return; // let browser handle normally
   }
