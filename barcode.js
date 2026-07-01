@@ -560,10 +560,11 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     { re: /\b\d{2}[\s\-]\d{4,5}(?:-\d{1,3}|[A-Za-z])?\b/g, mfr: ''       },
     // Menards Gold Line — 275-XXXX or 279-XXXX (per Brad's samples)
     { re: /\b(?:275|279)[\s\-]\d{4}\b/g,                          mfr: 'Menards'},
-    // Generic "Item #…" fallback (Session 180) — any box that prints an explicit
-    // item number: Atlas "Item #0526-1", etc. Captures just the number after the #.
+    // Generic item-label fallback (Session 180; broadened 2026-07-01) — any box that
+    // prints an explicit item label: Atlas "Item #0526-1", Lionel dealer "ITEM:611437",
+    // "Item No. 123". Requires a #/:/No separator (so it never grabs "Item UPC").
     // Listed LAST so a specific-maker match above wins the de-dupe.
-    { re: /\bItem\s*#\s*([0-9][0-9A-Za-z]*(?:-[0-9A-Za-z]+)*)\b/gi, mfr: '', cap: 1 },
+    { re: /\bItem\s*(?:No\.?|#|:)\s*([0-9][0-9A-Za-z]*(?:-[0-9A-Za-z]+)*)\b/gi, mfr: '', cap: 1 },
   ];
   // Session 169: strip UPC-shaped digit runs before extracting candidates.
   // UPCs are 12 or 13 digits, often printed with single-digit spacing
@@ -589,12 +590,21 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       p.re.lastIndex = 0;
       while ((m = p.re.exec(clean)) !== null) {
         var raw0 = (p.cap && m[p.cap]) ? m[p.cap] : m[0];
-        var hit = raw0.replace(/\s+/g, '-').toUpperCase();
+        var hit = raw0.replace(/[\s\-]+/g, '-').toUpperCase();
         if (seen[hit]) continue;
         seen[hit] = 1;
         out.push({ raw: hit, mfr: p.mfr });
       }
     });
+    // Anchored modern-Lionel bare 7-digit catalog number (e.g. 2133031, 2133032).
+    // Gated on Lionel context so cluttered dealer cartons (dates, PO#, LPO) don't
+    // spawn stray candidates. (Brad decision 2026-07-01: "Anchored" approach.)
+    if (/\bLEGACY\b|\bLIONEL\b|4LIONEL|lionel\.com/i.test(clean)) {
+      var _l7, _re7 = /\b\d{7}\b/g;
+      while ((_l7 = _re7.exec(clean)) !== null) {
+        if (!seen[_l7[0]]) { seen[_l7[0]] = 1; out.push({ raw: _l7[0], mfr: 'Lionel' }); }
+      }
+    }
     if (out.some(function (c) { return !c.mfr; })) {
       var g = _mfrFromKeywords(clean);
       if (g) out.forEach(function (c) { if (!c.mfr) c.mfr = g; });
