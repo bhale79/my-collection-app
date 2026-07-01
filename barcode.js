@@ -410,6 +410,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                 const _cc = await _bcConfirmCard({ itemNum: _autoMatch.itemNum, manufacturer: 'Lionel', description: (_autoMatch.description || ''), verifiedNote: '✓ Barcode + label agree' });
                 if (_cc === 'use') { if (onScanned) onScanned({ handled: true, rawBarcode: result.rawBarcode, format: result.format, upc: result.upc, manufacturer: 'Lionel', itemNum: _autoMatch.itemNum, variation: _autoMatch.variation || '', masterItem: _autoMatch, verifiedBy: 'barcode+label', isSet: String(_autoMatch.itemType || '').toLowerCase() === 'set' }); return; }
                 if (_cc === 'manual') { if (onCancel) onCancel(); return; }
+                if (_cc === 'cancel') { if (onCancel) onCancel(); return; }
                 openBarcodeScanner(onScanned, onCancel, eraHint); return;
               }
               // Label didn't resolve it — fall back to the manual picker.
@@ -444,6 +445,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                 if (_bcChoice === 'use') { cleanup(); if (onScanned) onScanned(result); return; }
                 if (_bcChoice === 'uselabel') { cleanup(); if (onScanned && _ci._labelResult) onScanned(_ci._labelResult); return; }
                 if (_bcChoice === 'manual') { cleanup(); if (onCancel) onCancel(); return; }
+                if (_bcChoice === 'cancel') { cleanup(); if (onCancel) onCancel(); return; }
                 cleanup(); openBarcodeScanner(onScanned, onCancel, eraHint); return;
               }
               cleanup();
@@ -939,7 +941,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             var _rd = { handled: true, itemNum: '', variation: '', notInMaster: true, noItemNum: true, manufacturer: _mfrFromKeywords(text) || '', labelDescription: _dOnly, description: _dOnly, statusMessage: 'No item number on the label — using the description' };
             var _cd = await _bcConfirmCard(_rd);
             if (_cd === 'use') { cleanup(); if (onFound) onFound(_rd); }
-            else if (_cd === 'manual') { cleanup(); if (onCancel) onCancel(); }
+            else if (_cd === 'manual' || _cd === 'cancel') { cleanup(); if (onCancel) onCancel(); }
             else { captureBtn.disabled = false; captureBtn.textContent = '📸 Capture'; statusEl.textContent = 'Aim at the item-number label — held right-side up — then tap Capture.'; }
             return;
           }
@@ -973,7 +975,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           var _r1 = { handled: true, itemNum: m.itemNum, variation: m.variation || '', masterItem: m, manufacturer: best.mfr, description: (m.description || ''), statusMessage: 'Found ' + m.itemNum + ' — ' + (m.description || '').substring(0, 40) };
           var _c1 = await _bcConfirmCard(_r1);
           if (_c1 === 'use') { cleanup(); if (onFound) onFound(_r1); }
-          else if (_c1 === 'manual') { cleanup(); if (onCancel) onCancel(); }
+          else if (_c1 === 'manual' || _c1 === 'cancel') { cleanup(); if (onCancel) onCancel(); }
           else { captureBtn.disabled = false; captureBtn.textContent = '📸 Capture'; statusEl.textContent = 'Aim at the item-number label — held right-side up — then tap Capture.'; }
           return;
         }
@@ -1001,7 +1003,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         var _r0 = { handled: true, itemNum: raw, variation: '', notInMaster: true, manufacturer: best.mfr, labelDescription: labelDesc, description: labelDesc, statusMessage: 'Detected ' + raw + ' — not in our catalog, adding manually…' };
         var _c0 = await _bcConfirmCard(_r0);
         if (_c0 === 'use') { cleanup(); if (onFound) onFound(_r0); }
-        else if (_c0 === 'manual') { cleanup(); if (onCancel) onCancel(); }
+        else if (_c0 === 'manual' || _c0 === 'cancel') { cleanup(); if (onCancel) onCancel(); }
         else { captureBtn.disabled = false; captureBtn.textContent = '📸 Capture'; statusEl.textContent = 'Aim at the item-number label — held right-side up — then tap Capture.'; }
       } catch (e) {
         statusEl.textContent = 'Scan failed: ' + (e && e.message ? e.message : 'unknown error');
@@ -1125,10 +1127,11 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + (info.verifiedNote ? '<div id="bc-verify-note" style="font-size:0.8rem;margin-top:8px;color:#a6e87e">' + _bcEsc(info.verifiedNote) + '</div>' : (info.verifyPromise ? '<div id="bc-verify-note" style="font-size:0.8rem;margin-top:8px;color:#9aa">🔎 Confirming with the label…</div>' : ''))
         + '<button data-a="use" style="display:block;width:100%;margin-top:14px;padding:12px;border-radius:10px;border:2px solid var(--accent,#e8401c);background:rgba(232,64,28,0.12);color:var(--text,#fff);font-weight:600;font-size:0.95rem;cursor:pointer">Use this</button>'
         + '<div style="display:flex;gap:8px;margin-top:8px">'
-        + '<button data-a="rescan" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);cursor:pointer">Rescan</button>'
-        + '<button data-a="manual" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);cursor:pointer">Type it instead</button>'
+        + '<button data-a="rescan" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);font-size:0.82rem;cursor:pointer">Rescan</button>'
+        + '<button data-a="manual" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);font-size:0.82rem;cursor:pointer">Type it instead</button>'
+        + '<button data-a="cancel" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);font-size:0.82rem;cursor:pointer">Cancel</button>'
         + '</div></div>';
-      d.addEventListener('click', function (e) { var el = (e.target && e.target.closest) ? e.target.closest('[data-a]') : null; var a = el && el.getAttribute('data-a'); if (a) { d.remove(); resolve(a); } });
+      d.addEventListener('click', function (e) { var _wy = (e.target && e.target.closest) ? e.target.closest('[data-why]') : null; if (_wy) { if (typeof _bcWhyLionelPanel === 'function') _bcWhyLionelPanel(); return; } var el = (e.target && e.target.closest) ? e.target.closest('[data-a]') : null; var a = el && el.getAttribute('data-a'); if (a) { d.remove(); resolve(a); } });
       document.body.appendChild(d);
       if (info.verifyPromise) {
         Promise.resolve(info.verifyPromise).then(function (lv) {
@@ -1140,7 +1143,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           var diff = nums.filter(function (n) { return n && n.length >= 6 && n !== exp; });
           if (diff.length) {
             var _lblNum = diff[0];
-            note.innerHTML = '⚠ Barcode and label disagree — pick the right one:';
+            note.innerHTML = '⚠ Barcode and label disagree — pick the right one. <a data-why="1" style="color:#9ecbff;text-decoration:underline;cursor:pointer">Why?</a>';
             note.style.color = '#ffb27d';
             // Look the label number up in the catalog so we can describe it, then
             // offer BOTH the barcode match and the label match as choices.
@@ -1164,6 +1167,20 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         }).catch(function () {});
       }
     });
+  }
+
+  // Why can a Lionel barcode point to the wrong item? (shown from the conflict card)
+  function _bcWhyLionelPanel() {
+    var d = document.createElement('div');
+    d.style.cssText = 'position:fixed;inset:0;z-index:100002;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:1rem';
+    d.innerHTML = '<div style="max-width:430px;background:var(--surface,#1a1d3a);border:1px solid var(--border,#333);border-radius:16px;padding:18px;color:var(--text-mid,#ddd);font-size:0.9rem;line-height:1.55;font-family:var(--font-body,sans-serif)">'
+      + '<div style="font-size:1.05rem;font-weight:600;color:var(--text,#fff);margin-bottom:10px">Why the barcode &amp; label can disagree</div>'
+      + '<p>On many modern Lionel boxes the <strong>barcode does not contain the item&rsquo;s catalog number.</strong> Lionel puts a short, separate code in the barcode, so a scan can land on a <em>different</em> item that just happens to share those digits.</p>'
+      + '<p>The number <strong>printed on the label</strong> (the large catalog number) is the real one. That&rsquo;s why, when they don&rsquo;t match, we show you both and let you choose.</p>'
+      + '<p style="color:var(--accent2,#c9922a)"><strong>Rule of thumb:</strong> pick the option that matches the big printed number on the box.</p>'
+      + '<button data-close="1" style="display:block;width:100%;margin-top:12px;padding:11px;border-radius:10px;border:2px solid var(--accent,#e8401c);background:rgba(232,64,28,0.12);color:var(--text,#fff);font-weight:600;cursor:pointer">Got it</button></div>';
+    d.addEventListener('click', function (e) { if ((e.target.getAttribute && e.target.getAttribute('data-close')) || e.target === d) d.remove(); });
+    document.body.appendChild(d);
   }
 
   // ── Help / info panel (Session 180) ──
