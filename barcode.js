@@ -775,7 +775,13 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     var stream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }, audio: false
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          advanced: [{ focusMode: 'continuous' }],
+        },
+        audio: false
       });
     } catch (e) {
       showToast && showToast('Camera permission denied.', 4000, true);
@@ -793,6 +799,13 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       + '  <video id="lbl-video" autoplay playsinline muted style="width:100%;border-radius:12px;background:#000"></video>'
       + '  <div style="position:absolute;inset:8% 12%;border:2px dashed rgba(255,255,255,0.6);border-radius:10px;pointer-events:none"></div>'
       + '</div>'
+      + '<div id="lbl-controls" style="display:flex;gap:0.6rem;width:100%;max-width:520px;align-items:center;justify-content:center">'
+      +   '<button id="lbl-torch" type="button" style="display:none;padding:0.5rem 0.9rem;border-radius:9px;border:1px solid #555;background:transparent;color:#ddd;font-size:0.85rem;cursor:pointer">🔦 Light</button>'
+      +   '<div id="lbl-zoomwrap" style="display:none;flex:1;max-width:240px;align-items:center;gap:0.4rem">'
+      +     '<span style="color:#aaa;font-size:0.78rem">Zoom</span>'
+      +     '<input id="lbl-zoom" type="range" style="flex:1;accent-color:#e8401c">'
+      +   '</div>'
+      + '</div>'
       + '<div id="lbl-status" style="color:#ccc;font-size:0.85rem;text-align:center;min-height:1.4em">Aim at the item-number label — held right-side up — then tap Capture.</div>'
       + '<div style="display:flex;gap:0.6rem;width:100%;max-width:520px">'
       + '  <button id="lbl-cancel" style="flex:1;padding:0.75rem;border-radius:9px;border:1.5px solid #555;background:transparent;color:#ccc;font-family:var(--font-head,sans-serif);font-size:0.9rem;cursor:pointer">Cancel</button>'
@@ -802,6 +815,29 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     var video = document.getElementById('lbl-video');
     video.srcObject = stream;
     await new Promise(function(r) { video.addEventListener('loadedmetadata', r, { once: true }); });
+
+    // Camera tuning: continuous focus, torch button, zoom slider (capability-gated) — sharper OCR frames.
+    try {
+      var _lblTrack = stream.getVideoTracks()[0];
+      var _lblCaps = (_lblTrack && _lblTrack.getCapabilities) ? _lblTrack.getCapabilities() : {};
+      if (_lblCaps.focusMode && _lblCaps.focusMode.indexOf('continuous') >= 0) {
+        try { await _lblTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch (e) {}
+      }
+      var _lblTorch = document.getElementById('lbl-torch');
+      if (_lblTorch && _lblCaps.torch) {
+        _lblTorch.style.display = '';
+        var _lblTorchOn = false;
+        _lblTorch.onclick = async function(){ _lblTorchOn = !_lblTorchOn; try { await _lblTrack.applyConstraints({ advanced: [{ torch: _lblTorchOn }] }); _lblTorch.style.background = _lblTorchOn ? '#e8a020' : 'transparent'; } catch (e) {} };
+      }
+      var _lblZoomWrap = document.getElementById('lbl-zoomwrap');
+      var _lblZoom = document.getElementById('lbl-zoom');
+      if (_lblZoomWrap && _lblZoom && _lblCaps.zoom) {
+        _lblZoomWrap.style.display = 'flex';
+        _lblZoom.min = _lblCaps.zoom.min; _lblZoom.max = _lblCaps.zoom.max; _lblZoom.step = _lblCaps.zoom.step || 0.1;
+        try { _lblZoom.value = (_lblTrack.getSettings && _lblTrack.getSettings().zoom) || _lblCaps.zoom.min; } catch (e) {}
+        _lblZoom.oninput = async function(){ try { await _lblTrack.applyConstraints({ advanced: [{ zoom: parseFloat(_lblZoom.value) }] }); } catch (e) {} };
+      }
+    } catch (e) {}
 
     function cleanup() {
       try { stream.getTracks().forEach(function(t){ t.stop(); }); } catch (e) {}
