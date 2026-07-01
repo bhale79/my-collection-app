@@ -228,6 +228,45 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     return (res || []).filter(function (r) { return r.text; }).map(function (r) { return { rawValue: r.text, format: _zxFmtToStd(r.format) }; });
   }
 
+  // ── Double-verify: read the label on the SAME camera frame and cross-check ──
+  // A Lionel UPC only carries 5 digits, so shared-barcode reissues (1931290 /
+  // 2031290 …) are ambiguous. Reading the full number printed on the label lets
+  // us confirm/auto-resolve. Captures the frame synchronously, then OCRs it.
+  async function _bcLabelVerify(video) {
+    var vw = video.videoWidth | 0, vh = video.videoHeight | 0;
+    if (!vw || !vh) return { nums: [], text: '' };
+    var full = document.createElement('canvas'); full.width = vw; full.height = vh;
+    full.getContext('2d').drawImage(video, 0, 0, vw, vh);
+    var sx = Math.floor(vw * 0.10), sy = Math.floor(vh * 0.06);
+    var sw = vw - 2 * sx, sh = vh - 2 * sy;
+    var crop = document.createElement('canvas'); crop.width = sw; crop.height = sh;
+    crop.getContext('2d').drawImage(full, sx, sy, sw, sh, 0, 0, sw, sh);
+    try {
+      var Tesseract = await _ensureTesseract();
+      var ocr = await Tesseract.recognize(crop, 'eng', {});
+      var text = (ocr && ocr.data && ocr.data.text) || '';
+      var cands = (typeof _extractItemNumberCandidates === 'function') ? (_extractItemNumberCandidates(text) || []) : [];
+      var nums = cands.map(function (c) { return String(c.raw || '').replace(/\D+/g, ''); }).filter(function (n) { return n.length >= 4; });
+      (text.match(/\d{6,7}/g) || []).forEach(function (n) { if (nums.indexOf(n) < 0) nums.push(n); });
+      return { nums: nums, text: text };
+    } catch (e) { return { nums: [], text: '' }; }
+  }
+  // Which barcode candidate does the label confirm? Only a full (>=6-digit)
+  // label number can disambiguate — a bare 5-digit read matches them all.
+  function _bcPickByLabel(cands, ocrNums, code5) {
+    if (!cands || !cands.length || !ocrNums || !ocrNums.length) return null;
+    for (var i = 0; i < cands.length; i++) {
+      var cn = String(cands[i].itemNum || '').replace(/\D+/g, '');
+      if (!cn) continue;
+      for (var j = 0; j < ocrNums.length; j++) {
+        var on = ocrNums[j];
+        if (!on || on.length < 6) continue;
+        if (cn === on || (on.length >= cn.length && on.slice(-cn.length) === cn)) return cands[i];
+      }
+    }
+    return null;
+  }
+
   // ── Main entry ──
   async function openBarcodeScanner(onScanned, onCancel, eraHint) {
     // Support check — native engine (Android/Chromium) OR ZXing-WASM fallback (iOS/Safari).
@@ -358,10 +397,21 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             if (_bcConfirm < 2) { statusEl.textContent = 'Reading…'; statusEl.style.color = '#ffd27d'; await new Promise(r => setTimeout(r, 90)); continue; }
             const result = await decodeBarcode(bc, eraHint);
             if (result.handled && result.multipleMatches) {
-              // Ambiguous scan — stop the camera and show the candidate picker.
-              statusEl.textContent = result.statusMessage;
+              stopScanning = true;
+              // Always double-verify: OCR the label on the SAME frame to auto-resolve the shared-barcode ambiguity.
+              statusEl.textContent = 'Barcode matches ' + result.candidates.length + ' items — reading the label to confirm…';
               statusEl.style.color = '#ffd27d';
+              const _lvP = _bcLabelVerify(video);   // captures the current frame synchronously
               cleanup();
+              const _lv = await _lvP;
+              const _autoMatch = _bcPickByLabel(result.candidates, _lv.nums, result.code5);
+              if (_autoMatch) {
+                const _cc = await _bcConfirmCard({ itemNum: _autoMatch.itemNum, manufacturer: 'Lionel', description: (_autoMatch.description || ''), verifiedNote: '✓ Barcode + label agree' });
+                if (_cc === 'use') { if (onScanned) onScanned({ handled: true, rawBarcode: result.rawBarcode, format: result.format, upc: result.upc, manufacturer: 'Lionel', itemNum: _autoMatch.itemNum, variation: _autoMatch.variation || '', masterItem: _autoMatch, verifiedBy: 'barcode+label', isSet: String(_autoMatch.itemType || '').toLowerCase() === 'set' }); return; }
+                if (_cc === 'manual') { if (onCancel) onCancel(); return; }
+                openBarcodeScanner(onScanned, onCancel, eraHint); return;
+              }
+              // Label didn't resolve it — fall back to the manual picker.
               const chosen = await showCandidatePicker(result.candidates, result);
               if (chosen) {
                 if (onScanned) onScanned({
@@ -386,7 +436,9 @@ window.eraSupportsBarcode = eraSupportsBarcode;
               await new Promise(r => setTimeout(r, 300));
               if (result.itemNum) {
                 stopScanning = true;
-                const _bcChoice = await _bcConfirmCard({ itemNum: result.itemNum, manufacturer: result.manufacturer, description: (result.masterItem && result.masterItem.description) || '', notInMaster: result.notInMaster });
+                // Always double-verify: read the label in the background; warn only if it conflicts.
+                const _bgVerify = (result.masterItem && !result.notInMaster) ? _bcLabelVerify(video) : null;
+                const _bcChoice = await _bcConfirmCard({ itemNum: result.itemNum, manufacturer: result.manufacturer, description: (result.masterItem && result.masterItem.description) || '', notInMaster: result.notInMaster, verifyPromise: _bgVerify, expectNum: String(result.itemNum || '').replace(/\D+/g, '') });
                 if (_bcChoice === 'use') { cleanup(); if (onScanned) onScanned(result); return; }
                 if (_bcChoice === 'manual') { cleanup(); if (onCancel) onCancel(); return; }
                 cleanup(); openBarcodeScanner(onScanned, onCancel, eraHint); return;
@@ -1067,6 +1119,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + '<div style="font-family:var(--font-mono);font-size:1.15rem;font-weight:700;color:var(--accent,#e8401c)">' + num + (mfr ? ' <span style="font-size:0.72rem;color:var(--text-dim,#999);font-weight:400">' + mfr + '</span>' : '') + '</div>'
         + (desc ? '<div style="font-size:0.9rem;color:var(--text-mid,#ccc);margin-top:6px;line-height:1.4">' + desc + '</div>' : '<div style="font-size:0.8rem;color:var(--text-dim,#999);margin-top:6px">No description read from the label.</div>')
         + (info.notInMaster && info.description ? '<div style="font-size:0.7rem;color:var(--text-dim,#999);margin-top:5px">read from the label \u2014 you can edit it in the next steps.</div>' : '')
+        + (info.verifiedNote ? '<div id="bc-verify-note" style="font-size:0.8rem;margin-top:8px;color:#a6e87e">' + _bcEsc(info.verifiedNote) + '</div>' : (info.verifyPromise ? '<div id="bc-verify-note" style="font-size:0.8rem;margin-top:8px;color:#9aa">🔎 Confirming with the label…</div>' : ''))
         + '<button data-a="use" style="display:block;width:100%;margin-top:14px;padding:12px;border-radius:10px;border:2px solid var(--accent,#e8401c);background:rgba(232,64,28,0.12);color:var(--text,#fff);font-weight:600;font-size:0.95rem;cursor:pointer">Use this</button>'
         + '<div style="display:flex;gap:8px;margin-top:8px">'
         + '<button data-a="rescan" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);cursor:pointer">Rescan</button>'
@@ -1074,6 +1127,18 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + '</div></div>';
       d.addEventListener('click', function (e) { var a = e.target && e.target.getAttribute && e.target.getAttribute('data-a'); if (a) { d.remove(); resolve(a); } });
       document.body.appendChild(d);
+      if (info.verifyPromise) {
+        Promise.resolve(info.verifyPromise).then(function (lv) {
+          var note = d.querySelector('#bc-verify-note');
+          if (!note) return;
+          var nums = (lv && lv.nums) || [];
+          var exp = String(info.expectNum || '').replace(/\D+/g, '');
+          if (exp && nums.indexOf(exp) >= 0) { note.textContent = '✓ Confirmed by the label'; note.style.color = '#a6e87e'; return; }
+          var diff = nums.filter(function (n) { return n && n.length >= 6 && n !== exp; });
+          if (diff.length) { note.innerHTML = '⚠ The label reads <strong>' + _bcEsc(diff[0]) + '</strong> but the barcode says <strong>' + _bcEsc(exp) + '</strong> — double-check the box.'; note.style.color = '#ffb27d'; }
+          else { note.textContent = 'Could not read the label to confirm.'; note.style.color = '#999'; }
+        }).catch(function () {});
+      }
     });
   }
 
