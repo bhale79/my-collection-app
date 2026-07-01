@@ -309,9 +309,25 @@
     _vpRender();
   };
 
-  function _vpCardHtml(id) {
+  function _vpWordSet(desc) {
+    var o = {}; String(desc || '').toLowerCase().split(/\s+/).forEach(function (w) { var c = w.replace(/[^a-z0-9]/g, ''); if (c) o[c] = 1; }); return o;
+  }
+  function _vpCommonWords(ids) {
+    var sets = ids.map(function (id) { var r = VP.byId[id] || {}; return _vpWordSet(r.varDesc || r.description || ''); });
+    if (sets.length < 2) return null;
+    var common = {}; Object.keys(sets[0]).forEach(function (w) { if (sets.every(function (s) { return s[w]; })) common[w] = 1; }); return common;
+  }
+  function _vpHlDesc(desc, common) {
+    return String(desc || '').split(/(\s+)/).map(function (tok) {
+      if (/^\s+$/.test(tok)) return tok;
+      var c = tok.toLowerCase().replace(/[^a-z0-9]/g, ''), e = _vpEsc(tok);
+      return (c && common && !common[c]) ? '<span style="color:var(--accent);font-weight:700;background:rgba(232,64,28,0.14);border-radius:3px;padding:0 2px">' + e + '</span>' : e;
+    }).join('');
+  }
+  function _vpCardHtml(id, common) {
     var r = VP.byId[id] || {};
-    var desc = _vpEsc(r.varDesc || r.description || 'No description');
+    var raw = r.varDesc || r.description || 'No description';
+    var desc = common ? _vpHlDesc(raw, common) : _vpEsc(raw);
     return '<div style="background:var(--surface2,#1d2040);border:1px solid var(--border);border-radius:11px;padding:12px;margin:8px 0">'
       + '<div style="font-family:var(--font-mono);font-size:0.95rem;font-weight:600;color:var(--accent2);margin-bottom:4px">Variation ' + _vpEsc(id) + (r.cottCode ? ' · ' + _vpEsc(r.cottCode) : '') + '</div>'
       + '<div style="font-size:0.82rem;color:var(--text-mid);line-height:1.5">' + desc + '</div></div>';
@@ -322,7 +338,7 @@
     var html = _vpHeader(solved ? 'best match' : 'your pick');
     html += '<div style="padding:18px">';
     html += '<div style="display:flex;align-items:center;gap:7px;color:var(--accent2);font-size:0.85rem;font-weight:600;margin-bottom:10px">Best match — use it?</div>';
-    html += _vpCardHtml(id);
+    html += _vpCardHtml(id, _vpCommonWords(VP.rows.map(function (r) { return r.variation; })));
     html += '<button type="button" class="vpbtn vpacc" style="text-align:center;font-weight:600" onclick="_vpUse(\'' + _vpEsc(id) + '\')">Use Variation ' + _vpEsc(id) + '</button>';
     html += '<button type="button" class="vpbtn" style="text-align:center" onclick="_vpFinalistsAll()">Not this — show all</button>';
     html += _vpGiFooter();
@@ -336,8 +352,9 @@
     html += '<div style="padding:18px">';
     html += '<div style="font-size:0.95rem;font-weight:600;color:var(--text);margin-bottom:2px">Narrowed to ' + VP.cands.length + ' — very close</div>';
     html += '<div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:10px">Compare with the COTT photos to make the final call.</div>';
+    var _fcommon = _vpCommonWords(VP.cands);
     VP.cands.forEach(function (id) {
-      html += _vpCardHtml(id);
+      html += _vpCardHtml(id, _fcommon);
       html += '<button type="button" class="vpbtn" style="margin-top:-2px;text-align:center" onclick="_vpUse(\'' + _vpEsc(id) + '\')">Use Variation ' + _vpEsc(id) + '</button>';
     });
     html += '<button type="button" onclick="closeVariationPicker()" style="display:block;margin:14px auto 4px;background:none;border:none;color:var(--text-dim);font-size:0.8rem;cursor:pointer">Close — I’ll pick from the list</button>';
