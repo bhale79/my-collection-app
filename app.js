@@ -500,6 +500,64 @@ function getGroupingOptions(itemNum, typeFilter) {
   }
   return btns;
 }
+
+// A-dummy unit lookup for an A-powered diesel (e.g. 204 -> 204T dummy A-unit).
+// Scans master (unit A / poweredDummy D) then companion 'A Dummy' rows. Used by
+// applyGrouping. (Was the wizard-local _qe1Partners.dummy scan — now global.)
+function getADummyUnit(itemNum) {
+  var n = String(itemNum || '').trim();
+  var base = (typeof baseItemNum === 'function') ? baseItemNum(n) : n.replace(/-(P|D)$/i, '');
+  var nn = normalizeItemNum(n), nb = normalizeItemNum(base), dummy = '';
+  (state.masterData || []).forEach(function (m) {
+    if (dummy || !m.itemNum) return;
+    var mi = normalizeItemNum(m.itemNum);
+    if (m.unit === 'A' && m.poweredDummy === 'D' && (mi === normalizeItemNum(base + 'T') || mi === nn || mi === nb)) dummy = m.itemNum;
+  });
+  if (!dummy) (state.companionData || []).forEach(function (c) {
+    if (dummy) return; var en = normalizeItemNum(c.engineNum); if (en !== nn && en !== nb) return;
+    if (/a\s*dummy/.test((c.companionType || '').toLowerCase()) && c.companionNum) dummy = String(c.companionNum);
+  });
+  return dummy;
+}
+
+// ── Grouping -> data fields — SINGLE SOURCE OF TRUTH (Decision Map #2) ──
+// Sets the wizard.data fields a chosen grouping implies (tenderMatch/setMatch/
+// unitPower/unit2ItemNum/setType/_setId/_itemGrouping...). Callers: _selectGrouping
+// (wizard-handlers.js) + _selectGroupingData (wizard.js). The want-list group-add in
+// app-pages.js is a DIFFERENT flow (picks partners off the want list) — not this.
+// engine_tender leaves the tender blank so the user confirms it (Session 159); the
+// photo steps gate on _itemGrouping, not the tender. Update RAIL_ROSTER_DECISION_MAP.md.
+function applyGrouping(data, groupId, itemNum) {
+  if (!data) return data;
+  var n = String(itemNum || '').trim();
+  var gsi = (typeof genSetId === 'function') ? function(){ return genSetId(n); } : function(){ return 'set-' + Date.now(); };
+  var bUnit = function(){ return ((typeof getBUnit === 'function' && getBUnit(n)) || (typeof getSetPartner === 'function' && getSetPartner(n)) || (n + 'C')); };
+  var aDummy = function(){ return ((typeof getADummyUnit === 'function' && getADummyUnit(n)) || n); };
+  data._itemGrouping = groupId;
+  if (groupId === 'engine') {
+    data.tenderMatch = 'none'; data.setMatch = ''; data.unitPower = '';
+  } else if (groupId === 'engine_tender') {
+    data.tenderMatch = ''; data.tenderIsNonOriginal = false; data._tenderConfirmed = false;
+    data.setMatch = ''; data.unitPower = '';
+  } else if (groupId === 'a_powered') {
+    data.unitPower = 'Powered'; data.setMatch = 'standalone'; data.tenderMatch = '';
+  } else if (groupId === 'a_dummy') {
+    data.unitPower = 'Dummy'; data.setMatch = 'standalone'; data.tenderMatch = '';
+  } else if (groupId === 'aa') {
+    data.unitPower = 'Powered'; data.setMatch = 'set-now'; data.setType = 'AA';
+    data._setId = gsi(); data.unit2ItemNum = aDummy(); data.unit2Power = 'Dummy'; data.tenderMatch = '';
+  } else if (groupId === 'ab') {
+    data.unitPower = 'Powered'; data.setMatch = 'set-now'; data.setType = 'AB';
+    data._setId = gsi(); data.unit2ItemNum = bUnit(); data.tenderMatch = '';
+  } else if (groupId === 'aba') {
+    data.unitPower = 'Powered'; data.setMatch = 'set-now'; data.setType = 'ABA';
+    data._setId = gsi(); data.unit2ItemNum = bUnit();
+    data.unit3ItemNum = aDummy(); data.unit3Power = 'Dummy'; data.tenderMatch = '';
+  } else {
+    data._itemGrouping = 'single'; data.tenderMatch = ''; data.setMatch = ''; data.unitPower = '';
+  }
+  return data;
+}
 function getGroupMembers(itemNum) {
   const pd = Object.values(state.personalData).find(p => p.itemNum === itemNum);
   if (!pd || !pd.groupId) return [];

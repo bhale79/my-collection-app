@@ -1702,46 +1702,8 @@ function renderWizardStep() {
     function _selectGroupingData(gid) {
       wizard.data._itemGrouping = gid;
       var n = (wizard.data.itemNum || '').trim();
-      if (gid === 'engine') {
-        wizard.data.tenderMatch = 'none'; wizard.data.setMatch = ''; wizard.data.unitPower = '';
-      } else if (gid === 'engine_tender') {
-        var _t = getMatchingTenders(n);
-        // Try to pick variation-aware tender from varDesc first
-        var _varTender = '';
-        if (wizard.data.variation && _t.length > 1) {
-          var _vm = findMaster(n, wizard.data.variation);
-          if (_vm && _vm.varDesc) {
-            var _tdMatch = _vm.varDesc.match(/\b(\d{3,4}[TW]X?)\b/i);
-            if (_tdMatch) {
-              var _tdCand = _tdMatch[1].toUpperCase();
-              if (_t.some(function(t){ return t.toUpperCase() === _tdCand; })) _varTender = _tdCand;
-            }
-          }
-        }
-        wizard.data.tenderMatch = '';  // Brad: nothing pre-selected — user must pick a tender
-        wizard.data.tenderIsNonOriginal = false;
-        wizard.data._tenderConfirmed = false;  // Session 159: require user confirmation on Step 3
-        wizard.data.setMatch = ''; wizard.data.unitPower = '';
-      } else if (gid === 'a_powered') {
-        wizard.data.unitPower = 'Powered'; wizard.data.setMatch = 'standalone'; wizard.data.tenderMatch = '';
-      } else if (gid === 'a_dummy') {
-        wizard.data.unitPower = 'Dummy'; wizard.data.setMatch = 'standalone'; wizard.data.tenderMatch = '';
-      } else if (gid === 'aa') {
-        var _pAA = _qe1Partners(n);
-        wizard.data.unitPower = 'Powered'; wizard.data.setMatch = 'set-now'; wizard.data.setType = 'AA';
-        wizard.data._setId = genSetId(n); wizard.data.unit2ItemNum = _pAA.dummy || n; wizard.data.unit2Power = 'Dummy'; wizard.data.tenderMatch = '';
-      } else if (gid === 'ab') {
-        var _pAB = _qe1Partners(n);
-        wizard.data.unitPower = 'Powered'; wizard.data.setMatch = 'set-now'; wizard.data.setType = 'AB';
-        wizard.data._setId = genSetId(n); wizard.data.unit2ItemNum = _pAB.bunit || getSetPartner(n) || (n + 'C'); wizard.data.tenderMatch = '';
-      } else if (gid === 'aba') {
-        var _pABA = _qe1Partners(n);
-        wizard.data.unitPower = 'Powered'; wizard.data.setMatch = 'set-now'; wizard.data.setType = 'ABA';
-        wizard.data._setId = genSetId(n); wizard.data.unit2ItemNum = _pABA.bunit || getSetPartner(n) || (n + 'C');
-        wizard.data.unit3ItemNum = _pABA.dummy || n; wizard.data.unit3Power = 'Dummy'; wizard.data.tenderMatch = '';
-      } else {
-        wizard.data._itemGrouping = 'single'; wizard.data.tenderMatch = ''; wizard.data.setMatch = ''; wizard.data.unitPower = '';
-      }
+      // Grouping -> data fields — SINGLE SOURCE OF TRUTH (Decision Map #2, applyGrouping in app.js).
+      if (typeof applyGrouping === 'function') applyGrouping(wizard.data, gid, n);
     }
 
     // Tender picker popup

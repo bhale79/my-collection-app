@@ -109,54 +109,8 @@ function _selectGrouping(groupId) {
     }
   }
   
-  // Map grouping to existing data fields used by saveWizardItem
-  if (groupId === 'engine') {
-    wizard.data.tenderMatch = 'none';
-    wizard.data.setMatch = '';
-    wizard.data.unitPower = '';
-  } else if (groupId === 'engine_tender') {
-    const tenders = getMatchingTenders(itemNum);
-    wizard.data.tenderMatch = tenders.length > 0 ? tenders[0] : '';
-    wizard.data.setMatch = '';
-    wizard.data.unitPower = '';
-  } else if (groupId === 'a_powered') {
-    wizard.data.unitPower = 'Powered';
-    wizard.data.setMatch = 'standalone';
-    wizard.data.tenderMatch = '';
-  } else if (groupId === 'a_dummy') {
-    wizard.data.unitPower = 'Dummy';
-    wizard.data.setMatch = 'standalone';
-    wizard.data.tenderMatch = '';
-  } else if (groupId === 'aa') {
-    wizard.data.unitPower = 'Powered';
-    wizard.data.setMatch = 'set-now';
-    wizard.data.setType = 'AA';
-    wizard.data._setId = genSetId(itemNum);
-    wizard.data.unit2ItemNum = itemNum;  // Same # but dummy
-    wizard.data.unit2Power = 'Dummy';
-    wizard.data.tenderMatch = '';
-  } else if (groupId === 'ab') {
-    wizard.data.unitPower = 'Powered';
-    wizard.data.setMatch = 'set-now';
-    wizard.data.setType = 'AB';
-    wizard.data._setId = genSetId(itemNum);
-    wizard.data.unit2ItemNum = getSetPartner(itemNum) || (itemNum + 'C');
-    wizard.data.tenderMatch = '';
-  } else if (groupId === 'aba') {
-    wizard.data.unitPower = 'Powered';
-    wizard.data.setMatch = 'set-now';
-    wizard.data.setType = 'ABA';
-    wizard.data._setId = genSetId(itemNum);
-    wizard.data.unit2ItemNum = getSetPartner(itemNum) || (itemNum + 'C');
-    wizard.data.unit3ItemNum = itemNum;  // Second A unit (dummy)
-    wizard.data.unit3Power = 'Dummy';
-    wizard.data.tenderMatch = '';
-  } else {
-    wizard.data._itemGrouping = 'single';
-    wizard.data.tenderMatch = '';
-    wizard.data.setMatch = '';
-    wizard.data.unitPower = '';
-  }
+  // Grouping -> data fields — SINGLE SOURCE OF TRUTH (Decision Map #2, applyGrouping in app.js).
+  if (typeof applyGrouping === 'function') applyGrouping(wizard.data, groupId, itemNum);
   
   _updateGroupingButtons();
   // Auto-advance to next step after grouping selection
