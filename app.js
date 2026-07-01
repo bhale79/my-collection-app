@@ -558,6 +558,26 @@ function applyGrouping(data, groupId, itemNum) {
   }
   return data;
 }
+
+// ── Item subjects — SINGLE SOURCE OF TRUTH (Decision Map #3) ──
+// The pieces an add covers: [{prefix,kind,itemNum,power}] (prefix '' = main item).
+// Derived from the grouping applyGrouping set. Consumers: _allPrefixes + the photo
+// steps (condition columns + save loop still read the same fields — route later).
+function getItemSubjects(data) {
+  data = data || {};
+  var subs = [{ prefix: '', kind: 'main', itemNum: data.itemNum || '' }];
+  if (data._setMode) return subs;
+  var g = data._itemGrouping || 'single';
+  if (g === 'engine_tender') {
+    subs.push({ prefix: 'tender', kind: 'tender', itemNum: data.tenderMatch || '' });
+  } else if (g === 'aa' || g === 'ab') {
+    subs.push({ prefix: 'unit2', kind: 'unit2', itemNum: data.unit2ItemNum || '', power: data.unit2Power || '' });
+  } else if (g === 'aba') {
+    subs.push({ prefix: 'unit2', kind: 'unit2', itemNum: data.unit2ItemNum || '', power: data.unit2Power || '' });
+    subs.push({ prefix: 'unit3', kind: 'unit3', itemNum: data.unit3ItemNum || '', power: data.unit3Power || '' });
+  }
+  return subs;
+}
 function getGroupMembers(itemNum) {
   const pd = Object.values(state.personalData).find(p => p.itemNum === itemNum);
   if (!pd || !pd.groupId) return [];

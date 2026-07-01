@@ -1675,28 +1675,7 @@ function renderWizardStep() {
 
     // Find AA dummy + AB B-unit partners from role tags (+T/+C) and the companion
     // table (B Unit / A Dummy types). Single source of truth for diesel set grouping.
-    function _qe1Partners(n) {
-      var nn = normalizeItemNum(n);
-      var base = (typeof baseItemNum === 'function') ? baseItemNum(n) : String(n).replace(/[PDTC]$/i, '');
-      var nb = normalizeItemNum(base);
-      var dummy = '', bunit = '';
-      (state.masterData || []).forEach(function(m) {
-        if (!m.itemNum) return;
-        var mi = normalizeItemNum(m.itemNum);
-        if (m.unit === 'A' && m.poweredDummy === 'D' && !dummy &&
-            (mi === normalizeItemNum(base + 'T') || mi === nn || mi === nb)) dummy = m.itemNum;
-        if (m.unit === 'B' && m.poweredDummy === 'C' && !bunit &&
-            mi === normalizeItemNum(base + 'C')) bunit = m.itemNum;
-      });
-      (state.companionData || []).forEach(function(c) {
-        var en = normalizeItemNum(c.engineNum);
-        if (en !== nn && en !== nb) return;
-        var ct = (c.companionType || '').toLowerCase();
-        if (!bunit && /b\s*unit/.test(ct) && c.companionNum) bunit = String(c.companionNum);
-        if (!dummy && /a\s*dummy/.test(ct) && c.companionNum) dummy = String(c.companionNum);
-      });
-      return { dummy: dummy, bunit: bunit };
-    }
+    // (_qe1Partners removed — dead after Decision Map #1/#2; use getBUnit / getADummyUnit)
 
     // Grouping data mutation without auto-advance
     function _selectGroupingData(gid) {
@@ -4054,16 +4033,10 @@ function renderWizardStep() {
     const _defMasterBox = _prefGet('lv_def_masterBox',  'No');
     // In set mode, only pre-populate main item (no tender/unit2/unit3)
     // For regular items, only pre-populate prefixes that match the grouping
-    let _allPrefixes = [''];
-    if (wizard.data._setMode) {
-      _allPrefixes = [''];
-    } else if (_cdGrouping === 'engine_tender') {
-      _allPrefixes = ['', 'tender'];
-    } else if (_cdGrouping === 'aa' || _cdGrouping === 'ab') {
-      _allPrefixes = ['', 'unit2'];
-    } else if (_cdGrouping === 'aba') {
-      _allPrefixes = ['', 'unit2', 'unit3'];
-    }
+    // Item subjects (prefixes) — single source of truth (Decision Map #3, getItemSubjects in app.js).
+    let _allPrefixes = (typeof getItemSubjects === 'function')
+      ? getItemSubjects(wizard.data).map(function (s) { return s.prefix; })
+      : [''];
     if (!_cdIsPaperLike) {
       _allPrefixes.forEach(function(p) {
         const origKey  = p ? p + 'AllOriginal' : 'allOriginal';

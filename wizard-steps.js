@@ -345,11 +345,12 @@ function getSteps(tab) {
       ];
     }
     // Helper: is this a paired engine+tender set?
-    const isPaired = (d) => d.tenderMatch && d.tenderMatch !== 'none' && d.tenderMatch !== '';
-    const isSetNow = (d) => d.setMatch === 'set-now';
-    const isEngTender = (d) => d._itemGrouping === 'engine_tender';
-    const isDieselSet = (d) => d._itemGrouping === 'aa' || d._itemGrouping === 'ab' || d._itemGrouping === 'aba';
-    const isABAgroup  = (d) => d._itemGrouping === 'aba';
+    // Item subjects — single source of truth (Decision Map #3, getItemSubjects in app.js).
+    const _subs = (d) => (typeof getItemSubjects === 'function') ? getItemSubjects(d) : [{ prefix: '' }];
+    const _hasPrefix = (d, p) => _subs(d).some((s) => s.prefix === p);
+    const isEngTender = (d) => _hasPrefix(d, 'tender');
+    const isDieselSet = (d) => _hasPrefix(d, 'unit2');
+    const isABAgroup  = (d) => _hasPrefix(d, 'unit3');
 
     return [
 
@@ -502,10 +503,10 @@ function getSteps(tab) {
 
       // ── Together photo ──
       { id: 'photosTogether',
-        title: (d) => isPaired(d) ? 'Photo of engine and tender together' : 'Photo of the full ' + (d.setType || 'AB') + ' set together',
+        title: (d) => isEngTender(d) ? 'Photo of engine and tender together' : 'Photo of the full ' + (d.setType || 'AB') + ' set together',
         type: 'drivePhotos', label: 'Set',
-        photoBanner: { color: '#9b59b6', label: (d) => isPaired(d) ? '\u{1F7EA} PHOTOS: Engine + Tender Together' : '\u{1F7EA} PHOTOS: Full Set Together' },
-        skipIf: (d) => !isPaired(d) && !isSetNow(d) },
+        photoBanner: { color: '#9b59b6', label: (d) => isEngTender(d) ? '\u{1F7EA} PHOTOS: Engine + Tender Together' : '\u{1F7EA} PHOTOS: Full Set Together' },
+        skipIf: (d) => _subs(d).length <= 1 },
 
       // ── Master box photos ──
       { id: 'photosMasterBox', title: 'Add photos of the master box',

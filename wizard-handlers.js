@@ -42,7 +42,6 @@ function _updateGroupingButtons() {
   if (!container) return;
   
   const itemNum = (wizard.data.itemNum || '').trim();
-  const _baseNum = itemNum.replace(/-(P|D)$/i, '');
   if (!itemNum) { container.style.display = 'none'; return; }
   
   // Grouping options — SINGLE SOURCE OF TRUTH (Decision Map #1, getGroupingOptions in app.js).
