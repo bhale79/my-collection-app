@@ -2943,8 +2943,7 @@ function showRefItemPopup(type, idx) {
       };
       document.getElementById('wizard-modal').classList.add('open');
       document.body.style.overflow = 'hidden';
-      var _baseNum2 = (_itemNum || '').replace(/-(P|D)$/i, '');
-      var _hasGrouping2 = (typeof getGroupingOptions === 'function') ? getGroupingOptions(_itemNum).length > 0 : (getMatchingTenders(_baseNum2).length > 0 || isF3AlcoUnit(_baseNum2));
+      var _hasGrouping2 = (typeof getGroupingOptions === 'function') && getGroupingOptions(_itemNum).length > 0;
       var autoSkip = new Set(['tab', 'itemNum', 'variation', 'itemPicker', 'itemCategory', 'entryMode']);
       if (!_hasGrouping2) autoSkip.add('itemNumGrouping');
       while (wizard.step < wizard.steps.length - 1) {
@@ -2971,8 +2970,7 @@ function addFromBrowse(idx) {
   document.body.style.overflow = 'hidden';
   // Skip all steps before condition — item number, variation, and entry mode are already known
   // But DON'T skip itemNumGrouping if item has grouping options (engine+tender, diesel AA/AB)
-  const _baseNum = (item.itemNum || '').replace(/-(P|D)$/i, '');
-  const _hasGrouping = (typeof getGroupingOptions === 'function') ? getGroupingOptions(item.itemNum).length > 0 : (getMatchingTenders(_baseNum).length > 0 || isF3AlcoUnit(_baseNum));
+  const _hasGrouping = (typeof getGroupingOptions === 'function') && getGroupingOptions(item.itemNum).length > 0;
   const autoSkip = new Set(['tab', 'itemNum', 'variation', 'itemPicker', 'itemCategory', 'entryMode']);
   if (!_hasGrouping) autoSkip.add('itemNumGrouping');
   while (wizard.step < wizard.steps.length - 1) {
