@@ -59,28 +59,28 @@ function _updateGroupingButtons() {
 
   let buttons = [];
 
-  if (hasTenders && !isF3Alco) {
-    // Steam engine with known tender
-    buttons = [
-      { id: 'engine', label: 'Engine Only' },
-      { id: 'engine_tender', label: 'Engine + Tender' },
-    ];
-  } else if (hasLocos && !isF3Alco) {
-    // Standalone tender being entered
-    buttons = [];
-  } else if (isF3Alco && !isBUnit) {
-    // Diesel A unit
-    buttons = [
-      { id: 'a_powered', label: 'A Powered' },
-      { id: 'a_dummy',   label: 'A Dummy'   },
-    ];
+  // Steam/diesel COLLISION numbers (e.g. 221, 224 — both a 2-6-2 steam AND an
+  // Alco diesel) get BOTH sets of options. A browse Type filter (Steam/Diesel)
+  // narrows a collision to just that type. Mirrors _qe1RenderGrouping (wizard.js).
+  let _steamOpts  = hasTenders;             // has a tender pairing -> steam engine
+  let _dieselOpts = isF3Alco && !isBUnit;   // Alco/F3 A-unit -> diesel
+  const _ft = ((state.filters && state.filters.type) || '').toLowerCase();
+  const _filtSteam  = _ft.indexOf('steam')  !== -1;
+  const _filtDiesel = _ft.indexOf('diesel') !== -1;
+  if (_steamOpts && _dieselOpts) {
+    if (_filtSteam && !_filtDiesel) _dieselOpts = false;
+    else if (_filtDiesel && !_filtSteam) _steamOpts = false;
+  }
+  if (_steamOpts) {
+    buttons.push({ id: 'engine', label: 'Engine Only' }, { id: 'engine_tender', label: 'Engine + Tender' });
+  }
+  if (_dieselOpts) {
+    buttons.push({ id: 'a_powered', label: 'A Powered' }, { id: 'a_dummy', label: 'A Dummy' });
     if (_hasAA)  buttons.push({ id: 'aa',  label: 'AA set'  });
     if (_hasAB)  buttons.push({ id: 'ab',  label: 'AB set'  });
     if (_hasABA) buttons.push({ id: 'aba', label: 'ABA set' });
-  } else if (isF3Alco && isBUnit) {
-    // Diesel B unit — standalone only
-    buttons = [];
   }
+  // (standalone tender: hasLocos but no tenders of its own / not diesel -> no buttons)
 
   const current = wizard.data._itemGrouping || '';
   const _boxSelected = wizard.data.boxOnly || false;
