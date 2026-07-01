@@ -347,6 +347,9 @@ function getSteps(tab) {
     // Helper: is this a paired engine+tender set?
     const isPaired = (d) => d.tenderMatch && d.tenderMatch !== 'none' && d.tenderMatch !== '';
     const isSetNow = (d) => d.setMatch === 'set-now';
+    const isEngTender = (d) => d._itemGrouping === 'engine_tender';
+    const isDieselSet = (d) => d._itemGrouping === 'aa' || d._itemGrouping === 'ab' || d._itemGrouping === 'aba';
+    const isABAgroup  = (d) => d._itemGrouping === 'aba';
 
     return [
 
@@ -429,7 +432,7 @@ function getSteps(tab) {
       { id: 'photosItem', title: (d) => 'Add photos of the ' + getItemLabel(d),
         type: 'drivePhotos', label: 'Item',
         photoBanner: { color: '#2980b9', label: (d) => '\u{1F7E6} PHOTOS: No. ' + (d.itemNum || '') + ' ' + (getItemLabel(d) || '').charAt(0).toUpperCase() + (getItemLabel(d) || '').slice(1) },
-        note: (d) => isPaired(d) ? 'Engine photos only — tender photos next.' : '' },
+        note: (d) => isEngTender(d) ? 'Engine photos only — tender photos next.' : '' },
       // ── Box variation picker (only if 2+ known box types in master data) ──
       { id: 'boxVariation', title: (d) => 'Which box type do you have?', type: 'boxVariationPicker',
         skipIf: (d) => {
@@ -453,32 +456,32 @@ function getSteps(tab) {
         photoBanner: { color: '#27ae60', label: (d) => '\u{1F7E9} PHOTOS: Tender ' + (d.tenderMatch || '') },
         // Session 140 (Tier 3.19): Lionel-only step — steam-loco-plus-tender
         // pairing exists only for Lionel via the PW Companions tab.
-        skipIf: (d) => (typeof _wizardMfr === 'function' && _wizardMfr() !== 'lionel') || !isPaired(d) },
+        skipIf: (d) => (typeof _wizardMfr === 'function' && _wizardMfr() !== 'lionel') || !isEngTender(d) },
       { id: 'photosTenderBox',  title: (d) => 'Add photos of the tender box',
         type: 'drivePhotos', label: 'Box', tenderMode: true,
         photoBanner: { color: '#8B4513', label: (d) => '\u{1F7EB} PHOTOS: Tender ' + (d.tenderMatch || '') + ' — BOX' },
         // Session 140 (Tier 3.19): Lionel-only step (tender pairing).
-        skipIf: (d) => (typeof _wizardMfr === 'function' && _wizardMfr() !== 'lionel') || !isPaired(d) || d.tenderHasBox !== 'Yes' },
+        skipIf: (d) => (typeof _wizardMfr === 'function' && _wizardMfr() !== 'lionel') || !isEngTender(d) || d.tenderHasBox !== 'Yes' },
 
       // ── Unit 2 photos (diesel set) ──
       { id: 'photosUnit2Item', title: (d) => 'Add photos of the ' + (d.unit2ItemNum || 'B unit'),
         type: 'drivePhotos', label: 'Item', unit2Mode: true,
         photoBanner: { color: '#2980b9', label: (d) => '\u{1F7E6} PHOTOS: ' + (d.unit2ItemNum || 'Unit 2') },
-        skipIf: (d) => !isSetNow(d) },
+        skipIf: (d) => !isDieselSet(d) },
       { id: 'photosUnit2Box',  title: (d) => 'Add photos of the ' + (d.unit2ItemNum || 'B unit') + ' box',
         type: 'drivePhotos', label: 'Box', unit2Mode: true,
         photoBanner: { color: '#8B4513', label: (d) => '\u{1F7EB} PHOTOS: ' + (d.unit2ItemNum || 'Unit 2') + ' — BOX' },
-        skipIf: (d) => !isSetNow(d) || d.unit2HasBox !== 'Yes' },
+        skipIf: (d) => !isDieselSet(d) || d.unit2HasBox !== 'Yes' },
 
       // ── Unit 3 photos (ABA only) ──
       { id: 'photosUnit3Item', title: (d) => 'Add photos of the ' + (d.unit3ItemNum || 'A unit'),
         type: 'drivePhotos', label: 'Item', unit3Mode: true,
         photoBanner: { color: '#2980b9', label: (d) => '\u{1F7E6} PHOTOS: ' + (d.unit3ItemNum || 'Unit 3') },
-        skipIf: (d) => !isSetNow(d) || d.setType !== 'ABA' },
+        skipIf: (d) => !isABAgroup(d) },
       { id: 'photosUnit3Box',  title: (d) => 'Add photos of the ' + (d.unit3ItemNum || 'A unit') + ' box',
         type: 'drivePhotos', label: 'Box', unit3Mode: true,
         photoBanner: { color: '#8B4513', label: (d) => '\u{1F7EB} PHOTOS: ' + (d.unit3ItemNum || 'Unit 3') + ' — BOX' },
-        skipIf: (d) => !isSetNow(d) || d.setType !== 'ABA' || d.unit3HasBox !== 'Yes' },
+        skipIf: (d) => !isABAgroup(d) || d.unit3HasBox !== 'Yes' },
 
       // ── Instruction Sheet photos ──
       { id: 'photosIS', title: 'Add photos of the instruction sheet',
