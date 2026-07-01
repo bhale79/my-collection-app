@@ -555,7 +555,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     // Lionel — starts with "6-" or "6 ", followed by 4-6 digits
     { re: /\b6[\s\-]\d{4,6}\b/g,                                  mfr: 'Lionel' },
     // MTH — known scale-line prefixes 10/20/30/40/50/60/70/80/90, then 4-5 digits, optional -N or trailing letter
-    { re: /\b(?:10|20|30|40|50|60|70|80|90)[\s\-]\d{4,5}(?:[\s\-]\d{1,3}|[A-Z])?\b/g, mfr: 'MTH'    },
+    { re: /\b\d{2}[\s\-]\d{4,5}(?:-\d{1,3}|[A-Za-z])?\b/g, mfr: ''       },
     // Menards Gold Line — 275-XXXX or 279-XXXX (per Brad's samples)
     { re: /\b(?:275|279)[\s\-]\d{4}\b/g,                          mfr: 'Menards'},
     // Generic "Item #…" fallback (Session 180) — any box that prints an explicit
@@ -758,28 +758,66 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   // Pulls the meaningful words off the label (minus the item#, UPC digit-runs,
   // prices and noise) as an EDITABLE starting description for items not yet in
   // the catalog. Rough by design — always shown for confirmation, never trusted.
+  // Boilerplate / brand / feature-list / legal lines — never the road-name or
+  // car-type we want in a description. Whole line is skipped if it matches.
+  var _BC_REJECT = /trademark|reproduced|under\s*licen|licensed|all\s*rights|patent|copyright|©|manufactured|made\s+(and|in)\b|litho|standards?\s+and\s+spec|gateway|corporation|model\s+railroad|accessories|\bfeatures?\b|for\s+ages|\bages?\s+\d|and\s+up\b|assembled|electric\s+trains|rail\s?king|www\.|https?:|\.com\b|set\s+contains|wheels?\s+and\s+axles|die-?cast|couplers?|\bcurves?\b|wheel\s+sets?|needlepoint|paint\s+schemes?|abs\s+bod|scale\s+dimension|(set|unit|car)\s+measures|fast-?angle|operates?\s+on|handrails|brake\s+wheels|proto-?sound|flywheel|transformers|electronic\s+(horn|reverse)|headlight|\bdcru\b|baked\s+enamel|stamped\s+steel|brass\s+trim|\bnickel\b|\bweighs\b|dimensions?:|each\s+car|sliding\s+car\s+door|mounting\s+pad|kadee|qty\s+per\s+case/i;
+
+  function _bcDescGood(l) {
+    if (!l) return false;
+    if (_BC_REJECT.test(l)) return false;
+    var letters = (l.match(/[a-z]/gi) || []).length;
+    var digits = (l.match(/\d/g) || []).length;
+    return letters >= 4 && letters >= digits && !/^\$/.test(l) && l.length <= 60;
+  }
+
   function _bcDescriptionGuess(text, itemNumRaw) {
     if (!text) return '';
     var t = _stripUPCs(String(text));
-    if (itemNumRaw) {
-      try { t = t.replace(new RegExp(String(itemNumRaw).replace(/[-\s]/g, '[-\\s]?').replace(/[.*+?^${}()|[\]\\]/g, function(c){return c;}), 'gi'), ' '); } catch (e) {}
+    var numRe = null;
+    if (itemNumRaw) { try { numRe = new RegExp(String(itemNumRaw).replace(/[-\s]/g, '[-\\s]?'), 'gi'); } catch (e) {} }
+    function clean(l) {
+      if (numRe) { numRe.lastIndex = 0; l = l.replace(numRe, ' '); }
+      return l.replace(/\bItem\s*(No\.?|#)?/gi, ' ')
+              .replace(/for\s+ages\s+\d+\s*(and\s+up)?/gi, ' ')
+              .replace(/qty\s+per\s+case.*$/gi, ' ')
+              .replace(/www\.[^\s]+|https?:\/\/[^\s]+/gi, ' ')
+              .replace(/[™®]/g, '')
+              .replace(/[|_~`^]+/g, ' ')
+              .replace(/^[\s\-–—:]+/, '').replace(/\s+/g, ' ').trim();
     }
-    t = t.replace(/\bItem\s*#?/gi, ' ').replace(/\bNo\.\s*#?/gi, ' ');
-    var lines = t.split(/[\n\r]+/).map(function (l) {
-      return l.replace(/\s+/g, ' ').replace(/^[\s\-\u2013\u2014:]+/, '').trim();
-    });
-    var good = [];
-    lines.forEach(function (l) {
-      if (/trademark|reproduced|under\s*licen|licensed|all\s*rights|patent|copyright|\u00a9/i.test(l)) return;
-      var letters = (l.match(/[a-z]/gi) || []).length;
-      var digits = (l.match(/\d/g) || []).length;
-      if (letters >= 4 && letters >= digits && !/^\$?\d/.test(l) && l.length <= 60) good.push(l);
-    });
-    if (!good.length) return '';
-    var ranked = good.slice().sort(function (a, b) { return b.length - a.length; }).slice(0, 2);
-    var picked = good.filter(function (l) { return ranked.indexOf(l) >= 0; });
-    var desc = picked.join(' - ').replace(/[|_~`^]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 90);
-    return desc;
+    var lines = t.split(/[\n\r]+/).map(function (l) { return l.replace(/\s+/g, ' ').trim(); });
+
+    // Find the line carrying the item number (or an "Item No/#" label).
+    var itemIdx = -1;
+    for (var i = 0; i < lines.length; i++) {
+      if ((itemNumRaw && lines[i].toUpperCase().indexOf(String(itemNumRaw).toUpperCase()) >= 0) ||
+          /\bItem\s*(No\.?|#)/i.test(lines[i])) { itemIdx = i; break; }
+    }
+
+    var chosen = [];
+    function tryAdd(idx) {
+      if (idx < 0 || idx >= lines.length) return false;
+      var cl = clean(lines[idx]);
+      if (_bcDescGood(cl)) { chosen.push({ idx: idx, txt: cl }); return true; }
+      return false;
+    }
+    if (itemIdx >= 0) {
+      tryAdd(itemIdx);                       // same line (Atlas / Lionel: number + desc together)
+      var up = itemIdx - 1, mu = 0;          // description usually sits just ABOVE the item line
+      while (up >= 0 && chosen.length < 4) { if (tryAdd(up)) mu = 0; else { mu++; if (mu >= 2) break; } up--; }
+      var dn = itemIdx + 1, md = 0;          // subtitle sometimes sits just BELOW
+      while (dn < lines.length && chosen.length < 4) { if (tryAdd(dn)) md = 0; else { md++; if (md >= 2) break; } dn++; }
+    }
+    if (!chosen.length) {
+      // Fallback: longest good lines anywhere on the label.
+      lines.forEach(function (l, idx) { var cl = clean(l); if (_bcDescGood(cl)) chosen.push({ idx: idx, txt: cl }); });
+      chosen.sort(function (a, b) { return b.txt.length - a.txt.length; });
+      chosen = chosen.slice(0, 3);
+    }
+    chosen.sort(function (a, b) { return a.idx - b.idx; });   // reading order
+    var seen = {}, out = [];
+    chosen.forEach(function (o) { var k = o.txt.toLowerCase().replace(/[^a-z0-9]/g, ''); if (k && !seen[k]) { seen[k] = 1; out.push(o.txt); } });
+    return out.join(' - ').replace(/\s+/g, ' ').trim().slice(0, 120);
   }
 
   // ── Confirm-before-fill card (Session 180) ── resolves 'use' | 'rescan' | 'manual'
