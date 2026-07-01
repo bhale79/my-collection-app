@@ -232,6 +232,42 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   // A Lionel UPC only carries 5 digits, so shared-barcode reissues (1931290 /
   // 2031290 …) are ambiguous. Reading the full number printed on the label lets
   // us confirm/auto-resolve. Captures the frame synchronously, then OCRs it.
+  // Pre-process a captured frame for OCR: grayscale + contrast-stretch (+ upscale
+  // small crops). Big help on low-contrast vintage/colored boxes — blue-on-orange
+  // MPC boxes and postwar boxes — where raw Tesseract just sees mush.
+  function _bcPreprocessForOCR(src) {
+    try {
+      var w = src.width | 0, h = src.height | 0;
+      if (!w || !h) return src;
+      var img = src.getContext('2d').getImageData(0, 0, w, h);
+      var d = img.data, i, g, mn = 255, mx = 0;
+      var gray = new Uint8ClampedArray(w * h);
+      for (i = 0; i < d.length; i += 4) {
+        g = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) | 0;
+        gray[i >> 2] = g;
+        if (g < mn) mn = g;
+        if (g > mx) mx = g;
+      }
+      var range = (mx - mn) || 1;
+      var scale = (w < 1000) ? 2 : 1;   // upscale only small crops; keep hi-res OCR fast
+      var out = document.createElement('canvas');
+      out.width = w * scale; out.height = h * scale;
+      var octx = out.getContext('2d');
+      var oimg = octx.createImageData(out.width, out.height);
+      var od = oimg.data, x, y, sxp, syp, val, p;
+      for (y = 0; y < out.height; y++) {
+        syp = (y / scale) | 0;
+        for (x = 0; x < out.width; x++) {
+          sxp = (x / scale) | 0;
+          val = ((gray[syp * w + sxp] - mn) * 255 / range) | 0;
+          p = (y * out.width + x) * 4;
+          od[p] = od[p + 1] = od[p + 2] = val; od[p + 3] = 255;
+        }
+      }
+      octx.putImageData(oimg, 0, 0);
+      return out;
+    } catch (e) { return src; }
+  }
   async function _bcLabelVerify(video) {
     var vw = video.videoWidth | 0, vh = video.videoHeight | 0;
     if (!vw || !vh) return { nums: [], text: '' };
@@ -243,7 +279,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     crop.getContext('2d').drawImage(full, sx, sy, sw, sh, 0, 0, sw, sh);
     try {
       var Tesseract = await _ensureTesseract();
-      var ocr = await Tesseract.recognize(crop, 'eng', {});
+      var ocr = await Tesseract.recognize(_bcPreprocessForOCR(crop), 'eng', {});
       var text = (ocr && ocr.data && ocr.data.text) || '';
       var cands = (typeof _extractItemNumberCandidates === 'function') ? (_extractItemNumberCandidates(text) || []) : [];
       var nums = cands.map(function (c) { return String(c.raw || '').replace(/\D+/g, ''); }).filter(function (n) { return n.length >= 4; });
@@ -407,7 +443,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
               const _lv = await _lvP;
               const _autoMatch = _bcPickByLabel(result.candidates, _lv.nums, result.code5);
               if (_autoMatch) {
-                const _cc = await _bcConfirmCard({ itemNum: _autoMatch.itemNum, manufacturer: 'Lionel', description: (_autoMatch.description || ''), verifiedNote: '✓ Barcode + label agree' });
+                const _cc = await _bcConfirmCard({ itemNum: _autoMatch.itemNum, manufacturer: 'Lionel', roadName: (_autoMatch.roadName || ''), description: (_autoMatch.description || ''), verifiedNote: '✓ Barcode + label agree' });
                 if (_cc === 'use') { if (onScanned) onScanned({ handled: true, rawBarcode: result.rawBarcode, format: result.format, upc: result.upc, manufacturer: 'Lionel', itemNum: _autoMatch.itemNum, variation: _autoMatch.variation || '', masterItem: _autoMatch, verifiedBy: 'barcode+label', isSet: String(_autoMatch.itemType || '').toLowerCase() === 'set' }); return; }
                 if (_cc === 'manual') { if (onCancel) onCancel(); return; }
                 if (_cc === 'cancel') { if (onCancel) onCancel(); return; }
@@ -440,7 +476,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                 stopScanning = true;
                 // Always double-verify: read the label in the background; warn only if it conflicts.
                 const _bgVerify = (result.masterItem && !result.notInMaster) ? _bcLabelVerify(video) : null;
-                const _ci = { itemNum: result.itemNum, manufacturer: result.manufacturer, description: (result.masterItem && result.masterItem.description) || '', notInMaster: result.notInMaster, verifyPromise: _bgVerify, expectNum: String(result.itemNum || '').replace(/\D+/g, '') };
+                const _ci = { itemNum: result.itemNum, manufacturer: result.manufacturer, roadName: (result.masterItem && result.masterItem.roadName) || '', description: (result.masterItem && result.masterItem.description) || '', notInMaster: result.notInMaster, verifyPromise: _bgVerify, expectNum: String(result.itemNum || '').replace(/\D+/g, '') };
                 const _bcChoice = await _bcConfirmCard(_ci);
                 if (_bcChoice === 'use') { cleanup(); if (onScanned) onScanned(result); return; }
                 if (_bcChoice === 'uselabel') { cleanup(); if (onScanned && _ci._labelResult) onScanned(_ci._labelResult); return; }
@@ -927,7 +963,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         var crop = document.createElement('canvas');
         crop.width = sw; crop.height = sh;
         crop.getContext('2d').drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
-        var ocr = await Tesseract.recognize(crop, 'eng', {
+        var ocr = await Tesseract.recognize(_bcPreprocessForOCR(crop), 'eng', {
           // No logger to keep things quiet; default progress prints to console.
         });
         var text = (ocr && ocr.data && ocr.data.text) || '';
@@ -972,7 +1008,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         var hits = await _findMasterItemsExact(lookupCands);
         if (hits.length === 1) {
           var m = hits[0];
-          var _r1 = { handled: true, itemNum: m.itemNum, variation: m.variation || '', masterItem: m, manufacturer: best.mfr, description: (m.description || ''), statusMessage: 'Found ' + m.itemNum + ' — ' + (m.description || '').substring(0, 40) };
+          var _r1 = { handled: true, itemNum: m.itemNum, variation: m.variation || '', masterItem: m, manufacturer: best.mfr, roadName: (m.roadName || ''), description: (m.description || ''), statusMessage: 'Found ' + m.itemNum + ' — ' + (m.description || '').substring(0, 40) };
           var _c1 = await _bcConfirmCard(_r1);
           if (_c1 === 'use') { cleanup(); if (onFound) onFound(_r1); }
           else if (_c1 === 'manual' || _c1 === 'cancel') { cleanup(); if (onCancel) onCancel(); }
@@ -1122,6 +1158,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       d.innerHTML = '<div style="width:100%;max-width:420px;background:var(--surface,#1a1d3a);border:1px solid var(--border,#333);border-radius:16px;padding:18px;color:var(--text,#eee);font-family:var(--font-body,sans-serif)">'
         + '<div style="font-size:0.78rem;color:var(--accent2,#c9922a);font-weight:600;margin-bottom:8px">' + (info.noItemNum ? 'No item number on the label \u2014 add with this description?' : (info.notInMaster ? 'Detected \u2014 not in your catalog' : 'Found it \u2014 use this?')) + '</div>'
         + '<div style="font-family:var(--font-mono);font-size:1.15rem;font-weight:700;color:var(--accent,#e8401c)">' + num + (mfr ? ' <span style="font-size:0.72rem;color:var(--text-dim,#999);font-weight:400">' + mfr + '</span>' : '') + '</div>'
+        + (info.roadName ? '<div style="font-size:0.95rem;color:var(--text,#fff);font-weight:600;margin-top:5px">' + _bcEsc(info.roadName) + '</div>' : '')
         + (desc ? '<div style="font-size:0.9rem;color:var(--text-mid,#ccc);margin-top:6px;line-height:1.4">' + desc + '</div>' : '<div style="font-size:0.8rem;color:var(--text-dim,#999);margin-top:6px">No description read from the label.</div>')
         + (info.notInMaster && info.description ? '<div style="font-size:0.7rem;color:var(--text-dim,#999);margin-top:5px">read from the label \u2014 you can edit it in the next steps.</div>' : '')
         + (info.verifiedNote ? '<div id="bc-verify-note" style="font-size:0.8rem;margin-top:8px;color:#a6e87e">' + _bcEsc(info.verifiedNote) + '</div>' : (info.verifyPromise ? '<div id="bc-verify-note" style="font-size:0.8rem;margin-top:8px;color:#9aa">🔎 Confirming with the label…</div>' : ''))
@@ -1163,7 +1200,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
               if (_useBtn && _useBtn.parentNode) _useBtn.parentNode.insertBefore(_lblBtn, _useBtn.nextSibling);
             }).catch(function () {});
           }
-          else { note.textContent = 'Could not read the label to confirm.'; note.style.color = '#999'; }
+          else { note.innerHTML = '✓ Using the barcode match — couldn\'t double-check the label.'; note.style.color = '#a6e87e'; }
         }).catch(function () {});
       }
     });
