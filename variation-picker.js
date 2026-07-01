@@ -66,12 +66,12 @@
   var VP_OPT_SUFFIX = { doors: 'block', door: 'block' };
   var VP_DOOR_IMG = { single: 'https://cornucopiaoftoytrains.com/wp-content/uploads/2023/01/IMG_1831-2.jpg', multi: 'https://cornucopiaoftoytrains.com/wp-content/uploads/2023/02/IMG_1900.jpg' };
   var VP_GI_BASE = 'https://cornucopiaoftoytrains.com/';
+  // Only categories with a TRUE general-INFORMATION reference page on COTT. The
+  // *-general-TYPE-* slugs (steam, passenger) + postwar-tenders-general are item
+  // LISTINGS, not info pages — omitted so we never mislabel a listing as "info".
   var VP_GI_BYTYPE = {
     'Boxcar': ['boxcars-general-information-a', '6464 boxcar general info'],
     'Flatcar': ['flatcars-general-information-a', 'flatcar general info'],
-    'Tender': ['postwar-tenders-general', 'tender general info'],
-    'Passenger Car': ['passenger-general-type-passenger-cars', 'passenger-car general info'],
-    'Steam Locomotive': ['steam-general-type-locomotives', 'steam locomotive general info'],
     'Caboose': ['general-information-about-sp-type-cabooses', 'SP-type caboose general info']
   };
   function _vpGiLink(slug, label) {
