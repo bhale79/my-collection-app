@@ -597,9 +597,9 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       }
     });
     // Anchored modern-Lionel bare 7-digit catalog number (e.g. 2133031, 2133032).
-    // Gated on Lionel context so cluttered dealer cartons (dates, PO#, LPO) don't
+    // Gated on Lionel context (incl. VisionLine sub-brand) so cluttered dealer cartons don't
     // spawn stray candidates. (Brad decision 2026-07-01: "Anchored" approach.)
-    if (/\bLEGACY\b|\bLIONEL\b|4LIONEL|lionel\.com/i.test(clean)) {
+    if (/\bLEGACY\b|\bLIONEL\b|4LIONEL|lionel\.com|\bVISIONLINE\b|\bVISION\b/i.test(clean)) {
       var _l7, _re7 = /\b\d{7}\b/g;
       while ((_l7 = _re7.exec(clean)) !== null) {
         if (!seen[_l7[0]]) { seen[_l7[0]] = 1; out.push({ raw: _l7[0], mfr: 'Lionel' }); }
