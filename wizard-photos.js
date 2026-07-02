@@ -184,6 +184,9 @@ if (typeof window !== 'undefined') window._awaitPhotoUploads = _awaitPhotoUpload
 // we instantly extract the Lionel item number + advance the wizard. Skips
 // the manual click-into-input / paste / click "Use This Item Number" steps.
 let _identifyPasteHandler = null;
+let _identifyVisHandler = null;    // v0.9.642: return-from-Lens clipboard check
+let _identifyLensOpened = false;   // armed when the Lens tab is opened
+let _identifyLastClip = '';        // dedupe: don't re-offer identical clipboard text
 
 function openIdentify(context) {
   _identifyCallerContext = context;
@@ -206,73 +209,116 @@ function openIdentify(context) {
     } catch(err) { return; }
     txt = (txt || '').trim();
     if (!txt) return;
-    // Run the smart metadata extractor as the single source of truth.
-    // It handles hedge detection so we don't grab a cab# disguised as item#.
-    var meta = extractIdentifyMetadata(txt);
-    var extracted = meta.itemNum;
-    if (!extracted) {
-      if (meta._hedge) {
-        // AI Overview hedged ("reflecting the cab number", "no specific SKU",
-        // etc). Do NOT auto-apply — that's how Brad ended up with a wrong
-        // Lionel 3460 instead of a Weaver 1076-L. Eat the paste and prompt.
-        e.preventDefault();
-        if (typeof showToast === 'function') {
-          showToast("Google couldn't identify a specific item number — type one below or try a different photo", 4500, true);
-        }
-        var inpH = document.getElementById('identify-manual-input');
-        if (inpH) { inpH.value = ''; inpH.focus(); }
-        return;
+    var _res = _identifyProcessText(txt);
+    if (_res === 'applied') { e.preventDefault(); return; }
+    if (_res === 'hedge') {
+      // AI Overview hedged — eat the paste and prompt (see _identifyProcessText).
+      e.preventDefault();
+      if (typeof showToast === 'function') {
+        showToast("Google couldn't identify a specific item number — type one below or try a different photo", 4500, true);
       }
-      // No item# and no hedge — let paste fall through to the input naturally
-      // so the user can edit/type one themselves.
+      var inpH = document.getElementById('identify-manual-input');
+      if (inpH) { inpH.value = ''; inpH.focus(); }
       return;
     }
-    // We have a hit — eat the paste event, fill the input visibly.
-    e.preventDefault();
-    var inp = document.getElementById('identify-manual-input');
-    if (inp) inp.value = extracted;
-    // Bug 6 (Session 154): SKU-first priority. When the AI gave us a SKU,
-    // consult master directly — don't fall through to descriptive scoring
-    // (which has shown false-negatives where the correct SKU isn't among
-    // the candidates). If master hits, apply; if not, route to manual.
-    var _mfrHints = _getSelectedIdentifyMfrs();
-    if (typeof findMaster === 'function') {
-      var _direct = findMaster(extracted);
-      if (_direct) {
-        // Cataloged hit — but still check for mfr mismatch before applying.
-        if (_identifyHasMfrMismatch(extracted, _mfrHints)) {
-          _identifyConfirmMfrMismatch(extracted, txt, meta);
-          return;
-        }
-        // fall through to meta-stash + applyIdentifiedItem below
-      } else {
-        // No master hit for the AI's SKU — non-cataloged item. Route
-        // straight to Manual Entry. No chooser detour.
-        closeIdentify();
-        _identifyRouteToManualEntry(extracted, meta, _mfrHints);
-        return;
-      }
-    }
-    if (typeof wizard !== 'undefined' && wizard && wizard.data) {
-      if (meta.year)         wizard.data._identifyYear     = meta.year;
-      if (meta.roadName)     wizard.data._identifyRoadName = meta.roadName;
-      if (meta.subType)      wizard.data._identifySubType  = meta.subType;
-      if (meta.wheels)       wizard.data._identifyWheels   = meta.wheels;
-      if (meta.cabNum)       wizard.data._identifyCabNum   = meta.cabNum;
-      if (meta.manufacturer) wizard.data._identifyMfrFound = meta.manufacturer;
-      if (meta.variation)    wizard.data._identifyVariation= meta.variation;
-      // Stash the raw meta blob for downstream consumers.
-      wizard.data._identifyMeta = meta;
-    }
-    // Build the toast: lead with item#, append a couple of extracted fields
-    // so the user sees what we recognized before the modal closes.
-    var bits = ['Found item #' + extracted];
-    if (meta.roadName) bits.push(meta.roadName);
-    if (meta.year)     bits.push('(' + meta.year + ')');
-    showToast(bits.join(' '), 1800);
-    setTimeout(function() { _applyIdentifiedItem(extracted); }, 400);
+    // 'none' — let the paste fall through to the input naturally so the
+    // user can edit/type one themselves.
   };
   document.addEventListener('paste', _identifyPasteHandler, true);
+  // v0.9.642: coming back from the Lens tab — offer the clipboard with no
+  // keypress needed (closes the mobile gap: phones have no Ctrl+V). Best
+  // effort: some browsers prompt for permission or require a tap; the 📋
+  // Paste Lens Result button is the reliable fallback.
+  _identifyVisHandler = function() {
+    if (document.visibilityState !== 'visible') return;
+    if (!modal.classList.contains('open') || !_identifyLensOpened) return;
+    _identifyReadClipboard(true);
+  };
+  document.addEventListener('visibilitychange', _identifyVisHandler);
+}
+
+// v0.9.642: ONE processor for Lens result text — used by the Ctrl+V handler,
+// the 📋 button, and the return-from-Lens auto-check (single source of truth,
+// per the decision-map principle). Returns 'applied' | 'hedge' | 'none'.
+// Hedge case: AI Overview hedged ("reflecting the cab number", "no specific
+// SKU", etc). Do NOT auto-apply — that's how Brad ended up with a wrong
+// Lionel 3460 instead of a Weaver 1076-L.
+function _identifyProcessText(txt) {
+  txt = (txt || '').trim();
+  if (!txt) return 'none';
+  // Run the smart metadata extractor as the single source of truth.
+  // It handles hedge detection so we don't grab a cab# disguised as item#.
+  var meta = extractIdentifyMetadata(txt);
+  var extracted = meta.itemNum;
+  if (!extracted) return meta._hedge ? 'hedge' : 'none';
+  // We have a hit — fill the input visibly.
+  var inp = document.getElementById('identify-manual-input');
+  if (inp) inp.value = extracted;
+  // Bug 6 (Session 154): SKU-first priority. When the AI gave us a SKU,
+  // consult master directly — don't fall through to descriptive scoring
+  // (which has shown false-negatives where the correct SKU isn't among
+  // the candidates). If master hits, apply; if not, route to manual.
+  var _mfrHints = _getSelectedIdentifyMfrs();
+  if (typeof findMaster === 'function') {
+    var _direct = findMaster(extracted);
+    if (_direct) {
+      // Cataloged hit — but still check for mfr mismatch before applying.
+      if (_identifyHasMfrMismatch(extracted, _mfrHints)) {
+        _identifyConfirmMfrMismatch(extracted, txt, meta);
+        return 'applied';
+      }
+      // fall through to meta-stash + applyIdentifiedItem below
+    } else {
+      // No master hit for the AI's SKU — non-cataloged item. Route
+      // straight to Manual Entry. No chooser detour.
+      closeIdentify();
+      _identifyRouteToManualEntry(extracted, meta, _mfrHints);
+      return 'applied';
+    }
+  }
+  if (typeof wizard !== 'undefined' && wizard && wizard.data) {
+    if (meta.year)         wizard.data._identifyYear     = meta.year;
+    if (meta.roadName)     wizard.data._identifyRoadName = meta.roadName;
+    if (meta.subType)      wizard.data._identifySubType  = meta.subType;
+    if (meta.wheels)       wizard.data._identifyWheels   = meta.wheels;
+    if (meta.cabNum)       wizard.data._identifyCabNum   = meta.cabNum;
+    if (meta.manufacturer) wizard.data._identifyMfrFound = meta.manufacturer;
+    if (meta.variation)    wizard.data._identifyVariation= meta.variation;
+    // Stash the raw meta blob for downstream consumers.
+    wizard.data._identifyMeta = meta;
+  }
+  // Build the toast: lead with item#, append a couple of extracted fields
+  // so the user sees what we recognized before the modal closes.
+  var bits = ['Found item #' + extracted];
+  if (meta.roadName) bits.push(meta.roadName);
+  if (meta.year)     bits.push('(' + meta.year + ')');
+  showToast(bits.join(' '), 1800);
+  setTimeout(function() { _applyIdentifiedItem(extracted); }, 400);
+  return 'applied';
+}
+
+// v0.9.642: read the clipboard on demand (📋 button) or on return from Lens.
+function _identifyReadClipboard(auto) {
+  if (!navigator.clipboard || !navigator.clipboard.readText) {
+    if (!auto && typeof showToast === 'function') showToast('This browser blocks clipboard reads — long-press the box below and Paste instead', 4000, true);
+    return;
+  }
+  navigator.clipboard.readText().then(function(txt) {
+    txt = (txt || '').trim();
+    if (!txt) { if (!auto && typeof showToast === 'function') showToast('Clipboard is empty — copy the Lens result first', 3500, true); return; }
+    if (auto && txt === _identifyLastClip) return;   // unchanged since last look
+    _identifyLastClip = txt;
+    var _res = _identifyProcessText(txt);
+    if (_res === 'hedge') {
+      if (typeof showToast === 'function') showToast("Google couldn't identify a specific item number — type one below or try a different photo", 4500, true);
+    } else if (_res === 'none' && !auto) {
+      var inp2 = document.getElementById('identify-manual-input');
+      if (inp2) { inp2.value = txt.slice(0, 200); inp2.focus(); }
+      if (typeof showToast === 'function') showToast('No item number found in the copied text — edit it below', 3500, true);
+    }
+  }).catch(function() {
+    if (!auto && typeof showToast === 'function') showToast('Clipboard permission denied — long-press the box below and Paste instead', 4000, true);
+  });
 }
 
 function closeIdentify() {
@@ -283,6 +329,12 @@ function closeIdentify() {
     document.removeEventListener('paste', _identifyPasteHandler, true);
     _identifyPasteHandler = null;
   }
+  if (_identifyVisHandler) {
+    document.removeEventListener('visibilitychange', _identifyVisHandler);
+    _identifyVisHandler = null;
+  }
+  _identifyLensOpened = false;
+  _identifyLastClip = '';
   // v2: reset photo state so next open starts fresh. Drive cleanup is on its
   // own 10-minute timer (set when search fires) — we don't trigger it here
   // because the user might just be paste-confirming and we want the public
@@ -381,6 +433,9 @@ function _wireIdentifyModalV2() {
   }
   // The big search button → does the Drive upload + Lens open.
   searchBtn.addEventListener('click', _identifySearchLens);
+  // v0.9.642: 📋 paste button — mobile-friendly clipboard read.
+  var _pasteBtn = document.getElementById('id-paste-btn');
+  if (_pasteBtn) _pasteBtn.addEventListener('click', function() { _identifyReadClipboard(false); });
   _updateSearchButton();
 }
 
@@ -434,6 +489,7 @@ async function _identifySearchLens() {
       wizard.data._identifyScaleHint = scale;
       wizard.data._identifyTypeHint  = type;
     }
+    _identifyLensOpened = true;   // v0.9.642: arms the return-from-Lens clipboard check
   } catch(e) {
     console.error('[Lens] Search failed:', e);
     if (typeof showToast === 'function') showToast('Lens search failed: ' + e.message, 4000, true);
