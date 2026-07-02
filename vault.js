@@ -323,7 +323,10 @@ async function vaultSubmitData() {
       const itemNum = String(pd.itemNum || parts[0] || '').trim();
       if (!itemNum) continue;
       const variation = String(pd.variation !== undefined && pd.variation !== null ? pd.variation : (parts[1] || ''));
-      const inMaster = canFlag ? masterSet.has(itemNum.toUpperCase()) : true;
+      // v0.9.640: MPC items are stored WITHOUT the 6- prefix ("9806") while a
+      // label may read "6-9806" — check all three forms so we don't false-flag.
+      const nUp = itemNum.toUpperCase();
+      const inMaster = canFlag ? (masterSet.has(nUp) || masterSet.has(nUp.replace(/^6-/, '')) || masterSet.has('6-' + nUp)) : true;
       // Market rows still need a condition; a not-in-master row goes anyway so
       // the catalog review can see it.
       if (!pd.condition && inMaster) continue;

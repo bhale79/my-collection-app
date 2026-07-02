@@ -168,6 +168,80 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     }
     return [];
   }
+  // v0.9.640: EXACT matches aggregated across EVERY era (current + IDB caches),
+  // so a postwar 6468-25 and a modern reissue can appear side by side.
+  async function _findMasterItemsAllEras(candidates) {
+    var out = [], seen = {};
+    function addAll(arr, era) {
+      if (!arr || !arr.length) return;
+      candidates.forEach(function (cand) {
+        arr.forEach(function (m) {
+          var match = m.itemNum === cand || m.itemNum === cand.replace(/^6-/, '') || m.itemNum === ('6-' + cand);
+          if (!match) return;
+          var e = m._era || era;
+          var key = (m.itemNum || '') + '|' + (m.variation || '') + '|' + (m._tab || '') + '|' + e;
+          if (seen[key]) return;
+          seen[key] = 1;
+          if (!m._era) m._era = era;
+          out.push(m);
+        });
+      });
+    }
+    var curEra = (typeof _currentEra !== 'undefined') ? _currentEra : '';
+    if (typeof state !== 'undefined' && state.masterData) addAll(state.masterData, curEra);
+    if (typeof REAL_ERA_IDS !== 'undefined' && Array.isArray(REAL_ERA_IDS) && typeof idbGet === 'function') {
+      for (var i = 0; i < REAL_ERA_IDS.length; i++) {
+        var era = REAL_ERA_IDS[i];
+        if (era === curEra) continue;
+        try { addAll(await idbGet('lv_master_cache_' + era), era); } catch (e) {}
+      }
+    }
+    return out;
+  }
+  // v0.9.640: modern reissues usually QUOTE the postwar number in their
+  // description ('Postwar "6468" NH DD Boxcar'). For a postwar-format scan,
+  // offer those rows too — clearly labeled, never auto-picked (a road number
+  // can collide, e.g. a diesel cab numbered 6468).
+  async function _findReissueByDesc(numRaw, excludeSeen) {
+    var base = String(numRaw || '').toUpperCase();
+    if (!/^\d{3,4}(-\d{1,4})?[A-Z]{0,2}$/.test(base)) return [];
+    var pats = [base];
+    if (base.indexOf('-') > 0) pats.push(base.split('-')[0]);
+    var re;
+    try { re = new RegExp('(^|[^0-9A-Z])(' + pats.join('|').replace(/-/g, '\\-') + ')([^0-9]|$)'); } catch (e) { return []; }
+    var out = [], seen = excludeSeen || {};
+    function scan(arr, era) {
+      if (!arr) return;
+      for (var i = 0; i < arr.length && out.length < 6; i++) {
+        var m = arr[i];
+        var d = String(m.description || '');
+        if (!d || !re.test(d.toUpperCase())) continue;
+        var e = m._era || era;
+        var key = (m.itemNum || '') + '|' + (m.variation || '') + '|' + (m._tab || '') + '|' + e;
+        if (seen[key]) continue;
+        seen[key] = 1;
+        if (!m._era) m._era = era;
+        m._descMatch = true;
+        out.push(m);
+      }
+    }
+    var curEra = (typeof _currentEra !== 'undefined') ? _currentEra : '';
+    if (typeof state !== 'undefined' && state.masterData) scan(state.masterData, curEra);
+    if (typeof REAL_ERA_IDS !== 'undefined' && Array.isArray(REAL_ERA_IDS) && typeof idbGet === 'function') {
+      for (var i = 0; i < REAL_ERA_IDS.length && out.length < 6; i++) {
+        var era = REAL_ERA_IDS[i];
+        if (era === curEra) continue;
+        try { scan(await idbGet('lv_master_cache_' + era), era); } catch (e) {}
+      }
+    }
+    return out;
+  }
+  // Friendly era name for badges ('mpc' -> its ERAS label when available).
+  function _eraLabel(e) {
+    if (!e) return '';
+    try { if (typeof ERAS !== 'undefined' && ERAS[e]) return ERAS[e].label || ERAS[e].name || String(e); } catch (err) {}
+    return String(e);
+  }
   // HTML-escape helper for picker rendering.
   function _bcEsc(s) {
     return String(s == null ? '' : s).replace(/[<>"'&]/g, function(c) {
@@ -331,6 +405,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         return { handled: true, itemNum: m.itemNum, variation: m.variation || '', masterItem: m, manufacturer: best.mfr || 'Lionel', roadName: (m.roadName || ''), description: (m.description || ''), verifiedNote: '✓ Read from the printed label', verifiedBy: 'label', statusMessage: 'Found ' + m.itemNum + ' — ' + (m.description || '').substring(0, 40) };
       }
       var labelDesc = _bcDescriptionGuess(text, raw);
+      if (labelDesc && !_bcLooksLikeWords(labelDesc)) labelDesc = '';   // v0.9.640
       return { handled: true, itemNum: raw, variation: '', notInMaster: true, manufacturer: best.mfr, labelDescription: labelDesc, description: labelDesc, statusMessage: 'Read ' + raw + ' off the label — not in our catalog, adding manually…' };
     } catch (e) { return null; }
   }
@@ -413,7 +488,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     cancelBtn.onclick = () => { cleanup(); if (onCancel) onCancel(); };
     manualBtn.onclick = () => { cleanup(); if (onCancel) onCancel(); };
     // Always-available handoff to the OCR label reader (barcode damaged / not in UPC db / no barcode).
-    if (toLabelBtn) toLabelBtn.onclick = () => { cleanup(); openLabelScanner(onScanned, onCancel); };
+    if (toLabelBtn) toLabelBtn.onclick = () => { cleanup(); openLabelScanner(onScanned, onCancel, eraHint); };
 
     // Request camera
     try {
@@ -535,11 +610,23 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                 statusEl.style.color = result.error ? '#ff9580' : '#a6e87e';
                 await new Promise(r => setTimeout(r, 300));
                 stopScanning = true;
+                // v0.9.640: a Lionel barcode with NO catalog match used to offer a
+                // made-up "6-code5" — but on Vision-era boxes the UPC code isn't
+                // the catalog number at all. Read the printed label first and
+                // prefer what it says (a master hit or the raw printed number).
+                let _res = result;
+                if (result.notInMaster && result.upc && !_bcRescueTried['nm|' + bc.rawValue]) {
+                  _bcRescueTried['nm|' + bc.rawValue] = 1;
+                  _setStatus('Barcode has no catalog match — reading the printed label…', '#ffd27d', 30000);
+                  const _rr2 = await _bcLabelRescue(video);
+                  _bcStickyUntil = 0;
+                  if (_rr2 && _rr2.itemNum) { _res = _rr2; _res.rawBarcode = result.rawBarcode; _res.format = result.format; _res.upc = result.upc; }
+                }
                 // Always double-verify: read the label in the background; warn only if it conflicts.
-                const _bgVerify = (result.masterItem && !result.notInMaster) ? _bcLabelVerify(video) : null;
-                const _ci = { itemNum: result.itemNum, manufacturer: result.manufacturer, roadName: (result.masterItem && result.masterItem.roadName) || '', description: (result.masterItem && result.masterItem.description) || '', notInMaster: result.notInMaster, verifyPromise: _bgVerify, expectNum: String(result.itemNum || '').replace(/\D+/g, '') };
+                const _bgVerify = (_res === result && result.masterItem && !result.notInMaster) ? _bcLabelVerify(video) : null;
+                const _ci = { itemNum: _res.itemNum, manufacturer: _res.manufacturer, roadName: (_res.masterItem && _res.masterItem.roadName) || '', description: (_res.masterItem && _res.masterItem.description) || (_res.description || ''), notInMaster: _res.notInMaster, verifiedNote: _res.verifiedNote, verifyPromise: _bgVerify, expectNum: String(_res.itemNum || '').replace(/\D+/g, '') };
                 const _bcChoice = await _bcConfirmCard(_ci);
-                if (_bcChoice === 'use') { cleanup(); if (onScanned) onScanned(result); return; }
+                if (_bcChoice === 'use') { cleanup(); if (onScanned) onScanned(_res); return; }
                 if (_bcChoice === 'uselabel') { cleanup(); if (onScanned && _ci._labelResult) onScanned(_ci._labelResult); return; }
                 if (_bcChoice === 'manual') { cleanup(); if (onCancel) onCancel(); return; }
                 if (_bcChoice === 'cancel') { cleanup(); if (onCancel) onCancel(); return; }
@@ -709,7 +796,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1rem';
       var rowsHtml = candidates.map(function(m, idx) {
         var yr   = m.yearProd || m.yearMade || '';
-        var meta = [yr, m.roadName || '', m.itemType || ''].filter(Boolean).map(_bcEsc).join(' &middot; ');
+        var meta = [_eraLabel(m._era), yr, m.roadName || '', m.itemType || ''].filter(Boolean).map(_bcEsc).join(' &middot; ');
         var desc = _bcEsc(String(m.description || '').substring(0, 70));
         var url  = _bcViewUrl(m);
         return '<div class="bc-cand" data-idx="' + idx + '" '
@@ -719,6 +806,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           +   '<div style="font-weight:700;color:#fff;font-size:0.95rem">' + _bcEsc(m.itemNum) + '</div>'
           +   (meta ? '<div style="font-size:0.8rem;color:#aaa;margin-top:0.1rem">' + meta + '</div>' : '')
           +   (desc ? '<div style="font-size:0.78rem;color:#888;margin-top:0.1rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + desc + '</div>' : '')
+          +   (m._descMatch ? '<div style="font-size:0.72rem;color:#e8a020;margin-top:0.1rem">matched in the description — possible reissue</div>' : '')
           + '</div>'
           + '<a href="' + _bcEsc(url) + '" target="_blank" rel="noopener" class="bc-view" '
           +   'style="flex-shrink:0;padding:0.4rem 0.7rem;border-radius:8px;background:#333;border:1px solid #555;'
@@ -743,6 +831,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + '<div style="width:100%;max-width:520px;display:flex;flex-direction:column;gap:0.6rem">'
         +   '<div style="color:#fff;font-family:var(--font-head,sans-serif);font-size:1.1rem;text-align:center">Which one did you scan?</div>'
         +   '<div style="color:#aaa;font-size:0.8rem;text-align:center">The barcode ends in <strong style="color:#ffd27d">' + _bcEsc((scanResult && scanResult.code5) || '') + '</strong> &mdash; these items all share those digits. Tap the right one, or use View to check a photo.</div>'
+        +   ((scanResult && scanResult.cautionHtml) ? '<div style="color:#ffb27d;font-size:0.8rem;text-align:center">&#9888; ' + _bcEsc(scanResult.cautionHtml) + '</div>' : '')
         +   '<div style="overflow-y:auto;max-height:58vh;margin-top:0.3rem">' + rowsHtml + noneHtml + '</div>'
         +   '<button id="bc-cand-cancel" style="padding:0.8rem;border-radius:10px;border:1px solid #444;background:#222;color:#eee;font-size:0.95rem;font-family:inherit;cursor:pointer">Cancel</button>'
         + '</div>';
@@ -962,7 +1051,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     return '';
   }
 
-  async function openLabelScanner(onFound, onCancel) {
+  async function openLabelScanner(onFound, onCancel, eraHint) {
     var Tesseract;
     var preflightMsg = 'Loading scanner (one-time)…';
     var loaderOverlay = _makeBusyOverlay(preflightMsg);
@@ -1081,6 +1170,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           // which print only a description + road number). Offer the guessed
           // description with a BLANK item number so the user can add/assign it.
           var _dOnly = _bcDescriptionGuess(text, null);
+          if (_dOnly && !_bcLooksLikeWords(_dOnly)) _dOnly = '';   // v0.9.640: never offer letter-salad
           if (_dOnly && _dOnly.replace(/[^a-z0-9]/gi, '').length >= 5) {
             var _rd = { handled: true, itemNum: '', variation: '', notInMaster: true, noItemNum: true, manufacturer: _mfrFromKeywords(text) || '', labelDescription: _dOnly, description: _dOnly, statusMessage: 'No item number on the label — using the description' };
             var _cd = await _bcConfirmCard(_rd);
@@ -1106,6 +1196,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         }
         var raw = best.raw;
         var labelDesc = _bcDescriptionGuess(text, raw);
+        if (labelDesc && !_bcLooksLikeWords(labelDesc)) labelDesc = '';   // v0.9.640
         // Generate match-candidate variants: as-is, without 6- prefix, with 6- prefix.
         var lookupCands = [raw];
         if (raw.indexOf('6-') === 0) lookupCands.push(raw.substring(2));
@@ -1113,10 +1204,17 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // Session 169: OCR mode uses EXACT match only (no fuzzy last-5 fallback)
         // because OCR misreads turn into false matches via fuzzy. Barcode flow
         // still uses fuzzy because UPCs map cleanly to Lionel item numbers.
-        var hits = await _findMasterItemsExact(lookupCands);
+        // v0.9.640: matches from EVERY era + modern reissues quoted in
+        // descriptions, so the user can pick original vs remake.
+        var hits = await _findMasterItemsAllEras(lookupCands);
+        var _seenH = {};
+        hits.forEach(function (h) { _seenH[(h.itemNum || '') + '|' + (h.variation || '') + '|' + (h._tab || '') + '|' + (h._era || '')] = 1; });
+        var _reissues = await _findReissueByDesc(raw, _seenH);
+        if (_reissues.length) hits = hits.concat(_reissues);
+        var _eraMismatch = !!(eraHint && hits.length && hits.every(function (h) { return h._era && h._era !== eraHint; }));
         if (hits.length === 1) {
           var m = hits[0];
-          var _r1 = { handled: true, itemNum: m.itemNum, variation: m.variation || '', masterItem: m, manufacturer: best.mfr, roadName: (m.roadName || ''), description: (m.description || ''), statusMessage: 'Found ' + m.itemNum + ' — ' + (m.description || '').substring(0, 40) };
+          var _r1 = { handled: true, itemNum: m.itemNum, variation: m.variation || '', masterItem: m, manufacturer: best.mfr, roadName: (m.roadName || ''), description: (m.description || ''), eraTag: _eraLabel(m._era), cautionNote: _eraMismatch ? ('This matches a ' + _eraLabel(m._era) + ' item, but you\'re adding in a different era. Reissue boxes reuse the original artwork — an embossed stamp near LIONEL or any barcode means it\'s a modern remake.') : '', statusMessage: 'Found ' + m.itemNum + ' — ' + (m.description || '').substring(0, 40) };
           var _c1 = await _bcConfirmCard(_r1);
           if (_c1 === 'use') { cleanup(); if (onFound) onFound(_r1); }
           else if (_c1 === 'manual' || _c1 === 'cancel') { cleanup(); if (onCancel) onCancel(); }
@@ -1127,7 +1225,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           // Show the candidate picker (reuse showCandidatePicker if available).
           cleanup();
           var chosen = (typeof showCandidatePicker === 'function')
-            ? await showCandidatePicker(hits, { code5: raw })
+            ? await showCandidatePicker(hits, { code5: raw, cautionHtml: _eraMismatch ? 'None of these matches the era you\'re adding in — if the box has a barcode or an embossed stamp near LIONEL, it\'s a modern remake.' : '' })
             : hits[0];
           if (chosen && chosen.__notInList) {
             if (onFound) onFound({ handled: true, itemNum: chosen.itemNum, variation: '', notInMaster: true, manufacturer: best.mfr, labelDescription: labelDesc, description: labelDesc, statusMessage: 'Adding ' + chosen.itemNum + ' manually…' });
@@ -1167,8 +1265,18 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   // the catalog. Rough by design — always shown for confirmation, never trusted.
   // Boilerplate / brand / feature-list / legal lines — never the road-name or
   // car-type we want in a description. Whole line is skipped if it matches.
-  var _BC_REJECT = /trademark|reproduced|under\s*licen|licensed|all\s*rights|patent|copyright|©|manufactured|made\s+(and|in)\b|litho|standards?\s+and\s+spec|gateway|corporation|model\s+railroad|accessories|\bfeatures?\b|for\s+ages|\bages?\s+\d|and\s+up\b|assembled|electric\s+trains|rail\s?king|www\.|https?:|\.com\b|set\s+contains|wheels?\s+and\s+axles|die-?cast|couplers?|\bcurves?\b|wheel\s+sets?|needlepoint|paint\s+schemes?|abs\s+bod|scale\s+dimension|(set|unit|car)\s+measures|fast-?angle|operates?\s+on|handrails|brake\s+wheels|proto-?sound|flywheel|transformers|electronic\s+(horn|reverse)|headlight|\bdcru\b|baked\s+enamel|stamped\s+steel|brass\s+trim|\bnickel\b|\bweighs\b|dimensions?:|each\s+car|sliding\s+car\s+door|mounting\s+pad|kadee|qty\s+per\s+case|proof\s+of\s+purchase|rolling\s+stock|master\s+(passenger|line|series|rolling)|premier\s+(locomotive|passenger|rolling)|founders?\s+series|motive\s+power|streamlighting|fully\s+furnished|furnished\s+interior|passenger\s+figures?|extruded\s+alum|legacy\s+(control|railsounds|and\s+bluetooth)|railsounds|electro-?\s?coupler|bluetooth|\blvc\b|minimum\s+curve|sprung\s+trucks|opening\s+doors|all\s+new\s+road|activate\s+sounds|lionel\s+vision\s+line|powerhouse|circuit\s+breaker|over-?current|throttle|whistle\s+steam|fan-?driven|watts?\s+of\s+ac|quality\s+craft|weaver\s+models/i;
+  var _BC_REJECT = /trademark|reproduced|under\s*licen|licensed|all\s*rights|patent|copyright|©|manufactured|made\s+(and|in)\b|litho|standards?\s+and\s+spec|gateway|corporation|model\s+railroad|accessories|\bfeatures?\b|for\s+ages|\bages?\s+\d|and\s+up\b|assembled|electric\s+trains|rail\s?king|www\.|https?:|\.com\b|set\s+contains|wheels?\s+and\s+axles|die-?cast|couplers?|\bcurves?\b|wheel\s+sets?|needlepoint|paint\s+schemes?|abs\s+bod|scale\s+dimension|(set|unit|car)\s+measures|fast-?angle|operates?\s+on|handrails|brake\s+wheels|proto-?sound|flywheel|transformers|electronic\s+(horn|reverse)|headlight|\bdcru\b|baked\s+enamel|stamped\s+steel|brass\s+trim|\bnickel\b|\bweighs\b|dimensions?:|each\s+car|sliding\s+car\s+door|mounting\s+pad|kadee|qty\s+per\s+case|proof\s+of\s+purchase|rolling\s+stock|master\s+(passenger|line|series|rolling)|premier\s+(locomotive|passenger|rolling)|founders?\s+series|motive\s+power|streamlighting|fully\s+furnished|furnished\s+interior|passenger\s+figures?|extruded\s+alum|legacy\s+(control|railsounds|and\s+bluetooth)|railsounds|electro-?\s?coupler|bluetooth|\blvc\b|minimum\s+curve|sprung\s+trucks|opening\s+doors|all\s+new\s+road|activate\s+sounds|lionel\s+vision\s+line|powerhouse|circuit\s+breaker|over-?current|throttle|whistle\s+steam|fan-?driven|watts?\s+of\s+ac|quality\s+craft|weaver\s+models|door\s+guides|boxcar\s+body|brake\s?wheel|1[\s\-]?800|metal\s+wheels|\baxles\b/i;
 
+  // v0.9.640: does OCR output look like real words (vs letter-salad from a
+  // failed read, e.g. off a computer screen)? Most letter-tokens must be
+  // 3+ chars and contain a vowel.
+  function _bcLooksLikeWords(s) {
+    var toks = String(s || '').split(/\s+/).filter(Boolean);
+    if (!toks.length) return false;
+    var letter = toks.filter(function (t) { return /^[A-Za-z][A-Za-z'&.\-]*$/.test(t); });
+    var wordy = letter.filter(function (t) { return t.length >= 3 && /[aeiouy]/i.test(t); });
+    return letter.length >= 3 && wordy.length >= Math.ceil(letter.length * 0.6) && letter.length >= toks.length * 0.45;
+  }
   function _bcDescGood(l) {
     if (!l) return false;
     if (_BC_REJECT.test(l)) return false;
@@ -1196,6 +1304,9 @@ window.eraSupportsBarcode = eraSupportsBarcode;
               .replace(/\b[0-9]\s*-?\s*rail\b/gi, ' ')
               .replace(/qty\s+per\s+case.*$/gi, ' ')
               .replace(/www\.[^\s]+|https?:\/\/[^\s]+/gi, ' ')
+              .replace(/\S*\/\S+/g, ' ')
+              .replace(/\S+\.(webp|jpe?g|png|gif|html?|php|com|net|org)\b/gi, ' ')
+              .replace(/1[\s\-]?800[\s\-][A-Z0-9\-]+/gi, ' ')
               .replace(/[™®]/g, '')
               .replace(/[|_~`^]+/g, ' ')
               .replace(/^[\s\-–—:]+/, '').replace(/\s+/g, ' ').trim();
@@ -1269,10 +1380,11 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       var num = _bcEsc(info.itemNum || ''), mfr = _bcEsc(info.manufacturer || ''), desc = _bcEsc(info.description || '');
       d.innerHTML = '<div style="width:100%;max-width:420px;background:var(--surface,#1a1d3a);border:1px solid var(--border,#333);border-radius:16px;padding:18px;color:var(--text,#eee);font-family:var(--font-body,sans-serif)">'
         + '<div style="font-size:0.78rem;color:var(--accent2,#c9922a);font-weight:600;margin-bottom:8px">' + (info.noItemNum ? 'No item number on the label \u2014 add with this description?' : (info.notInMaster ? 'Detected \u2014 not in your catalog' : 'Found it \u2014 use this?')) + '</div>'
-        + '<div style="font-family:var(--font-mono);font-size:1.15rem;font-weight:700;color:var(--accent,#e8401c)">' + num + (mfr ? ' <span style="font-size:0.72rem;color:var(--text-dim,#999);font-weight:400">' + mfr + '</span>' : '') + '</div>'
+        + '<div style="font-family:var(--font-mono);font-size:1.15rem;font-weight:700;color:var(--accent,#e8401c)">' + num + (mfr ? ' <span style="font-size:0.72rem;color:var(--text-dim,#999);font-weight:400">' + mfr + '</span>' : '') + (info.eraTag ? ' <span style="font-size:0.72rem;color:#9ecbff;font-weight:400">' + _bcEsc(info.eraTag) + '</span>' : '') + '</div>'
         + (info.roadName ? '<div style="font-size:0.95rem;color:var(--text,#fff);font-weight:600;margin-top:5px">' + _bcEsc(info.roadName) + '</div>' : '')
         + (desc ? '<div style="font-size:0.9rem;color:var(--text-mid,#ccc);margin-top:6px;line-height:1.4">' + desc + '</div>' : '<div style="font-size:0.8rem;color:var(--text-dim,#999);margin-top:6px">No description read from the label.</div>')
         + (info.notInMaster && info.description ? '<div style="font-size:0.7rem;color:var(--text-dim,#999);margin-top:5px">read from the label \u2014 you can edit it in the next steps.</div>' : '')
+        + (info.cautionNote ? '<div style="font-size:0.78rem;margin-top:8px;color:#ffb27d">&#9888; ' + _bcEsc(info.cautionNote) + '</div>' : '')
         + (info.verifiedNote ? '<div id="bc-verify-note" style="font-size:0.8rem;margin-top:8px;color:#a6e87e">' + _bcEsc(info.verifiedNote) + '</div>' : (info.verifyPromise ? '<div id="bc-verify-note" style="font-size:0.8rem;margin-top:8px;color:#9aa">🔎 Confirming with the label…</div>' : ''))
         + '<button data-a="use" style="display:block;width:100%;margin-top:14px;padding:12px;border-radius:10px;border:2px solid var(--accent,#e8401c);background:rgba(232,64,28,0.12);color:var(--text,#fff);font-weight:600;font-size:0.95rem;cursor:pointer">Use this</button>'
         + '<div style="display:flex;gap:8px;margin-top:8px">'
