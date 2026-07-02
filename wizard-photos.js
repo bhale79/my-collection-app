@@ -211,7 +211,14 @@ function openIdentify(context) {
     if (!txt) return;
     var _res = _identifyProcessText(txt);
     if (_res === 'applied') { e.preventDefault(); return; }
+    // v0.9.643: if the user is pasting INTO the manual input, let unrecognized
+    // text land there — never leave them with a paste that "does nothing".
+    var _intoInput = e.target && e.target.id === 'identify-manual-input';
     if (_res === 'hedge') {
+      if (_intoInput) {
+        if (typeof showToast === 'function') showToast("Google couldn't identify a specific item number in that text — edit it below", 4000, true);
+        return;   // paste falls through to the textarea
+      }
       // AI Overview hedged — eat the paste and prompt (see _identifyProcessText).
       e.preventDefault();
       if (typeof showToast === 'function') {
@@ -243,8 +250,17 @@ function openIdentify(context) {
 // Hedge case: AI Overview hedged ("reflecting the cab number", "no specific
 // SKU", etc). Do NOT auto-apply — that's how Brad ended up with a wrong
 // Lionel 3460 instead of a Weaver 1076-L.
+// v0.9.643: Google AI Overview copies carry INVISIBLE characters (zero-width
+// spaces around citation markers, NBSP, object-replacement chars for inline
+// chips like "eBay +2"). They look identical on screen but break number
+// extraction — e.g. a ZWSP inside "6-22993". Strip them before any parsing.
+function _identifySanitize(s) {
+  return String(s || '')
+    .replace(/[\u200B-\u200F\u2060\uFEFF\u00AD\uFFFC\uFFF9-\uFFFB]/g, '')
+    .replace(/\u00A0/g, ' ');
+}
 function _identifyProcessText(txt) {
-  txt = (txt || '').trim();
+  txt = _identifySanitize(txt).trim();
   if (!txt) return 'none';
   // Run the smart metadata extractor as the single source of truth.
   // It handles hedge detection so we don't grab a cab# disguised as item#.
@@ -768,7 +784,7 @@ function _extractLabeledFields(text) {
 function extractIdentifyMetadata(text) {
   if (!text || typeof text !== 'string') return {};
   const out = {};
-  const raw = text.trim();
+  const raw = (typeof _identifySanitize === 'function' ? _identifySanitize(text) : text).trim();
   if (!raw) return out;
 
   // ── Step 1: try labeled-field parsing first (AI Overview's structured response) ──
