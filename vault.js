@@ -22,7 +22,10 @@
 const VAULT = {
 
   // The secure Apps Script endpoint (your central sheet)
-  ENDPOINT: 'https://script.google.com/macros/s/AKfycbx6gRS2tpwPFaqyT2Zk_uAUTVH-URWMlVg1msTHyeOxDS3HOMytRk9lXeU_AvbwQwIRwA/exec',
+  // v0.9.639: cut over to the deployment that carries backend v1.2
+  // (in_master / catalog "not found" columns). Old URL kept serving v1.1
+  // for stale app versions: AKfycbx6gRS2tpwPFaqyT2Zk_uAUTVH-URWMlVg1msTHyeOxDS3HOMytRk9lXeU_AvbwQwIRwA
+  ENDPOINT: 'https://script.google.com/macros/s/AKfycbyRVcw19tYbtYIwCfjOPqslSYYBpaq1O8wahOJu131pHd-j_qN4fX1AIVgcttxPKuaqiA/exec',
 
   // How many contributor collections needed before market data is revealed
   REVEAL_THRESHOLD: 300,
@@ -52,6 +55,7 @@ const VAULT = {
   KEY_TOKEN:    'lv_vault_token',
   KEY_OPTIN:    'lv_vault_optin',
   KEY_LAST_SUB: 'lv_vault_last_sub',
+  KEY_NF_SIG:   'lv_vault_nf_sig',    // v0.9.639: fingerprint of not-in-master items
 
   // How often to re-submit data (milliseconds) — default 7 days
   SUBMIT_INTERVAL_MS: 7 * 24 * 60 * 60 * 1000,
@@ -217,6 +221,7 @@ function vaultShowOptInModal(fromPrefs) {
           ✓ &nbsp;Condition grade<br>
           ✓ &nbsp;Your estimated worth<br>
           ✓ &nbsp;Sold price (if recorded)<br>
+          ✓ &nbsp;Item numbers not in our catalog yet — we review them and add them to the catalog for all collectors<br>
           ✗ &nbsp;<span style="color:var(--text)">Your name, email, or any identifying information — never</span>
         </div>
       </div>
@@ -302,17 +307,26 @@ async function vaultConfirmOptOut() {
 async function vaultSubmitData() {
   if (!vaultIsOptedIn()) return;
 
-  // Throttle — don't submit more than once per interval
-  const lastSub = parseInt(localStorage.getItem(VAULT.KEY_LAST_SUB) || '0');
-  if (Date.now() - lastSub < VAULT.SUBMIT_INTERVAL_MS) return;
+  // v0.9.639: union of every era's master item numbers, so each submitted row
+  // can carry an in_master flag (catalog "not found" review — Brad 2026-07-02).
+  const masterSet = await _vaultMasterSet();
+  const canFlag = masterSet.size >= 500;   // caches not loaded yet? don't false-flag
 
-  // Pull collection data from the app's state object
-  // personalData is the map of itemNum|variation → collection row
   const items = [];
+  const flagged = [];
   if (typeof state !== 'undefined' && state.personalData) {
     for (const [key, pd] of Object.entries(state.personalData)) {
-      if (!pd.condition) continue;  // skip items with no condition set
+      // v0.9.639 fix: newer personalData keys are inventoryIds (not
+      // itemNum|variation|row), so parsing the key sent the WRONG item number
+      // for those rows. Use the row's own fields, key parts only as fallback.
       const parts = key.split('|');
+      const itemNum = String(pd.itemNum || parts[0] || '').trim();
+      if (!itemNum) continue;
+      const variation = String(pd.variation !== undefined && pd.variation !== null ? pd.variation : (parts[1] || ''));
+      const inMaster = canFlag ? masterSet.has(itemNum.toUpperCase()) : true;
+      // Market rows still need a condition; a not-in-master row goes anyway so
+      // the catalog review can see it.
+      if (!pd.condition && inMaster) continue;
       // Session 135: include manufacturer so the Vault backend can optionally
       // segment market data by brand (Lionel vs Atlas vs MTH). Falls back to
       // ERAS[pd.era].manufacturer for items where the column is blank (legacy
@@ -320,26 +334,60 @@ async function vaultSubmitData() {
       var _mfr = pd.manufacturer
         || (pd.era && typeof ERAS !== 'undefined' && ERAS[pd.era] && ERAS[pd.era].manufacturer)
         || 'Lionel';
-      items.push({
-        item_num:     parts[0] || '',
-        variation:    parts[1] || '',
+      const item = {
+        item_num:     itemNum,
+        variation:    variation,
         condition:    pd.condition    || '',
         est_worth:    parseFloat(pd.userEstWorth || pd.estWorth || pd.est_worth || 0),
         sold_price:   parseFloat(pd.soldPrice || pd.sold_price || 0),
         manufacturer: _mfr,
-      });
+        in_master:    inMaster,
+      };
+      if (!inMaster) {
+        item.description = String(pd.description || pd.masterDescription || pd.customName || '').substring(0, 140);
+        item.road_name   = (String(pd.roadName || '') + (pd.roadNumber ? (' #' + pd.roadNumber) : '')).trim();
+        item.source      = 'app';
+        flagged.push(itemNum.toUpperCase());
+      }
+      items.push(item);
     }
   }
 
   if (!items.length) return;
+
+  // Throttle — once per interval, EXCEPT when the set of not-found items has
+  // changed (e.g. the user just saved an unknown item): submit right away so
+  // the catalog review sees it within minutes, not days.
+  flagged.sort();
+  const nfSig = flagged.join(',');
+  const sigChanged = nfSig !== (localStorage.getItem(VAULT.KEY_NF_SIG) || '');
+  const lastSub = parseInt(localStorage.getItem(VAULT.KEY_LAST_SUB) || '0');
+  if (!sigChanged && Date.now() - lastSub < VAULT.SUBMIT_INTERVAL_MS) return;
 
   const token = vaultGetToken();
   const result = await vaultPost({ action: 'submit', token, items });
 
   if (result && result.status === 200) {
     localStorage.setItem(VAULT.KEY_LAST_SUB, Date.now().toString());
-    console.log('[Vault] Submitted', result.rows_written, 'items');
+    localStorage.setItem(VAULT.KEY_NF_SIG, nfSig);
+    console.log('[Vault] Submitted', result.rows_written, 'items' + (flagged.length ? ' (' + flagged.length + ' not in master)' : ''));
   }
+}
+
+// v0.9.639: build the union of all master catalogs (current era in memory +
+// every other era's IDB cache) as an UPPERCASED Set of item numbers.
+async function _vaultMasterSet() {
+  const set = new Set();
+  const add = (arr) => { (arr || []).forEach((m) => { if (m && m.itemNum) set.add(String(m.itemNum).trim().toUpperCase()); }); };
+  if (typeof state !== 'undefined') add(state.masterData);
+  if (typeof REAL_ERA_IDS !== 'undefined' && Array.isArray(REAL_ERA_IDS) && typeof idbGet === 'function') {
+    const curEra = (typeof _currentEra !== 'undefined') ? _currentEra : null;
+    for (const era of REAL_ERA_IDS) {
+      if (era === curEra) continue;
+      try { add(await idbGet('lv_master_cache_' + era)); } catch (e) {}
+    }
+  }
+  return set;
 }
 
 
@@ -624,6 +672,7 @@ function vaultRenderPage() {
           ✓ &nbsp;Condition grade<br>
           ✓ &nbsp;Your estimated worth<br>
           ✓ &nbsp;Sold price (if recorded)<br>
+          ✓ &nbsp;Item numbers not in our catalog yet — we review them and add them to the catalog for all collectors<br>
           ✗ &nbsp;<span style="color:var(--text)">Your name, email, or any identifying information — never</span>
         </div>
       </div>

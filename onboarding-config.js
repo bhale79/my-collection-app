@@ -144,6 +144,7 @@ const COMMUNITY_OPTIN = {
     { ok: true,  text: 'Condition grade' },
     { ok: true,  text: 'Your estimated worth' },
     { ok: true,  text: 'Sold price (if recorded)' },
+    { ok: true,  text: 'Item numbers not in our catalog yet — reviewed and added for all collectors' },
     { ok: false, text: 'Your name, email, or any identifying information — never' },
   ],
 
