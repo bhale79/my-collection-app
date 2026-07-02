@@ -425,17 +425,42 @@ function _writeSearchIndex() {
 // B-unit/trailer role + variation. Always route catalog lookups through this.
 function _mIsMotive(t) { return /diesel|electric|locomotive|motoriz/i.test(String(t || '')); }
 function _mSuffix(num) { const m = String(num || '').trim().match(/-?([PDTC])$/i); return m ? m[1].toUpperCase() : ''; }
-function findMaster(itemNum, variation) {
+function findMaster(itemNum, variation, prefer) {
   if (!itemNum) return null;
   const k = String(itemNum).trim();
   const exact = (state.masterByItem && state.masterByItem.get(k)) || [];
   const suf = _mSuffix(k);
+  // v0.9.648: optional third arg = the OWNED row (or {manufacturer, era}).
+  // Cross-catalog numbers collide (Lionel MPC 8359 Chessie GP-7 vs Atlas 8359
+  // WM hopper) — when the caller knows whose copy this is, prefer the catalog
+  // row from that manufacturer/era instead of whichever loaded first.
+  let _prefTab = null, _prefMfr = '';
+  if (prefer) {
+    _prefMfr = String(prefer.manufacturer || '').trim().toLowerCase();
+    try {
+      if (prefer.era && typeof ERA_TABS !== 'undefined' && ERA_TABS[prefer.era] && ERA_TABS[prefer.era].items) _prefTab = ERA_TABS[prefer.era].items;
+    } catch (e) {}
+  }
+  function _prefBoost(m) {
+    if (!prefer) return 0;
+    let b = 0;
+    const t = String(m._tab || '').toLowerCase();
+    if (_prefTab && m._tab === _prefTab) b += 8;
+    if (_prefMfr && t.indexOf(_prefMfr) === 0) b += 4;   // tabs start with the maker name
+    return b;
+  }
   // Non-suffixed item whose exact key exists = the common case → keep legacy
-  // behavior exactly (variation match, else first) so nothing regresses.
+  // behavior exactly (variation match, else first) so nothing regresses —
+  // unless a prefer hint is given and there are multiple candidates.
   if (!suf && exact.length) {
     if (variation != null && variation !== '') {
       const hit = exact.find(r => String(r.variation || '') === String(variation));
       if (hit) return hit;
+    }
+    if (prefer && exact.length > 1) {
+      let bestE = exact[0], bsE = _prefBoost(exact[0]);
+      for (let i = 1; i < exact.length; i++) { const s2 = _prefBoost(exact[i]); if (s2 > bsE) { bestE = exact[i]; bsE = s2; } }
+      return bestE;
     }
     return exact[0];
   }
@@ -468,6 +493,7 @@ function findMaster(itemNum, variation) {
       else if (suf === 'T' && (m.unit === 'T' || m.poweredDummy === 'T')) sc += 2;
     }
     if (want != null && String(m.variation || '') === want) sc += 1;
+    sc += _prefBoost(m);   // v0.9.648
     return sc;
   }
   let best = cands[0], bestS = score(cands[0]);

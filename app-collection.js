@@ -287,7 +287,7 @@ function _nonItemDetailEdit(type, key) {
   if (type === 'service') {
     var pd = state.personalData ? state.personalData[key] : null;
     if (!pd) { if (typeof showToast === 'function') showToast('Service tool not found', 3000, true); return; }
-    var master = typeof findMaster === 'function' ? findMaster(pd.itemNum) : null;
+    var master = typeof findMaster === 'function' ? findMaster(pd.itemNum, null, pd) : null;
     var masterIdx = master && state.masterData ? state.masterData.indexOf(master) : -1;
     // Audit fix #1 (Session 116): if the master row isn't loaded
     // (e.g. a different era is selected), updateCollectionItem(-1, ...)
@@ -526,7 +526,7 @@ function _nonItemDetailPhotos(type, key) {
   if (type === 'service') {
     var pdSvc = state.personalData ? state.personalData[key] : null;
     if (!pdSvc) { if (typeof showToast === 'function') showToast('Service tool not found', 3000, true); return; }
-    var masterSvc = typeof findMaster === 'function' ? findMaster(pdSvc.itemNum) : null;
+    var masterSvc = typeof findMaster === 'function' ? findMaster(pdSvc.itemNum, null, pdSvc) : null;
     var masterIdxSvc = masterSvc && state.masterData ? state.masterData.indexOf(masterSvc) : -1;
     // Audit fix #1: bail with a helpful toast if the master row isn't
     // loaded (era not selected) instead of falling through with -1.
@@ -2025,7 +2025,7 @@ function _renderPickFsList(q) {
     if (!e[1].owned) return false;
     if (!q) return true;
     var pd = e[1];
-    var master = findMaster(pd.itemNum, (pd.variation||'')) || {};
+    var master = findMaster(pd.itemNum, (pd.variation||''), pd) || {};
     return (pd.itemNum||'').toLowerCase().includes(q)
       || (master.roadName||'').toLowerCase().includes(q)
       || (master.itemType||'').toLowerCase().includes(q)
@@ -2043,7 +2043,7 @@ function _renderPickFsList(q) {
   var html = '';
   owned.forEach(function(entry) {
     var pdKey = entry[0], pd = entry[1];
-    var master = findMaster(pd.itemNum, (pd.variation||'')) || {};
+    var master = findMaster(pd.itemNum, (pd.variation||''), pd) || {};
     // Phase 3: check by inventoryId of the specific copy
     var alreadyListed = !!(pd.inventoryId && state.forSaleData[pd.inventoryId]);
     var idx = state.masterData.indexOf(master);
@@ -3211,7 +3211,7 @@ function fillItemFromBoxRow() {
       _fillItemMode: true, // flag so we can pre-set item number
     },
     steps: getSteps('collection'),
-    matchedItem: findMaster(item.itemNum) || null,
+    matchedItem: findMaster(item.itemNum, null, item) || null,
   };
   // Advance past tab and itemNum steps since we already know them
   wizard.step = 2; // start at condition step

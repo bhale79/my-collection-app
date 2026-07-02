@@ -286,7 +286,7 @@ var CARD_CATALOG = [
       var roads = {};
       // Session 121: respect Preferences "What I Collect" in 'all' mode.
       Object.values(state.personalData).filter(function(pd){return pd.owned;}).filter(_pdEraEnabled).forEach(function(pd) {
-        var master = findMaster(pd.itemNum, pd.variation);
+        var master = findMaster(pd.itemNum, pd.variation, pd);   // v0.9.648
         var road = master ? (master.roadName||'').trim() : '';
         if (road && road !== '—' && road !== 'N/A') roads[road] = (roads[road]||0) + 1;
       });
@@ -715,7 +715,10 @@ function _openOwnedByInvId(invId) {
   var pd = (state.personalData || {})[invId]
     || Object.values(state.personalData || {}).find(function(p){ return p && String(p.inventoryId) === String(invId); });
   if (!pd) { if (typeof goToMyCollection === 'function') goToMyCollection(); return; }
-  var idx = state.masterData.findIndex(function(m){ return m.itemNum === pd.itemNum && (m.variation || '') === (pd.variation || ''); });
+  // v0.9.648: era/manufacturer-aware resolution (Lionel 8359 vs Atlas 8359).
+  var _mm = (typeof findMaster === 'function') ? findMaster(pd.itemNum, pd.variation, pd) : null;
+  var idx = _mm ? state.masterData.indexOf(_mm) : -1;
+  if (idx < 0) idx = state.masterData.findIndex(function(m){ return m.itemNum === pd.itemNum && (m.variation || '') === (pd.variation || ''); });
   if (idx < 0) idx = state.masterData.findIndex(function(m){ return m.itemNum === pd.itemNum; });
   if (idx >= 0) { showItemDetailPage(idx, pd.inventoryId); return; }
   // personal-only (no catalog row) — negative index via _poKeys, like the collection list
@@ -791,7 +794,7 @@ var PANEL_CATALOG = [
               'goToMyCollection()', null
             );
           }
-          var master = findMaster(pd.itemNum, pd.variation);
+          var master = findMaster(pd.itemNum, pd.variation, pd);   // v0.9.648
           // v0.9.645 (Brad): show the DESCRIPTION, not just road/type — a row
           // reading "6-22993 · Accessory" told him nothing.
           var name = master
@@ -873,7 +876,7 @@ var PANEL_CATALOG = [
         .sort(function(a, b) { return b._val - a._val; })
         .slice(0, 8)
         .map(function(pd) {
-          var master = findMaster(pd.itemNum, pd.variation);
+          var master = findMaster(pd.itemNum, pd.variation, pd);   // v0.9.648
           // v0.9.645 (Brad): show the DESCRIPTION, not just road/type — a row
           // reading "6-22993 · Accessory" told him nothing.
           var name = master
