@@ -312,6 +312,17 @@ async function vaultSubmitData() {
   const masterSet = await _vaultMasterSet();
   const canFlag = masterSet.size >= 500;   // caches not loaded yet? don't false-flag
 
+  // v0.9.646: grouped pairs (engine+tender, AA/AB units) share ONE price that
+  // lives on the lead row — find each group's lead so companion rows can say so.
+  const groupLead = {};
+  if (typeof state !== 'undefined' && state.personalData) {
+    for (const gpd of Object.values(state.personalData)) {
+      if (!gpd || !gpd.groupId) continue;
+      const gw = parseFloat(gpd.userEstWorth || gpd.estWorth || 0) || 0;
+      const cur = groupLead[gpd.groupId];
+      if (!cur || gw > cur.worth) groupLead[gpd.groupId] = { itemNum: String(gpd.itemNum || ''), worth: gw };
+    }
+  }
   const items = [];
   const flagged = [];
   if (typeof state !== 'undefined' && state.personalData) {
@@ -325,8 +336,23 @@ async function vaultSubmitData() {
       const variation = String(pd.variation !== undefined && pd.variation !== null ? pd.variation : (parts[1] || ''));
       // v0.9.640: MPC items are stored WITHOUT the 6- prefix ("9806") while a
       // label may read "6-9806" — check all three forms so we don't false-flag.
+      // v0.9.646: also normalize like the app does — strip powered/dummy
+      // suffixes via baseItemNum (204-P → 204) and -BOX rows (the box of a
+      // cataloged item is not a missing item). Brad's first real submission
+      // false-flagged 20 Alco P/D units + 6 -BOX rows into catalog review.
       const nUp = itemNum.toUpperCase();
-      const inMaster = canFlag ? (masterSet.has(nUp) || masterSet.has(nUp.replace(/^6-/, '')) || masterSet.has('6-' + nUp)) : true;
+      const _forms = [nUp];
+      const _noBox = nUp.replace(/-BOX$/, '');
+      if (_noBox !== nUp) _forms.push(_noBox);
+      try {
+        if (typeof baseItemNum === 'function') {
+          const _b = String(baseItemNum(_noBox) || '').toUpperCase();
+          if (_b && _forms.indexOf(_b) < 0) _forms.push(_b);
+        }
+      } catch (e) {}
+      const _all = [];
+      _forms.forEach(function (f) { _all.push(f, f.replace(/^6-/, ''), '6-' + f); });
+      const inMaster = canFlag ? _all.some(function (f) { return masterSet.has(f); }) : true;
       // Market rows still need a condition; a not-in-master row goes anyway so
       // the catalog review can see it.
       if (!pd.condition && inMaster) continue;
@@ -351,6 +377,13 @@ async function vaultSubmitData() {
         item.road_name   = (String(pd.roadName || '') + (pd.roadNumber ? (' #' + pd.roadNumber) : '')).trim();
         item.source      = 'app';
         flagged.push(itemNum.toUpperCase());
+      }
+      // v0.9.646: a $0 companion in a group (tender/dummy) is priced ON the
+      // lead row — say so in the source column instead of looking like a
+      // missing mandatory value (Brad's 2025/$125 + 2466WX/$0 case).
+      if (pd.groupId && groupLead[pd.groupId] && item.est_worth <= 0
+          && groupLead[pd.groupId].itemNum && groupLead[pd.groupId].itemNum !== itemNum) {
+        item.source = 'grouped with ' + groupLead[pd.groupId].itemNum;
       }
       items.push(item);
     }
