@@ -792,7 +792,11 @@ var PANEL_CATALOG = [
             );
           }
           var master = findMaster(pd.itemNum, pd.variation);
-          var name = master ? (master.roadName || master.itemType || pd.itemNum) : pd.itemNum;
+          // v0.9.645 (Brad): show the DESCRIPTION, not just road/type — a row
+          // reading "6-22993 · Accessory" told him nothing.
+          var name = master
+            ? ([master.roadName, master.description].filter(Boolean).join(' — ') || master.itemType || pd.itemNum)
+            : (pd.masterDescription || pd.description || pd.itemNum);
           var price = pd.priceItem ? _currencySymbol() + parseFloat(pd.priceItem).toLocaleString() : '';
           var date = pd.datePurchased || '';
           var meta = [date, price].filter(Boolean).join(' · ');
@@ -870,7 +874,11 @@ var PANEL_CATALOG = [
         .slice(0, 8)
         .map(function(pd) {
           var master = findMaster(pd.itemNum, pd.variation);
-          var name = master ? (master.roadName || master.itemType || pd.itemNum) : pd.itemNum;
+          // v0.9.645 (Brad): show the DESCRIPTION, not just road/type — a row
+          // reading "6-22993 · Accessory" told him nothing.
+          var name = master
+            ? ([master.roadName, master.description].filter(Boolean).join(' — ') || master.itemType || pd.itemNum)
+            : (pd.masterDescription || pd.description || pd.itemNum);
           var price = _currencySymbol() + pd._val.toLocaleString();
           var idx = master ? state.masterData.indexOf(master) : -1;
           var hasPhoto = !!pd.photoItem;
