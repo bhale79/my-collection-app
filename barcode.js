@@ -240,14 +240,27 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       var w = src.width | 0, h = src.height | 0;
       if (!w || !h) return src;
       var img = src.getContext('2d').getImageData(0, 0, w, h);
-      var d = img.data, i, g, mn = 255, mx = 0;
+      var d = img.data, i, g, o, mn = 255, mx = 0, omn = 255, omx = 0;
+      // v0.9.638: two candidate channels —
+      //   gray = plain luminance (right for black-on-white modern labels)
+      //   opp  = red-minus-blue opponent channel. Blue ink on an orange box has
+      //          nearly the SAME luminance (gray turns it to mush), but red vs
+      //          blue separates them hard. Keep whichever channel has more
+      //          contrast, so normal boxes are unaffected.
       var gray = new Uint8ClampedArray(w * h);
+      var opp  = new Uint8ClampedArray(w * h);
       for (i = 0; i < d.length; i += 4) {
         g = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) | 0;
+        o = 128 + ((d[i] - d[i + 2]) >> 1);
+        if (o < 0) o = 0; else if (o > 255) o = 255;
         gray[i >> 2] = g;
+        opp[i >> 2] = o;
         if (g < mn) mn = g;
         if (g > mx) mx = g;
+        if (o < omn) omn = o;
+        if (o > omx) omx = o;
       }
+      if ((omx - omn) > (mx - mn)) { gray = opp; mn = omn; mx = omx; }
       var range = (mx - mn) || 1;
       var scale = (w < 1000) ? 2 : 1;   // upscale only small crops; keep hi-res OCR fast
       var out = document.createElement('canvas');
@@ -289,6 +302,38 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   }
   // Which barcode candidate does the label confirm? Only a full (>=6-digit)
   // label number can disambiguate — a bare 5-digit read matches them all.
+  // v0.9.638: full label-rescue on the current frame. Used when the barcode is a
+  // dead end (unknown prefix / Phase-2 maker) — instead of giving up, OCR the
+  // printed label and try to identify the item the same way the label scanner does.
+  // Returns a result object for the confirm card, or null if nothing was read.
+  async function _bcLabelRescue(video) {
+    var vw = video.videoWidth | 0, vh = video.videoHeight | 0;
+    if (!vw || !vh) return null;
+    var full = document.createElement('canvas'); full.width = vw; full.height = vh;
+    full.getContext('2d').drawImage(video, 0, 0, vw, vh);
+    var sx = Math.floor(vw * 0.10), sy = Math.floor(vh * 0.06);
+    var crop = document.createElement('canvas'); crop.width = vw - 2 * sx; crop.height = vh - 2 * sy;
+    crop.getContext('2d').drawImage(full, sx, sy, crop.width, crop.height, 0, 0, crop.width, crop.height);
+    try {
+      var T = await _ensureTesseract();
+      var ocr = await T.recognize(_bcPreprocessForOCR(crop), 'eng', {});
+      var text = (ocr && ocr.data && ocr.data.text) || '';
+      var cands = _extractItemNumberCandidates(text);
+      if (!cands || !cands.length) return null;
+      var best = cands[0];
+      var raw = best.raw;
+      var lookup = [raw];
+      if (raw.indexOf('6-') === 0) lookup.push(raw.substring(2));
+      else if (/^\d/.test(raw)) lookup.push('6-' + raw);
+      var hits = await _findMasterItemsExact(lookup);
+      if (hits.length) {
+        var m = hits[0];
+        return { handled: true, itemNum: m.itemNum, variation: m.variation || '', masterItem: m, manufacturer: best.mfr || 'Lionel', roadName: (m.roadName || ''), description: (m.description || ''), verifiedNote: '✓ Read from the printed label', verifiedBy: 'label', statusMessage: 'Found ' + m.itemNum + ' — ' + (m.description || '').substring(0, 40) };
+      }
+      var labelDesc = _bcDescriptionGuess(text, raw);
+      return { handled: true, itemNum: raw, variation: '', notInMaster: true, manufacturer: best.mfr, labelDescription: labelDesc, description: labelDesc, statusMessage: 'Read ' + raw + ' off the label — not in our catalog, adding manually…' };
+    } catch (e) { return null; }
+  }
   function _bcPickByLabel(cands, ocrNums, code5) {
     if (!cands || !cands.length || !ocrNums || !ocrNums.length) return null;
     for (var i = 0; i < cands.length; i++) {
@@ -423,6 +468,17 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     }
 
     let _bcLastRaw = null, _bcConfirm = 0;
+    // v0.9.638: sticky status — once we have something meaningful to say, hold it
+    // on screen instead of letting the next frame overwrite it (the old behavior
+    // made messages flash on/off too fast to read).
+    let _bcStickyUntil = 0;
+    const _bcRescueTried = {};
+    const _setStatus = (msg, color, holdMs) => {
+      if (Date.now() < _bcStickyUntil) return;
+      statusEl.textContent = msg;
+      statusEl.style.color = color || '#ccc';
+      if (holdMs) _bcStickyUntil = Date.now() + holdMs;
+    };
     (async function loop() {
       while (!stopScanning) {
         try {
@@ -431,7 +487,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             const bc = barcodes[0];
             // Two-read consensus: require the same value on two frames before accepting.
             if (bc.rawValue === _bcLastRaw) { _bcConfirm++; } else { _bcLastRaw = bc.rawValue; _bcConfirm = 1; }
-            if (_bcConfirm < 2) { statusEl.textContent = 'Reading…'; statusEl.style.color = '#ffd27d'; await new Promise(r => setTimeout(r, 90)); continue; }
+            if (_bcConfirm < 2) { _setStatus('Reading…', '#ffd27d'); await new Promise(r => setTimeout(r, 90)); continue; }
             const result = await decodeBarcode(bc, eraHint);
             if (result.handled && result.multipleMatches) {
               stopScanning = true;
@@ -451,6 +507,11 @@ window.eraSupportsBarcode = eraSupportsBarcode;
               }
               // Label didn't resolve it — fall back to the manual picker.
               const chosen = await showCandidatePicker(result.candidates, result);
+              if (chosen && chosen.__notInList) {
+                // v0.9.638: user says the box is the classic-form number, not in the master yet.
+                if (onScanned) onScanned({ handled: true, rawBarcode: result.rawBarcode, format: result.format, upc: result.upc, manufacturer: 'Lionel', itemNum: chosen.itemNum, variation: '', notInMaster: true, statusMessage: 'Adding ' + chosen.itemNum + ' manually…' });
+                return;
+              }
               if (chosen) {
                 if (onScanned) onScanned({
                   handled: true,
@@ -469,10 +530,10 @@ window.eraSupportsBarcode = eraSupportsBarcode;
               return;
             }
             if (result.handled) {
-              statusEl.textContent = result.statusMessage || 'Detected!';
-              statusEl.style.color = result.error ? '#ff9580' : '#a6e87e';
-              await new Promise(r => setTimeout(r, 300));
               if (result.itemNum) {
+                statusEl.textContent = result.statusMessage || 'Detected!';
+                statusEl.style.color = result.error ? '#ff9580' : '#a6e87e';
+                await new Promise(r => setTimeout(r, 300));
                 stopScanning = true;
                 // Always double-verify: read the label in the background; warn only if it conflicts.
                 const _bgVerify = (result.masterItem && !result.notInMaster) ? _bcLabelVerify(video) : null;
@@ -484,12 +545,35 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                 if (_bcChoice === 'cancel') { cleanup(); if (onCancel) onCancel(); return; }
                 cleanup(); openBarcodeScanner(onScanned, onCancel, eraHint); return;
               }
-              cleanup();
-              if (onScanned) onScanned(result);
-              return;
+              // v0.9.638: dead-end barcode (unknown prefix / Phase-2 maker / bad
+              // length) — the old code closed the scanner silently after a 300ms
+              // flash. Instead: try ONE automatic label rescue (OCR the printed
+              // item number on this same frame), and if that fails keep the
+              // scanner open with a readable, held message.
+              if ((result.unknownPrefix || result.phase2) && !_bcRescueTried[bc.rawValue]) {
+                _bcRescueTried[bc.rawValue] = 1;
+                _bcStickyUntil = 0;
+                _setStatus('Barcode doesn\'t identify the item — reading the printed label instead…', '#ffd27d', 30000);
+                const _rr = await _bcLabelRescue(video);
+                _bcStickyUntil = 0;
+                if (_rr && !stopScanning) {
+                  stopScanning = true;
+                  const _rc = await _bcConfirmCard(_rr);
+                  if (_rc === 'use') { cleanup(); if (onScanned) onScanned(_rr); return; }
+                  if (_rc === 'manual' || _rc === 'cancel') { cleanup(); if (onCancel) onCancel(); return; }
+                  cleanup(); openBarcodeScanner(onScanned, onCancel, eraHint); return;
+                }
+                if (stopScanning) return;   // user hit Cancel / label button while OCR ran
+                _setStatus('Couldn\'t read the label either — try 📸 "Read the label" up close, or type the number.', '#ff9580', 6000);
+                await new Promise(r => setTimeout(r, 250));
+                continue;
+              }
+              // Other no-item results: hold the message so it's readable, keep scanning.
+              _setStatus(result.statusMessage || 'Barcode read, but no item found — try the label button.', '#ffd27d', 5000);
+              await new Promise(r => setTimeout(r, 250));
+              continue;
             } else {
-              statusEl.textContent = result.statusMessage || ('Unknown barcode: ' + bc.rawValue);
-              statusEl.style.color = '#ffd27d';
+              _setStatus(result.statusMessage || ('Unknown barcode: ' + bc.rawValue), '#ffd27d');
             }
           }
         } catch (e) { /* frame failed, continue */ }
@@ -641,14 +725,33 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           +   'color:#9ecbff;font-size:0.78rem;text-decoration:none;white-space:nowrap">View &#8599;</a>'
           + '</div>';
       }).join('');
+      // v0.9.638: "None of these" escape hatch. Older boxes (e.g. a 2012 6-30190)
+      // share their 5 barcode digits with modern 7-digit reissues that ARE in the
+      // master — while the older item itself may not be. Offer the classic-form
+      // number so the user isn't forced into a wrong pick or a dead-end Cancel.
+      var _noneNum = String((scanResult && scanResult.code5) || '');
+      if (_noneNum && /^\d{4,6}$/.test(_noneNum)) _noneNum = '6-' + _noneNum;
+      var noneHtml = _noneNum
+        ? '<div id="bc-cand-none" style="display:flex;align-items:center;gap:0.6rem;padding:0.7rem 0.8rem;border-radius:10px;'
+          + 'background:rgba(58,110,165,0.14);border:1px dashed #3a6ea5;cursor:pointer;margin-bottom:0.5rem">'
+          + '<div style="flex:1;min-width:0">'
+          +   '<div style="font-weight:700;color:#cfe3ff;font-size:0.92rem">None of these — my box is ' + _bcEsc(_noneNum) + '</div>'
+          +   '<div style="font-size:0.78rem;color:#9ecbff;margin-top:0.1rem">Not in the catalog yet — you\'ll fill in the details manually.</div>'
+          + '</div></div>'
+        : '';
       overlay.innerHTML = ''
         + '<div style="width:100%;max-width:520px;display:flex;flex-direction:column;gap:0.6rem">'
         +   '<div style="color:#fff;font-family:var(--font-head,sans-serif);font-size:1.1rem;text-align:center">Which one did you scan?</div>'
         +   '<div style="color:#aaa;font-size:0.8rem;text-align:center">The barcode ends in <strong style="color:#ffd27d">' + _bcEsc((scanResult && scanResult.code5) || '') + '</strong> &mdash; these items all share those digits. Tap the right one, or use View to check a photo.</div>'
-        +   '<div style="overflow-y:auto;max-height:58vh;margin-top:0.3rem">' + rowsHtml + '</div>'
+        +   '<div style="overflow-y:auto;max-height:58vh;margin-top:0.3rem">' + rowsHtml + noneHtml + '</div>'
         +   '<button id="bc-cand-cancel" style="padding:0.8rem;border-radius:10px;border:1px solid #444;background:#222;color:#eee;font-size:0.95rem;font-family:inherit;cursor:pointer">Cancel</button>'
         + '</div>';
       document.body.appendChild(overlay);
+      var _noneEl = overlay.querySelector('#bc-cand-none');
+      if (_noneEl) _noneEl.addEventListener('click', function() {
+        overlay.remove();
+        resolve({ __notInList: true, itemNum: _noneNum });
+      });
       overlay.querySelectorAll('.bc-cand').forEach(function(el) {
         el.addEventListener('click', function() {
           var idx = parseInt(el.getAttribute('data-idx'), 10);
@@ -740,6 +843,11 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     { re: /\b\d{2}[\s\-]\d{4,5}(?:-\d{1,3}|[A-Za-z])?\b/g, mfr: ''       },
     // Menards Gold Line — 275-XXXX or 279-XXXX (per Brad's samples)
     { re: /\b(?:275|279)[\s\-]\d{4}\b/g,                          mfr: 'Menards'},
+    // Postwar/vintage bare "No. ####" (v0.9.638) — postwar Lionel boxes print
+    // "SCENIC SET No. 920", "NO. 6464-425", "No. 2343W" with no "Item" wording.
+    // Requires the period after No so plain English "no 4" never matches.
+    // 2-5 digits + optional -suffix + optional trailing letters (2046W, 6464-425).
+    { re: /\b[Nn][Oo]\.\s{0,2}([0-9]{2,5}(?:-[0-9]{1,4})?(?:[A-Z]{1,3})?)\b/g, mfr: '', cap: 1 },
     // Generic item-label fallback (Session 180; broadened 2026-07-01) — any box that
     // prints an explicit item label: Atlas "Item #0526-1", Lionel dealer "ITEM:611437",
     // "Item No. 123". Requires a #/:/No separator (so it never grabs "Item UPC").
@@ -1021,6 +1129,10 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           var chosen = (typeof showCandidatePicker === 'function')
             ? await showCandidatePicker(hits, { code5: raw })
             : hits[0];
+          if (chosen && chosen.__notInList) {
+            if (onFound) onFound({ handled: true, itemNum: chosen.itemNum, variation: '', notInMaster: true, manufacturer: best.mfr, labelDescription: labelDesc, description: labelDesc, statusMessage: 'Adding ' + chosen.itemNum + ' manually…' });
+            return;
+          }
           if (chosen) {
             if (onFound) onFound({
               handled: true,
