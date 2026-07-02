@@ -22,7 +22,7 @@ function eraSupportsBarcode(era) {
   if (!era) return false;
   var SHOW = ['mod','mpc','atlas',
               'mth_o','mth_ho','mth_s','mth_tinplate','mth_g',
-              'mod_ho','mod_s'];
+              'mod_ho','mod_s','weaver','rmt','menards'];
   return SHOW.indexOf(String(era).toLowerCase()) >= 0;
 }
 window.eraSupportsBarcode = eraSupportsBarcode;
@@ -573,6 +573,20 @@ window.eraSupportsBarcode = eraSupportsBarcode;
               cleanup();
               const _lv = await _lvP;
               const _autoMatch = _bcPickByLabel(result.candidates, _lv.nums, result.code5);
+              // v0.9.641: label read a number the barcode candidates DON'T cover
+              // (e.g. printed 2243101 vs coincidental Atlas/MTH tail matches) —
+              // look it up and lead the picker with it.
+              if (!_autoMatch && _lv.nums && _lv.nums.length) {
+                for (const _ln of _lv.nums) {
+                  if (!_ln || _ln.length < 6) continue;
+                  const _lh = await _findMasterItemsExact([_ln, '6-' + _ln]);
+                  if (_lh.length) {
+                    _lh.forEach(function (h) { h._labelRead = true; });
+                    result.candidates = _lh.concat(result.candidates);
+                    break;
+                  }
+                }
+              }
               if (_autoMatch) {
                 const _cc = await _bcConfirmCard({ itemNum: _autoMatch.itemNum, manufacturer: 'Lionel', roadName: (_autoMatch.roadName || ''), description: (_autoMatch.description || ''), verifiedNote: '✓ Barcode + label agree' });
                 if (_cc === 'use') { if (onScanned) onScanned({ handled: true, rawBarcode: result.rawBarcode, format: result.format, upc: result.upc, manufacturer: 'Lionel', itemNum: _autoMatch.itemNum, variation: _autoMatch.variation || '', masterItem: _autoMatch, verifiedBy: 'barcode+label', isSet: String(_autoMatch.itemType || '').toLowerCase() === 'set' }); return; }
@@ -795,7 +809,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       overlay.id = 'barcode-candidate-overlay';
       overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1rem';
       var rowsHtml = candidates.map(function(m, idx) {
-        var yr   = m.yearProd || m.yearMade || '';
+        var yr   = String(m.yearProd || m.yearMade || '');
+        if (/^\d{4}-\d{2}-\d{2}/.test(yr)) yr = yr.slice(0, 4);   // Sheets datetime artifact
         var meta = [_eraLabel(m._era), yr, m.roadName || '', m.itemType || ''].filter(Boolean).map(_bcEsc).join(' &middot; ');
         var desc = _bcEsc(String(m.description || '').substring(0, 70));
         var url  = _bcViewUrl(m);
@@ -807,6 +822,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           +   (meta ? '<div style="font-size:0.8rem;color:#aaa;margin-top:0.1rem">' + meta + '</div>' : '')
           +   (desc ? '<div style="font-size:0.78rem;color:#888;margin-top:0.1rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + desc + '</div>' : '')
           +   (m._descMatch ? '<div style="font-size:0.72rem;color:#e8a020;margin-top:0.1rem">matched in the description — possible reissue</div>' : '')
+          +   (m._labelRead ? '<div style="font-size:0.72rem;color:#a6e87e;margin-top:0.1rem">read from the printed label — most likely match</div>' : '')
           + '</div>'
           + '<a href="' + _bcEsc(url) + '" target="_blank" rel="noopener" class="bc-view" '
           +   'style="flex-shrink:0;padding:0.4rem 0.7rem;border-radius:8px;background:#333;border:1px solid #555;'
@@ -929,7 +945,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     // Lionel — starts with "6-" or "6 ", followed by 4-6 digits
     { re: /\b6[\s\-]\d{4,6}\b/g,                                  mfr: 'Lionel' },
     // MTH — known scale-line prefixes 10/20/30/40/50/60/70/80/90, then 4-5 digits, optional -N or trailing letter
-    { re: /\b\d{2}[\s\-]\d{4,5}(?:-\d{1,3}|[A-Za-z])?\b/g, mfr: ''       },
+    { re: /\b(?:1[01]|[2-9]0)[\s\-]\d{4,5}(?:-\d{1,3}|[A-Za-z])?\b/g, mfr: ''       },
     // Menards Gold Line — 275-XXXX or 279-XXXX (per Brad's samples)
     { re: /\b(?:275|279)[\s\-]\d{4}\b/g,                          mfr: 'Menards'},
     // Postwar/vintage bare "No. ####" (v0.9.638) — postwar Lionel boxes print
@@ -1265,7 +1281,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   // the catalog. Rough by design — always shown for confirmation, never trusted.
   // Boilerplate / brand / feature-list / legal lines — never the road-name or
   // car-type we want in a description. Whole line is skipped if it matches.
-  var _BC_REJECT = /trademark|reproduced|under\s*licen|licensed|all\s*rights|patent|copyright|©|manufactured|made\s+(and|in)\b|litho|standards?\s+and\s+spec|gateway|corporation|model\s+railroad|accessories|\bfeatures?\b|for\s+ages|\bages?\s+\d|and\s+up\b|assembled|electric\s+trains|rail\s?king|www\.|https?:|\.com\b|set\s+contains|wheels?\s+and\s+axles|die-?cast|couplers?|\bcurves?\b|wheel\s+sets?|needlepoint|paint\s+schemes?|abs\s+bod|scale\s+dimension|(set|unit|car)\s+measures|fast-?angle|operates?\s+on|handrails|brake\s+wheels|proto-?sound|flywheel|transformers|electronic\s+(horn|reverse)|headlight|\bdcru\b|baked\s+enamel|stamped\s+steel|brass\s+trim|\bnickel\b|\bweighs\b|dimensions?:|each\s+car|sliding\s+car\s+door|mounting\s+pad|kadee|qty\s+per\s+case|proof\s+of\s+purchase|rolling\s+stock|master\s+(passenger|line|series|rolling)|premier\s+(locomotive|passenger|rolling)|founders?\s+series|motive\s+power|streamlighting|fully\s+furnished|furnished\s+interior|passenger\s+figures?|extruded\s+alum|legacy\s+(control|railsounds|and\s+bluetooth)|railsounds|electro-?\s?coupler|bluetooth|\blvc\b|minimum\s+curve|sprung\s+trucks|opening\s+doors|all\s+new\s+road|activate\s+sounds|lionel\s+vision\s+line|powerhouse|circuit\s+breaker|over-?current|throttle|whistle\s+steam|fan-?driven|watts?\s+of\s+ac|quality\s+craft|weaver\s+models|door\s+guides|boxcar\s+body|brake\s?wheel|1[\s\-]?800|metal\s+wheels|\baxles\b/i;
+  var _BC_REJECT = /trademark|reproduced|under\s*licen|licensed|all\s*rights|patent|copyright|©|manufactured|made\s+(and|in)\b|litho|standards?\s+and\s+spec|gateway|corporation|model\s+railroad|accessories|\bfeatures?\b|for\s+ages|\bages?\s+\d|and\s+up\b|assembled|electric\s+trains|rail\s?king|www\.|https?:|\.com\b|set\s+contains|wheels?\s+and\s+axles|die-?cast|couplers?|\bcurves?\b|wheel\s+sets?|needlepoint|paint\s+schemes?|abs\s+bod|scale\s+dimension|(set|unit|car)\s+measures|fast-?angle|operates?\s+on|handrails|brake\s+wheels|proto-?sound|flywheel|transformers|electronic\s+(horn|reverse)|headlight|\bdcru\b|baked\s+enamel|stamped\s+steel|brass\s+trim|\bnickel\b|\bweighs\b|dimensions?:|each\s+car|sliding\s+car\s+door|mounting\s+pad|kadee|qty\s+per\s+case|proof\s+of\s+purchase|rolling\s+stock|master\s+(passenger|line|series|rolling)|premier\s+(locomotive|passenger|rolling)|founders?\s+series|motive\s+power|streamlighting|fully\s+furnished|furnished\s+interior|passenger\s+figures?|extruded\s+alum|legacy\s+(control|railsounds|and\s+bluetooth)|railsounds|electro-?\s?coupler|bluetooth|\blvc\b|minimum\s+curve|sprung\s+trucks|opening\s+doors|all\s+new\s+road|activate\s+sounds|lionel\s+vision\s+line|powerhouse|circuit\s+breaker|over-?current|throttle|whistle\s+steam|fan-?driven|watts?\s+of\s+ac|quality\s+craft|weaver\s+models|door\s+guides|boxcar\s+body|brake\s?wheel|1[\s\-]?800|metal\s+wheels|\baxles\b|layout\s+dimensions|track\s+requirements|pack\s+includes|\bincludes\s*:|\(\d+\s+sections?\)/i;
 
   // v0.9.640: does OCR output look like real words (vs letter-salad from a
   // failed read, e.g. off a computer screen)? Most letter-tokens must be

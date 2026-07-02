@@ -119,6 +119,7 @@ const WHAT_I_COLLECT = {
     atlas:  { id: 'atlas',  label: 'Atlas',  color: '#2980b9',       default: false },
     weaver: { id: 'weaver', label: 'Weaver', color: '#16a085',       default: false },
     rmt:    { id: 'rmt',    label: 'RMT',    color: '#e67e22',       default: false },
+    menards:{ id: 'menards',label: 'Menards',color: '#2c8a4b',       default: false },
   },
 };
 

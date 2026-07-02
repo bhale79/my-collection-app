@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.640';
+const APP_VERSION = 'v0.9.641';
 const APP_DATE    = 'April 2026';
 
 // ═══════════════════════════════════════════════════════════════
@@ -71,16 +71,19 @@ const ERAS = {
   weaver: { id: 'weaver', label: 'Weaver O', years: 'All',        prefix: 'Weaver O', manufacturer: 'Weaver' },
   // Session 155: RMT (Ready Made Trains) — O-gauge manufacturer.
   rmt:    { id: 'rmt',    label: 'RMT O',    years: 'All',        prefix: 'RMT O',    manufacturer: 'RMT' },
+  // 2026-07-02: Menards — O-gauge store brand (Gold Line etc.). Tab starts
+  // nearly empty; grows via the catalog-review pipe as boxes get scanned.
+  menards: { id: 'menards', label: 'Menards O', years: 'All',     prefix: 'Menards O', manufacturer: 'Menards' },
 };
 // Real-era IDs in load priority order (excluding 'all' meta-era).
-const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver', 'rmt'];
+const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver', 'rmt', 'menards'];
 
 // ── Master sheet tab names per era ──
 // Session 154: scale per era — drives the want-list Scale filter (master
 // Gauge column is only ~10% populated, so derive scale from the era).
 const ERA_SCALE = {
   prewar: 'Standard', mth_tinplate: 'Standard',
-  pw: 'O', mpc: 'O', atlas: 'O', mth_o: 'O', weaver: 'O', rmt: 'O',
+  pw: 'O', mpc: 'O', atlas: 'O', mth_o: 'O', weaver: 'O', rmt: 'O', menards: 'O',
   mth_ho: 'HO',
   mth_s: 'S',
   mth_g: 'G',
@@ -134,6 +137,9 @@ const ERA_TABS = {
   },
   rmt: {
     items:    'RMT O',
+  },
+  menards: {
+    items:    'Menards O',
   },
 };
 
