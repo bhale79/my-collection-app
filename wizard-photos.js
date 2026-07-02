@@ -1418,6 +1418,7 @@ function _wizScanBarcode() {
         return;
       }
       showToast && showToast('✓ ' + (result.statusMessage || ('Scanned ' + result.itemNum)), 2500);
+      if (typeof _fyiAlreadyOwned === 'function') setTimeout(function() { _fyiAlreadyOwned(result.itemNum); }, 2600);   // v0.9.647
       // Advance to next step
       wizard.step++;
       renderWizardStep();
@@ -1457,6 +1458,7 @@ function _wizScanLabel() {
       return;
     }
     showToast && showToast('✓ ' + (result.statusMessage || ('Scanned ' + result.itemNum)), 2500);
+    if (typeof _fyiAlreadyOwned === 'function') setTimeout(function() { _fyiAlreadyOwned(result.itemNum); }, 2600);   // v0.9.647
     // Advance to next wizard step
     wizard.step++;
     renderWizardStep();

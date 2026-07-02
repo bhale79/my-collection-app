@@ -4640,7 +4640,7 @@ function renderWizardStep() {
       set_num:'Set Number',
     };
     const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','wantErrorPhotos','photosMasterBox','boxOnly','entryMode','_setId','_rawItemNum','matchedItem','_partialMatches','_partialQuery','_itemGrouping','_fromWantList','_fromWantKey','_returnPage','_manualEntry','_drivePhotos','_setMode','_setGroupId','_setFinalItems','_setItemIndex','_setItemsSaved','_setEntryMode','_resolvedSet','_setLocoNum','_setPrice','_setDate','_setWorth','_setCondition','_setHasBoxChecked','_setWantPhotos','_setPhotoThenSave','_prefilledCondition','_setQEPhotos','set_hasBox','set_boxCond','set_boxPhotos','set_notes','_suggestions_cache','_completingQuickEntry','_existingGroupId','_fillItemMode','_wizSaveLock','_qeSaving','_photoInventoryId','_saveComplete','_era','suggestedRoadName','_manualEra','_alsoListForSale','_fromUpgradeList','_fromUpgradeKey','_cleanupWishlistMatches','_suggestedPricePaid','forSale_salePrice','forSale_dateListed','selectedForSaleKey','selectedSoldKey',
-      '_photoUploadsInFlight','_identifyMeta','_identifyMfrHints','_identifyScaleHint','_identifyTypeHint']);
+      '_photoUploadsInFlight','_identifyMeta','_identifyMfrHints','_identifyScaleHint','_identifyTypeHint','_alreadyOwnedFyi']);
     // Skip set_num from summary if it's already shown in the header
     if (wizard.data._resolvedSet || wizard.data.set_num) _skipKeys.add('set_num');
     // Skip notes from summary for tabs that have inline notes on confirm step
@@ -5007,6 +5007,26 @@ async function wizardAdvance() {
   await _wizardNextCore();
 }
 
+// v0.9.647 (Brad): FYI toast when the item being added is already in the
+// collection. Non-blocking — owning multiple copies is legit; just a heads-up.
+// Once per wizard session (flag on wizard.data). Boxes (-BOX rows) excluded.
+function _fyiAlreadyOwned(itemNum) {
+  try {
+    if (typeof wizard === 'undefined' || !wizard || !wizard.data || wizard.data._alreadyOwnedFyi) return;
+    var _n = String(itemNum || '').trim().toLowerCase();
+    if (!_n || _n.indexOf('-box') >= 0) return;
+    var _copies = Object.values((typeof state !== 'undefined' && state.personalData) || {}).filter(function(pd) {
+      return pd && pd.owned && String(pd.itemNum || '').trim().toLowerCase() === _n;
+    });
+    if (!_copies.length) return;
+    wizard.data._alreadyOwnedFyi = true;
+    if (typeof showToast === 'function') {
+      showToast('FYI — ' + itemNum + ' is already in your collection' + (_copies.length > 1 ? ' (' + _copies.length + ' copies)' : '') + '. Adding another copy is fine.', 5000);
+    }
+  } catch (e) {}
+}
+if (typeof window !== 'undefined') window._fyiAlreadyOwned = _fyiAlreadyOwned;
+
 async function wizardNext() {
   // Prevent double-save from rapid clicks
   const _nextBtn = document.getElementById('wizard-next-btn');
@@ -5153,6 +5173,7 @@ async function _wizardNextCore() {
     }
     // If no buttons shown, default to single
     if (!wizard.data._itemGrouping) wizard.data._itemGrouping = 'single';
+    _fyiAlreadyOwned(wizard.data.itemNum);   // v0.9.647
   }
   // conditionDetails: commit slider defaults if user never moved them
   if (s.type === 'conditionDetails') {
