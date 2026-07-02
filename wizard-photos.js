@@ -188,8 +188,17 @@ let _identifyVisHandler = null;    // v0.9.642: return-from-Lens clipboard check
 let _identifyLensOpened = false;   // armed when the Lens tab is opened
 let _identifyLastClip = '';        // dedupe: don't re-offer identical clipboard text
 
+// v0.9.644: wipe hints from any PREVIOUS identify run so item A's metadata
+// can never bleed into item B's review screen (Brad's Route 66 test showed a
+// stale 'Pacific / 2-10-4 / cab 90229' from an earlier attempt).
+function _identifyClearStash() {
+  if (typeof wizard === 'undefined' || !wizard || !wizard.data) return;
+  ['_identifyYear','_identifyRoadName','_identifySubType','_identifyWheels','_identifyCabNum','_identifyMfrFound','_identifyVariation','_identifyMeta'].forEach(function(k) { delete wizard.data[k]; });
+}
+
 function openIdentify(context) {
   _identifyCallerContext = context;
+  _identifyClearStash();
   _identifySelectedNum = null;
   const modal = document.getElementById('identify-modal');
   modal.classList.add('open');
@@ -292,6 +301,7 @@ function _identifyProcessText(txt) {
       return 'applied';
     }
   }
+  _identifyClearStash();   // v0.9.644: replace, never merge with a previous run
   if (typeof wizard !== 'undefined' && wizard && wizard.data) {
     if (meta.year)         wizard.data._identifyYear     = meta.year;
     if (meta.roadName)     wizard.data._identifyRoadName = meta.roadName;
@@ -556,6 +566,7 @@ function useIdentifiedItem() {
 
   // Stash the rich metadata on wizard.data the same way the auto-paste does,
   // so the banner + manual-entry routing have access to it.
+  _identifyClearStash();   // v0.9.644: replace, never merge with a previous run
   if (typeof wizard !== 'undefined' && wizard && wizard.data) {
     if (meta.year)         wizard.data._identifyYear     = meta.year;
     if (meta.roadName)     wizard.data._identifyRoadName = meta.roadName;
