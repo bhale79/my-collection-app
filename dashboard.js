@@ -515,7 +515,14 @@ function _openCardPopup(slotIdx) {
     return '<option value="' + c.id + '"' + (c.id === currentId ? ' selected' : '') + '>' + lbl + '</option>';
   }).join('');
   popup.innerHTML =
-    '<div style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.65rem">Card Slot ' + (slotIdx+1) + '</div>' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.65rem">'
+      + '<span style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim)">Card Slot ' + (slotIdx+1) + '</span>'
+      // v0.9.654 (Brad): ? lives HERE (moved off the card face) — explains
+      // whatever card is currently selected in the dropdown below.
+      + '<button type="button" title="What does this card show?" '
+      +   'onclick="var _s=document.getElementById(\'card-popup-select\');_showCardHelp(_s?_s.value:\'\')" '
+      +   'style="width:18px;height:18px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-size:0.64rem;font-weight:700;line-height:1;cursor:help;padding:0">?</button>'
+      + '</div>' +
     '<select id="card-popup-select" onchange="_onCardPopupChange(' + slotIdx + ',this.value)" style="width:100%;padding:0.4rem 0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;margin-bottom:0.65rem">' +
       '<option value="">— None (remove this card) —</option>' + opts +
     '</select>'
@@ -668,8 +675,6 @@ function buildDashboard() {
             + '<div class="stat-sub">' + result.sub + '</div>';
         }
         return '<div class="stat-card" id="dash-card-' + i + '" style="--card-accent:' + card.color + ';cursor:pointer;position:relative" onclick="_openCardPopup(' + i + ')" title="Click to customize">'
-          + '<button type="button" onclick="event.stopPropagation();_showCardHelp(\'' + card.id + '\')" title="What does this card show?" '
-          +   'style="position:absolute;top:6px;right:8px;width:17px;height:17px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-size:0.62rem;font-weight:700;line-height:1;cursor:help;padding:0">?</button>'
           + inner
           + '</div>';
       }).join('');
