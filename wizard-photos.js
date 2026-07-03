@@ -469,6 +469,35 @@ async function _identifySearchLens() {
   if (!_identifyPhotoFile) return;
   const searchBtn = document.getElementById('id-search-btn');
   const origText = searchBtn ? searchBtn.innerHTML : '';
+  // v0.9.655: Tier 3 — try the in-app AI first (no tab-hop, no clipboard
+  // dance). The relay answers in the SAME labeled-field format the Lens
+  // prompt asks for, and the answer goes through the SAME single processor
+  // (_identifyProcessText). Falls back to the Google Lens flow whenever the
+  // AI can't pin down an item number, hits the daily cap, or errors out.
+  if (typeof aiIdentifyImage === 'function') {
+    var _aiScale = (document.getElementById('id-scale') || {}).value || '';
+    var _aiType  = (document.getElementById('id-type')  || {}).value || '';
+    var _aiMfrCbs = document.querySelectorAll('#id-mfr-chips input[type="checkbox"]:checked');
+    var _aiMfrs = Array.from(_aiMfrCbs).map(function(cb) { return cb.dataset.mfrCb; }).filter(function(m) { return m && m !== 'Not sure'; });
+    if (searchBtn) { searchBtn.disabled = true; searchBtn.innerHTML = '🤖 Asking AI…'; }
+    // Stash hints exactly like the Lens path does, so downstream
+    // master-matching and manual-entry routing see the same context.
+    if (typeof wizard !== 'undefined' && wizard && wizard.data) {
+      wizard.data._identifyMfrHints  = _aiMfrs;
+      wizard.data._identifyScaleHint = _aiScale;
+      wizard.data._identifyTypeHint  = _aiType;
+    }
+    var _ai = await aiIdentifyImage(_identifyPhotoFile, { scale: _aiScale, type: _aiType, mfrs: _aiMfrs });
+    if (searchBtn) { searchBtn.disabled = false; searchBtn.innerHTML = origText; }
+    if (_ai && _ai.ok) {
+      var _aiRes = _identifyProcessText(_ai.text);
+      if (_aiRes === 'applied') return;
+      if (typeof showToast === 'function') showToast("AI couldn't pin down the item number — trying Google Lens…", 3200, true);
+    } else if (_ai && _ai.reason === 'quota') {
+      if (typeof showToast === 'function') showToast('Daily AI photo limit reached — using Google Lens instead', 3500, true);
+    }
+    // 'noconsent' / error / offline: fall through to the Lens flow silently.
+  }
   if (searchBtn) { searchBtn.disabled = true; searchBtn.innerHTML = '\u23F3 Staging photo\u2026'; }
   try {
     if (typeof driveStageLensPhoto !== 'function') {

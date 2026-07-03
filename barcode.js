@@ -409,6 +409,77 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       return { handled: true, itemNum: raw, variation: '', notInMaster: true, manufacturer: best.mfr, labelDescription: labelDesc, description: labelDesc, statusMessage: 'Read ' + raw + ' off the label — not in our catalog, adding manually…' };
     } catch (e) { return null; }
   }
+  // v0.9.655: Tier 3 — AI rescue. Sends the current frame/canvas to the AI
+  // relay (ai-id.js → Apps Script v1.3 → Gemini) when barcode + local OCR
+  // both dead-end. The relay answers in the same labeled format the Lens
+  // paste flow uses, so extractIdentifyMetadata() (wizard-photos.js) does
+  // ALL the parsing — no new parsing code here.
+  // Returns a confirm-card result object, or null. reasonOut ({}) receives
+  // the failure reason ('quota' | 'noconsent' | 'hedge' | 'nothing' | 'error').
+  async function _bcAiRescue(source, eraHint, reasonOut) {
+    reasonOut = reasonOut || {};
+    if (typeof aiIdentifyImage !== 'function') { reasonOut.reason = 'error'; return null; }
+    try {
+      var hints = {};
+      if (eraHint && typeof ERAS !== 'undefined' && ERAS[eraHint] && ERAS[eraHint].manufacturer) {
+        hints.mfrs = [ERAS[eraHint].manufacturer];
+      }
+      var ai = await aiIdentifyImage(source, hints);
+      if (!ai || !ai.ok) { reasonOut.reason = (ai && ai.reason) || 'error'; return null; }
+      var text = (typeof _identifySanitize === 'function') ? _identifySanitize(ai.text) : String(ai.text || '');
+      var meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(text) : {};
+      if (!meta.itemNum) {
+        // v0.9.655 (Brad, 2026-07-03): postwar rescue. On postwar boxes the
+        // catalog number IS the number on the box/cab, so the honest AI says
+        // "no specific catalog number found" but still reports the cab. If
+        // that number exists in the master AND the AI's manufacturer agrees
+        // with the hit's era (keeps the Weaver-3460 protection: a Weaver box
+        // must never auto-match a Lionel master row), offer it — the confirm
+        // card gives the user the final say.
+        if (meta.cabNum && meta.manufacturer) {
+          var cabRaw = String(meta.cabNum);
+          var cabLookup = [cabRaw];
+          if (/^\d/.test(cabRaw)) cabLookup.push('6-' + cabRaw);
+          var cabHits = await _findMasterItemsAllEras(cabLookup);
+          var aiMfr = String(meta.manufacturer).toLowerCase();
+          var cabOk = cabHits.filter(function (h) {
+            var eraMfr = (typeof ERAS !== 'undefined' && h._era && ERAS[h._era]) ? String(ERAS[h._era].manufacturer || '').toLowerCase() : '';
+            return eraMfr && eraMfr === aiMfr;
+          });
+          // If the AI also read a road name, prefer master rows that agree.
+          if (cabOk.length && meta.roadName) {
+            var mrn = String(meta.roadName).toLowerCase();
+            var pref = cabOk.filter(function (h) {
+              var rn = String(h.roadName || '').toLowerCase();
+              return rn && (rn.indexOf(mrn) >= 0 || mrn.indexOf(rn) >= 0);
+            });
+            if (pref.length) cabOk = pref;
+          }
+          if (cabOk.length) {
+            var cm = cabOk[0];
+            return { handled: true, itemNum: cm.itemNum, variation: cm.variation || '', masterItem: cm, manufacturer: meta.manufacturer, roadName: (cm.roadName || ''), description: (cm.description || ''), eraTag: (typeof _eraLabel === 'function') ? _eraLabel(cm._era) : '', verifiedNote: '🤖 AI read the box number ' + cabRaw, verifiedBy: 'ai', statusMessage: 'AI found ' + cm.itemNum + ' — ' + (cm.description || '').substring(0, 40) };
+          }
+        }
+        reasonOut.reason = meta._hedge ? 'hedge' : 'nothing';
+        return null;
+      }
+      var raw = meta.itemNum;
+      var lookup = [raw];
+      if (raw.indexOf('6-') === 0) lookup.push(raw.substring(2));
+      else if (/^\d/.test(raw)) lookup.push('6-' + raw);
+      var hits = await _findMasterItemsAllEras(lookup);
+      if (hits.length) {
+        var m = hits[0];
+        return { handled: true, itemNum: m.itemNum, variation: m.variation || '', masterItem: m, manufacturer: meta.manufacturer || 'Lionel', roadName: (m.roadName || ''), description: (m.description || ''), eraTag: (typeof _eraLabel === 'function') ? _eraLabel(m._era) : '', verifiedNote: '🤖 Identified by AI from the photo', verifiedBy: 'ai', statusMessage: 'AI found ' + m.itemNum + ' — ' + (m.description || '').substring(0, 40) };
+      }
+      var descBits = [];
+      if (meta.roadName) descBits.push(meta.roadName);
+      if (meta.subType)  descBits.push(meta.subType);
+      if (meta.cabNum)   descBits.push('#' + meta.cabNum);
+      var desc = descBits.join(' ').trim();
+      return { handled: true, itemNum: raw, variation: '', notInMaster: true, manufacturer: meta.manufacturer || '', labelDescription: desc, description: desc, aiMeta: meta, verifiedBy: 'ai', statusMessage: 'AI read ' + raw + ' — not in our catalog, adding manually…' };
+    } catch (e) { reasonOut.reason = 'error'; return null; }
+  }
   function _bcPickByLabel(cands, ocrNums, code5) {
     if (!cands || !cands.length || !ocrNums || !ocrNums.length) return null;
     for (var i = 0; i < cands.length; i++) {
@@ -644,6 +715,20 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                 if (_bcChoice === 'uselabel') { cleanup(); if (onScanned && _ci._labelResult) onScanned(_ci._labelResult); return; }
                 if (_bcChoice === 'manual') { cleanup(); if (onCancel) onCancel(); return; }
                 if (_bcChoice === 'cancel') { cleanup(); if (onCancel) onCancel(); return; }
+                // v0.9.655: 'Rescan' on a not-in-master card = tier-3 trigger.
+                // The user just said the read is wrong — let the AI look at the
+                // frame once before dropping them back into the scanner.
+                if (_res.notInMaster && typeof _bcAiRescue === 'function' && !_bcRescueTried['ai|' + bc.rawValue]) {
+                  _bcRescueTried['ai|' + bc.rawValue] = 1;
+                  _setStatus('🤖 Taking a closer look with AI…', '#ffd27d', 45000);
+                  const _aiR3 = await _bcAiRescue(video, eraHint, {});
+                  _bcStickyUntil = 0;
+                  if (_aiR3 && _aiR3.itemNum && _aiR3.itemNum !== _res.itemNum) {
+                    const _aiC3 = await _bcConfirmCard(_aiR3);
+                    if (_aiC3 === 'use') { cleanup(); if (onScanned) onScanned(_aiR3); return; }
+                    if (_aiC3 === 'manual' || _aiC3 === 'cancel') { cleanup(); if (onCancel) onCancel(); return; }
+                  }
+                }
                 cleanup(); openBarcodeScanner(onScanned, onCancel, eraHint); return;
               }
               // v0.9.638: dead-end barcode (unknown prefix / Phase-2 maker / bad
@@ -665,7 +750,23 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                   cleanup(); openBarcodeScanner(onScanned, onCancel, eraHint); return;
                 }
                 if (stopScanning) return;   // user hit Cancel / label button while OCR ran
-                _setStatus('Couldn\'t read the label either — try 📸 "Read the label" up close, or type the number.', '#ff9580', 6000);
+                // v0.9.655: Tier 3 — barcode dead end AND label OCR failed.
+                // Give the AI one look at the same frame before giving up.
+                _setStatus('🤖 Taking a closer look with AI…', '#ffd27d', 45000);
+                var _aiWhy = {};
+                const _aiR = await _bcAiRescue(video, eraHint, _aiWhy);
+                _bcStickyUntil = 0;
+                if (_aiR && !stopScanning) {
+                  stopScanning = true;
+                  const _aiC = await _bcConfirmCard(_aiR);
+                  if (_aiC === 'use') { cleanup(); if (onScanned) onScanned(_aiR); return; }
+                  if (_aiC === 'manual' || _aiC === 'cancel') { cleanup(); if (onCancel) onCancel(); return; }
+                  cleanup(); openBarcodeScanner(onScanned, onCancel, eraHint); return;
+                }
+                if (stopScanning) return;   // user bailed while the AI ran
+                _setStatus(_aiWhy.reason === 'quota'
+                  ? 'Daily AI photo limit reached — try 📸 "Read the label" up close, or type the number.'
+                  : 'Couldn\'t read the label either — try 📸 "Read the label" up close, or type the number.', '#ff9580', 6000);
                 await new Promise(r => setTimeout(r, 250));
                 continue;
               }
@@ -1181,6 +1282,26 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         });
         var text = (ocr && ocr.data && ocr.data.text) || '';
         var cands = _extractItemNumberCandidates(text);
+        if (!cands.length && typeof _bcAiRescue === 'function') {
+          // v0.9.655: Tier 3 — OCR found no item number at all. The AI gets
+          // the captured frame before we fall back to description-only.
+          statusEl.textContent = '🤖 Taking a closer look with AI…';
+          var _aiWhyL = {};
+          var _aiRL = await _bcAiRescue(crop, eraHint, _aiWhyL);
+          if (_aiRL) {
+            var _aiCL = await _bcConfirmCard(_aiRL);
+            if (_aiCL === 'use') { cleanup(); if (onFound) onFound(_aiRL); return; }
+            if (_aiCL === 'manual' || _aiCL === 'cancel') { cleanup(); if (onCancel) onCancel(); return; }
+            captureBtn.disabled = false; captureBtn.textContent = '📸 Capture'; statusEl.textContent = 'Aim at the item-number label — held right-side up — then tap Capture.';
+            return;
+          }
+          if (_aiWhyL.reason === 'quota') {
+            statusEl.textContent = 'Daily AI photo limit reached — hold the label right-side up, fill the dashed box, then Capture again.';
+            captureBtn.disabled = false;
+            captureBtn.textContent = '📸 Try again';
+            return;
+          }
+        }
         if (!cands.length) {
           // No catalog number on the box (common on Weaver/Quality Craft freight,
           // which print only a description + road number). Offer the guessed
