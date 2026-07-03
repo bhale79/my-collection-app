@@ -3,25 +3,37 @@
 // Loaded after app.js. Reads from state, _prefGet, _prefSet.
 // ═══════════════════════════════════════════════════════════════
 
-// v0.9.652 (Brad): the What-I-Collect toggles rebuild the whole prefs page,
-// which reset scroll to the top after EVERY checkbox click — making it
-// impossible to toggle several in a row. Rebuild but restore the scroll spot.
-function _rebuildPrefsKeepScroll() {
-  var wy = window.scrollY || window.pageYOffset || 0;
-  var se = document.scrollingElement;
-  var sy = se ? se.scrollTop : 0;
-  var pc = document.getElementById('prefs-content');
-  var pcParent = pc ? pc.parentElement : null;
-  var py = pcParent ? pcParent.scrollTop : 0;
-  buildPrefsPage();
-  requestAnimationFrame(function() {
+// v0.9.652/653 (Brad): the What-I-Collect toggles rebuild the whole prefs
+// page AND re-render dashboard/browse — several of those reset scroll, so the
+// user was bounced to the top after every checkbox click. v0.9.653: snapshot
+// the scroll BEFORE any re-render (v652 captured too late), restore after —
+// twice (rAF + 60ms) because late renders can scroll again.
+function _prefsScrollSnapshot() {
+  var saves = [];
+  try {
+    saves.push([null, window.scrollY || window.pageYOffset || 0]);   // window
+    var n = document.getElementById('prefs-content');
+    while (n && n !== document.body && n !== document.documentElement) {
+      if (n.scrollTop > 0) saves.push([n, n.scrollTop]);
+      n = n.parentElement;
+    }
+    var se = document.scrollingElement;
+    if (se && se.scrollTop > 0) saves.push([se, se.scrollTop]);
+  } catch (e) {}
+  var apply = function() {
     try {
-      window.scrollTo(0, wy);
-      if (se) se.scrollTop = sy;
-      var pc2 = document.getElementById('prefs-content');
-      if (pc2 && pc2.parentElement) pc2.parentElement.scrollTop = py;
+      saves.forEach(function(sv) {
+        if (sv[0] === null) window.scrollTo(0, sv[1]);
+        else sv[0].scrollTop = sv[1];
+      });
     } catch (e) {}
-  });
+  };
+  return function() { requestAnimationFrame(apply); setTimeout(apply, 60); };
+}
+function _rebuildPrefsKeepScroll() {
+  var restore = _prefsScrollSnapshot();
+  buildPrefsPage();
+  restore();
 }
 
 function buildPrefsPage() {
@@ -691,11 +703,13 @@ function _togglePrefScale(scaleId, on) {
     enabled = enabled.filter(function(s) { return s !== scaleId; });
   }
   _setEnabledScales(enabled);
+  var _restoreScroll = _prefsScrollSnapshot();   // v0.9.653: capture BEFORE the re-renders
   if (typeof _applyEraVisibility === 'function') _applyEraVisibility();
   if (typeof buildDashboard === 'function') buildDashboard();
   if (typeof renderBrowse === 'function') renderBrowse();
   // Session 138: re-render so the Eras list filter updates
-  _rebuildPrefsKeepScroll();   // v0.9.652: keep the user's scroll position
+  buildPrefsPage();
+  _restoreScroll();
 }
 
 // Session 137: manufacturer toggle handler — parallel to scale + era. When
@@ -714,11 +728,13 @@ function _togglePrefMfr(mfrId, on) {
     enabled = enabled.filter(function(m) { return m !== mfrId; });
   }
   _setEnabledManufacturers(enabled);
+  var _restoreScroll = _prefsScrollSnapshot();   // v0.9.653: capture BEFORE the re-renders
   if (typeof _applyEraVisibility === 'function') _applyEraVisibility();
   if (typeof buildDashboard === 'function') buildDashboard();
   if (typeof renderBrowse === 'function') renderBrowse();
   // Session 138: re-render so the Eras list filter updates
-  _rebuildPrefsKeepScroll();   // v0.9.652: keep the user's scroll position
+  buildPrefsPage();
+  _restoreScroll();
 }
 
 // ── Storage Locations (managed flat list) ─────────────────────
