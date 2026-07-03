@@ -356,6 +356,11 @@ function _renderHierarchyChips() {
   var noteStyle = 'margin-left:auto;font-size:0.68rem;color:var(--text-dim);font-style:italic';
   var levels = ['manufacturer','scale','era','section'];
   var html = '<span style="' + labelStyle + '">Filters</span>';
+  // v0.9.649 (Brad): small clear-all box at the left of the chips.
+  html += '<button type="button" title="Clear all filters" '
+       +  'style="padding:0.28rem 0.5rem;border-radius:8px;border:1.5px solid var(--border);'
+       +  'background:var(--bg-card);color:var(--text-dim);font-size:0.72rem;font-weight:700;'
+       +  'cursor:pointer;line-height:1" onclick="_clearHierarchyFilters()">\u2715</button>';
   levels.forEach(function(level, i) {
     var lbl = _phLabelFor(level, st[level]);
     if (i > 0) html += '<span style="' + sepStyle + '">›</span>';
@@ -377,6 +382,18 @@ function _renderHierarchyChips() {
   }
   host.innerHTML = html;
 }
+
+// v0.9.649 (Brad): one-tap reset of the whole filter hierarchy.
+function _clearHierarchyFilters() {
+  var st = _phState();
+  st.manufacturer = 'any'; st.scale = 'any'; st.era = 'any'; st.section = 'items';
+  _phSave(st);
+  var _ftSel = document.getElementById('filter-type');
+  if (_ftSel) _ftSel.value = '';
+  // Reuse the normal choice flow for its era-switch + re-render side effects.
+  _setHierarchyChoice('manufacturer', 'any');
+}
+if (typeof window !== 'undefined') window._clearHierarchyFilters = _clearHierarchyFilters;
 
 function _openLevelPicker(level) {
   var st = _phState();

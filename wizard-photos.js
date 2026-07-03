@@ -1390,6 +1390,14 @@ function pickerHandleFile(inputEl, isCamera) {
 //  scanning to barcode.js which handles camera + BarcodeDetector.
 // ══════════════════════════════════════════════════════════════
 
+// v0.9.649: maker → home era for saves (only unambiguous makers; Lionel is
+// context-dependent so it's deliberately absent).
+function _eraForMfr(mfr) {
+  var m = String(mfr || '').trim().toLowerCase();
+  var map = { atlas: 'atlas', weaver: 'weaver', rmt: 'rmt', menards: 'menards', mth: 'mth_o', williams: '', 'k-line': '' };
+  return map[m] || '';
+}
+
 function _wizScanBarcode() {
   if (typeof window.openBarcodeScanner !== 'function') {
     showToast && showToast('Barcode scanner not loaded', 3000, true);
@@ -1410,6 +1418,15 @@ function _wizScanBarcode() {
         wizard.data._era = result.masterItem._era;
       } else if (result.era) {
         wizard.data._era = result.era;
+      }
+      // v0.9.649: a not-in-master scan already KNOWS its maker (extractor
+      // patterns tag it) — carry it into the manual flow so the saved row
+      // doesn't default to Lionel/postwar (Brad's RMT-66299-21 did exactly
+      // that: saved as Lionel/pw, invisible under the RMT filter).
+      if (result.notInMaster && result.manufacturer) {
+        if (!wizard.data.manualManufacturer) wizard.data.manualManufacturer = result.manufacturer;
+        var _sEra = _eraForMfr(result.manufacturer);
+        if (_sEra && (!wizard.data._era || wizard.data._era === 'all')) wizard.data._era = _sEra;
       }
       // Non-Lionel phase-2 flows: just prefill, let user advance manually
       if (result.phase2 || result.unknownPrefix) {
@@ -1453,6 +1470,12 @@ function _wizScanLabel() {
       // Session 180: pre-fill the description read off the label (editable in the
       // manual-entry Description step) so the user does not retype it.
       if (result.labelDescription && !wizard.data.manualDesc) wizard.data.manualDesc = result.labelDescription;
+      // v0.9.649: carry the scan-detected maker + its home era (see barcode path).
+      if (result.manufacturer) {
+        if (!wizard.data.manualManufacturer) wizard.data.manualManufacturer = result.manufacturer;
+        var _sEra2 = _eraForMfr(result.manufacturer);
+        if (_sEra2 && (!wizard.data._era || wizard.data._era === 'all')) wizard.data._era = _sEra2;
+      }
       showToast && showToast(result.statusMessage || 'Detected — fill in details manually', 3500);
       renderWizardStep();
       return;
