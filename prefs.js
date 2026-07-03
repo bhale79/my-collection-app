@@ -179,7 +179,7 @@ function buildPrefsPage() {
           ${Object.keys((window.WHAT_I_COLLECT && window.WHAT_I_COLLECT.SCALES) || {}).map(function(k) {
             var sc = window.WHAT_I_COLLECT.SCALES[k];
             var enabled = _getEnabledScales().indexOf(k) >= 0;
-            return '<label style="display:flex;align-items:center;gap:0.45rem;padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);font-size:0.8rem">'
+            return '<label style="display:flex;align-items:center;gap:0.45rem;padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);font-size:0.8rem;color:var(--accent);font-weight:600">'
               + '<input type="checkbox" ' + (enabled ? 'checked' : '') + ' onchange="_togglePrefScale(\'' + k + '\', this.checked)" style="accent-color:var(--accent);width:1rem;height:1rem;cursor:pointer"> '
               + sc.label
               + '</label>';
@@ -194,7 +194,7 @@ function buildPrefsPage() {
           ${Object.keys((window.WHAT_I_COLLECT && window.WHAT_I_COLLECT.MANUFACTURERS) || {}).map(function(k) {
             var mfr = window.WHAT_I_COLLECT.MANUFACTURERS[k];
             var enabled = _getEnabledManufacturers().indexOf(k) >= 0;
-            return '<label style="display:flex;align-items:center;gap:0.45rem;padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);font-size:0.8rem">'
+            return '<label style="display:flex;align-items:center;gap:0.45rem;padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);font-size:0.8rem;color:var(--accent);font-weight:600">'
               + '<input type="checkbox" ' + (enabled ? 'checked' : '') + ' onchange="_togglePrefMfr(\'' + k + '\', this.checked)" style="accent-color:var(--accent);width:1rem;height:1rem;cursor:pointer"> '
               + mfr.label
               + '</label>';
@@ -223,7 +223,7 @@ function buildPrefsPage() {
             return visible.map(function(k) {
               var enabled = _getEnabledEras().indexOf(k) >= 0;
               var lbl = ERAS[k].label + (ERAS[k].years ? ' <span style="color:var(--text-dim);font-weight:400">(' + ERAS[k].years + ')</span>' : '');
-              return '<label style="display:flex;align-items:center;gap:0.45rem;padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);font-size:0.8rem">'
+              return '<label style="display:flex;align-items:center;gap:0.45rem;padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);font-size:0.8rem;color:var(--accent);font-weight:600">'
                 + '<input type="checkbox" ' + (enabled ? 'checked' : '') + ' onchange="_togglePrefEra(\'' + k + '\', this.checked)" style="accent-color:var(--accent);width:1rem;height:1rem;cursor:pointer"> '
                 + lbl
                 + '</label>';
