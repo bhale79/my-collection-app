@@ -465,6 +465,41 @@ function _saveSlots(slots) {
 }
 
 // ── Card edit popup ───────────────────────────────────────────────
+// v0.9.650: per-card "what am I looking at" popups (Brad request after the
+// Items-I-Own card hid his RMT item — saved-era + What-I-Collect gating).
+var _CARD_HELP = {
+  owned: 'Counts every item you own, broken down by catalog era/maker. Items are bucketed by the ERA AND MANUFACTURER saved on each row — a mis-saved item shows under the wrong maker. Only eras enabled under Preferences → What I Collect appear; boxes (-BOX rows) are not counted. Paper / Sets rolls up catalogs, paper, instruction sheets, science and construction sets.',
+  value: 'Adds up the Est. Worth you entered on each owned item, plus paper/instruction-sheet/science/construction values. Grouped pairs count once (the price lives on the lead item). Only eras enabled under Preferences → What I Collect are included. Items without an Est. Worth add nothing.',
+  catalog: 'How many DIFFERENT catalog numbers you own from the current era\'s master catalog, and what percent of that catalog it is. Works per-era — switch off the All view to see it. Multiple copies of the same number count once.',
+  activity: 'Your want list, for-sale list, and sold counts at a glance. Respects Preferences → What I Collect.',
+  eraProgress: 'Per-era ownership progress bars: unique catalog numbers you own vs the size of each era\'s catalog. Only enabled eras appear.',
+  topRoads: 'Your five most-collected road names, counted from each owned item\'s catalog entry.',
+  collectionByType: 'Owned items grouped by their catalog item type (engines, freight, cabooses…). Items whose type is blank in the catalog land in Other.',
+  engines: 'Count of owned items whose catalog type is a locomotive (steam, diesel, electric, motorized).',
+  cabooses: 'Count of owned items whose catalog type is Caboose.',
+  freight: 'Count of owned freight cars (boxcars, hoppers, tanks, gondolas, flatcars…).',
+  passenger: 'Count of owned passenger cars.',
+  accessories: 'Count of owned accessories.',
+  sets: 'Count of sets recorded on your My Sets tab.',
+  photos: 'How many of your owned items have at least one photo attached.',
+  forsale: 'Items on your For Sale list and their total asking price.',
+  atlasCatalog: 'Catalog coverage for the Atlas O catalog specifically.'
+};
+function _showCardHelp(cardId) {
+  var card = (typeof CARD_CATALOG !== 'undefined') ? CARD_CATALOG.find(function(c){ return c.id === cardId; }) : null;
+  var txt = _CARD_HELP[cardId] || 'Shows a live statistic computed from your collection.';
+  var d = document.createElement('div');
+  d.style.cssText = 'position:fixed;inset:0;z-index:100001;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;padding:1rem';
+  d.innerHTML = '<div style="max-width:420px;background:var(--surface,#1a1d3a);border:1px solid var(--border,#333);border-radius:14px;padding:18px;color:var(--text-mid,#ddd);font-size:0.88rem;line-height:1.55;font-family:var(--font-body,sans-serif)">'
+    + '<div style="font-size:1rem;font-weight:700;color:var(--text,#fff);margin-bottom:8px">' + ((card && card.label) || 'This card') + '</div>'
+    + '<p style="margin:0 0 10px">' + txt + '</p>'
+    + '<p style="margin:0 0 12px;font-size:0.78rem;color:var(--text-dim,#999)">Tip: cards only show eras/makers enabled under <strong>Preferences → What I Collect</strong>. Click anywhere on a card to swap it for a different one.</p>'
+    + '<button data-close="1" style="display:block;width:100%;padding:10px;border-radius:9px;border:2px solid var(--accent,#e8401c);background:rgba(232,64,28,0.12);color:var(--text,#fff);font-weight:600;cursor:pointer">Got it</button></div>';
+  d.addEventListener('click', function(e) { if ((e.target.getAttribute && e.target.getAttribute('data-close')) || e.target === d) d.remove(); });
+  document.body.appendChild(d);
+}
+if (typeof window !== 'undefined') window._showCardHelp = _showCardHelp;
+
 function _openCardPopup(slotIdx) {
   _closeCardPopup();
   var slots = _getSlots();
@@ -600,6 +635,11 @@ function buildDashboard() {
   var totalOwned = owned + ephemeraCount + isCount + sciCount + conCount;
   // ── Render dashboard stat cards (slot-based) ─────────────────
   var _statsGrid = document.getElementById('stats-grid');
+  // v0.9.650 (Brad): every stat card gets a small ⓘ that explains WHAT it
+  // shows and HOW it counts — including the two things that surprise people:
+  // (1) cards only include eras enabled under Preferences → What I Collect;
+  // (2) items count by their SAVED era/manufacturer, so a mis-saved item
+  // shows under the wrong bucket. (Carry this emphasis into the Help menu.)
   if (_statsGrid) {
     var slots = _getSlots();
     var activeSlots = slots.map(function(slot,i){return{slot:slot,i:i};}).filter(function(s){return s.slot!==null;});
@@ -628,7 +668,8 @@ function buildDashboard() {
             + '<div class="stat-sub">' + result.sub + '</div>';
         }
         return '<div class="stat-card" id="dash-card-' + i + '" style="--card-accent:' + card.color + ';cursor:pointer;position:relative" onclick="_openCardPopup(' + i + ')" title="Click to customize">'
-
+          + '<button type="button" onclick="event.stopPropagation();_showCardHelp(\'' + card.id + '\')" title="What does this card show?" '
+          +   'style="position:absolute;top:6px;right:8px;width:17px;height:17px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-size:0.62rem;font-weight:700;line-height:1;cursor:help;padding:0">?</button>'
           + inner
           + '</div>';
       }).join('');
