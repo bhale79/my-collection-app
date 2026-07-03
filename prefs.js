@@ -3,6 +3,27 @@
 // Loaded after app.js. Reads from state, _prefGet, _prefSet.
 // ═══════════════════════════════════════════════════════════════
 
+// v0.9.652 (Brad): the What-I-Collect toggles rebuild the whole prefs page,
+// which reset scroll to the top after EVERY checkbox click — making it
+// impossible to toggle several in a row. Rebuild but restore the scroll spot.
+function _rebuildPrefsKeepScroll() {
+  var wy = window.scrollY || window.pageYOffset || 0;
+  var se = document.scrollingElement;
+  var sy = se ? se.scrollTop : 0;
+  var pc = document.getElementById('prefs-content');
+  var pcParent = pc ? pc.parentElement : null;
+  var py = pcParent ? pcParent.scrollTop : 0;
+  buildPrefsPage();
+  requestAnimationFrame(function() {
+    try {
+      window.scrollTo(0, wy);
+      if (se) se.scrollTop = sy;
+      var pc2 = document.getElementById('prefs-content');
+      if (pc2 && pc2.parentElement) pc2.parentElement.scrollTop = py;
+    } catch (e) {}
+  });
+}
+
 function buildPrefsPage() {
   const el = document.getElementById('prefs-content');
   if (!el) return;
@@ -644,7 +665,7 @@ function _togglePrefEra(eraId, on) {
     if (nonAdminCount === 0) {
       showToast('Keep at least one era selected.');
       // Re-tick the box visually
-      buildPrefsPage();
+      _rebuildPrefsKeepScroll();
       return;
     }
     enabled = enabled.filter(function(e) { return e !== eraId; });
@@ -664,7 +685,7 @@ function _togglePrefScale(scaleId, on) {
     var nonAdminCount = enabled.filter(function(s) { return s !== scaleId; }).length;
     if (nonAdminCount === 0) {
       showToast('Keep at least one scale selected.');
-      buildPrefsPage();
+      _rebuildPrefsKeepScroll();
       return;
     }
     enabled = enabled.filter(function(s) { return s !== scaleId; });
@@ -674,7 +695,7 @@ function _togglePrefScale(scaleId, on) {
   if (typeof buildDashboard === 'function') buildDashboard();
   if (typeof renderBrowse === 'function') renderBrowse();
   // Session 138: re-render so the Eras list filter updates
-  buildPrefsPage();
+  _rebuildPrefsKeepScroll();   // v0.9.652: keep the user's scroll position
 }
 
 // Session 137: manufacturer toggle handler — parallel to scale + era. When
@@ -687,7 +708,7 @@ function _togglePrefMfr(mfrId, on) {
     var nonAdminCount = enabled.filter(function(m) { return m !== mfrId; }).length;
     if (nonAdminCount === 0) {
       showToast('Keep at least one manufacturer selected.');
-      buildPrefsPage();
+      _rebuildPrefsKeepScroll();
       return;
     }
     enabled = enabled.filter(function(m) { return m !== mfrId; });
@@ -697,7 +718,7 @@ function _togglePrefMfr(mfrId, on) {
   if (typeof buildDashboard === 'function') buildDashboard();
   if (typeof renderBrowse === 'function') renderBrowse();
   // Session 138: re-render so the Eras list filter updates
-  buildPrefsPage();
+  _rebuildPrefsKeepScroll();   // v0.9.652: keep the user's scroll position
 }
 
 // ── Storage Locations (managed flat list) ─────────────────────
