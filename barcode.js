@@ -1709,16 +1709,24 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       var video = d.querySelector('#bi-video');
       var stat = d.querySelector('#bi-camstatus');
       function snapFrame() {
-        var c = document.createElement('canvas');
-        c.width = video.videoWidth || 1280; c.height = video.videoHeight || 720;
-        c.getContext('2d').drawImage(video, 0, 0, c.width, c.height);
-        return c;
+        var raw = document.createElement('canvas');
+        raw.width = video.videoWidth || 1280; raw.height = video.videoHeight || 720;
+        raw.getContext('2d').drawImage(video, 0, 0, raw.width, raw.height);
+        // v0.9.665 (Brad): the crop screen must show EXACTLY what the 4:3
+        // viewfinder showed (WYSIWYG) — compute the same center cover-crop.
+        var vw = raw.width, vh = raw.height, ar = 4 / 3;
+        var cw, ch;
+        if (vw / vh > ar) { ch = vh; cw = Math.round(vh * ar); } else { cw = vw; ch = Math.round(vw / ar); }
+        var view = document.createElement('canvas');
+        view.width = cw; view.height = ch;
+        view.getContext('2d').drawImage(raw, Math.round((vw - cw) / 2), Math.round((vh - ch) / 2), cw, ch, 0, 0, cw, ch);
+        return { raw: raw, view: view };
       }
       d.addEventListener('click', function (e) {
         var b = e.target.closest && e.target.closest('[data-bi]');
         if (!b) return;
         var act = b.getAttribute('data-bi');
-        if (act === 'snap') { if (video.videoWidth) done({ canvas: snapFrame(), lockedBc: null }); }
+        if (act === 'snap') { if (video.videoWidth) { var fr = snapFrame(); done({ raw: fr.raw, view: fr.view, lockedBc: null }); } }
         if (act === 'gallery') d.querySelector('#bi-file').click();
         if (act === 'cancel') done(null);
       });
@@ -1731,7 +1739,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           c.width = img.naturalWidth; c.height = img.naturalHeight;
           c.getContext('2d').drawImage(img, 0, 0);
           URL.revokeObjectURL(img.src);
-          done({ canvas: c, lockedBc: null });
+          done({ raw: c, view: c, lockedBc: null });
         };
         img.src = URL.createObjectURL(f);
       });
@@ -1753,7 +1761,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                       stat.textContent = '✓ Barcode locked — captured';
                       stat.style.color = '#2ecc71';
                       var frame = snapFrame();
-                      done({ canvas: frame, lockedBc: bc });
+                      done({ raw: frame.raw, view: frame.view, lockedBc: bc });
                       return;
                     }
                     stat.textContent = 'Reading barcode…';
@@ -1895,10 +1903,11 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         else if (ch2 && ch2.__notInList) { out.typedNum = ch2.itemNum; }
       }
     }
+    out.isBoxShot = !!(bc || out.ocrNums.length);   // barcode or printed SKU = it's a box/label
     if (pick) {
       st('master', '📖', 'Catalog: ✓ ' + pick.itemNum + ' — ' + (pick.description || '').substring(0, 40), '#2ecc71');
       st('ai', '➖', 'AI: not needed');
-      return { handled: true, itemNum: pick.itemNum, variation: pick.variation || '', masterItem: pick,
+      return { handled: true, _boxPhoto: out.isBoxShot, itemNum: pick.itemNum, variation: pick.variation || '', masterItem: pick,
                manufacturer: out.bcMaker || '', roadName: pick.roadName || '', description: pick.description || '',
                verifiedBy: verified, verifiedNote: (verified === 'barcode+label' ? '✓ Barcode + lettering agree' : (verified === 'label' ? '✓ Read from the printed number' : '✓ Barcode match')),
                eraTag: (typeof _eraLabel === 'function') ? _eraLabel(pick._era) : '',
@@ -1909,7 +1918,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       st('ai', '⏳', 'AI: getting the details…');
       var aiR0 = await _bcAiRescue(workCanvas, eraHint, out.why, out.bcMaker);
       st('ai', '🤖', aiR0 ? 'AI: ✓ details read' : 'AI: no extra details', aiR0 ? '#2ecc71' : null);
-      return { handled: true, itemNum: out.typedNum, variation: '', notInMaster: true,
+      return { handled: true, _boxPhoto: out.isBoxShot, itemNum: out.typedNum, variation: '', notInMaster: true,
                manufacturer: out.bcMaker || (aiR0 && aiR0.manufacturer) || '',
                labelDescription: (aiR0 && aiR0.labelDescription) || out.ocrDesc,
                description: (aiR0 && aiR0.description) || out.ocrDesc,
@@ -1925,6 +1934,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       st('ai', '🤖', 'AI: ✓ ' + (aiR.itemNum || aiR.description || 'details read'), '#2ecc71');
       if (!aiR.labelDescription && out.ocrDesc) aiR.labelDescription = out.ocrDesc;
       if (!aiR.manufacturer && out.bcMaker) aiR.manufacturer = out.bcMaker;
+      aiR._boxPhoto = out.isBoxShot;
       return aiR;
     }
     var aiWhy = out.why.reason === 'quota' ? 'daily limit reached' :
@@ -1959,10 +1969,10 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       while (true) {
         var cap = await _biCapture();
         if (!cap) { _biKill(); if (onCancel) onCancel(); return; }
-        var cr = await _biCrop(cap.canvas, cap.lockedBc);
+        var cr = await _biCrop(cap.view, cap.lockedBc);
         if (cr.action === 'retake') continue;
         if (cr.action === 'cancel') { _biKill(); if (onCancel) onCancel(); return; }
-        var res = await _biPipeline(cap.canvas, cr.work, cap.lockedBc, eraHint);
+        var res = await _biPipeline(cap.raw, cr.work, cap.lockedBc, eraHint);
         if (res && res.__biFail) {
           var choice = await _biFailCard(res.out);
           if (choice === 'retake') continue;
@@ -1974,6 +1984,12 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             return;
           }
           _biKill(); if (onCancel) onCancel(); return;   // 'type' and 'cancel' → wizard, user types
+        }
+        // Box shot → carry the photo so the wizard can prefill has-box and
+        // auto-attach it as the Box photo (Brad: "if I photographed the label,
+        // I obviously have a box — and that photo IS the box detail picture").
+        if (res && res._boxPhoto) {
+          try { res._boxPhotoFile = await _biCanvasToFile(cr.work, 'box-label.jpg'); } catch (eF) {}
         }
         // Confirm before anything fills (house rule)
         _biKill();
