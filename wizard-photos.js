@@ -1403,6 +1403,13 @@ function _identifyRouteToManualEntry(itemNum, meta, userMfrs) {
   if (desc) wizard.data.manualDesc = desc;
   // Year
   if (meta.year) wizard.data.manualYear = meta.year;
+  // Scale/Gauge (v0.9.666) — normalize the AI's wording to the picker options.
+  if (meta.gauge && !wizard.data.manualGauge) {
+    var _g = String(meta.gauge);
+    wizard.data.manualGauge = /standard/i.test(_g) ? 'Standard' : /o-?27/i.test(_g) ? 'O-27'
+      : /\bho\b/i.test(_g) ? 'HO' : /\bg\b/i.test(_g) ? 'G' : /no\.?\s?1/i.test(_g) ? 'No. 1'
+      : /\bs\b/i.test(_g) ? 'S' : /\bo\b/i.test(_g) ? 'O' : '';
+  }
   // Rebuild the wizard steps for the manual flow and start from step 0.
   if (typeof getSteps === 'function') {
     wizard.steps = getSteps('collection');
@@ -1580,6 +1587,7 @@ function _wizScanBarcode() {
       // shot doubles as the Box photo (auto-attached at the photos step).
       if (result._boxPhoto) {
         if (!wizard.data.manualHasBox) wizard.data.manualHasBox = 'Yes';
+        wizard.data._boxAutoKnown = true;
         if (result._boxPhotoFile) wizard.data._biBoxPhotoFile = result._boxPhotoFile;
       }
       if (result.notInMaster && typeof _identifyRouteToManualEntry === 'function') {
