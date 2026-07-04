@@ -1185,6 +1185,10 @@ function renderWizardStep() {
           '<input type="text" id="manual-roadname" value="' + _esc(d.manualRoadName) + '" placeholder="e.g. B&amp;O / Baltimore and Ohio" oninput="wizard.data.manualRoadName=this.value" style="' + _inStyle + '"></div>' +
         '<div><label style="' + _lblStyle + '">Road number / cab # (optional)</label>' +
           '<input type="text" id="manual-roadnum" value="' + _esc(d.manualRoadNumber) + '" placeholder="e.g. 606" oninput="wizard.data.manualRoadNumber=this.value" style="' + _inStyle + '"></div>' +
+          '<div><label style="font-size:0.82rem;color:var(--text-mid);display:block;margin:0.55rem 0 0.25rem">Scale / Gauge</label>' +
+          '<select id="manual-gauge" onchange="wizard.data.manualGauge=this.value" style="' + _inStyle + '">' +
+            ['','O','O-27','Standard','S','HO','G','No. 1'].map(function(g){ return '<option value="' + g + '"' + ((d.manualGauge||'') === g ? ' selected' : '') + '>' + (g || '— not sure —') + '</option>'; }).join('') +
+          '</select></div>' +
         '<div><label style="' + _lblStyle + '">Description (optional)</label>' +
           '<textarea id="manual-desc" rows="2" placeholder="e.g. black USRA switcher, illuminated cab" oninput="wizard.data.manualDesc=this.value" style="' + _inStyle + ';resize:vertical">' + _esc(d.manualDesc) + '</textarea></div>' +
         '<div><label style="' + _lblStyle + '">Give it your own name (optional)</label>' +
@@ -3545,7 +3549,11 @@ function renderWizardStep() {
         var _biF = wizard.data._biBoxPhotoFile;
         delete wizard.data._biBoxPhotoFile;
         setTimeout(function () {
-          try { uploadWizardPhoto(_biF, s.id, _biTargetView); showToast && showToast('📦 Your label shot was added as the Box photo', 3000); } catch (eBP) {}
+          try {
+            var _biUp = uploadWizardPhoto(_biF, s.id, _biTargetView);
+            if (_biUp && _biUp.catch) _biUp.catch(function (eU) { showToast && showToast('Box photo attach failed: ' + (eU && eU.message || 'upload error') + ' — add it manually below', 4500, true); });
+            showToast && showToast('📦 Your label shot was added as the Box photo', 3000);
+          } catch (eBP) { showToast && showToast('Box photo attach failed — add it manually below', 4000, true); }
         }, 400);
       }
     }
@@ -4678,7 +4686,7 @@ function renderWizardStep() {
       salePrice:'Sale Price', dateSold:'Date Sold',
       set_num:'Set Number',
     };
-    const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','wantErrorPhotos','photosMasterBox','boxOnly','entryMode','_setId','_rawItemNum','matchedItem','_partialMatches','_partialQuery','_itemGrouping','_fromWantList','_fromWantKey','_returnPage','_manualEntry','_drivePhotos','_setMode','_setGroupId','_setFinalItems','_setItemIndex','_setItemsSaved','_setEntryMode','_resolvedSet','_setLocoNum','_setPrice','_setDate','_setWorth','_setCondition','_setHasBoxChecked','_setWantPhotos','_setPhotoThenSave','_prefilledCondition','_setQEPhotos','set_hasBox','set_boxCond','set_boxPhotos','set_notes','_suggestions_cache','_biBoxPhotoFile','_completingQuickEntry','_existingGroupId','_fillItemMode','_wizSaveLock','_qeSaving','_photoInventoryId','_saveComplete','_era','suggestedRoadName','_manualEra','_alsoListForSale','_fromUpgradeList','_fromUpgradeKey','_cleanupWishlistMatches','_suggestedPricePaid','forSale_salePrice','forSale_dateListed','selectedForSaleKey','selectedSoldKey',
+    const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','wantErrorPhotos','photosMasterBox','boxOnly','entryMode','_setId','_rawItemNum','matchedItem','_partialMatches','_partialQuery','_itemGrouping','_fromWantList','_fromWantKey','_returnPage','_manualEntry','_drivePhotos','_setMode','_setGroupId','_setFinalItems','_setItemIndex','_setItemsSaved','_setEntryMode','_resolvedSet','_setLocoNum','_setPrice','_setDate','_setWorth','_setCondition','_setHasBoxChecked','_setWantPhotos','_setPhotoThenSave','_prefilledCondition','_setQEPhotos','set_hasBox','set_boxCond','set_boxPhotos','set_notes','_suggestions_cache','_biBoxPhotoFile','_boxAutoKnown','_completingQuickEntry','_existingGroupId','_fillItemMode','_wizSaveLock','_qeSaving','_photoInventoryId','_saveComplete','_era','suggestedRoadName','_manualEra','_alsoListForSale','_fromUpgradeList','_fromUpgradeKey','_cleanupWishlistMatches','_suggestedPricePaid','forSale_salePrice','forSale_dateListed','selectedForSaleKey','selectedSoldKey',
       '_photoUploadsInFlight','_identifyMeta','_identifyMfrHints','_identifyScaleHint','_identifyTypeHint','_alreadyOwnedFyi']);
     // Skip set_num from summary if it's already shown in the header
     if (wizard.data._resolvedSet || wizard.data.set_num) _skipKeys.add('set_num');
