@@ -637,7 +637,7 @@
   .info-field a:hover { text-decoration: underline; }
 
   .desc-block { background: var(--surface2); border-radius: 8px; padding: 0.85rem;
-    font-size: 0.82rem; line-height: 1.6; color: var(--text-mid); }
+    font-size: 0.82rem; line-height: 1.6; color: var(--text-mid); white-space: pre-line; }
 
   /* Form fields */
   .form-section-title {
