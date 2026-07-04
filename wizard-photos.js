@@ -1012,6 +1012,22 @@ function extractIdentifyMetadata(text, opts) {
     delete out.itemNum;
   }
 
+  // ── v0.9.662: merge the AI's "Known ..." knowledge lines (backend v1.4) ──
+  // Printed-on-the-box values always win; knowledge only fills EMPTY fields.
+  // The catalog number is NEVER taken from knowledge (honesty rule).
+  raw.split('\n').forEach(function (ln) {
+    var km = ln.match(/^known\s+(year|road name|number|road\/cab number|cab number|body style|type|description)\s*:\s*(.+)$/i);
+    if (!km) return;
+    var kv = km[2].trim();
+    if (!kv || /^(unknown|unclear|n\/?a|none|not specified|not sure)$/i.test(kv)) return;
+    var kk = km[1].toLowerCase();
+    if (kk === 'year' && !out.year) out.year = kv;
+    else if (kk === 'road name' && !out.roadName) out.roadName = kv;
+    else if ((kk === 'number' || kk === 'road/cab number' || kk === 'cab number') && !out.cabNum) out.cabNum = kv;
+    else if ((kk === 'body style' || kk === 'type') && !out.subType) out.subType = kv;
+    else if (kk === 'description' && !out.description) out.description = kv;
+  });
+
   // ── v0.9.660 post-processing (single source for AI / Lens / paste paths) ──
   // (1) Scrub literal "unknown"-style values the honest AI returns — they made
   // composed descriptions like "unknown caboose" (Brad's 10-2210 test).
@@ -1320,9 +1336,9 @@ function _composeManualDescFromMeta(meta) {
   if (meta.wheels)   parts.push(meta.wheels);
   if (meta.cabNum)   parts.push('#' + meta.cabNum);
   if (meta.variation && parts.indexOf(meta.variation) === -1) parts.push('(' + meta.variation + ')');
-  // v0.9.659: label-only scans carry a free-text description with no structured
-  // fields — use it when nothing else composed.
-  if (!parts.length && meta.description) return String(meta.description).trim();
+  // v0.9.662: a full description sentence (AI knowledge via backend v1.4, or a
+  // label read) beats stitched-together fragments — prefer it whenever present.
+  if (meta.description) return String(meta.description).trim();
   return parts.join(' ').trim();
 }
 
