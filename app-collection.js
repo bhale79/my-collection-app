@@ -869,6 +869,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
     roadName: pd.roadName || (_baseItem ? _baseItem.roadName : ''),
     description: _baseItem ? _baseItem.description : '',
     yearProd: pd.yearMade || (_baseItem ? _baseItem.yearProd : ''),
+    gauge: pd.gauge || (_baseItem ? _baseItem.gauge : ''),
     marketVal: _baseItem ? _baseItem.marketVal : '',
     varDesc: _baseItem ? _baseItem.varDesc : '',
     refLink: _baseItem ? _baseItem.refLink : '',
@@ -2114,7 +2115,7 @@ function showItemPanel(idx, pdKey, mode) {
   const item = state.masterData[idx] || {
     itemNum: pd.itemNum, variation: pd.variation || '',
     roadName: pd.roadName || '', itemType: pd.itemType || '',
-    yearProd: pd.yearMade || '', marketVal: '', // market value comes from master sheet only
+    yearProd: pd.yearMade || '', gauge: pd.gauge || '', marketVal: '', // market value comes from master sheet only
     varDesc: '', description: '',
   };
 
