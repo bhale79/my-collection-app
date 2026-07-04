@@ -432,6 +432,13 @@ function _wireIdentifyModalV2() {
       searchBtn.style.color = 'var(--text-dim)';
       searchBtn.style.cursor = 'not-allowed';
     }
+    // v0.9.660: the explicit Lens button follows the same photo-loaded gate.
+    var _lb = document.getElementById('id-lens-btn');
+    if (_lb) {
+      _lb.disabled = searchBtn.disabled;
+      _lb.style.opacity = searchBtn.disabled ? '0.55' : '1';
+      _lb.style.cursor = searchBtn.disabled ? 'not-allowed' : 'pointer';
+    }
   }
   if (takeBtn) takeBtn.addEventListener('click', function() { camInput && camInput.click(); });
   if (pickBtn) pickBtn.addEventListener('click', function() { galInput && galInput.click(); });
@@ -457,8 +464,11 @@ function _wireIdentifyModalV2() {
       }
     });
   }
-  // The big search button → does the Drive upload + Lens open.
+  // The big search button → AI-first identify (falls back to Lens on failure).
   searchBtn.addEventListener('click', _identifySearchLens);
+  // v0.9.660: explicit Lens button → straight to the Lens flow, no AI.
+  var _lensBtn2 = document.getElementById('id-lens-btn');
+  if (_lensBtn2) _lensBtn2.addEventListener('click', _identifyOpenLens);
   // v0.9.642: 📋 paste button — mobile-friendly clipboard read.
   var _pasteBtn = document.getElementById('id-paste-btn');
   if (_pasteBtn) _pasteBtn.addEventListener('click', function() { _identifyReadClipboard(false); });
@@ -498,6 +508,17 @@ async function _identifySearchLens() {
     }
     // 'noconsent' / error / offline: fall through to the Lens flow silently.
   }
+  return _identifyOpenLens();
+}
+
+// v0.9.660: PURE Google Lens flow — the explicit 🔍 button lands here directly,
+// never intercepted by the AI. (Brad: an explicit Lens click must mean Lens —
+// he was trying to get a second opinion after a bad AI read and kept getting
+// the AI again.) The AI path still falls back here automatically on failure.
+async function _identifyOpenLens() {
+  if (!_identifyPhotoFile) return;
+  const searchBtn = document.getElementById('id-lens-btn') || document.getElementById('id-search-btn');
+  const origText = searchBtn ? searchBtn.innerHTML : '';
   if (searchBtn) { searchBtn.disabled = true; searchBtn.innerHTML = '\u23F3 Staging photo\u2026'; }
   try {
     if (typeof driveStageLensPhoto !== 'function') {
@@ -989,6 +1010,37 @@ function extractIdentifyMetadata(text) {
   if (out.itemNum && out.year && out.itemNum === out.year && !_itemFromLabel) {
     out._hedge = true;
     delete out.itemNum;
+  }
+
+  // ── v0.9.660 post-processing (single source for AI / Lens / paste paths) ──
+  // (1) Scrub literal "unknown"-style values the honest AI returns — they made
+  // composed descriptions like "unknown caboose" (Brad's 10-2210 test).
+  var _junkVal = /^(unknown|unclear|n\/?a|none|not specified|not visible|illegible|not shown)$/i;
+  ['roadName', 'subType', 'manufacturer', 'cabNum', 'year', 'variation'].forEach(function (k) {
+    if (out[k] && _junkVal.test(String(out[k]).trim())) delete out[k];
+  });
+  // (2) Canonical manufacturer names — the box says "By M.T.H. Electric Trains"
+  // and the AI echoes it; chips + _eraForMfr need the short canonical form.
+  if (out.manufacturer) {
+    var _mL = String(out.manufacturer).toLowerCase().replace(/[^a-z]/g, '');
+    var _mMap = { mth: 'MTH', mthelectrictrains: 'MTH', mthtrains: 'MTH',
+      atlas: 'Atlas O', atlaso: 'Atlas O', atlasomodels: 'Atlas O',
+      kline: 'K-Line', klineelectrictrains: 'K-Line',
+      lionel: 'Lionel', lionelcorporation: 'Lionel', lionelllc: 'Lionel',
+      americanflyer: 'American Flyer', weaver: 'Weaver', weavermodels: 'Weaver',
+      williams: 'Williams', williamselectrictrains: 'Williams', marx: 'Marx',
+      rmt: 'RMT', readymadetoys: 'RMT', menards: 'Menards' };
+    if (_mMap[_mL]) out.manufacturer = _mMap[_mL];
+  }
+  // (3) MTH SKU guard — real MTH catalog numbers are NN-NNNN(N)(-N)(letter).
+  // Tinplate boxes print the CAB number big ("4021 Caboose") and the SKU small
+  // (10-2210); when the AI puts a non-conforming number in the SKU slot, demote
+  // it to cabNum (→ Road Number prefill) and flag a hedge so nothing stores a
+  // bogus item number.
+  if (out.itemNum && out.manufacturer === 'MTH' && !/^\d{2}-\d{4,5}(-\d{1,3})?[a-z]?$/i.test(String(out.itemNum).trim())) {
+    if (!out.cabNum) out.cabNum = String(out.itemNum).trim();
+    delete out.itemNum;
+    out._hedge = true;
   }
 
   return out;
