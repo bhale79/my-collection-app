@@ -1461,7 +1461,9 @@ function renderWizardStep() {
         } catch(e) { console.warn('[want filters]', e); }
       }
       if (inp) {
-        inp.focus();
+        // v0.9.667 (Brad): on phones the auto-focused keyboard buried the
+        // "Identify by Photo" button — only auto-focus on non-touch devices.
+        if (!(('ontouchstart' in window) || navigator.maxTouchPoints > 0)) inp.focus();
         if (s.id === 'itemNum') {
           inp.addEventListener('input', debounceItemLookup);
           if (inp.value) updateItemSuggestions(inp.value);
@@ -2032,7 +2034,7 @@ function renderWizardStep() {
           if (sug) { sug.style.display = 'none'; sug.innerHTML = ''; }
           window._qe1OnInput(inp.value);
         }
-        inp.focus();
+        if (!(('ontouchstart' in window) || navigator.maxTouchPoints > 0)) inp.focus();
       }
       _qe1RenderGrouping();
       _qe1RenderSliders();
