@@ -306,6 +306,20 @@ async function _fetchMasterTabs(era) {
   }
 }
 
+// v0.9.658 — Atlas (and some MPC) Year Produced cells hold real DATES
+// ("2022-04-01 00:00:00" — accurate release dates, month distinguishes waves).
+// Display wants just the year; the dedupe key needs the FULL date so rows that
+// differ only by release month stay distinct. So: yearProd = display-formatted,
+// _yearRaw = untouched original (used in _deduplicateMaster).
+function _fmtYearProd(s) {
+  var t = String(s).trim();
+  var m = t.match(/^(\d{4})-\d{1,2}-\d{1,2}(?:[T ]\d{1,2}:\d{2}(?::\d{2})?)?$/);
+  if (m) return m[1];
+  m = t.match(/^\d{1,2}\/\d{1,2}\/(\d{4})$/);
+  if (m) return m[1];
+  return t;
+}
+
 function parseMasterRow(r, tabName) {
   return {
     itemNum:      r[0]  !== null && r[0]  !== undefined && r[0]  !== '' ? String(r[0])  : '',
@@ -319,7 +333,8 @@ function parseMasterRow(r, tabName) {
     roadName:     r[6]  !== null && r[6]  !== undefined && r[6]  !== '' ? String(r[6])  : '',
     description:  r[7]  !== null && r[7]  !== undefined && r[7]  !== '' ? String(r[7])  : '',
     gauge:        r[8]  !== null && r[8]  !== undefined && r[8]  !== '' ? String(r[8])  : '',
-    yearProd:     r[9]  !== null && r[9]  !== undefined && r[9]  !== '' ? String(r[9])  : '',
+    yearProd:     r[9]  !== null && r[9]  !== undefined && r[9]  !== '' ? _fmtYearProd(r[9]) : '',
+    _yearRaw:     r[9]  !== null && r[9]  !== undefined && r[9]  !== '' ? String(r[9])  : '',
     variation:    r[10] !== null && r[10] !== undefined && r[10] !== '' ? String(r[10]) : '',
     varDesc:      r[11] !== null && r[11] !== undefined && r[11] !== '' ? String(r[11]) : '',
     refLink:      r[12] !== null && r[12] !== undefined && r[12] !== '' ? String(r[12]) : '',
@@ -342,7 +357,11 @@ function _deduplicateMaster(rows) {
     if (!m.itemNum) return false;
     // trackPower included so Atlas rail variants (3-Rail TMCC vs 2-Rail DC, etc.)
     // are NOT deduped into one row. Blank for Lionel rows so behavior is unchanged.
-    const key = m.itemNum + '|' + (m.roadName || '') + '|' + m.variation + '|' + (m.poweredDummy || '') + '|' + (m.description || '') + '|' + (m.trackPower || '');
+    // v0.9.658: subType + _yearRaw added — Atlas rows that differ only by sub-type
+    // (40' vs 45' container assortments) or release DATE (Jan vs Sep waves, month
+    // matters) are real distinct products and must not be dropped. _yearRaw keeps
+    // the full date; the display-formatted yearProd would re-collapse same-year waves.
+    const key = m.itemNum + '|' + (m.roadName || '') + '|' + m.variation + '|' + (m.poweredDummy || '') + '|' + (m.description || '') + '|' + (m.trackPower || '') + '|' + (m.subType || '') + '|' + (m._yearRaw || '');
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
