@@ -1393,21 +1393,8 @@ function renderWizardStep() {
         ${s.optional ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>' : ''}
         <div id="wiz-match" style="margin-top:0.75rem"></div>
         ${s.id === 'itemNum' ? `
-        <button onclick="openIdentify('wizard')" style="
-          width:100%;margin-top:0.6rem;padding:0.65rem 1rem;
-          border-radius:8px;border:1.5px dashed var(--gold);
-          background:rgba(212,168,67,0.07);color:var(--gold);
-          font-family:var(--font-head);font-size:0.78rem;font-weight:600;
-          letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;
-          display:flex;align-items:center;justify-content:center;gap:0.5rem;
-          transition:all 0.15s
-        ">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-          Don't know the number? Identify by photo
-        </button>` : ''}
-        ${s.id === 'itemNum' && (typeof eraSupportsBarcode === 'function' ? eraSupportsBarcode(wizard.data._era) : (wizard.data._era === 'mod' || wizard.data._era === 'mpc')) ? `
         <button onclick="_wizScanBarcode()" style="
-          width:100%;margin-top:0.5rem;padding:0.65rem 1rem;
+          width:100%;margin-top:0.6rem;padding:0.65rem 1rem;
           border-radius:8px;border:1.5px dashed #2980b9;
           background:rgba(41,128,185,0.08);color:#2980b9;
           font-family:var(--font-head);font-size:0.78rem;font-weight:600;
@@ -1415,7 +1402,8 @@ function renderWizardStep() {
           display:flex;align-items:center;justify-content:center;gap:0.5rem;
           transition:all 0.15s
         ">
-          📷 Identify from Photo
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          Don't know the number? Identify by photo
         </button>` : ''}
         ${showBoxOnly ? `
         <label onclick="toggleBoxOnly()" style="
@@ -3923,32 +3911,15 @@ function renderWizardStep() {
     // Identify by photo button (only when entering manually)
     if (!_ingPreFilled) {
       const _ingPhotoBtn = document.createElement('button');
-      _ingPhotoBtn.onclick = function() { openIdentify('wizard'); };
-      _ingPhotoBtn.style.cssText = 'width:100%;margin-top:0.6rem;padding:0.65rem 1rem;border-radius:8px;border:1.5px dashed var(--gold);background:rgba(212,168,67,0.07);color:var(--gold);font-family:var(--font-head);font-size:0.78rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;transition:all 0.15s';
+      _ingPhotoBtn.onclick = function() { if (typeof _wizScanBarcode === 'function') _wizScanBarcode(); else openIdentify('wizard'); };
+      _ingPhotoBtn.style.cssText = 'width:100%;margin-top:0.6rem;padding:0.65rem 1rem;border-radius:8px;border:1.5px dashed #2980b9;background:rgba(41,128,185,0.08);color:#2980b9;font-family:var(--font-head);font-size:0.78rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;transition:all 0.15s';
       _ingPhotoBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Don\x27t know the number? Identify by photo';
       _ingWrap.appendChild(_ingPhotoBtn);
 
-      // Scan Barcode / Label — mobile-only since it needs a
-      // pointable camera against a real item/box. On desktop we show a
-      // small note instead so the user knows the feature exists elsewhere.
-      const _isMobileWiz = (window.innerWidth <= 768) || ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-      if (_isMobileWiz) {
-        // Session 167: barcode scan button is era-agnostic now. The scanner
-        // identifies the manufacturer from the UPC prefix and looks up the
-        // item across all era IDB caches, so we don't need the user to pick
-        // an era first.
-        const _ingScanBtn = document.createElement('button');
-        _ingScanBtn.onclick = function() { if (typeof _wizScanBarcode === 'function') _wizScanBarcode(); };
-        _ingScanBtn.style.cssText = 'width:100%;margin-top:0.5rem;padding:0.65rem 1rem;border-radius:8px;border:1.5px dashed #2980b9;background:rgba(41,128,185,0.08);color:#2980b9;font-family:var(--font-head);font-size:0.78rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;transition:all 0.15s';
-        _ingScanBtn.innerHTML = '📷 Identify from Photo';
-        _ingWrap.appendChild(_ingScanBtn);
-      } else {
-        // Desktop substitute — small italic note pointing to mobile.
-        const _scanNote = document.createElement('div');
-        _scanNote.style.cssText = 'margin-top:0.55rem;padding:0.5rem 0.75rem;border-radius:8px;border:1px dashed var(--border);background:var(--surface2);color:var(--text-dim);font-size:0.78rem;font-style:italic;text-align:center';
-        _scanNote.textContent = '📱 Barcode & Label scan available on the mobile app';
-        _ingWrap.appendChild(_scanNote);
-      }
+      // v0.9.674 (Brad): ONE identify button — the yellow wording with the blue
+      // styling, pointing at the unified Identify-from-Photo flow (which offers
+      // gallery pick on desktop and Lens/AI fallbacks). Old second button +
+      // desktop note removed.
       // Phase 2 streamline: "Adding something else?" chip row replaces the
       // old standalone category picker (Step 1). Only shown on the default
       // cataloged-item flow for the collection tab; clicking a chip routes
