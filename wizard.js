@@ -197,7 +197,7 @@ function _buildWizardModal() {
       ? '<button type="button" id="id-take-photo" style="flex:1;padding:0.6rem;border-radius:9px;border:1.5px solid var(--accent);background:rgba(232,64,28,0.08);color:var(--accent);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">\ud83d\udcf7 Take Photo</button>'
         + '<button type="button" id="id-pick-photo" style="flex:1;padding:0.6rem;border-radius:9px;border:1.5px solid var(--accent2);background:rgba(201,146,42,0.08);color:var(--accent2);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">\ud83d\uddbc\ufe0f From Gallery</button>'
       : '<button type="button" id="id-pick-photo" style="flex:1;padding:0.7rem;border-radius:9px;border:1.5px dashed var(--accent2);background:rgba(201,146,42,0.06);color:var(--accent2);font-family:var(--font-body);font-weight:600;font-size:0.9rem;cursor:pointer">\ud83d\udcc1 Upload Photo</button>';
-    var _mfrChips = ['Lionel','MTH','Atlas','K-Line','Weaver','Williams','RMT','Not sure'].map(function(m) {
+    var _mfrChips = ['Lionel','MTH','Atlas','K-Line','Weaver','Williams','RMT','Menards','Marx','Not sure'].map(function(m) {
       return '<label class="id-mfr-chip" data-mfr="' + m + '" style="display:inline-flex;align-items:center;gap:0.35rem;padding:0.35rem 0.7rem;border-radius:14px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-mid);font-size:0.78rem;cursor:pointer;user-select:none">'
         + '<input type="checkbox" data-mfr-cb="' + m + '" style="margin:0;cursor:pointer">'
         + '<span>' + m + '</span></label>';
