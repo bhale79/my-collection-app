@@ -385,6 +385,13 @@ let _identifyStagedFileId = null;  // for cleanup after Lens search
 let _identifyStagedTimer = null;
 
 // Wired up after the modal DOM is inserted (called from wizard.js _buildWizardModal).
+// v0.9.663: open the identify modal with a photo already loaded — used by the
+// unified Identify-from-Photo flow's Google Lens fail-safe (no re-photographing).
+window._identifyOpenWithPhoto = function (file) {
+  try { openIdentify('wizard'); } catch (e) { return; }
+  setTimeout(function () { if (window._identifySetPhoto) window._identifySetPhoto(file); }, 300);
+};
+
 function _wireIdentifyModalV2() {
   // Photo input wiring — supports mobile (camera + gallery) and desktop (gallery only).
   const camInput  = document.getElementById('id-file-camera');
@@ -397,6 +404,7 @@ function _wireIdentifyModalV2() {
   const photoBtns = document.getElementById('id-photo-buttons');
   const searchBtn = document.getElementById('id-search-btn');
   if (!searchBtn) return;
+  window._identifySetPhoto = function (f) { _setPhoto(f); };   // v0.9.663: Lens fail-safe handoff
   function _setPhoto(file) {
     if (!file || !file.type.startsWith('image/')) return;
     _identifyPhotoFile = file;
@@ -1524,7 +1532,7 @@ function _wizScanBarcode() {
     return;
   }
   const eraHint = (wizard && wizard.data && wizard.data._era) || '';
-  window.openBarcodeScanner(function(result) {
+  (window.openBoxIdentify || window.openBarcodeScanner)(function(result) {
     // On successful scan: fill the item number field and advance if possible
     if (!wizard || !wizard.data) return;
     if (result.itemNum) {
