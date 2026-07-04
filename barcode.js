@@ -1792,7 +1792,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + '<div style="color:#ffd27d;font-size:0.8rem;margin-bottom:0.45rem">Tip: crop to the label or the lettering — <b>less background noise = better results</b>. The barcode is read from the full photo either way.</div>'
         + '<div style="max-height:52vh;overflow:hidden;border-radius:12px;background:#000"><img id="bi-cropimg" style="display:block;max-width:100%"></div>'
         + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.55rem">'
-        + _biBtn({ act: 'crop', txt: '✂ Identify cropped' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff;flex:2')
+        + _biBtn({ act: 'crop', txt: '✂ Use cropped photo' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff;flex:2')
         + _biBtn({ act: 'full', txt: 'Use full photo' })
         + _biBtn({ act: 'retake', txt: '↺ Retake' })
         + _biBtn({ act: 'cancel', txt: 'Cancel' })
@@ -2015,7 +2015,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           if (choice === 'lens') {
             var f = await _biCanvasToFile(cr.work, 'lens-failsafe.jpg');
             _biKill();
-            if (typeof window._identifyOpenWithPhoto === 'function') window._identifyOpenWithPhoto(f);
+            if (typeof window._identifyOpenWithPhoto === 'function') window._identifyOpenWithPhoto(f, true);
             else if (onCancel) onCancel();
             return;
           }
