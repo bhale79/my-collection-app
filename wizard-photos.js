@@ -480,6 +480,39 @@ function _wireIdentifyModalV2() {
   // v0.9.642: 📋 paste button — mobile-friendly clipboard read.
   var _pasteBtn = document.getElementById('id-paste-btn');
   if (_pasteBtn) _pasteBtn.addEventListener('click', function() { _identifyReadClipboard(false); });
+  // v0.9.672 (Brad): screenshot path — selecting text on Google's page is the
+  // worst part of the Lens flow; a screenshot is two buttons. OCR it on-device
+  // and pipe through the SAME processor the paste path uses.
+  var _shotBtn = document.getElementById('id-shot-btn');
+  var _shotFile = document.getElementById('id-shot-file');
+  if (_shotBtn && _shotFile) {
+    _shotBtn.addEventListener('click', function () { _shotFile.value = ''; _shotFile.click(); });
+    _shotFile.addEventListener('change', async function (e) {
+      var f = e.target.files && e.target.files[0];
+      if (!f || !f.type.startsWith('image/')) return;
+      var orig = _shotBtn.innerHTML;
+      _shotBtn.disabled = true; _shotBtn.innerHTML = '\u23F3 Reading the screenshot\u2026';
+      try {
+        if (typeof window._ensureTesseract !== 'function') throw new Error('reader not loaded — refresh and try again');
+        var T = await window._ensureTesseract();
+        var o = await T.recognize(f, 'eng', {});
+        var txt = (o && o.data && o.data.text || '').trim();
+        if (!txt) throw new Error('no readable text in that image');
+        var res = _identifyProcessText(txt);
+        if (res === 'applied') return;   // item found + applied — modal handles the rest
+        // hedge / none: drop the text into the manual box for editing (paste behavior)
+        var inp = document.getElementById('identify-manual-input');
+        if (inp) { inp.value = txt; inp.focus(); }
+        if (typeof showToast === 'function') showToast(res === 'hedge'
+          ? "Couldn't pin an item number in that screenshot — edit the text below"
+          : 'Screenshot read — check/edit the text below', 4000, true);
+      } catch (err) {
+        if (typeof showToast === 'function') showToast('Screenshot read failed: ' + err.message, 4000, true);
+      } finally {
+        _shotBtn.disabled = false; _shotBtn.innerHTML = orig;
+      }
+    });
+  }
   _updateSearchButton();
 }
 
