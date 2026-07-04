@@ -330,7 +330,7 @@
     var desc = common ? _vpHlDesc(raw, common) : _vpEsc(raw);
     return '<div style="background:var(--surface2,#1d2040);border:1px solid var(--border);border-radius:11px;padding:12px;margin:8px 0">'
       + '<div style="font-family:var(--font-mono);font-size:0.95rem;font-weight:600;color:var(--accent2);margin-bottom:4px">Variation ' + _vpEsc(id) + (r.cottCode ? ' · ' + _vpEsc(r.cottCode) : '') + '</div>'
-      + '<div style="font-size:0.82rem;color:var(--text-mid);line-height:1.5">' + desc + '</div></div>';
+      + '<div style="font-size:0.82rem;color:var(--text-mid);line-height:1.5;white-space:pre-line">' + desc + '</div></div>';
   }
 
   function _vpConfirm(id, solved) {
