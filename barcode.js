@@ -1696,7 +1696,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       var d = _biOverlay(
         '<div style="width:100%;max-width:560px">'
         + '<div style="color:var(--text,#fff);font-family:var(--font-head,sans-serif);font-size:1.02rem;margin:0.2rem 0 0.45rem">📷 Identify from Photo</div>'
-        + '<div id="bi-guide" style="color:#ffd27d;font-size:0.82rem;line-height:1.45;margin-bottom:0.5rem">Get the <b>barcode AND the printed item number</b> in the shot. No barcode? A clear shot of the box end/side with the number — or of the <b>item itself</b> (road name &amp; number visible).</div>'
+        + '<div id="bi-guide" style="color:#ffd27d;font-size:0.82rem;line-height:1.45;margin-bottom:0.5rem">Get the <b>barcode AND the printed item number</b> in the shot. No barcode? A clear shot of the box end/side with the number — or of the <b>item itself</b> (road name &amp; number visible). Already have a photo? Use <b>🖼 gallery</b> below.</div>'
         + '<div style="width:100%;aspect-ratio:4/3;border-radius:12px;background:#000;overflow:hidden"><video id="bi-video" autoplay playsinline style="width:100%;height:100%;object-fit:cover"></video></div>'
         + '<div id="bi-camstatus" style="color:var(--text-dim,#999);font-size:0.8rem;min-height:1.2rem;margin:0.4rem 0">Starting camera…</div>'
         + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap">'
