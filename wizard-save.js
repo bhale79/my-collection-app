@@ -815,6 +815,7 @@ async function _saveManualEntry() {
     inventoryId: invId,
     location: location,
     era: 'Manual',
+    gauge: (d.manualGauge || '').trim(),
     manufacturer: manufacturer,
     itemType: itemType,
     roadName: roadName,
