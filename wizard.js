@@ -227,12 +227,13 @@ function _buildWizardModal() {
       +     '<label style="font-size:0.7rem;color:var(--text-dim);letter-spacing:0.06em;text-transform:uppercase;font-weight:600;display:block;margin-bottom:0.3rem">Manufacturer (pick any that might apply)</label>'
       +     '<div id="id-mfr-chips" style="display:flex;flex-wrap:wrap;gap:0.3rem">' + _mfrChips + '</div>'
       +   '</div>'
-      +   '<button id="id-search-btn" type="button" disabled style="width:100%;padding:0.75rem;border-radius:9px;background:var(--surface2);border:1.5px solid var(--border);color:var(--text-dim);font-family:var(--font-head);font-size:0.95rem;letter-spacing:0.05em;cursor:not-allowed;margin-bottom:0.5rem">\ud83d\udd0d Search Google Lens \u2197</button>'
+      +   '<button id="id-search-btn" type="button" disabled style="width:100%;padding:0.75rem;border-radius:9px;background:var(--surface2);border:1.5px solid var(--border);color:var(--text-dim);font-family:var(--font-head);font-size:0.95rem;letter-spacing:0.05em;cursor:not-allowed;margin-bottom:0.5rem">\ud83e\udd16 Identify with AI</button>'
+      +   '<button id="id-lens-btn" type="button" disabled style="width:100%;padding:0.6rem;border-radius:9px;background:var(--surface2);border:1.5px solid var(--border);color:var(--text);font-family:var(--font-head);font-size:0.9rem;letter-spacing:0.04em;cursor:not-allowed;opacity:0.55;margin-bottom:0.5rem">\ud83d\udd0d Search Google Lens \u2197</button>'
       +   '<button id="id-paste-btn" type="button" style="width:100%;padding:0.6rem;border-radius:9px;background:rgba(58,110,165,0.15);border:1.5px solid #3a6ea5;color:#cfe3ff;font-family:var(--font-head);font-size:0.9rem;letter-spacing:0.04em;cursor:pointer;margin-bottom:0.5rem">\ud83d\udccb Paste Lens Result</button>'
       +   '<details id="id-help-block" style="background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:0.4rem 0.65rem;font-size:0.75rem;color:var(--text-mid);margin-bottom:0.5rem">'
       +     '<summary style="cursor:pointer;color:var(--text);font-weight:600;font-size:0.78rem;list-style:none">How does this work? \u25b8</summary>'
       +     '<ol style="margin:0.5rem 0 0.15rem 1.1rem;padding:0;line-height:1.5">'
-      +       '<li>Click <strong>Search Google Lens</strong> above \u2014 opens a new tab</li>'
+      +       '<li><strong>\ud83e\udd16 Identify with AI</strong> answers right here in the app (fastest). Prefer Google? <strong>\ud83d\udd0d Search Google Lens</strong> opens a new tab</li>'
       +       '<li>On the Google page, <strong>select the AI Overview text</strong> (the labeled answer at the top)</li>'
       +       '<li>Copy it (<kbd>Ctrl</kbd>+<kbd>C</kbd>)</li>'
       +       '<li>Come back here \u2014 we offer your copied answer automatically, or tap <strong>\ud83d\udccb Paste Lens Result</strong> (or press <kbd>Ctrl</kbd>+<kbd>V</kbd>)</li>'
@@ -1194,12 +1195,13 @@ function renderWizardStep() {
               ' style="width:100%;padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:0.88rem;box-sizing:border-box">' +
           '</div>' +
         '</div>' +
+        ((typeof _prefLocEnabled !== 'undefined' && _prefLocEnabled) ?
         '<div>' +
           '<label style="font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.25rem">Storage Location</label>' +
           '<input type="text" value="' + (d.location || '').replace(/"/g, '&quot;') + '"' +
             ' oninput="wizard.data.location=this.value" placeholder="e.g. Shelf 3, Tote 12"' +
             ' style="width:100%;padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.88rem;box-sizing:border-box">' +
-        '</div>' +
+        '</div>' : '') +
       '</div>';
 
   } else if (s.type === 'choice') {
