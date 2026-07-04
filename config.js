@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.672';
+const APP_VERSION = 'v0.9.673';
 const APP_DATE    = 'April 2026';
 
 // ── varShortLabel — SINGLE SOURCE for short variation labels (v0.9.657) ──
@@ -250,7 +250,7 @@ var SEARCH_ALIASES = {};
 // ── Manual-entry pickers ── single source of truth for the manual-add
 // Manufacturer + Item Type steps (quick-pick chips + searchable dropdown).
 window.MANUAL_MANUFACTURERS = {
-  common: ['Lionel', 'MTH', 'Atlas O', 'Williams', 'Weaver', 'K-Line', 'Marx', 'American Flyer'],
+  common: ['Lionel', 'MTH', 'Atlas O', 'Williams', 'Weaver', 'K-Line', 'Marx', 'American Flyer', 'Menards', 'RMT'],  // v0.9.673: Menards chip (Brad) + RMT (has its own era/tab too)
   all: [
     '3rd Rail', 'All-Nation', 'American Flyer', 'Atlas O', 'Bachmann', 'Dorfan',
     'Hafner', 'Industrial Rail', 'Ives', 'K-Line', 'Kusan', 'Lionel',
