@@ -1789,12 +1789,11 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + '<div style="color:var(--text,#fff);font-family:var(--font-head,sans-serif);font-size:1.02rem;margin:0.2rem 0 0.35rem">✂ Crop (optional)'
         + (lockedBc ? ' <span style="font-size:0.72rem;background:rgba(46,204,113,0.15);border:1px solid #2ecc71;color:#2ecc71;border-radius:6px;padding:2px 7px;vertical-align:middle">Barcode ✓ locked</span>' : '')
         + '</div>'
-        + '<div style="color:#ffd27d;font-size:0.8rem;margin-bottom:0.45rem">Tip: crop to the label or the lettering — <b>less background noise = better results</b>. The barcode is read from the full photo either way.</div>'
+        + '<div style="color:#ffd27d;font-size:0.8rem;margin-bottom:0.45rem">Adjust the crop frame if you like (<b>less background = better results</b>) — leave it alone to use the whole photo. The barcode is always read from the full shot.</div>'
         + '<div style="max-height:52vh;overflow:hidden;border-radius:12px;background:#000"><img id="bi-cropimg" style="display:block;max-width:100%"></div>'
         + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.55rem">'
-        + _biBtn({ act: 'crop', txt: '✂ Use cropped photo' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff;flex:2')
-        + _biBtn({ act: 'full', txt: 'Use full photo' })
-        + _biBtn({ act: 'lens', txt: '🔍 Google Lens' })
+        + _biBtn({ act: 'go', txt: '🤖 Multi AI Search' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff;flex:1')
+        + _biBtn({ act: 'lens', txt: '🔍 Google Lens Search' })
         + _biBtn({ act: 'retake', txt: '↺ Retake' })
         + _biBtn({ act: 'cancel', txt: 'Cancel' })
         + '</div></div>');
@@ -1802,25 +1801,19 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       img.src = canvas.toDataURL('image/jpeg', 0.92);
       var cropper = null;
       img.onload = function () {
-        try { cropper = new window.Cropper(img, { viewMode: 1, autoCropArea: 0.92, background: false, movable: true, zoomable: true }); } catch (e) {}
+        try { cropper = new window.Cropper(img, { viewMode: 1, autoCropArea: 1, background: false, movable: true, zoomable: true }); } catch (e) {}
       };
       d.addEventListener('click', function (e) {
         var b = e.target.closest && e.target.closest('[data-bi]');
         if (!b) return;
         var act = b.getAttribute('data-bi');
         function fin(out) { try { if (cropper) cropper.destroy(); } catch (e2) {} resolve(out); }
-        if (act === 'crop') {
+        // v0.9.678 (Brad): two routes, one crop box — whatever the crop frame
+        // shows (untouched = the full photo) feeds the chosen search.
+        if (act === 'go' || act === 'lens') {
           var wc = null;
           try { wc = cropper && cropper.getCroppedCanvas({ maxWidth: 2200, maxHeight: 2200 }); } catch (e3) {}
-          fin({ work: wc || canvas, action: 'go' });
-        }
-        if (act === 'full')   fin({ work: canvas, action: 'go' });
-        // v0.9.677 (Brad): choose the route after cropping — Lens takes the
-        // crop when one was made, else the full photo.
-        if (act === 'lens') {
-          var wl = null;
-          try { wl = cropper && cropper.getCroppedCanvas({ maxWidth: 2200, maxHeight: 2200 }); } catch (e4) {}
-          fin({ work: wl || canvas, action: 'lens' });
+          fin({ work: wc || canvas, action: act === 'lens' ? 'lens' : 'go' });
         }
         if (act === 'retake') fin({ action: 'retake' });
         if (act === 'cancel') fin({ action: 'cancel' });
