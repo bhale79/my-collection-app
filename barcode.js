@@ -1627,6 +1627,373 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     return d;
   }
 
+
+  // ════════════════════════════════════════════════════════════════
+  //  v0.9.663 — UNIFIED "IDENTIFY FROM PHOTO" (Brad's redesign)
+  //  One flow for boxes AND bare items: camera (with live barcode
+  //  lock) → optional crop → staged pipeline (barcode → label OCR →
+  //  master → AI) with visible per-stage status. Printed number wins
+  //  conflicts. Google Lens stays as the manual fail-safe.
+  //  Reuses: decodeBarcode, _bcDetect/_loadZXing, _bcPreprocessForOCR,
+  //  _extractItemNumberCandidates, _bcDescriptionGuess, _mfrFromKeywords,
+  //  _findMasterItemsExact/AllEras, showCandidatePicker, _bcConfirmCard,
+  //  _bcAiRescue (incl. cab-number rescue for bare postwar items).
+  // ════════════════════════════════════════════════════════════════
+
+  function _biCanvasToFile(canvas, name) {
+    return new Promise(function (resolve) {
+      canvas.toBlob(function (blob) {
+        resolve(new File([blob], name || 'identify.jpg', { type: 'image/jpeg' }));
+      }, 'image/jpeg', 0.9);
+    });
+  }
+
+  async function _biDetectCanvas(canvas) {
+    // Native BarcodeDetector accepts a canvas directly.
+    if (_hasNativeBD) {
+      try {
+        var det = new window.BarcodeDetector({ formats: ['ean_13', 'upc_a', 'ean_8', 'upc_e', 'code_128', 'code_39'] });
+        return await det.detect(canvas);
+      } catch (e) { /* fall through to zxing */ }
+    }
+    try {
+      var mod = await _loadZXing();
+      var ctx = canvas.getContext('2d', { willReadFrequently: true });
+      var img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      var res = await mod.readBarcodesFromImageData(img, { tryHarder: true, formats: ['EAN13', 'UPCA', 'EAN8', 'UPCE', 'Code128', 'Code39'], maxNumberOfSymbols: 1 });
+      return (res || []).filter(function (r) { return r.text; }).map(function (r) { return { rawValue: r.text, format: _zxFmtToStd(r.format) }; });
+    } catch (e) { return []; }
+  }
+
+  function _biBtn(label, style) {
+    return '<button data-bi="' + label.act + '" style="padding:0.7rem 1rem;border-radius:10px;font-family:var(--font-body,sans-serif);font-size:0.9rem;font-weight:600;cursor:pointer;' + (style || 'background:var(--surface2,#252848);border:1.5px solid var(--border,#444);color:var(--text,#fff)') + '">' + label.txt + '</button>';
+  }
+
+  function _biOverlay(inner) {
+    var d = document.getElementById('bi-overlay');
+    if (!d) {
+      d = document.createElement('div');
+      d.id = 'bi-overlay';
+      d.style.cssText = 'position:fixed;inset:0;z-index:99997;background:#0b0d1d;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;overflow-y:auto;padding:0.75rem;box-sizing:border-box';
+      document.body.appendChild(d);
+    }
+    d.innerHTML = inner;
+    return d;
+  }
+  function _biKill() { var d = document.getElementById('bi-overlay'); if (d) d.remove(); }
+
+  // ── Phase 1: camera (with live barcode lock) or gallery pick ──
+  function _biCapture() {
+    return new Promise(function (resolve) {
+      var stream = null, stopLoop = false, lastRaw = '', confirmN = 0;
+      function done(out) {
+        stopLoop = true;
+        try { if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
+        resolve(out);
+      }
+      var d = _biOverlay(
+        '<div style="width:100%;max-width:560px">'
+        + '<div style="color:var(--text,#fff);font-family:var(--font-head,sans-serif);font-size:1.02rem;margin:0.2rem 0 0.45rem">📷 Identify from Photo</div>'
+        + '<div id="bi-guide" style="color:#ffd27d;font-size:0.82rem;line-height:1.45;margin-bottom:0.5rem">Get the <b>barcode AND the printed item number</b> in the shot. No barcode? A clear shot of the box end/side with the number — or of the <b>item itself</b> (road name &amp; number visible).</div>'
+        + '<video id="bi-video" autoplay playsinline style="width:100%;max-height:52vh;border-radius:12px;background:#000;object-fit:contain"></video>'
+        + '<div id="bi-camstatus" style="color:var(--text-dim,#999);font-size:0.8rem;min-height:1.2rem;margin:0.4rem 0">Starting camera…</div>'
+        + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap">'
+        + _biBtn({ act: 'snap', txt: '📸 Capture' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff;flex:2')
+        + _biBtn({ act: 'gallery', txt: '🖼 Photo from gallery' })
+        + _biBtn({ act: 'cancel', txt: 'Cancel' })
+        + '</div>'
+        + '<input type="file" id="bi-file" accept="image/*" style="display:none">'
+        + '</div>');
+      var video = d.querySelector('#bi-video');
+      var stat = d.querySelector('#bi-camstatus');
+      function snapFrame() {
+        var c = document.createElement('canvas');
+        c.width = video.videoWidth || 1280; c.height = video.videoHeight || 720;
+        c.getContext('2d').drawImage(video, 0, 0, c.width, c.height);
+        return c;
+      }
+      d.addEventListener('click', function (e) {
+        var b = e.target.closest && e.target.closest('[data-bi]');
+        if (!b) return;
+        var act = b.getAttribute('data-bi');
+        if (act === 'snap') { if (video.videoWidth) done({ canvas: snapFrame(), lockedBc: null }); }
+        if (act === 'gallery') d.querySelector('#bi-file').click();
+        if (act === 'cancel') done(null);
+      });
+      d.querySelector('#bi-file').addEventListener('change', function (e) {
+        var f = e.target.files && e.target.files[0];
+        if (!f) return;
+        var img = new Image();
+        img.onload = function () {
+          var c = document.createElement('canvas');
+          c.width = img.naturalWidth; c.height = img.naturalHeight;
+          c.getContext('2d').drawImage(img, 0, 0);
+          URL.revokeObjectURL(img.src);
+          done({ canvas: c, lockedBc: null });
+        };
+        img.src = URL.createObjectURL(f);
+      });
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 } }, audio: false })
+        .then(function (s) {
+          stream = s; video.srcObject = s;
+          stat.textContent = 'Aim at the box end — barcode + item number. Auto-captures when a barcode locks.';
+          var nativeDet = _hasNativeBD ? new window.BarcodeDetector({ formats: ['ean_13', 'upc_a', 'ean_8', 'upc_e', 'code_128', 'code_39'] }) : null;
+          if (!nativeDet) _loadZXing().catch(function () {});
+          (async function lockLoop() {
+            while (!stopLoop) {
+              try {
+                if (video.videoWidth) {
+                  var bcs = await _bcDetect(video, nativeDet);
+                  if (bcs && bcs.length) {
+                    var bc = bcs[0];
+                    if (bc.rawValue === lastRaw) confirmN++; else { lastRaw = bc.rawValue; confirmN = 1; }
+                    if (confirmN >= 2) {
+                      stat.textContent = '✓ Barcode locked — captured';
+                      stat.style.color = '#2ecc71';
+                      var frame = snapFrame();
+                      done({ canvas: frame, lockedBc: bc });
+                      return;
+                    }
+                    stat.textContent = 'Reading barcode…';
+                  }
+                }
+              } catch (e) {}
+              await new Promise(function (r) { setTimeout(r, 380); });
+            }
+          })();
+        })
+        .catch(function () {
+          stat.textContent = 'Camera unavailable — use "Photo from gallery".';
+        });
+    });
+  }
+
+  // ── Phase 2: optional crop ──
+  function _biCrop(canvas, lockedBc) {
+    return new Promise(function (resolve) {
+      if (typeof window.Cropper !== 'function') { resolve({ work: canvas, action: 'go' }); return; }
+      var d = _biOverlay(
+        '<div style="width:100%;max-width:560px">'
+        + '<div style="color:var(--text,#fff);font-family:var(--font-head,sans-serif);font-size:1.02rem;margin:0.2rem 0 0.35rem">✂ Crop (optional)'
+        + (lockedBc ? ' <span style="font-size:0.72rem;background:rgba(46,204,113,0.15);border:1px solid #2ecc71;color:#2ecc71;border-radius:6px;padding:2px 7px;vertical-align:middle">Barcode ✓ locked</span>' : '')
+        + '</div>'
+        + '<div style="color:#ffd27d;font-size:0.8rem;margin-bottom:0.45rem">Tip: crop to the label or the lettering — <b>less background noise = better results</b>. The barcode is read from the full photo either way.</div>'
+        + '<div style="max-height:52vh;overflow:hidden;border-radius:12px;background:#000"><img id="bi-cropimg" style="display:block;max-width:100%"></div>'
+        + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.55rem">'
+        + _biBtn({ act: 'crop', txt: '✂ Identify cropped' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff;flex:2')
+        + _biBtn({ act: 'full', txt: 'Use full photo' })
+        + _biBtn({ act: 'retake', txt: '↺ Retake' })
+        + _biBtn({ act: 'cancel', txt: 'Cancel' })
+        + '</div></div>');
+      var img = d.querySelector('#bi-cropimg');
+      img.src = canvas.toDataURL('image/jpeg', 0.92);
+      var cropper = null;
+      img.onload = function () {
+        try { cropper = new window.Cropper(img, { viewMode: 1, autoCropArea: 0.92, background: false, movable: true, zoomable: true }); } catch (e) {}
+      };
+      d.addEventListener('click', function (e) {
+        var b = e.target.closest && e.target.closest('[data-bi]');
+        if (!b) return;
+        var act = b.getAttribute('data-bi');
+        function fin(out) { try { if (cropper) cropper.destroy(); } catch (e2) {} resolve(out); }
+        if (act === 'crop') {
+          var wc = null;
+          try { wc = cropper && cropper.getCroppedCanvas({ maxWidth: 2200, maxHeight: 2200 }); } catch (e3) {}
+          fin({ work: wc || canvas, action: 'go' });
+        }
+        if (act === 'full')   fin({ work: canvas, action: 'go' });
+        if (act === 'retake') fin({ action: 'retake' });
+        if (act === 'cancel') fin({ action: 'cancel' });
+      });
+    });
+  }
+
+  // ── Phase 3: staged pipeline with visible status ──
+  async function _biPipeline(fullCanvas, workCanvas, lockedBc, eraHint) {
+    var d = _biOverlay(
+      '<div style="width:100%;max-width:560px">'
+      + '<div style="color:var(--text,#fff);font-family:var(--font-head,sans-serif);font-size:1.02rem;margin:0.2rem 0 0.6rem">🔎 Identifying…</div>'
+      + '<div id="bi-stages" style="display:flex;flex-direction:column;gap:0.45rem;font-size:0.86rem;font-family:var(--font-body,sans-serif)"></div>'
+      + '<div id="bi-actions" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.8rem"></div>'
+      + '</div>');
+    var stagesEl = d.querySelector('#bi-stages');
+    var rows = {};
+    function st(key, icon, text, color) {
+      if (!rows[key]) {
+        var r = document.createElement('div');
+        r.style.cssText = 'padding:0.55rem 0.7rem;border-radius:9px;background:var(--surface2,#1d2040);border:1px solid var(--border,#333);color:var(--text-mid,#ccc)';
+        stagesEl.appendChild(r); rows[key] = r;
+      }
+      rows[key].innerHTML = '<span style="margin-right:0.4rem">' + icon + '</span>' + text;
+      if (color) rows[key].style.borderColor = color;
+    }
+    var out = { bcMaker: '', ocrDesc: '', ocrNums: [], why: {} };
+
+    // Stage 1 — barcode (always from the FULL frame)
+    st('bc', '⏳', 'Barcode: looking…');
+    var bc = lockedBc, bcResult = null;
+    if (!bc) {
+      var found = await _biDetectCanvas(fullCanvas);
+      bc = found && found.length ? found[0] : null;
+    }
+    if (bc) {
+      try { bcResult = await decodeBarcode(bc, eraHint); } catch (e) {}
+      if (bcResult) {
+        out.bcMaker = (bcResult.manufacturer && bcResult.manufacturer !== 'Unknown') ? bcResult.manufacturer : '';
+        var bcTxt = out.bcMaker ? ('✓ ' + bc.rawValue + ' → ' + out.bcMaker) : ('✓ ' + bc.rawValue);
+        if (bcResult.masterItem) bcTxt += ' — matched ' + bcResult.itemNum;
+        else if (bcResult.multipleMatches) bcTxt += ' — ' + bcResult.candidates.length + ' possible items';
+        st('bc', '📊', 'Barcode: ' + bcTxt, '#2ecc71');
+      } else st('bc', '📊', 'Barcode: ✓ ' + bc.rawValue, '#2ecc71');
+    } else st('bc', '➖', 'Barcode: none found (fine for bare items)');
+
+    // Stage 2 — label / lettering OCR (from the WORK canvas = crop)
+    st('ocr', '⏳', 'Lettering: reading…');
+    var ocrText = '';
+    try {
+      var T = await _ensureTesseract();
+      var o = await T.recognize(_bcPreprocessForOCR(workCanvas), 'eng', {});
+      ocrText = (o && o.data && o.data.text) || '';
+    } catch (e) {}
+    var rawCands = ocrText ? _extractItemNumberCandidates(ocrText) : [];
+    out.ocrNums = (rawCands || []).map(function (c) { return String((c && (c.num || c.itemNum)) || c || '').trim(); }).filter(Boolean);
+    out.ocrDesc = ocrText ? _bcDescriptionGuess(ocrText, out.ocrNums[0] || null) : '';
+    var kwMfr = ocrText ? _mfrFromKeywords(ocrText) : '';
+    if (!out.bcMaker && kwMfr) out.bcMaker = kwMfr;
+    st('ocr', out.ocrNums.length ? '🔤' : '➖',
+       'Lettering: ' + (out.ocrNums.length ? ('✓ found ' + out.ocrNums.slice(0, 3).join(', ')) : (ocrText ? 'no item number read' : 'nothing readable')),
+       out.ocrNums.length ? '#2ecc71' : null);
+
+    // Stage 3 — master lookup (printed number WINS over barcode)
+    st('master', '⏳', 'Catalog: checking…');
+    var pick = null, verified = '';
+    for (var i = 0; i < out.ocrNums.length && !pick; i++) {
+      var n = out.ocrNums[i];
+      var lk = [n]; if (/^\d/.test(n)) lk.push('6-' + n);
+      var hits = await _findMasterItemsAllEras(lk);
+      if (hits.length === 1) { pick = hits[0]; verified = 'label'; }
+      else if (hits.length > 1) {
+        st('master', '📖', 'Catalog: ' + hits.length + ' items match ' + n + ' — pick yours');
+        var ch = await showCandidatePicker(hits, { itemNum: n });
+        if (ch && !ch.__notInList) { pick = ch; verified = 'label'; }
+        else if (ch && ch.__notInList) { out.typedNum = ch.itemNum; }
+        break;
+      }
+    }
+    if (pick && bcResult && (bcResult.masterItem || bcResult.multipleMatches)) {
+      var agree = (bcResult.masterItem && bcResult.masterItem.itemNum === pick.itemNum)
+        || (bcResult.candidates || []).some(function (c) { return c.itemNum === pick.itemNum; });
+      if (agree) verified = 'barcode+label';
+    }
+    if (!pick && bcResult) {
+      if (bcResult.masterItem) { pick = bcResult.masterItem; verified = 'barcode'; }
+      else if (bcResult.multipleMatches) {
+        var ch2 = await showCandidatePicker(bcResult.candidates, bcResult);
+        if (ch2 && !ch2.__notInList) { pick = ch2; verified = 'barcode'; }
+        else if (ch2 && ch2.__notInList) { out.typedNum = ch2.itemNum; }
+      }
+    }
+    if (pick) {
+      st('master', '📖', 'Catalog: ✓ ' + pick.itemNum + ' — ' + (pick.description || '').substring(0, 40), '#2ecc71');
+      st('ai', '➖', 'AI: not needed');
+      return { handled: true, itemNum: pick.itemNum, variation: pick.variation || '', masterItem: pick,
+               manufacturer: out.bcMaker || '', roadName: pick.roadName || '', description: pick.description || '',
+               verifiedBy: verified, verifiedNote: (verified === 'barcode+label' ? '✓ Barcode + lettering agree' : (verified === 'label' ? '✓ Read from the printed number' : '✓ Barcode match')),
+               eraTag: (typeof _eraLabel === 'function') ? _eraLabel(pick._era) : '',
+               isSet: String(pick.itemType || '').toLowerCase() === 'set' };
+    }
+    if (out.typedNum) {
+      st('master', '📖', 'Catalog: not there — adding ' + out.typedNum + ' manually');
+      st('ai', '⏳', 'AI: getting the details…');
+      var aiR0 = await _bcAiRescue(workCanvas, eraHint, out.why, out.bcMaker);
+      st('ai', '🤖', aiR0 ? 'AI: ✓ details read' : 'AI: no extra details', aiR0 ? '#2ecc71' : null);
+      return { handled: true, itemNum: out.typedNum, variation: '', notInMaster: true,
+               manufacturer: out.bcMaker || (aiR0 && aiR0.manufacturer) || '',
+               labelDescription: (aiR0 && aiR0.labelDescription) || out.ocrDesc,
+               description: (aiR0 && aiR0.description) || out.ocrDesc,
+               aiMeta: (aiR0 && aiR0.aiMeta) || null,
+               statusMessage: out.typedNum + ' — not in our catalog, adding manually…' };
+    }
+    st('master', '➖', 'Catalog: no direct match yet');
+
+    // Stage 4 — AI (crop + everything we learned as hints)
+    st('ai', '⏳', 'AI: taking a close look…');
+    var aiR = await _bcAiRescue(workCanvas, eraHint, out.why, out.bcMaker);
+    if (aiR) {
+      st('ai', '🤖', 'AI: ✓ ' + (aiR.itemNum || aiR.description || 'details read'), '#2ecc71');
+      if (!aiR.labelDescription && out.ocrDesc) aiR.labelDescription = out.ocrDesc;
+      if (!aiR.manufacturer && out.bcMaker) aiR.manufacturer = out.bcMaker;
+      return aiR;
+    }
+    var aiWhy = out.why.reason === 'quota' ? 'daily limit reached' :
+                out.why.reason === 'hedge' ? "couldn't pin it down" :
+                out.why.reason === 'noconsent' ? 'photo permission declined' :
+                out.why.reason === 'offline' ? 'offline' : 'no confident answer';
+    st('ai', '❌', 'AI: ' + aiWhy, '#e8401c');
+    return { __biFail: true, out: out };
+  }
+
+  // ── Phase 4 fail card ──
+  function _biFailCard(out) {
+    return new Promise(function (resolve) {
+      var d = document.getElementById('bi-overlay');
+      var act = d.querySelector('#bi-actions');
+      act.innerHTML =
+        '<div style="width:100%;color:var(--text-mid,#ccc);font-size:0.82rem;margin-bottom:0.3rem">No confident ID. You can:</div>'
+        + _biBtn({ act: 'retake', txt: '↺ Retake photo' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff')
+        + _biBtn({ act: 'lens', txt: '🔍 Google Lens' })
+        + _biBtn({ act: 'type', txt: '⌨ Type it in' })
+        + _biBtn({ act: 'cancel', txt: 'Cancel' });
+      act.addEventListener('click', function (e) {
+        var b = e.target.closest && e.target.closest('[data-bi]');
+        if (b) resolve(b.getAttribute('data-bi'));
+      });
+    });
+  }
+
+  // ── Public entry ──
+  async function openBoxIdentify(onScanned, onCancel, eraHint) {
+    try {
+      while (true) {
+        var cap = await _biCapture();
+        if (!cap) { _biKill(); if (onCancel) onCancel(); return; }
+        var cr = await _biCrop(cap.canvas, cap.lockedBc);
+        if (cr.action === 'retake') continue;
+        if (cr.action === 'cancel') { _biKill(); if (onCancel) onCancel(); return; }
+        var res = await _biPipeline(cap.canvas, cr.work, cap.lockedBc, eraHint);
+        if (res && res.__biFail) {
+          var choice = await _biFailCard(res.out);
+          if (choice === 'retake') continue;
+          if (choice === 'lens') {
+            var f = await _biCanvasToFile(cr.work, 'lens-failsafe.jpg');
+            _biKill();
+            if (typeof window._identifyOpenWithPhoto === 'function') window._identifyOpenWithPhoto(f);
+            else if (onCancel) onCancel();
+            return;
+          }
+          _biKill(); if (onCancel) onCancel(); return;   // 'type' and 'cancel' → wizard, user types
+        }
+        // Confirm before anything fills (house rule)
+        _biKill();
+        var cc = await _bcConfirmCard({
+          itemNum: res.itemNum, manufacturer: res.manufacturer,
+          roadName: res.roadName || (res.masterItem && res.masterItem.roadName) || '',
+          description: res.description || res.labelDescription || '',
+          notInMaster: res.notInMaster, noItemNum: res.noItemNum,
+          verifiedNote: res.verifiedNote, eraTag: res.eraTag
+        });
+        if (cc === 'use') { if (onScanned) onScanned(res); return; }
+        if (cc === 'rescan') continue;
+        if (onCancel) onCancel(); return;
+      }
+    } catch (err) {
+      _biKill();
+      if (typeof showToast === 'function') showToast('Identify failed: ' + err.message, 4000, true);
+      if (onCancel) onCancel();
+    }
+  }
+  window.openBoxIdentify = openBoxIdentify;
+
   window.openLabelScanner = openLabelScanner;
   window._extractItemNumberCandidates = _extractItemNumberCandidates;
   window._barcodeDebug = { decodeBarcode, findMasterItem, findMasterItems, showCandidatePicker, UPC_PREFIXES, _bcDescriptionGuess, _extractItemNumberCandidates };
