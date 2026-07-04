@@ -1088,6 +1088,17 @@ function extractIdentifyMetadata(text, opts) {
     delete out.itemNum;
   }
 
+  // ── v0.9.680: Lens answers put the best info in PROSE, not labels — read it.
+  // "The item in the image is a Menards O Scale Vetter Sash & Door Factory
+  // building." → that's the product name/description.
+  if (!out.description) {
+    var _pm = raw.match(/(?:item|model|product)\s+(?:in\s+the\s+(?:image|photo|picture)\s+)?(?:is|appears\s+to\s+be)\s+(?:a|an|the)?\s*([^.\n]{6,140})/i);
+    if (_pm) {
+      var _pd = _pm[1].replace(/\*\*/g, '').replace(/[_"“”]/g, '').trim();
+      if (_pd && !/^(model\s+train|toy\s+train)\b/i.test(_pd)) out.description = _pd;
+    }
+  }
+
   // ── v0.9.662: merge the AI's "Known ..." knowledge lines (backend v1.4) ──
   // Printed-on-the-box values always win; knowledge only fills EMPTY fields.
   // The catalog number is NEVER taken from knowledge (honesty rule).
@@ -1118,9 +1129,13 @@ function extractIdentifyMetadata(text, opts) {
   // ── v0.9.660 post-processing (single source for AI / Lens / paste paths) ──
   // (1) Scrub literal "unknown"-style values the honest AI returns — they made
   // composed descriptions like "unknown caboose" (Brad's 10-2210 test).
-  var _junkVal = /^(unknown|unclear|n\/?a|none|not specified|not visible|illegible|not shown)$/i;
-  ['roadName', 'subType', 'manufacturer', 'cabNum', 'year', 'variation'].forEach(function (k) {
-    if (out[k] && _junkVal.test(String(out[k]).trim())) delete out[k];
+  var _junkVal = /^(unknown|unclear|n\/?a|none|not specified|not visible|illegible|not shown|no road name|no number|no cab number)$/i;
+  ['roadName', 'subType', 'manufacturer', 'cabNum', 'year', 'variation', 'gauge'].forEach(function (k) {
+    if (!out[k]) return;
+    // v0.9.680: test with any parenthetical stripped — Lens writes
+    // "No Road Name (Building accessory)", "N/A (Building accessory)".
+    var bare = String(out[k]).replace(/\s*\([^)]*\)\s*/g, ' ').trim();
+    if (_junkVal.test(bare) || /^n\/?a\b/i.test(bare)) delete out[k];
   });
   // (2) Manufacturer — three layers (v0.9.661; the v660 exact map broke on
   // forms like "MTH (M.T.H. Electric Trains)" and missed answers with no
@@ -1156,7 +1171,11 @@ function extractIdentifyMetadata(text, opts) {
   // (10-2210); when the AI puts a non-conforming number in the SKU slot, demote
   // it to cabNum (→ Road Number prefill) and flag a hedge so nothing stores a
   // bogus item number.
-  if (out.itemNum && out.manufacturer === 'MTH' && !/^\d{2}-\d{4,5}(-\d{1,3})?[a-z]?$/i.test(String(out.itemNum).trim())) {
+  var _skuPat = { 'MTH': /^\d{2}-\d{4,5}(-\d{1,3})?[a-z]?$/i,
+                  'Menards': /^27[59]-\d{3,4}$/,
+                  'RMT': /^(RMT-)?\d{4,6}(-\d{1,3})?$/i };
+  var _sp = out.itemNum && out.manufacturer && _skuPat[out.manufacturer];
+  if (_sp && !_sp.test(String(out.itemNum).trim())) {
     if (!out.cabNum) out.cabNum = String(out.itemNum).trim();
     delete out.itemNum;
     out._hedge = true;
@@ -1408,6 +1427,7 @@ function _mapSubTypeToManualType(subType) {
   if (/(?:boxcar|reefer|hopper|gondola|flatcar|tank car|stock car)/i.test(s)) return 'Freight Car';
   if (/caboose/i.test(s)) return 'Caboose';
   if (/(?:coach|pullman|vista dome|diner|baggage|passenger)/i.test(s)) return 'Passenger Car';
+  if (/(?:building|structure|factory|station|tower|bridge|platform|billboard|accessor)/i.test(s)) return 'Accessory';
   if (/(?:track|switch)/i.test(s)) return 'Track';
   if (/(?:transformer|powerhouse|powermaster)/i.test(s)) return 'Transformer';
   return 'Other';
