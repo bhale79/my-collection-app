@@ -2049,6 +2049,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   window.openBoxIdentify = openBoxIdentify;
 
   window.openLabelScanner = openLabelScanner;
+  window._ensureTesseract = _ensureTesseract;   // v0.9.672: screenshot-read path
   window._extractItemNumberCandidates = _extractItemNumberCandidates;
   window._barcodeDebug = { decodeBarcode, findMasterItem, findMasterItems, showCandidatePicker, UPC_PREFIXES, _bcDescriptionGuess, _extractItemNumberCandidates };
 })();
