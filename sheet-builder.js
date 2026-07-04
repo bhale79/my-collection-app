@@ -5,7 +5,7 @@
 // ══════════════════════════════════════════════════════════════════
 
 // Bump this number to push a visual refresh to all users on next sync
-const SHEET_FORMAT_VER = 17; // Session 165 v12: Dashboard header rebuilt to match the app (mascot left, multicolor Oswald title, app navy + orange underline bar) + no-white styling (hide gridlines, flood page with app bg).
+const SHEET_FORMAT_VER = 18; // v18 (v0.9.666): +Scale/Gauge trailing personal column — header row rewritten. // Session 165 v12: Dashboard header rebuilt to match the app (mascot left, multicolor Oswald title, app navy + orange underline bar) + no-white styling (hide gridlines, flood page with app bg).
 
 // ── Color palette ──────────────────────────────────────────────────
 const SB = {
@@ -464,6 +464,9 @@ async function applySheetFormatting(sheetId, opts) {
     await _writeDashboardContent(sheetId);
 
     // ── 9. Version stamp (only on success — guarded by above throw) ────
+    // v18: label the new trailing Scale/Gauge column (idempotent full-header rewrite).
+    try { await sheetsUpdate(sheetId, "'My Collection'!A1", [PERSONAL_HEADERS]); }
+    catch (eH) { console.warn('[SheetFormat] personal header rewrite failed:', eH); }
     await sheetsUpdate(sheetId, 'Dashboard!A50', [[SHEET_FORMAT_VER]]);
     console.log('[SheetFormat] Applied v' + SHEET_FORMAT_VER);
 
