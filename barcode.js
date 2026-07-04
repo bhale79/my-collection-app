@@ -1794,6 +1794,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.55rem">'
         + _biBtn({ act: 'crop', txt: '✂ Use cropped photo' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff;flex:2')
         + _biBtn({ act: 'full', txt: 'Use full photo' })
+        + _biBtn({ act: 'lens', txt: '🔍 Google Lens' })
         + _biBtn({ act: 'retake', txt: '↺ Retake' })
         + _biBtn({ act: 'cancel', txt: 'Cancel' })
         + '</div></div>');
@@ -1814,6 +1815,13 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           fin({ work: wc || canvas, action: 'go' });
         }
         if (act === 'full')   fin({ work: canvas, action: 'go' });
+        // v0.9.677 (Brad): choose the route after cropping — Lens takes the
+        // crop when one was made, else the full photo.
+        if (act === 'lens') {
+          var wl = null;
+          try { wl = cropper && cropper.getCroppedCanvas({ maxWidth: 2200, maxHeight: 2200 }); } catch (e4) {}
+          fin({ work: wl || canvas, action: 'lens' });
+        }
         if (act === 'retake') fin({ action: 'retake' });
         if (act === 'cancel') fin({ action: 'cancel' });
       });
@@ -2001,6 +2009,13 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         var cr = await _biCrop(cap.view, cap.lockedBc);
         if (cr.action === 'retake') continue;
         if (cr.action === 'cancel') { _biKill(); if (onCancel) onCancel(); return; }
+        if (cr.action === 'lens') {
+          var fL = await _biCanvasToFile(cr.work, 'lens-choice.jpg');
+          _biKill();
+          if (typeof window._identifyOpenWithPhoto === 'function') window._identifyOpenWithPhoto(fL, true);
+          else if (onCancel) onCancel();
+          return;
+        }
         var res = await _biPipeline(cap.raw, cr.work, cap.lockedBc, eraHint);
         if (res && res.__biFail) {
           var choice = await _biFailCard(res.out);
