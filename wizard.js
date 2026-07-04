@@ -3984,7 +3984,9 @@ function renderWizardStep() {
       if (!_ingPreFilled) {
         var inp = document.getElementById('wiz-input');
         if (inp) {
-          inp.focus();
+          // v0.9.669 (Brad): no auto-keyboard on phones — it buried the
+          // Identify-by-Photo button. Wiring stays; only the focus is gated.
+          if (!(('ontouchstart' in window) || navigator.maxTouchPoints > 0)) inp.focus();
           inp.addEventListener('input', debounceItemLookup);
           if (inp.value) { updateItemSuggestions(inp.value); }
         }
