@@ -146,15 +146,25 @@ async function aiIdentifyImage(source, hints) {
     if (!consent) return { ok: false, reason: 'noconsent' };
     var img = await aiPrepImage(source);
     if (!img) return { ok: false, reason: 'error' };
-    var res = await vaultPost({
-      action: 'ai_identify',
-      token: vaultGetToken(),
-      image: img.b64,
-      mime: img.mime,
-      hints: hints || {},
-    });
+    // v0.9.671: Gemini's free tier sheds load under traffic (relay answers
+    // 503 "AI busy") — retry twice with backoff before giving up, and report
+    // a distinct 'busy' reason so the UI can say what's actually happening.
+    var res = null;
+    for (var _try = 0; _try < 3; _try++) {
+      if (_try) await new Promise(function (r) { setTimeout(r, _try * 2500); });
+      res = await vaultPost({
+        action: 'ai_identify',
+        token: vaultGetToken(),
+        image: img.b64,
+        mime: img.mime,
+        hints: hints || {},
+      });
+      if (res && res.status === 503) continue;   // overloaded — back off and retry
+      break;
+    }
     if (!res) return { ok: false, reason: 'offline' };          // network / relay down
     if (res.status === 429) return { ok: false, reason: 'quota' };
+    if (res.status === 503) return { ok: false, reason: 'busy' };
     if (res.status !== 200 || !res.text) {
       console.warn('[AI-ID] relay said:', res.status, res.message);
       return { ok: false, reason: 'error' };
