@@ -1310,7 +1310,7 @@ function renderWizardStep() {
         })()}
 
         </div>`;
-      setTimeout(() => { const i = document.getElementById('wiz-input'); if(i) i.focus(); }, 50);
+      if (!(('ontouchstart' in window) || navigator.maxTouchPoints > 0)) setTimeout(() => { const i = document.getElementById('wiz-input'); if(i) i.focus(); }, 50);
     } else {
       // Show variation cards with COTT link per variation.
       // #1: highlight how each variation differs from the first one.
