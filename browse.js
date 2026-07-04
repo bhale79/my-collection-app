@@ -2891,7 +2891,7 @@ function renderBrowse() {
         </td>
       </tr>`;
     } else {
-      const vdShort = item.varDesc ? (item.varDesc.length > 28 ? item.varDesc.substring(0,28)+'…' : item.varDesc) : '';
+      const vdShort = item.varDesc ? (typeof varShortLabel === 'function' ? varShortLabel(item.varDesc, 28) : (item.varDesc.length > 28 ? item.varDesc.substring(0,28)+'…' : item.varDesc)) : '';
       const vdCell = vdShort
         ? `<span style="cursor:pointer;border-bottom:1px dashed var(--border);color:var(--text-mid)" onclick="event.stopPropagation();showVarDescPopup(${globalIdx})">${vdShort}</span>`
         : '<span class="text-dim">—</span>';
