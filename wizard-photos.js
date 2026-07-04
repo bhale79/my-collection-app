@@ -254,6 +254,7 @@ function openIdentify(context) {
   _identifyVisHandler = function() {
     if (document.visibilityState !== 'visible') return;
     if (!modal.classList.contains('open') || !_identifyLensOpened) return;
+    _identifyLensReturnMode();   // v0.9.679: returning from Lens — slim the modal
     _identifyReadClipboard(true);
   };
   document.addEventListener('visibilitychange', _identifyVisHandler);
@@ -393,13 +394,28 @@ let _identifyStagedTimer = null;
 // Wired up after the modal DOM is inserted (called from wizard.js _buildWizardModal).
 // v0.9.663: open the identify modal with a photo already loaded — used by the
 // unified Identify-from-Photo flow's Google Lens fail-safe (no re-photographing).
+// v0.9.679 (Brad): after a Lens trip the modal shows ONLY what's useful —
+// Paste / Read-a-Screenshot / the number box. AI + Lens buttons and the
+// scale/type/maker hint blocks hide (they were for the outbound search).
+function _identifyLensReturnMode() {
+  ['id-search-btn', 'id-lens-btn', 'id-hints-row', 'id-mfr-block', 'id-photo-area'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  var panel = document.getElementById('identify-panel');
+  if (panel) { panel.scrollTop = 0; if (panel.parentElement) panel.parentElement.scrollTop = 0; }
+}
+
 window._identifyOpenWithPhoto = function (file, autoLens) {
   try { openIdentify('wizard'); } catch (e) { return; }
   setTimeout(function () {
     if (window._identifySetPhoto) window._identifySetPhoto(file);
     // v0.9.676 (Brad): arriving via the Lens fail-safe means the choice is
     // already made — skip the options screen, go straight to staging + Lens.
-    if (autoLens) setTimeout(function () { if (typeof _identifyOpenLens === 'function') _identifyOpenLens(); }, 300);
+    if (autoLens) {
+      _identifyLensReturnMode();   // never flash the outbound options (Brad)
+      setTimeout(function () { if (typeof _identifyOpenLens === 'function') _identifyOpenLens(); }, 300);
+    }
   }, 300);
 };
 
