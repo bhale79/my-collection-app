@@ -1252,6 +1252,9 @@ function _composeManualDescFromMeta(meta) {
   if (meta.wheels)   parts.push(meta.wheels);
   if (meta.cabNum)   parts.push('#' + meta.cabNum);
   if (meta.variation && parts.indexOf(meta.variation) === -1) parts.push('(' + meta.variation + ')');
+  // v0.9.659: label-only scans carry a free-text description with no structured
+  // fields — use it when nothing else composed.
+  if (!parts.length && meta.description) return String(meta.description).trim();
   return parts.join(' ').trim();
 }
 
@@ -1285,6 +1288,10 @@ function _identifyRouteToManualEntry(itemNum, meta, userMfrs) {
   // Item type bucket
   var bucket = _mapSubTypeToManualType(meta.subType);
   if (bucket) wizard.data.manualItemType = bucket;
+  // Road name / number get their own fields (v0.9.659 — previously they only
+  // appeared inside the composed description text).
+  if (meta.roadName && !wizard.data.manualRoadName) wizard.data.manualRoadName = meta.roadName;
+  if (meta.cabNum && !wizard.data.manualRoadNumber) wizard.data.manualRoadNumber = String(meta.cabNum);
   // Description (free text)
   var desc = _composeManualDescFromMeta(meta);
   if (desc) wizard.data.manualDesc = desc;
@@ -1457,6 +1464,21 @@ function _wizScanBarcode() {
         var _sEra = _eraForMfr(result.manufacturer);
         if (_sEra && (!wizard.data._era || wizard.data._era === 'all')) wizard.data._era = _sEra;
       }
+      // v0.9.659: not-in-master scans pivot into the FULL manual-entry flow via the
+      // same single-source router the photo-ID path uses, carrying the AI's full
+      // metadata (aiMeta: road name, sub-type, year, cab#, description) when the AI
+      // rescue produced it, else the label-read description. Previously this path
+      // just stamped mfr+era and advanced the CATALOG flow, which has no
+      // description/type steps for an unknown item — a dead end (Brad's 10-2210).
+      if (result.notInMaster && typeof _identifyRouteToManualEntry === 'function') {
+        var _nmMeta = result.aiMeta || { manufacturer: result.manufacturer || '',
+          description: result.labelDescription || result.description || '' };
+        if (!_nmMeta.description && (result.labelDescription || result.description)) _nmMeta.description = result.labelDescription || result.description;
+        if (_identifyRouteToManualEntry(result.itemNum, _nmMeta, [])) {
+          showToast && showToast(result.statusMessage || ('Not in catalog — add ' + result.itemNum + ' with full details'), 3500);
+          return;
+        }
+      }
       // Non-Lionel phase-2 flows: just prefill, let user advance manually
       if (result.phase2 || result.unknownPrefix) {
         showToast && showToast(result.statusMessage || 'Type the item# manually', 3500);
@@ -1496,15 +1518,24 @@ function _wizScanLabel() {
       wizard.data._era = result.masterItem._era;
     }
     if (result.notInMaster) {
-      // Session 180: pre-fill the description read off the label (editable in the
-      // manual-entry Description step) so the user does not retype it.
-      if (result.labelDescription && !wizard.data.manualDesc) wizard.data.manualDesc = result.labelDescription;
       // v0.9.649: carry the scan-detected maker + its home era (see barcode path).
       if (result.manufacturer) {
         if (!wizard.data.manualManufacturer) wizard.data.manualManufacturer = result.manufacturer;
         var _sEra2 = _eraForMfr(result.manufacturer);
         if (_sEra2 && (!wizard.data._era || wizard.data._era === 'all')) wizard.data._era = _sEra2;
       }
+      // v0.9.659: pivot into the FULL manual-entry flow with AI/label prefills
+      // (same single-source router as the barcode + photo-ID paths).
+      if (typeof _identifyRouteToManualEntry === 'function') {
+        var _nmMeta2 = result.aiMeta || { manufacturer: result.manufacturer || '',
+          description: result.labelDescription || result.description || '' };
+        if (_identifyRouteToManualEntry(result.itemNum, _nmMeta2, [])) {
+          showToast && showToast(result.statusMessage || 'Not in catalog — add it with full details', 3500);
+          return;
+        }
+      }
+      // Fallback (non-collection wizard tab): old prefill behavior.
+      if (result.labelDescription && !wizard.data.manualDesc) wizard.data.manualDesc = result.labelDescription;
       showToast && showToast(result.statusMessage || 'Detected — fill in details manually', 3500);
       renderWizardStep();
       return;
