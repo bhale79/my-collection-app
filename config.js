@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.668';
+const APP_VERSION = 'v0.9.669';
 const APP_DATE    = 'April 2026';
 
 // ── varShortLabel — SINGLE SOURCE for short variation labels (v0.9.657) ──
