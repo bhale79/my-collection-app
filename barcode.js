@@ -1655,7 +1655,9 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     if (_biHasBD) {
       try {
         var det = new window.BarcodeDetector({ formats: ['ean_13', 'upc_a', 'ean_8', 'upc_e', 'code_128', 'code_39'] });
-        return await det.detect(canvas);
+        var got = await det.detect(canvas);
+        if (got && got.length) return got;
+        // empty ≠ definitive on still frames — let ZXing try too (v0.9.670)
       } catch (e) { /* fall through to zxing */ }
     }
     try {
@@ -1928,6 +1930,27 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                description: (aiR0 && aiR0.description) || out.ocrDesc,
                aiMeta: (aiR0 && aiR0.aiMeta) || null,
                statusMessage: out.typedNum + ' — not in our catalog, adding manually…' };
+    }
+    // Printed-number-wins, not-in-catalog case (Brad rule): a clean maker-format
+    // number read off the label IS the item number for the manual add — the AI
+    // still runs for details (year/road/desc via aiMeta) but cannot override it.
+    var _printed = null;
+    if (out.ocrNums.length) {
+      var _tagged = (rawCands || []).filter(function (c) { return c && c.mfr && c.raw; });
+      _printed = (_tagged.length ? String(_tagged[0].raw) : out.ocrNums[0]);
+    }
+    if (_printed) {
+      st('master', '📖', 'Catalog: ' + _printed + ' not in the catalog — adding manually', '#ffd27d');
+      st('ai', '<span class="bi-spin">⟳</span>', 'AI: getting the details…');
+      var aiP = await _bcAiRescue(workCanvas, eraHint, out.why, out.bcMaker);
+      st('ai', '🤖', aiP ? 'AI: ✓ details read' : 'AI: no extra details', aiP ? '#2ecc71' : null);
+      return { handled: true, _boxPhoto: out.isBoxShot, itemNum: _printed, variation: '', notInMaster: true,
+               manufacturer: out.bcMaker || (aiP && aiP.manufacturer) || '',
+               labelDescription: (aiP && (aiP.labelDescription || aiP.description)) || out.ocrDesc,
+               description: (aiP && (aiP.description || aiP.labelDescription)) || out.ocrDesc,
+               aiMeta: (aiP && aiP.aiMeta) || null,
+               verifiedNote: '✓ Read ' + _printed + ' off the label',
+               statusMessage: _printed + ' — not in our catalog, adding manually…' };
     }
     st('master', '➖', 'Catalog: no direct match yet');
 
