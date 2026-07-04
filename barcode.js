@@ -1823,6 +1823,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     var d = _biOverlay(
       '<div style="width:100%;max-width:560px">'
       + '<div style="color:var(--text,#fff);font-family:var(--font-head,sans-serif);font-size:1.02rem;margin:0.2rem 0 0.6rem">🔎 Identifying…</div>'
+      + '<style>@keyframes bispin{to{transform:rotate(360deg)}}.bi-spin{display:inline-block;animation:bispin 0.9s linear infinite}</style>'
       + '<div id="bi-stages" style="display:flex;flex-direction:column;gap:0.45rem;font-size:0.86rem;font-family:var(--font-body,sans-serif)"></div>'
       + '<div id="bi-actions" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.8rem"></div>'
       + '</div>');
@@ -1840,7 +1841,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     var out = { bcMaker: '', ocrDesc: '', ocrNums: [], why: {} };
 
     // Stage 1 — barcode (always from the FULL frame)
-    st('bc', '⏳', 'Barcode: looking…');
+    st('bc', '<span class="bi-spin">⟳</span>', 'Barcode: looking…');
     var bc = lockedBc, bcResult = null;
     if (!bc) {
       var found = await _biDetectCanvas(fullCanvas);
@@ -1858,7 +1859,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     } else st('bc', '➖', 'Barcode: none found (fine for bare items)');
 
     // Stage 2 — label / lettering OCR (from the WORK canvas = crop)
-    st('ocr', '⏳', 'Lettering: reading…');
+    st('ocr', '<span class="bi-spin">⟳</span>', 'Lettering: reading…');
     var ocrText = '';
     try {
       var T = await _ensureTesseract();
@@ -1866,7 +1867,10 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       ocrText = (o && o.data && o.data.text) || '';
     } catch (e) {}
     var rawCands = ocrText ? _extractItemNumberCandidates(ocrText) : [];
-    out.ocrNums = (rawCands || []).map(function (c) { return String((c && (c.num || c.itemNum)) || c || '').trim(); }).filter(Boolean);
+    out.ocrNums = (rawCands || []).map(function (c) { return String((c && (c.raw || c.num || c.itemNum)) || c || '').trim(); })
+      .filter(function (v) { return v && v !== '[object Object]'; });
+    // carry the extractor's maker tag too (e.g. MTH pattern hit)
+    if (!out.bcMaker) { var _cm = (rawCands || []).map(function (c) { return c && c.mfr; }).filter(Boolean)[0]; if (_cm) out.bcMaker = _cm; }
     out.ocrDesc = ocrText ? _bcDescriptionGuess(ocrText, out.ocrNums[0] || null) : '';
     var kwMfr = ocrText ? _mfrFromKeywords(ocrText) : '';
     if (!out.bcMaker && kwMfr) out.bcMaker = kwMfr;
@@ -1875,7 +1879,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
        out.ocrNums.length ? '#2ecc71' : null);
 
     // Stage 3 — master lookup (printed number WINS over barcode)
-    st('master', '⏳', 'Catalog: checking…');
+    st('master', '<span class="bi-spin">⟳</span>', 'Catalog: checking…');
     var pick = null, verified = '';
     for (var i = 0; i < out.ocrNums.length && !pick; i++) {
       var n = out.ocrNums[i];
@@ -1915,7 +1919,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     }
     if (out.typedNum) {
       st('master', '📖', 'Catalog: not there — adding ' + out.typedNum + ' manually');
-      st('ai', '⏳', 'AI: getting the details…');
+      st('ai', '<span class="bi-spin">⟳</span>', 'AI: getting the details…');
       var aiR0 = await _bcAiRescue(workCanvas, eraHint, out.why, out.bcMaker);
       st('ai', '🤖', aiR0 ? 'AI: ✓ details read' : 'AI: no extra details', aiR0 ? '#2ecc71' : null);
       return { handled: true, _boxPhoto: out.isBoxShot, itemNum: out.typedNum, variation: '', notInMaster: true,
@@ -1928,7 +1932,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     st('master', '➖', 'Catalog: no direct match yet');
 
     // Stage 4 — AI (crop + everything we learned as hints)
-    st('ai', '⏳', 'AI: taking a close look…');
+    st('ai', '<span class="bi-spin">⟳</span>', 'AI: taking a close look…');
     var aiR = await _bcAiRescue(workCanvas, eraHint, out.why, out.bcMaker);
     if (aiR) {
       st('ai', '🤖', 'AI: ✓ ' + (aiR.itemNum || aiR.description || 'details read'), '#2ecc71');
