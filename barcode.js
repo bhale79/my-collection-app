@@ -416,7 +416,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   // ALL the parsing — no new parsing code here.
   // Returns a confirm-card result object, or null. reasonOut ({}) receives
   // the failure reason ('quota' | 'noconsent' | 'hedge' | 'nothing' | 'error').
-  async function _bcAiRescue(source, eraHint, reasonOut) {
+  async function _bcAiRescue(source, eraHint, reasonOut, mfrHint) {
     reasonOut = reasonOut || {};
     if (typeof aiIdentifyImage !== 'function') { reasonOut.reason = 'error'; return null; }
     try {
@@ -424,10 +424,14 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       if (eraHint && typeof ERAS !== 'undefined' && ERAS[eraHint] && ERAS[eraHint].manufacturer) {
         hints.mfrs = [ERAS[eraHint].manufacturer];
       }
+      // v0.9.661: the barcode often already knows the maker (UPC prefix map —
+      // 658081=MTH etc.). Hint the AI AND seed the metadata so the maker-aware
+      // SKU guard can fire even when the AI omits a manufacturer field.
+      if (mfrHint && mfrHint !== 'Unknown' && (!hints.mfrs || !hints.mfrs.length)) hints.mfrs = [mfrHint];
       var ai = await aiIdentifyImage(source, hints);
       if (!ai || !ai.ok) { reasonOut.reason = (ai && ai.reason) || 'error'; return null; }
       var text = (typeof _identifySanitize === 'function') ? _identifySanitize(ai.text) : String(ai.text || '');
-      var meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(text) : {};
+      var meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(text, { mfrHint: (mfrHint && mfrHint !== 'Unknown') ? mfrHint : '' }) : {};
       if (!meta.itemNum) {
         // v0.9.655 (Brad, 2026-07-03): postwar rescue. On postwar boxes the
         // catalog number IS the number on the box/cab, so the honest AI says
@@ -731,7 +735,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                 if (_res.notInMaster && typeof _bcAiRescue === 'function' && !_bcRescueTried['ai|' + bc.rawValue]) {
                   _bcRescueTried['ai|' + bc.rawValue] = 1;
                   _setStatus('🤖 Taking a closer look with AI…', '#ffd27d', 45000);
-                  const _aiR3 = await _bcAiRescue(video, eraHint, {});
+                  const _aiR3 = await _bcAiRescue(video, eraHint, {}, (_res && _res.manufacturer) || '');
                   _bcStickyUntil = 0;
                   if (_aiR3 && _aiR3.itemNum && _aiR3.itemNum !== _res.itemNum) {
                     const _aiC3 = await _bcConfirmCard(_aiR3);
@@ -764,7 +768,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                 // Give the AI one look at the same frame before giving up.
                 _setStatus('🤖 Taking a closer look with AI…', '#ffd27d', 45000);
                 var _aiWhy = {};
-                const _aiR = await _bcAiRescue(video, eraHint, _aiWhy);
+                const _aiR = await _bcAiRescue(video, eraHint, _aiWhy, (result && result.manufacturer) || '');
                 _bcStickyUntil = 0;
                 if (_aiR && !stopScanning) {
                   stopScanning = true;
@@ -1297,7 +1301,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           // the captured frame before we fall back to description-only.
           statusEl.textContent = '🤖 Taking a closer look with AI…';
           var _aiWhyL = {};
-          var _aiRL = await _bcAiRescue(crop, eraHint, _aiWhyL);
+          var _aiRL = await _bcAiRescue(crop, eraHint, _aiWhyL, _mfrFromKeywords(text) || '');
           if (_aiRL) {
             var _aiCL = await _bcConfirmCard(_aiRL);
             if (_aiCL === 'use') { cleanup(); if (onFound) onFound(_aiRL); return; }
