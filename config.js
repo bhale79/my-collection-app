@@ -3,8 +3,38 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.656';
+const APP_VERSION = 'v0.9.657';
 const APP_DATE    = 'April 2026';
+
+// ── varShortLabel — SINGLE SOURCE for short variation labels (v0.9.657) ──
+// COTT Variation Details are verbatim multi-line sections that begin with a
+// year line and ENGINE/TENDER (or A UNIT/B UNIT/NOTE) header lines; those make
+// useless one-word labels. Skip year-only, wheel-arrangement-only, and known
+// header-label lines, then use the first real content line. Lines like
+// "1959 (closed cowcatcher)" are kept — the parenthetical is the distinguisher.
+function varShortLabel(text, max) {
+  max = max || 28;
+  var t = String(text || '');
+  if (!t) return '';
+  var HDR = { 'ENGINE':1, 'TENDER':1, 'A UNIT':1, 'B UNIT':1, 'NOTE':1, 'NOTES':1,
+    'TOP VIEW':1, 'BOTTOM VIEW':1, 'SIDE VIEW':1, 'INSIDE VIEW':1, 'FRONT VIEW':1,
+    'BOXES':1, 'BOX INFORMATION':1, 'INFORMATION':1, 'DESCRIPTION':1, 'TOP & SIDES':1 };
+  var lines = t.split('\n');
+  var pick = '';
+  for (var i = 0; i < lines.length; i++) {
+    var ln = lines[i].trim();
+    if (!ln) continue;
+    var up = ln.toUpperCase().replace(/[.:]+$/, '').trim();
+    if (HDR[up]) continue;                                              // header labels
+    if (/^\d{4}(\s*[\u2013\u2014-]\s*\d{2,4})?\s*\??$/.test(ln)) continue; // "1948", "1955 – 1958"
+    if (/^19\?\?$/.test(ln)) continue;                                // "19??"
+    if (/^\d\s*[\u2013\u2014-]\s*\d(\s*[\u2013\u2014-]\s*\d)?$/.test(ln)) continue; // "2-6-4", "4 – 8 – 4"
+    pick = ln; break;
+  }
+  if (!pick) pick = t.replace(/\s+/g, ' ').trim();                     // fallback
+  return pick.length > max ? pick.substring(0, max) + '\u2026' : pick;
+}
+
 
 // ═══════════════════════════════════════════════════════════════
 // DATA-CACHE STAMPS  (Session: stability pass 2026-06-23)
