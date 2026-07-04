@@ -1024,7 +1024,7 @@ function extractIdentifyMetadata(text, opts) {
   // Printed-on-the-box values always win; knowledge only fills EMPTY fields.
   // The catalog number is NEVER taken from knowledge (honesty rule).
   raw.split('\n').forEach(function (ln) {
-    var km = ln.match(/^known\s+(year|road name|number|road\/cab number|cab number|body style|type|description)\s*:\s*(.+)$/i);
+    var km = ln.match(/^known\s+(year|road name|number|road\/cab number|cab number|body style|type|description|scale or gauge|scale|gauge)\s*:\s*(.+)$/i);
     if (!km) return;
     var kv = km[2].trim();
     if (!kv || /^(unknown|unclear|n\/?a|none|not specified|not sure)$/i.test(kv)) return;
@@ -1033,7 +1033,18 @@ function extractIdentifyMetadata(text, opts) {
     else if (kk === 'road name' && !out.roadName) out.roadName = kv;
     else if ((kk === 'number' || kk === 'road/cab number' || kk === 'cab number') && !out.cabNum) out.cabNum = kv;
     else if ((kk === 'body style' || kk === 'type') && !out.subType) out.subType = kv;
-    else if (kk === 'description' && !out.description) out.description = kv;
+    else if ((kk === 'scale or gauge' || kk === 'scale' || kk === 'gauge') && !out.gauge) out.gauge = kv;
+    else if (kk === 'description') {
+      // v0.9.665 (Brad): the knowledge description often carries the series
+      // ("Tinplate Traditions …") that the box's short line omits — keep the
+      // richer of the two, or combine when each adds something.
+      if (!out.description) out.description = kv;
+      else {
+        var pd = String(out.description), kd = kv;
+        if (kd.toLowerCase().indexOf(pd.toLowerCase()) >= 0) out.description = kd;        // known ⊇ printed
+        else if (pd.toLowerCase().indexOf(kd.toLowerCase()) < 0) out.description = pd + ' — ' + kd;  // both add info
+      }
+    }
   });
 
   // ── v0.9.660 post-processing (single source for AI / Lens / paste paths) ──
@@ -1346,8 +1357,11 @@ function _composeManualDescFromMeta(meta) {
   if (meta.variation && parts.indexOf(meta.variation) === -1) parts.push('(' + meta.variation + ')');
   // v0.9.662: a full description sentence (AI knowledge via backend v1.4, or a
   // label read) beats stitched-together fragments — prefer it whenever present.
-  if (meta.description) return String(meta.description).trim();
-  return parts.join(' ').trim();
+  var _dsc = meta.description ? String(meta.description).trim() : parts.join(' ').trim();
+  // v0.9.665: gauge/scale matters (Std vs O) — append when known and absent.
+  if (meta.gauge && _dsc && _dsc.toLowerCase().indexOf(String(meta.gauge).toLowerCase()) < 0) _dsc += ' — ' + meta.gauge;
+  else if (meta.gauge && !_dsc) _dsc = String(meta.gauge);
+  return _dsc;
 }
 
 // ROUTE — when no master match exists for the extracted Lens metadata, pivot
@@ -1562,6 +1576,12 @@ function _wizScanBarcode() {
       // rescue produced it, else the label-read description. Previously this path
       // just stamped mfr+era and advanced the CATALOG flow, which has no
       // description/type steps for an unknown item — a dead end (Brad's 10-2210).
+      // v0.9.665: photographed a box/label → we obviously have the box, and the
+      // shot doubles as the Box photo (auto-attached at the photos step).
+      if (result._boxPhoto) {
+        if (!wizard.data.manualHasBox) wizard.data.manualHasBox = 'Yes';
+        if (result._boxPhotoFile) wizard.data._biBoxPhotoFile = result._boxPhotoFile;
+      }
       if (result.notInMaster && typeof _identifyRouteToManualEntry === 'function') {
         var _nmMeta = result.aiMeta || { manufacturer: result.manufacturer || '',
           description: result.labelDescription || result.description || '' };
