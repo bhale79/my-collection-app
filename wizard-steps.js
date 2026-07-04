@@ -305,7 +305,9 @@ function getSteps(tab) {
         { id: 'manualDesc', title: 'Describe this item', type: 'manualDescribe', optional: true },
         { id: 'manualYear', title: 'Year made (if known)', type: 'text', placeholder: 'e.g. 1957', optional: true },
         { id: 'manualCondition', title: 'What condition is it?', type: 'slider', min: 1, max: 10 },
-        { id: 'manualHasBox', title: 'Does it have the original box?', type: 'choice2', choices: ['Yes', 'No'] },
+        { id: 'manualHasBox', title: 'Does it have the original box?', type: 'choice2', choices: ['Yes', 'No'],
+          // v0.9.666: a box-label photo already proved the box exists — don't ask.
+          skipIf: d => d._boxAutoKnown === true && d.manualHasBox === 'Yes' },
         { id: 'manualBoxCond', title: 'Box condition (1\u201310)', type: 'slider', min: 1, max: 10,
           skipIf: d => d.manualHasBox !== 'Yes' },
         { id: 'manualPurchaseValue', title: 'Purchase & Value', type: 'manualPurchaseValue' },
