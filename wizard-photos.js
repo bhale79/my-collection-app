@@ -842,7 +842,7 @@ function _extractLabeledFields(text) {
   return out;
 }
 
-function extractIdentifyMetadata(text) {
+function extractIdentifyMetadata(text, opts) {
   if (!text || typeof text !== 'string') return {};
   const out = {};
   const raw = (typeof _identifySanitize === 'function' ? _identifySanitize(text) : text).trim();
@@ -1019,18 +1019,34 @@ function extractIdentifyMetadata(text) {
   ['roadName', 'subType', 'manufacturer', 'cabNum', 'year', 'variation'].forEach(function (k) {
     if (out[k] && _junkVal.test(String(out[k]).trim())) delete out[k];
   });
-  // (2) Canonical manufacturer names — the box says "By M.T.H. Electric Trains"
-  // and the AI echoes it; chips + _eraForMfr need the short canonical form.
+  // (2) Manufacturer — three layers (v0.9.661; the v660 exact map broke on
+  // forms like "MTH (M.T.H. Electric Trains)" and missed answers with no
+  // manufacturer field at all, which is why Brad's 4021 slipped the guard):
+  //   a. caller hint — e.g. the barcode UPC prefix 658081 already says MTH
+  //   b. keyword-canonicalize whatever the AI wrote
+  //   c. scan the WHOLE answer text ("Tinplate Traditions by M.T.H. …")
+  if (!out.manufacturer && opts && opts.mfrHint && String(opts.mfrHint) !== 'Unknown') {
+    out.manufacturer = String(opts.mfrHint);
+  }
+  var _canonMfr = function (s) {
+    s = String(s || '');
+    if (/american\s+flyer/i.test(s)) return 'American Flyer';
+    if (/m\.\s?t\.\s?h|\bmth\b|tinplate\s+traditions|rail\s?king\b/i.test(s)) return 'MTH';
+    if (/\batlas\b/i.test(s)) return 'Atlas O';
+    if (/k[\s\-]?line\b/i.test(s)) return 'K-Line';
+    if (/\blionel\b/i.test(s)) return 'Lionel';
+    if (/\bweaver\b|quality\s+craft|bev-?bel/i.test(s)) return 'Weaver';
+    if (/\bwilliams\b/i.test(s)) return 'Williams';
+    if (/\bmarx\b/i.test(s)) return 'Marx';
+    if (/\brmt\b|ready\s*made\s*toys/i.test(s)) return 'RMT';
+    if (/\bmenards\b/i.test(s)) return 'Menards';
+    return '';
+  };
   if (out.manufacturer) {
-    var _mL = String(out.manufacturer).toLowerCase().replace(/[^a-z]/g, '');
-    var _mMap = { mth: 'MTH', mthelectrictrains: 'MTH', mthtrains: 'MTH',
-      atlas: 'Atlas O', atlaso: 'Atlas O', atlasomodels: 'Atlas O',
-      kline: 'K-Line', klineelectrictrains: 'K-Line',
-      lionel: 'Lionel', lionelcorporation: 'Lionel', lionelllc: 'Lionel',
-      americanflyer: 'American Flyer', weaver: 'Weaver', weavermodels: 'Weaver',
-      williams: 'Williams', williamselectrictrains: 'Williams', marx: 'Marx',
-      rmt: 'RMT', readymadetoys: 'RMT', menards: 'Menards' };
-    if (_mMap[_mL]) out.manufacturer = _mMap[_mL];
+    out.manufacturer = _canonMfr(out.manufacturer) || out.manufacturer;
+  } else {
+    var _rawMfr = _canonMfr(raw);
+    if (_rawMfr) out.manufacturer = _rawMfr;
   }
   // (3) MTH SKU guard — real MTH catalog numbers are NN-NNNN(N)(-N)(letter).
   // Tinplate boxes print the CAB number big ("4021 Caboose") and the SKU small
