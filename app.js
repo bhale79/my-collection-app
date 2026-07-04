@@ -71,6 +71,7 @@ const PERSONAL_SCHEMA = [
   { field: 'era',                  header: 'Era' },
   { field: 'description',          header: 'Description' },
   { field: 'customName',           header: 'Custom Name' },
+  { field: 'gauge',                header: 'Scale/Gauge' },              // v0.9.666 — appended at END (column rule)
 ];
 const PERSONAL_HEADERS = PERSONAL_SCHEMA.map(s => s.header);
 const PERSONAL_FIELD_INDEX = {};
