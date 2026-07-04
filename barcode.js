@@ -490,8 +490,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       if (meta.roadName) descBits.push(meta.roadName);
       if (meta.subType)  descBits.push(meta.subType);
       if (meta.cabNum)   descBits.push('#' + meta.cabNum);
-      var desc = descBits.join(' ').trim();
-      return { handled: true, itemNum: raw, variation: '', notInMaster: true, manufacturer: meta.manufacturer || '', labelDescription: desc, description: desc, aiMeta: meta, verifiedBy: 'ai', statusMessage: 'AI read ' + raw + ' — not in our catalog, adding manually…' };
+      var desc = (meta.description || descBits.join(' ')).trim();
+      return { handled: true, itemNum: raw, variation: '', notInMaster: true, manufacturer: meta.manufacturer || '', labelDescription: desc, description: desc, aiMeta: meta, verifiedBy: 'ai', aiGuess: true, statusMessage: 'AI read ' + raw + ' — not in our catalog, adding manually…' };
     } catch (e) { reasonOut.reason = 'error'; return null; }
   }
   function _bcPickByLabel(cands, ocrNums, code5) {
@@ -1539,6 +1539,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + (info.verifiedNote ? '<div id="bc-verify-note" style="font-size:0.8rem;margin-top:8px;color:#a6e87e">' + _bcEsc(info.verifiedNote) + '</div>' : (info.verifyPromise ? '<div id="bc-verify-note" style="font-size:0.8rem;margin-top:8px;color:#9aa">🔎 Confirming with the label…</div>' : ''))
         + '<button data-a="use" style="display:block;width:100%;margin-top:14px;padding:12px;border-radius:10px;border:2px solid var(--accent,#e8401c);background:rgba(232,64,28,0.12);color:var(--text,#fff);font-weight:600;font-size:0.95rem;cursor:pointer">Use this</button>'
         + '<div style="display:flex;gap:8px;margin-top:8px">'
+        + (info.lensOffer ? '<button data-a="lens" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid #3a6ea5;background:rgba(58,110,165,0.12);color:#cfe3ff;font-size:0.82rem;cursor:pointer">🔍 Google Lens</button>' : '')
         + '<button data-a="rescan" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);font-size:0.82rem;cursor:pointer">Rescan</button>'
         + '<button data-a="manual" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);font-size:0.82rem;cursor:pointer">Type it instead</button>'
         + '<button data-a="cancel" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);font-size:0.82rem;cursor:pointer">Cancel</button>'
@@ -2042,9 +2043,17 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           roadName: res.roadName || (res.masterItem && res.masterItem.roadName) || '',
           description: res.description || res.labelDescription || '',
           notInMaster: res.notInMaster, noItemNum: res.noItemNum,
-          verifiedNote: res.verifiedNote, eraTag: res.eraTag
+          verifiedNote: res.aiGuess ? '⚠ AI guess from the photo alone — double-check, or try Google Lens' : res.verifiedNote,
+          eraTag: res.eraTag, lensOffer: !!res.aiGuess
         });
         if (cc === 'use') { if (onScanned) onScanned(res); return; }
+        if (cc === 'lens') {
+          var fC = await _biCanvasToFile(cr.work, 'lens-confirm.jpg');
+          _biKill();
+          if (typeof window._identifyOpenWithPhoto === 'function') window._identifyOpenWithPhoto(fC, true);
+          else if (onCancel) onCancel();
+          return;
+        }
         if (cc === 'rescan') continue;
         if (onCancel) onCancel(); return;
       }
