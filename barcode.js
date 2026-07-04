@@ -460,6 +460,16 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             return { handled: true, itemNum: cm.itemNum, variation: cm.variation || '', masterItem: cm, manufacturer: meta.manufacturer, roadName: (cm.roadName || ''), description: (cm.description || ''), eraTag: (typeof _eraLabel === 'function') ? _eraLabel(cm._era) : '', verifiedNote: '🤖 AI read the box number ' + cabRaw, verifiedBy: 'ai', statusMessage: 'AI found ' + cm.itemNum + ' — ' + (cm.description || '').substring(0, 40) };
           }
         }
+        // v0.9.660: the AI read real details but no valid catalog number (e.g.
+        // the MTH guard demoted a cab number). Offer a description-only manual
+        // add instead of a dead end — confirm card + manual flow carry the rest.
+        var _nmBits = [];
+        if (meta.roadName) _nmBits.push(meta.roadName);
+        if (meta.subType)  _nmBits.push(meta.subType);
+        if (meta.cabNum)   _nmBits.push('#' + meta.cabNum);
+        if (_nmBits.length) {
+          return { handled: true, itemNum: '', noItemNum: true, variation: '', notInMaster: true, manufacturer: meta.manufacturer || '', labelDescription: _nmBits.join(' '), description: _nmBits.join(' '), aiMeta: meta, verifiedBy: 'ai', statusMessage: 'AI read the box — no catalog number visible, adding manually…' };
+        }
         reasonOut.reason = meta._hedge ? 'hedge' : 'nothing';
         return null;
       }
