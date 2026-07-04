@@ -202,10 +202,16 @@ function openIdentify(context) {
   _identifySelectedNum = null;
   const modal = document.getElementById('identify-modal');
   modal.classList.add('open');
-  // Auto-focus the input so a bare Ctrl+V lands in it as a normal paste.
+  // Auto-focus the input so a bare Ctrl+V lands in it as a normal paste —
+  // DESKTOP ONLY (v0.9.675, Brad: on phones this opened the keyboard and
+  // scrolled the modal to the bottom, hiding the photo buttons).
   setTimeout(function() {
     var inp = document.getElementById('identify-manual-input');
-    if (inp) { inp.value = ''; inp.focus(); inp.select(); }
+    var _touch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+    if (inp) { inp.value = ''; if (!_touch) { inp.focus(); inp.select(); } }
+    var panel = document.getElementById('identify-panel');
+    if (panel && panel.parentElement) panel.parentElement.scrollTop = 0;
+    if (panel) panel.scrollTop = 0;
   }, 80);
   // Attach a document-level paste handler that captures any Ctrl/Cmd+V
   // anywhere on the page while the modal is open. Extracts the item # and
