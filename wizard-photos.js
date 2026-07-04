@@ -393,9 +393,14 @@ let _identifyStagedTimer = null;
 // Wired up after the modal DOM is inserted (called from wizard.js _buildWizardModal).
 // v0.9.663: open the identify modal with a photo already loaded — used by the
 // unified Identify-from-Photo flow's Google Lens fail-safe (no re-photographing).
-window._identifyOpenWithPhoto = function (file) {
+window._identifyOpenWithPhoto = function (file, autoLens) {
   try { openIdentify('wizard'); } catch (e) { return; }
-  setTimeout(function () { if (window._identifySetPhoto) window._identifySetPhoto(file); }, 300);
+  setTimeout(function () {
+    if (window._identifySetPhoto) window._identifySetPhoto(file);
+    // v0.9.676 (Brad): arriving via the Lens fail-safe means the choice is
+    // already made — skip the options screen, go straight to staging + Lens.
+    if (autoLens) setTimeout(function () { if (typeof _identifyOpenLens === 'function') _identifyOpenLens(); }, 300);
+  }, 300);
 };
 
 function _wireIdentifyModalV2() {
@@ -494,16 +499,24 @@ function _wireIdentifyModalV2() {
   if (_shotBtn && _shotFile) {
     _shotBtn.addEventListener('click', function () { _shotFile.value = ''; _shotFile.click(); });
     _shotFile.addEventListener('change', async function (e) {
-      var f = e.target.files && e.target.files[0];
-      if (!f || !f.type.startsWith('image/')) return;
+      var fs = Array.prototype.slice.call(e.target.files || []).filter(function (x) { return x && x.type.startsWith('image/'); });
+      if (!fs.length) return;
       var orig = _shotBtn.innerHTML;
-      _shotBtn.disabled = true; _shotBtn.innerHTML = '\u23F3 Reading the screenshot\u2026';
+      _shotBtn.disabled = true;
       try {
         if (typeof window._ensureTesseract !== 'function') throw new Error('reader not loaded — refresh and try again');
         var T = await window._ensureTesseract();
-        var o = await T.recognize(f, 'eng', {});
-        var txt = (o && o.data && o.data.text || '').trim();
-        if (!txt) throw new Error('no readable text in that image');
+        // v0.9.676: multiple screenshots stitch together (top-of-page shot +
+        // scrolled shot) — OCR each in order and join the text.
+        var parts = [];
+        for (var fi = 0; fi < fs.length; fi++) {
+          _shotBtn.innerHTML = '\u23F3 Reading screenshot ' + (fi + 1) + ' of ' + fs.length + '\u2026';
+          var o = await T.recognize(fs[fi], 'eng', {});
+          var p = (o && o.data && o.data.text || '').trim();
+          if (p) parts.push(p);
+        }
+        var txt = parts.join('\n');
+        if (!txt) throw new Error('no readable text in ' + (fs.length > 1 ? 'those images' : 'that image'));
         var res = _identifyProcessText(txt);
         if (res === 'applied') return;   // item found + applied — modal handles the rest
         // hedge / none: drop the text into the manual box for editing (paste behavior)
