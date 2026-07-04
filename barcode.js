@@ -1640,6 +1640,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   //  _bcAiRescue (incl. cab-number rescue for bare postwar items).
   // ════════════════════════════════════════════════════════════════
 
+  var _biHasBD = (typeof window !== 'undefined' && 'BarcodeDetector' in window);
+
   function _biCanvasToFile(canvas, name) {
     return new Promise(function (resolve) {
       canvas.toBlob(function (blob) {
@@ -1650,7 +1652,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
 
   async function _biDetectCanvas(canvas) {
     // Native BarcodeDetector accepts a canvas directly.
-    if (_hasNativeBD) {
+    if (_biHasBD) {
       try {
         var det = new window.BarcodeDetector({ formats: ['ean_13', 'upc_a', 'ean_8', 'upc_e', 'code_128', 'code_39'] });
         return await det.detect(canvas);
@@ -1695,7 +1697,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         '<div style="width:100%;max-width:560px">'
         + '<div style="color:var(--text,#fff);font-family:var(--font-head,sans-serif);font-size:1.02rem;margin:0.2rem 0 0.45rem">📷 Identify from Photo</div>'
         + '<div id="bi-guide" style="color:#ffd27d;font-size:0.82rem;line-height:1.45;margin-bottom:0.5rem">Get the <b>barcode AND the printed item number</b> in the shot. No barcode? A clear shot of the box end/side with the number — or of the <b>item itself</b> (road name &amp; number visible).</div>'
-        + '<video id="bi-video" autoplay playsinline style="width:100%;max-height:52vh;border-radius:12px;background:#000;object-fit:contain"></video>'
+        + '<div style="width:100%;aspect-ratio:4/3;border-radius:12px;background:#000;overflow:hidden"><video id="bi-video" autoplay playsinline style="width:100%;height:100%;object-fit:cover"></video></div>'
         + '<div id="bi-camstatus" style="color:var(--text-dim,#999);font-size:0.8rem;min-height:1.2rem;margin:0.4rem 0">Starting camera…</div>'
         + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap">'
         + _biBtn({ act: 'snap', txt: '📸 Capture' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff;flex:2')
@@ -1737,7 +1739,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         .then(function (s) {
           stream = s; video.srcObject = s;
           stat.textContent = 'Aim at the box end — barcode + item number. Auto-captures when a barcode locks.';
-          var nativeDet = _hasNativeBD ? new window.BarcodeDetector({ formats: ['ean_13', 'upc_a', 'ean_8', 'upc_e', 'code_128', 'code_39'] }) : null;
+          var nativeDet = _biHasBD ? new window.BarcodeDetector({ formats: ['ean_13', 'upc_a', 'ean_8', 'upc_e', 'code_128', 'code_39'] }) : null;
           if (!nativeDet) _loadZXing().catch(function () {});
           (async function lockLoop() {
             while (!stopLoop) {
