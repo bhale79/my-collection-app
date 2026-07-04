@@ -124,6 +124,30 @@ function _buildWizardModal() {
       '</div>' +
     '</div>';
   document.body.appendChild(overlay);
+  // v0.9.662 — phone-keyboard guard (Brad: keyboard buried the Next button).
+  // The modal is a fixed 580px box; when the on-screen keyboard shrinks the
+  // visual viewport below that, cap the box height so the footer stays
+  // visible, and auto-scroll the focused field into view.
+  if (window.visualViewport && !window._wizKbGuard) {
+    window._wizKbGuard = true;
+    var _kbApply = function () {
+      var m = document.getElementById('wizard-modal');
+      var box = m && m.querySelector('.modal');
+      if (!box) return;
+      var vh = window.visualViewport.height;
+      box.style.height = (vh < 596 ? Math.max(300, vh - 16) : 580) + 'px';
+    };
+    window.visualViewport.addEventListener('resize', _kbApply);
+    window.visualViewport.addEventListener('scroll', _kbApply);
+    document.addEventListener('focusin', function (e) {
+      var body = document.getElementById('wizard-body');
+      if (!body || !body.contains(e.target)) return;
+      setTimeout(function () {
+        try { e.target.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (err) {}
+      }, 250);
+    });
+  }
+
 
   // Build photo source picker sheet if not already present
   if (!document.getElementById('photo-picker-sheet')) {
