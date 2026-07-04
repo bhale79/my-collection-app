@@ -1409,7 +1409,7 @@ function renderWizardStep() {
           display:flex;align-items:center;justify-content:center;gap:0.5rem;
           transition:all 0.15s
         ">
-          📷 Scan Barcode / Label
+          📷 Identify from Photo
         </button>` : ''}
         ${showBoxOnly ? `
         <label onclick="toggleBoxOnly()" style="
@@ -3915,7 +3915,7 @@ function renderWizardStep() {
         const _ingScanBtn = document.createElement('button');
         _ingScanBtn.onclick = function() { if (typeof _wizScanBarcode === 'function') _wizScanBarcode(); };
         _ingScanBtn.style.cssText = 'width:100%;margin-top:0.5rem;padding:0.65rem 1rem;border-radius:8px;border:1.5px dashed #2980b9;background:rgba(41,128,185,0.08);color:#2980b9;font-family:var(--font-head);font-size:0.78rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;transition:all 0.15s';
-        _ingScanBtn.innerHTML = '📷 Scan Barcode / Label';
+        _ingScanBtn.innerHTML = '📷 Identify from Photo';
         _ingWrap.appendChild(_ingScanBtn);
       } else {
         // Desktop substitute — small italic note pointing to mobile.
