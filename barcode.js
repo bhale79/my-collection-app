@@ -1965,6 +1965,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       return aiR;
     }
     var aiWhy = out.why.reason === 'quota' ? 'daily limit reached' :
+                out.why.reason === 'busy' ? "Google's AI is overloaded right now — worth retrying in a minute" :
                 out.why.reason === 'hedge' ? "couldn't pin it down" :
                 out.why.reason === 'noconsent' ? 'photo permission declined' :
                 out.why.reason === 'offline' ? 'offline' : 'no confident answer';
@@ -1980,6 +1981,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       act.innerHTML =
         '<div style="width:100%;color:var(--text-mid,#ccc);font-size:0.82rem;margin-bottom:0.3rem">No confident ID. You can:</div>'
         + _biBtn({ act: 'retake', txt: '↺ Retake photo' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff')
+        + _biBtn({ act: 'ai', txt: '🤖 Try AI again' })
         + _biBtn({ act: 'lens', txt: '🔍 Google Lens' })
         + _biBtn({ act: 'type', txt: '⌨ Type it in' })
         + _biBtn({ act: 'cancel', txt: 'Cancel' });
@@ -2002,6 +2004,13 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         var res = await _biPipeline(cap.raw, cr.work, cap.lockedBc, eraHint);
         if (res && res.__biFail) {
           var choice = await _biFailCard(res.out);
+          if (choice === 'ai') {
+            // same photo, one more shot at the AI (Gemini overload passes quickly)
+            var res2 = await _biPipeline(cap.raw, cr.work, cap.lockedBc, eraHint);
+            if (res2 && !res2.__biFail) { res = res2; }
+            else { var c2 = await _biFailCard(res2 && res2.out || {}); if (c2 === 'retake') continue; if (c2 === 'lens') choice = 'lens'; else { _biKill(); if (onCancel) onCancel(); return; } }
+          }
+          if (res && res.__biFail && choice !== 'lens' && choice !== 'retake') { _biKill(); if (onCancel) onCancel(); return; }
           if (choice === 'retake') continue;
           if (choice === 'lens') {
             var f = await _biCanvasToFile(cr.work, 'lens-failsafe.jpg');
