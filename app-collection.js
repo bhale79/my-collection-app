@@ -320,7 +320,7 @@ function _nonItemDetailEdit(type, key) {
   var ov = document.createElement('div');
   ov.id = '_ni-edit-modal';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10010;display:flex;align-items:center;justify-content:center;padding:1.5rem';
-  ov.onclick = function(e) { if (e.target === ov) ov.remove(); };
+  bindOverlayClose(ov, function() { ov.remove(); });
 
   var box = document.createElement('div');
   box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;max-height:85vh;overflow-y:auto;padding:1.5rem;position:relative';
@@ -560,7 +560,7 @@ function _nonItemDetailPhotos(type, key) {
   var ov = document.createElement('div');
   ov.id = '_ni-photos-modal';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10010;display:flex;align-items:center;justify-content:center;padding:1.5rem';
-  ov.onclick = function(e) { if (e.target === ov && !ov._uploading) ov.remove(); };
+  bindOverlayClose(ov, function() { if (!ov._uploading) ov.remove(); });
 
   var box = document.createElement('div');
   box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:560px;width:100%;max-height:85vh;overflow-y:auto;padding:1.5rem;position:relative';
@@ -1303,7 +1303,7 @@ function showOwnedItemMenu(idx, pdKey) {
   const overlay = document.createElement('div');
   overlay.id = 'owned-action-menu';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
-  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  bindOverlayClose(overlay, function() { overlay.remove(); });
   const box = document.createElement('div');
   box.style.cssText = 'background:var(--surface);border:1px solid rgba(46,204,113,0.35);border-radius:16px;max-width:420px;width:100%;padding:1.75rem;position:relative';
 
@@ -1384,7 +1384,7 @@ function _showSpecialOwnedMenu(idx, item, ownedItems) {
   const overlay = document.createElement('div');
   overlay.id = 'owned-action-menu';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
-  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  bindOverlayClose(overlay, function() { overlay.remove(); });
   const box = document.createElement('div');
   box.style.cssText = 'background:var(--surface);border:1px solid rgba(46,204,113,0.35);border-radius:16px;max-width:420px;width:100%;padding:1.75rem;position:relative';
   const closeBtn = document.createElement('button');
@@ -2011,7 +2011,7 @@ function showPickFromCollectionForSale() {
   const overlay = document.createElement('div');
   overlay.id = 'pick-fs-overlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
-  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  bindOverlayClose(overlay, function() { overlay.remove(); });
 
   const box = document.createElement('div');
   box.style.cssText = 'background:var(--surface);border:1px solid rgba(230,126,34,0.4);border-radius:16px;max-width:480px;width:100%;position:relative;max-height:85vh;display:flex;flex-direction:column;overflow:hidden';
@@ -2150,7 +2150,7 @@ function showItemPanel(idx, pdKey, mode) {
   const overlay = document.createElement('div');
   overlay.id = 'item-panel-overlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
-  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  bindOverlayClose(overlay, function() { overlay.remove(); });
 
   const box = document.createElement('div');
   box.style.cssText = 'background:var(--surface);border:1px solid rgba(41,128,185,0.35);border-radius:16px;max-width:500px;width:100%;position:relative;max-height:92vh;display:flex;flex-direction:column;overflow:hidden';
@@ -2664,7 +2664,7 @@ function browseRowClick(event, idx) {
   const overlay = document.createElement('div');
   overlay.id = 'browse-add-prompt';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
-  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  bindOverlayClose(overlay, function() { overlay.remove(); });
   const box = document.createElement('div');
   box.style.cssText = 'background:var(--surface);border:1px solid rgba(232,64,28,0.4);border-radius:16px;max-width:440px;width:100%;padding:1.75rem;position:relative';
   // Header
@@ -2854,7 +2854,7 @@ function showRefItemPopup(type, idx) {
   var overlay = document.createElement('div');
   overlay.id = 'browse-add-prompt';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
-  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  bindOverlayClose(overlay, function() { overlay.remove(); });
   var box = document.createElement('div');
   box.style.cssText = 'background:var(--surface);border:1px solid rgba(232,64,28,0.4);border-radius:16px;max-width:480px;width:100%;padding:1.75rem;position:relative;max-height:80vh;overflow-y:auto';
   // Header
@@ -3046,7 +3046,7 @@ function _buildItemModal() {
   var overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.id = 'item-modal';
-  overlay.onclick = function(e) { if (e.target === overlay) closeModal(); };
+  bindOverlayClose(overlay, function() { closeModal(); });
   overlay.innerHTML =
     '<div class="modal">' +
       '<div class="modal-header">' +
