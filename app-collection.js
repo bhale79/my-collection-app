@@ -2559,6 +2559,9 @@ function showItemPanel(idx, pdKey, mode) {
         if (typeof _healPdRow === 'function') await _healPdRow(pd);
         await sheetsUpdate(state.personalSheetId, personalFullRowRange(pd.row), [newRow]);
         state.personalData[pdKey] = Object.assign({}, pd, { priceComplete: calc > 0 ? calc.toFixed(2) : '' });
+        // v0.9.697: keep the offline snapshot in sync — edits were reverting
+        // to pre-edit values on the next app load (cache had the old row).
+        if (typeof _cachePersonalData === 'function') _cachePersonalData();
         overlay.remove();
         showToast('✓ Item updated!');
         buildDashboard();
