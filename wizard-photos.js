@@ -1097,6 +1097,12 @@ function extractIdentifyMetadata(text, opts) {
       if (re.test(raw)) { out.subType = st; break; }
     } catch(e) {}
   }
+  // v0.9.683: the dictionary above only knows locomotives + rolling stock —
+  // for buildings/accessories fall back to the labeled body-style value
+  // ("Art Deco Auto Dealership (O Scale / 1:48)") so type-mapping can fire.
+  if (!out.subType && lblClass && !_hasHedge(lblClass) && lblClass.length <= 80) {
+    out.subType = lblClass.trim();
+  }
 
   // Manufacturer — match against known list.
   for (const mfr of _IDENTIFY_MFRS) {
@@ -1135,19 +1141,30 @@ function extractIdentifyMetadata(text, opts) {
   // ── v0.9.680: Lens answers put the best info in PROSE, not labels — read it.
   // "The item in the image is a Menards O Scale Vetter Sash & Door Factory
   // building." → that's the product name/description.
+  // v0.9.683: prose sentences WRAP across lines on phone screenshots — match
+  // against a whitespace-joined copy so the capture runs to the period, not
+  // the line break ("O Scale Valley⏎Motors…" bug).
+  var _prose = raw.replace(/\s*\n+\s*/g, ' ');
   if (!out.description) {
-    var _pm = raw.match(/(?:item|model|product)\s+(?:in\s+the\s+(?:image|photo|picture)\s+)?(?:is|appears\s+to\s+be)\s+(?:a|an|the)?\s*([^.\n]{6,140})/i);
+    var _pm = _prose.match(/(?:item|model|product)\s+(?:in\s+the\s+(?:image|photo|picture)\s+)?(?:is|appears\s+to\s+be)\s+(?:a|an|the)?\s*([^.]{6,140})/i);
     if (_pm) {
       var _pd = _pm[1].replace(/\*\*/g, '').replace(/[_"“”]/g, '').trim();
       if (_pd && !/^(model\s+train|toy\s+train)\b/i.test(_pd)) out.description = _pd;
     }
   }
-  // v0.9.681: the styled product-name link often OCRs to gibberish, but the
-  // prose recap ("The Vetter Sash & Door Factory is a pre-built, pre-lit O
-  // gauge structure…") reads clean — use it when nothing else did.
   if (!out.description) {
-    var _pm2 = raw.match(/(?:^|\n)The\s+([A-Z][^.\n]{3,80}?)\s+is\s+(?:a|an)\s+([^.\n]{6,120})/);
+    var _pm2 = _prose.match(/\bThe\s+([A-Z][^.]{3,80}?)\s+is\s+(?:a|an)\s+([^.]{6,120})/);
     if (_pm2) out.description = (_pm2[1] + ' — ' + _pm2[2]).replace(/\*\*/g, '').trim();
+  }
+  // v0.9.683: sniff scale/gauge out of the prose ("designed for O gauge",
+  // "(O Scale / 1:48)", "Standard Gauge") when no labeled/Known value came.
+  if (!out.gauge) {
+    var _gm = _prose.match(/\b(standard|o-?27|ho|n|s|g|o)\s*[- ]?(?:scale|gauge)\b/i);
+    if (!_gm && /\b1\s*:\s*48\b/.test(_prose)) _gm = [null, 'O'];
+    if (_gm) {
+      var _gt = _gm[1].toUpperCase().replace('O27', 'O-27');
+      out.gauge = _gt === 'STANDARD' ? 'Standard' : _gt;
+    }
   }
 
   // ── v0.9.662: merge the AI's "Known ..." knowledge lines (backend v1.4) ──
@@ -1180,13 +1197,20 @@ function extractIdentifyMetadata(text, opts) {
   // ── v0.9.660 post-processing (single source for AI / Lens / paste paths) ──
   // (1) Scrub literal "unknown"-style values the honest AI returns — they made
   // composed descriptions like "unknown caboose" (Brad's 10-2210 test).
-  var _junkVal = /^(unknown|unclear|n\/?a|none|not specified|not visible|illegible|not shown|no road name|no number|no cab number)$/i;
+  var _junkVal = /^(unknown|unclear|n\/?a|none|not specified|not visible|illegible|not shown|no road name|no number|no cab number|not applicable)$/i;
   ['roadName', 'subType', 'manufacturer', 'cabNum', 'year', 'variation', 'gauge'].forEach(function (k) {
     if (!out[k]) return;
     // v0.9.680: test with any parenthetical stripped — Lens writes
     // "No Road Name (Building accessory)", "N/A (Building accessory)".
     var bare = String(out[k]).replace(/\s*\([^)]*\)\s*/g, ' ').trim();
-    if (_junkVal.test(bare) || /^n\/?a\b/i.test(bare)) delete out[k];
+    if (_junkVal.test(bare) || /^n\/?a\b/i.test(bare) || /^not applicable\b/i.test(bare)) { delete out[k]; return; }
+    // v0.9.683: Lens filler like Road name: Generic "Valley Motors" (…) —
+    // "Generic" means there ISN'T a railroad name; drop it for roadName.
+    if (k === 'roadName' && /^generic\b/i.test(bare)) { delete out[k]; return; }
+    // Short fields keep the value but LOSE the parenthetical blob + quotes:
+    // year "2021 (released in late 2021)" → "2021".
+    if (k !== 'subType') out[k] = bare.replace(/["“”]/g, '').trim();
+    else out[k] = String(out[k]).replace(/\s*\([^)]*\)\s*$/, '').trim();
   });
   // (2) Manufacturer — three layers (v0.9.661; the v660 exact map broke on
   // forms like "MTH (M.T.H. Electric Trains)" and missed answers with no
@@ -1481,7 +1505,7 @@ function _mapSubTypeToManualType(subType) {
   if (/(?:boxcar|reefer|hopper|gondola|flatcar|tank car|stock car)/i.test(s)) return 'Freight Car';
   if (/caboose/i.test(s)) return 'Caboose';
   if (/(?:coach|pullman|vista dome|diner|baggage|passenger)/i.test(s)) return 'Passenger Car';
-  if (/(?:building|structure|factory|station|tower|bridge|platform|billboard|accessor)/i.test(s)) return 'Accessory';
+  if (/(?:building|structure|factory|station|tower|bridge|platform|billboard|accessor|dealership|store|shop|house|barn|depot)/i.test(s)) return 'Accessory';
   if (/(?:track|switch)/i.test(s)) return 'Track';
   if (/(?:transformer|powerhouse|powermaster)/i.test(s)) return 'Transformer';
   return 'Other';
