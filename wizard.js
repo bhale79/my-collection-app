@@ -192,7 +192,7 @@ function _buildWizardModal() {
   if (!document.getElementById('identify-modal')) {
     var _identEl = document.createElement('div');
     _identEl.id = 'identify-modal';
-    var _isMobileIm = (window.innerWidth <= 768) || ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    var _isMobileIm = !!window.IS_MOBILE_UA;   // v0.9.699: width/touch offered the WEBCAM on desktops
     var _photoButtons = _isMobileIm
       ? '<button type="button" id="id-take-photo" style="flex:1;padding:0.6rem;border-radius:9px;border:1.5px solid var(--accent);background:rgba(232,64,28,0.08);color:var(--accent);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">\ud83d\udcf7 Take Photo</button>'
         + '<button type="button" id="id-pick-photo" style="flex:1;padding:0.6rem;border-radius:9px;border:1.5px solid var(--accent2);background:rgba(201,146,42,0.08);color:var(--accent2);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">\ud83d\uddbc\ufe0f From Gallery</button>'
@@ -1323,7 +1323,7 @@ function renderWizardStep() {
         })()}
 
         </div>`;
-      if (!(('ontouchstart' in window) || navigator.maxTouchPoints > 0)) setTimeout(() => { const i = document.getElementById('wiz-input'); if(i) i.focus(); }, 50);
+      if (!window.IS_MOBILE_UA) setTimeout(() => { const i = document.getElementById('wiz-input'); if(i) i.focus(); }, 50);
     } else {
       // Show variation cards with COTT link per variation.
       // #1: highlight how each variation differs from the first one.
@@ -1464,7 +1464,7 @@ function renderWizardStep() {
       if (inp) {
         // v0.9.667 (Brad): on phones the auto-focused keyboard buried the
         // "Identify by Photo" button — only auto-focus on non-touch devices.
-        if (!(('ontouchstart' in window) || navigator.maxTouchPoints > 0)) inp.focus();
+        if (!window.IS_MOBILE_UA) inp.focus();
         if (s.id === 'itemNum') {
           inp.addEventListener('input', debounceItemLookup);
           if (inp.value) updateItemSuggestions(inp.value);
@@ -2035,7 +2035,7 @@ function renderWizardStep() {
           if (sug) { sug.style.display = 'none'; sug.innerHTML = ''; }
           window._qe1OnInput(inp.value);
         }
-        if (!(('ontouchstart' in window) || navigator.maxTouchPoints > 0)) inp.focus();
+        if (!window.IS_MOBILE_UA) inp.focus();
       }
       _qe1RenderGrouping();
       _qe1RenderSliders();
@@ -3970,7 +3970,7 @@ function renderWizardStep() {
         if (inp) {
           // v0.9.669 (Brad): no auto-keyboard on phones — it buried the
           // Identify-by-Photo button. Wiring stays; only the focus is gated.
-          if (!(('ontouchstart' in window) || navigator.maxTouchPoints > 0)) inp.focus();
+          if (!window.IS_MOBILE_UA) inp.focus();
           inp.addEventListener('input', debounceItemLookup);
           if (inp.value) { updateItemSuggestions(inp.value); }
         }
