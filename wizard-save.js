@@ -472,9 +472,9 @@ async function saveInstructionSheet() {
     groupId: resolvedGroupId || '',
   });
   try {
-    await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
+    const _apRowIS = await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
     state.personalData[isStandaloneInvId] = {
-      row: 99999, itemNum: _isItemNum, variation: '',
+      row: _apRowIS || 99999, itemNum: _isItemNum, variation: '',
       status: 'Owned', owned: true,
       condition: d.is_condition||'', notes: _isNotes,
       photoItem: photoLink || '', matchedTo: linkedItem || '',
@@ -700,6 +700,8 @@ async function savePhotoOnlyUpdate() {
     closeWizard(); return;
   }
   const pd = state.personalData[pdKey];
+  // v0.9.695: self-heal fake row numbers (99999 placeholders from older saves)
+  if (typeof _healPdRow === 'function') { try { await _healPdRow(pd); } catch (eH) {} }
   // Get the folder link from whichever photo step just ran
   const photoObj = d.photosItem || d.photosBox || {};
   const folderLink = Object.values(photoObj).find(v => v) || '';
@@ -831,11 +833,13 @@ async function _saveManualEntry() {
     customName: customName,
   });
 
-  await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
+  const _apRow = await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
 
-  // Optimistic state update
+  // Optimistic state update — v0.9.695: record the ACTUAL row (the fake 99999
+  // made every later update on this item fail with a Sheets "exceeds grid
+  // limits" 400 — Brad's abacus photo/description case).
   state.personalData[invId] = {
-    row: 99999, itemNum: displayId, variation: '',
+    row: _apRow || 99999, itemNum: displayId, variation: '',
     status: 'Owned', owned: true,
     condition, allOriginal: '',
     priceItem, priceBox: '', priceComplete: row[PERSONAL_FIELD_INDEX.priceComplete],
