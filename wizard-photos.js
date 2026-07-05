@@ -811,9 +811,11 @@ function extractLionelNumber(text) {
   ];
   for (const pat of directPatterns) {
     if (pat.test(raw)) {
-      // Strip leading zeros only for the plain-digit postwar pattern.
-      const out = pat.toString().includes("\\d{1,5}[A-Z]") ? raw.replace(/^0+/, '') || raw : raw;
-      return out.toUpperCase();
+      // v0.9.690 (Brad's 0209 barrels): leading zeros are KEPT — 0209, 022,
+      // 042 are real Lionel numbers, DIFFERENT items from 209/22/42. The old
+      // zero-strip turned the AI's honest "0209" into a confident wrong
+      // "209 Alco".
+      return raw.toUpperCase();
     }
   }
 
