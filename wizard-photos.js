@@ -431,7 +431,7 @@ window._identifyOpenWithPhoto = function (file, autoLens) {
       var cov = document.createElement('div');
       cov.id = 'id-lens-cover';
       cov.style.cssText = 'position:fixed;inset:0;z-index:100002;background:var(--bg,#0b0d1d);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.8rem;color:var(--text,#fff);font-family:var(--font-head,sans-serif);font-size:1rem';
-      cov.innerHTML = '<div style="font-size:2rem">🔍</div><div>Opening Google Lens…</div><div style="font-size:0.78rem;color:var(--text-dim,#999)">Screenshot the answer, then come back here.</div>';
+      cov.innerHTML = '<div style="font-size:4rem">🔍</div><div style="font-size:1.9rem;font-weight:700;text-align:center;line-height:1.25">Opening<br>Google Lens…</div><div style="font-size:1.15rem;color:#ffd27d;text-align:center;line-height:1.4;padding:0 1.2rem;max-width:420px">📸 Screenshot the answer,<br>then come back here.</div>';
       document.body.appendChild(cov);
       var covKill = function () { var c = document.getElementById('id-lens-cover'); if (c) c.remove(); document.removeEventListener('visibilitychange', covVis); };
       var covVis = function () { if (document.visibilityState === 'hidden') covKill(); };
@@ -786,6 +786,7 @@ function extractLionelNumber(text) {
     /^\d{2}-\d{4}-\d{1,3}$/,           // MTH 3-part
     /^\d{2}-\d{4}$/,                     // MTH 2-part
     /^[67]-\d{4,5}$/,                     // Lionel Modern / K-Line
+    /^27[59]-\d{3,4}$/,                   // Menards Gold Line (275/279-####) — v0.9.682
     /^\d{7}(?:-\d{2,3})?$/,             // Lionel Modern 7-digit set/SKU (e.g. 2431470, 2431470-200)
     /^\d{3,5}-\d{1,3}$/,                 // Lionel Postwar with variation
     /^\d{1,5}[A-Z]{0,2}$/i,               // Lionel Postwar bare (strip leading zeros)
@@ -803,6 +804,7 @@ function extractLionelNumber(text) {
   // disambiguate when multiple numbers appear in the pasted blob.
   const embedded = [
     /\b(\d{2}-\d{4}-\d{1,3})\b/,                        // MTH 3-part
+    /\b(27[59]-\d{3,4})\b/,                              // Menards Gold Line — v0.9.682, must beat the bare-4-digit fallback
     /\b([67]-\d{4,5})\b/,                                 // Lionel Modern / K-Line
     /\b(\d{2}-\d{4})\b/,                                 // MTH 2-part
     /\b(\d{7}-\d{2,3})\b/,                               // Lionel Modern 7-digit with variation (2431470-200)
@@ -1220,6 +1222,9 @@ function extractIdentifyMetadata(text, opts) {
   // (10-2210); when the AI puts a non-conforming number in the SKU slot, demote
   // it to cabNum (→ Road Number prefill) and flag a hedge so nothing stores a
   // bogus item number.
+  // v0.9.682: the Menards number format is unambiguous — infer the maker when
+  // the brand text didn't survive OCR (styled link text scans as gibberish).
+  if (!out.manufacturer && out.itemNum && /^27[59]-\d{3,4}$/.test(String(out.itemNum).trim())) out.manufacturer = 'Menards';
   var _skuPat = { 'MTH': /^\d{2}-\d{4,5}(-\d{1,3})?[a-z]?$/i,
                   'Menards': /^27[59]-\d{3,4}$/,
                   'RMT': /^(RMT-)?\d{4,6}(-\d{1,3})?$/i };
