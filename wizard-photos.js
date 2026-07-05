@@ -402,6 +402,18 @@ function _identifyLensReturnMode() {
     var el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
+  // v0.9.681: a clear way out at the bottom (Brad: "it just leaves you here").
+  if (!document.getElementById('id-return-close')) {
+    var panel0 = document.getElementById('identify-panel');
+    if (panel0) {
+      var cb = document.createElement('button');
+      cb.id = 'id-return-close';
+      cb.style.cssText = 'width:100%;margin-top:0.6rem;padding:0.6rem;border-radius:9px;background:none;border:1.5px solid var(--border,#444);color:var(--text-mid,#ccc);font-family:var(--font-head,sans-serif);font-size:0.88rem;cursor:pointer';
+      cb.textContent = 'Close — start over';
+      cb.onclick = function () { if (typeof closeIdentify === 'function') closeIdentify(); };
+      panel0.appendChild(cb);
+    }
+  }
   var panel = document.getElementById('identify-panel');
   if (panel) { panel.scrollTop = 0; if (panel.parentElement) panel.parentElement.scrollTop = 0; }
 }
@@ -413,7 +425,18 @@ window._identifyOpenWithPhoto = function (file, autoLens) {
     // v0.9.676 (Brad): arriving via the Lens fail-safe means the choice is
     // already made — skip the options screen, go straight to staging + Lens.
     if (autoLens) {
-      _identifyLensReturnMode();   // never flash the outbound options (Brad)
+      _identifyLensReturnMode();
+      // v0.9.681 (Brad): no confusing intermediate screen — an opaque cover
+      // shows "Opening Google Lens…" until the tab actually switches (or 15s).
+      var cov = document.createElement('div');
+      cov.id = 'id-lens-cover';
+      cov.style.cssText = 'position:fixed;inset:0;z-index:100002;background:var(--bg,#0b0d1d);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.8rem;color:var(--text,#fff);font-family:var(--font-head,sans-serif);font-size:1rem';
+      cov.innerHTML = '<div style="font-size:2rem">🔍</div><div>Opening Google Lens…</div><div style="font-size:0.78rem;color:var(--text-dim,#999)">Screenshot the answer, then come back here.</div>';
+      document.body.appendChild(cov);
+      var covKill = function () { var c = document.getElementById('id-lens-cover'); if (c) c.remove(); document.removeEventListener('visibilitychange', covVis); };
+      var covVis = function () { if (document.visibilityState === 'hidden') covKill(); };
+      document.addEventListener('visibilitychange', covVis);
+      setTimeout(covKill, 15000);
       setTimeout(function () { if (typeof _identifyOpenLens === 'function') _identifyOpenLens(); }, 300);
     }
   }, 300);
@@ -538,9 +561,10 @@ function _wireIdentifyModalV2() {
         // hedge / none: drop the text into the manual box for editing (paste behavior)
         var inp = document.getElementById('identify-manual-input');
         if (inp) { inp.value = txt; inp.focus(); }
+        if (inp) { try { inp.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (eSV) {} }
         if (typeof showToast === 'function') showToast(res === 'hedge'
-          ? "Couldn't pin an item number in that screenshot — edit the text below"
-          : 'Screenshot read — check/edit the text below', 4000, true);
+          ? "Couldn't pin the item number — check the text below, fix it, and tap Enter →"
+          : 'Screenshot read — check the number below and tap Enter →', 4500, true);
       } catch (err) {
         if (typeof showToast === 'function') showToast('Screenshot read failed: ' + err.message, 4000, true);
       } finally {
@@ -921,8 +945,26 @@ function _extractLabeledFields(text) {
 function extractIdentifyMetadata(text, opts) {
   if (!text || typeof text !== 'string') return {};
   const out = {};
-  const raw = (typeof _identifySanitize === 'function' ? _identifySanitize(text) : text).trim();
+  let raw = (typeof _identifySanitize === 'function' ? _identifySanitize(text) : text).trim();
   if (!raw) return out;
+  // ── v0.9.681: normalize OCR'd phone screenshots (Brad's Menards case) ──
+  // Bullets OCR as "e "/"¢ "; narrow screens WRAP labels ("…or Catalog\nNumber:")
+  // and values across lines. Strip bullets, then join continuation lines so the
+  // labeled-field parser sees one "Label: value" per line.
+  raw = raw.split('\n').map(function (ln) { return ln.replace(/^[e¢•·*o]\s+(?=[A-Z])/, ''); }).join('\n');
+  raw = raw.replace(/\n(?=(?:Number|Name|Style)\s*:)/gi, ' ');
+  (function () {
+    var lines = raw.split('\n'), outL = [];
+    for (var i = 0; i < lines.length; i++) {
+      var ln = lines[i];
+      var isLabel = /^[A-Z][^:\n]{0,44}:/.test(ln.trim());
+      var isBlank = !ln.trim();
+      if (outL.length && !isLabel && !isBlank && outL[outL.length - 1].trim() && /:/.test(outL[outL.length - 1])) {
+        outL[outL.length - 1] += ' ' + ln.trim();   // value continuation
+      } else outL.push(ln);
+    }
+    raw = outL.join('\n');
+  })();
 
   // ── Step 1: try labeled-field parsing first (AI Overview's structured response) ──
   const labels = _extractLabeledFields(raw);
@@ -1097,6 +1139,13 @@ function extractIdentifyMetadata(text, opts) {
       var _pd = _pm[1].replace(/\*\*/g, '').replace(/[_"“”]/g, '').trim();
       if (_pd && !/^(model\s+train|toy\s+train)\b/i.test(_pd)) out.description = _pd;
     }
+  }
+  // v0.9.681: the styled product-name link often OCRs to gibberish, but the
+  // prose recap ("The Vetter Sash & Door Factory is a pre-built, pre-lit O
+  // gauge structure…") reads clean — use it when nothing else did.
+  if (!out.description) {
+    var _pm2 = raw.match(/(?:^|\n)The\s+([A-Z][^.\n]{3,80}?)\s+is\s+(?:a|an)\s+([^.\n]{6,120})/);
+    if (_pm2) out.description = (_pm2[1] + ' — ' + _pm2[2]).replace(/\*\*/g, '').trim();
   }
 
   // ── v0.9.662: merge the AI's "Known ..." knowledge lines (backend v1.4) ──
