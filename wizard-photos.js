@@ -209,7 +209,7 @@ function openIdentify(context) {
   // scrolled the modal to the bottom, hiding the photo buttons).
   setTimeout(function() {
     var inp = document.getElementById('identify-manual-input');
-    var _touch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+    var _touch = !!window.IS_MOBILE_UA;   // v0.9.699: phone-ness, not touch
     if (inp) { inp.value = ''; if (!_touch) { inp.focus(); inp.select(); } }
     var panel = document.getElementById('identify-panel');
     if (panel && panel.parentElement) panel.parentElement.scrollTop = 0;
@@ -260,7 +260,7 @@ function openIdentify(context) {
     _identifyLensReturnMode();   // v0.9.679: returning from Lens — slim the modal
     // v0.9.693: no clipboard auto-read on phones — the screenshot path made it
     // obsolete and it was dumping unrelated clipboard contents into the box.
-    if (!(('ontouchstart' in window) || navigator.maxTouchPoints > 0)) _identifyReadClipboard(true);
+    if (!window.IS_MOBILE_UA) _identifyReadClipboard(true);   // v0.9.699
   };
   document.addEventListener('visibilitychange', _identifyVisHandler);
 }
@@ -431,7 +431,7 @@ function _identifyLensReturnMode() {
   // hide the Paste button and the number box too (the box reappears only if a
   // screenshot read can't pin things down). Desktop keeps Paste (no easy
   // screenshots there).
-  var _touchRM = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  var _touchRM = !!window.IS_MOBILE_UA;   // v0.9.699: desktop keeps Paste + the box
   if (_touchRM) _hide = _hide.concat(['id-paste-btn', 'id-manual-divider', 'id-manual-row']);
   _hide.forEach(function (id) {
     var el = document.getElementById(id);
@@ -1819,8 +1819,7 @@ function showPhotoSourcePicker(stepId, viewKey) {
   // v0.9.698 (Brad): on a real computer, skip the chooser AND the camera —
   // straight to the file dialog. Touch detection lies on touchscreen PCs
   // (Brad's desktop offered the webcam), so decide by user agent instead.
-  var _mobileUA = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  if (!_mobileUA) {
+  if (!window.IS_MOBILE_UA) {
     var _dinp = document.getElementById('picker-input-lib');
     if (!_dinp) {
       _dinp = document.createElement('input');
