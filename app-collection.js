@@ -2181,6 +2181,8 @@ function showItemPanel(idx, pdKey, mode) {
   body.appendChild(fieldsContainer);
 
   const fields = [
+    // v0.9.701 (Brad): a no-number item's TITLE is its identity — editable.
+    ...((idx < 0 || pd.era === 'Manual') ? [{ label: 'Title / Name', key: 'itemNum', val: pd.itemNum || '—', type: 'textarea' }] : []),
     { label: 'Condition',     key: 'condition',     val: pd.condition || '—',     type: 'number', min:1, max:10 },
     { label: 'All Original',  key: 'allOriginal',   val: pd.allOriginal || '—',   type: 'select', options: ['Yes','No','Unknown'] },
     { label: 'Has Box',       key: 'hasBox',        val: pd.hasBox || '—',        type: 'select', options: ['Yes','No'] },
@@ -2524,7 +2526,7 @@ function showItemPanel(idx, pdKey, mode) {
       // The old 25-cell array was in pre-Session-156 column order; every column
       // from B onward landed in the wrong cell on a 32-col schema sheet.
       const newRow = buildPersonalRow({
-        itemNum: item.itemNum,
+        itemNum: pd.itemNum || item.itemNum,   // v0.9.701: title is editable on manual items
         variation: item.variation || '',
         condition: pd.condition || '',
         allOriginal: pd.allOriginal || '',
