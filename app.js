@@ -1683,6 +1683,7 @@ function _injectQuickActionsBar() {
     +   '<div style="height:1px;background:var(--border);margin:0.25rem 0.4rem"></div>'
     +   '<button onclick="_qaCloseAdd();startWizardFor(\'sold\')"><span style="color:#2ecc71;display:inline-flex">' + svgDollar + '</span>Record a Sale</button>'
     +   '<button onclick="_qaCloseAdd();_qaShareCurrentPage()"><span style="color:#3a9e68;display:inline-flex">' + svgShare + '</span>Share This Page</button>'
+    +   '<button onclick="_qaCloseAdd();openResearch()"><span style="color:#16a085;display:inline-flex">\ud83d\udcf8</span>Research an Item</button>'
     + '</div>'
     + '</span>';
 
