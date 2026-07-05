@@ -241,6 +241,7 @@ function openIdentify(context) {
       if (typeof showToast === 'function') {
         showToast("Google couldn't identify a specific item number — type one below or try a different photo", 4500, true);
       }
+      if (typeof _identifyShowManualRow === 'function') _identifyShowManualRow();
       var inpH = document.getElementById('identify-manual-input');
       if (inpH) { inpH.value = ''; inpH.focus(); }
       return;
@@ -257,7 +258,9 @@ function openIdentify(context) {
     if (document.visibilityState !== 'visible') return;
     if (!modal.classList.contains('open') || !_identifyLensOpened) return;
     _identifyLensReturnMode();   // v0.9.679: returning from Lens — slim the modal
-    _identifyReadClipboard(true);
+    // v0.9.693: no clipboard auto-read on phones — the screenshot path made it
+    // obsolete and it was dumping unrelated clipboard contents into the box.
+    if (!(('ontouchstart' in window) || navigator.maxTouchPoints > 0)) _identifyReadClipboard(true);
   };
   document.addEventListener('visibilitychange', _identifyVisHandler);
 }
@@ -416,11 +419,26 @@ let _identifyStagedTimer = null;
 // v0.9.679 (Brad): after a Lens trip the modal shows ONLY what's useful —
 // Paste / Read-a-Screenshot / the number box. AI + Lens buttons and the
 // scale/type/maker hint blocks hide (they were for the outbound search).
+function _identifyShowManualRow() {
+  var dv = document.getElementById('id-manual-divider');
+  var rw = document.getElementById('id-manual-row');
+  if (dv) { dv.style.display = ''; dv.textContent = '\u2014 fix the text / type the item # \u2014'; }
+  if (rw) rw.style.display = 'flex';
+}
 function _identifyLensReturnMode() {
-  ['id-search-btn', 'id-lens-btn', 'id-hints-row', 'id-mfr-block', 'id-photo-area'].forEach(function (id) {
+  var _hide = ['id-search-btn', 'id-lens-btn', 'id-hints-row', 'id-mfr-block', 'id-photo-area'];
+  // v0.9.693 (Brad's cleanup): on phones the SCREENSHOT is the one true path —
+  // hide the Paste button and the number box too (the box reappears only if a
+  // screenshot read can't pin things down). Desktop keeps Paste (no easy
+  // screenshots there).
+  var _touchRM = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  if (_touchRM) _hide = _hide.concat(['id-paste-btn', 'id-manual-divider', 'id-manual-row']);
+  _hide.forEach(function (id) {
     var el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
+  var _mi = document.getElementById('identify-manual-input');
+  if (_mi) _mi.value = '';
   // v0.9.681: a clear way out at the bottom (Brad: "it just leaves you here").
   if (!document.getElementById('id-return-close')) {
     var panel0 = document.getElementById('identify-panel');
@@ -585,6 +603,7 @@ function _wireIdentifyModalV2() {
         var res = _identifyProcessText(txt);
         if (res === 'applied') return;   // item found + applied — modal handles the rest
         // hedge / none: drop the text into the manual box for editing (paste behavior)
+        if (typeof _identifyShowManualRow === 'function') _identifyShowManualRow();
         var inp = document.getElementById('identify-manual-input');
         if (inp) { inp.value = txt; inp.focus(); }
         if (inp) { try { inp.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (eSV) {} }
