@@ -1863,6 +1863,10 @@ function _wizScanBarcode() {
       // shot doubles as the Box photo (auto-attached at the photos step).
       if (result._boxPhoto) {
         if (!wizard.data.manualHasBox) wizard.data.manualHasBox = 'Yes';
+        // v0.9.687 (Brad): the CATALOG flow reads d.hasBox, not manualHasBox —
+        // without this the box question re-appeared for in-catalog items AND
+        // photosBox (where the label shot auto-attaches) was skipIf'd away.
+        if (!wizard.data.hasBox) wizard.data.hasBox = 'Yes';
         wizard.data._boxAutoKnown = true;
         if (result._boxPhotoFile) wizard.data._biBoxPhotoFile = result._boxPhotoFile;
       }
