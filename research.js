@@ -36,9 +36,11 @@
   function _kill() {
     var el = document.getElementById('rs-overlay');
     if (el && el.parentNode) el.parentNode.removeChild(el);
+    if (window.BackStack) window.BackStack.pop('research-card');
   }
 
   function _showCard(res) {
+    window._researchActive = false;   // flow reached its end screen
     _kill();
     var itemNum = res.itemNum || '';
     var mfr     = res.manufacturer || '';
@@ -90,12 +92,14 @@
       +   '<button id="rs-close" style="padding:0.6rem;border-radius:9px;border:1.5px solid var(--border,#333);background:var(--surface2,#26262e);color:var(--text-mid,#aaa);font-size:0.85rem;cursor:pointer;font-family:var(--font-body,inherit)">Close</button>'
       + '</div></div>';
     document.body.appendChild(ov);
+    if (window.BackStack) window.BackStack.push('research-card', _kill);
 
-    document.getElementById('rs-ebay').onclick = function () {
-      window.open(_ebaySoldUrl(itemNum, mfr, road), '_blank');
-    };
-    document.getElementById('rs-again').onclick = function () { _kill(); window.openResearch(); };
-    document.getElementById('rs-close').onclick = _kill;
+    var _b1 = document.getElementById('rs-ebay');
+    if (_b1) _b1.onclick = function () { window.open(_ebaySoldUrl(itemNum, mfr, road), '_blank'); };
+    var _b2 = document.getElementById('rs-again');
+    if (_b2) _b2.onclick = function () { _kill(); window.openResearch(); };
+    var _b3 = document.getElementById('rs-close');
+    if (_b3) _b3.onclick = _kill;
 
     _fillMarket(itemNum, res.variation || '');
   }
@@ -130,7 +134,35 @@
       if (typeof showToast === 'function') showToast('Identify is still loading — try again in a second', 3000, true);
       return;
     }
-    window.openBoxIdentify(function (res) { _showCard(res || {}); }, function () {}, null);
+    // Flag consulted by the identify modal (Lens fail-safe path): while true,
+    // extracted results route to the research card instead of the Add wizard.
+    window._researchActive = true;
+    window.openBoxIdentify(
+      function (res) { _showCard(res || {}); },
+      function () { window._researchActive = false; },
+      null
+    );
+  };
+
+  // Entry point for the identify-modal return paths (Lens screenshot read,
+  // paste, manual number) when Research mode kicked the flow off.
+  window._researchShowFromMeta = function (itemNum, meta) {
+    meta = meta || {};
+    var num = itemNum || meta.itemNum || '';
+    var m = null;
+    if (num && typeof findMaster === 'function') {
+      try { m = findMaster(num, ''); } catch (e) {}
+    }
+    _showCard({
+      itemNum: num,
+      manufacturer: meta.manufacturer || (m && m.manufacturer) || '',
+      roadName: meta.roadName || '',
+      description: meta.description || '',
+      masterItem: m,
+      notInMaster: !m,
+      aiMeta: meta,
+      variation: ''
+    });
   };
 
   // Latent-bug safety net: the Want-list rows call wantFindOnEbay(...) but no
