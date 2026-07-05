@@ -649,13 +649,23 @@ async function _identifyOpenLens() {
     // labels. AI Overview tends to mirror this format in its answer, which
     // makes our labeled-field parser much more reliable. Also tells the AI
     // which sources to lean on (Trainz, train-station.com, lionelsupport.com).
+    // v0.9.684: universal + adaptive question — always asks the 5 core facts
+    // (mfr / SKU / year / scale / description) then branches by what the photo
+    // shows, so buildings, posters, catalogs, instruction sheets and other
+    // advertising get useful questions instead of "cab number: not applicable".
     var q = 'Identify this ' + subject + mfrPhrase + '. Provide each on its own line: '
-          + 'Manufacturer SKU or catalog number (the unique product code from the catalog, NOT the cab number printed on the model); '
-          + 'Year manufactured; '
-          + 'Road name (the railroad represented); '
-          + 'Cab number printed on the model; '
-          + 'Locomotive class or body style. '
-          + 'Cite sources like Trainz, train-station.com, lionelsupport.com, or manufacturer catalogs.';
+          + 'Manufacturer; '
+          + 'Manufacturer SKU or catalog number (the unique product code from the catalog, NOT a cab or road number painted on a model); '
+          + 'Year manufactured or published; '
+          + 'Scale or gauge (e.g. O, O-27, Standard Gauge, HO, S); '
+          + 'Description (one line, include the product line or series name). '
+          + 'If it is a locomotive or train car, also give: Road name (the railroad represented); '
+          + 'Cab number printed on the model; Locomotive class or body style. '
+          + 'If it is a building or accessory, also give: Structure type (what the building or accessory is). '
+          + 'If it is a poster, catalog, instruction sheet, or other paper/advertising item, also give: '
+          + 'Title; Form or part number printed on it; Belongs to item or set (which product it goes with); '
+          + 'Original or reproduction. '
+          + 'Cite sources like Trainz, train-station.com, lionelsupport.com, postwarlionel.com, or manufacturer catalogs.';
     const url = 'https://www.google.com/searchbyimage?image_url=' + encodeURIComponent(staged.url) + '&q=' + encodeURIComponent(q);
     window.open(url, '_blank');
     if (searchBtn) { searchBtn.disabled = false; searchBtn.innerHTML = origText; }
@@ -975,8 +985,16 @@ function extractIdentifyMetadata(text, opts) {
   const _yearLabels     = ['year manufactured','year made','year produced','year','manufactured','produced','date'];
   const _roadLabels     = ['road name','railroad','road','railway'];
   const _cabLabels      = ['cab number','cab #','cab no','locomotive number','engine number','road number'];
-  const _classLabels    = ['locomotive class','class','body style','body type','wheel arrangement','type'];
+  const _classLabels    = ['locomotive class','class','body style','body type','wheel arrangement','structure type','type'];
   const _mfrLabels      = ['manufacturer','maker','made by','brand'];
+  // v0.9.684: universal + paper/advertising labels (matches the upgraded
+  // Lens question and backend v1.7 prompt).
+  const _gaugeLbls      = ['scale or gauge','scale','gauge'];
+  const _descLbls       = ['description'];
+  const _titleLbls      = ['title'];
+  const _formLbls       = ['form or part number','form number','part number'];
+  const _belongsLbls    = ['belongs to item or set','belongs to','for item or set'];
+  const _reproLbls      = ['original or reproduction','reproduction or original'];
   function _pickLabel(map, candidates) {
     // Exact-match pass first (fastest, highest precision).
     for (const c of candidates) {
@@ -1001,6 +1019,31 @@ function extractIdentifyMetadata(text, opts) {
   const lblCab   = _pickLabel(labels, _cabLabels);
   const lblClass = _pickLabel(labels, _classLabels);
   const lblMfr   = _pickLabel(labels, _mfrLabels);
+  const lblGauge   = _pickLabel(labels, _gaugeLbls);
+  const lblDesc    = _pickLabel(labels, _descLbls);
+  const lblTitle   = _pickLabel(labels, _titleLbls);
+  const lblForm    = _pickLabel(labels, _formLbls);
+  const lblBelongs = _pickLabel(labels, _belongsLbls);
+  const lblRepro   = _pickLabel(labels, _reproLbls);
+  // Shared cleaner for the new labels: strip markdown/quotes, reject
+  // Unknown/N-A-style filler (paren-stripped first, same as the junk scrub).
+  function _lblClean(v) {
+    if (!v) return '';
+    v = String(v).replace(/\*\*/g, '').trim();
+    var bare = v.replace(/\s*\([^)]*\)\s*/g, ' ').trim();
+    if (/^(unknown|unclear|n\/?a\b|none|not specified|not visible|illegible|not shown|not applicable)/i.test(bare)) return '';
+    return v;
+  }
+  // Normalize any gauge phrasing ("O Scale / 1:48", "Standard Gauge") to the
+  // short form the manual-entry dropdown uses.
+  function _normGauge(s) {
+    if (!s) return '';
+    var m = String(s).match(/\b(standard|o-?27|ho|n|s|g|o)\b[\s\/]*(?:scale|gauge)?/i);
+    if (!m && /\b1\s*:\s*48\b/.test(String(s))) return 'O';
+    if (!m) return '';
+    var t = m[1].toUpperCase().replace('O27', 'O-27');
+    return t === 'STANDARD' ? 'Standard' : t;
+  }
 
   // Item number — use labeled value only if it doesn't contain a hedge phrase.
   // Track whether itemNum came from the explicit label so the year-equality
@@ -1090,12 +1133,18 @@ function extractIdentifyMetadata(text, opts) {
   }
 
   // Sub-type / locomotive class.
-  for (const st of _IDENTIFY_SUBTYPES) {
-    const escaped = st.replace(/[-]/g, '[-\\s]?');
-    try {
-      const re = new RegExp('\\b' + escaped + '\\b', 'i');
-      if (re.test(raw)) { out.subType = st; break; }
-    } catch(e) {}
+  // v0.9.684: scan the LABELED body-style value first — scanning raw text
+  // matched "Pacific" inside road name "Southern Pacific" while the label
+  // said "Northern".
+  for (const _src of [lblClass, raw]) {
+    if (!_src || out.subType) continue;
+    for (const st of _IDENTIFY_SUBTYPES) {
+      const escaped = st.replace(/[-]/g, '[-\\s]?');
+      try {
+        const re = new RegExp('\\b' + escaped + '\\b', 'i');
+        if (re.test(_src)) { out.subType = st; break; }
+      } catch(e) {}
+    }
   }
   // v0.9.683: the dictionary above only knows locomotives + rolling stock —
   // for buildings/accessories fall back to the labeled body-style value
@@ -1144,6 +1193,10 @@ function extractIdentifyMetadata(text, opts) {
   // v0.9.683: prose sentences WRAP across lines on phone screenshots — match
   // against a whitespace-joined copy so the capture runs to the period, not
   // the line break ("O Scale Valley⏎Motors…" bug).
+  // v0.9.684: plain labeled "Description:" line (both engines now ask for it)
+  // wins over prose guessing.
+  if (!out.description && lblDesc) { var _dv = _lblClean(lblDesc); if (_dv) out.description = _dv; }
+  if (!out.gauge && lblGauge) { var _gv = _normGauge(_lblClean(lblGauge)); if (_gv) out.gauge = _gv; }
   var _prose = raw.replace(/\s*\n+\s*/g, ' ');
   if (!out.description) {
     var _pm = _prose.match(/(?:item|model|product)\s+(?:in\s+the\s+(?:image|photo|picture)\s+)?(?:is|appears\s+to\s+be)\s+(?:a|an|the)?\s*([^.]{6,140})/i);
@@ -1160,11 +1213,8 @@ function extractIdentifyMetadata(text, opts) {
   // "(O Scale / 1:48)", "Standard Gauge") when no labeled/Known value came.
   if (!out.gauge) {
     var _gm = _prose.match(/\b(standard|o-?27|ho|n|s|g|o)\s*[- ]?(?:scale|gauge)\b/i);
-    if (!_gm && /\b1\s*:\s*48\b/.test(_prose)) _gm = [null, 'O'];
-    if (_gm) {
-      var _gt = _gm[1].toUpperCase().replace('O27', 'O-27');
-      out.gauge = _gt === 'STANDARD' ? 'Standard' : _gt;
-    }
+    if (_gm) out.gauge = _normGauge(_gm[0]);
+    else if (/\b1\s*:\s*48\b/.test(_prose)) out.gauge = 'O';
   }
 
   // ── v0.9.662: merge the AI's "Known ..." knowledge lines (backend v1.4) ──
@@ -1193,6 +1243,46 @@ function extractIdentifyMetadata(text, opts) {
       }
     }
   });
+
+  // ── v0.9.684: paper / advertising fields (posters, catalogs, instruction
+  // sheets, ads). Title becomes/leads the description; a printed form/part
+  // number is the item number when no catalog SKU was found; belongs-to and
+  // original-vs-reproduction enrich the description.
+  (function () {
+    var t = _lblClean(lblTitle);
+    if (t) {
+      if (!out.description) out.description = t;
+      else if (String(out.description).toLowerCase().indexOf(t.toLowerCase()) < 0) out.description = t + ' — ' + out.description;
+    }
+    var f = _lblClean(lblForm);
+    if (f && !out.itemNum && /\d/.test(f)) {
+      out.itemNum = (extractLionelNumber(f) || f.replace(/\s*\([^)]*\)\s*/g, '').trim());
+    }
+    var b = _lblClean(lblBelongs);
+    if (b && out.description && String(out.description).toLowerCase().indexOf(b.toLowerCase()) < 0) {
+      out.description = out.description + ' — for ' + b;
+    }
+    var rp = _lblClean(lblRepro);
+    if (rp && out.description) {
+      if (/repro|reprint|replica|copy/i.test(rp)) out.description = out.description + ' (reproduction)';
+      else if (/original/i.test(rp)) out.description = out.description + ' (original)';
+    }
+    // Paper item detected (any paper label answered): a "cab number" the
+    // fallback regex fished out of the title ("No. 3472 Milk Car") is noise —
+    // keep it only when the AI explicitly labeled one. Also give the item a
+    // paper subType so the manual-entry type maps to Paper.
+    if (t || f || b || rp) {
+      if (out.cabNum && !lblCab) delete out.cabNum;
+      if (!out.subType) {
+        var _hay = (t + ' ' + String(out.description || '')).toLowerCase();
+        out.subType = /instruction|manual/.test(_hay) ? 'Instruction Sheet'
+                    : /catalog/.test(_hay) ? 'Catalog'
+                    : /poster/.test(_hay) ? 'Poster'
+                    : /brochure|flyer|pamphlet|advertis/.test(_hay) ? 'Advertising'
+                    : 'Paper';
+      }
+    }
+  })();
 
   // ── v0.9.660 post-processing (single source for AI / Lens / paste paths) ──
   // (1) Scrub literal "unknown"-style values the honest AI returns — they made
@@ -1505,6 +1595,7 @@ function _mapSubTypeToManualType(subType) {
   if (/(?:boxcar|reefer|hopper|gondola|flatcar|tank car|stock car)/i.test(s)) return 'Freight Car';
   if (/caboose/i.test(s)) return 'Caboose';
   if (/(?:coach|pullman|vista dome|diner|baggage|passenger)/i.test(s)) return 'Passenger Car';
+  if (/(?:poster|catalog|brochure|flyer|pamphlet|instruction|manual|advertis|reprint|paperwork|paper item|paper\b)/i.test(s)) return 'Paper';
   if (/(?:building|structure|factory|station|tower|bridge|platform|billboard|accessor|dealership|store|shop|house|barn|depot)/i.test(s)) return 'Accessory';
   if (/(?:track|switch)/i.test(s)) return 'Track';
   if (/(?:transformer|powerhouse|powermaster)/i.test(s)) return 'Transformer';
