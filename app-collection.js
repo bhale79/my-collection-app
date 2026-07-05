@@ -2517,6 +2517,15 @@ function showItemPanel(idx, pdKey, mode) {
     saveBtn.style.cssText = 'flex:1;background:#2980b9;border-color:#2980b9;font-weight:600';
     saveBtn.textContent = '💾 Save All Changes';
     saveBtn.onclick = async function() {
+      // v0.9.705 (Brad): a field still OPEN in its edit box hasn't been
+      // committed to pd yet (that's what the ✓ did) — hitting Save All
+      // without tapping ✓ silently discarded the typed value. Commit any
+      // open editor first, so Save All means ALL, no ✓ required.
+      if (editingKey) {
+        var _openInp = document.getElementById('panel-inp-' + editingKey);
+        if (_openInp) pd[editingKey] = _openInp.value;
+        editingKey = null;
+      }
       saveBtn.textContent = 'Saving…'; saveBtn.disabled = true;
       // Collect all current pd values (updated in-place during edits)
       const priceItem = pd.priceItem || '';
