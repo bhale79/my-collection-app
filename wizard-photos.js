@@ -32,6 +32,7 @@ var _pickerViewKey = null;
 
 // ── Identify by Photo state ───────────────────────────────────
 let _identifyCallerContext = null;
+let _identifyWasResearch = false;   // v0.9.692: survives closeIdentify(), unlike the context/flag
 let _identifySelectedNum = null;
 
 // ── Device detection (shared by picker UI) ────────────────────
@@ -198,6 +199,7 @@ function _identifyClearStash() {
 
 function openIdentify(context) {
   _identifyCallerContext = context;
+  _identifyWasResearch = (context === 'research');
   _identifyClearStash();
   _identifySelectedNum = null;
   const modal = document.getElementById('identify-modal');
@@ -282,7 +284,23 @@ function _identifyProcessText(txt) {
   // It handles hedge detection so we don't grab a cab# disguised as item#.
   var meta = extractIdentifyMetadata(txt);
   var extracted = meta.itemNum;
-  if (!extracted) return meta._hedge ? 'hedge' : 'none';
+  if (!extracted) {
+    // v0.9.692 (Brad's 1966 dealer abacus): promotional and other
+    // no-catalog-number items are REAL — when the answer is otherwise rich
+    // (description + maker/year/type), route straight to manual entry (or the
+    // research card) with everything prefilled and the number left blank,
+    // instead of dead-ending on "couldn't pin the item number".
+    var _rich = meta.description && (meta.manufacturer || meta.year || meta.subType);
+    if (_rich && (_identifyCallerContext === 'wizard' || _identifyCallerContext === 'research') && typeof _identifyRouteToManualEntry === 'function') {
+      if (typeof wizard !== 'undefined' && wizard && wizard.data) wizard.data._identifyMeta = meta;
+      if (typeof showToast === 'function') showToast("No catalog number — this item doesn't have one. Using the details found…", 3500);
+      var _rMfrs = (typeof _getSelectedIdentifyMfrs === 'function') ? _getSelectedIdentifyMfrs() : [];
+      closeIdentify();
+      _identifyRouteToManualEntry('', meta, _rMfrs);
+      return 'applied';
+    }
+    return meta._hedge ? 'hedge' : 'none';
+  }
   // We have a hit — fill the input visibly.
   var inp = document.getElementById('identify-manual-input');
   if (inp) inp.value = extracted;
@@ -975,6 +993,12 @@ function extractIdentifyMetadata(text, opts) {
   // labeled-field parser sees one "Label: value" per line.
   raw = raw.split('\n').map(function (ln) { return ln.replace(/^[e¢•·*o]\s+(?=[A-Z])/, ''); }).join('\n');
   raw = raw.replace(/\n(?=(?:Number|Name|Style)\s*:)/gi, ' ');
+  // v0.9.692: general wrapped-label rejoin — the tail of a wrapped label is a
+  // lowercase word+colon line ("published: 1966", "it: N/A"); REAL labels
+  // start uppercase ("Title:", "Description:"). Without this, "Year
+  // manufactured or⏎published: 1966" fed 1966 into the SKU label (Brad's
+  // abacus screenshot).
+  raw = raw.replace(/\n(?=[a-z][\w '\/]{0,16}:\s)/g, ' ');
   (function () {
     var lines = raw.split('\n'), outL = [];
     for (var i = 0; i < lines.length; i++) {
@@ -1291,7 +1315,11 @@ function extractIdentifyMetadata(text, opts) {
                     : /catalog/.test(_hay) ? 'Catalog'
                     : /poster/.test(_hay) ? 'Poster'
                     : /brochure|flyer|pamphlet|advertis/.test(_hay) ? 'Advertising'
-                    : 'Paper';
+                    // v0.9.692: dealer promo pieces (Brad's 1966 abacus) are
+                    // objects, not paper — map to Other via 'Promotional Item'.
+                    : /promotional|dealer promo|\bpromo\b/.test(_hay) ? 'Promotional Item'
+                    : (f ? 'Paper' : '');
+        if (!out.subType) delete out.subType;
       }
     }
   })();
@@ -1640,8 +1668,9 @@ function _composeManualDescFromMeta(meta) {
 function _identifyRouteToManualEntry(itemNum, meta, userMfrs) {
   // v0.9.686: in Research mode there is no wizard to route to — show the
   // read-only research card with whatever was extracted instead.
-  if (_identifyCallerContext === 'research' || (window._researchActive && typeof window._researchShowFromMeta === 'function')) {
+  if (_identifyCallerContext === 'research' || _identifyWasResearch || window._researchActive) {
     try { closeIdentify(); } catch (e) {}
+    _identifyWasResearch = false;
     if (typeof window._researchShowFromMeta === 'function') { window._researchShowFromMeta(itemNum, meta || {}); return true; }
     return false;
   }
@@ -1711,7 +1740,8 @@ function _applyIdentifiedItem(num) {
   const _scaleHint = (typeof wizard !== 'undefined' && wizard && wizard.data && wizard.data._identifyScaleHint) || '';
   closeIdentify();
   // v0.9.686: Research mode — no wizard steps; straight to the research card.
-  if (_caller === 'research' || (window._researchActive && _caller !== 'wizard')) {
+  if (_caller === 'research' || _identifyWasResearch || (window._researchActive && _caller !== 'wizard')) {
+    _identifyWasResearch = false;
     if (typeof window._researchShowFromMeta === 'function') { window._researchShowFromMeta(num, _meta); return; }
   }
   if (_caller === 'wizard') {
