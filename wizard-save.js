@@ -790,11 +790,15 @@ async function _saveManualEntry() {
   const displayId = itemNum || _composedName;
   const invId = nextInventoryId();
 
-  // Upload photos if present
+  // Photos: the manualPhotos drivePhotos step uploads LIVE and stores links on
+  // d.manualPhotos — read those first (v0.9.694: they were being thrown away;
+  // only the legacy d._drivePhotos field was consulted, which nothing fills).
   let photoLink = '';
-  if (d._drivePhotos && d._drivePhotos.length > 0) {
+  const _mp = d.manualPhotos || {};
+  photoLink = Object.values(_mp).find(function (v) { return v; }) || '';
+  if (!photoLink && d._drivePhotos && d._drivePhotos.length > 0) {
     try {
-      photoLink = await driveUploadItemPhoto(d._drivePhotos[0].file || d._drivePhotos[0], itemNum, 'MANUAL') || '';
+      photoLink = await driveUploadItemPhoto(d._drivePhotos[0].file || d._drivePhotos[0], displayId, 'MANUAL') || '';
     } catch(e) { console.warn('[Manual] Photo upload failed:', e); }
   }
 
