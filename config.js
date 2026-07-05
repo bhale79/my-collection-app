@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.701';
+const APP_VERSION = 'v0.9.702';
 
 // v0.9.699 (Brad's phantom-touch desktop): ONE authoritative "is this actually
 // a phone/tablet?" flag. Touch detection LIES on Windows PCs (pen/driver
@@ -11,6 +11,17 @@ const APP_VERSION = 'v0.9.701';
 // The Macintosh+touch clause catches modern iPads (they masquerade as Macs).
 window.IS_MOBILE_UA = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
   || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+
+// v0.9.702 (Brad): drag-safe backdrop close. A text-selection drag that ends
+// on the dark backdrop fires a "click" on the backdrop (the browser targets
+// the common ancestor of mousedown/mouseup) and was CLOSING edit panels.
+// Only close when the press STARTED on the backdrop too.
+window.bindOverlayClose = function (ov, closeFn) {
+  var down = false;
+  ov.addEventListener('mousedown', function (e) { down = (e.target === ov); });
+  ov.addEventListener('touchstart', function (e) { down = (e.target === ov); }, { passive: true });
+  ov.addEventListener('click', function (e) { if (e.target === ov && down) closeFn(e); down = false; });
+};
 const APP_DATE    = 'April 2026';
 
 // ── varShortLabel — SINGLE SOURCE for short variation labels (v0.9.657) ──
