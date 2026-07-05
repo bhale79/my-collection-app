@@ -1540,6 +1540,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + '<button data-a="use" style="display:block;width:100%;margin-top:14px;padding:12px;border-radius:10px;border:2px solid var(--accent,#e8401c);background:rgba(232,64,28,0.12);color:var(--text,#fff);font-weight:600;font-size:0.95rem;cursor:pointer">Use this</button>'
         + '<div style="display:flex;gap:8px;margin-top:8px">'
         + (info.lensOffer ? '<button data-a="lens" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid #3a6ea5;background:rgba(58,110,165,0.12);color:#cfe3ff;font-size:0.82rem;cursor:pointer">🔍 Google Lens</button>' : '')
+        + (info.aiOffer ? '<button data-a="aionly" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid #16a085;background:rgba(22,160,133,0.12);color:#7fe0cd;font-size:0.82rem;cursor:pointer">🤖 Not this item — ID by AI</button>' : '')
         + '<button data-a="rescan" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);font-size:0.82rem;cursor:pointer">Rescan</button>'
         + '<button data-a="manual" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);font-size:0.82rem;cursor:pointer">Type it instead</button>'
         + '<button data-a="cancel" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);font-size:0.82rem;cursor:pointer">Cancel</button>'
@@ -1806,6 +1807,11 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + '</div>'
         + '<div style="color:#ffd27d;font-size:0.8rem;margin-bottom:0.45rem">Adjust the crop frame if you like (<b>less background = better results</b>) — leave it alone to use the whole photo. The barcode is always read from the full shot.</div>'
         + '<div style="max-height:52vh;overflow:hidden;border-radius:12px;background:#000"><img id="bi-cropimg" style="display:block;max-width:100%"></div>'
+        + '<div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.5rem">'
+        + '<span style="color:var(--text-mid,#ccc);font-size:0.78rem;white-space:nowrap">Rotate</span>'
+        + '<input id="bi-rot" type="range" min="-180" max="180" step="1" value="0" style="flex:1;accent-color:var(--accent,#e8401c)">'
+        + '<span id="bi-rotv" style="color:var(--text-mid,#ccc);font-size:0.78rem;min-width:3.2em;text-align:right">0&deg;</span>'
+        + '</div>'
         + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.55rem">'
         + _biBtn({ act: 'go', txt: '🤖 Multi AI Search' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff;flex:1')
         + _biBtn({ act: 'lens', txt: '🔍 Google Lens Search' })
@@ -1816,8 +1822,19 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       var img = d.querySelector('#bi-cropimg');
       img.src = canvas.toDataURL('image/jpeg', 0.92);
       var cropper = null;
+      // v0.9.691 (Brad): fine-tune rotation — a slider (any angle) + the ↻
+      // button for quick 90° flips. viewMode 0 lets the rotated image extend
+      // past the container instead of being clamped.
+      var rotEl = d.querySelector('#bi-rot'), rotV = d.querySelector('#bi-rotv');
+      function _setRot(v) {
+        v = Math.max(-180, Math.min(180, Math.round(v)));
+        if (rotEl) rotEl.value = v;
+        if (rotV) rotV.textContent = v + '\u00b0';
+        try { if (cropper) cropper.rotateTo(v); } catch (eR) {}
+      }
+      if (rotEl) rotEl.addEventListener('input', function () { _setRot(parseFloat(rotEl.value) || 0); });
       img.onload = function () {
-        try { cropper = new window.Cropper(img, { viewMode: 1, autoCropArea: 1, background: false, movable: true, zoomable: true }); } catch (e) {}
+        try { cropper = new window.Cropper(img, { viewMode: 0, autoCropArea: 1, background: false, movable: true, zoomable: true }); } catch (e) {}
       };
       d.addEventListener('click', function (e) {
         var b = e.target.closest && e.target.closest('[data-bi]');
@@ -1831,7 +1848,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           try { wc = cropper && cropper.getCroppedCanvas({ maxWidth: 2200, maxHeight: 2200 }); } catch (e3) {}
           fin({ work: wc || canvas, action: act === 'lens' ? 'lens' : 'go' });
         }
-        if (act === 'rot') { try { if (cropper) cropper.rotate(90); } catch (e4) {} return; }
+        if (act === 'rot') { var _cv = parseFloat((rotEl && rotEl.value) || 0) || 0; var _nv = _cv + 90; if (_nv > 180) _nv -= 360; _setRot(_nv); return; }
         if (act === 'retake') fin({ action: 'retake' });
         if (act === 'cancel') fin({ action: 'cancel' });
       });
@@ -1839,7 +1856,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   }
 
   // ── Phase 3: staged pipeline with visible status ──
-  async function _biPipeline(fullCanvas, workCanvas, lockedBc, eraHint) {
+  async function _biPipeline(fullCanvas, workCanvas, lockedBc, eraHint, opts) {
     var d = _biOverlay(
       '<div style="width:100%;max-width:560px">'
       + '<div style="color:var(--text,#fff);font-family:var(--font-head,sans-serif);font-size:1.02rem;margin:0.2rem 0 0.6rem">🔎 Identifying…</div>'
@@ -1887,11 +1904,15 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       ocrText = (o && o.data && o.data.text) || '';
     } catch (e) {}
     var rawCands = ocrText ? _extractItemNumberCandidates(ocrText) : [];
+    // v0.9.691: "Not this — identify the item by AI" re-run: printed numbers
+    // in frame belong to NEIGHBORING items — ignore them all.
+    if (opts && opts.ignoreNums) rawCands = [];
     out.ocrNums = (rawCands || []).map(function (c) { return String((c && (c.raw || c.num || c.itemNum)) || c || '').trim(); })
       .filter(function (v) { return v && v !== '[object Object]'; });
     // carry the extractor's maker tag too (e.g. MTH pattern hit)
     if (!out.bcMaker) { var _cm = (rawCands || []).map(function (c) { return c && c.mfr; }).filter(Boolean)[0]; if (_cm) out.bcMaker = _cm; }
     out.ocrDesc = ocrText ? _bcDescriptionGuess(ocrText, out.ocrNums[0] || null) : '';
+    if (opts && opts.ignoreNums) out.ocrDesc = '';
     var kwMfr = ocrText ? _mfrFromKeywords(ocrText) : '';
     if (!out.bcMaker && kwMfr) out.bcMaker = kwMfr;
     st('ocr', out.ocrNums.length ? '🔤' : '➖',
@@ -2100,14 +2121,41 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         }
         // Confirm before anything fills (house rule)
         _biKill();
-        var cc = await _bcConfirmCard({
-          itemNum: res.itemNum, manufacturer: res.manufacturer,
-          roadName: res.roadName || (res.masterItem && res.masterItem.roadName) || '',
-          description: res.description || res.labelDescription || '',
-          notInMaster: res.notInMaster, noItemNum: res.noItemNum,
-          verifiedNote: res.aiGuess ? '⚠ AI guess from the photo alone — double-check, or try Google Lens' : res.verifiedNote,
-          eraTag: res.eraTag, lensOffer: !!res.aiGuess
-        });
+        function _biInfoFor(r, aiOffer) {
+          return {
+            itemNum: r.itemNum, manufacturer: r.manufacturer,
+            roadName: r.roadName || (r.masterItem && r.masterItem.roadName) || '',
+            description: r.description || r.labelDescription || '',
+            notInMaster: r.notInMaster, noItemNum: r.noItemNum,
+            verifiedNote: r.aiGuess ? '⚠ AI guess from the photo alone — double-check, or try Google Lens' : r.verifiedNote,
+            eraTag: r.eraTag, lensOffer: !!r.aiGuess, aiOffer: !!aiOffer
+          };
+        }
+        // v0.9.691 (Brad's 0209-barrels case): a number read from LETTERING with
+        // no barcode lock can belong to a NEIGHBORING box on a shelf — offer an
+        // ignore-the-numbers AI re-run right on the confirm card.
+        var _aiOffer = !cap.lockedBc && !!res.itemNum && !res.aiGuess;
+        var cc = await _bcConfirmCard(_biInfoFor(res, _aiOffer));
+        if (cc === 'aionly') {
+          var resA = await _biPipeline(cap.raw, cr.work, null, eraHint, { ignoreNums: true });
+          if (resA && !resA.__biFail) {
+            if (resA._boxPhoto) { try { resA._boxPhotoFile = await _biCanvasToFile(cr.work, 'box-label.jpg'); } catch (eF3) {} }
+            _biKill();
+            res = resA;
+            cc = await _bcConfirmCard(_biInfoFor(res, false));
+          } else {
+            var cf = await _biFailCard((resA && resA.out) || {});
+            if (cf === 'retake') continue;
+            if (cf === 'lens') {
+              var fA = await _biCanvasToFile(cr.work, 'lens-failsafe.jpg');
+              _biKill();
+              if (typeof window._identifyOpenWithPhoto === 'function') window._identifyOpenWithPhoto(fA, true);
+              else if (onCancel) onCancel();
+              return;
+            }
+            _biKill(); if (onCancel) onCancel(); return;
+          }
+        }
         if (cc === 'use') { if (onScanned) onScanned(res); return; }
         if (cc === 'lens') {
           var fC = await _biCanvasToFile(cr.work, 'lens-confirm.jpg');
