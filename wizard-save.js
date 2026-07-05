@@ -710,6 +710,9 @@ async function savePhotoOnlyUpdate() {
     try {
       await sheetsUpdate(state.personalSheetId, 'My Collection!' + personalColLetter('photoItem') + pd.row, [[folderLink]]);
       pd.photoItem = folderLink;
+      // v0.9.697: without this, the 2-hour personal-data cache reloads WITHOUT
+      // the new photo link — "saved" data vanished on next app load (Brad).
+      if (typeof _cachePersonalData === 'function') _cachePersonalData();
       showToast('✓ Photos saved!');
       // v0.9.696 (Brad): the detail page under the wizard is STALE — the new
       // photo never appeared at the bottom until back-and-reopen. Re-render.
