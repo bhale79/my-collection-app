@@ -441,7 +441,7 @@ function _openLevelPicker(level) {
   // page text doesn't bleed through and make the modal hard to read.
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9999;'
                        + 'display:flex;align-items:center;justify-content:center;padding:1rem';
-  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  bindOverlayClose(overlay, function() { overlay.remove(); });
   var modal = document.createElement('div');
   modal.style.cssText = 'background:var(--bg-card);border-radius:12px;padding:1.1rem;'
                      + 'max-width:340px;width:100%;max-height:80vh;overflow:auto;'
