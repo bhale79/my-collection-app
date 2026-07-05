@@ -243,6 +243,8 @@ function _buildWizardModal() {
       +         '<option value="tank car">Tank Car</option>'
       +         '<option value="gondola">Gondola</option>'
       +         '<option value="accessory">Accessory</option>'
+      +         '<option value="building">Building / Structure</option>'
+      +         '<option value="paper or advertising item">Paper / Advertising</option>'
       +         '<option value="set">Set</option>'
       +       '</select>'
       +     '</div>'
