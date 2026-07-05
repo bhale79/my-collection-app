@@ -1816,6 +1816,23 @@ window.addEventListener('load', function() {
 function showPhotoSourcePicker(stepId, viewKey) {
   _pickerStepId = stepId;
   _pickerViewKey = viewKey;
+  // v0.9.698 (Brad): on a real computer, skip the chooser AND the camera —
+  // straight to the file dialog. Touch detection lies on touchscreen PCs
+  // (Brad's desktop offered the webcam), so decide by user agent instead.
+  var _mobileUA = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if (!_mobileUA) {
+    var _dinp = document.getElementById('picker-input-lib');
+    if (!_dinp) {
+      _dinp = document.createElement('input');
+      _dinp.type = 'file'; _dinp.id = 'picker-input-lib';
+      _dinp.accept = 'image/*'; _dinp.style.display = 'none';
+      _dinp.addEventListener('change', function () { pickerHandleFile(_dinp, false); });
+      document.body.appendChild(_dinp);
+    }
+    _dinp.value = '';
+    _dinp.click();
+    return;
+  }
   // Update button labels based on device type
   const camLabel = document.getElementById('picker-cam-label');
   const libLabel = document.getElementById('picker-lib-label');
