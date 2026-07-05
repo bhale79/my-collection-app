@@ -1712,15 +1712,24 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       var d = _biOverlay(
         '<div style="width:100%;max-width:560px">'
         + '<div style="color:var(--text,#fff);font-family:var(--font-head,sans-serif);font-size:1.02rem;margin:0.2rem 0 0.45rem">📷 Identify from Photo</div>'
-        + '<div id="bi-guide" style="color:#ffd27d;font-size:0.82rem;line-height:1.45;margin-bottom:0.5rem">Get the <b>barcode AND the printed item number</b> in the shot. No barcode? A clear shot of the box end/side with the number — or of the <b>item itself</b> (road name &amp; number visible). Already have a photo? Use <b>🖼 gallery</b> below.</div>'
-        + '<div style="width:100%;aspect-ratio:4/3;border-radius:12px;background:#000;overflow:hidden"><video id="bi-video" autoplay playsinline style="width:100%;height:100%;object-fit:cover"></video></div>'
-        + '<div id="bi-camstatus" style="color:var(--text-dim,#999);font-size:0.8rem;min-height:1.2rem;margin:0.4rem 0">Starting camera…</div>'
-        + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap">'
-        + _biBtn({ act: 'snap', txt: '📸 Capture' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff;flex:2')
-        + _biBtn({ act: 'gallery', txt: '🖼 Photo from gallery' })
-        + (_biLastShot ? _biBtn({ act: 'last', txt: '↩ Use last photo' }) : '')
-        + _biBtn({ act: 'cancel', txt: 'Cancel' })
-        + '</div>'
+        // v0.9.704 (Brad): desktops get NO camera UI — upload only. The webcam
+        // was never useful for photographing boxes on a shelf, and phantom-touch
+        // PCs were showing the whole mobile capture rig.
+        + (window.IS_MOBILE_UA
+          ? ('<div id="bi-guide" style="color:#ffd27d;font-size:0.82rem;line-height:1.45;margin-bottom:0.5rem">Get the <b>barcode AND the printed item number</b> in the shot. No barcode? A clear shot of the box end/side with the number — or of the <b>item itself</b> (road name &amp; number visible). Already have a photo? Use <b>🖼 gallery</b> below.</div>'
+            + '<div style="width:100%;aspect-ratio:4/3;border-radius:12px;background:#000;overflow:hidden"><video id="bi-video" autoplay playsinline style="width:100%;height:100%;object-fit:cover"></video></div>'
+            + '<div id="bi-camstatus" style="color:var(--text-dim,#999);font-size:0.8rem;min-height:1.2rem;margin:0.4rem 0">Starting camera…</div>'
+            + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap">'
+            + _biBtn({ act: 'snap', txt: '📸 Capture' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff;flex:2')
+            + _biBtn({ act: 'gallery', txt: '🖼 Photo from gallery' })
+            + (_biLastShot ? _biBtn({ act: 'last', txt: '↩ Use last photo' }) : '')
+            + _biBtn({ act: 'cancel', txt: 'Cancel' })
+            + '</div>')
+          : ('<div id="bi-guide" style="color:#ffd27d;font-size:0.82rem;line-height:1.45;margin-bottom:0.5rem">Pick a photo of the <b>box end/side with the printed number</b> — or of the <b>item itself</b> (road name &amp; number visible). Less background = better results.</div>'
+            + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap">'
+            + _biBtn({ act: 'gallery', txt: '🖼 Choose a photo from this computer' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff;flex:2')
+            + _biBtn({ act: 'cancel', txt: 'Cancel' })
+            + '</div>'))
         + '<input type="file" id="bi-file" accept="image/*" style="display:none">'
         + '</div>');
       var video = d.querySelector('#bi-video');
@@ -1761,6 +1770,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         };
         img.src = URL.createObjectURL(f);
       });
+      if (!window.IS_MOBILE_UA) return;   // v0.9.704: desktop = upload only, never touch the webcam
       navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 } }, audio: false })
         .then(function (s) {
           stream = s; _biStream = s; video.srcObject = s;
