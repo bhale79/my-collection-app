@@ -1685,12 +1685,19 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     d.innerHTML = inner;
     return d;
   }
-  function _biKill() { var d = document.getElementById('bi-overlay'); if (d) d.remove(); }
+  var _biStream = null, _biOnCancel = null;
+  function _biKill() {
+    var d = document.getElementById('bi-overlay'); if (d) d.remove();
+    try { if (_biStream) { _biStream.getTracks().forEach(function (t) { t.stop(); }); _biStream = null; } } catch (e) {}
+    _biOnCancel = null;
+    if (window.BackStack) window.BackStack.pop('box-identify');
+  }
 
   // ── Phase 1: camera (with live barcode lock) or gallery pick ──
   function _biCapture() {
     return new Promise(function (resolve) {
       var stream = null, stopLoop = false, lastRaw = '', confirmN = 0;
+      // (module-level mirror set where getUserMedia resolves, so _biKill can stop it)
       function done(out) {
         stopLoop = true;
         try { if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
@@ -1748,7 +1755,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       });
       navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 } }, audio: false })
         .then(function (s) {
-          stream = s; video.srcObject = s;
+          stream = s; _biStream = s; video.srcObject = s;
           stat.textContent = 'Aim at the box end — barcode + item number. Auto-captures when a barcode locks.';
           var nativeDet = _biHasBD ? new window.BarcodeDetector({ formats: ['ean_13', 'upc_a', 'ean_8', 'upc_e', 'code_128', 'code_39'] }) : null;
           if (!nativeDet) _loadZXing().catch(function () {});
@@ -1996,6 +2003,14 @@ window.eraSupportsBarcode = eraSupportsBarcode;
 
   // ── Public entry ──
   async function openBoxIdentify(onScanned, onCancel, eraHint) {
+    // v0.9.686 (Brad): device/browser BACK closes the identify overlay like
+    // Cancel does, instead of navigating the app away underneath it.
+    _biOnCancel = onCancel || null;
+    if (window.BackStack) window.BackStack.push('box-identify', function () {
+      var f = _biOnCancel; _biOnCancel = null;
+      _biKill();
+      if (f) f();
+    });
     try {
       while (true) {
         var cap = await _biCapture();
