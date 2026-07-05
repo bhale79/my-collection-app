@@ -1099,8 +1099,10 @@ function extractIdentifyMetadata(text, opts) {
   // Year — prefer labeled value, then raw text. Plausible 1900-2030.
   function _grabYear(s) {
     if (!s) return null;
-    const m = String(s).match(/\b(19[0-9]{2}|20[0-2][0-9]|2030)\b/);
-    return m ? m[1] : null;
+    // v0.9.688 (Brad): backend v1.9 marks approximate years "~2021" — keep
+    // the ~ so the saved row shows the year is an estimate.
+    const m = String(s).match(/(~\s?)?\b(19[0-9]{2}|20[0-2][0-9]|2030)\b/);
+    return m ? ((m[1] ? '~' : '') + m[2]) : null;
   }
   out.year = _grabYear(lblYear) || _grabYear(raw) || undefined;
   if (!out.year) delete out.year;
