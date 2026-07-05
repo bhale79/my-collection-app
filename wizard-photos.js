@@ -1150,6 +1150,12 @@ function extractIdentifyMetadata(text, opts) {
     return m ? ((m[1] ? '~' : '') + m[2]) : null;
   }
   out.year = _grabYear(lblYear) || _grabYear(raw) || undefined;
+  // v0.9.700 (Brad's Railroaders): "Late 1940s-1950s" has no exact year but IS
+  // the answer — keep the labeled text when it names a decade/era.
+  if (!out.year && lblYear) {
+    var _yv = _lblClean(lblYear).replace(/\s*\([^)]*\)\s*/g, ' ').trim();
+    if (/\b(19|20)\d{2}s?\b/.test(_yv) && _yv.length <= 30) out.year = _yv;
+  }
   if (!out.year) delete out.year;
 
   // Cab number — prefer labeled value (which is unambiguous), else regex on raw.
@@ -1215,6 +1221,16 @@ function extractIdentifyMetadata(text, opts) {
       const re = new RegExp('\\b' + escaped + '\\b', 'i');
       if (re.test(raw)) { out.manufacturer = mfr; break; }
     } catch(e) {}
+  }
+  // v0.9.700 (Brad's Lincoln Logs Railroaders): a LABELED maker that isn't on
+  // the known-8 list is still a real maker — keep it (trim the ", Chicago IL"
+  // style address tail; the canon pass below leaves unknowns untouched).
+  // EXACT label keys only — the fuzzy _pickLabel substring pass would match
+  // "manufacturer sku or catalog number" and hand us the SKU as a "maker".
+  var _lmExact = labels['manufacturer'] || labels['maker'] || labels['brand'] || labels['made by'] || '';
+  if (!out.manufacturer && _lmExact) {
+    var _lm = _lblClean(_lmExact).split(',')[0].trim();
+    if (_lm && _lm.length <= 40 && !/\d{2,}/.test(_lm) && !/^(unknown|various|generic)/i.test(_lm)) out.manufacturer = _lm;
   }
 
   // Variation flag.
