@@ -3,7 +3,14 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.698';
+const APP_VERSION = 'v0.9.699';
+
+// v0.9.699 (Brad's phantom-touch desktop): ONE authoritative "is this actually
+// a phone/tablet?" flag. Touch detection LIES on Windows PCs (pen/driver
+// phantom touch devices), so phone-ness checks use the user agent instead.
+// The Macintosh+touch clause catches modern iPads (they masquerade as Macs).
+window.IS_MOBILE_UA = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+  || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 const APP_DATE    = 'April 2026';
 
 // ── varShortLabel — SINGLE SOURCE for short variation labels (v0.9.657) ──
