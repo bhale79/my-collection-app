@@ -2020,7 +2020,7 @@ async function saveWizardItem() {
     // Longer delay on mobile to give Sheets time to propagate
     localStorage.removeItem('lv_personal_cache');
     localStorage.removeItem('lv_personal_cache_ts');
-    const _syncDelay = typeof _isTouchDevice !== 'undefined' && _isTouchDevice ? 3000 : 1500;
+    const _syncDelay = window.IS_MOBILE_UA ? 3000 : 1500;   // v0.9.699
     setTimeout(async function() {
       try {
         await loadPersonalData();
