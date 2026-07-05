@@ -185,7 +185,7 @@ function _openFullCollPicker() {
   var overlay = document.createElement('div');
   overlay.id = 'pick-fs-overlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem';
-  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  bindOverlayClose(overlay, function() { overlay.remove(); });
 
   var accentColor = wizard.tab === 'forsale' ? '#e67e22' : '#2ecc71';
   var titleText = wizard.tab === 'forsale' ? 'Pick Item to List' : 'Pick Item to Sell';
