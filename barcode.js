@@ -1809,6 +1809,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.55rem">'
         + _biBtn({ act: 'go', txt: '🤖 Multi AI Search' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff;flex:1')
         + _biBtn({ act: 'lens', txt: '🔍 Google Lens Search' })
+        + _biBtn({ act: 'rot', txt: '↻ Rotate' })
         + _biBtn({ act: 'retake', txt: '↺ Retake' })
         + _biBtn({ act: 'cancel', txt: 'Cancel' })
         + '</div></div>');
@@ -1830,6 +1831,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           try { wc = cropper && cropper.getCroppedCanvas({ maxWidth: 2200, maxHeight: 2200 }); } catch (e3) {}
           fin({ work: wc || canvas, action: act === 'lens' ? 'lens' : 'go' });
         }
+        if (act === 'rot') { try { if (cropper) cropper.rotate(90); } catch (e4) {} return; }
         if (act === 'retake') fin({ action: 'retake' });
         if (act === 'cancel') fin({ action: 'cancel' });
       });
@@ -1898,6 +1900,23 @@ window.eraSupportsBarcode = eraSupportsBarcode;
 
     // Stage 3 — master lookup (printed number WINS over barcode)
     st('master', '<span class="bi-spin">⟳</span>', 'Catalog: checking…');
+    // v0.9.690 (Brad's shelf photo): 2+ DIFFERENT numbers in one shot usually
+    // means neighboring boxes crept into the frame (0209 barrels + 3424-100
+    // signal set + 3656 …) — never bet on the first one. Ask which, or none.
+    var _dnums = Array.from(new Set(out.ocrNums));
+    var _dbases = Array.from(new Set(_dnums.map(function (n) { return String(n).replace(/-\d{1,3}$/, '').replace(/[A-Z]{1,2}$/i, ''); })));
+    if (_dbases.length >= 2) {
+      st('master', '❓', 'Catalog: ' + _dnums.length + ' different numbers in the shot — which one is YOUR item?', '#ffd27d');
+      var _pickN = await _biNumPicker(_dnums);
+      if (_pickN === 'none' || _pickN === 'cancel') {
+        out.ocrNums = []; rawCands = []; out.ocrDesc = '';
+        st('master', '➖', 'Catalog: numbers skipped — identifying the item itself');
+      } else {
+        out.ocrNums = [_pickN];
+        rawCands = (rawCands || []).filter(function (c) { return c && String(c.raw) === _pickN; });
+        st('master', '🔤', 'Catalog: using ' + _pickN, '#2ecc71');
+      }
+    }
     var pick = null, verified = '';
     for (var i = 0; i < out.ocrNums.length && !pick; i++) {
       var n = out.ocrNums[i];
@@ -1990,6 +2009,27 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   }
 
   // ── Phase 4 fail card ──
+  // v0.9.690: chooser when a shot contains several different item numbers.
+  function _biNumPicker(nums) {
+    return new Promise(function (resolve) {
+      var d = document.getElementById('bi-overlay');
+      var act = d && d.querySelector('#bi-actions');
+      if (!act) { resolve(nums[0]); return; }
+      act.innerHTML =
+        '<div style="width:100%;color:#ffd27d;font-size:0.85rem;margin-bottom:0.3rem">I see more than one item number in this shot. Which one is the item you\'re adding?</div>'
+        + nums.slice(0, 6).map(function (n) { return _biBtn({ act: 'num:' + n, txt: n }); }).join('')
+        + _biBtn({ act: 'none', txt: 'None of these — identify the item itself' }, 'border:1.5px solid var(--accent,#e8401c);color:var(--accent,#e8401c)');
+      act.onclick = function (e) {
+        var b = e.target.closest && e.target.closest('[data-bi]');
+        if (!b) return;
+        var a = b.getAttribute('data-bi');
+        if (a !== 'none' && a.indexOf('num:') !== 0) return;
+        act.innerHTML = ''; act.onclick = null;
+        resolve(a === 'none' ? 'none' : a.slice(4));
+      };
+    });
+  }
+
   function _biFailCard(out) {
     return new Promise(function (resolve) {
       var d = document.getElementById('bi-overlay');
