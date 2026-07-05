@@ -2750,9 +2750,17 @@ function renderBrowse() {
         if (!p || !p.owned) return false;
         return !/-(BOX|MBOX|IS)$/i.test(String(p.itemNum || '').toUpperCase());
       }).length;
+      // v0.9.703 (Brad: "why does my collection number not add up"): the header
+      // counted powered+dummy PAIR members separately (99) while the nav badge
+      // and the list itself fold companions into their lead (90). Use the SAME
+      // counter as the badge (_ownedNonBox), and show the piece total when the
+      // two differ so no info is lost.
+      var _itemCount = (typeof _ownedNonBox === 'function') ? _ownedNonBox(state).length : _pieceCount;
       _tSpan.innerHTML = 'My Collection List '
         + '<span style="font-family:var(--font-body);font-size:0.8rem;color:var(--text-dim);font-weight:400;letter-spacing:0;text-transform:none">'
-        + _pieceCount.toLocaleString() + ' item' + (_pieceCount !== 1 ? 's' : '') + '</span>';
+        + _itemCount.toLocaleString() + ' item' + (_itemCount !== 1 ? 's' : '')
+        + (_pieceCount > _itemCount ? ' · ' + _pieceCount.toLocaleString() + ' pieces (powered/dummy pairs count once)' : '')
+        + '</span>';
     }
   } else {
     var _le2 = document.getElementById('coll-icon-legend');
