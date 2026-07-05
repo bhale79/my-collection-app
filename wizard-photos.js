@@ -1543,9 +1543,7 @@ function _identifyShowMasterChooser(candidates, meta, fullText) {
   }
   document.addEventListener('keydown', _onChooserKey, true);
   // Backdrop click closes.
-  overlay.addEventListener('click', function(e) {
-    if (e.target === overlay) _closeChooser();
-  });
+  bindOverlayClose(overlay, function() { _closeChooser(); });
 
   var html = '<div style="background:var(--surface);border:1.5px solid var(--accent);border-radius:14px;max-width:520px;width:100%;padding:1.25rem;max-height:88vh;overflow-y:auto;position:relative">'
     + '<button id="id-chooser-close" aria-label="Close" style="position:absolute;top:0.35rem;right:0.55rem;background:none;border:none;color:var(--text-dim);font-size:1.5rem;line-height:1;cursor:pointer;padding:0.15rem 0.5rem;border-radius:6px">\u00d7</button>'
