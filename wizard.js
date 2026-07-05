@@ -381,6 +381,11 @@ function closeWizard() {
 }
 
 function _doCloseWizard() {
+  // v0.9.697: single-chokepoint cache snapshot (Brad's "says it saves but it
+  // doesn't"): many save paths updated the sheet + in-memory state but never
+  // refreshed the 2-hour personal-data cache, so the next app load REVERTED
+  // to pre-save data. Every wizard flow closes through here.
+  try { if (typeof _cachePersonalData === 'function') _cachePersonalData(); } catch (eC) {}
   const returnTo = wizard && wizard.data && wizard.data._returnPage;
   document.getElementById('wizard-modal').classList.remove('open');
   document.body.style.overflow = '';
