@@ -483,6 +483,7 @@ async function saveInstructionSheet() {
     };
     _stampSaved(state.personalData[isStandaloneInvId]);
     showToast('✓ Instruction Sheet ' + (sheetNum || _isItemNum) + ' saved!');
+    d._saveComplete = true;   // v0.9.689: closeWizard's discard-guard must not fire after a real save
     closeWizard();
     buildDashboard();
     renderBrowse();
@@ -684,6 +685,7 @@ async function saveEphemeraItem() {
     state.ephemeraData[tab] = bucket;
     buildDashboard();  // Session 174: refresh Items-I-Own + Collection Value so the new mock-up/paper/other item counts immediately (was only done for catalogs)
     showToast('✓ ' + (d.eph_title||'Item') + ' saved!');
+    d._saveComplete = true;   // v0.9.689
     closeWizard();
     if (state.filters.owned) renderBrowse();
   } catch(e) {
@@ -713,6 +715,7 @@ async function savePhotoOnlyUpdate() {
   } else {
     showToast('✓ Photos uploaded!');
   }
+  d._saveComplete = true;   // v0.9.689
   closeWizard();
   // Refresh camera icons on current browse view
   if (folderLink) {
@@ -847,6 +850,7 @@ async function _saveManualEntry() {
   _stampSaved(state.personalData[invId]);
 
   _cachePersonalData();
+  d._saveComplete = true;   // v0.9.689: was throwing "cancel and discard?" AFTER a successful manual save
   closeWizard();
   showToast('\u2713 ' + itemNum + ' saved (manual entry)');
   buildDashboard();
@@ -922,6 +926,7 @@ async function _saveScienceConstructionItem(sheetTabName, stateKey) {
   };
 
   _cachePersonalData();
+  d._saveComplete = true;   // v0.9.689
   closeWizard();
   showToast('\u2713 ' + itemNum + ' ' + description + ' saved!');
   buildDashboard();
