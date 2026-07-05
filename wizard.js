@@ -183,7 +183,7 @@ function _buildWizardModal() {
       inp.value = ''; inp.click();
     });
     // Close on backdrop click
-    _pickerEl.addEventListener('click', function(e) { if (e.target === _pickerEl) closePhotoPicker(); });
+    bindOverlayClose(_pickerEl, function() { closePhotoPicker(); });
     document.body.appendChild(_pickerEl);
   }
 
@@ -444,7 +444,7 @@ async function _confirmSetCancel() {
     + '<button id="set-cancel-confirm" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid var(--accent);background:rgba(240,80,8,0.15);color:var(--accent);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Yes, Delete All</button>'
     + '</div>';
   overlay.appendChild(box);
-  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  bindOverlayClose(overlay, function() { overlay.remove(); });
   document.body.appendChild(overlay);
 
   document.getElementById('set-cancel-back').onclick = function() { overlay.remove(); };
@@ -1990,7 +1990,7 @@ function renderWizardStep() {
       doneBtn.onclick = function() { document.body.removeChild(overlay); };
       sheet.appendChild(doneBtn);
       overlay.appendChild(sheet);
-      overlay.addEventListener('click', function(e) { if (e.target === overlay) document.body.removeChild(overlay); });
+      bindOverlayClose(overlay, function() { document.body.removeChild(overlay); });
       document.body.appendChild(overlay);
     }
 
@@ -3084,7 +3084,7 @@ function renderWizardStep() {
         cancel.onclick = () => overlay.remove();
         sheet.appendChild(cancel);
         overlay.appendChild(sheet);
-        overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+        bindOverlayClose(overlay, function() { overlay.remove(); });
         document.body.appendChild(overlay);
       };
       window._dismissAllSugg = () => {
