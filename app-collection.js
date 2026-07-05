@@ -1216,7 +1216,8 @@ function openPhotoWizard(itemNum, variation, pdKey) {
     step: 0, tab: 'collection',
     data: { tab: 'collection', itemNum: itemNum, variation: variation,
             condition: pd.condition || '', allOriginal: pd.allOriginal || '',
-            hasBox: pd.hasBox || '', _updatePdKey: pdKey, _photoOnly: true },
+            hasBox: pd.hasBox || '', _updatePdKey: pdKey, _photoOnly: true,
+            _existingInventoryId: pd.inventoryId || '' },   // v0.9.696: photos land in THIS copy's subfolder
     steps: getSteps('collection'), matchedItem: null
   };
   // Bugfix 2026-04-14: wizard modal may not be built yet (only built by openWizard).
@@ -2188,7 +2189,10 @@ function showItemPanel(idx, pdKey, mode) {
     { label: 'Est. Worth (insurance)',key: 'userEstWorth',  val: pd.userEstWorth || '—',  type: 'number' },
     { label: 'Year Made',     key: 'yearMade',      val: pd.yearMade || '—',      type: 'number', min:1945, max:1969 },
     { label: 'Date Purchased',key: 'datePurchased', val: pd.datePurchased || '—', type: 'date' },
-    { label: 'Notes',         key: 'notes',         val: pd.notes || '—',         type: 'text' },
+    // v0.9.696 (Brad): manual entries carry their own description — editable
+    // here (catalog items keep the master description, not shown as a field).
+    ...((idx < 0 || pd.era === 'Manual') ? [{ label: 'Description', key: 'description', val: pd.description || '—', type: 'textarea' }] : []),
+    { label: 'Notes',         key: 'notes',         val: pd.notes || '—',         type: 'textarea' },
     { label: 'Location',      key: 'location',      val: pd.location || '—',      type: 'text' },
     ...(((typeof _itemExternalLinkURL === 'function') ? _itemExternalLinkURL(item) : item.refLink)
       ? [{ label: 'Reference', key: null, val: ((typeof _itemExternalLinkURL === 'function') ? _itemExternalLinkURL(item) : item.refLink), type: 'readonly' }] : []),
@@ -2367,6 +2371,13 @@ function showItemPanel(idx, pdKey, mode) {
             if (o === (pd[f.key] || '')) opt.selected = true;
             inp.appendChild(opt);
           });
+        } else if (f.type === 'textarea') {
+          // v0.9.696 (Brad): long text needs a BIG box — full width, tall,
+          // grows with the phone screen (45% of viewport height).
+          inp = document.createElement('textarea');
+          inp.value = pd[f.key] || '';
+          inp.rows = 6;
+          inp.style.cssText = 'width:100%;background:var(--bg);border:1px solid #2980b9;border-radius:6px;padding:0.6rem 0.7rem;color:var(--text);font-family:var(--font-body);font-size:0.95rem;box-sizing:border-box;resize:vertical;min-height:min(45vh, 320px);line-height:1.45';
         } else {
           inp = document.createElement('input');
           inp.type = f.type === 'text' ? 'text' : f.type;
@@ -2394,10 +2405,24 @@ function showItemPanel(idx, pdKey, mode) {
         cancelInp.onclick = function() { editingKey = null; renderFields(null); };
 
         const inpRow = document.createElement('div');
-        inpRow.style.cssText = 'display:flex;align-items:center;gap:0;width:100%';
-        inpRow.appendChild(inp);
-        inpRow.appendChild(doneBtn);
-        inpRow.appendChild(cancelInp);
+        if (f.type === 'textarea') {
+          // Stack: big box on top, buttons below (v0.9.696)
+          row.style.flexDirection = 'column';
+          row.style.alignItems = 'stretch';
+          lbl.style.width = 'auto';
+          inpRow.style.cssText = 'display:flex;flex-direction:column;gap:0.4rem;width:100%';
+          var btnRow = document.createElement('div');
+          btnRow.style.cssText = 'display:flex;justify-content:flex-end;gap:0.4rem';
+          inpRow.appendChild(inp);
+          btnRow.appendChild(doneBtn);
+          btnRow.appendChild(cancelInp);
+          inpRow.appendChild(btnRow);
+        } else {
+          inpRow.style.cssText = 'display:flex;align-items:center;gap:0;width:100%';
+          inpRow.appendChild(inp);
+          inpRow.appendChild(doneBtn);
+          inpRow.appendChild(cancelInp);
+        }
         valWrap.appendChild(inpRow);
 
       } else if (f.type === 'link') {
