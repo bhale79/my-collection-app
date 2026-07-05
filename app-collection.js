@@ -867,7 +867,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
     itemNum: pd.itemNum, variation: pd.variation || '',
     itemType: _detailType || (_baseItem ? _baseItem.itemType : ''),
     roadName: pd.roadName || (_baseItem ? _baseItem.roadName : ''),
-    description: _baseItem ? _baseItem.description : '',
+    description: _baseItem ? _baseItem.description : ((pd && pd.description) || ''),   // v0.9.694: manual items carry their own description
     yearProd: pd.yearMade || (_baseItem ? _baseItem.yearProd : ''),
     gauge: pd.gauge || (_baseItem ? _baseItem.gauge : ''),
     marketVal: _baseItem ? _baseItem.marketVal : '',
@@ -1154,30 +1154,33 @@ function _detailPdKey(item) {
   if (k && state.personalData[k] && item && state.personalData[k].itemNum === item.itemNum) return k;
   return findPDKey(item.itemNum, item.variation);
 }
-function showItemDetailPage_edit(idx) {
+// v0.9.694 (Brad's abacus): personal-only items (manual entries, incl.
+// no-number promo pieces) have NO master row — idx is negative and the old
+// `if (!item) return;` silently killed EVERY toolbar button for them. The
+// remembered _lastDetailPdKey identifies the copy; downstream functions
+// already build pseudo-items from personalData when masterData[idx] misses.
+function _detailPdKeyAny(idx) {
   const item = idx >= 0 ? state.masterData[idx] : null;
-  if (!item) return;
-  const pdKey = _detailPdKey(item);
+  if (item) return _detailPdKey(item);
+  const k = window._lastDetailPdKey;
+  return (k && state.personalData[k]) ? k : null;
+}
+function showItemDetailPage_edit(idx) {
+  const pdKey = _detailPdKeyAny(idx);
   if (pdKey) updateCollectionItem(idx, pdKey);
   else showToast('Item not found in your collection', 3000, true);
 }
 function showItemDetailPage_photos(idx) {
-  const item = idx >= 0 ? state.masterData[idx] : null;
-  if (!item) return;
-  const pdKey = _detailPdKey(item);
+  const pdKey = _detailPdKeyAny(idx);
   if (pdKey) showItemPanel(idx, pdKey, 'edit');
   else showToast('Item not found in your collection', 3000, true);
 }
 function showItemDetailPage_sell(idx) {
-  const item = idx >= 0 ? state.masterData[idx] : null;
-  if (!item) return;
-  const pdKey = _detailPdKey(item);
+  const pdKey = _detailPdKeyAny(idx);
   if (pdKey) sellFromCollection(idx, pdKey);
 }
 function showItemDetailPage_forsale(idx) {
-  const item = idx >= 0 ? state.masterData[idx] : null;
-  if (!item) return;
-  const pdKey = _detailPdKey(item);
+  const pdKey = _detailPdKeyAny(idx);
   if (pdKey) listForSaleFromCollection(idx, pdKey);
 }
 
