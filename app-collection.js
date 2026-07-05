@@ -1147,6 +1147,27 @@ async function _removeFromCollectionDetail(idx, itemNum, variation) {
   }
 }
 
+// v0.9.695: repair a personalData row number that is missing or the fake
+// 99999 placeholder (older manual/IS saves stamped it) by locating the row's
+// inventoryId in the sheet. Without this, EVERY update on such an item fails
+// with a Sheets "exceeds grid limits" 400 (Brad's abacus).
+async function _healPdRow(pd) {
+  if (!pd || (pd.row && pd.row !== 99999)) return pd;
+  if (!pd.inventoryId || typeof sheetsGet !== 'function') return pd;
+  var col = (typeof personalColLetter === 'function') ? personalColLetter('inventoryId') : null;
+  if (!col) return pd;
+  var res = await sheetsGet(state.personalSheetId, 'My Collection!' + col + '3:' + col);
+  var vals = (res && res.values) || [];
+  for (var i = 0; i < vals.length; i++) {
+    if (String((vals[i] || [])[0] || '').trim() === String(pd.inventoryId).trim()) {
+      pd.row = i + 3;   // data starts at row 3
+      return pd;
+    }
+  }
+  throw new Error('Could not locate this item\'s row in the sheet — reload the app and try again');
+}
+window._healPdRow = _healPdRow;
+
 // Resolve the personalData key for the copy the detail page is currently
 // showing. Falls back to first match if the remembered key is stale.
 function _detailPdKey(item) {
@@ -2103,7 +2124,7 @@ async function _deleteCollectionPhoto(fileId, fileName, wrapEl) {
     // Refresh the detail page PHOTOS card behind the modal so it reflects the
     // deletion without a manual refresh. Small delay lets Drive's trash settle
     // before the card re-fetches the folder listing.
-    if (typeof window._lastDetailIdx === 'number' && window._lastDetailIdx >= 0
+    if (typeof window._lastDetailIdx === 'number'
         && typeof showItemDetailPage === 'function') {
       setTimeout(function() { showItemDetailPage(window._lastDetailIdx, window._lastDetailCopyInv); }, 200);
     }
@@ -2510,13 +2531,14 @@ function showItemPanel(idx, pdKey, mode) {
         customName: pd.customName || '',
       });
       try {
+        if (typeof _healPdRow === 'function') await _healPdRow(pd);
         await sheetsUpdate(state.personalSheetId, personalFullRowRange(pd.row), [newRow]);
         state.personalData[pdKey] = Object.assign({}, pd, { priceComplete: calc > 0 ? calc.toFixed(2) : '' });
         overlay.remove();
         showToast('✓ Item updated!');
         buildDashboard();
         // Re-render the detail page so edited fields + photos show immediately.
-        if (typeof window._lastDetailIdx === 'number' && window._lastDetailIdx >= 0
+        if (typeof window._lastDetailIdx === 'number'
             && typeof showItemDetailPage === 'function') {
           showItemDetailPage(window._lastDetailIdx, window._lastDetailCopyInv);
         }
