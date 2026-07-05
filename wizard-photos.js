@@ -357,6 +357,7 @@ function _identifyReadClipboard(auto) {
 function closeIdentify() {
   document.getElementById('identify-modal').classList.remove('open');
   _identifyCallerContext = null;
+  window._researchActive = false;
   _identifySelectedNum = null;
   if (_identifyPasteHandler) {
     document.removeEventListener('paste', _identifyPasteHandler, true);
@@ -419,7 +420,14 @@ function _identifyLensReturnMode() {
 }
 
 window._identifyOpenWithPhoto = function (file, autoLens) {
-  try { openIdentify('wizard'); } catch (e) { return; }
+  // v0.9.686: Research mode reaches this WITHOUT the wizard ever opening —
+  // the identify modal (built lazily by _buildWizardModal) doesn't exist yet,
+  // so openIdentify threw and the whole Lens handoff silently bailed to the
+  // dashboard. Build the modal shell on demand; it appends hidden markup only.
+  if (!document.getElementById('identify-modal') && typeof _buildWizardModal === 'function') {
+    try { _buildWizardModal(); } catch (e) {}
+  }
+  try { openIdentify(window._researchActive ? 'research' : 'wizard'); } catch (e) { return; }
   setTimeout(function () {
     if (window._identifySetPhoto) window._identifySetPhoto(file);
     // v0.9.676 (Brad): arriving via the Lens fail-safe means the choice is
@@ -713,7 +721,7 @@ function useIdentifiedItem() {
         wizard.data._identifyMeta = meta;
       }
       showToast("Google couldn't pin down the item number — enter it manually below", 4000, true);
-      if (_identifyCallerContext === 'wizard' && typeof _identifyRouteToManualEntry === 'function') {
+      if ((_identifyCallerContext === 'wizard' || _identifyCallerContext === 'research') && typeof _identifyRouteToManualEntry === 'function') {
         var _hMfrs = (typeof _getSelectedIdentifyMfrs === 'function') ? _getSelectedIdentifyMfrs() : [];
         closeIdentify();
         _identifyRouteToManualEntry('', meta, _hMfrs);
@@ -742,7 +750,7 @@ function useIdentifiedItem() {
   // check master DIRECTLY. If found → apply (skip chooser). If not found →
   // route to manual entry (skip chooser). The descriptive chooser had
   // false-negatives where the correct SKU wasn't among the candidates.
-  if (_identifyCallerContext === 'wizard') {
+  if (_identifyCallerContext === 'wizard' || _identifyCallerContext === 'research') {
     var _uiMfrs = (typeof _getSelectedIdentifyMfrs === 'function') ? _getSelectedIdentifyMfrs() : [];
     if (typeof findMaster === 'function') {
       var _uiDirect = findMaster(extracted);
@@ -1626,6 +1634,13 @@ function _composeManualDescFromMeta(meta) {
 // we extracted. The user just clicks through, editing anything wrong.
 // Returns true if routing happened (so the caller can stop).
 function _identifyRouteToManualEntry(itemNum, meta, userMfrs) {
+  // v0.9.686: in Research mode there is no wizard to route to — show the
+  // read-only research card with whatever was extracted instead.
+  if (_identifyCallerContext === 'research' || (window._researchActive && typeof window._researchShowFromMeta === 'function')) {
+    try { closeIdentify(); } catch (e) {}
+    if (typeof window._researchShowFromMeta === 'function') { window._researchShowFromMeta(itemNum, meta || {}); return true; }
+    return false;
+  }
   if (typeof wizard === 'undefined' || !wizard) return false;
   if (wizard.tab !== 'collection') return false;  // only routes collection adds
   meta = meta || {};
@@ -1691,6 +1706,10 @@ function _applyIdentifiedItem(num) {
   const _meta = (typeof wizard !== 'undefined' && wizard && wizard.data && wizard.data._identifyMeta) || {};
   const _scaleHint = (typeof wizard !== 'undefined' && wizard && wizard.data && wizard.data._identifyScaleHint) || '';
   closeIdentify();
+  // v0.9.686: Research mode — no wizard steps; straight to the research card.
+  if (_caller === 'research' || (window._researchActive && _caller !== 'wizard')) {
+    if (typeof window._researchShowFromMeta === 'function') { window._researchShowFromMeta(num, _meta); return; }
+  }
   if (_caller === 'wizard') {
     // If the item isn't in master, pre-seed wizard.matchedItem with a
     // synthetic record built from the extracted Lens metadata. wizardNext's
