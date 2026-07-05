@@ -78,7 +78,7 @@ async function uploadWizardPhoto(file, stepId, viewKey) {
       ? (d.unit2ItemNum || d.itemNum || 'unknown').trim()
       : isUnit3PhotoStep
         ? (d.itemNum || 'unknown').trim()  // unit3 = second A unit, same number
-        : (d.itemNum || 'unknown').trim();
+        : (d.itemNum || d.manualItemNum || (d._manualEntry && [d.manualManufacturer, d.manualItemType].filter(Boolean).join(' ')) || 'unknown').trim();   // v0.9.694: manual no-number items get a named Drive folder
   const variation = (d.variation || '').trim();
 
   // Show progress overlay
