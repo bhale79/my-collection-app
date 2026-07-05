@@ -711,6 +711,14 @@ async function savePhotoOnlyUpdate() {
       await sheetsUpdate(state.personalSheetId, 'My Collection!' + personalColLetter('photoItem') + pd.row, [[folderLink]]);
       pd.photoItem = folderLink;
       showToast('✓ Photos saved!');
+      // v0.9.696 (Brad): the detail page under the wizard is STALE — the new
+      // photo never appeared at the bottom until back-and-reopen. Re-render.
+      try {
+        var _dp = document.getElementById('page-itemdetail');
+        if (_dp && _dp.classList.contains('active') && typeof window._lastDetailIdx === 'number' && typeof showItemDetailPage === 'function') {
+          showItemDetailPage(window._lastDetailIdx, window._lastDetailCopyInv);
+        }
+      } catch (eRR) {}
     } catch(e) {
       showToast('Photos uploaded but link save failed: ' + e.message);
     }
