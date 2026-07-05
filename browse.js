@@ -2013,6 +2013,7 @@ function _ncShowFsSoldModal(type, key, action) {
         await sheetsAppend(state.personalSheetId, 'For Sale!A:J', [row]);
         showToast('✓ Listed for sale');
       }
+      if (typeof _cachePersonalData === 'function') _cachePersonalData();   // v0.9.697
       if (typeof renderBrowse === 'function') renderBrowse();
       if (typeof buildDashboard === 'function') buildDashboard();
     } catch(e) {
@@ -2120,6 +2121,7 @@ function _ncShowUpgradeModal(type, key) {
       };
       const _brUgKey = _brUgEntry.inventoryId || ('legacy-row-' + Date.now());
       state.upgradeData[_brUgKey] = _brUgEntry;
+      if (typeof _cachePersonalData === 'function') _cachePersonalData();   // v0.9.697 — after the state mirror
       showToast('✓ Added to Upgrade list');
       if (typeof buildDashboard === 'function') buildDashboard();
     } catch(e) {
