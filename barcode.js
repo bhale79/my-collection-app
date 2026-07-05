@@ -1685,7 +1685,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     d.innerHTML = inner;
     return d;
   }
-  var _biStream = null, _biOnCancel = null;
+  var _biStream = null, _biOnCancel = null, _biLastShot = null;
   function _biKill() {
     var d = document.getElementById('bi-overlay'); if (d) d.remove();
     try { if (_biStream) { _biStream.getTracks().forEach(function (t) { t.stop(); }); _biStream = null; } } catch (e) {}
@@ -1701,6 +1701,11 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       function done(out) {
         stopLoop = true;
         try { if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
+        // v0.9.687 (Brad): app captures never land in the phone's gallery
+        // (browsers can't write the camera roll) — keep the last frame so a
+        // cancelled run can be resumed with "Use last photo" instead of a
+        // full reshoot.
+        if (out && out.raw) _biLastShot = { raw: out.raw, view: out.view };
         resolve(out);
       }
       var d = _biOverlay(
@@ -1712,6 +1717,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap">'
         + _biBtn({ act: 'snap', txt: '📸 Capture' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff;flex:2')
         + _biBtn({ act: 'gallery', txt: '🖼 Photo from gallery' })
+        + (_biLastShot ? _biBtn({ act: 'last', txt: '↩ Use last photo' }) : '')
         + _biBtn({ act: 'cancel', txt: 'Cancel' })
         + '</div>'
         + '<input type="file" id="bi-file" accept="image/*" style="display:none">'
@@ -1738,6 +1744,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         var act = b.getAttribute('data-bi');
         if (act === 'snap') { if (video.videoWidth) { var fr = snapFrame(); done({ raw: fr.raw, view: fr.view, lockedBc: null }); } }
         if (act === 'gallery') d.querySelector('#bi-file').click();
+        if (act === 'last' && _biLastShot) done({ raw: _biLastShot.raw, view: _biLastShot.view, lockedBc: null });
         if (act === 'cancel') done(null);
       });
       d.querySelector('#bi-file').addEventListener('change', function (e) {
