@@ -175,16 +175,32 @@
 
   // v0.9.711 (Brad: "this has to be fast"): typed lookup — "148", "lionel 148",
   // "10-2210" — straight to the research card, no photo needed.
-  window._researchLookupTyped = function (q) {
+  window._researchLookupTyped = async function (q, opts) {
+    opts = opts || {};
     window._researchActive = false;
     q = String(q || '').trim();
     if (!q) return;
     var num = (typeof extractLionelNumber === 'function') ? (extractLionelNumber(q) || q) : q;
-    var m = null;
-    if (typeof findMaster === 'function') { try { m = findMaster(num, ''); } catch (e) {} }
+    // v0.9.738 (Brad): Maker/Era dropdowns make a bare number a strong search —
+    // look across EVERY era's master (not just the one being browsed), then
+    // narrow by the user's picks. No match after narrowing = honest not-in-
+    // catalog card that still carries the chosen maker into Google/eBay.
+    var m = null, hits = [];
+    try {
+      if (typeof window._findMasterItemsAllEras === 'function') hits = (await window._findMasterItemsAllEras([num])) || [];
+    } catch (e) {}
+    var f = hits;
+    if (opts.era) f = f.filter(function (h) { return (h._era || '') === opts.era; });
+    if (opts.mfr) f = f.filter(function (h) {
+      var em = (typeof ERAS !== 'undefined' && ERAS[h._era]) ? ERAS[h._era].manufacturer : '';
+      return String(h.manufacturer || em || '').toLowerCase() === String(opts.mfr).toLowerCase();
+    });
+    m = f[0] || null;
+    if (!m && !hits.length && typeof findMaster === 'function') { try { m = findMaster(num, ''); } catch (e) {} }
+    var eraMfr = (m && typeof ERAS !== 'undefined' && m._era && ERAS[m._era]) ? ERAS[m._era].manufacturer : '';
     _showCard({
       itemNum: num,
-      manufacturer: (m && m.manufacturer) || '',
+      manufacturer: (m && m.manufacturer) || eraMfr || opts.mfr || '',
       roadName: (m && m.roadName) || '',
       description: (m && m.description) || '',
       masterItem: m,
