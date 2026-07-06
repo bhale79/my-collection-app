@@ -724,20 +724,31 @@ function buildDashboard() {
 
 
   // ── Dynamic large panels ──────────────────────────────────
+  // v0.9.752 (Brad): 1-3 cards, flex widths, ✎ change button (the popup
+  // existed since Session ~121 but NOTHING called it — dead feature revived).
   (function() {
     var panels = _getPanels();
-    [0, 1].forEach(function(i) {
+    var host = document.getElementById('dash-panels-host');
+    if (host) {
+      host.innerHTML = panels.map(function(p, i) {
+        return '<div class="panel" style="flex:1 1 300px;min-width:270px">'
+          + '<div class="section-title" id="dash-panel-header-' + i + '" style="display:flex;align-items:center;justify-content:space-between"></div>'
+          + '<div id="dash-panel-body-' + i + '"><div class="loading"><div class="spinner"></div></div></div>'
+          + '</div>';
+      }).join('');
+    }
+    panels.forEach(function(_, i) {
       var panelDef = PANEL_CATALOG.find(function(p) { return p.id === (panels[i] ? panels[i].id : (i === 0 ? 'recent' : 'wants')); })
                   || PANEL_CATALOG[i] || PANEL_CATALOG[0];
 
-      // Update header: title (clickable if panel has navFn) + pencil icon
+      // Update header: title (clickable if panel has navFn) + ✎ change button
       var headerEl = document.getElementById('dash-panel-header-' + i);
       if (headerEl) {
         var titleHtml = panelDef.navFn
           ? '<span style="cursor:pointer;text-decoration:none" onclick="' + panelDef.navFn + '" title="Go to ' + panelDef.label + '">' + panelDef.icon + ' ' + panelDef.label + ' <span style="font-size:0.65rem;opacity:0.5">›</span></span>'
           : '<span>' + panelDef.icon + ' ' + panelDef.label + '</span>';
         headerEl.innerHTML = titleHtml
-;
+          + '<button onclick="_openPanelPopup(' + i + ')" title="Change this card" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:0.9rem;padding:0.1rem 0.35rem;line-height:1">\u270E</button>';
       }
 
       // Render panel body
@@ -791,7 +802,7 @@ var PANEL_CATALOG = [
     id: 'recent',
     label: 'Recent Additions',
     icon: '🕐',
-    navFn: "showPage('browse', document.querySelector('.nav-item[onclick*=\\'renderBrowse\\']')); resetFilters(); renderBrowse();",
+    navFn: "goToMyCollection();",   // v0.9.752 (Brad): arrow went to Master Catalog — these are HIS items
     render: function(state) {
       // Session 121: filter trains by Preferences "What I Collect" in 'all' mode.
       // Ephemera/IS/Science/Construction are cross-era by nature, so they're not filtered.
@@ -1042,6 +1053,8 @@ function _openPanelPopup(panelIdx) {
     '<select onchange="_onPanelPopupChange(' + panelIdx + ',this.value)" style="width:100%;padding:0.4rem 0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;margin-bottom:0.65rem">' +
       opts +
     '</select>' +
+    ((panels.length < 3) ? '<button onclick="_dashAddPanel()" style="width:100%;margin-bottom:0.5rem;padding:0.45rem;border-radius:7px;border:1.5px dashed #2ecc71;background:rgba(46,204,113,0.08);color:#2ecc71;font-family:var(--font-body);font-size:0.8rem;font-weight:600;cursor:pointer">+ Add a card</button>' : '') +
+    ((panels.length > 1) ? '<button onclick="_dashRemovePanel(' + panelIdx + ')" style="width:100%;margin-bottom:0.5rem;padding:0.45rem;border-radius:7px;border:1px solid var(--border);background:none;color:#e74c3c;font-family:var(--font-body);font-size:0.8rem;cursor:pointer">Remove this card</button>' : '') +
     '<div style="display:flex;justify-content:flex-end">' +
       '<button onclick="document.getElementById(\'panel-popup\').remove()" style="padding:0.3rem 0.9rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.8rem;cursor:pointer">Done</button>' +
     '</div>';
@@ -1068,6 +1081,19 @@ function _openPanelPopup(panelIdx) {
     document.addEventListener('mousedown', _panelPopupOutsideClick);
   }, 60);
 }
+
+window._dashAddPanel = function () {   // v0.9.752
+  var p = _getPanels();
+  if (p.length < 3) { p.push({ id: 'recent' }); _savePanels(p); }
+  var pp = document.getElementById('panel-popup'); if (pp) pp.remove();
+  buildDashboard();
+};
+window._dashRemovePanel = function (i) {   // v0.9.752
+  var p = _getPanels();
+  if (p.length > 1) { p.splice(i, 1); _savePanels(p); }
+  var pp = document.getElementById('panel-popup'); if (pp) pp.remove();
+  buildDashboard();
+};
 
 function _panelPopupOutsideClick(e) {
   var p = document.getElementById('panel-popup');
