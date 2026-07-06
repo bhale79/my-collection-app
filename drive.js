@@ -375,11 +375,13 @@ function driveFolderLink(folderId) {
   return `https://drive.google.com/drive/folders/${folderId}`;
 }
 
-async function driveUploadItemPhoto(file, itemNum, viewAbbr, inventoryId) {
+async function driveUploadItemPhoto(file, itemNum, viewAbbr, inventoryId, fileLabel) {
   console.log('[Drive] Uploading photo:', itemNum, viewAbbr, 'invId:', inventoryId || 'none', 'file:', file.name, 'size:', file.size);
   await driveEnsureSetup();
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-  const fileName = `${itemNum} ${viewAbbr}.${ext}`;
+  // v0.9.730 (Brad): pair photos share a folder — the FILENAME carries the
+  // unit tag (205-P FV vs 205-D FV) so the gallery labels say which is which.
+  const fileName = `${fileLabel || itemNum} ${viewAbbr}.${ext}`;
   const itemFolderId = await driveEnsureItemFolder(itemNum);
   // If inventoryId provided, create a subfolder for this specific copy
   let folderId = itemFolderId;
