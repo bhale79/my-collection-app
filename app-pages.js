@@ -2873,6 +2873,18 @@ function _upgradeViewMine(ugKey) {
 // Opens a picker modal listing the user's owned items so they can choose
 // which one to target with a new Upgrade entry. After selecting, opens the
 // existing showAddToUpgradeModal flow with the picked item's details.
+window._upgPickFilter = function () {
+  var q = (document.getElementById('upg-pick-q') || {}).value || '';
+  var t = (document.getElementById('upg-pick-t') || {}).value || '';
+  q = q.toLowerCase();
+  var box = document.getElementById('upgrade-pick-modal');
+  if (!box) return;
+  box.querySelectorAll('button[data-s]').forEach(function (b) {
+    var ok = (!q || (b.getAttribute('data-s') || '').indexOf(q) >= 0) && (!t || b.getAttribute('data-t') === t);
+    b.style.display = ok ? 'flex' : 'none';
+  });
+};
+
 function pickItemForUpgrade() {
   // Build a unique list of owned items (deduped by inventoryId to avoid
   // showing the same copy twice across box/MBOX joins).
@@ -2895,12 +2907,15 @@ function pickItemForUpgrade() {
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10001;display:flex;align-items:center;justify-content:center;padding:1.25rem';
   overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
   var rowsHtml = owned.map(function(p) {
-    var master = findMaster(p.itemNum, '', p) || {};
-    var name = master.roadName || master.itemType || '';
+    // v0.9.733 (Brad's 212 Santa Fe shown as U.S. Marines): the ROW's own
+    // stamped identity wins; catalog fallback must respect the VARIATION.
+    var master = findMaster(p.itemNum, p.variation || '', p) || {};
+    var name = p.roadName || master.roadName || p.description || master.itemType || p.itemType || '';
+    var _tBucket = (typeof getTypeBucketLabel === 'function') ? (getTypeBucketLabel(master.itemNum ? master : p) || (p.itemType || '')) : (p.itemType || '');
     var cond = p.condition ? parseInt(p.condition) : null;
     var condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
     var escVar = (p.variation||'').replace(/'/g, "\\'");
-    return '<button onclick="document.getElementById(\'upgrade-pick-modal\').remove();'
+    return '<button data-s="' + String(p.itemNum + ' ' + name).toLowerCase().replace(/"/g, '') + '" data-t="' + String(_tBucket).replace(/"/g, '') + '" onclick="document.getElementById(\'upgrade-pick-modal\').remove();'
       + 'showAddToUpgradeModal(\''+p.itemNum+'\',\''+escVar+'\','+(p.row||0)+',\''+(p.inventoryId||'')+'\')" '
       + 'style="display:flex;align-items:center;gap:0.6rem;padding:0.65rem 0.85rem;border-radius:8px;'
       + 'background:var(--surface2);border:1px solid var(--border);width:100%;cursor:pointer;'
@@ -2918,7 +2933,14 @@ function pickItemForUpgrade() {
     '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:480px;width:100%;padding:1.4rem;position:relative;max-height:80vh;display:flex;flex-direction:column">'
     + '<button onclick="document.getElementById(\'upgrade-pick-modal\').remove()" style="position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">\u2715</button>'
     + '<div style="font-family:var(--font-head);font-size:1.15rem;color:#8b5cf6;margin-bottom:0.25rem">\u2191 Add to Upgrade List</div>'
-    + '<div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:1rem">Pick the item you\'d like to upgrade.</div>'
+    + '<div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:0.6rem">Pick the item you\'d like to upgrade.</div>'
+    // v0.9.733 (Brad): filters to narrow the pick list.
+    + '<div style="display:flex;gap:0.4rem;margin-bottom:0.7rem">'
+    +   '<input id="upg-pick-q" type="text" placeholder="Search # or name…" oninput="_upgPickFilter()" style="flex:2;min-width:0;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem">'
+    +   '<select id="upg-pick-t" onchange="_upgPickFilter()" style="flex:1;min-width:0;padding:0.5rem 0.4rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.85rem"><option value="">All types</option>'
+    +   (function(){ var seen={}; var out=''; owned.forEach(function(p){ var m = findMaster(p.itemNum, p.variation||'', p) || {}; var b = (typeof getTypeBucketLabel === 'function') ? (getTypeBucketLabel(m.itemNum ? m : p) || (p.itemType||'')) : (p.itemType||''); if (b && !seen[b]) { seen[b]=1; out += '<option>' + b + '</option>'; } }); return out; })()
+    +   '</select>'
+    + '</div>'
     + '<div style="overflow-y:auto;flex:1">' + rowsHtml + '</div>'
     + '</div>';
   document.body.appendChild(overlay);
