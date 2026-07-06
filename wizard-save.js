@@ -1185,6 +1185,7 @@ async function saveWizardItem() {
         var _engineInvId = d._existingInventoryId || d._photoInventoryId || nextInventoryId();  // Session 165 hotfix: var, not const, so tender block at line 1206 can reference it
         // Session 156: paired engine row via buildPersonalRow
         row = buildPersonalRow({
+          dateAdded: (typeof existing !== 'undefined' && existing) ? (existing.dateAdded || '') : undefined,   // v0.9.720: updates keep their date
           itemNum: itemNum,
           variation: variation,
           condition: d.condition || '',
