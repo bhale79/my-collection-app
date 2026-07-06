@@ -230,6 +230,41 @@ function _filterCollPicker(q) {
   var el = document.getElementById('wiz-coll-picker');
   if (!el) return;
   q = (q || '').toLowerCase();
+  // v0.9.751 (Brad): sold flow — "need a selector for either from the sales
+  // list or my collection". FS source lists active listings (folded), shows
+  // the asking price, and clicking one routes to the quick record-sale prompt.
+  if (typeof wizard !== 'undefined' && wizard.tab === 'sold') {
+    var _src = wizard.data._soldPickSrc || (Object.keys(state.forSaleData || {}).length ? 'fs' : 'coll');
+    if (_src === 'fs') {
+      var fsEntries = Object.keys(state.forSaleData || {}).map(function (k) {
+        return state.personalData[k] ? [k, state.personalData[k]] : null;
+      }).filter(Boolean);
+      var fsFolded = _wpFoldGroups(fsEntries).filter(function (e) { return _wpMatchesQ(e, q) && _wpSellFilterPass(e); });
+      fsFolded.sort(function (a, b) { return String(a[1].itemNum || '').localeCompare(String(b[1].itemNum || ''), undefined, { numeric: true }); });
+      if (!fsFolded.length) {
+        el.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--text-dim);font-size:0.82rem">' + (q ? 'No matches on your For Sale list' : 'Nothing on your For Sale list \u2014 switch to My Collection above') + '</div>';
+        return;
+      }
+      el.innerHTML = fsFolded.map(function (entry) {
+        var pdKey = entry[0], pd = entry[1];
+        var fs = state.forSaleData[pdKey] || {};
+        var master = (String(pd.era || '') === 'Manual') ? {} : (findMaster(pd.itemNum, (pd.variation || ''), pd) || {});
+        return '<div onclick="_selectCollItem(\'' + pdKey.replace(/'/g, "\\'") + '\')" style="display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.75rem;cursor:pointer;border-bottom:1px solid var(--border)">'
+          + '<div style="flex:1;min-width:0">'
+          + '<div style="display:flex;align-items:center;gap:0.4rem">'
+          + '<span style="font-family:var(--font-mono);font-size:0.88rem;color:var(--accent2);font-weight:600">' + pd.itemNum + '</span>'
+          + (pd.variation ? '<span style="font-size:0.68rem;color:var(--text-dim)">V' + pd.variation + '</span>' : '')
+          + _wpGroupChip(pd, entry._mates)
+          + (fs.askingPrice ? '<span style="font-size:0.68rem;color:#e67e22;font-weight:700;margin-left:auto">ASKING $' + parseFloat(fs.askingPrice).toLocaleString() + '</span>' : '')
+          + '</div>'
+          + '<div style="font-size:0.72rem;color:var(--text-mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'
+          + (pd.roadName || master.roadName || master.itemType || pd.description || pd.itemType || '')
+          + (fs.dateListed ? ' \u00b7 listed ' + fs.dateListed : '')
+          + '</div></div></div>';
+      }).join('');
+      return;
+    }
+  }
   var owned = _wpFoldGroups(Object.entries(state.personalData).filter(function(e) { return e[1].owned; }))
     .filter(function (e) { return _wpMatchesQ(e, q) && _wpSellFilterPass(e); });   // v0.9.745 fold + v0.9.746 filters
   // Sort by item number
