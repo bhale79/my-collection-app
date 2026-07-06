@@ -2215,7 +2215,7 @@ function buildQuickEntryList() {
     qeItems.forEach(function(pd) {
     var master = state.masterData.find(function(m) {
       return m.itemNum === pd.itemNum && (!pd.variation || m.variation === pd.variation);
-    }) || findMaster(pd.itemNum);
+    }) || findMaster(pd.itemNum, '', pd);
     var itemName = master ? (master.roadName || master.description || master.itemType || '') : '';
     var itemType = master ? (master.itemType || '') : '';
     var itemYear = master ? (master.yearProd || '') : '';
