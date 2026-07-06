@@ -2890,7 +2890,14 @@ function renderBrowse() {
         ? `<button onclick="event.stopPropagation();_removeUpgradeFromCollection('${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:#8b5cf6;color:#fff;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Remove from Upgrade list">Un-Upg.</button>`
         : `<button onclick="event.stopPropagation();showAddToUpgradeModal('${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0},'${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Add to Upgrade list">Upgrade</button>`;
       return `<tr id="share-card-${_shareKeyD}" onclick="${_inShareModeD ? 'toggleShareItem(\'' + _shareKeyD + '\')' : 'showItemDetailPage(' + globalIdx + ", '" + _copyInv + "')"}" style="cursor:pointer${_isQuick ? ';opacity:0.82' : ''}${_isShareSelectedD ? ';outline:2px solid #3a9e68;background:rgba(58,158,104,0.06)' : ''}" data-group="${_groupId}" data-item="${item.itemNum}">
-        ${typeof _mfrBadge === 'function' ? _mfrBadge({ manufacturer: (pd && pd.manufacturer) || '' }) : '<td>\u2014</td>'}
+        ${(function(){
+          var _b = (typeof _mfrBadge === 'function') ? _mfrBadge({ manufacturer: (pd && pd.manufacturer) || '' }) : '<td>\u2014</td>';
+          // v0.9.726 (Brad): stack SCALE under the maker badge.
+          var _sc = (pd && pd.gauge) || (item && item.gauge) || '';
+          if (!_sc && item && item._era && typeof ERA_SCALE !== 'undefined') _sc = ERA_SCALE[item._era] || '';
+          if (!_sc && pd && pd.era && typeof ERA_SCALE !== 'undefined') _sc = ERA_SCALE[String(pd.era).toLowerCase()] || '';
+          return _sc ? _b.replace('</td>', '<div style="font-size:0.66rem;color:var(--text-dim);margin-top:2px;letter-spacing:0.04em">' + _sc + '</div></td>') : _b;
+        })()}
         <td style="max-width:170px;overflow:hidden">
           ${_inShareModeD ? '<input type="checkbox" id="share-cb-' + _shareKeyD + '" ' + (_isShareSelectedD ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _shareKeyD + '\')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">' : ''}
           <span class="item-num" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom" title="${String(_displayItemNum(item)).replace(/"/g,'&quot;')}">${_displayItemNum(item)}</span>${_noNumTag(item.itemNum)}
