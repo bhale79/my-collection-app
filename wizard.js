@@ -315,6 +315,37 @@ window._wizResearchPrice = function () {
   } catch (e) { console.warn('[research price]', e); }
 };
 
+// v0.9.746: detail peek for the item being listed/sold — everything you'd
+// check before pricing (incl. location + photos link), overlaid on the wizard.
+window._wizPeekDetail = function () {
+  try {
+    var k = wizard.data._collectionPdKey || wizard.data.selectedForSaleKey || wizard.data.selectedSoldKey;
+    var pd = k ? state.personalData[k] : null;
+    if (!pd) return;
+    var m = (String(pd.era || '') === 'Manual') ? {} : (findMaster(pd.itemNum, pd.variation || '', pd) || {});
+    var name = pd.roadName || m.roadName || pd.description || m.description || m.itemType || pd.itemType || '';
+    var esc = function (s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
+    var row = function (l, v) { return v ? '<div style="display:flex;justify-content:space-between;gap:0.75rem;padding:0.35rem 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-dim);font-size:0.78rem">' + l + '</span><span style="color:var(--text);font-size:0.82rem;text-align:right">' + esc(v) + '</span></div>' : ''; };
+    var ov = document.createElement('div');
+    ov.id = 'wiz-peek-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:10055;display:flex;align-items:center;justify-content:center;padding:1rem';
+    ov.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:420px;width:100%;padding:1.1rem 1.2rem;max-height:85vh;overflow-y:auto">'
+      + '<div style="font-family:var(--font-mono);font-weight:700;font-size:1.15rem;color:var(--accent)">' + esc(pd.itemNum) + (pd.variation ? ' <span style="font-size:0.72rem;color:var(--text-dim)">V' + esc(pd.variation) + '</span>' : '') + '</div>'
+      + (name ? '<div style="font-size:0.85rem;color:var(--text-mid);margin:0.2rem 0 0.6rem">' + esc(name) + '</div>' : '')
+      + row('Condition', pd.condition ? pd.condition + '/10' : '')
+      + row('Has box', pd.hasBox) + row('Box condition', pd.boxCond ? pd.boxCond + '/10' : '')
+      + row('Location', pd.location)
+      + row('Paid', pd.priceItem ? '$' + parseFloat(pd.priceItem).toLocaleString() : '')
+      + row('Est. worth', pd.userEstWorth ? '$' + parseFloat(pd.userEstWorth).toLocaleString() : '')
+      + row('Year', pd.yearMade) + row('Notes', pd.notes)
+      + (pd.photoItem ? '<a href="' + esc(pd.photoItem) + '" target="_blank" rel="noopener" style="display:block;text-align:center;margin-top:0.8rem;padding:0.55rem;border-radius:8px;border:1.5px solid #3498db;color:#3498db;text-decoration:none;font-size:0.82rem;font-weight:600">\uD83D\uDCF7 Open Photos \u2197</a>' : '')
+      + '<button onclick="document.getElementById(\'wiz-peek-overlay\').remove()" style="width:100%;margin-top:0.6rem;padding:0.6rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body)">Close</button>'
+      + '</div>';
+    ov.addEventListener('click', function (e) { if (e.target === ov) ov.remove(); });
+    document.body.appendChild(ov);
+  } catch (e) { console.warn('[peek]', e); }
+};
+
 async function openWizard(tab) {
   // Session 154: Want lookups span the whole catalog — load every era first
   // (instant if cached) so search isn't capped to the current era.
@@ -1457,11 +1488,9 @@ function renderWizardStep() {
         </label>` : ''}
         ${_showCollPicker ? `
         <div style="margin-top:0.85rem">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.4rem">
-            <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);font-weight:600">Or pick from your collection</div>
-            <button onclick="_openFullCollPicker()" style="font-size:0.72rem;color:${wizard.tab === 'forsale' ? '#e67e22' : '#2ecc71'};background:none;border:1px solid ${wizard.tab === 'forsale' ? '#e67e22' : '#2ecc71'};border-radius:5px;padding:0.2rem 0.5rem;cursor:pointer;font-family:var(--font-body)">Browse All ▸</button>
-          </div>
-          <div id="wiz-coll-picker" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;background:var(--surface);-webkit-overflow-scrolling:touch"></div>
+          <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);font-weight:600;margin-bottom:0.4rem">Or pick from your collection</div>
+          ${typeof _wpSellFilterRow === 'function' ? _wpSellFilterRow() : ''}
+          <div id="wiz-coll-picker" style="max-height:340px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;background:var(--surface);-webkit-overflow-scrolling:touch"></div>
         </div>` : ''}
       </div>`;
     setTimeout(() => {
@@ -2555,6 +2584,12 @@ function renderWizardStep() {
       const _pd = _pdKey && _pdKey !== '__new__' ? (state.personalData[_pdKey] || {}) : {};
       const _pricePaid = wizard.data.originalPrice || wizard.data.priceItem || _pd.priceItem || '';
       const _estWorth = wizard.data.estWorth || _pd.userEstWorth || '';
+      // v0.9.746 (Brad): "add the detail page button above the est worth box" —
+      // peek at the item (photos link, condition, LOCATION for the tote hunt)
+      // without losing your place in the wizard.
+      if (_pdKey && _pdKey !== '__new__' && state.personalData[_pdKey]) {
+        _priceCtxHtml += '<button type="button" onclick="_wizPeekDetail()" style="width:100%;margin-bottom:0.6rem;padding:0.55rem;border-radius:8px;border:1.5px dashed var(--accent2,#c9922a);background:rgba(201,146,42,0.08);color:var(--accent2,#c9922a);font-weight:600;font-size:0.8rem;cursor:pointer;font-family:var(--font-body)">\uD83D\uDCC4 View Item Details</button>';
+      }
       if (_pricePaid || _estWorth) {
         _priceCtxHtml = '<div style="display:flex;gap:0.75rem;margin-bottom:0.75rem;flex-wrap:wrap">';
         if (_pricePaid) {
