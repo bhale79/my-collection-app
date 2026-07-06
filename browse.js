@@ -82,8 +82,8 @@ var _COLL_COLS = [
   { col: 'var',   label: 'Var.', noSort: true },
   { col: 'type',  label: 'Type' },
   { col: 'desc',  label: 'Description' },
-  { col: 'added', label: 'Date Added' },   // v0.9.719/720 (Brad): sort by date added
-  { col: 'worth', label: 'Est. Worth' }
+  { col: 'worth', label: 'Est. Worth' },
+  { col: 'added', label: 'Date Added' },   // v0.9.719/726 (Brad): sortable, AFTER Est. Worth
 ];
 function _renderCollectionHeader() {
   var thead = document.querySelector('#page-browse .item-table thead tr');
@@ -94,7 +94,7 @@ function _renderCollectionHeader() {
     if (c.noSort) { return '<th style="white-space:nowrap;' + align + '">' + c.label + '</th>'; }
     var arrow = (cs.col === c.col) ? (cs.dir === 'desc' ? ' \u25BC' : ' \u25B2') : '';
     var _wsp = (c.col === 'worth') ? 'white-space:normal;' : 'white-space:nowrap;';
-    if (c.col === 'added') _wsp += 'width:88px;';   // v0.9.725: fitted column
+    if (c.col === 'added') _wsp += 'width:80px;';   // v0.9.725/726: fitted column
     return '<th onclick="_collSortBy(\'' + c.col + '\')" style="cursor:pointer;' + _wsp + align + '" title="Sort by ' + c.label + '">' + c.label + arrow + '</th>';
   }).join('');
   html += '<th style="text-align:right;white-space:nowrap">Actions</th>';
@@ -2891,9 +2891,9 @@ function renderBrowse() {
         : `<button onclick="event.stopPropagation();showAddToUpgradeModal('${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0},'${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Add to Upgrade list">Upgrade</button>`;
       return `<tr id="share-card-${_shareKeyD}" onclick="${_inShareModeD ? 'toggleShareItem(\'' + _shareKeyD + '\')' : 'showItemDetailPage(' + globalIdx + ", '" + _copyInv + "')"}" style="cursor:pointer${_isQuick ? ';opacity:0.82' : ''}${_isShareSelectedD ? ';outline:2px solid #3a9e68;background:rgba(58,158,104,0.06)' : ''}" data-group="${_groupId}" data-item="${item.itemNum}">
         ${typeof _mfrBadge === 'function' ? _mfrBadge({ manufacturer: (pd && pd.manufacturer) || '' }) : '<td>\u2014</td>'}
-        <td>
+        <td style="max-width:170px;overflow:hidden">
           ${_inShareModeD ? '<input type="checkbox" id="share-cb-' + _shareKeyD + '" ' + (_isShareSelectedD ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _shareKeyD + '\')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">' : ''}
-          <span class="item-num" style="display:inline-block;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom" title="${String(_displayItemNum(item)).replace(/"/g,'&quot;')}">${_displayItemNum(item)}</span>${_noNumTag(item.itemNum)}
+          <span class="item-num" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom" title="${String(_displayItemNum(item)).replace(/"/g,'&quot;')}">${_displayItemNum(item)}</span>${_noNumTag(item.itemNum)}
           <div style="margin-top:1px;line-height:1.1;white-space:nowrap">
             ${(typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(item._tab) : ''}
             ${(function(){ var _co = (typeof _ownedCompanions === 'function') ? _ownedCompanions(pd) : []; if (_co.length) return '<span style="font-size:0.7rem;color:var(--accent3);font-weight:600" title="Grouped with ' + _co.join(', ') + '">🔗 ' + _co.join(' ') + '</span>'; return _groupId ? '<span style="font-size:0.6rem;color:var(--accent3)" title="Grouped">🔗</span>' : ''; })()}
@@ -2905,8 +2905,8 @@ function renderBrowse() {
         <td style="white-space:nowrap">${item.variation ? '<span style="font-size:0.78rem;color:var(--text-mid)">' + item.variation + '</span>' : '<span style="color:var(--text-dim)">—</span>'}</td>
         <td style="font-size:0.78rem;color:var(--text-dim)">${_typeText}</td>
         <td style="color:var(--text-mid);font-size:0.85rem" title="${(_descFull||'').replace(/"/g,'&quot;')}">${_descFull}</td>
-        <td style="font-size:0.76rem;color:var(--text-dim);white-space:nowrap">${(function(){ var d = (pd && (pd.dateAdded || pd.datePurchased)) || ''; if (d) return (typeof _formatDate === 'function') ? _formatDate(d) : d; if (pd && pd._savedAt) { try { return new Date(pd._savedAt).toLocaleDateString(); } catch(e){} } return '—'; })()}</td>
         <td style="font-size:0.82rem;color:var(--gold);white-space:nowrap">${_estWorth}</td>
+        <td style="font-size:0.76rem;color:var(--text-dim);white-space:nowrap;width:80px">${(function(){ var d = (pd && (pd.dateAdded || pd.datePurchased)) || ''; if (d) return (typeof _formatDate === 'function') ? _formatDate(d) : d; if (pd && pd._savedAt) { try { return new Date(pd._savedAt).toLocaleDateString(); } catch(e){} } return '—'; })()}</td>
         <td class="coll-actions-cell" style="text-align:right">
           ${!_inShareModeD ? `${_fsBtn}
           <button onclick="event.stopPropagation();collectionActionSold(${globalIdx},'${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0},'${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Mark as sold / add to Sold list">Sold</button>
