@@ -138,7 +138,14 @@ async function uploadWizardPhoto(file, stepId, viewKey) {
       }
       _invId = wizard.data._photoInventoryId;
     }
-    const url = await driveUploadItemPhoto(file, itemNum, viewKey, _invId || undefined);
+    // v0.9.730: name pair photos by UNIT — the engine step's shots get -P/-D
+    // from the chosen power so shared-folder galleries are tellable-apart.
+    var _unitTag = '';
+    if ((stepId === 'photosItem' || stepId === 'photosBox') && d.unitPower) {
+      _unitTag = d.unitPower === 'Powered' ? '-P' : (d.unitPower === 'Dummy' ? '-D' : '');
+      if (_unitTag && new RegExp(_unitTag + '$', 'i').test(itemNum)) _unitTag = '';   // already suffixed
+    }
+    const url = await driveUploadItemPhoto(file, itemNum, viewKey, _invId || undefined, _unitTag ? (itemNum + _unitTag) : undefined);
     if (!wizard.data[stepId]) wizard.data[stepId] = {};
     wizard.data[stepId][viewKey] = url;
     // Update label to show success, hide spinner
