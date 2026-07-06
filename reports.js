@@ -153,7 +153,7 @@ function buildReport() {
     }
 
     tbody.innerHTML = ownedItems.map((pd, idx) => {
-      const master = findMaster(pd.itemNum, pd.variation) || {};
+      const master = findMaster(pd.itemNum, pd.variation, pd) || {};
       const photoId = 'ins-photo-' + idx;
       const cells = (CFG.columns || []).map(c => {
         const v = _cellValue(c, pd, master, photoId);
@@ -231,7 +231,7 @@ function buildReport() {
       return (a.itemNum||'').localeCompare(b.itemNum||'',undefined,{numeric:true});
     });
     tbody.innerHTML = owned.map(pd=>{
-      const m=findMaster(pd.itemNum,pd.variation)||{};
+      const m=findMaster(pd.itemNum,pd.variation, pd)||{};
       const desc=m.roadName||m.description||m.itemType||'—';
       const worth=pd.userEstWorth?_currencySymbol()+parseFloat(pd.userEstWorth).toLocaleString():'—';
       return `<tr>
@@ -260,12 +260,12 @@ function buildReport() {
     if (showWant) {
       const w=(typeof foldWantEntries==='function') ? foldWantEntries(Object.values(state.wantData||{})) : Object.values(state.wantData||{});   // v0.9.722: pairs = one row, one price
       html+=sect('Want List', w.length);
-      html+= w.length ? w.map(e=>{ const m=findMaster(e.itemNum,e.variation)||{}; const d=(m.roadName||m.description||'—')+(e._wantMates?' 🔗 '+e._wantMates.join(' + '):''); const _pv=e._pairPrice||e.expectedPrice; const pr=_pv?_currencySymbol()+parseFloat(_pv).toLocaleString():'—'; return `<tr><td><span class="item-num">${esc(e.itemNum)}</span></td><td>${d}</td><td>${esc(e.variation)||'—'}</td><td>${esc(e.priority)||'—'}</td><td class="market-val">${pr}</td><td style="font-size:0.77rem;color:var(--text-dim)">${cn(e.notes)}</td></tr>`; }).join('') : '<tr><td colspan="6" class="ui-empty">Nothing on your want list</td></tr>';
+      html+= w.length ? w.map(e=>{ const m=findMaster(e.itemNum,e.variation, e)||{}; const d=(m.roadName||m.description||'—')+(e._wantMates?' 🔗 '+e._wantMates.join(' + '):''); const _pv=e._pairPrice||e.expectedPrice; const pr=_pv?_currencySymbol()+parseFloat(_pv).toLocaleString():'—'; return `<tr><td><span class="item-num">${esc(e.itemNum)}</span></td><td>${d}</td><td>${esc(e.variation)||'—'}</td><td>${esc(e.priority)||'—'}</td><td class="market-val">${pr}</td><td style="font-size:0.77rem;color:var(--text-dim)">${cn(e.notes)}</td></tr>`; }).join('') : '<tr><td colspan="6" class="ui-empty">Nothing on your want list</td></tr>';
     }
     if (showUpg) {
       const u=(typeof foldWantEntries==='function') ? foldWantEntries(Object.values(state.upgradeData||{})) : Object.values(state.upgradeData||{});   // v0.9.722
       html+=sect('Upgrade List', u.length);
-      html+= u.length ? u.map(e=>{ const m=findMaster(e.itemNum,e.variation)||{}; const d=(m.roadName||m.description||'—')+(e._wantMates?' 🔗 '+e._wantMates.join(' + '):''); const tgt=[esc(e.priority),e.targetCondition?('→ cond '+e.targetCondition):''].filter(Boolean).join(' '); const pr=e.maxPrice?_currencySymbol()+parseFloat(e.maxPrice).toLocaleString():'—'; return `<tr><td><span class="item-num">${esc(e.itemNum)}</span></td><td>${d}</td><td>${esc(e.variation)||'—'}</td><td>${tgt||'—'}</td><td class="market-val">${pr}</td><td style="font-size:0.77rem;color:var(--text-dim)">${cn(e.notes)}</td></tr>`; }).join('') : '<tr><td colspan="6" class="ui-empty">Nothing on your upgrade list</td></tr>';
+      html+= u.length ? u.map(e=>{ const m=findMaster(e.itemNum,e.variation, e)||{}; const d=(m.roadName||m.description||'—')+(e._wantMates?' 🔗 '+e._wantMates.join(' + '):''); const tgt=[esc(e.priority),e.targetCondition?('→ cond '+e.targetCondition):''].filter(Boolean).join(' '); const pr=e.maxPrice?_currencySymbol()+parseFloat(e.maxPrice).toLocaleString():'—'; return `<tr><td><span class="item-num">${esc(e.itemNum)}</span></td><td>${d}</td><td>${esc(e.variation)||'—'}</td><td>${tgt||'—'}</td><td class="market-val">${pr}</td><td style="font-size:0.77rem;color:var(--text-dim)">${cn(e.notes)}</td></tr>`; }).join('') : '<tr><td colspan="6" class="ui-empty">Nothing on your upgrade list</td></tr>';
     }
     if (showParts) {
       if (!state.partsData) {
@@ -315,7 +315,7 @@ function exportReport() {
     });
     const esc = v => `"${(v||'').toString().replace(/"/g,'""')}"`;
     const rows = ownedItems.map(pd => {
-      const master = findMaster(pd.itemNum, pd.variation) || {};
+      const master = findMaster(pd.itemNum, pd.variation, pd) || {};
       return [
         esc(pd.itemNum), esc(master.roadName || master.description || ''),
         esc(pd.variation || ''), esc(pd.condition || ''),
@@ -698,7 +698,7 @@ function _rbGetItems(def) {
     return !(pd.hasBox==='Yes' && noC && noP);
   }).map(pd => ({
     pd,
-    master: findMaster(pd.itemNum, pd.variation) || {}
+    master: findMaster(pd.itemNum, pd.variation, pd) || {}
   }));
 
   // Apply filters
