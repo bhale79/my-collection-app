@@ -344,6 +344,11 @@ window._wizPeekDetail = function () {
   } catch (e) { console.warn('[peek]', e); }
 };
 
+// v0.9.751 (Brad): sold flow picks from the For Sale list OR the collection.
+window._soldPickSrcSet = function (src) {
+  if (typeof wizard !== 'undefined' && wizard.data) { wizard.data._soldPickSrc = src; renderWizardStep(); }
+};
+
 async function openWizard(tab) {
   // Session 154: Want lookups span the whole catalog — load every era first
   // (instant if cached) so search isn't capped to the current era.
@@ -1452,7 +1457,7 @@ function renderWizardStep() {
         <div id="wiz-suggestions" style="display:none;flex-direction:column;gap:1px;margin-top:4px;max-height:340px;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;-webkit-overflow-scrolling:touch"></div>
         ${s.optional ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>' : ''}
         <div id="wiz-match" style="margin-top:0.75rem"></div>
-        ${s.id === 'itemNum' ? `
+        ${s.id === 'itemNum' && wizard.tab !== 'sold' ? `
         <button onclick="_wizScanBarcode()" style="
           width:100%;margin-top:0.6rem;padding:0.65rem 1rem;
           border-radius:8px;border:1.5px dashed #2980b9;
@@ -1486,7 +1491,12 @@ function renderWizardStep() {
         </label>` : ''}
         ${_showCollPicker ? `
         <div style="margin-top:0.85rem">
-          <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);font-weight:600;margin-bottom:0.4rem">Or pick from your collection</div>
+          <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);font-weight:600;margin-bottom:0.4rem">${wizard.tab === 'sold' ? 'What did you sell?' : 'Or pick from your collection'}</div>
+          ${wizard.tab === 'sold' ? (function () {
+            const _src = wizard.data._soldPickSrc || (Object.keys(state.forSaleData || {}).length ? 'fs' : 'coll');
+            const _chip = (id, lbl, on) => '<button type="button" onclick="_soldPickSrcSet(\'' + id + '\')" style="flex:1;padding:0.5rem;border-radius:8px;font-weight:700;font-size:0.8rem;cursor:pointer;font-family:var(--font-body);border:1.5px solid ' + (on ? '#2ecc71;background:rgba(46,204,113,0.15);color:#2ecc71' : 'var(--border);background:var(--surface2);color:var(--text-mid)') + '">' + lbl + '</button>';
+            return '<div style="display:flex;gap:0.4rem;margin-bottom:0.45rem">' + _chip('fs', '\uD83C\uDFF7 From For Sale List', _src === 'fs') + _chip('coll', '\uD83D\uDCE6 From My Collection', _src === 'coll') + '</div>';
+          })() : ''}
           ${typeof _wpSellFilterRow === 'function' ? _wpSellFilterRow() : ''}
           <div id="wiz-coll-picker" style="max-height:340px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;background:var(--surface);-webkit-overflow-scrolling:touch"></div>
         </div>` : ''}
