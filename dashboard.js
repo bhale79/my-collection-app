@@ -883,7 +883,9 @@ var PANEL_CATALOG = [
           var badge = '<span style="font-size:0.72rem;font-weight:600;color:' + pc + ';border:1px solid ' + pc + ';border-radius:3px;padding:0.1rem 0.3rem;flex-shrink:0">' + (w.priority || 'Med') + '</span>';
           var idx = master ? state.masterData.indexOf(master) : -1;
           return _panelRow('⭐', w.itemNum + (w.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + w.variation + '</span>' : ''), name, price,
-            idx >= 0 ? 'showItemDetailPage(' + idx + ')' : 'goToWantList()', null, badge
+            // v0.9.715 (Brad): open the WANT detail (★ On Want List, Back to
+            // Want List) — the plain page dressed wants up as owned items.
+            "_wantViewDetail('" + String(w.itemNum).replace(/'/g, "\\'") + "','" + String(w.variation || '').replace(/'/g, "\\'") + "')", null, badge
           );
         }).join('') || '<div class="empty-state"><p>Want list is empty</p></div>';
     }
