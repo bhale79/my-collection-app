@@ -82,7 +82,7 @@ var _COLL_COLS = [
   { col: 'var',   label: 'Var.', noSort: true },
   { col: 'type',  label: 'Type' },
   { col: 'desc',  label: 'Description' },
-  { col: 'added', label: 'Added' },   // v0.9.719 (Brad): sort by date added
+  { col: 'added', label: 'Date Added' },   // v0.9.719/720 (Brad): sort by date added
   { col: 'worth', label: 'Est. Worth' }
 ];
 function _renderCollectionHeader() {
@@ -2488,7 +2488,7 @@ function renderBrowse() {
       var _w = parseFloat(pd.userEstWorth);
       // v0.9.719: date-added key — save timestamp beats purchase date beats
       // sheet row order (older rows without either cluster together).
-      var _addTs = pd._savedAt || Date.parse(pd.datePurchased || '') || (pd.row || 0);
+      var _addTs = Date.parse(pd.dateAdded || '') || pd._savedAt || Date.parse(pd.datePurchased || '') || (pd.row || 0);   // v0.9.720: sheet column first
       return {
         it: it,
         mfr: (typeof _manufacturerOfItem === 'function' ? (_manufacturerOfItem(it) || '') : ''),
@@ -2854,7 +2854,9 @@ function renderBrowse() {
       const _escVar = (item.variation||'').replace(/'/g,"\'");
       const _dispNum = _displayItemNum(item);
       const _descParts = [item.roadName, item.itemType].filter(Boolean);
-      const _descFull  = _descParts.join(' · ') || item.description || '—';
+      // v0.9.720 (Brad): manual/personal-only rows show their OWN description,
+      // not a road·type echo of the Type column.
+      const _descFull  = (item._personalOnly && item.description) ? item.description : (_descParts.join(' · ') || item.description || '—');
       const _descShort = _descFull.length > 42 ? _descFull.substring(0, 40) + '…' : _descFull;
       const _varText   = item.variation ? ` <span style="font-size:0.72rem;color:var(--text-dim);background:var(--surface2);padding:1px 5px;border-radius:4px;margin-left:3px">${item.variation}</span>` : '';
       const _typeText = (typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(item) : item.itemType) || '<span style="color:var(--text-dim)">—</span>';
@@ -2901,7 +2903,7 @@ function renderBrowse() {
         <td style="white-space:nowrap">${item.variation ? '<span style="font-size:0.78rem;color:var(--text-mid)">' + item.variation + '</span>' : '<span style="color:var(--text-dim)">—</span>'}</td>
         <td style="font-size:0.78rem;color:var(--text-dim)">${_typeText}</td>
         <td style="color:var(--text-mid);font-size:0.85rem" title="${(_descFull||'').replace(/"/g,'&quot;')}">${_descFull}</td>
-        <td style="font-size:0.76rem;color:var(--text-dim);white-space:nowrap">${(function(){ var d = (pd && pd.datePurchased) || ''; if (d) return (typeof _formatDate === 'function') ? _formatDate(d) : d; if (pd && pd._savedAt) { try { return new Date(pd._savedAt).toLocaleDateString(); } catch(e){} } return '—'; })()}</td>
+        <td style="font-size:0.76rem;color:var(--text-dim);white-space:nowrap">${(function(){ var d = (pd && (pd.dateAdded || pd.datePurchased)) || ''; if (d) return (typeof _formatDate === 'function') ? _formatDate(d) : d; if (pd && pd._savedAt) { try { return new Date(pd._savedAt).toLocaleDateString(); } catch(e){} } return '—'; })()}</td>
         <td style="font-size:0.82rem;color:var(--gold);white-space:nowrap">${_estWorth}</td>
         <td class="coll-actions-cell" style="text-align:right">
           ${!_inShareModeD ? `${_fsBtn}
