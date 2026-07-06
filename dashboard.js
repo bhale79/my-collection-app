@@ -731,7 +731,7 @@ function buildDashboard() {
     var host = document.getElementById('dash-panels-host');
     if (host) {
       host.innerHTML = panels.map(function(p, i) {
-        return '<div class="panel" style="flex:1 1 300px;min-width:270px">'
+        return '<div class="panel" style="flex:1 1 0;min-width:0">'   // v0.9.753: always one row on desktop — cards shrink, never wrap
           + '<div class="section-title" id="dash-panel-header-' + i + '" style="display:flex;align-items:center;justify-content:space-between"></div>'
           + '<div id="dash-panel-body-' + i + '"><div class="loading"><div class="spinner"></div></div></div>'
           + '</div>';
