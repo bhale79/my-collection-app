@@ -2703,6 +2703,11 @@ function renderWizardStep() {
     if (_pwNb) _pwNb.style.display = 'none';
 
   } else if (s.type === 'date') {
+    // v0.9.749 (Brad): "Date listed" defaults to TODAY (user can change it) —
+    // same for recording a sale date. Stamp wizard.data too so Next keeps it.
+    if (!wizard.data[s.id] && (s.id === 'dateListed' || s.id === 'dateSold')) {
+      try { wizard.data[s.id] = new Date().toLocaleDateString('en-CA'); } catch (e) {}
+    }
     const val = wizard.data[s.id] || '';
     body.innerHTML = `
       <div style="padding-top:0.75rem">
