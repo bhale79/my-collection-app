@@ -2874,13 +2874,17 @@ function _upgradeViewMine(ugKey) {
 // which one to target with a new Upgrade entry. After selecting, opens the
 // existing showAddToUpgradeModal flow with the picked item's details.
 window._upgPickFilter = function () {
-  var q = (document.getElementById('upg-pick-q') || {}).value || '';
+  var q = ((document.getElementById('upg-pick-q') || {}).value || '').toLowerCase();
   var t = (document.getElementById('upg-pick-t') || {}).value || '';
-  q = q.toLowerCase();
+  var m = (document.getElementById('upg-pick-m') || {}).value || '';
+  var e = (document.getElementById('upg-pick-e') || {}).value || '';
   var box = document.getElementById('upgrade-pick-modal');
   if (!box) return;
   box.querySelectorAll('button[data-s]').forEach(function (b) {
-    var ok = (!q || (b.getAttribute('data-s') || '').indexOf(q) >= 0) && (!t || b.getAttribute('data-t') === t);
+    var ok = (!q || (b.getAttribute('data-s') || '').indexOf(q) >= 0)
+      && (!t || b.getAttribute('data-t') === t)
+      && (!m || b.getAttribute('data-m') === m)
+      && (!e || b.getAttribute('data-e') === e);
     b.style.display = ok ? 'flex' : 'none';
   });
 };
@@ -2906,16 +2910,33 @@ function pickItemForUpgrade() {
   overlay.id = 'upgrade-pick-modal';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10001;display:flex;align-items:center;justify-content:center;padding:1.25rem';
   overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  // v0.9.734: a grouped COMPANION (dummy/tender/B unit) is whatever its LEAD
+  // is — companion rows were stamped from the base number w/o variation, so a
+  // reused number (212 Marines vs Santa Fe) poisoned them at save time.
+  function _upgLeadOf(p) {
+    if (!p.groupId) return null;
+    var n = String(p.itemNum || '').toUpperCase();
+    var isComp = /-D$/.test(n) || /C$/.test(n.replace(/-(P|D)$/, '')) || (typeof isTender === 'function' && isTender(n));
+    if (!isComp) return null;
+    return Object.values(state.personalData || {}).find(function (q) {
+      if (!q || !q.owned || q.groupId !== p.groupId || q === p) return false;
+      var qn = String(q.itemNum || '').toUpperCase();
+      return !(/-D$/.test(qn) || /C$/.test(qn.replace(/-(P|D)$/, '')) || (typeof isTender === 'function' && isTender(qn)) || /-(BOX|MBOX|IS)$/.test(qn));
+    }) || null;
+  }
   var rowsHtml = owned.map(function(p) {
-    // v0.9.733 (Brad's 212 Santa Fe shown as U.S. Marines): the ROW's own
-    // stamped identity wins; catalog fallback must respect the VARIATION.
+    // v0.9.733/734: lead identity → row's own stamp → variation-aware catalog.
+    var _lead = _upgLeadOf(p);
     var master = findMaster(p.itemNum, p.variation || '', p) || {};
-    var name = p.roadName || master.roadName || p.description || master.itemType || p.itemType || '';
+    var _leadMaster = _lead ? (findMaster(_lead.itemNum, _lead.variation || '', _lead) || {}) : {};
+    var name = (_lead && (_lead.roadName || _leadMaster.roadName)) || p.roadName || master.roadName || p.description || master.itemType || p.itemType || '';
     var _tBucket = (typeof getTypeBucketLabel === 'function') ? (getTypeBucketLabel(master.itemNum ? master : p) || (p.itemType || '')) : (p.itemType || '');
+    var _mfrTag = p.manufacturer || (typeof _brandOfItem === 'function' ? (_brandOfItem(p.itemNum) || '') : '');
+    var _eraTag = (typeof ERAS !== 'undefined' && ERAS[p.era] && ERAS[p.era].label) ? ERAS[p.era].label : (p.era || '');
     var cond = p.condition ? parseInt(p.condition) : null;
     var condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
     var escVar = (p.variation||'').replace(/'/g, "\\'");
-    return '<button data-s="' + String(p.itemNum + ' ' + name).toLowerCase().replace(/"/g, '') + '" data-t="' + String(_tBucket).replace(/"/g, '') + '" onclick="document.getElementById(\'upgrade-pick-modal\').remove();'
+    return '<button data-s="' + String(p.itemNum + ' ' + name).toLowerCase().replace(/"/g, '') + '" data-t="' + String(_tBucket).replace(/"/g, '') + '" data-m="' + String(_mfrTag).replace(/"/g, '') + '" data-e="' + String(_eraTag).replace(/"/g, '') + '" onclick="document.getElementById(\'upgrade-pick-modal\').remove();'
       + 'showAddToUpgradeModal(\''+p.itemNum+'\',\''+escVar+'\','+(p.row||0)+',\''+(p.inventoryId||'')+'\')" '
       + 'style="display:flex;align-items:center;gap:0.6rem;padding:0.65rem 0.85rem;border-radius:8px;'
       + 'background:var(--surface2);border:1px solid var(--border);width:100%;cursor:pointer;'
@@ -2935,9 +2956,17 @@ function pickItemForUpgrade() {
     + '<div style="font-family:var(--font-head);font-size:1.15rem;color:#8b5cf6;margin-bottom:0.25rem">\u2191 Add to Upgrade List</div>'
     + '<div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:0.6rem">Pick the item you\'d like to upgrade.</div>'
     // v0.9.733 (Brad): filters to narrow the pick list.
+    + '<div style="display:flex;gap:0.4rem;margin-bottom:0.45rem">'
+    +   '<input id="upg-pick-q" type="text" placeholder="Search # or name…" oninput="_upgPickFilter()" style="flex:1;min-width:0;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem">'
+    + '</div>'
     + '<div style="display:flex;gap:0.4rem;margin-bottom:0.7rem">'
-    +   '<input id="upg-pick-q" type="text" placeholder="Search # or name…" oninput="_upgPickFilter()" style="flex:2;min-width:0;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem">'
-    +   '<select id="upg-pick-t" onchange="_upgPickFilter()" style="flex:1;min-width:0;padding:0.5rem 0.4rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.85rem"><option value="">All types</option>'
+    +   '<select id="upg-pick-m" onchange="_upgPickFilter()" style="flex:1;min-width:0;padding:0.5rem 0.4rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.82rem"><option value="">All makers</option>'
+    +   (function(){ var seen={}; var out=''; owned.forEach(function(p){ var m = p.manufacturer || (typeof _brandOfItem === 'function' ? (_brandOfItem(p.itemNum) || '') : ''); if (m && !seen[m]) { seen[m]=1; out += '<option>' + m + '</option>'; } }); return out; })()
+    +   '</select>'
+    +   '<select id="upg-pick-e" onchange="_upgPickFilter()" style="flex:1;min-width:0;padding:0.5rem 0.4rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.82rem"><option value="">All eras</option>'
+    +   (function(){ var seen={}; var out=''; owned.forEach(function(p){ var e = (typeof ERAS !== 'undefined' && ERAS[p.era] && ERAS[p.era].label) ? ERAS[p.era].label : (p.era || ''); if (e && !seen[e]) { seen[e]=1; out += '<option>' + e + '</option>'; } }); return out; })()
+    +   '</select>'
+    +   '<select id="upg-pick-t" onchange="_upgPickFilter()" style="flex:1;min-width:0;padding:0.5rem 0.4rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.82rem"><option value="">All types</option>'
     +   (function(){ var seen={}; var out=''; owned.forEach(function(p){ var m = findMaster(p.itemNum, p.variation||'', p) || {}; var b = (typeof getTypeBucketLabel === 'function') ? (getTypeBucketLabel(m.itemNum ? m : p) || (p.itemType||'')) : (p.itemType||''); if (b && !seen[b]) { seen[b]=1; out += '<option>' + b + '</option>'; } }); return out; })()
     +   '</select>'
     + '</div>'
