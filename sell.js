@@ -184,7 +184,7 @@ async function shareAsCards() {
       try {
       var pd = it.pd || (it.fs && it.fs.inventoryId && state.personalData[it.fs.inventoryId]) || {};
       if (pd && pd.itemNum && String(pd.itemNum) !== String(it.itemNum)) {
-        var _cm = findMaster(pd.itemNum, pd.variation) || it.master;
+        var _cm = findMaster(pd.itemNum, pd.variation, pd) || it.master;
         it = Object.assign({}, it, { itemNum: pd.itemNum, variation: pd.variation || '', master: _cm });
       }
       var photoUrls = await _rrItemPhotoDataUrls(pd, allPhotos);
@@ -325,7 +325,7 @@ async function _sellRevoke(email) {
 // ═══ TIER 3 — DATED PUBLIC PDF LINK ══════════════════════════════
 async function _sellDatedPdfLink() {
   var items = Object.values(state.forSaleData || {}).map(function (e) {
-    var m = findMaster(e.itemNum, e.variation) || {};
+    var m = findMaster(e.itemNum, e.variation, e) || {};
     var pd = (e.inventoryId && state.personalData[e.inventoryId]) || {};
     return { itemNum: e.itemNum, variation: e.variation, master: m, pd: pd, fs: e };
   });
