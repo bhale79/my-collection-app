@@ -2535,6 +2535,7 @@ function showItemPanel(idx, pdKey, mode) {
       // The old 25-cell array was in pre-Session-156 column order; every column
       // from B onward landed in the wrong cell on a 32-col schema sheet.
       const newRow = buildPersonalRow({
+        dateAdded: pd.dateAdded || '',   // v0.9.720: panel saves keep the original date
         itemNum: pd.itemNum || item.itemNum,   // v0.9.701: title is editable on manual items
         variation: item.variation || '',
         condition: pd.condition || '',
@@ -3345,6 +3346,7 @@ async function saveItem() {
     // column from B onward landed in the wrong cell on a 32-col schema sheet.
     // Note: there is no 'copy' field in the current schema, so we drop it.
     const ownedRow = buildPersonalRow({
+      dateAdded: _ex.dateAdded,   // v0.9.720: undefined on fresh adds → stamped; kept on updates
       itemNum: item.itemNum,
       variation: item.variation || '',
       condition: condition,
