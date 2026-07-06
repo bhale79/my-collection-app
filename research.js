@@ -32,6 +32,7 @@
   // category (262301) instead of by words. Items without a real catalog
   // number (manual entries: billboards, paper) keep the descriptive query and
   // skip the category fence — they're often listed outside the train category.
+  window._googlePriceUrl = function (n, mf, r, d) { return _googlePriceUrl(n, mf, r, d); };   // v0.9.743: wizard price steps reuse this
   function _ebayCore(itemNum, mfr, roadName, desc, extra) {
     var n = String(itemNum || '').trim();
     var numeric = /^[0-9][0-9A-Za-z.\/-]{0,14}$/.test(n);
