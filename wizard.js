@@ -2591,7 +2591,7 @@ function renderWizardStep() {
         _priceCtxHtml += '<button type="button" onclick="_wizPeekDetail()" style="width:100%;margin-bottom:0.6rem;padding:0.55rem;border-radius:8px;border:1.5px dashed var(--accent2,#c9922a);background:rgba(201,146,42,0.08);color:var(--accent2,#c9922a);font-weight:600;font-size:0.8rem;cursor:pointer;font-family:var(--font-body)">\uD83D\uDCC4 View Item Details</button>';
       }
       if (_pricePaid || _estWorth) {
-        _priceCtxHtml = '<div style="display:flex;gap:0.75rem;margin-bottom:0.75rem;flex-wrap:wrap">';
+        _priceCtxHtml += '<div style="display:flex;gap:0.75rem;margin-bottom:0.75rem;flex-wrap:wrap">';   // v0.9.747: += — the '=' here CLOBBERED the peek button
         if (_pricePaid) {
           _priceCtxHtml += '<div style="flex:1;min-width:120px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.8rem">'
             + '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.2rem">Price Paid</div>'
