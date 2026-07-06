@@ -521,6 +521,17 @@ function foldWantEntries(rows) {
   });
 }
 window.foldWantEntries = foldWantEntries;
+// v0.9.722: ONE badge count — folded want + folded upgrade (pairs count once),
+// matching every list view. All nav-wishlist-count writers use this.
+window.wishlistFoldedCount = function () {
+  try {
+    var w = foldWantEntries(Object.values(state.wantData || {})).length;
+    var u = foldWantEntries(Object.values(state.upgradeData || {})).length;
+    return w + u;
+  } catch (e) {
+    return Object.keys(state.wantData || {}).length + Object.keys(state.upgradeData || {}).length;
+  }
+};
 
 // ── Grouping options — SINGLE SOURCE OF TRUTH (Decision Map #1) ──
 // Given an item number, returns the grouping buttons it can use: [{id,label}].
@@ -1865,9 +1876,7 @@ function buildApp() {
   // showed '—' for users with only Want entries until they clicked the nav.
   const _uEl = document.getElementById('nav-wishlist-count');
   if (_uEl) {
-    const _wc = Object.values(state.wantData||{}).length;
-    const _uc = Object.values(state.upgradeData||{}).length;
-    const _total = _wc + _uc;
+    const _total = (typeof wishlistFoldedCount === 'function') ? wishlistFoldedCount() : 0;   // v0.9.722
     _uEl.textContent = _total > 0 ? _total.toLocaleString() : '—';
   }
   // Wire up the Google Sheet link in the sidebar
