@@ -90,7 +90,7 @@ function _renderCollectionHeader() {
   if (!thead) return;
   var cs = state._collSort || {};
   var html = _COLL_COLS.map(function(c) {
-    var align = (c.col === 'worth') ? 'text-align:right;' : '';
+    var align = (c.col === 'worth' || c.col === 'var' || c.col === 'added') ? 'text-align:center;' : '';   // v0.9.727 (Brad): centered
     if (c.noSort) { return '<th style="white-space:nowrap;' + align + '">' + c.label + '</th>'; }
     var arrow = (cs.col === c.col) ? (cs.dir === 'desc' ? ' \u25BC' : ' \u25B2') : '';
     var _wsp = (c.col === 'worth') ? 'white-space:normal;' : 'white-space:nowrap;';
@@ -2909,11 +2909,11 @@ function renderBrowse() {
             ${_statusBadges}
           </div>
         </td>
-        <td style="white-space:nowrap">${item.variation ? '<span style="font-size:0.78rem;color:var(--text-mid)">' + item.variation + '</span>' : '<span style="color:var(--text-dim)">—</span>'}</td>
+        <td style="white-space:nowrap;text-align:center">${item.variation ? '<span style="font-size:0.78rem;color:var(--text-mid)">' + item.variation + '</span>' : '<span style="color:var(--text-dim)">—</span>'}</td>
         <td style="font-size:0.78rem;color:var(--text-dim)">${_typeText}</td>
         <td style="color:var(--text-mid);font-size:0.85rem" title="${(_descFull||'').replace(/"/g,'&quot;')}">${_descFull}</td>
-        <td style="font-size:0.82rem;color:var(--gold);white-space:nowrap">${_estWorth}</td>
-        <td style="font-size:0.76rem;color:var(--text-dim);white-space:nowrap;width:80px">${(function(){ var d = (pd && (pd.dateAdded || pd.datePurchased)) || ''; if (d) return (typeof _formatDate === 'function') ? _formatDate(d) : d; if (pd && pd._savedAt) { try { return new Date(pd._savedAt).toLocaleDateString(); } catch(e){} } return '—'; })()}</td>
+        <td style="font-size:0.82rem;color:var(--gold);white-space:nowrap;text-align:center">${_estWorth}</td>
+        <td style="font-size:0.76rem;color:var(--text-dim);white-space:nowrap;width:80px;text-align:center">${(function(){ var d = (pd && (pd.dateAdded || pd.datePurchased)) || ''; if (d) return (typeof _formatDate === 'function') ? _formatDate(d) : d; if (pd && pd._savedAt) { try { return new Date(pd._savedAt).toLocaleDateString(); } catch(e){} } return '—'; })()}</td>
         <td class="coll-actions-cell" style="text-align:right">
           ${!_inShareModeD ? `${_fsBtn}
           <button onclick="event.stopPropagation();collectionActionSold(${globalIdx},'${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0},'${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Mark as sold / add to Sold list">Sold</button>
