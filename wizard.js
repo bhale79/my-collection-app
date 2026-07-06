@@ -524,7 +524,7 @@ function _buildItemSearchFiltersDOM() {
   if (typeof getMasterDistinct !== 'function') return null;
   // Sticky filters: on a fresh add (wizard.data rebuilt), seed Manufacturer + Era
   // from the user's last choice so they persist until cleared.
-  if (wizard.tab === 'collection') {
+  if (wizard.tab === 'collection' || wizard.tab === 'want') {   // v0.9.715: want too (Brad)
     if (wizard.data._searchFilterManufacturer === undefined) { try { wizard.data._searchFilterManufacturer = localStorage.getItem('lv_add_mfr') || ''; } catch (e) { wizard.data._searchFilterManufacturer = ''; } }
     if (wizard.data._searchFilterPeriod === undefined) { try { wizard.data._searchFilterPeriod = localStorage.getItem('lv_add_era') || ''; } catch (e) { wizard.data._searchFilterPeriod = ''; } }
   }
@@ -545,7 +545,7 @@ function _buildItemSearchFiltersDOM() {
   var showScale = _showAdvanced && scales.length >= minCount;
   // Session 176: the collection (add) tab always shows the filter bar because the
   // Era dropdown is a fixed list, so don't bail even if type/road/mfr/scale are thin.
-  if (wizard.tab !== 'collection' && !showType && !showRoad && !showMfr && !showScale) return null;
+  if (wizard.tab !== 'collection' && wizard.tab !== 'want' && !showType && !showRoad && !showMfr && !showScale) return null;   // v0.9.715: want always shows the bar too
 
   function esc(v) {
     return String(v == null ? '' : v)
@@ -601,12 +601,15 @@ function _buildItemSearchFiltersDOM() {
     { value: 'modern',  label: 'Modern' },
   ];
 
-  if (wizard.tab === 'collection') {
+  if (wizard.tab === 'collection' || wizard.tab === 'want') {
     // Session 176: the add screen shows exactly Manufacturer / Era / Type, each
     // defaulting to "All". Road/Scale are intentionally omitted to keep it simple.
+    // v0.9.715 (Brad): the WANT flow gets the same bar + Scale — picking from
+    // the master list needs manufacturer / era / type / scale narrowing.
     if (mfrs.length) bar.appendChild(mkDrop('wiz-search-mfr', 'Manufacturer', mfrs, wizard.data._searchFilterManufacturer || ''));
     bar.appendChild(mkDropPairs('wiz-search-era', 'Era', _eraPairs, wizard.data._searchFilterPeriod || ''));
     if (showType) bar.appendChild(mkDrop('wiz-search-type', ui.typeLabel || 'Type', types, wizard.data._searchFilterType || ''));
+    if (wizard.tab === 'want' && scales.length) bar.appendChild(mkDrop('wiz-search-scale', 'Scale', scales, wizard.data._searchFilterScale || ''));
     // Clear-filters button (Manufacturer + Era are remembered between adds).
     var _clrWrap = document.createElement('div');
     _clrWrap.style.cssText = 'display:flex;align-items:flex-end';
