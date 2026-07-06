@@ -1235,6 +1235,12 @@ async function saveWizardItem() {
     // Session 156: u2Row via buildPersonalRow
     const u2Row = buildPersonalRow({
       itemNum: u2Num,
+      // v0.9.735: companions are born with the LEAD's identity. Same-base units
+      // (212-D of a 212-P) share the lead's variation so findMaster resolves the
+      // RIGHT catalog row (Lionel reused numbers: 212 Marines '58 vs Santa Fe '64);
+      // road name inherits outright (a set's units wear the set's road).
+      variation: (typeof baseItemNum === 'function' && baseItemNum(u2Num) === baseItemNum(itemNum)) ? variation : undefined,
+      roadName: row[PERSONAL_FIELD_INDEX.roadName] || undefined,
       condition: d.unit2Condition || '',
       allOriginal: d.unit2AllOriginal || '',
       hasBox: d.unit2HasBox || 'No',
@@ -1259,6 +1265,8 @@ async function saveWizardItem() {
       // Session 156: u3Row via buildPersonalRow
       const u3Row = buildPersonalRow({
         itemNum: u3Num,
+        variation: (typeof baseItemNum === 'function' && baseItemNum(u3Num) === baseItemNum(itemNum)) ? variation : undefined,   // v0.9.735: see u2Row
+        roadName: row[PERSONAL_FIELD_INDEX.roadName] || undefined,
         condition: d.unit3Condition || '',
         allOriginal: d.unit3AllOriginal || '',
         hasBox: d.unit3HasBox || 'No',
@@ -1312,6 +1320,7 @@ async function saveWizardItem() {
     const tRow = buildPersonalRow({
       itemNum: tNum,
       variation: tVariation,
+      roadName: row[PERSONAL_FIELD_INDEX.roadName] || undefined,   // v0.9.735: tender wears the engine's road; blank lead -> tender's own catalog entry decides
       condition: d.tenderCondition || '',
       allOriginal: d.tenderAllOriginal || '',
       hasBox: d.tenderHasBox || 'No',
