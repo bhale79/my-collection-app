@@ -446,6 +446,10 @@ function _mIsMotive(t) { return /diesel|electric|locomotive|motoriz/i.test(Strin
 function _mSuffix(num) { const m = String(num || '').trim().match(/-?([PDTC])$/i); return m ? m[1].toUpperCase() : ''; }
 function findMaster(itemNum, variation, prefer) {
   if (!itemNum) return null;
+  // v0.9.732 (Brad's 4C, FINAL): when the caller passes the personal row as
+  // `prefer` and that row is a MANUAL entry, there is no catalog identity —
+  // ever. One guard here covers every display/lookup path at once.
+  if (prefer && String(prefer.era || '') === 'Manual') return null;
   const k = String(itemNum).trim();
   const exact = (state.masterByItem && state.masterByItem.get(k)) || [];
   const suf = _mSuffix(k);
@@ -547,7 +551,7 @@ function _auditCatalogResolution() {
       return pd && pd.owned && pd.itemNum && !(typeof _isBoxItemNum === 'function' && _isBoxItemNum(pd.itemNum));
     });
     if (!owned.length) return;
-    var bad = owned.filter(function (pd) { return !findMaster(pd.itemNum, pd.variation); });
+    var bad = owned.filter(function (pd) { return !findMaster(pd.itemNum, pd.variation, pd); });
     _catalogAuditDone = true;
     if (bad.length) {
       console.warn('[Catalog Audit] ' + bad.length + ' owned item(s) did NOT resolve to a catalog entry (Type/Description/Road will be blank): ' + bad.slice(0, 25).map(function (p) { return p.itemNum; }).join(', '));
