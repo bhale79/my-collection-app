@@ -174,8 +174,9 @@ function _wpBucketOf(pd) {
     return (typeof getTypeBucket === 'function') ? getTypeBucket(src) : (src.itemType || '');
   } catch (e) { return ''; }
 }
-function _wpSellFilterRow() {
+function _wpSellFilterRow(onchangeJs) {   // v0.9.750: reused by the upgrade picker with its own callback
   try {
+    var _oc = onchangeJs || "_filterCollPicker((document.getElementById('wiz-input')||{}).value||'')";
     var makers = {}, types = {}, scales = {};
     Object.values(state.personalData || {}).forEach(function (pd) {
       if (!pd || !pd.owned) return;
@@ -191,7 +192,7 @@ function _wpSellFilterRow() {
     };
     var ss = 'flex:1;padding:0.4rem 0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.78rem;min-width:0;font-family:var(--font-body)';
     var sel = function (id, ph, opts) {
-      return '<select id="' + id + '" onchange="_filterCollPicker((document.getElementById(\'wiz-input\')||{}).value||\'\')" style="' + ss + '"><option value="">' + ph + '</option>'
+      return '<select id="' + id + '" onchange="' + _oc.replace(/"/g, '&quot;') + '" style="' + ss + '"><option value="">' + ph + '</option>'
         + opts.map(function (o) { return '<option value="' + o[0] + '">' + o[1] + '</option>'; }).join('') + '</select>';
     };
     return '<div style="display:flex;gap:0.35rem;margin-bottom:0.45rem;flex-wrap:wrap">'
