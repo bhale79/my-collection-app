@@ -200,6 +200,43 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   }
   window._findMasterItemsAllEras = _findMasterItemsAllEras;   // v0.9.738: research typed-lookup searches every era
 
+  // v0.9.742 (Brad): "i maybe wanting an atlas boxcar that has l&n on it" —
+  // the research lookup accepts WORDS, not just numbers. Every-token-must-
+  // match scan over itemNum+roadName+description+itemType, across all eras.
+  async function _masterTextSearchAllEras(query, limit) {
+    limit = limit || 40;
+    var toks = String(query || '').toLowerCase().split(/\s+/).filter(function (t) { return t.length >= 2; });
+    if (!toks.length) return [];
+    var out = [], seen = {};
+    function scan(arr, era) {
+      if (!arr) return;
+      for (var i = 0; i < arr.length && out.length < limit; i++) {
+        var m = arr[i];
+        var hay = ((m.itemNum || '') + ' ' + (m.roadName || '') + ' ' + (m.description || '') + ' ' + (m.itemType || '')).toLowerCase();
+        var ok = true;
+        for (var t = 0; t < toks.length; t++) { if (hay.indexOf(toks[t]) < 0) { ok = false; break; } }
+        if (!ok) continue;
+        var e = m._era || era;
+        var key = (m.itemNum || '') + '|' + (m.variation || '') + '|' + (m._tab || '') + '|' + e;
+        if (seen[key]) continue;
+        seen[key] = 1;
+        if (!m._era) m._era = era;
+        out.push(m);
+      }
+    }
+    var curEra = (typeof _currentEra !== 'undefined') ? _currentEra : '';
+    if (typeof state !== 'undefined' && state.masterData) scan(state.masterData, curEra);
+    if (typeof REAL_ERA_IDS !== 'undefined' && Array.isArray(REAL_ERA_IDS) && typeof idbGet === 'function') {
+      for (var i = 0; i < REAL_ERA_IDS.length && out.length < limit; i++) {
+        var era = REAL_ERA_IDS[i];
+        if (era === curEra) continue;
+        try { scan(await idbGet('lv_master_cache_' + era), era); } catch (e) {}
+      }
+    }
+    return out;
+  }
+  window._masterTextSearchAllEras = _masterTextSearchAllEras;
+
   // v0.9.640: modern reissues usually QUOTE the postwar number in their
   // description ('Postwar "6468" NH DD Boxcar'). For a postwar-format scan,
   // offer those rows too — clearly labeled, never auto-picked (a road number
@@ -920,6 +957,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   // ── Candidate picker (Session 154) — shown when a scanned 5-digit code
   //    matches multiple master items. Resolves to the chosen master row,
   //    or null if the user cancels. ──
+  window.showCandidatePicker = function (c, s) { return showCandidatePicker(c, s); };   // v0.9.742: research multi-match uses the same picker
   function showCandidatePicker(candidates, scanResult) {
     return new Promise(function(resolve) {
       var overlay = document.createElement('div');
