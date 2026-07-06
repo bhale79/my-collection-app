@@ -198,6 +198,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     }
     return out;
   }
+  window._findMasterItemsAllEras = _findMasterItemsAllEras;   // v0.9.738: research typed-lookup searches every era
+
   // v0.9.640: modern reissues usually QUOTE the postwar number in their
   // description ('Postwar "6468" NH DD Boxcar'). For a postwar-format scan,
   // offer those rows too — clearly labeled, never auto-picked (a road number
@@ -1679,6 +1681,32 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     } catch (e) { return []; }
   }
 
+  // v0.9.738 (Brad): "add some drop downs to help make a stronger search if a
+  // user is just entering a number" — Maker + Era narrow the cross-era lookup
+  // and brand the Google/eBay queries even when the number isn't in master.
+  function _biQuickFilters() {
+    var mfrs = [], seen = {};
+    try {
+      Object.keys(ERAS).forEach(function (k) {
+        var mf = ERAS[k] && ERAS[k].manufacturer;
+        if (mf && !seen[mf]) { seen[mf] = 1; mfrs.push(mf); }
+      });
+    } catch (e) {}
+    var eras = [];
+    try {
+      (typeof REAL_ERA_IDS !== 'undefined' ? REAL_ERA_IDS : []).forEach(function (id) {
+        if (ERAS[id]) eras.push({ id: id, label: ERAS[id].label || id });
+      });
+    } catch (e) {}
+    var ss = 'flex:1;padding:0.45rem 0.5rem;border-radius:9px;border:1.5px solid var(--border,#444);background:var(--surface2,#1c2340);color:var(--text,#fff);font-size:0.85rem;min-width:0;font-family:var(--font-body,inherit)';
+    return '<div style="display:flex;gap:0.4rem;margin-top:0.4rem">'
+      + '<select id="bi-quick-mfr" style="' + ss + '"><option value="">Any maker</option>'
+      +   mfrs.map(function (m) { return '<option value="' + m + '">' + m + '</option>'; }).join('') + '</select>'
+      + '<select id="bi-quick-era" style="' + ss + '"><option value="">Any era</option>'
+      +   eras.map(function (e) { return '<option value="' + e.id + '">' + e.label + '</option>'; }).join('') + '</select>'
+      + '</div>';
+  }
+
   function _biBtn(label, style) {
     return '<button data-bi="' + label.act + '" style="padding:0.7rem 1rem;border-radius:10px;font-family:var(--font-body,sans-serif);font-size:0.9rem;font-weight:600;cursor:pointer;' + (style || 'background:var(--surface2,#252848);border:1.5px solid var(--border,#444);color:var(--text,#fff)') + '">' + label.txt + '</button>';
   }
@@ -1742,7 +1770,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           ? ('<div style="display:flex;gap:0.4rem;margin-top:0.6rem;align-items:stretch">'
             + '<input id="bi-quick" type="text" placeholder="Know it? Type the item # (e.g. 148, 10-2210)…" style="flex:1;padding:0.55rem 0.7rem;border-radius:9px;border:1.5px solid var(--border,#444);background:var(--surface2,#1c2340);color:var(--text,#fff);font-family:var(--font-mono,monospace);font-size:0.9rem;min-width:0">'
             + _biBtn({ act: 'quick', txt: 'Look up →' }, 'border:1.5px solid var(--gold,#d4a843);color:var(--gold,#d4a843)')
-            + '</div>')
+            + '</div>'
+            + _biQuickFilters())
           : '')
         + '<input type="file" id="bi-file" accept="image/*" style="display:none">'
         + '</div>');
@@ -1768,13 +1797,17 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         var act = b.getAttribute('data-bi');
         if (act === 'snap') { if (video.videoWidth) { var fr = snapFrame(); done({ raw: fr.raw, view: fr.view, lockedBc: null }); } }
         if (act === 'gallery') d.querySelector('#bi-file').click();
-        if (act === 'quick') { var _qv = (d.querySelector('#bi-quick') || {}).value || ''; if (_qv.trim()) done({ typedQuery: _qv.trim() }); return; }
+        if (act === 'quick') {
+          var _qv = (d.querySelector('#bi-quick') || {}).value || '';
+          if (_qv.trim()) done({ typedQuery: _qv.trim(), typedEra: (d.querySelector('#bi-quick-era') || {}).value || '', typedMfr: (d.querySelector('#bi-quick-mfr') || {}).value || '' });
+          return;
+        }
         if (act === 'last' && _biLastShot) done({ raw: _biLastShot.raw, view: _biLastShot.view, lockedBc: null });
         if (act === 'cancel') done(null);
       });
       var _bq = d.querySelector('#bi-quick');
       if (_bq) _bq.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter') { var v = _bq.value.trim(); if (v) done({ typedQuery: v }); }
+        if (e.key === 'Enter') { var v = _bq.value.trim(); if (v) done({ typedQuery: v, typedEra: (d.querySelector('#bi-quick-era') || {}).value || '', typedMfr: (d.querySelector('#bi-quick-mfr') || {}).value || '' }); }
       });
       d.querySelector('#bi-file').addEventListener('change', function (e) {
         var f = e.target.files && e.target.files[0];
@@ -2120,7 +2153,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // v0.9.711 (Brad): Research quick lookup — typed number, no photo.
         if (cap.typedQuery) {
           _biKill();
-          if (typeof window._researchLookupTyped === 'function') window._researchLookupTyped(cap.typedQuery);
+          if (typeof window._researchLookupTyped === 'function') window._researchLookupTyped(cap.typedQuery, { era: cap.typedEra || '', mfr: cap.typedMfr || '' });
           else if (onCancel) onCancel();
           return;
         }
