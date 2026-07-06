@@ -35,6 +35,10 @@
   function _ebayCore(itemNum, mfr, roadName, desc, extra) {
     var n = String(itemNum || '').trim();
     var numeric = /^[0-9][0-9A-Za-z.\/-]{0,14}$/.test(n);
+    // v0.9.741 (Brad): sellers type "lionel 2245", not "2245-P" — drop the
+    // powered/dummy/B-unit suffix (P/D/T/C) so companion rows search the set's
+    // real number. baseItemNum is the app-wide suffix bridge.
+    if (numeric && typeof baseItemNum === 'function') { try { n = baseItemNum(n) || n; } catch (e) {} }
     var q = numeric ? [mfr, n].filter(Boolean).join(' ') : _searchQuery(itemNum, mfr, roadName, desc);
     return 'https://www.ebay.com/sch/i.html?_nkw=' + encodeURIComponent(q) + (numeric ? '&_sacat=262301' : '') + (extra || '');
   }
