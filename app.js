@@ -72,6 +72,7 @@ const PERSONAL_SCHEMA = [
   { field: 'description',          header: 'Description' },
   { field: 'customName',           header: 'Custom Name' },
   { field: 'gauge',                header: 'Scale/Gauge' },              // v0.9.666 — appended at END (column rule)
+  { field: 'dateAdded',            header: 'Date Added' },               // v0.9.720 — appended at END (column rule)
 ];
 const PERSONAL_HEADERS = PERSONAL_SCHEMA.map(s => s.header);
 const PERSONAL_FIELD_INDEX = {};
@@ -139,6 +140,9 @@ function _lookupMasterVarDesc(itemNum, variation) {
 function buildPersonalRow(fields) {
   const row = new Array(PERSONAL_HEADERS.length).fill('');
   if (!fields) return row;
+  // v0.9.720: stamp Date Added on NEW rows. Full-row UPDATE callers pass the
+  // existing value (even '') so re-saves never rewrite the original date.
+  if (fields.dateAdded === undefined && fields.itemNum) fields = Object.assign({}, fields, { dateAdded: new Date().toISOString().slice(0, 10) });
   Object.keys(fields).forEach(k => {
     const i = PERSONAL_FIELD_INDEX[k];
     if (i !== undefined && fields[k] !== undefined && fields[k] !== null) {
