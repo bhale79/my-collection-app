@@ -494,9 +494,25 @@ function foldWantEntries(rows) {
     if (!mates.length) return w;
     var out = Object.assign({}, w);
     out._wantMates = mates;
+    // v0.9.717 (Brad's $700 AB set showing $1,400): the grouped want-save
+    // writes the GROUP price onto EVERY row of the pair ([grp:ID] marker in
+    // notes). Same group ⇒ ONE price, not a sum. Only sum truly separate
+    // wants (no shared group marker).
+    function _grpOf(e) {
+      var m = String((e && e.notes) || '').match(/^\[grp:([^\]]+)\]/);
+      return m ? m[1] : '';
+    }
+    var _leadGrp = _grpOf(w);
     var sum = parseFloat(w.expectedPrice) || 0;
-    mates.forEach(function (k) { sum += parseFloat((byNum[k] || {}).expectedPrice) || 0; });
+    var _summed = false;
+    mates.forEach(function (k) {
+      var mate = byNum[k] || {};
+      if (_leadGrp && _grpOf(mate) === _leadGrp) return;   // same group — price already covers it
+      var mp = parseFloat(mate.expectedPrice) || 0;
+      if (mp) { sum += mp; _summed = true; }
+    });
     out._pairPrice = sum > 0 ? String(sum) : '';
+    out._pairIsGroup = !_summed;   // label: group price vs summed pieces
     return out;
   });
 }
