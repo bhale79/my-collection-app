@@ -110,17 +110,59 @@ function wizardPickSoldItem(key) {
 }
 
 // ── Collection picker in forsale/sold itemNum step ──
+// v0.9.745 (Brad): "need to fold group items here in the add to sale list
+// steps" — grouped rows (AA/AB/ABA, engine+tender, item+box) collapse to ONE
+// row led by the powered unit, with a config chip. Same fold rules as the
+// collection table / group detail sheet.
+function _wpFoldGroups(entries) {
+  var byGid = {}, out = [];
+  entries.forEach(function (e) {
+    var gid = e[1] && e[1].groupId;
+    if (!gid) { e._mates = []; out.push(e); return; }
+    (byGid[gid] = byGid[gid] || []).push(e);
+  });
+  function rank(pd) {
+    var n = String(pd.itemNum || ''), t = String(pd.itemType || '');
+    if (/-MBOX$/i.test(n)) return 9;
+    if (/-BOX$/i.test(n)) return 8;
+    if (/-P$/i.test(n) || /steam/i.test(t)) return 0;
+    if (/tender/i.test(t)) return 2;
+    if (/-D$/i.test(n) || /C$/i.test(n)) return 1;
+    return 0;
+  }
+  Object.keys(byGid).forEach(function (gid) {
+    var mem = byGid[gid].slice().sort(function (a, b) { return rank(a[1]) - rank(b[1]); });
+    var lead = mem[0];
+    lead._mates = mem.slice(1).map(function (x) { return x[1]; });
+    out.push(lead);
+  });
+  return out;
+}
+function _wpGroupChip(pd, mates) {
+  if (!mates || !mates.length) return '';
+  var lbl = 'Set';
+  try {
+    if (typeof window.groupConfigLabel === 'function') {
+      lbl = window.groupConfigLabel(pd.itemNum, mates.map(function (m) { return m.itemNum; })) || 'Set';
+    }
+  } catch (e) {}
+  return '<span style="font-size:0.6rem;border:1px solid #7c8db5;color:#7c8db5;border-radius:4px;padding:0 0.3rem;white-space:nowrap">\uD83D\uDD17 ' + lbl + '</span>';
+}
+function _wpMatchesQ(e, q) {
+  if (!q) return true;
+  var pd = e[1];
+  var hay = [(pd.itemNum || ''), (pd.variation || '')]
+    .concat((e._mates || []).map(function (m) { return m.itemNum || ''; }))
+    .join(' ').toLowerCase();
+  return hay.includes(q);
+}
+
 function _filterCollPicker(q) {
   var el = document.getElementById('wiz-coll-picker');
   if (!el) return;
   q = (q || '').toLowerCase();
-  var owned = Object.entries(state.personalData).filter(function(e) {
-    if (!e[1].owned) return false;
-    if (!q) return true;
-    var pd = e[1];
-    return (pd.itemNum||'').toLowerCase().includes(q)
-      || (pd.variation||'').toLowerCase().includes(q);
-  });
+  var owned = _wpFoldGroups(Object.entries(state.personalData).filter(function(e) { return e[1].owned; }))
+    .filter(function (e) { return _wpMatchesQ(e, q); });   // v0.9.745: fold groups, match lead OR mates
   // Sort by item number
   owned.sort(function(a,b) { return (a[1].itemNum||'').localeCompare(b[1].itemNum||'', undefined, {numeric:true}); });
 
@@ -143,6 +185,7 @@ function _filterCollPicker(q) {
       + '<div style="display:flex;align-items:center;gap:0.4rem">'
       + '<span style="font-family:var(--font-mono);font-size:0.88rem;color:var(--accent2);font-weight:600">' + pd.itemNum + '</span>'
       + (pd.variation ? '<span style="font-size:0.68rem;color:var(--text-dim)">V' + pd.variation + '</span>' : '')
+      + _wpGroupChip(pd, entry._mates)
       + (alreadyListed ? '<span style="font-size:0.6rem;color:#e67e22;font-weight:600;margin-left:auto">LISTED</span>' : '')
       + '</div>'
       + '<div style="font-size:0.72rem;color:var(--text-mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'
@@ -219,16 +262,15 @@ function _renderFullPickList(q) {
   var listEl = document.getElementById('pick-full-list');
   if (!listEl) return;
   q = (q || '').toLowerCase();
-  var owned = Object.entries(state.personalData).filter(function(e) {
-    if (!e[1].owned) return false;
-    if (!q) return true;
-    var pd = e[1];
-    var master = (String(pd.era || '') === 'Manual') ? {} : (findMaster(pd.itemNum, (pd.variation||'')) || {});   // v0.9.731: manual rule
-    return (pd.itemNum||'').toLowerCase().includes(q)
-      || (master.roadName||'').toLowerCase().includes(q)
-      || (master.itemType||'').toLowerCase().includes(q)
-      || (pd.variation||'').toLowerCase().includes(q);
-  });
+  var owned = _wpFoldGroups(Object.entries(state.personalData).filter(function(e) { return e[1].owned; }))
+    .filter(function (e) {   // v0.9.745: fold groups; match lead, mates, or master road/type
+      if (_wpMatchesQ(e, q)) return true;
+      if (!q) return true;
+      var pd = e[1];
+      var master = (String(pd.era || '') === 'Manual') ? {} : (findMaster(pd.itemNum, (pd.variation||''), pd) || {});
+      return (master.roadName||'').toLowerCase().includes(q)
+        || (master.itemType||'').toLowerCase().includes(q);
+    });
   owned.sort(function(a,b) { return (a[1].itemNum||'').localeCompare(b[1].itemNum||'', undefined, {numeric:true}); });
 
   if (owned.length === 0) {
@@ -251,6 +293,7 @@ function _renderFullPickList(q) {
       + '<div style="display:flex;align-items:center;gap:0.4rem">'
       + '<span style="font-family:var(--font-mono);font-size:0.92rem;color:var(--accent2);font-weight:600">' + pd.itemNum + '</span>'
       + (pd.variation ? '<span style="font-size:0.7rem;color:var(--text-dim)">Var ' + pd.variation + '</span>' : '')
+      + _wpGroupChip(pd, entry._mates)
       + '</div>'
       + '<div style="font-size:0.78rem;color:var(--text-mid);margin-top:0.1rem">'
       + (master.roadName || master.itemType || pd.description || pd.itemType || '')
