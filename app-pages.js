@@ -845,7 +845,7 @@ function buildWantPage() {
   // Keep nav count badge in sync
   // Updated for combined Wishlist nav badge.
   const countBadge = document.getElementById('nav-wishlist-count');
-  if (countBadge) countBadge.textContent = (totalCount + Object.keys(state.upgradeData||{}).length).toLocaleString();
+  if (countBadge) countBadge.textContent = ((typeof wishlistFoldedCount === 'function') ? wishlistFoldedCount() : (totalCount + Object.keys(state.upgradeData||{}).length)).toLocaleString();   // v0.9.722
   const cardsEl = document.getElementById('want-cards');
   const tableEl = document.getElementById('want-table');
   const tbody   = document.getElementById('want-tbody');
@@ -2051,7 +2051,7 @@ async function _removeUpgradeFromCollection(inventoryId) {
   renderBrowse();
   buildDashboard();
   const badge = document.getElementById('nav-wishlist-count');
-  if (badge) { const c = Object.values(state.upgradeData).length; badge.textContent = c > 0 ? c : '—'; }
+  if (badge) { const c = (typeof wishlistFoldedCount === 'function') ? wishlistFoldedCount() : Object.values(state.upgradeData).length; badge.textContent = c > 0 ? c : '—'; }   // v0.9.722
 }
 
 // Phase 3: signature is now (fsKey). fsKey is the inventoryId (or
@@ -2686,7 +2686,7 @@ function buildUpgradePage() {
 
   // Update combined wishlist badge (Want + Upgrade total).
   const badge = document.getElementById('nav-wishlist-count');
-  if (badge) badge.textContent = totalCount > 0 ? totalCount : '\u2014';
+  if (badge) { const _fc = (typeof wishlistFoldedCount === 'function') ? wishlistFoldedCount() : totalCount; badge.textContent = _fc > 0 ? _fc : '\u2014'; }   // v0.9.722
   // Count display
   const upgradeCountEl = document.getElementById('upgrade-count');
   if (upgradeCountEl) {
@@ -3089,7 +3089,7 @@ async function saveUpgradeGroup() {
     if (typeof renderBrowse === 'function') renderBrowse();
     if (typeof _cachePersonalData === 'function') _cachePersonalData();
     const badge = document.getElementById('nav-wishlist-count');
-    if (badge) badge.textContent = Object.values(state.upgradeData).length.toLocaleString();
+    if (badge) badge.textContent = ((typeof wishlistFoldedCount === 'function') ? wishlistFoldedCount() : Object.values(state.upgradeData).length).toLocaleString();   // v0.9.722
   } catch(e) {
     showToast('Error saving — check connection');
     console.error(e);
@@ -3149,7 +3149,7 @@ async function saveUpgradeItem(itemNum, variation, existingRow, invId) {
     if (typeof renderBrowse === 'function') renderBrowse();  // Phase 3c: refresh badges
     if (typeof _cachePersonalData === 'function') _cachePersonalData();
     const badge = document.getElementById('nav-wishlist-count');
-    if (badge) badge.textContent = Object.values(state.upgradeData).length.toLocaleString();
+    if (badge) badge.textContent = ((typeof wishlistFoldedCount === 'function') ? wishlistFoldedCount() : Object.values(state.upgradeData).length).toLocaleString();   // v0.9.722
   } catch(e) {
     showToast('Error saving — check connection');
     console.error(e);
@@ -3169,7 +3169,7 @@ async function removeUpgradeItem(ugKey) {
     buildUpgradePage();
     buildDashboard();
     const badge = document.getElementById('nav-wishlist-count');
-    if (badge) { const c = Object.values(state.upgradeData).length; badge.textContent = c > 0 ? c : '—'; }
+    if (badge) { const c = (typeof wishlistFoldedCount === 'function') ? wishlistFoldedCount() : Object.values(state.upgradeData).length; badge.textContent = c > 0 ? c : '—'; }   // v0.9.722
   } catch(e) {
     showToast('Error removing item');
   }
