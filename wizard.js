@@ -1250,7 +1250,7 @@ function renderWizardStep() {
               ' style="width:100%;padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:0.88rem;box-sizing:border-box">' +
           '</div>' +
           '<div>' +
-            '<label style="font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.25rem">Est. Worth</label>' +
+            '<label style="font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.25rem">Est. Worth <a href="javascript:_wizResearchPrice()" style="float:right;color:#2ecc71;font-weight:700;text-decoration:none;font-size:0.78rem">\uD83D\uDD0D Research</a></label>' +
             '<input type="number" step="0.01" value="' + (d.userEstWorth || '') + '"' +
               ' oninput="wizard.data.userEstWorth=this.value" placeholder="$0.00"' +
               ' style="width:100%;padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:0.88rem;box-sizing:border-box">' +
@@ -2182,7 +2182,7 @@ function renderWizardStep() {
       + '</div></div>';
 
     _bpvHtml += '<div style="margin-bottom:0.75rem">'
-      + '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Estimated Worth (for insurance)</div>'
+      + '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Estimated Worth (for insurance) <a href="javascript:_wizResearchPrice()" style="float:right;color:#2ecc71;font-weight:700;text-decoration:none;text-transform:none;letter-spacing:0">\uD83D\uDD0D Research</a></div>'
       + '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem">'
       + '<span style="color:var(--text-dim);font-size:1.1rem">$</span>'
       + '<input type="number" id="bpv-worth" value="' + (_bpv.userEstWorth || '') + '" placeholder="0.00" min="0" step="0.01" style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem" oninput="wizard.data.userEstWorth=this.value">'
@@ -4349,7 +4349,7 @@ function renderWizardStep() {
         + '<input type="number" value="' + _scPaid + '" placeholder="0.00" min="0" step="0.01"'
         + ' style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:0.95rem"'
         + ' oninput="wizard.data.priceItem=this.value"></div></div>';
-      _cdHtml += '<div><div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.25rem">Est. Worth ($)</div>'
+      _cdHtml += '<div><div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.25rem">Est. Worth ($) <a href="javascript:_wizResearchPrice()" style="float:right;color:#2ecc71;font-weight:700;text-decoration:none;text-transform:none;letter-spacing:0">\uD83D\uDD0D Research</a></div>'
         + '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.75rem">'
         + '<span style="color:var(--text-dim)">$</span>'
         + '<input type="number" value="' + _scVal + '" placeholder="0.00" min="0" step="0.01"'
