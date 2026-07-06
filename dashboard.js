@@ -881,7 +881,7 @@ var PANEL_CATALOG = [
         .sort(function(a, b) { return ((priOrder[a.priority] || 1) - (priOrder[b.priority] || 1)); })
         .slice(0, 8)
         .map(function(w) {
-          var master = findMaster(w.itemNum);
+          var master = findMaster(w.itemNum, '', w);
           var name = master ? (master.roadName || master.itemType || w.itemNum) : w.itemNum;
           if (w._wantMates) name = (name || '') + ' 🔗 ' + w._wantMates.join(' + ') + (w._groupCfg ? ' · ' + w._groupCfg : '');
           var _wPrice = w._pairPrice || w.expectedPrice;
@@ -908,7 +908,7 @@ var PANEL_CATALOG = [
         .sort(function(a, b) { return (parseFloat(b.askingPrice) || 0) - (parseFloat(a.askingPrice) || 0); })
         .slice(0, 8)
         .map(function(fs) {
-          var master = findMaster(fs.itemNum) || {};
+          var master = findMaster(fs.itemNum, '', fs) || {};
           var name = master.roadName || master.itemType || '';
           var price = fs.askingPrice ? _currencySymbol() + parseFloat(fs.askingPrice).toLocaleString() : 'No price';
           var idx = master ? state.masterData.indexOf(master) : -1;
@@ -972,7 +972,7 @@ var PANEL_CATALOG = [
         .slice(0, 8)
         .map(function(u) {
           var pd = Object.values(state.personalData).find(function(p) { return p.owned && p.itemNum === u.itemNum && (p.variation||'') === (u.variation||''); });
-          var master = findMaster(u.itemNum);
+          var master = findMaster(u.itemNum, '', u);
           var name = master ? (master.roadName || master.itemType || u.itemNum) : u.itemNum;
           var cond = pd && pd.condition ? parseInt(pd.condition) : null;
           var meta = [cond ? 'Cond: ' + cond : '', u.targetCondition ? '→ ' + u.targetCondition : ''].filter(Boolean).join(' ');
