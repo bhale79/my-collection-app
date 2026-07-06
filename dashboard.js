@@ -223,7 +223,7 @@ var CARD_CATALOG = [
     id: 'activity', label: 'Activity', color: '#e67e22',
     compute: function(state) {
       // Session 121: respect Preferences "What I Collect" in 'all' mode.
-      var wantCount = Object.keys(_filterByEraPref(state.wantData||{})).length;
+      var wantCount = (typeof foldWantEntries === 'function') ? foldWantEntries(Object.values(_filterByEraPref(state.wantData||{}))).length : Object.keys(_filterByEraPref(state.wantData||{})).length;   // v0.9.722: pairs count once
       var fsCount = Object.keys(_forSaleLeads(state)).length;
       var soldCount = Object.keys(_filterByEraPref(state.soldData||{})).length;
       // Phase 3 streamline: Quick Entry tile removed from Activity card.
@@ -714,7 +714,7 @@ function buildDashboard() {
   // from before the Want/Upgrade combine.)
   var _nw = document.getElementById('nav-wishlist-count');
   if (_nw) {
-    var _wishTotal = wantListCount + Object.keys(state.upgradeData||{}).length;
+    var _wishTotal = (typeof wishlistFoldedCount === 'function') ? wishlistFoldedCount() : (wantListCount + Object.keys(state.upgradeData||{}).length);   // v0.9.722
     _nw.textContent = _wishTotal > 0 ? _wishTotal.toLocaleString() : '—';
   }
   if (document.getElementById('nav-sold')) document.getElementById('nav-sold').textContent = soldCount;
