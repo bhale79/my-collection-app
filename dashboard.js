@@ -437,13 +437,17 @@ var CARD_CATALOG = [
   }
 ];
 
-var MAX_CARDS = 5;
-var _DEFAULT_SLOTS = [{id:'owned'},{id:'value'},{id:'eraProgress'},{id:'activity'},null];
+var MAX_CARDS = 6;   // v0.9.754 (Brad): "looks like we can fit a 6th small card" — the grid auto-fits, only this cap said no
+var _DEFAULT_SLOTS = [{id:'owned'},{id:'value'},{id:'eraProgress'},{id:'activity'},null,null];
 
+function _padSlots(arr) {   // v0.9.754: older saved layouts are length-5 — pad so "Add a stat card" reappears
+  while (arr.length < MAX_CARDS) arr.push(null);
+  return arr.slice(0, MAX_CARDS);
+}
 function _getSlots() {
   try {
     var saved = _prefGet('lv_dash_slots','');
-    if (saved) return JSON.parse(saved);
+    if (saved) return _padSlots(JSON.parse(saved));
   } catch(e) {}
   // Migrate from old flat array format if present
   try {
@@ -451,13 +455,13 @@ function _getSlots() {
     if (oldSaved) {
       var oldArr = JSON.parse(oldSaved);
       if (Array.isArray(oldArr)) {
-        var migrated = [null,null,null,null,null];
-        oldArr.slice(0,5).forEach(function(id,i) { migrated[i] = {id:id}; });
+        var migrated = _padSlots([]);
+        oldArr.slice(0, MAX_CARDS).forEach(function(id,i) { migrated[i] = {id:id}; });
         return migrated;
       }
     }
   } catch(e) {}
-  return _DEFAULT_SLOTS.map(function(s) { return s ? Object.assign({},s) : null; });
+  return _padSlots(_DEFAULT_SLOTS.map(function(s) { return s ? Object.assign({},s) : null; }));
 }
 
 function _saveSlots(slots) {
