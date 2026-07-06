@@ -909,7 +909,10 @@ function showItemDetailPage(idx, copyInvId, opts) {
       if (p && p.owned && p.groupId === pd.groupId) { _grpFull.push(p); _grpKeys.push(k); }
     });
     var _zip = _grpFull.map(function (p, i) { return { p: p, k: _grpKeys[i] }; });
-    _zip.sort(function (a, b) { return (_grpRank[_grpRole(a.p)] || 9) - (_grpRank[_grpRole(b.p)] || 9); });
+    _zip.sort(function (a, b) {
+      var ra = _grpRank[_grpRole(a.p)], rb = _grpRank[_grpRole(b.p)];
+      return (ra === undefined ? 9 : ra) - (rb === undefined ? 9 : rb);   // v0.9.729: 0 is a real rank (|| swallowed it → dummy sorted first, config said 'Set')
+    });
     _grpFull = _zip.map(function (z) { return z.p; });
     _grpKeys = _zip.map(function (z) { return z.k; });
     window._grpMemberKeys = _grpKeys;
@@ -1015,8 +1018,15 @@ function showItemDetailPage(idx, copyInvId, opts) {
   // ── GROUP MEMBERS STRIP (v0.9.728 — Brad's one-sheet-per-group) ──
   if (_isGroupSheet) {
     html += '<div style="background:var(--surface);border:1.5px solid var(--accent3,#3a9e68);border-radius:14px;padding:1rem 1.25rem;margin-bottom:1.5rem">'
-      + '<div style="font-family:var(--font-head);font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent3,#3a9e68);margin-bottom:0.7rem">🔗 Grouped Set'
-      + (_grpCfg ? ' — ' + _grpCfg : '') + ' · ' + _grpFull.length + ' pieces</div>'
+      + '<div style="font-family:var(--font-head);font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent3,#3a9e68);margin-bottom:0.7rem">🔗 '
+      + (function () {
+          var _lead = _grpUnits[0] ? String(_grpUnits[0].itemNum || '') : '';
+          var _base = _lead.replace(/-(P|D)$/i, '');
+          if (_grpCfg === 'Engine + Tender') return _base + ' Engine + Tender';
+          if (_grpCfg && _grpCfg !== 'Set') return _base + ' ' + _grpCfg + ' Set';
+          return 'Grouped Set';
+        })()
+      + ' · ' + _grpFull.length + ' pieces</div>'
       + '<div style="display:flex;gap:0.6rem;flex-wrap:wrap">'
       + _grpFull.map(function (p, i) {
           var role = _grpRole(p);
