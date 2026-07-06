@@ -190,10 +190,18 @@
       if (typeof window._findMasterItemsAllEras === 'function') hits = (await window._findMasterItemsAllEras([num])) || [];
     } catch (e) {}
     var f = hits;
-    if (opts.era) f = f.filter(function (h) { return (h._era || '') === opts.era; });
+    // v0.9.739: era is collector language — Prewar / Postwar / Modern.
+    var ERA_GROUP = { prewar: ['prewar'], pw: ['pw'], modern: ['mpc', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver', 'rmt', 'menards'] };
+    if (opts.era && ERA_GROUP[opts.era]) f = f.filter(function (h) { return ERA_GROUP[opts.era].indexOf(h._era || '') >= 0; });
     if (opts.mfr) f = f.filter(function (h) {
       var em = (typeof ERAS !== 'undefined' && ERAS[h._era]) ? ERAS[h._era].manufacturer : '';
       return String(h.manufacturer || em || '').toLowerCase() === String(opts.mfr).toLowerCase();
+    });
+    if (opts.scale) f = f.filter(function (h) {
+      var g = String(h.gauge || (typeof ERA_SCALE !== 'undefined' && ERA_SCALE[h._era]) || '').toUpperCase().replace(/[^A-Z]/g, '');
+      var want = String(opts.scale).toUpperCase();
+      if (want === 'O') return g === 'O' || g === 'O27';   // O27 is O-gauge track
+      return g === want.replace(/[^A-Z]/g, '');
     });
     m = f[0] || null;
     if (!m && !hits.length && typeof findMaster === 'function') { try { m = findMaster(num, ''); } catch (e) {} }
