@@ -315,34 +315,32 @@ window._wizResearchPrice = function () {
   } catch (e) { console.warn('[research price]', e); }
 };
 
-// v0.9.746: detail peek for the item being listed/sold — everything you'd
-// check before pricing (incl. location + photos link), overlaid on the wizard.
+// v0.9.748 (Brad): "i want our detail page and photo page" — no imitation
+// modal. Hide (don't close) the wizard, open the REAL item detail page via
+// _openOwnedByInvId (full header, descriptions, details card, photo grids),
+// and float a return pill that drops the user back on the pricing step.
 window._wizPeekDetail = function () {
   try {
     var k = wizard.data._collectionPdKey || wizard.data.selectedForSaleKey || wizard.data.selectedSoldKey;
     var pd = k ? state.personalData[k] : null;
     if (!pd) return;
-    var m = (String(pd.era || '') === 'Manual') ? {} : (findMaster(pd.itemNum, pd.variation || '', pd) || {});
-    var name = pd.roadName || m.roadName || pd.description || m.description || m.itemType || pd.itemType || '';
-    var esc = function (s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
-    var row = function (l, v) { return v ? '<div style="display:flex;justify-content:space-between;gap:0.75rem;padding:0.35rem 0;border-bottom:1px solid var(--border)"><span style="color:var(--text-dim);font-size:0.78rem">' + l + '</span><span style="color:var(--text);font-size:0.82rem;text-align:right">' + esc(v) + '</span></div>' : ''; };
-    var ov = document.createElement('div');
-    ov.id = 'wiz-peek-overlay';
-    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:10055;display:flex;align-items:center;justify-content:center;padding:1rem';
-    ov.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:420px;width:100%;padding:1.1rem 1.2rem;max-height:85vh;overflow-y:auto">'
-      + '<div style="font-family:var(--font-mono);font-weight:700;font-size:1.15rem;color:var(--accent)">' + esc(pd.itemNum) + (pd.variation ? ' <span style="font-size:0.72rem;color:var(--text-dim)">V' + esc(pd.variation) + '</span>' : '') + '</div>'
-      + (name ? '<div style="font-size:0.85rem;color:var(--text-mid);margin:0.2rem 0 0.6rem">' + esc(name) + '</div>' : '')
-      + row('Condition', pd.condition ? pd.condition + '/10' : '')
-      + row('Has box', pd.hasBox) + row('Box condition', pd.boxCond ? pd.boxCond + '/10' : '')
-      + row('Location', pd.location)
-      + row('Paid', pd.priceItem ? '$' + parseFloat(pd.priceItem).toLocaleString() : '')
-      + row('Est. worth', pd.userEstWorth ? '$' + parseFloat(pd.userEstWorth).toLocaleString() : '')
-      + row('Year', pd.yearMade) + row('Notes', pd.notes)
-      + (pd.photoItem ? '<a href="' + esc(pd.photoItem) + '" target="_blank" rel="noopener" style="display:block;text-align:center;margin-top:0.8rem;padding:0.55rem;border-radius:8px;border:1.5px solid #3498db;color:#3498db;text-decoration:none;font-size:0.82rem;font-weight:600">\uD83D\uDCF7 Open Photos \u2197</a>' : '')
-      + '<button onclick="document.getElementById(\'wiz-peek-overlay\').remove()" style="width:100%;margin-top:0.6rem;padding:0.6rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body)">Close</button>'
-      + '</div>';
-    ov.addEventListener('click', function (e) { if (e.target === ov) ov.remove(); });
-    document.body.appendChild(ov);
+    var modal = document.getElementById('wizard-modal');
+    if (modal) modal.classList.remove('open');          // hide only — the sale stays in progress
+    document.body.style.overflow = '';
+    var old = document.getElementById('wiz-return-pill');
+    if (old) old.remove();
+    var pill = document.createElement('button');
+    pill.id = 'wiz-return-pill';
+    pill.innerHTML = '\u2190 Back to your ' + (wizard.tab === 'sold' ? 'sale' : 'listing');
+    pill.style.cssText = 'position:fixed;bottom:1.1rem;left:50%;transform:translateX(-50%);z-index:8000;padding:0.7rem 1.3rem;border-radius:999px;border:none;background:var(--accent,#e8401c);color:#fff;font-weight:700;font-size:0.9rem;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,0.45);font-family:var(--font-body)';
+    pill.onclick = function () {
+      pill.remove();
+      var m = document.getElementById('wizard-modal');
+      if (m) { m.classList.add('open'); document.body.style.overflow = 'hidden'; }
+    };
+    document.body.appendChild(pill);
+    if (typeof _openOwnedByInvId === 'function' && pd.inventoryId) _openOwnedByInvId(pd.inventoryId);
+    else if (typeof goToMyCollection === 'function') goToMyCollection();
   } catch (e) { console.warn('[peek]', e); }
 };
 
