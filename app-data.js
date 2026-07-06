@@ -933,7 +933,13 @@ async function loadPersonalData() {
             console.log('[Phase 3b] forSale + upgrade fresh-fetch:',
               Object.keys(state.forSaleData||{}).length, 'fs,',
               Object.keys(state.upgradeData||{}).length, 'ug');
+            // v0.9.710 (Brad's stale-forever loop): this snapshot carries the
+            // OLD personalData — re-stamping the freshness timestamp here reset
+            // the 5-minute clock on every reload, so frequent refreshers NEVER
+            // hit the full re-fetch. Snapshot the data, keep the old clock.
+            var _p3bTs = localStorage.getItem('lv_personal_cache_ts');
             _cachePersonalData();
+            if (_p3bTs) localStorage.setItem('lv_personal_cache_ts', _p3bTs);
             if (typeof buildDashboard === 'function') buildDashboard();
             if (typeof renderBrowse === 'function') renderBrowse();
           }
