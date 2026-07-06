@@ -210,6 +210,29 @@
 
   // v0.9.711 (Brad: "this has to be fast"): typed lookup — "148", "lionel 148",
   // "10-2210" — straight to the research card, no photo needed.
+  // v0.9.744: shared hit filter — era group (collector language), maker,
+  // scale, and now TYPE (getTypeBucket ids, same buckets as the pickers).
+  var ERA_GROUP = { prewar: ['prewar'], pw: ['pw'], modern: ['mpc', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver', 'rmt', 'menards'] };
+  function _filterHits(list, opts) {
+    var r = list || [];
+    opts = opts || {};
+    if (opts.era && ERA_GROUP[opts.era]) r = r.filter(function (h) { return ERA_GROUP[opts.era].indexOf(h._era || '') >= 0; });
+    if (opts.mfr) r = r.filter(function (h) {
+      var em = (typeof ERAS !== 'undefined' && ERAS[h._era]) ? ERAS[h._era].manufacturer : '';
+      return String(h.manufacturer || em || '').toLowerCase() === String(opts.mfr).toLowerCase();
+    });
+    if (opts.scale) r = r.filter(function (h) {
+      var g = String(h.gauge || (typeof ERA_SCALE !== 'undefined' && ERA_SCALE[h._era]) || '').toUpperCase().replace(/[^A-Z]/g, '');
+      var want = String(opts.scale).toUpperCase();
+      return want === 'O' ? (g === 'O' || g === 'O27') : g === want.replace(/[^A-Z]/g, '');
+    });
+    if (opts.type && typeof getTypeBucket === 'function') r = r.filter(function (h) {
+      try { return getTypeBucket(h) === opts.type; } catch (e) { return true; }
+    });
+    return r;
+  }
+  window._researchFilterHits = _filterHits;
+
   window._researchLookupTyped = async function (q, opts) {
     opts = opts || {};
     window._researchActive = false;
@@ -221,40 +244,27 @@
     // narrow by the user's picks. No match after narrowing = honest not-in-
     // catalog card that still carries the chosen maker into Google/eBay.
     var m = null, hits = [];
-    try {
-      if (typeof window._findMasterItemsAllEras === 'function') hits = (await window._findMasterItemsAllEras([num])) || [];
-    } catch (e) {}
-    // v0.9.739: era is collector language — Prewar / Postwar / Modern.
-    var ERA_GROUP = { prewar: ['prewar'], pw: ['pw'], modern: ['mpc', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver', 'rmt', 'menards'] };
-    var f = [];
-    function _applyF(list) {
-      var r = list;
-      if (opts.era && ERA_GROUP[opts.era]) r = r.filter(function (h) { return ERA_GROUP[opts.era].indexOf(h._era || '') >= 0; });
-      if (opts.mfr) r = r.filter(function (h) {
-        var em = (typeof ERAS !== 'undefined' && ERAS[h._era]) ? ERAS[h._era].manufacturer : '';
-        return String(h.manufacturer || em || '').toLowerCase() === String(opts.mfr).toLowerCase();
-      });
-      if (opts.scale) r = r.filter(function (h) {
-        var g = String(h.gauge || (typeof ERA_SCALE !== 'undefined' && ERA_SCALE[h._era]) || '').toUpperCase().replace(/[^A-Z]/g, '');
-        var want = String(opts.scale).toUpperCase();
-        return want === 'O' ? (g === 'O' || g === 'O27') : g === want.replace(/[^A-Z]/g, '');
-      });
-      return r;
-    }
-    // v0.9.742 (Brad): no exact number hit? Treat the query as WORDS —
-    // "atlas boxcar l&n" finds items by road name/description, filters apply.
-    f = _applyF(hits);
-    if (!f.length && typeof window._masterTextSearchAllEras === 'function') {
-      try { f = _applyF((await window._masterTextSearchAllEras(q, 40)) || []); } catch (e) {}
-    }
-    if (f.length > 1 && typeof window.showCandidatePicker === 'function') {
-      var picked = await window.showCandidatePicker(f.slice(0, 12), { itemNum: q });
-      if (picked === null) return;                       // user backed out — no card
-      m = (picked && !picked.__notInList) ? picked : null;
+    if (opts.picked) {
+      m = opts.picked;                                   // v0.9.744: suggestion row tapped — no re-search
     } else {
-      m = f[0] || null;
+      try {
+        if (typeof window._findMasterItemsAllEras === 'function') hits = (await window._findMasterItemsAllEras([num])) || [];
+      } catch (e) {}
+      // v0.9.742 (Brad): no exact number hit? Treat the query as WORDS —
+      // "atlas boxcar l&n" finds items by road name/description, filters apply.
+      var f = _filterHits(hits, opts);
+      if (!f.length && typeof window._masterTextSearchAllEras === 'function') {
+        try { f = _filterHits((await window._masterTextSearchAllEras(q, 40)) || [], opts); } catch (e) {}
+      }
+      if (f.length > 1 && typeof window.showCandidatePicker === 'function') {
+        var picked = await window.showCandidatePicker(f.slice(0, 12), { itemNum: q });
+        if (picked === null) return;                     // user backed out — no card
+        m = (picked && !picked.__notInList) ? picked : null;
+      } else {
+        m = f[0] || null;
+      }
+      if (!m && !hits.length && typeof findMaster === 'function') { try { m = findMaster(num, ''); } catch (e) {} }
     }
-    if (!m && !hits.length && typeof findMaster === 'function') { try { m = findMaster(num, ''); } catch (e) {} }
     if (m && m.itemNum) num = m.itemNum;                 // word matches: card shows the REAL number
     var eraMfr = (m && typeof ERAS !== 'undefined' && m._era && ERAS[m._era]) ? ERAS[m._era].manufacturer : '';
     _showCard({
