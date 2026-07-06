@@ -3904,7 +3904,10 @@ function renderWizardStep() {
           <span style="font-size:0.82rem;font-weight:600;white-space:nowrap;color:${_ingBoxOnly ? 'var(--accent2)' : 'var(--text-mid)'}">Box Only</span>
         </label>`;
       // Session 176: Manufacturer / Era / Type filter bar above the search box.
-      if (wizard.tab === 'collection' && typeof _buildItemSearchFiltersDOM === 'function') {
+      // v0.9.716 (Brad): the WANT flow uses this same itemNumGrouping screen
+      // (Session 161+) — v715 patched the old text-step path that want no
+      // longer renders. Gate widened so want gets the bar (+Scale) here.
+      if ((wizard.tab === 'collection' || wizard.tab === 'want') && typeof _buildItemSearchFiltersDOM === 'function') {
         try { var _ingFilters = _buildItemSearchFiltersDOM(); if (_ingFilters) _ingWrap.appendChild(_ingFilters); } catch(e) { console.warn('[add filters]', e); }
       }
       _ingWrap.appendChild(_ingInputRow);
