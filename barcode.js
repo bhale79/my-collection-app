@@ -1684,7 +1684,14 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   // v0.9.738 (Brad): "add some drop downs to help make a stronger search if a
   // user is just entering a number" — Maker + Era narrow the cross-era lookup
   // and brand the Google/eBay queries even when the number isn't in master.
+  // v0.9.738 (Brad): "add some drop downs to help make a stronger search if a
+  // user is just entering a number". v0.9.739: era collapsed to Prewar/Postwar/
+  // Modern (collector language, not our 12 catalog tabs), + Scale, and all
+  // three REMEMBER the last pick (localStorage) so a show-floor user sets
+  // them once.
   function _biQuickFilters() {
+    var sv = function (k) { try { return localStorage.getItem('lv_rsq_' + k) || ''; } catch (e) { return ''; } };
+    var vM = sv('mfr'), vE = sv('era'), vS = sv('scale');
     var mfrs = [], seen = {};
     try {
       Object.keys(ERAS).forEach(function (k) {
@@ -1692,18 +1699,17 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         if (mf && !seen[mf]) { seen[mf] = 1; mfrs.push(mf); }
       });
     } catch (e) {}
-    var eras = [];
-    try {
-      (typeof REAL_ERA_IDS !== 'undefined' ? REAL_ERA_IDS : []).forEach(function (id) {
-        if (ERAS[id]) eras.push({ id: id, label: ERAS[id].label || id });
-      });
-    } catch (e) {}
+    var eras = [['prewar', 'Prewar'], ['pw', 'Postwar'], ['modern', 'Modern']];
+    var scales = ['O', 'Standard', 'HO', 'S', 'G'];
     var ss = 'flex:1;padding:0.45rem 0.5rem;border-radius:9px;border:1.5px solid var(--border,#444);background:var(--surface2,#1c2340);color:var(--text,#fff);font-size:0.85rem;min-width:0;font-family:var(--font-body,inherit)';
-    return '<div style="display:flex;gap:0.4rem;margin-top:0.4rem">'
+    function opt(v, label, cur) { return '<option value="' + v + '"' + (v === cur && v ? ' selected' : '') + '>' + label + '</option>'; }
+    return '<div style="display:flex;gap:0.4rem;margin-top:0.4rem;flex-wrap:wrap">'
       + '<select id="bi-quick-mfr" style="' + ss + '"><option value="">Any maker</option>'
-      +   mfrs.map(function (m) { return '<option value="' + m + '">' + m + '</option>'; }).join('') + '</select>'
+      +   mfrs.map(function (m) { return opt(m, m, vM); }).join('') + '</select>'
       + '<select id="bi-quick-era" style="' + ss + '"><option value="">Any era</option>'
-      +   eras.map(function (e) { return '<option value="' + e.id + '">' + e.label + '</option>'; }).join('') + '</select>'
+      +   eras.map(function (e) { return opt(e[0], e[1], vE); }).join('') + '</select>'
+      + '<select id="bi-quick-scale" style="' + ss + '"><option value="">Any scale</option>'
+      +   scales.map(function (s) { return opt(s, s, vS); }).join('') + '</select>'
       + '</div>';
   }
 
@@ -1799,15 +1805,19 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         if (act === 'gallery') d.querySelector('#bi-file').click();
         if (act === 'quick') {
           var _qv = (d.querySelector('#bi-quick') || {}).value || '';
-          if (_qv.trim()) done({ typedQuery: _qv.trim(), typedEra: (d.querySelector('#bi-quick-era') || {}).value || '', typedMfr: (d.querySelector('#bi-quick-mfr') || {}).value || '' });
+          if (_qv.trim()) done({ typedQuery: _qv.trim(), typedEra: (d.querySelector('#bi-quick-era') || {}).value || '', typedMfr: (d.querySelector('#bi-quick-mfr') || {}).value || '', typedScale: (d.querySelector('#bi-quick-scale') || {}).value || '' });
           return;
         }
         if (act === 'last' && _biLastShot) done({ raw: _biLastShot.raw, view: _biLastShot.view, lockedBc: null });
         if (act === 'cancel') done(null);
       });
+      ['mfr', 'era', 'scale'].forEach(function (k) {   // v0.9.739: filters remember last pick
+        var el = d.querySelector('#bi-quick-' + k);
+        if (el) el.addEventListener('change', function () { try { localStorage.setItem('lv_rsq_' + k, el.value); } catch (e) {} });
+      });
       var _bq = d.querySelector('#bi-quick');
       if (_bq) _bq.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter') { var v = _bq.value.trim(); if (v) done({ typedQuery: v, typedEra: (d.querySelector('#bi-quick-era') || {}).value || '', typedMfr: (d.querySelector('#bi-quick-mfr') || {}).value || '' }); }
+        if (e.key === 'Enter') { var v = _bq.value.trim(); if (v) done({ typedQuery: v, typedEra: (d.querySelector('#bi-quick-era') || {}).value || '', typedMfr: (d.querySelector('#bi-quick-mfr') || {}).value || '', typedScale: (d.querySelector('#bi-quick-scale') || {}).value || '' }); }
       });
       d.querySelector('#bi-file').addEventListener('change', function (e) {
         var f = e.target.files && e.target.files[0];
@@ -2153,7 +2163,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // v0.9.711 (Brad): Research quick lookup — typed number, no photo.
         if (cap.typedQuery) {
           _biKill();
-          if (typeof window._researchLookupTyped === 'function') window._researchLookupTyped(cap.typedQuery, { era: cap.typedEra || '', mfr: cap.typedMfr || '' });
+          if (typeof window._researchLookupTyped === 'function') window._researchLookupTyped(cap.typedQuery, { era: cap.typedEra || '', mfr: cap.typedMfr || '', scale: cap.typedScale || '' });
           else if (onCancel) onCancel();
           return;
         }
