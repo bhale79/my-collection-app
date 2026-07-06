@@ -5,7 +5,7 @@
 // ══════════════════════════════════════════════════════════════════
 
 // Bump this number to push a visual refresh to all users on next sync
-const SHEET_FORMAT_VER = 19; // v19 (v0.9.720): +Date Added trailing personal column. Was 18: // v18 (v0.9.666): +Scale/Gauge trailing personal column — header row rewritten. // Session 165 v12: Dashboard header rebuilt to match the app (mascot left, multicolor Oswald title, app navy + orange underline bar) + no-white styling (hide gridlines, flood page with app bg).
+const SHEET_FORMAT_VER = 20; // v20 (v0.9.736): deterministic column widths (header-fit + curated My Collection table, autoResize REMOVED), Dashboard button merge sized to its text per tab, conductor images served from therailroster.com so no GitHub URL shows in the formula bar. Was 19: // v19 (v0.9.720): +Date Added trailing personal column. Was 18: // v18 (v0.9.666): +Scale/Gauge trailing personal column — header row rewritten. // Session 165 v12: Dashboard header rebuilt to match the app (mascot left, multicolor Oswald title, app navy + orange underline bar) + no-white styling (hide gridlines, flood page with app bg).
 
 // ── Color palette ──────────────────────────────────────────────────
 const SB = {
@@ -24,9 +24,9 @@ const SB = {
   cream:    { red: 0.973, green: 0.910, blue: 0.753 },   // #f8e8c0 app cream text
 };
 
-const CONDUCTOR_URL = 'https://raw.githubusercontent.com/bhale79/my-collection-app/main/conductor-list.png';
+const CONDUCTOR_URL = 'https://therailroster.com/conductor-list.png';   // v13: own domain, no GitHub address visible to users
 // App header mascot — matches the app's top-left conductor exactly.
-const CONDUCTOR_HEADER_URL = 'https://raw.githubusercontent.com/bhale79/my-collection-app/main/img/conductor-header.png';
+const CONDUCTOR_HEADER_URL = 'https://therailroster.com/img/conductor-header.png';   // v13: own domain
 
 async function applySheetFormatting(sheetId, opts) {
   // Session 155 v7: opts.force=true bypasses the version check (used by
@@ -114,6 +114,52 @@ async function applySheetFormatting(sheetId, opts) {
 
     // ── 5. Data tab header + freeze + banding ─────────────────────
     const DATA_TABS = ['My Collection','Sold','For Sale','Want-Upgrade List','Catalogs','Paper Items','Mock-Ups','Other Lionel','Instruction Sheets','Science Sets','Construction Sets','My Sets'];
+    // ── v13 (fmt 20): deterministic column widths ─────────────────
+    // autoResize sized columns to CONTENT: "Variation" shrank to 3 digits wide
+    // (mid-word header wrap) while Notes ballooned past 250 chars. Now every
+    // column fits its header's longest word, long-text columns get a fixed
+    // readable width, and every user's sheet comes out looking the same.
+    const MC_WIDTH_PX = {   // My Collection curated widths (0-based col index)
+      0:110, 1:95, 2:125, 3:300, 4:150, 5:85, 6:80, 7:340, 8:80, 9:80,
+      10:280, 11:80, 12:85, 13:85, 14:95, 15:65, 16:90, 17:200, 18:200,
+      19:90, 20:110, 21:160, 22:80, 23:65, 24:110, 25:75, 26:85, 27:170,
+      28:90, 29:60, 30:230, 31:150, 32:95,
+    };
+    const _wTabs = DATA_TABS.filter(t => tabMap.hasOwnProperty(t));
+    let tabWidths = {};   // tab -> array of pixel widths per column
+    try {
+      const _hdrRes = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values:batchGet?` +
+        _wTabs.map(t => 'ranges=' + encodeURIComponent(`'${t}'!2:2`)).join('&'),
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      const _hdrData = await _hdrRes.json();
+      _wTabs.forEach((t, i) => {
+        const hdrs = (((_hdrData.valueRanges || [])[i] || {}).values || [[]])[0] || [];
+        tabWidths[t] = hdrs.map((h, ci) => {
+          if (t === 'My Collection' && MC_WIDTH_PX[ci] !== undefined) return MC_WIDTH_PX[ci];
+          const longest = String(h || '').split(/\s+/).reduce((m, w) => Math.max(m, w.length), 0);
+          return Math.min(320, Math.max(70, longest * 8 + 26));
+        });
+      });
+    } catch (e) { console.warn('[SheetFormat] header width fetch failed, widths skipped:', e); }
+    const widthReqs = _wTabs.flatMap(t =>
+      (tabWidths[t] || []).map((px, ci) => ({
+        updateDimensionProperties: {
+          range: { sheetId: tabMap[t], dimension: 'COLUMNS', startIndex: ci, endIndex: ci + 1 },
+          properties: { pixelSize: px }, fields: 'pixelSize'
+        }
+      }))
+    );
+    // Dashboard-button merge span: extend from col C until ~120px so the text
+    // never clips, but never swallow a wide column into an orange slab.
+    const btnEndCol = (t) => {
+      const w = tabWidths[t] || [];
+      let px = 0, c = 2;
+      while (c < Math.min(w.length, 6)) { px += (w[c] || 90); c++; if (px >= 120) break; }
+      return Math.max(c, 3);   // exclusive end col index; 3 = button is C1 alone
+    };
+
     const dataReqs = DATA_TABS.filter(t => tabMap.hasOwnProperty(t)).flatMap(tab => {
       const sid = tabMap[tab];
       // Session 155 v6: header wrap, banding fix, My Collection gets col-A freeze
@@ -177,7 +223,10 @@ async function applySheetFormatting(sheetId, opts) {
         }}},
         // Quick link back to the Dashboard, right of the tab name (merged C1:D1).
         ...(dashId != null ? [
-          { mergeCells: { range: { sheetId: sid, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 2, endColumnIndex: 4 }, mergeType: 'MERGE_ALL' }},
+          // v13: clear any old fixed C1:D1 merge, then merge only as many
+          // columns as the button text needs (wide col: C1 alone; narrow: 2-4).
+          { unmergeCells: { range: { sheetId: sid, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 10 } }},
+          ...(btnEndCol(tab) > 3 ? [{ mergeCells: { range: { sheetId: sid, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 2, endColumnIndex: btnEndCol(tab) }, mergeType: 'MERGE_ALL' }}] : []),
           { updateCells: {
             start: { sheetId: sid, rowIndex: 0, columnIndex: 2 },
             fields: 'userEnteredValue,userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)',
@@ -186,7 +235,7 @@ async function applySheetFormatting(sheetId, opts) {
               userEnteredFormat: { backgroundColor: SB.accent, textFormat: { bold: true, foregroundColor: SB.white, fontSize: 10, underline: false }, horizontalAlignment: 'CENTER', verticalAlignment: 'MIDDLE' }
             }] }]
           }},
-          { updateBorders: { range: { sheetId: sid, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 2, endColumnIndex: 4 }, top: { style: 'SOLID_THICK', color: SB.navyMid }, bottom: { style: 'SOLID_THICK', color: SB.navyMid }, left: { style: 'SOLID_THICK', color: SB.navyMid }, right: { style: 'SOLID_THICK', color: SB.navyMid } }}
+          { updateBorders: { range: { sheetId: sid, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 2, endColumnIndex: btnEndCol(tab) }, top: { style: 'SOLID_THICK', color: SB.navyMid }, bottom: { style: 'SOLID_THICK', color: SB.navyMid }, left: { style: 'SOLID_THICK', color: SB.navyMid }, right: { style: 'SOLID_THICK', color: SB.navyMid } }}
         ] : [])
       ];
     });
@@ -316,18 +365,9 @@ async function applySheetFormatting(sheetId, opts) {
       });
     }
 
-    // Session 155 v6: auto-resize columns on every data tab
-    // (sizes each col to its longest content; hidden cols stay hidden)
-    const autoResizeReqs = DATA_TABS.filter(t => tabMap.hasOwnProperty(t)).map(t => ({
-      autoResizeDimensions: {
-        dimensions: {
-          sheetId: tabMap[t],
-          dimension: 'COLUMNS',
-          startIndex: 0,
-          endIndex: 30,
-        }
-      }
-    }));
+    // v13: autoResize removed — it sized columns to whatever data happened to
+    // be present (Notes -> 250+ wide, Variation -> 3 digits). widthReqs above
+    // now sets deterministic widths for every data tab.
 
     // ── 6. Dashboard formatting requests ──────────────────────────
     const dashReqs = [
@@ -446,7 +486,7 @@ async function applySheetFormatting(sheetId, opts) {
     }
 
     // ── 8. Send all format requests ────────────────────────────────
-    const allReqs = [...tabColorReqs, ...dataReqs, ...hideReqs, ...mcReqs, ...dashReqs, ...autoResizeReqs];
+    const allReqs = [...tabColorReqs, ...dataReqs, ...hideReqs, ...mcReqs, ...dashReqs, ...widthReqs];
     // v8: check response — Google batchUpdate returns 400 with a body explaining
     // which request failed. Don't write the version stamp if batch failed!
     const batchRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
