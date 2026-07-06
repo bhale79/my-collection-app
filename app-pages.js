@@ -833,12 +833,14 @@ function buildWantPage() {
   } else if (_ws === 'price') {
     entries.sort((a, b) => (parseFloat(b.expectedPrice)||0) - (parseFloat(a.expectedPrice)||0));
   }
+  // v0.9.714 (Brad): grouped pairs (engine+tender, A+B units) fold to ONE row.
+  const shownEntries = (typeof foldWantEntries === 'function') ? foldWantEntries(entries) : entries;
   // Count display
   const countEl = document.getElementById('want-count');
   if (countEl) {
     countEl.textContent = entries.length === totalCount
-      ? totalCount + ' item' + (totalCount !== 1 ? 's' : '')
-      : 'Showing ' + entries.length + ' of ' + totalCount;
+      ? (shownEntries.length + ' item' + (shownEntries.length !== 1 ? 's' : '') + (shownEntries.length !== entries.length ? ' · ' + entries.length + ' pieces (pairs grouped)' : ''))
+      : 'Showing ' + shownEntries.length + ' of ' + totalCount;
   }
   // Keep nav count badge in sync
   // Updated for combined Wishlist nav badge.
@@ -849,7 +851,7 @@ function buildWantPage() {
   const tbody   = document.getElementById('want-tbody');
   const priorityColor = { High: 'var(--accent)', Medium: 'var(--accent2)', Low: 'var(--text-dim)' };
 
-  if (entries.length === 0) {
+  if (shownEntries.length === 0) {
     const hasFilters = _wq || _wp || _wt || _we;
     const emptyIcon = hasFilters ? '🔍' : '❤️';
     const emptyMsg = hasFilters ? 'No items match your filters' : 'Your want list is empty';
@@ -863,7 +865,7 @@ function buildWantPage() {
   if (isMobile) {
     if (tableEl) tableEl.style.display = 'none';
     if (cardsEl) cardsEl.style.display = 'flex';
-    cardsEl.innerHTML = entries.map(w => {
+    cardsEl.innerHTML = shownEntries.map(w => {
       const master = findMaster(w.itemNum, w.variation);
       const name = master ? (master.roadName || master.description || master.itemType || '') : '';
       const pColor = priorityColor[w.priority] || 'var(--text-dim)';
@@ -885,6 +887,7 @@ function buildWantPage() {
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:0.5rem">
               <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${w.itemNum}</span>
+              ${w._wantMates ? `<span style="font-size:0.72rem;color:#9ecbff">🔗 ${w._wantMates.join(' + ')}</span>` : ''}
               ${_mIsSet ? '<span style="font-size:0.62rem;color:#e67e22;font-weight:600">SET</span>' : (w.variation ? `<span style="font-size:0.72rem;color:var(--text-dim)">${w.variation}</span>` : '')}
               <span style="font-size:0.65rem;font-weight:600;color:${pColor};border:1px solid ${pColor};border-radius:4px;padding:0.1rem 0.4rem">${w.priority || 'Medium'}</span>
             </div>
@@ -892,7 +895,7 @@ function buildWantPage() {
             ${w.notes ? `<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${w.notes}</div>` : ''}
           </div>
           <div style="text-align:right;flex-shrink:0">
-            ${w.expectedPrice ? `<div style="font-family:var(--font-mono);color:var(--accent2);font-size:0.9rem">$${parseFloat(w.expectedPrice).toLocaleString()}</div>` : ''}
+            ${(w._pairPrice || w.expectedPrice) ? `<div style="font-family:var(--font-mono);color:var(--accent2);font-size:0.9rem">$${parseFloat(w._pairPrice || w.expectedPrice).toLocaleString()}${w._pairPrice ? '<span style="font-size:0.62rem;color:var(--text-dim)"> pair</span>' : ''}</div>` : ''}
           </div>
         </div>
         ${!_wInShare ? `<div style="display:flex;gap:0.35rem;margin-top:0.6rem;flex-wrap:wrap">
@@ -908,7 +911,7 @@ function buildWantPage() {
     if (cardsEl) cardsEl.style.display = 'none';
     // Store descriptions in a map to avoid quoting issues in onclick
     window._wantDescs = {};
-    tbody.innerHTML = entries.map((w, idx) => {
+    tbody.innerHTML = shownEntries.map((w, idx) => {
       const master = findMaster(w.itemNum, w.variation);
       const roadName = master ? (master.roadName || '') : '';
       const varDesc  = master ? (master.varDesc || master.variationDesc || '') : '';
@@ -943,12 +946,12 @@ function buildWantPage() {
       const _wDSelected = _wDInShare && window._shareItems && window._shareItems[_wDShareKey];
       if (_wDInShare) { if (!window._shareDataMap) window._shareDataMap = {}; window._shareDataMap[_wDShareKey] = { itemNum: w.itemNum, variation: w.variation||'', want: w, master: master }; }
       return `<tr id="share-card-${_wDShareKey}" ${_wDInShare ? 'onclick="toggleShareItem(\'' + _wDShareKey + '\')"' : ''} style="cursor:${_wDInShare ? 'pointer' : 'default'}${_wDSelected ? ';outline:2px solid #3a9e68;background:rgba(58,158,104,0.06)' : ''}">
-        <td><span class="item-num">${_wDInShare ? '<input type="checkbox" id="share-cb-' + _wDShareKey + '" ' + (_wDSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _wDShareKey + '\')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">' : ''}${_composeItemNumHTML(w.itemNum, w.variation)}</span>${_isSet ? ' <span style="font-size:0.62rem;color:#e67e22;font-weight:600;vertical-align:middle">SET</span>' : ''}</td>
+        <td><span class="item-num">${_wDInShare ? '<input type="checkbox" id="share-cb-' + _wDShareKey + '" ' + (_wDSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _wDShareKey + '\')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">' : ''}${_composeItemNumHTML(w.itemNum, w.variation)}</span>${w._wantMates ? ' <span style="font-size:0.7rem;color:#9ecbff;vertical-align:middle">🔗 ' + w._wantMates.join(' + ') + '</span>' : ''}${_isSet ? ' <span style="font-size:0.62rem;color:#e67e22;font-weight:600;vertical-align:middle">SET</span>' : ''}</td>
         <td>${_displayRoad || '<span class="text-dim">—</span>'}</td>
         <td>${_isSet ? '<span class="text-dim">—</span>' : (w.variation || '<span class="text-dim">—</span>')}</td>
         <td>${varCell}</td>
         <td><span style="color:${pColor};font-weight:500">${w.priority || 'Medium'}</span></td>
-        <td class="market-val">${w.expectedPrice ? _currencySymbol() + parseFloat(w.expectedPrice).toLocaleString() : '<span class="text-dim">—</span>'}</td>
+        <td class="market-val">${(w._pairPrice || w.expectedPrice) ? _currencySymbol() + parseFloat(w._pairPrice || w.expectedPrice).toLocaleString() + (w._pairPrice ? ' <span style="font-size:0.65rem;color:var(--text-dim)">pair</span>' : '') : '<span class="text-dim">—</span>'}</td>
         <td style="white-space:nowrap">
           ${!_wDInShare ? `<button onclick="moveWantToCollection('${w.itemNum}','${(w.variation||'').replace(/'/g,"\\'")}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);margin-right:0.25rem" title="Add to My Collection">+ Collection</button>
           <button onclick="wantFindOnEbay('${w.itemNum}','${(roadName||'').replace(/'/g,"\\'")}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);margin-right:0.25rem" title="Search eBay">eBay</button>
