@@ -150,21 +150,26 @@ function buildPersonalRow(fields) {
     }
   });
   // Auto-populate the 2 master-derived columns if not explicitly provided.
+  // v0.9.724 (Brad's 4C Nabisco card, leak #3): MANUAL rows NEVER inherit
+  // catalog data — the old "manual items: findMaster returns null" assumption
+  // breaks when a manual number COLLIDES with a real catalog number (4C).
+  // This was stamping the F3's description INTO the manual row at save time.
+  const _rowIsManual = String(fields.era || '') === 'Manual';
   const inum = fields.itemNum || '';
   const vari = fields.variation || '';
   const mdi = PERSONAL_FIELD_INDEX.masterDescription;
   const vdi = PERSONAL_FIELD_INDEX.variationDescription;
-  if (mdi !== undefined && (fields.masterDescription === undefined || fields.masterDescription === '')) {
+  if (!_rowIsManual && mdi !== undefined && (fields.masterDescription === undefined || fields.masterDescription === '')) {
     row[mdi] = _lookupMasterDesc(inum);
   }
-  if (vdi !== undefined && (fields.variationDescription === undefined || fields.variationDescription === '')) {
+  if (!_rowIsManual && vdi !== undefined && (fields.variationDescription === undefined || fields.variationDescription === '')) {
     row[vdi] = _lookupMasterVarDesc(inum, vari);
   }
   // Auto-populate Item Type / Road Name / Road Number from the catalog when the
   // caller didn't supply them (e.g. suffixed engines 204-P / 217C resolve via the
   // base number now that findMaster has a base fallback). Manual items: findMaster
   // returns null, so their caller-supplied values are kept.
-  if (typeof findMaster === 'function' && inum && !_isBoxItemNum(inum)) {
+  if (!_rowIsManual && typeof findMaster === 'function' && inum && !_isBoxItemNum(inum)) {   // v0.9.724
     const _mm = findMaster(inum, vari);
     if (_mm) {
       [['itemType','itemType'],['roadName','roadName'],['roadNumber','roadNum']].forEach(function(pair){
@@ -178,7 +183,7 @@ function buildPersonalRow(fields) {
   // Brand is a fact about the item: when the item is in the catalog, the
   // master decides the manufacturer (not the filter). Manual items keep theirs.
   var _mfi = PERSONAL_FIELD_INDEX.manufacturer;
-  if (_mfi !== undefined) {
+  if (!_rowIsManual && _mfi !== undefined) {   // v0.9.724: manual rows keep the maker the user chose
     var _mb = (typeof _brandOfItem === 'function') ? _brandOfItem(inum, vari) : '';
     if (_mb) row[_mfi] = _mb;
   }
