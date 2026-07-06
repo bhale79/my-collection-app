@@ -2314,7 +2314,7 @@ function renderBrowse() {
   const masterNums = new Set(state.masterData.map(m => _displayItemNum(m) + '|' + (m.variation||'')));
   const _eraFilterPersonalOnly = state.filters.owned && typeof _currentEra !== 'undefined' && _currentEra !== 'all';
   const personalOnlyItems = Object.values(state.personalData)
-    .filter(pd => pd.owned && !masterNums.has(pd.itemNum + '|' + (pd.variation||'')))
+    .filter(pd => pd.owned && (String(pd.era || '') === 'Manual' || !masterNums.has(pd.itemNum + '|' + (pd.variation||''))))   // v0.9.718: manual rows never merge into catalog rows
     .filter(pd => !_eraFilterPersonalOnly)
     .filter(pd => !(typeof _isCollectionCompanion === 'function' ? _isCollectionCompanion(pd) : _isGroupedBoxRow(pd)))
     .map(pd => {
@@ -2329,14 +2329,16 @@ function renderBrowse() {
         else if (_num.endsWith('-T'))    _poType = 'Dummy Unit';
       }
       // Strip suffix to find the base item for description/roadName
+      // v0.9.718: manual entries get NO catalog enrichment (identity is theirs).
+      const _pdIsManual = String(pd.era || '') === 'Manual';
       const _baseNum = pd.itemNum.replace(/-(P|T|BOX|MBOX)$/i, '');
-      const _baseItem = _baseNum !== pd.itemNum
+      const _baseItem = (!_pdIsManual && _baseNum !== pd.itemNum)
         ? (state.masterData.find(m => m.itemNum === _baseNum && (!pd.variation || m.variation === pd.variation))
            || findMaster(_baseNum))
         : null;
       // Fallback: if no suffix match, still try to find master entry by item number alone
       // (handles cases like 2426W saved with no variation but master has variations)
-      const _masterFallback = _baseItem ? null
+      const _masterFallback = (_baseItem || _pdIsManual) ? null
         : (state.masterData.find(m => m.itemNum === pd.itemNum && (!pd.variation || m.variation === pd.variation))
            || findMaster(pd.itemNum));
       const _refItem = _baseItem || _masterFallback;
@@ -2345,7 +2347,7 @@ function renderBrowse() {
         manufacturer: pd.manufacturer || '',
         itemType: _poType || (_refItem ? _refItem.itemType : ''),
         roadName: pd.roadName || (_refItem ? _refItem.roadName : ''),
-        description: _refItem ? _refItem.description : (pd.notes || ''),
+        description: _refItem ? _refItem.description : (pd.description || pd.notes || ''),   // v0.9.718: manual rows carry their own description
         yearProd: pd.datePurchased || (_refItem ? _refItem.yearProd : ''),
         marketVal: _refItem ? _refItem.marketVal : '',
         varDesc: _refItem ? _refItem.varDesc : '',
@@ -2376,6 +2378,7 @@ function renderBrowse() {
     // Verify exact match — don't let findPD's -P/-D fallback match unrelated items
     // (e.g. master "205" Science Set should not match personal "205-P" diesel)
     if (pd && pd.itemNum !== _dispNum) pd = null;
+    if (pd && !item._personalOnly && String(pd.era || '') === 'Manual') pd = null;   // v0.9.718
     pd = pd || (item._personalOnly ? item : null);
     const isOwned = item._personalOnly ? true : (pd?.owned || false);
     const hasBox = pd?.hasBox === 'Yes';
@@ -2768,7 +2771,8 @@ function renderBrowse() {
   }
 
   const rowsHtml = pageData.map((item, i) => {
-    const pd = item._copyPd ? item._copyPd : (item._personalOnly ? item : findPD(_displayItemNum(item), item.variation));
+    const _pd0 = item._copyPd ? item._copyPd : (item._personalOnly ? item : findPD(_displayItemNum(item), item.variation));
+    const pd = (_pd0 && !item._personalOnly && String(_pd0.era || '') === 'Manual') ? null : _pd0;   // v0.9.718
     const isOwned = item._personalOnly ? true : (pd?.owned || false);
     const isWanted = !!state.wantData[`${item.itemNum}|${item.variation}`];
     const cond = pd?.condition ? parseInt(pd.condition) : null;
