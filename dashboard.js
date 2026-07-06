@@ -225,7 +225,7 @@ var CARD_CATALOG = [
       // Session 121: respect Preferences "What I Collect" in 'all' mode.
       var wantCount = (typeof foldWantEntries === 'function') ? foldWantEntries(Object.values(_filterByEraPref(state.wantData||{}))).length : Object.keys(_filterByEraPref(state.wantData||{})).length;   // v0.9.722: pairs count once
       var fsCount = Object.keys(_forSaleLeads(state)).length;
-      var soldCount = Object.keys(_filterByEraPref(state.soldData||{})).length;
+      var soldCount = (typeof foldSoldEntries === 'function') ? foldSoldEntries(Object.values(_filterByEraPref(state.soldData||{}))).length : Object.keys(_filterByEraPref(state.soldData||{})).length;   // v0.9.723
       // Phase 3 streamline: Quick Entry tile removed from Activity card.
       var html = '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:4px">';
       html += '<div style="text-align:center;flex:1;min-width:36px"><div style="font-size:1.15rem;font-weight:700;color:var(--text)">' + wantCount + '</div><div style="font-size:0.62rem;color:var(--text-dim)">want</div></div>';
@@ -883,7 +883,7 @@ var PANEL_CATALOG = [
         .map(function(w) {
           var master = findMaster(w.itemNum);
           var name = master ? (master.roadName || master.itemType || w.itemNum) : w.itemNum;
-          if (w._wantMates) name = (name || '') + ' 🔗 ' + w._wantMates.join(' + ');
+          if (w._wantMates) name = (name || '') + ' 🔗 ' + w._wantMates.join(' + ') + (w._groupCfg ? ' · ' + w._groupCfg : '');
           var _wPrice = w._pairPrice || w.expectedPrice;
           var price = _wPrice ? _currencySymbol() + parseFloat(_wPrice).toLocaleString() : '';
           var pc = priColor[w.priority] || 'var(--text-dim)';
