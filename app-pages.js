@@ -2552,7 +2552,7 @@ function _wuSortVal(u, col) {
 function _wuItemNumHTML(u) {
   var num = String(u.itemNum || '');
   if (u._mergedTender) {
-    return num + ' <span style="opacity:0.6;font-size:0.8em" title="Engine + tender (paired)">\uD83D\uDD17</span> <span style="font-size:0.85em;color:var(--text-mid)">' + u._mergedTender + '</span>';
+    return num + ' <span style="opacity:0.6;font-size:0.8em" title="Paired set — priced together">\uD83D\uDD17</span> <span style="font-size:0.85em;color:var(--text-mid)">' + u._mergedTender + '</span>';
   }
   return num;
 }
@@ -2666,6 +2666,17 @@ function buildUpgradePage() {
           var t = tenders[i];
           if (t && t !== e.itemNum && byNum[t] && !absorbed[t] && byNum[t].listType === e.listType) {
             e._mergedTender = t; absorbed[t] = true; break;
+          }
+        }
+      }
+      // v0.9.721 (Brad's 2245-P + 2245C at $700 EACH): diesel A units absorb
+      // their wanted B/C partner the same way — one row, one group price.
+      if (!e._mergedTender && typeof getSetPartner === 'function') {
+        var _b = String(e.itemNum).replace(/-(P|D)$/i, '');
+        if (!/C$/i.test(_b)) {
+          var _sp = getSetPartner(e.itemNum);
+          if (_sp && String(_sp) !== String(e.itemNum) && byNum[_sp] && !absorbed[_sp] && byNum[_sp].listType === e.listType) {
+            e._mergedTender = String(_sp); absorbed[_sp] = true;
           }
         }
       }
