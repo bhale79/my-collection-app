@@ -202,7 +202,13 @@ function openIdentify(context) {
   _identifyWasResearch = (context === 'research');
   _identifyClearStash();
   _identifySelectedNum = null;
+  // v0.9.706: callers outside the wizard (legacy buttons) reached this before
+  // the modal existed → threw → global "Something went wrong" banner.
+  if (!document.getElementById('identify-modal') && typeof _buildWizardModal === 'function') {
+    try { _buildWizardModal(); } catch (eB) {}
+  }
   const modal = document.getElementById('identify-modal');
+  if (!modal) { if (typeof showToast === 'function') showToast('Identify is still loading — try again in a second', 3000, true); return; }
   modal.classList.add('open');
   // Auto-focus the input so a bare Ctrl+V lands in it as a normal paste —
   // DESKTOP ONLY (v0.9.675, Brad: on phones this opened the keyboard and
