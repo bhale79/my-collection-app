@@ -1834,6 +1834,28 @@ function buildApp() {
   if (typeof showWelcomeCard === 'function') showWelcomeCard(false);
   // Initialize back-button interception after app is ready
   _initBackButton();
+  // v0.9.709 (Brad's mobile-vs-desktop mismatch): a resumed PWA never re-runs
+  // boot, so a phone can show DAYS-old numbers while the sheet moved on.
+  // When the app returns to the foreground with a snapshot older than 5 min,
+  // re-fetch and redraw.
+  if (!window._fgRefreshListener) {
+    window._fgRefreshListener = true;
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        if (!state.personalSheetId || typeof _loadPersonalFromSheets !== 'function') return;
+        var _ts = parseInt(localStorage.getItem('lv_personal_cache_ts') || '0');
+        if (Date.now() - _ts < 5 * 60 * 1000) return;
+        if (window._fgRefreshing) return;
+        window._fgRefreshing = true;
+        _loadPersonalFromSheets(state.personalSheetId).then(function () {
+          if (typeof _cachePersonalData === 'function') _cachePersonalData();
+          if (typeof buildDashboard === 'function') buildDashboard();
+          if (typeof renderBrowse === 'function') renderBrowse();
+        }).catch(function () {}).then(function () { window._fgRefreshing = false; });
+      } catch (e) {}
+    });
+  }
   // Session 162: kick off background preloading of OTHER eras' master data
   // so subsequent era-switches are instant. Runs 3s after init to let the
   // user's chosen era render and breathe first.
