@@ -1733,7 +1733,7 @@ function _renderOwnedSubTab(tabKey) {
     Object.entries(state.personalData || {}).forEach(function(entry) {
       const k = entry[0], pd = entry[1];
       if (!pd || !pd.owned) return;
-      const master = typeof findMaster === 'function' ? findMaster(pd.itemNum) : null;
+      const master = typeof findMaster === 'function' ? findMaster(pd.itemNum, '', pd) : null;
       if (!master || master._tab !== svcTab) return;
       rows.push({
         _type: 'service', _key: k,
@@ -1853,7 +1853,7 @@ function _collectionUpgrade(type, key) {
 function _serviceCollectionAction(action, pdKey) {
   const pd = state.personalData[pdKey];
   if (!pd) return;
-  const master = typeof findMaster === 'function' ? findMaster(pd.itemNum) : null;
+  const master = typeof findMaster === 'function' ? findMaster(pd.itemNum, '', pd) : null;
   const globalIdx = master && state.masterData ? state.masterData.indexOf(master) : -1;
   const itemNum = pd.itemNum;
   const variation = pd.variation || '';
@@ -2342,7 +2342,7 @@ function renderBrowse() {
       // (handles cases like 2426W saved with no variation but master has variations)
       const _masterFallback = (_baseItem || _pdIsManual) ? null
         : (state.masterData.find(m => m.itemNum === pd.itemNum && (!pd.variation || m.variation === pd.variation))
-           || findMaster(pd.itemNum));
+           || findMaster(pd.itemNum, '', pd));
       const _refItem = _baseItem || _masterFallback;
       return {
         itemNum: pd.itemNum, variation: pd.variation || '',
