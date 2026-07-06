@@ -517,12 +517,70 @@ function foldWantEntries(rows) {
     });
     out._pairPrice = sum > 0 ? String(sum) : '';
     out._pairIsGroup = !_summed;   // label: group price vs summed pieces
+    out._groupCfg = (typeof window.groupConfigLabel === 'function') ? window.groupConfigLabel(n, mates) : '';   // v0.9.723
     return out;
   });
 }
 window.foldWantEntries = foldWantEntries;
 // v0.9.722: ONE badge count — folded want + folded upgrade (pairs count once),
 // matching every list view. All nav-wishlist-count writers use this.
+// v0.9.723 (Brad): name the pairing — "AA", "AB", "ABA", "Engine + Tender".
+window.groupConfigLabel = function (leadNum, mates) {
+  if (!mates || !mates.length) return '';
+  try {
+    if (mates.some(function (m) { return typeof isTender === 'function' && isTender(m); })) return 'Engine + Tender';
+    var c = 0, d = 0;
+    mates.forEach(function (m) {
+      var s = String(m);
+      if (/C$/i.test(s.replace(/-(P|D)$/i, ''))) c++;
+      else if (/-D$/i.test(s)) d++;
+    });
+    if (c && d) return 'ABA';
+    if (c) return 'AB';
+    if (d) return 'AA';
+  } catch (e) {}
+  return 'Set';
+};
+
+// v0.9.723 (Brad): fold SOLD pairs too — no group marker on sold rows, so a
+// mate folds when it's a catalog PARTNER sold on the SAME date. Duplicated
+// sale price (group price on both rows) shows once; different prices sum.
+window.foldSoldEntries = function (rows) {
+  var byNum = {}, absorbedBy = {};
+  rows.forEach(function (s) { if (!byNum[s.itemNum]) byNum[s.itemNum] = s; });
+  rows.forEach(function (s) {
+    var n = String(s.itemNum);
+    if (absorbedBy[n]) return;
+    var mates = [];
+    try {
+      if (typeof getMatchingTenders === 'function') mates = mates.concat(getMatchingTenders(n) || []);
+      if (typeof getSetPartner === 'function' && !/C$/i.test(n.replace(/-(P|D)$/i, ''))) {
+        var sp = getSetPartner(n); if (sp) mates.push(sp);
+      }
+    } catch (e) {}
+    mates.forEach(function (mn) {
+      mn = String(mn);
+      var mate = byNum[mn];
+      if (mn !== n && mate && !absorbedBy[mn] && String(mate.dateSold || '') === String(s.dateSold || '')) absorbedBy[mn] = n;
+    });
+  });
+  return rows.filter(function (s) { return !absorbedBy[String(s.itemNum)]; }).map(function (s) {
+    var n = String(s.itemNum);
+    var mates = Object.keys(absorbedBy).filter(function (k) { return absorbedBy[k] === n; });
+    if (!mates.length) return s;
+    var out = Object.assign({}, s);
+    out._wantMates = mates;
+    out._groupCfg = window.groupConfigLabel(n, mates);
+    var lp = parseFloat(s.salePrice) || 0, sum = lp, summed = false;
+    mates.forEach(function (k) {
+      var mp = parseFloat((byNum[k] || {}).salePrice) || 0;
+      if (mp && mp !== lp) { sum += mp; summed = true; }   // equal price = duplicated group price
+    });
+    out._pairPrice = (summed ? sum : lp) > 0 ? String(summed ? sum : lp) : '';
+    return out;
+  });
+};
+
 window.wishlistFoldedCount = function () {
   try {
     var w = foldWantEntries(Object.values(state.wantData || {})).length;
