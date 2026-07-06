@@ -960,8 +960,16 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         : '';
       overlay.innerHTML = ''
         + '<div style="width:100%;max-width:520px;display:flex;flex-direction:column;gap:0.6rem">'
-        +   '<div style="color:#fff;font-family:var(--font-head,sans-serif);font-size:1.1rem;text-align:center">Which one did you scan?</div>'
-        +   '<div style="color:#aaa;font-size:0.8rem;text-align:center">The barcode ends in <strong style="color:#ffd27d">' + _bcEsc((scanResult && scanResult.code5) || '') + '</strong> &mdash; these items all share those digits. Tap the right one, or use View to check a photo.</div>'
+        // v0.9.712 (Brad): this picker serves TWO sources — a scanned barcode
+        // (code5 digits) and a PRINTED number read from lettering (itemNum).
+        // The old text assumed barcode and rendered "The barcode ends in —".
+        +   '<div style="color:#fff;font-family:var(--font-head,sans-serif);font-size:1.1rem;text-align:center">'
+        +     ((scanResult && scanResult.code5) ? 'Which one did you scan?' : 'Which one is yours?') + '</div>'
+        +   '<div style="color:#aaa;font-size:0.8rem;text-align:center">'
+        +     ((scanResult && scanResult.code5)
+              ? ('The barcode ends in <strong style="color:#ffd27d">' + _bcEsc(scanResult.code5) + '</strong> &mdash; these items all share those digits. ')
+              : ('The number <strong style="color:#ffd27d">' + _bcEsc((scanResult && scanResult.itemNum) || '') + '</strong> matches several catalog entries. '))
+        +     'Tap the right one, or use View to check a photo.</div>'
         +   ((scanResult && scanResult.cautionHtml) ? '<div style="color:#ffb27d;font-size:0.8rem;text-align:center">&#9888; ' + _bcEsc(scanResult.cautionHtml) + '</div>' : '')
         +   '<div style="overflow-y:auto;max-height:58vh;margin-top:0.3rem">' + rowsHtml + noneHtml + '</div>'
         +   '<button id="bc-cand-cancel" style="padding:0.8rem;border-radius:10px;border:1px solid #444;background:#222;color:#eee;font-size:0.95rem;font-family:inherit;cursor:pointer">Cancel</button>'
