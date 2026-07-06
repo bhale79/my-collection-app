@@ -2854,9 +2854,10 @@ function renderBrowse() {
       const _escVar = (item.variation||'').replace(/'/g,"\'");
       const _dispNum = _displayItemNum(item);
       const _descParts = [item.roadName, item.itemType].filter(Boolean);
-      // v0.9.720 (Brad): manual/personal-only rows show their OWN description,
-      // not a road·type echo of the Type column.
-      const _descFull  = (item._personalOnly && item.description) ? item.description : (_descParts.join(' · ') || item.description || '—');
+      // v0.9.720/721 (Brad): show the real DESCRIPTION — road·type was echoing
+      // the Type column whenever a catalog row had no road name.
+      const _descFull  = (item._personalOnly && item.description) ? item.description
+        : ([item.roadName, item.description].filter(Boolean).join(' — ') || _descParts.join(' · ') || '—');
       const _descShort = _descFull.length > 42 ? _descFull.substring(0, 40) + '…' : _descFull;
       const _varText   = item.variation ? ` <span style="font-size:0.72rem;color:var(--text-dim);background:var(--surface2);padding:1px 5px;border-radius:4px;margin-left:3px">${item.variation}</span>` : '';
       const _typeText = (typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(item) : item.itemType) || '<span style="color:var(--text-dim)">—</span>';
