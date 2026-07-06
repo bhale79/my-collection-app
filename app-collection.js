@@ -888,6 +888,36 @@ function showItemDetailPage(idx, copyInvId, opts) {
   const isForSale = !!_fsEntry;
   const _fsPrice = _fsEntry ? _currencySymbol() + parseFloat(_fsEntry.askingPrice || 0).toLocaleString() : '';
   const groupMembers = pd && pd.groupId ? Object.values(state.personalData).filter(p => p.groupId === pd.groupId && p.itemNum !== it.itemNum) : [];
+  // v0.9.728 (Brad, Phase 1 group sheet): FULL roster incl. this copy, with
+  // state keys so member cards can open the edit panel / photos per piece.
+  function _grpRole(p) {
+    var n = String(p.itemNum || '').toUpperCase();
+    if (p._isIS || /-IS$/.test(n)) return 'Instruction Sheet';
+    if (/-MBOX$/.test(n)) return 'Master Carton';
+    if (/-BOX$/.test(n)) return 'Box';
+    if (typeof isTender === 'function' && isTender(n)) return 'Tender';
+    if (/C$/.test(n.replace(/-(P|D)$/, ''))) return 'B Unit';
+    if (/-D$/.test(n)) return 'Dummy A Unit';
+    if (/-P$/.test(n)) return 'Powered A Unit';
+    return 'Engine';
+  }
+  var _grpRank = { 'Engine': 0, 'Powered A Unit': 0, 'Dummy A Unit': 1, 'B Unit': 2, 'Tender': 3, 'Instruction Sheet': 4, 'Box': 5, 'Master Carton': 6 };
+  var _grpFull = [], _grpKeys = [];
+  if (pd && pd.groupId && !_wantMode) {
+    Object.keys(state.personalData).forEach(function (k) {
+      var p = state.personalData[k];
+      if (p && p.owned && p.groupId === pd.groupId) { _grpFull.push(p); _grpKeys.push(k); }
+    });
+    var _zip = _grpFull.map(function (p, i) { return { p: p, k: _grpKeys[i] }; });
+    _zip.sort(function (a, b) { return (_grpRank[_grpRole(a.p)] || 9) - (_grpRank[_grpRole(b.p)] || 9); });
+    _grpFull = _zip.map(function (z) { return z.p; });
+    _grpKeys = _zip.map(function (z) { return z.k; });
+    window._grpMemberKeys = _grpKeys;
+  }
+  var _isGroupSheet = _grpFull.length > 1;
+  var _grpUnits = _grpFull.filter(function (p) { return !/-(BOX|MBOX|IS)$/i.test(String(p.itemNum || '')); });
+  var _grpCfg = (_isGroupSheet && typeof groupConfigLabel === 'function' && _grpUnits.length > 1)
+    ? groupConfigLabel(_grpUnits[0].itemNum, _grpUnits.slice(1).map(function (p) { return p.itemNum; })) : '';
   // Bug 15 (Session 154): include grouped instruction sheets (separate isData
   // store) so the detail page lists the IS as part of this item.
   if (pd && pd.groupId && state.isData) {
@@ -980,6 +1010,28 @@ function showItemDetailPage(idx, copyInvId, opts) {
       Remove from Collection
     </button>
   </div>`;
+  }
+
+  // ── GROUP MEMBERS STRIP (v0.9.728 — Brad's one-sheet-per-group) ──
+  if (_isGroupSheet) {
+    html += '<div style="background:var(--surface);border:1.5px solid var(--accent3,#3a9e68);border-radius:14px;padding:1rem 1.25rem;margin-bottom:1.5rem">'
+      + '<div style="font-family:var(--font-head);font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent3,#3a9e68);margin-bottom:0.7rem">🔗 Grouped Set'
+      + (_grpCfg ? ' — ' + _grpCfg : '') + ' · ' + _grpFull.length + ' pieces</div>'
+      + '<div style="display:flex;gap:0.6rem;flex-wrap:wrap">'
+      + _grpFull.map(function (p, i) {
+          var role = _grpRole(p);
+          var me = pd && p === pd;
+          var cond = p.condition ? p.condition + '/10' : '—';
+          var box = /-(BOX|MBOX)$/i.test(String(p.itemNum||'')) ? '' : (p.hasBox === 'Yes' ? ('Box ✓' + (p.boxCond ? ' (' + p.boxCond + ')' : '')) : 'No box');
+          var worth = p.userEstWorth ? _currencySymbol() + parseFloat(p.userEstWorth).toLocaleString() : '';
+          return '<div style="flex:1;min-width:150px;max-width:230px;background:var(--surface2);border:1px solid ' + (me ? 'var(--accent3,#3a9e68)' : 'var(--border)') + ';border-radius:10px;padding:0.6rem 0.75rem">'
+            + '<div style="font-size:0.64rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent3,#3a9e68)">' + role + (me ? ' · this page' : '') + '</div>'
+            + '<div style="font-family:var(--font-mono);font-weight:700;color:var(--accent);font-size:0.95rem;margin:0.15rem 0">' + String(p.itemNum || '').replace(/</g, '&lt;') + (p.photoItem ? ' <span title="Has photos" style="font-size:0.78rem">📷</span>' : '') + '</div>'
+            + '<div style="font-size:0.74rem;color:var(--text-mid);line-height:1.5">Cond ' + cond + (box ? ' · ' + box : '') + (worth ? '<br>Worth ' + worth : '') + '</div>'
+            + '<button onclick="_grpEditMember(' + i + ')" style="margin-top:0.45rem;width:100%;padding:0.3rem;border-radius:7px;border:1px solid #2980b9;background:rgba(41,128,185,0.08);color:#2980b9;font-size:0.7rem;cursor:pointer;font-family:var(--font-body);font-weight:600">Edit / Photos</button>'
+            + '</div>';
+        }).join('')
+      + '</div></div>';
   }
 
   // ── DETAILS GRID ──
@@ -1078,21 +1130,51 @@ function showItemDetailPage(idx, copyInvId, opts) {
   html += `</div>`;
 
   // ── PHOTO GALLERY ──
+  // v0.9.728: group sheets show EVERY member's photos, labeled by piece.
+  const _grpPhotoMembers = _isGroupSheet ? _grpFull.filter(function (p) { return p.photoItem; }) : [];
   const _photoLink = pd && pd.photoItem ? pd.photoItem : '';
   if (!_wantMode) html += `<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
       <div style="font-family:var(--font-head);font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent2)">Photos</div>
       ${_photoLink ? `<a href="${_photoLink}" target="_blank" rel="noopener" style="font-size:0.75rem;color:var(--accent2);text-decoration:none">Open Drive Folder \u2197</a>` : ''}
     </div>
-    <div id="item-detail-photos" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:0.75rem;min-height:80px">
+    ${_grpPhotoMembers.length
+      ? _grpPhotoMembers.map(function (p, gi) {
+          return '<div style="font-size:0.7rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent3,#3a9e68);margin:0.6rem 0 0.4rem">' + _grpRole(p) + ' — ' + String(p.itemNum||'').replace(/</g,'&lt;') + ' <a href="' + p.photoItem + '" target="_blank" rel="noopener" style="font-weight:400;text-transform:none;color:var(--accent2);text-decoration:none;letter-spacing:0">folder \u2197</a></div>'
+            + '<div id="grp-photos-' + gi + '" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:0.75rem;min-height:40px"><div style="grid-column:1/-1;color:var(--text-dim);font-size:0.78rem">Loading…</div></div>';
+        }).join('')
+      : `<div id="item-detail-photos" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:0.75rem;min-height:80px">
       ${_photoLink ? '<div style="grid-column:1/-1;text-align:center;padding:1rem;color:var(--text-dim);font-size:0.82rem"><div class="spinner" style="margin:0 auto 0.5rem;width:20px;height:20px;border-width:2px"></div>Loading photos...</div>' : '<div style="grid-column:1/-1;text-align:center;padding:2rem 1rem;color:var(--text-dim)"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3" style="margin:0 auto 0.5rem;display:block"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg><div style="font-size:0.85rem;margin-bottom:0.5rem">No photos uploaded yet</div><button onclick="showItemDetailPage_photos(${idx})" style="padding:0.4rem 0.8rem;border-radius:7px;border:1.5px solid var(--gold);background:rgba(212,168,67,0.08);color:var(--gold);font-family:var(--font-body);font-size:0.78rem;cursor:pointer;font-weight:600">Add Photos</button></div>'}
-    </div>
+    </div>`}
   </div>`;
 
   container.innerHTML = html;
 
+  // Async: group-sheet photos — one loader per member (v0.9.728)
+  if (_grpPhotoMembers.length) {
+    _grpPhotoMembers.forEach(function (p, gi) {
+      driveGetFolderPhotos(p.photoItem).then(function (photos) {
+        var el = document.getElementById('grp-photos-' + gi);
+        if (!el) return;
+        if (!photos || !photos.length) { el.innerHTML = '<div style="grid-column:1/-1;color:var(--text-dim);font-size:0.78rem">No photos in this folder</div>'; return; }
+        el.innerHTML = photos.map(function (ph) {
+          return '<div style="position:relative"><a href="' + ph.view + '" target="_blank" rel="noopener" style="display:block;border-radius:8px;overflow:hidden;background:var(--surface2);aspect-ratio:1;position:relative">'
+            + '<img id="gidp-' + gi + '-' + ph.id + '" style="width:100%;height:100%;object-fit:cover;border-radius:8px" alt="">'
+            + '<div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.6));padding:0.3rem 0.5rem"><div style="font-size:0.65rem;color:#fff;font-family:var(--font-head);letter-spacing:0.05em;text-transform:uppercase">' + (ph.name || '').replace(/\.[^.]+$/, '') + '</div></div></a></div>';
+        }).join('');
+        photos.forEach(function (ph) {
+          var imgEl = document.getElementById('gidp-' + gi + '-' + ph.id);
+          if (imgEl) loadDriveThumb(ph.id, imgEl, imgEl.parentElement);
+        });
+      }).catch(function () {
+        var el = document.getElementById('grp-photos-' + gi);
+        if (el) el.innerHTML = '<div style="grid-column:1/-1;color:var(--text-dim);font-size:0.78rem">Could not load photos</div>';
+      });
+    });
+  }
+
   // Async: load photos
-  if (_photoLink) {
+  if (!_grpPhotoMembers.length && _photoLink) {
     driveGetFolderPhotos(_photoLink).then(function(photos) {
       const el = document.getElementById('item-detail-photos');
       if (!el) return;
@@ -1167,6 +1249,20 @@ async function _healPdRow(pd) {
   throw new Error('Could not locate this item\'s row in the sheet — reload the app and try again');
 }
 window._healPdRow = _healPdRow;
+
+// v0.9.728: open a group member's edit/photos panel from the group sheet.
+window._grpEditMember = function (i) {
+  var k = (window._grpMemberKeys || [])[i];
+  if (!k || !state.personalData[k]) return;
+  var p = state.personalData[k];
+  var idx = -1;
+  if (String(p.era || '') !== 'Manual' && typeof findMaster === 'function') {
+    var m = findMaster(p.itemNum, p.variation, p);
+    idx = m ? state.masterData.indexOf(m) : -1;
+  }
+  window._lastDetailPdKey = k;
+  showItemPanel(idx, k, 'edit');
+};
 
 // Resolve the personalData key for the copy the detail page is currently
 // showing. Falls back to first match if the remembered key is stale.
