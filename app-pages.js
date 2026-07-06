@@ -107,7 +107,7 @@ function _collectAllOwnedItems() {
     // as part of their parent row via group ID; duplicating them in
     // the list would just clutter it.
     if (String(pd.itemNum || '').toUpperCase().endsWith('-BOX')) return;
-    const master = typeof findMaster === 'function' ? findMaster(pd.itemNum) : null;
+    const master = typeof findMaster === 'function' ? findMaster(pd.itemNum, '', pd) : null;
     const road = pd.roadName || (master && master.roadName) || '';
     const desc = (master && (master.description || master.itemType)) || '';
     const extras = [];
@@ -798,7 +798,7 @@ function buildWantPage() {
     if (typeof _isInCurrentEra === 'function' && !_isInCurrentEra(w.itemNum)) return false;
     // Session 155: user-selected era period filter (prewar / postwar / modern)
     if (_we && typeof _itemEraPeriod === 'function') {
-      var _wMaster = (typeof findMaster === 'function') ? findMaster(w.itemNum) : null;
+      var _wMaster = (typeof findMaster === 'function') ? findMaster(w.itemNum, '', w) : null;
       if (!_wMaster) return false;
       if (_itemEraPeriod(_wMaster) !== _we) return false;
     }
@@ -809,13 +809,13 @@ function buildWantPage() {
       const _setMatch = _wt === 'Set' && state.setData && state.setData.find(s => s.setNum === w.itemNum);
       if (_wt === 'Set' && !_setMatch) return false;
       if (_wt !== 'Set') {
-        const _master = findMaster(w.itemNum);
+        const _master = findMaster(w.itemNum, '', w);
         if (!_master || (_master.itemType || '') !== _wt) return false;
       }
     }
     // Text search
     if (_wq) {
-      const master = findMaster(w.itemNum, w.variation) || {};
+      const master = findMaster(w.itemNum, w.variation, w) || {};
       return (w.itemNum||'').toLowerCase().includes(_wq)
         || (master.roadName||'').toLowerCase().includes(_wq)
         || (master.itemType||'').toLowerCase().includes(_wq)
@@ -866,7 +866,7 @@ function buildWantPage() {
     if (tableEl) tableEl.style.display = 'none';
     if (cardsEl) cardsEl.style.display = 'flex';
     cardsEl.innerHTML = shownEntries.map(w => {
-      const master = findMaster(w.itemNum, w.variation);
+      const master = findMaster(w.itemNum, w.variation, w);
       const name = master ? (master.roadName || master.description || master.itemType || '') : '';
       const pColor = priorityColor[w.priority] || 'var(--text-dim)';
       const masterIdx2 = master ? state.masterData.indexOf(master) : -1;
@@ -912,7 +912,7 @@ function buildWantPage() {
     // Store descriptions in a map to avoid quoting issues in onclick
     window._wantDescs = {};
     tbody.innerHTML = shownEntries.map((w, idx) => {
-      const master = findMaster(w.itemNum, w.variation);
+      const master = findMaster(w.itemNum, w.variation, w);
       const roadName = master ? (master.roadName || '') : '';
       const varDesc  = master ? (master.varDesc || master.variationDesc || '') : '';
       const fullDesc = master ? (master.description || '') : '';
@@ -1343,7 +1343,7 @@ function buildSoldPage() {
   let soldEntries = Object.values(state.soldData)
     .filter(sd => typeof _isInCurrentEra !== 'function' || _isInCurrentEra(sd.itemNum))
     .map(sd => {
-      const master = findMaster(sd.itemNum, sd.variation) || {};
+      const master = findMaster(sd.itemNum, sd.variation, sd) || {};
       return { ...sd, _type: master.itemType || '', _roadName: sd.roadName || master.roadName || '', _master: master, _mfr: (typeof _manufacturerOfItem==='function' ? (_manufacturerOfItem(master.itemNum?master:sd)||'') : '') };
     });
 
@@ -1633,7 +1633,7 @@ var _FS_COLS = [
   { col: 'cond', label: 'Cond' }, { col: 'price', label: 'Asking Price' },
   { col: 'worth', label: 'Est. Worth' }, { col: 'listed', label: 'Listed' }
 ];
-function _fsMaster(fs) { return findMaster(fs.itemNum, fs.variation) || {}; }
+function _fsMaster(fs) { return findMaster(fs.itemNum, fs.variation, fs) || {}; }
 function _fsSortVal(fs, col) {
   var m = _fsMaster(fs);
   if (col==='mfr') return (typeof _manufacturerOfItem==='function' ? (_manufacturerOfItem(m.itemNum?m:fs)||'') : '');
@@ -2545,7 +2545,7 @@ var _WU_COLS = [
 ];
 function _wuSortVal(u, col) {
   if (col === 'num') return parseInt(String(u.itemNum || '').replace(/[^0-9]/g, '')) || 0;
-  if (col === 'road') { var m = (typeof findMaster === 'function' ? findMaster(u.itemNum) : null) || {}; return (m.roadName || '').toLowerCase(); }
+  if (col === 'road') { var m = (typeof findMaster === 'function' ? findMaster(u.itemNum, '', u) : null) || {}; return (m.roadName || '').toLowerCase(); }
   if (col === 'mfr') return (u.manufacturer || '').toLowerCase();
   if (col === 'cond') return parseFloat(u.targetCondition) || 0;
   if (col === 'priority') { var o = { High: 0, Medium: 1, Low: 2 }; return (o[u.priority] != null ? o[u.priority] : 1); }
@@ -2627,7 +2627,7 @@ function buildUpgradePage() {
     // Priority filter
     if (_up && (u.priority || 'Medium') !== _up) return false;
     if (_uq) {
-      const master = findMaster(u.itemNum) || {};
+      const master = findMaster(u.itemNum, '', u) || {};
       if (!(u.itemNum||'').toLowerCase().includes(_uq)
         && !(master.roadName||'').toLowerCase().includes(_uq)
         && !_wlStripGrp(u.notes||'').toLowerCase().includes(_uq)) return false;
@@ -2727,7 +2727,7 @@ function buildUpgradePage() {
     if (cardsEl) cardsEl.style.display = 'flex';
     cardsEl.innerHTML = entries.map(u => {
       const pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === u.itemNum && (p.variation||'') === (u.variation||''));
-      const master = findMaster(u.itemNum);
+      const master = findMaster(u.itemNum, '', u);
       const name = master ? (master.roadName || '') : '';  // Road Name column shows ONLY roadName — itemType fallback removed (was lying about road name)
       const cond = pd && pd.condition ? parseInt(pd.condition) : null;
       const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
@@ -2781,7 +2781,7 @@ function buildUpgradePage() {
     tbody.innerHTML = entries.map((u, idx) => {
       const _isWant = u.listType === 'Want';
       const pd = _isWant ? null : Object.values(state.personalData).find(p => p.owned && p.itemNum === u.itemNum && (p.variation||'') === (u.variation||''));
-      const master = findMaster(u.itemNum);
+      const master = findMaster(u.itemNum, '', u);
       const name = master ? (master.roadName || '') : '';  // Road Name column shows ONLY roadName — itemType fallback removed (was lying about road name)
       const cond = pd && pd.condition ? parseInt(pd.condition) : null;
       const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
@@ -2895,7 +2895,7 @@ function pickItemForUpgrade() {
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10001;display:flex;align-items:center;justify-content:center;padding:1.25rem';
   overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
   var rowsHtml = owned.map(function(p) {
-    var master = findMaster(p.itemNum) || {};
+    var master = findMaster(p.itemNum, '', p) || {};
     var name = master.roadName || master.itemType || '';
     var cond = p.condition ? parseInt(p.condition) : null;
     var condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
@@ -3542,7 +3542,7 @@ function markPartInstalled(rowNum) {
   if (!p) return;
   var pd = p.forInv ? (state.personalData || {})[p.forInv] : null;
   if (!pd) { if (typeof showToast === 'function') showToast('Linked item is not in your collection', 3500, true); return; }
-  var m = (typeof findMaster === 'function') ? findMaster(pd.itemNum) : null;
+  var m = (typeof findMaster === 'function') ? findMaster(pd.itemNum, '', pd) : null;
   var itemLabel = pd.itemNum + (m && m.roadName ? ' \u2014 ' + m.roadName : '');
   var today = new Date().toISOString().split('T')[0];
   var _esc = function (str) { return String(str || '').replace(/"/g, '&quot;'); };
