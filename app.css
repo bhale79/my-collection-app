@@ -1122,8 +1122,10 @@
 
   /* ── Dashboard action buttons: desktop shows row, mobile shows side-by-side panels ── */
   .dash-mobile-actions { display: none; }
-  .dash-desktop-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }   /* v0.9.708 (Brad): 6 buttons must fit without scrolling */
-  .dash-desktop-actions .btn { min-width: 0; white-space: nowrap; font-size: 0.72rem !important; padding: 0.42rem 0.55rem !important; }
+  /* v0.9.709 (Brad): ONE row — buttons share the width equally and the text
+     scales with the window instead of wrapping or scrolling. */
+  .dash-desktop-actions { display: flex; gap: 0.35rem; flex-wrap: nowrap; flex: 1 1 100%; width: 100%; }
+  .dash-desktop-actions .btn { flex: 1 1 0; min-width: 0; justify-content: center; white-space: nowrap; overflow: hidden; font-size: clamp(0.55rem, 0.9vw, 0.74rem) !important; padding: 0.42rem 0.3rem !important; }
   @media (max-width: 640px) {
     .dash-mobile-actions { display: flex !important; gap: 0.5rem; width: 100%; flex-wrap: wrap; }
     .dash-desktop-actions { display: none !important; }
