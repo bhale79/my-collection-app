@@ -1730,6 +1730,12 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             + _biBtn({ act: 'gallery', txt: '🖼 Choose a photo from this computer' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff;flex:2')
             + _biBtn({ act: 'cancel', txt: 'Cancel' })
             + '</div>'))
+        + (window._researchActive
+          ? ('<div style="display:flex;gap:0.4rem;margin-top:0.6rem;align-items:stretch">'
+            + '<input id="bi-quick" type="text" placeholder="Know it? Type the item # (e.g. 148, 10-2210)…" style="flex:1;padding:0.55rem 0.7rem;border-radius:9px;border:1.5px solid var(--border,#444);background:var(--surface2,#1c2340);color:var(--text,#fff);font-family:var(--font-mono,monospace);font-size:0.9rem;min-width:0">'
+            + _biBtn({ act: 'quick', txt: 'Look up →' }, 'border:1.5px solid var(--gold,#d4a843);color:var(--gold,#d4a843)')
+            + '</div>')
+          : '')
         + '<input type="file" id="bi-file" accept="image/*" style="display:none">'
         + '</div>');
       var video = d.querySelector('#bi-video');
@@ -1754,8 +1760,13 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         var act = b.getAttribute('data-bi');
         if (act === 'snap') { if (video.videoWidth) { var fr = snapFrame(); done({ raw: fr.raw, view: fr.view, lockedBc: null }); } }
         if (act === 'gallery') d.querySelector('#bi-file').click();
+        if (act === 'quick') { var _qv = (d.querySelector('#bi-quick') || {}).value || ''; if (_qv.trim()) done({ typedQuery: _qv.trim() }); return; }
         if (act === 'last' && _biLastShot) done({ raw: _biLastShot.raw, view: _biLastShot.view, lockedBc: null });
         if (act === 'cancel') done(null);
+      });
+      var _bq = d.querySelector('#bi-quick');
+      if (_bq) _bq.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { var v = _bq.value.trim(); if (v) done({ typedQuery: v }); }
       });
       d.querySelector('#bi-file').addEventListener('change', function (e) {
         var f = e.target.files && e.target.files[0];
@@ -2093,6 +2104,13 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       while (true) {
         var cap = await _biCapture();
         if (!cap) { _biKill(); if (onCancel) onCancel(); return; }
+        // v0.9.711 (Brad): Research quick lookup — typed number, no photo.
+        if (cap.typedQuery) {
+          _biKill();
+          if (typeof window._researchLookupTyped === 'function') window._researchLookupTyped(cap.typedQuery);
+          else if (onCancel) onCancel();
+          return;
+        }
         var cr = await _biCrop(cap.view, cap.lockedBc);
         if (cr.action === 'retake') continue;
         if (cr.action === 'cancel') { _biKill(); if (onCancel) onCancel(); return; }
