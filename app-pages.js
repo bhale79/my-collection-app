@@ -887,7 +887,7 @@ function buildWantPage() {
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:0.5rem">
               <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${w.itemNum}</span>
-              ${w._wantMates ? `<span style="font-size:0.72rem;color:#9ecbff">🔗 ${w._wantMates.join(' + ')}</span>` : ''}
+              ${w._wantMates ? `<span style="font-size:0.72rem;color:#9ecbff">🔗 ${w._wantMates.join(' + ')}</span> <span style="font-size:0.6rem;font-weight:700;color:var(--accent3,#3a9e68);border:1px solid var(--accent3,#3a9e68);border-radius:4px;padding:0.05rem 0.3rem;vertical-align:middle">${w._groupCfg || 'Set'}</span>` : ''}
               ${_mIsSet ? '<span style="font-size:0.62rem;color:#e67e22;font-weight:600">SET</span>' : (w.variation ? `<span style="font-size:0.72rem;color:var(--text-dim)">${w.variation}</span>` : '')}
               <span style="font-size:0.65rem;font-weight:600;color:${pColor};border:1px solid ${pColor};border-radius:4px;padding:0.1rem 0.4rem">${w.priority || 'Medium'}</span>
             </div>
@@ -946,7 +946,7 @@ function buildWantPage() {
       const _wDSelected = _wDInShare && window._shareItems && window._shareItems[_wDShareKey];
       if (_wDInShare) { if (!window._shareDataMap) window._shareDataMap = {}; window._shareDataMap[_wDShareKey] = { itemNum: w.itemNum, variation: w.variation||'', want: w, master: master }; }
       return `<tr id="share-card-${_wDShareKey}" ${_wDInShare ? 'onclick="toggleShareItem(\'' + _wDShareKey + '\')"' : ''} style="cursor:${_wDInShare ? 'pointer' : 'default'}${_wDSelected ? ';outline:2px solid #3a9e68;background:rgba(58,158,104,0.06)' : ''}">
-        <td ${!_wDInShare ? `onclick="_wantViewDetail('${w.itemNum}','${(w.variation||'').replace(/'/g,"\\'")}')" style="cursor:pointer"` : ''}><span class="item-num">${_wDInShare ? '<input type="checkbox" id="share-cb-' + _wDShareKey + '" ' + (_wDSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _wDShareKey + '\')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">' : ''}${_composeItemNumHTML(w.itemNum, w.variation)}</span>${w._wantMates ? ' <span style="font-size:0.7rem;color:#9ecbff;vertical-align:middle">🔗 ' + w._wantMates.join(' + ') + '</span>' : ''}${_isSet ? ' <span style="font-size:0.62rem;color:#e67e22;font-weight:600;vertical-align:middle">SET</span>' : ''}</td>
+        <td ${!_wDInShare ? `onclick="_wantViewDetail('${w.itemNum}','${(w.variation||'').replace(/'/g,"\\'")}')" style="cursor:pointer"` : ''}><span class="item-num">${_wDInShare ? '<input type="checkbox" id="share-cb-' + _wDShareKey + '" ' + (_wDSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _wDShareKey + '\')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">' : ''}${_composeItemNumHTML(w.itemNum, w.variation)}</span>${w._wantMates ? ' <span style="font-size:0.7rem;color:#9ecbff;vertical-align:middle">🔗 ' + w._wantMates.join(' + ') + '</span> <span style="font-size:0.6rem;font-weight:700;color:var(--accent3,#3a9e68);border:1px solid var(--accent3,#3a9e68);border-radius:4px;padding:0.05rem 0.3rem;vertical-align:middle">' + (w._groupCfg || 'Set') + '</span>' : ''}${_isSet ? ' <span style="font-size:0.62rem;color:#e67e22;font-weight:600;vertical-align:middle">SET</span>' : ''}</td>
         <td>${_displayRoad || '<span class="text-dim">—</span>'}</td>
         <td>${_isSet ? '<span class="text-dim">—</span>' : (w.variation || '<span class="text-dim">—</span>')}</td>
         <td>${varCell}</td>
@@ -1416,8 +1416,10 @@ function buildSoldPage() {
   var sortSel = document.getElementById('sold-sort-field');
   if (sortSel) sortSel.value = sf;
 
+  // v0.9.723 (Brad): grouped pairs sold together = ONE row, ONE price.
+  if (typeof foldSoldEntries === 'function') soldEntries = foldSoldEntries(soldEntries);
   // Summary stats
-  const totalRevenue = soldEntries.reduce((sum, sd) => sum + (parseFloat(sd.salePrice) || 0), 0);
+  const totalRevenue = soldEntries.reduce((sum, sd) => sum + (parseFloat(sd._pairPrice || sd.salePrice) || 0), 0);
   const countEl = document.getElementById('sold-stat-count');
   const totalEl = document.getElementById('sold-stat-total');
   if (countEl) countEl.textContent = soldEntries.length.toLocaleString();
@@ -1456,6 +1458,7 @@ function buildSoldPage() {
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div>
             <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${sd.itemNum || '—'}</span>
+            ${sd._wantMates ? `<span style="font-size:0.72rem;color:#9ecbff">🔗 ${sd._wantMates.join(' + ')}</span> <span style="font-size:0.6rem;font-weight:700;color:var(--accent3,#3a9e68);border:1px solid var(--accent3,#3a9e68);border-radius:4px;padding:0.05rem 0.3rem;vertical-align:middle">${sd._groupCfg || 'Set'}</span>` : ''}
             ${sd.variation ? `<span style="font-size:0.72rem;color:var(--text-dim);margin-left:0.4rem">${sd.variation}</span>` : ''}
             ${sd._roadName ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">${sd._roadName}</div>` : ''}
             <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${[sd._type, sd.condition ? 'Cond: '+sd.condition : '', _formatDate(sd.dateSold)].filter(Boolean).join(' · ')}</div>
@@ -1472,12 +1475,12 @@ function buildSoldPage() {
     tbody.innerHTML = soldEntries.length ? soldEntries.map(sd => {
       return `<tr onclick="showSoldDetailPage('${sd.key}')" style="cursor:pointer">
         ${typeof _mfrBadge==='function' ? _mfrBadge({ manufacturer: sd.manufacturer || '' }) : '<td>—</td>'}
-        <td><span class="item-num">${sd.itemNum || '—'}</span></td>
+        <td><span class="item-num">${sd.itemNum || '—'}</span>${sd._wantMates ? ' <span style="font-size:0.7rem;color:#9ecbff">🔗 ' + sd._wantMates.join(' + ') + '</span> <span style="font-size:0.6rem;font-weight:700;color:var(--accent3,#3a9e68);border:1px solid var(--accent3,#3a9e68);border-radius:4px;padding:0.05rem 0.3rem">' + (sd._groupCfg || 'Set') + '</span>' : ''}</td>
         <td><span class="tag">${sd._type || '—'}</span></td>
         <td>${sd._roadName || '—'}</td>
         <td>${sd.variation || '—'}</td>
         <td>${sd.condition || '—'}</td>
-        <td class="market-val">${sd.salePrice ? _currencySymbol() + parseFloat(sd.salePrice).toLocaleString() : '—'}</td>
+        <td class="market-val">${(sd._pairPrice || sd.salePrice) ? _currencySymbol() + parseFloat(sd._pairPrice || sd.salePrice).toLocaleString() : '—'}</td>
         <td class="text-dim">${_formatDate(sd.dateSold) || '—'}</td>
       </tr>`;
     }).join('') : '<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">💰</div><p>No sold items yet</p></div></td></tr>';
@@ -2552,7 +2555,8 @@ function _wuSortVal(u, col) {
 function _wuItemNumHTML(u) {
   var num = String(u.itemNum || '');
   if (u._mergedTender) {
-    return num + ' <span style="opacity:0.6;font-size:0.8em" title="Paired set — priced together">\uD83D\uDD17</span> <span style="font-size:0.85em;color:var(--text-mid)">' + u._mergedTender + '</span>';
+    var _cfg = (typeof groupConfigLabel === 'function') ? groupConfigLabel(num, [u._mergedTender]) : '';
+    return num + ' <span style="opacity:0.6;font-size:0.8em" title="Paired set — priced together">\uD83D\uDD17</span> <span style="font-size:0.85em;color:var(--text-mid)">' + u._mergedTender + '</span>' + (_cfg ? ' <span style="font-size:0.6rem;font-weight:700;color:var(--accent3,#3a9e68);border:1px solid var(--accent3,#3a9e68);border-radius:4px;padding:0.05rem 0.3rem;vertical-align:middle">' + _cfg + '</span>' : '');
   }
   return num;
 }
