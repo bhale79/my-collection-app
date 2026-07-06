@@ -258,14 +258,14 @@ function buildReport() {
     const showUpg=(_wupView==='all'||_wupView==='upgrade');
     const showParts=(_wupView==='all'||_wupView==='parts');
     if (showWant) {
-      const w=Object.values(state.wantData||{});
+      const w=(typeof foldWantEntries==='function') ? foldWantEntries(Object.values(state.wantData||{})) : Object.values(state.wantData||{});   // v0.9.722: pairs = one row, one price
       html+=sect('Want List', w.length);
-      html+= w.length ? w.map(e=>{ const m=findMaster(e.itemNum,e.variation)||{}; const d=m.roadName||m.description||'—'; const pr=e.expectedPrice?_currencySymbol()+parseFloat(e.expectedPrice).toLocaleString():'—'; return `<tr><td><span class="item-num">${esc(e.itemNum)}</span></td><td>${d}</td><td>${esc(e.variation)||'—'}</td><td>${esc(e.priority)||'—'}</td><td class="market-val">${pr}</td><td style="font-size:0.77rem;color:var(--text-dim)">${cn(e.notes)}</td></tr>`; }).join('') : '<tr><td colspan="6" class="ui-empty">Nothing on your want list</td></tr>';
+      html+= w.length ? w.map(e=>{ const m=findMaster(e.itemNum,e.variation)||{}; const d=(m.roadName||m.description||'—')+(e._wantMates?' 🔗 '+e._wantMates.join(' + '):''); const _pv=e._pairPrice||e.expectedPrice; const pr=_pv?_currencySymbol()+parseFloat(_pv).toLocaleString():'—'; return `<tr><td><span class="item-num">${esc(e.itemNum)}</span></td><td>${d}</td><td>${esc(e.variation)||'—'}</td><td>${esc(e.priority)||'—'}</td><td class="market-val">${pr}</td><td style="font-size:0.77rem;color:var(--text-dim)">${cn(e.notes)}</td></tr>`; }).join('') : '<tr><td colspan="6" class="ui-empty">Nothing on your want list</td></tr>';
     }
     if (showUpg) {
-      const u=Object.values(state.upgradeData||{});
+      const u=(typeof foldWantEntries==='function') ? foldWantEntries(Object.values(state.upgradeData||{})) : Object.values(state.upgradeData||{});   // v0.9.722
       html+=sect('Upgrade List', u.length);
-      html+= u.length ? u.map(e=>{ const m=findMaster(e.itemNum,e.variation)||{}; const d=m.roadName||m.description||'—'; const tgt=[esc(e.priority),e.targetCondition?('→ cond '+e.targetCondition):''].filter(Boolean).join(' '); const pr=e.maxPrice?_currencySymbol()+parseFloat(e.maxPrice).toLocaleString():'—'; return `<tr><td><span class="item-num">${esc(e.itemNum)}</span></td><td>${d}</td><td>${esc(e.variation)||'—'}</td><td>${tgt||'—'}</td><td class="market-val">${pr}</td><td style="font-size:0.77rem;color:var(--text-dim)">${cn(e.notes)}</td></tr>`; }).join('') : '<tr><td colspan="6" class="ui-empty">Nothing on your upgrade list</td></tr>';
+      html+= u.length ? u.map(e=>{ const m=findMaster(e.itemNum,e.variation)||{}; const d=(m.roadName||m.description||'—')+(e._wantMates?' 🔗 '+e._wantMates.join(' + '):''); const tgt=[esc(e.priority),e.targetCondition?('→ cond '+e.targetCondition):''].filter(Boolean).join(' '); const pr=e.maxPrice?_currencySymbol()+parseFloat(e.maxPrice).toLocaleString():'—'; return `<tr><td><span class="item-num">${esc(e.itemNum)}</span></td><td>${d}</td><td>${esc(e.variation)||'—'}</td><td>${tgt||'—'}</td><td class="market-val">${pr}</td><td style="font-size:0.77rem;color:var(--text-dim)">${cn(e.notes)}</td></tr>`; }).join('') : '<tr><td colspan="6" class="ui-empty">Nothing on your upgrade list</td></tr>';
     }
     if (showParts) {
       if (!state.partsData) {
