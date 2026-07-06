@@ -1125,6 +1125,9 @@
   /* v0.9.709 (Brad): ONE row — buttons share the width equally and the text
      scales with the window instead of wrapping or scrolling. */
   .dash-desktop-actions { display: flex; gap: 0.35rem; flex-wrap: nowrap; flex: 1 1 100%; width: 100%; }
+  /* v0.9.725 (Brad): collection-row action buttons — ONE row, equal size. */
+  .coll-actions-cell { white-space: nowrap !important; }
+  .coll-actions-cell button { display: inline-block; width: 62px; text-align: center; margin: 0 0 0 4px !important; padding: 0.3rem 0 !important; }
   .dash-desktop-actions .btn { flex: 1 1 0; min-width: 0; justify-content: center; white-space: nowrap; overflow: hidden; font-size: clamp(0.55rem, 0.9vw, 0.74rem) !important; padding: 0.42rem 0.3rem !important; }
   @media (max-width: 640px) {
     .dash-mobile-actions { display: flex !important; gap: 0.5rem; width: 100%; flex-wrap: wrap; }
