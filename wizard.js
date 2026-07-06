@@ -298,6 +298,23 @@ function _wizardMfr() {
   return '';
 }
 
+// v0.9.743: price-step Research — opens the same Google AI-Overview price
+// search as the Research card, for the item currently in the wizard.
+window._wizResearchPrice = function () {
+  try {
+    var d = (typeof wizard !== 'undefined' && wizard.data) || {};
+    var m = (typeof wizard !== 'undefined' && wizard.matchedItem) || {};
+    var num = d.itemNum || m.itemNum || '';
+    var mfr = m.manufacturer || ((typeof _brandOfItem === 'function') ? (_brandOfItem(num) || '') : '');
+    var road = m.roadName || d.suggestedRoadName || '';
+    var desc = m.description || '';
+    var url = (typeof window._googlePriceUrl === 'function')
+      ? window._googlePriceUrl(num, mfr, road, desc)
+      : 'https://www.google.com/search?q=' + encodeURIComponent([mfr, num, road, desc].filter(Boolean).join(' ') + ' sold prices value');
+    window.open(url, '_blank');
+  } catch (e) { console.warn('[research price]', e); }
+};
+
 async function openWizard(tab) {
   // Session 154: Want lookups span the whole catalog — load every era first
   // (instant if cached) so search isn't capped to the current era.
@@ -2556,6 +2573,14 @@ function renderWizardStep() {
       }
     }
 
+    // v0.9.743 (Brad): "research price" at the far right of the expect-to-pay
+    // box — full circle: check the market right where you commit to a number.
+    // Also on the For-Sale asking price (same question, seller's side).
+    const _rpShow = (s.id === 'expectedPrice' || s.id === 'askingPrice')
+      && (wizard.data.itemNum || (wizard.matchedItem || {}).itemNum);
+    const _rpBtn = _rpShow
+      ? `<button type="button" onclick="_wizResearchPrice()" style="flex-shrink:0;padding:0.5rem 0.8rem;border-radius:8px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-weight:700;font-size:0.82rem;cursor:pointer;font-family:var(--font-body)">🔍 Research</button>`
+      : '';
     body.innerHTML = `
       <div style="padding-top:0.75rem">
         ${_priceCtxHtml}
@@ -2565,6 +2590,7 @@ function renderWizardStep() {
             style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1.1rem"
             oninput="wizard.data['${s.id}']=this.value"
             onkeydown="if(event.key==='Enter')wizardNext()">
+          ${_rpBtn}
         </div>
         ${moneyNoteHtml}
         ${s.optional ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>' : ''}
