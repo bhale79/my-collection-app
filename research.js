@@ -13,8 +13,13 @@
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  function _ebaySoldUrl(itemNum, mfr, roadName) {
-    var q = [mfr, itemNum, roadName, 'train'].filter(Boolean).join(' ');
+  function _ebaySoldUrl(itemNum, mfr, roadName, desc) {
+    // v0.9.711 (Brad): "148 train" found Thomas posters — the query needs the
+    // item's NAME: "Lionel 148 Dwarf Signal". First clause of the description,
+    // max 5 words, no parentheticals.
+    var d = String(desc || '').replace(/\([^)]*\)/g, '').split(/[—|,.;]/)[0].trim().split(/\s+/).slice(0, 5).join(' ');
+    var q = [mfr, itemNum, roadName, d].filter(Boolean).join(' ').trim();
+    if (!d && !roadName) q += ' train';
     return 'https://www.ebay.com/sch/i.html?_nkw=' + encodeURIComponent(q) + '&LH_Sold=1&LH_Complete=1';
   }
 
@@ -61,6 +66,10 @@
     if (!year && aim.year) year = aim.year;
     if (!desc && aim.description) desc = aim.description;
     var gauge = aim.gauge || '';
+    // v0.9.711: catalog hits often arrive without a maker (OCR path) — derive
+    // it so the card + eBay query say "Lionel 148", not just "148".
+    if (!mfr && typeof _brandOfItem === 'function') { try { mfr = _brandOfItem(itemNum) || ''; } catch (e) {} }
+    if (!mfr && m && m.manufacturer) mfr = m.manufacturer;
     var own = _ownedCount(itemNum);
 
     var ov = document.createElement('div');
@@ -95,7 +104,7 @@
     if (window.BackStack) window.BackStack.push('research-card', _kill);
 
     var _b1 = document.getElementById('rs-ebay');
-    if (_b1) _b1.onclick = function () { window.open(_ebaySoldUrl(itemNum, mfr, road), '_blank'); };
+    if (_b1) _b1.onclick = function () { window.open(_ebaySoldUrl(itemNum, mfr, road, desc), '_blank'); };
     var _b2 = document.getElementById('rs-again');
     if (_b2) _b2.onclick = function () { _kill(); window.openResearch(); };
     var _b3 = document.getElementById('rs-close');
@@ -142,6 +151,27 @@
       function () { window._researchActive = false; },
       null
     );
+  };
+
+  // v0.9.711 (Brad: "this has to be fast"): typed lookup — "148", "lionel 148",
+  // "10-2210" — straight to the research card, no photo needed.
+  window._researchLookupTyped = function (q) {
+    window._researchActive = false;
+    q = String(q || '').trim();
+    if (!q) return;
+    var num = (typeof extractLionelNumber === 'function') ? (extractLionelNumber(q) || q) : q;
+    var m = null;
+    if (typeof findMaster === 'function') { try { m = findMaster(num, ''); } catch (e) {} }
+    _showCard({
+      itemNum: num,
+      manufacturer: (m && m.manufacturer) || '',
+      roadName: (m && m.roadName) || '',
+      description: (m && m.description) || '',
+      masterItem: m,
+      notInMaster: !m,
+      aiMeta: {},
+      variation: ''
+    });
   };
 
   // Entry point for the identify-modal return paths (Lens screenshot read,
