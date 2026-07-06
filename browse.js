@@ -94,6 +94,7 @@ function _renderCollectionHeader() {
     if (c.noSort) { return '<th style="white-space:nowrap;' + align + '">' + c.label + '</th>'; }
     var arrow = (cs.col === c.col) ? (cs.dir === 'desc' ? ' \u25BC' : ' \u25B2') : '';
     var _wsp = (c.col === 'worth') ? 'white-space:normal;' : 'white-space:nowrap;';
+    if (c.col === 'added') _wsp += 'width:88px;';   // v0.9.725: fitted column
     return '<th onclick="_collSortBy(\'' + c.col + '\')" style="cursor:pointer;' + _wsp + align + '" title="Sort by ' + c.label + '">' + c.label + arrow + '</th>';
   }).join('');
   html += '<th style="text-align:right;white-space:nowrap">Actions</th>';
@@ -2892,7 +2893,7 @@ function renderBrowse() {
         ${typeof _mfrBadge === 'function' ? _mfrBadge({ manufacturer: (pd && pd.manufacturer) || '' }) : '<td>\u2014</td>'}
         <td>
           ${_inShareModeD ? '<input type="checkbox" id="share-cb-' + _shareKeyD + '" ' + (_isShareSelectedD ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _shareKeyD + '\')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">' : ''}
-          <span class="item-num">${_displayItemNum(item)}</span>${_noNumTag(item.itemNum)}
+          <span class="item-num" style="display:inline-block;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom" title="${String(_displayItemNum(item)).replace(/"/g,'&quot;')}">${_displayItemNum(item)}</span>${_noNumTag(item.itemNum)}
           <div style="margin-top:1px;line-height:1.1;white-space:nowrap">
             ${(typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(item._tab) : ''}
             ${(function(){ var _co = (typeof _ownedCompanions === 'function') ? _ownedCompanions(pd) : []; if (_co.length) return '<span style="font-size:0.7rem;color:var(--accent3);font-weight:600" title="Grouped with ' + _co.join(', ') + '">🔗 ' + _co.join(' ') + '</span>'; return _groupId ? '<span style="font-size:0.6rem;color:var(--accent3)" title="Grouped">🔗</span>' : ''; })()}
