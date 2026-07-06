@@ -1739,6 +1739,9 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     } catch (e) {}
     var eras = [['prewar', 'Prewar'], ['pw', 'Postwar'], ['modern', 'Modern']];
     var scales = ['O', 'Standard', 'HO', 'S', 'G'];
+    var types = (typeof TYPE_BUCKETS !== 'undefined' && Array.isArray(TYPE_BUCKETS))
+      ? TYPE_BUCKETS.map(function (b) { return [b.id, b.label]; }) : [];
+    var vT = sv('type');
     var ss = 'flex:1;padding:0.45rem 0.5rem;border-radius:9px;border:1.5px solid var(--border,#444);background:var(--surface2,#1c2340);color:var(--text,#fff);font-size:0.85rem;min-width:0;font-family:var(--font-body,inherit)';
     function opt(v, label, cur) { return '<option value="' + v + '"' + (v === cur && v ? ' selected' : '') + '>' + label + '</option>'; }
     return '<div style="display:flex;gap:0.4rem;margin-top:0.4rem;flex-wrap:wrap">'
@@ -1748,7 +1751,10 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       +   eras.map(function (e) { return opt(e[0], e[1], vE); }).join('') + '</select>'
       + '<select id="bi-quick-scale" style="' + ss + '"><option value="">Any scale</option>'
       +   scales.map(function (s) { return opt(s, s, vS); }).join('') + '</select>'
-      + '</div>';
+      + '<select id="bi-quick-type" style="' + ss + '"><option value="">Any type</option>'
+      +   types.map(function (t) { return opt(t[0], t[1], vT); }).join('') + '</select>'
+      + '</div>'
+      + '<div id="bi-quick-sug"></div>';
   }
 
   function _biBtn(label, style) {
@@ -1849,9 +1855,75 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         if (act === 'last' && _biLastShot) done({ raw: _biLastShot.raw, view: _biLastShot.view, lockedBc: null });
         if (act === 'cancel') done(null);
       });
-      ['mfr', 'era', 'scale'].forEach(function (k) {   // v0.9.739: filters remember last pick
+      ['mfr', 'era', 'scale', 'type'].forEach(function (k) {   // v0.9.739: filters remember last pick
         var el = d.querySelector('#bi-quick-' + k);
-        if (el) el.addEventListener('change', function () { try { localStorage.setItem('lv_rsq_' + k, el.value); } catch (e) {} });
+        if (el) el.addEventListener('change', function () {
+          try { localStorage.setItem('lv_rsq_' + k, el.value); } catch (e) {}
+          // v0.9.744 (Brad): "atlas … should auto select modern because atlas
+          // is always that" — if the maker lives in exactly one era group,
+          // set the Era dropdown for the user.
+          if (k === 'mfr' && el.value) {
+            try {
+              var _grpOf = function (id) { return id === 'prewar' ? 'prewar' : (id === 'pw' ? 'pw' : 'modern'); };
+              var _grps = {};
+              Object.keys(ERAS).forEach(function (id) {
+                if (ERAS[id] && ERAS[id].manufacturer === el.value && !ERAS[id]._isAll) _grps[_grpOf(id)] = 1;
+              });
+              var _gk = Object.keys(_grps);
+              var _eraSel = d.querySelector('#bi-quick-era');
+              if (_gk.length === 1 && _eraSel) { _eraSel.value = _gk[0]; localStorage.setItem('lv_rsq_era', _gk[0]); }
+            } catch (e) {}
+          }
+          if (typeof _biQuickSuggest === 'function') _biQuickSuggest(d);   // re-run suggestions with new filters
+        });
+      });
+      // v0.9.744 (Brad): live suggestions — "i type nashville, i start getting
+      // suggestions for item numbers that i can select". Debounced word search
+      // across every era's master, narrowed by the four filters.
+      var _sugTimer = null;
+      function _biQuickSuggest(dd) {
+        var inp = dd.querySelector('#bi-quick'), box = dd.querySelector('#bi-quick-sug');
+        if (!inp || !box) return;
+        var q = inp.value.trim();
+        if (q.length < 2) { box.innerHTML = ''; return; }
+        var o = {
+          era: (dd.querySelector('#bi-quick-era') || {}).value || '',
+          mfr: (dd.querySelector('#bi-quick-mfr') || {}).value || '',
+          scale: (dd.querySelector('#bi-quick-scale') || {}).value || '',
+          type: (dd.querySelector('#bi-quick-type') || {}).value || '',
+        };
+        Promise.all([
+          _findMasterItemsAllEras([q]).catch(function () { return []; }),
+          _masterTextSearchAllEras(q, 30).catch(function () { return []; }),
+        ]).then(function (rr) {
+          if (inp.value.trim() !== q) return;   // stale response
+          var seen = {}, all = [];
+          (rr[0] || []).concat(rr[1] || []).forEach(function (m) {
+            var key = (m.itemNum || '') + '|' + (m.variation || '') + '|' + (m._era || '');
+            if (seen[key]) return; seen[key] = 1; all.push(m);
+          });
+          var f = (typeof window._researchFilterHits === 'function') ? window._researchFilterHits(all, o) : all;
+          box.innerHTML = f.slice(0, 8).map(function (m, i) {
+            var sub = [m.roadName || '', (typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(m) : m.itemType) || '', _eraLabel(m._era)].filter(Boolean).join(' · ');
+            return '<div class="bi-sug" data-sug="' + i + '" style="padding:0.5rem 0.7rem;border:1.5px solid var(--border,#444);border-radius:9px;margin-top:0.35rem;cursor:pointer;background:var(--surface2,#1c2340)">'
+              + '<span style="font-family:var(--font-mono,monospace);font-weight:700;color:var(--gold,#d4a843)">' + _bcEsc(m.itemNum || '') + '</span>'
+              + (sub ? ' <span style="font-size:0.78rem;color:var(--text-mid,#aaa)">' + _bcEsc(sub) + '</span>' : '')
+              + '</div>';
+          }).join('') || '<div style="font-size:0.78rem;color:var(--text-dim,#777);margin-top:0.35rem">No catalog matches — Look up still checks the web.</div>';
+          box._sugList = f.slice(0, 8);
+        });
+      }
+      var _bqi = d.querySelector('#bi-quick');
+      if (_bqi) _bqi.addEventListener('input', function () {
+        clearTimeout(_sugTimer);
+        _sugTimer = setTimeout(function () { _biQuickSuggest(d); }, 250);
+      });
+      var _sugBox = d.querySelector('#bi-quick-sug');
+      if (_sugBox) _sugBox.addEventListener('click', function (e) {
+        var row = e.target.closest && e.target.closest('[data-sug]');
+        if (!row || !_sugBox._sugList) return;
+        var m = _sugBox._sugList[parseInt(row.getAttribute('data-sug'), 10)];
+        if (m) done({ typedQuery: m.itemNum || '', typedPick: m });
       });
       var _bq = d.querySelector('#bi-quick');
       if (_bq) _bq.addEventListener('keydown', function (e) {
@@ -2201,7 +2273,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // v0.9.711 (Brad): Research quick lookup — typed number, no photo.
         if (cap.typedQuery) {
           _biKill();
-          if (typeof window._researchLookupTyped === 'function') window._researchLookupTyped(cap.typedQuery, { era: cap.typedEra || '', mfr: cap.typedMfr || '', scale: cap.typedScale || '' });
+          if (typeof window._researchLookupTyped === 'function') window._researchLookupTyped(cap.typedQuery, { era: cap.typedEra || '', mfr: cap.typedMfr || '', scale: cap.typedScale || '', picked: cap.typedPick || null });
           else if (onCancel) onCancel();
           return;
         }
