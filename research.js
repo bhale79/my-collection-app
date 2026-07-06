@@ -133,6 +133,7 @@
       +   '<button id="rs-google" style="padding:0.7rem;border-radius:9px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:var(--font-body,inherit)">🔍 Google Price Check</button>'
       +   '<button id="rs-ebay-now" style="padding:0.7rem;border-radius:9px;border:1.5px solid #3498db;background:rgba(52,152,219,0.12);color:#3498db;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:var(--font-body,inherit)">🛒 On eBay Now</button>'
       +   '<button id="rs-ebay" style="padding:0.7rem;border-radius:9px;border:1.5px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:var(--font-body,inherit)">💰 eBay Sold Prices</button>'
+      +   (itemNum && res.masterItem ? '<button id="rs-want" style="padding:0.7rem;border-radius:9px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:var(--font-body,inherit)">➕ Add to My Want List</button>' : '')
       +   '<button id="rs-again" style="padding:0.7rem;border-radius:9px;border:1.5px solid var(--accent,#e8401c);background:rgba(232,64,28,0.12);color:var(--accent,#e8401c);font-weight:700;font-size:0.9rem;cursor:pointer;font-family:var(--font-body,inherit)">📸 Research Another</button>'
       +   '<button id="rs-close" style="padding:0.6rem;border-radius:9px;border:1.5px solid var(--border,#333);background:var(--surface2,#26262e);color:var(--text-mid,#aaa);font-size:0.85rem;cursor:pointer;font-family:var(--font-body,inherit)">Close</button>'
       + '</div></div>';
@@ -145,6 +146,19 @@
     if (_bg) _bg.onclick = function () { window.open(_googlePriceUrl(itemNum, mfr, road, desc), '_blank'); };
     var _bn = document.getElementById('rs-ebay-now');
     if (_bn) _bn.onclick = function () { window.open(_ebayActiveUrl(itemNum, mfr, road, desc), '_blank'); };
+    var _bw = document.getElementById('rs-want');
+    if (_bw) _bw.onclick = function () {
+      // v0.9.742 (Brad): straight into the normal want-list steps, item prefilled.
+      _kill();
+      if (typeof openWizard !== 'function') { if (typeof showToast === 'function') showToast('Want list is still loading — try again', 3000, true); return; }
+      Promise.resolve(openWizard('want')).then(function () {
+        try {
+          wizard.data.itemNum = String(itemNum || '');
+          if (res.variation) wizard.data.variation = res.variation;
+          if (typeof renderWizardStep === 'function') renderWizardStep();
+        } catch (e) {}
+      });
+    };
     var _b2 = document.getElementById('rs-again');
     if (_b2) _b2.onclick = function () { _kill(); window.openResearch(); };
     var _b3 = document.getElementById('rs-close');
@@ -209,22 +223,38 @@
     try {
       if (typeof window._findMasterItemsAllEras === 'function') hits = (await window._findMasterItemsAllEras([num])) || [];
     } catch (e) {}
-    var f = hits;
     // v0.9.739: era is collector language — Prewar / Postwar / Modern.
     var ERA_GROUP = { prewar: ['prewar'], pw: ['pw'], modern: ['mpc', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver', 'rmt', 'menards'] };
-    if (opts.era && ERA_GROUP[opts.era]) f = f.filter(function (h) { return ERA_GROUP[opts.era].indexOf(h._era || '') >= 0; });
-    if (opts.mfr) f = f.filter(function (h) {
-      var em = (typeof ERAS !== 'undefined' && ERAS[h._era]) ? ERAS[h._era].manufacturer : '';
-      return String(h.manufacturer || em || '').toLowerCase() === String(opts.mfr).toLowerCase();
-    });
-    if (opts.scale) f = f.filter(function (h) {
-      var g = String(h.gauge || (typeof ERA_SCALE !== 'undefined' && ERA_SCALE[h._era]) || '').toUpperCase().replace(/[^A-Z]/g, '');
-      var want = String(opts.scale).toUpperCase();
-      if (want === 'O') return g === 'O' || g === 'O27';   // O27 is O-gauge track
-      return g === want.replace(/[^A-Z]/g, '');
-    });
-    m = f[0] || null;
+    var f = [];
+    function _applyF(list) {
+      var r = list;
+      if (opts.era && ERA_GROUP[opts.era]) r = r.filter(function (h) { return ERA_GROUP[opts.era].indexOf(h._era || '') >= 0; });
+      if (opts.mfr) r = r.filter(function (h) {
+        var em = (typeof ERAS !== 'undefined' && ERAS[h._era]) ? ERAS[h._era].manufacturer : '';
+        return String(h.manufacturer || em || '').toLowerCase() === String(opts.mfr).toLowerCase();
+      });
+      if (opts.scale) r = r.filter(function (h) {
+        var g = String(h.gauge || (typeof ERA_SCALE !== 'undefined' && ERA_SCALE[h._era]) || '').toUpperCase().replace(/[^A-Z]/g, '');
+        var want = String(opts.scale).toUpperCase();
+        return want === 'O' ? (g === 'O' || g === 'O27') : g === want.replace(/[^A-Z]/g, '');
+      });
+      return r;
+    }
+    // v0.9.742 (Brad): no exact number hit? Treat the query as WORDS —
+    // "atlas boxcar l&n" finds items by road name/description, filters apply.
+    f = _applyF(hits);
+    if (!f.length && typeof window._masterTextSearchAllEras === 'function') {
+      try { f = _applyF((await window._masterTextSearchAllEras(q, 40)) || []); } catch (e) {}
+    }
+    if (f.length > 1 && typeof window.showCandidatePicker === 'function') {
+      var picked = await window.showCandidatePicker(f.slice(0, 12), { itemNum: q });
+      if (picked === null) return;                       // user backed out — no card
+      m = (picked && !picked.__notInList) ? picked : null;
+    } else {
+      m = f[0] || null;
+    }
     if (!m && !hits.length && typeof findMaster === 'function') { try { m = findMaster(num, ''); } catch (e) {} }
+    if (m && m.itemNum) num = m.itemNum;                 // word matches: card shows the REAL number
     var eraMfr = (m && typeof ERAS !== 'undefined' && m._era && ERAS[m._era]) ? ERAS[m._era].manufacturer : '';
     _showCard({
       itemNum: num,
