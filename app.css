@@ -552,6 +552,11 @@
   .page-btn:disabled { opacity: 0.3; cursor: default; }
 
   /* ── Item Detail Modal ─────────────────────────────────────── */
+  /* v0.9.753 (Brad): big cards side-by-side on desktop, stacked on phones */
+  @media (max-width: 767px) {
+    #dash-panels-host { flex-wrap: wrap; }
+    #dash-panels-host .panel { flex: 1 1 100% !important; }
+  }
   .modal-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200;
     display: flex; align-items: center; justify-content: center; padding: 1rem;
