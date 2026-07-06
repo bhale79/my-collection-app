@@ -544,7 +544,7 @@ function _sheetCardModel(card, state) {
       case 'topRoads': {
         var roads = {};
         Object.values(state.personalData).filter(function (pd) { return pd.owned; }).filter(eraEnabled).forEach(function (pd) {
-          var master = (typeof findMaster==='function') ? findMaster(pd.itemNum, pd.variation) : null;
+          var master = (typeof findMaster==='function') ? findMaster(pd.itemNum, pd.variation, pd) : null;
           var road = master ? (master.roadName || '').trim() : '';
           if (road && road !== '—' && road !== 'N/A') roads[road] = (roads[road] || 0) + 1;
         });
