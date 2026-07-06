@@ -1847,6 +1847,11 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + _biBtn({ act: 'rot', txt: '↻ Rotate' })
         + _biBtn({ act: 'retake', txt: '↺ Retake' })
         + _biBtn({ act: 'cancel', txt: 'Cancel' })
+        + '</div>'
+        // v0.9.713 (Brad): say which engine is best for what, right here.
+        + '<div style="margin-top:0.55rem;padding:0.5rem 0.65rem;border-radius:9px;background:rgba(255,255,255,0.04);border:1px solid var(--border,#333);font-size:0.74rem;line-height:1.5;color:var(--text-mid,#bbb)">'
+        + '<b style="color:var(--accent,#e8401c)">🤖 Multi AI</b> — fastest when a <b>number is printed</b>: boxes, labels, barcodes, lettered trains, anything in our catalogs.<br>'
+        + '<b style="color:#9ecbff">🔍 Google Lens</b> — better for <b>unmarked items</b>: buildings, promos, store brands, posters &amp; paper. Also the backup when our AI is busy.'
         + '</div></div>');
       var img = d.querySelector('#bi-cropimg');
       img.src = canvas.toDataURL('image/jpeg', 0.92);
