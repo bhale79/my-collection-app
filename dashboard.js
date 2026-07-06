@@ -761,11 +761,18 @@ function _openOwnedByInvId(invId) {
   var pd = (state.personalData || {})[invId]
     || Object.values(state.personalData || {}).find(function(p){ return p && String(p.inventoryId) === String(invId); });
   if (!pd) { if (typeof goToMyCollection === 'function') goToMyCollection(); return; }
-  // v0.9.648: era/manufacturer-aware resolution (Lionel 8359 vs Atlas 8359).
-  var _mm = (typeof findMaster === 'function') ? findMaster(pd.itemNum, pd.variation, pd) : null;
-  var idx = _mm ? state.masterData.indexOf(_mm) : -1;
-  if (idx < 0) idx = state.masterData.findIndex(function(m){ return m.itemNum === pd.itemNum && (m.variation || '') === (pd.variation || ''); });
-  if (idx < 0) idx = state.masterData.findIndex(function(m){ return m.itemNum === pd.itemNum; });
+  // v0.9.718 (Brad's 4C Nabisco card became a 1982 C&NW F3): MANUAL entries
+  // are never catalog-matched by number — numeric collisions with real
+  // catalog items must not hijack their identity.
+  var _isManualPd = String(pd.era || '') === 'Manual';
+  var idx = -1;
+  if (!_isManualPd) {
+    // v0.9.648: era/manufacturer-aware resolution (Lionel 8359 vs Atlas 8359).
+    var _mm = (typeof findMaster === 'function') ? findMaster(pd.itemNum, pd.variation, pd) : null;
+    idx = _mm ? state.masterData.indexOf(_mm) : -1;
+    if (idx < 0) idx = state.masterData.findIndex(function(m){ return m.itemNum === pd.itemNum && (m.variation || '') === (pd.variation || ''); });
+    if (idx < 0) idx = state.masterData.findIndex(function(m){ return m.itemNum === pd.itemNum; });
+  }
   if (idx >= 0) { showItemDetailPage(idx, pd.inventoryId); return; }
   // personal-only (no catalog row) — negative index via _poKeys, like the collection list
   var key = Object.keys(state.personalData || {}).find(function(k){ return state.personalData[k] === pd; });
@@ -840,7 +847,7 @@ var PANEL_CATALOG = [
               'goToMyCollection()', null
             );
           }
-          var master = findMaster(pd.itemNum, pd.variation, pd);   // v0.9.648
+          var master = (String(pd.era || '') === 'Manual') ? null : findMaster(pd.itemNum, pd.variation, pd);   // v0.9.648 + v0.9.718 manual guard
           // v0.9.645 (Brad): show the DESCRIPTION, not just road/type — a row
           // reading "6-22993 · Accessory" told him nothing.
           var name = master
@@ -928,7 +935,7 @@ var PANEL_CATALOG = [
         .sort(function(a, b) { return b._val - a._val; })
         .slice(0, 8)
         .map(function(pd) {
-          var master = findMaster(pd.itemNum, pd.variation, pd);   // v0.9.648
+          var master = (String(pd.era || '') === 'Manual') ? null : findMaster(pd.itemNum, pd.variation, pd);   // v0.9.648 + v0.9.718 manual guard
           // v0.9.645 (Brad): show the DESCRIPTION, not just road/type — a row
           // reading "6-22993 · Accessory" told him nothing.
           var name = master
