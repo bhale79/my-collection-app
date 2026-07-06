@@ -467,6 +467,41 @@ function getDieselConfigs(itemNum) {
   return p ? p.configs : [];
 }
 
+// v0.9.714 (Brad): the want list showed engine+tender / A+B pairs as TWO
+// rows. Fold companions into their lead for DISPLAY: lead keeps the row,
+// gains _wantMates (numbers) + _pairPrice (summed expected price).
+function foldWantEntries(rows) {
+  var byNum = {}, absorbedBy = {};
+  rows.forEach(function (w) { byNum[String(w.itemNum)] = w; });
+  rows.forEach(function (w) {
+    var n = String(w.itemNum);
+    if (absorbedBy[n]) return;
+    var mates = [];
+    try {
+      if (typeof getMatchingTenders === 'function') mates = mates.concat(getMatchingTenders(n) || []);
+      if (typeof getSetPartner === 'function' && !/C$/i.test(n.replace(/-(P|D)$/i, ''))) {
+        var sp = getSetPartner(n); if (sp) mates.push(sp);
+      }
+    } catch (e) {}
+    mates.forEach(function (mn) {
+      mn = String(mn);
+      if (mn !== n && byNum[mn] && !absorbedBy[mn]) absorbedBy[mn] = n;
+    });
+  });
+  return rows.filter(function (w) { return !absorbedBy[String(w.itemNum)]; }).map(function (w) {
+    var n = String(w.itemNum);
+    var mates = Object.keys(absorbedBy).filter(function (k) { return absorbedBy[k] === n; });
+    if (!mates.length) return w;
+    var out = Object.assign({}, w);
+    out._wantMates = mates;
+    var sum = parseFloat(w.expectedPrice) || 0;
+    mates.forEach(function (k) { sum += parseFloat((byNum[k] || {}).expectedPrice) || 0; });
+    out._pairPrice = sum > 0 ? String(sum) : '';
+    return out;
+  });
+}
+window.foldWantEntries = foldWantEntries;
+
 // ── Grouping options — SINGLE SOURCE OF TRUTH (Decision Map #1) ──
 // Given an item number, returns the grouping buttons it can use: [{id,label}].
 // Steam engines -> Engine Only / Engine + Tender. Alco/F-3 diesels -> A Powered /
