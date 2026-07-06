@@ -13,14 +13,28 @@
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  function _ebaySoldUrl(itemNum, mfr, roadName, desc) {
+  function _searchQuery(itemNum, mfr, roadName, desc) {
     // v0.9.711 (Brad): "148 train" found Thomas posters — the query needs the
     // item's NAME: "Lionel 148 Dwarf Signal". First clause of the description,
     // max 5 words, no parentheticals.
     var d = String(desc || '').replace(/\([^)]*\)/g, '').split(/[—|,.;]/)[0].trim().split(/\s+/).slice(0, 5).join(' ');
     var q = [mfr, itemNum, roadName, d].filter(Boolean).join(' ').trim();
     if (!d && !roadName) q += ' train';
-    return 'https://www.ebay.com/sch/i.html?_nkw=' + encodeURIComponent(q) + '&LH_Sold=1&LH_Complete=1';
+    return q;
+  }
+  function _ebaySoldUrl(itemNum, mfr, roadName, desc) {
+    return 'https://www.ebay.com/sch/i.html?_nkw=' + encodeURIComponent(_searchQuery(itemNum, mfr, roadName, desc)) + '&LH_Sold=1&LH_Complete=1';
+  }
+  // v0.9.737 (Brad): show-floor questions are "is this a good price, is it
+  // rare, and are any for sale right now". Google's AI Overview answers the
+  // first two (no API exists for it — we hand off exactly like Lens); an
+  // active-listings eBay search answers the third (auctions + Buy It Now +
+  // best offers all included by default).
+  function _googlePriceUrl(itemNum, mfr, roadName, desc) {
+    return 'https://www.google.com/search?q=' + encodeURIComponent(_searchQuery(itemNum, mfr, roadName, desc) + ' sold prices value');
+  }
+  function _ebayActiveUrl(itemNum, mfr, roadName, desc) {
+    return 'https://www.ebay.com/sch/i.html?_nkw=' + encodeURIComponent(_searchQuery(itemNum, mfr, roadName, desc));
   }
 
   // Count owned copies across ALL variations — a show find is "do I have
@@ -96,7 +110,9 @@
       + '<div id="rs-market" style="margin-bottom:0.75rem;font-size:0.82rem;color:var(--text-mid,#aaa)">Checking community market value…</div>'
       // Actions
       + '<div style="display:flex;flex-direction:column;gap:0.5rem">'
-      +   '<button id="rs-ebay" style="padding:0.7rem;border-radius:9px;border:1.5px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:var(--font-body,inherit)">🔍 eBay Sold Prices</button>'
+      +   '<button id="rs-google" style="padding:0.7rem;border-radius:9px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:var(--font-body,inherit)">🔍 Google Price Check</button>'
+      +   '<button id="rs-ebay-now" style="padding:0.7rem;border-radius:9px;border:1.5px solid #3498db;background:rgba(52,152,219,0.12);color:#3498db;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:var(--font-body,inherit)">🛒 On eBay Now</button>'
+      +   '<button id="rs-ebay" style="padding:0.7rem;border-radius:9px;border:1.5px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:var(--font-body,inherit)">💰 eBay Sold Prices</button>'
       +   '<button id="rs-again" style="padding:0.7rem;border-radius:9px;border:1.5px solid var(--accent,#e8401c);background:rgba(232,64,28,0.12);color:var(--accent,#e8401c);font-weight:700;font-size:0.9rem;cursor:pointer;font-family:var(--font-body,inherit)">📸 Research Another</button>'
       +   '<button id="rs-close" style="padding:0.6rem;border-radius:9px;border:1.5px solid var(--border,#333);background:var(--surface2,#26262e);color:var(--text-mid,#aaa);font-size:0.85rem;cursor:pointer;font-family:var(--font-body,inherit)">Close</button>'
       + '</div></div>';
@@ -105,6 +121,10 @@
 
     var _b1 = document.getElementById('rs-ebay');
     if (_b1) _b1.onclick = function () { window.open(_ebaySoldUrl(itemNum, mfr, road, desc), '_blank'); };
+    var _bg = document.getElementById('rs-google');
+    if (_bg) _bg.onclick = function () { window.open(_googlePriceUrl(itemNum, mfr, road, desc), '_blank'); };
+    var _bn = document.getElementById('rs-ebay-now');
+    if (_bn) _bn.onclick = function () { window.open(_ebayActiveUrl(itemNum, mfr, road, desc), '_blank'); };
     var _b2 = document.getElementById('rs-again');
     if (_b2) _b2.onclick = function () { _kill(); window.openResearch(); };
     var _b3 = document.getElementById('rs-close');
