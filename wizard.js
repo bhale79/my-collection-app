@@ -5087,6 +5087,11 @@ async function _wizardNextCore() {
   const steps = wizard.steps;
   const s = steps[wizard.step];
 // Validate required fields
+  // v0.9.722 (Brad): manual items MUST have a description — it becomes the
+  // item's display name/description everywhere.
+  if (s.id === 'manualDesc' && !String(wizard.data.manualDesc || '').trim()) {
+    showToast('Please add a short description — it becomes this item\'s name in your lists.', 4000, true); return;
+  }
   if (s.type === 'choice' && !wizard.tab) {
     showToast('Please select where to add the item.'); return;
   }
