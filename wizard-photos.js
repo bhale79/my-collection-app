@@ -1928,6 +1928,34 @@ function _wizScanBarcode() {
   (window.openBoxIdentify || window.openBarcodeScanner)(function(result) {
     // On successful scan: fill the item number field and advance if possible
     if (!wizard || !wizard.data) return;
+    // v0.9.746 (Brad): in the SELL flows the photo can only identify something
+    // you OWN — snap the result to the collection instead of the catalog.
+    if (result.itemNum && (wizard.tab === 'forsale' || wizard.tab === 'sold')) {
+      var _sBase = (typeof baseItemNum === 'function') ? baseItemNum(String(result.itemNum)) : String(result.itemNum);
+      var _sKeys = Object.keys(state.personalData || {}).filter(function (k) {
+        var p = state.personalData[k];
+        if (!p || !p.owned) return false;
+        var pb = (typeof baseItemNum === 'function') ? baseItemNum(String(p.itemNum || '')) : String(p.itemNum || '');
+        return pb === _sBase;
+      });
+      if (_sKeys.length === 1) {
+        showToast && showToast('\u2713 Found in your collection: ' + result.itemNum, 2500);
+        if (typeof _selectCollItem === 'function') { _selectCollItem(_sKeys[0]); return; }
+      } else if (_sKeys.length > 1) {
+        wizard.data.itemNum = String(result.itemNum);
+        renderWizardStep();
+        setTimeout(function () {
+          var i = document.getElementById('wiz-input');
+          if (i) i.value = String(result.itemNum);
+          if (typeof _filterCollPicker === 'function') _filterCollPicker(String(result.itemNum));
+        }, 80);
+        showToast && showToast('You own ' + _sKeys.length + ' of these \u2014 pick the copy below', 3500);
+        return;
+      } else {
+        showToast && showToast(result.itemNum + " isn't in your collection \u2014 you can only sell items you own", 4000, true);
+        return;
+      }
+    }
     if (result.itemNum) {
       wizard.data.itemNum = result.itemNum;
       if (result.variation) wizard.data.variation = result.variation;
