@@ -852,7 +852,7 @@ var PANEL_CATALOG = [
           // reading "6-22993 · Accessory" told him nothing.
           var name = master
             ? ([master.roadName, master.description].filter(Boolean).join(' — ') || master.itemType || pd.itemNum)
-            : (pd.masterDescription || pd.description || pd.itemNum);
+            : ((String(pd.era||'') === 'Manual') ? (pd.description || pd.itemNum) : (pd.masterDescription || pd.description || pd.itemNum));   // v0.9.724: manual rows = their own words only
           var price = pd.priceItem ? _currencySymbol() + parseFloat(pd.priceItem).toLocaleString() : '';
           var date = pd.datePurchased || '';
           var meta = [date, price].filter(Boolean).join(' · ');
@@ -940,7 +940,7 @@ var PANEL_CATALOG = [
           // reading "6-22993 · Accessory" told him nothing.
           var name = master
             ? ([master.roadName, master.description].filter(Boolean).join(' — ') || master.itemType || pd.itemNum)
-            : (pd.masterDescription || pd.description || pd.itemNum);
+            : ((String(pd.era||'') === 'Manual') ? (pd.description || pd.itemNum) : (pd.masterDescription || pd.description || pd.itemNum));   // v0.9.724: manual rows = their own words only
           var price = _currencySymbol() + pd._val.toLocaleString();
           var idx = master ? state.masterData.indexOf(master) : -1;
           var hasPhoto = !!pd.photoItem;
