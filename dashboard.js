@@ -868,13 +868,17 @@ var PANEL_CATALOG = [
       var priOrder = { High: 0, Medium: 1, Low: 2 };
       var priColor = { High: 'var(--accent)', Medium: 'var(--accent2,#8b5cf6)', Low: 'var(--text-dim)' };
       // Session 121: respect Preferences "What I Collect" in 'all' mode.
-      return Object.values(_filterByEraPref(state.wantData))
+      var _wRows = Object.values(_filterByEraPref(state.wantData));
+      if (typeof foldWantEntries === 'function') _wRows = foldWantEntries(_wRows);   // v0.9.714: pairs = one row
+      return _wRows
         .sort(function(a, b) { return ((priOrder[a.priority] || 1) - (priOrder[b.priority] || 1)); })
         .slice(0, 8)
         .map(function(w) {
           var master = findMaster(w.itemNum);
           var name = master ? (master.roadName || master.itemType || w.itemNum) : w.itemNum;
-          var price = w.expectedPrice ? _currencySymbol() + parseFloat(w.expectedPrice).toLocaleString() : '';
+          if (w._wantMates) name = (name || '') + ' 🔗 ' + w._wantMates.join(' + ');
+          var _wPrice = w._pairPrice || w.expectedPrice;
+          var price = _wPrice ? _currencySymbol() + parseFloat(_wPrice).toLocaleString() : '';
           var pc = priColor[w.priority] || 'var(--text-dim)';
           var badge = '<span style="font-size:0.72rem;font-weight:600;color:' + pc + ';border:1px solid ' + pc + ';border-radius:3px;padding:0.1rem 0.3rem;flex-shrink:0">' + (w.priority || 'Med') + '</span>';
           var idx = master ? state.masterData.indexOf(master) : -1;
