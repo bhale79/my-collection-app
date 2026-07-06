@@ -157,12 +157,66 @@ function _wpMatchesQ(e, q) {
   return hay.includes(q);
 }
 
+// v0.9.746 (Brad): sell-step picker IS the browser — Maker/Era/Type/Scale
+// filters over the OWNED list ("its in a tote somewhere and they don't want
+// to go get it"). Options derive from what the user actually owns.
+function _wpSellFilterRow() {
+  try {
+    var makers = {}, types = {}, scales = {};
+    Object.values(state.personalData || {}).forEach(function (pd) {
+      if (!pd || !pd.owned) return;
+      var mf = pd.manufacturer || ((typeof ERAS !== 'undefined' && ERAS[pd.era]) ? ERAS[pd.era].manufacturer : '');
+      if (mf) makers[mf] = 1;
+      try { if (typeof getTypeBucket === 'function') { var b = getTypeBucket(pd); if (b) types[b] = 1; } } catch (e) {}
+      var sc = pd.gauge || ((typeof ERA_SCALE !== 'undefined') ? ERA_SCALE[String(pd.era || '').toLowerCase()] : '');
+      if (sc) scales[String(sc).toUpperCase() === 'O27' ? 'O' : sc] = 1;
+    });
+    var lbl = function (id) {
+      if (typeof TYPE_BUCKETS !== 'undefined') for (var i = 0; i < TYPE_BUCKETS.length; i++) if (TYPE_BUCKETS[i].id === id) return TYPE_BUCKETS[i].label;
+      return id;
+    };
+    var ss = 'flex:1;padding:0.4rem 0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.78rem;min-width:0;font-family:var(--font-body)';
+    var sel = function (id, ph, opts) {
+      return '<select id="' + id + '" onchange="_filterCollPicker((document.getElementById(\'wiz-input\')||{}).value||\'\')" style="' + ss + '"><option value="">' + ph + '</option>'
+        + opts.map(function (o) { return '<option value="' + o[0] + '">' + o[1] + '</option>'; }).join('') + '</select>';
+    };
+    return '<div style="display:flex;gap:0.35rem;margin-bottom:0.45rem;flex-wrap:wrap">'
+      + sel('wp-f-mfr', 'Maker', Object.keys(makers).sort().map(function (m) { return [m, m]; }))
+      + sel('wp-f-era', 'Era', [['prewar', 'Prewar'], ['pw', 'Postwar'], ['modern', 'Modern']])
+      + sel('wp-f-type', 'Type', Object.keys(types).sort().map(function (t) { return [t, lbl(t)]; }))
+      + sel('wp-f-scale', 'Scale', Object.keys(scales).sort().map(function (s) { return [s, s]; }))
+      + '</div>';
+  } catch (e) { return ''; }
+}
+function _wpSellFilterPass(e) {
+  var pd = e[1];
+  var v = function (id) { var el = document.getElementById(id); return el ? el.value : ''; };
+  var mfr = v('wp-f-mfr'), era = v('wp-f-era'), typ = v('wp-f-type'), sc = v('wp-f-scale');
+  if (mfr) {
+    var pm = pd.manufacturer || ((typeof ERAS !== 'undefined' && ERAS[pd.era]) ? ERAS[pd.era].manufacturer : '');
+    if (String(pm || '') !== mfr) return false;
+  }
+  if (era) {
+    var pe = String(pd.era || '');
+    if (!pe || pe === 'Manual') return false;
+    var g = pe === 'prewar' ? 'prewar' : (pe === 'pw' ? 'pw' : 'modern');
+    if (g !== era) return false;
+  }
+  if (typ) { try { if (typeof getTypeBucket === 'function' && getTypeBucket(pd) !== typ) return false; } catch (err) {} }
+  if (sc) {
+    var s2 = String(pd.gauge || ((typeof ERA_SCALE !== 'undefined') ? ERA_SCALE[String(pd.era || '').toLowerCase()] : '') || '').toUpperCase();
+    if (s2 === 'O27') s2 = 'O';
+    if (s2 !== String(sc).toUpperCase()) return false;
+  }
+  return true;
+}
+
 function _filterCollPicker(q) {
   var el = document.getElementById('wiz-coll-picker');
   if (!el) return;
   q = (q || '').toLowerCase();
   var owned = _wpFoldGroups(Object.entries(state.personalData).filter(function(e) { return e[1].owned; }))
-    .filter(function (e) { return _wpMatchesQ(e, q); });   // v0.9.745: fold groups, match lead OR mates
+    .filter(function (e) { return _wpMatchesQ(e, q) && _wpSellFilterPass(e); });   // v0.9.745 fold + v0.9.746 filters
   // Sort by item number
   owned.sort(function(a,b) { return (a[1].itemNum||'').localeCompare(b[1].itemNum||'', undefined, {numeric:true}); });
 
@@ -202,17 +256,24 @@ function _filterCollPicker(q) {
 function _selectCollItem(pdKey) {
   var pd = state.personalData[pdKey];
   if (!pd) return;
-  var master = (String(pd.era || '') === 'Manual') ? null : findMaster(pd.itemNum, (pd.variation||''));   // v0.9.731: manual rule
+  var master = (String(pd.era || '') === 'Manual') ? null : findMaster(pd.itemNum, (pd.variation||''), pd);   // v0.9.731: manual rule
   var idx = master ? state.masterData.indexOf(master) : -1;
+  var ov = document.getElementById('pick-fs-overlay');
+  if (ov) ov.remove();
 
+  // v0.9.746 (Brad, group Phase 2): route through the SAME group-aware
+  // entrypoints the detail page uses — grouped picks get the "as a set or
+  // individually?" modal, whole-group sales write every member.
   if (wizard.tab === 'forsale') {
-    // Close any full picker overlay
-    var ov = document.getElementById('pick-fs-overlay');
-    if (ov) ov.remove();
+    if (pd.groupId && typeof _checkGroupBeforeForSale === 'function') { _checkGroupBeforeForSale(idx, pdKey); return; }
     listForSaleFromCollection(idx, pdKey);
   } else if (wizard.tab === 'sold') {
-    var ov2 = document.getElementById('pick-fs-overlay');
-    if (ov2) ov2.remove();
+    var fsEntry = pd.inventoryId ? state.forSaleData[pd.inventoryId] : null;
+    if (fsEntry && typeof markForSaleAsSold === 'function') { markForSaleAsSold(pd.inventoryId, fsEntry.askingPrice || ''); return; }
+    if (pd.groupId && typeof _checkSetBeforeAction === 'function') {
+      _checkSetBeforeAction(pdKey, idx, function (saleIdx, saleKey) { sellFromCollection(saleIdx, saleKey); });
+      return;
+    }
     sellFromCollection(idx, pdKey);
   }
 }
