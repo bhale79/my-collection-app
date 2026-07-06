@@ -160,6 +160,20 @@ function _wpMatchesQ(e, q) {
 // v0.9.746 (Brad): sell-step picker IS the browser — Maker/Era/Type/Scale
 // filters over the OWNED list ("its in a tote somewhere and they don't want
 // to go get it"). Options derive from what the user actually owns.
+// v0.9.747: personal rows mostly carry an EMPTY Item Type (the catalog knows,
+// the row doesn't) — resolve the MASTER first, bucket that. Manual rows and
+// unresolvable cross-era rows fall back to the pd itself.
+function _wpBucketOf(pd) {
+  try {
+    var src = pd;
+    if (String(pd.era || '') !== 'Manual' && typeof findMaster === 'function') {
+      var m = findMaster(pd.itemNum, pd.variation || '', pd);
+      if (m) src = m;
+    }
+    if (src === pd && !pd.itemType && pd.masterDescription) src = { itemNum: pd.itemNum, itemType: '', description: pd.masterDescription };
+    return (typeof getTypeBucket === 'function') ? getTypeBucket(src) : (src.itemType || '');
+  } catch (e) { return ''; }
+}
 function _wpSellFilterRow() {
   try {
     var makers = {}, types = {}, scales = {};
@@ -167,7 +181,7 @@ function _wpSellFilterRow() {
       if (!pd || !pd.owned) return;
       var mf = pd.manufacturer || ((typeof ERAS !== 'undefined' && ERAS[pd.era]) ? ERAS[pd.era].manufacturer : '');
       if (mf) makers[mf] = 1;
-      try { if (typeof getTypeBucket === 'function') { var b = getTypeBucket(pd); if (b) types[b] = 1; } } catch (e) {}
+      try { var b = _wpBucketOf(pd); if (b) types[b] = 1; } catch (e) {}
       var sc = pd.gauge || ((typeof ERA_SCALE !== 'undefined') ? ERA_SCALE[String(pd.era || '').toLowerCase()] : '');
       if (sc) scales[String(sc).toUpperCase() === 'O27' ? 'O' : sc] = 1;
     });
@@ -202,7 +216,7 @@ function _wpSellFilterPass(e) {
     var g = pe === 'prewar' ? 'prewar' : (pe === 'pw' ? 'pw' : 'modern');
     if (g !== era) return false;
   }
-  if (typ) { try { if (typeof getTypeBucket === 'function' && getTypeBucket(pd) !== typ) return false; } catch (err) {} }
+  if (typ) { try { if (_wpBucketOf(pd) !== typ) return false; } catch (err) {} }
   if (sc) {
     var s2 = String(pd.gauge || ((typeof ERA_SCALE !== 'undefined') ? ERA_SCALE[String(pd.era || '').toLowerCase()] : '') || '').toUpperCase();
     if (s2 === 'O27') s2 = 'O';
