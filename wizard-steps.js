@@ -302,7 +302,7 @@ function getSteps(tab) {
         { id: 'manualManufacturer', title: 'Who made this item?', type: 'manualManufacturer' },
         { id: 'manualItemNum', title: 'Do you know the item number?', type: 'text', placeholder: 'e.g. 726, S321, 999 (or leave blank and tap Next)', optional: true },
         { id: 'manualItemType', title: 'What type of item is this?', type: 'manualItemType' },
-        { id: 'manualDesc', title: 'Describe this item', type: 'manualDescribe', optional: true },
+        { id: 'manualDesc', title: 'Describe this item', type: 'manualDescribe' },   // v0.9.722 (Brad): required — it IS the item's name in lists
         { id: 'manualYear', title: 'Year made (if known)', type: 'text', placeholder: 'e.g. 1957', optional: true },
         { id: 'manualCondition', title: 'What condition is it?', type: 'slider', min: 1, max: 10 },
         { id: 'manualHasBox', title: 'Does it have the original box?', type: 'choice2', choices: ['Yes', 'No'],
