@@ -18,12 +18,28 @@
     // item's NAME: "Lionel 148 Dwarf Signal". First clause of the description,
     // max 5 words, no parentheticals.
     var d = String(desc || '').replace(/\([^)]*\)/g, '').split(/[—|,.;]/)[0].trim().split(/\s+/).slice(0, 5).join(' ');
+    if (d && String(itemNum || '').trim().toLowerCase() === d.toLowerCase()) d = '';   // v0.9.740: manual items carry the same text in number+description
     var q = [mfr, itemNum, roadName, d].filter(Boolean).join(' ').trim();
-    if (!d && !roadName) q += ' train';
+    q = q.split(/\s+/).filter(function (w, i, a) { return !i || w.toLowerCase() !== a[i - 1].toLowerCase(); }).join(' ');   // v0.9.740: drop adjacent dupes ("Lionel Lionel …")
+    if (!d && !roadName && q.split(' ').length <= 2) q += ' train';   // v0.9.740: bare numbers only — a named item is descriptive enough
     return q;
   }
+  // v0.9.740 (Brad audit): eBay ANDs every word against listing TITLES — extra
+  // words only ever EXCLUDE ("Lionel 665 4-6-4 Locomotive" misses every
+  // "Lionel 665 Hudson Steam Engine" listing; there is no prefer-but-not-
+  // require operator on eBay — that's Google behavior). Max recall = maker +
+  // number ONLY, with junk fenced out by the Model Railroads & Trains
+  // category (262301) instead of by words. Items without a real catalog
+  // number (manual entries: billboards, paper) keep the descriptive query and
+  // skip the category fence — they're often listed outside the train category.
+  function _ebayCore(itemNum, mfr, roadName, desc, extra) {
+    var n = String(itemNum || '').trim();
+    var numeric = /^[0-9][0-9A-Za-z.\/-]{0,14}$/.test(n);
+    var q = numeric ? [mfr, n].filter(Boolean).join(' ') : _searchQuery(itemNum, mfr, roadName, desc);
+    return 'https://www.ebay.com/sch/i.html?_nkw=' + encodeURIComponent(q) + (numeric ? '&_sacat=262301' : '') + (extra || '');
+  }
   function _ebaySoldUrl(itemNum, mfr, roadName, desc) {
-    return 'https://www.ebay.com/sch/i.html?_nkw=' + encodeURIComponent(_searchQuery(itemNum, mfr, roadName, desc)) + '&LH_Sold=1&LH_Complete=1';
+    return _ebayCore(itemNum, mfr, roadName, desc, '&LH_Sold=1&LH_Complete=1');
   }
   // v0.9.737 (Brad): show-floor questions are "is this a good price, is it
   // rare, and are any for sale right now". Google's AI Overview answers the
@@ -34,7 +50,7 @@
     return 'https://www.google.com/search?q=' + encodeURIComponent(_searchQuery(itemNum, mfr, roadName, desc) + ' sold prices value');
   }
   function _ebayActiveUrl(itemNum, mfr, roadName, desc) {
-    return 'https://www.ebay.com/sch/i.html?_nkw=' + encodeURIComponent(_searchQuery(itemNum, mfr, roadName, desc));
+    return _ebayCore(itemNum, mfr, roadName, desc, '');
   }
 
   // Count owned copies across ALL variations — a show find is "do I have
