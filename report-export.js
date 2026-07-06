@@ -107,7 +107,7 @@ async function _insurancePDF() {
   var ROWH = 40;
   items.forEach(function (pd) {
     if (y + ROWH > pageH - 70) { doc.addPage(); y = M; header(); doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(20, 20, 20); }
-    var m = findMaster(pd.itemNum, pd.variation) || {};
+    var m = findMaster(pd.itemNum, pd.variation, pd) || {};
     var desc = m.roadName || m.description || m.itemType || '';
     var key = pd.inventoryId || (pd.itemNum + '|' + (pd.variation || ''));
     var img = photos[key];
@@ -208,7 +208,7 @@ function _reportToHTML(type) {
     var dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     var totalWorth = 0; items.forEach(function (pd) { totalWorth += parseFloat(pd.userEstWorth || 0) || 0; });
     var rows = items.map(function (pd) {
-      var m = findMaster(pd.itemNum, pd.variation) || {};
+      var m = findMaster(pd.itemNum, pd.variation, pd) || {};
       var desc = m.roadName || m.description || m.itemType || '';
       var val = pd.userEstWorth ? sym + parseFloat(pd.userEstWorth).toLocaleString() : '—';
       return '<tr><td>' + esc(pd.itemNum) + '</td><td>' + esc(desc) + '</td><td>' + esc(pd.variation || '—') +
