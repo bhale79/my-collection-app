@@ -132,7 +132,7 @@ function _filterCollPicker(q) {
   var html = '';
   owned.forEach(function(entry) {
     var pdKey = entry[0], pd = entry[1];
-    var master = findMaster(pd.itemNum, (pd.variation||'')) || {};
+    var master = (String(pd.era || '') === 'Manual') ? {} : (findMaster(pd.itemNum, (pd.variation||'')) || {});   // v0.9.731: manual rule
     var alreadyListed = wizard.tab === 'forsale' ? !!state.forSaleData[pd.itemNum + '|' + (pd.variation||'')] : false;
     html += '<div onclick="_selectCollItem(\'' + pdKey.replace(/'/g,"\\'") + '\')" style="'
       + 'display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.75rem;cursor:pointer;'
@@ -146,7 +146,7 @@ function _filterCollPicker(q) {
       + (alreadyListed ? '<span style="font-size:0.6rem;color:#e67e22;font-weight:600;margin-left:auto">LISTED</span>' : '')
       + '</div>'
       + '<div style="font-size:0.72rem;color:var(--text-mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'
-      + (master.roadName || master.itemType || '')
+      + (master.roadName || master.itemType || pd.description || pd.itemType || '')
       + (pd.condition ? ' · C:' + pd.condition : '')
       + (pd.priceItem ? ' · $' + parseFloat(pd.priceItem).toLocaleString() : '')
       + '</div>'
@@ -159,7 +159,7 @@ function _filterCollPicker(q) {
 function _selectCollItem(pdKey) {
   var pd = state.personalData[pdKey];
   if (!pd) return;
-  var master = findMaster(pd.itemNum, (pd.variation||''));
+  var master = (String(pd.era || '') === 'Manual') ? null : findMaster(pd.itemNum, (pd.variation||''));   // v0.9.731: manual rule
   var idx = master ? state.masterData.indexOf(master) : -1;
 
   if (wizard.tab === 'forsale') {
@@ -223,7 +223,7 @@ function _renderFullPickList(q) {
     if (!e[1].owned) return false;
     if (!q) return true;
     var pd = e[1];
-    var master = findMaster(pd.itemNum, (pd.variation||'')) || {};
+    var master = (String(pd.era || '') === 'Manual') ? {} : (findMaster(pd.itemNum, (pd.variation||'')) || {});   // v0.9.731: manual rule
     return (pd.itemNum||'').toLowerCase().includes(q)
       || (master.roadName||'').toLowerCase().includes(q)
       || (master.itemType||'').toLowerCase().includes(q)
@@ -239,7 +239,7 @@ function _renderFullPickList(q) {
   var html = '';
   owned.forEach(function(entry) {
     var pdKey = entry[0], pd = entry[1];
-    var master = findMaster(pd.itemNum, (pd.variation||'')) || {};
+    var master = (String(pd.era || '') === 'Manual') ? {} : (findMaster(pd.itemNum, (pd.variation||'')) || {});   // v0.9.731: manual rule
     var fsKey = pd.itemNum + '|' + (pd.variation||'');
     var alreadyListed = wizard.tab === 'forsale' ? !!state.forSaleData[fsKey] : !!state.soldData[fsKey];
 
@@ -253,7 +253,7 @@ function _renderFullPickList(q) {
       + (pd.variation ? '<span style="font-size:0.7rem;color:var(--text-dim)">Var ' + pd.variation + '</span>' : '')
       + '</div>'
       + '<div style="font-size:0.78rem;color:var(--text-mid);margin-top:0.1rem">'
-      + (master.roadName || master.itemType || '')
+      + (master.roadName || master.itemType || pd.description || pd.itemType || '')
       + '</div>'
       + '<div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.1rem">'
       + [pd.condition ? 'Cond: ' + pd.condition + '/10' : '', pd.priceItem ? 'Paid: $' + parseFloat(pd.priceItem).toLocaleString() : '', pd.userEstWorth ? 'Worth: $' + parseFloat(pd.userEstWorth).toLocaleString() : ''].filter(Boolean).join(' · ')
