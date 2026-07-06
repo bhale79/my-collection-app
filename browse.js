@@ -82,6 +82,7 @@ var _COLL_COLS = [
   { col: 'var',   label: 'Var.', noSort: true },
   { col: 'type',  label: 'Type' },
   { col: 'desc',  label: 'Description' },
+  { col: 'added', label: 'Added' },   // v0.9.719 (Brad): sort by date added
   { col: 'worth', label: 'Est. Worth' }
 ];
 function _renderCollectionHeader() {
@@ -2480,11 +2481,14 @@ function renderBrowse() {
     var _cs = state._collSort;
     var _dir = (_cs.dir === 'desc') ? -1 : 1;
     var _col = _cs.col;
-    var _numeric = (_col === 'num' || _col === 'worth');
+    var _numeric = (_col === 'num' || _col === 'worth' || _col === 'added');   // v0.9.719
     var _keyed = state.filteredData.map(function(it) {
       var pd = findPD(_displayItemNum(it), it.variation) || {};
       var _rt = [it.roadName, it.itemType].filter(Boolean).join(' \u00b7 ') || it.description || '';
       var _w = parseFloat(pd.userEstWorth);
+      // v0.9.719: date-added key — save timestamp beats purchase date beats
+      // sheet row order (older rows without either cluster together).
+      var _addTs = pd._savedAt || Date.parse(pd.datePurchased || '') || (pd.row || 0);
       return {
         it: it,
         mfr: (typeof _manufacturerOfItem === 'function' ? (_manufacturerOfItem(it) || '') : ''),
@@ -2492,12 +2496,13 @@ function renderBrowse() {
         var: (it.variation || ''),
         type: (typeof getTypeBucketLabel === 'function' ? (getTypeBucketLabel(it) || '') : (it.itemType || '')),
         desc: _rt,
+        added: isFinite(_addTs) ? _addTs : 0,
         worth: isFinite(_w) ? _w : -1
       };
     });
     _keyed.sort(function(a, b) {
       var r;
-      if (_numeric) { r = a[_col === 'num' ? 'num' : 'worth'] - b[_col === 'num' ? 'num' : 'worth']; }
+      if (_numeric) { r = a[_col] - b[_col]; }
       else { r = String(a[_col]).localeCompare(String(b[_col]), undefined, { numeric: true, sensitivity: 'base' }); }
       if (r === 0) r = (a.it.itemNum || '').localeCompare(b.it.itemNum || '', undefined, { numeric: true });
       return r * _dir;
@@ -2896,6 +2901,7 @@ function renderBrowse() {
         <td style="white-space:nowrap">${item.variation ? '<span style="font-size:0.78rem;color:var(--text-mid)">' + item.variation + '</span>' : '<span style="color:var(--text-dim)">—</span>'}</td>
         <td style="font-size:0.78rem;color:var(--text-dim)">${_typeText}</td>
         <td style="color:var(--text-mid);font-size:0.85rem" title="${(_descFull||'').replace(/"/g,'&quot;')}">${_descFull}</td>
+        <td style="font-size:0.76rem;color:var(--text-dim);white-space:nowrap">${(function(){ var d = (pd && pd.datePurchased) || ''; if (d) return (typeof _formatDate === 'function') ? _formatDate(d) : d; if (pd && pd._savedAt) { try { return new Date(pd._savedAt).toLocaleDateString(); } catch(e){} } return '—'; })()}</td>
         <td style="font-size:0.82rem;color:var(--gold);white-space:nowrap">${_estWorth}</td>
         <td class="coll-actions-cell" style="text-align:right">
           ${!_inShareModeD ? `${_fsBtn}
