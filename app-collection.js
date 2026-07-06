@@ -1170,7 +1170,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
         el.innerHTML = photos.map(function (ph) {
           return '<div style="position:relative"><a href="' + ph.view + '" target="_blank" rel="noopener" style="display:block;border-radius:8px;overflow:hidden;background:var(--surface2);aspect-ratio:1;position:relative">'
             + '<img id="gidp-' + gi + '-' + ph.id + '" style="width:100%;height:100%;object-fit:cover;border-radius:8px" alt="">'
-            + '<div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.6));padding:0.3rem 0.5rem"><div style="font-size:0.65rem;color:#fff;font-family:var(--font-head);letter-spacing:0.05em;text-transform:uppercase">' + (ph.name || '').replace(/\.[^.]+$/, '') + '</div></div></a></div>';
+            + '<div onclick="event.preventDefault();event.stopPropagation();_grpRenamePhoto(\'' + ph.id + '\', this)" title="Click to rename (e.g. add -P or -D)" style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.6));padding:0.3rem 0.5rem;cursor:text"><div style="font-size:0.65rem;color:#fff;font-family:var(--font-head);letter-spacing:0.05em;text-transform:uppercase">' + (ph.name || '').replace(/\.[^.]+$/, '') + ' <span style="opacity:0.6">✎</span></div></div></a></div>';
         }).join('');
         photos.forEach(function (ph) {
           var imgEl = document.getElementById('gidp-' + gi + '-' + ph.id);
@@ -1259,6 +1259,21 @@ async function _healPdRow(pd) {
   throw new Error('Could not locate this item\'s row in the sheet — reload the app and try again');
 }
 window._healPdRow = _healPdRow;
+
+// v0.9.730 (Brad): rename a photo right from the group gallery so shared-
+// folder pair shots can be marked "205-P RSV" vs "205-D RSV".
+window._grpRenamePhoto = async function (fileId, labelEl) {
+  try {
+    var cur = (labelEl.textContent || '').replace(/\s*✎\s*$/, '').trim();
+    var next = prompt('Rename this photo (e.g. "205-P RSV" or "205-D RSV"):', cur);
+    if (!next || next.trim() === '' || next.trim() === cur) return;
+    if (typeof driveRequest !== 'function') { showToast('Drive not available', 3000, true); return; }
+    await driveRequest('PATCH', '/files/' + fileId, { name: next.trim() + '.jpg' });
+    var inner = labelEl.querySelector('div') || labelEl;
+    inner.innerHTML = next.trim().replace(/</g, '&lt;').toUpperCase() + ' <span style="opacity:0.6">✎</span>';
+    showToast('✓ Photo renamed');
+  } catch (e) { showToast('Rename failed: ' + (e && e.message || 'Drive error'), 3500, true); }
+};
 
 // v0.9.728: open a group member's edit/photos panel from the group sheet.
 window._grpEditMember = function (i) {
