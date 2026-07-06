@@ -2873,106 +2873,80 @@ function _upgradeViewMine(ugKey) {
 // Opens a picker modal listing the user's owned items so they can choose
 // which one to target with a new Upgrade entry. After selecting, opens the
 // existing showAddToUpgradeModal flow with the picked item's details.
-window._upgPickFilter = function () {
+// v0.9.750 (Brad): "item picker should match the add to sales list picker" —
+// same shared components as the sell flow: _wpFoldGroups (groups collapse to
+// the powered lead + 🔗 chip), _wpSellFilterRow (Maker / Prewar-Postwar-Modern
+// / Type / Scale, options from OWNED rows), _wpSellFilterPass, _wpMatchesQ
+// (search matches folded mates too).
+window._upgPickApply = function () {
+  var el = document.getElementById('upg-pick-list');
+  if (!el) return;
   var q = ((document.getElementById('upg-pick-q') || {}).value || '').toLowerCase();
-  var t = (document.getElementById('upg-pick-t') || {}).value || '';
-  var m = (document.getElementById('upg-pick-m') || {}).value || '';
-  var e = (document.getElementById('upg-pick-e') || {}).value || '';
-  var box = document.getElementById('upgrade-pick-modal');
-  if (!box) return;
-  box.querySelectorAll('button[data-s]').forEach(function (b) {
-    var ok = (!q || (b.getAttribute('data-s') || '').indexOf(q) >= 0)
-      && (!t || b.getAttribute('data-t') === t)
-      && (!m || b.getAttribute('data-m') === m)
-      && (!e || b.getAttribute('data-e') === e);
-    b.style.display = ok ? 'flex' : 'none';
+  var entries = Object.entries(state.personalData || {}).filter(function (e) {
+    var p = e[1];
+    return p && p.owned && p.itemNum && !/-(BOX|MBOX)$/i.test(String(p.itemNum || ''));
   });
+  var folded = (typeof _wpFoldGroups === 'function') ? _wpFoldGroups(entries) : entries;
+  folded = folded.filter(function (e) {
+    var okQ = (typeof _wpMatchesQ === 'function') ? _wpMatchesQ(e, q) : true;
+    var okF = (typeof _wpSellFilterPass === 'function') ? _wpSellFilterPass(e) : true;
+    return okQ && okF;
+  });
+  folded.sort(function (a, b) { return String(a[1].itemNum || '').localeCompare(String(b[1].itemNum || ''), undefined, { numeric: true }); });
+  if (!folded.length) {
+    el.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--text-dim);font-size:0.82rem">No matches</div>';
+    return;
+  }
+  el.innerHTML = folded.map(function (entry) {
+    var p = entry[1];
+    var master = (String(p.era || '') === 'Manual') ? {} : (findMaster(p.itemNum, p.variation || '', p) || {});
+    var name = p.roadName || master.roadName || p.description || master.itemType || p.itemType || '';
+    var chip = (typeof _wpGroupChip === 'function') ? _wpGroupChip(p, entry._mates) : '';
+    var cond = p.condition ? parseInt(p.condition) : null;
+    var condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
+    var escVar = (p.variation || '').replace(/'/g, "\\'");
+    return '<button onclick="document.getElementById(\'upgrade-pick-modal\').remove();'
+      + 'showAddToUpgradeModal(\'' + p.itemNum + '\',\'' + escVar + '\',' + (p.row || 0) + ',\'' + (p.inventoryId || '') + '\')" '
+      + 'style="display:flex;align-items:center;gap:0.6rem;padding:0.65rem 0.85rem;border-radius:8px;'
+      + 'background:var(--surface2);border:1px solid var(--border);width:100%;cursor:pointer;'
+      + 'font-family:var(--font-body);text-align:left;margin-bottom:0.35rem">'
+      + '<div style="flex:1;min-width:0">'
+      +   '<div style="font-family:var(--font-mono);color:var(--accent);font-size:0.92rem;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
+      +     p.itemNum + (p.variation ? ' <span style="color:var(--text-dim);font-size:0.78rem">var ' + p.variation + '</span>' : '') + chip
+      +   '</div>'
+      +   (name ? '<div style="font-size:0.78rem;color:var(--text-mid);margin-top:0.15rem">' + name + '</div>' : '')
+      + '</div>'
+      + (cond !== null ? '<span style="font-size:0.78rem;display:flex;align-items:center;gap:0.3rem"><span class="condition-pip ' + condClass + '"></span>' + cond + '</span>' : '')
+      + '</button>';
+  }).join('');
 };
+window._upgPickFilter = window._upgPickApply;   // legacy alias
 
 function pickItemForUpgrade() {
-  // Build a unique list of owned items (deduped by inventoryId to avoid
-  // showing the same copy twice across box/MBOX joins).
-  var owned = Object.values(state.personalData || {}).filter(function(p) {
-    return p && p.owned && p.itemNum && !String(p.itemNum||'').endsWith('-BOX')
-      && !String(p.itemNum||'').endsWith('-MBOX');
-  });
+  var owned = Object.values(state.personalData || {}).filter(function (p) { return p && p.owned && p.itemNum; });
   if (owned.length === 0) {
     showToast('Your collection is empty — add items first', 3000, true);
     return;
   }
-  // Sort by item# for easier scanning.
-  owned.sort(function(a, b) {
-    return String(a.itemNum||'').localeCompare(String(b.itemNum||''), undefined, {numeric: true});
-  });
   var _old = document.getElementById('upgrade-pick-modal');
   if (_old) _old.remove();
   var overlay = document.createElement('div');
   overlay.id = 'upgrade-pick-modal';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10001;display:flex;align-items:center;justify-content:center;padding:1.25rem';
-  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
-  // v0.9.734: a grouped COMPANION (dummy/tender/B unit) is whatever its LEAD
-  // is — companion rows were stamped from the base number w/o variation, so a
-  // reused number (212 Marines vs Santa Fe) poisoned them at save time.
-  function _upgLeadOf(p) {
-    if (!p.groupId) return null;
-    var n = String(p.itemNum || '').toUpperCase();
-    var isComp = /-D$/.test(n) || /C$/.test(n.replace(/-(P|D)$/, '')) || (typeof isTender === 'function' && isTender(n));
-    if (!isComp) return null;
-    return Object.values(state.personalData || {}).find(function (q) {
-      if (!q || !q.owned || q.groupId !== p.groupId || q === p) return false;
-      var qn = String(q.itemNum || '').toUpperCase();
-      return !(/-D$/.test(qn) || /C$/.test(qn.replace(/-(P|D)$/, '')) || (typeof isTender === 'function' && isTender(qn)) || /-(BOX|MBOX|IS)$/.test(qn));
-    }) || null;
-  }
-  var rowsHtml = owned.map(function(p) {
-    // v0.9.733/734: lead identity → row's own stamp → variation-aware catalog.
-    var _lead = _upgLeadOf(p);
-    var master = findMaster(p.itemNum, p.variation || '', p) || {};
-    var _leadMaster = _lead ? (findMaster(_lead.itemNum, _lead.variation || '', _lead) || {}) : {};
-    var name = (_lead && (_lead.roadName || _leadMaster.roadName)) || p.roadName || master.roadName || p.description || master.itemType || p.itemType || '';
-    var _tBucket = (typeof getTypeBucketLabel === 'function') ? (getTypeBucketLabel(master.itemNum ? master : p) || (p.itemType || '')) : (p.itemType || '');
-    var _mfrTag = p.manufacturer || (typeof _brandOfItem === 'function' ? (_brandOfItem(p.itemNum) || '') : '');
-    var _eraTag = (typeof ERAS !== 'undefined' && ERAS[p.era] && ERAS[p.era].label) ? ERAS[p.era].label : (p.era || '');
-    var cond = p.condition ? parseInt(p.condition) : null;
-    var condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
-    var escVar = (p.variation||'').replace(/'/g, "\\'");
-    return '<button data-s="' + String(p.itemNum + ' ' + name).toLowerCase().replace(/"/g, '') + '" data-t="' + String(_tBucket).replace(/"/g, '') + '" data-m="' + String(_mfrTag).replace(/"/g, '') + '" data-e="' + String(_eraTag).replace(/"/g, '') + '" onclick="document.getElementById(\'upgrade-pick-modal\').remove();'
-      + 'showAddToUpgradeModal(\''+p.itemNum+'\',\''+escVar+'\','+(p.row||0)+',\''+(p.inventoryId||'')+'\')" '
-      + 'style="display:flex;align-items:center;gap:0.6rem;padding:0.65rem 0.85rem;border-radius:8px;'
-      + 'background:var(--surface2);border:1px solid var(--border);width:100%;cursor:pointer;'
-      + 'font-family:var(--font-body);text-align:left;margin-bottom:0.35rem">'
-      + '<div style="flex:1;min-width:0">'
-      +   '<div style="font-family:var(--font-mono);color:var(--accent);font-size:0.92rem;font-weight:600">'
-      +     p.itemNum + (p.variation ? ' <span style="color:var(--text-dim);font-size:0.78rem">var '+p.variation+'</span>' : '')
-      +   '</div>'
-      +   (name ? '<div style="font-size:0.78rem;color:var(--text-mid);margin-top:0.15rem">'+name+'</div>' : '')
-      + '</div>'
-      + (cond !== null ? '<span style="font-size:0.78rem;display:flex;align-items:center;gap:0.3rem"><span class="condition-pip '+condClass+'"></span>'+cond+'</span>' : '')
-      + '</button>';
-  }).join('');
+  overlay.onclick = function (e) { if (e.target === overlay) overlay.remove(); };
   overlay.innerHTML =
     '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:480px;width:100%;padding:1.4rem;position:relative;max-height:80vh;display:flex;flex-direction:column">'
     + '<button onclick="document.getElementById(\'upgrade-pick-modal\').remove()" style="position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">\u2715</button>'
     + '<div style="font-family:var(--font-head);font-size:1.15rem;color:#8b5cf6;margin-bottom:0.25rem">\u2191 Add to Upgrade List</div>'
     + '<div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:0.6rem">Pick the item you\'d like to upgrade.</div>'
-    // v0.9.733 (Brad): filters to narrow the pick list.
     + '<div style="display:flex;gap:0.4rem;margin-bottom:0.45rem">'
-    +   '<input id="upg-pick-q" type="text" placeholder="Search # or name…" oninput="_upgPickFilter()" style="flex:1;min-width:0;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem">'
+    +   '<input id="upg-pick-q" type="text" placeholder="Search # or name\u2026" oninput="_upgPickApply()" style="flex:1;min-width:0;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem">'
     + '</div>'
-    + '<div style="display:flex;gap:0.4rem;margin-bottom:0.7rem">'
-    +   '<select id="upg-pick-m" onchange="_upgPickFilter()" style="flex:1;min-width:0;padding:0.5rem 0.4rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.82rem"><option value="">All makers</option>'
-    +   (function(){ var seen={}; var out=''; owned.forEach(function(p){ var m = p.manufacturer || (typeof _brandOfItem === 'function' ? (_brandOfItem(p.itemNum) || '') : ''); if (m && !seen[m]) { seen[m]=1; out += '<option>' + m + '</option>'; } }); return out; })()
-    +   '</select>'
-    +   '<select id="upg-pick-e" onchange="_upgPickFilter()" style="flex:1;min-width:0;padding:0.5rem 0.4rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.82rem"><option value="">All eras</option>'
-    +   (function(){ var seen={}; var out=''; owned.forEach(function(p){ var e = (typeof ERAS !== 'undefined' && ERAS[p.era] && ERAS[p.era].label) ? ERAS[p.era].label : (p.era || ''); if (e && !seen[e]) { seen[e]=1; out += '<option>' + e + '</option>'; } }); return out; })()
-    +   '</select>'
-    +   '<select id="upg-pick-t" onchange="_upgPickFilter()" style="flex:1;min-width:0;padding:0.5rem 0.4rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.82rem"><option value="">All types</option>'
-    +   (function(){ var seen={}; var out=''; owned.forEach(function(p){ var m = findMaster(p.itemNum, p.variation||'', p) || {}; var b = (typeof getTypeBucketLabel === 'function') ? (getTypeBucketLabel(m.itemNum ? m : p) || (p.itemType||'')) : (p.itemType||''); if (b && !seen[b]) { seen[b]=1; out += '<option>' + b + '</option>'; } }); return out; })()
-    +   '</select>'
-    + '</div>'
-    + '<div style="overflow-y:auto;flex:1">' + rowsHtml + '</div>'
+    + ((typeof _wpSellFilterRow === 'function') ? _wpSellFilterRow('_upgPickApply()') : '')
+    + '<div id="upg-pick-list" style="overflow-y:auto;flex:1"></div>'
     + '</div>';
   document.body.appendChild(overlay);
+  _upgPickApply();
 }
 if (typeof window !== 'undefined') window.pickItemForUpgrade = pickItemForUpgrade;
 
