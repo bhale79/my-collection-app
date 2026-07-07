@@ -493,6 +493,7 @@ var _CARD_HELP = {
   accessories: 'Count of owned accessories.',
   sets: 'Count of sets recorded on your My Sets tab.',
   photos: 'How many of your owned items have at least one photo attached.',
+  photoReel: 'A rotating slideshow of photos from your own collection — a new random item every few seconds. Tap the photo to open that item. Only items with photos appear; photo lookups are cached on this device so it loads fast.',
   forsale: 'Items on your For Sale list and their total asking price.',
   atlasCatalog: 'Catalog coverage for the Atlas O catalog specifically.'
 };
