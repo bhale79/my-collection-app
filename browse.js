@@ -2291,7 +2291,7 @@ function renderBrowse() {
     if (_gtbody) _gtbody.innerHTML = '<tr><td colspan="10"><div class="empty-state" style="padding:3rem 1rem;text-align:center">'
       + '<div style="font-size:2.5rem;margin-bottom:0.75rem">🔍</div>'
       + '<p style="font-weight:600;margin-bottom:0.4rem">All Collection — type to search</p>'
-      + '<p style="font-size:0.85rem;color:var(--text-dim);margin-bottom:0.6rem">There are 30,000+ items across every era. Type an item number, road name, or description to find anything.</p>'
+      + '<p style="font-size:0.85rem;color:var(--text-dim);margin-bottom:0.6rem">There are 60,000+ items across every era. Type an item number, road name, or description to find anything.</p>'
       + '<p style="font-size:0.78rem;color:var(--text-dim);font-style:italic">Or pick a specific era from the dropdown — or a Type/Road filter — to browse normally.</p>'
       + '</div></td></tr>';
     const _gcards = document.getElementById('browse-cards');
