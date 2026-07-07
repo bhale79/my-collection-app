@@ -150,6 +150,13 @@ function _getEraMasterTotal(eraKey) {
 // ══════════════════════════════════════════════════════════════════
 var CARD_CATALOG = [
   {
+    id: 'photoReel', label: 'From My Collection', color: '#9b59b6',
+    compute: function(state, i) {
+      setTimeout(function() { if (typeof window._reelStart === 'function') window._reelStart(i); }, 0);
+      return { html: '<div id="reel-' + i + '" style="height:86px;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:0.72rem">Loading photos\u2026</div>' };
+    }
+  },
+  {
     id: 'owned', label: 'Items I Own', color: '#3aad70',
     compute: function(state) {
       var items = _ownedNonBox(state);
@@ -803,6 +810,16 @@ if (typeof window !== 'undefined') window._openOwnedByInvId = _openOwnedByInvId;
 // ── Dashboard Panel System ─────────────────────────────────────────────────
 var PANEL_CATALOG = [
   {
+    id: 'showcase',
+    label: 'Collection Showcase',
+    icon: '\uD83D\uDDBC',
+    navFn: "goToMyCollection();",
+    render: function(state) {
+      setTimeout(function() { if (typeof window._showcaseFill === 'function') window._showcaseFill(); }, 0);
+      return '<div id="showcase-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:0.5rem;min-height:120px"><div class="empty-state"><p>Loading photos\u2026</p></div></div>';
+    }
+  },
+  {
     id: 'recent',
     label: 'Recent Additions',
     icon: '🕐',
@@ -1022,6 +1039,93 @@ function _panelRow(icon, itemHtml, name, meta, onclick, photoUrl, extraBadge) {
     + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>'
     + '</div>';
 }
+
+// ── v0.9.755 (Brad): photo cards — "thumbnails from my collection" ──
+// First photo file-id per item, cached on-device (lv_thumb_fids) so Drive is
+// asked ONCE per item ever; blob loading reuses drive.js loadDriveThumb.
+function _thumbFids() {
+  if (!window._thumbFidCache) {
+    try { window._thumbFidCache = JSON.parse(localStorage.getItem('lv_thumb_fids') || '{}'); } catch (e) { window._thumbFidCache = {}; }
+  }
+  return window._thumbFidCache;
+}
+async function _thumbFor(pd) {
+  var c = _thumbFids(), k = String(pd.inventoryId || pd.itemNum);
+  if (c[k]) return c[k];
+  if (typeof driveGetFolderPhotos !== 'function') return null;
+  var files = await driveGetFolderPhotos(pd.photoItem).catch(function () { return null; });
+  var fid = files && files[0] && files[0].id;
+  if (fid) { c[k] = fid; try { localStorage.setItem('lv_thumb_fids', JSON.stringify(c)); } catch (e) {} }
+  return fid || null;   // failures/empties NOT cached — retried next time
+}
+function _photoPds() {
+  return Object.values(state.personalData || {}).filter(function (p) {
+    return p && p.owned && p.photoItem && !(typeof _isCollectionCompanion === 'function' && _isCollectionCompanion(p));
+  });
+}
+async function _pickThumbs(n, resolveCap) {
+  var pds = _photoPds().slice(), out = [], resolves = 0;
+  for (var i = pds.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = pds[i]; pds[i] = pds[j]; pds[j] = t; }
+  for (var x = 0; x < pds.length && out.length < n; x++) {
+    var pd = pds[x], known = _thumbFids()[String(pd.inventoryId || pd.itemNum)];
+    if (!known) { if (resolves >= resolveCap) continue; resolves++; }
+    var fid = await _thumbFor(pd);
+    if (fid) out.push({ pd: pd, fid: fid });
+  }
+  return out;
+}
+window._reelTimers = window._reelTimers || {};
+window._reelStart = async function (slot) {
+  if (window._reelTimers[slot]) { clearInterval(window._reelTimers[slot]); delete window._reelTimers[slot]; }
+  var host = document.getElementById('reel-' + slot);
+  if (!host) return;
+  var picks = await _pickThumbs(8, 4);
+  host = document.getElementById('reel-' + slot);
+  if (!host) return;
+  if (!picks.length) { host.innerHTML = '<span style="font-size:0.72rem;color:var(--text-dim)">Add item photos to see them here</span>'; return; }
+  host.innerHTML = '<div id="reel-img-' + slot + '" style="width:100%;height:86px;border-radius:8px;overflow:hidden;position:relative;cursor:pointer;background:var(--surface2,#26262e)">'
+    + '<img style="width:100%;height:100%;object-fit:cover;transition:opacity 0.45s;opacity:0" alt="">'
+    + '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);color:#fff;font-size:0.68rem;padding:0.15rem 0.4rem;font-family:var(--font-mono,monospace)"></div></div>';
+  var wrap = document.getElementById('reel-img-' + slot);
+  var img = wrap.querySelector('img'), cap = wrap.querySelector('div');
+  var idx = Math.floor(Math.random() * picks.length);
+  function show() {
+    var t = picks[idx % picks.length]; idx++;
+    img.style.opacity = 0;
+    setTimeout(function () {
+      img.onload = function () { img.style.opacity = 1; };
+      loadDriveThumb(t.fid, img, wrap);
+      cap.textContent = t.pd.itemNum;
+      wrap.onclick = function (ev) { ev.stopPropagation(); _openOwnedByInvId(t.pd.inventoryId); };
+    }, 250);
+  }
+  show();
+  window._reelTimers[slot] = setInterval(function () {
+    if (!document.getElementById('reel-img-' + slot)) { clearInterval(window._reelTimers[slot]); delete window._reelTimers[slot]; return; }
+    show();
+  }, 5000);
+};
+window._showcaseFill = async function () {
+  var grid = document.getElementById('showcase-grid');
+  if (!grid) return;
+  var picks = await _pickThumbs(12, 6);
+  grid = document.getElementById('showcase-grid');
+  if (!grid) return;
+  if (!picks.length) { grid.innerHTML = '<div class="empty-state"><p>Add item photos and they\'ll show off here</p></div>'; return; }
+  grid.innerHTML = picks.map(function (t, i) {
+    return '<div data-sc="' + i + '" style="aspect-ratio:1;border-radius:8px;overflow:hidden;position:relative;cursor:pointer;background:var(--surface2,#26262e)">'
+      + '<img style="width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 0.4s" alt="">'
+      + '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);color:#fff;font-size:0.62rem;padding:0.1rem 0.3rem;font-family:var(--font-mono,monospace);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + String(t.pd.itemNum).replace(/</g, '&lt;') + '</div></div>';
+  }).join('');
+  picks.forEach(function (t, i) {
+    var cell = grid.querySelector('[data-sc="' + i + '"]');
+    if (!cell) return;
+    var img = cell.querySelector('img');
+    img.onload = function () { img.style.opacity = 1; };
+    loadDriveThumb(t.fid, img, cell);
+    cell.onclick = function () { _openOwnedByInvId(t.pd.inventoryId); };
+  });
+};
 
 var _DEFAULT_PANELS = [{id:'recent'}, {id:'wants'}];
 
