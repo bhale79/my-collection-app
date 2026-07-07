@@ -2454,6 +2454,7 @@ function showPage(name, clickedEl) {
   if (name === 'prefs') buildPrefsPage();
   if (name === 'vault') vaultRenderPage();
   if (name === 'tools' && typeof buildToolsPage === 'function') buildToolsPage();
+  if (name === 'contacts' && typeof buildContactsPage === 'function') buildContactsPage();   // contacts hook
   document.getElementById('main-content').scrollTop = 0;
   // Push history entry so back button returns here instead of closing the app
   if (!_navSuppressHistory) {
