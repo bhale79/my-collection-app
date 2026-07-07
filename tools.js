@@ -661,39 +661,63 @@ async function runCompanionSuggester() {
   }
 
   var norm = function(n) { return (n || '').toString().trim().toUpperCase(); };
-
-  // Build a set of owned item numbers (normalised)
-  var ownedNums = new Set(
-    Object.values(state.personalData)
-      .filter(function(pd) { return pd.owned; })
-      .map(function(pd) { return norm(pd.itemNum); })
-  );
-
-  // Build a set of wanted item numbers
-  var wantedNums = new Set(
-    Object.keys(state.wantData).map(function(k) { return norm(k.split('|')[0]); })
-  );
-
-  // Role map: what role each item number plays (Engine / Tender / A Unit / B Unit),
-  // so we can tell whether an item already GROUPED/MATCHED with the anchor already
-  // fills the needed companion role — e.g. a 773 grouped with a 2426W tender is not
-  // "missing a tender" even though it doesn't own the catalog-default 773W.
-  var roleMap = {};
-  state.companionData.forEach(function(c) {
-    roleMap[norm(c.companionNum)] = c.companionType;                       // Tender / B Unit
-    roleMap[norm(c.engineNum)]    = (c.companionType === 'B Unit') ? 'A Unit' : 'Engine';
+  // v0.9.756 (Brad audit): CONVENTION BRIDGE. The Companions tab speaks
+  // catalog (bare engine "217", B unit "217C", dummy "213T"); personal rows
+  // speak app ("217-P", "204-D"). Raw compares produced BOTH false positives
+  // (217C "missing" the A unit owned as 217-P) and false negatives (owning
+  // only 2245-P never surfaced the missing 2245C — bare anchor "2245" never
+  // matched). Canon: strip the dash, T≡D (catalog dummy letter vs app's).
+  function _ccCanon(n) {
+    n = norm(n);
+    var m = n.match(/^(.+?\d)[-]?([PDTC])$/);
+    if (!m) return { key: n, base: n, unit: '' };
+    var u = m[2] === 'T' ? 'D' : m[2];
+    return { key: m[1] + u, base: m[1], unit: u };
+  }
+  var ownedExact = new Set(), ownedPoweredBases = new Set();
+  Object.values(state.personalData).forEach(function(pd) {
+    if (!pd.owned) return;
+    var c = _ccCanon(pd.itemNum);
+    ownedExact.add(c.key);
+    if (c.unit === '' || c.unit === 'P') ownedPoweredBases.add(c.base);
   });
+  function _ccOwned(n) {
+    var c = _ccCanon(n);
+    if (c.unit === 'P') return ownedExact.has(c.key) || ownedExact.has(c.base);
+    if (c.unit) return ownedExact.has(c.key);
+    return ownedExact.has(c.key) || ownedPoweredBases.has(c.key);   // bare engine anchor = any powered/plain form
+  }
+  var wantedKeys = new Set(
+    Object.keys(state.wantData).map(function(k) { return _ccCanon(k.split('|')[0]).key; })
+  );
+  // Does an owned item GROUPED/MATCHED to the anchor already fill the role?
+  // Role is judged STRUCTURALLY from the partner's own number/type — the old
+  // roleMap only knew catalog spellings, so "217-P" never matched a role.
+  function _ccFillsRole(p, role) {
+    var c = _ccCanon(p.itemNum);
+    role = norm(role);
+    if (role === 'TENDER') return (typeof isTender === 'function' && isTender(p.itemNum)) || /TENDER/.test(norm(p.itemType || ''));
+    if (role === 'B UNIT') return c.unit === 'C';
+    if (/DUMMY/.test(role)) return c.unit === 'D';
+    if (role === 'A UNIT' || role === 'ENGINE' || role === 'POWERED A UNIT') return c.unit === 'P' || c.unit === '';
+    return false;
+  }
   function _hasGroupedCompanion(anchorKey, role) {
-    var anchors = Object.values(state.personalData).filter(function(pd){ return pd.owned && norm(pd.itemNum) === anchorKey; });
+    var aCanon = _ccCanon(anchorKey);
+    var anchors = Object.values(state.personalData).filter(function(pd){
+      if (!pd.owned) return false;
+      var c = _ccCanon(pd.itemNum);
+      if (c.key === aCanon.key) return true;
+      return !aCanon.unit && c.base === aCanon.base && (c.unit === 'P' || c.unit === '');   // bare anchor owned as -P
+    });
     return anchors.some(function(a){
       return Object.values(state.personalData).some(function(p){
         if (!p.owned || p.inventoryId === a.inventoryId) return false;
         var linked = (a.groupId && p.groupId && a.groupId === p.groupId)
-                  || (a.matchedTo && norm(p.itemNum) === norm(a.matchedTo))
-                  || (p.matchedTo && norm(p.matchedTo) === anchorKey);
+                  || (a.matchedTo && _ccCanon(p.itemNum).key === _ccCanon(a.matchedTo).key)
+                  || (p.matchedTo && _ccCanon(p.matchedTo).key === aCanon.key);
         if (!linked) return false;
-        var pr = roleMap[norm(p.itemNum)];
-        return pr && norm(pr) === norm(role);
+        return _ccFillsRole(p, role);
       });
     });
   }
@@ -705,7 +729,7 @@ async function runCompanionSuggester() {
     var ownedKey = norm(ownedNum);
     var missingKey = norm(missingNum);
 
-    if (!ownedNums.has(ownedKey)) return;  // don't own the anchor item
+    if (!_ccOwned(ownedNum)) return;  // don't own the anchor item (bridge: 217 anchors match an owned 217-P)
 
     // For same-item-number pairs, check B unit ownership specifically
     if (ownedKey === missingKey) {
@@ -719,7 +743,7 @@ async function runCompanionSuggester() {
       });
       if (ownsBUnit) return;  // already own the B unit
     } else {
-      if (ownedNums.has(missingKey)) return;  // already own the companion
+      if (_ccOwned(missingNum)) return;  // already own the companion (dash/T-D insensitive)
     }
 
     // Already grouped/matched with an owned partner that fills this role -> not missing.
@@ -729,7 +753,7 @@ async function runCompanionSuggester() {
     suggestMap[ownedKey].suggestions.push({
       companionNum:  missingNum,
       companionType: missingType,
-      alreadyWanted: wantedNums.has(missingKey),
+      alreadyWanted: wantedKeys.has(_ccCanon(missingNum).key),
     });
   }
 
@@ -742,17 +766,30 @@ async function runCompanionSuggester() {
     addSuggestion(c.companionNum, c.engineNum, reverseType);
   });
 
-  // AA-unit scan: powered (-P) and dummy (-D) A units are stored with suffixes in personal data.
-  // If you own one, suggest the other.
+  // AA-unit scan: powered (-P) and dummy (-D) A units are stored with suffixes
+  // in personal data. If you own one, suggest the other.
+  // v0.9.756: dummy suggestions are GATED on evidence a dummy EXISTS — the
+  // blind P→D scan invented phantom products (520-D for a boxcab electric,
+  // 217-D for an AB-only pair). Evidence: a Companions dummy row, a master
+  // T/D row, or a dummy anywhere in this collection. Powered suggestions
+  // stay ungated (the powered unit always existed).
+  var dummyBases = new Set();
+  state.companionData.forEach(function(c) {
+    if (/dummy/i.test(c.companionType || '')) { dummyBases.add(_ccCanon(c.companionNum).base); dummyBases.add(_ccCanon(c.engineNum).base); }
+  });
+  Object.values(state.personalData).forEach(function(pd) { var c = _ccCanon(pd.itemNum); if (c.unit === 'D') dummyBases.add(c.base); });
+  (state.masterData || []).forEach(function(m) {
+    var c = _ccCanon(m.itemNum); var u = norm(m.unit || '');
+    if (c.unit === 'D' || u === 'T' || u === 'D') dummyBases.add(c.base);
+  });
   Object.values(state.personalData).forEach(function(pd) {
     if (!pd.owned) return;
     var num = (pd.itemNum || '').trim();
     if (num.endsWith('-P')) {
-      var dummyNum = num.slice(0, -2) + '-D';
-      addSuggestion(num, dummyNum, 'Dummy A Unit');
+      if (!dummyBases.has(_ccCanon(num).base)) return;   // no evidence a dummy exists — don't invent one
+      addSuggestion(num, num.slice(0, -2) + '-D', 'Dummy A Unit');
     } else if (num.endsWith('-D')) {
-      var poweredNum = num.slice(0, -2) + '-P';
-      addSuggestion(num, poweredNum, 'Powered A Unit');
+      addSuggestion(num, num.slice(0, -2) + '-P', 'Powered A Unit');
     }
   });
 
