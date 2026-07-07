@@ -1080,6 +1080,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   //   onCancel() — user dismissed the scanner without picking.
   // ══════════════════════════════════════════════════════════════════
   var _tesseractLoadingPromise = null;
+  window._ensureTesseract = function () { return _ensureTesseract(); };   // contacts hook: business-card OCR
   function _ensureTesseract() {
     if (window.Tesseract) return Promise.resolve(window.Tesseract);
     if (_tesseractLoadingPromise) return _tesseractLoadingPromise;
