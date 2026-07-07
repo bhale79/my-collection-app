@@ -109,7 +109,7 @@ const _TUT = (function() {
         { title: 'Enter Sale Details',
           msg: 'Enter the <strong>sale price</strong>, the <strong>date sold</strong>, and optionally the buyer\'s name or any notes. All fields except the price are optional.' },
         { title: 'Confirm the Sale',
-          msg: 'Tap <strong>Save Sale</strong>. The item moves out of your active collection and into your <strong>Sold Items</strong> history. Your total sold value on the dashboard updates automatically.' }
+          msg: 'Tap <strong>✓ Save</strong>. The item moves out of your active collection and into your <strong>Sold Items</strong> history. Your total sold value on the dashboard updates automatically.' }
       ]
     },
 
