@@ -252,15 +252,29 @@
 
   function _injectEntry() {
     try {
+      // Desktop: joins the quick-action button row.
       var host = document.querySelector('.dash-desktop-actions');
-      if (!host || document.getElementById('sm-entry-btn')) return;
-      var b = document.createElement('button');
-      b.id = 'sm-entry-btn';
-      b.className = 'btn';
-      b.innerHTML = '🎪 SHOW MODE';
-      b.style.cssText = 'border:1.5px solid #8b5cf6;color:#8b5cf6;background:rgba(139,92,246,0.08)';
-      b.onclick = function () { window.openShowMode(); };
-      host.appendChild(b);
+      if (host && !document.getElementById('sm-entry-btn')) {
+        var b = document.createElement('button');
+        b.id = 'sm-entry-btn';
+        b.className = 'btn';
+        b.innerHTML = '🎪 SHOW MODE';
+        b.style.cssText = 'border:1.5px solid #8b5cf6;color:#8b5cf6;background:rgba(139,92,246,0.08)';
+        b.onclick = function () { window.openShowMode(); };
+        host.appendChild(b);
+      }
+      // Phone (v0.9.761): the desktop row is display:none on mobile — Show Mode
+      // is a PHONE feature, so it gets its own full-width banner button under
+      // the mobile quick-action panels.
+      var mhost = document.querySelector('.dash-mobile-actions');
+      if (mhost && !document.getElementById('sm-entry-mobile') && mhost.parentElement) {
+        var mb = document.createElement('button');
+        mb.id = 'sm-entry-mobile';
+        mb.innerHTML = '🎪 SHOW MODE — research, hunt & grab on the floor';
+        mb.style.cssText = 'width:100%;margin-top:0.45rem;padding:0.8rem;border-radius:9px;border:1.5px solid #8b5cf6;color:#8b5cf6;background:rgba(139,92,246,0.1);font-family:var(--font-body,sans-serif);font-size:0.85rem;font-weight:800;cursor:pointer';
+        mb.onclick = function () { window.openShowMode(); };
+        mhost.parentElement.insertBefore(mb, mhost.nextSibling);
+      }
     } catch (e) {}
   }
   if (typeof window !== 'undefined') {
