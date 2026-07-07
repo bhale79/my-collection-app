@@ -17,7 +17,12 @@
   'use strict';
 
   var TAB = 'Contacts';
-  var HEADERS = ['Contact ID', 'Name', 'Business', 'Phone', 'Email', 'Specialties', 'Notes', 'Card Photo Link', 'Met At', 'Date Added'];
+  // v0.9.764 (Brad): + Mailing Address, Website. Columns K/L appended (tab is
+  // created on first save, so widening now costs nothing). "Store name" = the
+  // Business column (label reads Store / Business). Phase 2 (Brad-confirmed):
+  // item linking ("bought from Dave") via Contact ID + per-purchase WARRANTY
+  // notes/expiry shown on the contact's page.
+  var HEADERS = ['Contact ID', 'Name', 'Business', 'Phone', 'Email', 'Specialties', 'Notes', 'Card Photo Link', 'Met At', 'Date Added', 'Mailing Address', 'Website'];
   var SPECIALTY_CHIPS = ['Prewar', 'Postwar', 'Modern', 'MTH', 'Atlas', 'Menards', 'Parts', 'Repairs', 'Paper', 'Sets'];
 
   function _esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -36,7 +41,7 @@
           method: 'POST', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
           body: JSON.stringify({ requests: [{ addSheet: { properties: { title: TAB } } }] }),
         });
-        await sheetsUpdate(state.personalSheetId, TAB + '!A1:J1', [HEADERS]);
+        await sheetsUpdate(state.personalSheetId, TAB + '!A1:L1', [HEADERS]);
       }
       _tabEnsured = true;
       return true;
@@ -45,11 +50,11 @@
 
   async function _load() {
     try {
-      var r = await sheetsGet(state.personalSheetId, TAB + '!A2:J');
+      var r = await sheetsGet(state.personalSheetId, TAB + '!A2:L');
       var out = [];
       (r && r.values || []).forEach(function (v, i) {
         if (!v || !(v[1] || v[0])) return;
-        out.push({ row: i + 2, id: v[0] || '', name: v[1] || '', business: v[2] || '', phone: v[3] || '', email: v[4] || '', specialties: v[5] || '', notes: v[6] || '', cardLink: v[7] || '', metAt: v[8] || '', dateAdded: v[9] || '' });
+        out.push({ row: i + 2, id: v[0] || '', name: v[1] || '', business: v[2] || '', phone: v[3] || '', email: v[4] || '', specialties: v[5] || '', notes: v[6] || '', cardLink: v[7] || '', metAt: v[8] || '', dateAdded: v[9] || '', address: v[10] || '', website: v[11] || '' });
       });
       state.contactsData = out;
       return out;
@@ -97,6 +102,8 @@
         + '<div style="display:flex;flex-direction:column;gap:0.3rem;flex-shrink:0">'
         +   (c.phone ? '<a href="tel:' + _esc(c.phone.replace(/[^+0-9]/g, '')) + '" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #2ecc71;color:#2ecc71;text-decoration:none;font-size:0.78rem;text-align:center">📞 ' + _esc(c.phone) + '</a>' : '')
         +   (c.email ? '<a href="mailto:' + _esc(c.email) + '" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #3498db;color:#3498db;text-decoration:none;font-size:0.78rem;text-align:center">✉ Email</a>' : '')
+        +   (c.website ? '<a href="' + _esc((/^https?:/i.test(c.website) ? c.website : 'https://' + c.website)) + '" target="_blank" rel="noopener" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #9b59b6;color:#9b59b6;text-decoration:none;font-size:0.78rem;text-align:center">🌐 Website</a>' : '')
+        +   (c.address ? '<a href="https://maps.google.com/?q=' + encodeURIComponent(c.address) + '" target="_blank" rel="noopener" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #16a085;color:#16a085;text-decoration:none;font-size:0.78rem;text-align:center">🗺 Map</a>' : '')
         +   (c.cardLink ? '<a href="' + _esc(c.cardLink) + '" target="_blank" rel="noopener" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid var(--accent2);color:var(--accent2);text-decoration:none;font-size:0.78rem;text-align:center">📇 Card</a>' : '')
         +   '<button onclick="_ctOpenEdit(' + c.row + ')" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-size:0.78rem;font-family:var(--font-body)">Edit</button>'
         + '</div></div></div>';
@@ -106,7 +113,7 @@
   // ── add / edit modal ───────────────────────────────────────────
   window._ctOpenEdit = function (row) {
     var c = row ? (state.contactsData || []).find(function (x) { return x.row === row; }) : null;
-    c = c || { id: '', name: '', business: '', phone: '', email: '', specialties: '', notes: '', cardLink: '', metAt: '', dateAdded: '' };
+    c = c || { id: '', name: '', business: '', phone: '', email: '', specialties: '', notes: '', cardLink: '', metAt: '', dateAdded: '', address: '', website: '' };
     var old = document.getElementById('ct-modal'); if (old) old.remove();
     var ov = document.createElement('div');
     ov.id = 'ct-modal';
@@ -121,7 +128,7 @@
       + '<input type="file" id="ct-card-file" accept="image/*" capture="environment" style="display:none">'
       + '<div id="ct-card-status" style="font-size:0.75rem;color:var(--text-dim);margin:-0.3rem 0 0.5rem"></div>'
       + fld('Name', 'ct-f-name', c.name, 'Dave Miller')
-      + fld('Business', 'ct-f-biz', c.business, "Dave's Trains")
+      + fld('Store / Business', 'ct-f-biz', c.business, "Dave's Trains")
       + fld('Phone', 'ct-f-phone', c.phone, '(555) 123-4567', 'tel')
       + fld('Email', 'ct-f-email', c.email, 'dave@example.com', 'email')
       + '<div style="margin-bottom:0.2rem;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-dim)">Deals in</div>'
@@ -130,6 +137,8 @@
           return '<button data-ct-chip="' + s + '" style="padding:0.25rem 0.55rem;border-radius:999px;font-size:0.75rem;cursor:pointer;font-family:var(--font-body);border:1.5px solid ' + (on ? 'var(--accent2);background:rgba(201,146,42,0.15);color:var(--accent2)' : 'var(--border);background:var(--surface2);color:var(--text-mid)') + '">' + s + '</button>';
         }).join('') + '</div>'
       + fld('Other specialties', 'ct-f-spec', '', 'anything not covered above')
+      + fld('Website', 'ct-f-web', c.website, 'davestrains.com')
+      + fld('Mailing address', 'ct-f-addr', c.address, '123 Main St, Anytown PA 17400')
       + fld('Met at', 'ct-f-met', c.metAt, 'York, October 2026')
       + '<div style="margin-bottom:0.6rem"><div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-dim);margin-bottom:0.2rem">Notes</div>'
       + '<textarea id="ct-f-notes" rows="3" placeholder="strong on tinplate, will negotiate, ships…" style="width:100%;box-sizing:border-box;padding:0.6rem 0.75rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.9rem;resize:vertical">' + _esc(c.notes) + '</textarea></div>'
@@ -192,11 +201,11 @@
         }
       } catch (e) { console.warn('[contact card upload]', e); }
       var id = c.id || ('C-' + Date.now());
-      var rowVals = [id, name, v('ct-f-biz'), v('ct-f-phone'), v('ct-f-email'), specialties, v('ct-f-notes'), cardLink, v('ct-f-met'), c.dateAdded || _today()];
+      var rowVals = [id, name, v('ct-f-biz'), v('ct-f-phone'), v('ct-f-email'), specialties, v('ct-f-notes'), cardLink, v('ct-f-met'), c.dateAdded || _today(), v('ct-f-addr'), v('ct-f-web')];
       try {
         if (!(await _ensureTab())) throw new Error('no tab');
-        if (row) await sheetsUpdate(state.personalSheetId, TAB + '!A' + row + ':J' + row, [rowVals]);
-        else await sheetsAppend(state.personalSheetId, TAB + '!A:J', [rowVals]);
+        if (row) await sheetsUpdate(state.personalSheetId, TAB + '!A' + row + ':L' + row, [rowVals]);
+        else await sheetsAppend(state.personalSheetId, TAB + '!A:L', [rowVals]);
         ov.remove();
         showToast('✓ ' + name + ' saved to Contacts');
         await _load();
@@ -211,7 +220,7 @@
     if (del) del.onclick = async function () {
       if (!confirm('Delete this contact?')) return;
       try {
-        await sheetsUpdate(state.personalSheetId, TAB + '!A' + row + ':J' + row, [['', '', '', '', '', '', '', '', '', '']]);
+        await sheetsUpdate(state.personalSheetId, TAB + '!A' + row + ':L' + row, [['', '', '', '', '', '', '', '', '', '', '', '']]);
         ov.remove();
         showToast('Contact deleted');
         await _load();
