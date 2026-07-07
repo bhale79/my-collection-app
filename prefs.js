@@ -190,11 +190,8 @@ function buildPrefsPage() {
       <div class="pref-row">
         <div class="pref-row-label"><strong>Upgrade Condition Threshold</strong><span>Flag items below this condition</span></div>
         <select class="pref-select" id="pref-upgrade-thresh" onchange="_prefSet('lv_upgrade_thresh', this.value)">
-          <option value="1" id="ut-1">1 or below</option><option value="2" id="ut-2">2 or below</option><option value="3" id="ut-3">3 or below</option>
-          <option value="4" id="ut-4">4 or below</option><option value="5" id="ut-5">5 or below</option><option value="6" id="ut-6">6 or below</option>
-          <option value="7" id="ut-7" selected>7 or below</option><option value="8" id="ut-8">8 or below</option><option value="9" id="ut-9">9 or below</option>
+          ${[...Array(9)].map((_,i)=>{const v=String(i+1); return `<option value="${v}" ${_prefGet('lv_upgrade_thresh','7')===v?'selected':''}>${v} or below</option>`;}).join('')}
         </select>
-        <script>(function(){ var s=document.getElementById('pref-upgrade-thresh'); if(s){ var v=localStorage.getItem('lv_upgrade_thresh')||'7'; s.value=v; } })();</script>
       </div>
       <div class="pref-row">
         <div class="pref-row-label"><strong>Show Accuracy Disclaimer</strong><span>Warning banner on catalog pages</span></div>
