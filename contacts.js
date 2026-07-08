@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.784
+// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.785
 //
 // Brad's brainstorm picks: own page, listed as "Contacts", entry ABOVE
 // Preferences in the account menu. Business-card photo capture (Drive
@@ -714,7 +714,7 @@
         +   (c.homePhone ? '<a href="tel:' + _esc(c.homePhone.replace(/[^+0-9]/g, '')) + '" onclick="return _ctTel(event, \'' + _esc(c.homePhone) + '\')" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #2ecc71;color:#2ecc71;text-decoration:none;font-size:0.78rem;text-align:center">🏠 ' + _esc(c.homePhone) + '</a>' : '')
         +   (c.email ? '<a href="mailto:' + _esc(c.email) + '" target="_blank" rel="noopener" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #3498db;color:#3498db;text-decoration:none;font-size:0.78rem;text-align:center">✉ Email</a>' : '')
         +   (c.website ? '<a href="' + _esc((/^https?:/i.test(c.website) ? c.website : 'https://' + c.website)) + '" target="_blank" rel="noopener" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #9b59b6;color:#9b59b6;text-decoration:none;font-size:0.78rem;text-align:center">🌐 Website</a>' : '')
-        +   (c.address ? '<a href="https://maps.google.com/?q=' + encodeURIComponent(c.address) + '" target="_blank" rel="noopener" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #16a085;color:#16a085;text-decoration:none;font-size:0.78rem;text-align:center">🗺 Map</a>' : '')
+        +   (c.address ? '<a href="https://maps.google.com/?q=' + encodeURIComponent(c.address) + '" onclick="return _ctMap(event, \'' + encodeURIComponent(c.address) + '\')" target="_blank" rel="noopener" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #16a085;color:#16a085;text-decoration:none;font-size:0.78rem;text-align:center">🗺 Map</a>' : '')
         +   (c.cardLink ? '<a href="' + _esc(c.cardLink) + '" target="_blank" rel="noopener" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid var(--accent2);color:var(--accent2);text-decoration:none;font-size:0.78rem;text-align:center">📇 Card</a>' : '')
         +   '<button onclick="_ctShare(' + c.row + ')" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #3498db;background:none;color:#3498db;cursor:pointer;font-size:0.78rem;font-family:var(--font-body)">↗ Share</button>'
         +   '<div style="display:flex;gap:0.3rem">'
@@ -729,6 +729,18 @@
         loadDriveThumb(im.getAttribute('data-card-thumb'), im, im);
       });
     }
+  };
+
+  // v0.9.785 (Brad): platform-smart navigation. Android: geo: URI = the
+  // system's own "open with" chooser (Waze shows up if installed). iPhone:
+  // Apple Maps. Desktop: Google Maps in a new tab.
+  window._ctMap = function (ev, encAddr) {
+    var addr = '';
+    try { addr = decodeURIComponent(encAddr); } catch (e) { addr = encAddr; }
+    var ua = navigator.userAgent || '';
+    if (/Android/i.test(ua)) { ev.preventDefault(); location.href = 'geo:0,0?q=' + encodeURIComponent(addr); return false; }
+    if (/iPhone|iPad|iPod/i.test(ua)) { ev.preventDefault(); location.href = 'https://maps.apple.com/?q=' + encodeURIComponent(addr); return false; }
+    return true;   // desktop: let the Google Maps link open its tab
   };
 
   // v0.9.784 (Brad): desktop has no phone app — clicking a number there
