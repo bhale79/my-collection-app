@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.781
+// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.782
 //
 // Brad's brainstorm picks: own page, listed as "Contacts", entry ABOVE
 // Preferences in the account menu. Business-card photo capture (Drive
@@ -635,6 +635,7 @@
         +   (chips ? '<div style="margin-top:0.25rem">' + chips + '</div>' : '')
         +   (c.notes ? '<div style="font-size:0.8rem;color:var(--text-mid);margin-top:0.3rem;line-height:1.4">' + _esc(c.notes) + '</div>' : '')
         +   (c.metAt ? '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.2rem">Met: ' + _esc(c.metAt) + '</div>' : '')
+        +   (function () { var n2 = Object.values(state.personalData || {}).filter(function (pd) { return pd && pd.owned && pd.purchasedFrom === c.id; }).length; return n2 ? '<div onclick="_ctShowBought(\'' + _esc(c.id) + '\')" style="font-size:0.76rem;color:var(--accent2);margin-top:0.25rem;cursor:pointer">🛒 ' + n2 + ' item' + (n2 > 1 ? 's' : '') + ' bought from them — tap to see</div>' : ''; })()
         + '</div>'
         + '<div style="display:flex;flex-direction:column;gap:0.3rem;flex-shrink:0">'
         +   (c.phone ? '<a href="tel:' + _esc(c.phone.replace(/[^+0-9]/g, '')) + '" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #2ecc71;color:#2ecc71;text-decoration:none;font-size:0.78rem;text-align:center">📞 ' + _esc(c.phone) + '</a>' : '')
@@ -657,6 +658,26 @@
         loadDriveThumb(im.getAttribute('data-card-thumb'), im, im);
       });
     }
+  };
+
+  // v0.9.782 (Brad): everything you've bought from this contact.
+  window._ctShowBought = function (cid) {
+    var items = Object.values(state.personalData || {}).filter(function (pd) { return pd && pd.owned && pd.purchasedFrom === cid; });
+    var c = (state.contactsData || []).find(function (x) { return x.id === cid; });
+    var old2 = document.getElementById('ct-bought-modal'); if (old2) old2.remove();
+    var d = document.createElement('div');
+    d.id = 'ct-bought-modal';
+    d.style.cssText = 'position:fixed;inset:0;z-index:10050;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;padding:1rem';
+    d.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:420px;width:100%;padding:1rem;max-height:80vh;overflow-y:auto">'
+      + '<div style="font-family:var(--font-head);font-size:1rem;color:var(--text);margin-bottom:0.6rem">🛒 Bought from ' + _esc((c && c.name) || 'this contact') + '</div>'
+      + items.map(function (pd) {
+          var label = 'No. ' + _esc(pd.itemNum || '?') + (pd.customName ? ' — ' + _esc(pd.customName) : (pd.description ? ' — ' + _esc(String(pd.description).substring(0, 40)) : ''));
+          var when = pd.datePurchased ? ' <span style="color:var(--text-dim);font-size:0.72rem">' + _esc(pd.datePurchased) + '</span>' : '';
+          return '<div style="padding:0.45rem 0.2rem;border-bottom:1px solid var(--border);font-size:0.85rem;color:var(--text);cursor:pointer" onclick="document.getElementById(\'ct-bought-modal\').remove(); if (typeof _openOwnedByInvId === \'function\') _openOwnedByInvId(\'' + _esc(pd.inventoryId || '') + '\')">' + label + when + '</div>';
+        }).join('')
+      + '<button onclick="document.getElementById(\'ct-bought-modal\').remove()" style="width:100%;margin-top:0.7rem;padding:0.6rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body)">Close</button>'
+      + '</div>';
+    document.body.appendChild(d);
   };
 
   // v0.9.780 (Brad): share a contact — "text Dave's info to a friend". Uses the
