@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.770
+// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.771
 //
 // Brad's brainstorm picks: own page, listed as "Contacts", entry ABOVE
 // Preferences in the account menu. Business-card photo capture (Drive
@@ -148,7 +148,9 @@
   // v0.9.770: 'store'/'sales' removed — they appear in TITLES ("Retail Store
   // Manager") and caused false business picks on real cards.
   var _BIZ_RE = /\b(llc|l\.l\.c|inc|incorporated|co\.|company|corp|corporation|enterprises|trains?|railroads?|hobby|hobbies|shop|collectibles?|models?|antiques?|supply|depot|junction|emporium|exchange|galleries|toys?)\b/i;
-  var _TITLE_RE = /\b(owner|president|proprietor|manager|managing|director|founder|partner|ceo|coo|cfo|vice president|vp|sales rep|sales representative|account (rep|manager|executive)|engineer|estimator|consultant|specialist|coordinator|supervisor|buyer|appraiser|dealer|collector)\b/i;
+  // v0.9.771: also matches OCR-truncated forms ("Retail Store Man...") via the
+  // retail store / store man stems.
+  var _TITLE_RE = /\b(owner|president|proprietor|manager|managing|director|founder|partner|ceo|coo|cfo|vice president|vp|sales rep|sales representative|account (rep|manager|executive)|engineer|estimator|consultant|specialist|coordinator|supervisor|buyer|appraiser|dealer|collector|retail store|store man\w*)\b/i;
   var _BARE_SUFFIX_RE = /^\W*(llc|l\.l\.c\.?|inc\.?|co\.?|corp\.?|ltd\.?)\W*$/i;
   var _STREET_RE = /(\d+[\w-]*\s+[^,\n]{2,40}?\b(st|street|ave|avenue|rd|road|blvd|boulevard|dr|drive|ln|lane|ct|court|cir|circle|hwy|highway|pike|way|route|rte|rt|plaza|pl|place|trail|turnpike|south|north|east|west)\.?\b[^\n]*|p\.?\s*o\.?\s*box\s+\d+[^\n]*)/i;
   var _CSZ_RE = /(?:[A-Z][A-Za-z.'\-]*(?:\s+[A-Z][A-Za-z.'\-]*)*)[,.]?\s+[A-Z]{2}\.?\s+\d{5}(?:-\d{4})?\b/;
@@ -241,12 +243,13 @@
 
     // ── Title — first title-keyword line without digits ("Retail Store
     // Manager", "Owner | Manager"). "Dave Miller, Owner" also yields the name.
-    var titleIdx = -1;
+    var titleIdx = -1, _tlClean = '';
     for (var t2 = 0; t2 < lines.length; t2++) {
-      if (_TITLE_RE.test(lines[t2]) && !/\d|@/.test(lines[t2]) && lines[t2].length < 50) { titleIdx = t2; break; }
+      var cand = lines[t2].replace(/^[^A-Za-z]+/, ''); // OCR junk like ". 9 " ahead of the title
+      if (_TITLE_RE.test(cand) && !/\d|@/.test(cand) && cand.length > 2 && cand.length < 50) { titleIdx = t2; _tlClean = cand; break; }
     }
     if (titleIdx >= 0) {
-      var tl = lines[titleIdx];
+      var tl = _tlClean;
       var nm = tl.match(/^([A-Za-z .'\-]{4,40}),\s+(.{3,45})$/);
       if (nm && !_TITLE_RE.test(nm[1])) { out.name = tc(nm[1].trim()); out.title = tc(nm[2].trim()); }
       else out.title = tc(tl);
@@ -411,9 +414,13 @@
     try {
       var r = await sheetsGet(state.personalSheetId, TAB + '!A2:O');
       var out = [];
+      // v0.9.771: _cs() String-coerce on EVERY cell — Sheets hands back NUMBERS
+      // for numeric-looking cells (a phone like 888678.7101), and .replace on a
+      // number crashed the whole list render right after a successful save.
+      var _cs = function (x) { return (x === null || x === undefined) ? '' : String(x); };
       (r && r.values || []).forEach(function (v, i) {
         if (!v || !(v[1] || v[0])) return;
-        out.push({ row: i + 2, id: v[0] || '', name: v[1] || '', business: v[2] || '', phone: v[3] || '', email: v[4] || '', specialties: v[5] || '', notes: v[6] || '', cardLink: v[7] || '', metAt: v[8] || '', dateAdded: v[9] || '', address: v[10] || '', website: v[11] || '', homePhone: v[12] || '', cellPhone: v[13] || '', title: v[14] || '' });
+        out.push({ row: i + 2, id: _cs(v[0]), name: _cs(v[1]), business: _cs(v[2]), phone: _cs(v[3]), email: _cs(v[4]), specialties: _cs(v[5]), notes: _cs(v[6]), cardLink: _cs(v[7]), metAt: _cs(v[8]), dateAdded: _cs(v[9]), address: _cs(v[10]), website: _cs(v[11]), homePhone: _cs(v[12]), cellPhone: _cs(v[13]), title: _cs(v[14]) });
       });
       state.contactsData = out;
       return out;
@@ -593,8 +600,7 @@
         else await sheetsAppend(state.personalSheetId, TAB + '!A:O', [rowVals]);
         ov.remove();
         showToast('✓ ' + name + ' saved to Contacts');
-        await _load();
-        window._ctRenderList();
+        try { await _load(); window._ctRenderList(); } catch (e3) { console.warn('[contact list refresh]', e3); }
       } catch (e) {
         console.warn('[contact save]', e);
         showToast('Could not save — ' + ((e && e.message) ? e.message : 'check your connection and try again'), 5000, true);
