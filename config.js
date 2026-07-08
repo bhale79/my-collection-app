@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.781';
+const APP_VERSION = 'v0.9.782';
 
 // v0.9.699 (Brad's phantom-touch desktop): ONE authoritative "is this actually
 // a phone/tablet?" flag. Touch detection LIES on Windows PCs (pen/driver
@@ -68,7 +68,7 @@ function varShortLabel(text, max) {
 // (Referenced in app-data.js as _CACHE_VER / _PERSONAL_CACHE_VER.)
 // ═══════════════════════════════════════════════════════════════
 const CATALOG_CACHE_VER  = '125';
-const PERSONAL_CACHE_VER = 'wu1';
+const PERSONAL_CACHE_VER = 'pf1';   // v0.9.782: +purchasedFrom column — bust the parsed personal cache
 
 // ═══════════════════════════════════════════════════════════════════
 // ROAD_TYPEAHEAD_CONFIG — behavior for the type-to-filter overlay used
