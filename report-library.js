@@ -11,6 +11,7 @@ var REPORT_DEFS = [
   { id: 'insurance',  name: 'Insurance Report',        desc: 'Everything you own with values + photos — formatted for an insurer.' },
   { id: 'collection', name: 'Full Collection',          desc: 'A complete inventory of every item you own.' },
   { id: 'wantupgrade',name: 'Want / Upgrade / Parts',   desc: 'Your want list, upgrade list, and parts needed (with a section selector).' },
+  { id: 'contacts',   name: 'Contacts',                  desc: 'Your dealer & collector rolodex — names, phones, emails, specialties.' },
 ];
 
 function _repMeta() { try { return JSON.parse(localStorage.getItem('lv_report_meta') || '{}'); } catch (e) { return {}; } }
