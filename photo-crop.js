@@ -9,7 +9,9 @@
 function _openCropper(src, onResult) {
   if (typeof Cropper === 'undefined') { if (typeof showToast === 'function') showToast('Crop tool still loading — try again in a moment'); return; }
   var ov = document.createElement('div');
-  ov.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.88);display:flex;flex-direction:column';
+  // v0.9.786: TOP layer — the contact modal sits at 10040, and the cropper
+  // opening BENEATH it looked like a dead button (it appeared after Save).
+  ov.style.cssText = 'position:fixed;inset:0;z-index:100010;background:rgba(0,0,0,0.88);display:flex;flex-direction:column';
   var btn = 'padding:0.55rem 1.1rem;border-radius:8px;font-family:var(--font-body);font-size:0.9rem;font-weight:600;cursor:pointer;border:1px solid #555;background:#2a2a2a;color:#eee';
   var btnA = 'padding:0.55rem 1.2rem;border-radius:8px;font-family:var(--font-body);font-size:0.9rem;font-weight:700;cursor:pointer;border:none;background:#e8401c;color:#fff';
   ov.innerHTML =
