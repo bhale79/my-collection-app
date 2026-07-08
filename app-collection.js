@@ -40,12 +40,18 @@ function _detailBackToBrowse() {
     if (ls.owned) {
       // Reapply collection view, then jump to the saved tab
       if (typeof filterOwned === 'function') filterOwned();
-      // v0.9.798 (Brad): filterOwned() wiped the type/road/search chips — a
-      // Paper filter didn't survive "Back to Collection". Restore the FULL
-      // filter snapshot on top, then re-render.
+      // v0.9.801: the chip bar's source of truth is the hidden #filter-type /
+      // #filter-road SELECTS — v0.9.798 restored state only, so the list was
+      // filtered while the chips said "All Types" (ghost filter). Restore the
+      // SELECTS, then let applyFilters recompute state from them.
       if (ls.filters && state.filters) {
+        var _ft = document.getElementById('filter-type');
+        if (_ft) _ft.value = ls.filters.type || '';
+        var _fr = document.getElementById('filter-road');
+        if (_fr) _fr.value = ls.filters.road || '';
         Object.assign(state.filters, ls.filters, { owned: true });
-        if (typeof renderBrowse === 'function') renderBrowse();
+        if (typeof applyFilters === 'function') applyFilters();
+        else if (typeof renderBrowse === 'function') renderBrowse();
       }
       if (ls.tab && ls.tab !== 'items' && typeof renderBrowseTab === 'function') {
         state._browseTab = ls.tab;
