@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.776
+// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.777
 //
 // Brad's brainstorm picks: own page, listed as "Contacts", entry ABOVE
 // Preferences in the account menu. Business-card photo capture (Drive
@@ -708,7 +708,7 @@
       // daily cap hit, offline, or a relay that hasn't been upgraded to v2.2.
       var aiGot = null, aiQuota = false;
       try {
-        _stBusy(st, '🤖 Reading the card with AI…');
+        _stBusy(st, '🔍 Reading the card…');
         var aiRes = await _aiReadCard(f);
         if (aiRes && aiRes._quota) aiQuota = true;
         else aiGot = aiRes;
@@ -726,11 +726,11 @@
         if (setA('ct-f-web', aiGot.website)) filledA.push('website');
         if (setA('ct-f-addr', aiGot.address)) filledA.push('address');
         st.textContent = filledA.length
-          ? ('🤖 AI read the card — filled in ' + filledA.join(', ') + '. Double-check before saving.')
+          ? ('🔍 Card read — filled in ' + filledA.join(', ') + '. Double-check before saving.')
           : '📇 Card attached — couldn’t read details, type them in';
         return;
       }
-      _stBusy(st, aiQuota ? '📇 Daily AI limit reached — reading on-device instead…' : '📇 Card attached — reading it…');
+      _stBusy(st, aiQuota ? '📇 Daily photo-reading limit reached — using the quick reader…' : '📇 Card attached — reading it…');
       // v0.9.766 (TODO-002): full-card OCR prefill — name, business, phone,
       // email, website, address. Best effort, EMPTY fields only. The photo is
       // downscaled first so the read is fast on phones.
