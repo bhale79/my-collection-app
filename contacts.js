@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.773
+// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.774
 //
 // Brad's brainstorm picks: own page, listed as "Contacts", entry ABOVE
 // Preferences in the account menu. Business-card photo capture (Drive
@@ -160,6 +160,15 @@
   var _TITLE_DICT = ['Manager', 'President', 'Proprietor', 'Director', 'Founder', 'Partner', 'Representative', 'Executive', 'Engineer', 'Estimator', 'Consultant', 'Specialist', 'Coordinator', 'Supervisor', 'Appraiser', 'Collector', 'Owner', 'Dealer', 'Buyer', 'Salesman'];
   function _completeTitle(title) {
     title = String(title || '').trim();
+    if (!title) return title;
+    // v0.9.774: scrub junk micro-tokens off both ENDS (": i", "rd", "9") —
+    // an end token must have 2+ letters to survive; middle tokens (like the
+    // "|" in "Owner | Manager") are left alone.
+    var toks = title.split(' ').filter(Boolean);
+    var letters = function (t) { return t.replace(/[^A-Za-z]/g, '').length; };
+    while (toks.length && letters(toks[toks.length - 1]) < 2) toks.pop();
+    while (toks.length && letters(toks[0]) < 2) toks.shift();
+    title = toks.join(' ');
     if (!title) return title;
     var words = title.split(' ');
     var last = words[words.length - 1].replace(/[^A-Za-z]/g, '');
