@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.778
+// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.779
 //
 // Brad's brainstorm picks: own page, listed as "Contacts", entry ABOVE
 // Preferences in the account menu. Business-card photo capture (Drive
@@ -508,9 +508,11 @@
       if (!(await aiConsentEnsure())) return null;
       var img = await aiPrepImage(file);
       if (!img) return null;
+      // v0.9.779: 2 tries / 1.5s backoff (was 3 / up to 7.5s) — the card scan
+      // races the on-device reader now, so a busy relay just loses the race.
       var res = null;
-      for (var t = 0; t < 3; t++) {
-        if (t) await new Promise(function (r) { setTimeout(r, t * 2500); });
+      for (var t = 0; t < 2; t++) {
+        if (t) await new Promise(function (r) { setTimeout(r, 1500); });
         res = await vaultPost({ action: 'ai_card', token: vaultGetToken(), image: img.b64, mime: img.mime });
         if (res && res.status === 503) continue;
         break;
@@ -519,6 +521,28 @@
       if (!res || res.status !== 200 || !res.text) return null;   // incl. old relay: unknown action
       return _parseAiCardText(String(res.text));
     } catch (e) { console.warn('[card AI]', e); return null; }
+  }
+
+  // v0.9.779: the on-device read as ONE callable — pass 1 (grayscale), and the
+  // color pass only when fields are missing AND the AI hasn't already won the
+  // race (aiOkFn). Returns parsed fields or null.
+  async function _ocrReadCard(f, aiOkFn, onPass2) {
+    if (typeof window._ensureTesseract !== 'function') return null;
+    var T = await window._ensureTesseract();
+    var small = await _cardOcrImage(f);
+    var res = await T.recognize(small, 'eng', {});
+    var got = _parseCardText((res && res.data && res.data.text) || '');
+    var complete = got.name && got.title && got.business && got.email && (got.phone || got.cell) && got.address;
+    if (!complete && !(aiOkFn && aiOkFn())) {
+      try {
+        if (onPass2) onPass2();
+        var small2 = await _cardOcrImageColor(f);
+        var res2 = await T.recognize(small2, 'eng', {});
+        got = _mergeCardReads(got, _parseCardText((res2 && res2.data && res2.data.text) || ''));
+      } catch (eC) { console.warn('[card OCR pass2]', eC); }
+    }
+    got.title = _completeTitle(got.title);
+    return got;
   }
 
   // ── sheet plumbing ─────────────────────────────────────────────
@@ -696,6 +720,9 @@
       + '<button onclick="document.getElementById(\'ct-modal\').remove()" style="flex:1;padding:0.8rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body)">Cancel</button>'
       + '</div></div>';
     document.body.appendChild(ov);
+    // v0.9.779: warm up the on-device reader NOW — loading it used to be the
+    // first thing that happened after picking a photo (5-10s of dead time).
+    try { if (typeof window._ensureTesseract === 'function') window._ensureTesseract().catch(function () {}); } catch (eW) {}
     ov.addEventListener('click', function (e) {
       var chip = e.target.closest && e.target.closest('[data-ct-chip]');
       if (chip) {
@@ -727,70 +754,46 @@
       _cardFile = f;
       try { if (_pv && _pvImg) { _pv.style.display = 'block'; _pvImg.src = URL.createObjectURL(f); } } catch (e0) {}
       var st = ov.querySelector('#ct-card-status');
-      // v0.9.775: AI reads the card FIRST (same relay + daily cap as photo
-      // ID). On-device OCR below remains the fallback for: consent declined,
-      // daily cap hit, offline, or a relay that hasn't been upgraded to v2.2.
-      var aiGot = null, aiQuota = false;
-      try {
-        _stBusy(st, '🔍 Reading the card…');
-        var aiRes = await _aiReadCard(f);
-        if (aiRes && aiRes._quota) aiQuota = true;
-        else aiGot = aiRes;
-      } catch (eA) { console.warn('[card AI]', eA); }
-      if (aiGot) {
-        var setA = function (id, v2) { var el2 = ov.querySelector('#' + id); if (el2 && !el2.value && v2) { el2.value = v2; return true; } return false; };
-        var filledA = [];
-        if (setA('ct-f-name', aiGot.name)) filledA.push('name');
-        if (setA('ct-f-title', aiGot.title)) filledA.push('title');
-        if (setA('ct-f-biz', aiGot.business)) filledA.push('business');
-        if (setA('ct-f-phone', aiGot.phone)) filledA.push('store phone');
-        if (setA('ct-f-cell', aiGot.cell)) filledA.push('cell');
-        if (setA('ct-f-home', aiGot.home)) filledA.push('home phone');
-        if (setA('ct-f-email', aiGot.email)) filledA.push('email');
-        if (setA('ct-f-web', aiGot.website)) filledA.push('website');
-        if (setA('ct-f-addr', aiGot.address)) filledA.push('address');
-        st.textContent = filledA.length
-          ? ('🔍 Card read — filled in ' + filledA.join(', ') + '. Double-check before saving.')
-          : '📇 Card attached — couldn’t read details, type them in';
-        return;
-      }
-      _stBusy(st, aiQuota ? '📇 Daily photo-reading limit reached — using the quick reader…' : '📇 Card attached — reading it…');
-      // v0.9.766 (TODO-002): full-card OCR prefill — name, business, phone,
-      // email, website, address. Best effort, EMPTY fields only. The photo is
-      // downscaled first so the read is fast on phones.
-      try {
-        if (typeof window._ensureTesseract === 'function') {
-          var T = await window._ensureTesseract();
-          var small = await _cardOcrImage(f);
-          var res = await T.recognize(small, 'eng', {});
-          var got = _parseCardText((res && res.data && res.data.text) || '');
-          // v0.9.772: anything important missing? Take a second read where
-          // contrast = color distance (catches colored text like orange titles).
-          if (!(got.name && got.title && got.business && got.email && (got.phone || got.cell) && got.address)) {
-            try {
-              _stBusy(st, '📇 Reading the card a second way…');
-              var small2 = await _cardOcrImageColor(f);
-              var res2 = await T.recognize(small2, 'eng', {});
-              got = _mergeCardReads(got, _parseCardText((res2 && res2.data && res2.data.text) || ''));
-            } catch (eC) { console.warn('[card OCR pass2]', eC); }
+      // v0.9.779 (Brad: "45 seconds is too long"): the relay reader and the
+      // on-device reader now run AT THE SAME TIME. Whoever finishes first
+      // fills the form; the relay's answer (better quality) may replace an
+      // auto-filled value afterwards — but NEVER a value the user has edited.
+      _stBusy(st, '🔍 Reading the card…');
+      var _autoVal = {};   // fieldId -> value WE put there (user edits break the match)
+      var FIELD_MAP = [['name', 'ct-f-name', 'name'], ['title', 'ct-f-title', 'title'], ['business', 'ct-f-biz', 'business'], ['phone', 'ct-f-phone', 'store phone'], ['cell', 'ct-f-cell', 'cell'], ['home', 'ct-f-home', 'home phone'], ['email', 'ct-f-email', 'email'], ['website', 'ct-f-web', 'website'], ['address', 'ct-f-addr', 'address']];
+      var _filledLabels = {};
+      var _apply = function (got, canOverride) {
+        var n = 0;
+        FIELD_MAP.forEach(function (fm) {
+          var el = ov.querySelector('#' + fm[1]); if (!el) return;
+          var v = (got && got[fm[0]]) || ''; if (!v) return;
+          if (!el.value) { el.value = v; _autoVal[fm[1]] = v; _filledLabels[fm[2]] = 1; n++; }
+          else if (canOverride && _autoVal[fm[1]] && el.value === _autoVal[fm[1]] && el.value !== v) {
+            el.value = v; _autoVal[fm[1]] = v; _filledLabels[fm[2]] = 1; n++;
           }
-          got.title = _completeTitle(got.title);
-          var set = function (id, v) { var el = ov.querySelector('#' + id); if (el && !el.value && v) { el.value = v; return true; } return false; };
-          var filled = [];
-          if (set('ct-f-name', got.name)) filled.push('name');
-          if (set('ct-f-title', got.title)) filled.push('title');
-          if (set('ct-f-biz', got.business)) filled.push('business');
-          if (set('ct-f-phone', got.phone)) filled.push('store phone');
-          if (set('ct-f-cell', got.cell)) filled.push('cell');
-          if (set('ct-f-home', got.home)) filled.push('home phone');
-          if (set('ct-f-email', got.email)) filled.push('email');
-          if (set('ct-f-web', got.website)) filled.push('website');
-          if (set('ct-f-addr', got.address)) filled.push('address');
-          st.textContent = filled.length
-            ? ('📇 Card read — filled in ' + filled.join(', ') + '. Double-check before saving.')
-            : '📇 Card attached — couldn’t read details, type them in';
-        } else st.textContent = '📇 Card attached — will be saved with the contact';
-      } catch (e) { console.warn('[card OCR]', e); st.textContent = '📇 Card attached — will be saved with the contact'; }
+        });
+        return n;
+      };
+      var _sum = function () {
+        var ks = Object.keys(_filledLabels);
+        return ks.length ? ('📇 Card read — filled in ' + ks.join(', ') + '. Double-check before saving.')
+                         : '📇 Card attached — couldn’t read details, type them in';
+      };
+      var _aiWon = false, _quotaHit = false;
+      var pAi = _aiReadCard(f).then(function (r) {
+        if (r && r._quota) { _quotaHit = true; return null; }
+        if (r) { _aiWon = true; _apply(r, true); }
+        return r;
+      }).catch(function (eA) { console.warn('[card AI]', eA); return null; });
+      var pOcr = _ocrReadCard(f, function () { return _aiWon; }, function () { _stBusy(st, '🔍 Taking a second look…'); })
+        .then(function (got) { if (got) _apply(got, false); return got; })
+        .catch(function (eO) { console.warn('[card OCR]', eO); return null; });
+      // first finisher updates the note right away, second finisher finalizes
+      Promise.race([pAi, pOcr]).then(function () {
+        if (Object.keys(_filledLabels).length) _stBusy(st, _sum().replace('📇 Card read —', '📇') + ' Still double-checking…');
+      });
+      try { await Promise.all([pAi, pOcr]); } catch (eB) {}
+      st.textContent = _sum() + (_quotaHit ? ' (Daily photo-reading limit reached — quick reader only today.)' : '');
     });
     });
 
