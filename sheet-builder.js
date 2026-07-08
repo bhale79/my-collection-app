@@ -5,7 +5,7 @@
 // ══════════════════════════════════════════════════════════════════
 
 // Bump this number to push a visual refresh to all users on next sync
-const SHEET_FORMAT_VER = 20; // v20 (v0.9.736): deterministic column widths (header-fit + curated My Collection table, autoResize REMOVED), Dashboard button merge sized to its text per tab, conductor images served from therailroster.com so no GitHub URL shows in the formula bar. Was 19: // v19 (v0.9.720): +Date Added trailing personal column. Was 18: // v18 (v0.9.666): +Scale/Gauge trailing personal column — header row rewritten. // Session 165 v12: Dashboard header rebuilt to match the app (mascot left, multicolor Oswald title, app navy + orange underline bar) + no-white styling (hide gridlines, flood page with app bg).
+const SHEET_FORMAT_VER = 21; // v21 (v0.9.782): +Purchased From trailing personal column (seller Contact ID). Was 20: // v20 (v0.9.736): deterministic column widths (header-fit + curated My Collection table, autoResize REMOVED), Dashboard button merge sized to its text per tab, conductor images served from therailroster.com so no GitHub URL shows in the formula bar. Was 19: // v19 (v0.9.720): +Date Added trailing personal column. Was 18: // v18 (v0.9.666): +Scale/Gauge trailing personal column — header row rewritten. // Session 165 v12: Dashboard header rebuilt to match the app (mascot left, multicolor Oswald title, app navy + orange underline bar) + no-white styling (hide gridlines, flood page with app bg).
 
 // ── Color palette ──────────────────────────────────────────────────
 const SB = {
