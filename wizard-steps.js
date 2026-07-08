@@ -457,14 +457,16 @@ function getSteps(tab) {
       { id: 'photosTenderItem', title: (d) => 'Add photos of the tender',
         type: 'drivePhotos', label: 'Item', tenderMode: true,
         photoBanner: { color: '#27ae60', label: (d) => '\u{1F7E9} PHOTOS: Tender ' + (d.tenderMatch || '') },
-        // Session 140 (Tier 3.19): Lionel-only step — steam-loco-plus-tender
-        // pairing exists only for Lionel via the PW Companions tab.
-        skipIf: (d) => (typeof _wizardMfr === 'function' && _wizardMfr() !== 'lionel') || !isEngTender(d) },
+        // v0.9.765 (BUG-001): trust getItemSubjects (Decision Map #3) alone —
+        // the grouping already encodes whether a tender exists. The old
+        // _wizardMfr() gate read the ERA VIEW (blank in All Collection) and
+        // silently skipped this step even for Lionel steam engines.
+        skipIf: (d) => !isEngTender(d) },
       { id: 'photosTenderBox',  title: (d) => 'Add photos of the tender box',
         type: 'drivePhotos', label: 'Box', tenderMode: true,
         photoBanner: { color: '#8B4513', label: (d) => '\u{1F7EB} PHOTOS: Tender ' + (d.tenderMatch || '') + ' — BOX' },
-        // Session 140 (Tier 3.19): Lionel-only step (tender pairing).
-        skipIf: (d) => (typeof _wizardMfr === 'function' && _wizardMfr() !== 'lionel') || !isEngTender(d) || d.tenderHasBox !== 'Yes' },
+        // v0.9.765 (BUG-001): same fix as photosTenderItem above.
+        skipIf: (d) => !isEngTender(d) || d.tenderHasBox !== 'Yes' },
 
       // ── Unit 2 photos (diesel set) ──
       { id: 'photosUnit2Item', title: (d) => 'Add photos of the ' + (d.unit2ItemNum || 'B unit'),
