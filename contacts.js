@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.767
+// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.769
 //
 // Brad's brainstorm picks: own page, listed as "Contacts", entry ABOVE
 // Preferences in the account menu. Business-card photo capture (Drive
@@ -30,9 +30,10 @@
   function _esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function _today() { try { return new Date().toLocaleDateString('en-CA'); } catch (e) { return ''; } }
 
-  // ── v0.9.766 (TODO-002) — business-card OCR helpers ────────────
-  // Downscale the card photo before OCR: phone photos are 4000px+ wide and
-  // Tesseract slows to a crawl on them; ~1600px reads business cards fine.
+  // ── v0.9.769 — pre-OCR pipeline: auto-crop to the card, grayscale,
+  // invert dark cards (white-on-black reads badly), stretch contrast, downscale.
+  // EVERY stage fail-safes back to the plain photo, so a weird picture can
+  // never make the scan worse than before.
   function _cardOcrImage(file) {
     return new Promise(function (resolve) {
       try {
@@ -40,20 +41,105 @@
         var img = new Image();
         img.onload = function () {
           try {
-            var MAX = 1600, w = img.naturalWidth, h = img.naturalHeight;
-            var sc = MAX / Math.max(w, h);
-            if (!(sc < 1)) { URL.revokeObjectURL(url); resolve(file); return; }
+            var w = img.naturalWidth, h = img.naturalHeight;
+            var crop = null;
+            try { crop = _findCardBox(img, w, h); } catch (e0) { crop = null; }
+            var sx = crop ? crop.x : 0, sy = crop ? crop.y : 0;
+            var sw = crop ? crop.w : w, sh = crop ? crop.h : h;
+            var MAX = 1600, sc = Math.min(1, MAX / Math.max(sw, sh));
             var cv = document.createElement('canvas');
-            cv.width = Math.round(w * sc); cv.height = Math.round(h * sc);
-            cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+            cv.width = Math.max(1, Math.round(sw * sc));
+            cv.height = Math.max(1, Math.round(sh * sc));
+            var ctx = cv.getContext('2d');
+            ctx.drawImage(img, sx, sy, sw, sh, 0, 0, cv.width, cv.height);
+            try {
+              var id = ctx.getImageData(0, 0, cv.width, cv.height), d = id.data;
+              var hist = new Array(256).fill(0), n = cv.width * cv.height;
+              for (var i = 0; i < d.length; i += 4) {
+                var g = (d[i] * 299 + d[i + 1] * 587 + d[i + 2] * 114) / 1000 | 0;
+                d[i] = d[i + 1] = d[i + 2] = g; hist[g]++;
+              }
+              var mean = 0;
+              for (var m = 0; m < 256; m++) mean += m * hist[m];
+              mean /= n;
+              var invert = mean < 110;
+              var lo = 0, hi = 255, acc = 0;
+              for (var a = 0; a < 256; a++) { acc += hist[a]; if (acc >= n * 0.02) { lo = a; break; } }
+              acc = 0;
+              for (var b2 = 255; b2 >= 0; b2--) { acc += hist[b2]; if (acc >= n * 0.02) { hi = b2; break; } }
+              var range = Math.max(1, hi - lo);
+              for (var p = 0; p < d.length; p += 4) {
+                var v = (d[p] - lo) * 255 / range;
+                if (v < 0) v = 0; if (v > 255) v = 255;
+                if (invert) v = 255 - v;
+                d[p] = d[p + 1] = d[p + 2] = v;
+              }
+              ctx.putImageData(id, 0, 0);
+            } catch (e1) {}
             URL.revokeObjectURL(url);
-            cv.toBlob(function (b) { resolve(b || file); }, 'image/jpeg', 0.92);
-          } catch (e) { resolve(file); }
+            cv.toBlob(function (bl) { resolve(bl || file); }, 'image/jpeg', 0.92);
+          } catch (e) { try { URL.revokeObjectURL(url); } catch (e2) {} resolve(file); }
         };
         img.onerror = function () { try { URL.revokeObjectURL(url); } catch (e2) {} resolve(file); };
         img.src = url;
       } catch (e) { resolve(file); }
     });
+  }
+  // Find the card in the photo WITHOUT any library: shrink to 160px, split
+  // light/dark with Otsu's threshold, flood-fill outward from the center
+  // (people center the card), take the blob's bounding box. Only crop when the
+  // result actually looks like a card (sane size + card-ish aspect ratio).
+  function _findCardBox(img, w, h) {
+    var AW = 160, scale = AW / w, AH = Math.max(1, Math.round(h * scale));
+    var cv = document.createElement('canvas'); cv.width = AW; cv.height = AH;
+    var ctx = cv.getContext('2d');
+    ctx.drawImage(img, 0, 0, AW, AH);
+    var d = ctx.getImageData(0, 0, AW, AH).data;
+    var g = new Uint8Array(AW * AH), hist = new Array(256).fill(0);
+    for (var i = 0; i < AW * AH; i++) {
+      var v = (d[i * 4] * 299 + d[i * 4 + 1] * 587 + d[i * 4 + 2] * 114) / 1000 | 0;
+      g[i] = v; hist[v]++;
+    }
+    var total = AW * AH, sumAll = 0;
+    for (var t = 0; t < 256; t++) sumAll += t * hist[t];
+    var sumB = 0, wB = 0, best = 0, thr = 127;
+    for (var t2 = 0; t2 < 256; t2++) {
+      wB += hist[t2]; if (!wB) continue;
+      var wF = total - wB; if (!wF) break;
+      sumB += t2 * hist[t2];
+      var mB = sumB / wB, mF = (sumAll - sumB) / wF;
+      var between = wB * wF * (mB - mF) * (mB - mF);
+      if (between > best) { best = between; thr = t2; }
+    }
+    var cx = AW >> 1, cy = AH >> 1;
+    var cardHigh = g[cy * AW + cx] > thr;
+    var seen = new Uint8Array(AW * AH), stack = [cy * AW + cx];
+    var minX = cx, maxX = cx, minY = cy, maxY = cy;
+    while (stack.length) {
+      var idx = stack.pop();
+      if (seen[idx]) continue;
+      seen[idx] = 1;
+      if ((g[idx] > thr) !== cardHigh) continue;
+      var x = idx % AW, y = (idx / AW) | 0;
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+      if (x > 0) stack.push(idx - 1);
+      if (x < AW - 1) stack.push(idx + 1);
+      if (y > 0) stack.push(idx - AW);
+      if (y < AH - 1) stack.push(idx + AW);
+    }
+    var bw = maxX - minX + 1, bh = maxY - minY + 1;
+    var areaFrac = (bw * bh) / (AW * AH);
+    var aspect = bw / bh;
+    if (areaFrac < 0.12 || areaFrac > 0.92) return null;
+    if (!((aspect > 1.15 && aspect < 2.4) || (aspect > 0.42 && aspect < 0.87))) return null;
+    var padX = Math.round(bw * 0.04), padY = Math.round(bh * 0.04);
+    var fx = Math.max(0, Math.round((minX - padX) / scale));
+    var fy = Math.max(0, Math.round((minY - padY) / scale));
+    var fw = Math.min(w - fx, Math.round((bw + 2 * padX) / scale));
+    var fh = Math.min(h - fy, Math.round((bh + 2 * padY) / scale));
+    if (fw < 50 || fh < 50) return null;
+    return { x: fx, y: fy, w: fw, h: fh };
   }
   // Map raw OCR text to contact fields. Heuristics tuned for US dealer cards;
   // every guess lands in an EDITABLE, previously-empty field, so a wrong read
@@ -210,6 +296,44 @@
     if (!out.name) {
       for (var n3 = 0; n3 < lines.length; n3++) { if (nameOk(lines[n3], n3)) { out.name = tc(lines[n3]); break; } }
     }
+
+    // ── v0.9.769 cross-checks: the card corrects itself. OCR loves swapping
+    // 1↔l↔i, 0↔O, 5↔S, m↔rn — if the email domain nearly matches the website
+    // printed elsewhere on the card, trust the website. ".corn" is ".com".
+    function _confNorm(s3) {
+      return String(s3 || '').toLowerCase().replace(/rn/g, 'm').replace(/[l1i|]/g, '1').replace(/[o0]/g, '0').replace(/[s5]/g, '5').replace(/[b8]/g, '8');
+    }
+    function _editDist(a2, b3) {
+      if (a2 === b3) return 0;
+      var la = a2.length, lb = b3.length;
+      if (Math.abs(la - lb) > 3) return 99;
+      var prev = [], cur = [];
+      for (var j2 = 0; j2 <= lb; j2++) prev[j2] = j2;
+      for (var i2 = 1; i2 <= la; i2++) {
+        cur[0] = i2;
+        for (var j3 = 1; j3 <= lb; j3++) {
+          cur[j3] = Math.min(prev[j3] + 1, cur[j3 - 1] + 1, prev[j3 - 1] + (a2.charAt(i2 - 1) === b3.charAt(j3 - 1) ? 0 : 1));
+        }
+        prev = cur.slice();
+      }
+      return prev[lb];
+    }
+    if (out.website) out.website = out.website.replace(/\.corn($|\/)/i, function (m0, g2) { return '.com' + g2; });
+    if (out.email) {
+      var ep = out.email.split('@');
+      var dom = (ep[1] || '').replace(/\.corn$/i, '.com').replace(/\.c0m$/i, '.com');
+      if (out.website) {
+        var whost = out.website.split('/')[0];
+        if (dom.toLowerCase() !== whost.toLowerCase()
+            && dom.length >= 7 && whost.length >= 7
+            && _editDist(_confNorm(dom), _confNorm(whost)) <= 2) {
+          dom = whost;
+        }
+      }
+      out.email = ep[0] + '@' + dom;
+      // No website line on the card? The email's domain IS the website (unless free-mail).
+      if (!out.website && _FREEMAIL.indexOf(dom.toLowerCase()) < 0 && /\./.test(dom)) out.website = dom;
+    }
     return out;
   }
 
@@ -321,6 +445,7 @@
       + '</div>'
       + '<input type="file" id="ct-card-file" accept="image/*" capture="environment" style="display:none">'
       + '<input type="file" id="ct-card-gallery" accept="image/*" style="display:none">'
+      + '<div style="font-size:0.68rem;color:var(--text-dim);margin:-0.4rem 0 0.5rem">Tip: fill the frame with the card, avoid glare — a close, flat shot reads best.</div>'
       + '<div id="ct-card-status" style="font-size:0.75rem;color:var(--text-dim);margin:-0.3rem 0 0.5rem"></div>'
       + fld('Name', 'ct-f-name', c.name, 'Dave Miller')
       + fld('Title', 'ct-f-title', c.title, 'Owner')
