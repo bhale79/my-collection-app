@@ -4574,6 +4574,36 @@ function renderWizardStep() {
       _pvHtml += '<div style="position:relative;display:flex;align-items:center"><input type="date" value="' + (_pvD.datePurchased || '') + '" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 2.5rem 0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box;color-scheme:dark" oninput="wizard.data.datePurchased=this.value" id="pvDate"><button type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById(&quot;pvDate&quot;).showPicker();" style="position:absolute;right:0.4rem;cursor:pointer;font-size:1rem;color:var(--accent2);background:none;border:none;padding:0.3rem;line-height:1;touch-action:manipulation">📅</button></div></div>';
     }
 
+    // Bought From — optional seller link (v0.9.782, Brad brainstorm #3).
+    // Remembers this session's last pick: ten items from Dave = ONE tap total.
+    if (!_pvIsSetOther) {
+      var _pvSellEsc = function (t) { return String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+      var _pvLastSeller = '';
+      try { _pvLastSeller = _pvD.purchasedFrom || sessionStorage.getItem('lv_last_seller') || ''; } catch (e) {}
+      var _pvCts = (state.contactsData || []).slice().sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); });
+      _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Bought From (optional)</div>'
+        + '<select id="pv-seller" onchange="wizard.data.purchasedFrom=this.value; try{sessionStorage.setItem(\'lv_last_seller\',this.value)}catch(e){}" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box">'
+        + '<option value="">— Not tracked —</option>'
+        + _pvCts.map(function (ct) { return '<option value="' + _pvSellEsc(ct.id) + '"' + (ct.id === _pvLastSeller ? ' selected' : '') + '>' + _pvSellEsc((ct.name || ct.business || ct.id) + (ct.business && ct.name ? ' — ' + ct.business : '')) + '</option>'; }).join('')
+        + '</select></div>';
+      if (_pvLastSeller && !_pvD.purchasedFrom && _pvCts.some(function (ct) { return ct.id === _pvLastSeller; })) _pvD.purchasedFrom = _pvLastSeller;
+      // Contacts not loaded yet (user hasn't visited the page)? Fill in place.
+      if (!_pvCts.length && typeof window._ctLoadContacts === 'function') {
+        window._ctLoadContacts().then(function () {
+          var sel = document.getElementById('pv-seller');
+          if (!sel) return;
+          (state.contactsData || []).slice().sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); }).forEach(function (ct) {
+            var o = document.createElement('option');
+            o.value = ct.id;
+            o.textContent = (ct.name || ct.business || ct.id) + (ct.business && ct.name ? ' — ' + ct.business : '');
+            if (ct.id === _pvLastSeller) o.selected = true;
+            sel.appendChild(o);
+          });
+          if (_pvLastSeller && sel.value === _pvLastSeller && !wizard.data.purchasedFrom) wizard.data.purchasedFrom = _pvLastSeller;
+        }).catch(function () {});
+      }
+    }
+
     // Est. Worth — loco and normal items only
     if (!_pvIsSetOther) {
       _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">' + (_pvIsSetLoco ? 'Est. Worth of Whole Set ($)' : 'Est. Worth ($)') + '</div>';
