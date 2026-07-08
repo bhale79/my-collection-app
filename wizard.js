@@ -290,6 +290,17 @@ function _buildWizardModal() {
 function _wizardMfr() {
   try {
     if (typeof wizard === 'undefined' || !wizard.data) return '';
+    // v0.9.765 (BUG-001): identify the brand from the ITEM being added FIRST.
+    // The era fallback returns '' in the All Collection view, which made every
+    // Lionel-only gate fail (tender photo steps skipped, box-variation hidden).
+    var m = wizard.matchedItem || wizard.data.matchedItem || null;
+    if (!m && wizard.data.itemNum && typeof findMaster === 'function') {
+      m = findMaster(wizard.data.itemNum, wizard.data.variation);
+    }
+    if (m && typeof _manufacturerOfItem === 'function') {
+      var mk = _manufacturerOfItem(m);
+      if (mk) return String(mk).toLowerCase();
+    }
     var era = wizard.data._era || (typeof _currentEra !== 'undefined' ? _currentEra : '');
     if (typeof _manufacturerOfEra === 'function') {
       return (_manufacturerOfEra(era) || '').toLowerCase();
