@@ -536,6 +536,97 @@ function switchEphTab(tabId, btn) {
   }).join('');
 }
 
+// v0.9.796 (Brad's GM50 dwg): the detail modal's Edit button called
+// openEphemeraEdit — which NEVER EXISTED (ReferenceError → crash banner).
+// This is that missing editor: field list per tab layout, full-row rewrite
+// that preserves untouched columns (photo link included).
+function openEphemeraEdit(tabId, rowKey) {
+  const entry = (state.ephemeraData[tabId] || {})[rowKey];
+  if (!entry) return;
+  const rowNum = parseInt(entry.row || rowKey, 10);
+  if (!rowNum || rowNum > 100000) { showToast('Just-added item — reload the app once, then Edit works.', 4000, true); return; }
+  const tabNames = { catalogs: 'Catalogs', paper: 'Paper Items', mockups: 'Mock-Ups', other: 'Other Lionel' };
+  const _ut = (state.userDefinedTabs || []).find(t => t.id === tabId);
+  const sheetName = tabNames[tabId] || (_ut && _ut.label) || null;
+  if (!sheetName) return;
+  const isCat = tabId === 'catalogs', isMock = tabId === 'mockups';
+  if (!isCat && !entry.itemNum) { showToast('This is an older-format row — edit it in the Google Sheet for now.', 4500, true); return; }
+
+  // [label, entryKey, type]
+  const fields = isCat ? [
+    ['Type', 'catType', 'text'], ['Year', 'year', 'text'], ['Has Envelope/Mailer', 'hasMailer', 'yesno'],
+    ['Condition (1-10)', 'condition', 'number'], ['Price Paid ($)', 'pricePaid', 'number'],
+    ['Est. Value ($)', 'estValue', 'number'], ['Date Acquired', 'dateAcquired', 'date'], ['Notes', 'notes', 'textarea'],
+  ] : isMock ? [
+    ['Title', 'title', 'text'], ['For Item #', 'itemNumRef', 'text'], ['Description', 'description', 'textarea'],
+    ['Year', 'year', 'text'], ['Manufacturer', 'manufacturer', 'text'], ['Condition (1-10)', 'condition', 'number'],
+    ['Production Status', 'productionStatus', 'text'], ['Material', 'material', 'text'], ['Dimensions', 'dimensions', 'text'],
+    ['Provenance', 'provenance', 'textarea'], ['Price Paid ($)', 'pricePaid', 'number'], ['Est. Value ($)', 'estValue', 'number'],
+    ['Notes', 'notes', 'textarea'], ['Date Acquired', 'dateAcquired', 'date'],
+  ] : [
+    ['Title', 'title', 'text'], ['Description', 'description', 'textarea'], ['Year', 'year', 'text'],
+    ['Manufacturer', 'manufacturer', 'text'], ['Condition (1-10)', 'condition', 'number'], ['Quantity', 'quantity', 'number'],
+    ['Price Paid ($)', 'pricePaid', 'number'], ['Est. Value ($)', 'estValue', 'number'], ['Type', 'paperType', 'text'],
+    ['For Item #', 'itemNumRef', 'text'], ['Notes', 'notes', 'textarea'], ['Date Acquired', 'dateAcquired', 'date'],
+  ];
+
+  const esc = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const inp = 'width:100%;box-sizing:border-box;padding:0.45rem 0.6rem;border-radius:7px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem';
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay open';
+  overlay.id = 'eph-edit-modal';
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = '<div class="modal" style="max-width:480px;max-height:90vh;overflow-y:auto;padding:1rem">'
+    + '<div style="font-family:var(--font-head);font-size:1.05rem;color:var(--text);margin-bottom:0.6rem">Edit — ' + esc(entry.title || entry.itemNum || '') + '</div>'
+    + fields.map(function (f, i) {
+        const v = entry[f[1]] == null ? '' : String(entry[f[1]]);
+        const lbl = '<div style="font-size:0.66rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);margin:0.4rem 0 0.1rem">' + f[0] + '</div>';
+        if (f[2] === 'textarea') return lbl + '<textarea id="ephe-f' + i + '" rows="2" style="' + inp + ';resize:vertical">' + esc(v) + '</textarea>';
+        if (f[2] === 'yesno') return lbl + '<select id="ephe-f' + i + '" style="' + inp + '"><option' + (v !== 'Yes' ? ' selected' : '') + '>No</option><option' + (v === 'Yes' ? ' selected' : '') + '>Yes</option></select>';
+        return lbl + '<input id="ephe-f' + i + '" type="' + (f[2] === 'number' ? 'number' : f[2] === 'date' ? 'date' : 'text') + '" value="' + esc(v) + '" style="' + inp + '">';
+      }).join('')
+    + '<div style="display:flex;gap:0.5rem;margin-top:0.8rem">'
+    + '<button id="ephe-save" style="flex:2;padding:0.7rem;border-radius:9px;border:none;background:var(--accent);color:#fff;font-weight:800;cursor:pointer;font-family:var(--font-body)">✓ Save</button>'
+    + '<button onclick="document.getElementById(\'eph-edit-modal\').remove()" style="flex:1;padding:0.7rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body)">Cancel</button>'
+    + '</div></div>';
+  document.body.appendChild(overlay);
+
+  overlay.querySelector('#ephe-save').onclick = async function () {
+    this.textContent = 'Saving…'; this.disabled = true;
+    fields.forEach(function (f, i) {
+      const el = overlay.querySelector('#ephe-f' + i);
+      if (el) entry[f[1]] = el.value.trim();
+    });
+    // Rebuild the FULL row in this tab's layout — untouched columns (photo
+    // link, item id) come straight from the entry, so nothing is lost.
+    const _s2 = v => (v == null ? '' : String(v));
+    let row, endCol;
+    if (isCat) {
+      row = [_s2(entry.itemNum), _s2(entry.catType), _s2(entry.year), _s2(entry.hasMailer), _s2(entry.condition), _s2(entry.pricePaid), _s2(entry.estValue), _s2(entry.dateAcquired), _s2(entry.notes), _s2(entry.photoLink)];
+      endCol = 'J';
+    } else if (isMock) {
+      row = [_s2(entry.itemNum), _s2(entry.title), _s2(entry.itemNumRef), _s2(entry.description), _s2(entry.year), _s2(entry.manufacturer), _s2(entry.condition), _s2(entry.productionStatus), _s2(entry.material), _s2(entry.dimensions), _s2(entry.provenance), _s2(entry.lionelVerified), _s2(entry.pricePaid), _s2(entry.estValue), _s2(entry.photoLink), _s2(entry.notes), _s2(entry.dateAcquired)];
+      endCol = 'Q';
+    } else {
+      row = [_s2(entry.itemNum), _s2(entry.title), _s2(entry.description), _s2(entry.year), _s2(entry.manufacturer), _s2(entry.condition), _s2(entry.quantity || '1'), _s2(entry.pricePaid), _s2(entry.estValue), _s2(entry.photoLink), _s2(entry.notes), _s2(entry.dateAcquired), _s2(entry.paperType), _s2(entry.itemNumRef)];
+      endCol = 'N';
+    }
+    try {
+      await sheetsUpdate(state.personalSheetId, sheetName + '!A' + rowNum + ':' + endCol + rowNum, [row]);
+      overlay.remove();
+      // Refresh the reopened detail + list
+      document.querySelectorAll('.modal-overlay').forEach(function (m) { if (m.id !== 'eph-edit-modal') m.remove(); });
+      showToast('✓ Saved');
+      if (typeof renderBrowse === 'function') renderBrowse();
+    } catch (e) {
+      console.warn('[ephemera edit]', e);
+      showToast('Could not save — ' + (e && e.message ? e.message : 'try again'), 4500, true);
+      this.textContent = '✓ Save'; this.disabled = false;
+    }
+  };
+}
+if (typeof window !== 'undefined') window.openEphemeraEdit = openEphemeraEdit;
+
 function openEphemeraDetail(tabId, rowKey) {
   const item = (state.ephemeraData[tabId] || {})[rowKey];
   if (!item) return;
