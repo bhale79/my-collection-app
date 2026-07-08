@@ -6,6 +6,26 @@
 // full photo, with zero extra clicks.
 // ══════════════════════════════════════════════════════════════════
 
+// v0.9.790 (Brad): Cropper's stock grab squares are 5px — brutal to hit.
+// Inject once: 16px handles, repositioned so they stay centered on the lines.
+(function () {
+  try {
+    if (document.getElementById('rr-crop-css')) return;
+    var stl = document.createElement('style');
+    stl.id = 'rr-crop-css';
+    stl.textContent = '.cropper-point{width:16px!important;height:16px!important;opacity:0.9!important;background-color:#39f}'
+      + '.cropper-point.point-e{right:-8px;margin-top:-8px}'
+      + '.cropper-point.point-n{top:-8px;margin-left:-8px}'
+      + '.cropper-point.point-w{left:-8px;margin-top:-8px}'
+      + '.cropper-point.point-s{bottom:-8px;margin-left:-8px}'
+      + '.cropper-point.point-ne{top:-8px;right:-8px}'
+      + '.cropper-point.point-nw{top:-8px;left:-8px}'
+      + '.cropper-point.point-sw{bottom:-8px;left:-8px}'
+      + '.cropper-point.point-se{bottom:-8px;right:-8px;width:16px!important;height:16px!important}';
+    document.head.appendChild(stl);
+  } catch (e) {}
+})();
+
 function _openCropper(src, onResult, onCancel) {   // v0.9.787: onCancel = proceed without cropping
   if (typeof Cropper === 'undefined') { if (typeof showToast === 'function') showToast('Crop tool still loading — try again in a moment'); return; }
   var ov = document.createElement('div');
