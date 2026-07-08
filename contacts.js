@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.788
+// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.789
 //
 // Brad's brainstorm picks: own page, listed as "Contacts", entry ABOVE
 // Preferences in the account menu. Business-card photo capture (Drive
@@ -1074,20 +1074,29 @@
       var specialties = chips.concat(extra ? [extra] : []).join(', ');
       var cardLink = c.cardLink || '', personLink = c.personPhoto || '';
       try {
+        // v0.9.789 FIX: photos never uploaded — driveFindOrCreateFolder REQUIRES
+        // a parent (threw 'Missing parentId', swallowed here) and returns the ID
+        // STRING, not {id}. Now: ensure the vault, parent the Contacts folder
+        // under it, use the returned id directly.
         if ((_cardFile || _personFile) && typeof driveFindOrCreateFolder === 'function' && typeof driveUploadPhoto === 'function') {
-          var folder = await driveFindOrCreateFolder('The Rail Roster - Contacts');
-          if (folder && folder.id) {
+          if (typeof driveEnsureSetup === 'function') await driveEnsureSetup();
+          var _parentId = (typeof driveCache !== 'undefined' && driveCache.vaultId) ? driveCache.vaultId : 'root';
+          var folderId = await driveFindOrCreateFolder('The Rail Roster - Contacts', _parentId);
+          if (folderId) {
             if (_cardFile) {
-              var up = await driveUploadPhoto(_cardFile, (name + ' card ' + _today() + '.jpg'), folder.id);
+              var up = await driveUploadPhoto(_cardFile, (name + ' card ' + _today() + '.jpg'), folderId);
               if (up && up.id) cardLink = 'https://drive.google.com/file/d/' + up.id + '/view';
             }
             if (_personFile) {
-              var up2 = await driveUploadPhoto(_personFile, (name + ' photo ' + _today() + '.jpg'), folder.id);
+              var up2 = await driveUploadPhoto(_personFile, (name + ' photo ' + _today() + '.jpg'), folderId);
               if (up2 && up2.id) personLink = 'https://drive.google.com/file/d/' + up2.id + '/view';
             }
           }
         }
-      } catch (e) { console.warn('[contact photo upload]', e); }
+      } catch (e) {
+        console.warn('[contact photo upload]', e);
+        showToast('Contact will save, but the photo upload failed — open Edit and re-add the photo', 4500, true);
+      }
       var id = c.id || ('C-' + Date.now());
       var rowVals = [id, name, v('ct-f-biz'), v('ct-f-phone'), v('ct-f-email'), specialties, v('ct-f-notes'), cardLink, v('ct-f-met'), c.dateAdded || _today(), v('ct-f-addr'), v('ct-f-web'), v('ct-f-home'), v('ct-f-cell'), v('ct-f-title'), personLink];
       try {
