@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.771
+// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.772
 //
 // Brad's brainstorm picks: own page, listed as "Contacts", entry ABOVE
 // Preferences in the account menu. Business-card photo capture (Drive
@@ -154,6 +154,91 @@
   var _BARE_SUFFIX_RE = /^\W*(llc|l\.l\.c\.?|inc\.?|co\.?|corp\.?|ltd\.?)\W*$/i;
   var _STREET_RE = /(\d+[\w-]*\s+[^,\n]{2,40}?\b(st|street|ave|avenue|rd|road|blvd|boulevard|dr|drive|ln|lane|ct|court|cir|circle|hwy|highway|pike|way|route|rte|rt|plaza|pl|place|trail|turnpike|south|north|east|west)\.?\b[^\n]*|p\.?\s*o\.?\s*box\s+\d+[^\n]*)/i;
   var _CSZ_RE = /(?:[A-Z][A-Za-z.'\-]*(?:\s+[A-Z][A-Za-z.'\-]*)*)[,.]?\s+[A-Z]{2}\.?\s+\d{5}(?:-\d{4})?\b/;
+  // ── v0.9.772 — finish truncated title words ("Retail Store Man" → Manager).
+  // OCR drops low-confidence letters at word ends; job titles are a tiny
+  // vocabulary, so snap a truncated LAST word to the known list.
+  var _TITLE_DICT = ['Manager', 'President', 'Proprietor', 'Director', 'Founder', 'Partner', 'Representative', 'Executive', 'Engineer', 'Estimator', 'Consultant', 'Specialist', 'Coordinator', 'Supervisor', 'Appraiser', 'Collector', 'Owner', 'Dealer', 'Buyer', 'Salesman'];
+  function _completeTitle(title) {
+    title = String(title || '').trim();
+    if (!title) return title;
+    var words = title.split(' ');
+    var last = words[words.length - 1].replace(/[^A-Za-z]/g, '');
+    if (last.length < 3) return title;
+    var lastLow = last.toLowerCase();
+    for (var i = 0; i < _TITLE_DICT.length; i++) {
+      if (_TITLE_DICT[i].toLowerCase() === lastLow) return title; // already complete
+    }
+    for (var j = 0; j < _TITLE_DICT.length; j++) {
+      if (_TITLE_DICT[j].toLowerCase().indexOf(lastLow) === 0) {
+        words[words.length - 1] = _TITLE_DICT[j];
+        return words.join(' ');
+      }
+    }
+    return title;
+  }
+  // Merge two OCR reads of the same card: empty fields fill from the second
+  // read; for title/business ONLY, the longer reading wins (truncation is the
+  // common failure). Everything else trusts the first (grayscale) read.
+  function _mergeCardReads(a, b) {
+    var out = {}, keys = ['name', 'title', 'business', 'phone', 'cell', 'home', 'email', 'website', 'address'];
+    for (var i = 0; i < keys.length; i++) {
+      var k = keys[i], av = a[k] || '', bv = b[k] || '';
+      if (!av) out[k] = bv;
+      else if ((k === 'title' || k === 'business') && bv.length > av.length + 1) out[k] = bv;
+      else out[k] = av;
+    }
+    return out;
+  }
+  // Second-chance image: contrast = COLOR DISTANCE from the card's background
+  // instead of brightness. Orange text on silver is nearly invisible in
+  // grayscale but far from the background in color space, so it pops here.
+  function _cardOcrImageColor(file) {
+    return new Promise(function (resolve) {
+      try {
+        var url = URL.createObjectURL(file);
+        var img = new Image();
+        img.onload = function () {
+          try {
+            var w = img.naturalWidth, h = img.naturalHeight;
+            var crop = null;
+            try { crop = _findCardBox(img, w, h); } catch (e0) { crop = null; }
+            var sx = crop ? crop.x : 0, sy = crop ? crop.y : 0;
+            var sw = crop ? crop.w : w, sh = crop ? crop.h : h;
+            var MAX = 1600, sc = Math.min(1, MAX / Math.max(sw, sh));
+            var cv = document.createElement('canvas');
+            cv.width = Math.max(1, Math.round(sw * sc));
+            cv.height = Math.max(1, Math.round(sh * sc));
+            var ctx = cv.getContext('2d');
+            ctx.drawImage(img, sx, sy, sw, sh, 0, 0, cv.width, cv.height);
+            var id = ctx.getImageData(0, 0, cv.width, cv.height), d = id.data;
+            // background = median color of a sparse pixel sample
+            var rs = [], gs = [], bs = [];
+            for (var i = 0; i < d.length; i += 64) { rs.push(d[i]); gs.push(d[i + 1]); bs.push(d[i + 2]); }
+            var med = function (arr) { arr.sort(function (x, y) { return x - y; }); return arr[arr.length >> 1]; };
+            var br = med(rs), bg = med(gs), bb = med(bs);
+            // distance map + 98th-percentile normalization
+            var n = cv.width * cv.height, dist = new Float32Array(n), maxs = [];
+            for (var p = 0, q = 0; p < d.length; p += 4, q++) {
+              var dr = d[p] - br, dg = d[p + 1] - bg, db = d[p + 2] - bb;
+              dist[q] = Math.sqrt(dr * dr + dg * dg + db * db);
+            }
+            for (var m2 = 0; m2 < n; m2 += 37) maxs.push(dist[m2]);
+            maxs.sort(function (x, y) { return x - y; });
+            var hiD = Math.max(30, maxs[Math.floor(maxs.length * 0.98)] || 255);
+            for (var p2 = 0, q2 = 0; p2 < d.length; p2 += 4, q2++) {
+              var v = 255 - Math.min(255, dist[q2] * 255 / hiD); // text (far from bg) → dark
+              d[p2] = d[p2 + 1] = d[p2 + 2] = v;
+            }
+            ctx.putImageData(id, 0, 0);
+            URL.revokeObjectURL(url);
+            cv.toBlob(function (bl) { resolve(bl || file); }, 'image/jpeg', 0.92);
+          } catch (e) { try { URL.revokeObjectURL(url); } catch (e2) {} resolve(file); }
+        };
+        img.onerror = function () { try { URL.revokeObjectURL(url); } catch (e2) {} resolve(file); };
+        img.src = url;
+      } catch (e) { resolve(file); }
+    });
+  }
   // Does this line contain a web/email token? Such lines are never the business name.
   function _hasDomainTok(l) {
     return /@/.test(l) || /\b(?:[a-z0-9-]+\.)+[a-z]{2,6}\b/i.test(l.replace(/\d{3}[\s.\-]\d{4}/g, ''));
@@ -555,6 +640,17 @@
           var small = await _cardOcrImage(f);
           var res = await T.recognize(small, 'eng', {});
           var got = _parseCardText((res && res.data && res.data.text) || '');
+          // v0.9.772: anything important missing? Take a second read where
+          // contrast = color distance (catches colored text like orange titles).
+          if (!(got.name && got.title && got.business && got.email && (got.phone || got.cell) && got.address)) {
+            try {
+              st.textContent = '📇 Reading the card a second way…';
+              var small2 = await _cardOcrImageColor(f);
+              var res2 = await T.recognize(small2, 'eng', {});
+              got = _mergeCardReads(got, _parseCardText((res2 && res2.data && res2.data.text) || ''));
+            } catch (eC) { console.warn('[card OCR pass2]', eC); }
+          }
+          got.title = _completeTitle(got.title);
           var set = function (id, v) { var el = ov.querySelector('#' + id); if (el && !el.value && v) { el.value = v; return true; } return false; };
           var filled = [];
           if (set('ct-f-name', got.name)) filled.push('name');
