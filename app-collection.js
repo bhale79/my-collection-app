@@ -1056,6 +1056,14 @@ function showItemDetailPage(idx, copyInvId, opts) {
     { label: 'Est. Worth', val: (function(){ var _v = pd && pd.userEstWorth ? parseFloat(pd.userEstWorth) : NaN; return isFinite(_v) ? _currencySymbol() + _v.toLocaleString() : null; })() },
     { label: 'Market Value', val: it.marketVal && !isNaN(parseFloat(it.marketVal)) ? _currencySymbol() + parseFloat(it.marketVal).toLocaleString() : null },
     { label: 'Date Purchased', val: pd && pd.datePurchased ? _formatDate(pd.datePurchased) : null },
+    // v0.9.782: seller link — resolves the Contact ID to a name (kicks a lazy
+    // contacts load the first time so the NEXT open shows the name).
+    { label: 'Bought From', val: (function () {
+        if (!pd || !pd.purchasedFrom) return null;
+        var _ct = (state.contactsData || []).find(function (x) { return x.id === pd.purchasedFrom; });
+        if (!_ct && typeof window._ctLoadContacts === 'function' && !(state.contactsData || []).length) { try { window._ctLoadContacts(); } catch (e) {} }
+        return _ct ? (_ct.name + (_ct.business ? ' — ' + _ct.business : '')) : 'a saved contact';
+      })() },
     { label: 'Year Made', val: pd && pd.yearMade ? pd.yearMade : null },
     { label: 'Location', val: pd && pd.location ? pd.location : null },
     { label: 'Inventory ID', val: pd && pd.inventoryId ? pd.inventoryId : null },
