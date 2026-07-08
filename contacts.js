@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.789
+// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.790
 //
 // Brad's brainstorm picks: own page, listed as "Contacts", entry ABOVE
 // Preferences in the account menu. Business-card photo capture (Drive
@@ -714,6 +714,7 @@
         +   (chips ? '<div style="margin-top:0.15rem">' + chips + '</div>' : '')
         +   (c.notes ? '<div style="font-size:0.72rem;color:var(--text-mid);margin-top:0.15rem;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + _esc(c.notes) + '</div>' : '')
         +   (c.metAt ? '<div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.1rem">Met: ' + _esc(c.metAt) + '</div>' : '')
+        +   (c.address ? '<a href="https://maps.google.com/?q=' + encodeURIComponent(c.address) + '" onclick="return _ctMap(event, \'' + encodeURIComponent(c.address) + '\')" target="_blank" rel="noopener" style="display:block;font-size:0.72rem;color:#16a085;margin-top:0.15rem;text-decoration:none">📍 ' + _esc(c.address) + '</a>' : '')
         +   (boughtN ? '<div onclick="_ctShowBought(\'' + _esc(c.id) + '\')" style="font-size:0.7rem;color:var(--accent2);margin-top:0.15rem;cursor:pointer">🛒 ' + boughtN + ' item' + (boughtN > 1 ? 's' : '') + ' bought — tap to see</div>' : '')
         + '</div>'
         + '<div style="display:flex;flex-wrap:wrap;gap:0.25rem;justify-content:flex-end;align-content:flex-start;max-width:240px;flex-shrink:0">'
@@ -722,9 +723,10 @@
         +   (c.homePhone ? '<a href="tel:' + _esc(c.homePhone.replace(/[^+0-9]/g, '')) + '" onclick="return _ctTel(event, \'' + _esc(c.homePhone) + '\')" style="' + _sb + ';border:1px solid #2ecc71;color:#2ecc71">🏠 ' + _esc(c.homePhone) + '</a>' : '')
         +   (c.email ? '<a href="mailto:' + _esc(c.email) + '" target="_blank" rel="noopener" style="' + _sb + ';border:1px solid #3498db;color:#3498db">✉ Email</a>' : '')
         +   (c.website ? '<a href="' + _esc((/^https?:/i.test(c.website) ? c.website : 'https://' + c.website)) + '" target="_blank" rel="noopener" style="' + _sb + ';border:1px solid #9b59b6;color:#9b59b6">🌐 Web</a>' : '')
-        +   (c.address ? '<a href="https://maps.google.com/?q=' + encodeURIComponent(c.address) + '" onclick="return _ctMap(event, \'' + encodeURIComponent(c.address) + '\')" target="_blank" rel="noopener" style="' + _sb + ';border:1px solid #16a085;color:#16a085">🗺 Map</a>' : '')
-        +   '<button onclick="_ctOpenEdit(' + c.row + ')" style="' + _sb + ';border:1px solid var(--border);background:var(--surface2);color:var(--text-mid)">Edit</button>'
-        +   '<button onclick="_ctDeleteRow(' + c.row + ')" style="' + _sb + ';border:1px solid #e74c3c;color:#e74c3c">Delete</button>'
+        +   '<span style="display:flex;gap:0.25rem">'
+        +     '<button onclick="_ctOpenEdit(' + c.row + ')" style="' + _sb + ';border:1px solid var(--border);background:var(--surface2);color:var(--text-mid)">Edit</button>'
+        +     '<button onclick="_ctDeleteRow(' + c.row + ')" style="' + _sb + ';border:1px solid #e74c3c;color:#e74c3c">Delete</button>'
+        +   '</span>'
         + '</div></div></div>';
     }).join('');
     // v0.9.778: hydrate the card thumbnails (authenticated Drive fetch).
