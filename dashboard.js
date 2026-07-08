@@ -1109,10 +1109,19 @@ window._reelStart = async function (slot) {
 window._showcaseFill = async function () {
   var grid = document.getElementById('showcase-grid');
   if (!grid) return;
-  var picks = await _pickThumbs(12, 6);
+  // v0.9.793 (Brad: "why are we 3 pics short of a full card?"): the grid picks
+  // its column count from the window width, but the card always fetched 12 —
+  // any width where 12 doesn't divide evenly left a ragged last row. Now:
+  // measure the columns, request enough for FULL rows, trim leftovers.
+  var cols = 4;
+  try { var gw = grid.clientWidth || 500; cols = Math.max(3, Math.floor(gw / 104)); } catch (eW) {}
+  var want = cols * Math.ceil(12 / cols);
+  var picks = await _pickThumbs(want, Math.max(6, Math.ceil(want / 2)));
   grid = document.getElementById('showcase-grid');
   if (!grid) return;
   if (!picks.length) { grid.innerHTML = '<div class="empty-state"><p>Add item photos and they\'ll show off here</p></div>'; return; }
+  if (picks.length > cols) picks = picks.slice(0, Math.floor(picks.length / cols) * cols);
+  grid.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
   grid.innerHTML = picks.map(function (t, i) {
     return '<div data-sc="' + i + '" style="aspect-ratio:1;border-radius:8px;overflow:hidden;position:relative;cursor:pointer;background:var(--surface2,#26262e)">'
       + '<img style="width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 0.4s" alt="">'
