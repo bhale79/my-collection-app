@@ -38,7 +38,7 @@ function buildReport() {
     const cesc = v => String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     thead.innerHTML = '<tr><th>Name</th><th>Title</th><th>Business</th><th>Store Phone</th><th>Cell</th><th>Home</th><th>Email</th><th>Website</th><th>Address</th><th>Era / Deals in</th><th>Met at</th><th>Notes</th></tr>';
     const renderC = function () {
-      const rows = (state.contactsData || []).slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+      const rows = (state.contactsData || []).slice().sort((a,b)=>(window._ctLastNameKey?window._ctLastNameKey(a.name).localeCompare(window._ctLastNameKey(b.name)):(a.name||'').localeCompare(b.name||'')));
       tbody.innerHTML = rows.length ? rows.map(function (c) {
         return '<tr><td>' + [c.name, c.title, c.business, c.phone, c.cellPhone, c.homePhone, c.email, c.website, c.address, c.specialties, c.metAt, c.notes].map(cesc).join('</td><td>') + '</td></tr>';
       }).join('') : '<tr><td class="ui-empty" colspan="12">No contacts yet — add some on the Contacts page.</td></tr>';
@@ -318,7 +318,7 @@ function exportReport() {
   if (type === 'contacts') {
     const esc = v => `"${(v||'').toString().replace(/"/g,'""')}"`;
     const headers = ['Name','Title','Business','Store Phone','Cell','Home','Email','Website','Address','Era / Deals in','Met at','Notes'];
-    const rows = (state.contactsData || []).slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''))
+    const rows = (state.contactsData || []).slice().sort((a,b)=>(window._ctLastNameKey?window._ctLastNameKey(a.name).localeCompare(window._ctLastNameKey(b.name)):(a.name||'').localeCompare(b.name||'')))
       .map(c => [c.name, c.title, c.business, c.phone, c.cellPhone, c.homePhone, c.email, c.website, c.address, c.specialties, c.metAt, c.notes].map(esc).join(','));
     const csv = headers.map(h => `"${h}"`).join(',') + '\n' + rows.join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
