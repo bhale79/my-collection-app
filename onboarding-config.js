@@ -137,6 +137,7 @@ const COMMUNITY_OPTIN = {
     'We\'re building something that doesn\'t exist anywhere else — real market values and rarity scores based on actual collector data, not guesswork.',
     'If you contribute, your item numbers, variation, condition, your estimated worth, and sold prices are submitted anonymously. A random code ties your submissions together — your name, email, and identity are never attached. Even we cannot trace it back to you.',
     'Contributors unlock market values and rarity scores once we reach 300 collections. You can opt out and have your data deleted any time.',
+    'One more privacy note, separate from the above: when the app reads a photo for you — a box label, a tough-to-identify item, or a business card — that single photo is sent to The Rail Roster\'s secure photo-reading service, read, and that\'s the end of it. Nothing about you or your collection travels with it, and there\'s a sensible daily limit.',
   ],
 
   submittedTitle: 'What gets submitted',
