@@ -643,6 +643,7 @@ async function syncUserDefinedTabsFromSheet(sheetId) {
       'Dashboard',
       // Standalone feature tabs that are NOT collection/ephemera tabs:
       'Parts Needed',
+      'Contacts',   // v0.9.794: the rolodex leaked into My Collection as "Contactss"
     ]);
     // Prune any reserved tab that was wrongly captured as user-defined before
     // it was added to the canonical set above (e.g. 'Parts Needed').
@@ -651,7 +652,7 @@ async function syncUserDefinedTabsFromSheet(sheetId) {
       state.userDefinedTabs = state.userDefinedTabs.filter(t => !canonical.has(t.label));
       if (state.userDefinedTabs.length !== _before) {
         saveUserDefinedTabs();
-        if (state.ephemeraData) { delete state.ephemeraData.parts_needed; }
+        if (state.ephemeraData) { delete state.ephemeraData.parts_needed; delete state.ephemeraData.contacts; }
       }
     }
     const known = new Set((state.userDefinedTabs || []).map(t => t.label));
