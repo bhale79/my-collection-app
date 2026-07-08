@@ -627,6 +627,53 @@ function openEphemeraEdit(tabId, rowKey) {
 }
 if (typeof window !== 'undefined') window.openEphemeraEdit = openEphemeraEdit;
 
+// v0.9.797 (Brad): "no place to add a picture to this existing item" —
+// paper/catalog/mock-up rows never had a photo button. Uploads to the same
+// 'Ephemera Photos/<title>' folder the wizard uses, then writes the folder
+// link into the row's photo column.
+window.ephemeraAddPhotos = function (tabId, rowKey) {
+  const entry = (state.ephemeraData[tabId] || {})[rowKey];
+  if (!entry) return;
+  const rowNum = parseInt(entry.row || rowKey, 10);
+  if (!rowNum || rowNum > 100000) { showToast('Just-added item — reload the app once, then add photos.', 4000, true); return; }
+  const tabNames = { catalogs: 'Catalogs', paper: 'Paper Items', mockups: 'Mock-Ups', other: 'Other Lionel' };
+  const _ut = (state.userDefinedTabs || []).find(t => t.id === tabId);
+  const sheetName = tabNames[tabId] || (_ut && _ut.label) || null;
+  if (!sheetName) return;
+  const photoCol = tabId === 'mockups' ? 'O' : 'J';
+  let inp = document.getElementById('eph-photo-inp');
+  if (inp) inp.remove();
+  inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'image/*'; inp.multiple = true;
+  inp.id = 'eph-photo-inp'; inp.style.display = 'none';
+  document.body.appendChild(inp);
+  inp.onchange = async function () {
+    const files = [].slice.call(inp.files || []);
+    if (!files.length) return;
+    showToast('Uploading ' + files.length + ' photo' + (files.length > 1 ? 's' : '') + '…', 3000);
+    try {
+      await driveEnsureSetup();
+      if (!driveCache.ephPhotosId) driveCache.ephPhotosId = await driveFindOrCreateFolder('Ephemera Photos', driveCache.vaultId);
+      const folderTitle = String(entry.title || entry.itemNum || 'untitled').substring(0, 60);
+      const folderId = await driveFindOrCreateFolder(folderTitle, driveCache.ephPhotosId);
+      for (let i = 0; i < files.length; i++) {
+        const ext = (files[i].name.split('.').pop() || 'jpg');
+        await driveUploadPhoto(files[i], folderTitle + ' photo-' + Date.now() + '-' + (i + 1) + '.' + ext, folderId);
+      }
+      const link = 'https://drive.google.com/drive/folders/' + folderId;
+      await sheetsUpdate(state.personalSheetId, sheetName + '!' + photoCol + rowNum, [[link]]);
+      entry.photoLink = link;
+      showToast('✓ Photo' + (files.length > 1 ? 's' : '') + ' added');
+      document.querySelectorAll('.modal-overlay').forEach(function (m) { m.remove(); });
+      if (typeof renderBrowse === 'function') renderBrowse();
+    } catch (e) {
+      console.warn('[ephemera photos]', e);
+      showToast('Photo upload failed — ' + (e && e.message ? e.message : 'try again'), 4500, true);
+    }
+  };
+  inp.click();
+};
+
 function openEphemeraDetail(tabId, rowKey) {
   const item = (state.ephemeraData[tabId] || {})[rowKey];
   if (!item) return;
@@ -693,6 +740,7 @@ function openEphemeraDetail(tabId, rowKey) {
       </div>
       <div style="padding:0.75rem 1.25rem;border-top:1px solid var(--border);display:flex;gap:0.5rem">
         <button onclick="openEphemeraEdit('${tabId}',${rowKey})" style="flex:1;padding:0.6rem;border-radius:8px;border:1.5px solid #e67e22;color:#e67e22;background:rgba(230,126,34,0.1);cursor:pointer;font-family:var(--font-body);font-weight:600">Edit</button>
+        <button onclick="ephemeraAddPhotos('${tabId}',${rowKey})" style="flex:1;padding:0.6rem;border-radius:8px;border:1.5px solid #3498db;color:#3498db;background:rgba(52,152,219,0.08);cursor:pointer;font-family:var(--font-body);font-weight:600">📷 Add Photos</button>
         <button onclick="ephemeraForSale('${tabId}',${rowKey});this.closest('.modal-overlay').remove()" style="flex:1;padding:0.6rem;border-radius:8px;border:1.5px solid #f39c12;color:#f39c12;background:rgba(243,156,18,0.1);cursor:pointer;font-family:var(--font-body);font-weight:600">🏷️ For Sale</button>
         <button onclick="ephemeraSold('${tabId}',${rowKey});this.closest('.modal-overlay').remove()" style="flex:1;padding:0.6rem;border-radius:8px;border:1.5px solid #2ecc71;color:#2ecc71;background:rgba(46,204,113,0.1);cursor:pointer;font-family:var(--font-body);font-weight:600">💰 Sold</button>
         <button onclick="ephemeraDelete('${tabId}',${rowKey});this.closest('.modal-overlay').remove()" style="padding:0.6rem 0.8rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);cursor:pointer;font-family:var(--font-body)" title="Delete">🗑</button>
