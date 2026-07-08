@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.772
+// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.773
 //
 // Brad's brainstorm picks: own page, listed as "Contacts", entry ABOVE
 // Preferences in the account menu. Business-card photo capture (Drive
@@ -559,9 +559,23 @@
         +   (c.website ? '<a href="' + _esc((/^https?:/i.test(c.website) ? c.website : 'https://' + c.website)) + '" target="_blank" rel="noopener" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #9b59b6;color:#9b59b6;text-decoration:none;font-size:0.78rem;text-align:center">🌐 Website</a>' : '')
         +   (c.address ? '<a href="https://maps.google.com/?q=' + encodeURIComponent(c.address) + '" target="_blank" rel="noopener" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #16a085;color:#16a085;text-decoration:none;font-size:0.78rem;text-align:center">🗺 Map</a>' : '')
         +   (c.cardLink ? '<a href="' + _esc(c.cardLink) + '" target="_blank" rel="noopener" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid var(--accent2);color:var(--accent2);text-decoration:none;font-size:0.78rem;text-align:center">📇 Card</a>' : '')
-        +   '<button onclick="_ctOpenEdit(' + c.row + ')" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-size:0.78rem;font-family:var(--font-body)">Edit</button>'
+        +   '<div style="display:flex;gap:0.3rem">'
+        +     '<button onclick="_ctOpenEdit(' + c.row + ')" style="flex:1;padding:0.35rem 0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-size:0.78rem;font-family:var(--font-body)">Edit</button>'
+        +     '<button onclick="_ctDeleteRow(' + c.row + ')" style="flex:1;padding:0.35rem 0.5rem;border-radius:7px;border:1px solid #e74c3c;background:none;color:#e74c3c;cursor:pointer;font-size:0.78rem;font-family:var(--font-body)">Delete</button>'
+        +   '</div>'
         + '</div></div></div>';
     }).join('');
+  };
+
+  // v0.9.773 (Brad): Delete straight from the list card (Edit | Delete split).
+  window._ctDeleteRow = async function (row) {
+    var c = (state.contactsData || []).find(function (x) { return x.row === row; });
+    if (!confirm('Delete ' + ((c && c.name) ? c.name : 'this contact') + '?')) return;
+    try {
+      await sheetsUpdate(state.personalSheetId, TAB + '!A' + row + ':O' + row, [['', '', '', '', '', '', '', '', '', '', '', '', '', '', '']]);
+      showToast('Contact deleted');
+      try { await _load(); window._ctRenderList(); } catch (e3) { console.warn('[contact list refresh]', e3); }
+    } catch (e) { console.warn('[contact delete]', e); showToast('Delete failed — try again', 3500, true); }
   };
 
   // ── add / edit modal ───────────────────────────────────────────
