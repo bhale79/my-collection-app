@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.763
+// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.766
 //
 // Brad's brainstorm picks: own page, listed as "Contacts", entry ABOVE
 // Preferences in the account menu. Business-card photo capture (Drive
@@ -27,6 +27,130 @@
 
   function _esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function _today() { try { return new Date().toLocaleDateString('en-CA'); } catch (e) { return ''; } }
+
+  // ── v0.9.766 (TODO-002) — business-card OCR helpers ────────────
+  // Downscale the card photo before OCR: phone photos are 4000px+ wide and
+  // Tesseract slows to a crawl on them; ~1600px reads business cards fine.
+  function _cardOcrImage(file) {
+    return new Promise(function (resolve) {
+      try {
+        var url = URL.createObjectURL(file);
+        var img = new Image();
+        img.onload = function () {
+          try {
+            var MAX = 1600, w = img.naturalWidth, h = img.naturalHeight;
+            var sc = MAX / Math.max(w, h);
+            if (!(sc < 1)) { URL.revokeObjectURL(url); resolve(file); return; }
+            var cv = document.createElement('canvas');
+            cv.width = Math.round(w * sc); cv.height = Math.round(h * sc);
+            cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+            URL.revokeObjectURL(url);
+            cv.toBlob(function (b) { resolve(b || file); }, 'image/jpeg', 0.92);
+          } catch (e) { resolve(file); }
+        };
+        img.onerror = function () { try { URL.revokeObjectURL(url); } catch (e2) {} resolve(file); };
+        img.src = url;
+      } catch (e) { resolve(file); }
+    });
+  }
+  // Map raw OCR text to contact fields. Heuristics tuned for US dealer cards;
+  // every guess lands in an EDITABLE, previously-empty field, so a wrong read
+  // costs one tap to fix — bad data is never silently saved.
+  var _FREEMAIL = ['gmail.com','yahoo.com','aol.com','hotmail.com','outlook.com','icloud.com','msn.com','comcast.net','verizon.net','att.net','sbcglobal.net'];
+  var _BIZ_RE = /\b(llc|l\.l\.c|inc|incorporated|co\.|company|corp|corporation|enterprises|trains?|railroads?|hobby|hobbies|shop|store|collectibles?|models?|antiques?|sales|supply|depot|junction|emporium|exchange|galleries|toys?)\b/i;
+  var _TITLE_RE = /\b(owner|president|proprietor|manager|sales|founder|partner|ceo|dealer|collector)\b/i;
+  var _STREET_RE = /^\s*(\d+[\w-]*\s+.+\b(st|street|ave|avenue|rd|road|blvd|boulevard|dr|drive|ln|lane|ct|court|cir|circle|hwy|highway|pike|way|route|rte?|plaza|pl|place|trail|turnpike)\.?\b.*|p\.?\s*o\.?\s*box\s+\d+.*)$/i;
+  var _CSZ_RE = /\b[A-Za-z .]+,?\s+[A-Z]{2}\.?\s+\d{5}(?:-\d{4})?\b/;
+  function _parseCardText(text) {
+    var out = { name: '', business: '', phone: '', email: '', website: '', address: '' };
+    var raw = String(text || '');
+    function tc(s2) {
+      s2 = String(s2 || '').trim();
+      if (s2 && s2 === s2.toUpperCase() && /[A-Z]/.test(s2)) {
+        s2 = s2.toLowerCase().replace(/(^|[\s\-.])([a-z])/g, function (m0, p, c) { return p + c.toUpperCase(); });
+        return s2.replace(/\bLlc\b/g, 'LLC').replace(/\bInc\b/g, 'Inc').replace(/\bMth\b/g, 'MTH');
+      }
+      return s2;
+    }
+    out.email = (raw.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/) || [''])[0];
+    out.phone = (raw.match(/(?:\+?1[\s.\-]?)?\(?\d{3}\)?[\s.\-]?\d{3}[\s.\-]?\d{4}/) || [''])[0];
+    var lines = raw.split('\n').map(function (l) { return l.replace(/\s+/g, ' ').trim(); }).filter(function (l) { return l.length > 2; });
+
+    // Website — a www./http token or bare domain; never the email, never free-mail hosts.
+    outer:
+    for (var i = 0; i < lines.length; i++) {
+      var toks = lines[i].split(' ');
+      for (var j = 0; j < toks.length; j++) {
+        var t = toks[j].replace(/^[,;()<>"']+|[,;()<>"'.]+$/g, '');
+        if (!t || /@/.test(t)) continue;
+        var wm = t.match(/^(?:https?:\/\/)?(www\.)?((?:[a-z0-9-]+\.)+[a-z]{2,6})(\/\S*)?$/i);
+        if (!wm) continue;
+        var host = wm[2].toLowerCase();
+        if (_FREEMAIL.indexOf(host) >= 0) continue;
+        out.website = host + (wm[3] || '');
+        break outer;
+      }
+    }
+
+    // Address — street line (or PO Box), plus the city/state/zip line.
+    var streetIdx = -1, cszIdx = -1;
+    for (var k = 0; k < lines.length; k++) {
+      if (streetIdx < 0 && _STREET_RE.test(lines[k]) && !/@/.test(lines[k])) streetIdx = k;
+    }
+    for (var k2 = 0; k2 < lines.length; k2++) {
+      if (k2 !== streetIdx && _CSZ_RE.test(lines[k2])) { cszIdx = k2; break; }
+    }
+    if (streetIdx >= 0 && _CSZ_RE.test(lines[streetIdx])) {
+      out.address = lines[streetIdx]; cszIdx = -1;
+    } else {
+      var parts = [];
+      if (streetIdx >= 0) parts.push(lines[streetIdx]);
+      if (cszIdx >= 0) parts.push((lines[cszIdx].match(_CSZ_RE) || [lines[cszIdx]])[0]);
+      out.address = parts.join(', ');
+    }
+    var used = function (idx) { return idx === streetIdx || idx === cszIdx; };
+
+    // Business — first line with a company word; else the line matching the website root.
+    var bizIdx = -1;
+    for (var b = 0; b < lines.length; b++) {
+      if (used(b) || /@/.test(lines[b]) || /\d{3}[\s.\-]\d{4}/.test(lines[b])) continue;
+      if (_BIZ_RE.test(lines[b])) { bizIdx = b; break; }
+    }
+    if (bizIdx < 0 && out.website) {
+      var root = out.website.split('/')[0].split('.')[0];
+      if (root.length > 3) {
+        for (var b2 = 0; b2 < lines.length; b2++) {
+          if (used(b2) || /@/.test(lines[b2])) continue;
+          if (lines[b2].toLowerCase().replace(/[^a-z0-9]/g, '').indexOf(root) >= 0) { bizIdx = b2; break; }
+        }
+      }
+    }
+    if (bizIdx >= 0) out.business = tc(lines[bizIdx]);
+
+    // Name — prefer the line just above a title line (Owner / President / …),
+    // then "Dave Miller, Owner" on one line, then the first plain 2-4-word line.
+    var nameOk = function (l, idx) {
+      if (used(idx) || idx === bizIdx) return false;
+      if (/\d|@/.test(l) || l.length >= 40) return false;
+      if (_BIZ_RE.test(l) || _TITLE_RE.test(l)) return false;
+      var w = l.split(' ');
+      return w.length >= 2 && w.length <= 4;
+    };
+    var titleIdx = -1;
+    for (var t2 = 0; t2 < lines.length; t2++) { if (_TITLE_RE.test(lines[t2])) { titleIdx = t2; break; } }
+    if (titleIdx > 0 && nameOk(lines[titleIdx - 1], titleIdx - 1)) out.name = tc(lines[titleIdx - 1]);
+    if (!out.name) {
+      for (var n2 = 0; n2 < lines.length; n2++) {
+        if (used(n2) || n2 === bizIdx) continue;
+        var mm = lines[n2].match(/^([A-Za-z .'\-]{4,40}),?\s+(?:owner|president|proprietor|manager|founder|partner|ceo)\b/i);
+        if (mm) { out.name = tc(mm[1].trim()); break; }
+      }
+    }
+    if (!out.name) {
+      for (var n3 = 0; n3 < lines.length; n3++) { if (nameOk(lines[n3], n3)) { out.name = tc(lines[n3]); break; } }
+    }
+    return out;
+  }
 
   // ── sheet plumbing ─────────────────────────────────────────────
   var _tabEnsured = false;
@@ -165,21 +289,28 @@
       _cardFile = f;
       var st = ov.querySelector('#ct-card-status');
       st.textContent = '📇 Card attached — reading it…';
-      // OCR prefill (best effort, empty fields only)
+      // v0.9.766 (TODO-002): full-card OCR prefill — name, business, phone,
+      // email, website, address. Best effort, EMPTY fields only. The photo is
+      // downscaled first so the read is fast on phones.
       try {
         if (typeof window._ensureTesseract === 'function') {
           var T = await window._ensureTesseract();
-          var res = await T.recognize(f, 'eng', {});
-          var text = (res && res.data && res.data.text) || '';
-          var email = (text.match(/[\w.+-]+@[\w-]+\.[\w.]+/) || [])[0] || '';
-          var phone = (text.match(/(\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/) || [])[0] || '';
-          var lines = text.split('\n').map(function (l) { return l.trim(); }).filter(function (l) { return l.length > 2; });
-          var nameGuess = (lines.find(function (l) { return !/\d/.test(l) && !/@/.test(l) && l.length < 40; }) || '');
-          var set = function (id, v) { var el = ov.querySelector('#' + id); if (el && !el.value && v) el.value = v; };
-          set('ct-f-email', email); set('ct-f-phone', phone); set('ct-f-name', nameGuess);
-          st.textContent = '📇 Card attached' + ((email || phone || nameGuess) ? ' — details read from the card, double-check them' : ' — couldn’t read details, type them in');
+          var small = await _cardOcrImage(f);
+          var res = await T.recognize(small, 'eng', {});
+          var got = _parseCardText((res && res.data && res.data.text) || '');
+          var set = function (id, v) { var el = ov.querySelector('#' + id); if (el && !el.value && v) { el.value = v; return true; } return false; };
+          var filled = [];
+          if (set('ct-f-name', got.name)) filled.push('name');
+          if (set('ct-f-biz', got.business)) filled.push('business');
+          if (set('ct-f-phone', got.phone)) filled.push('phone');
+          if (set('ct-f-email', got.email)) filled.push('email');
+          if (set('ct-f-web', got.website)) filled.push('website');
+          if (set('ct-f-addr', got.address)) filled.push('address');
+          st.textContent = filled.length
+            ? ('📇 Card read — filled in ' + filled.join(', ') + '. Double-check before saving.')
+            : '📇 Card attached — couldn’t read details, type them in';
         } else st.textContent = '📇 Card attached — will be saved with the contact';
-      } catch (e) { st.textContent = '📇 Card attached — will be saved with the contact'; }
+      } catch (e) { console.warn('[card OCR]', e); st.textContent = '📇 Card attached — will be saved with the contact'; }
     });
 
     ov.querySelector('#ct-save').onclick = async function () {
