@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.785
+// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.787
 //
 // Brad's brainstorm picks: own page, listed as "Contacts", entry ABOVE
 // Preferences in the account menu. Business-card photo capture (Drive
@@ -901,12 +901,16 @@
     if (_pInp) _pInp.addEventListener('change', function () {
       var pf = _pInp.files && _pInp.files[0];
       if (!pf) return;
-      _personFile = pf;
-      try { _ppWrap.style.display = 'inline-block'; _ppImg.src = URL.createObjectURL(pf); } catch (eP) {}
+      var _setPerson = function (file2) { _personFile = file2; try { _ppWrap.style.display = 'inline-block'; _ppImg.src = URL.createObjectURL(file2); } catch (eP) {} };
+      _setPerson(pf);
+      // v0.9.787: crop right after picking (Cancel keeps the full photo)
+      if (typeof _openCropper === 'function') {
+        try { _openCropper(URL.createObjectURL(pf), function (blob) { _setPerson(new File([blob], 'person.jpg', { type: 'image/jpeg' })); }, function () {}); } catch (eC) {}
+      }
     });
-    // v0.9.784 (Brad): crop — SAME tool as wizard photos (photo-crop.js), so
-    // cropping feels identical everywhere in the app. Card crop re-runs the
-    // scan on the cropped photo (fills any still-empty fields).
+    // v0.9.787 (Brad): flow = take/pick the picture → CROP → then read.
+    // _skipCropOnce marks a re-dispatch that already went through the cropper.
+    var _skipCropOnce = false;
     var _cropCard = ov.querySelector('#ct-card-crop');
     if (_cropCard) _cropCard.onclick = function () {
       if (typeof _openCropper !== 'function' || !_pvImg || !_pvImg.src) return;
@@ -915,9 +919,10 @@
         var gal = ov.querySelector('#ct-card-gallery');
         try {
           var dt = new DataTransfer(); dt.items.add(nf);
+          _skipCropOnce = true;
           gal.files = dt.files;
           gal.dispatchEvent(new Event('change'));      // re-scan the cropped card
-        } catch (eD) { _cardFile = nf; try { _pvImg.src = URL.createObjectURL(nf); } catch (e2) {} }
+        } catch (eD) { _skipCropOnce = false; _cardFile = nf; try { _pvImg.src = URL.createObjectURL(nf); } catch (e2) {} }
       });
     };
     var _cropPerson = ov.querySelector('#ct-person-crop');
@@ -944,6 +949,30 @@
       _cardFile = f;
       try { if (_pv && _pvImg) { _pv.style.display = 'block'; _pvImg.src = URL.createObjectURL(f); } } catch (e0) {}
       var st = ov.querySelector('#ct-card-status');
+      // v0.9.787 (Brad): take the picture → CROP IT → then read. A fresh pick
+      // opens the cropper first; Apply re-enters this handler with the cropped
+      // file (_skipCropOnce), Cancel reads the full photo as-is.
+      if (!_skipCropOnce && typeof _openCropper === 'function') {
+        var _rawUrl = '';
+        try { _rawUrl = URL.createObjectURL(f); } catch (eU) {}
+        if (_rawUrl) {
+          st.textContent = '✂ Crop to just the card, then hit Apply.';
+          var _reDispatch = function (file3) {
+            var nf3 = file3 || f;
+            try {
+              var dt3 = new DataTransfer(); dt3.items.add(nf3 instanceof File ? nf3 : new File([nf3], 'card.jpg', { type: 'image/jpeg' }));
+              _skipCropOnce = true;
+              fileInp.files = dt3.files;
+              fileInp.dispatchEvent(new Event('change'));
+            } catch (eD3) { _skipCropOnce = false; }
+          };
+          _openCropper(_rawUrl,
+            function (blob) { _reDispatch(new File([blob], 'card.jpg', { type: 'image/jpeg' })); },
+            function () { _reDispatch(f); });
+          return;
+        }
+      }
+      _skipCropOnce = false;
       // v0.9.779 (Brad: "45 seconds is too long"): the relay reader and the
       // on-device reader now run AT THE SAME TIME. Whoever finishes first
       // fills the form; the relay's answer (better quality) may replace an
