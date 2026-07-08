@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.777
+// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.778
 //
 // Brad's brainstorm picks: own page, listed as "Contacts", entry ABOVE
 // Preferences in the account menu. Business-card photo capture (Drive
@@ -25,7 +25,9 @@
   // v0.9.767 (Brad): + Home Phone / Cell Phone / Title — appended at END (M/N/O) so
   // existing rows keep their columns. D 'Phone' = store/main number.
   var HEADERS = ['Contact ID', 'Name', 'Business', 'Phone', 'Email', 'Specialties', 'Notes', 'Card Photo Link', 'Met At', 'Date Added', 'Mailing Address', 'Website', 'Home Phone', 'Cell Phone', 'Title'];
-  var SPECIALTY_CHIPS = ['Prewar', 'Postwar', 'Modern', 'MTH', 'Atlas', 'Menards', 'Parts', 'Repairs', 'Paper', 'Sets'];
+  // v0.9.778 (Brad): Era gets its own chip row; Lionel joins the brands.
+  var ERA_CHIPS = ['Prewar', 'Postwar', 'Modern', 'All Eras'];
+  var SPECIALTY_CHIPS = ['Lionel', 'MTH', 'Atlas', 'Menards', 'Parts', 'Repairs', 'Paper', 'Sets'];
 
   function _esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function _today() { try { return new Date().toLocaleDateString('en-CA'); } catch (e) { return ''; } }
@@ -598,6 +600,7 @@
         .map(function (s) { return '<span style="font-size:0.68rem;border:1px solid var(--accent2);color:var(--accent2);border-radius:4px;padding:0.05rem 0.35rem;margin-right:0.25rem">' + _esc(s) + '</span>'; }).join('');
       return '<div style="border:1px solid var(--border);border-radius:11px;background:var(--surface);padding:0.8rem 1rem;margin-bottom:0.55rem">'
         + '<div style="display:flex;align-items:flex-start;gap:0.6rem;flex-wrap:wrap">'
+        + (function () { var m2 = (c.cardLink || '').match(/\/d\/([\w-]+)/); return m2 ? '<img data-card-thumb="' + m2[1] + '" alt="card" style="width:92px;height:56px;object-fit:cover;border-radius:7px;border:1px solid var(--border);flex-shrink:0;cursor:pointer;background:#111" onclick="window.open(\'' + _esc(c.cardLink) + '\', \'_blank\')">' : ''; })()
         + '<div style="flex:1;min-width:200px">'
         +   '<div style="font-weight:800;color:var(--text);font-size:1rem">' + _esc(c.name) + (c.business ? ' <span style="font-weight:400;color:var(--text-mid);font-size:0.85rem">· ' + _esc(c.business) + '</span>' : '') + '</div>'
         +   (c.title ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.1rem">' + _esc(c.title) + '</div>' : '')
@@ -619,6 +622,12 @@
         +   '</div>'
         + '</div></div></div>';
     }).join('');
+    // v0.9.778: hydrate the card thumbnails (authenticated Drive fetch).
+    if (typeof loadDriveThumb === 'function') {
+      el.querySelectorAll('img[data-card-thumb]').forEach(function (im) {
+        loadDriveThumb(im.getAttribute('data-card-thumb'), im, im);
+      });
+    }
   };
 
   // v0.9.773 (Brad): Delete straight from the list card (Edit | Delete split).
@@ -640,38 +649,47 @@
     var ov = document.createElement('div');
     ov.id = 'ct-modal';
     ov.style.cssText = 'position:fixed;inset:0;z-index:10040;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;padding:1rem;overflow-y:auto';
+    // v0.9.778: compact fields + side-by-side pairs — the form was a mile long.
     function fld(label, id, val, ph, type) {
-      return '<div style="margin-bottom:0.6rem"><div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-dim);margin-bottom:0.2rem">' + label + '</div>'
-        + '<input id="' + id + '" type="' + (type || 'text') + '" value="' + _esc(val) + '" placeholder="' + _esc(ph || '') + '" style="width:100%;box-sizing:border-box;padding:0.6rem 0.75rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.9rem"></div>';
+      return '<div style="margin-bottom:0.4rem"><div style="font-size:0.66rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);margin-bottom:0.1rem">' + label + '</div>'
+        + '<input id="' + id + '" type="' + (type || 'text') + '" value="' + _esc(val) + '" placeholder="' + _esc(ph || '') + '" style="width:100%;box-sizing:border-box;padding:0.45rem 0.6rem;border-radius:7px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem"></div>';
     }
-    ov.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:460px;width:100%;padding:1.2rem;max-height:92vh;overflow-y:auto">'
-      + '<div style="font-family:var(--font-head);font-size:1.1rem;color:var(--text);margin-bottom:0.8rem">' + (row ? 'Edit Contact' : '📇 New Contact') + '</div>'
+    function fld2(a, b) { return '<div style="display:flex;gap:0.45rem"><div style="flex:1;min-width:0">' + a + '</div><div style="flex:1;min-width:0">' + b + '</div></div>'; }
+    var _chipRow = function (list) {
+      var have = (c.specialties || '').split(',').map(function (x) { return x.trim().toLowerCase(); });
+      return '<div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-bottom:0.35rem">' + list.map(function (s) {
+        var on = have.indexOf(s.toLowerCase()) >= 0;
+        return '<button data-ct-chip="' + s + '" style="padding:0.22rem 0.5rem;border-radius:999px;font-size:0.73rem;cursor:pointer;font-family:var(--font-body);border:1.5px solid ' + (on ? 'var(--accent2);background:rgba(201,146,42,0.15);color:var(--accent2)' : 'var(--border);background:var(--surface2);color:var(--text-mid)') + '">' + s + '</button>';
+      }).join('') + '</div>';
+    };
+    var _knownChips = ERA_CHIPS.concat(SPECIALTY_CHIPS).map(function (x) { return x.toLowerCase(); });
+    var _extraSpecs = (c.specialties || '').split(',').map(function (x) { return x.trim(); })
+      .filter(function (x) { return x && _knownChips.indexOf(x.toLowerCase()) < 0; }).join(', ');
+    ov.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:480px;width:100%;padding:0.9rem 1rem;max-height:92vh;overflow-y:auto">'
+      + '<div style="font-family:var(--font-head);font-size:1.05rem;color:var(--text);margin-bottom:0.5rem">' + (row ? 'Edit Contact' : '📇 New Contact') + '</div>'
       + '<div style="display:flex;gap:0.5rem;margin-bottom:0.7rem">'
       +   '<button onclick="document.getElementById(\'ct-card-file\').click()" style="flex:1;padding:0.75rem;border-radius:9px;border:1.5px dashed #3498db;background:rgba(52,152,219,0.08);color:#3498db;font-weight:700;cursor:pointer;font-family:var(--font-body)">📷 Take photo of card</button>'
       +   '<button onclick="document.getElementById(\'ct-card-gallery\').click()" style="flex:1;padding:0.75rem;border-radius:9px;border:1.5px dashed #3498db;background:rgba(52,152,219,0.08);color:#3498db;font-weight:700;cursor:pointer;font-family:var(--font-body)">🖼 From gallery</button>'
       + '</div>'
       + '<input type="file" id="ct-card-file" accept="image/*" capture="environment" style="display:none">'
       + '<input type="file" id="ct-card-gallery" accept="image/*" style="display:none">'
-      + '<div style="font-size:0.68rem;color:var(--text-dim);margin:-0.4rem 0 0.5rem">Tip: fill the frame with the card, avoid glare — a close, flat shot reads best.</div>'
+      + '<div style="font-size:0.68rem;color:var(--text-dim);margin:-0.4rem 0 0.4rem">Tip: fill the frame with the card, avoid glare — a close, flat shot reads best.</div>'
+      + '<div id="ct-card-preview" style="display:none;margin:0 0 0.4rem"><img id="ct-card-preview-img" alt="business card" style="width:100%;max-height:140px;object-fit:contain;border-radius:8px;border:1px solid var(--border);background:#111"></div>'
       + '<div id="ct-card-status" style="font-size:0.75rem;color:var(--text-dim);margin:-0.3rem 0 0.5rem"></div>'
-      + fld('Name', 'ct-f-name', c.name, 'Dave Miller')
-      + fld('Title', 'ct-f-title', c.title, 'Owner')
+      + fld2(fld('Name', 'ct-f-name', c.name, 'Dave Miller'), fld('Title', 'ct-f-title', c.title, 'Owner'))
       + fld('Store / Business', 'ct-f-biz', c.business, "Dave's Trains")
-      + fld('Store / Main Phone', 'ct-f-phone', c.phone, '(555) 123-4567', 'tel')
-      + fld('Cell / Mobile', 'ct-f-cell', c.cellPhone, '(555) 123-9876', 'tel')
-      + fld('Home Phone', 'ct-f-home', c.homePhone, '', 'tel')
-      + fld('Email', 'ct-f-email', c.email, 'dave@example.com', 'email')
-      + '<div style="margin-bottom:0.2rem;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-dim)">Deals in</div>'
-      + '<div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-bottom:0.4rem">' + SPECIALTY_CHIPS.map(function (s) {
-          var on = (c.specialties || '').indexOf(s) >= 0;
-          return '<button data-ct-chip="' + s + '" style="padding:0.25rem 0.55rem;border-radius:999px;font-size:0.75rem;cursor:pointer;font-family:var(--font-body);border:1.5px solid ' + (on ? 'var(--accent2);background:rgba(201,146,42,0.15);color:var(--accent2)' : 'var(--border);background:var(--surface2);color:var(--text-mid)') + '">' + s + '</button>';
-        }).join('') + '</div>'
-      + fld('Other specialties', 'ct-f-spec', '', 'anything not covered above')
+      + fld2(fld('Store / Main Phone', 'ct-f-phone', c.phone, '(555) 123-4567', 'tel'), fld('Cell / Mobile', 'ct-f-cell', c.cellPhone, '(555) 123-9876', 'tel'))
+      + fld2(fld('Home Phone', 'ct-f-home', c.homePhone, '', 'tel'), fld('Email', 'ct-f-email', c.email, 'dave@example.com', 'email'))
+      + '<div style="margin-bottom:0.1rem;font-size:0.66rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim)">Era</div>'
+      + _chipRow(ERA_CHIPS)
+      + '<div style="margin-bottom:0.1rem;font-size:0.66rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim)">Deals in</div>'
+      + _chipRow(SPECIALTY_CHIPS)
+      + fld('Other specialties', 'ct-f-spec', _extraSpecs, 'anything not covered above')
       + fld('Website', 'ct-f-web', c.website, 'davestrains.com')
       + fld('Mailing address', 'ct-f-addr', c.address, '123 Main St, Anytown PA 17400')
       + fld('Met at', 'ct-f-met', c.metAt, 'York, October 2026')
-      + '<div style="margin-bottom:0.6rem"><div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-dim);margin-bottom:0.2rem">Notes</div>'
-      + '<textarea id="ct-f-notes" rows="3" placeholder="strong on tinplate, will negotiate, ships…" style="width:100%;box-sizing:border-box;padding:0.6rem 0.75rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.9rem;resize:vertical">' + _esc(c.notes) + '</textarea></div>'
+      + '<div style="margin-bottom:0.4rem"><div style="font-size:0.66rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);margin-bottom:0.1rem">Notes</div>'
+      + '<textarea id="ct-f-notes" rows="2" placeholder="strong on tinplate, will negotiate, ships…" style="width:100%;box-sizing:border-box;padding:0.45rem 0.6rem;border-radius:7px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;resize:vertical">' + _esc(c.notes) + '</textarea></div>'
       + '<div style="display:flex;gap:0.5rem">'
       + '<button id="ct-save" style="flex:2;padding:0.8rem;border-radius:9px;border:none;background:var(--accent);color:#fff;font-weight:800;cursor:pointer;font-family:var(--font-body)">✓ Save Contact</button>'
       + (row ? '<button id="ct-del" style="flex:1;padding:0.8rem;border-radius:9px;border:1px solid #e74c3c;background:none;color:#e74c3c;cursor:pointer;font-family:var(--font-body)">Delete</button>' : '')
@@ -688,6 +706,11 @@
     });
 
     var _cardFile = null;
+    // v0.9.778: show the card photo in the form — existing (from Drive) or
+    // freshly picked (instant local preview).
+    var _pv = ov.querySelector('#ct-card-preview'), _pvImg = ov.querySelector('#ct-card-preview-img');
+    var _clm = (c.cardLink || '').match(/\/d\/([\w-]+)/);
+    if (_clm && _pv && typeof loadDriveThumb === 'function') { _pv.style.display = 'block'; loadDriveThumb(_clm[1], _pvImg, _pv); }
     // v0.9.776 (Brad): visible spinner while reading — text-only status looked
     // like the app had stalled during the AI/OCR passes.
     var _stBusy = function (st2, msg) {
@@ -702,6 +725,7 @@
       var f = fileInp.files && fileInp.files[0];
       if (!f) return;
       _cardFile = f;
+      try { if (_pv && _pvImg) { _pv.style.display = 'block'; _pvImg.src = URL.createObjectURL(f); } } catch (e0) {}
       var st = ov.querySelector('#ct-card-status');
       // v0.9.775: AI reads the card FIRST (same relay + daily cap as photo
       // ID). On-device OCR below remains the fallback for: consent declined,
