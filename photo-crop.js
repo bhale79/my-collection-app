@@ -6,7 +6,7 @@
 // full photo, with zero extra clicks.
 // ══════════════════════════════════════════════════════════════════
 
-function _openCropper(src, onResult) {
+function _openCropper(src, onResult, onCancel) {   // v0.9.787: onCancel = proceed without cropping
   if (typeof Cropper === 'undefined') { if (typeof showToast === 'function') showToast('Crop tool still loading — try again in a moment'); return; }
   var ov = document.createElement('div');
   // v0.9.786: TOP layer — the contact modal sits at 10040, and the cropper
@@ -30,11 +30,11 @@ function _openCropper(src, onResult) {
   img.onload = function () { try { cropper = new Cropper(img, { viewMode: 1, autoCropArea: 1, background: false, movable: true, zoomable: true, responsive: true, checkOrientation: true }); } catch (e) { console.warn('[crop] init', e); } };
   img.src = src;
   function done() { try { if (cropper) cropper.destroy(); } catch (e) {} ov.remove(); }
-  ov.querySelector('#_rrCropCancel').onclick = done;
+  ov.querySelector('#_rrCropCancel').onclick = function () { done(); if (onCancel) try { onCancel(); } catch (e) {} };
   ov.querySelector('#_rrCropApply').onclick = function () {
-    if (!cropper) { done(); return; }
+    if (!cropper) { done(); if (onCancel) try { onCancel(); } catch (e) {} return; }
     var canvas = cropper.getCroppedCanvas({ maxWidth: 2400, maxHeight: 2400, imageSmoothingQuality: 'high' });
-    if (!canvas) { done(); return; }
+    if (!canvas) { done(); if (onCancel) try { onCancel(); } catch (e) {} return; }
     canvas.toBlob(function (blob) { done(); if (blob) onResult(blob); }, 'image/jpeg', 0.9);
   };
 }
