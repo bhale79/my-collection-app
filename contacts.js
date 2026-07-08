@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.783
+// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.784
 //
 // Brad's brainstorm picks: own page, listed as "Contacts", entry ABOVE
 // Preferences in the account menu. Business-card photo capture (Drive
@@ -709,10 +709,10 @@
         +   (function () { var n2 = Object.values(state.personalData || {}).filter(function (pd) { return pd && pd.owned && pd.purchasedFrom === c.id; }).length; return n2 ? '<div onclick="_ctShowBought(\'' + _esc(c.id) + '\')" style="font-size:0.76rem;color:var(--accent2);margin-top:0.25rem;cursor:pointer">🛒 ' + n2 + ' item' + (n2 > 1 ? 's' : '') + ' bought from them — tap to see</div>' : ''; })()
         + '</div>'
         + '<div style="display:flex;flex-direction:column;gap:0.3rem;flex-shrink:0">'
-        +   (c.phone ? '<a href="tel:' + _esc(c.phone.replace(/[^+0-9]/g, '')) + '" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #2ecc71;color:#2ecc71;text-decoration:none;font-size:0.78rem;text-align:center">📞 ' + _esc(c.phone) + '</a>' : '')
-        +   (c.cellPhone ? '<a href="tel:' + _esc(c.cellPhone.replace(/[^+0-9]/g, '')) + '" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #2ecc71;color:#2ecc71;text-decoration:none;font-size:0.78rem;text-align:center">📱 ' + _esc(c.cellPhone) + '</a>' : '')
-        +   (c.homePhone ? '<a href="tel:' + _esc(c.homePhone.replace(/[^+0-9]/g, '')) + '" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #2ecc71;color:#2ecc71;text-decoration:none;font-size:0.78rem;text-align:center">🏠 ' + _esc(c.homePhone) + '</a>' : '')
-        +   (c.email ? '<a href="mailto:' + _esc(c.email) + '" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #3498db;color:#3498db;text-decoration:none;font-size:0.78rem;text-align:center">✉ Email</a>' : '')
+        +   (c.phone ? '<a href="tel:' + _esc(c.phone.replace(/[^+0-9]/g, '')) + '" onclick="return _ctTel(event, \'' + _esc(c.phone) + '\')" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #2ecc71;color:#2ecc71;text-decoration:none;font-size:0.78rem;text-align:center">📞 ' + _esc(c.phone) + '</a>' : '')
+        +   (c.cellPhone ? '<a href="tel:' + _esc(c.cellPhone.replace(/[^+0-9]/g, '')) + '" onclick="return _ctTel(event, \'' + _esc(c.cellPhone) + '\')" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #2ecc71;color:#2ecc71;text-decoration:none;font-size:0.78rem;text-align:center">📱 ' + _esc(c.cellPhone) + '</a>' : '')
+        +   (c.homePhone ? '<a href="tel:' + _esc(c.homePhone.replace(/[^+0-9]/g, '')) + '" onclick="return _ctTel(event, \'' + _esc(c.homePhone) + '\')" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #2ecc71;color:#2ecc71;text-decoration:none;font-size:0.78rem;text-align:center">🏠 ' + _esc(c.homePhone) + '</a>' : '')
+        +   (c.email ? '<a href="mailto:' + _esc(c.email) + '" target="_blank" rel="noopener" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #3498db;color:#3498db;text-decoration:none;font-size:0.78rem;text-align:center">✉ Email</a>' : '')
         +   (c.website ? '<a href="' + _esc((/^https?:/i.test(c.website) ? c.website : 'https://' + c.website)) + '" target="_blank" rel="noopener" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #9b59b6;color:#9b59b6;text-decoration:none;font-size:0.78rem;text-align:center">🌐 Website</a>' : '')
         +   (c.address ? '<a href="https://maps.google.com/?q=' + encodeURIComponent(c.address) + '" target="_blank" rel="noopener" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #16a085;color:#16a085;text-decoration:none;font-size:0.78rem;text-align:center">🗺 Map</a>' : '')
         +   (c.cardLink ? '<a href="' + _esc(c.cardLink) + '" target="_blank" rel="noopener" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid var(--accent2);color:var(--accent2);text-decoration:none;font-size:0.78rem;text-align:center">📇 Card</a>' : '')
@@ -729,6 +729,18 @@
         loadDriveThumb(im.getAttribute('data-card-thumb'), im, im);
       });
     }
+  };
+
+  // v0.9.784 (Brad): desktop has no phone app — clicking a number there
+  // copies it instead of navigating to a dead tel: link. Mobile still calls.
+  window._ctTel = function (ev, num) {
+    var mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+    if (mobile) return true;
+    ev.preventDefault();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(num).then(function () { showToast('📞 ' + num + ' copied to the clipboard'); }).catch(function () {});
+    }
+    return false;
   };
 
   // v0.9.782 (Brad): everything you've bought from this contact.
@@ -820,9 +832,11 @@
       + '<input type="file" id="ct-card-file" accept="image/*" capture="environment" style="display:none">'
       + '<input type="file" id="ct-card-gallery" accept="image/*" style="display:none">'
       + '<div style="font-size:0.68rem;color:var(--text-dim);margin:-0.4rem 0 0.4rem">Tip: fill the frame with the card, avoid glare — a close, flat shot reads best.</div>'
-      + '<div id="ct-card-preview" style="display:none;margin:0 0 0.4rem"><img id="ct-card-preview-img" alt="business card" style="width:100%;max-height:140px;object-fit:contain;border-radius:8px;border:1px solid var(--border);background:#111"></div>'
+      + '<div id="ct-card-preview" style="display:none;margin:0 0 0.4rem;position:relative"><img id="ct-card-preview-img" alt="business card" style="width:100%;max-height:140px;object-fit:contain;border-radius:8px;border:1px solid var(--border);background:#111">'
+      +   '<button id="ct-card-crop" title="Crop" style="position:absolute;top:6px;right:6px;width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:rgba(0,0,0,0.65);color:#fff;cursor:pointer;font-size:0.9rem;line-height:1">✂</button>'
+      + '</div>'
       + '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem">'
-      +   '<img id="ct-person-preview" alt="" style="display:none;width:44px;height:44px;object-fit:cover;border-radius:50%;border:1.5px solid var(--border);background:#111">'
+      +   '<span id="ct-person-wrap" style="display:none;position:relative;flex-shrink:0"><img id="ct-person-preview" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:50%;border:1.5px solid var(--border);background:#111;display:block"><button id="ct-person-crop" title="Crop" style="position:absolute;right:-7px;bottom:-7px;width:24px;height:24px;border-radius:50%;border:1px solid var(--border);background:rgba(0,0,0,0.75);color:#fff;cursor:pointer;font-size:0.7rem;line-height:1">✂</button></span>'
       +   '<button onclick="document.getElementById(\'ct-person-file\').click()" style="flex:1;padding:0.5rem;border-radius:8px;border:1.5px dashed var(--border);background:none;color:var(--text-mid);font-size:0.8rem;cursor:pointer;font-family:var(--font-body)">🙂 Add a photo of them (optional)</button>'
       +   '<input type="file" id="ct-person-file" accept="image/*" style="display:none">'
       + '</div>'
@@ -868,15 +882,40 @@
     // v0.9.780: optional photo of the PERSON (gallery-first).
     var _personFile = null;
     var _ppImg = ov.querySelector('#ct-person-preview');
+    var _ppWrap = ov.querySelector('#ct-person-wrap');
     var _ppm = (c.personPhoto || '').match(/\/d\/([\w-]+)/);
-    if (_ppm && _ppImg && typeof loadDriveThumb === 'function') { _ppImg.style.display = 'block'; loadDriveThumb(_ppm[1], _ppImg, _ppImg); }
+    if (_ppm && _ppImg && typeof loadDriveThumb === 'function') { _ppWrap.style.display = 'inline-block'; loadDriveThumb(_ppm[1], _ppImg, _ppImg); }
     var _pInp = ov.querySelector('#ct-person-file');
     if (_pInp) _pInp.addEventListener('change', function () {
       var pf = _pInp.files && _pInp.files[0];
       if (!pf) return;
       _personFile = pf;
-      try { _ppImg.style.display = 'block'; _ppImg.src = URL.createObjectURL(pf); } catch (eP) {}
+      try { _ppWrap.style.display = 'inline-block'; _ppImg.src = URL.createObjectURL(pf); } catch (eP) {}
     });
+    // v0.9.784 (Brad): crop — SAME tool as wizard photos (photo-crop.js), so
+    // cropping feels identical everywhere in the app. Card crop re-runs the
+    // scan on the cropped photo (fills any still-empty fields).
+    var _cropCard = ov.querySelector('#ct-card-crop');
+    if (_cropCard) _cropCard.onclick = function () {
+      if (typeof _openCropper !== 'function' || !_pvImg || !_pvImg.src) return;
+      _openCropper(_pvImg.src, function (blob) {
+        var nf = new File([blob], 'card.jpg', { type: 'image/jpeg' });
+        var gal = ov.querySelector('#ct-card-gallery');
+        try {
+          var dt = new DataTransfer(); dt.items.add(nf);
+          gal.files = dt.files;
+          gal.dispatchEvent(new Event('change'));      // re-scan the cropped card
+        } catch (eD) { _cardFile = nf; try { _pvImg.src = URL.createObjectURL(nf); } catch (e2) {} }
+      });
+    };
+    var _cropPerson = ov.querySelector('#ct-person-crop');
+    if (_cropPerson) _cropPerson.onclick = function () {
+      if (typeof _openCropper !== 'function' || !_ppImg || !_ppImg.src) return;
+      _openCropper(_ppImg.src, function (blob) {
+        _personFile = new File([blob], 'person.jpg', { type: 'image/jpeg' });
+        try { _ppImg.src = URL.createObjectURL(blob); } catch (e2) {}
+      });
+    };
     // v0.9.776 (Brad): visible spinner while reading — text-only status looked
     // like the app had stalled during the AI/OCR passes.
     var _stBusy = function (st2, msg) {
