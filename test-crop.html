@@ -1,0 +1,45 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>crop test</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+<style>:root{--border:#444;--font-body:sans-serif;--surface:#1a1d3a;--text:#eee;--text-mid:#ccc;}body{background:#222;color:#eee;font-family:sans-serif}</style>
+</head><body>
+<div id="fake-modal" style="position:fixed;inset:0;z-index:10040;background:rgba(0,0,20,0.9);display:flex;align-items:center;justify-content:center">
+  <div style="background:#1a1d3a;border-radius:14px;padding:1rem;width:420px">
+    <div id="ct-card-preview" style="position:relative">
+      <img id="ct-card-preview-img" style="width:100%;max-height:140px;object-fit:contain;background:#111">
+      <button id="ct-card-crop" style="position:absolute;top:6px;right:6px;width:30px;height:30px;background:rgba(0,0,0,0.65);color:#fff;border:1px solid #444;border-radius:8px;cursor:pointer">✂</button>
+    </div>
+    <div id="result" style="margin-top:8px;font-size:13px">ready</div>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+<script src="./photo-crop.js?v=test1"></script>
+<script>
+// fake "card": canvas with colored quadrants so a crop is visually obvious
+var cv = document.createElement('canvas'); cv.width = 800; cv.height = 500;
+var x = cv.getContext('2d');
+x.fillStyle='#c0392b'; x.fillRect(0,0,400,250);
+x.fillStyle='#27ae60'; x.fillRect(400,0,400,250);
+x.fillStyle='#2980b9'; x.fillRect(0,250,400,250);
+x.fillStyle='#f1c40f'; x.fillRect(400,250,400,250);
+x.fillStyle='#fff'; x.font='40px sans-serif'; x.fillText('TEST CARD',280,260);
+cv.toBlob(function(b){
+  var img = document.getElementById('ct-card-preview-img');
+  img.src = URL.createObjectURL(b);
+  window._origSize = b.size;
+});
+document.getElementById('ct-card-crop').onclick = function(){
+  var img = document.getElementById('ct-card-preview-img');
+  console.log('[test] opening cropper, src=', img.src.substring(0,40));
+  _openCropper(img.src, function(blob){
+    console.log('[test] onResult blob size=', blob.size, 'orig=', window._origSize);
+    var img2 = document.getElementById('ct-card-preview-img');
+    img2.src = URL.createObjectURL(blob);
+    var im = new Image();
+    im.onload = function(){ 
+      document.getElementById('result').textContent = 'RESULT: cropped blob ' + blob.size + 'B, ' + im.width + 'x' + im.height + ' (orig 800x500, ' + window._origSize + 'B)';
+      console.log('[test] cropped dims', im.width, 'x', im.height);
+    };
+    im.src = img2.src;
+  });
+};
+</script></body></html>
