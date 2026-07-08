@@ -315,8 +315,12 @@
     }
     ov.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:460px;width:100%;padding:1.2rem;max-height:92vh;overflow-y:auto">'
       + '<div style="font-family:var(--font-head);font-size:1.1rem;color:var(--text);margin-bottom:0.8rem">' + (row ? 'Edit Contact' : '📇 New Contact') + '</div>'
-      + '<button onclick="document.getElementById(\'ct-card-file\').click()" style="width:100%;margin-bottom:0.7rem;padding:0.75rem;border-radius:9px;border:1.5px dashed #3498db;background:rgba(52,152,219,0.08);color:#3498db;font-weight:700;cursor:pointer;font-family:var(--font-body)">📷 Snap / upload their business card</button>'
+      + '<div style="display:flex;gap:0.5rem;margin-bottom:0.7rem">'
+      +   '<button onclick="document.getElementById(\'ct-card-file\').click()" style="flex:1;padding:0.75rem;border-radius:9px;border:1.5px dashed #3498db;background:rgba(52,152,219,0.08);color:#3498db;font-weight:700;cursor:pointer;font-family:var(--font-body)">📷 Take photo of card</button>'
+      +   '<button onclick="document.getElementById(\'ct-card-gallery\').click()" style="flex:1;padding:0.75rem;border-radius:9px;border:1.5px dashed #3498db;background:rgba(52,152,219,0.08);color:#3498db;font-weight:700;cursor:pointer;font-family:var(--font-body)">🖼 From gallery</button>'
+      + '</div>'
       + '<input type="file" id="ct-card-file" accept="image/*" capture="environment" style="display:none">'
+      + '<input type="file" id="ct-card-gallery" accept="image/*" style="display:none">'
       + '<div id="ct-card-status" style="font-size:0.75rem;color:var(--text-dim);margin:-0.3rem 0 0.5rem"></div>'
       + fld('Name', 'ct-f-name', c.name, 'Dave Miller')
       + fld('Title', 'ct-f-title', c.title, 'Owner')
@@ -352,7 +356,11 @@
     });
 
     var _cardFile = null;
-    var fileInp = ov.querySelector('#ct-card-file');
+    // v0.9.768 (Brad): camera AND gallery inputs share one handler — the
+    // capture attribute forces the camera, so gallery picks need a second input.
+    ['ct-card-file', 'ct-card-gallery'].forEach(function (_inpId) {
+    var fileInp = ov.querySelector('#' + _inpId);
+    if (!fileInp) return;
     fileInp.addEventListener('change', async function () {
       var f = fileInp.files && fileInp.files[0];
       if (!f) return;
@@ -384,6 +392,7 @@
             : '📇 Card attached — couldn’t read details, type them in';
         } else st.textContent = '📇 Card attached — will be saved with the contact';
       } catch (e) { console.warn('[card OCR]', e); st.textContent = '📇 Card attached — will be saved with the contact'; }
+    });
     });
 
     ov.querySelector('#ct-save').onclick = async function () {
