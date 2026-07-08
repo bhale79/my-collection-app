@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.790
+// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.791
 //
 // Brad's brainstorm picks: own page, listed as "Contacts", entry ABOVE
 // Preferences in the account menu. Business-card photo capture (Drive
@@ -670,7 +670,8 @@
   window.buildContactsPage = async function () {
     var page = document.getElementById('page-contacts');
     if (!page) return;
-    page.innerHTML = '<div class="page-title">Contacts</div>'
+    page.innerHTML = '<style>@media (max-width:640px){.ct-cthumb{display:none!important}.ct-clink{display:inline!important}}</style>'
+      + '<div class="page-title">Contacts</div>'
       + '<div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.8rem;flex-wrap:wrap">'
       + '<input id="ct-search" type="text" placeholder="Search name, business, specialty…" oninput="_ctRenderList()" style="flex:1;min-width:200px;padding:0.6rem 0.8rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.9rem">'
       + '<button onclick="_ctOpenEdit(null)" style="padding:0.6rem 1.1rem;border-radius:9px;border:1.5px solid var(--accent);background:rgba(232,64,28,0.1);color:var(--accent);font-weight:700;cursor:pointer;font-family:var(--font-body)">+ Add Contact</button>'
@@ -697,36 +698,44 @@
     // v0.9.788 (Brad): COMPACT cards — card thumb left (tap = full size),
     // person photo inline right of the name, buttons tiled 2-3 per row.
     var _sb = 'padding:0.28rem 0.5rem;border-radius:6px;font-size:0.72rem;text-align:center;text-decoration:none;cursor:pointer;font-family:var(--font-body);background:none';
+    // v0.9.791 (Brad): name · business, then his photo, then the card to its
+    // RIGHT — all on one line. Right column: phones / address / buttons.
+    // Phones + address + actions stack tight; no dead middle space.
     el.innerHTML = rows.map(function (c) {
       var chips = (c.specialties || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean)
         .map(function (s) { return '<span style="font-size:0.62rem;border:1px solid var(--accent2);color:var(--accent2);border-radius:4px;padding:0.02rem 0.3rem;margin-right:0.2rem">' + _esc(s) + '</span>'; }).join('');
       var cardM = (c.cardLink || '').match(/\/d\/([\w-]+)/);
       var persM = (c.personPhoto || '').match(/\/d\/([\w-]+)/);
       var boughtN = Object.values(state.personalData || {}).filter(function (pd) { return pd && pd.owned && pd.purchasedFrom === c.id; }).length;
-      return '<div style="border:1px solid var(--border);border-radius:10px;background:var(--surface);padding:0.5rem 0.7rem;margin-bottom:0.4rem">'
-        + '<div style="display:flex;align-items:flex-start;gap:0.55rem;flex-wrap:wrap">'
-        + (cardM ? '<img data-card-thumb="' + cardM[1] + '" alt="card" style="width:72px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--border);flex-shrink:0;cursor:pointer;background:#111" onclick="window.open(\'' + _esc(c.cardLink) + '\', \'_blank\')">' : '')
+      return '<div style="border:1px solid var(--border);border-radius:10px;background:var(--surface);padding:0.45rem 0.7rem;margin-bottom:0.4rem">'
+        + '<div style="display:flex;align-items:flex-start;gap:0.6rem;flex-wrap:wrap">'
         + '<div style="flex:1;min-width:170px">'
-        +   '<div style="font-weight:800;color:var(--text);font-size:0.92rem;line-height:1.25">' + _esc(c.name)
-        +     (persM ? '<img data-card-thumb="' + persM[1] + '" alt="" style="width:24px;height:24px;object-fit:cover;border-radius:50%;border:1px solid var(--border);vertical-align:middle;margin-left:6px;cursor:pointer;background:#111" onclick="window.open(\'' + _esc(c.personPhoto) + '\', \'_blank\')">' : '')
-        +     (c.business ? ' <span style="font-weight:400;color:var(--text-mid);font-size:0.78rem">· ' + _esc(c.business) + '</span>' : '') + '</div>'
+        +   '<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;line-height:1.25">'
+        +     '<span style="font-weight:800;color:var(--text);font-size:0.92rem">' + _esc(c.name)
+        +       (c.business ? ' <span style="font-weight:400;color:var(--text-mid);font-size:0.78rem">· ' + _esc(c.business) + '</span>' : '') + '</span>'
+        +     (persM ? '<img data-card-thumb="' + persM[1] + '" alt="" style="width:26px;height:26px;object-fit:cover;border-radius:50%;border:1px solid var(--border);cursor:pointer;background:#111" onclick="window.open(\'' + _esc(c.personPhoto) + '\', \'_blank\')">' : '')
+        +     (cardM ? '<img data-card-thumb="' + cardM[1] + '" alt="card" class="ct-cthumb" style="width:48px;height:30px;object-fit:cover;border-radius:5px;border:1px solid var(--border);cursor:pointer;background:#111" onclick="window.open(\'' + _esc(c.cardLink) + '\', \'_blank\')">'
+        +       '<a class="ct-clink" href="' + _esc(c.cardLink) + '" target="_blank" rel="noopener" style="display:none;font-size:0.72rem;color:var(--accent2);text-decoration:none">📇 Card</a>' : '')
+        +   '</div>'
         +   (c.title ? '<div style="font-size:0.7rem;color:var(--text-dim)">' + _esc(c.title) + '</div>' : '')
         +   (chips ? '<div style="margin-top:0.15rem">' + chips + '</div>' : '')
         +   (c.notes ? '<div style="font-size:0.72rem;color:var(--text-mid);margin-top:0.15rem;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + _esc(c.notes) + '</div>' : '')
         +   (c.metAt ? '<div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.1rem">Met: ' + _esc(c.metAt) + '</div>' : '')
-        +   (c.address ? '<a href="https://maps.google.com/?q=' + encodeURIComponent(c.address) + '" onclick="return _ctMap(event, \'' + encodeURIComponent(c.address) + '\')" target="_blank" rel="noopener" style="display:block;font-size:0.72rem;color:#16a085;margin-top:0.15rem;text-decoration:none">📍 ' + _esc(c.address) + '</a>' : '')
         +   (boughtN ? '<div onclick="_ctShowBought(\'' + _esc(c.id) + '\')" style="font-size:0.7rem;color:var(--accent2);margin-top:0.15rem;cursor:pointer">🛒 ' + boughtN + ' item' + (boughtN > 1 ? 's' : '') + ' bought — tap to see</div>' : '')
         + '</div>'
-        + '<div style="display:flex;flex-wrap:wrap;gap:0.25rem;justify-content:flex-end;align-content:flex-start;max-width:240px;flex-shrink:0">'
-        +   (c.phone ? '<a href="tel:' + _esc(c.phone.replace(/[^+0-9]/g, '')) + '" onclick="return _ctTel(event, \'' + _esc(c.phone) + '\')" style="' + _sb + ';border:1px solid #2ecc71;color:#2ecc71">📞 ' + _esc(c.phone) + '</a>' : '')
-        +   (c.cellPhone ? '<a href="tel:' + _esc(c.cellPhone.replace(/[^+0-9]/g, '')) + '" onclick="return _ctTel(event, \'' + _esc(c.cellPhone) + '\')" style="' + _sb + ';border:1px solid #2ecc71;color:#2ecc71">📱 ' + _esc(c.cellPhone) + '</a>' : '')
-        +   (c.homePhone ? '<a href="tel:' + _esc(c.homePhone.replace(/[^+0-9]/g, '')) + '" onclick="return _ctTel(event, \'' + _esc(c.homePhone) + '\')" style="' + _sb + ';border:1px solid #2ecc71;color:#2ecc71">🏠 ' + _esc(c.homePhone) + '</a>' : '')
-        +   (c.email ? '<a href="mailto:' + _esc(c.email) + '" target="_blank" rel="noopener" style="' + _sb + ';border:1px solid #3498db;color:#3498db">✉ Email</a>' : '')
-        +   (c.website ? '<a href="' + _esc((/^https?:/i.test(c.website) ? c.website : 'https://' + c.website)) + '" target="_blank" rel="noopener" style="' + _sb + ';border:1px solid #9b59b6;color:#9b59b6">🌐 Web</a>' : '')
-        +   '<span style="display:flex;gap:0.25rem">'
+        + '<div style="display:flex;flex-direction:column;gap:0.25rem;align-items:flex-end;flex-shrink:0;max-width:270px">'
+        +   '<div style="display:flex;flex-wrap:wrap;gap:0.25rem;justify-content:flex-end">'
+        +     (c.phone ? '<a href="tel:' + _esc(c.phone.replace(/[^+0-9]/g, '')) + '" onclick="return _ctTel(event, \'' + _esc(c.phone) + '\')" style="' + _sb + ';border:1px solid #2ecc71;color:#2ecc71">📞 ' + _esc(c.phone) + '</a>' : '')
+        +     (c.cellPhone ? '<a href="tel:' + _esc(c.cellPhone.replace(/[^+0-9]/g, '')) + '" onclick="return _ctTel(event, \'' + _esc(c.cellPhone) + '\')" style="' + _sb + ';border:1px solid #2ecc71;color:#2ecc71">📱 ' + _esc(c.cellPhone) + '</a>' : '')
+        +     (c.homePhone ? '<a href="tel:' + _esc(c.homePhone.replace(/[^+0-9]/g, '')) + '" onclick="return _ctTel(event, \'' + _esc(c.homePhone) + '\')" style="' + _sb + ';border:1px solid #2ecc71;color:#2ecc71">🏠 ' + _esc(c.homePhone) + '</a>' : '')
+        +   '</div>'
+        +   (c.address ? '<a href="https://maps.google.com/?q=' + encodeURIComponent(c.address) + '" onclick="return _ctMap(event, \'' + encodeURIComponent(c.address) + '\')" target="_blank" rel="noopener" style="font-size:0.7rem;color:#16a085;text-decoration:none;text-align:right">📍 ' + _esc(c.address) + '</a>' : '')
+        +   '<div style="display:flex;flex-wrap:wrap;gap:0.25rem;justify-content:flex-end">'
+        +     (c.email ? '<a href="mailto:' + _esc(c.email) + '" target="_blank" rel="noopener" style="' + _sb + ';border:1px solid #3498db;color:#3498db">✉ Email</a>' : '')
+        +     (c.website ? '<a href="' + _esc((/^https?:/i.test(c.website) ? c.website : 'https://' + c.website)) + '" target="_blank" rel="noopener" style="' + _sb + ';border:1px solid #9b59b6;color:#9b59b6">🌐 Web</a>' : '')
         +     '<button onclick="_ctOpenEdit(' + c.row + ')" style="' + _sb + ';border:1px solid var(--border);background:var(--surface2);color:var(--text-mid)">Edit</button>'
         +     '<button onclick="_ctDeleteRow(' + c.row + ')" style="' + _sb + ';border:1px solid #e74c3c;color:#e74c3c">Delete</button>'
-        +   '</span>'
+        +   '</div>'
         + '</div></div></div>';
     }).join('');
     // v0.9.778: hydrate the card thumbnails (authenticated Drive fetch).
