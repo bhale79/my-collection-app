@@ -33,6 +33,24 @@ function buildReport() {
   var _ih=document.getElementById('ins-report-hdr'); if(_ih) _ih.style.display='none';
   var _wc0=document.getElementById('wup-controls'); if(_wc0) _wc0.style.display='none';
 
+  if (type === 'contacts') {
+    // ── Contacts report (v0.9.781, Brad brainstorm item 4) ──
+    const cesc = v => String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    thead.innerHTML = '<tr><th>Name</th><th>Title</th><th>Business</th><th>Store Phone</th><th>Cell</th><th>Home</th><th>Email</th><th>Website</th><th>Address</th><th>Era / Deals in</th><th>Met at</th><th>Notes</th></tr>';
+    const renderC = function () {
+      const rows = (state.contactsData || []).slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+      tbody.innerHTML = rows.length ? rows.map(function (c) {
+        return '<tr><td>' + [c.name, c.title, c.business, c.phone, c.cellPhone, c.homePhone, c.email, c.website, c.address, c.specialties, c.metAt, c.notes].map(cesc).join('</td><td>') + '</td></tr>';
+      }).join('') : '<tr><td class="ui-empty" colspan="12">No contacts yet — add some on the Contacts page.</td></tr>';
+    };
+    if ((state.contactsData || []).length) renderC();
+    else if (typeof window._ctLoadContacts === 'function') {
+      tbody.innerHTML = '<tr><td colspan="12">Loading contacts…</td></tr>';
+      window._ctLoadContacts().then(renderC).catch(renderC);
+    } else renderC();
+    return;
+  }
+
   if (type === 'insurance') {
     // ── Insurance Report ─────────────────────────────────────
     // All user-visible copy + column list come from INSURANCE_REPORT
@@ -294,6 +312,18 @@ function exportReport() {
     const id = type.replace('custom:','');
     const def = (state.savedReports||[]).find(r=>r.id===id);
     if (def) exportCustomReport(def);
+    return;
+  }
+
+  if (type === 'contacts') {
+    const esc = v => `"${(v||'').toString().replace(/"/g,'""')}"`;
+    const headers = ['Name','Title','Business','Store Phone','Cell','Home','Email','Website','Address','Era / Deals in','Met at','Notes'];
+    const rows = (state.contactsData || []).slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''))
+      .map(c => [c.name, c.title, c.business, c.phone, c.cellPhone, c.homePhone, c.email, c.website, c.address, c.specialties, c.metAt, c.notes].map(esc).join(','));
+    const csv = headers.map(h => `"${h}"`).join(',') + '\n' + rows.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `contacts-${new Date().toISOString().slice(0,10)}.csv`; a.click();
     return;
   }
 
