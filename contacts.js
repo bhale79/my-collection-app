@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.775
+// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.776
 //
 // Brad's brainstorm picks: own page, listed as "Contacts", entry ABOVE
 // Preferences in the account menu. Business-card photo capture (Drive
@@ -688,6 +688,11 @@
     });
 
     var _cardFile = null;
+    // v0.9.776 (Brad): visible spinner while reading — text-only status looked
+    // like the app had stalled during the AI/OCR passes.
+    var _stBusy = function (st2, msg) {
+      st2.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:2px;display:inline-block;margin-right:6px;vertical-align:-2px"></span>' + msg;
+    };
     // v0.9.768 (Brad): camera AND gallery inputs share one handler — the
     // capture attribute forces the camera, so gallery picks need a second input.
     ['ct-card-file', 'ct-card-gallery'].forEach(function (_inpId) {
@@ -703,7 +708,7 @@
       // daily cap hit, offline, or a relay that hasn't been upgraded to v2.2.
       var aiGot = null, aiQuota = false;
       try {
-        st.textContent = '🤖 Reading the card with AI…';
+        _stBusy(st, '🤖 Reading the card with AI…');
         var aiRes = await _aiReadCard(f);
         if (aiRes && aiRes._quota) aiQuota = true;
         else aiGot = aiRes;
@@ -725,7 +730,7 @@
           : '📇 Card attached — couldn’t read details, type them in';
         return;
       }
-      st.textContent = aiQuota ? '📇 Daily AI limit reached — reading on-device instead…' : '📇 Card attached — reading it…';
+      _stBusy(st, aiQuota ? '📇 Daily AI limit reached — reading on-device instead…' : '📇 Card attached — reading it…');
       // v0.9.766 (TODO-002): full-card OCR prefill — name, business, phone,
       // email, website, address. Best effort, EMPTY fields only. The photo is
       // downscaled first so the read is fast on phones.
@@ -739,7 +744,7 @@
           // contrast = color distance (catches colored text like orange titles).
           if (!(got.name && got.title && got.business && got.email && (got.phone || got.cell) && got.address)) {
             try {
-              st.textContent = '📇 Reading the card a second way…';
+              _stBusy(st, '📇 Reading the card a second way…');
               var small2 = await _cardOcrImageColor(f);
               var res2 = await T.recognize(small2, 'eng', {});
               got = _mergeCardReads(got, _parseCardText((res2 && res2.data && res2.data.text) || ''));
