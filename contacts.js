@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.791
+// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.792
 //
 // Brad's brainstorm picks: own page, listed as "Contacts", entry ABOVE
 // Preferences in the account menu. Business-card photo capture (Drive
@@ -666,6 +666,16 @@
 
   window._ctLoadContacts = _load;   // v0.9.781: Contacts report (reports.js) loads the rolodex
 
+  // v0.9.792 (Brad): contacts sort alphabetically by LAST name, everywhere.
+  // Key = last word of the name, then the full name as tie-breaker.
+  function _ctLastNameKey(n) {
+    n = String(n || '').trim();
+    if (!n) return 'zzzz';
+    var w = n.split(/\s+/);
+    return (w[w.length - 1] + ' ' + n).toLowerCase();
+  }
+  window._ctLastNameKey = _ctLastNameKey;
+
   // ── page ───────────────────────────────────────────────────────
   window.buildContactsPage = async function () {
     var page = document.getElementById('page-contacts');
@@ -690,7 +700,7 @@
       if (!q) return true;
       return (c.name + ' ' + c.business + ' ' + (c.title || '') + ' ' + c.specialties + ' ' + c.notes + ' ' + c.metAt).toLowerCase().indexOf(q) >= 0;
     });
-    rows.sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); });
+    rows.sort(function (a, b) { return _ctLastNameKey(a.name).localeCompare(_ctLastNameKey(b.name)); });
     if (!rows.length) {
       el.innerHTML = '<div class="empty-state"><p>' + (q ? 'No contacts match.' : 'No contacts yet — add your first dealer, repair shop, or collector friend.') + '</p></div>';
       return;
@@ -808,7 +818,7 @@
     return lines.join('\n');
   }
   window._ctShareOpen = function () {
-    var rows = (state.contactsData || []).slice().sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); });
+    var rows = (state.contactsData || []).slice().sort(function (a, b) { return _ctLastNameKey(a.name).localeCompare(_ctLastNameKey(b.name)); });
     if (!rows.length) { showToast('No contacts to share yet', 2500); return; }
     var old2 = document.getElementById('ct-share-modal'); if (old2) old2.remove();
     var d = document.createElement('div');
