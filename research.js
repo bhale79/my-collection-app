@@ -121,8 +121,8 @@
       +   (year ? 'Year: <strong style="color:var(--text,#eee)">' + _esc(year) + '</strong>&nbsp;&nbsp;' : '')
       +   (gauge ? 'Scale: <strong style="color:var(--text,#eee)">' + _esc(gauge) + '</strong>' : '')
       + '</div>'
-      + (res.notInMaster ? '<div style="font-size:0.78rem;color:#e6a23c;margin-top:0.3rem">Not in our catalog yet — details are from the photo/AI.</div>' : '')
-      + (res.aiGuess ? '<div style="font-size:0.78rem;color:#e6a23c;margin-top:0.3rem">⚠ AI guess from the photo alone — double-check before paying show prices.</div>' : '')
+      + (res.notInMaster ? '<div style="font-size:0.78rem;color:#e6a23c;margin-top:0.3rem">Not in our catalog yet — details were read from the photo.</div>' : '')
+      + (res.aiGuess ? '<div style="font-size:0.78rem;color:#e6a23c;margin-top:0.3rem">⚠ Best guess from the photo alone — double-check before paying show prices.</div>' : '')
       // You own N
       + '<div style="margin:0.75rem 0;padding:0.6rem 0.8rem;border-radius:9px;border:1.5px solid ' + (own > 0 ? '#2ecc71' : 'var(--border,#333)') + ';background:' + (own > 0 ? 'rgba(46,204,113,0.1)' : 'var(--surface2,#26262e)') + '">'
       +   '<span style="font-size:0.9rem;font-weight:700;color:' + (own > 0 ? '#2ecc71' : 'var(--text-mid,#aaa)') + '">'
