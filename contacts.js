@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.780
+// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.781
 //
 // Brad's brainstorm picks: own page, listed as "Contacts", entry ABOVE
 // Preferences in the account menu. Business-card photo capture (Drive
@@ -592,6 +592,8 @@
       return out;
     } catch (e) { state.contactsData = state.contactsData || []; return state.contactsData; }
   }
+
+  window._ctLoadContacts = _load;   // v0.9.781: Contacts report (reports.js) loads the rolodex
 
   // ── page ───────────────────────────────────────────────────────
   window.buildContactsPage = async function () {
