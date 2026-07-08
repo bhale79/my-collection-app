@@ -4580,7 +4580,7 @@ function renderWizardStep() {
       var _pvSellEsc = function (t) { return String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
       var _pvLastSeller = '';
       try { _pvLastSeller = _pvD.purchasedFrom || sessionStorage.getItem('lv_last_seller') || ''; } catch (e) {}
-      var _pvCts = (state.contactsData || []).slice().sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); });
+      var _pvCts = (state.contactsData || []).slice().sort(function (a, b) { return (window._ctLastNameKey ? window._ctLastNameKey(a.name).localeCompare(window._ctLastNameKey(b.name)) : (a.name || '').localeCompare(b.name || '')); });
       _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Bought From (optional)</div>'
         + '<select id="pv-seller" onchange="wizard.data.purchasedFrom=this.value; try{sessionStorage.setItem(\'lv_last_seller\',this.value)}catch(e){}" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box">'
         + '<option value="">— Not tracked —</option>'
@@ -4592,7 +4592,7 @@ function renderWizardStep() {
         window._ctLoadContacts().then(function () {
           var sel = document.getElementById('pv-seller');
           if (!sel) return;
-          (state.contactsData || []).slice().sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); }).forEach(function (ct) {
+          (state.contactsData || []).slice().sort(function (a, b) { return (window._ctLastNameKey ? window._ctLastNameKey(a.name).localeCompare(window._ctLastNameKey(b.name)) : (a.name || '').localeCompare(b.name || '')); }).forEach(function (ct) {
             var o = document.createElement('option');
             o.value = ct.id;
             o.textContent = (ct.name || ct.business || ct.id) + (ct.business && ct.name ? ' — ' + ct.business : '');
