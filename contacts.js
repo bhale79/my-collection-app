@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.779
+// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.780
 //
 // Brad's brainstorm picks: own page, listed as "Contacts", entry ABOVE
 // Preferences in the account menu. Business-card photo capture (Drive
@@ -24,7 +24,8 @@
   // notes/expiry shown on the contact's page.
   // v0.9.767 (Brad): + Home Phone / Cell Phone / Title — appended at END (M/N/O) so
   // existing rows keep their columns. D 'Phone' = store/main number.
-  var HEADERS = ['Contact ID', 'Name', 'Business', 'Phone', 'Email', 'Specialties', 'Notes', 'Card Photo Link', 'Met At', 'Date Added', 'Mailing Address', 'Website', 'Home Phone', 'Cell Phone', 'Title'];
+  // v0.9.780 (Brad): + Person Photo Link (P).
+  var HEADERS = ['Contact ID', 'Name', 'Business', 'Phone', 'Email', 'Specialties', 'Notes', 'Card Photo Link', 'Met At', 'Date Added', 'Mailing Address', 'Website', 'Home Phone', 'Cell Phone', 'Title', 'Person Photo Link'];
   // v0.9.778 (Brad): Era gets its own chip row; Lionel joins the brands.
   var ERA_CHIPS = ['Prewar', 'Postwar', 'Modern', 'All Eras'];
   var SPECIALTY_CHIPS = ['Lionel', 'MTH', 'Atlas', 'Menards', 'Parts', 'Repairs', 'Paper', 'Sets'];
@@ -565,10 +566,10 @@
         }); });
         var addJson = await addRes.json();
         if (addJson.error && String(addJson.error.message || '').indexOf('already exists') < 0) throw new Error(addJson.error.message || 'could not create Contacts tab');
-        await sheetsUpdate(state.personalSheetId, TAB + '!A1:O1', [HEADERS]);
+        await sheetsUpdate(state.personalSheetId, TAB + '!A1:P1', [HEADERS]);
       } else {
         // v0.9.767: tab predates the M/N/O columns — write those headers (idempotent).
-        try { await sheetsUpdate(state.personalSheetId, TAB + '!M1:O1', [['Home Phone', 'Cell Phone', 'Title']]); } catch (e2) {}
+        try { await sheetsUpdate(state.personalSheetId, TAB + '!M1:P1', [['Home Phone', 'Cell Phone', 'Title', 'Person Photo Link']]); } catch (e2) {}
       }
       _tabEnsured = true;
       return true;
@@ -577,7 +578,7 @@
 
   async function _load() {
     try {
-      var r = await sheetsGet(state.personalSheetId, TAB + '!A2:O');
+      var r = await sheetsGet(state.personalSheetId, TAB + '!A2:P');
       var out = [];
       // v0.9.771: _cs() String-coerce on EVERY cell — Sheets hands back NUMBERS
       // for numeric-looking cells (a phone like 888678.7101), and .replace on a
@@ -585,7 +586,7 @@
       var _cs = function (x) { return (x === null || x === undefined) ? '' : String(x); };
       (r && r.values || []).forEach(function (v, i) {
         if (!v || !(v[1] || v[0])) return;
-        out.push({ row: i + 2, id: _cs(v[0]), name: _cs(v[1]), business: _cs(v[2]), phone: _cs(v[3]), email: _cs(v[4]), specialties: _cs(v[5]), notes: _cs(v[6]), cardLink: _cs(v[7]), metAt: _cs(v[8]), dateAdded: _cs(v[9]), address: _cs(v[10]), website: _cs(v[11]), homePhone: _cs(v[12]), cellPhone: _cs(v[13]), title: _cs(v[14]) });
+        out.push({ row: i + 2, id: _cs(v[0]), name: _cs(v[1]), business: _cs(v[2]), phone: _cs(v[3]), email: _cs(v[4]), specialties: _cs(v[5]), notes: _cs(v[6]), cardLink: _cs(v[7]), metAt: _cs(v[8]), dateAdded: _cs(v[9]), address: _cs(v[10]), website: _cs(v[11]), homePhone: _cs(v[12]), cellPhone: _cs(v[13]), title: _cs(v[14]), personPhoto: _cs(v[15]) });
       });
       state.contactsData = out;
       return out;
@@ -624,6 +625,7 @@
         .map(function (s) { return '<span style="font-size:0.68rem;border:1px solid var(--accent2);color:var(--accent2);border-radius:4px;padding:0.05rem 0.35rem;margin-right:0.25rem">' + _esc(s) + '</span>'; }).join('');
       return '<div style="border:1px solid var(--border);border-radius:11px;background:var(--surface);padding:0.8rem 1rem;margin-bottom:0.55rem">'
         + '<div style="display:flex;align-items:flex-start;gap:0.6rem;flex-wrap:wrap">'
+        + (function () { var mp = (c.personPhoto || '').match(/\/d\/([\w-]+)/); return mp ? '<img data-card-thumb="' + mp[1] + '" alt="" style="width:56px;height:56px;object-fit:cover;border-radius:50%;border:1px solid var(--border);flex-shrink:0;cursor:pointer;background:#111" onclick="window.open(\'' + _esc(c.personPhoto) + '\', \'_blank\')">' : ''; })()
         + (function () { var m2 = (c.cardLink || '').match(/\/d\/([\w-]+)/); return m2 ? '<img data-card-thumb="' + m2[1] + '" alt="card" style="width:92px;height:56px;object-fit:cover;border-radius:7px;border:1px solid var(--border);flex-shrink:0;cursor:pointer;background:#111" onclick="window.open(\'' + _esc(c.cardLink) + '\', \'_blank\')">' : ''; })()
         + '<div style="flex:1;min-width:200px">'
         +   '<div style="font-weight:800;color:var(--text);font-size:1rem">' + _esc(c.name) + (c.business ? ' <span style="font-weight:400;color:var(--text-mid);font-size:0.85rem">· ' + _esc(c.business) + '</span>' : '') + '</div>'
@@ -640,6 +642,7 @@
         +   (c.website ? '<a href="' + _esc((/^https?:/i.test(c.website) ? c.website : 'https://' + c.website)) + '" target="_blank" rel="noopener" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #9b59b6;color:#9b59b6;text-decoration:none;font-size:0.78rem;text-align:center">🌐 Website</a>' : '')
         +   (c.address ? '<a href="https://maps.google.com/?q=' + encodeURIComponent(c.address) + '" target="_blank" rel="noopener" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #16a085;color:#16a085;text-decoration:none;font-size:0.78rem;text-align:center">🗺 Map</a>' : '')
         +   (c.cardLink ? '<a href="' + _esc(c.cardLink) + '" target="_blank" rel="noopener" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid var(--accent2);color:var(--accent2);text-decoration:none;font-size:0.78rem;text-align:center">📇 Card</a>' : '')
+        +   '<button onclick="_ctShare(' + c.row + ')" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #3498db;background:none;color:#3498db;cursor:pointer;font-size:0.78rem;font-family:var(--font-body)">↗ Share</button>'
         +   '<div style="display:flex;gap:0.3rem">'
         +     '<button onclick="_ctOpenEdit(' + c.row + ')" style="flex:1;padding:0.35rem 0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-size:0.78rem;font-family:var(--font-body)">Edit</button>'
         +     '<button onclick="_ctDeleteRow(' + c.row + ')" style="flex:1;padding:0.35rem 0.5rem;border-radius:7px;border:1px solid #e74c3c;background:none;color:#e74c3c;cursor:pointer;font-size:0.78rem;font-family:var(--font-body)">Delete</button>'
@@ -654,12 +657,37 @@
     }
   };
 
+  // v0.9.780 (Brad): share a contact — "text Dave's info to a friend". Uses the
+  // phone's native share sheet; on desktop copies the text to the clipboard.
+  window._ctShare = function (row) {
+    var c = (state.contactsData || []).find(function (x) { return x.row === row; });
+    if (!c) return;
+    var lines = [];
+    lines.push(c.name + (c.title ? ' — ' + c.title : ''));
+    if (c.business) lines.push(c.business);
+    var ph = [];
+    if (c.phone) ph.push('Store: ' + c.phone);
+    if (c.cellPhone) ph.push('Cell: ' + c.cellPhone);
+    if (c.homePhone) ph.push('Home: ' + c.homePhone);
+    if (ph.length) lines.push(ph.join(' · '));
+    if (c.email) lines.push('Email: ' + c.email);
+    if (c.website) lines.push('Web: ' + c.website);
+    if (c.address) lines.push(c.address);
+    lines.push('(shared from The Rail Roster)');
+    var text = lines.join('\n');
+    if (navigator.share) {
+      navigator.share({ title: c.name + (c.business ? ' — ' + c.business : ''), text: text }).catch(function () {});
+    } else if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { showToast('Contact copied — paste it into a text or email'); }).catch(function () {});
+    }
+  };
+
   // v0.9.773 (Brad): Delete straight from the list card (Edit | Delete split).
   window._ctDeleteRow = async function (row) {
     var c = (state.contactsData || []).find(function (x) { return x.row === row; });
     if (!confirm('Delete ' + ((c && c.name) ? c.name : 'this contact') + '?')) return;
     try {
-      await sheetsUpdate(state.personalSheetId, TAB + '!A' + row + ':O' + row, [['', '', '', '', '', '', '', '', '', '', '', '', '', '', '']]);
+      await sheetsUpdate(state.personalSheetId, TAB + '!A' + row + ':P' + row, [['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']]);
       showToast('Contact deleted');
       try { await _load(); window._ctRenderList(); } catch (e3) { console.warn('[contact list refresh]', e3); }
     } catch (e) { console.warn('[contact delete]', e); showToast('Delete failed — try again', 3500, true); }
@@ -668,7 +696,7 @@
   // ── add / edit modal ───────────────────────────────────────────
   window._ctOpenEdit = function (row) {
     var c = row ? (state.contactsData || []).find(function (x) { return x.row === row; }) : null;
-    c = c || { id: '', name: '', business: '', phone: '', email: '', specialties: '', notes: '', cardLink: '', metAt: '', dateAdded: '', address: '', website: '', homePhone: '', cellPhone: '', title: '' };
+    c = c || { id: '', name: '', business: '', phone: '', email: '', specialties: '', notes: '', cardLink: '', metAt: '', dateAdded: '', address: '', website: '', homePhone: '', cellPhone: '', title: '', personPhoto: '' };
     var old = document.getElementById('ct-modal'); if (old) old.remove();
     var ov = document.createElement('div');
     ov.id = 'ct-modal';
@@ -699,6 +727,11 @@
       + '<input type="file" id="ct-card-gallery" accept="image/*" style="display:none">'
       + '<div style="font-size:0.68rem;color:var(--text-dim);margin:-0.4rem 0 0.4rem">Tip: fill the frame with the card, avoid glare — a close, flat shot reads best.</div>'
       + '<div id="ct-card-preview" style="display:none;margin:0 0 0.4rem"><img id="ct-card-preview-img" alt="business card" style="width:100%;max-height:140px;object-fit:contain;border-radius:8px;border:1px solid var(--border);background:#111"></div>'
+      + '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem">'
+      +   '<img id="ct-person-preview" alt="" style="display:none;width:44px;height:44px;object-fit:cover;border-radius:50%;border:1.5px solid var(--border);background:#111">'
+      +   '<button onclick="document.getElementById(\'ct-person-file\').click()" style="flex:1;padding:0.5rem;border-radius:8px;border:1.5px dashed var(--border);background:none;color:var(--text-mid);font-size:0.8rem;cursor:pointer;font-family:var(--font-body)">🙂 Add a photo of them (optional)</button>'
+      +   '<input type="file" id="ct-person-file" accept="image/*" style="display:none">'
+      + '</div>'
       + '<div id="ct-card-status" style="font-size:0.75rem;color:var(--text-dim);margin:-0.3rem 0 0.5rem"></div>'
       + fld2(fld('Name', 'ct-f-name', c.name, 'Dave Miller'), fld('Title', 'ct-f-title', c.title, 'Owner'))
       + fld('Store / Business', 'ct-f-biz', c.business, "Dave's Trains")
@@ -738,6 +771,18 @@
     var _pv = ov.querySelector('#ct-card-preview'), _pvImg = ov.querySelector('#ct-card-preview-img');
     var _clm = (c.cardLink || '').match(/\/d\/([\w-]+)/);
     if (_clm && _pv && typeof loadDriveThumb === 'function') { _pv.style.display = 'block'; loadDriveThumb(_clm[1], _pvImg, _pv); }
+    // v0.9.780: optional photo of the PERSON (gallery-first).
+    var _personFile = null;
+    var _ppImg = ov.querySelector('#ct-person-preview');
+    var _ppm = (c.personPhoto || '').match(/\/d\/([\w-]+)/);
+    if (_ppm && _ppImg && typeof loadDriveThumb === 'function') { _ppImg.style.display = 'block'; loadDriveThumb(_ppm[1], _ppImg, _ppImg); }
+    var _pInp = ov.querySelector('#ct-person-file');
+    if (_pInp) _pInp.addEventListener('change', function () {
+      var pf = _pInp.files && _pInp.files[0];
+      if (!pf) return;
+      _personFile = pf;
+      try { _ppImg.style.display = 'block'; _ppImg.src = URL.createObjectURL(pf); } catch (eP) {}
+    });
     // v0.9.776 (Brad): visible spinner while reading — text-only status looked
     // like the app had stalled during the AI/OCR passes.
     var _stBusy = function (st2, msg) {
@@ -805,22 +850,28 @@
       var chips = [].slice.call(ov.querySelectorAll('[data-ct-chip]')).filter(function (ch) { return ch.style.color === 'var(--accent2)'; }).map(function (ch) { return ch.getAttribute('data-ct-chip'); });
       var extra = v('ct-f-spec');
       var specialties = chips.concat(extra ? [extra] : []).join(', ');
-      var cardLink = c.cardLink || '';
+      var cardLink = c.cardLink || '', personLink = c.personPhoto || '';
       try {
-        if (_cardFile && typeof driveFindOrCreateFolder === 'function' && typeof driveUploadPhoto === 'function') {
+        if ((_cardFile || _personFile) && typeof driveFindOrCreateFolder === 'function' && typeof driveUploadPhoto === 'function') {
           var folder = await driveFindOrCreateFolder('The Rail Roster - Contacts');
           if (folder && folder.id) {
-            var up = await driveUploadPhoto(_cardFile, (name + ' card ' + _today() + '.jpg'), folder.id);
-            if (up && up.id) cardLink = 'https://drive.google.com/file/d/' + up.id + '/view';
+            if (_cardFile) {
+              var up = await driveUploadPhoto(_cardFile, (name + ' card ' + _today() + '.jpg'), folder.id);
+              if (up && up.id) cardLink = 'https://drive.google.com/file/d/' + up.id + '/view';
+            }
+            if (_personFile) {
+              var up2 = await driveUploadPhoto(_personFile, (name + ' photo ' + _today() + '.jpg'), folder.id);
+              if (up2 && up2.id) personLink = 'https://drive.google.com/file/d/' + up2.id + '/view';
+            }
           }
         }
-      } catch (e) { console.warn('[contact card upload]', e); }
+      } catch (e) { console.warn('[contact photo upload]', e); }
       var id = c.id || ('C-' + Date.now());
-      var rowVals = [id, name, v('ct-f-biz'), v('ct-f-phone'), v('ct-f-email'), specialties, v('ct-f-notes'), cardLink, v('ct-f-met'), c.dateAdded || _today(), v('ct-f-addr'), v('ct-f-web'), v('ct-f-home'), v('ct-f-cell'), v('ct-f-title')];
+      var rowVals = [id, name, v('ct-f-biz'), v('ct-f-phone'), v('ct-f-email'), specialties, v('ct-f-notes'), cardLink, v('ct-f-met'), c.dateAdded || _today(), v('ct-f-addr'), v('ct-f-web'), v('ct-f-home'), v('ct-f-cell'), v('ct-f-title'), personLink];
       try {
         if (!(await _ensureTab())) throw new Error('no tab');
-        if (row) await sheetsUpdate(state.personalSheetId, TAB + '!A' + row + ':O' + row, [rowVals]);
-        else await sheetsAppend(state.personalSheetId, TAB + '!A:O', [rowVals]);
+        if (row) await sheetsUpdate(state.personalSheetId, TAB + '!A' + row + ':P' + row, [rowVals]);
+        else await sheetsAppend(state.personalSheetId, TAB + '!A:P', [rowVals]);
         ov.remove();
         showToast('✓ ' + name + ' saved to Contacts');
         try { await _load(); window._ctRenderList(); } catch (e3) { console.warn('[contact list refresh]', e3); }
@@ -834,7 +885,7 @@
     if (del) del.onclick = async function () {
       if (!confirm('Delete this contact?')) return;
       try {
-        await sheetsUpdate(state.personalSheetId, TAB + '!A' + row + ':O' + row, [['', '', '', '', '', '', '', '', '', '', '', '', '', '', '']]);
+        await sheetsUpdate(state.personalSheetId, TAB + '!A' + row + ':P' + row, [['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']]);
         ov.remove();
         showToast('Contact deleted');
         await _load();
