@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.787
+// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.788
 //
 // Brad's brainstorm picks: own page, listed as "Contacts", entry ABOVE
 // Preferences in the account menu. Business-card photo capture (Drive
@@ -674,6 +674,7 @@
       + '<div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.8rem;flex-wrap:wrap">'
       + '<input id="ct-search" type="text" placeholder="Search name, business, specialty…" oninput="_ctRenderList()" style="flex:1;min-width:200px;padding:0.6rem 0.8rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.9rem">'
       + '<button onclick="_ctOpenEdit(null)" style="padding:0.6rem 1.1rem;border-radius:9px;border:1.5px solid var(--accent);background:rgba(232,64,28,0.1);color:var(--accent);font-weight:700;cursor:pointer;font-family:var(--font-body)">+ Add Contact</button>'
+      + '<button onclick="_ctShareOpen()" style="padding:0.6rem 1.1rem;border-radius:9px;border:1.5px solid #3498db;background:rgba(52,152,219,0.08);color:#3498db;font-weight:700;cursor:pointer;font-family:var(--font-body)">↗ Share</button>'
       + '</div>'
       + '<div id="ct-list"><div class="loading"><div class="spinner"></div></div></div>';
     await _load();
@@ -693,39 +694,43 @@
       el.innerHTML = '<div class="empty-state"><p>' + (q ? 'No contacts match.' : 'No contacts yet — add your first dealer, repair shop, or collector friend.') + '</p></div>';
       return;
     }
+    // v0.9.788 (Brad): COMPACT cards — card thumb left (tap = full size),
+    // person photo inline right of the name, buttons tiled 2-3 per row.
+    var _sb = 'padding:0.28rem 0.5rem;border-radius:6px;font-size:0.72rem;text-align:center;text-decoration:none;cursor:pointer;font-family:var(--font-body);background:none';
     el.innerHTML = rows.map(function (c) {
       var chips = (c.specialties || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean)
-        .map(function (s) { return '<span style="font-size:0.68rem;border:1px solid var(--accent2);color:var(--accent2);border-radius:4px;padding:0.05rem 0.35rem;margin-right:0.25rem">' + _esc(s) + '</span>'; }).join('');
-      return '<div style="border:1px solid var(--border);border-radius:11px;background:var(--surface);padding:0.8rem 1rem;margin-bottom:0.55rem">'
-        + '<div style="display:flex;align-items:flex-start;gap:0.6rem;flex-wrap:wrap">'
-        + (function () { var mp = (c.personPhoto || '').match(/\/d\/([\w-]+)/); return mp ? '<img data-card-thumb="' + mp[1] + '" alt="" style="width:56px;height:56px;object-fit:cover;border-radius:50%;border:1px solid var(--border);flex-shrink:0;cursor:pointer;background:#111" onclick="window.open(\'' + _esc(c.personPhoto) + '\', \'_blank\')">' : ''; })()
-        + (function () { var m2 = (c.cardLink || '').match(/\/d\/([\w-]+)/); return m2 ? '<img data-card-thumb="' + m2[1] + '" alt="card" style="width:92px;height:56px;object-fit:cover;border-radius:7px;border:1px solid var(--border);flex-shrink:0;cursor:pointer;background:#111" onclick="window.open(\'' + _esc(c.cardLink) + '\', \'_blank\')">' : ''; })()
-        + '<div style="flex:1;min-width:200px">'
-        +   '<div style="font-weight:800;color:var(--text);font-size:1rem">' + _esc(c.name) + (c.business ? ' <span style="font-weight:400;color:var(--text-mid);font-size:0.85rem">· ' + _esc(c.business) + '</span>' : '') + '</div>'
-        +   (c.title ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.1rem">' + _esc(c.title) + '</div>' : '')
-        +   (chips ? '<div style="margin-top:0.25rem">' + chips + '</div>' : '')
-        +   (c.notes ? '<div style="font-size:0.8rem;color:var(--text-mid);margin-top:0.3rem;line-height:1.4">' + _esc(c.notes) + '</div>' : '')
-        +   (c.metAt ? '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.2rem">Met: ' + _esc(c.metAt) + '</div>' : '')
-        +   (function () { var n2 = Object.values(state.personalData || {}).filter(function (pd) { return pd && pd.owned && pd.purchasedFrom === c.id; }).length; return n2 ? '<div onclick="_ctShowBought(\'' + _esc(c.id) + '\')" style="font-size:0.76rem;color:var(--accent2);margin-top:0.25rem;cursor:pointer">🛒 ' + n2 + ' item' + (n2 > 1 ? 's' : '') + ' bought from them — tap to see</div>' : ''; })()
+        .map(function (s) { return '<span style="font-size:0.62rem;border:1px solid var(--accent2);color:var(--accent2);border-radius:4px;padding:0.02rem 0.3rem;margin-right:0.2rem">' + _esc(s) + '</span>'; }).join('');
+      var cardM = (c.cardLink || '').match(/\/d\/([\w-]+)/);
+      var persM = (c.personPhoto || '').match(/\/d\/([\w-]+)/);
+      var boughtN = Object.values(state.personalData || {}).filter(function (pd) { return pd && pd.owned && pd.purchasedFrom === c.id; }).length;
+      return '<div style="border:1px solid var(--border);border-radius:10px;background:var(--surface);padding:0.5rem 0.7rem;margin-bottom:0.4rem">'
+        + '<div style="display:flex;align-items:flex-start;gap:0.55rem;flex-wrap:wrap">'
+        + (cardM ? '<img data-card-thumb="' + cardM[1] + '" alt="card" style="width:72px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--border);flex-shrink:0;cursor:pointer;background:#111" onclick="window.open(\'' + _esc(c.cardLink) + '\', \'_blank\')">' : '')
+        + '<div style="flex:1;min-width:170px">'
+        +   '<div style="font-weight:800;color:var(--text);font-size:0.92rem;line-height:1.25">' + _esc(c.name)
+        +     (persM ? '<img data-card-thumb="' + persM[1] + '" alt="" style="width:24px;height:24px;object-fit:cover;border-radius:50%;border:1px solid var(--border);vertical-align:middle;margin-left:6px;cursor:pointer;background:#111" onclick="window.open(\'' + _esc(c.personPhoto) + '\', \'_blank\')">' : '')
+        +     (c.business ? ' <span style="font-weight:400;color:var(--text-mid);font-size:0.78rem">· ' + _esc(c.business) + '</span>' : '') + '</div>'
+        +   (c.title ? '<div style="font-size:0.7rem;color:var(--text-dim)">' + _esc(c.title) + '</div>' : '')
+        +   (chips ? '<div style="margin-top:0.15rem">' + chips + '</div>' : '')
+        +   (c.notes ? '<div style="font-size:0.72rem;color:var(--text-mid);margin-top:0.15rem;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + _esc(c.notes) + '</div>' : '')
+        +   (c.metAt ? '<div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.1rem">Met: ' + _esc(c.metAt) + '</div>' : '')
+        +   (boughtN ? '<div onclick="_ctShowBought(\'' + _esc(c.id) + '\')" style="font-size:0.7rem;color:var(--accent2);margin-top:0.15rem;cursor:pointer">🛒 ' + boughtN + ' item' + (boughtN > 1 ? 's' : '') + ' bought — tap to see</div>' : '')
         + '</div>'
-        + '<div style="display:flex;flex-direction:column;gap:0.3rem;flex-shrink:0">'
-        +   (c.phone ? '<a href="tel:' + _esc(c.phone.replace(/[^+0-9]/g, '')) + '" onclick="return _ctTel(event, \'' + _esc(c.phone) + '\')" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #2ecc71;color:#2ecc71;text-decoration:none;font-size:0.78rem;text-align:center">📞 ' + _esc(c.phone) + '</a>' : '')
-        +   (c.cellPhone ? '<a href="tel:' + _esc(c.cellPhone.replace(/[^+0-9]/g, '')) + '" onclick="return _ctTel(event, \'' + _esc(c.cellPhone) + '\')" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #2ecc71;color:#2ecc71;text-decoration:none;font-size:0.78rem;text-align:center">📱 ' + _esc(c.cellPhone) + '</a>' : '')
-        +   (c.homePhone ? '<a href="tel:' + _esc(c.homePhone.replace(/[^+0-9]/g, '')) + '" onclick="return _ctTel(event, \'' + _esc(c.homePhone) + '\')" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #2ecc71;color:#2ecc71;text-decoration:none;font-size:0.78rem;text-align:center">🏠 ' + _esc(c.homePhone) + '</a>' : '')
-        +   (c.email ? '<a href="mailto:' + _esc(c.email) + '" target="_blank" rel="noopener" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #3498db;color:#3498db;text-decoration:none;font-size:0.78rem;text-align:center">✉ Email</a>' : '')
-        +   (c.website ? '<a href="' + _esc((/^https?:/i.test(c.website) ? c.website : 'https://' + c.website)) + '" target="_blank" rel="noopener" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #9b59b6;color:#9b59b6;text-decoration:none;font-size:0.78rem;text-align:center">🌐 Website</a>' : '')
-        +   (c.address ? '<a href="https://maps.google.com/?q=' + encodeURIComponent(c.address) + '" onclick="return _ctMap(event, \'' + encodeURIComponent(c.address) + '\')" target="_blank" rel="noopener" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #16a085;color:#16a085;text-decoration:none;font-size:0.78rem;text-align:center">🗺 Map</a>' : '')
-        +   (c.cardLink ? '<a href="' + _esc(c.cardLink) + '" target="_blank" rel="noopener" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid var(--accent2);color:var(--accent2);text-decoration:none;font-size:0.78rem;text-align:center">📇 Card</a>' : '')
-        +   '<button onclick="_ctShare(' + c.row + ')" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #3498db;background:none;color:#3498db;cursor:pointer;font-size:0.78rem;font-family:var(--font-body)">↗ Share</button>'
-        +   '<div style="display:flex;gap:0.3rem">'
-        +     '<button onclick="_ctOpenEdit(' + c.row + ')" style="flex:1;padding:0.35rem 0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-size:0.78rem;font-family:var(--font-body)">Edit</button>'
-        +     '<button onclick="_ctDeleteRow(' + c.row + ')" style="flex:1;padding:0.35rem 0.5rem;border-radius:7px;border:1px solid #e74c3c;background:none;color:#e74c3c;cursor:pointer;font-size:0.78rem;font-family:var(--font-body)">Delete</button>'
-        +   '</div>'
+        + '<div style="display:flex;flex-wrap:wrap;gap:0.25rem;justify-content:flex-end;align-content:flex-start;max-width:240px;flex-shrink:0">'
+        +   (c.phone ? '<a href="tel:' + _esc(c.phone.replace(/[^+0-9]/g, '')) + '" onclick="return _ctTel(event, \'' + _esc(c.phone) + '\')" style="' + _sb + ';border:1px solid #2ecc71;color:#2ecc71">📞 ' + _esc(c.phone) + '</a>' : '')
+        +   (c.cellPhone ? '<a href="tel:' + _esc(c.cellPhone.replace(/[^+0-9]/g, '')) + '" onclick="return _ctTel(event, \'' + _esc(c.cellPhone) + '\')" style="' + _sb + ';border:1px solid #2ecc71;color:#2ecc71">📱 ' + _esc(c.cellPhone) + '</a>' : '')
+        +   (c.homePhone ? '<a href="tel:' + _esc(c.homePhone.replace(/[^+0-9]/g, '')) + '" onclick="return _ctTel(event, \'' + _esc(c.homePhone) + '\')" style="' + _sb + ';border:1px solid #2ecc71;color:#2ecc71">🏠 ' + _esc(c.homePhone) + '</a>' : '')
+        +   (c.email ? '<a href="mailto:' + _esc(c.email) + '" target="_blank" rel="noopener" style="' + _sb + ';border:1px solid #3498db;color:#3498db">✉ Email</a>' : '')
+        +   (c.website ? '<a href="' + _esc((/^https?:/i.test(c.website) ? c.website : 'https://' + c.website)) + '" target="_blank" rel="noopener" style="' + _sb + ';border:1px solid #9b59b6;color:#9b59b6">🌐 Web</a>' : '')
+        +   (c.address ? '<a href="https://maps.google.com/?q=' + encodeURIComponent(c.address) + '" onclick="return _ctMap(event, \'' + encodeURIComponent(c.address) + '\')" target="_blank" rel="noopener" style="' + _sb + ';border:1px solid #16a085;color:#16a085">🗺 Map</a>' : '')
+        +   '<button onclick="_ctOpenEdit(' + c.row + ')" style="' + _sb + ';border:1px solid var(--border);background:var(--surface2);color:var(--text-mid)">Edit</button>'
+        +   '<button onclick="_ctDeleteRow(' + c.row + ')" style="' + _sb + ';border:1px solid #e74c3c;color:#e74c3c">Delete</button>'
         + '</div></div></div>';
     }).join('');
     // v0.9.778: hydrate the card thumbnails (authenticated Drive fetch).
     if (typeof loadDriveThumb === 'function') {
       el.querySelectorAll('img[data-card-thumb]').forEach(function (im) {
+        im.onerror = function () { this.style.display = 'none'; };
         loadDriveThumb(im.getAttribute('data-card-thumb'), im, im);
       });
     }
@@ -775,11 +780,9 @@
     document.body.appendChild(d);
   };
 
-  // v0.9.780 (Brad): share a contact — "text Dave's info to a friend". Uses the
-  // phone's native share sheet; on desktop copies the text to the clipboard.
-  window._ctShare = function (row) {
-    var c = (state.contactsData || []).find(function (x) { return x.row === row; });
-    if (!c) return;
+  // v0.9.788 (Brad): share MULTIPLE contacts — pick from a checklist, send
+  // via the phone's share sheet (desktop: copied to the clipboard).
+  function _ctShareText(c) {
     var lines = [];
     lines.push(c.name + (c.title ? ' — ' + c.title : ''));
     if (c.business) lines.push(c.business);
@@ -791,12 +794,43 @@
     if (c.email) lines.push('Email: ' + c.email);
     if (c.website) lines.push('Web: ' + c.website);
     if (c.address) lines.push(c.address);
-    lines.push('(shared from The Rail Roster)');
-    var text = lines.join('\n');
+    return lines.join('\n');
+  }
+  window._ctShareOpen = function () {
+    var rows = (state.contactsData || []).slice().sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); });
+    if (!rows.length) { showToast('No contacts to share yet', 2500); return; }
+    var old2 = document.getElementById('ct-share-modal'); if (old2) old2.remove();
+    var d = document.createElement('div');
+    d.id = 'ct-share-modal';
+    d.style.cssText = 'position:fixed;inset:0;z-index:10050;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;padding:1rem';
+    d.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:420px;width:100%;padding:1rem;max-height:80vh;display:flex;flex-direction:column">'
+      + '<div style="font-family:var(--font-head);font-size:1rem;color:var(--text);margin-bottom:0.6rem">↗ Share contacts — pick who to send</div>'
+      + '<div style="flex:1;overflow-y:auto;min-height:0">'
+      + rows.map(function (c) {
+          return '<label style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0.2rem;border-bottom:1px solid var(--border);cursor:pointer;font-size:0.88rem;color:var(--text)">'
+            + '<input type="checkbox" data-ct-share-id="' + _esc(c.id) + '" style="width:18px;height:18px">'
+            + _esc(c.name) + (c.business ? ' <span style="color:var(--text-mid);font-size:0.78rem">· ' + _esc(c.business) + '</span>' : '')
+            + '</label>';
+        }).join('')
+      + '</div>'
+      + '<div style="display:flex;gap:0.5rem;margin-top:0.7rem">'
+      + '<button onclick="_ctShareGo()" style="flex:2;padding:0.65rem;border-radius:9px;border:none;background:var(--accent);color:#fff;font-weight:800;cursor:pointer;font-family:var(--font-body)">↗ Share selected</button>'
+      + '<button onclick="document.getElementById(\'ct-share-modal\').remove()" style="flex:1;padding:0.65rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body)">Cancel</button>'
+      + '</div></div>';
+    document.body.appendChild(d);
+  };
+  window._ctShareGo = function () {
+    var d = document.getElementById('ct-share-modal');
+    if (!d) return;
+    var ids = [].slice.call(d.querySelectorAll('input[data-ct-share-id]:checked')).map(function (cb) { return cb.getAttribute('data-ct-share-id'); });
+    if (!ids.length) { showToast('Tick at least one contact', 2500, true); return; }
+    var picked = (state.contactsData || []).filter(function (c) { return ids.indexOf(c.id) >= 0; });
+    var text = picked.map(_ctShareText).join('\n\n— — —\n\n') + '\n\n(shared from The Rail Roster)';
+    d.remove();
     if (navigator.share) {
-      navigator.share({ title: c.name + (c.business ? ' — ' + c.business : ''), text: text }).catch(function () {});
+      navigator.share({ title: picked.length === 1 ? picked[0].name : (picked.length + ' contacts'), text: text }).catch(function () {});
     } else if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(function () { showToast('Contact copied — paste it into a text or email'); }).catch(function () {});
+      navigator.clipboard.writeText(text).then(function () { showToast('📋 ' + picked.length + ' contact' + (picked.length > 1 ? 's' : '') + ' copied — paste into a text or email'); }).catch(function () {});
     }
   };
 
