@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.774
+// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.775
 //
 // Brad's brainstorm picks: own page, listed as "Contacts", entry ABOVE
 // Preferences in the account menu. Business-card photo capture (Drive
@@ -474,6 +474,51 @@
     return out;
   }
 
+  // ── v0.9.775 — AI card reading (Tier-3 relay; on-device OCR = fallback) ──
+  // Parse the relay's labeled reply into contact fields.
+  function _parseAiCardText(text) {
+    var out = { name: '', title: '', business: '', phone: '', cell: '', home: '', email: '', website: '', address: '' };
+    var map = { 'name': 'name', 'title': 'title', 'business': 'business', 'store phone': 'phone', 'cell phone': 'cell', 'home phone': 'home', 'email': 'email', 'website': 'website', 'address': 'address' };
+    String(text || '').split('\n').forEach(function (ln) {
+      var m = ln.match(/^\s*([A-Za-z ]+):\s*(.*)$/);
+      if (!m) return;
+      var k = map[m[1].trim().toLowerCase()];
+      if (!k || out[k]) return;
+      var v = m[2].trim();
+      if (!v || /^(unknown|none|n\/a|-|\(blank\)|blank)$/i.test(v)) return;
+      out[k] = v;
+    });
+    if (out.website) {
+      out.website = out.website.replace(/^https?:\/\//i, '').replace(/^www\./i, '');
+      var wp = out.website.split('/'); wp[0] = _fixHost(wp[0]); out.website = wp.join('/');
+    }
+    if (out.email) { var ep = out.email.split('@'); if (ep[1]) out.email = ep[0] + '@' + _fixHost(ep[1]); }
+    out.title = _completeTitle(out.title);
+    return (out.name || out.email || out.phone || out.cell) ? out : null;
+  }
+  // Send the card to the vault relay (same consent, image prep, cap and cache
+  // as AI photo-ID). Returns fields, {_quota:true}, or null (use OCR instead).
+  async function _aiReadCard(file) {
+    try {
+      if (typeof aiConsentEnsure !== 'function' || typeof aiPrepImage !== 'function'
+          || typeof vaultPost !== 'function' || typeof vaultGetToken !== 'function') return null;
+      if (navigator && navigator.onLine === false) return null;
+      if (!(await aiConsentEnsure())) return null;
+      var img = await aiPrepImage(file);
+      if (!img) return null;
+      var res = null;
+      for (var t = 0; t < 3; t++) {
+        if (t) await new Promise(function (r) { setTimeout(r, t * 2500); });
+        res = await vaultPost({ action: 'ai_card', token: vaultGetToken(), image: img.b64, mime: img.mime });
+        if (res && res.status === 503) continue;
+        break;
+      }
+      if (res && res.status === 429) return { _quota: true };
+      if (!res || res.status !== 200 || !res.text) return null;   // incl. old relay: unknown action
+      return _parseAiCardText(String(res.text));
+    } catch (e) { console.warn('[card AI]', e); return null; }
+  }
+
   // ── sheet plumbing ─────────────────────────────────────────────
   var _tabEnsured = false;
   async function _ensureTab() {
@@ -653,7 +698,34 @@
       if (!f) return;
       _cardFile = f;
       var st = ov.querySelector('#ct-card-status');
-      st.textContent = '📇 Card attached — reading it…';
+      // v0.9.775: AI reads the card FIRST (same relay + daily cap as photo
+      // ID). On-device OCR below remains the fallback for: consent declined,
+      // daily cap hit, offline, or a relay that hasn't been upgraded to v2.2.
+      var aiGot = null, aiQuota = false;
+      try {
+        st.textContent = '🤖 Reading the card with AI…';
+        var aiRes = await _aiReadCard(f);
+        if (aiRes && aiRes._quota) aiQuota = true;
+        else aiGot = aiRes;
+      } catch (eA) { console.warn('[card AI]', eA); }
+      if (aiGot) {
+        var setA = function (id, v2) { var el2 = ov.querySelector('#' + id); if (el2 && !el2.value && v2) { el2.value = v2; return true; } return false; };
+        var filledA = [];
+        if (setA('ct-f-name', aiGot.name)) filledA.push('name');
+        if (setA('ct-f-title', aiGot.title)) filledA.push('title');
+        if (setA('ct-f-biz', aiGot.business)) filledA.push('business');
+        if (setA('ct-f-phone', aiGot.phone)) filledA.push('store phone');
+        if (setA('ct-f-cell', aiGot.cell)) filledA.push('cell');
+        if (setA('ct-f-home', aiGot.home)) filledA.push('home phone');
+        if (setA('ct-f-email', aiGot.email)) filledA.push('email');
+        if (setA('ct-f-web', aiGot.website)) filledA.push('website');
+        if (setA('ct-f-addr', aiGot.address)) filledA.push('address');
+        st.textContent = filledA.length
+          ? ('🤖 AI read the card — filled in ' + filledA.join(', ') + '. Double-check before saving.')
+          : '📇 Card attached — couldn’t read details, type them in';
+        return;
+      }
+      st.textContent = aiQuota ? '📇 Daily AI limit reached — reading on-device instead…' : '📇 Card attached — reading it…';
       // v0.9.766 (TODO-002): full-card OCR prefill — name, business, phone,
       // email, website, address. Best effort, EMPTY fields only. The photo is
       // downscaled first so the read is fast on phones.
