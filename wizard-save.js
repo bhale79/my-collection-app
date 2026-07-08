@@ -532,6 +532,15 @@ async function _saveCatalogFromPaper() {
     } catch(e) { console.warn('Drive folder:', e); }
   }
 
+  // v0.9.795 (Brad's GM50 dwgs): the drivePhotos step uploads AS YOU ADD and
+  // stores the Drive FOLDER LINK per view — this save only looked for raw
+  // files, so the photo column stayed blank ("No Photos Uploaded") while the
+  // photos sat in Drive. Use the step's link when no raw files are present.
+  if (!photoFolderLink) {
+    var _upl = Object.values(photoObj).find(function (v) { return typeof v === 'string' && v.indexOf('drive.google.com') >= 0; });
+    if (_upl) photoFolderLink = _upl;
+  }
+
   // Build row matching Catalogs tab layout: ItemID, Type, Year, HasMailer, Condition, PricePaid, EstValue, DateAcq, Notes, PhotoLink
   const row = [
     itemNum,
@@ -628,6 +637,15 @@ async function saveEphemeraItem() {
         } catch(e) { console.warn('Photo upload:', e); }
       }
     } catch(e) { console.warn('Drive folder:', e); }
+  }
+
+  // v0.9.795 (Brad's GM50 dwgs): the drivePhotos step uploads AS YOU ADD and
+  // stores the Drive FOLDER LINK per view — this save only looked for raw
+  // files, so the photo column stayed blank ("No Photos Uploaded") while the
+  // photos sat in Drive. Use the step's link when no raw files are present.
+  if (!photoFolderLink) {
+    var _upl = Object.values(photoObj).find(function (v) { return typeof v === 'string' && v.indexOf('drive.google.com') >= 0; });
+    if (_upl) photoFolderLink = _upl;
   }
 
   let row;
