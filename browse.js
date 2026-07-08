@@ -2355,6 +2355,10 @@ function renderBrowse() {
           // ONLY: identity fields keep v0.9.718's no-enrichment rule.
           var _tm = null;
           try { _tm = (typeof findMaster === 'function') ? (findMaster(pd.itemNum, pd.variation || '') || (_baseNum !== pd.itemNum ? findMaster(_baseNum) : null)) : null; } catch (eT) {}
+          // v0.9.801: variation-blind fallback — the type is the same across
+          // every variation, so ANY master row with this number settles it
+          // (findMaster can return null when the variation column is blank).
+          if (!_tm) { try { _tm = (state.masterData || []).find(function (m) { return m.itemNum === pd.itemNum && m.itemType; }) || null; } catch (eT2) {} }
           if (_tm && _tm.itemType) return _tm.itemType;
           return _poType || (_refItem ? _refItem.itemType : '');
         })(),
