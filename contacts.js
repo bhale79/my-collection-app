@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.766
+// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.767
 //
 // Brad's brainstorm picks: own page, listed as "Contacts", entry ABOVE
 // Preferences in the account menu. Business-card photo capture (Drive
@@ -22,7 +22,9 @@
   // Business column (label reads Store / Business). Phase 2 (Brad-confirmed):
   // item linking ("bought from Dave") via Contact ID + per-purchase WARRANTY
   // notes/expiry shown on the contact's page.
-  var HEADERS = ['Contact ID', 'Name', 'Business', 'Phone', 'Email', 'Specialties', 'Notes', 'Card Photo Link', 'Met At', 'Date Added', 'Mailing Address', 'Website'];
+  // v0.9.767 (Brad): + Home Phone / Cell Phone / Title — appended at END (M/N/O) so
+  // existing rows keep their columns. D 'Phone' = store/main number.
+  var HEADERS = ['Contact ID', 'Name', 'Business', 'Phone', 'Email', 'Specialties', 'Notes', 'Card Photo Link', 'Met At', 'Date Added', 'Mailing Address', 'Website', 'Home Phone', 'Cell Phone', 'Title'];
   var SPECIALTY_CHIPS = ['Prewar', 'Postwar', 'Modern', 'MTH', 'Atlas', 'Menards', 'Parts', 'Repairs', 'Paper', 'Sets'];
 
   function _esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -58,25 +60,47 @@
   // costs one tap to fix — bad data is never silently saved.
   var _FREEMAIL = ['gmail.com','yahoo.com','aol.com','hotmail.com','outlook.com','icloud.com','msn.com','comcast.net','verizon.net','att.net','sbcglobal.net'];
   var _BIZ_RE = /\b(llc|l\.l\.c|inc|incorporated|co\.|company|corp|corporation|enterprises|trains?|railroads?|hobby|hobbies|shop|store|collectibles?|models?|antiques?|sales|supply|depot|junction|emporium|exchange|galleries|toys?)\b/i;
-  var _TITLE_RE = /\b(owner|president|proprietor|manager|sales|founder|partner|ceo|dealer|collector)\b/i;
-  var _STREET_RE = /^\s*(\d+[\w-]*\s+.+\b(st|street|ave|avenue|rd|road|blvd|boulevard|dr|drive|ln|lane|ct|court|cir|circle|hwy|highway|pike|way|route|rte?|plaza|pl|place|trail|turnpike)\.?\b.*|p\.?\s*o\.?\s*box\s+\d+.*)$/i;
-  var _CSZ_RE = /\b[A-Za-z .]+,?\s+[A-Z]{2}\.?\s+\d{5}(?:-\d{4})?\b/;
+  var _TITLE_RE = /\b(owner|president|proprietor|manager|managing|director|founder|partner|ceo|coo|cfo|vice president|vp|sales rep|sales representative|account (rep|manager|executive)|engineer|estimator|consultant|specialist|coordinator|supervisor|buyer|appraiser|dealer|collector)\b/i;
+  var _BARE_SUFFIX_RE = /^\W*(llc|l\.l\.c\.?|inc\.?|co\.?|corp\.?|ltd\.?)\W*$/i;
+  var _STREET_RE = /(\d+[\w-]*\s+[^,\n]{2,40}?\b(st|street|ave|avenue|rd|road|blvd|boulevard|dr|drive|ln|lane|ct|court|cir|circle|hwy|highway|pike|way|route|rte|rt|plaza|pl|place|trail|turnpike|south|north|east|west)\.?\b[^\n]*|p\.?\s*o\.?\s*box\s+\d+[^\n]*)/i;
+  var _CSZ_RE = /\b[A-Za-z .]+[,.]?\s+[A-Z]{2}\.?\s+\d{5}(?:-\d{4})?\b/;
   function _parseCardText(text) {
-    var out = { name: '', business: '', phone: '', email: '', website: '', address: '' };
+    var out = { name: '', title: '', business: '', phone: '', cell: '', home: '', email: '', website: '', address: '' };
     var raw = String(text || '');
     function tc(s2) {
       s2 = String(s2 || '').trim();
       if (s2 && s2 === s2.toUpperCase() && /[A-Z]/.test(s2)) {
         s2 = s2.toLowerCase().replace(/(^|[\s\-.])([a-z])/g, function (m0, p, c) { return p + c.toUpperCase(); });
-        return s2.replace(/\bLlc\b/g, 'LLC').replace(/\bInc\b/g, 'Inc').replace(/\bMth\b/g, 'MTH');
       }
-      return s2;
+      return s2.replace(/\bLlc\b/g, 'LLC').replace(/\bMth\b/g, 'MTH').replace(/\bIpd\b/g, 'IPD');
     }
     out.email = (raw.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/) || [''])[0];
-    out.phone = (raw.match(/(?:\+?1[\s.\-]?)?\(?\d{3}\)?[\s.\-]?\d{3}[\s.\-]?\d{4}/) || [''])[0];
+
+    // ── Phones: every number, with its label. Labels can FOLLOW the number
+    // ("615.455.9399 (store)") or PRECEDE it as a word or single letter
+    // ("c 609.500.8393", "f 732.982.8516"). Fax numbers are dropped.
+    var phones = { store: '', cell: '', home: '' }, extras = [];
+    var phoneRe = /(?:\+?1[\s.\-]?)?\(?\d{3}\)?[\s.\-]?\d{3}[\s.\-]?\d{4}/g;
+    var pm;
+    while ((pm = phoneRe.exec(raw)) !== null) {
+      var num = pm[0].trim();
+      var before = raw.slice(Math.max(0, pm.index - 12), pm.index).toLowerCase();
+      var after = raw.slice(pm.index + pm[0].length, pm.index + pm[0].length + 14).toLowerCase();
+      var kind = '';
+      if (/(^|[^a-z])(f|fax)[\s.:|)\]]*$/.test(before) || /^\s*[([]?\s*fax/.test(after)) kind = 'fax';
+      else if (/(^|[^a-z])(c|cell|mobile|m)[\s.:|)\]]*$/.test(before) || /^\s*[([]?\s*(cell|mobile)/.test(after)) kind = 'cell';
+      else if (/(^|[^a-z])(h|home)[\s.:|)\]]*$/.test(before) || /^\s*[([]?\s*home/.test(after)) kind = 'home';
+      else if (/(^|[^a-z])(store|office|work|shop|main)[\s.:|)\]]*$/.test(before) || /^\s*[([]?\s*(store|office|work|shop|main)/.test(after)) kind = 'store';
+      if (kind === 'fax') continue;
+      if (kind && !phones[kind]) phones[kind] = num; else extras.push(num);
+    }
+    if (!phones.store && extras.length) phones.store = extras.shift();
+    if (!phones.cell && extras.length) phones.cell = extras.shift();
+    out.phone = phones.store; out.cell = phones.cell; out.home = phones.home;
+
     var lines = raw.split('\n').map(function (l) { return l.replace(/\s+/g, ' ').trim(); }).filter(function (l) { return l.length > 2; });
 
-    // Website — a www./http token or bare domain; never the email, never free-mail hosts.
+    // ── Website — a www./http token or bare domain; never the email, never free-mail hosts.
     outer:
     for (var i = 0; i < lines.length; i++) {
       var toks = lines[i].split(' ');
@@ -92,43 +116,73 @@
       }
     }
 
-    // Address — street line (or PO Box), plus the city/state/zip line.
-    var streetIdx = -1, cszIdx = -1;
+    // ── Address — first street match (label prefixes like "New Jersey" are cut
+    // off because we keep the line only FROM the street-number match onward),
+    // plus the city/state/zip (same line or a later line).
+    var streetIdx = -1, streetStr = '', cszIdx = -1;
     for (var k = 0; k < lines.length; k++) {
-      if (streetIdx < 0 && _STREET_RE.test(lines[k]) && !/@/.test(lines[k])) streetIdx = k;
+      if (/@/.test(lines[k])) continue;
+      var sm2 = lines[k].match(_STREET_RE);
+      if (sm2 && streetIdx < 0) { streetIdx = k; streetStr = sm2[0].trim(); }
     }
     for (var k2 = 0; k2 < lines.length; k2++) {
       if (k2 !== streetIdx && _CSZ_RE.test(lines[k2])) { cszIdx = k2; break; }
     }
-    if (streetIdx >= 0 && _CSZ_RE.test(lines[streetIdx])) {
-      out.address = lines[streetIdx]; cszIdx = -1;
-    } else {
+    if (streetIdx >= 0 && _CSZ_RE.test(streetStr)) { out.address = streetStr; cszIdx = -1; }
+    else {
       var parts = [];
-      if (streetIdx >= 0) parts.push(lines[streetIdx]);
+      if (streetStr) parts.push(streetStr);
       if (cszIdx >= 0) parts.push((lines[cszIdx].match(_CSZ_RE) || [lines[cszIdx]])[0]);
       out.address = parts.join(', ');
     }
-    var used = function (idx) { return idx === streetIdx || idx === cszIdx; };
 
-    // Business — first line with a company word; else the line matching the website root.
-    var bizIdx = -1;
+    // ── Title — first title-keyword line without digits ("Retail Store
+    // Manager", "Owner | Manager"). "Dave Miller, Owner" also yields the name.
+    var titleIdx = -1;
+    for (var t2 = 0; t2 < lines.length; t2++) {
+      if (_TITLE_RE.test(lines[t2]) && !/\d|@/.test(lines[t2]) && lines[t2].length < 50) { titleIdx = t2; break; }
+    }
+    if (titleIdx >= 0) {
+      var tl = lines[titleIdx];
+      var nm = tl.match(/^([A-Za-z .'\-]{4,40}),\s+(.{3,45})$/);
+      if (nm && !_TITLE_RE.test(nm[1])) { out.name = tc(nm[1].trim()); out.title = tc(nm[2].trim()); }
+      else out.title = tc(tl);
+    }
+
+    var used = function (idx) { return idx === streetIdx || idx === cszIdx || idx === titleIdx; };
+
+    // ── Business — company-word line (never a title line); a bare "LLC"/"Inc"
+    // line joins with the line above it; else the line matching the website
+    // or email domain root.
+    var bizIdx = -1, bizText = '';
     for (var b = 0; b < lines.length; b++) {
-      if (used(b) || /@/.test(lines[b]) || /\d{3}[\s.\-]\d{4}/.test(lines[b])) continue;
+      if (used(b) || _TITLE_RE.test(lines[b]) || /@/.test(lines[b]) || /\d{3}[\s.\-]\d{4}/.test(lines[b])) continue;
       if (_BIZ_RE.test(lines[b])) { bizIdx = b; break; }
     }
-    if (bizIdx < 0 && out.website) {
-      var root = out.website.split('/')[0].split('.')[0];
-      if (root.length > 3) {
+    if (bizIdx >= 0) {
+      bizText = lines[bizIdx];
+      if (_BARE_SUFFIX_RE.test(bizText) && bizIdx > 0 && !used(bizIdx - 1) && !/@|\d/.test(lines[bizIdx - 1])) {
+        bizText = lines[bizIdx - 1] + ' ' + bizText.replace(/^\W+|\W+$/g, '');
+      }
+    } else {
+      var roots = [];
+      if (out.website) roots.push(out.website.split('/')[0].split('.')[0]);
+      if (out.email) { var eh = out.email.split('@')[1] || ''; if (_FREEMAIL.indexOf(eh.toLowerCase()) < 0) roots.push(eh.split('.')[0]); }
+      rootLoop:
+      for (var r2 = 0; r2 < roots.length; r2++) {
+        var root = String(roots[r2] || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (root.length <= 3) continue;
         for (var b2 = 0; b2 < lines.length; b2++) {
           if (used(b2) || /@/.test(lines[b2])) continue;
-          if (lines[b2].toLowerCase().replace(/[^a-z0-9]/g, '').indexOf(root) >= 0) { bizIdx = b2; break; }
+          if (lines[b2].toLowerCase().replace(/[^a-z0-9]/g, '').indexOf(root) >= 0) { bizIdx = b2; bizText = lines[b2]; break rootLoop; }
         }
       }
     }
-    if (bizIdx >= 0) out.business = tc(lines[bizIdx]);
+    if (bizText) out.business = tc(bizText);
 
-    // Name — prefer the line just above a title line (Owner / President / …),
-    // then "Dave Miller, Owner" on one line, then the first plain 2-4-word line.
+    // ── Name — 1) work backwards from the email (bhale@ → "Brad Hale",
+    // NGraham@ → "Nathan Graham"); 2) the line just above the title line;
+    // 3) first plain 2-4-word line.
     var nameOk = function (l, idx) {
       if (used(idx) || idx === bizIdx) return false;
       if (/\d|@/.test(l) || l.length >= 40) return false;
@@ -136,16 +190,23 @@
       var w = l.split(' ');
       return w.length >= 2 && w.length <= 4;
     };
-    var titleIdx = -1;
-    for (var t2 = 0; t2 < lines.length; t2++) { if (_TITLE_RE.test(lines[t2])) { titleIdx = t2; break; } }
-    if (titleIdx > 0 && nameOk(lines[titleIdx - 1], titleIdx - 1)) out.name = tc(lines[titleIdx - 1]);
-    if (!out.name) {
-      for (var n2 = 0; n2 < lines.length; n2++) {
-        if (used(n2) || n2 === bizIdx) continue;
-        var mm = lines[n2].match(/^([A-Za-z .'\-]{4,40}),?\s+(?:owner|president|proprietor|manager|founder|partner|ceo)\b/i);
-        if (mm) { out.name = tc(mm[1].trim()); break; }
+    if (!out.name && out.email) {
+      var local = out.email.split('@')[0].toLowerCase().replace(/[^a-z]/g, '');
+      if (local.length >= 4) {
+        for (var n0 = 0; n0 < lines.length; n0++) {
+          var l0 = lines[n0];
+          if (used(n0) || n0 === bizIdx || /\d|@/.test(l0) || l0.length >= 40) continue;
+          var w0 = l0.split(' ').filter(Boolean);
+          if (w0.length < 2 || w0.length > 4) continue;
+          var fw = w0[0].toLowerCase().replace(/[^a-z]/g, ''), lw = w0[w0.length - 1].toLowerCase().replace(/[^a-z]/g, '');
+          if (!fw || !lw) continue;
+          if (local === fw + lw || local === fw.charAt(0) + lw || local === fw + lw.charAt(0) || (lw.length >= 4 && local.indexOf(lw) >= 0 && local.charAt(0) === fw.charAt(0))) {
+            out.name = tc(l0); break;
+          }
+        }
       }
     }
+    if (!out.name && titleIdx > 0 && nameOk(lines[titleIdx - 1], titleIdx - 1)) out.name = tc(lines[titleIdx - 1]);
     if (!out.name) {
       for (var n3 = 0; n3 < lines.length; n3++) { if (nameOk(lines[n3], n3)) { out.name = tc(lines[n3]); break; } }
     }
@@ -165,7 +226,10 @@
           method: 'POST', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
           body: JSON.stringify({ requests: [{ addSheet: { properties: { title: TAB } } }] }),
         });
-        await sheetsUpdate(state.personalSheetId, TAB + '!A1:L1', [HEADERS]);
+        await sheetsUpdate(state.personalSheetId, TAB + '!A1:O1', [HEADERS]);
+      } else {
+        // v0.9.767: tab predates the M/N/O columns — write those headers (idempotent).
+        try { await sheetsUpdate(state.personalSheetId, TAB + '!M1:O1', [['Home Phone', 'Cell Phone', 'Title']]); } catch (e2) {}
       }
       _tabEnsured = true;
       return true;
@@ -174,11 +238,11 @@
 
   async function _load() {
     try {
-      var r = await sheetsGet(state.personalSheetId, TAB + '!A2:L');
+      var r = await sheetsGet(state.personalSheetId, TAB + '!A2:O');
       var out = [];
       (r && r.values || []).forEach(function (v, i) {
         if (!v || !(v[1] || v[0])) return;
-        out.push({ row: i + 2, id: v[0] || '', name: v[1] || '', business: v[2] || '', phone: v[3] || '', email: v[4] || '', specialties: v[5] || '', notes: v[6] || '', cardLink: v[7] || '', metAt: v[8] || '', dateAdded: v[9] || '', address: v[10] || '', website: v[11] || '' });
+        out.push({ row: i + 2, id: v[0] || '', name: v[1] || '', business: v[2] || '', phone: v[3] || '', email: v[4] || '', specialties: v[5] || '', notes: v[6] || '', cardLink: v[7] || '', metAt: v[8] || '', dateAdded: v[9] || '', address: v[10] || '', website: v[11] || '', homePhone: v[12] || '', cellPhone: v[13] || '', title: v[14] || '' });
       });
       state.contactsData = out;
       return out;
@@ -205,7 +269,7 @@
     var q = ((document.getElementById('ct-search') || {}).value || '').toLowerCase();
     var rows = (state.contactsData || []).filter(function (c) {
       if (!q) return true;
-      return (c.name + ' ' + c.business + ' ' + c.specialties + ' ' + c.notes + ' ' + c.metAt).toLowerCase().indexOf(q) >= 0;
+      return (c.name + ' ' + c.business + ' ' + (c.title || '') + ' ' + c.specialties + ' ' + c.notes + ' ' + c.metAt).toLowerCase().indexOf(q) >= 0;
     });
     rows.sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); });
     if (!rows.length) {
@@ -219,12 +283,15 @@
         + '<div style="display:flex;align-items:flex-start;gap:0.6rem;flex-wrap:wrap">'
         + '<div style="flex:1;min-width:200px">'
         +   '<div style="font-weight:800;color:var(--text);font-size:1rem">' + _esc(c.name) + (c.business ? ' <span style="font-weight:400;color:var(--text-mid);font-size:0.85rem">· ' + _esc(c.business) + '</span>' : '') + '</div>'
+        +   (c.title ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.1rem">' + _esc(c.title) + '</div>' : '')
         +   (chips ? '<div style="margin-top:0.25rem">' + chips + '</div>' : '')
         +   (c.notes ? '<div style="font-size:0.8rem;color:var(--text-mid);margin-top:0.3rem;line-height:1.4">' + _esc(c.notes) + '</div>' : '')
         +   (c.metAt ? '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.2rem">Met: ' + _esc(c.metAt) + '</div>' : '')
         + '</div>'
         + '<div style="display:flex;flex-direction:column;gap:0.3rem;flex-shrink:0">'
         +   (c.phone ? '<a href="tel:' + _esc(c.phone.replace(/[^+0-9]/g, '')) + '" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #2ecc71;color:#2ecc71;text-decoration:none;font-size:0.78rem;text-align:center">📞 ' + _esc(c.phone) + '</a>' : '')
+        +   (c.cellPhone ? '<a href="tel:' + _esc(c.cellPhone.replace(/[^+0-9]/g, '')) + '" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #2ecc71;color:#2ecc71;text-decoration:none;font-size:0.78rem;text-align:center">📱 ' + _esc(c.cellPhone) + '</a>' : '')
+        +   (c.homePhone ? '<a href="tel:' + _esc(c.homePhone.replace(/[^+0-9]/g, '')) + '" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #2ecc71;color:#2ecc71;text-decoration:none;font-size:0.78rem;text-align:center">🏠 ' + _esc(c.homePhone) + '</a>' : '')
         +   (c.email ? '<a href="mailto:' + _esc(c.email) + '" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #3498db;color:#3498db;text-decoration:none;font-size:0.78rem;text-align:center">✉ Email</a>' : '')
         +   (c.website ? '<a href="' + _esc((/^https?:/i.test(c.website) ? c.website : 'https://' + c.website)) + '" target="_blank" rel="noopener" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #9b59b6;color:#9b59b6;text-decoration:none;font-size:0.78rem;text-align:center">🌐 Website</a>' : '')
         +   (c.address ? '<a href="https://maps.google.com/?q=' + encodeURIComponent(c.address) + '" target="_blank" rel="noopener" style="padding:0.35rem 0.7rem;border-radius:7px;border:1px solid #16a085;color:#16a085;text-decoration:none;font-size:0.78rem;text-align:center">🗺 Map</a>' : '')
@@ -237,7 +304,7 @@
   // ── add / edit modal ───────────────────────────────────────────
   window._ctOpenEdit = function (row) {
     var c = row ? (state.contactsData || []).find(function (x) { return x.row === row; }) : null;
-    c = c || { id: '', name: '', business: '', phone: '', email: '', specialties: '', notes: '', cardLink: '', metAt: '', dateAdded: '', address: '', website: '' };
+    c = c || { id: '', name: '', business: '', phone: '', email: '', specialties: '', notes: '', cardLink: '', metAt: '', dateAdded: '', address: '', website: '', homePhone: '', cellPhone: '', title: '' };
     var old = document.getElementById('ct-modal'); if (old) old.remove();
     var ov = document.createElement('div');
     ov.id = 'ct-modal';
@@ -252,8 +319,11 @@
       + '<input type="file" id="ct-card-file" accept="image/*" capture="environment" style="display:none">'
       + '<div id="ct-card-status" style="font-size:0.75rem;color:var(--text-dim);margin:-0.3rem 0 0.5rem"></div>'
       + fld('Name', 'ct-f-name', c.name, 'Dave Miller')
+      + fld('Title', 'ct-f-title', c.title, 'Owner')
       + fld('Store / Business', 'ct-f-biz', c.business, "Dave's Trains")
-      + fld('Phone', 'ct-f-phone', c.phone, '(555) 123-4567', 'tel')
+      + fld('Store / Main Phone', 'ct-f-phone', c.phone, '(555) 123-4567', 'tel')
+      + fld('Cell / Mobile', 'ct-f-cell', c.cellPhone, '(555) 123-9876', 'tel')
+      + fld('Home Phone', 'ct-f-home', c.homePhone, '', 'tel')
       + fld('Email', 'ct-f-email', c.email, 'dave@example.com', 'email')
       + '<div style="margin-bottom:0.2rem;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-dim)">Deals in</div>'
       + '<div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-bottom:0.4rem">' + SPECIALTY_CHIPS.map(function (s) {
@@ -301,8 +371,11 @@
           var set = function (id, v) { var el = ov.querySelector('#' + id); if (el && !el.value && v) { el.value = v; return true; } return false; };
           var filled = [];
           if (set('ct-f-name', got.name)) filled.push('name');
+          if (set('ct-f-title', got.title)) filled.push('title');
           if (set('ct-f-biz', got.business)) filled.push('business');
-          if (set('ct-f-phone', got.phone)) filled.push('phone');
+          if (set('ct-f-phone', got.phone)) filled.push('store phone');
+          if (set('ct-f-cell', got.cell)) filled.push('cell');
+          if (set('ct-f-home', got.home)) filled.push('home phone');
           if (set('ct-f-email', got.email)) filled.push('email');
           if (set('ct-f-web', got.website)) filled.push('website');
           if (set('ct-f-addr', got.address)) filled.push('address');
@@ -332,11 +405,11 @@
         }
       } catch (e) { console.warn('[contact card upload]', e); }
       var id = c.id || ('C-' + Date.now());
-      var rowVals = [id, name, v('ct-f-biz'), v('ct-f-phone'), v('ct-f-email'), specialties, v('ct-f-notes'), cardLink, v('ct-f-met'), c.dateAdded || _today(), v('ct-f-addr'), v('ct-f-web')];
+      var rowVals = [id, name, v('ct-f-biz'), v('ct-f-phone'), v('ct-f-email'), specialties, v('ct-f-notes'), cardLink, v('ct-f-met'), c.dateAdded || _today(), v('ct-f-addr'), v('ct-f-web'), v('ct-f-home'), v('ct-f-cell'), v('ct-f-title')];
       try {
         if (!(await _ensureTab())) throw new Error('no tab');
-        if (row) await sheetsUpdate(state.personalSheetId, TAB + '!A' + row + ':L' + row, [rowVals]);
-        else await sheetsAppend(state.personalSheetId, TAB + '!A:L', [rowVals]);
+        if (row) await sheetsUpdate(state.personalSheetId, TAB + '!A' + row + ':O' + row, [rowVals]);
+        else await sheetsAppend(state.personalSheetId, TAB + '!A:O', [rowVals]);
         ov.remove();
         showToast('✓ ' + name + ' saved to Contacts');
         await _load();
@@ -351,7 +424,7 @@
     if (del) del.onclick = async function () {
       if (!confirm('Delete this contact?')) return;
       try {
-        await sheetsUpdate(state.personalSheetId, TAB + '!A' + row + ':L' + row, [['', '', '', '', '', '', '', '', '', '', '', '']]);
+        await sheetsUpdate(state.personalSheetId, TAB + '!A' + row + ':O' + row, [['', '', '', '', '', '', '', '', '', '', '', '', '', '', '']]);
         ov.remove();
         showToast('Contact deleted');
         await _load();
