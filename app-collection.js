@@ -40,6 +40,13 @@ function _detailBackToBrowse() {
     if (ls.owned) {
       // Reapply collection view, then jump to the saved tab
       if (typeof filterOwned === 'function') filterOwned();
+      // v0.9.798 (Brad): filterOwned() wiped the type/road/search chips — a
+      // Paper filter didn't survive "Back to Collection". Restore the FULL
+      // filter snapshot on top, then re-render.
+      if (ls.filters && state.filters) {
+        Object.assign(state.filters, ls.filters, { owned: true });
+        if (typeof renderBrowse === 'function') renderBrowse();
+      }
       if (ls.tab && ls.tab !== 'items' && typeof renderBrowseTab === 'function') {
         state._browseTab = ls.tab;
         renderBrowseTab(ls.tab);
@@ -110,6 +117,7 @@ function showNonItemDetailPage(type, key) {
       filterType: state.filters.type || '',
       filterRoad: state.filters.road || '',
       search:     state.filters.search || '',
+      filters:    Object.assign({}, state.filters),   // v0.9.798: FULL snapshot (mfr/scale/era chips too)
     };
   }
 
@@ -819,6 +827,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
       filterType: state.filters.type || '',
       filterRoad: state.filters.road || '',
       search:     state.filters.search || '',
+      filters:    Object.assign({}, state.filters),   // v0.9.798: FULL snapshot (mfr/scale/era chips too)
     };
   }
   const item = idx >= 0 ? state.masterData[idx] : null;
