@@ -500,7 +500,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           }
           if (cabOk.length) {
             var cm = cabOk[0];
-            return { handled: true, itemNum: cm.itemNum, variation: cm.variation || '', masterItem: cm, manufacturer: meta.manufacturer, roadName: (cm.roadName || ''), description: (cm.description || ''), eraTag: (typeof _eraLabel === 'function') ? _eraLabel(cm._era) : '', verifiedNote: '🤖 AI read the box number ' + cabRaw, verifiedBy: 'ai', statusMessage: 'AI found ' + cm.itemNum + ' — ' + (cm.description || '').substring(0, 40) };
+            return { handled: true, itemNum: cm.itemNum, variation: cm.variation || '', masterItem: cm, manufacturer: meta.manufacturer, roadName: (cm.roadName || ''), description: (cm.description || ''), eraTag: (typeof _eraLabel === 'function') ? _eraLabel(cm._era) : '', verifiedNote: '🔍 Read from the box photo — number ' + cabRaw, verifiedBy: 'ai', statusMessage: 'Found ' + cm.itemNum + ' — ' + (cm.description || '').substring(0, 40) };
           }
         }
         // v0.9.660: the AI read real details but no valid catalog number (e.g.
@@ -511,7 +511,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         if (meta.subType)  _nmBits.push(meta.subType);
         if (meta.cabNum)   _nmBits.push('#' + meta.cabNum);
         if (_nmBits.length) {
-          return { handled: true, itemNum: '', noItemNum: true, variation: '', notInMaster: true, manufacturer: meta.manufacturer || '', labelDescription: _nmBits.join(' '), description: _nmBits.join(' '), aiMeta: meta, verifiedBy: 'ai', statusMessage: 'AI read the box — no catalog number visible, adding manually…' };
+          return { handled: true, itemNum: '', noItemNum: true, variation: '', notInMaster: true, manufacturer: meta.manufacturer || '', labelDescription: _nmBits.join(' '), description: _nmBits.join(' '), aiMeta: meta, verifiedBy: 'ai', statusMessage: 'Read the box — no catalog number visible, adding manually…' };
         }
         reasonOut.reason = meta._hedge ? 'hedge' : 'nothing';
         return null;
@@ -523,14 +523,14 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       var hits = await _findMasterItemsAllEras(lookup);
       if (hits.length) {
         var m = hits[0];
-        return { handled: true, itemNum: m.itemNum, variation: m.variation || '', masterItem: m, manufacturer: meta.manufacturer || 'Lionel', roadName: (m.roadName || ''), description: (m.description || ''), eraTag: (typeof _eraLabel === 'function') ? _eraLabel(m._era) : '', verifiedNote: '🤖 Identified by AI from the photo', verifiedBy: 'ai', statusMessage: 'AI found ' + m.itemNum + ' — ' + (m.description || '').substring(0, 40) };
+        return { handled: true, itemNum: m.itemNum, variation: m.variation || '', masterItem: m, manufacturer: meta.manufacturer || 'Lionel', roadName: (m.roadName || ''), description: (m.description || ''), eraTag: (typeof _eraLabel === 'function') ? _eraLabel(m._era) : '', verifiedNote: '🔍 Identified from the photo', verifiedBy: 'ai', statusMessage: 'Found ' + m.itemNum + ' — ' + (m.description || '').substring(0, 40) };
       }
       var descBits = [];
       if (meta.roadName) descBits.push(meta.roadName);
       if (meta.subType)  descBits.push(meta.subType);
       if (meta.cabNum)   descBits.push('#' + meta.cabNum);
       var desc = (meta.description || descBits.join(' ')).trim();
-      return { handled: true, itemNum: raw, variation: '', notInMaster: true, manufacturer: meta.manufacturer || '', labelDescription: desc, description: desc, aiMeta: meta, verifiedBy: 'ai', aiGuess: true, statusMessage: 'AI read ' + raw + ' — not in our catalog, adding manually…' };
+      return { handled: true, itemNum: raw, variation: '', notInMaster: true, manufacturer: meta.manufacturer || '', labelDescription: desc, description: desc, aiMeta: meta, verifiedBy: 'ai', aiGuess: true, statusMessage: 'Read ' + raw + ' — not in our catalog, adding manually…' };
     } catch (e) { reasonOut.reason = 'error'; return null; }
   }
   function _bcPickByLabel(cands, ocrNums, code5) {
@@ -773,7 +773,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                 // frame once before dropping them back into the scanner.
                 if (_res.notInMaster && typeof _bcAiRescue === 'function' && !_bcRescueTried['ai|' + bc.rawValue]) {
                   _bcRescueTried['ai|' + bc.rawValue] = 1;
-                  _setStatus('🤖 Taking a closer look with AI…', '#ffd27d', 45000);
+                  _setStatus('🔍 Taking a closer look…', '#ffd27d', 45000);
                   const _aiR3 = await _bcAiRescue(video, eraHint, {}, (_res && _res.manufacturer) || '');
                   _bcStickyUntil = 0;
                   if (_aiR3 && _aiR3.itemNum && _aiR3.itemNum !== _res.itemNum) {
@@ -805,7 +805,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                 if (stopScanning) return;   // user hit Cancel / label button while OCR ran
                 // v0.9.655: Tier 3 — barcode dead end AND label OCR failed.
                 // Give the AI one look at the same frame before giving up.
-                _setStatus('🤖 Taking a closer look with AI…', '#ffd27d', 45000);
+                _setStatus('🔍 Taking a closer look…', '#ffd27d', 45000);
                 var _aiWhy = {};
                 const _aiR = await _bcAiRescue(video, eraHint, _aiWhy, (result && result.manufacturer) || '');
                 _bcStickyUntil = 0;
@@ -818,7 +818,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                 }
                 if (stopScanning) return;   // user bailed while the AI ran
                 _setStatus(_aiWhy.reason === 'quota'
-                  ? 'Daily AI photo limit reached — try 📸 "Read the label" up close, or type the number.'
+                  ? 'Daily photo-reading limit reached — try 📸 "Read the label" up close, or type the number.'
                   : 'Couldn\'t read the label either — try 📸 "Read the label" up close, or type the number.', '#ff9580', 6000);
                 await new Promise(r => setTimeout(r, 250));
                 continue;
@@ -1348,7 +1348,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         if (!cands.length && typeof _bcAiRescue === 'function') {
           // v0.9.655: Tier 3 — OCR found no item number at all. The AI gets
           // the captured frame before we fall back to description-only.
-          statusEl.textContent = '🤖 Taking a closer look with AI…';
+          statusEl.textContent = '🔍 Taking a closer look…';
           var _aiWhyL = {};
           var _aiRL = await _bcAiRescue(crop, eraHint, _aiWhyL, _mfrFromKeywords(text) || '');
           if (_aiRL) {
@@ -1359,7 +1359,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             return;
           }
           if (_aiWhyL.reason === 'quota') {
-            statusEl.textContent = 'Daily AI photo limit reached — hold the label right-side up, fill the dashed box, then Capture again.';
+            statusEl.textContent = 'Daily photo-reading limit reached — hold the label right-side up, fill the dashed box, then Capture again.';
             captureBtn.disabled = false;
             captureBtn.textContent = '📸 Try again';
             return;
@@ -1589,7 +1589,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + '<button data-a="use" style="display:block;width:100%;margin-top:14px;padding:12px;border-radius:10px;border:2px solid var(--accent,#e8401c);background:rgba(232,64,28,0.12);color:var(--text,#fff);font-weight:600;font-size:0.95rem;cursor:pointer">Use this</button>'
         + '<div style="display:flex;gap:8px;margin-top:8px">'
         + (info.lensOffer ? '<button data-a="lens" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid #3a6ea5;background:rgba(58,110,165,0.12);color:#cfe3ff;font-size:0.82rem;cursor:pointer">🔍 Google Lens</button>' : '')
-        + (info.aiOffer ? '<button data-a="aionly" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid #16a085;background:rgba(22,160,133,0.12);color:#7fe0cd;font-size:0.82rem;cursor:pointer">🤖 Not this item — ID by AI</button>' : '')
+        + (info.aiOffer ? '<button data-a="aionly" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid #16a085;background:rgba(22,160,133,0.12);color:#7fe0cd;font-size:0.82rem;cursor:pointer">🔍 Not this item — take a closer look</button>' : '')
         + '<button data-a="rescan" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);font-size:0.82rem;cursor:pointer">Rescan</button>'
         + '<button data-a="manual" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);font-size:0.82rem;cursor:pointer">Type it instead</button>'
         + '<button data-a="cancel" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);font-size:0.82rem;cursor:pointer">Cancel</button>'
@@ -1996,7 +1996,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + '<span id="bi-rotv" style="color:var(--text-mid,#ccc);font-size:0.78rem;min-width:3.2em;text-align:right">0&deg;</span>'
         + '</div>'
         + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.55rem">'
-        + _biBtn({ act: 'go', txt: '🤖 Multi AI Search' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff;flex:1')
+        + _biBtn({ act: 'go', txt: '🔍 Smart Search' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff;flex:1')
         + _biBtn({ act: 'lens', txt: '🔍 Google Lens Search' })
         + _biBtn({ act: 'rot', txt: '↻ Rotate' })
         + _biBtn({ act: 'retake', txt: '↺ Retake' })
@@ -2004,8 +2004,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + '</div>'
         // v0.9.713 (Brad): say which engine is best for what, right here.
         + '<div style="margin-top:0.55rem;padding:0.5rem 0.65rem;border-radius:9px;background:rgba(255,255,255,0.04);border:1px solid var(--border,#333);font-size:0.74rem;line-height:1.5;color:var(--text-mid,#bbb)">'
-        + '<b style="color:var(--accent,#e8401c)">🤖 Multi AI</b> — fastest when a <b>number is printed</b>: boxes, labels, barcodes, lettered trains, anything in our catalogs.<br>'
-        + '<b style="color:#9ecbff">🔍 Google Lens</b> — better for <b>unmarked items</b>: buildings, promos, store brands, posters &amp; paper. Also the backup when our AI is busy.'
+        + '<b style="color:var(--accent,#e8401c)">🔍 Smart Search</b> — fastest when a <b>number is printed</b>: boxes, labels, barcodes, lettered trains, anything in our catalogs.<br>'
+        + '<b style="color:#9ecbff">🔍 Google Lens</b> — better for <b>unmarked items</b>: buildings, promos, store brands, posters &amp; paper. Also the backup when the reader is busy.'
         + '</div></div>');
       var img = d.querySelector('#bi-cropimg');
       img.src = canvas.toDataURL('image/jpeg', 0.92);
@@ -2156,7 +2156,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     out.isBoxShot = !!(bc || out.ocrNums.length);   // barcode or printed SKU = it's a box/label
     if (pick) {
       st('master', '📖', 'Catalog: ✓ ' + pick.itemNum + ' — ' + (pick.description || '').substring(0, 40), '#2ecc71');
-      st('ai', '➖', 'AI: not needed');
+      st('ai', '➖', 'Close look: not needed');
       return { handled: true, _boxPhoto: out.isBoxShot, itemNum: pick.itemNum, variation: pick.variation || '', masterItem: pick,
                manufacturer: out.bcMaker || '', roadName: pick.roadName || '', description: pick.description || '',
                verifiedBy: verified, verifiedNote: (verified === 'barcode+label' ? '✓ Barcode + lettering agree' : (verified === 'label' ? '✓ Read from the printed number' : '✓ Barcode match')),
@@ -2165,9 +2165,9 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     }
     if (out.typedNum) {
       st('master', '📖', 'Catalog: not there — adding ' + out.typedNum + ' manually');
-      st('ai', '<span class="bi-spin">⟳</span>', 'AI: getting the details…');
+      st('ai', '<span class="bi-spin">⟳</span>', 'Close look: getting the details…');
       var aiR0 = await _bcAiRescue(workCanvas, eraHint, out.why, out.bcMaker);
-      st('ai', '🤖', aiR0 ? 'AI: ✓ details read' : 'AI: no extra details', aiR0 ? '#2ecc71' : null);
+      st('ai', '🔍', aiR0 ? 'Close look: ✓ details read' : 'Close look: no extra details', aiR0 ? '#2ecc71' : null);
       return { handled: true, _boxPhoto: out.isBoxShot, itemNum: out.typedNum, variation: '', notInMaster: true,
                manufacturer: out.bcMaker || (aiR0 && aiR0.manufacturer) || '',
                labelDescription: (aiR0 && aiR0.labelDescription) || out.ocrDesc,
@@ -2185,9 +2185,9 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     }
     if (_printed) {
       st('master', '📖', 'Catalog: ' + _printed + ' not in the catalog — adding manually', '#ffd27d');
-      st('ai', '<span class="bi-spin">⟳</span>', 'AI: getting the details…');
+      st('ai', '<span class="bi-spin">⟳</span>', 'Close look: getting the details…');
       var aiP = await _bcAiRescue(workCanvas, eraHint, out.why, out.bcMaker);
-      st('ai', '🤖', aiP ? 'AI: ✓ details read' : 'AI: no extra details', aiP ? '#2ecc71' : null);
+      st('ai', '🔍', aiP ? 'Close look: ✓ details read' : 'Close look: no extra details', aiP ? '#2ecc71' : null);
       return { handled: true, _boxPhoto: out.isBoxShot, itemNum: _printed, variation: '', notInMaster: true,
                manufacturer: out.bcMaker || (aiP && aiP.manufacturer) || '',
                labelDescription: (aiP && (aiP.labelDescription || aiP.description)) || out.ocrDesc,
@@ -2199,21 +2199,21 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     st('master', '➖', 'Catalog: no direct match yet');
 
     // Stage 4 — AI (crop + everything we learned as hints)
-    st('ai', '<span class="bi-spin">⟳</span>', 'AI: taking a close look…');
+    st('ai', '<span class="bi-spin">⟳</span>', 'Close look: reading the photo…');
     var aiR = await _bcAiRescue(workCanvas, eraHint, out.why, out.bcMaker);
     if (aiR) {
-      st('ai', '🤖', 'AI: ✓ ' + (aiR.itemNum || aiR.description || 'details read'), '#2ecc71');
+      st('ai', '🔍', 'Close look: ✓ ' + (aiR.itemNum || aiR.description || 'details read'), '#2ecc71');
       if (!aiR.labelDescription && out.ocrDesc) aiR.labelDescription = out.ocrDesc;
       if (!aiR.manufacturer && out.bcMaker) aiR.manufacturer = out.bcMaker;
       aiR._boxPhoto = out.isBoxShot;
       return aiR;
     }
     var aiWhy = out.why.reason === 'quota' ? 'daily limit reached' :
-                out.why.reason === 'busy' ? "Google's AI is overloaded right now — worth retrying in a minute" :
+                out.why.reason === 'busy' ? "the photo reader is overloaded right now — worth retrying in a minute" :
                 out.why.reason === 'hedge' ? "couldn't pin it down" :
                 out.why.reason === 'noconsent' ? 'photo permission declined' :
                 out.why.reason === 'offline' ? 'offline' : 'no confident answer';
-    st('ai', '❌', 'AI: ' + aiWhy, '#e8401c');
+    st('ai', '❌', 'Close look: ' + aiWhy, '#e8401c');
     return { __biFail: true, out: out };
   }
 
@@ -2246,7 +2246,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       act.innerHTML =
         '<div style="width:100%;color:var(--text-mid,#ccc);font-size:0.82rem;margin-bottom:0.3rem">No confident ID. You can:</div>'
         + _biBtn({ act: 'retake', txt: '↺ Retake photo' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff')
-        + _biBtn({ act: 'ai', txt: '🤖 Try AI again' })
+        + _biBtn({ act: 'ai', txt: '🔍 Try another look' })
         + _biBtn({ act: 'lens', txt: '🔍 Google Lens' })
         + _biBtn({ act: 'type', txt: '⌨ Type it in' })
         + _biBtn({ act: 'cancel', txt: 'Cancel' });
@@ -2322,7 +2322,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             roadName: r.roadName || (r.masterItem && r.masterItem.roadName) || '',
             description: r.description || r.labelDescription || '',
             notInMaster: r.notInMaster, noItemNum: r.noItemNum,
-            verifiedNote: r.aiGuess ? '⚠ AI guess from the photo alone — double-check, or try Google Lens' : r.verifiedNote,
+            verifiedNote: r.aiGuess ? '⚠ Best guess from the photo alone — double-check, or try Google Lens' : r.verifiedNote,
             eraTag: r.eraTag, lensOffer: !!r.aiGuess, aiOffer: !!aiOffer
           };
         }
