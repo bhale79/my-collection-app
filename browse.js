@@ -2347,7 +2347,17 @@ function renderBrowse() {
       return {
         itemNum: pd.itemNum, variation: pd.variation || '',
         manufacturer: pd.manufacturer || '',
-        itemType: _poType || (_refItem ? _refItem.itemType : ''),
+        itemType: (function () {
+          if (!pd.itemType && _poType) return _poType;   // suffix-derived (-BOX/-IS/-P/-T) synthetic types
+          // v0.9.798 (Brad): the CATALOG decides Item Type whenever this number
+          // exists in the master — a stored personal type (like a stuck "Paper"
+          // on 217C / 6464-425) only applies to true off-catalog items. TYPE
+          // ONLY: identity fields keep v0.9.718's no-enrichment rule.
+          var _tm = null;
+          try { _tm = (typeof findMaster === 'function') ? (findMaster(pd.itemNum, pd.variation || '') || (_baseNum !== pd.itemNum ? findMaster(_baseNum) : null)) : null; } catch (eT) {}
+          if (_tm && _tm.itemType) return _tm.itemType;
+          return _poType || (_refItem ? _refItem.itemType : '');
+        })(),
         roadName: pd.roadName || (_refItem ? _refItem.roadName : ''),
         description: _refItem ? _refItem.description : (pd.description || pd.notes || ''),   // v0.9.718: manual rows carry their own description
         yearProd: pd.datePurchased || (_refItem ? _refItem.yearProd : ''),
