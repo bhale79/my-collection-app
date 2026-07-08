@@ -145,7 +145,23 @@ async function uploadWizardPhoto(file, stepId, viewKey) {
       _unitTag = d.unitPower === 'Powered' ? '-P' : (d.unitPower === 'Dummy' ? '-D' : '');
       if (_unitTag && new RegExp(_unitTag + '$', 'i').test(itemNum)) _unitTag = '';   // already suffixed
     }
-    const url = await driveUploadItemPhoto(file, itemNum, viewKey, _invId || undefined, _unitTag ? (itemNum + _unitTag) : undefined);
+    // v0.9.799 (Brad): paper/catalog/mock-up photos are named by TITLE and
+    // filed under Ephemera Photos/<title> — they used to land as loose
+    // 'unknown PAPER-FRONT.jpg' files (no item number exists at photo time).
+    let url;
+    const _ephTabsMap = { catalogs: 1, paper: 1, mockups: 1, other: 1 };
+    const _isEphTab = wizard && wizard.tab && (_ephTabsMap[wizard.tab] || (state.userDefinedTabs || []).some(function (t) { return t.id === wizard.tab; }));
+    if (_isEphTab) {
+      await driveEnsureSetup();
+      if (!driveCache.ephPhotosId) driveCache.ephPhotosId = await driveFindOrCreateFolder('Ephemera Photos', driveCache.vaultId);
+      const _ephTitle = String((wizard.data && (wizard.data.eph_title || wizard.data.itemNum)) || 'untitled').trim().substring(0, 60) || 'untitled';
+      const _ephFolder = await driveFindOrCreateFolder(_ephTitle, driveCache.ephPhotosId);
+      const _ephExt = (file.name.split('.').pop() || 'jpg');
+      await driveUploadPhoto(file, _ephTitle + ' ' + viewKey + '.' + _ephExt, _ephFolder);
+      url = (typeof driveFolderLink === 'function') ? driveFolderLink(_ephFolder) : ('https://drive.google.com/drive/folders/' + _ephFolder);
+    } else {
+      url = await driveUploadItemPhoto(file, itemNum, viewKey, _invId || undefined, _unitTag ? (itemNum + _unitTag) : undefined);
+    }
     if (!wizard.data[stepId]) wizard.data[stepId] = {};
     wizard.data[stepId][viewKey] = url;
     // Update label to show success, hide spinner
