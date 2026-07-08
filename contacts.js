@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.782
+// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.783
 //
 // Brad's brainstorm picks: own page, listed as "Contacts", entry ABOVE
 // Preferences in the account menu. Business-card photo capture (Drive
@@ -546,6 +546,77 @@
     return got;
   }
 
+  // ── v0.9.783 — QR-first card reading. Many dealer cards carry a QR code
+  // holding a vCard: decoding it is ~1 second and EXACT (no print-reading).
+  function _parseQrContact(txt) {
+    txt = String(txt || '').trim();
+    if (!txt) return null;
+    var out = { name: '', title: '', business: '', phone: '', cell: '', home: '', email: '', website: '', address: '' };
+    var unesc = function (v) { return String(v || '').replace(/\\n/gi, ', ').replace(/\\,/g, ',').replace(/\\;/g, ';').trim(); };
+    var webClean = function (v) { return unesc(v).replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/$/, ''); };
+    if (/^BEGIN:VCARD/i.test(txt)) {
+      var lines = txt.replace(/\r/g, '').replace(/\n[ \t]/g, '').split('\n');
+      lines.forEach(function (ln) {
+        var m = ln.match(/^([^:]+):(.*)$/); if (!m) return;
+        var keyFull = m[1].toUpperCase(), val = m[2], key = keyFull.split(';')[0];
+        if (key === 'FN' && !out.name) out.name = unesc(val);
+        else if (key === 'N' && !out.name) { var np = val.split(';'); out.name = ((np[1] || '') + ' ' + (np[0] || '')).trim(); }
+        else if (key === 'ORG' && !out.business) out.business = unesc(val.split(';')[0]);
+        else if (key === 'TITLE' && !out.title) out.title = unesc(val);
+        else if (key === 'TEL') {
+          if (/FAX/i.test(keyFull)) return;
+          var num = val.replace(/^[^0-9+(]*/, '').trim(); if (!num) return;
+          if (/CELL|MOBILE/i.test(keyFull)) { if (!out.cell) out.cell = num; }
+          else if (/HOME/i.test(keyFull) && !/WORK/i.test(keyFull)) { if (!out.home) out.home = num; }
+          else if (!out.phone) out.phone = num;
+        }
+        else if (key === 'EMAIL' && !out.email) out.email = unesc(val);
+        else if (key === 'URL' && !out.website) out.website = webClean(val);
+        else if (key === 'ADR' && !out.address) {
+          var ap = val.split(';').map(unesc);
+          out.address = [ap[2], ap[3], ((ap[4] || '') + ' ' + (ap[5] || '')).trim()].filter(Boolean).join(', ');
+        }
+      });
+    } else if (/^MECARD:/i.test(txt)) {
+      txt.substring(7).split(';').forEach(function (p) {
+        var m2 = p.match(/^([A-Z]+):(.*)$/i); if (!m2) return;
+        var k2 = m2[1].toUpperCase(), v2 = m2[2].trim();
+        if (k2 === 'N' && !out.name) out.name = v2.split(',').reverse().join(' ').replace(/\s+/g, ' ').trim();
+        else if (k2 === 'TEL' && !out.phone) out.phone = v2;
+        else if (k2 === 'EMAIL' && !out.email) out.email = v2;
+        else if (k2 === 'URL' && !out.website) out.website = webClean(v2);
+        else if (k2 === 'ADR' && !out.address) out.address = v2;
+        else if (k2 === 'ORG' && !out.business) out.business = v2;
+      });
+    } else if (/^https?:\/\/\S+$/i.test(txt)) {
+      out.website = webClean(txt);   // URL-only QR: at least the website is exact
+    } else return null;
+    return (out.name || out.email || out.phone || out.cell || out.website) ? out : null;
+  }
+  function _qrReadCard(file) {
+    return new Promise(function (resolve) {
+      if (typeof window._decodeQrText !== 'function') { resolve(null); return; }
+      try {
+        var url = URL.createObjectURL(file);
+        var img = new Image();
+        img.onload = async function () {
+          try {
+            var MAX = 2000, w = img.naturalWidth, h = img.naturalHeight;
+            var sc = Math.min(1, MAX / Math.max(w, h));
+            var cv = document.createElement('canvas');
+            cv.width = Math.max(1, Math.round(w * sc)); cv.height = Math.max(1, Math.round(h * sc));
+            cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+            URL.revokeObjectURL(url);
+            var txt = await window._decodeQrText(cv);
+            resolve(txt ? _parseQrContact(txt) : null);
+          } catch (e) { resolve(null); }
+        };
+        img.onerror = function () { try { URL.revokeObjectURL(url); } catch (e2) {} resolve(null); };
+        img.src = url;
+      } catch (e) { resolve(null); }
+    });
+  }
+
   // ── sheet plumbing ─────────────────────────────────────────────
   var _tabEnsured = false;
   async function _ensureTab() {
@@ -830,12 +901,12 @@
       var _autoVal = {};   // fieldId -> value WE put there (user edits break the match)
       var FIELD_MAP = [['name', 'ct-f-name', 'name'], ['title', 'ct-f-title', 'title'], ['business', 'ct-f-biz', 'business'], ['phone', 'ct-f-phone', 'store phone'], ['cell', 'ct-f-cell', 'cell'], ['home', 'ct-f-home', 'home phone'], ['email', 'ct-f-email', 'email'], ['website', 'ct-f-web', 'website'], ['address', 'ct-f-addr', 'address']];
       var _filledLabels = {};
-      var _apply = function (got, canOverride) {
+      var _apply = function (got, canOverride, lock) {
         var n = 0;
         FIELD_MAP.forEach(function (fm) {
           var el = ov.querySelector('#' + fm[1]); if (!el) return;
           var v = (got && got[fm[0]]) || ''; if (!v) return;
-          if (!el.value) { el.value = v; _autoVal[fm[1]] = v; _filledLabels[fm[2]] = 1; n++; }
+          if (!el.value) { el.value = v; if (!lock) _autoVal[fm[1]] = v; _filledLabels[fm[2]] = 1; n++; }
           else if (canOverride && _autoVal[fm[1]] && el.value === _autoVal[fm[1]] && el.value !== v) {
             el.value = v; _autoVal[fm[1]] = v; _filledLabels[fm[2]] = 1; n++;
           }
@@ -847,6 +918,20 @@
         return ks.length ? ('📇 Card read — filled in ' + ks.join(', ') + '. Double-check before saving.')
                          : '📇 Card attached — couldn’t read details, type them in';
       };
+      // ── QR code first (v0.9.783): ~1s and exact. A full vCard ends the scan
+      // right here — no readers run, no daily-limit scan spent.
+      try {
+        _stBusy(st, '⚡ Checking for a QR code…');
+        var _qrGot = await _qrReadCard(f);
+        if (_qrGot) {
+          _apply(_qrGot, false, true);   // locked: readers may fill AROUND these, never replace
+          if (_qrGot.name && _qrGot.email && (_qrGot.phone || _qrGot.cell)) {
+            st.textContent = '⚡ Read the card’s QR code — filled in ' + Object.keys(_filledLabels).join(', ') + '. Double-check before saving.';
+            return;
+          }
+        }
+      } catch (eQ2) { console.warn('[card QR]', eQ2); }
+      _stBusy(st, '🔍 Reading the card…');
       var _aiWon = false, _quotaHit = false;
       var pAi = _aiReadCard(f).then(function (r) {
         if (r && r._quota) { _quotaHit = true; return null; }
