@@ -32,34 +32,12 @@ const AI_ID = {
 // Resolves true (ok to send) / false (declined this time — ask again
 // next time, same as the vault opt-in "Not now" behavior).
 function aiConsentEnsure() {
-  if (localStorage.getItem(AI_ID.KEY_CONSENT) === 'yes') return Promise.resolve(true);
-  return new Promise(function (resolve) {
-    var existing = document.getElementById('ai-consent-modal');
-    if (existing) existing.remove();
-    var d = document.createElement('div');
-    d.id = 'ai-consent-modal';
-    d.style.cssText = 'position:fixed;inset:0;z-index:100001;background:rgba(0,0,0,0.78);display:flex;align-items:center;justify-content:center;padding:1rem';
-    d.innerHTML = '<div style="width:100%;max-width:420px;background:var(--surface,#1a1d3a);border:1px solid var(--border,#333);border-radius:16px;padding:20px;color:var(--text,#eee);font-family:var(--font-body,sans-serif)">'
-      + '<div style="font-size:1.02rem;font-weight:700;margin-bottom:10px">🤖 Get an AI opinion?</div>'
-      + '<div style="font-size:0.86rem;line-height:1.6;color:var(--text-mid,#ccc);margin-bottom:14px">'
-      + 'This box is a tough read, so the app can send <strong style="color:var(--text,#eee)">just this photo</strong> to an AI service to identify it. '
-      + 'Until now everything happened on your device — this step sends the photo off-device for analysis. '
-      + 'No name, email, or collection data goes with it.</div>'
-      + '<div style="font-size:0.8rem;line-height:1.5;color:var(--text-dim,#999);margin-bottom:16px">Limited to a small number of AI looks per day. You won’t be asked again.</div>'
-      + '<div style="display:flex;gap:8px">'
-      + '<button data-a="yes" style="flex:2;padding:11px;border-radius:10px;border:none;background:var(--accent,#e8401c);color:#fff;font-size:0.9rem;font-weight:600;cursor:pointer">OK — use AI</button>'
-      + '<button data-a="no" style="flex:1;padding:11px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);font-size:0.86rem;cursor:pointer">Not now</button>'
-      + '</div></div>';
-    d.addEventListener('click', function (e) {
-      var el = (e.target && e.target.closest) ? e.target.closest('[data-a]') : null;
-      if (!el) return;
-      var a = el.getAttribute('data-a');
-      d.remove();
-      if (a === 'yes') { localStorage.setItem(AI_ID.KEY_CONSENT, 'yes'); resolve(true); }
-      else resolve(false);
-    });
-    document.body.appendChild(d);
-  });
+  // v0.9.777 (Brad): the off-device photo-reading disclosure moved to the
+  // onboarding privacy screen (onboarding-config.js COMMUNITY_OPTIN) — the
+  // mid-scan pop-up read like an error to collectors, and "AI" wording is
+  // gone from the whole app by design. This shim keeps every caller working.
+  try { localStorage.setItem(AI_ID.KEY_CONSENT, 'yes'); } catch (e) {}
+  return Promise.resolve(true);
 }
 
 // ── Image prep: anything → downscaled JPEG base64 ───────────
