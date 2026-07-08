@@ -647,7 +647,7 @@ async function _identifySearchLens() {
     var _aiType  = (document.getElementById('id-type')  || {}).value || '';
     var _aiMfrCbs = document.querySelectorAll('#id-mfr-chips input[type="checkbox"]:checked');
     var _aiMfrs = Array.from(_aiMfrCbs).map(function(cb) { return cb.dataset.mfrCb; }).filter(function(m) { return m && m !== 'Not sure'; });
-    if (searchBtn) { searchBtn.disabled = true; searchBtn.innerHTML = '🤖 Asking AI…'; }
+    if (searchBtn) { searchBtn.disabled = true; searchBtn.innerHTML = '🔍 Taking a close look…'; }
     // Stash hints exactly like the Lens path does, so downstream
     // master-matching and manual-entry routing see the same context.
     if (typeof wizard !== 'undefined' && wizard && wizard.data) {
@@ -660,9 +660,9 @@ async function _identifySearchLens() {
     if (_ai && _ai.ok) {
       var _aiRes = _identifyProcessText(_ai.text);
       if (_aiRes === 'applied') return;
-      if (typeof showToast === 'function') showToast("AI couldn't pin down the item number — trying Google Lens…", 3200, true);
+      if (typeof showToast === 'function') showToast("Couldn't pin down the item number — trying Google Lens…", 3200, true);
     } else if (_ai && _ai.reason === 'quota') {
-      if (typeof showToast === 'function') showToast('Daily AI photo limit reached — using Google Lens instead', 3500, true);
+      if (typeof showToast === 'function') showToast('Daily photo-reading limit reached — using Google Lens instead', 3500, true);
     }
     // 'noconsent' / error / offline: fall through to the Lens flow silently.
   }
