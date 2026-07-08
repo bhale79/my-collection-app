@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.769
+// contacts.js — 📇 Contacts (dealer/collector rolodex) — v0.9.770
 //
 // Brad's brainstorm picks: own page, listed as "Contacts", entry ABOVE
 // Preferences in the account menu. Business-card photo capture (Drive
@@ -145,11 +145,26 @@
   // every guess lands in an EDITABLE, previously-empty field, so a wrong read
   // costs one tap to fix — bad data is never silently saved.
   var _FREEMAIL = ['gmail.com','yahoo.com','aol.com','hotmail.com','outlook.com','icloud.com','msn.com','comcast.net','verizon.net','att.net','sbcglobal.net'];
-  var _BIZ_RE = /\b(llc|l\.l\.c|inc|incorporated|co\.|company|corp|corporation|enterprises|trains?|railroads?|hobby|hobbies|shop|store|collectibles?|models?|antiques?|sales|supply|depot|junction|emporium|exchange|galleries|toys?)\b/i;
+  // v0.9.770: 'store'/'sales' removed — they appear in TITLES ("Retail Store
+  // Manager") and caused false business picks on real cards.
+  var _BIZ_RE = /\b(llc|l\.l\.c|inc|incorporated|co\.|company|corp|corporation|enterprises|trains?|railroads?|hobby|hobbies|shop|collectibles?|models?|antiques?|supply|depot|junction|emporium|exchange|galleries|toys?)\b/i;
   var _TITLE_RE = /\b(owner|president|proprietor|manager|managing|director|founder|partner|ceo|coo|cfo|vice president|vp|sales rep|sales representative|account (rep|manager|executive)|engineer|estimator|consultant|specialist|coordinator|supervisor|buyer|appraiser|dealer|collector)\b/i;
   var _BARE_SUFFIX_RE = /^\W*(llc|l\.l\.c\.?|inc\.?|co\.?|corp\.?|ltd\.?)\W*$/i;
   var _STREET_RE = /(\d+[\w-]*\s+[^,\n]{2,40}?\b(st|street|ave|avenue|rd|road|blvd|boulevard|dr|drive|ln|lane|ct|court|cir|circle|hwy|highway|pike|way|route|rte|rt|plaza|pl|place|trail|turnpike|south|north|east|west)\.?\b[^\n]*|p\.?\s*o\.?\s*box\s+\d+[^\n]*)/i;
-  var _CSZ_RE = /\b[A-Za-z .]+[,.]?\s+[A-Z]{2}\.?\s+\d{5}(?:-\d{4})?\b/;
+  var _CSZ_RE = /(?:[A-Z][A-Za-z.'\-]*(?:\s+[A-Z][A-Za-z.'\-]*)*)[,.]?\s+[A-Z]{2}\.?\s+\d{5}(?:-\d{4})?\b/;
+  // Does this line contain a web/email token? Such lines are never the business name.
+  function _hasDomainTok(l) {
+    return /@/.test(l) || /\b(?:[a-z0-9-]+\.)+[a-z]{2,6}\b/i.test(l.replace(/\d{3}[\s.\-]\d{4}/g, ''));
+  }
+  // OCR digit repair for web hosts: capital O amid a lowercase host is a zero;
+  // an l/I next to a digit is a one ("securitylOl.com" → "security101.com").
+  function _fixHost(hst) {
+    hst = String(hst || '');
+    var fixed = hst.replace(/([a-z0-9\-.])O(?=[a-z0-9\-.])/g, '$10');
+    var prev = '';
+    while (prev !== fixed) { prev = fixed; fixed = fixed.replace(/([0-9])[lI]/g, '$11').replace(/[lI](?=[0-9])/g, '1'); }
+    return fixed;
+  }
   function _parseCardText(text) {
     var out = { name: '', title: '', business: '', phone: '', cell: '', home: '', email: '', website: '', address: '' };
     var raw = String(text || '');
@@ -195,8 +210,10 @@
         if (!t || /@/.test(t)) continue;
         var wm = t.match(/^(?:https?:\/\/)?(www\.)?((?:[a-z0-9-]+\.)+[a-z]{2,6})(\/\S*)?$/i);
         if (!wm) continue;
-        var host = wm[2].toLowerCase();
-        if (_FREEMAIL.indexOf(host) >= 0) continue;
+        // v0.9.770: KEEP the printed case — a capital O inside a lowercase host
+        // is the OCR-repair clue that it's really a zero (securitylOl → 101).
+        var host = wm[2];
+        if (_FREEMAIL.indexOf(host.toLowerCase()) >= 0) continue;
         out.website = host + (wm[3] || '');
         break outer;
       }
@@ -209,7 +226,7 @@
     for (var k = 0; k < lines.length; k++) {
       if (/@/.test(lines[k])) continue;
       var sm2 = lines[k].match(_STREET_RE);
-      if (sm2 && streetIdx < 0) { streetIdx = k; streetStr = sm2[0].trim(); }
+      if (sm2 && streetIdx < 0) { streetIdx = k; streetStr = sm2[0].replace(/[\s~_|\\/*=+-]+$/, '').trim(); }
     }
     for (var k2 = 0; k2 < lines.length; k2++) {
       if (k2 !== streetIdx && _CSZ_RE.test(lines[k2])) { cszIdx = k2; break; }
@@ -242,7 +259,7 @@
     // or email domain root.
     var bizIdx = -1, bizText = '';
     for (var b = 0; b < lines.length; b++) {
-      if (used(b) || _TITLE_RE.test(lines[b]) || /@/.test(lines[b]) || /\d{3}[\s.\-]\d{4}/.test(lines[b])) continue;
+      if (used(b) || _TITLE_RE.test(lines[b]) || _hasDomainTok(lines[b]) || /\d{3}[\s.\-]\d{4}/.test(lines[b])) continue;
       if (_BIZ_RE.test(lines[b])) { bizIdx = b; break; }
     }
     if (bizIdx >= 0) {
@@ -259,35 +276,53 @@
         var root = String(roots[r2] || '').toLowerCase().replace(/[^a-z0-9]/g, '');
         if (root.length <= 3) continue;
         for (var b2 = 0; b2 < lines.length; b2++) {
-          if (used(b2) || /@/.test(lines[b2])) continue;
+          if (used(b2) || _hasDomainTok(lines[b2]) || _TITLE_RE.test(lines[b2])) continue;
           if (lines[b2].toLowerCase().replace(/[^a-z0-9]/g, '').indexOf(root) >= 0) { bizIdx = b2; bizText = lines[b2]; break rootLoop; }
         }
       }
     }
-    if (bizText) out.business = tc(bizText);
+    if (bizText) out.business = tc(bizText.replace(/^[^A-Za-z]+/, '').replace(/\s+[^A-Za-z]+$/, ''));
 
     // ── Name — 1) work backwards from the email (bhale@ → "Brad Hale",
     // NGraham@ → "Nathan Graham"); 2) the line just above the title line;
     // 3) first plain 2-4-word line.
+    // v0.9.770: real-card OCR spits junk lines ("\\ Ll", "BRAD HALE rd :") —
+    // name words must be real words: 2+ letters (or an initial like "Q."),
+    // no slashes/tildes/digits, at least 5 letters total on the line.
+    var _nameWords = function (l) {
+      if (/[\\/~_=+*#<>{}\[\]]|\d|@/.test(l)) return null;
+      var w = l.split(' ').filter(Boolean), outW = [], alpha = 0;
+      for (var wi = 0; wi < w.length; wi++) {
+        var aw = w[wi].replace(/[^A-Za-z.'\-]/g, '');
+        var letters = aw.replace(/[^A-Za-z]/g, '');
+        if (letters.length >= 2 || /^[A-Z]\.?$/.test(aw)) { outW.push(aw); alpha += letters.length; }
+        else if (letters.length === 0 && aw.length === 0) { continue; }
+        else return null; // junk token in the middle = not a clean name line
+      }
+      return (outW.length >= 2 && outW.length <= 4 && alpha >= 5) ? outW : null;
+    };
     var nameOk = function (l, idx) {
       if (used(idx) || idx === bizIdx) return false;
-      if (/\d|@/.test(l) || l.length >= 40) return false;
-      if (_BIZ_RE.test(l) || _TITLE_RE.test(l)) return false;
-      var w = l.split(' ');
-      return w.length >= 2 && w.length <= 4;
+      if (l.length >= 40 || _BIZ_RE.test(l) || _TITLE_RE.test(l)) return false;
+      return !!_nameWords(l);
     };
     if (!out.name && out.email) {
+      // Try every ADJACENT word pair on every line against the email's local
+      // part — "BRAD HALE rd :" still yields "Brad Hale" (bhale@ = b+hale),
+      // because only the matching PAIR is kept, junk around it is dropped.
       var local = out.email.split('@')[0].toLowerCase().replace(/[^a-z]/g, '');
       if (local.length >= 4) {
+        pairLoop:
         for (var n0 = 0; n0 < lines.length; n0++) {
-          var l0 = lines[n0];
-          if (used(n0) || n0 === bizIdx || /\d|@/.test(l0) || l0.length >= 40) continue;
-          var w0 = l0.split(' ').filter(Boolean);
-          if (w0.length < 2 || w0.length > 4) continue;
-          var fw = w0[0].toLowerCase().replace(/[^a-z]/g, ''), lw = w0[w0.length - 1].toLowerCase().replace(/[^a-z]/g, '');
-          if (!fw || !lw) continue;
-          if (local === fw + lw || local === fw.charAt(0) + lw || local === fw + lw.charAt(0) || (lw.length >= 4 && local.indexOf(lw) >= 0 && local.charAt(0) === fw.charAt(0))) {
-            out.name = tc(l0); break;
+          if (used(n0) || /@/.test(lines[n0]) || lines[n0].length >= 40) continue;
+          var w0 = lines[n0].split(' ').filter(Boolean);
+          for (var pw = 0; pw + 1 < w0.length; pw++) {
+            var fw = w0[pw].toLowerCase().replace(/[^a-z]/g, ''), lw = w0[pw + 1].toLowerCase().replace(/[^a-z]/g, '');
+            if (fw.length < 2 || lw.length < 2) continue;
+            if (local === fw + lw || local === fw.charAt(0) + lw || local === fw + lw.charAt(0) || (lw.length >= 4 && local.indexOf(lw) >= 0 && local.charAt(0) === fw.charAt(0))) {
+              out.name = tc(w0[pw].replace(/[^A-Za-z.'\-]/g, '') + ' ' + w0[pw + 1].replace(/[^A-Za-z.'\-]/g, ''));
+              break pairLoop;
+            }
           }
         }
       }
@@ -318,10 +353,15 @@
       }
       return prev[lb];
     }
-    if (out.website) out.website = out.website.replace(/\.corn($|\/)/i, function (m0, g2) { return '.com' + g2; });
+    if (out.website) {
+      out.website = out.website.replace(/\.corn($|\/)/i, function (m0, g2) { return '.com' + g2; });
+      var wparts = out.website.split('/');
+      wparts[0] = _fixHost(wparts[0]);
+      out.website = wparts.join('/');
+    }
     if (out.email) {
       var ep = out.email.split('@');
-      var dom = (ep[1] || '').replace(/\.corn$/i, '.com').replace(/\.c0m$/i, '.com');
+      var dom = _fixHost((ep[1] || '').replace(/\.corn$/i, '.com').replace(/\.c0m$/i, '.com'));
       if (out.website) {
         var whost = out.website.split('/')[0];
         if (dom.toLowerCase() !== whost.toLowerCase()
@@ -342,14 +382,21 @@
   async function _ensureTab() {
     if (_tabEnsured) return true;
     try {
-      var metaRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + '?fields=sheets.properties', { headers: { Authorization: 'Bearer ' + accessToken } });
+      // v0.9.770: BOTH raw fetches here now go through _withTokenRetry — an
+      // expired OAuth token used to make addSheet fail SILENTLY, then the
+      // header write threw and every contact save died with "Could not save".
+      var _tr = (typeof _withTokenRetry === 'function') ? _withTokenRetry : function (fn) { return fn(); };
+      var metaRes = await _tr(function () { return fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + '?fields=sheets.properties', { headers: { Authorization: 'Bearer ' + accessToken } }); });
       var meta = await metaRes.json();
+      if (meta.error) throw new Error(meta.error.message || 'could not read spreadsheet');
       var has = (meta.sheets || []).some(function (s) { return s.properties.title === TAB; });
       if (!has) {
-        await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + ':batchUpdate', {
+        var addRes = await _tr(function () { return fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + ':batchUpdate', {
           method: 'POST', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
           body: JSON.stringify({ requests: [{ addSheet: { properties: { title: TAB } } }] }),
-        });
+        }); });
+        var addJson = await addRes.json();
+        if (addJson.error && String(addJson.error.message || '').indexOf('already exists') < 0) throw new Error(addJson.error.message || 'could not create Contacts tab');
         await sheetsUpdate(state.personalSheetId, TAB + '!A1:O1', [HEADERS]);
       } else {
         // v0.9.767: tab predates the M/N/O columns — write those headers (idempotent).
@@ -550,7 +597,7 @@
         window._ctRenderList();
       } catch (e) {
         console.warn('[contact save]', e);
-        showToast('Could not save — check your connection and try again', 4000, true);
+        showToast('Could not save — ' + ((e && e.message) ? e.message : 'check your connection and try again'), 5000, true);
         this.textContent = '✓ Save Contact'; this.disabled = false;
       }
     };
