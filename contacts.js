@@ -892,7 +892,7 @@
       .filter(function (x) { return x && _knownChips.indexOf(x.toLowerCase()) < 0; }).join(', ');
     ov.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:480px;width:100%;padding:0.9rem 1rem;max-height:92vh;overflow-y:auto">'
       + '<div style="font-family:var(--font-head);font-size:1.05rem;color:var(--text);margin-bottom:0.5rem">' + (row ? 'Edit Contact' : '📇 New Contact') + '</div>'
-      + '<div style="display:flex;gap:0.5rem;margin-bottom:0.7rem">'
+      + '<div id="ct-card-dropwrap" style="display:flex;gap:0.5rem;margin-bottom:0.7rem">'
       +   '<button onclick="document.getElementById(\'ct-card-file\').click()" style="flex:1;padding:0.75rem;border-radius:9px;border:1.5px dashed #3498db;background:rgba(52,152,219,0.08);color:#3498db;font-weight:700;cursor:pointer;font-family:var(--font-body)">📷 Take photo of card</button>'
       +   '<button onclick="document.getElementById(\'ct-card-gallery\').click()" style="flex:1;padding:0.75rem;border-radius:9px;border:1.5px dashed #3498db;background:rgba(52,152,219,0.08);color:#3498db;font-weight:700;cursor:pointer;font-family:var(--font-body)">🖼 From gallery</button>'
       + '</div>'
@@ -902,7 +902,7 @@
       + '<div id="ct-card-preview" style="display:none;margin:0 0 0.4rem;position:relative"><img id="ct-card-preview-img" alt="business card" style="width:100%;max-height:140px;object-fit:contain;border-radius:8px;border:1px solid var(--border);background:#111">'
       +   '<button id="ct-card-crop" title="Crop" style="position:absolute;top:6px;right:6px;width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:rgba(0,0,0,0.65);color:#fff;cursor:pointer;font-size:0.9rem;line-height:1">✂</button>'
       + '</div>'
-      + '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem">'
+      + '<div id="ct-person-row" style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem">'
       +   '<span id="ct-person-wrap" style="display:none;position:relative;flex-shrink:0"><img id="ct-person-preview" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:50%;border:1.5px solid var(--border);background:#111;display:block"><button id="ct-person-crop" title="Crop" style="position:absolute;right:-7px;bottom:-7px;width:24px;height:24px;border-radius:50%;border:1px solid var(--border);background:rgba(0,0,0,0.75);color:#fff;cursor:pointer;font-size:0.7rem;line-height:1">✂</button></span>'
       +   '<button onclick="document.getElementById(\'ct-person-file\').click()" style="flex:1;padding:0.5rem;border-radius:8px;border:1.5px dashed var(--border);background:none;color:var(--text-mid);font-size:0.8rem;cursor:pointer;font-family:var(--font-body)">🙂 Add a photo of them (optional)</button>'
       +   '<input type="file" id="ct-person-file" accept="image/*" style="display:none">'
@@ -980,6 +980,28 @@
         } catch (eD) { _skipCropOnce = false; _cardFile = nf; try { _pvImg.src = URL.createObjectURL(nf); } catch (e2) {} }
       });
     };
+    // v0.9.800 (Brad): drag & drop a photo onto the card area or the person
+    // row — same as picking it (card drops go through crop-then-read).
+    var _dropToInput = function (inp) {
+      return function (f2) {
+        try { var dt = new DataTransfer(); dt.items.add(f2); inp.files = dt.files; inp.dispatchEvent(new Event('change')); } catch (e3) {}
+      };
+    };
+    var _wireDrop = function (el, applyFn) {
+      if (!el || !applyFn) return;
+      el.addEventListener('dragover', function (e) { e.preventDefault(); el.style.outline = '2px dashed #3498db'; el.style.outlineOffset = '2px'; });
+      el.addEventListener('dragleave', function () { el.style.outline = ''; });
+      el.addEventListener('drop', function (e) {
+        e.preventDefault(); el.style.outline = '';
+        var f2 = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        if (f2 && /^image\//.test(f2.type)) applyFn(f2);
+      });
+    };
+    var _galInp = ov.querySelector('#ct-card-gallery');
+    _wireDrop(ov.querySelector('#ct-card-dropwrap'), _dropToInput(_galInp));
+    _wireDrop(_pv, _dropToInput(_galInp));
+    _wireDrop(ov.querySelector('#ct-person-row'), _dropToInput(_pInp));
+
     var _cropPerson = ov.querySelector('#ct-person-crop');
     if (_cropPerson) _cropPerson.onclick = function () {
       if (typeof _openCropper !== 'function' || !_ppImg || !_ppImg.src) return;
