@@ -162,6 +162,7 @@ function openShareBuilder() {
     '</div>';
 
   document.body.appendChild(modal);
+  if (window.BackStack && BackStack.wire) BackStack.wire(modal); // v0.9.809 TODO-012: device Back closes this pop-up
 }
 
 function _shareFieldCheck(id, label, checked) {

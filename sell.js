@@ -384,6 +384,7 @@ async function openSalesShareModal() {
       '<div id="sell-status" style="margin-top:0.8rem;font-size:0.8rem;color:var(--text-dim);text-align:center"></div>' +
     '</div>';
   document.body.appendChild(m);
+  if (window.BackStack && BackStack.wire) BackStack.wire(m); // v0.9.809 TODO-012: device Back closes this pop-up
   _sellCustomers = await _sellReadCustomers();
   _sellRenderCustomers();
 }
