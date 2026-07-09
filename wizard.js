@@ -3638,6 +3638,24 @@ function renderWizardStep() {
 
     body.appendChild(wrap);
 
+    // v0.9.811 (TODO-011): the identify flow captured a photo of the ITEM —
+    // drop it into the Item slot automatically (manual flow PHOTO-1, or the
+    // first view of the item photos step). Same pattern as the box shot below.
+    if (wizard.data._idItemPhotoFile) {
+      var _idTargetView = (s.id === 'manualPhotos') ? 'PHOTO-1' : ((s.id === 'photosItem' && views && views.length) ? views[0].key : null);
+      if (_idTargetView && typeof uploadWizardPhoto === 'function') {
+        var _idF = wizard.data._idItemPhotoFile;
+        delete wizard.data._idItemPhotoFile;
+        setTimeout(function () {
+          try {
+            var _idUp = uploadWizardPhoto(_idF, s.id, _idTargetView);
+            if (_idUp && _idUp.catch) _idUp.catch(function (eU2) { showToast && showToast('Photo attach failed: ' + (eU2 && eU2.message || 'upload error') + ' — add it manually below', 4500, true); });
+            showToast && showToast('\u{1F4F7} The photo you identified it from was added as the Item photo', 3200);
+          } catch (eIP) { showToast && showToast('Photo attach failed — add it manually below', 4000, true); }
+        }, 400);
+      }
+    }
+
     // v0.9.665: the identify flow captured a box/label photo — drop it into the
     // Box slot automatically (manual flow PHOTO-2, or the first Box view).
     if (wizard.data._biBoxPhotoFile) {
@@ -4801,7 +4819,7 @@ function renderWizardStep() {
       salePrice:'Sale Price', dateSold:'Date Sold',
       set_num:'Set Number',
     };
-    const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','wantErrorPhotos','photosMasterBox','boxOnly','entryMode','_setId','_rawItemNum','matchedItem','_partialMatches','_partialQuery','_itemGrouping','_fromWantList','_fromWantKey','_returnPage','_manualEntry','_drivePhotos','_setMode','_setGroupId','_setFinalItems','_setItemIndex','_setItemsSaved','_setEntryMode','_resolvedSet','_setLocoNum','_setPrice','_setDate','_setWorth','_setCondition','_setHasBoxChecked','_setWantPhotos','_setPhotoThenSave','_prefilledCondition','_setQEPhotos','set_hasBox','set_boxCond','set_boxPhotos','set_notes','_suggestions_cache','_biBoxPhotoFile','_boxAutoKnown','_completingQuickEntry','_existingGroupId','_fillItemMode','_wizSaveLock','_qeSaving','_photoInventoryId','_saveComplete','_era','suggestedRoadName','_manualEra','_alsoListForSale','_fromUpgradeList','_fromUpgradeKey','_cleanupWishlistMatches','_suggestedPricePaid','forSale_salePrice','forSale_dateListed','selectedForSaleKey','selectedSoldKey',
+    const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','wantErrorPhotos','photosMasterBox','boxOnly','entryMode','_setId','_rawItemNum','matchedItem','_partialMatches','_partialQuery','_itemGrouping','_fromWantList','_fromWantKey','_returnPage','_manualEntry','_drivePhotos','_setMode','_setGroupId','_setFinalItems','_setItemIndex','_setItemsSaved','_setEntryMode','_resolvedSet','_setLocoNum','_setPrice','_setDate','_setWorth','_setCondition','_setHasBoxChecked','_setWantPhotos','_setPhotoThenSave','_prefilledCondition','_setQEPhotos','set_hasBox','set_boxCond','set_boxPhotos','set_notes','_suggestions_cache','_biBoxPhotoFile','_idItemPhotoFile','_boxAutoKnown','_completingQuickEntry','_existingGroupId','_fillItemMode','_wizSaveLock','_qeSaving','_photoInventoryId','_saveComplete','_era','suggestedRoadName','_manualEra','_alsoListForSale','_fromUpgradeList','_fromUpgradeKey','_cleanupWishlistMatches','_suggestedPricePaid','forSale_salePrice','forSale_dateListed','selectedForSaleKey','selectedSoldKey',
       '_photoUploadsInFlight','_identifyMeta','_identifyMfrHints','_identifyScaleHint','_identifyTypeHint','_alreadyOwnedFyi']);
     // Skip set_num from summary if it's already shown in the header
     if (wizard.data._resolvedSet || wizard.data.set_num) _skipKeys.add('set_num');

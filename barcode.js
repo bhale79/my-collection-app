@@ -2357,6 +2357,10 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // I obviously have a box — and that photo IS the box detail picture").
         if (res && res._boxPhoto) {
           try { res._boxPhotoFile = await _biCanvasToFile(cr.work, 'box-label.jpg'); } catch (eF) {}
+        } else if (res) {
+          // v0.9.811 (TODO-011): item shot (not a box) — carry it too, so the
+          // wizard auto-attaches it as the ITEM photo instead of dropping it.
+          try { res._itemPhotoFile = await _biCanvasToFile(cr.work, 'identify-shot.jpg'); } catch (eF2) {}
         }
         // Confirm before anything fills (house rule)
         _biKill();
@@ -2379,6 +2383,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           var resA = await _biPipeline(cap.raw, cr.work, null, eraHint, { ignoreNums: true });
           if (resA && !resA.__biFail) {
             if (resA._boxPhoto) { try { resA._boxPhotoFile = await _biCanvasToFile(cr.work, 'box-label.jpg'); } catch (eF3) {} }
+            else { try { resA._itemPhotoFile = await _biCanvasToFile(cr.work, 'identify-shot.jpg'); } catch (eF4) {} } // v0.9.811 TODO-011
             _biKill();
             res = resA;
             cc = await _bcConfirmCard(_biInfoFor(res, false));

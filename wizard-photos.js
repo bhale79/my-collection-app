@@ -423,6 +423,9 @@ function closeIdentify() {
   // own 10-minute timer (set when search fires) — we don't trigger it here
   // because the user might just be paste-confirming and we want the public
   // URL to keep working briefly.
+  // v0.9.811 (TODO-011): stash the shot so the wizard routes can attach it to
+  // the saved item. Unconditional = self-cleaning (nulls when no photo).
+  window._idLastPhotoFile = _identifyPhotoFile || null;
   _identifyPhotoFile = null;
   var _preview = document.getElementById('id-photo-preview');
   var _img = document.getElementById('id-photo-img');
@@ -1753,6 +1756,11 @@ function _identifyRouteToManualEntry(itemNum, meta, userMfrs) {
   // Pre-fill manual entry data BEFORE switching the wizard flow.
   wizard.data._manualEntry = true;
   wizard.data.itemCategory = 'manual';
+  // v0.9.811 (TODO-011): carry the identify shot into the manual item too.
+  if (window._idLastPhotoFile && !wizard.data._idItemPhotoFile) {
+    wizard.data._idItemPhotoFile = window._idLastPhotoFile;
+    window._idLastPhotoFile = null;
+  }
   // Manufacturer — prefer first user-picked chip; fall back to extracted mfr.
   var mfr = (userMfrs && userMfrs.length ? userMfrs[0] : '') || meta.manufacturer || '';
   if (mfr) wizard.data.manualManufacturer = mfr;
@@ -1807,6 +1815,12 @@ function _applyIdentifiedItem(num) {
     if (typeof window._researchShowFromMeta === 'function') { window._researchShowFromMeta(num, _meta); return; }
   }
   if (_caller === 'wizard') {
+    // v0.9.811 (TODO-011): the photo that identified the item becomes the
+    // item's photo — attached automatically at the photos step.
+    if (window._idLastPhotoFile && !wizard.data._idItemPhotoFile) {
+      wizard.data._idItemPhotoFile = window._idLastPhotoFile;
+      window._idLastPhotoFile = null;
+    }
     // If the item isn't in master, pre-seed wizard.matchedItem with a
     // synthetic record built from the extracted Lens metadata. wizardNext's
     // existing logic honors an already-set matchedItem when no real master
@@ -2010,6 +2024,9 @@ function _wizScanBarcode() {
         wizard.data._boxAutoKnown = true;
         if (result._boxPhotoFile) wizard.data._biBoxPhotoFile = result._boxPhotoFile;
       }
+      // v0.9.811 (TODO-011): item shot from the identify pipeline → attach as
+      // the ITEM photo at the photos step (was silently discarded before).
+      if (result._itemPhotoFile && !wizard.data._idItemPhotoFile) wizard.data._idItemPhotoFile = result._itemPhotoFile;
       if (result.notInMaster && typeof _identifyRouteToManualEntry === 'function') {
         var _nmMeta = result.aiMeta || { manufacturer: result.manufacturer || '',
           description: result.labelDescription || result.description || '' };
