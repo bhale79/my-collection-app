@@ -1965,15 +1965,27 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       d.querySelector('#bi-file').addEventListener('change', function (e) {
         var f = e.target.files && e.target.files[0];
         if (!f) return;
-        var img = new Image();
-        img.onload = function () {
-          var c = document.createElement('canvas');
-          c.width = img.naturalWidth; c.height = img.naturalHeight;
-          c.getContext('2d').drawImage(img, 0, 0);
-          URL.revokeObjectURL(img.src);
-          done({ raw: c, view: c, lockedBc: null });
+        var _useBlob = function (blobOrFile) {
+          var img = new Image();
+          img.onload = function () {
+            var c = document.createElement('canvas');
+            c.width = img.naturalWidth; c.height = img.naturalHeight;
+            c.getContext('2d').drawImage(img, 0, 0);
+            URL.revokeObjectURL(img.src);
+            done({ raw: c, view: c, lockedBc: null });
+          };
+          img.src = URL.createObjectURL(blobOrFile);
         };
-        img.src = URL.createObjectURL(f);
+        // v0.9.808 (TODO-008/012): crop-first — crop to the box/label before
+        // the photo is read; a tight crop reads better. Cancel = full photo.
+        if (typeof window._openCropper === 'function') {
+          var _cu = URL.createObjectURL(f);
+          window._openCropper(_cu,
+            function (blob) { try { URL.revokeObjectURL(_cu); } catch (e2) {} _useBlob(blob); },
+            function () { try { URL.revokeObjectURL(_cu); } catch (e2) {} _useBlob(f); });
+        } else {
+          _useBlob(f);
+        }
       });
       if (!window.IS_MOBILE_UA) return;   // v0.9.704: desktop = upload only, never touch the webcam
       navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 } }, audio: false })

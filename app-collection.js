@@ -629,6 +629,27 @@ function _nonItemDetailPhotos(type, key) {
     fi.style.cssText = 'flex:1;font-size:0.82rem;color:var(--text-mid)';
     row.appendChild(fi);
 
+    // v0.9.808 (TODO-008/012): crop-first — picking a photo opens the cropper
+    // right away; Apply swaps the cropped file into the slot, Cancel keeps the
+    // full photo. Same flow as the wizard and contact cards.
+    fi.addEventListener('change', function () {
+      if (!fi.files || !fi.files.length) return;
+      if (typeof window._openCropper !== 'function' || typeof DataTransfer === 'undefined') return;
+      var orig = fi.files[0];
+      var url = URL.createObjectURL(orig);
+      window._openCropper(url, function (blob) {
+        try { URL.revokeObjectURL(url); } catch (e) {}
+        try {
+          var f = new File([blob], String(orig.name || 'photo').replace(/\.[^.]+$/, '') + '_crop.jpg', { type: 'image/jpeg' });
+          var dt = new DataTransfer(); dt.items.add(f);
+          fi.files = dt.files;   // programmatic set — does NOT re-fire change
+        } catch (e) { console.warn('[ni-photos crop]', e); }
+      }, function () {
+        try { URL.revokeObjectURL(url); } catch (e) {}
+        // Cancel = keep the full photo as picked
+      });
+    });
+
     fileInputsByView[v.key] = fi;
     box.appendChild(row);
   });

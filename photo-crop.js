@@ -49,7 +49,9 @@ function _openCropper(src, onResult, onCancel) {   // v0.9.787: onCancel = proce
   var cropper = null;
   img.onload = function () { try { cropper = new Cropper(img, { viewMode: 1, autoCropArea: 1, background: false, movable: true, zoomable: true, responsive: true, checkOrientation: true }); } catch (e) { console.warn('[crop] init', e); } };
   img.src = src;
-  function done() { try { if (cropper) cropper.destroy(); } catch (e) {} ov.remove(); }
+  function done() { try { if (cropper) cropper.destroy(); } catch (e) {} ov.remove(); if (window.BackStack) BackStack.pop('_rr-cropper'); }
+  // v0.9.808 (TODO-012): device Back = Cancel (keep the full photo).
+  if (window.BackStack) BackStack.push('_rr-cropper', function () { done(); if (onCancel) try { onCancel(); } catch (e) {} });
   ov.querySelector('#_rrCropCancel').onclick = function () { done(); if (onCancel) try { onCancel(); } catch (e) {} };
   ov.querySelector('#_rrCropApply').onclick = function () {
     if (!cropper) { done(); if (onCancel) try { onCancel(); } catch (e) {} return; }
