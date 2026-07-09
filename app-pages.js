@@ -590,6 +590,7 @@ function openEphemeraEdit(tabId, rowKey) {
     + '<button onclick="document.getElementById(\'eph-edit-modal\').remove()" style="flex:1;padding:0.7rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body)">Cancel</button>'
     + '</div></div>';
   document.body.appendChild(overlay);
+  if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.805 TODO-012: device Back closes this pop-up
 
   overlay.querySelector('#ephe-save').onclick = async function () {
     this.textContent = 'Saving…'; this.disabled = true;
@@ -755,6 +756,7 @@ function openEphemeraDetail(tabId, rowKey) {
       </div>
     </div>`;
   document.body.appendChild(overlay);
+  if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.805 TODO-012: device Back closes this pop-up
 }
 
 // ── Ephemera Actions ─────────────────────────────────────────────
@@ -812,6 +814,7 @@ function ephemeraForSale(tabId, rowKey) {
       </div>
     </div>`;
   document.body.appendChild(ov);
+  if (window.BackStack && BackStack.wire) BackStack.wire(ov); // v0.9.805 TODO-012: device Back closes this pop-up
 
   document.getElementById('eph-fs-save').onclick = async () => {
     const price    = document.getElementById('eph-fs-price').value;
@@ -875,6 +878,7 @@ function ephemeraSold(tabId, rowKey) {
       </div>
     </div>`;
   document.body.appendChild(ov);
+  if (window.BackStack && BackStack.wire) BackStack.wire(ov); // v0.9.805 TODO-012: device Back closes this pop-up
 
   document.getElementById('eph-sold-save').onclick = async () => {
     const salePrice = document.getElementById('eph-sold-price').value;
@@ -1135,6 +1139,7 @@ function showVarDescPopup(idx) {
   box.appendChild(varEl);
   overlay.appendChild(box);
   document.body.appendChild(overlay);
+  if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.805 TODO-012: device Back closes this pop-up
 }
 
 function showWantDesc(idx) {
@@ -1181,6 +1186,7 @@ function showWantDesc(idx) {
   }
   overlay.appendChild(box);
   document.body.appendChild(overlay);
+  if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.805 TODO-012: device Back closes this pop-up
 }
 
 // ── Want List Actions ──────────────────────────────────────────
@@ -1398,6 +1404,7 @@ function wantFindOnEbay(itemNum, roadName) {
   `;
 
   document.body.appendChild(_overlay);
+  if (window.BackStack && BackStack.wire) BackStack.wire(_overlay); // v0.9.805 TODO-012: device Back closes this pop-up
   window._ebayListingType = 'active';
 }
 
@@ -2616,6 +2623,7 @@ function showSetDetail(setNum) {
 
   overlay.appendChild(box);
   document.body.appendChild(overlay);
+  if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.805 TODO-012: device Back closes this pop-up
 }
 
 
@@ -2642,7 +2650,7 @@ function _buildContactModal() {
   d.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;align-items:center;justify-content:center;padding:1.25rem';
   d.innerHTML =
     '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:420px;width:100%;padding:1.75rem;position:relative">' +
-      '<button onclick="document.getElementById(\'contact-modal\').style.display=\'none\'" style="position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">&#x2715;</button>' +
+      '<button onclick="document.getElementById(\'contact-modal\').style.display=\'none\';if(window.BackStack)BackStack.pop(\'contact-modal\')" style="position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">&#x2715;</button>' +
       '<div style="font-family:var(--font-head);font-size:1.2rem;color:var(--accent);margin-bottom:0.4rem">&#x1F4EC; Contact Us</div>' +
       '<p style="font-size:0.88rem;color:var(--text);line-height:1.65;margin-bottom:1rem">' +
         'Found an error in the catalog or set list? Have a suggestion? We\'d love to hear from you.' +
@@ -2655,14 +2663,19 @@ function _buildContactModal() {
         'This is a community resource for postwar collectors. We appreciate every correction and suggestion.' +
       '</p>' +
     '</div>';
-  d.addEventListener('click', function(e) { if (e.target === d) d.style.display = 'none'; });
+  d.addEventListener('click', function(e) { if (e.target === d) { d.style.display = 'none'; if (window.BackStack) BackStack.pop('contact-modal'); } });
   document.body.appendChild(d);
 }
 
 function showContactModal() {
   _buildContactModal();
   const m = document.getElementById('contact-modal');
-  if (m) { m.style.display = 'flex'; }
+  if (m) {
+    m.style.display = 'flex';
+    // v0.9.805 TODO-012: device Back hides this pop-up (it toggles display
+    // instead of removing itself, so it can't use BackStack.wire()).
+    if (window.BackStack) BackStack.push('contact-modal', function () { m.style.display = 'none'; });
+  }
 }
 
 
@@ -3092,6 +3105,7 @@ function pickItemForUpgrade() {
     + '<div id="upg-pick-list" style="overflow-y:auto;flex:1"></div>'
     + '</div>';
   document.body.appendChild(overlay);
+  if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.805 TODO-012: device Back closes this pop-up
   _upgPickApply();
 }
 if (typeof window !== 'undefined') window.pickItemForUpgrade = pickItemForUpgrade;
@@ -3190,6 +3204,7 @@ function showAddToUpgradeModal(itemNum, variation, pdRow, invId, groupMode) {
       </div>
     </div>`;
   document.body.appendChild(overlay);
+  if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.805 TODO-012: device Back closes this pop-up
 }
 
 // Phase 3: signature unchanged (modal already passes invId). Reload after
@@ -3218,6 +3233,7 @@ function _chooseUpgradeScope(itemNum, variation, pdRow, invId, pd) {
     + '<button id="_ugs-cancel" style="padding:0.6rem;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Cancel</button>'
     + '</div></div>';
   document.body.appendChild(overlay);
+  if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.805 TODO-012: device Back closes this pop-up
   document.getElementById('_ugs-all').onclick = function(){ overlay.remove(); showAddToUpgradeModal(itemNum, variation, pdRow, invId, 'all'); };
   document.getElementById('_ugs-one').onclick = function(){ overlay.remove(); showAddToUpgradeModal(itemNum, variation, pdRow, invId, 'one'); };
   document.getElementById('_ugs-cancel').onclick = function(){ overlay.remove(); };
@@ -3436,6 +3452,7 @@ function _upgradeGotItOldStart(ugKey) {
       </div>
     </div>`;
   document.body.appendChild(overlay);
+  if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.805 TODO-012: device Back closes this pop-up
 }
 
 // Phase 3: signature is now (ugKey, action).
@@ -3623,6 +3640,7 @@ function showAddPartModal(existingId) {
   ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
   window._partPhotoFile = null;
   document.body.appendChild(ov);
+  if (window.BackStack && BackStack.wire) BackStack.wire(ov); // v0.9.805 TODO-012: device Back closes this pop-up
   // Make the "For which item?" dropdown searchable (type an item # or road name).
   if (window.RoadTypeahead && typeof RoadTypeahead.attach === 'function') {
     var _pfSel = document.getElementById('_part-for');
@@ -3748,6 +3766,7 @@ function markPartInstalled(rowNum) {
     + '<button onclick="_savePartInstalled(' + rowNum + ')" style="flex:2;padding:0.6rem;border-radius:8px;border:none;background:#27ae60;color:#fff;font-family:var(--font-body);font-weight:600;cursor:pointer">\u2713 Save to item</button>'
     + '</div></div>';
   document.body.appendChild(ov);
+  if (window.BackStack && BackStack.wire) BackStack.wire(ov); // v0.9.805 TODO-012: device Back closes this pop-up
   var di = document.getElementById('_inst-desc'); if (di) di.focus();
 }
 if (typeof window !== 'undefined') window.markPartInstalled = markPartInstalled;

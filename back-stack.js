@@ -122,6 +122,33 @@
     catch (e) { _ignoreNextPopstate = false; }
   }
 
+  // Public — one-line wiring for modals that close by REMOVING their root
+  // element from the DOM (the app's standard pattern). Call once right
+  // after appending the element:
+  //     BackStack.wire(overlayEl);   // or BackStack.wire('modal-id')
+  // Device back → removes the element. Any OTHER close path (Cancel button,
+  // tap-outside, save handler) is detected with a MutationObserver on
+  // document.body and pops the stack automatically — existing close code
+  // does not need to change. (v0.9.805, TODO-012)
+  var _autoWireN = 0;
+  function wire(elOrId) {
+    var el = (typeof elOrId === 'string') ? document.getElementById(elOrId) : elOrId;
+    if (!el) { _log('wire: element not found', elOrId); return; }
+    var id = el.id || ('_bs-auto-' + (++_autoWireN));
+    var byBack = false;
+    var obs = new MutationObserver(function () {
+      if (document.body.contains(el)) return;
+      try { obs.disconnect(); } catch (e) {}
+      if (!byBack) pop(id);
+    });
+    push(id, function () {
+      byBack = true;
+      try { obs.disconnect(); } catch (e) {}
+      if (el.parentNode) el.parentNode.removeChild(el);
+    });
+    obs.observe(document.body, { childList: true });
+  }
+
   // Public — is this id currently on the stack?
   function has(id) {
     for (var i = 0; i < _stack.length; i++) {
@@ -145,6 +172,7 @@
   global.BackStack = {
     push:  push,
     pop:   pop,
+    wire:  wire,
     has:   has,
     size:  size,
     clear: clear,
