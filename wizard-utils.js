@@ -88,7 +88,10 @@ function appConfirm(message, opts) {
       + '<button id="_ac-yes" style="padding:0.55rem 1.15rem;border-radius:8px;border:none;background:' + (danger ? '#c0392b' : 'var(--accent,#e04028)') + ';color:#fff;font-weight:600;font-family:inherit;cursor:pointer">' + okText + '</button>'
       + '</div></div>';
     document.body.appendChild(ov);
-    const done = function(val) { ov.remove(); resolve(val); };
+    // v0.9.804 (TODO-012): device Back button cancels the confirm (BackStack
+    // rule) instead of navigating the page underneath it.
+    const done = function(val) { ov.remove(); if (window.BackStack) BackStack.pop('app-confirm'); resolve(val); };
+    if (window.BackStack) BackStack.push('app-confirm', function() { ov.remove(); resolve(false); });
     ov.querySelector('#_ac-no').onclick = function() { done(false); };
     ov.querySelector('#_ac-yes').onclick = function() { done(true); };
     // ESC closes as cancel

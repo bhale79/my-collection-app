@@ -31,6 +31,17 @@
   var SPECIALTY_CHIPS = ['Lionel', 'MTH', 'Atlas', 'Menards', 'Parts', 'Repairs', 'Paper', 'Sets'];
 
   function _esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+  // v0.9.804 (TODO-012): device Back button closes contact modals (BackStack
+  // rule). _ctWireBack after append on open; _ctClose EVERYWHERE a modal is
+  // removed voluntarily (Cancel/X/save/delete) so the stack stays balanced.
+  function _ctWireBack(id) {
+    if (window.BackStack) BackStack.push(id, function () { var el = document.getElementById(id); if (el) el.remove(); });
+  }
+  window._ctClose = function (id) {
+    var el = document.getElementById(id); if (el) el.remove();
+    if (window.BackStack) BackStack.pop(id);
+  };
   function _today() { try { return new Date().toLocaleDateString('en-CA'); } catch (e) { return ''; } }
 
   // ── v0.9.769 — pre-OCR pipeline: auto-crop to the card, grayscale,
@@ -785,7 +796,7 @@
   window._ctShowBought = function (cid) {
     var items = Object.values(state.personalData || {}).filter(function (pd) { return pd && pd.owned && pd.purchasedFrom === cid; });
     var c = (state.contactsData || []).find(function (x) { return x.id === cid; });
-    var old2 = document.getElementById('ct-bought-modal'); if (old2) old2.remove();
+    window._ctClose('ct-bought-modal');
     var d = document.createElement('div');
     d.id = 'ct-bought-modal';
     d.style.cssText = 'position:fixed;inset:0;z-index:10050;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;padding:1rem';
@@ -794,11 +805,12 @@
       + items.map(function (pd) {
           var label = 'No. ' + _esc(pd.itemNum || '?') + (pd.customName ? ' — ' + _esc(pd.customName) : (pd.description ? ' — ' + _esc(String(pd.description).substring(0, 40)) : ''));
           var when = pd.datePurchased ? ' <span style="color:var(--text-dim);font-size:0.72rem">' + _esc(pd.datePurchased) + '</span>' : '';
-          return '<div style="padding:0.45rem 0.2rem;border-bottom:1px solid var(--border);font-size:0.85rem;color:var(--text);cursor:pointer" onclick="document.getElementById(\'ct-bought-modal\').remove(); if (typeof _openOwnedByInvId === \'function\') _openOwnedByInvId(\'' + _esc(pd.inventoryId || '') + '\')">' + label + when + '</div>';
+          return '<div style="padding:0.45rem 0.2rem;border-bottom:1px solid var(--border);font-size:0.85rem;color:var(--text);cursor:pointer" onclick="_ctClose(\'ct-bought-modal\'); if (typeof _openOwnedByInvId === \'function\') _openOwnedByInvId(\'' + _esc(pd.inventoryId || '') + '\')">' + label + when + '</div>';
         }).join('')
-      + '<button onclick="document.getElementById(\'ct-bought-modal\').remove()" style="width:100%;margin-top:0.7rem;padding:0.6rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body)">Close</button>'
+      + '<button onclick="_ctClose(\'ct-bought-modal\')" style="width:100%;margin-top:0.7rem;padding:0.6rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body)">Close</button>'
       + '</div>';
     document.body.appendChild(d);
+    _ctWireBack('ct-bought-modal');
   };
 
   // v0.9.788 (Brad): share MULTIPLE contacts — pick from a checklist, send
@@ -820,7 +832,7 @@
   window._ctShareOpen = function () {
     var rows = (state.contactsData || []).slice().sort(function (a, b) { return _ctLastNameKey(a.name).localeCompare(_ctLastNameKey(b.name)); });
     if (!rows.length) { showToast('No contacts to share yet', 2500); return; }
-    var old2 = document.getElementById('ct-share-modal'); if (old2) old2.remove();
+    window._ctClose('ct-share-modal');
     var d = document.createElement('div');
     d.id = 'ct-share-modal';
     d.style.cssText = 'position:fixed;inset:0;z-index:10050;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;padding:1rem';
@@ -836,9 +848,10 @@
       + '</div>'
       + '<div style="display:flex;gap:0.5rem;margin-top:0.7rem">'
       + '<button onclick="_ctShareGo()" style="flex:2;padding:0.65rem;border-radius:9px;border:none;background:var(--accent);color:#fff;font-weight:800;cursor:pointer;font-family:var(--font-body)">↗ Share selected</button>'
-      + '<button onclick="document.getElementById(\'ct-share-modal\').remove()" style="flex:1;padding:0.65rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body)">Cancel</button>'
+      + '<button onclick="_ctClose(\'ct-share-modal\')" style="flex:1;padding:0.65rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body)">Cancel</button>'
       + '</div></div>';
     document.body.appendChild(d);
+    _ctWireBack('ct-share-modal');
   };
   window._ctShareGo = function () {
     var d = document.getElementById('ct-share-modal');
@@ -847,7 +860,7 @@
     if (!ids.length) { showToast('Tick at least one contact', 2500, true); return; }
     var picked = (state.contactsData || []).filter(function (c) { return ids.indexOf(c.id) >= 0; });
     var text = picked.map(_ctShareText).join('\n\n— — —\n\n') + '\n\n(shared from The Rail Roster)';
-    d.remove();
+    window._ctClose('ct-share-modal');
     if (navigator.share) {
       navigator.share({ title: picked.length === 1 ? picked[0].name : (picked.length + ' contacts'), text: text }).catch(function () {});
     } else if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -873,7 +886,7 @@
   window._ctOpenEdit = function (row) {
     var c = row ? (state.contactsData || []).find(function (x) { return x.row === row; }) : null;
     c = c || { id: '', name: '', business: '', phone: '', email: '', specialties: '', notes: '', cardLink: '', metAt: '', dateAdded: '', address: '', website: '', homePhone: '', cellPhone: '', title: '', personPhoto: '' };
-    var old = document.getElementById('ct-modal'); if (old) old.remove();
+    window._ctClose('ct-modal');
     var ov = document.createElement('div');
     ov.id = 'ct-modal';
     ov.style.cssText = 'position:fixed;inset:0;z-index:10040;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;padding:1rem;overflow-y:auto';
@@ -928,9 +941,10 @@
       + '<div style="display:flex;gap:0.5rem">'
       + '<button id="ct-save" style="flex:2;padding:0.8rem;border-radius:9px;border:none;background:var(--accent);color:#fff;font-weight:800;cursor:pointer;font-family:var(--font-body)">✓ Save Contact</button>'
       + (row ? '<button id="ct-del" style="flex:1;padding:0.8rem;border-radius:9px;border:1px solid #e74c3c;background:none;color:#e74c3c;cursor:pointer;font-family:var(--font-body)">Delete</button>' : '')
-      + '<button onclick="document.getElementById(\'ct-modal\').remove()" style="flex:1;padding:0.8rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body)">Cancel</button>'
+      + '<button onclick="_ctClose(\'ct-modal\')" style="flex:1;padding:0.8rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body)">Cancel</button>'
       + '</div></div>';
     document.body.appendChild(ov);
+    _ctWireBack('ct-modal');
     // v0.9.779: warm up the on-device reader NOW — loading it used to be the
     // first thing that happened after picking a photo (5-10s of dead time).
     try { if (typeof window._ensureTesseract === 'function') window._ensureTesseract().catch(function () {}); } catch (eW) {}
@@ -1149,7 +1163,7 @@
         if (!(await _ensureTab())) throw new Error('no tab');
         if (row) await sheetsUpdate(state.personalSheetId, TAB + '!A' + row + ':P' + row, [rowVals]);
         else await sheetsAppend(state.personalSheetId, TAB + '!A:P', [rowVals]);
-        ov.remove();
+        window._ctClose('ct-modal');
         showToast('✓ ' + name + ' saved to Contacts');
         try { await _load(); window._ctRenderList(); } catch (e3) { console.warn('[contact list refresh]', e3); }
       } catch (e) {
@@ -1166,7 +1180,7 @@
       if (!okDel2) return;
       try {
         await sheetsUpdate(state.personalSheetId, TAB + '!A' + row + ':P' + row, [['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']]);
-        ov.remove();
+        window._ctClose('ct-modal');
         showToast('Contact deleted');
         await _load();
         window._ctRenderList();
