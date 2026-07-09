@@ -471,6 +471,7 @@ function _nonItemDetailEdit(type, key) {
 
   ov.appendChild(box);
   document.body.appendChild(ov);
+  if (window.BackStack && BackStack.wire) BackStack.wire(ov); // v0.9.806 TODO-012: device Back closes this pop-up
 }
 window._nonItemDetailEdit = _nonItemDetailEdit;
 
@@ -694,6 +695,7 @@ function _nonItemDetailPhotos(type, key) {
   box.appendChild(btnRow);
   ov.appendChild(box);
   document.body.appendChild(ov);
+  if (window.BackStack && BackStack.wire) BackStack.wire(ov); // v0.9.806 TODO-012: device Back closes this pop-up
 }
 window._nonItemDetailPhotos = _nonItemDetailPhotos;
 
@@ -1518,6 +1520,7 @@ function showOwnedItemMenu(idx, pdKey) {
 
   overlay.appendChild(box);
   document.body.appendChild(overlay);
+  if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.806 TODO-012: device Back closes this pop-up
 }
 
 // ── Collection list action helpers (resolve pdKey from itemNum/variation, then delegate) ──
@@ -1585,6 +1588,7 @@ function _showSpecialOwnedMenu(idx, item, ownedItems) {
   ));
   overlay.appendChild(box);
   document.body.appendChild(overlay);
+  if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.806 TODO-012: device Back closes this pop-up
 }
 
 function collectionActionForSale(globalIdx, itemNum, variation, pdRow, invId) {
@@ -1680,6 +1684,7 @@ function _checkGroupBeforeForSale(globalIdx, pdKey) {
       </div>
     </div>`;
   document.body.appendChild(overlay);
+  if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.806 TODO-012: device Back closes this pop-up
 
   // Cancel
   document.getElementById('_grpfs-cancel').onclick = () => overlay.remove();
@@ -1841,6 +1846,7 @@ function _checkSetBeforeAction(pdKey, leadIdx, proceed) {
     + '<button id="_gs-cancel" style="padding:0.6rem;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Cancel</button>'
     + '</div></div>';
   document.body.appendChild(overlay);
+  if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.806 TODO-012: device Back closes this pop-up
 
   function _updateSellBtn(){
     var any = false;
@@ -1960,6 +1966,7 @@ async function removeCollectionItem(itemNum, variation, row, invId) {
           </div>
         </div>`;
       document.body.appendChild(overlay);
+      if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.806 TODO-012: device Back closes this pop-up
       overlay.querySelector('#rm-just-one').onclick  = function() { document.body.removeChild(overlay); resolve('one'); };
       overlay.querySelector('#rm-all-group').onclick = function() { document.body.removeChild(overlay); resolve('all'); };
       overlay.querySelector('#rm-cancel').onclick    = function() { document.body.removeChild(overlay); resolve('cancel'); };
@@ -2181,6 +2188,7 @@ function showPickFromCollectionForSale() {
 
   overlay.appendChild(box);
   document.body.appendChild(overlay);
+  if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.806 TODO-012: device Back closes this pop-up
 
   // Render the list
   _renderPickFsList('');
@@ -2745,6 +2753,7 @@ function showItemPanel(idx, pdKey, mode) {
   box.appendChild(footer);
   overlay.appendChild(box);
   document.body.appendChild(overlay);
+  if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.806 TODO-012: device Back closes this pop-up
 }
 
 
@@ -2778,6 +2787,7 @@ function openISDetail(rowKey) {
     </div>`;
   overlay.appendChild(box);
   document.body.appendChild(overlay);
+  if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.806 TODO-012: device Back closes this pop-up
 }
 
 function browseRowClick(event, idx) {
@@ -2939,6 +2949,7 @@ function browseRowClick(event, idx) {
     vdBox.appendChild(addBtn);
     vdOverlay.appendChild(vdBox);
     document.body.appendChild(vdOverlay);
+    if (window.BackStack && BackStack.wire) BackStack.wire(vdOverlay); // v0.9.806 TODO-012: device Back closes this pop-up
   };
   const cancelBtn = document.createElement('button');
   cancelBtn.className = 'btn btn-secondary';
@@ -2951,6 +2962,7 @@ function browseRowClick(event, idx) {
   box.appendChild(btnRow);
   overlay.appendChild(box);
   document.body.appendChild(overlay);
+  if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.806 TODO-012: device Back closes this pop-up
 }
 
 // ── Detail popup for Sets, Catalogs, and Instruction Sheets ──
@@ -3168,6 +3180,7 @@ function showRefItemPopup(type, idx) {
   box.appendChild(addBtn);
   overlay.appendChild(box);
   document.body.appendChild(overlay);
+  if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.806 TODO-012: device Back closes this pop-up
 }
 
 function addFromBrowse(idx) {
@@ -3303,6 +3316,7 @@ function _buildItemModal() {
       '</div>' +
     '</div>';
   document.body.appendChild(overlay);
+  if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.806 TODO-012: device Back closes this pop-up
 }
 
 function openItem(idx) {
@@ -3728,6 +3742,7 @@ function _checkWantPartners(itemNum, variation, priority, maxPrice, notes) {
     </div>`;
 
   document.body.appendChild(overlay);
+  if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.806 TODO-012: device Back closes this pop-up
 
   overlay.querySelector('#wpc-skip').onclick = () => overlay.remove();
   overlay.querySelector('#wpc-add').onclick = async () => {
