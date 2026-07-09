@@ -435,6 +435,12 @@ function closeWizard() {
     (d._drivePhotos && d._drivePhotos.length > 0) || d.manualItemNum
   );
   if (_hasData) {
+    if (typeof appConfirm === 'function') {
+      appConfirm('Cancel and discard the info you\'ve entered? This cannot be undone.',
+        { danger: true, ok: 'Discard', cancel: 'Keep editing', title: 'Discard this item?' })
+        .then(function (ok) { if (ok) _doCloseWizard(); });
+      return;
+    }
     if (!confirm('Cancel and discard the info you\'ve entered? This cannot be undone.')) {
       return; // user chose to continue editing
     }

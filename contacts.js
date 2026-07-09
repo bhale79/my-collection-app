@@ -858,7 +858,10 @@
   // v0.9.773 (Brad): Delete straight from the list card (Edit | Delete split).
   window._ctDeleteRow = async function (row) {
     var c = (state.contactsData || []).find(function (x) { return x.row === row; });
-    if (!confirm('Delete ' + ((c && c.name) ? c.name : 'this contact') + '?')) return;
+    var okDel = (typeof appConfirm === 'function')
+      ? await appConfirm('Delete ' + ((c && c.name) ? c.name : 'this contact') + '?', { danger: true, ok: 'Delete', title: 'Delete contact' })
+      : confirm('Delete ' + ((c && c.name) ? c.name : 'this contact') + '?');
+    if (!okDel) return;
     try {
       await sheetsUpdate(state.personalSheetId, TAB + '!A' + row + ':P' + row, [['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']]);
       showToast('Contact deleted');
@@ -1157,7 +1160,10 @@
     };
     var del = ov.querySelector('#ct-del');
     if (del) del.onclick = async function () {
-      if (!confirm('Delete this contact?')) return;
+      var okDel2 = (typeof appConfirm === 'function')
+        ? await appConfirm('Delete this contact?', { danger: true, ok: 'Delete', title: 'Delete contact' })
+        : confirm('Delete this contact?');
+      if (!okDel2) return;
       try {
         await sheetsUpdate(state.personalSheetId, TAB + '!A' + row + ':P' + row, [['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']]);
         ov.remove();
