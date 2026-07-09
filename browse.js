@@ -2680,14 +2680,21 @@ function renderBrowse() {
           const _isKeyArg = "'" + String(_isKey).replace(/'/g, "\\'") + "'";
           const _isActions = (typeof _collectionActionsHTML === 'function' && _isKey)
             ? _collectionActionsHTML('is', _isKey, it) : '';
+          // v0.9.812 (Brad): 8 columns to match the My Collection header
+          // (MFR | ITEM# | VAR | TYPE | DESCRIPTION | EST.WORTH | DATE | ACTIONS)
+          const _cSymIS = (typeof _currencySymbol === 'function') ? _currencySymbol() : '$';
+          const _isWorthN = it.estValue ? parseFloat(it.estValue) : NaN;
           return `<tr onclick="openISDetail(${_isKeyArg})" style="cursor:pointer">
+            <td style="text-align:center;font-size:1.05rem" title="Instruction Sheet">📋</td>
             <td><span style="font-family:var(--font-mono);font-size:0.85rem;color:#16a085;font-weight:600">${it.sheetNum}</span></td>
-            <td><span class="text-dim">—</span></td>
-            <td style="text-align:center"><button onclick="event.stopPropagation();openISDetail(${_isKeyArg})" style="padding:0.25rem 0.6rem;border-radius:6px;border:1px solid #16a085;background:#16a08518;color:#16a085;font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">Details</button></td>
+            <td style="text-align:center"><span class="text-dim">—</span></td>
             <td><span class="tag" style="border-color:#16a085;color:#16a085;background:#16a08518">Instr. Sheet</span></td>
-            <td><span style="color:var(--text-dim);font-size:0.75rem">For #${it.linkedItem || '—'}</span></td>
-            <td></td>
-            <td onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">${_isActions}</td>
+            <td><span style="color:var(--text-mid);font-size:0.85rem">For #${it.linkedItem || '—'}</span></td>
+            <td style="font-size:0.82rem;color:var(--gold);white-space:nowrap;text-align:center">${isFinite(_isWorthN) ? _cSymIS + _isWorthN.toLocaleString() : '<span style="color:var(--text-dim)">—</span>'}</td>
+            <td style="font-size:0.76rem;color:var(--text-dim);white-space:nowrap;text-align:center">${it.dateAcquired ? ((typeof _formatDate === 'function') ? _formatDate(it.dateAcquired) : it.dateAcquired) : '—'}</td>
+            <td class="coll-actions-cell" onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">
+              <button onclick="openISDetail(${_isKeyArg})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #16a085;background:#16a08518;color:#16a085;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">Details</button>${_isActions}
+            </td>
           </tr>`;
         }
         return `<tr onclick="openISDetail(${it.row})" style="cursor:pointer">
@@ -2710,31 +2717,41 @@ function renderBrowse() {
           <button onclick="event.stopPropagation();ephemeraDelete('${r.tabId}',${it.row})" style="flex:0 0 auto;padding:0.35rem 0.5rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--accent);font-family:var(--font-body)">Remove</button>
         </div>` : '';
 
-      // ── My Collection view: match the 7-column layout ──────────
+      // ── My Collection view: 8 columns to match the header ──────────
+      // v0.9.812 (Brad): was 7 cells against an 8-column table (MFR. column
+      // added after this was written) — every cell sat one column off.
       if (state.filters.owned) {
         const _photoLink = it.photoLink || '';
         const _thumbId = 'eph-thumb-' + r.tabId + '-' + it.row;
         const _ephTypeLabel = it.paperType || r.label;
+        const _ephDesc = [it.year, it.notes || it.description].filter(Boolean).join(' — ') || '<span style="color:var(--text-dim)">—</span>';
+        const _cSymE = (typeof _currencySymbol === 'function') ? _currencySymbol() : '$';
+        const _ephWorthN = it.estValue ? parseFloat(it.estValue) : NaN;
+        const _ephWorth = isFinite(_ephWorthN) ? _cSymE + _ephWorthN.toLocaleString() : '<span style="color:var(--text-dim)">—</span>';
+        const _ephDate = it.dateAcquired ? ((typeof _formatDate === 'function') ? _formatDate(it.dateAcquired) : it.dateAcquired) : '—';
+        const _ephBtn = 'padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;font-family:var(--font-body);font-weight:600;margin-right:0.2rem';
         return `<tr onclick="openEphemeraDetail('${r.tabId}',${it.row})" style="cursor:pointer">
-          <td>
-            <div style="font-size:0.88rem;color:var(--text);font-weight:600;line-height:1.3">${it.title || it.itemNum || '—'}</div>
-            <div style="font-family:var(--font-mono);font-size:0.7rem;color:${r.color};opacity:0.8;margin-top:1px">${it.itemNum || ''}</div>
+          <td style="text-align:center;font-size:1.05rem" title="${r.label}">${r.emoji}</td>
+          <td style="max-width:200px">
+            <div style="display:flex;align-items:center;gap:0.45rem">
+              ${_photoLink ? `<span id="${_thumbId}" style="flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:4px;background:var(--surface2);overflow:hidden;color:var(--text-dim)"></span>` : ''}
+              <div style="min-width:0">
+                <div style="font-size:0.85rem;color:var(--text);font-weight:600;line-height:1.25;overflow:hidden;text-overflow:ellipsis">${it.title || it.itemNum || '—'}</div>
+                <div style="font-family:var(--font-mono);font-size:0.7rem;color:${r.color};opacity:0.8;margin-top:1px">${it.itemNum || ''}${_photoLink ? ' <span style="font-size:0.78rem;opacity:0.75" title="Has photos">📷</span>' : ''}</div>
+              </div>
+            </div>
           </td>
-          <td><span class="text-dim">—</span></td>
-          <td style="text-align:center">
-            <button onclick="event.stopPropagation();openEphemeraDetail('${r.tabId}',${it.row})" style="padding:0.25rem 0.6rem;border-radius:6px;border:1px solid ${r.color};background:${r.color}18;color:${r.color};font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">Details</button>
-          </td>
+          <td style="text-align:center"><span class="text-dim">—</span></td>
           <td><span class="tag" style="border-color:${r.color};color:${r.color};background:${r.color}18">${_ephTypeLabel}</span></td>
-          <td style="text-align:center">
-            <span id="${_thumbId}" style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:4px;background:var(--surface2);overflow:hidden;vertical-align:middle;color:var(--text-dim)">${_photoLink ? '' : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.45"><rect x="2" y="2" width="20" height="20" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/><line x1="4" y1="4" x2="20" y2="20" stroke-width="2" opacity="0.55"/></svg>'}</span>
-          </td>
-          <td style="text-align:center">
-            <button onclick="event.stopPropagation();${_photoLink ? `openPhotoFolder('${it.itemNum||''}','${_photoLink}')` : `openEphemeraDetail('${r.tabId}',${it.row})`}" style="padding:0.25rem 0.6rem;border-radius:6px;border:1px solid ${_photoLink ? 'var(--gold)' : 'var(--border)'};background:${_photoLink ? 'rgba(212,168,67,0.08)' : 'var(--surface2)'};color:${_photoLink ? 'var(--gold)' : 'var(--text-dim)'};font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600${_photoLink ? '' : ';opacity:0.7'}">${_photoLink ? '📷 Photos' : '📷 No Photos Uploaded'}</button>
-          </td>
-          <td style="text-align:center;white-space:nowrap">
-            <button onclick="event.stopPropagation();ephemeraForSale('${r.tabId}',${it.row})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #f39c12;background:rgba(243,156,18,0.1);color:#f39c12;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">🏷️ For Sale</button>
-            <button onclick="event.stopPropagation();ephemeraSold('${r.tabId}',${it.row})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">💰 Sold</button>
-            <button onclick="event.stopPropagation();ephemeraDelete('${r.tabId}',${it.row})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>
+          <td style="color:var(--text-mid);font-size:0.85rem">${_ephDesc}</td>
+          <td style="font-size:0.82rem;color:var(--gold);white-space:nowrap;text-align:center">${_ephWorth}</td>
+          <td style="font-size:0.76rem;color:var(--text-dim);white-space:nowrap;width:80px;text-align:center">${_ephDate}</td>
+          <td class="coll-actions-cell" onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">
+            <button onclick="openEphemeraDetail('${r.tabId}',${it.row})" style="${_ephBtn};border:1px solid ${r.color};background:${r.color}18;color:${r.color}">Details</button>
+            <button onclick="${_photoLink ? `openPhotoFolder('${it.itemNum||''}','${_photoLink}')` : `openEphemeraDetail('${r.tabId}',${it.row})`}" title="${_photoLink ? 'Open photo folder' : 'No photos yet — opens Details'}" style="${_ephBtn};border:1px solid ${_photoLink ? 'var(--gold)' : 'var(--border)'};background:${_photoLink ? 'rgba(212,168,67,0.08)' : 'var(--surface2)'};color:${_photoLink ? 'var(--gold)' : 'var(--text-dim)'}">📷</button>
+            <button onclick="ephemeraForSale('${r.tabId}',${it.row})" style="${_ephBtn};border:1px solid #f39c12;background:rgba(243,156,18,0.1);color:#f39c12">For Sale</button>
+            <button onclick="ephemeraSold('${r.tabId}',${it.row})" style="${_ephBtn};border:1px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71">Sold</button>
+            <button onclick="ephemeraDelete('${r.tabId}',${it.row})" style="${_ephBtn};margin-right:0;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim)">Remove</button>
           </td>
         </tr>`;
       }
@@ -3053,6 +3070,33 @@ function renderBrowse() {
       });
     });
   }
+  // v0.9.812: load ephemera thumbnails — the eph-thumb span was rendered but
+  // never populated (always an empty gray box). Same folder-photo approach as
+  // the item thumbs above; hides itself if the folder is empty/unreadable.
+  if (state.filters.owned && _ephemeraRows.length) {
+    _ephemeraRows.forEach(function(r) {
+      if (!r._eph || !r.item || !r.item.photoLink) return;
+      var _tid = 'eph-thumb-' + r.tabId + '-' + r.item.row;
+      if (!document.getElementById(_tid)) return;
+      driveGetFolderPhotos(r.item.photoLink).then(function(photos) {
+        var el = document.getElementById(_tid);
+        if (!el) return;
+        if (photos && photos.length > 0) {
+          var img = document.createElement('img');
+          img.style.cssText = 'width:34px;height:34px;object-fit:cover;border-radius:4px';
+          el.innerHTML = '';
+          el.appendChild(img);
+          loadDriveThumb(photos[0].id, img, el);
+        } else {
+          el.style.display = 'none';
+        }
+      }).catch(function() {
+        var el = document.getElementById(_tid);
+        if (el) el.style.display = 'none';
+      });
+    });
+  }
+
   // Async: check which owned items have photos and reveal their camera icons
   if (state.filters.owned) {
     pageData.forEach(function(item) {
