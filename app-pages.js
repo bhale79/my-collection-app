@@ -675,6 +675,13 @@ window.ephemeraAddPhotos = function (tabId, rowKey) {
 };
 
 function openEphemeraDetail(tabId, rowKey) {
+  // v0.9.802 (Brad): paper/catalog/mock-up/other details open the SAME
+  // full-page detail as train items (showNonItemDetailPage — header, action
+  // toolbar, details card, photo grid). The quick modal below survives only
+  // for custom user tabs that have no page config.
+  if (typeof showNonItemDetailPage === 'function' && (window.NON_ITEM_DETAIL_CONFIG || {})[tabId]) {
+    return showNonItemDetailPage(tabId, rowKey);
+  }
   const item = (state.ephemeraData[tabId] || {})[rowKey];
   if (!item) return;
   const isMockup = tabId === 'mockups';
