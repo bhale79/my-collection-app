@@ -477,6 +477,7 @@ function _openLevelPicker(level) {
   modal.appendChild(close);
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
+  if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.807 TODO-012: device Back closes this pop-up
 }
 
 function _setHierarchyChoice(level, value) {
@@ -1975,6 +1976,7 @@ function _ncShowFsSoldModal(type, key, action) {
     +   '</div>'
     + '</div>';
   document.body.appendChild(ov);
+  if (window.BackStack && BackStack.wire) BackStack.wire(ov); // v0.9.807 TODO-012: device Back closes this pop-up
 
   document.getElementById('_nc-save').onclick = async function() {
     const price = document.getElementById('_nc-price').value;
@@ -2087,6 +2089,7 @@ function _ncShowUpgradeModal(type, key) {
     +   '</div>'
     + '</div>';
   document.body.appendChild(ov);
+  if (window.BackStack && BackStack.wire) BackStack.wire(ov); // v0.9.807 TODO-012: device Back closes this pop-up
 
   document.getElementById('_nc-up-save').onclick = async function() {
     const priority = document.getElementById('_nc-up-pri').value || 'Medium';

@@ -627,9 +627,12 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       stopScanning = true;
       if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
       overlay.remove();
+      if (window.BackStack) BackStack.pop('barcode-scanner-overlay'); // v0.9.807 TODO-012
     };
 
     cancelBtn.onclick = () => { cleanup(); if (onCancel) onCancel(); };
+    // v0.9.807 TODO-012: device Back = Cancel (stops the camera too).
+    if (window.BackStack) BackStack.push('barcode-scanner-overlay', () => { cleanup(); if (onCancel) onCancel(); });
     manualBtn.onclick = () => { cleanup(); if (onCancel) onCancel(); };
     // Always-available handoff to the OCR label reader (barcode damaged / not in UPC db / no barcode).
     if (toLabelBtn) toLabelBtn.onclick = () => { cleanup(); openLabelScanner(onScanned, onCancel, eraHint); };
@@ -1035,6 +1038,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         +   '<button id="bc-cand-cancel" style="padding:0.8rem;border-radius:10px;border:1px solid #444;background:#222;color:#eee;font-size:0.95rem;font-family:inherit;cursor:pointer">Cancel</button>'
         + '</div>';
       document.body.appendChild(overlay);
+      if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.807 TODO-012: device Back closes this pop-up
       var _noneEl = overlay.querySelector('#bc-cand-none');
       if (_noneEl) _noneEl.addEventListener('click', function() {
         overlay.remove();
@@ -1078,6 +1082,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         </div>
       `;
       document.body.appendChild(overlay);
+      if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.807 TODO-012: device Back closes this pop-up
       overlay.querySelector('#bc-exp-cancel').onclick = () => { overlay.remove(); resolve(false); };
       overlay.querySelector('#bc-exp-ok').onclick   = () => { overlay.remove(); resolve(true);  };
     });
@@ -1336,9 +1341,12 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     function cleanup() {
       try { stream.getTracks().forEach(function(t){ t.stop(); }); } catch (e) {}
       if (overlay && overlay.isConnected) overlay.remove();
+      if (window.BackStack) BackStack.pop('label-scanner-overlay'); // v0.9.807 TODO-012
     }
     var statusEl = document.getElementById('lbl-status');
     document.getElementById('lbl-cancel').onclick = function() { cleanup(); if (onCancel) onCancel(); };
+    // v0.9.807 TODO-012: device Back = Cancel (stops the camera too).
+    if (window.BackStack) BackStack.push('label-scanner-overlay', function () { cleanup(); if (onCancel) onCancel(); });
     var _lblHelp = document.getElementById('lbl-help'); if (_lblHelp) _lblHelp.onclick = function(){ _bcHelpPanel('label'); };
     document.getElementById('lbl-capture').onclick = async function() {
       var captureBtn = this;
@@ -1590,6 +1598,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         d.remove(); resolve(v === 'cancel' ? null : cands[parseInt(v, 10)] || null);
       });
       document.body.appendChild(d);
+      if (window.BackStack && BackStack.wire) BackStack.wire(d); // v0.9.807 TODO-012: device Back closes this pop-up
     });
   }
 
@@ -1616,6 +1625,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + '</div></div>';
       d.addEventListener('click', function (e) { var _wy = (e.target && e.target.closest) ? e.target.closest('[data-why]') : null; if (_wy) { if (typeof _bcWhyLionelPanel === 'function') _bcWhyLionelPanel(); return; } var el = (e.target && e.target.closest) ? e.target.closest('[data-a]') : null; var a = el && el.getAttribute('data-a'); if (a) { d.remove(); resolve(a); } });
       document.body.appendChild(d);
+      if (window.BackStack && BackStack.wire) BackStack.wire(d); // v0.9.807 TODO-012: device Back closes this pop-up
       if (info.verifyPromise) {
         Promise.resolve(info.verifyPromise).then(function (lv) {
           var note = d.querySelector('#bc-verify-note');
@@ -1664,6 +1674,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       + '<button data-close="1" style="display:block;width:100%;margin-top:12px;padding:11px;border-radius:10px;border:2px solid var(--accent,#e8401c);background:rgba(232,64,28,0.12);color:var(--text,#fff);font-weight:600;cursor:pointer">Got it</button></div>';
     d.addEventListener('click', function (e) { if ((e.target.getAttribute && e.target.getAttribute('data-close')) || e.target === d) d.remove(); });
     document.body.appendChild(d);
+    if (window.BackStack && BackStack.wire) BackStack.wire(d); // v0.9.807 TODO-012: device Back closes this pop-up
   }
 
   // ── Help / info panel (Session 180) ──
@@ -1686,6 +1697,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       + '<button data-close="1" style="display:block;width:100%;margin-top:12px;padding:11px;border-radius:10px;border:2px solid var(--accent,#e8401c);background:rgba(232,64,28,0.12);color:var(--text,#fff);font-weight:600;cursor:pointer">Got it</button></div>';
     d.addEventListener('click', function (e) { if ((e.target.getAttribute && e.target.getAttribute('data-close')) || e.target === d) d.remove(); });
     document.body.appendChild(d);
+    if (window.BackStack && BackStack.wire) BackStack.wire(d); // v0.9.807 TODO-012: device Back closes this pop-up
   }
 
   function _makeBusyOverlay(msg) {
