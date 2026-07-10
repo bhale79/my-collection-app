@@ -2731,10 +2731,11 @@ function renderBrowse() {
         const _ephWorth = isFinite(_ephWorthN) ? _cSymE + _ephWorthN.toLocaleString() : '<span style="color:var(--text-dim)">—</span>';
         const _ephDate = it.dateAcquired ? ((typeof _formatDate === 'function') ? _formatDate(it.dateAcquired) : it.dateAcquired) : '—';
         const _ephBtn = 'padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;font-family:var(--font-body);font-weight:600;margin-right:0.2rem';
-        const _builtinEph = ['catalogs','paper','mockups','other'].indexOf(r.tabId) >= 0;
-        const _ephMfrCell = (typeof _mfrBadge === 'function')
-          ? _mfrBadge({ manufacturer: it.manufacturer || (_builtinEph ? 'Lionel' : '') })
-          : '<td><span style="color:var(--text-dim)">—</span></td>';
+        // v0.9.814 (Brad): only show a maker badge when the user actually
+        // entered one — no Lionel default, blank otherwise.
+        const _ephMfrCell = (it.manufacturer && typeof _mfrBadge === 'function')
+          ? _mfrBadge({ manufacturer: it.manufacturer })
+          : '<td></td>';
         return `<tr onclick="openEphemeraDetail('${r.tabId}',${it.row})" style="cursor:pointer">
           ${_ephMfrCell}
           <td style="max-width:170px">
