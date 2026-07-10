@@ -271,7 +271,7 @@ const EPHEMERA_TABS = [
   { id: 'catalogs',   label: 'Catalogs',    emoji: '📒', color: '#e67e22' },
   { id: 'paper',      label: 'Paper Items', emoji: '📄', color: '#3498db' },
   { id: 'mockups',    label: 'Mock-Ups',    emoji: '🔩', color: '#9b59b6' },
-  { id: 'other',      label: 'Other Lionel',emoji: '📦', color: '#27ae60' },
+  { id: 'other',      label: 'Other Lionel',emoji: '📦', color: '#2ecc71' },
 ];
 const EPHEMERA_HEADERS = [
   'Item ID','Title','Description','Year','Manufacturer','Condition (1-10)',
@@ -1812,7 +1812,7 @@ function _injectQuickActionsBar() {
     +   '<button onclick="_qaCloseAdd();startWizardFor(\'forsale\')"><span style="color:#e67e22;display:inline-flex">' + svgTag + '</span>Add to For Sale List</button>'
     +   '<div style="height:1px;background:var(--border);margin:0.25rem 0.4rem"></div>'
     +   '<button onclick="_qaCloseAdd();startWizardFor(\'sold\')"><span style="color:#2ecc71;display:inline-flex">' + svgDollar + '</span>Record a Sale</button>'
-    +   '<button onclick="_qaCloseAdd();_qaShareCurrentPage()"><span style="color:#3a9e68;display:inline-flex">' + svgShare + '</span>Share This Page</button>'
+    +   '<button onclick="_qaCloseAdd();_qaShareCurrentPage()"><span style="color:#2ecc71;display:inline-flex">' + svgShare + '</span>Share This Page</button>'
     +   '<button onclick="_qaCloseAdd();openResearch()"><span style="color:#16a085;display:inline-flex">\ud83d\udcf8</span>Research an Item</button>'
     + '</div>'
     + '</span>';
@@ -2229,9 +2229,9 @@ function buildQuickEntryList() {
     var meta = [itemType, itemYear].filter(Boolean).join(' · ');
 
     var row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:center;gap:0.85rem;padding:0.9rem 1rem;background:var(--surface);border:1.5px solid rgba(39,174,96,0.3);border-radius:12px;cursor:pointer;transition:all 0.15s';
-    row.onmouseenter = function() { this.style.borderColor='#27ae60'; this.style.background='rgba(39,174,96,0.06)'; };
-    row.onmouseleave = function() { this.style.borderColor='rgba(39,174,96,0.3)'; this.style.background='var(--surface)'; };
+    row.style.cssText = 'display:flex;align-items:center;gap:0.85rem;padding:0.9rem 1rem;background:var(--surface);border:1.5px solid rgba(46,204,113,0.3);border-radius:12px;cursor:pointer;transition:all 0.15s';
+    row.onmouseenter = function() { this.style.borderColor='#2ecc71'; this.style.background='rgba(46,204,113,0.06)'; };
+    row.onmouseleave = function() { this.style.borderColor='rgba(46,204,113,0.3)'; this.style.background='var(--surface)'; };
     row.onclick = (function(num, vari, pdInvId) { return function() {
       var globalIdx = state.masterData ? state.masterData.findIndex(function(m) {
         return m.itemNum === num && (!vari || m.variation === vari);
@@ -2240,8 +2240,8 @@ function buildQuickEntryList() {
     }; })(pd.itemNum, variation, pd.inventoryId || '');
 
     var icon = document.createElement('div');
-    icon.style.cssText = 'background:rgba(39,174,96,0.12);border-radius:8px;padding:0.5rem;flex-shrink:0';
-    icon.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#27ae60" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+    icon.style.cssText = 'background:rgba(46,204,113,0.12);border-radius:8px;padding:0.5rem;flex-shrink:0';
+    icon.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2ecc71" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
 
     var info = document.createElement('div');
     info.style.cssText = 'flex:1;min-width:0';
@@ -2277,7 +2277,7 @@ function buildQuickEntryList() {
     right.style.cssText = 'flex-shrink:0;text-align:right';
     var addInfoBtn = document.createElement('button');
     addInfoBtn.textContent = 'Add Info';
-    addInfoBtn.style.cssText = 'font-size:0.78rem;color:#fff;font-weight:600;background:#27ae60;border:none;padding:0.3rem 0.7rem;border-radius:6px;cursor:pointer;white-space:nowrap';
+    addInfoBtn.style.cssText = 'font-size:0.78rem;color:#fff;font-weight:600;background:#2ecc71;border:none;padding:0.3rem 0.7rem;border-radius:6px;cursor:pointer;white-space:nowrap';
     addInfoBtn.onclick = (function(num, vari, pdInvId) { return function(e) {
       e.stopPropagation();
       var globalIdx = state.masterData ? state.masterData.findIndex(function(m) {
@@ -2293,7 +2293,7 @@ function buildQuickEntryList() {
     gridEl.appendChild(row);
   });
   var footer = document.createElement('div');
-  footer.style.cssText = 'margin-top:1rem;padding:0.75rem 1rem;background:rgba(39,174,96,0.06);border-radius:10px;border:1px solid rgba(39,174,96,0.2);font-size:0.82rem;color:var(--text-dim);text-align:center';
+  footer.style.cssText = 'margin-top:1rem;padding:0.75rem 1rem;background:rgba(46,204,113,0.06);border-radius:10px;border:1px solid rgba(46,204,113,0.2);font-size:0.82rem;color:var(--text-dim);text-align:center';
   footer.textContent = qeItems.length + ' item' + (qeItems.length !== 1 ? 's' : '') + ' waiting for details — tap any item to open and complete it.';
 
   container.innerHTML = '';
