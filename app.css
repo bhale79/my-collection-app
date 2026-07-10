@@ -136,7 +136,8 @@
   .main .item-table td { border-bottom: 1px solid #e8ddc0; color: #2a2015; }
   .main .item-table tr:hover td { background: #f5eed8; }
   .main .page-title { color: #2a2015; }
-  .main .page-title span { color: #5a4e38; }
+  .main .page-title span { color: inherit; }
+  .main .page-title span span { color: #8a7e68; }
   .main .item-num { color: #c84406; }
   .main .tag { background: #f0e6cc; color: #5a4e38; border: 1px solid #d4c8a8; }
   .main .market-val { color: #2a7a18; }
@@ -338,12 +339,18 @@
   .page { display: none; }
   .page.active { display: contents; }
 
+  /* v0.9.817 (Brad): ONE title style on every page — matches My Collection
+     (compact, bold, uppercase). Title text may be bare or in a span; a
+     NESTED span is the count/stat suffix (small + dim). */
   .page-title {
-    font-family: var(--font-head); font-size: 1.4rem; letter-spacing: 0.04em;
+    font-family: var(--font-head); font-size: 0.95rem; font-weight: 700;
+    letter-spacing: 0.04em; text-transform: uppercase; color: var(--text);
     display: flex; align-items: baseline; gap: 0.75rem;
   }
-  .page-title span { font-family: var(--font-body); font-size: 0.8rem;
-    color: var(--text-dim); font-weight: 400; letter-spacing: 0; }
+  .page-title span { font-family: inherit; font-size: inherit;
+    color: inherit; font-weight: inherit; letter-spacing: inherit; }
+  .page-title span span { font-family: var(--font-body); font-size: 0.8rem;
+    color: var(--text-dim); font-weight: 400; letter-spacing: 0; text-transform: none; }
 
   /* Stat cards */
   .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); gap: 0.6rem; }

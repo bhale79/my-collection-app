@@ -645,7 +645,7 @@ function vaultRenderPage() {
   el.innerHTML = `
     <div style="max-width:600px;margin:0 auto;padding:24px 16px;font-family:var(--font-body)">
 
-      <div style="font-family:var(--font-head);font-size:1.4rem;color:var(--text);letter-spacing:0.04em;margin-bottom:4px">
+      <div style="font-family:var(--font-head);font-size:0.95rem;font-weight:700;text-transform:uppercase;color:var(--text);letter-spacing:0.04em;margin-bottom:4px">
         Collector's Market
       </div>
       <div style="font-size:0.78rem;color:var(--accent);font-family:var(--font-head);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:24px">

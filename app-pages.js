@@ -444,7 +444,7 @@ function buildCollectionPage() {
   container.innerHTML =
       '<div class="page-title" style="display:flex;align-items:baseline;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.5rem">'
     +   '<span>My Collection</span>'
-    +   '<span style="font-family:var(--font-body);font-size:0.82rem;color:var(--text-dim);font-weight:400">'
+    +   '<span style="font-family:var(--font-body);font-size:0.82rem;color:var(--text-dim);font-weight:400;text-transform:none;letter-spacing:0">'
     +     filtered.length.toLocaleString() + ' of ' + all.length.toLocaleString() + ' ' + (activeTab === 'all' ? 'items' : _COLLECTION_TABS.find(function(t){return t.id===activeTab;}).label.toLowerCase())
     +   '</span>'
     + '</div>'
