@@ -357,11 +357,11 @@ function _renderHierarchyChips() {
     }
     _phSave(st);
   } catch(e) {}
-  var chipStyle = 'padding:0.32rem 0.65rem;border-radius:14px;border:1.5px solid var(--border);'
+  var chipStyle = 'padding:0.22rem 0.55rem;border-radius:14px;border:1.5px solid var(--border);'
                 + 'background:var(--bg-card);color:var(--text);font-family:var(--font-body);'
                 + 'font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;'
                 + 'align-items:center;gap:0.25rem;line-height:1';
-  var chipStyleActive = 'padding:0.32rem 0.65rem;border-radius:14px;border:1.5px solid var(--accent);'
+  var chipStyleActive = 'padding:0.22rem 0.55rem;border-radius:14px;border:1.5px solid var(--accent);'
                 + 'background:var(--accent);color:#fff;font-family:var(--font-body);'
                 + 'font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;'
                 + 'align-items:center;gap:0.25rem;line-height:1';

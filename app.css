@@ -417,6 +417,11 @@
     font-size: 0.85rem; vertical-align: middle;
   }
   .item-table tr:last-child td { border-bottom: none; }
+  /* v0.9.816 (Brad): maximize visible rows in My Collection — tighter row
+     padding (collection view only) and slimmer header spacing on browse. */
+  .item-table.collection-view td { padding: 0.45rem 0.75rem; }
+  #page-browse > .page-title { margin-bottom: 0.3rem; }
+  #hierarchy-chip-row { margin-bottom: 0.35rem; }
   .item-table tr:hover td { background: var(--surface2); cursor: pointer; }
   /* Sticky column headers — works on all scrollable table-wraps */
   .item-table thead th,

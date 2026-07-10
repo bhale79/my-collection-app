@@ -1866,6 +1866,11 @@ function _injectQuickActionsBar() {
           if (title.nextSibling) p.insertBefore(s, title.nextSibling);
           else p.appendChild(s);
         }
+      } else if (pid === 'page-browse') {
+        // v0.9.816 (Brad): maximize rows — on My Collection the Share button
+        // sits inline next to + Add; its own strip cost a full header row.
+        shareBtn.style.marginLeft = '';
+        container.appendChild(shareBtn);
       } else {
         var strip = document.createElement('div');
         strip.className = 'qa-share-strip';
