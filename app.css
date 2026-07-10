@@ -510,6 +510,16 @@
     background: var(--surface); border: 1px solid var(--border);
     border-radius: 14px; padding: 1.5rem; margin-bottom: 1.5rem;
   }
+  /* v0.9.823 (Brad): Collection Tools fits one desktop screen — cards sit
+     in a 2-up grid with tighter padding; stacks back to 1-col on phones. */
+  @media (min-width: 900px) {
+    #universal-body, #lionel-body {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+      gap: 0.75rem; align-items: start;
+    }
+    #universal-body .tools-card, #lionel-body .tools-card { margin-bottom: 0; padding: 1rem 1.1rem; }
+    #page-tools .tools-card-desc { font-size: 0.8rem; line-height: 1.45; margin-bottom: 0.7rem; }
+  }
   .tools-card-title {
     font-family: var(--font-head); font-size: 1rem; font-weight: 700;
     letter-spacing: 0.05em; text-transform: uppercase; color: var(--text);
