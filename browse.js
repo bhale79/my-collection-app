@@ -2692,9 +2692,7 @@ function renderBrowse() {
             <td><span style="color:var(--text-mid);font-size:0.85rem">For #${it.linkedItem || '—'}</span></td>
             <td style="font-size:0.82rem;color:var(--gold);white-space:nowrap;text-align:center">${isFinite(_isWorthN) ? _cSymIS + _isWorthN.toLocaleString() : '<span style="color:var(--text-dim)">—</span>'}</td>
             <td style="font-size:0.76rem;color:var(--text-dim);white-space:nowrap;text-align:center">${it.dateAcquired ? ((typeof _formatDate === 'function') ? _formatDate(it.dateAcquired) : it.dateAcquired) : '—'}</td>
-            <td class="coll-actions-cell" onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">
-              <button onclick="openISDetail(${_isKeyArg})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #16a085;background:#16a08518;color:#16a085;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">Details</button>${_isActions}
-            </td>
+            <td class="coll-actions-cell" onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">${_isActions}</td>
           </tr>`;
         }
         return `<tr onclick="openISDetail(${it.row})" style="cursor:pointer">
@@ -2718,38 +2716,46 @@ function renderBrowse() {
         </div>` : '';
 
       // ── My Collection view: 8 columns to match the header ──────────
-      // v0.9.812 (Brad): was 7 cells against an 8-column table (MFR. column
-      // added after this was written) — every cell sat one column off.
+      // v0.9.813 (Brad): real maker badge (these buckets are Lionel paper),
+      // item # stays in the ITEM # column, TITLE moves to the wide
+      // DESCRIPTION column (was cramped), actions trimmed to the same three
+      // buttons as train rows so nothing scrolls off screen. Tap the 📷 by
+      // the item # to open the photo folder (same as train rows).
       if (state.filters.owned) {
         const _photoLink = it.photoLink || '';
         const _thumbId = 'eph-thumb-' + r.tabId + '-' + it.row;
         const _ephTypeLabel = it.paperType || r.label;
-        const _ephDesc = [it.year, it.notes || it.description].filter(Boolean).join(' — ') || '<span style="color:var(--text-dim)">—</span>';
+        const _ephSub = [it.year, it.notes || it.description].filter(Boolean).join(' — ');
         const _cSymE = (typeof _currencySymbol === 'function') ? _currencySymbol() : '$';
         const _ephWorthN = it.estValue ? parseFloat(it.estValue) : NaN;
         const _ephWorth = isFinite(_ephWorthN) ? _cSymE + _ephWorthN.toLocaleString() : '<span style="color:var(--text-dim)">—</span>';
         const _ephDate = it.dateAcquired ? ((typeof _formatDate === 'function') ? _formatDate(it.dateAcquired) : it.dateAcquired) : '—';
         const _ephBtn = 'padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;font-family:var(--font-body);font-weight:600;margin-right:0.2rem';
+        const _builtinEph = ['catalogs','paper','mockups','other'].indexOf(r.tabId) >= 0;
+        const _ephMfrCell = (typeof _mfrBadge === 'function')
+          ? _mfrBadge({ manufacturer: it.manufacturer || (_builtinEph ? 'Lionel' : '') })
+          : '<td><span style="color:var(--text-dim)">—</span></td>';
         return `<tr onclick="openEphemeraDetail('${r.tabId}',${it.row})" style="cursor:pointer">
-          <td style="text-align:center;font-size:1.05rem" title="${r.label}">${r.emoji}</td>
-          <td style="max-width:200px">
+          ${_ephMfrCell}
+          <td style="max-width:170px">
             <div style="display:flex;align-items:center;gap:0.45rem">
               ${_photoLink ? `<span id="${_thumbId}" style="flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:4px;background:var(--surface2);overflow:hidden;color:var(--text-dim)"></span>` : ''}
-              <div style="min-width:0">
-                <div style="font-size:0.85rem;color:var(--text);font-weight:600;line-height:1.25;overflow:hidden;text-overflow:ellipsis">${it.title || it.itemNum || '—'}</div>
-                <div style="font-family:var(--font-mono);font-size:0.7rem;color:${r.color};opacity:0.8;margin-top:1px">${it.itemNum || ''}${_photoLink ? ' <span style="font-size:0.78rem;opacity:0.75" title="Has photos">📷</span>' : ''}</div>
-              </div>
+              <span style="min-width:0">
+                <span class="item-num" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom" title="${String(it.itemNum || '').replace(/"/g,'&quot;')}">${it.itemNum || '—'}</span>
+                ${_photoLink ? `<span onclick="event.stopPropagation();openPhotoFolder('${it.itemNum||''}','${_photoLink}')" style="font-size:0.85rem;cursor:pointer" title="Open photo folder">📷</span>` : ''}
+              </span>
             </div>
           </td>
           <td style="text-align:center"><span class="text-dim">—</span></td>
           <td><span class="tag" style="border-color:${r.color};color:${r.color};background:${r.color}18">${_ephTypeLabel}</span></td>
-          <td style="color:var(--text-mid);font-size:0.85rem">${_ephDesc}</td>
+          <td style="font-size:0.85rem">
+            <div style="color:var(--text);font-weight:600;line-height:1.3">${it.title || '—'}</div>
+            ${_ephSub ? `<div style="color:var(--text-dim);font-size:0.78rem;margin-top:1px">${_ephSub}</div>` : ''}
+          </td>
           <td style="font-size:0.82rem;color:var(--gold);white-space:nowrap;text-align:center">${_ephWorth}</td>
           <td style="font-size:0.76rem;color:var(--text-dim);white-space:nowrap;width:80px;text-align:center">${_ephDate}</td>
           <td class="coll-actions-cell" onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">
-            <button onclick="openEphemeraDetail('${r.tabId}',${it.row})" style="${_ephBtn};border:1px solid ${r.color};background:${r.color}18;color:${r.color}">Details</button>
-            <button onclick="${_photoLink ? `openPhotoFolder('${it.itemNum||''}','${_photoLink}')` : `openEphemeraDetail('${r.tabId}',${it.row})`}" title="${_photoLink ? 'Open photo folder' : 'No photos yet — opens Details'}" style="${_ephBtn};border:1px solid ${_photoLink ? 'var(--gold)' : 'var(--border)'};background:${_photoLink ? 'rgba(212,168,67,0.08)' : 'var(--surface2)'};color:${_photoLink ? 'var(--gold)' : 'var(--text-dim)'}">📷</button>
-            <button onclick="ephemeraForSale('${r.tabId}',${it.row})" style="${_ephBtn};border:1px solid #f39c12;background:rgba(243,156,18,0.1);color:#f39c12">For Sale</button>
+            <button onclick="ephemeraForSale('${r.tabId}',${it.row})" style="${_ephBtn};border:1px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22">For Sale</button>
             <button onclick="ephemeraSold('${r.tabId}',${it.row})" style="${_ephBtn};border:1px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71">Sold</button>
             <button onclick="ephemeraDelete('${r.tabId}',${it.row})" style="${_ephBtn};margin-right:0;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim)">Remove</button>
           </td>
