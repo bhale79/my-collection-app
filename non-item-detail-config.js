@@ -35,7 +35,7 @@
     if (v === null || v === undefined || v === '') return null;
     var n = parseFloat(v);
     if (isNaN(n)) return null;
-    return '$' + n.toLocaleString();
+    return (typeof _currencySymbol === 'function' ? _currencySymbol() : '$') + n.toLocaleString();
   };
   var yesNo = function(v) {
     if (v === 'Yes') return '✅ Yes';

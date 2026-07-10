@@ -107,7 +107,7 @@ function _rrCard(d, photoImg, source, photoIdx, photoTotal) {
   var cy = by + 96, cx = 36;
   (d.chips || []).forEach(function (ch) {
     x.font = '400 19px Arial'; var cw = x.measureText(ch).width + 28;
-    x.fillStyle = 'rgba(58,158,104,0.22)'; _rrRound(x, cx, cy - 22, cw, 32, 8); x.fill();
+    x.fillStyle = 'rgba(46,204,113,0.22)'; _rrRound(x, cx, cy - 22, cw, 32, 8); x.fill();
     x.fillStyle = '#bcd9c9'; x.fillText(ch, cx + 14, cy); cx += cw + 10;
   });
   if (d.note) { x.fillStyle = '#9aa3bd'; x.font = 'italic 20px Arial'; _rrWrap(x, '"' + d.note + '"', 36, cy + 52, W - 72, 26, 2); }
@@ -211,7 +211,7 @@ async function shareAsCards() {
       if (prog) prog.style.display = 'none';
       if (acts) {
         acts.style.display = 'flex';
-        acts.innerHTML = '<button onclick="_rrDoShareNow()" style="padding:0.75rem;border-radius:9px;border:none;background:#3a9e68;color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>Tap to share ' + files.length + ' image' + (files.length > 1 ? 's' : '') + '</button>';
+        acts.innerHTML = '<button onclick="_rrDoShareNow()" style="padding:0.75rem;border-radius:9px;border:none;background:#2ecc71;color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>Tap to share ' + files.length + ' image' + (files.length > 1 ? 's' : '') + '</button>';
       }
       return;
     }
@@ -279,7 +279,7 @@ async function _sellSync() {
       (m.roadName ? m.roadName + ' ' : '') + (m.itemType || '') + (vr ? ' (var ' + vr + ')' : ''),
       (e.condition || pd.condition) ? (e.condition || pd.condition) + '/10' : '',
       pd.hasBox === 'Yes' ? 'Yes' : '',
-      e.askingPrice ? '$' + parseFloat(e.askingPrice).toLocaleString() : ''
+      e.askingPrice ? _currencySymbol() + parseFloat(e.askingPrice).toLocaleString() : ''
     ]);
   });
   try { await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + id + '/values/Sheet1!A1:E1000:clear', { method: 'POST', headers: { Authorization: 'Bearer ' + _sellTok() } }); } catch (e) {}
@@ -330,7 +330,7 @@ async function _sellDatedPdfLink() {
     return { itemNum: e.itemNum, variation: e.variation, master: m, pd: pd, fs: e };
   });
   var fields = { itemnum: true, vardesc: true, cond: true, box: true, price: true, notes: true, photo: false };
-  var pdfBlob = await _buildPDF(items, fields, 'For Sale list — updated ' + new Date().toLocaleDateString());
+  var pdfBlob = await _buildPDF(items, fields, 'For Sale list — updated ' + (typeof _formatDate === 'function' ? _formatDate(new Date()) : new Date().toLocaleDateString()));
   if (typeof _uploadShareToDrive === 'function') return await _uploadShareToDrive(pdfBlob);
   throw new Error('PDF upload unavailable');
 }
@@ -396,8 +396,8 @@ function _sellRenderCustomers() {
     return '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0.5rem;border:1px solid var(--border);border-radius:7px">' +
       '<div style="flex:1;min-width:0"><div style="font-size:0.84rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + _sellEsc(c.name || c.email) + '</div>' +
       '<div style="font-size:0.72rem;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + _sellEsc(c.email || '') + (c.phone ? ' · ' + _sellEsc(c.phone) : '') + '</div></div>' +
-      '<button onclick="_sellToggleAccess(' + i + ')" style="padding:0.3rem 0.55rem;border-radius:6px;font-size:0.74rem;cursor:pointer;font-family:var(--font-body);font-weight:600;border:1.5px solid ' + (on ? '#3a9e68' : 'var(--border)') + ';background:' + (on ? 'rgba(58,158,104,0.14)' : 'var(--surface2)') + ';color:' + (on ? '#3a9e68' : 'var(--text-dim)') + '">' + (on ? '✓ Has access' : 'Grant access') + '</button>' +
-      '<button onclick="_sellRemoveCustomer(' + i + ')" title="Remove" style="padding:0.3rem 0.45rem;border-radius:6px;font-size:0.74rem;cursor:pointer;font-family:var(--font-body);border:1px solid var(--border);background:var(--surface2);color:var(--text-dim)">✕</button>' +
+      '<button onclick="_sellToggleAccess(' + i + ')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;font-family:var(--font-body);font-weight:600;border:1.5px solid ' + (on ? '#2ecc71' : 'var(--border)') + ';background:' + (on ? 'rgba(46,204,113,0.14)' : 'var(--surface2)') + ';color:' + (on ? '#2ecc71' : 'var(--text-dim)') + '">' + (on ? '✓ Has access' : 'Grant access') + '</button>' +
+      '<button onclick="_sellRemoveCustomer(' + i + ')" title="Remove" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;font-family:var(--font-body);border:1px solid var(--border);background:var(--surface2);color:var(--text-dim)">✕</button>' +
     '</div>';
   }).join('');
 }

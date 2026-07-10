@@ -116,7 +116,7 @@
       reassure +
       '<ol>' + stepsHtml + '</ol>' +
       appReassure +
-      '<div class="footer">The Rail Roster \u2014 printed ' + new Date().toLocaleDateString() + '</div>' +
+      '<div class="footer">The Rail Roster \u2014 printed ' + (typeof _formatDate === 'function' ? _formatDate(new Date()) : new Date().toLocaleDateString()) + '</div>' +
       '<script>window.onload=function(){setTimeout(function(){window.print();},300);};<\/script>' +
       '</body></html>'
     );

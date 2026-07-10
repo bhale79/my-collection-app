@@ -21,7 +21,7 @@
     --text:      #f8e8c0;
     --text-dim:  #6a5e48;
     --text-mid:  #c8b88a;
-    --green:     #3a9e68;
+    --green:     #2ecc71;
     --green-light:#4dc880;
     --red:       #f05008;
     --gold:      #d4a843;
@@ -144,7 +144,7 @@
   .main .text-dim { color: #8a7e68; }
   .main .empty-state { color: #8a7e68; }
   .main .panel { box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-  .main .owned-badge.yes { background: rgba(58,158,104,0.12); color: #2a7a18; border-color: rgba(58,158,104,0.3); }
+  .main .owned-badge.yes { background: rgba(46,204,113,0.12); color: #2a7a18; border-color: rgba(46,204,113,0.3); }
   .main .owned-badge.no { background: #f0e6cc; color: #8a7e68; }
   .main .owned-badge.want { background: rgba(212,168,67,0.12); color: #b08820; border-color: rgba(212,168,67,0.3); }
   .main .owned-badge.forsale { background: rgba(230,126,34,0.12); color: #c05a10; border-color: rgba(230,126,34,0.3); }
@@ -490,7 +490,7 @@
     display: inline-flex; align-items: center; gap: 0.3rem;
     padding: 0.2rem 0.55rem; border-radius: 12px; font-size: 0.72rem; font-weight: 500;
   }
-  .owned-badge.yes  { background: rgba(58,158,104,0.15); color: #4dc880; border: 1px solid rgba(58,158,104,0.3); font-family: var(--font-head); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
+  .owned-badge.yes  { background: rgba(46,204,113,0.15); color: #4dc880; border: 1px solid rgba(46,204,113,0.3); font-family: var(--font-head); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
   .owned-badge.no   { background: var(--surface2); color: var(--text-dim); font-family: var(--font-head); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
   .owned-badge.want { background: rgba(212,168,67,0.15); color: #e8c060; border: 1px solid rgba(212,168,67,0.3); font-family: var(--font-head); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
   .owned-badge.forsale { background: rgba(230,126,34,0.15); color: #e67e22; border: 1px solid rgba(230,126,34,0.3); font-family: var(--font-head); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
@@ -755,7 +755,7 @@
   .rb-range input { flex:1;padding:0.38rem 0.55rem;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font-mono);font-size:0.85rem;outline:none;min-width:0; }
   .rb-range input:focus { border-color:var(--accent2); }
   .rb-sort-dir { padding:0.42rem 0.65rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-size:0.8rem;cursor:pointer;font-family:var(--font-body);white-space:nowrap;flex-shrink:0; }
-  .rb-sort-dir.asc  { border-color:#27ae60;color:#27ae60; }
+  .rb-sort-dir.asc  { border-color:#2ecc71;color:#2ecc71; }
   .rb-sort-dir.desc { border-color:var(--accent);color:var(--accent); }
 
   /* ── Preferences Page ──────────────────────────────────────── */
@@ -1112,7 +1112,7 @@
     letter-spacing: 0.1em; text-transform: uppercase;
     padding: 2px 7px; border-radius: 4px;
   }
-  .identify-conf.high { background: rgba(58,158,104,0.2); color: #4dc880; }
+  .identify-conf.high { background: rgba(46,204,113,0.2); color: #4dc880; }
   .identify-conf.med  { background: rgba(212,168,67,0.2); color: #e8c060; }
   .identify-conf.low  { background: rgba(224,64,40,0.15); color: #f08070; }
   @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }

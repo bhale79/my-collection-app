@@ -749,7 +749,7 @@ function openEphemeraDetail(tabId, rowKey) {
       <div style="padding:0.75rem 1.25rem;border-top:1px solid var(--border);display:flex;gap:0.5rem">
         <button onclick="openEphemeraEdit('${tabId}',${rowKey})" style="flex:1;padding:0.6rem;border-radius:8px;border:1.5px solid #e67e22;color:#e67e22;background:rgba(230,126,34,0.1);cursor:pointer;font-family:var(--font-body);font-weight:600">Edit</button>
         <button onclick="ephemeraAddPhotos('${tabId}',${rowKey})" style="flex:1;padding:0.6rem;border-radius:8px;border:1.5px solid #3498db;color:#3498db;background:rgba(52,152,219,0.08);cursor:pointer;font-family:var(--font-body);font-weight:600">📷 Add Photos</button>
-        <button onclick="ephemeraForSale('${tabId}',${rowKey});this.closest('.modal-overlay').remove()" style="flex:1;padding:0.6rem;border-radius:8px;border:1.5px solid #f39c12;color:#f39c12;background:rgba(243,156,18,0.1);cursor:pointer;font-family:var(--font-body);font-weight:600">🏷️ For Sale</button>
+        <button onclick="ephemeraForSale('${tabId}',${rowKey});this.closest('.modal-overlay').remove()" style="flex:1;padding:0.6rem;border-radius:8px;border:1.5px solid #e67e22;color:#e67e22;background:rgba(230,126,34,0.1);cursor:pointer;font-family:var(--font-body);font-weight:600">🏷️ For Sale</button>
         <button onclick="ephemeraSold('${tabId}',${rowKey});this.closest('.modal-overlay').remove()" style="flex:1;padding:0.6rem;border-radius:8px;border:1.5px solid #2ecc71;color:#2ecc71;background:rgba(46,204,113,0.1);cursor:pointer;font-family:var(--font-body);font-weight:600">💰 Sold</button>
         <button onclick="ephemeraDelete('${tabId}',${rowKey});this.closest('.modal-overlay').remove()" style="padding:0.6rem 0.8rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);cursor:pointer;font-family:var(--font-body)" title="Delete">🗑</button>
         <button onclick="this.closest('.modal-overlay').remove()" style="padding:0.6rem 0.8rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-family:var(--font-body)">Close</button>
@@ -810,7 +810,7 @@ function ephemeraForSale(tabId, rowKey) {
         <button onclick="this.closest('div[style*=fixed]').remove()"
           style="flex:1;padding:0.65rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);cursor:pointer">Cancel</button>
         <button id="eph-fs-save"
-          style="flex:2;padding:0.65rem;border-radius:8px;border:none;background:#f39c12;color:white;font-family:var(--font-body);font-weight:600;cursor:pointer">🏷️ List For Sale</button>
+          style="flex:2;padding:0.65rem;border-radius:8px;border:none;background:#e67e22;color:white;font-family:var(--font-body);font-weight:600;cursor:pointer">🏷️ List For Sale</button>
       </div>
     </div>`;
   document.body.appendChild(ov);
@@ -1031,13 +1031,13 @@ function buildWantPage() {
       const _wInShare = typeof isShareMode === 'function' && isShareMode('want');
       const _wSelected = _wInShare && window._shareItems && window._shareItems[_wShareKey];
       if (_wInShare) { if (!window._shareDataMap) window._shareDataMap = {}; window._shareDataMap[_wShareKey] = { itemNum: w.itemNum, variation: w.variation||'', want: w, master: master }; }
-      return `<div id="share-card-${_wShareKey}" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem${_wSelected ? ';outline:2px solid #3a9e68' : ''}">
+      return `<div id="share-card-${_wShareKey}" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem${_wSelected ? ';outline:2px solid #2ecc71' : ''}">
         <div style="display:flex;align-items:center;gap:0.75rem;cursor:pointer" onclick="${_wInShare ? 'toggleShareItem(\'' + _wShareKey + '\')' : `_wantViewDetail('${w.itemNum}','${escVar}')`}">
-          ${_wInShare ? '<input type="checkbox" id="share-cb-' + _wShareKey + '" ' + (_wSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _wShareKey + '\')" style="width:1.1rem;height:1.1rem;accent-color:#3a9e68;flex-shrink:0">' : ''}
+          ${_wInShare ? '<input type="checkbox" id="share-cb-' + _wShareKey + '" ' + (_wSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _wShareKey + '\')" style="width:1.1rem;height:1.1rem;accent-color:#2ecc71;flex-shrink:0">' : ''}
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:0.5rem">
               <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${w.itemNum}</span>
-              ${w._wantMates ? `<span style="font-size:0.72rem;color:#9ecbff">🔗 ${w._wantMates.join(' + ')}</span> <span style="font-size:0.6rem;font-weight:700;color:var(--accent3,#3a9e68);border:1px solid var(--accent3,#3a9e68);border-radius:4px;padding:0.05rem 0.3rem;vertical-align:middle">${w._groupCfg || 'Set'}</span>` : ''}
+              ${w._wantMates ? `<span style="font-size:0.72rem;color:#9ecbff">🔗 ${w._wantMates.join(' + ')}</span> <span style="font-size:0.6rem;font-weight:700;color:var(--accent3,#2ecc71);border:1px solid var(--accent3,#2ecc71);border-radius:4px;padding:0.05rem 0.3rem;vertical-align:middle">${w._groupCfg || 'Set'}</span>` : ''}
               ${_mIsSet ? '<span style="font-size:0.62rem;color:#e67e22;font-weight:600">SET</span>' : (w.variation ? `<span style="font-size:0.72rem;color:var(--text-dim)">${w.variation}</span>` : '')}
               <span style="font-size:0.65rem;font-weight:600;color:${pColor};border:1px solid ${pColor};border-radius:4px;padding:0.1rem 0.4rem">${w.priority || 'Medium'}</span>
             </div>
@@ -1095,18 +1095,18 @@ function buildWantPage() {
       const _wDInShare = typeof isShareMode === 'function' && isShareMode('want');
       const _wDSelected = _wDInShare && window._shareItems && window._shareItems[_wDShareKey];
       if (_wDInShare) { if (!window._shareDataMap) window._shareDataMap = {}; window._shareDataMap[_wDShareKey] = { itemNum: w.itemNum, variation: w.variation||'', want: w, master: master }; }
-      return `<tr id="share-card-${_wDShareKey}" ${_wDInShare ? 'onclick="toggleShareItem(\'' + _wDShareKey + '\')"' : ''} style="cursor:${_wDInShare ? 'pointer' : 'default'}${_wDSelected ? ';outline:2px solid #3a9e68;background:rgba(58,158,104,0.06)' : ''}">
-        <td ${!_wDInShare ? `onclick="_wantViewDetail('${w.itemNum}','${(w.variation||'').replace(/'/g,"\\'")}')" style="cursor:pointer"` : ''}><span class="item-num">${_wDInShare ? '<input type="checkbox" id="share-cb-' + _wDShareKey + '" ' + (_wDSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _wDShareKey + '\')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">' : ''}${_composeItemNumHTML(w.itemNum, w.variation)}</span>${w._wantMates ? ' <span style="font-size:0.7rem;color:#9ecbff;vertical-align:middle">🔗 ' + w._wantMates.join(' + ') + '</span> <span style="font-size:0.6rem;font-weight:700;color:var(--accent3,#3a9e68);border:1px solid var(--accent3,#3a9e68);border-radius:4px;padding:0.05rem 0.3rem;vertical-align:middle">' + (w._groupCfg || 'Set') + '</span>' : ''}${_isSet ? ' <span style="font-size:0.62rem;color:#e67e22;font-weight:600;vertical-align:middle">SET</span>' : ''}</td>
+      return `<tr id="share-card-${_wDShareKey}" ${_wDInShare ? 'onclick="toggleShareItem(\'' + _wDShareKey + '\')"' : ''} style="cursor:${_wDInShare ? 'pointer' : 'default'}${_wDSelected ? ';outline:2px solid #2ecc71;background:rgba(46,204,113,0.06)' : ''}">
+        <td ${!_wDInShare ? `onclick="_wantViewDetail('${w.itemNum}','${(w.variation||'').replace(/'/g,"\\'")}')" style="cursor:pointer"` : ''}><span class="item-num">${_wDInShare ? '<input type="checkbox" id="share-cb-' + _wDShareKey + '" ' + (_wDSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _wDShareKey + '\')" style="width:1rem;height:1rem;accent-color:#2ecc71;margin-right:5px;vertical-align:middle">' : ''}${_composeItemNumHTML(w.itemNum, w.variation)}</span>${w._wantMates ? ' <span style="font-size:0.7rem;color:#9ecbff;vertical-align:middle">🔗 ' + w._wantMates.join(' + ') + '</span> <span style="font-size:0.6rem;font-weight:700;color:var(--accent3,#2ecc71);border:1px solid var(--accent3,#2ecc71);border-radius:4px;padding:0.05rem 0.3rem;vertical-align:middle">' + (w._groupCfg || 'Set') + '</span>' : ''}${_isSet ? ' <span style="font-size:0.62rem;color:#e67e22;font-weight:600;vertical-align:middle">SET</span>' : ''}</td>
         <td>${_displayRoad || '<span class="text-dim">—</span>'}</td>
         <td>${_isSet ? '<span class="text-dim">—</span>' : (w.variation || '<span class="text-dim">—</span>')}</td>
         <td>${varCell}</td>
         <td><span style="color:${pColor};font-weight:500">${w.priority || 'Medium'}</span></td>
         <td class="market-val">${(w._pairPrice || w.expectedPrice) ? _currencySymbol() + parseFloat(w._pairPrice || w.expectedPrice).toLocaleString() + (w._pairPrice ? ' <span style="font-size:0.65rem;color:var(--text-dim)">pair</span>' : '') : '<span class="text-dim">—</span>'}</td>
         <td style="white-space:nowrap">
-          ${!_wDInShare ? `<button onclick="moveWantToCollection('${w.itemNum}','${(w.variation||'').replace(/'/g,"\\'")}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);margin-right:0.25rem" title="Add to My Collection">+ Collection</button>
-          <button onclick="wantFindOnEbay('${w.itemNum}','${(roadName||'').replace(/'/g,"\\'")}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);margin-right:0.25rem" title="Search eBay">eBay</button>
-          <button onclick="wantSearchOtherSites('${w.itemNum}','${(roadName||'').replace(/'/g,"\\'")}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2980b9;background:rgba(41,128,185,0.12);color:#2980b9;font-family:var(--font-body);margin-right:0.25rem" title="Search other auction sites">Search</button>
-          <button onclick="removeWantItem('${w.itemNum}','${(w.variation||'').replace(/'/g,"\\'")}',${w.row})" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)" title="Remove from Want List">Remove</button>` : ''}
+          ${!_wDInShare ? `<button onclick="moveWantToCollection('${w.itemNum}','${(w.variation||'').replace(/'/g,"\\'")}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);margin-right:0.25rem" title="Add to My Collection">+ Collection</button>
+          <button onclick="wantFindOnEbay('${w.itemNum}','${(roadName||'').replace(/'/g,"\\'")}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);margin-right:0.25rem" title="Search eBay">eBay</button>
+          <button onclick="wantSearchOtherSites('${w.itemNum}','${(roadName||'').replace(/'/g,"\\'")}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2980b9;background:rgba(41,128,185,0.12);color:#2980b9;font-family:var(--font-body);margin-right:0.25rem" title="Search other auction sites">Search</button>
+          <button onclick="removeWantItem('${w.itemNum}','${(w.variation||'').replace(/'/g,"\\'")}',${w.row})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)" title="Remove from Want List">Remove</button>` : ''}
         </td>
       </tr>`;
     }).join('') || '<tr><td colspan="7" class="ui-empty">No items on want list</td></tr>';
@@ -1611,7 +1611,7 @@ function buildSoldPage() {
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div>
             <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${sd.itemNum || '—'}</span>
-            ${sd._wantMates ? `<span style="font-size:0.72rem;color:#9ecbff">🔗 ${sd._wantMates.join(' + ')}</span> <span style="font-size:0.6rem;font-weight:700;color:var(--accent3,#3a9e68);border:1px solid var(--accent3,#3a9e68);border-radius:4px;padding:0.05rem 0.3rem;vertical-align:middle">${sd._groupCfg || 'Set'}</span>` : ''}
+            ${sd._wantMates ? `<span style="font-size:0.72rem;color:#9ecbff">🔗 ${sd._wantMates.join(' + ')}</span> <span style="font-size:0.6rem;font-weight:700;color:var(--accent3,#2ecc71);border:1px solid var(--accent3,#2ecc71);border-radius:4px;padding:0.05rem 0.3rem;vertical-align:middle">${sd._groupCfg || 'Set'}</span>` : ''}
             ${sd.variation ? `<span style="font-size:0.72rem;color:var(--text-dim);margin-left:0.4rem">${sd.variation}</span>` : ''}
             ${sd._roadName ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">${sd._roadName}</div>` : ''}
             <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${[sd._type, sd.condition ? 'Cond: '+sd.condition : '', _formatDate(sd.dateSold)].filter(Boolean).join(' · ')}</div>
@@ -1628,7 +1628,7 @@ function buildSoldPage() {
     tbody.innerHTML = soldEntries.length ? soldEntries.map(sd => {
       return `<tr onclick="showSoldDetailPage('${sd.key}')" style="cursor:pointer">
         ${typeof _mfrBadge==='function' ? _mfrBadge({ manufacturer: sd.manufacturer || '' }) : '<td>—</td>'}
-        <td><span class="item-num">${sd.itemNum || '—'}</span>${sd._wantMates ? ' <span style="font-size:0.7rem;color:#9ecbff">🔗 ' + sd._wantMates.join(' + ') + '</span> <span style="font-size:0.6rem;font-weight:700;color:var(--accent3,#3a9e68);border:1px solid var(--accent3,#3a9e68);border-radius:4px;padding:0.05rem 0.3rem">' + (sd._groupCfg || 'Set') + '</span>' : ''}</td>
+        <td><span class="item-num">${sd.itemNum || '—'}</span>${sd._wantMates ? ' <span style="font-size:0.7rem;color:#9ecbff">🔗 ' + sd._wantMates.join(' + ') + '</span> <span style="font-size:0.6rem;font-weight:700;color:var(--accent3,#2ecc71);border:1px solid var(--accent3,#2ecc71);border-radius:4px;padding:0.05rem 0.3rem">' + (sd._groupCfg || 'Set') + '</span>' : ''}</td>
         <td><span class="tag">${sd._type || '—'}</span></td>
         <td>${sd._roadName || '—'}</td>
         <td>${sd.variation || '—'}</td>
@@ -1910,10 +1910,10 @@ function buildForSalePage() {
         : (_fsMasterIdx >= 0 ? ('window._detailReturn=\'forsale\';showItemDetailPage(' + _fsMasterIdx + ', \'\')') : '');
       const _fsCardClick = _fsInShare ? ('onclick="toggleShareItem(\'' + _fsShareKey + '\')"') : (_fsOpen ? ('onclick="' + _fsOpen + '"') : '');
       const _fsCardCursor = (_fsInShare || _fsOpen) ? 'pointer' : 'default';
-      return `<div id="share-card-${_fsShareKey}" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem;cursor:${_fsCardCursor}${_fsSelected ? ';outline:2px solid #3a9e68' : ''}" ${_fsCardClick}>
+      return `<div id="share-card-${_fsShareKey}" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem;cursor:${_fsCardCursor}${_fsSelected ? ';outline:2px solid #2ecc71' : ''}" ${_fsCardClick}>
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div style="display:flex;align-items:flex-start;gap:0.5rem">
-            ${_fsInShare ? '<input type="checkbox" id="share-cb-' + _fsShareKey + '" ' + (_fsSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _fsShareKey + '\')" style="width:1.1rem;height:1.1rem;accent-color:#3a9e68;flex-shrink:0;margin-top:0.2rem">' : ''}
+            ${_fsInShare ? '<input type="checkbox" id="share-cb-' + _fsShareKey + '" ' + (_fsSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _fsShareKey + '\')" style="width:1.1rem;height:1.1rem;accent-color:#2ecc71;flex-shrink:0;margin-top:0.2rem">' : ''}
             <div>
               <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${_fsItemNumHTML(fs)}</span>
               ${master.roadName ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">${master.roadName}</div>` : ''}
@@ -1951,9 +1951,9 @@ function buildForSalePage() {
       const _fsDClickAttr = _fsDInShare
         ? `onclick="toggleShareItem('${_fsDShareKey}')"`
         : (_fsDOpen ? `onclick="${_fsDOpen}"` : '');
-      return `<tr id="share-card-${_fsDShareKey}" ${_fsDClickAttr} style="cursor:${_fsDInShare || _fsDOpen ? 'pointer' : 'default'}${_fsDSelected ? ';outline:2px solid #3a9e68;background:rgba(58,158,104,0.06)' : ''}">
+      return `<tr id="share-card-${_fsDShareKey}" ${_fsDClickAttr} style="cursor:${_fsDInShare || _fsDOpen ? 'pointer' : 'default'}${_fsDSelected ? ';outline:2px solid #2ecc71;background:rgba(46,204,113,0.06)' : ''}">
         ${typeof _mfrBadge==='function' ? _mfrBadge({ manufacturer: fs.manufacturer || '' }) : '<td>—</td>'}
-        <td><span class="item-num">${_fsDInShare ? '<input type="checkbox" id="share-cb-' + _fsDShareKey + '" ' + (_fsDSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _fsDShareKey + '\')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">' : ''}${_fsItemNumHTML(fs)}</span></td>
+        <td><span class="item-num">${_fsDInShare ? '<input type="checkbox" id="share-cb-' + _fsDShareKey + '" ' + (_fsDSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _fsDShareKey + '\')" style="width:1rem;height:1rem;accent-color:#2ecc71;margin-right:5px;vertical-align:middle">' : ''}${_fsItemNumHTML(fs)}</span></td>
         <td><span class="tag">${master.itemType || '—'}</span></td>
         <td>${master.roadName || '—'}</td>
         <td>${fs.condition || '—'}</td>
@@ -1961,9 +1961,9 @@ function buildForSalePage() {
         <td class="text-dim">${estWorth ? _currencySymbol() + parseFloat(estWorth).toLocaleString() : '—'}</td>
         <td class="text-dim">${_formatDate(fs.dateListed) || '—'}</td>
         <td style="white-space:normal">
-          ${!_fsDInShare ? `<button onclick="event.stopPropagation();markForSaleAsSold('${_fsEntryKey(fs)}','${fs.askingPrice||''}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);margin-right:0.3rem" title="Mark as sold">Sold</button>
-          <button onclick="event.stopPropagation();removeForSaleItem('${_fsEntryKey(fs)}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);margin-right:0.3rem" title="Take off sale, keep in collection">Unlist</button>
-          <button onclick="event.stopPropagation();removeForSaleAndCollection('${_fsEntryKey(fs)}')" style="padding:0.3rem 0.5rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #e74c3c;background:rgba(231,76,60,0.10);color:#e74c3c;font-family:var(--font-body)">Remove</button>` : ''}
+          ${!_fsDInShare ? `<button onclick="event.stopPropagation();markForSaleAsSold('${_fsEntryKey(fs)}','${fs.askingPrice||''}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);margin-right:0.3rem" title="Mark as sold">Sold</button>
+          <button onclick="event.stopPropagation();removeForSaleItem('${_fsEntryKey(fs)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);margin-right:0.3rem" title="Take off sale, keep in collection">Unlist</button>
+          <button onclick="event.stopPropagation();removeForSaleAndCollection('${_fsEntryKey(fs)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e74c3c;background:rgba(231,76,60,0.10);color:#e74c3c;font-family:var(--font-body)">Remove</button>` : ''}
         </td>
       </tr>`;
     }).join('') : '<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">🏷️</div><p>No items listed for sale</p></div></td></tr>';
@@ -2715,7 +2715,7 @@ function _wuItemNumHTML(u) {
   var num = String(u.itemNum || '');
   if (u._mergedTender) {
     var _cfg = (typeof groupConfigLabel === 'function') ? groupConfigLabel(num, [u._mergedTender]) : '';
-    return num + ' <span style="opacity:0.6;font-size:0.8em" title="Paired set — priced together">\uD83D\uDD17</span> <span style="font-size:0.85em;color:var(--text-mid)">' + u._mergedTender + '</span>' + (_cfg ? ' <span style="font-size:0.6rem;font-weight:700;color:var(--accent3,#3a9e68);border:1px solid var(--accent3,#3a9e68);border-radius:4px;padding:0.05rem 0.3rem;vertical-align:middle">' + _cfg + '</span>' : '');
+    return num + ' <span style="opacity:0.6;font-size:0.8em" title="Paired set — priced together">\uD83D\uDD17</span> <span style="font-size:0.85em;color:var(--text-mid)">' + u._mergedTender + '</span>' + (_cfg ? ' <span style="font-size:0.6rem;font-weight:700;color:var(--accent3,#2ecc71);border:1px solid var(--accent3,#2ecc71);border-radius:4px;padding:0.05rem 0.3rem;vertical-align:middle">' + _cfg + '</span>' : '');
   }
   return num;
 }
@@ -2969,8 +2969,8 @@ function buildUpgradePage() {
       var _wuTrAttrs = '';
       var _wuCheckbox = '';
       if (_wuInShare) {
-        _wuTrAttrs = ' id="share-card-' + _wuShareKey + '" onclick="toggleShareItem(\'' + _wuShareKey + '\')" style="cursor:pointer;' + (_wuSelected ? 'outline:2px solid #3a9e68;background:rgba(58,158,104,0.06);' : '') + '"';
-        _wuCheckbox = '<input type="checkbox" id="share-cb-' + _wuShareKey + '" ' + (_wuSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _wuShareKey + '\')" style="width:1rem;height:1rem;accent-color:#3a9e68;margin-right:5px;vertical-align:middle">';
+        _wuTrAttrs = ' id="share-card-' + _wuShareKey + '" onclick="toggleShareItem(\'' + _wuShareKey + '\')" style="cursor:pointer;' + (_wuSelected ? 'outline:2px solid #2ecc71;background:rgba(46,204,113,0.06);' : '') + '"';
+        _wuCheckbox = '<input type="checkbox" id="share-cb-' + _wuShareKey + '" ' + (_wuSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _wuShareKey + '\')" style="width:1rem;height:1rem;accent-color:#2ecc71;margin-right:5px;vertical-align:middle">';
       } else {
         // Non-share mode: clicking the row opens the catalog item detail page.
         var _escVarAttr = (u.variation||'').replace(/'/g,"\\'");
@@ -2989,15 +2989,15 @@ function buildUpgradePage() {
         <td style="font-size:0.8rem;color:var(--text-dim);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_wlStripGrp(u.notes||'').replace(/"/g,'&quot;')}">${_wlStripGrp(u.notes) || '<span class="text-dim">—</span>'}</td>
         <td style="white-space:normal">
           ${!_isWant && hasPhoto ? `<button onclick="event.stopPropagation();_toggleUpgradePhoto('${photoId}','${(pd.photoItem||'').replace(/'/g,"\\'")}')" style="padding:0.25rem 0.4rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);margin-right:0.2rem" title="Toggle photo">📷</button>` : ''}
-          ${!_isWant ? `<button onclick="event.stopPropagation();_upgradeViewMine('${_ugEntryKey(u)}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">View Mine</button>` : ''}
-          <button onclick="event.stopPropagation();wantFindOnEbay('${u.itemNum}','${escName}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);margin-right:0.2rem">eBay</button>
-          <button onclick="event.stopPropagation();wantSearchOtherSites('${u.itemNum}','${escName}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2980b9;background:rgba(41,128,185,0.12);color:#2980b9;font-family:var(--font-body);margin-right:0.2rem">Search</button>
+          ${!_isWant ? `<button onclick="event.stopPropagation();_upgradeViewMine('${_ugEntryKey(u)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">View Mine</button>` : ''}
+          <button onclick="event.stopPropagation();wantFindOnEbay('${u.itemNum}','${escName}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);margin-right:0.2rem">eBay</button>
+          <button onclick="event.stopPropagation();wantSearchOtherSites('${u.itemNum}','${escName}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2980b9;background:rgba(41,128,185,0.12);color:#2980b9;font-family:var(--font-body);margin-right:0.2rem">Search</button>
           ${_isWant
-            ? `<button onclick="event.stopPropagation();moveWantToCollection('${u.itemNum}','${escVar}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">+ Collection</button>`
-            : `<button onclick="event.stopPropagation();upgradeGotIt('${_ugEntryKey(u)}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">✓ Got It</button>`}
+            ? `<button onclick="event.stopPropagation();moveWantToCollection('${u.itemNum}','${escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">+ Collection</button>`
+            : `<button onclick="event.stopPropagation();upgradeGotIt('${_ugEntryKey(u)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">✓ Got It</button>`}
           ${_isWant
-            ? `<button onclick="event.stopPropagation();removeWantItem('${u.itemNum}','${escVar}',${u.row})" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>`
-            : `<button onclick="event.stopPropagation();removeUpgradeItem('${_ugEntryKey(u)}')" style="padding:0.25rem 0.45rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>`}
+            ? `<button onclick="event.stopPropagation();removeWantItem('${u.itemNum}','${escVar}',${u.row})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>`
+            : `<button onclick="event.stopPropagation();removeUpgradeItem('${_ugEntryKey(u)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>`}
         </td>
       </tr>
       ${!_isWant ? `<tr id="${photoId}-row" style="display:none"><td colspan="8" style="padding:0.5rem 1rem;background:var(--surface2)"><img src="${pd && pd.photoItem ? pd.photoItem : ''}" style="max-height:160px;border-radius:6px;object-fit:contain" onerror="this.parentElement.parentElement.style.display='none'"></td></tr>` : ''}`;
@@ -3578,7 +3578,7 @@ function _renderPartsList() {
       + (p.notes ? '<div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.2rem">' + p.notes + '</div>' : '')
       + '</div>'
       + '<div style="display:flex;gap:0.35rem;flex-wrap:wrap">'
-      + ((p.forInv && state.personalData && state.personalData[p.forInv]) ? '<button onclick="markPartInstalled(' + p.row + ')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #27ae60;background:rgba(39,174,96,0.12);color:#27ae60;font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">\u2713 Installed</button>' : '')
+      + ((p.forInv && state.personalData && state.personalData[p.forInv]) ? '<button onclick="markPartInstalled(' + p.row + ')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">\u2713 Installed</button>' : '')
       + '<button onclick="googlePart(\'' + esc(p.partNum) + '\',\'' + esc(p.forItem) + '\',\'' + esc(p.description) + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #2980b9;background:rgba(41,128,185,0.1);color:#2980b9;font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">Google</button>'
       + '<button onclick="showAddPartModal(\'' + p.id + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.75rem;cursor:pointer">Edit</button>'
       + '<button onclick="removePart(' + p.row + ')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #e74c3c;background:rgba(231,76,60,0.1);color:#e74c3c;font-family:var(--font-body);font-size:0.75rem;cursor:pointer">Remove</button>'
@@ -3742,7 +3742,7 @@ function markPartInstalled(rowNum) {
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10060;display:flex;align-items:center;justify-content:center;padding:1.25rem';
   ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
   ov.innerHTML = '<div style="background:var(--surface);border-radius:14px;padding:1.4rem;max-width:420px;width:100%;border:1px solid var(--border);max-height:90vh;overflow-y:auto">'
-    + '<div style="font-family:var(--font-head);font-size:1.05rem;font-weight:700;color:#27ae60;margin-bottom:0.3rem">\u2713 Mark Part Installed</div>'
+    + '<div style="font-family:var(--font-head);font-size:1.05rem;font-weight:700;color:#2ecc71;margin-bottom:0.3rem">\u2713 Mark Part Installed</div>'
     + '<div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:0.9rem">Recording this on <strong style="color:var(--text)">' + itemLabel + '</strong>. The details below get added to that item\'s notes.</div>'
     + '<label style="' + LB + '">Part installed *</label>'
     + '<input id="_inst-desc" type="text" value="' + _esc(p.description) + '" style="' + IN + '">'
@@ -3763,7 +3763,7 @@ function markPartInstalled(rowNum) {
     + '<div style="font-size:0.68rem;color:var(--text-dim);margin:-0.3rem 0 0.9rem">Adding a replacement part usually means it is no longer all original \u2014 change to Yes if this was a correct original part.</div>'
     + '<div style="display:flex;gap:0.6rem">'
     + '<button onclick="document.getElementById(\'_part-install-modal\').remove()" style="flex:1;padding:0.6rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);cursor:pointer">Cancel</button>'
-    + '<button onclick="_savePartInstalled(' + rowNum + ')" style="flex:2;padding:0.6rem;border-radius:8px;border:none;background:#27ae60;color:#fff;font-family:var(--font-body);font-weight:600;cursor:pointer">\u2713 Save to item</button>'
+    + '<button onclick="_savePartInstalled(' + rowNum + ')" style="flex:2;padding:0.6rem;border-radius:8px;border:none;background:#2ecc71;color:#fff;font-family:var(--font-body);font-weight:600;cursor:pointer">\u2713 Save to item</button>'
     + '</div></div>';
   document.body.appendChild(ov);
   if (window.BackStack && BackStack.wire) BackStack.wire(ov); // v0.9.805 TODO-012: device Back closes this pop-up

@@ -1055,8 +1055,8 @@ function showItemDetailPage(idx, copyInvId, opts) {
 
   // ── GROUP MEMBERS STRIP (v0.9.728 — Brad's one-sheet-per-group) ──
   if (_isGroupSheet) {
-    html += '<div style="background:var(--surface);border:1.5px solid var(--accent3,#3a9e68);border-radius:14px;padding:1rem 1.25rem;margin-bottom:1.5rem">'
-      + '<div style="font-family:var(--font-head);font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent3,#3a9e68);margin-bottom:0.7rem">🔗 '
+    html += '<div style="background:var(--surface);border:1.5px solid var(--accent3,#2ecc71);border-radius:14px;padding:1rem 1.25rem;margin-bottom:1.5rem">'
+      + '<div style="font-family:var(--font-head);font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent3,#2ecc71);margin-bottom:0.7rem">🔗 '
       + (function () {
           var _lead = _grpUnits[0] ? String(_grpUnits[0].itemNum || '') : '';
           var _base = _lead.replace(/-(P|D)$/i, '');
@@ -1072,8 +1072,8 @@ function showItemDetailPage(idx, copyInvId, opts) {
           var cond = p.condition ? p.condition + '/10' : '—';
           var box = /-(BOX|MBOX)$/i.test(String(p.itemNum||'')) ? '' : (p.hasBox === 'Yes' ? ('Box ✓' + (p.boxCond ? ' (' + p.boxCond + ')' : '')) : 'No box');
           var worth = p.userEstWorth ? _currencySymbol() + parseFloat(p.userEstWorth).toLocaleString() : '';
-          return '<div style="flex:1;min-width:150px;max-width:230px;background:var(--surface2);border:1px solid ' + (me ? 'var(--accent3,#3a9e68)' : 'var(--border)') + ';border-radius:10px;padding:0.6rem 0.75rem">'
-            + '<div style="font-size:0.64rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent3,#3a9e68)">' + role + (me ? ' · this page' : '') + '</div>'
+          return '<div style="flex:1;min-width:150px;max-width:230px;background:var(--surface2);border:1px solid ' + (me ? 'var(--accent3,#2ecc71)' : 'var(--border)') + ';border-radius:10px;padding:0.6rem 0.75rem">'
+            + '<div style="font-size:0.64rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent3,#2ecc71)">' + role + (me ? ' · this page' : '') + '</div>'
             + '<div style="font-family:var(--font-mono);font-weight:700;color:var(--accent);font-size:0.95rem;margin:0.15rem 0">' + String(p.itemNum || '').replace(/</g, '&lt;') + (p.photoItem ? ' <span title="Has photos" style="font-size:0.78rem">📷</span>' : '') + '</div>'
             + '<div style="font-size:0.74rem;color:var(--text-mid);line-height:1.5">Cond ' + cond + (box ? ' · ' + box : '') + (worth ? '<br>Worth ' + worth : '') + '</div>'
             + '<button onclick="_grpEditMember(' + i + ')" style="margin-top:0.45rem;width:100%;padding:0.3rem;border-radius:7px;border:1px solid #2980b9;background:rgba(41,128,185,0.08);color:#2980b9;font-size:0.7rem;cursor:pointer;font-family:var(--font-body);font-weight:600">Edit / Photos</button>'
@@ -1196,7 +1196,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
     </div>
     ${_grpPhotoMembers.length
       ? _grpPhotoMembers.map(function (p, gi) {
-          return '<div style="font-size:0.7rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent3,#3a9e68);margin:0.6rem 0 0.4rem">' + _grpRole(p) + ' — ' + String(p.itemNum||'').replace(/</g,'&lt;') + ' <a href="' + p.photoItem + '" target="_blank" rel="noopener" style="font-weight:400;text-transform:none;color:var(--accent2);text-decoration:none;letter-spacing:0">folder \u2197</a></div>'
+          return '<div style="font-size:0.7rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent3,#2ecc71);margin:0.6rem 0 0.4rem">' + _grpRole(p) + ' — ' + String(p.itemNum||'').replace(/</g,'&lt;') + ' <a href="' + p.photoItem + '" target="_blank" rel="noopener" style="font-weight:400;text-transform:none;color:var(--accent2);text-decoration:none;letter-spacing:0">folder \u2197</a></div>'
             + '<div id="grp-photos-' + gi + '" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:0.75rem;min-height:40px"><div style="grid-column:1/-1;color:var(--text-dim);font-size:0.78rem">Loading…</div></div>';
         }).join('')
       : `<div id="item-detail-photos" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:0.75rem;min-height:80px">
@@ -1863,7 +1863,7 @@ function _checkSetBeforeAction(pdKey, leadIdx, proceed) {
     + rowsHtml
     + '<div style="font-size:0.76rem;color:var(--accent2);background:rgba(201,146,42,0.1);border-radius:6px;padding:0.5rem 0.7rem;margin-top:0.2rem">Unchecked pieces are unlinked and stay in your collection.</div>'
     + '<div style="display:flex;flex-direction:column;gap:0.5rem;margin-top:0.9rem">'
-    + '<button id="_gs-sell" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid #27ae60;background:rgba(39,174,96,0.1);color:#27ae60;font-family:var(--font-body);font-size:0.9rem;font-weight:700;cursor:pointer;text-align:left">Continue to Sale →<br><span style="font-weight:400;font-size:0.76rem;color:var(--text-dim)">Sell the checked piece(s) for one price</span></button>'
+    + '<button id="_gs-sell" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-size:0.9rem;font-weight:700;cursor:pointer;text-align:left">Continue to Sale →<br><span style="font-weight:400;font-size:0.76rem;color:var(--text-dim)">Sell the checked piece(s) for one price</span></button>'
     + '<button id="_gs-cancel" style="padding:0.6rem;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Cancel</button>'
     + '</div></div>';
   document.body.appendChild(overlay);
