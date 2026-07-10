@@ -33,7 +33,7 @@ function _openCropper(src, onResult, onCancel) {   // v0.9.787: onCancel = proce
   // opening BENEATH it looked like a dead button (it appeared after Save).
   ov.style.cssText = 'position:fixed;inset:0;z-index:100010;background:rgba(0,0,0,0.88);display:flex;flex-direction:column';
   var btn = 'padding:0.55rem 1.1rem;border-radius:8px;font-family:var(--font-body);font-size:0.9rem;font-weight:600;cursor:pointer;border:1px solid #555;background:#2a2a2a;color:#eee';
-  var btnA = 'padding:0.55rem 1.2rem;border-radius:8px;font-family:var(--font-body);font-size:0.9rem;font-weight:700;cursor:pointer;border:none;background:#e8401c;color:#fff';
+  var btnA = 'padding:0.55rem 1.2rem;border-radius:8px;font-family:var(--font-body);font-size:0.9rem;font-weight:700;cursor:pointer;border:none;background:var(--accent);color:#fff';
   ov.innerHTML =
     '<div style="padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center;color:#fff;gap:1rem;flex-wrap:wrap">' +
       '<strong style="font-size:1rem">Crop photo</strong>' +

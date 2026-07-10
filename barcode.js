@@ -597,14 +597,14 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           <button id="bc-torch" type="button" style="display:none;padding:0.5rem 0.9rem;border-radius:10px;border:1px solid #444;background:#222;color:#eee;font-size:0.85rem;cursor:pointer">🔦 Light</button>
           <div id="bc-zoomwrap" style="display:none;flex:1;max-width:240px;align-items:center;gap:0.4rem">
             <span style="color:#aaa;font-size:0.78rem">Zoom</span>
-            <input id="bc-zoom" type="range" style="flex:1;accent-color:#e04028">
+            <input id="bc-zoom" type="range" style="flex:1;accent-color:var(--accent)">
           </div>
         </div>
         <div id="bc-status" style="color:#ccc;font-size:0.85rem;text-align:center;min-height:1.4em">Fit the barcode & item number fully in the frame</div>
         <button id="bc-tolabel" type="button" style="width:100%;padding:0.7rem;border-radius:10px;border:1px solid #3a6ea5;background:rgba(58,110,165,0.18);color:#cfe3ff;font-size:0.9rem;font-family:inherit;cursor:pointer">📸 Can't scan? Read the label instead</button>
         <div style="display:flex;gap:0.6rem;width:100%">
           <button id="bc-cancel" style="flex:1;padding:0.8rem;border-radius:10px;border:1px solid #444;background:#222;color:#eee;font-size:0.95rem;font-family:inherit;cursor:pointer">Cancel</button>
-          <button id="bc-manual" style="flex:2;padding:0.8rem;border-radius:10px;border:none;background:#e04028;color:#fff;font-size:0.95rem;font-family:inherit;font-weight:600;cursor:pointer">Can't Read — Type Instead</button>
+          <button id="bc-manual" style="flex:2;padding:0.8rem;border-radius:10px;border:none;background:var(--accent);color:#fff;font-size:0.95rem;font-family:inherit;font-weight:600;cursor:pointer">Can't Read — Type Instead</button>
         </div>
       </div>
     `;
@@ -1302,7 +1302,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       +   '<button id="lbl-torch" type="button" style="display:none;padding:0.5rem 0.9rem;border-radius:9px;border:1px solid #555;background:transparent;color:#ddd;font-size:0.85rem;cursor:pointer">🔦 Light</button>'
       +   '<div id="lbl-zoomwrap" style="display:none;flex:1;max-width:240px;align-items:center;gap:0.4rem">'
       +     '<span style="color:#aaa;font-size:0.78rem">Zoom</span>'
-      +     '<input id="lbl-zoom" type="range" style="flex:1;accent-color:#e8401c">'
+      +     '<input id="lbl-zoom" type="range" style="flex:1;accent-color:var(--accent)">'
       +   '</div>'
       + '</div>'
       + '<div id="lbl-status" style="color:#ccc;font-size:0.85rem;text-align:center;min-height:1.4em">Aim at the item-number label — held right-side up — then tap Capture.</div>'
@@ -2257,7 +2257,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                 out.why.reason === 'hedge' ? "couldn't pin it down" :
                 out.why.reason === 'noconsent' ? 'photo permission declined' :
                 out.why.reason === 'offline' ? 'offline' : 'no confident answer';
-    st('ai', '❌', 'Close look: ' + aiWhy, '#e8401c');
+    st('ai', '❌', 'Close look: ' + aiWhy, 'var(--accent)');
     return { __biFail: true, out: out };
   }
 

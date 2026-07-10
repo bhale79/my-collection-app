@@ -37,12 +37,12 @@ function renderReportLibrary() {
 
   el.innerHTML = defs.map(function (d) {
     var menu =
-      '<div id="repmenu-' + _repEsc(d.id) + '" style="display:none;position:absolute;right:0;top:110%;z-index:50;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.35);overflow:hidden;min-width:140px">' +
+      '<div id="repmenu-' + _repEsc(d.id) + '" style="display:none;position:absolute;right:0;top:110%;z-index:50;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.35);overflow:hidden;min-width:140px">' +
         '<button onclick="_repExport(\'' + _repEsc(d.id) + '\',\'pdf\')" style="display:block;width:100%;text-align:left;padding:0.5rem 0.85rem;background:none;border:none;color:var(--text);font-family:var(--font-body);font-size:0.82rem;cursor:pointer">PDF (with photos)</button>' +
         '<button onclick="_repExport(\'' + _repEsc(d.id) + '\',\'doc\')" style="display:block;width:100%;text-align:left;padding:0.5rem 0.85rem;background:none;border:none;color:var(--text);font-family:var(--font-body);font-size:0.82rem;cursor:pointer">Google Doc</button>' +
         '<button onclick="_repExport(\'' + _repEsc(d.id) + '\',\'csv\')" style="display:block;width:100%;text-align:left;padding:0.5rem 0.85rem;background:none;border:none;color:var(--text);font-family:var(--font-body);font-size:0.82rem;cursor:pointer">CSV (spreadsheet)</button>' +
       '</div>';
-    return '<div style="display:flex;align-items:center;gap:1rem;padding:0.9rem 1.1rem;margin-bottom:0.6rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;flex-wrap:wrap">' +
+    return '<div style="display:flex;align-items:center;gap:1rem;padding:0.9rem 1.1rem;margin-bottom:0.6rem;background:var(--surface);border:1px solid var(--border);border-radius:14px;flex-wrap:wrap">' +
       '<div style="flex:1;min-width:200px">' +
         '<div style="font-weight:700;font-size:1rem;color:var(--text)">' + _repEsc(d.name) + '</div>' +
         '<div style="font-size:0.82rem;color:var(--text-dim);margin-top:1px">' + _repEsc(d.desc) + '</div>' +

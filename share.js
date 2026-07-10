@@ -117,7 +117,7 @@ function openShareBuilder() {
   modal.style.cssText = 'position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;padding:1rem';
 
   modal.innerHTML =
-    '<div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1.5rem;width:100%;max-width:440px;max-height:90vh;overflow-y:auto">' +
+    '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.5rem;width:100%;max-width:440px;max-height:90vh;overflow-y:auto">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">' +
         '<div style="font-family:var(--font-head);font-size:1.2rem;color:var(--text)">Share ' + count + ' Item' + (count !== 1 ? 's' : '') + '</div>' +
         '<button onclick="document.getElementById(\'share-builder-modal\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.4rem;cursor:pointer;line-height:1">✕</button>' +

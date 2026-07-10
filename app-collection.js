@@ -1654,9 +1654,9 @@ function _checkGroupBeforeForSale(globalIdx, pdKey) {
   const _itemTableHtml = '<div style="margin:0.6rem 0 0.75rem;border:1px solid var(--border);border-radius:10px;overflow:hidden">'
     + '<table style="width:100%;border-collapse:collapse;font-size:0.8rem">'
     + '<tr style="background:var(--surface2)">'
-    + '<th style="text-align:left;padding:0.4rem 0.6rem;font-family:var(--font-head);font-size:0.62rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim)">Item</th>'
-    + (_hasPaid ? '<th style="text-align:right;padding:0.4rem 0.6rem;font-family:var(--font-head);font-size:0.62rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim)">Paid</th>' : '')
-    + (_hasWorth ? '<th style="text-align:right;padding:0.4rem 0.6rem;font-family:var(--font-head);font-size:0.62rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim)">Est. Worth</th>' : '')
+    + '<th style="text-align:left;padding:0.4rem 0.6rem;font-family:var(--font-head);font-size:0.68rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:var(--text-dim)">Item</th>'
+    + (_hasPaid ? '<th style="text-align:right;padding:0.4rem 0.6rem;font-family:var(--font-head);font-size:0.68rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:var(--text-dim)">Paid</th>' : '')
+    + (_hasWorth ? '<th style="text-align:right;padding:0.4rem 0.6rem;font-family:var(--font-head);font-size:0.68rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:var(--text-dim)">Est. Worth</th>' : '')
     + '</tr>'
     + _itemRows.map(r => '<tr style="border-top:1px solid var(--border)">'
       + '<td style="padding:0.4rem 0.6rem;font-family:var(--font-mono);font-weight:600;color:var(--accent)">' + r.num + '</td>'

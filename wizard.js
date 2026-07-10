@@ -1182,7 +1182,7 @@ function renderWizardStep() {
     const _type  = _typeLabel(_master);
     _titleEl.innerHTML =
       `<div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:0.5rem 0.75rem;margin-bottom:0.35rem">` +
-        `<span style="font-size:0.62rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#e67e22;white-space:nowrap">🎁 Set — Item ${_idx + 1} of ${_total}</span>` +
+        `<span style="font-size:0.68rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:#e67e22;white-space:nowrap">🎁 Set — Item ${_idx + 1} of ${_total}</span>` +
         `<span style="font-size:0.95rem;font-weight:800;color:var(--text);font-family:var(--font-mono)">${_cur}</span>` +
         (_type ? `<span style="font-size:0.72rem;font-weight:600;color:var(--text-mid);text-transform:uppercase;letter-spacing:0.06em">${_type}</span>` : '') +
         `<span style="font-size:0.88rem;color:var(--text-mid)">— ${_titleText}</span>` +
@@ -1471,7 +1471,7 @@ function renderWizardStep() {
           autocomplete="off"
           oninput="wizard.data['${s.id}']=this.value; if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='itemNum') debouncedItemSuggestions(this.value); if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='set_num') updateSetSuggestions(this.value); if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='eph_itemNumRef') updateMockupRefSuggestions(this.value); ${_showCollPicker ? '_filterCollPicker(this.value)' : ''}"
           onkeydown="handleSuggestionKey(event)">
-        <div id="wiz-suggestions" style="display:none;flex-direction:column;gap:1px;margin-top:4px;max-height:340px;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;-webkit-overflow-scrolling:touch"></div>
+        <div id="wiz-suggestions" style="display:none;flex-direction:column;gap:1px;margin-top:4px;max-height:340px;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:4px;-webkit-overflow-scrolling:touch"></div>
         ${s.optional ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>' : ''}
         <div id="wiz-match" style="margin-top:0.75rem"></div>
         ${s.id === 'itemNum' && wizard.tab !== 'sold' ? `
@@ -2855,7 +2855,7 @@ function renderWizardStep() {
       + 'style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none" '
       + 'oninput="wizard.data[\'' + field + '\']=this.value; updateUnitNumSuggestions(this.value,\'' + field + '\')" '
       + 'onkeydown="handleUnitNumKey(event)">'
-      + '<div id="wiz-unit-suggestions" style="display:none;flex-direction:column;gap:2px;margin-top:4px;max-height:200px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:4px"></div>'
+      + '<div id="wiz-unit-suggestions" style="display:none;flex-direction:column;gap:2px;margin-top:4px;max-height:200px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:4px"></div>'
       + '</div>';
     setTimeout(function() {
       const i = document.getElementById('wiz-unit-num');
@@ -3995,7 +3995,7 @@ function renderWizardStep() {
             padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none;box-sizing:border-box"
             oninput="wizard.data.itemNum=this.value; debouncedItemSuggestions(this.value); _updateGroupingButtons();"
             onkeydown="handleSuggestionKey(event)">
-          <div id="wiz-suggestions" style="display:none;flex-direction:column;gap:1px;margin-top:4px;max-height:340px;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;-webkit-overflow-scrolling:touch"></div>
+          <div id="wiz-suggestions" style="display:none;flex-direction:column;gap:1px;margin-top:4px;max-height:340px;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:4px;-webkit-overflow-scrolling:touch"></div>
         </div>
         <label onclick="toggleBoxOnly()" data-box-only-checkbox="1" style="
           display:flex;align-items:center;gap:0.45rem;flex-shrink:0;
@@ -5392,7 +5392,7 @@ async function _wizardNextCore() {
       if (_pvInput) {
         var _pvBox = _pvInput.closest('div');
         if (_pvBox) {
-          _pvBox.style.border = '2px solid #e04028';
+          _pvBox.style.border = '2px solid var(--accent)';
           _pvBox.style.boxShadow = '0 0 0 3px rgba(224,64,40,0.2)';
           _pvInput.focus();
           setTimeout(function() {

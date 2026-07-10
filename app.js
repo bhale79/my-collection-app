@@ -2142,7 +2142,7 @@ function showLoading() {
     // Re-check after the retry — if STILL stuck, replace splash with error UI.
     var tb3 = document.getElementById('browse-tbody');
     if (tb3 && tb3.innerHTML.indexOf('Loading The Rail Roster') !== -1) {
-      tb3.innerHTML = '<tr><td colspan="10" style="padding:1.75rem;text-align:center;color:var(--text-dim);font-size:0.88rem">'
+      tb3.innerHTML = '<tr><td colspan="10" style="padding:2rem;text-align:center;color:var(--text-dim);font-size:0.88rem">'
         + 'The catalog finished loading but the page didn\'t refresh. '
         + '<button onclick="location.reload()" style="margin-left:0.5rem;padding:0.35rem 0.9rem;border-radius:7px;border:1.5px solid var(--accent);background:rgba(232,64,28,0.1);color:var(--accent);cursor:pointer;font-weight:600">Reload</button>'
         + '</td></tr>';

@@ -824,7 +824,7 @@ function _renderCrossEraSearchBanner(searchTerm) {
   var html = '<div id="' + BANNER_ID + '" '
     + 'style="display:flex;flex-wrap:wrap;align-items:center;gap:0.5rem;'
     + 'margin:0.4rem 0 0.6rem;padding:0.55rem 0.75rem;'
-    + 'background:var(--surface);border:1px solid var(--border);border-radius:8px">'
+    + 'background:var(--surface);border:1px solid var(--border);border-radius:14px">'
     + '<span style="font-size:0.78rem;color:var(--text-dim);font-family:var(--font-body)">'
     + 'Not finding it? Search &ldquo;<strong style="color:var(--text)">' + esc + '</strong>&rdquo; in&nbsp;</span>'
     + btns

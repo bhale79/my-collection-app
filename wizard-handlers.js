@@ -138,7 +138,7 @@ function _showCustomTenderInput(engineNum) {
     + '<div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:0.85rem">Start typing to find a tender to pair with ' + engineNum + '.</div>'
     + '<div style="position:relative">'
     + '<input id="custom-tender-input" type="text" autocomplete="off" placeholder="e.g. 2046W, 6026T, 243W…" style="width:100%;box-sizing:border-box;padding:0.65rem 0.85rem;border-radius:9px;border:1.5px solid var(--accent);background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.92rem;outline:none">'
-    + '<div id="custom-tender-suggestions" style="display:none;position:absolute;left:0;right:0;top:100%;margin-top:4px;max-height:200px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;z-index:10;-webkit-overflow-scrolling:touch"></div>'
+    + '<div id="custom-tender-suggestions" style="display:none;position:absolute;left:0;right:0;top:100%;margin-top:4px;max-height:200px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:4px;z-index:10;-webkit-overflow-scrolling:touch"></div>'
     + '</div>'
     + '<div style="display:flex;gap:0.5rem;margin-top:0.75rem">'
     + '<button id="custom-tender-cancel" style="flex:1;padding:0.55rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Cancel</button>'

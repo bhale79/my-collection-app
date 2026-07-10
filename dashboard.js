@@ -435,9 +435,9 @@ var CARD_CATALOG = [
       }
       var html = '<div class="stat-value">' + total.toLocaleString() + '</div>'
         + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:1px">total items</div>'
-        + '<div style="font-size:0.62rem;font-weight:700;letter-spacing:0.08em;color:var(--text-dim);text-transform:uppercase;margin-top:6px">By Category</div>'
+        + '<div style="font-size:0.68rem;font-weight:700;letter-spacing:0.09em;color:var(--text-dim);text-transform:uppercase;margin-top:6px">By Category</div>'
         + catEntries.map(function(e){ return _row(e[0], e[1]); }).join('')
-        + '<div style="font-size:0.62rem;font-weight:700;letter-spacing:0.08em;color:var(--text-dim);text-transform:uppercase;margin-top:6px">By Line</div>'
+        + '<div style="font-size:0.68rem;font-weight:700;letter-spacing:0.09em;color:var(--text-dim);text-transform:uppercase;margin-top:6px">By Line</div>'
         + lineEntries.map(function(e){ return _row(e[0], e[1]); }).join('');
       return { html: html };
     }

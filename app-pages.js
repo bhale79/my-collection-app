@@ -434,7 +434,7 @@ function buildCollectionPage() {
   // top border joining the wrapper's rounded corner) is cosmetic and
   // fine vs. a broken scroll.
   const listHTML = filtered.length > 0
-    ? '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px">'
+    ? '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px">'
       + filtered.map(function(it) { return _collectionRowHTML(it, emojiByType[it.type] || '•'); }).join('')
       + '</div>'
     : '<div style="padding:2rem;text-align:center;color:var(--text-dim);font-size:0.9rem">'
@@ -1031,7 +1031,7 @@ function buildWantPage() {
       const _wInShare = typeof isShareMode === 'function' && isShareMode('want');
       const _wSelected = _wInShare && window._shareItems && window._shareItems[_wShareKey];
       if (_wInShare) { if (!window._shareDataMap) window._shareDataMap = {}; window._shareDataMap[_wShareKey] = { itemNum: w.itemNum, variation: w.variation||'', want: w, master: master }; }
-      return `<div id="share-card-${_wShareKey}" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem${_wSelected ? ';outline:2px solid #2ecc71' : ''}">
+      return `<div id="share-card-${_wShareKey}" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.85rem 1rem${_wSelected ? ';outline:2px solid #2ecc71' : ''}">
         <div style="display:flex;align-items:center;gap:0.75rem;cursor:pointer" onclick="${_wInShare ? 'toggleShareItem(\'' + _wShareKey + '\')' : `_wantViewDetail('${w.itemNum}','${escVar}')`}">
           ${_wInShare ? '<input type="checkbox" id="share-cb-' + _wShareKey + '" ' + (_wSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _wShareKey + '\')" style="width:1.1rem;height:1.1rem;accent-color:#2ecc71;flex-shrink:0">' : ''}
           <div style="flex:1;min-width:0">
@@ -1607,7 +1607,7 @@ function buildSoldPage() {
     if (soldCardsEl) soldCardsEl.style.display = 'flex';
     if (soldTableWrap) soldTableWrap.style.display = 'none';
     if (soldCardsEl) soldCardsEl.innerHTML = soldEntries.length ? soldEntries.map(sd => {
-      return `<div onclick="showSoldDetailPage('${sd.key}')" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem;cursor:pointer">
+      return `<div onclick="showSoldDetailPage('${sd.key}')" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.85rem 1rem;cursor:pointer">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div>
             <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${sd.itemNum || '—'}</span>
@@ -1910,7 +1910,7 @@ function buildForSalePage() {
         : (_fsMasterIdx >= 0 ? ('window._detailReturn=\'forsale\';showItemDetailPage(' + _fsMasterIdx + ', \'\')') : '');
       const _fsCardClick = _fsInShare ? ('onclick="toggleShareItem(\'' + _fsShareKey + '\')"') : (_fsOpen ? ('onclick="' + _fsOpen + '"') : '');
       const _fsCardCursor = (_fsInShare || _fsOpen) ? 'pointer' : 'default';
-      return `<div id="share-card-${_fsShareKey}" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem;cursor:${_fsCardCursor}${_fsSelected ? ';outline:2px solid #2ecc71' : ''}" ${_fsCardClick}>
+      return `<div id="share-card-${_fsShareKey}" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.85rem 1rem;cursor:${_fsCardCursor}${_fsSelected ? ';outline:2px solid #2ecc71' : ''}" ${_fsCardClick}>
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div style="display:flex;align-items:flex-start;gap:0.5rem">
             ${_fsInShare ? '<input type="checkbox" id="share-cb-' + _fsShareKey + '" ' + (_fsSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _fsShareKey + '\')" style="width:1.1rem;height:1.1rem;accent-color:#2ecc71;flex-shrink:0;margin-top:0.2rem">' : ''}
@@ -2397,7 +2397,7 @@ function buildSetsPage() {
     if (cardsEl)   { cardsEl.style.display = 'flex'; }
     cardsEl.innerHTML = entries.map(s => {
       const label = [s.setName, s.gauge].filter(Boolean).join(' · ');
-      return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem">'
+      return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.85rem 1rem">'
         + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.5rem;margin-bottom:0.4rem">'
         + '<div>'
         + '<span style="font-family:var(--font-head);font-size:1.1rem;color:#d35400">' + s.setNum + '</span>'
@@ -2901,7 +2901,7 @@ function buildUpgradePage() {
       const _escName = (name||'').replace(/'/g,"\\'");
       const _priceLabel = _isWant ? 'Want: ' : 'Max: ';
       const _priceVal = _isWant ? u.expectedPrice : u.maxPrice;
-      return `<div onclick="_wantViewDetail('${u.itemNum}','${escVar}')" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem;cursor:pointer">
+      return `<div onclick="_wantViewDetail('${u.itemNum}','${escVar}')" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.85rem 1rem;cursor:pointer">
         <div style="display:flex;align-items:flex-start;gap:0.5rem">
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap">
@@ -3053,7 +3053,7 @@ window._upgPickApply = function () {
   });
   folded.sort(function (a, b) { return String(a[1].itemNum || '').localeCompare(String(b[1].itemNum || ''), undefined, { numeric: true }); });
   if (!folded.length) {
-    el.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--text-dim);font-size:0.82rem">No matches</div>';
+    el.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--text-dim);font-size:0.82rem">No matches</div>';
     return;
   }
   el.innerHTML = folded.map(function (entry) {
@@ -3565,7 +3565,7 @@ function _renderPartsList() {
       if (_fid) { var _imgId = 'partthumb-' + p.row; _thumbs.push({ fid: _fid, id: _imgId });
         thumb = '<a href="' + p.photo + '" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="flex-shrink:0"><div style="width:48px;height:48px;border-radius:8px;overflow:hidden;background:var(--surface2)"><img id="' + _imgId + '" style="width:100%;height:100%;object-fit:cover"></div></a>'; }
     }
-    return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem;margin-bottom:0.6rem">'
+    return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.85rem 1rem;margin-bottom:0.6rem">'
       + '<div style="display:flex;align-items:flex-start;gap:0.6rem;flex-wrap:wrap">'
       + thumb
       + '<div style="flex:1;min-width:0">'

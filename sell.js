@@ -82,7 +82,7 @@ function _rrCardData(it, source) {
 function _rrCard(d, photoImg, source, photoIdx, photoTotal) {
   var W = 720, H = 900, c = document.createElement('canvas'); c.width = W; c.height = H;
   var x = c.getContext('2d');
-  var accent = source === 'want' ? '#2980b9' : (source === 'collection' ? '#2ecc71' : '#e8401c');
+  var accent = source === 'want' ? '#2980b9' : (source === 'collection' ? '#2ecc71' : 'var(--accent)');
   var badge  = source === 'want' ? 'WANTED'  : (source === 'collection' ? 'MY COLLECTION' : 'FOR SALE');
   x.fillStyle = '#141a2e'; _rrRound(x, 0, 0, W, H, 28); x.fill();
   x.fillStyle = '#e7d4a8'; x.font = '600 22px Arial'; x.textBaseline = 'alphabetic'; x.fillText('THE RAIL ROSTER', 36, 52);
@@ -119,7 +119,7 @@ function _rrCard(d, photoImg, source, photoIdx, photoTotal) {
 function _rrPhotoCard(num, photoImg, source, idx, total) {
   var W = 720, H = 900, c = document.createElement('canvas'); c.width = W; c.height = H;
   var x = c.getContext('2d');
-  var accent = source === 'want' ? '#2980b9' : (source === 'collection' ? '#2ecc71' : '#e8401c');
+  var accent = source === 'want' ? '#2980b9' : (source === 'collection' ? '#2ecc71' : 'var(--accent)');
   var badge = source === 'want' ? 'WANTED' : (source === 'collection' ? 'MY COLLECTION' : 'FOR SALE');
   x.fillStyle = '#141a2e'; _rrRound(x, 0, 0, W, H, 28); x.fill();
   x.fillStyle = '#e7d4a8'; x.font = '600 22px Arial'; x.textBaseline = 'alphabetic'; x.fillText('THE RAIL ROSTER', 36, 52);
@@ -351,7 +351,7 @@ async function openSalesShareModal() {
   var m = document.createElement('div'); m.id = 'sell-modal';
   m.style.cssText = 'position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,0.7);display:flex;align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto';
   m.innerHTML =
-    '<div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1.25rem 1.25rem 1.5rem;width:100%;max-width:480px;margin:auto">' +
+    '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem 1.25rem 1.5rem;width:100%;max-width:480px;margin:auto">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">' +
         '<div style="font-family:var(--font-head);font-size:1.2rem;color:var(--text)">Share my For Sale list</div>' +
         '<button onclick="document.getElementById(\'sell-modal\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.4rem;cursor:pointer;line-height:1">✕</button>' +

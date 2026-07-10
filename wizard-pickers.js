@@ -242,7 +242,7 @@ function _filterCollPicker(q) {
       var fsFolded = _wpFoldGroups(fsEntries).filter(function (e) { return _wpMatchesQ(e, q) && _wpSellFilterPass(e); });
       fsFolded.sort(function (a, b) { return String(a[1].itemNum || '').localeCompare(String(b[1].itemNum || ''), undefined, { numeric: true }); });
       if (!fsFolded.length) {
-        el.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--text-dim);font-size:0.82rem">' + (q ? 'No matches on your For Sale list' : 'Nothing on your For Sale list \u2014 switch to My Collection above') + '</div>';
+        el.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--text-dim);font-size:0.82rem">' + (q ? 'No matches on your For Sale list' : 'Nothing on your For Sale list \u2014 switch to My Collection above') + '</div>';
         return;
       }
       el.innerHTML = fsFolded.map(function (entry) {
@@ -271,7 +271,7 @@ function _filterCollPicker(q) {
   owned.sort(function(a,b) { return (a[1].itemNum||'').localeCompare(b[1].itemNum||'', undefined, {numeric:true}); });
 
   if (owned.length === 0) {
-    el.innerHTML = '<div style="padding:1rem;text-align:center;color:var(--text-dim);font-size:0.82rem">' + (q ? 'No matches' : 'No items in collection') + '</div>';
+    el.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--text-dim);font-size:0.82rem">' + (q ? 'No matches' : 'No items in collection') + '</div>';
     return;
   }
   var accentColor = wizard.tab === 'forsale' ? '#e67e22' : '#2ecc71';
