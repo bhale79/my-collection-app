@@ -62,7 +62,7 @@
       var comingSoon = !d.gifUrl;
       var badge = comingSoon
         ? '<span style="font-size:' + s.small + ';color:var(--text-dim);font-style:italic">' + _escape(cfg.comingSoonBadge || 'Coming soon') + '</span>'
-        : '<span style="font-size:' + s.small + ';color:#27ae60;font-weight:600">Ready</span>';
+        : '<span style="font-size:' + s.small + ';color:#2ecc71;font-weight:600">Ready</span>';
       return '<div style="display:flex;align-items:center;gap:0.75rem;padding:0.9rem 0;border-bottom:1px solid var(--border)">' +
         '<div style="font-size:1.5rem">\uD83C\uDFAC</div>' +
         '<div style="flex:1">' +
@@ -466,7 +466,7 @@
 
     var listRows = (cfg.submittedList || []).map(function(item) {
       var mark = item.ok ? '\u2713' : '\u00D7';
-      var markColor = item.ok ? '#27ae60' : '#c0392b';
+      var markColor = item.ok ? '#2ecc71' : '#c0392b';
       return '<div style="display:flex;gap:0.7rem;align-items:flex-start;padding:0.35rem 0">' +
         '<span style="color:' + markColor + ';font-weight:700;font-size:' + s.body + ';flex-shrink:0;width:1.2rem;text-align:center">' + mark + '</span>' +
         '<span style="font-size:' + s.body + ';color:' + (item.ok ? 'var(--text-mid)' : 'var(--text)') + ';line-height:1.5">' + _escape(item.text) + '</span>' +

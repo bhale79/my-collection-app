@@ -61,8 +61,8 @@ function toggleShareItem(key) {
   _renderShareBar();
   var card = document.getElementById('share-card-' + key);
   if (card) {
-    card.style.outline = _shareItems[key] ? '2px solid #3a9e68' : 'none';
-    card.style.background = _shareItems[key] ? 'rgba(58,158,104,0.08)' : '';
+    card.style.outline = _shareItems[key] ? '2px solid #2ecc71' : 'none';
+    card.style.background = _shareItems[key] ? 'rgba(46,204,113,0.08)' : '';
   }
   // Sync checkbox state
   var cb2 = document.getElementById('share-cb-' + key);
@@ -81,15 +81,15 @@ function _renderShareBar() {
 
   bar.innerHTML =
     '<div style="display:flex;align-items:center;gap:0.6rem">' +
-      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3a9e68" stroke-width="2"><polyline points="9,11 12,14 22,4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>' +
+      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2ecc71" stroke-width="2"><polyline points="9,11 12,14 22,4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>' +
       '<span style="font-family:var(--font-body);font-size:0.9rem;color:var(--text)">' +
-        '<strong style="color:#3a9e68">' + count + '</strong> item' + (count !== 1 ? 's' : '') + ' selected' +
+        '<strong style="color:#2ecc71">' + count + '</strong> item' + (count !== 1 ? 's' : '') + ' selected' +
         '<span style="color:var(--text-dim);font-size:0.78rem;margin-left:0.5rem">(max 10)</span>' +
       '</span>' +
     '</div>' +
     '<div style="display:flex;gap:0.5rem">' +
       '<button onclick="cancelShareMode()" style="padding:0.45rem 0.9rem;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer">Cancel</button>' +
-      '<button onclick="openShareBuilder()" ' + (count === 0 ? 'disabled style="opacity:0.4;cursor:not-allowed;' : 'style="') + 'padding:0.45rem 1rem;border-radius:7px;border:1.5px solid #3a9e68;background:rgba(58,158,104,0.15);color:#3a9e68;font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:0.4rem">' +
+      '<button onclick="openShareBuilder()" ' + (count === 0 ? 'disabled style="opacity:0.4;cursor:not-allowed;' : 'style="') + 'padding:0.45rem 1rem;border-radius:7px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.15);color:#2ecc71;font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:0.4rem">' +
         '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>' +
         'Share' +
       '</button>' +
@@ -149,7 +149,7 @@ function openShareBuilder() {
 
       // Action buttons
       '<div id="share-builder-actions" style="display:flex;flex-direction:column;gap:0.5rem">' +
-        '<button onclick="if(typeof shareAsCards===\'function\')shareAsCards()" style="padding:0.65rem;border-radius:9px;border:none;background:#3a9e68;color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem">' +
+        '<button onclick="if(typeof shareAsCards===\'function\')shareAsCards()" style="padding:0.65rem;border-radius:9px;border:none;background:#2ecc71;color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem">' +
           '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>' +
           'Share as images' +
         '</button>' +

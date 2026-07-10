@@ -1155,7 +1155,7 @@ function renderWizardStep() {
   }
   const progBar = document.getElementById('wizard-progress');
   if (progBar) {
-    const _ephColors = {catalogs:'#e67e22',paper:'#3498db',mockups:'#9b59b6',other:'#27ae60'};
+    const _ephColors = {catalogs:'#e67e22',paper:'#3498db',mockups:'#9b59b6',other:'#2ecc71'};
     if (wizard.tab === 'collection') progBar.style.background = 'var(--accent)';
     else if (wizard.tab === 'want')  progBar.style.background = '#2980b9';
     else if (wizard.tab === 'forsale') progBar.style.background = '#e67e22';
@@ -1326,7 +1326,7 @@ function renderWizardStep() {
            ['catalogs','📒 Catalogs','Catalogs & publications','#e67e22'],
            ['paper','📄 Paper Items','Ads, flyers, box inserts, articles','#3498db'],
            ['mockups','🔩 Mock-Ups','Pre-production prototypes','#9b59b6'],
-           ['other','📦 Other Items','Accessories, displays & more','#27ae60'],
+           ['other','📦 Other Items','Accessories, displays & more','#2ecc71'],
           ].map(([val,label,desc,color]) => `
           <button onclick="wizardChooseTab('${val}')" style="
             display:flex;align-items:center;gap:1rem;padding:1rem 1.25rem;
@@ -1978,7 +1978,7 @@ function renderWizardStep() {
           if (fi.files && fi.files[0]) {
             wizard.data._qePhotoFile = fi.files[0];
             btn.innerHTML = camIcon + ' \u2713 ' + fi.files[0].name.slice(0, 16).replace(/[&<>"]/g, function (ch) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]; });
-            btn.style.color = '#3a9e68'; btn.style.borderColor = '#3a9e68';
+            btn.style.color = '#2ecc71'; btn.style.borderColor = '#2ecc71';
           }
         });
       } else {
@@ -2050,8 +2050,8 @@ function renderWizardStep() {
             else if (u.key === 'tender') wizard.data._qePhotoFileTender = f;
             else if (u.key === 'u2') wizard.data._qePhotoFileU2 = f;
             else if (u.key === 'u3') wizard.data._qePhotoFileU3 = f;
-            slot.style.borderColor = '#3a9e68';
-            slot.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3a9e68" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span style="font-size:0.6rem;color:#3a9e68">\u2713</span>';
+            slot.style.borderColor = '#2ecc71';
+            slot.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2ecc71" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span style="font-size:0.6rem;color:#2ecc71">\u2713</span>';
           });
         })(slot, fi, u);
         card.appendChild(slot);
@@ -2193,7 +2193,7 @@ function renderWizardStep() {
             wizard.data._boxPhotoFile = photoFile.files[0];
             var lbl = document.getElementById('bcd-photo-label');
             if (lbl) lbl.textContent = '\u2713 ' + photoFile.files[0].name.slice(0, 22);
-            if (photoBtn) { photoBtn.style.borderColor = '#3a9e68'; photoBtn.style.color = '#3a9e68'; }
+            if (photoBtn) { photoBtn.style.borderColor = '#2ecc71'; photoBtn.style.color = '#2ecc71'; }
           }
         });
       }
@@ -2967,9 +2967,9 @@ function renderWizardStep() {
       // Resolved set banner
       if (_resolvedSet) {
         const hdr = document.createElement('div');
-        hdr.style.cssText = 'background:rgba(39,174,96,0.1);border:1.5px solid #27ae60;border-radius:10px;padding:0.7rem 1rem;margin-bottom:0.75rem;display:flex;align-items:center;justify-content:space-between';
+        hdr.style.cssText = 'background:rgba(46,204,113,0.1);border:1.5px solid #2ecc71;border-radius:10px;padding:0.7rem 1rem;margin-bottom:0.75rem;display:flex;align-items:center;justify-content:space-between';
         hdr.innerHTML = `<div>
-          <div style="font-size:0.68rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#27ae60">Set Identified ✓</div>
+          <div style="font-size:0.68rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#2ecc71">Set Identified ✓</div>
           <div style="font-size:0.92rem;color:var(--text);font-weight:600">${_resolvedSet.setNum}${_resolvedSet.setName ? ' — ' + _resolvedSet.setName : ''}</div>
           <div style="font-size:0.75rem;color:var(--text-dim)">${_resolvedSet.year||''} ${_resolvedSet.gauge||''} · ${_resolvedSet.items.length} components</div>
         </div>
@@ -3037,7 +3037,7 @@ function renderWizardStep() {
                 <div style="margin-top:0.35rem;display:flex;flex-wrap:wrap;gap:0.25rem">
                   ${sg.items.map(n => {
                     const isEntered = _enteredNums.some(e => normalizeItemNum(e) === normalizeItemNum(n) || baseItemNum(e) === baseItemNum(n));
-                    return `<span style="font-family:var(--font-mono);font-size:0.72rem;padding:1px 6px;border-radius:4px;border:1px solid ${isEntered?'#27ae60':'var(--border)'};background:${isEntered?'rgba(39,174,96,0.15)':'var(--surface)'};color:${isEntered?'#27ae60':'var(--text-dim)'};font-weight:${isEntered?'700':'400'}">${n}</span>`;
+                    return `<span style="font-family:var(--font-mono);font-size:0.72rem;padding:1px 6px;border-radius:4px;border:1px solid ${isEntered?'#2ecc71':'var(--border)'};background:${isEntered?'rgba(46,204,113,0.15)':'var(--surface)'};color:${isEntered?'#2ecc71':'var(--text-dim)'};font-weight:${isEntered?'700':'400'}">${n}</span>`;
                   }).join('')}
                   ${sg.alts.length ? sg.alts.map(n => {
                     const isEntered = _enteredNums.some(e => normalizeItemNum(e) === normalizeItemNum(n) || baseItemNum(e) === baseItemNum(n));
@@ -3158,7 +3158,7 @@ function renderWizardStep() {
 
           const chips = v.items.map(n => {
             const matched = _entered.some(e => normalizeItemNum(e) === normalizeItemNum(n));
-            return `<span style="font-family:var(--font-mono);font-size:0.7rem;padding:1px 6px;border-radius:4px;border:1px solid ${matched?'#27ae60':'var(--border)'};background:${matched?'rgba(39,174,96,0.15)':'var(--surface)'};color:${matched?'#27ae60':'var(--text-dim)'};font-weight:${matched?'700':'400'}">${n}</span>`;
+            return `<span style="font-family:var(--font-mono);font-size:0.7rem;padding:1px 6px;border-radius:4px;border:1px solid ${matched?'#2ecc71':'var(--border)'};background:${matched?'rgba(46,204,113,0.15)':'var(--surface)'};color:${matched?'#2ecc71':'var(--text-dim)'};font-weight:${matched?'700':'400'}">${n}</span>`;
           }).join('');
           const altChips = v.alts.length ? v.alts.map(n => {
             const matched = _entered.some(e => normalizeItemNum(e) === normalizeItemNum(n));
@@ -3251,7 +3251,7 @@ function renderWizardStep() {
         const haveRow = document.createElement('div');
         haveRow.style.cssText = 'display:flex;gap:0.6rem;margin-bottom:0.75rem';
         haveRow.innerHTML = `
-          <button onclick="window._detailHave('${item}',true)" style="flex:1;padding:0.85rem;border-radius:10px;border:2px solid ${comp.have===true?'#27ae60':'var(--border)'};background:${comp.have===true?'rgba(39,174,96,0.18)':'var(--surface2)'};color:${comp.have===true?'#27ae60':'var(--text-mid)'};font-family:var(--font-body);font-size:0.92rem;font-weight:600;cursor:pointer">✓ I have it</button>
+          <button onclick="window._detailHave('${item}',true)" style="flex:1;padding:0.85rem;border-radius:10px;border:2px solid ${comp.have===true?'#2ecc71':'var(--border)'};background:${comp.have===true?'rgba(46,204,113,0.18)':'var(--surface2)'};color:${comp.have===true?'#2ecc71':'var(--text-mid)'};font-family:var(--font-body);font-size:0.92rem;font-weight:600;cursor:pointer">✓ I have it</button>
           <button onclick="window._detailHave('${item}',false)" style="flex:1;padding:0.85rem;border-radius:10px;border:2px solid ${comp.have===false?'var(--accent)':'var(--border)'};background:${comp.have===false?'rgba(232,64,28,0.12)':'var(--surface2)'};color:${comp.have===false?'var(--accent)':'var(--text-mid)'};font-family:var(--font-body);font-size:0.92rem;font-weight:600;cursor:pointer">✗ Don't have it</button>`;
         body.appendChild(haveRow);
 
@@ -4668,8 +4668,8 @@ function renderWizardStep() {
 
     // Header
     const scHdr = document.createElement('div');
-    scHdr.style.cssText = 'background:rgba(39,174,96,0.1);border:1.5px solid #27ae60;border-radius:10px;padding:0.65rem 0.9rem';
-    scHdr.innerHTML = '<div style="font-size:0.65rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#27ae60">Set Complete \u2713</div>'
+    scHdr.style.cssText = 'background:rgba(46,204,113,0.1);border:1.5px solid #2ecc71;border-radius:10px;padding:0.65rem 0.9rem';
+    scHdr.innerHTML = '<div style="font-size:0.65rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#2ecc71">Set Complete \u2713</div>'
       + '<div style="font-family:var(--font-mono);font-size:1rem;font-weight:700;color:var(--accent2)">' + _scSetNum + '</div>'
       + '<div style="font-size:0.75rem;color:var(--text-dim)">' + _scSaved.length + ' item' + (_scSaved.length !== 1 ? 's' : '') + ' saved · Group: ' + _scGroupId + '</div>';
     scWrap.appendChild(scHdr);
@@ -4715,7 +4715,7 @@ function renderWizardStep() {
         + (pdCond ? '<span>Cond: <strong style="color:var(--text-mid)">' + pdCond + '</strong></span>' : '')
         + (pdWorth ? '<span>Worth: <strong style="color:var(--gold)">$' + pdWorth + '</strong></span>' : '')
         + (pdHasBox === 'Yes' ? '<span>\ud83d\udce6 Box</span>' : '')
-        + (isSaved ? '<span style="color:#27ae60">\u2713 Saved</span>' : '<span style="color:var(--accent)">\u2717 Not saved</span>')
+        + (isSaved ? '<span style="color:#2ecc71">\u2713 Saved</span>' : '<span style="color:var(--accent)">\u2717 Not saved</span>')
         + '</div></div>'
         + '<button type="button" onclick="window._scEditItem(\'' + itemNum + '\')" style="background:none;border:none;font-size:1rem;cursor:pointer;padding:0.25rem" title="Edit">\u270f\ufe0f</button>';
       scList.appendChild(row);

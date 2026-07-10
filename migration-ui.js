@@ -161,8 +161,8 @@
     var clearText = _fill(cfg.clearPromptText || '', { sourceTab: p.sourceTab });
 
     return '' +
-      '<div style="font-size:0.82rem;color:#27ae60;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.5rem">Step 2 of 3 complete</div>' +
-      '<div style="background:rgba(39,174,96,0.10);border:1px solid rgba(39,174,96,0.4);border-radius:10px;padding:1rem;font-size:0.95rem;line-height:1.6;margin-bottom:0.8rem">' + _esc(appendedText) + '</div>' +
+      '<div style="font-size:0.82rem;color:#2ecc71;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.5rem">Step 2 of 3 complete</div>' +
+      '<div style="background:rgba(46,204,113,0.10);border:1px solid rgba(46,204,113,0.4);border-radius:10px;padding:1rem;font-size:0.95rem;line-height:1.6;margin-bottom:0.8rem">' + _esc(appendedText) + '</div>' +
       '<div style="font-size:0.95rem;color:var(--text);line-height:1.55;margin-bottom:1rem">' + _esc(clearText) + '</div>' +
       '<div id="mig-err" style="display:none;margin-bottom:0.8rem;padding:0.7rem 0.9rem;background:rgba(240,80,8,0.12);border-left:3px solid var(--red);border-radius:6px;font-size:0.88rem;color:var(--text)"></div>' +
       '<div style="display:flex;justify-content:flex-end;gap:0.5rem;flex-wrap:wrap;margin-top:1rem">' +

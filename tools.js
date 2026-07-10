@@ -75,11 +75,11 @@ function buildToolsPage() {
   var CARD_COMPANION_SUGGESTER =
     '<div class="tools-card">' +
       '<div class="tools-card-title">' +
-        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3a9e68" stroke-width="2"><circle cx="9" cy="9" r="4"/><path d="M20 20c0-3.31-2.69-6-6-6H9a6 6 0 0 0-6 6"/><path d="M19 8l2 2-2 2"/><path d="M15 10h6"/></svg>' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2ecc71" stroke-width="2"><circle cx="9" cy="9" r="4"/><path d="M20 20c0-3.31-2.69-6-6-6H9a6 6 0 0 0-6 6"/><path d="M19 8l2 2-2 2"/><path d="M15 10h6"/></svg>' +
         'Companion Suggester \u00b7 Lionel Postwar' +
       '</div>' +
       '<div class="tools-card-desc"><strong>Lionel postwar only.</strong> Scans your collection for missing Lionel postwar companions — tenders without their engine, B units without their A unit, and engines without their tender or B unit. Add any missing piece straight to your Want List.</div>' +
-      '<button onclick="runCompanionSuggester()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #3a9e68;background:rgba(58,158,104,0.1);color:#3a9e68;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan My Collection</button>' +
+      '<button onclick="runCompanionSuggester()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan My Collection</button>' +
       '<div id="companion-suggester-results" style="margin-top:1rem"></div>' +
     '</div>';
 
@@ -190,7 +190,7 @@ function runGroupFinder() {
   });
 
   if (!suggestions.length) {
-    out.innerHTML = '<div style="padding:0.75rem;background:rgba(58,158,104,0.08);border:1px solid rgba(58,158,104,0.25);border-radius:8px;color:#4dc880;font-size:0.85rem">✓ No ungrouped pairs found — your collection looks well organized!</div>';
+    out.innerHTML = '<div style="padding:0.75rem;background:rgba(46,204,113,0.08);border:1px solid rgba(46,204,113,0.25);border-radius:8px;color:#4dc880;font-size:0.85rem">✓ No ungrouped pairs found — your collection looks well organized!</div>';
     return;
   }
 
@@ -255,8 +255,8 @@ async function confirmGroupItems(idx) {
     }
     var row = document.getElementById('grp-row-' + idx);
     if (row) {
-      row.style.background = 'rgba(58,158,104,0.1)';
-      row.style.borderColor = 'rgba(58,158,104,0.3)';
+      row.style.background = 'rgba(46,204,113,0.1)';
+      row.style.borderColor = 'rgba(46,204,113,0.3)';
       row.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4dc880" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>' +
         '<span style="font-size:0.85rem;color:#4dc880;font-weight:600">Grouped — ' + group.map(function(p){ return p.itemNum; }).join(' + ') + '</span>';
     }
@@ -349,7 +349,7 @@ async function runSetBuilder() {
     var pctWidth = r.pct + '%';
     var pctColor = r.pct === 100 ? '#4dc880' : r.pct >= 75 ? '#0891b2' : '#d4a843';
     var completeBadge = r.missingCount === 0
-      ? '<span style="font-size:0.7rem;font-weight:700;color:#4dc880;background:rgba(58,158,104,0.12);border:1px solid rgba(58,158,104,0.3);border-radius:6px;padding:0.1rem 0.45rem;margin-left:0.4rem">Complete</span>'
+      ? '<span style="font-size:0.7rem;font-weight:700;color:#4dc880;background:rgba(46,204,113,0.12);border:1px solid rgba(46,204,113,0.3);border-radius:6px;padding:0.1rem 0.45rem;margin-left:0.4rem">Complete</span>'
       : '';
 
     html += '<div class="tools-set-row" id="set-row-' + idx + '">' +
@@ -545,7 +545,7 @@ function runDuplicateChecker() {
   var dupes = Object.values(groups).filter(function(g) { return g.copies.length > 1; });
 
   if (!dupes.length) {
-    out.innerHTML = '<div style="padding:0.75rem;background:rgba(58,158,104,0.08);border:1px solid rgba(58,158,104,0.25);border-radius:8px;color:#4dc880;font-size:0.85rem">✓ No duplicates found — every item in your collection is unique!</div>';
+    out.innerHTML = '<div style="padding:0.75rem;background:rgba(46,204,113,0.08);border:1px solid rgba(46,204,113,0.25);border-radius:8px;color:#4dc880;font-size:0.85rem">✓ No duplicates found — every item in your collection is unique!</div>';
     return;
   }
 
@@ -594,7 +594,7 @@ function runDuplicateChecker() {
       var condStr  = pd.condition ? pd.condition + '/10' : '—';
       var condColor = pd.condition ? (pd.condition >= 8 ? '#2ecc71' : pd.condition >= 5 ? '#d4a843' : '#e74c3c') : 'var(--text-dim)';
       var price    = pd.priceItem ? _currencySymbol() + parseFloat(pd.priceItem).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
-      var isQE     = pd.quickEntry ? ' <span style="font-size:0.65rem;background:#27ae60;color:#fff;border-radius:3px;padding:1px 4px;margin-left:3px">⚡QE</span>' : '';
+      var isQE     = pd.quickEntry ? ' <span style="font-size:0.65rem;background:#2ecc71;color:#fff;border-radius:3px;padding:1px 4px;margin-left:3px">⚡QE</span>' : '';
       var hasBox   = pd.hasBox === 'Yes' ? ' <span style="font-size:0.65rem;color:var(--text-dim)">📦</span>' : '';
 
       // Grouped info — look up groupId in personalData to find partner
@@ -796,7 +796,7 @@ async function runCompanionSuggester() {
   var items = Object.values(suggestMap).filter(function(e) { return e.suggestions.length > 0; });
 
   if (!items.length) {
-    out.innerHTML = '<div style="padding:0.75rem;background:rgba(58,158,104,0.08);border:1px solid rgba(58,158,104,0.25);border-radius:8px;color:#4dc880;font-size:0.85rem">✓ All items in your collection have their companions — nothing missing!</div>';
+    out.innerHTML = '<div style="padding:0.75rem;background:rgba(46,204,113,0.08);border:1px solid rgba(46,204,113,0.25);border-radius:8px;color:#4dc880;font-size:0.85rem">✓ All items in your collection have their companions — nothing missing!</div>';
     return;
   }
 
@@ -819,7 +819,7 @@ async function runCompanionSuggester() {
 
     html += '<div class="tools-result-row" style="flex-direction:column;align-items:flex-start;gap:0.5rem" id="comp-engine-' + idx + '">' +
       '<div style="font-size:0.88rem;color:var(--text);display:flex;align-items:center;gap:0.5rem">' +
-        '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#3a9e68" stroke-width="2" style="flex-shrink:0"><circle cx="9" cy="9" r="4"/><path d="M20 20c0-3.31-2.69-6-6-6H9a6 6 0 0 0-6 6"/></svg>' +
+        '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2ecc71" stroke-width="2" style="flex-shrink:0"><circle cx="9" cy="9" r="4"/><path d="M20 20c0-3.31-2.69-6-6-6H9a6 6 0 0 0-6 6"/></svg>' +
         itemLabel +
       '</div>';
 

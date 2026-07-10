@@ -166,11 +166,11 @@
 
   console.group('%c My Collection App — Health Check Report', 'font-size:14px;font-weight:bold;color:#f05008');
   console.log('%c ' + passes + ' passed  |  ' + fails + ' failed  |  ' + warns + ' warnings',
-    'font-size:12px;color:' + (fails > 0 ? '#e74c3c' : warns > 0 ? '#d4a843' : '#3a9e68'));
+    'font-size:12px;color:' + (fails > 0 ? '#e74c3c' : warns > 0 ? '#d4a843' : '#2ecc71'));
   console.log('─'.repeat(60));
 
   results.forEach(r => {
-    const style = r.s === OK ? 'color:#3a9e68' : r.s === ERR ? 'color:#e74c3c;font-weight:bold' : 'color:#d4a843';
+    const style = r.s === OK ? 'color:#2ecc71' : r.s === ERR ? 'color:#e74c3c;font-weight:bold' : 'color:#d4a843';
     if (r.d)
       console.log('%c' + r.s + ' ' + r.l, style, '\n    → ' + r.d);
     else
@@ -179,7 +179,7 @@
 
   console.log('─'.repeat(60));
   if (fails === 0 && warns === 0)
-    console.log('%c All systems go! 🚂', 'color:#3a9e68;font-size:13px;font-weight:bold');
+    console.log('%c All systems go! 🚂', 'color:#2ecc71;font-size:13px;font-weight:bold');
   else if (fails === 0)
     console.log('%c Minor warnings only — app should work normally', 'color:#d4a843');
   else

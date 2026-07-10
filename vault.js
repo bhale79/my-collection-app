@@ -47,7 +47,7 @@ const VAULT = {
     'Rare':         '#e67e22',   // warm orange
     'Hard to Find': '#d4a843',   // gold
     'Scarce':       '#8b5cf6',   // purple
-    'Plentiful':    '#3a9e68',   // green
+    'Plentiful':    '#2ecc71',   // green
     'Common':       '#5a6280',   // dim
   },
 
@@ -722,7 +722,7 @@ function vaultRenderPage() {
             font-size:0.9rem;font-weight:600;cursor:pointer;min-width:160px
           ">Yes, I'll Contribute</button>
         ` : `
-          <div style="flex:1;padding:12px 16px;border-radius:8px;background:rgba(58,158,104,0.12);border:1px solid rgba(58,158,104,0.3);color:#3a9e68;font-size:0.88rem;line-height:1.5">
+          <div style="flex:1;padding:12px 16px;border-radius:8px;background:rgba(46,204,113,0.12);border:1px solid rgba(46,204,113,0.3);color:#2ecc71;font-size:0.88rem;line-height:1.5">
             ✓ You are contributing anonymously. Thank you — your data helps the whole community.
           </div>
           <button onclick="vaultConfirmOptOut()" style="

@@ -55,7 +55,7 @@ const WHAT_I_COLLECT = {
   eraColors: {
     prewar:       '#8e7cc3',   // purple
     pw:           'var(--accent)',
-    mpc:          '#27ae60',   // green
+    mpc:          '#2ecc71',   // green
     atlas:        '#2980b9',   // blue
     // Session 124: MTH era colors
     mth_o:        '#e74c3c',   // red — flagship MTH O
@@ -207,7 +207,7 @@ const FEATURE_MAP = [
     title:       'For Sale / Sold',
     description: 'Track what you\'re selling and keep a history of what you\'ve sold — and for how much.',
     icon:        '\uD83D\uDCB0',                // money bag
-    accentColor: '#27ae60',                     // green
+    accentColor: '#2ecc71',                     // green
     targetPage:  'forsale',
     screenshot:  '',
   },

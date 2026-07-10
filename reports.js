@@ -717,7 +717,7 @@ function _rbCellHTML(key, val) {
     case 'itemType':     return `<span class="tag">${val}</span>`;
     case 'priceItem':
     case 'userEstWorth': return `<span style="font-family:var(--font-mono);color:var(--accent2)">$${parseFloat(val).toLocaleString()}</span>`;
-    case 'hasPhoto':     return val==='Yes' ? '<span style="color:#27ae60">✓</span>' : '<span class="text-dim">—</span>';
+    case 'hasPhoto':     return val==='Yes' ? '<span style="color:#2ecc71">✓</span>' : '<span class="text-dim">—</span>';
     default:             return val;
   }
 }

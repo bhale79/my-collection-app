@@ -456,7 +456,7 @@ function getSteps(tab) {
       // ── Tender photos (only for engine+tender grouping) ──
       { id: 'photosTenderItem', title: (d) => 'Add photos of the tender',
         type: 'drivePhotos', label: 'Item', tenderMode: true,
-        photoBanner: { color: '#27ae60', label: (d) => '\u{1F7E9} PHOTOS: Tender ' + (d.tenderMatch || '') },
+        photoBanner: { color: '#2ecc71', label: (d) => '\u{1F7E9} PHOTOS: Tender ' + (d.tenderMatch || '') },
         // v0.9.765 (BUG-001): trust getItemSubjects (Decision Map #3) alone —
         // the grouping already encodes whether a tender exists. The old
         // _wizardMfr() gate read the ERA VIEW (blank in All Collection) and
