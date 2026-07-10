@@ -46,6 +46,20 @@ function _updateBrowseTabsForEra() {
 // Phase 5 Step 3a follow-up: manufacturer badge for the first column of each
 // master-browse row. Uses _manufacturerOfItem (from app.js, Session 137) +
 // WHAT_I_COLLECT.MANUFACTURERS color/label. Returns a full <td>...</td>.
+// v0.9.815: scroll helpers for the My Collection section jump bar. The table
+// scrolls inside .browse-table-wrap and the thead is sticky, so offset past it.
+window._collJumpTo = function(id) {
+  var el = document.getElementById(id);
+  var wrap = document.querySelector('.browse-table-wrap');
+  if (!el || !wrap) return;
+  var top = el.offsetTop - 44;
+  wrap.scrollTo({ top: top < 0 ? 0 : top, behavior: 'smooth' });
+};
+window._collJumpTop = function() {
+  var wrap = document.querySelector('.browse-table-wrap');
+  if (wrap) wrap.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
 function _mfrBadge(item) {
   try {
     var mfr = '';
@@ -2667,8 +2681,8 @@ function renderBrowse() {
   const tableEl = document.querySelector('.item-table');
   let _ephRowsHtml = '';
   if (_ephemeraRows.length) {
-    _ephRowsHtml = _ephemeraRows.map(r => {
-      if (r._divider) return `<tr><td colspan="${state.filters.owned ? '8' : '9'}" style="padding:0.5rem 0.75rem;background:var(--surface2);font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:${r.color};text-transform:uppercase;border-top:2px solid ${r.color}33">${r.label}</td></tr>`;
+    _ephRowsHtml = _ephemeraRows.map((r, _ri) => {
+      if (r._divider) return `<tr id="ephsec-${_ri}"><td colspan="${state.filters.owned ? '8' : '9'}" style="padding:0.5rem 0.75rem;background:var(--surface2);font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:${r.color};text-transform:uppercase;border-top:2px solid ${r.color}33">${r.label}</td></tr>`;
       const it = r.item;
       const cond = it.condition ? parseInt(it.condition) : null;
       const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
@@ -3077,6 +3091,31 @@ function renderBrowse() {
       });
     });
   }
+  // v0.9.815 (Brad): quick-jump buttons to the list sections (Catalogs, Paper
+  // Items, Instruction Sheets…) — not a filter, just a fast way down a big
+  // collection. Sits above the table; the table scrolls in its own panel.
+  (function() {
+    var wrapEl = document.querySelector('.browse-table-wrap');
+    var bar = document.getElementById('coll-jump-bar');
+    var sections = _ephemeraRows
+      .map(function(r, i) { return r._divider ? { id: 'ephsec-' + i, label: r.label, color: r.color } : null; })
+      .filter(Boolean);
+    if (!state.filters.owned || isMobile || !sections.length) { if (bar) bar.style.display = 'none'; return; }
+    if (!bar && wrapEl && wrapEl.parentNode) {
+      bar = document.createElement('div');
+      bar.id = 'coll-jump-bar';
+      wrapEl.parentNode.insertBefore(bar, wrapEl);
+    }
+    if (!bar) return;
+    bar.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center;margin:0 0 0.5rem';
+    var chip = 'padding:0.25rem 0.7rem;border-radius:999px;font-size:0.72rem;font-weight:600;cursor:pointer;font-family:var(--font-body);background:var(--surface2)';
+    bar.innerHTML = '<span style="font-size:0.68rem;letter-spacing:0.08em;color:var(--text-dim);text-transform:uppercase;margin-right:0.2rem">Jump to:</span>'
+      + '<button onclick="_collJumpTop()" style="' + chip + ';border:1px solid var(--border);color:var(--text-mid)">🚂 Trains</button>'
+      + sections.map(function(sec) {
+          return '<button onclick="_collJumpTo(\'' + sec.id + '\')" style="' + chip + ';border:1px solid ' + sec.color + ';color:' + sec.color + '">' + sec.label + '</button>';
+        }).join('');
+  })();
+
   // v0.9.812: load ephemera thumbnails — the eph-thumb span was rendered but
   // never populated (always an empty gray box). Same folder-photo approach as
   // the item thumbs above; hides itself if the folder is empty/unreadable.
