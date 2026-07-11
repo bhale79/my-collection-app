@@ -576,8 +576,9 @@ function _wireIdentifyModalV2() {
   }
   if (takeBtn) takeBtn.addEventListener('click', function() { camInput && camInput.click(); });
   if (pickBtn) pickBtn.addEventListener('click', function() { galInput && galInput.click(); });
-  if (camInput) camInput.addEventListener('change', function() { if (camInput.files[0]) _setPhoto(camInput.files[0]); });
-  if (galInput) galInput.addEventListener('change', function() { if (galInput.files[0]) _setPhoto(galInput.files[0]); });
+  // v0.9.825 (TODO-008): crop-first — a tight crop identifies better too.
+  if (camInput) camInput.addEventListener('change', function() { if (camInput.files[0]) { if (window._cropFirst) window._cropFirst(camInput.files[0], _setPhoto); else _setPhoto(camInput.files[0]); } });
+  if (galInput) galInput.addEventListener('change', function() { if (galInput.files[0]) { if (window._cropFirst) window._cropFirst(galInput.files[0], _setPhoto); else _setPhoto(galInput.files[0]); } });
   if (clearBtn) clearBtn.addEventListener('click', _clearPhoto);
   // Manufacturer chip toggle styling.
   const chipsWrap = document.getElementById('id-mfr-chips');

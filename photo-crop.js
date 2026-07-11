@@ -61,6 +61,25 @@ function _openCropper(src, onResult, onCancel) {   // v0.9.787: onCancel = proce
   };
 }
 
+// v0.9.825 (TODO-008): shared crop-first hop. Opens the cropper on a freshly
+// picked file; onDone receives the CROPPED file (Apply) or the ORIGINAL file
+// (Cancel, or cropper unavailable). Every photo-pick spot funnels through
+// this one helper so the flow stays identical app-wide.
+function _cropFirst(file, onDone) {
+  if (!file || typeof _openCropper !== 'function') { onDone(file); return; }
+  var url = URL.createObjectURL(file);
+  _openCropper(url, function (blob) {
+    try { URL.revokeObjectURL(url); } catch (e) {}
+    try {
+      onDone(new File([blob], String(file.name || 'photo').replace(/\.[^.]+$/, '') + '_crop.jpg', { type: 'image/jpeg' }));
+    } catch (e) { onDone(file); }
+  }, function () {
+    try { URL.revokeObjectURL(url); } catch (e) {}
+    onDone(file);
+  });
+}
+if (typeof window !== 'undefined') window._cropFirst = _cropFirst;
+
 // Replace the bytes of an already-uploaded Drive photo in place (no duplicate).
 async function _cropReplaceDrivePhoto(folderLink, fileName, blob) {
   try {

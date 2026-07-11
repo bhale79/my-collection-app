@@ -649,8 +649,13 @@ window.ephemeraAddPhotos = function (tabId, rowKey) {
   inp.id = 'eph-photo-inp'; inp.style.display = 'none';
   document.body.appendChild(inp);
   inp.onchange = async function () {
-    const files = [].slice.call(inp.files || []);
+    let files = [].slice.call(inp.files || []);
     if (!files.length) return;
+    // v0.9.825 (TODO-008): a single photo gets the crop-first flow; multi-
+    // photo batches upload as picked.
+    if (files.length === 1 && typeof window._cropFirst === 'function') {
+      files = await new Promise(function (res) { window._cropFirst(files[0], function (f) { res([f]); }); });
+    }
     showToast('Uploading ' + files.length + ' photo' + (files.length > 1 ? 's' : '') + '…', 3000);
     try {
       await driveEnsureSetup();
@@ -3662,9 +3667,14 @@ if (typeof window !== 'undefined') window.showAddPartModal = showAddPartModal;
 function _partPhotoPicked(ev) {
   var file = ev && ev.target && ev.target.files && ev.target.files[0];
   if (!file) return;
-  window._partPhotoFile = file;
-  var pp = document.getElementById('_part-photo-preview');
-  if (pp) { pp.src = URL.createObjectURL(file); pp.style.display = 'block'; }
+  var _apply = function (f) {
+    window._partPhotoFile = f;
+    var pp = document.getElementById('_part-photo-preview');
+    if (pp) { pp.src = URL.createObjectURL(f); pp.style.display = 'block'; }
+  };
+  // v0.9.825 (TODO-008): crop-first, same flow as every other photo pick.
+  if (typeof window._cropFirst === 'function') window._cropFirst(file, _apply);
+  else _apply(file);
 }
 if (typeof window !== 'undefined') window._partPhotoPicked = _partPhotoPicked;
 

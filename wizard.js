@@ -2190,10 +2190,15 @@ function renderWizardStep() {
         photoBtn.addEventListener('click', function() { photoFile.click(); });
         photoFile.addEventListener('change', function() {
           if (photoFile.files && photoFile.files[0]) {
-            wizard.data._boxPhotoFile = photoFile.files[0];
-            var lbl = document.getElementById('bcd-photo-label');
-            if (lbl) lbl.textContent = '\u2713 ' + photoFile.files[0].name.slice(0, 22);
-            if (photoBtn) { photoBtn.style.borderColor = '#2ecc71'; photoBtn.style.color = '#2ecc71'; }
+            // v0.9.825 (TODO-008): crop-first, same flow as every photo pick.
+            var _bcdApply = function (f) {
+              wizard.data._boxPhotoFile = f;
+              var lbl = document.getElementById('bcd-photo-label');
+              if (lbl) lbl.textContent = '\u2713 ' + String(f.name || '').slice(0, 22);
+              if (photoBtn) { photoBtn.style.borderColor = '#2ecc71'; photoBtn.style.color = '#2ecc71'; }
+            };
+            if (window._cropFirst) window._cropFirst(photoFile.files[0], _bcdApply);
+            else _bcdApply(photoFile.files[0]);
           }
         });
       }
