@@ -1002,21 +1002,21 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // Secondary tabs (8) are loaded after primary commits state so UI renders
   // faster. Total wait time drops from max-of-13-fetches to max-of-5.
   const [collRes, soldRes, forSaleRes, wishlistRes] = await Promise.all([
-    sheetsGet(sheetId, 'My Collection!A3:AF').catch((e) => { console.warn('[My Collection load failed]', e && e.message); return {values:[]}; }),
-    sheetsGet(sheetId, 'Sold!A3:T').catch((e) => { console.warn('[Sold load failed]', e && e.message); return {values:[]}; }),
-    sheetsGet(sheetId, 'For Sale!A3:J').catch((e) => { console.warn('[For Sale load failed]', e && e.message); return {values:[]}; }),
-    sheetsGet(sheetId, 'Want-Upgrade List!A3:I').catch((e) => { console.warn('[Want-Upgrade load failed]', e && e.message); return {values:[]}; }),
+    sheetsGet(sheetId, 'My Collection!A3:AF').catch((e) => { console.warn('[My Collection load failed]', e && e.message); return {values:[], _failed:true}; }),
+    sheetsGet(sheetId, 'Sold!A3:T').catch((e) => { console.warn('[Sold load failed]', e && e.message); return {values:[], _failed:true}; }),
+    sheetsGet(sheetId, 'For Sale!A3:J').catch((e) => { console.warn('[For Sale load failed]', e && e.message); return {values:[], _failed:true}; }),
+    sheetsGet(sheetId, 'Want-Upgrade List!A3:I').catch((e) => { console.warn('[Want-Upgrade load failed]', e && e.message); return {values:[], _failed:true}; }),
   ]);
   // Secondary tabs fire off in parallel, NOT awaited in the main flow
   const _secondaryFetch = Promise.all([
-    sheetsGet(sheetId, 'Catalogs!A3:J').catch((e) => { console.warn('[Catalogs load failed]', e && e.message); return {values:[]}; }),
-    sheetsGet(sheetId, 'Paper Items!A3:N').catch((e) => { console.warn('[Paper Items load failed]', e && e.message); return {values:[]}; }),
-    sheetsGet(sheetId, 'Mock-Ups!A3:Q').catch((e) => { console.warn('[Mock-Ups load failed]', e && e.message); return {values:[]}; }),
-    sheetsGet(sheetId, 'Other Lionel!A3:N').catch((e) => { console.warn('[Other Lionel load failed]', e && e.message); return {values:[]}; }),
-    sheetsGet(sheetId, 'Instruction Sheets!A3:K').catch((e) => { console.warn('[Instruction Sheets load failed]', e && e.message); return {values:[]}; }),
-    sheetsGet(sheetId, 'Science Sets!A3:O').catch((e) => { console.warn('[Science Sets load failed]', e && e.message); return {values:[]}; }),
-    sheetsGet(sheetId, 'Construction Sets!A3:O').catch((e) => { console.warn('[Construction Sets load failed]', e && e.message); return {values:[]}; }),
-    sheetsGet(sheetId, 'My Sets!A3:N').catch((e) => { console.warn('[My Sets load failed]', e && e.message); return {values:[]}; }),
+    sheetsGet(sheetId, 'Catalogs!A3:J').catch((e) => { console.warn('[Catalogs load failed]', e && e.message); return {values:[], _failed:true}; }),
+    sheetsGet(sheetId, 'Paper Items!A3:N').catch((e) => { console.warn('[Paper Items load failed]', e && e.message); return {values:[], _failed:true}; }),
+    sheetsGet(sheetId, 'Mock-Ups!A3:Q').catch((e) => { console.warn('[Mock-Ups load failed]', e && e.message); return {values:[], _failed:true}; }),
+    sheetsGet(sheetId, 'Other Lionel!A3:N').catch((e) => { console.warn('[Other Lionel load failed]', e && e.message); return {values:[], _failed:true}; }),
+    sheetsGet(sheetId, 'Instruction Sheets!A3:K').catch((e) => { console.warn('[Instruction Sheets load failed]', e && e.message); return {values:[], _failed:true}; }),
+    sheetsGet(sheetId, 'Science Sets!A3:O').catch((e) => { console.warn('[Science Sets load failed]', e && e.message); return {values:[], _failed:true}; }),
+    sheetsGet(sheetId, 'Construction Sets!A3:O').catch((e) => { console.warn('[Construction Sets load failed]', e && e.message); return {values:[], _failed:true}; }),
+    sheetsGet(sheetId, 'My Sets!A3:N').catch((e) => { console.warn('[My Sets load failed]', e && e.message); return {values:[], _failed:true}; }),
   ]);
   // Defaults — overwritten once the secondary promise resolves below
   let catRes={values:[]}, paperRes={values:[]}, mockRes={values:[]},
@@ -1166,20 +1166,39 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // ── PRIMARY COMMIT — commit collection/sold/forSale/want to state first
   // so the UI can render from fresh primary data while secondary (ephemera,
   // IS, science, construction, mySets) continues loading in the background.
-  if (forceOverwrite || Object.keys(newPersonal).length > 0 || Object.keys(state.personalData).length === 0) {
+  if (!collRes._failed && (forceOverwrite || Object.keys(newPersonal).length > 0 || Object.keys(state.personalData).length === 0)) {
     state.personalData = newPersonal;
   }
   // inv-id hardening (v0.9.634): re-seed the inventory-ID watermark from the
   // freshly-loaded personal data so nextInventoryId() can never reuse a number.
   if (typeof _seedInvHwm === 'function') _seedInvHwm();
-  if (forceOverwrite || Object.keys(newSold).length > 0 || Object.keys(state.soldData).length === 0) {
+  if (!soldRes._failed && (forceOverwrite || Object.keys(newSold).length > 0 || Object.keys(state.soldData).length === 0)) {
     state.soldData = newSold;
   }
-  if (forceOverwrite || Object.keys(newForSale).length > 0 || Object.keys(state.forSaleData).length === 0) {
+  if (!forSaleRes._failed && (forceOverwrite || Object.keys(newForSale).length > 0 || Object.keys(state.forSaleData).length === 0)) {
     state.forSaleData = newForSale;
   }
-  if (forceOverwrite || Object.keys(newWant).length > 0 || Object.keys(state.wantData).length === 0) {
+  if (!wishlistRes._failed && (forceOverwrite || Object.keys(newWant).length > 0 || Object.keys(state.wantData).length === 0)) {
     state.wantData = newWant;
+  }
+
+  // v0.9.824 (BUG-003, Brad's vanished collection): a FAILED fetch is NOT an
+  // empty tab. If any primary tab failed we kept the old data above — now say
+  // so and retry the whole load once after 5s (mirrors the upgrade self-heal).
+  var _plFailed = [collRes, soldRes, forSaleRes, wishlistRes].some(function(r) { return r && r._failed; });
+  if (_plFailed && !window._plRetryPending) {
+    window._plRetryPending = true;
+    if (typeof showToast === 'function') showToast("Couldn't reach Google Sheets for part of your data — retrying in a few seconds…", 4500, true);
+    setTimeout(function() {
+      _loadPersonalFromSheets(sheetId, forceOverwrite).then(function() {
+        window._plRetryPending = false;
+        try { if (typeof _cachePersonalData === 'function') _cachePersonalData(); } catch (e) {}
+        try { if (typeof buildDashboard === 'function') buildDashboard(); } catch (e) {}
+        try { if (typeof renderBrowse === 'function') renderBrowse(); } catch (e) {}
+      }).catch(function() { window._plRetryPending = false; });
+    }, 5000);
+  } else if (!_plFailed) {
+    window._plRetryPending = false;
   }
 
   // Kick off secondary parsing asynchronously — does not block function return.
@@ -1301,7 +1320,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // in cache before syncUserDefinedTabsFromSheet prunes it.
   const _RESERVED_TABS = { 'Parts Needed': 1, 'Contacts': 1 };   // v0.9.794: never load Contacts as an ephemera tab
   const _utPromises = (state.userDefinedTabs||[]).filter(ut => ut && !_RESERVED_TABS[ut.label]).map(ut =>
-    sheetsGet(sheetId, ut.label + '!A3:J').catch((e) => { console.warn('[Custom tab ' + ut.label + ' load failed]', e && e.message); return {values:[]}; })
+    sheetsGet(sheetId, ut.label + '!A3:J').catch((e) => { console.warn('[Custom tab ' + ut.label + ' load failed]', e && e.message); return {values:[], _failed:true}; })
       .then(utRes => parseEphemeraRows(utRes.values, newEphemera[ut.id]))
       .catch(() => {})
   );
@@ -1324,11 +1343,12 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     // ── Commit secondary to state ──
     // (primary tabs — personalData/soldData/forSaleData/wantData — already
     // committed earlier. This block only handles secondary/ephemera tabs.)
-    state.isData = newIsData;
-    state.scienceData = newScienceData;
-    state.constructionData = newConstructionData;
-    state.ephemeraData = newEphemera;
-    state.mySetsData = newMySetsData;
+    // v0.9.824 (BUG-003): failed fetches keep the previous data.
+    if (!isRes._failed) state.isData = newIsData;
+    if (!sciRes._failed) state.scienceData = newScienceData;
+    if (!conRes._failed) state.constructionData = newConstructionData;
+    if (!(catRes._failed || paperRes._failed || mockRes._failed || otherRes._failed)) state.ephemeraData = newEphemera;
+    if (!mySetsRes._failed) state.mySetsData = newMySetsData;
     _cachePersonalData();
     // Re-render dashboard now that secondary counts are in
     try { if (typeof buildDashboard === 'function') buildDashboard(); } catch(e) {}
