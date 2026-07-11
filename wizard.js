@@ -361,6 +361,12 @@ window._soldPickSrcSet = function (src) {
 };
 
 async function openWizard(tab) {
+  // v0.9.826 (TODO-003): offline is view-only — say so up front instead of
+  // failing at save time.
+  if (window._offlineMode) {
+    if (typeof showToast === 'function') showToast("You're offline — you can browse your collection, but adding items needs a connection", 4000, true);
+    return;
+  }
   // Session 154: Want lookups span the whole catalog — load every era first
   // (instant if cached) so search isn't capped to the current era.
   if (tab === 'want' && typeof _currentEra !== 'undefined' && _currentEra !== 'all'

@@ -138,6 +138,11 @@ async function _withTokenRetry(fetchFn) {
 }
 
 async function sheetsUpdate(spreadsheetId, range, values) {
+  // v0.9.826 (TODO-003): view-only offline mode — writes need a connection.
+  if (window._offlineMode) {
+    if (typeof showToast === 'function') showToast("You're offline — this change needs a connection", 3500, true);
+    throw new Error('offline');
+  }
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${_encodeRange(range)}?valueInputOption=USER_ENTERED`;
   const body = JSON.stringify({ range, majorDimension: 'ROWS', values });
   const res = await _withTokenRetry(() => fetch(url, {
@@ -154,6 +159,11 @@ async function sheetsUpdate(spreadsheetId, range, values) {
 }
 
 async function sheetsAppend(spreadsheetId, range, values) {
+  // v0.9.826 (TODO-003): view-only offline mode — writes need a connection.
+  if (window._offlineMode) {
+    if (typeof showToast === 'function') showToast("You're offline — this change needs a connection", 3500, true);
+    throw new Error('offline');
+  }
   // Extract raw tab name from range (e.g. "For Sale!A:A" -> "For Sale")
   const tabName = range.includes('!') ? range.split('!')[0] : range;
 

@@ -2482,7 +2482,17 @@ window.onload = () => {
       window._signInInFlight = true;
     }
   } catch(e) {}
-  if (typeof google !== 'undefined') initGoogle();
+  if (typeof google !== 'undefined') { initGoogle(); return; }
+  // v0.9.826 (TODO-003): Google's sign-in script didn't load — slow network
+  // or fully offline. Give it a moment (async script may still arrive), then
+  // fall back to view-only offline mode for returning users.
+  setTimeout(function () {
+    if (typeof google !== 'undefined') { initGoogle(); return; }
+    setTimeout(function () {
+      if (typeof google !== 'undefined') { initGoogle(); return; }
+      if (typeof _enterOfflineMode === 'function') _enterOfflineMode();
+    }, 2500);
+  }, 1500);
 };
 
 // ── Back-button handler — initialized inside buildApp() ─────────────────────

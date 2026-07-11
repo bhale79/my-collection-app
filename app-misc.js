@@ -163,7 +163,9 @@ function _showOfflineBanner() {
     'letter-spacing:0.02em',
     'box-shadow:0 2px 8px rgba(0,0,0,0.4)'
   ].join(';');
-  banner.textContent = '⚠ No internet connection — changes may not save until you reconnect';
+  banner.textContent = window._offlineMode
+    ? '📡 Offline — viewing your saved collection. Adding items needs a connection.'
+    : '⚠ No internet connection — changes may not save until you reconnect';
   document.body.appendChild(banner);
 }
 
@@ -178,6 +180,14 @@ function _hideOfflineBanner() {
 }
 
 window.addEventListener('offline', _showOfflineBanner);
+// v0.9.826 (TODO-003): offline-view mode reconnect — reload into the normal
+// signed-in flow once the connection is back.
+window.addEventListener('online', function () {
+  if (window._offlineMode) {
+    if (typeof showToast === 'function') showToast('Back online — reconnecting…', 2500);
+    setTimeout(function () { location.reload(); }, 1500);
+  }
+});
 window.addEventListener('online', _hideOfflineBanner);
 
 // Check on load in case they open the app already offline

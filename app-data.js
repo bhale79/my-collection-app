@@ -225,7 +225,8 @@ async function loadMasterData() {
   const cacheAge = Date.now() - cachedAt;
   const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
-  if (cached && cacheAge < CACHE_TTL) {
+  // v0.9.826 (TODO-003): offline accepts the master cache at any age.
+  if (cached && (cacheAge < CACHE_TTL || window._offlineMode || navigator.onLine === false)) {
     try {
       state.masterData = cached;
       _rebuildMasterIndex();
@@ -794,7 +795,11 @@ async function loadPersonalData() {
   const _ptime  = parseInt(localStorage.getItem('lv_personal_cache_ts') || '0');
   const _PAGE_TTL    = 2 * 60 * 60 * 1000; // 2 hours
   const _BG_REFRESH  = 5 * 60 * 1000;      // background refresh throttle: 5 min
-  if (_pcache && (Date.now() - _ptime) < _PAGE_TTL) {
+  // v0.9.826 (TODO-003): ALWAYS restore the last-saved snapshot first —
+  // whatever its age — then refresh in the background when online. The old
+  // 2-hour gate left the screen empty at a weekend train show (and made every
+  // cold start wait on Google).
+  if (_pcache) {
     try {
       const _pd = JSON.parse(_pcache);
       state.personalData  = _pd.personalData  || {};
@@ -836,14 +841,17 @@ async function loadPersonalData() {
       if (_ugKeys.some(function(k){ return k.indexOf('|') >= 0; })) {
         state.upgradeData = _reKeyByInv(state.upgradeData);
       }
-      // Only background-refresh full personal data if cache is older than 5 minutes
-      if ((Date.now() - _ptime) > _BG_REFRESH) {
+      // Only background-refresh full personal data if cache is older than 5
+      // minutes — and never while offline (it would just fail noisily).
+      if (window._offlineMode) {
+        console.log('[Cache] offline mode — snapshot only, no refresh');
+      } else if ((Date.now() - _ptime) > _BG_REFRESH) {
         _loadPersonalFromSheets(state.personalSheetId).then(() => {
           _cachePersonalData();
           buildDashboard();
           renderBrowse();
         }).catch(() => {});
-      } else {
+      } else if (!window._offlineMode) {
         // Phase 3b: ALWAYS refresh forSale + upgrade after cache restore.
         // These are small lookup tables; if the cache has stale (or empty)
         // entries from a failed prior fetch, we need fresh data immediately
@@ -1186,7 +1194,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // empty tab. If any primary tab failed we kept the old data above — now say
   // so and retry the whole load once after 5s (mirrors the upgrade self-heal).
   var _plFailed = [collRes, soldRes, forSaleRes, wishlistRes].some(function(r) { return r && r._failed; });
-  if (_plFailed && !window._plRetryPending) {
+  if (_plFailed && !window._plRetryPending && !window._offlineMode && navigator.onLine !== false) {
     window._plRetryPending = true;
     if (typeof showToast === 'function') showToast("Couldn't reach Google Sheets for part of your data — retrying in a few seconds…", 4500, true);
     setTimeout(function() {

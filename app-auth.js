@@ -199,6 +199,36 @@ function initGoogle() {
   }
 }
 
+// v0.9.826 (TODO-003): view-only OFFLINE start. Returning user + saved
+// snapshot → open the app on cached data with a banner; every write path is
+// guarded elsewhere. When the connection returns, app-misc reloads the page
+// into the normal signed-in flow. Uses the SAME loadAllData() pipeline as an
+// online boot — the cache layers below it know to accept any-age caches.
+function _enterOfflineMode() {
+  var savedUser = null;
+  try { savedUser = localStorage.getItem('lv_user'); } catch (e) {}
+  var snap = null;
+  try { snap = localStorage.getItem('lv_personal_cache'); } catch (e) {}
+  if (!savedUser || !snap) {
+    // First-time user or no snapshot — nothing useful to show offline.
+    if (typeof _showOfflineBanner === 'function') _showOfflineBanner();
+    return;
+  }
+  window._offlineMode = true;
+  try { state.user = JSON.parse(savedUser); } catch (e) {}
+  state.personalSheetId = localStorage.getItem('lv_personal_id');
+  state.masterSheetId = MASTER_SHEET_ID;
+  var _bg = document.getElementById('beta-gate');   if (_bg) _bg.style.display = 'none';
+  var _as = document.getElementById('auth-screen'); if (_as) _as.style.display = 'none';
+  showApp();
+  showLoading();
+  try { updateUserUI(); } catch (e) {}
+  if (typeof _showOfflineBanner === 'function') _showOfflineBanner();
+  console.warn('[Auth] OFFLINE MODE — booting from saved snapshot');
+  loadAllData();
+}
+if (typeof window !== 'undefined') window._enterOfflineMode = _enterOfflineMode;
+
 function handleSignIn() {
   // Use GIS popup flow — it caches consent so users only approve once
   // Popups work after user click (not blocked when triggered by button)
