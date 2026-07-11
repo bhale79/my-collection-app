@@ -811,6 +811,9 @@ async function loadPersonalData() {
       state.constructionData = _pd.constructionData || {};
       state.ephemeraData  = _pd.ephemeraData  || { catalogs:{}, paper:{}, mockups:{}, other:{} };
       state.mySetsData   = _pd.mySetsData   || {};
+      // v0.9.827: Parts + Contacts restore from the phone snapshot too.
+      state.partsData    = _pd.partsData    || state.partsData    || {};
+      state.contactsData = _pd.contactsData || state.contactsData || [];
       // Audit M2: restore user-defined tabs (custom buckets disappeared on
       // cache-hit reload until next sheet refetch).
       if (_pd.userDefinedTabs && Array.isArray(_pd.userDefinedTabs)) {
@@ -980,6 +983,8 @@ function _cachePersonalData() {
       constructionData: state.constructionData,
       ephemeraData: state.ephemeraData,
       mySetsData: state.mySetsData,
+      partsData: state.partsData || {},        // v0.9.827: offline snapshot
+      contactsData: state.contactsData || [],  // v0.9.827: offline snapshot
       userDefinedTabs: state.userDefinedTabs || [], // Audit M2: persist user-defined tabs
     };
     localStorage.setItem('lv_personal_cache', JSON.stringify(_snap));
@@ -1025,6 +1030,10 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     sheetsGet(sheetId, 'Science Sets!A3:O').catch((e) => { console.warn('[Science Sets load failed]', e && e.message); return {values:[], _failed:true}; }),
     sheetsGet(sheetId, 'Construction Sets!A3:O').catch((e) => { console.warn('[Construction Sets load failed]', e && e.message); return {values:[], _failed:true}; }),
     sheetsGet(sheetId, 'My Sets!A3:N').catch((e) => { console.warn('[My Sets load failed]', e && e.message); return {values:[], _failed:true}; }),
+    // v0.9.827 (Brad): Parts + Contacts join the offline snapshot — small
+    // lists you want at a train show (part numbers, dealer phone numbers).
+    sheetsGet(sheetId, 'Parts Needed!A3:H').catch((e) => { console.warn('[Parts Needed load failed]', e && e.message); return {values:[], _failed:true}; }),
+    sheetsGet(sheetId, 'Contacts!A2:P').catch((e) => { console.warn('[Contacts load failed]', e && e.message); return {values:[], _failed:true}; }),
   ]);
   // Defaults — overwritten once the secondary promise resolves below
   let catRes={values:[]}, paperRes={values:[]}, mockRes={values:[]},
@@ -1211,7 +1220,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
 
   // Kick off secondary parsing asynchronously — does not block function return.
   _secondaryFetch.then(async function(results) {
-    const [catRes2, paperRes2, mockRes2, otherRes2, isRes2, sciRes2, conRes2, mySetsRes2] = results;
+    const [catRes2, paperRes2, mockRes2, otherRes2, isRes2, sciRes2, conRes2, mySetsRes2, partsRes2, contactsRes2] = results;
     isRes = isRes2; catRes = catRes2; paperRes = paperRes2; mockRes = mockRes2;
     otherRes = otherRes2; sciRes = sciRes2; conRes = conRes2; mySetsRes = mySetsRes2;
 
@@ -1351,6 +1360,15 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     // ── Commit secondary to state ──
     // (primary tabs — personalData/soldData/forSaleData/wantData — already
     // committed earlier. This block only handles secondary/ephemera tabs.)
+    // v0.9.827 (Brad): Parts + Contacts — parsed by THE parsers their pages
+    // own (window._parsePartsRows / window._ctParseRows), committed only on a
+    // successful fetch so a hiccup keeps the previous data (BUG-003 rule).
+    if (partsRes2 && !partsRes2._failed && typeof window._parsePartsRows === 'function') {
+      state.partsData = window._parsePartsRows(partsRes2.values);
+    }
+    if (contactsRes2 && !contactsRes2._failed && typeof window._ctParseRows === 'function') {
+      state.contactsData = window._ctParseRows(contactsRes2.values);
+    }
     // v0.9.824 (BUG-003): failed fetches keep the previous data.
     if (!isRes._failed) state.isData = newIsData;
     if (!sciRes._failed) state.scienceData = newScienceData;

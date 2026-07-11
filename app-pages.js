@@ -3517,23 +3517,32 @@ async function _ensurePartsTab() {
   } catch (e) { console.warn('[Parts] ensure tab failed', e && e.message); return false; }
 }
 
+// v0.9.827: THE parts-row parser — used by the page below AND the offline
+// snapshot loader in app-data.js (single source of truth).
+function _parsePartsRows(values) {
+  var parts = {};
+  (values || []).forEach(function (r, idx) {
+    if (!r[0] || r[0] === 'Part ID') return;
+    var _s = function (v) { return (v !== null && v !== undefined && v !== '') ? String(v) : ''; };
+    parts['p' + (idx + 3)] = {
+      row: idx + 3, id: _s(r[0]), description: _s(r[1]), partNum: _s(r[2]),
+      forItem: _s(r[3]), forInv: _s(r[4]), photo: _s(r[5]), notes: _s(r[6]), dateAdded: _s(r[7])
+    };
+  });
+  return parts;
+}
+if (typeof window !== 'undefined') window._parsePartsRows = _parsePartsRows;
+
 async function buildPartsPage() {
   var listEl = document.getElementById('parts-list');
   if (!listEl) return;
+  // v0.9.827 (TODO-003): offline — render straight from the phone snapshot.
+  if (window._offlineMode) { _renderPartsList(); return; }
   listEl.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--text-dim)">Loading parts…</div>';
   try {
     await _ensurePartsTab();
     var res = await sheetsGet(state.personalSheetId, 'Parts Needed!A3:H').catch(function () { return { values: [] }; });
-    var parts = {};
-    (res.values || []).forEach(function (r, idx) {
-      if (!r[0] || r[0] === 'Part ID') return;
-      var _s = function (v) { return (v !== null && v !== undefined && v !== '') ? String(v) : ''; };
-      parts['p' + (idx + 3)] = {
-        row: idx + 3, id: _s(r[0]), description: _s(r[1]), partNum: _s(r[2]),
-        forItem: _s(r[3]), forInv: _s(r[4]), photo: _s(r[5]), notes: _s(r[6]), dateAdded: _s(r[7])
-      };
-    });
-    state.partsData = parts;
+    state.partsData = _parsePartsRows(res.values);
   } catch (e) { state.partsData = state.partsData || {}; }
   _renderPartsList();
 }

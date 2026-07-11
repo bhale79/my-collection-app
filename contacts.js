@@ -658,20 +658,29 @@
     } catch (e) { console.warn('[contacts tab]', e); return false; }
   }
 
+  // v0.9.827: THE contact-row parser — used by _load below AND the offline
+  // snapshot loader in app-data.js (single source of truth).
+  // v0.9.771: _cs() String-coerce on EVERY cell — Sheets hands back NUMBERS
+  // for numeric-looking cells (a phone like 888678.7101), and .replace on a
+  // number crashed the whole list render right after a successful save.
+  function _ctParseRows(values) {
+    var out = [];
+    var _cs = function (x) { return (x === null || x === undefined) ? '' : String(x); };
+    (values || []).forEach(function (v, i) {
+      if (!v || !(v[1] || v[0])) return;
+      out.push({ row: i + 2, id: _cs(v[0]), name: _cs(v[1]), business: _cs(v[2]), phone: _cs(v[3]), email: _cs(v[4]), specialties: _cs(v[5]), notes: _cs(v[6]), cardLink: _cs(v[7]), metAt: _cs(v[8]), dateAdded: _cs(v[9]), address: _cs(v[10]), website: _cs(v[11]), homePhone: _cs(v[12]), cellPhone: _cs(v[13]), title: _cs(v[14]), personPhoto: _cs(v[15]) });
+    });
+    return out;
+  }
+  window._ctParseRows = _ctParseRows;
+
   async function _load() {
+    // v0.9.827 (TODO-003): offline — the phone snapshot already has them.
+    if (window._offlineMode) { return state.contactsData || []; }
     try {
       var r = await sheetsGet(state.personalSheetId, TAB + '!A2:P');
-      var out = [];
-      // v0.9.771: _cs() String-coerce on EVERY cell — Sheets hands back NUMBERS
-      // for numeric-looking cells (a phone like 888678.7101), and .replace on a
-      // number crashed the whole list render right after a successful save.
-      var _cs = function (x) { return (x === null || x === undefined) ? '' : String(x); };
-      (r && r.values || []).forEach(function (v, i) {
-        if (!v || !(v[1] || v[0])) return;
-        out.push({ row: i + 2, id: _cs(v[0]), name: _cs(v[1]), business: _cs(v[2]), phone: _cs(v[3]), email: _cs(v[4]), specialties: _cs(v[5]), notes: _cs(v[6]), cardLink: _cs(v[7]), metAt: _cs(v[8]), dateAdded: _cs(v[9]), address: _cs(v[10]), website: _cs(v[11]), homePhone: _cs(v[12]), cellPhone: _cs(v[13]), title: _cs(v[14]), personPhoto: _cs(v[15]) });
-      });
-      state.contactsData = out;
-      return out;
+      state.contactsData = _ctParseRows(r && r.values);
+      return state.contactsData;
     } catch (e) { state.contactsData = state.contactsData || []; return state.contactsData; }
   }
 
