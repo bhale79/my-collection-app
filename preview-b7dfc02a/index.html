@@ -62,7 +62,13 @@
     color: var(--cream); padding: 3.5rem 1.5rem 4rem; text-align: center; position: relative; overflow: hidden;
   }
   .hero-inner { max-width: 900px; margin: 0 auto; position: relative; }
-  .hero img.conductor { height: 150px; margin-bottom: 1rem; }
+  .hero img.conductor { height: 150px; }
+  .title-row { display: flex; align-items: center; justify-content: center; gap: 1.4rem; margin-bottom: 1.1rem; }
+  .title-row h1 { margin-bottom: 0; text-align: left; }
+  @media (max-width: 640px) {
+    .title-row { flex-direction: column; gap: 0.8rem; }
+    .title-row h1 { text-align: center; }
+  }
   .tagline {
     font-family: var(--font-head); font-size: 0.85rem; font-weight: 500; letter-spacing: 0.28em;
     text-transform: uppercase; color: var(--gold); margin-bottom: 0.9rem;
@@ -167,10 +173,12 @@
 
 <div class="hero">
   <div class="hero-inner">
-    <img class="conductor" src="../conductor.png" alt="Conductor mascot pointing">
     <div class="beta-chip">Beta — Free While in Beta</div>
     <div class="tagline">Built for the collector, by a collector</div>
-    <h1>Your entire train collection —<br>cataloged, valued, and <em>in your pocket</em></h1>
+    <div class="title-row">
+      <img class="conductor" src="../conductor.png" alt="Conductor mascot pointing">
+      <h1>Your entire train collection —<br>cataloged, valued, and <em>in your pocket</em></h1>
+    </div>
     <p class="subhead">The collection tracker built for model-train collectors — a 60,000+ item master list covering Lionel, MTH, Atlas, RMT, Weaver, and more, growing with the community every week. Identify, organize, value, and trade your trains, with your data that is always yours alone.</p>
     <div class="cta-row">
       <a class="btn btn-primary cta-big" href="mailto:bhale@ipd-llc.com?subject=Rail%20Roster%20Beta%20Access">Join the Beta</a>
@@ -233,7 +241,7 @@
       <h3><span class="dot"></span>Built for the hobby, anywhere</h3>
       <ul>
         <li>Works on your <b>phone at the show</b> or your <b>desktop at home</b> — installs like an app right from your browser, no app store needed.</li>
-        <li><b>View your collection offline</b> — your roster, want list, parts list, and contacts are saved to your phone for shows with no signal.</li>
+        <li><b>Take your lists to the show</b> — your roster, want list, parts list, and dealer contacts stay viewable with no signal.</li>
         <li><b>Customizable dashboard</b>, Dark/Light themes, and adjustable text size.</li>
       </ul>
     </div>
