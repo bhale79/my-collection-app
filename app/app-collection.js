@@ -1230,7 +1230,10 @@ function showItemDetailPage(idx, copyInvId, opts) {
         el.innerHTML = photos.map(function (ph) {
           return '<div style="position:relative"><a href="' + ph.view + '" target="_blank" rel="noopener" style="display:block;border-radius:8px;overflow:hidden;background:var(--surface2);aspect-ratio:1;position:relative">'
             + '<img id="gidp-' + gi + '-' + ph.id + '" style="width:100%;height:100%;object-fit:cover;border-radius:8px" alt="">'
-            + '<div onclick="event.preventDefault();event.stopPropagation();_grpRenamePhoto(\'' + ph.id + '\', this)" title="Click to rename (e.g. add -P or -D)" style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.6));padding:0.3rem 0.5rem;cursor:text"><div style="font-size:0.65rem;color:#fff;font-family:var(--font-head);letter-spacing:0.05em;text-transform:uppercase">' + (ph.name || '').replace(/\.[^.]+$/, '') + ' <span style="opacity:0.6">✎</span></div></div></a></div>';
+            + '<div onclick="event.preventDefault();event.stopPropagation();_grpRenamePhoto(\'' + ph.id + '\', this)" title="Click to rename (e.g. add -P or -D)" style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.6));padding:0.3rem 0.5rem;cursor:text"><div style="font-size:0.65rem;color:#fff;font-family:var(--font-head);letter-spacing:0.05em;text-transform:uppercase">' + (ph.name || '').replace(/\.[^.]+$/, '') + ' <span style="opacity:0.6">✎</span></div></div></a>'
+            // v0.9.846 (Brad): rotate/crop on grouped-item photos too — same
+            // shared editor, replaces the Drive file in place.
+            + '<button onclick="event.preventDefault();event.stopPropagation();_detailPhotoEdit(\'' + ph.id + '\',\'' + String(ph.name || '').replace(/'/g, "\\'") + '\',\'' + String(p.photoItem || '').replace(/'/g, "\\'") + '\',\'gidp-' + gi + '-' + ph.id + '\')" title="Rotate / crop this photo" style="position:absolute;top:4px;right:4px;z-index:2;width:26px;height:26px;border-radius:6px;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:0.8rem;cursor:pointer;line-height:1">\u2702</button></div>';
         }).join('');
         photos.forEach(function (ph) {
           var imgEl = document.getElementById('gidp-' + gi + '-' + ph.id);
@@ -1319,7 +1322,7 @@ async function _removeFromCollectionDetail(idx, itemNum, variation) {
 // the full-size image as an authorized blob (avoids canvas tainting), opens
 // the shared cropper (which now has Rotate), and on Apply REPLACES the Drive
 // file in place via _cropReplaceDrivePhoto — no duplicates, thumbnail updates.
-async function _detailPhotoEdit(fileId, fileName, folderLink) {
+async function _detailPhotoEdit(fileId, fileName, folderLink, imgId) {
   if (typeof _openCropper !== 'function') return;
   if (window._offlineMode) { if (typeof showToast === 'function') showToast("You're offline — editing photos needs a connection", 3500, true); return; }
   var url = null;
@@ -1338,7 +1341,7 @@ async function _detailPhotoEdit(fileId, fileName, folderLink) {
     try { ok = await _cropReplaceDrivePhoto(folderLink, fileName, blob); } catch (e) { console.warn('[detail photo replace]', e); }
     if (ok) {
       if (typeof showToast === 'function') showToast('\u2713 Photo updated');
-      var img = document.getElementById('idp-' + fileId) || document.getElementById('nip-' + fileId);
+      var img = (imgId && document.getElementById(imgId)) || document.getElementById('idp-' + fileId) || document.getElementById('nip-' + fileId);
       if (img) img.src = URL.createObjectURL(blob);
     } else if (typeof showToast === 'function') {
       showToast('Could not save the edited photo — try again', 3500, true);
