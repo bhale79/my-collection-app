@@ -844,11 +844,15 @@ async function loadPersonalData() {
       if (_ugKeys.some(function(k){ return k.indexOf('|') >= 0; })) {
         state.upgradeData = _reKeyByInv(state.upgradeData);
       }
-      // Only background-refresh full personal data if cache is older than 5
-      // minutes — and never while offline (it would just fail noisily).
+      // v0.9.836 (BUG-006, Brad's phone-still-shows-it): a COLD page load
+      // always background-refreshes, whatever the snapshot's age — reloading
+      // is how users ask "check again" after changing things on another
+      // device. The 5-minute throttle now only applies to repeat loads
+      // within the same running session. Never refresh while offline.
       if (window._offlineMode) {
         console.log('[Cache] offline mode — snapshot only, no refresh');
-      } else if ((Date.now() - _ptime) > _BG_REFRESH) {
+      } else if (!window._pdColdRefreshed || (Date.now() - _ptime) > _BG_REFRESH) {
+        window._pdColdRefreshed = true;
         _loadPersonalFromSheets(state.personalSheetId).then(() => {
           _cachePersonalData();
           buildDashboard();
