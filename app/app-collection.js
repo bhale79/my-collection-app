@@ -156,8 +156,11 @@ function showNonItemDetailPage(type, key) {
 
   // Back button (mirror Items' tools-flow handling)
   var fromTools = window._detailReturn === 'tools';
-  var backLabel = fromTools ? 'Back to Collection Tools' : 'Back to Collection';
-  var backFn    = fromTools ? 'delete window._detailReturn;showPage(&apos;tools&apos;);buildToolsPage()' : '_detailBackToBrowse()';
+  var fromDash  = window._detailReturn === 'dashboard';   // v0.9.845 (Brad)
+  var backLabel = fromTools ? 'Back to Collection Tools' : fromDash ? 'Back to Dashboard' : 'Back to Collection';
+  var backFn    = fromTools ? 'delete window._detailReturn;showPage(&apos;tools&apos;);buildToolsPage()'
+                : fromDash  ? 'delete window._detailReturn;showPage(&apos;dashboard&apos;);if(typeof buildDashboard===&apos;function&apos;)buildDashboard()'
+                : '_detailBackToBrowse()';
 
   // ── HEADER ──
   var html = ''
@@ -987,6 +990,10 @@ function showItemDetailPage(idx, copyInvId, opts) {
   } else if (_detRet === 'tools') {
     _backLabel = 'Back to Collection Tools';
     _backFn    = 'delete window._detailReturn;showPage(&apos;tools&apos;);buildToolsPage()';
+  } else if (_detRet === 'dashboard') {
+    // v0.9.845 (Brad): opened from a dashboard card — go back to the dashboard.
+    _backLabel = 'Back to Dashboard';
+    _backFn    = 'delete window._detailReturn;showPage(&apos;dashboard&apos;);if(typeof buildDashboard===&apos;function&apos;)buildDashboard()';
   }
   let html = `
   <div style="margin-bottom:1.5rem">

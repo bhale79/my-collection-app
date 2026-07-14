@@ -1050,6 +1050,9 @@ var PANEL_CATALOG = [
 
 // Shared row renderer for all panels
 function _panelRow(icon, itemHtml, name, meta, onclick, photoUrl, extraBadge) {
+  // v0.9.845 (Brad): anything opened from a dashboard card goes BACK to the
+  // dashboard — mark the return address before the click handler runs.
+  if (onclick) onclick = "window._detailReturn='dashboard';" + onclick;
   var _placeholderImg = (typeof _RSV_PLACEHOLDER_PNG !== 'undefined')
     ? '<img src="' + _RSV_PLACEHOLDER_PNG + '" style="width:32px;height:32px;object-fit:cover;border-radius:5px;flex-shrink:0;border:1px solid var(--border);opacity:0.75">'
     : '<div style="width:32px;height:32px;border-radius:5px;background:var(--surface2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1rem">' + icon + '</div>';
@@ -1126,7 +1129,7 @@ window._reelStart = async function (slot) {
       img.onload = function () { img.style.opacity = 1; };
       loadDriveThumb(t.fid, img, wrap);
       cap.textContent = t.pd.itemNum;
-      wrap.onclick = function (ev) { ev.stopPropagation(); _openOwnedByInvId(t.pd.inventoryId); };
+      wrap.onclick = function (ev) { ev.stopPropagation(); window._detailReturn = 'dashboard'; _openOwnedByInvId(t.pd.inventoryId); };
     }, 250);
   }
   show();
@@ -1162,7 +1165,7 @@ window._showcaseFill = async function () {
     var img = cell.querySelector('img');
     img.onload = function () { img.style.opacity = 1; };
     loadDriveThumb(t.fid, img, cell);
-    cell.onclick = function () { _openOwnedByInvId(t.pd.inventoryId); };
+    cell.onclick = function () { window._detailReturn = 'dashboard'; _openOwnedByInvId(t.pd.inventoryId); };
   });
 };
 
