@@ -817,6 +817,7 @@ async function loadPersonalData() {
       // v0.9.827: Parts + Contacts restore from the phone snapshot too.
       state.partsData    = _pd.partsData    || state.partsData    || {};
       state.contactsData = _pd.contactsData || state.contactsData || [];
+      setTimeout(function () { try { if (typeof _updatePartsBadge === 'function') _updatePartsBadge(); } catch (e) {} }, 500);
       // Audit M2: restore user-defined tabs (custom buckets disappeared on
       // cache-hit reload until next sheet refetch).
       if (_pd.userDefinedTabs && Array.isArray(_pd.userDefinedTabs)) {
@@ -1372,6 +1373,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     // successful fetch so a hiccup keeps the previous data (BUG-003 rule).
     if (partsRes2 && !partsRes2._failed && typeof window._parsePartsRows === 'function') {
       state.partsData = window._parsePartsRows(partsRes2.values);
+      try { if (typeof _updatePartsBadge === 'function') _updatePartsBadge(); } catch (e) {}
     }
     if (contactsRes2 && !contactsRes2._failed && typeof window._ctParseRows === 'function') {
       state.contactsData = window._ctParseRows(contactsRes2.values);

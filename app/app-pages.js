@@ -3551,12 +3551,22 @@ async function buildPartsPage() {
 }
 if (typeof window !== 'undefined') window.buildPartsPage = buildPartsPage;
 
+// v0.9.843 (Brad): the Parts badge only updated when you VISITED the page,
+// though the data has loaded with everything else since v827. One updater,
+// called from every place parts data lands.
+function _updatePartsBadge() {
+  var badge = document.getElementById('nav-parts');
+  if (!badge) return;
+  var n = Object.keys(state.partsData || {}).length;
+  badge.textContent = n || '\u2014';
+}
+if (typeof window !== 'undefined') window._updatePartsBadge = _updatePartsBadge;
+
 function _renderPartsList() {
   var listEl = document.getElementById('parts-list');
   if (!listEl) return;
   var parts = Object.values(state.partsData || {});
-  var badge = document.getElementById('nav-parts');
-  if (badge) badge.textContent = parts.length || '—';
+  _updatePartsBadge();
   var cnt = document.getElementById('parts-count');
   if (cnt) cnt.textContent = parts.length ? (' ' + parts.length + ' part' + (parts.length !== 1 ? 's' : '')) : '';
   if (!parts.length) {
