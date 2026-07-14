@@ -41,6 +41,7 @@ function _openCropper(src, onResult, onCancel) {   // v0.9.787: onCancel = proce
     '</div>' +
     '<div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:0 1rem;overflow:hidden"><img id="_rrCropImg" style="max-width:100%;max-height:100%;display:block"></div>' +
     '<div style="padding:0.85rem 1rem;display:flex;gap:0.6rem;justify-content:flex-end">' +
+      '<button id="_rrCropRotate" style="' + btn + ';margin-right:auto">\u21bb Rotate</button>' +
       '<button id="_rrCropCancel" style="' + btn + '">Cancel</button>' +
       '<button id="_rrCropApply" style="' + btnA + '">Apply crop</button>' +
     '</div>';
@@ -52,6 +53,8 @@ function _openCropper(src, onResult, onCancel) {   // v0.9.787: onCancel = proce
   function done() { try { if (cropper) cropper.destroy(); } catch (e) {} ov.remove(); if (window.BackStack) BackStack.pop('_rr-cropper'); }
   // v0.9.808 (TODO-012): device Back = Cancel (keep the full photo).
   if (window.BackStack) BackStack.push('_rr-cropper', function () { done(); if (onCancel) try { onCancel(); } catch (e) {} });
+  // v0.9.837 (Brad): rotate right in the cropper — sideways phone shots.
+  ov.querySelector('#_rrCropRotate').onclick = function () { try { if (cropper) cropper.rotate(90); } catch (e) {} };
   ov.querySelector('#_rrCropCancel').onclick = function () { done(); if (onCancel) try { onCancel(); } catch (e) {} };
   ov.querySelector('#_rrCropApply').onclick = function () {
     if (!cropper) { done(); if (onCancel) try { onCancel(); } catch (e) {} return; }

@@ -1238,6 +1238,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
         el.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:2rem 1rem;color:var(--text-dim)"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3" style="margin:0 auto 0.5rem;display:block"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg><div style="font-size:0.85rem;margin-bottom:0.5rem">No photos in folder</div><button onclick="showItemDetailPage_photos(' + idx + ')" style="padding:0.4rem 0.8rem;border-radius:7px;border:1.5px solid var(--gold);background:rgba(212,168,67,0.08);color:var(--gold);font-family:var(--font-body);font-size:0.78rem;cursor:pointer;font-weight:600">Add Photos</button></div>';
         return;
       }
+      var _flEsc = String(_photoLink || '').replace(/'/g, "\\'");
       el.innerHTML = photos.map(function(p) {
         var _pn = (p.name||'').replace(/'/g,"\\'");
         return '<div style="position:relative">'
@@ -1246,6 +1247,10 @@ function showItemDetailPage(idx, copyInvId, opts) {
           + '<div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.6));padding:0.3rem 0.5rem">'
           + '<div style="font-size:0.65rem;color:#fff;font-family:var(--font-head);letter-spacing:0.05em;text-transform:uppercase">' + (p.name||'').replace(/\.[^.]+$/,'') + '</div>'
           + '</div></a>'
+          // v0.9.837 (Brad): edit (rotate/crop) right on the detail page —
+          // opens the cropper on the full image, replaces the Drive file in
+          // place. The cropper itself gained a Rotate button.
+          + '<button onclick="event.preventDefault();event.stopPropagation();_detailPhotoEdit(\'' + p.id + '\',\'' + _pn + '\',\'' + _flEsc + '\')" title="Rotate / crop this photo" style="position:absolute;top:4px;right:4px;z-index:2;width:26px;height:26px;border-radius:6px;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:0.8rem;cursor:pointer;line-height:1">\u2702</button>'
           + '</div>';
       }).join('');
       // Load each photo thumbnail
@@ -1284,6 +1289,38 @@ async function _removeFromCollectionDetail(idx, itemNum, variation) {
     else if (typeof showPage === 'function') showPage('browse');
   }
 }
+
+// v0.9.837 (Brad): rotate/crop a photo from the item detail page. Fetches
+// the full-size image as an authorized blob (avoids canvas tainting), opens
+// the shared cropper (which now has Rotate), and on Apply REPLACES the Drive
+// file in place via _cropReplaceDrivePhoto — no duplicates, thumbnail updates.
+async function _detailPhotoEdit(fileId, fileName, folderLink) {
+  if (typeof _openCropper !== 'function') return;
+  if (window._offlineMode) { if (typeof showToast === 'function') showToast("You're offline — editing photos needs a connection", 3500, true); return; }
+  var url = null;
+  try {
+    var r = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', { headers: { Authorization: 'Bearer ' + accessToken } });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    url = URL.createObjectURL(await r.blob());
+  } catch (e) {
+    console.warn('[detail photo edit]', e);
+    if (typeof showToast === 'function') showToast('Could not open the photo — try again', 3500, true);
+    return;
+  }
+  _openCropper(url, async function (blob) {
+    try { URL.revokeObjectURL(url); } catch (e) {}
+    var ok = false;
+    try { ok = await _cropReplaceDrivePhoto(folderLink, fileName, blob); } catch (e) { console.warn('[detail photo replace]', e); }
+    if (ok) {
+      if (typeof showToast === 'function') showToast('\u2713 Photo updated');
+      var img = document.getElementById('idp-' + fileId);
+      if (img) img.src = URL.createObjectURL(blob);
+    } else if (typeof showToast === 'function') {
+      showToast('Could not save the edited photo — try again', 3500, true);
+    }
+  }, function () { try { URL.revokeObjectURL(url); } catch (e) {} });
+}
+if (typeof window !== 'undefined') window._detailPhotoEdit = _detailPhotoEdit;
 
 // v0.9.695: repair a personalData row number that is missing or the fake
 // 99999 placeholder (older manual/IS saves stamped it) by locating the row's
