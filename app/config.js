@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.840';
+const APP_VERSION = 'v0.9.841';
 
 // v0.9.699 (Brad's phantom-touch desktop): ONE authoritative "is this actually
 // a phone/tablet?" flag. Touch detection LIES on Windows PCs (pen/driver
@@ -94,7 +94,7 @@ window.ROAD_TYPEAHEAD_CONFIG = {
 const MASTER_SHEET_ID = '1Y9-cg8C1CkIqy0RQ66DfP7fmGrE3IGBpyJbtdfYx8q0';
 
 // ── Admin config ──
-const ADMIN_EMAIL  = 'bhale@ipd-llc.com';
+const ADMIN_EMAIL  = 'admin@therailroster.com';
 
 // ── Era definitions ──
 const ERAS = {
