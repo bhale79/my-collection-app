@@ -1438,9 +1438,14 @@ function showItemDetailPage_edit(idx) {
   else showToast('Item not found in your collection', 3000, true);
 }
 function showItemDetailPage_photos(idx) {
+  // v0.9.849 (Brad): button says "Add Photos" - go STRAIGHT to the photo
+  // wizard (same path as the panel's own 📷 button), not the edit panel.
   const pdKey = _detailPdKeyAny(idx);
-  if (pdKey) showItemPanel(idx, pdKey, 'edit');
-  else showToast('Item not found in your collection', 3000, true);
+  if (!pdKey) { showToast('Item not found in your collection', 3000, true); return; }
+  const pd = state.personalData[pdKey] || {};
+  const item = idx >= 0 ? state.masterData[idx] : null;
+  openPhotoWizard(pd.itemNum || (item && item.itemNum) || '',
+                  pd.variation || (item && item.variation) || '', pdKey);
 }
 function showItemDetailPage_sell(idx) {
   const pdKey = _detailPdKeyAny(idx);
