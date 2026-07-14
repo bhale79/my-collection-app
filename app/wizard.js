@@ -314,11 +314,16 @@ function _wizardMfr() {
 window._wizResearchPrice = function () {
   try {
     var d = (typeof wizard !== 'undefined' && wizard.data) || {};
-    var m = (typeof wizard !== 'undefined' && wizard.matchedItem) || {};
-    var num = d.itemNum || m.itemNum || '';
-    var mfr = m.manufacturer || ((typeof _brandOfItem === 'function') ? (_brandOfItem(num) || '') : '');
-    var road = m.roadName || d.suggestedRoadName || '';
-    var desc = m.description || '';
+    // v0.9.839 (BUG-004, Brad's 10-2210): resolve the item the same way the
+    // ADDING banner does — manual entries store manualItemNum/manualDesc,
+    // and the match can live in wizard.matchedItem OR d.matchedItem.
+    var num = (d.itemNum || d.manualItemNum || d.set_num || d.is_linkedItem || '').toString().trim();
+    var m = (typeof wizard !== 'undefined' && wizard.matchedItem) || d.matchedItem || {};
+    if (m && m.itemNum && num && String(m.itemNum).trim() !== num) m = {};
+    if ((!m || !m.itemNum) && num && typeof findMaster === 'function') m = findMaster(num) || {};
+    var mfr = m.manufacturer || d.manualManufacturer || ((typeof _brandOfItem === 'function') ? (_brandOfItem(num) || '') : '');
+    var road = m.roadName || d.manualRoadName || d.suggestedRoadName || '';
+    var desc = m.description || d.manualDesc || '';
     var url = (typeof window._googlePriceUrl === 'function')
       ? window._googlePriceUrl(num, mfr, road, desc)
       : 'https://www.google.com/search?q=' + encodeURIComponent([mfr, num, road, desc].filter(Boolean).join(' ') + ' sold prices value');

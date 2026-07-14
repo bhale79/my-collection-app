@@ -2786,8 +2786,11 @@ function buildUpgradePage() {
   }
 
   let entries = _collect.filter(u => {
-    // Era filter
-    if (typeof _isInCurrentEra === 'function' && !_isInCurrentEra(u.itemNum)) return false;
+    // Era filter — v0.9.839 (TODO-014, Brad's airplane test): with the catalog
+    // not loaded (offline) this filter rejected EVERYTHING and the want list
+    // showed empty despite the data sitting right there in the snapshot.
+    // No catalog = no era filtering; show the list.
+    if (typeof _isInCurrentEra === 'function' && state.masterData && state.masterData.length > 0 && !_isInCurrentEra(u.itemNum)) return false;
     // Priority filter
     if (_up && (u.priority || 'Medium') !== _up) return false;
     if (_uq) {

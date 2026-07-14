@@ -152,6 +152,10 @@ var CARD_CATALOG = [
   {
     id: 'photoReel', label: 'From My Collection', color: '#9b59b6',
     compute: function(state, i) {
+      // v0.9.839 (TODO-014): offline — photos need Drive; say so plainly.
+      if (window._offlineMode || navigator.onLine === false) {
+        return { html: '<div style="height:86px;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:0.72rem;text-align:center;padding:0 0.5rem">\ud83d\udce1 Photos will show when you\u2019re back online</div>' };
+      }
       setTimeout(function() { if (typeof window._reelStart === 'function') window._reelStart(i); }, 0);
       return { html: '<div id="reel-' + i + '" style="height:86px;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:0.72rem">Loading photos\u2026</div>' };
     }
@@ -317,7 +321,10 @@ var CARD_CATALOG = [
       var _ownedList = _ownedNonBox(state).filter(_pdEraEnabled);
       // Catalog not loaded yet — can't classify; show loading rather than a wrong/empty breakdown.
       if ((!state.masterData || state.masterData.length === 0) && _ownedList.length > 0) {
-        return { html: '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:4px">Loading catalog\u2026</div>' };
+        // v0.9.839 (TODO-014): offline the catalog never arrives — say so
+        // instead of a forever "Loading catalog…".
+        var _cbMsg = (window._offlineMode || navigator.onLine === false) ? '\ud83d\udce1 Will show when you\u2019re back online' : 'Loading catalog\u2026';
+        return { html: '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:4px">' + _cbMsg + '</div>' };
       }
       _ownedList.forEach(function(pd) {
         if (_pdMatchSet(pd, _eS)) types['Engines']++;
@@ -816,6 +823,9 @@ var PANEL_CATALOG = [
     icon: '\uD83D\uDDBC',
     navFn: "goToMyCollection();",
     render: function(state) {
+      if (window._offlineMode || navigator.onLine === false) {
+        return '<div style="min-height:120px;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:0.78rem;text-align:center">\ud83d\udce1 Photos will show when you\u2019re back online</div>';
+      }
       setTimeout(function() { if (typeof window._showcaseFill === 'function') window._showcaseFill(); }, 0);
       return '<div id="showcase-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:0.5rem;min-height:120px"><div class="empty-state"><p>Loading photos\u2026</p></div></div>';
     }

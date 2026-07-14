@@ -1288,12 +1288,23 @@ async function _removeFromCollectionDetail(idx, itemNum, variation) {
   if (typeof removeCollectionItem === 'function') {
     await removeCollectionItem(itemNum, variation, row, pd ? pd.inventoryId : '');
   }
-  var stillOwned = Object.values(state.personalData || {}).some(function(p) {
-    return p && p.owned && p.itemNum === itemNum && (p.variation || '') === (variation || '');
-  });
-  if (!stillOwned) {
+  // v0.9.839 (BUG-005, Brad's silent Remove): the state cleanup can land a
+  // tick AFTER the await resolves — checking once raced it and lost, so the
+  // page just sat there looking broken. Poll briefly; when the item is gone,
+  // toast + leave the page. (Still owned after 2s = user cancelled the
+  // confirm, or a multi-copy removal kept the item — stay put, no toast.)
+  var gone = false;
+  for (var _i = 0; _i < 10 && !gone; _i++) {
+    gone = !Object.values(state.personalData || {}).some(function(p) {
+      return p && p.owned && p.itemNum === itemNum && (p.variation || '') === (variation || '');
+    });
+    if (!gone) await new Promise(function(r) { setTimeout(r, 200); });
+  }
+  if (gone) {
+    if (typeof showToast === 'function') showToast('\u2713 Removed from your collection');
     if (typeof _detailBackToBrowse === 'function') _detailBackToBrowse();
     else if (typeof showPage === 'function') showPage('browse');
+    try { if (typeof buildDashboard === 'function') buildDashboard(); } catch (e) {}
   }
 }
 
