@@ -1416,7 +1416,21 @@ function _detailPdKeyAny(idx) {
   const item = idx >= 0 ? state.masterData[idx] : null;
   if (item) return _detailPdKey(item);
   const k = window._lastDetailPdKey;
-  return (k && state.personalData[k]) ? k : null;
+  if (k && state.personalData[k]) return k;
+  // v0.9.847 (Brad's "Lenny the Lion" dead Add Photos): manual items opened
+  // by inventory id (dashboard cards, seller links) can miss the _poKeys
+  // registry, leaving _lastDetailPdKey null and every toolbar button dead.
+  // The page ALWAYS knows which copy it shows — resolve by inventoryId,
+  // the canonical reference for owned items.
+  const inv = window._lastDetailCopyInv;
+  if (inv) {
+    const hit = Object.keys(state.personalData || {}).find(function (kk) {
+      const p = state.personalData[kk];
+      return p && p.owned && String(p.inventoryId) === String(inv);
+    });
+    if (hit) return hit;
+  }
+  return null;
 }
 function showItemDetailPage_edit(idx) {
   const pdKey = _detailPdKeyAny(idx);
