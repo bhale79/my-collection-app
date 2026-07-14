@@ -93,6 +93,55 @@ window.resetContextualHints = resetContextualHints;
 
 
 // ── iOS install hint + offline banner ──
+// v0.9.835 (Brad): real "Install the app" button. Chrome/Edge (Android +
+// desktop) fire beforeinstallprompt — we stash it and trigger the browser's
+// own install dialog from our menu item. iOS never fires it (Apple allows no
+// programmatic install) — there the button shows the Safari 3-step hint.
+// The menu item hides itself when the app is already running installed.
+window._pwaPrompt = null;
+window.addEventListener('beforeinstallprompt', function (e) {
+  e.preventDefault();
+  window._pwaPrompt = e;
+  var mi = document.getElementById('menu-install-app');
+  if (mi && !_pwaIsInstalled()) mi.style.display = '';
+});
+function _pwaIsInstalled() {
+  return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+    || window.navigator.standalone === true;
+}
+function _pwaInstall() {
+  try { if (typeof toggleAccountMenu === 'function') toggleAccountMenu(); } catch (e) {}
+  if (window._pwaPrompt) {
+    var p = window._pwaPrompt;
+    window._pwaPrompt = null;
+    p.prompt();
+    p.userChoice.then(function (r) {
+      if (r && r.outcome === 'accepted') {
+        if (typeof showToast === 'function') showToast('📲 Installing — look for the conductor on your home screen');
+        var mi = document.getElementById('menu-install-app');
+        if (mi) mi.style.display = 'none';
+      }
+    }).catch(function () {});
+    return;
+  }
+  if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
+    try { localStorage.removeItem('lv_ios_hint_dismissed'); } catch (e) {}
+    var old = document.getElementById('ios-install-hint');
+    if (old) old.remove();
+    _showIOSInstallHint();
+    return;
+  }
+  if (typeof showToast === 'function') showToast("Your browser didn't offer an install here — in Chrome use the \u22ee menu \u2192 Add to Home screen", 5000);
+}
+function _pwaMenuInit() {
+  var mi = document.getElementById('menu-install-app');
+  if (!mi) return;
+  if (_pwaIsInstalled()) { mi.style.display = 'none'; return; }
+  if (window._pwaPrompt || /iphone|ipad|ipod/i.test(navigator.userAgent)) mi.style.display = '';
+}
+if (typeof window !== 'undefined') { window._pwaInstall = _pwaInstall; window._pwaMenuInit = _pwaMenuInit; }
+setTimeout(_pwaMenuInit, 3000);
+
 function _showIOSInstallHint() {
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
   const isStandalone = window.navigator.standalone === true;
