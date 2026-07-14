@@ -143,6 +143,11 @@ async function sheetsUpdate(spreadsheetId, range, values) {
     if (typeof showToast === 'function') showToast("You're offline — this change needs a connection", 3500, true);
     throw new Error('offline');
   }
+  // v0.9.840 (Phase C): lapsed trial/subscription = view-and-export-only.
+  if (window._readOnlyMode) {
+    if (typeof showToast === 'function') showToast('Your trial has ended — subscribe to keep adding and editing', 4000, true);
+    throw new Error('readonly');
+  }
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${_encodeRange(range)}?valueInputOption=USER_ENTERED`;
   const body = JSON.stringify({ range, majorDimension: 'ROWS', values });
   const res = await _withTokenRetry(() => fetch(url, {
@@ -163,6 +168,11 @@ async function sheetsAppend(spreadsheetId, range, values) {
   if (window._offlineMode) {
     if (typeof showToast === 'function') showToast("You're offline — this change needs a connection", 3500, true);
     throw new Error('offline');
+  }
+  // v0.9.840 (Phase C): lapsed trial/subscription = view-and-export-only.
+  if (window._readOnlyMode) {
+    if (typeof showToast === 'function') showToast('Your trial has ended — subscribe to keep adding and editing', 4000, true);
+    throw new Error('readonly');
   }
   // Extract raw tab name from range (e.g. "For Sale!A:A" -> "For Sale")
   const tabName = range.includes('!') ? range.split('!')[0] : range;

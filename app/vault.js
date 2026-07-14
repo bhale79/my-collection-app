@@ -787,3 +787,60 @@ async function vaultInit() {
     setTimeout(() => vaultSubmitData(), 3000);
   }
 }
+
+
+// ============================================================
+// v0.9.840 — PHASE C: subscription / trial state (Brad's launch build)
+// Asks the Vault backend who this signed-in email is: beta (free year),
+// active subscriber, in-trial (days left), or expired. FAIL-OPEN: any
+// network/backend hiccup = full access; we never lock out a paying user
+// because a request dropped. Enforcement is DARK until the config tab's
+// sub_enforce flag says 'on' — flip it at launch.
+// ============================================================
+window._subState = null;
+
+async function subCheck() {
+  try {
+    if (window._offlineMode) return;                       // offline = view-only anyway
+    if (!state.user || !state.user.email) return;
+    const r = await vaultPost({ action: 'sub_check', email: state.user.email });
+    if (!r || r.status !== 200 || !r.sub) return;          // fail-open
+    window._subState = r;
+    _subApply(r);
+  } catch (e) { console.warn('[sub] check failed — fail-open', e && e.message); }
+}
+
+function _subApply(r) {
+  var old = document.getElementById('sub-banner');
+  if (old) old.remove();
+  window._readOnlyMode = false;
+  if (!r.enforce) return;                                  // dark until launch
+  if (r.sub === 'active' || r.sub === 'beta') return;
+  if (r.sub === 'trial') {
+    if (r.daysLeft <= 7) {
+      _subBanner('\u23f3 ' + r.daysLeft + ' day' + (r.daysLeft === 1 ? '' : 's') + ' left in your free trial.', r.payLink, 'Subscribe — $75/yr');
+    }
+    return;
+  }
+  // expired / anything else the backend calls not-entitled
+  window._readOnlyMode = true;
+  _subBanner('Your free trial has ended — your collection is safe and view-only. Subscribe to keep building it.', r.payLink, 'Subscribe — $75/yr');
+}
+
+function _subBanner(msg, payLink, btnLabel) {
+  var b = document.createElement('div');
+  b.id = 'sub-banner';
+  b.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:9997;background:var(--surface);border-top:2px solid var(--accent);padding:0.6rem 1rem;display:flex;align-items:center;justify-content:center;gap:0.9rem;flex-wrap:wrap;font-family:var(--font-body);font-size:0.85rem;color:var(--text);box-shadow:0 -2px 12px rgba(0,0,0,0.35)';
+  var txt = document.createElement('span');
+  txt.textContent = msg;
+  b.appendChild(txt);
+  if (payLink) {
+    var a = document.createElement('a');
+    a.href = payLink; a.target = '_blank'; a.rel = 'noopener';
+    a.textContent = btnLabel || 'Subscribe';
+    a.style.cssText = 'background:var(--accent);color:#fff;font-weight:700;text-decoration:none;padding:0.45rem 1.1rem;border-radius:8px;font-family:var(--font-head);letter-spacing:0.04em;text-transform:uppercase;font-size:0.78rem';
+    b.appendChild(a);
+  }
+  document.body.appendChild(b);
+}
+if (typeof window !== 'undefined') { window.subCheck = subCheck; window._subApply = _subApply; }

@@ -126,6 +126,9 @@ function _inferMissingYears() {
 
 async function loadAllData() {
   showLoading();
+  // v0.9.840 (Phase C): subscription/trial check rides behind every full
+  // load — non-blocking, fail-open, dark until the backend enforce flag.
+  setTimeout(function () { try { if (typeof subCheck === 'function') subCheck(); } catch (e) {} }, 2500);
   try {
     loadUserDefinedTabs();
     // Audit NEW #9: also sync from sheet metadata so custom tabs survive

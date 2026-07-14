@@ -372,6 +372,11 @@ async function openWizard(tab) {
     if (typeof showToast === 'function') showToast("You're offline — you can browse your collection, but adding items needs a connection", 4000, true);
     return;
   }
+  // v0.9.840 (Phase C): lapsed = view-only; the bottom banner has the button.
+  if (window._readOnlyMode) {
+    if (typeof showToast === 'function') showToast('Your trial has ended — subscribe to keep adding items (button below)', 4000, true);
+    return;
+  }
   // Session 154: Want lookups span the whole catalog — load every era first
   // (instant if cached) so search isn't capped to the current era.
   if (tab === 'want' && typeof _currentEra !== 'undefined' && _currentEra !== 'all'
