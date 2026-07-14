@@ -29,6 +29,18 @@
 //   - Consistent pattern across all 9 tabs
 // =============================================================
 
+// v0.9.844 (Brad): catalogs display as "1958 Catalog, Consumer" everywhere —
+// the internal ID (8058-CON) is unchanged and still shown in detail fields.
+// THE label helper; every screen uses this one.
+window._catalogDisplayLabel = function (year, type, fallback) {
+  var y = String(year || '').trim();
+  var t = String(type || '').trim();
+  if (y && t) return y + ' Catalog, ' + t;
+  if (y) return y + ' Catalog';
+  if (t) return 'Catalog, ' + t;
+  return fallback || 'Catalog';
+};
+
 (function() {
   // small helpers
   var money = function(v) {
@@ -128,7 +140,7 @@
     // ── Catalogs ─────────────────────────────────────────────────
     catalogs: {
       label: 'Catalog',
-      pageTitle:       function(e) { return e.itemNum || e.title || '—'; },
+      pageTitle:       function(e) { return window._catalogDisplayLabel(e.year, e.catType, e.itemNum || e.title || '—'); },
       subtitle:        function(e) { return e.title || ''; },
       typeBadge:       function(e) { return e.catType || 'Catalog'; },
       itemNumDisplay:  function(e) { return e.itemNum || ''; },

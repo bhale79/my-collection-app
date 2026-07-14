@@ -913,6 +913,22 @@ var PANEL_CATALOG = [
     }
   },
   {
+    // v0.9.844 (Brad): Parts Wanted card — pick it via the ✎ on any card.
+    id: 'parts',
+    label: 'Parts Wanted',
+    icon: '🔧',
+    navFn: "showPage('parts', null); if (typeof buildPartsPage === 'function') buildPartsPage();",
+    render: function(state) {
+      var rows = Object.values(state.partsData || {});
+      var go = "showPage('parts', null); if (typeof buildPartsPage === 'function') buildPartsPage();";
+      return rows.slice(0, 8).map(function(pt) {
+        var forTxt = pt.forItem ? 'For #' + pt.forItem : (pt.partNum ? 'Part #' + pt.partNum : '');
+        var when = pt.dateAdded && typeof _formatDate === 'function' ? _formatDate(pt.dateAdded) : '';
+        return _panelRow('🔧', (pt.description || 'Part'), forTxt, when, go, null, null);
+      }).join('') || '<div class="empty-state"><p>No parts on the hunt list</p><p style="font-size:0.78rem;color:var(--text-dim)">Add what you\u2019re hunting from the Parts Needed page</p></div>';
+    }
+  },
+  {
     id: 'wants',
     label: 'Top Want List Items',
     icon: '⭐',

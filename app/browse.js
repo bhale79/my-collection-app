@@ -1513,7 +1513,7 @@ function renderCatalogsTab() {
       ? _collectionActionsHTML('catalogs', k, c) : '';
     const kEsc = String(k).replace(/'/g, "\\'");
     return '<tr onclick="showNonItemDetailPage(&apos;catalogs&apos;,&apos;' + kEsc + '&apos;)" style="cursor:pointer">'
-      + '<td><span style="font-family:var(--font-mono);color:var(--accent2)">' + (c.itemNum || '—') + '</span></td>'
+      + '<td><span style="font-family:var(--font-mono);color:var(--accent2)" title="' + String(c.itemNum || '').replace(/"/g,'&quot;') + '">' + ((typeof _catalogDisplayLabel === 'function') ? _catalogDisplayLabel(c.year, c.catType, c.itemNum) : (c.itemNum || '—')) + '</span></td>'
       + '<td style="font-size:0.85rem;color:var(--text-mid)">' + (c.year || '—') + '</td>'
       + '<td style="font-size:0.85rem">' + (c.catType || '—') + '</td>'
       + '<td style="font-size:0.88rem">' + (c.title || '—') + (c.hasMailer === 'Yes' ? ' <span style="font-size:0.7rem;color:var(--accent2)">(w/ mailer)</span>' : '') + '</td>'
@@ -1538,7 +1538,7 @@ function renderCatalogsTab() {
       }
     }
     return `<tr onclick="${_rowClick}" style="cursor:pointer;${_catBg}">
-    <td><span style="font-family:var(--font-mono);color:var(--accent2)">${c.id}</span>${_catBadge}</td>
+    <td><span style="font-family:var(--font-mono);color:var(--accent2)" title="${c.id}">${(typeof _catalogDisplayLabel === 'function') ? _catalogDisplayLabel(c.year, c.type, c.id) : c.id}</span>${_catBadge}</td>
     <td style="font-size:0.85rem;color:var(--text-mid)">${c.year || '—'}</td>
     <td style="font-size:0.85rem">${c.type || '—'}</td>
     <td style="font-size:0.88rem">${c.title || '—'}</td>
@@ -2756,7 +2756,7 @@ function renderBrowse() {
             <div style="display:flex;align-items:center;gap:0.45rem">
               ${_photoLink ? `<span id="${_thumbId}" style="flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:4px;background:var(--surface2);overflow:hidden;color:var(--text-dim)"></span>` : ''}
               <span style="min-width:0">
-                <span class="item-num" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom" title="${String(it.itemNum || '').replace(/"/g,'&quot;')}">${it.itemNum || '—'}</span>
+                <span class="item-num" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom" title="${String(it.itemNum || '').replace(/"/g,'&quot;')}">${(r.tabId === 'catalogs' && typeof _catalogDisplayLabel === 'function') ? _catalogDisplayLabel(it.year, it.catType, it.itemNum) : (it.itemNum || '—')}</span>
                 ${_photoLink ? `<span onclick="event.stopPropagation();openPhotoFolder('${it.itemNum||''}','${_photoLink}')" style="font-size:0.85rem;cursor:pointer" title="Open photo folder">📷</span>` : ''}
               </span>
             </div>
