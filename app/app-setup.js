@@ -281,7 +281,7 @@ function showApp() {
   const hr = new Date().getHours();
   const _greet = hr < 12 ? 'Good Morning' : hr < 17 ? 'Good Afternoon' : 'Good Evening';
   const _name = (state.user?.name || '').split(' ')[0] || 'Collector';
-  document.getElementById('dash-greeting').innerHTML = _greet + ', <span style="color:var(--accent)">' + _name + '</span>';
+  document.getElementById('dash-greeting').innerHTML = _greet + ', <span style="color:var(--accent);font-size:125%">' + _name + '</span>';
 }
 
 function showSetup() {
