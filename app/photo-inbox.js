@@ -74,6 +74,7 @@
       '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;margin-bottom:0.8rem">' +
         '<button onclick="_pinPickFiles()" class="btn-primary" style="padding:0.5rem 0.9rem;border-radius:8px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Add photos…</button>' +
         '<button onclick="_pinGPhotos()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">From Google Photos…</button>' +
+        '<button id="pin-idall-btn" onclick="_pinIdentifyAll()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Identify all</button>' +
         '<button onclick="_pinRefresh()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:600;font-size:0.82rem;cursor:pointer">Refresh</button>' +
         '<span style="flex:1"></span>' +
         '<span id="pin-selinfo" style="font-size:0.78rem;color:var(--text-dim)"></span>' +
@@ -141,6 +142,13 @@
       _groups = order.map(function (k) { return map[k]; });
       // Drop selections that no longer exist
       Object.keys(_sel).forEach(function (k) { if (!map[k]) delete _sel[k]; });
+      // Prune stored AI suggestions for photos that left the inbox
+      (function () {
+        var live = {}; files.forEach(function (f) { live[f.id] = true; });
+        var ids = _ids(), changed = false;
+        Object.keys(ids).forEach(function (k) { if (!live[k]) { delete ids[k]; changed = true; } });
+        if (changed) _idsSave(ids);
+      })();
       _render();
       _status('');
     } catch (e) {
@@ -159,6 +167,10 @@
       var chip = g.files.length > 1 ? '<div style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.6);color:#fff;font-size:0.62rem;font-weight:700;padding:1px 7px;border-radius:9px">' + g.files.length + ' photos · 1 item</div>' : '';
       var when = '';
       try { when = new Date(g.files[0].createdTime).toLocaleDateString(); } catch (e) {}
+      // v0.9.886: AI suggestion (from Identify all) shows on the tile bar
+      var sug = _ids()[g.files[0].id];
+      if (sug && sug.num) when = '<span style="color:#7ec3ef;font-weight:700">' + String(sug.num).replace(/</g, '&lt;') + '?</span> · ' + when;
+      else if (sug && sug.tried) when = '<span style="color:#999">no read</span> · ' + when;
       return '<div class="pin-tile" data-key="' + g.key + '" onclick="_pinToggle(\'' + g.key + '\')" style="position:relative;border-radius:10px;overflow:hidden;cursor:pointer;background:var(--surface2,#26262e);aspect-ratio:1;border:3px solid ' + (isSel ? '#2980b9' : 'transparent') + '">' +
         '<img loading="lazy" data-fid="' + g.files[0].id + '" style="width:100%;height:100%;object-fit:cover;object-position:center;display:block" alt="">' +
         chip +
@@ -235,14 +247,17 @@
     });
     var opts = Object.keys(nums).sort().slice(0, 900).map(function (n) { return '<option value="' + String(n).replace(/"/g, '&quot;') + '">'; }).join('');
     var n = 0; gs.forEach(function (g) { n += g.files.length; });
+    // v0.9.886: pre-fill with the first selected group's AI suggestion
+    var sug = '';
+    try { var s0 = _ids()[gs[0].files[0].id]; if (s0 && s0.num) sug = String(s0.num); } catch (eS) {}
     var ov = document.createElement('div');
     ov.id = 'pin-assign-ov';
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
     ov.innerHTML =
       '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.2rem;max-width:380px;width:100%">' +
         '<div style="font-family:var(--font-head);font-weight:700;font-size:1rem;color:var(--text);margin-bottom:0.5rem">File ' + n + ' photo' + (n > 1 ? 's' : '') + ' to an item</div>' +
-        '<div style="font-size:0.78rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.7rem">Type the item number. If it’s already in your collection the photos attach to it; if not, they’re filed under that number and you can add the item right after.</div>' +
-        '<input id="pin-assign-num" list="pin-assign-list" type="text" placeholder="e.g. 2343 or 6464-1" autocomplete="off" spellcheck="false" style="width:100%;padding:0.6rem 0.8rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.95rem;margin-bottom:0.8rem" onkeydown="if(event.key===\'Enter\')_pinDoAssign()">' +
+        '<div style="font-size:0.78rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.7rem">Type the item number. If it’s already in your collection the photos attach to it; if not, they’re filed under that number and you can add the item right after.' + (sug ? ' <span style="color:#7ec3ef">Pre-filled from the photo — double-check it.</span>' : '') + '</div>' +
+        '<input id="pin-assign-num" list="pin-assign-list" type="text" value="' + sug.replace(/"/g, '&quot;') + '" placeholder="e.g. 2343 or 6464-1" autocomplete="off" spellcheck="false" style="width:100%;padding:0.6rem 0.8rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.95rem;margin-bottom:0.8rem" onkeydown="if(event.key===\'Enter\')_pinDoAssign()">' +
         '<datalist id="pin-assign-list">' + opts + '</datalist>' +
         '<div style="display:flex;gap:0.5rem">' +
           '<button onclick="_pinDoAssign()" class="btn-primary" style="flex:1;padding:0.6rem;border-radius:8px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.88rem;cursor:pointer">File photos</button>' +
@@ -360,6 +375,77 @@
     });
     if (changed) { try { localStorage.setItem(PENDING_KEY, JSON.stringify(pend)); } catch (e) {} }
   }
+
+  // ── Batch AI identify (Phase 3, v0.9.886) ────────────────────
+  // One button: every un-identified item group gets its FIRST photo
+  // run through the existing identify relay (ai-id.js → Gemini).
+  // Suggestions persist in localStorage, show on the tiles, and
+  // pre-fill the File-to-item dialog. Sequential + cancelable.
+  var IDS_KEY = 'rr_inbox_ids';
+  function _ids() { try { return JSON.parse(localStorage.getItem(IDS_KEY) || '{}'); } catch (e) { return {}; } }
+  function _idsSave(m) { try { localStorage.setItem(IDS_KEY, JSON.stringify(m)); } catch (e) {} }
+  var _idAbort = false;
+  window._pinIdentifyCancel = function () { _idAbort = true; };
+
+  async function _pinBytes(fileId) {
+    var r = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', { headers: { Authorization: 'Bearer ' + window.accessToken } });
+    if (!r.ok) throw new Error('photo download ' + r.status);
+    return await r.blob();
+  }
+
+  window._pinIdentifyAll = async function () {
+    if (_busy) { showToast('Still working on the last batch…', 2500, true); return; }
+    if (!_qcToken()) { showToast('Please sign in first', 3000, true); return; }
+    if (typeof aiIdentifyImage !== 'function') { showToast('Identify service not loaded — refresh and try again', 3000, true); return; }
+    var ids = _ids();
+    var todo = _groups.filter(function (g) { return !ids[g.files[0].id]; });
+    if (!todo.length) { showToast(_groups.length ? 'Every item already has a suggestion — tap a photo group and File to item' : 'Inbox is empty', 3500); return; }
+    _busy = true; _idAbort = false;
+    var okN = 0, blankN = 0, failN = 0;
+    try {
+      for (var i = 0; i < todo.length; i++) {
+        if (_idAbort) break;
+        var st = document.getElementById('pin-status');
+        if (st) {
+          st.style.display = 'block';
+          st.innerHTML = 'Identifying item ' + (i + 1) + ' of ' + todo.length + '… keep this tab open — go get that coffee. ' +
+            '<button onclick="_pinIdentifyCancel()" style="border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);border-radius:6px;font-size:0.72rem;padding:0.15rem 0.5rem;cursor:pointer;font-family:var(--font-body)">Stop</button>';
+        }
+        var g = todo[i], fid0 = g.files[0].id;
+        try {
+          var blob = await _pinBytes(fid0);
+          var ai = await aiIdentifyImage(blob, {});
+          if (!ai.ok && ai.reason === 'quota') {
+            showToast("Daily identify limit reached — the rest can run tomorrow", 4500, true);
+            break;
+          }
+          if (ai.ok && ai.text) {
+            var meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(ai.text) : {};
+            var num = (!meta._hedge && meta.itemNum) ? String(meta.itemNum) : '';
+            ids[fid0] = { num: num, tried: 1 };
+            if (num) okN++; else blankN++;
+          } else {
+            ids[fid0] = { num: '', tried: 1 };
+            blankN++;
+          }
+          _idsSave(ids);
+          _render();
+        } catch (eOne) {
+          console.warn('[Inbox] identify failed for a group:', eOne);
+          failN++;   // not stored — retried on the next run
+        }
+      }
+      _status('');
+      var msg = 'Identified ' + okN + ' of ' + todo.length + ' item' + (todo.length > 1 ? 's' : '');
+      if (blankN) msg += ' · ' + blankN + ' unreadable (no number visible?)';
+      if (failN) msg += ' · ' + failN + ' errored (run again to retry)';
+      showToast(msg, 5000, okN === 0);
+    } finally {
+      _busy = false;
+      var st2 = document.getElementById('pin-status');
+      if (st2 && /Identifying/.test(st2.textContent || '')) _status('');
+    }
+  };
 
   // ── Import from Google Photos (Picker API, v0.9.885) ─────────
   // Session → Google's own picker tab → poll until the user hits
