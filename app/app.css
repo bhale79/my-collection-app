@@ -1319,3 +1319,12 @@ body.compact-mode .qa-tr-actions .qa-tr-btn {
 @media print {
   #page-reports .table-wrap { max-height: none !important; overflow: visible !important; }
 }
+
+/* ── v0.9.854: dashboard card text = frame navy; numbers stay black ── */
+/* Labels/sub-text inside stat cards and dash panel titles pick up navy   */
+/* by re-scoping the two shared text vars. Numbers use var(--text) and    */
+/* are unaffected. High-contrast theme re-overridden below (a11y).        */
+.main .stat-card,
+.main #dash-panels-host .section-title { --text-dim:#1a1d3a; --text-mid:#1a1d3a; }
+html[data-theme="high-contrast"] .main .stat-card,
+html[data-theme="high-contrast"] .main #dash-panels-host .section-title { --text-dim:#c0c0c0; --text-mid:#e0e0e0; }

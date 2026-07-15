@@ -184,13 +184,13 @@ var CARD_CATALOG = [
         if (typeof _isEraEnabled === 'function' && !_isEraEnabled(ek)) return;
         if (byEra[ek]) {
           lines += '<div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--text-mid);margin-top:2px">'
-            + '<span>' + ERAS[ek].label + '</span><span>' + byEra[ek].toLocaleString() + '</span></div>';
+            + '<span>' + ERAS[ek].label + '</span><span style="color:var(--text);font-weight:600">' + byEra[ek].toLocaleString() + '</span></div>';
         }
       });
       // Show extras (paper/IS/science/construction) on their own line so users still see them
       if (extraCount > 0) {
         lines += '<div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--text-mid);margin-top:2px">'
-          + '<span>Paper / Sets</span><span>' + extraCount.toLocaleString() + '</span></div>';
+          + '<span>Paper / Sets</span><span style="color:var(--text);font-weight:600">' + extraCount.toLocaleString() + '</span></div>';
       }
       return { html: '<div class="stat-value">' + grand.toLocaleString() + '</div>'
         + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:1px">Total</div>'
