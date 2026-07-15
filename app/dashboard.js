@@ -218,9 +218,27 @@ var CARD_CATALOG = [
       // Session 121: catalog coverage is per-era by nature. In 'all' mode prompt
       // the user to pick a specific era — the "X% of catalog" math can't roll
       // up cleanly when each era's catalog is a different size.
+      // v0.9.874 (Brad): card can pin its own maker/era — click the card to pick.
+      var _slotIdx = arguments.length > 1 ? arguments[1] : -1;
+      var _pin = null;
+      try { var _sl = _getSlots()[_slotIdx]; _pin = _sl && _sl.era ? _sl.era : null; } catch(e) {}
+      if (_pin && ERAS[_pin] && (typeof _currentEra === 'undefined' || _currentEra !== _pin)) {
+        var _tot = null;
+        try { _tot = parseInt(localStorage.getItem('lv_era_total_' + _pin)); } catch(e) {}
+        var _ownSet = new Set();
+        Object.values(state.personalData).forEach(function(pd) {
+          if (pd.owned && typeof _eraOf === 'function' && _eraOf(pd) === _pin) _ownSet.add(normalizeItemNum(pd.itemNum));
+        });
+        if (!_tot) {
+          return { html: '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:4px">'
+            + _ownSet.size.toLocaleString() + ' owned in ' + ERAS[_pin].label + '. Open that era once to load its catalog size.</div>' };
+        }
+        var _pct = _tot > 0 ? (_ownSet.size / _tot * 100).toFixed(1) : 0;
+        return { value: _ownSet.size.toLocaleString(), sub: _pct + '% of ' + ERAS[_pin].label + ' catalog' };
+      }
       if (typeof _currentEra !== 'undefined' && _currentEra === 'all') {
         return { html: '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:4px">'
-          + 'Switch to a specific era to see catalog coverage.</div>' };
+          + 'Tap this card to pick a maker &amp; era for coverage.</div>' };
       }
       var catNums = new Set(state.masterData.map(function(m) { return normalizeItemNum(m.itemNum); }));
       var ownedNums = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).map(function(pd){return normalizeItemNum(pd.itemNum);}));
@@ -706,7 +724,8 @@ function buildDashboard() {
             + '<div class="stat-value">' + result.value + '</div>'
             + '<div class="stat-sub">' + result.sub + '</div>';
         }
-        return '<div class="stat-card" id="dash-card-' + i + '" style="--card-accent:' + card.color + ';position:relative">'
+        var _cardClick = (card.id === 'catalog') ? ' onclick="_catCovConfig(' + i + ')" title="Pick maker &amp; era"' : '';
+        return '<div class="stat-card" id="dash-card-' + i + '" style="--card-accent:' + card.color + (card.id === 'catalog' ? ';cursor:pointer' : '') + ';position:relative"' + _cardClick + '>'
           + inner
           + '</div>';
       }).join('');
@@ -1436,3 +1455,38 @@ window._dashEdDragStart = _dashEdDragStart;
 window._dashEdDrop = _dashEdDrop;
 window._dashEdClose = _dashEdClose;
 window._dashEdSave = _dashEdSave;
+
+
+// ═══ Catalog Coverage card: pick a pinned maker/era (v0.9.874) ═══
+function _catCovConfig(slotIdx) {
+  if (document.getElementById('catcov-pop')) { document.getElementById('catcov-pop').remove(); return; }
+  var slots = _getSlots();
+  var cur = (slots[slotIdx] && slots[slotIdx].era) || '';
+  var opts = '<option value="">Follow the app era switch</option>' + Object.keys(ERAS).filter(function(k) { return !ERAS[k]._isAll; })
+    .map(function(k) { return '<option value="' + k + '"' + (k === cur ? ' selected' : '') + '>' + ERAS[k].label + '</option>'; }).join('');
+  var ov = document.createElement('div');
+  ov.id = 'catcov-pop';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:99950;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:1rem';
+  ov.innerHTML = '<div style="background:var(--surface,#161c34);border:1px solid var(--border,#2a3a5c);border-radius:14px;padding:1.1rem 1.2rem;max-width:320px;width:100%">'
+    + '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#2980b9;margin-bottom:0.6rem">Catalog Coverage — maker &amp; era</div>'
+    + '<select id="catcov-sel" style="width:100%;padding:0.5rem 0.6rem;border-radius:8px;border:1px solid var(--border,#2a3a5c);background:var(--surface2,#222);color:var(--text,#eee);font-family:var(--font-body);font-size:0.86rem">' + opts + '</select>'
+    + '<div style="display:flex;justify-content:flex-end;gap:0.5rem;margin-top:0.9rem">'
+    + '<button onclick="document.getElementById(\'catcov-pop\').remove()" style="padding:0.4rem 0.9rem;border-radius:7px;border:1px solid var(--border,#2a3a5c);background:var(--surface2,#222);color:var(--text,#eee);font-family:var(--font-body);font-size:0.82rem;cursor:pointer">Cancel</button>'
+    + '<button onclick="_catCovSave(' + slotIdx + ')" style="padding:0.4rem 1.1rem;border-radius:7px;border:none;background:#2980b9;color:#fff;font-family:var(--font-body);font-size:0.82rem;font-weight:700;cursor:pointer">Save</button>'
+    + '</div></div>';
+  ov.onclick = function(e) { if (e.target === ov) ov.remove(); };
+  document.body.appendChild(ov);
+  if (window.BackStack && BackStack.wire) BackStack.wire('catcov-pop');
+}
+function _catCovSave(slotIdx) {
+  var slots = _getSlots();
+  if (slots[slotIdx]) {
+    var v = document.getElementById('catcov-sel').value;
+    if (v) slots[slotIdx].era = v; else delete slots[slotIdx].era;
+    _saveSlots(slots);
+  }
+  var p = document.getElementById('catcov-pop'); if (p) p.remove();
+  try { buildDashboard(); } catch(e) {}
+}
+window._catCovConfig = _catCovConfig;
+window._catCovSave = _catCovSave;
