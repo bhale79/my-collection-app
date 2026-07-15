@@ -237,7 +237,7 @@
   /* Header */
   .header {
     height: var(--header-h); background: var(--navy,#1a1d3a);
-    border-bottom: 2px solid var(--accent);
+    border-bottom: 2px solid #2980b9;
     display: flex; align-items: center; padding: 0 1.25rem;
     gap: 1rem; flex-shrink: 0; z-index: 100;
   }
@@ -245,7 +245,7 @@
   .sidebar { background: var(--surface); }
   .sidebar .nav-label { color: var(--text-dim); }
   /* Lionel box-style brand header in sidebar */
-  .sidebar-logo-wrap { background: var(--navy,#1a1d3a); border-bottom: 2px solid var(--accent); padding: 1.2rem 1rem; }
+  .sidebar-logo-wrap { background: var(--navy,#1a1d3a); border-bottom: 2px solid #2980b9; padding: 1.2rem 1rem; }
   .header-search {
     flex: 1; max-width: 480px;
     display: flex; align-items: center; gap: 0.5rem;

@@ -102,7 +102,7 @@ function _buildAppShell() {
   header.className = 'header';
   header.innerHTML =
     '<div class="header-logo" style="display:flex;align-items:flex-end;gap:0.6rem;align-self:stretch;height:100%">' +
-      '<img src="img/conductor-header.png?v=202" alt="" aria-hidden="true" style="height:48px;width:auto;flex-shrink:0;display:block">' +
+      '<img src="img/conductor-header.png?v=203" alt="" aria-hidden="true" style="height:48px;width:auto;flex-shrink:0;display:block">' +
       '<div style="font-family:var(--font-head);font-size:1.8rem;font-weight:700;color:var(--cream);letter-spacing:0.06em;text-transform:uppercase;line-height:1;padding-bottom:6px">The <span style="color:var(--accent)">Rail</span> Roster</div>' +
     '</div>' +
     '<div class="header-right" style="position:relative">' +
@@ -281,7 +281,7 @@ function showApp() {
   const hr = new Date().getHours();
   const _greet = hr < 12 ? 'Good Morning' : hr < 17 ? 'Good Afternoon' : 'Good Evening';
   const _name = (state.user?.name || '').split(' ')[0] || 'Collector';
-  document.getElementById('dash-greeting').innerHTML = _greet + ', <span style="color:var(--accent)">' + _name + '</span>';
+  document.getElementById('dash-greeting').innerHTML = _greet + ', <span style="color:var(--accent);font-size:138%;font-weight:700">' + _name + '</span>';
 }
 
 function showSetup() {
