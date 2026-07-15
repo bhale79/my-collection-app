@@ -1331,3 +1331,30 @@ body.compact-mode .qa-tr-actions .qa-tr-btn {
 .main .stat-card::before { background:#2980b9; }
 html[data-theme="high-contrast"] .main .stat-card,
 html[data-theme="high-contrast"] .main #dash-panels-host .section-title { --text-dim:#c0c0c0; --text-mid:#e0e0e0; }
+
+
+/* ── v0.9.869: ONE master lever — all colored action buttons -> blue/gray scheme ──
+   Any button styled inline with one of the legacy action colors (green, orange,
+   purple, teal, legacy blues, accent orange) is reskinned here: gray border,
+   want-list blue text, gray tint background. Destructive red (#e74c3c) and
+   neutral gray buttons keep their colors on purpose. Solid primary buttons go
+   solid blue. High-contrast theme re-overridden below (a11y). */
+.main button[style*="#2ecc71"], .main button[style*="#e67e22"],
+.main button[style*="#8b5cf6"], .main button[style*="#16a085"],
+.main button[style*="#3498db"], .main button[style*="#2980b9"],
+.main button[style*="var(--accent)"] {
+  border-color:#8b8e94 !important; color:#2980b9 !important;
+  background:rgba(139,142,148,0.12) !important;
+}
+.main .btn-primary { background:#2980b9 !important; color:#fff !important; }
+.main .btn-primary:hover { background:#216f9e !important; }
+html[data-theme="high-contrast"] .main button[style*="#2ecc71"],
+html[data-theme="high-contrast"] .main button[style*="#e67e22"],
+html[data-theme="high-contrast"] .main button[style*="#8b5cf6"],
+html[data-theme="high-contrast"] .main button[style*="#16a085"],
+html[data-theme="high-contrast"] .main button[style*="#3498db"],
+html[data-theme="high-contrast"] .main button[style*="#2980b9"],
+html[data-theme="high-contrast"] .main button[style*="var(--accent)"] {
+  border-color:#ffffff !important; color:#ffb000 !important; background:#000000 !important;
+}
+html[data-theme="high-contrast"] .main .btn-primary { background:#ffb000 !important; color:#000 !important; }
