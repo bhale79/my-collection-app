@@ -402,13 +402,16 @@
     if (!todo.length) { showToast(_groups.length ? 'Every item already has a suggestion — tap a photo group and File to item' : 'Inbox is empty', 3500); return; }
     _busy = true; _idAbort = false;
     var okN = 0, blankN = 0, failN = 0;
+    var remaining = null;   // v0.9.887 (Brad): reads-left-today tracker
     try {
       for (var i = 0; i < todo.length; i++) {
         if (_idAbort) break;
         var st = document.getElementById('pin-status');
         if (st) {
           st.style.display = 'block';
-          st.innerHTML = 'Identifying item ' + (i + 1) + ' of ' + todo.length + '… keep this tab open — go get that coffee. ' +
+          st.innerHTML = 'Identifying item ' + (i + 1) + ' of ' + todo.length +
+            (remaining !== null ? ' · ' + remaining + ' read' + (remaining === 1 ? '' : 's') + ' left today' : '') +
+            '… keep this tab open — go get that coffee. ' +
             '<button onclick="_pinIdentifyCancel()" style="border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);border-radius:6px;font-size:0.72rem;padding:0.15rem 0.5rem;cursor:pointer;font-family:var(--font-body)">Stop</button>';
         }
         var g = todo[i], fid0 = g.files[0].id;
@@ -420,6 +423,7 @@
             break;
           }
           if (ai.ok && ai.text) {
+            if (typeof ai.remaining === 'number') remaining = ai.remaining;
             var meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(ai.text) : {};
             var num = (!meta._hedge && meta.itemNum) ? String(meta.itemNum) : '';
             ids[fid0] = { num: num, tried: 1 };
@@ -439,6 +443,7 @@
       var msg = 'Identified ' + okN + ' of ' + todo.length + ' item' + (todo.length > 1 ? 's' : '');
       if (blankN) msg += ' · ' + blankN + ' unreadable (no number visible?)';
       if (failN) msg += ' · ' + failN + ' errored (run again to retry)';
+      if (remaining !== null) msg += ' · ' + remaining + ' read' + (remaining === 1 ? '' : 's') + ' left today';
       showToast(msg, 5000, okN === 0);
     } finally {
       _busy = false;
