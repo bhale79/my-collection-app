@@ -566,33 +566,61 @@
     if (total > 0) showToast(total + ' photo' + (total > 1 ? 's' : '') + ' in your inbox — file them at the desk', 3500);
   };
 
-  // Phone dashboard entry — full-width button under the greeting.
-  function _injectCapture() {
-    if (!window.IS_MOBILE_UA) return;
-    if (document.getElementById('qc-entry')) return;
-    var g = document.getElementById('dash-greeting');
-    if (!g || !g.parentNode) return;
-    var b = document.createElement('button');
-    b.id = 'qc-entry';
-    b.setAttribute('onclick', '_qcOpen()');
-    b.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:0.5rem;width:100%;margin:0.6rem 0 0;padding:0.7rem;border-radius:10px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-size:0.85rem;font-weight:700;cursor:pointer';
-    b.innerHTML = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Quick Capture — photos to your inbox';
-    g.parentNode.appendChild(b);
+  // ── Batch Add — lives in the Add-to-My-Collection wizard footer,
+  //    to the right of Cancel, first step only (Brad's placement).
+  //    Phone → Quick Capture camera; desktop → Photo Inbox page.
+  window._qcBatchAdd = function () {
+    try { if (typeof _doCloseWizard === 'function') _doCloseWizard(); } catch (e) {}
+    if (window.IS_MOBILE_UA) window._qcOpen();
+    else window._pinGo(document.getElementById('nav-photo-inbox'));
+  };
+
+  function _batchBtnSync() {
+    var modal = document.getElementById('wizard-modal');
+    if (!modal) return;
+    var btn = document.getElementById('qc-batch-btn');
+    // NB: `wizard` is a top-level `let` in wizard.js — it is NOT on window.
+    var w = (typeof wizard !== 'undefined') ? wizard : null;
+    var show = !!(w && w.tab === 'collection' && w.step === 0);
+    if (!btn) {
+      if (!show) return;
+      var cancel = modal.querySelector('.modal-footer button[onclick="closeWizard()"]');
+      if (!cancel) return;
+      btn = document.createElement('button');
+      btn.id = 'qc-batch-btn';
+      btn.className = 'btn btn-secondary';
+      btn.setAttribute('onclick', '_qcBatchAdd()');
+      btn.textContent = 'Batch Add';
+      btn.title = 'Snap a bunch of photos now, file them to items later';
+      cancel.insertAdjacentElement('afterend', btn);
+    }
+    btn.style.display = show ? '' : 'none';
   }
 
   // Piggyback on dashboard rebuilds (fires after login and after every
-  // wizard save) — inject the entries once and flush pending links.
+  // wizard save) — inject the sidebar entry and flush pending links —
+  // and on wizard step renders — keep the Batch Add button in sync.
   function _hook() {
     if (typeof window.buildDashboard === 'function' && !window.buildDashboard._pinWrapped) {
       var orig = window.buildDashboard;
       window.buildDashboard = function () {
         var r = orig.apply(this, arguments);
-        try { _injectNav(); _injectCapture(); _flushPending(); } catch (e) {}
+        try { _injectNav(); _flushPending(); } catch (e) {}
         return r;
       };
       window.buildDashboard._pinWrapped = true;
     } else if (typeof window.buildDashboard !== 'function') {
       setTimeout(_hook, 800);
+      return;
+    }
+    if (typeof window.renderWizardStep === 'function' && !window.renderWizardStep._pinWrapped) {
+      var origR = window.renderWizardStep;
+      window.renderWizardStep = function () {
+        var r = origR.apply(this, arguments);
+        try { _batchBtnSync(); } catch (e) {}
+        return r;
+      };
+      window.renderWizardStep._pinWrapped = true;
     }
   }
   _hook();
