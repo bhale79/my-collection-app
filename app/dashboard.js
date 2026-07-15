@@ -706,7 +706,7 @@ function buildDashboard() {
             + '<div class="stat-value">' + result.value + '</div>'
             + '<div class="stat-sub">' + result.sub + '</div>';
         }
-        return '<div class="stat-card" id="dash-card-' + i + '" style="--card-accent:' + card.color + ';cursor:pointer;position:relative" onclick="openDashEditor()" title="Edit dashboard">'
+        return '<div class="stat-card" id="dash-card-' + i + '" style="--card-accent:' + card.color + ';position:relative">'
           + inner
           + '</div>';
       }).join('');
@@ -783,7 +783,7 @@ function buildDashboard() {
           ? '<span style="cursor:pointer;text-decoration:none" onclick="' + panelDef.navFn + '" title="Go to ' + panelDef.label + '">' + panelDef.label + ' <span style="font-size:0.65rem;opacity:0.5">›</span></span>'
           : '<span>' + panelDef.label + '</span>';
         headerEl.innerHTML = titleHtml
-          + '<button onclick="openDashEditor()" title="Edit dashboard" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:0.9rem;padding:0.1rem 0.35rem;line-height:1">\u270E</button>';
+          ;   // v0.9.872 (Brad): no per-panel edit pencil — Edit Dashboard button is the one entry
       }
 
       // Render panel body

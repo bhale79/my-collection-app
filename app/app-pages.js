@@ -351,7 +351,7 @@ function _wantViewDetail(itemNum, variation) {
       _lead = partner; _second = itemNum;
     }
     var heading = _lead + (_second ? ' with a ' + _second : '');
-    window._detailReturn = 'want';
+    if (window._detailReturn !== 'dashboard') window._detailReturn = 'want';   // v0.9.872: opened from a dashboard card -> Back to Dashboard
     showItemDetailPage(idx, null, { wantMode: true, wantEntry: entry, wantPartner: partner, wantHeading: heading });
   } else if (typeof showToast === 'function') {
     showToast('Item details not found in catalog');

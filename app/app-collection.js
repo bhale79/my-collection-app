@@ -981,7 +981,11 @@ function showItemDetailPage(idx, copyInvId, opts) {
   const _detRet = window._detailReturn;
   let _backLabel = 'Back to Collection';
   let _backFn    = '_detailBackToBrowse()';
-  if (_wantMode || _detRet === 'want') {
+  if (_detRet === 'dashboard') {
+    // v0.9.872 (Brad): dashboard origin wins, even for want-mode details.
+    _backLabel = 'Back to Dashboard';
+    _backFn    = 'delete window._detailReturn;showPage(&apos;dashboard&apos;);if(typeof buildDashboard===&apos;function&apos;)buildDashboard()';
+  } else if (_wantMode || _detRet === 'want') {
     _backLabel = 'Back to Want List';
     _backFn    = 'delete window._detailReturn;showPage(&apos;upgrade&apos;)';
   } else if (_detRet === 'forsale') {
