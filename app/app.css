@@ -364,6 +364,11 @@
   }
   .stat-card::-webkit-scrollbar { width: 5px; }
   .stat-card::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  /* v0.9.877 (Brad): From My Collection — photo centered in the card.
+     The card becomes a flex column (label on top) and the reel host
+     fills the leftover height, centering the photo block both ways. */
+  .stat-card:has(.reel-host) { display: flex; flex-direction: column; }
+  .reel-host { flex: 1; display: flex; align-items: center; justify-content: center; }
   .stat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--card-accent,var(--accent)); }
   .stat-card:hover { border-color: var(--border-light,#354870); transform: translateY(-1px); }
   .stat-label { font-family: var(--font-head); font-size: 0.58rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 0.25rem; }

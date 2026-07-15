@@ -154,10 +154,12 @@ var CARD_CATALOG = [
     compute: function(state, i) {
       // v0.9.839 (TODO-014): offline — photos need Drive; say so plainly.
       if (window._offlineMode || navigator.onLine === false) {
-        return { html: '<div style="height:86px;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:0.72rem;text-align:center;padding:0 0.5rem">\ud83d\udce1 Photos will show when you\u2019re back online</div>' };
+        return { html: '<div class="reel-host" style="min-height:86px;color:var(--text-dim);font-size:0.72rem;text-align:center;padding:0 0.5rem">\ud83d\udce1 Photos will show when you\u2019re back online</div>' };
       }
       setTimeout(function() { if (typeof window._reelStart === 'function') window._reelStart(i); }, 0);
-      return { html: '<div id="reel-' + i + '" style="height:86px;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:0.72rem">Loading photos\u2026</div>' };
+      // v0.9.877 (Brad): reel-host class + flex centering \u2014 photo sits
+      // centered in the card instead of hugging the top (see app.css).
+      return { html: '<div id="reel-' + i + '" class="reel-host" style="min-height:86px;color:var(--text-dim);font-size:0.72rem">Loading photos\u2026</div>' };
     }
   },
   {
@@ -1060,8 +1062,8 @@ window._reelStart = async function (slot) {
   host = document.getElementById('reel-' + slot);
   if (!host) return;
   if (!picks.length) { host.innerHTML = '<span style="font-size:0.72rem;color:var(--text-dim)">Add item photos to see them here</span>'; return; }
-  host.innerHTML = '<div id="reel-img-' + slot + '" style="width:100%;height:86px;border-radius:8px;overflow:hidden;position:relative;cursor:pointer;background:var(--surface2,#26262e)">'
-    + '<img style="width:100%;height:100%;object-fit:cover;transition:opacity 0.45s;opacity:0" alt="">'
+  host.innerHTML = '<div id="reel-img-' + slot + '" style="width:100%;height:86px;margin:0 auto;border-radius:8px;overflow:hidden;position:relative;cursor:pointer;background:var(--surface2,#26262e)">'
+    + '<img style="width:100%;height:100%;object-fit:cover;object-position:center;transition:opacity 0.45s;opacity:0" alt="">'
     + '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);color:#fff;font-size:0.68rem;padding:0.15rem 0.4rem;font-family:var(--font-mono,monospace)"></div></div>';
   var wrap = document.getElementById('reel-img-' + slot);
   var img = wrap.querySelector('img'), cap = wrap.querySelector('div');
