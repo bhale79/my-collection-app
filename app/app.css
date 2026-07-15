@@ -1358,3 +1358,13 @@ html[data-theme="high-contrast"] .main button[style*="var(--accent)"] {
   border-color:#ffffff !important; color:#ffb000 !important; background:#000000 !important;
 }
 html[data-theme="high-contrast"] .main .btn-primary { background:#ffb000 !important; color:#000 !important; }
+
+
+/* ── v0.9.870: destructive buttons — gray frame, bright orange text ── */
+button[style*="#e74c3c"] {
+  border-color:#8b8e94 !important; color:#f05008 !important;
+  background:rgba(139,142,148,0.12) !important;
+}
+html[data-theme="high-contrast"] button[style*="#e74c3c"] {
+  border-color:#ffffff !important; color:#ffb000 !important; background:#000000 !important;
+}

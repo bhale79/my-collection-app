@@ -1813,7 +1813,7 @@ function _collectionActionsHTML(type, key, entry) {
   const fsBtn = '<button onclick="event.stopPropagation();_collectionForSale(' + typeArg + ',' + keyArg + ')" style="' + btnStyle + ';border-color:#e67e22;color:#e67e22">Add to For Sale</button>';
   const sdBtn = '<button onclick="event.stopPropagation();_collectionSold(' + typeArg + ',' + keyArg + ')" style="' + btnStyle + ';border-color:#2ecc71;color:#2ecc71">Add to Sold</button>';
   const upBtn = '<button onclick="event.stopPropagation();_collectionUpgrade(' + typeArg + ',' + keyArg + ')" style="' + btnStyle + ';border-color:#8b5cf6;color:#8b5cf6">Add to Upgrade</button>';
-  const rmBtn = '<button onclick="event.stopPropagation();_collectionRemove(' + typeArg + ',' + keyArg + ')" style="' + btnStyle + '">Remove</button>';
+  const rmBtn = '<button onclick="event.stopPropagation();_collectionRemove(' + typeArg + ',' + keyArg + ')" style="' + btnStyle + ';color:#f05008">Remove</button>';
   return fsBtn + sdBtn + upBtn + rmBtn;
 }
 
@@ -2772,7 +2772,7 @@ function renderBrowse() {
           <td class="coll-actions-cell" onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">
             <button onclick="ephemeraForSale('${r.tabId}',${it.row})" style="${_ephBtn};border:1px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22">For Sale</button>
             <button onclick="ephemeraSold('${r.tabId}',${it.row})" style="${_ephBtn};border:1px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71">Sold</button>
-            <button onclick="ephemeraDelete('${r.tabId}',${it.row})" style="${_ephBtn};margin-right:0;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim)">Remove</button>
+            <button onclick="ephemeraDelete('${r.tabId}',${it.row})" style="${_ephBtn};margin-right:0;border:1px solid var(--border);background:var(--surface2);color:#f05008">Remove</button>
           </td>
         </tr>`;
       }
@@ -2977,7 +2977,7 @@ function renderBrowse() {
           ${!_inShareModeD ? `${_fsBtn}
           <button onclick="event.stopPropagation();collectionActionSold(${globalIdx},'${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0},'${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Mark as sold / add to Sold list">Sold</button>
           ${_upgBtn}
-          <button onclick="event.stopPropagation();removeCollectionItem('${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0},'${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Remove</button>` : ''}
+          <button onclick="event.stopPropagation();removeCollectionItem('${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0},'${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:#f05008;font-family:var(--font-body)">Remove</button>` : ''}
         </td>
       </tr>`;
     } else {
@@ -3110,9 +3110,9 @@ function renderBrowse() {
     bar.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center;margin:0 0 0.5rem';
     var chip = 'padding:0.25rem 0.7rem;border-radius:999px;font-size:0.72rem;font-weight:600;cursor:pointer;font-family:var(--font-body);background:var(--surface2)';
     bar.innerHTML = '<span style="font-size:0.68rem;letter-spacing:0.08em;color:var(--text-dim);text-transform:uppercase;margin-right:0.2rem">Jump to:</span>'
-      + '<button onclick="_collJumpTop()" style="' + chip + ';border:1px solid var(--border);color:var(--text-mid)">🚂 Trains</button>'
+      + '<button onclick="_collJumpTop()" style="' + chip + ';border:1px solid var(--border);color:var(--text-mid)">Trains</button>'
       + sections.map(function(sec) {
-          return '<button onclick="_collJumpTo(\'' + sec.id + '\')" style="' + chip + ';border:1px solid ' + sec.color + ';color:' + sec.color + '">' + sec.label + '</button>';
+          return '<button onclick="_collJumpTo(\'' + sec.id + '\')" style="' + chip + ';border:1px solid ' + sec.color + ';color:' + sec.color + '">' + sec.label.replace(/^[^A-Za-z0-9]+\s*/, '') + '</button>';
         }).join('');
   })();
 
