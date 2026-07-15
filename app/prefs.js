@@ -36,6 +36,26 @@ function _rebuildPrefsKeepScroll() {
   restore();
 }
 
+// v0.9.884 (Brad): Preferences row — open the Drive photos folder.
+// Uses the cached folder id when present; otherwise runs Drive setup
+// once (same folders the photo uploads use) and then opens it.
+async function _prefsOpenPhotosFolder() {
+  try {
+    var pid = (typeof driveCache !== 'undefined' && driveCache.photosId) || localStorage.getItem('lv_photos_id');
+    if (!pid && typeof driveEnsureSetup === 'function') {
+      showToast('Finding your photo folder…', 2000);
+      await driveEnsureSetup();
+      pid = (typeof driveCache !== 'undefined' && driveCache.photosId) || '';
+    }
+    if (!pid) { showToast('Photo folder not set up yet — add a photo to an item first', 3500, true); return; }
+    window.open('https://drive.google.com/drive/folders/' + pid, '_blank');
+  } catch (e) {
+    console.warn('[Prefs] photos folder open:', e);
+    showToast('Could not open the photo folder — check your connection', 3000, true);
+  }
+}
+if (typeof window !== 'undefined') window._prefsOpenPhotosFolder = _prefsOpenPhotosFolder;
+
 function buildPrefsPage() {
   const el = document.getElementById('prefs-content');
   if (!el) return;
@@ -80,6 +100,13 @@ function buildPrefsPage() {
           <a id="nav-sheet-link-p" href="${sheetId ? 'https://docs.google.com/spreadsheets/d/'+sheetId : '#'}" target="_blank"
             class="pref-btn" onclick="return _sheetLinkClick(event)" style="text-decoration:none">Open ↗</a>
         </div>
+      </div>
+      <div class="pref-row">
+        <div class="pref-row-label">
+          <strong>My Collection Photos</strong>
+          <span>Open your photo folder in Google Drive</span>
+        </div>
+        <button class="pref-btn" onclick="_prefsOpenPhotosFolder()">Open ↗</button>
       </div>
       <div class="pref-row">
         <div class="pref-row-label">
