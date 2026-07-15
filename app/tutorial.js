@@ -437,8 +437,8 @@ function _guidedTour(steps) {
 
   function setMascot(rightSide) {
     var m = document.getElementById('gt-mascot'); if (!m) return;
-    if (rightSide) { m.style.left = 'auto'; m.style.right = '-66px'; m.src = './img/conductor-pointing-left.png'; }
-    else { m.style.right = 'auto'; m.style.left = '-66px'; m.src = './img/conductor-pointing.png'; }
+    if (rightSide) { m.style.left = 'auto'; m.style.right = '-66px'; if (!m.dataset.fixed) m.src = './img/conductor-pointing-left.png'; }
+    else { m.style.right = 'auto'; m.style.left = '-66px'; if (!m.dataset.fixed) m.src = './img/conductor-pointing.png'; }
     m.style.transform = 'none';
   }
   function place(el) {
@@ -486,8 +486,10 @@ function _guidedTour(steps) {
   function render() {
     var step = steps[i], total = steps.length;
     curEl = resolve(step);
+    var mascotSrc = (i === total - 1) ? './img/conductor-lantern-lg.gif' : './img/conductor-pointing.png';
+    var mascotFixed = (i === total - 1) ? ' data-fixed="1"' : '';
     callout.innerHTML =
-      '<img id="gt-mascot" src="./img/conductor-pointing.png" alt="" style="position:absolute;left:-66px;bottom:-6px;width:84px;height:auto;pointer-events:none;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.45))" onerror="this.style.display=\'none\'">'
+      '<img id="gt-mascot" src="' + mascotSrc + '"' + mascotFixed + ' alt="" style="position:absolute;left:-66px;bottom:-6px;width:84px;height:auto;pointer-events:none;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.45))" onerror="this.style.display=\'none\'">'
       + '<div style="padding:0.85rem 0.95rem 0.7rem">'
       + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem">'
       +   '<strong style="font-size:0.98rem;color:var(--text,#eee);line-height:1.3">' + (step.title || '') + '</strong>'
