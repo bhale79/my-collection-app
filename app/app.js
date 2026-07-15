@@ -1350,7 +1350,17 @@ function _catalogPillShow() {
   }
   var le = (typeof state !== 'undefined' && state.loading) ? state.loading.allEras : null;
   var prog = (le && le.total) ? (' ' + le.loaded + ' of ' + le.total) : '';
-  pill.innerHTML = '<span style="display:inline-block;width:12px;height:12px;border:2px solid var(--accent,#f05008);border-top-color:transparent;border-radius:50%;animation:spin 0.7s linear infinite"></span> Loading your catalog' + prog + '\u2026';
+  // v0.9.883 (Brad): the pill used to RECREATE its spinner + text every
+  // 700ms tick, forcing a repaint loop for the whole catalog load \u2014 it
+  // made the (translucent) crop screen flicker on phones. Build the
+  // spinner once; only touch the text node when the count changes.
+  var txt = document.getElementById('cat-loading-pill-txt');
+  if (!txt) {
+    pill.innerHTML = '<span style="display:inline-block;width:12px;height:12px;border:2px solid var(--accent,#f05008);border-top-color:transparent;border-radius:50%;animation:spin 0.7s linear infinite"></span><span id="cat-loading-pill-txt"></span>';
+    txt = document.getElementById('cat-loading-pill-txt');
+  }
+  var msg = 'Loading your catalog' + prog + '\u2026';
+  if (txt && txt.textContent !== msg) txt.textContent = msg;
 }
 function _catalogPillHide() {
   var pill = document.getElementById('cat-loading-pill');
