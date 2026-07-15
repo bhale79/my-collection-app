@@ -210,7 +210,7 @@ function _buildTutorialUI() {
   widget.setAttribute('tabindex', '0');
   widget.onclick = function() { tutToggleMenu(); };
   widget.innerHTML =
-    '<img id="tut-help-conductor" src="./conductor.png">' +
+    '<img id="tut-help-conductor" src="./img/conductor-pointing.png">' +
     '<span id="tut-help-label">Need Help?</span>' +
     '<button id="tut-help-btn" onclick="void(0)">Help</button>';
   // Place the Need Help? widget inside the sidebar, under the Contact button.
@@ -244,7 +244,7 @@ function _buildTutorialUI() {
   panel.id = 'tut-panel';
   panel.className = 'tut-hidden';
   panel.innerHTML =
-    '<img id="tut-conductor" src="./conductor.png">' +
+    '<img id="tut-conductor" src="./img/conductor-pointing.png">' +
     '<div id="tut-bubble">' +
       '<div class="tut-bubble-title" id="tut-title">Getting Started</div>' +
       '<div class="tut-bubble-msg" id="tut-msg">Let me show you around!</div>' +
@@ -295,7 +295,7 @@ function tutCheckAutoLaunch() {
     var tip = document.createElement('div');
     tip.id = 'conductor-tip';
     tip.innerHTML =
-      '<img src="./conductor.png" id="ctip-img">' +
+      '<img src="./img/conductor-pointing.png" id="ctip-img">' +
       '<div id="ctip-bubble"><div id="ctip-tail"></div>' + text + '</div>';
     document.body.appendChild(tip);
 
@@ -486,7 +486,7 @@ function _guidedTour(steps) {
     var step = steps[i], total = steps.length;
     curEl = resolve(step);
     callout.innerHTML =
-      '<img id="gt-mascot" src="./conductor.png" alt="" style="position:absolute;left:-66px;bottom:-6px;width:84px;height:auto;pointer-events:none;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.45))" onerror="this.style.display=\'none\'">'
+      '<img id="gt-mascot" src="./img/conductor-pointing.png" alt="" style="position:absolute;left:-66px;bottom:-6px;width:84px;height:auto;pointer-events:none;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.45))" onerror="this.style.display=\'none\'">'
       + '<div style="padding:0.85rem 0.95rem 0.7rem">'
       + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem">'
       +   '<strong style="font-size:0.98rem;color:var(--text,#eee);line-height:1.3">' + (step.title || '') + '</strong>'
@@ -681,7 +681,7 @@ function _demoPlay(title, scenes) {
     +   '<img id="demo-cursor" alt="" style="position:absolute;left:50%;top:60%;width:24px;height:24px;opacity:0;transition:left 0.85s cubic-bezier(.45,0,.25,1),top 0.85s cubic-bezier(.45,0,.25,1),opacity 0.3s;pointer-events:none;z-index:6;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.6))">'
     + '</div>'
     + '<div style="display:flex;gap:0.7rem;align-items:flex-end;padding:0.85rem 1rem 0.5rem">'
-    +   '<img src="./conductor.png" alt="" style="width:52px;height:auto;flex-shrink:0" onerror="this.style.display=\'none\'">'
+    +   '<img src="./img/conductor-pointing.png" alt="" style="width:52px;height:auto;flex-shrink:0" onerror="this.style.display=\'none\'">'
     +   '<div style="flex:1;min-width:0">'
     +     '<div id="demo-title" style="font-weight:700;color:var(--text,#eee);font-size:0.92rem"></div>'
     +     '<div id="demo-text" style="color:var(--text-mid,#bbb);font-size:0.83rem;line-height:1.5;margin-top:0.15rem"></div>'
@@ -804,7 +804,7 @@ function _coachShow(){
   var c = document.createElement('div'); c.id = 'wiz-coach';
   c.style.cssText = 'position:fixed;left:18px;bottom:18px;width:360px;max-width:calc(100vw - 36px);z-index:100002;background:var(--surface,#1a1a2e);border:1px solid var(--accent,#e8401c);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,0.55);font-family:var(--font-body,sans-serif);overflow:hidden';
   c.innerHTML = '<div style="display:flex;gap:0.6rem;align-items:flex-start;padding:0.85rem 0.95rem">'
-    + '<img src="./conductor.png" alt="" style="width:46px;height:auto;flex-shrink:0" onerror="this.style.display=\'none\'">'
+    + '<img src="./img/conductor-pointing.png" alt="" style="width:46px;height:auto;flex-shrink:0" onerror="this.style.display=\'none\'">'
     + '<div style="flex:1;min-width:0"><div id="wiz-coach-title" style="font-weight:700;color:var(--text,#eee);font-size:0.92rem"></div>'
     + '<div id="wiz-coach-text" style="color:var(--text-mid,#bbb);font-size:0.82rem;line-height:1.5;margin-top:0.2rem"></div></div></div>'
     + '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.35rem 0.95rem 0.7rem">'
