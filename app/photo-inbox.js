@@ -70,7 +70,7 @@
         '<span>Photo Inbox</span>' +
         '<span id="pin-count" style="font-size:0.8rem;color:var(--text-dim);font-family:var(--font-body);font-weight:400"></span>' +
       '</div>' +
-      '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.7rem">Drop photos anywhere below, or use Add photos. Click a photo to select it, then file the selection to an item number — or discard it. Photos snapped with Quick Capture on your phone land here too.</div>' +
+      '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.7rem">Drop photos anywhere below, or use Add photos. Click a photo to review it — add the item, research it more, or discard the photo. Tick the corner circle to select several at once. Photos snapped with Quick Capture on your phone land here too.</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;margin-bottom:0.8rem">' +
         '<button onclick="_pinPickFiles()" class="btn-primary" style="padding:0.5rem 0.9rem;border-radius:8px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Add photos…</button>' +
         '<button onclick="_pinGPhotos()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">From Google Photos…</button>' +
@@ -78,7 +78,7 @@
         '<button onclick="_pinRefresh()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:600;font-size:0.82rem;cursor:pointer">Refresh</button>' +
         '<span style="flex:1"></span>' +
         '<span id="pin-selinfo" style="font-size:0.78rem;color:var(--text-dim)"></span>' +
-        '<button id="pin-assign-btn" onclick="_pinAssign()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">File to item…</button>' +
+        '<button id="pin-assign-btn" onclick="_pinReview(null)" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Combine → one item…</button>' +
         '<button id="pin-discard-btn" onclick="_pinDiscard()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Discard</button>' +
       '</div>' +
       '<div id="pin-status" style="display:none;font-size:0.8rem;color:var(--text-dim);margin-bottom:0.6rem"></div>' +
@@ -171,10 +171,12 @@
       var sug = _ids()[g.files[0].id];
       if (sug && sug.num) when = '<span style="color:#7ec3ef;font-weight:700">' + String(sug.num).replace(/</g, '&lt;') + '?</span> · ' + when;
       else if (sug && sug.tried) when = '<span style="color:#999">no read</span> · ' + when;
-      return '<div class="pin-tile" data-key="' + g.key + '" onclick="_pinToggle(\'' + g.key + '\')" style="position:relative;border-radius:10px;overflow:hidden;cursor:pointer;background:var(--surface2,#26262e);aspect-ratio:1;border:3px solid ' + (isSel ? '#2980b9' : 'transparent') + '">' +
+      // v0.9.888 (Brad): click the photo = open the review (add / research /
+      // discard); the corner circle is the multi-select toggle.
+      return '<div class="pin-tile" data-key="' + g.key + '" onclick="_pinReview(\'' + g.key + '\')" style="position:relative;border-radius:10px;overflow:hidden;cursor:pointer;background:var(--surface2,#26262e);aspect-ratio:1;border:3px solid ' + (isSel ? '#2980b9' : 'transparent') + '">' +
         '<img loading="lazy" data-fid="' + g.files[0].id + '" style="width:100%;height:100%;object-fit:cover;object-position:center;display:block" alt="">' +
         chip +
-        (isSel ? '<div style="position:absolute;top:6px;left:6px;width:20px;height:20px;border-radius:50%;background:#2980b9;color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700">✓</div>' : '') +
+        '<div onclick="event.stopPropagation();_pinToggle(\'' + g.key + '\')" title="Select" style="position:absolute;top:6px;left:6px;width:22px;height:22px;border-radius:50%;border:2px solid ' + (isSel ? '#2980b9' : 'rgba(255,255,255,0.75)') + ';background:' + (isSel ? '#2980b9' : 'rgba(0,0,0,0.35)') + ';color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700">' + (isSel ? '✓' : '') + '</div>' +
         '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);color:#ddd;font-size:0.6rem;padding:0.1rem 0.35rem">' + when + '</div>' +
         '</div>';
     }).join('');
@@ -201,7 +203,7 @@
     var info = document.getElementById('pin-selinfo');
     var ab = document.getElementById('pin-assign-btn'), db = document.getElementById('pin-discard-btn');
     if (info) info.textContent = n ? (n + ' photo' + (n > 1 ? 's' : '') + ' selected') : '';
-    if (ab) ab.style.display = n ? '' : 'none';
+    if (ab) ab.style.display = gs.length > 1 ? '' : 'none';   // combine needs 2+
     if (db) db.style.display = n ? '' : 'none';
   }
 
@@ -235,46 +237,126 @@
     } finally { _busy = false; }
   }
 
-  // ── Assign to an item ────────────────────────────────────────
-  window._pinAssign = function () {
-    var gs = _selGroups();
-    if (!gs.length) { showToast('Select photos first', 2500, true); return; }
-    var existing = document.getElementById('pin-assign-ov');
-    if (existing) existing.remove();
+  // ── Review a photo group: research laid out → Add / Research /
+  //    Discard (v0.9.888, Brad's flow). Also handles "Combine → one
+  //    item…" for a multi-selection (all selected photos = one item).
+  var _rvGroups = [];
+
+  function _pinLookup(num) {
+    num = String(num || '').trim();
+    var out = { num: num, master: null, ownedPd: null, maker: '', era: '', desc: '' };
+    if (!num) return out;
+    try { out.master = (typeof findMaster === 'function') ? findMaster(num) : null; } catch (e) {}
+    if (out.master) {
+      var m = out.master;
+      var eraDef = (typeof ERAS !== 'undefined' && ERAS[m._era]) ? ERAS[m._era] : null;
+      out.maker = m.manufacturer || (eraDef ? eraDef.manufacturer : '') || '';
+      out.era = eraDef ? eraDef.label : '';
+      out.desc = m.description || [m.roadName, m.itemType].filter(Boolean).join(' ') || '';
+    }
+    var pds = Object.values((window.state || {}).personalData || {});
+    out.ownedPd = pds.find(function (p) { return p && p.owned && String(p.itemNum) === num; }) || null;
+    if (!out.ownedPd && typeof baseItemNum === 'function') {
+      out.ownedPd = pds.find(function (p) { return p && p.owned && p.itemNum && baseItemNum(String(p.itemNum)) === baseItemNum(num); }) || null;
+    }
+    return out;
+  }
+
+  window._pinReviewLookup = function (val) {
+    var box = document.getElementById('pin-rv-info');
+    var addBtn = document.getElementById('pin-rv-add');
+    if (!box) return;
+    var lk = _pinLookup(val);
+    var row = function (label, v) {
+      return '<div style="display:flex;gap:0.6rem;font-size:0.85rem;line-height:1.5"><span style="width:88px;flex-shrink:0;color:var(--text-dim)">' + label + '</span><span style="color:var(--text);font-weight:600">' + (v || '—') + '</span></div>';
+    };
+    var html = '';
+    if (!lk.num) {
+      html = '<div style="font-size:0.82rem;color:var(--text-dim)">No number read from the photo — type one above, or hit Research.</div>';
+    } else if (lk.master) {
+      html = row('Maker', (lk.maker || '—') + (lk.era ? ' <span style="font-weight:400;color:var(--text-dim)">(' + lk.era + ')</span>' : ''))
+        + row('Item #', String(lk.num).replace(/</g, '&lt;'))
+        + row('Description', String(lk.desc).replace(/</g, '&lt;'));
+    } else {
+      html = row('Item #', String(lk.num).replace(/</g, '&lt;'))
+        + '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.2rem">Not found in the catalog — you can still add it, or Research to double-check the number.</div>';
+    }
+    if (lk.ownedPd) html += '<div style="margin-top:0.45rem;font-size:0.8rem;color:#2ecc71;font-weight:700">✓ Already in your collection — Add will attach these photos to it.</div>';
+    box.innerHTML = html;
+    if (addBtn) addBtn.textContent = lk.ownedPd ? 'Attach Photos to My Item' : 'Add to My Collection';
+  };
+
+  window._pinReview = function (key) {
+    _rvGroups = key ? _groups.filter(function (g) { return g.key === key; }) : _selGroups();
+    if (!_rvGroups.length) { showToast('Select photos first', 2500, true); return; }
+    var n = 0; _rvGroups.forEach(function (g) { n += g.files.length; });
+    var sug = '';
+    try { var s0 = _ids()[_rvGroups[0].files[0].id]; if (s0 && s0.num) sug = String(s0.num); } catch (eS) {}
     var nums = {};
     Object.values((window.state || {}).personalData || {}).forEach(function (pd) {
       if (pd && pd.owned && pd.itemNum) nums[pd.itemNum] = true;
     });
-    var opts = Object.keys(nums).sort().slice(0, 900).map(function (n) { return '<option value="' + String(n).replace(/"/g, '&quot;') + '">'; }).join('');
-    var n = 0; gs.forEach(function (g) { n += g.files.length; });
-    // v0.9.886: pre-fill with the first selected group's AI suggestion
-    var sug = '';
-    try { var s0 = _ids()[gs[0].files[0].id]; if (s0 && s0.num) sug = String(s0.num); } catch (eS) {}
+    var opts = Object.keys(nums).sort().slice(0, 900).map(function (o) { return '<option value="' + String(o).replace(/"/g, '&quot;') + '">'; }).join('');
+    var old = document.getElementById('pin-review-ov'); if (old) old.remove();
+    var thumbs = [];
+    _rvGroups.forEach(function (g) { g.files.forEach(function (f) { thumbs.push(f.id); }); });
     var ov = document.createElement('div');
-    ov.id = 'pin-assign-ov';
-    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+    ov.id = 'pin-review-ov';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
     ov.innerHTML =
-      '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.2rem;max-width:380px;width:100%">' +
-        '<div style="font-family:var(--font-head);font-weight:700;font-size:1rem;color:var(--text);margin-bottom:0.5rem">File ' + n + ' photo' + (n > 1 ? 's' : '') + ' to an item</div>' +
-        '<div style="font-size:0.78rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.7rem">Type the item number. If it’s already in your collection the photos attach to it; if not, they’re filed under that number and you can add the item right after.' + (sug ? ' <span style="color:#7ec3ef">Pre-filled from the photo — double-check it.</span>' : '') + '</div>' +
-        '<input id="pin-assign-num" list="pin-assign-list" type="text" value="' + sug.replace(/"/g, '&quot;') + '" placeholder="e.g. 2343 or 6464-1" autocomplete="off" spellcheck="false" style="width:100%;padding:0.6rem 0.8rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.95rem;margin-bottom:0.8rem" onkeydown="if(event.key===\'Enter\')_pinDoAssign()">' +
-        '<datalist id="pin-assign-list">' + opts + '</datalist>' +
+      '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.1rem;max-width:460px;width:100%;max-height:94vh;overflow-y:auto">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem">' +
+          '<div style="font-family:var(--font-head);font-weight:700;font-size:1rem;color:var(--text)">' + n + ' photo' + (n > 1 ? 's' : '') + ' · one item</div>' +
+          '<button onclick="document.getElementById(\'pin-review-ov\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.35rem;line-height:1;cursor:pointer;padding:0.1rem 0.3rem">✕</button>' +
+        '</div>' +
+        '<div id="pin-rv-photos" style="display:flex;gap:0.45rem;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:0.7rem">' +
+          thumbs.slice(0, 12).map(function (fidT, i) {
+            return '<div style="flex-shrink:0;width:' + (i === 0 ? '160px;height:160px' : '74px;height:74px;align-self:flex-end') + ';border-radius:10px;overflow:hidden;background:var(--surface2,#26262e)"><img data-rvfid="' + fidT + '" style="width:100%;height:100%;object-fit:cover;display:block" alt=""></div>';
+          }).join('') +
+        '</div>' +
+        '<input id="pin-rv-num" list="pin-rv-list" type="text" value="' + sug.replace(/"/g, '&quot;') + '" placeholder="Item number — e.g. 2343 or 6464-1" autocomplete="off" spellcheck="false" oninput="_pinReviewLookup(this.value)" style="width:100%;padding:0.55rem 0.75rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.95rem;margin-bottom:0.6rem">' +
+        '<datalist id="pin-rv-list">' + opts + '</datalist>' +
+        '<div id="pin-rv-info" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.7rem 0.8rem;margin-bottom:0.8rem;display:flex;flex-direction:column;gap:0.25rem"></div>' +
+        '<button id="pin-rv-add" onclick="_pinReviewAdd()" class="btn-primary" style="width:100%;padding:0.75rem;border-radius:10px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.95rem;cursor:pointer;margin-bottom:0.5rem">Add to My Collection</button>' +
         '<div style="display:flex;gap:0.5rem">' +
-          '<button onclick="_pinDoAssign()" class="btn-primary" style="flex:1;padding:0.6rem;border-radius:8px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.88rem;cursor:pointer">File photos</button>' +
-          '<button onclick="document.getElementById(\'pin-assign-ov\').remove()" style="padding:0.6rem 1rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">Cancel</button>' +
+          '<button onclick="_pinReviewResearch()" style="flex:1;padding:0.6rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer">Research</button>' +
+          '<button onclick="_pinReviewDiscard()" style="flex:1;padding:0.6rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer">Discard Photo' + (n > 1 ? 's' : '') + '</button>' +
         '</div>' +
       '</div>';
     document.body.appendChild(ov);
-    setTimeout(function () { var i = document.getElementById('pin-assign-num'); if (i) i.focus(); }, 60);
+    ov.querySelectorAll('img[data-rvfid]').forEach(function (img) {
+      loadDriveThumb(img.getAttribute('data-rvfid'), img, img.parentElement);
+    });
+    _pinReviewLookup(sug);
   };
 
-  window._pinDoAssign = async function () {
-    var inp = document.getElementById('pin-assign-num');
-    var num = (inp && inp.value || '').trim();
-    if (!num) { showToast('Type an item number first', 2500, true); return; }
-    var ov = document.getElementById('pin-assign-ov'); if (ov) ov.remove();
-    var gs = _selGroups();
+  window._pinReviewResearch = function () {
+    var num = (document.getElementById('pin-rv-num') || {}).value || '';
+    num = String(num).trim();
+    if (!num) { showToast('Type an item number to research', 2500, true); return; }
+    var ov = document.getElementById('pin-review-ov'); if (ov) ov.remove();
+    if (typeof window._researchLookupTyped === 'function') window._researchLookupTyped(num);
+    else showToast('Research is still loading — try again in a moment', 3000, true);
+  };
+
+  window._pinReviewDiscard = function () {
+    var gs = _rvGroups;
+    if (!gs.length) return;
+    var ov = document.getElementById('pin-review-ov'); if (ov) ov.remove();
+    _sel = {};
+    gs.forEach(function (g) { _sel[g.key] = true; });
+    _pinDiscard();
+  };
+
+  // Shared filing core: move every photo in `gs` into the item's Drive
+  // folder, connect the sheet's photo link when the item is owned, or
+  // remember the link + open the Add wizard when it isn't.
+  window._pinReviewAdd = async function () {
+    var num = String((document.getElementById('pin-rv-num') || {}).value || '').trim();
+    if (!num) { showToast('Type or confirm the item number first', 2500, true); return; }
+    var gs = _rvGroups;
     if (!gs.length || _busy) return;
+    var ov = document.getElementById('pin-review-ov'); if (ov) ov.remove();
     _busy = true;
     try {
       var fromFid = await _folder();
@@ -293,52 +375,30 @@
       }
       _sel = {};
       _status('');
-      // Attach to the owned item's sheet row (exact number first, then base-number match)
-      var pds = Object.values((window.state || {}).personalData || {});
-      var pd = pds.find(function (p) { return p && p.owned && String(p.itemNum) === num; });
-      if (!pd && typeof baseItemNum === 'function') {
-        pd = pds.find(function (p) { return p && p.owned && p.itemNum && baseItemNum(String(p.itemNum)) === baseItemNum(num); });
-      }
-      if (pd) {
+      var lk = _pinLookup(num);
+      if (lk.ownedPd) {
+        var pd = lk.ownedPd;
         if (!pd.photoItem && pd.row && typeof sheetsUpdate === 'function' && typeof personalColLetter === 'function' && window.state.personalSheetId) {
           pd.photoItem = link;
           try { await sheetsUpdate(state.personalSheetId, 'My Collection!' + personalColLetter('photoItem') + pd.row, [[link]]); } catch (eUp) { console.warn('[Inbox] photo link write:', eUp); }
         }
-        showToast('Filed ' + moved + ' photo' + (moved > 1 ? 's' : '') + ' to ' + num, 3000);
+        showToast('Attached ' + moved + ' photo' + (moved > 1 ? 's' : '') + ' to ' + num, 3000);
         _pinRefresh();
       } else {
-        // Not in the collection yet — remember the folder link so the photo
-        // link can be written the moment the item is saved (see the
-        // buildDashboard hook below), and offer the wizard now.
         try {
           var pend = JSON.parse(localStorage.getItem(PENDING_KEY) || '{}');
           pend[num] = link;
           localStorage.setItem(PENDING_KEY, JSON.stringify(pend));
         } catch (eP) {}
         _pinRefresh();
-        _offerAdd(num, moved);
+        showToast(moved + ' photo' + (moved > 1 ? 's' : '') + ' ready — they connect when you save the item', 3000);
+        _pinAddNow(num);
       }
     } catch (e) {
-      console.error('[Inbox] assign:', e);
+      console.error('[Inbox] add/attach:', e);
       _status('Filing failed partway — hit Refresh to see what’s left, then try again.');
     } finally { _busy = false; }
   };
-
-  function _offerAdd(num, count) {
-    var ov = document.createElement('div');
-    ov.id = 'pin-offer-ov';
-    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
-    ov.innerHTML =
-      '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.2rem;max-width:380px;width:100%">' +
-        '<div style="font-family:var(--font-head);font-weight:700;font-size:1rem;color:var(--text);margin-bottom:0.5rem">' + count + ' photo' + (count > 1 ? 's' : '') + ' filed under ' + num + '</div>' +
-        '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.8rem">That number isn’t in your collection yet. Add it now and the photos connect to it automatically when you save.</div>' +
-        '<div style="display:flex;gap:0.5rem">' +
-          '<button onclick="document.getElementById(\'pin-offer-ov\').remove();_pinAddNow(\'' + String(num).replace(/'/g, '') + '\')" class="btn-primary" style="flex:1;padding:0.6rem;border-radius:8px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.88rem;cursor:pointer">Add it now</button>' +
-          '<button onclick="document.getElementById(\'pin-offer-ov\').remove()" style="padding:0.6rem 1rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">Later</button>' +
-        '</div>' +
-      '</div>';
-    document.body.appendChild(ov);
-  }
 
   window._pinAddNow = function (num) {
     if (typeof openWizard !== 'function') { showToast('Add wizard not available', 2500, true); return; }
