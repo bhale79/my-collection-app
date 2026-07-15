@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v885';
+const CACHE_NAME = 'mca-v886';
 
 const SHELL_FILES = [
   './index.html',
@@ -59,7 +59,20 @@ const SHELL_FILES = [
   './tools.js',
   './share.js',
   './sheet-builder.js',
+  './sell.js',
+  './backup.js',
+  './barcode.js',
+  './photo-crop.js',
+  './variation-picker.js',
+  './report-export.js',
+  './report-library.js',
+  './contacts.js',
+  './cott-anchors.js',
+  './ai-id.js',
   './conductor.png',
+  './conductor-list.png',
+  './door-multi.png',
+  './door-single.png',
   './img/conductor-header.png',
   './img/conductor-pointing.png',
   './img/conductor-pointing-left.png',
@@ -113,16 +126,32 @@ self.addEventListener('fetch', event => {
     return; // let browser handle normally
   }
 
+  // Only GET requests can be cached; let anything else pass through.
+  if (event.request.method !== 'GET') return;
+
+  // v0.9.875: cache our own files under their URL WITHOUT the ?v=
+  // cache-buster. Before this, the install pre-cache stored "app.js"
+  // but the page asked for "app.js?v=874" — never a match, so every
+  // file was downloaded twice and the pre-cache was never used.
+  // With one shared key, pre-cache + stale-while-revalidate update
+  // the same entry. Safe because CACHE_NAME is wiped on every deploy.
+  let cacheKey = event.request;
+  if (url.startsWith(self.location.origin)) {
+    const u = new URL(url);
+    u.search = '';
+    cacheKey = u.href;
+  }
+
   // Stale-while-revalidate for app shell files:
   // 1. Serve from cache immediately (fast)
   // 2. Fetch fresh copy in background
   // 3. Update cache so next load gets the latest
   event.respondWith(
     caches.open(CACHE_NAME).then(cache =>
-      cache.match(event.request).then(cached => {
+      cache.match(cacheKey).then(cached => {
         const networkFetch = fetch(event.request).then(response => {
           if (response && response.ok) {
-            cache.put(event.request, response.clone());
+            cache.put(cacheKey, response.clone());
           }
           return response;
         }).catch(() => cached);

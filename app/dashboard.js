@@ -9,7 +9,7 @@
 //  Cross-file callers:
 //    buildDashboard() ← wizard.js, prefs.js
 //    _getSlots() ← prefs.js
-//    _openCardPopup() ← prefs.js
+//    openDashEditor() ← prefs.js (old per-slot popups removed v0.9.875)
 // ══════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════════
@@ -537,94 +537,6 @@ function _showCardHelp(cardId) {
 }
 if (typeof window !== 'undefined') window._showCardHelp = _showCardHelp;
 
-function _openCardPopup(slotIdx) {
-  _closeCardPopup();
-  var slots = _getSlots();
-  var slot   = slots[slotIdx] || null;
-  var currentId = slot ? slot.id : '';
-
-  var popup = document.createElement('div');
-  popup.id = 'card-popup';
-  popup.style.cssText = 'position:fixed;z-index:99990;background:var(--surface,#161c34);border:1px solid var(--border,#2a3a5c);border-radius:12px;padding:1rem;box-shadow:0 8px 32px rgba(0,0,0,0.5);min-width:240px;max-width:280px';
-
-  var opts = CARD_CATALOG.map(function(c) {
-    var lbl = c.label;
-    return '<option value="' + c.id + '"' + (c.id === currentId ? ' selected' : '') + '>' + lbl + '</option>';
-  }).join('');
-  popup.innerHTML =
-    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.65rem">'
-      + '<span style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim)">Card Slot ' + (slotIdx+1) + '</span>'
-      // v0.9.654 (Brad): ? lives HERE (moved off the card face) — explains
-      // whatever card is currently selected in the dropdown below.
-      + '<button type="button" title="What does this card show?" '
-      +   'onclick="var _s=document.getElementById(\'card-popup-select\');_showCardHelp(_s?_s.value:\'\')" '
-      +   'style="width:18px;height:18px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-size:0.64rem;font-weight:700;line-height:1;cursor:help;padding:0">?</button>'
-      + '</div>' +
-    '<select id="card-popup-select" onchange="_onCardPopupChange(' + slotIdx + ',this.value)" style="width:100%;padding:0.4rem 0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;margin-bottom:0.65rem">' +
-      '<option value="">— None (remove this card) —</option>' + opts +
-    '</select>'
-    +
-    '<div style="display:flex;justify-content:flex-end">' +
-      '<button onclick="_closeCardPopup()" style="padding:0.3rem 0.9rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.8rem;cursor:pointer">Done</button>' +
-    '</div>';
-
-  document.body.appendChild(popup);
-
-  // Position anchored below the card, clamped to viewport
-  var cardEl = document.getElementById('dash-card-' + slotIdx);
-  if (!cardEl) cardEl = document.getElementById('dash-card-add');
-  if (cardEl) {
-    var rect = cardEl.getBoundingClientRect();
-    var top  = rect.bottom + 8;
-    var left = rect.left;
-    if (top + 220 > window.innerHeight - 16) top = rect.top - 220 - 8;
-    if (left + 280 > window.innerWidth  -  8) left = window.innerWidth - 288;
-    if (left < 8) left = 8;
-    popup.style.top  = Math.max(8, top)  + 'px';
-    popup.style.left = left + 'px';
-  } else {
-    popup.style.top  = '50%';
-    popup.style.left = '50%';
-    popup.style.transform = 'translate(-50%,-50%)';
-  }
-
-  // Dismiss on outside click
-  setTimeout(function() {
-    document.addEventListener('mousedown', _popupOutsideClick);
-  }, 60);
-}
-
-function _popupOutsideClick(e) {
-  var p = document.getElementById('card-popup');
-  if (p && !p.contains(e.target)) _closeCardPopup();
-}
-
-function _closeCardPopup() {
-  var p = document.getElementById('card-popup');
-  if (p) p.remove();
-  document.removeEventListener('mousedown', _popupOutsideClick);
-}
-
-function _onCardPopupChange(slotIdx, newId) {
-  var slots = _getSlots();
-  slots[slotIdx] = newId ? {id: newId} : null;
-  _saveSlots(slots);
-  buildDashboard();
-  // Re-anchor popup to new card position after rebuild
-  setTimeout(function() {
-    var p = document.getElementById('card-popup');
-    var cardEl = document.getElementById('dash-card-' + slotIdx) || document.getElementById('dash-card-add');
-    if (p && cardEl) {
-      var rect = cardEl.getBoundingClientRect();
-      var top  = rect.bottom + 8;
-      var left = rect.left;
-      if (top + 220 > window.innerHeight - 16) top = rect.top - 220 - 8;
-      if (left + 280 > window.innerWidth  -  8) left = window.innerWidth - 288;
-      p.style.top  = Math.max(8, top) + 'px';
-      p.style.left = Math.max(8, left) + 'px';
-    }
-  }, 50);
-}
 
 function buildDashboard() {
   // v0.9.871: one Edit Dashboard entry next to the greeting
@@ -702,7 +614,7 @@ function buildDashboard() {
     var activeSlots = slots.map(function(slot,i){return{slot:slot,i:i};}).filter(function(s){return s.slot!==null;});
     if (activeSlots.length === 0) {
       _statsGrid.innerHTML =
-        '<button onclick="_openCardPopup(0)" style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 1rem;border-radius:8px;border:1.5px dashed var(--border,#2a3a5c);background:transparent;color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer" ' +
+        '<button onclick="openDashEditor()" style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 1rem;border-radius:8px;border:1.5px dashed var(--border,#2a3a5c);background:transparent;color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer" ' +
         'onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\'" ' +
         'onmouseout="this.style.borderColor=\'var(--border,#2a3a5c)\';this.style.color=\'var(--text-dim)\'">' +
         '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
@@ -1215,97 +1127,6 @@ function _savePanels(panels) {
   _prefSet('lv_dash_panels', JSON.stringify(panels));
 }
 
-function _openPanelPopup(panelIdx) {
-  var existing = document.getElementById('panel-popup');
-  if (existing) { existing.remove(); return; }
-
-  var panels = _getPanels();
-  var currentId = panels[panelIdx] ? panels[panelIdx].id : 'recent';
-
-  var popup = document.createElement('div');
-  popup.id = 'panel-popup';
-  popup.style.cssText = 'position:fixed;z-index:99990;background:var(--surface,#161c34);border:1px solid var(--border,#2a3a5c);border-radius:12px;padding:1rem;box-shadow:0 8px 32px rgba(0,0,0,0.5);min-width:220px;max-width:260px';
-
-  var opts = PANEL_CATALOG.map(function(p) {
-    return '<option value="' + p.id + '"' + (p.id === currentId ? ' selected' : '') + '>' + p.icon + ' ' + p.label + '</option>';
-  }).join('');
-
-  popup.innerHTML =
-    '<div style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.65rem">Panel ' + (panelIdx + 1) + '</div>' +
-    '<select onchange="_onPanelPopupChange(' + panelIdx + ',this.value)" style="width:100%;padding:0.4rem 0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;margin-bottom:0.65rem">' +
-      opts +
-    '</select>' +
-    ((panels.length < 3) ? '<button onclick="_dashAddPanel()" style="width:100%;margin-bottom:0.5rem;padding:0.45rem;border-radius:7px;border:1.5px dashed #2ecc71;background:rgba(46,204,113,0.08);color:#2ecc71;font-family:var(--font-body);font-size:0.8rem;font-weight:600;cursor:pointer">+ Add a card</button>' : '') +
-    ((panels.length > 1) ? '<button onclick="_dashRemovePanel(' + panelIdx + ')" style="width:100%;margin-bottom:0.5rem;padding:0.45rem;border-radius:7px;border:1px solid var(--border);background:none;color:#e74c3c;font-family:var(--font-body);font-size:0.8rem;cursor:pointer">Remove this card</button>' : '') +
-    '<div style="display:flex;justify-content:flex-end">' +
-      '<button onclick="document.getElementById(\'panel-popup\').remove()" style="padding:0.3rem 0.9rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.8rem;cursor:pointer">Done</button>' +
-    '</div>';
-
-  document.body.appendChild(popup);
-
-  // Position anchored to the panel header
-  var headerEl = document.getElementById('dash-panel-header-' + panelIdx);
-  if (headerEl) {
-    var rect = headerEl.getBoundingClientRect();
-    var top = rect.bottom + 6;
-    var left = rect.left;
-    if (top + 160 > window.innerHeight - 16) top = rect.top - 160 - 6;
-    if (left + 260 > window.innerWidth - 8) left = window.innerWidth - 268;
-    if (left < 8) left = 8;
-    popup.style.top  = Math.max(8, top) + 'px';
-    popup.style.left = left + 'px';
-  } else {
-    popup.style.top = '50%'; popup.style.left = '50%';
-    popup.style.transform = 'translate(-50%,-50%)';
-  }
-
-  setTimeout(function() {
-    document.addEventListener('mousedown', _panelPopupOutsideClick);
-  }, 60);
-}
-
-window._dashAddPanel = function () {   // v0.9.752
-  var p = _getPanels();
-  if (p.length < 3) { p.push({ id: 'recent' }); _savePanels(p); }
-  var pp = document.getElementById('panel-popup'); if (pp) pp.remove();
-  buildDashboard();
-};
-window._dashRemovePanel = function (i) {   // v0.9.752
-  var p = _getPanels();
-  if (p.length > 1) { p.splice(i, 1); _savePanels(p); }
-  var pp = document.getElementById('panel-popup'); if (pp) pp.remove();
-  buildDashboard();
-};
-
-function _panelPopupOutsideClick(e) {
-  var p = document.getElementById('panel-popup');
-  if (p && !p.contains(e.target)) {
-    p.remove();
-    document.removeEventListener('mousedown', _panelPopupOutsideClick);
-  }
-}
-
-function _onPanelPopupChange(panelIdx, newId) {
-  var panels = _getPanels();
-  panels[panelIdx] = { id: newId };
-  _savePanels(panels);
-  buildDashboard();
-  // Re-open popup anchored to new header
-  setTimeout(function() {
-    var p = document.getElementById('panel-popup');
-    if (!p) return;
-    var headerEl = document.getElementById('dash-panel-header-' + panelIdx);
-    if (headerEl) {
-      var rect = headerEl.getBoundingClientRect();
-      var top = rect.bottom + 6;
-      var left = rect.left;
-      if (top + 160 > window.innerHeight - 16) top = rect.top - 160 - 6;
-      if (left + 260 > window.innerWidth - 8) left = window.innerWidth - 268;
-      p.style.top  = Math.max(8, top) + 'px';
-      p.style.left = Math.max(8, left) + 'px';
-    }
-  }, 60);
-}
 
 
 // ═══════════════════════════════════════════════════════════════

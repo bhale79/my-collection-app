@@ -1414,11 +1414,14 @@ function renderBrowseTab(tab) {
 }
 
 function renderSetsTab() {
-  const tbody = document.getElementById('sets-tbody');
-  const countEl = document.getElementById('sets-count');
+  // v0.9.875: browse panel ids renamed browse-sets-* — they used to clash
+  // with the Complete Sets page's sets-search/sets-tbody ids, which sent
+  // that page's desktop rows into this hidden panel.
+  const tbody = document.getElementById('browse-sets-tbody');
+  const countEl = document.getElementById('browse-sets-count');
   if (!tbody) return;
   const inColl = !!state.filters.owned;
-  const q = (document.getElementById('sets-search')?.value || '').trim().toLowerCase();
+  const q = (document.getElementById('browse-sets-search')?.value || '').trim().toLowerCase();
 
   // Build owned set lookup from My Sets personal tab.
   // Session 115: also keep the My Sets KEY for each entry so action

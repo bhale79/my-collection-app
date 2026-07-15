@@ -284,10 +284,10 @@ function buildPrefsPage() {
       <div style="font-size:0.78rem;font-weight:600;color:var(--text-mid);padding:0.75rem 0.2rem 0.35rem;letter-spacing:0.03em;text-transform:uppercase">Dashboard</div>
       <div class="pref-row" style="flex-direction:column;align-items:flex-start;gap:0.4rem">
         <div style="font-size:0.82rem;color:var(--text-dim);line-height:1.5">
-          Up to <strong style="color:var(--text)">${typeof MAX_CARDS !== 'undefined' ? MAX_CARDS : 6} stat cards</strong> on your dashboard — click any card to change it. Plus up to <strong style="color:var(--text)">3 large cards</strong> — use the ✎ on any of them to change, add, or remove one.
+          Up to <strong style="color:var(--text)">${typeof MAX_CARDS !== 'undefined' ? MAX_CARDS : 6} stat cards</strong> and up to <strong style="color:var(--text)">3 large cards</strong> on your dashboard — use the <strong style="color:var(--text)">✎ Edit Dashboard</strong> button next to the greeting to choose, arrange, or remove them.
         </div>
-        <button onclick="showPage('dashboard', document.querySelector('.nav-item[onclick*=dashboard]')); setTimeout(function(){ _openCardPopup(${_getSlots().indexOf(null) >= 0 ? _getSlots().indexOf(null) : 0}); }, 150);" style="padding:0.35rem 0.8rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-size:0.8rem;cursor:pointer">
-          Go to Dashboard →
+        <button onclick="showPage('dashboard', document.querySelector('.nav-item[onclick*=dashboard]')); setTimeout(function(){ if (typeof openDashEditor === 'function') openDashEditor(); }, 150);" style="padding:0.35rem 0.8rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-size:0.8rem;cursor:pointer">
+          Edit Dashboard →
         </button>
       </div>
 
