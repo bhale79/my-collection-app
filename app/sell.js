@@ -79,6 +79,15 @@ function _rrCardData(it, source) {
     sub: master.subType || master.itemType || 'Lionel Postwar'
   };
 }
+// v0.9.878 (Brad): shrink text with an ellipsis so it can never draw
+// over whatever sits to its right (title vs price collided on
+// no-number items whose whole name lives in the title slot).
+function _rrFitText(x, txt, maxW) {
+  if (x.measureText(txt).width <= maxW) return txt;
+  var t = String(txt);
+  while (t.length > 1 && x.measureText(t + '…').width > maxW) t = t.slice(0, -1);
+  return t.replace(/\s+$/, '') + '…';
+}
 function _rrCard(d, photoImg, source, photoIdx, photoTotal) {
   var W = 720, H = 900, c = document.createElement('canvas'); c.width = W; c.height = H;
   var x = c.getContext('2d');
@@ -101,7 +110,10 @@ function _rrCard(d, photoImg, source, photoIdx, photoTotal) {
     x.fillStyle = '#fff'; x.textAlign = 'left'; x.fillText(_lbl, 62, py + 35);
   }
   var by = py + ph + 58;
-  x.fillStyle = '#fff'; x.font = '700 46px Arial'; x.fillText('No. ' + (d.num || ''), 36, by);
+  var priceW = 0;
+  if (d.price) { x.font = '700 38px Arial'; priceW = x.measureText(d.price).width + 24; }
+  x.fillStyle = '#fff'; x.font = '700 46px Arial';
+  x.fillText(_rrFitText(x, 'No. ' + (d.num || ''), (W - 72) - priceW), 36, by);
   if (d.price) { x.fillStyle = accent; x.font = '700 38px Arial'; x.textAlign = 'right'; x.fillText(d.price, W - 36, by); x.textAlign = 'left'; }
   x.fillStyle = '#c8b88a'; x.font = '400 24px Arial'; _rrWrap(x, d.name || '', 36, by + 38, W - 72, 30, 2);
   var cy = by + 96, cx = 36;
@@ -132,8 +144,11 @@ function _rrPhotoCard(num, photoImg, source, idx, total) {
     x.drawImage(photoImg, 36 + ((W - 72) - dw) / 2, py + (ph - dh) / 2, dw, dh); x.restore();
   } else { x.fillStyle = '#46537a'; x.font = '400 20px Arial'; x.textAlign = 'center'; x.fillText('photo', W / 2, py + ph / 2); x.textAlign = 'left'; }
   var by = py + ph + 58;
-  x.fillStyle = '#fff'; x.font = '700 40px Arial'; x.textAlign = 'left'; x.fillText('No. ' + (num || ''), 36, by);
-  x.fillStyle = accent; x.font = '700 28px Arial'; x.textAlign = 'right'; x.fillText('Photo ' + idx + ' of ' + total, W - 36, by); x.textAlign = 'left';
+  var _pl = 'Photo ' + idx + ' of ' + total;
+  x.font = '700 28px Arial'; var _plw = x.measureText(_pl).width + 24;
+  x.fillStyle = '#fff'; x.font = '700 40px Arial'; x.textAlign = 'left';
+  x.fillText(_rrFitText(x, 'No. ' + (num || ''), (W - 72) - _plw), 36, by);
+  x.fillStyle = accent; x.font = '700 28px Arial'; x.textAlign = 'right'; x.fillText(_pl, W - 36, by); x.textAlign = 'left';
   x.strokeStyle = 'rgba(255,255,255,0.1)'; x.beginPath(); x.moveTo(36, H - 56); x.lineTo(W - 36, H - 56); x.stroke();
   x.fillStyle = '#6b769a'; x.font = '400 17px Arial'; x.fillText('Additional photo', 36, H - 30);
   x.textAlign = 'right'; x.fillText('Shared from The Rail Roster', W - 36, H - 30); x.textAlign = 'left';
@@ -212,6 +227,27 @@ async function shareAsCards() {
       if (acts) {
         acts.style.display = 'flex';
         acts.innerHTML = '<button onclick="_rrDoShareNow()" style="padding:0.75rem;border-radius:9px;border:none;background:#2ecc71;color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>Tap to share ' + files.length + ' image' + (files.length > 1 ? 's' : '') + '</button>';
+      }
+      return;
+    }
+    // v0.9.878 (Brad): DESKTOP — offer email via the system share menu
+    // (images arrive attached) with downloads as the backup. Mobile flow
+    // above is untouched. Share must open from a fresh click (building
+    // the cards used up the original click's user-gesture).
+    if (!isMobile && canFileShare) {
+      window._rrShareFiles = files; window._rrShareText = msg || title;
+      if (prog) prog.style.display = 'none';
+      if (acts) {
+        acts.style.display = 'flex';
+        acts.innerHTML =
+          '<button onclick="_rrDoShareNow()" style="padding:0.75rem;border-radius:9px;border:none;background:#2ecc71;color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem">' +
+            '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>' +
+            'Email ' + files.length + ' image' + (files.length > 1 ? 's' : '') + '…' +
+          '</button>' +
+          '<button onclick="_rrDownloadFiles(window._rrShareFiles||[]);showToast(\'Saved to your downloads\',3000)" style="padding:0.55rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">' +
+            'Save to downloads instead' +
+          '</button>' +
+          '<div style="text-align:center;font-size:0.72rem;color:var(--text-dim)">Opens your computer’s share menu — pick your email app and the images attach automatically.</div>';
       }
       return;
     }
