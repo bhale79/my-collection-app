@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v895';
+const CACHE_NAME = 'mca-v896';
 
 const SHELL_FILES = [
   './index.html',
@@ -121,6 +121,7 @@ self.addEventListener('fetch', event => {
     url.includes('accounts.google.com') ||
     url.includes('drive.google.com') ||
     url.includes('sheets.google.com') ||
+    url.includes('googleusercontent.com') ||   // v0.9.885: photo bytes — never cache
     url.includes('cdnjs.cloudflare.com') ||
     url.includes('jsdelivr.net')
   ) {

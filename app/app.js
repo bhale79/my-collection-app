@@ -2,7 +2,10 @@
 // APP_VERSION, APP_DATE defined in config.js
 // Replace with your actual Google OAuth Client ID after setup
 const CLIENT_ID = '161569968813-vrhet7p68vkthkunare60nqr34li5uuh.apps.googleusercontent.com';
-const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
+// v0.9.885 (Brad): + photospicker scope — "From Google Photos…" import on the
+// Photo Inbox. Read-only, picker-session only (the app can never browse the
+// whole library — only what the user picks in Google's own window).
+const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/photospicker.mediaitems.readonly';
 const API_KEY = ''; // Set your Google Cloud API key in settings if needed
 // Gemini Vision API key — get a free key at https://aistudio.google.com/app/apikey
 // Paste your key here to enable photo-based item identification
