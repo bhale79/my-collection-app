@@ -70,7 +70,7 @@
         '<span>Photo Inbox</span>' +
         '<span id="pin-count" style="font-size:0.8rem;color:var(--text-dim);font-family:var(--font-body);font-weight:400"></span>' +
       '</div>' +
-      '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.7rem">Drop photos anywhere below, or use Add photos. Click a photo to select it, then file the selection to an item number — or discard it. Photos snapped on your phone will land here too (coming soon).</div>' +
+      '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.7rem">Drop photos anywhere below, or use Add photos. Click a photo to select it, then file the selection to an item number — or discard it. Photos snapped with Quick Capture on your phone land here too.</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;margin-bottom:0.8rem">' +
         '<button onclick="_pinPickFiles()" class="btn-primary" style="padding:0.5rem 0.9rem;border-radius:8px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Add photos…</button>' +
         '<button onclick="_pinRefresh()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:600;font-size:0.82rem;cursor:pointer">Refresh</button>' +
@@ -407,14 +407,187 @@
     prefsBtn.parentNode.insertBefore(b, prefsBtn);
   }
 
+  // ═════════════════════════════════════════════════════════════
+  // PHASE 2 — QUICK CAPTURE (phone) — v0.9.880
+  // Big camera button; every shot uploads to the inbox in the
+  // background. Two modes (Brad's design):
+  //   single — one photo per item; every shot is its own group.
+  //   multi  — several photos of the same item; "Next Item" starts
+  //            the next group. Groups share the g-tag so the desktop
+  //            inbox shows them as one stack and files them together.
+  // ═════════════════════════════════════════════════════════════
+  var QC_MODE_KEY = 'rr_qc_mode';
+  var _qc = null;   // { base, group, shots, total, pending, failed:[{file,name}] }
+
+  function _qcToken() {
+    if (!window.accessToken) {
+      var s = localStorage.getItem('lv_token'), ex = parseInt(localStorage.getItem('lv_token_expiry') || '0', 10);
+      if (s && ex > new Date().getTime()) window.accessToken = s;
+    }
+    return window.accessToken;
+  }
+
+  window._qcOpen = function () {
+    if (!_qc) _qc = { base: new Date().getTime(), group: 1, shots: 0, total: 0, pending: 0, failed: [] };
+    var ov = document.getElementById('qc-ov');
+    if (!ov) {
+      ov = document.createElement('div');
+      ov.id = 'qc-ov';
+      ov.style.cssText = 'position:fixed;inset:0;background:var(--bg,#10132a);z-index:10000;display:flex;flex-direction:column;padding:max(0.8rem,env(safe-area-inset-top)) 0.9rem max(0.8rem,env(safe-area-inset-bottom))';
+      document.body.appendChild(ov);
+      var inp = document.createElement('input');
+      inp.type = 'file'; inp.id = 'qc-file'; inp.accept = 'image/*';
+      inp.setAttribute('capture', 'environment');
+      inp.style.display = 'none';
+      inp.addEventListener('change', function () {
+        var f = this.files && this.files[0];
+        this.value = '';
+        if (f) _qcShot(f);
+      });
+      ov.appendChild(inp);
+      var body = document.createElement('div');
+      body.id = 'qc-body';
+      body.style.cssText = 'flex:1;display:flex;flex-direction:column;min-height:0';
+      ov.appendChild(body);
+      if (window.BackStack && BackStack.push) BackStack.push('qc-ov', window._qcDone);
+    }
+    _qcRender();
+  };
+
+  function _qcMode() { return localStorage.getItem(QC_MODE_KEY) || ''; }
+
+  window._qcSetMode = function (m) {
+    localStorage.setItem(QC_MODE_KEY, m);
+    // Mode switch mid-session: start a fresh item group either way.
+    if (_qc && _qc.shots > 0) { _qc.group++; _qc.shots = 0; }
+    _qcRender();
+  };
+
+  window._qcPickMode = function () { _qcRender(true); };
+
+  function _qcRender(forceModeScreen) {
+    var body = document.getElementById('qc-body');
+    if (!body) return;
+    var mode = _qcMode();
+    if (!mode || forceModeScreen) {
+      body.innerHTML =
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">' +
+          '<span style="font-family:var(--font-head);font-weight:700;font-size:1.05rem;color:var(--text)">Quick Capture</span>' +
+          '<button onclick="_qcDone()" style="background:none;border:none;color:var(--text-dim);font-size:1.4rem;line-height:1;cursor:pointer;padding:0.2rem 0.4rem">✕</button>' +
+        '</div>' +
+        '<div style="font-size:0.85rem;color:var(--text-dim);line-height:1.55;margin-bottom:1.2rem">How are you shooting today? Photos go straight to your Photo Inbox — you file them to items later at the desk.</div>' +
+        '<button onclick="_qcSetMode(\'single\')" style="width:100%;padding:1.1rem;border-radius:12px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:var(--text);font-family:var(--font-body);cursor:pointer;text-align:left;margin-bottom:0.7rem">' +
+          '<div style="font-weight:700;font-size:0.95rem;color:#2980b9;margin-bottom:0.2rem">One photo per item</div>' +
+          '<div style="font-size:0.78rem;color:var(--text-dim)">Every shot is its own item. Fastest.</div>' +
+        '</button>' +
+        '<button onclick="_qcSetMode(\'multi\')" style="width:100%;padding:1.1rem;border-radius:12px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:var(--text);font-family:var(--font-body);cursor:pointer;text-align:left">' +
+          '<div style="font-weight:700;font-size:0.95rem;color:#2980b9;margin-bottom:0.2rem">Several photos per item</div>' +
+          '<div style="font-size:0.78rem;color:var(--text-dim)">Snap all sides of an item, then tap Next Item. The photos stay together as one item in your inbox.</div>' +
+        '</button>';
+      return;
+    }
+    var multi = mode === 'multi';
+    var counter = multi
+      ? 'Item ' + _qc.group + (_qc.shots ? ' · ' + _qc.shots + ' photo' + (_qc.shots > 1 ? 's' : '') : '')
+      : _qc.total + ' photo' + (_qc.total === 1 ? '' : 's') + ' taken';
+    var pend = '';
+    if (_qc.pending > 0) pend += 'Uploading ' + _qc.pending + '… ';
+    if (_qc.failed.length) pend += '<span style="color:#f05008;font-weight:700">' + _qc.failed.length + ' failed</span> <button onclick="_qcRetry()" style="border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);border-radius:6px;font-size:0.72rem;padding:0.15rem 0.5rem;cursor:pointer;font-family:var(--font-body)">Retry</button>';
+    body.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem">' +
+        '<span style="font-family:var(--font-head);font-weight:700;font-size:1.05rem;color:var(--text)">Quick Capture</span>' +
+        '<button onclick="_qcPickMode()" style="border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);border-radius:7px;font-size:0.7rem;padding:0.25rem 0.6rem;cursor:pointer;font-family:var(--font-body)">' + (multi ? 'Several per item' : 'One per item') + ' ▾</button>' +
+      '</div>' +
+      '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.4rem">' +
+        '<div style="font-family:var(--font-head);font-weight:700;font-size:1.5rem;color:var(--text);text-align:center">' + counter + '</div>' +
+        '<div style="font-size:0.78rem;color:var(--text-dim);min-height:1.2em;text-align:center">' + (pend || (_qc.total ? _qc.total + ' in your inbox' : 'Photos upload as you go')) + '</div>' +
+      '</div>' +
+      '<button onclick="document.getElementById(\'qc-file\').click()" style="width:100%;min-height:34vh;border-radius:16px;border:none;background:#2980b9;color:#fff;font-family:var(--font-body);font-weight:700;font-size:1.15rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.6rem;margin-bottom:0.7rem">' +
+        '<svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>' +
+        (multi && _qc.shots ? 'Take another of this item' : 'Take Photo') +
+      '</button>' +
+      (multi ? '<button onclick="_qcNextItem()" ' + (_qc.shots ? '' : 'disabled ') + 'style="width:100%;padding:0.95rem;border-radius:12px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:' + (_qc.shots ? '#2980b9' : 'var(--text-dim)') + ';font-family:var(--font-body);font-weight:700;font-size:1rem;cursor:pointer;margin-bottom:0.7rem;opacity:' + (_qc.shots ? '1' : '0.5') + '">Next Item →</button>' : '') +
+      '<button onclick="_qcDone()" style="width:100%;padding:0.8rem;border-radius:12px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-weight:600;font-size:0.9rem;cursor:pointer">Done</button>';
+  }
+
+  function _qcShot(file) {
+    var mode = _qcMode();
+    if (mode === 'single' && _qc.shots > 0) { _qc.group++; _qc.shots = 0; }
+    _qc.shots++;
+    _qc.total++;
+    var ext = ((file.name || '').split('.').pop() || 'jpg').toLowerCase().slice(0, 5) || 'jpg';
+    var name = 'INBOX ' + _qc.base + ' g' + _qc.base + '-' + _qc.group + ' p' + _qc.shots + '.' + ext;
+    if (mode === 'single') { _qc.group++; _qc.shots = 0; }
+    _qcUpload(file, name);
+    _qcRender();
+  }
+
+  window._qcNextItem = function () {
+    if (!_qc || !_qc.shots) return;
+    _qc.group++;
+    _qc.shots = 0;
+    _qcRender();
+  };
+
+  async function _qcUpload(file, name) {
+    _qc.pending++;
+    _qcRender();
+    try {
+      if (!_qcToken()) throw new Error('signed out');
+      var fid = await _folder();
+      await driveUploadFile(file, name, fid);
+    } catch (e) {
+      console.warn('[QuickCapture] upload failed:', e);
+      _qc.failed.push({ file: file, name: name });
+    } finally {
+      _qc.pending--;
+      _qcRender();
+    }
+  }
+
+  window._qcRetry = function () {
+    if (!_qc || !_qc.failed.length) return;
+    var again = _qc.failed.splice(0);
+    again.forEach(function (it) { _qcUpload(it.file, it.name); });
+  };
+
+  window._qcDone = function () {
+    if (_qc && _qc.pending > 0) {
+      if (!window.confirm(_qc.pending + ' photo(s) still uploading — leave anyway? They may not reach the inbox.')) return;
+    }
+    if (_qc && _qc.failed.length) {
+      if (!window.confirm(_qc.failed.length + ' photo(s) failed to upload and will be lost. Close anyway?')) return;
+    }
+    var total = _qc ? (_qc.total - _qc.failed.length) : 0;
+    var ov = document.getElementById('qc-ov');
+    if (ov) ov.remove();
+    if (window.BackStack && BackStack.pop) BackStack.pop('qc-ov');
+    _qc = null;
+    if (total > 0) showToast(total + ' photo' + (total > 1 ? 's' : '') + ' in your inbox — file them at the desk', 3500);
+  };
+
+  // Phone dashboard entry — full-width button under the greeting.
+  function _injectCapture() {
+    if (!window.IS_MOBILE_UA) return;
+    if (document.getElementById('qc-entry')) return;
+    var g = document.getElementById('dash-greeting');
+    if (!g || !g.parentNode) return;
+    var b = document.createElement('button');
+    b.id = 'qc-entry';
+    b.setAttribute('onclick', '_qcOpen()');
+    b.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:0.5rem;width:100%;margin:0.6rem 0 0;padding:0.7rem;border-radius:10px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-size:0.85rem;font-weight:700;cursor:pointer';
+    b.innerHTML = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Quick Capture — photos to your inbox';
+    g.parentNode.appendChild(b);
+  }
+
   // Piggyback on dashboard rebuilds (fires after login and after every
-  // wizard save) — inject the nav button once and flush pending links.
+  // wizard save) — inject the entries once and flush pending links.
   function _hook() {
     if (typeof window.buildDashboard === 'function' && !window.buildDashboard._pinWrapped) {
       var orig = window.buildDashboard;
       window.buildDashboard = function () {
         var r = orig.apply(this, arguments);
-        try { _injectNav(); _flushPending(); } catch (e) {}
+        try { _injectNav(); _injectCapture(); _flushPending(); } catch (e) {}
         return r;
       };
       window.buildDashboard._pinWrapped = true;
