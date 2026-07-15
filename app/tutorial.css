@@ -185,6 +185,7 @@
 #tut-help-label {
   font-family: var(--font-body, sans-serif);
   font-size: 0.82rem;
+  font-weight: 700;
   color: var(--text-dim, #999);
   white-space: nowrap;
 }

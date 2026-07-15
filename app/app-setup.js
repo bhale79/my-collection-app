@@ -197,14 +197,14 @@ function _buildAppShell() {
     '</div>' +
     '<div class="nav-section" style="padding-top:0.5rem;border-top:1px solid var(--border)">' +
       '<button id="refresh-btn" onclick="forceRefreshData()" data-ctip="Reload your data straight from your sheet."' +
-        ' style="display:flex;align-items:center;gap:0.6rem;padding:0.42rem 0.75rem;border-radius:7px;color:var(--text-dim);font-size:0.82rem;background:none;border:none;width:100%;cursor:pointer;text-align:left;font-family:var(--font-body)"' +
+        ' style="display:flex;align-items:center;gap:0.6rem;padding:0.42rem 0.75rem;border-radius:7px;color:var(--text-dim);font-size:0.82rem;background:none;border:none;width:100%;cursor:pointer;text-align:left;font-family:var(--font-body);font-weight:700"' +
         ' onmouseover="this.style.background=\'rgba(255,255,255,0.06)\';this.style.color=\'var(--text)\'"' +
         ' onmouseout="this.style.background=\'none\';this.style.color=\'var(--text-dim)\'">' +
         '<svg id="refresh-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>' +
         'Sync from Sheet' +
       '</button>' +
       '<button onclick="showContactModal()"' +
-        ' style="display:flex;align-items:center;gap:0.6rem;padding:0.42rem 0.75rem;border-radius:7px;color:var(--text-dim);font-size:0.82rem;background:none;border:none;width:100%;cursor:pointer;text-align:left;font-family:var(--font-body)"' +
+        ' style="display:flex;align-items:center;gap:0.6rem;padding:0.42rem 0.75rem;border-radius:7px;color:var(--text-dim);font-size:0.82rem;background:none;border:none;width:100%;cursor:pointer;text-align:left;font-family:var(--font-body);font-weight:700"' +
         ' onmouseover="this.style.background=\'rgba(255,255,255,0.06)\';this.style.color=\'var(--text)\'"' +
         ' onmouseout="this.style.background=\'none\';this.style.color=\'var(--text-dim)\'">' +
         '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>' +

@@ -210,7 +210,7 @@ function _buildTutorialUI() {
   widget.setAttribute('tabindex', '0');
   widget.onclick = function() { tutToggleMenu(); };
   widget.innerHTML =
-    '<img id="tut-help-conductor" src="./img/conductor-pointing.png">' +
+    '<img id="tut-help-conductor" src="./img/conductor-lantern.gif">' +
     '<span id="tut-help-label">Need Help?</span>' +
     '<button id="tut-help-btn" onclick="void(0)">Help</button>';
   // Place the Need Help? widget inside the sidebar, under the Contact button.
