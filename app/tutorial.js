@@ -437,8 +437,9 @@ function _guidedTour(steps) {
 
   function setMascot(rightSide) {
     var m = document.getElementById('gt-mascot'); if (!m) return;
-    if (rightSide) { m.style.left = 'auto'; m.style.right = '-66px'; m.style.transform = 'scaleX(-1)'; }
-    else { m.style.right = 'auto'; m.style.left = '-66px'; m.style.transform = 'none'; }
+    if (rightSide) { m.style.left = 'auto'; m.style.right = '-66px'; m.src = './img/conductor-pointing-left.png'; }
+    else { m.style.right = 'auto'; m.style.left = '-66px'; m.src = './img/conductor-pointing.png'; }
+    m.style.transform = 'none';
   }
   function place(el) {
     callout.style.maxWidth = Math.min(340, window.innerWidth - 100) + 'px';
