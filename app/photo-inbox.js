@@ -403,16 +403,34 @@
   window._pinAddNow = function (num) {
     if (typeof openWizard !== 'function') { showToast('Add wizard not available', 2500, true); return; }
     openWizard('collection');
-    // Pre-fill the item number once the first step renders.
+    // v0.9.889 (Brad): pre-fill the ENTIRE catalog side of the add, the same
+    // way a successful barcode scan does — lock the matched catalog item,
+    // adopt its era, and jump past the item-number step. Only the personal
+    // questions (condition, price, photos) remain for the user.
     var tries = 0;
     var t = setInterval(function () {
       tries++;
-      var inp = document.getElementById('wiz-input');
-      if (inp && window.wizard && wizard.steps && wizard.steps[wizard.step] && wizard.steps[wizard.step].id === 'itemNum') {
-        inp.value = num;
-        wizard.data.itemNum = num;
-        try { if (typeof debouncedItemSuggestions === 'function') debouncedItemSuggestions(num); } catch (e) {}
+      var ready = (typeof wizard !== 'undefined') && wizard && wizard.steps && wizard.data && document.getElementById('wizard-modal');
+      if (ready) {
         clearInterval(t);
+        try {
+          wizard.data.itemNum = num;
+          var m = (typeof findMaster === 'function') ? findMaster(num) : null;
+          if (m) {
+            wizard.matchedItem = m;
+            if (m._era) wizard.data._era = m._era;
+            wizard.step++;              // same advance a barcode scan does
+            renderWizardStep();
+            showToast('✓ ' + num + ' — catalog details filled in', 2500);
+          } else if (typeof _identifyRouteToManualEntry === 'function' && _identifyRouteToManualEntry(num, {}, [])) {
+            showToast(num + " isn't in the catalog — finish the details", 3000);
+          } else {
+            // Last resort: behave like typing the number by hand.
+            var inp = document.getElementById('wiz-input');
+            if (inp) inp.value = num;
+            try { if (typeof debouncedItemSuggestions === 'function') debouncedItemSuggestions(num); } catch (e) {}
+          }
+        } catch (e) { console.warn('[Inbox] wizard prefill:', e); }
       }
       if (tries > 20) clearInterval(t);
     }, 250);
