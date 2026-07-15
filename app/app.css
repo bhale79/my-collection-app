@@ -887,6 +887,10 @@
   .mobile-nav {
     display: none; background: var(--surface); border-top: 1px solid var(--border);
     padding: 0.5rem 0; flex-shrink: 0;
+    /* v0.9.882 (Brad): pin the bottom nav to the screen — it used to sit at
+       the end of the page and only appeared after scrolling all the way down.
+       .app-layout's padding-bottom already reserves the space beneath it. */
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 800;
   }
   .mobile-nav-items { display: flex; justify-content: flex-start; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; scrollbar-width: none; gap: 0.1rem; padding: 0 0.25rem; }
   .mobile-nav-items::-webkit-scrollbar { display: none; }

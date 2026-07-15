@@ -393,31 +393,47 @@
   }
 
   function _injectNav() {
-    if (document.getElementById('nav-photo-inbox')) return;
-    if (window.IS_MOBILE_UA) return;   // Phase 2 brings the phone side
-    var prefsBtn = document.querySelector('.sidebar .nav-item[onclick*="prefs"]');
-    if (!prefsBtn || !prefsBtn.parentNode) return;
-    var b = document.createElement('button');
-    b.className = 'nav-item';
-    b.id = 'nav-photo-inbox';
-    b.setAttribute('data-ctip', 'Photos waiting to be filed to items.');
-    b.setAttribute('onclick', '_pinGo(this)');
-    b.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>' +
-      'Photo Inbox<span class="nav-badge" id="nav-inbox-count" style="display:none;background:#f8e8c0;color:#1a1a1a"></span>';
-    prefsBtn.parentNode.insertBefore(b, prefsBtn);
+    // Desktop sidebar entry
+    if (!document.getElementById('nav-photo-inbox') && !window.IS_MOBILE_UA) {
+      var prefsBtn = document.querySelector('.sidebar .nav-item[onclick*="prefs"]');
+      if (prefsBtn && prefsBtn.parentNode) {
+        var b = document.createElement('button');
+        b.className = 'nav-item';
+        b.id = 'nav-photo-inbox';
+        b.setAttribute('data-ctip', 'Photos waiting to be filed to items.');
+        b.setAttribute('onclick', '_pinGo(this)');
+        b.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>' +
+          'Photo Inbox<span class="nav-badge" id="nav-inbox-count" style="display:none;background:#f8e8c0;color:#1a1a1a"></span>';
+        prefsBtn.parentNode.insertBefore(b, prefsBtn);
+      }
+    }
+    // v0.9.882 (Brad): phone bottom-nav entry too
+    if (!document.getElementById('mnav-photo-inbox')) {
+      var host = document.querySelector('.mobile-nav-items');
+      if (host) {
+        var mb = document.createElement('button');
+        mb.className = 'mobile-nav-item';
+        mb.id = 'mnav-photo-inbox';
+        mb.setAttribute('onclick', '_pinGo(this)');
+        mb.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>Inbox';
+        host.appendChild(mb);
+      }
+    }
   }
 
   // ═════════════════════════════════════════════════════════════
-  // PHASE 2 — QUICK CAPTURE (phone) — v0.9.880
-  // Big camera button; every shot uploads to the inbox in the
-  // background. Two modes (Brad's design):
-  //   single — one photo per item; every shot is its own group.
-  //   multi  — several photos of the same item; "Next Item" starts
-  //            the next group. Groups share the g-tag so the desktop
-  //            inbox shows them as one stack and files them together.
+  // PHASE 2 — QUICK CAPTURE (phone) — v0.9.880, reworked v0.9.882
+  // Two big buttons instead of an up-front mode question (Brad):
+  //   "Photo of New Item"          — starts the next item (new group)
+  //   "Another Photo of Same Item" — adds to the current item's group
+  // Every shot uploads to the inbox in the background. Groups share
+  // the g-tag so the desktop inbox shows them as one stack.
+  // Extras: optional crop-each-photo toggle, and a strip of the most
+  // recent shots (tap to review, re-crop, or rotate — the cropped
+  // bytes replace the uploaded Drive file in place).
   // ═════════════════════════════════════════════════════════════
-  var QC_MODE_KEY = 'rr_qc_mode';
-  var _qc = null;   // { base, group, shots, total, pending, failed:[{file,name}] }
+  var QC_CROP_KEY = 'rr_qc_crop';   // '1' = open the cropper on every shot
+  var _qc = null;   // { base, group, shots, total, pending, failed:[{file,name,rec}], recent:[{url,name,driveId,group}], nextIsNew }
 
   function _qcToken() {
     if (!window.accessToken) {
@@ -428,7 +444,7 @@
   }
 
   window._qcOpen = function () {
-    if (!_qc) _qc = { base: new Date().getTime(), group: 1, shots: 0, total: 0, pending: 0, failed: [] };
+    if (!_qc) _qc = { base: new Date().getTime(), group: 1, shots: 0, total: 0, pending: 0, failed: [], recent: [], nextIsNew: false };
     var ov = document.getElementById('qc-ov');
     if (!ov) {
       ov = document.createElement('div');
@@ -454,91 +470,88 @@
     _qcRender();
   };
 
-  function _qcMode() { return localStorage.getItem(QC_MODE_KEY) || ''; }
-
-  window._qcSetMode = function (m) {
-    localStorage.setItem(QC_MODE_KEY, m);
-    // Mode switch mid-session: start a fresh item group either way.
-    if (_qc && _qc.shots > 0) { _qc.group++; _qc.shots = 0; }
+  function _qcCropOn() { return localStorage.getItem(QC_CROP_KEY) === '1'; }
+  window._qcCropToggle = function () {
+    localStorage.setItem(QC_CROP_KEY, _qcCropOn() ? '0' : '1');
     _qcRender();
   };
 
-  window._qcPickMode = function () { _qcRender(true); };
-
-  function _qcRender(forceModeScreen) {
+  function _qcRender() {
     var body = document.getElementById('qc-body');
     if (!body) return;
-    var mode = _qcMode();
-    if (!mode || forceModeScreen) {
-      body.innerHTML =
-        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">' +
-          '<span style="font-family:var(--font-head);font-weight:700;font-size:1.05rem;color:var(--text)">Quick Capture</span>' +
-          '<button onclick="_qcDone()" style="background:none;border:none;color:var(--text-dim);font-size:1.4rem;line-height:1;cursor:pointer;padding:0.2rem 0.4rem">✕</button>' +
-        '</div>' +
-        '<div style="font-size:0.85rem;color:var(--text-dim);line-height:1.55;margin-bottom:1.2rem">How are you shooting today? Photos go straight to your Photo Inbox — you file them to items later at the desk.</div>' +
-        '<button onclick="_qcSetMode(\'single\')" style="width:100%;padding:1.1rem;border-radius:12px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:var(--text);font-family:var(--font-body);cursor:pointer;text-align:left;margin-bottom:0.7rem">' +
-          '<div style="font-weight:700;font-size:0.95rem;color:#2980b9;margin-bottom:0.2rem">One photo per item</div>' +
-          '<div style="font-size:0.78rem;color:var(--text-dim)">Every shot is its own item. Fastest.</div>' +
-        '</button>' +
-        '<button onclick="_qcSetMode(\'multi\')" style="width:100%;padding:1.1rem;border-radius:12px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:var(--text);font-family:var(--font-body);cursor:pointer;text-align:left">' +
-          '<div style="font-weight:700;font-size:0.95rem;color:#2980b9;margin-bottom:0.2rem">Several photos per item</div>' +
-          '<div style="font-size:0.78rem;color:var(--text-dim)">Snap all sides of an item, then tap Next Item. The photos stay together as one item in your inbox.</div>' +
-        '</button>';
-      return;
-    }
-    var multi = mode === 'multi';
-    var counter = multi
-      ? 'Item ' + _qc.group + (_qc.shots ? ' · ' + _qc.shots + ' photo' + (_qc.shots > 1 ? 's' : '') : '')
-      : _qc.total + ' photo' + (_qc.total === 1 ? '' : 's') + ' taken';
+    var counter = 'Item ' + _qc.group + (_qc.shots ? ' · ' + _qc.shots + ' photo' + (_qc.shots > 1 ? 's' : '') : '');
     var pend = '';
     if (_qc.pending > 0) pend += 'Uploading ' + _qc.pending + '… ';
     if (_qc.failed.length) pend += '<span style="color:#f05008;font-weight:700">' + _qc.failed.length + ' failed</span> <button onclick="_qcRetry()" style="border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);border-radius:6px;font-size:0.72rem;padding:0.15rem 0.5rem;cursor:pointer;font-family:var(--font-body)">Retry</button>';
+    // Most-recent strip (newest first). Tap a shot to review / re-crop.
+    var strip = '';
+    if (_qc.recent.length) {
+      strip = '<div style="display:flex;gap:0.45rem;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:0.15rem 0.1rem;margin-bottom:0.6rem">' +
+        _qc.recent.slice().reverse().map(function (r, i) {
+          var realIdx = _qc.recent.length - 1 - i;
+          return '<div onclick="_qcReview(' + realIdx + ')" style="flex-shrink:0;width:62px;height:62px;border-radius:9px;overflow:hidden;position:relative;border:2px solid ' + (r.group === _qc.group ? '#2980b9' : 'var(--border)') + ';cursor:pointer">' +
+            '<img src="' + r.url + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="">' +
+            '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);color:#fff;font-size:0.55rem;text-align:center;padding:0 2px">Item ' + r.group + '</div>' +
+            '</div>';
+        }).join('') + '</div>';
+    }
     body.innerHTML =
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem">' +
         '<span style="font-family:var(--font-head);font-weight:700;font-size:1.05rem;color:var(--text)">Quick Capture</span>' +
-        '<button onclick="_qcPickMode()" style="border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);border-radius:7px;font-size:0.7rem;padding:0.25rem 0.6rem;cursor:pointer;font-family:var(--font-body)">' + (multi ? 'Several per item' : 'One per item') + ' ▾</button>' +
+        '<button onclick="_qcCropToggle()" style="border:1px solid ' + (_qcCropOn() ? '#2980b9' : 'var(--border)') + ';background:' + (_qcCropOn() ? 'rgba(41,128,185,0.15)' : 'var(--surface2)') + ';color:' + (_qcCropOn() ? '#2980b9' : 'var(--text-dim)') + ';border-radius:7px;font-size:0.7rem;font-weight:700;padding:0.25rem 0.6rem;cursor:pointer;font-family:var(--font-body)">Crop each photo: ' + (_qcCropOn() ? 'ON' : 'OFF') + '</button>' +
       '</div>' +
-      '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.4rem">' +
+      '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.4rem;min-height:0">' +
         '<div style="font-family:var(--font-head);font-weight:700;font-size:1.5rem;color:var(--text);text-align:center">' + counter + '</div>' +
-        '<div style="font-size:0.78rem;color:var(--text-dim);min-height:1.2em;text-align:center">' + (pend || (_qc.total ? _qc.total + ' in your inbox' : 'Photos upload as you go')) + '</div>' +
+        '<div style="font-size:0.78rem;color:var(--text-dim);min-height:1.2em;text-align:center">' + (pend || (_qc.total ? _qc.total + ' photo' + (_qc.total > 1 ? 's' : '') + ' in your inbox' : 'Photos upload as you go')) + '</div>' +
       '</div>' +
-      '<button onclick="document.getElementById(\'qc-file\').click()" style="width:100%;min-height:34vh;border-radius:16px;border:none;background:#2980b9;color:#fff;font-family:var(--font-body);font-weight:700;font-size:1.15rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.6rem;margin-bottom:0.7rem">' +
-        '<svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>' +
-        (multi && _qc.shots ? 'Take another of this item' : 'Take Photo') +
+      strip +
+      '<button onclick="_qcTake(true)" style="width:100%;min-height:21vh;border-radius:16px;border:none;background:#2980b9;color:#fff;font-family:var(--font-body);font-weight:700;font-size:1.1rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.45rem;margin-bottom:0.6rem">' +
+        '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>' +
+        'Photo of New Item' +
       '</button>' +
-      (multi ? '<button onclick="_qcNextItem()" ' + (_qc.shots ? '' : 'disabled ') + 'style="width:100%;padding:0.95rem;border-radius:12px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:' + (_qc.shots ? '#2980b9' : 'var(--text-dim)') + ';font-family:var(--font-body);font-weight:700;font-size:1rem;cursor:pointer;margin-bottom:0.7rem;opacity:' + (_qc.shots ? '1' : '0.5') + '">Next Item →</button>' : '') +
+      '<button onclick="_qcTake(false)" ' + (_qc.shots ? '' : 'disabled ') + 'style="width:100%;min-height:12vh;border-radius:16px;border:1.5px solid ' + (_qc.shots ? '#2980b9' : '#8b8e94') + ';background:rgba(41,128,185,' + (_qc.shots ? '0.14' : '0.05') + ');color:' + (_qc.shots ? '#2980b9' : 'var(--text-dim)') + ';font-family:var(--font-body);font-weight:700;font-size:1rem;cursor:pointer;margin-bottom:0.6rem;opacity:' + (_qc.shots ? '1' : '0.55') + '">Another Photo of Same Item</button>' +
       '<button onclick="_qcDone()" style="width:100%;padding:0.8rem;border-radius:12px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-weight:600;font-size:0.9rem;cursor:pointer">Done</button>';
   }
 
-  function _qcShot(file) {
-    var mode = _qcMode();
-    if (mode === 'single' && _qc.shots > 0) { _qc.group++; _qc.shots = 0; }
-    _qc.shots++;
-    _qc.total++;
-    var ext = ((file.name || '').split('.').pop() || 'jpg').toLowerCase().slice(0, 5) || 'jpg';
-    var name = 'INBOX ' + _qc.base + ' g' + _qc.base + '-' + _qc.group + ' p' + _qc.shots + '.' + ext;
-    if (mode === 'single') { _qc.group++; _qc.shots = 0; }
-    _qcUpload(file, name);
-    _qcRender();
-  }
-
-  window._qcNextItem = function () {
-    if (!_qc || !_qc.shots) return;
-    _qc.group++;
-    _qc.shots = 0;
-    _qcRender();
+  // Both big buttons funnel here: newItem=true starts the next group.
+  window._qcTake = function (newItem) {
+    if (!_qc) return;
+    _qc.nextIsNew = !!newItem;
+    var inp = document.getElementById('qc-file');
+    if (inp) inp.click();
   };
 
-  async function _qcUpload(file, name) {
+  function _qcShot(file) {
+    if (_qc.nextIsNew && _qc.shots > 0) { _qc.group++; _qc.shots = 0; }
+    _qc.nextIsNew = false;
+    var go = function (finalFile) {
+      _qc.shots++;
+      _qc.total++;
+      var ext = ((finalFile.name || '').split('.').pop() || 'jpg').toLowerCase().slice(0, 5) || 'jpg';
+      var name = 'INBOX ' + _qc.base + ' g' + _qc.base + '-' + _qc.group + ' p' + _qc.shots + '.' + ext;
+      var rec = { url: URL.createObjectURL(finalFile), name: name, driveId: null, group: _qc.group };
+      _qc.recent.push(rec);
+      if (_qc.recent.length > 12) { var old = _qc.recent.shift(); try { URL.revokeObjectURL(old.url); } catch (e) {} }
+      _qcUpload(finalFile, name, rec);
+      _qcRender();
+    };
+    // Optional crop-before-upload (photo-crop.js's shared helper; falls back
+    // to the original photo on Cancel or if the crop tool isn't loaded).
+    if (_qcCropOn() && typeof window._cropFirst === 'function') window._cropFirst(file, go);
+    else go(file);
+  }
+
+  async function _qcUpload(file, name, rec) {
     _qc.pending++;
     _qcRender();
     try {
       if (!_qcToken()) throw new Error('signed out');
       var fid = await _folder();
-      await driveUploadFile(file, name, fid);
+      var res = await driveUploadFile(file, name, fid);
+      if (rec && res && res.id) rec.driveId = res.id;
     } catch (e) {
       console.warn('[QuickCapture] upload failed:', e);
-      _qc.failed.push({ file: file, name: name });
+      _qc.failed.push({ file: file, name: name, rec: rec });
     } finally {
       _qc.pending--;
       _qcRender();
@@ -548,7 +561,51 @@
   window._qcRetry = function () {
     if (!_qc || !_qc.failed.length) return;
     var again = _qc.failed.splice(0);
-    again.forEach(function (it) { _qcUpload(it.file, it.name); });
+    again.forEach(function (it) { _qcUpload(it.file, it.name, it.rec); });
+  };
+
+  // ── Review a recent shot: big view + re-crop/rotate in place ─
+  window._qcReview = function (idx) {
+    var r = _qc && _qc.recent[idx];
+    if (!r) return;
+    var old = document.getElementById('qc-review-ov'); if (old) old.remove();
+    var ov = document.createElement('div');
+    ov.id = 'qc-review-ov';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:100005;background:rgba(0,0,0,0.92);display:flex;flex-direction:column;padding:max(0.8rem,env(safe-area-inset-top)) 0.9rem max(0.8rem,env(safe-area-inset-bottom))';
+    ov.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:space-between;color:#fff;margin-bottom:0.5rem">' +
+        '<strong style="font-size:0.95rem">Item ' + r.group + '</strong>' +
+        '<button onclick="document.getElementById(\'qc-review-ov\').remove()" style="background:none;border:none;color:#bbb;font-size:1.5rem;line-height:1;cursor:pointer;padding:0.2rem 0.4rem">✕</button>' +
+      '</div>' +
+      '<div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center"><img src="' + r.url + '" style="max-width:100%;max-height:100%;border-radius:10px" alt=""></div>' +
+      '<div style="display:flex;gap:0.6rem;margin-top:0.7rem">' +
+        '<button onclick="_qcRecrop(' + idx + ')" style="flex:1;padding:0.85rem;border-radius:10px;border:none;background:#2980b9;color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.95rem;cursor:pointer">Crop / Rotate</button>' +
+        '<button onclick="document.getElementById(\'qc-review-ov\').remove()" style="flex:1;padding:0.85rem;border-radius:10px;border:1px solid #555;background:#2a2a2a;color:#eee;font-family:var(--font-body);font-weight:600;font-size:0.95rem;cursor:pointer">Looks good</button>' +
+      '</div>';
+    document.body.appendChild(ov);
+  };
+
+  window._qcRecrop = function (idx) {
+    var r = _qc && _qc.recent[idx];
+    if (!r) return;
+    if (typeof window._openCropper !== 'function') { showToast('Crop tool still loading — try again in a moment', 2500, true); return; }
+    var rv = document.getElementById('qc-review-ov'); if (rv) rv.remove();
+    window._openCropper(r.url, async function (blob) {
+      try { URL.revokeObjectURL(r.url); } catch (e) {}
+      r.url = URL.createObjectURL(blob);
+      _qcRender();
+      // Replace the uploaded Drive file's bytes in place (photo-crop.js pattern).
+      if (r.driveId && _qcToken()) {
+        try {
+          var resp = await fetch('https://www.googleapis.com/upload/drive/v3/files/' + r.driveId + '?uploadType=media', {
+            method: 'PATCH', headers: { Authorization: 'Bearer ' + window.accessToken, 'Content-Type': 'image/jpeg' }, body: blob
+          });
+          showToast(resp.ok ? 'Photo updated' : 'Crop saved locally — inbox copy may be the original', 2500);
+        } catch (e) { console.warn('[QuickCapture] recrop replace:', e); showToast('Could not update the uploaded copy', 2500, true); }
+      } else {
+        showToast('Photo is still uploading — crop it again in a few seconds if it looks wrong in the inbox', 3000);
+      }
+    });
   };
 
   window._qcDone = function () {
@@ -559,6 +616,8 @@
       if (!window.confirm(_qc.failed.length + ' photo(s) failed to upload and will be lost. Close anyway?')) return;
     }
     var total = _qc ? (_qc.total - _qc.failed.length) : 0;
+    if (_qc) _qc.recent.forEach(function (r) { try { URL.revokeObjectURL(r.url); } catch (e) {} });
+    var rv = document.getElementById('qc-review-ov'); if (rv) rv.remove();
     var ov = document.getElementById('qc-ov');
     if (ov) ov.remove();
     if (window.BackStack && BackStack.pop) BackStack.pop('qc-ov');
@@ -624,4 +683,7 @@
     }
   }
   _hook();
+  // The phone bottom bar is static HTML — give it its Inbox button right
+  // away (the sidebar half of _injectNav waits for login harmlessly).
+  try { _injectNav(); } catch (e) {}
 })();
