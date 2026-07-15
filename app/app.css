@@ -324,7 +324,7 @@
     transition: all 0.15s; border: none; background: none; width: 100%; text-align: left;
   }
   .nav-item:hover { background: var(--surface2); color: var(--text); }
-  .nav-item.active { background: rgba(200,16,46,0.12); color: var(--accent); font-family: var(--font-body); font-weight: 500; }
+  .nav-item.active { background: rgba(139,142,148,0.12); color: #2980b9; font-family: var(--font-body); font-weight: 500; }
   .nav-item svg { flex-shrink: 0; opacity: 0.8; }
   .nav-badge {
     margin-left: auto; background: var(--accent); color: white;

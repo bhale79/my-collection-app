@@ -19,7 +19,7 @@ function _buildAuthScreen() {
   d.dataset.built = '1';
   d.innerHTML =
     '<div class="auth-logo" style="line-height:1.1">' +
-      '<div style="font-family:var(--font-head);font-size:2.4rem;font-weight:700;color:var(--cream);letter-spacing:0.07em;text-transform:uppercase">The <span style="color:var(--accent)">Rail</span> Roster</div>' +
+      '<div style="font-family:var(--font-head);font-size:2.4rem;font-weight:700;color:var(--cream);letter-spacing:0.07em;text-transform:uppercase">The <span style="color:var(--cream)">Rail</span> Roster</div>' +
       '<div style="font-size:0.75rem;letter-spacing:0.22em;color:var(--text-dim);margin-top:7px;text-transform:uppercase;font-family:var(--font-head);font-weight:400">Postwar Collector\'s Inventory</div>' +
     '</div>' +
     '<div class="auth-sub">Postwar Collector\'s Inventory</div>' +
@@ -103,7 +103,7 @@ function _buildAppShell() {
   header.innerHTML =
     '<div class="header-logo" style="display:flex;align-items:flex-end;gap:0.6rem;align-self:stretch;height:100%">' +
       '<img src="img/conductor-header.png?v=203" alt="" aria-hidden="true" style="height:48px;width:auto;flex-shrink:0;display:block">' +
-      '<div style="font-family:var(--font-head);font-size:1.8rem;font-weight:700;color:var(--cream);letter-spacing:0.06em;text-transform:uppercase;line-height:1;padding-bottom:6px">The <span style="color:var(--accent)">Rail</span> Roster</div>' +
+      '<div style="font-family:var(--font-head);font-size:1.8rem;font-weight:700;color:var(--cream);letter-spacing:0.06em;text-transform:uppercase;line-height:1;padding-bottom:6px">The <span style="color:var(--cream)">Rail</span> Roster</div>' +
     '</div>' +
     '<div class="header-right" style="position:relative">' +
       '<div class="user-chip" id="user-chip" onclick="toggleAccountMenu()" role="button" aria-haspopup="true">' +
