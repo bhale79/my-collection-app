@@ -609,6 +609,19 @@ function _onCardPopupChange(slotIdx, newId) {
 }
 
 function buildDashboard() {
+  // v0.9.871: one Edit Dashboard entry next to the greeting
+  (function() {
+    var g = document.getElementById('dash-greeting');
+    if (g && g.parentNode && !document.getElementById('dash-edit-btn')) {
+      var b = document.createElement('button');
+      b.id = 'dash-edit-btn';
+      b.innerHTML = '\u270E Edit Dashboard';
+      b.style.cssText = 'margin-left:0.9rem;padding:0.25rem 0.7rem;border-radius:7px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-size:0.72rem;font-weight:700;cursor:pointer;vertical-align:middle';
+      b.onclick = function() { openDashEditor(); };
+      g.parentNode.appendChild(b);
+    }
+  })();
+
   var total = state.masterData.length;
 
   // Cache current era's master total for era progress cards
@@ -693,14 +706,14 @@ function buildDashboard() {
             + '<div class="stat-value">' + result.value + '</div>'
             + '<div class="stat-sub">' + result.sub + '</div>';
         }
-        return '<div class="stat-card" id="dash-card-' + i + '" style="--card-accent:' + card.color + ';cursor:pointer;position:relative" onclick="_openCardPopup(' + i + ')" title="Click to customize">'
+        return '<div class="stat-card" id="dash-card-' + i + '" style="--card-accent:' + card.color + ';cursor:pointer;position:relative" onclick="openDashEditor()" title="Edit dashboard">'
           + inner
           + '</div>';
       }).join('');
       if (activeSlots.length < MAX_CARDS) {
         var nextNull = slots.indexOf(null);
         html += '<div style="grid-column:1/-1;text-align:right;padding:0.15rem 0.1rem 0">'
-          + '<button onclick="_openCardPopup(' + nextNull + ')" style="background:none;border:none;color:var(--text-dim);font-size:0.75rem;font-family:var(--font-body);cursor:pointer;padding:0;opacity:0.6;display:inline-flex;align-items:center;gap:0.3rem" onmouseover="this.style.opacity=\'1\'" onmouseout="this.style.opacity=\'0.6\'">'
+          + '<button onclick="openDashEditor()" style="background:none;border:none;color:var(--text-dim);font-size:0.75rem;font-family:var(--font-body);cursor:pointer;padding:0;opacity:0.6;display:inline-flex;align-items:center;gap:0.3rem" onmouseover="this.style.opacity=\'1\'" onmouseout="this.style.opacity=\'0.6\'">'
           + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
           + ' Add a stat card</button>'
           + '</div>';
@@ -770,7 +783,7 @@ function buildDashboard() {
           ? '<span style="cursor:pointer;text-decoration:none" onclick="' + panelDef.navFn + '" title="Go to ' + panelDef.label + '">' + panelDef.label + ' <span style="font-size:0.65rem;opacity:0.5">›</span></span>'
           : '<span>' + panelDef.label + '</span>';
         headerEl.innerHTML = titleHtml
-          + '<button onclick="_openPanelPopup(' + i + ')" title="Change this card" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:0.9rem;padding:0.1rem 0.35rem;line-height:1">\u270E</button>';
+          + '<button onclick="openDashEditor()" title="Edit dashboard" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:0.9rem;padding:0.1rem 0.35rem;line-height:1">\u270E</button>';
       }
 
       // Render panel body
@@ -1274,3 +1287,152 @@ function _onPanelPopupChange(panelIdx, newId) {
     }
   }, 60);
 }
+
+
+// ═══════════════════════════════════════════════════════════════
+// EDIT DASHBOARD (v0.9.871) — one screen to choose + arrange cards.
+// Checkboxes pick which small cards / panels show; drag a tile onto
+// another spot (or use the ◀ ▶ arrows — works on touch) to reorder.
+// Nothing persists until Save: writes the same lv_dash_slots /
+// lv_dash_panels prefs the dashboard already uses.
+// ═══════════════════════════════════════════════════════════════
+var _dEd = null;   // working state while the editor is open
+
+function openDashEditor() {
+  if (document.getElementById('dash-editor')) return;
+  var wP = (_getPanels() || []).slice(0, 3);
+  while (wP.length < 3) wP.push(null);
+  _dEd = { s: _getSlots(), p: wP, drag: null };
+
+  var ov = document.createElement('div');
+  ov.id = 'dash-editor';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:99950;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;padding:1rem;overflow-y:auto';
+  ov.innerHTML = '<div id="dash-ed-box" style="background:var(--surface,#161c34);border:1px solid var(--border,#2a3a5c);border-radius:14px;max-width:820px;width:100%;max-height:92vh;overflow-y:auto;padding:1.1rem 1.2rem;box-shadow:0 12px 44px rgba(0,0,0,0.55)"></div>';
+  ov.onclick = function(e) { if (e.target === ov) _dashEdClose(); };
+  document.body.appendChild(ov);
+  if (window.BackStack && BackStack.wire) BackStack.wire('dash-editor');
+  _dashEdRender();
+}
+
+function _dashEdClose() {
+  var ov = document.getElementById('dash-editor');
+  if (ov) ov.remove();
+  _dEd = null;
+}
+
+function _dashEdSave() {
+  if (!_dEd) return;
+  _saveSlots(_dEd.s);
+  var panels = _dEd.p.filter(Boolean);
+  _savePanels(panels.length ? panels : [{ id: 'recent' }]);
+  _dashEdClose();
+  try { buildDashboard(); } catch(e) {}
+}
+
+function _dashEdLabel(type, id) {
+  var cat = (type === 's') ? CARD_CATALOG : PANEL_CATALOG;
+  var def = cat.find(function(c) { return c.id === id; });
+  return def ? def.label : id;
+}
+
+function _dashEdHas(type, id) {
+  var arr = (type === 's') ? _dEd.s : _dEd.p;
+  return arr.some(function(e) { return e && e.id === id; });
+}
+
+// checkbox: on -> first empty spot; off -> free the spot
+function _dashEdToggle(type, id) {
+  var arr = (type === 's') ? _dEd.s : _dEd.p;
+  var at = arr.findIndex(function(e) { return e && e.id === id; });
+  if (at >= 0) { arr[at] = null; _dashEdRender(); return; }
+  var empty = arr.indexOf(null);
+  if (empty < 0) {
+    var w = document.getElementById('dash-ed-warn');
+    if (w) { w.textContent = 'All ' + (type === 's' ? 'small-card' : 'panel') + ' spots are full — uncheck one first.'; w.style.display = 'block'; }
+    _dashEdRenderSoon(); return;
+  }
+  arr[empty] = { id: id };
+  _dashEdRender();
+}
+
+function _dashEdRenderSoon() { setTimeout(_dashEdRender, 900); }
+
+// move a tile one spot left/right (swap) — the touch-friendly path
+function _dashEdMove(type, i, dir) {
+  var arr = (type === 's') ? _dEd.s : _dEd.p;
+  var j = i + dir;
+  if (j < 0 || j >= arr.length) return;
+  var t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+  _dashEdRender();
+}
+
+function _dashEdDragStart(ev, type, i) { _dEd.drag = { t: type, i: i }; ev.dataTransfer.effectAllowed = 'move'; }
+function _dashEdDrop(ev, type, i) {
+  ev.preventDefault();
+  if (!_dEd.drag || _dEd.drag.t !== type) return;   // small<->small, panel<->panel only
+  var arr = (type === 's') ? _dEd.s : _dEd.p;
+  var from = _dEd.drag.i;
+  var t = arr[from]; arr[from] = arr[i]; arr[i] = t;
+  _dEd.drag = null;
+  _dashEdRender();
+}
+
+function _dashEdSpot(type, entry, i, total) {
+  var base = 'position:relative;border-radius:9px;min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.25rem;padding:0.4rem 0.3rem;text-align:center;font-size:0.72rem;font-family:var(--font-body)';
+  var dnd = ' ondragover="event.preventDefault()" ondrop="_dashEdDrop(event,\'' + type + '\',' + i + ')"';
+  if (!entry) {
+    return '<div style="' + base + ';border:1.5px dashed var(--border,#2a3a5c);color:var(--text-dim,#888)"' + dnd + '>Empty<br>spot ' + (i + 1) + '</div>';
+  }
+  var arrows = '<div style="display:flex;gap:0.5rem">'
+    + (i > 0 ? '<button onclick="_dashEdMove(\'' + type + '\',' + i + ',-1)" style="background:none;border:1px solid var(--border,#2a3a5c);border-radius:5px;color:var(--text-mid,#bbb);cursor:pointer;font-size:0.7rem;padding:0 0.35rem">◀</button>' : '')
+    + (i < total - 1 ? '<button onclick="_dashEdMove(\'' + type + '\',' + i + ',1)" style="background:none;border:1px solid var(--border,#2a3a5c);border-radius:5px;color:var(--text-mid,#bbb);cursor:pointer;font-size:0.7rem;padding:0 0.35rem">▶</button>' : '')
+    + '</div>';
+  return '<div draggable="true" ondragstart="_dashEdDragStart(event,\'' + type + '\',' + i + ')"' + dnd
+    + ' style="' + base + ';border:1.5px solid #2980b9;background:rgba(41,128,185,0.10);color:var(--text,#eee);cursor:grab">'
+    + '<strong style="font-size:0.7rem;line-height:1.25">' + _dashEdLabel(type, entry.id) + '</strong>' + arrows + '</div>';
+}
+
+function _dashEdRender() {
+  if (!_dEd) return;
+  var box = document.getElementById('dash-ed-box');
+  if (!box) return;
+
+  function spots(type, arr) {
+    var cols = (type === 's') ? 'repeat(auto-fit,minmax(105px,1fr))' : 'repeat(auto-fit,minmax(150px,1fr))';
+    return '<div style="display:grid;grid-template-columns:' + cols + ';gap:0.45rem">'
+      + arr.map(function(e, i) { return _dashEdSpot(type, e, i, arr.length); }).join('') + '</div>';
+  }
+  function lib(type, cat) {
+    return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:0.15rem 0.8rem">'
+      + cat.map(function(c) {
+          var on = _dashEdHas(type, c.id);
+          return '<label style="display:flex;align-items:center;gap:0.45rem;font-size:0.8rem;color:var(--text-mid,#bbb);cursor:pointer;padding:0.18rem 0">'
+            + '<input type="checkbox" onchange="_dashEdToggle(\'' + type + '\',\'' + c.id + '\')"' + (on ? ' checked' : '') + ' style="accent-color:#2980b9">'
+            + c.label + '</label>';
+        }).join('') + '</div>';
+  }
+  var sec = 'font-size:0.72rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#2980b9;margin:0.9rem 0 0.45rem';
+  box.innerHTML =
+    '<div style="display:flex;align-items:center;justify-content:space-between">'
+    + '<strong style="font-size:1.05rem;color:var(--text,#eee);font-family:var(--font-head,sans-serif);letter-spacing:0.04em">✎ EDIT DASHBOARD</strong>'
+    + '<button onclick="_dashEdClose()" style="background:none;border:none;color:var(--text-dim,#888);font-size:1.3rem;cursor:pointer;line-height:1">×</button></div>'
+    + '<div style="font-size:0.78rem;color:var(--text-dim,#888);margin-top:0.2rem">Check a card to add it, uncheck to remove. Drag tiles between spots (or use ◀ ▶) to arrange. Nothing changes until you Save.</div>'
+    + '<div id="dash-ed-warn" style="display:none;font-size:0.78rem;color:#f05008;font-weight:600;margin-top:0.4rem"></div>'
+    + '<div style="' + sec + '">Small cards — top row (' + _dEd.s.filter(Boolean).length + ' of ' + _dEd.s.length + ')</div>' + spots('s', _dEd.s)
+    + '<div style="' + sec + '">Large panels — bottom row (' + _dEd.p.filter(Boolean).length + ' of ' + _dEd.p.length + ')</div>' + spots('p', _dEd.p)
+    + '<div style="' + sec + '">Card library</div>'
+    + '<div style="font-size:0.7rem;color:var(--text-dim,#888);margin-bottom:0.25rem">Small cards</div>' + lib('s', CARD_CATALOG)
+    + '<div style="font-size:0.7rem;color:var(--text-dim,#888);margin:0.6rem 0 0.25rem">Large panels</div>' + lib('p', PANEL_CATALOG)
+    + '<div style="display:flex;justify-content:flex-end;gap:0.5rem;margin-top:1.1rem;padding-top:0.8rem;border-top:1px solid var(--border,#2a3a5c)">'
+    + '<button onclick="_dashEdClose()" style="padding:0.45rem 1rem;border-radius:7px;border:1px solid var(--border,#2a3a5c);background:var(--surface2,#222);color:var(--text,#eee);font-family:var(--font-body);font-size:0.84rem;cursor:pointer">Cancel</button>'
+    + '<button onclick="_dashEdSave()" style="padding:0.45rem 1.2rem;border-radius:7px;border:none;background:#2980b9;color:#fff;font-family:var(--font-body);font-size:0.84rem;font-weight:700;cursor:pointer">Save</button>'
+    + '</div>';
+}
+
+window.openDashEditor = openDashEditor;
+window._dashEdToggle = _dashEdToggle;
+window._dashEdMove = _dashEdMove;
+window._dashEdDragStart = _dashEdDragStart;
+window._dashEdDrop = _dashEdDrop;
+window._dashEdClose = _dashEdClose;
+window._dashEdSave = _dashEdSave;
