@@ -2461,6 +2461,22 @@ function showPage(name, clickedEl) {
   if (name === 'vault') vaultRenderPage();
   if (name === 'tools' && typeof buildToolsPage === 'function') buildToolsPage();
   if (name === 'contacts' && typeof buildContactsPage === 'function') buildContactsPage();   // contacts hook
+  // v0.9.873 (Brad): a page opened from a dashboard card gets a Back to
+  // Dashboard bar at the top. Any other navigation removes it.
+  try {
+    var _fd = window._fromDash === true; delete window._fromDash;
+    var _oldBar = document.getElementById('page-back-dash');
+    if (_oldBar) _oldBar.remove();
+    if (_fd && name !== 'dashboard') {
+      var _pgEl = document.getElementById('page-' + name);
+      if (_pgEl) {
+        var _bar = document.createElement('div');
+        _bar.id = 'page-back-dash';
+        _bar.innerHTML = '<button onclick="showPage(\'dashboard\');if(typeof buildDashboard===\'function\')buildDashboard()" style="background:none;border:none;color:#2980b9;font-family:var(--font-body);font-size:0.95rem;font-weight:700;cursor:pointer;padding:0;display:flex;align-items:center;gap:0.4rem;margin-bottom:0.6rem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>Back to Dashboard</button>';
+        _pgEl.insertBefore(_bar, _pgEl.firstChild);
+      }
+    }
+  } catch(e) {}
   document.getElementById('main-content').scrollTop = 0;
   // Push history entry so back button returns here instead of closing the app
   if (!_navSuppressHistory) {

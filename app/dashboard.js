@@ -780,7 +780,7 @@ function buildDashboard() {
           // v0.9.842 (Brad): no emblems on card headers — labels only. The
           // icon fields stay in PANEL_CATALOG (used nowhere else visible)
           // in case we ever want them back.
-          ? '<span style="cursor:pointer;text-decoration:none" onclick="' + panelDef.navFn + '" title="Go to ' + panelDef.label + '">' + panelDef.label + ' <span style="font-size:0.65rem;opacity:0.5">›</span></span>'
+          ? '<span style="cursor:pointer;text-decoration:none" onclick="window._fromDash=true;' + panelDef.navFn + '" title="Go to ' + panelDef.label + '">' + panelDef.label + ' <span style="font-size:0.65rem;opacity:0.5">›</span></span>'
           : '<span>' + panelDef.label + '</span>';
         headerEl.innerHTML = titleHtml
           ;   // v0.9.872 (Brad): no per-panel edit pencil — Edit Dashboard button is the one entry
