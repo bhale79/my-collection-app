@@ -20,9 +20,9 @@
   <link rel="manifest" href="manifest.json">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>The Rail Roster — Postwar Train Collection Tracker</title>
-<link rel="stylesheet" href="./app.css?v=862">
-<link rel="stylesheet" href="./tutorial.css?v=862">
-<link rel="stylesheet" href="./vault-styles.css?v=862">
+<link rel="stylesheet" href="./app.css?v=863">
+<link rel="stylesheet" href="./tutorial.css?v=863">
+<link rel="stylesheet" href="./vault-styles.css?v=863">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
 </head>
 <body>
@@ -77,8 +77,8 @@ document.addEventListener('touchmove', function(){}, {passive: true});
           <!-- Mobile quick-action panels (hidden on desktop) -->
           <div class="dash-mobile-actions">
             <!-- Left: Show My (2x2) -->
-            <div style="flex:1;border:1.5px solid var(--accent);border-radius:9px;padding:0.4rem 0.35rem">
-              <div style="font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);margin-bottom:0.3rem;text-align:center">Show My:</div>
+            <div style="flex:1;border:1.5px solid #8b8e94;border-radius:9px;padding:0.4rem 0.35rem">
+              <div style="font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#2980b9;margin-bottom:0.3rem;text-align:center">Show My:</div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem">
                 <button onclick="showPage('browse', document.getElementById('mnav-browse')); filterOwned();" style="padding:0.55rem 0.3rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.72rem;font-weight:700;cursor:pointer;text-align:center;line-height:1.2">My Collection</button>
                 <button onclick="showPage('want', document.getElementById('mnav-want')); buildWantPage();" style="padding:0.55rem 0.3rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.72rem;font-weight:700;cursor:pointer;text-align:center;line-height:1.2">Want List</button>
@@ -87,16 +87,16 @@ document.addEventListener('touchmove', function(){}, {passive: true});
               </div>
             </div>
             <!-- Right: Add To (2x2) -->
-            <div style="flex:1;border:1.5px solid var(--accent);border-radius:9px;padding:0.4rem 0.35rem">
-              <div style="font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);margin-bottom:0.3rem;text-align:center">Add to:</div>
+            <div style="flex:1;border:1.5px solid #8b8e94;border-radius:9px;padding:0.4rem 0.35rem">
+              <div style="font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#2980b9;margin-bottom:0.3rem;text-align:center">Add to:</div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem">
-                <button onclick="startWizardFor('collection')" style="padding:0.55rem 0.3rem;border-radius:7px;border:1.5px solid var(--accent);color:var(--accent);background:rgba(232,64,28,0.12);font-family:var(--font-body);font-size:0.72rem;font-weight:700;cursor:pointer;text-align:center;line-height:1.2">My Collection</button>
-                <button onclick="startWizardFor('want')" style="padding:0.55rem 0.3rem;border-radius:7px;border:1.5px solid #2980b9;color:#2980b9;background:rgba(41,128,185,0.12);font-family:var(--font-body);font-size:0.72rem;font-weight:700;cursor:pointer;text-align:center;line-height:1.2">My Want List</button>
-                <button onclick="startWizardFor('forsale')" style="padding:0.55rem 0.3rem;border-radius:7px;border:1.5px solid #e67e22;color:#e67e22;background:rgba(230,126,34,0.12);font-family:var(--font-body);font-size:0.72rem;font-weight:700;cursor:pointer;text-align:center;line-height:1.2">For Sale List</button>
-                <button onclick="startWizardFor('sold')" style="padding:0.55rem 0.3rem;border-radius:7px;border:1.5px solid #2ecc71;color:#2ecc71;background:rgba(46,204,113,0.12);font-family:var(--font-body);font-size:0.72rem;font-weight:700;cursor:pointer;text-align:center;line-height:1.2">Sold List</button>
+                <button onclick="startWizardFor('collection')" style="padding:0.55rem 0.3rem;border-radius:7px;border:1.5px solid #8b8e94;color:#2980b9;background:rgba(139,142,148,0.12);font-family:var(--font-body);font-size:0.72rem;font-weight:700;cursor:pointer;text-align:center;line-height:1.2">My Collection</button>
+                <button onclick="startWizardFor('want')" style="padding:0.55rem 0.3rem;border-radius:7px;border:1.5px solid #8b8e94;color:#2980b9;background:rgba(139,142,148,0.12);font-family:var(--font-body);font-size:0.72rem;font-weight:700;cursor:pointer;text-align:center;line-height:1.2">My Want List</button>
+                <button onclick="startWizardFor('forsale')" style="padding:0.55rem 0.3rem;border-radius:7px;border:1.5px solid #8b8e94;color:#2980b9;background:rgba(139,142,148,0.12);font-family:var(--font-body);font-size:0.72rem;font-weight:700;cursor:pointer;text-align:center;line-height:1.2">For Sale List</button>
+                <button onclick="startWizardFor('sold')" style="padding:0.55rem 0.3rem;border-radius:7px;border:1.5px solid #8b8e94;color:#2980b9;background:rgba(139,142,148,0.12);font-family:var(--font-body);font-size:0.72rem;font-weight:700;cursor:pointer;text-align:center;line-height:1.2">Sold List</button>
               </div>
             </div>
-            <button onclick="openResearch()" style="flex-basis:100%;padding:0.55rem;border-radius:9px;border:1.5px solid #16a085;color:#16a085;background:rgba(22,160,133,0.12);font-family:var(--font-body);font-size:0.8rem;font-weight:700;cursor:pointer;text-align:center;white-space:nowrap">📸 Research an Item</button>
+            <button onclick="openResearch()" style="flex-basis:100%;padding:0.55rem;border-radius:9px;border:1.5px solid #8b8e94;color:#2980b9;background:rgba(139,142,148,0.12);font-family:var(--font-body);font-size:0.8rem;font-weight:700;cursor:pointer;text-align:center;white-space:nowrap">📸 Research an Item</button>
           </div>
         </div>
 
@@ -682,66 +682,66 @@ document.addEventListener('touchmove', function(){}, {passive: true});
 <!-- identify-modal is built dynamically by wizard.js -->
 </div>
 
-<script src="./config.js?v=862"></script>
-<script src="./cott-anchors.js?v=862"></script>
-<script src="./type-groups.js?v=862"></script>
-<script src="./back-stack.js?v=862"></script>
-<script src="./road-typeahead.js?v=862"></script>
-<script src="./a11y-config.js?v=862"></script>
-<script src="./a11y.js?v=862"></script>
-<script src="./wizard-utils.js?v=862"></script>
-<script src="./app.js?v=862"></script>
-<script src="./sheets.js?v=862"></script>
-<script src="./drive.js?v=862"></script>
-<script src="./backup.js?v=862"></script>
-<script src="./browse.js?v=862"></script>
-<script src="./dashboard.js?v=862"></script>
-<script src="./sheet-builder.js?v=862"></script>
+<script src="./config.js?v=863"></script>
+<script src="./cott-anchors.js?v=863"></script>
+<script src="./type-groups.js?v=863"></script>
+<script src="./back-stack.js?v=863"></script>
+<script src="./road-typeahead.js?v=863"></script>
+<script src="./a11y-config.js?v=863"></script>
+<script src="./a11y.js?v=863"></script>
+<script src="./wizard-utils.js?v=863"></script>
+<script src="./app.js?v=863"></script>
+<script src="./sheets.js?v=863"></script>
+<script src="./drive.js?v=863"></script>
+<script src="./backup.js?v=863"></script>
+<script src="./browse.js?v=863"></script>
+<script src="./dashboard.js?v=863"></script>
+<script src="./sheet-builder.js?v=863"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="./wizard-pdlookup.js?v=862"></script>
-<script src="./wizard-suggestions.js?v=862"></script>
-<script src="./wizard-steps.js?v=862"></script>
-<script src="./wizard.js?v=862"></script>
-<script src="./wizard-photos.js?v=862"></script>
-<script src="./photo-crop.js?v=862"></script>
-<script src="./variation-picker.js?v=862"></script>
-<script src="./wizard-pickers.js?v=862"></script>
-<script src="./wizard-handlers.js?v=862"></script>
-<script src="./wizard-quickentry.js?v=862"></script>
-<script src="./wizard-save.js?v=862"></script>
-<script src="./app-misc.js?v=862"></script>
-<script src="./app-auth.js?v=862"></script>
-<script src="./app-setup.js?v=862"></script>
-<script src="./app-data.js?v=862"></script>
-<script src="./app-pages.js?v=862"></script>
-<script src="./app-collection.js?v=862"></script>
-<script src="./barcode.js?v=862"></script>
-<script src="./tutorial.js?v=862"></script>
-<script src="./tutorial-gifs-config.js?v=862"></script>
-<script src="./migration-config.js?v=862"></script>
-<script src="./migration-ui.js?v=862"></script>
-<script src="./onboarding-config.js?v=862"></script>
-<script src="./gmail-help.js?v=862"></script>
-<script src="./onboarding.js?v=862"></script>
-<script src="./vault.js?v=862"></script>
-<script src="./research.js?v=862"></script>
-<script src="./ai-id.js?v=862"></script>
-<script src="./era-badges-config.js?v=862"></script>
-<script src="./era-badges.js?v=862"></script>
-<script src="./catalog-display-config.js?v=862"></script>
-<script src="./non-item-detail-config.js?v=862"></script>
-<script src="./item-search-filters-config.js?v=862"></script>
-<script src="./insurance-config.js?v=862"></script>
-<script src="./reports.js?v=862"></script>
-<script src="./report-export.js?v=862"></script>
-<script src="./report-library.js?v=862"></script>
-<script src="./prefs.js?v=862"></script>
-<script src="./tools.js?v=862"></script>
-    <script src="./contacts.js?v=862"></script>  <!-- contacts hook -->
+<script src="./wizard-pdlookup.js?v=863"></script>
+<script src="./wizard-suggestions.js?v=863"></script>
+<script src="./wizard-steps.js?v=863"></script>
+<script src="./wizard.js?v=863"></script>
+<script src="./wizard-photos.js?v=863"></script>
+<script src="./photo-crop.js?v=863"></script>
+<script src="./variation-picker.js?v=863"></script>
+<script src="./wizard-pickers.js?v=863"></script>
+<script src="./wizard-handlers.js?v=863"></script>
+<script src="./wizard-quickentry.js?v=863"></script>
+<script src="./wizard-save.js?v=863"></script>
+<script src="./app-misc.js?v=863"></script>
+<script src="./app-auth.js?v=863"></script>
+<script src="./app-setup.js?v=863"></script>
+<script src="./app-data.js?v=863"></script>
+<script src="./app-pages.js?v=863"></script>
+<script src="./app-collection.js?v=863"></script>
+<script src="./barcode.js?v=863"></script>
+<script src="./tutorial.js?v=863"></script>
+<script src="./tutorial-gifs-config.js?v=863"></script>
+<script src="./migration-config.js?v=863"></script>
+<script src="./migration-ui.js?v=863"></script>
+<script src="./onboarding-config.js?v=863"></script>
+<script src="./gmail-help.js?v=863"></script>
+<script src="./onboarding.js?v=863"></script>
+<script src="./vault.js?v=863"></script>
+<script src="./research.js?v=863"></script>
+<script src="./ai-id.js?v=863"></script>
+<script src="./era-badges-config.js?v=863"></script>
+<script src="./era-badges.js?v=863"></script>
+<script src="./catalog-display-config.js?v=863"></script>
+<script src="./non-item-detail-config.js?v=863"></script>
+<script src="./item-search-filters-config.js?v=863"></script>
+<script src="./insurance-config.js?v=863"></script>
+<script src="./reports.js?v=863"></script>
+<script src="./report-export.js?v=863"></script>
+<script src="./report-library.js?v=863"></script>
+<script src="./prefs.js?v=863"></script>
+<script src="./tools.js?v=863"></script>
+    <script src="./contacts.js?v=863"></script>  <!-- contacts hook -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
-<script src="./share.js?v=862"></script>
-<script src="./sell.js?v=862"></script>
+<script src="./share.js?v=863"></script>
+<script src="./sell.js?v=863"></script>
 
 <script>
 // ── PWA Service Worker Registration (auto-update) ───────────────

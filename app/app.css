@@ -886,7 +886,7 @@
     font-size: 0.72rem; border: none; background: none; font-family: var(--font-head); letter-spacing: 0.06em; text-transform: uppercase;
     transition: color 0.15s; border-radius: 8px; flex-shrink: 0;
   }
-  .mobile-nav-item.active { color: var(--accent); }
+  .mobile-nav-item.active { color: #2980b9; }
 
 
   @media (max-width: 640px) {
