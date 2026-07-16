@@ -600,8 +600,19 @@
         }
         var g = todo[i], fid0 = g.files[0].id;
         try {
-          var blob = await _pinBytes(fid0);
-          var ai = await aiIdentifyImage(blob, {});
+          // v0.9.896: Identify v2 — send EVERY photo of the group (cap 4)
+          // in ONE call; more angles = better reads. aiIdentifyImage2 falls
+          // back to v1 by itself on any v2 hiccup, so this can never be
+          // worse than the old first-photo-only identify.
+          var _fl = g.files.slice(0, 4), blobs = [];
+          for (var _b = 0; _b < _fl.length; _b++) {
+            try { blobs.push(await _pinBytes(_fl[_b].id)); }
+            catch (eB) { console.warn('[Inbox] photo download failed, skipping one:', eB && eB.message); }
+          }
+          if (!blobs.length) throw new Error('no photo bytes');
+          var ai = (typeof aiIdentifyImage2 === 'function')
+            ? await aiIdentifyImage2(blobs, {})
+            : await aiIdentifyImage(blobs[0], {});
           if (!ai.ok && ai.reason === 'quota') {
             showToast("Daily identify limit reached — the rest can run tomorrow", 4500, true);
             break;

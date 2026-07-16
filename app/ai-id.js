@@ -153,3 +153,55 @@ async function aiIdentifyImage(source, hints) {
     return { ok: false, reason: 'error' };
   }
 }
+
+// ── Identify v2 (v0.9.896) ──────────────────────────────────
+// aiIdentifyImage2(sources, hints)
+//   sources: ONE source or an ARRAY of sources (all photos of the SAME
+//            item — different angles/box/label; capped at 4)
+//   hints:   same as v1
+// Talks to the relay's `ai_identify2` action (multi-photo + the
+// verify-the-number rule from the AF Coaler lesson). Result shape is
+// IDENTICAL to aiIdentifyImage. FALLBACK CONTRACT: on any v2-specific
+// failure (relay too old, 400/500, network hiccup, still busy after
+// retries) it silently retries through v1 with the first photo — so
+// callers can never end up worse off than before v2 existed. It does
+// NOT fall back on 'noconsent' or 'quota': consent is consent, and the
+// daily cap is SHARED with v1, so a v1 retry would just burn a read.
+async function aiIdentifyImage2(sources, hints) {
+  var list = Array.isArray(sources) ? sources.slice(0, 4) : [sources];
+  if (!list.length) return { ok: false, reason: 'error' };
+  try {
+    if (typeof vaultGetToken !== 'function' || typeof vaultPost !== 'function') {
+      return { ok: false, reason: 'error' };
+    }
+    var consent = await aiConsentEnsure();
+    if (!consent) return { ok: false, reason: 'noconsent' };
+    var images = [];
+    for (var i = 0; i < list.length; i++) {
+      var img = await aiPrepImage(list[i]);
+      if (img) images.push({ data: img.b64, mime: img.mime });
+    }
+    if (!images.length) return { ok: false, reason: 'error' };
+    var res = null;
+    for (var _try = 0; _try < 3; _try++) {
+      if (_try) await new Promise(function (r) { setTimeout(r, _try * 2500); });
+      res = await vaultPost({
+        action: 'ai_identify2',
+        token: vaultGetToken(),
+        images: images,
+        hints: hints || {},
+      });
+      if (res && res.status === 503) continue;   // overloaded — back off and retry
+      break;
+    }
+    if (res && res.status === 429) return { ok: false, reason: 'quota' };
+    if (res && res.status === 200 && res.text) {
+      return { ok: true, text: String(res.text), remaining: res.remaining, cached: !!res.cached, v2: true };
+    }
+    console.warn('[AI-ID] v2 answered ' + (res ? res.status : 'nothing') + ' — falling back to v1');
+  } catch (e) {
+    console.warn('[AI-ID] v2 threw — falling back to v1:', e && e.message);
+  }
+  // Silent fallback: v1 with the first photo.
+  return aiIdentifyImage(list[0], hints);
+}
