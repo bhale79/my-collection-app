@@ -170,8 +170,13 @@
       try { when = new Date(g.files[0].createdTime).toLocaleDateString(); } catch (e) {}
       // v0.9.886: AI suggestion (from Identify all) shows on the tile bar
       var sug = _ids()[g.files[0].id];
+      var _altN = '';   // v0.9.902 (Brad): candidates but no confident number = still a lead, not "no read"
+      if (sug && !sug.num && Array.isArray(sug.alts) && sug.alts.length) {
+        var _a0 = String(sug.alts[0]); var _mm = _a0.match(/[0-9][0-9A-Za-z.\-\/]*/); _altN = _mm ? _mm[0] : _a0.slice(0, 12);
+      }
       if (sug && sug.num && sug.guess) when = '<span style="color:#ffb454;font-weight:700">' + String(sug.num).replace(/</g, '&lt;') + ' · best guess</span> · ' + when;   // v0.9.898: hedged read, kept but marked
       else if (sug && sug.num) when = '<span style="color:#7ec3ef;font-weight:700">' + String(sug.num).replace(/</g, '&lt;') + '?</span> · ' + when;
+      else if (_altN) when = '<span style="color:#ffb454;font-weight:700">' + _altN.replace(/</g, '&lt;') + ' · best guess</span> · ' + when;   // v0.9.902
       else if (sug && sug.tried) when = '<span style="color:#999">no read</span> · ' + when;
       // v0.9.888 (Brad): click the photo = open the review (add / research /
       // discard); the corner circle is the multi-select toggle.
@@ -753,7 +758,10 @@
             ids[fid0] = { num: num, guess: guess, alts: alts, tried: 1,
               mfr: trim(meta.manufacturer), desc: trim(meta.description),
               road: trim(meta.roadName), year: trim(meta.year) };
-            if (num && !guess) okN++; else if (num) guessN++; else blankN++;
+            // v0.9.902 (Brad): candidates-without-a-confident-number is a lead,
+            // not "unreadable" — count it as a best guess so the toast matches
+            // the orange tag on the tile and the chips on the review card.
+            if (num && !guess) okN++; else if (num || alts.length) guessN++; else blankN++;
           } else {
             ids[fid0] = { num: '', tried: 1 };
             blankN++;
