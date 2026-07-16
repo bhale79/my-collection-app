@@ -170,7 +170,8 @@
       try { when = new Date(g.files[0].createdTime).toLocaleDateString(); } catch (e) {}
       // v0.9.886: AI suggestion (from Identify all) shows on the tile bar
       var sug = _ids()[g.files[0].id];
-      if (sug && sug.num) when = '<span style="color:#7ec3ef;font-weight:700">' + String(sug.num).replace(/</g, '&lt;') + '?</span> · ' + when;
+      if (sug && sug.num && sug.guess) when = '<span style="color:#ffb454;font-weight:700">' + String(sug.num).replace(/</g, '&lt;') + ' · best guess</span> · ' + when;   // v0.9.898: hedged read, kept but marked
+      else if (sug && sug.num) when = '<span style="color:#7ec3ef;font-weight:700">' + String(sug.num).replace(/</g, '&lt;') + '?</span> · ' + when;
       else if (sug && sug.tried) when = '<span style="color:#999">no read</span> · ' + when;
       // v0.9.888 (Brad): click the photo = open the review (add / research /
       // discard); the corner circle is the multi-select toggle.
@@ -343,9 +344,15 @@
     var bits = [s.mfr, s.road, s.desc, s.year ? '(' + s.year + ')' : ''].filter(Boolean).join(' ');
     if (!bits && !s.num) return '';
     var esc = function (t) { return String(t).replace(/</g, '&lt;'); };
-    return '<div style="font-size:0.76rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.6rem;padding:0.45rem 0.6rem;border-left:3px solid #7ec3ef;background:rgba(41,128,185,0.06);border-radius:0 8px 8px 0">' +
-      '<strong style="color:#7ec3ef">From the photo:</strong> ' + (bits ? esc(bits) : 'number only') + (s.num ? ' — No. ' + esc(s.num) : '') +
-      '<span style="opacity:0.8"> · double-check this against your item</span></div>';
+    // v0.9.898: hedged reads show as an explicit BEST GUESS (orange), never
+    // dressed up like a confident read.
+    var col = s.guess ? '#ffb454' : '#7ec3ef';
+    var bg  = s.guess ? 'rgba(255,180,84,0.08)' : 'rgba(41,128,185,0.06)';
+    var lbl = s.guess ? 'Best guess from the photo:' : 'From the photo:';
+    var tail = s.guess ? ' · the AI wasn’t certain — double-check against your item' : ' · double-check this against your item';
+    return '<div style="font-size:0.76rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.6rem;padding:0.45rem 0.6rem;border-left:3px solid ' + col + ';background:' + bg + ';border-radius:0 8px 8px 0">' +
+      '<strong style="color:' + col + '">' + lbl + '</strong> ' + (bits ? esc(bits) : 'number only') + (s.num ? ' — No. ' + esc(s.num) : '') +
+      '<span style="opacity:0.8">' + tail + '</span></div>';
   }
 
   // Research by Photo — the app's existing Lens route (stage the photo
@@ -418,8 +425,11 @@
         var fid0 = gs[0].files[0].id;
         var prev = ids[fid0] || {};
         var trim = function (v, old) { return String(v || old || '').slice(0, 120); };
+        // v0.9.898: same best-guess rule as the batch identify — a hedged
+        // number from the Lens return is kept, marked guess:1.
         ids[fid0] = {
-          num: (!meta._hedge && meta.itemNum) ? String(meta.itemNum) : (prev.num || ''),
+          num: meta.itemNum ? String(meta.itemNum) : (prev.num || ''),
+          guess: meta.itemNum ? (meta._hedge ? 1 : 0) : (prev.guess || 0),
           tried: 1,
           mfr: trim(meta.manufacturer, prev.mfr), desc: trim(meta.description, prev.desc),
           road: trim(meta.roadName, prev.road), year: trim(meta.year, prev.year)
@@ -607,7 +617,7 @@
 
   async function _pinIdentifyRun(todo, ids) {
     _busy = true; _idAbort = false;
-    var okN = 0, blankN = 0, failN = 0;
+    var okN = 0, blankN = 0, failN = 0, guessN = 0;
     var remaining = null;   // v0.9.887 (Brad): reads-left-today tracker
     try {
       for (var i = 0; i < todo.length; i++) {
@@ -642,14 +652,19 @@
           if (ai.ok && ai.text) {
             if (typeof ai.remaining === 'number') remaining = ai.remaining;
             var meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(ai.text) : {};
-            var num = (!meta._hedge && meta.itemNum) ? String(meta.itemNum) : '';
+            // v0.9.898 (Brad): KEEP hedged best guesses instead of discarding
+            // them (the 30-9107 platform case: the wizard showed the guess with
+            // a warning while the inbox said "no read"). guess:1 marks them —
+            // tiles show an orange "best guess" tag, never a confident blue.
+            var num = meta.itemNum ? String(meta.itemNum) : '';
+            var guess = (num && meta._hedge) ? 1 : 0;
             // v0.9.894 (Brad): keep EVERYTHING the AI discovered, not just the
             // number — shown on the review card and fed into manual entry.
             var trim = function (v) { return String(v || '').slice(0, 120); };
-            ids[fid0] = { num: num, tried: 1,
+            ids[fid0] = { num: num, guess: guess, tried: 1,
               mfr: trim(meta.manufacturer), desc: trim(meta.description),
               road: trim(meta.roadName), year: trim(meta.year) };
-            if (num) okN++; else blankN++;
+            if (num && !guess) okN++; else if (num) guessN++; else blankN++;
           } else {
             ids[fid0] = { num: '', tried: 1 };
             blankN++;
@@ -663,10 +678,11 @@
       }
       _status('');
       var msg = 'Identified ' + okN + ' of ' + todo.length + ' item' + (todo.length > 1 ? 's' : '');
+      if (guessN) msg += ' · ' + guessN + ' best guess' + (guessN > 1 ? 'es' : '') + ' (double-check those)';
       if (blankN) msg += ' · ' + blankN + ' unreadable (no number visible?)';
       if (failN) msg += ' · ' + failN + ' errored (run again to retry)';
       if (remaining !== null) msg += ' · ' + remaining + ' read' + (remaining === 1 ? '' : 's') + ' left today';
-      showToast(msg, 5000, okN === 0);
+      showToast(msg, 5000, (okN + guessN) === 0);
     } finally {
       _busy = false;
       var st2 = document.getElementById('pin-status');
