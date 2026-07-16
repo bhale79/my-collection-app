@@ -338,6 +338,7 @@
         '<input id="pin-rv-num" list="pin-rv-list" type="text" value="' + sug.replace(/"/g, '&quot;') + '" placeholder="Item number — e.g. 2343 or 6464-1" autocomplete="off" spellcheck="false" oninput="_pinReviewLookup(this.value)" style="width:100%;padding:0.55rem 0.75rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.95rem;margin-bottom:0.6rem">' +
         '<datalist id="pin-rv-list">' + opts + '</datalist>' +
         _pinAiLine() +
+        _pinAltChips() +
         '<div id="pin-rv-info" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.7rem 0.8rem;margin-bottom:0.8rem;display:flex;flex-direction:column;gap:0.25rem"></div>' +
         '<button id="pin-rv-add" onclick="_pinReviewAdd()" class="btn-primary" style="width:100%;padding:0.75rem;border-radius:10px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.95rem;cursor:pointer;margin-bottom:0.5rem">Add to My Collection</button>' +
         '<div style="display:flex;gap:0.5rem;margin-bottom:0.5rem">' +
@@ -371,6 +372,35 @@
       '<strong style="color:' + col + '">' + lbl + '</strong> ' + (bits ? esc(bits) : 'number only') + (s.num ? ' — No. ' + esc(s.num) : '') +
       '<span style="opacity:0.8">' + tail + '</span></div>';
   }
+
+  // v0.9.901 (Brad): pick-one chips when the AI listed look-alike variants —
+  // the ★ chip is its best guess; tapping any chip fills the number box and
+  // runs the catalog lookup so the descriptions tell the twins apart.
+  function _pinAltChips() {
+    var s = {};
+    try { s = _ids()[_rvGroups[0].files[0].id] || {}; } catch (e) {}
+    var alts = Array.isArray(s.alts) ? s.alts.slice(0) : [];
+    if (!alts.length) return '';
+    var primary = String(s.num || '');
+    var esc = function (t) { return String(t).replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
+    var covered = alts.some(function (a) { return primary && a.indexOf(primary) > -1; });
+    if (primary && !covered) alts.unshift(primary + ' (best guess)');
+    var chips = alts.map(function (a) {
+      var m = String(a).match(/[0-9][0-9A-Za-z.\-\/]*/);
+      var n = m ? m[0] : '';
+      var hot = !!(n && primary && n === primary);
+      return '<button onclick="_pinPickNum(\'' + esc(n) + '\')" style="padding:0.35rem 0.6rem;border-radius:8px;border:1.5px solid ' + (hot ? '#ffb454' : 'var(--border)') + ';background:' + (hot ? 'rgba(255,180,84,0.14)' : 'var(--surface2)') + ';color:' + (hot ? '#ffb454' : 'var(--text-mid)') + ';font-size:0.75rem;font-weight:700;cursor:pointer;font-family:var(--font-body)">' + (hot ? '★ ' : '') + esc(a) + '</button>';
+    }).join('');
+    return '<div style="margin-bottom:0.6rem">' +
+      '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.3rem">Could be one of these — tap each to compare (★ = the AI’s best guess):</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:0.4rem">' + chips + '</div></div>';
+  }
+
+  window._pinPickNum = function (n) {
+    var i = document.getElementById('pin-rv-num');
+    if (i) i.value = n || '';
+    window._pinReviewLookup(n || '');
+  };
 
   // Research by Photo — the app's existing Lens route (stage the photo
   // publicly for 10 minutes, open Google image search with a structured
@@ -709,11 +739,18 @@
             // a warning while the inbox said "no read"). guess:1 marks them —
             // tiles show an orange "best guess" tag, never a confident blue.
             var num = meta.itemNum ? String(meta.itemNum) : '';
-            var guess = (num && meta._hedge) ? 1 : 0;
+            // v0.9.901 (Brad): the relay's v2.5 prompt lists look-alike twins on
+            // a "Possible variants:" line (most likely first) — keep them so the
+            // review card can offer pick-one chips. A variants line also means
+            // the AI could NOT prove which twin it is → always a best guess.
+            var alts = [];
+            var altsM = String(ai.text).match(/^Possible variants?:\s*(.+)$/mi);
+            if (altsM) alts = altsM[1].split('|').map(function (s) { return s.trim().slice(0, 70); }).filter(Boolean).slice(0, 4);
+            var guess = (num && (meta._hedge || alts.length)) ? 1 : 0;
             // v0.9.894 (Brad): keep EVERYTHING the AI discovered, not just the
             // number — shown on the review card and fed into manual entry.
             var trim = function (v) { return String(v || '').slice(0, 120); };
-            ids[fid0] = { num: num, guess: guess, tried: 1,
+            ids[fid0] = { num: num, guess: guess, alts: alts, tried: 1,
               mfr: trim(meta.manufacturer), desc: trim(meta.description),
               road: trim(meta.roadName), year: trim(meta.year) };
             if (num && !guess) okN++; else if (num) guessN++; else blankN++;
