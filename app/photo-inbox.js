@@ -707,6 +707,10 @@
         PANEL_CATALOG.push({
           id: 'photoInbox', label: 'Photo Inbox', icon: '📥',
           navFn: "_pinGo();",
+          count: function () {
+            var n = parseInt(localStorage.getItem(COUNT_KEY) || '0', 10) || 0;
+            return n ? (n + ' photo' + (n === 1 ? '' : 's')) : '';
+          },
           render: function () {
             if (window._offlineMode || navigator.onLine === false) {
               return '<div style="min-height:120px;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:0.78rem;text-align:center">Photos will show when you’re back online</div>';
@@ -736,11 +740,16 @@
       }
       var cols = 4;
       try { cols = Math.max(3, Math.floor((grid.clientWidth || 500) / 104)); } catch (eW) {}
-      var show = files.slice(0, cols * 2);
-      var extra = files.length - show.length;
+      // v0.9.891 (Brad): FULL rows only — no ragged row, no "+N" tile.
+      // The header total says how many are waiting; the grid stays tidy.
+      var show = files;
+      if (files.length > cols) {
+        var rows = Math.min(2, Math.floor(files.length / cols));
+        show = files.slice(0, rows * cols);
+      }
       grid.innerHTML = show.map(function (f) {
         return '<div style="aspect-ratio:1;border-radius:8px;overflow:hidden;background:var(--surface2,#26262e)"><img loading="lazy" data-ppfid="' + f.id + '" style="width:100%;height:100%;object-fit:cover;display:block" alt=""></div>';
-      }).join('') + (extra > 0 ? '<div style="aspect-ratio:1;border-radius:8px;display:flex;align-items:center;justify-content:center;background:var(--surface2,#26262e);color:#2980b9;font-family:var(--font-head);font-weight:700;font-size:0.95rem">+' + extra + '</div>' : '');
+      }).join('');
       grid.querySelectorAll('img[data-ppfid]').forEach(function (img) {
         loadDriveThumb(img.getAttribute('data-ppfid'), img, img.parentElement);
       });

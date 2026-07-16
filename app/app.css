@@ -402,6 +402,9 @@
   @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
 
   .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; max-height: 420px; overflow-y: auto; }
+  /* v0.9.891 (Brad): dashboard panels never scroll — they size to their
+     content (the photo grids trim to full rows instead of overflowing). */
+  #dash-panels-host .panel { max-height: none; overflow-y: visible; }
   .two-col .panel { max-height: calc(100vh - 440px); overflow-y: auto; }
 
   /* ── Browse / Search Page ──────────────────────────────────── */

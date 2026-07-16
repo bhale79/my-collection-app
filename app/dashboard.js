@@ -712,12 +712,21 @@ function buildDashboard() {
       // Update header: title (clickable if panel has navFn) + ✎ change button
       var headerEl = document.getElementById('dash-panel-header-' + i);
       if (headerEl) {
+        // v0.9.891 (Brad): panels may declare count(state) — a total shown
+        // after the label ("Collection Showcase · 106 items").
+        var _pCnt = '';
+        try {
+          if (panelDef.count) {
+            var _pc = panelDef.count(state);
+            if (_pc) _pCnt = ' <span style="font-size:0.72rem;font-weight:400;letter-spacing:0;text-transform:none;color:var(--text-dim)">· ' + _pc + '</span>';
+          }
+        } catch (ePc) {}
         var titleHtml = panelDef.navFn
           // v0.9.842 (Brad): no emblems on card headers — labels only. The
           // icon fields stay in PANEL_CATALOG (used nowhere else visible)
           // in case we ever want them back.
-          ? '<span style="cursor:pointer;text-decoration:none" onclick="window._fromDash=true;' + panelDef.navFn + '" title="Go to ' + panelDef.label + '">' + panelDef.label + ' <span style="font-size:0.65rem;opacity:0.5">›</span></span>'
-          : '<span>' + panelDef.label + '</span>';
+          ? '<span style="cursor:pointer;text-decoration:none" onclick="window._fromDash=true;' + panelDef.navFn + '" title="Go to ' + panelDef.label + '">' + panelDef.label + _pCnt + ' <span style="font-size:0.65rem;opacity:0.5">›</span></span>'
+          : '<span>' + panelDef.label + _pCnt + '</span>';
         headerEl.innerHTML = titleHtml
           ;   // v0.9.872 (Brad): no per-panel edit pencil — Edit Dashboard button is the one entry
       }
@@ -774,6 +783,17 @@ var PANEL_CATALOG = [
     label: 'Collection Showcase',
     icon: '\uD83D\uDDBC',
     navFn: "goToMyCollection();",
+    // v0.9.891 (Brad): total in the header \u2014 same grand count as Items I Own.
+    count: function(state) {
+      try {
+        var n = _ownedNonBox(state).length;
+        Object.values(state.ephemeraData || {}).forEach(function(b) { n += Object.keys(b).length; });
+        n += _standaloneISCount(state);
+        n += Object.keys(state.scienceData || {}).length;
+        n += Object.keys(state.constructionData || {}).length;
+        return n.toLocaleString() + ' items';
+      } catch (e) { return ''; }
+    },
     render: function(state) {
       if (window._offlineMode || navigator.onLine === false) {
         return '<div style="min-height:120px;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:0.78rem;text-align:center">\ud83d\udce1 Photos will show when you\u2019re back online</div>';
@@ -1234,7 +1254,18 @@ function _dashEdSpot(type, entry, i, total) {
     + '</div>';
   return '<div draggable="true" ondragstart="_dashEdDragStart(event,\'' + type + '\',' + i + ')"' + dnd
     + ' style="' + base + ';border:1.5px solid #2980b9;background:rgba(41,128,185,0.10);color:var(--text,#eee);cursor:grab">'
-    + '<strong style="font-size:0.7rem;line-height:1.25">' + _dashEdLabel(type, entry.id) + '</strong>' + arrows + '</div>';
+    // v0.9.891 (Brad): × removes THIS tile directly — no hunting through the
+    // library checkboxes. Same in-memory state; nothing persists until Save.
+    + '<button onclick="event.stopPropagation();_dashEdRemove(\'' + type + '\',' + i + ')" title="Remove this card" '
+    + 'style="position:absolute;top:3px;right:5px;background:none;border:none;color:#f05008;font-size:0.95rem;font-weight:700;line-height:1;cursor:pointer;padding:2px 4px">×</button>'
+    + '<strong style="font-size:0.7rem;line-height:1.25;padding:0 0.9rem">' + _dashEdLabel(type, entry.id) + '</strong>' + arrows + '</div>';
+}
+
+function _dashEdRemove(type, i) {
+  if (!_dEd) return;
+  if (type === 's') _dEd.s[i] = null;
+  else _dEd.p[i] = null;
+  _dashEdRender();
 }
 
 function _dashEdRender() {
@@ -1276,6 +1307,7 @@ function _dashEdRender() {
 
 window.openDashEditor = openDashEditor;
 window._dashEdToggle = _dashEdToggle;
+window._dashEdRemove = _dashEdRemove;
 window._dashEdMove = _dashEdMove;
 window._dashEdDragStart = _dashEdDragStart;
 window._dashEdDrop = _dashEdDrop;
