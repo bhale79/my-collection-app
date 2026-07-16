@@ -179,6 +179,7 @@
         '<img loading="lazy" data-fid="' + g.files[0].id + '" style="width:100%;height:100%;object-fit:cover;object-position:center;display:block" alt="">' +
         chip +
         '<div onclick="event.stopPropagation();_pinToggle(\'' + g.key + '\')" title="Select" style="position:absolute;top:6px;left:6px;width:22px;height:22px;border-radius:50%;border:2px solid ' + (isSel ? '#2980b9' : 'rgba(255,255,255,0.75)') + ';background:' + (isSel ? '#2980b9' : 'rgba(0,0,0,0.35)') + ';color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700">' + (isSel ? '✓' : '') + '</div>' +
+        '<div onclick="event.stopPropagation();_pinTileCrop(\'' + g.key + '\')" title="Crop / Rotate" style="position:absolute;right:6px;bottom:26px;width:24px;height:24px;border-radius:7px;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.8rem;cursor:pointer">✂</div>' +
         '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);color:#ddd;font-size:0.6rem;padding:0.1rem 0.35rem">' + when + '</div>' +
         '</div>';
     }).join('');
@@ -191,6 +192,17 @@
     _selInfo();
     _navBadge(total);
   }
+
+  // v0.9.900 (Brad): crop straight from the grid tile — one-photo items open
+  // the cropper directly; multi-photo stacks open the review card, where every
+  // photo has its own ✂.
+  window._pinTileCrop = function (key) {
+    var g = _groups.filter(function (x) { return x.key === key; })[0];
+    if (!g || !g.files.length) return;
+    if (g.files.length === 1) return window._pinCropPhoto(g.files[0].id);
+    window._pinReview(key);
+    showToast('Several photos in this item — use the ✂ on the one you want to crop', 3000);
+  };
 
   window._pinToggle = function (key) {
     if (_sel[key]) delete _sel[key]; else _sel[key] = true;
