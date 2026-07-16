@@ -1116,7 +1116,9 @@ window._showcaseFill = async function () {
   // measure the columns, request enough for FULL rows, trim leftovers.
   var cols = 4;
   try { var gw = grid.clientWidth || 500; cols = Math.max(3, Math.floor(gw / 104)); } catch (eW) {}
-  var want = cols * Math.ceil(12 / cols);
+  // v0.9.892 (Brad): cap at 3 ROWS so the whole panel fits on screen
+  // without scrolling (was a fixed 12 photos = 4 rows on narrow panels).
+  var want = cols * 3;
   var picks = await _pickThumbs(want, Math.max(6, Math.ceil(want / 2)));
   grid = document.getElementById('showcase-grid');
   if (!grid) return;

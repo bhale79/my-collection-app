@@ -740,13 +740,11 @@
       }
       var cols = 4;
       try { cols = Math.max(3, Math.floor((grid.clientWidth || 500) / 104)); } catch (eW) {}
-      // v0.9.891 (Brad): FULL rows only — no ragged row, no "+N" tile.
-      // The header total says how many are waiting; the grid stays tidy.
-      var show = files;
-      if (files.length > cols) {
-        var rows = Math.min(2, Math.floor(files.length / cols));
-        show = files.slice(0, rows * cols);
-      }
+      // v0.9.892 (Brad): show EVERYTHING up to 3 rows (matches Showcase's
+      // on-screen cap) — with 7 photos and 3 columns that's all 7, partial
+      // last row and all. Still no "+N" tile; the header total covers the
+      // overflow when there are more than 3 rows' worth.
+      var show = files.slice(0, cols * 3);
       grid.innerHTML = show.map(function (f) {
         return '<div style="aspect-ratio:1;border-radius:8px;overflow:hidden;background:var(--surface2,#26262e)"><img loading="lazy" data-ppfid="' + f.id + '" style="width:100%;height:100%;object-fit:cover;display:block" alt=""></div>';
       }).join('');
