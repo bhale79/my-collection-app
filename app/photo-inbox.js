@@ -316,18 +316,62 @@
         '</div>' +
         '<input id="pin-rv-num" list="pin-rv-list" type="text" value="' + sug.replace(/"/g, '&quot;') + '" placeholder="Item number — e.g. 2343 or 6464-1" autocomplete="off" spellcheck="false" oninput="_pinReviewLookup(this.value)" style="width:100%;padding:0.55rem 0.75rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.95rem;margin-bottom:0.6rem">' +
         '<datalist id="pin-rv-list">' + opts + '</datalist>' +
+        _pinAiLine() +
         '<div id="pin-rv-info" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.7rem 0.8rem;margin-bottom:0.8rem;display:flex;flex-direction:column;gap:0.25rem"></div>' +
         '<button id="pin-rv-add" onclick="_pinReviewAdd()" class="btn-primary" style="width:100%;padding:0.75rem;border-radius:10px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.95rem;cursor:pointer;margin-bottom:0.5rem">Add to My Collection</button>' +
-        '<div style="display:flex;gap:0.5rem">' +
-          '<button onclick="_pinReviewResearch()" style="flex:1;padding:0.6rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer">Research</button>' +
-          '<button onclick="_pinReviewDiscard()" style="flex:1;padding:0.6rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer">Discard Photo' + (n > 1 ? 's' : '') + '</button>' +
+        '<div style="display:flex;gap:0.5rem;margin-bottom:0.5rem">' +
+          '<button onclick="_pinReviewResearch()" style="flex:1;padding:0.6rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer">Research Number</button>' +
+          '<button id="pin-rv-lens" onclick="_pinReviewLens()" style="flex:1;padding:0.6rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer">Research by Photo</button>' +
         '</div>' +
+        '<button onclick="_pinReviewDiscard()" style="width:100%;padding:0.6rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer">Discard Photo' + (n > 1 ? 's' : '') + '</button>' +
       '</div>';
     document.body.appendChild(ov);
     ov.querySelectorAll('img[data-rvfid]').forEach(function (img) {
       loadDriveThumb(img.getAttribute('data-rvfid'), img, img.parentElement);
     });
     _pinReviewLookup(sug);
+  };
+
+  // "From the photo" line — everything the AI read, so a wrong read (e.g. a
+  // background box's number) is obvious at a glance. (Brad, 2026-07-16)
+  function _pinAiLine() {
+    var s = {};
+    try { s = _ids()[_rvGroups[0].files[0].id] || {}; } catch (e) {}
+    var bits = [s.mfr, s.road, s.desc, s.year ? '(' + s.year + ')' : ''].filter(Boolean).join(' ');
+    if (!bits && !s.num) return '';
+    var esc = function (t) { return String(t).replace(/</g, '&lt;'); };
+    return '<div style="font-size:0.76rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.6rem;padding:0.45rem 0.6rem;border-left:3px solid #7ec3ef;background:rgba(41,128,185,0.06);border-radius:0 8px 8px 0">' +
+      '<strong style="color:#7ec3ef">From the photo:</strong> ' + (bits ? esc(bits) : 'number only') + (s.num ? ' — No. ' + esc(s.num) : '') +
+      '<span style="opacity:0.8"> · double-check this against your item</span></div>';
+  }
+
+  // Research by Photo — the app's existing Lens route (stage the photo
+  // publicly for 10 minutes, open Google image search with a structured
+  // question). Same machinery the wizard's identify uses.
+  window._pinReviewLens = async function () {
+    var gs = _rvGroups;
+    if (!gs.length) return;
+    if (!_qcToken()) { showToast('Please sign in first', 3000, true); return; }
+    var tab = null;
+    try { tab = window.open('', '_blank'); } catch (e) {}
+    var btn = document.getElementById('pin-rv-lens');
+    if (btn) { btn.disabled = true; btn.textContent = 'Staging photo…'; }
+    try {
+      var blob = await _pinBytes(gs[0].files[0].id);
+      var file = new File([blob], 'inbox-photo.jpg', { type: blob.type || 'image/jpeg' });
+      var staged = await driveStageLensPhoto(file);
+      setTimeout(function () { try { driveCleanupLensStaging(staged.id); } catch (e) {} }, 10 * 60 * 1000);
+      var q = 'What model train item is this? Answer with labeled lines: Manufacturer:, Manufacturer SKU or catalog number:, Description:, Year manufactured:. Prefer the manufacturer catalog SKU, not the cab number printed on the model.';
+      var url = 'https://www.google.com/searchbyimage?image_url=' + encodeURIComponent(staged.url) + '&q=' + encodeURIComponent(q);
+      if (tab) { try { tab.location = url; } catch (e) { tab = null; } }
+      if (!tab) window.open(url, '_blank');
+      if (btn) { btn.disabled = false; btn.textContent = 'Research by Photo'; }
+    } catch (e) {
+      console.warn('[Inbox] research-by-photo:', e);
+      try { if (tab) tab.close(); } catch (e2) {}
+      if (btn) { btn.disabled = false; btn.textContent = 'Research by Photo'; }
+      showToast('Could not stage the photo for Google — try again', 3000, true);
+    }
   };
 
   window._pinReviewResearch = function () {
@@ -392,7 +436,8 @@
         } catch (eP) {}
         _pinRefresh();
         showToast(moved + ' photo' + (moved > 1 ? 's' : '') + ' ready — they connect when you save the item', 3000);
-        _pinAddNow(num);
+        var _aiS = {}; try { _aiS = _ids()[gs[0].files[0].id] || {}; } catch (eAi) {}
+        _pinAddNow(num, { manufacturer: _aiS.mfr || '', description: _aiS.desc || '', roadName: _aiS.road || '', year: _aiS.year || '' });
       }
     } catch (e) {
       console.error('[Inbox] add/attach:', e);
@@ -400,7 +445,7 @@
     } finally { _busy = false; }
   };
 
-  window._pinAddNow = function (num) {
+  window._pinAddNow = function (num, aiMeta) {
     if (typeof openWizard !== 'function') { showToast('Add wizard not available', 2500, true); return; }
     openWizard('collection');
     // v0.9.889 (Brad): pre-fill the ENTIRE catalog side of the add, the same
@@ -422,8 +467,8 @@
             wizard.step++;              // same advance a barcode scan does
             renderWizardStep();
             showToast('✓ ' + num + ' — catalog details filled in', 2500);
-          } else if (typeof _identifyRouteToManualEntry === 'function' && _identifyRouteToManualEntry(num, {}, [])) {
-            showToast(num + " isn't in the catalog — finish the details", 3000);
+          } else if (typeof _identifyRouteToManualEntry === 'function' && _identifyRouteToManualEntry(num, aiMeta || {}, [])) {
+            showToast(num + " isn't in the catalog — details from the photo are filled in", 3000);
           } else {
             // Last resort: behave like typing the number by hand.
             var inp = document.getElementById('wiz-input');
@@ -504,7 +549,12 @@
             if (typeof ai.remaining === 'number') remaining = ai.remaining;
             var meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(ai.text) : {};
             var num = (!meta._hedge && meta.itemNum) ? String(meta.itemNum) : '';
-            ids[fid0] = { num: num, tried: 1 };
+            // v0.9.894 (Brad): keep EVERYTHING the AI discovered, not just the
+            // number — shown on the review card and fed into manual entry.
+            var trim = function (v) { return String(v || '').slice(0, 120); };
+            ids[fid0] = { num: num, tried: 1,
+              mfr: trim(meta.manufacturer), desc: trim(meta.description),
+              road: trim(meta.roadName), year: trim(meta.year) };
             if (num) okN++; else blankN++;
           } else {
             ids[fid0] = { num: '', tried: 1 };

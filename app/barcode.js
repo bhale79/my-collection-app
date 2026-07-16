@@ -1021,6 +1021,18 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           +   '<div style="font-size:0.78rem;color:#9ecbff;margin-top:0.1rem">Not in the catalog yet — you\'ll fill in the details manually.</div>'
           + '</div></div>'
         : '';
+      // v0.9.894 (Brad): in RESEARCH the list can be all wrong-maker matches
+      // (his 30-9043 read surfaced only MTH entries for a Lionel item) — give
+      // an escape back to the search screen where the Maker/Era filters live.
+      if (window._researchActive) {
+        var _rsNum = _bcEsc(String((scanResult && scanResult.itemNum) || (scanResult && scanResult.code5) || ''));
+        noneHtml += '<div id="bc-cand-refine" style="display:flex;align-items:center;gap:0.6rem;padding:0.7rem 0.8rem;border-radius:10px;'
+          + 'background:rgba(139,142,148,0.12);border:1px dashed #8b8e94;cursor:pointer;margin-bottom:0.5rem">'
+          + '<div style="flex:1;min-width:0">'
+          +   '<div style="font-weight:700;color:#cfe3ff;font-size:0.92rem">None of these — search again with Maker &amp; Era filters</div>'
+          +   '<div style="font-size:0.78rem;color:#9ecbff;margin-top:0.1rem">Wrong maker in this list? Refine the search instead of guessing.</div>'
+          + '</div></div>';
+      }
       overlay.innerHTML = ''
         + '<div style="width:100%;max-width:520px;display:flex;flex-direction:column;gap:0.6rem">'
         // v0.9.712 (Brad): this picker serves TWO sources — a scanned barcode
@@ -1043,6 +1055,26 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       if (_noneEl) _noneEl.addEventListener('click', function() {
         overlay.remove();
         resolve({ __notInList: true, itemNum: _noneNum });
+      });
+      var _refineEl = overlay.querySelector('#bc-cand-refine');
+      if (_refineEl) _refineEl.addEventListener('click', function() {
+        var _rq = String((scanResult && scanResult.itemNum) || '');
+        overlay.remove();
+        resolve(null);   // caller treats as cancel; we reopen the search screen
+        setTimeout(function() {
+          if (typeof window.openResearch === 'function') {
+            window.openResearch();
+            // Pre-fill the typed-lookup box with the number so only the
+            // Maker/Era dropdowns need touching.
+            var tries = 0;
+            var t = setInterval(function() {
+              tries++;
+              var q = document.getElementById('bi-quick');
+              if (q) { q.value = _rq; try { q.focus(); } catch (eF) {} clearInterval(t); }
+              if (tries > 20) clearInterval(t);
+            }, 200);
+          }
+        }, 120);
       });
       overlay.querySelectorAll('.bc-cand').forEach(function(el) {
         el.addEventListener('click', function() {
