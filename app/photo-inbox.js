@@ -315,7 +315,12 @@
         '</div>' +
         '<div id="pin-rv-photos" style="display:flex;gap:0.45rem;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:0.7rem">' +
           thumbs.slice(0, 12).map(function (fidT, i) {
-            return '<div style="flex-shrink:0;width:' + (i === 0 ? '160px;height:160px' : '74px;height:74px;align-self:flex-end') + ';border-radius:10px;overflow:hidden;background:var(--surface2,#26262e)"><img data-rvfid="' + fidT + '" style="width:100%;height:100%;object-fit:cover;display:block" alt=""></div>';
+            // v0.9.899 (Brad): ✂ on every photo — opens the same crop/rotate
+            // tool Quick Capture uses; Apply replaces the Drive bytes in place.
+            return '<div style="position:relative;flex-shrink:0;width:' + (i === 0 ? '160px;height:160px' : '74px;height:74px;align-self:flex-end') + ';border-radius:10px;overflow:hidden;background:var(--surface2,#26262e)">' +
+              '<img data-rvfid="' + fidT + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="">' +
+              '<button onclick="_pinCropPhoto(\'' + fidT + '\')" title="Crop / Rotate this photo" style="position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:7px;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:0.85rem;line-height:1;cursor:pointer;padding:0">✂</button>' +
+            '</div>';
           }).join('') +
         '</div>' +
         '<input id="pin-rv-num" list="pin-rv-list" type="text" value="' + sug.replace(/"/g, '&quot;') + '" placeholder="Item number — e.g. 2343 or 6464-1" autocomplete="off" spellcheck="false" oninput="_pinReviewLookup(this.value)" style="width:100%;padding:0.55rem 0.75rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.95rem;margin-bottom:0.6rem">' +
@@ -589,6 +594,41 @@
     if (!r.ok) throw new Error('photo download ' + r.status);
     return await r.blob();
   }
+
+  // ── Crop / Rotate an inbox photo IN PLACE (v0.9.899, Brad) ───
+  // Same tool + same replace-the-Drive-bytes pattern Quick Capture uses
+  // (photo-crop.js _openCropper → Drive media PATCH). Every thumbnail
+  // refreshes, and re-running Identify reads the cleaned-up shot —
+  // cropping to the item gives the AI the same edge the wizard's crop
+  // step gives it.
+  window._pinCropPhoto = async function (fid) {
+    if (typeof window._openCropper !== 'function' || typeof Cropper === 'undefined') { showToast('Crop tool still loading — try again in a moment', 2500, true); return; }
+    if (!_qcToken()) { showToast('Please sign in first', 3000, true); return; }
+    var srcUrl = null;
+    try {
+      var blob0 = await _pinBytes(fid);
+      srcUrl = URL.createObjectURL(blob0);
+    } catch (e) { showToast('Could not load the photo: ' + ((e && e.message) || 'download failed'), 3000, true); return; }
+    window._openCropper(srcUrl, async function (blob) {
+      try { URL.revokeObjectURL(srcUrl); } catch (e1) {}
+      try {
+        var resp = await fetch('https://www.googleapis.com/upload/drive/v3/files/' + fid + '?uploadType=media', {
+          method: 'PATCH', headers: { Authorization: 'Bearer ' + window.accessToken, 'Content-Type': 'image/jpeg' }, body: blob
+        });
+        if (!resp.ok) { showToast('Could not save the crop (HTTP ' + resp.status + ') — the original is untouched', 3500, true); return; }
+        // Bust the shared thumbnail cache so every view shows the new bytes.
+        var fresh = URL.createObjectURL(blob);
+        try {
+          if (typeof _blobCache !== 'undefined') {
+            if (_blobCache[fid]) { try { URL.revokeObjectURL(_blobCache[fid]); } catch (e2) {} }
+            _blobCache[fid] = fresh;
+          }
+        } catch (e3) {}
+        document.querySelectorAll('img[data-rvfid="' + fid + '"], img[data-fid="' + fid + '"], img[data-ppfid="' + fid + '"]').forEach(function (im) { im.src = fresh; });
+        showToast('Photo updated — tick it and hit Identify to re-read the cleaned-up shot', 3500);
+      } catch (e4) { showToast('Could not save the crop — the original is untouched', 3000, true); }
+    }, function () { try { URL.revokeObjectURL(srcUrl); } catch (e5) {} });
+  };
 
   window._pinIdentifyAll = async function () {
     if (_busy) { showToast('Still working on the last batch…', 2500, true); return; }
