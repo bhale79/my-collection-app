@@ -675,7 +675,11 @@ async function _identifySearchLens() {
       wizard.data._identifyScaleHint = _aiScale;
       wizard.data._identifyTypeHint  = _aiType;
     }
-    var _ai = await aiIdentifyImage(_identifyPhotoFile, { scale: _aiScale, type: _aiType, mfrs: _aiMfrs });
+    // v0.9.897: Identify v2 when available (verify-the-number rule + forced
+    // product search — the MTH-platform "Diner" lesson; ai-id.js silently
+    // falls back to v1 on any v2 hiccup).
+    var _aiFn = (typeof aiIdentifyImage2 === 'function') ? aiIdentifyImage2 : aiIdentifyImage;
+    var _ai = await _aiFn(_identifyPhotoFile, { scale: _aiScale, type: _aiType, mfrs: _aiMfrs });
     if (searchBtn) { searchBtn.disabled = false; searchBtn.innerHTML = origText; }
     if (_ai && _ai.ok) {
       var _aiRes = _identifyProcessText(_ai.text);

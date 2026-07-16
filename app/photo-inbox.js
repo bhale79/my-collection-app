@@ -78,6 +78,7 @@
         '<button onclick="_pinRefresh()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:600;font-size:0.82rem;cursor:pointer">Refresh</button>' +
         '<span style="flex:1"></span>' +
         '<span id="pin-selinfo" style="font-size:0.78rem;color:var(--text-dim)"></span>' +
+        '<button id="pin-idsel-btn" onclick="_pinIdentifySelected()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Identify</button>' +
         '<button id="pin-assign-btn" onclick="_pinReview(null)" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Combine → one item…</button>' +
         '<button id="pin-discard-btn" onclick="_pinDiscard()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Discard</button>' +
       '</div>' +
@@ -202,9 +203,11 @@
     gs.forEach(function (g) { n += g.files.length; });
     var info = document.getElementById('pin-selinfo');
     var ab = document.getElementById('pin-assign-btn'), db = document.getElementById('pin-discard-btn');
+    var ib = document.getElementById('pin-idsel-btn');   // v0.9.897 (Brad): identify just the ticked photos
     if (info) info.textContent = n ? (n + ' photo' + (n > 1 ? 's' : '') + ' selected') : '';
     if (ab) ab.style.display = gs.length > 1 ? '' : 'none';   // combine needs 2+
     if (db) db.style.display = n ? '' : 'none';
+    if (ib) ib.style.display = n ? '' : 'none';
   }
 
   // ── Import ───────────────────────────────────────────────────
@@ -583,7 +586,26 @@
     if (typeof aiIdentifyImage !== 'function') { showToast('Identify service not loaded — refresh and try again', 3000, true); return; }
     var ids = _ids();
     var todo = _groups.filter(function (g) { return !ids[g.files[0].id]; });
-    if (!todo.length) { showToast(_groups.length ? 'Every item already has a suggestion — tap a photo group and File to item' : 'Inbox is empty', 3500); return; }
+    if (!todo.length) { showToast(_groups.length ? 'Every item already has a suggestion — tick photos and use Identify to re-run any of them' : 'Inbox is empty', 3500); return; }
+    return _pinIdentifyRun(todo, ids);
+  };
+
+  // v0.9.897 (Brad): identify JUST the ticked photos — and unlike Identify
+  // all, it ALWAYS re-identifies, even when a suggestion already exists.
+  // That's the point: re-run a blank or wrong read with one click.
+  window._pinIdentifySelected = async function () {
+    if (_busy) { showToast('Still working on the last batch…', 2500, true); return; }
+    if (!_qcToken()) { showToast('Please sign in first', 3000, true); return; }
+    if (typeof aiIdentifyImage !== 'function') { showToast('Identify service not loaded — refresh and try again', 3000, true); return; }
+    var gs = _selGroups();
+    if (!gs.length) { showToast('Tick the corner circle on the photos you want identified first', 3000, true); return; }
+    var ids = _ids();
+    gs.forEach(function (g) { delete ids[g.files[0].id]; });   // clear old suggestions = force fresh reads
+    _idsSave(ids);
+    return _pinIdentifyRun(gs, ids);
+  };
+
+  async function _pinIdentifyRun(todo, ids) {
     _busy = true; _idAbort = false;
     var okN = 0, blankN = 0, failN = 0;
     var remaining = null;   // v0.9.887 (Brad): reads-left-today tracker
@@ -650,7 +672,7 @@
       var st2 = document.getElementById('pin-status');
       if (st2 && /Identifying/.test(st2.textContent || '')) _status('');
     }
-  };
+  }
 
   // ── Import from Google Photos (Picker API, v0.9.885) ─────────
   // Session → Google's own picker tab → poll until the user hits

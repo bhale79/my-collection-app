@@ -487,7 +487,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       // 658081=MTH etc.). Hint the AI AND seed the metadata so the maker-aware
       // SKU guard can fire even when the AI omits a manufacturer field.
       if (mfrHint && mfrHint !== 'Unknown' && (!hints.mfrs || !hints.mfrs.length)) hints.mfrs = [mfrHint];
-      var ai = await aiIdentifyImage(source, hints);
+      // v0.9.897: Identify v2 when available (falls back to v1 inside ai-id.js)
+      var ai = await ((typeof aiIdentifyImage2 === 'function') ? aiIdentifyImage2(source, hints) : aiIdentifyImage(source, hints));
       if (!ai || !ai.ok) { reasonOut.reason = (ai && ai.reason) || 'error'; return null; }
       var text = (typeof _identifySanitize === 'function') ? _identifySanitize(ai.text) : String(ai.text || '');
       var meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(text, { mfrHint: (mfrHint && mfrHint !== 'Unknown') ? mfrHint : '' }) : {};
@@ -2120,15 +2121,25 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   }
 
   // ── Phase 3: staged pipeline with visible status ──
+  var _biStop = false;   // v0.9.897 (Brad): the Identifying screen had no way out
   async function _biPipeline(fullCanvas, workCanvas, lockedBc, eraHint, opts) {
     var d = _biOverlay(
       '<div style="width:100%;max-width:560px">'
-      + '<div style="color:var(--text,#fff);font-family:var(--font-head,sans-serif);font-size:1.02rem;margin:0.2rem 0 0.6rem">🔎 Identifying…</div>'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;margin:0.2rem 0 0.6rem">'
+      + '<div style="color:var(--text,#fff);font-family:var(--font-head,sans-serif);font-size:1.02rem">🔎 Identifying…</div>'
+      + '<button id="bi-stop-btn" style="padding:0.35rem 0.85rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#f05008;font-family:var(--font-body,sans-serif);font-weight:700;font-size:0.8rem;cursor:pointer">Stop</button>'
+      + '</div>'
       + '<style>@keyframes bispin{to{transform:rotate(360deg)}}.bi-spin{display:inline-block;animation:bispin 0.9s linear infinite}</style>'
       + '<div id="bi-stages" style="display:flex;flex-direction:column;gap:0.45rem;font-size:0.86rem;font-family:var(--font-body,sans-serif)"></div>'
       + '<div id="bi-actions" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.8rem"></div>'
       + '</div>');
     var stagesEl = d.querySelector('#bi-stages');
+    // Stop is checked between stages and around every slow await — pressing it
+    // hands control straight back to the wizard (callers treat __biCancel like
+    // a user cancel; nothing is filled, nothing is saved).
+    _biStop = false;
+    var _stopBtn = d.querySelector('#bi-stop-btn');
+    if (_stopBtn) _stopBtn.onclick = function () { _biStop = true; _stopBtn.disabled = true; _stopBtn.textContent = 'Stopping…'; };
     var rows = {};
     function st(key, icon, text, color) {
       if (!rows[key]) {
@@ -2158,6 +2169,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         st('bc', '📊', 'Barcode: ' + bcTxt, '#2ecc71');
       } else st('bc', '📊', 'Barcode: ✓ ' + bc.rawValue, '#2ecc71');
     } else st('bc', '➖', 'Barcode: none found (fine for bare items)');
+    if (_biStop) return { __biCancel: true };
 
     // Stage 2 — label / lettering OCR (from the WORK canvas = crop)
     st('ocr', '<span class="bi-spin">⟳</span>', 'Lettering: reading…');
@@ -2167,6 +2179,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       var o = await T.recognize(_bcPreprocessForOCR(workCanvas), 'eng', {});
       ocrText = (o && o.data && o.data.text) || '';
     } catch (e) {}
+    if (_biStop) return { __biCancel: true };
     var rawCands = ocrText ? _extractItemNumberCandidates(ocrText) : [];
     // v0.9.691: "Not this — identify the item by AI" re-run: printed numbers
     // in frame belong to NEIGHBORING items — ignore them all.
@@ -2241,6 +2254,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     }
     if (out.typedNum) {
       st('master', '📖', 'Catalog: not there — adding ' + out.typedNum + ' manually');
+      if (_biStop) return { __biCancel: true };
       st('ai', '<span class="bi-spin">⟳</span>', 'Close look: getting the details…');
       var aiR0 = await _bcAiRescue(workCanvas, eraHint, out.why, out.bcMaker);
       st('ai', '🔍', aiR0 ? 'Close look: ✓ details read' : 'Close look: no extra details', aiR0 ? '#2ecc71' : null);
@@ -2261,6 +2275,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     }
     if (_printed) {
       st('master', '📖', 'Catalog: ' + _printed + ' not in the catalog — adding manually', '#ffd27d');
+      if (_biStop) return { __biCancel: true };
       st('ai', '<span class="bi-spin">⟳</span>', 'Close look: getting the details…');
       var aiP = await _bcAiRescue(workCanvas, eraHint, out.why, out.bcMaker);
       st('ai', '🔍', aiP ? 'Close look: ✓ details read' : 'Close look: no extra details', aiP ? '#2ecc71' : null);
@@ -2275,8 +2290,10 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     st('master', '➖', 'Catalog: no direct match yet');
 
     // Stage 4 — AI (crop + everything we learned as hints)
+    if (_biStop) return { __biCancel: true };
     st('ai', '<span class="bi-spin">⟳</span>', 'Close look: reading the photo…');
     var aiR = await _bcAiRescue(workCanvas, eraHint, out.why, out.bcMaker);
+    if (_biStop) return { __biCancel: true };
     if (aiR) {
       st('ai', '🔍', 'Close look: ✓ ' + (aiR.itemNum || aiR.description || 'details read'), '#2ecc71');
       if (!aiR.labelDescription && out.ocrDesc) aiR.labelDescription = out.ocrDesc;
@@ -2365,11 +2382,14 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           return;
         }
         var res = await _biPipeline(cap.raw, cr.work, cap.lockedBc, eraHint);
+        // v0.9.897: Stop pressed = plain cancel — back to the wizard, nothing filled.
+        if (res && res.__biCancel) { _biKill(); if (onCancel) onCancel(); return; }
         if (res && res.__biFail) {
           var choice = await _biFailCard(res.out);
           if (choice === 'ai') {
             // same photo, one more shot at the AI (Gemini overload passes quickly)
             var res2 = await _biPipeline(cap.raw, cr.work, cap.lockedBc, eraHint);
+            if (res2 && res2.__biCancel) { _biKill(); if (onCancel) onCancel(); return; }   // v0.9.897
             if (res2 && !res2.__biFail) { res = res2; }
             else { var c2 = await _biFailCard(res2 && res2.out || {}); if (c2 === 'retake') continue; if (c2 === 'lens') choice = 'lens'; else { _biKill(); if (onCancel) onCancel(); return; } }
           }
@@ -2413,6 +2433,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         var cc = await _bcConfirmCard(_biInfoFor(res, _aiOffer));
         if (cc === 'aionly') {
           var resA = await _biPipeline(cap.raw, cr.work, null, eraHint, { ignoreNums: true });
+          if (resA && resA.__biCancel) { _biKill(); if (onCancel) onCancel(); return; }   // v0.9.897
           if (resA && !resA.__biFail) {
             if (resA._boxPhoto) { try { resA._boxPhotoFile = await _biCanvasToFile(cr.work, 'box-label.jpg'); } catch (eF3) {} }
             else { try { resA._itemPhotoFile = await _biCanvasToFile(cr.work, 'identify-shot.jpg'); } catch (eF4) {} } // v0.9.811 TODO-011
