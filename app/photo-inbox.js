@@ -738,12 +738,15 @@
         grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><p>Inbox is empty — snap some photos with Batch Add</p></div>';
         return;
       }
-      var cols = 4;
-      try { cols = Math.max(3, Math.floor((grid.clientWidth || 500) / 104)); } catch (eW) {}
+      // v0.9.893 (Brad): SAME column rule as the Showcase (shared helper) +
+      // explicit column count — the old auto-fill CSS guessed differently
+      // on his laptop (2 cols vs the Showcase's 3).
+      var cols = (typeof window._dashPhotoCols === 'function') ? window._dashPhotoCols(grid)
+        : Math.max(3, Math.floor((grid.clientWidth || 500) / 104));
+      grid.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
       // v0.9.892 (Brad): show EVERYTHING up to 3 rows (matches Showcase's
-      // on-screen cap) — with 7 photos and 3 columns that's all 7, partial
-      // last row and all. Still no "+N" tile; the header total covers the
-      // overflow when there are more than 3 rows' worth.
+      // on-screen cap) — partial last row and all. Still no "+N" tile; the
+      // header total covers the overflow beyond 3 rows.
       var show = files.slice(0, cols * 3);
       grid.innerHTML = show.map(function (f) {
         return '<div style="aspect-ratio:1;border-radius:8px;overflow:hidden;background:var(--surface2,#26262e)"><img loading="lazy" data-ppfid="' + f.id + '" style="width:100%;height:100%;object-fit:cover;display:block" alt=""></div>';

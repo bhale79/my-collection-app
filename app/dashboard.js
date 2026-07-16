@@ -1107,6 +1107,18 @@ window._reelStart = async function (slot) {
     show();
   }, 5000);
 };
+// v0.9.893 (Brad): ONE column rule for every dashboard photo grid, so the
+// Showcase and the Photo Inbox always share the same pattern. Scales with
+// the accessibility text-size setting: regular text keeps a 3-column
+// minimum; enlarged text (html font-size bumped) may drop to 2 columns.
+window._dashPhotoCols = function (grid) {
+  var fs = 1;
+  try { fs = Math.max(1, (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16) / 16); } catch (e) {}
+  var gw = (grid && grid.clientWidth) || 500;
+  var cols = Math.floor(gw / (104 * fs));
+  return Math.max(fs > 1.15 ? 2 : 3, cols);
+};
+
 window._showcaseFill = async function () {
   var grid = document.getElementById('showcase-grid');
   if (!grid) return;
@@ -1114,8 +1126,7 @@ window._showcaseFill = async function () {
   // its column count from the window width, but the card always fetched 12 —
   // any width where 12 doesn't divide evenly left a ragged last row. Now:
   // measure the columns, request enough for FULL rows, trim leftovers.
-  var cols = 4;
-  try { var gw = grid.clientWidth || 500; cols = Math.max(3, Math.floor(gw / 104)); } catch (eW) {}
+  var cols = window._dashPhotoCols(grid);
   // v0.9.892 (Brad): cap at 3 ROWS so the whole panel fits on screen
   // without scrolling (was a fixed 12 photos = 4 rows on narrow panels).
   var want = cols * 3;
