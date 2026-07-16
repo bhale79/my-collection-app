@@ -658,10 +658,120 @@
     } finally { _busy = false; }
   };
 
-  // ── Sidebar entry (desktop) + badge ──────────────────────────
+  // ── Badges + dashboard cards (v0.9.890) ──────────────────────
+  var COUNT_KEY = 'rr_inbox_count';
   function _navBadge(count) {
+    try { localStorage.setItem(COUNT_KEY, String(count)); } catch (e) {}
     var b = document.getElementById('nav-inbox-count');
     if (b) { b.textContent = count > 0 ? count : ''; b.style.display = count > 0 ? '' : 'none'; }
+    var mb = document.getElementById('mnav-inbox-count');
+    if (mb) { mb.textContent = count > 0 ? count : ''; mb.style.display = count > 0 ? '' : 'none'; }
+    var cv = document.getElementById('pin-card-value');
+    if (cv) cv.textContent = String(count);
+  }
+
+  // Lightweight count fetch — runs at startup so the badges and the
+  // dashboard card are right BEFORE the inbox page is ever opened.
+  var _countBusy = false;
+  async function _pinCountRefresh() {
+    if (_countBusy || !_qcToken()) return;
+    _countBusy = true;
+    try {
+      var fid = await _folder();
+      var q = encodeURIComponent("'" + fid + "' in parents and mimeType contains 'image/' and trashed=false");
+      var res = await driveRequest('GET', '/files?q=' + q + '&fields=files(id)&pageSize=200');
+      _navBadge(((res && res.files) || []).length);
+    } catch (e) { /* offline / signed out — badge stays as-is */ }
+    finally { _countBusy = false; }
+  }
+  window._pinCountRefresh = _pinCountRefresh;
+
+  // Small stat card + large panel, registered into the dashboard's own
+  // catalogs so Edit Dashboard can place/arrange them like any other.
+  function _registerDashEntries() {
+    try {
+      if (typeof CARD_CATALOG !== 'undefined' && CARD_CATALOG.push && !CARD_CATALOG.some(function (c) { return c.id === 'photoInbox'; })) {
+        CARD_CATALOG.push({
+          id: 'photoInbox', label: 'Photo Inbox', color: '#2980b9',
+          onclick: '_pinGo()',
+          compute: function () {
+            setTimeout(function () { _pinCountRefresh(); }, 0);
+            var n = parseInt(localStorage.getItem(COUNT_KEY) || '0', 10) || 0;
+            return { html: '<div class="stat-value" id="pin-card-value">' + n + '</div>'
+              + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:1px">photo' + (n === 1 ? '' : 's') + ' waiting — click to file</div>' };
+          }
+        });
+      }
+      if (typeof _CARD_HELP !== 'undefined') _CARD_HELP.photoInbox = 'Photos waiting in your Photo Inbox — snapped with Batch Add on your phone, dragged in on desktop, or imported from Google Photos. Click the card to review and file them.';
+      if (typeof PANEL_CATALOG !== 'undefined' && PANEL_CATALOG.push && !PANEL_CATALOG.some(function (p) { return p.id === 'photoInbox'; })) {
+        PANEL_CATALOG.push({
+          id: 'photoInbox', label: 'Photo Inbox', icon: '📥',
+          navFn: "_pinGo();",
+          render: function () {
+            if (window._offlineMode || navigator.onLine === false) {
+              return '<div style="min-height:120px;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:0.78rem;text-align:center">Photos will show when you’re back online</div>';
+            }
+            setTimeout(function () { _pinPanelFill(); }, 0);
+            return '<div id="pin-panel-grid" onclick="window._fromDash=true;_pinGo()" title="Open Photo Inbox" style="cursor:pointer;display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:0.5rem;min-height:120px"><div class="empty-state"><p>Loading inbox…</p></div></div>';
+          }
+        });
+      }
+    } catch (e) { console.warn('[Inbox] dash register:', e); }
+  }
+
+  async function _pinPanelFill() {
+    var grid = document.getElementById('pin-panel-grid');
+    if (!grid || !_qcToken()) return;
+    try {
+      var fid = await _folder();
+      var q = encodeURIComponent("'" + fid + "' in parents and mimeType contains 'image/' and trashed=false");
+      var res = await driveRequest('GET', '/files?q=' + q + '&fields=files(id)&orderBy=createdTime desc&pageSize=200');
+      var files = (res && res.files) || [];
+      _navBadge(files.length);
+      grid = document.getElementById('pin-panel-grid');
+      if (!grid) return;
+      if (!files.length) {
+        grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><p>Inbox is empty — snap some photos with Batch Add</p></div>';
+        return;
+      }
+      var cols = 4;
+      try { cols = Math.max(3, Math.floor((grid.clientWidth || 500) / 104)); } catch (eW) {}
+      var show = files.slice(0, cols * 2);
+      var extra = files.length - show.length;
+      grid.innerHTML = show.map(function (f) {
+        return '<div style="aspect-ratio:1;border-radius:8px;overflow:hidden;background:var(--surface2,#26262e)"><img loading="lazy" data-ppfid="' + f.id + '" style="width:100%;height:100%;object-fit:cover;display:block" alt=""></div>';
+      }).join('') + (extra > 0 ? '<div style="aspect-ratio:1;border-radius:8px;display:flex;align-items:center;justify-content:center;background:var(--surface2,#26262e);color:#2980b9;font-family:var(--font-head);font-weight:700;font-size:0.95rem">+' + extra + '</div>' : '');
+      grid.querySelectorAll('img[data-ppfid]').forEach(function (img) {
+        loadDriveThumb(img.getAttribute('data-ppfid'), img, img.parentElement);
+      });
+    } catch (e) {
+      if (grid) grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><p>Couldn’t load the inbox — open it to retry</p></div>';
+    }
+  }
+
+  // One-time: put the new card in the first empty dashboard slot and the
+  // panel on the dashboard (if there's room) so Brad sees them without a
+  // trip through Edit Dashboard. Rearranging/removing after that is his.
+  function _autoPlaceOnce() {
+    try {
+      if (localStorage.getItem('rr_inbox_dash_placed')) return;
+      var placed = false;
+      if (typeof _getSlots === 'function' && typeof _saveSlots === 'function') {
+        var slots = _getSlots();
+        if (!slots.some(function (s) { return s && s.id === 'photoInbox'; })) {
+          var empty = slots.indexOf(null);
+          if (empty >= 0) { slots[empty] = { id: 'photoInbox' }; _saveSlots(slots); placed = true; }
+        } else placed = true;
+      }
+      if (typeof _getPanels === 'function' && typeof _savePanels === 'function') {
+        var panels = _getPanels();
+        if (!panels.some(function (p) { return p && p.id === 'photoInbox'; }) && panels.length < 3) {
+          panels.push({ id: 'photoInbox' }); _savePanels(panels); placed = true;
+        }
+      }
+      localStorage.setItem('rr_inbox_dash_placed', '1');
+      if (placed) console.log('[Inbox] dashboard card/panel placed (one-time)');
+    } catch (e) { console.warn('[Inbox] auto-place:', e); }
   }
 
   function _injectNav() {
@@ -686,8 +796,10 @@
         var mb = document.createElement('button');
         mb.className = 'mobile-nav-item';
         mb.id = 'mnav-photo-inbox';
+        mb.style.position = 'relative';
         mb.setAttribute('onclick', '_pinGo(this)');
-        mb.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>Inbox';
+        mb.innerHTML = '<span id="mnav-inbox-count" style="display:none;position:absolute;top:1px;right:4px;background:#2980b9;color:#fff;border-radius:9px;font-size:0.58rem;font-weight:700;padding:1px 5px;line-height:1.3"></span>' +
+          '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>Inbox';
         host.appendChild(mb);
       }
     }
@@ -931,12 +1043,18 @@
   // Piggyback on dashboard rebuilds (fires after login and after every
   // wizard save) — inject the sidebar entry and flush pending links —
   // and on wizard step renders — keep the Batch Add button in sync.
+  var _startupCounted = false;
   function _hook() {
     if (typeof window.buildDashboard === 'function' && !window.buildDashboard._pinWrapped) {
+      _registerDashEntries();
       var orig = window.buildDashboard;
       window.buildDashboard = function () {
+        try { _autoPlaceOnce(); } catch (e) {}
         var r = orig.apply(this, arguments);
-        try { _injectNav(); _flushPending(); } catch (e) {}
+        try {
+          _injectNav(); _flushPending();
+          if (!_startupCounted) { _startupCounted = true; setTimeout(function () { _pinCountRefresh(); }, 1500); }
+        } catch (e) {}
         return r;
       };
       window.buildDashboard._pinWrapped = true;

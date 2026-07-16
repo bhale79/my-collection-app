@@ -638,8 +638,11 @@ function buildDashboard() {
             + '<div class="stat-value">' + result.value + '</div>'
             + '<div class="stat-sub">' + result.sub + '</div>';
         }
-        var _cardClick = (card.id === 'catalog') ? ' onclick="_catCovConfig(' + i + ')" title="Pick maker &amp; era"' : '';
-        return '<div class="stat-card" id="dash-card-' + i + '" style="--card-accent:' + card.color + (card.id === 'catalog' ? ';cursor:pointer' : '') + ';position:relative"' + _cardClick + '>'
+        // v0.9.890: cards may declare their own onclick (Photo Inbox card
+        // opens the inbox). Catalog keeps its picker; others stay inert.
+        var _cardClick = (card.id === 'catalog') ? ' onclick="_catCovConfig(' + i + ')" title="Pick maker &amp; era"'
+          : (card.onclick ? ' onclick="window._fromDash=true;' + card.onclick + '" title="Open ' + card.label + '"' : '');
+        return '<div class="stat-card" id="dash-card-' + i + '" style="--card-accent:' + card.color + ((card.id === 'catalog' || card.onclick) ? ';cursor:pointer' : '') + ';position:relative"' + _cardClick + '>'
           + inner
           + '</div>';
       }).join('');
