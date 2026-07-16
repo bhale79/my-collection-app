@@ -366,6 +366,11 @@
       if (tab) { try { tab.location = url; } catch (e) { tab = null; } }
       if (!tab) window.open(url, '_blank');
       if (btn) { btn.disabled = false; btn.textContent = 'Research by Photo'; }
+      // v0.9.895 (Brad: "i copied it, now what?") — same return trip as the
+      // wizard's Lens flow: when he comes back with Google's answer copied,
+      // parse the clipboard and reopen the review card with it applied.
+      _pinLensArm(gs);
+      showToast('In the Google tab: copy the answer, then come back here', 4000);
     } catch (e) {
       console.warn('[Inbox] research-by-photo:', e);
       try { if (tab) tab.close(); } catch (e2) {}
@@ -373,6 +378,62 @@
       showToast('Could not stage the photo for Google — try again', 3000, true);
     }
   };
+
+  // Return-trip watcher for Research by Photo (mirrors the wizard's
+  // _identifyReadClipboard flow): on tab-return, read the clipboard, parse
+  // Google's copied answer, merge it into the group's stored findings, and
+  // reopen the review card. Watches for 15 minutes, ignores an unchanged
+  // clipboard, and gives up silently on clipboard-permission denials.
+  var _pinLensGroups = null, _pinLensClip = '', _pinLensVisOn = false, _pinLensArmedAt = 0;
+  function _pinLensArm(gs) {
+    _pinLensGroups = gs;
+    _pinLensArmedAt = new Date().getTime();
+    _pinLensClip = '';
+    try { navigator.clipboard.readText().then(function (t) { _pinLensClip = (t || '').trim(); }).catch(function () {}); } catch (e) {}
+    if (!_pinLensVisOn) {
+      _pinLensVisOn = true;
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible' && _pinLensGroups) setTimeout(_pinLensCheck, 450);
+      });
+    }
+  }
+  function _pinLensCheck() {
+    if (!_pinLensGroups) return;
+    if (new Date().getTime() - _pinLensArmedAt > 15 * 60 * 1000) { _pinLensGroups = null; return; }
+    if (!navigator.clipboard || !navigator.clipboard.readText) return;
+    navigator.clipboard.readText().then(function (txt) {
+      txt = (txt || '').trim();
+      if (!txt || txt === _pinLensClip) return;   // nothing new copied yet — keep watching
+      _pinLensClip = txt;
+      var meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(txt) : {};
+      var got = meta.itemNum || meta.description || meta.manufacturer || meta.roadName;
+      if (!got) return;                            // unrelated clipboard — keep watching
+      var gs = _pinLensGroups;
+      _pinLensGroups = null;
+      try {
+        var ids = _ids();
+        var fid0 = gs[0].files[0].id;
+        var prev = ids[fid0] || {};
+        var trim = function (v, old) { return String(v || old || '').slice(0, 120); };
+        ids[fid0] = {
+          num: (!meta._hedge && meta.itemNum) ? String(meta.itemNum) : (prev.num || ''),
+          tried: 1,
+          mfr: trim(meta.manufacturer, prev.mfr), desc: trim(meta.description, prev.desc),
+          road: trim(meta.roadName, prev.road), year: trim(meta.year, prev.year)
+        };
+        _idsSave(ids);
+      } catch (e) { console.warn('[Inbox] lens return:', e); }
+      _render();
+      // Reopen the review with the findings applied (works for combined
+      // selections too — restore the selection and open from it).
+      _sel = {};
+      gs.forEach(function (g) { _sel[g.key] = true; });
+      window._pinReview(gs.length === 1 ? gs[0].key : null);
+      showToast(meta._hedge
+        ? "Google's answer applied, but it hedged on the number — double-check it"
+        : "Google's answer applied — check it over and hit Add", 4000);
+    }).catch(function () { /* permission denied — the number box still takes a manual paste */ });
+  }
 
   window._pinReviewResearch = function () {
     var num = (document.getElementById('pin-rv-num') || {}).value || '';
