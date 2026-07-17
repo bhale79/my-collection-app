@@ -576,7 +576,10 @@
         _pinRefresh();
         showToast(fileList.length + ' photo' + (fileList.length > 1 ? 's' : '') + ' will attach when you save — they stay in the inbox until then', 3500);
         var _aiS = {}; try { _aiS = _ids()[gs[0].files[0].id] || {}; } catch (eAi) {}
-        _pinAddNow(num, { manufacturer: _aiS.mfr || '', description: _aiS.desc || '', roadName: _aiS.road || '', year: _aiS.year || '' });
+        // v0.9.907 (Brad, item [1a]): hand the first inbox photo's Drive id to the
+        // wizard so the variation step can preview the item you're adding.
+        var _addPhotoId = (fileList[0] && fileList[0].id) || '';
+        _pinAddNow(num, { manufacturer: _aiS.mfr || '', description: _aiS.desc || '', roadName: _aiS.road || '', year: _aiS.year || '' }, _addPhotoId);
       }
     } catch (e) {
       console.error('[Inbox] add/attach:', e);
@@ -584,7 +587,7 @@
     } finally { _busy = false; }
   };
 
-  window._pinAddNow = function (num, aiMeta) {
+  window._pinAddNow = function (num, aiMeta, photoDriveId) {
     if (typeof openWizard !== 'function') { showToast('Add wizard not available', 2500, true); return; }
     openWizard('collection');
     // v0.9.889 (Brad): pre-fill the ENTIRE catalog side of the add, the same
@@ -599,6 +602,9 @@
         clearInterval(t);
         try {
           wizard.data.itemNum = num;
+          // v0.9.907 (Brad, item [1a]): stash the inbox photo's Drive id so the
+          // variation step can preview it (loaded via loadDriveThumb).
+          if (photoDriveId) wizard.data._addPhotoDriveId = photoDriveId;
           var m = (typeof findMaster === 'function') ? findMaster(num) : null;
           if (m) {
             wizard.matchedItem = m;

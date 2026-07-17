@@ -1469,6 +1469,10 @@ function renderWizardStep() {
         </div>`;
     }
 
+    // v0.9.907 (Brad, item [1a]): preview the photo you're adding at the top
+    // (right side on a wide desktop), tap to zoom.
+    try { if (window._wizVarInsertPhoto) window._wizVarInsertPhoto(body); } catch (e) { console.warn('[variation photo]', e); }
+
   } else if (s.type === 'text') {
     let val = wizard.data[s.id] || '';
     // Bug 3 (Session 154): when Identify-by-Photo routed user to Manual Entry
@@ -5640,3 +5644,57 @@ async function _wizardNextCore() {
 
 
 // ── Ident
+// ══════════════════════════════════════════════════════════════
+// v0.9.907 (Brad, item [1a]): variation-step photo preview.
+// Shows the photo you're adding — from a barcode/Identify capture
+// (a File in hand) or from the Photo Inbox (a Drive file id handed
+// over by _pinAddNow) — at the top of the variation step, or to the
+// right of the list on a wide desktop. Tap to zoom full-screen.
+// ══════════════════════════════════════════════════════════════
+window._wizVarZoom = function (src) {
+  if (!src) return;
+  var ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;z-index:100020;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center;padding:1rem;cursor:zoom-out';
+  ov.innerHTML = '<img src="' + src + '" style="max-width:100%;max-height:100%;border-radius:8px" alt="">' +
+    '<button type="button" style="position:absolute;top:12px;right:14px;background:rgba(0,0,0,0.5);border:none;color:#fff;font-size:1.6rem;line-height:1;cursor:pointer;border-radius:8px;padding:0.1rem 0.55rem">✕</button>';
+  var close = function () { try { ov.remove(); } catch (e) {} if (window.BackStack) window.BackStack.pop('_wiz-var-zoom'); };
+  ov.onclick = close;
+  document.body.appendChild(ov);
+  if (window.BackStack) window.BackStack.push('_wiz-var-zoom', function () { try { ov.remove(); } catch (e) {} });
+};
+
+window._wizVarInsertPhoto = function (container) {
+  if (!container || typeof wizard === 'undefined' || !wizard || !wizard.data) return;
+  var f = wizard.data._idItemPhotoFile || window._idLastPhotoFile || wizard.data._biBoxPhotoFile || null;
+  var driveId = wizard.data._addPhotoDriveId || '';
+  if (!f && !driveId) return;
+  var wide = !window.IS_MOBILE_UA && (window.innerWidth || 0) >= 760;
+  var box = document.createElement('div');
+  box.style.cssText = wide ? 'flex:0 0 240px;align-self:flex-start' : 'width:100%;margin-bottom:0.7rem';
+  box.innerHTML = '<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.3rem">The photo you’re adding</div>' +
+    '<div id="_wizVarPhotoWrap" title="Tap to zoom" style="position:relative;border-radius:10px;overflow:hidden;background:#0d0d0d;cursor:zoom-in;' + (wide ? '' : 'max-width:280px;') + '">' +
+    '<img id="_wizVarPhotoImg" style="width:100%;display:block;object-fit:contain;max-height:' + (wide ? '340px' : '240px') + '" alt="Item photo">' +
+    '<div style="position:absolute;right:6px;bottom:6px;background:rgba(0,0,0,0.55);color:#fff;font-size:0.62rem;padding:2px 7px;border-radius:9px;pointer-events:none">tap to zoom</div>' +
+    '</div>';
+  if (wide) {
+    var content = document.createElement('div');
+    content.style.cssText = 'flex:1;min-width:0';
+    while (container.firstChild) content.appendChild(container.firstChild);
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:1rem;align-items:flex-start';
+    row.appendChild(content);
+    row.appendChild(box);
+    container.appendChild(row);
+  } else {
+    container.insertBefore(box, container.firstChild);
+  }
+  var img = document.getElementById('_wizVarPhotoImg');
+  var objUrl = '';
+  if (f) {
+    try { objUrl = URL.createObjectURL(f); if (img) img.src = objUrl; } catch (e) {}
+  } else if (driveId && typeof loadDriveThumb === 'function' && img) {
+    try { loadDriveThumb(driveId, img, img.parentElement); } catch (e) {}
+  }
+  var wrap = document.getElementById('_wizVarPhotoWrap');
+  if (wrap) wrap.onclick = function () { window._wizVarZoom((img && img.src) || objUrl); };
+};
