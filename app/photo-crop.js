@@ -42,6 +42,14 @@ function _openCropper(src, onResult, onCancel) {   // v0.9.787: onCancel = proce
       '<span style="font-size:0.78rem;opacity:0.75">Drag the box · pinch or scroll to zoom</span>' +
     '</div>' +
     '<div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:0 1rem;overflow:hidden"><img id="_rrCropImg" style="max-width:100%;max-height:100%;display:block"></div>' +
+    // v0.9.904 (Brad, item [3]): fine-rotation slider restored \u2014 same control
+    // the box-scanner cropper uses (barcode.js). Any angle via the slider; the
+    // \u21bb button steps 90\u00b0 and keeps the slider in sync.
+    '<div style="padding:0.55rem 1rem 0;display:flex;align-items:center;gap:0.5rem">' +
+      '<span style="color:#ccc;font-size:0.78rem;white-space:nowrap">Rotate</span>' +
+      '<input id="_rrCropRot" type="range" min="-180" max="180" step="1" value="0" style="flex:1;accent-color:var(--accent,#e8401c)">' +
+      '<span id="_rrCropRotV" style="color:#ccc;font-size:0.78rem;min-width:3.2em;text-align:right">0\u00b0</span>' +
+    '</div>' +
     '<div style="padding:0.85rem 1rem;display:flex;gap:0.6rem;justify-content:flex-end">' +
       '<button id="_rrCropRotate" style="' + btn + ';margin-right:auto">\u21bb Rotate</button>' +
       '<button id="_rrCropCancel" style="' + btn + '">Cancel</button>' +
@@ -50,13 +58,29 @@ function _openCropper(src, onResult, onCancel) {   // v0.9.787: onCancel = proce
   document.body.appendChild(ov);
   var img = ov.querySelector('#_rrCropImg');
   var cropper = null;
-  img.onload = function () { try { cropper = new Cropper(img, { viewMode: 1, autoCropArea: 1, background: false, movable: true, zoomable: true, responsive: true, checkOrientation: true }); } catch (e) { console.warn('[crop] init', e); } };
+  // v0.9.904 (Brad, item [3]): viewMode 0 (was 1) so a rotated photo isn't
+  // clamped/zoomed to fill the frame — matches the box-scanner cropper, which
+  // is what makes the fine-rotation slider behave.
+  img.onload = function () { try { cropper = new Cropper(img, { viewMode: 0, autoCropArea: 1, background: false, movable: true, zoomable: true, responsive: true, checkOrientation: true }); } catch (e) { console.warn('[crop] init', e); } };
   img.src = src;
   function done() { try { if (cropper) cropper.destroy(); } catch (e) {} ov.remove(); if (window.BackStack) BackStack.pop('_rr-cropper'); }
   // v0.9.808 (TODO-012): device Back = Cancel (keep the full photo).
   if (window.BackStack) BackStack.push('_rr-cropper', function () { done(); if (onCancel) try { onCancel(); } catch (e) {} });
-  // v0.9.837 (Brad): rotate right in the cropper — sideways phone shots.
-  ov.querySelector('#_rrCropRotate').onclick = function () { try { if (cropper) cropper.rotate(90); } catch (e) {} };
+  // v0.9.904 (Brad, item [3]): fine-rotation slider (any angle) + the ↻ button
+  // for quick 90° flips, kept in sync with the slider.
+  var rotEl = ov.querySelector('#_rrCropRot'), rotV = ov.querySelector('#_rrCropRotV');
+  function _setRot(v) {
+    v = Math.max(-180, Math.min(180, Math.round(v)));
+    if (rotEl) rotEl.value = v;
+    if (rotV) rotV.textContent = v + '°';
+    try { if (cropper) cropper.rotateTo(v); } catch (eR) {}
+  }
+  if (rotEl) rotEl.addEventListener('input', function () { _setRot(parseFloat(rotEl.value) || 0); });
+  ov.querySelector('#_rrCropRotate').onclick = function () {
+    var nv = (parseFloat(rotEl && rotEl.value) || 0) + 90;
+    if (nv > 180) nv -= 360;   // wrap so the 90° button keeps cycling
+    _setRot(nv);
+  };
   ov.querySelector('#_rrCropCancel').onclick = function () { done(); if (onCancel) try { onCancel(); } catch (e) {} };
   ov.querySelector('#_rrCropApply').onclick = function () {
     if (!cropper) { done(); if (onCancel) try { onCancel(); } catch (e) {} return; }
