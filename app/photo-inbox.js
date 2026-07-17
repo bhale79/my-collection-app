@@ -532,21 +532,27 @@
       var fromFid = await _folder();
       var toFid = await driveEnsureItemFolder(num);
       var link = driveFolderLink(toFid);
-      var moved = 0, ts = new Date().getTime();
+      var lk = _pinLookup(num);
+      // Gather every selected file once (used whether we move now or on save).
+      var fileList = [];
       for (var g = 0; g < gs.length; g++) {
-        for (var f = 0; f < gs[g].files.length; f++) {
+        for (var f = 0; f < gs[g].files.length; f++) { fileList.push(gs[g].files[f]); }
+      }
+      var ts = new Date().getTime();
+      if (lk.ownedPd) {
+        // Already in the collection: committed action, no wizard to cancel,
+        // so file the photos into its folder right away.
+        var moved = 0;
+        for (var i2 = 0; i2 < fileList.length; i2++) {
           moved++;
           _status('Filing photo ' + moved + '…');
-          var file = gs[g].files[f];
+          var file = fileList[i2];
           var ext = (file.name.split('.').pop() || 'jpg').toLowerCase().slice(0, 5);
           await driveMoveFileToFolder(file.id, fromFid, toFid);
           try { await driveRequest('PATCH', '/files/' + file.id, { name: num + ' ADD ' + (ts + moved) + '.' + ext }); } catch (eRn) {}
         }
-      }
-      _sel = {};
-      _status('');
-      var lk = _pinLookup(num);
-      if (lk.ownedPd) {
+        _sel = {};
+        _status('');
         var pd = lk.ownedPd;
         if (!pd.photoItem && pd.row && typeof sheetsUpdate === 'function' && typeof personalColLetter === 'function' && window.state.personalSheetId) {
           pd.photoItem = link;
@@ -555,13 +561,20 @@
         showToast('Attached ' + moved + ' photo' + (moved > 1 ? 's' : '') + ' to ' + num, 3000);
         _pinRefresh();
       } else {
+        // NOT in the collection yet: the Add wizard opens next and may be
+        // cancelled. DEFER moving the photos out of the inbox until the item
+        // is actually saved (see _flushPending). Cancel = nothing moved and
+        // the photos stay in the inbox. (Session 168, Brad — fixes vanishing photos)
+        _sel = {};
+        _status('');
         try {
           var pend = JSON.parse(localStorage.getItem(PENDING_KEY) || '{}');
-          pend[num] = link;
+          pend[num] = { link: link, fromFid: fromFid, toFid: toFid, ts: ts,
+            files: fileList.map(function (fl) { return { id: fl.id, name: fl.name }; }) };
           localStorage.setItem(PENDING_KEY, JSON.stringify(pend));
         } catch (eP) {}
         _pinRefresh();
-        showToast(moved + ' photo' + (moved > 1 ? 's' : '') + ' ready — they connect when you save the item', 3000);
+        showToast(fileList.length + ' photo' + (fileList.length > 1 ? 's' : '') + ' will attach when you save — they stay in the inbox until then', 3500);
         var _aiS = {}; try { _aiS = _ids()[gs[0].files[0].id] || {}; } catch (eAi) {}
         _pinAddNow(num, { manufacturer: _aiS.mfr || '', description: _aiS.desc || '', roadName: _aiS.road || '', year: _aiS.year || '' });
       }
@@ -607,22 +620,44 @@
     }, 250);
   };
 
-  // When an item gets saved, connect any pending photo-folder links.
-  function _flushPending() {
+  // When an item is actually saved, file any pending inbox photos into its
+  // Drive folder and connect the photo link. Runs on every dashboard build but
+  // only acts on items that now exist in the collection, so a cancelled add
+  // leaves its photos untouched in the inbox. (Session 168, Brad)
+  var _flushingNums = {};
+  async function _flushPending() {
     var pend;
     try { pend = JSON.parse(localStorage.getItem(PENDING_KEY) || '{}'); } catch (e) { pend = {}; }
     var nums = Object.keys(pend);
     if (!nums.length || !window.state || !state.personalData) return;
-    var changed = false;
-    nums.forEach(function (num) {
+    for (var ni = 0; ni < nums.length; ni++) {
+      var num = nums[ni];
+      if (_flushingNums[num]) continue;
       var pd = Object.values(state.personalData).find(function (p) { return p && p.owned && String(p.itemNum) === num; });
-      if (pd && pd.row && !pd.photoItem && typeof sheetsUpdate === 'function' && state.personalSheetId) {
-        pd.photoItem = pend[num];
-        sheetsUpdate(state.personalSheetId, 'My Collection!' + personalColLetter('photoItem') + pd.row, [[pend[num]]]).catch(function (e) { console.warn('[Inbox] pending link write:', e); });
-        delete pend[num]; changed = true;
-      } else if (pd && pd.photoItem) { delete pend[num]; changed = true; }
-    });
-    if (changed) { try { localStorage.setItem(PENDING_KEY, JSON.stringify(pend)); } catch (e) {} }
+      if (!pd) continue;   // item not saved yet -> leave its photos in the inbox
+      _flushingNums[num] = true;
+      try {
+        var rec = pend[num];
+        var link = (rec && typeof rec === 'object') ? rec.link : rec;  // back-compat: old entries were a plain link string
+        if (rec && typeof rec === 'object' && rec.files && rec.files.length && rec.fromFid && rec.toFid) {
+          var mv = 0;
+          for (var fi = 0; fi < rec.files.length; fi++) {
+            var file = rec.files[fi]; mv++;
+            var ext = (String(file.name || '').split('.').pop() || 'jpg').toLowerCase().slice(0, 5);
+            try {
+              await driveMoveFileToFolder(file.id, rec.fromFid, rec.toFid);
+              try { await driveRequest('PATCH', '/files/' + file.id, { name: num + ' ADD ' + ((rec.ts || new Date().getTime()) + mv) + '.' + ext }); } catch (eRn) {}
+            } catch (eMv) { console.warn('[Inbox] deferred photo move skipped (removed?):', file.id, eMv); }
+          }
+        }
+        if (pd.row && !pd.photoItem && link && typeof sheetsUpdate === 'function' && typeof personalColLetter === 'function' && state.personalSheetId) {
+          pd.photoItem = link;
+          try { await sheetsUpdate(state.personalSheetId, 'My Collection!' + personalColLetter('photoItem') + pd.row, [[link]]); } catch (eUp) { console.warn('[Inbox] pending link write:', eUp); }
+        }
+        try { var p2 = JSON.parse(localStorage.getItem(PENDING_KEY) || '{}'); delete p2[num]; localStorage.setItem(PENDING_KEY, JSON.stringify(p2)); } catch (eD) {}
+        try { _pinRefresh(); } catch (eR) {}
+      } finally { delete _flushingNums[num]; }
+    }
   }
 
   // ── Batch AI identify (Phase 3, v0.9.886) ────────────────────
