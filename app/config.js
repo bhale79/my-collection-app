@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.904';
+const APP_VERSION = 'v0.9.905';
 
 // v0.9.699 (Brad's phantom-touch desktop): ONE authoritative "is this actually
 // a phone/tablet?" flag. Touch detection LIES on Windows PCs (pen/driver

@@ -2433,7 +2433,7 @@ function buildSetsPage() {
 function addSetToCollection(setNum, setName) {
   _buildWizardModal();
   const _activePg = document.querySelector('.page.active');
-  const _returnPage = _activePg ? _activePg.id.replace('page-', '') : 'sets';
+  const _returnPage = window._rrLastPage || (_activePg ? _activePg.id.replace('page-', '') : 'sets');
   // Set wizard.data FIRST so getSteps('set') can branch correctly
   wizard = {
     step: 0, tab: 'set',
@@ -2472,7 +2472,7 @@ function addSetToCollection(setNum, setName) {
 function addSetToWantList(setNum, setName) {
   // Open the want wizard pre-filled as a set
   const _activePg = document.querySelector('.page.active');
-  const _returnPage = _activePg ? _activePg.id.replace('page-', '') : 'sets';
+  const _returnPage = window._rrLastPage || (_activePg ? _activePg.id.replace('page-', '') : 'sets');
   // Set data FIRST so getSteps('want') sees itemCategory:'set' when it branches
   wizard = {
     step: 0, tab: 'want',

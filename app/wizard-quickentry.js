@@ -27,7 +27,8 @@ function completeQuickEntry(itemNum, variation, globalIdx, pdInvId) {
   // Ensure wizard modal exists — it's built lazily on first openWizard() call
   if (typeof _buildWizardModal === 'function') _buildWizardModal();
   var _activePg = document.querySelector('.page.active');
-  var _returnPage = _activePg ? _activePg.id.replace('page-', '') : 'browse';
+  // v0.9.905 (Brad, item [7]): single-source last-page memory first.
+  var _returnPage = window._rrLastPage || (_activePg ? _activePg.id.replace('page-', '') : 'browse');
 
   // Use inventoryId to pin to the right copy —
   // avoids picking the wrong item when multiple copies share the same item number

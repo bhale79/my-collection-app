@@ -2458,6 +2458,12 @@ function showPage(name, clickedEl) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelectorAll('.mobile-nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
+  // v0.9.905 (Brad, item [7]): single source of truth for "where the user is",
+  // recorded on every navigation. The Add wizard is a modal (it doesn't call
+  // showPage), so this still holds the page the user was viewing when they
+  // opened it — and that's where Cancel returns them, instead of a per-flow
+  // guess that could stray to the Dashboard.
+  try { window._rrLastPage = name; } catch (e) {}
   if (name !== 'itemdetail') { try { delete window._detailReturn; } catch (e) {} }
   if (clickedEl) clickedEl.classList.add('active');
   if (name === 'browse') renderBrowse();

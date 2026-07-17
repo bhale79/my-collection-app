@@ -386,7 +386,10 @@ async function openWizard(tab) {
   _buildWizardModal();
   // Start wizard pre-set to a specific tab, skipping the tab picker step
   const _activePg = document.querySelector('.page.active');
-  const _returnPage = _activePg ? _activePg.id.replace('page-', '') : 'dashboard';
+  // v0.9.905 (Brad, item [7]): prefer the single-source last-page memory so
+  // Cancel returns the user to where they actually were, never a stray
+  // Dashboard default.
+  const _returnPage = window._rrLastPage || (_activePg ? _activePg.id.replace('page-', '') : 'dashboard');
   wizard = { step: 0, tab: tab, data: { tab: tab, _returnPage: _returnPage }, steps: getSteps(tab), matchedItem: null };
   // Phase 2 streamline (Session post-216): for collection adds, default
   // itemCategory to 'lionel' so the category-picker step auto-skips. The
@@ -470,7 +473,7 @@ function _doCloseWizard() {
   // refreshed the 2-hour personal-data cache, so the next app load REVERTED
   // to pre-save data. Every wizard flow closes through here.
   try { if (typeof _cachePersonalData === 'function') _cachePersonalData(); } catch (eC) {}
-  const returnTo = wizard && wizard.data && wizard.data._returnPage;
+  const returnTo = (wizard && wizard.data && wizard.data._returnPage) || window._rrLastPage;
   document.getElementById('wizard-modal').classList.remove('open');
   document.body.style.overflow = '';
   // Rewind the BackStack entry we pushed on openWizard. If BackStack itself
