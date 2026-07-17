@@ -2308,11 +2308,15 @@ function renderBrowse() {
   if (!owned && typeof _currentEra !== 'undefined' && _currentEra === 'all'
       && (!search || !search.trim()) && !_hasFilter) {
     const _gtbody = document.getElementById('browse-tbody');
-    if (_gtbody) _gtbody.innerHTML = '<tr><td colspan="10"><div class="empty-state" style="padding:3rem 1rem;text-align:center">'
-      + '<div style="font-size:2.5rem;margin-bottom:0.75rem">🔍</div>'
-      + '<p style="font-weight:600;margin-bottom:0.4rem">All Collection — type to search</p>'
-      + '<p style="font-size:0.85rem;color:var(--text-dim);margin-bottom:0.6rem">There are 60,000+ items across every era. Type an item number, road name, or description to find anything.</p>'
-      + '<p style="font-size:0.78rem;color:var(--text-dim);font-style:italic">Or pick a specific era from the dropdown — or a Type/Road filter — to browse normally.</p>'
+    // v0.9.906 (Brad, item [10]): light-blue "pick a filter" prompt instead of
+    // loading all 60,000+ items at once. The last-used era/manufacturer/scale
+    // filter is remembered across visits (lv_era + lv_browse_filter_state).
+    if (_gtbody) _gtbody.innerHTML = '<tr><td colspan="10"><div style="padding:2.5rem 1rem;text-align:center">'
+      + '<div style="max-width:520px;margin:0 auto;background:rgba(41,128,185,0.10);border:1px solid #2980b9;border-radius:12px;padding:1.5rem 1.2rem">'
+      + '<div style="font-size:2rem;margin-bottom:0.5rem">🔍</div>'
+      + '<p style="font-weight:700;font-size:1rem;margin-bottom:0.45rem;color:#2980b9">Please select a filter to start viewing the catalog.</p>'
+      + '<p style="font-size:0.85rem;color:var(--text-mid);line-height:1.5">Pick an era, manufacturer, or scale above — or type an item number, road name, or description to search all 60,000+ items across every era.</p>'
+      + '</div>'
       + '</div></td></tr>';
     const _gcards = document.getElementById('browse-cards');
     if (_gcards) _gcards.innerHTML = '';

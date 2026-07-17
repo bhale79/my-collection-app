@@ -4604,6 +4604,17 @@ function renderWizardStep() {
         + '</div>';
     }
 
+    // v0.9.906 (Brad, item [1b]): field order is now Est. Worth → What did you
+    // pay → Bought From → Date Purchased → (Location) → Notes.
+
+    // Est. Worth — loco and normal items only
+    if (!_pvIsSetOther) {
+      _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">' + (_pvIsSetLoco ? 'Est. Worth of Whole Set ($)' : 'Est. Worth ($)') + '</div>';
+      _pvHtml += '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem">';
+      _pvHtml += '<span style="color:var(--text-dim);font-size:1.1rem">$</span>';
+      _pvHtml += '<input type="number" id="pv-worth" value="' + (_pvD.userEstWorth || '') + '" placeholder="0.00" min="0" step="0.01" style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem" oninput="wizard.data.userEstWorth=this.value"></div></div>';
+    }
+
     // Price paid — loco and normal items only, not set non-loco
     if (!_pvIsSetOther) {
       _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">' + (_pvIsSetLoco ? 'What did you pay for the whole set? ($)' : 'What did you pay? ($)') + '</div>';
@@ -4614,12 +4625,6 @@ function renderWizardStep() {
         _pvHtml += '<div style="font-size:0.75rem;color:var(--accent2);margin-top:0.2rem">Full price — other units will reference this.</div>';
       }
       _pvHtml += '</div>';
-    }
-    
-    // Date purchased — loco and normal only
-    if (!_pvIsSetOther) {
-      _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">' + (_pvIsSetLoco ? 'Date Set Purchased' : 'Date Purchased') + '</div>';
-      _pvHtml += '<div style="position:relative;display:flex;align-items:center"><input type="date" value="' + (_pvD.datePurchased || '') + '" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 2.5rem 0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box;color-scheme:dark" oninput="wizard.data.datePurchased=this.value" id="pvDate"><button type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById(&quot;pvDate&quot;).showPicker();" style="position:absolute;right:0.4rem;cursor:pointer;font-size:1rem;color:var(--accent2);background:none;border:none;padding:0.3rem;line-height:1;touch-action:manipulation">📅</button></div></div>';
     }
 
     // Bought From — optional seller link (v0.9.782, Brad brainstorm #3).
@@ -4652,26 +4657,29 @@ function renderWizardStep() {
       }
     }
 
-    // Est. Worth — loco and normal items only
+    // Date purchased — loco and normal only. v0.9.906 (Brad, item [1b]):
+    // auto-fill today's date when none has been chosen; the user can still change it.
     if (!_pvIsSetOther) {
-      _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">' + (_pvIsSetLoco ? 'Est. Worth of Whole Set ($)' : 'Est. Worth ($)') + '</div>';
-      _pvHtml += '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem">';
-      _pvHtml += '<span style="color:var(--text-dim);font-size:1.1rem">$</span>';
-      _pvHtml += '<input type="number" id="pv-worth" value="' + (_pvD.userEstWorth || '') + '" placeholder="0.00" min="0" step="0.01" style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem" oninput="wizard.data.userEstWorth=this.value"></div></div>';
+      var _pvToday = '';
+      try { var _pvDt = new Date(); _pvToday = _pvDt.getFullYear() + '-' + String(_pvDt.getMonth() + 1).padStart(2, '0') + '-' + String(_pvDt.getDate()).padStart(2, '0'); } catch (e) {}
+      var _pvDateVal = _pvD.datePurchased || _pvToday;
+      if (!_pvD.datePurchased && _pvToday) { wizard.data.datePurchased = _pvToday; }   // default so a blank date saves as today
+      _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">' + (_pvIsSetLoco ? 'Date Set Purchased' : 'Date Purchased') + '</div>';
+      _pvHtml += '<div style="position:relative;display:flex;align-items:center"><input type="date" value="' + _pvDateVal + '" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 2.5rem 0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box;color-scheme:dark" oninput="wizard.data.datePurchased=this.value" id="pvDate"><button type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById(&quot;pvDate&quot;).showPicker();" style="position:absolute;right:0.4rem;cursor:pointer;font-size:1rem;color:var(--accent2);background:none;border:none;padding:0.3rem;line-height:1;touch-action:manipulation">📅</button></div></div>';
     }
-    
+
     // Location (if enabled)
     if (_pvLocEnabled) {
       _pvHtml += '<div style="margin-bottom:0.75rem">' + _wizLocationFieldHtml(_pvD.location || '') + '</div>';
     }
-    
+
     // Notes
     _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Notes (optional)</div>';
     _pvHtml += '<textarea id="pv-notes" placeholder="e.g. Purchased at train show, minor rust on trucks, runs well" style="width:100%;min-height:60px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data.notes=this.value">' + (_pvD.notes || '') + '</textarea></div>';
     
     _pvHtml += '</div>';
     body.innerHTML = _pvHtml;
-    setTimeout(function() { var i = document.getElementById('pv-price'); if(i) i.focus(); }, 50);
+    setTimeout(function() { var i = document.getElementById('pv-worth') || document.getElementById('pv-price'); if(i) i.focus(); }, 50);
 
   } else if (s.type === 'confirm' && wizard.tab === 'set') {
     // ── SET CONFIRM / SUMMARY SCREEN ──
@@ -4844,7 +4852,8 @@ function renderWizardStep() {
       set_num:'Set Number',
     };
     const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','wantErrorPhotos','photosMasterBox','boxOnly','entryMode','_setId','_rawItemNum','matchedItem','_partialMatches','_partialQuery','_itemGrouping','_fromWantList','_fromWantKey','_returnPage','_manualEntry','_drivePhotos','_setMode','_setGroupId','_setFinalItems','_setItemIndex','_setItemsSaved','_setEntryMode','_resolvedSet','_setLocoNum','_setPrice','_setDate','_setWorth','_setCondition','_setHasBoxChecked','_setWantPhotos','_setPhotoThenSave','_prefilledCondition','_setQEPhotos','set_hasBox','set_boxCond','set_boxPhotos','set_notes','_suggestions_cache','_biBoxPhotoFile','_idItemPhotoFile','_boxAutoKnown','_completingQuickEntry','_existingGroupId','_fillItemMode','_wizSaveLock','_qeSaving','_photoInventoryId','_saveComplete','_era','suggestedRoadName','_manualEra','_alsoListForSale','_fromUpgradeList','_fromUpgradeKey','_cleanupWishlistMatches','_suggestedPricePaid','forSale_salePrice','forSale_dateListed','selectedForSaleKey','selectedSoldKey',
-      '_photoUploadsInFlight','_identifyMeta','_identifyMfrHints','_identifyScaleHint','_identifyTypeHint','_alreadyOwnedFyi']);
+      '_photoUploadsInFlight','_identifyMeta','_identifyMfrHints','_identifyScaleHint','_identifyTypeHint','_alreadyOwnedFyi',
+      '_skipAllPhotos']);  // v0.9.906 (Brad, item [6]): internal photo-skip flag — never a review row
     // Skip set_num from summary if it's already shown in the header
     if (wizard.data._resolvedSet || wizard.data.set_num) _skipKeys.add('set_num');
     // Skip notes from summary for tabs that have inline notes on confirm step

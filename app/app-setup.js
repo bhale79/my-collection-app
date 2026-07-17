@@ -34,7 +34,7 @@ function _buildAuthScreen() {
       '</div>' +
       '<div style="display:flex;align-items:flex-start;gap:0.75rem;background:rgba(200,16,46,0.06);border-radius:10px;padding:0.75rem 1rem">' +
         '<span style="font-size:1.3rem;flex-shrink:0">&#x1F682;</span>' +
-        '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:#fff">Built for postwar collectors</strong><br>Pre-loaded master catalog of every item 1945\u20131969.</div>' +
+        '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:#fff">Built for collectors of every era</strong><br>Pre-loaded master catalog spanning prewar, postwar, and modern trains.</div>' +
       '</div>' +
     '</div>' +
     '<div class="auth-card">' +

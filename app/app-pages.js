@@ -2665,7 +2665,7 @@ function _buildContactModal() {
         'Send an Email' +
       '</a>' +
       '<p style="font-size:0.75rem;color:var(--text-dim);margin-top:1rem;line-height:1.5">' +
-        'This is a community resource for postwar collectors. We appreciate every correction and suggestion.' +
+        'This is a community resource for all Lionel and toy-train collectors. We appreciate every correction and suggestion.' +
       '</p>' +
     '</div>';
   d.addEventListener('click', function(e) { if (e.target === d) { d.style.display = 'none'; if (window.BackStack) BackStack.pop('contact-modal'); } });
