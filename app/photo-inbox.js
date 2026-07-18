@@ -321,42 +321,80 @@
     var old = document.getElementById('pin-review-ov'); if (old) old.remove();
     var thumbs = [];
     _rvGroups.forEach(function (g) { g.files.forEach(function (f) { thumbs.push(f.id); }); });
+    // v0.9.913 (Brad): desktop shows a two-column split — details on the left,
+    // a big full-res photo filling the right half so you can read the label
+    // without a separate zoom. Phone stays stacked (small screen).
+    var _wide = !window.IS_MOBILE_UA && (window.innerWidth || 0) >= 900;
+    var _mainFid = thumbs[0];
+
+    // Shared controls (number, AI read, catalog card, action buttons).
+    var _controlsHtml =
+      '<input id="pin-rv-num" list="pin-rv-list" type="text" value="' + sug.replace(/"/g, '&quot;') + '" placeholder="Item number — e.g. 2343 or 6464-1" autocomplete="off" spellcheck="false" oninput="_pinReviewLookup(this.value)" style="width:100%;box-sizing:border-box;padding:0.55rem 0.75rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.95rem;margin-bottom:0.6rem">' +
+      '<datalist id="pin-rv-list">' + opts + '</datalist>' +
+      _pinAiLine() +
+      _pinAltChips() +
+      '<div id="pin-rv-info" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.7rem 0.8rem;margin-bottom:0.8rem;display:flex;flex-direction:column;gap:0.25rem"></div>' +
+      '<button id="pin-rv-add" onclick="_pinReviewAdd()" class="btn-primary" style="width:100%;padding:0.75rem;border-radius:10px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.95rem;cursor:pointer;margin-bottom:0.5rem">Add to My Collection</button>' +
+      '<div style="display:flex;gap:0.5rem;margin-bottom:0.5rem">' +
+        '<button onclick="_pinReviewResearch()" style="flex:1;padding:0.6rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer">Research Number</button>' +
+        '<button id="pin-rv-lens" onclick="_pinReviewLens()" style="flex:1;padding:0.6rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer">Research by Photo</button>' +
+      '</div>' +
+      '<button onclick="_pinReviewDiscard()" style="width:100%;padding:0.6rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer">Discard Photo' + (n > 1 ? 's' : '') + '</button>';
+
+    // Phone: horizontal strip on top (unchanged).
+    var _stripHtml =
+      '<div id="pin-rv-photos" style="display:flex;gap:0.45rem;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:0.7rem">' +
+        thumbs.slice(0, 12).map(function (fidT, i) {
+          return '<div style="position:relative;flex-shrink:0;width:' + (i === 0 ? '160px;height:160px' : '74px;height:74px;align-self:flex-end') + ';border-radius:10px;overflow:hidden;background:var(--surface2,#26262e)">' +
+            '<img data-rvfid="' + fidT + '" onclick="_pinZoomPhoto(\'' + fidT + '\')" title="Tap to view full size — zoom in to read the label" style="width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in" alt="">' +
+            '<button onclick="event.stopPropagation();_pinZoomPhoto(\'' + fidT + '\')" title="View full size" style="position:absolute;left:4px;bottom:4px;width:26px;height:26px;border-radius:7px;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:0.8rem;line-height:1;cursor:pointer;padding:0">🔍</button>' +
+            '<button onclick="event.stopPropagation();_pinCropPhoto(\'' + fidT + '\')" title="Crop / Rotate this photo" style="position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:7px;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:0.85rem;line-height:1;cursor:pointer;padding:0">✂</button>' +
+          '</div>';
+        }).join('') +
+      '</div>';
+
+    // Desktop: big photo panel on the right; other photos as a strip beneath.
+    var _cornBtn = 'position:absolute;width:30px;height:30px;border-radius:8px;border:none;background:rgba(0,0,0,0.6);color:#fff;font-size:0.9rem;line-height:1;cursor:pointer;padding:0;z-index:2';
+    var _panelHtml =
+      '<div style="flex:1 1 50%;min-width:0;display:flex;flex-direction:column;gap:0.5rem">' +
+        '<div style="position:relative;flex:1;min-height:360px;border-radius:12px;overflow:hidden;background:var(--surface2,#26262e);display:flex;align-items:center;justify-content:center">' +
+          '<img id="pin-rv-main" data-rvbig="' + _mainFid + '" onclick="_pinZoomPhoto(this.getAttribute(\'data-rvbig\'))" title="Tap for full-screen zoom" style="max-width:100%;max-height:74vh;object-fit:contain;display:block;cursor:zoom-in" alt="">' +
+          '<button onclick="_pinZoomPhoto(document.getElementById(\'pin-rv-main\').getAttribute(\'data-rvbig\'))" title="Full-screen zoom" style="' + _cornBtn + ';left:8px;bottom:8px">🔍</button>' +
+          '<button onclick="_pinCropPhoto(document.getElementById(\'pin-rv-main\').getAttribute(\'data-rvbig\'))" title="Crop / Rotate this photo" style="' + _cornBtn + ';top:8px;right:8px">✂</button>' +
+        '</div>' +
+        (thumbs.length > 1
+          ? '<div style="display:flex;gap:0.4rem;overflow-x:auto;-webkit-overflow-scrolling:touch">' +
+              thumbs.slice(0, 12).map(function (fidT) {
+                return '<div onclick="_pinRvSetMain(\'' + fidT + '\')" title="Show this photo" style="position:relative;flex-shrink:0;width:64px;height:64px;border-radius:8px;overflow:hidden;background:var(--surface2,#26262e);cursor:pointer;border:1.5px solid transparent">' +
+                  '<img data-rvfid="' + fidT + '" style="width:100%;height:100%;object-fit:cover;display:block" alt=""></div>';
+              }).join('') +
+            '</div>'
+          : '') +
+      '</div>';
+
     var ov = document.createElement('div');
     ov.id = 'pin-review-ov';
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
     ov.innerHTML =
-      '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.1rem;max-width:460px;width:100%;max-height:94vh;overflow-y:auto">' +
+      '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.1rem;max-width:' + (_wide ? '900px' : '460px') + ';width:100%;max-height:94vh;overflow-y:auto">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem">' +
           '<div style="font-family:var(--font-head);font-weight:700;font-size:1rem;color:var(--text)">' + n + ' photo' + (n > 1 ? 's' : '') + ' · one item</div>' +
           '<button onclick="document.getElementById(\'pin-review-ov\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.35rem;line-height:1;cursor:pointer;padding:0.1rem 0.3rem">✕</button>' +
         '</div>' +
-        '<div id="pin-rv-photos" style="display:flex;gap:0.45rem;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:0.7rem">' +
-          thumbs.slice(0, 12).map(function (fidT, i) {
-            // v0.9.899 (Brad): ✂ on every photo — opens the same crop/rotate
-            // tool Quick Capture uses; Apply replaces the Drive bytes in place.
-            return '<div style="position:relative;flex-shrink:0;width:' + (i === 0 ? '160px;height:160px' : '74px;height:74px;align-self:flex-end') + ';border-radius:10px;overflow:hidden;background:var(--surface2,#26262e)">' +
-              '<img data-rvfid="' + fidT + '" onclick="_pinZoomPhoto(\'' + fidT + '\')" title="Tap to view full size — zoom in to read the label" style="width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in" alt="">' +
-              '<button onclick="event.stopPropagation();_pinZoomPhoto(\'' + fidT + '\')" title="View full size" style="position:absolute;left:4px;bottom:4px;width:26px;height:26px;border-radius:7px;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:0.8rem;line-height:1;cursor:pointer;padding:0">🔍</button>' +
-              '<button onclick="event.stopPropagation();_pinCropPhoto(\'' + fidT + '\')" title="Crop / Rotate this photo" style="position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:7px;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:0.85rem;line-height:1;cursor:pointer;padding:0">✂</button>' +
-            '</div>';
-          }).join('') +
-        '</div>' +
-        '<input id="pin-rv-num" list="pin-rv-list" type="text" value="' + sug.replace(/"/g, '&quot;') + '" placeholder="Item number — e.g. 2343 or 6464-1" autocomplete="off" spellcheck="false" oninput="_pinReviewLookup(this.value)" style="width:100%;padding:0.55rem 0.75rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.95rem;margin-bottom:0.6rem">' +
-        '<datalist id="pin-rv-list">' + opts + '</datalist>' +
-        _pinAiLine() +
-        _pinAltChips() +
-        '<div id="pin-rv-info" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.7rem 0.8rem;margin-bottom:0.8rem;display:flex;flex-direction:column;gap:0.25rem"></div>' +
-        '<button id="pin-rv-add" onclick="_pinReviewAdd()" class="btn-primary" style="width:100%;padding:0.75rem;border-radius:10px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.95rem;cursor:pointer;margin-bottom:0.5rem">Add to My Collection</button>' +
-        '<div style="display:flex;gap:0.5rem;margin-bottom:0.5rem">' +
-          '<button onclick="_pinReviewResearch()" style="flex:1;padding:0.6rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer">Research Number</button>' +
-          '<button id="pin-rv-lens" onclick="_pinReviewLens()" style="flex:1;padding:0.6rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer">Research by Photo</button>' +
-        '</div>' +
-        '<button onclick="_pinReviewDiscard()" style="width:100%;padding:0.6rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer">Discard Photo' + (n > 1 ? 's' : '') + '</button>' +
+        (_wide
+          ? '<div style="display:flex;gap:1.1rem;align-items:stretch">' +
+              '<div style="flex:1 1 0;min-width:0;display:flex;flex-direction:column">' + _controlsHtml + '</div>' +
+              _panelHtml +
+            '</div>'
+          : _stripHtml + _controlsHtml
+        ) +
       '</div>';
     document.body.appendChild(ov);
     ov.querySelectorAll('img[data-rvfid]').forEach(function (img) {
       loadDriveThumb(img.getAttribute('data-rvfid'), img, img.parentElement);
     });
+    var _rvMainImg = document.getElementById('pin-rv-main');
+    if (_rvMainImg && window._pinRvLoadFull) window._pinRvLoadFull(_rvMainImg, _rvMainImg.getAttribute('data-rvbig'));
     _pinReviewLookup(sug);
   };
 
@@ -728,6 +766,26 @@
       msg.textContent = 'Could not load the full photo — ' + ((e && e.message) || 'try again');
       ov.appendChild(msg);
     }
+  };
+
+  // v0.9.913 (Brad): desktop split-view helpers. Load the big right-hand photo
+  // at full resolution (thumbnail first for an instant preview, then sharpen),
+  // and switch which photo is featured when a strip thumb is clicked.
+  window._pinRvLoadFull = async function (img, fid) {
+    if (!img || !fid) return;
+    try { if (typeof loadDriveThumb === 'function') loadDriveThumb(fid, img, img.parentElement); } catch (e) {}
+    try {
+      if (!_qcToken()) return;
+      var blob = await _pinBytes(fid);
+      var u = URL.createObjectURL(blob);
+      if (img.getAttribute('data-rvbig') === fid) img.src = u;   // still the current main
+    } catch (e) { /* keep the thumbnail */ }
+  };
+  window._pinRvSetMain = function (fid) {
+    var img = document.getElementById('pin-rv-main');
+    if (!img) return;
+    img.setAttribute('data-rvbig', fid);
+    window._pinRvLoadFull(img, fid);
   };
 
   // ── Crop / Rotate an inbox photo IN PLACE (v0.9.899, Brad) ───
