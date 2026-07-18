@@ -95,6 +95,7 @@ var _COLL_COLS = [
   { col: 'num',   label: 'Item #' },
   { col: 'var',   label: 'Var.', noSort: true },
   { col: 'type',  label: 'Type' },
+  { col: 'photo', label: 'Photo', noSort: true },   // v0.9.909 (Brad, item [4]): desktop thumbnail column
   { col: 'desc',  label: 'Description' },
   { col: 'worth', label: 'Est. Worth' },
   { col: 'added', label: 'Date Added' },   // v0.9.719/726 (Brad): sortable, AFTER Est. Worth
@@ -104,7 +105,8 @@ function _renderCollectionHeader() {
   if (!thead) return;
   var cs = state._collSort || {};
   var html = _COLL_COLS.map(function(c) {
-    var align = (c.col === 'worth' || c.col === 'var' || c.col === 'added') ? 'text-align:center;' : '';   // v0.9.727 (Brad): centered
+    var align = (c.col === 'worth' || c.col === 'var' || c.col === 'added' || c.col === 'photo') ? 'text-align:center;' : '';   // v0.9.727 (Brad): centered
+    if (c.col === 'photo') { return '<th style="white-space:nowrap;' + align + 'width:52px">' + c.label + '</th>'; }   // v0.9.909 (Brad, item [4])
     if (c.noSort) { return '<th style="white-space:nowrap;' + align + '">' + c.label + '</th>'; }
     var arrow = (cs.col === c.col) ? (cs.dir === 'desc' ? ' \u25BC' : ' \u25B2') : '';
     var _wsp = (c.col === 'worth') ? 'white-space:normal;' : 'white-space:nowrap;';
@@ -2977,6 +2979,7 @@ function renderBrowse() {
         </td>
         <td style="white-space:nowrap;text-align:center">${item.variation ? '<span style="font-size:0.78rem;color:var(--text-mid)">' + item.variation + '</span>' : '<span style="color:var(--text-dim)">—</span>'}</td>
         <td style="font-size:0.78rem;color:var(--text-dim)">${_typeText}</td>
+        <td style="width:52px;text-align:center;padding:2px 4px"><div id="thumb-${item.itemNum}-${item.variation||''}" style="width:44px;height:44px;border-radius:5px;background:var(--surface2);display:inline-flex;align-items:center;justify-content:center;overflow:hidden;vertical-align:middle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div></td>
         <td style="color:var(--text-mid);font-size:0.85rem" title="${(_descFull||'').replace(/"/g,'&quot;')}">${_descFull}</td>
         <td style="font-size:0.82rem;color:var(--gold);white-space:nowrap;text-align:center">${_estWorth}</td>
         <td style="font-size:0.76rem;color:var(--text-dim);white-space:nowrap;width:80px;text-align:center">${(function(){ var d = (pd && (pd.dateAdded || pd.datePurchased)) || ''; if (d) return (typeof _formatDate === 'function') ? _formatDate(d) : d; if (pd && pd._savedAt) { try { return new Date(pd._savedAt).toLocaleDateString(); } catch(e){} } return '—'; })()}</td>
