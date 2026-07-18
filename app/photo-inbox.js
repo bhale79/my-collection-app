@@ -335,8 +335,9 @@
             // v0.9.899 (Brad): ✂ on every photo — opens the same crop/rotate
             // tool Quick Capture uses; Apply replaces the Drive bytes in place.
             return '<div style="position:relative;flex-shrink:0;width:' + (i === 0 ? '160px;height:160px' : '74px;height:74px;align-self:flex-end') + ';border-radius:10px;overflow:hidden;background:var(--surface2,#26262e)">' +
-              '<img data-rvfid="' + fidT + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="">' +
-              '<button onclick="_pinCropPhoto(\'' + fidT + '\')" title="Crop / Rotate this photo" style="position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:7px;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:0.85rem;line-height:1;cursor:pointer;padding:0">✂</button>' +
+              '<img data-rvfid="' + fidT + '" onclick="_pinZoomPhoto(\'' + fidT + '\')" title="Tap to view full size — zoom in to read the label" style="width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in" alt="">' +
+              '<button onclick="event.stopPropagation();_pinZoomPhoto(\'' + fidT + '\')" title="View full size" style="position:absolute;left:4px;bottom:4px;width:26px;height:26px;border-radius:7px;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:0.8rem;line-height:1;cursor:pointer;padding:0">🔍</button>' +
+              '<button onclick="event.stopPropagation();_pinCropPhoto(\'' + fidT + '\')" title="Crop / Rotate this photo" style="position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:7px;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:0.85rem;line-height:1;cursor:pointer;padding:0">✂</button>' +
             '</div>';
           }).join('') +
         '</div>' +
@@ -682,6 +683,52 @@
     if (!r.ok) throw new Error('photo download ' + r.status);
     return await r.blob();
   }
+
+  // ── Full-size zoom (Brad): open the inbox photo at full resolution so you
+  // can read the box label and ID it yourself. Tap the image to toggle
+  // fit-to-screen vs. actual size (scroll/pan when zoomed); ✕ or tapping the
+  // backdrop closes. Fetches the real Drive bytes (not the small thumbnail).
+  window._pinZoomPhoto = async function (fileId) {
+    if (!_qcToken()) { showToast('Please sign in first', 3000, true); return; }
+    var old = document.getElementById('pin-zoom-ov'); if (old) old.remove();
+    var ov = document.createElement('div');
+    ov.id = 'pin-zoom-ov';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:100030;background:rgba(0,0,0,0.94);display:flex;align-items:center;justify-content:center;padding:0.5rem;-webkit-overflow-scrolling:touch';
+    ov.innerHTML = '<div style="color:#bbb;font-size:0.9rem;font-family:var(--font-body)">Loading full photo…</div>';
+    document.body.appendChild(ov);
+    var url = '';
+    var close = function () { try { if (url) URL.revokeObjectURL(url); } catch (e) {} try { ov.remove(); } catch (e2) {} if (window.BackStack) BackStack.pop('pin-zoom'); };
+    if (window.BackStack) BackStack.push('pin-zoom', function () { try { ov.remove(); } catch (e) {} });
+    var xBtn = document.createElement('button');
+    xBtn.textContent = '✕';
+    xBtn.style.cssText = 'position:fixed;top:12px;right:14px;z-index:2;background:rgba(0,0,0,0.55);border:none;color:#fff;font-size:1.6rem;line-height:1;cursor:pointer;border-radius:8px;padding:0.1rem 0.6rem';
+    xBtn.onclick = function (e) { e.stopPropagation(); close(); };
+    ov.appendChild(xBtn);
+    ov.onclick = function (e) { if (e.target === ov) close(); };
+    try {
+      var blob = await _pinBytes(fileId);
+      url = URL.createObjectURL(blob);
+      var img = document.createElement('img');
+      img.src = url;
+      img.alt = '';
+      img.title = 'Tap to zoom in / out';
+      var zoomed = false;
+      var fit = function () { ov.style.display = 'flex'; ov.style.overflow = 'hidden'; img.style.cssText = 'display:block;margin:auto;max-width:100%;max-height:100%;cursor:zoom-in'; };
+      var big = function () { ov.style.display = 'block'; ov.style.overflow = 'auto'; img.style.cssText = 'display:block;margin:0 auto;max-width:none;max-height:none;cursor:zoom-out'; };
+      img.onclick = function (e) { e.stopPropagation(); zoomed = !zoomed; if (zoomed) big(); else fit(); };
+      ov.innerHTML = '';
+      ov.appendChild(xBtn);
+      ov.appendChild(img);
+      fit();
+    } catch (e) {
+      ov.innerHTML = '';
+      ov.appendChild(xBtn);
+      var msg = document.createElement('div');
+      msg.style.cssText = 'color:#f88;font-family:var(--font-body);text-align:center;padding:1rem';
+      msg.textContent = 'Could not load the full photo — ' + ((e && e.message) || 'try again');
+      ov.appendChild(msg);
+    }
+  };
 
   // ── Crop / Rotate an inbox photo IN PLACE (v0.9.899, Brad) ───
   // Same tool + same replace-the-Drive-bytes pattern Quick Capture uses
