@@ -1385,3 +1385,24 @@ button[style*="#e74c3c"] {
 html[data-theme="high-contrast"] button[style*="#e74c3c"] {
   border-color:#ffffff !important; color:#ffb000 !important; background:#000000 !important;
 }
+
+/* v0.9.908 (Brad, item [8]): detail-page photos — on wider screens show them
+   bigger and at their natural shape instead of cropping to a square. Mobile
+   keeps the compact square grid (inline styles); this only overrides >=700px. */
+@media (min-width: 700px) {
+  #ni-detail-photos,
+  #item-detail-photos {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)) !important;
+    align-items: start;
+  }
+  #ni-detail-photos a[href],
+  #item-detail-photos a[href] {
+    aspect-ratio: auto !important;
+  }
+  #ni-detail-photos a[href] img,
+  #item-detail-photos a[href] img {
+    height: auto !important;
+    max-height: 70vh;
+    object-fit: contain !important;
+  }
+}
