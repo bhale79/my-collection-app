@@ -20,9 +20,9 @@
   <link rel="manifest" href="manifest.json">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>The Rail Roster — Postwar Train Collection Tracker</title>
-<link rel="stylesheet" href="./app.css?v=909">
-<link rel="stylesheet" href="./tutorial.css?v=909">
-<link rel="stylesheet" href="./vault-styles.css?v=909">
+<link rel="stylesheet" href="./app.css?v=910">
+<link rel="stylesheet" href="./tutorial.css?v=910">
+<link rel="stylesheet" href="./vault-styles.css?v=910">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
 </head>
 <body>
@@ -353,6 +353,8 @@ document.addEventListener('touchmove', function(){}, {passive: true});
         <div class="page-title" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem">
           <span>Items For Sale<span id="forsale-title-stats" style="font-size:0.85rem;color:var(--text-dim);font-weight:400;margin-left:0.6rem"></span></span>
           <div style="display:flex;gap:0.5rem">
+            <!-- v0.9.910 (Brad, item [5]): dedicated button to pick a few items and share them with a friend (enters the existing selective share-mode). -->
+            <button onclick="if(typeof startShareMode==='function')startShareMode('forsale')" title="Pick a few items and send them to a friend" style="display:flex;align-items:center;gap:0.35rem;font-size:0.78rem;padding:0.4rem 0.7rem;border-radius:7px;border:1.5px solid #2980b9;background:rgba(41,128,185,0.12);color:#2980b9;font-family:var(--font-body);font-weight:600;cursor:pointer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Share to a friend</button>
             <button onclick="if(typeof openSalesShareModal==='function')openSalesShareModal()" style="display:flex;align-items:center;gap:0.35rem;font-size:0.78rem;padding:0.4rem 0.7rem;border-radius:7px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600;cursor:pointer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>Share / Customers</button>
           </div>
         </div>
@@ -682,67 +684,67 @@ document.addEventListener('touchmove', function(){}, {passive: true});
 <!-- identify-modal is built dynamically by wizard.js -->
 </div>
 
-<script src="./config.js?v=909"></script>
-<script src="./cott-anchors.js?v=909"></script>
-<script src="./type-groups.js?v=909"></script>
-<script src="./back-stack.js?v=909"></script>
-<script src="./road-typeahead.js?v=909"></script>
-<script src="./a11y-config.js?v=909"></script>
-<script src="./a11y.js?v=909"></script>
-<script src="./wizard-utils.js?v=909"></script>
-<script src="./app.js?v=909"></script>
-<script src="./sheets.js?v=909"></script>
-<script src="./drive.js?v=909"></script>
-<script src="./backup.js?v=909"></script>
-<script src="./browse.js?v=909"></script>
-<script src="./dashboard.js?v=909"></script>
-<script src="./sheet-builder.js?v=909"></script>
+<script src="./config.js?v=910"></script>
+<script src="./cott-anchors.js?v=910"></script>
+<script src="./type-groups.js?v=910"></script>
+<script src="./back-stack.js?v=910"></script>
+<script src="./road-typeahead.js?v=910"></script>
+<script src="./a11y-config.js?v=910"></script>
+<script src="./a11y.js?v=910"></script>
+<script src="./wizard-utils.js?v=910"></script>
+<script src="./app.js?v=910"></script>
+<script src="./sheets.js?v=910"></script>
+<script src="./drive.js?v=910"></script>
+<script src="./backup.js?v=910"></script>
+<script src="./browse.js?v=910"></script>
+<script src="./dashboard.js?v=910"></script>
+<script src="./sheet-builder.js?v=910"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="./wizard-pdlookup.js?v=909"></script>
-<script src="./wizard-suggestions.js?v=909"></script>
-<script src="./wizard-steps.js?v=909"></script>
-<script src="./wizard.js?v=909"></script>
-<script src="./wizard-photos.js?v=909"></script>
-<script src="./photo-crop.js?v=909"></script>
-<script src="./variation-picker.js?v=909"></script>
-<script src="./wizard-pickers.js?v=909"></script>
-<script src="./wizard-handlers.js?v=909"></script>
-<script src="./wizard-quickentry.js?v=909"></script>
-<script src="./wizard-save.js?v=909"></script>
-<script src="./app-misc.js?v=909"></script>
-<script src="./app-auth.js?v=909"></script>
-<script src="./app-setup.js?v=909"></script>
-<script src="./app-data.js?v=909"></script>
-<script src="./app-pages.js?v=909"></script>
-<script src="./app-collection.js?v=909"></script>
-<script src="./barcode.js?v=909"></script>
-<script src="./tutorial.js?v=909"></script>
-<script src="./tutorial-gifs-config.js?v=909"></script>
-<script src="./migration-config.js?v=909"></script>
-<script src="./migration-ui.js?v=909"></script>
-<script src="./onboarding-config.js?v=909"></script>
-<script src="./gmail-help.js?v=909"></script>
-<script src="./onboarding.js?v=909"></script>
-<script src="./vault.js?v=909"></script>
-<script src="./research.js?v=909"></script>
-<script src="./ai-id.js?v=909"></script>
-<script src="./era-badges-config.js?v=909"></script>
-<script src="./era-badges.js?v=909"></script>
-<script src="./catalog-display-config.js?v=909"></script>
-<script src="./non-item-detail-config.js?v=909"></script>
-<script src="./item-search-filters-config.js?v=909"></script>
-<script src="./insurance-config.js?v=909"></script>
-<script src="./reports.js?v=909"></script>
-<script src="./report-export.js?v=909"></script>
-<script src="./report-library.js?v=909"></script>
-<script src="./prefs.js?v=909"></script>
-<script src="./tools.js?v=909"></script>
-    <script src="./contacts.js?v=909"></script>  <!-- contacts hook -->
+<script src="./wizard-pdlookup.js?v=910"></script>
+<script src="./wizard-suggestions.js?v=910"></script>
+<script src="./wizard-steps.js?v=910"></script>
+<script src="./wizard.js?v=910"></script>
+<script src="./wizard-photos.js?v=910"></script>
+<script src="./photo-crop.js?v=910"></script>
+<script src="./variation-picker.js?v=910"></script>
+<script src="./wizard-pickers.js?v=910"></script>
+<script src="./wizard-handlers.js?v=910"></script>
+<script src="./wizard-quickentry.js?v=910"></script>
+<script src="./wizard-save.js?v=910"></script>
+<script src="./app-misc.js?v=910"></script>
+<script src="./app-auth.js?v=910"></script>
+<script src="./app-setup.js?v=910"></script>
+<script src="./app-data.js?v=910"></script>
+<script src="./app-pages.js?v=910"></script>
+<script src="./app-collection.js?v=910"></script>
+<script src="./barcode.js?v=910"></script>
+<script src="./tutorial.js?v=910"></script>
+<script src="./tutorial-gifs-config.js?v=910"></script>
+<script src="./migration-config.js?v=910"></script>
+<script src="./migration-ui.js?v=910"></script>
+<script src="./onboarding-config.js?v=910"></script>
+<script src="./gmail-help.js?v=910"></script>
+<script src="./onboarding.js?v=910"></script>
+<script src="./vault.js?v=910"></script>
+<script src="./research.js?v=910"></script>
+<script src="./ai-id.js?v=910"></script>
+<script src="./era-badges-config.js?v=910"></script>
+<script src="./era-badges.js?v=910"></script>
+<script src="./catalog-display-config.js?v=910"></script>
+<script src="./non-item-detail-config.js?v=910"></script>
+<script src="./item-search-filters-config.js?v=910"></script>
+<script src="./insurance-config.js?v=910"></script>
+<script src="./reports.js?v=910"></script>
+<script src="./report-export.js?v=910"></script>
+<script src="./report-library.js?v=910"></script>
+<script src="./prefs.js?v=910"></script>
+<script src="./tools.js?v=910"></script>
+    <script src="./contacts.js?v=910"></script>  <!-- contacts hook -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
-<script src="./share.js?v=909"></script>
-<script src="./sell.js?v=909"></script>
-<script src="./photo-inbox.js?v=909"></script>  <!-- Photo Inbox (Lazy Mode Phase 1) — delete this ONE line to remove the feature -->
+<script src="./share.js?v=910"></script>
+<script src="./sell.js?v=910"></script>
+<script src="./photo-inbox.js?v=910"></script>  <!-- Photo Inbox (Lazy Mode Phase 1) — delete this ONE line to remove the feature -->
 
 
 <script>
