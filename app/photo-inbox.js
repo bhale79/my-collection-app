@@ -465,7 +465,10 @@
       var file = new File([blob], 'inbox-photo.jpg', { type: blob.type || 'image/jpeg' });
       var staged = await driveStageLensPhoto(file);
       setTimeout(function () { try { driveCleanupLensStaging(staged.id); } catch (e) {} }, 10 * 60 * 1000);
-      var q = 'What model train item is this? Answer with labeled lines: Manufacturer:, Manufacturer SKU or catalog number:, Description:, Year manufactured:. Prefer the manufacturer catalog SKU, not the cab number printed on the model.';
+      // v0.9.916 (Brad, brainstorm #2): catalog-aware — a photo here may be a
+      // train, a box/label, an accessory/building, OR a paper item (catalog,
+      // poster, instruction sheet). Mirrors the wizard's adaptive Lens prompt.
+      var q = 'Identify this model railroad item — it may be a train, a box or box-end label, an accessory or building, OR a paper item such as a catalog, poster, brochure, or instruction sheet. Answer with labeled lines: Manufacturer:, Manufacturer SKU or catalog number (the product/catalog code, NOT a cab or road number painted on a model):, Description (one line):, Year manufactured or published:. If it is a catalog, poster, or other paper item, also give: Title:, Form or part number printed on it:. Prefer the manufacturer catalog SKU. Cite sources like Trainz, train-station.com, lionelsupport.com, postwarlionel.com, or manufacturer catalogs.';
       var url = 'https://www.google.com/searchbyimage?image_url=' + encodeURIComponent(staged.url) + '&q=' + encodeURIComponent(q);
       if (tab) { try { tab.location = url; } catch (e) { tab = null; } }
       if (!tab) window.open(url, '_blank');
