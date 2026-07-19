@@ -3825,9 +3825,9 @@ async function _savePartInstalled(rowNum) {
   try {
     var sheetId = state.personalSheetId;
     if (pd.row && pd.row !== 99999 && typeof personalColLetter === 'function') {
-      await sheetsUpdate(sheetId, 'My Collection!' + personalColLetter('notes') + pd.row, [[newNotes]]);
+      await sheetsUpdate(sheetId, PERSONAL_TAB + '!' + personalColLetter('notes') + pd.row, [[newNotes]]);
       if (orig && orig !== pd.allOriginal) {
-        await sheetsUpdate(sheetId, 'My Collection!' + personalColLetter('allOriginal') + pd.row, [[orig]]);
+        await sheetsUpdate(sheetId, PERSONAL_TAB + '!' + personalColLetter('allOriginal') + pd.row, [[orig]]);
       }
     }
     pd.notes = newNotes;

@@ -106,7 +106,7 @@ function personalBlankRow() {
 // Full-row range like "My Collection!A123:AD123"
 function personalFullRowRange(rowNum) {
   const lastCol = personalColLetter(PERSONAL_SCHEMA[PERSONAL_SCHEMA.length - 1].field);
-  return 'My Collection!A' + rowNum + ':' + lastCol + rowNum;
+  return PERSONAL_TAB + '!A' + rowNum + ':' + lastCol + rowNum;
 }
 
 // Master-description helpers (Session 156). Look up description/varDesc from

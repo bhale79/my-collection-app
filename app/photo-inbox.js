@@ -686,7 +686,7 @@
         var pd = lk.ownedPd;
         if (!pd.photoItem && pd.row && typeof sheetsUpdate === 'function' && typeof personalColLetter === 'function' && window.state.personalSheetId) {
           pd.photoItem = link;
-          try { await sheetsUpdate(state.personalSheetId, 'My Collection!' + personalColLetter('photoItem') + pd.row, [[link]]); } catch (eUp) { console.warn('[Inbox] photo link write:', eUp); }
+          try { await sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('photoItem') + pd.row, [[link]]); } catch (eUp) { console.warn('[Inbox] photo link write:', eUp); }
         }
         showToast('Attached ' + moved + ' photo' + (moved > 1 ? 's' : '') + ' to ' + num, 3000);
         _pinRefresh();
@@ -788,7 +788,7 @@
         }
         if (pd.row && !pd.photoItem && link && typeof sheetsUpdate === 'function' && typeof personalColLetter === 'function' && state.personalSheetId) {
           pd.photoItem = link;
-          try { await sheetsUpdate(state.personalSheetId, 'My Collection!' + personalColLetter('photoItem') + pd.row, [[link]]); } catch (eUp) { console.warn('[Inbox] pending link write:', eUp); }
+          try { await sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('photoItem') + pd.row, [[link]]); } catch (eUp) { console.warn('[Inbox] pending link write:', eUp); }
         }
         try { var p2 = JSON.parse(localStorage.getItem(PENDING_KEY) || '{}'); delete p2[num]; localStorage.setItem(PENDING_KEY, JSON.stringify(p2)); } catch (eD) {}
         try { _pinRefresh(); } catch (eR) {}

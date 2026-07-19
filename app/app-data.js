@@ -1023,7 +1023,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // Secondary tabs (8) are loaded after primary commits state so UI renders
   // faster. Total wait time drops from max-of-13-fetches to max-of-5.
   const [collRes, soldRes, forSaleRes, wishlistRes] = await Promise.all([
-    sheetsGet(sheetId, 'My Collection!A3:AF').catch((e) => { console.warn('[My Collection load failed]', e && e.message); return {values:[], _failed:true}; }),
+    sheetsGet(sheetId, PERSONAL_TAB + '!A3:AF').catch((e) => { console.warn('[My Collection load failed]', e && e.message); return {values:[], _failed:true}; }),
     sheetsGet(sheetId, 'Sold!A3:T').catch((e) => { console.warn('[Sold load failed]', e && e.message); return {values:[], _failed:true}; }),
     sheetsGet(sheetId, 'For Sale!A3:J').catch((e) => { console.warn('[For Sale load failed]', e && e.message); return {values:[], _failed:true}; }),
     sheetsGet(sheetId, 'Want-Upgrade List!A3:I').catch((e) => { console.warn('[Want-Upgrade load failed]', e && e.message); return {values:[], _failed:true}; }),

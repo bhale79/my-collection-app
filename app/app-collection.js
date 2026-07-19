@@ -1363,7 +1363,7 @@ async function _healPdRow(pd) {
   if (!pd.inventoryId || typeof sheetsGet !== 'function') return pd;
   var col = (typeof personalColLetter === 'function') ? personalColLetter('inventoryId') : null;
   if (!col) return pd;
-  var res = await sheetsGet(state.personalSheetId, 'My Collection!' + col + '3:' + col);
+  var res = await sheetsGet(state.personalSheetId, PERSONAL_TAB + '!' + col + '3:' + col);
   var vals = (res && res.values) || [];
   for (var i = 0; i < vals.length; i++) {
     if (String((vals[i] || [])[0] || '').trim() === String(pd.inventoryId).trim()) {
@@ -1539,7 +1539,7 @@ async function openPhotoFolder(itemNum, storedLink) {
     });
     if (_pfKey && state.personalData[_pfKey].row) {
       state.personalData[_pfKey].photoItem = freshLink;
-      sheetsUpdate(state.personalSheetId, 'My Collection!' + personalColLetter('photoItem') + state.personalData[_pfKey].row, [[freshLink]]).catch(function(e) { console.warn('Photo link update:', e); });
+      sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('photoItem') + state.personalData[_pfKey].row, [[freshLink]]).catch(function(e) { console.warn('Photo link update:', e); });
     }
   } catch(e) { showToast('Could not open Drive folder: ' + e.message); }
 }
@@ -2009,7 +2009,7 @@ async function _breakUpGroup(pdKey) {
   });
   for (var i = 0; i < pdKeys.length; i++){
     var p = state.personalData[pdKeys[i]];
-    if (p) { p.groupId = ''; if (p.row && p.row !== 99999) { try { await sheetsUpdate(state.personalSheetId, 'My Collection!' + personalColLetter('groupId') + p.row, [['']]); } catch(e){} } }
+    if (p) { p.groupId = ''; if (p.row && p.row !== 99999) { try { await sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('groupId') + p.row, [['']]); } catch(e){} } }
   }
   var isKeys = [];
   Object.entries(state.isData || {}).forEach(function(e){ if (e[1] && e[1].groupId === gid) isKeys.push(e[0]); });
@@ -2090,7 +2090,7 @@ async function removeCollectionItem(itemNum, variation, row, invId) {
         var sibKey = sib.inventoryId || findPDKeyByRow(sib.itemNum, sib.variation, sib.row);
         if (sib.row && sib.row !== 99999) {
           try {
-            await sheetsDeleteRow(state.personalSheetId, 'My Collection', sib.row);
+            await sheetsDeleteRow(state.personalSheetId, PERSONAL_TAB, sib.row);
             _adjustRowsAfterDelete(state.personalData, sib.row);
           } catch(e) { console.warn('Remove group row error:', sib.itemNum, e); }
         }
@@ -2145,7 +2145,7 @@ async function removeCollectionItem(itemNum, variation, row, invId) {
   var _delRow = thisPd ? thisPd.row : row;
   if (_delRow && _delRow !== 99999) {
     try {
-      await sheetsDeleteRow(state.personalSheetId, 'My Collection', _delRow);
+      await sheetsDeleteRow(state.personalSheetId, PERSONAL_TAB, _delRow);
     } catch(e) { console.error('Remove row error:', e); showToast('Error removing item — please try again', 3000, true); return; }
   }
   // Phase 3: also remove from For Sale + Upgrade if listed — look up by THIS
@@ -3649,7 +3649,7 @@ async function saveItem() {
     if (existing && existing.row) {
       await sheetsUpdate(state.personalSheetId, personalFullRowRange(existing.row), [ownedRow]);
     } else {
-      await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [ownedRow]);
+      await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [ownedRow]);
     }
     // Session 176: do NOT clear Sold rows when re-owning — Sold is now a
     // permanent sale history (each past sale stays as its own record).

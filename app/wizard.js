@@ -555,7 +555,7 @@ async function _confirmSetCancel() {
       try {
         const pd = state.personalData[key];
         if (pd && pd.row) {
-          await sheetsDeleteRow(state.personalSheetId, 'My Collection', pd.row);
+          await sheetsDeleteRow(state.personalSheetId, PERSONAL_TAB, pd.row);
         }
         delete state.personalData[key];
       } catch(e) { console.warn('Error deleting set item:', e); }

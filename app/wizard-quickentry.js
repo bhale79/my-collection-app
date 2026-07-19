@@ -195,7 +195,7 @@ async function quickEntryAdd() {
       const _qeEra = (typeof _currentEra !== 'undefined' ? _currentEra : '');
       const _qeMfr = ((typeof _brandOfItem === 'function' && _brandOfItem(r.itemNum)) || (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : ''));
       const row = [r.itemNum, r.variation, r.condition||'','','','','','','',(isLead ? _qePhotoLink : ''),'', r.notes,'',(isLead ? _qeEstWorth : ''),r.matchedTo,r.setId,'','','','Yes', invId, r.groupId||'', '', _qeEra, _qeMfr];
-      const actualRow = await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
+      const actualRow = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [row]);
       state.personalData[invId] = {
         row: actualRow, itemNum: r.itemNum, variation: r.variation,
         status: 'Owned', owned: true,

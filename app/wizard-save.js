@@ -170,7 +170,7 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
     });
 
     try {
-      const actualRow = await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
+      const actualRow = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [row]);
       state.personalData[invId] = {
         row: actualRow, itemNum, variation, condition: String(condition),
         allOriginal: '', priceItem: isEngine ? worth : '', priceBox: '',
@@ -472,7 +472,7 @@ async function saveInstructionSheet() {
     groupId: resolvedGroupId || '',
   });
   try {
-    const _apRowIS = await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
+    const _apRowIS = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [row]);
     state.personalData[isStandaloneInvId] = {
       row: _apRowIS || 99999, itemNum: _isItemNum, variation: '',
       status: 'Owned', owned: true,
@@ -726,7 +726,7 @@ async function savePhotoOnlyUpdate() {
   if (folderLink && pd.row) {
     // Write folder link to col J (index 9) of the existing row
     try {
-      await sheetsUpdate(state.personalSheetId, 'My Collection!' + personalColLetter('photoItem') + pd.row, [[folderLink]]);
+      await sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('photoItem') + pd.row, [[folderLink]]);
       pd.photoItem = folderLink;
       // v0.9.697: without this, the 2-hour personal-data cache reloads WITHOUT
       // the new photo link — "saved" data vanished on next app load (Brad).
@@ -863,7 +863,7 @@ async function _saveManualEntry() {
     customName: customName,
   });
 
-  const _apRow = await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
+  const _apRow = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [row]);
 
   // Optimistic state update — v0.9.695: record the ACTUAL row (the fake 99999
   // made every later update on this item fail with a Sheets "exceeds grid
@@ -1121,11 +1121,11 @@ async function saveWizardItem() {
                 // post-Session-156 layout (AA and AB happen to be adjacent —
                 // safe to combine — but be defensive in case schema changes).
                 sheetsUpdate(state.personalSheetId,
-                  'My Collection!' + _invCol + existingItem.row + ':' + _invCol + existingItem.row,
+                  PERSONAL_TAB + '!' + _invCol + existingItem.row + ':' + _invCol + existingItem.row,
                   [[existingInvId]])
                   .catch(e => console.warn('Inventory ID backfill:', e));
                 sheetsUpdate(state.personalSheetId,
-                  'My Collection!' + _grpCol + existingItem.row + ':' + _grpCol + existingItem.row,
+                  PERSONAL_TAB + '!' + _grpCol + existingItem.row + ':' + _grpCol + existingItem.row,
                   [[boxGroupId]])
                   .catch(e => console.warn('Group ID backfill:', e));
               }
@@ -1161,7 +1161,7 @@ async function saveWizardItem() {
           // Update existing BOX row
           await sheetsUpdate(state.personalSheetId, personalFullRowRange(existing.row), [boxRow]);
         } else {
-          await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [boxRow]);
+          await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [boxRow]);
         }
 
         // Optimistic state update
@@ -1276,7 +1276,7 @@ async function saveWizardItem() {
       era: _resolveSaveEra(),
       manufacturer: _getEraManufacturer(),
     });
-    await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u2Row]);
+    await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [u2Row]);
 
     // Unit 3 (ABA second A unit)
     if (d.setType === 'ABA') {
@@ -1302,7 +1302,7 @@ async function saveWizardItem() {
         era: _resolveSaveEra(),
         manufacturer: _getEraManufacturer(),
       });
-      await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u3Row]);
+      await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [u3Row]);
       // Update u2Row matchedTo to also reference u3Num
 
     }
@@ -1320,7 +1320,7 @@ async function saveWizardItem() {
       pd.itemNum === (itemNum.endsWith('C') ? itemNum.slice(0,-1) : itemNum+'C')
     );
     if (existingUnit && existingUnit.row && !existingUnit.setId) {
-      sheetsUpdate(state.personalSheetId, 'My Collection!' + personalColLetter('setId') + existingUnit.row, [[d._setId]])
+      sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('setId') + existingUnit.row, [[d._setId]])
         .catch(e => console.warn('Set ID backfill:', e));
     }
   }
@@ -1355,7 +1355,7 @@ async function saveWizardItem() {
       era: _resolveSaveEra(),
       manufacturer: _getEraManufacturer(),
     });
-    await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [tRow]);
+    await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [tRow]);
     // Update engine row matchedTo to point to tender
     row[PERSONAL_FIELD_INDEX.matchedTo] = tNum;
   }
@@ -1366,7 +1366,7 @@ async function saveWizardItem() {
     const matchedEntry = Object.values(state.personalData).find(pd => pd.itemNum === matchedNum);
     if (matchedEntry && matchedEntry.row) {
       // Update col O (index 14) of the matched row
-      sheetsUpdate(state.personalSheetId, 'My Collection!' + personalColLetter('matchedTo') + matchedEntry.row, [[itemNum]]).catch(e => console.warn('Cross-link update:', e));
+      sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('matchedTo') + matchedEntry.row, [[itemNum]]).catch(e => console.warn('Cross-link update:', e));
       matchedEntry.matchedTo = itemNum;
     }
   }
@@ -1376,7 +1376,7 @@ async function saveWizardItem() {
         await sheetsUpdate(state.personalSheetId, personalFullRowRange(existing.row), [row]);
       } else {
         // Always append for a plain new collection add — never overwrite existing rows
-        await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [row]);
+        await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [row]);
       }
 
       // Session 115: general "adopt candidates into the group" block.
@@ -1414,7 +1414,7 @@ async function saveWizardItem() {
               sheetsUpdate(state.personalSheetId, `Instruction Sheets!H${pdRow.row}`, [[groupId]])
                 .catch(function(e) { console.warn('Auto-group IS backfill for ' + c.itemNum + ':', e); });
             } else {
-              sheetsUpdate(state.personalSheetId, 'My Collection!' + personalColLetter('groupId') + pdRow.row, [[groupId]])
+              sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('groupId') + pdRow.row, [[groupId]])
                 .catch(function(e) { console.warn('Auto-group backfill for ' + c.itemNum + ':', e); });
             }
           }
@@ -1484,7 +1484,7 @@ async function saveWizardItem() {
             // the box, and selling the item later stranded it as an orphan -BOX
             // row. Other companions (tender, A/B unit, IS) still ungroup.
             if (/-BOX$|-MBOX$/i.test(String(_up.itemNum || ''))) continue;
-            if (_up.row && _up.row !== 99999) { try { await sheetsUpdate(state.personalSheetId, 'My Collection!' + personalColLetter('groupId') + _up.row, [['']]); } catch(e){} }
+            if (_up.row && _up.row !== 99999) { try { await sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('groupId') + _up.row, [['']]); } catch(e){} }
             _up.groupId = '';
           }
         }
@@ -1545,7 +1545,7 @@ async function saveWizardItem() {
             // right column (currently AB).
             try {
               var _gcUngroup = personalColLetter('groupId');
-              await sheetsUpdate(state.personalSheetId, 'My Collection!' + _gcUngroup + _up.row, [['']]);
+              await sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + _gcUngroup + _up.row, [['']]);
             } catch(e){}
             if (_up) _up.groupId='';
           }
@@ -1565,7 +1565,7 @@ async function saveWizardItem() {
       }
       // Delete the row from My Collection
       if (collectionEntry?.row) {
-        await sheetsDeleteRow(state.personalSheetId, 'My Collection', collectionEntry.row);
+        await sheetsDeleteRow(state.personalSheetId, PERSONAL_TAB, collectionEntry.row);
       }
       // Session 176: drop the sold item from state right away so Items-I-Own and the
       // collection list update immediately (don't wait for the background reload).
@@ -1704,7 +1704,7 @@ async function saveWizardItem() {
           const _bxVar = d.boxVariation || '';
           const _bxDesc = d.boxVariationDesc || '';
           const u1BoxRow = _buildGroupBoxRow(itemNum, d.boxCond || row[PERSONAL_FIELD_INDEX.boxCond], boxPhotos[0] || row[PERSONAL_FIELD_INDEX.photoBox] || '', groupId, d.datePurchased, itemNum, _bxVar, _bxDesc);
-          await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u1BoxRow]);
+          await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [u1BoxRow]);
           var _bxNote = 'Box for ' + itemNum;
           if (_bxDesc) _bxNote += ' — ' + _bxDesc;
           state.personalData[u1BoxRow[20]] = {
@@ -1720,7 +1720,7 @@ async function saveWizardItem() {
         if (isSetSave && d.unit2HasBox === 'Yes' && d.unit2ItemNum) {
           const u2Num = (d.unit2ItemNum || '').trim();
           const u2BoxRow = _buildGroupBoxRow(u2Num, d.unit2BoxCond || '', '', groupId, d.datePurchased, itemNum);
-          await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u2BoxRow]);
+          await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [u2BoxRow]);
           state.personalData[u2BoxRow[20]] = {
             row: 99999, itemNum: u2Num + '-BOX', variation: '',
             status: 'Owned', owned: true,
@@ -1734,7 +1734,7 @@ async function saveWizardItem() {
         if (isSetSave && d.setType === 'ABA' && d.unit3HasBox === 'Yes') {
           const u3Num = _pdSuffix((d.unit3ItemNum || _rawItemNum).trim(), d.unit3Power);
           const u3BoxRow = _buildGroupBoxRow(u3Num, d.unit3BoxCond || '', '', groupId, d.datePurchased, itemNum);
-          await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [u3BoxRow]);
+          await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [u3BoxRow]);
           state.personalData[u3BoxRow[20]] = {
             row: 99999, itemNum: u3Num + '-BOX', variation: '',
             status: 'Owned', owned: true,
@@ -1748,7 +1748,7 @@ async function saveWizardItem() {
         if (isPairedSave && d.tenderHasBox === 'Yes') {
           const tNum = d.tenderMatch.trim();
           const tBoxRow = _buildGroupBoxRow(tNum, d.tenderBoxCond || '', '', groupId, d.datePurchased, itemNum);
-          await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [tBoxRow]);
+          await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [tBoxRow]);
           state.personalData[tBoxRow[20]] = {
             row: 99999, itemNum: tNum + '-BOX', variation: '',
             status: 'Owned', owned: true,
@@ -1800,7 +1800,7 @@ async function saveWizardItem() {
           inventoryId: isInvId,
           groupId: groupId,
         });
-        await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [isRow]);
+        await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [isRow]);
         state.personalData[isInvId] = {
           row: 99999, itemNum: _isItemNum, variation: '',
           status: 'Owned', owned: true,
@@ -1847,7 +1847,7 @@ async function saveWizardItem() {
           era: _resolveSaveEra(),
           manufacturer: _getEraManufacturer(),
         });
-        await sheetsAppend(state.personalSheetId, 'My Collection!A:A', [mbRow]);
+        await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [mbRow]);
         // Add to local state
         state.personalData[mbInvId] = {
           row: 99999, itemNum: mbItemNum, variation: '',

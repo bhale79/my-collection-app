@@ -3,7 +3,15 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.917';
+const APP_VERSION = 'v0.9.918';
+
+// v0.9.918 (Brad): SINGLE SOURCE OF TRUTH for the personal sheet's collection
+// tab name. Every sheet read/write range ("My Collection!D12") builds from
+// this constant — never hardcode the tab name in a range string again.
+// (sheet-builder.js, which CREATES the tab, intentionally keeps its own
+// literal list — renaming the tab would also require migrating user sheets.)
+const PERSONAL_TAB = 'My Collection';
+if (typeof window !== 'undefined') window.PERSONAL_TAB = PERSONAL_TAB;
 
 // v0.9.699 (Brad's phantom-touch desktop): ONE authoritative "is this actually
 // a phone/tablet?" flag. Touch detection LIES on Windows PCs (pen/driver
@@ -326,3 +334,37 @@ const _RSV_PLACEHOLDER_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHgA
     note('promise', e && e.reason, true);          // our own rejected promises
   });
 })();
+
+// ── v0.9.918 (Brad): deploy lockstep self-check ────────────────────────────
+// The deploy version lives in 3 places that must move together: APP_VERSION
+// (here), CACHE_NAME (sw.js), and the ?v= marks in index.html. Deploys are
+// scripted, but if a hand edit ever bumps one without the others, this quietly
+// detects it and warns (console + toast) instead of users silently getting
+// stale code. Runs once, 8s after load, never blocks anything.
+if (typeof window !== 'undefined') setTimeout(function () {
+  try {
+    var probs = [];
+    // Check 1: APP_VERSION build number vs the page's ?v= script marks.
+    var bm = String(APP_VERSION || '').match(/(\d+)$/);
+    var build = bm ? bm[1] : '';
+    var sc = document.querySelector('script[src*="app.js?v="]');
+    var vm = sc && sc.src.match(/v=(\d+)/);
+    var pageV = vm ? vm[1] : '';
+    if (build && pageV && build !== pageV) probs.push('APP_VERSION (' + build + ') vs index.html ?v= (' + pageV + ')');
+    // Check 2: if APP_VERSION changed since last visit, CACHE_NAME must have too.
+    fetch('./sw.js', { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (txt) {
+      var cm = txt.match(/CACHE_NAME\s*=\s*'([^']+)'/);
+      var cache = cm ? cm[1] : '';
+      var last = {};
+      try { last = JSON.parse(localStorage.getItem('rr_ver_check') || '{}'); } catch (e) {}
+      if (cache && last.app && last.app !== APP_VERSION && last.cache === cache) {
+        probs.push('APP_VERSION changed (' + last.app + ' -> ' + APP_VERSION + ') but CACHE_NAME did not (' + cache + ')');
+      }
+      try { localStorage.setItem('rr_ver_check', JSON.stringify({ app: APP_VERSION, cache: cache })); } catch (e) {}
+      if (probs.length) {
+        console.warn('[version check] DEPLOY MISMATCH:', probs.join(' | '));
+        if (typeof showToast === 'function') showToast('⚠ Deploy version mismatch — tell Claude: ' + probs[0], 8000, true);
+      }
+    }).catch(function () { /* offline — skip */ });
+  } catch (e) { /* never break the app over a self-check */ }
+}, 8000);

@@ -245,7 +245,7 @@ async function confirmGroupItems(idx) {
       // column regardless of future schema changes.
       var _grpCol = (typeof personalColLetter === 'function') ? personalColLetter('groupId') : 'AB';
       await sheetsUpdate(state.personalSheetId,
-        'My Collection!' + _grpCol + pd.row + ':' + _grpCol + pd.row,
+        PERSONAL_TAB + '!' + _grpCol + pd.row + ':' + _grpCol + pd.row,
         [[groupId]]);
       // Update in-memory state
       var pdKey = findPDKey(pd.itemNum, pd.variation);
@@ -500,7 +500,7 @@ async function toolCreateSet(idx) {
         // P is hasBox. Use personalColLetter('setId') for the right column.
         var _sidCol = (typeof personalColLetter === 'function') ? personalColLetter('setId') : 'V';
         await sheetsUpdate(state.personalSheetId,
-          'My Collection!' + _sidCol + pd.row + ':' + _sidCol + pd.row,
+          PERSONAL_TAB + '!' + _sidCol + pd.row + ':' + _sidCol + pd.row,
           [[setIdStr]]);
         // Update in-memory state
         var pdKey = findPDKey(pd.itemNum, pd.variation);
