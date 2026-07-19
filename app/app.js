@@ -7,9 +7,8 @@ const CLIENT_ID = '161569968813-vrhet7p68vkthkunare60nqr34li5uuh.apps.googleuser
 // whole library — only what the user picks in Google's own window).
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/photospicker.mediaitems.readonly';
 const API_KEY = ''; // Set your Google Cloud API key in settings if needed
-// Gemini Vision API key — get a free key at https://aistudio.google.com/app/apikey
-// Paste your key here to enable photo-based item identification
-var GEMINI_KEY = localStorage.getItem('lv_gemini_key') || '';
+// v0.9.917: dead GEMINI_KEY removed — photo ID goes through the vault relay
+// (ai-id.js); the key lives server-side and never ships to the client.
 // Sheet name is dynamic — built from user's first name at sign-in
 function _getPersonalSheetName() {
   const firstName = (state.user?.name || '').split(' ')[0] || 'My';

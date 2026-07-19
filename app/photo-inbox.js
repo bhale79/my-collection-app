@@ -465,10 +465,11 @@
       var file = new File([blob], 'inbox-photo.jpg', { type: blob.type || 'image/jpeg' });
       var staged = await driveStageLensPhoto(file);
       setTimeout(function () { try { driveCleanupLensStaging(staged.id); } catch (e) {} }, 10 * 60 * 1000);
-      // v0.9.916 (Brad, brainstorm #2): catalog-aware — a photo here may be a
-      // train, a box/label, an accessory/building, OR a paper item (catalog,
-      // poster, instruction sheet). Mirrors the wizard's adaptive Lens prompt.
-      var q = 'Identify this model railroad item — it may be a train, a box or box-end label, an accessory or building, OR a paper item such as a catalog, poster, brochure, or instruction sheet. Answer with labeled lines: Manufacturer:, Manufacturer SKU or catalog number (the product/catalog code, NOT a cab or road number painted on a model):, Description (one line):, Year manufactured or published:. If it is a catalog, poster, or other paper item, also give: Title:, Form or part number printed on it:. Prefer the manufacturer catalog SKU. Cite sources like Trainz, train-station.com, lionelsupport.com, postwarlionel.com, or manufacturer catalogs.';
+      // v0.9.917 (Brad): question text built by the ONE shared builder in
+      // ai-id.js (rrIdentifyQuery) — change it there, every button updates.
+      var q = (typeof window.rrIdentifyQuery === 'function')
+        ? window.rrIdentifyQuery({})
+        : 'Identify this model railroad item. Provide Manufacturer; Manufacturer SKU or catalog number; Year; Scale; Description on labeled lines.';
       var url = 'https://www.google.com/searchbyimage?image_url=' + encodeURIComponent(staged.url) + '&q=' + encodeURIComponent(q);
       if (tab) { try { tab.location = url; } catch (e) { tab = null; } }
       if (!tab) window.open(url, '_blank');
@@ -510,15 +511,33 @@
       var btn = document.getElementById('pin-rv-shot');
       if (btn) { btn.disabled = true; btn.textContent = 'Reading screenshot…'; }
       try {
-        var ai = (typeof aiIdentifyImage2 === 'function') ? await aiIdentifyImage2([f], {}) : await aiIdentifyImage(f, {});
-        if (!ai || !ai.ok) {
-          var why = ai && ai.reason;
-          if (why === 'quota') showToast('Daily identify limit reached — type the number, or try tomorrow', 4500, true);
-          else if (why === 'noconsent') { /* consent dialog already handled */ }
-          else showToast('Could not read that screenshot — type the number instead', 3800, true);
-          return;
+        // v0.9.917 (Brad): CHEAP FIRST. A screenshot is crisp digital text, so
+        // try free on-device OCR (Tesseract) before spending an AI read. Only
+        // fall back to the AI when the free read doesn't yield an item number.
+        var meta = null, _freeRead = false;
+        try {
+          if (typeof window._ensureTesseract === 'function' && typeof extractIdentifyMetadata === 'function') {
+            var T = await window._ensureTesseract();
+            var ocr = await T.recognize(f, 'eng', {});
+            var _otxt = (ocr && ocr.data && ocr.data.text) || '';
+            if (_otxt.trim()) {
+              var m0 = extractIdentifyMetadata(_otxt);
+              if (m0 && m0.itemNum) { meta = m0; _freeRead = true; }   // free read good enough only with a number
+            }
+          }
+        } catch (eOcr) { console.warn('[Inbox] screenshot OCR (free pass) failed:', eOcr && eOcr.message); }
+        if (!meta) {
+          if (btn) btn.textContent = 'Asking the AI…';
+          var ai = (typeof aiIdentifyImage2 === 'function') ? await aiIdentifyImage2([f], {}) : await aiIdentifyImage(f, {});
+          if (!ai || !ai.ok) {
+            var why = ai && ai.reason;
+            if (why === 'quota') showToast('Daily identify limit reached — type the number, or try tomorrow', 4500, true);
+            else if (why === 'noconsent') { /* consent dialog already handled */ }
+            else showToast('Could not read that screenshot — type the number instead', 3800, true);
+            return;
+          }
+          meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(ai.text) : {};
         }
-        var meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(ai.text) : {};
         var got = meta.itemNum || meta.description || meta.manufacturer || meta.roadName;
         if (!got) { showToast('No item info found in that screenshot — type the number instead', 4000, true); return; }
         try {
@@ -540,7 +559,7 @@
         window._pinReview(gs.length === 1 ? gs[0].key : null);
         showToast(meta._hedge
           ? 'Read the screenshot — the number is a best guess, double-check it'
-          : 'Read the screenshot — check it over and hit Add', 4000);
+          : ('Read the screenshot' + (_freeRead ? ' (free — no AI read used)' : '') + ' — check it over and hit Add'), 4000);
       } catch (e) {
         console.warn('[Inbox] read screenshot:', e);
         showToast('Could not read that screenshot — try again or type the number', 3800, true);

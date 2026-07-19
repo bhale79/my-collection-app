@@ -26,6 +26,35 @@ const AI_ID = {
   JPEG_QUALITY: 0.85,
 };
 
+// ── SINGLE SOURCE OF TRUTH: the research question ───────────
+// v0.9.917 (Brad): every "identify this by photo" Google/Lens search in the
+// app builds its question HERE. Change the wording once, every button updates.
+// (The relay's server-side ai_identify prompt mirrors this — if you change the
+// fields below, update relay Code_v2.x .gs to match.)
+//   opts.subject   — what the user said it is ("O Steam Engine"), default generic
+//   opts.mfrPhrase — ", possibly made by Lionel or MTH" style hint, default ''
+function rrIdentifyQuery(opts) {
+  opts = opts || {};
+  var subject = opts.subject || 'model railroad item';
+  var mfrPhrase = opts.mfrPhrase || '';
+  return 'Identify this ' + subject + mfrPhrase
+    + ' — it may be a train, a box or box-end label, a building or accessory, OR a paper item '
+    + '(catalog, poster, brochure, or instruction sheet). Provide each on its own line: '
+    + 'Manufacturer; '
+    + 'Manufacturer SKU or catalog number (the unique product code from the catalog, NOT a cab or road number painted on a model); '
+    + 'Year manufactured or published; '
+    + 'Scale or gauge (e.g. O, O-27, Standard Gauge, HO, S); '
+    + 'Description (one line, include the product line or series name). '
+    + 'If it is a locomotive or train car, also give: Road name (the railroad represented); '
+    + 'Cab number printed on the model; Locomotive class or body style. '
+    + 'If it is a building or accessory, also give: Structure type (what the building or accessory is). '
+    + 'If it is a poster, catalog, instruction sheet, or other paper/advertising item, also give: '
+    + 'Title; Form or part number printed on it; Belongs to item or set (which product it goes with); '
+    + 'Original or reproduction. '
+    + 'Cite sources like Trainz, train-station.com, lionelsupport.com, postwarlionel.com, or manufacturer catalogs.';
+}
+if (typeof window !== 'undefined') window.rrIdentifyQuery = rrIdentifyQuery;
+
 // ── One-time consent notice ─────────────────────────────────
 // Everything before this feature runs on-device; AI photo ID sends
 // the photo off-device. Ask once, remember forever ('yes').

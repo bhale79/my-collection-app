@@ -735,19 +735,11 @@ async function _identifyOpenLens() {
     // (mfr / SKU / year / scale / description) then branches by what the photo
     // shows, so buildings, posters, catalogs, instruction sheets and other
     // advertising get useful questions instead of "cab number: not applicable".
-    var q = 'Identify this ' + subject + mfrPhrase + '. Provide each on its own line: '
-          + 'Manufacturer; '
-          + 'Manufacturer SKU or catalog number (the unique product code from the catalog, NOT a cab or road number painted on a model); '
-          + 'Year manufactured or published; '
-          + 'Scale or gauge (e.g. O, O-27, Standard Gauge, HO, S); '
-          + 'Description (one line, include the product line or series name). '
-          + 'If it is a locomotive or train car, also give: Road name (the railroad represented); '
-          + 'Cab number printed on the model; Locomotive class or body style. '
-          + 'If it is a building or accessory, also give: Structure type (what the building or accessory is). '
-          + 'If it is a poster, catalog, instruction sheet, or other paper/advertising item, also give: '
-          + 'Title; Form or part number printed on it; Belongs to item or set (which product it goes with); '
-          + 'Original or reproduction. '
-          + 'Cite sources like Trainz, train-station.com, lionelsupport.com, postwarlionel.com, or manufacturer catalogs.';
+    // v0.9.917 (Brad): question text now built by the ONE shared builder in
+    // ai-id.js (rrIdentifyQuery) — change it there, every button updates.
+    var q = (typeof window.rrIdentifyQuery === 'function')
+      ? window.rrIdentifyQuery({ subject: subject, mfrPhrase: mfrPhrase })
+      : ('Identify this ' + subject + mfrPhrase + '. Provide Manufacturer; Manufacturer SKU or catalog number; Year; Scale; Description on labeled lines.');
     const url = 'https://www.google.com/searchbyimage?image_url=' + encodeURIComponent(staged.url) + '&q=' + encodeURIComponent(q);
     window.open(url, '_blank');
     if (searchBtn) { searchBtn.disabled = false; searchBtn.innerHTML = origText; }
