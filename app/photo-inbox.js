@@ -339,6 +339,9 @@
         '<button onclick="_pinReviewResearch()" style="flex:1;padding:0.6rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer">Research Number</button>' +
         '<button id="pin-rv-lens" onclick="_pinReviewLens()" style="flex:1;padding:0.6rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer">Research by Photo</button>' +
       '</div>' +
+      // v0.9.915 (Brad): after a Google/Lens search, screenshot the answer and
+      // read it — the identify AI pulls the number/description off the shot.
+      '<button id="pin-rv-shot" onclick="_pinReadShot()" title="Pick a screenshot of a Google/Lens answer and let the AI read it" style="width:100%;padding:0.6rem;border-radius:9px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.10);color:#2ecc71;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer;margin-bottom:0.5rem">📸 Read a screenshot of the answer</button>' +
       '<button onclick="_pinReviewDiscard()" style="width:100%;padding:0.6rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer">Discard Photo' + (n > 1 ? 's' : '') + '</button>';
 
     // Phone: horizontal strip on top (unchanged).
@@ -478,6 +481,72 @@
       if (btn) { btn.disabled = false; btn.textContent = 'Research by Photo'; }
       showToast('Could not stage the photo for Google — try again', 3000, true);
     }
+  };
+
+  // v0.9.915 (Brad): read a SCREENSHOT of a Google/Lens answer. Pick the
+  // screenshot, run it through the same identify AI (it reads the labeled
+  // Manufacturer/SKU/Description/Year text right off the image), then apply
+  // the result to the group and reopen the review card — same shape as the
+  // Lens clipboard return-trip, minus the fiddly text-copy step.
+  window._pinReadShot = function () {
+    var gs = _rvGroups;
+    if (!gs || !gs.length) { showToast('Open a photo first', 2500, true); return; }
+    if (!_qcToken()) { showToast('Please sign in first', 3000, true); return; }
+    if (typeof aiIdentifyImage2 !== 'function' && typeof aiIdentifyImage !== 'function') { showToast('Identify service not loaded — refresh and try again', 3000, true); return; }
+    var inp = document.getElementById('pin-shot-input');
+    if (!inp) {
+      inp = document.createElement('input');
+      inp.type = 'file'; inp.id = 'pin-shot-input'; inp.accept = 'image/*'; inp.style.display = 'none';
+      document.body.appendChild(inp);
+    }
+    inp.value = '';
+    inp.onchange = async function () {
+      var f = this.files && this.files[0];
+      this.value = '';
+      if (!f) return;
+      var btn = document.getElementById('pin-rv-shot');
+      if (btn) { btn.disabled = true; btn.textContent = 'Reading screenshot…'; }
+      try {
+        var ai = (typeof aiIdentifyImage2 === 'function') ? await aiIdentifyImage2([f], {}) : await aiIdentifyImage(f, {});
+        if (!ai || !ai.ok) {
+          var why = ai && ai.reason;
+          if (why === 'quota') showToast('Daily identify limit reached — type the number, or try tomorrow', 4500, true);
+          else if (why === 'noconsent') { /* consent dialog already handled */ }
+          else showToast('Could not read that screenshot — type the number instead', 3800, true);
+          return;
+        }
+        var meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(ai.text) : {};
+        var got = meta.itemNum || meta.description || meta.manufacturer || meta.roadName;
+        if (!got) { showToast('No item info found in that screenshot — type the number instead', 4000, true); return; }
+        try {
+          var ids = _ids(); var fid0 = gs[0].files[0].id; var prev = ids[fid0] || {};
+          var trim = function (v, old) { return String(v || old || '').slice(0, 120); };
+          ids[fid0] = {
+            num: meta.itemNum ? String(meta.itemNum) : (prev.num || ''),
+            guess: meta.itemNum ? (meta._hedge ? 1 : 0) : (prev.guess || 0),
+            tried: 1,
+            mfr: trim(meta.manufacturer, prev.mfr), desc: trim(meta.description, prev.desc),
+            road: trim(meta.roadName, prev.road), year: trim(meta.year, prev.year)
+          };
+          _idsSave(ids);
+        } catch (eS) { console.warn('[Inbox] screenshot store:', eS); }
+        _render();
+        // Reopen the review with the read applied (mirrors the Lens return-trip).
+        _sel = {};
+        gs.forEach(function (g) { _sel[g.key] = true; });
+        window._pinReview(gs.length === 1 ? gs[0].key : null);
+        showToast(meta._hedge
+          ? 'Read the screenshot — the number is a best guess, double-check it'
+          : 'Read the screenshot — check it over and hit Add', 4000);
+      } catch (e) {
+        console.warn('[Inbox] read screenshot:', e);
+        showToast('Could not read that screenshot — try again or type the number', 3800, true);
+      } finally {
+        var b2 = document.getElementById('pin-rv-shot');
+        if (b2) { b2.disabled = false; b2.textContent = '📸 Read a screenshot of the answer'; }
+      }
+    };
+    inp.click();
   };
 
   // Return-trip watcher for Research by Photo (mirrors the wizard's
