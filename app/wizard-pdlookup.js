@@ -16,34 +16,46 @@
 
 let _pdIndex = {};
 let _pdIndexVer = 0;
+let _pdIndexRef = null;
+
+// v0.9.922 (chunk 3): normalized exact match. Trim + uppercase BOTH sides so
+// formatting drift ("2343c", "2343C ") can't silently miss a real match.
+// Still a strict item+variation match — never fuzzy.
+function _pdLookupKey(itemNum, variation) {
+  return String(itemNum == null ? '' : itemNum).trim().toUpperCase() + '|' +
+         String(variation == null ? '' : variation).trim().toUpperCase();
+}
 
 function _rebuildPdIndex() {
   const idx = {};
   Object.keys(state.personalData).forEach(k => {
     const pd = state.personalData[k];
-    const lookupKey = pd.itemNum + '|' + (pd.variation || '');
+    const lookupKey = _pdLookupKey(pd.itemNum, pd.variation);
     // If multiple copies, first one wins (findPD returns first match)
     if (!idx[lookupKey]) idx[lookupKey] = k;
   });
   _pdIndex = idx;
   _pdIndexVer = Object.keys(state.personalData).length;
+  _pdIndexRef = state.personalData;
 }
 
 function _getPdIndex() {
-  // Auto-rebuild if personalData size changed (items added/removed)
-  if (Object.keys(state.personalData).length !== _pdIndexVer) _rebuildPdIndex();
+  // v0.9.922 (chunk 3): rebuild if personalData size changed (items added or
+  // removed) OR the whole object was swapped by a background reload — a reload
+  // with the same count previously kept serving answers from the OLD data.
+  if (state.personalData !== _pdIndexRef ||
+      Object.keys(state.personalData).length !== _pdIndexVer) _rebuildPdIndex();
   return _pdIndex;
 }
 
 function findPD(itemNum, variation) {
-  const norm = (variation || '');
   const idx = _getPdIndex();
-  const key = idx[itemNum + '|' + norm];
+  const key = idx[_pdLookupKey(itemNum, variation)];
   if (key && state.personalData[key]) return state.personalData[key];
   // Fallback: try with -P and -D suffixes (AA/AB units stored as 210-P, 210-D)
-  const keyP = idx[(itemNum + '-P') + '|' + norm];
+  const keyP = idx[_pdLookupKey(String(itemNum == null ? '' : itemNum).trim() + '-P', variation)];
   if (keyP && state.personalData[keyP]) return state.personalData[keyP];
-  const keyD = idx[(itemNum + '-D') + '|' + norm];
+  const keyD = idx[_pdLookupKey(String(itemNum == null ? '' : itemNum).trim() + '-D', variation)];
   if (keyD && state.personalData[keyD]) return state.personalData[keyD];
   return null;
 }
@@ -58,14 +70,13 @@ function _findCollectionItemByNum(itemNum) {
 }
 
 function findPDKey(itemNum, variation) {
-  const norm = (variation || '');
   const idx = _getPdIndex();
-  const key = idx[itemNum + '|' + norm];
+  const key = idx[_pdLookupKey(itemNum, variation)];
   if (key && state.personalData[key]) return key;
   // Fallback: try with -P and -D suffixes
-  const keyP = idx[(itemNum + '-P') + '|' + norm];
+  const keyP = idx[_pdLookupKey(String(itemNum == null ? '' : itemNum).trim() + '-P', variation)];
   if (keyP && state.personalData[keyP]) return keyP;
-  const keyD = idx[(itemNum + '-D') + '|' + norm];
+  const keyD = idx[_pdLookupKey(String(itemNum == null ? '' : itemNum).trim() + '-D', variation)];
   if (keyD && state.personalData[keyD]) return keyD;
   return null;
 }
@@ -73,10 +84,11 @@ function findPDKey(itemNum, variation) {
 // Find personalData key by row number — used to disambiguate multiple copies
 function findPDKeyByRow(itemNum, variation, row) {
   if (!row) return findPDKey(itemNum, variation);
-  const norm = (variation || '');
+  // v0.9.922 (chunk 3): same normalized comparison as the index.
+  const want = _pdLookupKey(itemNum, variation);
   const k = Object.keys(state.personalData).find(k => {
     const pd = state.personalData[k];
-    return pd.itemNum === itemNum && (pd.variation || '') === norm && pd.row == row;
+    return _pdLookupKey(pd.itemNum, pd.variation) === want && pd.row == row;
   });
   return k || findPDKey(itemNum, variation);
 }
