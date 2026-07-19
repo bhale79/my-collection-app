@@ -3786,15 +3786,20 @@ function renderWizardStep() {
 
   } else if (s.type === 'pickSoldItem') {
     const itemNum = (wizard.data.itemNum || '').trim();
-    // Bugfix 2026-04-14: dedupe by (itemNum, variation) — was showing same item twice
-    // when the collection row AND a companion (box/for-sale) row both matched.
+    // Bugfix 2026-04-14: dedupe — was showing same item twice when the
+    // collection row AND a companion (box/for-sale) row both matched.
+    // v0.9.920: dedupe by PHYSICAL COPY (inventoryId), not itemNum|variation —
+    // the old rule also hid genuine second copies, so you couldn't pick which
+    // copy to sell. Phantom companion rows share the parent's inventoryId (Bug
+    // 14) so they still collapse; rows without an inventoryId keep the old
+    // itemNum|variation behavior (no regression on legacy data).
     const _seenSold = new Set();
     const matchKeys = Object.keys(state.personalData).filter(k => {
       const pd = state.personalData[k];
       if (!(pd.itemNum === itemNum && pd.owned)) return false;
       // Skip box-only rows (their itemNum ends in -BOX) — they're not sellable as main item
       if (String(pd.itemNum || '').endsWith('-BOX')) return false;
-      const dk = pd.itemNum + '|' + (pd.variation || '');
+      const dk = pd.inventoryId || (pd.itemNum + '|' + (pd.variation || ''));
       if (_seenSold.has(dk)) return false;
       _seenSold.add(dk);
       return true;
@@ -3818,6 +3823,7 @@ function renderWizardStep() {
                 ${pd.itemNum}${pd.variation ? ' — Var ' + pd.variation : ''}
               </div>
               <div style="font-size:0.8rem;color:var(--text-mid);margin-top:0.3rem;display:flex;gap:1rem;flex-wrap:wrap">
+                ${pd.inventoryId ? `<span style="font-family:var(--font-mono);color:var(--text-dim)">Inv #${pd.inventoryId}</span>` : ''}
                 ${pd.condition ? `<span>Condition: <strong style="color:var(--text)">${pd.condition}</strong></span>` : ''}
                 ${pd.hasBox === 'Yes' ? `<span style="color:var(--green)">✓ Has box</span>` : ''}
                 ${pd.priceItem ? `<span>Paid: <strong style="color:var(--text)">$${parseFloat(pd.priceItem).toLocaleString()}</strong></span>` : ''}
@@ -3837,13 +3843,14 @@ function renderWizardStep() {
 
   } else if (s.type === 'pickForSaleItem') {
     const itemNum = (wizard.data.itemNum || '').trim();
-    // Bugfix 2026-04-14: dedupe by (itemNum, variation) — same fix as pickSoldItem
+    // Bugfix 2026-04-14: dedupe — same fix as pickSoldItem.
+    // v0.9.920: per-copy dedupe by inventoryId (see pickSoldItem note above).
     const _seenFs = new Set();
     const matchKeys = Object.keys(state.personalData).filter(k => {
       const pd = state.personalData[k];
       if (!(pd.itemNum === itemNum && pd.owned)) return false;
       if (String(pd.itemNum || '').endsWith('-BOX')) return false;
-      const dk = pd.itemNum + '|' + (pd.variation || '');
+      const dk = pd.inventoryId || (pd.itemNum + '|' + (pd.variation || ''));
       if (_seenFs.has(dk)) return false;
       _seenFs.add(dk);
       return true;
@@ -3867,6 +3874,7 @@ function renderWizardStep() {
                 ${pd.itemNum}${pd.variation ? ' — Var ' + pd.variation : ''}
               </div>
               <div style="font-size:0.8rem;color:var(--text-mid);margin-top:0.3rem;display:flex;gap:1rem;flex-wrap:wrap">
+                ${pd.inventoryId ? `<span style="font-family:var(--font-mono);color:var(--text-dim)">Inv #${pd.inventoryId}</span>` : ''}
                 ${pd.condition ? `<span>Condition: <strong style="color:var(--text)">${pd.condition}</strong></span>` : ''}
                 ${pd.hasBox === 'Yes' ? `<span style="color:var(--green)">✓ Has box</span>` : ''}
                 ${pd.priceItem ? `<span>Paid: <strong style="color:var(--text)">$${parseFloat(pd.priceItem).toLocaleString()}</strong></span>` : ''}
