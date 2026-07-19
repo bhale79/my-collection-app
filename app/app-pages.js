@@ -2966,7 +2966,10 @@ function buildUpgradePage() {
       const _ltBg    = _isWant ? 'rgba(59,130,246,0.12)' : 'rgba(139,92,246,0.12)';
       const _priceVal = _isWant ? u.expectedPrice : u.maxPrice;
       // Share-mode: unique key + register in _shareDataMap.
-      const _wuShareKey = _wuInShare ? ('wu-' + (u.itemNum||'') + '-' + (u.variation||'') + '-' + (u.listType||'')) : '';
+      // v0.9.924: per-copy share key — upgrade entries carry inventoryId, so
+      // two copies of the same item on the upgrade list select independently.
+      // Want wishes (no inventoryId) keep the composite fallback.
+      const _wuShareKey = _wuInShare ? ('wu-' + (u.inventoryId || ((u.itemNum||'') + '-' + (u.variation||''))) + '-' + (u.listType||'')) : '';
       const _wuSelected = _wuInShare && typeof _shareItems !== 'undefined' && _shareItems[_wuShareKey];
       if (_wuInShare) {
         window._shareDataMap[_wuShareKey] = {

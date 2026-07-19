@@ -3898,7 +3898,9 @@ function renderWizardStep() {
     const itemNum = (wizard.data.itemNum || '').trim();
     const matchKeys = Object.keys(state.personalData).filter(k => {
       const pd = state.personalData[k];
-      return pd.itemNum === itemNum;
+      // v0.9.924: shared matcher — consistent with the sold/for-sale pickers
+      // (normalized + -P/-D bridging); raw === missed '210' vs stored '210-P'.
+      return pdItemNumMatches(pd, itemNum);
     });
     const selected = wizard.data.selectedRowKey || '';
     body.innerHTML = `
