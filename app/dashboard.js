@@ -943,7 +943,9 @@ var PANEL_CATALOG = [
           var name = master.roadName || master.itemType || '';
           var price = fs.askingPrice ? _currencySymbol() + parseFloat(fs.askingPrice).toLocaleString() : 'No price';
           var idx = master ? state.masterData.indexOf(master) : -1;
-          var pd = state.personalData[fs.itemNum + '|' + (fs.variation||'')] || {};
+          // v0.9.919: personalData is keyed by inventoryId (Phase 3) — the old
+          // itemNum|variation lookup silently returned {} so photos never showed.
+          var pd = (fs.inventoryId && state.personalData[fs.inventoryId]) || {};
           var hasPhoto = !!pd.photoItem;
           return _panelRow('🏷️', fs.itemNum + (fs.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + fs.variation + '</span>' : ''), name, price,
             (fs.inventoryId ? ("_openOwnedByInvId('" + fs.inventoryId + "')") : (idx >= 0 ? 'showItemDetailPage(' + idx + ')' : 'showPage(\'forsale\', document.querySelector(\'.nav-item[onclick*=buildForSalePage]\'));buildForSalePage();')),

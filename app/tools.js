@@ -532,13 +532,17 @@ function runDuplicateChecker() {
     return;
   }
 
-  // Group owned items by itemNum|variation
+  // Group owned items by itemNum|variation.
+  // v0.9.919: carry each copy's REAL personalData store key (inventoryId-based)
+  // alongside it — the old code rebuilt an itemNum|variation|row key that no
+  // longer matches the store, so "Add to For Sale List" opened an empty wizard.
   var groups = {};
-  Object.values(state.personalData).forEach(function(pd) {
-    if (!pd.owned) return;
+  Object.keys(state.personalData).forEach(function(storeKey) {
+    var pd = state.personalData[storeKey];
+    if (!pd || !pd.owned) return;
     var key = (pd.itemNum || '').trim().toUpperCase() + '|' + (pd.variation || '').trim().toUpperCase();
     if (!groups[key]) groups[key] = { itemNum: pd.itemNum, variation: pd.variation, copies: [] };
-    groups[key].copies.push(pd);
+    groups[key].copies.push({ storeKey: storeKey, pd: pd });
   });
 
   // Keep only groups with 2+ copies
@@ -589,7 +593,8 @@ function runDuplicateChecker() {
       '<span></span>' +
     '</div>';
 
-    g.copies.forEach(function(pd, i) {
+    g.copies.forEach(function(copy, i) {
+      var pd = copy.pd;
       var invId    = pd.inventoryId || '—';
       var condStr  = pd.condition ? pd.condition + '/10' : '—';
       var condColor = pd.condition ? (pd.condition >= 8 ? '#2ecc71' : pd.condition >= 5 ? '#d4a843' : '#e74c3c') : 'var(--text-dim)';
@@ -614,7 +619,9 @@ function runDuplicateChecker() {
         groupedStr = pd.matchedTo;
       }
 
-      var pdKey = pd.itemNum + '|' + (pd.variation || '') + '|' + pd.row;
+      // v0.9.919: pass the real store key so listForSaleFromCollection finds
+      // this exact copy (pre-fills condition/price and links the listing).
+      var pdKey = copy.storeKey;
 
       html += '<div style="display:grid;grid-template-columns:2rem 4rem 4.5rem 5rem 1fr auto;gap:0.4rem;align-items:center;padding:0.35rem 0.5rem;background:var(--surface);border-radius:7px;width:100%;box-sizing:border-box;cursor:pointer;margin-top:0.2rem" onclick="window._detailReturn=&apos;tools&apos;;showItemDetailPage(' + masterIdx + ')" title="View details">' +
         '<span style="font-size:0.75rem;color:var(--text-dim);font-weight:600">' + (i + 1) + '</span>' +

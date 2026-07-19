@@ -23,6 +23,21 @@
 //   - window._cpAllItems, window._ipAllItems (set by render code in wizard.js)
 // ═══════════════════════════════════════════════════════════════
 
+// v0.9.919: soldData is a per-sale history (Session 176) keyed uniquely per
+// sale, so "was this copy sold?" must scan for a sale carrying this copy's
+// inventoryId. Legacy copies without an inventoryId return false (same as the
+// old broken lookup — no regression).
+function _wpCopyHasSale(pd) {
+  if (!pd || !pd.inventoryId) return false;
+  var sd = state.soldData || {};
+  var keys = Object.keys(sd);
+  for (var i = 0; i < keys.length; i++) {
+    var s = sd[keys[i]];
+    if (s && s.inventoryId === pd.inventoryId) return true;
+  }
+  return false;
+}
+
 function wizardFilterChoices(fieldId, inputId) {
   const input = document.getElementById(inputId);
   const list  = document.getElementById('cs-list-' + fieldId);
@@ -279,7 +294,9 @@ function _filterCollPicker(q) {
   owned.forEach(function(entry) {
     var pdKey = entry[0], pd = entry[1];
     var master = (String(pd.era || '') === 'Manual') ? {} : (findMaster(pd.itemNum, (pd.variation||'')) || {});   // v0.9.731: manual rule
-    var alreadyListed = wizard.tab === 'forsale' ? !!state.forSaleData[pd.itemNum + '|' + (pd.variation||'')] : false;
+    // v0.9.919: forSaleData is keyed by inventoryId (Phase 3) — the old
+    // itemNum|variation lookup always missed, so LISTED never showed.
+    var alreadyListed = wizard.tab === 'forsale' ? !!(pd.inventoryId && state.forSaleData[pd.inventoryId]) : false;
     html += '<div onclick="_selectCollItem(\'' + pdKey.replace(/'/g,"\\'") + '\')" style="'
       + 'display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.75rem;cursor:pointer;'
       + 'border-bottom:1px solid var(--border);transition:background 0.1s;'
@@ -393,8 +410,13 @@ function _renderFullPickList(q) {
   owned.forEach(function(entry) {
     var pdKey = entry[0], pd = entry[1];
     var master = (String(pd.era || '') === 'Manual') ? {} : (findMaster(pd.itemNum, (pd.variation||'')) || {});   // v0.9.731: manual rule
-    var fsKey = pd.itemNum + '|' + (pd.variation||'');
-    var alreadyListed = wizard.tab === 'forsale' ? !!state.forSaleData[fsKey] : !!state.soldData[fsKey];
+    // v0.9.919: forSaleData is keyed by inventoryId (Phase 3) and soldData is a
+    // per-sale history (Session 176) — the old itemNum|variation lookups always
+    // missed, so LISTED/SOLD tags never showed. Check this specific copy by
+    // inventoryId instead (per-copy accurate: a re-bought copy isn't "sold").
+    var alreadyListed = wizard.tab === 'forsale'
+      ? !!(pd.inventoryId && state.forSaleData[pd.inventoryId])
+      : _wpCopyHasSale(pd);
 
     html += '<div onclick="_selectCollItem(\'' + pdKey.replace(/'/g,"\\'") + '\')" style="'
       + 'display:flex;align-items:center;gap:0.7rem;padding:0.7rem 1.25rem;cursor:pointer;'
