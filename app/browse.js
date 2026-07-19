@@ -2890,7 +2890,10 @@ function renderBrowse() {
                          + (_isGrouped ? '<span title="Grouped item" style="font-size:0.8rem">🔗</span>' : '')
                          + (_isQE ? '<span title="Quick Entry — details incomplete" style="font-size:0.8rem">⚡</span>' : '')
                          + (_hasPhoto ? '<span title="Has photo" style="font-size:0.8rem" onclick="event.stopPropagation();openPhotoFolder(\''+item.itemNum+'\',\''+(_hasPhoto||'')+'\')">📷</span>' : '');
-      const _shareKey = item.itemNum + '|' + (item.variation||'') + '|' + _pdRow;
+      // v0.9.921 (chunk 2): share keys are per-copy identity — use inventoryId
+      // (stable) instead of row number (shifts when sheet rows change). Items
+      // without an owned copy / legacy rows keep the composite fallback.
+      const _shareKey = _myInvIdM || (item.itemNum + '|' + (item.variation||'') + '|' + _pdRow);
       const _inShareMode = typeof isShareMode === 'function' && isShareMode('collection');
       const _isShareSelected = _inShareMode && window._shareItems && window._shareItems[_shareKey];
       if (_inShareMode) { if (!window._shareDataMap) window._shareDataMap = {}; window._shareDataMap[_shareKey] = { itemNum: item.itemNum, variation: item.variation||'', pd: pd, master: item }; }
@@ -2942,7 +2945,8 @@ function renderBrowse() {
       // request) so they read clearly and don't drift under the Var column.
       const _statusBadges = (_isThisCopyFS ? '<span title="On the For Sale list" style="font-size:0.82rem;margin-left:3px;vertical-align:middle">🏷️</span>' : '')
         + (_isThisCopyUG ? '<span title="On the Upgrade list" style="font-size:0.74rem;margin-left:3px;color:#8b5cf6;font-weight:700;vertical-align:middle">↑</span>' : '');
-      const _shareKeyD = item.itemNum + '|' + (item.variation||'') + '|' + (pd && pd.row ? pd.row : 0);
+      // v0.9.921 (chunk 2): per-copy share key by inventoryId, composite fallback.
+      const _shareKeyD = _myInvId || (item.itemNum + '|' + (item.variation||'') + '|' + (pd && pd.row ? pd.row : 0));
       const _inShareModeD = typeof isShareMode === 'function' && isShareMode('collection');
       const _isShareSelectedD = _inShareModeD && window._shareItems && window._shareItems[_shareKeyD];
       if (_inShareModeD) { if (!window._shareDataMap) window._shareDataMap = {}; window._shareDataMap[_shareKeyD] = { itemNum: item.itemNum, variation: item.variation||'', pd: pd, master: item }; }

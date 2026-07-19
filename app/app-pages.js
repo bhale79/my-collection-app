@@ -1032,7 +1032,9 @@ function buildWantPage() {
       const _mIsSet = !!_mSetMatch;
       const _mSetLabel = _mIsSet ? [_mSetMatch.setName, _mSetMatch.year].filter(Boolean).join(' · ') : '';
       const _mChipsHtml = _mIsSet ? '<div style="display:flex;flex-wrap:wrap;gap:0.2rem;margin-top:0.35rem">' + _mSetMatch.items.slice(0,6).map(n => '<span style="font-family:var(--font-mono);font-size:0.65rem;padding:1px 5px;border-radius:3px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim)">' + n + '</span>').join('') + (_mSetMatch.items.length > 6 ? '<span style="font-size:0.65rem;color:var(--text-dim)">+' + (_mSetMatch.items.length-6) + ' more</span>' : '') + '</div>' : '';
-      const _wShareKey = w.itemNum + '|' + (w.variation||'') + '|' + (w.row||0);
+      // v0.9.921 (chunk 2): upgrade entries carry inventoryId (per-copy stable);
+      // want entries are catalog-level and keep the composite fallback.
+      const _wShareKey = w.inventoryId || (w.itemNum + '|' + (w.variation||'') + '|' + (w.row||0));
       const _wInShare = typeof isShareMode === 'function' && isShareMode('want');
       const _wSelected = _wInShare && window._shareItems && window._shareItems[_wShareKey];
       if (_wInShare) { if (!window._shareDataMap) window._shareDataMap = {}; window._shareDataMap[_wShareKey] = { itemNum: w.itemNum, variation: w.variation||'', want: w, master: master }; }
@@ -1096,7 +1098,8 @@ function buildWantPage() {
           ? `<span style="cursor:pointer;border-bottom:1px dashed var(--border);color:var(--text-mid)" onclick="showWantDesc(${idx})">${shortVar}</span>`
           : (w.variation ? `<span class="text-dim">${w.variation}</span>` : '<span class="text-dim">—</span>');
       const _displayRoad = _isSet ? _setLabel : roadName;
-      const _wDShareKey = w.itemNum + '|' + (w.variation||'') + '|' + (w.row||0);
+      // v0.9.921 (chunk 2): inventoryId when present, composite fallback.
+      const _wDShareKey = w.inventoryId || (w.itemNum + '|' + (w.variation||'') + '|' + (w.row||0));
       const _wDInShare = typeof isShareMode === 'function' && isShareMode('want');
       const _wDSelected = _wDInShare && window._shareItems && window._shareItems[_wDShareKey];
       if (_wDInShare) { if (!window._shareDataMap) window._shareDataMap = {}; window._shareDataMap[_wDShareKey] = { itemNum: w.itemNum, variation: w.variation||'', want: w, master: master }; }
@@ -1905,7 +1908,8 @@ function buildForSalePage() {
       const _fsx = _fsEff(fs); const master = findMaster(_fsx.itemNum, _fsx.variation) || {};
       const collPd = (fs.inventoryId && state.personalData[fs.inventoryId]) || {};
       const estWorth = fs.estWorth || collPd.userEstWorth || '';
-      const _fsShareKey = fs.itemNum + '|' + (fs.variation||'') + '|' + (fs.row||0);
+      // v0.9.921 (chunk 2): for-sale entries carry inventoryId (per-copy stable).
+      const _fsShareKey = fs.inventoryId || (fs.itemNum + '|' + (fs.variation||'') + '|' + (fs.row||0));
       const _fsInShare = typeof isShareMode === 'function' && isShareMode('forsale');
       const _fsSelected = _fsInShare && window._shareItems && window._shareItems[_fsShareKey];
       const _fsMasterIdx = (typeof _itemMasterIdx === 'function') ? _itemMasterIdx(fs.itemNum, fs.variation) : -1;
@@ -1945,7 +1949,8 @@ function buildForSalePage() {
       const _fsx = _fsEff(fs); const master = findMaster(_fsx.itemNum, _fsx.variation) || {};
       const collPd = (fs.inventoryId && state.personalData[fs.inventoryId]) || {};
       const estWorth = fs.estWorth || collPd.userEstWorth || '';
-      const _fsDShareKey = fs.itemNum + '|' + (fs.variation||'') + '|' + (fs.row||0);
+      // v0.9.921 (chunk 2): inventoryId when present, composite fallback.
+      const _fsDShareKey = fs.inventoryId || (fs.itemNum + '|' + (fs.variation||'') + '|' + (fs.row||0));
       const _fsDInShare = typeof isShareMode === 'function' && isShareMode('forsale');
       const _fsDSelected = _fsDInShare && window._shareItems && window._shareItems[_fsDShareKey];
       if (_fsDInShare) { if (!window._shareDataMap) window._shareDataMap = {}; window._shareDataMap[_fsDShareKey] = { itemNum: fs.itemNum, variation: fs.variation||'', fs: fs, master: master }; }
