@@ -581,8 +581,11 @@ function getSteps(tab) {
           // Session 115: pre-filled via sellFromCollection — caller
           // already picked the physical copy, so skip the picker.
           if (d.selectedSoldKey && d.selectedSoldKey !== '__new__') return true;
+          // v0.9.923: use the shared matcher (normalized + -P/-D bridging) so
+          // this agrees with save-time findPD — a raw compare here skipped the
+          // picker for '210' vs stored '210-P', then save grabbed a copy blind.
           const _num = (d.itemNum||'').trim();
-          const matches = Object.values(state.personalData).filter(p => p.itemNum === _num && p.owned);
+          const matches = Object.values(state.personalData).filter(p => p.owned && pdItemNumMatches(p, _num));
           return matches.length === 0; // not in collection — skip picker
         }
       },

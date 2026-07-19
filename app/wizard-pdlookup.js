@@ -48,6 +48,17 @@ function _getPdIndex() {
   return _pdIndex;
 }
 
+// v0.9.923: SINGLE SOURCE OF TRUTH for "does this collection row match this
+// typed/derived item number?" — used by the sold/for-sale picker steps so the
+// picker appears exactly when a save-time findPD lookup would succeed.
+// Mirrors findPD's matching: normalized exact, plus -P/-D catalog bridging.
+function pdItemNumMatches(pd, query) {
+  const q = String(query == null ? '' : query).trim().toUpperCase();
+  if (!q) return false;
+  const n = String((pd && pd.itemNum) || '').trim().toUpperCase();
+  return n === q || n === q + '-P' || n === q + '-D';
+}
+
 function findPD(itemNum, variation) {
   const idx = _getPdIndex();
   const key = idx[_pdLookupKey(itemNum, variation)];

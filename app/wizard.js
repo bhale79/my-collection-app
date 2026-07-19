@@ -3796,7 +3796,8 @@ function renderWizardStep() {
     const _seenSold = new Set();
     const matchKeys = Object.keys(state.personalData).filter(k => {
       const pd = state.personalData[k];
-      if (!(pd.itemNum === itemNum && pd.owned)) return false;
+      // v0.9.923: shared matcher — agrees with save-time findPD (normalized + -P/-D)
+      if (!(pd.owned && pdItemNumMatches(pd, itemNum))) return false;
       // Skip box-only rows (their itemNum ends in -BOX) — they're not sellable as main item
       if (String(pd.itemNum || '').endsWith('-BOX')) return false;
       const dk = pd.inventoryId || (pd.itemNum + '|' + (pd.variation || ''));
@@ -3848,7 +3849,8 @@ function renderWizardStep() {
     const _seenFs = new Set();
     const matchKeys = Object.keys(state.personalData).filter(k => {
       const pd = state.personalData[k];
-      if (!(pd.itemNum === itemNum && pd.owned)) return false;
+      // v0.9.923: shared matcher — agrees with save-time findPD (normalized + -P/-D)
+      if (!(pd.owned && pdItemNumMatches(pd, itemNum))) return false;
       if (String(pd.itemNum || '').endsWith('-BOX')) return false;
       const dk = pd.inventoryId || (pd.itemNum + '|' + (pd.variation || ''));
       if (_seenFs.has(dk)) return false;
