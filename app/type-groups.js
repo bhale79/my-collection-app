@@ -108,7 +108,7 @@
     // ── LOCOMOTIVES ──
     if (it === 'Steam Locomotive' || it === 'Steam Engine') return 'Steam Locomotive';
     if (it === 'Diesel Locomotive' || it === 'Diesel Engine') return 'Diesel Locomotive';
-    if (it === 'Electric Locomotive') return 'Electric Locomotive';
+    if (it === 'Electric Locomotive' || it === 'Electric Engine') return 'Electric Locomotive';
     if (it === 'Motorized Unit') return 'Motorized Unit';
     if (it === 'Tender') return 'Tender';
     if (it === 'Locomotive') {

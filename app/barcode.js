@@ -22,7 +22,7 @@ function eraSupportsBarcode(era) {
   if (!era) return false;
   var SHOW = ['mod','mpc','atlas',
               'mth_o','mth_ho','mth_s','mth_tinplate','mth_g',
-              'mod_ho','mod_s','weaver','rmt','menards'];
+              'mod_ho','mod_s','weaver','rmt','menards','thirdrail'];
   return SHOW.indexOf(String(era).toLowerCase()) >= 0;
 }
 window.eraSupportsBarcode = eraSupportsBarcode;

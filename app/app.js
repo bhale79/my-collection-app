@@ -1195,7 +1195,7 @@ function _manufacturerOfItem(item) {
 // Brand LABEL for an item, derived from the master catalog (Lionel/MTH/Atlas/...).
 // Single source of truth for 'what brand is this item' on every SAVE path.
 // Returns '' when the item isn't in the catalog (manual entry) so callers fall back.
-var _BRAND_LABELS = { lionel:'Lionel', mth:'MTH', atlas:'Atlas', menards:'Menards', williams:'Williams', weaver:'Weaver', rmt:'RMT', kline:'K-Line', 'k-line':'K-Line', 'k line':'K-Line', marx:'Marx', ives:'Ives', american:'American Flyer', 'american flyer':'American Flyer' };
+var _BRAND_LABELS = { lionel:'Lionel', mth:'MTH', atlas:'Atlas', menards:'Menards', '3rd rail':'3rd Rail', thirdrail:'3rd Rail', sunset:'3rd Rail', williams:'Williams', weaver:'Weaver', rmt:'RMT', kline:'K-Line', 'k-line':'K-Line', 'k line':'K-Line', marx:'Marx', ives:'Ives', american:'American Flyer', 'american flyer':'American Flyer' };
 function _brandLabel(key) {
   if (!key) return '';
   var k = String(key).toLowerCase().trim();

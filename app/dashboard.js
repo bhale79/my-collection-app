@@ -125,6 +125,7 @@ function _eraOf(pd) {
   if (_mfr.indexOf('weaver') === 0) return 'weaver';
   if (_mfr.indexOf('rmt') === 0)    return 'rmt';
   if (_mfr.indexOf('menards') === 0) return 'menards';
+  if (_mfr.indexOf('3rd rail') === 0 || _mfr.indexOf('sunset') === 0) return 'thirdrail';
   return 'pw';
 }
 

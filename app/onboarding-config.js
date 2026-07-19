@@ -120,6 +120,7 @@ const WHAT_I_COLLECT = {
     weaver: { id: 'weaver', label: 'Weaver', color: '#16a085',       default: false },
     rmt:    { id: 'rmt',    label: 'RMT',    color: '#e67e22',       default: false },
     menards:{ id: 'menards',label: 'Menards',color: '#2c8a4b',       default: false },
+    thirdrail:{ id: 'thirdrail', label: '3rd Rail', color: '#8e44ad', default: false },
   },
 };
 

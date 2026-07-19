@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.924';
+const APP_VERSION = 'v0.9.925';
 
 // v0.9.918 (Brad): SINGLE SOURCE OF TRUTH for the personal sheet's collection
 // tab name. Every sheet read/write range ("My Collection!D12") builds from
@@ -130,16 +130,20 @@ const ERAS = {
   // 2026-07-02: Menards — O-gauge store brand (Gold Line etc.). Tab starts
   // nearly empty; grows via the catalog-review pipe as boxes get scanned.
   menards: { id: 'menards', label: 'Menards O', years: 'All',     prefix: 'Menards O', manufacturer: 'Menards' },
+  // 2026-07-19: 3rd Rail / Sunset Models (incl. Golden Gate Depot) — brass O.
+  // No factory catalog numbers; itemNums are 3R-/GGD- road+model slugs from
+  // the Wayback reconstruction (see 3RDRAIL_WAYBACK_PROGRESS.md in project).
+  thirdrail: { id: 'thirdrail', label: '3rd Rail O', years: 'All', prefix: '3rd Rail O', manufacturer: '3rd Rail' },
 };
 // Real-era IDs in load priority order (excluding 'all' meta-era).
-const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver', 'rmt', 'menards'];
+const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver', 'rmt', 'menards', 'thirdrail'];
 
 // ── Master sheet tab names per era ──
 // Session 154: scale per era — drives the want-list Scale filter (master
 // Gauge column is only ~10% populated, so derive scale from the era).
 const ERA_SCALE = {
   prewar: 'Standard', mth_tinplate: 'Standard',
-  pw: 'O', mpc: 'O', atlas: 'O', mth_o: 'O', weaver: 'O', rmt: 'O', menards: 'O',
+  pw: 'O', mpc: 'O', atlas: 'O', mth_o: 'O', weaver: 'O', rmt: 'O', menards: 'O', thirdrail: 'O',
   mth_ho: 'HO',
   mth_s: 'S',
   mth_g: 'G',
@@ -196,6 +200,9 @@ const ERA_TABS = {
   },
   menards: {
     items:    'Menards O',
+  },
+  thirdrail: {
+    items:    '3rd Rail O',
   },
 };
 
@@ -276,7 +283,7 @@ var SEARCH_ALIASES = {};
 // ── Manual-entry pickers ── single source of truth for the manual-add
 // Manufacturer + Item Type steps (quick-pick chips + searchable dropdown).
 window.MANUAL_MANUFACTURERS = {
-  common: ['Lionel', 'MTH', 'Atlas O', 'Williams', 'Weaver', 'K-Line', 'Marx', 'American Flyer', 'Menards', 'RMT'],  // v0.9.673: Menards chip (Brad) + RMT (has its own era/tab too)
+  common: ['Lionel', 'MTH', 'Atlas O', 'Williams', 'Weaver', 'K-Line', 'Marx', 'American Flyer', 'Menards', 'RMT', '3rd Rail'],  // v0.9.673: Menards chip (Brad) + RMT (has its own era/tab too)
   all: [
     '3rd Rail', 'All-Nation', 'American Flyer', 'Atlas O', 'Bachmann', 'Dorfan',
     'Hafner', 'Industrial Rail', 'Ives', 'K-Line', 'Kusan', 'Lionel',

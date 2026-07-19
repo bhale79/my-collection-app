@@ -212,7 +212,7 @@
   // "10-2210" — straight to the research card, no photo needed.
   // v0.9.744: shared hit filter — era group (collector language), maker,
   // scale, and now TYPE (getTypeBucket ids, same buckets as the pickers).
-  var ERA_GROUP = { prewar: ['prewar'], pw: ['pw'], modern: ['mpc', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver', 'rmt', 'menards'] };
+  var ERA_GROUP = { prewar: ['prewar'], pw: ['pw'], modern: ['mpc', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver', 'rmt', 'menards', 'thirdrail'] };
   function _filterHits(list, opts) {
     var r = list || [];
     opts = opts || {};

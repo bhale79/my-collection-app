@@ -1427,6 +1427,7 @@ function extractIdentifyMetadata(text, opts) {
     if (/\bmarx\b/i.test(s)) return 'Marx';
     if (/\brmt\b|ready\s*made\s*toys/i.test(s)) return 'RMT';
     if (/\bmenards\b/i.test(s)) return 'Menards';
+    if (/\b3rd\s*rail\b|sunset\s+models|golden\s+gate\s+depot/i.test(s)) return '3rd Rail';
     return '';
   };
   if (out.manufacturer) {
@@ -1942,7 +1943,7 @@ function pickerHandleFile(inputEl, isCamera) {
 // context-dependent so it's deliberately absent).
 function _eraForMfr(mfr) {
   var m = String(mfr || '').trim().toLowerCase();
-  var map = { atlas: 'atlas', weaver: 'weaver', rmt: 'rmt', menards: 'menards', mth: 'mth_o', williams: '', 'k-line': '' };
+  var map = { atlas: 'atlas', weaver: 'weaver', rmt: 'rmt', menards: 'menards', '3rd rail': 'thirdrail', 'sunset models': 'thirdrail', mth: 'mth_o', williams: '', 'k-line': '' };
   return map[m] || '';
 }
 
