@@ -53,6 +53,11 @@ function _buildAuthScreen() {
         'Continue with Google' +
       '</button>' +
       '<p class="auth-note">You\'ll be asked to allow access to Google Sheets and Google Drive. This is how the app reads and saves your collection data. We never see your password.</p>' +
+      // v0.9.939 (Brad): consent line — agreement belongs at sign-in, BEFORE
+      // an account exists. Links also live in Preferences > About.
+      '<p style="font-size:0.72rem;color:var(--text-dim);margin-top:0.6rem;line-height:1.5">By continuing, you agree to our ' +
+        '<a href="/terms/" target="_blank" rel="noopener" style="color:var(--accent2);text-decoration:none">Terms of Service</a> and ' +
+        '<a href="/privacy/" target="_blank" rel="noopener" style="color:var(--accent2);text-decoration:none">Privacy Policy</a>.</p>' +
       // Session 112: Gmail help — large plain-language button that opens a
       // chooser modal (gmail-help.js). Copy lives in onboarding-config.js.
       '<button onclick="if(typeof gmailShowHelp===\'function\')gmailShowHelp();" style="' +

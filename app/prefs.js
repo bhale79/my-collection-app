@@ -343,6 +343,14 @@ function buildPrefsPage() {
         <div class="pref-row-label"><strong>Send Feedback</strong><span>Report a bug or suggest a feature</span></div>
         <a href="mailto:${ADMIN_EMAIL}?subject=The Rail Roster Feedback" class="pref-btn" style="text-decoration:none">Email ↗</a>
       </div>
+      <div class="pref-row">
+        <div class="pref-row-label"><strong>Terms of Service</strong><span>The rules for using The Rail Roster</span></div>
+        <a href="/terms/" target="_blank" rel="noopener" class="pref-btn" style="text-decoration:none">View ↗</a>
+      </div>
+      <div class="pref-row">
+        <div class="pref-row-label"><strong>Privacy Policy</strong><span>What data the app touches and where it lives</span></div>
+        <a href="/privacy/" target="_blank" rel="noopener" class="pref-btn" style="text-decoration:none">View ↗</a>
+      </div>
       </div>
     </div>`;
 
