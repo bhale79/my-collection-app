@@ -192,7 +192,7 @@
     var cnt = document.getElementById('pin-count');
     if (cnt) cnt.textContent = total ? (total + ' photo' + (total > 1 ? 's' : '') + ' waiting') : '';
     grid.querySelectorAll('img[data-fid]').forEach(function (img) {
-      loadDriveThumb(img.getAttribute('data-fid'), img, img.parentElement);
+      loadDriveThumb(img.getAttribute('data-fid'), img, img.parentElement, null, 'hi');
     });
     _selInfo();
     _navBadge(total);
@@ -394,7 +394,7 @@
       '</div>';
     document.body.appendChild(ov);
     ov.querySelectorAll('img[data-rvfid]').forEach(function (img) {
-      loadDriveThumb(img.getAttribute('data-rvfid'), img, img.parentElement);
+      loadDriveThumb(img.getAttribute('data-rvfid'), img, img.parentElement, null, 'hi');
     });
     var _rvMainImg = document.getElementById('pin-rv-main');
     if (_rvMainImg && window._pinRvLoadFull) window._pinRvLoadFull(_rvMainImg, _rvMainImg.getAttribute('data-rvbig'));
@@ -864,7 +864,7 @@
   // and switch which photo is featured when a strip thumb is clicked.
   window._pinRvLoadFull = async function (img, fid) {
     if (!img || !fid) return;
-    try { if (typeof loadDriveThumb === 'function') loadDriveThumb(fid, img, img.parentElement); } catch (e) {}
+    try { if (typeof loadDriveThumb === 'function') loadDriveThumb(fid, img, img.parentElement, null, 'hi'); } catch (e) {}
     try {
       if (!_qcToken()) return;
       var blob = await _pinBytes(fid);
@@ -1246,7 +1246,7 @@
         return '<div style="aspect-ratio:1;border-radius:8px;overflow:hidden;background:var(--surface2,#26262e)"><img loading="lazy" data-ppfid="' + f.id + '" style="width:100%;height:100%;object-fit:cover;display:block" alt=""></div>';
       }).join('');
       grid.querySelectorAll('img[data-ppfid]').forEach(function (img) {
-        loadDriveThumb(img.getAttribute('data-ppfid'), img, img.parentElement);
+        loadDriveThumb(img.getAttribute('data-ppfid'), img, img.parentElement, null, 'hi');
       });
     } catch (e) {
       if (grid) grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><p>Couldn’t load the inbox — open it to retry</p></div>';

@@ -3096,7 +3096,7 @@ function renderBrowse() {
             img.style.cssText = 'width:40px;height:40px;object-fit:cover;border-radius:4px';
             el.innerHTML = '';
             el.appendChild(img);
-            loadDriveThumb(fileId, img, el);
+            loadDriveThumb(fileId, img, el, (photos[0] && photos[0].thumbnailLink) || null, 'lo');
           }
         } else {
           const el = document.getElementById('thumb-' + item.itemNum + '-' + (item.variation || ''));

@@ -333,12 +333,13 @@ async function driveGetFolderPhotos(folderLink) {
   if (!accessToken) return null;
   try {
     const q = encodeURIComponent(`'${folderId}' in parents and mimeType contains 'image/' and trashed=false`);
-    const res = await driveRequest('GET', `/files?q=${q}&fields=files(id,name)&orderBy=name`);
+    const res = await driveRequest('GET', `/files?q=${q}&fields=files(id,name,thumbnailLink)&orderBy=name`);
     if (res.error) { console.warn('Drive photo fetch error:', res.error); return null; }
     return (res.files || []).map(function(f) {
       return {
         id: f.id,
         name: f.name,
+        thumbnailLink: f.thumbnailLink || '',
         // Use authenticated media download URL — fetch as blob in loadThumb()
         mediaUrl: 'https://www.googleapis.com/drive/v3/files/' + f.id + '?alt=media',
         view: 'https://drive.google.com/file/d/' + f.id + '/view',
@@ -349,7 +350,58 @@ async function driveGetFolderPhotos(folderLink) {
 
 // Fetch a Drive file as an authenticated blob URL for use in <img loading="lazy" src>
 const _blobCache = {};
-async function loadDriveThumb(fileId, imgEl, containerEl) {
+const _thumbLinkCache = {};
+var _thumbQ = { hi: [], lo: [], active: 0, max: 6 };
+function _thumbEnqueue(task, priority) {
+  (priority === 'hi' ? _thumbQ.hi : _thumbQ.lo).push(task);
+  _thumbPump();
+}
+function _thumbPump() {
+  while (_thumbQ.active < _thumbQ.max) {
+    var task = _thumbQ.hi.shift() || _thumbQ.lo.shift();
+    if (!task) return;
+    _thumbQ.active++;
+    Promise.resolve().then(task).catch(function(){}).then(function(){ _thumbQ.active--; _thumbPump(); });
+  }
+}
+if (typeof window !== 'undefined') window._thumbEnqueue = _thumbEnqueue;
+
+// v0.9.929: prefer Drive's built-in thumbnail (a few KB) over the full original
+// (often 2+ MB) for on-screen thumbnails. A small queue avoids flooding Drive;
+// inbox images pass priority 'hi' so they load ahead of collection ('lo'). Any
+// failure falls back to the original-file path below, so nothing regresses.
+function loadDriveThumb(fileId, imgEl, containerEl, thumbLink, priority) {
+  if (!fileId || !imgEl) return;
+  _thumbEnqueue(function() {
+    return _loadDriveThumbSmall(fileId, imgEl, containerEl, thumbLink);
+  }, priority === 'hi' ? 'hi' : 'lo');
+}
+async function _loadDriveThumbSmall(fileId, imgEl, containerEl, thumbLink) {
+  try {
+    var link = thumbLink;
+    if (!link) {
+      if (Object.prototype.hasOwnProperty.call(_thumbLinkCache, fileId)) {
+        link = _thumbLinkCache[fileId];
+      } else {
+        try {
+          var mr = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?fields=thumbnailLink', { headers: { Authorization: 'Bearer ' + accessToken } });
+          link = mr.ok ? ((await mr.json()).thumbnailLink || '') : '';
+        } catch (e) { link = ''; }
+        _thumbLinkCache[fileId] = link;
+      }
+    }
+    if (link) {
+      var sized = link.replace(/=s\d+(-c)?$/, '=s400');
+      return await new Promise(function(resolve) {
+        imgEl.onload = function() { imgEl.onload = null; imgEl.onerror = null; resolve(); };
+        imgEl.onerror = function() { imgEl.onload = null; imgEl.onerror = null; _loadDriveThumbFull(fileId, imgEl, containerEl).then(resolve, resolve); };
+        imgEl.src = sized;
+      });
+    }
+  } catch (e) {}
+  return _loadDriveThumbFull(fileId, imgEl, containerEl);
+}
+async function _loadDriveThumbFull(fileId, imgEl, containerEl) {
   const cacheKey = fileId;
   if (_blobCache[cacheKey]) { imgEl.src = _blobCache[cacheKey]; return; }
   try {
