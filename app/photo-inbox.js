@@ -1150,6 +1150,13 @@
       _status('');
       showToast('Discarded ' + n + ' photo' + (n > 1 ? 's' : ''), 2500);
       _pinRefresh();
+      // v0.9.940 (Brad): discarding must land you back ON the Photo Inbox —
+      // some entry paths were ending up on the Dashboard instead. Force it.
+      try {
+        if (!document.querySelector('#page-photo-inbox.active') && typeof showPage === 'function') {
+          showPage('photo-inbox', document.getElementById('nav-photo-inbox'));
+        }
+      } catch (eNav) {}
     } catch (e) {
       console.error('[Inbox] discard:', e);
       _status('Discard failed partway — hit Refresh and try again.');
