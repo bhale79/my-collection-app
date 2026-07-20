@@ -700,6 +700,7 @@
         try {
           var pend = JSON.parse(localStorage.getItem(PENDING_KEY) || '{}');
           pend[num] = { link: link, fromFid: fromFid, toFid: toFid, ts: ts,
+            rsvFid: (fileList[0] && fileList[0].id) || '',   // v0.9.935: files as the Right Side View
             files: fileList.map(function (fl) { return { id: fl.id, name: fl.name }; }) };
           localStorage.setItem(PENDING_KEY, JSON.stringify(pend));
         } catch (eP) {}
@@ -782,7 +783,10 @@
             var ext = (String(file.name || '').split('.').pop() || 'jpg').toLowerCase().slice(0, 5);
             try {
               await driveMoveFileToFolder(file.id, rec.fromFid, rec.toFid);
-              try { await driveRequest('PATCH', '/files/' + file.id, { name: num + ' ADD ' + ((rec.ts || new Date().getTime()) + mv) + '.' + ext }); } catch (eRn) {}
+              // v0.9.935 (Brad): the photo shown in the wizard's RSV slot files as
+              // the Right Side View, so detail pages/thumbnails treat it as primary.
+              var _vTag = (rec.rsvFid && file.id === rec.rsvFid) ? ' RSV ' : ' ADD ';
+              try { await driveRequest('PATCH', '/files/' + file.id, { name: num + _vTag + ((rec.ts || new Date().getTime()) + mv) + '.' + ext }); } catch (eRn) {}
             } catch (eMv) { console.warn('[Inbox] deferred photo move skipped (removed?):', file.id, eMv); }
           }
         }

@@ -3405,16 +3405,20 @@ function renderWizardStep() {
     function makePhotoSlot(viewKey, label, abbr, stepId) {
       const url = stored[viewKey] || '';
       const hasPic = !!url;
+      // v0.9.935 (Brad): adding from the Photo Inbox auto-loads that photo into
+      // the Right Side View slot (it files as RSV on save — see photo-inbox.js).
+      // Click still replaces it with a fresh upload if wanted.
+      const inboxFid = (!hasPic && viewKey === 'RSV' && wizard && wizard.data && wizard.data._addPhotoDriveId) ? wizard.data._addPhotoDriveId : '';
 
       const div = document.createElement('div');
       div.className = 'photo-drop-zone';
       div.dataset.view = viewKey;
       div.dataset.sid = stepId;
-      div.style.cssText = 'border:2px dashed ' + (hasPic ? 'var(--accent2)' : 'var(--border)') + ';'
+      div.style.cssText = 'border:2px dashed ' + ((hasPic || inboxFid) ? 'var(--accent2)' : 'var(--border)') + ';'
         + 'border-radius:8px;aspect-ratio:1;min-height:58px;'
         + 'display:flex;flex-direction:column;align-items:center;justify-content:center;'
         + 'cursor:pointer;transition:all 0.2s;position:relative;overflow:hidden;'
-        + 'background:' + (hasPic ? 'rgba(201,146,42,0.08)' : 'var(--surface2)');
+        + 'background:' + ((hasPic || inboxFid) ? 'rgba(201,146,42,0.08)' : 'var(--surface2)');
       div.ondragover = function(e) { e.preventDefault(); div.style.borderColor = 'var(--accent)'; };
       div.ondragleave = function() { div.style.borderColor = hasPic ? 'var(--accent2)' : 'var(--border)'; };
       div.ondrop = function(e) { handlePhotoDrop(e, stepId, viewKey); };
@@ -3436,6 +3440,20 @@ function renderWizardStep() {
         div.appendChild(img);
         div.appendChild(overlay);
         div.appendChild(lbl);
+      } else if (inboxFid) {
+        const img = document.createElement('img');
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;inset:0;opacity:0.82';
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:absolute;inset:0;background:rgba(0,0,0,0.25)';
+        const lbl = document.createElement('div');
+        lbl.style.cssText = 'position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.65);'
+          + 'font-size:0.68rem;color:#fff;padding:2px 3px;text-align:center;'
+          + 'font-family:var(--font-head);letter-spacing:0.04em;text-transform:uppercase';
+        lbl.textContent = abbr + ' \u2713 from inbox';
+        div.appendChild(img);
+        div.appendChild(overlay);
+        div.appendChild(lbl);
+        try { if (typeof loadDriveThumb === 'function') loadDriveThumb(inboxFid, img, div, null, 'hi'); } catch (e) {}
       } else {
         const inner = document.createElement('div');
         inner.style.cssText = 'font-size:0.72rem;color:var(--text-dim);text-align:center;padding:0.25rem;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%';
