@@ -261,13 +261,17 @@ function buildPrefsPage() {
 
       <div style="font-size:0.78rem;font-weight:600;color:var(--text-mid);padding:0.75rem 0.2rem 0.35rem;letter-spacing:0.03em;text-transform:uppercase">Eras I Collect</div>
       <div class="pref-row" style="flex-direction:column;align-items:flex-start;gap:0.4rem">
-        <div style="font-size:0.78rem;color:var(--text-dim);line-height:1.5">Uncheck eras you don't collect — they'll be hidden from the era dropdown and search banner. Hidden eras automatically reappear when their manufacturer and scale are enabled above.</div>
+        <div style="font-size:0.78rem;color:var(--text-dim);line-height:1.5">Lionel spans three eras — uncheck any you don't collect. Every other manufacturer is controlled by the Manufacturers row above.</div>
         <div style="display:flex;flex-wrap:wrap;gap:0.55rem;width:100%">
           ${(function() {
             // Session 138: Eras list filtered to only those whose manufacturer AND
             // scale are both enabled above. Skips 'all' meta-era (not in picker).
             var visible = Object.keys(ERAS).filter(function(k) {
               if (k === 'all') return false;
+              // v0.9.928: the Eras list is the Lionel time-periods only. Every
+              // other manufacturer has a single era and is controlled by the
+              // Manufacturers + Scales rows above.
+              if (String((ERAS[k] && ERAS[k].manufacturer) || '').toLowerCase() !== 'lionel') return false;
               var mfr = String((ERAS[k] && ERAS[k].manufacturer) || '').toLowerCase();
               if (mfr && typeof _isManufacturerEnabled === 'function' && !_isManufacturerEnabled(mfr)) return false;
               var sc = (typeof _scaleOfEra === 'function') ? _scaleOfEra(k) : null;
@@ -707,6 +711,7 @@ function _togglePrefEra(eraId, on) {
     enabled = enabled.filter(function(e) { return e !== eraId; });
   }
   _setEnabledEras(enabled);
+  if (on && typeof _ensureEnabledErasLoaded === 'function') _ensureEnabledErasLoaded();
   if (typeof _applyEraVisibility === 'function') _applyEraVisibility();
 }
 
@@ -727,6 +732,7 @@ function _togglePrefScale(scaleId, on) {
     enabled = enabled.filter(function(s) { return s !== scaleId; });
   }
   _setEnabledScales(enabled);
+  if (on && typeof _ensureEnabledErasLoaded === 'function') _ensureEnabledErasLoaded();
   var _restoreScroll = _prefsScrollSnapshot();   // v0.9.653: capture BEFORE the re-renders
   if (typeof _applyEraVisibility === 'function') _applyEraVisibility();
   if (typeof buildDashboard === 'function') buildDashboard();
@@ -752,6 +758,7 @@ function _togglePrefMfr(mfrId, on) {
     enabled = enabled.filter(function(m) { return m !== mfrId; });
   }
   _setEnabledManufacturers(enabled);
+  if (on && typeof _ensureEnabledErasLoaded === 'function') _ensureEnabledErasLoaded();
   var _restoreScroll = _prefsScrollSnapshot();   // v0.9.653: capture BEFORE the re-renders
   if (typeof _applyEraVisibility === 'function') _applyEraVisibility();
   if (typeof buildDashboard === 'function') buildDashboard();

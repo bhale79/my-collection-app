@@ -1083,10 +1083,15 @@ function _setEnabledEras(arr) {
 function _isEraEnabled(era) {
   // 'all' meta-era is always available regardless of preferences
   if (era === 'all') return true;
-  var enabled = _getEnabledEras();
-  if (enabled.indexOf(era) < 0) return false;
-  // Session 137: gate by manufacturer preference first.
+  // v0.9.928: the per-era toggle applies ONLY to the Lionel time-eras
+  // (Prewar / Postwar / MPC-Modern). Every other manufacturer has one era and
+  // is governed purely by the Manufacturers + Scales prefs, so it is never
+  // hidden by the era list.
   var mfr = (typeof _manufacturerOfEra === 'function') ? _manufacturerOfEra(era) : null;
+  if (mfr === 'lionel') {
+    var enabled = _getEnabledEras();
+    if (enabled.indexOf(era) < 0) return false;
+  }
   if (mfr && !_isManufacturerEnabled(mfr)) return false;
   // Session 136: also gate by scale preference. An era is enabled only if its
   // scale is also enabled. Mixed-scale eras (Pre-War) get null here and are
@@ -1096,6 +1101,46 @@ function _isEraEnabled(era) {
   if (sc === null) return true;
   return _isScaleEnabled(sc);
 }
+
+// v0.9.928: on-demand master load for 'all' mode. Startup now loads only the
+// eras the user collects; when they enable a manufacturer/scale/era in prefs,
+// this fetches that era's rows (IDB cache first, else Sheets) and merges them
+// into the live set without a full reload. No-op if already loaded or in a
+// single-era view. Fully guarded — failures are logged, never fatal.
+async function _ensureEraLoaded(era) {
+  try {
+    if (!era || era === 'all') return;
+    if (typeof _currentEra !== 'undefined' && _currentEra !== 'all') return;
+    var rows = state.masterData || [];
+    for (var i = 0; i < rows.length; i++) { if (rows[i] && rows[i]._era === era) return; }
+    var arr = await idbGet('lv_master_cache_' + era);
+    if (!Array.isArray(arr) || !arr.length) {
+      if (typeof _fetchMasterTabs !== 'function') return;
+      var fetched = await _fetchMasterTabs(era);
+      arr = (typeof _deduplicateMaster === 'function') ? _deduplicateMaster(fetched) : fetched;
+      try { idbSet('lv_master_cache_' + era, arr); localStorage.setItem('lv_master_cache_ts_' + era, Date.now().toString()); } catch(e) {}
+    }
+    if (!Array.isArray(arr) || !arr.length) return;
+    arr.forEach(function(m) { if (m && !m._era) m._era = era; });
+    var rows2 = state.masterData || [];
+    for (var j = 0; j < rows2.length; j++) { if (rows2[j] && rows2[j]._era === era) return; }
+    state.masterData = (state.masterData || []).concat(arr);
+    if (typeof _rebuildMasterIndex === 'function') _rebuildMasterIndex();
+    if (typeof buildPartnerMap === 'function') { try { buildPartnerMap(); } catch(e) {} }
+    if (typeof buildDashboard === 'function') buildDashboard();
+    if (typeof renderBrowse === 'function') renderBrowse();
+  } catch (e) { console.warn('[ensureEraLoaded] ' + era + ' failed:', e); }
+}
+function _ensureEnabledErasLoaded() {
+  try {
+    if (typeof _currentEra !== 'undefined' && _currentEra !== 'all') return;
+    if (typeof REAL_ERA_IDS === 'undefined') return;
+    REAL_ERA_IDS.forEach(function(e) {
+      if (typeof _isEraEnabled === 'function' && _isEraEnabled(e)) _ensureEraLoaded(e);
+    });
+  } catch (e) {}
+}
+if (typeof window !== 'undefined') { window._ensureEraLoaded = _ensureEraLoaded; window._ensureEnabledErasLoaded = _ensureEnabledErasLoaded; }
 
 // ── Session 136 ─ Scale preference helpers (Tier 3.14) ────────────────────────
 // Default: all scales enabled. User can disable scales they don't collect to
@@ -1493,6 +1538,16 @@ async function loadAllErasMode() {
   var realEras = (typeof REAL_ERA_IDS !== 'undefined' && Array.isArray(REAL_ERA_IDS))
     ? REAL_ERA_IDS.slice()
     : ['pw', 'mpc', 'prewar', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g'];
+  // v0.9.928: only load the eras the user actually collects (Manufacturers +
+  // Scales + Lionel-era prefs). Big startup speedup for focused collectors.
+  // Guarded: if the filter would empty the list, or throws, load everything so
+  // the app is never blank.
+  try {
+    if (typeof _isEraEnabled === 'function') {
+      var _wantedEras = realEras.filter(function(e) { return _isEraEnabled(e); });
+      if (_wantedEras.length) realEras = _wantedEras;
+    }
+  } catch (e) { console.warn('[loadAllErasMode] era-pref filter failed; loading all:', e); }
   var hydrated = 0;
   try {
     var masterCaches = await Promise.all(realEras.map(function(e) {
