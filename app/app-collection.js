@@ -1213,10 +1213,16 @@ function showItemDetailPage(idx, copyInvId, opts) {
       ${_photoLink ? `<a href="${_photoLink}" target="_blank" rel="noopener" style="font-size:0.75rem;color:var(--accent2);text-decoration:none">Open Drive Folder \u2197</a>` : ''}
     </div>
     ${_grpPhotoMembers.length
-      ? _grpPhotoMembers.map(function (p, gi) {
-          return '<div style="font-size:0.7rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent3,#2ecc71);margin:0.6rem 0 0.4rem">' + _grpRole(p) + ' — ' + String(p.itemNum||'').replace(/</g,'&lt;') + ' <a href="' + p.photoItem + '" target="_blank" rel="noopener" style="font-weight:400;text-transform:none;color:var(--accent2);text-decoration:none;letter-spacing:0">folder \u2197</a></div>'
-            + '<div id="grp-photos-' + gi + '" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:0.75rem;min-height:40px"><div style="grid-column:1/-1;color:var(--text-dim);font-size:0.78rem">Loading…</div></div>';
+      ? '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:0 1.25rem;align-items:start">'
+        + _grpPhotoMembers.map(function (p, gi) {
+          // v0.9.936 (Brad): each unit is its own column so paired units sit
+          // BESIDE each other on wide screens instead of stacking.
+          return '<div>'
+            + '<div style="font-size:0.7rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent3,#2ecc71);margin:0.6rem 0 0.4rem">' + _grpRole(p) + ' — ' + String(p.itemNum||'').replace(/</g,'&lt;') + ' <a href="' + p.photoItem + '" target="_blank" rel="noopener" style="font-weight:400;text-transform:none;color:var(--accent2);text-decoration:none;letter-spacing:0">folder \u2197</a></div>'
+            + '<div id="grp-photos-' + gi + '" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:0.75rem;min-height:40px"><div style="grid-column:1/-1;color:var(--text-dim);font-size:0.78rem">Loading…</div></div>'
+            + '</div>';
         }).join('')
+        + '</div>'
       : `<div id="item-detail-photos" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:0.75rem;min-height:80px">
       ${_photoLink ? '<div style="grid-column:1/-1;text-align:center;padding:1rem;color:var(--text-dim);font-size:0.82rem"><div class="spinner" style="margin:0 auto 0.5rem;width:20px;height:20px;border-width:2px"></div>Loading photos...</div>' : '<div style="grid-column:1/-1;text-align:center;padding:2rem 1rem;color:var(--text-dim)"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3" style="margin:0 auto 0.5rem;display:block"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg><div style="font-size:0.85rem;margin-bottom:0.5rem">No photos uploaded yet</div><button onclick="showItemDetailPage_photos(' + idx + ')" style="padding:0.4rem 0.8rem;border-radius:7px;border:1.5px solid var(--gold);background:rgba(212,168,67,0.08);color:var(--gold);font-family:var(--font-body);font-size:0.78rem;cursor:pointer;font-weight:600">Add Photos</button></div>'}
     </div>`}
