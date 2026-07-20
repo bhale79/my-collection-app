@@ -105,6 +105,8 @@ const WHAT_I_COLLECT = {
     weaver:       'o',
     rmt:          'o',
     thirdrail:    'o',
+    usatrains:    'g',
+    lgb:          'g',
   },
 
   // ── Session 137: Manufacturer preference (Tier 3.15) ──
@@ -122,6 +124,8 @@ const WHAT_I_COLLECT = {
     rmt:    { id: 'rmt',    label: 'RMT',    color: '#e67e22',       default: false },
     menards:{ id: 'menards',label: 'Menards',color: '#2c8a4b',       default: false },
     '3rd rail':{ id: '3rd rail', label: '3rd Rail', color: '#8e44ad', default: false },
+    'usa trains':{ id: 'usa trains', label: 'USA Trains', color: '#c0392b', default: false },
+    lgb:    { id: 'lgb',    label: 'LGB',    color: '#f39c12',       default: false },
   },
 };
 

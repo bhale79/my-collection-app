@@ -123,7 +123,7 @@ window.ITEM_SEARCH_FILTERS = {
   searchStopWords: [
     'mth', 'lionel', 'atlas', 'weaver', 'williams', 'rmt', 'k-line', 'kline',
     'menards', 'bachmann', 'premier', 'railking', 'rail-king', 'tinplate',
-    '3rd', 'rail', 'sunset',
+    '3rd', 'rail', 'sunset', 'lgb',
     'standard', 'o', 'ho', 's', 'g', 'gauge', 'scale', 'the', 'by',
   ],
 };

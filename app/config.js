@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.930';
+const APP_VERSION = 'v0.9.931';
 
 // v0.9.918 (Brad): SINGLE SOURCE OF TRUTH for the personal sheet's collection
 // tab name. Every sheet read/write range ("My Collection!D12") builds from
@@ -134,9 +134,13 @@ const ERAS = {
   // No factory catalog numbers; itemNums are 3R-/GGD- road+model slugs from
   // the Wayback reconstruction (see 3RDRAIL_WAYBACK_PROGRESS.md in project).
   thirdrail: { id: 'thirdrail', label: '3rd Rail O', years: 'All', prefix: '3rd Rail O', manufacturer: '3rd Rail' },
+  // 2026-07-20: USA Trains + LGB — G-scale manufacturers (Trainz crawl + official
+  // sources; see USATRAINS_LGB_RECON.md in project).
+  usatrains: { id: 'usatrains', label: 'USA Trains G', years: 'All', prefix: 'USA Trains G', manufacturer: 'USA Trains' },
+  lgb:       { id: 'lgb',       label: 'LGB G',        years: 'All', prefix: 'LGB G',        manufacturer: 'LGB' },
 };
 // Real-era IDs in load priority order (excluding 'all' meta-era).
-const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver', 'rmt', 'menards', 'thirdrail'];
+const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver', 'rmt', 'menards', 'thirdrail', 'usatrains', 'lgb'];
 
 // ── Master sheet tab names per era ──
 // Session 154: scale per era — drives the want-list Scale filter (master
@@ -144,6 +148,7 @@ const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas', 'mth_o', 'mth_ho', 'mth_s'
 const ERA_SCALE = {
   prewar: 'Standard', mth_tinplate: 'Standard',
   pw: 'O', mpc: 'O', atlas: 'O', mth_o: 'O', weaver: 'O', rmt: 'O', menards: 'O', thirdrail: 'O',
+  usatrains: 'g', lgb: 'g',
   mth_ho: 'HO',
   mth_s: 'S',
   mth_g: 'G',
@@ -203,6 +208,12 @@ const ERA_TABS = {
   },
   thirdrail: {
     items:    '3rd Rail O',
+  },
+  usatrains: {
+    items:    'USA Trains G',
+  },
+  lgb: {
+    items:    'LGB G',
   },
 };
 
@@ -283,12 +294,12 @@ var SEARCH_ALIASES = {};
 // ── Manual-entry pickers ── single source of truth for the manual-add
 // Manufacturer + Item Type steps (quick-pick chips + searchable dropdown).
 window.MANUAL_MANUFACTURERS = {
-  common: ['Lionel', 'MTH', 'Atlas O', 'Williams', 'Weaver', 'K-Line', 'Marx', 'American Flyer', 'Menards', 'RMT', '3rd Rail'],  // v0.9.673: Menards chip (Brad) + RMT (has its own era/tab too)
+  common: ['Lionel', 'MTH', 'Atlas O', 'Williams', 'Weaver', 'K-Line', 'Marx', 'American Flyer', 'Menards', 'RMT', '3rd Rail', 'USA Trains', 'LGB'],  // v0.9.673: Menards chip (Brad) + RMT (has its own era/tab too)
   all: [
     '3rd Rail', 'All-Nation', 'American Flyer', 'Atlas O', 'Bachmann', 'Dorfan',
     'Hafner', 'Industrial Rail', 'Ives', 'K-Line', 'Kusan', 'Lionel',
-    'Lionel Corporation Tinplate', 'Marx', 'McCoy', 'Menards', 'MTH', 'Pride Lines',
-    'RMT', 'Right-of-Way Industries', 'Sunset Models', 'Unique Art', 'Weaver',
+    'LGB', 'Lionel Corporation Tinplate', 'Marx', 'McCoy', 'Menards', 'MTH', 'Pride Lines',
+    'RMT', 'Right-of-Way Industries', 'Sunset Models', 'Unique Art', 'USA Trains', 'Weaver',
     'Williams', 'Williams by Bachmann',
   ],
 };
