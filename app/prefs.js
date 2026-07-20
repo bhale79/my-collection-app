@@ -355,6 +355,8 @@ function buildPrefsPage() {
       </div>
     </div>`;
 
+  _prefsApplySectionState();
+
   // Keep hidden pref-location-toggle in sync (used by wizard)
   const locTog = document.getElementById('ptog-location');
   const oldTog = document.getElementById('pref-location-toggle');
@@ -853,17 +855,37 @@ function _openLocationsModal(){
   _renderLocList();
 }
 
+// v0.9.932 (Brad): section open/closed state survives the page rebuilds that
+// every checkbox toggle triggers. _prefsSectionState maps section title ->
+// true (open) / false (closed); _prefsApplySectionState() re-applies it after
+// each buildPrefsPage() render, so an expanded section stays expanded while
+// the user ticks multiple boxes.
+var _prefsSectionState = {};
+function _prefsSectionKey(titleEl) {
+  return (titleEl.textContent || '').replace(/[▶▼]/g, '').trim();
+}
 function _togglePrefSection(titleEl) {
   var body = titleEl.nextElementSibling;
   var arrow = titleEl.querySelector('span');
   if (!body) return;
-  if (body.style.display === 'none') {
-    body.style.display = '';
-    if (arrow) arrow.textContent = '▼';
-  } else {
-    body.style.display = 'none';
-    if (arrow) arrow.textContent = '▶';
-  }
+  var open = (body.style.display === 'none');
+  body.style.display = open ? '' : 'none';
+  if (arrow) arrow.textContent = open ? '▼' : '▶';
+  _prefsSectionState[_prefsSectionKey(titleEl)] = open;
+}
+function _prefsApplySectionState() {
+  try {
+    document.querySelectorAll('#prefs-content .pref-section-title').forEach(function(titleEl) {
+      var key = _prefsSectionKey(titleEl);
+      if (!(key in _prefsSectionState)) return;   // untouched -> keep markup default
+      var body = titleEl.nextElementSibling;
+      var arrow = titleEl.querySelector('span');
+      if (!body) return;
+      var open = !!_prefsSectionState[key];
+      body.style.display = open ? '' : 'none';
+      if (arrow) arrow.textContent = open ? '▼' : '▶';
+    });
+  } catch (e) {}
 }
 
 
