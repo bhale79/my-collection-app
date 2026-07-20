@@ -1237,18 +1237,9 @@ function showItemDetailPage(idx, copyInvId, opts) {
         var el = document.getElementById('grp-photos-' + gi);
         if (!el) return;
         if (!photos || !photos.length) { el.innerHTML = '<div style="grid-column:1/-1;color:var(--text-dim);font-size:0.78rem">No photos in this folder</div>'; return; }
-        el.innerHTML = photos.map(function (ph) {
-          return '<div style="position:relative"><a href="' + ph.view + '" target="_blank" rel="noopener" style="display:block;border-radius:8px;overflow:hidden;background:var(--surface2);aspect-ratio:1;position:relative">'
-            + '<img id="gidp-' + gi + '-' + ph.id + '" style="width:100%;height:100%;object-fit:cover;border-radius:8px" alt="">'
-            + '<div onclick="event.preventDefault();event.stopPropagation();_grpRenamePhoto(\'' + ph.id + '\', this)" title="Click to rename (e.g. add -P or -D)" style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.6));padding:0.3rem 0.5rem;cursor:text"><div style="font-size:0.65rem;color:#fff;font-family:var(--font-head);letter-spacing:0.05em;text-transform:uppercase">' + (ph.name || '').replace(/\.[^.]+$/, '') + ' <span style="opacity:0.6">✎</span></div></div></a>'
-            // v0.9.846 (Brad): rotate/crop on grouped-item photos too — same
-            // shared editor, replaces the Drive file in place.
-            + '<button onclick="event.preventDefault();event.stopPropagation();_detailPhotoEdit(\'' + ph.id + '\',\'' + String(ph.name || '').replace(/'/g, "\\'") + '\',\'' + String(p.photoItem || '').replace(/'/g, "\\'") + '\',\'gidp-' + gi + '-' + ph.id + '\')" title="Rotate / crop this photo" style="position:absolute;top:4px;right:4px;z-index:2;width:26px;height:26px;border-radius:6px;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:0.8rem;cursor:pointer;line-height:1">\u2702</button></div>';
-        }).join('');
-        photos.forEach(function (ph) {
-          var imgEl = document.getElementById('gidp-' + gi + '-' + ph.id);
-          if (imgEl) loadDriveThumb(ph.id, imgEl, imgEl.parentElement);
-        });
+        // v0.9.937 (Brad): hero + thumbnail-rail gallery per unit (rename via
+        // the hero label, ✂ crops the photo shown large).
+        _buildPhotoGallery(el, photos, { folderLink: p.photoItem, canRename: true });
       }).catch(function () {
         var el = document.getElementById('grp-photos-' + gi);
         if (el) el.innerHTML = '<div style="grid-column:1/-1;color:var(--text-dim);font-size:0.78rem">Could not load photos</div>';
@@ -1265,28 +1256,9 @@ function showItemDetailPage(idx, copyInvId, opts) {
         el.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:2rem 1rem;color:var(--text-dim)"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3" style="margin:0 auto 0.5rem;display:block"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg><div style="font-size:0.85rem;margin-bottom:0.5rem">No photos in folder</div><button onclick="showItemDetailPage_photos(' + idx + ')" style="padding:0.4rem 0.8rem;border-radius:7px;border:1.5px solid var(--gold);background:rgba(212,168,67,0.08);color:var(--gold);font-family:var(--font-body);font-size:0.78rem;cursor:pointer;font-weight:600">Add Photos</button></div>';
         return;
       }
-      var _flEsc = String(_photoLink || '').replace(/'/g, "\\'");
-      el.innerHTML = photos.map(function(p) {
-        var _pn = (p.name||'').replace(/'/g,"\\'");
-        return '<div style="position:relative">'
-          + '<a href="' + p.view + '" target="_blank" rel="noopener" style="display:block;border-radius:8px;overflow:hidden;background:var(--surface2);aspect-ratio:1;position:relative">'
-          + '<img id="idp-' + p.id + '" style="width:100%;height:100%;object-fit:cover;border-radius:8px;transition:opacity 0.3s" alt="' + (p.name||'Photo') + '">'
-          + '<div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.6));padding:0.3rem 0.5rem">'
-          + '<div style="font-size:0.65rem;color:#fff;font-family:var(--font-head);letter-spacing:0.05em;text-transform:uppercase">' + (p.name||'').replace(/\.[^.]+$/,'') + '</div>'
-          + '</div></a>'
-          // v0.9.837 (Brad): edit (rotate/crop) right on the detail page —
-          // opens the cropper on the full image, replaces the Drive file in
-          // place. The cropper itself gained a Rotate button.
-          + '<button onclick="event.preventDefault();event.stopPropagation();_detailPhotoEdit(\'' + p.id + '\',\'' + _pn + '\',\'' + _flEsc + '\')" title="Rotate / crop this photo" style="position:absolute;top:4px;right:4px;z-index:2;width:26px;height:26px;border-radius:6px;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:0.8rem;cursor:pointer;line-height:1">\u2702</button>'
-          + '</div>';
-      }).join('');
-      // Load each photo thumbnail
-      photos.forEach(function(p) {
-        const imgEl = document.getElementById('idp-' + p.id);
-        if (imgEl) {
-          loadDriveThumb(p.id, imgEl, imgEl.parentElement);
-        }
-      });
+      // v0.9.937 (Brad): hero + thumbnail-rail gallery (RSV big, other views
+      // as clickable thumbnails beside it; ✂ acts on the photo shown large).
+      _buildPhotoGallery(el, photos, { folderLink: _photoLink, canRename: false });
     }).catch(function(e) {
       console.warn('Photo gallery load:', e);
       const el = document.getElementById('item-detail-photos');
@@ -1332,6 +1304,128 @@ async function _removeFromCollectionDetail(idx, itemNum, variation) {
 // the full-size image as an authorized blob (avoids canvas tainting), opens
 // the shared cropper (which now has Rotate), and on Apply REPLACES the Drive
 // file in place via _cropReplaceDrivePhoto — no duplicates, thumbnail updates.
+// ── v0.9.937 (Brad): hero + thumbnail-rail photo gallery ─────────────────
+// RSV (first photo) shows natural-size as the hero; the other views are
+// clickable thumbnails in a rail beside it (below it on phones). Clicking a
+// thumbnail swaps it into the hero; ✂ crop and ✎ rename always act on the
+// photo currently shown large. Swipe left/right on the hero (or focus it and
+// use arrow keys) to flip through views. Used by BOTH the single-item detail
+// page and each unit of a grouped item.
+var _galSeq = 0;
+function _buildPhotoGallery(el, photos, opts) {
+  opts = opts || {};
+  var galId = 'gal' + (++_galSeq);
+  var narrow = (window.innerWidth || 0) < 700;
+  var cur = 0;
+  el.innerHTML = '';
+  el.style.cssText = 'display:flex;gap:0.6rem;align-items:flex-start;min-height:40px;'
+    + (narrow ? 'flex-direction:column;' : '');
+
+  // Hero
+  var heroWrap = document.createElement('div');
+  heroWrap.style.cssText = 'flex:1;min-width:0;position:relative;' + (narrow ? 'width:100%;' : '');
+  var heroLink = document.createElement('a');
+  heroLink.target = '_blank'; heroLink.rel = 'noopener'; heroLink.tabIndex = 0;
+  heroLink.style.cssText = 'display:block;border-radius:10px;overflow:hidden;background:var(--surface2);position:relative;outline-offset:2px';
+  var heroImg = document.createElement('img');
+  heroImg.id = galId + '-hero';
+  heroImg.alt = 'Item photo';
+  heroImg.style.cssText = 'width:100%;height:auto;max-height:70vh;object-fit:contain;display:block';
+  var heroLbl = document.createElement('div');
+  heroLbl.style.cssText = 'position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.6));padding:0.35rem 0.55rem;'
+    + (opts.canRename ? 'cursor:text;' : '');
+  var heroLblTxt = document.createElement('div');
+  heroLblTxt.style.cssText = 'font-size:0.68rem;color:#fff;font-family:var(--font-head);letter-spacing:0.05em;text-transform:uppercase';
+  heroLbl.appendChild(heroLblTxt);
+  heroLink.appendChild(heroImg); heroLink.appendChild(heroLbl);
+  var editBtn = document.createElement('button');
+  editBtn.title = 'Rotate / crop this photo';
+  editBtn.textContent = '\u2702';
+  editBtn.style.cssText = 'position:absolute;top:4px;right:4px;z-index:2;width:26px;height:26px;border-radius:6px;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:0.8rem;cursor:pointer;line-height:1';
+  heroWrap.appendChild(heroLink); heroWrap.appendChild(editBtn);
+  el.appendChild(heroWrap);
+
+  // Rail (only when there is more than one photo)
+  var rail = null, thumbs = [];
+  if (photos.length > 1) {
+    rail = document.createElement('div');
+    rail.style.cssText = narrow
+      ? 'display:flex;flex-direction:row;gap:0.5rem;width:100%;overflow-x:auto;padding-bottom:2px'
+      : 'display:flex;flex-direction:column;gap:0.5rem;width:74px;flex-shrink:0;max-height:70vh;overflow-y:auto';
+    photos.forEach(function (p, i) {
+      var t = document.createElement('div');
+      t.title = (p.name || '').replace(/\.[^.]+$/, '');
+      t.style.cssText = 'position:relative;border-radius:7px;overflow:hidden;cursor:pointer;flex-shrink:0;'
+        + 'width:74px;height:56px;background:var(--surface2);border:2px solid var(--border)';
+      var ti = document.createElement('img');
+      ti.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block';
+      var tl = document.createElement('div');
+      tl.style.cssText = 'position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);font-size:0.55rem;color:#fff;text-align:center;padding:1px 2px;font-family:var(--font-head);letter-spacing:0.04em;text-transform:uppercase;white-space:nowrap;overflow:hidden';
+      tl.textContent = ((p.name || '').replace(/\.[^.]+$/, '').split(' ').pop()) || ('#' + (i + 1));
+      t.appendChild(ti); t.appendChild(tl);
+      t.onclick = function () { select(i); };
+      rail.appendChild(t);
+      thumbs.push(t);
+      try { loadDriveThumb(p.id, ti, t, p.thumbnailLink || null, 'lo'); } catch (e) {}
+    });
+    el.appendChild(rail);
+  }
+
+  function heroSrcFor(p) {
+    if (p.thumbnailLink) return p.thumbnailLink.replace(/=s\d+(-c)?$/, '=s1200');
+    return '';
+  }
+  function select(i) {
+    if (i < 0) i = photos.length - 1;
+    if (i >= photos.length) i = 0;
+    cur = i;
+    var p = photos[cur];
+    heroLink.href = p.view || '#';
+    heroLblTxt.innerHTML = ((p.name || '').replace(/\.[^.]+$/, '').replace(/</g, '&lt;')).toUpperCase()
+      + (opts.canRename ? ' <span style="opacity:0.6">\u270e</span>' : '');
+    heroImg.onerror = function () {
+      heroImg.onerror = null;
+      try { loadDriveThumb(p.id, heroImg, heroLink, null, 'hi'); } catch (e) {}
+    };
+    var src = heroSrcFor(p);
+    if (src) heroImg.src = src;
+    else { try { loadDriveThumb(p.id, heroImg, heroLink, null, 'hi'); } catch (e) {} }
+    editBtn.onclick = function (ev) {
+      ev.preventDefault(); ev.stopPropagation();
+      _detailPhotoEdit(p.id, p.name || '', opts.folderLink || '', heroImg.id);
+    };
+    if (opts.canRename) {
+      heroLbl.onclick = function (ev) {
+        ev.preventDefault(); ev.stopPropagation();
+        window._grpRenamePhoto(p.id, heroLblTxt);
+      };
+    }
+    thumbs.forEach(function (t, ti2) {
+      t.style.borderColor = (ti2 === cur) ? 'var(--accent)' : 'var(--border)';
+      t.style.opacity = (ti2 === cur) ? '1' : '0.85';
+    });
+  }
+
+  // Swipe on the hero (phones) + arrow keys when the hero is focused
+  if (photos.length > 1) {
+    var _tx = null;
+    heroLink.addEventListener('touchstart', function (e) { _tx = e.touches && e.touches[0] ? e.touches[0].clientX : null; }, { passive: true });
+    heroLink.addEventListener('touchend', function (e) {
+      if (_tx === null) return;
+      var dx = (e.changedTouches && e.changedTouches[0] ? e.changedTouches[0].clientX : _tx) - _tx;
+      _tx = null;
+      if (Math.abs(dx) > 40) { select(cur + (dx < 0 ? 1 : -1)); e.preventDefault(); }
+    });
+    heroLink.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowRight') { e.preventDefault(); select(cur + 1); }
+      if (e.key === 'ArrowLeft')  { e.preventDefault(); select(cur - 1); }
+    });
+  }
+
+  select(0);
+}
+if (typeof window !== 'undefined') window._buildPhotoGallery = _buildPhotoGallery;
+
 async function _detailPhotoEdit(fileId, fileName, folderLink, imgId) {
   if (typeof _openCropper !== 'function') return;
   if (window._offlineMode) { if (typeof showToast === 'function') showToast("You're offline — editing photos needs a connection", 3500, true); return; }
