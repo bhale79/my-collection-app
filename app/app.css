@@ -1391,18 +1391,24 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"] {
    keeps the compact square grid (inline styles); this only overrides >=700px. */
 @media (min-width: 700px) {
   #ni-detail-photos,
-  #item-detail-photos {
+  #item-detail-photos,
+  [id^="grp-photos-"] {
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)) !important;
     align-items: start;
   }
   #ni-detail-photos a[href],
-  #item-detail-photos a[href] {
+  #item-detail-photos a[href],
+  [id^="grp-photos-"] a[href] {
     aspect-ratio: auto !important;
   }
   #ni-detail-photos a[href] img,
-  #item-detail-photos a[href] img {
+  #item-detail-photos a[href] img,
+  [id^="grp-photos-"] a[href] img {
     height: auto !important;
     max-height: 70vh;
     object-fit: contain !important;
   }
 }
+/* v0.9.933 (Brad): the same big-uncropped treatment now covers GROUP items
+   (paired A units, sets) whose photos render in grp-photos-N containers —
+   they were stuck at the 120px square crop the singles fix didn't reach. */
