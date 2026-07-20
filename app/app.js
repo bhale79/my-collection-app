@@ -1080,18 +1080,34 @@ function _getEnabledEras() {
 function _setEnabledEras(arr) {
   try { localStorage.setItem('lv_collect_eras', JSON.stringify(arr || [])); } catch(e) {}
 }
+// v0.9.934 ─ Time-period helpers. 'prewar' / 'pw' / 'modern'.
+function _eraPeriod(era) {
+  if (era === 'prewar') return 'prewar';
+  if (era === 'pw' || era === 'pw_ho') return 'pw';
+  return 'modern';
+}
+function _getEnabledPeriods() {
+  var saved = _getEnabledEras();   // may hold period keys or legacy era keys
+  var set = {};
+  for (var i = 0; i < saved.length; i++) {
+    var e = saved[i];
+    set[(e === 'prewar' || e === 'pw' || e === 'modern') ? e : _eraPeriod(e)] = 1;
+  }
+  var out = Object.keys(set);
+  return out.length ? out : ['prewar', 'pw', 'modern'];
+}
+function _isPeriodEnabled(p) { return _getEnabledPeriods().indexOf(p) >= 0; }
+if (typeof window !== 'undefined') { window._eraPeriod = _eraPeriod; window._getEnabledPeriods = _getEnabledPeriods; window._isPeriodEnabled = _isPeriodEnabled; }
+
 function _isEraEnabled(era) {
   // 'all' meta-era is always available regardless of preferences
   if (era === 'all') return true;
-  // v0.9.928: the per-era toggle applies ONLY to the Lionel time-eras
-  // (Prewar / Postwar / MPC-Modern). Every other manufacturer has one era and
-  // is governed purely by the Manufacturers + Scales prefs, so it is never
-  // hidden by the era list.
+  // v0.9.934 (Brad): eras are TIME PERIODS (Pre-War / Postwar / Modern), not
+  // Lionel-specific. Every era maps to a period (_eraPeriod); every non-Lionel
+  // manufacturer is Modern by manufacture date. The saved era pref stores
+  // period keys (old saves with era keys are mapped transparently).
+  if (!_isPeriodEnabled(_eraPeriod(era))) return false;
   var mfr = (typeof _manufacturerOfEra === 'function') ? _manufacturerOfEra(era) : null;
-  if (mfr === 'lionel') {
-    var enabled = _getEnabledEras();
-    if (enabled.indexOf(era) < 0) return false;
-  }
   if (mfr && !_isManufacturerEnabled(mfr)) return false;
   // Session 136: also gate by scale preference. An era is enabled only if its
   // scale is also enabled. Mixed-scale eras (Pre-War) get null here and are
