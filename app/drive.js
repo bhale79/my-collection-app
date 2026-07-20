@@ -384,19 +384,25 @@ async function _loadDriveThumbSmall(fileId, imgEl, containerEl, thumbLink) {
         link = _thumbLinkCache[fileId];
       } else {
         try {
-          var mr = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?fields=thumbnailLink', { headers: { Authorization: 'Bearer ' + accessToken } });
+          var _ac = new AbortController();
+          var _to = setTimeout(function() { try { _ac.abort(); } catch (e) {} }, 7000);
+          var mr = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?fields=thumbnailLink', { headers: { Authorization: 'Bearer ' + accessToken }, signal: _ac.signal });
+          clearTimeout(_to);
           link = mr.ok ? ((await mr.json()).thumbnailLink || '') : '';
         } catch (e) { link = ''; }
         _thumbLinkCache[fileId] = link;
       }
     }
     if (link) {
-      var sized = link.replace(/=s\d+(-c)?$/, '=s400');
-      return await new Promise(function(resolve) {
-        imgEl.onload = function() { imgEl.onload = null; imgEl.onerror = null; resolve(); };
-        imgEl.onerror = function() { imgEl.onload = null; imgEl.onerror = null; _loadDriveThumbFull(fileId, imgEl, containerEl).then(resolve, resolve); };
-        imgEl.src = sized;
-      });
+      // v0.9.930: set the thumbnail and RETURN immediately — do NOT await the
+      // image's load event. Awaiting it held the queue slot until the picture
+      // finished downloading, and a few slow/stalled images deadlocked the
+      // whole queue (all slots busy, nothing draining -> every thumbnail blank).
+      // The queue now only throttles the metadata fetch; images paint on their
+      // own, and any load error falls back to the full original.
+      imgEl.onerror = function() { imgEl.onerror = null; _loadDriveThumbFull(fileId, imgEl, containerEl); };
+      imgEl.src = link.replace(/=s\d+(-c)?$/, '=s400');
+      return;
     }
   } catch (e) {}
   return _loadDriveThumbFull(fileId, imgEl, containerEl);
