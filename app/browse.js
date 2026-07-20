@@ -111,6 +111,10 @@ function _renderCollectionHeader() {
     var arrow = (cs.col === c.col) ? (cs.dir === 'desc' ? ' \u25BC' : ' \u25B2') : '';
     var _wsp = (c.col === 'worth') ? 'white-space:normal;' : 'white-space:nowrap;';
     if (c.col === 'added') _wsp += 'width:80px;';   // v0.9.725/726: fitted column
+    // v0.9.938 (Brad): Description soaks up all spare width; Item # is locked
+    // at a fixed width so it never shifts; every other column fits its value.
+    if (c.col === 'desc') _wsp = 'white-space:normal;width:99%;';
+    if (c.col === 'num')  _wsp += 'width:110px;min-width:110px;';
     return '<th onclick="_collSortBy(\'' + c.col + '\')" style="cursor:pointer;' + _wsp + align + '" title="Sort by ' + c.label + '">' + c.label + arrow + '</th>';
   }).join('');
   html += '<th style="text-align:right;white-space:nowrap">Actions</th>';
@@ -130,13 +134,13 @@ if (typeof window !== 'undefined') { window._renderCollectionHeader = _renderCol
 // MTH (Session 129) uses Road/Description/Category/Track-Power to surface the
 // Premier vs RailKing product-line distinction and rail configuration.
 function _atlasBrowseHeaders() {
-  return '<th>Mfr.</th><th>Item #</th><th>Type</th><th>Sub Type</th><th>Description</th><th>Track/Power</th><th>MSRP</th><th>Year</th><th>Owned</th>';
+  return '<th>Mfr.</th><th style="width:110px;min-width:110px">Item #</th><th>Type</th><th>Sub Type</th><th style="width:99%">Description</th><th>Track/Power</th><th>MSRP</th><th>Year</th><th>Owned</th>';
 }
 function _lionelBrowseHeaders() {
-  return '<th>Mfr.</th><th>Item #</th><th>Type</th><th>Road / Name</th><th>Descr.</th><th>Var.</th><th>Var. Descr.</th><th>Year</th><th>Owned</th>';
+  return '<th>Mfr.</th><th style="width:110px;min-width:110px">Item #</th><th>Type</th><th>Road / Name</th><th style="width:99%">Descr.</th><th>Var.</th><th>Var. Descr.</th><th>Year</th><th>Owned</th>';
 }
 function _mthBrowseHeaders() {
-  return '<th>Mfr.</th><th>Item #</th><th>Type</th><th>Road / Name</th><th>Descr.</th><th>Category</th><th>Track/Power</th><th>Year</th><th>Owned</th>';
+  return '<th>Mfr.</th><th style="width:110px;min-width:110px">Item #</th><th>Type</th><th>Road / Name</th><th style="width:99%">Descr.</th><th>Category</th><th>Track/Power</th><th>Year</th><th>Owned</th>';
 }
 function _refreshBrowseHeaders() {
   var thead = document.querySelector('#page-browse .item-table thead tr');
@@ -2926,7 +2930,7 @@ function renderBrowse() {
       // the Type column whenever a catalog row had no road name.
       const _descFull  = (item._personalOnly && item.description) ? item.description
         : ([item.roadName, item.description].filter(Boolean).join(' — ') || _descParts.join(' · ') || '—');
-      const _descShort = _descFull.length > 42 ? _descFull.substring(0, 40) + '…' : _descFull;
+      const _descShort = _descFull.length > 110 ? _descFull.substring(0, 108) + '…' : _descFull;   // v0.9.938: column is wide now
       const _varText   = item.variation ? ` <span style="font-size:0.72rem;color:var(--text-dim);background:var(--surface2);padding:1px 5px;border-radius:4px;margin-left:3px">${item.variation}</span>` : '';
       const _typeText = (typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(item) : item.itemType) || '<span style="color:var(--text-dim)">—</span>';
       const _ewNum = pd && pd.userEstWorth ? parseFloat(pd.userEstWorth) : NaN;

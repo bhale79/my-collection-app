@@ -1791,6 +1791,7 @@ function clearPageSearch(name) {
 var _FS_COLS = [
   { col: 'mfr', label: 'Mfr.' }, { col: 'num', label: 'Item #' },
   { col: 'type', label: 'Type' }, { col: 'road', label: 'Road Name' },
+  { col: 'desc', label: 'Description' },
   { col: 'cond', label: 'Cond' }, { col: 'price', label: 'Asking Price' },
   { col: 'worth', label: 'Est. Worth' }, { col: 'listed', label: 'Listed' }
 ];
@@ -1801,6 +1802,7 @@ function _fsSortVal(fs, col) {
   if (col==='num') return parseInt(String(fs.itemNum||'').replace(/[^0-9]/g,''))||0;
   if (col==='type') return (m.itemType||'').toLowerCase();
   if (col==='road') return (m.roadName||'').toLowerCase();
+  if (col==='desc') return (m.description||'').toLowerCase();
   if (col==='cond') return parseFloat(fs.condition)||0;
   if (col==='price') return parseFloat(fs.askingPrice)||0;
   if (col==='worth') { var c=(fs.inventoryId && state.personalData[fs.inventoryId])||{}; return parseFloat(fs.estWorth||c.userEstWorth)||0; }
@@ -1813,7 +1815,9 @@ function _renderFsHeader() {
   var cs = state._fsSort || {};
   var html = _FS_COLS.map(function(c){
     var arrow = (cs.col===c.col)?(cs.dir==='desc'?' \u25BC':' \u25B2'):'';
-    return '<th onclick="_fsSortBy(\''+c.col+'\')" style="cursor:pointer;white-space:nowrap" title="Sort by '+c.label+'">'+c.label+arrow+'</th>';
+    // v0.9.938 (Brad): Description expands like the My Collection table.
+    var _st = (c.col==='desc') ? 'cursor:pointer;white-space:normal;width:99%' : 'cursor:pointer;white-space:nowrap';
+    return '<th onclick="_fsSortBy(\''+c.col+'\')" style="'+_st+'" title="Sort by '+c.label+'">'+c.label+arrow+'</th>';
   }).join('');
   html += '<th style="white-space:nowrap">Actions</th>';
   thead.innerHTML = html;
@@ -1966,6 +1970,7 @@ function buildForSalePage() {
         <td><span class="item-num">${_fsDInShare ? '<input type="checkbox" id="share-cb-' + _fsDShareKey + '" ' + (_fsDSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _fsDShareKey + '\')" style="width:1rem;height:1rem;accent-color:#2ecc71;margin-right:5px;vertical-align:middle">' : ''}${_fsItemNumHTML(fs)}</span></td>
         <td><span class="tag">${master.itemType || '—'}</span></td>
         <td>${master.roadName || '—'}</td>
+        <td>${(function(){ var d = master.description || '—'; return d.length > 110 ? d.substring(0, 108) + '…' : d; })()}</td>
         <td>${fs.condition || '—'}</td>
         <td class="market-val" style="color:#e67e22">${fs.askingPrice ? _currencySymbol() + parseFloat(fs.askingPrice).toLocaleString() : '—'}</td>
         <td class="text-dim">${estWorth ? _currencySymbol() + parseFloat(estWorth).toLocaleString() : '—'}</td>
@@ -1976,7 +1981,7 @@ function buildForSalePage() {
           <button onclick="event.stopPropagation();removeForSaleAndCollection('${_fsEntryKey(fs)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e74c3c;background:rgba(231,76,60,0.10);color:#e74c3c;font-family:var(--font-body)">Remove</button>` : ''}
         </td>
       </tr>`;
-    }).join('') : '<tr><td colspan="9"><div class="empty-state"><div class="empty-icon">🏷️</div><p>No items listed for sale</p></div></td></tr>';
+    }).join('') : '<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">🏷️</div><p>No items listed for sale</p></div></td></tr>';
   }
 
   const navBadge = document.getElementById('nav-forsale');
