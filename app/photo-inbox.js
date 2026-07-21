@@ -263,17 +263,43 @@
   //    item…" for a multi-selection (all selected photos = one item).
   var _rvGroups = [];
 
-  function _pinLookup(num) {
+  // v0.9.941 (Brad's Marx girder bridge): the number lookup must respect the
+  // manufacturer the photo-read reported. '1303' exists under Atlas O, but the
+  // AI said Marx — matching by number alone showed 'Maker: Atlas'. Prefer a
+  // catalog row whose brand agrees with the AI; if none agrees, keep the
+  // number match but flag the conflict instead of presenting it as fact.
+  function _pinMfrAgree(a, b) {
+    a = String(a || '').toLowerCase().trim(); b = String(b || '').toLowerCase().trim();
+    if (!a || !b) return true;   // nothing to compare -> no conflict
+    var aw = a.split(/\s+/)[0], bw = b.split(/\s+/)[0];
+    return a.indexOf(bw) >= 0 || b.indexOf(aw) >= 0;
+  }
+  function _pinBestMaster(num, aiMfr) {
+    var bucket = null;
+    try { bucket = (window.state && state.masterByItem && state.masterByItem.get) ? state.masterByItem.get(String(num).trim()) : null; } catch (e) {}
+    if (bucket && bucket.length) {
+      if (aiMfr) {
+        for (var i = 0; i < bucket.length; i++) {
+          var mk = bucket[i].manufacturer || ((typeof ERAS !== 'undefined' && ERAS[bucket[i]._era]) ? ERAS[bucket[i]._era].manufacturer : '');
+          if (_pinMfrAgree(aiMfr, mk)) return bucket[i];
+        }
+      }
+      return bucket[0];
+    }
+    try { return (typeof findMaster === 'function') ? findMaster(num) : null; } catch (e) { return null; }
+  }
+  function _pinLookup(num, aiMfr) {
     num = String(num || '').trim();
-    var out = { num: num, master: null, ownedPd: null, maker: '', era: '', desc: '' };
+    var out = { num: num, master: null, ownedPd: null, maker: '', era: '', desc: '', mfrMismatch: '' };
     if (!num) return out;
-    try { out.master = (typeof findMaster === 'function') ? findMaster(num) : null; } catch (e) {}
+    out.master = _pinBestMaster(num, aiMfr);
     if (out.master) {
       var m = out.master;
       var eraDef = (typeof ERAS !== 'undefined' && ERAS[m._era]) ? ERAS[m._era] : null;
       out.maker = m.manufacturer || (eraDef ? eraDef.manufacturer : '') || '';
       out.era = eraDef ? eraDef.label : '';
       out.desc = m.description || [m.roadName, m.itemType].filter(Boolean).join(' ') || '';
+      if (aiMfr && !_pinMfrAgree(aiMfr, out.maker)) out.mfrMismatch = String(aiMfr);
     }
     var pds = Object.values((window.state || {}).personalData || {});
     out.ownedPd = pds.find(function (p) { return p && p.owned && String(p.itemNum) === num; }) || null;
@@ -283,17 +309,22 @@
     return out;
   }
 
+  var _rvAiMfr = '';
   window._pinReviewLookup = function (val) {
     var box = document.getElementById('pin-rv-info');
     var addBtn = document.getElementById('pin-rv-add');
     if (!box) return;
-    var lk = _pinLookup(val);
+    var lk = _pinLookup(val, _rvAiMfr);
     var row = function (label, v) {
       return '<div style="display:flex;gap:0.6rem;font-size:0.85rem;line-height:1.5"><span style="width:88px;flex-shrink:0;color:var(--text-dim)">' + label + '</span><span style="color:var(--text);font-weight:600">' + (v || '—') + '</span></div>';
     };
     var html = '';
     if (!lk.num) {
       html = '<div style="font-size:0.82rem;color:var(--text-dim)">No number read from the photo — type one above, or hit Research.</div>';
+    } else if (lk.master && lk.mfrMismatch) {
+      html = '<div style="font-size:0.82rem;color:#d4a843;font-weight:700;line-height:1.5;margin-bottom:0.35rem">⚠ The photo says ' + String(lk.mfrMismatch).replace(/</g, '&lt;') + ' — but #' + String(lk.num).replace(/</g, '&lt;') + ' in the catalog is a ' + String(lk.maker || '?').replace(/</g, '&lt;') + ' item. Probably NOT the same thing.</div>'
+        + row('Catalog has', (lk.maker || '—') + ': ' + String(lk.desc).replace(/</g, '&lt;'))
+        + '<div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.3rem">' + String(lk.mfrMismatch).replace(/</g, '&lt;') + ' isn\'t in the master catalog' + ((typeof state !== 'undefined' && state.masterData && state.masterData.some(function (it) { return _pinMfrAgree(lk.mfrMismatch, it.manufacturer || ''); })) ? ' under this number' : ' yet') + ' — Add will create a manual ' + String(lk.mfrMismatch).replace(/</g, '&lt;') + ' entry instead of the ' + String(lk.maker || '').replace(/</g, '&lt;') + ' item.</div>';
     } else if (lk.master) {
       html = row('Maker', (lk.maker || '—') + (lk.era ? ' <span style="font-weight:400;color:var(--text-dim)">(' + lk.era + ')</span>' : ''))
         + row('Item #', String(lk.num).replace(/</g, '&lt;'))
@@ -312,7 +343,8 @@
     if (!_rvGroups.length) { showToast('Select photos first', 2500, true); return; }
     var n = 0; _rvGroups.forEach(function (g) { n += g.files.length; });
     var sug = '';
-    try { var s0 = _ids()[_rvGroups[0].files[0].id]; if (s0 && s0.num) sug = String(s0.num); } catch (eS) {}
+    _rvAiMfr = '';
+    try { var s0 = _ids()[_rvGroups[0].files[0].id]; if (s0 && s0.num) sug = String(s0.num); if (s0 && s0.mfr) _rvAiMfr = String(s0.mfr); } catch (eS) {}
     var nums = {};
     Object.values((window.state || {}).personalData || {}).forEach(function (pd) {
       if (pd && pd.owned && pd.itemNum) nums[pd.itemNum] = true;
@@ -736,7 +768,15 @@
           // v0.9.907 (Brad, item [1a]): stash the inbox photo's Drive id so the
           // variation step can preview it (loaded via loadDriveThumb).
           if (photoDriveId) wizard.data._addPhotoDriveId = photoDriveId;
-          var m = (typeof findMaster === 'function') ? findMaster(num) : null;
+          var m = _pinBestMaster(num, (aiMeta && aiMeta.manufacturer) || '');
+          if (m && aiMeta && aiMeta.manufacturer) {
+            var _mMk = m.manufacturer || ((typeof ERAS !== 'undefined' && ERAS[m._era]) ? ERAS[m._era].manufacturer : '');
+            // v0.9.941: photo says one brand, number matches another -> treat as
+            // no catalog match so the wizard makes a manual entry for the REAL
+            // brand instead of silently adopting the wrong item (Marx 1303 vs
+            // Atlas 1303).
+            if (!_pinMfrAgree(aiMeta.manufacturer, _mMk)) m = null;
+          }
           if (m) {
             wizard.matchedItem = m;
             if (m._era) wizard.data._era = m._era;
