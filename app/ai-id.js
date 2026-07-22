@@ -234,3 +234,64 @@ async function aiIdentifyImage2(sources, hints) {
   // Silent fallback: v1 with the first photo.
   return aiIdentifyImage(list[0], hints);
 }
+
+
+// ── Identify v3 (v0.9.942) — photo double-check ─────────────
+// aiVerifyPhoto(source, refUrl)
+//   source: the collector's photo (canvas | File/Blob)
+//   refUrl: the matched master row's Reference Link (a product/catalog page)
+// The relay fetches the page, pulls its product photo, and asks the AI
+// whether the two photos show the SAME product. No search grounding — one
+// cheap read from the same shared daily pool.
+// Resolves:
+//   { ok:true, match:'yes'|'no'|'unsure', differences, refItem, refImg, remaining, cached }
+//   { ok:false, reason:'noref'|'noconsent'|'quota'|'busy'|'offline'|'error' }
+async function aiVerifyPhoto(source, refUrl) {
+  try {
+    if (typeof vaultGetToken !== 'function' || typeof vaultPost !== 'function') {
+      return { ok: false, reason: 'error' };
+    }
+    if (!refUrl || !/^https?:\/\//i.test(String(refUrl))) return { ok: false, reason: 'noref' };
+    var consent = await aiConsentEnsure();
+    if (!consent) return { ok: false, reason: 'noconsent' };
+    var img = await aiPrepImage(source);
+    if (!img) return { ok: false, reason: 'error' };
+    var res = null;
+    for (var _try = 0; _try < 2; _try++) {
+      if (_try) await new Promise(function (r) { setTimeout(r, 2500); });
+      res = await vaultPost({
+        action: 'ai_verify_photo',
+        token: vaultGetToken(),
+        image: img.b64,
+        mime: img.mime,
+        refUrl: String(refUrl),
+      });
+      if (res && res.status === 503) continue;   // overloaded — back off once
+      break;
+    }
+    if (!res) return { ok: false, reason: 'offline' };
+    if (res.status === 429) return { ok: false, reason: 'quota' };
+    if (res.status === 503) return { ok: false, reason: 'busy' };
+    if (res.status === 422) return { ok: false, reason: 'noref' };   // page had no usable photo
+    if (res.status !== 200 || !res.text) {
+      console.warn('[AI-ID] verify relay said:', res.status, res.message);
+      return { ok: false, reason: (res.status === 400 ? 'noref' : 'error') };
+    }
+    var t = String(res.text);
+    var mM = t.match(/^Match:\s*(yes|no|unsure)/mi);
+    var dM = t.match(/^Differences:\s*(.+)$/mi);
+    var rM = t.match(/^Reference item:\s*(.+)$/mi);
+    return {
+      ok: true,
+      match: mM ? mM[1].toLowerCase() : 'unsure',
+      differences: dM ? dM[1].trim().slice(0, 140) : '',
+      refItem: rM ? rM[1].trim().slice(0, 120) : '',
+      refImg: res.refImg || '',
+      remaining: res.remaining,
+      cached: !!res.cached,
+    };
+  } catch (e) {
+    console.warn('[AI-ID] verify failed:', e && e.message);
+    return { ok: false, reason: 'error' };
+  }
+}

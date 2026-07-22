@@ -336,6 +336,101 @@
     if (lk.ownedPd) html += '<div style="margin-top:0.45rem;font-size:0.8rem;color:#2ecc71;font-weight:700">✓ Already in your collection — Add will attach these photos to it.</div>';
     box.innerHTML = html;
     if (addBtn) addBtn.textContent = lk.ownedPd ? 'Attach Photos to My Item' : 'Add to My Collection';
+    // v0.9.942 (Identify v3, Brad): double-check the photo against the
+    // catalog listing's reference photo when the matched master row links one.
+    try { _pinVerifyRender(lk); } catch (eV) {}
+  };
+
+  // ── Identify v3 (v0.9.942): photo double-check vs the catalog photo ──────
+  // Auto-runs when the AI's answer was a best guess (or brand-mismatched);
+  // otherwise offers a button. Verdicts cache per (photo, number) so repeat
+  // opens are free; the relay also caches server-side.
+  var _vfCache = {};   // fid|num -> aiVerifyPhoto result
+  var _vfSeen  = {};   // fid|num -> 1 once auto-run fired (no repeat burns)
+  var _vfNote  = {};   // group key -> rejection note for the re-identify run
+  function _pinVerifyRender(lk) {
+    var box = document.getElementById('pin-rv-info');
+    if (!box || !_rvGroups || !_rvGroups.length || !lk) return;
+    var link = (lk.master && (lk.master.refLink || '')) || '';
+    if (!lk.num || !/^https?:\/\//i.test(link)) return;
+    if (typeof aiVerifyPhoto !== 'function') return;
+    var fid0 = _rvGroups[0].files[0].id;
+    var key = fid0 + '|' + lk.num;
+    var el = document.createElement('div');
+    el.id = 'pin-rv-verify';
+    el.style.cssText = 'margin-top:0.5rem;padding-top:0.45rem;border-top:1px dashed var(--border)';
+    box.appendChild(el);
+    if (_vfCache[key]) { _pinVerifyShow(el, _vfCache[key]); return; }
+    var s0 = null; try { s0 = _ids()[fid0]; } catch (eS) {}
+    var auto = !!(s0 && s0.num && String(s0.num) === String(lk.num) && (s0.guess || lk.mfrMismatch));
+    if (auto && !_vfSeen[key]) {
+      _vfSeen[key] = 1;
+      _pinVerifyRun(lk, key, el);
+    } else {
+      el.innerHTML = '<button onclick="_pinVerifyClick()" style="padding:0.4rem 0.7rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.78rem;cursor:pointer">📷 Double-check vs catalog photo</button>';
+    }
+  }
+  window._pinVerifyClick = function () {
+    var num = (document.getElementById('pin-rv-num') || {}).value || '';
+    var lk = _pinLookup(num, _rvAiMfr);
+    var el = document.getElementById('pin-rv-verify');
+    if (!el || !_rvGroups || !_rvGroups.length || !lk.master) return;
+    _pinVerifyRun(lk, _rvGroups[0].files[0].id + '|' + lk.num, el);
+  };
+  async function _pinVerifyRun(lk, key, el) {
+    el.innerHTML = '<div style="font-size:0.8rem;color:var(--text-dim)">📷 Checking your photo against the catalog listing…</div>';
+    var vr;
+    try {
+      var blob = await _pinBytes(_rvGroups[0].files[0].id);
+      vr = await aiVerifyPhoto(blob, lk.master.refLink);
+    } catch (e) {
+      console.warn('[Inbox] verify failed:', e && e.message);
+      vr = { ok: false, reason: 'error' };
+    }
+    if (vr && (vr.ok || vr.reason === 'noref')) _vfCache[key] = vr;   // don't cache transient errors
+    // the card may have re-rendered while we were away — find the live node
+    var live = document.getElementById('pin-rv-verify') || el;
+    _pinVerifyShow(live, vr);
+  }
+  function _pinVerifyShow(el, vr) {
+    var esc = function (s) { return String(s || '').replace(/</g, '&lt;'); };
+    if (!vr || !vr.ok) {
+      var r = vr && vr.reason;
+      if (r === 'noref') el.innerHTML = '<div style="font-size:0.76rem;color:var(--text-dim)">No usable catalog photo on the reference page — can\'t double-check this one.</div>';
+      else if (r === 'quota') el.innerHTML = '<div style="font-size:0.76rem;color:var(--text-dim)">Daily identify limit reached — the catalog double-check can run tomorrow.</div>';
+      else if (r === 'noconsent') el.innerHTML = '';
+      else el.innerHTML = '<div style="font-size:0.76rem;color:var(--text-dim)">Couldn\'t run the catalog-photo check right now.</div>';
+      return;
+    }
+    if (vr.match === 'yes') {
+      el.innerHTML = '<div style="font-size:0.84rem;color:#2ecc71;font-weight:700">✓ Your photo matches the catalog listing' +
+        (vr.refItem ? ' <span style="font-weight:400;color:var(--text-dim)">(' + esc(vr.refItem) + ')</span>' : '') + '</div>';
+    } else if (vr.match === 'no') {
+      el.innerHTML =
+        '<div style="font-size:0.84rem;color:#f05008;font-weight:700;line-height:1.45">✗ Your photo does NOT match the catalog listing' +
+        (vr.differences && vr.differences.toLowerCase() !== 'none' ? ' — ' + esc(vr.differences) : '') + '</div>' +
+        (vr.refItem ? '<div style="font-size:0.76rem;color:var(--text-dim);margin-top:0.15rem">Catalog photo shows: ' + esc(vr.refItem) + '</div>' : '') +
+        '<button onclick="_pinVerifyReident()" style="margin-top:0.4rem;padding:0.45rem 0.7rem;border-radius:8px;border:none;background:#f05008;color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.78rem;cursor:pointer">Re-identify with this clue</button>';
+    } else {
+      el.innerHTML = '<div style="font-size:0.78rem;color:#d4a843">? Couldn\'t confirm against the catalog photo' +
+        (vr.differences && vr.differences.toLowerCase() !== 'none' ? ' — ' + esc(vr.differences) : '') + '</div>';
+    }
+  }
+  window._pinVerifyReident = async function () {
+    if (_busy) { showToast('Identify is already running — one moment', 2500, true); return; }
+    var g = _rvGroups && _rvGroups[0];
+    if (!g) return;
+    var num = String((document.getElementById('pin-rv-num') || {}).value || '').trim();
+    var vr = _vfCache[g.files[0].id + '|' + num];
+    _vfNote[g.key] = 'The number ' + num + ' was proposed, but the catalog reference photo for that number shows a DIFFERENT product' +
+      (vr && vr.differences ? ' (' + vr.differences + ')' : '') + '.';
+    var ids = _ids();
+    delete ids[g.files[0].id];
+    _idsSave(ids);
+    var ov = document.getElementById('pin-review-ov'); if (ov) ov.remove();
+    await _pinIdentifyRun([g], ids);
+    delete _vfNote[g.key];
+    window._pinReview(g.key);
   };
 
   window._pinReview = function (key) {
@@ -1010,9 +1105,12 @@
             catch (eB) { console.warn('[Inbox] photo download failed, skipping one:', eB && eB.message); }
           }
           if (!blobs.length) throw new Error('no photo bytes');
+          // v0.9.942: a failed catalog-photo double-check leaves a note so the
+          // retry knows which number was rejected and why.
+          var _hints = (typeof _vfNote !== 'undefined' && _vfNote[g.key]) ? { note: _vfNote[g.key] } : {};
           var ai = (typeof aiIdentifyImage2 === 'function')
-            ? await aiIdentifyImage2(blobs, {})
-            : await aiIdentifyImage(blobs[0], {});
+            ? await aiIdentifyImage2(blobs, _hints)
+            : await aiIdentifyImage(blobs[0], _hints);
           if (!ai.ok && ai.reason === 'quota') {
             showToast("Daily identify limit reached — the rest can run tomorrow", 4500, true);
             break;
