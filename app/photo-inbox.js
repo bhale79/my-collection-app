@@ -75,6 +75,7 @@
       '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;margin-bottom:0.8rem">' +
         '<button onclick="_pinAddSource()" class="btn-primary" style="padding:0.5rem 0.9rem;border-radius:8px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Add photos…</button>' +
         '<button id="pin-selmode-btn" onclick="_pinToggleSelectMode()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">☑ Select multiple</button>' +
+        '<button id="pin-selall-btn" onclick="_pinSelectAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Select all</button>' +
         '<button id="pin-idall-btn" onclick="_pinIdentifyAll()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Identify all</button>' +
         '<button onclick="_pinRefresh()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:600;font-size:0.82rem;cursor:pointer">Refresh</button>' +
         '<span style="flex:1"></span>' +
@@ -233,6 +234,14 @@
     _render();
   };
 
+  // Select all / Deselect all (only meaningful in select mode).
+  window._pinSelectAll = function () {
+    var allSel = _groups.length && _groups.every(function (g) { return _sel[g.key]; });
+    _sel = {};
+    if (!allSel) _groups.forEach(function (g) { _sel[g.key] = true; });
+    _render();
+  };
+
   // Opt-in multi-select: circles + the Combine/Discard action bar stay hidden
   // until the user turns this on, so the grid doesn't change shape unexpectedly.
   window._pinToggleSelectMode = function () {
@@ -256,6 +265,12 @@
     var ab = document.getElementById('pin-assign-btn'), db = document.getElementById('pin-discard-btn');
     var ib = document.getElementById('pin-idsel-btn');   // v0.9.897 (Brad): identify just the ticked photos
     if (info) info.textContent = n ? (n + ' photo' + (n > 1 ? 's' : '') + ' selected') : (_selectMode ? 'Tap photos to select' : '');
+    var sa = document.getElementById('pin-selall-btn');
+    if (sa) {
+      sa.style.display = _selectMode ? '' : 'none';
+      var allSel = _groups.length && _groups.every(function (g) { return _sel[g.key]; });
+      sa.textContent = allSel ? 'Deselect all' : 'Select all';
+    }
     if (ab) ab.style.display = gs.length > 1 ? '' : 'none';   // combine needs 2+
     if (db) db.style.display = n ? '' : 'none';
     if (ib) ib.style.display = n ? '' : 'none';
