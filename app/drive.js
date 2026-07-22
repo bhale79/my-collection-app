@@ -378,6 +378,9 @@ function loadDriveThumb(fileId, imgEl, containerEl, thumbLink, priority) {
 }
 async function _loadDriveThumbSmall(fileId, imgEl, containerEl, thumbLink) {
   try {
+    // Prefer a locally-cached blob (e.g. a just-cropped image) over Drive's
+    // server thumbnail, which lags behind edits and would show the old shot.
+    if (_blobCache[fileId]) { imgEl.src = _blobCache[fileId]; return; }
     var link = thumbLink;
     if (!link) {
       if (Object.prototype.hasOwnProperty.call(_thumbLinkCache, fileId)) {

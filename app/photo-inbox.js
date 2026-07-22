@@ -1111,14 +1111,16 @@
     return uniq.length ? { num: uniq[0], matched: false } : null;
   }
 
-  async function _freeReadOne(fileId) {
+  async function _freeReadBlob(blob) {
     var w = await _tessGet(); if (!w) return null;
-    var blob = await _pinBytes(fileId);
     var canvas = await _scaledCanvas(blob, 1600);
     var text = '';
     try { var res = await w.recognize(canvas); text = (res && res.data && res.data.text) || ''; }
     catch (e) { return null; }
     return _numberFromText(text);
+  }
+  async function _freeReadOne(fileId) {
+    return _freeReadBlob(await _pinBytes(fileId));
   }
 
   window._pinAutoReadCancel = function () { _autoReadAbort = true; };
@@ -1240,14 +1242,20 @@
             _blobCache[fid] = fresh;
           }
         } catch (e3) {}
-        document.querySelectorAll('img[data-rvfid="' + fid + '"], img[data-fid="' + fid + '"], img[data-ppfid="' + fid + '"]').forEach(function (im) { im.src = fresh; });
-        // Crop → free re-read: clear the old read and re-run OCR on the tighter
-        // shot automatically (no credits, no manual Identify).
+        // Update every on-screen copy incl. the review modal's main image (data-rvbig).
+        document.querySelectorAll('img[data-rvfid="' + fid + '"], img[data-fid="' + fid + '"], img[data-ppfid="' + fid + '"], img[data-rvbig="' + fid + '"]').forEach(function (im) { im.src = fresh; });
+        // Crop → free re-read: clear the old read and re-run OCR on the EXACT
+        // cropped bytes (no Drive round-trip, no credits, no manual Identify).
         try { var mm = _ids(); if (mm[fid]) { delete mm[fid]; _idsSave(mm); } } catch (eA) {}
         try { var ff = _freeTried(); if (ff[fid]) { delete ff[fid]; _freeTriedSave(ff); } } catch (eB) {}
         showToast('Cropped — re-reading the tighter shot…', 2500);
         try { _render(); } catch (eC) {}
-        setTimeout(function () { try { _pinAutoRead(); } catch (eD) {} }, 300);
+        _freeReadBlob(blob).then(function (r) {
+          var m = _ids();
+          if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1 }; _idsSave(m); }
+          else { var f2 = _freeTried(); f2[fid] = 1; _freeTriedSave(f2); }
+          try { _render(); } catch (e2) {}
+        }).catch(function () {});
       } catch (e4) { showToast('Could not save the crop — the original is untouched', 3000, true); }
     }, function () { try { URL.revokeObjectURL(srcUrl); } catch (e5) {} });
   };
