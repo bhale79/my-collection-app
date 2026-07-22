@@ -37,10 +37,19 @@ const A11Y = {
   theme: {
     storageKey: 'lv_theme',
     defaultKey: 'dark',
+    // Skins foundation (v0.9.944): each option may carry an optional `logo`
+    // (path to a per-skin logo image; null/absent = the Rail Roster brand logo).
+    // Adding a future railroad skin = one entry here + a matching
+    // html[data-theme="<key>"] block in app.css. applyTheme() handles any key.
+    // Brand-first: only Dark/Light ship today so users learn our look first.
     options: [
-      { key: 'dark',          label: '\uD83C\uDF19 Dark'          },
-      { key: 'light',         label: '\u2600\uFE0F Light'         },
+      { key: 'dark',          label: '\uD83C\uDF19 Dark',  logo: null },
+      { key: 'light',         label: '\u2600\uFE0F Light', logo: null },
     ],
+    // The user-customizable skin stores its CSS-variable overrides here, e.g.
+    // {"--accent":"#ffd200","--bg":"#3f4444"}. applyTheme() reads this when the
+    // saved theme key is 'custom'. No picker UI yet \u2014 plumbing only.
+    customStorageKey: 'lv_skin_custom',
   },
 
   // Human-readable labels for prefs UI section. Change here, show there.

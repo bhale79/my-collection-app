@@ -2505,19 +2505,55 @@ function _formatDate(input) {
 }
 
 // ── Theme ────────────────────────────────────────────────────────
+// Skins foundation (v0.9.944): applyTheme() is now generic — it applies ANY
+// theme key registered in a11y-config.js (window.A11Y.theme.options), so future
+// railroad "skins" are added by data alone (a CSS html[data-theme="..."] block
+// + a registry entry), with NO code change here. Two special cases:
+//   • 'light' also toggles the .sidebar-light class (unchanged behavior).
+//   • 'custom' is the user-customizable skin: it applies a saved map of
+//     CSS-variable overrides (lv_skin_custom) as inline vars on <html>, layered
+//     on the dark base. No picker UI ships yet — this is just the apply path so
+//     the custom-skin feature is a small add later.
+// The Rail Roster default (dark) is unchanged; only 'dark'/'light' are offered
+// in the menu today (brand-first — users learn our look before skins ship).
 function applyTheme() {
-  const theme = _prefGet('lv_theme', 'dark');
-  const main  = document.getElementById('main-content');
+  const root = document.documentElement;
   const sidebar = document.querySelector('.sidebar');
+  const main  = document.getElementById('main-content');
   if (!main) return;
-  if (theme === 'light') {
-    // Force light mode everywhere — add light class to sidebar too
-    if (sidebar) sidebar.classList.add('sidebar-light');
-    document.documentElement.dataset.theme = 'light';
-  } else {
-    if (sidebar) sidebar.classList.remove('sidebar-light');
-    document.documentElement.dataset.theme = 'dark';
+
+  const themeCfg = (window.A11Y && window.A11Y.theme) || {};
+  const validKeys = (themeCfg.options || [{ key: 'dark' }, { key: 'light' }]).map(o => o.key);
+  let theme = _prefGet(themeCfg.storageKey || 'lv_theme', themeCfg.defaultKey || 'dark');
+  if (theme !== 'custom' && validKeys.indexOf(theme) < 0) theme = themeCfg.defaultKey || 'dark';
+
+  // Clear any inline custom-skin variables from a previous 'custom' selection
+  // so switching to a normal theme doesn't leave stale overrides behind.
+  if (root._customSkinVars) {
+    root._customSkinVars.forEach(v => root.style.removeProperty(v));
+    root._customSkinVars = null;
   }
+
+  if (theme === 'custom') {
+    // User-defined skin: dark base + saved variable overrides applied inline.
+    root.dataset.theme = 'dark';
+    if (sidebar) sidebar.classList.remove('sidebar-light');
+    let map = {};
+    try { map = JSON.parse(_prefGet(themeCfg.customStorageKey || 'lv_skin_custom', '{}')) || {}; }
+    catch (e) { map = {}; }
+    const applied = [];
+    Object.keys(map).forEach(k => {
+      const name = (k.charAt(0) === '-') ? k : ('--' + k);
+      if (typeof map[k] === 'string') { root.style.setProperty(name, map[k]); applied.push(name); }
+    });
+    root._customSkinVars = applied;
+    return;
+  }
+
+  // Standard / future-skin themes: the CSS html[data-theme="<key>"] block does
+  // the recoloring. Only 'light' also flips the sidebar class.
+  root.dataset.theme = theme;
+  if (sidebar) sidebar.classList.toggle('sidebar-light', theme === 'light');
 }
 
 
