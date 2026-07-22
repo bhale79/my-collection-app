@@ -72,8 +72,7 @@
       '</div>' +
       '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.7rem">Drop photos anywhere below, or use Add photos. Click a photo to review it — add the item, research it more, or discard the photo. Tick the corner circle to select several at once. Photos snapped with Quick Capture on your phone land here too.</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;margin-bottom:0.8rem">' +
-        '<button onclick="_pinPickFiles()" class="btn-primary" style="padding:0.5rem 0.9rem;border-radius:8px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Add photos…</button>' +
-        '<button onclick="_pinGPhotos()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">From Google Photos…</button>' +
+        '<button onclick="_pinAddSource()" class="btn-primary" style="padding:0.5rem 0.9rem;border-radius:8px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Add photos…</button>' +
         '<button id="pin-idall-btn" onclick="_pinIdentifyAll()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Identify all</button>' +
         '<button onclick="_pinRefresh()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:600;font-size:0.82rem;cursor:pointer">Refresh</button>' +
         '<span style="flex:1"></span>' +
@@ -232,6 +231,40 @@
   window._pinPickFiles = function () {
     var inp = document.getElementById('pin-file-input');
     if (inp) inp.click();
+  };
+
+  // ── Batch Add Photos: one door in, device-aware source picker ──
+  // Desktop → From Your Drive (computer files) / From Google Photos.
+  // Mobile  → Take with Phone (camera) / From Google Photos.
+  window._pinAddSource = function () {
+    var mobile = !!window.IS_MOBILE_UA;
+    var ex = document.getElementById('pin-src-ov'); if (ex) ex.remove();
+    var ov = document.createElement('div');
+    ov.id = 'pin-src-ov';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem';
+    ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+    var bcss = 'display:flex;align-items:center;gap:0.7rem;width:100%;padding:0.95rem 1rem;border-radius:10px;border:2px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.95rem;font-weight:600;cursor:pointer;text-align:left';
+    var X = "document.getElementById('pin-src-ov').remove();";
+    var sources = mobile
+      ? '<button style="' + bcss + '" onclick="' + X + '_qcOpen()"><span style="font-size:1.3rem">📷</span> Take with Phone</button>'
+        + '<button style="' + bcss + '" onclick="' + X + '_pinGPhotos()"><span style="font-size:1.3rem">🖼️</span> From Google Photos</button>'
+      : '<button style="' + bcss + '" onclick="' + X + '_pinPickFiles()"><span style="font-size:1.3rem">💻</span> From Your Drive <span style="color:var(--text-dim);font-size:0.78rem;font-weight:400">— your computer</span></button>'
+        + '<button style="' + bcss + '" onclick="' + X + '_pinGPhotos()"><span style="font-size:1.3rem">🖼️</span> From Google Photos</button>';
+    ov.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.2rem;max-width:360px;width:100%">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.85rem">' +
+        '<div style="font-family:var(--font-head);font-weight:700;font-size:1rem;color:var(--text)">Add photos from…</div>' +
+        '<button onclick="' + X + '" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;line-height:1;cursor:pointer;padding:0.1rem 0.3rem">✕</button>' +
+      '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:0.6rem">' + sources + '</div>' +
+    '</div>';
+    document.body.appendChild(ov);
+  };
+
+  // Entry from the +Add menu ("Batch Add Photos"): land on the inbox page so
+  // the import handlers have their DOM, then offer the source picker.
+  window._pinBatchStart = function () {
+    window._pinGo(document.getElementById('nav-photo-inbox'));
+    setTimeout(function () { window._pinAddSource(); }, 60);
   };
 
   async function _upload(files) {
@@ -1672,25 +1705,10 @@
   };
 
   function _batchBtnSync() {
-    var modal = document.getElementById('wizard-modal');
-    if (!modal) return;
+    // Batch Add moved to the +Add menu ("Batch Add Photos") — it's no longer a
+    // wizard-footer button. Remove any stray instance; never create one.
     var btn = document.getElementById('qc-batch-btn');
-    // NB: `wizard` is a top-level `let` in wizard.js — it is NOT on window.
-    var w = (typeof wizard !== 'undefined') ? wizard : null;
-    var show = !!(w && w.tab === 'collection' && w.step === 0);
-    if (!btn) {
-      if (!show) return;
-      var cancel = modal.querySelector('.modal-footer button[onclick="closeWizard()"]');
-      if (!cancel) return;
-      btn = document.createElement('button');
-      btn.id = 'qc-batch-btn';
-      btn.className = 'btn btn-secondary';
-      btn.setAttribute('onclick', '_qcBatchAdd()');
-      btn.textContent = 'Batch Add';
-      btn.title = 'Snap a bunch of photos now, file them to items later';
-      cancel.insertAdjacentElement('afterend', btn);
-    }
-    btn.style.display = show ? '' : 'none';
+    if (btn) btn.remove();
   }
 
   // Piggyback on dashboard rebuilds (fires after login and after every
