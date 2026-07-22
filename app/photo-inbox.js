@@ -1112,12 +1112,14 @@
     return uniq.length ? { num: uniq[0], matched: false } : null;
   }
 
-  // Try any barcode on the photo (free, native). Only used when the decoded
-  // value maps to a REAL catalog item — many item-number barcodes do; a plain
-  // retail UPC (e.g. a Lionel 0-23922-… code) is NOT the catalog number and
-  // simply won't match, so we fall through to reading the printed number.
+  // Read any barcode on the photo and resolve it with the SAME brain the
+  // Add-wizard scanner uses (window._barcodeDebug.decodeBarcode): it decodes a
+  // Lionel UPC via the maker prefix + code and looks up the real catalog item.
+  // So a modern retail UPC (e.g. 0-23922-… on a Thomas set) resolves to the
+  // correct item instead of a stray number the OCR might grab.
   async function _readBarcode(blob) {
     if (!('BarcodeDetector' in window)) return null;
+    var decode = (window._barcodeDebug && window._barcodeDebug.decodeBarcode) || null;
     try {
       var det = new window.BarcodeDetector();
       var bmp = await createImageBitmap(blob);
@@ -1125,12 +1127,20 @@
       if (bmp.close) bmp.close();
       var fm = (typeof findMaster === 'function') ? findMaster : null;
       for (var i = 0; i < (codes || []).length; i++) {
-        var raw = String(codes[i].rawValue || '');
-        var tries = [raw, raw.replace(/[^0-9A-Za-z-]/g, ''), raw.replace(/\D/g, '')];
-        for (var j = 0; j < tries.length; j++) {
-          var t = tries[j];
-          if (t && t.length >= 3 && fm && fm(t)) return { num: t, matched: true };
+        var rv = String(codes[i].rawValue || '');
+        var fmt = String(codes[i].format || '');
+        if (!rv) continue;
+        // Primary: the app's real UPC resolver (shared with the wizard scanner).
+        if (decode) {
+          try {
+            var r = await decode({ rawValue: rv, format: fmt }, '');
+            if (r && r.itemNum && r.masterItem && !r.notInMaster) return { num: r.itemNum, matched: true };
+          } catch (eD) {}
         }
+        // Fallback: a barcode whose value IS a catalog number.
+        var t = rv.replace(/\D/g, '');
+        if (fm && fm(rv)) return { num: rv, matched: true };
+        if (fm && t.length >= 3 && t.length <= 7 && fm(t)) return { num: t, matched: true };
       }
     } catch (e) {}
     return null;
