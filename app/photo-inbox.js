@@ -162,6 +162,7 @@
       })();
       _render();
       _status('');
+      setTimeout(function () { try { _pinAutoRead(); } catch (e) {} }, 400);
     } catch (e) {
       console.error('[Inbox] refresh:', e);
       _status('Could not load the inbox — check your connection and try Refresh.');
@@ -1016,6 +1017,103 @@
     var r = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', { headers: { Authorization: 'Bearer ' + window.accessToken } });
     if (!r.ok) throw new Error('photo download ' + r.status);
     return await r.blob();
+  }
+
+  // ── FREE auto-read: read the catalog number off each photo with on-device
+  //    OCR (Tesseract.js from CDN) — no AI credits, runs in the background as
+  //    photos land. Reads that the master confirms show as a solid number;
+  //    unconfirmed reads show as a hedge; photos it can't read stay open for
+  //    the paid AI. OCR is optional: if it won't load, paid identify still works.
+  var _tessWorker = null, _tessTried = false, _autoReadBusy = false, _autoReadAbort = false;
+  var FREE_TRIED_KEY = 'rr_inbox_freetried';
+  function _freeTried() { try { return JSON.parse(localStorage.getItem(FREE_TRIED_KEY) || '{}'); } catch (e) { return {}; } }
+  function _freeTriedSave(m) { try { localStorage.setItem(FREE_TRIED_KEY, JSON.stringify(m)); } catch (e) {} }
+
+  function _loadTesseract() {
+    if (window.Tesseract) return Promise.resolve(true);
+    if (_loadTesseract._p) return _loadTesseract._p;
+    _loadTesseract._p = new Promise(function (resolve) {
+      var s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+      s.onload = function () { resolve(!!window.Tesseract); };
+      s.onerror = function () { resolve(false); };
+      document.head.appendChild(s);
+    });
+    return _loadTesseract._p;
+  }
+
+  async function _tessGet() {
+    if (_tessWorker) return _tessWorker;
+    if (_tessTried && !window.Tesseract) return null;
+    if (!(await _loadTesseract())) { _tessTried = true; return null; }
+    try {
+      _tessWorker = await Tesseract.createWorker('eng');
+      await _tessWorker.setParameters({ tessedit_char_whitelist: '0123456789-ABCDEFGHIJKLMNOPQRSTUVWXYZ ' });
+    } catch (e) { _tessWorker = null; }
+    _tessTried = true;
+    return _tessWorker;
+  }
+
+  async function _scaledCanvas(blob, maxDim) {
+    var bmp = await createImageBitmap(blob);
+    var sc = Math.min(1, maxDim / Math.max(bmp.width, bmp.height));
+    var w = Math.max(1, Math.round(bmp.width * sc)), h = Math.max(1, Math.round(bmp.height * sc));
+    var c = document.createElement('canvas'); c.width = w; c.height = h;
+    c.getContext('2d').drawImage(bmp, 0, 0, w, h);
+    if (bmp.close) bmp.close();
+    return c;
+  }
+
+  // Pull the best catalog-number candidate out of OCR text and confirm it
+  // against the master, so 1<->l / 0<->O slips resolve to a real number.
+  function _numberFromText(text) {
+    if (!text) return null;
+    var raw = (String(text).toUpperCase().match(/\d[\dA-Z\-]{2,11}/g) || [])
+      .map(function (c) { return c.replace(/^-+|-+$/g, ''); })
+      .filter(function (c) { return /\d/.test(c) && c.length >= 3; });
+    var seen = {}, uniq = [];
+    raw.forEach(function (c) { if (!seen[c]) { seen[c] = 1; uniq.push(c); } });
+    var fm = (typeof findMaster === 'function') ? findMaster : null;
+    for (var i = 0; i < uniq.length; i++) {
+      var c = uniq[i];
+      if (fm && (fm(c) || fm(c.replace(/^\d-/, '')))) return { num: c, matched: true };
+    }
+    uniq.sort(function (a, b) { return b.replace(/\D/g, '').length - a.replace(/\D/g, '').length; });
+    return uniq.length ? { num: uniq[0], matched: false } : null;
+  }
+
+  async function _freeReadOne(fileId) {
+    var w = await _tessGet(); if (!w) return null;
+    var blob = await _pinBytes(fileId);
+    var canvas = await _scaledCanvas(blob, 1600);
+    var text = '';
+    try { var res = await w.recognize(canvas); text = (res && res.data && res.data.text) || ''; }
+    catch (e) { return null; }
+    return _numberFromText(text);
+  }
+
+  window._pinAutoReadCancel = function () { _autoReadAbort = true; };
+  async function _pinAutoRead() {
+    if (_autoReadBusy || !_groups.length) return;
+    var ids = _ids(), ft = _freeTried();
+    var todo = _groups.filter(function (g) { var fid = g.files[0].id; return !ids[fid] && !ft[fid]; });
+    if (!todo.length) return;
+    _autoReadBusy = true; _autoReadAbort = false;
+    if (!(await _tessGet())) { _autoReadBusy = false; return; }   // OCR unavailable → leave for paid identify
+    try {
+      for (var i = 0; i < todo.length && !_autoReadAbort; i++) {
+        _status('Reading photos… ' + (i + 1) + ' of ' + todo.length);
+        var fid = todo[i].files[0].id, r = null;
+        try { r = await _freeReadOne(fid); } catch (e) {}
+        if (r && r.num) {
+          var m = _ids(); m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1 };
+          _idsSave(m);
+        } else {
+          var f = _freeTried(); f[fid] = 1; _freeTriedSave(f);
+        }
+        _render();
+      }
+    } finally { _autoReadBusy = false; _status(''); }
   }
 
   // ── Full-size zoom (Brad): open the inbox photo at full resolution so you
