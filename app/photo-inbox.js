@@ -111,8 +111,17 @@
   function _status(msg) {
     var el = document.getElementById('pin-status');
     if (!el) return;
-    if (msg) { el.style.display = 'block'; el.textContent = msg; }
-    else el.style.display = 'none';
+    if (msg) {
+      el.style.display = 'flex';
+      el.style.alignItems = 'center';
+      el.style.gap = '0.45rem';
+      el.style.color = '#2980b9';        // bright blue = "working"
+      el.style.fontWeight = '700';
+      el.innerHTML = '<span style="display:inline-block;animation:spin 0.8s linear infinite;font-size:1rem;line-height:1">↻</span>' +
+        '<span>' + String(msg).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>';
+    } else {
+      el.style.display = 'none';
+    }
   }
 
   // ── Open the page ────────────────────────────────────────────
