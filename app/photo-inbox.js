@@ -1095,6 +1095,8 @@
       .filter(function (c) {
         if (!/\d/.test(c) || c.length < 3 || c.length > 10) return false;
         var digits = c.replace(/\D/g, '');
+        var alnum = c.replace(/[^0-9A-Za-z]/g, '');
+        if (digits.length < alnum.length * 0.6) return false;   // mostly letters = junk (e.g. "4LIONEL", "MADE")
         if (digits.length >= 8 && c.indexOf('-') < 0) return false;   // UPC / barcode run
         return true;
       });
