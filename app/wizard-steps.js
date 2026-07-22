@@ -290,7 +290,7 @@ function getSteps(tab) {
             if (mr && String(m.roadName || '').trim() !== String(mr).trim()) return false;
             return true;
           });
-          return vars.length === 0;
+          return vars.length < 2;
         } },
   ];
 
@@ -381,7 +381,7 @@ function getSteps(tab) {
             if (mr && String(m.roadName || '').trim() !== String(mr).trim()) return false;
             return true;
           });
-          return vars.length === 0;
+          return vars.length < 2;
         } },
 
       // ── Entry Mode (Full/Quick) ──
@@ -629,7 +629,7 @@ function getSteps(tab) {
             if (mr && String(m.roadName || '').trim() !== String(mr).trim()) return false;
             return true;
           });
-          return vars.length === 0;
+          return vars.length < 2;
         } },
       // Pick which tender pairs with the engine (only for engine_tender grouping).
       { id: 'tenderMatch', title: 'Which tender came with this engine?', type: 'tenderMatch',
