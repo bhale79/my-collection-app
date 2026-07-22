@@ -542,6 +542,7 @@
       '<datalist id="pin-rv-list">' + opts + '</datalist>' +
       _pinAiLine() +
       _pinAltChips() +
+      '<button id="pin-rv-rescan" onclick="_pinRescan()" title="Forget this read and scan the photo again at higher detail" style="width:100%;padding:0.5rem;border-radius:9px;border:1.5px solid #f05008;background:rgba(240,80,8,0.10);color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.8rem;cursor:pointer;margin-bottom:0.7rem">✗ This is wrong — re-scan</button>' +
       '<div id="pin-rv-info" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.7rem 0.8rem;margin-bottom:0.8rem;display:flex;flex-direction:column;gap:0.25rem"></div>' +
       '<button id="pin-rv-add" onclick="_pinReviewAdd()" class="btn-primary" style="width:100%;padding:0.75rem;border-radius:10px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.95rem;cursor:pointer;margin-bottom:0.5rem">Add to My Collection</button>' +
       '<div style="display:flex;gap:0.5rem;margin-bottom:0.5rem">' +
@@ -1111,9 +1112,35 @@
     return uniq.length ? { num: uniq[0], matched: false } : null;
   }
 
-  async function _freeReadBlob(blob) {
+  // Try any barcode on the photo (free, native). Only used when the decoded
+  // value maps to a REAL catalog item — many item-number barcodes do; a plain
+  // retail UPC (e.g. a Lionel 0-23922-… code) is NOT the catalog number and
+  // simply won't match, so we fall through to reading the printed number.
+  async function _readBarcode(blob) {
+    if (!('BarcodeDetector' in window)) return null;
+    try {
+      var det = new window.BarcodeDetector();
+      var bmp = await createImageBitmap(blob);
+      var codes = await det.detect(bmp);
+      if (bmp.close) bmp.close();
+      var fm = (typeof findMaster === 'function') ? findMaster : null;
+      for (var i = 0; i < (codes || []).length; i++) {
+        var raw = String(codes[i].rawValue || '');
+        var tries = [raw, raw.replace(/[^0-9A-Za-z-]/g, ''), raw.replace(/\D/g, '')];
+        for (var j = 0; j < tries.length; j++) {
+          var t = tries[j];
+          if (t && t.length >= 3 && fm && fm(t)) return { num: t, matched: true };
+        }
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  async function _freeReadBlob(blob, maxDim) {
+    var bc = await _readBarcode(blob);
+    if (bc) return bc;
     var w = await _tessGet(); if (!w) return null;
-    var canvas = await _scaledCanvas(blob, 1600);
+    var canvas = await _scaledCanvas(blob, maxDim || 1600);
     var text = '';
     try { var res = await w.recognize(canvas); text = (res && res.data && res.data.text) || ''; }
     catch (e) { return null; }
@@ -1122,6 +1149,29 @@
   async function _freeReadOne(fileId) {
     return _freeReadBlob(await _pinBytes(fileId));
   }
+  // "This is wrong — re-scan": forget the read and try again at higher detail.
+  window._pinRescan = async function () {
+    if (!_rvGroups || !_rvGroups.length) return;
+    var fid = _rvGroups[0].files[0].id, key = _rvGroups[0].key;
+    var btn = document.getElementById('pin-rv-rescan');
+    if (btn) { btn.disabled = true; btn.textContent = 'Re-scanning…'; }
+    try {
+      try { var mm = _ids(); if (mm[fid]) { delete mm[fid]; _idsSave(mm); } } catch (e1) {}
+      try { var ff = _freeTried(); if (ff[fid]) { delete ff[fid]; _freeTriedSave(ff); } } catch (e2) {}
+      try { var pfx = fid + '|'; Object.keys(_vfCache || {}).forEach(function (k) { if (k.indexOf(pfx) === 0) delete _vfCache[k]; }); } catch (e3) {}
+      var blob = await _pinBytes(fid);
+      var r = await _freeReadBlob(blob, 2400);          // higher-res second attempt
+      var m = _ids();
+      if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1 }; _idsSave(m); }
+      else { var f2 = _freeTried(); f2[fid] = 1; _freeTriedSave(f2); }
+      try { _render(); } catch (e4) {}
+      window._pinReview(key);
+      if (!(r && r.num)) showToast('Still no clear number — crop tight to the label, or type it in', 3500);
+    } catch (e) {
+      if (btn) { btn.disabled = false; btn.textContent = '✗ This is wrong — re-scan'; }
+      showToast('Re-scan failed — try again', 2500, true);
+    }
+  };
 
   window._pinAutoReadCancel = function () { _autoReadAbort = true; };
   async function _pinAutoRead() {
