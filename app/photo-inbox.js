@@ -1074,26 +1074,40 @@
     var sc = Math.min(1, maxDim / Math.max(bmp.width, bmp.height));
     var w = Math.max(1, Math.round(bmp.width * sc)), h = Math.max(1, Math.round(bmp.height * sc));
     var c = document.createElement('canvas'); c.width = w; c.height = h;
-    c.getContext('2d').drawImage(bmp, 0, 0, w, h);
+    var ctx = c.getContext('2d');
+    // Grayscale + mild contrast makes printed numbers pop for OCR.
+    try { ctx.filter = 'grayscale(1) contrast(1.3)'; } catch (e) {}
+    ctx.drawImage(bmp, 0, 0, w, h);
     if (bmp.close) bmp.close();
     return c;
   }
 
   // Pull the best catalog-number candidate out of OCR text and confirm it
-  // against the master, so 1<->l / 0<->O slips resolve to a real number.
+  // against the master. Busy box photos are full of noise text (marketing
+  // copy, UPC barcodes, prices, years), so we: drop UPC/barcode-length runs,
+  // PREFER a number the master actually knows, and prefer dashed catalog-style
+  // numbers (6-17259, 6464-475) over bare digit blobs.
   function _numberFromText(text) {
     if (!text) return null;
-    var raw = (String(text).toUpperCase().match(/\d[\dA-Z\-]{2,11}/g) || [])
+    var toks = (String(text).toUpperCase().match(/\d[\dA-Z]*(?:-[\dA-Z]+)*/g) || [])
       .map(function (c) { return c.replace(/^-+|-+$/g, ''); })
-      .filter(function (c) { return /\d/.test(c) && c.length >= 3; });
+      .filter(function (c) {
+        if (!/\d/.test(c) || c.length < 3 || c.length > 10) return false;
+        var digits = c.replace(/\D/g, '');
+        if (digits.length >= 8 && c.indexOf('-') < 0) return false;   // UPC / barcode run
+        return true;
+      });
     var seen = {}, uniq = [];
-    raw.forEach(function (c) { if (!seen[c]) { seen[c] = 1; uniq.push(c); } });
+    toks.forEach(function (c) { if (!seen[c]) { seen[c] = 1; uniq.push(c); } });
     var fm = (typeof findMaster === 'function') ? findMaster : null;
-    for (var i = 0; i < uniq.length; i++) {
-      var c = uniq[i];
-      if (fm && (fm(c) || fm(c.replace(/^\d-/, '')))) return { num: c, matched: true };
-    }
-    uniq.sort(function (a, b) { return b.replace(/\D/g, '').length - a.replace(/\D/g, '').length; });
+    var dashRank = function (a, b) {
+      return (b.indexOf('-') >= 0 ? 1 : 0) - (a.indexOf('-') >= 0 ? 1 : 0) || b.length - a.length;
+    };
+    // 1) numbers the master confirms win — prefer the most specific (dashed/longer)
+    var matched = uniq.filter(function (c) { return fm && (fm(c) || fm(c.replace(/^\d-/, ''))); });
+    if (matched.length) { matched.sort(dashRank); return { num: matched[0], matched: true }; }
+    // 2) nothing confirmed — offer the best catalog-shaped token as a hedge
+    uniq.sort(dashRank);
     return uniq.length ? { num: uniq[0], matched: false } : null;
   }
 
@@ -1227,7 +1241,13 @@
           }
         } catch (e3) {}
         document.querySelectorAll('img[data-rvfid="' + fid + '"], img[data-fid="' + fid + '"], img[data-ppfid="' + fid + '"]').forEach(function (im) { im.src = fresh; });
-        showToast('Photo updated — tick it and hit Identify to re-read the cleaned-up shot', 3500);
+        // Crop → free re-read: clear the old read and re-run OCR on the tighter
+        // shot automatically (no credits, no manual Identify).
+        try { var mm = _ids(); if (mm[fid]) { delete mm[fid]; _idsSave(mm); } } catch (eA) {}
+        try { var ff = _freeTried(); if (ff[fid]) { delete ff[fid]; _freeTriedSave(ff); } } catch (eB) {}
+        showToast('Cropped — re-reading the tighter shot…', 2500);
+        try { _render(); } catch (eC) {}
+        setTimeout(function () { try { _pinAutoRead(); } catch (eD) {} }, 300);
       } catch (e4) { showToast('Could not save the crop — the original is untouched', 3000, true); }
     }, function () { try { URL.revokeObjectURL(srcUrl); } catch (e5) {} });
   };
