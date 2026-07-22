@@ -37,6 +37,7 @@
   var _fid = null, _fidChecked = false;
   var _groups = [];          // [{ key, files:[{id,name,createdTime}] }]
   var _sel = {};             // groupKey -> true
+  var _selectMode = false;   // opt-in multi-select: circles + action bar hidden until ON
   var _busy = false;
 
   // ── Drive folder ─────────────────────────────────────────────
@@ -70,9 +71,10 @@
         '<span>Photo Inbox</span>' +
         '<span id="pin-count" style="font-size:0.8rem;color:var(--text-dim);font-family:var(--font-body);font-weight:400"></span>' +
       '</div>' +
-      '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.7rem">Drop photos anywhere below, or use Add photos. Click a photo to review it — add the item, research it more, or discard the photo. Tick the corner circle to select several at once. Photos snapped with Quick Capture on your phone land here too.</div>' +
+      '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.7rem">Drop photos anywhere below, or use Add photos. Click a photo to review it — add the item, research it more, or discard the photo. Use “Select multiple” to combine several shots of one item. Photos snapped with Quick Capture on your phone land here too.</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;margin-bottom:0.8rem">' +
         '<button onclick="_pinAddSource()" class="btn-primary" style="padding:0.5rem 0.9rem;border-radius:8px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Add photos…</button>' +
+        '<button id="pin-selmode-btn" onclick="_pinToggleSelectMode()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">☑ Select multiple</button>' +
         '<button id="pin-idall-btn" onclick="_pinIdentifyAll()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Identify all</button>' +
         '<button onclick="_pinRefresh()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:600;font-size:0.82rem;cursor:pointer">Refresh</button>' +
         '<span style="flex:1"></span>' +
@@ -188,11 +190,19 @@
       else if (sug && sug.tried) when = '<span style="color:#999">no read</span> · ' + when;
       // v0.9.888 (Brad): click the photo = open the review (add / research /
       // discard); the corner circle is the multi-select toggle.
-      return '<div class="pin-tile" data-key="' + g.key + '" onclick="_pinReview(\'' + g.key + '\')" style="position:relative;border-radius:10px;overflow:hidden;cursor:pointer;background:var(--surface2,#26262e);aspect-ratio:1;border:3px solid ' + (isSel ? '#2980b9' : 'transparent') + '">' +
+      // Default: clicking a tile opens Review. In Select-multiple mode, the tile
+      // toggles selection (circles + crop appear/hide accordingly).
+      var _tileClick = _selectMode ? '_pinToggle' : '_pinReview';
+      var _circle = _selectMode
+        ? '<div onclick="event.stopPropagation();_pinToggle(\'' + g.key + '\')" title="Select" style="position:absolute;top:6px;left:6px;width:22px;height:22px;border-radius:50%;border:2px solid ' + (isSel ? '#2980b9' : 'rgba(255,255,255,0.75)') + ';background:' + (isSel ? '#2980b9' : 'rgba(0,0,0,0.35)') + ';color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700">' + (isSel ? '✓' : '') + '</div>'
+        : '';
+      var _crop = _selectMode ? ''
+        : '<div onclick="event.stopPropagation();_pinTileCrop(\'' + g.key + '\')" title="Crop / Rotate" style="position:absolute;right:6px;bottom:26px;width:24px;height:24px;border-radius:7px;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.8rem;cursor:pointer">✂</div>';
+      return '<div class="pin-tile" data-key="' + g.key + '" onclick="' + _tileClick + '(\'' + g.key + '\')" style="position:relative;border-radius:10px;overflow:hidden;cursor:pointer;background:var(--surface2,#26262e);aspect-ratio:1;border:3px solid ' + (isSel ? '#2980b9' : 'transparent') + '">' +
         '<img loading="lazy" data-fid="' + g.files[0].id + '" style="width:100%;height:100%;object-fit:cover;object-position:center;display:block" alt="">' +
         chip +
-        '<div onclick="event.stopPropagation();_pinToggle(\'' + g.key + '\')" title="Select" style="position:absolute;top:6px;left:6px;width:22px;height:22px;border-radius:50%;border:2px solid ' + (isSel ? '#2980b9' : 'rgba(255,255,255,0.75)') + ';background:' + (isSel ? '#2980b9' : 'rgba(0,0,0,0.35)') + ';color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700">' + (isSel ? '✓' : '') + '</div>' +
-        '<div onclick="event.stopPropagation();_pinTileCrop(\'' + g.key + '\')" title="Crop / Rotate" style="position:absolute;right:6px;bottom:26px;width:24px;height:24px;border-radius:7px;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.8rem;cursor:pointer">✂</div>' +
+        _circle +
+        _crop +
         '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);color:#ddd;font-size:0.6rem;padding:0.1rem 0.35rem">' + when + '</div>' +
         '</div>';
     }).join('');
@@ -222,6 +232,20 @@
     _render();
   };
 
+  // Opt-in multi-select: circles + the Combine/Discard action bar stay hidden
+  // until the user turns this on, so the grid doesn't change shape unexpectedly.
+  window._pinToggleSelectMode = function () {
+    _selectMode = !_selectMode;
+    if (!_selectMode) _sel = {};   // leaving select mode clears the ticks
+    var b = document.getElementById('pin-selmode-btn');
+    if (b) {
+      b.style.background = _selectMode ? 'rgba(41,128,185,0.18)' : 'rgba(139,142,148,0.12)';
+      b.style.borderColor = _selectMode ? '#2980b9' : '#8b8e94';
+      b.textContent = _selectMode ? '✓ Done selecting' : '☑ Select multiple';
+    }
+    _render();
+  };
+
   function _selGroups() { return _groups.filter(function (g) { return _sel[g.key]; }); }
 
   function _selInfo() {
@@ -230,7 +254,7 @@
     var info = document.getElementById('pin-selinfo');
     var ab = document.getElementById('pin-assign-btn'), db = document.getElementById('pin-discard-btn');
     var ib = document.getElementById('pin-idsel-btn');   // v0.9.897 (Brad): identify just the ticked photos
-    if (info) info.textContent = n ? (n + ' photo' + (n > 1 ? 's' : '') + ' selected') : '';
+    if (info) info.textContent = n ? (n + ' photo' + (n > 1 ? 's' : '') + ' selected') : (_selectMode ? 'Tap photos to select' : '');
     if (ab) ab.style.display = gs.length > 1 ? '' : 'none';   // combine needs 2+
     if (db) db.style.display = n ? '' : 'none';
     if (ib) ib.style.display = n ? '' : 'none';
