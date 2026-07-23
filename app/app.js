@@ -1663,56 +1663,91 @@ async function loadAllErasMode() {
     var savedTabs = Object.assign({}, SHEET_TABS);
     window._skipBackgroundRefresh = true;
 
-    // Phase 2 #6 (Session 117): parallel master fetch.
-    // Was sequential — each loop iteration awaited loadMasterData() which
-    // internally awaited _fetchMasterTabs(). Now we Promise.all the four
-    // _fetchMasterTabs(era) calls in parallel, dropping cold load from
-    // ~15-20s to ~6-10s. If the parallel block fails for any reason,
-    // _phase6OK stays false and the sequential loop below falls back to
-    // the original behavior.
-    // S151 follow-up: surface a small 'X of Y eras loaded' indicator while
-    // the parallel fetch is in flight. Each per-era promise increments loaded.
+    // v0.9.972 (Brad): fault-tolerant catalog refresh. Was Promise.all of all
+    // eras at once — all-or-nothing, so one Google throttle dumped every
+    // success, and a catalog that failed was silently missing all session
+    // (the "10-2204 not in catalog" bug). Now:
+    //   • 4 at a time — ducks Google's burst throttling in the first place
+    //   • each era succeeds or fails on its own; a failure keeps the cached
+    //     copy on screen instead of dropping the catalog
+    //   • failed eras keep retrying after the rest are done (15s, 30s, 45s…
+    //     up to 5 rounds) until every catalog is fresh — per Brad: "keep
+    //     going till all are successful"
+    //   • anything that still won't refresh gets a visible toast, not a
+    //     buried console line
     state.loading = state.loading || {};
     state.loading.allEras = { total: realEras.length, loaded: 0, refreshing: true };
     if (typeof _renderAllLoadingIndicator === 'function') _renderAllLoadingIndicator();
     var _phase6OK = false;
+    var _eraFailed = [];
+    function _sleepMs(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+    async function _refreshOneEra(_era) {
+      var rows = await _fetchMasterTabs(_era);
+      if (!rows || !rows.length) throw new Error('no rows returned');   // empty = failure: never cache a blank catalog over a good one
+      var deduped = _deduplicateMaster(rows);
+      deduped.forEach(function(m) { m._era = _era; });
+      idbSet('lv_master_cache_' + _era, deduped);
+      try { localStorage.setItem('lv_master_cache_ts_' + _era, Date.now().toString()); } catch(e) {}
+      // Swap in just this era's slice — every other era's rows stay untouched.
+      state.masterData = (state.masterData || []).filter(function(m) { return m._era !== _era; }).concat(deduped);
+      if (state.loading && state.loading.allEras) {
+        state.loading.allEras.loaded++;
+        if (typeof _renderAllLoadingIndicator === 'function') _renderAllLoadingIndicator();
+      }
+    }
     try {
-      var _pmRows = await Promise.all(realEras.map(function(_era) {
-        return _fetchMasterTabs(_era).then(function(rows) {
-          var deduped = _deduplicateMaster(rows);
-          deduped.forEach(function(m) { m._era = _era; });
-          idbSet('lv_master_cache_' + _era, deduped);
-          try { localStorage.setItem('lv_master_cache_ts_' + _era, Date.now().toString()); } catch(e) {}
-          // Step S151: tick the loading indicator.
-          if (state.loading && state.loading.allEras) {
-            state.loading.allEras.loaded++;
-            if (typeof _renderAllLoadingIndicator === 'function') _renderAllLoadingIndicator();
-          }
-          return deduped;
-        });
-      }));
-      // Replace state.masterData with the freshly-merged set across all eras.
-      state.masterData = [];
-      _pmRows.forEach(function(rows) { state.masterData = state.masterData.concat(rows); });
+      var _queue = realEras.slice();
+      async function _worker() {
+        while (_queue.length) {
+          var _era = _queue.shift();
+          try { await _refreshOneEra(_era); }
+          catch (e) { console.warn('[loadAllErasMode] ' + _era + ' refresh failed (will retry):', e && e.message); _eraFailed.push(_era); }
+        }
+      }
+      await Promise.all([_worker(), _worker(), _worker(), _worker()]);
       _rebuildMasterIndex();
       _phase6OK = true;
-      // S151: parallel master fetch done — clear loading indicator. Sets/
-      // companions still load sequentially below but those are smaller/faster
-      // and the user already has all the master items.
       if (state.loading && state.loading.allEras) {
         state.loading.allEras.refreshing = false;
         if (typeof _renderAllLoadingIndicator === 'function') _renderAllLoadingIndicator();
       }
-      // Show the user fresh master data right away while sets/companions
-      // continue loading sequentially below.
+      // Show fresh master data right away while sets/companions continue below.
       if (typeof renderBrowse === 'function') renderBrowse();
     } catch (e) {
-      console.warn('[loadAllErasMode] parallel master fetch failed, falling back to sequential:', e);
-      // S151: still mark refresh done so the indicator clears.
+      console.warn('[loadAllErasMode] catalog refresh crashed, falling back to sequential:', e);
       if (state.loading && state.loading.allEras) {
         state.loading.allEras.refreshing = false;
         if (typeof _renderAllLoadingIndicator === 'function') _renderAllLoadingIndicator();
       }
+    }
+    // Straggler loop: after the rest are loaded, keep retrying the failures
+    // until all are successful (or 5 rounds, so a dead connection doesn't
+    // hammer forever — cached copies stay on screen and next start retries).
+    if (_phase6OK && _eraFailed.length) {
+      (async function _retryFailedEras() {
+        for (var round = 1; round <= 5 && _eraFailed.length; round++) {
+          await _sleepMs(15000 * round);
+          // Stop only on a REAL era switch (the sequential loop below toggles
+          // _currentEra temporarily while _skipBackgroundRefresh is true).
+          if (_currentEra !== savedEra && !window._skipBackgroundRefresh) return;
+          var _still = [];
+          for (var _r = 0; _r < _eraFailed.length; _r++) {
+            var _e3 = _eraFailed[_r];
+            try { await _refreshOneEra(_e3); console.log('[loadAllErasMode] ' + _e3 + ' refreshed on retry round ' + round); }
+            catch (eR) { _still.push(_e3); }
+          }
+          if (_still.length < _eraFailed.length) {
+            _rebuildMasterIndex();
+            if (typeof renderBrowse === 'function') renderBrowse();
+            if (typeof _scheduleLookupIndex === 'function') _scheduleLookupIndex(2000, true);
+          }
+          _eraFailed = _still;
+        }
+        if (_eraFailed.length) {
+          var _names = _eraFailed.map(function(_e4) { return (typeof ERAS !== 'undefined' && ERAS[_e4] && ERAS[_e4].label) || _e4; }).join(', ');
+          showToast('⚠ ' + _names + ' wouldn\'t refresh — using the saved cop' + (_eraFailed.length === 1 ? 'y' : 'ies') + ' on this device. Will retry next time the app starts.', 7000, true);
+        }
+      })();
     }
 
     for (var i = 0; i < realEras.length; i++) {
