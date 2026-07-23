@@ -627,7 +627,7 @@
       '</div>' +
       // v0.9.915 (Brad): after a Google/Lens search, screenshot the answer and
       // read it — the reader pulls the number/description off the shot for free.
-      '<button id="pin-rv-shot" onclick="_pinReadShot()" title="Pick a screenshot of a Google/Lens answer and let it read the number for free" style="width:100%;padding:0.6rem;border-radius:9px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.10);color:#2ecc71;font-family:var(--font-body);font-weight:700;font-size:0.86rem;cursor:pointer">Read a screenshot of the answer</button>';
+      '<button id="pin-rv-idtoken" onclick="_pinReviewIdentify()" title="Identify this item straight from its photo — uses one token" style="width:100%;padding:0.6rem;border-radius:9px;border:1.5px solid var(--accent2,#d4a843);background:rgba(212,168,67,0.14);color:var(--accent2,#d4a843);font-family:var(--font-body);font-weight:700;font-size:0.86rem;cursor:pointer">Read this photo (1 token)</button>';
 
     // Phone: horizontal strip on top (unchanged).
     var _stripHtml =
@@ -708,7 +708,7 @@
       '<div style="display:flex;gap:0.5rem;flex-wrap:wrap">' +
         '<button onclick="_pinReviewResearch()" style="flex:1 1 130px;padding:0.6rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.86rem;cursor:pointer">Research Number</button>' +
         '<button id="pin-rv-lens" onclick="_pinReviewLens()" style="flex:1 1 130px;padding:0.6rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.86rem;cursor:pointer">Research by Photo</button>' +
-        '<button id="pin-rv-shot" onclick="_pinReadShot()" title="Pick a screenshot of a Google/Lens answer and let it read the number for free" style="flex:1 1 130px;padding:0.6rem;border-radius:9px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.10);color:#2ecc71;font-family:var(--font-body);font-weight:700;font-size:0.86rem;cursor:pointer">Read a screenshot of the answer</button>' +
+        '<button id="pin-rv-idtoken" onclick="_pinReviewIdentify()" title="Identify this item straight from its photo — uses one token" style="flex:1 1 130px;padding:0.6rem;border-radius:9px;border:1.5px solid var(--accent2,#d4a843);background:rgba(212,168,67,0.14);color:var(--accent2,#d4a843);font-family:var(--font-body);font-weight:700;font-size:0.86rem;cursor:pointer">Read this photo (1 token)</button>' +
       '</div>';
 
     var ov = document.createElement('div');
@@ -952,6 +952,45 @@
     inp.value = '';
     inp.onchange = function () { var f = this.files && this.files[0]; this.value = ''; if (f) _pinProcessShot(f); };
     inp.click();
+  };
+
+  // v0.9.967 (Brad): identify THIS item straight from its own photo with one
+  // token — no Google/Lens round-trip. The free reader already ran on drop, so
+  // this goes straight to the paid read for the leftovers it couldn't place.
+  window._pinReviewIdentify = async function () {
+    var gs = _rvGroups;
+    if (!gs || !gs.length) { showToast('Open a photo first', 2500, true); return; }
+    if (!_qcToken()) { showToast('Please sign in first', 3000, true); return; }
+    if (typeof aiIdentifyImage2 !== 'function' && typeof aiIdentifyImage !== 'function') { showToast('Identify service not loaded — refresh and try again', 3000, true); return; }
+    var btn = document.getElementById('pin-rv-idtoken');
+    if (btn) { btn.disabled = true; btn.textContent = 'Reading…'; }
+    try {
+      var g = gs[0];
+      var fl = g.files.slice(0, 4), blobs = [];
+      for (var i = 0; i < fl.length; i++) {
+        try { blobs.push(await _pinBytes(fl[i].id)); } catch (eB) {}
+      }
+      if (!blobs.length) { showToast('Could not load the photo — try again', 3000, true); return; }
+      var ai = (typeof aiIdentifyImage2 === 'function') ? await aiIdentifyImage2(blobs, {}) : await aiIdentifyImage(blobs[0], {});
+      if (!ai || !ai.ok) {
+        var why = ai && ai.reason;
+        if (why === 'quota') showToast('No tokens left today — try tomorrow, or type the number', 4500, true);
+        else if (why === 'noconsent') { /* consent dialog already handled */ }
+        else showToast('Could not read that photo — try Research by Photo, or type the number', 4200, true);
+        return;
+      }
+      var meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(ai.text) : {};
+      if (!_pinApplyMeta(meta, gs)) { showToast('Could not pull an item number from the photo — try Research by Photo', 4200, true); return; }
+      showToast(meta._hedge
+        ? 'Best guess from the photo — double-check the number (1 token used)'
+        : 'Read from the photo — check it over and add it (1 token used)', 4000);
+    } catch (e) {
+      console.warn('[Inbox] review identify:', e);
+      showToast('Could not read the photo — try again', 3000, true);
+    } finally {
+      var b2 = document.getElementById('pin-rv-idtoken');
+      if (b2) { b2.disabled = false; b2.textContent = 'Read this photo (1 token)'; }
+    }
   };
 
   // v0.9.962 (Brad): paste-to-read. While the review card is open, press Ctrl+V
