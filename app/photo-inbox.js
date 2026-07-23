@@ -76,7 +76,7 @@
         '<button onclick="_pinAddSource()" class="btn-primary" style="padding:0.5rem 0.9rem;border-radius:8px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Add photos…</button>' +
         '<button id="pin-selmode-btn" onclick="_pinToggleSelectMode()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">☑ Select multiple</button>' +
         '<button id="pin-selall-btn" onclick="_pinSelectAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Select all</button>' +
-        '<button id="pin-idall-btn" onclick="_pinIdentifyAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:rgba(212,168,67,0.14);color:var(--accent2);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">🔍 Read with AI</button>' +
+        '<button id="pin-idall-btn" onclick="_pinIdentifyAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:rgba(212,168,67,0.14);color:var(--accent2);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">🔍 Read with a token</button>' +
         '<button onclick="_pinRefresh()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:600;font-size:0.82rem;cursor:pointer">Refresh</button>' +
         '<span style="flex:1"></span>' +
         '<span id="pin-selinfo" style="font-size:0.78rem;color:var(--text-dim)"></span>' +
@@ -219,7 +219,7 @@
     _updateIdAllBtn();
   }
 
-  // v0.9.956 (Brad): the gold "Read with AI" button only appears when there
+  // v0.9.956 (Brad): the gold "Read with a token" button only appears when there
   // are leftover photos the free reader couldn't place — and it says exactly
   // how many, so a paid batch never runs by surprise. Free auto-read handles
   // the easy ones for nothing; this button is the deliberate "spend a credit
@@ -230,7 +230,7 @@
     var ids = _ids();
     var n = _groups.filter(function (g) { return !ids[g.files[0].id]; }).length;
     if (n > 0 && !_selectMode) {
-      b.textContent = '🔍 Read ' + n + ' with AI';
+      b.textContent = '🔍 Read ' + n + ' (' + n + ' token' + (n === 1 ? '' : 's') + ')';
       b.style.display = '';
     } else {
       b.style.display = 'none';
@@ -521,7 +521,7 @@
     if (!vr || !vr.ok) {
       var r = vr && vr.reason;
       if (r === 'noref') el.innerHTML = '<div style="font-size:0.76rem;color:var(--text-dim)">No usable catalog photo on the reference page — can\'t double-check this one.</div>';
-      else if (r === 'quota') el.innerHTML = '<div style="font-size:0.76rem;color:var(--text-dim)">Daily identify limit reached — the catalog double-check can run tomorrow.</div>';
+      else if (r === 'quota') el.innerHTML = '<div style="font-size:0.76rem;color:var(--text-dim)">No tokens left today — the catalog double-check can run tomorrow.</div>';
       else if (r === 'noconsent') el.innerHTML = '';
       else el.innerHTML = '<div style="font-size:0.76rem;color:var(--text-dim)">Couldn\'t run the catalog-photo check right now.</div>';
       return;
@@ -593,7 +593,7 @@
       '</div>' +
       // v0.9.915 (Brad): after a Google/Lens search, screenshot the answer and
       // read it — the identify AI pulls the number/description off the shot.
-      '<button id="pin-rv-shot" onclick="_pinReadShot()" title="Pick a screenshot of a Google/Lens answer and let the AI read it" style="width:100%;padding:0.6rem;border-radius:9px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.10);color:#2ecc71;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer;margin-bottom:0.5rem">📸 Read a screenshot of the answer</button>' +
+      '<button id="pin-rv-shot" onclick="_pinReadShot()" title="Pick a screenshot of a Google/Lens answer and let it read the number for free" style="width:100%;padding:0.6rem;border-radius:9px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.10);color:#2ecc71;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer;margin-bottom:0.5rem">📸 Read a screenshot of the answer</button>' +
       '<button onclick="_pinReviewDiscard()" style="width:100%;padding:0.6rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer">Discard Photo' + (n > 1 ? 's' : '') + '</button>';
 
     // Phone: horizontal strip on top (unchanged).
@@ -666,7 +666,7 @@
     var col = s.guess ? '#ffb454' : '#7ec3ef';
     var bg  = s.guess ? 'rgba(255,180,84,0.08)' : 'rgba(41,128,185,0.06)';
     var lbl = s.guess ? 'Best guess from the photo:' : 'From the photo:';
-    var tail = s.guess ? ' · the AI wasn’t certain — double-check against your item' : ' · double-check this against your item';
+    var tail = s.guess ? ' · not certain — double-check against your item' : ' · double-check this against your item';
     return '<div style="font-size:0.76rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.6rem;padding:0.45rem 0.6rem;border-left:3px solid ' + col + ';background:' + bg + ';border-radius:0 8px 8px 0">' +
       '<strong style="color:' + col + '">' + lbl + '</strong> ' + (bits ? esc(bits) : 'number only') + (s.num ? ' — No. ' + esc(s.num) : '') +
       '<span style="opacity:0.8">' + tail + '</span></div>';
@@ -691,7 +691,7 @@
       return '<button onclick="_pinPickNum(\'' + esc(n) + '\')" style="padding:0.35rem 0.6rem;border-radius:8px;border:1.5px solid ' + (hot ? '#ffb454' : 'var(--border)') + ';background:' + (hot ? 'rgba(255,180,84,0.14)' : 'var(--surface2)') + ';color:' + (hot ? '#ffb454' : 'var(--text-mid)') + ';font-size:0.75rem;font-weight:700;cursor:pointer;font-family:var(--font-body)">' + (hot ? '★ ' : '') + esc(a) + '</button>';
     }).join('');
     return '<div style="margin-bottom:0.6rem">' +
-      '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.3rem">Could be one of these — tap each to compare (★ = the AI’s best guess):</div>' +
+      '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.3rem">Could be one of these — tap each to compare (★ = best guess):</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:0.4rem">' + chips + '</div></div>';
   }
 
@@ -779,11 +779,11 @@
           }
         } catch (eOcr) { console.warn('[Inbox] screenshot OCR (free pass) failed:', eOcr && eOcr.message); }
         if (!meta) {
-          if (btn) btn.textContent = 'Asking the AI…';
+          if (btn) btn.textContent = 'Reading…';
           var ai = (typeof aiIdentifyImage2 === 'function') ? await aiIdentifyImage2([f], {}) : await aiIdentifyImage(f, {});
           if (!ai || !ai.ok) {
             var why = ai && ai.reason;
-            if (why === 'quota') showToast('Daily identify limit reached — type the number, or try tomorrow', 4500, true);
+            if (why === 'quota') showToast('No tokens left today — type the number, or try tomorrow', 4500, true);
             else if (why === 'noconsent') { /* consent dialog already handled */ }
             else showToast('Could not read that screenshot — type the number instead', 3800, true);
             return;
@@ -811,7 +811,7 @@
         window._pinReview(gs.length === 1 ? gs[0].key : null);
         showToast(meta._hedge
           ? 'Read the screenshot — the number is a best guess, double-check it'
-          : ('Read the screenshot' + (_freeRead ? ' (free — no AI read used)' : '') + ' — check it over and hit Add'), 4000);
+          : ('Read the screenshot' + (_freeRead ? ' (free — no token used)' : '') + ' — check it over and hit Add'), 4000);
       } catch (e) {
         console.warn('[Inbox] read screenshot:', e);
         showToast('Could not read that screenshot — try again or type the number', 3800, true);
@@ -1389,8 +1389,8 @@
     var n = todo.length;
     var msg = 'The free reader already tried every photo. <b>' + n + '</b> item' + (n === 1 ? '' : 's') +
       ' couldn\'t be matched for free. Read ' + (n === 1 ? 'it' : 'them') +
-      ' with AI now? This uses ' + n + ' of your daily AI read' + (n === 1 ? '' : 's') + '.';
-    var go = await _pinConfirm(msg, '🔍 Read ' + n + ' with AI');
+      ' now? This uses ' + n + ' of your token' + (n === 1 ? '' : 's') + ' (1 per item).';
+    var go = await _pinConfirm(msg, '🔍 Read ' + n + ' (' + n + ' token' + (n === 1 ? '' : 's') + ')');
     if (!go) return;
     return _pinIdentifyRun(todo, ids);
   };
@@ -1421,7 +1421,7 @@
         if (st) {
           st.style.display = 'block';
           st.innerHTML = 'Identifying item ' + (i + 1) + ' of ' + todo.length +
-            (remaining !== null ? ' · ' + remaining + ' read' + (remaining === 1 ? '' : 's') + ' left today' : '') +
+            (remaining !== null ? ' · ' + remaining + ' token' + (remaining === 1 ? '' : 's') + ' left today' : '') +
             '… keep this tab open — go get that coffee. ' +
             '<button onclick="_pinIdentifyCancel()" style="border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);border-radius:6px;font-size:0.72rem;padding:0.15rem 0.5rem;cursor:pointer;font-family:var(--font-body)">Stop</button>';
         }
@@ -1444,7 +1444,7 @@
             ? await aiIdentifyImage2(blobs, _hints)
             : await aiIdentifyImage(blobs[0], _hints);
           if (!ai.ok && ai.reason === 'quota') {
-            showToast("Daily identify limit reached — the rest can run tomorrow", 4500, true);
+            showToast("You're out of tokens for today — the rest can run tomorrow", 4500, true);
             break;
           }
           if (ai.ok && ai.text) {
@@ -1489,7 +1489,7 @@
       if (guessN) msg += ' · ' + guessN + ' best guess' + (guessN > 1 ? 'es' : '') + ' (double-check those)';
       if (blankN) msg += ' · ' + blankN + ' unreadable (no number visible?)';
       if (failN) msg += ' · ' + failN + ' errored (run again to retry)';
-      if (remaining !== null) msg += ' · ' + remaining + ' read' + (remaining === 1 ? '' : 's') + ' left today';
+      if (remaining !== null) msg += ' · ' + remaining + ' token' + (remaining === 1 ? '' : 's') + ' left today';
       showToast(msg, 5000, (okN + guessN) === 0);
     } finally {
       _busy = false;
