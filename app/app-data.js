@@ -146,6 +146,7 @@ async function loadAllData() {
       _patchMasterData();
       _inferMissingYears();
       buildApp(); if (typeof _auditCatalogResolution === 'function') setTimeout(_auditCatalogResolution, 1500);
+      _scheduleLookupIndex(6000);   // v0.9.971: full-catalog lookup index (background)
       showOnboarding();
       if (typeof vaultInit === 'function') vaultInit();
       if (state.personalSheetId) {
@@ -165,6 +166,7 @@ async function loadAllData() {
     _inferMissingYears();
     buildPartnerMap();
     buildApp(); if (typeof _auditCatalogResolution === 'function') setTimeout(_auditCatalogResolution, 1500);
+    _scheduleLookupIndex(6000);   // v0.9.971: full-catalog lookup index (background)
     showOnboarding();
     if (typeof vaultInit === 'function') vaultInit();
     // Re-write config after every successful load so all devices can always find the Sheet ID
@@ -454,8 +456,19 @@ function findMaster(itemNum, variation, prefer) {
   // `prefer` and that row is a MANUAL entry, there is no catalog identity —
   // ever. One guard here covers every display/lookup path at once.
   if (prefer && String(prefer.era || '') === 'Manual') return null;
+  // v0.9.971 (Brad): ONE lookup, TWO layers. Layer 1 is the loaded (enabled-
+  // era) index — byte-for-byte the old behavior, so nothing regresses. Only
+  // on a total miss does Layer 2 answer: the FULL-catalog index covering every
+  // era (built in the background below), so an MTH/Atlas/Weaver number
+  // resolves even when those catalogs aren't in the user's collecting prefs.
+  var _r = _findMasterCore(state.masterByItem, itemNum, variation, prefer);
+  if (_r) return _r;
+  if (state.masterByItemAll) _r = _findMasterCore(state.masterByItemAll, itemNum, variation, prefer);
+  return _r || null;
+}
+function _findMasterCore(idx, itemNum, variation, prefer) {
   const k = String(itemNum).trim();
-  const exact = (state.masterByItem && state.masterByItem.get(k)) || [];
+  const exact = (idx && idx.get(k)) || [];
   const suf = _mSuffix(k);
   // v0.9.648: optional third arg = the OWNED row (or {manufacturer, era}).
   // Cross-catalog numbers collide (Lionel MPC 8359 Chessie GP-7 vs Atlas 8359
@@ -496,7 +509,7 @@ function findMaster(itemNum, variation, prefer) {
   if (typeof baseItemNum === 'function') {
     const bk = baseItemNum(k);
     if (bk && bk !== k) {
-      ((state.masterByItem && state.masterByItem.get(bk)) || []).forEach(b => { if (cands.indexOf(b) < 0) cands.push(b); });
+      ((idx && idx.get(bk)) || []).forEach(b => { if (cands.indexOf(b) < 0) cands.push(b); });
     }
   }
   // MPC / modern Lionel carry a single-digit product-line prefix ("6-8359",
@@ -505,8 +518,8 @@ function findMaster(itemNum, variation, prefer) {
   // is not an "N-" prefix). Also try the suffix-base of the stripped number.
   const _mpc = k.replace(/^\d-/, '');
   if (_mpc && _mpc !== k) {
-    ((state.masterByItem && state.masterByItem.get(_mpc)) || []).forEach(b => { if (cands.indexOf(b) < 0) cands.push(b); });
-    if (typeof baseItemNum === 'function') { const _mb = baseItemNum(_mpc); if (_mb && _mb !== _mpc) ((state.masterByItem && state.masterByItem.get(_mb)) || []).forEach(b => { if (cands.indexOf(b) < 0) cands.push(b); }); }
+    ((idx && idx.get(_mpc)) || []).forEach(b => { if (cands.indexOf(b) < 0) cands.push(b); });
+    if (typeof baseItemNum === 'function') { const _mb = baseItemNum(_mpc); if (_mb && _mb !== _mpc) ((idx && idx.get(_mb)) || []).forEach(b => { if (cands.indexOf(b) < 0) cands.push(b); }); }
   }
   if (!cands.length) return null;
   const want = (variation != null && variation !== '') ? String(variation) : null;
@@ -528,19 +541,109 @@ function findMaster(itemNum, variation, prefer) {
   return best;
 }
 
+// v0.9.971 (Brad): merged bucket across the loaded index AND the full-catalog
+// index, deduped by identity (itemNum|variation|tab) so an era cached in both
+// doesn't list twice. Loaded rows come first (they carry any in-session edits).
+function _mbAllGet(k) {
+  const a = (state.masterByItem && state.masterByItem.get(k)) || [];
+  const extra = (state.masterByItemAll && state.masterByItemAll.get(k)) || [];
+  if (!extra.length) return a;
+  const out = a.slice(), seen = {};
+  out.forEach(function (r) { seen[(r.itemNum || '') + '|' + (r.variation || '') + '|' + (r._tab || '')] = 1; });
+  extra.forEach(function (r) {
+    const s = (r.itemNum || '') + '|' + (r.variation || '') + '|' + (r._tab || '');
+    if (!seen[s]) { seen[s] = 1; out.push(r); }
+  });
+  return out;
+}
+window._mbAllGet = _mbAllGet;
+
 // Return ALL master rows for a given itemNum. O(1) lookup.
 function findAllMaster(itemNum) {
   if (!itemNum) return [];
   const k = String(itemNum).trim();
-  let b = (state.masterByItem && state.masterByItem.get(k)) || [];
+  let b = _mbAllGet(k);
   if (!b.length && typeof baseItemNum === 'function') {
     const bk = baseItemNum(k);
-    if (bk && bk !== k) b = (state.masterByItem && state.masterByItem.get(bk)) || [];
+    if (bk && bk !== k) b = _mbAllGet(bk);
   }
   return b;
 }
 window.findMaster = findMaster;
 window.findAllMaster = findAllMaster;
+
+// ── v0.9.971 (Brad): the FULL-CATALOG lookup index ──────────────────────────
+// Display stays filtered to the eras the user collects (fast startup, no
+// clutter in browse), but LOOKUPS consult this index of EVERY era, so "what
+// is this number?" always has the whole catalog to answer from — the Photo
+// Inbox, wizard, barcode, and Research all read off these same instructions.
+// Built in the background from the per-era IDB caches; an era with no cache
+// yet (a brand the user doesn't collect) is fetched once from the sheet and
+// cached like any other era, so later builds are instant.
+var _allIdxBuiltAt = 0, _allIdxBuilding = false;
+async function _buildAllErasLookupIndex(force) {
+  if (_allIdxBuilding) return;
+  if (!force && _allIdxBuiltAt && (Date.now() - _allIdxBuiltAt) < 10 * 60 * 1000) return;
+  _allIdxBuilding = true;
+  try {
+    var eras = (typeof REAL_ERA_IDS !== 'undefined' && Array.isArray(REAL_ERA_IDS))
+      ? REAL_ERA_IDS.slice()
+      : ['pw', 'mpc', 'prewar', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g'];
+    var map = new Map(), rowsAll = [], seen = {};
+    function add(rows, era) {
+      if (!Array.isArray(rows)) return;
+      for (var i = 0; i < rows.length; i++) {
+        var r = rows[i]; if (!r) continue;
+        var k = String(r.itemNum || '').trim(); if (!k) continue;
+        var sig = k + '|' + String(r.variation || '') + '|' + String(r._tab || '') + '|' + String(r._era || era || '');
+        if (seen[sig]) continue; seen[sig] = 1;
+        if (!r._era && era) r._era = era;
+        var b = map.get(k); if (!b) { b = []; map.set(k, b); } b.push(r);
+        rowsAll.push(r);
+      }
+    }
+    add(state.masterData, null);          // loaded rows first — they carry live edits
+    var missing = [];
+    for (var i2 = 0; i2 < eras.length; i2++) {
+      var era2 = eras[i2], cached = null;
+      try { cached = await idbGet('lv_master_cache_' + era2); } catch (e) {}
+      if (Array.isArray(cached) && cached.length) add(cached, era2);
+      else missing.push(era2);
+    }
+    // Publish what we have NOW — lookups start working before any fetches.
+    state.masterByItemAll = map;
+    state.masterAllRows = rowsAll;
+    _allIdxBuiltAt = Date.now();
+    // One-time fetch for eras never loaded on this device (e.g. MTH for a
+    // Lionel-only collector). Cached to IDB so this doesn't repeat.
+    for (var j = 0; j < missing.length; j++) {
+      var e2 = missing[j];
+      try {
+        if (typeof _fetchMasterTabs !== 'function') break;
+        var fresh = await _fetchMasterTabs(e2);
+        if (fresh && fresh.length) {
+          var ded = (typeof _deduplicateMaster === 'function') ? _deduplicateMaster(fresh) : fresh;
+          idbSet('lv_master_cache_' + e2, ded);
+          try { localStorage.setItem('lv_master_cache_ts_' + e2, Date.now().toString()); } catch (eT) {}
+          add(ded, e2);
+        }
+      } catch (eF) { console.warn('[lookup-index] fetch ' + e2 + ' failed:', eF && eF.message); }
+    }
+    state.masterByItemAll = map;
+    state.masterAllRows = rowsAll;
+    _allIdxBuiltAt = Date.now();
+    console.log('[lookup-index] full catalog ready: ' + map.size + ' numbers / ' + rowsAll.length + ' rows');
+  } finally { _allIdxBuilding = false; }
+}
+function _scheduleLookupIndex(delayMs, force) {
+  try {
+    setTimeout(function () {
+      _buildAllErasLookupIndex(force).catch(function (e) { console.warn('[lookup-index]', e); });
+    }, delayMs || 4000);
+  } catch (e) {}
+}
+window._buildAllErasLookupIndex = _buildAllErasLookupIndex;
+window._scheduleLookupIndex = _scheduleLookupIndex;
 
 // Tripwire: after data loads, warn (quietly, to the console) if any owned item
 // fails to resolve to a catalog entry — so a future suffix/grouping gap surfaces

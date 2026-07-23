@@ -2151,6 +2151,8 @@ async function _preloadOtherErasInBackground() {
   Promise.all([fetchOne(), fetchOne()]).then(function() {
     _hidePreloadPill(pill);
     _preloadActive = false;
+    // v0.9.971: fold the freshly cached eras into the full-catalog lookup index.
+    if (typeof _scheduleLookupIndex === 'function') _scheduleLookupIndex(1500, true);
   });
 }
 

@@ -413,7 +413,13 @@
   }
   function _pinBestMaster(num, aiMfr) {
     var bucket = null;
-    try { bucket = (window.state && state.masterByItem && state.masterByItem.get) ? state.masterByItem.get(String(num).trim()) : null; } catch (e) {}
+    // v0.9.971 (Brad): _mbAllGet = the ONE shared bucket lookup (loaded eras +
+    // the full-catalog index), so the inbox sees MTH/Atlas/etc. like Research does.
+    try {
+      bucket = (typeof window._mbAllGet === 'function')
+        ? window._mbAllGet(String(num).trim())
+        : ((window.state && state.masterByItem && state.masterByItem.get) ? state.masterByItem.get(String(num).trim()) : null);
+    } catch (e) {}
     if (bucket && bucket.length) {
       if (aiMfr) {
         for (var i = 0; i < bucket.length; i++) {

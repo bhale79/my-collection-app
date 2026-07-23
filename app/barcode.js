@@ -99,7 +99,13 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       var current = _matchInArray(state.masterData, candidates);
       if (current.length) return current;
     }
-    // Pass B — every other era's IDB cache (populated by Session 162 preloader)
+    // Pass B (v0.9.971): the shared full-catalog rows built by app-data.js —
+    // one dataset for every lookup. Falls through to the per-era IDB crawl
+    // only while the index hasn't been built yet this session.
+    if (typeof state !== 'undefined' && Array.isArray(state.masterAllRows) && state.masterAllRows.length) {
+      return _matchInArray(state.masterAllRows, candidates);
+    }
+    // Pass C — every other era's IDB cache (legacy fallback)
     if (typeof REAL_ERA_IDS === 'undefined' || !Array.isArray(REAL_ERA_IDS)) return [];
     if (typeof idbGet !== 'function') return [];
     var curEra = (typeof _currentEra !== 'undefined') ? _currentEra : null;
@@ -150,6 +156,10 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       var current = _exactMatch(state.masterData, candidates);
       if (current.length) return current;
     }
+    // v0.9.971: shared full-catalog rows first; legacy IDB crawl as fallback.
+    if (typeof state !== 'undefined' && Array.isArray(state.masterAllRows) && state.masterAllRows.length) {
+      return _exactMatch(state.masterAllRows, candidates);
+    }
     if (typeof REAL_ERA_IDS === 'undefined' || !Array.isArray(REAL_ERA_IDS)) return [];
     if (typeof idbGet !== 'function') return [];
     var curEra = (typeof _currentEra !== 'undefined') ? _currentEra : null;
@@ -188,6 +198,12 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       });
     }
     var curEra = (typeof _currentEra !== 'undefined') ? _currentEra : '';
+    // v0.9.971: shared full-catalog rows are a superset of masterData + every
+    // era cache — one pass, no IDB re-reads. Legacy crawl only pre-index.
+    if (typeof state !== 'undefined' && Array.isArray(state.masterAllRows) && state.masterAllRows.length) {
+      addAll(state.masterAllRows, '');
+      return out;
+    }
     if (typeof state !== 'undefined' && state.masterData) addAll(state.masterData, curEra);
     if (typeof REAL_ERA_IDS !== 'undefined' && Array.isArray(REAL_ERA_IDS) && typeof idbGet === 'function') {
       for (var i = 0; i < REAL_ERA_IDS.length; i++) {
@@ -225,6 +241,11 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       }
     }
     var curEra = (typeof _currentEra !== 'undefined') ? _currentEra : '';
+    // v0.9.971: shared full-catalog rows — one pass over everything.
+    if (typeof state !== 'undefined' && Array.isArray(state.masterAllRows) && state.masterAllRows.length) {
+      scan(state.masterAllRows, '');
+      return out;
+    }
     if (typeof state !== 'undefined' && state.masterData) scan(state.masterData, curEra);
     if (typeof REAL_ERA_IDS !== 'undefined' && Array.isArray(REAL_ERA_IDS) && typeof idbGet === 'function') {
       for (var i = 0; i < REAL_ERA_IDS.length && out.length < limit; i++) {
