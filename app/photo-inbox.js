@@ -1161,6 +1161,18 @@
   async function _freeReadOne(fileId) {
     return _freeReadBlob(await _pinBytes(fileId));
   }
+  // ── Shared free identify engine ──────────────────────────────────────────
+  // Barcode (via the wizard's UPC resolver) + printed-number OCR, master-
+  // confirmed. Exposed globally so EVERY screen (inbox, wizard Identify,
+  // Research by Photo) can try the free read before spending a paid AI credit.
+  // Returns { itemNum, matched:true } only on a CONFIDENT (master-backed) hit.
+  window.rrIdentifyFree = async function (blob) {
+    try {
+      var r = await _freeReadBlob(blob);
+      if (r && r.num && r.matched) return { itemNum: r.num, matched: true };
+    } catch (e) {}
+    return null;
+  };
   // "This is wrong — re-scan": forget the read and try again at higher detail.
   window._pinRescan = async function () {
     if (!_rvGroups || !_rvGroups.length) return;

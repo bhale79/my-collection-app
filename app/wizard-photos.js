@@ -657,6 +657,23 @@ async function _identifySearchLens() {
   if (!_identifyPhotoFile) return;
   const searchBtn = document.getElementById('id-search-btn');
   const origText = searchBtn ? searchBtn.innerHTML : '';
+  // v0.9.955 — UNIFIED free-first: try the shared barcode + printed-number
+  // reader (same engine the Photo Inbox uses) before spending a paid credit.
+  // Only a master-confirmed hit auto-applies; anything unsure falls straight
+  // through to the paid AI exactly as before. The result runs through the
+  // SAME processor (_identifyProcessText), so downstream behaves identically.
+  if (typeof window.rrIdentifyFree === 'function') {
+    if (searchBtn) { searchBtn.disabled = true; searchBtn.innerHTML = '🔎 Reading the photo…'; }
+    try {
+      var _free = await window.rrIdentifyFree(_identifyPhotoFile);
+      if (_free && _free.itemNum && _identifyProcessText('Item Number: ' + _free.itemNum) === 'applied') {
+        if (searchBtn) { searchBtn.disabled = false; searchBtn.innerHTML = origText; }
+        if (typeof showToast === 'function') showToast('Read it free from the photo — no credit used', 2800);
+        return;
+      }
+    } catch (e) {}
+    if (searchBtn) { searchBtn.disabled = false; searchBtn.innerHTML = origText; }
+  }
   // v0.9.655: Tier 3 — try the in-app AI first (no tab-hop, no clipboard
   // dance). The relay answers in the SAME labeled-field format the Lens
   // prompt asks for, and the answer goes through the SAME single processor
