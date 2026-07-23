@@ -76,7 +76,7 @@
         '<button onclick="_pinAddSource()" class="btn-primary" style="padding:0.5rem 0.9rem;border-radius:8px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Add photos…</button>' +
         '<button id="pin-selmode-btn" onclick="_pinToggleSelectMode()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">☑ Select multiple</button>' +
         '<button id="pin-selall-btn" onclick="_pinSelectAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Select all</button>' +
-        '<button id="pin-idall-btn" onclick="_pinIdentifyAll()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Identify all</button>' +
+        '<button id="pin-idall-btn" onclick="_pinIdentifyAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:rgba(212,168,67,0.14);color:var(--accent2);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">🔍 Read with AI</button>' +
         '<button onclick="_pinRefresh()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:600;font-size:0.82rem;cursor:pointer">Refresh</button>' +
         '<span style="flex:1"></span>' +
         '<span id="pin-selinfo" style="font-size:0.78rem;color:var(--text-dim)"></span>' +
@@ -216,6 +216,48 @@
     });
     _selInfo();
     _navBadge(total);
+    _updateIdAllBtn();
+  }
+
+  // v0.9.956 (Brad): the gold "Read with AI" button only appears when there
+  // are leftover photos the free reader couldn't place — and it says exactly
+  // how many, so a paid batch never runs by surprise. Free auto-read handles
+  // the easy ones for nothing; this button is the deliberate "spend a credit
+  // on the ones that are left" step.
+  function _updateIdAllBtn() {
+    var b = document.getElementById('pin-idall-btn');
+    if (!b) return;
+    var ids = _ids();
+    var n = _groups.filter(function (g) { return !ids[g.files[0].id]; }).length;
+    if (n > 0 && !_selectMode) {
+      b.textContent = '🔍 Read ' + n + ' with AI';
+      b.style.display = '';
+    } else {
+      b.style.display = 'none';
+    }
+  }
+
+  // v0.9.956 (Brad): a plain in-app confirm so a paid batch always asks first.
+  // Returns a promise that resolves true (go) or false (cancel). No browser
+  // confirm() dialog — that would freeze the extension bridge.
+  function _pinConfirm(msg, okLabel) {
+    return new Promise(function (resolve) {
+      var ov = document.createElement('div');
+      ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;padding:1.2rem';
+      ov.innerHTML =
+        '<div style="max-width:380px;width:100%;background:var(--surface,#1e1e26);border:1px solid var(--border);border-radius:14px;padding:1.3rem 1.3rem 1.1rem;box-shadow:0 12px 40px rgba(0,0,0,0.5)">' +
+          '<div style="font-size:0.92rem;color:var(--text-mid);line-height:1.55;margin-bottom:1.1rem">' + msg + '</div>' +
+          '<div style="display:flex;gap:0.6rem;justify-content:flex-end">' +
+            '<button id="_pcc" style="padding:0.5rem 1rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:var(--text-mid);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">Not now</button>' +
+            '<button id="_pco" style="padding:0.5rem 1.1rem;border-radius:8px;border:none;background:var(--accent2);color:#1a1a1a;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer">' + (okLabel || 'Continue') + '</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(ov);
+      function done(v) { try { ov.remove(); } catch (e) {} resolve(v); }
+      ov.querySelector('#_pcc').onclick = function () { done(false); };
+      ov.querySelector('#_pco').onclick = function () { done(true); };
+      ov.onclick = function (e) { if (e.target === ov) done(false); };
+    });
   }
 
   // v0.9.900 (Brad): crop straight from the grid tile — one-photo items open
@@ -1341,6 +1383,15 @@
     var ids = _ids();
     var todo = _groups.filter(function (g) { return !ids[g.files[0].id]; });
     if (!todo.length) { showToast(_groups.length ? 'Every item already has a suggestion — tick photos and use Identify to re-run any of them' : 'Inbox is empty', 3500); return; }
+    // v0.9.956 (Brad): free auto-read already tried these — this button only
+    // targets the leftovers it couldn't place. Show the exact count and make
+    // clear it uses paid reads, so a batch never spends credits by surprise.
+    var n = todo.length;
+    var msg = 'The free reader already tried every photo. <b>' + n + '</b> item' + (n === 1 ? '' : 's') +
+      ' couldn\'t be matched for free. Read ' + (n === 1 ? 'it' : 'them') +
+      ' with AI now? This uses ' + n + ' of your daily AI read' + (n === 1 ? '' : 's') + '.';
+    var go = await _pinConfirm(msg, '🔍 Read ' + n + ' with AI');
+    if (!go) return;
     return _pinIdentifyRun(todo, ids);
   };
 
