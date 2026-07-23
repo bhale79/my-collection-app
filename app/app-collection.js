@@ -1507,6 +1507,19 @@ window._grpEditMember = function (i) {
 // Resolve the personalData key for the copy the detail page is currently
 // showing. Falls back to first match if the remembered key is stale.
 function _detailPdKey(item) {
+  // v0.9.983 (Stage B — wrong-copy guard): the detail page opened ONE specific
+  // copy; resolve by its stable inventoryId first so edit / add-photos / sell /
+  // remove can never target a DIFFERENT owned copy (duplicates, or a colliding
+  // cross-era item number). _lastDetailCopyInv is reset on every detail open
+  // (showItemDetailPage), so it's either the current copy's id or null — safe
+  // to trust. Falls through to the old behavior when no copy id is known.
+  var _inv = window._lastDetailCopyInv;
+  if (_inv) {
+    for (var _ik in state.personalData) {
+      var _ip = state.personalData[_ik];
+      if (_ip && _ip.owned && String(_ip.inventoryId) === String(_inv)) return _ik;
+    }
+  }
   var k = window._lastDetailPdKey;
   if (k && state.personalData[k] && item && state.personalData[k].itemNum === item.itemNum) return k;
   return findPDKey(item.itemNum, item.variation);
