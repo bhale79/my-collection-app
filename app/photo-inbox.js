@@ -595,8 +595,9 @@
     var _wide = !window.IS_MOBILE_UA && (window.innerWidth || 0) >= 900;
     var _mainFid = thumbs[0];
 
-    // Shared controls (number, AI read, catalog card, action buttons).
+    // Shared controls (number, read helpers, catalog card, action buttons).
     var _controlsHtml =
+      (_pinLensGroups ? _pinLensBannerHtml() : '') +   // v0.9.962: waiting-for-answer reminder after Research by Photo
       '<input id="pin-rv-num" list="pin-rv-list" type="text" value="' + sug.replace(/"/g, '&quot;') + '" placeholder="Item number — e.g. 2343 or 6464-1" autocomplete="off" spellcheck="false" oninput="_pinReviewLookup(this.value)" style="width:100%;box-sizing:border-box;padding:0.55rem 0.75rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.95rem;margin-bottom:0.6rem">' +
       '<datalist id="pin-rv-list">' + opts + '</datalist>' +
       _pinAiLine() +
@@ -758,7 +759,17 @@
       // wizard's Lens flow: when he comes back with Google's answer copied,
       // parse the clipboard and reopen the review card with it applied.
       _pinLensArm(gs);
-      showToast('In the Google tab: copy the answer, then come back here', 4000);
+      // v0.9.962 (Brad): show the reminder right on the open card now, and it
+      // re-renders on the return-trip too (armed state -> banner in _pinReview).
+      try {
+        var _numEl = document.getElementById('pin-rv-num');
+        if (_numEl && !document.getElementById('pin-lens-banner')) {
+          var _bWrap = document.createElement('div');
+          _bWrap.innerHTML = _pinLensBannerHtml();
+          if (_bWrap.firstChild) _numEl.parentNode.insertBefore(_bWrap.firstChild, _numEl);
+        }
+      } catch (eB) {}
+      showToast('In the Google tab: Ctrl+A, Ctrl+C, then come back and press Ctrl+V', 4500);
     } catch (e) {
       console.warn('[Inbox] research-by-photo:', e);
       try { if (tab) tab.close(); } catch (e2) {}
@@ -767,11 +778,110 @@
     }
   };
 
+  // v0.9.962 (Brad): the "waiting for Google's answer" reminder shown on the
+  // review card after Research by Photo. Can't draw on Google's tab (cross-site
+  // security), so the reminder lives here, where the answer comes back.
+  function _pinLensBannerHtml() {
+    return '<div id="pin-lens-banner" style="background:rgba(212,168,67,0.14);border:1.5px solid var(--accent2,#d4a843);border-radius:9px;padding:0.55rem 0.7rem;margin-bottom:0.6rem;font-size:0.8rem;color:var(--text-mid);line-height:1.45">' +
+      '📋 <b>Waiting for Google’s answer.</b> In the Google tab press <b>Ctrl+A</b> then <b>Ctrl+C</b>, come back here and press <b>Ctrl+V</b>. (Or snip it with Win+Shift+S and Ctrl+V.)' +
+      '</div>';
+  }
+
   // v0.9.915 (Brad): read a SCREENSHOT of a Google/Lens answer. Pick the
   // screenshot, run it through the same identify AI (it reads the labeled
   // Manufacturer/SKU/Description/Year text right off the image), then apply
   // the result to the group and reopen the review card — same shape as the
   // Lens clipboard return-trip, minus the fiddly text-copy step.
+  // v0.9.962 (Brad): ONE place that applies a parsed reading (from a snip, a
+  // copied answer, or the Lens return-trip) to the open group and reopens the
+  // review card. Returns false if the metadata had nothing usable.
+  function _pinApplyMeta(meta, gs) {
+    var got = meta && (meta.itemNum || meta.description || meta.manufacturer || meta.roadName);
+    if (!got) return false;
+    try {
+      var ids = _ids(); var fid0 = gs[0].files[0].id; var prev = ids[fid0] || {};
+      var trim = function (v, old) { return String(v || old || '').slice(0, 120); };
+      ids[fid0] = {
+        num: meta.itemNum ? String(meta.itemNum) : (prev.num || ''),
+        guess: meta.itemNum ? (meta._hedge ? 1 : 0) : (prev.guess || 0),
+        tried: 1,
+        mfr: trim(meta.manufacturer, prev.mfr), desc: trim(meta.description, prev.desc),
+        road: trim(meta.roadName, prev.road), year: trim(meta.year, prev.year)
+      };
+      _idsSave(ids);
+    } catch (eS) { console.warn('[Inbox] apply meta:', eS); }
+    _render();
+    _sel = {};
+    gs.forEach(function (g) { _sel[g.key] = true; });
+    window._pinReview(gs.length === 1 ? gs[0].key : null);
+    return true;
+  }
+
+  // Read a screenshot/snip blob: free OCR first, then a token read, then apply.
+  async function _pinProcessShot(f) {
+    var gs = _rvGroups;
+    if (!gs || !gs.length) { showToast('Open a photo first', 2500, true); return; }
+    if (!_qcToken()) { showToast('Please sign in first', 3000, true); return; }
+    if (typeof aiIdentifyImage2 !== 'function' && typeof aiIdentifyImage !== 'function') { showToast('Identify service not loaded — refresh and try again', 3000, true); return; }
+    if (!f) return;
+    var btn = document.getElementById('pin-rv-shot');
+    if (btn) { btn.disabled = true; btn.textContent = 'Reading screenshot…'; }
+    try {
+      // v0.9.917 (Brad): CHEAP FIRST. A screenshot is crisp digital text, so
+      // try free on-device OCR (Tesseract) before spending a token. Only fall
+      // back to the paid read when the free read doesn't yield an item number.
+      var meta = null, _freeRead = false;
+      try {
+        if (typeof window._ensureTesseract === 'function' && typeof extractIdentifyMetadata === 'function') {
+          var T = await window._ensureTesseract();
+          var ocr = await T.recognize(f, 'eng', {});
+          var _otxt = (ocr && ocr.data && ocr.data.text) || '';
+          if (_otxt.trim()) {
+            var m0 = extractIdentifyMetadata(_otxt);
+            if (m0 && m0.itemNum) { meta = m0; _freeRead = true; }   // free read good enough only with a number
+          }
+        }
+      } catch (eOcr) { console.warn('[Inbox] screenshot OCR (free pass) failed:', eOcr && eOcr.message); }
+      if (!meta) {
+        if (btn) btn.textContent = 'Reading…';
+        var ai = (typeof aiIdentifyImage2 === 'function') ? await aiIdentifyImage2([f], {}) : await aiIdentifyImage(f, {});
+        if (!ai || !ai.ok) {
+          var why = ai && ai.reason;
+          if (why === 'quota') showToast('No tokens left today — type the number, or try tomorrow', 4500, true);
+          else if (why === 'noconsent') { /* consent dialog already handled */ }
+          else showToast('Could not read that screenshot — type the number instead', 3800, true);
+          return;
+        }
+        meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(ai.text) : {};
+      }
+      if (!_pinApplyMeta(meta, gs)) { showToast('No item info found in that screenshot — type the number instead', 4000, true); return; }
+      showToast(meta._hedge
+        ? 'Read the screenshot — the number is a best guess, double-check it'
+        : ('Read the screenshot' + (_freeRead ? ' (free — no token used)' : '') + ' — check it over and hit Add'), 4000);
+    } catch (e) {
+      console.warn('[Inbox] read screenshot:', e);
+      showToast('Could not read that screenshot — try again or type the number', 3800, true);
+    } finally {
+      var b2 = document.getElementById('pin-rv-shot');
+      if (b2) { b2.disabled = false; b2.textContent = '📸 Read a screenshot of the answer'; }
+    }
+  }
+
+  // Read copied TEXT (e.g. Ctrl+A, Ctrl+C of the Google answer) — parse it and
+  // apply. No token used; text parsing is free.
+  function _pinProcessText(txt) {
+    var gs = _rvGroups;
+    if (!gs || !gs.length) return false;
+    txt = String(txt || '').trim();
+    if (!txt) return false;
+    var meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(txt) : {};
+    if (!_pinApplyMeta(meta, gs)) return false;
+    showToast(meta._hedge
+      ? 'Read the copied answer — the number is a best guess, double-check it'
+      : 'Read the copied answer — check it over and hit Add', 4000);
+    return true;
+  }
+
   window._pinReadShot = function () {
     var gs = _rvGroups;
     if (!gs || !gs.length) { showToast('Open a photo first', 2500, true); return; }
@@ -784,72 +894,38 @@
       document.body.appendChild(inp);
     }
     inp.value = '';
-    inp.onchange = async function () {
-      var f = this.files && this.files[0];
-      this.value = '';
-      if (!f) return;
-      var btn = document.getElementById('pin-rv-shot');
-      if (btn) { btn.disabled = true; btn.textContent = 'Reading screenshot…'; }
-      try {
-        // v0.9.917 (Brad): CHEAP FIRST. A screenshot is crisp digital text, so
-        // try free on-device OCR (Tesseract) before spending an AI read. Only
-        // fall back to the AI when the free read doesn't yield an item number.
-        var meta = null, _freeRead = false;
-        try {
-          if (typeof window._ensureTesseract === 'function' && typeof extractIdentifyMetadata === 'function') {
-            var T = await window._ensureTesseract();
-            var ocr = await T.recognize(f, 'eng', {});
-            var _otxt = (ocr && ocr.data && ocr.data.text) || '';
-            if (_otxt.trim()) {
-              var m0 = extractIdentifyMetadata(_otxt);
-              if (m0 && m0.itemNum) { meta = m0; _freeRead = true; }   // free read good enough only with a number
-            }
-          }
-        } catch (eOcr) { console.warn('[Inbox] screenshot OCR (free pass) failed:', eOcr && eOcr.message); }
-        if (!meta) {
-          if (btn) btn.textContent = 'Reading…';
-          var ai = (typeof aiIdentifyImage2 === 'function') ? await aiIdentifyImage2([f], {}) : await aiIdentifyImage(f, {});
-          if (!ai || !ai.ok) {
-            var why = ai && ai.reason;
-            if (why === 'quota') showToast('No tokens left today — type the number, or try tomorrow', 4500, true);
-            else if (why === 'noconsent') { /* consent dialog already handled */ }
-            else showToast('Could not read that screenshot — type the number instead', 3800, true);
-            return;
-          }
-          meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(ai.text) : {};
-        }
-        var got = meta.itemNum || meta.description || meta.manufacturer || meta.roadName;
-        if (!got) { showToast('No item info found in that screenshot — type the number instead', 4000, true); return; }
-        try {
-          var ids = _ids(); var fid0 = gs[0].files[0].id; var prev = ids[fid0] || {};
-          var trim = function (v, old) { return String(v || old || '').slice(0, 120); };
-          ids[fid0] = {
-            num: meta.itemNum ? String(meta.itemNum) : (prev.num || ''),
-            guess: meta.itemNum ? (meta._hedge ? 1 : 0) : (prev.guess || 0),
-            tried: 1,
-            mfr: trim(meta.manufacturer, prev.mfr), desc: trim(meta.description, prev.desc),
-            road: trim(meta.roadName, prev.road), year: trim(meta.year, prev.year)
-          };
-          _idsSave(ids);
-        } catch (eS) { console.warn('[Inbox] screenshot store:', eS); }
-        _render();
-        // Reopen the review with the read applied (mirrors the Lens return-trip).
-        _sel = {};
-        gs.forEach(function (g) { _sel[g.key] = true; });
-        window._pinReview(gs.length === 1 ? gs[0].key : null);
-        showToast(meta._hedge
-          ? 'Read the screenshot — the number is a best guess, double-check it'
-          : ('Read the screenshot' + (_freeRead ? ' (free — no token used)' : '') + ' — check it over and hit Add'), 4000);
-      } catch (e) {
-        console.warn('[Inbox] read screenshot:', e);
-        showToast('Could not read that screenshot — try again or type the number', 3800, true);
-      } finally {
-        var b2 = document.getElementById('pin-rv-shot');
-        if (b2) { b2.disabled = false; b2.textContent = '📸 Read a screenshot of the answer'; }
-      }
-    };
+    inp.onchange = function () { var f = this.files && this.files[0]; this.value = ''; if (f) _pinProcessShot(f); };
     inp.click();
   };
+
+  // v0.9.962 (Brad): paste-to-read. While the review card is open, press Ctrl+V
+  // to read whatever you grabbed from Google — a snipped picture OR copied text
+  // (highlight the answer, or just Ctrl+A the whole page). One keystroke, no
+  // button, no file picker. A short manual paste into the number box is left
+  // alone so typing/pasting a number still works.
+  document.addEventListener('paste', function (e) {
+    if (!document.getElementById('pin-review-ov')) return;      // only when the review card is open
+    if (!_rvGroups || !_rvGroups.length) return;
+    var cd = e.clipboardData; if (!cd) return;
+    // A picture on the clipboard (a snip) — always read it.
+    var items = cd.items || [];
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].type && items[i].type.indexOf('image') === 0) {
+        var f = items[i].getAsFile();
+        if (f) { e.preventDefault(); showToast('Reading your snip…', 1800); _pinProcessShot(f); return; }
+      }
+    }
+    // Otherwise copied text (the answer). Don't hijack a short paste into a field.
+    var txt = (cd.getData && cd.getData('text')) || '';
+    txt = txt.trim();
+    if (!txt) return;
+    var t = e.target;
+    var inField = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA');
+    if (inField && txt.length < 25) return;   // let a short manual paste land in the box
+    e.preventDefault();
+    showToast('Reading the copied answer…', 1800);
+    _pinProcessText(txt);
+  });
 
   // Return-trip watcher for Research by Photo (mirrors the wizard's
   // _identifyReadClipboard flow): on tab-return, read the clipboard, parse
@@ -882,31 +958,12 @@
       if (!got) return;                            // unrelated clipboard — keep watching
       var gs = _pinLensGroups;
       _pinLensGroups = null;
-      try {
-        var ids = _ids();
-        var fid0 = gs[0].files[0].id;
-        var prev = ids[fid0] || {};
-        var trim = function (v, old) { return String(v || old || '').slice(0, 120); };
-        // v0.9.898: same best-guess rule as the batch identify — a hedged
-        // number from the Lens return is kept, marked guess:1.
-        ids[fid0] = {
-          num: meta.itemNum ? String(meta.itemNum) : (prev.num || ''),
-          guess: meta.itemNum ? (meta._hedge ? 1 : 0) : (prev.guess || 0),
-          tried: 1,
-          mfr: trim(meta.manufacturer, prev.mfr), desc: trim(meta.description, prev.desc),
-          road: trim(meta.roadName, prev.road), year: trim(meta.year, prev.year)
-        };
-        _idsSave(ids);
-      } catch (e) { console.warn('[Inbox] lens return:', e); }
-      _render();
-      // Reopen the review with the findings applied (works for combined
-      // selections too — restore the selection and open from it).
-      _sel = {};
-      gs.forEach(function (g) { _sel[g.key] = true; });
-      window._pinReview(gs.length === 1 ? gs[0].key : null);
-      showToast(meta._hedge
-        ? "Google's answer applied, but it hedged on the number — double-check it"
-        : "Google's answer applied — check it over and hit Add", 4000);
+      // v0.9.962: same shared applier as the snip/paste paths.
+      if (_pinApplyMeta(meta, gs)) {
+        showToast(meta._hedge
+          ? "Google's answer applied, but it hedged on the number — double-check it"
+          : "Google's answer applied — check it over and hit Add", 4000);
+      }
     }).catch(function () { /* permission denied — the number box still takes a manual paste */ });
   }
 
