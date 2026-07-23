@@ -1038,7 +1038,15 @@ function _renderAddingBanner() {
     if (wizard.matchedItem && String(wizard.matchedItem.itemNum || '').trim() === num) {
       match = wizard.matchedItem;
     } else if (typeof findMaster === 'function') {
-      match = findMaster(num);
+      // v0.9.982: disambiguate colliding item numbers. When editing an existing
+      // copy we know its stable identity (via _updatePdKey → the inventoryId-keyed
+      // owned row); pass that owned row so findMaster resolves to the right
+      // era/scale (e.g. postwar No. 115 vs standard-gauge No. 115). For new adds,
+      // fall back to the item's era/variation hints.
+      var _ownRow = (d._updatePdKey && typeof state !== 'undefined' && state.personalData)
+        ? state.personalData[d._updatePdKey] : null;
+      var _pref = _ownRow || (d._era ? { era: d._era, manufacturer: d.manufacturer || '' } : null);
+      match = findMaster(num, d.variation, _pref);
     }
     if (match) {
       desc = _composeRoadDesc(match);

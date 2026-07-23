@@ -1567,13 +1567,21 @@ function showItemDetailPage_forsale(idx) {
 function openPhotoWizard(itemNum, variation, pdKey) {
   // Open wizard on the photo step for an existing item
   const pd = state.personalData[pdKey] || {};
+  // v0.9.982 (colliding item numbers): resolve the catalog row from THIS owned
+  // copy. findMaster's 3rd arg (the owned row, keyed by inventoryId) carries the
+  // era/manufacturer that breaks ties like No. 115 (postwar Passenger Station vs
+  // standard-gauge Ballast Car). Without it the "Adding No. X" banner and any
+  // downstream catalog lookup grab whichever same-numbered row loaded first.
+  var _matched = (pd && String(pd.era || '') !== 'Manual' && typeof findMaster === 'function')
+    ? findMaster(itemNum, variation, pd) : null;
   wizard = {
     step: 0, tab: 'collection',
     data: { tab: 'collection', itemNum: itemNum, variation: variation,
             condition: pd.condition || '', allOriginal: pd.allOriginal || '',
             hasBox: pd.hasBox || '', _updatePdKey: pdKey, _photoOnly: true,
-            _existingInventoryId: pd.inventoryId || '' },   // v0.9.696: photos land in THIS copy's subfolder
-    steps: getSteps('collection'), matchedItem: null
+            _existingInventoryId: pd.inventoryId || '',   // v0.9.696: photos land in THIS copy's subfolder
+            _era: pd.era || '' },                          // v0.9.982: item's real era, for catalog-match disambiguation
+    steps: getSteps('collection'), matchedItem: _matched
   };
   // Bugfix 2026-04-14: wizard modal may not be built yet (only built by openWizard).
   // Without this call, getElementById('wizard-modal') returns null and throws.
