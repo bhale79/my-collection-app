@@ -457,9 +457,13 @@
       html = row('Item #', String(lk.num).replace(/</g, '&lt;'))
         + '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.2rem">Not found in the catalog — you can still add it, or Research to double-check the number.</div>';
     }
-    if (lk.ownedPd) html += '<div style="margin-top:0.45rem;font-size:0.8rem;color:#2ecc71;font-weight:700">✓ Already in your collection — Add will attach these photos to it.</div>';
+    if (lk.ownedPd) html += '<div style="margin-top:0.45rem;font-size:0.8rem;color:#2ecc71;font-weight:700">✓ Already in your collection — use “Attach to an item I already own” to add these photos to it.</div>';
     box.innerHTML = html;
-    if (addBtn) addBtn.textContent = lk.ownedPd ? 'Attach Photos to My Item' : 'Add to My Collection';
+    // v0.9.958 (Brad): four-exit card — when the number is one you already own,
+    // spotlight the Attach exit; otherwise dim it so File reads as the default.
+    var attachBtn = document.getElementById('pin-rv-attach');
+    if (attachBtn) { attachBtn.style.opacity = lk.ownedPd ? '1' : '0.5'; attachBtn.style.boxShadow = lk.ownedPd ? '0 0 0 2px rgba(46,204,113,0.35)' : 'none'; }
+    if (addBtn) addBtn.style.opacity = lk.ownedPd ? '0.85' : '1';
     // v0.9.942 (Identify v3, Brad): double-check the photo against the
     // catalog listing's reference photo when the matched master row links one.
     try { _pinVerifyRender(lk); } catch (eV) {}
@@ -586,15 +590,23 @@
       _pinAltChips() +
       '<button id="pin-rv-rescan" onclick="_pinRescan()" title="Forget this read and scan the photo again at higher detail" style="width:100%;padding:0.5rem;border-radius:9px;border:1.5px solid #f05008;background:rgba(240,80,8,0.10);color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.8rem;cursor:pointer;margin-bottom:0.7rem">✗ This is wrong — re-scan</button>' +
       '<div id="pin-rv-info" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.7rem 0.8rem;margin-bottom:0.8rem;display:flex;flex-direction:column;gap:0.25rem"></div>' +
-      '<button id="pin-rv-add" onclick="_pinReviewAdd()" class="btn-primary" style="width:100%;padding:0.75rem;border-radius:10px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.95rem;cursor:pointer;margin-bottom:0.5rem">Add to My Collection</button>' +
+      // v0.9.958 (Brad): four clear exits — once you know what the item is,
+      // pick where the photo goes. File a new item, add photos to one you
+      // already own, list it for sale (which also files it), or bin it.
+      '<div style="font-size:0.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em;margin:0.1rem 0 0.45rem">What do you want to do with it?</div>' +
+      '<button id="pin-rv-add" onclick="_pinFileToCollection()" class="btn-primary" style="width:100%;padding:0.7rem;border-radius:10px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.92rem;cursor:pointer;margin-bottom:0.45rem">📗 File to my Collection</button>' +
+      '<button id="pin-rv-attach" onclick="_pinAttachOwned()" style="width:100%;padding:0.65rem;border-radius:10px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.10);color:#2ecc71;font-family:var(--font-body);font-weight:700;font-size:0.88rem;cursor:pointer;margin-bottom:0.45rem">🔗 Attach to an item I already own</button>' +
+      '<button id="pin-rv-sell" onclick="_pinSendForSale()" style="width:100%;padding:0.65rem;border-radius:10px;border:1.5px solid #d4a843;background:rgba(212,168,67,0.12);color:#d4a843;font-family:var(--font-body);font-weight:700;font-size:0.88rem;cursor:pointer;margin-bottom:0.45rem">🏷️ Send to For Sale</button>' +
+      '<button onclick="_pinReviewDiscard()" style="width:100%;padding:0.65rem;border-radius:10px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.88rem;cursor:pointer;margin-bottom:0.85rem">🗑️ Discard Photo' + (n > 1 ? 's' : '') + '</button>' +
+      // Identify helpers — only needed when you're not sure of the number.
+      '<div style="font-size:0.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em;margin:0 0 0.45rem;padding-top:0.6rem;border-top:1px dashed var(--border)">Not sure what it is?</div>' +
       '<div style="display:flex;gap:0.5rem;margin-bottom:0.5rem">' +
-        '<button onclick="_pinReviewResearch()" style="flex:1;padding:0.6rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer">Research Number</button>' +
-        '<button id="pin-rv-lens" onclick="_pinReviewLens()" style="flex:1;padding:0.6rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer">Research by Photo</button>' +
+        '<button onclick="_pinReviewResearch()" style="flex:1;padding:0.55rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Research Number</button>' +
+        '<button id="pin-rv-lens" onclick="_pinReviewLens()" style="flex:1;padding:0.55rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Research by Photo</button>' +
       '</div>' +
       // v0.9.915 (Brad): after a Google/Lens search, screenshot the answer and
-      // read it — the identify AI pulls the number/description off the shot.
-      '<button id="pin-rv-shot" onclick="_pinReadShot()" title="Pick a screenshot of a Google/Lens answer and let it read the number for free" style="width:100%;padding:0.6rem;border-radius:9px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.10);color:#2ecc71;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer;margin-bottom:0.5rem">📸 Read a screenshot of the answer</button>' +
-      '<button onclick="_pinReviewDiscard()" style="width:100%;padding:0.6rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer">Discard Photo' + (n > 1 ? 's' : '') + '</button>';
+      // read it — the reader pulls the number/description off the shot for free.
+      '<button id="pin-rv-shot" onclick="_pinReadShot()" title="Pick a screenshot of a Google/Lens answer and let it read the number for free" style="width:100%;padding:0.55rem;border-radius:9px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.10);color:#2ecc71;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">📸 Read a screenshot of the answer</button>';
 
     // Phone: horizontal strip on top (unchanged).
     var _stripHtml =
@@ -903,25 +915,35 @@
   // Shared filing core: move every photo in `gs` into the item's Drive
   // folder, connect the sheet's photo link when the item is owned, or
   // remember the link + open the Add wizard when it isn't.
-  window._pinReviewAdd = async function () {
+  window._pinReviewAdd = async function (mode) {
+    mode = mode || 'auto';
     var num = String((document.getElementById('pin-rv-num') || {}).value || '').trim();
     if (!num) { showToast('Type or confirm the item number first', 2500, true); return; }
     var gs = _rvGroups;
     if (!gs.length || _busy) return;
+    // Ownership decides File-vs-Attach, so check it before we commit anything.
+    var lkPre = _pinLookup(num);
+    if (mode === 'attach' && !lkPre.ownedPd) {
+      showToast('You don’t own ' + num + ' yet — use “File to my Collection” to add it, or type a number you already own', 5000, true);
+      return;
+    }
     var ov = document.getElementById('pin-review-ov'); if (ov) ov.remove();
     _busy = true;
     try {
       var fromFid = await _folder();
       var toFid = await driveEnsureItemFolder(num);
       var link = driveFolderLink(toFid);
-      var lk = _pinLookup(num);
+      var lk = lkPre;
+      // Attach path when the user asked to attach, or when it's an owned item
+      // being auto-filed / listed for sale. 'new' always makes a fresh item.
+      var _attach = (mode === 'attach') || ((mode === 'auto' || mode === 'forsale') && !!lk.ownedPd);
       // Gather every selected file once (used whether we move now or on save).
       var fileList = [];
       for (var g = 0; g < gs.length; g++) {
         for (var f = 0; f < gs[g].files.length; f++) { fileList.push(gs[g].files[f]); }
       }
       var ts = new Date().getTime();
-      if (lk.ownedPd) {
+      if (_attach) {
         // Already in the collection: committed action, no wizard to cancel,
         // so file the photos into its folder right away.
         var moved = 0;
@@ -942,6 +964,13 @@
         }
         showToast('Attached ' + moved + ' photo' + (moved > 1 ? 's' : '') + ' to ' + num, 3000);
         _pinRefresh();
+        // v0.9.958 (Brad): "Send to For Sale" on an item you already own —
+        // photos are filed above, now open the sale-price step for it.
+        if (mode === 'forsale') {
+          var _pdKey = Object.keys(state.personalData || {}).filter(function (k) { return state.personalData[k] === lk.ownedPd; })[0];
+          if (_pdKey && typeof listForSaleFromCollection === 'function') { listForSaleFromCollection(-1, _pdKey); }
+          else showToast('Photos attached — open ' + num + ' from My Collection to set a sale price', 4500);
+        }
       } else {
         // NOT in the collection yet: the Add wizard opens next and may be
         // cancelled. DEFER moving the photos out of the inbox until the item
@@ -962,7 +991,8 @@
         // v0.9.907 (Brad, item [1a]): hand the first inbox photo's Drive id to the
         // wizard so the variation step can preview the item you're adding.
         var _addPhotoId = (fileList[0] && fileList[0].id) || '';
-        _pinAddNow(num, { manufacturer: _aiS.mfr || '', description: _aiS.desc || '', roadName: _aiS.road || '', year: _aiS.year || '' }, _addPhotoId);
+        _pinAddNow(num, { manufacturer: _aiS.mfr || '', description: _aiS.desc || '', roadName: _aiS.road || '', year: _aiS.year || '' }, _addPhotoId, { alsoListForSale: mode === 'forsale' });
+        if (mode === 'forsale') showToast('Adding ' + num + ' to your collection and For Sale list — set the price on the sale step', 4500);
       }
     } catch (e) {
       console.error('[Inbox] add/attach:', e);
@@ -970,7 +1000,13 @@
     } finally { _busy = false; }
   };
 
-  window._pinAddNow = function (num, aiMeta, photoDriveId) {
+  // v0.9.958 (Brad): the four review-card exits are thin wrappers over the one
+  // shared filer, so every path uses the exact same, tested Drive/sheet code.
+  window._pinFileToCollection = function () { return window._pinReviewAdd('new'); };
+  window._pinAttachOwned      = function () { return window._pinReviewAdd('attach'); };
+  window._pinSendForSale      = function () { return window._pinReviewAdd('forsale'); };
+
+  window._pinAddNow = function (num, aiMeta, photoDriveId, opts) {
     if (typeof openWizard !== 'function') { showToast('Add wizard not available', 2500, true); return; }
     openWizard('collection');
     // v0.9.889 (Brad): pre-fill the ENTIRE catalog side of the add, the same
@@ -985,6 +1021,9 @@
         clearInterval(t);
         try {
           wizard.data.itemNum = num;
+          // v0.9.958 (Brad): "Send to For Sale" on a not-yet-owned item — flag
+          // the add so it lands in My Collection AND on the For Sale list.
+          if (opts && opts.alsoListForSale) { wizard.data._alsoListForSale = true; wizard.data._returnPage = wizard.data._returnPage || 'forsale'; }
           // v0.9.907 (Brad, item [1a]): stash the inbox photo's Drive id so the
           // variation step can preview it (loaded via loadDriveThumb).
           if (photoDriveId) wizard.data._addPhotoDriveId = photoDriveId;
