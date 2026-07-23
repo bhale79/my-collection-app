@@ -734,7 +734,10 @@
       var q = (typeof window.rrIdentifyQuery === 'function')
         ? window.rrIdentifyQuery({})
         : 'Identify this model railroad item. Provide Manufacturer; Manufacturer SKU or catalog number; Year; Scale; Description on labeled lines.';
-      var url = 'https://www.google.com/searchbyimage?image_url=' + encodeURIComponent(staged.url) + '&q=' + encodeURIComponent(q);
+      // v0.9.959 (Brad): Google retired /searchbyimage (it 404s now) and moved
+      // reverse-image search to Google Lens. uploadbyurl runs the real search on
+      // the staged photo. Lens takes no text hint, so `q` is unused here.
+      var url = 'https://lens.google.com/uploadbyurl?url=' + encodeURIComponent(staged.url);
       if (tab) { try { tab.location = url; } catch (e) { tab = null; } }
       if (!tab) window.open(url, '_blank');
       if (btn) { btn.disabled = false; btn.textContent = 'Research by Photo'; }
@@ -1171,10 +1174,26 @@
   // numbers (6-17259, 6464-475) over bare digit blobs.
   function _numberFromText(text) {
     if (!text) return null;
-    var toks = (String(text).toUpperCase().match(/\d[\dA-Z]*(?:-[\dA-Z]+)*/g) || [])
+    var UP = String(text).toUpperCase();
+    // v0.9.959 (Brad): a 4-digit number sitting next to a © or a copyright
+    // holder is a YEAR, not the catalog number — the Thomas box's "© 2012
+    // LIONEL" was being read as item #2012. Ban those exact year tokens so they
+    // can never be offered. Real Lionel numbers like 2037 / 2046 are never in a
+    // copyright context, so they're untouched.
+    var banned = {}, m;
+    var reCopy = /(?:©|\(C\)|COPYRIGHT)\s*((?:19|20)\d{2})/g;
+    while ((m = reCopy.exec(UP))) { banned[m[1]] = 1; }
+    // ©-dropped fallback: OCR sometimes misses the © glyph, leaving "2012
+    // GULLANE (THOMAS) LIMITED". Ban a year-range number only when a legal
+    // suffix (L.L.C / LIMITED / INC …) sits within ~25 chars after it — that's
+    // unmistakably a copyright line, not an item marking.
+    var reHolder = /\b((?:19|20)\d{2})\b(?=[^0-9]{0,25}(?:L\.?L\.?C\b|LLC\b|LIMITED\b|LTD\b|\bINC\b|CORP\b|ENTERTAINMENT\b|TRADEMARK\b|GMBH\b))/g;
+    while ((m = reHolder.exec(UP))) { banned[m[1]] = 1; }
+    var toks = (UP.match(/\d[\dA-Z]*(?:-[\dA-Z]+)*/g) || [])
       .map(function (c) { return c.replace(/^-+|-+$/g, ''); })
       .filter(function (c) {
         if (!/\d/.test(c) || c.length < 3 || c.length > 10) return false;
+        if (banned[c]) return false;                            // copyright year, not a catalog number
         var digits = c.replace(/\D/g, '');
         var alnum = c.replace(/[^0-9A-Za-z]/g, '');
         if (digits.length < alnum.length * 0.6) return false;   // mostly letters = junk (e.g. "4LIONEL", "MADE")

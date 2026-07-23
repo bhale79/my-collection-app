@@ -757,7 +757,9 @@ async function _identifyOpenLens() {
     var q = (typeof window.rrIdentifyQuery === 'function')
       ? window.rrIdentifyQuery({ subject: subject, mfrPhrase: mfrPhrase })
       : ('Identify this ' + subject + mfrPhrase + '. Provide Manufacturer; Manufacturer SKU or catalog number; Year; Scale; Description on labeled lines.');
-    const url = 'https://www.google.com/searchbyimage?image_url=' + encodeURIComponent(staged.url) + '&q=' + encodeURIComponent(q);
+    // v0.9.959 (Brad): Google retired /searchbyimage (404) — reverse-image
+    // search now lives at Google Lens uploadbyurl. Lens takes no text hint.
+    const url = 'https://lens.google.com/uploadbyurl?url=' + encodeURIComponent(staged.url);
     window.open(url, '_blank');
     if (searchBtn) { searchBtn.disabled = false; searchBtn.innerHTML = origText; }
     // Save mfr hints on wizard.data so paste-back can bias master lookup later.
