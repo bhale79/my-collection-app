@@ -471,7 +471,7 @@
       html = row('Item #', String(lk.num).replace(/</g, '&lt;'))
         + '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.2rem">Not found in the catalog — you can still add it, or Research to double-check the number.</div>';
     }
-    if (lk.ownedPd) html += '<div style="margin-top:0.45rem;font-size:0.8rem;color:#2ecc71;font-weight:700">✓ Already in your collection — “Add to my Collection” will file these photos onto it.</div>';
+    if (lk.ownedPd) html += '<div style="margin-top:0.45rem;font-size:0.8rem;color:#2ecc71;font-weight:700">✓ You already own one — this will be added as a separate copy.</div>';
     box.innerHTML = html;
     // v0.9.942 (Identify v3, Brad): double-check the photo against the
     // catalog listing's reference photo when the matched master row links one.
@@ -577,6 +577,16 @@
     var sug = '';
     _rvAiMfr = '';
     try { var s0 = _ids()[_rvGroups[0].files[0].id]; if (s0 && s0.num) sug = String(s0.num); if (s0 && s0.mfr) _rvAiMfr = String(s0.mfr); } catch (eS) {}
+    // v0.9.966 (Brad): the read found a description but no structured number
+    // (e.g. "No. 260 … illuminated bumper" with an empty number field). Recover
+    // the catalog number from that text — master-validated — so the box fills in.
+    try {
+      if (!sug && s0) {
+        var _recTxt = [s0.mfr, s0.road, s0.desc].filter(Boolean).join(' ');
+        var _recNum = _numberFromText(_recTxt);
+        if (_recNum && _recNum.num) sug = String(_recNum.num);
+      }
+    } catch (eR) {}
     var nums = {};
     Object.values((window.state || {}).personalData || {}).forEach(function (pd) {
       if (pd && pd.owned && pd.itemNum) nums[pd.itemNum] = true;
@@ -1055,7 +1065,10 @@
       var lk = lkPre;
       // Attach path when the user asked to attach, or when it's an owned item
       // being auto-filed / listed for sale. 'new' always makes a fresh item.
-      var _attach = (mode === 'attach') || ((mode === 'auto' || mode === 'forsale') && !!lk.ownedPd);
+      // v0.9.966 (Brad): only the (now-unused) explicit 'attach' mode attaches.
+      // 'new' and 'forsale' ALWAYS create a new item — multiples are allowed, so
+      // we never silently fold photos into an item you already own.
+      var _attach = (mode === 'attach');
       // Gather every selected file once (used whether we move now or on save).
       var fileList = [];
       for (var g = 0; g < gs.length; g++) {
@@ -1121,10 +1134,10 @@
 
   // v0.9.958 (Brad): the four review-card exits are thin wrappers over the one
   // shared filer, so every path uses the exact same, tested Drive/sheet code.
-  // v0.9.965 (Brad): "Add to my Collection" auto-detects — if you already own
-  // that number it files the photos onto the existing item (no duplicate);
-  // otherwise it adds a new item. (The separate "Attach" button was removed.)
-  window._pinFileToCollection = function () { return window._pinReviewAdd('auto'); };
+  // v0.9.966 (Brad): "Add to my Collection" ALWAYS adds a new item — you can
+  // own multiples of the same number, so it must never fold photos into an
+  // existing item. (Adding photos to an item you already own is a separate flow.)
+  window._pinFileToCollection = function () { return window._pinReviewAdd('new'); };
   window._pinAttachOwned      = function () { return window._pinReviewAdd('attach'); };
   window._pinSendForSale      = function () { return window._pinReviewAdd('forsale'); };
 
