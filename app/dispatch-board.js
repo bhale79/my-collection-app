@@ -233,7 +233,7 @@ function dbBuildPage() {
       html +=
         '<div style="background:var(--surface2,#1e2438);border:1px solid var(--border,#333);border-left:4px solid ' + (it.type === 'Release' ? 'var(--gold,#d4a843)' : 'var(--accent,#e04028)') + ';border-radius:11px;padding:0.95rem 1.15rem;margin-top:0.85rem;' + (expired ? 'opacity:0.55' : '') + '">'
         + '<div style="display:flex;align-items:baseline;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.25rem">'
-        +   '<span style="font-family:var(--font-head,sans-serif);font-size:1.05rem;font-weight:700">' + _dbEsc(it.title) + '</span>'
+        +   '<span style="font-family:var(--font-head,sans-serif);font-size:1.05rem;font-weight:700;color:var(--text,#eee)">' + _dbEsc(it.title) + '</span>'
         +   (it.type === 'Release'
               ? '<span style="background:rgba(212,168,67,0.18);border:1px solid rgba(212,168,67,0.5);color:var(--gold,#d4a843);border-radius:999px;padding:0.08rem 0.55rem;font-size:0.68rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase">Release' + (it.version ? ' ' + _dbEsc(it.version) : '') + '</span>'
               : '<span style="background:rgba(224,64,40,0.15);border:1px solid rgba(224,64,40,0.45);color:#e88;border-radius:999px;padding:0.08rem 0.55rem;font-size:0.68rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase">News</span>')
