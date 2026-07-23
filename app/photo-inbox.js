@@ -570,6 +570,26 @@
     window._pinReview(g.key);
   };
 
+  // v0.9.969 (Brad): show the daily token count on the review card. The relay
+  // returns "remaining" after each paid read; we cache the last one (per day)
+  // and display it so the count stays visible without an extra request.
+  function _tokGet() {
+    try { var o = JSON.parse(localStorage.getItem('rr_tokens_left') || 'null');
+      return (o && o.d === new Date().toISOString().slice(0, 10) && typeof o.n === 'number') ? o.n : null; }
+    catch (e) { return null; }
+  }
+  function _tokSave(n) {
+    try { if (typeof n === 'number') localStorage.setItem('rr_tokens_left', JSON.stringify({ d: new Date().toISOString().slice(0, 10), n: n })); } catch (e) {}
+  }
+  function _tokLine() {
+    var n = _tokGet();
+    return '<div id="pin-rv-tokline" style="text-align:center;font-size:0.8rem;color:var(--text-dim);margin-top:0.6rem">' +
+      (n !== null
+        ? '<span style="color:var(--accent2,#d4a843);font-weight:700;font-size:0.95rem">' + n + '</span> token' + (n === 1 ? '' : 's') + ' left today'
+        : 'Token count shows after your next read') +
+      '</div>';
+  }
+
   window._pinReview = function (key) {
     _rvGroups = key ? _groups.filter(function (g) { return g.key === key; }) : _selGroups();
     if (!_rvGroups.length) { showToast('Select photos first', 2500, true); return; }
@@ -604,30 +624,41 @@
     // v0.9.963 (Brad): answer-first layout. The read summary + catalog details
     // lead the card in a readable size (that's what you came to see); the number
     // box and actions follow; research helpers sit at the bottom. No emoji.
+    // v0.9.969 (Brad): shared button area — number box, then two columns: LEFT
+    // the 1×3 "what to do" stack (Add / Sales List / Discard), RIGHT the 2×2
+    // "not sure" grid (re-scan / Research Number / Google Search / token read)
+    // with the daily token count beneath it. Same block on desktop and phone;
+    // the two columns sit side by side when there's room and stack when narrow.
+    var _lbl = 'font-size:0.74rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em;margin:0 0 0.5rem';
+    var _gBtn = 'padding:0.62rem 0.5rem;border-radius:9px;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer;line-height:1.2;';
+    var _btnArea =
+      '<input id="pin-rv-num" list="pin-rv-list" type="text" value="' + sug.replace(/"/g, '&quot;') + '" placeholder="Item number — e.g. 2343 or 6464-1" autocomplete="off" spellcheck="false" oninput="_pinReviewLookup(this.value)" style="width:100%;box-sizing:border-box;padding:0.6rem 0.75rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:1rem;margin-bottom:0.55rem">' +
+      '<datalist id="pin-rv-list">' + opts + '</datalist>' +
+      _pinAltChips() +
+      '<div style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap;margin-top:0.35rem">' +
+        '<div style="flex:1 1 240px;min-width:0">' +
+          '<div style="' + _lbl + '">What do you want to do with it?</div>' +
+          '<button id="pin-rv-add" onclick="_pinFileToCollection()" class="btn-primary" style="width:100%;padding:0.72rem;border-radius:10px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.93rem;cursor:pointer;margin-bottom:0.5rem">Add to my Collection</button>' +
+          '<button id="pin-rv-sell" onclick="_pinSendForSale()" style="width:100%;padding:0.68rem;border-radius:10px;border:1.5px solid #d4a843;background:rgba(212,168,67,0.12);color:#d4a843;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;margin-bottom:0.5rem">Add to Sales List</button>' +
+          '<button onclick="_pinReviewDiscard()" style="width:100%;padding:0.68rem;border-radius:10px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer">Discard Photo' + (n > 1 ? 's' : '') + '</button>' +
+        '</div>' +
+        '<div style="flex:1 1 240px;min-width:0">' +
+          '<div style="' + _lbl + '">Not sure what it is?</div>' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">' +
+            '<button id="pin-rv-rescan" onclick="_pinRescan()" title="Forget this read and scan the photo again at higher detail" style="' + _gBtn + 'border:1.5px solid #f05008;background:rgba(240,80,8,0.10);color:#f05008">This is wrong — re-scan</button>' +
+            '<button onclick="_pinReviewResearch()" style="' + _gBtn + 'border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9">Research Number</button>' +
+            '<button id="pin-rv-lens" onclick="_pinReviewLens()" style="' + _gBtn + 'border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9">Google Search</button>' +
+            '<button id="pin-rv-idtoken" onclick="_pinReviewIdentify()" title="Identify this item straight from its photo — uses one token" style="' + _gBtn + 'border:1.5px solid var(--accent2,#d4a843);background:rgba(212,168,67,0.14);color:var(--accent2,#d4a843)">Read this photo (1 token)</button>' +
+          '</div>' +
+          _tokLine() +
+        '</div>' +
+      '</div>';
+
     var _controlsHtml =
       (_pinLensGroups ? _pinLensBannerHtml() : '') +   // v0.9.962: waiting-for-answer reminder after Research by Photo
       _pinAiLine() +
       '<div id="pin-rv-info" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.85rem 0.95rem;margin-bottom:0.7rem;display:flex;flex-direction:column;gap:0.4rem"></div>' +
-      '<input id="pin-rv-num" list="pin-rv-list" type="text" value="' + sug.replace(/"/g, '&quot;') + '" placeholder="Item number — e.g. 2343 or 6464-1" autocomplete="off" spellcheck="false" oninput="_pinReviewLookup(this.value)" style="width:100%;box-sizing:border-box;padding:0.6rem 0.75rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:1rem;margin-bottom:0.55rem">' +
-      '<datalist id="pin-rv-list">' + opts + '</datalist>' +
-      _pinAltChips() +
-      '<button id="pin-rv-rescan" onclick="_pinRescan()" title="Forget this read and scan the photo again at higher detail" style="width:100%;padding:0.55rem;border-radius:9px;border:1.5px solid #f05008;background:rgba(240,80,8,0.10);color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer;margin-bottom:0.85rem">This is wrong — re-scan</button>' +
-      // v0.9.958 (Brad): four clear exits — once you know what the item is,
-      // pick where the photo goes. File a new item, add photos to one you
-      // already own, list it for sale (which also files it), or bin it.
-      '<div style="font-size:0.74rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em;margin:0.1rem 0 0.5rem">What do you want to do with it?</div>' +
-      '<button id="pin-rv-add" onclick="_pinFileToCollection()" class="btn-primary" style="width:100%;padding:0.75rem;border-radius:10px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.95rem;cursor:pointer;margin-bottom:0.5rem">Add to my Collection</button>' +
-      '<button id="pin-rv-sell" onclick="_pinSendForSale()" style="width:100%;padding:0.7rem;border-radius:10px;border:1.5px solid #d4a843;background:rgba(212,168,67,0.12);color:#d4a843;font-family:var(--font-body);font-weight:700;font-size:0.92rem;cursor:pointer;margin-bottom:0.5rem">Add to Sales List</button>' +
-      '<button onclick="_pinReviewDiscard()" style="width:100%;padding:0.7rem;border-radius:10px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.92rem;cursor:pointer;margin-bottom:0.9rem">Discard Photo' + (n > 1 ? 's' : '') + '</button>' +
-      // Identify helpers — only needed when you're not sure of the number.
-      '<div style="font-size:0.74rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em;margin:0 0 0.5rem;padding-top:0.6rem;border-top:1px dashed var(--border)">Not sure what it is?</div>' +
-      '<div style="display:flex;gap:0.5rem;margin-bottom:0.5rem">' +
-        '<button onclick="_pinReviewResearch()" style="flex:1;padding:0.6rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.86rem;cursor:pointer">Research Number</button>' +
-        '<button id="pin-rv-lens" onclick="_pinReviewLens()" style="flex:1;padding:0.6rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.86rem;cursor:pointer">Research by Photo</button>' +
-      '</div>' +
-      // v0.9.915 (Brad): after a Google/Lens search, screenshot the answer and
-      // read it — the reader pulls the number/description off the shot for free.
-      '<button id="pin-rv-idtoken" onclick="_pinReviewIdentify()" title="Identify this item straight from its photo — uses one token" style="width:100%;padding:0.6rem;border-radius:9px;border:1.5px solid var(--accent2,#d4a843);background:rgba(212,168,67,0.14);color:var(--accent2,#d4a843);font-family:var(--font-body);font-weight:700;font-size:0.86rem;cursor:pointer">Read this photo (1 token)</button>';
+      _btnArea;
 
     // Phone: horizontal strip on top (unchanged).
     var _stripHtml =
@@ -690,26 +721,7 @@
           '</div>'
         : '<div id="pin-rv-info" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.85rem 0.95rem;margin-bottom:0.8rem;display:flex;flex-direction:column;gap:0.4rem"></div>') +
       _photoWide +
-      // Number + re-scan on one row.
-      '<div style="display:flex;gap:0.5rem;margin-bottom:0.55rem">' +
-        '<input id="pin-rv-num" list="pin-rv-list" type="text" value="' + sug.replace(/"/g, '&quot;') + '" placeholder="Item number — e.g. 2343 or 6464-1" autocomplete="off" spellcheck="false" oninput="_pinReviewLookup(this.value)" style="flex:1;min-width:0;box-sizing:border-box;padding:0.6rem 0.75rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:1rem">' +
-        '<datalist id="pin-rv-list">' + opts + '</datalist>' +
-        '<button id="pin-rv-rescan" onclick="_pinRescan()" title="Forget this read and scan the photo again at higher detail" style="padding:0.5rem 0.9rem;border-radius:9px;border:1.5px solid #f05008;background:rgba(240,80,8,0.10);color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer;white-space:nowrap">This is wrong — re-scan</button>' +
-      '</div>' +
-      _chips +
-      // Actions across the bottom.
-      '<div style="font-size:0.74rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em;margin:0.35rem 0 0.5rem">What do you want to do with it?</div>' +
-      '<div style="display:flex;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.75rem">' +
-        '<button id="pin-rv-add" onclick="_pinFileToCollection()" class="btn-primary" style="' + _wideBtn + 'border:none">Add to my Collection</button>' +
-        '<button id="pin-rv-sell" onclick="_pinSendForSale()" style="' + _wideBtn + 'border:1.5px solid #d4a843;background:rgba(212,168,67,0.12);color:#d4a843">Add to Sales List</button>' +
-        '<button onclick="_pinReviewDiscard()" style="' + _wideBtn + 'border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#f05008">Discard Photo' + (n > 1 ? 's' : '') + '</button>' +
-      '</div>' +
-      '<div style="font-size:0.74rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em;margin:0 0 0.5rem;padding-top:0.6rem;border-top:1px dashed var(--border)">Not sure what it is?</div>' +
-      '<div style="display:flex;gap:0.5rem;flex-wrap:wrap">' +
-        '<button onclick="_pinReviewResearch()" style="flex:1 1 130px;padding:0.6rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.86rem;cursor:pointer">Research Number</button>' +
-        '<button id="pin-rv-lens" onclick="_pinReviewLens()" style="flex:1 1 130px;padding:0.6rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.86rem;cursor:pointer">Research by Photo</button>' +
-        '<button id="pin-rv-idtoken" onclick="_pinReviewIdentify()" title="Identify this item straight from its photo — uses one token" style="flex:1 1 130px;padding:0.6rem;border-radius:9px;border:1.5px solid var(--accent2,#d4a843);background:rgba(212,168,67,0.14);color:var(--accent2,#d4a843);font-family:var(--font-body);font-weight:700;font-size:0.86rem;cursor:pointer">Read this photo (1 token)</button>' +
-      '</div>';
+      _btnArea;
 
     var ov = document.createElement('div');
     ov.id = 'pin-review-ov';
@@ -810,7 +822,7 @@
       var url = 'https://lens.google.com/uploadbyurl?url=' + encodeURIComponent(staged.url);
       if (tab) { try { tab.location = url; } catch (e) { tab = null; } }
       if (!tab) window.open(url, '_blank');
-      if (btn) { btn.disabled = false; btn.textContent = 'Research by Photo'; }
+      if (btn) { btn.disabled = false; btn.textContent = 'Google Search'; }
       // v0.9.895 (Brad: "i copied it, now what?") — same return trip as the
       // wizard's Lens flow: when he comes back with Google's answer copied,
       // parse the clipboard and reopen the review card with it applied.
@@ -829,7 +841,7 @@
     } catch (e) {
       console.warn('[Inbox] research-by-photo:', e);
       try { if (tab) tab.close(); } catch (e2) {}
-      if (btn) { btn.disabled = false; btn.textContent = 'Research by Photo'; }
+      if (btn) { btn.disabled = false; btn.textContent = 'Google Search'; }
       showToast('Could not stage the photo for Google — try again', 3000, true);
     }
   };
@@ -911,6 +923,7 @@
           else showToast('Could not read that screenshot — type the number instead', 3800, true);
           return;
         }
+        if (typeof ai.remaining === 'number') _tokSave(ai.remaining);   // v0.9.969: keep the token count fresh
         meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(ai.text) : {};
       }
       if (!_pinApplyMeta(meta, gs)) { showToast('No item info found in that screenshot — type the number instead', 4000, true); return; }
@@ -979,11 +992,12 @@
         var why = ai && ai.reason;
         if (why === 'quota') showToast('No tokens left today — try tomorrow, or type the number', 4500, true);
         else if (why === 'noconsent') { /* consent dialog already handled */ }
-        else showToast('Could not read that photo — try Research by Photo, or type the number', 4200, true);
+        else showToast('Could not read that photo — try Google Search, or type the number', 4200, true);
         return;
       }
+      if (typeof ai.remaining === 'number') _tokSave(ai.remaining);   // v0.9.969: keep the token count fresh
       var meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(ai.text) : {};
-      if (!_pinApplyMeta(meta, gs)) { showToast('Could not pull an item number from the photo — try Research by Photo', 4200, true); return; }
+      if (!_pinApplyMeta(meta, gs)) { showToast('Could not pull an item number from the photo — try Google Search', 4200, true); return; }
       showToast(meta._hedge
         ? 'Best guess from the photo — double-check the number (1 token used)'
         : 'Read from the photo — check it over and add it (1 token used)', 4000);
@@ -1695,7 +1709,7 @@
             break;
           }
           if (ai.ok && ai.text) {
-            if (typeof ai.remaining === 'number') remaining = ai.remaining;
+            if (typeof ai.remaining === 'number') { remaining = ai.remaining; _tokSave(ai.remaining); }   // v0.9.969: persist the count for the review card
             var meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(ai.text) : {};
             // v0.9.898 (Brad): KEEP hedged best guesses instead of discarding
             // them (the 30-9107 platform case: the wizard showed the guess with
