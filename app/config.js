@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.979';
+const APP_VERSION = 'v0.9.980';
 
 // v0.9.918 (Brad): SINGLE SOURCE OF TRUTH for the personal sheet's collection
 // tab name. Every sheet read/write range ("My Collection!D12") builds from
@@ -114,6 +114,12 @@ const ERAS = {
   pw:     { id: 'pw',     label: 'Lionel Postwar',     years: '1945-1969',  prefix: 'Lionel PW',      manufacturer: 'Lionel' },
   mpc:    { id: 'mpc',    label: 'Lionel MPC/Modern',  years: '1970-Today', prefix: 'Lionel',         manufacturer: 'Lionel' },
   atlas:  { id: 'atlas',  label: 'Atlas O',     years: 'All',        prefix: 'Atlas O',        manufacturer: 'Atlas' },
+  // Session 174 (Brad): Atlas HO/N/Z tabs exist & are populated in the master
+  // sheet (added in the 2026-07-21 merge) but were never wired up, so ~33.5k
+  // items never loaded. Adding them here loads them like any other era.
+  atlas_ho: { id: 'atlas_ho', label: 'Atlas HO',    years: 'All',        prefix: 'Atlas HO',       manufacturer: 'Atlas' },
+  atlas_n:  { id: 'atlas_n',  label: 'Atlas N',     years: 'All',        prefix: 'Atlas N',        manufacturer: 'Atlas' },
+  atlas_z:  { id: 'atlas_z',  label: 'Atlas Z',     years: 'All',        prefix: 'Atlas Z',        manufacturer: 'Atlas' },
   mth_o:        { id: 'mth_o',        label: 'MTH O',         years: '2000-2020', prefix: 'MTH O',        manufacturer: 'MTH' },
   mth_ho:       { id: 'mth_ho',       label: 'MTH HO',        years: '2006-2019', prefix: 'MTH HO',       manufacturer: 'MTH' },
   mth_s:        { id: 'mth_s',        label: 'MTH S Gauge',   years: '2013-2019', prefix: 'MTH S Gauge',  manufacturer: 'MTH' },
@@ -140,7 +146,7 @@ const ERAS = {
   lgb:       { id: 'lgb',       label: 'LGB G',        years: 'All', prefix: 'LGB G',        manufacturer: 'LGB' },
 };
 // Real-era IDs in load priority order (excluding 'all' meta-era).
-const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver', 'rmt', 'menards', 'thirdrail', 'usatrains', 'lgb'];
+const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver', 'rmt', 'menards', 'thirdrail', 'usatrains', 'lgb'];
 
 // ── Master sheet tab names per era ──
 // Session 154: scale per era — drives the want-list Scale filter (master
@@ -152,6 +158,7 @@ const ERA_SCALE = {
   mth_ho: 'HO',
   mth_s: 'S',
   mth_g: 'G',
+  atlas_ho: 'HO', atlas_n: 'N', atlas_z: 'Z',
 };
 if (typeof window !== 'undefined') window.ERA_SCALE = ERA_SCALE;
 
@@ -179,6 +186,15 @@ const ERA_TABS = {
   },
   atlas: {
     items:    'Atlas O',
+  },
+  atlas_ho: {
+    items:    'Atlas HO',
+  },
+  atlas_n: {
+    items:    'Atlas N',
+  },
+  atlas_z: {
+    items:    'Atlas Z',
   },
   mth_o: {
     items:    'MTH O',
