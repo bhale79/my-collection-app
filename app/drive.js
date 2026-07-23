@@ -627,9 +627,12 @@ async function driveStageLensPhoto(file) {
     console.error('[Lens] Could not make staged photo public:', e);
     throw new Error('Could not make photo public for Lens — check Drive permissions');
   }
-  // Build the public direct-download URL. Lens needs a URL that returns the raw bytes,
-  // not the Drive viewer page. The export/uc endpoint works for any-with-link files.
-  var publicUrl = 'https://drive.google.com/uc?export=download&id=' + uploaded.id;
+  // Build the public image URL Lens will fetch. v0.9.960 (Brad): the old
+  // uc?export=download link is unreliable for outside services — Drive often
+  // serves a preview/warning page instead of the raw image, so Lens can get a
+  // web page rather than the photo. The /thumbnail endpoint reliably returns
+  // real image bytes for any-with-link files; sz=w1600 keeps label text legible.
+  var publicUrl = 'https://drive.google.com/thumbnail?id=' + uploaded.id + '&sz=w1600';
   return { id: uploaded.id, url: publicUrl };
 }
 
