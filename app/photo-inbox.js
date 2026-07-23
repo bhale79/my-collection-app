@@ -1083,9 +1083,17 @@
     var num = (document.getElementById('pin-rv-num') || {}).value || '';
     num = String(num).trim();
     if (!num) { showToast('Type an item number to research', 2500, true); return; }
+    // v0.9.970 (Brad): remember this item's group(s) so Close on the Research
+    // Result card brings you back to THIS item's card, not the inbox grid.
+    var _keys = (_rvGroups || []).map(function (g) { return g.key; });
     var ov = document.getElementById('pin-review-ov'); if (ov) ov.remove();
-    if (typeof window._researchLookupTyped === 'function') window._researchLookupTyped(num);
-    else showToast('Research is still loading — try again in a moment', 3000, true);
+    if (typeof window._researchLookupTyped === 'function') {
+      window._researchLookupTyped(num, { onClose: function () {
+        if (!_keys.length) return;
+        _sel = {}; _keys.forEach(function (k) { _sel[k] = true; });
+        try { window._pinReview(_keys.length === 1 ? _keys[0] : null); } catch (e) {}
+      } });
+    } else showToast('Research is still loading — try again in a moment', 3000, true);
   };
 
   window._pinReviewDiscard = function () {

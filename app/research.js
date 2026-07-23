@@ -163,7 +163,9 @@
     var _b2 = document.getElementById('rs-again');
     if (_b2) _b2.onclick = function () { _kill(); window.openResearch(); };
     var _b3 = document.getElementById('rs-close');
-    if (_b3) _b3.onclick = _kill;
+    // v0.9.970 (Brad): Close returns to whoever opened Research (the inbox item
+    // card passes _onClose so you land back on that item, not the inbox grid).
+    if (_b3) _b3.onclick = function () { _kill(); if (res && typeof res._onClose === 'function') { try { res._onClose(); } catch (e) {} } };
 
     _fillMarket(itemNum, res.variation || '');
   }
@@ -275,7 +277,8 @@
       masterItem: m,
       notInMaster: !m,
       aiMeta: {},
-      variation: ''
+      variation: '',
+      _onClose: opts.onClose   // v0.9.970 (Brad): return to the caller (e.g. the inbox item card) on Close
     });
   };
 
