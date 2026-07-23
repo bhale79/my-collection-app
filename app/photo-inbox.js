@@ -452,12 +452,13 @@
     var addBtn = document.getElementById('pin-rv-add');
     if (!box) return;
     var lk = _pinLookup(val, _rvAiMfr);
+    // v0.9.963 (Brad): bigger, readable catalog details at the top of the card.
     var row = function (label, v) {
-      return '<div style="display:flex;gap:0.6rem;font-size:0.85rem;line-height:1.5"><span style="width:88px;flex-shrink:0;color:var(--text-dim)">' + label + '</span><span style="color:var(--text);font-weight:600">' + (v || '—') + '</span></div>';
+      return '<div style="display:flex;gap:0.6rem;font-size:0.95rem;line-height:1.55"><span style="width:92px;flex-shrink:0;color:var(--text-dim)">' + label + '</span><span style="color:var(--text);font-weight:600">' + (v || '—') + '</span></div>';
     };
     var html = '';
     if (!lk.num) {
-      html = '<div style="font-size:0.82rem;color:var(--text-dim)">No number read from the photo — type one above, or hit Research.</div>';
+      html = '<div style="font-size:0.9rem;color:var(--text-dim)">No number read from the photo yet — type one below, or use Research.</div>';
     } else if (lk.master && lk.mfrMismatch) {
       html = '<div style="font-size:0.82rem;color:#d4a843;font-weight:700;line-height:1.5;margin-bottom:0.35rem">⚠ The photo says ' + String(lk.mfrMismatch).replace(/</g, '&lt;') + ' — but #' + String(lk.num).replace(/</g, '&lt;') + ' in the catalog is a ' + String(lk.maker || '?').replace(/</g, '&lt;') + ' item. Probably NOT the same thing.</div>'
         + row('Catalog has', (lk.maker || '—') + ': ' + String(lk.desc).replace(/</g, '&lt;'))
@@ -595,32 +596,34 @@
     var _wide = !window.IS_MOBILE_UA && (window.innerWidth || 0) >= 900;
     var _mainFid = thumbs[0];
 
-    // Shared controls (number, read helpers, catalog card, action buttons).
+    // v0.9.963 (Brad): answer-first layout. The read summary + catalog details
+    // lead the card in a readable size (that's what you came to see); the number
+    // box and actions follow; research helpers sit at the bottom. No emoji.
     var _controlsHtml =
       (_pinLensGroups ? _pinLensBannerHtml() : '') +   // v0.9.962: waiting-for-answer reminder after Research by Photo
-      '<input id="pin-rv-num" list="pin-rv-list" type="text" value="' + sug.replace(/"/g, '&quot;') + '" placeholder="Item number — e.g. 2343 or 6464-1" autocomplete="off" spellcheck="false" oninput="_pinReviewLookup(this.value)" style="width:100%;box-sizing:border-box;padding:0.55rem 0.75rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.95rem;margin-bottom:0.6rem">' +
-      '<datalist id="pin-rv-list">' + opts + '</datalist>' +
       _pinAiLine() +
+      '<div id="pin-rv-info" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.85rem 0.95rem;margin-bottom:0.7rem;display:flex;flex-direction:column;gap:0.4rem"></div>' +
+      '<input id="pin-rv-num" list="pin-rv-list" type="text" value="' + sug.replace(/"/g, '&quot;') + '" placeholder="Item number — e.g. 2343 or 6464-1" autocomplete="off" spellcheck="false" oninput="_pinReviewLookup(this.value)" style="width:100%;box-sizing:border-box;padding:0.6rem 0.75rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:1rem;margin-bottom:0.55rem">' +
+      '<datalist id="pin-rv-list">' + opts + '</datalist>' +
       _pinAltChips() +
-      '<button id="pin-rv-rescan" onclick="_pinRescan()" title="Forget this read and scan the photo again at higher detail" style="width:100%;padding:0.5rem;border-radius:9px;border:1.5px solid #f05008;background:rgba(240,80,8,0.10);color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.8rem;cursor:pointer;margin-bottom:0.7rem">✗ This is wrong — re-scan</button>' +
-      '<div id="pin-rv-info" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.7rem 0.8rem;margin-bottom:0.8rem;display:flex;flex-direction:column;gap:0.25rem"></div>' +
+      '<button id="pin-rv-rescan" onclick="_pinRescan()" title="Forget this read and scan the photo again at higher detail" style="width:100%;padding:0.55rem;border-radius:9px;border:1.5px solid #f05008;background:rgba(240,80,8,0.10);color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer;margin-bottom:0.85rem">This is wrong — re-scan</button>' +
       // v0.9.958 (Brad): four clear exits — once you know what the item is,
       // pick where the photo goes. File a new item, add photos to one you
       // already own, list it for sale (which also files it), or bin it.
-      '<div style="font-size:0.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em;margin:0.1rem 0 0.45rem">What do you want to do with it?</div>' +
-      '<button id="pin-rv-add" onclick="_pinFileToCollection()" class="btn-primary" style="width:100%;padding:0.7rem;border-radius:10px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.92rem;cursor:pointer;margin-bottom:0.45rem">📗 File to my Collection</button>' +
-      '<button id="pin-rv-attach" onclick="_pinAttachOwned()" style="width:100%;padding:0.65rem;border-radius:10px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.10);color:#2ecc71;font-family:var(--font-body);font-weight:700;font-size:0.88rem;cursor:pointer;margin-bottom:0.45rem">🔗 Attach to an item I already own</button>' +
-      '<button id="pin-rv-sell" onclick="_pinSendForSale()" style="width:100%;padding:0.65rem;border-radius:10px;border:1.5px solid #d4a843;background:rgba(212,168,67,0.12);color:#d4a843;font-family:var(--font-body);font-weight:700;font-size:0.88rem;cursor:pointer;margin-bottom:0.45rem">🏷️ Send to For Sale</button>' +
-      '<button onclick="_pinReviewDiscard()" style="width:100%;padding:0.65rem;border-radius:10px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.88rem;cursor:pointer;margin-bottom:0.85rem">🗑️ Discard Photo' + (n > 1 ? 's' : '') + '</button>' +
+      '<div style="font-size:0.74rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em;margin:0.1rem 0 0.5rem">What do you want to do with it?</div>' +
+      '<button id="pin-rv-add" onclick="_pinFileToCollection()" class="btn-primary" style="width:100%;padding:0.75rem;border-radius:10px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.95rem;cursor:pointer;margin-bottom:0.5rem">File to my Collection</button>' +
+      '<button id="pin-rv-attach" onclick="_pinAttachOwned()" style="width:100%;padding:0.7rem;border-radius:10px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.10);color:#2ecc71;font-family:var(--font-body);font-weight:700;font-size:0.92rem;cursor:pointer;margin-bottom:0.5rem">Attach to an item I already own</button>' +
+      '<button id="pin-rv-sell" onclick="_pinSendForSale()" style="width:100%;padding:0.7rem;border-radius:10px;border:1.5px solid #d4a843;background:rgba(212,168,67,0.12);color:#d4a843;font-family:var(--font-body);font-weight:700;font-size:0.92rem;cursor:pointer;margin-bottom:0.5rem">Send to For Sale</button>' +
+      '<button onclick="_pinReviewDiscard()" style="width:100%;padding:0.7rem;border-radius:10px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.92rem;cursor:pointer;margin-bottom:0.9rem">Discard Photo' + (n > 1 ? 's' : '') + '</button>' +
       // Identify helpers — only needed when you're not sure of the number.
-      '<div style="font-size:0.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em;margin:0 0 0.45rem;padding-top:0.6rem;border-top:1px dashed var(--border)">Not sure what it is?</div>' +
+      '<div style="font-size:0.74rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em;margin:0 0 0.5rem;padding-top:0.6rem;border-top:1px dashed var(--border)">Not sure what it is?</div>' +
       '<div style="display:flex;gap:0.5rem;margin-bottom:0.5rem">' +
-        '<button onclick="_pinReviewResearch()" style="flex:1;padding:0.55rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Research Number</button>' +
-        '<button id="pin-rv-lens" onclick="_pinReviewLens()" style="flex:1;padding:0.55rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Research by Photo</button>' +
+        '<button onclick="_pinReviewResearch()" style="flex:1;padding:0.6rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.86rem;cursor:pointer">Research Number</button>' +
+        '<button id="pin-rv-lens" onclick="_pinReviewLens()" style="flex:1;padding:0.6rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.86rem;cursor:pointer">Research by Photo</button>' +
       '</div>' +
       // v0.9.915 (Brad): after a Google/Lens search, screenshot the answer and
       // read it — the reader pulls the number/description off the shot for free.
-      '<button id="pin-rv-shot" onclick="_pinReadShot()" title="Pick a screenshot of a Google/Lens answer and let it read the number for free" style="width:100%;padding:0.55rem;border-radius:9px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.10);color:#2ecc71;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">📸 Read a screenshot of the answer</button>';
+      '<button id="pin-rv-shot" onclick="_pinReadShot()" title="Pick a screenshot of a Google/Lens answer and let it read the number for free" style="width:100%;padding:0.6rem;border-radius:9px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.10);color:#2ecc71;font-family:var(--font-body);font-weight:700;font-size:0.86rem;cursor:pointer">Read a screenshot of the answer</button>';
 
     // Phone: horizontal strip on top (unchanged).
     var _stripHtml =
@@ -693,9 +696,13 @@
     var bg  = s.guess ? 'rgba(255,180,84,0.08)' : 'rgba(41,128,185,0.06)';
     var lbl = s.guess ? 'Best guess from the photo:' : 'From the photo:';
     var tail = s.guess ? ' · not certain — double-check against your item' : ' · double-check this against your item';
-    return '<div style="font-size:0.76rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.6rem;padding:0.45rem 0.6rem;border-left:3px solid ' + col + ';background:' + bg + ';border-radius:0 8px 8px 0">' +
-      '<strong style="color:' + col + '">' + lbl + '</strong> ' + (bits ? esc(bits) : 'number only') + (s.num ? ' — No. ' + esc(s.num) : '') +
-      '<span style="opacity:0.8">' + tail + '</span></div>';
+    // v0.9.963 (Brad): bigger, answer-first — the description reads as the
+    // headline, with a small colored label above and the caution note below.
+    return '<div style="margin-bottom:0.6rem;padding:0.6rem 0.75rem;border-left:3px solid ' + col + ';background:' + bg + ';border-radius:0 8px 8px 0">' +
+      '<div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;color:' + col + ';margin-bottom:0.25rem">' + lbl.replace(/:$/, '') + '</div>' +
+      '<div style="font-size:0.98rem;color:var(--text);line-height:1.4"><span style="font-weight:600">' + (bits ? esc(bits) : 'number only') + '</span>' + (s.num ? ' — No. ' + esc(s.num) : '') + '</div>' +
+      '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.25rem">' + tail.replace(/^ · /, '') + '</div>' +
+      '</div>';
   }
 
   // v0.9.901 (Brad): pick-one chips when the AI listed look-alike variants —
@@ -783,7 +790,7 @@
   // security), so the reminder lives here, where the answer comes back.
   function _pinLensBannerHtml() {
     return '<div id="pin-lens-banner" style="background:rgba(212,168,67,0.14);border:1.5px solid var(--accent2,#d4a843);border-radius:9px;padding:0.55rem 0.7rem;margin-bottom:0.6rem;font-size:0.8rem;color:var(--text-mid);line-height:1.45">' +
-      '📋 <b>Waiting for Google’s answer.</b> In the Google tab press <b>Ctrl+A</b> then <b>Ctrl+C</b>, come back here and press <b>Ctrl+V</b>. (Or snip it with Win+Shift+S and Ctrl+V.)' +
+      '<b>Waiting for Google’s answer.</b> In the Google tab press <b>Ctrl+A</b> then <b>Ctrl+C</b>, come back here and press <b>Ctrl+V</b>. (Or snip it with Win+Shift+S and Ctrl+V.)' +
       '</div>';
   }
 
@@ -863,7 +870,7 @@
       showToast('Could not read that screenshot — try again or type the number', 3800, true);
     } finally {
       var b2 = document.getElementById('pin-rv-shot');
-      if (b2) { b2.disabled = false; b2.textContent = '📸 Read a screenshot of the answer'; }
+      if (b2) { b2.disabled = false; b2.textContent = 'Read a screenshot of the answer'; }
     }
   }
 
@@ -1373,7 +1380,7 @@
       window._pinReview(key);
       if (!(r && r.num)) showToast('Still no clear number — crop tight to the label, or type it in', 3500);
     } catch (e) {
-      if (btn) { btn.disabled = false; btn.textContent = '✗ This is wrong — re-scan'; }
+      if (btn) { btn.disabled = false; btn.textContent = 'This is wrong — re-scan'; }
       showToast('Re-scan failed — try again', 2500, true);
     }
   };
