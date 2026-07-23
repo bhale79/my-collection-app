@@ -471,13 +471,8 @@
       html = row('Item #', String(lk.num).replace(/</g, '&lt;'))
         + '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.2rem">Not found in the catalog — you can still add it, or Research to double-check the number.</div>';
     }
-    if (lk.ownedPd) html += '<div style="margin-top:0.45rem;font-size:0.8rem;color:#2ecc71;font-weight:700">✓ Already in your collection — use “Attach to an item I already own” to add these photos to it.</div>';
+    if (lk.ownedPd) html += '<div style="margin-top:0.45rem;font-size:0.8rem;color:#2ecc71;font-weight:700">✓ Already in your collection — “Add to my Collection” will file these photos onto it.</div>';
     box.innerHTML = html;
-    // v0.9.958 (Brad): four-exit card — when the number is one you already own,
-    // spotlight the Attach exit; otherwise dim it so File reads as the default.
-    var attachBtn = document.getElementById('pin-rv-attach');
-    if (attachBtn) { attachBtn.style.opacity = lk.ownedPd ? '1' : '0.5'; attachBtn.style.boxShadow = lk.ownedPd ? '0 0 0 2px rgba(46,204,113,0.35)' : 'none'; }
-    if (addBtn) addBtn.style.opacity = lk.ownedPd ? '0.85' : '1';
     // v0.9.942 (Identify v3, Brad): double-check the photo against the
     // catalog listing's reference photo when the matched master row links one.
     try { _pinVerifyRender(lk); } catch (eV) {}
@@ -611,9 +606,8 @@
       // pick where the photo goes. File a new item, add photos to one you
       // already own, list it for sale (which also files it), or bin it.
       '<div style="font-size:0.74rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em;margin:0.1rem 0 0.5rem">What do you want to do with it?</div>' +
-      '<button id="pin-rv-add" onclick="_pinFileToCollection()" class="btn-primary" style="width:100%;padding:0.75rem;border-radius:10px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.95rem;cursor:pointer;margin-bottom:0.5rem">File to my Collection</button>' +
-      '<button id="pin-rv-attach" onclick="_pinAttachOwned()" style="width:100%;padding:0.7rem;border-radius:10px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.10);color:#2ecc71;font-family:var(--font-body);font-weight:700;font-size:0.92rem;cursor:pointer;margin-bottom:0.5rem">Attach to an item I already own</button>' +
-      '<button id="pin-rv-sell" onclick="_pinSendForSale()" style="width:100%;padding:0.7rem;border-radius:10px;border:1.5px solid #d4a843;background:rgba(212,168,67,0.12);color:#d4a843;font-family:var(--font-body);font-weight:700;font-size:0.92rem;cursor:pointer;margin-bottom:0.5rem">Send to For Sale</button>' +
+      '<button id="pin-rv-add" onclick="_pinFileToCollection()" class="btn-primary" style="width:100%;padding:0.75rem;border-radius:10px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.95rem;cursor:pointer;margin-bottom:0.5rem">Add to my Collection</button>' +
+      '<button id="pin-rv-sell" onclick="_pinSendForSale()" style="width:100%;padding:0.7rem;border-radius:10px;border:1.5px solid #d4a843;background:rgba(212,168,67,0.12);color:#d4a843;font-family:var(--font-body);font-weight:700;font-size:0.92rem;cursor:pointer;margin-bottom:0.5rem">Add to Sales List</button>' +
       '<button onclick="_pinReviewDiscard()" style="width:100%;padding:0.7rem;border-radius:10px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.92rem;cursor:pointer;margin-bottom:0.9rem">Discard Photo' + (n > 1 ? 's' : '') + '</button>' +
       // Identify helpers — only needed when you're not sure of the number.
       '<div style="font-size:0.74rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em;margin:0 0 0.5rem;padding-top:0.6rem;border-top:1px dashed var(--border)">Not sure what it is?</div>' +
@@ -696,9 +690,8 @@
       // Actions across the bottom.
       '<div style="font-size:0.74rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em;margin:0.35rem 0 0.5rem">What do you want to do with it?</div>' +
       '<div style="display:flex;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.75rem">' +
-        '<button id="pin-rv-add" onclick="_pinFileToCollection()" class="btn-primary" style="' + _wideBtn + 'border:none">File to my Collection</button>' +
-        '<button id="pin-rv-attach" onclick="_pinAttachOwned()" style="' + _wideBtn + 'border:1.5px solid #2ecc71;background:rgba(46,204,113,0.10);color:#2ecc71">Attach to an item I already own</button>' +
-        '<button id="pin-rv-sell" onclick="_pinSendForSale()" style="' + _wideBtn + 'border:1.5px solid #d4a843;background:rgba(212,168,67,0.12);color:#d4a843">Send to For Sale</button>' +
+        '<button id="pin-rv-add" onclick="_pinFileToCollection()" class="btn-primary" style="' + _wideBtn + 'border:none">Add to my Collection</button>' +
+        '<button id="pin-rv-sell" onclick="_pinSendForSale()" style="' + _wideBtn + 'border:1.5px solid #d4a843;background:rgba(212,168,67,0.12);color:#d4a843">Add to Sales List</button>' +
         '<button onclick="_pinReviewDiscard()" style="' + _wideBtn + 'border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#f05008">Discard Photo' + (n > 1 ? 's' : '') + '</button>' +
       '</div>' +
       '<div style="font-size:0.74rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em;margin:0 0 0.5rem;padding-top:0.6rem;border-top:1px dashed var(--border)">Not sure what it is?</div>' +
@@ -1128,7 +1121,10 @@
 
   // v0.9.958 (Brad): the four review-card exits are thin wrappers over the one
   // shared filer, so every path uses the exact same, tested Drive/sheet code.
-  window._pinFileToCollection = function () { return window._pinReviewAdd('new'); };
+  // v0.9.965 (Brad): "Add to my Collection" auto-detects — if you already own
+  // that number it files the photos onto the existing item (no duplicate);
+  // otherwise it adds a new item. (The separate "Attach" button was removed.)
+  window._pinFileToCollection = function () { return window._pinReviewAdd('auto'); };
   window._pinAttachOwned      = function () { return window._pinReviewAdd('attach'); };
   window._pinSendForSale      = function () { return window._pinReviewAdd('forsale'); };
 
