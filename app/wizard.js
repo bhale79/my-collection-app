@@ -1303,6 +1303,14 @@ function renderWizardStep() {
     const d = wizard.data;
     body.innerHTML =
       '<div style="display:flex;flex-direction:column;gap:0.75rem;padding-top:0.25rem">' +
+        // v0.9.968 (Brad): Est. Worth is the first/top question, matching the
+        // other Add steps, then Date Purchased and Price Paid below it.
+        '<div>' +
+          '<label style="font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.25rem">Est. Worth <a href="javascript:_wizResearchPrice()" style="float:right;color:#2ecc71;font-weight:700;text-decoration:none;font-size:0.78rem">\uD83D\uDD0D Research</a></label>' +
+          '<input type="number" step="0.01" value="' + (d.userEstWorth || '') + '"' +
+            ' oninput="wizard.data.userEstWorth=this.value" placeholder="$0.00"' +
+            ' style="width:100%;padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:0.88rem;box-sizing:border-box">' +
+        '</div>' +
         '<div>' +
           '<label style="font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.25rem">Date Purchased</label>' +
           '<div style="position:relative;display:flex;align-items:center">' +
@@ -1312,19 +1320,11 @@ function renderWizardStep() {
           '<button type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById(&quot;manual-date&quot;).showPicker();" style="position:absolute;right:0.4rem;cursor:pointer;font-size:1rem;color:var(--accent2);background:none;border:none;padding:0.3rem;line-height:1;touch-action:manipulation">\uD83D\uDCC5</button>' +
           '</div>' +
         '</div>' +
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem">' +
-          '<div>' +
-            '<label style="font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.25rem">Price Paid</label>' +
-            '<input type="number" step="0.01" value="' + (d.priceItem || '') + '"' +
-              ' oninput="wizard.data.priceItem=this.value" placeholder="$0.00"' +
-              ' style="width:100%;padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:0.88rem;box-sizing:border-box">' +
-          '</div>' +
-          '<div>' +
-            '<label style="font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.25rem">Est. Worth <a href="javascript:_wizResearchPrice()" style="float:right;color:#2ecc71;font-weight:700;text-decoration:none;font-size:0.78rem">\uD83D\uDD0D Research</a></label>' +
-            '<input type="number" step="0.01" value="' + (d.userEstWorth || '') + '"' +
-              ' oninput="wizard.data.userEstWorth=this.value" placeholder="$0.00"' +
-              ' style="width:100%;padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:0.88rem;box-sizing:border-box">' +
-          '</div>' +
+        '<div>' +
+          '<label style="font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.25rem">Price Paid</label>' +
+          '<input type="number" step="0.01" value="' + (d.priceItem || '') + '"' +
+            ' oninput="wizard.data.priceItem=this.value" placeholder="$0.00"' +
+            ' style="width:100%;padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:0.88rem;box-sizing:border-box">' +
         '</div>' +
         ((typeof _prefLocEnabled !== 'undefined' && _prefLocEnabled) ?
         '<div>' +
@@ -3406,9 +3406,11 @@ function renderWizardStep() {
       const url = stored[viewKey] || '';
       const hasPic = !!url;
       // v0.9.935 (Brad): adding from the Photo Inbox auto-loads that photo into
-      // the Right Side View slot (it files as RSV on save — see photo-inbox.js).
-      // Click still replaces it with a fresh upload if wanted.
-      const inboxFid = (!hasPic && viewKey === 'RSV' && wizard && wizard.data && wizard.data._addPhotoDriveId) ? wizard.data._addPhotoDriveId : '';
+      // the Right Side View slot (catalog flow), and — v0.9.968 — into the
+      // manual flow's Item slot (PHOTO-1). It files into the item folder on save
+      // via _flushPending regardless; this is the in-wizard preview. Click still
+      // replaces it with a fresh upload if wanted.
+      const inboxFid = (!hasPic && (viewKey === 'RSV' || (stepId === 'manualPhotos' && viewKey === 'PHOTO-1')) && wizard && wizard.data && wizard.data._addPhotoDriveId) ? wizard.data._addPhotoDriveId : '';
 
       const div = document.createElement('div');
       div.className = 'photo-drop-zone';

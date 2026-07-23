@@ -862,7 +862,10 @@
         guess: meta.itemNum ? (meta._hedge ? 1 : 0) : (prev.guess || 0),
         tried: 1,
         mfr: trim(meta.manufacturer, prev.mfr), desc: trim(meta.description, prev.desc),
-        road: trim(meta.roadName, prev.road), year: trim(meta.year, prev.year)
+        road: trim(meta.roadName, prev.road), year: trim(meta.year, prev.year),
+        // v0.9.968 (Brad): keep scale + item-type so the Add wizard can pre-fill
+        // them (e.g. "O" gauge, "Accessory" for a building). Were being dropped.
+        gauge: trim(meta.gauge, prev.gauge), subType: trim(meta.subType, prev.subType)
       };
       _idsSave(ids);
     } catch (eS) { console.warn('[Inbox] apply meta:', eS); }
@@ -1162,7 +1165,7 @@
         // v0.9.907 (Brad, item [1a]): hand the first inbox photo's Drive id to the
         // wizard so the variation step can preview the item you're adding.
         var _addPhotoId = (fileList[0] && fileList[0].id) || '';
-        _pinAddNow(num, { manufacturer: _aiS.mfr || '', description: _aiS.desc || '', roadName: _aiS.road || '', year: _aiS.year || '' }, _addPhotoId, { alsoListForSale: mode === 'forsale' });
+        _pinAddNow(num, { manufacturer: _aiS.mfr || '', description: _aiS.desc || '', roadName: _aiS.road || '', year: _aiS.year || '', gauge: _aiS.gauge || '', subType: _aiS.subType || '' }, _addPhotoId, { alsoListForSale: mode === 'forsale' });
         if (mode === 'forsale') showToast('Adding ' + num + ' to your collection and For Sale list — set the price on the sale step', 4500);
       }
     } catch (e) {
@@ -1712,7 +1715,9 @@
             var trim = function (v) { return String(v || '').slice(0, 120); };
             ids[fid0] = { num: num, guess: guess, alts: alts, tried: 1,
               mfr: trim(meta.manufacturer), desc: trim(meta.description),
-              road: trim(meta.roadName), year: trim(meta.year) };
+              road: trim(meta.roadName), year: trim(meta.year),
+              // v0.9.968 (Brad): carry scale + item-type through for wizard pre-fill.
+              gauge: trim(meta.gauge), subType: trim(meta.subType) };
             // v0.9.902 (Brad): candidates-without-a-confident-number is a lead,
             // not "unreadable" — count it as a best guess so the toast matches
             // the orange tag on the tile and the chips on the review card.
