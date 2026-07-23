@@ -31,7 +31,8 @@ var DISPATCH_CFG = {
   range: 'Announcements!A2:G500',
   seenKey: 'lv_dispatch_seen',          // JSON array of seen IDs
   cacheKey: 'lv_dispatch_cache',        // JSON {ts, rows} offline copy
-  iconLg: 'img/dispatch-board-192.png', // popup + page header
+  iconLg: 'img/dispatch-board-192.png', // popup
+  iconBg: 'img/dispatch-board-512.png', // board page full-page backdrop
   iconSm: 'img/dispatch-board-64.png',  // sidebar + account menu
   pollMs: 2000,                         // boot-readiness poll interval
   pollMax: 150                          // ≈5 min, then give up silently
@@ -217,12 +218,9 @@ function dbBuildPage() {
   _dbUpdateBadge();
 
   var html =
-    '<div style="display:flex;align-items:center;gap:1rem;margin-bottom:0.35rem;flex-wrap:wrap">'
-    + '<img src="' + DISPATCH_CFG.iconLg + '" alt="" style="width:88px;height:88px;flex-shrink:0">'
-    + '<div>'
+    '<div style="margin-bottom:0.35rem">'
     +   '<div class="page-title" style="margin:0">The Dispatch Board</div>'
     +   '<div style="font-size:0.85rem;color:var(--text-dim,#888)">Station announcements &amp; what’s new in The Rail Roster.</div>'
-    + '</div>'
     + '</div>';
 
   if (!items.length) {
@@ -244,7 +242,12 @@ function dbBuildPage() {
         + '</div>';
     });
   }
-  page.innerHTML = '<div class="page-header" style="margin-bottom:0"></div>' + html;
+  // Full-page backdrop: the board artwork as a big centered watermark
+  // behind the cards (absolute layer, pointer-events off, content above).
+  page.style.position = 'relative';
+  page.innerHTML =
+    '<div style="position:absolute;inset:0;background:url(' + DISPATCH_CFG.iconBg + ') center 2.5rem / min(92%, 640px) no-repeat;opacity:0.16;pointer-events:none"></div>'
+    + '<div style="position:relative">' + html + '</div>';
 }
 
 // ── Injection: page div, sidebar item, account-menu item ────────
@@ -258,12 +261,13 @@ function _dbInjectUI() {
     pg.id = 'page-dispatch';
     main.appendChild(pg);
   }
-  // Sidebar item — right below Dashboard in the first nav section
+  // Sidebar item — bottom section, directly above "Sync from Sheet"
   var sidebar = document.querySelector('.sidebar');
   if (!sidebar) return false;
   if (!document.getElementById('nav-dispatch-btn')) {
-    var firstSection = sidebar.querySelector('.nav-section');
-    if (!firstSection) return false;
+    var refreshBtn = sidebar.querySelector('#refresh-btn');
+    var homeSection = refreshBtn ? refreshBtn.parentElement : sidebar.querySelector('.nav-section');
+    if (!homeSection) return false;
     var btn = document.createElement('button');
     btn.className = 'nav-item';
     btn.id = 'nav-dispatch-btn';
@@ -273,7 +277,8 @@ function _dbInjectUI() {
       '<img src="' + DISPATCH_CFG.iconSm + '" alt="" style="width:17px;height:17px;border-radius:50%;flex-shrink:0">'
       + 'Dispatch Board'
       + '<span class="nav-badge" id="nav-dispatch-badge" style="display:none;background:var(--accent,#e04028);color:#fff">0</span>';
-    firstSection.appendChild(btn);
+    if (refreshBtn) homeSection.insertBefore(btn, refreshBtn);
+    else homeSection.appendChild(btn);
   }
   // Account menu entry (reachable on mobile, where the sidebar hides)
   var menu = document.getElementById('account-menu');
