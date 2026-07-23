@@ -551,9 +551,14 @@ function buildDashboard() {
       var b = document.createElement('button');
       b.id = 'dash-edit-btn';
       b.innerHTML = '\u270E Edit Dashboard';
-      b.style.cssText = 'margin-left:0.9rem;padding:0.25rem 0.7rem;border-radius:7px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-size:0.72rem;font-weight:700;cursor:pointer;vertical-align:middle';
+      // v0.9.979 (Brad): button moved from beside the greeting to the far
+      // right of the top row (margin-left:auto inside the flex row).
+      b.style.cssText = 'margin-left:auto;padding:0.25rem 0.7rem;border-radius:7px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-size:0.72rem;font-weight:700;cursor:pointer;vertical-align:middle';
       b.onclick = function() { openDashEditor(); };
-      g.parentNode.appendChild(b);
+      var _row = g.parentNode.parentNode;
+      var _acts = _row ? _row.querySelector('.dash-desktop-actions') : null;
+      if (_row) _row.insertBefore(b, _acts);
+      else g.parentNode.appendChild(b);
     }
   })();
 
