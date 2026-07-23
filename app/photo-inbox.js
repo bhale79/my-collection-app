@@ -656,22 +656,68 @@
           : '') +
       '</div>';
 
+    // v0.9.964 (Brad): DESKTOP layout — the "From the photo" read and the
+    // catalog details sit as full-width boxes across the TOP, the photo fills
+    // the middle full-width, and the action buttons run in a row across the
+    // BOTTOM. (Phone stays stacked below.)
+    var _photoWide =
+      '<div style="position:relative;border-radius:12px;overflow:hidden;background:var(--surface2,#26262e);display:flex;align-items:center;justify-content:center;max-height:52vh;margin-bottom:0.5rem">' +
+        '<img id="pin-rv-main" data-rvbig="' + _mainFid + '" onclick="_pinZoomPhoto(this.getAttribute(\'data-rvbig\'))" title="Tap for full-screen zoom" style="max-width:100%;max-height:52vh;object-fit:contain;display:block;cursor:zoom-in" alt="">' +
+        '<button onclick="_pinZoomPhoto(document.getElementById(\'pin-rv-main\').getAttribute(\'data-rvbig\'))" title="Full-screen zoom" style="' + _cornBtn + ';left:8px;bottom:8px">🔍</button>' +
+        '<button onclick="_pinCropPhoto(document.getElementById(\'pin-rv-main\').getAttribute(\'data-rvbig\'))" title="Crop / Rotate this photo" style="' + _cornBtn + ';top:8px;right:8px">✂</button>' +
+      '</div>' +
+      (thumbs.length > 1
+        ? '<div style="display:flex;gap:0.4rem;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:0.6rem">' +
+            thumbs.slice(0, 12).map(function (fidT) {
+              return '<div onclick="_pinRvSetMain(\'' + fidT + '\')" title="Show this photo" style="position:relative;flex-shrink:0;width:64px;height:64px;border-radius:8px;overflow:hidden;background:var(--surface2,#26262e);cursor:pointer;border:1.5px solid transparent">' +
+                '<img data-rvfid="' + fidT + '" style="width:100%;height:100%;object-fit:cover;display:block" alt=""></div>';
+            }).join('') +
+          '</div>'
+        : '');
+    var _aiL = _pinAiLine(), _chips = _pinAltChips();
+    var _wideBtn = 'flex:1 1 160px;padding:0.72rem 0.6rem;border-radius:10px;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;';
+    var _wideBody =
+      (_pinLensGroups ? _pinLensBannerHtml() : '') +
+      // Top: two full-width info boxes above the photo (or just details if no read yet).
+      (_aiL
+        ? '<div style="display:flex;gap:1rem;align-items:stretch;margin-bottom:0.8rem">' +
+            '<div style="flex:1.25;min-width:0">' + _aiL + '</div>' +
+            '<div style="flex:1;min-width:0"><div id="pin-rv-info" style="height:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.85rem 0.95rem;display:flex;flex-direction:column;gap:0.4rem"></div></div>' +
+          '</div>'
+        : '<div id="pin-rv-info" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.85rem 0.95rem;margin-bottom:0.8rem;display:flex;flex-direction:column;gap:0.4rem"></div>') +
+      _photoWide +
+      // Number + re-scan on one row.
+      '<div style="display:flex;gap:0.5rem;margin-bottom:0.55rem">' +
+        '<input id="pin-rv-num" list="pin-rv-list" type="text" value="' + sug.replace(/"/g, '&quot;') + '" placeholder="Item number — e.g. 2343 or 6464-1" autocomplete="off" spellcheck="false" oninput="_pinReviewLookup(this.value)" style="flex:1;min-width:0;box-sizing:border-box;padding:0.6rem 0.75rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:1rem">' +
+        '<datalist id="pin-rv-list">' + opts + '</datalist>' +
+        '<button id="pin-rv-rescan" onclick="_pinRescan()" title="Forget this read and scan the photo again at higher detail" style="padding:0.5rem 0.9rem;border-radius:9px;border:1.5px solid #f05008;background:rgba(240,80,8,0.10);color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer;white-space:nowrap">This is wrong — re-scan</button>' +
+      '</div>' +
+      _chips +
+      // Actions across the bottom.
+      '<div style="font-size:0.74rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em;margin:0.35rem 0 0.5rem">What do you want to do with it?</div>' +
+      '<div style="display:flex;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.75rem">' +
+        '<button id="pin-rv-add" onclick="_pinFileToCollection()" class="btn-primary" style="' + _wideBtn + 'border:none">File to my Collection</button>' +
+        '<button id="pin-rv-attach" onclick="_pinAttachOwned()" style="' + _wideBtn + 'border:1.5px solid #2ecc71;background:rgba(46,204,113,0.10);color:#2ecc71">Attach to an item I already own</button>' +
+        '<button id="pin-rv-sell" onclick="_pinSendForSale()" style="' + _wideBtn + 'border:1.5px solid #d4a843;background:rgba(212,168,67,0.12);color:#d4a843">Send to For Sale</button>' +
+        '<button onclick="_pinReviewDiscard()" style="' + _wideBtn + 'border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#f05008">Discard Photo' + (n > 1 ? 's' : '') + '</button>' +
+      '</div>' +
+      '<div style="font-size:0.74rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em;margin:0 0 0.5rem;padding-top:0.6rem;border-top:1px dashed var(--border)">Not sure what it is?</div>' +
+      '<div style="display:flex;gap:0.5rem;flex-wrap:wrap">' +
+        '<button onclick="_pinReviewResearch()" style="flex:1 1 130px;padding:0.6rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.86rem;cursor:pointer">Research Number</button>' +
+        '<button id="pin-rv-lens" onclick="_pinReviewLens()" style="flex:1 1 130px;padding:0.6rem;border-radius:9px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.86rem;cursor:pointer">Research by Photo</button>' +
+        '<button id="pin-rv-shot" onclick="_pinReadShot()" title="Pick a screenshot of a Google/Lens answer and let it read the number for free" style="flex:1 1 130px;padding:0.6rem;border-radius:9px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.10);color:#2ecc71;font-family:var(--font-body);font-weight:700;font-size:0.86rem;cursor:pointer">Read a screenshot of the answer</button>' +
+      '</div>';
+
     var ov = document.createElement('div');
     ov.id = 'pin-review-ov';
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
     ov.innerHTML =
-      '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.1rem;max-width:' + (_wide ? '900px' : '460px') + ';width:100%;max-height:94vh;overflow-y:auto">' +
+      '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.1rem;max-width:' + (_wide ? '820px' : '460px') + ';width:100%;max-height:94vh;overflow-y:auto">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem">' +
           '<div style="font-family:var(--font-head);font-weight:700;font-size:1rem;color:var(--text)">' + n + ' photo' + (n > 1 ? 's' : '') + ' · one item</div>' +
           '<button onclick="document.getElementById(\'pin-review-ov\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.35rem;line-height:1;cursor:pointer;padding:0.1rem 0.3rem">✕</button>' +
         '</div>' +
-        (_wide
-          ? '<div style="display:flex;gap:1.1rem;align-items:stretch">' +
-              '<div style="flex:1 1 0;min-width:0;display:flex;flex-direction:column">' + _controlsHtml + '</div>' +
-              _panelHtml +
-            '</div>'
-          : _stripHtml + _controlsHtml
-        ) +
+        (_wide ? _wideBody : _stripHtml + _controlsHtml) +
       '</div>';
     document.body.appendChild(ov);
     ov.querySelectorAll('img[data-rvfid]').forEach(function (img) {
