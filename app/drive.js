@@ -499,14 +499,16 @@ async function driveReadConfig(retryCount = 0) {
   try {
     // Search for new config file first
     let fileId = null;
-    const qNew = encodeURIComponent(`name='${CONFIG_FILENAME}' and trashed=false`);
+    // v0.9.981 (isolation fix): only read a config file the user OWNS, so a
+    // config shared in from another account can't point them at someone else's sheet.
+    const qNew = encodeURIComponent(`name='${CONFIG_FILENAME}' and trashed=false and 'me' in owners`);
     const resNew = await driveRequest('GET', `/files?q=${qNew}&fields=files(id,name)&spaces=drive`);
     if (resNew.files && resNew.files.length > 0) {
       fileId = resNew.files[0].id;
     }
     // Fall back to old config file
     if (!fileId) {
-      const qOld = encodeURIComponent(`name='${_OLD_CONFIG_FILENAME}' and trashed=false`);
+      const qOld = encodeURIComponent(`name='${_OLD_CONFIG_FILENAME}' and trashed=false and 'me' in owners`);
       const resOld = await driveRequest('GET', `/files?q=${qOld}&fields=files(id,name)&spaces=drive`);
       if (resOld.files && resOld.files.length > 0) {
         fileId = resOld.files[0].id;
@@ -541,17 +543,24 @@ async function driveReadConfig(retryCount = 0) {
 // Used when config file read fails — always works as long as the sheet exists in Drive
 async function driveFindPersonalSheet() {
   try {
+    // v0.9.981 (isolation fix): restrict to spreadsheets the signed-in user
+    // OWNS — so a copy of the master catalog, or another collector's sheet,
+    // that was merely SHARED into this user's Drive can never be adopted as
+    // their personal sheet. Also explicitly drop the master catalog id even if
+    // owned (protects the admin account, which does own the master).
     // Search by new prefix first
-    const qNew = encodeURIComponent(`name contains 'The Rail Roster -' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`);
+    const qNew = encodeURIComponent(`name contains 'The Rail Roster -' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false and 'me' in owners`);
     const resNew = await driveRequest('GET', `/files?q=${qNew}&fields=files(id,name)&spaces=drive`);
-    if (resNew.files && resNew.files.length > 0) {
-      return resNew.files[0].id;
+    const ownNew = (resNew.files || []).filter(f => f.id !== MASTER_SHEET_ID);
+    if (ownNew.length > 0) {
+      return ownNew[0].id;
     }
     // Fall back to old prefix
-    const qOld = encodeURIComponent(`name contains 'The Boxcar Files -' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`);
+    const qOld = encodeURIComponent(`name contains 'The Boxcar Files -' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false and 'me' in owners`);
     const resOld = await driveRequest('GET', `/files?q=${qOld}&fields=files(id,name)&spaces=drive`);
-    if (resOld.files && resOld.files.length > 0) {
-      return resOld.files[0].id;
+    const ownOld = (resOld.files || []).filter(f => f.id !== MASTER_SHEET_ID);
+    if (ownOld.length > 0) {
+      return ownOld[0].id;
     }
     return null;
   } catch(e) {
@@ -565,7 +574,9 @@ async function driveWriteConfig(data) {
     const json = JSON.stringify(data);
     const blob = new Blob([json], { type: 'application/json' });
     // Check if file already exists
-    const q = encodeURIComponent(`name='${CONFIG_FILENAME}' and trashed=false`);
+    // v0.9.981 (isolation fix): only update a config the user OWNS; otherwise
+    // fall through to create their own (never overwrite a shared-in config).
+    const q = encodeURIComponent(`name='${CONFIG_FILENAME}' and trashed=false and 'me' in owners`);
     const res = await driveRequest('GET', `/files?q=${q}&fields=files(id)&spaces=drive`);
     if (res.files && res.files.length > 0) {
       // Update existing file
