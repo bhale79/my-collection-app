@@ -246,7 +246,7 @@ function dbBuildPage() {
   // behind the cards (absolute layer, pointer-events off, content above).
   page.style.position = 'relative';
   page.innerHTML =
-    '<div style="position:absolute;inset:0;background:url(' + DISPATCH_CFG.iconBg + ') center center / min(92%, 640px) no-repeat;opacity:0.3;pointer-events:none"></div>'
+    '<div style="position:absolute;inset:0;background:url(' + DISPATCH_CFG.iconBg + ') center center / min(92%, 640px) no-repeat;pointer-events:none"></div>'
     + '<div style="position:relative">' + html + '</div>';
 }
 
