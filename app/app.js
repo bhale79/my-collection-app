@@ -1743,10 +1743,10 @@ async function loadAllErasMode() {
           }
           _eraFailed = _still;
         }
-        if (_eraFailed.length) {
-          var _names = _eraFailed.map(function(_e4) { return (typeof ERAS !== 'undefined' && ERAS[_e4] && ERAS[_e4].label) || _e4; }).join(', ');
-          showToast('⚠ ' + _names + ' wouldn\'t refresh — using the saved cop' + (_eraFailed.length === 1 ? 'y' : 'ies') + ' on this device. Will retry next time the app starts.', 7000, true);
-        }
+        // v0.9.973 (Brad): no user-facing warning — the cached copy keeps
+        // everything working, so there's nothing the user needs to act on.
+        // Next app start retries automatically. Console note for debugging only.
+        if (_eraFailed.length) console.warn('[loadAllErasMode] still stale after retries (cached copies in use):', _eraFailed.join(', '));
       })();
     }
 
