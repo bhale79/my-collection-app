@@ -34,6 +34,7 @@
 
   var FID_KEY = 'rr_inbox_fid';
   var PENDING_KEY = 'rr_inbox_pending';   // { itemNum: folderLink } waiting for wizard save
+  var CROPPED_KEY = 'rr_inbox_cropped';   // v0.9.961: { fileId: 1 } cropped -> load real bytes, not Drive's stale preview
   var _fid = null, _fidChecked = false;
   var _groups = [];          // [{ key, files:[{id,name,createdTime}] }]
   var _sel = {};             // groupKey -> true
@@ -217,6 +218,18 @@
     _selInfo();
     _navBadge(total);
     _updateIdAllBtn();
+    // v0.9.961 (Brad): keep the "cropped" marker set trimmed to files still in
+    // the inbox (filed/discarded photos drop out), then republish to drive.js.
+    try {
+      if (_groups.length) {   // only prune once photos have actually loaded
+        var live = {}; _groups.forEach(function (g) { g.files.forEach(function (f) { live[f.id] = 1; }); });
+        var c = _cropped(), pruned = {}, changed = false;
+        Object.keys(c).forEach(function (fid) { if (live[fid]) pruned[fid] = 1; else changed = true; });
+        if (changed) _croppedSave(pruned); else window._rrForceFreshBytes = c;
+      } else {
+        window._rrForceFreshBytes = _cropped();
+      }
+    } catch (ePr) {}
   }
 
   // v0.9.956 (Brad): the gold "Read with a token" button only appears when there
@@ -1110,6 +1123,17 @@
   var IDS_KEY = 'rr_inbox_ids';
   function _ids() { try { return JSON.parse(localStorage.getItem(IDS_KEY) || '{}'); } catch (e) { return {}; } }
   function _idsSave(m) { try { localStorage.setItem(IDS_KEY, JSON.stringify(m)); } catch (e) {} }
+
+  // v0.9.961 (Brad): persistent set of file IDs we've cropped. drive.js reads
+  // window._rrForceFreshBytes to load their real (cropped) bytes instead of
+  // Drive's stale server preview. Survives reloads via localStorage.
+  function _cropped() { try { return JSON.parse(localStorage.getItem(CROPPED_KEY) || '{}'); } catch (e) { return {}; } }
+  function _croppedSave(m) { try { localStorage.setItem(CROPPED_KEY, JSON.stringify(m)); } catch (e) {} window._rrForceFreshBytes = m; }
+  function _markCropped(fid) { if (!fid) return; var c = _cropped(); c[fid] = 1; _croppedSave(c); }
+  // Publish the current markers to drive.js up front, and again after each load
+  // (pruned to what's still in the inbox so the set can't grow without bound).
+  window._rrForceFreshBytes = _cropped();
+
   var _idAbort = false;
   window._pinIdentifyCancel = function () { _idAbort = true; };
 
@@ -1416,6 +1440,10 @@
             _blobCache[fid] = fresh;
           }
         } catch (e3) {}
+        // v0.9.961 (Brad): remember this file is cropped so future visits load
+        // its real bytes, not Drive's stale preview; drop any cached stale link.
+        _markCropped(fid);
+        try { if (typeof _thumbLinkCache !== 'undefined') delete _thumbLinkCache[fid]; } catch (eTL) {}
         // Update every on-screen copy incl. the review modal's main image (data-rvbig).
         document.querySelectorAll('img[data-rvfid="' + fid + '"], img[data-fid="' + fid + '"], img[data-ppfid="' + fid + '"], img[data-rvbig="' + fid + '"]').forEach(function (im) { im.src = fresh; });
         // Crop → free re-read: clear the old read and re-run OCR on the EXACT

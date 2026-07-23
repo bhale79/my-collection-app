@@ -381,6 +381,14 @@ async function _loadDriveThumbSmall(fileId, imgEl, containerEl, thumbLink) {
     // Prefer a locally-cached blob (e.g. a just-cropped image) over Drive's
     // server thumbnail, which lags behind edits and would show the old shot.
     if (_blobCache[fileId]) { imgEl.src = _blobCache[fileId]; return; }
+    // v0.9.961 (Brad): files we've cropped are marked "force fresh" — Drive's
+    // server preview lags (often never regenerates after a bytes-only replace),
+    // so it would show the old un-cropped shot on a later visit. For these, skip
+    // the stale preview and load the file's real current bytes (which reflect
+    // the crop) via the full loader, which also caches the blob for the session.
+    if (typeof window !== 'undefined' && window._rrForceFreshBytes && window._rrForceFreshBytes[fileId]) {
+      return _loadDriveThumbFull(fileId, imgEl, containerEl);
+    }
     var link = thumbLink;
     if (!link) {
       if (Object.prototype.hasOwnProperty.call(_thumbLinkCache, fileId)) {
