@@ -32,12 +32,12 @@ function showWelcomeCard(force) {
     '<div style="background:var(--surface,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;max-width:480px;width:100%;padding:20px 22px 18px;color:var(--text,#eee);font-family:var(--font-body,sans-serif);max-height:calc(100vh - 36px);overflow-y:auto;-webkit-overflow-scrolling:touch;margin:auto 0;box-shadow:0 12px 40px rgba(0,0,0,0.5)">'
     + '<div style="text-align:center;margin-bottom:8px;font-size:1.4rem">🚂</div>'
     + '<div style="font-family:var(--font-head,sans-serif);font-size:1.35rem;text-align:center;font-weight:700;margin-bottom:4px">Welcome to <span style="color:var(--accent,#e04028)">The Rail Roster</span></div>'
-    + '<div style="text-align:center;font-size:0.8rem;color:var(--text-dim,#888);margin-bottom:14px;letter-spacing:0.04em">Your Lionel collection, organized.</div>'
+    + '<div style="text-align:center;font-size:0.8rem;color:var(--text-dim,#888);margin-bottom:14px;letter-spacing:0.04em">Your model train collection, organized.</div>'
     + '<div style="font-size:0.88rem;color:var(--text-mid,#bbb);line-height:1.55;margin-bottom:14px">Three things to know:</div>'
 
     + '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;padding:10px 12px;background:var(--surface2,#222);border-radius:9px;border:1px solid var(--border,#333)">'
     +   '<div style="font-size:1.5rem;flex-shrink:0">📷</div>'
-    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Add fast.</strong> Tap <em>Add to Collection</em>, then either type the item number or scan the box barcode (modern items only). The catalog fills in everything we know.</div>'
+    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Add fast.</strong> Tap <em>Add to Collection</em>, then type the item number, scan the box barcode (modern items only), or <strong style="color:var(--text,#eee)">snap a photo and let the app identify it</strong>. The catalog fills in the rest.</div>'
     + '</div>'
 
     + '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;padding:10px 12px;background:var(--surface2,#222);border-radius:9px;border:1px solid var(--border,#333)">'
@@ -60,9 +60,66 @@ function showWelcomeCard(force) {
   ov.querySelector('#rr-welcome-go').onclick = function() {
     localStorage.setItem(WELCOME_SEEN_KEY, '1');
     ov.remove();
+    // v0.9.1000 (Brad): hand straight off to the photo-identification usage
+    // card. Shown once, right after the welcome card, so the one part of the
+    // app with a limit is explained before anyone bumps into it.
+    try { if (typeof showAiUsageCard === 'function') showAiUsageCard(force); } catch (e) {}
   };
 }
 window.showWelcomeCard = showWelcomeCard;
+
+// ── Photo-identification usage card (v0.9.1000, Brad) ────────────────────
+// Numbers come from the relay (Code_v2.7): AI_DAILY_CAP_DEFAULT = 20 per
+// device per day, refunded on failure, cache hits don't count, resets at
+// midnight America/New_York. Premium devices get 100/day via the relay's
+// `ai_premium_tokens` config — that's the "higher allowance" referred to
+// below. If those relay values change, change this copy with them.
+const AI_USAGE_SEEN_KEY = 'lv_ai_usage_seen';
+
+function showAiUsageCard(force) {
+  if (!force && localStorage.getItem(AI_USAGE_SEEN_KEY) === '1') return;
+  const existing = document.getElementById('rr-ai-usage-card');
+  if (existing) existing.remove();
+  const ov = document.createElement('div');
+  ov.id = 'rr-ai-usage-card';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:99998;display:flex;align-items:flex-start;justify-content:center;padding:18px;overflow-y:auto';
+  const admin = (typeof ADMIN_EMAIL !== 'undefined') ? ADMIN_EMAIL : 'admin@therailroster.com';
+  ov.innerHTML =
+    '<div style="background:var(--surface,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;max-width:480px;width:100%;padding:20px 22px 18px;color:var(--text,#eee);font-family:var(--font-body,sans-serif);max-height:calc(100vh - 36px);overflow-y:auto;-webkit-overflow-scrolling:touch;margin:auto 0;box-shadow:0 12px 40px rgba(0,0,0,0.5)">'
+    + '<div style="text-align:center;margin-bottom:8px;font-size:1.4rem">📷</div>'
+    + '<div style="font-family:var(--font-head,sans-serif);font-size:1.25rem;text-align:center;font-weight:700;margin-bottom:4px">Photo identification</div>'
+    + '<div style="text-align:center;font-size:0.8rem;color:var(--text-dim,#888);margin-bottom:14px;letter-spacing:0.04em">How it works, and the one limit in the app.</div>'
+
+    + '<div style="font-size:0.88rem;color:var(--text-mid,#bbb);line-height:1.55;margin-bottom:14px">Point your camera at an item, a box label, or a business card and the app reads it for you. That\'s the only part of The Rail Roster that uses AI — and the only part with a limit.</div>'
+
+    + '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;padding:10px 12px;background:var(--surface2,#222);border-radius:9px;border:1px solid var(--border,#333)">'
+    +   '<div style="font-size:1.5rem;flex-shrink:0">🎞️</div>'
+    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">20 photo reads a day, free.</strong> The count resets overnight. Reading the same photo twice doesn\'t count against it, and if a read fails you get it back.</div>'
+    + '</div>'
+
+    + '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;padding:10px 12px;background:var(--surface2,#222);border-radius:9px;border:1px solid var(--border,#333)">'
+    +   '<div style="font-size:1.5rem;flex-shrink:0">♾️</div>'
+    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Everything else is unlimited.</strong> Typing item numbers, searching all 130,000+ catalog entries, adding items, photos, lists and reports — none of that touches AI.</div>'
+    + '</div>'
+
+    + '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:18px;padding:10px 12px;background:var(--surface2,#222);border-radius:9px;border:1px solid var(--border,#333)">'
+    +   '<div style="font-size:1.5rem;flex-shrink:0">➕</div>'
+    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Need more than 20 a day?</strong> A higher allowance is on the way. In the meantime email <a href="mailto:' + admin + '" style="color:var(--accent2,#d4a843);text-decoration:none">' + admin + '</a> and we\'ll sort you out.</div>'
+    + '</div>'
+
+    + '<div style="font-size:0.78rem;color:var(--text-dim,#888);line-height:1.5;margin-bottom:14px;text-align:center">Need this again? Preferences → Help &amp; Tips.</div>'
+
+    + '<div style="display:flex;justify-content:center">'
+    +   '<button id="rr-ai-usage-go" style="padding:0.7rem 1.6rem;border-radius:9px;border:none;background:var(--accent,#e04028);color:#fff;font-weight:600;font-family:inherit;font-size:0.95rem;cursor:pointer">Got it</button>'
+    + '</div>'
+    + '</div>';
+  document.body.appendChild(ov);
+  ov.querySelector('#rr-ai-usage-go').onclick = function () {
+    localStorage.setItem(AI_USAGE_SEEN_KEY, '1');
+    ov.remove();
+  };
+}
+window.showAiUsageCard = showAiUsageCard;
 
 function maybeShowContextualHint(spotId, message, anchorEl) {
   if (!spotId || !message) return;

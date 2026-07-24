@@ -176,12 +176,40 @@ async function aiIdentifyImage(source, hints) {
       console.warn('[AI-ID] relay said:', res.status, res.message);
       return { ok: false, reason: 'error' };
     }
-    return { ok: true, text: String(res.text), remaining: res.remaining, cached: !!res.cached };
+    return { ok: true, text: String(res.text), remaining: rrNoteAiRemaining(res.remaining), cached: !!res.cached };
   } catch (e) {
     console.warn('[AI-ID] failed:', e && e.message);
     return { ok: false, reason: 'error' };
   }
 }
+
+// ── Remaining-reads meter (v0.9.1000, Brad) ─────────────────────────────
+// The relay has always sent back how many photo reads are left today; the
+// app received it and threw it away. Reporting it here — the ONE choke
+// point every AI path returns through — means no UI call site has to know
+// about it, and a limit people can see coming feels fair instead of like a
+// trap.
+//
+// Deliberately NO denominator: the success response carries `remaining`
+// but not `cap`, and premium devices are on 100/day rather than 20 (relay
+// config `ai_premium_tokens`). "3 left" is true for everyone; "3 of 20"
+// would be a lie to a premium user.
+function rrNoteAiRemaining(remaining) {
+  if (remaining === undefined || remaining === null) return remaining;
+  var n = parseInt(remaining, 10);
+  if (isNaN(n) || n < 0) return remaining;
+  window._rrAiRemaining = n;
+  if (typeof showToast !== 'function') return remaining;
+  if (n === 0) {
+    showToast('That was today\'s last photo read — the count resets overnight.', 5200, true);
+  } else if (n <= 3) {
+    showToast(n + ' photo read' + (n === 1 ? '' : 's') + ' left today.', 4200, true);
+  } else {
+    showToast(n + ' photo reads left today.', 2200);
+  }
+  return remaining;
+}
+if (typeof window !== 'undefined') { window.rrNoteAiRemaining = rrNoteAiRemaining; }
 
 // ── Identify v2 (v0.9.896) ──────────────────────────────────
 // aiIdentifyImage2(sources, hints)
@@ -225,7 +253,7 @@ async function aiIdentifyImage2(sources, hints) {
     }
     if (res && res.status === 429) return { ok: false, reason: 'quota' };
     if (res && res.status === 200 && res.text) {
-      return { ok: true, text: String(res.text), remaining: res.remaining, cached: !!res.cached, v2: true };
+      return { ok: true, text: String(res.text), remaining: rrNoteAiRemaining(res.remaining), cached: !!res.cached, v2: true };
     }
     console.warn('[AI-ID] v2 answered ' + (res ? res.status : 'nothing') + ' — falling back to v1');
   } catch (e) {
@@ -287,7 +315,7 @@ async function aiVerifyPhoto(source, refUrl) {
       differences: dM ? dM[1].trim().slice(0, 140) : '',
       refItem: rM ? rM[1].trim().slice(0, 120) : '',
       refImg: res.refImg || '',
-      remaining: res.remaining,
+      remaining: rrNoteAiRemaining(res.remaining),
       cached: !!res.cached,
     };
   } catch (e) {

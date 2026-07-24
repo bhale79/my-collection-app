@@ -376,8 +376,32 @@
     var enabledSet = {};
     currentEnabled.forEach(function(k) { enabledSet[k] = true; });
 
-    var rowsHtml = '<div id="onboarding-era-rows" style="display:flex;flex-direction:column;gap:0.7rem;margin:0.8rem 0 1.2rem">';
-    (cfg.eraOrder || Object.keys(eras)).forEach(function(eraKey) {
+    // v0.9.1000 (Brad): the picker used to render ONLY cfg.eraOrder, a
+    // hand-maintained list. Eras added to config.js (Atlas HO/N/Z in
+    // v0.9.980, plus Weaver, RMT, Menards, 3rd Rail, USA Trains, LGB) never
+    // got added to it, so 9 of 18 eras were invisible here. Now the SOURCE
+    // is REAL_ERA_IDS and cfg.eraOrder is only a sort preference — anything
+    // it doesn't mention still renders, at the end. A new era can no longer
+    // go missing from this screen.
+    var _order = cfg.eraOrder || [];
+    var _allEraKeys = (typeof REAL_ERA_IDS !== 'undefined' && REAL_ERA_IDS.length)
+      ? REAL_ERA_IDS.slice()
+      : Object.keys(eras).filter(function (k) { return k !== 'all' && k !== 'placeholder'; });
+    _allEraKeys = _allEraKeys.filter(function (k) { return !!eras[k]; });
+    _allEraKeys.sort(function (x, y) {
+      var ix = _order.indexOf(x), iy = _order.indexOf(y);
+      if (ix === -1) ix = 999;
+      if (iy === -1) iy = 999;
+      return ix - iy;
+    });
+
+    // Two columns on anything desktop-ish — 18 eras in one column was a
+    // scroll marathon. Falls back to one column on phones.
+    var _grid = (window.innerWidth >= 700)
+      ? 'display:grid;grid-template-columns:1fr 1fr;gap:0.6rem'
+      : 'display:flex;flex-direction:column;gap:0.7rem';
+    var rowsHtml = '<div id="onboarding-era-rows" style="' + _grid + ';margin:0.8rem 0 1.2rem">';
+    _allEraKeys.forEach(function(eraKey) {
       var era = eras[eraKey];
       if (!era) return;
       var accent = (cfg.eraColors || {})[eraKey] || 'var(--accent)';

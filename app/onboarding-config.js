@@ -43,13 +43,18 @@ const ONBOARD_UI = {
 const WHAT_I_COLLECT = {
   title:       'What do you collect?',
   subtitle:    'Pick the eras you\'re interested in. You can change this anytime in Preferences.',
-  helperNote:  'Leaving all four turned on is the simplest choice — you can refine later.',
+  helperNote:  'Leaving them all turned on is the simplest choice — you can refine later.',
   saveLabel:   'Save and continue \u2192',
   skipLabel:   'Skip (keep all eras)',
 
-  // What order the eras show up in the list. Must match keys in ERAS.
-  // If a new era is added, add its key here to make it appear.
-  eraOrder:    ['prewar', 'pw', 'pw_ho', 'mpc', 'mpc_ho', 'mod_ho', 'mod_s', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g'],
+  // Preferred DISPLAY ORDER only — no longer the gate on what appears.
+  // v0.9.1000: the picker renders every era in REAL_ERA_IDS and uses this
+  // list purely for sorting; anything not named here still shows, at the
+  // end. Add new eras here to place them, not to make them visible.
+  eraOrder:    ['prewar', 'pw', 'mpc',
+                'atlas', 'atlas_ho', 'atlas_n', 'atlas_z',
+                'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g',
+                'weaver', 'rmt', 'menards', 'thirdrail', 'usatrains', 'lgb'],
 
   // Accent color per era — pulled into card styling.
   eraColors: {
@@ -72,6 +77,15 @@ const WHAT_I_COLLECT = {
     weaver:       '#16a085',   // teal — Weaver
     // Session 155: RMT
     rmt:          '#e67e22',   // orange — RMT
+    // v0.9.1000: colors for the eras that were missing from this screen
+    // entirely. Atlas sub-scales stay in the Atlas blue family.
+    atlas_ho:     '#3498db',   // lighter blue — Atlas HO
+    atlas_n:      '#5dade2',   // lighter still — Atlas N
+    atlas_z:      '#85c1e9',   // lightest — Atlas Z
+    menards:      '#c0392b',   // deep red
+    thirdrail:    '#7f8c8d',   // steel grey
+    usatrains:    '#f39c12',   // amber
+    lgb:          '#27ae60',   // garden green — G scale, outdoors
   },
 
   // ── Session 136: Scale preference (Tier 3.14) ──
@@ -193,7 +207,7 @@ const FEATURE_MAP = [
   {
     id:          'add-item',
     title:       'Add an Item',
-    description: 'Type a Lionel number and the app fills in the rest. Add a photo and price paid, you\'re done.',
+    description: 'Type an item number and the app fills in the rest. Add a photo and price paid, you\'re done.',
     icon:        '\u2795',                      // plus sign
     accentColor: '#e67e22',                     // orange
     targetPage:  'dashboard',                   // "add" lives off the dashboard
