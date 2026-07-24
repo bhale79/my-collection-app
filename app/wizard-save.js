@@ -648,60 +648,66 @@ async function saveEphemeraItem() {
     if (_upl) photoFolderLink = _upl;
   }
 
-  let row;
+  // ── v0.9.990 (unified inventory Phase 3): every ephemera flow saves into
+  // the ONE inventory (My Collection tab / PERSONAL_SCHEMA) instead of its
+  // own tab. The tailored wizard questions stay; only the destination
+  // changed. Old tabs are LEGACY-renamed and no longer written.
+  // NOTE: 'Other Lionel' (not plain 'Other') — the manual-add wizard uses
+  // 'Other' for off-catalog TRAIN oddballs, which must stay under Trains.
+  const _typeByTab = { catalogs: 'Catalog', paper: 'Paper', mockups: 'Mock-Up', other: 'Other Lionel' };
+  const _uniItemType = _typeByTab[tab] || ((_userTab && _userTab.label) || 'Other');
+  const _uniSubType = (d.eph_paperType || '') + (d.eph_paperSubType ? ' — ' + d.eph_paperSubType : '');
+  // Description = title, with the free-text description folded in after it
+  const _uniDesc = [d.eph_title || '', d.eph_description || ''].filter(Boolean).join(' — ');
+  // Category-specific extras that have no schema column fold into notes
+  const _noteParts = [];
+  if (d.eph_notes) _noteParts.push(d.eph_notes);
+  if (d.eph_itemNumRef) _noteParts.push('For item ' + d.eph_itemNumRef);
+  if (d.eph_quantity && String(d.eph_quantity) !== '1') _noteParts.push('Qty ' + d.eph_quantity);
   if (tab === 'mockups') {
-    row = [
-      ephItemNum,
-      d.eph_title||'', d.eph_itemNumRef||'', d.eph_description||'',
-      d.eph_year||'', d.eph_manufacturer||'Lionel', d.eph_condition||'',
-      d.eph_productionStatus||'', d.eph_material||'', d.eph_dimensions||'',
-      d.eph_provenance||'', d.eph_lionelVerified||'',
-      d.eph_pricePaid||'', d.eph_estValue||'',
-      photoFolderLink,
-      d.eph_notes||'', d.eph_dateAcquired||'',
-    ];
-  } else {
-    row = [
-      ephItemNum,
-      d.eph_title||'', d.eph_description||'', d.eph_year||'',
-      d.eph_manufacturer||'Lionel', d.eph_condition||'',
-      d.eph_quantity||'1', d.eph_pricePaid||'', d.eph_estValue||'',
-      photoFolderLink,
-      d.eph_notes||'', d.eph_dateAcquired||'',
-      (d.eph_paperType||'') + (d.eph_paperSubType ? ' — ' + d.eph_paperSubType : ''), d.eph_itemNumRef||'',
-    ];
+    if (d.eph_productionStatus) _noteParts.push('Production status: ' + d.eph_productionStatus);
+    if (d.eph_material) _noteParts.push('Material: ' + d.eph_material);
+    if (d.eph_dimensions) _noteParts.push('Dimensions: ' + d.eph_dimensions);
+    if (d.eph_provenance) _noteParts.push('Provenance: ' + d.eph_provenance);
+    if (d.eph_lionelVerified) _noteParts.push('Lionel verified: ' + d.eph_lionelVerified);
   }
+  const _uniInvId = (typeof nextInventoryId === 'function') ? String(nextInventoryId()) : '';
+  const row = buildPersonalRow({
+    itemNum: ephItemNum,
+    manufacturer: d.eph_manufacturer || 'Lionel',
+    itemType: _uniItemType,
+    subType: _uniSubType,
+    condition: d.eph_condition || '',
+    userEstWorth: d.eph_estValue || '',
+    notes: _noteParts.join(' — '),
+    priceItem: d.eph_pricePaid || '',
+    photoItem: photoFolderLink,
+    datePurchased: d.eph_dateAcquired || '',
+    yearMade: d.eph_year || '',
+    inventoryId: _uniInvId,
+    era: 'Manual',
+    description: _uniDesc,
+  });
 
   try {
-    await sheetsAppend(state.personalSheetId, sheetName + '!A:Q', [row]);
-    // Add to local state
-    const bucket = state.ephemeraData[tab] || {};
-    const newKey = Date.now();
-    if (tab === 'mockups') {
-      bucket[newKey] = {
-        row: newKey, itemNum: ephItemNum, title: d.eph_title||'', itemNumRef: d.eph_itemNumRef||'',
-        description: d.eph_description||'', year: d.eph_year||'',
-        manufacturer: d.eph_manufacturer||'Lionel', condition: d.eph_condition||'',
-        productionStatus: d.eph_productionStatus||'', material: d.eph_material||'',
-        dimensions: d.eph_dimensions||'', provenance: d.eph_provenance||'',
-        lionelVerified: d.eph_lionelVerified||'',
-        pricePaid: d.eph_pricePaid||'', estValue: d.eph_estValue||'',
-        photoLink: photoFolderLink, notes: d.eph_notes||'', dateAcquired: d.eph_dateAcquired||'',
-      };
-    } else {
-      bucket[newKey] = {
-        row: newKey, itemNum: ephItemNum, title: d.eph_title||'', description: d.eph_description||'',
-        year: d.eph_year||'', manufacturer: d.eph_manufacturer||'Lionel',
-        condition: d.eph_condition||'', quantity: d.eph_quantity||'1',
-        pricePaid: d.eph_pricePaid||'', estValue: d.eph_estValue||'',
-        photoLink: photoFolderLink, notes: d.eph_notes||'',
-        dateAcquired: d.eph_dateAcquired||'',
-        paperType: (d.eph_paperType||'') + (d.eph_paperSubType ? ' — ' + d.eph_paperSubType : ''), itemNumRef: d.eph_itemNumRef||'',
-      };
-    }
-    _stampSaved(bucket[newKey]);
-    state.ephemeraData[tab] = bucket;
-    buildDashboard();  // Session 174: refresh Items-I-Own + Collection Value so the new mock-up/paper/other item counts immediately (was only done for catalogs)
+    const actualRow = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [row]);
+    // Add to local state as a regular owned collection item
+    const pdObj = {
+      row: actualRow, status: 'Owned', owned: true,
+      itemNum: ephItemNum, variation: '',
+      manufacturer: d.eph_manufacturer || 'Lionel',
+      itemType: _uniItemType, subType: _uniSubType,
+      condition: d.eph_condition || '', userEstWorth: d.eph_estValue || '',
+      notes: _noteParts.join(' — '), priceItem: d.eph_pricePaid || '',
+      photoItem: photoFolderLink, datePurchased: d.eph_dateAcquired || '',
+      yearMade: d.eph_year || '', inventoryId: _uniInvId, era: 'Manual',
+      description: _uniDesc,
+      dateAdded: new Date().toISOString().slice(0, 10),
+    };
+    _stampSaved(pdObj);
+    state.personalData[_uniInvId || (ephItemNum + '||' + actualRow)] = pdObj;
+    if (typeof _cachePersonalData === 'function') _cachePersonalData();
+    buildDashboard();  // Session 174: refresh Items-I-Own + Collection Value so the new item counts immediately
     showToast('✓ ' + (d.eph_title||'Item') + ' saved!');
     d._saveComplete = true;   // v0.9.689
     closeWizard();

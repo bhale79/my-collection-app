@@ -2336,13 +2336,16 @@ function renderBrowse() {
   // route train-store rows; 'all' (and mobile, which has no chip bar) keeps
   // the combined view. Falls back to Trains if the chosen section is empty.
   let _collSec = (owned && window.innerWidth > 640) ? (state._collSection || 'trains') : 'all';
+  // v0.9.990: typed-row section keys and their itemType matches (one source
+  // of truth for the availability guard, the filter, and the chips below).
+  const _SEC_TYPES = { paper: ['paper', 'paper item'], catalogs: ['catalog'], mockups: ['mock-up', 'mockup'], other: ['other lionel'] };
   if (_collSec !== 'trains' && _collSec !== 'all') {
     let _secAvail = true;
     try {
       if (_collSec === 'is') _secAvail = Object.keys(state.isData || {}).length > 0;
       else _secAvail = Object.keys((state.ephemeraData || {})[_collSec] || {}).length > 0;
-      if (!_secAvail && (_collSec === 'paper' || _collSec === 'catalogs')) {
-        const _wantT = _collSec === 'paper' ? ['paper', 'paper item'] : ['catalog'];
+      if (!_secAvail && _SEC_TYPES[_collSec]) {
+        const _wantT = _SEC_TYPES[_collSec];
         _secAvail = Object.values(state.personalData || {}).some(function(p) {
           return p && p.owned && _wantT.indexOf(String(p.itemType || '').toLowerCase()) >= 0;
         });
@@ -2352,10 +2355,14 @@ function renderBrowse() {
   }
   const _collSecFiltered = (_collSec !== 'all' && _collSec !== 'trains');
   // Which section does a train-store row belong to by TYPE? '' = a train.
+  // v0.9.990 (Phase 3): Mock-Up and 'Other Lionel' route to their sections
+  // too. Plain 'Other' stays a TRAIN type (manual-add off-catalog oddballs).
   const _typeSection = function(it) {
     const t = String(it.itemType || '').toLowerCase();
     if (t === 'paper' || t === 'paper item') return 'paper';
     if (t === 'catalog') return 'catalogs';
+    if (t === 'mock-up' || t === 'mockup') return 'mockups';
+    if (t === 'other lionel') return 'other';
     return '';
   };
   if (typeof _renderCrossEraSearchBanner === 'function') _renderCrossEraSearchBanner(search);
@@ -2548,8 +2555,7 @@ function renderBrowse() {
     if (owned && _collSec !== 'all') {
       const _sr = _typeSection(item);
       if (_collSec === 'trains') { if (_sr) return false; }
-      else if (_collSec === 'paper' || _collSec === 'catalogs') { if (_sr !== _collSec) return false; }
-      else return false;
+      else if (_sr !== _collSec) return false;   // v0.9.990: any section key — 'is' etc. simply have no typed train-store rows
     }
     if (unowned && (isOwned || isWanted)) return false;
     if (boxed && !hasBox) return false;
@@ -2792,20 +2798,27 @@ function renderBrowse() {
     .filter(function(r) { return r._divider; })
     .map(function(r) { return { key: r.secKey, label: r.label, color: r.color }; });
   if (state.filters.owned) {
+    // v0.9.990 (Phase 3): with the old buckets retired, TYPED rows in the one
+    // inventory are what create the section chips. One pass over the owned
+    // collection finds which sections exist.
     try {
-      const _havePaperChip = _collAllSections.some(function(s) { return s.key === 'paper'; });
-      const _haveCatChip = _collAllSections.some(function(s) { return s.key === 'catalogs'; });
-      if (!_havePaperChip || !_haveCatChip) {
-        let _pdPaper = false, _pdCat = false;
-        Object.values(state.personalData || {}).forEach(function(p) {
-          if (!p || !p.owned) return;
-          const t = String(p.itemType || '').toLowerCase();
-          if (t === 'paper' || t === 'paper item') _pdPaper = true;
-          else if (t === 'catalog') _pdCat = true;
-        });
-        if (!_haveCatChip && _pdCat) _collAllSections.push({ key: 'catalogs', label: '📒 Catalogs', color: '#e67e22' });
-        if (!_havePaperChip && _pdPaper) _collAllSections.push({ key: 'paper', label: '📄 Paper Items', color: '#3498db' });
-      }
+      const _chipMeta = {
+        catalogs: { label: '📒 Catalogs', color: '#e67e22' },
+        paper:    { label: '📄 Paper Items', color: '#3498db' },
+        mockups:  { label: '🔩 Mock-Ups', color: '#9b59b6' },
+        other:    { label: '📦 Other Lionel', color: '#2ecc71' }
+      };
+      const _typedSecs = {};
+      Object.values(state.personalData || {}).forEach(function(p) {
+        if (!p || !p.owned) return;
+        const t = String(p.itemType || '').toLowerCase();
+        Object.keys(_SEC_TYPES).forEach(function(k) { if (_SEC_TYPES[k].indexOf(t) >= 0) _typedSecs[k] = true; });
+      });
+      Object.keys(_chipMeta).forEach(function(k) {
+        if (_typedSecs[k] && !_collAllSections.some(function(s) { return s.key === k; })) {
+          _collAllSections.push({ key: k, label: _chipMeta[k].label, color: _chipMeta[k].color });
+        }
+      });
     } catch (eChip) {}
   }
   if (_collSec === 'trains') {
