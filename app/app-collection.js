@@ -2532,7 +2532,13 @@ function showItemPanel(idx, pdKey, mode) {
   const overlay = document.createElement('div');
   overlay.id = 'item-panel-overlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
-  bindOverlayClose(overlay, function() { overlay.remove(); });
+  // v0.9.988 (Brad): a stray click on the dark backdrop used to close this
+  // panel and silently discard unsaved edits. Backdrop clicks now do nothing;
+  // closing takes a deliberate action (✕, Cancel, Save, or the Back button).
+  overlay.addEventListener('click', function(e) {
+    if (e.target !== overlay) return;
+    if (typeof showToast === 'function') showToast('Use Save All Changes, Cancel, or ✕ to close', 2500);
+  });
 
   const box = document.createElement('div');
   box.style.cssText = 'background:var(--surface);border:1px solid rgba(41,128,185,0.35);border-radius:16px;max-width:500px;width:100%;position:relative;max-height:92vh;display:flex;flex-direction:column;overflow:hidden';
