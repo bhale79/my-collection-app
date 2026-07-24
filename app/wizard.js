@@ -115,6 +115,10 @@ function _buildWizardModal() {
       // shown on every step once an item number is known. Populated by
       // _renderAddingBanner() in renderWizardStep.
       '<div id="wizard-adding-banner" style="padding:0 1.5rem"></div>' +
+      // v0.9.993 (Brad): ITEM TYPE selector — the first question of the add
+      // flow. Cream + blue + bold so it stands out from the filters below.
+      // Synced by _syncWizKindBar(); remembers last-used (lv_add_kind).
+      '<div id="wizard-kind-bar" style="padding:0 1.5rem;display:none"></div>' +
       '<div class="modal-body" id="wizard-body" style="flex:1;overflow-y:auto;min-height:0"></div>' +
       '<div class="modal-footer">' +
         '<button class="btn btn-secondary" id="wizard-back-btn" onclick="if(!wizardBack())_doCloseWizard();" style="display:none">&#x2190; Back</button>' +
@@ -365,6 +369,67 @@ window._soldPickSrcSet = function (src) {
   if (typeof wizard !== 'undefined' && wizard.data) { wizard.data._soldPickSrc = src; renderWizardStep(); }
 };
 
+// ── v0.9.993 (Brad): ITEM TYPE dropdown — "what are you adding?" ─────────
+// Replaces the "Adding something else?" chip row. Shown at the start of the
+// add flow; picking a kind rebuilds the wizard for that flow. Remembers the
+// last-used kind across sessions (localStorage lv_add_kind).
+const _WIZ_KINDS = [
+  { id: 'cataloged', label: '🚂 Cataloged Item' },
+  { id: 'set',       label: '🎁 Set' },
+  { id: 'paper',     label: '📄 Paper Item' },
+  { id: 'catalogs',  label: '📒 Catalog' },
+  { id: 'mockups',   label: '🔩 Mock-Up' },
+  { id: 'other',     label: '📦 Other' },
+  { id: 'manual',    label: '✏️ Manual — item not in our catalogs' },
+];
+function _wizCurrentKind() {
+  try {
+    if (wizard.data && wizard.data._manualEntry) return 'manual';
+    if (wizard.tab === 'set') return 'set';
+    if (['paper', 'catalogs', 'mockups', 'other'].indexOf(wizard.tab) >= 0) return wizard.tab;
+  } catch (e) {}
+  return 'cataloged';
+}
+function _wizSetKind(kind) {
+  try { localStorage.setItem('lv_add_kind', kind); } catch (e) {}
+  if (kind === _wizCurrentKind()) return;
+  // Fresh restart of the add flow in the chosen kind (only offered on the
+  // first screen, so nothing typed is lost).
+  const _rp = (wizard.data && wizard.data._returnPage) || undefined;
+  wizard = { step: 0, tab: 'collection', data: { tab: 'collection', _returnPage: _rp, itemCategory: 'lionel' }, steps: getSteps('collection'), matchedItem: null };
+  if (kind === 'cataloged') { renderWizardStep(); return; }
+  wizardChooseCategory(kind);
+}
+function _syncWizKindBar(s) {
+  const bar = document.getElementById('wizard-kind-bar');
+  if (!bar) return;
+  let show = false;
+  try {
+    const d = wizard.data || {};
+    if (d._manualEntry) {
+      show = !!(s && s.id === 'manualManufacturer');
+    } else if (wizard.tab === 'collection') {
+      show = !!(s && s.id === 'itemNumGrouping' && d.itemCategory === 'lionel' && !d._fillItemMode && !d.boxOnly);
+    } else if (['set', 'paper', 'catalogs', 'mockups', 'other'].indexOf(wizard.tab) >= 0) {
+      show = wizard.step === 0;
+    }
+  } catch (e) { show = false; }
+  if (!show) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+  const cur = _wizCurrentKind();
+  bar.style.display = '';
+  bar.innerHTML =
+    '<div style="font-size:0.7rem;color:var(--text-dim);letter-spacing:0.08em;text-transform:uppercase;font-weight:600;margin:0.6rem 0 0.25rem">Item Type</div>' +
+    '<select id="wiz-kind-select" onchange="_wizSetKind(this.value)" style="' +
+      'width:100%;padding:0.6rem 0.75rem;border-radius:8px;border:2px solid #2980b9;' +
+      'background:#f7f0dc;color:#2980b9;font-family:var(--font-head);font-weight:700;' +
+      'font-size:0.92rem;cursor:pointer;box-sizing:border-box">' +
+    _WIZ_KINDS.map(function(k) {
+      return '<option value="' + k.id + '"' + (k.id === cur ? ' selected' : '') + '>' + k.label + '</option>';
+    }).join('') +
+    '</select>';
+}
+if (typeof window !== 'undefined') { window._wizSetKind = _wizSetKind; }
+
 async function openWizard(tab) {
   // v0.9.826 (TODO-003): offline is view-only — say so up front instead of
   // failing at save time.
@@ -428,6 +493,23 @@ async function openWizard(tab) {
     // Don't pre-set — let user choose category first
   }
   renderWizardStep();
+  // v0.9.993 (Brad): the ITEM TYPE selector remembers last-used. If the last
+  // add was a Paper Item, the wizard reopens on the Paper flow. Deferred a
+  // tick and guarded so flows that pre-fill an item (add-from-browse, box
+  // only, quick-entry completion) are never hijacked.
+  if (tab === 'collection') {
+    setTimeout(function() {
+      try {
+        let _lk = '';
+        try { _lk = localStorage.getItem('lv_add_kind') || ''; } catch (e) {}
+        if (!_lk || _lk === 'cataloged') return;
+        if (!_WIZ_KINDS.some(function(k) { return k.id === _lk; })) return;
+        const d = wizard.data || {};
+        if (wizard.tab !== 'collection' || d._manualEntry || d._fillItemMode || d.boxOnly || d.itemNum || d._updatePdKey || wizard.step > 0) return;
+        wizardChooseCategory(_lk);
+      } catch (e) {}
+    }, 0);
+  }
 }
 
 function closeWizard() {
@@ -1144,6 +1226,8 @@ function renderWizardStep() {
   }
 
   const s = steps[step];
+  // v0.9.993 (Brad): keep the ITEM TYPE selector in sync on every render.
+  try { _syncWizKindBar(s); } catch (eKind) {}
   // Count only visible steps — skip both skipIf and set-mode fast-forwarded steps
   const _setSkipIds = wizard.data._setMode ? new Set(['itemCategory', 'itemNumGrouping', 'itemPicker', 'entryMode']) : null;
   const _isVisible = (st) => {
@@ -4114,34 +4198,9 @@ function renderWizardStep() {
       // styling, pointing at the unified Identify-from-Photo flow (which offers
       // gallery pick on desktop and Lens/AI fallbacks). Old second button +
       // desktop note removed.
-      // Phase 2 streamline: "Adding something else?" chip row replaces the
-      // old standalone category picker (Step 1). Only shown on the default
-      // cataloged-item flow for the collection tab; clicking a chip routes
-      // through wizardChooseCategory() which rebuilds the wizard for the
-      // selected flow (set / paper / mockups / other / manual).
-      if (wizard.tab === 'collection' && wizard.data.itemCategory === 'lionel' && !_ingBoxOnly) {
-        const _altLabel = document.createElement('div');
-        _altLabel.style.cssText = 'font-size:0.75rem;color:var(--text-dim);margin-top:1rem;margin-bottom:0.35rem;text-align:center;font-style:italic';
-        _altLabel.textContent = 'Adding something else?';
-        _ingWrap.appendChild(_altLabel);
-        const _altChips = document.createElement('div');
-        _altChips.style.cssText = 'display:flex;gap:0.35rem;flex-wrap:wrap;justify-content:center';
-        const _altCats = [
-          { id: 'set',     label: '🎁 Set' },
-          { id: 'paper',   label: '📄 Paper' },
-          { id: 'mockups', label: '🔩 Mock-Up' },
-          { id: 'other',   label: '📦 Other' },
-          { id: 'manual',  label: '✏️ Manual' },
-        ];
-        _altChips.innerHTML = _altCats.map(function(c) {
-          return '<button onclick="wizardChooseCategory(\'' + c.id + '\')" style="' +
-            'padding:0.35rem 0.75rem;border-radius:14px;border:1px solid var(--border);' +
-            'background:var(--surface2);color:var(--text-mid);' +
-            'font-family:var(--font-body);font-size:0.78rem;cursor:pointer;' +
-            'transition:all 0.15s;white-space:nowrap">' + c.label + '</button>';
-        }).join('');
-        _ingWrap.appendChild(_altChips);
-      }
+      // v0.9.993 (Brad): the "Adding something else?" chip row is retired —
+      // the ITEM TYPE dropdown at the top of the modal (wizard-kind-bar,
+      // synced in renderWizardStep) is now the one place to switch flows.
     }
     
     body.innerHTML = '';
