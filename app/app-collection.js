@@ -2583,6 +2583,9 @@ function showItemPanel(idx, pdKey, mode) {
         if (cur && o.indexOf(cur) < 0) o.unshift(cur);   // keep a custom typed-in value selectable
         return o;
       })() }] : []),
+    // v0.9.989 (unified inventory Phase 1): optional detail under Type —
+    // e.g. 'Drawing' under Paper, 'Advance' under Catalog.
+    ...((idx < 0 || pd.era === 'Manual') ? [{ label: 'Sub Type', key: 'subType', val: pd.subType || '—', type: 'text' }] : []),
     { label: 'Condition',     key: 'condition',     val: pd.condition || '—',     type: 'number', min:1, max:10 },
     { label: 'All Original',  key: 'allOriginal',   val: pd.allOriginal || '—',   type: 'select', options: ['Yes','No','Unknown'] },
     { label: 'Has Box',       key: 'hasBox',        val: pd.hasBox || '—',        type: 'select', options: ['Yes','No'] },
@@ -2962,6 +2965,7 @@ function showItemPanel(idx, pdKey, mode) {
         era: pd.era || '',
         manufacturer: pd.manufacturer || '',
         itemType: pd.itemType || '',
+        subType: pd.subType || '',   // v0.9.989: full-row update must carry it or it's wiped
         roadName: pd.roadName || '',
         roadNumber: pd.roadNumber || '',
         description: pd.description || '',
@@ -3779,6 +3783,7 @@ async function saveItem() {
       era: _ex.era || '',
       manufacturer: _ex.manufacturer || '',
       itemType: _ex.itemType || '',
+      subType: _ex.subType || '',   // v0.9.989: full-row update must carry it or it's wiped
       roadName: _ex.roadName || '',
       roadNumber: _ex.roadNumber || '',
       description: _ex.description || '',

@@ -76,6 +76,7 @@ const PERSONAL_SCHEMA = [
   { field: 'gauge',                header: 'Scale/Gauge' },              // v0.9.666 — appended at END (column rule)
   { field: 'dateAdded',            header: 'Date Added' },               // v0.9.720 — appended at END (column rule)
   { field: 'purchasedFrom',        header: 'Purchased From' },           // v0.9.782 — Contact ID of the seller (Contacts tab); appended at END (column rule)
+  { field: 'subType',              header: 'Sub Type' },                 // v0.9.989 — unified inventory Phase 1: detail under itemType (catType 'Advance', paperType 'Drawing', ...); appended at END (column rule)
 ];
 const PERSONAL_HEADERS = PERSONAL_SCHEMA.map(s => s.header);
 const PERSONAL_FIELD_INDEX = {};

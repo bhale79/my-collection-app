@@ -437,14 +437,19 @@ async function ensurePersonalHeaders(sheetId) {
       console.log('[Setup] Created missing tabs:', toCreate.map(t => t.addSheet.properties.title).join(', '));
     }
 
-    // Fetch current row 2 headers (A2:Y2 — 25 cols)
-    const res = await sheetsGet(sheetId, PERSONAL_TAB + '!A2:AF2');
+    // v0.9.989 (unified inventory Phase 1): header check is schema-driven.
+    // The old hardcoded A2:AF2 (32 cols) meant: read 32 headers, compare all
+    // 35 → always "wrong" → try to write 35 into 32 cells → silent 400 error
+    // on every login. Header repair had been failing quietly since the schema
+    // passed 32 columns.
+    const _pdEndHdr = _pdColLetter(PERSONAL_HEADERS.length);
+    const res = await sheetsGet(sheetId, PERSONAL_TAB + '!A2:' + _pdEndHdr + '2');
     const current = (res.values && res.values[0]) || [];
 
     // Check each expected header — write the full row if anything is missing or wrong
     const needsUpdate = PERSONAL_HEADERS.some((h, i) => current[i] !== h);
     if (needsUpdate) {
-      await sheetsUpdate(sheetId, PERSONAL_TAB + '!A2:AF2', [PERSONAL_HEADERS]);
+      await sheetsUpdate(sheetId, PERSONAL_TAB + '!A2:' + _pdEndHdr + '2', [PERSONAL_HEADERS]);
       console.log('[Headers] My Collection headers repaired');
     }
 
