@@ -2565,6 +2565,18 @@ function showItemPanel(idx, pdKey, mode) {
   const fields = [
     // v0.9.701 (Brad): a no-number item's TITLE is its identity — editable.
     ...((idx < 0 || pd.era === 'Manual') ? [{ label: 'Title / Name', key: 'itemNum', val: pd.itemNum || '—', type: 'textarea' }] : []),
+    // v0.9.987 (Brad): TYPE is editable on manual/off-catalog items — it
+    // decides which Show chip the item appears under (Trains/Catalogs/
+    // Paper Items). Catalog-matched items keep the catalog's type
+    // (v0.9.798 rule), so no Type field for them.
+    ...((idx < 0 || pd.era === 'Manual') ? [{ label: 'Type', key: 'itemType', val: pd.itemType || '—', type: 'select',
+      options: (function() {
+        var o = (((window.MANUAL_ITEM_TYPES || {}).all) || []).slice();
+        ['Paper', 'Catalog'].forEach(function(t) { if (o.indexOf(t) < 0) o.push(t); });
+        var cur = String(pd.itemType || '');
+        if (cur && o.indexOf(cur) < 0) o.unshift(cur);   // keep a custom typed-in value selectable
+        return o;
+      })() }] : []),
     { label: 'Condition',     key: 'condition',     val: pd.condition || '—',     type: 'number', min:1, max:10 },
     { label: 'All Original',  key: 'allOriginal',   val: pd.allOriginal || '—',   type: 'select', options: ['Yes','No','Unknown'] },
     { label: 'Has Box',       key: 'hasBox',        val: pd.hasBox || '—',        type: 'select', options: ['Yes','No'] },

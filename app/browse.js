@@ -2467,11 +2467,18 @@ function renderBrowse() {
           // on 217C / 6464-425) only applies to true off-catalog items. TYPE
           // ONLY: identity fields keep v0.9.718's no-enrichment rule.
           var _tm = null;
-          try { _tm = (typeof findMaster === 'function') ? (findMaster(pd.itemNum, pd.variation || '') || (_baseNum !== pd.itemNum ? findMaster(_baseNum) : null)) : null; } catch (eT) {}
-          // v0.9.801: variation-blind fallback — the type is the same across
-          // every variation, so ANY master row with this number settles it
-          // (findMaster can return null when the variation column is blank).
-          if (!_tm) { try { _tm = _mbiFind(pd.itemNum, '', true) || null; } catch (eT2) {} }
+          // v0.9.987 (Brad): MANUAL entries keep THEIR OWN type — the catalog
+          // override below (v0.9.798) was for catalog-matched rows with a
+          // stuck personal type, but a manual item that happens to share a
+          // number with a catalog item (e.g. "4C") must not lose its edited
+          // type. v0.9.718 rule: a manual entry's identity is its own.
+          if (!_pdIsManual) {
+            try { _tm = (typeof findMaster === 'function') ? (findMaster(pd.itemNum, pd.variation || '') || (_baseNum !== pd.itemNum ? findMaster(_baseNum) : null)) : null; } catch (eT) {}
+            // v0.9.801: variation-blind fallback — the type is the same across
+            // every variation, so ANY master row with this number settles it
+            // (findMaster can return null when the variation column is blank).
+            if (!_tm) { try { _tm = _mbiFind(pd.itemNum, '', true) || null; } catch (eT2) {} }
+          }
           if (_tm && _tm.itemType) return _tm.itemType;
           return _poType || (_refItem ? _refItem.itemType : '');
         })(),
