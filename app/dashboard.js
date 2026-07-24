@@ -768,7 +768,7 @@ function _openOwnedByInvId(invId) {
   if (!_isManualPd) {
     // v0.9.648: era/manufacturer-aware resolution (Lionel 8359 vs Atlas 8359).
     var _mm = (typeof findMaster === 'function') ? findMaster(pd.itemNum, pd.variation, pd) : null;
-    idx = _mm ? state.masterData.indexOf(_mm) : -1;
+    idx = _mm ? _masterIdxOf(_mm) : -1;
     if (idx < 0) idx = state.masterData.findIndex(function(m){ return m.itemNum === pd.itemNum && (m.variation || '') === (pd.variation || ''); });
     if (idx < 0) idx = state.masterData.findIndex(function(m){ return m.itemNum === pd.itemNum; });
   }
@@ -879,7 +879,7 @@ var PANEL_CATALOG = [
           var price = pd.priceItem ? _currencySymbol() + parseFloat(pd.priceItem).toLocaleString() : '';
           var date = pd.datePurchased || '';
           var meta = [date, price].filter(Boolean).join(' · ');
-          var idx = master ? state.masterData.indexOf(master) : -1;
+          var idx = master ? _masterIdxOf(master) : -1;
           var hasPhoto = !!pd.photoItem;
           var _co = (typeof _ownedCompanions === 'function') ? _ownedCompanions(pd) : [];
           var groupBadge = _co.length ? ' <span style="font-size:0.72rem;color:var(--accent3);font-weight:600" title="Grouped with ' + _co.join(', ') + '">🔗 ' + _co.join(' ') + '</span>' : (pd.groupId ? ' <span style="font-size:0.55rem;color:var(--accent3);vertical-align:super" title="Grouped">🔗</span>' : '');
@@ -927,7 +927,7 @@ var PANEL_CATALOG = [
           var price = _wPrice ? _currencySymbol() + parseFloat(_wPrice).toLocaleString() : '';
           var pc = priColor[w.priority] || 'var(--text-dim)';
           var badge = '<span style="font-size:0.72rem;font-weight:600;color:' + pc + ';border:1px solid ' + pc + ';border-radius:3px;padding:0.1rem 0.3rem;flex-shrink:0">' + (w.priority || 'Med') + '</span>';
-          var idx = master ? state.masterData.indexOf(master) : -1;
+          var idx = master ? _masterIdxOf(master) : -1;
           return _panelRow('⭐', w.itemNum + (w.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + w.variation + '</span>' : ''), name, price,
             // v0.9.715 (Brad): open the WANT detail (★ On Want List, Back to
             // Want List) — the plain page dressed wants up as owned items.
@@ -950,7 +950,7 @@ var PANEL_CATALOG = [
           var master = findMaster(fs.itemNum, '', fs) || {};
           var name = master.roadName || master.itemType || '';
           var price = fs.askingPrice ? _currencySymbol() + parseFloat(fs.askingPrice).toLocaleString() : 'No price';
-          var idx = master ? state.masterData.indexOf(master) : -1;
+          var idx = master ? _masterIdxOf(master) : -1;
           // v0.9.919: personalData is keyed by inventoryId (Phase 3) — the old
           // itemNum|variation lookup silently returned {} so photos never showed.
           var pd = (fs.inventoryId && state.personalData[fs.inventoryId]) || {};
@@ -983,7 +983,7 @@ var PANEL_CATALOG = [
             ? ([master.roadName, master.description].filter(Boolean).join(' — ') || master.itemType || pd.itemNum)
             : ((String(pd.era||'') === 'Manual') ? (pd.description || pd.itemNum) : (pd.masterDescription || pd.description || pd.itemNum));   // v0.9.724: manual rows = their own words only
           var price = _currencySymbol() + pd._val.toLocaleString();
-          var idx = master ? state.masterData.indexOf(master) : -1;
+          var idx = master ? _masterIdxOf(master) : -1;
           var hasPhoto = !!pd.photoItem;
           return _panelRow('💰', pd.itemNum + (pd.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + pd.variation + '</span>' : ''), name, price,
             (pd.inventoryId ? ("_openOwnedByInvId('" + pd.inventoryId + "')") : (idx >= 0 ? 'showItemDetailPage(' + idx + ')' : 'goToMyCollection()')), hasPhoto ? pd.photoItem : null
@@ -1017,7 +1017,7 @@ var PANEL_CATALOG = [
           var name = master ? (master.roadName || master.itemType || u.itemNum) : u.itemNum;
           var cond = pd && pd.condition ? parseInt(pd.condition) : null;
           var meta = [cond ? 'Cond: ' + cond : '', u.targetCondition ? '→ ' + u.targetCondition : ''].filter(Boolean).join(' ');
-          var idx = master ? state.masterData.indexOf(master) : -1;
+          var idx = master ? _masterIdxOf(master) : -1;
           var hasPhoto = pd && !!pd.photoItem;
           return _panelRow('↑', u.itemNum + (u.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim);">' + u.variation + '</span>' : ''), name, meta,
             (u.inventoryId ? ("_openOwnedByInvId('" + u.inventoryId + "')") : (idx >= 0 ? 'showItemDetailPage(' + idx + ')' : "showPage('upgrade',null);buildUpgradePage()")), hasPhoto ? pd.photoItem : null

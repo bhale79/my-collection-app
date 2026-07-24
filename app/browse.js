@@ -59,6 +59,15 @@ window._collJumpTop = function() {
   var wrap = document.querySelector('.browse-table-wrap');
   if (wrap) wrap.scrollTo({ top: 0, behavior: 'smooth' });
 };
+// v0.9.985 (Brad): the Jump To bar is now a section FILTER — "Trains" shows
+// only train rows, "Catalogs" only catalogs, and so on ('all' = combined view).
+window._collSectionSet = function(key) {
+  state._collSection = key;
+  state.currentPage = 1;
+  var wrap = document.querySelector('.browse-table-wrap');
+  if (wrap) wrap.scrollTo({ top: 0 });
+  if (typeof renderBrowse === 'function') renderBrowse();
+};
 
 function _mfrBadge(item) {
   try {
@@ -137,7 +146,10 @@ function _atlasBrowseHeaders() {
   return '<th>Mfr.</th><th style="width:110px;min-width:110px">Item #</th><th>Type</th><th>Sub Type</th><th style="width:99%">Description</th><th>Track/Power</th><th>MSRP</th><th>Year</th><th>Owned</th>';
 }
 function _lionelBrowseHeaders() {
-  return '<th>Mfr.</th><th style="width:110px;min-width:110px">Item #</th><th>Type</th><th>Road / Name</th><th style="width:99%">Descr.</th><th>Var.</th><th>Var. Descr.</th><th>Year</th><th>Owned</th>';
+  // v0.9.985 (Brad): Descr. no longer hogs ALL spare width (was 99%) — Var.
+  // Descr. now gets a real share, so it widens with the window instead of
+  // wrapping into a skinny 3-line column on big screens.
+  return '<th>Mfr.</th><th style="width:110px;min-width:110px">Item #</th><th>Type</th><th>Road / Name</th><th style="width:60%">Descr.</th><th>Var.</th><th style="width:39%;min-width:140px">Var. Descr.</th><th>Year</th><th>Owned</th>';
 }
 function _mthBrowseHeaders() {
   return '<th>Mfr.</th><th style="width:110px;min-width:110px">Item #</th><th>Type</th><th>Road / Name</th><th style="width:99%">Descr.</th><th>Category</th><th>Track/Power</th><th>Year</th><th>Owned</th>';
@@ -1878,7 +1890,7 @@ function _serviceCollectionAction(action, pdKey) {
   const pd = state.personalData[pdKey];
   if (!pd) return;
   const master = typeof findMaster === 'function' ? findMaster(pd.itemNum, '', pd) : null;
-  const globalIdx = master && state.masterData ? state.masterData.indexOf(master) : -1;
+  const globalIdx = master && state.masterData ? _masterIdxOf(master) : -1;
   const itemNum = pd.itemNum;
   const variation = pd.variation || '';
   if (action === 'forsale' && typeof collectionActionForSale === 'function') {
@@ -2292,6 +2304,28 @@ function renderMasterSubTab(tabKey) {
 }
 
 function renderBrowse() {
+  // v0.9.985 (perf): if NOTHING this page is built from changed since the last
+  // successful render (same filters, page, sort, section, era, chips — and no
+  // data write since, tracked by _rrDataRev + a cheap collection fingerprint),
+  // keep the DOM we already built. Switching back to this page becomes instant
+  // instead of re-filtering the whole 60K-row catalog every time.
+  try {
+    var _rrSig = [
+      JSON.stringify(state.filters),
+      (typeof _currentEra !== 'undefined' ? _currentEra : ''),
+      (typeof _phState === 'function' ? JSON.stringify(_phState() || null) : ''),
+      state.currentPage, state.pageSize,
+      JSON.stringify(state._collSort || null),
+      state._collSection || '',
+      (window._rrDataRev || 0),
+      (typeof _rrDataFingerprint === 'function' ? _rrDataFingerprint() : ''),
+      Math.floor(window.innerWidth / 320)
+    ].join('~');
+    var _rrTb = document.getElementById('browse-tbody');
+    if (_rrSig === window._rrBrowseSig && _rrTb && _rrTb.children.length > 0) return;
+    window._rrBrowseSig = null;               // mark stale until this render finishes
+    window._rrBrowseSigPending = _rrSig;
+  } catch (eSig) { window._rrBrowseSigPending = null; }
   _updateBrowseTabsForEra();
   if (typeof _renderHierarchyChips === 'function') _renderHierarchyChips();
   const { type, road, owned, unowned, boxed, search } = state.filters;
@@ -2343,7 +2377,27 @@ function renderBrowse() {
   // Era filter: when in My Collection mode with a specific era, exclude
   // personal-only items whose master row isn't loaded for this era. They
   // belong to a different era (or to 'all' mode which loads everything).
-  const masterNums = new Set(state.masterData.map(m => _displayItemNum(m) + '|' + (m.variation||'')));
+  // v0.9.985 (perf): this Set only changes when the catalog itself changes —
+  // cache it instead of rebuilding 60K strings on every page switch.
+  let masterNums = window.__rrMasterNums;
+  if (!masterNums || window.__rrMasterNumsSrc !== state.masterData
+      || window.__rrMasterNumsLen !== state.masterData.length) {
+    masterNums = new Set(state.masterData.map(m => _displayItemNum(m) + '|' + (m.variation||'')));
+    window.__rrMasterNums = masterNums;
+    window.__rrMasterNumsSrc = state.masterData;
+    window.__rrMasterNumsLen = state.masterData.length;
+  }
+  // v0.9.985 (perf): indexed replacement for the linear masterData.find(...)
+  // scans below — same answer (variation match within the same item number,
+  // else the first row with that number), but O(1) via the masterByItem index
+  // instead of a full-catalog walk per personal-only item.
+  const _mbiFind = function(num, variation, needType) {
+    const bucket = (state.masterByItem && state.masterByItem.get(String(num == null ? '' : num).trim())) || [];
+    if (!bucket.length) return undefined;
+    if (needType) { for (let i = 0; i < bucket.length; i++) { if (bucket[i].itemType) return bucket[i]; } return undefined; }
+    if (variation) { for (let j = 0; j < bucket.length; j++) { if (String(bucket[j].variation || '') === String(variation)) return bucket[j]; } return undefined; }
+    return bucket[0];
+  };
   const _eraFilterPersonalOnly = state.filters.owned && typeof _currentEra !== 'undefined' && _currentEra !== 'all';
   const personalOnlyItems = Object.values(state.personalData)
     .filter(pd => pd.owned && (String(pd.era || '') === 'Manual' || !masterNums.has(pd.itemNum + '|' + (pd.variation||''))))   // v0.9.718: manual rows never merge into catalog rows
@@ -2365,13 +2419,13 @@ function renderBrowse() {
       const _pdIsManual = String(pd.era || '') === 'Manual';
       const _baseNum = pd.itemNum.replace(/-(P|T|BOX|MBOX)$/i, '');
       const _baseItem = (!_pdIsManual && _baseNum !== pd.itemNum)
-        ? (state.masterData.find(m => m.itemNum === _baseNum && (!pd.variation || m.variation === pd.variation))
+        ? (_mbiFind(_baseNum, pd.variation)
            || findMaster(_baseNum))
         : null;
       // Fallback: if no suffix match, still try to find master entry by item number alone
       // (handles cases like 2426W saved with no variation but master has variations)
       const _masterFallback = (_baseItem || _pdIsManual) ? null
-        : (state.masterData.find(m => m.itemNum === pd.itemNum && (!pd.variation || m.variation === pd.variation))
+        : (_mbiFind(pd.itemNum, pd.variation)
            || findMaster(pd.itemNum, '', pd));
       const _refItem = _baseItem || _masterFallback;
       return {
@@ -2388,7 +2442,7 @@ function renderBrowse() {
           // v0.9.801: variation-blind fallback — the type is the same across
           // every variation, so ANY master row with this number settles it
           // (findMaster can return null when the variation column is blank).
-          if (!_tm) { try { _tm = (state.masterData || []).find(function (m) { return m.itemNum === pd.itemNum && m.itemType; }) || null; } catch (eT2) {} }
+          if (!_tm) { try { _tm = _mbiFind(pd.itemNum, '', true) || null; } catch (eT2) {} }
           if (_tm && _tm.itemType) return _tm.itemType;
           return _poType || (_refItem ? _refItem.itemType : '');
         })(),
@@ -2418,6 +2472,19 @@ function renderBrowse() {
         ? state.masterData.filter(function(m) { return (m._tab && _allItemTabs.indexOf(m._tab) >= 0) || !m._tab; })
         : state.masterData.filter(function(m) { return m._tab === SHEET_TABS.items || !m._tab; }));
 
+  // v0.9.985 (perf): ONE pass over the Sold list up front, instead of re-
+  // scanning it per catalog row inside the filter below (_latestSale scans
+  // every sale on every call — across 60K rows that was millions of wasted
+  // lookups per page switch). Membership in this Set = "has ever been sold",
+  // which is exactly what the old !!_latestSale(...) truthiness tested.
+  const _soldKeys = new Set();
+  (function() {
+    const sd = state.soldData || {};
+    for (const k in sd) {
+      const s = sd[k];
+      if (s && s.itemNum) _soldKeys.add(s.itemNum + '|' + (s.variation || ''));
+    }
+  })();
   state.filteredData = baseList.filter(item => {
     const _dispNum = _displayItemNum(item);
     let pd = findPD(_dispNum, item.variation);
@@ -2430,8 +2497,8 @@ function renderBrowse() {
     const hasBox = pd?.hasBox === 'Yes';
     // Session 176: Sold is now a history. Only hide an item as "sold" if it isn't
     // currently owned again — re-owned items must still appear in browse.
-    const isSold = !isOwned && (typeof _latestSale === 'function')
-      && (!!_latestSale(_displayItemNum(item), item.variation) || !!_latestSale(item.itemNum, item.variation));
+    const isSold = !isOwned
+      && (_soldKeys.has(_dispNum + '|' + (item.variation || '')) || _soldKeys.has(item.itemNum + '|' + (item.variation || '')));
     if (isSold) return false;
     const isWanted = !!state.wantData[`${item.itemNum}|${item.variation}`];
     if (state.filters.wantList && !isWanted) return false;
@@ -2636,7 +2703,7 @@ function renderBrowse() {
       return true;
     });
     if (isFiltered.length) {
-      _ephemeraRows.push({ _divider: true, label: '📋 Instruction Sheets', color: '#16a085' });
+      _ephemeraRows.push({ _divider: true, secKey: 'is', label: '📋 Instruction Sheets', color: '#16a085' });
       isFiltered.sort((a,b)=>(a.linkedItem||'').localeCompare(b.linkedItem||'')).forEach(it => {
         _ephemeraRows.push({ _is: true, item: it, label:'Instruction Sheet', emoji:'📋', color:'#16a085' });
       });
@@ -2664,21 +2731,56 @@ function renderBrowse() {
         return true;
       });
       if (!filtered.length) return;
-      _ephemeraRows.push({ _divider: true, label: emoji + ' ' + label + 's', color });
+      _ephemeraRows.push({ _divider: true, secKey: tabId, label: emoji + ' ' + label + 's', color });
       filtered.sort((a,b)=>(b.row||0)-(a.row||0)).forEach(it => {
         _ephemeraRows.push({ _eph: true, tabId, item: it, label, emoji, color });
       });
     });
   }
+  // v0.9.985 (Brad): section filter — the Jump To bar now SHOWS one section at
+  // a time instead of scrolling to it. 'trains' (default) = train rows only;
+  // a section key (catalogs / paper / is / ...) = just that section; 'all' =
+  // the old combined list. Desktop + My Collection only, matching the bar
+  // itself (mobile has no bar, so it keeps the combined list).
+  // Chip list is captured BEFORE filtering so every section stays clickable.
+  const _collAllSections = _ephemeraRows
+    .filter(function(r) { return r._divider; })
+    .map(function(r) { return { key: r.secKey, label: r.label, color: r.color }; });
+  let _collSec = (state.filters.owned && window.innerWidth > 640)
+    ? (state._collSection || 'trains') : 'all';
+  // Safety: if the chosen section no longer exists (e.g. its last item was
+  // deleted), fall back to Trains instead of showing an empty page.
+  if (_collSec !== 'all' && _collSec !== 'trains'
+      && !_collAllSections.some(function(s) { return s.key === _collSec; })) {
+    _collSec = 'trains';
+    state._collSection = 'trains';
+  }
+  const _collSecEphOnly = (_collSec !== 'all' && _collSec !== 'trains');
+  if (_collSec === 'trains') {
+    _ephemeraRows.length = 0;
+  } else if (_collSecEphOnly) {
+    const _secKeep = _ephemeraRows.filter(function(r) {
+      if (r._divider) return r.secKey === _collSec;
+      if (r._is) return _collSec === 'is';
+      if (r._eph) return r.tabId === _collSec;
+      return false;
+    });
+    _ephemeraRows.length = 0;
+    Array.prototype.push.apply(_ephemeraRows, _secKeep);
+  }
   const ephTotal = _ephemeraRows.filter(r=>r._eph).length;
-  const displayTotal = total + ephTotal;
+  const _secRowCount = _ephemeraRows.filter(r=>r._eph || r._is).length;   // v0.9.985: incl. instruction sheets
+  const displayTotal = _collSecEphOnly ? _secRowCount : total + ephTotal;
   document.getElementById('result-count').textContent = `${displayTotal.toLocaleString()} items`;
   // S151: append all-mode loading indicator if background refresh is running.
   if (typeof _renderAllLoadingIndicator === 'function') _renderAllLoadingIndicator();
   // Page-info text — handle the zero-main-items case so we don't say
   // "Showing 1-0 of 0 trains" when only ephemera/IS rows exist.
   let _pageInfo;
-  if (total === 0 && ephTotal > 0) {
+  if (_collSecEphOnly) {
+    // v0.9.985: single-section view — count just what's on screen.
+    _pageInfo = `Showing ${_secRowCount} item${_secRowCount !== 1 ? 's' : ''}`;
+  } else if (total === 0 && ephTotal > 0) {
     _pageInfo = `Showing ${ephTotal} other item${ephTotal !== 1 ? 's' : ''}`;
   } else if (total === 0) {
     _pageInfo = 'No items';
@@ -2695,7 +2797,7 @@ function renderBrowse() {
   let _ephRowsHtml = '';
   if (_ephemeraRows.length) {
     _ephRowsHtml = _ephemeraRows.map((r, _ri) => {
-      if (r._divider) return `<tr id="ephsec-${_ri}"><td colspan="${state.filters.owned ? '8' : '9'}" style="padding:0.5rem 0.75rem;background:var(--surface2);font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:${r.color};text-transform:uppercase;border-top:2px solid ${r.color}33">${r.label}</td></tr>`;
+      if (r._divider) return `<tr id="ephsec-${_ri}"><td colspan="9" style="padding:0.5rem 0.75rem;background:var(--surface2);font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:${r.color};text-transform:uppercase;border-top:2px solid ${r.color}33">${r.label}</td></tr>`;
       const it = r.item;
       const cond = it.condition ? parseInt(it.condition) : null;
       const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
@@ -2707,8 +2809,10 @@ function renderBrowse() {
           const _isKeyArg = "'" + String(_isKey).replace(/'/g, "\\'") + "'";
           const _isActions = (typeof _collectionActionsHTML === 'function' && _isKey)
             ? _collectionActionsHTML('is', _isKey, it) : '';
-          // v0.9.812 (Brad): 8 columns to match the My Collection header
-          // (MFR | ITEM# | VAR | TYPE | DESCRIPTION | EST.WORTH | DATE | ACTIONS)
+          // v0.9.985 (Brad): 9 columns to match the My Collection header —
+          // (MFR | ITEM# | VAR | TYPE | PHOTO | DESCRIPTION | EST.WORTH | DATE | ACTIONS).
+          // The PHOTO column was added to the header in v0.9.909 but these rows
+          // were never updated, so everything from PHOTO on sat one column left.
           const _cSymIS = (typeof _currencySymbol === 'function') ? _currencySymbol() : '$';
           const _isWorthN = it.estValue ? parseFloat(it.estValue) : NaN;
           return `<tr onclick="openISDetail(${_isKeyArg})" style="cursor:pointer">
@@ -2716,6 +2820,7 @@ function renderBrowse() {
             <td><span style="font-family:var(--font-mono);font-size:0.85rem;color:#16a085;font-weight:600">${it.sheetNum}</span></td>
             <td style="text-align:center"><span class="text-dim">—</span></td>
             <td><span class="tag" style="border-color:#16a085;color:#16a085;background:#16a08518">Instr. Sheet</span></td>
+            <td style="width:52px"></td>
             <td><span style="color:var(--text-mid);font-size:0.85rem">For #${it.linkedItem || '—'}</span></td>
             <td style="font-size:0.82rem;color:var(--gold);white-space:nowrap;text-align:center">${isFinite(_isWorthN) ? _cSymIS + _isWorthN.toLocaleString() : '<span style="color:var(--text-dim)">—</span>'}</td>
             <td style="font-size:0.76rem;color:var(--text-dim);white-space:nowrap;text-align:center">${it.dateAcquired ? ((typeof _formatDate === 'function') ? _formatDate(it.dateAcquired) : it.dateAcquired) : '—'}</td>
@@ -2742,7 +2847,8 @@ function renderBrowse() {
           <button onclick="event.stopPropagation();ephemeraDelete('${r.tabId}',${it.row})" style="flex:0 0 auto;padding:0.35rem 0.5rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--accent);font-family:var(--font-body)">Remove</button>
         </div>` : '';
 
-      // ── My Collection view: 8 columns to match the header ──────────
+      // ── My Collection view: 9 columns to match the header (v0.9.985:
+      //    thumbnail moved to its own PHOTO column, same as train rows) ──
       // v0.9.813 (Brad): real maker badge (these buckets are Lionel paper),
       // item # stays in the ITEM # column, TITLE moves to the wide
       // DESCRIPTION column (was cramped), actions trimmed to the same three
@@ -2766,16 +2872,14 @@ function renderBrowse() {
         return `<tr onclick="openEphemeraDetail('${r.tabId}',${it.row})" style="cursor:pointer">
           ${_ephMfrCell}
           <td style="max-width:170px">
-            <div style="display:flex;align-items:center;gap:0.45rem">
-              ${_photoLink ? `<span id="${_thumbId}" style="flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:4px;background:var(--surface2);overflow:hidden;color:var(--text-dim)"></span>` : ''}
-              <span style="min-width:0">
-                <span class="item-num" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom" title="${String(it.itemNum || '').replace(/"/g,'&quot;')}">${(r.tabId === 'catalogs' && typeof _catalogDisplayLabel === 'function') ? _catalogDisplayLabel(it.year, it.catType, it.itemNum) : (it.itemNum || '—')}</span>
-                ${_photoLink ? `<span onclick="event.stopPropagation();openPhotoFolder('${it.itemNum||''}','${_photoLink}')" style="font-size:0.85rem;cursor:pointer" title="Open photo folder">📷</span>` : ''}
-              </span>
-            </div>
+            <span style="min-width:0">
+              <span class="item-num" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom" title="${String(it.itemNum || '').replace(/"/g,'&quot;')}">${(r.tabId === 'catalogs' && typeof _catalogDisplayLabel === 'function') ? _catalogDisplayLabel(it.year, it.catType, it.itemNum) : (it.itemNum || '—')}</span>
+              ${_photoLink ? `<span onclick="event.stopPropagation();openPhotoFolder('${it.itemNum||''}','${_photoLink}')" style="font-size:0.85rem;cursor:pointer" title="Open photo folder">📷</span>` : ''}
+            </span>
           </td>
           <td style="text-align:center"><span class="text-dim">—</span></td>
           <td><span class="tag" style="border-color:${r.color};color:${r.color};background:${r.color}18">${_ephTypeLabel}</span></td>
+          <td style="width:52px;text-align:center;padding:2px 4px">${_photoLink ? `<span id="${_thumbId}" style="display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:5px;background:var(--surface2);overflow:hidden;color:var(--text-dim);vertical-align:middle"></span>` : ''}</td>
           <td style="font-size:0.85rem">
             <div style="color:var(--text);font-weight:600;line-height:1.3">${it.title || '—'}</div>
             ${_ephSub ? `<div style="color:var(--text-dim);font-size:0.78rem;margin-top:1px">${_ephSub}</div>` : ''}
@@ -2851,7 +2955,7 @@ function renderBrowse() {
     const isWanted = !!state.wantData[`${item.itemNum}|${item.variation}`];
     const cond = pd?.condition ? parseInt(pd.condition) : null;
     const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
-    let globalIdx = state.masterData.indexOf(item._origItem || item);
+    let globalIdx = _masterIdxOf(item._origItem || item);
     // For _personalOnly items not in masterData, use negative index via global array
     if (globalIdx < 0 && item._personalOnly) {
       const poKey = findPDKey(_displayItemNum(item), item.variation);
@@ -2999,7 +3103,10 @@ function renderBrowse() {
         </td>
       </tr>`;
     } else {
-      const vdShort = item.varDesc ? (typeof varShortLabel === 'function' ? varShortLabel(item.varDesc, 28) : (item.varDesc.length > 28 ? item.varDesc.substring(0,28)+'…' : item.varDesc)) : '';
+      // v0.9.985 (Brad): truncation now scales with the window — wide screens
+      // show far more of the variation text (was a hard 28-char chop).
+      const _vdMax = window.innerWidth > 1500 ? 90 : window.innerWidth > 1200 ? 64 : window.innerWidth > 900 ? 44 : 28;
+      const vdShort = item.varDesc ? (typeof varShortLabel === 'function' ? varShortLabel(item.varDesc, _vdMax) : (item.varDesc.length > _vdMax ? item.varDesc.substring(0,_vdMax)+'…' : item.varDesc)) : '';
       const vdCell = vdShort
         ? `<span style="cursor:pointer;border-bottom:1px dashed var(--border);color:var(--text-mid)" onclick="event.stopPropagation();showVarDescPopup(${globalIdx})">${vdShort}</span>`
         : '<span class="text-dim">—</span>';
@@ -3082,7 +3189,11 @@ function renderBrowse() {
     }
     if (cardsEl) cardsEl.innerHTML = (rowsHtml.join('') || emptyHtml) + _ephCardsHtml;
   } else {
-    tbody.innerHTML = (rowsHtml.join('') || emptyHtml) + _ephRowsHtml;
+    // v0.9.985: single-section view (Catalogs / Paper / ...) hides train rows
+    // entirely — and skips the "no items" banner, since the section has rows.
+    tbody.innerHTML = _collSecEphOnly
+      ? (_ephRowsHtml || emptyHtml)
+      : (rowsHtml.join('') || emptyHtml) + _ephRowsHtml;
   }
   // Async: load thumbnails for My Collection view
   if (state.filters.owned) {
@@ -3109,15 +3220,15 @@ function renderBrowse() {
       });
     });
   }
-  // v0.9.815 (Brad): quick-jump buttons to the list sections (Catalogs, Paper
-  // Items, Instruction Sheets…) — not a filter, just a fast way down a big
-  // collection. Sits above the table; the table scrolls in its own panel.
+  // v0.9.985 (Brad): the bar is now a section FILTER, not a scroll shortcut —
+  // each chip shows ONLY that part of the collection (Trains / Catalogs /
+  // Paper Items / …), with "All" bringing back the old combined list. The
+  // chip list comes from _collAllSections (captured before filtering), so
+  // every section stays clickable no matter which one is active.
   (function() {
     var wrapEl = document.querySelector('.browse-table-wrap');
     var bar = document.getElementById('coll-jump-bar');
-    var sections = _ephemeraRows
-      .map(function(r, i) { return r._divider ? { id: 'ephsec-' + i, label: r.label, color: r.color } : null; })
-      .filter(Boolean);
+    var sections = _collAllSections || [];
     if (!state.filters.owned || isMobile || !sections.length) { if (bar) bar.style.display = 'none'; return; }
     if (!bar && wrapEl && wrapEl.parentNode) {
       bar = document.createElement('div');
@@ -3126,12 +3237,22 @@ function renderBrowse() {
     }
     if (!bar) return;
     bar.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center;margin:0 0 0.5rem';
-    var chip = 'padding:0.25rem 0.7rem;border-radius:999px;font-size:0.72rem;font-weight:600;cursor:pointer;font-family:var(--font-body);background:var(--surface2)';
-    bar.innerHTML = '<span style="font-size:0.68rem;letter-spacing:0.08em;color:var(--text-dim);text-transform:uppercase;margin-right:0.2rem">Jump to:</span>'
-      + '<button onclick="_collJumpTop()" style="' + chip + ';border:1px solid var(--border);color:var(--text-mid)">Trains</button>'
+    var _active = state._collSection || 'trains';
+    function _chip(key, label, color) {
+      var on = (_active === key);
+      return '<button onclick="_collSectionSet(\'' + key + '\')" style="'
+        + 'padding:0.25rem 0.7rem;border-radius:999px;font-size:0.72rem;font-weight:600;cursor:pointer;font-family:var(--font-body);'
+        + 'border:1.5px solid ' + color + ';'
+        + 'color:' + (on ? '#fff' : color) + ';'
+        + 'background:' + (on ? color : 'var(--surface2)') + '">'
+        + label + '</button>';
+    }
+    bar.innerHTML = '<span style="font-size:0.68rem;letter-spacing:0.08em;color:var(--text-dim);text-transform:uppercase;margin-right:0.2rem">Show:</span>'
+      + _chip('trains', 'Trains', '#2980b9')
       + sections.map(function(sec) {
-          return '<button onclick="_collJumpTo(\'' + sec.id + '\')" style="' + chip + ';border:1px solid ' + sec.color + ';color:' + sec.color + '">' + sec.label.replace(/^[^A-Za-z0-9]+\s*/, '') + '</button>';
-        }).join('');
+          return _chip(sec.key, sec.label.replace(/^[^A-Za-z0-9]+\s*/, ''), sec.color);
+        }).join('')
+      + _chip('all', 'All', '#7f8c8d');
   })();
 
   // v0.9.812: load ephemera thumbnails — the eph-thumb span was rendered but
@@ -3185,7 +3306,8 @@ function renderBrowse() {
   // Filters out the previously-shown page "0" when total === 0, and hides
   // the pager entirely on a single-page result.
   const paginEl = document.getElementById('pagination-btns');
-  if (pages <= 1) {
+  // v0.9.985: single-section view has no train pages — hide the pager.
+  if (pages <= 1 || _collSecEphOnly) {
     paginEl.innerHTML = '';
   } else {
     let btns = '';
@@ -3198,6 +3320,9 @@ function renderBrowse() {
     if (state.currentPage < pages) btns += `<button class="page-btn" onclick="goPage(${state.currentPage+1})">›</button>`;
     paginEl.innerHTML = btns;
   }
+  // v0.9.985 (perf): render finished — remember what it was built from, so an
+  // unchanged revisit can skip all of the above (see the check at the top).
+  try { window._rrBrowseSig = window._rrBrowseSigPending || null; } catch (eSig2) {}
 }
 
 function goPage(p) { state.currentPage = p; renderBrowse(); document.getElementById('main-content').scrollTop = 0; }

@@ -138,6 +138,8 @@ async function _withTokenRetry(fetchFn) {
 }
 
 async function sheetsUpdate(spreadsheetId, range, values) {
+  // v0.9.985 (perf): any write = data changed — invalidate cached page renders.
+  try { window._rrDataRev = (window._rrDataRev || 0) + 1; } catch (e) {}
   // v0.9.826 (TODO-003): view-only offline mode — writes need a connection.
   if (window._offlineMode) {
     if (typeof showToast === 'function') showToast("You're offline — this change needs a connection", 3500, true);
@@ -164,6 +166,8 @@ async function sheetsUpdate(spreadsheetId, range, values) {
 }
 
 async function sheetsAppend(spreadsheetId, range, values) {
+  // v0.9.985 (perf): any write = data changed — invalidate cached page renders.
+  try { window._rrDataRev = (window._rrDataRev || 0) + 1; } catch (e) {}
   // v0.9.826 (TODO-003): view-only offline mode — writes need a connection.
   if (window._offlineMode) {
     if (typeof showToast === 'function') showToast("You're offline — this change needs a connection", 3500, true);
@@ -209,6 +213,8 @@ async function sheetsAppend(spreadsheetId, range, values) {
 }
 
 async function sheetsDeleteRow(spreadsheetId, sheetName, rowNumber) {
+  // v0.9.985 (perf): any write = data changed — invalidate cached page renders.
+  try { window._rrDataRev = (window._rrDataRev || 0) + 1; } catch (e) {}
   // First get the sheetId (numeric) for the named tab
   const metaRes = await _withTokenRetry(() => fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties`,

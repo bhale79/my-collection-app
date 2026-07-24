@@ -397,10 +397,12 @@ state._boxVarCache = new Map();          // itemNum -> cached getBoxVariations r
 
 function _rebuildMasterIndex() {
   const m = new Map();
+  const im = new Map();                  // v0.9.985 (perf): master row -> its index
   const rows = state.masterData || [];
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
     if (!r) continue;
+    im.set(r, i);                        // v0.9.985: O(1) replacement for masterData.indexOf
     const k = String(r.itemNum || '').trim();
     if (!k) continue;
     let bucket = m.get(k);
@@ -408,11 +410,59 @@ function _rebuildMasterIndex() {
     bucket.push(r);
   }
   state.masterByItem = m;
+  state._masterIdxMap = im;              // v0.9.985: see _masterIdxOf below
   state._boxVarCache = new Map();        // bust box-variation cache on reindex
+  // v0.9.985: master data changed — invalidate cached page renders.
+  try { window._rrDataRev = (window._rrDataRev || 0) + 1; } catch (e) {}
   // Session 127: also build the per-era search index used by cross-scope
   // search. Fire-and-forget IDB write — never blocks the UI.
   if (typeof _writeSearchIndex === 'function') _writeSearchIndex();
 }
+
+// v0.9.985 (perf): O(1) lookup of a master row's index. Replaces 17 call
+// sites that did state.masterData.indexOf(row) — a front-to-back scan of the
+// whole catalog (up to 60K rows) PER ITEM, which made My Collection and the
+// dashboard noticeably slow. The map is rebuilt alongside masterByItem every
+// time the catalog loads, so it can never go stale. Falls back to indexOf if
+// the map somehow isn't built yet (identical behavior, just slower).
+function _masterIdxOf(m) {
+  if (!m) return -1;
+  const map = state._masterIdxMap;
+  if (map) {
+    const v = map.get(m);
+    return v === undefined ? -1 : v;
+  }
+  return (state.masterData || []).indexOf(m);
+}
+if (typeof window !== 'undefined') window._masterIdxOf = _masterIdxOf;
+
+// v0.9.985 (perf): cheap fingerprint of everything the browse / My Collection
+// lists are built from. Used (together with window._rrDataRev) to answer "has
+// anything changed since the last render?" — if not, the page keeps its
+// existing DOM instead of rebuilding from scratch on every visit. Cost is
+// proportional to the OWNED collection (hundreds), never the 60K catalog.
+function _rrDataFingerprint() {
+  let f = 0, n = 0;
+  try {
+    const pd = state.personalData || {};
+    for (const k in pd) {
+      n++;
+      const p = pd[k];
+      if (p) { f += (p._savedAt || 0) % 1e7; if (p.owned) f += 13; }
+    }
+    f += n * 1000003;
+    f += Object.keys(state.soldData || {}).length * 7919;
+    f += Object.keys(state.wantData || {}).length * 104729;
+    f += Object.keys(state.isData || {}).length * 1299709;
+    f += Object.keys(state.mySetsData || {}).length * 15485863;
+    f += Object.keys(state.forSaleData || {}).length * 512927;
+    const eph = state.ephemeraData || {};
+    for (const t in eph) { f += Object.keys(eph[t] || {}).length * 999331; }
+    f += (state.masterData || []).length;
+  } catch (e) { return 'x' + Date.now(); }   // any error = treat as changed
+  return f;
+}
+if (typeof window !== 'undefined') window._rrDataFingerprint = _rrDataFingerprint;
 
 // ── Session 127 ─ Per-era search index for cross-scope search ───────────────
 // Compact subset of fields written to IDB at lv_search_index_<era>, used by

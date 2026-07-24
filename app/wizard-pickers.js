@@ -324,7 +324,7 @@ function _selectCollItem(pdKey) {
   var pd = state.personalData[pdKey];
   if (!pd) return;
   var master = (String(pd.era || '') === 'Manual') ? null : findMaster(pd.itemNum, (pd.variation||''), pd);   // v0.9.731: manual rule
-  var idx = master ? state.masterData.indexOf(master) : -1;
+  var idx = master ? _masterIdxOf(master) : -1;
   var ov = document.getElementById('pick-fs-overlay');
   if (ov) ov.remove();
 

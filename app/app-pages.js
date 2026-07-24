@@ -114,7 +114,7 @@ function _collectAllOwnedItems() {
     if (pd.condition) extras.push('Condition ' + pd.condition);
     if (pd.hasBox === 'Yes') extras.push('✓ Has box');
     if (pd.userEstWorth) extras.push(_currencySymbol() + parseFloat(pd.userEstWorth).toLocaleString());
-    const idx = master && state.masterData ? state.masterData.indexOf(master) : -1;
+    const idx = master && state.masterData ? _masterIdxOf(master) : -1;
     out.push({
       type:    'items',
       key:     'pd|' + key,
@@ -379,6 +379,22 @@ function buildCollectionPage() {
   const container = document.getElementById('page-collection');
   if (!container) return;
 
+  // v0.9.985 (perf): if nothing this page is built from changed since the
+  // last render (same tab, search, era — and no data write since), keep the
+  // DOM we already built instead of re-collecting every owned item.
+  try {
+    var _cSig = [
+      state._collectionTab || 'all', state._collectionSearch || '',
+      (typeof _currentEra !== 'undefined' ? _currentEra : ''),
+      (window._rrDataRev || 0),
+      (typeof _rrDataFingerprint === 'function' ? _rrDataFingerprint() : ''),
+      Math.floor(window.innerWidth / 320)
+    ].join('~');
+    if (_cSig === window._rrCollPageSig && container.firstElementChild) return;
+    window._rrCollPageSig = null;             // mark stale until render finishes
+    window._rrCollPageSigPending = _cSig;
+  } catch (eSig) { window._rrCollPageSigPending = null; }
+
   const activeTab = state._collectionTab || 'all';
   const search = (state._collectionSearch || '').trim().toLowerCase();
 
@@ -456,6 +472,8 @@ function buildCollectionPage() {
     + '</div>'
     + tabBarHTML
     + listHTML;
+  // v0.9.985 (perf): render finished — remember what it was built from.
+  try { window._rrCollPageSig = window._rrCollPageSigPending || null; } catch (eSig2) {}
 }
 
 function _collectionSetTab(tabId) {
@@ -1024,7 +1042,7 @@ function buildWantPage() {
       const master = findMaster(w.itemNum, w.variation, w);
       const name = master ? (master.roadName || master.description || master.itemType || '') : '';
       const pColor = priorityColor[w.priority] || 'var(--text-dim)';
-      const masterIdx2 = master ? state.masterData.indexOf(master) : -1;
+      const masterIdx2 = master ? _masterIdxOf(master) : -1;
       const escVar = (w.variation||'').replace(/'/g,"\\'");
       const escName = (name||'').replace(/'/g,"\\'");
       // Set detection for mobile cards
@@ -3043,7 +3061,7 @@ function _upgradeViewMine(ugKey) {
   if (!ug) { showToast('Upgrade entry not found'); return; }
   const master = findMaster(ug.itemNum);
   if (master) {
-    showItemDetailPage(state.masterData.indexOf(master));
+    showItemDetailPage(_masterIdxOf(master));
   } else {
     showToast('Item not found in master catalog');
   }
@@ -3488,7 +3506,7 @@ async function _upgradeGotItFinish(ugKey, action) {
   if (action === 'forsale') {
     // Navigate to for sale flow for this item
     const master = findMaster(itemNum);
-    const idx = master ? state.masterData.indexOf(master) : -1;
+    const idx = master ? _masterIdxOf(master) : -1;
     if (idx >= 0) collectionActionForSale(idx, itemNum, variation, null, upgradeEntry ? upgradeEntry.inventoryId : '');
     else showToast('Navigate to My Collection to list for sale');
   } else if (action === 'remove') {

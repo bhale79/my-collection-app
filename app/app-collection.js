@@ -312,7 +312,7 @@ function _nonItemDetailEdit(type, key) {
     var pd = state.personalData ? state.personalData[key] : null;
     if (!pd) { if (typeof showToast === 'function') showToast('Service tool not found', 3000, true); return; }
     var master = typeof findMaster === 'function' ? findMaster(pd.itemNum, null, pd) : null;
-    var masterIdx = master && state.masterData ? state.masterData.indexOf(master) : -1;
+    var masterIdx = master && state.masterData ? _masterIdxOf(master) : -1;
     // Audit fix #1 (Session 116): if the master row isn't loaded
     // (e.g. a different era is selected), updateCollectionItem(-1, ...)
     // would silently misbehave. Toast and bail instead.
@@ -552,7 +552,7 @@ function _nonItemDetailPhotos(type, key) {
     var pdSvc = state.personalData ? state.personalData[key] : null;
     if (!pdSvc) { if (typeof showToast === 'function') showToast('Service tool not found', 3000, true); return; }
     var masterSvc = typeof findMaster === 'function' ? findMaster(pdSvc.itemNum, null, pdSvc) : null;
-    var masterIdxSvc = masterSvc && state.masterData ? state.masterData.indexOf(masterSvc) : -1;
+    var masterIdxSvc = masterSvc && state.masterData ? _masterIdxOf(masterSvc) : -1;
     // Audit fix #1: bail with a helpful toast if the master row isn't
     // loaded (era not selected) instead of falling through with -1.
     if (!masterSvc || masterIdxSvc < 0) {
@@ -1498,7 +1498,7 @@ window._grpEditMember = function (i) {
   var idx = -1;
   if (String(p.era || '') !== 'Manual' && typeof findMaster === 'function') {
     var m = findMaster(p.itemNum, p.variation, p);
-    idx = m ? state.masterData.indexOf(m) : -1;
+    idx = m ? _masterIdxOf(m) : -1;
   }
   window._lastDetailPdKey = k;
   showItemPanel(idx, k, 'edit');
@@ -2454,7 +2454,7 @@ function _renderPickFsList(q) {
     var master = findMaster(pd.itemNum, (pd.variation||''), pd) || {};
     // Phase 3: check by inventoryId of the specific copy
     var alreadyListed = !!(pd.inventoryId && state.forSaleData[pd.inventoryId]);
-    var idx = state.masterData.indexOf(master);
+    var idx = _masterIdxOf(master);
     if (idx < 0) idx = -1;
 
     html += '<button onclick="_pickFsSelect(' + idx + ',\'' + pdKey.replace(/'/g,"\\'") + '\')" style="'
