@@ -20,6 +20,98 @@ var tokenClient;
 // ── BETA GATE ──────────────────────────────────────────────────
 const _BETA_CODE = 'BETA2026';
 
+// ── v0.9.998 (Brad): granted-scope check ────────────────────────────────
+// Google's granular-permissions consent screen shows the Drive checkbox
+// UNCHECKED by default, and an app cannot pre-check it. Someone who clicks
+// Continue without ticking it gets a token that can't create their
+// collection sheet — previously that failed later, silently and confusingly.
+//
+// Google tells us which scopes were actually granted (the `scope` field on
+// the token response / redirect hash). We record it and check it.
+//
+// FAILS OPEN BY DESIGN: we only block when Google explicitly tells us Drive
+// was NOT granted. If the scope string is missing or unreadable for any
+// reason, the user proceeds exactly as before. A permissions checker that
+// locked out working users would be worse than the problem it solves.
+function _rrNoteGrantedScopes(s) {
+  if (typeof s === 'string' && s.trim()) window._rrGrantedScopes = s;
+}
+function _rrDriveScopeDenied() {
+  var g = window._rrGrantedScopes;
+  if (typeof g !== 'string' || !g.trim()) return false;  // unknown -> allow
+  return g.indexOf('drive.file') === -1 && g.indexOf('auth/drive') === -1;
+}
+
+// Full-screen "one more step" panel, shown instead of dropping the user into
+// an app that cannot save. Offers one button: run sign-in again, this time
+// forcing Google to re-show the consent screen (prompt:'consent').
+function _rrShowScopeNeededScreen() {
+  console.warn('[Auth] Drive permission not granted. Granted scopes:', window._rrGrantedScopes);
+  try { if (typeof hideLoading === 'function') hideLoading(); } catch (e) {}
+  try { var _ov = document.getElementById('signin-loading-overlay'); if (_ov) _ov.remove(); } catch (e) {}
+  try { var _app = document.getElementById('app'); if (_app) _app.classList.remove('active'); } catch (e) {}
+  try { var _bg = document.getElementById('beta-gate'); if (_bg) _bg.style.display = 'none'; } catch (e) {}
+  try { var _as = document.getElementById('auth-screen'); if (_as) _as.style.display = 'none'; } catch (e) {}
+
+  var d = document.getElementById('rr-scope-needed');
+  if (!d) {
+    d = document.createElement('div');
+    d.id = 'rr-scope-needed';
+    document.body.appendChild(d);
+  }
+  d.style.cssText = 'position:fixed;inset:0;z-index:99998;display:flex;align-items:center;'
+    + 'justify-content:center;padding:1.5rem;background:var(--bg,#0d0d1a);'
+    + 'color:var(--text,#eee);font-family:var(--font-body,sans-serif);overflow:auto';
+  d.innerHTML =
+    '<div style="max-width:420px;width:100%;text-align:center">' +
+      '<img src="conductor.png" alt="" aria-hidden="true" style="height:110px;width:auto;display:block;margin:0 auto 0.75rem">' +
+      '<div style="font-family:var(--font-head);font-size:1.6rem;font-weight:700;color:var(--cream,#f8e8c0);letter-spacing:0.05em;text-transform:uppercase;margin-bottom:0.4rem">One more step</div>' +
+      '<p style="font-size:0.92rem;color:var(--text-mid,#bbb);line-height:1.6;margin-bottom:1.25rem">' +
+        'Almost there — but the <strong style="color:var(--text,#eee)">Google Drive</strong> box on the permission screen wasn\'t ticked, ' +
+        'so we can\'t create your collection sheet yet.' +
+      '</p>' +
+      '<div style="background:var(--surface,#161c34);border:1px solid var(--border,#2a3355);border-radius:12px;padding:1rem 1.1rem;text-align:left;margin-bottom:1.25rem">' +
+        '<div style="font-size:0.85rem;font-weight:600;color:var(--cream,#f8e8c0);margin-bottom:0.4rem">Why we need it</div>' +
+        '<p style="font-size:0.82rem;color:var(--text-mid,#bbb);line-height:1.6;margin:0">' +
+          'Your collection lives in a Google Sheet in <strong style="color:var(--text,#eee)">your own Drive</strong> — we have to create that file for you. ' +
+          'This permission only covers files this app makes. It can never see the rest of your Drive.' +
+        '</p>' +
+      '</div>' +
+      '<button onclick="_rrRetryScopeConsent()" style="width:100%;padding:0.85rem;border:none;border-radius:8px;background:var(--accent,#f05008);color:#fff;font-family:var(--font-body,sans-serif);font-size:0.95rem;font-weight:600;cursor:pointer">' +
+        'Try again — tick the Drive box' +
+      '</button>' +
+      '<p style="font-size:0.75rem;color:var(--text-dim,#8d7f5e);margin-top:1rem;line-height:1.5">' +
+        'Still stuck? Email <a href="mailto:' + (typeof ADMIN_EMAIL !== 'undefined' ? ADMIN_EMAIL : 'admin@therailroster.com') + '" style="color:var(--accent2,#d4a843);text-decoration:none">' + (typeof ADMIN_EMAIL !== 'undefined' ? ADMIN_EMAIL : 'admin@therailroster.com') + '</a>.' +
+      '</p>' +
+    '</div>';
+}
+
+// Retry: drop the half-granted token and force Google to show consent again.
+function _rrRetryScopeConsent() {
+  try {
+    accessToken = null;
+    window._rrGrantedScopes = null;
+    localStorage.removeItem('lv_token');
+    localStorage.removeItem('lv_token_expiry');
+    sessionStorage.removeItem('lv_signing_in');
+  } catch (e) {}
+  window._signInInFlight = false;
+  var d = document.getElementById('rr-scope-needed');
+  if (d) d.remove();
+  _tokenIsInitial = true;
+  try {
+    if (tokenClient) {
+      tokenClient.requestAccessToken({ prompt: 'consent' });
+    } else {
+      window.location.href = _oauthRedirectUrl('consent');
+    }
+  } catch (e) {
+    console.error('[Auth] retry consent failed:', e);
+    if (typeof showToast === 'function') showToast('Could not reopen the Google window. Please reload and try again.', 4000, true);
+  }
+}
+if (typeof window !== 'undefined') { window._rrRetryScopeConsent = _rrRetryScopeConsent; }
+
 function _buildBetaGate() {
   var d = document.getElementById('beta-gate');
   if (!d || d.dataset.built) return;
@@ -112,6 +204,7 @@ function _checkOAuthRedirect() {
 
     // Store the token
     accessToken = params.access_token;
+    _rrNoteGrantedScopes(params.scope);   // v0.9.998: what Google actually granted
     var expiresIn = parseInt(params.expires_in || '3600');
     localStorage.setItem('lv_token', accessToken);
     localStorage.setItem('lv_token_expiry', String(Date.now() + (expiresIn - 300) * 1000));
@@ -420,6 +513,7 @@ function onTokenReceived(resp) {
   const isInitial = _tokenIsInitial;
   _tokenIsInitial = false; // all subsequent tokens are background refreshes
 
+  _rrNoteGrantedScopes(resp && resp.scope);   // v0.9.998: what Google actually granted
   accessToken = resp.access_token;
   // Persist token + expiry so it survives mobile page suspension
   localStorage.setItem('lv_token', accessToken);
@@ -440,6 +534,14 @@ function onTokenReceived(resp) {
   }
 
   // ── Initial sign-in / app startup path ──
+
+  // v0.9.998: stop here if Google told us Drive access was NOT granted —
+  // the user unticked (or never ticked) the granular-permissions checkbox.
+  // Going further would create a session that silently cannot save.
+  if (_rrDriveScopeDenied()) {
+    _rrShowScopeNeededScreen();
+    return;
+  }
 
   // Fetch user info from Google if we don't have it yet
   if (!state.user) {

@@ -32,18 +32,19 @@ function _buildAuthScreen() {
       '<img class="auth-conductor" src="conductor.png" alt="" aria-hidden="true">' +
       '<div class="auth-wordmark">' + _mark + '</div>' +
       '<div class="auth-tagline">' + _tag + '</div>' +
+      // v0.9.998 (Brad): blurbs lead with the payoff, not the plumbing.
       '<div class="auth-features">' +
         '<div class="auth-feature">' +
           '<span style="font-size:1.3rem;flex-shrink:0">&#x1F4CB;</span>' +
-          '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:#fff">Catalog every item you own</strong><br>Condition, price paid, box, photos \u2014 all in one place.</div>' +
+          '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:#fff">Know exactly what you own</strong><br>Condition, variation, box, price paid \u2014 one record per item.</div>' +
         '</div>' +
         '<div class="auth-feature">' +
           '<span style="font-size:1.3rem;flex-shrink:0">&#x1F4F8;</span>' +
-          '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:#fff">Store photos to Google Drive</strong><br>Every view, every box \u2014 organized automatically.</div>' +
+          '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:#fff">Every item, every picture, one list</strong><br>Add photos from your phone or desktop \u2014 they attach to the item automatically.</div>' +
         '</div>' +
         '<div class="auth-feature">' +
           '<span style="font-size:1.3rem;flex-shrink:0">&#x1F682;</span>' +
-          '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:#fff">Every era, every maker</strong><br>Pre-loaded master catalog \u2014 Lionel, Atlas, MTH, Weaver and more, prewar through modern.</div>' +
+          '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:#fff">130,000+ items already catalogued</strong><br>Lionel, Atlas, MTH, Weaver and more, prewar through modern \u2014 type a number and the details fill in.</div>' +
         '</div>' +
       '</div>' +
     '</div>' +
@@ -52,6 +53,14 @@ function _buildAuthScreen() {
       '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:1rem;margin-bottom:1rem;text-align:left">' +
         '<div style="font-size:0.85rem;font-weight:600;color:var(--cream);margin-bottom:0.4rem">Why Google sign-in?</div>' +
         '<p style="font-size:0.8rem;color:var(--text-mid);line-height:1.6;margin:0">This app stores your collection data in <strong style="color:var(--text)">your own Google Sheet</strong> and photos in <strong style="color:var(--text)">your own Google Drive</strong>. Nothing is stored on our servers \u2014 you own all your data and can access it anytime, even outside the app.</p>' +
+      '</div>' +
+      // v0.9.998 (Brad): Google's granular-permissions screen shows the Drive
+      // checkbox UNCHECKED by default and we cannot pre-check it. Warn BEFORE
+      // they get there — a skipped checkbox means the app can't create their
+      // collection sheet. (app-auth.js catches anyone who skips it anyway.)
+      '<div style="display:flex;align-items:flex-start;gap:0.6rem;background:rgba(212,168,67,0.10);border:1px solid rgba(212,168,67,0.35);border-radius:10px;padding:0.7rem 0.85rem;margin-bottom:1rem;text-align:left">' +
+        '<span style="font-size:1.05rem;line-height:1.3;flex-shrink:0">&#9989;</span>' +
+        '<div style="font-size:0.8rem;color:var(--text-mid);line-height:1.5">On the next screen Google shows a <strong style="color:var(--text)">checkbox for Google Drive</strong>. Please tick it — that\'s what lets us create your collection sheet. It stays unticked unless you tap it.</div>' +
       '</div>' +
       '<button class="btn-google" onclick="handleSignIn()">' +
         '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">' +
