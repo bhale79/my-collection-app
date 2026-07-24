@@ -52,7 +52,9 @@ function _buildAuthScreen() {
         '</svg>' +
         'Continue with Google' +
       '</button>' +
-      '<p class="auth-note">You\'ll be asked to allow access to Google Sheets and Google Drive. This is how the app reads and saves your collection data. We never see your password.</p>' +
+      // v0.9.996 (Brad): copy matches the narrowed permissions — the app can
+      // only manage files IT creates, never the rest of their Drive/Sheets.
+      '<p class="auth-note">Google will ask you to let the app manage <strong style="color:var(--text)">only the files it creates for you</strong> — your collection sheet and photo folders. It can never see the rest of your Drive, and we never see your password.</p>' +
       // v0.9.939 (Brad): consent line — agreement belongs at sign-in, BEFORE
       // an account exists. Links also live in Preferences > About.
       '<p style="font-size:0.72rem;color:var(--text-dim);margin-top:0.6rem;line-height:1.5">By continuing, you agree to our ' +
