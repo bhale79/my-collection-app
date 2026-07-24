@@ -375,7 +375,7 @@ window._soldPickSrcSet = function (src) {
 // last-used kind across sessions (localStorage lv_add_kind).
 const _WIZ_KINDS = [
   { id: 'cataloged', label: '🚂 Cataloged Item' },
-  { id: 'set',       label: '🎁 Set' },
+  { id: 'set',       label: '🎁 Lionel Postwar Set' },   // v0.9.994 (Brad): only era with set-composition data
   { id: 'paper',     label: '📄 Paper Item' },
   { id: 'catalogs',  label: '📒 Catalog' },
   { id: 'mockups',   label: '🔩 Mock-Up' },
