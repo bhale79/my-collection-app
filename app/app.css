@@ -229,15 +229,60 @@
     display: flex; align-items: flex-start; gap: 0.75rem;
     background: rgba(200,16,46,0.06); border-radius: 10px; padding: 0.7rem 0.9rem;
   }
+  /* v0.9.999: right side is a COLUMN of two cards — action, then help. */
+  .auth-col {
+    flex: 0 0 auto; width: 100%; max-width: 400px;
+    display: flex; flex-direction: column; gap: 0.9rem; box-sizing: border-box;
+  }
   .auth-card {
     background: var(--surface); border: 1px solid var(--border);
-    border-radius: 16px; padding: 2rem; width: 100%; max-width: 400px;
+    border-radius: 16px; padding: 2rem; width: 100%;
     flex: 0 0 auto; text-align: center;
+  }
+  /* ── The one loud thing on the page ──────────────────────────────────
+     Solid amber with near-black text. Everything else on this screen is
+     light-text-on-dark, so an inverted block is the only treatment that
+     can't be skimmed past. Welded to the button below it: no gap, flat
+     bottom corners, so the two read as a single unit. */
+  .auth-alert {
+    background: #d4a843; color: #14171f;
+    border-radius: 10px 10px 0 0; padding: 0.8rem 0.95rem 0.85rem;
+    text-align: left; box-sizing: border-box;
+    box-shadow: 0 0 0 1px rgba(212,168,67,0.9), 0 6px 18px rgba(212,168,67,0.18);
+  }
+  .auth-alert-head {
+    font-family: var(--font-head); font-weight: 700; font-size: 0.82rem;
+    letter-spacing: 0.09em; text-transform: uppercase;
+    margin-bottom: 0.3rem; color: #14171f;
+  }
+  .auth-alert-body { font-size: 0.83rem; line-height: 1.5; color: #14171f; }
+  .auth-alert-body strong { color: #14171f; font-weight: 700; }
+  .auth-alert-body u { text-decoration-thickness: 2px; text-underline-offset: 2px; }
+  .btn-google-welded { border-radius: 0 0 8px 8px !important; }
+  /* Secondary card: same shape, deliberately quieter — no fill, dim border. */
+  .auth-help-card {
+    background: transparent; border: 1px solid var(--border);
+    border-radius: 16px; padding: 1.25rem 1.35rem; width: 100%;
+    text-align: left; box-sizing: border-box;
+  }
+  .auth-help-title {
+    font-family: var(--font-head); font-size: 0.78rem; font-weight: 600;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--text-dim); margin-bottom: 0.75rem;
+  }
+  .auth-help-q { font-size: 0.85rem; font-weight: 600; color: var(--cream); margin-bottom: 0.3rem; }
+  .auth-help-a { font-size: 0.8rem; color: var(--text-mid); line-height: 1.6; margin: 0 0 1rem; }
+  .auth-help-btn {
+    display: block; width: 100%; padding: 0.8rem 0.9rem; box-sizing: border-box;
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+    color: var(--text); font-family: var(--font-body); font-size: 0.92rem;
+    font-weight: 600; cursor: pointer; text-align: left; line-height: 1.4;
   }
   /* Phones / narrow windows: back to one centered column. */
   @media (max-width: 900px) {
     .auth-wrap { flex-direction: column; gap: 1.5rem; max-width: 420px; }
     .auth-brand { flex: none; width: 100%; text-align: center; max-width: 420px; }
+    .auth-col { max-width: 420px; }
     .auth-card { width: 100%; }
     .auth-conductor { margin: 0 auto 0.5rem; }
     .auth-feature { text-align: left; }
@@ -254,6 +299,8 @@
     .auth-feature > div { font-size: 0.8rem !important; line-height: 1.45 !important; }
     .auth-feature > span { font-size: 1.1rem !important; }
     .auth-card { padding: 1.25rem 1.1rem; }
+    .auth-help-card { padding: 1rem 1.1rem; }
+    .auth-col { gap: 0.75rem; }
   }
   /* Short laptop screens: trim the artwork so the card still clears. */
   @media (min-width: 901px) and (max-height: 720px) {
@@ -263,6 +310,9 @@
   }
   .auth-card h2 { font-size: 1.1rem; font-weight: 500; margin-bottom: 0.5rem; }
   .auth-card p { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 2rem; line-height: 1.6; }
+  /* v0.9.999: the rule above also put 2rem under the LAST paragraph, leaving
+     a band of dead space at the bottom of the action card. */
+  .auth-card p:last-child { margin-bottom: 0; }
 
   .btn-google {
     display: flex; align-items: center; justify-content: center; gap: 0.75rem;

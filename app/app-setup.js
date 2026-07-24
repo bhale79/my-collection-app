@@ -48,21 +48,23 @@ function _buildAuthScreen() {
         '</div>' +
       '</div>' +
     '</div>' +
+    // v0.9.999 (Brad): the right column is now TWO cards. The top card has ONE
+    // job - sign in - so the amber notice has nothing competing with it. The
+    // reassurance ("Why Google sign-in?") and the Gmail help moved into a
+    // quieter second card below, where secondary material belongs.
+    '<div class="auth-col">' +
     '<div class="auth-card">' +
       '<h2>Sign in to get started</h2>' +
-      '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:1rem;margin-bottom:1rem;text-align:left">' +
-        '<div style="font-size:0.85rem;font-weight:600;color:var(--cream);margin-bottom:0.4rem">Why Google sign-in?</div>' +
-        '<p style="font-size:0.8rem;color:var(--text-mid);line-height:1.6;margin:0">This app stores your collection data in <strong style="color:var(--text)">your own Google Sheet</strong> and photos in <strong style="color:var(--text)">your own Google Drive</strong>. Nothing is stored on our servers \u2014 you own all your data and can access it anytime, even outside the app.</p>' +
+      // Google's granular-permissions screen shows the Drive checkbox
+      // UNCHECKED by default and an app cannot pre-check it (v0.9.998).
+      // Solid amber with dark text: every other element here is light-on-dark,
+      // so this is the one block that cannot be skimmed past. Welded to the
+      // top of the button (no gap, shared corners) so they read as one unit.
+      '<div class="auth-alert">' +
+        '<div class="auth-alert-head">One step people miss</div>' +
+        '<div class="auth-alert-body">Google\'s next screen has a <strong>checkbox for Google Drive</strong>. <u>Tick it</u> — that\'s what lets us create your collection sheet. It stays unticked unless you tap it.</div>' +
       '</div>' +
-      // v0.9.998 (Brad): Google's granular-permissions screen shows the Drive
-      // checkbox UNCHECKED by default and we cannot pre-check it. Warn BEFORE
-      // they get there — a skipped checkbox means the app can't create their
-      // collection sheet. (app-auth.js catches anyone who skips it anyway.)
-      '<div style="display:flex;align-items:flex-start;gap:0.6rem;background:rgba(212,168,67,0.10);border:1px solid rgba(212,168,67,0.35);border-radius:10px;padding:0.7rem 0.85rem;margin-bottom:1rem;text-align:left">' +
-        '<span style="font-size:1.05rem;line-height:1.3;flex-shrink:0">&#9989;</span>' +
-        '<div style="font-size:0.8rem;color:var(--text-mid);line-height:1.5">On the next screen Google shows a <strong style="color:var(--text)">checkbox for Google Drive</strong>. Please tick it — that\'s what lets us create your collection sheet. It stays unticked unless you tap it.</div>' +
-      '</div>' +
-      '<button class="btn-google" onclick="handleSignIn()">' +
+      '<button class="btn-google btn-google-welded" onclick="handleSignIn()">' +
         '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">' +
           '<path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>' +
           '<path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>' +
@@ -71,22 +73,25 @@ function _buildAuthScreen() {
         '</svg>' +
         'Continue with Google' +
       '</button>' +
-      // v0.9.996 (Brad): copy matches the narrowed permissions — the app can
-      // only manage files IT creates, never the rest of their Drive/Sheets.
-      '<p class="auth-note">Google will ask you to let the app manage <strong style="color:var(--text)">only the files it creates for you</strong> — your collection sheet and photo folders. It can never see the rest of your Drive, and we never see your password.</p>' +
-      // v0.9.939 (Brad): consent line — agreement belongs at sign-in, BEFORE
+      // v0.9.999: the old 4-line permissions paragraph said the same thing as
+      // the amber block three lines above it - two warnings about one
+      // permission dilute each other. One line now; the alert carries it.
+      '<p class="auth-note">The app can only touch the files it makes for you. We never see your password.</p>' +
+      // v0.9.939 (Brad): consent line - agreement belongs at sign-in, BEFORE
       // an account exists. Links also live in Preferences > About.
       '<p style="font-size:0.72rem;color:var(--text-dim);margin-top:0.6rem;line-height:1.5">By continuing, you agree to our ' +
         '<a href="/terms/" target="_blank" rel="noopener" style="color:var(--accent2);text-decoration:none">Terms of Service</a> and ' +
         '<a href="/privacy/" target="_blank" rel="noopener" style="color:var(--accent2);text-decoration:none">Privacy Policy</a>.</p>' +
-      // Session 112: Gmail help — large plain-language button that opens a
-      // chooser modal (gmail-help.js). Copy lives in onboarding-config.js.
-      '<button onclick="if(typeof gmailShowHelp===\'function\')gmailShowHelp();" style="' +
-        'display:block;width:100%;margin-top:1rem;padding:0.9rem 1rem;' +
-        'background:var(--surface2);border:1px solid var(--border);border-radius:10px;' +
-        'color:var(--text);font-family:var(--font-body);font-size:0.95rem;font-weight:600;' +
-        'cursor:pointer;text-align:left;min-height:52px;line-height:1.4">' +
-        '\uD83D\uDCAC  Need help with Gmail?' +
+    '</div>' +
+    // ── Secondary card: reassurance + help, deliberately quieter ──────────
+    '<div class="auth-help-card">' +
+      '<div class="auth-help-title">Questions before you sign in?</div>' +
+      '<div class="auth-help-q">Why Google sign-in?</div>' +
+      '<p class="auth-help-a">Your collection lives in <strong style="color:var(--text)">your own Google Sheet</strong> and your photos in <strong style="color:var(--text)">your own Google Drive</strong> — nothing is kept on our servers.</p>' +
+      // Session 112: Gmail help - chooser modal (gmail-help.js). Copy lives
+      // in onboarding-config.js.
+      '<button class="auth-help-btn" onclick="if(typeof gmailShowHelp===\'function\')gmailShowHelp();">' +
+        '💬  Need help with Gmail?' +
         '<div style="font-size:0.78rem;color:var(--text-mid);font-weight:400;margin-top:0.25rem">' +
           'Step-by-step help for signing in, password reset, or creating an account.' +
         '</div>' +
