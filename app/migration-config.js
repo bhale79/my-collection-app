@@ -132,6 +132,13 @@ async function migrationAppendToDest(sourceRow, destTab) {
   if (!_migAdminOk()) throw new Error(_migFill(cfg.ui.errNotAdmin, {}));
   var sheetId = state.masterSheetId || (typeof MASTER_SHEET_ID !== 'undefined' ? MASTER_SHEET_ID : '');
 
+  // v0.9.995: master WRITES need the full Sheets scope, which the default
+  // sign-in no longer carries — ask for it here (admin-only path).
+  if (typeof _ensureFullSheetsScope === 'function') {
+    var _fsOk = await _ensureFullSheetsScope();
+    if (!_fsOk) throw new Error('Google Sheets permission was not granted');
+  }
+
   // Use sheetsUpdate to write to a specific range — master data starts row 2
   var colARes = await sheetsGet(sheetId, destTab + '!A2:A');
   var nextRow = 2 + ((colARes.values || []).length);

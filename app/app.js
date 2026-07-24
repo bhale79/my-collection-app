@@ -2,11 +2,21 @@
 // APP_VERSION, APP_DATE defined in config.js
 // Replace with your actual Google OAuth Client ID after setup
 const CLIENT_ID = '161569968813-vrhet7p68vkthkunare60nqr34li5uuh.apps.googleusercontent.com';
-// v0.9.885 (Brad): + photospicker scope — "From Google Photos…" import on the
-// Photo Inbox. Read-only, picker-session only (the app can never browse the
-// whole library — only what the user picks in Google's own window).
-const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/photospicker.mediaitems.readonly';
-const API_KEY = ''; // Set your Google Cloud API key in settings if needed
+// v0.9.995 (Brad — kill the "unverified app" red wall): the default sign-in
+// asks ONLY for non-sensitive scopes, so Google shows a normal consent screen
+// instead of the full-page warning:
+//   - drive.file: create/manage files THIS APP created (the user's collection
+//     sheet + photo folders) — it cannot see anything else in their Drive.
+//   - userinfo: name + email for the account chip.
+// The master catalog is public and is read with API_KEY (no login needed), so
+// the broad `spreadsheets` scope is gone from sign-in. Features that need
+// more ask AT THE MOMENT OF USE via _rrRequestExtraScope (incremental auth):
+//   - SCOPE_PHOTOS: "From Google Photos" import (picker-session read-only).
+//   - SCOPE_SHEETS_FULL: admin-only master-sheet migration tool.
+const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
+const SCOPE_PHOTOS = 'https://www.googleapis.com/auth/photospicker.mediaitems.readonly';
+const SCOPE_SHEETS_FULL = 'https://www.googleapis.com/auth/spreadsheets';
+const API_KEY = 'AIzaSyAnCPzgokfatjm0cFJhERG_EOvFpAuQM8c'; // v0.9.995: public-master-catalog read key (Sheets API only, referrer-locked to therailroster.com)
 // v0.9.917: dead GEMINI_KEY removed — photo ID goes through the vault relay
 // (ai-id.js); the key lives server-side and never ships to the client.
 // Sheet name is dynamic — built from user's first name at sign-in

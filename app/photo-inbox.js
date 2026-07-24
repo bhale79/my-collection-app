@@ -1806,6 +1806,12 @@
     var tab = null;
     try { tab = window.open('', '_blank'); } catch (e) {}
     _busy = true; _gpAbort = false;
+    // v0.9.995: Google Photos permission is asked at the moment of use
+    // (incremental auth) — the default sign-in no longer includes it.
+    if (typeof _ensurePhotosScope === 'function') {
+      var _psOk = await _ensurePhotosScope();
+      if (!_psOk) { try { if (tab) tab.close(); } catch (e) {} _busy = false; showToast('Google Photos permission was not granted', 3500, true); return; }
+    }
     try {
       var auth = { Authorization: 'Bearer ' + window.accessToken };
       var sRes = await fetch('https://photospicker.googleapis.com/v1/sessions', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, auth), body: '{}' });

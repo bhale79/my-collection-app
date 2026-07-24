@@ -106,6 +106,62 @@ function _checkOAuthRedirect() {
   return false;
 }
 
+// ── v0.9.995: incremental OAuth scopes ──────────────────────────────────
+// The default sign-in is minimal (no red "unverified app" wall). Features
+// that need more permission ask HERE at the moment of use. Google shows a
+// small consent popup once; the returned token covers old + new scopes.
+function _rrRequestExtraScope(extraScope, onDone) {
+  try {
+    var tc = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES + ' ' + extraScope,
+      include_granted_scopes: true,
+      callback: function (resp) {
+        if (resp && resp.access_token) {
+          accessToken = resp.access_token;
+          window.accessToken = accessToken;
+          try {
+            var _ei = parseInt(resp.expires_in || '3600');
+            localStorage.setItem('lv_token', accessToken);
+            localStorage.setItem('lv_token_expiry', String(Date.now() + (_ei - 300) * 1000));
+          } catch (eP) {}
+          if (onDone) onDone(true);
+        } else if (onDone) onDone(false);
+      },
+    });
+    tc.requestAccessToken({ prompt: '', login_hint: (state.user && state.user.email) || undefined });
+  } catch (e) {
+    console.warn('[Auth] extra-scope request failed:', e);
+    if (onDone) onDone(false);
+  }
+}
+// Google Photos picker (photo inbox + wizard slots)
+function _ensurePhotosScope() {
+  return new Promise(function (resolve) {
+    if (window._rrPhotosScoped) return resolve(true);
+    _rrRequestExtraScope(SCOPE_PHOTOS, function (ok) {
+      if (ok) window._rrPhotosScoped = true;
+      resolve(ok);
+    });
+  });
+}
+// Full Sheets access — admin-only master-sheet tools (and maintenance work)
+function _ensureFullSheetsScope() {
+  return new Promise(function (resolve) {
+    if (window._rrSheetsScoped) return resolve(true);
+    _rrRequestExtraScope(SCOPE_SHEETS_FULL, function (ok) {
+      if (ok) window._rrSheetsScoped = true;
+      resolve(ok);
+    });
+  });
+}
+if (typeof window !== 'undefined') {
+  window._rrRequestExtraScope = _rrRequestExtraScope;
+  window._ensurePhotosScope = _ensurePhotosScope;
+  window._ensureFullSheetsScope = _ensureFullSheetsScope;
+  window._rrElevate = _ensureFullSheetsScope;   // maintenance-session helper
+}
+
 function _finishRedirectSignIn() {
   // Fetch user info since we don't have it from a popup callback
   fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
