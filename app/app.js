@@ -2271,6 +2271,14 @@ function showLoading() {
   }, 4000);
 }
 
+// v0.9.984: counterpart to showLoading() — clears the browse-table spinner.
+// It was referenced in app-auth.js error paths but never defined, so a failed
+// new-user setup threw "hideLoading is not defined" on top of the real error.
+function hideLoading() {
+  const tb = document.getElementById('browse-tbody');
+  if (tb && tb.innerHTML.indexOf('Loading The Rail Roster') !== -1) tb.innerHTML = '';
+}
+
 // ── DASHBOARD ───────────────────────────────────────────────────
 
 

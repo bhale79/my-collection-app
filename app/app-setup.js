@@ -338,13 +338,19 @@ async function completeSetup() {
   }
 }
 
+// v0.9.984: A1 column letter for the Nth column (1→A, 26→Z, 27→AA). Header-write
+// ranges are built from PERSONAL_HEADERS.length via this helper so they track the
+// schema automatically and never drift from the real column count again — the
+// schema grew to 35 cols while the writes stayed hard-coded at A2:AF2 (32), which
+// broke new-user setup with a 400 "tried writing to column AG".
+function _pdColLetter(n){ var s=''; while(n>0){ n--; s=String.fromCharCode(65+(n%26))+s; n=Math.floor(n/26); } return s; }
+
 async function initPersonalSheet(sheetId) {
   // Write My Collection title + headers if empty
-  // Audit M1: read full 32-col range so we can detect drift in cols 14-32.
-  // Old code read A1:M2 (13 cols) and used `rows[1].length < 13` which would
-  // never fire if cols 1-13 were present even when 14-32 were stale/missing.
+  // Read the full header range (schema-length driven) so we can detect drift.
+  const _pdEnd = _pdColLetter(PERSONAL_HEADERS.length);
   const res = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/My%20Collection!A1:AF2`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/My%20Collection!A1:${_pdEnd}2`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
   const data = await res.json();
@@ -352,10 +358,10 @@ async function initPersonalSheet(sheetId) {
   if (rows.length === 0 || !rows[0] || rows[0].length === 0) {
     // Brand new sheet — write title row 1 and headers row 2
     await sheetsUpdate(sheetId, PERSONAL_TAB + '!A1:A1', [['My Collection']]);
-    await sheetsUpdate(sheetId, PERSONAL_TAB + '!A2:AF2', [PERSONAL_HEADERS]);
+    await sheetsUpdate(sheetId, PERSONAL_TAB + '!A2:' + _pdEnd + '2', [PERSONAL_HEADERS]);
   } else if (rows.length === 1 || !rows[1] || rows[1].length < PERSONAL_HEADERS.length) {
     // Has title but missing/old headers — rewrite the full row 2
-    await sheetsUpdate(sheetId, PERSONAL_TAB + '!A2:AF2', [PERSONAL_HEADERS]);
+    await sheetsUpdate(sheetId, PERSONAL_TAB + '!A2:' + _pdEnd + '2', [PERSONAL_HEADERS]);
   }
   // Get existing sheet tab names
   const metaRes = await fetch(
@@ -592,7 +598,10 @@ async function createPersonalSheet() {
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       properties: { title: _getPersonalSheetName() },
-      sheets: [{ properties: { title: 'My Collection' } }]
+      // v0.9.984: give the tab enough columns for the FULL header schema. A
+      // fresh sheet otherwise defaults to 26 columns, but the schema is 35 —
+      // the header write then overflows the grid and new-user setup fails.
+      sheets: [{ properties: { title: 'My Collection', gridProperties: { rowCount: 1000, columnCount: Math.max(40, (typeof PERSONAL_HEADERS !== 'undefined' ? PERSONAL_HEADERS.length : 40) + 3) } } }]
     })
   });
   const data = await res.json();
@@ -601,7 +610,7 @@ async function createPersonalSheet() {
 
   // 3. Write headers and create all tabs
   await sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!A1:A1', [['My Collection']]);
-  await sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!A2:AF2', [PERSONAL_HEADERS]);
+  await sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!A2:' + _pdColLetter(PERSONAL_HEADERS.length) + '2', [PERSONAL_HEADERS]);
   await initPersonalSheet(state.personalSheetId);
 
   // 4. Move the sheet file into the vault folder
