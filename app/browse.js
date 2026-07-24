@@ -3157,7 +3157,7 @@ function renderBrowse() {
           </div>
         </td>
         <td style="white-space:nowrap;text-align:center">${item.variation ? '<span style="font-size:0.78rem;color:var(--text-mid)">' + item.variation + '</span>' : '<span style="color:var(--text-dim)">—</span>'}</td>
-        <td style="font-size:0.78rem;color:var(--text-dim)">${_typeText}</td>
+        <td style="font-size:0.78rem;color:var(--text-dim)">${_typeText}${(pd && pd.subType) ? '<div style="font-size:0.66rem;opacity:0.8;margin-top:1px">' + pd.subType + '</div>' : ''}</td>
         <td style="width:52px;text-align:center;padding:2px 4px"><div id="thumb-${item.itemNum}-${item.variation||''}" style="width:44px;height:44px;border-radius:5px;background:var(--surface2);display:inline-flex;align-items:center;justify-content:center;overflow:hidden;vertical-align:middle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div></td>
         <td style="color:var(--text-mid);font-size:0.85rem" title="${(_descFull||'').replace(/"/g,'&quot;')}">${_descFull}</td>
         <td style="font-size:0.82rem;color:var(--gold);white-space:nowrap;text-align:center">${_estWorth}</td>

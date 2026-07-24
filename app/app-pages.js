@@ -109,14 +109,23 @@ function _collectAllOwnedItems() {
     if (String(pd.itemNum || '').toUpperCase().endsWith('-BOX')) return;
     const master = typeof findMaster === 'function' ? findMaster(pd.itemNum, '', pd) : null;
     const road = pd.roadName || (master && master.roadName) || '';
-    const desc = (master && (master.description || master.itemType)) || '';
+    // v0.9.991 (Phase 4): free-form rows carry their own description
+    const desc = (master && (master.description || master.itemType)) || pd.description || '';
     const extras = [];
     if (pd.condition) extras.push('Condition ' + pd.condition);
     if (pd.hasBox === 'Yes') extras.push('✓ Has box');
     if (pd.userEstWorth) extras.push(_currencySymbol() + parseFloat(pd.userEstWorth).toLocaleString());
     const idx = master && state.masterData ? _masterIdxOf(master) : -1;
+    // v0.9.991 (unified inventory Phase 4): classify by TYPE — paper/catalog/
+    // mock-up rows live in the one inventory now, but they belong under their
+    // own tabs on this page, not under "Items".
+    let _cTab = 'items';
+    const _ct = String(pd.itemType || '').toLowerCase();
+    if (_ct === 'paper' || _ct === 'paper item') _cTab = 'paper';
+    else if (_ct === 'catalog') _cTab = 'catalogs';
+    else if (_ct === 'mock-up' || _ct === 'mockup' || _ct === 'other lionel') _cTab = 'other';
     out.push({
-      type:    'items',
+      type:    _cTab,
       key:     'pd|' + key,
       title:   _composeItemNumHTML(pd.itemNum, pd.variation),
       subtitle: road || desc,
