@@ -17,24 +17,34 @@ function _buildAuthScreen() {
   var d = document.getElementById('auth-screen');
   if (!d || d.dataset.built) return;
   d.dataset.built = '1';
+  // v0.9.997 (Brad): two-column on desktop \u2014 brand + feature blurbs on the
+  // left, sign-in card on the right \u2014 so "Continue with Google" is above the
+  // fold instead of below it. Stacks back to one column on phones (.auth-wrap
+  // media query in app.css). The old duplicate tagline line is gone: it was
+  // printed once inside the logo block AND again as .auth-sub. Tagline copy
+  // now comes from BRAND_TAGLINE in config.js (single source).
+  var _tag = (typeof BRAND_TAGLINE === 'string') ? BRAND_TAGLINE : 'Model Train Collection Tracker';
+  var _mark = (typeof BRAND_WORDMARK_HTML === 'string') ? BRAND_WORDMARK_HTML
+            : 'The <span style="color:var(--accent)">Rail</span> Roster';
   d.innerHTML =
-    '<div class="auth-logo" style="line-height:1.1">' +
-      '<div style="font-family:var(--font-head);font-size:2.4rem;font-weight:700;color:var(--cream);letter-spacing:0.07em;text-transform:uppercase">The <span style="color:var(--cream)">Rail</span> Roster</div>' +
-      '<div style="font-size:0.75rem;letter-spacing:0.22em;color:var(--text-dim);margin-top:7px;text-transform:uppercase;font-family:var(--font-head);font-weight:400">Postwar Collector\'s Inventory</div>' +
-    '</div>' +
-    '<div class="auth-sub">Postwar Collector\'s Inventory</div>' +
-    '<div style="display:flex;flex-direction:column;gap:0.6rem;margin:1.25rem 0;max-width:340px;text-align:left">' +
-      '<div style="display:flex;align-items:flex-start;gap:0.75rem;background:rgba(200,16,46,0.06);border-radius:10px;padding:0.75rem 1rem">' +
-        '<span style="font-size:1.3rem;flex-shrink:0">&#x1F4CB;</span>' +
-        '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:#fff">Catalog every item you own</strong><br>Condition, price paid, box, photos \u2014 all in one place.</div>' +
-      '</div>' +
-      '<div style="display:flex;align-items:flex-start;gap:0.75rem;background:rgba(200,16,46,0.06);border-radius:10px;padding:0.75rem 1rem">' +
-        '<span style="font-size:1.3rem;flex-shrink:0">&#x1F4F8;</span>' +
-        '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:#fff">Store photos to Google Drive</strong><br>Every view, every box \u2014 organized automatically.</div>' +
-      '</div>' +
-      '<div style="display:flex;align-items:flex-start;gap:0.75rem;background:rgba(200,16,46,0.06);border-radius:10px;padding:0.75rem 1rem">' +
-        '<span style="font-size:1.3rem;flex-shrink:0">&#x1F682;</span>' +
-        '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:#fff">Built for collectors of every era</strong><br>Pre-loaded master catalog spanning prewar, postwar, and modern trains.</div>' +
+    '<div class="auth-wrap">' +
+    '<div class="auth-brand">' +
+      '<img class="auth-conductor" src="conductor.png" alt="" aria-hidden="true">' +
+      '<div class="auth-wordmark">' + _mark + '</div>' +
+      '<div class="auth-tagline">' + _tag + '</div>' +
+      '<div class="auth-features">' +
+        '<div class="auth-feature">' +
+          '<span style="font-size:1.3rem;flex-shrink:0">&#x1F4CB;</span>' +
+          '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:#fff">Catalog every item you own</strong><br>Condition, price paid, box, photos \u2014 all in one place.</div>' +
+        '</div>' +
+        '<div class="auth-feature">' +
+          '<span style="font-size:1.3rem;flex-shrink:0">&#x1F4F8;</span>' +
+          '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:#fff">Store photos to Google Drive</strong><br>Every view, every box \u2014 organized automatically.</div>' +
+        '</div>' +
+        '<div class="auth-feature">' +
+          '<span style="font-size:1.3rem;flex-shrink:0">&#x1F682;</span>' +
+          '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:#fff">Every era, every maker</strong><br>Pre-loaded master catalog \u2014 Lionel, Atlas, MTH, Weaver and more, prewar through modern.</div>' +
+        '</div>' +
       '</div>' +
     '</div>' +
     '<div class="auth-card">' +
@@ -72,6 +82,7 @@ function _buildAuthScreen() {
           'Step-by-step help for signing in, password reset, or creating an account.' +
         '</div>' +
       '</button>' +
+    '</div>' +
     '</div>';
 }
 

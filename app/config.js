@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.996';
+const APP_VERSION = 'v0.9.997';
 
 // v0.9.918 (Brad): SINGLE SOURCE OF TRUTH for the personal sheet's collection
 // tab name. Every sheet read/write range ("My Collection!D12") builds from
@@ -103,6 +103,26 @@ const MASTER_SHEET_ID = '1Y9-cg8C1CkIqy0RQ66DfP7fmGrE3IGBpyJbtdfYx8q0';
 
 // ── Admin config ──
 const ADMIN_EMAIL  = 'admin@therailroster.com';
+
+// ── Brand copy — SINGLE SOURCE OF TRUTH (v0.9.997, Brad) ────────────────
+// The tagline used to be typed out separately in the beta gate and TWICE in
+// the sign-in screen — which is exactly how it ended up rendering twice on
+// the sign-in page. It lives here now: change it once, every screen follows.
+// The app covers EVERY era (prewar, postwar, modern) and EVERY maker
+// (Lionel, Atlas, MTH, Weaver, Williams...) — keep this copy maker-neutral.
+const BRAND_TAGLINE = 'Model Train Collection Tracker';
+const BRAND_BLURB   = 'A web-based inventory tool for model train collectors. '
+                    + 'Track every item, variation, and box in your collection '
+                    + '— across every era and every maker.';
+// Wordmark: cream with the orange accent on "Rail" (matches the rest of the
+// app). Callers set their own font-size on the wrapper element.
+const BRAND_WORDMARK_HTML =
+  'The <span style="color:var(--accent)">Rail</span> Roster';
+if (typeof window !== 'undefined') {
+  window.BRAND_TAGLINE = BRAND_TAGLINE;
+  window.BRAND_BLURB = BRAND_BLURB;
+  window.BRAND_WORDMARK_HTML = BRAND_WORDMARK_HTML;
+}
 
 // ── Era definitions ──
 const ERAS = {

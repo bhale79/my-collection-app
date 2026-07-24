@@ -29,6 +29,15 @@ try {
   .sub { font-size:0.8rem; color:#8d7f5e; margin-top:1.6rem; }
   .sub a { color:#d4a843; text-decoration:none; }
   .track { margin-top:2rem; font-size:1.1rem; letter-spacing:0.4em; color:#3a4880; user-select:none; }
+  /* v0.9.997 (Brad): the page was a dead end — an invited tester who typed
+     therailroster.com had no way into the app. */
+  .cta { display:inline-block; margin-top:1.5rem; padding:0.85rem 2.2rem;
+    background:#f05008; color:#fff; text-decoration:none; border-radius:8px;
+    font-family:'Oswald',sans-serif; font-size:1rem; font-weight:700;
+    letter-spacing:0.09em; text-transform:uppercase;
+    box-shadow:0 4px 18px rgba(240,80,8,0.28); transition:background 0.15s, transform 0.15s; }
+  .cta:hover { background:#d84800; transform:translateY(-1px); }
+  .cta-note { font-size:0.78rem; color:#8d7f5e; margin-top:0.7rem; }
 </style>
 </head>
 <body>
@@ -36,8 +45,9 @@ try {
     <img class="conductor" src="app/conductor.png" alt="The Rail Roster conductor">
     <div class="brand">The <b>Rail</b> Roster</div>
     <div class="stripe">🚧 Under Construction</div>
-    <p>Something special is coming down the tracks — a new home for the collection tracker built for model-train collectors.</p>
-    <p style="margin-top:0.6rem">Check back soon.</p>
+    <p>Something special is coming down the tracks — a new home for the collection tracker built for model-train collectors, across every era and every maker.</p>
+    <a class="cta" href="/app/">Beta Sign In</a>
+    <div class="cta-note">Invited testers — you'll need your access code.</div>
     <div class="sub">Questions? <a href="mailto:admin@therailroster.com">admin@therailroster.com</a></div>
     <div class="track">━ ━ ━ ━ ━ ━ ━ ━</div>
   </div>

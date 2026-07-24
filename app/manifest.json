@@ -1,7 +1,7 @@
 {
   "name": "The Rail Roster",
   "short_name": "Rail Roster",
-  "description": "Track your postwar train collection",
+  "description": "Track your model train collection — every era, every maker",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "any",

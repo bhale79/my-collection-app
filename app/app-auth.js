@@ -25,17 +25,31 @@ function _buildBetaGate() {
   if (!d || d.dataset.built) return;
   d.dataset.built = '1';
   d.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:2rem;background:var(--bg);text-align:center';
+  // v0.9.997 (Brad): conductor artwork above the wordmark; tagline + blurb
+  // come from config.js (BRAND_TAGLINE / BRAND_BLURB) so this screen and the
+  // sign-in screen can never drift apart again. Copy is maker-neutral — the
+  // app covers every era and every manufacturer, not just postwar Lionel.
+  var _tag  = (typeof BRAND_TAGLINE === 'string') ? BRAND_TAGLINE : 'Model Train Collection Tracker';
+  var _blb  = (typeof BRAND_BLURB === 'string') ? BRAND_BLURB
+            : 'A web-based inventory tool for model train collectors.';
+  var _mark = (typeof BRAND_WORDMARK_HTML === 'string') ? BRAND_WORDMARK_HTML
+            : 'The <span style="color:var(--accent)">Rail</span> Roster';
   d.innerHTML =
     '<div style="max-width:420px;width:100%">' +
-      '<div style="font-family:var(--font-head);font-size:2.4rem;font-weight:700;color:var(--cream);letter-spacing:0.07em;text-transform:uppercase;margin-bottom:0.5rem">The <span style="color:var(--accent)">Rail</span> Roster</div>' +
-      '<div style="font-size:0.75rem;letter-spacing:0.22em;color:var(--text-dim);text-transform:uppercase;font-family:var(--font-head);font-weight:400;margin-bottom:1.5rem">Postwar Collector\'s Inventory</div>' +
+      '<img src="conductor.png" alt="" aria-hidden="true" style="height:clamp(96px,13vh,140px);width:auto;display:block;margin:0 auto 0.6rem">' +
+      '<div style="font-family:var(--font-head);font-size:2.4rem;font-weight:700;color:var(--cream);letter-spacing:0.07em;text-transform:uppercase;margin-bottom:0.5rem">' + _mark + '</div>' +
+      '<div style="font-size:0.75rem;letter-spacing:0.22em;color:var(--text-dim);text-transform:uppercase;font-family:var(--font-head);font-weight:400;margin-bottom:1.5rem">' + _tag + '</div>' +
       '<div style="background:var(--accent);color:#fff;font-family:var(--font-head);font-size:0.85rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:0.5rem 1.25rem;border-radius:6px;display:inline-block;margin-bottom:1.5rem">Beta Testing In Progress</div>' +
-      '<p style="font-size:0.9rem;color:var(--text-mid);line-height:1.6;margin-bottom:1.5rem">A web-based inventory tool built for serious Lionel train collectors. Track every item, variation, and box in your collection — from postwar classics to modern production.</p>' +
-      '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.5rem;text-align:left">' +
+      '<p style="font-size:0.9rem;color:var(--text-mid);line-height:1.6;margin-bottom:1.5rem">' + _blb + '</p>' +
+      // v0.9.997: box-sizing set explicitly on the card/input/button. The
+      // global reset in app.css never reaches the page (stray <style> on its
+      // line 1), so width:100% + padding was pushing the invite-code input
+      // and the Enter Beta button past the right edge of their own card.
+      '<div style="box-sizing:border-box;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.5rem;text-align:left">' +
         '<label style="font-size:0.8rem;color:var(--text-mid);display:block;margin-bottom:0.5rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em">Enter Invite Code</label>' +
-        '<input type="text" id="beta-code-input" placeholder="Enter your beta access code" autocomplete="off" spellcheck="false" style="width:100%;padding:0.75rem 1rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:1rem;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.75rem" onkeydown="if(event.key===\'Enter\')_checkBetaCode()">' +
+        '<input type="text" id="beta-code-input" placeholder="Enter your beta access code" autocomplete="off" spellcheck="false" style="box-sizing:border-box;width:100%;padding:0.75rem 1rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:1rem;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.75rem" onkeydown="if(event.key===\'Enter\')_checkBetaCode()">' +
         '<div id="beta-error" style="display:none;font-size:0.8rem;color:var(--accent);margin-bottom:0.75rem">Invalid code. Please check with your invite contact.</div>' +
-        '<button onclick="_checkBetaCode()" style="width:100%;padding:0.75rem;border:none;border-radius:8px;background:var(--accent);color:#fff;font-family:var(--font-body);font-size:0.95rem;font-weight:600;cursor:pointer;transition:background 0.15s" onmouseenter="this.style.background=\'#d84800\'" onmouseleave="this.style.background=\'var(--accent)\'">Enter Beta</button>' +
+        '<button onclick="_checkBetaCode()" style="box-sizing:border-box;width:100%;padding:0.75rem;border:none;border-radius:8px;background:var(--accent);color:#fff;font-family:var(--font-body);font-size:0.95rem;font-weight:600;cursor:pointer;transition:background 0.15s" onmouseenter="this.style.background=\'#d84800\'" onmouseleave="this.style.background=\'var(--accent)\'">Enter Beta</button>' +
       '</div>' +
       '<p style="font-size:0.75rem;color:var(--text-dim);margin-top:1.25rem">Don\'t have a code? Contact <a href="mailto:' + ADMIN_EMAIL + '" style="color:var(--accent2);text-decoration:none">' + ADMIN_EMAIL + '</a> to request access.</p>' +
     '</div>';
