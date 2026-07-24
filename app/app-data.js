@@ -1187,10 +1187,14 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   ]);
   // Secondary tabs fire off in parallel, NOT awaited in the main flow
   const _secondaryFetch = Promise.all([
-    sheetsGet(sheetId, 'Catalogs!A3:J').catch((e) => { console.warn('[Catalogs load failed]', e && e.message); return {values:[], _failed:true}; }),
-    sheetsGet(sheetId, 'Paper Items!A3:N').catch((e) => { console.warn('[Paper Items load failed]', e && e.message); return {values:[], _failed:true}; }),
-    sheetsGet(sheetId, 'Mock-Ups!A3:Q').catch((e) => { console.warn('[Mock-Ups load failed]', e && e.message); return {values:[], _failed:true}; }),
-    sheetsGet(sheetId, 'Other Lionel!A3:N').catch((e) => { console.warn('[Other Lionel load failed]', e && e.message); return {values:[], _failed:true}; }),
+    // v0.9.992 (unified inventory Phase 5): the four ephemera tabs are
+    // LEGACY-renamed and their items live in My Collection now — skip the
+    // fetches entirely (they only produced a failed request + console noise
+    // per tab per load). Positions kept so the destructure below is unchanged.
+    Promise.resolve({values:[]}),   // Catalogs — retired (unified inventory)
+    Promise.resolve({values:[]}),   // Paper Items — retired (unified inventory)
+    Promise.resolve({values:[]}),   // Mock-Ups — retired (unified inventory)
+    Promise.resolve({values:[]}),   // Other Lionel — retired (unified inventory)
     sheetsGet(sheetId, 'Instruction Sheets!A3:K').catch((e) => { console.warn('[Instruction Sheets load failed]', e && e.message); return {values:[], _failed:true}; }),
     sheetsGet(sheetId, 'Science Sets!A3:O').catch((e) => { console.warn('[Science Sets load failed]', e && e.message); return {values:[], _failed:true}; }),
     sheetsGet(sheetId, 'Construction Sets!A3:O').catch((e) => { console.warn('[Construction Sets load failed]', e && e.message); return {values:[], _failed:true}; }),
