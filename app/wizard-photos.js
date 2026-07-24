@@ -1892,27 +1892,17 @@ window.addEventListener('load', function() {
 function showPhotoSourcePicker(stepId, viewKey) {
   _pickerStepId = stepId;
   _pickerViewKey = viewKey;
-  // v0.9.698 (Brad): on a real computer, skip the chooser AND the camera —
-  // straight to the file dialog. Touch detection lies on touchscreen PCs
-  // (Brad's desktop offered the webcam), so decide by user agent instead.
-  if (!window.IS_MOBILE_UA) {
-    var _dinp = document.getElementById('picker-input-lib');
-    if (!_dinp) {
-      _dinp = document.createElement('input');
-      _dinp.type = 'file'; _dinp.id = 'picker-input-lib';
-      _dinp.accept = 'image/*'; _dinp.style.display = 'none';
-      _dinp.addEventListener('change', function () { pickerHandleFile(_dinp, false); });
-      document.body.appendChild(_dinp);
-    }
-    _dinp.value = '';
-    _dinp.click();
-    return;
-  }
-  // Update button labels based on device type
+  // v0.9.986 (Brad): desktop now gets the chooser too — "Upload from
+  // Computer" or "From Google Photos" — instead of jumping straight to the
+  // file dialog (v0.9.698 behavior). The webcam stays hidden on desktop.
+  // Touch detection lies on touchscreen PCs, so decide by user agent.
   const camLabel = document.getElementById('picker-cam-label');
   const libLabel = document.getElementById('picker-lib-label');
   const camBtn   = document.getElementById('picker-btn-cam');
-  if (_isTouchDevice) {
+  if (!window.IS_MOBILE_UA) {
+    if (libLabel) libLabel.textContent = 'Upload from Computer';
+    if (camBtn)   camBtn.style.display = 'none'; // most desktops lack useful camera
+  } else if (_isTouchDevice) {
     if (camLabel) camLabel.textContent = 'Take Photo';
     if (libLabel) libLabel.textContent = 'Choose from Phone Library';
     if (camBtn)   camBtn.style.display = 'flex';
@@ -1921,6 +1911,7 @@ function showPhotoSourcePicker(stepId, viewKey) {
     if (libLabel) libLabel.textContent = 'Upload from Computer';
     if (camBtn)   camBtn.style.display = 'none'; // most desktops lack useful camera
   }
+  _ensureGPhotosBtn();
   document.getElementById('photo-picker-sheet').classList.add('open');
   // Register with BackStack so the device/browser BACK button closes
   // just this picker (returning to the view grid) instead of popping the
@@ -1936,6 +1927,84 @@ function closePhotoPicker() {
   if (window.BackStack) window.BackStack.pop('photo-picker');
   _pickerStepId = null;
   _pickerViewKey = null;
+}
+
+// v0.9.986 (Brad): "From Google Photos" button in the photo-source chooser.
+// Inserted at runtime (before Cancel) so the sheet built in wizard.js needs
+// no changes. Same Picker API machinery the Photo Inbox uses (v0.9.885).
+function _ensureGPhotosBtn() {
+  var inner = document.getElementById('photo-picker-inner');
+  if (!inner || document.getElementById('picker-btn-gphotos')) return;
+  var b = document.createElement('button');
+  b.id = 'picker-btn-gphotos';
+  b.className = 'picker-btn';
+  b.innerHTML = '<span class="picker-icon">🖼️</span><span>From Google Photos</span>';
+  b.addEventListener('click', function () { _wizGPhotosPick(); });
+  var btns = inner.querySelectorAll('button');
+  var cancel = btns.length ? btns[btns.length - 1] : null;   // Cancel is last
+  if (cancel) inner.insertBefore(b, cancel); else inner.appendChild(b);
+}
+
+// Google Photos → one wizard slot. Session → Google's own picker tab → poll
+// until the user hits Done there → download the pick → hand it to the same
+// uploadWizardPhoto() path a computer file takes. Read-only scope; the app
+// only ever sees what was picked.
+async function _wizGPhotosPick() {
+  var sid = _pickerStepId, vk = _pickerViewKey;   // grab BEFORE close clears them
+  closePhotoPicker();
+  if (!sid || !vk) { showToast('Photo slot lost — please try again', 3000, true); return; }
+  if (!window.accessToken) { showToast('Please sign in first', 3000, true); return; }
+  // Open the tab NOW (inside the click) so popup blockers stay quiet.
+  var tab = null;
+  try { tab = window.open('', '_blank'); } catch (e) {}
+  try {
+    var auth = { Authorization: 'Bearer ' + window.accessToken };
+    var sRes = await fetch('https://photospicker.googleapis.com/v1/sessions', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, auth), body: '{}' });
+    if (!sRes.ok) {
+      try { if (tab) tab.close(); } catch (e) {}
+      if (sRes.status === 401 || sRes.status === 403) showToast('Google Photos needs its one-time setup — open Photo Inbox → From Google Photos for the steps', 6000, true);
+      else showToast('Google Photos picker error (' + sRes.status + ') — try again', 3500, true);
+      return;
+    }
+    var s = await sRes.json();
+    if (tab) { try { tab.location = s.pickerUri; } catch (e) { tab = null; } }
+    if (!tab) window.open(s.pickerUri, '_blank');
+    showToast('Pick a photo in the Google Photos tab that just opened, then press Done there', 5000);
+    var _ivOf = function (cfg) { try { var d = parseFloat(String((cfg || {}).pollInterval || '').replace('s', '')); return d > 0 ? Math.max(2000, d * 1000) : 0; } catch (e) { return 0; } };
+    var iv = _ivOf(s.pollingConfig) || 4000;
+    var picked = false, waited = 0;
+    while (!picked && waited < 600000) {
+      await new Promise(function (r) { setTimeout(r, iv); });
+      waited += iv;
+      var g = await fetch('https://photospicker.googleapis.com/v1/sessions/' + s.id, { headers: auth });
+      if (!g.ok) throw new Error('session poll ' + g.status);
+      var gs = await g.json();
+      if (gs.mediaItemsSet) picked = true;
+      iv = _ivOf(gs.pollingConfig) || iv;
+    }
+    if (!picked) { showToast('Gave up waiting for Google Photos — try again', 3500, true); return; }
+    var lRes = await fetch('https://photospicker.googleapis.com/v1/mediaItems?sessionId=' + encodeURIComponent(s.id) + '&pageSize=10', { headers: auth });
+    if (!lRes.ok) throw new Error('mediaItems list ' + lRes.status);
+    var lj = await lRes.json();
+    var items = (lj.mediaItems || []).filter(function (m) { return String(m.type || '').toUpperCase() !== 'VIDEO'; });
+    try { fetch('https://photospicker.googleapis.com/v1/sessions/' + s.id, { method: 'DELETE', headers: auth }); } catch (eDel) {}
+    if (!items.length) { showToast('No photo picked', 3000, true); return; }
+    if (items.length > 1) showToast('This slot takes one photo — using the first one you picked', 3500);
+    // If the wizard was closed while the picker tab was open, don't upload
+    // into a slot that no longer exists.
+    var wm = document.getElementById('wizard-modal');
+    if (!wm || !wm.classList.contains('open')) { showToast('The add-item window closed — photo not attached', 3500, true); return; }
+    var mf = items[0].mediaFile || {};
+    var bRes = await fetch(mf.baseUrl + '=d', { headers: auth });
+    if (!bRes.ok) throw new Error('download ' + bRes.status);
+    var blob = await bRes.blob();
+    var fname = String(mf.filename || 'photo.jpg').replace(/[^\w.\- ]+/g, '').slice(-60) || 'photo.jpg';
+    var file = new File([blob], fname, { type: mf.mimeType || 'image/jpeg' });
+    uploadWizardPhoto(file, sid, vk);
+  } catch (e) {
+    console.error('[Wizard] Google Photos pick:', e);
+    showToast('Google Photos import hit a snag — try again', 3500, true);
+  }
 }
 
 function pickerHandleFile(inputEl, isCamera) {

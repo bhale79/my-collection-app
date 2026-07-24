@@ -2329,6 +2329,35 @@ function renderBrowse() {
   _updateBrowseTabsForEra();
   if (typeof _renderHierarchyChips === 'function') _renderHierarchyChips();
   const { type, road, owned, unowned, boxed, search } = state.filters;
+  // v0.9.986 (Brad): the Show chips route items by WHAT THEY ARE, not where
+  // they're stored — an item typed "Paper" (like the Pittman Erect-A-Wire)
+  // belongs under Paper Items even though it lives in the items list, and it
+  // leaves the Trains view. Computed up here so the main filter below can
+  // route train-store rows; 'all' (and mobile, which has no chip bar) keeps
+  // the combined view. Falls back to Trains if the chosen section is empty.
+  let _collSec = (owned && window.innerWidth > 640) ? (state._collSection || 'trains') : 'all';
+  if (_collSec !== 'trains' && _collSec !== 'all') {
+    let _secAvail = true;
+    try {
+      if (_collSec === 'is') _secAvail = Object.keys(state.isData || {}).length > 0;
+      else _secAvail = Object.keys((state.ephemeraData || {})[_collSec] || {}).length > 0;
+      if (!_secAvail && (_collSec === 'paper' || _collSec === 'catalogs')) {
+        const _wantT = _collSec === 'paper' ? ['paper', 'paper item'] : ['catalog'];
+        _secAvail = Object.values(state.personalData || {}).some(function(p) {
+          return p && p.owned && _wantT.indexOf(String(p.itemType || '').toLowerCase()) >= 0;
+        });
+      }
+    } catch (eAv) { _secAvail = true; }
+    if (!_secAvail) { _collSec = 'trains'; state._collSection = 'trains'; }
+  }
+  const _collSecFiltered = (_collSec !== 'all' && _collSec !== 'trains');
+  // Which section does a train-store row belong to by TYPE? '' = a train.
+  const _typeSection = function(it) {
+    const t = String(it.itemType || '').toLowerCase();
+    if (t === 'paper' || t === 'paper item') return 'paper';
+    if (t === 'catalog') return 'catalogs';
+    return '';
+  };
   if (typeof _renderCrossEraSearchBanner === 'function') _renderCrossEraSearchBanner(search);
 
   // Session 117: master-browse view in All mode + no search = 30K+ rows. Show
@@ -2506,6 +2535,15 @@ function renderBrowse() {
     // Push 2 (Session 154): hide companion rows (grouped box, tender, extra set
     // car) so each group shows as one item via its lead.
     if (owned && pd && typeof _isCollectionCompanion === 'function' && _isCollectionCompanion(pd)) return false;
+    // v0.9.986 (Brad): Show-chip routing by type. Trains hides paper/catalog-
+    // typed rows; Paper/Catalogs show ONLY their typed rows; other sections
+    // (Instruction Sheets, Other…) have no train-store rows at all.
+    if (owned && _collSec !== 'all') {
+      const _sr = _typeSection(item);
+      if (_collSec === 'trains') { if (_sr) return false; }
+      else if (_collSec === 'paper' || _collSec === 'catalogs') { if (_sr !== _collSec) return false; }
+      else return false;
+    }
     if (unowned && (isOwned || isWanted)) return false;
     if (boxed && !hasBox) return false;
     // Quick Entry filter — only applies when item is owned
@@ -2737,28 +2775,35 @@ function renderBrowse() {
       });
     });
   }
-  // v0.9.985 (Brad): section filter — the Jump To bar now SHOWS one section at
-  // a time instead of scrolling to it. 'trains' (default) = train rows only;
-  // a section key (catalogs / paper / is / ...) = just that section; 'all' =
-  // the old combined list. Desktop + My Collection only, matching the bar
-  // itself (mobile has no bar, so it keeps the combined list).
-  // Chip list is captured BEFORE filtering so every section stays clickable.
+  // v0.9.985/986 (Brad): the Show chips filter the list to one section.
+  // _collSec was computed up top (before the main filter) so train-store rows
+  // could be routed by type; here the ephemera rows get the same treatment.
+  // Chip list is captured BEFORE filtering so every section stays clickable —
+  // plus synthetic Paper/Catalogs chips when only TYPED train-store rows exist
+  // (e.g. the Pittman "Paper" item with no ephemera paper bucket).
   const _collAllSections = _ephemeraRows
     .filter(function(r) { return r._divider; })
     .map(function(r) { return { key: r.secKey, label: r.label, color: r.color }; });
-  let _collSec = (state.filters.owned && window.innerWidth > 640)
-    ? (state._collSection || 'trains') : 'all';
-  // Safety: if the chosen section no longer exists (e.g. its last item was
-  // deleted), fall back to Trains instead of showing an empty page.
-  if (_collSec !== 'all' && _collSec !== 'trains'
-      && !_collAllSections.some(function(s) { return s.key === _collSec; })) {
-    _collSec = 'trains';
-    state._collSection = 'trains';
+  if (state.filters.owned) {
+    try {
+      const _havePaperChip = _collAllSections.some(function(s) { return s.key === 'paper'; });
+      const _haveCatChip = _collAllSections.some(function(s) { return s.key === 'catalogs'; });
+      if (!_havePaperChip || !_haveCatChip) {
+        let _pdPaper = false, _pdCat = false;
+        Object.values(state.personalData || {}).forEach(function(p) {
+          if (!p || !p.owned) return;
+          const t = String(p.itemType || '').toLowerCase();
+          if (t === 'paper' || t === 'paper item') _pdPaper = true;
+          else if (t === 'catalog') _pdCat = true;
+        });
+        if (!_haveCatChip && _pdCat) _collAllSections.push({ key: 'catalogs', label: '📒 Catalogs', color: '#e67e22' });
+        if (!_havePaperChip && _pdPaper) _collAllSections.push({ key: 'paper', label: '📄 Paper Items', color: '#3498db' });
+      }
+    } catch (eChip) {}
   }
-  const _collSecEphOnly = (_collSec !== 'all' && _collSec !== 'trains');
   if (_collSec === 'trains') {
     _ephemeraRows.length = 0;
-  } else if (_collSecEphOnly) {
+  } else if (_collSecFiltered) {
     const _secKeep = _ephemeraRows.filter(function(r) {
       if (r._divider) return r.secKey === _collSec;
       if (r._is) return _collSec === 'is';
@@ -2770,16 +2815,18 @@ function renderBrowse() {
   }
   const ephTotal = _ephemeraRows.filter(r=>r._eph).length;
   const _secRowCount = _ephemeraRows.filter(r=>r._eph || r._is).length;   // v0.9.985: incl. instruction sheets
-  const displayTotal = _collSecEphOnly ? _secRowCount : total + ephTotal;
+  const displayTotal = _collSecFiltered ? total + _secRowCount : total + ephTotal;
   document.getElementById('result-count').textContent = `${displayTotal.toLocaleString()} items`;
   // S151: append all-mode loading indicator if background refresh is running.
   if (typeof _renderAllLoadingIndicator === 'function') _renderAllLoadingIndicator();
   // Page-info text — handle the zero-main-items case so we don't say
   // "Showing 1-0 of 0 trains" when only ephemera/IS rows exist.
   let _pageInfo;
-  if (_collSecEphOnly) {
-    // v0.9.985: single-section view — count just what's on screen.
-    _pageInfo = `Showing ${_secRowCount} item${_secRowCount !== 1 ? 's' : ''}`;
+  if (_collSecFiltered) {
+    // v0.9.986: single-section view — typed train-store rows + section rows.
+    _pageInfo = total > 0
+      ? `Showing ${start+1}–${Math.min(start+state.pageSize, total)} of ${total.toLocaleString()} item${total !== 1 ? 's' : ''}${_secRowCount ? ' + ' + _secRowCount + ' more' : ''}`
+      : `Showing ${_secRowCount} item${_secRowCount !== 1 ? 's' : ''}`;
   } else if (total === 0 && ephTotal > 0) {
     _pageInfo = `Showing ${ephTotal} other item${ephTotal !== 1 ? 's' : ''}`;
   } else if (total === 0) {
@@ -3189,10 +3236,10 @@ function renderBrowse() {
     }
     if (cardsEl) cardsEl.innerHTML = (rowsHtml.join('') || emptyHtml) + _ephCardsHtml;
   } else {
-    // v0.9.985: single-section view (Catalogs / Paper / ...) hides train rows
-    // entirely — and skips the "no items" banner, since the section has rows.
-    tbody.innerHTML = _collSecEphOnly
-      ? (_ephRowsHtml || emptyHtml)
+    // v0.9.986: single-section view shows its typed train-store rows + the
+    // section's own rows; the "no items" banner only when BOTH are empty.
+    tbody.innerHTML = _collSecFiltered
+      ? ((rowsHtml.join('') + _ephRowsHtml) || emptyHtml)
       : (rowsHtml.join('') || emptyHtml) + _ephRowsHtml;
   }
   // Async: load thumbnails for My Collection view
@@ -3306,8 +3353,8 @@ function renderBrowse() {
   // Filters out the previously-shown page "0" when total === 0, and hides
   // the pager entirely on a single-page result.
   const paginEl = document.getElementById('pagination-btns');
-  // v0.9.985: single-section view has no train pages — hide the pager.
-  if (pages <= 1 || _collSecEphOnly) {
+  // v0.9.986: sections paginate their own train-store rows normally.
+  if (pages <= 1) {
     paginEl.innerHTML = '';
   } else {
     let btns = '';
