@@ -341,6 +341,13 @@ function buildPartnerMap() {
       ensure(eng).isDiesel = true;
       ensure(comp).aUnit = eng;
       ensure(comp).isDiesel = true;
+      // v0.9.1004 (Brad): record the AB config too. This branch set bUnit and
+      // isDiesel but never the config, so any loco whose B unit carries a
+      // DIFFERENT number (215 -> 218C) knew about its partner and still never
+      // offered "AB set". Same omission the A-Dummy branch had in v0.9.1002.
+      // Locos whose B unit is simply item+'C' were unaffected, which is why
+      // this went unnoticed — the master-data pass covers those.
+      addUnique(ensure(eng).configs, 'AB');
     } else if (cType.includes('dummy') || cType.includes('aa') || cType === 'd') {
       ensure(eng).isDiesel = true;
       ensure(comp).isDiesel = true;
