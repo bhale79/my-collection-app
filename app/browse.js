@@ -3132,13 +3132,12 @@ function renderBrowse() {
               <span class="browse-card-num" style="white-space:nowrap">${_displayItemNum(item)}${item.variation ? ' <span style="font-size:0.72rem;color:var(--text-dim)">' + item.variation + '</span>' : ''}</span>${_noNumTag(item.itemNum)}${(typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(item._tab) : ''}
               <span style="display:flex;gap:0.2rem;align-items:center">${_statusIcons}</span>
             </div>
-            <div class="browse-card-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.roadName || item.itemType || '—'}</div>
+            ${item.roadName ? `<div class="browse-card-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.roadName}</div>` : ''}
             <div class="browse-card-sub" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${[(typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(item) : item.itemType), item.yearProd].filter(Boolean).join(' · ')}</div>
           </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.25rem;flex-shrink:0">
-            ${cond ? `<span style="font-size:0.72rem;color:var(--text-dim);white-space:nowrap">Cond: ${cond}</span>` : ''}
-            ${marketVal ? `<span class="market-val" style="font-size:0.72rem">${marketVal}</span>` : ''}
-          </div>
+          ${marketVal ? `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.25rem;flex-shrink:0">
+            <span class="market-val" style="font-size:0.72rem">${marketVal}</span>
+          </div>` : ''}
           ${(function(){
             // v0.9.1025 (Brad): thumbnail on the right of every row. The ✕
             // remove button is GONE from phone rows — too easy to hit by

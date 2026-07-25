@@ -1751,3 +1751,12 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"] {
   #browse-cards { gap: 0.4rem !important; }
   .browse-card { padding: 0.55rem 0.65rem !important; }
 }
+
+/* v0.9.1026 (Brad): long titles must not run under the row thumbnail —
+   the number line clips with an ellipsis instead of overflowing. */
+@media (max-width: 640px) {
+  .browse-card .browse-card-num { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .browse-card .browse-card-num + span,
+  .browse-card > div > div { min-width: 0; }
+  .browse-card > div > div:first-of-type > div:first-child { overflow: hidden; }
+}
