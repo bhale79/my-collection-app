@@ -184,9 +184,9 @@ async function aiIdentifyImage(source, hints) {
 }
 
 // ── Remaining-reads meter (v0.9.1000, Brad) ─────────────────────────────
-// The relay has always sent back how many photo reads are left today; the
+// The relay has always sent back how many photo IDs are left today; the
 // app received it and threw it away. Reporting it here — the ONE choke
-// point every AI path returns through — means no UI call site has to know
+// point every identify path returns through — no UI call site has to know
 // about it, and a limit people can see coming feels fair instead of like a
 // trap.
 //
@@ -201,11 +201,11 @@ function rrNoteAiRemaining(remaining) {
   window._rrAiRemaining = n;
   if (typeof showToast !== 'function') return remaining;
   if (n === 0) {
-    showToast('That was today\'s last photo read — the count resets overnight.', 5200, true);
+    showToast('That was today\'s last photo ID — the count resets overnight.', 5200, true);
   } else if (n <= 3) {
-    showToast(n + ' photo read' + (n === 1 ? '' : 's') + ' left today.', 4200, true);
+    showToast(n + ' photo ID' + (n === 1 ? '' : 's') + ' left today.', 4200, true);
   } else {
-    showToast(n + ' photo reads left today.', 2200);
+    showToast(n + ' photo IDs left today.', 2200);
   }
   return remaining;
 }

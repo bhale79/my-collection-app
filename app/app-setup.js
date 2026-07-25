@@ -35,16 +35,13 @@ function _buildAuthScreen() {
       // v0.9.998 (Brad): blurbs lead with the payoff, not the plumbing.
       '<div class="auth-features">' +
         '<div class="auth-feature">' +
-          '<span style="font-size:1.3rem;flex-shrink:0">&#x1F4CB;</span>' +
-          '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:#fff">Know exactly what you own</strong><br>Condition, variation, box, price paid \u2014 one record per item.</div>' +
+          '<div style="font-size:0.98rem;color:var(--text-mid);line-height:1.55"><strong style="color:#fff">Know exactly what you own</strong><br>Condition, variation, box, price paid \u2014 one record per item.</div>' +
         '</div>' +
         '<div class="auth-feature">' +
-          '<span style="font-size:1.3rem;flex-shrink:0">&#x1F4F8;</span>' +
-          '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:#fff">Every item, every picture, one list</strong><br>Add photos from your phone or desktop \u2014 they attach to the item automatically.</div>' +
+          '<div style="font-size:0.98rem;color:var(--text-mid);line-height:1.55"><strong style="color:#fff">Every item, every picture, one list</strong><br>Add photos from your phone or desktop \u2014 they attach to the item automatically.</div>' +
         '</div>' +
         '<div class="auth-feature">' +
-          '<span style="font-size:1.3rem;flex-shrink:0">&#x1F682;</span>' +
-          '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.5"><strong style="color:#fff">130,000+ items already catalogued</strong><br>Lionel, Atlas, MTH, Weaver and more, prewar through modern \u2014 type a number and the details fill in.</div>' +
+          '<div style="font-size:0.98rem;color:var(--text-mid);line-height:1.55"><strong style="color:#fff">130,000+ items already catalogued</strong><br>Lionel, Atlas, MTH, Weaver and more, prewar through modern \u2014 type a number and the details fill in.</div>' +
         '</div>' +
       '</div>' +
     '</div>' +
@@ -91,7 +88,7 @@ function _buildAuthScreen() {
       // Session 112: Gmail help - chooser modal (gmail-help.js). Copy lives
       // in onboarding-config.js.
       '<button class="auth-help-btn" onclick="if(typeof gmailShowHelp===\'function\')gmailShowHelp();">' +
-        '💬  Need help with Gmail?' +
+        'Need help with Gmail?' +
         '<div style="font-size:0.78rem;color:var(--text-mid);font-weight:400;margin-top:0.25rem">' +
           'Step-by-step help for signing in, password reset, or creating an account.' +
         '</div>' +

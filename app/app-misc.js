@@ -86,25 +86,21 @@ function showAiUsageCard(force) {
   const admin = (typeof ADMIN_EMAIL !== 'undefined') ? ADMIN_EMAIL : 'admin@therailroster.com';
   ov.innerHTML =
     '<div style="background:var(--surface,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;max-width:480px;width:100%;padding:20px 22px 18px;color:var(--text,#eee);font-family:var(--font-body,sans-serif);max-height:calc(100vh - 36px);overflow-y:auto;-webkit-overflow-scrolling:touch;margin:auto 0;box-shadow:0 12px 40px rgba(0,0,0,0.5)">'
-    + '<div style="text-align:center;margin-bottom:8px;font-size:1.4rem">📷</div>'
-    + '<div style="font-family:var(--font-head,sans-serif);font-size:1.25rem;text-align:center;font-weight:700;margin-bottom:4px">Photo identification</div>'
-    + '<div style="text-align:center;font-size:0.8rem;color:var(--text-dim,#888);margin-bottom:14px;letter-spacing:0.04em">How it works, and the one limit in the app.</div>'
+    + '<div style="font-family:var(--font-head,sans-serif);font-size:1.25rem;text-align:center;font-weight:700;margin-bottom:4px">Scanning and photo ID</div>'
+    + '<div style="text-align:center;font-size:0.8rem;color:var(--text-dim,#888);margin-bottom:14px;letter-spacing:0.04em">Scanning is free. Photo ID is the one part with a limit.</div>'
 
-    + '<div style="font-size:0.88rem;color:var(--text-mid,#bbb);line-height:1.55;margin-bottom:14px">Point your camera at an item, a box label, or a business card and the app reads it for you. That\'s the only part of The Rail Roster that uses AI — and the only part with a limit.</div>'
+    + '<div style="font-size:0.88rem;color:var(--text-mid,#bbb);line-height:1.55;margin-bottom:14px">Most items go in without using anything up \u2014 here\'s the difference.</div>'
 
     + '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;padding:10px 12px;background:var(--surface2,#222);border-radius:9px;border:1px solid var(--border,#333)">'
-    +   '<div style="font-size:1.5rem;flex-shrink:0">🎞️</div>'
-    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">20 photo reads a day, free.</strong> The count resets overnight. Reading the same photo twice doesn\'t count against it, and if a read fails you get it back.</div>'
+    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Scanning is free and unlimited.</strong> Point the camera at a barcode or a printed label and the app reads it right on your own phone. Scan as much as you like \u2014 it never counts against anything.</div>'
     + '</div>'
 
     + '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;padding:10px 12px;background:var(--surface2,#222);border-radius:9px;border:1px solid var(--border,#333)">'
-    +   '<div style="font-size:1.5rem;flex-shrink:0">♾️</div>'
-    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Everything else is unlimited.</strong> Typing item numbers, searching all 130,000+ catalog entries, adding items, photos, lists and reports — none of that touches AI.</div>'
+    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Photo ID \u2014 20 a day.</strong> When there\'s no barcode and no label worth reading \u2014 an older piece, or one with no box \u2014 the app can work out what it is from a photo. That\'s a photo ID, and you get 20 a day. The count resets overnight, the same photo twice is free, and a failed one is given back.</div>'
     + '</div>'
 
     + '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:18px;padding:10px 12px;background:var(--surface2,#222);border-radius:9px;border:1px solid var(--border,#333)">'
-    +   '<div style="font-size:1.5rem;flex-shrink:0">➕</div>'
-    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Need more than 20 a day?</strong> A higher allowance is on the way. In the meantime email <a href="mailto:' + admin + '" style="color:var(--accent2,#d4a843);text-decoration:none">' + admin + '</a> and we\'ll sort you out.</div>'
+    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Need more than 20 a day?</strong> Buying extra photo IDs is on the way. In the meantime email <a href="mailto:' + admin + '" style="color:var(--accent2,#d4a843);text-decoration:none">' + admin + '</a> and we\'ll sort you out.</div>'
     + '</div>'
 
     + '<div style="font-size:0.78rem;color:var(--text-dim,#888);line-height:1.5;margin-bottom:14px;text-align:center">Need this again? Preferences → Help &amp; Tips.</div>'
