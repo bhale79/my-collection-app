@@ -350,9 +350,14 @@ function _buildWizardModal() {
   overlay.innerHTML =
     '<div class="modal" style="max-width:520px;height:580px;display:flex;flex-direction:column;overflow:hidden">' +
       '<div class="modal-header">' +
-        '<div>' +
+        // v0.9.1039 (Brad): on phones the ITEM TYPE selector takes the title's
+        // place on the item-number step — the step number above it still says
+        // where you are, and the field right below is plainly the item number,
+        // so the word "Item Number" was paying for a whole row of screen.
+        '<div style="flex:1;min-width:0">' +
           '<div class="modal-item-num" id="wizard-step-label"></div>' +
           '<div class="modal-title" id="wizard-title"></div>' +
+          '<div id="wizard-kind-head" style="display:none;margin-top:0.15rem"></div>' +
         '</div>' +
         '<button class="btn-close" onclick="closeWizard()">&#x2715;</button>' +
       '</div>' +
@@ -699,6 +704,19 @@ function _wizSetKind(kind) {
   if (kind === 'cataloged') { renderWizardStep(); return; }
   wizardChooseCategory(kind);
 }
+// v0.9.1039: ONE definition of the Item Type selector. The header (phones)
+// and the in-form bar (desktop) both render this — they cannot drift apart.
+function _wizKindSelectHtml(cur, compact) {
+  return '<select id="wiz-kind-select" onchange="_wizSetKind(this.value)" style="' +
+    'width:100%;padding:' + (compact ? '0.4rem 0.55rem' : '0.6rem 0.75rem') + ';border-radius:8px;border:2px solid #2980b9;' +
+    'background:#f7f0dc;color:#2980b9;font-family:var(--font-head);font-weight:700;' +
+    'font-size:' + (compact ? '0.9rem' : '0.92rem') + ';cursor:pointer;box-sizing:border-box">' +
+    _WIZ_KINDS.map(function (k) {
+      return '<option value="' + k.id + '"' + (k.id === cur ? ' selected' : '') + '>' + k.label + '</option>';
+    }).join('') +
+    '</select>';
+}
+
 function _syncWizKindBar(s) {
   const bar = document.getElementById('wizard-kind-bar');
   if (!bar) return;
@@ -713,19 +731,29 @@ function _syncWizKindBar(s) {
       show = wizard.step === 0;
     }
   } catch (e) { show = false; }
-  if (!show) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+  const head = document.getElementById('wizard-kind-head');
+  const title = document.getElementById('wizard-title');
+  if (!show) {
+    bar.style.display = 'none'; bar.innerHTML = '';
+    if (head) { head.style.display = 'none'; head.innerHTML = ''; }
+    if (title) title.style.display = '';
+    return;
+  }
   const cur = _wizCurrentKind();
+  // v0.9.1039 (Brad): phones put it in the header, in place of the title.
+  if (window.IS_MOBILE_UA && head) {
+    head.style.display = '';
+    head.innerHTML = _wizKindSelectHtml(cur, true);
+    if (title) title.style.display = 'none';
+    bar.style.display = 'none'; bar.innerHTML = '';
+    return;
+  }
+  if (title) title.style.display = '';
+  if (head) { head.style.display = 'none'; head.innerHTML = ''; }
   bar.style.display = '';
   bar.innerHTML =
     '<div style="font-size:0.7rem;color:var(--text-dim);letter-spacing:0.08em;text-transform:uppercase;font-weight:600;margin:0.6rem 0 0.25rem">Item Type</div>' +
-    '<select id="wiz-kind-select" onchange="_wizSetKind(this.value)" style="' +
-      'width:100%;padding:0.6rem 0.75rem;border-radius:8px;border:2px solid #2980b9;' +
-      'background:#f7f0dc;color:#2980b9;font-family:var(--font-head);font-weight:700;' +
-      'font-size:0.92rem;cursor:pointer;box-sizing:border-box">' +
-    _WIZ_KINDS.map(function(k) {
-      return '<option value="' + k.id + '"' + (k.id === cur ? ' selected' : '') + '>' + k.label + '</option>';
-    }).join('') +
-    '</select>';
+    _wizKindSelectHtml(cur, false);
 }
 if (typeof window !== 'undefined') { window._wizSetKind = _wizSetKind; }
 
