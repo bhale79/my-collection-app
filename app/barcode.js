@@ -1674,6 +1674,75 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     });
   }
 
+  // v0.9.1016 (Brad): FREE side-by-side compare from the confirm card. The
+  // relay fetches the reference page's product photo (no reader, no reads);
+  // the overlay shows it beside the collector's own photo and the HUMAN
+  // decides. onSame = accept the match (same as pressing "Use this").
+  async function _bcRunCompare(card, info, onSame) {
+    var btn = card.querySelector('[data-a="verify"]');
+    if (btn) { btn.disabled = true; btn.innerHTML = '🔎 Fetching the catalog photo…'; }
+    var r = null;
+    try { r = await window.rrFetchRefPhoto(info.refLink); } catch (e) { r = { ok: false, reason: 'error' }; }
+    if (!card.isConnected) return;
+    if (!r || !r.ok) {
+      if (btn) {
+        var why = r && r.reason;
+        btn.disabled = false;
+        if (why === 'noref') {
+          btn.innerHTML = '🔎 No photo on the reference page — <u>open it instead ↗</u>';
+          btn.onclick = function (ev) { ev.stopPropagation(); window.open(info.refLink, '_blank'); };
+        } else if (why === 'norelay') {
+          btn.innerHTML = '🔎 Compare needs the relay v2.8 update — <u>open the reference page ↗</u>';
+          btn.onclick = function (ev) { ev.stopPropagation(); window.open(info.refLink, '_blank'); };
+        } else {
+          btn.innerHTML = '🔎 Couldn\'t fetch the catalog photo — tap to retry';
+        }
+      }
+      return;
+    }
+    if (btn) { btn.disabled = false; btn.innerHTML = '🔎 Compare with the catalog photo — free'; }
+    var mine = '';
+    try { mine = info._verifySrc.toDataURL('image/jpeg', 0.9); } catch (e) { mine = ''; }
+    var ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:100001;background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;padding:1rem';
+    ov.innerHTML =
+      '<div style="width:100%;max-width:760px;background:var(--surface,#1a1d3a);border:1px solid var(--border,#333);border-radius:16px;padding:16px;color:var(--text,#eee);font-family:var(--font-body,sans-serif)">'
+      + '<div style="font-size:0.95rem;font-weight:700;margin-bottom:10px">Same item? <span style="font-family:var(--font-mono);color:var(--accent,#e8401c)">' + _bcEsc(info.itemNum || '') + '</span><span style="font-size:0.75rem;color:var(--text-dim,#999);font-weight:400"> — you decide, nothing is spent</span></div>'
+      + '<div style="display:flex;gap:10px;flex-wrap:wrap">'
+      +   '<div style="flex:1;min-width:240px"><div style="font-size:0.7rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-dim,#999);margin-bottom:4px">Your photo</div>'
+      +     '<div style="border-radius:10px;overflow:hidden;background:#000">' + (mine ? '<img src="' + mine + '" style="width:100%;max-height:300px;object-fit:contain;display:block">' : '<div style="padding:2rem;color:#777">photo unavailable</div>') + '</div></div>'
+      +   '<div style="flex:1;min-width:240px"><div style="font-size:0.7rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-dim,#999);margin-bottom:4px">Catalog photo <a href="' + _bcEsc(info.refLink) + '" target="_blank" rel="noopener" style="color:#9ecbff;text-transform:none;letter-spacing:0">page ↗</a></div>'
+      +     '<div style="border-radius:10px;overflow:hidden;background:#000"><img src="' + r.dataUrl + '" style="width:100%;max-height:300px;object-fit:contain;display:block"></div></div>'
+      + '</div>'
+      + '<div style="display:flex;gap:8px;margin-top:14px">'
+      +   '<button data-c="same" style="flex:2;padding:12px;border-radius:10px;border:2px solid #2ecc71;background:rgba(46,204,113,0.12);color:#c9f5dc;font-weight:600;font-size:0.95rem;cursor:pointer">✓ Same item — use it</button>'
+      +   '<button data-c="notit" style="flex:1;padding:12px;border-radius:10px;border:1px solid #e74c3c;background:rgba(231,76,60,0.10);color:#ffb3a7;font-size:0.9rem;cursor:pointer">✗ Not it</button>'
+      +   '<button data-c="back" style="flex:1;padding:12px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);font-size:0.9rem;cursor:pointer">Back</button>'
+      + '</div></div>';
+    ov.addEventListener('click', function (e) {
+      var el = (e.target && e.target.closest) ? e.target.closest('[data-c]') : null;
+      var c = el && el.getAttribute('data-c');
+      if (!c) return;
+      ov.remove();
+      if (c === 'same') { if (typeof onSame === 'function') onSame(); return; }
+      if (c === 'notit') {
+        // Back on the card — flag the mismatch so the user reaches for
+        // Lens / Rescan / Type-it with the facts in view.
+        var note = card.querySelector('#bc-dc-result');
+        if (!note) {
+          note = document.createElement('div');
+          note.id = 'bc-dc-result';
+          note.style.cssText = 'font-size:0.8rem;margin-top:8px;line-height:1.45';
+          if (btn && btn.parentNode) btn.parentNode.insertBefore(note, btn.nextSibling);
+        }
+        note.style.color = '#ffb27d';
+        note.textContent = '⚠ You said the catalog photo doesn\'t match — try 🔍 Google Lens, Rescan, or Type it instead.';
+      }
+    });
+    document.body.appendChild(ov);
+    if (window.BackStack && BackStack.wire) BackStack.wire(ov);
+  }
+
   function _bcConfirmCard(info) {
     return new Promise(function (resolve) {
       var d = document.createElement('div');
@@ -1687,6 +1756,14 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + (info.notInMaster && info.description ? '<div style="font-size:0.7rem;color:var(--text-dim,#999);margin-top:5px">read from the label \u2014 you can edit it in the next steps.</div>' : '')
         + (info.cautionNote ? '<div style="font-size:0.78rem;margin-top:8px;color:#ffb27d">&#9888; ' + _bcEsc(info.cautionNote) + '</div>' : '')
         + (info.verifiedNote ? '<div id="bc-verify-note" style="font-size:0.8rem;margin-top:8px;color:#a6e87e">' + _bcEsc(info.verifiedNote) + '</div>' : (info.verifyPromise ? '<div id="bc-verify-note" style="font-size:0.8rem;margin-top:8px;color:#9aa">🔎 Confirming with the label…</div>' : ''))
+        // v0.9.1016 (Brad): FREE side-by-side compare — "just bring up a photo
+        // from the reference page next to the user's photo and let the USER
+        // decide". The relay only fetches the catalog page's product photo
+        // (v2.8 ref_photo — no reader, no reads spent, user's photo never
+        // leaves the device); human eyes make the call.
+        + ((info.refLink && info._verifySrc && typeof window.rrFetchRefPhoto === 'function' && !info.notInMaster)
+          ? '<button data-a="verify" style="display:block;width:100%;margin-top:10px;padding:9px;border-radius:10px;border:1px solid var(--gold,#d4a843);background:rgba(212,168,67,0.08);color:var(--gold,#d4a843);font-size:0.84rem;cursor:pointer">🔎 Compare with the catalog photo — free</button>'
+          : '')
         + '<button data-a="use" style="display:block;width:100%;margin-top:14px;padding:12px;border-radius:10px;border:2px solid var(--accent,#e8401c);background:rgba(232,64,28,0.12);color:var(--text,#fff);font-weight:600;font-size:0.95rem;cursor:pointer">Use this</button>'
         + '<div style="display:flex;gap:8px;margin-top:8px">'
         + (info.lensOffer ? '<button data-a="lens" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid #3a6ea5;background:rgba(58,110,165,0.12);color:#cfe3ff;font-size:0.82rem;cursor:pointer">🔍 Google Lens</button>' : '')
@@ -1695,7 +1772,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + '<button data-a="manual" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);font-size:0.82rem;cursor:pointer">Type it instead</button>'
         + '<button data-a="cancel" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);font-size:0.82rem;cursor:pointer">Cancel</button>'
         + '</div></div>';
-      d.addEventListener('click', function (e) { var _wy = (e.target && e.target.closest) ? e.target.closest('[data-why]') : null; if (_wy) { if (typeof _bcWhyLionelPanel === 'function') _bcWhyLionelPanel(); return; } var el = (e.target && e.target.closest) ? e.target.closest('[data-a]') : null; var a = el && el.getAttribute('data-a'); if (a) { d.remove(); resolve(a); } });
+      d.addEventListener('click', function (e) { var _wy = (e.target && e.target.closest) ? e.target.closest('[data-why]') : null; if (_wy) { if (typeof _bcWhyLionelPanel === 'function') _bcWhyLionelPanel(); return; } var el = (e.target && e.target.closest) ? e.target.closest('[data-a]') : null; var a = el && el.getAttribute('data-a'); if (a === 'verify') { _bcRunCompare(d, info, function () { d.remove(); resolve('use'); }); return; } if (a) { d.remove(); resolve(a); } });
       document.body.appendChild(d);
       if (window.BackStack && BackStack.wire) BackStack.wire(d); // v0.9.807 TODO-012: device Back closes this pop-up
       if (info.verifyPromise) {
@@ -2539,7 +2616,11 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             description: r.description || r.labelDescription || '',
             notInMaster: r.notInMaster, noItemNum: r.noItemNum,
             verifiedNote: r.aiGuess ? '⚠ Best guess from the photo alone — double-check, or try Google Lens' : r.verifiedNote,
-            eraTag: r.eraTag, lensOffer: !!r.aiGuess, aiOffer: !!aiOffer
+            eraTag: r.eraTag, lensOffer: !!r.aiGuess, aiOffer: !!aiOffer,
+            // v0.9.1016 (Brad): the on-demand double-check needs the photo
+            // and the suggested item's reference page.
+            refLink: (r.masterItem && r.masterItem.refLink) || '',
+            _verifySrc: (cr && cr.work) || null,
           };
         }
         // v0.9.691 (Brad's 0209-barrels case): a number read from LETTERING with

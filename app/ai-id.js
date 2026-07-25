@@ -300,6 +300,29 @@ async function aiIdentifyImage2(sources, hints) {
 }
 
 
+
+// ── Free reference-photo fetch (v0.9.1016, Brad) ────────────────────────
+// Asks the relay for the product photo on the master row's Reference Link
+// page (relay v2.8 action `ref_photo`). NO reader involved, NO daily-pool
+// spend, and the collector's photo never leaves the device — only the URL
+// is sent. Used by the free side-by-side compare on the identify card.
+async function rrFetchRefPhoto(refUrl) {
+  try {
+    if (typeof vaultGetToken !== 'function' || typeof vaultPost !== 'function') return { ok: false, reason: 'error' };
+    if (!refUrl || !/^https?:\/\//i.test(String(refUrl))) return { ok: false, reason: 'noref' };
+    var res = await vaultPost({ action: 'ref_photo', token: vaultGetToken(), refUrl: String(refUrl) });
+    if (!res) return { ok: false, reason: 'offline' };
+    if (res.status === 422) return { ok: false, reason: 'noref' };
+    if (res.status === 400 && /unknown action/i.test(String(res.message || ''))) return { ok: false, reason: 'norelay' };
+    if (res.status !== 200 || !res.img) return { ok: false, reason: 'error' };
+    return { ok: true, dataUrl: 'data:' + (res.mime || 'image/jpeg') + ';base64,' + res.img, refImg: res.refImg || '', cached: !!res.cached };
+  } catch (e) {
+    console.warn('[ref-photo] failed:', e && e.message);
+    return { ok: false, reason: 'error' };
+  }
+}
+if (typeof window !== 'undefined') { window.rrFetchRefPhoto = rrFetchRefPhoto; }
+
 // ── Identify v3 (v0.9.942) — photo double-check ─────────────
 // aiVerifyPhoto(source, refUrl)
 //   source: the collector's photo (canvas | File/Blob)
