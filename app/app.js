@@ -455,11 +455,17 @@ function buildPartnerMap() {
         ensure(bNum).aUnit = ensure(bNum).aUnit || num;
       }
     }
-    // AA configuration. Offered when the sub-type says it's a cab unit OR
-    // when a real dummy-A partner row exists in master (v0.9.1002 — the
-    // 2333 has 2333T but a sub-type spelling that no regex was matching).
-    // Switchers are still stripped by the _isSingleUnitSubType pass below.
-    if (pdMatch && !num.endsWith('C') && (isPaired || _hasDummyAPartner(num))) {
+    // AA configuration — EVIDENCE ONLY (v0.9.1003, Brad).
+    // v0.9.1002 also accepted "the sub-type looks like a cab unit", which
+    // handed AA to roughly a dozen Alcos that Greenberg and COTT both list
+    // as powered-A-only (222, 225, 227, 228, 230, 231, 232, 1055, 1065,
+    // 1066, 2024...). Picking AA there filled unit 2 with the SAME number
+    // as unit 1 — a duplicate row. A cab-unit body style says nothing about
+    // whether Lionel ever sold a second A with it.
+    // The only proof accepted now is a real dummy-A row in master. Pairs
+    // whose dummy carries a DIFFERENT number (216P -> 213T) come through
+    // the Companions branch above, which records AA directly.
+    if (pdMatch && !num.endsWith('C') && _hasDummyAPartner(num)) {
       addUnique(ensure(num).configs, 'AA');
     }
   });
@@ -483,6 +489,18 @@ function buildPartnerMap() {
         || s.indexOf('electric') >= 0
         || s.indexOf('motorized') >= 0;
   }
+  // ── ABA needs BOTH a second A unit and a B unit (v0.9.1003, Brad) ──
+  // The master-data pass adds ABA whenever item+'C' exists, without ever
+  // checking for a second A. That gave the 2240/2242 Wabash an ABA it
+  // cannot physically make: 2240C exists, 2240T does not. Offered on 17
+  // locomotives; only 4 are real. Pruned here, after Companions, Sets and
+  // master have all contributed, so it can't matter which one added it.
+  Object.keys(map).forEach(function (k) {
+    var c = map[k].configs;
+    var i = c.indexOf('ABA');
+    if (i >= 0 && !(c.indexOf('AA') >= 0 && c.indexOf('AB') >= 0)) c.splice(i, 1);
+  });
+
   _md.forEach(function(m) {
     if (!_isSingleUnitSubType(m.subType)) return;
     [normalizeItemNum(m.itemNum), String(m.itemNum || '').trim()].forEach(function(k) {
