@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1026';
+const APP_VERSION = 'v0.9.1027';
 
 // v0.9.918 (Brad): SINGLE SOURCE OF TRUTH for the personal sheet's collection
 // tab name. Every sheet read/write range ("My Collection!D12") builds from
@@ -397,43 +397,58 @@ const _RSV_PLACEHOLDER_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHgA
 // stale code. Runs once, 8s after load, never blocks anything.
 if (typeof window !== 'undefined') setTimeout(function () {
   try {
-    var probs = [];
-    // Check 1: APP_VERSION build number vs the page's ?v= script marks.
-    var bm = String(APP_VERSION || '').match(/(\d+)$/);
-    var build = bm ? bm[1] : '';
-    var sc = document.querySelector('script[src*="app.js?v="]');
-    var vm = sc && sc.src.match(/v=(\d+)/);
-    var pageV = vm ? vm[1] : '';
-    if (build && pageV && build !== pageV) probs.push('APP_VERSION (' + build + ') vs index.html ?v= (' + pageV + ')');
-    // Check 2: if APP_VERSION changed since last visit, CACHE_NAME must have too.
-    fetch('./sw.js', { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (txt) {
-      var cm = txt.match(/CACHE_NAME\s*=\s*'([^']+)'/);
-      var cache = cm ? cm[1] : '';
+    // v0.9.1027 (Brad: "I keep getting a deploy mismatch") — ROOT CAUSE.
+    // The old check compared the APP_VERSION of the RUNNING page (served
+    // from the service-worker cache, so often one deploy behind) against a
+    // freshly-fetched sw.js (always current). Right after any deploy those
+    // two legitimately disagree, and the check read that as a mistake. It
+    // was measuring "is my cached page older than the network?" — which is
+    // normal, not a bug.
+    //
+    // Now it compares LIKE WITH LIKE: both config.js and sw.js are fetched
+    // fresh from the network, and the pair is remembered. A real forgotten
+    // cache bump = APP_VERSION moved while CACHE_NAME stood still BETWEEN
+    // TWO NETWORK READS. A stale local page can no longer trigger it.
+    Promise.all([
+      fetch('./config.js', { cache: 'no-store' }).then(function (r) { return r.text(); }),
+      fetch('./sw.js', { cache: 'no-store' }).then(function (r) { return r.text(); })
+    ]).then(function (res) {
+      var am = res[0].match(/APP_VERSION\s*=\s*'([^']+)'/);
+      var cm = res[1].match(/CACHE_NAME\s*=\s*'([^']+)'/);
+      var netApp = am ? am[1] : '';
+      var netCache = cm ? cm[1] : '';
+      if (!netApp || !netCache) return;
+
       var last = {};
       try { last = JSON.parse(localStorage.getItem('rr_ver_check') || '{}'); } catch (e) {}
-      // v0.9.1015 (Brad's false alarm): a browser that catches a deploy
-      // MID-ROLLOUT records a mixed pair (old page + new sw.js), and the
-      // next load then looks like a forgotten cache bump. A REAL forgotten
-      // bump persists forever — so only warn when the SAME mismatch is seen
-      // twice in a row; a rollout race clears itself and stays silent.
-      if (cache && last.app && last.app !== APP_VERSION && last.cache === cache) {
-        var _mmSig = last.app + '>' + APP_VERSION + '@' + cache;
-        var _mmPrev = '';
-        try { _mmPrev = localStorage.getItem('rr_ver_warn') || ''; } catch (e) {}
-        if (_mmPrev === _mmSig) {
-          probs.push('APP_VERSION changed (' + last.app + ' -> ' + APP_VERSION + ') but CACHE_NAME did not (' + cache + ')');
-        } else {
-          try { localStorage.setItem('rr_ver_warn', _mmSig); } catch (e) {}
-          console.warn('[version check] possible mismatch (1st sighting, staying quiet):', _mmSig);
-        }
-      } else {
-        try { localStorage.removeItem('rr_ver_warn'); } catch (e) {}
+      try { localStorage.setItem('rr_ver_check', JSON.stringify({ app: netApp, cache: netCache })); } catch (e) {}
+
+      // Quiet, useful note: the running page is simply behind the network.
+      // That is a pending update, not a mistake — the worker picks it up.
+      if (netApp !== APP_VERSION) {
+        console.info('[version check] update available: running ' + APP_VERSION + ', server has ' + netApp);
       }
-      try { localStorage.setItem('rr_ver_check', JSON.stringify({ app: APP_VERSION, cache: cache })); } catch (e) {}
-      if (probs.length) {
-        console.warn('[version check] DEPLOY MISMATCH:', probs.join(' | '));
-        if (typeof showToast === 'function') showToast('⚠ Deploy version mismatch — tell Claude: ' + probs[0], 8000, true);
-      }
+
+      if (!last.app || !last.cache) return;                 // first ever read
+      if (last.app === netApp || last.cache !== netCache) return;   // no contradiction
+
+      // APP_VERSION moved while CACHE_NAME stood still, between two NETWORK
+      // reads. Confirm with one more fetch a few seconds later: a rollout
+      // race resolves in seconds, a real forgotten bump persists forever.
+      setTimeout(function () {
+        Promise.all([
+          fetch('./config.js', { cache: 'no-store' }).then(function (r) { return r.text(); }),
+          fetch('./sw.js', { cache: 'no-store' }).then(function (r) { return r.text(); })
+        ]).then(function (r2) {
+          var a2 = r2[0].match(/APP_VERSION\s*=\s*'([^']+)'/);
+          var c2 = r2[1].match(/CACHE_NAME\s*=\s*'([^']+)'/);
+          if (!a2 || !c2) return;
+          if (a2[1] !== netApp || c2[1] !== netCache) return;   // it moved — rollout, not a mistake
+          var msg = 'APP_VERSION changed (' + last.app + ' -> ' + netApp + ') but CACHE_NAME did not (' + netCache + ')';
+          console.warn('[version check] DEPLOY MISMATCH:', msg);
+          if (typeof showToast === 'function') showToast('\u26a0 Deploy version mismatch — tell Claude: ' + msg, 8000, true);
+        }).catch(function () {});
+      }, 5000);
     }).catch(function () { /* offline — skip */ });
   } catch (e) { /* never break the app over a self-check */ }
 }, 8000);
