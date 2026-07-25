@@ -83,17 +83,12 @@ function buildToolsPage() {
       '<div id="companion-suggester-results" style="margin-top:1rem"></div>' +
     '</div>';
 
-  // ── Photo name cleanup (v0.9.1011, Brad) ──
-  var CARD_PHOTO_NAMES =
-    '<div class="tools-card">' +
-      '<div class="tools-card-title">' +
-        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2980b9" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>' +
-        'Clean Up Photo Names' +
-      '</div>' +
-      '<div class="tools-card-desc">Renames your photos in Google Drive to the standard format — maker, item number, inventory ID, then the view (e.g. "Lionel 2025 ID116 RSV"), so every photo identifies itself even after you download or share it. Shows you the full before/after list first; nothing is renamed until you approve. Photos already in the new format are skipped.</div>' +
-      '<button onclick="runPhotoNameCleanup()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #2980b9;background:rgba(41,128,185,0.1);color:#2980b9;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan Photo Names</button>' +
-      '<div id="photo-names-results" style="margin-top:1rem"></div>' +
-    '</div>';
+  // ── Photo name cleanup card RETIRED (v0.9.1012, Brad) ──
+  // The one-time cleanup ran successfully on Brad's collection 2026-07-25;
+  // new uploads name themselves via _photoFileName (drive.js), so the card
+  // is hidden from the Tools page. The machinery (runPhotoNameCleanup /
+  // _photoNamesApply at the bottom of this file) is kept dormant — to bring
+  // the button back, re-add its card here and put it in universal-body.
 
   // ── Compose page ──
   var showLionelSection = (typeof _isManufacturerEnabled !== 'function') || _isManufacturerEnabled('lionel');
@@ -101,7 +96,7 @@ function buildToolsPage() {
   var html = '<div class="page-title" style="margin-bottom:0.5rem">Collection Tools</div>';
   // Universal = works across every manufacturer.
   html += SECTION_HEADER('universal', 'Universal Tools', 'Work across all manufacturers');
-  html += '<div id="universal-body">' + CARD_DUPLICATE_CHECKER + CARD_PHOTO_NAMES + '</div>';
+  html += '<div id="universal-body">' + CARD_DUPLICATE_CHECKER + '</div>';
 
   // Postwar Lionel = tools that rely on Lionel postwar catalog data (grouping,
   // sets, companions). Smart Group Finder lives here (it's postwar-Lionel only).
