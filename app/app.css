@@ -189,21 +189,21 @@
   /* Identify confidence */
   .identify-conf { font-size: 0.72rem !important; }
 
-  /* ── Item detail: photos beside the description (v0.9.1009, Brad) ──
-     Desktop only. The photo card moves out of the bottom of the page and
-     into a sticky right-hand column, so the picture is visible the moment
-     the page opens instead of after a scroll past the variation text.
-     The hero is capped so the column never makes the page taller than it
-     already was — Brad's "sized so we don't add scrolling". */
+  /* ── Item detail: photo fills the space beside the description ──
+     (v0.9.1010, Brad — supersedes the fixed 340px strip of v0.9.1009.)
+     Desktop only. The header/description and the photo card share a
+     two-column grid; the photo column takes every pixel the text doesn't
+     use, and the hero may grow to 70% of the window height. The toolbar,
+     details card and galleries render full width BELOW the pair, so a
+     grouped item's per-member galleries are untouched. */
   .rr-detail-wrap { display: block; }
   @media (min-width: 1000px) {
     .rr-detail-wrap {
-      display: grid; grid-template-columns: minmax(0, 1fr) 340px;
+      display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
       gap: 1.5rem; align-items: start;
     }
     .rr-detail-main { min-width: 0; }
-    .rr-detail-side { position: sticky; top: 1rem; }
-    .rr-detail-side img { max-height: 300px; }
+    .rr-detail-side img { max-height: 70vh; }
     /* the thumbnail rail sits UNDER the hero here, not beside it */
     .rr-detail-side #item-detail-photos { flex-direction: column; }
   }

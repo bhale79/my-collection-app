@@ -145,6 +145,13 @@ async function uploadWizardPhoto(file, stepId, viewKey) {
       _unitTag = d.unitPower === 'Powered' ? '-P' : (d.unitPower === 'Dummy' ? '-D' : '');
       if (_unitTag && new RegExp(_unitTag + '$', 'i').test(itemNum)) _unitTag = '';   // already suffixed
     }
+    // v0.9.1010 (Brad): the "together" shot (engine+tender / full AA-AB-ABA
+    // set) gets SET in the filename — e.g. "2025 SET RSV.jpg". It used to
+    // save as plain "2025 RSV.jpg", identical to the engine's own photo, so
+    // nothing could ever find it again. The detail page's top photo looks
+    // for this SET tag.
+    var _fileLabel = _unitTag ? (itemNum + _unitTag) : undefined;
+    if (isSetPhotoStep) _fileLabel = itemNum + ' SET';
     // v0.9.799 (Brad): paper/catalog/mock-up photos are named by TITLE and
     // filed under Ephemera Photos/<title> — they used to land as loose
     // 'unknown PAPER-FRONT.jpg' files (no item number exists at photo time).
@@ -160,7 +167,7 @@ async function uploadWizardPhoto(file, stepId, viewKey) {
       await driveUploadPhoto(file, _ephTitle + ' ' + viewKey + '.' + _ephExt, _ephFolder);
       url = (typeof driveFolderLink === 'function') ? driveFolderLink(_ephFolder) : ('https://drive.google.com/drive/folders/' + _ephFolder);
     } else {
-      url = await driveUploadItemPhoto(file, itemNum, viewKey, _invId || undefined, _unitTag ? (itemNum + _unitTag) : undefined);
+      url = await driveUploadItemPhoto(file, itemNum, viewKey, _invId || undefined, _fileLabel);
     }
     if (!wizard.data[stepId]) wizard.data[stepId] = {};
     wizard.data[stepId][viewKey] = url;

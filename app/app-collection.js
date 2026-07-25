@@ -999,7 +999,12 @@ function showItemDetailPage(idx, copyInvId, opts) {
     _backLabel = 'Back to Dashboard';
     _backFn    = 'delete window._detailReturn;showPage(&apos;dashboard&apos;);if(typeof buildDashboard===&apos;function&apos;)buildDashboard()';
   }
-  let html = `
+  // v0.9.1010 (Brad): the header block (title + description) is held in its
+  // own variable so the photo card can sit BESIDE it in a two-column grid on
+  // desktop — the photo fills the space to the right of the text instead of
+  // a fixed 340px strip. Everything after the header (toolbar, details,
+  // galleries) stays full width below the pair.
+  let _headHtml = `
   <div style="margin-bottom:1.5rem">
     <button onclick="${_backFn}" style="background:none;border:none;color:#2980b9;font-family:var(--font-body);font-size:1.1rem;font-weight:700;cursor:pointer;padding:0;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.4rem">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
@@ -1027,6 +1032,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
       </div>
     </div>
   </div>`;
+  let html = '';
 
   // ── ACTION TOOLBAR ──
   if (_wantMode) {
@@ -1231,17 +1237,69 @@ function showItemDetailPage(idx, copyInvId, opts) {
     </div>`}
   </div>`;
 
-  // ── Desktop: photos to the right of the description (v0.9.1009, Brad) ──
-  // Two columns from 1000px up, photo card sticky so it stays with you as the
-  // variation text runs long. Below that width nothing changes — the card
-  // falls back to its old position at the bottom of the page.
-  // Group sheets are excluded: they render one gallery PER member side by
-  // side, which needs the full width.
-  var _sideOK = !!_photoCard && !_grpPhotoMembers.length && (window.innerWidth || 0) >= 1000;
-  container.innerHTML = _sideOK
-    ? '<div class="rr-detail-wrap"><div class="rr-detail-main">' + html + '</div>'
-      + '<aside class="rr-detail-side">' + _photoCard + '</aside></div>'
-    : html + _photoCard;
+  // ── Desktop: photos beside the DESCRIPTION only (v0.9.1010, Brad) ──
+  // From 1000px up, the header/description and the photo card share a
+  // two-column grid; the toolbar, details card and galleries run full width
+  // BELOW the pair. The photo column takes all the space the text doesn't
+  // use, so the picture finally fills the screen (Brad's red-outline ask).
+  // Below 1000px nothing changes — the photo card sits at the bottom.
+  //
+  // Group sheets keep their per-member galleries at the bottom untouched;
+  // they get a single side photo up top instead: the together/SET shot when
+  // one can be found, else this unit's own RSV (loaded async below).
+  var _wide = (window.innerWidth || 0) >= 1000;
+  var _sideOK = !!_photoCard && !_grpPhotoMembers.length && _wide;
+  var _grpSideOK = _wide && _grpPhotoMembers.length > 0 && !_wantMode;
+  if (_sideOK) {
+    container.innerHTML = '<div class="rr-detail-wrap"><div class="rr-detail-main">' + _headHtml + '</div>'
+      + '<aside class="rr-detail-side">' + _photoCard + '</aside></div>' + html;
+  } else if (_grpSideOK) {
+    var _grpSideCard = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem">'
+      + '<div style="font-family:var(--font-head);font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent2);margin-bottom:0.75rem">Photo</div>'
+      + '<div id="grp-side-photo" style="min-height:60px"><div style="text-align:center;padding:1rem;color:var(--text-dim);font-size:0.82rem"><div class="spinner" style="margin:0 auto 0.5rem;width:20px;height:20px;border-width:2px"></div>Loading photo...</div></div>'
+      + '</div>';
+    container.innerHTML = '<div class="rr-detail-wrap"><div class="rr-detail-main">' + _headHtml + '</div>'
+      + '<aside class="rr-detail-side">' + _grpSideCard + '</aside></div>' + html + _photoCard;
+  } else {
+    container.innerHTML = _headHtml + html + _photoCard;
+  }
+
+  // Async: group side photo — prefer the together/SET shot (filed in the
+  // lead unit's folder), fall back to THIS unit's RSV, then its first photo.
+  if (_grpSideOK) {
+    (async function () {
+      var el = function () { return document.getElementById('grp-side-photo'); };
+      function isSet(p) { return /\bSET\b/i.test(String(p.name || '')); }
+      function isRSV(p) { var n = String(p.name || '').toUpperCase(); return n.indexOf('RSV') !== -1 && n.indexOf('BOX') === -1; }
+      var pick = null, pickFolder = '';
+      try {
+        var lead = _grpPhotoMembers[0];
+        var leadPhotos = lead && lead.photoItem ? await driveGetFolderPhotos(lead.photoItem) : null;
+        if (leadPhotos && leadPhotos.length) {
+          pick = leadPhotos.find(isSet) || null;
+          if (pick) pickFolder = lead.photoItem;
+        }
+        if (!pick && pd && pd.photoItem) {
+          var ownPhotos = (lead && pd.photoItem === lead.photoItem) ? leadPhotos : await driveGetFolderPhotos(pd.photoItem);
+          if (ownPhotos && ownPhotos.length) {
+            pick = ownPhotos.find(isRSV) || ownPhotos[0];
+            pickFolder = pd.photoItem;
+          }
+        }
+        if (!pick && leadPhotos && leadPhotos.length) {
+          pick = leadPhotos.find(isRSV) || leadPhotos[0];
+          pickFolder = lead.photoItem;
+        }
+      } catch (e) { console.warn('Group side photo load:', e); }
+      var target = el();
+      if (!target) return;
+      if (pick) {
+        _buildPhotoGallery(target, [pick], { folderLink: pickFolder, canRename: true, stack: true });
+      } else {
+        target.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--text-dim);font-size:0.82rem">No photos yet — see the galleries below</div>';
+      }
+    })();
+  }
 
   // Async: group-sheet photos — one loader per member (v0.9.728)
   if (_grpPhotoMembers.length) {
