@@ -428,15 +428,15 @@ function _renderHierarchyChips() {
                  + 'text-transform:uppercase;color:var(--text-dim);margin-right:0.15rem';
   var noteStyle = 'margin-left:auto;font-size:0.68rem;color:var(--text-dim);font-style:italic';
   var levels = ['manufacturer','scale','era','section'];
-  var html = '<span style="' + labelStyle + '">Filters</span>';
+  var html = '<span class="ph-label" style="' + labelStyle + '">Filters</span>';
   // v0.9.649 (Brad): small clear-all box at the left of the chips.
-  html += '<button type="button" title="Clear all filters" '
+  html += '<button type="button" class="ph-clear" title="Clear all filters" '
        +  'style="padding:0.28rem 0.5rem;border-radius:8px;border:1.5px solid var(--border);'
        +  'background:var(--bg-card);color:var(--text-dim);font-size:0.72rem;font-weight:700;'
        +  'cursor:pointer;line-height:1" onclick="_clearHierarchyFilters()">\u2715</button>';
   levels.forEach(function(level, i) {
     var lbl = _phLabelFor(level, st[level]);
-    if (i > 0) html += '<span style="' + sepStyle + '">›</span>';
+    if (i > 0) html += '<span class="ph-sep" style="' + sepStyle + '">›</span>';
     html += '<button type="button" style="' + (_chipIsActive(lbl) ? chipStyleActive : chipStyle) + '" '
          +  'onclick="_openLevelPicker(\'' + level + '\')">'
          +  lbl + ' ▾</button>';
@@ -448,7 +448,7 @@ function _renderHierarchyChips() {
     var _ftSel = document.getElementById('filter-type');
     var _tVal  = _ftSel ? _ftSel.value : '';
     var _tLbl  = _tVal || 'All Types';
-    html += '<span style="' + sepStyle + '">›</span>';
+    html += '<span class="ph-sep" style="' + sepStyle + '">›</span>';
     html += '<button type="button" style="' + (_chipIsActive(_tLbl) ? chipStyleActive : chipStyle) + '" '
          +  'onclick="_openLevelPicker(\'type\')">'
          +  _tLbl + ' ▾</button>';
@@ -3497,7 +3497,9 @@ function _rrFilterSheetOpen() {
     + '<button onclick="_rrFilterSheetClose()" style="width:100%;margin-top:0.9rem;padding:0.75rem;border-radius:10px;border:none;background:var(--accent);color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.95rem;cursor:pointer">Show results</button>'
     + '</div>';
   ov.addEventListener('click', function (e) { if (e.target === ov) _rrFilterSheetClose(); });
-  document.body.appendChild(ov);
+  // v0.9.1028 (Brad): mount inside .main — the LIGHT theme palette is scoped
+  // to .main, so a sheet parked on <body> rendered in the dark palette.
+  (document.querySelector('.main') || document.body).appendChild(ov);
   var slot = document.getElementById('rr-filter-slot');
   row.style.display = '';                          // it is hidden on phones by CSS
   row.classList.add('rr-in-sheet');

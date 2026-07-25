@@ -123,7 +123,10 @@ function _buildWizardModal() {
       '<div class="modal-footer">' +
         '<button class="btn btn-secondary" id="wizard-back-btn" onclick="if(!wizardBack())_doCloseWizard();" style="display:none">&#x2190; Back</button>' +
         '<button class="btn btn-secondary" onclick="closeWizard()">Cancel</button>' +
-        '<button class="btn btn-secondary" id="wizard-skip-photos-btn" onclick="wizardSkipAllPhotos()" style="display:none">&#x2713; Done with Photos &#x2192;</button>' +
+        '<button class="btn btn-secondary" id="wizard-skip-photos-btn" onclick="wizardSkipAllPhotos()" style="display:none">' +
+          '<span class="wiz-lbl-full">&#x2713; Done with Photos &#x2192;</span>' +
+          '<span class="wiz-lbl-short">&#x2713; Done &#x2192;</span>' +   /* v0.9.1028: phones */
+        '</button>' +
         '<button class="btn btn-primary" id="wizard-next-btn" onclick="wizardNext()">Next &#x2192;</button>' +
       '</div>' +
     '</div>';
@@ -3592,21 +3595,27 @@ function renderWizardStep() {
     const wrap = document.createElement('div');
     wrap.style.cssText = 'padding-top:0.25rem';
 
-    // Friendly orientation note for item photos
-    if (_isItemPhotoStep) {
+    // Friendly orientation note for item photos.
+    // v0.9.1028 (Brad): tightened for phones — the labels sit UNDER the
+    // picture instead of squeezing it between two columns — and it can be
+    // dismissed for good once the habit sticks ("Got it — don't show again").
+    var _orientHidden = false;
+    try { _orientHidden = localStorage.getItem('rr_orient_tip_off') === '1'; } catch (eOT) {}
+    if (_isItemPhotoStep && !_orientHidden) {
       const orientNote = document.createElement('div');
-      orientNote.style.cssText = 'background:rgba(200,16,46,0.06);border:1px solid rgba(41,128,185,0.25);border-radius:10px;padding:0.75rem 0.8rem;margin-bottom:0.75rem;text-align:center';
+      orientNote.className = 'rr-orient-tip';
+      orientNote.style.cssText = 'background:rgba(41,128,185,0.06);border:1px solid rgba(41,128,185,0.25);border-radius:10px;padding:0.6rem 0.7rem;margin-bottom:0.6rem;text-align:center';
       orientNote.innerHTML = `
-        <div style="font-size:0.75rem;font-weight:600;color:#2980b9;margin-bottom:0.6rem;letter-spacing:0.03em">📐 Orientation tip</div>
-        <div style="display:flex;align-items:center;justify-content:center;gap:0.6rem;margin-bottom:0.5rem">
-          <div style="font-size:0.72rem;color:var(--text-dim);white-space:nowrap;font-family:var(--font-mono)">← Rear View</div>
-          <div style="display:flex;flex-direction:column;align-items:center;gap:0.3rem">
-            <img loading="lazy" src="${_RSV_PLACEHOLDER_PNG}" style="width:130px;height:auto;display:block;border-radius:6px;opacity:0.9">
-            <div style="font-size:0.7rem;color:#2980b9;font-weight:600;letter-spacing:0.04em">Right Side View</div>
-          </div>
-          <div style="font-size:0.72rem;color:var(--text-dim);white-space:nowrap;font-family:var(--font-mono)">Front View →</div>
+        <div style="font-size:0.72rem;font-weight:600;color:#2980b9;margin-bottom:0.45rem;letter-spacing:0.03em">📐 Orientation tip — photograph the <b>right side</b></div>
+        <img loading="lazy" src="${_RSV_PLACEHOLDER_PNG}" style="width:150px;max-width:70%;height:auto;display:block;margin:0 auto 0.35rem;border-radius:6px;opacity:0.9">
+        <div style="display:flex;align-items:center;justify-content:center;gap:0.5rem;font-family:var(--font-mono);font-size:0.68rem;color:var(--text-dim);flex-wrap:wrap">
+          <span>← Rear</span><span style="color:#2980b9;font-weight:700;font-family:var(--font-body)">Right Side View</span><span>Front →</span>
         </div>
-        <div style="font-size:0.74rem;color:var(--text-mid);text-align:center">Keeping this consistent makes your collection look sharp!</div>`;
+        <label style="display:flex;align-items:center;justify-content:center;gap:0.4rem;margin-top:0.5rem;font-size:0.72rem;color:var(--text-mid);cursor:pointer;user-select:none">
+          <input type="checkbox" style="width:16px;height:16px;cursor:pointer;accent-color:#2980b9"
+                 onchange="try{localStorage.setItem('rr_orient_tip_off', this.checked?'1':'0');}catch(e){}; if(this.checked){var n=this.closest('.rr-orient-tip'); if(n) n.remove();}">
+          Got it — don't show this again
+        </label>`;
       wrap.appendChild(orientNote);
     }
 

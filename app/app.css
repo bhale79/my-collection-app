@@ -1760,3 +1760,61 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"] {
   .browse-card > div > div { min-width: 0; }
   .browse-card > div > div:first-of-type > div:first-child { overflow: hidden; }
 }
+
+/* ── Filter sheet polish (v0.9.1028, Brad) ───────────────────────────
+   Inside the sheet the chips get room to breathe: the duplicated
+   "Filters" caption and the decorative > separators come off (the sheet
+   already says Filters), the clear-all X moves to the end, and the chip
+   row loses its inline panel styling so it reads as one clean block. */
+#rr-filter-sheet #hierarchy-chip-row .ph-label,
+#rr-filter-sheet #hierarchy-chip-row .ph-sep { display: none !important; }
+#rr-filter-sheet #hierarchy-chips {
+  display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center;
+}
+#rr-filter-sheet #hierarchy-chips button { min-height: 40px; }
+#rr-filter-sheet #hierarchy-chip-row .ph-clear {
+  order: 99; margin-left: auto; min-height: 40px;
+}
+#rr-filter-sheet #browse-search-wrap {
+  width: 100%; max-width: none !important; min-height: 44px;
+  margin-top: 0.2rem;
+}
+#rr-filter-panel { color: var(--text); }
+
+/* ── Wizard footer on phones (v0.9.1028, Brad) ───────────────────────
+   "Done with Photos" wrapped onto three lines and dragged the whole
+   footer to a third of the screen. Buttons now sit on one line each,
+   shrink to fit, and the footer keeps a sane height. */
+@media (max-width: 640px) {
+  .modal-footer {
+    padding: 0.6rem 0.7rem !important;
+    gap: 0.4rem !important;
+    flex-wrap: nowrap;
+  }
+  .modal-footer .btn {
+    padding: 0.5rem 0.6rem !important;
+    font-size: 0.72rem !important;
+    letter-spacing: 0.03em !important;
+    white-space: nowrap;
+    min-height: 44px;
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .modal-footer #wizard-next-btn { flex: 0 0 auto; }
+}
+
+/* Filter-sheet action button: an explicit hex keeps it out of the
+   light-theme "recolour inline-styled buttons" rule (v0.9.1028). */
+#rr-filter-panel > button:last-child {
+  background: #f05008 !important; color: #fff !important; border: none !important;
+}
+#rr-filter-sheet #hierarchy-chip-row .ph-clear { margin-left: 0 !important; order: 0; }
+
+/* Long footer labels shorten on phones instead of wrapping (v0.9.1028). */
+.wiz-lbl-short { display: none; }
+@media (max-width: 640px) {
+  .wiz-lbl-full { display: none; }
+  .wiz-lbl-short { display: inline; }
+}
