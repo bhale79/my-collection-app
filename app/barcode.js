@@ -2260,7 +2260,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // buy-more-tokens feature ships (claude/BUY_MORE_TOKENS_TODO.md).
         + '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.6rem;flex-wrap:wrap;margin-top:0.5rem;padding-top:0.45rem;border-top:1px solid var(--border,#333)">'
         +   '<label style="display:flex;align-items:center;gap:0.45rem;cursor:pointer;user-select:none;color:var(--text-mid,#bbb)">'
-        +     '<input id="bi-ai-opt" type="checkbox" style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent,#e8401c)"' + ((typeof rrAiOptedOut === 'function' && rrAiOptedOut()) ? '' : ' checked') + '>'
+        +     '<input id="bi-ai-opt" class="rr-tap-box" type="checkbox" style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent,#e8401c)"' + ((typeof rrAiOptedOut === 'function' && rrAiOptedOut()) ? '' : ' checked') + '>'
         +     ' Use my daily photo ID reads when the free readers can\'t tell'
         +   '</label>'
         +   '<span id="bi-ai-left" style="color:var(--gold,#d4a843);white-space:nowrap">' + ((typeof rrAiRemainingLabel === 'function' && rrAiRemainingLabel()) || '') + '</span>'

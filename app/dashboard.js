@@ -865,9 +865,9 @@ var PANEL_CATALOG = [
       // fresh set every 20s; \u2039 replays earlier sets, pause is remembered.
       var _scBtn = 'width:26px;height:26px;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-size:0.82rem;cursor:pointer;line-height:1;padding:0';
       return '<div style="display:flex;justify-content:flex-end;gap:0.3rem;margin:-0.3rem 0 0.4rem">'
-        +   '<button id="sc-prev" title="Previous photos" onclick="window._showcasePrev&&_showcasePrev()" style="' + _scBtn + '">\u2039</button>'
-        +   '<button id="sc-pause" title="Pause / resume the shuffle" onclick="window._showcasePauseToggle&&_showcasePauseToggle()" style="' + _scBtn + '">\u23f8</button>'
-        +   '<button id="sc-next" title="Next photos" onclick="window._showcaseNext&&_showcaseNext(true)" style="' + _scBtn + '">\u203a</button>'
+        +   '<button id="sc-prev" class="rr-tap" title="Previous photos" onclick="window._showcasePrev&&_showcasePrev()" style="' + _scBtn + '">\u2039</button>'
+        +   '<button id="sc-pause" class="rr-tap" title="Pause / resume the shuffle" onclick="window._showcasePauseToggle&&_showcasePauseToggle()" style="' + _scBtn + '">\u23f8</button>'
+        +   '<button id="sc-next" class="rr-tap" title="Next photos" onclick="window._showcaseNext&&_showcaseNext(true)" style="' + _scBtn + '">\u203a</button>'
         + '</div>'
         + '<div id="showcase-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:0.5rem;min-height:120px"><div class="empty-state"><p>Loading photos\u2026</p></div></div>';
     }

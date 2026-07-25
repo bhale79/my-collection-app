@@ -187,7 +187,7 @@ function showNonItemDetailPage(type, key) {
     + '</div>';
 
   // ── ACTION TOOLBAR ──
-  html += '<div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap">';
+  html += '<div class="rr-detail-actions" style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap">';
   html +=   '<button onclick="_nonItemDetailEdit(' + typeArg + ',' + keyArg + ')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2980b9;background:rgba(41,128,185,0.1);color:#2980b9;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
        +     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>'
        +     'Update Info/Pictures'
@@ -278,7 +278,7 @@ function showNonItemDetailPage(type, key) {
           + '</div></a>'
           // v0.9.838 (Brad): rotate/crop on paper/catalog photos too — same
           // shared editor as train-item photos.
-          + '<button onclick="event.preventDefault();event.stopPropagation();_detailPhotoEdit(\'' + p.id + '\',\'' + _npn + '\',\'' + _nflEsc + '\')" title="Rotate / crop this photo" style="position:absolute;top:4px;right:4px;z-index:2;width:26px;height:26px;border-radius:6px;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:0.8rem;cursor:pointer;line-height:1">\u2702</button>'
+          + '<button class="rr-tap" onclick="event.preventDefault();event.stopPropagation();_detailPhotoEdit(\'' + p.id + '\',\'' + _npn + '\',\'' + _nflEsc + '\')" title="Rotate / crop this photo" style="position:absolute;top:4px;right:4px;z-index:2;width:26px;height:26px;border-radius:6px;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:0.8rem;cursor:pointer;line-height:1">\u2702</button>'
           + '</div>';
       }).join('');
       photos.forEach(function(p) {
@@ -1045,14 +1045,14 @@ function showItemDetailPage(idx, copyInvId, opts) {
   // ── ACTION TOOLBAR ──
   if (_wantMode) {
     html += `
-  <div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap">
+  <div class="rr-detail-actions" style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap">
     <button onclick="wantFindOnEbay('${it.itemNum}','${(it.roadName||'').replace(/'/g,"&apos;")}')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600">Find on eBay</button>
     <button onclick="wantSearchOtherSites('${it.itemNum}','${(it.roadName||'').replace(/'/g,"&apos;")}')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2980b9;background:rgba(41,128,185,0.1);color:#2980b9;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600">Search Other Sites</button>
     <button onclick="moveWantToCollection('${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600">+ Add to Collection</button>
   </div>`;
   } else {
   html += `
-  <div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap">
+  <div class="rr-detail-actions" style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap">
     <button onclick="showItemDetailPage_edit(${idx})" data-ctip="Edit this item's details and add photos all in one place." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2980b9;background:rgba(41,128,185,0.1);color:#2980b9;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
       Update Info/Pictures
@@ -1432,6 +1432,7 @@ function _buildPhotoGallery(el, photos, opts) {
   var editBtn = document.createElement('button');
   editBtn.title = 'Rotate / crop this photo';
   editBtn.textContent = '\u2702';
+  editBtn.className = 'rr-tap';   // v0.9.1021: 44px tap target on phones
   editBtn.style.cssText = 'position:absolute;top:4px;right:4px;z-index:2;width:26px;height:26px;border-radius:6px;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:0.8rem;cursor:pointer;line-height:1';
   heroWrap.appendChild(heroLink); heroWrap.appendChild(editBtn);
   el.appendChild(heroWrap);

@@ -1604,3 +1604,38 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"] {
 }
 .mnav-more.gone { opacity: 0; }
 @media (max-width: 640px) { .mnav-more { display: flex; } }
+
+/* ── Item-detail action buttons on phones (v0.9.1021, Brad) ───────────
+   Five buttons wrapped into a ragged three rows with small tap targets.
+   On phones they become a tidy grid: the PRIMARY action (first button —
+   Update Info/Pictures) spans the full width, the rest sit two-across.
+   Every button gets the app's 48px phone tap-target floor. Desktop keeps
+   the existing single flex row. */
+@media (max-width: 640px) {
+  .rr-detail-actions {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem !important;
+    align-items: stretch;
+  }
+  .rr-detail-actions > button {
+    width: 100%;
+    min-height: 48px;
+    justify-content: center;
+    font-size: 0.84rem !important;
+    padding: 0.5rem 0.6rem !important;
+  }
+  .rr-detail-actions > button:first-child { grid-column: 1 / -1; }
+  /* an odd last button fills the row rather than leaving a gap */
+  .rr-detail-actions > button:last-child:nth-child(even) { grid-column: 1 / -1; }
+}
+
+/* ── Phone tap-target floor for small square controls (v0.9.1021) ─────
+   The app promises 44-48px targets on phones, but small square buttons
+   added since (showcase ‹ ⏸ ›, photo ✂ crop, picker checkboxes) were
+   26px and 15px. One rule, applied by class. */
+@media (max-width: 640px) {
+  .rr-tap { min-width: 44px !important; min-height: 44px !important;
+            width: 44px !important; height: 44px !important; font-size: 1.05rem !important; }
+  .rr-tap-box { width: 22px !important; height: 22px !important; }
+}
