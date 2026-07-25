@@ -1004,6 +1004,16 @@ function showItemDetailPage(idx, copyInvId, opts) {
   // desktop — the photo fills the space to the right of the text instead of
   // a fixed 340px strip. Everything after the header (toolbar, details,
   // galleries) stays full width below the pair.
+  //
+  // v0.9.1020 (Brad, phones): the long Description / Variation Description
+  // block is split out so PHONES can show the PHOTO first and the wall of
+  // variation text after it — on a phone the photo used to be dead last,
+  // below every line of text plus the buttons and the details card.
+  var _isPhoneDetail = (window.innerWidth || 0) < 1000;
+  var _descBlock = `
+        ${it.description ? `<div style="font-size:0.85rem;color:var(--text-mid);line-height:1.5;margin-top:0.3rem"><strong style="color:var(--text)">Description:</strong> ${it.description}</div>` : ''}
+        ${it.varDesc ? `<div style="font-size:0.85rem;color:var(--text-mid);line-height:1.5;margin-top:0.3rem;white-space:pre-line"><strong style="color:var(--text)">Variation Description:</strong> ${it.varDesc}</div>` : ''}
+        ${(function(){ var _u = (typeof _itemExternalLinkURL==='function')?_itemExternalLinkURL(it):(it.refLink||''); return _u ? `<a href="${_u}" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent2);text-decoration:none;display:inline-flex;align-items:center;gap:0.3rem;margin-top:0.4rem">View on ${(typeof _externalSiteLabel === "function" ? _externalSiteLabel(_u) : "External")} <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : ''; })()}`;
   let _headHtml = `
   <div style="margin-bottom:1.5rem">
     <button onclick="${_backFn}" style="background:none;border:none;color:#2980b9;font-family:var(--font-body);font-size:1.1rem;font-weight:700;cursor:pointer;padding:0;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.4rem">
@@ -1020,9 +1030,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
           ${it.yearProd ? `<span style="font-size:0.82rem;color:var(--text-dim)">${it.yearProd}</span>` : ''}
         </div>
         <div style="font-size:1.05rem;color:var(--text);margin-bottom:0.2rem">${it.roadName || ''}</div>
-        ${it.description ? `<div style="font-size:0.85rem;color:var(--text-mid);line-height:1.5;margin-top:0.3rem"><strong style="color:var(--text)">Description:</strong> ${it.description}</div>` : ''}
-        ${it.varDesc ? `<div style="font-size:0.85rem;color:var(--text-mid);line-height:1.5;margin-top:0.3rem;white-space:pre-line"><strong style="color:var(--text)">Variation Description:</strong> ${it.varDesc}</div>` : ''}
-        ${(function(){ var _u = (typeof _itemExternalLinkURL==='function')?_itemExternalLinkURL(it):(it.refLink||''); return _u ? `<a href="${_u}" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent2);text-decoration:none;display:inline-flex;align-items:center;gap:0.3rem;margin-top:0.4rem">View on ${(typeof _externalSiteLabel === "function" ? _externalSiteLabel(_u) : "External")} <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : ''; })()}
+        ${_isPhoneDetail ? '' : _descBlock}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.4rem;flex-shrink:0">
         ${_wantMode
@@ -1260,6 +1268,14 @@ function showItemDetailPage(idx, copyInvId, opts) {
       + '</div>';
     container.innerHTML = '<div class="rr-detail-wrap"><div class="rr-detail-main">' + _headHtml + '</div>'
       + '<aside class="rr-detail-side">' + _grpSideCard + '</aside></div>' + html + _photoCard;
+  } else if (_isPhoneDetail && _photoCard) {
+    // v0.9.1020 (Brad): phones see the PHOTO right under the title, then the
+    // description/variation text, then buttons + details. (Group sheets keep
+    // their per-member galleries at the bottom — _photoCard holds them, so
+    // this places the galleries up top for groups too, which is what a phone
+    // user wants: pictures first.)
+    container.innerHTML = _headHtml + _photoCard
+      + '<div style="margin:0.9rem 0 1.25rem">' + _descBlock + '</div>' + html;
   } else {
     container.innerHTML = _headHtml + html + _photoCard;
   }

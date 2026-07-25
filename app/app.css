@@ -388,7 +388,12 @@
   }
 
   /* ── App Shell ─────────────────────────────────────────────── */
-  #app { display: none; height: 100vh; flex-direction: column; overflow: hidden; }
+  /* v0.9.1020 (Brad, phones): dvh not vh — on iPhone Safari 100vh counts the
+     area BEHIND the browser toolbar, so the shell was taller than the visible
+     screen and the bottom nav could hide under the chrome. dvh tracks the
+     real visible height; it falls back cleanly on older browsers via the
+     vh line above it. */
+  #app { display: none; height: 100vh; height: 100dvh; flex-direction: column; overflow: hidden; }
   #app.active { display: flex; }
 
   /* Header */
@@ -562,7 +567,7 @@
   /* v0.9.891 (Brad): dashboard panels never scroll — they size to their
      content (the photo grids trim to full rows instead of overflowing). */
   #dash-panels-host .panel { max-height: none; overflow-y: visible; }
-  .two-col .panel { max-height: calc(100vh - 440px); overflow-y: auto; }
+  .two-col .panel { max-height: calc(100vh - 440px); max-height: calc(100dvh - 440px); overflow-y: auto; }   /* v0.9.1020: dvh for iPhone */
 
   /* ── Browse / Search Page ──────────────────────────────────── */
   .filter-bar {
@@ -757,7 +762,7 @@
   .modal-overlay.open { opacity: 1; pointer-events: all; }
   .modal {
     background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
-    width: 100%; max-width: 680px; max-height: 92vh; overflow-y: auto;
+    width: 100%; max-width: 680px; max-height: 92vh; max-height: 92dvh; overflow-y: auto;   /* v0.9.1020: dvh for iPhone */
     transform: translateY(20px); transition: transform 0.2s;
   }
   #wizard-modal .modal {
@@ -915,7 +920,7 @@
 
   /* ── Report Builder ─────────────────────────────────────────── */
   .rb-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.62);z-index:9990;display:flex;align-items:flex-end;justify-content:center; }
-  .rb-sheet { background:var(--surface);border-radius:16px 16px 0 0;width:100%;max-width:600px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden; }
+  .rb-sheet { background:var(--surface);border-radius:16px 16px 0 0;width:100%;max-width:600px;max-height:90vh;max-height:90dvh;display:flex;flex-direction:column;overflow:hidden; }   /* v0.9.1020: dvh */
   .rb-tabs { display:flex;border-bottom:1px solid var(--border); }
   .rb-tab { flex:1;padding:0.55rem 0.5rem;border:none;border-bottom:2px solid transparent;background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.84rem;font-weight:600;cursor:pointer;transition:all 0.15s; }
   .rb-tab.active { color:var(--accent2);border-bottom-color:var(--accent2); }
