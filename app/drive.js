@@ -690,3 +690,76 @@ async function driveCleanupLensStaging(fileId) {
     console.warn('[Lens] Cleanup failed (non-fatal):', e);
   }
 }
+
+// ── Google Photos picker — SHARED (v0.9.1014, Brad) ─────────────────────
+// ONE implementation of the Photos-Picker session dance (open tab → ensure
+// scope → create session → poll until the user presses Done → list picks),
+// used by BOTH the Photo Inbox import and Identify-from-Photo. Callers
+// download picked items with rrGPhotosFile and finish with rrGPhotosEnd.
+// Returns { items, auth, sessionId } on success, { error, status? } otherwise
+// (error: 'scope' | 'session' | 'network' | 'poll' | 'list' | 'cancelled' | 'timeout').
+async function rrGPhotosPickSession(opts) {
+  opts = opts || {};
+  var onStatus = typeof opts.onStatus === 'function' ? opts.onStatus : function () {};
+  var shouldAbort = typeof opts.shouldAbort === 'function' ? opts.shouldAbort : function () { return false; };
+  // Open the tab NOW (inside the user's click) so popup blockers stay quiet;
+  // it gets pointed at the picker once the session exists.
+  var tab = null;
+  try { tab = window.open('', '_blank'); } catch (e) {}
+  if (typeof _ensurePhotosScope === 'function') {
+    var _ok = await _ensurePhotosScope();
+    if (!_ok) { try { if (tab) tab.close(); } catch (e) {} return { error: 'scope' }; }
+  }
+  var auth = { Authorization: 'Bearer ' + window.accessToken };
+  var sRes;
+  try {
+    sRes = await fetch('https://photospicker.googleapis.com/v1/sessions', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, auth), body: '{}' });
+  } catch (e) { try { if (tab) tab.close(); } catch (e2) {} return { error: 'network' }; }
+  if (!sRes.ok) { try { if (tab) tab.close(); } catch (e) {} return { error: 'session', status: sRes.status }; }
+  var s = await sRes.json();
+  if (tab) { try { tab.location = s.pickerUri; } catch (e) { tab = null; } }
+  if (!tab) window.open(s.pickerUri, '_blank');
+  var _ivOf = function (cfg) { try { var dsec = parseFloat(String((cfg || {}).pollInterval || '').replace('s', '')); return dsec > 0 ? Math.max(2000, dsec * 1000) : 0; } catch (e) { return 0; } };
+  var iv = _ivOf(s.pollingConfig) || 4000;
+  var picked = false, waited = 0;
+  onStatus('waiting');
+  while (!picked && !shouldAbort() && waited < 600000) {
+    await new Promise(function (r) { setTimeout(r, iv); });
+    waited += iv;
+    var g;
+    try { g = await fetch('https://photospicker.googleapis.com/v1/sessions/' + s.id, { headers: auth }); }
+    catch (e) { return { error: 'poll' }; }
+    if (!g.ok) return { error: 'poll', status: g.status };
+    var gs = await g.json();
+    if (gs.mediaItemsSet) picked = true;
+    iv = _ivOf(gs.pollingConfig) || iv;
+  }
+  if (!picked) return { error: shouldAbort() ? 'cancelled' : 'timeout' };
+  var items = [], pageToken = '';
+  do {
+    var lRes = await fetch('https://photospicker.googleapis.com/v1/mediaItems?sessionId=' + encodeURIComponent(s.id) + '&pageSize=100' + (pageToken ? '&pageToken=' + encodeURIComponent(pageToken) : ''), { headers: auth });
+    if (!lRes.ok) return { error: 'list', status: lRes.status };
+    var lj = await lRes.json();
+    (lj.mediaItems || []).forEach(function (m) { items.push(m); });
+    pageToken = lj.nextPageToken || '';
+  } while (pageToken);
+  return { items: items, auth: auth, sessionId: s.id };
+}
+// Download one picked media item as a File.
+async function rrGPhotosFile(item, auth, fallbackName) {
+  var mf = (item && item.mediaFile) || {};
+  var bRes = await fetch(mf.baseUrl + '=d', { headers: auth });
+  if (!bRes.ok) throw new Error('download ' + bRes.status);
+  var blob = await bRes.blob();
+  var fname = String(mf.filename || fallbackName || 'photo.jpg').replace(/[^\w.\- ]+/g, '').slice(-60) || (fallbackName || 'photo.jpg');
+  return new File([blob], fname, { type: mf.mimeType || 'image/jpeg' });
+}
+// Best-effort session cleanup.
+function rrGPhotosEnd(sessionId, auth) {
+  try { fetch('https://photospicker.googleapis.com/v1/sessions/' + sessionId, { method: 'DELETE', headers: auth }); } catch (e) {}
+}
+if (typeof window !== 'undefined') {
+  window.rrGPhotosPickSession = rrGPhotosPickSession;
+  window.rrGPhotosFile = rrGPhotosFile;
+  window.rrGPhotosEnd = rrGPhotosEnd;
+}

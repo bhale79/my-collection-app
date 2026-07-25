@@ -1801,77 +1801,44 @@
   window._pinGPhotos = async function () {
     if (_busy) { showToast('Still working on the last batch…', 2500, true); return; }
     if (!_qcToken()) { showToast('Please sign in first', 3000, true); return; }
-    // Open the tab NOW (inside the click) so popup blockers stay quiet;
-    // it gets pointed at the picker once the session exists.
-    var tab = null;
-    try { tab = window.open('', '_blank'); } catch (e) {}
     _busy = true; _gpAbort = false;
-    // v0.9.995: Google Photos permission is asked at the moment of use
-    // (incremental auth) — the default sign-in no longer includes it.
-    if (typeof _ensurePhotosScope === 'function') {
-      var _psOk = await _ensurePhotosScope();
-      if (!_psOk) { try { if (tab) tab.close(); } catch (e) {} _busy = false; showToast('Google Photos permission was not granted', 3500, true); return; }
-    }
     try {
-      var auth = { Authorization: 'Bearer ' + window.accessToken };
-      var sRes = await fetch('https://photospicker.googleapis.com/v1/sessions', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, auth), body: '{}' });
-      if (!sRes.ok) {
-        try { if (tab) tab.close(); } catch (e) {}
-        if (sRes.status === 403 || sRes.status === 401) _gpHelp();
-        else showToast('Google Photos picker error (' + sRes.status + ') — try again', 3500, true);
+      // v0.9.1014 (Brad): the whole picker dance (tab, scope, session, poll,
+      // list) now lives in ONE shared helper in drive.js — the same one the
+      // Identify-from-Photo screen uses — so the two can never drift apart.
+      var pick = await rrGPhotosPickSession({
+        shouldAbort: function () { return _gpAbort; },
+        onStatus: function () {
+          var st = document.getElementById('pin-status');
+          if (st) {
+            st.style.display = 'block';
+            st.innerHTML = 'Pick photos in the Google Photos tab that just opened, then press <strong>Done</strong> there. Waiting… ' +
+              '<button onclick="_pinGPhotosCancel()" style="border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);border-radius:6px;font-size:0.72rem;padding:0.15rem 0.5rem;cursor:pointer;font-family:var(--font-body)">Cancel</button>';
+          }
+        },
+      });
+      if (pick.error) {
+        _status('');
+        if (pick.error === 'scope') showToast('Google Photos permission was not granted', 3500, true);
+        else if (pick.error === 'session' && (pick.status === 403 || pick.status === 401)) _gpHelp();
+        else if (pick.error === 'timeout') showToast('Gave up waiting for the picker — try again', 3000, true);
+        else if (pick.error !== 'cancelled') showToast('Google Photos picker error' + (pick.status ? ' (' + pick.status + ')' : '') + ' — try again', 3500, true);
         return;
       }
-      var s = await sRes.json();
-      if (tab) { try { tab.location = s.pickerUri; } catch (e) { tab = null; } }
-      if (!tab) window.open(s.pickerUri, '_blank');
-      var st = document.getElementById('pin-status');
-      if (st) {
-        st.style.display = 'block';
-        st.innerHTML = 'Pick photos in the Google Photos tab that just opened, then press <strong>Done</strong> there. Waiting… ' +
-          '<button onclick="_pinGPhotosCancel()" style="border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);border-radius:6px;font-size:0.72rem;padding:0.15rem 0.5rem;cursor:pointer;font-family:var(--font-body)">Cancel</button>';
-      }
-      var iv = 4000;
-      var _ivOf = function (cfg) { try { var d = parseFloat(String((cfg || {}).pollInterval || '').replace('s', '')); return d > 0 ? Math.max(2000, d * 1000) : 0; } catch (e) { return 0; } };
-      iv = _ivOf(s.pollingConfig) || iv;
-      var picked = false, waited = 0;
-      while (!picked && !_gpAbort && waited < 600000) {
-        await new Promise(function (r) { setTimeout(r, iv); });
-        waited += iv;
-        var g = await fetch('https://photospicker.googleapis.com/v1/sessions/' + s.id, { headers: auth });
-        if (!g.ok) throw new Error('session poll ' + g.status);
-        var gs = await g.json();
-        if (gs.mediaItemsSet) picked = true;
-        iv = _ivOf(gs.pollingConfig) || iv;
-      }
-      if (!picked) { _status(''); if (!_gpAbort) showToast('Gave up waiting for the picker — try again', 3000, true); return; }
-      // List everything the user picked
-      var items = [], pageToken = '';
-      do {
-        var lRes = await fetch('https://photospicker.googleapis.com/v1/mediaItems?sessionId=' + encodeURIComponent(s.id) + '&pageSize=100' + (pageToken ? '&pageToken=' + encodeURIComponent(pageToken) : ''), { headers: auth });
-        if (!lRes.ok) throw new Error('mediaItems list ' + lRes.status);
-        var lj = await lRes.json();
-        (lj.mediaItems || []).forEach(function (m) { items.push(m); });
-        pageToken = lj.nextPageToken || '';
-      } while (pageToken);
-      var photos = items.filter(function (m) { return String(m.type || '').toUpperCase() !== 'VIDEO'; });
-      var skipped = items.length - photos.length;
+      var photos = pick.items.filter(function (m) { return String(m.type || '').toUpperCase() !== 'VIDEO'; });
+      var skipped = pick.items.length - photos.length;
       var fid = await _folder();
       var ts = new Date().getTime(), ok = 0;
       for (var i = 0; i < photos.length; i++) {
         if (_gpAbort) break;
         _status('Importing ' + (i + 1) + ' of ' + photos.length + ' from Google Photos…');
         try {
-          var mf = photos[i].mediaFile || {};
-          var bRes = await fetch(mf.baseUrl + '=d', { headers: auth });
-          if (!bRes.ok) throw new Error('download ' + bRes.status);
-          var blob = await bRes.blob();
-          var fname = String(mf.filename || ('photo-' + (i + 1) + '.jpg')).replace(/[^\w.\- ]+/g, '').slice(-60) || ('photo-' + (i + 1) + '.jpg');
-          var f = new File([blob], fname, { type: mf.mimeType || 'image/jpeg' });
-          await driveUploadFile(f, 'INBOX ' + ts + ' g' + (ts + i) + ' ' + fname, fid);
+          var f = await rrGPhotosFile(photos[i], pick.auth, 'photo-' + (i + 1) + '.jpg');
+          await driveUploadFile(f, 'INBOX ' + ts + ' g' + (ts + i) + ' ' + f.name, fid);
           ok++;
         } catch (eOne) { console.warn('[Inbox] Google Photos item failed:', eOne); }
       }
-      try { fetch('https://photospicker.googleapis.com/v1/sessions/' + s.id, { method: 'DELETE', headers: auth }); } catch (eDel) {}
+      rrGPhotosEnd(pick.sessionId, pick.auth);
       _status('');
       var msg = 'Imported ' + ok + ' of ' + photos.length + ' photo' + (photos.length === 1 ? '' : 's') + ' from Google Photos';
       if (skipped) msg += ' (' + skipped + ' video' + (skipped > 1 ? 's' : '') + ' skipped)';

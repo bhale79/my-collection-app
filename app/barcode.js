@@ -1901,8 +1901,12 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           : ('<div id="bi-guide" style="color:#ffd27d;font-size:0.82rem;line-height:1.45;margin-bottom:0.5rem">Pick a photo of the <b>box end/side with the printed number</b> — or of the <b>item itself</b> (road name &amp; number visible). Less background = better results.</div>'
             + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap">'
             + _biBtn({ act: 'gallery', txt: '🖼 Choose a photo from this computer' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff;flex:2')
+            // v0.9.1014 (Brad): the Google Photos picker (same shared helper
+            // the Photo Inbox uses) right beside the computer picker.
+            + _biBtn({ act: 'gphotos', txt: '🖼️ From Google Photos' })
             + _biBtn({ act: 'cancel', txt: 'Cancel' })
-            + '</div>'))
+            + '</div>'
+            + '<div id="bi-gp-status" style="display:none;color:var(--text-mid,#bbb);font-size:0.8rem;margin-top:0.45rem"></div>'))
         + (window._researchActive
           ? ('<div style="display:flex;gap:0.4rem;margin-top:0.6rem;align-items:stretch">'
             + '<input id="bi-quick" type="text" placeholder="Know it? Type the item # (e.g. 148, 10-2210)…" style="flex:1;padding:0.55rem 0.7rem;border-radius:9px;border:1.5px solid var(--border,#444);background:var(--surface2,#1c2340);color:var(--text,#fff);font-family:var(--font-mono,monospace);font-size:0.9rem;min-width:0">'
@@ -1934,6 +1938,43 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         var act = b.getAttribute('data-bi');
         if (act === 'snap') { if (video.videoWidth) { var fr = snapFrame(); done({ raw: fr.raw, view: fr.view, lockedBc: null }); } }
         if (act === 'gallery') d.querySelector('#bi-file').click();
+        // v0.9.1014 (Brad): pick the identify shot straight from Google
+        // Photos — same shared picker helper the Photo Inbox uses.
+        if (act === 'gphotos' && typeof window.rrGPhotosPickSession === 'function') {
+          (function () {
+            var stEl = d.querySelector('#bi-gp-status');
+            var setSt = function (m) { if (stEl) { stEl.style.display = m ? 'block' : 'none'; stEl.textContent = m || ''; } };
+            // If this capture screen is gone (user cancelled), stop the dance.
+            var goneAway = function () { return !document.body.contains(d); };
+            setSt('Opening Google Photos…');
+            window.rrGPhotosPickSession({
+              shouldAbort: goneAway,
+              onStatus: function () { setSt('Pick ONE photo in the Google Photos tab, press Done there, then come back — waiting…'); },
+            }).then(async function (pick) {
+              if (goneAway()) { if (pick && pick.sessionId) window.rrGPhotosEnd(pick.sessionId, pick.auth); return; }
+              if (!pick || pick.error) {
+                setSt('');
+                if (pick && pick.error === 'scope') showToast('Google Photos permission was not granted', 3500, true);
+                else if (pick && pick.error === 'timeout') showToast('Gave up waiting for the picker — try again', 3000, true);
+                else if (pick && pick.error !== 'cancelled') showToast('Google Photos picker error' + (pick.status ? ' (' + pick.status + ')' : '') + ' — try again', 3500, true);
+                return;
+              }
+              var ph = (pick.items || []).filter(function (m) { return String(m.type || '').toUpperCase() !== 'VIDEO'; });
+              if (!ph.length) { setSt(''); window.rrGPhotosEnd(pick.sessionId, pick.auth); showToast('No photo was picked', 2500, true); return; }
+              if (ph.length > 1) showToast('Using the first photo you picked', 2500);
+              try {
+                setSt('Fetching the photo…');
+                var f = await window.rrGPhotosFile(ph[0], pick.auth, 'gphotos.jpg');
+                window.rrGPhotosEnd(pick.sessionId, pick.auth);
+                setSt('');
+                if (!goneAway()) _biIngestFile(f);
+              } catch (eDl) {
+                setSt('');
+                showToast('Could not fetch that photo — try again', 3000, true);
+              }
+            });
+          })();
+        }
         if (act === 'quick') {
           var _qv = (d.querySelector('#bi-quick') || {}).value || '';
           if (_qv.trim()) done({ typedQuery: _qv.trim(), typedEra: (d.querySelector('#bi-quick-era') || {}).value || '', typedMfr: (d.querySelector('#bi-quick-mfr') || {}).value || '', typedScale: (d.querySelector('#bi-quick-scale') || {}).value || '' });
@@ -2016,9 +2057,11 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       if (_bq) _bq.addEventListener('keydown', function (e) {
         if (e.key === 'Enter') { var v = _bq.value.trim(); if (v) done({ typedQuery: v, typedEra: (d.querySelector('#bi-quick-era') || {}).value || '', typedMfr: (d.querySelector('#bi-quick-mfr') || {}).value || '', typedScale: (d.querySelector('#bi-quick-scale') || {}).value || '' }); }
       });
-      d.querySelector('#bi-file').addEventListener('change', function (e) {
-        var f = e.target.files && e.target.files[0];
-        if (!f) return;
+      // v0.9.1014: ONE ingest path for a picked photo File — used by the
+      // computer file picker AND the Google Photos picker. Crop-first
+      // (v0.9.808): crop to the box/label before the photo is read; a tight
+      // crop reads better. Cancel = full photo.
+      function _biIngestFile(f) {
         var _useBlob = function (blobOrFile) {
           var img = new Image();
           img.onload = function () {
@@ -2030,8 +2073,6 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           };
           img.src = URL.createObjectURL(blobOrFile);
         };
-        // v0.9.808 (TODO-008/012): crop-first — crop to the box/label before
-        // the photo is read; a tight crop reads better. Cancel = full photo.
         if (typeof window._openCropper === 'function') {
           var _cu = URL.createObjectURL(f);
           window._openCropper(_cu,
@@ -2040,6 +2081,11 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         } else {
           _useBlob(f);
         }
+      }
+      d.querySelector('#bi-file').addEventListener('change', function (e) {
+        var f = e.target.files && e.target.files[0];
+        if (!f) return;
+        _biIngestFile(f);
       });
       if (!window.IS_MOBILE_UA) return;   // v0.9.704: desktop = upload only, never touch the webcam
       navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 } }, audio: false })
