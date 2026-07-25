@@ -1936,6 +1936,7 @@ function buildForSalePage() {
   if (isMobileFs) {
     if (fsCardsEl) fsCardsEl.style.display = 'flex';
     if (fsTableWrap) fsTableWrap.style.display = 'none';
+    var _fsThumbJobs = [];   // v0.9.1022: card thumbnails, filled during render
     if (fsCardsEl) fsCardsEl.innerHTML = fsEntries.length ? fsEntries.map(fs => {
       const _fsx = _fsEff(fs); const master = findMaster(_fsx.itemNum, _fsx.variation) || {};
       const collPd = (fs.inventoryId && state.personalData[fs.inventoryId]) || {};
@@ -1951,29 +1952,53 @@ function buildForSalePage() {
         : (_fsMasterIdx >= 0 ? ('window._detailReturn=\'forsale\';showItemDetailPage(' + _fsMasterIdx + ', \'\')') : '');
       const _fsCardClick = _fsInShare ? ('onclick="toggleShareItem(\'' + _fsShareKey + '\')"') : (_fsOpen ? ('onclick="' + _fsOpen + '"') : '');
       const _fsCardCursor = (_fsInShare || _fsOpen) ? 'pointer' : 'default';
+      // v0.9.1022 (Brad, phone For Sale): road name sits BESIDE the item
+      // number; the price reads "Asking $x"; a thumbnail sits under the price
+      // on the right; buttons are Mark as Sold / Share / Remove.
+      const _fsThumbId = 'fs-thumb-' + String(_fsShareKey).replace(/[^A-Za-z0-9_-]/g, '');
+      if (collPd && collPd.photoItem) _fsThumbJobs.push({ id: _fsThumbId, pd: collPd });
       return `<div id="share-card-${_fsShareKey}" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.85rem 1rem;cursor:${_fsCardCursor}${_fsSelected ? ';outline:2px solid #2ecc71' : ''}" ${_fsCardClick}>
-        <div style="display:flex;justify-content:space-between;align-items:flex-start">
-          <div style="display:flex;align-items:flex-start;gap:0.5rem">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.6rem">
+          <div style="display:flex;align-items:flex-start;gap:0.5rem;min-width:0">
             ${_fsInShare ? '<input type="checkbox" id="share-cb-' + _fsShareKey + '" ' + (_fsSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _fsShareKey + '\')" style="width:1.1rem;height:1.1rem;accent-color:#2ecc71;flex-shrink:0;margin-top:0.2rem">' : ''}
-            <div>
-              <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${_fsItemNumHTML(fs)}</span>
-              ${master.roadName ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">${master.roadName}</div>` : ''}
+            <div style="min-width:0">
+              <div style="display:flex;align-items:baseline;gap:0.5rem;flex-wrap:wrap">
+                <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${_fsItemNumHTML(fs)}</span>
+                ${master.roadName ? `<span style="font-size:0.9rem;color:var(--text)">${master.roadName}</span>` : ''}
+              </div>
               <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${[master.itemType, fs.condition ? 'Cond: '+fs.condition : '', fs.dateListed ? 'Listed: '+_formatDate(fs.dateListed) : ''].filter(Boolean).join(' · ')}</div>
               ${estWorth ? `<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.1rem">Est. Worth: $${parseFloat(estWorth).toLocaleString()}</div>` : ''}
               ${fs.notes ? `<div style="font-size:0.72rem;color:var(--text-mid);margin-top:0.15rem;font-style:italic">${fs.notes.length > 60 ? fs.notes.substring(0,57)+'…' : fs.notes}</div>` : ''}
             </div>
           </div>
-          <div style="text-align:right;flex-shrink:0">
-            ${fs.askingPrice ? `<div style="font-family:var(--font-mono);color:#e67e22;font-size:1.1rem;font-weight:600">$${parseFloat(fs.askingPrice).toLocaleString()}</div>` : '<div style="color:var(--text-dim);font-size:0.8rem">No price</div>'}
+          <div style="text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:0.4rem">
+            ${fs.askingPrice ? `<div style="font-family:var(--font-mono);color:#e67e22;font-size:1.1rem;font-weight:600;white-space:nowrap"><span style="font-family:var(--font-body);font-size:0.72rem;color:var(--text-dim);font-weight:400">Asking </span>$${parseFloat(fs.askingPrice).toLocaleString()}</div>` : '<div style="color:var(--text-dim);font-size:0.8rem">No price</div>'}
+            ${(collPd && collPd.photoItem) ? `<div id="${_fsThumbId}" style="width:74px;height:56px;border-radius:8px;overflow:hidden;background:var(--surface2);flex-shrink:0"></div>` : ''}
           </div>
         </div>
-        ${!_fsInShare ? `<div style="display:flex;gap:0.4rem;margin-top:0.6rem;flex-wrap:wrap">
+        ${!_fsInShare ? `<div class="rr-fs-actions" style="display:flex;gap:0.4rem;margin-top:0.6rem;flex-wrap:wrap">
           <button onclick="event.stopPropagation();markForSaleAsSold('${_fsEntryKey(fs)}','${fs.askingPrice||''}')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-weight:600">Mark as Sold</button>
-          <button onclick="event.stopPropagation();removeForSaleItem('${_fsEntryKey(fs)}')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body)">Back to Collection</button>
-          <button onclick="event.stopPropagation();removeForSaleAndCollection('${_fsEntryKey(fs)}')" style="flex:0 0 auto;padding:0.4rem 0.6rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid #e74c3c;background:rgba(231,76,60,0.10);color:#e74c3c;font-family:var(--font-body)">Remove</button>
+          <button onclick="event.stopPropagation();_fsShareOne('${_fsShareKey}')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid #2980b9;background:rgba(41,128,185,0.12);color:#2980b9;font-family:var(--font-body);font-weight:600">Share</button>
+          <button onclick="event.stopPropagation();removeForSaleItem('${_fsEntryKey(fs)}')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid #e74c3c;background:rgba(231,76,60,0.10);color:#e74c3c;font-family:var(--font-body)">Remove</button>
         </div>` : ''}
       </div>`;
     }).join('') : '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🏷️</div><p>No items listed for sale</p></div>';
+    // v0.9.1022: fill the card thumbnails. _thumbFor caches the first photo's
+    // file id per item on-device, so Drive is asked once per item ever.
+    if (_fsThumbJobs.length && typeof _thumbFor === 'function') {
+      _fsThumbJobs.slice(0, 40).forEach(function (job) {
+        Promise.resolve(_thumbFor(job.pd)).then(function (fid) {
+          var host = document.getElementById(job.id);
+          if (!host || !fid) return;
+          var img = document.createElement('img');
+          img.style.cssText = 'width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 0.3s';
+          img.onload = function () { img.style.opacity = 1; };
+          host.innerHTML = '';
+          host.appendChild(img);
+          if (typeof loadDriveThumb === 'function') loadDriveThumb(fid, img, host, null, 'lo');
+        }).catch(function () {});
+      });
+    }
   } else {
     if (fsCardsEl) fsCardsEl.style.display = 'none';
     if (fsTableWrap) fsTableWrap.style.display = '';

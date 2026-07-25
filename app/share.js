@@ -490,3 +490,19 @@ async function _uploadShareToDrive(pdfBlob) {
 
   return 'https://drive.google.com/file/d/' + fileId + '/view';
 }
+
+
+// ── Share ONE for-sale listing (v0.9.1022, Brad — phone card button) ────
+// Enters the existing for-sale share mode with just this item selected and
+// opens the share builder. Same code path as picking one item by hand.
+function _fsShareOne(key) {
+  try {
+    if (typeof startShareMode !== 'function') return;
+    startShareMode('forsale');          // rebuilds the page → fills _shareDataMap
+    if (window._shareDataMap && window._shareDataMap[key]) {
+      if (typeof toggleShareItem === 'function') toggleShareItem(key);
+    }
+    if (typeof openShareBuilder === 'function') openShareBuilder();
+  } catch (e) { console.warn('[share one]', e); }
+}
+if (typeof window !== 'undefined') window._fsShareOne = _fsShareOne;

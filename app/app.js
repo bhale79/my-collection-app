@@ -2690,6 +2690,17 @@ function showPage(name, clickedEl) {
   // opened it — and that's where Cancel returns them, instead of a per-flow
   // guess that could stray to the Dashboard.
   try { window._rrLastPage = name; } catch (e) {}
+  // v0.9.1022 (Brad, phones): a real breadcrumb trail so the DEVICE back
+  // button returns to the previous page instead of always the Dashboard.
+  // Same-page repeats collapse; the trail is capped so it can't grow.
+  try {
+    if (!window._rrPageTrail) window._rrPageTrail = [];
+    var _tr = window._rrPageTrail;
+    if (!window._rrNavBack && _tr[_tr.length - 1] !== name) {
+      _tr.push(name);
+      if (_tr.length > 25) _tr.shift();
+    }
+  } catch (e) {}
   if (name !== 'itemdetail') { try { delete window._detailReturn; } catch (e) {} }
   if (clickedEl) clickedEl.classList.add('active');
   if (name === 'browse') renderBrowse();
@@ -2801,14 +2812,25 @@ function _initBackButton() {
       return;
     }
 
-    // ── Case 3: On a page other than dashboard — go to dashboard ──
+    // ── Case 3: On a page other than dashboard — go BACK one page ──
+    // v0.9.1022 (Brad): this used to jump straight to the Dashboard from
+    // anywhere, so opening an item from For Sale and pressing the phone's
+    // back button lost your place. Now it walks the visit trail; the
+    // Dashboard is only the fallback when the trail runs out.
     var activePage = document.querySelector('.page.active');
     var activePageId = activePage ? activePage.id.replace('page-', '') : 'dashboard';
     if (activePageId !== 'dashboard') {
+      var _dest = 'dashboard';
+      try {
+        var _tr = window._rrPageTrail || [];
+        while (_tr.length && _tr[_tr.length - 1] === activePageId) _tr.pop();   // drop where we are
+        if (_tr.length) _dest = _tr[_tr.length - 1];
+      } catch (e) {}
       _navSuppressHistory = true;
-      showPage('dashboard');
+      window._rrNavBack = true;            // don't re-record this hop
+      try { _rrGoBackTo(_dest); } finally { window._rrNavBack = false; }
       _navSuppressHistory = false;
-      history.pushState({ appPage: 'dashboard' }, '', '');
+      history.pushState({ appPage: _dest }, '', '');
       return;
     }
 
@@ -2853,3 +2875,26 @@ function _initBackButton() {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _mnavHintWire);
   else _mnavHintWire();
 })();
+
+
+// ── Device-back navigation helper (v0.9.1022, Brad) ─────────────────────
+// showPage() alone leaves several pages showing stale content, so going back
+// to them must also call their builder — the same calls the nav buttons make.
+function _rrGoBackTo(name) {
+  var mnav = document.getElementById('mnav-' + name)
+          || document.querySelector('.mobile-nav-item[onclick*="\'' + name + '\'"]');
+  showPage(name, mnav || null);
+  try {
+    if (name === 'forsale' && typeof buildForSalePage === 'function') buildForSalePage();
+    else if (name === 'upgrade' && typeof buildUpgradePage === 'function') buildUpgradePage();
+    else if (name === 'want' && typeof buildWantPage === 'function') buildWantPage();
+    else if (name === 'parts' && typeof buildPartsPage === 'function') buildPartsPage();
+    else if (name === 'sets' && typeof buildSetsPage === 'function') buildSetsPage();
+    else if (name === 'prefs' && typeof buildPrefsPage === 'function') buildPrefsPage();
+    else if (name === 'tools' && typeof buildToolsPage === 'function') buildToolsPage();
+    else if (name === 'contacts' && typeof buildContactsPage === 'function') buildContactsPage();
+    else if (name === 'vault' && typeof vaultRenderPage === 'function') vaultRenderPage();
+    else if (name === 'dashboard' && typeof buildDashboard === 'function') buildDashboard();
+  } catch (e) { console.warn('[back nav]', name, e); }
+}
+if (typeof window !== 'undefined') window._rrGoBackTo = _rrGoBackTo;
