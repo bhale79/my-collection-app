@@ -4468,7 +4468,6 @@ function renderWizardStep() {
             padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none;box-sizing:border-box"
             oninput="wizard.data.itemNum=this.value; debouncedItemSuggestions(this.value); _updateGroupingButtons();"
             onkeydown="handleSuggestionKey(event)">
-          <div id="wiz-suggestions" style="display:none;flex-direction:column;gap:1px;margin-top:4px;max-height:340px;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:4px;-webkit-overflow-scrolling:touch"></div>
         </div>
         <label onclick="toggleBoxOnly()" data-box-only-checkbox="1" style="
           display:flex;align-items:center;gap:0.45rem;flex-shrink:0;
@@ -4493,7 +4492,18 @@ function renderWizardStep() {
         try { var _ingFilters = _buildItemSearchFiltersDOM(); if (_ingFilters) _ingWrap.appendChild(_ingFilters); } catch(e) { console.warn('[add filters]', e); }
       }
       _ingWrap.appendChild(_ingInputRow);
-      
+
+      // v0.9.1037 (Brad: "the picker is cut off on the right side"). The
+      // suggestion list used to live INSIDE the input's column, which shares
+      // the row with the Box Only checkbox — so on a phone it only got about
+      // 58% of the width and every row was clipped mid-word, taking the
+      // "View on ..." link with it. It is a full-width row of its own now,
+      // below the input, the same as on every other step.
+      const _ingSug = document.createElement('div');
+      _ingSug.id = 'wiz-suggestions';
+      _ingSug.style.cssText = 'display:none;flex-direction:column;gap:1px;margin-top:4px;width:100%;max-height:340px;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:4px;-webkit-overflow-scrolling:touch';
+      _ingWrap.appendChild(_ingSug);
+
       // Match display
       const _ingMatchDiv = document.createElement('div');
       _ingMatchDiv.id = 'wiz-match';
