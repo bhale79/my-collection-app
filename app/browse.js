@@ -2319,6 +2319,7 @@ function renderBrowse() {
       state._collSection || '',
       (window._rrDataRev || 0),
       (typeof _rrDataFingerprint === 'function' ? _rrDataFingerprint() : ''),
+      (typeof shareSigToken === 'function' ? shareSigToken() : ''),   // v0.9.1006
       Math.floor(window.innerWidth / 320)
     ].join('~');
     var _rrTb = document.getElementById('browse-tbody');

@@ -397,6 +397,7 @@ function buildCollectionPage() {
       (typeof _currentEra !== 'undefined' ? _currentEra : ''),
       (window._rrDataRev || 0),
       (typeof _rrDataFingerprint === 'function' ? _rrDataFingerprint() : ''),
+      (typeof shareSigToken === 'function' ? shareSigToken() : ''),   // v0.9.1006
       Math.floor(window.innerWidth / 320)
     ].join('~');
     if (_cSig === window._rrCollPageSig && container.firstElementChild) return;

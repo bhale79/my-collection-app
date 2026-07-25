@@ -16,6 +16,10 @@ function startShareMode(source) {
   _shareSource = source;
   _shareItems  = {};
   _renderShareBar();
+  // v0.9.1006: drop the cached render signatures outright. The token above
+  // already covers this, but selection mode is worth two lines of insurance
+  // — a page with no checkboxes looks broken, not slow.
+  try { window._rrBrowseSig = null; window._rrCollPageSig = null; } catch (e) {}
 
   // Rebuild the current page so checkboxes appear
   if (source === 'collection') { renderBrowse(); }
@@ -32,6 +36,7 @@ function cancelShareMode() {
   window._shareDataMap = {};
   var bar = document.getElementById('share-bottom-bar');
   if (bar) bar.remove();
+  try { window._rrBrowseSig = null; window._rrCollPageSig = null; } catch (e) {}   // v0.9.1006
 
   // Rebuild whichever page is currently active
   var activePage = document.querySelector('.page.active');
@@ -105,6 +110,18 @@ function _renderShareBar() {
 function isShareMode(source) {
   return _shareMode && _shareSource === source;
 }
+
+// v0.9.1006 (Brad's bug): the v0.9.985 render-skip guards in renderBrowse()
+// and buildCollectionPage() compare a signature of everything a page is
+// built from. Share mode was NOT in it — so turning selection ON changed
+// nothing the signature could see, the rebuild was skipped, and no
+// checkboxes appeared. Visiting a detail page and coming back invalidated
+// the signature by another route, which is why they showed up then.
+// One token, used by every guard, so this can't drift again.
+function shareSigToken() {
+  return _shareMode ? ('share:' + (_shareSource || '1')) : '';
+}
+if (typeof window !== 'undefined') { window.shareSigToken = shareSigToken; }
 
 // ── Share Builder Modal ───────────────────────────────────────────
 function openShareBuilder() {
