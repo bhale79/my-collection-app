@@ -262,7 +262,11 @@ function _buildWizardModal() {
       +   '<button id="id-paste-btn" type="button" style="width:100%;padding:0.6rem;border-radius:9px;background:rgba(58,110,165,0.15);border:1.5px solid #3a6ea5;color:#cfe3ff;font-family:var(--font-head);font-size:0.9rem;letter-spacing:0.04em;cursor:pointer;margin-bottom:0.5rem">\ud83d\udccb Paste Lens Result</button>'
       +   '<button id="id-shot-btn" type="button" style="width:100%;padding:0.6rem;border-radius:9px;background:rgba(46,204,113,0.12);border:1.5px solid #2ecc71;color:#c9f5dc;font-family:var(--font-head);font-size:0.9rem;letter-spacing:0.04em;cursor:pointer;margin-bottom:0.5rem">\ud83d\udcf8 Read a Screenshot of the Results</button>'
       +   '<input type="file" id="id-shot-file" accept="image/*" multiple style="display:none">'
-      +   '<div style="font-size:0.72rem;color:var(--text-dim);margin:-0.2rem 0 0.5rem;text-align:center">Tip: your phone\'s <b>scroll capture</b> ("Capture more") grabs the whole answer in one tall screenshot — or pick several screenshots at once.</div>'
+      // v0.9.1013 (Brad): tip matches the device — phones screenshot, computers
+      // copy the answer and it auto-pastes on return.
+      +   '<div id="id-shot-tip" style="font-size:0.72rem;color:var(--text-dim);margin:-0.2rem 0 0.5rem;text-align:center">' + (window.IS_MOBILE_UA
+            ? 'Tip: your phone\'s <b>scroll capture</b> ("Capture more") grabs the whole answer in one tall screenshot — or pick several screenshots at once.'
+            : 'Tip: if you copied the answer on the Google tab (<b>Ctrl+C</b>), switching back here pastes it automatically — these buttons are the backups.') + '</div>'
       +   '<details id="id-help-block" style="background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:0.4rem 0.65rem;font-size:0.75rem;color:var(--text-mid);margin-bottom:0.5rem">'
       +     '<summary style="cursor:pointer;color:var(--text);font-weight:600;font-size:0.78rem;list-style:none">How does this work? \u25b8</summary>'
       +     '<ol style="margin:0.5rem 0 0.15rem 1.1rem;padding:0;line-height:1.5">'

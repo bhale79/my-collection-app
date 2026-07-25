@@ -2094,16 +2094,19 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + '<span id="bi-rotv" style="color:var(--text-mid,#ccc);font-size:0.78rem;min-width:3.2em;text-align:right">0&deg;</span>'
         + '</div>'
         + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.55rem">'
-        + _biBtn({ act: 'go', txt: '🔍 Smart Search' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff;flex:1')
+        + _biBtn({ act: 'go', txt: '🔍 Photo ID' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff;flex:1')
         + _biBtn({ act: 'lens', txt: '🔍 Google Lens Search' })
         + _biBtn({ act: 'rot', txt: '↻ Rotate' })
         + _biBtn({ act: 'retake', txt: '↺ Retake' })
         + _biBtn({ act: 'cancel', txt: 'Cancel' })
         + '</div>'
         // v0.9.713 (Brad): say which engine is best for what, right here.
+        // v0.9.1013 (Brad): "Smart Search" renamed to "Photo ID" and the text
+        // now says what actually happens — the old text read like a barcode
+        // scanner, hiding that this button IS the metered photo ID service.
         + '<div style="margin-top:0.55rem;padding:0.5rem 0.65rem;border-radius:9px;background:rgba(255,255,255,0.04);border:1px solid var(--border,#333);font-size:0.74rem;line-height:1.5;color:var(--text-mid,#bbb)">'
-        + '<b style="color:var(--accent,#e8401c)">🔍 Smart Search</b> — fastest when a <b>number is printed</b>: boxes, labels, barcodes, lettered trains, anything in our catalogs.<br>'
-        + '<b style="color:#9ecbff">🔍 Google Lens</b> — better for <b>unmarked items</b>: buildings, promos, store brands, posters &amp; paper. Also the backup when Smart Search is busy.'
+        + '<b style="color:var(--accent,#e8401c)">🔍 Photo ID</b> — reads a <b>printed number or barcode free</b> first; if the photo has no number to read, it identifies the item using <b>one of your daily photo ID reads</b>. Best for boxes, labels, lettered trains — anything in our catalogs.<br>'
+        + '<b style="color:#9ecbff">🔍 Google Lens</b> — free Google search by photo, better for <b>unmarked items</b>: buildings, promos, store brands, posters &amp; paper. Also the backup when Photo ID can\'t tell.'
         + '</div></div>');
       var img = d.querySelector('#bi-cropimg');
       img.src = canvas.toDataURL('image/jpeg', 0.92);

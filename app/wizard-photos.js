@@ -426,6 +426,10 @@ function closeIdentify() {
   }
   _identifyLensOpened = false;
   _identifyLastClip = '';
+  // v0.9.1013: the desktop copy→auto-paste banner is return-mode only —
+  // remove it so the next open starts clean.
+  var _rtTip = document.getElementById('id-return-tip');
+  if (_rtTip) _rtTip.remove();
   // v2: reset photo state so next open starts fresh. Drive cleanup is on its
   // own 10-minute timer (set when search fires) — we don't trigger it here
   // because the user might just be paste-confirming and we want the public
@@ -478,6 +482,19 @@ function _identifyLensReturnMode() {
   });
   var _mi = document.getElementById('identify-manual-input');
   if (_mi) _mi.value = '';
+  // v0.9.1013 (Brad): on computers, say the copy→auto-paste path out loud at
+  // the top of the return screen — users followed the old screenshot wording,
+  // never copied anything, and concluded auto-paste was broken.
+  if (!window.IS_MOBILE_UA && !document.getElementById('id-return-tip')) {
+    var _panelTip = document.getElementById('identify-panel');
+    if (_panelTip) {
+      var _rt = document.createElement('div');
+      _rt.id = 'id-return-tip';
+      _rt.style.cssText = 'margin-bottom:0.6rem;padding:0.55rem 0.75rem;border-radius:9px;background:rgba(46,204,113,0.10);border:1px solid #2ecc71;color:#c9f5dc;font-size:0.82rem;line-height:1.45';
+      _rt.innerHTML = '<b>Copied the answer?</b> It pastes itself the moment you switch back to this tab. Nothing happened? Go to the Google tab, select the answer text, press <b>Ctrl+C</b>, and come back — or use the buttons below.';
+      _panelTip.insertBefore(_rt, _panelTip.children[1] || null);
+    }
+  }
   // v0.9.681: a clear way out at the bottom (Brad: "it just leaves you here").
   if (!document.getElementById('id-return-close')) {
     var panel0 = document.getElementById('identify-panel');
@@ -509,18 +526,44 @@ window._identifyOpenWithPhoto = function (file, autoLens) {
     // already made — skip the options screen, go straight to staging + Lens.
     if (autoLens) {
       _identifyLensReturnMode();
-      // v0.9.681 (Brad): no confusing intermediate screen — an opaque cover
-      // shows "Opening Google Lens…" until the tab actually switches (or 15s).
+      // v0.9.1013 (Brad): the old cover auto-opened Lens and vanished the
+      // moment the tab switched — the instructions "just flashed up". Now the
+      // instruction screen STAYS until the user presses Continue; Lens only
+      // opens then. A remembered checkbox skips the screen for users who
+      // know the drill (straight to Lens, no flash at all).
+      // Instructions match the device: phones screenshot the answer;
+      // computers select + copy it, and the app pastes it on return.
+      if (localStorage.getItem('rr_lens_skip_intro') === '1') {
+        setTimeout(function () { if (typeof _identifyOpenLens === 'function') _identifyOpenLens(); }, 300);
+        return;
+      }
       var cov = document.createElement('div');
       cov.id = 'id-lens-cover';
-      cov.style.cssText = 'position:fixed;inset:0;z-index:100002;background:var(--bg,#0b0d1d);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.8rem;color:var(--text,#fff);font-family:var(--font-head,sans-serif);font-size:1rem';
-      cov.innerHTML = '<div style="font-size:4rem">🔍</div><div style="font-size:1.9rem;font-weight:700;text-align:center;line-height:1.25">Opening<br>Google Lens…</div><div style="font-size:1.15rem;color:#ffd27d;text-align:center;line-height:1.4;padding:0 1.2rem;max-width:420px">📸 Screenshot the answer,<br>then come back here.</div>';
+      cov.style.cssText = 'position:fixed;inset:0;z-index:100002;background:var(--bg,#0b0d1d);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.9rem;color:var(--text,#fff);font-family:var(--font-head,sans-serif);font-size:1rem;padding:1rem';
+      var _covTip = window.IS_MOBILE_UA
+        ? '📸 <b>Screenshot the answer</b> Google shows at the top,<br>then come back to this app.'
+        : '✂ <b>Select the answer text</b> Google shows at the top,<br>press <b>Ctrl+C</b> to copy it, then come back to this tab —<br><b>it pastes itself</b>.';
+      cov.innerHTML =
+        '<div style="font-size:3.4rem">🔍</div>'
+        + '<div style="font-size:1.7rem;font-weight:700;text-align:center;line-height:1.25">Next: Google Lens</div>'
+        + '<div style="font-size:1.08rem;color:#ffd27d;text-align:center;line-height:1.5;max-width:460px">' + _covTip + '</div>'
+        + '<button id="id-lens-go" type="button" style="margin-top:0.4rem;padding:0.8rem 1.6rem;border-radius:10px;border:1.5px solid var(--accent,#e8401c);background:var(--accent,#e8401c);color:#fff;font-family:var(--font-head,sans-serif);font-size:1.05rem;font-weight:700;letter-spacing:0.03em;cursor:pointer">Continue to Google Lens →</button>'
+        + '<label style="display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;color:var(--text-mid,#bbb);cursor:pointer;user-select:none"><input id="id-lens-skip" type="checkbox" style="width:16px;height:16px;cursor:pointer"> Don’t show these instructions again</label>'
+        + '<button id="id-lens-cancel" type="button" style="padding:0.45rem 1rem;border-radius:8px;border:1.5px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);font-family:var(--font-head,sans-serif);font-size:0.85rem;cursor:pointer">Cancel</button>';
       document.body.appendChild(cov);
-      var covKill = function () { var c = document.getElementById('id-lens-cover'); if (c) c.remove(); document.removeEventListener('visibilitychange', covVis); };
-      var covVis = function () { if (document.visibilityState === 'hidden') covKill(); };
-      document.addEventListener('visibilitychange', covVis);
-      setTimeout(covKill, 15000);
-      setTimeout(function () { if (typeof _identifyOpenLens === 'function') _identifyOpenLens(); }, 300);
+      var covKill = function () { var c = document.getElementById('id-lens-cover'); if (c) c.remove(); };
+      var _goBtn = document.getElementById('id-lens-go');
+      if (_goBtn) _goBtn.onclick = function () {
+        var cb2 = document.getElementById('id-lens-skip');
+        if (cb2 && cb2.checked) { try { localStorage.setItem('rr_lens_skip_intro', '1'); } catch (eLS) {} }
+        covKill();
+        if (typeof _identifyOpenLens === 'function') _identifyOpenLens();
+      };
+      var _cxBtn = document.getElementById('id-lens-cancel');
+      if (_cxBtn) _cxBtn.onclick = function () {
+        covKill();
+        if (typeof closeIdentify === 'function') closeIdentify();
+      };
     }
   }, 300);
 };
