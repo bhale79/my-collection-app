@@ -146,6 +146,10 @@ async function aiPrepImage(src) {
 //   { ok:false, reason: 'noconsent'|'quota'|'offline'|'error' }
 async function aiIdentifyImage(source, hints) {
   try {
+    // v0.9.1015 (Brad): the user can switch metered photo ID reads off — the
+    // free readers still run (they never reach this file); only the paid
+    // read is skipped. ONE gate here covers every caller.
+    if (rrAiOptedOut()) return { ok: false, reason: 'optout' };
     if (typeof vaultGetToken !== 'function' || typeof vaultPost !== 'function') {
       return { ok: false, reason: 'error' };
     }
@@ -199,6 +203,10 @@ function rrNoteAiRemaining(remaining) {
   var n = parseInt(remaining, 10);
   if (isNaN(n) || n < 0) return remaining;
   window._rrAiRemaining = n;
+  // v0.9.1015 (Brad): persist so the crop screen can show the count before
+  // the first read of the day's session. Stamped with the local date — a
+  // stale (yesterday's) count is treated as unknown rather than shown wrong.
+  try { localStorage.setItem('rr_ai_remaining', n + '|' + new Date().toDateString()); } catch (e) {}
   if (typeof showToast !== 'function') return remaining;
   if (n === 0) {
     showToast('That was today\'s last photo ID — the count resets overnight.', 5200, true);
@@ -210,6 +218,33 @@ function rrNoteAiRemaining(remaining) {
   return remaining;
 }
 if (typeof window !== 'undefined') { window.rrNoteAiRemaining = rrNoteAiRemaining; }
+
+// ── Photo ID spending switch + remaining label (v0.9.1015, Brad) ────────
+// The user can turn metered reads off entirely (crop-screen checkbox);
+// preference is remembered per device. rrAiRemainingLabel() renders today's
+// remaining count when we know it (persisted by rrNoteAiRemaining above),
+// or '' when we don't — never a guess.
+function rrAiOptedOut() {
+  try { return localStorage.getItem('rr_ai_optout') === '1'; } catch (e) { return false; }
+}
+function rrAiSetOptOut(off) {
+  try { localStorage.setItem('rr_ai_optout', off ? '1' : '0'); } catch (e) {}
+}
+function rrAiRemainingLabel() {
+  try {
+    var p = String(localStorage.getItem('rr_ai_remaining') || '').split('|');
+    if (p.length === 2 && p[1] === new Date().toDateString()) {
+      var n = parseInt(p[0], 10);
+      if (!isNaN(n) && n >= 0) return n + ' photo ID read' + (n === 1 ? '' : 's') + ' left today';
+    }
+  } catch (e) {}
+  return '';
+}
+if (typeof window !== 'undefined') {
+  window.rrAiOptedOut = rrAiOptedOut;
+  window.rrAiSetOptOut = rrAiSetOptOut;
+  window.rrAiRemainingLabel = rrAiRemainingLabel;
+}
 
 // ── Identify v2 (v0.9.896) ──────────────────────────────────
 // aiIdentifyImage2(sources, hints)
@@ -228,6 +263,7 @@ async function aiIdentifyImage2(sources, hints) {
   var list = Array.isArray(sources) ? sources.slice(0, 4) : [sources];
   if (!list.length) return { ok: false, reason: 'error' };
   try {
+    if (rrAiOptedOut()) return { ok: false, reason: 'optout' };   // v0.9.1015: user switched paid reads off
     if (typeof vaultGetToken !== 'function' || typeof vaultPost !== 'function') {
       return { ok: false, reason: 'error' };
     }

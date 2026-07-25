@@ -348,11 +348,18 @@ function _identifyProcessText(txt) {
   // (which has shown false-negatives where the correct SKU isn't among
   // the candidates). If master hits, apply; if not, route to manual.
   var _mfrHints = _getSelectedIdentifyMfrs();
+  // v0.9.1015 (Brad's GM50): the answer's OWN stated maker is the strongest
+  // hint we have — pass it into the lookup so a cross-catalog number
+  // collision (Lionel 6-8359 vs Atlas 6-8359) resolves to the maker the
+  // answer actually named, and count it in the mismatch check.
+  var _allHints = _mfrHints.slice();
+  if (meta.manufacturer && _allHints.indexOf(meta.manufacturer) === -1) _allHints.push(meta.manufacturer);
+  var _prefer = meta.manufacturer ? { manufacturer: meta.manufacturer } : (_mfrHints.length === 1 ? { manufacturer: _mfrHints[0] } : null);
   if (typeof findMaster === 'function') {
-    var _direct = findMaster(extracted);
+    var _direct = findMaster(extracted, null, _prefer);
     if (_direct) {
       // Cataloged hit — but still check for mfr mismatch before applying.
-      if (_identifyHasMfrMismatch(extracted, _mfrHints)) {
+      if (_identifyHasMfrMismatch(extracted, _allHints, _prefer)) {
         _identifyConfirmMfrMismatch(extracted, txt, meta);
         return 'applied';
       }
@@ -754,6 +761,9 @@ async function _identifySearchLens() {
       if (typeof showToast === 'function') showToast("Couldn't pin down the item number — trying Google Lens…", 3200, true);
     } else if (_ai && _ai.reason === 'quota') {
       if (typeof showToast === 'function') showToast('Daily photo-reading limit reached — using Google Lens instead', 3500, true);
+    } else if (_ai && _ai.reason === 'optout') {
+      // v0.9.1015 (Brad): reads switched off — say why we're going to Lens.
+      if (typeof showToast === 'function') showToast('Photo ID reads are turned off — using Google Lens', 3000);
     }
     // 'noconsent' / error / offline: fall through to the Lens flow silently.
   }
@@ -887,11 +897,15 @@ function useIdentifiedItem() {
   // false-negatives where the correct SKU wasn't among the candidates.
   if (_identifyCallerContext === 'wizard' || _identifyCallerContext === 'research') {
     var _uiMfrs = (typeof _getSelectedIdentifyMfrs === 'function') ? _getSelectedIdentifyMfrs() : [];
+    // v0.9.1015 (Brad's GM50): same maker-aware lookup as the auto path.
+    var _uiAllHints = _uiMfrs.slice();
+    if (meta.manufacturer && _uiAllHints.indexOf(meta.manufacturer) === -1) _uiAllHints.push(meta.manufacturer);
+    var _uiPrefer = meta.manufacturer ? { manufacturer: meta.manufacturer } : (_uiMfrs.length === 1 ? { manufacturer: _uiMfrs[0] } : null);
     if (typeof findMaster === 'function') {
-      var _uiDirect = findMaster(extracted);
+      var _uiDirect = findMaster(extracted, null, _uiPrefer);
       if (_uiDirect) {
         // Cataloged hit — but still check for mfr mismatch before applying.
-        if (typeof _identifyHasMfrMismatch === 'function' && _identifyHasMfrMismatch(extracted, _uiMfrs)) {
+        if (typeof _identifyHasMfrMismatch === 'function' && _identifyHasMfrMismatch(extracted, _uiAllHints, _uiPrefer)) {
           _identifyConfirmMfrMismatch(extracted, raw, meta);
           return;
         }
@@ -1705,10 +1719,12 @@ function _getSelectedIdentifyMfrs() {
 // Returns true when the extracted item# matches a master row but that row's
 // manufacturer (derived from its _tab) doesn't include any of the mfrs the
 // user picked in the Identify modal. Loose match — substring case-insensitive.
-function _identifyHasMfrMismatch(itemNum, userMfrs) {
+function _identifyHasMfrMismatch(itemNum, userMfrs, prefer) {
   if (!itemNum || !userMfrs || !userMfrs.length) return false;
   if (typeof findMaster !== 'function') return false;
-  var match = findMaster(itemNum);
+  // v0.9.1015: resolve with the same maker preference the caller used — if a
+  // row from the right maker exists, we find IT and there is no mismatch.
+  var match = findMaster(itemNum, null, prefer || null);
   if (!match || !match._tab) return false;
   var tabLC = String(match._tab).toLowerCase();
   // If ANY of the user's selected mfrs appear in the tab name, it's fine.
@@ -1896,8 +1912,18 @@ function _applyIdentifiedItem(num) {
     // hit is found — so the wizard's later steps + the ADDING banner all
     // see populated road name / description / year / etc.
     if (typeof findMaster === 'function') {
-      var _existingMaster = findMaster(num);
-      if (!_existingMaster) {
+      // v0.9.1015 (Brad's GM50): resolve WITH the answer's stated maker and
+      // hand the row to the wizard explicitly — wizardNext honors a pre-set
+      // matchedItem for this itemNum, so its own first-row-wins lookup can't
+      // swap in the other maker's identical number.
+      var _amPrefer = _meta.manufacturer ? { manufacturer: _meta.manufacturer } : null;
+      var _existingMaster = findMaster(num, null, _amPrefer);
+      if (_existingMaster) {
+        if (typeof wizard !== 'undefined' && wizard) {
+          wizard.matchedItem = _existingMaster;
+          if (_existingMaster._era && wizard.data) wizard.data._era = _existingMaster._era;
+        }
+      } else {
         var _synth = _buildSyntheticMatchFromMeta(num, _meta, _scaleHint);
         if (_synth && typeof wizard !== 'undefined' && wizard) {
           wizard.matchedItem = _synth;

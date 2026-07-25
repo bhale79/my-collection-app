@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1014';
+const APP_VERSION = 'v0.9.1015';
 
 // v0.9.918 (Brad): SINGLE SOURCE OF TRUTH for the personal sheet's collection
 // tab name. Every sheet read/write range ("My Collection!D12") builds from
@@ -411,8 +411,23 @@ if (typeof window !== 'undefined') setTimeout(function () {
       var cache = cm ? cm[1] : '';
       var last = {};
       try { last = JSON.parse(localStorage.getItem('rr_ver_check') || '{}'); } catch (e) {}
+      // v0.9.1015 (Brad's false alarm): a browser that catches a deploy
+      // MID-ROLLOUT records a mixed pair (old page + new sw.js), and the
+      // next load then looks like a forgotten cache bump. A REAL forgotten
+      // bump persists forever — so only warn when the SAME mismatch is seen
+      // twice in a row; a rollout race clears itself and stays silent.
       if (cache && last.app && last.app !== APP_VERSION && last.cache === cache) {
-        probs.push('APP_VERSION changed (' + last.app + ' -> ' + APP_VERSION + ') but CACHE_NAME did not (' + cache + ')');
+        var _mmSig = last.app + '>' + APP_VERSION + '@' + cache;
+        var _mmPrev = '';
+        try { _mmPrev = localStorage.getItem('rr_ver_warn') || ''; } catch (e) {}
+        if (_mmPrev === _mmSig) {
+          probs.push('APP_VERSION changed (' + last.app + ' -> ' + APP_VERSION + ') but CACHE_NAME did not (' + cache + ')');
+        } else {
+          try { localStorage.setItem('rr_ver_warn', _mmSig); } catch (e) {}
+          console.warn('[version check] possible mismatch (1st sighting, staying quiet):', _mmSig);
+        }
+      } else {
+        try { localStorage.removeItem('rr_ver_warn'); } catch (e) {}
       }
       try { localStorage.setItem('rr_ver_check', JSON.stringify({ app: APP_VERSION, cache: cache })); } catch (e) {}
       if (probs.length) {

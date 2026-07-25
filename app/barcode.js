@@ -216,6 +216,24 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   }
   window._findMasterItemsAllEras = _findMasterItemsAllEras;   // v0.9.738: research typed-lookup searches every era
 
+  // v0.9.1015 (Brad's GM50 lesson): when the photo's answer NAMES the maker,
+  // the catalog hit must come from that maker's tab — Lionel 6-8359 (GM50)
+  // and Atlas 6-8359 (Western Maryland) are DIFFERENT items, and "first row
+  // found" silently picked the wrong one. Re-rank hits so the stated maker
+  // wins; falls back to the first hit when no maker is stated or none match.
+  function _biPreferMfrHit(hits, mfrName) {
+    if (!hits || !hits.length) return null;
+    var want = String(mfrName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (!want || hits.length < 2) return hits[0];
+    for (var i = 0; i < hits.length; i++) {
+      var tab = String(hits[i]._tab || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      var eraMfr = '';
+      try { eraMfr = String((typeof _manufacturerOfEra === 'function' && _manufacturerOfEra(hits[i]._era)) || '').toLowerCase().replace(/[^a-z0-9]/g, ''); } catch (e) {}
+      if ((tab && tab.indexOf(want) === 0) || (eraMfr && (eraMfr === want || want.indexOf(eraMfr) === 0))) return hits[i];
+    }
+    return hits[0];
+  }
+
   // v0.9.742 (Brad): "i maybe wanting an atlas boxcar that has l&n on it" —
   // the research lookup accepts WORDS, not just numbers. Every-token-must-
   // match scan over itemNum+roadName+description+itemType, across all eras.
@@ -481,7 +499,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       else if (/^\d/.test(raw)) lookup.push('6-' + raw);
       var hits = await _findMasterItemsExact(lookup);
       if (hits.length) {
-        var m = hits[0];
+        var m = _biPreferMfrHit(hits, best.mfr) || hits[0];   // v0.9.1015: stated maker wins cross-catalog collisions
         return { handled: true, itemNum: m.itemNum, variation: m.variation || '', masterItem: m, manufacturer: best.mfr || 'Lionel', roadName: (m.roadName || ''), description: (m.description || ''), verifiedNote: '✓ Read from the printed label', verifiedBy: 'label', statusMessage: 'Found ' + m.itemNum + ' — ' + (m.description || '').substring(0, 40) };
       }
       var labelDesc = _bcDescriptionGuess(text, raw);
@@ -564,7 +582,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       else if (/^\d/.test(raw)) lookup.push('6-' + raw);
       var hits = await _findMasterItemsAllEras(lookup);
       if (hits.length) {
-        var m = hits[0];
+        var m = _biPreferMfrHit(hits, meta.manufacturer) || hits[0];   // v0.9.1015: stated maker wins cross-catalog collisions (Brad's GM50)
         return { handled: true, itemNum: m.itemNum, variation: m.variation || '', masterItem: m, manufacturer: meta.manufacturer || 'Lionel', roadName: (m.roadName || ''), description: (m.description || ''), eraTag: (typeof _eraLabel === 'function') ? _eraLabel(m._era) : '', verifiedNote: '🔍 Identified from the photo', verifiedBy: 'ai', statusMessage: 'Found ' + m.itemNum + ' — ' + (m.description || '').substring(0, 40) };
       }
       var descBits = [];
@@ -2153,7 +2171,23 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + '<div style="margin-top:0.55rem;padding:0.5rem 0.65rem;border-radius:9px;background:rgba(255,255,255,0.04);border:1px solid var(--border,#333);font-size:0.74rem;line-height:1.5;color:var(--text-mid,#bbb)">'
         + '<b style="color:var(--accent,#e8401c)">🔍 Photo ID</b> — reads a <b>printed number or barcode free</b> first; if the photo has no number to read, it identifies the item using <b>one of your daily photo ID reads</b>. Best for boxes, labels, lettered trains — anything in our catalogs.<br>'
         + '<b style="color:#9ecbff">🔍 Google Lens</b> — free Google search by photo, better for <b>unmarked items</b>: buildings, promos, store brands, posters &amp; paper. Also the backup when Photo ID can\'t tell.'
+        // v0.9.1015 (Brad): the spending controls — remaining count for today
+        // (when known), and a remembered switch to keep Photo ID free-only.
+        // FUTURE: the "Add more photo IDs" button lands in this row when the
+        // buy-more-tokens feature ships (claude/BUY_MORE_TOKENS_TODO.md).
+        + '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.6rem;flex-wrap:wrap;margin-top:0.5rem;padding-top:0.45rem;border-top:1px solid var(--border,#333)">'
+        +   '<label style="display:flex;align-items:center;gap:0.45rem;cursor:pointer;user-select:none;color:var(--text-mid,#bbb)">'
+        +     '<input id="bi-ai-opt" type="checkbox" style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent,#e8401c)"' + ((typeof rrAiOptedOut === 'function' && rrAiOptedOut()) ? '' : ' checked') + '>'
+        +     ' Use my daily photo ID reads when the free readers can\'t tell'
+        +   '</label>'
+        +   '<span id="bi-ai-left" style="color:var(--gold,#d4a843);white-space:nowrap">' + ((typeof rrAiRemainingLabel === 'function' && rrAiRemainingLabel()) || '') + '</span>'
+        + '</div>'
         + '</div></div>');
+      // v0.9.1015: remember the spending-switch choice the moment it changes.
+      var _aiOptCb = d.querySelector('#bi-ai-opt');
+      if (_aiOptCb) _aiOptCb.addEventListener('change', function () {
+        if (typeof rrAiSetOptOut === 'function') rrAiSetOptOut(!_aiOptCb.checked);
+      });
       var img = d.querySelector('#bi-cropimg');
       img.src = canvas.toDataURL('image/jpeg', 0.92);
       var cropper = null;
@@ -2361,6 +2395,13 @@ window.eraSupportsBarcode = eraSupportsBarcode;
 
     // Stage 4 — AI (crop + everything we learned as hints)
     if (_biStop) return { __biCancel: true };
+    // v0.9.1015 (Brad): the metered read is skipped when the user switched
+    // photo ID reads off — the free stages above already ran.
+    if (typeof rrAiOptedOut === 'function' && rrAiOptedOut()) {
+      out.why.reason = 'optout';
+      st('ai', '⏭', 'Close look: skipped — photo ID reads are turned off', 'var(--text-dim)');
+      return { __biFail: true, out: out };
+    }
     st('ai', '<span class="bi-spin">⟳</span>', 'Close look: reading the photo…');
     var aiR = await _bcAiRescue(workCanvas, eraHint, out.why, out.bcMaker);
     if (_biStop) return { __biCancel: true };
@@ -2406,10 +2447,15 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     return new Promise(function (resolve) {
       var d = document.getElementById('bi-overlay');
       var act = d.querySelector('#bi-actions');
+      // v0.9.1015: when the user has photo ID reads switched OFF, say so —
+      // and don't offer "Take another look" (it would just skip again).
+      var _optedOut = !!(out && out.why && out.why.reason === 'optout');
       act.innerHTML =
-        '<div style="width:100%;color:var(--text-mid,#ccc);font-size:0.82rem;margin-bottom:0.3rem">No confident ID. You can:</div>'
+        '<div style="width:100%;color:var(--text-mid,#ccc);font-size:0.82rem;margin-bottom:0.3rem">'
+        + (_optedOut ? 'The free readers couldn’t tell, and photo ID reads are turned off (checkbox on the crop screen). You can:' : 'No confident ID. You can:')
+        + '</div>'
         + _biBtn({ act: 'retake', txt: '↺ Retake photo' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff')
-        + _biBtn({ act: 'ai', txt: '🔍 Take another look' })
+        + (_optedOut ? '' : _biBtn({ act: 'ai', txt: '🔍 Take another look' }))
         + _biBtn({ act: 'lens', txt: '🔍 Google Lens' })
         + _biBtn({ act: 'type', txt: '⌨ Type it in' })
         + _biBtn({ act: 'cancel', txt: 'Cancel' });
