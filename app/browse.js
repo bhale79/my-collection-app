@@ -2369,6 +2369,12 @@ function renderBrowse() {
   _updateBrowseTabsForEra();
   if (typeof _renderHierarchyChips === 'function') _renderHierarchyChips();
   const { type, road, owned, unowned, boxed, search } = state.filters;
+  // v0.9.1007b (Brad): rebuild the collection header in the SAME pass as the
+  // rows. It used to be rendered only when you switched INTO My Collection,
+  // so turning selection mode on added the gutter cell to every row and left
+  // the header one column short — headers sat over the wrong data. Header and
+  // body now always agree because nothing can rebuild one without the other.
+  if (owned && typeof _renderCollectionHeader === 'function') _renderCollectionHeader();
   // v0.9.986 (Brad): the Show chips route items by WHAT THEY ARE, not where
   // they're stored — an item typed "Paper" (like the Pittman Erect-A-Wire)
   // belongs under Paper Items even though it lives in the items list, and it
