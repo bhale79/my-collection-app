@@ -1670,6 +1670,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         d.remove(); resolve(v === 'cancel' ? null : cands[parseInt(v, 10)] || null);
       });
       document.body.appendChild(d);
+      try { var _mp = d.querySelector('#bc-my-photo'); if (_mp && info._verifySrc) _mp.src = info._verifySrc.toDataURL('image/jpeg', 0.85); } catch (e) {}   // v0.9.1018
       if (window.BackStack && BackStack.wire) BackStack.wire(d); // v0.9.807 TODO-012: device Back closes this pop-up
     });
   }
@@ -1755,6 +1756,10 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + (desc ? '<div style="font-size:0.9rem;color:var(--text-mid,#ccc);margin-top:6px;line-height:1.4">' + desc + '</div>' : '<div style="font-size:0.8rem;color:var(--text-dim,#999);margin-top:6px">No description read from the label.</div>')
         + (info.notInMaster && info.description ? '<div style="font-size:0.7rem;color:var(--text-dim,#999);margin-top:5px">read from the label \u2014 you can edit it in the next steps.</div>' : '')
         + (info.cautionNote ? '<div style="font-size:0.78rem;margin-top:8px;color:#ffb27d">&#9888; ' + _bcEsc(info.cautionNote) + '</div>' : '')
+        // v0.9.1018 (Brad): HIS photo lives on the card — so even when the
+        // reference page's photo can't be fetched and he opens the page in a
+        // tab, the picture he's comparing against stays on screen.
+        + (info._verifySrc ? '<div style="margin-top:10px"><div style="font-size:0.66rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-dim,#999);margin-bottom:3px">Your photo</div><div style="border-radius:10px;overflow:hidden;background:#000"><img id="bc-my-photo" style="width:100%;max-height:170px;object-fit:contain;display:block"></div></div>' : '')
         + (info.verifiedNote ? '<div id="bc-verify-note" style="font-size:0.8rem;margin-top:8px;color:#a6e87e">' + _bcEsc(info.verifiedNote) + '</div>' : (info.verifyPromise ? '<div id="bc-verify-note" style="font-size:0.8rem;margin-top:8px;color:#9aa">🔎 Confirming with the label…</div>' : ''))
         // v0.9.1016 (Brad): FREE side-by-side compare — "just bring up a photo
         // from the reference page next to the user's photo and let the USER
@@ -1774,6 +1779,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + '</div></div>';
       d.addEventListener('click', function (e) { var _wy = (e.target && e.target.closest) ? e.target.closest('[data-why]') : null; if (_wy) { if (typeof _bcWhyLionelPanel === 'function') _bcWhyLionelPanel(); return; } var el = (e.target && e.target.closest) ? e.target.closest('[data-a]') : null; var a = el && el.getAttribute('data-a'); if (a === 'verify') { _bcRunCompare(d, info, function () { d.remove(); resolve('use'); }); return; } if (a) { d.remove(); resolve(a); } });
       document.body.appendChild(d);
+      try { var _mp = d.querySelector('#bc-my-photo'); if (_mp && info._verifySrc) _mp.src = info._verifySrc.toDataURL('image/jpeg', 0.85); } catch (e) {}   // v0.9.1018
       if (window.BackStack && BackStack.wire) BackStack.wire(d); // v0.9.807 TODO-012: device Back closes this pop-up
       if (info.verifyPromise) {
         Promise.resolve(info.verifyPromise).then(function (lv) {
@@ -2619,7 +2625,13 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             eraTag: r.eraTag, lensOffer: !!r.aiGuess, aiOffer: !!aiOffer,
             // v0.9.1016 (Brad): the on-demand double-check needs the photo
             // and the suggested item's reference page.
-            refLink: (r.masterItem && r.masterItem.refLink) || '',
+            // v0.9.1018: COTT links get the item's #anchor appended so the
+            // relay grabs THIS item's photo off the multi-item page.
+            refLink: (function () {
+              var rl = (r.masterItem && r.masterItem.refLink) || '';
+              try { if (rl && typeof window.cottAnchorUrl === 'function') rl = window.cottAnchorUrl(rl, r.masterItem.itemNum); } catch (e) {}
+              return rl;
+            })(),
             _verifySrc: (cr && cr.work) || null,
           };
         }

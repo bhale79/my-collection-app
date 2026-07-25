@@ -525,7 +525,11 @@
     var vr;
     try {
       var blob = await _pinBytes(_rvGroups[0].files[0].id);
-      vr = await aiVerifyPhoto(blob, lk.master.refLink);
+      // v0.9.1018: COTT links get the item's #anchor so the relay pulls THIS
+      // item's photo off the multi-item page (was: page's first image).
+      var _vrRef = lk.master.refLink;
+      try { if (_vrRef && typeof window.cottAnchorUrl === 'function') _vrRef = window.cottAnchorUrl(_vrRef, lk.master.itemNum); } catch (eA) {}
+      vr = await aiVerifyPhoto(blob, _vrRef);
     } catch (e) {
       console.warn('[Inbox] verify failed:', e && e.message);
       vr = { ok: false, reason: 'error' };
