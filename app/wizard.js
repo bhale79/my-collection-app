@@ -144,6 +144,11 @@ function _buildWizardModal() {
   if (window.visualViewport && !window._wizKbGuard) {
     window._wizKbGuard = true;
     var _kbApply = function () {
+      // v0.9.1031 (Brad): stand down while the crop screen is open. On Android
+      // the URL bar sliding in and out fires this repeatedly, and resizing the
+      // modal underneath nudged the page height — which moved the URL bar
+      // again. That loop is what made the crop screen flash for seconds.
+      if (window._rrCropOpen) return;
       var m = document.getElementById('wizard-modal');
       var box = m && m.querySelector('.modal');
       if (!box) return;

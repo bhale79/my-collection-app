@@ -41,7 +41,18 @@ function _openCropper(src, onResult, onCancel) {   // v0.9.787: onCancel = proce
       '<strong style="font-size:1rem">Crop photo</strong>' +
       '<span style="font-size:0.78rem;opacity:0.75">Drag the box · pinch or scroll to zoom</span>' +
     '</div>' +
-    '<div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:0 1rem;overflow:hidden"><img id="_rrCropImg" style="max-width:100%;max-height:100%;display:block"></div>' +
+    // v0.9.1031 (Brad): the crop box used to sit 16px too far RIGHT, so both
+    // right-hand grab squares fell off a phone screen. Cropper measures its
+    // container from the OUTSIDE (offsetWidth includes padding) but is then
+    // laid out INSIDE the padding — so 1rem of padding here pushed the whole
+    // crop box 1rem off the right edge. The padding now lives on a wrapper
+    // and the stage itself is a plain relative box, so Cropper measures the
+    // real area it gets to draw in.
+    '<div style="flex:1;min-height:0;padding:0 12px 4px;display:flex">' +
+      '<div id="_rrCropStage" style="flex:1;min-height:0;position:relative;overflow:hidden">' +
+        '<img id="_rrCropImg" style="max-width:100%;max-height:100%;display:block;margin:0 auto">' +
+      '</div>' +
+    '</div>' +
     // v0.9.904 (Brad, item [3]): fine-rotation slider restored \u2014 same control
     // the box-scanner cropper uses (barcode.js). Any angle via the slider; the
     // \u21bb button steps 90\u00b0 and keeps the slider in sync.
@@ -57,13 +68,84 @@ function _openCropper(src, onResult, onCancel) {   // v0.9.787: onCancel = proce
     '</div>';
   document.body.appendChild(ov);
   var img = ov.querySelector('#_rrCropImg');
+  var stage = ov.querySelector('#_rrCropStage');
   var cropper = null;
-  // v0.9.904 (Brad, item [3]): viewMode 0 (was 1) so a rotated photo isn't
-  // clamped/zoomed to fill the frame — matches the box-scanner cropper, which
-  // is what makes the fine-rotation slider behave.
-  img.onload = function () { try { cropper = new Cropper(img, { viewMode: 0, autoCropArea: 1, background: false, movable: true, zoomable: true, responsive: true, checkOrientation: true }); } catch (e) { console.warn('[crop] init', e); } };
+  // v0.9.1031 (Brad: "the screen flashes a lot for 5 to 10 seconds"). Phones
+  // only. Chain: the camera hands the photo back → Android slides its URL bar
+  // in and out → every one of those fires a viewport resize → the wizard's
+  // keyboard guard resizes the modal (nudging the page height, which moves the
+  // URL bar again) AND Cropper's `responsive` option tears the cropper down
+  // and redraws it from scratch. That redraw IS the flash. Three brakes:
+  //   1. _rrCropOpen parks the wizard keyboard guard while we're open.
+  //   2. The stage is frozen at its measured pixel size the moment we build,
+  //      so a moving toolbar can no longer change the area Cropper sits in.
+  //   3. responsive:false on phones — a real rotation still re-fits (below),
+  //      toolbar twitches no longer do anything.
+  var _phone = false;
+  try {
+    _phone = (typeof IS_MOBILE_UA !== 'undefined' && IS_MOBILE_UA)
+      || (window.matchMedia && window.matchMedia('(max-width: 640px)').matches);
+  } catch (eP) {}
+  window._rrCropOpen = true;
+
+  // PHONES ONLY. On desktop the stage stays fluid so Cropper's `responsive`
+  // option can still re-fit when the window is actually resized.
+  function _freezeStage() {
+    if (!_phone) return;
+    try {
+      var r = stage.getBoundingClientRect();
+      if (r.width > 40 && r.height > 40) {
+        stage.style.flex = '0 0 auto';
+        stage.style.width = Math.round(r.width) + 'px';
+        stage.style.height = Math.round(r.height) + 'px';
+      }
+    } catch (e) {}
+  }
+
+  var _built = false;
+  function _build() {
+    if (_built || !document.body.contains(ov)) return;
+    _built = true;
+    _freezeStage();
+    // v0.9.904 (Brad, item [3]): viewMode 0 (was 1) so a rotated photo isn't
+    // clamped/zoomed to fill the frame — matches the box-scanner cropper, which
+    // is what makes the fine-rotation slider behave.
+    try {
+      cropper = new Cropper(img, { viewMode: 0, autoCropArea: 1, background: false, movable: true, zoomable: true, responsive: !_phone, checkOrientation: true });
+    } catch (e) { console.warn('[crop] init', e); }
+  }
+  // v0.9.1031: build ONCE, and only after the photo has actually decoded and
+  // the overlay has been laid out — the old code raced the decode, so the
+  // first thing you saw was a half-drawn cropper being redrawn.
+  img.onload = function () {
+    var go = function () { requestAnimationFrame(function () { requestAnimationFrame(_build); }); };
+    try { if (img.decode) { img.decode().then(go, go); } else { go(); } } catch (eD) { go(); }
+  };
   img.src = src;
-  function done() { try { if (cropper) cropper.destroy(); } catch (e) {} ov.remove(); if (window.BackStack) BackStack.pop('_rr-cropper'); }
+
+  // A genuine rotation still re-fits (debounced); toolbar resizes do not.
+  var _rotT = null;
+  function _onOrient() {
+    if (_rotT) clearTimeout(_rotT);
+    _rotT = setTimeout(function () {
+      if (!cropper) return;
+      try {
+        stage.style.flex = ''; stage.style.width = ''; stage.style.height = '';
+        _freezeStage();
+        cropper.resize();
+      } catch (e) {}
+    }, 350);
+  }
+  window.addEventListener('orientationchange', _onOrient);
+
+  function done() {
+    window._rrCropOpen = false;
+    if (_rotT) { clearTimeout(_rotT); _rotT = null; }
+    try { window.removeEventListener('orientationchange', _onOrient); } catch (e) {}
+    try { if (cropper) cropper.destroy(); } catch (e) {}
+    ov.remove();
+    if (window.BackStack) BackStack.pop('_rr-cropper');
+  }
   // v0.9.808 (TODO-012): device Back = Cancel (keep the full photo).
   if (window.BackStack) BackStack.push('_rr-cropper', function () { done(); if (onCancel) try { onCancel(); } catch (e) {} });
   // v0.9.904 (Brad, item [3]): fine-rotation slider (any angle) + the ↻ button
