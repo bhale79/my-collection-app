@@ -109,6 +109,45 @@ var _COLL_COLS = [
   { col: 'worth', label: 'Est. Worth' },
   { col: 'added', label: 'Date Added' },   // v0.9.719/726 (Brad): sortable, AFTER Est. Worth
 ];
+// ── Selection gutter (v0.9.1007, Brad) ──────────────────────────────────
+// In share mode the checkbox used to live inside the ITEM # cell, sharing it
+// with the number, the era badge, the group link and the status icons — the
+// one control you actually need was the least visible thing in the row.
+// It now gets its own column at the far left, so the eye runs straight down
+// a single gutter. Shown ONLY in share mode; the normal view keeps no empty
+// column.
+//
+// EVERY span below is computed from _COLL_COLS, never typed. A hardcoded
+// column count is what left the ephemera rows one cell short of the header
+// from v0.9.909 until v0.9.985 — same table, same mistake, don't repeat it.
+function _collGutterOn() {
+  // Owned view only. The catalog (non-owned) list renders through some of the
+  // same row templates but has its OWN header with no gutter — without this
+  // clause a spacer could land there and shift every column one to the right.
+  var _owned = !!(typeof state !== 'undefined' && state.filters && state.filters.owned);
+  return _owned && typeof isShareMode === 'function' && isShareMode('collection');
+}
+function _collColSpan() {
+  return _COLL_COLS.length + 1 /* Actions */ + (_collGutterOn() ? 1 : 0);
+}
+function _collGutterTh() {
+  return _collGutterOn()
+    ? '<th style="width:40px;text-align:center;padding-left:0.5rem" aria-label="Select"></th>' : '';
+}
+function _collGutterTd(key, checked) {
+  if (!_collGutterOn()) return '';
+  return '<td style="width:40px;text-align:center;vertical-align:middle;padding-left:0.5rem">'
+    + '<input type="checkbox" id="share-cb-' + key + '"' + (checked ? ' checked' : '')
+    + ' onclick="event.stopPropagation();toggleShareItem(\'' + key + '\')"'
+    + ' style="width:1.15rem;height:1.15rem;accent-color:#2ecc71;cursor:pointer">'
+    + '</td>';
+}
+// A row that spans the whole table (dividers, empty states) but carries no
+// checkbox still needs the gutter to exist, or every cell shifts left.
+function _collGutterSpacerTd() {
+  return _collGutterOn() ? '<td style="width:40px"></td>' : '';
+}
+
 function _renderCollectionHeader() {
   var thead = document.querySelector('#page-browse .item-table thead tr');
   if (!thead) return;
@@ -127,7 +166,7 @@ function _renderCollectionHeader() {
     return '<th onclick="_collSortBy(\'' + c.col + '\')" style="cursor:pointer;' + _wsp + align + '" title="Sort by ' + c.label + '">' + c.label + arrow + '</th>';
   }).join('');
   html += '<th style="text-align:right;white-space:nowrap">Actions</th>';
-  thead.innerHTML = html;
+  thead.innerHTML = _collGutterTh() + html;   // v0.9.1007: selection gutter
 }
 function _collSortBy(col) {
   var cs = state._collSort;
@@ -2865,7 +2904,7 @@ function renderBrowse() {
   let _ephRowsHtml = '';
   if (_ephemeraRows.length) {
     _ephRowsHtml = _ephemeraRows.map((r, _ri) => {
-      if (r._divider) return `<tr id="ephsec-${_ri}"><td colspan="9" style="padding:0.5rem 0.75rem;background:var(--surface2);font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:${r.color};text-transform:uppercase;border-top:2px solid ${r.color}33">${r.label}</td></tr>`;
+      if (r._divider) return `<tr id="ephsec-${_ri}"><td colspan="${_collColSpan()}" style="padding:0.5rem 0.75rem;background:var(--surface2);font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:${r.color};text-transform:uppercase;border-top:2px solid ${r.color}33">${r.label}</td></tr>`;
       const it = r.item;
       const cond = it.condition ? parseInt(it.condition) : null;
       const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
@@ -2884,6 +2923,7 @@ function renderBrowse() {
           const _cSymIS = (typeof _currencySymbol === 'function') ? _currencySymbol() : '$';
           const _isWorthN = it.estValue ? parseFloat(it.estValue) : NaN;
           return `<tr onclick="openISDetail(${_isKeyArg})" style="cursor:pointer">
+            ${_collGutterSpacerTd()}
             <td style="text-align:center;font-size:1.05rem" title="Instruction Sheet">📋</td>
             <td><span style="font-family:var(--font-mono);font-size:0.85rem;color:#16a085;font-weight:600">${it.sheetNum}</span></td>
             <td style="text-align:center"><span class="text-dim">—</span></td>
@@ -2896,6 +2936,7 @@ function renderBrowse() {
           </tr>`;
         }
         return `<tr onclick="openISDetail(${it.row})" style="cursor:pointer">
+            ${_collGutterSpacerTd()}
           <td><span style="font-family:var(--font-mono);font-size:0.85rem;color:#16a085;font-weight:600">${it.sheetNum}</span></td>
           <td><span class="tag" style="border-color:#16a085;color:#16a085;background:#16a08518">Instr. Sheet</span></td>
           <td>For item #${it.linkedItem || '—'}</td>
@@ -2938,6 +2979,7 @@ function renderBrowse() {
           ? _mfrBadge({ manufacturer: it.manufacturer })
           : '<td></td>';
         return `<tr onclick="openEphemeraDetail('${r.tabId}',${it.row})" style="cursor:pointer">
+            ${_collGutterSpacerTd()}
           ${_ephMfrCell}
           <td style="max-width:170px">
             <span style="min-width:0">
@@ -2965,6 +3007,7 @@ function renderBrowse() {
       // ── Master browse view: 9-column layout ───────────────────
       const _ephTypeBadge = it.paperType || r.label;
       return `<tr onclick="openEphemeraDetail('${r.tabId}',${it.row})" style="cursor:pointer">
+            ${_collGutterSpacerTd()}
         <td>
           <div style="font-size:0.88rem;color:var(--text);font-weight:600">${it.title || it.itemNum || '—'}</div>
           <div style="font-family:var(--font-mono);font-size:0.7rem;color:${r.color};opacity:0.8;margin-top:1px">${it.itemNum || ''}</div>
@@ -3134,6 +3177,7 @@ function renderBrowse() {
         ? `<button onclick="event.stopPropagation();_removeUpgradeFromCollection('${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:#8b5cf6;color:#fff;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Remove from Upgrade list">Un-Upg.</button>`
         : `<button onclick="event.stopPropagation();showAddToUpgradeModal('${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0},'${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Add to Upgrade list">Upgrade</button>`;
       return `<tr id="share-card-${_shareKeyD}" onclick="${_inShareModeD ? 'toggleShareItem(\'' + _shareKeyD + '\')' : 'showItemDetailPage(' + globalIdx + ", '" + _copyInv + "')"}" style="cursor:pointer${_isQuick ? ';opacity:0.82' : ''}${_isShareSelectedD ? ';outline:2px solid #2ecc71;background:rgba(46,204,113,0.06)' : ''}" data-group="${_groupId}" data-item="${item.itemNum}">
+        ${_collGutterTd(_shareKeyD, _isShareSelectedD)}
         ${(function(){
           var _b = (typeof _mfrBadge === 'function') ? _mfrBadge({ manufacturer: (pd && pd.manufacturer) || '' }) : '<td>\u2014</td>';
           // v0.9.726 (Brad): stack SCALE under the maker badge.
@@ -3143,7 +3187,6 @@ function renderBrowse() {
           return _sc ? _b.replace('</td>', '<div style="font-size:0.66rem;color:var(--text-dim);margin-top:2px;letter-spacing:0.04em">' + _sc + '</div></td>') : _b;
         })()}
         <td style="max-width:170px;overflow:hidden">
-          ${_inShareModeD ? '<input type="checkbox" id="share-cb-' + _shareKeyD + '" ' + (_isShareSelectedD ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _shareKeyD + '\')" style="width:1rem;height:1rem;accent-color:#2ecc71;margin-right:5px;vertical-align:middle">' : ''}
           <span class="item-num" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom" title="${String(_displayItemNum(item)).replace(/"/g,'&quot;')}">${_displayItemNum(item)}</span>${_noNumTag(item.itemNum)}
           <div style="margin-top:1px;line-height:1.1;white-space:nowrap">
             ${(typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(item._tab) : ''}
@@ -3238,7 +3281,7 @@ function renderBrowse() {
 
   const emptyHtml = isMobile
     ? (_crossScopeBanner || '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🔍</div><p>No items match your filters</p></div>')
-    : '<tr><td colspan="' + (state.filters.owned ? '8' : '9') + '">' + (_crossScopeBanner || '<div class="empty-state"><div class="empty-icon">🔍</div><p>No items match your filters</p><p style="font-size:0.8rem;color:var(--text-dim);margin-top:0.25rem">Try clearing some filters</p></div>') + '</td></tr>';
+    : '<tr><td colspan="' + (state.filters.owned ? _collColSpan() : 9) + '">' + (_crossScopeBanner || '<div class="empty-state"><div class="empty-icon">🔍</div><p>No items match your filters</p><p style="font-size:0.8rem;color:var(--text-dim);margin-top:0.25rem">Try clearing some filters</p></div>') + '</td></tr>';
 
   if (isMobile) {
     let _ephCardsHtml = '';
