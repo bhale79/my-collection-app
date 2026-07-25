@@ -1659,3 +1659,38 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"] {
   /* card actions: three equal buttons at the tap-target floor */
   .rr-fs-actions > button { min-height: 44px; flex: 1 1 0 !important; }
 }
+
+/* ── For Sale on phones: fit three listings without scrolling ─────────
+   (v0.9.1023, Brad). Every band above the first card was costing rows:
+   an oversized page title, a tall button row, a chunky search box and
+   generous card padding. Trimmed together, plus half-height card
+   buttons on ONE line each, three cards now land above the fold on a
+   normal phone. Desktop untouched. */
+@media (max-width: 640px) {
+  /* card action buttons: half the height, one line, evenly spaced */
+  .rr-fs-actions { gap: 0.35rem !important; margin-top: 0.45rem !important; }
+  .rr-fs-actions > button {
+    min-height: 34px !important;
+    padding: 0.25rem 0.3rem !important;
+    font-size: 0.74rem !important;
+    white-space: nowrap;
+    line-height: 1.1;
+  }
+  /* title band */
+  #page-forsale .page-title { font-size: 1.15rem !important; margin-bottom: 0.4rem !important; row-gap: 0.35rem; }
+  #page-forsale #forsale-title-stats { font-size: 0.72rem !important; margin-left: 0.4rem !important; }
+  /* the two header buttons — shorter, still comfortably tappable */
+  #page-forsale .fs-share-friend,
+  #page-forsale .qa-add-btn { min-height: 38px !important; padding: 0.35rem 0.5rem !important;
+    font-size: 0.74rem !important; white-space: nowrap; }
+  #page-forsale .fs-share-friend svg { flex-shrink: 0; }
+  /* search band */
+  #page-forsale #forsale-search { font-size: 16px !important; }   /* iOS: no zoom-on-focus */
+  #page-forsale .fs-search-band { margin-bottom: 0.45rem !important; }
+  #page-forsale .fs-search-band > div { max-width: none !important; padding: 0.3rem 0.6rem !important; }
+  /* cards: tighter padding + gap */
+  #forsale-cards { gap: 0.45rem !important; }
+  #forsale-cards > div { padding: 0.6rem 0.7rem !important; }
+  /* page gutter */
+  #page-forsale { padding-top: 0.25rem; }
+}
