@@ -83,13 +83,25 @@ function buildToolsPage() {
       '<div id="companion-suggester-results" style="margin-top:1rem"></div>' +
     '</div>';
 
+  // ── Photo name cleanup (v0.9.1011, Brad) ──
+  var CARD_PHOTO_NAMES =
+    '<div class="tools-card">' +
+      '<div class="tools-card-title">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2980b9" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>' +
+        'Clean Up Photo Names' +
+      '</div>' +
+      '<div class="tools-card-desc">Renames your photos in Google Drive to the standard format — maker, item number, inventory ID, then the view (e.g. "Lionel 2025 ID116 RSV"), so every photo identifies itself even after you download or share it. Shows you the full before/after list first; nothing is renamed until you approve. Photos already in the new format are skipped.</div>' +
+      '<button onclick="runPhotoNameCleanup()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #2980b9;background:rgba(41,128,185,0.1);color:#2980b9;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan Photo Names</button>' +
+      '<div id="photo-names-results" style="margin-top:1rem"></div>' +
+    '</div>';
+
   // ── Compose page ──
   var showLionelSection = (typeof _isManufacturerEnabled !== 'function') || _isManufacturerEnabled('lionel');
 
   var html = '<div class="page-title" style="margin-bottom:0.5rem">Collection Tools</div>';
-  // Universal = works across every manufacturer (just the duplicate checker today).
+  // Universal = works across every manufacturer.
   html += SECTION_HEADER('universal', 'Universal Tools', 'Work across all manufacturers');
-  html += '<div id="universal-body">' + CARD_DUPLICATE_CHECKER + '</div>';
+  html += '<div id="universal-body">' + CARD_DUPLICATE_CHECKER + CARD_PHOTO_NAMES + '</div>';
 
   // Postwar Lionel = tools that rely on Lionel postwar catalog data (grouping,
   // sets, companions). Smart Group Finder lives here (it's postwar-Lionel only).
@@ -900,3 +912,157 @@ async function companionAddToWantList(companionNum, engineIdx, suggIdx) {
     showToast('Could not add to want list — try again', 3000, true);
   }
 }
+
+// ═══════════════════════════════════════════════════════════════
+// PHOTO NAME CLEANUP (v0.9.1011, Brad)
+// Renames existing Drive photos to the standard "Mfr ItemNum ID## [SET] VIEW"
+// format that new wizard uploads use (see _photoFileName in drive.js).
+// Safety model: SCAN builds a full before/after plan and shows it; nothing
+// is renamed until the user clicks Rename. Skips photos already in the new
+// format and anything it can't confidently attribute to one copy.
+// ═══════════════════════════════════════════════════════════════
+
+var _photoNamePlan = null;
+
+// Compute the new name for one photo (no extension). Returns null to skip.
+// ownerPd = the personalData copy this photo belongs to.
+function _photoNameFor(stem, ownerPd) {
+  var tokens = String(stem || '').trim().split(/\s+/).filter(Boolean);
+  if (!tokens.length) return null;
+  // Already in the new format (has an ID## token) — leave it alone.
+  if (tokens.some(function (t) { return /^ID\d+$/i.test(t); })) return null;
+  var invId = ownerPd && ownerPd.inventoryId ? String(ownerPd.inventoryId) : '';
+  if (!invId) return null;   // no inventory ID — can't build the standard name
+  // Photo-inbox names end in a numeric uniquifier ("2025 RSV 1721…") — drop
+  // it; the view tag must be the LAST word so gallery labels stay right.
+  var uniq = '';
+  if (tokens.length > 2 && /^\d{6,}$/.test(tokens[tokens.length - 1])) tokens.pop();
+  // SET (together-shot) tag can sit anywhere in old names — pull it out.
+  var setTag = false;
+  tokens = tokens.filter(function (t) { if (/^SET$/i.test(t)) { setTag = true; return false; } return true; });
+  if (!tokens.length) return null;
+  var view = tokens.pop();
+  var mfr = '';
+  try { mfr = (typeof _brandOfItem === 'function') ? String(_brandOfItem(ownerPd.itemNum, ownerPd.variation) || '') : ''; } catch (e) {}
+  if (!mfr) mfr = String(ownerPd.manufacturer || '');
+  // Make sure the item number is present (hand-uploaded files like
+  // "IMG_1234.jpg" have only their own name — keep it as the view word).
+  var restLower = tokens.join(' ').toLowerCase();
+  if (restLower.indexOf(String(ownerPd.itemNum || '').toLowerCase()) === -1) {
+    tokens.unshift(String(ownerPd.itemNum || ''));
+  }
+  // Don't double the maker if the old name already started with it.
+  if (mfr && tokens.length && tokens[0].toLowerCase() === mfr.toLowerCase()) tokens.shift();
+  var parts = [];
+  if (mfr) parts.push(mfr);
+  parts = parts.concat(tokens);
+  parts.push('ID' + invId);
+  if (setTag) parts.push('SET');
+  parts.push(view);
+  var out = parts.join(' ');
+  return (out === String(stem || '').trim()) ? null : out;
+}
+
+async function runPhotoNameCleanup() {
+  var out = document.getElementById('photo-names-results');
+  if (!out) return;
+  if (window._offlineMode) { out.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem">You’re offline — this tool needs a connection.</div>'; return; }
+  out.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem"><div class="spinner" style="display:inline-block;width:14px;height:14px;border-width:2px;margin-right:0.4rem;vertical-align:-2px"></div>Scanning your photo folders… this can take a minute.</div>';
+
+  // Group owned copies by photo folder — engine/dummy pairs share one folder,
+  // and each photo must get the ID of the copy it actually shows.
+  var byFolder = {};
+  Object.values(state.personalData).forEach(function (p) {
+    if (!p || !p.owned || !p.photoItem) return;
+    (byFolder[p.photoItem] = byFolder[p.photoItem] || []).push(p);
+  });
+  var links = Object.keys(byFolder);
+  var plan = [], skipped = 0, folderErrs = 0, done = 0;
+  for (var i = 0; i < links.length; i++) {
+    var link = links[i], owners = byFolder[link], photos = null;
+    try { photos = await driveGetFolderPhotos(link); } catch (e) { photos = null; }
+    if (photos === null) { folderErrs++; continue; }
+    // Collision guard: two old photos can map to the same new name (e.g.
+    // "2025 RSV" + the photo-inbox's "2025 RSV 1721…"). Track every name
+    // that will exist in this folder; a collision gets "-2", "-3" appended
+    // to the view word so nothing ends up indistinguishable again.
+    var taken = {};
+    (photos || []).forEach(function (ph) { taken[String(ph.name || '').toLowerCase()] = true; });
+    (photos || []).forEach(function (ph) {
+      var m = String(ph.name || '').match(/^(.*?)(\.[^.]+)?$/);
+      var stem = (m && m[1]) || '', ext = (m && m[2]) || '';
+      // Attribute the photo to ONE copy: sole owner, else the copy whose
+      // item number starts the filename (pair folders: "205-P FV" vs
+      // "205-D FV"). Anything ambiguous is skipped, never guessed.
+      var owner = null;
+      if (owners.length === 1) owner = owners[0];
+      else {
+        var first = stem.split(/\s+/)[0] || '';
+        var hits = owners.filter(function (o) { return String(o.itemNum || '').toLowerCase() === first.toLowerCase(); });
+        if (hits.length === 1) owner = hits[0];
+      }
+      if (!owner) { skipped++; return; }
+      var newStem = _photoNameFor(stem, owner);
+      if (!newStem) { skipped++; return; }
+      var finalStem = newStem, n = 2;
+      while (taken[(finalStem + ext).toLowerCase()]) { finalStem = newStem + '-' + n; n++; }
+      taken[(finalStem + ext).toLowerCase()] = true;
+      delete taken[String(ph.name || '').toLowerCase()];   // its old name frees up
+      plan.push({ id: ph.id, folder: link, oldName: ph.name, newName: finalStem + ext, item: owner.itemNum });
+    });
+    done++;
+    if (done % 10 === 0) out.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem"><div class="spinner" style="display:inline-block;width:14px;height:14px;border-width:2px;margin-right:0.4rem;vertical-align:-2px"></div>Scanning… ' + done + ' of ' + links.length + ' folders checked.</div>';
+  }
+
+  _photoNamePlan = plan;
+  if (!plan.length) {
+    out.innerHTML = '<div style="color:var(--text-mid);font-size:0.85rem">✓ All your photos already follow the standard naming'
+      + (skipped ? ' — ' + skipped + ' left alone (already named or not clearly one copy’s photo)' : '')
+      + (folderErrs ? ' · ' + folderErrs + ' folder' + (folderErrs > 1 ? 's' : '') + ' could not be read' : '') + '.</div>';
+    return;
+  }
+  var rows = plan.map(function (p, i) {
+    return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;padding:0.3rem 0;border-bottom:1px solid var(--border);font-size:0.78rem">'
+      + '<span style="color:var(--text-dim);word-break:break-word">' + String(p.oldName).replace(/</g, '&lt;') + '</span>'
+      + '<span style="color:var(--text);word-break:break-word">' + String(p.newName).replace(/</g, '&lt;') + '</span>'
+      + '</div>';
+  }).join('');
+  out.innerHTML =
+    '<div style="font-size:0.85rem;color:var(--text-mid);margin-bottom:0.5rem"><strong style="color:var(--text)">' + plan.length + ' photo' + (plan.length > 1 ? 's' : '') + '</strong> will be renamed'
+      + (skipped ? ' · ' + skipped + ' left alone' : '')
+      + (folderErrs ? ' · ' + folderErrs + ' folder' + (folderErrs > 1 ? 's' : '') + ' unreadable' : '') + '. Nothing changes until you click Rename.</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent2);padding-bottom:0.3rem;border-bottom:1px solid var(--border)"><span>Current name</span><span>New name</span></div>'
+    + '<div style="max-height:340px;overflow-y:auto">' + rows + '</div>'
+    + '<div style="display:flex;gap:0.6rem;margin-top:0.85rem">'
+    +   '<button onclick="_photoNamesApply()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Rename ' + plan.length + ' Photo' + (plan.length > 1 ? 's' : '') + '</button>'
+    +   '<button onclick="document.getElementById(\'photo-names-results\').innerHTML=\'\';_photoNamePlan=null" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Cancel</button>'
+    + '</div>';
+}
+if (typeof window !== 'undefined') window.runPhotoNameCleanup = runPhotoNameCleanup;
+
+var _photoNamesRunning = false;   // double-click guard
+async function _photoNamesApply() {
+  if (_photoNamesRunning) return;
+  var plan = _photoNamePlan;
+  var out = document.getElementById('photo-names-results');
+  if (!plan || !plan.length || !out) return;
+  _photoNamesRunning = true;
+  var ok = 0, fail = 0;
+  try {
+    for (var i = 0; i < plan.length; i++) {
+      var p = plan[i];
+      try {
+        await driveRequest('PATCH', '/files/' + p.id, { name: p.newName });
+        ok++;
+      } catch (e) { console.warn('[photo rename]', p.oldName, e); fail++; }
+      if ((i + 1) % 5 === 0 || i === plan.length - 1) {
+        out.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem"><div class="spinner" style="display:inline-block;width:14px;height:14px;border-width:2px;margin-right:0.4rem;vertical-align:-2px"></div>Renaming… ' + (i + 1) + ' of ' + plan.length + '</div>';
+      }
+    }
+  } finally { _photoNamesRunning = false; }
+  _photoNamePlan = null;
+  out.innerHTML = '<div style="font-size:0.85rem;color:var(--text-mid)">✓ <strong style="color:var(--text)">' + ok + '</strong> photo' + (ok === 1 ? '' : 's') + ' renamed'
+    + (fail ? ' · <span style="color:#e74c3c">' + fail + ' failed — run the scan again to retry</span>' : '') + '.</div>';
+  if (typeof showToast === 'function') showToast('✓ Photo names cleaned up (' + ok + ')');
+}
+if (typeof window !== 'undefined') window._photoNamesApply = _photoNamesApply;

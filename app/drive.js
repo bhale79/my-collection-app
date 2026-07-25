@@ -444,13 +444,39 @@ function driveFolderLink(folderId) {
   return `https://drive.google.com/drive/folders/${folderId}`;
 }
 
+// v0.9.1011 (Brad): single source of truth for photo file names (no ext).
+// "Mfr ItemNum ID## [SET] VIEW" — view last. fileLabel (when given) replaces
+// the item number in the name (unit tags like "205-P", or "2025 SET" whose
+// SET tag is repositioned after the ID).
+function _photoFileName(itemNum, viewAbbr, inventoryId, fileLabel) {
+  var base = String(fileLabel || itemNum || '').trim();
+  var setTag = /\sSET$/i.test(base);
+  if (setTag) base = base.replace(/\sSET$/i, '');
+  var mfr = '';
+  try { mfr = (typeof _brandOfItem === 'function') ? String(_brandOfItem(itemNum) || '') : ''; } catch (e) {}
+  // Manual entries already carry the maker in the label ("Marx Tank Car") —
+  // don't double it.
+  if (mfr && base.toLowerCase().indexOf(mfr.toLowerCase()) === 0) mfr = '';
+  return [mfr, base, (inventoryId ? 'ID' + inventoryId : ''), (setTag ? 'SET' : ''), String(viewAbbr || '')]
+    .filter(Boolean).join(' ');
+}
+if (typeof window !== 'undefined') window._photoFileName = _photoFileName;
+
 async function driveUploadItemPhoto(file, itemNum, viewAbbr, inventoryId, fileLabel) {
   console.log('[Drive] Uploading photo:', itemNum, viewAbbr, 'invId:', inventoryId || 'none', 'file:', file.name, 'size:', file.size);
   await driveEnsureSetup();
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
   // v0.9.730 (Brad): pair photos share a folder — the FILENAME carries the
   // unit tag (205-P FV vs 205-D FV) so the gallery labels say which is which.
-  const fileName = `${fileLabel || itemNum} ${viewAbbr}.${ext}`;
+  //
+  // v0.9.1011 (Brad): photos name themselves so they stay identifiable even
+  // outside their folder (downloads, Drive search, eBay listings):
+  //   "Mfr ItemNum ID## [SET] VIEW.ext"  e.g. "Lionel 2025 ID116 SET RSV.jpg"
+  // The VIEW tag stays LAST — galleries label thumbnails from the last word
+  // and pick the hero by spotting RSV, so nothing downstream changes.
+  // _photoFileName is the ONE place this format lives (the cleanup tool in
+  // tools.js reuses it via window._photoFileName).
+  const fileName = _photoFileName(itemNum, viewAbbr, inventoryId, fileLabel) + '.' + ext;
   const itemFolderId = await driveEnsureItemFolder(itemNum);
   // If inventoryId provided, create a subfolder for this specific copy
   let folderId = itemFolderId;
