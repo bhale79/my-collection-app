@@ -91,6 +91,135 @@ let wizard = {
 // ── getSteps() (moved to wizard-steps.js — Session 110, Round 1 Chunk 8) ──
 
 
+// v0.9.1033: put a focused field just under the top of the wizard's scroll
+// area, leaving room for its little label. Silent no-op off the wizard.
+function _wizScrollFieldIntoView(el) {
+  try {
+    var body = document.getElementById('wizard-body');
+    if (!body || !el || !body.contains(el)) return;
+    var b = body.getBoundingClientRect(), r = el.getBoundingClientRect();
+    var delta = (r.top - b.top) - 28;
+    if (Math.abs(delta) < 4) return;
+    body.scrollTop = Math.max(0, body.scrollTop + delta);
+  } catch (e) {}
+}
+if (typeof window !== 'undefined') window._wizScrollFieldIntoView = _wizScrollFieldIntoView;
+
+// ── v0.9.1033 (Brad): full-screen item number field on phones ──────────────
+// Tapping the item number box hands the whole screen to that one field: the
+// box pinned at the top where the keyboard can never reach it, and the list of
+// matching items filling everything between it and the keyboard.
+// The real <input> and the real suggestion list are MOVED here and moved back
+// on close — never copied. Same box, same code, same event handlers; it just
+// changes address for a minute. (Same trick as the Filters sheet on My
+// Collection — a second copy is what drifts out of sync three sessions later.)
+var _wizFocusHome = null;      // where the borrowed nodes came from
+var _wizFocusBusy = false;     // guards the blur that a DOM move causes
+
+function _wizFieldFocusOpen(inp) {
+  if (_wizFocusHome || !inp) return;
+  if (document.getElementById('wiz-focus-panel')) return;
+  var sug = document.getElementById('wiz-suggestions');
+  var titleEl = document.getElementById('wizard-title');
+  var title = (titleEl && titleEl.textContent) || 'Item Number';
+
+  var p = document.createElement('div');
+  p.id = 'wiz-focus-panel';
+  // Below the crop overlay (100010), above the wizard modal.
+  p.style.cssText = 'position:fixed;top:0;left:0;right:0;height:100vh;height:100svh;z-index:100005;'
+    + 'background:var(--surface,#141d2b);display:flex;flex-direction:column';
+  p.innerHTML =
+    '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.65rem 0.9rem;border-bottom:1px solid var(--border)">' +
+      '<div style="flex:1;min-width:0;font-family:var(--font-head);font-size:0.95rem;font-weight:700;color:var(--text);' +
+        'overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + title + '</div>' +
+      '<button id="wiz-focus-done" style="padding:0.5rem 1.1rem;min-height:40px;border-radius:8px;border:none;' +
+        'background:var(--accent);color:#fff;font-family:var(--font-body);font-size:0.9rem;font-weight:700">Done</button>' +
+    '</div>' +
+    '<div id="wiz-focus-field" style="padding:0.7rem 0.9rem 0.5rem"></div>' +
+    '<div id="wiz-focus-list" style="flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 0.9rem 0.9rem"></div>';
+  document.body.appendChild(p);
+
+  _wizFocusHome = {
+    inp: inp, inpParent: inp.parentNode, inpNext: inp.nextSibling,
+    sug: sug, sugParent: sug && sug.parentNode, sugNext: sug && sug.nextSibling,
+    sugMaxH: sug ? sug.style.maxHeight : '', sugBorder: sug ? sug.style.border : ''
+  };
+
+  _wizFocusBusy = true;
+  p.querySelector('#wiz-focus-field').appendChild(inp);
+  if (sug) {
+    p.querySelector('#wiz-focus-list').appendChild(sug);
+    sug.style.maxHeight = 'none';       // fill the panel instead of a 340px box
+    sug.style.border = 'none';
+  }
+  // Moving a node in the DOM blurs it — put the cursor back and keep typing.
+  try { inp.focus(); var _v = inp.value; inp.value = ''; inp.value = _v; } catch (e) {}
+  setTimeout(function () { _wizFocusBusy = false; }, 60);
+
+  // Size the panel to the part of the screen the keyboard ISN'T covering, so
+  // the results list ends exactly where the keyboard starts — you can see how
+  // many matches there are and scroll them without fighting the keyboard.
+  _wizFocusFit();
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', _wizFocusFit);
+    window.visualViewport.addEventListener('scroll', _wizFocusFit);
+  }
+
+  p.querySelector('#wiz-focus-done').onclick = function () { _wizFieldFocusClose(); };
+  // A tap in the list is a pick — hand the wizard back so the user sees the
+  // number land and whatever follow-up the pick opened.
+  p.querySelector('#wiz-focus-list').addEventListener('click', function () {
+    setTimeout(_wizFieldFocusClose, 260);
+  });
+  inp.addEventListener('keydown', _wizFocusKey);
+  if (window.BackStack) BackStack.push('_wiz-focus', function () { _wizFieldFocusClose(true); });
+}
+
+function _wizFocusFit() {
+  var p = document.getElementById('wiz-focus-panel');
+  if (!p) return;
+  try {
+    var vv = window.visualViewport;
+    if (!vv) return;
+    p.style.height = Math.max(220, Math.round(vv.height)) + 'px';
+    p.style.top = Math.max(0, Math.round(vv.offsetTop || 0)) + 'px';
+  } catch (e) {}
+}
+
+function _wizFocusKey(e) {
+  if (e && e.key === 'Enter') setTimeout(function () { _wizFieldFocusClose(); }, 160);
+}
+
+function _wizFieldFocusClose(fromBack) {
+  var h = _wizFocusHome;
+  if (!h) return;
+  _wizFocusHome = null;
+  _wizFocusBusy = true;
+  try { h.inp.removeEventListener('keydown', _wizFocusKey); } catch (e) {}
+  try { h.inp.blur(); } catch (e) {}
+  // Back to the exact spot each node came from.
+  try {
+    if (h.inpParent) h.inpParent.insertBefore(h.inp, h.inpNext || null);
+    if (h.sug && h.sugParent) {
+      h.sug.style.maxHeight = h.sugMaxH;
+      h.sug.style.border = h.sugBorder;
+      h.sugParent.insertBefore(h.sug, h.sugNext || null);
+    }
+  } catch (e) { console.warn('[wiz focus] restore', e); }
+  if (window.visualViewport) {
+    try { window.visualViewport.removeEventListener('resize', _wizFocusFit); } catch (e) {}
+    try { window.visualViewport.removeEventListener('scroll', _wizFocusFit); } catch (e) {}
+  }
+  var p = document.getElementById('wiz-focus-panel');
+  if (p) p.remove();
+  if (!fromBack && window.BackStack) { try { BackStack.pop('_wiz-focus'); } catch (e) {} }
+  setTimeout(function () { _wizFocusBusy = false; }, 60);
+}
+if (typeof window !== 'undefined') {
+  window._wizFieldFocusOpen = _wizFieldFocusOpen;
+  window._wizFieldFocusClose = _wizFieldFocusClose;
+}
+
 function _buildWizardModal() {
   if (document.getElementById('wizard-modal')) return;
   var overlay = document.createElement('div');
@@ -106,7 +235,9 @@ function _buildWizardModal() {
         '</div>' +
         '<button class="btn-close" onclick="closeWizard()">&#x2715;</button>' +
       '</div>' +
-      '<div style="padding:0 1.5rem;padding-top:0.75rem">' +
+      // v0.9.1033: id so the keyboard-open compact mode can hide the whole
+      // progress strip, not just the bar inside it.
+      '<div id="wizard-progress-wrap" style="padding:0 1.5rem;padding-top:0.75rem">' +
         '<div style="background:var(--border);border-radius:4px;height:4px">' +
           '<div id="wizard-progress" style="height:100%;border-radius:4px;background:var(--accent);transition:width 0.3s ease;width:0%"></div>' +
         '</div>' +
@@ -154,15 +285,32 @@ function _buildWizardModal() {
       if (!box) return;
       var vh = window.visualViewport.height;
       box.style.height = (vh < 596 ? Math.max(300, vh - 16) : 580) + 'px';
+      // v0.9.1033 (Brad: "when the keyboard pops up, you can hardly see what
+      // you're typing"). The box shrinks to what's left of the screen, but the
+      // two-line header, the progress strip and the Adding banner keep their
+      // full size — so the field you're typing in gets squeezed off the bottom.
+      // While the keyboard is up, that chrome stands down (see .wiz-kb in
+      // app.css) and hands its space to the field. Everything comes back the
+      // moment the keyboard closes.
+      try {
+        var kbUp = (window.innerHeight - vh) > 120;
+        box.classList.toggle('wiz-kb', !!kbUp);
+      } catch (eK) {}
     };
     window.visualViewport.addEventListener('resize', _kbApply);
     window.visualViewport.addEventListener('scroll', _kbApply);
     document.addEventListener('focusin', function (e) {
       var body = document.getElementById('wizard-body');
       if (!body || !body.contains(e.target)) return;
-      setTimeout(function () {
-        try { e.target.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (err) {}
-      }, 250);
+      // v0.9.1033: was scrollIntoView({block:'center'}) — centring can't work
+      // for a field near the END of the list (there is nothing below it to
+      // scroll up), which is exactly where the item number field sits, so it
+      // stayed jammed against the bottom edge. Put the field just under the
+      // top of the scroll area instead, and do it twice: once now and once
+      // after the keyboard has finished sliding up and changed the height.
+      _wizScrollFieldIntoView(e.target);
+      setTimeout(function () { _wizScrollFieldIntoView(e.target); }, 320);
+      setTimeout(function () { _wizScrollFieldIntoView(e.target); }, 700);
     });
   }
 
@@ -531,6 +679,7 @@ async function openWizard(tab) {
 }
 
 function closeWizard() {
+  try { if (typeof _wizFieldFocusClose === 'function') _wizFieldFocusClose(); } catch (eF) {}
   // If in set mode with saved items, confirm before canceling
   const _savedItems = wizard && wizard.data && wizard.data._setItemsSaved;
   const _groupId = wizard && wizard.data && wizard.data._setGroupId;
@@ -568,6 +717,7 @@ function closeWizard() {
 }
 
 function _doCloseWizard() {
+  try { if (typeof _wizFieldFocusClose === 'function') _wizFieldFocusClose(); } catch (eF) {}
   // v0.9.697: single-chokepoint cache snapshot (Brad's "says it saves but it
   // doesn't"): many save paths updated the sheet + in-memory state but never
   // refreshed the 2-hour personal-data cache, so the next app load REVERTED
@@ -1223,6 +1373,9 @@ function _renderAddingBanner() {
 }
 
 function renderWizardStep() {
+  // v0.9.1033: the step is about to be re-rendered, so hand back any field the
+  // full-screen focus panel borrowed before its old home is thrown away.
+  try { if (typeof _wizFieldFocusClose === 'function') _wizFieldFocusClose(); } catch (eF) {}
   // Always restore Next button (entryMode step hides it)
   const _nb = document.getElementById('wizard-next-btn');
   if (_nb) _nb.style.display = '';
@@ -1675,6 +1828,16 @@ function renderWizardStep() {
         if (s.id === 'itemNum') {
           inp.addEventListener('input', debounceItemLookup);
           if (inp.value) updateItemSuggestions(inp.value);
+          // v0.9.1033 (Brad): on phones this field hands the whole screen over
+          // while you type, so the keyboard can't bury it. Not on the For Sale
+          // / Sold tabs — those steps show a collection picker below the field
+          // that would be left behind.
+          if (window.IS_MOBILE_UA && !_showCollPicker) {
+            inp.addEventListener('focus', function () {
+              if (_wizFocusBusy) return;
+              _wizFieldFocusOpen(inp);
+            });
+          }
         }
       }
       if (_showCollPicker) _filterCollPicker('');

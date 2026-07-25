@@ -1901,3 +1901,20 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"] {
   /* ── the condition pip everywhere else (Brad: "just delete it") ── */
   .condition-pip { display: none !important; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   v0.9.1033 (Brad: "when the keyboard pops up, you can hardly see what
+   you're typing"). While the on-screen keyboard is up on a phone, the
+   wizard popup only has an inch or two of height left — so its chrome
+   stands down and gives that space to the field being typed in.
+   .wiz-kb is put on / taken off the popup by _kbApply() in wizard.js.
+   ══════════════════════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+  .modal.wiz-kb .modal-header { padding-top: 0.5rem !important; padding-bottom: 0.35rem !important; }
+  .modal.wiz-kb .modal-title { font-size: 0.95rem !important; line-height: 1.15 !important; }
+  .modal.wiz-kb .modal-item-num { font-size: 0.62rem !important; margin-bottom: 0 !important; }
+  .modal.wiz-kb #wizard-progress-wrap { display: none !important; }
+  .modal.wiz-kb #wizard-adding-banner { display: none !important; }
+  /* the ITEM TYPE selector stays put — Brad wants the maker/type visible while typing */
+  .modal.wiz-kb .modal-footer { padding-top: 0.45rem !important; padding-bottom: 0.45rem !important; }
+}
