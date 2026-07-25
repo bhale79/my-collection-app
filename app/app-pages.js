@@ -2928,6 +2928,10 @@ function buildUpgradePage() {
     upgradeCountEl.textContent = entries.length === labelTotal
       ? labelTotal + ' item' + (labelTotal !== 1 ? 's' : '')
       : 'Showing ' + entries.length + ' of ' + labelTotal;
+    // v0.9.1024 (Brad, phones): the count also rides in the page title, where
+    // the compact phone filter grid hides the in-bar copy — one less row.
+    var _wuTitleStats = document.getElementById('upgrade-title-stats');
+    if (_wuTitleStats) _wuTitleStats.textContent = '\u00b7 ' + upgradeCountEl.textContent;
   }
 
   const cardsEl = document.getElementById('upgrade-cards');

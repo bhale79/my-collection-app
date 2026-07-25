@@ -1694,3 +1694,35 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"] {
   /* page gutter */
   #page-forsale { padding-top: 0.25rem; }
 }
+
+/* ── Want/Upgrade on phones: compact filter block (v0.9.1024, Brad) ───
+   The four controls wrapped into three tall rows and pushed the first
+   card off the fold. On phones they become a 2x2 grid at a tighter
+   height, the "Showing x of y" count moves up into the page title, and
+   card buttons match the For Sale half-height treatment. */
+@media (max-width: 640px) {
+  #page-upgrade .page-title { font-size: 1rem !important; margin-bottom: 0.4rem !important; letter-spacing: 0.02em; }
+  #page-upgrade #upgrade-title-stats { white-space: nowrap; }
+  #page-upgrade .wu-filter-bar {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem !important;
+    margin-bottom: 0.5rem !important;
+    align-items: stretch;
+  }
+  #page-upgrade .wu-filter-bar > select {
+    width: 100%; min-height: 38px !important; min-width: 0;
+    padding: 0.3rem 0.45rem !important; font-size: 0.8rem !important;
+  }
+  #page-upgrade .wu-filter-bar > div {            /* the search pill */
+    max-width: none !important; min-width: 0 !important; min-height: 38px;
+    padding: 0.25rem 0.5rem !important;
+  }
+  #page-upgrade #upgrade-count { display: none !important; }   /* lives in the title now */
+  #page-upgrade #upgrade-cards { gap: 0.45rem !important; }
+  #page-upgrade #upgrade-cards > div { padding: 0.6rem 0.7rem !important; }
+  #page-upgrade #upgrade-cards button {
+    min-height: 34px !important; padding: 0.25rem 0.3rem !important;
+    font-size: 0.72rem !important; white-space: nowrap !important; line-height: 1.1;
+  }
+}
