@@ -1726,3 +1726,28 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"] {
     font-size: 0.72rem !important; white-space: nowrap !important; line-height: 1.1;
   }
 }
+
+/* ── My Collection / Catalog on phones (v0.9.1025, Brad) ─────────────
+   • the filter block moves into a bottom sheet behind a Filters button,
+     so it costs one button instead of a third of the screen;
+   • nothing scrolls sideways — rows are clamped to the viewport;
+   • rows are tighter, and the row thumbnail sits on the right. */
+@media (max-width: 640px) {
+  /* filters live in the sheet — hidden inline, shown when moved into it */
+  #page-browse > #hierarchy-chip-row { display: none !important; }
+  #rr-filter-sheet #hierarchy-chip-row.rr-in-sheet {
+    display: flex !important; background: transparent; border: none;
+    padding: 0; margin: 0; flex-direction: column; align-items: stretch; gap: 0.5rem;
+  }
+  #rr-filter-sheet #hierarchy-chips { gap: 0.4rem; }
+  #rr-filter-sheet #browse-search-wrap { max-width: none !important; width: 100%; }
+  /* no sideways scrolling anywhere on this page */
+  #page-browse { overflow-x: hidden; }
+  #browse-cards { width: 100%; max-width: 100%; }
+  .browse-card { max-width: 100%; box-sizing: border-box; overflow: hidden; }
+  .browse-card > div { min-width: 0; }
+  /* tighter rows */
+  #page-browse .page-title { font-size: 1rem !important; margin-bottom: 0.4rem !important; flex-wrap: wrap; row-gap: 0.4rem; }
+  #browse-cards { gap: 0.4rem !important; }
+  .browse-card { padding: 0.55rem 0.65rem !important; }
+}

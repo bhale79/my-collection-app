@@ -3032,6 +3032,7 @@ function renderBrowse() {
   if (isMobile) {
     if (tableEl) tableEl.style.display = 'none';
     if (cardsEl) cardsEl.style.display = 'flex';
+    try { if (typeof _rrFilterBtnSync === 'function') _rrFilterBtnSync(); } catch (e) {}   // v0.9.1025
   } else {
     if (tableEl) tableEl.style.display = '';
     if (cardsEl) cardsEl.style.display = 'none';
@@ -3065,6 +3066,7 @@ function renderBrowse() {
     if (_le2) _le2.style.display = 'none';
   }
 
+  var _collThumbJobs = [];   // v0.9.1025: phone row thumbnails
   const rowsHtml = pageData.map((item, i) => {
     const _pd0 = item._copyPd ? item._copyPd : (item._personalOnly ? item : findPD(_displayItemNum(item), item.variation));
     const pd = (_pd0 && !item._personalOnly && String(_pd0.era || '') === 'Manual') ? null : _pd0;   // v0.9.718
@@ -3134,10 +3136,20 @@ function renderBrowse() {
             <div class="browse-card-sub" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${[(typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(item) : item.itemType), item.yearProd].filter(Boolean).join(' · ')}</div>
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.25rem;flex-shrink:0">
-            ${cond ? `<span style="font-size:0.72rem"><span class="condition-pip ${condClass}"></span>${cond}</span>` : ''}
+            ${cond ? `<span style="font-size:0.72rem;color:var(--text-dim);white-space:nowrap">Cond: ${cond}</span>` : ''}
             ${marketVal ? `<span class="market-val" style="font-size:0.72rem">${marketVal}</span>` : ''}
-            ${!_inShareMode ? `<button onclick="event.stopPropagation();removeCollectionItem('${item.itemNum}','${_escVar}',${_pdRow},'${_copyInv}')" style="padding:0.25rem 0.5rem;border-radius:6px;font-size:0.75rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);line-height:1" title="Remove from collection">✕</button>` : ''}
           </div>
+          ${(function(){
+            // v0.9.1025 (Brad): thumbnail on the right of every row. The ✕
+            // remove button is GONE from phone rows — too easy to hit by
+            // accident; removing lives on the item's own page. The condition
+            // PIP (the little coloured dot) is gone too: it encoded the same
+            // grade the number already states.
+            if (!_hasPhoto || !pd) return '';
+            var _tid = 'coll-thumb-' + String(_myInvIdM || (item.itemNum + '-' + (item.variation||''))).replace(/[^A-Za-z0-9_-]/g, '');
+            _collThumbJobs.push({ id: _tid, pd: pd });
+            return '<div id="' + _tid + '" style="width:56px;height:44px;border-radius:7px;overflow:hidden;background:var(--surface2);flex-shrink:0"></div>';
+          })()}
         </div>
       </div>`;
     } else if (state.filters.owned) {
@@ -3305,6 +3317,22 @@ function renderBrowse() {
       }).join('');
     }
     if (cardsEl) cardsEl.innerHTML = (rowsHtml.join('') || emptyHtml) + _ephCardsHtml;
+    // v0.9.1025: fill the row thumbnails (cached file-id per item, so Drive
+    // is asked once per item ever — same helper the dashboard uses).
+    if (_collThumbJobs.length && typeof _thumbFor === 'function') {
+      _collThumbJobs.slice(0, 60).forEach(function (job) {
+        Promise.resolve(_thumbFor(job.pd)).then(function (fid) {
+          var host = document.getElementById(job.id);
+          if (!host || !fid) return;
+          var img = document.createElement('img');
+          img.style.cssText = 'width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 0.3s';
+          img.onload = function () { img.style.opacity = 1; };
+          host.innerHTML = '';
+          host.appendChild(img);
+          if (typeof loadDriveThumb === 'function') loadDriveThumb(fid, img, host, null, 'lo');
+        }).catch(function () {});
+      });
+    }
   } else {
     // v0.9.986: single-section view shows its typed train-store rows + the
     // section's own rows; the "no items" banner only when BOTH are empty.
@@ -3443,3 +3471,72 @@ function renderBrowse() {
 }
 
 function goPage(p) { state.currentPage = p; renderBrowse(); document.getElementById('main-content').scrollTop = 0; }
+
+// ── Phone filter sheet (v0.9.1025, Brad) ────────────────────────────────
+// On phones the filter block (maker/scale/era/type chips + search) ate a
+// third of the screen. It now lives behind a "Filters" button next to Add
+// and Share: the sheet MOVES the real filter DOM in and puts it back on
+// close, so every existing control keeps working exactly as it did — no
+// duplicate markup, no re-wiring.
+function _rrFilterSheetOpen() {
+  var row = document.getElementById('hierarchy-chip-row');
+  if (!row || document.getElementById('rr-filter-sheet')) return;
+  var home = document.createElement('div');
+  home.id = 'rr-filter-home';
+  home.style.display = 'none';
+  row.parentNode.insertBefore(home, row);          // bookmark the spot
+
+  var ov = document.createElement('div');
+  ov.id = 'rr-filter-sheet';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:99940;background:rgba(0,0,0,0.55);display:flex;align-items:flex-end;justify-content:center';
+  ov.innerHTML = '<div id="rr-filter-panel" style="background:var(--surface);border-radius:16px 16px 0 0;width:100%;max-height:85dvh;overflow-y:auto;padding:0.9rem 0.9rem 1.1rem">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.7rem">'
+    +   '<strong style="font-family:var(--font-head);font-size:0.95rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--text)">Filters</strong>'
+    +   '<button onclick="_rrFilterSheetClose()" style="background:none;border:none;color:var(--text-dim);font-size:1.5rem;line-height:1;cursor:pointer;padding:0 0.3rem">\u00d7</button>'
+    + '</div>'
+    + '<div id="rr-filter-slot"></div>'
+    + '<button onclick="_rrFilterSheetClose()" style="width:100%;margin-top:0.9rem;padding:0.75rem;border-radius:10px;border:none;background:var(--accent);color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.95rem;cursor:pointer">Show results</button>'
+    + '</div>';
+  ov.addEventListener('click', function (e) { if (e.target === ov) _rrFilterSheetClose(); });
+  document.body.appendChild(ov);
+  var slot = document.getElementById('rr-filter-slot');
+  row.style.display = '';                          // it is hidden on phones by CSS
+  row.classList.add('rr-in-sheet');
+  slot.appendChild(row);
+  if (window.BackStack && BackStack.wire) BackStack.wire(ov);
+}
+function _rrFilterSheetClose() {
+  var ov = document.getElementById('rr-filter-sheet');
+  var row = document.getElementById('hierarchy-chip-row');
+  var home = document.getElementById('rr-filter-home');
+  if (row && home && home.parentNode) {
+    row.classList.remove('rr-in-sheet');
+    row.style.display = '';
+    home.parentNode.insertBefore(row, home);
+    home.remove();
+  }
+  if (ov) ov.remove();
+}
+// Put a "Filters" button in the page title, left of Add / Share (phones only).
+function _rrFilterBtnSync() {
+  var title = document.querySelector('#page-browse > .page-title');
+  if (!title) return;
+  var phone = (window.innerWidth || 0) <= 640;
+  var btn = document.getElementById('rr-filter-btn');
+  if (!phone) { if (btn) btn.remove(); return; }
+  if (btn) return;
+  var host = title.querySelector('.qa-tr-actions') || title.lastElementChild || title;
+  btn = document.createElement('button');
+  btn.id = 'rr-filter-btn';
+  btn.className = 'btn';
+  btn.setAttribute('onclick', '_rrFilterSheetOpen()');
+  btn.style.cssText = 'display:flex;align-items:center;gap:0.3rem;font-size:0.76rem;padding:0.35rem 0.6rem;min-height:38px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-weight:600;border-radius:7px;white-space:nowrap';
+  btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>Filters';
+  host.parentNode.insertBefore(btn, host);         // sits LEFT of Add / Share
+}
+if (typeof window !== 'undefined') {
+  window._rrFilterSheetOpen = _rrFilterSheetOpen;
+  window._rrFilterSheetClose = _rrFilterSheetClose;
+  window._rrFilterBtnSync = _rrFilterBtnSync;
+  window.addEventListener('resize', function () { try { _rrFilterBtnSync(); } catch (e) {} });
+}
