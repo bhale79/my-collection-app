@@ -1584,3 +1584,18 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"] {
   animation: rr-ticker-scroll var(--rr-ticker-dur, 80s) linear infinite;
 }
 .rr-ticker-wrap:hover .rr-ticker-track { animation-play-state: paused; }
+
+/* ── Bottom-nav "more" hint (v0.9.1019, Brad) ─────────────────────────
+   The bar scrolls sideways with the scrollbar hidden — nothing said so.
+   A fade + chevron on the right edge marks the off-screen buttons; it
+   disappears once the user scrolls to the end (app.js listener). */
+.mobile-nav { position: fixed; }
+.mnav-more {
+  display: none; position: absolute; right: 0; top: 0; bottom: 0; width: 44px;
+  pointer-events: none; align-items: center; justify-content: flex-end;
+  padding-right: 4px; color: var(--text-dim); font-size: 1.5rem; line-height: 1;
+  background: linear-gradient(90deg, rgba(0,0,0,0), var(--surface) 72%);
+  opacity: 1; transition: opacity 0.25s;
+}
+.mnav-more.gone { opacity: 0; }
+@media (max-width: 640px) { .mnav-more { display: flex; } }

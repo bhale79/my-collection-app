@@ -2828,3 +2828,28 @@ function _initBackButton() {
 // ── iOS INSTALL HINT ────────────────────────────────────────────
 // Shows a one-time banner on iOS Safari when app is not installed as PWA
 // ── iOS install hint + offline banner + listeners (moved to app-misc.js — Session 110, Round 2 Chunk 10) ──
+
+
+// ── Bottom-nav "more" hint (v0.9.1019, Brad) ────────────────────────────
+// Fade+chevron on the bar's right edge while there are off-screen buttons;
+// hidden once scrolled to (near) the end. Re-checked on scroll and resize.
+(function () {
+  function _mnavHintSync() {
+    var items = document.querySelector('.mobile-nav-items');
+    var hint = document.getElementById('mnav-more');
+    if (!items || !hint) return;
+    var atEnd = items.scrollLeft + items.clientWidth >= items.scrollWidth - 8;
+    var fits = items.scrollWidth <= items.clientWidth + 4;
+    hint.classList.toggle('gone', atEnd || fits);
+  }
+  function _mnavHintWire() {
+    var items = document.querySelector('.mobile-nav-items');
+    if (!items || items._mnavHintWired) return;
+    items._mnavHintWired = true;
+    items.addEventListener('scroll', _mnavHintSync, { passive: true });
+    window.addEventListener('resize', _mnavHintSync);
+    _mnavHintSync();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _mnavHintWire);
+  else _mnavHintWire();
+})();

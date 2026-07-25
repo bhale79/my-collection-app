@@ -2039,7 +2039,11 @@
         mb.setAttribute('onclick', '_pinGo(this)');
         mb.innerHTML = '<span id="mnav-inbox-count" style="display:none;position:absolute;top:1px;right:4px;background:#2980b9;color:#fff;border-radius:9px;font-size:0.58rem;font-weight:700;padding:1px 5px;line-height:1.3"></span>' +
           '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>Inbox';
-        host.appendChild(mb);
+        // v0.9.1019 (Brad): Inbox is SPOT 6 on the bar — before Sets, after
+        // For Sale — not tacked on the end where nobody scrolls.
+        var _mnavSets = document.getElementById('mnav-sets');
+        if (_mnavSets && _mnavSets.parentNode === host) host.insertBefore(mb, _mnavSets);
+        else host.appendChild(mb);
       }
     }
   }
