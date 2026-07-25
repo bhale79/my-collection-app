@@ -1569,3 +1569,18 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"] {
 /* v0.9.933 (Brad): the same big-uncropped treatment now covers GROUP items
    (paired A units, sets) whose photos render in grp-photos-N containers —
    they were stuck at the 120px square crop the singles fix didn't reach. */
+
+/* ── Dashboard photo ticker (v0.9.1017, Brad) ─────────────────────────
+   A screen-wide strip of thumbnails drifting right-to-left above the
+   large cards. Desktop only (dashboard.js gates it). The track holds the
+   thumbnails TWICE — when the first copy has fully scrolled out (-50%),
+   the loop restarts invisibly. Hover pauses so a photo can be clicked. */
+@keyframes rr-ticker-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.rr-ticker-track {
+  display: flex; gap: 0.5rem; width: max-content;
+  animation: rr-ticker-scroll var(--rr-ticker-dur, 80s) linear infinite;
+}
+.rr-ticker-wrap:hover .rr-ticker-track { animation-play-state: paused; }

@@ -750,7 +750,61 @@ function buildDashboard() {
       }
     });
   })();
+
+  // ── Photo ticker strip (v0.9.1017, Brad) ──────────────────────
+  // Optional (Edit Dashboard checkbox), DESKTOP ONLY. A screen-wide,
+  // one-thumbnail-tall strip above the large cards; thumbnails drift
+  // right-to-left, hover pauses, click opens the item's detail page.
+  // Off = this host stays empty and the dashboard looks exactly as before.
+  (function() {
+    var th = document.getElementById('dash-ticker-host');
+    if (!th) return;
+    var on = false;
+    try { on = _prefGet('lv_dash_ticker', '') === '1'; } catch (e) {}
+    var desktop = !window.IS_MOBILE_UA && (window.innerWidth || 0) >= 1000;
+    if (!on || !desktop || window._offlineMode || navigator.onLine === false) {
+      th.style.display = 'none'; th.innerHTML = ''; return;
+    }
+    th.style.display = '';
+    th.innerHTML = '<div class="panel rr-ticker-wrap" style="padding:0.55rem 0;overflow:hidden;margin-bottom:1.25rem">'
+      + '<div id="rr-ticker-track" class="rr-ticker-track"><div style="padding:0.5rem 1rem;color:var(--text-dim);font-size:0.78rem">Loading photos…</div></div>'
+      + '</div>';
+    if (typeof window._tickerFill === 'function') setTimeout(window._tickerFill, 0);
+  })();
 }
+
+// Fill the ticker with a random spread of collection photos. The set is
+// doubled so the CSS loop is seamless; speed scales with how many photos
+// there are (~5s per photo — a slow drift, not a stock ticker).
+window._tickerFill = async function () {
+  var track = document.getElementById('rr-ticker-track');
+  if (!track) return;
+  var picks = await _pickThumbs(18, 8);
+  track = document.getElementById('rr-ticker-track');
+  if (!track) return;
+  if (picks.length < 4) {
+    track.innerHTML = '<div style="padding:0.5rem 1rem;color:var(--text-dim);font-size:0.78rem">Add more item photos and they’ll parade here</div>';
+    return;
+  }
+  var cellHtml = function (t, i, copy) {
+    return '<div data-tk="' + copy + '-' + i + '" style="width:110px;height:86px;flex-shrink:0;border-radius:8px;overflow:hidden;position:relative;cursor:pointer;background:var(--surface2,#26262e)">'
+      + '<img style="width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 0.4s" alt="">'
+      + '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);color:#fff;font-size:0.6rem;padding:0.08rem 0.3rem;font-family:var(--font-mono,monospace);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + String(t.pd.itemNum).replace(/</g, '&lt;') + '</div></div>';
+  };
+  track.innerHTML = picks.map(function (t, i) { return cellHtml(t, i, 'a'); }).join('')
+                  + picks.map(function (t, i) { return cellHtml(t, i, 'b'); }).join('');
+  track.style.setProperty('--rr-ticker-dur', Math.max(40, picks.length * 5) + 's');
+  ['a', 'b'].forEach(function (copy) {
+    picks.forEach(function (t, i) {
+      var cell = track.querySelector('[data-tk="' + copy + '-' + i + '"]');
+      if (!cell) return;
+      var img = cell.querySelector('img');
+      img.onload = function () { img.style.opacity = 1; };
+      loadDriveThumb(t.fid, img, cell);
+      cell.onclick = function () { window._detailReturn = 'dashboard'; _openOwnedByInvId(t.pd.inventoryId); };
+    });
+  });
+};
 
 
 // Open a collection item's detail by its INVENTORY ID (unique per copy) —
@@ -807,7 +861,15 @@ var PANEL_CATALOG = [
         return '<div style="min-height:120px;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:0.78rem;text-align:center">\ud83d\udce1 Photos will show when you\u2019re back online</div>';
       }
       setTimeout(function() { if (typeof window._showcaseFill === 'function') window._showcaseFill(); }, 0);
-      return '<div id="showcase-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:0.5rem;min-height:120px"><div class="empty-state"><p>Loading photos\u2026</p></div></div>';
+      // v0.9.1017 (Brad): \u2039 \u23f8 \u203a controls \u2014 the showcase now auto-shuffles to a
+      // fresh set every 20s; \u2039 replays earlier sets, pause is remembered.
+      var _scBtn = 'width:26px;height:26px;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-size:0.82rem;cursor:pointer;line-height:1;padding:0';
+      return '<div style="display:flex;justify-content:flex-end;gap:0.3rem;margin:-0.3rem 0 0.4rem">'
+        +   '<button id="sc-prev" title="Previous photos" onclick="window._showcasePrev&&_showcasePrev()" style="' + _scBtn + '">\u2039</button>'
+        +   '<button id="sc-pause" title="Pause / resume the shuffle" onclick="window._showcasePauseToggle&&_showcasePauseToggle()" style="' + _scBtn + '">\u23f8</button>'
+        +   '<button id="sc-next" title="Next photos" onclick="window._showcaseNext&&_showcaseNext(true)" style="' + _scBtn + '">\u203a</button>'
+        + '</div>'
+        + '<div id="showcase-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:0.5rem;min-height:120px"><div class="empty-state"><p>Loading photos\u2026</p></div></div>';
     }
   },
   {
@@ -1129,20 +1191,16 @@ window._dashPhotoCols = function (grid) {
   return Math.max(fs > 1.15 ? 2 : 3, cols);
 };
 
-window._showcaseFill = async function () {
+// v0.9.1017 (Brad): the showcase is a slideshow now — auto-shuffles to a
+// fresh random set every 20s. ‹ walks back through sets you already saw,
+// › advances (through history first, then fresh picks), ⏸ pauses and the
+// choice is remembered. Clicking a photo still opens its detail page.
+window._scShow = window._scShow || { hist: [], pos: -1, timer: null };
+
+function _showcaseRender(picks) {
   var grid = document.getElementById('showcase-grid');
   if (!grid) return;
-  // v0.9.793 (Brad: "why are we 3 pics short of a full card?"): the grid picks
-  // its column count from the window width, but the card always fetched 12 —
-  // any width where 12 doesn't divide evenly left a ragged last row. Now:
-  // measure the columns, request enough for FULL rows, trim leftovers.
   var cols = window._dashPhotoCols(grid);
-  // v0.9.892 (Brad): cap at 3 ROWS so the whole panel fits on screen
-  // without scrolling (was a fixed 12 photos = 4 rows on narrow panels).
-  var want = cols * 3;
-  var picks = await _pickThumbs(want, Math.max(6, Math.ceil(want / 2)));
-  grid = document.getElementById('showcase-grid');
-  if (!grid) return;
   if (!picks.length) { grid.innerHTML = '<div class="empty-state"><p>Add item photos and they\'ll show off here</p></div>'; return; }
   if (picks.length > cols) picks = picks.slice(0, Math.floor(picks.length / cols) * cols);
   grid.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
@@ -1159,6 +1217,64 @@ window._showcaseFill = async function () {
     loadDriveThumb(t.fid, img, cell);
     cell.onclick = function () { window._detailReturn = 'dashboard'; _openOwnedByInvId(t.pd.inventoryId); };
   });
+}
+
+function _showcasePaused() {
+  try { return _prefGet('lv_dash_sc_pause', '') === '1'; } catch (e) { return false; }
+}
+
+function _showcaseSyncPauseBtn() {
+  var b = document.getElementById('sc-pause');
+  if (b) { b.textContent = _showcasePaused() ? '▶' : '⏸'; b.title = _showcasePaused() ? 'Resume the shuffle' : 'Pause the shuffle'; }
+}
+
+function _showcaseArmTimer() {
+  var st = window._scShow;
+  if (st.timer) { clearInterval(st.timer); st.timer = null; }
+  if (_showcasePaused()) return;
+  st.timer = setInterval(function () {
+    if (!document.getElementById('showcase-grid')) { clearInterval(st.timer); st.timer = null; return; }
+    window._showcaseNext(false);
+  }, 20000);
+}
+
+window._showcaseNext = async function (user) {
+  var st = window._scShow;
+  if (user) _showcaseArmTimer();   // a manual step restarts the 20s clock
+  // Walk forward through history first (after using ‹), fresh picks at the end.
+  if (st.pos < st.hist.length - 1) { st.pos++; _showcaseRender(st.hist[st.pos]); return; }
+  var grid = document.getElementById('showcase-grid');
+  if (!grid) return;
+  var cols = window._dashPhotoCols(grid);
+  var want = cols * 3;   // v0.9.892: 3 full rows, no scrolling
+  var picks = await _pickThumbs(want, Math.max(6, Math.ceil(want / 2)));
+  if (!document.getElementById('showcase-grid')) return;
+  st.hist.push(picks);
+  if (st.hist.length > 12) st.hist.shift();   // remember the last dozen sets
+  st.pos = st.hist.length - 1;
+  _showcaseRender(picks);
+};
+
+window._showcasePrev = function () {
+  var st = window._scShow;
+  if (st.pos <= 0) return;
+  st.pos--;
+  _showcaseRender(st.hist[st.pos]);
+  _showcaseArmTimer();
+};
+
+window._showcasePauseToggle = function () {
+  try { _prefSet('lv_dash_sc_pause', _showcasePaused() ? '0' : '1'); } catch (e) {}
+  _showcaseSyncPauseBtn();
+  _showcaseArmTimer();
+};
+
+window._showcaseFill = async function () {
+  if (!document.getElementById('showcase-grid')) return;
+  window._scShow = { hist: [], pos: -1, timer: window._scShow ? window._scShow.timer : null };
+  _showcaseSyncPauseBtn();
+  await window._showcaseNext(false);
+  _showcaseArmTimer();
 };
 
 var _DEFAULT_PANELS = [{id:'recent'}, {id:'wants'}];
@@ -1190,7 +1306,9 @@ function openDashEditor() {
   if (document.getElementById('dash-editor')) return;
   var wP = (_getPanels() || []).slice(0, 3);
   while (wP.length < 3) wP.push(null);
-  _dEd = { s: _getSlots(), p: wP, drag: null };
+  var _tOn = false;
+  try { _tOn = _prefGet('lv_dash_ticker', '') === '1'; } catch (e) {}
+  _dEd = { s: _getSlots(), p: wP, drag: null, t: _tOn };
 
   var ov = document.createElement('div');
   ov.id = 'dash-editor';
@@ -1213,6 +1331,7 @@ function _dashEdSave() {
   _saveSlots(_dEd.s);
   var panels = _dEd.p.filter(Boolean);
   _savePanels(panels.length ? panels : [{ id: 'recent' }]);
+  try { _prefSet('lv_dash_ticker', _dEd.t ? '1' : '0'); } catch (e) {}   // v0.9.1017
   _dashEdClose();
   try { buildDashboard(); } catch(e) {}
 }
@@ -1322,6 +1441,13 @@ function _dashEdRender() {
     + '<div style="' + sec + '">Card library</div>'
     + '<div style="font-size:0.7rem;color:var(--text-dim,#888);margin-bottom:0.25rem">Small cards</div>' + lib('s', CARD_CATALOG)
     + '<div style="font-size:0.7rem;color:var(--text-dim,#888);margin:0.6rem 0 0.25rem">Large panels</div>' + lib('p', PANEL_CATALOG)
+    // v0.9.1017 (Brad): the scrolling photo strip is an on/off extra, not a
+    // slotted card — off keeps the dashboard exactly as it always looked.
+    + '<div style="' + sec + '">Extras</div>'
+    + '<label style="display:flex;align-items:center;gap:0.45rem;font-size:0.8rem;color:var(--text-mid,#bbb);cursor:pointer;padding:0.18rem 0">'
+    +   '<input type="checkbox" onchange="_dEd.t=this.checked"' + (_dEd.t ? ' checked' : '') + ' style="accent-color:#2980b9">'
+    +   'Scrolling photo strip above the large cards <span style="color:var(--text-dim,#888)">(computer screens only)</span>'
+    + '</label>'
     + '<div style="display:flex;justify-content:flex-end;gap:0.5rem;margin-top:1.1rem;padding-top:0.8rem;border-top:1px solid var(--border,#2a3a5c)">'
     + '<button onclick="_dashEdClose()" style="padding:0.45rem 1rem;border-radius:7px;border:1px solid var(--border,#2a3a5c);background:var(--surface2,#222);color:var(--text,#eee);font-family:var(--font-body);font-size:0.84rem;cursor:pointer">Cancel</button>'
     + '<button onclick="_dashEdSave()" style="padding:0.45rem 1.2rem;border-radius:7px;border:none;background:#2980b9;color:#fff;font-family:var(--font-body);font-size:0.84rem;font-weight:700;cursor:pointer">Save</button>'
