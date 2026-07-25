@@ -189,6 +189,46 @@
   /* Identify confidence */
   .identify-conf { font-size: 0.72rem !important; }
 
+  /* ── Buttons — ONE rule (v0.9.1005, Brad) ────────────────────────────
+     Brad's insight: the outline should BE the text colour. So a button has
+     exactly ONE value to set — `--rr-c` — and the label, the border and the
+     fill all derive from it. Nothing to keep in sync, and a new button in a
+     new colour is correct automatically.
+
+       <button class="rr-btn">…</button>                  ghost, cream
+       <button class="rr-btn fill">…</button>             filled, cream
+       <button class="rr-btn rr-btn--quiet">…</button>    ghost, secondary
+       <button class="rr-btn fill rr-btn--accent">…</button>
+
+     House rule: the PRIMARY action is `fill`, the secondary is a plain ghost
+     — never the reverse, or the eye lands on Cancel first.
+     Replaces hand-written inline border/background/color on every button;
+     that drift is why the old buttons stopped matching each other. */
+  .rr-btn {
+    --rr-c: var(--cream, #f8e8c0);
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+    font-family: var(--font-body); font-size: 0.85rem; font-weight: 700; line-height: 1.2;
+    padding: 0.55rem 1.15rem; border-radius: 9px; cursor: pointer;
+    color: var(--rr-c); border: 2px solid var(--rr-c); background: transparent;
+    box-sizing: border-box; min-height: 40px;
+    transition: background 0.15s, color 0.15s, filter 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .rr-btn.fill { background: var(--rr-c); color: #14171f; }
+  .rr-btn:hover  { filter: brightness(1.12); }
+  .rr-btn:active { transform: translateY(1px); }
+  .rr-btn:focus-visible { outline: 2px solid var(--accent2, #d4a843); outline-offset: 2px; }
+  .rr-btn[disabled], .rr-btn:disabled { opacity: 0.38; cursor: not-allowed; filter: none; transform: none; }
+  /* colour variants — set ONE value */
+  .rr-btn--quiet  { --rr-c: #9a8f6e; }
+  .rr-btn--green  { --rr-c: #3fd67f; }
+  .rr-btn--accent { --rr-c: var(--accent, #f05008); }
+  .rr-btn--danger { --rr-c: #ff7a3d; }
+  /* phones: same shape, a little tighter */
+  @media (max-width: 560px) {
+    .rr-btn { font-size: 0.82rem; padding: 0.5rem 0.9rem; min-height: 42px; }
+  }
+
   /* ── Auth Screen ───────────────────────────────────────────── */
   /* v0.9.997 (Brad): two-column on desktop so "Continue with Google" sits
      above the fold. Brand + feature blurbs left, sign-in card right; stacks

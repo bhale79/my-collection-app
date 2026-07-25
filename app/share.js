@@ -88,8 +88,11 @@ function _renderShareBar() {
       '</span>' +
     '</div>' +
     '<div style="display:flex;gap:0.5rem">' +
-      '<button onclick="cancelShareMode()" style="padding:0.45rem 0.9rem;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer">Cancel</button>' +
-      '<button onclick="openShareBuilder()" ' + (count === 0 ? 'disabled style="opacity:0.4;cursor:not-allowed;' : 'style="') + 'padding:0.45rem 1rem;border-radius:7px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.15);color:#2ecc71;font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:0.4rem">' +
+      // v0.9.1005 (Brad): first screen on the new .rr-btn system — one class,
+      // one colour value; the outline is the text colour. Primary is filled,
+      // secondary is a ghost.
+      '<button onclick="cancelShareMode()" class="rr-btn rr-btn--quiet">Cancel</button>' +
+      '<button onclick="openShareBuilder()" class="rr-btn fill"' + (count === 0 ? ' disabled' : '') + '>' +
         '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>' +
         'Share' +
       '</button>' +
