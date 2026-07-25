@@ -308,7 +308,11 @@ function launchSetItemWizard() {
     condition: d._setCondition || 7,
   };
   wizard.steps = getSteps('collection');
-  wizard.matchedItem = ((typeof findMaster==='function') ? findMaster(itemNum) : state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum))) || null;
+  // v0.9.1034: same maker/era preference as everywhere else — a bare
+  // findMaster() here could write the WRONG catalog's identity to the sheet
+  // for a colliding number (Lionel vs Atlas 6-8359).
+  var _smPrefer = (typeof _wizMasterPrefer === 'function') ? _wizMasterPrefer() : null;
+  wizard.matchedItem = ((typeof findMaster==='function') ? (findMaster(itemNum, '', _smPrefer) || findMaster(itemNum)) : state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum))) || null;
   if (wizard.matchedItem) {
     wizard.data.itemNum = wizard.matchedItem.itemNum; // use canonical form
   }

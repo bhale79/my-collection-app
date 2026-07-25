@@ -91,6 +91,62 @@ let wizard = {
 // ── getSteps() (moved to wizard-steps.js — Session 110, Round 1 Chunk 8) ──
 
 
+// ── v0.9.1034 (Brad's Lionel/Atlas 6-8359, second time round) ─────────────
+// Cross-catalog numbers collide: Lionel MPC 6-8359 (Chessie GP-7) and Atlas O
+// 6-8359 (Western Maryland hopper) are both real. Several lookups in the
+// wizard used to take whichever row came FIRST in the master list, which is
+// Atlas — so a Lionel item identified correctly by photo got re-decided into
+// an Atlas one a moment later. This is the one place that says what we know
+// about the maker and era, and every one of those lookups now asks it.
+// Order of confidence: the era the wizard is actually working in, then the
+// Manufacturer/Era dropdowns on the search bar, then the maker the identify
+// answer stated.
+function _wizMasterPrefer() {
+  var d = (typeof wizard !== 'undefined' && wizard && wizard.data) ? wizard.data : null;
+  if (!d) return null;
+  var era = String(d._era || '').trim();
+  if (era === 'all') era = '';
+  var mfr = String(d._searchFilterManufacturer || '').trim();
+  if (!mfr && d._identifyMeta && d._identifyMeta.manufacturer) mfr = String(d._identifyMeta.manufacturer).trim();
+  if (!mfr && era && typeof _manufacturerOfEra === 'function') {
+    try { mfr = _manufacturerOfEra(era) || ''; } catch (e) {}
+  }
+  if (!mfr && !era) return null;
+  return { manufacturer: mfr, era: era };
+}
+if (typeof window !== 'undefined') window._wizMasterPrefer = _wizMasterPrefer;
+
+// The wizard's own pick between rows that share an item number. Returns the
+// best row, or null when the number isn't in the catalog at all.
+// `rows` may be omitted — it scans state.masterData when so.
+function _wizPickMasterRow(numLC, rows) {
+  try {
+    var list = rows || (state.masterData || []).filter(function (i) {
+      return String(i.itemNum || '').toLowerCase() === numLC;
+    });
+    if (!list.length) return null;
+    if (list.length === 1) return list[0];
+    var pref = _wizMasterPrefer();
+    if (!pref) return list[0];
+    var eraKey = String(pref.era || '');
+    var mfrLC = String(pref.manufacturer || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    var best = null, bestScore = -1;
+    list.forEach(function (m) {
+      var sc = 0;
+      if (eraKey && String(m._era || '') === eraKey) sc += 8;
+      if (mfrLC) {
+        var rowMfr = '';
+        try { rowMfr = String((typeof _manufacturerOfEra === 'function' && _manufacturerOfEra(m._era)) || '').toLowerCase().replace(/[^a-z0-9]/g, ''); } catch (e) {}
+        if (rowMfr && rowMfr === mfrLC) sc += 4;
+        else if (String(m._tab || '').toLowerCase().replace(/[^a-z0-9]/g, '').indexOf(mfrLC) === 0) sc += 4;
+      }
+      if (sc > bestScore) { bestScore = sc; best = m; }
+    });
+    return best || list[0];
+  } catch (e) { return (rows && rows[0]) || null; }
+}
+if (typeof window !== 'undefined') window._wizPickMasterRow = _wizPickMasterRow;
+
 // v0.9.1033: put a focused field just under the top of the wizard's scroll
 // area, leaving room for its little label. Silent no-op off the wizard.
 function _wizScrollFieldIntoView(el) {
@@ -4507,7 +4563,10 @@ function renderWizardStep() {
     // Detect item type for field hiding
     // _cdIsSimplified = Science/Construction: hide IS, Master Box, Error (keep All Original, Has Box)
     // _cdIsPaperLike = Catalog/Paper/IS/Other/Service: hide ALL toggles (All Original, Has Box, IS, Master Box, Error)
-    const _cdMaster = wizard.matchedItem || findMaster(_cdItemNum);
+    // v0.9.1034: preference-aware fallback — a bare findMaster() here took
+    // the first row for the number, which is how the Atlas hopper turned up
+    // on a Lionel item.
+    const _cdMaster = wizard.matchedItem || findMaster(_cdItemNum, '', _wizMasterPrefer()) || findMaster(_cdItemNum);
     const _cdItemType = (_cdMaster && _cdMaster.itemType) ? _cdMaster.itemType : '';
     const _cdMasterTab = (_cdMaster && _cdMaster._tab) ? _cdMaster._tab : '';
     const _cdIsSimplified = ['Science Set','Construction Set'].includes(_cdItemType);

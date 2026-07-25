@@ -913,6 +913,21 @@ function lookupItem(num) {
       );
     }
   }
+  // v0.9.1034 (Brad's Lionel/Atlas 6-8359): this lookup runs 400ms after ANY
+  // keystroke in the item-number box — including the one the photo-identify
+  // fires itself to fill the field. It used to end at `find(first row with
+  // this number)`, which threw away the maker-aware row identify had just
+  // resolved and swapped in whichever catalog happened to load first.
+  // 1. A row already resolved for this SAME number stays. It came from the
+  //    identify answer or from a suggestion the user picked by hand; either
+  //    way it knows more than a bare number scan does.
+  if (!match) {
+    var _cur = (typeof wizard !== 'undefined' && wizard) ? wizard.matchedItem : null;
+    if (_cur && String(_cur.itemNum || '').toLowerCase() === _numLC) match = _cur;
+  }
+  // 2. Otherwise pick by the era the wizard is in and the maker on the search
+  //    bar, rather than by load order.
+  if (!match && typeof _wizPickMasterRow === 'function') match = _wizPickMasterRow(_numLC);
   if (!match) match = state.masterData.find(i => i.itemNum.toLowerCase() === _numLC);
   wizard.matchedItem = match || null;
   const el = document.getElementById('wiz-match');
