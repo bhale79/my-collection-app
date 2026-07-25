@@ -111,8 +111,44 @@ function _wizMasterPrefer() {
   if (!mfr && era && typeof _manufacturerOfEra === 'function') {
     try { mfr = _manufacturerOfEra(era) || ''; } catch (e) {}
   }
-  if (!mfr && !era) return null;
-  return { manufacturer: mfr, era: era };
+  // v0.9.1034b (Brad: "in this case, it says 1973"). The identify answer's YEAR
+  // is the strongest hint available when no era has been picked — 1973 rules
+  // out every pre-war and postwar catalog on its own, whoever made the thing.
+  var year = '';
+  [(d._identifyMeta && d._identifyMeta.year), d._identifyYear, d.yearProd, d.manualYear].some(function (v) {
+    var m = String(v || '').match(/\d{4}/);
+    if (m) { year = m[0]; return true; }
+    return false;
+  });
+  if (!mfr && !era && !year) return null;
+  return { manufacturer: mfr, era: era, year: year };
+}
+
+// Which of the three collecting periods a 4-digit year falls in. Same
+// boundaries the suggestion list and the era filters already use.
+function _wizPeriodOfYear(year) {
+  var y = parseInt(String(year || '').slice(0, 4), 10);
+  if (!y) return '';
+  if (y <= 1942) return 'prewar';
+  if (y <= 1969) return 'postwar';
+  return 'modern';
+}
+
+// The period a master row belongs to — by its era tag first, by its printed
+// production year otherwise.
+function _wizPeriodOfRow(m) {
+  if (!m) return '';
+  try {
+    if (typeof _itemEraPeriod === 'function') {
+      var p = _itemEraPeriod(m);
+      if (p) return p;
+    }
+  } catch (e) {}
+  var e2 = String(m._era || '');
+  if (e2 === 'prewar') return 'prewar';
+  if (e2 === 'pw' || e2 === 'pw_ho') return 'postwar';
+  if (e2) return 'modern';
+  return _wizPeriodOfYear(String(m.yearProd || ''));
 }
 if (typeof window !== 'undefined') window._wizMasterPrefer = _wizMasterPrefer;
 
@@ -130,10 +166,16 @@ function _wizPickMasterRow(numLC, rows) {
     if (!pref) return list[0];
     var eraKey = String(pref.era || '');
     var mfrLC = String(pref.manufacturer || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    var year = String(pref.year || '');
+    var yearPeriod = _wizPeriodOfYear(year);
     var best = null, bestScore = -1;
     list.forEach(function (m) {
       var sc = 0;
       if (eraKey && String(m._era || '') === eraKey) sc += 8;
+      // Year: an exact hit on the catalog's printed year is near-proof; the
+      // period it lands in is a good sanity check on its own.
+      if (year && String(m.yearProd || '').indexOf(year) !== -1) sc += 6;
+      else if (yearPeriod && _wizPeriodOfRow(m) === yearPeriod) sc += 3;
       if (mfrLC) {
         var rowMfr = '';
         try { rowMfr = String((typeof _manufacturerOfEra === 'function' && _manufacturerOfEra(m._era)) || '').toLowerCase().replace(/[^a-z0-9]/g, ''); } catch (e) {}
