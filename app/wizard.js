@@ -637,14 +637,16 @@ window._soldPickSrcSet = function (src) {
 // Replaces the "Adding something else?" chip row. Shown at the start of the
 // add flow; picking a kind rebuilds the wizard for that flow. Remembers the
 // last-used kind across sessions (localStorage lv_add_kind).
+// v0.9.1036 (Brad): plain text, no picture icons — they carried no meaning
+// and the phone's own dropdown blew them up to the size of the words.
 const _WIZ_KINDS = [
-  { id: 'cataloged', label: '🚂 Cataloged Item' },
-  { id: 'set',       label: '🎁 Lionel Postwar Set' },   // v0.9.994 (Brad): only era with set-composition data
-  { id: 'paper',     label: '📄 Paper Item' },
-  { id: 'catalogs',  label: '📒 Catalog' },
-  { id: 'mockups',   label: '🔩 Mock-Up' },
-  { id: 'other',     label: '📦 Other' },
-  { id: 'manual',    label: '✏️ Manual — item not in our catalogs' },
+  { id: 'cataloged', label: 'Cataloged Item' },
+  { id: 'set',       label: 'Lionel Postwar Set' },   // v0.9.994 (Brad): only era with set-composition data
+  { id: 'paper',     label: 'Paper Item' },
+  { id: 'catalogs',  label: 'Catalog' },
+  { id: 'mockups',   label: 'Mock-Up' },
+  { id: 'other',     label: 'Other' },
+  { id: 'manual',    label: 'Manual — item not in our catalogs' },
 ];
 function _wizCurrentKind() {
   try {

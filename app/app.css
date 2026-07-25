@@ -1918,3 +1918,20 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"] {
   /* the ITEM TYPE selector stays put — Brad wants the maker/type visible while typing */
   .modal.wiz-kb .modal-footer { padding-top: 0.45rem !important; padding-bottom: 0.45rem !important; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   v0.9.1036 (Brad: "can't scroll down to hit next when adding a grouped
+   item"). The bottom nav is pinned to the screen at layer 800; popups sit
+   at layer 200, so on a phone the nav painted straight over the wizard's
+   footer and swallowed the Next button. Rather than re-stack them, the
+   popup now ends ABOVE the nav — everything inside still scrolls, and the
+   footer is always on screen where you can reach it.
+   ══════════════════════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+  /* the nav is ~85px tall on a phone — clear it with a little to spare */
+  .modal-overlay { padding-bottom: 92px; }
+  #wizard-modal .modal {
+    max-height: calc(100vh - 108px);
+    max-height: calc(100dvh - 108px);
+  }
+}
