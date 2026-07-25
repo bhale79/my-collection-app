@@ -121,11 +121,17 @@ function _buildWizardModal() {
       '<div id="wizard-kind-bar" style="padding:0 1.5rem;display:none"></div>' +
       '<div class="modal-body" id="wizard-body" style="flex:1;overflow-y:auto;min-height:0"></div>' +
       '<div class="modal-footer">' +
-        '<button class="btn btn-secondary" id="wizard-back-btn" onclick="if(!wizardBack())_doCloseWizard();" style="display:none">&#x2190; Back</button>' +
-        '<button class="btn btn-secondary" onclick="closeWizard()">Cancel</button>' +
+        '<button class="btn btn-secondary" id="wizard-back-btn" onclick="if(!wizardBack())_doCloseWizard();" style="display:none" aria-label="Back">' +
+          '&#x2190;<span class="wiz-lbl-full"> Back</span>' +
+        '</button>' +
+        // v0.9.1029 (Brad): on phones Back and Cancel shrink to their symbols
+        // so "Done with Photos" stays READABLE rather than truncating to an
+        // ambiguous "Done".
+        '<button class="btn btn-secondary" onclick="closeWizard()" aria-label="Cancel">' +
+          '<span class="wiz-lbl-full">Cancel</span><span class="wiz-lbl-short">&#x2715;</span>' +
+        '</button>' +
         '<button class="btn btn-secondary" id="wizard-skip-photos-btn" onclick="wizardSkipAllPhotos()" style="display:none">' +
-          '<span class="wiz-lbl-full">&#x2713; Done with Photos &#x2192;</span>' +
-          '<span class="wiz-lbl-short">&#x2713; Done &#x2192;</span>' +   /* v0.9.1028: phones */
+          '&#x2713; Done with Photos &#x2192;' +
         '</button>' +
         '<button class="btn btn-primary" id="wizard-next-btn" onclick="wizardNext()">Next &#x2192;</button>' +
       '</div>' +
@@ -3790,6 +3796,40 @@ function renderWizardStep() {
     wrap.appendChild(hint);
 
     body.appendChild(wrap);
+
+    // ── Photos this item ALREADY has (v0.9.1029, Brad) ──────────────────
+    // Editing an item that already has a Right Side View used to show empty
+    // slots, as if nothing had ever been photographed. The existing Drive
+    // folder link rides on the step data (quick-entry edit sets it); load it,
+    // match each photo to its slot by the VIEW tag in the filename (our
+    // naming standard puts the view LAST), and show it in place. Tapping a
+    // filled slot still opens the picker, so replacing a photo is one tap.
+    (function () {
+      var _exLink = stored && stored.existing;
+      if (!_exLink || typeof driveGetFolderPhotos !== 'function') return;
+      driveGetFolderPhotos(_exLink).then(function (photos) {
+        if (!photos || !photos.length) return;
+        photos.forEach(function (p) {
+          var stem = String(p.name || '').replace(/\.[^.]+$/, '').trim().toUpperCase();
+          if (!stem) return;
+          var tag = stem.split(/\s+/).pop();               // view tag is last
+          var zone = body.querySelector('.photo-drop-zone[data-view="' + tag + '"][data-sid="' + s.id + '"]');
+          if (!zone || zone.dataset.hasShot === '1') return;
+          zone.dataset.hasShot = '1';
+          zone.style.borderColor = 'var(--accent2)';
+          zone.style.background = 'rgba(201,146,42,0.08)';
+          var img = document.createElement('img');
+          img.loading = 'lazy';
+          img.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;inset:0;opacity:0.85';
+          zone.insertBefore(img, zone.firstChild);
+          var tagEl = document.createElement('div');
+          tagEl.textContent = 'On file — tap to replace';
+          tagEl.style.cssText = 'position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.62);color:#fff;font-size:0.55rem;padding:2px 3px;text-align:center;line-height:1.15';
+          zone.appendChild(tagEl);
+          try { if (typeof loadDriveThumb === 'function') loadDriveThumb(p.id, img, zone, p.thumbnailLink || null, 'lo'); } catch (e) {}
+        });
+      }).catch(function (e) { console.warn('[wizard existing photos]', e); });
+    })();
 
     // v0.9.811 (TODO-011): the identify flow captured a photo of the ITEM —
     // drop it into the Item slot automatically (manual flow PHOTO-1, or the

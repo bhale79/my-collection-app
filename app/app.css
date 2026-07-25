@@ -1812,9 +1812,19 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"] {
 }
 #rr-filter-sheet #hierarchy-chip-row .ph-clear { margin-left: 0 !important; order: 0; }
 
-/* Long footer labels shorten on phones instead of wrapping (v0.9.1028). */
+/* Footer labels on phones (v0.9.1029): Back and Cancel become their
+   symbols so "Done with Photos" stays fully readable. All four buttons
+   share one row, centred, at the same height. */
 .wiz-lbl-short { display: none; }
 @media (max-width: 640px) {
   .wiz-lbl-full { display: none; }
   .wiz-lbl-short { display: inline; }
+  .modal-footer { align-items: center !important; }
+  .modal-footer .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    line-height: 1.15;
+  }
+  .modal-footer #wizard-skip-photos-btn { flex: 1 1 auto; font-size: 0.68rem !important; }
+  .modal-footer #wizard-back-btn,
+  .modal-footer .btn:nth-child(2) { flex: 0 0 auto; padding: 0.5rem 0.7rem !important; }
 }
