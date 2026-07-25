@@ -191,6 +191,29 @@ if (typeof window !== 'undefined') window._wizPickMasterRow = _wizPickMasterRow;
 
 // v0.9.1033: put a focused field just under the top of the wizard's scroll
 // area, leaving room for its little label. Silent no-op off the wizard.
+// v0.9.1038: one handler for both identify buttons (body block on desktop,
+// footer button on phones) so they can never drift apart.
+function _wizIdentifyFromFooter() {
+  if (typeof _wizScanBarcode === 'function') _wizScanBarcode();
+  else if (typeof openIdentify === 'function') openIdentify('wizard');
+}
+if (typeof window !== 'undefined') window._wizIdentifyFromFooter = _wizIdentifyFromFooter;
+
+// Show the footer's Photo ID button only where it belongs: phones, on the
+// item-number step, when the user is actually entering a number by hand.
+function _wizSyncIdPhotoBtn(step) {
+  var btn = document.getElementById('wizard-idphoto-btn');
+  if (!btn) return;
+  var show = false;
+  try {
+    show = !!window.IS_MOBILE_UA
+      && !!step && (step.id === 'itemNum' || step.type === 'itemNumGrouping')
+      && wizard.tab !== 'sold'
+      && !(wizard.data && wizard.data._fillItemMode && wizard.matchedItem && (wizard.data.itemNum || '').trim());
+  } catch (e) { show = false; }
+  btn.style.display = show ? 'inline-flex' : 'none';
+}
+
 function _wizScrollFieldIntoView(el) {
   try {
     var body = document.getElementById('wizard-body');
@@ -350,6 +373,16 @@ function _buildWizardModal() {
       '<div id="wizard-kind-bar" style="padding:0 1.5rem;display:none"></div>' +
       '<div class="modal-body" id="wizard-body" style="flex:1;overflow-y:auto;min-height:0"></div>' +
       '<div class="modal-footer">' +
+        // v0.9.1038 (Brad): on phones the identify-by-photo button moves down
+        // here, left of the X and Next, so the big dashed block stops eating a
+        // row of the form. Shown only on the item-number step (renderWizardStep).
+        '<button class="btn btn-secondary" id="wizard-idphoto-btn" onclick="_wizIdentifyFromFooter()" ' +
+          'style="display:none;margin-right:auto;border-color:#2980b9;color:#2980b9;background:rgba(41,128,185,0.10);' +
+          'align-items:center;gap:0.35rem;min-width:0" aria-label="Identify by photo">' +
+          '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0">' +
+          '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>' +
+          '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Photo ID</span>' +
+        '</button>' +
         '<button class="btn btn-secondary" id="wizard-back-btn" onclick="if(!wizardBack())_doCloseWizard();" style="display:none" aria-label="Back">' +
           '&#x2190;<span class="wiz-lbl-full"> Back</span>' +
         '</button>' +
@@ -1499,6 +1532,7 @@ function renderWizardStep() {
   const s = steps[step];
   // v0.9.993 (Brad): keep the ITEM TYPE selector in sync on every render.
   try { _syncWizKindBar(s); } catch (eKind) {}
+  try { _wizSyncIdPhotoBtn(s); } catch (eIdp) {}   // v0.9.1038
   // Count only visible steps — skip both skipIf and set-mode fast-forwarded steps
   const _setSkipIds = wizard.data._setMode ? new Set(['itemCategory', 'itemNumGrouping', 'itemPicker', 'entryMode']) : null;
   const _isVisible = (st) => {
@@ -4517,8 +4551,10 @@ function renderWizardStep() {
     _ingGroupDiv.style.cssText = 'margin-top:0.75rem;display:none';
     _ingWrap.appendChild(_ingGroupDiv);
     
-    // Identify by photo button (only when entering manually)
-    if (!_ingPreFilled) {
+    // Identify by photo button (only when entering manually).
+    // v0.9.1038 (Brad): on phones it lives in the footer instead — see
+    // #wizard-idphoto-btn — so this full-width block is desktop-only there.
+    if (!_ingPreFilled && !window.IS_MOBILE_UA) {
       const _ingPhotoBtn = document.createElement('button');
       _ingPhotoBtn.onclick = function() { if (typeof _wizScanBarcode === 'function') _wizScanBarcode(); else openIdentify('wizard'); };
       _ingPhotoBtn.style.cssText = 'width:100%;margin-top:0.6rem;padding:0.65rem 1rem;border-radius:8px;border:1.5px dashed #2980b9;background:rgba(41,128,185,0.08);color:#2980b9;font-family:var(--font-head);font-size:0.78rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;transition:all 0.15s';
