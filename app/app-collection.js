@@ -1207,7 +1207,10 @@ function showItemDetailPage(idx, copyInvId, opts) {
   // v0.9.728: group sheets show EVERY member's photos, labeled by piece.
   const _grpPhotoMembers = _isGroupSheet ? _grpFull.filter(function (p) { return p.photoItem; }) : [];
   const _photoLink = pd && pd.photoItem ? pd.photoItem : '';
-  if (!_wantMode) html += `<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem">
+  // v0.9.1009 (Brad): held in its own variable so it can be placed in the
+  // desktop side column instead of appended to the bottom of the page.
+  var _photoCard = '';
+  if (!_wantMode) _photoCard = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
       <div style="font-family:var(--font-head);font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent2)">Photos</div>
       ${_photoLink ? `<a href="${_photoLink}" target="_blank" rel="noopener" style="font-size:0.75rem;color:var(--accent2);text-decoration:none">Open Drive Folder \u2197</a>` : ''}
@@ -1228,7 +1231,17 @@ function showItemDetailPage(idx, copyInvId, opts) {
     </div>`}
   </div>`;
 
-  container.innerHTML = html;
+  // ── Desktop: photos to the right of the description (v0.9.1009, Brad) ──
+  // Two columns from 1000px up, photo card sticky so it stays with you as the
+  // variation text runs long. Below that width nothing changes — the card
+  // falls back to its old position at the bottom of the page.
+  // Group sheets are excluded: they render one gallery PER member side by
+  // side, which needs the full width.
+  var _sideOK = !!_photoCard && !_grpPhotoMembers.length && (window.innerWidth || 0) >= 1000;
+  container.innerHTML = _sideOK
+    ? '<div class="rr-detail-wrap"><div class="rr-detail-main">' + html + '</div>'
+      + '<aside class="rr-detail-side">' + _photoCard + '</aside></div>'
+    : html + _photoCard;
 
   // Async: group-sheet photos — one loader per member (v0.9.728)
   if (_grpPhotoMembers.length) {
@@ -1258,7 +1271,8 @@ function showItemDetailPage(idx, copyInvId, opts) {
       }
       // v0.9.937 (Brad): hero + thumbnail-rail gallery (RSV big, other views
       // as clickable thumbnails beside it; ✂ acts on the photo shown large).
-      _buildPhotoGallery(el, photos, { folderLink: _photoLink, canRename: false });
+      _buildPhotoGallery(el, photos, { folderLink: _photoLink, canRename: false,
+        stack: !!document.querySelector('.rr-detail-side') });   // v0.9.1009
     }).catch(function(e) {
       console.warn('Photo gallery load:', e);
       const el = document.getElementById('item-detail-photos');
@@ -1315,7 +1329,10 @@ var _galSeq = 0;
 function _buildPhotoGallery(el, photos, opts) {
   opts = opts || {};
   var galId = 'gal' + (++_galSeq);
-  var narrow = (window.innerWidth || 0) < 700;
+  // v0.9.1009 (Brad): opts.stack forces hero-over-rail — the arrangement the
+  // phone already uses — so the same gallery works in the narrow desktop
+  // side column without a second code path.
+  var narrow = !!opts.stack || (window.innerWidth || 0) < 700;
   var cur = 0;
   el.innerHTML = '';
   el.style.cssText = 'display:flex;gap:0.6rem;align-items:flex-start;min-height:40px;'
