@@ -345,6 +345,10 @@ function buildPartnerMap() {
       ensure(eng).isDiesel = true;
       ensure(comp).isDiesel = true;
       ensure(comp).aUnit = eng;
+      // v0.9.1002 (Brad): a companion row naming an A-dummy IS the evidence
+      // that this loco comes as an AA pair — record the config. Without this
+      // the pair was known but the "AA set" button never appeared.
+      addUnique(ensure(eng).configs, 'AA');
     } else {
       // Generic companion — treat as tender if comp looks like a tender (ends in W/T/B)
       if (comp.match(/[WTB]$/i)) {
@@ -383,18 +387,49 @@ function buildPartnerMap() {
   // sub-type matches a known F-unit / Alco / E-unit body style, OR when a
   // B-unit partner (item+C) exists in master. Switchers, GP, SD etc. that
   // have poweredDummy = P/D no longer get the A/AA/AB/ABA prompts.
+  // v0.9.1002 (Brad — the 2333 Santa Fe F3 report): this regex required
+  // "F3" with no hyphen, but the master sheet spells it "EMD F-3" (78 rows)
+  // and "F-3" (2 rows). Both MISSED, so ~80 F-3 locomotives — including the
+  // 2333 — never offered an AA set. Only "Alco FA" (88 rows) matched.
+  // Now hyphen-tolerant, and it also accepts the "A-Unit" / "AA-Unit"
+  // spellings the sheet uses. Switchers are still excluded further down by
+  // _isSingleUnitSubType, which clears configs outright.
   function _isPairedDieselSubType(st) {
     if (!st) return false;
     var s = String(st).toUpperCase();
-    // F3, F7, F9, FA, FA-1/FA-2, FB, PA, PA-1/PA-2, PB, E7, E8, E9
-    return /\bF[379]\b|\bF[A|B]\b|\bF[A|B]-?\d?\b|\bP[A|B]\b|\bP[A|B]-?\d?\b|\bE[789]\b/.test(s);
+    if (/SWITCHER/.test(s)) return false;
+    // F3 / F-3, F7, F9, FA / FA-1 / FA-2, FB, PA, PB, E7-E9, plus the
+    // "A-UNIT" / "AA-UNIT" body-style spellings.
+    return /\bF-?[379]\b/.test(s)
+        || /\bF[AB]-?\d?\b/.test(s)
+        || /\bP[AB]-?\d?\b/.test(s)
+        || /\bE-?[789]\b/.test(s)
+        || /\bAA?-UNIT\b/.test(s);
   }
   // Pre-build a Set of normalized item numbers for O(1) B-unit existence checks.
   // (Was O(N) .some() inside an O(N) forEach — quadratic. Now linear.)
   const _masterNumSet = new Set();
   const _md = state.masterData || [];
+  // v0.9.1002: also remember unit + powered/dummy per number, so an AA pair
+  // can be proven from the DATA (a real dummy-A row exists) instead of
+  // inferred from how someone spelled the sub-type. Same idea as the
+  // existing item+'C' B-unit check, which is why that path always worked.
+  const _masterUnitInfo = new Map();
   for (let i = 0; i < _md.length; i++) {
-    _masterNumSet.add(normalizeItemNum(_md[i].itemNum));
+    const _n = normalizeItemNum(_md[i].itemNum);
+    _masterNumSet.add(_n);
+    if (!_masterUnitInfo.has(_n)) {
+      _masterUnitInfo.set(_n, {
+        unit: String(_md[i].unit || '').trim().toUpperCase(),
+        pd:   String(_md[i].poweredDummy || '').trim().toUpperCase(),
+      });
+    }
+  }
+  // True when item+'T' exists in master AND that row really is a dummy A
+  // unit. Guards against steam tenders, which also end in T (6026T etc.).
+  function _hasDummyAPartner(num) {
+    const info = _masterUnitInfo.get(num + 'T');
+    return !!info && info.unit === 'A' && info.pd === 'D';
   }
   _md.forEach(m => {
     const num = normalizeItemNum(m.itemNum);
@@ -420,8 +455,11 @@ function buildPartnerMap() {
         ensure(bNum).aUnit = ensure(bNum).aUnit || num;
       }
     }
-    // AA configuration: requires paired-diesel sub-type. Switchers no longer get AA.
-    if (pdMatch && isPaired && !num.endsWith('C')) {
+    // AA configuration. Offered when the sub-type says it's a cab unit OR
+    // when a real dummy-A partner row exists in master (v0.9.1002 — the
+    // 2333 has 2333T but a sub-type spelling that no regex was matching).
+    // Switchers are still stripped by the _isSingleUnitSubType pass below.
+    if (pdMatch && !num.endsWith('C') && (isPaired || _hasDummyAPartner(num))) {
       addUnique(ensure(num).configs, 'AA');
     }
   });
