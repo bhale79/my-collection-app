@@ -1345,7 +1345,7 @@
     if (!lk.num) {
       var _fi = _pinFailInfo();
       html = '<div style="font-size:0.9rem;color:var(--text-dim)">No number picked up automatically — type it below if you can see it, or use Research.</div>'
-        + (_fi ? _pinWhyHtml(_fi.raw, _fi.dbg) : '');
+        + (_fi ? _pinWhyHtml(_fi.raw, _fi.dbg, null) : '');
     } else if (lk.master && lk.mfrMismatch) {
       html = '<div style="font-size:0.82rem;color:#d4a843;font-weight:700;line-height:1.5;margin-bottom:0.35rem">⚠ The photo says ' + String(lk.mfrMismatch).replace(/</g, '&lt;') + ' — but #' + String(lk.num).replace(/</g, '&lt;') + ' in the catalog is a ' + String(lk.maker || '?').replace(/</g, '&lt;') + ' item. Probably NOT the same thing.</div>'
         + row('Catalog has', (lk.maker || '—') + ': ' + String(lk.desc).replace(/</g, '&lt;'))
@@ -1781,11 +1781,18 @@
   }
 
   // Shared "why" block, used by both a read and a failed read.
-  function _pinWhyHtml(raw, dbg) {
-    if (!raw && !dbg) return '';
+  function _pinWhyHtml(raw, dbg, ai) {
+    if (!raw && !dbg && !(ai && (ai.aiRaw || ai.aiSku))) return '';
     return '<details style="margin-top:0.3rem"><summary style="font-size:0.7rem;color:var(--text-dim);cursor:pointer">Where did this come from?</summary>'
       + '<div style="font-size:0.7rem;color:var(--text-dim);font-family:var(--font-mono);margin-top:0.25rem;line-height:1.4;word-break:break-word">'
-      + (raw ? 'The reader saw: \u201c' + rrEsc(raw) + '\u201d' : 'The reader returned no text at all.')
+      + (ai && ai.aiRaw
+          ? '<div style="margin-bottom:0.35rem">The paid reader answered: \u201c' + rrEsc(ai.aiRaw) + '\u201d'
+            + (ai.aiSku ? '<br>It gave the number ' + rrEsc(ai.aiSku)
+                + ', which is not in this photo\u2019s catalog \u2014 a closer one from its own answer was used instead.' : '')
+            + '</div>'
+          : '')
+      + (raw ? 'The free reader saw: \u201c' + rrEsc(raw) + '\u201d'
+             : (ai && ai.aiRaw ? '' : 'The reader returned no text at all.'))
       + (dbg
           ? '<div style="margin-top:0.35rem">'
             + 'Photo is stamped: <b>' + rrEsc(dbg.era ? _pinEraLabel(dbg.era) : 'nothing \u2014 no era filter applied') + '</b><br>'
@@ -1830,7 +1837,7 @@
         + (s.num ? ' \u2014 No. ' + rrEsc(s.num) : '') + '</div>'
         + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.25rem">Read on the car: '
         + rrEsc((s.descWords || []).join(', ')) + ' \u00b7 no number was legible, so check this one against your item</div>'
-        + _pinWhyHtml(s.raw, s.dbg)
+        + _pinWhyHtml(s.raw, s.dbg, s)
         + '</div>';
     }
     var col = s.guess ? '#ffb454' : '#7ec3ef';
@@ -1964,9 +1971,12 @@
     var got = meta && (meta.itemNum || meta.description || meta.manufacturer || meta.roadName);
     if (!got) return false;
     try {
-      var ids = _ids(); var fid0 = gs[0].files[0].id; var prev = ids[fid0] || {};
+      var ids = _ids(); var fid0 = _pinReadFid(gs[0]) || gs[0].files[0].id; var prev = ids[fid0] || {};
+      // v0.9.1085: keep what the paid reader actually said, as the free one does.
+      var _aiRaw = String(ai.text || '').replace(/\s+/g, ' ').trim().slice(0, 900);
+      var _aiSku = (meta && meta._aiSku) || '';
       var trim = function (v, old) { return String(v || old || '').slice(0, 120); };
-      ids[fid0] = {
+      ids[fid0] = { aiRaw: _aiRaw, aiSku: _aiSku,
         num: meta.itemNum ? String(meta.itemNum) : (prev.num || ''),
         guess: meta.itemNum ? (meta._hedge ? 1 : 0) : (prev.guess || 0),
         tried: 1,
@@ -4243,7 +4253,14 @@
               mfr: trim(meta.manufacturer), desc: trim(meta.description),
               road: trim(meta.roadName), year: trim(meta.year),
               // v0.9.968 (Brad): carry scale + item-type through for wizard pre-fill.
-              gauge: trim(meta.gauge), subType: trim(meta.subType) };
+              gauge: trim(meta.gauge), subType: trim(meta.subType),
+              // v0.9.1085 (Brad's rocket flatcar: three different answers and no
+              // way to tell why). The FREE reader has recorded its own text
+              // since v0.9.1068 and every diagnosis today has come from reading
+              // it. The PAID reader — the one that costs a credit and is
+              // trusted more — kept nothing at all. It does now.
+              aiRaw: String(ai.text || '').replace(/\s+/g, ' ').trim().slice(0, 900),
+              aiSku: meta._aiSku || '' };
             // v0.9.902 (Brad): candidates-without-a-confident-number is a lead,
             // not "unreadable" — count it as a best guess so the toast matches
             // the orange tag on the tile and the chips on the review card.
