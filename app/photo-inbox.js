@@ -855,6 +855,7 @@
     _navBadge(total);
     _updateIdAllBtn();
     try { _updateRecropBtn(); } catch (eRC) {}
+    try { _updateAuditBtn(); } catch (eAB) {}
     // v0.9.961 (Brad): keep the "cropped" marker set trimmed to files still in
     // the inbox (filed/discarded photos drop out), then republish to drive.js.
     try {
@@ -2669,6 +2670,26 @@
     });
   }
 
+  function _updateAuditBtn() {
+    var b = document.getElementById('pin-audit-btn');
+    if (!b) return;
+    var a = _auditLoad();
+    if (a && a.rows.length) {
+      var partial = a.rows.length < (a.total || a.rows.length);
+      b.textContent = partial
+        ? ('Resume audit (' + a.rows.length + '/' + a.total + ')')
+        : ('Audit results (' + a.rows.length + ')');
+      b.style.borderColor = '#2980b9';
+      b.style.background = 'rgba(41,128,185,0.18)';
+      b.onclick = partial ? window._pinReaderAudit : window._pinAuditShowSaved;
+    } else {
+      b.textContent = 'Reader audit (free)';
+      b.style.borderColor = '#8b8e94';
+      b.style.background = 'rgba(139,142,148,0.12)';
+      b.onclick = window._pinReaderAudit;
+    }
+  }
+
   function _updateRecropBtn() {
     var b = document.getElementById('pin-recrop-btn');
     if (!b) return;
@@ -2787,6 +2808,35 @@
     return c;
   }
 
+  // v0.9.1064 (Brad: "it got through the audit and then it flashed like google
+  // had to reauthenticate ... and started back at the dashboard"). Twenty
+  // minutes of reading held only in memory, thrown away by one reload. Results
+  // are written to storage after EVERY photo now, so the worst a reload can
+  // cost is the photo that was in flight — and the next run resumes from there
+  // rather than starting over.
+  var AUDIT_KEY = 'rr_reader_audit';
+  function _auditLoad() {
+    try {
+      var a = JSON.parse(localStorage.getItem(AUDIT_KEY) || 'null');
+      return (a && Array.isArray(a.rows)) ? a : null;
+    } catch (e) { return null; }
+  }
+  function _auditSave(a) {
+    try { localStorage.setItem(AUDIT_KEY, JSON.stringify(a)); }
+    catch (e) { console.warn('[audit] could not save progress', e && e.message); }
+  }
+  window._pinAuditClear = function () {
+    try { localStorage.removeItem(AUDIT_KEY); } catch (e) {}
+    var b = document.getElementById('pin-audit-ov'); if (b) b.remove();
+    showToast('Audit results cleared', 2200);
+    _render();
+  };
+  window._pinAuditShowSaved = function () {
+    var a = _auditLoad();
+    if (!a || !a.rows.length) { showToast('No saved audit yet', 2400); return; }
+    _pinAuditReport(a.rows, a.tally, a.secs || 0, a.total || a.rows.length);
+  };
+
   var _AUDIT_VARIANTS = [
     { id: 'current', label: 'What ships today (1600px, mild contrast)', dim: 1600, mode: 'current', psm: null },
     { id: 'stretch', label: 'Full contrast stretch, 2400px',            dim: 2400, mode: 'stretch', psm: null },
@@ -2808,15 +2858,33 @@
     if (!go) return;
 
     _busy = true; _idAbort = false;
-    var rows = [], tally = {};
+    window._rrLongJob = true;       // a deploy must not reload the page under this
+    var prev = _auditLoad();
+    var rows = (prev && prev.rows) ? prev.rows : [];
+    var seen = {};
+    rows.forEach(function (r) { seen[r.fid] = 1; });
+    var tally = {};
     _AUDIT_VARIANTS.forEach(function (v) { tally[v.id] = { found: 0, confirmed: 0 }; });
+    // Recount from the rows themselves rather than trusting a stored tally —
+    // one source of truth, and a half-written tally can never drift from them.
+    function _retally() {
+      _AUDIT_VARIANTS.forEach(function (v) { tally[v.id] = { found: 0, confirmed: 0 }; });
+      rows.forEach(function (r) {
+        _AUDIT_VARIANTS.forEach(function (v) {
+          var o = r.out && r.out[v.id];
+          if (o && o.num) { tally[v.id].found++; if (o.matched) tally[v.id].confirmed++; }
+        });
+      });
+    }
+    var elapsed = (prev && prev.secs) || 0;
     var t0 = 0;
     try { t0 = performance.now(); } catch (eT) {}
+    if (rows.length) showToast('Picking up where it stopped \u2014 ' + rows.length + ' already done', 3000);
 
     for (var i = 0; i < _groups.length && !_idAbort; i++) {
       var g = _groups[i];
       var fid = _pinReadFid(g);
-      if (!fid) continue;
+      if (!fid || seen[fid]) continue;
       var prefer = _pinPreferOf(g);
       _status('Auditing item ' + (i + 1) + ' of ' + _groups.length + '\u2026 '
         + '<button onclick="_pinReaderAuditCancel()" style="border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);border-radius:6px;font-size:0.72rem;padding:0.15rem 0.5rem;cursor:pointer;font-family:var(--font-body)">Stop</button>');
@@ -2835,24 +2903,33 @@
             r = _numberFromText((res && res.data && res.data.text) || '', prefer);
           } catch (eV) {}
           row.out[V.id] = r ? { num: r.num, matched: !!r.matched } : null;
-          if (r && r.num) { tally[V.id].found++; if (r.matched) tally[V.id].confirmed++; }
         }
         if (bmp.close) bmp.close();
       } catch (eF) {
         console.warn('[audit] photo failed', fid, eF && eF.message);
+        row.error = String((eF && eF.message) || 'failed');
       }
       rows.push(row);
+      seen[fid] = 1;
+      // Save after EVERY photo. This is the whole point of the change.
+      var _sofar = elapsed;
+      try { _sofar = elapsed + Math.round((performance.now() - t0) / 1000); } catch (eE) {}
+      _retally();
+      _auditSave({ ts: Date.now(), rows: rows, tally: tally, secs: _sofar, total: _groups.length });
     }
     try { await w.setParameters({ tessedit_pageseg_mode: '3' }); } catch (eR) {}
-    _busy = false; _status('');
+    _busy = false; window._rrLongJob = false; _status('');
 
-    var secs = 0;
-    try { secs = Math.round((performance.now() - t0) / 1000); } catch (eS) {}
-    _pinAuditReport(rows, tally, secs);
+    var secs = elapsed;
+    try { secs = elapsed + Math.round((performance.now() - t0) / 1000); } catch (eS) {}
+    _retally();
+    _auditSave({ ts: Date.now(), rows: rows, tally: tally, secs: secs, total: _groups.length });
+    _pinAuditReport(rows, tally, secs, _groups.length);
   };
 
-  function _pinAuditReport(rows, tally, secs) {
+  function _pinAuditReport(rows, tally, secs, total) {
     var n = rows.length || 1;
+    total = total || rows.length;
     var pct = function (x) { return Math.round((x / n) * 100); };
     var best = null;
     _AUDIT_VARIANTS.forEach(function (v) {
@@ -2887,8 +2964,9 @@
     ov.innerHTML =
       '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.1rem;max-width:640px;width:100%;max-height:92vh;overflow-y:auto">'
       + '<div style="font-family:var(--font-head);font-weight:700;font-size:1.05rem;margin-bottom:0.2rem">Reader audit</div>'
-      + '<div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.9rem">' + n + ' items read four ways, '
-        + secs + ' seconds, no credits spent. <b>Confirmed</b> means the catalog recognised the number \u2014 that is the column that matters; a setting that finds more digits but confirms fewer is reading noise.</div>'
+      + '<div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.9rem">'
+        + rows.length + ' of ' + total + ' items read four ways, ' + secs + ' seconds, no credits spent.'
+        + (rows.length < total ? ' <b>Partial \u2014 run it again to carry on from here.</b>' : '') + '  <b>Confirmed</b> means the catalog recognised the number \u2014 that is the column that matters; a setting that finds more digits but confirms fewer is reading noise.</div>'
       + '<table style="width:100%;border-collapse:collapse;font-size:0.82rem">'
       +   '<tr><th style="text-align:left;padding:0.3rem 0.5rem;font-size:0.72rem;text-transform:uppercase;color:var(--text-dim)">Setting</th>'
       +   '<th style="text-align:right;padding:0.3rem 0.5rem;font-size:0.72rem;text-transform:uppercase;color:var(--text-dim)">Found</th>'
@@ -2899,6 +2977,9 @@
       + '<div style="display:flex;gap:0.5rem;margin-top:0.7rem">'
       +   '<button onclick="(function(){var t=document.getElementById(\'pin-audit-txt\');t.select();try{document.execCommand(\'copy\');showToast(\'Copied \u2014 paste it to Claude\',2500);}catch(e){}})()" style="flex:1;padding:0.7rem;border-radius:9px;border:none;background:var(--accent);color:#fff;font-weight:700;font-size:0.9rem;min-height:48px;cursor:pointer">Copy the results</button>'
       +   '<button onclick="document.getElementById(\'pin-audit-ov\').remove()" style="flex:1;padding:0.7rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-weight:700;font-size:0.9rem;min-height:48px;cursor:pointer">Close</button>'
+      + '</div>'
+      + '<button onclick="_pinAuditClear()" style="width:100%;margin-top:0.5rem;padding:0.6rem;border-radius:9px;border:none;background:none;color:var(--text-dim);font-size:0.85rem;cursor:pointer">Throw these away and start fresh next time</button>'
+      + '<div style="display:none">'
       + '</div></div>';
     document.body.appendChild(ov);
   }
