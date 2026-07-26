@@ -341,7 +341,7 @@ function buildPrefsPage() {
       </div>
       <div class="pref-row">
         <div class="pref-row-label"><strong>Send Feedback</strong><span>Report a bug or suggest a feature</span></div>
-        <a href="mailto:${ADMIN_EMAIL}?subject=The Rail Roster Feedback" class="pref-btn" style="text-decoration:none">Email ↗</a>
+        <a href="${_rrFeedbackMailto()}" class="pref-btn" style="text-decoration:none">Email ↗</a>
       </div>
       <div class="pref-row">
         <div class="pref-row-label"><strong>Terms of Service</strong><span>The rules for using The Rail Roster</span></div>
@@ -367,6 +367,36 @@ function buildPrefsPage() {
   }
 }
 
+
+// ── v0.9.1055 (Brad): feedback that arrives useful ─────────────────────────
+// The link used to open a blank mail with only a subject, so a report read
+// "it didn't work" and the first reply was always the same three questions.
+// The body now arrives pre-filled with the version, the device and the screen
+// size — the things Brad always needs and a tester never thinks to send. It is
+// only what the browser already tells every website: no account, no email
+// address, nothing from the collection.
+function _rrFeedbackMailto() {
+  var lines = [];
+  try {
+    lines.push('', '', '\u2014\u2014 please write above this line \u2014\u2014', '');
+    lines.push('App version: ' + (typeof APP_VERSION !== 'undefined' ? APP_VERSION : '?')
+      + (typeof APP_DATE !== 'undefined' ? ' \u00b7 ' + APP_DATE : ''));
+    var ua = String(navigator.userAgent || '');
+    // Keep it short and readable rather than the full 200-character string.
+    var dev = (ua.match(/\((?:Linux; )?([^)]{0,60})\)/) || [])[1] || 'unknown device';
+    var br  = (ua.match(/(Chrome|CriOS|Firefox|Edg|Safari)\/([\d.]+)/) || []).slice(1, 3).join(' ') || 'unknown browser';
+    lines.push('Device: ' + dev);
+    lines.push('Browser: ' + br);
+    lines.push('Screen: ' + (window.innerWidth || '?') + ' \u00d7 ' + (window.innerHeight || '?')
+      + (window.devicePixelRatio ? ' @' + window.devicePixelRatio + 'x' : ''));
+    lines.push('Installed: ' + (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches ? 'yes (home screen)' : 'no (browser tab)'));
+    lines.push('Online: ' + (navigator.onLine ? 'yes' : 'no'));
+  } catch (e) {}
+  return 'mailto:' + ADMIN_EMAIL
+    + '?subject=' + encodeURIComponent('The Rail Roster feedback')
+    + '&body=' + encodeURIComponent(lines.join('\n'));
+}
+if (typeof window !== 'undefined') window._rrFeedbackMailto = _rrFeedbackMailto;
 
 function _runHealthCheck() {
   var out = document.getElementById("health-check-output");
