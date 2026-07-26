@@ -669,7 +669,7 @@
   // now carry the version of the reader that produced them, and the automatic
   // pass retries anything read by an older one. Bump this whenever the reading
   // logic changes; it costs nothing but time, and only on photos that failed.
-  var READER_VER = '1078';
+  var READER_VER = '1079';
 
   function _pinMetaOf(file) {
     var ap = (file && file.appProperties) || {};
@@ -1799,6 +1799,7 @@
                 ? '<br>Reassembled and tried: ' + rrEsc(dbg.joinTried.slice(0, 10).join(', ')) : '')
             + (dbg.viaDesc ? '<br>Matched on the words: ' + rrEsc(dbg.viaDesc) : '')
             + (dbg.corroborated ? '<br>Number and lettering agree: ' + rrEsc(dbg.corroborated) : '')
+            + (dbg.oneOff ? '<br>One digit corrected: ' + rrEsc(dbg.oneOff) : '')
             + (dbg.viaMaker ? '<br>Chosen because it is stamped next to the maker\'s name: ' + rrEsc(dbg.viaMaker) : '')
             + (dbg.evidence !== undefined
                 ? '<br>Readable characters recovered: ' + dbg.evidence
@@ -2798,8 +2799,72 @@
       else { matched.sort(dashRank); direct = matched[0]; }
     }
 
+    // ══ v0.9.1079 — one misread digit ══════════════════════════════════════
+    // Brad, on his Boston & Maine boxcar: "i see where it read 5 instead of 6.
+    // so it says 5464475 instead of 6464475. we may need to look at a number
+    // being off like 5 and 6 or 5 and 8." Exactly right, and the fix is narrow
+    // enough to be safe: try changing ONE character to something it is commonly
+    // confused with, and accept only an exact catalog hit. A single substitution
+    // on a seven-digit run is about fifteen candidates — cheap — while allowing
+    // two would let almost anything become almost anything.
+    var _OCR_CONFUSE = {
+      '0': '68', '1': '7', '2': '7', '3': '8', '4': '9',
+      '5': '68', '6': '58', '7': '1', '8': '360', '9': '4',
+    };
+    function _oneOffVariants(d) {
+      var out = [];
+      for (var i = 0; i < d.length; i++) {
+        var alt = _OCR_CONFUSE[d[i]];
+        if (!alt) continue;
+        for (var j = 0; j < alt.length; j++) {
+          out.push(d.slice(0, i) + alt[j] + d.slice(i + 1));
+        }
+      }
+      return out;
+    }
+    // Exact, then dash-repaired, for one candidate string.
+    function _tryNumber(d) {
+      if (!fm) return null;
+      if ((!digitCap || d.length <= digitCap) && fm(d)) return d;
+      for (var cut = 3; cut <= 4; cut++) {
+        if (d.length <= cut) continue;
+        var cand = d.slice(0, cut) + '-' + d.slice(cut);
+        if (fm(cand)) return cand;
+      }
+      return null;
+    }
+
     var jHit = null;
-    if (fm && joined.length) {
+    // Whole runs first, and a one-character repair of them, BEFORE any window.
+    // Order matters: "5464475" cut into windows yields "6447", a real postwar
+    // caboose, and it was winning over the boxcar the car actually is. A
+    // complete number with one digit corrected beats a fragment of it.
+    if (fm) {
+      var wholeRuns = [];
+      var _addRun = function (d) {
+        if (d && d.length >= 4 && d.length <= 12 && !capStamp[d] && !banned[d]
+            && wholeRuns.indexOf(d) < 0) wholeRuns.push(d);
+      };
+      // An UNBROKEN digit token first — that is the printed number when the
+      // reader managed to keep it together, and it is what "5464475" is. Only
+      // then the space-joined runs, which on this car swallow the neighbouring
+      // "0 20" and produce a ten-digit string matching nothing.
+      (UP.match(/\d+/g) || []).forEach(_addRun);
+      (UP.match(/\d(?:[ \t]?\d){3,11}/g) || []).forEach(function (run) {
+        _addRun(run.replace(/\D/g, ''));
+      });
+      wholeRuns.some(function (d) { jHit = _tryNumber(d); return !!jHit; });
+      if (!jHit) {
+        wholeRuns.some(function (d) {
+          return _oneOffVariants(d).some(function (v) {
+            var hit = _tryNumber(v);
+            if (hit) { jHit = hit; dbg.oneOff = d + ' \u2192 ' + hit; return true; }
+            return false;
+          });
+        });
+      }
+    }
+    if (fm && !jHit && joined.length) {
       joined.some(function (d) {
         // A BARE reassembled number must obey the same length ceiling as any
         // other — that is what stopped "LEY 25000" becoming an item number.
