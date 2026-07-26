@@ -662,6 +662,15 @@
   // keep working untouched and simply know less until something writes.
   var _PIN_META_V = '1';
 
+  // v0.9.1076 (Brad: "most of these i have to rescan for them to read
+  // anything"). Once the free reader failed on a photo it was marked tried and
+  // never looked at again — so every improvement made today was invisible on
+  // the photos that most needed it, until he re-scanned each one by hand. Reads
+  // now carry the version of the reader that produced them, and the automatic
+  // pass retries anything read by an older one. Bump this whenever the reading
+  // logic changes; it costs nothing but time, and only on photos that failed.
+  var READER_VER = '1076';
+
   function _pinMetaOf(file) {
     var ap = (file && file.appProperties) || {};
     var out = {
@@ -1780,10 +1789,17 @@
       + (dbg
           ? '<div style="margin-top:0.35rem">'
             + 'Photo is stamped: <b>' + rrEsc(dbg.era ? _pinEraLabel(dbg.era) : 'nothing \u2014 no era filter applied') + '</b><br>'
-            + 'Numbers considered: ' + rrEsc((dbg.cand || []).join(', ') || 'none') + '<br>'
+            + 'Numbers considered: ' + rrEsc((dbg.cand || []).join(', ') || 'none')
+              + ((dbg.shortCand && dbg.shortCand.length)
+                  ? ' (plus short: ' + rrEsc(dbg.shortCand.join(', ')) + ')' : '') + '<br>'
             + 'In that catalog: ' + rrEsc((dbg.inEra || []).join(', ') || 'none') + '<br>'
             + 'In another catalog: ' + rrEsc((dbg.offEra || []).join(', ') || 'none')
             + (dbg.joined ? '<br>Recovered by joining split digits: ' + rrEsc(dbg.joined) : '')
+            + (dbg.viaMaker ? '<br>Chosen because it is stamped next to the maker\'s name: ' + rrEsc(dbg.viaMaker) : '')
+            + (dbg.evidence !== undefined
+                ? '<br>Readable characters recovered: ' + dbg.evidence
+                  + (dbg.evidence < 18 ? ' \u2014 too few to be sure of anything' : '')
+                : '')
             + '</div>'
           : '')
       + '</div></details>';
@@ -2559,6 +2575,33 @@
     // v0.9.1069 — widened. "10-2210" slipped through a rule that only looked
     // for one or two digits AFTER the dash. Real dashed Lionel numbers are
     // 6464-475 or 2333-20: three or four digits BEFORE it, always.
+    // ══ v0.9.1076 — the strongest signal on the model itself ═══════════════
+    // Brad's Lehigh Valley hopper carries FOUR numbers: road number 25000 in the
+    // largest lettering, CAPY 100000, LD LMT 128300, and — in the smallest print
+    // on the car — "BUILT 1-48 LIONEL 6176". Only the last is the catalog
+    // number, and the car tells you which by putting it directly after the
+    // maker's name. That is a manufacturing convention, not a guess: Lionel
+    // stamps its catalog number next to LIONEL on essentially every postwar
+    // piece. It is also exactly the cue a collector's eye uses.
+    var namedByMaker = {};
+    (function () {
+      var reAfter = /(?:LIONEL|LIONEL LINES|BLT BY LIONEL)[^0-9A-Z]{0,6}(\d{2,6}(?:-\d{1,3})?)/g;
+      var reBefore = /(\d{2,6}(?:-\d{1,3})?)[^0-9A-Z]{0,6}(?:LIONEL|LIONEL LINES)/g;
+      var mm;
+      while ((mm = reAfter.exec(UP))) { namedByMaker[mm[1]] = 1; }
+      while ((mm = reBefore.exec(UP))) { namedByMaker[mm[1]] = 1; }
+    })();
+
+    // ══ ROAD NUMBERS AND WEIGHTS ARE TOO LONG TO BE CATALOG NUMBERS ════════
+    // Postwar and prewar Lionel numbers top out at four digits — 6464 is about
+    // as long as they get — so on a photo stamped as one of those eras, a bare
+    // five- or six-digit number is never the answer. 25000 (a road number that
+    // also happens to exist in the catalog as a Mathematics Set), 100000 and
+    // 128300 all fail here. MPC, MTH and the rest genuinely use longer numbers
+    // and are deliberately left alone.
+    var MAX_PLAIN_DIGITS = { prewar: 4, pw: 4 };
+    var digitCap = (prefer && prefer.era && MAX_PLAIN_DIGITS[prefer.era]) || 0;
+
     var isBuildDate = function (c) { return /^\d{1,2}-\d+$/.test(c); };
     // CAPACITY AND LOAD LIMIT. The audit confirmed "40200" on five different
     // cars, plus 48200 and 25000. Those are the CAPY / LD LMT stamps printed on
@@ -2580,7 +2623,9 @@
         // enough that keyword matching alone misses them. No Lionel catalog
         // number has six or more digits, so on a Lionel-stamped photo they are
         // never the answer regardless of what the label came out as.
-        if (prefer && prefer.era && /^\d{6,}$/.test(c)) return false;
+        // The era-aware ceiling replaces the blunt six-digit rule.
+        if (digitCap && c.indexOf('-') < 0 && c.replace(/\D/g, '').length > digitCap) return false;
+        if (!digitCap && prefer && prefer.era && /^\d{6,}$/.test(c)) return false;
         var digits = c.replace(/\D/g, '');
         var alnum = c.replace(/[^0-9A-Za-z]/g, '');
         if (digits.length < alnum.length * 0.6) return false;   // mostly letters = junk (e.g. "4LIONEL", "MADE")
@@ -2627,12 +2672,29 @@
     // right number had even been a candidate. Guessing at that from screenshots
     // is what this whole audit was supposed to replace. Every read now carries
     // its own reasoning.
+    // ══ v0.9.1076c — HOW MUCH DID IT ACTUALLY READ? ════════════════════════
+    // Brad's 2408 Santa Fe car produced the entire text "-600 2" and the app
+    // reported No. 600, NW2 Switcher, as a finding. His M&StL boxcar produced
+    // "- 7 - 5 - 1001- - 4 - 0" and got 1001, a steam locomotive. Both numbers
+    // are real postwar items, so both confirmed. But a catalog hit inside four
+    // characters of noise is a coincidence, not a reading — with a few thousand
+    // numbers in the catalog, almost any stray digits land on one.
+    //
+    // So a match needs some corroboration around it. Below this much recovered
+    // text the answer is still offered, as a guess for a human to accept, but it
+    // is never stated as fact.
+    var evidence = UP.replace(/[^0-9A-Z]/g, '').length;
+    var THIN = 18;
+
     var dbg = {
       era: (prefer && prefer.era) || '',
+      evidence: evidence,
       cand: uniq.slice(0, 8),
+      shortCand: shortOnes.slice(0, 5),
       inEra: [],
       offEra: [],
       joined: '',
+      viaMaker: '',
     };
     uniq.slice(0, 8).forEach(function (c) {
       var any = fmAny ? fmAny(c) : null;
@@ -2668,6 +2730,12 @@
         for (var len = Math.min(8, d.length); len >= 4; len--) {
           for (var st = 0; st + len <= d.length; st++) {
             var w = d.substr(st, len);
+            // v0.9.1076b: the join was bypassing every guard the direct path
+            // has. On Brad's Lehigh Valley hopper it reassembled the ROAD
+            // NUMBER 25000 out of "LEY 25000" and won on length, after the
+            // ordinary filters had correctly thrown that very number away.
+            // A recovery route must not be a way around the rules.
+            if (capStamp[w] || banned[w]) continue;
             if (joined.indexOf(w) < 0) joined.push(w);
           }
         }
@@ -2685,12 +2753,24 @@
     // catalog hit on more digits is far less likely to be a coincidence.
     var direct = null;
     var matched = uniq.filter(function (c) { return fm && (fm(c) || fm(c.replace(/^\d-/, ''))); });
-    if (matched.length) { matched.sort(dashRank); direct = matched[0]; }
+    if (matched.length) {
+      // A number the maker put its own name beside outranks everything, before
+      // any length or specificity tie-break gets a say. Length was deciding this
+      // and length is meaningless between two unrelated numbers — it picked the
+      // road number 25000 over the catalog number 6176 purely for being longer.
+      var named = matched.filter(function (c) { return namedByMaker[c]; });
+      if (named.length) { named.sort(dashRank); direct = named[0]; dbg.viaMaker = direct; }
+      else { matched.sort(dashRank); direct = matched[0]; }
+    }
 
     var jHit = null;
     if (fm && joined.length) {
       joined.some(function (d) {
-        if (fm(d)) { jHit = d; return true; }
+        // A BARE reassembled number must obey the same length ceiling as any
+        // other — that is what stopped "LEY 25000" becoming an item number.
+        // A DASH-REPAIRED one may exceed it, because 3562-1 and 6464-475 are
+        // exactly the legitimate Lionel forms that run longer.
+        if ((!digitCap || d.length <= digitCap) && fm(d)) { jHit = d; return true; }
         for (var cut = 3; cut <= 4; cut++) {
           if (d.length <= cut) continue;
           var cand = d.slice(0, cut) + '-' + d.slice(cut);
@@ -2704,8 +2784,18 @@
 
     var digitsOf = function (x) { return String(x || '').replace(/\D/g, '').length; };
     if (direct || jHit) {
-      var win = (jHit && digitsOf(jHit) > digitsOf(direct)) ? jHit : (direct || jHit);
-      return { num: win, matched: true, dbg: dbg };
+      // Order of authority: what the maker stamped next to its own name, then
+      // the more specific of a joined reconstruction and a direct hit. Length
+      // only ever breaks a tie between those last two — it is meaningless
+      // between two unrelated numbers, which is how a road number won earlier.
+      var win;
+      if (dbg.viaMaker && direct) win = direct;
+      else if (jHit && digitsOf(jHit) > digitsOf(direct)) win = jHit;
+      else win = direct || jHit;
+      // A number the maker named is trustworthy however little else was read —
+      // "LIONEL 6176" is corroboration in itself.
+      var solid = (evidence >= THIN) || !!dbg.viaMaker;
+      return { num: win, matched: solid, thin: !solid, dbg: dbg };
     }
 
     // Nothing in the stamped catalog. Before giving up, look in every catalog —
@@ -2821,15 +2911,38 @@
     var best = null, text = '';
     for (var pi = 0; pi < _FREE_PASSES.length; pi++) {
       var p = _FREE_PASSES[pi];
-      var t = '';
+      var t = '', r = null;
       try {
         await w.setParameters({ tessedit_char_whitelist: p.wl === 'digits' ? _WL_DIGITS : _WL_FULL });
-        t = (((await w.recognize(_auditCanvas(bmp, dim, p.mode))).data) || {}).text || '';
-        for (var ti = 0; ti < (p.tiles || 0); ti++) {
-          t += '\n' + ((((await w.recognize(_auditTile(bmp, dim, p.mode, ti, p.tiles))).data) || {}).text || '');
+        if (p.tiles) {
+          // v0.9.1076 — WHERE the text was found matters. Brad photographs his
+          // shelf against a wall with a printed catalog page pinned to it, and
+          // the reader was lifting numbers straight off it: a 6816 flatcar came
+          // back "409" and a 6817 came back "6912", neither number anywhere on
+          // the model. Background print is often CRISPER than stamped lettering,
+          // so it wins on merit and is wrong every time.
+          //
+          // The item is in the middle of the frame; the wall is above it. So the
+          // middle band gets asked first and on its own — if that alone yields a
+          // catalog-confirmed number, nothing from the edges can overrule it.
+          var bands = [];
+          for (var ti = 0; ti < p.tiles; ti++) {
+            bands.push((((await w.recognize(_auditTile(bmp, dim, p.mode, ti, p.tiles))).data) || {}).text || '');
+          }
+          var mid = bands[Math.floor(p.tiles / 2)] || '';
+          var rMid = _numberFromText(mid, prefer);
+          if (rMid && rMid.matched && rMid.num) {
+            if (rMid.dbg) rMid.dbg.fromMiddle = true;
+            r = rMid; t = mid;
+          } else {
+            t = ((((await w.recognize(_auditCanvas(bmp, dim, p.mode))).data) || {}).text || '')
+              + '\n' + bands.join('\n');
+          }
+        } else {
+          t = (((await w.recognize(_auditCanvas(bmp, dim, p.mode))).data) || {}).text || '';
         }
       } catch (eP) { continue; }
-      var r = _numberFromText(t, prefer);
+      if (!r) r = _numberFromText(t, prefer);
       // An empty answer still carries its reasoning, so keep it if nothing
       // better turns up — but never let it outrank a real one.
       if (r && (!best || (r.num && !best.num) || (r.matched && !best.matched))) { best = r; text = t; }
@@ -2901,8 +3014,8 @@
       // digits-only, stopping as soon as the stamped catalog confirms.
       var r = await _freeReadBlob(blob, 2400, _preferForFid(fid));
       var m = _ids();
-      if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null }; _idsSave(m); }
-      else { var f2 = _freeTried(); f2[fid] = { t: 1, raw: (r && r.raw) || '', dbg: (r && r.dbg) || null }; _freeTriedSave(f2); }
+      if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null, rv: READER_VER }; _idsSave(m); }
+      else { var f2 = _freeTried(); f2[fid] = { t: 1, raw: (r && r.raw) || '', dbg: (r && r.dbg) || null, rv: READER_VER }; _freeTriedSave(f2); }
       try { _render(); } catch (e4) {}
       window._pinReview(key);
       // v0.9.1067 (Brad: "saying still no clear number will piss people off when
@@ -2923,7 +3036,22 @@
   async function _pinAutoRead() {
     if (_autoReadBusy || !_groups.length) return;
     var ids = _ids(), ft = _freeTried();
-    var todo = _groups.filter(function (g) { var fid = _pinReadFid(g); return fid && !ids[fid] && !ft[fid]; });
+    var _stale = function (rec) {
+      // No record at all, or one made by an older reader than the current one.
+      if (!rec) return true;
+      if (typeof rec !== 'object') return true;         // legacy marker
+      return rec.rv !== READER_VER;
+    };
+    var todo = _groups.filter(function (g) {
+      var fid = _pinReadFid(g);
+      if (!fid) return false;
+      var got = ids[fid];
+      // A confirmed read from the current reader is left alone. Anything else —
+      // never read, failed, or produced by an older reader — is retried free.
+      if (got && !got.guess && got.rv === READER_VER) return false;
+      if (got && got.rv === READER_VER) return false;
+      return _stale(ft[fid]) || !got;
+    });
     if (!todo.length) return;
     _autoReadBusy = true; _autoReadAbort = false;
     if (!(await _tessGet())) { _autoReadBusy = false; return; }   // OCR unavailable → leave for paid identify
@@ -2933,13 +3061,13 @@
         var fid = _pinReadFid(todo[i]), r = null;
         try { r = await _freeReadOne(fid); } catch (e) {}
         if (r && r.num) {
-          var m = _ids(); m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null };
+          var m = _ids(); m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null, rv: READER_VER };
           _idsSave(m);
         } else {
           // v0.9.1072: remember WHY it failed, not just that it did. Stored on
           // the tried-map rather than as a suggestion, so a blank read still
           // counts as unread for the paid batch and the token button.
-          var f = _freeTried(); f[fid] = { t: 1, raw: (r && r.raw) || '', dbg: (r && r.dbg) || null }; _freeTriedSave(f);
+          var f = _freeTried(); f[fid] = { t: 1, raw: (r && r.raw) || '', dbg: (r && r.dbg) || null, rv: READER_VER }; _freeTriedSave(f);
         }
         _render();
       }
@@ -3055,7 +3183,7 @@
         try { _render(); } catch (eC) {}
         _freeReadBlob(blob, 1600, _preferForFid(fid)).then(function (r) {
           var m = _ids();
-          if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null }; _idsSave(m); }
+          if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null, rv: READER_VER }; _idsSave(m); }
           else { var f2 = _freeTried(); f2[fid] = 1; _freeTriedSave(f2); }
           try { _render(); } catch (e2) {}
         }).catch(function () {});
