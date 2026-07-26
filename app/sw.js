@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v1054';
+const CACHE_NAME = 'mca-v1055';
 
 const SHELL_FILES = [
   './index.html',
@@ -97,10 +97,27 @@ const SHELL_FILES = [
 
 // Install: pre-cache app shell
 self.addEventListener('install', event => {
+  // v0.9.1043b: addAll() is all-or-nothing — one flaky file out of ~70 meant
+  // NOTHING was cached, and the empty catch hid it, so a device that hit a
+  // single blip during install silently had no offline support at all and
+  // nothing anywhere said so. Files are now cached individually: one bad fetch
+  // costs that one file, not the whole shell, and whatever failed is named in
+  // the console.
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(SHELL_FILES))
-      .catch(() => {})
+    caches.open(CACHE_NAME).then(cache =>
+      Promise.all(SHELL_FILES.map(url =>
+        cache.add(url).catch(err => {
+          console.warn('[sw] precache miss:', url, err && err.message);
+          return url;   // resolve, so one miss can't sink the rest
+        })
+      )).then(results => {
+        const missed = results.filter(Boolean);
+        if (missed.length) {
+          console.warn('[sw] ' + missed.length + ' of ' + SHELL_FILES.length
+            + ' shell files did not cache — offline may be incomplete:', missed);
+        }
+      })
+    ).catch(err => console.error('[sw] precache failed outright:', err))
   );
   self.skipWaiting();
 });
