@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1055';
+const APP_VERSION = 'v0.9.1056';
 
 // v0.9.918 (Brad): SINGLE SOURCE OF TRUTH for the personal sheet's collection
 // tab name. Every sheet read/write range ("My Collection!D12") builds from
@@ -105,7 +105,15 @@ window.ROAD_TYPEAHEAD_CONFIG = {
 const MASTER_SHEET_ID = '1Y9-cg8C1CkIqy0RQ66DfP7fmGrE3IGBpyJbtdfYx8q0';
 
 // ── Admin config ──
-const ADMIN_EMAIL  = 'admin@therailroster.com';
+// The address every "contact us" path hands to a user: Send Feedback in
+// Preferences, "Don't have a code?" on the beta gate, "Still stuck?" on the
+// sign-in help, the contact button on the info page, and the tutorial.
+// It was admin@therailroster.com, which had NO MAILBOX behind it —
+// therailroster.com is a secondary domain, so an address only exists once a
+// user or alias is created for it, and admin@ never was. All five paths
+// bounced with "Address not found". Caught by Brad testing on 26 July 2026.
+// support@ is a real user account, so this reaches a person.
+const ADMIN_EMAIL  = 'support@therailroster.com';
 
 // ── Brand copy — SINGLE SOURCE OF TRUTH (v0.9.997, Brad) ────────────────
 // The tagline used to be typed out separately in the beta gate and TWICE in

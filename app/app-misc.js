@@ -83,7 +83,7 @@ function showAiUsageCard(force) {
   const ov = document.createElement('div');
   ov.id = 'rr-ai-usage-card';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:99998;display:flex;align-items:flex-start;justify-content:center;padding:18px;overflow-y:auto';
-  const admin = (typeof ADMIN_EMAIL !== 'undefined') ? ADMIN_EMAIL : 'admin@therailroster.com';
+  const admin = (typeof ADMIN_EMAIL !== 'undefined') ? ADMIN_EMAIL : 'support@therailroster.com';
   ov.innerHTML =
     '<div style="background:var(--surface,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;max-width:480px;width:100%;padding:20px 22px 18px;color:var(--text,#eee);font-family:var(--font-body,sans-serif);max-height:calc(100vh - 36px);overflow-y:auto;-webkit-overflow-scrolling:touch;margin:auto 0;box-shadow:0 12px 40px rgba(0,0,0,0.5)">'
     + '<div style="font-family:var(--font-head,sans-serif);font-size:1.25rem;text-align:center;font-weight:700;margin-bottom:4px">Scanning and photo ID</div>'

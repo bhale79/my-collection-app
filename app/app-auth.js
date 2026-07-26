@@ -81,7 +81,7 @@ function _rrShowScopeNeededScreen() {
         'Try again — tick the Drive box' +
       '</button>' +
       '<p style="font-size:0.75rem;color:var(--text-dim,#8d7f5e);margin-top:1rem;line-height:1.5">' +
-        'Still stuck? Email <a href="mailto:' + (typeof ADMIN_EMAIL !== 'undefined' ? ADMIN_EMAIL : 'admin@therailroster.com') + '" style="color:var(--accent2,#d4a843);text-decoration:none">' + (typeof ADMIN_EMAIL !== 'undefined' ? ADMIN_EMAIL : 'admin@therailroster.com') + '</a>.' +
+        'Still stuck? Email <a href="mailto:' + (typeof ADMIN_EMAIL !== 'undefined' ? ADMIN_EMAIL : 'support@therailroster.com') + '" style="color:var(--accent2,#d4a843);text-decoration:none">' + (typeof ADMIN_EMAIL !== 'undefined' ? ADMIN_EMAIL : 'support@therailroster.com') + '</a>.' +
       '</p>' +
     '</div>';
 }
