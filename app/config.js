@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1039';
+const APP_VERSION = 'v0.9.1040';
 
 // v0.9.918 (Brad): SINGLE SOURCE OF TRUTH for the personal sheet's collection
 // tab name. Every sheet read/write range ("My Collection!D12") builds from
@@ -445,8 +445,11 @@ if (typeof window !== 'undefined') setTimeout(function () {
           if (!a2 || !c2) return;
           if (a2[1] !== netApp || c2[1] !== netCache) return;   // it moved — rollout, not a mistake
           var msg = 'APP_VERSION changed (' + last.app + ' -> ' + netApp + ') but CACHE_NAME did not (' + netCache + ')';
+          // v0.9.1040: this is a developer signal, not something a user can act
+          // on. The detail goes to the console; the person just gets told to
+          // refresh, which is the only thing that actually helps them.
           console.warn('[version check] DEPLOY MISMATCH:', msg);
-          if (typeof showToast === 'function') showToast('\u26a0 Deploy version mismatch — tell Claude: ' + msg, 8000, true);
+          if (typeof showToast === 'function') showToast('A newer version is available — refresh to update', 6000);
         }).catch(function () {});
       }, 5000);
     }).catch(function () { /* offline — skip */ });

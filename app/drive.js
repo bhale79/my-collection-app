@@ -203,6 +203,16 @@ async function driveUploadPhoto(file, fileName, folderId) {
     headers: { Authorization: `Bearer ${accessToken}` },
     body: form,
   });
+  // v0.9.1040: this check was missing while its sibling driveUploadFile (above)
+  // has always had it. Without it a Drive error — expired token, quota, a bad
+  // folder id — came back as a perfectly ordinary resolved promise, so every
+  // .catch() around a photo upload never fired and the item still reported
+  // "saved" with the photo nowhere on Drive.
+  if (!res.ok) {
+    const errText = await res.text().catch(() => 'unknown');
+    console.error('[Drive] Photo upload failed:', res.status, errText);
+    throw new Error('Photo upload failed (HTTP ' + res.status + ')');
+  }
   return res.json();
 }
 
