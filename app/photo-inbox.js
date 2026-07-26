@@ -136,6 +136,93 @@
   };
 
   // ── List + render ────────────────────────────────────────────
+  // ══ v0.9.1047 — per-photo metadata ═══════════════════════════════════════
+  // Until now the only thing a photo remembered was its filename:
+  //   "INBOX <uploadTs> g<groupId> <original name>"
+  // Enough to stack a group and nothing else — nowhere to put era, group kind,
+  // unit role, what the reader made of it, or whether it has been dealt with.
+  // Every planned inbox feature needs those.
+  //
+  // They live in the Drive file's own appProperties: private to this app, no
+  // new Google permission, survives renames, and Drive can filter on them
+  // server-side later. Keys are short because Drive caps key+value at 124
+  // bytes per property.
+  //
+  //   rrV    schema version           rrNum   item number read or confirmed
+  //   rrEra  era key ('pw','mth_ho')  rrStat  new|stamped|read|confirmed|filed
+  //   rrGrp  group id                 rrConf  hi|lo — how sure the read was
+  //   rrKind single|aa|ab|aba|tender|set|box
+  //   rrRole role in the group ('p','d','b','tender','set','box')
+  //
+  // ONE era key carries maker, scale and period together — 'mth_ho' is MTH, HO,
+  // modern — so there is no way to store a combination that never existed.
+  //
+  // No migration: reads fall back to the filename, so photos taken before today
+  // keep working untouched and simply know less until something writes.
+  var _PIN_META_V = '1';
+
+  function _pinMetaOf(file) {
+    var ap = (file && file.appProperties) || {};
+    var out = {
+      v:    ap.rrV    || '',
+      era:  ap.rrEra  || '',
+      grp:  ap.rrGrp  || '',
+      kind: ap.rrKind || '',
+      role: ap.rrRole || '',
+      num:  ap.rrNum  || '',
+      stat: ap.rrStat || '',
+      conf: ap.rrConf || '',
+    };
+    if (!out.grp && file && file.name) {
+      var m = String(file.name).match(/^INBOX \d+ g(\S+)/);
+      if (m) out.grp = m[1];
+    }
+    if (!out.stat) out.stat = out.num ? 'read' : 'new';
+    if (!out.kind) out.kind = 'single';
+    return out;
+  }
+
+  // Merge a patch into a file's appProperties. Drive merges the keys you send
+  // and deletes any whose value is null, so only what changed goes over.
+  async function _pinMetaSet(fileId, patch) {
+    if (!fileId || !patch) return false;
+    var map = { era:'rrEra', grp:'rrGrp', kind:'rrKind', role:'rrRole', num:'rrNum', stat:'rrStat', conf:'rrConf' };
+    var props = { rrV: _PIN_META_V };
+    Object.keys(patch).forEach(function (k) {
+      if (!map[k]) return;
+      var val = patch[k];
+      props[map[k]] = (val === null || val === undefined || val === '') ? null : String(val).slice(0, 100);
+    });
+    try {
+      await driveRequest('PATCH', '/files/' + fileId + '?fields=id', { appProperties: props });
+      return true;
+    } catch (e) {
+      console.warn('[inbox] could not save photo details', fileId, e && e.message);
+      return false;
+    }
+  }
+
+  // Same patch across several photos, four at a time so a batch of a hundred
+  // does not open a hundred simultaneous requests. Returns how many actually
+  // succeeded, so the caller can tell the user the truth.
+  async function _pinMetaSetMany(fileIds, patch, onProgress) {
+    var ids = (fileIds || []).slice(), ok = 0, done = 0;
+    while (ids.length) {
+      var slice = ids.splice(0, 4);
+      var results = await Promise.all(slice.map(function (id) { return _pinMetaSet(id, patch); }));
+      results.forEach(function (r) { if (r) ok++; });
+      done += slice.length;
+      if (onProgress) { try { onProgress(done, ok); } catch (e) {} }
+    }
+    return ok;
+  }
+
+  if (typeof window !== 'undefined') {
+    window._pinMetaOf = _pinMetaOf;
+    window._pinMetaSet = _pinMetaSet;
+    window._pinMetaSetMany = _pinMetaSetMany;
+  }
+
   window._pinRefresh = async function () {
     if (!_ensurePage()) return;
     _status('Loading inbox…');
@@ -147,9 +234,11 @@
       // Group by the g<id> tag; untagged files are their own group.
       var map = {}, order = [];
       files.forEach(function (f) {
-        var m = f.name.match(/^INBOX \d+ g(\S+)/);
-        var key = m ? 'g' + m[1] : 'f' + f.id;
-        if (!map[key]) { map[key] = { key: key, files: [] }; order.push(key); }
+        // v0.9.1047: metadata first, filename as the fallback — so photos from
+        // before today group exactly as they always did.
+        f._meta = _pinMetaOf(f);
+        var key = f._meta.grp ? 'g' + f._meta.grp : 'f' + f.id;
+        if (!map[key]) { map[key] = { key: key, files: [], kind: f._meta.kind, era: f._meta.era }; order.push(key); }
         map[key].files.push(f);
       });
       _groups = order.map(function (k) { return map[k]; });
