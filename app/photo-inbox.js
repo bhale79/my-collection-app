@@ -1967,13 +1967,18 @@
   // v0.9.962 (Brad): ONE place that applies a parsed reading (from a snip, a
   // copied answer, or the Lens return-trip) to the open group and reopens the
   // review card. Returns false if the metadata had nothing usable.
-  function _pinApplyMeta(meta, gs) {
+  // v0.9.1086 — `aiText` is a PARAMETER. In v0.9.1085 this function referenced
+  // a variable named `ai` that exists in its callers and not here. Every paid
+  // read threw a ReferenceError, the try/catch two lines down swallowed it, the
+  // previous answer stayed on screen, and the credit was spent. Brad paid twice
+  // for that. Syntax checking cannot catch an out-of-scope name; a test that
+  // actually CALLS the function can, and there is one now.
+  function _pinApplyMeta(meta, gs, aiText) {
     var got = meta && (meta.itemNum || meta.description || meta.manufacturer || meta.roadName);
     if (!got) return false;
     try {
       var ids = _ids(); var fid0 = _pinReadFid(gs[0]) || gs[0].files[0].id; var prev = ids[fid0] || {};
-      // v0.9.1085: keep what the paid reader actually said, as the free one does.
-      var _aiRaw = String(ai.text || '').replace(/\s+/g, ' ').trim().slice(0, 900);
+      var _aiRaw = String(aiText || '').replace(/\s+/g, ' ').trim().slice(0, 900) || (prev.aiRaw || '');
       var _aiSku = (meta && meta._aiSku) || '';
       var trim = function (v, old) { return String(v || old || '').slice(0, 120); };
       ids[fid0] = { aiRaw: _aiRaw, aiSku: _aiSku,
@@ -1987,7 +1992,13 @@
         gauge: trim(meta.gauge, prev.gauge), subType: trim(meta.subType, prev.subType)
       };
       _idsSave(ids);
-    } catch (eS) { console.warn('[Inbox] apply meta:', eS); }
+    } catch (eS) {
+      // v0.9.1086: this used to log and carry on, so a broken save looked exactly
+      // like a good one — which is how a ReferenceError here cost Brad two
+      // tokens before anyone noticed. A paid read that cannot be stored says so.
+      console.error('[Inbox] could not store the read:', eS);
+      showToast('The read came back but could not be saved \u2014 ' + ((eS && eS.message) || 'unknown error'), 5000, true);
+    }
     _render();
     _sel = {};
     gs.forEach(function (g) { _sel[g.key] = true; });
@@ -2061,7 +2072,7 @@
         }
         } catch (eRC) { console.warn('[inbox] could not reconcile the read', eRC && eRC.message); }
       }
-      if (!_pinApplyMeta(meta, gs)) { showToast('No item info found in that screenshot — type the number instead', 4000, true); return; }
+      if (!_pinApplyMeta(meta, gs, ai && ai.text)) { showToast('No item info found in that screenshot — type the number instead', 4000, true); return; }
       showToast(meta._hedge
         ? 'Read the screenshot — the number is a best guess, double-check it'
         : ('Read the screenshot' + (_freeRead ? ' (free — no token used)' : '') + ' — check it over and hit Add'), 4000);
@@ -2082,7 +2093,7 @@
     txt = String(txt || '').trim();
     if (!txt) return false;
     var meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(txt) : {};
-    if (!_pinApplyMeta(meta, gs)) return false;
+    if (!_pinApplyMeta(meta, gs, txt)) return false;
     showToast(meta._hedge
       ? 'Read the copied answer — the number is a best guess, double-check it'
       : 'Read the copied answer — check it over and hit Add', 4000);
@@ -2175,7 +2186,7 @@
       }
       if (typeof ai.remaining === 'number') _tokSave(ai.remaining);   // v0.9.969: keep the token count fresh
       var meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(ai.text) : {};
-      if (!_pinApplyMeta(meta, gs)) { showToast('Could not pull an item number from the photo — try Google Search', 4200, true); return; }
+      if (!_pinApplyMeta(meta, gs, ai && ai.text)) { showToast('Could not pull an item number from the photo — try Google Search', 4200, true); return; }
       showToast(meta._hedge
         ? 'Best guess from the photo — double-check the number (1 token used)'
         : 'Read from the photo — check it over and add it (1 token used)', 4000);
@@ -2249,7 +2260,7 @@
       var gs = _pinLensGroups;
       _pinLensGroups = null;
       // v0.9.962: same shared applier as the snip/paste paths.
-      if (_pinApplyMeta(meta, gs)) {
+      if (_pinApplyMeta(meta, gs, ai && ai.text)) {
         showToast(meta._hedge
           ? "Google's answer applied, but it hedged on the number — double-check it"
           : "Google's answer applied — check it over and hit Add", 4000);
