@@ -94,6 +94,7 @@
         '<button id="pin-tag-btn" onclick="_pinStartMode(\'tag\')" style="' + 'padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer' + '">Tag maker/era/scale</button>' +
         '<button id="pin-finish-btn" onclick="_pinFinishMode()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:none;background:var(--accent2);color:#1a1a1a;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">✓ Finished</button>' +
         '<button id="pin-selall-btn" onclick="_pinSelectAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Select all</button>' +
+        '<button id="pin-recrop-btn" onclick="_pinReadCropped()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:rgba(212,168,67,0.14);color:var(--accent2);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Re-read cropped</button>' +
         '<button id="pin-idall-btn" onclick="_pinIdentifyAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:rgba(212,168,67,0.14);color:var(--accent2);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">🔍 Read with a token</button>' +
         '<button onclick="_pinRefresh()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:600;font-size:0.82rem;cursor:pointer">Refresh</button>' +
         '<span style="flex:1"></span>' +
@@ -332,7 +333,14 @@
         + (k.roles.length
             ? files.map(function (f, i) {
                 return '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.4rem 0;border-top:1px solid var(--border)">'
-                  + '<div style="width:34px;height:34px;border-radius:5px;background:var(--surface2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:0.72rem;color:var(--text-dim)">' + (i + 1) + '</div>'
+                  // v0.9.1058 (Brad: "need thumbnails on this popup to help me
+                  // select"). A numbered square told you there were seven photos
+                  // but not WHICH was which, so assigning powered / dummy / B was
+                  // guesswork against the shooting order.
+                  + '<div style="position:relative;width:46px;height:46px;border-radius:6px;overflow:hidden;background:var(--surface2);flex-shrink:0">'
+                  +   '<img data-grpfid="' + f.id + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="">'
+                  +   '<div style="position:absolute;left:0;bottom:0;background:rgba(0,0,0,0.6);color:#fff;font-size:0.55rem;padding:0 3px;border-radius:0 4px 0 0">' + (i + 1) + '</div>'
+                  + '</div>'
                   + '<select data-ri="' + i + '" class="pin-grp-role" style="flex:1;min-width:0;padding:0.5rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.88rem;min-height:44px">'
                   +   k.roles.map(function (r) { return '<option value="' + r[0] + '"' + (r[0] === roles[i] ? ' selected' : '') + '>' + rrEsc(r[1]) + '</option>'; }).join('')
                   + '</select></div>';
@@ -342,6 +350,12 @@
         +   '<button id="pin-grp-save" style="flex:2;padding:0.75rem;border-radius:9px;border:none;background:var(--accent);color:#fff;font-weight:700;font-size:0.95rem;min-height:50px;cursor:pointer">Group them</button>'
         +   '<button id="pin-grp-cancel" style="flex:1;padding:0.75rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-weight:600;font-size:0.92rem;min-height:50px;cursor:pointer">Cancel</button>'
         + '</div>';
+      // draw() re-renders on every kind change, so re-hydrate the thumbs each time.
+      try {
+        Array.prototype.forEach.call(card.querySelectorAll('img[data-grpfid]'), function (im) {
+          loadDriveThumb(im.getAttribute('data-grpfid'), im, im.parentElement, null, 'hi');
+        });
+      } catch (eTh) {}
       card.querySelector('#pin-grp-kind').onchange = function () {
         kindId = this.value; roles = _pinDefaultRoles(kindId, files.length); draw();
       };
@@ -688,7 +702,13 @@
     try {
       var fid = await _folder();
       var q = encodeURIComponent("'" + fid + "' in parents and mimeType contains 'image/' and trashed=false");
-      var res = await driveRequest('GET', '/files?q=' + q + '&fields=files(id,name,createdTime)&orderBy=createdTime desc&pageSize=200');
+      // v0.9.1058 — THE BUG. Drive returns only the fields you ask for, and
+      // appProperties was not among them. Every era, group kind, unit role and
+      // status the app has written since v0.9.1047 saved correctly to Drive and
+      // was then invisible on the next load: _pinMetaOf read an empty object
+      // every time. Tagging 80 photos looked like it did nothing, because as
+      // far as the app could see, it had. One missing word.
+      var res = await driveRequest('GET', '/files?q=' + q + '&fields=files(id,name,createdTime,appProperties)&orderBy=createdTime desc&pageSize=200');
       var files = (res && res.files) || [];
       // Group by the g<id> tag; untagged files are their own group.
       var map = {}, order = [];
@@ -752,6 +772,15 @@
       var _circle = _selectMode
         ? '<div onclick="event.stopPropagation();_pinToggle(\'' + g.key + '\')" title="Select" style="position:absolute;top:6px;left:6px;width:22px;height:22px;border-radius:50%;border:2px solid ' + (isSel ? '#2980b9' : 'rgba(255,255,255,0.75)') + ';background:' + (isSel ? '#2980b9' : 'rgba(0,0,0,0.35)') + ';color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700">' + (isSel ? '✓' : '') + '</div>'
         : '';
+      // v0.9.1058 (Brad: "somehow we need to update the picture to show what it
+      // is"). A tag you cannot see is a tag you cannot trust — after tagging 80
+      // photos there was no way to tell whether it had worked.
+      var _m0 = (g.files[0] && g.files[0]._meta) || {};
+      var _eraTag = _m0.era
+        ? '<div style="position:absolute;top:6px;right:6px;max-width:calc(100% - 40px);padding:2px 6px;border-radius:6px;'
+          + 'background:rgba(41,128,185,0.92);color:#fff;font-size:0.58rem;font-weight:700;letter-spacing:0.02em;'
+          + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + rrEsc(_pinEraLabel(_m0.era)) + '</div>'
+        : '';
       var _crop = _selectMode ? ''
         : '<div onclick="event.stopPropagation();_pinTileCrop(\'' + g.key + '\')" title="Crop / Rotate" style="position:absolute;right:6px;bottom:26px;width:24px;height:24px;border-radius:7px;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.8rem;cursor:pointer">✂</div>';
       // v0.9.1057: grouping had no undo. Photos could be put together and never
@@ -763,6 +792,7 @@
         '<img loading="lazy" data-fid="' + g.files[0].id + '" style="width:100%;height:100%;object-fit:cover;object-position:center;display:block" alt="">' +
         chip +
         _circle +
+        _eraTag +
         _crop +
         _ungroup +
         '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);color:#ddd;font-size:0.6rem;padding:0.1rem 0.35rem">' + when + '</div>' +
@@ -795,6 +825,7 @@
     try { _pinRenderBar(); } catch (eB) {}   // v0.9.1048; v0.9.1057 the bar decides its own visibility
     _navBadge(total);
     _updateIdAllBtn();
+    try { _updateRecropBtn(); } catch (eRC) {}
     // v0.9.961 (Brad): keep the "cropped" marker set trimmed to files still in
     // the inbox (filed/discarded photos drop out), then republish to drive.js.
     try {
@@ -2179,6 +2210,8 @@
   window._rrForceFreshBytes = _cropped();
 
   var _idAbort = false;
+  // v0.9.1058: when set, the paid batch runs ONLY over these file ids.
+  var _idOnly = null;
   window._pinIdentifyCancel = function () { _idAbort = true; };
 
   async function _pinBytes(fileId) {
@@ -2506,13 +2539,57 @@
     }, function () { try { URL.revokeObjectURL(srcUrl); } catch (e5) {} });
   };
 
+  // v0.9.1058 (Brad: "i don't have a rescan function where i can rescan all the
+  // ones i just cropped"). Cropping already triggers a FREE re-read of the
+  // tighter shot. This is the next step up: re-read the cropped photos with the
+  // paid reader, including ones that already carry a read — because a number
+  // lifted from the uncropped photo is exactly the read you want replaced.
+  // (Brad's 6801 boat flatcar came back "2409 Santa Fe Pullman": the number was
+  // read off a neighbouring item on the shelf.)
+  function _pinCroppedGroups() {
+    var c = _cropped();
+    return _groups.filter(function (g) { return g.files.some(function (f) { return c[f.id]; }); });
+  }
+
+  function _updateRecropBtn() {
+    var b = document.getElementById('pin-recrop-btn');
+    if (!b) return;
+    var n = _pinCroppedGroups().length;
+    if (n > 0 && !_selectMode) {
+      b.textContent = 'Re-read ' + n + ' cropped (' + n + ' token' + (n === 1 ? '' : 's') + ')';
+      b.style.display = '';
+    } else {
+      b.style.display = 'none';
+    }
+  }
+
+  window._pinReadCropped = async function () {
+    var gs = _pinCroppedGroups();
+    if (!gs.length) { showToast('Nothing cropped since the last read', 2800); return; }
+    var ok = await _pinConfirm('Re-read the ' + gs.length + ' photo' + (gs.length > 1 ? 's' : '')
+      + ' you cropped, using ' + gs.length + ' token' + (gs.length > 1 ? 's' : '')
+      + '? Any number already found for them will be replaced by the read from the cropped shot.',
+      'Re-read ' + gs.length);
+    if (!ok) return;
+    var only = {};
+    gs.forEach(function (g) { only[g.files[0].id] = 1; });
+    _idOnly = only;
+    try { await window._pinIdentifyAll(); } finally { _idOnly = null; }
+  };
+
   window._pinIdentifyAll = async function () {
     if (_busy) { showToast('Still working on the last batch…', 2500, true); return; }
     if (!_qcToken()) { showToast('Please sign in first', 3000, true); return; }
     if (typeof aiIdentifyImage !== 'function') { showToast('Identify service not loaded — refresh and try again', 3000, true); return; }
     var ids = _ids();
-    var todo = _groups.filter(function (g) { return !ids[g.files[0].id]; });
-    if (!todo.length) { showToast(_groups.length ? 'Every item already has a suggestion — tick photos and use Identify to re-run any of them' : 'Inbox is empty', 3500); return; }
+    // v0.9.1058: _idOnly restricts the batch to a named set (the cropped ones).
+    // When it is set the "already has a suggestion" skip does NOT apply — the
+    // whole point of re-reading a crop is to replace a read taken from the
+    // uncropped photo.
+    var todo = _idOnly
+      ? _groups.filter(function (g) { return _idOnly[g.files[0].id]; })
+      : _groups.filter(function (g) { return !ids[g.files[0].id]; });
+    if (!todo.length) { _idOnly = null; showToast(_groups.length ? 'Every item already has a suggestion — tick photos and use Identify to re-run any of them' : 'Inbox is empty', 3500); return; }
     // v0.9.956 (Brad): free auto-read already tried these — this button only
     // targets the leftovers it couldn't place. Show the exact count and make
     // clear it uses paid reads, so a batch never spends credits by surprise.
