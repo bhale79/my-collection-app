@@ -669,7 +669,7 @@
   // now carry the version of the reader that produced them, and the automatic
   // pass retries anything read by an older one. Bump this whenever the reading
   // logic changes; it costs nothing but time, and only on photos that failed.
-  var READER_VER = '1079';
+  var READER_VER = '1080';
 
   function _pinMetaOf(file) {
     var ap = (file && file.appProperties) || {};
@@ -1800,6 +1800,8 @@
             + (dbg.viaDesc ? '<br>Matched on the words: ' + rrEsc(dbg.viaDesc) : '')
             + (dbg.corroborated ? '<br>Number and lettering agree: ' + rrEsc(dbg.corroborated) : '')
             + (dbg.oneOff ? '<br>One digit corrected: ' + rrEsc(dbg.oneOff) : '')
+            + ((dbg.shortDropped && dbg.shortDropped.length)
+                ? '<br>Too short to trust on their own: ' + rrEsc(dbg.shortDropped.join(', ')) : '')
             + (dbg.viaMaker ? '<br>Chosen because it is stamped next to the maker\'s name: ' + rrEsc(dbg.viaMaker) : '')
             + (dbg.evidence !== undefined
                 ? '<br>Readable characters recovered: ' + dbg.evidence
@@ -1828,6 +1830,7 @@
         + (s.num ? ' \u2014 No. ' + rrEsc(s.num) : '') + '</div>'
         + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.25rem">Read on the car: '
         + rrEsc((s.descWords || []).join(', ')) + ' \u00b7 no number was legible, so check this one against your item</div>'
+        + _pinWhyHtml(s.raw, s.dbg)
         + '</div>';
     }
     var col = s.guess ? '#ffb454' : '#7ec3ef';
@@ -2931,7 +2934,22 @@
     uniq.sort(dashRank);
     if (uniq.length) return { num: uniq[0], matched: false, dbg: dbg };
     // 3) last resort: a catalog-backed short number, always as a guess
-    if (shortOnes.length) { shortOnes.sort(dashRank); return { num: shortOnes[0], matched: false, short: true, dbg: dbg }; }
+    // v0.9.1080 — a bare two-digit number is never offered on its own any more.
+    //
+    // Brad's Santa Fe 2414 offered "71"; his 1877 horse car offered "53". Both
+    // came out of text containing no readable word, and both numbers exist in
+    // the postwar catalog — which is precisely why they surfaced. I first tried
+    // gating this on how much text was recovered, and it does not work: that
+    // Santa Fe string has thirty characters in it, they are simply meaningless.
+    // Length was measuring the wrong thing.
+    //
+    // The rule that does hold is about evidence, not volume: two digits alone
+    // are never enough. With a few thousand numbers in the catalog, almost any
+    // stray pair lands on one. A short number is only ever accepted when
+    // something else vouches for it — the maker's name stamped beside it, which
+    // promotes it to a full candidate above, or a description match. Otherwise
+    // the honest answer is nothing, and nothing is what the user gets.
+    dbg.shortDropped = shortOnes.slice(0, 3);
     // v0.9.1072 — a read that finds NOTHING is the case most worth explaining,
     // and it was the only one that explained nothing. Brad's Lionel 50 gang car
     // has the clearest lettering of any photo in his inbox and came back blank,
@@ -3087,8 +3105,15 @@
       // rare it is — TIE-JECTOR is worth far more than GONDOLA.
       var weight = rows.length > 60 ? 0 : (rows.length > 12 ? 0.4 : (rows.length > 3 ? 1 : 2));
       if (!weight) return;
+      // v0.9.1080b: dedupe rows within one word. Prefix matching can return the
+      // same row from several index keys, and it was scoring each one — which is
+      // how a single word "MAIL" counted three times on Brad's Western &
+      // Atlantic mail car and pulled up a completely different boxcar.
+      var seenRow = {};
       rows.forEach(function (row) {
         var k = String(row.itemNum || '') + '|' + String(row._tab || '');
+        if (seenRow[k]) return;
+        seenRow[k] = 1;
         score[k] = (score[k] || 0) + weight;
         (hitWords[k] || (hitWords[k] = [])).push(w);
         rowOf[k] = row;
@@ -3100,6 +3125,21 @@
     var top = score[keys[0]], second = keys.length > 1 ? score[keys[1]] : 0;
     // Needs to be worth something AND to be a clear winner. A near tie means the
     // words were generic and any of a dozen items would fit.
+    // Two DISTINCT words minimum. "MAIL" on its own describes a mail car, a mail
+    // boxcar and a mail crane equally well; "WESTERN" plus "ATLANTIC" describes
+    // one train. A single word is a category, not an identity — and the whole
+    // promise of this route is that a glance can confirm it, which only holds
+    // when it had real evidence to begin with.
+    // ...unless the single word is long AND essentially unique. TIE-JECTOR and
+    // LACKAWANNA each name exactly one item in the catalog and are far too long
+    // to collide by accident; MAIL is short and describes half a dozen cars.
+    // Rarity and length are what separate a name from a category, not count.
+    var w0 = (hitWords[keys[0]] || []);
+    if (w0.length < 2) {
+      var only = w0[0] || '';
+      var rowsFor0 = only ? (_rowsFor(only) || []) : [];
+      if (!(only.length >= 7 && rowsFor0.length && rowsFor0.length <= 2)) return null;
+    }
     if (top < 2) return null;
     if (second >= top * 0.75) return null;
     return { row: rowOf[keys[0]], score: top, words: (hitWords[keys[0]] || []).slice(0, 6) };
@@ -3127,6 +3167,7 @@
     { mode: 'sharp',  tiles: 3, wl: 'full'   },
     { mode: 'invert', tiles: 0, wl: 'full'   },
     { mode: 'sharp',  tiles: 0, wl: 'digits' },
+    { mode: 'local',  tiles: 3, wl: 'full'   },
   ];
   var _WL_FULL = '0123456789-ABCDEFGHIJKLMNOPQRSTUVWXYZ ';
   var _WL_DIGITS = '0123456789-';
@@ -3605,6 +3646,50 @@
       v = v < 0 ? 0 : (v > 255 ? 255 : v);
       d[i] = d[i + 1] = d[i + 2] = v;
     }
+    if (mode === 'local') {
+      // v0.9.1080 — a silver passenger car has a blown-out highlight along the
+      // roof and deep shadow under the skirt, so the global stretch is decided
+      // by those two extremes and the lettering in between barely moves. Compare
+      // each pixel with the average of its own neighbourhood instead: what
+      // matters is whether a pixel is darker than the metal AROUND it, not
+      // darker than the brightest thing in the photo. This is the standard
+      // answer for reflective surfaces and uneven lighting.
+      var box = Math.max(8, Math.round(Math.min(w, h) / 40));
+      var integral = new Float64Array((w + 1) * (h + 1));
+      var xx, yy;
+      for (yy = 0; yy < h; yy++) {
+        var rowSum = 0;
+        for (xx = 0; xx < w; xx++) {
+          rowSum += d[((yy * w) + xx) * 4];
+          integral[((yy + 1) * (w + 1)) + (xx + 1)] = integral[(yy * (w + 1)) + (xx + 1)] + rowSum;
+        }
+      }
+      var area = function (x0, y0, x1, y1) {
+        return integral[(y1 * (w + 1)) + x1] - integral[(y0 * (w + 1)) + x1]
+             - integral[(y1 * (w + 1)) + x0] + integral[(y0 * (w + 1)) + x0];
+      };
+      var outBuf = new Uint8ClampedArray(w * h);
+      for (yy = 0; yy < h; yy++) {
+        var y0 = Math.max(0, yy - box), y1 = Math.min(h, yy + box + 1);
+        for (xx = 0; xx < w; xx++) {
+          var x0 = Math.max(0, xx - box), x1 = Math.min(w, xx + box + 1);
+          var n = (x1 - x0) * (y1 - y0);
+          var mean = area(x0, y0, x1, y1) / n;
+          var v2 = d[((yy * w) + xx) * 4];
+          // 6% below the local mean counts as ink — tolerant enough for thin
+          // stamped lettering, tight enough not to turn noise black.
+          outBuf[(yy * w) + xx] = (v2 < mean * 0.94) ? 0 : 255;
+        }
+      }
+      for (yy = 0; yy < h; yy++) {
+        for (xx = 0; xx < w; xx++) {
+          var o2 = ((yy * w) + xx) * 4;
+          d[o2] = d[o2 + 1] = d[o2 + 2] = outBuf[(yy * w) + xx];
+        }
+      }
+      ctx.putImageData(img, 0, 0);
+      return c;
+    }
     if (mode === 'invert') {
       for (i = 0; i < d.length; i += 4) {
         d[i] = d[i + 1] = d[i + 2] = 255 - d[i];
@@ -3685,6 +3770,7 @@
     { id: 'digits6', label: 'Same, but digits only (no letter confusion)',  dim: 2400, mode: 'sharp',  psm: '6', wl: 'digits' },
     { id: 'inv6',    label: 'Inverted — for light numbers on a dark body',  dim: 2400, mode: 'invert', psm: '6', wl: 'full' },
     { id: 'tile6',   label: 'Split into thirds and read each closer',       dim: 2400, mode: 'sharp',  psm: '6', wl: 'full', tiles: 3 },
+    { id: 'local6',  label: 'Local threshold + thirds (reflective bodies)',  dim: 2400, mode: 'local',  psm: '6', wl: 'full', tiles: 3 },
   ];
 
   window._pinReaderAuditCancel = function () { _idAbort = true; };
