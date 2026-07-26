@@ -669,7 +669,7 @@
   // now carry the version of the reader that produced them, and the automatic
   // pass retries anything read by an older one. Bump this whenever the reading
   // logic changes; it costs nothing but time, and only on photos that failed.
-  var READER_VER = '1081';
+  var READER_VER = '1082';
 
   function _pinMetaOf(file) {
     var ap = (file && file.appProperties) || {};
@@ -3670,17 +3670,19 @@
       return c;
   }
 
-  function _auditCanvas(bmp, maxDim, mode) {
-    var sc = Math.min(1, maxDim / Math.max(bmp.width, bmp.height));
-    var w = Math.max(1, Math.round(bmp.width * sc)), h = Math.max(1, Math.round(bmp.height * sc));
-    var c = document.createElement('canvas'); c.width = w; c.height = h;
+  // ══ v0.9.1082 — the tiles were never preprocessed ═══════════════════════
+  // _auditTile took a `mode` argument and ignored it completely: every band got
+  // a plain grayscale stretch, whatever the pass was supposed to be doing. So
+  // the inverted pass never inverted a band, the local threshold never touched
+  // one, and tonight's colour-channel work would not have reached them either —
+  // on the TILED pass, which is the one that won the audit and the one Brad's
+  // red flatcars depend on. It won despite this.
+  //
+  // Making the canvas and processing it are separate jobs now, and the whole
+  // frame and each band run the identical code.
+  function _applyMode(c, mode) {
     var ctx = c.getContext('2d');
-    if (mode === 'current') {
-      try { ctx.filter = 'grayscale(1) contrast(1.3)'; } catch (e) {}
-      ctx.drawImage(bmp, 0, 0, w, h);
-      return c;
-    }
-    ctx.drawImage(bmp, 0, 0, w, h);
+    var w = c.width, h = c.height;
     var img = ctx.getImageData(0, 0, w, h), d = img.data;
     // grayscale + histogram bounds
     var lo = 255, hi = 0, i;
@@ -3768,6 +3770,20 @@
     return c;
   }
 
+  function _auditCanvas(bmp, maxDim, mode) {
+    var sc = Math.min(1, maxDim / Math.max(bmp.width, bmp.height));
+    var w = Math.max(1, Math.round(bmp.width * sc)), h = Math.max(1, Math.round(bmp.height * sc));
+    var c = document.createElement('canvas'); c.width = w; c.height = h;
+    var ctx = c.getContext('2d');
+    if (mode === 'current') {
+      try { ctx.filter = 'grayscale(1) contrast(1.3)'; } catch (e) {}
+      ctx.drawImage(bmp, 0, 0, w, h);
+      return c;
+    }
+    ctx.drawImage(bmp, 0, 0, w, h);
+    return _applyMode(c, mode);
+  }
+
   // v0.9.1064 (Brad: "it got through the audit and then it flashed like google
   // had to reauthenticate ... and started back at the dashboard"). Twenty
   // minutes of reading held only in memory, thrown away by one reload. Results
@@ -3814,7 +3830,10 @@
     var c = document.createElement('canvas'); c.width = w; c.height = h;
     var ctx = c.getContext('2d');
     ctx.drawImage(bmp, 0, y0, bmp.width, h0, 0, 0, w, h);
-    try { _stretchCanvas(c); } catch (e) {}
+    // v0.9.1082: the band gets the SAME treatment as the whole frame. It used to
+    // get a plain stretch regardless of the pass, which quietly disabled every
+    // preprocessing idea on the pass that works best.
+    try { return _applyMode(c, mode); } catch (e) { try { _stretchCanvas(c); } catch (e2) {} }
     return c;
   }
 
