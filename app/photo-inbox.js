@@ -669,7 +669,7 @@
   // now carry the version of the reader that produced them, and the automatic
   // pass retries anything read by an older one. Bump this whenever the reading
   // logic changes; it costs nothing but time, and only on photos that failed.
-  var READER_VER = '1080';
+  var READER_VER = '1081';
 
   function _pinMetaOf(file) {
     var ap = (file && file.appProperties) || {};
@@ -3167,7 +3167,7 @@
     { mode: 'sharp',  tiles: 3, wl: 'full'   },
     { mode: 'invert', tiles: 0, wl: 'full'   },
     { mode: 'sharp',  tiles: 0, wl: 'digits' },
-    { mode: 'local',  tiles: 3, wl: 'full'   },
+    { mode: 'chan',   tiles: 3, wl: 'full'   },
   ];
   var _WL_FULL = '0123456789-ABCDEFGHIJKLMNOPQRSTUVWXYZ ';
   var _WL_DIGITS = '0123456789-';
@@ -3618,35 +3618,14 @@
   //
   // The score to trust is CONFIRMED (the master list recognises the number), not
   // FOUND: a variant that reads more digits but confirms fewer is reading noise.
-  function _auditCanvas(bmp, maxDim, mode) {
-    var sc = Math.min(1, maxDim / Math.max(bmp.width, bmp.height));
-    var w = Math.max(1, Math.round(bmp.width * sc)), h = Math.max(1, Math.round(bmp.height * sc));
-    var c = document.createElement('canvas'); c.width = w; c.height = h;
+  // Local (adaptive) threshold, shared by the 'local' and 'chan' passes.
+  // Compares each pixel with the mean of its own neighbourhood via an
+  // integral image, so uneven lighting and specular highlights stop deciding
+  // the result for the whole photo.
+  function _localThreshold(c) {
     var ctx = c.getContext('2d');
-    if (mode === 'current') {
-      try { ctx.filter = 'grayscale(1) contrast(1.3)'; } catch (e) {}
-      ctx.drawImage(bmp, 0, 0, w, h);
-      return c;
-    }
-    ctx.drawImage(bmp, 0, 0, w, h);
+    var w = c.width, h = c.height;
     var img = ctx.getImageData(0, 0, w, h), d = img.data;
-    // grayscale + histogram bounds
-    var lo = 255, hi = 0, i;
-    for (i = 0; i < d.length; i += 4) {
-      var g = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) | 0;
-      d[i] = d[i + 1] = d[i + 2] = g;
-      if (g < lo) lo = g;
-      if (g > hi) hi = g;
-    }
-    // stretch to full range — this is what a shiny silver car needs, where the
-    // whole photo lives in a narrow band of greys
-    var span = Math.max(1, hi - lo);
-    for (i = 0; i < d.length; i += 4) {
-      var v = ((d[i] - lo) * 255 / span);
-      v = v < 0 ? 0 : (v > 255 ? 255 : v);
-      d[i] = d[i + 1] = d[i + 2] = v;
-    }
-    if (mode === 'local') {
       // v0.9.1080 — a silver passenger car has a blown-out highlight along the
       // roof and deep shadow under the skirt, so the global stretch is decided
       // by those two extremes and the lettering in between barely moves. Compare
@@ -3689,7 +3668,81 @@
       }
       ctx.putImageData(img, 0, 0);
       return c;
+  }
+
+  function _auditCanvas(bmp, maxDim, mode) {
+    var sc = Math.min(1, maxDim / Math.max(bmp.width, bmp.height));
+    var w = Math.max(1, Math.round(bmp.width * sc)), h = Math.max(1, Math.round(bmp.height * sc));
+    var c = document.createElement('canvas'); c.width = w; c.height = h;
+    var ctx = c.getContext('2d');
+    if (mode === 'current') {
+      try { ctx.filter = 'grayscale(1) contrast(1.3)'; } catch (e) {}
+      ctx.drawImage(bmp, 0, 0, w, h);
+      return c;
     }
+    ctx.drawImage(bmp, 0, 0, w, h);
+    var img = ctx.getImageData(0, 0, w, h), d = img.data;
+    // grayscale + histogram bounds
+    var lo = 255, hi = 0, i;
+    for (i = 0; i < d.length; i += 4) {
+      var g = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) | 0;
+      d[i] = d[i + 1] = d[i + 2] = g;
+      if (g < lo) lo = g;
+      if (g > hi) hi = g;
+    }
+    // stretch to full range — this is what a shiny silver car needs, where the
+    // whole photo lives in a narrow band of greys
+    var span = Math.max(1, hi - lo);
+    for (i = 0; i < d.length; i += 4) {
+      var v = ((d[i] - lo) * 255 / span);
+      v = v < 0 ? 0 : (v > 255 ? 255 : v);
+      d[i] = d[i + 1] = d[i + 2] = v;
+    }
+    if (mode === 'chan') {
+      // ══ v0.9.1081 — read the colour channel that actually shows the text ═══
+      // Brad: "get the photo id to read the red flatcar numbers. this should be
+      // easy." He was right, and the reason it was not working has nothing to do
+      // with size or focus. Converting to grayscale mixes the three channels by
+      // 0.299R + 0.587G + 0.114B, and on a warm-coloured body that mix destroys
+      // the very contrast we need:
+      //
+      //   white lettering on...   grayscale   red ch   green ch   blue ch
+      //   red flatcar                   169       54        220       212
+      //   orange gang car               115       18        142       228
+      //   yellow barrel car              62       10         60       210
+      //
+      // A yellow car keeps 62 levels of separation in grayscale and 210 in blue.
+      // We were discarding three and a half times the signal before the reader
+      // ever saw the photo. Lionel painted an awful lot of red, orange and
+      // yellow rolling stock.
+      //
+      // So: measure each channel's spread and keep whichever one separates best,
+      // rather than blending all three into mush. On a silver or black body the
+      // channels are near-identical and this behaves exactly like grayscale.
+      var n2 = 0, sum = [0, 0, 0], sumSq = [0, 0, 0];
+      var step = Math.max(4, Math.floor((w * h) / 40000)) * 4;   // sample, don't scan
+      for (var q = 0; q < d.length; q += step) {
+        for (var ch = 0; ch < 3; ch++) {
+          var vq = d[q + ch];
+          sum[ch] += vq; sumSq[ch] += vq * vq;
+        }
+        n2++;
+      }
+      var best = 0, bestSd = -1;
+      for (var ch2 = 0; ch2 < 3; ch2++) {
+        var mean2 = sum[ch2] / Math.max(1, n2);
+        var sd = Math.sqrt(Math.max(0, (sumSq[ch2] / Math.max(1, n2)) - (mean2 * mean2)));
+        if (sd > bestSd) { bestSd = sd; best = ch2; }
+      }
+      for (var p2 = 0; p2 < d.length; p2 += 4) {
+        var vv = d[p2 + best];
+        d[p2] = d[p2 + 1] = d[p2 + 2] = vv;
+      }
+      ctx.putImageData(img, 0, 0);
+      // then the same local threshold, which is what copes with the highlights
+      return _localThreshold(c);
+    }
+    if (mode === 'local') { return _localThreshold(c); }
     if (mode === 'invert') {
       for (i = 0; i < d.length; i += 4) {
         d[i] = d[i + 1] = d[i + 2] = 255 - d[i];
@@ -3771,6 +3824,7 @@
     { id: 'inv6',    label: 'Inverted — for light numbers on a dark body',  dim: 2400, mode: 'invert', psm: '6', wl: 'full' },
     { id: 'tile6',   label: 'Split into thirds and read each closer',       dim: 2400, mode: 'sharp',  psm: '6', wl: 'full', tiles: 3 },
     { id: 'local6',  label: 'Local threshold + thirds (reflective bodies)',  dim: 2400, mode: 'local',  psm: '6', wl: 'full', tiles: 3 },
+    { id: 'chan6',   label: 'Best colour channel + thirds (red/orange cars)', dim: 2400, mode: 'chan',   psm: '6', wl: 'full', tiles: 3 },
   ];
 
   window._pinReaderAuditCancel = function () { _idAbort = true; };
