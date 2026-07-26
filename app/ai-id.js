@@ -37,7 +37,25 @@ function rrIdentifyQuery(opts) {
   opts = opts || {};
   var subject = opts.subject || 'model railroad item';
   var mfrPhrase = opts.mfrPhrase || '';
-  return 'Identify this ' + subject + mfrPhrase
+  // v0.9.1083 (Brad): "they both make them modern versions of the number. so
+  // they all return the celebration series versions." A catalog number like
+  // 2333 or 6464-475 exists as a 1950s original AND as a modern reissue, and
+  // everything findable on the web today is weighted towards the reissue —
+  // it is what is currently for sale, photographed and written about. Asked
+  // with no period, the answer comes back modern almost every time.
+  //
+  // The photo already carries its era. Saying so costs nothing and removes the
+  // ambiguity at the source, rather than trying to undo a modern answer after
+  // the fact.
+  var eraPhrase = '';
+  if (opts.eraLabel) {
+    eraPhrase = ' This is a ' + opts.eraLabel
+      + (opts.eraYears ? ' (' + opts.eraYears + ')' : '')
+      + ' item. Identify the ORIGINAL production piece from that period, NOT a modern'
+      + ' reissue, remake, Celebration Series, Postwar Celebration Series or'
+      + ' Lionel Legacy version that shares the same number.';
+  }
+  return 'Identify this ' + subject + mfrPhrase + eraPhrase
     + ' — it may be a train, a box or box-end label, a building or accessory, OR a paper item '
     + '(catalog, poster, brochure, or instruction sheet). Provide each on its own line: '
     + 'Manufacturer; '

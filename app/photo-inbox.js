@@ -1907,8 +1907,11 @@
       setTimeout(function () { try { driveCleanupLensStaging(staged.id); } catch (e) {} }, 10 * 60 * 1000);
       // v0.9.917 (Brad): question text built by the ONE shared builder in
       // ai-id.js (rrIdentifyQuery) — change it there, every button updates.
+      // v0.9.1083: the same era hint goes into the shared text question, so a
+      // Research or Google search is asked about the right decade too.
+      var _lh = _pinAiHints(gs[0]);
       var q = (typeof window.rrIdentifyQuery === 'function')
-        ? window.rrIdentifyQuery({})
+        ? window.rrIdentifyQuery({ eraLabel: _lh.eraLabel, eraYears: _lh.eraYears })
         : 'Identify this model railroad item. Provide Manufacturer; Manufacturer SKU or catalog number; Year; Scale; Description on labeled lines.';
       // v0.9.959 (Brad): Google retired /searchbyimage (it 404s now) and moved
       // reverse-image search to Google Lens. uploadbyurl runs the real search on
@@ -2009,7 +2012,8 @@
       } catch (eOcr) { console.warn('[Inbox] screenshot OCR (free pass) failed:', eOcr && eOcr.message); }
       if (!meta) {
         if (btn) btn.textContent = 'Reading…';
-        var ai = (typeof aiIdentifyImage2 === 'function') ? await aiIdentifyImage2([f], {}) : await aiIdentifyImage(f, {});
+        var _h0 = _pinAiHints(_rvGroups && _rvGroups[0]);
+        var ai = (typeof aiIdentifyImage2 === 'function') ? await aiIdentifyImage2([f], _h0) : await aiIdentifyImage(f, _h0);
         if (!ai || !ai.ok) {
           var why = ai && ai.reason;
           if (why === 'quota') showToast('No tokens left today — type the number, or try tomorrow', 4500, true);
@@ -2123,7 +2127,8 @@
       // cropping four photos one at a time would cost more than it saves.
       blobs[0] = await new Promise(function (res) { _pinCropForRead(blobs[0], res); });
       if (btn) { btn.disabled = true; btn.textContent = 'Reading…'; }
-      var ai = (typeof aiIdentifyImage2 === 'function') ? await aiIdentifyImage2(blobs, {}) : await aiIdentifyImage(blobs[0], {});
+      var _h1 = _pinAiHints(_rvGroups && _rvGroups[0]);
+      var ai = (typeof aiIdentifyImage2 === 'function') ? await aiIdentifyImage2(blobs, _h1) : await aiIdentifyImage(blobs[0], {});
       if (!ai || !ai.ok) {
         var why = ai && ai.reason;
         if (why === 'quota') showToast('No tokens left today — try tomorrow, or type the number', 4500, true);
@@ -3272,6 +3277,38 @@
     return out;
   }
 
+  // v0.9.1083 — what we know about a photo, in the shape the paid reader wants.
+  // Three of the four paid call sites were passing `{}`: the reader was being
+  // asked "what is this?" with no mention of the era stamped on the photo, and
+  // answering from a web that is overwhelmingly modern reissues.
+  function _pinAiHints(group, extra) {
+    var h = {};
+    try {
+      var pref = _pinPreferOf(group);
+      if (pref && pref.era) {
+        var d = (typeof ERAS !== 'undefined') ? ERAS[pref.era] : null;
+        if (d) {
+          h.eraLabel = d.label || '';
+          h.eraYears = d.years || '';
+        }
+        if (pref.manufacturer) h.mfrs = [pref.manufacturer];
+        try {
+          var sc = (typeof ERA_SCALE !== 'undefined') ? ERA_SCALE[pref.era] : '';
+          if (sc) h.scale = sc;
+        } catch (eS) {}
+        // Said plainly as well as structurally — the relay weaves `note` into
+        // the prompt, and a sentence survives a prompt rewrite better than a
+        // field name does.
+        h.note = 'This is a ' + (h.eraLabel || 'vintage') + (h.eraYears ? ' (' + h.eraYears + ')' : '')
+          + ' item. Identify the ORIGINAL piece from that period, not a modern reissue,'
+          + ' remake or Celebration Series version carrying the same number.';
+      }
+    } catch (e) {}
+    if (extra && extra.note) h.note = (h.note ? h.note + ' ' : '') + extra.note;
+    if (extra && extra.mfrs) h.mfrs = extra.mfrs;
+    return h;
+  }
+
   // The era stamped on a photo, in the shape findMaster's `prefer` wants.
   function _pinPreferOf(fileOrGroup) {
     try {
@@ -4076,7 +4113,8 @@
           if (!blobs.length) throw new Error('no photo bytes');
           // v0.9.942: a failed catalog-photo double-check leaves a note so the
           // retry knows which number was rejected and why.
-          var _hints = (typeof _vfNote !== 'undefined' && _vfNote[g.key]) ? { note: _vfNote[g.key] } : {};
+          var _hints = _pinAiHints(g,
+            (typeof _vfNote !== 'undefined' && _vfNote[g.key]) ? { note: _vfNote[g.key] } : null);
           var ai = (typeof aiIdentifyImage2 === 'function')
             ? await aiIdentifyImage2(blobs, _hints)
             : await aiIdentifyImage(blobs[0], _hints);
