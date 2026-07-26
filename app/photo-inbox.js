@@ -444,10 +444,19 @@
       out.desc = m.description || [m.roadName, m.itemType].filter(Boolean).join(' ') || '';
       if (aiMfr && !_pinMfrAgree(aiMfr, out.maker)) out.mfrMismatch = String(aiMfr);
     }
-    var pds = Object.values((window.state || {}).personalData || {});
-    out.ownedPd = pds.find(function (p) { return p && p.owned && String(p.itemNum) === num; }) || null;
-    if (!out.ownedPd && typeof baseItemNum === 'function') {
-      out.ownedPd = pds.find(function (p) { return p && p.owned && p.itemNum && baseItemNum(String(p.itemNum)) === baseItemNum(num); }) || null;
+    // v0.9.1045 (Brad's 213): this used to match on the number alone, so a
+    // prewar 213 in the collection was reported as "you already own" a postwar
+    // 213. rrFindOwnedCopy compares era and manufacturer as well and says
+    // whether the copy you own is actually the same item.
+    var _own = (typeof rrFindOwnedCopy === 'function') ? rrFindOwnedCopy(num, out.master) : null;
+    if (_own) {
+      out.ownedPd = _own.pd;
+      out.ownedAgrees = _own.agrees;      // false = same number, different item
+      out.ownedLabel = _own.label;
+    } else {
+      var pds = Object.values((window.state || {}).personalData || {});
+      out.ownedPd = pds.find(function (p) { return p && p.owned && String(p.itemNum) === num; }) || null;
+      out.ownedAgrees = true;
     }
     return out;
   }
@@ -477,7 +486,13 @@
       html = row('Item #', String(lk.num).replace(/</g, '&lt;'))
         + '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.2rem">Not found in the catalog — you can still add it, or Research to double-check the number.</div>';
     }
-    if (lk.ownedPd) html += '<div style="margin-top:0.45rem;font-size:0.8rem;color:#2ecc71;font-weight:700">✓ You already own one — this will be added as a separate copy.</div>';
+    if (lk.ownedPd && lk.ownedAgrees === false) {
+      // Same number, different item — say so plainly instead of claiming a duplicate.
+      html += '<div style="margin-top:0.45rem;font-size:0.8rem;color:#d4a843;font-weight:700;line-height:1.5">You own a '
+        + rrEsc(lk.ownedLabel) + ' \u2014 same number, different item. This one is new to your collection.</div>';
+    } else if (lk.ownedPd) {
+      html += '<div style="margin-top:0.45rem;font-size:0.8rem;color:#2ecc71;font-weight:700">\u2713 You already own one — this will be added as a separate copy.</div>';
+    }
     box.innerHTML = html;
     // v0.9.942 (Identify v3, Brad): double-check the photo against the
     // catalog listing's reference photo when the matched master row links one.
