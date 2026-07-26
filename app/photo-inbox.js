@@ -669,7 +669,7 @@
   // now carry the version of the reader that produced them, and the automatic
   // pass retries anything read by an older one. Bump this whenever the reading
   // logic changes; it costs nothing but time, and only on photos that failed.
-  var READER_VER = '1076';
+  var READER_VER = '1077';
 
   function _pinMetaOf(file) {
     var ap = (file && file.appProperties) || {};
@@ -1795,6 +1795,9 @@
             + 'In that catalog: ' + rrEsc((dbg.inEra || []).join(', ') || 'none') + '<br>'
             + 'In another catalog: ' + rrEsc((dbg.offEra || []).join(', ') || 'none')
             + (dbg.joined ? '<br>Recovered by joining split digits: ' + rrEsc(dbg.joined) : '')
+            + ((dbg.joinTried && dbg.joinTried.length)
+                ? '<br>Reassembled and tried: ' + rrEsc(dbg.joinTried.slice(0, 10).join(', ')) : '')
+            + (dbg.viaDesc ? '<br>Matched on the words: ' + rrEsc(dbg.viaDesc) : '')
             + (dbg.viaMaker ? '<br>Chosen because it is stamped next to the maker\'s name: ' + rrEsc(dbg.viaMaker) : '')
             + (dbg.evidence !== undefined
                 ? '<br>Readable characters recovered: ' + dbg.evidence
@@ -1813,6 +1816,18 @@
     var esc = function (t) { return String(t).replace(/</g, '&lt;'); };
     // v0.9.898: hedged reads show as an explicit BEST GUESS (orange), never
     // dressed up like a confident read.
+    // v0.9.1077: when the identification came from the WORDS on the car rather
+    // than a number, say so plainly and name what matched — the whole value of
+    // this route is that the user can confirm or kill it at a glance.
+    if (s.viaDesc && s.descOf) {
+      return '<div style="margin-bottom:0.6rem;padding:0.6rem 0.75rem;border-left:3px solid #b98cff;background:rgba(185,140,255,0.08);border-radius:0 8px 8px 0">'
+        + '<div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;color:#b98cff;margin-bottom:0.25rem">Matched by what is written on it</div>'
+        + '<div style="font-size:0.98rem;color:var(--text);line-height:1.4"><span style="font-weight:600">' + rrEsc(s.descOf) + '</span>'
+        + (s.num ? ' \u2014 No. ' + rrEsc(s.num) : '') + '</div>'
+        + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.25rem">Read on the car: '
+        + rrEsc((s.descWords || []).join(', ')) + ' \u00b7 no number was legible, so check this one against your item</div>'
+        + '</div>';
+    }
     var col = s.guess ? '#ffb454' : '#7ec3ef';
     var bg  = s.guess ? 'rgba(255,180,84,0.08)' : 'rgba(41,128,185,0.06)';
     var lbl = s.guess ? 'Best guess from the photo:' : 'From the photo:';
@@ -2875,6 +2890,103 @@
     return null;
   }
 
+  // ══ v0.9.1077 — identify by what the car SAYS, not just its number ═══════
+  // Brad: "can we use description to help find some of these. ballast tamper
+  // would work or road name may help." He is right, and his own photos make the
+  // case better than any argument: a BALLAST TAMPER whose number never read, a
+  // TIE-JECTOR, a gondola lettered NYC, a GP9 where the reader recovered
+  // "MINNEAPOLIS ST LOUIS" perfectly and then fumbled 2348 into 2388.
+  //
+  // On most Lionel rolling stock the road name and the item's own name are the
+  // LARGEST text on the model, and the catalog number is the smallest. We have
+  // been reading the easy part and discarding it.
+  //
+  // This is deliberately conservative. It only speaks when the numbers have
+  // failed, it only counts DISTINCTIVE words (a word shared by four hundred
+  // catalog rows tells you nothing), it requires a clear winner rather than a
+  // narrow one, and it never claims to be certain — it hands back a candidate
+  // with the item named, so a glance confirms or kills it.
+  var _descIdx = null, _descIdxEra = null;
+
+  // Words that appear on half the catalog and identify nothing.
+  var _DESC_STOP = {
+    LIONEL:1, LINES:1, BUILT:1, BLT:1, BY:1, THE:1, AND:1, FOR:1, WITH:1, AND1:1,
+    CAR:1, CARS:1, RAILROAD:1, RAILWAY:1, RY:1, RR:1, CO:1, INC:1, NEW:1, TYPE:1,
+    CAPY:1, LMT:1, WT:1, CUFT:1, CU:1, FT:1, LD:1, LT:1, NUMBER:1, NO:1, SET:1,
+    GAUGE:1, SCALE:1, MODEL:1, TRAIN:1, ITEM:1, PART:1, USA:1, MADE:1, ONE:1,
+  };
+
+  function _descTokens(str) {
+    return String(str || '').toUpperCase().match(/[A-Z][A-Z&.-]{1,}/g) || [];
+  }
+
+  // One inverted index per era: WORD -> [rows]. Built once, on first use.
+  function _descIndexFor(era) {
+    if (_descIdx && _descIdxEra === era) return _descIdx;
+    var idx = {};
+    try {
+      var m = (window.state && state.masterByItem) ? state.masterByItem : null;
+      if (!m || !m.forEach) return null;
+      m.forEach(function (rows) {
+        (rows || []).forEach(function (row) {
+          if (!row || (era && row._era !== era)) return;
+          var words = {};
+          _descTokens([row.description, row.roadName, row.itemType].filter(Boolean).join(' '))
+            .forEach(function (w) {
+              w = w.replace(/[.&-]+$/, '');
+              if (w.length < 3 || _DESC_STOP[w]) return;
+              words[w] = 1;
+            });
+          Object.keys(words).forEach(function (w) {
+            (idx[w] || (idx[w] = [])).push(row);
+          });
+        });
+      });
+    } catch (e) { return null; }
+    _descIdx = idx; _descIdxEra = era;
+    return idx;
+  }
+
+  // Returns { row, score, words } or null.
+  function _pinDescMatch(text, prefer) {
+    var era = (prefer && prefer.era) || '';
+    if (!era) return null;                    // without a catalog to search, don't guess
+    var idx = _descIndexFor(era);
+    if (!idx) return null;
+    var seen = {}, words = [];
+    _descTokens(text).forEach(function (w) {
+      w = w.replace(/[.&-]+$/, '');
+      if (w.length < 3 || _DESC_STOP[w] || seen[w]) return;
+      seen[w] = 1; words.push(w);
+    });
+    if (!words.length) return null;
+
+    var score = {}, hitWords = {}, rowOf = {};
+    words.forEach(function (w) {
+      var rows = idx[w];
+      if (!rows || !rows.length) return;
+      // A word carrying 40+ rows is a category, not an identity. Weight by how
+      // rare it is — TIE-JECTOR is worth far more than GONDOLA.
+      var weight = rows.length > 60 ? 0 : (rows.length > 12 ? 0.4 : (rows.length > 3 ? 1 : 2));
+      if (!weight) return;
+      rows.forEach(function (row) {
+        var k = String(row.itemNum || '') + '|' + String(row._tab || '');
+        score[k] = (score[k] || 0) + weight;
+        (hitWords[k] || (hitWords[k] = [])).push(w);
+        rowOf[k] = row;
+      });
+    });
+    var keys = Object.keys(score);
+    if (!keys.length) return null;
+    keys.sort(function (a, b) { return score[b] - score[a]; });
+    var top = score[keys[0]], second = keys.length > 1 ? score[keys[1]] : 0;
+    // Needs to be worth something AND to be a clear winner. A near tie means the
+    // words were generic and any of a dozen items would fit.
+    if (top < 2) return null;
+    if (second >= top * 0.75) return null;
+    return { row: rowOf[keys[0]], score: top, words: (hitWords[keys[0]] || []).slice(0, 6) };
+  }
+
   // ══ v0.9.1069 — best of several passes ═══════════════════════════════════
   // The audit settled this. No single setting wins: tiling alone found Brad's
   // 6817, 6801, 2410 and 6828, and missed his Fort Knox 6445 — which INVERTED
@@ -2950,6 +3062,24 @@
     }
     try { await w.setParameters({ tessedit_char_whitelist: _WL_FULL }); } catch (eR) {}
     try { if (bmp.close) bmp.close(); } catch (eC) {}
+    // The numbers failed or were unconvincing — ask what the car SAYS.
+    if (!best || !best.matched) {
+      try {
+        var dm = _pinDescMatch(text, prefer);
+        if (dm && dm.row && dm.row.itemNum) {
+          var dbg2 = (best && best.dbg) || {};
+          dbg2.viaDesc = dm.words.join(', ');
+          best = {
+            num: String(dm.row.itemNum),
+            matched: false,               // always a candidate to accept, never a fact
+            viaDesc: true,
+            descWords: dm.words,
+            descOf: [dm.row.description, dm.row.roadName].filter(Boolean).join(' \u2014 '),
+            dbg: dbg2,
+          };
+        }
+      } catch (eD) { console.warn('[inbox] description match failed', eD && eD.message); }
+    }
     var out = best;
     // v0.9.1068 (Brad: "where does 120 come from?"). A number appears with no
     // way to tell whether the reader saw it on the item, on the shelf behind it,
@@ -3014,7 +3144,7 @@
       // digits-only, stopping as soon as the stamped catalog confirms.
       var r = await _freeReadBlob(blob, 2400, _preferForFid(fid));
       var m = _ids();
-      if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null, rv: READER_VER }; _idsSave(m); }
+      if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null, rv: READER_VER, viaDesc: !!r.viaDesc, descOf: r.descOf || '', descWords: r.descWords || [] }; _idsSave(m); }
       else { var f2 = _freeTried(); f2[fid] = { t: 1, raw: (r && r.raw) || '', dbg: (r && r.dbg) || null, rv: READER_VER }; _freeTriedSave(f2); }
       try { _render(); } catch (e4) {}
       window._pinReview(key);
@@ -3061,7 +3191,7 @@
         var fid = _pinReadFid(todo[i]), r = null;
         try { r = await _freeReadOne(fid); } catch (e) {}
         if (r && r.num) {
-          var m = _ids(); m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null, rv: READER_VER };
+          var m = _ids(); m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null, rv: READER_VER, viaDesc: !!r.viaDesc, descOf: r.descOf || '', descWords: r.descWords || [] };
           _idsSave(m);
         } else {
           // v0.9.1072: remember WHY it failed, not just that it did. Stored on
@@ -3183,7 +3313,7 @@
         try { _render(); } catch (eC) {}
         _freeReadBlob(blob, 1600, _preferForFid(fid)).then(function (r) {
           var m = _ids();
-          if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null, rv: READER_VER }; _idsSave(m); }
+          if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null, rv: READER_VER, viaDesc: !!r.viaDesc, descOf: r.descOf || '', descWords: r.descWords || [] }; _idsSave(m); }
           else { var f2 = _freeTried(); f2[fid] = 1; _freeTriedSave(f2); }
           try { _render(); } catch (e2) {}
         }).catch(function () {});
