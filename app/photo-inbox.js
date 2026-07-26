@@ -73,6 +73,7 @@
         '<span id="pin-count" style="font-size:0.8rem;color:var(--text-dim);font-family:var(--font-body);font-weight:400"></span>' +
       '</div>' +
       '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.7rem">Drop photos anywhere below, or use Add photos. Click a photo to review it — add the item, research it more, or discard the photo. Use “Select multiple” to combine several shots of one item. Photos snapped with Quick Capture on your phone land here too.</div>' +
+      '<div id="pin-context-bar" style="display:none"></div>' +   // v0.9.1048 capture context
       '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;margin-bottom:0.8rem">' +
         '<button onclick="_pinAddSource()" class="btn-primary" style="padding:0.5rem 0.9rem;border-radius:8px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Add photos…</button>' +
         '<button id="pin-selmode-btn" onclick="_pinToggleSelectMode()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">☑ Select multiple</button>' +
@@ -136,6 +137,176 @@
   };
 
   // ── List + render ────────────────────────────────────────────
+  // ══ v0.9.1048 — capture context ══════════════════════════════════════════
+  // Brad shoots a wall: forty Lionel Postwar cars in a row, then one modern
+  // "Celebration Series" remake that is identical to the postwar version apart
+  // from a plaque underneath. The reader cannot see the difference; only he
+  // knows. So the photo needs to carry what he knows, from the moment he takes
+  // it.
+  //
+  // Two settings, deliberately different:
+  //   HOME     the shelf you are working — sticky, survives restarts.
+  //   ONE-SHOT armed for the NEXT photo only, then springs back to home.
+  // One-shot is the default when you change the bar, because "flip it, take
+  // one, flip it back" is the real pattern and forgetting the flip back is the
+  // failure that quietly mis-stamps the next forty cars.
+  //
+  // One era key carries maker, scale and period together, so the three
+  // dropdowns narrow each other and cannot produce a combination that never
+  // existed (there is no Lionel prewar HO).
+  var _PIN_HOME_KEY = 'rr_capture_home_era';
+  var _pinOneShot = null;          // era key armed for the next photo only
+
+  function _pinHomeEra() {
+    try { return localStorage.getItem(_PIN_HOME_KEY) || ''; } catch (e) { return ''; }
+  }
+  function _pinSetHomeEra(era) {
+    try { era ? localStorage.setItem(_PIN_HOME_KEY, era) : localStorage.removeItem(_PIN_HOME_KEY); } catch (e) {}
+  }
+  // What the next photo will be stamped with.
+  function _pinActiveEra() { return _pinOneShot || _pinHomeEra(); }
+
+  function _pinEraLabel(era) {
+    if (!era) return 'Not set';
+    try {
+      var d = (typeof ERAS !== 'undefined') ? ERAS[era] : null;
+      var scale = (typeof ERA_SCALE !== 'undefined' && ERA_SCALE[era]) ? ERA_SCALE[era] : '';
+      if (d) return d.label + (scale ? ' · ' + scale : '');
+    } catch (e) {}
+    return era;
+  }
+
+  // Every era the app knows, grouped by maker — the source for the pickers.
+  function _pinEraChoices() {
+    var out = [];
+    try {
+      if (typeof ERAS === 'undefined') return out;
+      Object.keys(ERAS).forEach(function (k) {
+        var d = ERAS[k];
+        if (!d || k === 'all') return;
+        out.push({
+          key: k,
+          maker: d.manufacturer || 'Other',
+          scale: (typeof ERA_SCALE !== 'undefined' && ERA_SCALE[k]) ? ERA_SCALE[k] : '',
+          label: d.label || k,
+          years: d.years || '',
+        });
+      });
+    } catch (e) {}
+    return out;
+  }
+
+  function _pinRenderBar() {
+    var el = document.getElementById('pin-context-bar');
+    if (!el) return;
+    var era = _pinActiveEra();
+    var armed = !!_pinOneShot;
+    var known = !!era;
+    el.style.cssText = 'display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.7rem;'
+      + 'padding:0.55rem 0.75rem;border-radius:10px;border:2px solid '
+      + (armed ? 'var(--accent)' : (known ? 'rgba(41,128,185,0.55)' : 'var(--border)')) + ';'
+      + 'background:' + (armed ? 'rgba(232,64,28,0.10)' : (known ? 'rgba(41,128,185,0.08)' : 'var(--surface2)'));
+    el.innerHTML =
+      '<span style="font-size:0.68rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);font-weight:700">'
+        + (armed ? 'Next photo only' : 'Shooting') + '</span>'
+      + '<button onclick="_pinPickContext()" style="flex:1;min-width:150px;text-align:left;padding:0.45rem 0.7rem;border-radius:8px;'
+        + 'border:1.5px solid ' + (known ? '#2980b9' : 'var(--border)') + ';background:' + (known ? '#f7f0dc' : 'var(--bg)') + ';'
+        + 'color:' + (known ? '#2980b9' : 'var(--text-dim)') + ';font-family:var(--font-head);font-weight:700;font-size:0.9rem;cursor:pointer">'
+        + rrEsc(_pinEraLabel(era)) + ' \u25be</button>'
+      + (armed
+          ? '<button onclick="_pinClearOneShot()" style="padding:0.45rem 0.7rem;border-radius:8px;border:1px solid var(--border);'
+            + 'background:var(--surface2);color:var(--text-mid);font-size:0.78rem;cursor:pointer">Back to '
+            + rrEsc(_pinEraLabel(_pinHomeEra())) + '</button>'
+          : '');
+  }
+
+  window._pinClearOneShot = function () { _pinOneShot = null; _pinRenderBar(); };
+
+  // Three dropdowns that narrow each other: maker → scale → line.
+  window._pinPickContext = function () {
+    var choices = _pinEraChoices();
+    if (!choices.length) { showToast('No manufacturers configured yet', 2500, true); return; }
+    var cur = _pinActiveEra();
+    var curDef = choices.filter(function (c) { return c.key === cur; })[0] || null;
+    var pick = { maker: curDef ? curDef.maker : '', scale: curDef ? curDef.scale : '', era: cur || '' };
+
+    var ov = document.createElement('div');
+    ov.id = 'pin-ctx-sheet';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:10050;background:rgba(0,0,0,0.55);display:flex;align-items:flex-end;justify-content:center';
+    var card = document.createElement('div');
+    card.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-top-left-radius:16px;border-top-right-radius:16px;'
+      + 'width:100%;max-width:520px;padding:1rem 1rem 1.2rem;max-height:82vh;max-height:82dvh;overflow-y:auto';
+    ov.appendChild(card);
+    ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+
+    function uniq(a) { var s2 = {}, o = []; a.forEach(function (v) { if (v && !s2[v]) { s2[v] = 1; o.push(v); } }); return o.sort(); }
+
+    function draw() {
+      var makers = uniq(choices.map(function (c) { return c.maker; }));
+      if (!pick.maker && makers.indexOf('Lionel') >= 0) pick.maker = 'Lionel';
+      var scaleSet = choices.filter(function (c) { return c.maker === pick.maker; });
+      var scales = uniq(scaleSet.map(function (c) { return c.scale; }));
+      if (scales.indexOf(pick.scale) < 0) pick.scale = scales.length === 1 ? scales[0] : '';
+      var lines = scaleSet.filter(function (c) { return !pick.scale || c.scale === pick.scale; });
+      if (!lines.some(function (c) { return c.key === pick.era; })) pick.era = lines.length === 1 ? lines[0].key : '';
+
+      function sel(id, label, opts, val, hint) {
+        return '<div style="margin-bottom:0.7rem">'
+          + '<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-dim);font-weight:700;margin-bottom:0.25rem">' + label + '</div>'
+          + '<select id="' + id + '" style="width:100%;padding:0.6rem 0.7rem;border-radius:8px;border:1.5px solid var(--border);'
+            + 'background:var(--surface2);color:var(--text);font-size:0.95rem;min-height:46px;box-sizing:border-box">'
+          + (val ? '' : '<option value="">Choose…</option>')
+          + opts.map(function (o) {
+              return '<option value="' + rrEsc(o.v) + '"' + (o.v === val ? ' selected' : '') + '>' + rrEsc(o.t) + '</option>';
+            }).join('')
+          + '</select>'
+          + (hint ? '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.2rem">' + hint + '</div>' : '')
+          + '</div>';
+      }
+
+      card.innerHTML =
+        '<div style="font-family:var(--font-head);font-size:1.05rem;font-weight:700;margin-bottom:0.15rem">What are you photographing?</div>'
+        + '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.8rem">This gets saved with each photo, so the app knows which catalog to look in.</div>'
+        + sel('pin-ctx-maker', 'Manufacturer', makers.map(function (m) { return { v: m, t: m }; }), pick.maker, '')
+        + (scales.length > 1 ? sel('pin-ctx-scale', 'Scale', scales.map(function (m) { return { v: m, t: m }; }), pick.scale, '') : '')
+        + (lines.length > 1 ? sel('pin-ctx-era', 'Line / period',
+              lines.map(function (c) { return { v: c.key, t: c.label + (c.years ? '  (' + c.years + ')' : '') }; }), pick.era, '') : '')
+        + '<div style="display:flex;gap:0.5rem;margin-top:0.9rem;flex-wrap:wrap">'
+        +   '<button id="pin-ctx-once" style="flex:1;min-width:140px;padding:0.7rem;border-radius:9px;border:none;background:var(--accent);color:#fff;font-weight:700;font-size:0.92rem;min-height:48px;cursor:pointer">Just this one</button>'
+        +   '<button id="pin-ctx-keep" style="flex:1;min-width:140px;padding:0.7rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-weight:700;font-size:0.92rem;min-height:48px;cursor:pointer">Keep it here</button>'
+        + '</div>'
+        + '<button id="pin-ctx-cancel" style="width:100%;margin-top:0.5rem;padding:0.6rem;border-radius:9px;border:none;background:none;color:var(--text-dim);font-size:0.88rem;cursor:pointer">Cancel</button>';
+
+      var mk = card.querySelector('#pin-ctx-maker');
+      if (mk) mk.onchange = function () { pick.maker = this.value; pick.scale = ''; pick.era = ''; draw(); };
+      var sc = card.querySelector('#pin-ctx-scale');
+      if (sc) sc.onchange = function () { pick.scale = this.value; pick.era = ''; draw(); };
+      var er = card.querySelector('#pin-ctx-era');
+      if (er) er.onchange = function () { pick.era = this.value; };
+
+      function chosen() {
+        if (pick.era) return pick.era;
+        var only = lines.length === 1 ? lines[0].key : '';
+        return only;
+      }
+      card.querySelector('#pin-ctx-once').onclick = function () {
+        var e2 = chosen();
+        if (!e2) { showToast('Pick the line first', 2200, true); return; }
+        _pinOneShot = e2; ov.remove(); _pinRenderBar();
+        showToast('Next photo only: ' + _pinEraLabel(e2), 3000);
+      };
+      card.querySelector('#pin-ctx-keep').onclick = function () {
+        var e2 = chosen();
+        if (!e2) { showToast('Pick the line first', 2200, true); return; }
+        _pinSetHomeEra(e2); _pinOneShot = null; ov.remove(); _pinRenderBar();
+        showToast('Now shooting ' + _pinEraLabel(e2), 3000);
+      };
+      card.querySelector('#pin-ctx-cancel').onclick = function () { ov.remove(); };
+    }
+    draw();
+    document.body.appendChild(ov);
+  };
+
   // ══ v0.9.1047 — per-photo metadata ═══════════════════════════════════════
   // Until now the only thing a photo remembered was its filename:
   //   "INBOX <uploadTs> g<groupId> <original name>"
@@ -305,6 +476,7 @@
       loadDriveThumb(img.getAttribute('data-fid'), img, img.parentElement, null, 'hi');
     });
     _selInfo();
+    try { var _cb = document.getElementById('pin-context-bar'); if (_cb) { _cb.style.display = ''; _pinRenderBar(); } } catch (eB) {}   // v0.9.1048
     _navBadge(total);
     _updateIdAllBtn();
     // v0.9.961 (Brad): keep the "cropped" marker set trimmed to files still in
@@ -466,6 +638,11 @@
     try {
       var fid = await _folder();
       var ts = new Date().getTime();
+      // v0.9.1048: whatever the bar is showing goes onto the photo. A one-shot
+      // is spent by the FIRST photo of the batch and then springs back, so a
+      // single odd item in a long run cannot leak into the next forty.
+      var _era = _pinActiveEra();
+      var _spentOneShot = false;
       for (var i = 0; i < files.length; i++) {
         _status('Uploading ' + (i + 1) + ' of ' + files.length + '…');
         var f = files[i];
@@ -473,8 +650,16 @@
         // Desktop drops: one group per file (phone capture will reuse the
         // same tag to group several shots of one item).
         var name = 'INBOX ' + ts + ' g' + (ts + i) + ' ' + safe;
-        await driveUploadFile(f, name, fid);
+        var up = await driveUploadFile(f, name, fid);
+        var _thisEra = (_pinOneShot && !_spentOneShot) ? _pinOneShot : _pinHomeEra();
+        if (i === 0 && _pinOneShot) _spentOneShot = true;
+        if (_thisEra && up && up.id) {
+          // A stamp that fails to save must not fail the upload — the photo is
+          // safely in the inbox either way, it just knows less.
+          await _pinMetaSet(up.id, { era: _thisEra, stat: 'stamped' });
+        }
       }
+      if (_pinOneShot) { _pinOneShot = null; _pinRenderBar(); }
       _status('');
       showToast('Added ' + files.length + ' photo' + (files.length > 1 ? 's' : '') + ' to the inbox', 2500);
       _pinRefresh();
