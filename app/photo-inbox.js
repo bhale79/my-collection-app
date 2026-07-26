@@ -1229,7 +1229,17 @@
     var aw = a.split(/\s+/)[0], bw = b.split(/\s+/)[0];
     return a.indexOf(bw) >= 0 || b.indexOf(aw) >= 0;
   }
-  function _pinBestMaster(num, aiMfr) {
+  // v0.9.1066 (Brad: "we still are not using the manufacturer and era when
+  // id'ing them ... all my pictures are lionel postwar and i got atlas and
+  // prewar matches"). He was right, and the era work so far had missed the one
+  // path that actually produces what he SEES. v0.9.1063 handed the era stamp to
+  // the OCR-text step; this function — the one that turns a number into the
+  // Maker / Item # / Description panel — never received it. When the reader
+  // gives no manufacturer of its own (a free OCR read never does), the last
+  // line here was `return bucket[0]`: whichever catalog happened to load first.
+  // A postwar-stamped photo of a 6817 flatcar therefore resolved to Lionel
+  // PRE-WAR 58, "Lamp Post, 7 3/8 high".
+  function _pinBestMaster(num, aiMfr, prefer) {
     var bucket = null;
     // v0.9.971 (Brad): _mbAllGet = the ONE shared bucket lookup (loaded eras +
     // the full-catalog index), so the inbox sees MTH/Atlas/etc. like Research does.
@@ -1239,21 +1249,46 @@
         : ((window.state && state.masterByItem && state.masterByItem.get) ? state.masterByItem.get(String(num).trim()) : null);
     } catch (e) {}
     if (bucket && bucket.length) {
+      // What the reader claims to have seen still wins — it looked at the item.
       if (aiMfr) {
         for (var i = 0; i < bucket.length; i++) {
           var mk = bucket[i].manufacturer || ((typeof ERAS !== 'undefined' && ERAS[bucket[i]._era]) ? ERAS[bucket[i]._era].manufacturer : '');
           if (_pinMfrAgree(aiMfr, mk)) return bucket[i];
         }
       }
+      // Then what the PHOTO says it is. An exact era beats a maker match, which
+      // beats load order — and load order is what this used to be.
+      if (prefer && (prefer.era || prefer.manufacturer)) {
+        var exact = null, byMaker = null;
+        for (var j = 0; j < bucket.length; j++) {
+          var row = bucket[j];
+          if (prefer.era && row._era === prefer.era) { exact = row; break; }
+          if (!byMaker && prefer.manufacturer) {
+            var mk2 = row.manufacturer || ((typeof ERAS !== 'undefined' && ERAS[row._era]) ? ERAS[row._era].manufacturer : '');
+            if (_pinMfrAgree(prefer.manufacturer, mk2)) byMaker = row;
+          }
+        }
+        if (exact) return exact;
+        if (byMaker) return byMaker;
+      }
       return bucket[0];
     }
-    try { return (typeof findMaster === 'function') ? findMaster(num) : null; } catch (e) { return null; }
+    try { return (typeof findMaster === 'function') ? findMaster(num, null, prefer || null) : null; } catch (e) { return null; }
   }
-  function _pinLookup(num, aiMfr) {
+  // The era stamped on the photo currently open in the review card.
+  function _rvPrefer() {
+    try { return (_rvGroups && _rvGroups.length) ? _pinPreferOf(_rvGroups[0]) : null; }
+    catch (e) { return null; }
+  }
+
+  function _pinLookup(num, aiMfr, prefer) {
     num = String(num || '').trim();
     var out = { num: num, master: null, ownedPd: null, maker: '', era: '', desc: '', mfrMismatch: '' };
     if (!num) return out;
-    out.master = _pinBestMaster(num, aiMfr);
+    // Default to the era stamped on the photo being reviewed, so every caller
+    // gets it without having to remember to pass it.
+    if (prefer === undefined) prefer = _rvPrefer();
+    out.master = _pinBestMaster(num, aiMfr, prefer);
     if (out.master) {
       var m = out.master;
       var eraDef = (typeof ERAS !== 'undefined' && ERAS[m._era]) ? ERAS[m._era] : null;
@@ -2145,7 +2180,7 @@
         // v0.9.907 (Brad, item [1a]): hand the first inbox photo's Drive id to the
         // wizard so the variation step can preview the item you're adding.
         var _addPhotoId = (fileList[0] && fileList[0].id) || '';
-        _pinAddNow(num, { manufacturer: _aiS.mfr || '', description: _aiS.desc || '', roadName: _aiS.road || '', year: _aiS.year || '', gauge: _aiS.gauge || '', subType: _aiS.subType || '' }, _addPhotoId, { alsoListForSale: mode === 'forsale' });
+        _pinAddNow(num, { manufacturer: _aiS.mfr || '', description: _aiS.desc || '', roadName: _aiS.road || '', year: _aiS.year || '', gauge: _aiS.gauge || '', subType: _aiS.subType || '', _prefer: _pinPreferOf(gs[0]) }, _addPhotoId, { alsoListForSale: mode === 'forsale' });
         if (mode === 'forsale') showToast('Adding ' + num + ' to your collection and For Sale list — set the price on the sale step', 4500);
       }
     } catch (e) {
@@ -2193,7 +2228,7 @@
           // v0.9.907 (Brad, item [1a]): stash the inbox photo's Drive id so the
           // variation step can preview it (loaded via loadDriveThumb).
           if (photoDriveId) wizard.data._addPhotoDriveId = photoDriveId;
-          var m = _pinBestMaster(num, (aiMeta && aiMeta.manufacturer) || '');
+          var m = _pinBestMaster(num, (aiMeta && aiMeta.manufacturer) || '', (aiMeta && aiMeta._prefer) || null);
           if (m && aiMeta && aiMeta.manufacturer) {
             var _mMk = m.manufacturer || ((typeof ERAS !== 'undefined' && ERAS[m._era]) ? ERAS[m._era].manufacturer : '');
             // v0.9.941: photo says one brand, number matches another -> treat as
