@@ -2666,19 +2666,21 @@
       });
     })();
 
-    // 1) numbers the stamped catalog confirms win — most specific first
+    // v0.9.1072b — ORDER MATTERS, and I had it wrong. On Brad's ATSF gondola the
+    // reader saw "... 35 621 ..." and the direct match ran first, so "621" — the
+    // tail half of 3562-1, sitting on its own panel — was accepted as a catalog
+    // number before the joining step was ever reached. A fragment that happens
+    // to exist in the catalog beat the complete number it was part of.
+    //
+    // Both are computed now and the LONGER confirmed number wins. That is the
+    // right tie-break on its own terms: 3562-1 is more specific than 621, and a
+    // catalog hit on more digits is far less likely to be a coincidence.
+    var direct = null;
     var matched = uniq.filter(function (c) { return fm && (fm(c) || fm(c.replace(/^\d-/, ''))); });
-    if (matched.length) { matched.sort(dashRank); return { num: matched[0], matched: true, dbg: dbg }; }
-    // 1a) Nothing in the stamped catalog. Before giving up, look in every
-    // catalog — but a hit there is a LEAD, not a confirmation, because the whole
-    // reason we are here is that the photo says it belongs somewhere else. This
-    // also protects against the stamped era's data simply not being loaded.
-    var loose = fmAny
-      ? uniq.filter(function (c) { return fmAny(c) || fmAny(c.replace(/^\d-/, '')); })
-      : [];
-    // 1a2) the joined fragments, exact then dash-repaired
+    if (matched.length) { matched.sort(dashRank); direct = matched[0]; }
+
+    var jHit = null;
     if (fm && joined.length) {
-      var jHit = null;
       joined.some(function (d) {
         if (fm(d)) { jHit = d; return true; }
         for (var cut = 3; cut <= 4; cut++) {
@@ -2688,8 +2690,24 @@
         }
         return false;
       });
-      if (jHit) { dbg.joined = jHit; return { num: jHit, matched: true, dbg: dbg }; }
     }
+    dbg.joinTried = joined.slice(0, 10);
+    if (jHit) dbg.joined = jHit;
+
+    var digitsOf = function (x) { return String(x || '').replace(/\D/g, '').length; };
+    if (direct || jHit) {
+      var win = (jHit && digitsOf(jHit) > digitsOf(direct)) ? jHit : (direct || jHit);
+      return { num: win, matched: true, dbg: dbg };
+    }
+
+    // Nothing in the stamped catalog. Before giving up, look in every catalog —
+    // but a hit there is a LEAD, not a confirmation, because the whole reason we
+    // are here is that the photo says it belongs somewhere else. This also
+    // protects against the stamped era's data simply not being loaded.
+    var loose = fmAny
+      ? uniq.filter(function (c) { return fmAny(c) || fmAny(c.replace(/^\d-/, '')); })
+      : [];
+
     // 1b) v0.9.1065 — DASH REPAIR. The audit produced "6464475" twice and the
     // catalog rejected both, because the real number is 6464-475: OCR drops a
     // dash far more often than it invents a digit. Try putting one back at each
