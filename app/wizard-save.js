@@ -141,6 +141,7 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
   }
 
   const savedItems = [];
+  const failedItems = [];   // v0.9.1043: items whose write threw — named in the toast
   for (let i = 0; i < items.length; i++) {
     const itemNum = items[i];
     const isEngine = (i === 0);
@@ -183,7 +184,12 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
       _stampSaved(state.personalData[invId]);
       savedItems.push(itemNum);
     } catch(e) {
+      // v0.9.1043: a failed item used to be logged and forgotten, and the final
+      // toast just reported a smaller number as a success — add a six-car set,
+      // one write fails, you are told "5 items saved" and never learn which one
+      // is missing. Failures are collected and named below.
       console.warn('Error saving set item ' + itemNum + ':', e);
+      failedItems.push(itemNum);
     }
   }
 
@@ -222,7 +228,13 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
   localStorage.removeItem('lv_personal_cache');
   localStorage.removeItem('lv_personal_cache_ts');
   d._saveComplete = true;
-  showToast('\u2713 ' + setNum + ' saved \u2014 ' + savedItems.length + ' item' + (savedItems.length !== 1 ? 's' : '') + ' in your collection!');
+  if (failedItems.length) {
+    // Say what did NOT save, and keep it on screen long enough to read.
+    showToast('\u26a0 ' + setNum + ': ' + savedItems.length + ' of ' + (savedItems.length + failedItems.length)
+      + ' items saved. These did not save \u2014 ' + failedItems.join(', ') + '. Add them again to finish the set.', 9000, true);
+  } else {
+    showToast('\u2713 ' + setNum + ' saved \u2014 ' + savedItems.length + ' item' + (savedItems.length !== 1 ? 's' : '') + ' in your collection!');
+  }
   _doCloseWizard();
   buildDashboard();
   renderBrowse();

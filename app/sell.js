@@ -339,12 +339,15 @@ async function _sellWriteCustomers(arr) {
   var q = encodeURIComponent("name='" + _SELL_CUST_FILE + "' and trashed=false");
   var res = await driveRequest('GET', '/files?q=' + q + '&fields=files(id)&spaces=drive');
   if (res.files && res.files.length) {
-    await fetch('https://www.googleapis.com/upload/drive/v3/files/' + res.files[0].id + '?uploadType=media', { method: 'PATCH', headers: { Authorization: 'Bearer ' + _sellTok(), 'Content-Type': 'application/json' }, body: blob });
+    // v0.9.1043: unchecked before — a Drive failure looked like a success.
+    var _r1 = await fetch('https://www.googleapis.com/upload/drive/v3/files/' + res.files[0].id + '?uploadType=media', { method: 'PATCH', headers: { Authorization: 'Bearer ' + _sellTok(), 'Content-Type': 'application/json' }, body: blob });
+    if (!_r1.ok) throw new Error('Could not save the customer list (HTTP ' + _r1.status + ')');
   } else {
     var form = new FormData();
     form.append('metadata', new Blob([JSON.stringify({ name: _SELL_CUST_FILE, mimeType: 'application/json' })], { type: 'application/json' }));
     form.append('file', blob);
-    await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', { method: 'POST', headers: { Authorization: 'Bearer ' + _sellTok() }, body: form });
+    var _r2 = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', { method: 'POST', headers: { Authorization: 'Bearer ' + _sellTok() }, body: form });
+    if (!_r2.ok) throw new Error('Could not save the customer list (HTTP ' + _r2.status + ')');
   }
 }
 async function _sellGrant(email) {
@@ -453,8 +456,21 @@ async function _sellAddCustomer() {
   var email = ((document.getElementById('sell-c-email') || {}).value || '').trim();
   var phone = (document.getElementById('sell-c-phone') || {}).value || '';
   if (!name && !email) { showToast('Add a name or email', 2500, true); return; }
-  _sellCustomers.push({ name: name, email: email, phone: phone, access: false });
-  await _sellWriteCustomers(_sellCustomers);
+  // v0.9.1043: this whole chain had no error handling. A failed Drive write
+  // threw into nothing, the fields still cleared, and the customer the user had
+  // just typed was gone with no message. Now the entry is only removed from the
+  // form once it is safely written, and a failure says so and keeps the typing.
+  var _entry = { name: name, email: email, phone: phone, access: false };
+  _sellCustomers.push(_entry);
+  try {
+    await _sellWriteCustomers(_sellCustomers);
+  } catch (e) {
+    console.error('[sell] add customer', e);
+    _sellCustomers.pop();
+    showToast('Could not save that customer — your typing is still here, try again', 5000, true);
+    _sellStatus('Could not save — check your connection and try again.');
+    return;
+  }
   document.getElementById('sell-c-name').value = ''; document.getElementById('sell-c-email').value = ''; document.getElementById('sell-c-phone').value = '';
   _sellRenderCustomers();
 }
@@ -471,7 +487,17 @@ async function _sellToggleAccess(i) {
 async function _sellRemoveCustomer(i) {
   var c = _sellCustomers[i]; if (!c) return;
   try { if (c.access && c.email) await _sellRevoke(c.email); } catch (e) {}
-  _sellCustomers.splice(i, 1); await _sellWriteCustomers(_sellCustomers); _sellRenderCustomers();
+  // v0.9.1043: put the customer back if the write fails, rather than showing a
+  // list that disagrees with what is stored.
+  var _removed = _sellCustomers.splice(i, 1);
+  try {
+    await _sellWriteCustomers(_sellCustomers);
+  } catch (e) {
+    console.error('[sell] remove customer', e);
+    _sellCustomers.splice(i, 0, _removed[0]);
+    showToast('Could not remove that customer — try again', 4000, true);
+  }
+  _sellRenderCustomers();
 }
 async function _sellMakePdf() {
   var btn = document.getElementById('sell-pdf-btn'); if (btn) { btn.disabled = true; btn.textContent = 'Building PDF…'; }
