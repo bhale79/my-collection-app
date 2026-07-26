@@ -208,6 +208,21 @@
     // than becoming unreadable — fall back to everything.
     return body.length ? body : g.files.slice();
   }
+  // ══ v0.9.1090 — a set is SEVERAL items (Brad: "it got the engine in the
+  // set, but i dont think it got the rest of the items"). His seven-photo
+  // Burlington set: the 2328 engine was read because it happens to lead the
+  // group; the Elizabeth, Clifton and Summit cars behind it never got a turn.
+  // One-photo-per-group is right when the photos are ANGLES of one item
+  // (engine alone, its box) and wrong when they are MEMBERS of a set, where
+  // every photo has its own number.
+  var _PIN_MULTI_KIND = { set: 1, aa: 1, ab: 1, aba: 1, tender: 1 };
+  function _pinFilesToRead(g) {
+    var files = _pinReadFiles(g);
+    if (!files.length) return [];
+    var kind = (files[0] && files[0]._meta && files[0]._meta.kind) || g.kind || 'single';
+    return _PIN_MULTI_KIND[kind] ? files : [files[0]];
+  }
+
   // The one photo that represents this group for reading purposes.
   function _pinReadFile(g) { return _pinReadFiles(g)[0] || (g && g.files && g.files[0]) || null; }
   function _pinReadFid(g) { var f = _pinReadFile(g); return f ? f.id : ''; }
@@ -669,7 +684,7 @@
   // now carry the version of the reader that produced them, and the automatic
   // pass retries anything read by an older one. Bump this whenever the reading
   // logic changes; it costs nothing but time, and only on photos that failed.
-  var READER_VER = '1089';
+  var READER_VER = '1090';
 
   function _pinMetaOf(file) {
     var ap = (file && file.appProperties) || {};
@@ -1730,6 +1745,11 @@
             '<img data-rvfid="' + fidT + '" onclick="_pinZoomPhoto(\'' + fidT + '\')" title="Tap to view full size — zoom in to read the label" style="width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in" alt="">' +
             '<button onclick="event.stopPropagation();_pinZoomPhoto(\'' + fidT + '\')" title="View full size" style="position:absolute;left:4px;bottom:4px;width:26px;height:26px;border-radius:7px;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:0.8rem;line-height:1;cursor:pointer;padding:0">🔍</button>' +
             '<button onclick="event.stopPropagation();_pinCropPhoto(\'' + fidT + '\')" title="Crop / Rotate this photo" style="position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:7px;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:0.85rem;line-height:1;cursor:pointer;padding:0">✂</button>' +
+            (function () {
+              var _tS = _ids()[fidT];
+              var _tN = (_tS && _tS.num) ? String(_tS.num) : '';
+              return _tN ? '<div style="position:absolute;left:34px;right:34px;bottom:4px;background:rgba(0,0,0,0.62);color:' + (_tS.guess ? '#ffb454' : '#7ec3ef') + ';font-size:0.6rem;font-weight:700;text-align:center;padding:1px 3px;border-radius:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + rrEsc(_tN) + '</div>' : '';
+            })() +
           '</div>';
         }).join('') +
       '</div>';
@@ -1746,8 +1766,12 @@
         (thumbs.length > 1
           ? '<div style="display:flex;gap:0.4rem;overflow-x:auto;-webkit-overflow-scrolling:touch">' +
               thumbs.slice(0, 12).map(function (fidT) {
+                var _tSug = _ids()[fidT];
+                var _tNum = (_tSug && _tSug.num) ? String(_tSug.num) : '';
                 return '<div onclick="_pinRvSetMain(\'' + fidT + '\')" title="Show this photo" style="position:relative;flex-shrink:0;width:64px;height:64px;border-radius:8px;overflow:hidden;background:var(--surface2,#26262e);cursor:pointer;border:1.5px solid transparent">' +
-                  '<img data-rvfid="' + fidT + '" style="width:100%;height:100%;object-fit:cover;display:block" alt=""></div>';
+                  '<img data-rvfid="' + fidT + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="">' +
+                  (_tNum ? '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.62);color:' + (_tSug.guess ? '#ffb454' : '#7ec3ef') + ';font-size:0.58rem;font-weight:700;text-align:center;padding:1px 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + rrEsc(_tNum) + '</div>' : '') +
+                  '</div>';
               }).join('') +
             '</div>'
           : '') +
@@ -1771,14 +1795,14 @@
             }).join('') +
           '</div>'
         : '');
-    var _aiL = _pinAiLine(), _chips = _pinAltChips();
+    var _aiL = _pinAiLine(_mainFid), _chips = _pinAltChips();
     var _wideBtn = 'flex:1 1 160px;padding:0.72rem 0.6rem;border-radius:10px;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;';
     var _wideBody =
       (_pinLensGroups ? _pinLensBannerHtml() : '') +
       // Top: two full-width info boxes above the photo (or just details if no read yet).
       (_aiL
         ? '<div style="display:flex;gap:1rem;align-items:stretch;margin-bottom:0.8rem">' +
-            '<div style="flex:1.25;min-width:0">' + _aiL + '</div>' +
+            '<div id="pin-rv-ailine" style="flex:1.25;min-width:0">' + _aiL + '</div>' +
             '<div style="flex:1;min-width:0"><div id="pin-rv-info" style="height:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.85rem 0.95rem;display:flex;flex-direction:column;gap:0.4rem"></div></div>' +
           '</div>'
         : '<div id="pin-rv-info" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.85rem 0.95rem;margin-bottom:0.8rem;display:flex;flex-direction:column;gap:0.4rem"></div>') +
@@ -1864,12 +1888,12 @@
       + '</div></details>';
   }
 
-  function _pinAiLine() {
+  function _pinAiLine(fid) {
     var s = {};
     // v0.9.1087: the readable photo, matching where every reader now WRITES.
-    // files[0] on a grouped item is often the "together" shot, whose slot
-    // nothing writes to any more.
-    try { s = _ids()[_pinReadFid(_rvGroups[0]) || _rvGroups[0].files[0].id] || {}; } catch (e) {}
+    // v0.9.1090: or the photo actually ON SCREEN — in a set, each member has
+    // its own read, and the line describes what you are looking at.
+    try { s = _ids()[fid || _pinReadFid(_rvGroups[0]) || _rvGroups[0].files[0].id] || {}; } catch (e) {}
     var bits = [s.mfr, s.road, s.desc, s.year ? '(' + s.year + ')' : ''].filter(Boolean).join(' ');
     if (!bits && !s.num) return '';
     var esc = function (t) { return String(t).replace(/</g, '&lt;'); };
@@ -3648,15 +3672,18 @@
       if (typeof rec !== 'object') return true;         // legacy marker
       return rec.rv !== READER_VER;
     };
-    var todo = _groups.filter(function (g) {
-      var fid = _pinReadFid(g);
-      if (!fid) return false;
-      var got = ids[fid];
-      // A confirmed read from the current reader is left alone. Anything else —
-      // never read, failed, or produced by an older reader — is retried free.
-      if (got && !got.guess && got.rv === READER_VER) return false;
-      if (got && got.rv === READER_VER) return false;
-      return _stale(ft[fid]) || !got;
+    // v0.9.1090: the unit of work is a FILE, not a group — a set contributes
+    // every member photo, a single item contributes one.
+    var todo = [];
+    _groups.forEach(function (g) {
+      _pinFilesToRead(g).forEach(function (f) {
+        var fid = f && f.id;
+        if (!fid) return;
+        var got = ids[fid];
+        if (got && got.rv === READER_VER && !got.guess) return;
+        if (got && got.rv === READER_VER) return;
+        if (_stale(ft[fid]) || !got) todo.push({ g: g, fid: fid });
+      });
     });
     if (!todo.length) return;
     _autoReadBusy = true; _autoReadAbort = false;
@@ -3664,7 +3691,7 @@
     try {
       for (var i = 0; i < todo.length && !_autoReadAbort; i++) {
         _status('Reading photos… ' + (i + 1) + ' of ' + todo.length);
-        var fid = _pinReadFid(todo[i]), r = null;
+        var fid = todo[i].fid, r = null;
         try { r = await _freeReadOne(fid); } catch (e) {}
         if (r && r.num) {
           var m = _ids(); m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null, rv: READER_VER, viaDesc: !!r.viaDesc, descOf: r.descOf || '', descWords: r.descWords || [] };
@@ -3744,6 +3771,13 @@
     if (!img) return;
     img.setAttribute('data-rvbig', fid);
     window._pinRvLoadFull(img, fid);
+    // v0.9.1090: the identification follows the photo. Tap the Summit car and
+    // the line describes the Summit car, not the engine at the front of the
+    // group.
+    try {
+      var line = document.getElementById('pin-rv-ailine');
+      if (line) line.innerHTML = _pinAiLine(fid) || line.innerHTML;
+    } catch (e) {}
   };
 
   // ── Crop / Rotate an inbox photo IN PLACE (v0.9.899, Brad) ───
@@ -3859,9 +3893,17 @@
     var btn = document.getElementById('pin-recrop-btn');
     if (btn) { btn.disabled = true; btn.textContent = 'Re-reading\u2026'; }
     var found = 0, done = 0, failed = 0;
+    // v0.9.1090: cropped MEMBER photos re-read too, not just the group's lead.
+    var jobs = [];
+    gs.forEach(function (g2) {
+      var cr = _cropped();
+      _pinFilesToRead(g2).forEach(function (f2) { if (f2 && cr[f2.id]) jobs.push({ g: g2, fid: f2.id }); });
+      if (!jobs.length && _pinReadFid(g2) && cr[_pinReadFid(g2)]) jobs.push({ g: g2, fid: _pinReadFid(g2) });
+    });
+    gs = jobs;
     for (var i = 0; i < gs.length; i++) {
       if (_idAbort) break;
-      var fid = _pinReadFid(gs[i]);
+      var fid = gs[i].fid;
       _status('Re-reading ' + (i + 1) + ' of ' + gs.length + '\u2026 ' + found + ' number' + (found === 1 ? '' : 's') + ' so far');
       try {
         // Forget the previous read so a number lifted from the UNCROPPED photo
@@ -3870,7 +3912,7 @@
         try { var ff = _freeTried(); if (ff[fid]) { delete ff[fid]; _freeTriedSave(ff); } } catch (e2) {}
         try { var pfx = fid + '|'; Object.keys(_vfCache || {}).forEach(function (k) { if (k.indexOf(pfx) === 0) delete _vfCache[k]; }); } catch (e3) {}
         var blob = await _pinBytes(fid);
-        var r = await _freeReadBlob(blob, 2400, _pinPreferOf(gs[i]));   // the higher-resolution attempt
+        var r = await _freeReadBlob(blob, 2400, _pinPreferOf(gs[i].g));   // the higher-resolution attempt
         var m = _ids();
         if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1 }; _idsSave(m); found++; }
         else { var f2 = _freeTried(); f2[fid] = 1; _freeTriedSave(f2); }
@@ -4353,7 +4395,11 @@
           // v0.9.1061: except the "together" shot. More angles help only while
           // every angle shows the SAME item; a set photo shows several, and
           // sending it invites the reader to answer with a neighbour's number.
-          var _fl = _pinReadFiles(g).slice(0, 4), blobs = [];
+          // v0.9.1090: extra photos help only while every photo shows the SAME
+          // item. A set's members are different items — sending four different
+          // cars as "angles" invites an answer about whichever is clearest.
+          var _flA = _pinReadFiles(g);
+          var _fl = (_pinFilesToRead(g).length > 1 ? _flA.slice(0, 1) : _flA.slice(0, 4)), blobs = [];
           for (var _b = 0; _b < _fl.length; _b++) {
             try { blobs.push(await _pinBytes(_fl[_b].id)); }
             catch (eB) { console.warn('[Inbox] photo download failed, skipping one:', eB && eB.message); }
