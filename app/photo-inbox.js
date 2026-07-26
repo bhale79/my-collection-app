@@ -38,7 +38,19 @@
   var _fid = null, _fidChecked = false;
   var _groups = [];          // [{ key, files:[{id,name,createdTime}] }]
   var _sel = {};             // groupKey -> true
-  var _selectMode = false;   // opt-in multi-select: circles + action bar hidden until ON
+  var _selectMode = false;   // true while EITHER selection mode is running
+  // v0.9.1057 (Brad): "Select multiple" said nothing about what it was for, so
+  // the two things people actually do — put photos together, and say what they
+  // are — had no front door. Two named buttons now, one selection mechanic.
+  var _rvKey = '';           // group key the review card is open on ('' = multi-select)
+  var _selPurpose = '';      // '' | 'group' | 'tag'  — what Apply does
+  var _tagEra = '';          // era picked in tag mode, written on Apply
+  // A shooting session. The context bar used to sit on the page permanently;
+  // Brad only wants it while he is actually shooting. It appears when a session
+  // starts, and Done ends it. Deliberately NOT persisted: a stale "Lionel
+  // Postwar" left armed a week later is how forty cars get mis-stamped.
+  var _pinSession = false;
+  var _sessionEra = '';      // the session's home era (memory only)
   var _busy = false;
 
   // ── Drive folder ─────────────────────────────────────────────
@@ -72,12 +84,15 @@
         '<span>Photo Inbox</span>' +
         '<span id="pin-count" style="font-size:0.8rem;color:var(--text-dim);font-family:var(--font-body);font-weight:400"></span>' +
       '</div>' +
-      '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.7rem">Drop photos anywhere below, or use Add photos. Click a photo to review it — add the item, research it more, or discard the photo. Use “Select multiple” to combine several shots of one item. Photos snapped with Quick Capture on your phone land here too.</div>' +
+      '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.7rem">Drop photos anywhere below, or use Add photos. Click a photo to review it — add the item, research it more, or discard the photo. Use “Group photos” to put several shots of one item together, and “Tag maker/era/scale” to say what photos are. Photos snapped with Quick Capture on your phone land here too.</div>' +
       '<div id="pin-context-bar" style="display:none"></div>' +   // v0.9.1048 capture context
       '<div id="pin-filter-row" style="display:none"></div>' +   // v0.9.1051 filters
+      '<div id="pin-tagbar" style="display:none"></div>' +        // v0.9.1057 tag mode
       '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;margin-bottom:0.8rem">' +
         '<button onclick="_pinAddSource()" class="btn-primary" style="padding:0.5rem 0.9rem;border-radius:8px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Add photos…</button>' +
-        '<button id="pin-selmode-btn" onclick="_pinToggleSelectMode()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">☑ Select multiple</button>' +
+        '<button id="pin-group-btn" onclick="_pinStartMode(\'group\')" style="' + 'padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer' + '">Group photos</button>' +
+        '<button id="pin-tag-btn" onclick="_pinStartMode(\'tag\')" style="' + 'padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer' + '">Tag maker/era/scale</button>' +
+        '<button id="pin-finish-btn" onclick="_pinFinishMode()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:none;background:var(--accent2);color:#1a1a1a;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">✓ Finished</button>' +
         '<button id="pin-selall-btn" onclick="_pinSelectAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Select all</button>' +
         '<button id="pin-idall-btn" onclick="_pinIdentifyAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:rgba(212,168,67,0.14);color:var(--accent2);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">🔍 Read with a token</button>' +
         '<button onclick="_pinRefresh()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:600;font-size:0.82rem;cursor:pointer">Refresh</button>' +
@@ -353,6 +368,15 @@
     document.body.appendChild(ov);
   };
 
+  window._pinConfirmUngroup = async function (key) {
+    var g = null;
+    _groups.forEach(function (x) { if (x.key === key) g = x; });
+    if (!g || g.files.length < 2) return;
+    var ok = await _pinConfirm('Split this back into ' + g.files.length
+      + ' separate photos? Nothing is deleted \u2014 they just stop being one item.', 'Split apart');
+    if (ok) window._pinUngroup(key);
+  };
+
   // Break a group back into loose photos.
   window._pinUngroup = async function (key) {
     var g = null;
@@ -383,12 +407,12 @@
   var _PIN_HOME_KEY = 'rr_capture_home_era';
   var _pinOneShot = null;          // era key armed for the next photo only
 
-  function _pinHomeEra() {
-    try { return localStorage.getItem(_PIN_HOME_KEY) || ''; } catch (e) { return ''; }
-  }
-  function _pinSetHomeEra(era) {
-    try { era ? localStorage.setItem(_PIN_HOME_KEY, era) : localStorage.removeItem(_PIN_HOME_KEY); } catch (e) {}
-  }
+  // v0.9.1057: the home era used to live in localStorage and survive restarts.
+  // Brad's call: it clears when the session is done. A setting that outlives the
+  // shelf you were photographing is a trap, not a convenience — you come back
+  // next week, shoot MTH, and it all lands as Lionel Postwar.
+  function _pinHomeEra() { return _sessionEra || ''; }
+  function _pinSetHomeEra(era) { _sessionEra = era || ''; }
   // What the next photo will be stamped with.
   function _pinActiveEra() { return _pinOneShot || _pinHomeEra(); }
 
@@ -425,6 +449,9 @@
   function _pinRenderBar() {
     var el = document.getElementById('pin-context-bar');
     if (!el) return;
+    // Only while a shooting session is running. Brad: "that bar should only show
+    // up after you hit the add photos button."
+    if (!_pinSession) { el.style.display = 'none'; return; }
     var era = _pinActiveEra();
     var armed = !!_pinOneShot;
     var known = !!era;
@@ -443,16 +470,33 @@
           ? '<button onclick="_pinClearOneShot()" style="padding:0.45rem 0.7rem;border-radius:8px;border:1px solid var(--border);'
             + 'background:var(--surface2);color:var(--text-mid);font-size:0.78rem;cursor:pointer">Back to '
             + rrEsc(_pinEraLabel(_pinHomeEra())) + '</button>'
-          : '');
+          : '')
+      + '<button onclick="_pinEndSession()" style="padding:0.45rem 0.8rem;border-radius:8px;border:none;'
+        + 'background:var(--accent2);color:#1a1a1a;font-family:var(--font-body);font-weight:700;'
+        + 'font-size:0.8rem;min-height:38px;cursor:pointer">Done</button>';
   }
+
+  // Ends the shooting session: bar goes away, nothing stays armed.
+  window._pinEndSession = function () {
+    _pinSession = false;
+    _pinOneShot = null;
+    _sessionEra = '';
+    var el = document.getElementById('pin-context-bar');
+    if (el) el.style.display = 'none';
+  };
 
   window._pinClearOneShot = function () { _pinOneShot = null; _pinRenderBar(); };
 
   // Three dropdowns that narrow each other: maker → scale → line.
-  window._pinPickContext = function () {
+  // opts (all optional) — when opts.onPick is given the sheet shows ONE confirm
+  // button and hands the era back instead of arming the capture bar. That is
+  // how tag mode and the start-of-session prompt reuse this same picker rather
+  // than growing a second copy of the maker/scale/line logic.
+  window._pinPickContext = function (opts) {
+    opts = opts || {};
     var choices = _pinEraChoices();
     if (!choices.length) { showToast('No manufacturers configured yet', 2500, true); return; }
-    var cur = _pinActiveEra();
+    var cur = opts.current || _pinActiveEra();
     var curDef = choices.filter(function (c) { return c.key === cur; })[0] || null;
     var pick = { maker: curDef ? curDef.maker : '', scale: curDef ? curDef.scale : '', era: cur || '' };
 
@@ -491,17 +535,23 @@
       }
 
       card.innerHTML =
-        '<div style="font-family:var(--font-head);font-size:1.05rem;font-weight:700;margin-bottom:0.15rem">What are you photographing?</div>'
-        + '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.8rem">This gets saved with each photo, so the app knows which catalog to look in.</div>'
+        '<div style="font-family:var(--font-head);font-size:1.05rem;font-weight:700;margin-bottom:0.15rem">'
+          + rrEsc(opts.title || 'What are you photographing?') + '</div>'
+        + '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.8rem">'
+          + rrEsc(opts.blurb || 'This gets saved with each photo, so the app knows which catalog to look in.') + '</div>'
         + sel('pin-ctx-maker', 'Manufacturer', makers.map(function (m) { return { v: m, t: m }; }), pick.maker, '')
         + (scales.length > 1 ? sel('pin-ctx-scale', 'Scale', scales.map(function (m) { return { v: m, t: m }; }), pick.scale, '') : '')
         + (lines.length > 1 ? sel('pin-ctx-era', 'Line / period',
               lines.map(function (c) { return { v: c.key, t: c.label + (c.years ? '  (' + c.years + ')' : '') }; }), pick.era, '') : '')
         + '<div style="display:flex;gap:0.5rem;margin-top:0.9rem;flex-wrap:wrap">'
-        +   '<button id="pin-ctx-once" style="flex:1;min-width:140px;padding:0.7rem;border-radius:9px;border:none;background:var(--accent);color:#fff;font-weight:700;font-size:0.92rem;min-height:48px;cursor:pointer">Just this one</button>'
-        +   '<button id="pin-ctx-keep" style="flex:1;min-width:140px;padding:0.7rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-weight:700;font-size:0.92rem;min-height:48px;cursor:pointer">Keep it here</button>'
+        + (opts.onPick
+            ? '<button id="pin-ctx-ok" style="flex:1;min-width:140px;padding:0.7rem;border-radius:9px;border:none;background:var(--accent);color:#fff;font-weight:700;font-size:0.92rem;min-height:48px;cursor:pointer">'
+              + rrEsc(opts.okLabel || 'Use this') + '</button>'
+            : '<button id="pin-ctx-once" style="flex:1;min-width:140px;padding:0.7rem;border-radius:9px;border:none;background:var(--accent);color:#fff;font-weight:700;font-size:0.92rem;min-height:48px;cursor:pointer">Just this one</button>'
+              + '<button id="pin-ctx-keep" style="flex:1;min-width:140px;padding:0.7rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-weight:700;font-size:0.92rem;min-height:48px;cursor:pointer">Keep it here</button>')
         + '</div>'
-        + '<button id="pin-ctx-cancel" style="width:100%;margin-top:0.5rem;padding:0.6rem;border-radius:9px;border:none;background:none;color:var(--text-dim);font-size:0.88rem;cursor:pointer">Cancel</button>';
+        + '<button id="pin-ctx-cancel" style="width:100%;margin-top:0.5rem;padding:0.6rem;border-radius:9px;border:none;background:none;color:var(--text-dim);font-size:0.88rem;cursor:pointer">'
+          + rrEsc(opts.cancelLabel || 'Cancel') + '</button>';
 
       var mk = card.querySelector('#pin-ctx-maker');
       if (mk) mk.onchange = function () { pick.maker = this.value; pick.scale = ''; pick.era = ''; draw(); };
@@ -515,19 +565,31 @@
         var only = lines.length === 1 ? lines[0].key : '';
         return only;
       }
-      card.querySelector('#pin-ctx-once').onclick = function () {
-        var e2 = chosen();
-        if (!e2) { showToast('Pick the line first', 2200, true); return; }
-        _pinOneShot = e2; ov.remove(); _pinRenderBar();
-        showToast('Next photo only: ' + _pinEraLabel(e2), 3000);
+      if (opts.onPick) {
+        card.querySelector('#pin-ctx-ok').onclick = function () {
+          var e2 = chosen();
+          if (!e2) { showToast('Pick the line first', 2200, true); return; }
+          ov.remove();
+          try { opts.onPick(e2); } catch (eP) { console.warn('[inbox] picker callback failed', eP && eP.message); }
+        };
+      } else {
+        card.querySelector('#pin-ctx-once').onclick = function () {
+          var e2 = chosen();
+          if (!e2) { showToast('Pick the line first', 2200, true); return; }
+          _pinOneShot = e2; ov.remove(); _pinRenderBar();
+          showToast('Next photo only: ' + _pinEraLabel(e2), 3000);
+        };
+        card.querySelector('#pin-ctx-keep').onclick = function () {
+          var e2 = chosen();
+          if (!e2) { showToast('Pick the line first', 2200, true); return; }
+          _pinSetHomeEra(e2); _pinOneShot = null; ov.remove(); _pinRenderBar();
+          showToast('Now shooting ' + _pinEraLabel(e2), 3000);
+        };
+      }
+      card.querySelector('#pin-ctx-cancel').onclick = function () {
+        ov.remove();
+        if (opts.onCancel) { try { opts.onCancel(); } catch (eC) {} }
       };
-      card.querySelector('#pin-ctx-keep').onclick = function () {
-        var e2 = chosen();
-        if (!e2) { showToast('Pick the line first', 2200, true); return; }
-        _pinSetHomeEra(e2); _pinOneShot = null; ov.remove(); _pinRenderBar();
-        showToast('Now shooting ' + _pinEraLabel(e2), 3000);
-      };
-      card.querySelector('#pin-ctx-cancel').onclick = function () { ov.remove(); };
     }
     draw();
     document.body.appendChild(ov);
@@ -692,11 +754,17 @@
         : '';
       var _crop = _selectMode ? ''
         : '<div onclick="event.stopPropagation();_pinTileCrop(\'' + g.key + '\')" title="Crop / Rotate" style="position:absolute;right:6px;bottom:26px;width:24px;height:24px;border-radius:7px;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.8rem;cursor:pointer">✂</div>';
+      // v0.9.1057: grouping had no undo. Photos could be put together and never
+      // taken apart, so one wrong tick was permanent. Only on stacks, only out
+      // of select mode.
+      var _ungroup = (_selectMode || g.files.length < 2) ? ''
+        : '<div onclick="event.stopPropagation();_pinConfirmUngroup(\'' + g.key + '\')" title="Split this group apart" style="position:absolute;left:6px;bottom:26px;width:24px;height:24px;border-radius:7px;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.9rem;cursor:pointer">⊟</div>';
       return '<div class="pin-tile" data-key="' + g.key + '" onclick="' + _tileClick + '(\'' + g.key + '\')" style="position:relative;border-radius:10px;overflow:hidden;cursor:pointer;background:var(--surface2,#26262e);aspect-ratio:1;border:3px solid ' + (isSel ? '#2980b9' : 'transparent') + '">' +
         '<img loading="lazy" data-fid="' + g.files[0].id + '" style="width:100%;height:100%;object-fit:cover;object-position:center;display:block" alt="">' +
         chip +
         _circle +
         _crop +
+        _ungroup +
         '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);color:#ddd;font-size:0.6rem;padding:0.1rem 0.35rem">' + when + '</div>' +
         '</div>';
     }).join('');
@@ -724,7 +792,7 @@
       loadDriveThumb(img.getAttribute('data-fid'), img, img.parentElement, null, 'hi');
     });
     _selInfo();
-    try { var _cb = document.getElementById('pin-context-bar'); if (_cb) { _cb.style.display = ''; _pinRenderBar(); } } catch (eB) {}   // v0.9.1048
+    try { _pinRenderBar(); } catch (eB) {}   // v0.9.1048; v0.9.1057 the bar decides its own visibility
     _navBadge(total);
     _updateIdAllBtn();
     // v0.9.961 (Brad): keep the "cropped" marker set trimmed to files still in
@@ -799,25 +867,114 @@
   };
 
   // Select all / Deselect all (only meaningful in select mode).
+  // v0.9.1057: acts on what is VISIBLE, not on everything. That is what makes
+  // the filter chips do the heavy lifting — narrow to "Not touched yet", Select
+  // all, Apply, and 43 photos are tagged in four taps. Selecting hidden photos
+  // would have been an invisible edit, which is the worst kind.
   window._pinSelectAll = function () {
-    var allSel = _groups.length && _groups.every(function (g) { return _sel[g.key]; });
+    var vis = _pinVisibleGroups();
+    var allSel = vis.length && vis.every(function (g) { return _sel[g.key]; });
     _sel = {};
-    if (!allSel) _groups.forEach(function (g) { _sel[g.key] = true; });
+    if (!allSel) vis.forEach(function (g) { _sel[g.key] = true; });
     _render();
   };
 
-  // Opt-in multi-select: circles + the Combine/Discard action bar stay hidden
-  // until the user turns this on, so the grid doesn't change shape unexpectedly.
-  window._pinToggleSelectMode = function () {
-    _selectMode = !_selectMode;
-    if (!_selectMode) _sel = {};   // leaving select mode clears the ticks
-    var b = document.getElementById('pin-selmode-btn');
-    if (b) {
-      b.style.background = _selectMode ? 'rgba(41,128,185,0.18)' : 'rgba(139,142,148,0.12)';
-      b.style.borderColor = _selectMode ? '#2980b9' : '#8b8e94';
-      b.textContent = _selectMode ? '✓ Done selecting' : '☑ Select multiple';
-    }
+  // Both named buttons run the SAME selection mechanic — circles on the tiles,
+  // Select all, a running count, Finished — and differ only in what Apply does.
+  // One thing to learn, two jobs.
+  window._pinStartMode = function (purpose) {
+    if (_selPurpose === purpose) return window._pinFinishMode();
+    _selPurpose = purpose;
+    _selectMode = true;
+    _sel = {};
+    if (purpose === 'tag' && !_tagEra) _tagEra = _sessionEra || '';
     _render();
+  };
+
+  window._pinFinishMode = function () {
+    _selPurpose = '';
+    _selectMode = false;
+    _sel = {};
+    _render();
+  };
+
+  // Kept so nothing that still calls the old name breaks.
+  window._pinToggleSelectMode = function () {
+    if (_selectMode) return window._pinFinishMode();
+    return window._pinStartMode('group');
+  };
+
+  // ── Tag mode: one era onto every ticked photo ───────────────────────────
+  function _pinRenderTagBar() {
+    var el = document.getElementById('pin-tagbar');
+    if (!el) return;
+    if (_selPurpose !== 'tag') { el.style.display = 'none'; return; }
+    var n = 0, changing = 0;
+    _selGroups().forEach(function (g) {
+      g.files.forEach(function (f) {
+        n++;
+        var m = _pinMetaOf(f);
+        if (m && m.era && m.era !== _tagEra) changing++;
+      });
+    });
+    el.style.cssText = 'display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.7rem;'
+      + 'padding:0.55rem 0.75rem;border-radius:10px;border:2px solid rgba(41,128,185,0.55);'
+      + 'background:rgba(41,128,185,0.08)';
+    var ready = !!_tagEra && n > 0;
+    el.innerHTML =
+      '<span style="font-size:0.68rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);font-weight:700">Tag as</span>'
+      + '<button onclick="_pinPickTagEra()" style="flex:1;min-width:150px;text-align:left;padding:0.45rem 0.7rem;border-radius:8px;'
+        + 'border:1.5px solid ' + (_tagEra ? '#2980b9' : 'var(--border)') + ';background:' + (_tagEra ? '#f7f0dc' : 'var(--bg)') + ';'
+        + 'color:' + (_tagEra ? '#2980b9' : 'var(--text-dim)') + ';font-family:var(--font-head);font-weight:700;font-size:0.9rem;cursor:pointer">'
+        + rrEsc(_pinEraLabel(_tagEra)) + ' \u25be</button>'
+      + '<button onclick="_pinApplyTags()"' + (ready ? '' : ' disabled')
+        + ' style="padding:0.5rem 1rem;border-radius:8px;border:none;min-height:44px;'
+        + 'background:' + (ready ? 'var(--accent)' : 'rgba(139,142,148,0.25)') + ';'
+        + 'color:' + (ready ? '#fff' : 'var(--text-dim)') + ';font-family:var(--font-body);font-weight:700;'
+        + 'font-size:0.85rem;cursor:' + (ready ? 'pointer' : 'default') + '">Apply'
+        + (n ? ' to ' + n : '') + '</button>'
+      + (changing
+          ? '<span style="font-size:0.74rem;color:#ffb454;font-weight:600;width:100%">'
+            + changing + ' of those already ' + (changing === 1 ? 'has' : 'have') + ' a different era and will be changed</span>'
+          : '');
+  }
+
+  window._pinPickTagEra = function () {
+    window._pinPickContext({
+      title: 'Tag these photos as\u2026',
+      blurb: 'This gets saved with each ticked photo, so the app knows which catalog to look in.',
+      okLabel: 'Use this',
+      onPick: function (era) { _tagEra = era; _pinRenderTagBar(); },
+    });
+  };
+
+  // Applies to every FILE in every ticked group — an engine and its tender are
+  // one item and must not end up with different makers.
+  window._pinApplyTags = async function () {
+    if (_busy) return;
+    if (!_tagEra) { showToast('Pick a manufacturer and line first', 2600, true); return; }
+    var ids = [];
+    _selGroups().forEach(function (g) { g.files.forEach(function (f) { ids.push(f.id); }); });
+    if (!ids.length) { showToast('Tick some photos first', 2400, true); return; }
+    _busy = true;
+    var label = _pinEraLabel(_tagEra);
+    _status('Tagging ' + ids.length + ' photo' + (ids.length > 1 ? 's' : '') + '\u2026');
+    var ok = 0;
+    try {
+      ok = await _pinMetaSetMany(ids, { era: _tagEra, stat: 'stamped' }, function (done) {
+        _status('Tagging ' + done + ' of ' + ids.length + '\u2026');
+      });
+    } catch (e) {
+      console.warn('[inbox] tagging failed', e && e.message);
+    }
+    _busy = false;
+    _status('');
+    // Say what actually happened. A partial write reported as a win is the bug
+    // this app has been burned by before.
+    if (ok === ids.length) showToast('Tagged ' + ok + ' photo' + (ok > 1 ? 's' : '') + ' as ' + label, 3200);
+    else showToast('Tagged ' + ok + ' of ' + ids.length + ' \u2014 the rest did not save, try again', 4200, true);
+    _sel = {};                 // clear the ticks, STAY in tag mode for the next batch
+    await window._pinRefresh();
   };
 
   function _selGroups() { return _groups.filter(function (g) { return _sel[g.key]; }); }
@@ -832,14 +989,29 @@
     var sa = document.getElementById('pin-selall-btn');
     if (sa) {
       sa.style.display = _selectMode ? '' : 'none';
-      var allSel = _groups.length && _groups.every(function (g) { return _sel[g.key]; });
+      var vis = _pinVisibleGroups();
+      var allSel = vis.length && vis.every(function (g) { return _sel[g.key]; });
       sa.textContent = allSel ? 'Deselect all' : 'Select all';
     }
-    if (ab) ab.style.display = gs.length > 1 ? '' : 'none';   // combine needs 2+
+    // v0.9.1057: which actions show depends on WHY you are selecting.
+    var isGroup = _selPurpose === 'group', isTag = _selPurpose === 'tag';
+    if (ab) ab.style.display = (isGroup && gs.length > 1) ? '' : 'none';   // combine needs 2+ items
     var gb = document.getElementById('pin-groupas-btn');
-    if (gb) gb.style.display = n > 1 ? '' : 'none';          // v0.9.1050: grouping needs 2+ photos
+    if (gb) gb.style.display = (isGroup && n > 1) ? '' : 'none';           // grouping needs 2+ photos
+    // Discard and Read stay available in both modes — you are already looking
+    // at photos with ticks on them, and binning the junk is the same gesture.
     if (db) db.style.display = n ? '' : 'none';
     if (ib) ib.style.display = n ? '' : 'none';
+    var fb = document.getElementById('pin-finish-btn');
+    if (fb) fb.style.display = _selectMode ? '' : 'none';
+    [['pin-group-btn', isGroup], ['pin-tag-btn', isTag]].forEach(function (p) {
+      var b = document.getElementById(p[0]);
+      if (!b) return;
+      b.style.background = p[1] ? 'rgba(41,128,185,0.18)' : 'rgba(139,142,148,0.12)';
+      b.style.borderColor = p[1] ? '#2980b9' : '#8b8e94';
+      b.style.display = (_selectMode && !p[1]) ? 'none' : '';
+    });
+    try { _pinRenderTagBar(); } catch (eT) {}
   }
 
   // ── Import ───────────────────────────────────────────────────
@@ -851,7 +1023,32 @@
   // ── Batch Add Photos: one door in, device-aware source picker ──
   // Desktop → From Your Drive (computer files) / From Google Photos.
   // Mobile  → Take with Phone (camera) / From Google Photos.
+  // v0.9.1057: Add photos now STARTS a shooting session — set maker/scale/line
+  // once, then every photo in the session inherits it. Skip is a first-class
+  // option: an unstamped photo is exactly as useful as every photo taken before
+  // today, so this must never be a wall.
   window._pinAddSource = function () {
+    if (!_pinSession) {
+      return window._pinPickContext({
+        title: 'What are you about to photograph?',
+        blurb: 'Set it once and every photo in this session is stamped with it. You can switch mid-session, and Done ends it.',
+        okLabel: 'Start shooting',
+        cancelLabel: 'Skip \u2014 just add photos',
+        onPick: function (era) {
+          _pinSession = true;
+          _pinSetHomeEra(era);
+          _pinOneShot = null;
+          _pinRenderBar();
+          showToast('Now shooting ' + _pinEraLabel(era), 2600);
+          _pinAddSourceSheet();
+        },
+        onCancel: function () { _pinAddSourceSheet(); },
+      });
+    }
+    return _pinAddSourceSheet();
+  };
+
+  function _pinAddSourceSheet() {
     var mobile = !!window.IS_MOBILE_UA;
     var ex = document.getElementById('pin-src-ov'); if (ex) ex.remove();
     var ov = document.createElement('div');
@@ -1139,7 +1336,77 @@
       '</div>';
   }
 
+  // ══ v0.9.1057 — move through the inbox without closing the card ══════════
+  // Brad: "need a next item arrow to the right and a previous item arrow to the
+  // left of this pop up. that way i can crop an image, hit next and move
+  // through the list quickly."
+  //
+  // Steps through the VISIBLE groups, so it follows whatever filter is on —
+  // filter to "Not touched yet" and next/prev walks only those. Stops at both
+  // ends rather than wrapping: on a hundred wall photos, silently looping back
+  // to the start would have you re-doing work without noticing.
+  function _pinRvOrder() { return _pinVisibleGroups(); }
+
+  function _pinRvIndex() {
+    if (!_rvKey) return -1;
+    var ord = _pinRvOrder();
+    for (var i = 0; i < ord.length; i++) if (ord[i].key === _rvKey) return i;
+    return -1;
+  }
+
+  function _pinRvNavHtml(dir) {
+    var i = _pinRvIndex();
+    if (i < 0) return '';                       // multi-select card: no sequence
+    var ord = _pinRvOrder();
+    var can = dir === 'prev' ? i > 0 : i < ord.length - 1;
+    var glyph = dir === 'prev' ? '\u2039' : '\u203a';
+    var title = dir === 'prev' ? 'Previous photo' : 'Next photo';
+    return '<button onclick="_pinReviewStep(' + (dir === 'prev' ? -1 : 1) + ')"'
+      + (can ? '' : ' disabled')
+      + ' title="' + title + '" aria-label="' + title + '"'
+      + ' style="width:40px;height:40px;min-width:40px;border-radius:9px;border:1.5px solid '
+      + (can ? 'var(--border)' : 'transparent') + ';background:'
+      + (can ? 'var(--surface2)' : 'transparent') + ';color:'
+      + (can ? 'var(--text)' : 'rgba(139,142,148,0.35)')
+      + ';font-size:1.5rem;line-height:1;cursor:' + (can ? 'pointer' : 'default')
+      + ';padding:0;flex-shrink:0">' + glyph + '</button>';
+  }
+
+  function _pinRvPosHtml() {
+    var i = _pinRvIndex();
+    if (i < 0) return '';
+    return '<span style="font-size:0.74rem;color:var(--text-dim);font-family:var(--font-body);white-space:nowrap">'
+      + (i + 1) + ' of ' + _pinRvOrder().length + '</span>';
+  }
+
+  window._pinReviewStep = function (delta) {
+    var i = _pinRvIndex();
+    if (i < 0) return;
+    var ord = _pinRvOrder();
+    var j = i + delta;
+    if (j < 0 || j >= ord.length) return;
+    window._pinReview(ord[j].key);
+  };
+
+  window._pinCloseReview = function () {
+    var ov = document.getElementById('pin-review-ov');
+    if (ov) ov.remove();
+  };
+
+  // Left/right arrow keys do the same thing on a desktop keyboard. Ignored
+  // while a text box has focus, so typing a number is never hijacked.
+  document.addEventListener('keydown', function (e) {
+    if (!document.getElementById('pin-review-ov')) return;
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    var t = e.target;
+    if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName || '')) return;
+    if (document.getElementById('pin-ctx-sheet') || window._rrCropOpen) return;
+    e.preventDefault();
+    window._pinReviewStep(e.key === 'ArrowLeft' ? -1 : 1);
+  });
+
   window._pinReview = function (key) {
+    _rvKey = key || '';          // v0.9.1057: which group the card is showing
     _rvGroups = key ? _groups.filter(function (g) { return g.key === key; }) : _selGroups();
     if (!_rvGroups.length) { showToast('Select photos first', 2500, true); return; }
     var n = 0; _rvGroups.forEach(function (g) { n += g.files.length; });
@@ -1277,9 +1544,12 @@
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
     ov.innerHTML =
       '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.1rem;max-width:' + (_wide ? '820px' : '460px') + ';width:100%;max-height:94vh;overflow-y:auto">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem">' +
-          '<div style="font-family:var(--font-head);font-weight:700;font-size:1rem;color:var(--text)">' + n + ' photo' + (n > 1 ? 's' : '') + ' · one item</div>' +
-          '<button onclick="document.getElementById(\'pin-review-ov\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.35rem;line-height:1;cursor:pointer;padding:0.1rem 0.3rem">✕</button>' +
+        '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem">' +
+          _pinRvNavHtml('prev') +
+          '<div style="flex:1;min-width:0;font-family:var(--font-head);font-weight:700;font-size:1rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + n + ' photo' + (n > 1 ? 's' : '') + ' · one item</div>' +
+          _pinRvPosHtml() +
+          _pinRvNavHtml('next') +
+          '<button onclick="_pinCloseReview()" style="background:none;border:none;color:var(--text-dim);font-size:1.35rem;line-height:1;cursor:pointer;padding:0.1rem 0.3rem;margin-left:0.25rem">✕</button>' +
         '</div>' +
         (_wide ? _wideBody : _stripHtml + _controlsHtml) +
       '</div>';
