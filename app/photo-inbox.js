@@ -1407,6 +1407,28 @@
     var live = document.getElementById('pin-rv-verify') || el;
     _pinVerifyShow(live, vr);
   }
+  // Swap which button looks like the thing to press. Nothing is disabled — Brad
+  // may know perfectly well that the catalog photo is of a different variation —
+  // but the default should not be the action the app has just argued against.
+  function _pinDemoteAdd(demote) {
+    try {
+      var add = document.getElementById('pin-rv-add');
+      var tok = document.getElementById('pin-rv-idtoken');
+      if (add) {
+        add.className = demote ? '' : 'btn-primary';
+        add.style.background = demote ? 'rgba(139,142,148,0.12)' : '';
+        add.style.color = demote ? 'var(--text-mid)' : '';
+        add.style.border = demote ? '1.5px solid #8b8e94' : 'none';
+        add.title = demote ? 'The catalog photo does not match — check the number first' : '';
+      }
+      if (tok) {
+        tok.style.background = demote ? 'var(--accent)' : 'rgba(212,168,67,0.14)';
+        tok.style.color = demote ? '#fff' : 'var(--accent2,#d4a843)';
+        tok.style.borderColor = demote ? 'var(--accent)' : 'var(--accent2)';
+      }
+    } catch (e) {}
+  }
+
   function _pinVerifyShow(el, vr) {
     var esc = function (s) { return String(s || '').replace(/</g, '&lt;'); };
     if (!vr || !vr.ok) {
@@ -1418,6 +1440,7 @@
       return;
     }
     if (vr.match === 'yes') {
+      _pinDemoteAdd(false);
       el.innerHTML = '<div style="font-size:0.84rem;color:#2ecc71;font-weight:700">✓ Your photo matches the catalog listing' +
         (vr.refItem ? ' <span style="font-weight:400;color:var(--text-dim)">(' + esc(vr.refItem) + ')</span>' : '') + '</div>';
     } else if (vr.match === 'no') {
@@ -1426,6 +1449,9 @@
         (vr.differences && vr.differences.toLowerCase() !== 'none' ? ' — ' + esc(vr.differences) : '') + '</div>' +
         (vr.refItem ? '<div style="font-size:0.76rem;color:var(--text-dim);margin-top:0.15rem">Catalog photo shows: ' + esc(vr.refItem) + '</div>' : '') +
         '<button onclick="_pinVerifyReident()" style="margin-top:0.4rem;padding:0.45rem 0.7rem;border-radius:8px;border:none;background:#f05008;color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.78rem;cursor:pointer">Re-identify with this clue</button>';
+      // The app has just said, in red, that this is the wrong item. Leaving Add
+      // as the orange default invites the tap that files it anyway.
+      _pinDemoteAdd(true);
     } else {
       el.innerHTML = '<div style="font-size:0.78rem;color:#d4a843">? Couldn\'t confirm against the catalog photo' +
         (vr.differences && vr.differences.toLowerCase() !== 'none' ? ' — ' + esc(vr.differences) : '') + '</div>';
@@ -1542,17 +1568,31 @@
     _rvGroups = key ? _groups.filter(function (g) { return g.key === key; }) : _selGroups();
     if (!_rvGroups.length) { showToast('Select photos first', 2500, true); return; }
     var n = 0; _rvGroups.forEach(function (g) { n += g.files.length; });
-    var sug = '';
+    // v0.9.1068 (Brad's 6817 flatcar). The free reader guessed "58", the catalog
+    // double-check said in red that the photo does NOT match a rotary snow plow
+    // — and the app still put 58 in the number box, resolved it into a full
+    // catalog panel, and left "Add to my Collection" as the orange default. One
+    // tap files an item he does not own. Three separate pieces of the screen
+    // were lending confidence to a guess the app had already contradicted.
+    //
+    // A number in an input field does not look like a guess. So only a
+    // CONFIRMED read pre-fills it now; a guess is offered as a chip to tap, and
+    // nothing is entered, looked up or ready to save until the user says so.
+    var sug = '', sugGuess = '';
     _rvAiMfr = '';
-    try { var s0 = _ids()[_rvGroups[0].files[0].id]; if (s0 && s0.num) sug = String(s0.num); if (s0 && s0.mfr) _rvAiMfr = String(s0.mfr); } catch (eS) {}
+    try {
+      var s0 = _ids()[_rvGroups[0].files[0].id];
+      if (s0 && s0.num) { if (s0.guess) sugGuess = String(s0.num); else sug = String(s0.num); }
+      if (s0 && s0.mfr) _rvAiMfr = String(s0.mfr);
+    } catch (eS) {}
     // v0.9.966 (Brad): the read found a description but no structured number
     // (e.g. "No. 260 … illuminated bumper" with an empty number field). Recover
     // the catalog number from that text — master-validated — so the box fills in.
     try {
-      if (!sug && s0) {
+      if (!sug && !sugGuess && s0) {
         var _recTxt = [s0.mfr, s0.road, s0.desc].filter(Boolean).join(' ');
         var _recNum = _numberFromText(_recTxt);
-        if (_recNum && _recNum.num) sug = String(_recNum.num);
+        if (_recNum && _recNum.num) sugGuess = String(_recNum.num);
       }
     } catch (eR) {}
     var nums = {};
@@ -1579,7 +1619,19 @@
     // the two columns sit side by side when there's room and stack when narrow.
     var _lbl = 'font-size:0.74rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em;margin:0 0 0.5rem';
     var _gBtn = 'padding:0.62rem 0.5rem;border-radius:9px;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer;line-height:1.2;';
+    // Offered, not entered. Tapping it fills the box and runs the lookup, which
+    // is the same thing pre-filling did — except the user chose it.
+    var _guessChip = sugGuess
+      ? '<div style="margin-bottom:0.55rem;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">'
+        + '<span style="font-size:0.76rem;color:var(--text-dim)">Best guess from the photo:</span>'
+        + '<button onclick="_pinPickNum(\'' + rrEsc(sugGuess).replace(/'/g, '') + '\')" '
+        + 'style="padding:0.4rem 0.8rem;border-radius:999px;border:1.5px solid #ffb454;background:rgba(255,180,84,0.12);'
+        + 'color:#ffb454;font-family:var(--font-mono);font-weight:700;font-size:0.86rem;min-height:38px;cursor:pointer">'
+        + rrEsc(sugGuess) + ' \u2014 use this</button>'
+        + '</div>'
+      : '';
     var _btnArea =
+      _guessChip +
       '<input id="pin-rv-num" list="pin-rv-list" type="text" value="' + sug.replace(/"/g, '&quot;') + '" placeholder="Item number — e.g. 2343 or 6464-1" autocomplete="off" spellcheck="false" oninput="_pinReviewLookup(this.value)" style="width:100%;box-sizing:border-box;padding:0.6rem 0.75rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:1rem;margin-bottom:0.55rem">' +
       '<datalist id="pin-rv-list">' + opts + '</datalist>' +
       _pinAltChips() +
@@ -1689,8 +1741,12 @@
     ov.querySelectorAll('img[data-rvfid]').forEach(function (img) {
       loadDriveThumb(img.getAttribute('data-rvfid'), img, img.parentElement, null, 'hi');
     });
+    try { _pinDemoteAdd(false); } catch (eD) {}
     var _rvMainImg = document.getElementById('pin-rv-main');
     if (_rvMainImg && window._pinRvLoadFull) window._pinRvLoadFull(_rvMainImg, _rvMainImg.getAttribute('data-rvbig'));
+    // Only look up what is actually in the box. A guess left as a chip must not
+    // silently produce a Maker / Item # / Description panel — that panel is what
+    // made "58" read as a finding rather than a hunch.
     _pinReviewLookup(sug);
   };
 
@@ -1714,6 +1770,11 @@
       '<div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;color:' + col + ';margin-bottom:0.25rem">' + lbl.replace(/:$/, '') + '</div>' +
       '<div style="font-size:0.98rem;color:var(--text);line-height:1.4"><span style="font-weight:600">' + (bits ? esc(bits) : 'number only') + '</span>' + (s.num ? ' — No. ' + esc(s.num) : '') + '</div>' +
       '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.25rem">' + tail.replace(/^ · /, '') + '</div>' +
+      (s.raw
+        ? '<details style="margin-top:0.3rem"><summary style="font-size:0.7rem;color:var(--text-dim);cursor:pointer">Where did this come from?</summary>'
+          + '<div style="font-size:0.7rem;color:var(--text-dim);font-family:var(--font-mono);margin-top:0.25rem;line-height:1.4;word-break:break-word">'
+          + 'The reader saw: \u201c' + rrEsc(s.raw) + '\u201d</div></details>'
+        : '') +
       '</div>';
   }
 
@@ -2554,7 +2615,12 @@
     var text = '';
     try { var res = await w.recognize(canvas); text = (res && res.data && res.data.text) || ''; }
     catch (e) { return null; }
-    return _numberFromText(text, prefer);
+    var out = _numberFromText(text, prefer);
+    // v0.9.1068 (Brad: "where does 120 come from?"). A number appears with no
+    // way to tell whether the reader saw it on the item, on the shelf behind it,
+    // or invented it from a shadow. Keep the words it actually read.
+    if (out) out.raw = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 180);
+    return out;
   }
 
   // The era stamped on a photo, in the shape findMaster's `prefer` wants.
@@ -2605,7 +2671,7 @@
       var blob = await _pinBytes(fid);
       var r = await _freeReadBlob(blob, 2400, _preferForFid(fid));   // higher-res second attempt
       var m = _ids();
-      if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1 }; _idsSave(m); }
+      if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1, raw: r.raw || '' }; _idsSave(m); }
       else { var f2 = _freeTried(); f2[fid] = 1; _freeTriedSave(f2); }
       try { _render(); } catch (e4) {}
       window._pinReview(key);
@@ -2637,7 +2703,7 @@
         var fid = _pinReadFid(todo[i]), r = null;
         try { r = await _freeReadOne(fid); } catch (e) {}
         if (r && r.num) {
-          var m = _ids(); m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1 };
+          var m = _ids(); m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1, raw: r.raw || '' };
           _idsSave(m);
         } else {
           var f = _freeTried(); f[fid] = 1; _freeTriedSave(f);
@@ -2756,7 +2822,7 @@
         try { _render(); } catch (eC) {}
         _freeReadBlob(blob, 1600, _preferForFid(fid)).then(function (r) {
           var m = _ids();
-          if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1 }; _idsSave(m); }
+          if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1, raw: r.raw || '' }; _idsSave(m); }
           else { var f2 = _freeTried(); f2[fid] = 1; _freeTriedSave(f2); }
           try { _render(); } catch (e2) {}
         }).catch(function () {});
