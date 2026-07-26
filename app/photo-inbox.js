@@ -2510,13 +2510,25 @@
     // is frequently the crispest printed thing in the photo. A real catalog
     // number never looks like this — dashed Lionel numbers are 6464-475 or
     // 2333-20, three or four digits before the dash, never one or two.
-    var isBuildDate = function (c) { return /^\d{1,2}-\d{1,2}$/.test(c); };
+    // v0.9.1069 — widened. "10-2210" slipped through a rule that only looked
+    // for one or two digits AFTER the dash. Real dashed Lionel numbers are
+    // 6464-475 or 2333-20: three or four digits BEFORE it, always.
+    var isBuildDate = function (c) { return /^\d{1,2}-\d+$/.test(c); };
+    // CAPACITY AND LOAD LIMIT. The audit confirmed "40200" on five different
+    // cars, plus 48200 and 25000. Those are the CAPY / LD LMT stamps printed on
+    // the side of every freight car — genuinely on the item, genuinely in some
+    // catalog somewhere, and never what the user is looking at. Same shape as
+    // the build-date problem, different costume.
+    var reCap = /(?:CAPY|CAP'?Y|LD\s*LMT|LDLMT|LT\s*WT|LTWT|WT\s*LMT|CAPACITY)[^0-9]{0,10}(\d{3,7})/g;
+    var capStamp = {};
+    while ((m = reCap.exec(UP))) { capStamp[m[1]] = 1; }
     var toks = (UP.match(/\d[\dA-Z]*(?:-[\dA-Z]+)*/g) || [])
       .map(function (c) { return c.replace(/^-+|-+$/g, ''); })
       .filter(function (c) {
         if (!/\d/.test(c) || c.length < 2 || c.length > 10) return false;
         if (banned[c]) return false;                            // copyright year, not a catalog number
         if (isBuildDate(c)) return false;                       // "BLT 5-54" — a date, not an item
+        if (capStamp[c.replace(/\D/g, '')]) return false;        // "CAPY 40200" — a weight, not an item
         var digits = c.replace(/\D/g, '');
         var alnum = c.replace(/[^0-9A-Za-z]/g, '');
         if (digits.length < alnum.length * 0.6) return false;   // mostly letters = junk (e.g. "4LIONEL", "MADE")
@@ -2525,9 +2537,24 @@
       });
     var seen = {}, uniq = [];
     toks.forEach(function (c) { if (!seen[c]) { seen[c] = 1; uniq.push(c); } });
-    var fm = (typeof findMaster === 'function')
+    // v0.9.1069 — THE ERA IS NOW A FILTER, not a tiebreak. Brad's idea, taken
+    // one step on. Until now a token counted as confirmed if it existed in ANY
+    // catalog, which is how a capacity stamp on a Lionel Postwar car "confirmed"
+    // against something in another maker's list. If the photo says which catalog
+    // it belongs to, a number that is not in THAT catalog is not a confirmation.
+    //
+    // The real prize is not the rejection — it is what happens next. A rejected
+    // token falls through and the NEXT candidate in the same text gets its turn,
+    // which is often the number actually printed on the item. It turns a wrong
+    // answer into a right one rather than into a blank.
+    var fmAny = (typeof findMaster === 'function')
       ? function (c) { return findMaster(c, null, prefer || null); }
       : null;
+    var inEra = function (row) {
+      if (!prefer || !prefer.era) return true;      // nothing stamped — old behaviour
+      return !!(row && row._era === prefer.era);
+    };
+    var fm = fmAny ? function (c) { var r = fmAny(c); return (r && inEra(r)) ? r : null; } : null;
     // v0.9.1065 — short tokens are a LEAD, never a fact. Catalog backing is
     // too weak a filter for them on its own: the audit turned stray markings
     // into 13, 20, 25, 40, 50, 53 and 77, and Lionel has real items at every
@@ -2542,9 +2569,16 @@
     var dashRank = function (a, b) {
       return (b.indexOf('-') >= 0 ? 1 : 0) - (a.indexOf('-') >= 0 ? 1 : 0) || b.length - a.length;
     };
-    // 1) numbers the master confirms win — prefer the most specific (dashed/longer)
+    // 1) numbers the stamped catalog confirms win — most specific first
     var matched = uniq.filter(function (c) { return fm && (fm(c) || fm(c.replace(/^\d-/, ''))); });
     if (matched.length) { matched.sort(dashRank); return { num: matched[0], matched: true }; }
+    // 1a) Nothing in the stamped catalog. Before giving up, look in every
+    // catalog — but a hit there is a LEAD, not a confirmation, because the whole
+    // reason we are here is that the photo says it belongs somewhere else. This
+    // also protects against the stamped era's data simply not being loaded.
+    var loose = fmAny
+      ? uniq.filter(function (c) { return fmAny(c) || fmAny(c.replace(/^\d-/, '')); })
+      : [];
     // 1b) v0.9.1065 — DASH REPAIR. The audit produced "6464475" twice and the
     // catalog rejected both, because the real number is 6464-475: OCR drops a
     // dash far more often than it invents a digit. Try putting one back at each
@@ -2566,6 +2600,7 @@
       if (repaired) return { num: repaired, matched: true };
     }
     // 2) nothing confirmed — offer the best catalog-shaped token as a hedge
+    if (loose.length) { loose.sort(dashRank); return { num: loose[0], matched: false, offEra: true }; }
     uniq.sort(dashRank);
     if (uniq.length) return { num: uniq[0], matched: false };
     // 3) last resort: a catalog-backed short number, always as a guess
@@ -2607,15 +2642,57 @@
     return null;
   }
 
+  // ══ v0.9.1069 — best of several passes ═══════════════════════════════════
+  // The audit settled this. No single setting wins: tiling alone found Brad's
+  // 6817, 6801, 2410 and 6828, and missed his Fort Knox 6445 — which INVERTED
+  // caught. Counting rows where any setting confirmed a number gives 45 of 73
+  // against the best single column's 40. Reading once and accepting the answer
+  // was leaving a fifth of the inbox on the floor.
+  //
+  // So: try the strongest first and stop the moment the stamped catalog
+  // confirms a number. Most photos still cost one pass; only the awkward ones
+  // pay for the rest.
+  //
+  //   1  TILED   — the number is usually the SMALLEST text on the item, dwarfed
+  //                by the road name. Reading each third blown up is what makes
+  //                it legible, and it beat every other setting by a wide margin.
+  //   2  INVERTED— light lettering on a dark body. Tesseract expects the
+  //                opposite, and half of Lionel's rolling stock is the wrong way
+  //                round for it.
+  //   3  DIGITS  — no letters at all, so it cannot offer O for 0 or S for 5.
+  var _FREE_PASSES = [
+    { mode: 'sharp',  tiles: 3, wl: 'full'   },
+    { mode: 'invert', tiles: 0, wl: 'full'   },
+    { mode: 'sharp',  tiles: 0, wl: 'digits' },
+  ];
+  var _WL_FULL = '0123456789-ABCDEFGHIJKLMNOPQRSTUVWXYZ ';
+  var _WL_DIGITS = '0123456789-';
+
   async function _freeReadBlob(blob, maxDim, prefer) {
     var bc = await _readBarcode(blob);
     if (bc) return bc;
     var w = await _tessGet(); if (!w) return null;
-    var canvas = await _scaledCanvas(blob, maxDim || 1600);
-    var text = '';
-    try { var res = await w.recognize(canvas); text = (res && res.data && res.data.text) || ''; }
-    catch (e) { return null; }
-    var out = _numberFromText(text, prefer);
+    var bmp = null;
+    try { bmp = await createImageBitmap(blob); } catch (eB) { return null; }
+    var dim = maxDim || 2400;
+    var best = null, text = '';
+    for (var pi = 0; pi < _FREE_PASSES.length; pi++) {
+      var p = _FREE_PASSES[pi];
+      var t = '';
+      try {
+        await w.setParameters({ tessedit_char_whitelist: p.wl === 'digits' ? _WL_DIGITS : _WL_FULL });
+        t = (((await w.recognize(_auditCanvas(bmp, dim, p.mode))).data) || {}).text || '';
+        for (var ti = 0; ti < (p.tiles || 0); ti++) {
+          t += '\n' + ((((await w.recognize(_auditTile(bmp, dim, p.mode, ti, p.tiles))).data) || {}).text || '');
+        }
+      } catch (eP) { continue; }
+      var r = _numberFromText(t, prefer);
+      if (r && (!best || (r.matched && !best.matched))) { best = r; text = t; }
+      if (best && best.matched) break;                 // the stamped catalog agrees — done
+    }
+    try { await w.setParameters({ tessedit_char_whitelist: _WL_FULL }); } catch (eR) {}
+    try { if (bmp.close) bmp.close(); } catch (eC) {}
+    var out = best;
     // v0.9.1068 (Brad: "where does 120 come from?"). A number appears with no
     // way to tell whether the reader saw it on the item, on the shelf behind it,
     // or invented it from a shadow. Keep the words it actually read.
