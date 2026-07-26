@@ -881,7 +881,15 @@
     var ids = _ids();
     var n = _groups.filter(function (g) { return !ids[_pinReadFid(g)]; }).length;
     if (n > 0 && !_selectMode) {
-      b.textContent = '🔍 Read ' + n + ' (' + n + ' token' + (n === 1 ? '' : 's') + ')';
+      // v0.9.1075 (Brad: "i am running the free re reader and my tokens are
+      // going down every time on the other button"). They are not — nothing on
+      // the free path touches a token, and there is a test that fails if that
+      // ever changes. This number is how many photos are STILL UNREAD, and it
+      // falls because the free reader is succeeding on them. "Read 44 (44
+      // tokens)" reads like a balance, so watching it drop after a free run
+      // looks exactly like being charged for it. Say which number it is.
+      b.textContent = '🔍 Read the ' + n + ' still unread \u00b7 costs ' + n + ' token' + (n === 1 ? '' : 's');
+      b.title = n + ' photo' + (n === 1 ? '' : 's') + ' the free reader could not place. This is what it would COST, not what you have left.';
       b.style.display = '';
     } else {
       b.style.display = 'none';
@@ -3447,7 +3455,9 @@
     var msg = 'The free reader already tried every photo. <b>' + n + '</b> item' + (n === 1 ? '' : 's') +
       ' couldn\'t be matched for free. Read ' + (n === 1 ? 'it' : 'them') +
       ' now? This uses ' + n + ' of your token' + (n === 1 ? '' : 's') + ' (1 per item).';
-    var go = await _pinConfirm(msg, '🔍 Read ' + n + ' (' + n + ' token' + (n === 1 ? '' : 's') + ')');
+    // The message above already states the cost; repeating "(44 tokens)" on the
+    // button is the same ambiguity as the toolbar had — it reads like a balance.
+    var go = await _pinConfirm(msg, '🔍 Read ' + n + ' item' + (n === 1 ? '' : 's'));
     if (!go) return;
     return _pinIdentifyRun(todo, ids);
   };
