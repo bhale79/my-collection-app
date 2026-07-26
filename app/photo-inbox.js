@@ -669,7 +669,7 @@
   // now carry the version of the reader that produced them, and the automatic
   // pass retries anything read by an older one. Bump this whenever the reading
   // logic changes; it costs nothing but time, and only on photos that failed.
-  var READER_VER = '1088';
+  var READER_VER = '1089';
 
   function _pinMetaOf(file) {
     var ap = (file && file.appProperties) || {};
@@ -1309,6 +1309,16 @@
       // Then what the PHOTO says it is. An exact era beats a maker match, which
       // beats load order — and load order is what this used to be.
       if (prefer && (prefer.era || prefer.manufacturer)) {
+        // v0.9.1089: an in-era row that QUOTES this number beats an off-era row
+        // that carries it — typing 6817 on a Modern-tagged card should land on
+        // the Modern reissue, because the tag settles it.
+        try {
+          var hasExact = bucket.some(function (r) { return prefer.era && r._era === prefer.era; });
+          if (prefer.era && !hasExact) {
+            var qm3 = _pinQuoteMatch(String(num).trim(), prefer);
+            if (qm3 && qm3.row) return qm3.row;
+          }
+        } catch (eQ) {}
         var exact = null, byMaker = null;
         for (var j = 0; j < bucket.length; j++) {
           var row = bucket[j];
@@ -1840,6 +1850,8 @@
             + (dbg.viaDesc ? '<br>Matched on the words: ' + rrEsc(dbg.viaDesc) : '')
             + (dbg.corroborated ? '<br>Number and lettering agree: ' + rrEsc(dbg.corroborated) : '')
             + (dbg.oneOff ? '<br>One digit corrected: ' + rrEsc(dbg.oneOff) : '')
+            + (dbg.quoted ? '<br>The tag settled it: ' + rrEsc(dbg.quoted)
+                + ' \u2014 this catalog\u2019s row quotes the number on the car' : '')
             + ((dbg.shortDropped && dbg.shortDropped.length)
                 ? '<br>Too short to trust on their own: ' + rrEsc(dbg.shortDropped.join(', ')) : '')
             + (dbg.viaMaker ? '<br>Chosen because it is stamped next to the maker\'s name: ' + rrEsc(dbg.viaMaker) : '')
@@ -3030,6 +3042,19 @@
       });
       if (repaired) { dbg.repaired = repaired; return { num: repaired, matched: true, dbg: dbg }; }
     }
+    // 1c) v0.9.1089 — an off-era number may be THIS era's reissue. A Modern-
+    // stamped photo reading "6817" resolves to the Modern row whose description
+    // quotes 6817. The tag settles it; an ambiguous quote does not.
+    if (loose.length && typeof _pinQuoteMatch === 'function') {
+      loose.sort(dashRank);
+      for (var qi = 0; qi < loose.length; qi++) {
+        var qm = _pinQuoteMatch(loose[qi], prefer);
+        if (qm && qm.row && qm.row.itemNum) {
+          dbg.quoted = qm.quoted + ' \u2192 ' + qm.row.itemNum;
+          return { num: String(qm.row.itemNum), matched: true, viaQuote: qm.quoted, dbg: dbg };
+        }
+      }
+    }
     // 2) nothing confirmed — offer the best catalog-shaped token as a hedge
     if (loose.length) { loose.sort(dashRank); return { num: loose[0], matched: false, offEra: true, dbg: dbg }; }
     uniq.sort(dashRank);
@@ -3110,6 +3135,58 @@
   // catalog rows tells you nothing), it requires a clear winner rather than a
   // narrow one, and it never claims to be certain — it hands back a candidate
   // with the item named, so a glance confirms or kills it.
+  // ══ v0.9.1089 — the tag settles it (Brad's rule, verbatim) ═══════════════
+  // His 6817 scraper car carries the PW roundel: it is the modern Celebration
+  // Series remake, correctly tagged Modern. The number painted on it — 6817 —
+  // is the POSTWAR number, so a perfect read is off-era for its own photo.
+  // Brad: "the fallback could be to say its a modern 6817 or its a postwar
+  // 6817 and let the user pick. but if its already tagged modern, then that
+  // should settle it."
+  //
+  // The catalog already contains the bridge: Lionel's reissue rows quote the
+  // original number in their own descriptions — 6-39457 reads Postwar "6175"
+  // Flatcar with rocket. So: index every number QUOTED in an era's
+  // descriptions, and when a read lands on a number that is off-era for the
+  // stamped photo, the row in the stamped catalog that quotes it is the
+  // answer. Only an unambiguous quote settles it — two candidate rows means
+  // the user picks, same as before.
+  var _quoteIdx = null, _quoteIdxKey = '', _quoteIdxMap = null;
+  function _quoteIndexFor(era) {
+    var srcMap = null;
+    try { srcMap = (window.state && state.masterByItem) || null; } catch (e0) {}
+    if (!srcMap || !srcMap.forEach || !era) return null;
+    if (_quoteIdx && _quoteIdxKey === era && _quoteIdxMap === srcMap) return _quoteIdx;
+    var idx = {};
+    try {
+      srcMap.forEach(function (rows) {
+        (rows || []).forEach(function (row) {
+          if (!row || row._era !== era) return;
+          var toks = String(row.description || '').match(/\d[\dA-Za-z]*(?:-[\dA-Za-z]+)*/g) || [];
+          var seen = {};
+          toks.forEach(function (t) {
+            t = t.replace(/^-+|-+$/g, '');
+            if (t.length < 3 || t.length > 8) return;
+            if (/^(?:19|20)\d{2}$/.test(t)) return;          // a year, not a number
+            if (t === String(row.itemNum)) return;            // its own number
+            if (seen[t]) return;
+            seen[t] = 1;
+            (idx[t] || (idx[t] = [])).push(row);
+          });
+        });
+      });
+    } catch (e) { return null; }
+    _quoteIdx = idx; _quoteIdxKey = era; _quoteIdxMap = srcMap;
+    return idx;
+  }
+  function _pinQuoteMatch(num, prefer) {
+    if (!num || !prefer || !prefer.era) return null;
+    var idx = _quoteIndexFor(prefer.era);
+    if (!idx) return null;
+    var rows = idx[String(num).trim()];
+    if (!rows || rows.length !== 1) return null;   // ambiguous = the user picks
+    return { row: rows[0], quoted: String(num).trim() };
+  }
+
   var _descIdx = null, _descIdxKey = '', _descIdxMap = null;
 
   // Words that appear on half the catalog and identify nothing.
@@ -3429,6 +3506,20 @@
       var base = c.split('-')[0];
       if (base && base !== c && base.length >= 3 && inEra(base)) {
         out.swappedFrom = out.num; out.num = c; return out;
+      }
+    }
+    // v0.9.1089: nothing in the stamped catalog directly — but one of the
+    // numbers may be quoted by a stamped-era row (the reissue naming its
+    // original). The tag settles it.
+    if (typeof _pinQuoteMatch === 'function') {
+      var qcands = [out.num].concat(pool);
+      for (var q = 0; q < qcands.length; q++) {
+        var qm2 = qcands[q] && _pinQuoteMatch(qcands[q], prefer);
+        if (qm2 && qm2.row && qm2.row.itemNum && String(qm2.row.itemNum) !== out.num) {
+          out.swappedFrom = out.num; out.num = String(qm2.row.itemNum);
+          out.viaQuote = qm2.quoted;
+          return out;
+        }
       }
     }
     return out;
