@@ -185,8 +185,34 @@
     guess: 'Best guess only', noread: 'Could not read', filed: 'Filed',
   };
 
+  // ══ v0.9.1061 — never read the "everything together" shot ═══════════════
+  // Brad: "on grouped items, it doesn't need to read the set picture or the
+  // engine+tender picture or the aa, ab, aba picture, just the individual
+  // items."
+  //
+  // Right, and it is worse than wasted effort. A photo of three locomotives
+  // side by side has three numbers in it; the reader picks one and attaches it
+  // to the group, so a shot taken to show the set as a whole actively produces
+  // a wrong answer. The individual shots are the ones with exactly one number.
+  //
+  // 'together' is a real role in the kind table (Both together / All three
+  // together / The whole set), so this is simply "skip that role".
+  function _pinReadFiles(g) {
+    if (!g || !g.files || !g.files.length) return [];
+    var body = g.files.filter(function (f) {
+      var m = (f && f._meta) || {};
+      return m.role !== 'together';
+    });
+    // A group of nothing BUT together shots still deserves an attempt rather
+    // than becoming unreadable — fall back to everything.
+    return body.length ? body : g.files.slice();
+  }
+  // The one photo that represents this group for reading purposes.
+  function _pinReadFile(g) { return _pinReadFiles(g)[0] || (g && g.files && g.files[0]) || null; }
+  function _pinReadFid(g) { var f = _pinReadFile(g); return f ? f.id : ''; }
+
   function _pinGroupPasses(g) {
-    var f = g.files[0], m = (f && f._meta) || {};
+    var f = _pinReadFile(g) || g.files[0], m = (f && f._meta) || {};
     if (_pinFilter.status && _pinStatusOf(f) !== _pinFilter.status) return false;
     if (_pinFilter.era && m.era !== _pinFilter.era) return false;
     if (_pinFilter.kind && (m.kind || 'single') !== _pinFilter.kind) return false;
@@ -202,7 +228,7 @@
   function _pinCounts() {
     var st = {}, era = {}, kind = {};
     _groups.forEach(function (g) {
-      var f = g.files[0], m = (f && f._meta) || {};
+      var f = _pinReadFile(g) || g.files[0], m = (f && f._meta) || {};
       var s2 = _pinStatusOf(f); st[s2] = (st[s2] || 0) + 1;
       if (m.era) era[m.era] = (era[m.era] || 0) + 1;
       var k = m.kind || 'single'; kind[k] = (kind[k] || 0) + 1;
@@ -756,7 +782,7 @@
       var when = '';
       try { when = new Date(g.files[0].createdTime).toLocaleDateString(); } catch (e) {}
       // v0.9.886: AI suggestion (from Identify all) shows on the tile bar
-      var sug = _ids()[g.files[0].id];
+      var sug = _ids()[_pinReadFid(g)];
       var _altN = '';   // v0.9.902 (Brad): candidates but no confident number = still a lead, not "no read"
       if (sug && !sug.num && Array.isArray(sug.alts) && sug.alts.length) {
         var _a0 = String(sug.alts[0]); var _mm = _a0.match(/[0-9][0-9A-Za-z.\-\/]*/); _altN = _mm ? _mm[0] : _a0.slice(0, 12);
@@ -851,7 +877,7 @@
     var b = document.getElementById('pin-idall-btn');
     if (!b) return;
     var ids = _ids();
-    var n = _groups.filter(function (g) { return !ids[g.files[0].id]; }).length;
+    var n = _groups.filter(function (g) { return !ids[_pinReadFid(g)]; }).length;
     if (n > 0 && !_selectMode) {
       b.textContent = '🔍 Read ' + n + ' (' + n + ' token' + (n === 1 ? '' : 's') + ')';
       b.style.display = '';
@@ -1377,7 +1403,7 @@
     _vfNote[g.key] = 'The number ' + num + ' was proposed, but the catalog reference photo for that number shows a DIFFERENT product' +
       (vr && vr.differences ? ' (' + vr.differences + ')' : '') + '.';
     var ids = _ids();
-    delete ids[g.files[0].id];
+    delete ids[_pinReadFid(g)];
     _idsSave(ids);
     var ov = document.getElementById('pin-review-ov'); if (ov) ov.remove();
     await _pinIdentifyRun([g], ids);
@@ -2438,14 +2464,14 @@
   async function _pinAutoRead() {
     if (_autoReadBusy || !_groups.length) return;
     var ids = _ids(), ft = _freeTried();
-    var todo = _groups.filter(function (g) { var fid = g.files[0].id; return !ids[fid] && !ft[fid]; });
+    var todo = _groups.filter(function (g) { var fid = _pinReadFid(g); return fid && !ids[fid] && !ft[fid]; });
     if (!todo.length) return;
     _autoReadBusy = true; _autoReadAbort = false;
     if (!(await _tessGet())) { _autoReadBusy = false; return; }   // OCR unavailable → leave for paid identify
     try {
       for (var i = 0; i < todo.length && !_autoReadAbort; i++) {
         _status('Reading photos… ' + (i + 1) + ' of ' + todo.length);
-        var fid = todo[i].files[0].id, r = null;
+        var fid = _pinReadFid(todo[i]), r = null;
         try { r = await _freeReadOne(fid); } catch (e) {}
         if (r && r.num) {
           var m = _ids(); m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1 };
@@ -2584,7 +2610,11 @@
   // read off a neighbouring item on the shelf.)
   function _pinCroppedGroups() {
     var c = _cropped();
-    return _groups.filter(function (g) { return g.files.some(function (f) { return c[f.id]; }); });
+    // Only groups whose READABLE photo was cropped — re-reading because someone
+    // cropped the set shot would spend effort on the photo we skip anyway.
+    return _groups.filter(function (g) {
+      return _pinReadFiles(g).some(function (f) { return c[f.id]; });
+    });
   }
 
   function _updateRecropBtn() {
@@ -2615,7 +2645,7 @@
     var found = 0, done = 0, failed = 0;
     for (var i = 0; i < gs.length; i++) {
       if (_idAbort) break;
-      var fid = gs[i].files[0].id;
+      var fid = _pinReadFid(gs[i]);
       _status('Re-reading ' + (i + 1) + ' of ' + gs.length + '\u2026 ' + found + ' number' + (found === 1 ? '' : 's') + ' so far');
       try {
         // Forget the previous read so a number lifted from the UNCROPPED photo
@@ -2650,7 +2680,7 @@
     if (!_qcToken()) { showToast('Please sign in first', 3000, true); return; }
     if (typeof aiIdentifyImage !== 'function') { showToast('Identify service not loaded — refresh and try again', 3000, true); return; }
     var ids = _ids();
-    var todo = _groups.filter(function (g) { return !ids[g.files[0].id]; });
+    var todo = _groups.filter(function (g) { return !ids[_pinReadFid(g)]; });
     if (!todo.length) { showToast(_groups.length ? 'Every item already has a suggestion — tick photos and use Identify to re-run any of them' : 'Inbox is empty', 3500); return; }
     // v0.9.956 (Brad): free auto-read already tried these — this button only
     // targets the leftovers it couldn't place. Show the exact count and make
@@ -2674,7 +2704,7 @@
     var gs = _selGroups();
     if (!gs.length) { showToast('Tick the corner circle on the photos you want identified first', 3000, true); return; }
     var ids = _ids();
-    gs.forEach(function (g) { delete ids[g.files[0].id]; });   // clear old suggestions = force fresh reads
+    gs.forEach(function (g) { delete ids[_pinReadFid(g)]; });   // clear old suggestions = force fresh reads
     _idsSave(ids);
     return _pinIdentifyRun(gs, ids);
   };
@@ -2694,13 +2724,16 @@
             '… keep this tab open — go get that coffee. ' +
             '<button onclick="_pinIdentifyCancel()" style="border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);border-radius:6px;font-size:0.72rem;padding:0.15rem 0.5rem;cursor:pointer;font-family:var(--font-body)">Stop</button>';
         }
-        var g = todo[i], fid0 = g.files[0].id;
+        var g = todo[i], fid0 = _pinReadFid(g);
         try {
           // v0.9.896: Identify v2 — send EVERY photo of the group (cap 4)
           // in ONE call; more angles = better reads. aiIdentifyImage2 falls
           // back to v1 by itself on any v2 hiccup, so this can never be
           // worse than the old first-photo-only identify.
-          var _fl = g.files.slice(0, 4), blobs = [];
+          // v0.9.1061: except the "together" shot. More angles help only while
+          // every angle shows the SAME item; a set photo shows several, and
+          // sending it invites the reader to answer with a neighbour's number.
+          var _fl = _pinReadFiles(g).slice(0, 4), blobs = [];
           for (var _b = 0; _b < _fl.length; _b++) {
             try { blobs.push(await _pinBytes(_fl[_b].id)); }
             catch (eB) { console.warn('[Inbox] photo download failed, skipping one:', eB && eB.message); }
