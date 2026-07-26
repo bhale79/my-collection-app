@@ -84,6 +84,7 @@
         '<span id="pin-selinfo" style="font-size:0.78rem;color:var(--text-dim)"></span>' +
         '<button id="pin-idsel-btn" onclick="_pinIdentifySelected()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Identify</button>' +
         '<button id="pin-assign-btn" onclick="_pinReview(null)" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Combine → one item…</button>' +
+        '<button id="pin-groupas-btn" onclick="_pinGroupAs()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Group as\u2026</button>' +
         '<button id="pin-discard-btn" onclick="_pinDiscard()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Discard</button>' +
       '</div>' +
       '<div id="pin-status" style="display:none;font-size:0.8rem;color:var(--text-dim);margin-bottom:0.6rem"></div>' +
@@ -137,6 +138,136 @@
   };
 
   // ── List + render ────────────────────────────────────────────
+  // ══ v0.9.1050 — group kinds and roles ════════════════════════════════════
+  // Photos already stack into groups (the g<id> tag). What a stack could not
+  // say is WHAT it is — and that matters, because an ABA is not one item with
+  // three photos, it is three inventory rows that share a group, and each unit
+  // needs its role so it saves as -P, C or -D. Brad's flow is: shoot the
+  // powered A, the B, the dummy A, then a fourth shot of the three together.
+  //
+  // Roles are per kind, and 'together' exists for that last shot — the one
+  // that becomes the group's cover photo rather than an item of its own.
+  var _PIN_KINDS = [
+    { id:'single', label:'One item',            roles:[] },
+    { id:'tender', label:'Engine + tender',     roles:[['engine','Engine'],['tender','Tender'],['together','Both together']] },
+    { id:'aa',     label:'AA — two A units',    roles:[['p','A unit, powered'],['d','A unit, dummy'],['together','Both together']] },
+    { id:'ab',     label:'AB — A and B',        roles:[['p','A unit, powered'],['b','B unit'],['together','Both together']] },
+    { id:'aba',    label:'ABA — A, B, A',       roles:[['p','A unit, powered'],['b','B unit'],['d','A unit, dummy'],['together','All three together']] },
+    { id:'set',    label:'Set',                 roles:[['member','A piece of the set'],['together','The whole set']] },
+    { id:'box',    label:'Item + its box',      roles:[['item','The item'],['box','The box']] },
+  ];
+  function _pinKind(id) {
+    for (var i = 0; i < _PIN_KINDS.length; i++) if (_PIN_KINDS[i].id === id) return _PIN_KINDS[i];
+    return _PIN_KINDS[0];
+  }
+  function _pinKindLabel(id) { return _pinKind(id).label; }
+  function _pinRoleLabel(kindId, roleId) {
+    var rs = _pinKind(kindId).roles;
+    for (var i = 0; i < rs.length; i++) if (rs[i][0] === roleId) return rs[i][1];
+    return '';
+  }
+  // Sensible first guess: the order the photos were taken is usually the order
+  // Brad shot them in — powered, B, dummy, together.
+  function _pinDefaultRoles(kindId, n) {
+    var rs = _pinKind(kindId).roles, out = [];
+    if (!rs.length) return out;
+    // 'together' is only a real possibility for kinds that HAVE one, and only
+    // when there are more photos than units. A six-piece set shot one piece at
+    // a time is six members and no group shot — guessing otherwise would
+    // mislabel the last one every time.
+    var hasTogether = rs.some(function (r) { return r[0] === 'together'; });
+    var body = hasTogether ? rs.slice(0, -1) : rs;
+    for (var i = 0; i < n; i++) {
+      if (i < body.length) out.push(body[i][0]);
+      else if (hasTogether && i === n - 1 && body.length > 1) out.push('together');
+      else out.push(body[body.length - 1][0]);
+    }
+    return out;
+  }
+  if (typeof window !== 'undefined') {
+    window._pinKinds = function () { return _PIN_KINDS; };
+    window._pinDefaultRoles = _pinDefaultRoles;
+    window._pinKindLabel = _pinKindLabel;
+  }
+
+  // "Group as…" — takes the ticked photos, gives them one group id, a kind and
+  // a role each, and writes all of it to the Drive files.
+  window._pinGroupAs = function () {
+    var gs = _selGroups();
+    var files = [];
+    gs.forEach(function (g) { g.files.forEach(function (f) { files.push(f); }); });
+    if (files.length < 2) { showToast('Tick two or more photos first', 2800, true); return; }
+
+    var kindId = 'aba';
+    var roles = _pinDefaultRoles(kindId, files.length);
+
+    var ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:10050;background:rgba(0,0,0,0.55);display:flex;align-items:flex-end;justify-content:center';
+    var card = document.createElement('div');
+    card.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-top-left-radius:16px;border-top-right-radius:16px;'
+      + 'width:100%;max-width:560px;padding:1rem 1rem 1.2rem;max-height:86vh;max-height:86dvh;overflow-y:auto';
+    ov.appendChild(card);
+    ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+
+    function draw() {
+      var k = _pinKind(kindId);
+      roles = roles.slice(0, files.length);
+      while (roles.length < files.length) roles.push(k.roles.length ? k.roles[k.roles.length - 1][0] : '');
+      card.innerHTML =
+        '<div style="font-family:var(--font-head);font-size:1.05rem;font-weight:700;margin-bottom:0.15rem">How do these ' + files.length + ' photos go together?</div>'
+        + '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.8rem">An AA, AB or ABA saves as separate items that stay linked. A set shot of everything together becomes the group\'s cover photo.</div>'
+        + '<select id="pin-grp-kind" style="width:100%;padding:0.6rem 0.7rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.95rem;min-height:46px;box-sizing:border-box;margin-bottom:0.8rem">'
+        +   _PIN_KINDS.map(function (kk) { return '<option value="' + kk.id + '"' + (kk.id === kindId ? ' selected' : '') + '>' + rrEsc(kk.label) + '</option>'; }).join('')
+        + '</select>'
+        + (k.roles.length
+            ? files.map(function (f, i) {
+                return '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.4rem 0;border-top:1px solid var(--border)">'
+                  + '<div style="width:34px;height:34px;border-radius:5px;background:var(--surface2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:0.72rem;color:var(--text-dim)">' + (i + 1) + '</div>'
+                  + '<select data-ri="' + i + '" class="pin-grp-role" style="flex:1;min-width:0;padding:0.5rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.88rem;min-height:44px">'
+                  +   k.roles.map(function (r) { return '<option value="' + r[0] + '"' + (r[0] === roles[i] ? ' selected' : '') + '>' + rrEsc(r[1]) + '</option>'; }).join('')
+                  + '</select></div>';
+              }).join('')
+            : '<div style="font-size:0.8rem;color:var(--text-dim);padding:0.5rem 0">All ' + files.length + ' photos will be filed as one item.</div>')
+        + '<div style="display:flex;gap:0.5rem;margin-top:1rem">'
+        +   '<button id="pin-grp-save" style="flex:2;padding:0.75rem;border-radius:9px;border:none;background:var(--accent);color:#fff;font-weight:700;font-size:0.95rem;min-height:50px;cursor:pointer">Group them</button>'
+        +   '<button id="pin-grp-cancel" style="flex:1;padding:0.75rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-weight:600;font-size:0.92rem;min-height:50px;cursor:pointer">Cancel</button>'
+        + '</div>';
+      card.querySelector('#pin-grp-kind').onchange = function () {
+        kindId = this.value; roles = _pinDefaultRoles(kindId, files.length); draw();
+      };
+      Array.prototype.forEach.call(card.querySelectorAll('.pin-grp-role'), function (sel) {
+        sel.onchange = function () { roles[parseInt(this.getAttribute('data-ri'), 10)] = this.value; };
+      });
+      card.querySelector('#pin-grp-cancel').onclick = function () { ov.remove(); };
+      card.querySelector('#pin-grp-save').onclick = async function () {
+        this.disabled = true; this.textContent = 'Saving…';
+        var gid = 'G' + Date.now().toString(36);
+        var okAll = 0;
+        for (var i = 0; i < files.length; i++) {
+          var ok = await _pinMetaSet(files[i].id, { grp: gid, kind: kindId, role: roles[i] || '' });
+          if (ok) okAll++;
+          this.textContent = 'Saving… ' + (i + 1) + '/' + files.length;
+        }
+        ov.remove();
+        if (okAll === files.length) showToast('Grouped as ' + _pinKindLabel(kindId), 3000);
+        else showToast('Grouped ' + okAll + ' of ' + files.length + ' — try the rest again', 5000, true);
+        _sel = {}; _pinRefresh();
+      };
+    }
+    draw();
+    document.body.appendChild(ov);
+  };
+
+  // Break a group back into loose photos.
+  window._pinUngroup = async function (key) {
+    var g = null;
+    _groups.forEach(function (x) { if (x.key === key) g = x; });
+    if (!g || g.files.length < 2) return;
+    var ok = await _pinMetaSetMany(g.files.map(function (f) { return f.id; }), { grp: '', kind: 'single', role: '' });
+    showToast(ok === g.files.length ? 'Split back into single photos' : ('Split ' + ok + ' of ' + g.files.length), 3000, ok !== g.files.length);
+    _pinRefresh();
+  };
+
   // ══ v0.9.1048 — capture context ══════════════════════════════════════════
   // Brad shoots a wall: forty Lionel Postwar cars in a row, then one modern
   // "Celebration Series" remake that is identical to the postwar version apart
@@ -438,7 +569,10 @@
     grid.innerHTML = _groups.map(function (g) {
       total += g.files.length;
       var isSel = !!_sel[g.key];
-      var chip = g.files.length > 1 ? '<div style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.6);color:#fff;font-size:0.62rem;font-weight:700;padding:1px 7px;border-radius:9px">' + g.files.length + ' photos · 1 item</div>' : '';
+      // v0.9.1050: a stack says WHAT it is, not just how many photos.
+      var _gk = (g.files[0] && g.files[0]._meta && g.files[0]._meta.kind) || 'single';
+      var _gkTxt = (_gk && _gk !== 'single') ? _pinKindLabel(_gk) : (g.files.length + ' photos · 1 item');
+      var chip = g.files.length > 1 ? '<div style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.66);color:#fff;font-size:0.62rem;font-weight:700;padding:1px 7px;border-radius:9px">' + rrEsc(_gkTxt) + (_gk !== 'single' ? ' · ' + g.files.length : '') + '</div>' : '';
       var when = '';
       try { when = new Date(g.files[0].createdTime).toLocaleDateString(); } catch (e) {}
       // v0.9.886: AI suggestion (from Identify all) shows on the tile bar
@@ -588,6 +722,8 @@
       sa.textContent = allSel ? 'Deselect all' : 'Select all';
     }
     if (ab) ab.style.display = gs.length > 1 ? '' : 'none';   // combine needs 2+
+    var gb = document.getElementById('pin-groupas-btn');
+    if (gb) gb.style.display = n > 1 ? '' : 'none';          // v0.9.1050: grouping needs 2+ photos
     if (db) db.style.display = n ? '' : 'none';
     if (ib) ib.style.display = n ? '' : 'none';
   }
