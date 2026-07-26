@@ -92,6 +92,7 @@
         '<button onclick="_pinAddSource()" class="btn-primary" style="padding:0.5rem 0.9rem;border-radius:8px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Add photos…</button>' +
         '<button id="pin-group-btn" onclick="_pinStartMode(\'group\')" style="' + 'padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer' + '">Group photos</button>' +
         '<button id="pin-tag-btn" onclick="_pinStartMode(\'tag\')" style="' + 'padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer' + '">Tag maker/era/scale</button>' +
+        '<button id="pin-apply-btn" onclick="_pinApplyTags()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:none;background:var(--accent);color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Apply</button>' +
         '<button id="pin-finish-btn" onclick="_pinFinishMode()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:none;background:var(--accent2);color:#1a1a1a;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">✓ Finished</button>' +
         '<button id="pin-selall-btn" onclick="_pinSelectAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Select all</button>' +
         '<button id="pin-recrop-btn" onclick="_pinReadCropped()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:rgba(212,168,67,0.14);color:var(--accent2);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Re-read cropped</button>' +
@@ -775,12 +776,14 @@
       // v0.9.1058 (Brad: "somehow we need to update the picture to show what it
       // is"). A tag you cannot see is a tag you cannot trust — after tagging 80
       // photos there was no way to tell whether it had worked.
+      // v0.9.1060: the era badge sat at top-right, exactly where the group chip
+      // ("Set · 7") already lives — they would have stacked on top of each other
+      // the moment a grouped photo was also tagged. It goes in the bottom strip
+      // instead, which already carries the number and the date and has room.
       var _m0 = (g.files[0] && g.files[0]._meta) || {};
-      var _eraTag = _m0.era
-        ? '<div style="position:absolute;top:6px;right:6px;max-width:calc(100% - 40px);padding:2px 6px;border-radius:6px;'
-          + 'background:rgba(41,128,185,0.92);color:#fff;font-size:0.58rem;font-weight:700;letter-spacing:0.02em;'
-          + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + rrEsc(_pinEraLabel(_m0.era)) + '</div>'
-        : '';
+      if (_m0.era) {
+        when = '<span style="color:#7ec3ef;font-weight:700">' + rrEsc(_pinEraLabel(_m0.era)) + '</span> · ' + when;
+      }
       var _crop = _selectMode ? ''
         : '<div onclick="event.stopPropagation();_pinTileCrop(\'' + g.key + '\')" title="Crop / Rotate" style="position:absolute;right:6px;bottom:26px;width:24px;height:24px;border-radius:7px;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.8rem;cursor:pointer">✂</div>';
       // v0.9.1057: grouping had no undo. Photos could be put together and never
@@ -792,7 +795,6 @@
         '<img loading="lazy" data-fid="' + g.files[0].id + '" style="width:100%;height:100%;object-fit:cover;object-position:center;display:block" alt="">' +
         chip +
         _circle +
-        _eraTag +
         _crop +
         _ungroup +
         '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);color:#ddd;font-size:0.6rem;padding:0.1rem 0.35rem">' + when + '</div>' +
@@ -915,6 +917,7 @@
   // One thing to learn, two jobs.
   window._pinStartMode = function (purpose) {
     if (_selPurpose === purpose) return window._pinFinishMode();
+    // switching between the two modes is not "leaving", so no warning here
     _selPurpose = purpose;
     _selectMode = true;
     _sel = {};
@@ -922,11 +925,34 @@
     _render();
   };
 
-  window._pinFinishMode = function () {
+  function _pinCloseMode() {
     _selPurpose = '';
     _selectMode = false;
     _sel = {};
     _render();
+  }
+
+  // v0.9.1060 (Brad: "the finished button needs to throw up a warning if nothing
+  // has changed as in i didn't hit apply"). Apply CLEARS the ticks, so ticks
+  // still sitting there when you press Finished means exactly one thing: that
+  // selection was never applied to anything. No extra state to get out of step
+  // — the ticks are the evidence.
+  window._pinFinishMode = async function () {
+    var n = 0;
+    _selGroups().forEach(function (g) { n += g.files.length; });
+    if (n > 0) {
+      var what = _selPurpose === 'tag'
+        ? 'tagged with a manufacturer, era and scale'
+        : 'put into a group';
+      var ok = await _pinConfirm(
+        '<b>' + n + ' photo' + (n > 1 ? 's are' : ' is') + ' still selected and '
+        + (n > 1 ? 'have' : 'has') + ' not been ' + what + '.</b><br><br>'
+        + 'Pressing Apply is what saves the change \u2014 Finished only closes this mode. '
+        + 'Leave now and the selection is dropped.',
+        'Leave without saving');
+      if (!ok) return;                 // stay put, ticks intact
+    }
+    _pinCloseMode();
   };
 
   // Kept so nothing that still calls the old name breaks.
@@ -934,12 +960,18 @@
     if (_selectMode) return window._pinFinishMode();
     return window._pinStartMode('group');
   };
+  window._pinCloseModeNow = _pinCloseMode;   // used by tests and by Apply
 
   // ── Tag mode: one era onto every ticked photo ───────────────────────────
   function _pinRenderTagBar() {
     var el = document.getElementById('pin-tagbar');
     if (!el) return;
-    if (_selPurpose !== 'tag') { el.style.display = 'none'; return; }
+    if (_selPurpose !== 'tag') {
+      el.style.display = 'none';
+      var ap0 = document.getElementById('pin-apply-btn');
+      if (ap0) ap0.style.display = 'none';
+      return;
+    }
     var n = 0, changing = 0;
     _selGroups().forEach(function (g) {
       g.files.forEach(function (f) {
@@ -952,18 +984,24 @@
       + 'padding:0.55rem 0.75rem;border-radius:10px;border:2px solid rgba(41,128,185,0.55);'
       + 'background:rgba(41,128,185,0.08)';
     var ready = !!_tagEra && n > 0;
+    // v0.9.1060 (Brad: "the apply button needs to be to the left of the finished
+    // button. its lost where its at."). Apply lives in the toolbar beside
+    // Finished now — the two decisions that end this mode sit together.
+    var apb = document.getElementById('pin-apply-btn');
+    if (apb) {
+      apb.style.display = '';
+      apb.disabled = !ready;
+      apb.textContent = 'Apply' + (n ? ' to ' + n : '');
+      apb.style.background = ready ? 'var(--accent)' : 'rgba(139,142,148,0.25)';
+      apb.style.color = ready ? '#fff' : 'var(--text-dim)';
+      apb.style.cursor = ready ? 'pointer' : 'default';
+    }
     el.innerHTML =
       '<span style="font-size:0.68rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);font-weight:700">Tag as</span>'
       + '<button onclick="_pinPickTagEra()" style="flex:1;min-width:150px;text-align:left;padding:0.45rem 0.7rem;border-radius:8px;'
         + 'border:1.5px solid ' + (_tagEra ? '#2980b9' : 'var(--border)') + ';background:' + (_tagEra ? '#f7f0dc' : 'var(--bg)') + ';'
         + 'color:' + (_tagEra ? '#2980b9' : 'var(--text-dim)') + ';font-family:var(--font-head);font-weight:700;font-size:0.9rem;cursor:pointer">'
         + rrEsc(_pinEraLabel(_tagEra)) + ' \u25be</button>'
-      + '<button onclick="_pinApplyTags()"' + (ready ? '' : ' disabled')
-        + ' style="padding:0.5rem 1rem;border-radius:8px;border:none;min-height:44px;'
-        + 'background:' + (ready ? 'var(--accent)' : 'rgba(139,142,148,0.25)') + ';'
-        + 'color:' + (ready ? '#fff' : 'var(--text-dim)') + ';font-family:var(--font-body);font-weight:700;'
-        + 'font-size:0.85rem;cursor:' + (ready ? 'pointer' : 'default') + '">Apply'
-        + (n ? ' to ' + n : '') + '</button>'
       + (changing
           ? '<span style="font-size:0.74rem;color:#ffb454;font-weight:600;width:100%">'
             + changing + ' of those already ' + (changing === 1 ? 'has' : 'have') + ' a different era and will be changed</span>'
