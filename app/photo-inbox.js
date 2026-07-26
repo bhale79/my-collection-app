@@ -2875,7 +2875,13 @@
   // "This is wrong — re-scan": forget the read and try again at higher detail.
   window._pinRescan = async function () {
     if (!_rvGroups || !_rvGroups.length) return;
-    var fid = _rvGroups[0].files[0].id, key = _rvGroups[0].key;
+    // v0.9.1074: this read files[0] directly. Since v0.9.1061 every OTHER read
+    // path picks the group's readable photo instead — skipping the "everything
+    // together" shot, which has several numbers in it. On a grouped item that
+    // meant re-scan read a photo nothing else reads, and stored the answer under
+    // a file id nothing else looks at: the button appeared to do nothing at all.
+    var fid = _pinReadFid(_rvGroups[0]) || _rvGroups[0].files[0].id;
+    var key = _rvGroups[0].key;
     var btn = document.getElementById('pin-rv-rescan');
     if (btn) { btn.disabled = true; btn.textContent = 'Re-scanning…'; }
     try {
@@ -2883,7 +2889,9 @@
       try { var ff = _freeTried(); if (ff[fid]) { delete ff[fid]; _freeTriedSave(ff); } } catch (e2) {}
       try { var pfx = fid + '|'; Object.keys(_vfCache || {}).forEach(function (k) { if (k.indexOf(pfx) === 0) delete _vfCache[k]; }); } catch (e3) {}
       var blob = await _pinBytes(fid);
-      var r = await _freeReadBlob(blob, 2400, _preferForFid(fid));   // higher-res second attempt
+      // Full multi-pass reader since v0.9.1069 — tiled, then inverted, then
+      // digits-only, stopping as soon as the stamped catalog confirms.
+      var r = await _freeReadBlob(blob, 2400, _preferForFid(fid));
       var m = _ids();
       if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null }; _idsSave(m); }
       else { var f2 = _freeTried(); f2[fid] = { t: 1, raw: (r && r.raw) || '', dbg: (r && r.dbg) || null }; _freeTriedSave(f2); }
