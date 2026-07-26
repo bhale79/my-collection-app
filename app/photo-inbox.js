@@ -733,6 +733,38 @@
     window._pinMetaSetMany = _pinMetaSetMany;
   }
 
+  // ══ v0.9.1087 — repair stored answers for free ═══════════════════════════
+  // Brad has now paid three tokens for the same rocket flatcar, and the LAST
+  // one stored the reader's full answer — with "6175" sitting right in it. The
+  // reconciliation logic improved after that read was stored; nothing should
+  // make him pay a fourth time for a comparison we can run locally. On every
+  // inbox load, any stored answer whose number is off-era is re-reconciled
+  // against its own saved text. No network, no tokens — just reading what we
+  // already bought more carefully.
+  function _pinReconcileStored() {
+    try {
+      if (typeof findMaster !== 'function' || typeof _pinReconcileAiNum !== 'function') return;
+      var ids = _ids(), changed = false;
+      _groups.forEach(function (g) {
+        var fid = _pinReadFid(g);
+        var e = fid && ids[fid];
+        if (!e || !e.aiRaw || !e.num) return;
+        var prefer = _pinPreferOf(g);
+        if (!prefer || !prefer.era) return;
+        var rc = _pinReconcileAiNum(
+          { itemNum: e.num, description: e.desc || '', title: '', formNumber: '' },
+          e.aiRaw, prefer);
+        if (rc && rc.num && rc.num !== e.num) {
+          e.aiSku = e.aiSku || rc.swappedFrom || e.num;
+          e.num = rc.num;
+          e.guess = 0;                       // in-era catalog hit
+          changed = true;
+        }
+      });
+      if (changed) { _idsSave(ids); console.info('[inbox] repaired stored reads from their own saved answers'); }
+    } catch (e) { console.warn('[inbox] stored-read repair failed', e && e.message); }
+  }
+
   window._pinRefresh = async function () {
     if (!_ensurePage()) return;
     _status('Loading inbox…');
@@ -758,6 +790,7 @@
         map[key].files.push(f);
       });
       _groups = order.map(function (k) { return map[k]; });
+      try { _pinReconcileStored(); } catch (eRS) {}
       // Drop selections that no longer exist
       Object.keys(_sel).forEach(function (k) { if (!map[k]) delete _sel[k]; });
       // Prune stored AI suggestions for photos that left the inbox
@@ -1821,7 +1854,10 @@
 
   function _pinAiLine() {
     var s = {};
-    try { s = _ids()[_rvGroups[0].files[0].id] || {}; } catch (e) {}
+    // v0.9.1087: the readable photo, matching where every reader now WRITES.
+    // files[0] on a grouped item is often the "together" shot, whose slot
+    // nothing writes to any more.
+    try { s = _ids()[_pinReadFid(_rvGroups[0]) || _rvGroups[0].files[0].id] || {}; } catch (e) {}
     var bits = [s.mfr, s.road, s.desc, s.year ? '(' + s.year + ')' : ''].filter(Boolean).join(' ');
     if (!bits && !s.num) return '';
     var esc = function (t) { return String(t).replace(/</g, '&lt;'); };
@@ -1850,20 +1886,13 @@
       '<div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;color:' + col + ';margin-bottom:0.25rem">' + lbl.replace(/:$/, '') + '</div>' +
       '<div style="font-size:0.98rem;color:var(--text);line-height:1.4"><span style="font-weight:600">' + (bits ? esc(bits) : 'number only') + '</span>' + (s.num ? ' — No. ' + esc(s.num) : '') + '</div>' +
       '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.25rem">' + tail.replace(/^ · /, '') + '</div>' +
-      (s.raw
-        ? '<details style="margin-top:0.3rem"><summary style="font-size:0.7rem;color:var(--text-dim);cursor:pointer">Where did this come from?</summary>'
-          + '<div style="font-size:0.7rem;color:var(--text-dim);font-family:var(--font-mono);margin-top:0.25rem;line-height:1.4;word-break:break-word">'
-          + 'The reader saw: \u201c' + rrEsc(s.raw) + '\u201d'
-          + (s.dbg
-              ? '<div style="margin-top:0.35rem">'
-                + 'Photo is stamped: <b>' + rrEsc(s.dbg.era ? _pinEraLabel(s.dbg.era) : 'nothing \u2014 no era filter applied') + '</b><br>'
-                + 'Numbers considered: ' + rrEsc((s.dbg.cand || []).join(', ') || 'none') + '<br>'
-                + 'In that catalog: ' + rrEsc((s.dbg.inEra || []).join(', ') || 'none') + '<br>'
-                + 'In another catalog: ' + rrEsc((s.dbg.offEra || []).join(', ') || 'none')
-                + '</div>'
-              : '')
-          + '</div></details>'
-        : '') +
+      // v0.9.1087: ONE disclosure builder. This inline copy predated
+      // _pinWhyHtml and was gated on s.raw — the FREE reader's text — so a paid
+      // read, which stores aiRaw instead, showed no disclosure at all. That is
+      // the literal answer to Brad's "what disclosure": for paid reads there
+      // never was one. Two copies of an explanation is how they end up
+      // disagreeing; now there is one.
+      _pinWhyHtml(s.raw, s.dbg, s) +
       '</div>';
   }
 
@@ -1976,6 +2005,24 @@
   function _pinApplyMeta(meta, gs, aiText) {
     var got = meta && (meta.itemNum || meta.description || meta.manufacturer || meta.roadName);
     if (!got) return false;
+    // v0.9.1087 — reconciliation happens HERE, once, for every path that stores
+    // a paid read. The v0.9.1084 version was wired by a script that matched the
+    // same anchor three times and inserted at the first match every time: all
+    // three copies stacked up in the screenshot path (one referencing a variable
+    // that does not exist there), and the token button and the batch got NONE.
+    // Brad pressed "Read this photo", the reader said 6175 in its own words, and
+    // the card kept 6-39457 because nothing on that path ever compared the two.
+    // One shared location cannot be wired unevenly.
+    try {
+      if (typeof _pinReconcileAiNum === 'function') {
+        var _rc0 = _pinReconcileAiNum(meta, aiText || '', _pinPreferOf(gs[0]));
+        if (_rc0 && _rc0.num && _rc0.num !== meta.itemNum) {
+          meta._aiSku = _rc0.swappedFrom || meta.itemNum || '';
+          meta.itemNum = _rc0.num;
+          meta._hedge = 0;              // in-era catalog hit — no longer a guess
+        }
+      }
+    } catch (eR0) { console.warn('[inbox] reconcile failed', eR0 && eR0.message); }
     try {
       var ids = _ids(); var fid0 = _pinReadFid(gs[0]) || gs[0].files[0].id; var prev = ids[fid0] || {};
       var _aiRaw = String(aiText || '').replace(/\s+/g, ' ').trim().slice(0, 900) || (prev.aiRaw || '');
@@ -2044,33 +2091,6 @@
         }
         if (typeof ai.remaining === 'number') _tokSave(ai.remaining);   // v0.9.969: keep the token count fresh
         meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(ai.text) : {};
-            // v0.9.1084: read the reader properly — prefer the number that
-            // exists in the catalog this photo says it belongs to.
-            try {
-            var _rc = _pinReconcileAiNum(meta, ai.text, _pinPreferOf(g));
-            if (_rc.num && _rc.num !== meta.itemNum) {
-            meta._aiSku = _rc.swappedFrom || meta.itemNum;
-            meta.itemNum = _rc.num;
-            }
-            } catch (eRC) { console.warn('[inbox] could not reconcile the read', eRC && eRC.message); }
-      // v0.9.1084: read the reader properly — prefer the number that
-      // exists in the catalog this photo says it belongs to.
-      try {
-      var _rc = _pinReconcileAiNum(meta, ai.text, _pinPreferOf((_rvGroups && _rvGroups[0])));
-      if (_rc.num && _rc.num !== meta.itemNum) {
-      meta._aiSku = _rc.swappedFrom || meta.itemNum;
-      meta.itemNum = _rc.num;
-      }
-      } catch (eRC) { console.warn('[inbox] could not reconcile the read', eRC && eRC.message); }
-        // v0.9.1084: read the reader properly — prefer the number that
-        // exists in the catalog this photo says it belongs to.
-        try {
-        var _rc = _pinReconcileAiNum(meta, ai.text, _pinPreferOf((_rvGroups && _rvGroups[0])));
-        if (_rc.num && _rc.num !== meta.itemNum) {
-        meta._aiSku = _rc.swappedFrom || meta.itemNum;
-        meta.itemNum = _rc.num;
-        }
-        } catch (eRC) { console.warn('[inbox] could not reconcile the read', eRC && eRC.message); }
       }
       if (!_pinApplyMeta(meta, gs, ai && ai.text)) { showToast('No item info found in that screenshot — type the number instead', 4000, true); return; }
       showToast(meta._hedge
@@ -4244,6 +4264,18 @@
           if (ai.ok && ai.text) {
             if (typeof ai.remaining === 'number') { remaining = ai.remaining; _tokSave(ai.remaining); }   // v0.9.969: persist the count for the review card
             var meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(ai.text) : {};
+            // v0.9.1087: the batch writes to storage directly rather than through
+            // _pinApplyMeta, so it reconciles here — same helper, group in hand.
+            try {
+              if (typeof _pinReconcileAiNum === 'function') {
+                var _rcB = _pinReconcileAiNum(meta, ai.text, _pinPreferOf(g));
+                if (_rcB && _rcB.num && _rcB.num !== meta.itemNum) {
+                  meta._aiSku = _rcB.swappedFrom || meta.itemNum || '';
+                  meta.itemNum = _rcB.num;
+                  meta._hedge = 0;
+                }
+              }
+            } catch (eRB) { console.warn('[inbox] batch reconcile failed', eRB && eRB.message); }
             // v0.9.898 (Brad): KEEP hedged best guesses instead of discarding
             // them (the 30-9107 platform case: the wizard showed the guess with
             // a warning while the inbox said "no read"). guess:1 marks them —
