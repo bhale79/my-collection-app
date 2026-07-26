@@ -53,6 +53,52 @@ function _rrOrientProbe(cb) {
   _rrOrientWaiting.push(cb);
 }
 
+// ── v0.9.1049: remember the last crop box across a batch ───────────────────
+// Brad photographs a wall: a hundred shots, the item sitting in roughly the
+// same part of every frame. Starting each crop from the whole picture means
+// dragging the same rectangle a hundred times. The last box is remembered as
+// PROPORTIONS of the photo, so it survives different pixel sizes, and is
+// offered as the starting rectangle for the next one — a nudge instead of a
+// fresh drag. It only applies to photos of the same orientation (a portrait
+// box on a landscape photo would be nonsense), it expires after 6 hours so it
+// never ambushes a session next week, and "Whole photo" resets it.
+var _RR_BOX_KEY = 'rr_last_crop_box';
+var _RR_BOX_MAX_AGE = 6 * 60 * 60 * 1000;
+
+function _rrSaveBox(cropper) {
+  try {
+    var d = cropper.getData(true), im = cropper.getImageData();
+    if (!d || !im || !im.naturalWidth || !im.naturalHeight) return;
+    var box = {
+      x: d.x / im.naturalWidth, y: d.y / im.naturalHeight,
+      w: d.width / im.naturalWidth, h: d.height / im.naturalHeight,
+      land: im.naturalWidth >= im.naturalHeight,
+      t: Date.now(),
+    };
+    // A box that is basically the whole frame is not worth remembering.
+    if (box.w > 0.97 && box.h > 0.97) { localStorage.removeItem(_RR_BOX_KEY); return; }
+    if (box.w <= 0.02 || box.h <= 0.02) return;
+    localStorage.setItem(_RR_BOX_KEY, JSON.stringify(box));
+  } catch (e) {}
+}
+
+function _rrLoadBox(cropper) {
+  try {
+    var raw = localStorage.getItem(_RR_BOX_KEY);
+    if (!raw) return null;
+    var box = JSON.parse(raw);
+    if (!box || !box.w || !box.h) return null;
+    if (Date.now() - (box.t || 0) > _RR_BOX_MAX_AGE) { localStorage.removeItem(_RR_BOX_KEY); return null; }
+    var im = cropper.getImageData();
+    if (!im || !im.naturalWidth) return null;
+    if ((im.naturalWidth >= im.naturalHeight) !== !!box.land) return null;   // different orientation
+    return {
+      x: Math.round(box.x * im.naturalWidth), y: Math.round(box.y * im.naturalHeight),
+      width: Math.round(box.w * im.naturalWidth), height: Math.round(box.h * im.naturalHeight),
+    };
+  } catch (e) { return null; }
+}
+
 function _openCropper(src, onResult, onCancel) {   // v0.9.787: onCancel = proceed without cropping
   if (typeof Cropper === 'undefined') { if (typeof showToast === 'function') showToast('Crop tool still loading — try again in a moment'); return; }
   var ov = document.createElement('div');
@@ -66,7 +112,8 @@ function _openCropper(src, onResult, onCancel) {   // v0.9.787: onCancel = proce
   ov.innerHTML =
     '<div style="padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center;color:#fff;gap:1rem;flex-wrap:wrap">' +
       '<strong style="font-size:1rem">Crop photo</strong>' +
-      '<span style="font-size:0.78rem;opacity:0.75">Drag the box · pinch or scroll to zoom</span>' +
+      '<span id="_rrCropHint" style="font-size:0.78rem;opacity:0.75">Drag the box · pinch or scroll to zoom</span>' +
+      '<button id="_rrCropWhole" style="display:none;padding:0.4rem 0.7rem;min-height:38px;border-radius:8px;border:1px solid #555;background:#2a2a2a;color:#eee;font-size:0.78rem;cursor:pointer">Whole photo</button>' +
     '</div>' +
     // v0.9.1031 (Brad): the crop box used to sit 16px too far RIGHT, so both
     // right-hand grab squares fell off a phone screen. Cropper measures its
@@ -87,10 +134,19 @@ function _openCropper(src, onResult, onCancel) {   // v0.9.787: onCancel = proce
     // v0.9.904 (Brad, item [3]): fine-rotation slider restored \u2014 same control
     // the box-scanner cropper uses (barcode.js). Any angle via the slider; the
     // \u21bb button steps 90\u00b0 and keeps the slider in sync.
-    '<div style="padding:0.55rem 1rem 0;display:flex;align-items:center;gap:0.5rem">' +
-      '<span style="color:#ccc;font-size:0.78rem;white-space:nowrap">Rotate</span>' +
-      '<input id="_rrCropRot" type="range" min="-180" max="180" step="1" value="0" style="flex:1;accent-color:var(--accent,#e8401c)">' +
-      '<span id="_rrCropRotV" style="color:#ccc;font-size:0.78rem;min-width:3.2em;text-align:right">0\u00b0</span>' +
+    // v0.9.1049 (Brad: "the mouse tends to fling it too far back and forth").
+    // The slider used to cover 360 degrees across a phone-width control —
+    // about 1.2 degrees per pixel, so the smallest touch you can make moved it
+    // more than a degree and a thumb-width moved it thirty. It was never
+    // controllable. It is now a LEVELLING control: plus or minus 15 degrees,
+    // a tenth of a degree per pixel. The ↻ button still does the 90s, and the
+    // − / + buttons step a single degree for honing in.
+    '<div style="padding:0.55rem 1rem 0;display:flex;align-items:center;gap:0.4rem">' +
+      '<span style="color:#ccc;font-size:0.78rem;white-space:nowrap">Level</span>' +
+      '<button id="_rrCropRotMinus" class="rr-tap" title="1 degree left" style="min-width:38px;min-height:38px;border-radius:8px;border:1px solid #555;background:#2a2a2a;color:#eee;font-size:1.05rem;line-height:1;cursor:pointer">\u2212</button>' +
+      '<input id="_rrCropRot" type="range" min="-15" max="15" step="0.5" value="0" style="flex:1;accent-color:var(--accent,#e8401c)">' +
+      '<button id="_rrCropRotPlus" class="rr-tap" title="1 degree right" style="min-width:38px;min-height:38px;border-radius:8px;border:1px solid #555;background:#2a2a2a;color:#eee;font-size:1.05rem;line-height:1;cursor:pointer">+</button>' +
+      '<span id="_rrCropRotV" style="color:#ccc;font-size:0.78rem;min-width:3.4em;text-align:right">0\u00b0</span>' +
     '</div>' +
     '<div style="padding:0.85rem 1rem;display:flex;gap:0.6rem;justify-content:flex-end">' +
       '<button id="_rrCropRotate" style="' + btn + ';margin-right:auto">\u21bb Rotate</button>' +
@@ -142,7 +198,27 @@ function _openCropper(src, onResult, onCancel) {   // v0.9.787: onCancel = proce
     // clamped/zoomed to fill the frame — matches the box-scanner cropper, which
     // is what makes the fine-rotation slider behave.
     try {
-      cropper = new Cropper(img, { viewMode: 0, autoCropArea: 1, background: false, movable: true, zoomable: true, responsive: !_phone, checkOrientation: !autoOriented });
+      cropper = new Cropper(img, {
+        viewMode: 0, autoCropArea: 1, background: false, movable: true, zoomable: true,
+        responsive: !_phone, checkOrientation: !autoOriented,
+        // v0.9.1049: seeding the rotation and restoring the remembered box BOTH
+        // need the cropper to be ready — setData and getImageData do nothing
+        // before that, which is why doing it straight after the constructor
+        // silently had no effect.
+        ready: function () {
+          try { _seedRot(); } catch (eS) {}
+          try {
+            var _lastBox = _rrLoadBox(cropper);
+            if (_lastBox) {
+              cropper.setData(_lastBox);
+              var _hint = ov.querySelector('#_rrCropHint');
+              if (_hint) _hint.textContent = 'Starting from your last crop';
+              var _rb = ov.querySelector('#_rrCropWhole');
+              if (_rb) _rb.style.display = '';
+            }
+          } catch (eB) {}
+        },
+      });
     } catch (e) {
       console.warn('[crop] init', e);
       img.style.visibility = '';   // show the plain photo rather than nothing
@@ -200,21 +276,61 @@ function _openCropper(src, onResult, onCancel) {   // v0.9.787: onCancel = proce
   // v0.9.904 (Brad, item [3]): fine-rotation slider (any angle) + the ↻ button
   // for quick 90° flips, kept in sync with the slider.
   var rotEl = ov.querySelector('#_rrCropRot'), rotV = ov.querySelector('#_rrCropRotV');
-  function _setRot(v) {
-    v = Math.max(-180, Math.min(180, Math.round(v)));
-    if (rotEl) rotEl.value = v;
-    if (rotV) rotV.textContent = v + '°';
-    try { if (cropper) cropper.rotateTo(v); } catch (eR) {}
+  // v0.9.1049: rotation is a quarter-turn count plus a small levelling offset,
+  // instead of one 360-degree number. Keeping them apart is what lets the
+  // slider be fine without losing the ability to turn a photo on its side.
+  var _quarters = 0;     // 0..3, from the ↻ button
+  var _fine = 0;         // -15..+15, from the slider and the − / + buttons
+  function _applyRot() {
+    var total = ((_quarters * 90) + _fine);
+    while (total > 180) total -= 360;
+    while (total < -180) total += 360;
+    if (rotV) rotV.textContent = (Math.round(total * 10) / 10) + '°';
+    try { if (cropper) cropper.rotateTo(total); } catch (eR) {}
   }
-  if (rotEl) rotEl.addEventListener('input', function () { _setRot(parseFloat(rotEl.value) || 0); });
+  function _setFine(v) {
+    _fine = Math.max(-15, Math.min(15, Math.round(v * 2) / 2));
+    if (rotEl) rotEl.value = _fine;
+    _applyRot();
+  }
+  // v0.9.1049 (Brad: "the rotate button and the picture are 90 degrees apart").
+  // Cropper's internal rotation is UNDEFINED until something sets it, while the
+  // slider sat at 0 assuming that was true — so the first touch wrote 0 over
+  // whatever the photo was actually showing and it snapped. Seed from reality
+  // once the cropper exists, and never send a rotation the user did not ask for.
+  function _seedRot() {
+    try {
+      var d = cropper && cropper.getImageData ? cropper.getImageData() : null;
+      var actual = (d && typeof d.rotate === 'number') ? d.rotate : 0;
+      _quarters = Math.round(actual / 90) % 4;
+      _fine = actual - (_quarters * 90);
+      if (_fine > 15 || _fine < -15) _fine = 0;
+      if (rotEl) rotEl.value = _fine;
+      if (rotV) rotV.textContent = (Math.round(actual * 10) / 10) + '°';
+    } catch (e) {}
+  }
+  if (rotEl) rotEl.addEventListener('input', function () { _setFine(parseFloat(rotEl.value) || 0); });
+  var _minusBtn = ov.querySelector('#_rrCropRotMinus'), _plusBtn = ov.querySelector('#_rrCropRotPlus');
+  if (_minusBtn) _minusBtn.onclick = function () { _setFine(_fine - 1); };
+  if (_plusBtn) _plusBtn.onclick = function () { _setFine(_fine + 1); };
   ov.querySelector('#_rrCropRotate').onclick = function () {
-    var nv = (parseFloat(rotEl && rotEl.value) || 0) + 90;
-    if (nv > 180) nv -= 360;   // wrap so the 90° button keeps cycling
-    _setRot(nv);
+    _quarters = (_quarters + 1) % 4;
+    _applyRot();
+  };
+  var _wholeBtn = ov.querySelector('#_rrCropWhole');
+  if (_wholeBtn) _wholeBtn.onclick = function () {
+    try {
+      localStorage.removeItem(_RR_BOX_KEY);
+      if (cropper) cropper.reset();
+      var _h = ov.querySelector('#_rrCropHint');
+      if (_h) _h.textContent = 'Drag the box \u00b7 pinch or scroll to zoom';
+      _wholeBtn.style.display = 'none';
+    } catch (e) {}
   };
   ov.querySelector('#_rrCropCancel').onclick = function () { done(); if (onCancel) try { onCancel(); } catch (e) {} };
   ov.querySelector('#_rrCropApply').onclick = function () {
     if (!cropper) { done(); if (onCancel) try { onCancel(); } catch (e) {} return; }
+    try { _rrSaveBox(cropper); } catch (eS) {}   // v0.9.1049: offer this box on the next photo
     var canvas = cropper.getCroppedCanvas({ maxWidth: 2400, maxHeight: 2400, imageSmoothingQuality: 'high' });
     if (!canvas) { done(); if (onCancel) try { onCancel(); } catch (e) {} return; }
     canvas.toBlob(function (blob) { done(); if (blob) onResult(blob); }, 'image/jpeg', 0.9);
