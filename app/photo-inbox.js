@@ -2210,8 +2210,6 @@
   window._rrForceFreshBytes = _cropped();
 
   var _idAbort = false;
-  // v0.9.1058: when set, the paid batch runs ONLY over these file ids.
-  var _idOnly = null;
   window._pinIdentifyCancel = function () { _idAbort = true; };
 
   async function _pinBytes(fileId) {
@@ -2556,25 +2554,57 @@
     if (!b) return;
     var n = _pinCroppedGroups().length;
     if (n > 0 && !_selectMode) {
-      b.textContent = 'Re-read ' + n + ' cropped (' + n + ' token' + (n === 1 ? '' : 's') + ')';
+      b.textContent = 'Re-read ' + n + ' cropped (free)';
       b.style.display = '';
     } else {
       b.style.display = 'none';
     }
   }
 
+  // Brad: "we need the re-read button to say re-read, no tokens." Right call,
+  // and there is a genuinely free thing to do here. The automatic re-read that
+  // fires when you crop runs at the default resolution; the single-photo "This
+  // is wrong — re-scan" runs the SAME free reader at 2400px and gets numbers the
+  // first pass misses. This is that second attempt, across every cropped photo,
+  // in one go. No credits, no confirm to spend anything — just time.
   window._pinReadCropped = async function () {
+    if (_busy) { showToast('Still working on the last batch\u2026', 2500, true); return; }
     var gs = _pinCroppedGroups();
     if (!gs.length) { showToast('Nothing cropped since the last read', 2800); return; }
-    var ok = await _pinConfirm('Re-read the ' + gs.length + ' photo' + (gs.length > 1 ? 's' : '')
-      + ' you cropped, using ' + gs.length + ' token' + (gs.length > 1 ? 's' : '')
-      + '? Any number already found for them will be replaced by the read from the cropped shot.',
-      'Re-read ' + gs.length);
-    if (!ok) return;
-    var only = {};
-    gs.forEach(function (g) { only[g.files[0].id] = 1; });
-    _idOnly = only;
-    try { await window._pinIdentifyAll(); } finally { _idOnly = null; }
+    _busy = true; _idAbort = false;
+    var btn = document.getElementById('pin-recrop-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Re-reading\u2026'; }
+    var found = 0, done = 0, failed = 0;
+    for (var i = 0; i < gs.length; i++) {
+      if (_idAbort) break;
+      var fid = gs[i].files[0].id;
+      _status('Re-reading ' + (i + 1) + ' of ' + gs.length + '\u2026 ' + found + ' number' + (found === 1 ? '' : 's') + ' so far');
+      try {
+        // Forget the previous read so a number lifted from the UNCROPPED photo
+        // cannot survive. That is the read this exists to replace.
+        try { var mm = _ids(); if (mm[fid]) { delete mm[fid]; _idsSave(mm); } } catch (e1) {}
+        try { var ff = _freeTried(); if (ff[fid]) { delete ff[fid]; _freeTriedSave(ff); } } catch (e2) {}
+        try { var pfx = fid + '|'; Object.keys(_vfCache || {}).forEach(function (k) { if (k.indexOf(pfx) === 0) delete _vfCache[k]; }); } catch (e3) {}
+        var blob = await _pinBytes(fid);
+        var r = await _freeReadBlob(blob, 2400);      // the higher-resolution attempt
+        var m = _ids();
+        if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1 }; _idsSave(m); found++; }
+        else { var f2 = _freeTried(); f2[fid] = 1; _freeTriedSave(f2); }
+      } catch (e) {
+        failed++;
+        console.warn('[inbox] free re-read failed', fid, e && e.message);
+      }
+      done++;
+    }
+    _busy = false; _status('');
+    if (btn) btn.disabled = false;
+    // Say what actually happened, including the ones that errored.
+    var msg = 'Re-read ' + done + ' photo' + (done === 1 ? '' : 's') + ' \u2014 found '
+      + found + ' number' + (found === 1 ? '' : 's');
+    if (failed) msg += ', ' + failed + ' could not be read';
+    if (_idAbort) msg += ' (stopped early)';
+    showToast(msg, 4200, !!failed);
+    await window._pinRefresh();
   };
 
   window._pinIdentifyAll = async function () {
@@ -2582,14 +2612,8 @@
     if (!_qcToken()) { showToast('Please sign in first', 3000, true); return; }
     if (typeof aiIdentifyImage !== 'function') { showToast('Identify service not loaded — refresh and try again', 3000, true); return; }
     var ids = _ids();
-    // v0.9.1058: _idOnly restricts the batch to a named set (the cropped ones).
-    // When it is set the "already has a suggestion" skip does NOT apply — the
-    // whole point of re-reading a crop is to replace a read taken from the
-    // uncropped photo.
-    var todo = _idOnly
-      ? _groups.filter(function (g) { return _idOnly[g.files[0].id]; })
-      : _groups.filter(function (g) { return !ids[g.files[0].id]; });
-    if (!todo.length) { _idOnly = null; showToast(_groups.length ? 'Every item already has a suggestion — tick photos and use Identify to re-run any of them' : 'Inbox is empty', 3500); return; }
+    var todo = _groups.filter(function (g) { return !ids[g.files[0].id]; });
+    if (!todo.length) { showToast(_groups.length ? 'Every item already has a suggestion — tick photos and use Identify to re-run any of them' : 'Inbox is empty', 3500); return; }
     // v0.9.956 (Brad): free auto-read already tried these — this button only
     // targets the leftovers it couldn't place. Show the exact count and make
     // clear it uses paid reads, so a batch never spends credits by surprise.
