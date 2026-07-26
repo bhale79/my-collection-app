@@ -1773,7 +1773,16 @@
       (s.raw
         ? '<details style="margin-top:0.3rem"><summary style="font-size:0.7rem;color:var(--text-dim);cursor:pointer">Where did this come from?</summary>'
           + '<div style="font-size:0.7rem;color:var(--text-dim);font-family:var(--font-mono);margin-top:0.25rem;line-height:1.4;word-break:break-word">'
-          + 'The reader saw: \u201c' + rrEsc(s.raw) + '\u201d</div></details>'
+          + 'The reader saw: \u201c' + rrEsc(s.raw) + '\u201d'
+          + (s.dbg
+              ? '<div style="margin-top:0.35rem">'
+                + 'Photo is stamped: <b>' + rrEsc(s.dbg.era ? _pinEraLabel(s.dbg.era) : 'nothing \u2014 no era filter applied') + '</b><br>'
+                + 'Numbers considered: ' + rrEsc((s.dbg.cand || []).join(', ') || 'none') + '<br>'
+                + 'In that catalog: ' + rrEsc((s.dbg.inEra || []).join(', ') || 'none') + '<br>'
+                + 'In another catalog: ' + rrEsc((s.dbg.offEra || []).join(', ') || 'none')
+                + '</div>'
+              : '')
+          + '</div></details>'
         : '') +
       '</div>';
   }
@@ -2569,9 +2578,26 @@
     var dashRank = function (a, b) {
       return (b.indexOf('-') >= 0 ? 1 : 0) - (a.indexOf('-') >= 0 ? 1 : 0) || b.length - a.length;
     };
+    // v0.9.1070 — say WHY. Brad re-read a Santa Fe 2412 and it still came back
+    // as an MPC set number, and I could not tell from the outside whether the
+    // era filter had run, whether the photo was stamped at all, or whether the
+    // right number had even been a candidate. Guessing at that from screenshots
+    // is what this whole audit was supposed to replace. Every read now carries
+    // its own reasoning.
+    var dbg = {
+      era: (prefer && prefer.era) || '',
+      cand: uniq.slice(0, 8),
+      inEra: [],
+      offEra: [],
+    };
+    uniq.slice(0, 8).forEach(function (c) {
+      var any = fmAny ? fmAny(c) : null;
+      if (!any) return;
+      (inEra(any) ? dbg.inEra : dbg.offEra).push(c + (any._era ? ':' + any._era : ''));
+    });
     // 1) numbers the stamped catalog confirms win — most specific first
     var matched = uniq.filter(function (c) { return fm && (fm(c) || fm(c.replace(/^\d-/, ''))); });
-    if (matched.length) { matched.sort(dashRank); return { num: matched[0], matched: true }; }
+    if (matched.length) { matched.sort(dashRank); return { num: matched[0], matched: true, dbg: dbg }; }
     // 1a) Nothing in the stamped catalog. Before giving up, look in every
     // catalog — but a hit there is a LEAD, not a confirmation, because the whole
     // reason we are here is that the photo says it belongs somewhere else. This
@@ -2597,14 +2623,14 @@
         }
         return !!repaired;
       });
-      if (repaired) return { num: repaired, matched: true };
+      if (repaired) { dbg.repaired = repaired; return { num: repaired, matched: true, dbg: dbg }; }
     }
     // 2) nothing confirmed — offer the best catalog-shaped token as a hedge
-    if (loose.length) { loose.sort(dashRank); return { num: loose[0], matched: false, offEra: true }; }
+    if (loose.length) { loose.sort(dashRank); return { num: loose[0], matched: false, offEra: true, dbg: dbg }; }
     uniq.sort(dashRank);
-    if (uniq.length) return { num: uniq[0], matched: false };
+    if (uniq.length) return { num: uniq[0], matched: false, dbg: dbg };
     // 3) last resort: a catalog-backed short number, always as a guess
-    if (shortOnes.length) { shortOnes.sort(dashRank); return { num: shortOnes[0], matched: false, short: true }; }
+    if (shortOnes.length) { shortOnes.sort(dashRank); return { num: shortOnes[0], matched: false, short: true, dbg: dbg }; }
     return null;
   }
 
@@ -2748,7 +2774,7 @@
       var blob = await _pinBytes(fid);
       var r = await _freeReadBlob(blob, 2400, _preferForFid(fid));   // higher-res second attempt
       var m = _ids();
-      if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1, raw: r.raw || '' }; _idsSave(m); }
+      if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null }; _idsSave(m); }
       else { var f2 = _freeTried(); f2[fid] = 1; _freeTriedSave(f2); }
       try { _render(); } catch (e4) {}
       window._pinReview(key);
@@ -2780,7 +2806,7 @@
         var fid = _pinReadFid(todo[i]), r = null;
         try { r = await _freeReadOne(fid); } catch (e) {}
         if (r && r.num) {
-          var m = _ids(); m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1, raw: r.raw || '' };
+          var m = _ids(); m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null };
           _idsSave(m);
         } else {
           var f = _freeTried(); f[fid] = 1; _freeTriedSave(f);
@@ -2899,7 +2925,7 @@
         try { _render(); } catch (eC) {}
         _freeReadBlob(blob, 1600, _preferForFid(fid)).then(function (r) {
           var m = _ids();
-          if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1, raw: r.raw || '' }; _idsSave(m); }
+          if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null }; _idsSave(m); }
           else { var f2 = _freeTried(); f2[fid] = 1; _freeTriedSave(f2); }
           try { _render(); } catch (e2) {}
         }).catch(function () {});
