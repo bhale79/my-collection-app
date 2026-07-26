@@ -1519,6 +1519,41 @@
     inp.click();
   };
 
+  // ══ v0.9.1052 — crop before a paid read ══════════════════════════════════
+  // Brad photographs a wall, so most frames hold two items — one at the top,
+  // one below. The reader answers about whatever it sees, and it took the top
+  // one. Cropping does not make the read cheaper; it stops the SECOND read you
+  // would otherwise need after the first answered about the wrong train. Over
+  // a hundred photos that is a hundred reads instead of two hundred.
+  //
+  // It is not literally unskippable — a photo that is already tight should not
+  // need ceremony. But the skip is a labelled, deliberate choice ("Use whole
+  // photo"), not an accidental one, and the crop box opens on the rectangle you
+  // used last so most photos need a nudge rather than a fresh drag.
+  var _PIN_SKIP_CROP_KEY = 'rr_skip_read_crop';
+  function _pinSkipReadCrop() { try { return localStorage.getItem(_PIN_SKIP_CROP_KEY) === '1'; } catch (e) { return false; } }
+
+  function _pinCropForRead(blob, cb) {
+    if (!blob || typeof window._openCropper !== 'function' || _pinSkipReadCrop()) { cb(blob); return; }
+    var url;
+    try { url = URL.createObjectURL(blob); } catch (e) { cb(blob); return; }
+    var done = false;
+    function finish(out) {
+      if (done) return; done = true;
+      try { URL.revokeObjectURL(url); } catch (e) {}
+      cb(out || blob);
+    }
+    window._openCropper(url,
+      function (cropped) { finish(cropped); },
+      function () { finish(blob); },
+      {
+        title: 'Crop to one item',
+        hint: 'The reader answers about whatever is in frame',
+        applyLabel: 'Read this',
+        cancelLabel: 'Use whole photo',
+      });
+  }
+
   // v0.9.967 (Brad): identify THIS item straight from its own photo with one
   // token — no Google/Lens round-trip. The free reader already ran on drop, so
   // this goes straight to the paid read for the leftovers it couldn't place.
@@ -1528,7 +1563,9 @@
     if (!_qcToken()) { showToast('Please sign in first', 3000, true); return; }
     if (typeof aiIdentifyImage2 !== 'function' && typeof aiIdentifyImage !== 'function') { showToast('Identify service not loaded — refresh and try again', 3000, true); return; }
     var btn = document.getElementById('pin-rv-idtoken');
-    if (btn) { btn.disabled = true; btn.textContent = 'Reading…'; }
+    // v0.9.1052: don't say "Reading…" while the crop screen is still open —
+    // nothing is being read and nothing has been spent yet.
+    if (btn) { btn.disabled = true; btn.textContent = _pinSkipReadCrop() ? 'Reading…' : 'Crop first…'; }
     try {
       var g = gs[0];
       var fl = g.files.slice(0, 4), blobs = [];
@@ -1536,6 +1573,11 @@
         try { blobs.push(await _pinBytes(fl[i].id)); } catch (eB) {}
       }
       if (!blobs.length) { showToast('Could not load the photo — try again', 3000, true); return; }
+      // v0.9.1052: crop the PRIMARY frame before spending anything. The other
+      // angles go as they are — several views genuinely help the read, and
+      // cropping four photos one at a time would cost more than it saves.
+      blobs[0] = await new Promise(function (res) { _pinCropForRead(blobs[0], res); });
+      if (btn) { btn.disabled = true; btn.textContent = 'Reading…'; }
       var ai = (typeof aiIdentifyImage2 === 'function') ? await aiIdentifyImage2(blobs, {}) : await aiIdentifyImage(blobs[0], {});
       if (!ai || !ai.ok) {
         var why = ai && ai.reason;

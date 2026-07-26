@@ -99,7 +99,11 @@ function _rrLoadBox(cropper) {
   } catch (e) { return null; }
 }
 
-function _openCropper(src, onResult, onCancel) {   // v0.9.787: onCancel = proceed without cropping
+function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel = proceed without cropping
+  // v0.9.1052: opts lets a caller reword the screen — the crop-before-a-paid-read
+  // flow needs its Cancel to read "Use whole photo", because there it is a real
+  // choice with a cost, not an escape hatch.
+  opts = opts || {};
   if (typeof Cropper === 'undefined') { if (typeof showToast === 'function') showToast('Crop tool still loading — try again in a moment'); return; }
   var ov = document.createElement('div');
   // v0.9.786: TOP layer — the contact modal sits at 10040, and the cropper
@@ -111,8 +115,8 @@ function _openCropper(src, onResult, onCancel) {   // v0.9.787: onCancel = proce
   var btnA = 'padding:0.55rem 1.2rem;border-radius:8px;font-family:var(--font-body);font-size:0.9rem;font-weight:700;cursor:pointer;border:none;background:var(--accent);color:#fff';
   ov.innerHTML =
     '<div style="padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center;color:#fff;gap:1rem;flex-wrap:wrap">' +
-      '<strong style="font-size:1rem">Crop photo</strong>' +
-      '<span id="_rrCropHint" style="font-size:0.78rem;opacity:0.75">Drag the box · pinch or scroll to zoom</span>' +
+      '<strong style="font-size:1rem">' + (opts.title || 'Crop photo') + '</strong>' +
+      '<span id="_rrCropHint" style="font-size:0.78rem;opacity:0.75">' + (opts.hint || 'Drag the box · pinch or scroll to zoom') + '</span>' +
       '<button id="_rrCropWhole" style="display:none;padding:0.4rem 0.7rem;min-height:38px;border-radius:8px;border:1px solid #555;background:#2a2a2a;color:#eee;font-size:0.78rem;cursor:pointer">Whole photo</button>' +
     '</div>' +
     // v0.9.1031 (Brad): the crop box used to sit 16px too far RIGHT, so both
@@ -150,8 +154,8 @@ function _openCropper(src, onResult, onCancel) {   // v0.9.787: onCancel = proce
     '</div>' +
     '<div style="padding:0.85rem 1rem;display:flex;gap:0.6rem;justify-content:flex-end">' +
       '<button id="_rrCropRotate" style="' + btn + ';margin-right:auto">\u21bb Rotate</button>' +
-      '<button id="_rrCropCancel" style="' + btn + '">Cancel</button>' +
-      '<button id="_rrCropApply" style="' + btnA + '">Apply crop</button>' +
+      '<button id="_rrCropCancel" style="' + btn + '">' + (opts.cancelLabel || 'Cancel') + '</button>' +
+      '<button id="_rrCropApply" style="' + btnA + '">' + (opts.applyLabel || 'Apply crop') + '</button>' +
     '</div>';
   document.body.appendChild(ov);
   var img = ov.querySelector('#_rrCropImg');
