@@ -1054,7 +1054,7 @@
     padding: 0.5rem 0; flex-shrink: 0;
     /* v0.9.882 (Brad): pin the bottom nav to the screen — it used to sit at
        the end of the page and only appeared after scrolling all the way down.
-       .app-layout's padding-bottom already reserves the space beneath it. */
+       .main now carries the padding that reserves the space beneath it. */
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 800;
   }
   .mobile-nav-items { display: flex; justify-content: flex-start; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; scrollbar-width: none; gap: 0.1rem; padding: 0 0.25rem; }
@@ -1072,8 +1072,13 @@
     /* Layout */
     .sidebar { display: none; }
     .mobile-nav { display: block; }
-    .app-layout { padding-bottom: 68px; } /* room for bottom nav */
-    .main { padding: 0.75rem 0.75rem 1rem; }
+    /* v0.9.1053 (Brad: "Help and Tips is the last option I see"): this used to
+       read `.app-layout { padding-bottom: 68px }` — but there IS no .app-layout
+       element anywhere in the app, so the rule reserved nothing and the bottom
+       of every scrolling page sat underneath the fixed nav, unreachable. The
+       padding belongs on .main, which is the element that actually scrolls.
+       92px clears the nav (measured ~85px) with a little to spare. */
+    .main { padding: 0.75rem 0.75rem 92px; }
     .stats-grid { grid-template-columns: 1fr 1fr; }
 
     /* Browse — switch from table to cards on mobile */
@@ -1152,7 +1157,7 @@
       padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
       height: calc(68px + env(safe-area-inset-bottom));
     }
-    .app-layout { padding-bottom: calc(68px + env(safe-area-inset-bottom)); }
+    .main { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }   /* v0.9.1053 — see above */
     .main {
       padding-top: 0.75rem;
       padding-left: max(0.75rem, env(safe-area-inset-left));
