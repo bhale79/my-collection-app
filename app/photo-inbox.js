@@ -74,6 +74,7 @@
       '</div>' +
       '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.7rem">Drop photos anywhere below, or use Add photos. Click a photo to review it — add the item, research it more, or discard the photo. Use “Select multiple” to combine several shots of one item. Photos snapped with Quick Capture on your phone land here too.</div>' +
       '<div id="pin-context-bar" style="display:none"></div>' +   // v0.9.1048 capture context
+      '<div id="pin-filter-row" style="display:none"></div>' +   // v0.9.1051 filters
       '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;margin-bottom:0.8rem">' +
         '<button onclick="_pinAddSource()" class="btn-primary" style="padding:0.5rem 0.9rem;border-radius:8px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Add photos…</button>' +
         '<button id="pin-selmode-btn" onclick="_pinToggleSelectMode()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">☑ Select multiple</button>' +
@@ -138,6 +139,100 @@
   };
 
   // ── List + render ────────────────────────────────────────────
+  // ══ v0.9.1051 — filters (Brad's idea 4) ══════════════════════════════════
+  // Brad asked for sub-folders: sorted, unsorted, Lionel postwar, engines,
+  // identified, best guess. Most of those are PROPERTIES, not places — one
+  // photo is Lionel and postwar and an engine and identified all at once, so
+  // filing it into a folder means picking which fact wins and losing the rest.
+  // These are filters: a view over the same photos, instant, and free. (Real
+  // Drive sub-folders would also be an API call per photo and painful to undo.)
+  //
+  // The filter he will actually live in is STATUS, because with two hundred
+  // items off a wall the fast way through is not photo by photo — it is "show
+  // me the forty it was confident about" and rubber-stamp them, then "show me
+  // the ones it could not read" and do those properly.
+  var _pinFilter = { status: '', era: '', kind: '' };
+
+  function _pinStatusOf(f) {
+    var m = (f && f._meta) || {};
+    var sug = _ids()[f.id];
+    if (m.stat === 'filed') return 'filed';
+    if (m.num || (sug && sug.num && !sug.guess)) return 'read';
+    if (sug && (sug.num || (sug.alts && sug.alts.length))) return 'guess';
+    if (sug && sug.tried) return 'noread';
+    if (m.era) return 'stamped';
+    return 'new';
+  }
+  var _PIN_STATUS_LABELS = {
+    new: 'Not touched yet', stamped: 'Stamped, not read', read: 'Number found',
+    guess: 'Best guess only', noread: 'Could not read', filed: 'Filed',
+  };
+
+  function _pinGroupPasses(g) {
+    var f = g.files[0], m = (f && f._meta) || {};
+    if (_pinFilter.status && _pinStatusOf(f) !== _pinFilter.status) return false;
+    if (_pinFilter.era && m.era !== _pinFilter.era) return false;
+    if (_pinFilter.kind && (m.kind || 'single') !== _pinFilter.kind) return false;
+    return true;
+  }
+  function _pinVisibleGroups() {
+    if (!_pinFilter.status && !_pinFilter.era && !_pinFilter.kind) return _groups;
+    return _groups.filter(_pinGroupPasses);
+  }
+  function _pinFilterActive() { return !!(_pinFilter.status || _pinFilter.era || _pinFilter.kind); }
+
+  // Counts so a chip can say what is behind it before you tap.
+  function _pinCounts() {
+    var st = {}, era = {}, kind = {};
+    _groups.forEach(function (g) {
+      var f = g.files[0], m = (f && f._meta) || {};
+      var s2 = _pinStatusOf(f); st[s2] = (st[s2] || 0) + 1;
+      if (m.era) era[m.era] = (era[m.era] || 0) + 1;
+      var k = m.kind || 'single'; kind[k] = (kind[k] || 0) + 1;
+    });
+    return { status: st, era: era, kind: kind };
+  }
+
+  window._pinSetFilter = function (which, val) {
+    _pinFilter[which] = (_pinFilter[which] === val) ? '' : val;
+    _render();
+  };
+  window._pinClearFilters = function () {
+    _pinFilter = { status: '', era: '', kind: '' };
+    _render();
+  };
+  if (typeof window !== 'undefined') {
+    window._pinVisibleGroups = _pinVisibleGroups;
+    window._pinStatusOf = _pinStatusOf;
+    window._pinCounts = _pinCounts;
+    window._pinFilterState = function () { return _pinFilter; };
+  }
+
+  function _pinRenderFilters() {
+    var el = document.getElementById('pin-filter-row');
+    if (!el) return;
+    var c = _pinCounts();
+    var chips = [];
+    function chip(which, val, label, n) {
+      if (!n) return;
+      var on = _pinFilter[which] === val;
+      chips.push('<button onclick="_pinSetFilter(\'' + which + '\',\'' + val + '\')" style="padding:0.35rem 0.7rem;border-radius:999px;'
+        + 'border:1.5px solid ' + (on ? 'var(--accent)' : 'var(--border)') + ';background:' + (on ? 'rgba(232,64,28,0.14)' : 'var(--surface2)') + ';'
+        + 'color:' + (on ? 'var(--accent)' : 'var(--text-mid)') + ';font-size:0.78rem;font-weight:600;cursor:pointer;min-height:36px">'
+        + rrEsc(label) + ' <span style="opacity:0.7">' + n + '</span></button>');
+    }
+    ['new','stamped','guess','read','noread','filed'].forEach(function (k) { chip('status', k, _PIN_STATUS_LABELS[k], c.status[k]); });
+    Object.keys(c.era).forEach(function (k) { chip('era', k, _pinEraLabel(k), c.era[k]); });
+    Object.keys(c.kind).forEach(function (k) { if (k !== 'single') chip('kind', k, _pinKindLabel(k), c.kind[k]); });
+    if (!chips.length) { el.style.display = 'none'; return; }
+    el.style.display = 'flex';
+    el.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.7rem;align-items:center';
+    el.innerHTML = chips.join('')
+      + (_pinFilterActive()
+          ? '<button onclick="_pinClearFilters()" style="padding:0.35rem 0.7rem;border-radius:999px;border:none;background:none;color:var(--text-dim);font-size:0.78rem;text-decoration:underline;cursor:pointer;min-height:36px">Show all</button>'
+          : '');
+  }
+
   // ══ v0.9.1050 — group kinds and roles ════════════════════════════════════
   // Photos already stack into groups (the g<id> tag). What a stack could not
   // say is WHAT it is — and that matters, because an ABA is not one item with
@@ -565,9 +660,11 @@
   function _render() {
     var grid = document.getElementById('pin-grid'), empty = document.getElementById('pin-empty');
     if (!grid) return;
+    // v0.9.1051: draw what passes the filters, but keep counting the whole inbox.
+    var _vis = _pinVisibleGroups();
     var total = 0;
-    grid.innerHTML = _groups.map(function (g) {
-      total += g.files.length;
+    _groups.forEach(function (g) { total += g.files.length; });
+    grid.innerHTML = _vis.map(function (g) {
       var isSel = !!_sel[g.key];
       // v0.9.1050: a stack says WHAT it is, not just how many photos.
       var _gk = (g.files[0] && g.files[0]._meta && g.files[0]._meta.kind) || 'single';
@@ -604,8 +701,25 @@
         '</div>';
     }).join('');
     empty.style.display = _groups.length ? 'none' : 'block';
+    if (_groups.length && !_vis.length) {
+      grid.innerHTML = '<div style="grid-column:1/-1;padding:1.5rem 0;text-align:center;color:var(--text-dim);font-size:0.88rem">'
+        + 'No photos match that filter. <button onclick="_pinClearFilters()" style="background:none;border:none;color:var(--accent);text-decoration:underline;cursor:pointer;font-size:0.88rem">Show all</button></div>';
+    }
+    try { _pinRenderFilters(); } catch (eF) {}
     var cnt = document.getElementById('pin-count');
-    if (cnt) cnt.textContent = total ? (total + ' photo' + (total > 1 ? 's' : '') + ' waiting') : '';
+    // v0.9.1051 (Brad counted 93, the label said 99): the grid draws one tile per
+    // GROUP and the count summed FILES. Both were true and neither matched what
+    // he could count, so say both.
+    if (cnt) {
+      var _items = _groups.length;
+      var _shown = _vis.length;
+      cnt.textContent = !total ? ''
+        : (_pinFilterActive()
+            ? (_shown + ' of ' + _items + ' item' + (_items > 1 ? 's' : '') + ' shown')
+            : (_items === total
+                ? (total + ' photo' + (total > 1 ? 's' : '') + ' waiting')
+                : (_items + ' item' + (_items > 1 ? 's' : '') + ' \u00b7 ' + total + ' photos waiting')));
+    }
     grid.querySelectorAll('img[data-fid]').forEach(function (img) {
       loadDriveThumb(img.getAttribute('data-fid'), img, img.parentElement, null, 'hi');
     });
