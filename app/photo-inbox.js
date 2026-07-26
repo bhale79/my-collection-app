@@ -669,7 +669,7 @@
   // now carry the version of the reader that produced them, and the automatic
   // pass retries anything read by an older one. Bump this whenever the reading
   // logic changes; it costs nothing but time, and only on photos that failed.
-  var READER_VER = '1082';
+  var READER_VER = '1088';
 
   function _pinMetaOf(file) {
     var ap = (file && file.appProperties) || {};
@@ -2942,6 +2942,24 @@
       wholeRuns.some(function (d) { jHit = _tryNumber(d); return !!jHit; });
       if (!jHit) {
         wholeRuns.some(function (d) {
+          // ══ v0.9.1088 — two gates the repair badly needed ══════════════════
+          // Brad's 6817 scraper flatcar: the reader never saw 6817. It read the
+          // catalog page pinned to the WALL — 1015, 110, 108, 950 — all off-era,
+          // all correctly rejected. Then this repair took 1015, a real prewar
+          // transformer it had read PERFECTLY, changed one digit, landed on
+          // 1615 in the stamped catalog, and called it confirmed. "Cannonball
+          // Express Set", from a wall poster, presented as fact.
+          //
+          // Gate 1: never mutate a number that exists in ANY catalog. A token
+          // that is a real item somewhere was almost certainly read correctly —
+          // it is just not THIS item. Correcting a correct reading is
+          // manufacturing evidence.
+          if (fmAny && (fmAny(d) || (d.length > 4 && fmAny(d.slice(0, 4))))) return false;
+          // Gate 2: four digits with one changed is three digits of evidence —
+          // and with thousands of catalog numbers, some variant nearly always
+          // lands on one. Five or more digits (5464475 \u2192 6464-475, the case
+          // this was built for) is specific enough to trust.
+          if (d.length < 5) return false;
           return _oneOffVariants(d).some(function (v) {
             var hit = _tryNumber(v);
             if (hit) { jHit = hit; dbg.oneOff = d + ' \u2192 ' + hit; return true; }
