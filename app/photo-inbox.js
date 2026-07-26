@@ -2538,6 +2538,12 @@
         if (banned[c]) return false;                            // copyright year, not a catalog number
         if (isBuildDate(c)) return false;                       // "BLT 5-54" — a date, not an item
         if (capStamp[c.replace(/\D/g, '')]) return false;        // "CAPY 40200" — a weight, not an item
+        // v0.9.1071: the weight block on a freight car reads CAPY 103000,
+        // LD LMT 129300, LT WT 40200 — and OCR garbles those labels often
+        // enough that keyword matching alone misses them. No Lionel catalog
+        // number has six or more digits, so on a Lionel-stamped photo they are
+        // never the answer regardless of what the label came out as.
+        if (prefer && prefer.era && /^\d{6,}$/.test(c)) return false;
         var digits = c.replace(/\D/g, '');
         var alnum = c.replace(/[^0-9A-Za-z]/g, '');
         if (digits.length < alnum.length * 0.6) return false;   // mostly letters = junk (e.g. "4LIONEL", "MADE")
@@ -2589,12 +2595,48 @@
       cand: uniq.slice(0, 8),
       inEra: [],
       offEra: [],
+      joined: '',
     };
     uniq.slice(0, 8).forEach(function (c) {
       var any = fmAny ? fmAny(c) : null;
       if (!any) return;
       (inEra(any) ? dbg.inEra : dbg.offEra).push(c + (any._era ? ':' + any._era : ''));
     });
+    // v0.9.1071 — SPLIT NUMBERS. Brad: "this is a hard number to read because
+    // the number is 3562-1 and its split on the car." He was describing the
+    // mechanism exactly, and the raw text proved it. On that ATSF gondola the
+    // reader saw:
+    //
+    //     ... CAPY 100000  3 3 5 6 2 1  LD LMT 128000 ...
+    //
+    // The number is stamped across separate raised panels, so it arrives as six
+    // SINGLE DIGITS. Every one of them is discarded before any catalog lookup —
+    // a lone "3" is not a token worth considering — so 3562-1 never had a
+    // chance, however sharp the photo. No amount of image processing fixes this;
+    // the characters were read correctly and then thrown away.
+    //
+    // So: take runs of digits separated only by spaces, close them up, and try
+    // every contiguous window of catalog-plausible length, exact and then
+    // dash-repaired. "3 3 5 6 2 1" closes to 335621, whose window 35621 repairs
+    // to 3562-1, which the catalog knows. Only ever accepted on an exact hit in
+    // the stamped catalog, so this recovers numbers that were already there and
+    // cannot invent one.
+    var joined = [];
+    (function () {
+      var runs = UP.match(/\d(?:[ \t]?\d){3,11}/g) || [];
+      runs.forEach(function (run) {
+        var d = run.replace(/\D/g, '');
+        if (!d || d.length < 4) return;
+        if (capStamp[d] || banned[d]) return;         // a weight or a copyright year
+        for (var len = Math.min(8, d.length); len >= 4; len--) {
+          for (var st = 0; st + len <= d.length; st++) {
+            var w = d.substr(st, len);
+            if (joined.indexOf(w) < 0) joined.push(w);
+          }
+        }
+      });
+    })();
+
     // 1) numbers the stamped catalog confirms win — most specific first
     var matched = uniq.filter(function (c) { return fm && (fm(c) || fm(c.replace(/^\d-/, ''))); });
     if (matched.length) { matched.sort(dashRank); return { num: matched[0], matched: true, dbg: dbg }; }
@@ -2605,6 +2647,20 @@
     var loose = fmAny
       ? uniq.filter(function (c) { return fmAny(c) || fmAny(c.replace(/^\d-/, '')); })
       : [];
+    // 1a2) the joined fragments, exact then dash-repaired
+    if (fm && joined.length) {
+      var jHit = null;
+      joined.some(function (d) {
+        if (fm(d)) { jHit = d; return true; }
+        for (var cut = 3; cut <= 4; cut++) {
+          if (d.length <= cut) continue;
+          var cand = d.slice(0, cut) + '-' + d.slice(cut);
+          if (fm(cand)) { jHit = cand; return true; }
+        }
+        return false;
+      });
+      if (jHit) { dbg.joined = jHit; return { num: jHit, matched: true, dbg: dbg }; }
+    }
     // 1b) v0.9.1065 — DASH REPAIR. The audit produced "6464475" twice and the
     // catalog rejected both, because the real number is 6464-475: OCR drops a
     // dash far more often than it invents a digit. Try putting one back at each
