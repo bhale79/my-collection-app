@@ -1174,6 +1174,15 @@
     /* Header — tighten on mobile to prevent overflow */
     .header { padding: 0 0.6rem; gap: 0.4rem; }
     .header-search { max-width: none; flex: 1; min-width: 0; }
+    /* v0.9.1054 (Brad: "the user initial at the top right is cut off"). The
+       logo block was flex-shrink:0 while carrying a 55px image and 1.8rem
+       uppercase text — wider than a phone on its own — so the account chip,
+       last in the row, was pushed off the right edge and left half-tappable.
+       The logo gives way now and the chip keeps its full width. */
+    .header-logo { flex-shrink: 1; min-width: 0; overflow: hidden; }
+    .header-logo > div { font-size: 1.35rem !important; letter-spacing: 0.04em !important; }
+    .header-logo img { height: 44px !important; }
+    .header-right { flex-shrink: 0; }
 
     /* Hide top-right help widget on mobile (it lives in bottom nav instead) */
     #tut-help-widget { display: none !important; }

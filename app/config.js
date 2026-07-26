@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1053';
+const APP_VERSION = 'v0.9.1054';
 
 // v0.9.918 (Brad): SINGLE SOURCE OF TRUTH for the personal sheet's collection
 // tab name. Every sheet read/write range ("My Collection!D12") builds from
@@ -30,7 +30,10 @@ window.bindOverlayClose = function (ov, closeFn) {
   ov.addEventListener('touchstart', function (e) { down = (e.target === ov); }, { passive: true });
   ov.addEventListener('click', function (e) { if (e.target === ov && down) closeFn(e); down = false; });
 };
-const APP_DATE    = 'April 2026';
+// v0.9.1054 (Brad: "it says April, it's July"). This is hand-written and had
+// drifted three months. It moves with APP_VERSION now — same edit, every deploy
+// — because a version stamp nobody trusts is worse than none.
+const APP_DATE    = 'July 2026';
 
 // ── varShortLabel — SINGLE SOURCE for short variation labels (v0.9.657) ──
 // COTT Variation Details are verbatim multi-line sections that begin with a
