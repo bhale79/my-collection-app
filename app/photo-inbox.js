@@ -669,7 +669,7 @@
   // now carry the version of the reader that produced them, and the automatic
   // pass retries anything read by an older one. Bump this whenever the reading
   // logic changes; it costs nothing but time, and only on photos that failed.
-  var READER_VER = '1077';
+  var READER_VER = '1078';
 
   function _pinMetaOf(file) {
     var ap = (file && file.appProperties) || {};
@@ -1798,6 +1798,7 @@
             + ((dbg.joinTried && dbg.joinTried.length)
                 ? '<br>Reassembled and tried: ' + rrEsc(dbg.joinTried.slice(0, 10).join(', ')) : '')
             + (dbg.viaDesc ? '<br>Matched on the words: ' + rrEsc(dbg.viaDesc) : '')
+            + (dbg.corroborated ? '<br>Number and lettering agree: ' + rrEsc(dbg.corroborated) : '')
             + (dbg.viaMaker ? '<br>Chosen because it is stamped next to the maker\'s name: ' + rrEsc(dbg.viaMaker) : '')
             + (dbg.evidence !== undefined
                 ? '<br>Readable characters recovered: ' + dbg.evidence
@@ -2600,8 +2601,19 @@
     // piece. It is also exactly the cue a collector's eye uses.
     var namedByMaker = {};
     (function () {
-      var reAfter = /(?:LIONEL|LIONEL LINES|BLT BY LIONEL)[^0-9A-Z]{0,6}(\d{2,6}(?:-\d{1,3})?)/g;
-      var reBefore = /(\d{2,6}(?:-\d{1,3})?)[^0-9A-Z]{0,6}(?:LIONEL|LIONEL LINES)/g;
+      // v0.9.1077d — Brad's Lionel 50 gang car came through as "IONEL DE 50":
+      // the maker's own name is long, curved and often the first thing OCR
+      // mangles. Requiring it spelled perfectly threw away the strongest signal
+      // we have precisely when the reading was rough. L1ONEL, IONEL, LIONE and
+      // LIONEL all count; the pattern is still specific enough that nothing
+      // else on a train matches it.
+      var MAKER = '(?:[LI1][I1l]?[O0]NEL|LI[O0]NE)';
+      // The gap allows a little junk, not just spaces: Brad's gang car reads
+      // "IONEL DE 50" — OCR invents letters between the name and the number as
+      // readily as it mangles the name itself. Ten non-digit characters is wide
+      // enough for that and far too narrow to reach the next real number.
+      var reAfter = new RegExp(MAKER + '(?:[ ]?LINES)?[^0-9]{0,10}(\\d{2,6}(?:-\\d{1,3})?)', 'g');
+      var reBefore = new RegExp('(\\d{2,6}(?:-\\d{1,3})?)[^0-9]{0,10}' + MAKER, 'g');
       var mm;
       while ((mm = reAfter.exec(UP))) { namedByMaker[mm[1]] = 1; }
       while ((mm = reBefore.exec(UP))) { namedByMaker[mm[1]] = 1; }
@@ -2677,7 +2689,15 @@
     var shortOnes = uniq.filter(function (c) {
       return c.replace(/\D/g, '').length < 3 && fm && fm(c);
     });
-    uniq = uniq.filter(function (c) { return c.replace(/\D/g, '').length >= 3; });
+    // v0.9.1078: a short number is weak because it could be anything — but not
+    // when the maker stamped its own name beside it. "LIONEL 50" on Brad's gang
+    // car is as strong a statement as a car can make, and it was being demoted
+    // to a hedge purely for being two digits. Promote those back.
+    uniq = uniq.filter(function (c) {
+      if (c.replace(/\D/g, '').length >= 3) return true;
+      return !!namedByMaker[c];
+    });
+    shortOnes = shortOnes.filter(function (c) { return !namedByMaker[c]; });
     var dashRank = function (a, b) {
       return (b.indexOf('-') >= 0 ? 1 : 0) - (a.indexOf('-') >= 0 ? 1 : 0) || b.length - a.length;
     };
@@ -2906,7 +2926,7 @@
   // catalog rows tells you nothing), it requires a clear winner rather than a
   // narrow one, and it never claims to be certain — it hands back a candidate
   // with the item named, so a glance confirms or kills it.
-  var _descIdx = null, _descIdxEra = null;
+  var _descIdx = null, _descIdxKey = '', _descIdxMap = null;
 
   // Words that appear on half the catalog and identify nothing.
   var _DESC_STOP = {
@@ -2922,10 +2942,21 @@
 
   // One inverted index per era: WORD -> [rows]. Built once, on first use.
   function _descIndexFor(era) {
-    if (_descIdx && _descIdxEra === era) return _descIdx;
+    // v0.9.1077d: this was cached on the era alone, so once built it survived
+    // the catalog itself changing — a stale index that answers confidently is
+    // worse than no index. The size of the loaded master is a cheap proxy for
+    // "the data underneath me changed"; caught by a test where two different
+    // catalogs shared an era and the second silently got the first's answers.
+    var srcMap = null;
+    try { srcMap = (window.state && state.masterByItem) || null; } catch (e0) {}
+    // Identity of the actual Map, not a count of it. A first attempt keyed on
+    // era + size, and a test with two different single-row catalogs got the
+    // first one's answer for the second — a stale index that answers with
+    // confidence is worse than having no index at all.
+    if (_descIdx && _descIdxKey === era && _descIdxMap === srcMap) return _descIdx;
     var idx = {};
     try {
-      var m = (window.state && state.masterByItem) ? state.masterByItem : null;
+      var m = srcMap;
       if (!m || !m.forEach) return null;
       m.forEach(function (rows) {
         (rows || []).forEach(function (row) {
@@ -2943,7 +2974,7 @@
         });
       });
     } catch (e) { return null; }
-    _descIdx = idx; _descIdxEra = era;
+    _descIdx = idx; _descIdxKey = era; _descIdxMap = srcMap;
     return idx;
   }
 
@@ -2961,9 +2992,31 @@
     });
     if (!words.length) return null;
 
+    // v0.9.1077c — OCR breaks long words. Brad's Lackawanna Train Master came
+    // through as "LACKAWAN NA", so an exact-word index found nothing at all. A
+    // photo word of six or more characters also matches a catalog word that
+    // begins with it (or that begins with the photo word) — long enough that a
+    // prefix collision is not a coincidence, and it is exactly how OCR fails on
+    // the longest and most identifying words on a model.
+    var idxKeys = null;
+    function _rowsFor(w) {
+      if (idx[w]) return idx[w];
+      if (w.length < 6) return null;
+      if (!idxKeys) idxKeys = Object.keys(idx);
+      var out = null;
+      for (var i = 0; i < idxKeys.length; i++) {
+        var k = idxKeys[i];
+        if (k.length < 6) continue;
+        if (k.indexOf(w) === 0 || w.indexOf(k) === 0) {
+          out = (out || []).concat(idx[k]);
+        }
+      }
+      return out;
+    }
+
     var score = {}, hitWords = {}, rowOf = {};
     words.forEach(function (w) {
-      var rows = idx[w];
+      var rows = _rowsFor(w);
       if (!rows || !rows.length) return;
       // A word carrying 40+ rows is a category, not an identity. Weight by how
       // rare it is — TIE-JECTOR is worth far more than GONDOLA.
@@ -3018,7 +3071,14 @@
     if (bc) return bc;
     var w = await _tessGet(); if (!w) return null;
     var bmp = null;
-    try { bmp = await createImageBitmap(blob); } catch (eB) { return null; }
+    try { bmp = await createImageBitmap(blob); }
+    catch (eB) {
+      // A photo the browser cannot decode is a real answer, not a crash.
+      console.warn('[inbox] could not decode this photo', eB && eB.message);
+      return { num: '', matched: false, empty: true,
+               dbg: { era: (prefer && prefer.era) || '', cand: [], inEra: [], offEra: [],
+                      note: 'the browser could not decode this photo' } };
+    }
     var dim = maxDim || 2400;
     var best = null, text = '';
     for (var pi = 0; pi < _FREE_PASSES.length; pi++) {
@@ -3062,24 +3122,42 @@
     }
     try { await w.setParameters({ tessedit_char_whitelist: _WL_FULL }); } catch (eR) {}
     try { if (bmp.close) bmp.close(); } catch (eC) {}
-    // The numbers failed or were unconvincing — ask what the car SAYS.
-    if (!best || !best.matched) {
-      try {
-        var dm = _pinDescMatch(text, prefer);
-        if (dm && dm.row && dm.row.itemNum) {
-          var dbg2 = (best && best.dbg) || {};
-          dbg2.viaDesc = dm.words.join(', ');
-          best = {
-            num: String(dm.row.itemNum),
-            matched: false,               // always a candidate to accept, never a fact
-            viaDesc: true,
-            descWords: dm.words,
-            descOf: [dm.row.description, dm.row.roadName].filter(Boolean).join(' \u2014 '),
-            dbg: dbg2,
-          };
+    // ── What does the car SAY? ────────────────────────────────────────────
+    // v0.9.1077b — this used to run only when the numbers had failed outright,
+    // and Brad's Lackawanna 2321 showed why that is not enough. The reader saw
+    // "D321" — 2321 with the leading 2 misread — and 321 IS a real postwar item,
+    // a Trestle Bridge. So a wrong answer counted as a match and the word
+    // LACKAWAN, sitting in the same text and naming the locomotive outright,
+    // was never consulted. It runs every time now.
+    try {
+      var dm = _pinDescMatch(text, prefer);
+      if (dm && dm.row && dm.row.itemNum) {
+        var descNum = String(dm.row.itemNum);
+        var haveNum = (best && best.num) ? String(best.num) : '';
+        var descOf = [dm.row.description, dm.row.roadName].filter(Boolean).join(' \u2014 ');
+        var dbg2 = (best && best.dbg) || {};
+        dbg2.viaDesc = dm.words.join(', ');
+
+        // TWO WEAK SIGNALS THAT AGREE. "321" is the tail of "2321", and the
+        // lettering independently says Lackawanna. A misread leading digit and a
+        // road name pointing at the same item is far stronger evidence than
+        // either alone — this is the case worth being confident about.
+        var tailAgrees = haveNum && descNum !== haveNum &&
+          (descNum.replace(/\D/g, '').slice(-haveNum.replace(/\D/g, '').length) === haveNum.replace(/\D/g, ''));
+
+        if (tailAgrees) {
+          dbg2.corroborated = descNum + ' (read ' + haveNum + ', lettering agrees)';
+          best = { num: descNum, matched: true, viaDesc: true, descWords: dm.words, descOf: descOf, dbg: dbg2 };
+        } else if (!best || !best.matched) {
+          best = { num: descNum, matched: false, viaDesc: true, descWords: dm.words, descOf: descOf, dbg: dbg2 };
+        } else if (dm.score >= 3 && haveNum.replace(/\D/g, '').length <= 3) {
+          // A confident name beats a three-digit number that could be anything.
+          // Offered rather than asserted, since the two genuinely disagree.
+          best = { num: descNum, matched: false, viaDesc: true, descWords: dm.words, descOf: descOf,
+                   disagreed: haveNum, dbg: dbg2 };
         }
-      } catch (eD) { console.warn('[inbox] description match failed', eD && eD.message); }
-    }
+      }
+    } catch (eD) { console.warn('[inbox] description match failed', eD && eD.message); }
     var out = best;
     // v0.9.1068 (Brad: "where does 120 come from?"). A number appears with no
     // way to tell whether the reader saw it on the item, on the shelf behind it,
@@ -3158,7 +3236,14 @@
       if (!(r && r.num)) showToast('The free reader could not pick out a number on this one — type it in, or use “Read this photo” for a closer look', 4500);
     } catch (e) {
       if (btn) { btn.disabled = false; btn.textContent = 'This is wrong — re-scan'; }
-      showToast('Re-scan failed — try again', 2500, true);
+      // v0.9.1078: "Re-scan failed — try again" told Brad nothing and told me
+      // less. Every other failure in this file explains itself by now; this one
+      // swallowed the reason and left him pressing a button that could not work.
+      console.error('[inbox] re-scan failed', e);
+      var _why = (e && e.message) ? String(e.message).slice(0, 90) : 'unknown error';
+      showToast('Re-scan failed \u2014 ' + _why, 5000, true);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'This is wrong — re-scan'; }
     }
   };
 
