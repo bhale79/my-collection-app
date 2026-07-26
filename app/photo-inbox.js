@@ -1326,7 +1326,9 @@
     };
     var html = '';
     if (!lk.num) {
-      html = '<div style="font-size:0.9rem;color:var(--text-dim)">No number picked up automatically — type it below if you can see it, or use Research.</div>';
+      var _fi = _pinFailInfo();
+      html = '<div style="font-size:0.9rem;color:var(--text-dim)">No number picked up automatically — type it below if you can see it, or use Research.</div>'
+        + (_fi ? _pinWhyHtml(_fi.raw, _fi.dbg) : '');
     } else if (lk.master && lk.mfrMismatch) {
       html = '<div style="font-size:0.82rem;color:#d4a843;font-weight:700;line-height:1.5;margin-bottom:0.35rem">⚠ The photo says ' + String(lk.mfrMismatch).replace(/</g, '&lt;') + ' — but #' + String(lk.num).replace(/</g, '&lt;') + ' in the catalog is a ' + String(lk.maker || '?').replace(/</g, '&lt;') + ' item. Probably NOT the same thing.</div>'
         + row('Catalog has', (lk.maker || '—') + ': ' + String(lk.desc).replace(/</g, '&lt;'))
@@ -1752,6 +1754,33 @@
 
   // "From the photo" line — everything the AI read, so a wrong read (e.g. a
   // background box's number) is obvious at a glance. (Brad, 2026-07-16)
+  // The stored reasoning for a photo that came back empty.
+  function _pinFailInfo() {
+    try {
+      var fid = _rvGroups && _rvGroups.length ? _pinReadFid(_rvGroups[0]) : '';
+      var f = _freeTried()[fid];
+      return (f && typeof f === 'object') ? f : null;
+    } catch (e) { return null; }
+  }
+
+  // Shared "why" block, used by both a read and a failed read.
+  function _pinWhyHtml(raw, dbg) {
+    if (!raw && !dbg) return '';
+    return '<details style="margin-top:0.3rem"><summary style="font-size:0.7rem;color:var(--text-dim);cursor:pointer">Where did this come from?</summary>'
+      + '<div style="font-size:0.7rem;color:var(--text-dim);font-family:var(--font-mono);margin-top:0.25rem;line-height:1.4;word-break:break-word">'
+      + (raw ? 'The reader saw: \u201c' + rrEsc(raw) + '\u201d' : 'The reader returned no text at all.')
+      + (dbg
+          ? '<div style="margin-top:0.35rem">'
+            + 'Photo is stamped: <b>' + rrEsc(dbg.era ? _pinEraLabel(dbg.era) : 'nothing \u2014 no era filter applied') + '</b><br>'
+            + 'Numbers considered: ' + rrEsc((dbg.cand || []).join(', ') || 'none') + '<br>'
+            + 'In that catalog: ' + rrEsc((dbg.inEra || []).join(', ') || 'none') + '<br>'
+            + 'In another catalog: ' + rrEsc((dbg.offEra || []).join(', ') || 'none')
+            + (dbg.joined ? '<br>Recovered by joining split digits: ' + rrEsc(dbg.joined) : '')
+            + '</div>'
+          : '')
+      + '</div></details>';
+  }
+
   function _pinAiLine() {
     var s = {};
     try { s = _ids()[_rvGroups[0].files[0].id] || {}; } catch (e) {}
@@ -2687,7 +2716,13 @@
     if (uniq.length) return { num: uniq[0], matched: false, dbg: dbg };
     // 3) last resort: a catalog-backed short number, always as a guess
     if (shortOnes.length) { shortOnes.sort(dashRank); return { num: shortOnes[0], matched: false, short: true, dbg: dbg }; }
-    return null;
+    // v0.9.1072 — a read that finds NOTHING is the case most worth explaining,
+    // and it was the only one that explained nothing. Brad's Lionel 50 gang car
+    // has the clearest lettering of any photo in his inbox and came back blank,
+    // with no way to see whether "50" was read and rejected, read and discarded
+    // as too short, or never read at all. Thirty-eight of his seventy-three
+    // photos are in this state. Return the reasoning with an empty answer.
+    return { num: '', matched: false, empty: true, dbg: dbg };
   }
 
   // Read any barcode on the photo and resolve it with the SAME brain the
@@ -2769,8 +2804,10 @@
         }
       } catch (eP) { continue; }
       var r = _numberFromText(t, prefer);
-      if (r && (!best || (r.matched && !best.matched))) { best = r; text = t; }
-      if (best && best.matched) break;                 // the stamped catalog agrees — done
+      // An empty answer still carries its reasoning, so keep it if nothing
+      // better turns up — but never let it outrank a real one.
+      if (r && (!best || (r.num && !best.num) || (r.matched && !best.matched))) { best = r; text = t; }
+      if (best && best.matched && best.num) break;     // the stamped catalog agrees — done
     }
     try { await w.setParameters({ tessedit_char_whitelist: _WL_FULL }); } catch (eR) {}
     try { if (bmp.close) bmp.close(); } catch (eC) {}
@@ -2831,7 +2868,7 @@
       var r = await _freeReadBlob(blob, 2400, _preferForFid(fid));   // higher-res second attempt
       var m = _ids();
       if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null }; _idsSave(m); }
-      else { var f2 = _freeTried(); f2[fid] = 1; _freeTriedSave(f2); }
+      else { var f2 = _freeTried(); f2[fid] = { t: 1, raw: (r && r.raw) || '', dbg: (r && r.dbg) || null }; _freeTriedSave(f2); }
       try { _render(); } catch (e4) {}
       window._pinReview(key);
       // v0.9.1067 (Brad: "saying still no clear number will piss people off when
@@ -2865,7 +2902,10 @@
           var m = _ids(); m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null };
           _idsSave(m);
         } else {
-          var f = _freeTried(); f[fid] = 1; _freeTriedSave(f);
+          // v0.9.1072: remember WHY it failed, not just that it did. Stored on
+          // the tried-map rather than as a suggestion, so a blank read still
+          // counts as unread for the paid batch and the token button.
+          var f = _freeTried(); f[fid] = { t: 1, raw: (r && r.raw) || '', dbg: (r && r.dbg) || null }; _freeTriedSave(f);
         }
         _render();
       }
