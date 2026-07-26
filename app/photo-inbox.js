@@ -2322,7 +2322,15 @@
     if (!(await _loadTesseract())) { _tessTried = true; return null; }
     try {
       _tessWorker = await Tesseract.createWorker('eng');
-      await _tessWorker.setParameters({ tessedit_char_whitelist: '0123456789-ABCDEFGHIJKLMNOPQRSTUVWXYZ ' });
+      // v0.9.1065: page-segmentation 6 ("one uniform block") nearly tripled the
+      // free reader's hits in the audit on Brad's own 73 photos — 35 confirmed
+      // against 13 for the shipping default. A model train photo is scattered
+      // lettering on a body, not a page of prose, and the default mode was
+      // trying to read it as a document.
+      await _tessWorker.setParameters({
+        tessedit_char_whitelist: '0123456789-ABCDEFGHIJKLMNOPQRSTUVWXYZ ',
+        tessedit_pageseg_mode: '6',
+      });
     } catch (e) { _tessWorker = null; }
     _tessTried = true;
     return _tessWorker;
@@ -2334,11 +2342,33 @@
     var w = Math.max(1, Math.round(bmp.width * sc)), h = Math.max(1, Math.round(bmp.height * sc));
     var c = document.createElement('canvas'); c.width = w; c.height = h;
     var ctx = c.getContext('2d');
-    // Grayscale + mild contrast makes printed numbers pop for OCR.
-    try { ctx.filter = 'grayscale(1) contrast(1.3)'; } catch (e) {}
     ctx.drawImage(bmp, 0, 0, w, h);
     if (bmp.close) bmp.close();
+    // v0.9.1065: a full histogram stretch, not a fixed contrast bump. A silver
+    // passenger car occupies a narrow band of greys and a fixed multiplier
+    // barely moves it; stretching whatever range the photo actually uses out to
+    // full black-to-white is what makes those numbers legible.
+    try { _stretchCanvas(c); } catch (e) {}
     return c;
+  }
+
+  // Grayscale, then map the darkest pixel to black and the lightest to white.
+  function _stretchCanvas(c) {
+    var ctx = c.getContext('2d');
+    var img = ctx.getImageData(0, 0, c.width, c.height), d = img.data;
+    var lo = 255, hi = 0, i, g;
+    for (i = 0; i < d.length; i += 4) {
+      g = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) | 0;
+      d[i] = d[i + 1] = d[i + 2] = g;
+      if (g < lo) lo = g;
+      if (g > hi) hi = g;
+    }
+    var span = Math.max(1, hi - lo);
+    for (i = 0; i < d.length; i += 4) {
+      var v = (d[i] - lo) * 255 / span;
+      d[i] = d[i + 1] = d[i + 2] = v < 0 ? 0 : (v > 255 ? 255 : v);
+    }
+    ctx.putImageData(img, 0, 0);
   }
 
   // Pull the best catalog-number candidate out of OCR text and confirm it
@@ -2377,11 +2407,20 @@
     // unmistakably a copyright line, not an item marking.
     var reHolder = /\b((?:19|20)\d{2})\b(?=[^0-9]{0,25}(?:L\.?L\.?C\b|LLC\b|LIMITED\b|LTD\b|\bINC\b|CORP\b|ENTERTAINMENT\b|TRADEMARK\b|GMBH\b))/g;
     while ((m = reHolder.exec(UP))) { banned[m[1]] = 1; }
+    // v0.9.1065 — BUILD DATES. The audit read "5-54" off five different cars
+    // and the catalog confirmed every one, because numbers like that collide
+    // with real entries. They are not item numbers: Lionel stamps the build
+    // date on the side of postwar rolling stock ("BLT 5-54" = May 1954), and it
+    // is frequently the crispest printed thing in the photo. A real catalog
+    // number never looks like this — dashed Lionel numbers are 6464-475 or
+    // 2333-20, three or four digits before the dash, never one or two.
+    var isBuildDate = function (c) { return /^\d{1,2}-\d{1,2}$/.test(c); };
     var toks = (UP.match(/\d[\dA-Z]*(?:-[\dA-Z]+)*/g) || [])
       .map(function (c) { return c.replace(/^-+|-+$/g, ''); })
       .filter(function (c) {
         if (!/\d/.test(c) || c.length < 2 || c.length > 10) return false;
         if (banned[c]) return false;                            // copyright year, not a catalog number
+        if (isBuildDate(c)) return false;                       // "BLT 5-54" — a date, not an item
         var digits = c.replace(/\D/g, '');
         var alnum = c.replace(/[^0-9A-Za-z]/g, '');
         if (digits.length < alnum.length * 0.6) return false;   // mostly letters = junk (e.g. "4LIONEL", "MADE")
@@ -2393,20 +2432,49 @@
     var fm = (typeof findMaster === 'function')
       ? function (c) { return findMaster(c, null, prefer || null); }
       : null;
-    // Short tokens are only ever admissible with catalog backing (see (a)).
-    uniq = uniq.filter(function (c) {
-      if (c.replace(/\D/g, '').length >= 3) return true;
-      return !!(fm && fm(c));
+    // v0.9.1065 — short tokens are a LEAD, never a fact. Catalog backing is
+    // too weak a filter for them on its own: the audit turned stray markings
+    // into 13, 20, 25, 40, 50, 53 and 77, and Lionel has real items at every
+    // one of those numbers, so each was reported as confirmed. They are kept
+    // (Brad's Great Northern 58 is genuine) but only when nothing longer was
+    // found, and they are always returned as a best guess for a human to
+    // accept — never stated as certain.
+    var shortOnes = uniq.filter(function (c) {
+      return c.replace(/\D/g, '').length < 3 && fm && fm(c);
     });
+    uniq = uniq.filter(function (c) { return c.replace(/\D/g, '').length >= 3; });
     var dashRank = function (a, b) {
       return (b.indexOf('-') >= 0 ? 1 : 0) - (a.indexOf('-') >= 0 ? 1 : 0) || b.length - a.length;
     };
     // 1) numbers the master confirms win — prefer the most specific (dashed/longer)
     var matched = uniq.filter(function (c) { return fm && (fm(c) || fm(c.replace(/^\d-/, ''))); });
     if (matched.length) { matched.sort(dashRank); return { num: matched[0], matched: true }; }
+    // 1b) v0.9.1065 — DASH REPAIR. The audit produced "6464475" twice and the
+    // catalog rejected both, because the real number is 6464-475: OCR drops a
+    // dash far more often than it invents a digit. Try putting one back at each
+    // plausible split and see if the catalog then recognises it. Only an exact
+    // catalog hit is accepted, so this can add answers but never invent them.
+    if (fm) {
+      var repaired = null;
+      uniq.some(function (c) {
+        if (c.indexOf('-') >= 0) return false;
+        var d = c.replace(/\D/g, '');
+        if (d.length < 5 || d.length > 8) return false;
+        for (var cut = 3; cut <= 4 && !repaired; cut++) {
+          if (d.length <= cut) continue;
+          var cand = d.slice(0, cut) + '-' + d.slice(cut);
+          if (fm(cand)) repaired = cand;
+        }
+        return !!repaired;
+      });
+      if (repaired) return { num: repaired, matched: true };
+    }
     // 2) nothing confirmed — offer the best catalog-shaped token as a hedge
     uniq.sort(dashRank);
-    return uniq.length ? { num: uniq[0], matched: false } : null;
+    if (uniq.length) return { num: uniq[0], matched: false };
+    // 3) last resort: a catalog-backed short number, always as a guess
+    if (shortOnes.length) { shortOnes.sort(dashRank); return { num: shortOnes[0], matched: false, short: true }; }
+    return null;
   }
 
   // Read any barcode on the photo and resolve it with the SAME brain the
@@ -2788,7 +2856,12 @@
       v = v < 0 ? 0 : (v > 255 ? 255 : v);
       d[i] = d[i + 1] = d[i + 2] = v;
     }
-    if (mode === 'sharp') {
+    if (mode === 'invert') {
+      for (i = 0; i < d.length; i += 4) {
+        d[i] = d[i + 1] = d[i + 2] = 255 - d[i];
+      }
+    }
+    if (mode === 'sharp' || mode === 'invert') {
       // unsharp mask: subtract a cheap 3x3 blur, add the difference back
       var src = new Uint8ClampedArray(d.length);
       src.set(d);
@@ -2837,11 +2910,32 @@
     _pinAuditReport(a.rows, a.tally, a.secs || 0, a.total || a.rows.length);
   };
 
+  // Round 2. sharp6 won round 1 and is now the shipping default, so it is the
+  // baseline every new idea has to beat. Each of the others attacks a specific
+  // failure seen in Brad's 73: light lettering on a dark body (inverted),
+  // letters being confused for digits (digits-only), and a number that is a
+  // tiny part of a wide shelf photo (tiled — the single most common shape in
+  // his inbox, and the one a whole-image pass is worst at).
+  // One horizontal band of the photo, scaled up to the same working size, so
+  // the lettering inside it is physically larger for the reader.
+  function _auditTile(bmp, maxDim, mode, index, count) {
+    var bh = Math.floor(bmp.height / count);
+    var y0 = index * bh;
+    var h0 = (index === count - 1) ? (bmp.height - y0) : bh;
+    var sc = Math.min(3, maxDim / Math.max(bmp.width, h0));
+    var w = Math.max(1, Math.round(bmp.width * sc)), h = Math.max(1, Math.round(h0 * sc));
+    var c = document.createElement('canvas'); c.width = w; c.height = h;
+    var ctx = c.getContext('2d');
+    ctx.drawImage(bmp, 0, y0, bmp.width, h0, 0, 0, w, h);
+    try { _stretchCanvas(c); } catch (e) {}
+    return c;
+  }
+
   var _AUDIT_VARIANTS = [
-    { id: 'current', label: 'What ships today (1600px, mild contrast)', dim: 1600, mode: 'current', psm: null },
-    { id: 'stretch', label: 'Full contrast stretch, 2400px',            dim: 2400, mode: 'stretch', psm: null },
-    { id: 'sharp',   label: 'Stretch + sharpen, 2400px',                dim: 2400, mode: 'sharp',   psm: null },
-    { id: 'sharp6',  label: 'Stretch + sharpen, sparse-text mode',      dim: 2400, mode: 'sharp',   psm: '6'  },
+    { id: 'sharp6',  label: 'Now shipping — stretch + sharpen, block mode', dim: 2400, mode: 'sharp',  psm: '6', wl: 'full' },
+    { id: 'digits6', label: 'Same, but digits only (no letter confusion)',  dim: 2400, mode: 'sharp',  psm: '6', wl: 'digits' },
+    { id: 'inv6',    label: 'Inverted — for light numbers on a dark body',  dim: 2400, mode: 'invert', psm: '6', wl: 'full' },
+    { id: 'tile6',   label: 'Split into thirds and read each closer',       dim: 2400, mode: 'sharp',  psm: '6', wl: 'full', tiles: 3 },
   ];
 
   window._pinReaderAuditCancel = function () { _idAbort = true; };
@@ -2896,13 +2990,30 @@
           var V = _AUDIT_VARIANTS[vi];
           var r = null;
           try {
-            if (V.psm) { try { await w.setParameters({ tessedit_pageseg_mode: V.psm }); } catch (eP) {} }
-            else { try { await w.setParameters({ tessedit_pageseg_mode: '3' }); } catch (eP2) {} }
-            var canvas = _auditCanvas(bmp, V.dim, V.mode);
-            var res = await w.recognize(canvas);
-            r = _numberFromText((res && res.data && res.data.text) || '', prefer);
+            try { await w.setParameters({ tessedit_pageseg_mode: V.psm || '6' }); } catch (eP) {}
+          try {
+              await w.setParameters({ tessedit_char_whitelist: (V.wl === 'digits')
+                ? '0123456789-' : '0123456789-ABCDEFGHIJKLMNOPQRSTUVWXYZ ' });
+            } catch (eW) {}
+            var text = '';
+            if (V.tiles) {
+              // Read the whole frame AND each horizontal band. A number that is
+              // 2% of a wide shelf photo is a handful of pixels once the image is
+              // scaled to fit; a band of it is three times the size.
+              var whole = _auditCanvas(bmp, V.dim, V.mode);
+              text += ((await w.recognize(whole)).data || {}).text || '';
+              for (var ti = 0; ti < V.tiles; ti++) {
+                var band = _auditTile(bmp, V.dim, V.mode, ti, V.tiles);
+                try { text += '\n' + (((await w.recognize(band)).data || {}).text || ''); } catch (eTi) {}
+              }
+            } else {
+              var canvas = _auditCanvas(bmp, V.dim, V.mode);
+              var res = await w.recognize(canvas);
+              text = (res && res.data && res.data.text) || '';
+            }
+            r = _numberFromText(text, prefer);
           } catch (eV) {}
-          row.out[V.id] = r ? { num: r.num, matched: !!r.matched } : null;
+          row.out[V.id] = r ? { num: r.num, matched: !!r.matched, short: !!r.short } : null;
         }
         if (bmp.close) bmp.close();
       } catch (eF) {
@@ -2917,7 +3028,12 @@
       _retally();
       _auditSave({ ts: Date.now(), rows: rows, tally: tally, secs: _sofar, total: _groups.length });
     }
-    try { await w.setParameters({ tessedit_pageseg_mode: '3' }); } catch (eR) {}
+    try {
+      await w.setParameters({
+        tessedit_pageseg_mode: '6',
+        tessedit_char_whitelist: '0123456789-ABCDEFGHIJKLMNOPQRSTUVWXYZ ',
+      });
+    } catch (eR) {}
     _busy = false; window._rrLongJob = false; _status('');
 
     var secs = elapsed;
