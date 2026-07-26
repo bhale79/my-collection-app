@@ -2023,6 +2023,33 @@
         }
         if (typeof ai.remaining === 'number') _tokSave(ai.remaining);   // v0.9.969: keep the token count fresh
         meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(ai.text) : {};
+            // v0.9.1084: read the reader properly — prefer the number that
+            // exists in the catalog this photo says it belongs to.
+            try {
+            var _rc = _pinReconcileAiNum(meta, ai.text, _pinPreferOf(g));
+            if (_rc.num && _rc.num !== meta.itemNum) {
+            meta._aiSku = _rc.swappedFrom || meta.itemNum;
+            meta.itemNum = _rc.num;
+            }
+            } catch (eRC) { console.warn('[inbox] could not reconcile the read', eRC && eRC.message); }
+      // v0.9.1084: read the reader properly — prefer the number that
+      // exists in the catalog this photo says it belongs to.
+      try {
+      var _rc = _pinReconcileAiNum(meta, ai.text, _pinPreferOf((_rvGroups && _rvGroups[0])));
+      if (_rc.num && _rc.num !== meta.itemNum) {
+      meta._aiSku = _rc.swappedFrom || meta.itemNum;
+      meta.itemNum = _rc.num;
+      }
+      } catch (eRC) { console.warn('[inbox] could not reconcile the read', eRC && eRC.message); }
+        // v0.9.1084: read the reader properly — prefer the number that
+        // exists in the catalog this photo says it belongs to.
+        try {
+        var _rc = _pinReconcileAiNum(meta, ai.text, _pinPreferOf((_rvGroups && _rvGroups[0])));
+        if (_rc.num && _rc.num !== meta.itemNum) {
+        meta._aiSku = _rc.swappedFrom || meta.itemNum;
+        meta.itemNum = _rc.num;
+        }
+        } catch (eRC) { console.warn('[inbox] could not reconcile the read', eRC && eRC.message); }
       }
       if (!_pinApplyMeta(meta, gs)) { showToast('No item info found in that screenshot — type the number instead', 4000, true); return; }
       showToast(meta._hedge
@@ -2638,7 +2665,17 @@
     var MAX_PLAIN_DIGITS = { prewar: 4, pw: 4 };
     var digitCap = (prefer && prefer.era && MAX_PLAIN_DIGITS[prefer.era]) || 0;
 
-    var isBuildDate = function (c) { return /^\d{1,2}-\d+$/.test(c); };
+    // v0.9.1084 — this shape means different things in different catalogs.
+    // "5-54" on a postwar car is a build date. "6-16661" is a real modern Lionel
+    // SKU. Banning it everywhere would make MPC and MTH items unidentifiable, so
+    // it only applies where such a number cannot be a catalog number — the same
+    // eras that cap plain numbers at four digits.
+    // Allowed ONLY on a photo stamped as an era that genuinely uses the format —
+    // Lionel MPC (6-16661), MTH (20-xxxxx). On a postwar or prewar photo, and on
+    // an UNSTAMPED one, it stays banned: without an era we cannot tell a build
+    // date from a modern SKU, and defaulting to "date" is what keeps 5-54 out.
+    var _shortDashOk = !!(prefer && prefer.era && !digitCap);
+    var isBuildDate = function (c) { return !_shortDashOk && /^\d{1,2}-\d+$/.test(c); };
     // CAPACITY AND LOAD LIMIT. The audit confirmed "40200" on five different
     // cars, plus 48200 and 25000. Those are the CAPY / LD LMT stamps printed on
     // the side of every freight car — genuinely on the item, genuinely in some
@@ -3274,6 +3311,67 @@
     // way to tell whether the reader saw it on the item, on the shelf behind it,
     // or invented it from a shadow. Keep the words it actually read.
     if (out) out.raw = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 180);
+    return out;
+  }
+
+  // ══ v0.9.1084 — the reader answered correctly; we took the wrong number ═══
+  // Brad: "i think its how our app is reading the info wrong." He was right, and
+  // it is a better diagnosis than mine. On his 6801 boat flatcar the reader
+  // returned:
+  //
+  //   "Lionel Lionel Lines Lionel 6801-75 O/O27 Gauge Postwar Red Flat Freight
+  //    Car ... manufactured by Lionel in 1958 (1957) — No. 6-16661"
+  //
+  // It said POSTWAR and it named 6801-75. The app filed it as 6-16661, Lionel
+  // MPC/Modern. Same on his rocket flatcar: description "Postwar '6175' Flatcar
+  // with rocket", filed as 6-39457.
+  //
+  // The cause is the question we ask. "Manufacturer SKU or catalog number" gets
+  // answered with the SKU — and for a piece still in production as a reissue,
+  // the SKU is the MODERN one. The postwar number lands in the description
+  // instead, where nothing was looking for it.
+  //
+  // So: every number the reader mentioned anywhere in its answer is a candidate,
+  // and the one that exists in the catalog the PHOTO says it belongs to wins.
+  // The reader is not corrected — it is read properly.
+  function _pinReconcileAiNum(meta, aiText, prefer) {
+    var out = { num: (meta && meta.itemNum) ? String(meta.itemNum).trim() : '', swappedFrom: '' };
+    if (!prefer || !prefer.era || typeof findMaster !== 'function') return out;
+
+    var inEra = function (c) {
+      if (!c) return false;
+      try {
+        var r = findMaster(c, null, prefer);
+        return !!(r && r._era === prefer.era);
+      } catch (e) { return false; }
+    };
+    // Already right — leave it alone.
+    if (out.num && inEra(out.num)) return out;
+
+    // Candidates, best sources first: the fields the reader labelled, then
+    // anything number-shaped in the whole answer.
+    var pool = [];
+    var push = function (v) {
+      String(v || '').toUpperCase().replace(/[^0-9A-Z\s-]/g, ' ')
+        .match(/\d[\dA-Z]*(?:-[\dA-Z]+)*/g)
+        ?.forEach(function (t) {
+          t = t.replace(/^-+|-+$/g, '');
+          if (t.length >= 3 && t.length <= 12 && pool.indexOf(t) < 0) pool.push(t);
+        });
+    };
+    if (meta) { push(meta.description); push(meta.title); push(meta.formNumber); }
+    push(aiText);
+
+    for (var i = 0; i < pool.length; i++) {
+      var c = pool[i];
+      if (c === out.num) continue;
+      if (inEra(c)) { out.swappedFrom = out.num; out.num = c; return out; }
+      // the reader writes 6801-75 for a variation of 6801 — accept the base
+      var base = c.split('-')[0];
+      if (base && base !== c && base.length >= 3 && inEra(base)) {
+        out.swappedFrom = out.num; out.num = c; return out;
+      }
+    }
     return out;
   }
 
