@@ -253,23 +253,25 @@ function buildReport() {
       const desc=m.roadName||m.description||m.itemType||'—';
       const worth=pd.userEstWorth?_currencySymbol()+parseFloat(pd.userEstWorth).toLocaleString():'—';
       return `<tr>
-        <td><span class="item-num">${pd.itemNum||''}</span></td>
-        <td>${desc}</td>
-        <td>${pd.variation||'—'}</td>
+        <td><span class="item-num">${rrEsc(pd.itemNum)}</span></td>
+        <td>${rrEsc(desc)}</td>
+        <td>${rrEsc(pd.variation)||'—'}</td>
         <td style="text-align:center">${pd.condition||'—'}</td>
         <td style="text-align:center">${pd.hasBox||'—'}</td>
         <td style="text-align:center">${pd.allOriginal||'—'}</td>
         <td class="market-val">${worth}</td>
-        <td>${pd.location||'—'}</td>
-        <td style="font-size:0.77rem;color:var(--text-dim)">${String(pd.notes||'').replace(/\s*\[grp:[^\]]*\]\s*/g,'').trim()}</td>
+        <td>${rrEsc(pd.location)||'—'}</td>
+        <td style="font-size:0.77rem;color:var(--text-dim)">${rrEsc(String(pd.notes||'').replace(/\s*\[grp:[^\]]*\]\s*/g,'').trim())}</td>
       </tr>`;
     }).join('') || '<tr><td colspan="9" class="ui-empty">No owned items yet</td></tr>';
 
   } else if (type === 'wantupgrade') {
     _wupControls();
     thead.innerHTML = '<tr><th>Item / Part #</th><th>Description</th><th>Var #</th><th>Priority / Target</th><th>Target Price</th><th>Notes</th></tr>';
-    const esc=v=>(v==null?'':String(v));
-    const cn=v=>String(v||'').replace(/\s*\[grp:[^\]]*\]\s*/g,'').trim();   // strip internal group tags
+    // v0.9.1040: this `esc` only stringified — it never escaped, so every
+    // esc(...) call below was a no-op. Both now go through the shared rrEsc.
+    const esc=v=>rrEsc(v);
+    const cn=v=>rrEsc(String(v||'').replace(/\s*\[grp:[^\]]*\]\s*/g,'').trim());   // strip internal group tags, then escape
     const sect=(label,n)=>`<tr><td colspan="6" style="background:var(--surface2);font-weight:700;font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);padding:0.45rem 0.6rem">${label} (${n})</td></tr>`;
     let html='';
     const showWant=(_wupView==='all'||_wupView==='want');
@@ -278,12 +280,12 @@ function buildReport() {
     if (showWant) {
       const w=(typeof foldWantEntries==='function') ? foldWantEntries(Object.values(state.wantData||{})) : Object.values(state.wantData||{});   // v0.9.722: pairs = one row, one price
       html+=sect('Want List', w.length);
-      html+= w.length ? w.map(e=>{ const m=findMaster(e.itemNum,e.variation, e)||{}; const d=(m.roadName||m.description||'—')+(e._wantMates?' 🔗 '+e._wantMates.join(' + '):''); const _pv=e._pairPrice||e.expectedPrice; const pr=_pv?_currencySymbol()+parseFloat(_pv).toLocaleString():'—'; return `<tr><td><span class="item-num">${esc(e.itemNum)}</span></td><td>${d}</td><td>${esc(e.variation)||'—'}</td><td>${esc(e.priority)||'—'}</td><td class="market-val">${pr}</td><td style="font-size:0.77rem;color:var(--text-dim)">${cn(e.notes)}</td></tr>`; }).join('') : '<tr><td colspan="6" class="ui-empty">Nothing on your want list</td></tr>';
+      html+= w.length ? w.map(e=>{ const m=findMaster(e.itemNum,e.variation, e)||{}; const d=rrEsc((m.roadName||m.description||'—'))+(e._wantMates?' 🔗 '+rrEsc(e._wantMates.join(' + ')):''); const _pv=e._pairPrice||e.expectedPrice; const pr=_pv?_currencySymbol()+parseFloat(_pv).toLocaleString():'—'; return `<tr><td><span class="item-num">${esc(e.itemNum)}</span></td><td>${d}</td><td>${esc(e.variation)||'—'}</td><td>${esc(e.priority)||'—'}</td><td class="market-val">${pr}</td><td style="font-size:0.77rem;color:var(--text-dim)">${cn(e.notes)}</td></tr>`; }).join('') : '<tr><td colspan="6" class="ui-empty">Nothing on your want list</td></tr>';
     }
     if (showUpg) {
       const u=(typeof foldWantEntries==='function') ? foldWantEntries(Object.values(state.upgradeData||{})) : Object.values(state.upgradeData||{});   // v0.9.722
       html+=sect('Upgrade List', u.length);
-      html+= u.length ? u.map(e=>{ const m=findMaster(e.itemNum,e.variation, e)||{}; const d=(m.roadName||m.description||'—')+(e._wantMates?' 🔗 '+e._wantMates.join(' + '):''); const tgt=[esc(e.priority),e.targetCondition?('→ cond '+e.targetCondition):''].filter(Boolean).join(' '); const pr=e.maxPrice?_currencySymbol()+parseFloat(e.maxPrice).toLocaleString():'—'; return `<tr><td><span class="item-num">${esc(e.itemNum)}</span></td><td>${d}</td><td>${esc(e.variation)||'—'}</td><td>${tgt||'—'}</td><td class="market-val">${pr}</td><td style="font-size:0.77rem;color:var(--text-dim)">${cn(e.notes)}</td></tr>`; }).join('') : '<tr><td colspan="6" class="ui-empty">Nothing on your upgrade list</td></tr>';
+      html+= u.length ? u.map(e=>{ const m=findMaster(e.itemNum,e.variation, e)||{}; const d=rrEsc((m.roadName||m.description||'—'))+(e._wantMates?' 🔗 '+rrEsc(e._wantMates.join(' + ')):''); const tgt=[esc(e.priority),e.targetCondition?('→ cond '+e.targetCondition):''].filter(Boolean).join(' '); const pr=e.maxPrice?_currencySymbol()+parseFloat(e.maxPrice).toLocaleString():'—'; return `<tr><td><span class="item-num">${esc(e.itemNum)}</span></td><td>${d}</td><td>${esc(e.variation)||'—'}</td><td>${tgt||'—'}</td><td class="market-val">${pr}</td><td style="font-size:0.77rem;color:var(--text-dim)">${cn(e.notes)}</td></tr>`; }).join('') : '<tr><td colspan="6" class="ui-empty">Nothing on your upgrade list</td></tr>';
     }
     if (showParts) {
       if (!state.partsData) {

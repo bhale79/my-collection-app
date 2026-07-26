@@ -1718,7 +1718,7 @@ function renderWizardStep() {
             ['','O','O-27','Standard','S','HO','G','No. 1'].map(function(g){ return '<option value="' + g + '"' + ((d.manualGauge||'') === g ? ' selected' : '') + '>' + (g || '— not sure —') + '</option>'; }).join('') +
           '</select></div>' +
         '<div><label style="' + _lblStyle + '">Description (optional)</label>' +
-          '<textarea id="manual-desc" rows="2" placeholder="e.g. black USRA switcher, illuminated cab" oninput="wizard.data.manualDesc=this.value" style="' + _inStyle + ';resize:vertical">' + _esc(d.manualDesc) + '</textarea></div>' +
+          '<textarea id="manual-desc" rows="2" placeholder="e.g. black USRA switcher, illuminated cab" oninput="wizard.data.manualDesc=this.value" style="' + _inStyle + ';resize:vertical">' + rrEsc(d.manualDesc) + '</textarea></div>' +
         '<div><label style="' + _lblStyle + '">Give it your own name (optional)</label>' +
           '<input type="text" id="manual-customname" value="' + _esc(d.manualCustomName) + '" placeholder="Leave blank to auto-name it" oninput="wizard.data.manualCustomName=this.value" style="' + _inStyle + '"></div>' +
         '<div style="font-size:0.72rem;color:var(--text-dim);font-style:italic">Leave the name blank and we will build one from the maker, road, type and number.</div>' +
@@ -2714,7 +2714,7 @@ function renderWizardStep() {
 
     _bpvHtml += '<div style="margin-bottom:0.75rem">'
       + '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Notes (optional)</div>'
-      + '<textarea id="bpv-notes" placeholder="e.g. Missing one flap, faded graphics" style="width:100%;min-height:60px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data.notes=this.value">' + (_bpv.notes || '') + '</textarea></div>';
+      + '<textarea id="bpv-notes" placeholder="e.g. Missing one flap, faded graphics" style="width:100%;min-height:60px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data.notes=this.value">' + rrEsc(_bpv.notes) + '</textarea></div>';
 
     if (_prefLocEnabled) {
       _bpvHtml += '<div style="margin-bottom:0.75rem">' + _wizLocationFieldHtml(_bpv.location || '') + '</div>';
@@ -2994,7 +2994,7 @@ function renderWizardStep() {
       + '</div>'
       + '<div>'
       +   '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.35rem">Notes <span style="color:var(--text-dim);font-weight:400;font-style:italic">(optional)</span></div>'
-      +   '<textarea id="isd-nt" rows="2" placeholder="e.g. Early printing, double-sided, staple holes" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.55rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;resize:none" oninput="wizard.data.is_notes=this.value">' + nt + '</textarea>'
+      +   '<textarea id="isd-nt" rows="2" placeholder="e.g. Early printing, double-sided, staple holes" style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.55rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;resize:none" oninput="wizard.data.is_notes=this.value">' + rrEsc(nt) + '</textarea>'
       + '</div>'
       + '<div style="font-size:0.75rem;color:var(--text-dim)">All fields optional — press Next to skip</div>'
       + '</div>';
@@ -3037,7 +3037,7 @@ function renderWizardStep() {
       +   '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.35rem">Notes</div>'
       +   '<textarea id="pe-notes" rows="3" placeholder="e.g. Still in original mailing envelope"'
       +   ' style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;resize:none"'
-      +   ' oninput="wizard.data.eph_notes=this.value">' + nt + '</textarea>'
+      +   ' oninput="wizard.data.eph_notes=this.value">' + rrEsc(nt) + '</textarea>'
       + '</div>'
       + '<div style="font-size:0.75rem;color:var(--text-dim)">All fields optional — press Next to skip</div>'
       + '</div>';
@@ -4208,7 +4208,7 @@ function renderWizardStep() {
           style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
           padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;
           outline:none;resize:vertical;min-height:100px"
-          oninput="wizard.data['${s.id}']=this.value">${val}</textarea>
+          oninput="wizard.data['${s.id}']=this.value">${rrEsc(val)}</textarea>
         ${s.note && s.note(wizard.data) ? `<div style="font-size:0.8rem;color:var(--accent2);margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(201,146,42,0.1);border-radius:6px">${s.note(wizard.data)}</div>` : ''}
         <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
       </div>`;
@@ -4876,7 +4876,7 @@ function renderWizardStep() {
           (c) => "wizard.data[\'" + origKey + "\']=\'" + c + "\';_cdToggleOrig(\'" + col.id + "\',\'" + origKey + "\',\'" + c + "\')"));
         // Modifications textarea (hidden unless allOriginal=No)
         html += '<div id="cd-mod-' + col.id + '" style="margin-bottom:0.4rem;display:' + (origVal === 'No' ? 'block' : 'none') + '">';
-        html += '<textarea placeholder="What has been changed?" style="width:100%;min-height:40px;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:0.4rem;color:var(--text);font-family:var(--font-body);font-size:0.75rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data[\'' + modKey + '\']=this.value">' + modVal + '</textarea></div>';
+        html += '<textarea placeholder="What has been changed?" style="width:100%;min-height:40px;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:0.4rem;color:var(--text);font-family:var(--font-body);font-size:0.75rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data[\'' + modKey + '\']=this.value">' + rrEsc(modVal) + '</textarea></div>';
 
         // Has Box — inline row
         html += _inlineRow('Has Box?', _smallBtn(boxKey, boxVal, ['Yes','No'],
@@ -4919,14 +4919,14 @@ function renderWizardStep() {
         html += _inlineRow('Error Item?', _smallBtn(errKey, errVal, ['Yes','No'],
           (c) => "wizard.data[\'" + errKey + "\']=\'" + c + "\';_cdToggleError(\'" + col.id + "\',\'" + c + "\')"));
         html += '<div id="cd-error-reveal-' + col.id + '" style="margin-bottom:0.4rem;display:' + (errVal === 'Yes' ? 'block' : 'none') + '">';
-        html += '<textarea placeholder="Describe the error…" style="width:100%;min-height:38px;background:var(--bg);border:1px solid #e74c3c44;border-radius:5px;padding:0.4rem;color:var(--text);font-family:var(--font-body);font-size:0.75rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data[\'' + errDescKey + '\']=this.value">' + errDescVal + '</textarea></div>';
+        html += '<textarea placeholder="Describe the error…" style="width:100%;min-height:38px;background:var(--bg);border:1px solid #e74c3c44;border-radius:5px;padding:0.4rem;color:var(--text);font-family:var(--font-body);font-size:0.75rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data[\'' + errDescKey + '\']=this.value">' + rrEsc(errDescVal) + '</textarea></div>';
       }
       
       // Notes field — shown in set mode only
       if (wizard.data._setMode && col.id === 'main') {
         const _setNoteVal = wizard.data.notes || '';
         html += '<div style="margin-top:0.3rem"><div style="font-size:0.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.2rem">Notes</div>';
-        html += '<textarea placeholder="e.g. minor rust, runs well" style="width:100%;min-height:45px;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:0.4rem;color:var(--text);font-family:var(--font-body);font-size:0.75rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data.notes=this.value">' + _setNoteVal + '</textarea></div>';
+        html += '<textarea placeholder="e.g. minor rust, runs well" style="width:100%;min-height:45px;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:0.4rem;color:var(--text);font-family:var(--font-body);font-size:0.75rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data.notes=this.value">' + rrEsc(_setNoteVal) + '</textarea></div>';
       }
 
       html += '</div>';
@@ -4973,7 +4973,7 @@ function renderWizardStep() {
       _cdHtml += '<div><div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.25rem">Notes</div>'
         + '<textarea rows="2" placeholder="e.g. Complete set, all pieces present"'
         + ' style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.65rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;resize:none"'
-        + ' oninput="wizard.data.notes=this.value">' + _scNote + '</textarea></div>';
+        + ' oninput="wizard.data.notes=this.value">' + rrEsc(_scNote) + '</textarea></div>';
       _cdHtml += '</div>';
     }
 
@@ -5176,7 +5176,7 @@ function renderWizardStep() {
 
     // Notes
     _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Notes (optional)</div>';
-    _pvHtml += '<textarea id="pv-notes" placeholder="e.g. Purchased at train show, minor rust on trucks, runs well" style="width:100%;min-height:60px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data.notes=this.value">' + (_pvD.notes || '') + '</textarea></div>';
+    _pvHtml += '<textarea id="pv-notes" placeholder="e.g. Purchased at train show, minor rust on trucks, runs well" style="width:100%;min-height:60px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data.notes=this.value">' + rrEsc(_pvD.notes) + '</textarea></div>';
     
     _pvHtml += '</div>';
     body.innerHTML = _pvHtml;
@@ -5590,7 +5590,7 @@ function renderWizardStep() {
     if (['want','forsale','sold'].includes(wizard.tab)) {
       const _cfNotes = wizard.data.notes || '';
       confirmHtml += '<div style="margin-top:0.6rem"><div style="font-size:0.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.25rem">Notes (optional)</div>'
-        + '<textarea placeholder="Any notes..." style="width:100%;min-height:50px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.82rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data.notes=this.value">' + _cfNotes + '</textarea></div>';
+        + '<textarea placeholder="Any notes..." style="width:100%;min-height:50px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.82rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data.notes=this.value">' + rrEsc(_cfNotes) + '</textarea></div>';
     }
     confirmHtml += '</div>';
     body.innerHTML = confirmHtml;

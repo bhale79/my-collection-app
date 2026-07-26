@@ -896,6 +896,20 @@ function normalizeItemNum(n) {
 }
 // Strip powered/dummy/trailing suffixes for base-number comparison
 // Handles Lionel catalog style (2343P, 2343T, 2343C) and app style (2343-P, 2343-D)
+// ── v0.9.1040: ONE escape helper for the whole app ─────────────────────────
+// Text that comes back out of the Google Sheet — notes especially — used to be
+// concatenated straight into innerHTML. A note containing a stray "<", or a
+// "</textarea>" pasted from a catalog page, breaks the screen it lands on and
+// keeps breaking it on every render, because the bad character is stored.
+// Eight files each grew their own private copy of this; new code should use
+// this one. Safe on null/undefined/numbers.
+function rrEsc(v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+if (typeof window !== 'undefined') window.rrEsc = rrEsc;
+
 function baseItemNum(n) {
   return normalizeItemNum(n).replace(/[-]?[PDTC]$/i, '');
 }
