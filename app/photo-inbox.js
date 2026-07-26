@@ -1326,7 +1326,7 @@
     };
     var html = '';
     if (!lk.num) {
-      html = '<div style="font-size:0.9rem;color:var(--text-dim)">No number read from the photo yet — type one below, or use Research.</div>';
+      html = '<div style="font-size:0.9rem;color:var(--text-dim)">No number picked up automatically — type it below if you can see it, or use Research.</div>';
     } else if (lk.master && lk.mfrMismatch) {
       html = '<div style="font-size:0.82rem;color:#d4a843;font-weight:700;line-height:1.5;margin-bottom:0.35rem">⚠ The photo says ' + String(lk.mfrMismatch).replace(/</g, '&lt;') + ' — but #' + String(lk.num).replace(/</g, '&lt;') + ' in the catalog is a ' + String(lk.maker || '?').replace(/</g, '&lt;') + ' item. Probably NOT the same thing.</div>'
         + row('Catalog has', (lk.maker || '—') + ': ' + String(lk.desc).replace(/</g, '&lt;'))
@@ -2609,7 +2609,14 @@
       else { var f2 = _freeTried(); f2[fid] = 1; _freeTriedSave(f2); }
       try { _render(); } catch (e4) {}
       window._pinReview(key);
-      if (!(r && r.num)) showToast('Still no clear number — crop tight to the label, or type it in', 3500);
+      // v0.9.1067 (Brad: "saying still no clear number will piss people off when
+      // the number is obviously to a user clear"). He is right, and it is worse
+      // than annoying — it is untrue. On his 2408 Santa Fe car the number is
+      // perfectly legible to a person; the free reader simply cannot see it, and
+      // telling the user to crop tighter implies they took a bad photo when the
+      // app is the one that failed. Say what happened, own it, and offer the
+      // thing that actually works next.
+      if (!(r && r.num)) showToast('The free reader could not pick out a number on this one — type it in, or use “Read this photo” for a closer look', 4500);
     } catch (e) {
       if (btn) { btn.disabled = false; btn.textContent = 'This is wrong — re-scan'; }
       showToast('Re-scan failed — try again', 2500, true);
