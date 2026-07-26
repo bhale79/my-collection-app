@@ -2179,6 +2179,15 @@
           // v0.9.958 (Brad): "Send to For Sale" on a not-yet-owned item — flag
           // the add so it lands in My Collection AND on the For Sale list.
           if (opts && opts.alsoListForSale) { wizard.data._alsoListForSale = true; wizard.data._returnPage = wizard.data._returnPage || 'forsale'; }
+          // v0.9.1062 (Brad): "when you hit add an item and then hit cancel, it
+          // kicks you back to the dashboard and not back to the photo inbox."
+          // openWizard infers where to return from window._rrLastPage, which is
+          // whatever page was last shown — and the review card is a MODAL over
+          // the inbox, so whether that inference lands on 'photo-inbox' depends
+          // on how the user got here. Inference is the wrong tool when the
+          // answer is known: an add started from the inbox returns to the
+          // inbox, stated outright. (For Sale keeps its own destination.)
+          else wizard.data._returnPage = 'photo-inbox';
           // v0.9.907 (Brad, item [1a]): stash the inbox photo's Drive id so the
           // variation step can preview it (loaded via loadDriveThumb).
           if (photoDriveId) wizard.data._addPhotoDriveId = photoDriveId;
