@@ -97,6 +97,7 @@
         '<button id="pin-selall-btn" onclick="_pinSelectAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Select all</button>' +
         '<button id="pin-recrop-btn" onclick="_pinReadCropped()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:rgba(212,168,67,0.14);color:var(--accent2);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Re-read cropped</button>' +
         '<button id="pin-idall-btn" onclick="_pinIdentifyAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:rgba(212,168,67,0.14);color:var(--accent2);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">🔍 Read with a token</button>' +
+        '<button id="pin-audit-btn" onclick="_pinReaderAudit()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:600;font-size:0.82rem;cursor:pointer">Reader audit (free)</button>' +
         '<button onclick="_pinRefresh()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:600;font-size:0.82rem;cursor:pointer">Refresh</button>' +
         '<span style="flex:1"></span>' +
         '<span id="pin-selinfo" style="font-size:0.78rem;color:var(--text-dim)"></span>' +
@@ -2344,7 +2345,21 @@
   // copy, UPC barcodes, prices, years), so we: drop UPC/barcode-length runs,
   // PREFER a number the master actually knows, and prefer dashed catalog-style
   // numbers (6-17259, 6464-475) over bare digit blobs.
-  function _numberFromText(text) {
+  // v0.9.1063 — two changes, both from Brad's inbox.
+  //
+  // (a) TWO-DIGIT NUMBERS. The token filter required 3 characters, to stop junk
+  //     like a "26" wheel arrangement becoming an item number. It also threw
+  //     away every genuine two-digit Lionel number: his Great Northern 58 could
+  //     never be read, no matter how sharp the photo. Short tokens are now kept
+  //     but must be CONFIRMED by the master list — 58 is a real catalog number
+  //     and survives; a stray 26 is not and does not.
+  //
+  // (b) ERA. `prefer` is the photo's own era stamp, handed to findMaster, which
+  //     already knows how to weight a catalog tab (+8) and a maker (+4). His
+  //     2410 Santa Fe car, stamped Lionel Postwar O, was misread as "210" and
+  //     then matched against a Lionel PRE-WAR standard-gauge switch pair. The
+  //     app had the era written on the photo and was not using it.
+  function _numberFromText(text, prefer) {
     if (!text) return null;
     var UP = String(text).toUpperCase();
     // v0.9.959 (Brad): a 4-digit number sitting next to a © or a copyright
@@ -2364,7 +2379,7 @@
     var toks = (UP.match(/\d[\dA-Z]*(?:-[\dA-Z]+)*/g) || [])
       .map(function (c) { return c.replace(/^-+|-+$/g, ''); })
       .filter(function (c) {
-        if (!/\d/.test(c) || c.length < 3 || c.length > 10) return false;
+        if (!/\d/.test(c) || c.length < 2 || c.length > 10) return false;
         if (banned[c]) return false;                            // copyright year, not a catalog number
         var digits = c.replace(/\D/g, '');
         var alnum = c.replace(/[^0-9A-Za-z]/g, '');
@@ -2374,7 +2389,14 @@
       });
     var seen = {}, uniq = [];
     toks.forEach(function (c) { if (!seen[c]) { seen[c] = 1; uniq.push(c); } });
-    var fm = (typeof findMaster === 'function') ? findMaster : null;
+    var fm = (typeof findMaster === 'function')
+      ? function (c) { return findMaster(c, null, prefer || null); }
+      : null;
+    // Short tokens are only ever admissible with catalog backing (see (a)).
+    uniq = uniq.filter(function (c) {
+      if (c.replace(/\D/g, '').length >= 3) return true;
+      return !!(fm && fm(c));
+    });
     var dashRank = function (a, b) {
       return (b.indexOf('-') >= 0 ? 1 : 0) - (a.indexOf('-') >= 0 ? 1 : 0) || b.length - a.length;
     };
@@ -2420,7 +2442,7 @@
     return null;
   }
 
-  async function _freeReadBlob(blob, maxDim) {
+  async function _freeReadBlob(blob, maxDim, prefer) {
     var bc = await _readBarcode(blob);
     if (bc) return bc;
     var w = await _tessGet(); if (!w) return null;
@@ -2428,10 +2450,31 @@
     var text = '';
     try { var res = await w.recognize(canvas); text = (res && res.data && res.data.text) || ''; }
     catch (e) { return null; }
-    return _numberFromText(text);
+    return _numberFromText(text, prefer);
+  }
+
+  // The era stamped on a photo, in the shape findMaster's `prefer` wants.
+  function _pinPreferOf(fileOrGroup) {
+    try {
+      var f = (fileOrGroup && fileOrGroup.files) ? _pinReadFile(fileOrGroup) : fileOrGroup;
+      var m = (f && f._meta) || {};
+      if (!m.era) return null;
+      var mfr = '';
+      try { mfr = (typeof ERAS !== 'undefined' && ERAS[m.era]) ? (ERAS[m.era].manufacturer || '') : ''; } catch (e) {}
+      return { era: m.era, manufacturer: mfr };
+    } catch (e) { return null; }
   }
   async function _freeReadOne(fileId) {
-    return _freeReadBlob(await _pinBytes(fileId));
+    return _freeReadBlob(await _pinBytes(fileId), 1600, _preferForFid(fileId));
+  }
+  // Find the loaded group that owns this file, so its era stamp can be used.
+  function _preferForFid(fileId) {
+    for (var i = 0; i < _groups.length; i++) {
+      for (var j = 0; j < _groups[i].files.length; j++) {
+        if (_groups[i].files[j].id === fileId) return _pinPreferOf(_groups[i]);
+      }
+    }
+    return null;
   }
   // ── Shared free identify engine ──────────────────────────────────────────
   // Barcode (via the wizard's UPC resolver) + printed-number OCR, master-
@@ -2456,7 +2499,7 @@
       try { var ff = _freeTried(); if (ff[fid]) { delete ff[fid]; _freeTriedSave(ff); } } catch (e2) {}
       try { var pfx = fid + '|'; Object.keys(_vfCache || {}).forEach(function (k) { if (k.indexOf(pfx) === 0) delete _vfCache[k]; }); } catch (e3) {}
       var blob = await _pinBytes(fid);
-      var r = await _freeReadBlob(blob, 2400);          // higher-res second attempt
+      var r = await _freeReadBlob(blob, 2400, _preferForFid(fid));   // higher-res second attempt
       var m = _ids();
       if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1 }; _idsSave(m); }
       else { var f2 = _freeTried(); f2[fid] = 1; _freeTriedSave(f2); }
@@ -2600,7 +2643,7 @@
         try { var ff = _freeTried(); if (ff[fid]) { delete ff[fid]; _freeTriedSave(ff); } } catch (eB) {}
         showToast('Cropped — re-reading the tighter shot…', 2500);
         try { _render(); } catch (eC) {}
-        _freeReadBlob(blob).then(function (r) {
+        _freeReadBlob(blob, 1600, _preferForFid(fid)).then(function (r) {
           var m = _ids();
           if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1 }; _idsSave(m); }
           else { var f2 = _freeTried(); f2[fid] = 1; _freeTriedSave(f2); }
@@ -2663,7 +2706,7 @@
         try { var ff = _freeTried(); if (ff[fid]) { delete ff[fid]; _freeTriedSave(ff); } } catch (e2) {}
         try { var pfx = fid + '|'; Object.keys(_vfCache || {}).forEach(function (k) { if (k.indexOf(pfx) === 0) delete _vfCache[k]; }); } catch (e3) {}
         var blob = await _pinBytes(fid);
-        var r = await _freeReadBlob(blob, 2400);      // the higher-resolution attempt
+        var r = await _freeReadBlob(blob, 2400, _pinPreferOf(gs[i]));   // the higher-resolution attempt
         var m = _ids();
         if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1 }; _idsSave(m); found++; }
         else { var f2 = _freeTried(); f2[fid] = 1; _freeTriedSave(f2); }
@@ -2683,6 +2726,182 @@
     showToast(msg, 4200, !!failed);
     await window._pinRefresh();
   };
+
+  // ══ v0.9.1063 — reader audit ═════════════════════════════════════════════
+  // Brad: "audit my whole photo inbox because those are a good representation of
+  // what a user will submit. we should be able to nail 90% of these."
+  //
+  // Guessing at OCR settings from four screenshot crops is not an audit. This
+  // runs the FREE reader over every photo in the inbox, several preprocessing
+  // variants each, and reports how many numbers each variant finds and how many
+  // the catalog confirms. It costs no credits — it is the same browser-side OCR
+  // that already runs automatically — only time.
+  //
+  // The score to trust is CONFIRMED (the master list recognises the number), not
+  // FOUND: a variant that reads more digits but confirms fewer is reading noise.
+  function _auditCanvas(bmp, maxDim, mode) {
+    var sc = Math.min(1, maxDim / Math.max(bmp.width, bmp.height));
+    var w = Math.max(1, Math.round(bmp.width * sc)), h = Math.max(1, Math.round(bmp.height * sc));
+    var c = document.createElement('canvas'); c.width = w; c.height = h;
+    var ctx = c.getContext('2d');
+    if (mode === 'current') {
+      try { ctx.filter = 'grayscale(1) contrast(1.3)'; } catch (e) {}
+      ctx.drawImage(bmp, 0, 0, w, h);
+      return c;
+    }
+    ctx.drawImage(bmp, 0, 0, w, h);
+    var img = ctx.getImageData(0, 0, w, h), d = img.data;
+    // grayscale + histogram bounds
+    var lo = 255, hi = 0, i;
+    for (i = 0; i < d.length; i += 4) {
+      var g = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) | 0;
+      d[i] = d[i + 1] = d[i + 2] = g;
+      if (g < lo) lo = g;
+      if (g > hi) hi = g;
+    }
+    // stretch to full range — this is what a shiny silver car needs, where the
+    // whole photo lives in a narrow band of greys
+    var span = Math.max(1, hi - lo);
+    for (i = 0; i < d.length; i += 4) {
+      var v = ((d[i] - lo) * 255 / span);
+      v = v < 0 ? 0 : (v > 255 ? 255 : v);
+      d[i] = d[i + 1] = d[i + 2] = v;
+    }
+    if (mode === 'sharp') {
+      // unsharp mask: subtract a cheap 3x3 blur, add the difference back
+      var src = new Uint8ClampedArray(d.length);
+      src.set(d);
+      var idx = function (x, y) { return ((y * w) + x) * 4; };
+      for (var y = 1; y < h - 1; y++) {
+        for (var x = 1; x < w - 1; x++) {
+          var sum = 0;
+          for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++) sum += src[idx(x + dx, y + dy)];
+          var blur = sum / 9;
+          var o = idx(x, y);
+          var sharp = src[o] + (src[o] - blur) * 1.8;
+          d[o] = d[o + 1] = d[o + 2] = sharp < 0 ? 0 : (sharp > 255 ? 255 : sharp);
+        }
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    return c;
+  }
+
+  var _AUDIT_VARIANTS = [
+    { id: 'current', label: 'What ships today (1600px, mild contrast)', dim: 1600, mode: 'current', psm: null },
+    { id: 'stretch', label: 'Full contrast stretch, 2400px',            dim: 2400, mode: 'stretch', psm: null },
+    { id: 'sharp',   label: 'Stretch + sharpen, 2400px',                dim: 2400, mode: 'sharp',   psm: null },
+    { id: 'sharp6',  label: 'Stretch + sharpen, sparse-text mode',      dim: 2400, mode: 'sharp',   psm: '6'  },
+  ];
+
+  window._pinReaderAuditCancel = function () { _idAbort = true; };
+
+  window._pinReaderAudit = async function () {
+    if (_busy) { showToast('Still working on the last batch\u2026', 2500, true); return; }
+    if (!_groups.length) { showToast('Inbox is empty', 2500); return; }
+    var w = await _tessGet();
+    if (!w) { showToast('The free reader is not available on this device', 3500, true); return; }
+    var go = await _pinConfirm('Read all ' + _groups.length + ' items with the free reader, '
+      + _AUDIT_VARIANTS.length + ' different settings each. <b>No credits are used</b> \u2014 this is the same '
+      + 'browser-side reader that already runs by itself. It takes a while; keep this tab open.',
+      'Run the audit');
+    if (!go) return;
+
+    _busy = true; _idAbort = false;
+    var rows = [], tally = {};
+    _AUDIT_VARIANTS.forEach(function (v) { tally[v.id] = { found: 0, confirmed: 0 }; });
+    var t0 = 0;
+    try { t0 = performance.now(); } catch (eT) {}
+
+    for (var i = 0; i < _groups.length && !_idAbort; i++) {
+      var g = _groups[i];
+      var fid = _pinReadFid(g);
+      if (!fid) continue;
+      var prefer = _pinPreferOf(g);
+      _status('Auditing item ' + (i + 1) + ' of ' + _groups.length + '\u2026 '
+        + '<button onclick="_pinReaderAuditCancel()" style="border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);border-radius:6px;font-size:0.72rem;padding:0.15rem 0.5rem;cursor:pointer;font-family:var(--font-body)">Stop</button>');
+      var row = { fid: fid, era: (prefer && prefer.era) || '', out: {} };
+      try {
+        var blob = await _pinBytes(fid);
+        var bmp = await createImageBitmap(blob);
+        for (var vi = 0; vi < _AUDIT_VARIANTS.length; vi++) {
+          var V = _AUDIT_VARIANTS[vi];
+          var r = null;
+          try {
+            if (V.psm) { try { await w.setParameters({ tessedit_pageseg_mode: V.psm }); } catch (eP) {} }
+            else { try { await w.setParameters({ tessedit_pageseg_mode: '3' }); } catch (eP2) {} }
+            var canvas = _auditCanvas(bmp, V.dim, V.mode);
+            var res = await w.recognize(canvas);
+            r = _numberFromText((res && res.data && res.data.text) || '', prefer);
+          } catch (eV) {}
+          row.out[V.id] = r ? { num: r.num, matched: !!r.matched } : null;
+          if (r && r.num) { tally[V.id].found++; if (r.matched) tally[V.id].confirmed++; }
+        }
+        if (bmp.close) bmp.close();
+      } catch (eF) {
+        console.warn('[audit] photo failed', fid, eF && eF.message);
+      }
+      rows.push(row);
+    }
+    try { await w.setParameters({ tessedit_pageseg_mode: '3' }); } catch (eR) {}
+    _busy = false; _status('');
+
+    var secs = 0;
+    try { secs = Math.round((performance.now() - t0) / 1000); } catch (eS) {}
+    _pinAuditReport(rows, tally, secs);
+  };
+
+  function _pinAuditReport(rows, tally, secs) {
+    var n = rows.length || 1;
+    var pct = function (x) { return Math.round((x / n) * 100); };
+    var best = null;
+    _AUDIT_VARIANTS.forEach(function (v) {
+      if (!best || tally[v.id].confirmed > tally[best].confirmed) best = v.id;
+    });
+    var ov = document.createElement('div');
+    ov.id = 'pin-audit-ov';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10060;display:flex;align-items:center;justify-content:center;padding:1rem';
+    var lines = _AUDIT_VARIANTS.map(function (v) {
+      var t = tally[v.id];
+      return '<tr' + (v.id === best ? ' style="background:rgba(41,128,185,0.14)"' : '') + '>'
+        + '<td style="padding:0.4rem 0.5rem;border-top:1px solid var(--border)">' + rrEsc(v.label)
+          + (v.id === best ? ' <b style="color:#7ec3ef">\u2190 best</b>' : '') + '</td>'
+        + '<td style="padding:0.4rem 0.5rem;border-top:1px solid var(--border);text-align:right">' + t.found + ' (' + pct(t.found) + '%)</td>'
+        + '<td style="padding:0.4rem 0.5rem;border-top:1px solid var(--border);text-align:right;font-weight:700">' + t.confirmed + ' (' + pct(t.confirmed) + '%)</td>'
+        + '</tr>';
+    }).join('');
+    // A plain-text block Brad can copy out and send on.
+    var txt = 'READER AUDIT \u2014 ' + n + ' items, ' + secs + 's\n';
+    _AUDIT_VARIANTS.forEach(function (v) {
+      txt += v.id + ': found ' + tally[v.id].found + '/' + n + ' (' + pct(tally[v.id].found) + '%), confirmed '
+        + tally[v.id].confirmed + '/' + n + ' (' + pct(tally[v.id].confirmed) + '%)\n';
+    });
+    rows.forEach(function (r, i) {
+      txt += (i + 1) + '\t' + (r.era || '-');
+      _AUDIT_VARIANTS.forEach(function (v) {
+        var o = r.out[v.id];
+        txt += '\t' + (o ? (o.num + (o.matched ? '*' : '?')) : '-');
+      });
+      txt += '\n';
+    });
+    ov.innerHTML =
+      '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.1rem;max-width:640px;width:100%;max-height:92vh;overflow-y:auto">'
+      + '<div style="font-family:var(--font-head);font-weight:700;font-size:1.05rem;margin-bottom:0.2rem">Reader audit</div>'
+      + '<div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.9rem">' + n + ' items read four ways, '
+        + secs + ' seconds, no credits spent. <b>Confirmed</b> means the catalog recognised the number \u2014 that is the column that matters; a setting that finds more digits but confirms fewer is reading noise.</div>'
+      + '<table style="width:100%;border-collapse:collapse;font-size:0.82rem">'
+      +   '<tr><th style="text-align:left;padding:0.3rem 0.5rem;font-size:0.72rem;text-transform:uppercase;color:var(--text-dim)">Setting</th>'
+      +   '<th style="text-align:right;padding:0.3rem 0.5rem;font-size:0.72rem;text-transform:uppercase;color:var(--text-dim)">Found</th>'
+      +   '<th style="text-align:right;padding:0.3rem 0.5rem;font-size:0.72rem;text-transform:uppercase;color:var(--text-dim)">Confirmed</th></tr>'
+      +   lines
+      + '</table>'
+      + '<textarea id="pin-audit-txt" readonly style="width:100%;box-sizing:border-box;height:150px;margin-top:0.9rem;padding:0.6rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.72rem">' + rrEsc(txt) + '</textarea>'
+      + '<div style="display:flex;gap:0.5rem;margin-top:0.7rem">'
+      +   '<button onclick="(function(){var t=document.getElementById(\'pin-audit-txt\');t.select();try{document.execCommand(\'copy\');showToast(\'Copied \u2014 paste it to Claude\',2500);}catch(e){}})()" style="flex:1;padding:0.7rem;border-radius:9px;border:none;background:var(--accent);color:#fff;font-weight:700;font-size:0.9rem;min-height:48px;cursor:pointer">Copy the results</button>'
+      +   '<button onclick="document.getElementById(\'pin-audit-ov\').remove()" style="flex:1;padding:0.7rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-weight:700;font-size:0.9rem;min-height:48px;cursor:pointer">Close</button>'
+      + '</div></div>';
+    document.body.appendChild(ov);
+  }
 
   window._pinIdentifyAll = async function () {
     if (_busy) { showToast('Still working on the last batch…', 2500, true); return; }
