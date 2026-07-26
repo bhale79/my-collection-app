@@ -749,6 +749,7 @@ function buildDashboard() {
         }
       }
     });
+    try { _dashFlushThumbs(); } catch (eT) {}   // v0.9.1046
   })();
 
   // ── Photo ticker strip (v0.9.1017, Brad) ──────────────────────
@@ -942,11 +943,10 @@ var PANEL_CATALOG = [
           var date = pd.datePurchased || '';
           var meta = [date, price].filter(Boolean).join(' · ');
           var idx = master ? _masterIdxOf(master) : -1;
-          var hasPhoto = !!pd.photoItem;
           var _co = (typeof _ownedCompanions === 'function') ? _ownedCompanions(pd) : [];
           var groupBadge = _co.length ? ' <span style="font-size:0.72rem;color:var(--accent3);font-weight:600" title="Grouped with ' + _co.join(', ') + '">🔗 ' + _co.join(' ') + '</span>' : (pd.groupId ? ' <span style="font-size:0.55rem;color:var(--accent3);vertical-align:super" title="Grouped">🔗</span>' : '');
           return _panelRow('🚂', pd.itemNum + (pd.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + pd.variation + '</span>' : '') + groupBadge, name, meta,
-            (pd.inventoryId ? ("_openOwnedByInvId('" + pd.inventoryId + "')") : (idx >= 0 ? 'showItemDetailPage(' + idx + ')' : 'goToMyCollection()')), hasPhoto ? pd.photoItem : null
+            (pd.inventoryId ? ("_openOwnedByInvId('" + pd.inventoryId + "')") : (idx >= 0 ? 'showItemDetailPage(' + idx + ')' : 'goToMyCollection()')), pd
           );
         }).join('') || '<div class="empty-state"><p>No items yet</p></div>';
     }
@@ -1016,10 +1016,9 @@ var PANEL_CATALOG = [
           // v0.9.919: personalData is keyed by inventoryId (Phase 3) — the old
           // itemNum|variation lookup silently returned {} so photos never showed.
           var pd = (fs.inventoryId && state.personalData[fs.inventoryId]) || {};
-          var hasPhoto = !!pd.photoItem;
           return _panelRow('🏷️', fs.itemNum + (fs.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + fs.variation + '</span>' : ''), name, price,
             (fs.inventoryId ? ("_openOwnedByInvId('" + fs.inventoryId + "')") : (idx >= 0 ? 'showItemDetailPage(' + idx + ')' : 'showPage(\'forsale\', document.querySelector(\'.nav-item[onclick*=buildForSalePage]\'));buildForSalePage();')),
-            hasPhoto ? pd.photoItem : null
+            pd
           );
         }).join('') || '<div class="empty-state" style="padding:1.5rem 0"><p>No items listed for sale</p></div>';
     }
@@ -1046,9 +1045,8 @@ var PANEL_CATALOG = [
             : ((String(pd.era||'') === 'Manual') ? (pd.description || pd.itemNum) : (pd.masterDescription || pd.description || pd.itemNum));   // v0.9.724: manual rows = their own words only
           var price = _currencySymbol() + pd._val.toLocaleString();
           var idx = master ? _masterIdxOf(master) : -1;
-          var hasPhoto = !!pd.photoItem;
           return _panelRow('💰', pd.itemNum + (pd.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + pd.variation + '</span>' : ''), name, price,
-            (pd.inventoryId ? ("_openOwnedByInvId('" + pd.inventoryId + "')") : (idx >= 0 ? 'showItemDetailPage(' + idx + ')' : 'goToMyCollection()')), hasPhoto ? pd.photoItem : null
+            (pd.inventoryId ? ("_openOwnedByInvId('" + pd.inventoryId + "')") : (idx >= 0 ? 'showItemDetailPage(' + idx + ')' : 'goToMyCollection()')), pd
           );
         }).join('') || '<div class="empty-state"><p>No valued items yet</p></div>';
     }
@@ -1080,9 +1078,8 @@ var PANEL_CATALOG = [
           var cond = pd && pd.condition ? parseInt(pd.condition) : null;
           var meta = [cond ? 'Cond: ' + cond : '', u.targetCondition ? '→ ' + u.targetCondition : ''].filter(Boolean).join(' ');
           var idx = master ? _masterIdxOf(master) : -1;
-          var hasPhoto = pd && !!pd.photoItem;
           return _panelRow('↑', u.itemNum + (u.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim);">' + u.variation + '</span>' : ''), name, meta,
-            (u.inventoryId ? ("_openOwnedByInvId('" + u.inventoryId + "')") : (idx >= 0 ? 'showItemDetailPage(' + idx + ')' : "showPage('upgrade',null);buildUpgradePage()")), hasPhoto ? pd.photoItem : null
+            (u.inventoryId ? ("_openOwnedByInvId('" + u.inventoryId + "')") : (idx >= 0 ? 'showItemDetailPage(' + idx + ')' : "showPage('upgrade',null);buildUpgradePage()")), pd
           );
         }).join('') || '<div class="empty-state"><p>No upgrade targets yet</p></div>';
     }
@@ -1090,18 +1087,27 @@ var PANEL_CATALOG = [
 ];
 
 // Shared row renderer for all panels
-function _panelRow(icon, itemHtml, name, meta, onclick, photoUrl, extraBadge) {
+// v0.9.1046 (Brad): dashboard rows show the item's OWN photo, on the right of
+// the row, matching the collection list. Two things were wrong before. The
+// photo argument was handed pd.photoItem, which is a Drive FOLDER link and can
+// never load as an image, so every row that HAD a photo showed nothing. And
+// every row that had NO photo got _RSV_PLACEHOLDER_PNG — the little grey train
+// drawing. Exactly backwards. Thumbnails now resolve the way the collection
+// list does it (one Drive lookup per item, cached in localStorage forever), and
+// a row with no photo simply has no picture.
+var _dashThumbJobs = [];
+var _dashThumbSeq = 0;
+function _panelRow(icon, itemHtml, name, meta, onclick, thumbPd, extraBadge) {
   // v0.9.845 (Brad): anything opened from a dashboard card goes BACK to the
   // dashboard — mark the return address before the click handler runs.
   if (onclick) onclick = "window._detailReturn='dashboard';" + onclick;
-  var _placeholderImg = (typeof _RSV_PLACEHOLDER_PNG !== 'undefined')
-    ? '<img src="' + _RSV_PLACEHOLDER_PNG + '" style="width:32px;height:32px;object-fit:cover;border-radius:5px;flex-shrink:0;border:1px solid var(--border);opacity:0.75">'
-    : '<div style="width:32px;height:32px;border-radius:5px;background:var(--surface2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1rem">' + icon + '</div>';
-  var thumb = photoUrl
-    ? '<img src="' + photoUrl + '" style="width:32px;height:32px;object-fit:cover;border-radius:5px;flex-shrink:0;border:1px solid var(--border)" onerror="this.style.display=\'none\'">'
-    : (icon === '🚂' ? _placeholderImg : '<div style="width:32px;height:32px;border-radius:5px;background:var(--surface2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1rem">' + icon + '</div>');
+  var thumb = '';
+  if (thumbPd && typeof thumbPd === 'object' && thumbPd.photoItem) {
+    var _tid = 'dthumb-' + (++_dashThumbSeq);
+    _dashThumbJobs.push({ id: _tid, pd: thumbPd });
+    thumb = '<div id="' + _tid + '" style="width:34px;height:34px;border-radius:5px;flex-shrink:0;overflow:hidden;background:var(--surface2);border:1px solid var(--border)"></div>';
+  }
   return '<div onclick="' + onclick + '" class="dash-row-hover" style="display:flex;align-items:center;gap:0.55rem;padding:0.45rem 0;border-bottom:1px solid var(--border);cursor:pointer">'
-    + thumb
     + '<div style="flex:1;min-width:0">'
     + '<div style="display:flex;align-items:center;gap:0.35rem;flex-wrap:wrap">'
     + '<span class="item-num" style="font-size:0.82rem">' + itemHtml + '</span>'
@@ -1110,8 +1116,29 @@ function _panelRow(icon, itemHtml, name, meta, onclick, photoUrl, extraBadge) {
     + (meta ? '<div style="font-size:0.7rem;color:var(--text-dim);margin-top:1px">' + meta + '</div>' : '')
     + '</div>'
     + (extraBadge || '')
+    + thumb
     + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>'
     + '</div>';
+}
+
+// Fill the thumbnail hosts the cards just asked for. Same helper and same cache
+// the collection list uses, so an item is only ever looked up on Drive once.
+function _dashFlushThumbs() {
+  if (!_dashThumbJobs.length || typeof _thumbFor !== 'function') { _dashThumbJobs = []; return; }
+  var jobs = _dashThumbJobs.slice(0, 40);
+  _dashThumbJobs = [];
+  jobs.forEach(function (job) {
+    Promise.resolve(_thumbFor(job.pd)).then(function (fid) {
+      var host = document.getElementById(job.id);
+      if (!host || !fid) return;
+      var img = document.createElement('img');
+      img.style.cssText = 'width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 0.3s';
+      img.onload = function () { img.style.opacity = 1; };
+      host.innerHTML = '';
+      host.appendChild(img);
+      if (typeof loadDriveThumb === 'function') loadDriveThumb(fid, img, host, null, 'lo');
+    }).catch(function () {});
+  });
 }
 
 // ── v0.9.755 (Brad): photo cards — "thumbnails from my collection" ──
