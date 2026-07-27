@@ -2365,6 +2365,20 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       var T = await _ensureTesseract();
       var o = await T.recognize(_bcPreprocessForOCR(workCanvas), 'eng', {});
       ocrText = (o && o.data && o.data.text) || '';
+      // v0.9.1108 (Brad's MTH lamp-set box, phone flow): he cropped tight to
+      // the barcode, slicing the printed 11-90012 in half at the crop edge.
+      // The barcode named the maker from the FULL shot, then the lettering
+      // starved inside the crop and the flow dead-ended — while the desktop,
+      // reading an uncropped shot of the same box, sailed through. When the
+      // crop yields no item number and it is genuinely smaller than the full
+      // frame, the full frame gets one free try before giving up. Same
+      // reader, no reads spent.
+      if (!(_extractItemNumberCandidates(ocrText || '') || []).length && fullCanvas && workCanvas
+          && (fullCanvas.width > workCanvas.width * 1.15 || fullCanvas.height > workCanvas.height * 1.15)) {
+        var o2 = await T.recognize(_bcPreprocessForOCR(fullCanvas), 'eng', {});
+        var t2 = (o2 && o2.data && o2.data.text) || '';
+        if ((_extractItemNumberCandidates(t2) || []).length) ocrText = t2;
+      }
     } catch (e) {}
     if (_biStop) return { __biCancel: true };
     var rawCands = ocrText ? _extractItemNumberCandidates(ocrText) : [];

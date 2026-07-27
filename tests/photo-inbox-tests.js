@@ -1881,6 +1881,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('blown up hard for tiny sill stamps', /Math\.min\(8, Math\.floor\(3200 \/ sw\)/.test(sst));
   ok('bounded so they cannot run away', /bIdx < 8/.test(sst));
 
+  section('88. A starving crop gets the full frame');
+  const bcx = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'barcode.js'), 'utf8');
+  ok('the wizard lettering retries on the full frame when the crop reads nothing',
+     /fullCanvas\.width > workCanvas\.width \* 1\.15/.test(bcx)
+     && /T\.recognize\(_bcPreprocessForOCR\(fullCanvas\)/.test(bcx));
+  ok('only when the crop found no item number',
+     /!\(_extractItemNumberCandidates\(ocrText \|\| ''\) \|\| \[\]\)\.length/.test(bcx));
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
