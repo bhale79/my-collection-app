@@ -2069,7 +2069,7 @@
       }
     } catch (eR0) { console.warn('[inbox] reconcile failed', eR0 && eR0.message); }
     try {
-      var ids = _ids(); var fid0 = _pinReadFid(gs[0]) || gs[0].files[0].id; var prev = ids[fid0] || {};
+      var ids = _ids(); var fid0 = _pinOnScreenFid() || _pinReadFid(gs[0]) || gs[0].files[0].id; var prev = ids[fid0] || {};
       var _aiRaw = String(aiText || '').replace(/\s+/g, ' ').trim().slice(0, 900) || (prev.aiRaw || '');
       var _aiSku = (meta && meta._aiSku) || '';
       var trim = function (v, old) { return String(v || old || '').slice(0, 120); };
@@ -2095,6 +2095,9 @@
     _sel = {};
     gs.forEach(function (g) { _sel[g.key] = true; });
     window._pinReview(gs.length === 1 ? gs[0].key : null);
+    // v0.9.1092: the re-opened card comes back to the photo that was read,
+    // not the first one in the strip.
+    try { if (fid0) window._pinRvSetMain(fid0); } catch (eM2) {}
     return true;
   }
 
@@ -2230,7 +2233,22 @@
     if (btn) { btn.disabled = true; btn.textContent = _pinSkipReadCrop() ? 'Reading…' : 'Crop first…'; }
     try {
       var g = gs[0];
-      var fl = g.files.slice(0, 4), blobs = [];
+      // v0.9.1092: "Read this photo" reads the photo ON SCREEN. For a set the
+      // members are different items, so the extra "angles" are only sent when
+      // this is a single-item group — same rule as the batch.
+      var _curFid = _pinOnScreenFid();
+      var fl;
+      if (_pinFilesToRead(g).length > 1) {
+        var _cur = g.files.filter(function (f) { return f.id === _curFid; });
+        fl = _cur.length ? _cur : g.files.slice(0, 1);
+      } else {
+        fl = g.files.slice(0, 4);
+        if (_curFid) {
+          // lead with the photo on screen so it is the one that gets cropped
+          fl.sort(function (a, b) { return (a.id === _curFid ? -1 : 0) - (b.id === _curFid ? -1 : 0); });
+        }
+      }
+      var blobs = [];
       for (var i = 0; i < fl.length; i++) {
         try { blobs.push(await _pinBytes(fl[i].id)); } catch (eB) {}
       }
@@ -3590,6 +3608,18 @@
     return h;
   }
 
+  // v0.9.1092 — the photo actually ON SCREEN in the review card, which since
+  // per-member reads is the one every read button should mean. Falls back to
+  // the group's readable photo when the card is not open or nothing was tapped.
+  function _pinOnScreenFid() {
+    try {
+      var img = document.getElementById('pin-rv-main');
+      var fid = img && img.getAttribute('data-rvbig');
+      if (fid) return fid;
+    } catch (e) {}
+    try { return _pinReadFid(_rvGroups[0]); } catch (e2) { return ''; }
+  }
+
   // The era stamped on a photo, in the shape findMaster's `prefer` wants.
   function _pinPreferOf(fileOrGroup) {
     try {
@@ -3633,7 +3663,12 @@
     // together" shot, which has several numbers in it. On a grouped item that
     // meant re-scan read a photo nothing else reads, and stored the answer under
     // a file id nothing else looks at: the button appeared to do nothing at all.
-    var fid = _pinReadFid(_rvGroups[0]) || _rvGroups[0].files[0].id;
+    // v0.9.1092 (Brad: "when you hit rescan on an item picture, it goes back
+    // to the main picture"). Two faults in one: it re-scanned the group's LEAD
+    // photo rather than the one on screen — with per-member reads, tapping the
+    // Summit car and hitting re-scan was silently re-reading the engine — and
+    // then re-opened the card from scratch, which reset to the first photo.
+    var fid = _pinOnScreenFid() || _rvGroups[0].files[0].id;
     var key = _rvGroups[0].key;
     var btn = document.getElementById('pin-rv-rescan');
     if (btn) { btn.disabled = true; btn.textContent = 'Re-scanning…'; }
@@ -3650,6 +3685,8 @@
       else { var f2 = _freeTried(); f2[fid] = { t: 1, raw: (r && r.raw) || '', dbg: (r && r.dbg) || null, rv: READER_VER }; _freeTriedSave(f2); }
       try { _render(); } catch (e4) {}
       window._pinReview(key);
+      // Come back to the photo the user was actually working on.
+      try { window._pinRvSetMain(fid); } catch (eM) {}
       // v0.9.1067 (Brad: "saying still no clear number will piss people off when
       // the number is obviously to a user clear"). He is right, and it is worse
       // than annoying — it is untrue. On his 2408 Santa Fe car the number is
