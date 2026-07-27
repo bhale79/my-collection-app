@@ -684,7 +684,7 @@
   // now carry the version of the reader that produced them, and the automatic
   // pass retries anything read by an older one. Bump this whenever the reading
   // logic changes; it costs nothing but time, and only on photos that failed.
-  var READER_VER = '1090';
+  var READER_VER = '1093';
 
   function _pinMetaOf(file) {
     var ap = (file && file.appProperties) || {};
@@ -1874,6 +1874,9 @@
             + (dbg.viaDesc ? '<br>Matched on the words: ' + rrEsc(dbg.viaDesc) : '')
             + (dbg.corroborated ? '<br>Number and lettering agree: ' + rrEsc(dbg.corroborated) : '')
             + (dbg.oneOff ? '<br>One digit corrected: ' + rrEsc(dbg.oneOff) : '')
+            + (dbg.windowAmbig ? '<br>Could be any of: ' + rrEsc(dbg.windowAmbig)
+                + ' \u2014 several real numbers fit these digits, so nothing was assumed' : '')
+            + (dbg.edgeOnly ? '<br>Found only at the edge of the frame \u2014 possibly the shelf or wall, not the item' : '')
             + (dbg.quoted ? '<br>The tag settled it: ' + rrEsc(dbg.quoted)
                 + ' \u2014 this catalog\u2019s row quotes the number on the car' : '')
             + ((dbg.shortDropped && dbg.shortDropped.length)
@@ -2821,8 +2824,22 @@
     // token falls through and the NEXT candidate in the same text gets its turn,
     // which is often the number actually printed on the item. It turns a wrong
     // answer into a right one rather than into a blank.
+    // v0.9.1093 (Brad: "why are we matching to set item numbers"). His 6817
+    // scraper came back "1545 — 027 Diesel Freight Set" and his 6817 earlier
+    // hit "1615 — Cannonball Express Set". The master list indexes SET rows
+    // alongside item rows, and text scraped off a photo was allowed to confirm
+    // against them. A number painted on a car is an ITEM number — set numbers
+    // live on boxes and paperwork, not on rolling stock. Set rows are invisible
+    // to the free reader's validation now. (The PAID reader is untouched: it
+    // sees the photo, and a photo genuinely can be of a boxed set.)
+    var _isSetRow = function (row) {
+      if (!row) return false;
+      if (/\bsets?\b/i.test(String(row._tab || ''))) return true;
+      if (/\bset\b/i.test(String(row.itemType || ''))) return true;
+      return false;
+    };
     var fmAny = (typeof findMaster === 'function')
-      ? function (c) { return findMaster(c, null, prefer || null); }
+      ? function (c) { var r = findMaster(c, null, prefer || null); return (r && !_isSetRow(r)) ? r : null; }
       : null;
     var inEra = function (row) {
       if (!prefer || !prefer.era) return true;      // nothing stamped — old behaviour
@@ -3031,23 +3048,36 @@
         });
       }
     }
+    var wHits = [];
     if (fm && !jHit && joined.length) {
-      joined.some(function (d) {
+      // v0.9.1093 (Brad's Summit car): the reader saw "12446" — 2446 with one
+      // junk digit in front. The window search tried 1244 before 2446, both are
+      // real postwar items, and the first won by position alone. Two windows of
+      // one run both existing in the catalog is AMBIGUITY: all hits are
+      // collected, exactly one confirms, several become a guess with the
+      // choices offered as chips for a human to settle.
+      joined.forEach(function (d) {
+        if (wHits.length >= 4) return;
         // A BARE reassembled number must obey the same length ceiling as any
-        // other — that is what stopped "LEY 25000" becoming an item number.
-        // A DASH-REPAIRED one may exceed it, because 3562-1 and 6464-475 are
-        // exactly the legitimate Lionel forms that run longer.
-        if ((!digitCap || d.length <= digitCap) && fm(d)) { jHit = d; return true; }
+        // other; a DASH-REPAIRED one may exceed it (3562-1, 6464-475).
+        if ((!digitCap || d.length <= digitCap) && fm(d)) {
+          if (wHits.indexOf(d) < 0) wHits.push(d);
+          return;
+        }
         for (var cut = 3; cut <= 4; cut++) {
           if (d.length <= cut) continue;
           var cand = d.slice(0, cut) + '-' + d.slice(cut);
-          if (fm(cand)) { jHit = cand; return true; }
+          if (fm(cand)) { if (wHits.indexOf(cand) < 0) wHits.push(cand); return; }
         }
-        return false;
       });
+      if (wHits.length === 1) jHit = wHits[0];
     }
     dbg.joinTried = joined.slice(0, 10);
     if (jHit) dbg.joined = jHit;
+    if (!jHit && wHits.length > 1) {
+      dbg.windowAmbig = wHits.join(', ');
+      return { num: wHits[0], matched: false, alts: wHits.slice(0), dbg: dbg };
+    }
 
     var digitsOf = function (x) { return String(x || '').replace(/\D/g, '').length; };
     if (direct || jHit) {
@@ -3246,6 +3276,14 @@
     CAR:1, CARS:1, RAILROAD:1, RAILWAY:1, RY:1, RR:1, CO:1, INC:1, NEW:1, TYPE:1,
     CAPY:1, LMT:1, WT:1, CUFT:1, CU:1, FT:1, LD:1, LT:1, NUMBER:1, NO:1, SET:1,
     GAUGE:1, SCALE:1, MODEL:1, TRAIN:1, ITEM:1, PART:1, USA:1, MADE:1, ONE:1,
+    // v0.9.1093 (Brad's Clifton): OCR noise produced "SEE" and "ERROR", which
+    // matched a row whose description is an ERRATA NOTE imported into the
+    // master as if it were an item ("Appears to be an error since O Gauge
+    // track is shown - see revised form below"). Rare-in-the-catalog is not
+    // the same as identifying — catalog-note vocabulary never names a train.
+    SEE:1, ERROR:1, NOTE:1, NOTES:1, REVISED:1, FORM:1, BELOW:1, ABOVE:1,
+    SHOWN:1, APPEARS:1, SINCE:1, ALSO:1, SAME:1, ONLY:1, EACH:1, FROM:1,
+    TRACK:1, PAGE:1, CATALOG:1, VERSION:1, VARIATION:1,
   };
 
   function _descTokens(str) {
@@ -3369,6 +3407,17 @@
       var rowsFor0 = only ? (_rowsFor(only) || []) : [];
       if (!(only.length >= 7 && rowsFor0.length && rowsFor0.length <= 2)) return null;
     }
+    // v0.9.1093: the matched words together must carry real substance — nine
+    // characters of distinct matched text. FORT+KNOX+RESERVE is fifteen,
+    // MINNEAPOLIS alone is eleven; two scraps of OCR noise that happen to be
+    // rare in the catalog do not add up to a name.
+    // Applies to MULTI-word matches only: a single word already passed the
+    // stricter lone-word rule above (seven-plus characters, at most two rows),
+    // which is how LACKAWAN — eight characters, one item — stays a match while
+    // SEE+ERROR — eight characters of catalog-note noise — does not.
+    var _wchars = 0;
+    (hitWords[keys[0]] || []).forEach(function (wd) { _wchars += String(wd).length; });
+    if ((hitWords[keys[0]] || []).length >= 2 && _wchars < 9) return null;
     if (top < 2) return null;
     if (second >= top * 0.75) return null;
     return { row: rowOf[keys[0]], score: top, words: (hitWords[keys[0]] || []).slice(0, 6) };
@@ -3444,6 +3493,21 @@
           } else {
             t = ((((await w.recognize(_auditCanvas(bmp, dim, p.mode))).data) || {}).text || '')
               + '\n' + bands.join('\n');
+            var rAll = _numberFromText(t, prefer);
+            // v0.9.1093 (Brad's 6816: "1043 — Transformer", read straight off
+            // the catalog page pinned to the wall). The item sits in the middle
+            // of the frame; a confirmed number whose digits never appear in the
+            // middle band was found at the EDGE — the shelf above, the wall
+            // behind — and is demoted to a guess rather than stated as fact.
+            if (rAll && rAll.matched && rAll.num) {
+              var _digits = String(rAll.num).replace(/\D/g, '');
+              var _midDigits = mid.replace(/\D/g, '');
+              if (_digits && _midDigits.indexOf(_digits) < 0 && !(rAll.dbg && rAll.dbg.viaMaker)) {
+                rAll.matched = false;
+                if (rAll.dbg) rAll.dbg.edgeOnly = true;
+              }
+            }
+            if (rAll) { r = rAll; }
           }
         } else {
           t = (((await w.recognize(_auditCanvas(bmp, dim, p.mode))).data) || {}).text || '';
@@ -3681,7 +3745,7 @@
       // digits-only, stopping as soon as the stamped catalog confirms.
       var r = await _freeReadBlob(blob, 2400, _preferForFid(fid));
       var m = _ids();
-      if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null, rv: READER_VER, viaDesc: !!r.viaDesc, descOf: r.descOf || '', descWords: r.descWords || [] }; _idsSave(m); }
+      if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, alts: r.alts || [], tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null, rv: READER_VER, viaDesc: !!r.viaDesc, descOf: r.descOf || '', descWords: r.descWords || [] }; _idsSave(m); }
       else { var f2 = _freeTried(); f2[fid] = { t: 1, raw: (r && r.raw) || '', dbg: (r && r.dbg) || null, rv: READER_VER }; _freeTriedSave(f2); }
       try { _render(); } catch (e4) {}
       window._pinReview(key);
@@ -3740,7 +3804,7 @@
         var fid = todo[i].fid, r = null;
         try { r = await _freeReadOne(fid); } catch (e) {}
         if (r && r.num) {
-          var m = _ids(); m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null, rv: READER_VER, viaDesc: !!r.viaDesc, descOf: r.descOf || '', descWords: r.descWords || [] };
+          var m = _ids(); m[fid] = { num: r.num, guess: r.matched ? 0 : 1, alts: r.alts || [], tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null, rv: READER_VER, viaDesc: !!r.viaDesc, descOf: r.descOf || '', descWords: r.descWords || [] };
           _idsSave(m);
         } else {
           // v0.9.1072: remember WHY it failed, not just that it did. Stored on
@@ -3869,7 +3933,7 @@
         try { _render(); } catch (eC) {}
         _freeReadBlob(blob, 1600, _preferForFid(fid)).then(function (r) {
           var m = _ids();
-          if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null, rv: READER_VER, viaDesc: !!r.viaDesc, descOf: r.descOf || '', descWords: r.descWords || [] }; _idsSave(m); }
+          if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, alts: r.alts || [], tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null, rv: READER_VER, viaDesc: !!r.viaDesc, descOf: r.descOf || '', descWords: r.descWords || [] }; _idsSave(m); }
           else { var f2 = _freeTried(); f2[fid] = 1; _freeTriedSave(f2); }
           try { _render(); } catch (e2) {}
         }).catch(function () {});

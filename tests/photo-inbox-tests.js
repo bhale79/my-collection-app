@@ -1471,6 +1471,59 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('the re-opened card returns to the photo that was read',
      /if \(fid0\) window\._pinRvSetMain\(fid0\)/.test(os));
 
+
+  section('68. A number scraped from a photo is never a set number');
+  // Brad: "why are we matching to set item numbers." His 6817 came back
+  // "1545 — 027 Diesel Freight Set" and earlier "1615 — Cannonball Express
+  // Set". A number painted on a car is an item number; set numbers live on
+  // boxes and paperwork.
+  global.state = { masterByItem: new Map(), personalData: {} }; global.window.state = global.state;
+  global.findMaster = (n, v, prefer) => ({
+    '1545': { itemNum:'1545', _era:'mpc', _tab:'Lionel MPC - Sets', description:'027 Diesel Freight Set' },
+    '1615': { itemNum:'1615', _era:'mpc', _tab:'Lionel MPC - Sets', description:'Cannonball Express Set' },
+    '6817': { itemNum:'6817', _era:'pw',  _tab:'Lionel PW - Items', description:'Flatcar with scraper' },
+  })[String(n)] || null;
+  let sr = window.__NumFromText('ON E L SE W C M 1015 45 W T CO 7 N S11 1545 MORE WALL TEXT HERE',
+                                { era:'mpc', manufacturer:'Lionel' });
+  ok('a set row cannot confirm a scraped number', !sr || sr.num !== '1545' || sr.matched !== true,
+     JSON.stringify(sr && { num: sr.num, matched: sr.matched }));
+  sr = window.__NumFromText('LIONEL 6817 FLATCAR LONG ENOUGH TEXT FOR EVIDENCE',
+                            { era:'pw', manufacturer:'Lionel' });
+  ok('item rows still confirm exactly as before', sr && sr.num === '6817' && sr.matched === true);
+
+  section('69. Two real windows = a question, not an answer');
+  // Brad's Summit: "12446" is 2446 with a junk digit; 1244 is also real.
+  global.findMaster = (n) => ({
+    '1244': { itemNum:'1244', _era:'pw', _tab:'Lionel PW - Items' },
+    '2446': { itemNum:'2446', _era:'pw', _tab:'Lionel PW - Items' },
+  })[String(n)] || null;
+  let wa = window.__NumFromText('TE STE EE 2 - S SH 0 LS - 12446 - FILLER WORDS FOR EVIDENCE',
+                                { era:'pw', manufacturer:'Lionel' });
+  ok('neither window is stated as fact', wa && wa.matched === false, JSON.stringify(wa));
+  ok('both choices are offered', wa && (wa.alts || []).indexOf('1244') >= 0 && (wa.alts || []).indexOf('2446') >= 0,
+     JSON.stringify(wa && wa.alts));
+  ok('the reasoning says why', wa && wa.dbg && /1244/.test(wa.dbg.windowAmbig || ''));
+
+  section('70. Catalog-note words never name a train');
+  const NROWS = [
+    { itemNum:'MAN-track-templates-prin-027', _era:'pw', _tab:'Lionel PW - Items',
+      description:'Appears to be an error since O Gauge track is shown - see revised form below' },
+    { itemNum:'55', _era:'pw', _tab:'Lionel PW - Items', description:'Tie-Jector Car', roadName:'Pennsylvania' },
+  ];
+  const NM = new Map(); NROWS.forEach(r => NM.set(r.itemNum, [r]));
+  global.state = { masterByItem: NM, personalData: {} }; global.window.state = global.state;
+  ok('"SEE, ERROR" matches nothing', !window.__DescMatch('EEE SEE DE VA ERROR HN ER', { era:'pw' }));
+  ok('a real name still matches', (function () {
+    const r = window.__DescMatch('PRR TIE-JECTOR BLT BY LIONEL', { era:'pw' });
+    return r && r.row.itemNum === '55';
+  })());
+
+  const eg = require('fs').readFileSync(SRC, 'utf8');
+  ok('a number found only at the frame edge is demoted', /edgeOnly = true/.test(eg) &&
+     /_midDigits\.indexOf\(_digits\) < 0/.test(eg));
+  ok('unless the maker named it', /!\(rAll\.dbg && rAll\.dbg\.viaMaker\)/.test(eg));
+  ok('free reads store their alternatives', /alts: r\.alts \|\| \[\]/.test(eg));
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
