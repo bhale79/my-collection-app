@@ -684,7 +684,7 @@
   // now carry the version of the reader that produced them, and the automatic
   // pass retries anything read by an older one. Bump this whenever the reading
   // logic changes; it costs nothing but time, and only on photos that failed.
-  var READER_VER = '1104';
+  var READER_VER = '1105';
 
   function _pinMetaOf(file) {
     var ap = (file && file.appProperties) || {};
@@ -1905,6 +1905,8 @@
             + (dbg.pooled ? '<br>Decided from everything all the passes read together' : '')
             + (dbg.freqPick ? '<br>Two real numbers were in view \u2014 kept the one read most often: '
                 + rrEsc(dbg.freqPick) : '')
+            + (dbg.offEraLead ? '<br>The number read on the car (' + rrEsc(dbg.offEraLead)
+                + ') belongs to another era\u2019s catalog \u2014 it leads the choices for you to settle' : '')
             + (dbg.longerUnexplained ? '<br>A longer digit-run (' + rrEsc(dbg.longerUnexplained)
                 + ') matched nothing, so this short number is offered, not asserted' : '')
             + (dbg.shortSolo ? '<br>Only three digits, seen once \u2014 offered, not asserted' : '')
@@ -3141,6 +3143,35 @@
     if (jHit) dbg.joined = jHit;
     if (!jHit && wHits.length > 1) {
       dbg.windowAmbig = wHits.join(', ');
+      // ══ v0.9.1105 — a number READ beats numbers GLUED (Brad's Modern 6817) ═
+      // The windows assembled 38994 and 9475 from scattered digits, while the
+      // car's own number — 6817, read twice, a real item in ANOTHER era's
+      // catalog — sat parked as an off-era lead and never got its turn,
+      // because the ambiguous-windows return fired first. A directly-read
+      // off-era token now outranks reconstructions: the tag settles it when
+      // the catalog quotes it (v0.9.1089), and otherwise it leads the pick —
+      // Brad's own rule: "say its a modern 6817 or its a postwar 6817 and
+      // let the user pick."
+      var _offLead = null;
+      if (fmAny && fm) {
+        for (var oi = 0; oi < uniq.length; oi++) {
+          var oc = uniq[oi];
+          if (fm(oc)) continue;
+          if (fmAny(oc) || fmAny(oc.replace(/^\d-/, ''))) { _offLead = oc; break; }
+        }
+      }
+      if (_offLead) {
+        if (typeof _pinQuoteMatch === 'function') {
+          var _qm3 = _pinQuoteMatch(_offLead, prefer);
+          if (_qm3 && _qm3.row && _qm3.row.itemNum) {
+            dbg.quoted = _offLead + ' \u2192 ' + _qm3.row.itemNum;
+            return { num: String(_qm3.row.itemNum), matched: true, viaQuote: _offLead, dbg: dbg };
+          }
+        }
+        dbg.offEraLead = _offLead;
+        return { num: _offLead, matched: false, offEra: true,
+                 alts: [String(_offLead)].concat(wHits.slice(0, 3)), dbg: dbg };
+      }
       return { num: wHits[0], matched: false, alts: wHits.slice(0), dbg: dbg };
     }
 

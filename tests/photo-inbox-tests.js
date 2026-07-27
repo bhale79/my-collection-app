@@ -1833,6 +1833,40 @@ META_WRITES.length = 0; TOASTS.length = 0;
   const fsrc = require('fs').readFileSync(SRC, 'utf8');
   ok('the card explains the frequency pick', /kept the one read most often/.test(fsrc));
 
+  section('85. A number READ beats numbers GLUED');
+  // Brad's Modern-tagged Celebration 6817: windows assembled 38994 and 9475
+  // (both real Modern numbers) from fragments, while 6817 — read straight off
+  // the car, a real POSTWAR number — sat parked as an off-era lead.
+  global.state = { masterByItem: new Map(), personalData: {} };
+  global.window.state = global.state;
+  global.findMaster = (n, x, pref) => {
+    const CAT = {
+      '38994': { itemNum:'38994', _era:'mpc', _tab:'Lionel MPC-Modern', description:'Boxcar' },
+      '9475':  { itemNum:'9475',  _era:'mpc', _tab:'Lionel MPC-Modern', description:'Boxcar' },
+      '6817':  { itemNum:'6817',  _era:'pw',  _tab:'Lionel PW - Items', description:'Flatcar with Allis-Chalmers Motor Scraper' },
+    };
+    return CAT[String(n)] || null;
+  };
+  const CEL = 'GEE Y CC TCE ON ER ERT 2 WP I COU F M T 27 G CB 3 8 9 9 4 7 5 2 MW 1C HG R GIA L\n- - 5 4 6817 - 1 - - 6817 4 3 4';
+  let ol = window.__NumFromText(CEL, { era:'mpc', manufacturer:'Lionel' });
+  ok('the directly-read off-era number leads the pick',
+     ol && ol.num === '6817' && ol.matched === false, JSON.stringify(ol && { num: ol.num, matched: ol.matched }));
+  ok('marked off-era so the UI can say so', ol && ol.offEra === true);
+  ok('the glued windows ride along as chips',
+     ol && (ol.alts || []).indexOf('38994') >= 0, JSON.stringify(ol && ol.alts));
+  ok('the reasoning names the lead', ol && ol.dbg && ol.dbg.offEraLead === '6817');
+
+  // ...and when the stamped era's catalog QUOTES the number, the tag settles it.
+  const QROWS3 = [
+    { itemNum:'6-26024', _era:'mpc', _tab:'Lionel MPC-Modern',
+      description:'Postwar Celebration "6817" Flatcar with scraper', roadName:'' },
+  ];
+  const QM3 = new Map(); QROWS3.forEach(r => QM3.set(r.itemNum, [r]));
+  global.state = { masterByItem: QM3, personalData: {} }; global.window.state = global.state;
+  let ol2 = window.__NumFromText(CEL, { era:'mpc', manufacturer:'Lionel' });
+  ok('the tag settles it when the catalog quotes the number',
+     ol2 && ol2.num === '6-26024' && ol2.matched === true, JSON.stringify(ol2 && ol2.num));
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
