@@ -2017,8 +2017,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           : '')
         + '<label style="display:flex;align-items:center;gap:0.45rem;margin-top:0.5rem;cursor:pointer;user-select:none;color:var(--text-mid,#bbb);font-size:0.78rem">'
         +   '<input id="bi-autosnap" class="rr-tap-box" type="checkbox" style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent,#e8401c)"'
-        +   ((localStorage.getItem('rr_bi_autosnap') || '1') === '1' ? ' checked' : '') + '>'
-        +   ' Auto-capture when a barcode locks (uncheck to press \ud83d\udcf8 Capture yourself)'
+        +   ((localStorage.getItem('rr_bi_autosnap') || '0') === '1' ? ' checked' : '') + '>'
+        +   ' Auto-capture when a barcode locks (otherwise you press \ud83d\udcf8 Capture when ready)'
         + '</label>'
         + '<input type="file" id="bi-file" accept="image/*" style="display:none">'
         + '</div>');
@@ -2032,7 +2032,10 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       if (_autoCk) _autoCk.addEventListener('change', function () {
         try { localStorage.setItem('rr_bi_autosnap', _autoCk.checked ? '1' : '0'); } catch (eS) {}
       });
-      function _autoSnapOn() { return !_autoCk || _autoCk.checked; }
+      // v0.9.1111 (Brad, clarifying): "let the user hit the photo button after
+      // it locks the barcode" — that IS the default now. The lock is held and
+      // shown; the shutter is the user's. Auto-capture is the opt-in.
+      function _autoSnapOn() { return !!(_autoCk && _autoCk.checked); }
       function snapFrame() {
         var raw = document.createElement('canvas');
         raw.width = video.videoWidth || 1280; raw.height = video.videoHeight || 720;
