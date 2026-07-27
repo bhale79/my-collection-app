@@ -684,7 +684,7 @@
   // now carry the version of the reader that produced them, and the automatic
   // pass retries anything read by an older one. Bump this whenever the reading
   // logic changes; it costs nothing but time, and only on photos that failed.
-  var READER_VER = '1096';
+  var READER_VER = '1097';
 
   function _pinMetaOf(file) {
     var ap = (file && file.appProperties) || {};
@@ -1270,7 +1270,13 @@
       }
       if (_pinOneShot) { _pinOneShot = null; _pinRenderBar(); }
       _status('');
-      showToast('Added ' + files.length + ' photo' + (files.length > 1 ? 's' : '') + ' to the inbox', 2500);
+      // v0.9.1097: a photo with no era tag reads against EVERY catalog at
+      // once and matches strangers (Brad's 3545 came back as an Atlas item).
+      // Say it at upload time, when fixing it is one Tag away.
+      var _noEraUp = !((_pinOneShot && !_spentOneShot) ? _pinOneShot : _pinHomeEra());
+      if (_noEraUp) showToast('Added ' + files.length + ' photo' + (files.length > 1 ? 's' : '')
+        + ' \u2014 no maker/era tag yet, so reads will be unfiltered. Use the Tag button to stamp them.', 5200);
+      else showToast('Added ' + files.length + ' photo' + (files.length > 1 ? 's' : '') + ' to the inbox', 2500);
       _pinRefresh();
     } catch (e) {
       console.error('[Inbox] upload:', e);
@@ -1890,6 +1896,9 @@
             + (dbg.viaMaker ? '<br>Chosen because it is stamped next to the maker\'s name: ' + rrEsc(dbg.viaMaker) : '')
             + (dbg.shortVsLong ? '<br>Two catalog numbers disagree: ' + rrEsc(dbg.shortVsLong)
                 + ' — both offered, pick the one on your item' : '')
+            + (dbg.noEraJoin ? '<br>Assembled from split digits with no maker/era tag on this photo '
+                + '— that can match the wrong maker\u2019s list, so it is only offered. '
+                + 'Tag the photo and re-read for a filtered answer.' : '')
             + (dbg.stampSaw ? '<br>The light-numbers pass saw: “' + rrEsc(dbg.stampSaw) + '”' : '')
             + (dbg.evidence !== undefined
                 ? '<br>Readable characters recovered: ' + dbg.evidence
@@ -2998,14 +3007,30 @@
       }
       return out;
     }
+    // v0.9.1097 (Brad's 6175 asserted as "1523 — Diesel Freight Set, 81"):
+    // the v0.9.1093 set exclusion keys on the tab name, but Brad's workbook
+    // also carries set rows INSIDE the items list, where the tab cannot give
+    // them away. Their own descriptions can. A RECONSTRUCTED number — glued
+    // from scattered digits, windowed, or one-digit-repaired — must not
+    // validate against a row that describes a boxed outfit; set numbers live
+    // on boxes and paperwork, not stamped on rolling stock. Direct tokens
+    // are deliberately untouched: "110" painted on a box lid is a legitimate
+    // direct read even though its row says "Trestle Set".
+    var fmJoin = fm ? function (c) {
+      var row = fm(c);
+      if (!row) return null;
+      if (/\b(set|outfit)\b/i.test(String(row.description || ''))) return null;
+      return row;
+    } : null;
+
     // Exact, then dash-repaired, for one candidate string.
     function _tryNumber(d) {
-      if (!fm) return null;
-      if ((!digitCap || d.length <= digitCap) && fm(d)) return d;
+      if (!fmJoin) return null;
+      if ((!digitCap || d.length <= digitCap) && fmJoin(d)) return d;
       for (var cut = 3; cut <= 4; cut++) {
         if (d.length <= cut) continue;
         var cand = d.slice(0, cut) + '-' + d.slice(cut);
-        if (fm(cand)) return cand;
+        if (fmJoin(cand)) return cand;
       }
       return null;
     }
@@ -3070,14 +3095,15 @@
         if (wHits.length >= 4) return;
         // A BARE reassembled number must obey the same length ceiling as any
         // other; a DASH-REPAIRED one may exceed it (3562-1, 6464-475).
-        if ((!digitCap || d.length <= digitCap) && fm(d)) {
+        // v0.9.1097: windows are reconstructions too — same no-set-rows check.
+        if ((!digitCap || d.length <= digitCap) && fmJoin(d)) {
           if (wHits.indexOf(d) < 0) wHits.push(d);
           return;
         }
         for (var cut = 3; cut <= 4; cut++) {
           if (d.length <= cut) continue;
           var cand = d.slice(0, cut) + '-' + d.slice(cut);
-          if (fm(cand)) { if (wHits.indexOf(cand) < 0) wHits.push(cand); return; }
+          if (fmJoin(cand)) { if (wHits.indexOf(cand) < 0) wHits.push(cand); return; }
         }
       });
       if (wHits.length === 1) jHit = wHits[0];
@@ -3102,6 +3128,24 @@
       // A number the maker named is trustworthy however little else was read —
       // "LIONEL 6176" is corroboration in itself.
       var solid = (evidence >= THIN) || !!dbg.viaMaker;
+      // v0.9.1097 (Brad's era-less 3545 asserted as an ATLAS "2501"): with no
+      // era stamped on the photo there is no particular catalog to check a
+      // reconstruction against — the join found 2501 in a different maker's
+      // list entirely and called it fact. A reconstruction validated against
+      // "any catalog at all" is a guess; the direct token rides along as the
+      // other chip so the user picks between what was actually seen.
+      // Only a SHORT reconstruction that DIFFERS from the direct token is
+      // demoted: 250+1 glued into 2501 is a coincidence waiting to happen,
+      // while 5464475 dash-repaired into 6464-475 is seven digits of evidence,
+      // and a jHit that merely re-found the direct token is no join at all.
+      if (win === jHit && jHit && String(jHit) !== String(direct || '')
+          && String(jHit).replace(/\D/g, '').length <= 5
+          && (!prefer || !prefer.era) && !dbg.viaMaker) {
+        var _altsJ = [String(jHit)];
+        if (direct && String(direct) !== String(jHit)) _altsJ.push(String(direct));
+        dbg.noEraJoin = true;
+        return { num: win, matched: false, alts: _altsJ, dbg: dbg };
+      }
       return { num: win, matched: solid, thin: !solid, dbg: dbg };
     }
 

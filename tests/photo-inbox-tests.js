@@ -1632,6 +1632,50 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('the use-this chip follows the readable slot',
      /var s0 = _ids\(\)\[_pinReadFid\(_rvGroups\[0\]\) \|\| _rvGroups\[0\]\.files\[0\]\.id\]/.test(el));
 
+  section('76. Reconstructions need stronger paperwork');
+  // Brad's 6175: raw text near-verbatim; 1523 is a SET row hiding in the
+  // items list — only its description gives it away.
+  global.state = { masterByItem: new Map(), personalData: {} };
+  global.window.state = global.state;
+  global.findMaster = (n) => ({
+    '225':  { itemNum:'225',  _era:'pw', _tab:'Lionel PW - Items', description:'Alco Diesel' },
+    '1523': { itemNum:'1523', _era:'pw', _tab:'Lionel PW - Items', description:'Diesel Freight Set, 81' },
+  })[String(n)] || null;
+  const RKT = 'TT FS CI 1 N Y YOY CT T TT - 1 0 1 3 15 23 - 2 - 225 4 1 4 5 - - 7 3';
+  let rk = window.__NumFromText(RKT, { era:'pw', manufacturer:'Lionel' });
+  ok('a glued-together number cannot land on a set row',
+     rk && rk.num !== '1523', JSON.stringify(rk && rk.num));
+  ok('the direct token wins instead', rk && rk.num === '225', JSON.stringify(rk && rk.num));
+
+  // ...but a DIRECT token on a set-described row still reads (110 Trestle Set).
+  global.findMaster = (n) => (String(n) === '110'
+    ? { itemNum:'110', _era:'pw', _tab:'Lionel PW - Items', description:'Trestle Set' } : null);
+  let ts2 = window.__NumFromText('LIONEL 110 GRADUATED TRESTLE FOR TRAINS', { era:'pw', manufacturer:'Lionel' });
+  ok('a direct token still reads a set-described item row',
+     ts2 && ts2.num === '110', JSON.stringify(ts2 && ts2.num));
+
+  section('77. An era-less reconstruction is a guess by definition');
+  // Brad's fresh, untagged 3545 photo: "250 1" glued into 2501, found in the
+  // ATLAS list, asserted on a Lionel car.
+  global.findMaster = (n) => ({
+    '250':  { itemNum:'250',  _era:'prewar', _tab:'Lionel Prewar - Items', description:'Locomotive' },
+    '2501': { itemNum:'2501', _era:'atlas',  _tab:'Atlas O - Items',      description:'Undecorated (High Nose)' },
+  })[String(n)] || null;
+  const TVR = 'RR RE SOR EE 3 TT - J J J QO BANE EE WU - 250 1 TONE BE Y 3 E - -';
+  let tv = window.__NumFromText(TVR, null);
+  ok('the cross-catalog join is not asserted', tv && tv.matched === false, JSON.stringify(tv));
+  ok('but both readings are offered',
+     tv && (tv.alts || []).indexOf('2501') >= 0 && (tv.alts || []).indexOf('250') >= 0,
+     JSON.stringify(tv && tv.alts));
+  ok('and the reasoning says why', tv && tv.dbg && tv.dbg.noEraJoin === true);
+  // With an era stamped, the same text behaves as before (era filter rules).
+  let tv2 = window.__NumFromText(TVR, { era:'prewar' });
+  ok('a stamped photo is unaffected', tv2 && tv2.num === '250', JSON.stringify(tv2 && tv2.num));
+
+  const nj = require('fs').readFileSync(SRC, 'utf8');
+  ok('the demotion is explained to the user', /Assembled from split digits with no maker\/era tag/.test(nj));
+  ok('era-less uploads announce themselves', /no maker\/era tag yet, so reads will be unfiltered/.test(nj));
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
