@@ -2204,8 +2204,23 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                     var bc = bcs[0];
                     if (bc.rawValue === lastRaw) confirmN++; else { lastRaw = bc.rawValue; confirmN = 1; }
                     if (confirmN >= 2) {
-                      stat.textContent = '✓ Barcode locked — captured';
+                      // v0.9.1109 (Brad: "i had my phone, focused on the image,
+                      // and it took the picture not me. it read the barcode and
+                      // took the pic.") The auto-capture fired the instant the
+                      // barcode locked — which is precisely when the camera is
+                      // zoomed in on the BARCODE, so the printed item number
+                      // was half out of frame and the lettering read starved.
+                      // The barcode is locked and KEPT from this moment either
+                      // way; the camera now gives two seconds to pull back and
+                      // fit the whole box end before it fires.
                       stat.style.color = '#2ecc71';
+                      stat.textContent = '\u2713 Barcode locked \u2014 pull back to fit the whole label\u2026 capturing in 2';
+                      await new Promise(function (rW) { setTimeout(rW, 1000); });
+                      if (stopLoop) return;
+                      stat.textContent = '\u2713 Barcode locked \u2014 capturing in 1\u2026';
+                      await new Promise(function (rW2) { setTimeout(rW2, 1000); });
+                      if (stopLoop) return;
+                      stat.textContent = '\u2713 Barcode locked \u2014 captured';
                       var frame = snapFrame();
                       done({ raw: frame.raw, view: frame.view, lockedBc: bc });
                       return;

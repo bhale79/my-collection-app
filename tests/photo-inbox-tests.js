@@ -1889,6 +1889,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('only when the crop found no item number',
      /!\(_extractItemNumberCandidates\(ocrText \|\| ''\) \|\| \[\]\)\.length/.test(bcx));
 
+  section('89. The camera waits for the framing, not just the barcode');
+  const bcy = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'barcode.js'), 'utf8');
+  ok('a locked barcode starts a countdown instead of firing the shutter',
+     /pull back to fit the whole label/.test(bcy) && /capturing in 1/.test(bcy));
+  ok('the barcode is kept from the lock either way', /lockedBc: bc/.test(bcy));
+  ok('a cancelled camera does not fire mid-countdown',
+     (bcy.match(/if \(stopLoop\) return;/g) || []).length >= 2);
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
