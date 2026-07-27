@@ -1874,6 +1874,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('recomputed from live pace, not guessed once', /_per = \(Date\.now\(\) - _arT0\) \/ i/.test(et));
   ok('quiet until the pace is knowable', /if \(i >= 3\)/.test(et));
 
+  section('87. The sill strips — a thin line of text read as a line');
+  const sst = require('fs').readFileSync(SRC, 'utf8');
+  ok('thin sliding bands join the stamp cells', /var bandH = Math\.max\(8, Math\.floor\(BH \/ 4\)\)/.test(sst));
+  ok('half-overlapping so a sill straddling a cut is whole somewhere', /var step = Math\.max\(4, Math\.floor\(bandH \/ 2\)\)/.test(sst));
+  ok('blown up hard for tiny sill stamps', /Math\.min\(8, Math\.floor\(3200 \/ sw\)/.test(sst));
+  ok('bounded so they cannot run away', /bIdx < 8/.test(sst));
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

@@ -684,7 +684,7 @@
   // now carry the version of the reader that produced them, and the automatic
   // pass retries anything read by an older one. Bump this whenever the reading
   // logic changes; it costs nothing but time, and only on photos that failed.
-  var READER_VER = '1105';
+  var READER_VER = '1107';
 
   function _pinMetaOf(file) {
     var ap = (file && file.appProperties) || {};
@@ -4729,6 +4729,30 @@
         cctx.imageSmoothingEnabled = true;
         cctx.drawImage(src, x0, y0, cw, ch, 0, 0, cw * sc, ch * sc);
         out.push(cell);
+      }
+    }
+    // ── v0.9.1107 — the sill strips (Brad's 6175: "this should be easy...
+    // why is this not picking up"). The number lives on the car's side sill —
+    // a THIN line of text that drowns inside a tall cell full of body and
+    // background. Sliding half-overlapping thin bands, two columns, blown up
+    // hard, read the sill as the text LINE it is. His own photo reads "6175"
+    // this way and no other. These run last within the pass, so the early
+    // exit prunes them on every photo an earlier stage resolves.
+    var bandH = Math.max(8, Math.floor(BH / 4));
+    var step = Math.max(4, Math.floor(bandH / 2));
+    for (var yS = yLo, bIdx = 0; yS + bandH <= H && bIdx < 8; yS += step, bIdx++) {
+      for (var cS = 0; cS < 2; cS++) {
+        var sx0 = Math.max(0, Math.floor(W * cS / 2) - Math.floor(W / 8));
+        var sx1 = Math.min(W, Math.floor(W * (cS + 1) / 2) + Math.floor(W / 8));
+        var sw = sx1 - sx0;
+        if (sw < 8) continue;
+        var sSc = Math.max(2, Math.min(8, Math.floor(3200 / sw) || 2));
+        var strip = document.createElement('canvas');
+        strip.width = sw * sSc; strip.height = bandH * sSc;
+        var sctx2 = strip.getContext('2d');
+        sctx2.imageSmoothingEnabled = true;
+        sctx2.drawImage(src, sx0, yS, sw, bandH, 0, 0, sw * sSc, bandH * sSc);
+        out.push(strip);
       }
     }
     return out;
