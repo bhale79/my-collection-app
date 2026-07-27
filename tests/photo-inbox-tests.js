@@ -1897,6 +1897,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('a cancelled camera does not fire mid-countdown',
      (bcy.match(/if \(stopLoop\) return;/g) || []).length >= 2);
 
+  section('90. Auto-capture is a choice');
+  const bcz = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'barcode.js'), 'utf8');
+  ok('the camera has a remembered auto-capture checkbox',
+     /rr_bi_autosnap/.test(bcz) && /Auto-capture when a barcode locks/.test(bcz));
+  ok('manual mode holds the lock and hands over the shutter',
+     /heldBc = bc;/.test(bcz) && /press \\ud83d\\udcf8 Capture when the label is framed/.test(bcz));
+  ok('a manual snap keeps the held barcode', /lockedBc: heldBc/.test(bcz));
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

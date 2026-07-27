@@ -2015,10 +2015,24 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             + '</div>'
             + _biQuickFilters())
           : '')
+        + '<label style="display:flex;align-items:center;gap:0.45rem;margin-top:0.5rem;cursor:pointer;user-select:none;color:var(--text-mid,#bbb);font-size:0.78rem">'
+        +   '<input id="bi-autosnap" class="rr-tap-box" type="checkbox" style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent,#e8401c)"'
+        +   ((localStorage.getItem('rr_bi_autosnap') || '1') === '1' ? ' checked' : '') + '>'
+        +   ' Auto-capture when a barcode locks (uncheck to press \ud83d\udcf8 Capture yourself)'
+        + '</label>'
         + '<input type="file" id="bi-file" accept="image/*" style="display:none">'
         + '</div>');
       var video = d.querySelector('#bi-video');
       var stat = d.querySelector('#bi-camstatus');
+      // v0.9.1110 (Brad): auto-capture is a CHOICE now. Unchecked, the lock
+      // loop still finds and HOLDS the barcode, but the shutter is yours —
+      // press Capture when the label is framed the way you want.
+      var heldBc = null;
+      var _autoCk = d.querySelector('#bi-autosnap');
+      if (_autoCk) _autoCk.addEventListener('change', function () {
+        try { localStorage.setItem('rr_bi_autosnap', _autoCk.checked ? '1' : '0'); } catch (eS) {}
+      });
+      function _autoSnapOn() { return !_autoCk || _autoCk.checked; }
       function snapFrame() {
         var raw = document.createElement('canvas');
         raw.width = video.videoWidth || 1280; raw.height = video.videoHeight || 720;
@@ -2037,7 +2051,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         var b = e.target.closest && e.target.closest('[data-bi]');
         if (!b) return;
         var act = b.getAttribute('data-bi');
-        if (act === 'snap') { if (video.videoWidth) { var fr = snapFrame(); done({ raw: fr.raw, view: fr.view, lockedBc: null }); } }
+        if (act === 'snap') { if (video.videoWidth) { var fr = snapFrame(); done({ raw: fr.raw, view: fr.view, lockedBc: heldBc }); } }
         if (act === 'gallery') d.querySelector('#bi-file').click();
         // v0.9.1014 (Brad): pick the identify shot straight from Google
         // Photos — same shared picker helper the Photo Inbox uses.
@@ -2203,7 +2217,13 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                   if (bcs && bcs.length) {
                     var bc = bcs[0];
                     if (bc.rawValue === lastRaw) confirmN++; else { lastRaw = bc.rawValue; confirmN = 1; }
-                    if (confirmN >= 2) {
+                    if (confirmN >= 2 && !_autoSnapOn()) {
+                      // Manual mode: hold the lock, hand the shutter to Brad.
+                      heldBc = bc;
+                      stat.style.color = '#2ecc71';
+                      stat.textContent = '\u2713 Barcode locked \u2014 press \ud83d\udcf8 Capture when the label is framed';
+                    }
+                    else if (confirmN >= 2) {
                       // v0.9.1109 (Brad: "i had my phone, focused on the image,
                       // and it took the picture not me. it read the barcode and
                       // took the pic.") The auto-capture fired the instant the
