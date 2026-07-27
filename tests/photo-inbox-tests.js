@@ -1867,6 +1867,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('the tag settles it when the catalog quotes the number',
      ol2 && ol2.num === '6-26024' && ol2.matched === true, JSON.stringify(ol2 && ol2.num));
 
+  section('86. The reading line tells you when it will finish');
+  const et = require('fs').readFileSync(SRC, 'utf8');
+  ok('an ETA joins the status after a few photos', /about ' \+ _minLeft \+ ' min left/.test(et));
+  ok('with a finish clock time', /done around ' \+ _hh \+ ':' \+ _mm/.test(et));
+  ok('recomputed from live pace, not guessed once', /_per = \(Date\.now\(\) - _arT0\) \/ i/.test(et));
+  ok('quiet until the pace is knowable', /if \(i >= 3\)/.test(et));
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

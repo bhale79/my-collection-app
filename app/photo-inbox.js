@@ -4124,9 +4124,27 @@
     if (!todo.length) return;
     _autoReadBusy = true; _autoReadAbort = false;
     if (!(await _tessGet())) { _autoReadBusy = false; return; }   // OCR unavailable → leave for paid identify
+    // v0.9.1106 (Brad: "be nice to say check back in 24 minutes or around
+    // 5:45"): after a few photos the average pace is known, so the status
+    // line carries a time estimate and a finish time. Recomputed every photo,
+    // so it self-corrects as easy and stubborn photos mix.
+    var _arT0 = Date.now();
     try {
       for (var i = 0; i < todo.length && !_autoReadAbort; i++) {
-        _status('Reading photos… ' + (i + 1) + ' of ' + todo.length);
+        var _arEta = '';
+        if (i >= 3) {
+          var _per = (Date.now() - _arT0) / i;
+          var _msLeft = _per * (todo.length - i);
+          var _minLeft = Math.round(_msLeft / 60000);
+          if (_minLeft >= 2) {
+            var _dAt = new Date(Date.now() + _msLeft);
+            var _hh = _dAt.getHours() % 12 || 12;
+            var _mm = ('0' + _dAt.getMinutes()).slice(-2);
+            _arEta = ' \u00b7 about ' + _minLeft + ' min left \u00b7 done around ' + _hh + ':' + _mm;
+          } else if (_minLeft >= 1) _arEta = ' \u00b7 about a minute left';
+          else _arEta = ' \u00b7 almost done';
+        }
+        _status('Reading photos… ' + (i + 1) + ' of ' + todo.length + _arEta);
         var fid = todo[i].fid, r = null;
         try { r = await _freeReadOne(fid); } catch (e) {}
         if (r && r.num) {
