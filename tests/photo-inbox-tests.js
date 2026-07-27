@@ -1919,6 +1919,18 @@ META_WRITES.length = 0; TOASTS.length = 0;
      /'Barcode Map'!A1:E1/.test(bmz) && /addSheet/.test(bmz));
   ok('learning never blocks the flow', /could not save the pairing/.test(bmz));
 
+  section('92. Pairings flow to the community sheet — opted-in, queued, flagged');
+  const cs = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'barcode.js'), 'utf8');
+  ok('sharing respects the Vault opt-in, everywhere',
+     (cs.match(/vaultIsOptedIn\(\)\) return;/g) || []).length >= 2);
+  ok('pairings queue locally until the backend accepts',
+     /rr_bcpair_q/.test(cs) && /queue holds and retries/.test(cs));
+  ok('the drain sends through the existing community pipe',
+     /vaultPost\(\{ action: 'barcode_pair', token: token, pairs: q \}\)/.test(cs));
+  ok('not-in-master items go through flagged for catalog review',
+     /scan-new-item/.test(cs) && /!res\.notInMaster\);/.test(cs));
+  ok('queued pairs drain at map load', /_bcPairDrain\(\); \} catch \(e4\)/.test(cs));
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

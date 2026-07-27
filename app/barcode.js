@@ -834,8 +834,9 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                   // wrong and the label is right — that correction is the most
                   // valuable pairing of all.
                   try {
-                    if (_ci._labelResult && _ci._labelResult.itemNum && !_ci._labelResult.notInMaster && result && result.upc) {
-                      rrBcMapLearn(result.upc, _ci._labelResult.itemNum, _ci._labelResult.manufacturer || '', 'label-correction');
+                    if (_ci._labelResult && _ci._labelResult.itemNum && result && result.upc) {
+                      rrBcMapLearn(result.upc, _ci._labelResult.itemNum, _ci._labelResult.manufacturer || '',
+                        'label-correction', !_ci._labelResult.notInMaster);
                     }
                   } catch (eL2) {}
                   if (onScanned && _ci._labelResult) onScanned(_ci._labelResult); return;
@@ -939,6 +940,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         try { localStorage.setItem('rr_bcmap', JSON.stringify(_bcMapMem)); } catch (e2) {}
       }
     } catch (e3) { /* no tab yet — that is fine, it is created on first learn */ }
+    try { _bcPairDrain(); } catch (e4) {}   // v0.9.1113: queued community pairs go when they can
     return _bcMapMem;
   }
   async function _bcMapEnsureTab() {
@@ -955,12 +957,15 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       // not ok = tab already exists — exactly what we want
     } catch (e) { /* fail-quiet; the local cache still works */ }
   }
-  async function rrBcMapLearn(rawBc, itemNum, mfr, how) {
+  async function rrBcMapLearn(rawBc, itemNum, mfr, how, inMaster) {
     try {
       var upc = _bcMapNorm(rawBc);
       itemNum = String(itemNum || '').trim();
       if (!upc || upc.length < 6 || !itemNum) return;
       var m = await _bcMapEnsureLoaded();
+      // v0.9.1113: the community share happens whether or not this device
+      // already knew the pairing locally — dedup lives in the queue.
+      _bcPairShare(upc, itemNum, mfr, inMaster !== false, how);
       if (m[upc] && m[upc].n === itemNum) return;      // already known
       m[upc] = { n: itemNum, m: String(mfr || '') };
       try { localStorage.setItem('rr_bcmap', JSON.stringify(m)); } catch (e0) {}
@@ -972,6 +977,49 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     } catch (e) { console.warn('[bcmap] could not save the pairing', e && e.message); }
   }
   window.rrBcMapLearn = rrBcMapLearn;
+
+  // ── v0.9.1113 — community sharing of pairings (Brad: "make sure when users
+  // take a pic with a barcode and enter an item that we don't have in the
+  // master it submits through our community share deal to our sheet").
+  // Respects the Vault opt-in. Queued locally and drained through vaultPost,
+  // so nothing is lost while the Vault backend learns the new message type —
+  // and nothing is ever sent for users who have not opted in.
+  function _bcPairQueue() {
+    try { return JSON.parse(localStorage.getItem('rr_bcpair_q') || '[]') || []; }
+    catch (e) { return []; }
+  }
+  function _bcPairQSave(q) {
+    try { localStorage.setItem('rr_bcpair_q', JSON.stringify(q.slice(-200))); } catch (e) {}
+  }
+  function _bcPairShare(upc, itemNum, mfr, inMaster, how) {
+    try {
+      if (typeof vaultIsOptedIn !== 'function' || !vaultIsOptedIn()) return;
+      var q = _bcPairQueue();
+      if (!q.some(function (x) { return x.u === upc && x.n === itemNum; })) {
+        q.push({ u: upc, n: itemNum, m: String(mfr || ''), im: inMaster ? 1 : 0,
+                 h: String(how || 'scan'), d: new Date().toISOString().slice(0, 10) });
+        _bcPairQSave(q);
+      }
+      _bcPairDrain();
+    } catch (e) {}
+  }
+  async function _bcPairDrain() {
+    try {
+      if (typeof vaultIsOptedIn !== 'function' || !vaultIsOptedIn()) return;
+      if (typeof vaultPost !== 'function') return;
+      var q = _bcPairQueue();
+      if (!q.length) return;
+      var token = (typeof vaultGetToken === 'function') ? vaultGetToken() : '';
+      var r = await vaultPost({ action: 'barcode_pair', token: token, pairs: q });
+      if (r && (r.ok || r.success || r.status === 'ok')) {
+        _bcPairQSave([]);
+        console.log('[bcmap] shared ' + q.length + ' pairing(s) with the community sheet');
+      }
+      // any other answer: the backend does not know this action yet — the
+      // queue holds and retries on the next scan or app load.
+    } catch (e) {}
+  }
+  window._bcPairDrain = _bcPairDrain;
 
   async function decodeBarcode(bc, eraHint) {
     const raw = (bc.rawValue || '').trim();
@@ -2809,8 +2857,12 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           // v0.9.1112: a confirmed identity + a locked barcode = a pairing
           // worth keeping. Idempotent, fail-quiet, never blocks the flow.
           try {
-            if (cap.lockedBc && res && res.itemNum && !res.notInMaster && !res.learnedMap) {
-              rrBcMapLearn(cap.lockedBc.rawValue, res.itemNum, res.manufacturer || '', 'scan');
+            // v0.9.1113: not-in-master items are the whole point of the
+            // community share — they go through flagged, so Brad's catalog
+            // review sees the new item WITH its barcode attached.
+            if (cap.lockedBc && res && res.itemNum && !res.learnedMap) {
+              rrBcMapLearn(cap.lockedBc.rawValue, res.itemNum, res.manufacturer || '',
+                res.notInMaster ? 'scan-new-item' : 'scan', !res.notInMaster);
             }
           } catch (eL) {}
           if (onScanned) onScanned(res); return;
