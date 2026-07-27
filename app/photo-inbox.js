@@ -684,7 +684,7 @@
   // now carry the version of the reader that produced them, and the automatic
   // pass retries anything read by an older one. Bump this whenever the reading
   // logic changes; it costs nothing but time, and only on photos that failed.
-  var READER_VER = '1099';
+  var READER_VER = '1101';
 
   function _pinMetaOf(file) {
     var ap = (file && file.appProperties) || {};
@@ -1906,6 +1906,8 @@
             + (dbg.longerUnexplained ? '<br>A longer digit-run (' + rrEsc(dbg.longerUnexplained)
                 + ') matched nothing, so this short number is offered, not asserted' : '')
             + (dbg.shortSolo ? '<br>Only three digits, seen once \u2014 offered, not asserted' : '')
+            + (dbg.colorClash ? '<br>Colors disagree: ' + rrEsc(dbg.colorClash) + ' \u2014 treated as a guess' : '')
+            + (dbg.escalated ? '<br>Read again at full size after the fast read came up short' : '')
             + (dbg.noEraJoin ? '<br>Assembled from split digits with no maker/era tag on this photo '
                 + '— that can match the wrong maker\u2019s list, so it is only offered. '
                 + 'Tag the photo and re-read for a filtered answer.' : '')
@@ -3615,6 +3617,7 @@
                       note: 'the browser could not decode this photo' } };
     }
     var dim = maxDim || 2400;
+    var _photoCols = _pinPhotoColors(bmp);   // v0.9.1101: before the bitmap closes
     var best = null, text = '', stampSaw = '', textAll = '';
     for (var pi = 0; pi < _FREE_PASSES.length; pi++) {
       var p = _FREE_PASSES[pi];
@@ -3749,6 +3752,25 @@
     try { best = _pinDescArbitrate(best, textAll || text, prefer); }
     catch (eD) { console.warn('[inbox] description match failed', eD && eD.message); }
     var out = best;
+    // ── v0.9.1101 — the color veto ────────────────────────────────────────
+    try {
+      if (out && out.num && _photoCols) {
+        var _rowsC = null;
+        try {
+          var _mbi = window.state && state.masterByItem;
+          if (_mbi && _mbi.get) _rowsC = _mbi.get(String(out.num)) || null;
+        } catch (eM) {}
+        if ((!_rowsC || !_rowsC.length) && typeof findMaster === 'function') {
+          var _r1 = findMaster(out.num, null, prefer || null);
+          if (_r1) _rowsC = [_r1];
+        }
+        var _clash = _pinColorClash(_photoCols, _rowsC);
+        if (_clash) {
+          if (out.dbg) { out.dbg.colorClash = _clash; out.dbg.photoColors = _photoCols.join(', '); }
+          if (out.matched) out.matched = false;
+        }
+      }
+    } catch (eCC) {}
     // v0.9.1068 (Brad: "where does 120 come from?"). A number appears with no
     // way to tell whether the reader saw it on the item, on the shelf behind it,
     // or invented it from a shadow. Keep the words it actually read.
@@ -3933,7 +3955,25 @@
     } catch (e) { return null; }
   }
   async function _freeReadOne(fileId) {
-    return _freeReadBlob(await _pinBytes(fileId), 1600, _preferForFid(fileId));
+    // v0.9.1101 (Brad: "the second scan seems to get a lot more accurate,
+    // why don't we just run back to back scans?"). His re-scans were reading
+    // at 2400px against the auto pass's 1600px — the resolution WAS the
+    // accuracy. The fast read still goes first (most photos confirm there
+    // and cost nothing extra); anything unconfirmed gets the full-size read
+    // automatically, which is what his thumb has been doing all day.
+    var bytes = await _pinBytes(fileId);
+    var pref = _preferForFid(fileId);
+    var r = await _freeReadBlob(bytes, 1600, pref);
+    if (!(r && r.matched && r.num)) {
+      var r2 = null;
+      try { r2 = await _freeReadBlob(bytes, 2400, pref); } catch (e2) {}
+      // The bigger read wins unless it came back with less than the fast one.
+      if (r2 && (r2.num || !(r && r.num))) {
+        if (r2.dbg) r2.dbg.escalated = true;
+        r = r2;
+      }
+    }
+    return r;
   }
   // Find the loaded group that owns this file, so its era stamp can be used.
   function _preferForFid(fileId) {
@@ -4442,6 +4482,89 @@
     }
     ctx.putImageData(img, 0, 0);
     return c;
+  }
+
+  // ══ v0.9.1101 — the color veto ═══════════════════════════════════════════
+  // Brad: "can we compare our item picture is probably black or red and the
+  // answer we think is probably red?" Yes — as a VETO only. The photo's
+  // dominant body colors come from the middle of the frame (the shelf and
+  // wall live at the edges); the answer's colors come from words in its own
+  // catalog rows. When the row names colors and NONE of them — or their
+  // lighting-blurred neighbours — appear in the photo, the match is demoted
+  // to a guess and the card says why. It never confirms: warm light lies,
+  // loads sit on cars, and half the catalog names no color at all.
+  var _PIN_COLOR_WORDS = {
+    RED: 'red', MAROON: 'red', TUSCAN: 'brown', ORANGE: 'orange',
+    YELLOW: 'yellow', GOLD: 'yellow', BLACK: 'black', BLUE: 'blue',
+    GREEN: 'green', GRAY: 'gray', GREY: 'gray', SILVER: 'gray',
+    WHITE: 'white', CREAM: 'white', IVORY: 'white', BROWN: 'brown',
+  };
+  function _pinColorWords(str) {
+    var out = {};
+    String(str || '').toUpperCase().replace(/[A-Z]+/g, function (w) {
+      if (_PIN_COLOR_WORDS[w]) out[_PIN_COLOR_WORDS[w]] = 1;
+      return w;
+    });
+    return Object.keys(out);
+  }
+  function _pinPhotoColors(bmp) {
+    try {
+      var W = 96, H = Math.max(8, Math.round(bmp.height * W / bmp.width));
+      var c = document.createElement('canvas'); c.width = W; c.height = H;
+      var ctx = c.getContext('2d');
+      ctx.drawImage(bmp, 0, 0, W, H);
+      var y0 = Math.floor(H * 0.30), hh = Math.max(1, Math.ceil(H * 0.85) - y0);
+      var d = ctx.getImageData(0, y0, W, hh).data;
+      var n = {}, total = 0;
+      for (var i = 0; i < d.length; i += 4) {
+        var r = d[i], g = d[i + 1], b = d[i + 2];
+        var mx = Math.max(r, g, b), mn = Math.min(r, g, b), sp = mx - mn;
+        var col;
+        if (mx < 62) col = 'black';
+        else if (mn > 185 && sp < 45) col = 'white';
+        else if (sp < 34) col = 'gray';
+        else if (r >= g && r >= b) {
+          if (g > r * 0.72) col = 'yellow';
+          else if (g > r * 0.45) col = (mx < 140 ? 'brown' : 'orange');
+          else col = (mx < 120 ? 'brown' : 'red');
+        } else if (g >= b) col = 'green';
+        else col = 'blue';
+        n[col] = (n[col] || 0) + 1; total++;
+      }
+      if (!total) return null;
+      return Object.keys(n).sort(function (a, b2) { return n[b2] - n[a]; })
+        .filter(function (k) { return n[k] / total >= 0.12; })
+        .slice(0, 3);
+    } catch (e) { return null; }
+  }
+  // Colors that lighting, fading and shadow blur into one another. A clash
+  // must clear ALL of these to count — better to miss a veto than fire a
+  // false one.
+  var _PIN_COLOR_NEAR = {
+    red: ['brown', 'orange'], brown: ['red', 'black', 'orange'],
+    orange: ['red', 'yellow', 'brown'], yellow: ['white'],
+    gray: ['white', 'black', 'blue'], white: ['gray', 'yellow'],
+    black: ['brown', 'gray', 'blue'], blue: ['black', 'gray', 'green'],
+    green: ['blue', 'black'],
+  };
+  function _pinColorClash(photoCols, rows) {
+    if (!photoCols || !photoCols.length || !rows || !rows.length) return '';
+    var rowCols = {}, any = false;
+    rows.forEach(function (rw) {
+      _pinColorWords([rw && rw.description, rw && rw.roadName, rw && rw.variation]
+        .filter(Boolean).join(' '))
+        .forEach(function (cw) { rowCols[cw] = 1; any = true; });
+    });
+    if (!any) return '';
+    // Judged on the photo's DOMINANT color only. Every shelf photo carries
+    // black frames and gray track as secondary colors, and letting those
+    // vote cleared every veto through the neighbour table.
+    var pc0 = photoCols[0];
+    var okC = !!rowCols[pc0]
+      || (_PIN_COLOR_NEAR[pc0] || []).some(function (nc) { return rowCols[nc]; });
+    if (okC) return '';
+    return 'the photo looks ' + photoCols.join('/')
+      + '; this item is described as ' + Object.keys(rowCols).join('/');
   }
 
   // ══ v0.9.1095 — the white-stamp sheet ════════════════════════════════════

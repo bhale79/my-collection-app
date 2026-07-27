@@ -103,6 +103,7 @@ const HOOK = '\n;window.__T = { get groups(){return _groups;}, set groups(v){_gr
      + '\n;window.__Reconcile=_pinReconcileAiNum;'
      + '\n;window.__ApplyMeta=_pinApplyMeta;window.__RepairStored=_pinReconcileStored;'
      + '\n;window.__QuoteMatch=_pinQuoteMatch;window.__FilesToRead=_pinFilesToRead;'
+     + '\n;window.__ColorWords=_pinColorWords;window.__ColorClash=_pinColorClash;'
      + '\n;window.__setConfirm=function(fn){_pinConfirm=fn;};window.__Confirm=_pinConfirm;'
      + '\n;window.__ReadFiles=_pinReadFiles;window.__ReadFid=_pinReadFid;'
      + '\n;window.__DescArbitrate=_pinDescArbitrate;window.__IsSetRow=_pinIsSetRow;';
@@ -518,9 +519,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
      window.__PreferOf({ key: 'g', files: [{ id: 'a' }] }) === null);
 
   const body5 = require('fs').readFileSync(SRC, 'utf8');
+  // v0.9.1101: the auto pass escalates, so it reads twice — both with the hint.
   ok('every free-read path passes the era hint',
      (body5.match(/_freeReadBlob\(blob, ?\d+, ?_p/g) || []).length >= 2 &&
-     /_freeReadBlob\(await _pinBytes\(fileId\), 1600, _preferForFid/.test(body5));
+     /_freeReadBlob\(bytes, 1600, pref\)/.test(body5) &&
+     /_freeReadBlob\(bytes, 2400, pref\)/.test(body5) &&
+     /var pref = _preferForFid\(fileId\)/.test(body5));
   ok('the audit exists and is free', /_pinReaderAudit/.test(body5) && /No credits are used/.test(body5));
 
 
@@ -1767,6 +1771,35 @@ META_WRITES.length = 0; TOASTS.length = 0;
                                  { era:'pw', manufacturer:'Lionel' });
   ok('the same token seen twice still confirms', so2 && so2.num === '988' && so2.matched === true,
      JSON.stringify(so2));
+
+  section('82. The color veto and the automatic full-size read');
+  // word extraction — colors only, buckets normalized
+  let cw = window.__ColorWords('UNPAINTED YELLOW SHELL, WITH BLACK HEAT STAMPED LETTERING');
+  ok('color words are extracted and bucketed', cw.indexOf('yellow') >= 0 && cw.indexOf('black') >= 0);
+  ok('grey and silver both mean gray', window.__ColorWords('GREY BODY SILVER ROOF').join(',') === 'gray');
+  ok('words that are not colors say nothing', window.__ColorWords('OPERATING WATER TOWER').length === 0);
+
+  // clash logic: a yellow/black photo against a gray/orange-only answer = veto
+  const TOWER = [{ description:'Water Tower with GRAY plastic top', roadName:'' },
+                 { description:'Water Tower, ORANGE plastic roof', roadName:'' }];
+  let cc = window.__ColorClash(['yellow','black'], TOWER);
+  ok('a yellow item cannot be a gray-and-orange answer', /yellow/.test(cc) && /gray|orange/.test(cc), cc);
+  // ...but any variation matching, or a near-color, clears it
+  ok('a matching variation clears the veto',
+     window.__ColorClash(['yellow','black'], TOWER.concat([{ description:'YELLOW roof variant' }])) === '');
+  ok('near-colors clear it too (red vs brown)',
+     window.__ColorClash(['red','black'], [{ description:'TUSCAN BROWN body' }]) === '');
+  ok('an answer naming no color is never vetoed',
+     window.__ColorClash(['red'], [{ description:'Flatcar with boat' }]) === '');
+  ok('a photo with no read colors never vetoes', window.__ColorClash(null, TOWER) === '');
+
+  const cv = require('fs').readFileSync(SRC, 'utf8');
+  ok('the veto only ever demotes', /if \(out\.matched\) out\.matched = false;/.test(cv));
+  ok('the card explains a color veto', /Colors disagree: /.test(cv));
+  ok('the auto pass escalates to full size', /_freeReadBlob\(bytes, 1600, pref\)/.test(cv)
+     && /_freeReadBlob\(bytes, 2400, pref\)/.test(cv));
+  ok('escalation only when the fast read fell short', /if \(!\(r && r\.matched && r\.num\)\) \{\s*\n\s*var r2/.test(cv));
+  ok('the bigger read cannot erase a smaller answer', /r2\.num \|\| !\(r && r\.num\)/.test(cv));
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
