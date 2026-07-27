@@ -684,7 +684,7 @@
   // now carry the version of the reader that produced them, and the automatic
   // pass retries anything read by an older one. Bump this whenever the reading
   // logic changes; it costs nothing but time, and only on photos that failed.
-  var READER_VER = '1097';
+  var READER_VER = '1098';
 
   function _pinMetaOf(file) {
     var ap = (file && file.appProperties) || {};
@@ -1896,6 +1896,8 @@
             + (dbg.viaMaker ? '<br>Chosen because it is stamped next to the maker\'s name: ' + rrEsc(dbg.viaMaker) : '')
             + (dbg.shortVsLong ? '<br>Two catalog numbers disagree: ' + rrEsc(dbg.shortVsLong)
                 + ' — both offered, pick the one on your item' : '')
+            + (dbg.shortBacked ? '<br>A short number the catalog recognises (' + rrEsc(dbg.shortBacked)
+                + ') outranked longer text found in no catalog' : '')
             + (dbg.noEraJoin ? '<br>Assembled from split digits with no maker/era tag on this photo '
                 + '— that can match the wrong maker\u2019s list, so it is only offered. '
                 + 'Tag the photo and re-read for a filtered answer.' : '')
@@ -3193,7 +3195,27 @@
     // 2) nothing confirmed — offer the best catalog-shaped token as a hedge
     if (loose.length) { loose.sort(dashRank); return { num: loose[0], matched: false, offEra: true, dbg: dbg }; }
     uniq.sort(dashRank);
-    if (uniq.length) return { num: uniq[0], matched: false, dbg: dbg };
+    if (uniq.length) {
+      // v0.9.1098 (Brad's Great Northern 58): the card offered "194" — a
+      // number in NO catalog — while the cab's 58, read twice, IS in the
+      // stamped catalog. Backing beats length between two guesses. The
+      // v0.9.1080 rule stands: a backed short is only offered here INSTEAD
+      // of unbacked junk, never on its own.
+      // When several backed shorts were seen (his card listed "25, 58"), the
+      // one painted on the car shows up REPEATEDLY — 58 was read three times
+      // across the passes, 25 once. Frequency picks.
+      var shortBacked = null, _sbBest = 0;
+      if (fm) (shortOnes || []).forEach(function (sB) {
+        if (!fm(sB)) return;
+        var _fr = (UP.match(new RegExp('\\b' + sB + '\\b', 'g')) || []).length;
+        if (_fr > _sbBest) { _sbBest = _fr; shortBacked = sB; }
+      });
+      if (shortBacked) {
+        dbg.shortBacked = shortBacked;
+        return { num: shortBacked, matched: false, alts: [String(shortBacked), String(uniq[0])], dbg: dbg };
+      }
+      return { num: uniq[0], matched: false, dbg: dbg };
+    }
     // 3) last resort: a catalog-backed short number, always as a guess
     // v0.9.1080 — a bare two-digit number is never offered on its own any more.
     //
@@ -3556,14 +3578,32 @@
       try {
         await w.setParameters({ tessedit_char_whitelist: p.wl === 'digits' ? _WL_DIGITS : _WL_FULL });
         if (p.mode === 'stamp') {
-          // Sparse-text segmentation for the one read on the stacked sheet;
-          // block mode ('6', the shipping default since v0.9.1065) is restored
-          // straight after so the other passes are untouched by this one.
+          // v0.9.1098 — the stamp pass reads TWO ways, from a nine-car lab
+          // bench built on Brad's own photos. Sparse mode ('11') on the
+          // stacked sheet catches the larger stamps (3512, 6017, 3428). The
+          // small ones — 6816, 6175 — read ONLY in block mode ('6') at high
+          // zoom, and block mode assumes ONE uniform block, so it gets one
+          // close-up cell at a time, never the stack. Block mode is also the
+          // shipping default since v0.9.1065, so the worker is left in the
+          // right state for the other passes.
           try { await w.setParameters({ tessedit_pageseg_mode: '11' }); } catch (ePs) {}
           t = (((await w.recognize(_stampSheet(bmp, dim))).data) || {}).text || '';
-          stampSaw = String(t || '').replace(/\s+/g, ' ').trim().slice(0, 100);
           try { await w.setParameters({ tessedit_pageseg_mode: '6' }); } catch (ePr) {}
           r = _numberFromText(t, prefer);
+          if (!(r && r.matched && r.num)) {
+            var _cells = _stampCells(bmp, dim);
+            for (var ci = 0; ci < _cells.length; ci++) {
+              var ct = '';
+              try { ct = (((await w.recognize(_cells[ci])).data) || {}).text || ''; } catch (eC2) { continue; }
+              if (!ct.trim()) continue;
+              t += '\n' + ct;
+              var rC = _numberFromText(t, prefer);
+              if (rC) r = rC;
+              // The moment an in-era four-digit number confirms, stop paying.
+              if (r && r.matched && r.num && String(r.num).replace(/\D/g, '').length >= 4) break;
+            }
+          }
+          stampSaw = String(t || '').replace(/\s+/g, ' ').trim().slice(0, 140);
           if (r && r.dbg) {
             r.dbg.stampPass = true;
             if (!r.dbg.note) r.dbg.note = 'found by the light-numbers-on-a-coloured-body pass';
@@ -4391,6 +4431,46 @@
       y += cl.h * cl.sc + GAP;
     });
     return sheet;
+  }
+
+  // The fine cells for the stamp pass's block-mode reads: the 25%–100% band
+  // (wall clutter lives in the top quarter), three rows with a whisker of
+  // vertical overlap and three columns with half a column of overlap, each
+  // blown up so small sill stamps become large glyphs. Read one at a time.
+  function _stampCells(bmp, maxDim) {
+    var sc0 = Math.min(1, maxDim / Math.max(bmp.width, bmp.height));
+    var W = Math.max(3, Math.round(bmp.width * sc0)), H = Math.max(3, Math.round(bmp.height * sc0));
+    var src = document.createElement('canvas'); src.width = W; src.height = H;
+    var sctx = src.getContext('2d');
+    sctx.drawImage(bmp, 0, 0, W, H);
+    var d = sctx.getImageData(0, 0, W, H), px = d.data;
+    for (var i = 0; i < px.length; i += 4) {
+      var m = Math.min(px[i], px[i + 1], px[i + 2]);
+      px[i] = px[i + 1] = px[i + 2] = m;
+    }
+    sctx.putImageData(d, 0, 0);
+    var yLo = Math.floor(H * 0.25), BH = H - yLo;
+    var over = Math.floor(W / 12), vPad = Math.floor(BH * 0.06);
+    var out = [];
+    for (var rI = 0; rI < 3; rI++) {
+      var y0 = Math.max(yLo, yLo + Math.floor(BH * rI / 3) - vPad);
+      var y1 = Math.min(H, yLo + Math.floor(BH * (rI + 1) / 3) + vPad);
+      if (y1 - y0 < 3) continue;
+      for (var cI = 0; cI < 3; cI++) {
+        var x0 = Math.max(0, Math.floor(W * cI / 3) - over);
+        var x1 = Math.min(W, Math.floor(W * (cI + 1) / 3) + over);
+        var cw = x1 - x0, ch = y1 - y0;
+        if (cw < 3) continue;
+        var sc = Math.max(2, Math.min(6, Math.floor(2900 / cw) || 2));
+        var cell = document.createElement('canvas');
+        cell.width = cw * sc; cell.height = ch * sc;
+        var cctx = cell.getContext('2d');
+        cctx.imageSmoothingEnabled = true;
+        cctx.drawImage(src, x0, y0, cw, ch, 0, 0, cw * sc, ch * sc);
+        out.push(cell);
+      }
+    }
+    return out;
   }
 
   function _auditCanvas(bmp, maxDim, mode) {

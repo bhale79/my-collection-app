@@ -1617,7 +1617,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('sparse-text mode for the sheet', /tessedit_pageseg_mode: '11'/.test(ws));
   ok('block mode restored right after', /tessedit_pageseg_mode: '6' \}\); \} catch \(ePr\)/.test(ws));
   ok('the read is marked for the disclosure', /r\.dbg\.stampPass = true/.test(ws));
-  ok('the sheet result obeys the same number rules', /_numberFromText\(t, prefer\);\s*\n\s*if \(r && r\.dbg\) \{\s*\n\s*r\.dbg\.stampPass/.test(ws));
+  // v0.9.1098: the cell loop now sits between the sheet read and the marking,
+  // so the assertion follows the marking itself rather than adjacency.
+  ok('the sheet result obeys the same number rules',
+     /r = _numberFromText\(t, prefer\);/.test(ws) && /r\.dbg\.stampPass = true/.test(ws));
 
   section('75. A short confirm cannot silence the later passes');
   const el = require('fs').readFileSync(SRC, 'utf8');
@@ -1675,6 +1678,40 @@ META_WRITES.length = 0; TOASTS.length = 0;
   const nj = require('fs').readFileSync(SRC, 'utf8');
   ok('the demotion is explained to the user', /Assembled from split digits with no maker\/era tag/.test(nj));
   ok('era-less uploads announce themselves', /no maker\/era tag yet, so reads will be unfiltered/.test(nj));
+
+  section('78. Backing beats length between two guesses');
+  // Brad's Great Northern snowplow: "194" (in NO catalog) was offered while
+  // the cab's 58 — read repeatedly, and IS in the stamped catalog — was
+  // dropped as short. Near-verbatim raw plus the stamp pass's "0 58 0 58".
+  global.state = { masterByItem: new Map(), personalData: {} };
+  global.window.state = global.state;
+  global.findMaster = (n) => ({
+    '58': { itemNum:'58', _era:'pw', _tab:'Lionel PW - Items', description:'Great Northern Rotary Snowplow' },
+    '25': { itemNum:'25', _era:'pw', _tab:'Lionel PW - Items', description:'Illuminated Bumper' },
+  })[String(n)] || null;
+  let gn = window.__NumFromText('4 25 5 - -8 6 194 1 - - - 58 5 - 7 7 9 5\n0 58 0 58',
+                                { era:'pw', manufacturer:'Lionel' });
+  ok('the backed short wins the guess slot', gn && gn.num === '58', JSON.stringify(gn && gn.num));
+  ok('as a guess, never asserted', gn && gn.matched === false);
+  ok('frequency picked 58 over 25', gn && gn.num !== '25');
+  ok('the unbacked token is still offered as the other chip',
+     gn && (gn.alts || []).indexOf('194') >= 0, JSON.stringify(gn && gn.alts));
+  ok('the reasoning names the ranking', gn && gn.dbg && gn.dbg.shortBacked === '58');
+  // v0.9.1080 rule untouched: a backed short with NO longer token stays dropped.
+  let gn2 = window.__NumFromText('EE RE 58 TT BB', { era:'pw', manufacturer:'Lionel' });
+  ok('a bare backed short alone is still never offered',
+     !gn2 || !gn2.num, JSON.stringify(gn2 && gn2.num));
+
+  section('79. The stamp pass reads two ways');
+  const tw = require('fs').readFileSync(SRC, 'utf8');
+  ok('sheet first in sparse mode', /tessedit_pageseg_mode: '11'/.test(tw));
+  ok('then fine cells one at a time', /function _stampCells/.test(tw) && /_stampCells\(bmp, dim\)/.test(tw));
+  ok('cells only when the sheet confirmed nothing', /if \(!\(r && r\.matched && r\.num\)\) \{\s*\n\s*var _cells/.test(tw));
+  ok('block mode restored before the cell reads', /catch \(ePr\) \{\}\s*\n\s*r = _numberFromText/.test(tw));
+  ok('cells stop the moment four in-era digits confirm',
+     /String\(r\.num\)\.replace\(\/\\D\/g, ''\)\.length >= 4\) break;/.test(tw));
+  ok('the fine cells skip the wall quarter', /H \* 0\.25/.test(tw));
+  ok('cells overlap vertically so a straddling number is whole somewhere', /vPad/.test(tw));
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
