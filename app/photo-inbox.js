@@ -1893,7 +1893,16 @@
     // v0.9.1087: the readable photo, matching where every reader now WRITES.
     // v0.9.1090: or the photo actually ON SCREEN — in a set, each member has
     // its own read, and the line describes what you are looking at.
-    try { s = _ids()[fid || _pinReadFid(_rvGroups[0]) || _rvGroups[0].files[0].id] || {}; } catch (e) {}
+    // v0.9.1091 (Brad: "got nothing"): the on-screen photo's slot may simply
+    // not have been read YET — per-member reads are new, and the re-read storm
+    // takes a while. An empty slot falls back to the group's readable slot, so
+    // a read that exists is never hidden by keying on the wrong photo.
+    try {
+      var ids0 = _ids();
+      s = (fid && ids0[fid])
+        || ids0[_pinReadFid(_rvGroups[0]) || _rvGroups[0].files[0].id]
+        || {};
+    } catch (e) {}
     var bits = [s.mfr, s.road, s.desc, s.year ? '(' + s.year + ')' : ''].filter(Boolean).join(' ');
     if (!bits && !s.num) return '';
     var esc = function (t) { return String(t).replace(/</g, '&lt;'); };
