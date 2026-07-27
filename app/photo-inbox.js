@@ -684,7 +684,7 @@
   // now carry the version of the reader that produced them, and the automatic
   // pass retries anything read by an older one. Bump this whenever the reading
   // logic changes; it costs nothing but time, and only on photos that failed.
-  var READER_VER = '1093';
+  var READER_VER = '1094';
 
   function _pinMetaOf(file) {
     var ap = (file && file.appProperties) || {};
@@ -1920,7 +1920,13 @@
         + '<div style="font-size:0.98rem;color:var(--text);line-height:1.4"><span style="font-weight:600">' + rrEsc(s.descOf) + '</span>'
         + (s.num ? ' \u2014 No. ' + rrEsc(s.num) : '') + '</div>'
         + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.25rem">Read on the car: '
-        + rrEsc((s.descWords || []).join(', ')) + ' \u00b7 no number was legible, so check this one against your item</div>'
+        + rrEsc((s.descWords || []).join(', '))
+        // v0.9.1094: when a number WAS read and it names a different item,
+        // saying "no number was legible" is false and Brad-tested to annoy.
+        // Name both candidates and let the eyes on the car decide.
+        + (s.disagreed
+            ? ' \u00b7 the number read (' + rrEsc(s.disagreed) + ') names a different item \u2014 check which one matches yours'
+            : ' \u00b7 no number was legible, so check this one against your item') + '</div>'
         + _pinWhyHtml(s.raw, s.dbg, s)
         + '</div>';
     }
@@ -2832,12 +2838,7 @@
     // live on boxes and paperwork, not on rolling stock. Set rows are invisible
     // to the free reader's validation now. (The PAID reader is untouched: it
     // sees the photo, and a photo genuinely can be of a boxed set.)
-    var _isSetRow = function (row) {
-      if (!row) return false;
-      if (/\bsets?\b/i.test(String(row._tab || ''))) return true;
-      if (/\bset\b/i.test(String(row.itemType || ''))) return true;
-      return false;
-    };
+    var _isSetRow = _pinIsSetRow;   // v0.9.1094: hoisted — three indexes share it now
     var fmAny = (typeof findMaster === 'function')
       ? function (c) { var r = findMaster(c, null, prefer || null); return (r && !_isSetRow(r)) ? r : null; }
       : null;
@@ -3242,6 +3243,11 @@
       srcMap.forEach(function (rows) {
         (rows || []).forEach(function (row) {
           if (!row || row._era !== era) return;
+          // v0.9.1094: set descriptions quote their members' numbers. Letting
+          // them into this index would "settle" an off-era read onto a SET
+          // number — exactly what Brad flagged ("why are we matching to set
+          // item numbers"). Only item rows may quote.
+          if (_pinIsSetRow(row)) return;
           var toks = String(row.description || '').match(/\d[\dA-Za-z]*(?:-[\dA-Za-z]+)*/g) || [];
           var seen = {};
           toks.forEach(function (t) {
@@ -3269,6 +3275,18 @@
   }
 
   var _descIdx = null, _descIdxKey = '', _descIdxMap = null;
+
+  // ══ v0.9.1094 — is this catalog row a SET? ═══════════════════════════════
+  // One shared answer. v0.9.1093 taught the number validator that text scraped
+  // off a photo must not confirm against set rows; this session's Ballast
+  // Tamper taught the WORD index the same lesson, so the rule lives in one
+  // place and every index asks the same question.
+  function _pinIsSetRow(row) {
+    if (!row) return false;
+    if (/\bsets?\b/i.test(String(row._tab || ''))) return true;
+    if (/\bset\b/i.test(String(row.itemType || ''))) return true;
+    return false;
+  }
 
   // Words that appear on half the catalog and identify nothing.
   var _DESC_STOP = {
@@ -3311,6 +3329,11 @@
       m.forEach(function (rows) {
         (rows || []).forEach(function (row) {
           if (!row || (era && row._era !== era)) return;
+          // v0.9.1094 (Brad's Ballast Tamper, "138 — Water Tower"): a set's
+          // description NAMES its member cars, so every member name also hit
+          // the set rows, tied the score, and the matcher refused to pick.
+          // The words painted on a car identify an ITEM; sets answer nothing.
+          if (_pinIsSetRow(row)) return;
           var words = {};
           _descTokens([row.description, row.roadName, row.itemType].filter(Boolean).join(' '))
             .forEach(function (w) {
@@ -3522,13 +3545,28 @@
     try { await w.setParameters({ tessedit_char_whitelist: _WL_FULL }); } catch (eR) {}
     try { if (bmp.close) bmp.close(); } catch (eC) {}
     // ── What does the car SAY? ────────────────────────────────────────────
-    // v0.9.1077b — this used to run only when the numbers had failed outright,
-    // and Brad's Lackawanna 2321 showed why that is not enough. The reader saw
-    // "D321" — 2321 with the leading 2 misread — and 321 IS a real postwar item,
-    // a Trestle Bridge. So a wrong answer counted as a match and the word
-    // LACKAWAN, sitting in the same text and naming the locomotive outright,
-    // was never consulted. It runs every time now.
-    try {
+    try { best = _pinDescArbitrate(best, text, prefer); }
+    catch (eD) { console.warn('[inbox] description match failed', eD && eD.message); }
+    var out = best;
+    // v0.9.1068 (Brad: "where does 120 come from?"). A number appears with no
+    // way to tell whether the reader saw it on the item, on the shelf behind it,
+    // or invented it from a shadow. Keep the words it actually read.
+    if (out) out.raw = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 180);
+    return out;
+  }
+
+  // ══ What the car SAYS versus what the number claims ══════════════════════
+  // v0.9.1077b — this used to run only when the numbers had failed outright,
+  // and Brad's Lackawanna 2321 showed why that is not enough. The reader saw
+  // "D321" — 2321 with the leading 2 misread — and 321 IS a real postwar item,
+  // a Trestle Bridge. So a wrong answer counted as a match and the word
+  // LACKAWAN, sitting in the same text and naming the locomotive outright,
+  // was never consulted. It runs every time now.
+  // v0.9.1094 — pulled out of _freeReadBlob so the harness can call it with
+  // Brad's exact scraped text; the v0.9.1085 lesson is that node --check
+  // cannot catch what only a CALL can.
+  function _pinDescArbitrate(best, text, prefer) {
+    {
       var dm = _pinDescMatch(text, prefer);
       if (dm && dm.row && dm.row.itemNum) {
         var descNum = String(dm.row.itemNum);
@@ -3548,7 +3586,8 @@
           dbg2.corroborated = descNum + ' (read ' + haveNum + ', lettering agrees)';
           best = { num: descNum, matched: true, viaDesc: true, descWords: dm.words, descOf: descOf, dbg: dbg2 };
         } else if (!best || !best.matched) {
-          best = { num: descNum, matched: false, viaDesc: true, descWords: dm.words, descOf: descOf, dbg: dbg2 };
+          best = { num: descNum, matched: false, viaDesc: true, descWords: dm.words, descOf: descOf, dbg: dbg2,
+                   disagreed: (haveNum && haveNum !== descNum) ? haveNum : '' };
         } else if (dm.score >= 3 && haveNum.replace(/\D/g, '').length <= 3) {
           // A confident name beats a three-digit number that could be anything.
           // Offered rather than asserted, since the two genuinely disagree.
@@ -3556,13 +3595,8 @@
                    disagreed: haveNum, dbg: dbg2 };
         }
       }
-    } catch (eD) { console.warn('[inbox] description match failed', eD && eD.message); }
-    var out = best;
-    // v0.9.1068 (Brad: "where does 120 come from?"). A number appears with no
-    // way to tell whether the reader saw it on the item, on the shelf behind it,
-    // or invented it from a shadow. Keep the words it actually read.
-    if (out) out.raw = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 180);
-    return out;
+    }
+    return best;
   }
 
   // ══ v0.9.1084 — the reader answered correctly; we took the wrong number ═══
@@ -3745,7 +3779,7 @@
       // digits-only, stopping as soon as the stamped catalog confirms.
       var r = await _freeReadBlob(blob, 2400, _preferForFid(fid));
       var m = _ids();
-      if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, alts: r.alts || [], tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null, rv: READER_VER, viaDesc: !!r.viaDesc, descOf: r.descOf || '', descWords: r.descWords || [] }; _idsSave(m); }
+      if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, alts: r.alts || [], tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null, rv: READER_VER, viaDesc: !!r.viaDesc, descOf: r.descOf || '', descWords: r.descWords || [], disagreed: r.disagreed || '' }; _idsSave(m); }
       else { var f2 = _freeTried(); f2[fid] = { t: 1, raw: (r && r.raw) || '', dbg: (r && r.dbg) || null, rv: READER_VER }; _freeTriedSave(f2); }
       try { _render(); } catch (e4) {}
       window._pinReview(key);
@@ -3804,7 +3838,7 @@
         var fid = todo[i].fid, r = null;
         try { r = await _freeReadOne(fid); } catch (e) {}
         if (r && r.num) {
-          var m = _ids(); m[fid] = { num: r.num, guess: r.matched ? 0 : 1, alts: r.alts || [], tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null, rv: READER_VER, viaDesc: !!r.viaDesc, descOf: r.descOf || '', descWords: r.descWords || [] };
+          var m = _ids(); m[fid] = { num: r.num, guess: r.matched ? 0 : 1, alts: r.alts || [], tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null, rv: READER_VER, viaDesc: !!r.viaDesc, descOf: r.descOf || '', descWords: r.descWords || [], disagreed: r.disagreed || '' };
           _idsSave(m);
         } else {
           // v0.9.1072: remember WHY it failed, not just that it did. Stored on
@@ -3933,7 +3967,7 @@
         try { _render(); } catch (eC) {}
         _freeReadBlob(blob, 1600, _preferForFid(fid)).then(function (r) {
           var m = _ids();
-          if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, alts: r.alts || [], tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null, rv: READER_VER, viaDesc: !!r.viaDesc, descOf: r.descOf || '', descWords: r.descWords || [] }; _idsSave(m); }
+          if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, alts: r.alts || [], tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null, rv: READER_VER, viaDesc: !!r.viaDesc, descOf: r.descOf || '', descWords: r.descWords || [], disagreed: r.disagreed || '' }; _idsSave(m); }
           else { var f2 = _freeTried(); f2[fid] = 1; _freeTriedSave(f2); }
           try { _render(); } catch (e2) {}
         }).catch(function () {});

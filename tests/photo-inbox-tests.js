@@ -104,7 +104,8 @@ const HOOK = '\n;window.__T = { get groups(){return _groups;}, set groups(v){_gr
      + '\n;window.__ApplyMeta=_pinApplyMeta;window.__RepairStored=_pinReconcileStored;'
      + '\n;window.__QuoteMatch=_pinQuoteMatch;window.__FilesToRead=_pinFilesToRead;'
      + '\n;window.__setConfirm=function(fn){_pinConfirm=fn;};window.__Confirm=_pinConfirm;'
-     + '\n;window.__ReadFiles=_pinReadFiles;window.__ReadFid=_pinReadFid;';
+     + '\n;window.__ReadFiles=_pinReadFiles;window.__ReadFid=_pinReadFid;'
+     + '\n;window.__DescArbitrate=_pinDescArbitrate;window.__IsSetRow=_pinIsSetRow;';
 const cut = src.lastIndexOf('})();');
 if (cut < 0) { console.log('could not find IIFE end'); process.exit(2); }
 src = src.slice(0, cut) + HOOK + '\n' + src.slice(cut);
@@ -1523,6 +1524,79 @@ META_WRITES.length = 0; TOASTS.length = 0;
      /_midDigits\.indexOf\(_digits\) < 0/.test(eg));
   ok('unless the maker named it', /!\(rAll\.dbg && rAll\.dbg\.viaMaker\)/.test(eg));
   ok('free reads store their alternatives', /alts: r\.alts \|\| \[\]/.test(eg));
+
+  section('71. The set list cannot answer for its members — word index');
+  // Brad's Ballast Tamper, near-verbatim: the reader saw the NAME twice and a
+  // stray 138, and the card said "138 — Water Tower". The word index included
+  // set rows, whose descriptions name their member cars — tied scores, no pick.
+  const BRAD_BT = 'YL TR - IY BALLAST TAMPER I 138 1 F A 229 540 HN BALLAST TAMPER';
+  const SROWS = [
+    { itemNum:'54',   _era:'pw', _tab:'Lionel PW - Items', description:'Ballast Tamper', roadName:'' },
+    { itemNum:'138',  _era:'pw', _tab:'Lionel PW - Items', description:'Operating Water Tower', roadName:'' },
+    { itemNum:'229',  _era:'pw', _tab:'Lionel PW - Items', description:'Alco Diesel', roadName:'' },
+    { itemNum:'1615', _era:'pw', _tab:'Lionel PW - Sets',
+      description:'Work Train set with Ballast Tamper and crane', roadName:'' },
+    { itemNum:'2528WS', _era:'pw', _tab:'Lionel PW - Sets',
+      description:'Five-Star Frontier set including Ballast Tamper', roadName:'' },
+  ];
+  const SM = new Map(); SROWS.forEach(r => SM.set(r.itemNum, [r]));
+  global.state = { masterByItem: SM, personalData: {} }; global.window.state = global.state;
+
+  ok('a set row is recognized as one', window.__IsSetRow(SROWS[3]) === true);
+  ok('an item row is not', window.__IsSetRow(SROWS[0]) === false);
+  ok('itemType marks a set even off a Sets tab',
+     window.__IsSetRow({ _tab:'Lionel PW - Items', itemType:'Set' }) === true);
+
+  let bt = window.__DescMatch(BRAD_BT, { era:'pw' });
+  ok('BALLAST TAMPER names the 54 despite the set rows',
+     bt && bt.row.itemNum === '54', JSON.stringify(bt && bt.row));
+  ok('and with enough weight to challenge a number', bt && bt.score >= 3, JSON.stringify(bt && bt.score));
+
+  section('72. A strong name overrules a bare three-digit token');
+  // The arbitration itself, CALLED, with Brad's text — a confirmed 138 goes in,
+  // an offered 54 comes out, and both candidates are named.
+  global.findMaster = (n) => ({
+    '54':  { itemNum:'54',  _era:'pw', _tab:'Lionel PW - Items' },
+    '138': { itemNum:'138', _era:'pw', _tab:'Lionel PW - Items' },
+    '229': { itemNum:'229', _era:'pw', _tab:'Lionel PW - Items' },
+  })[String(n)] || null;
+  let arb = window.__DescArbitrate({ num:'138', matched:true, dbg:{} }, BRAD_BT, { era:'pw' });
+  ok('the lettering wins over the stray token', arb && arb.num === '54', JSON.stringify(arb && arb.num));
+  ok('but as an offer, not an assertion', arb && arb.matched === false);
+  ok('the overruled number is remembered', arb && arb.disagreed === '138', JSON.stringify(arb && arb.disagreed));
+  ok('and the card can say what matched', arb && (arb.descWords || []).join(',').indexOf('BALLAST') >= 0);
+  // a long confirmed number is NOT overruled by words
+  arb = window.__DescArbitrate({ num:'6464', matched:true, dbg:{} }, BRAD_BT, { era:'pw' });
+  ok('a four-digit confirmed number stands', arb && arb.num === '6464' && arb.matched === true,
+     JSON.stringify(arb));
+  // no number at all still gets the description answer
+  arb = window.__DescArbitrate({ num:'', matched:false, dbg:{} }, BRAD_BT, { era:'pw' });
+  ok('no number → the name is offered', arb && arb.num === '54' && arb.matched === false);
+  ok('with nothing marked as overruled', arb && !arb.disagreed, JSON.stringify(arb && arb.disagreed));
+
+  section('73. The quote index skips set rows too');
+  const QSROWS = [
+    { itemNum:'X1587S', _era:'pw', _tab:'Lionel PW - Sets',
+      description:'Freight set with "6817" scraper and caboose', roadName:'' },
+  ];
+  const QSM = new Map(); QSROWS.forEach(r => QSM.set(r.itemNum, [r]));
+  global.state = { masterByItem: QSM, personalData: {} }; global.window.state = global.state;
+  ok('a number quoted only by a set resolves nothing', !window.__QuoteMatch('6817', { era:'pw' }));
+  const QSROWS2 = QSROWS.concat([{ itemNum:'6-39457', _era:'pw', _tab:'Lionel PW - Items',
+    description:'Postwar "6817" Flatcar with scraper', roadName:'' }]);
+  const QSM2 = new Map(); QSROWS2.forEach(r => QSM2.set(r.itemNum, [r]));
+  global.state = { masterByItem: QSM2, personalData: {} }; global.window.state = global.state;
+  let qs2 = window.__QuoteMatch('6817', { era:'pw' });
+  ok('an item row quoting it still settles it', qs2 && qs2.row.itemNum === '6-39457',
+     JSON.stringify(qs2 && qs2.row));
+
+  const sd = require('fs').readFileSync(SRC, 'utf8');
+  ok('free reads persist the disagreement',
+     (sd.match(/disagreed: r\.disagreed \|\| ''/g) || []).length === 3);
+  ok('the card names the overruled number', /names a different item/.test(sd));
+  ok('the set rule lives in ONE place',
+     (sd.match(/function _pinIsSetRow/g) || []).length === 1 &&
+     (sd.match(/_pinIsSetRow\(row\)\) return/g) || []).length === 2);
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
