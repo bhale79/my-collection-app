@@ -828,7 +828,18 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                 const _ci = { itemNum: _res.itemNum, manufacturer: _res.manufacturer, roadName: (_res.masterItem && _res.masterItem.roadName) || '', description: (_res.masterItem && _res.masterItem.description) || (_res.description || ''), notInMaster: _res.notInMaster, verifiedNote: _res.verifiedNote, verifyPromise: _bgVerify, expectNum: String(_res.itemNum || '').replace(/\D+/g, '') };
                 const _bcChoice = await _bcConfirmCard(_ci);
                 if (_bcChoice === 'use') { cleanup(); if (onScanned) onScanned(_res); return; }
-                if (_bcChoice === 'uselabel') { cleanup(); if (onScanned && _ci._labelResult) onScanned(_ci._labelResult); return; }
+                if (_bcChoice === 'uselabel') {
+                  cleanup();
+                  // v0.9.1112: the user just told us the barcode's OLD match was
+                  // wrong and the label is right — that correction is the most
+                  // valuable pairing of all.
+                  try {
+                    if (_ci._labelResult && _ci._labelResult.itemNum && !_ci._labelResult.notInMaster && result && result.upc) {
+                      rrBcMapLearn(result.upc, _ci._labelResult.itemNum, _ci._labelResult.manufacturer || '', 'label-correction');
+                    }
+                  } catch (eL2) {}
+                  if (onScanned && _ci._labelResult) onScanned(_ci._labelResult); return;
+                }
                 if (_bcChoice === 'manual') { cleanup(); if (onCancel) onCancel(); return; }
                 if (_bcChoice === 'cancel') { cleanup(); if (onCancel) onCancel(); return; }
                 // v0.9.655: 'Rescan' on a not-in-master card = tier-3 trigger.
@@ -902,9 +913,89 @@ window.eraSupportsBarcode = eraSupportsBarcode;
 
   // ── Decode & route ──
   // Session 167: async because findMasterItems now reads cross-era IDB caches.
+  // ══ v0.9.1112 — the self-learning barcode map ════════════════════════════
+  // The one authoritative source pairing a physical UPC with an item number
+  // is the box in the user's hand. Every confirmed scan that carried a locked
+  // barcode saves its pairing; every decode consults the map first. Lives in
+  // a 'Barcode Map' tab on the personal sheet (visible, durable, exportable
+  // into the master later) with a local cache so lookups are instant.
+  var _bcMapMem = null;
+  function _bcMapNorm(raw) {
+    var v = String(raw || '').trim();
+    if (/^\d{13}$/.test(v) && v.charAt(0) === '0') v = v.substring(1);   // EAN-13 → UPC-A
+    return v;
+  }
+  async function _bcMapEnsureLoaded() {
+    if (_bcMapMem) return _bcMapMem;
+    try { _bcMapMem = JSON.parse(localStorage.getItem('rr_bcmap') || '{}') || {}; }
+    catch (e) { _bcMapMem = {}; }
+    try {
+      if (window.state && state.personalSheetId && typeof sheetsGet === 'function') {
+        var r = await sheetsGet(state.personalSheetId, "'Barcode Map'!A2:C500");
+        ((r && r.values) || []).forEach(function (row) {
+          var u = _bcMapNorm(row[0]), n = String(row[1] || '').trim();
+          if (u && n) _bcMapMem[u] = { n: n, m: String(row[2] || '').trim() };
+        });
+        try { localStorage.setItem('rr_bcmap', JSON.stringify(_bcMapMem)); } catch (e2) {}
+      }
+    } catch (e3) { /* no tab yet — that is fine, it is created on first learn */ }
+    return _bcMapMem;
+  }
+  async function _bcMapEnsureTab() {
+    try {
+      var resp = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + ':batchUpdate', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requests: [{ addSheet: { properties: { title: 'Barcode Map', tabColor: { red: 0.2, green: 0.55, blue: 0.35 } } } }] }),
+      });
+      if (resp.ok) {
+        await sheetsUpdate(state.personalSheetId, "'Barcode Map'!A1:E1",
+          [['UPC / Barcode', 'Item Number', 'Manufacturer', 'Learned On', 'How']]);
+      }
+      // not ok = tab already exists — exactly what we want
+    } catch (e) { /* fail-quiet; the local cache still works */ }
+  }
+  async function rrBcMapLearn(rawBc, itemNum, mfr, how) {
+    try {
+      var upc = _bcMapNorm(rawBc);
+      itemNum = String(itemNum || '').trim();
+      if (!upc || upc.length < 6 || !itemNum) return;
+      var m = await _bcMapEnsureLoaded();
+      if (m[upc] && m[upc].n === itemNum) return;      // already known
+      m[upc] = { n: itemNum, m: String(mfr || '') };
+      try { localStorage.setItem('rr_bcmap', JSON.stringify(m)); } catch (e0) {}
+      if (!(window.state && state.personalSheetId && typeof sheetsAppend === 'function')) return;
+      await _bcMapEnsureTab();
+      await sheetsAppend(state.personalSheetId, "'Barcode Map'!A1",
+        [[upc, itemNum, String(mfr || ''), new Date().toISOString().slice(0, 10), String(how || 'scan')]]);
+      console.log('[bcmap] learned', upc, '\u2192', itemNum);
+    } catch (e) { console.warn('[bcmap] could not save the pairing', e && e.message); }
+  }
+  window.rrBcMapLearn = rrBcMapLearn;
+
   async function decodeBarcode(bc, eraHint) {
     const raw = (bc.rawValue || '').trim();
     const fmt = bc.format;
+
+    // v0.9.1112 — a pairing this user already verified outranks every rule
+    // below. This is how MTH boxes (whose UPCs encode nothing) scan
+    // instantly the second time, on any signed-in device.
+    try {
+      var _bmap = await _bcMapEnsureLoaded();
+      var _bhit = _bmap[_bcMapNorm(raw)];
+      if (_bhit && _bhit.n) {
+        var _bm2 = await findMasterItem([_bhit.n]);
+        if (_bm2) {
+          return {
+            handled: true, rawBarcode: raw, format: fmt, upc: _bcMapNorm(raw),
+            manufacturer: _bhit.m || _bm2.mfr || '', itemNum: _bm2.itemNum,
+            variation: _bm2.variation || '', masterItem: _bm2, learnedMap: true,
+            statusMessage: 'Found ' + _bm2.itemNum + ' \u2014 learned from your earlier scan',
+            isSet: String(_bm2.itemType || '').toLowerCase() === 'set',
+          };
+        }
+      }
+    } catch (eBM) {}
 
     // UPC-A: 12 digits
     if ((fmt === 'upc_a' || fmt === 'ean_13') && /^\d{12,13}$/.test(raw)) {
@@ -2714,7 +2805,16 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             _biKill(); if (onCancel) onCancel(); return;
           }
         }
-        if (cc === 'use') { if (onScanned) onScanned(res); return; }
+        if (cc === 'use') {
+          // v0.9.1112: a confirmed identity + a locked barcode = a pairing
+          // worth keeping. Idempotent, fail-quiet, never blocks the flow.
+          try {
+            if (cap.lockedBc && res && res.itemNum && !res.notInMaster && !res.learnedMap) {
+              rrBcMapLearn(cap.lockedBc.rawValue, res.itemNum, res.manufacturer || '', 'scan');
+            }
+          } catch (eL) {}
+          if (onScanned) onScanned(res); return;
+        }
         if (cc === 'lens') {
           var fC = await _biCanvasToFile(cr.work, 'lens-confirm.jpg');
           _biKill();

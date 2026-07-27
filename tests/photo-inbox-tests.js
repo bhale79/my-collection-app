@@ -1905,6 +1905,20 @@ META_WRITES.length = 0; TOASTS.length = 0;
      /heldBc = bc;/.test(bcz) && /press \\ud83d\\udcf8 Capture when the label is framed/.test(bcz));
   ok('a manual snap keeps the held barcode', /lockedBc: heldBc/.test(bcz));
 
+  section('91. The self-learning barcode map');
+  const bmz = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'barcode.js'), 'utf8');
+  ok('every decode consults the learned map first',
+     /_bcMapEnsureLoaded\(\)/.test(bmz) && /learned from your earlier scan/.test(bmz));
+  ok('a confirmed scan with a locked barcode saves its pairing',
+     /rrBcMapLearn\(cap\.lockedBc\.rawValue, res\.itemNum/.test(bmz));
+  ok('a label correction saves the strongest pairing of all',
+     /rrBcMapLearn\(result\.upc, _ci\._labelResult\.itemNum/.test(bmz) && /label-correction/.test(bmz));
+  ok('EAN-13 and UPC-A normalize to one key',
+     /v\.charAt\(0\) === '0'\) v = v\.substring\(1\)/.test(bmz));
+  ok('the map lives on the personal sheet, visible and durable',
+     /'Barcode Map'!A1:E1/.test(bmz) && /addSheet/.test(bmz));
+  ok('learning never blocks the flow', /could not save the pairing/.test(bmz));
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
