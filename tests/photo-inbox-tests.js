@@ -703,8 +703,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('digits-only is last', /wl: 'digits'/.test(p1));
   // v0.9.1072 tightened this: an EMPTY confirmed-nothing result must not stop
   // the loop, so the break now also requires an actual number.
-  ok('it stops as soon as the catalog agrees on a real number',
-     /if \(best && best\.matched && best\.num\) break;/.test(p1));
+  // v0.9.1096 tightened it again (Brad's 6175-as-"225"): the exit is earned by
+  // EVIDENCE — four digits, or the maker's name beside the number — so a bare
+  // short confirm scraped off the wrong part of the frame keeps the ladder
+  // running and the white-stamp pass gets its turn.
+  ok('it stops only on an evidence-backed confirm',
+     /if \(best && best\.matched && best\.num\s*\n\s*&& \(String\(best\.num\)\.replace\(\/\\D\/g, ''\)\.length >= 4/.test(p1));
   ok('a confirmed result always beats an unconfirmed one',
      /r\.matched && !best\.matched/.test(p1));
   ok('and any number beats no number', /r\.num && !best\.num/.test(p1));
@@ -1614,6 +1618,19 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('block mode restored right after', /tessedit_pageseg_mode: '6' \}\); \} catch \(ePr\)/.test(ws));
   ok('the read is marked for the disclosure', /r\.dbg\.stampPass = true/.test(ws));
   ok('the sheet result obeys the same number rules', /_numberFromText\(t, prefer\);\s*\n\s*if \(r && r\.dbg\) \{\s*\n\s*r\.dbg\.stampPass/.test(ws));
+
+  section('75. A short confirm cannot silence the later passes');
+  const el = require('fs').readFileSync(SRC, 'utf8');
+  ok('the early exit demands four digits or the maker\'s name',
+     /String\(best\.num\)\.replace\(\/\\D\/g, ''\)\.length >= 4\s*\n\s*\|\| \(best\.dbg && best\.dbg\.viaMaker\)/.test(el));
+  ok('a longer in-era confirm turns into a pick, not a fact',
+     /r\.matched = false;\s*\n\s*r\.alts = \[String\(r\.num\), _shortN\]/.test(el));
+  ok('the disagreement is named in the reasoning', /dbg\.shortVsLong = _shortN/.test(el));
+  ok('and rendered for the user', /Two catalog numbers disagree/.test(el));
+  ok('the stamp pass reports what it saw even when it loses',
+     /best\.dbg\.stampSaw = stampSaw/.test(el) && /The light-numbers pass saw/.test(el));
+  ok('the use-this chip follows the readable slot',
+     /var s0 = _ids\(\)\[_pinReadFid\(_rvGroups\[0\]\) \|\| _rvGroups\[0\]\.files\[0\]\.id\]/.test(el));
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);

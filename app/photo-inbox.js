@@ -684,7 +684,7 @@
   // now carry the version of the reader that produced them, and the automatic
   // pass retries anything read by an older one. Bump this whenever the reading
   // logic changes; it costs nothing but time, and only on photos that failed.
-  var READER_VER = '1095';
+  var READER_VER = '1096';
 
   function _pinMetaOf(file) {
     var ap = (file && file.appProperties) || {};
@@ -1658,7 +1658,13 @@
     var sug = '', sugGuess = '';
     _rvAiMfr = '';
     try {
-      var s0 = _ids()[_rvGroups[0].files[0].id];
+      // v0.9.1096 (Brad's 6424: card said 6424, chip said "080 — use this").
+      // The card learned in v0.9.1091 to read the readable slot — where every
+      // reader now writes — with files[0] as the fallback. The chip never did,
+      // so on a two-photo group it offered a stale junk read from the other
+      // photo's slot. Same rule for both now.
+      var s0 = _ids()[_pinReadFid(_rvGroups[0]) || _rvGroups[0].files[0].id]
+            || _ids()[_rvGroups[0].files[0].id];
       if (s0 && s0.num) { if (s0.guess) sugGuess = String(s0.num); else sug = String(s0.num); }
       if (s0 && s0.mfr) _rvAiMfr = String(s0.mfr);
     } catch (eS) {}
@@ -1882,6 +1888,9 @@
             + ((dbg.shortDropped && dbg.shortDropped.length)
                 ? '<br>Too short to trust on their own: ' + rrEsc(dbg.shortDropped.join(', ')) : '')
             + (dbg.viaMaker ? '<br>Chosen because it is stamped next to the maker\'s name: ' + rrEsc(dbg.viaMaker) : '')
+            + (dbg.shortVsLong ? '<br>Two catalog numbers disagree: ' + rrEsc(dbg.shortVsLong)
+                + ' — both offered, pick the one on your item' : '')
+            + (dbg.stampSaw ? '<br>The light-numbers pass saw: “' + rrEsc(dbg.stampSaw) + '”' : '')
             + (dbg.evidence !== undefined
                 ? '<br>Readable characters recovered: ' + dbg.evidence
                   + (dbg.evidence < 18 ? ' \u2014 too few to be sure of anything' : '')
@@ -3496,7 +3505,7 @@
                       note: 'the browser could not decode this photo' } };
     }
     var dim = maxDim || 2400;
-    var best = null, text = '';
+    var best = null, text = '', stampSaw = '';
     for (var pi = 0; pi < _FREE_PASSES.length; pi++) {
       var p = _FREE_PASSES[pi];
       var t = '', r = null;
@@ -3508,6 +3517,7 @@
           // straight after so the other passes are untouched by this one.
           try { await w.setParameters({ tessedit_pageseg_mode: '11' }); } catch (ePs) {}
           t = (((await w.recognize(_stampSheet(bmp, dim))).data) || {}).text || '';
+          stampSaw = String(t || '').replace(/\s+/g, ' ').trim().slice(0, 100);
           try { await w.setParameters({ tessedit_pageseg_mode: '6' }); } catch (ePr) {}
           r = _numberFromText(t, prefer);
           if (r && r.dbg) {
@@ -3561,9 +3571,32 @@
       // An empty answer still carries its reasoning, so keep it if nothing
       // better turns up — but never let it outrank a real one.
       if (r && (!best || (r.num && !best.num) || (r.matched && !best.matched))) { best = r; text = t; }
-      if (best && best.matched && best.num) break;     // the stamped catalog agrees — done
+      // v0.9.1096 (Brad's 6175 read as "225", his 3545 as "250"): a later pass
+      // that confirms a LONGER in-era number than an early short confirm is a
+      // disagreement, not a refinement — the longer number leads, both are
+      // offered as chips, and neither is asserted as fact.
+      else if (r && r.matched && r.num && best && best.matched && best.num
+               && String(r.num) !== String(best.num)
+               && String(r.num).replace(/\D/g, '').length > String(best.num).replace(/\D/g, '').length) {
+        var _shortN = String(best.num);
+        r.matched = false;
+        r.alts = [String(r.num), _shortN];
+        if (r.dbg) r.dbg.shortVsLong = _shortN + ' vs ' + r.num;
+        best = r; text = t;
+      }
+      // The early exit is earned by evidence, not by any confirm: four or more
+      // digits, or the maker's name standing next to the number. A bare
+      // 1-3 digit confirm is exactly what 225 and 250 were — real catalog
+      // items scraped off the wrong part of the frame — so the remaining
+      // passes (above all the white-stamp pass) still get their turn.
+      if (best && best.matched && best.num
+          && (String(best.num).replace(/\D/g, '').length >= 4
+              || (best.dbg && best.dbg.viaMaker))) break;
     }
     try { await w.setParameters({ tessedit_char_whitelist: _WL_FULL }); } catch (eR) {}
+    // What the stamp pass saw survives into the disclosure even when it lost —
+    // the next failure report then shows what it read instead of a blank.
+    try { if (best && best.dbg && stampSaw && !best.dbg.stampPass) best.dbg.stampSaw = stampSaw; } catch (eSS) {}
     try { if (bmp.close) bmp.close(); } catch (eC) {}
     // ── What does the car SAY? ────────────────────────────────────────────
     try { best = _pinDescArbitrate(best, text, prefer); }
