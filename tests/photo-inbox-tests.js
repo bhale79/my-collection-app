@@ -1598,6 +1598,23 @@ META_WRITES.length = 0; TOASTS.length = 0;
      (sd.match(/function _pinIsSetRow/g) || []).length === 1 &&
      (sd.match(/_pinIsSetRow\(row\)\) return/g) || []).length === 2);
 
+  section('74. The white-stamp pass — light numbers on a coloured body');
+  const ws = require('fs').readFileSync(SRC, 'utf8');
+  // Order is the safety property: it must be the LAST pass, so a photo that any
+  // earlier pass confirms never reaches it, and it can only add reads.
+  const passesBlk = ws.slice(ws.indexOf('var _FREE_PASSES'), ws.indexOf('];', ws.indexOf('var _FREE_PASSES')));
+  const passLines = passesBlk.split('\n').filter(l => /mode:/.test(l));
+  ok('the stamp pass exists', passLines.some(l => /'stamp'/.test(l)));
+  ok('and runs last', /'stamp'/.test(passLines[passLines.length - 1]), passLines[passLines.length - 1]);
+  ok('digits-only, so letters cannot masquerade', /mode: 'stamp',\s*tiles: 0,\s*wl: 'digits'/.test(ws));
+  // The sheet: min-channel, top third skipped, sparse mode set AND restored.
+  ok('min-channel whiteness detector', /Math\.min\(px\[i\], px\[i \+ 1\], px\[i \+ 2\]\)/.test(ws));
+  ok('the top third never reaches it', /rI = 1; rI <= 2/.test(ws));
+  ok('sparse-text mode for the sheet', /tessedit_pageseg_mode: '11'/.test(ws));
+  ok('block mode restored right after', /tessedit_pageseg_mode: '6' \}\); \} catch \(ePr\)/.test(ws));
+  ok('the read is marked for the disclosure', /r\.dbg\.stampPass = true/.test(ws));
+  ok('the sheet result obeys the same number rules', /_numberFromText\(t, prefer\);\s*\n\s*if \(r && r\.dbg\) \{\s*\n\s*r\.dbg\.stampPass/.test(ws));
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

@@ -684,7 +684,7 @@
   // now carry the version of the reader that produced them, and the automatic
   // pass retries anything read by an older one. Bump this whenever the reading
   // logic changes; it costs nothing but time, and only on photos that failed.
-  var READER_VER = '1094';
+  var READER_VER = '1095';
 
   function _pinMetaOf(file) {
     var ap = (file && file.appProperties) || {};
@@ -3464,11 +3464,20 @@
   //                opposite, and half of Lionel's rolling stock is the wrong way
   //                round for it.
   //   3  DIGITS  — no letters at all, so it cannot offer O for 0 or S for 5.
+  //   5  STAMP   — v0.9.1095, the white-stamp pass. White serif numbers on
+  //                saturated plastic (Brad's red 3512, blue 6017) melt into
+  //                gray under luma conversion. min(R,G,B) is a whiteness
+  //                detector: white stays bright, ANY strongly coloured body
+  //                goes dark. Six overlapping close-up cells from the middle
+  //                and bottom thirds (wall clutter lives in the top third)
+  //                stacked into one sheet, read once in sparse-text mode.
+  //                Runs last — it can only add reads, never lose one.
   var _FREE_PASSES = [
     { mode: 'sharp',  tiles: 3, wl: 'full'   },
     { mode: 'invert', tiles: 0, wl: 'full'   },
     { mode: 'sharp',  tiles: 0, wl: 'digits' },
     { mode: 'chan',   tiles: 3, wl: 'full'   },
+    { mode: 'stamp',  tiles: 0, wl: 'digits' },
   ];
   var _WL_FULL = '0123456789-ABCDEFGHIJKLMNOPQRSTUVWXYZ ';
   var _WL_DIGITS = '0123456789-';
@@ -3493,7 +3502,19 @@
       var t = '', r = null;
       try {
         await w.setParameters({ tessedit_char_whitelist: p.wl === 'digits' ? _WL_DIGITS : _WL_FULL });
-        if (p.tiles) {
+        if (p.mode === 'stamp') {
+          // Sparse-text segmentation for the one read on the stacked sheet;
+          // block mode ('6', the shipping default since v0.9.1065) is restored
+          // straight after so the other passes are untouched by this one.
+          try { await w.setParameters({ tessedit_pageseg_mode: '11' }); } catch (ePs) {}
+          t = (((await w.recognize(_stampSheet(bmp, dim))).data) || {}).text || '';
+          try { await w.setParameters({ tessedit_pageseg_mode: '6' }); } catch (ePr) {}
+          r = _numberFromText(t, prefer);
+          if (r && r.dbg) {
+            r.dbg.stampPass = true;
+            if (!r.dbg.note) r.dbg.note = 'found by the light-numbers-on-a-coloured-body pass';
+          }
+        } else if (p.tiles) {
           // v0.9.1076 — WHERE the text was found matters. Brad photographs his
           // shelf against a wall with a printed catalog page pinned to it, and
           // the reader was lifting numbers straight off it: a 6816 flatcar came
@@ -4239,6 +4260,60 @@
     }
     ctx.putImageData(img, 0, 0);
     return c;
+  }
+
+  // ══ v0.9.1095 — the white-stamp sheet ════════════════════════════════════
+  // min(R,G,B) per pixel: white lettering keeps every channel high; coloured
+  // plastic always has at least one dark channel. The result is a frame where
+  // any red, blue, green or black body is near-black and the stamped number
+  // glows. Then six overlapping close-up cells (middle + bottom thirds, three
+  // columns each with a half-column of overlap so a number straddling a cut
+  // is whole in one of them), each blown up 2-3x, stacked into one tall sheet
+  // with white gaps — one recognize() call instead of six.
+  // The top third is deliberately absent: that is where Brad's pinned catalog
+  // pages and shelf clutter live, and this pass has no middle-band demotion
+  // to protect it.
+  function _stampSheet(bmp, maxDim) {
+    var sc0 = Math.min(1, maxDim / Math.max(bmp.width, bmp.height));
+    var W = Math.max(3, Math.round(bmp.width * sc0)), H = Math.max(3, Math.round(bmp.height * sc0));
+    var src = document.createElement('canvas'); src.width = W; src.height = H;
+    var sctx = src.getContext('2d');
+    sctx.drawImage(bmp, 0, 0, W, H);
+    var d = sctx.getImageData(0, 0, W, H), px = d.data;
+    for (var i = 0; i < px.length; i += 4) {
+      var m = Math.min(px[i], px[i + 1], px[i + 2]);
+      px[i] = px[i + 1] = px[i + 2] = m;
+    }
+    sctx.putImageData(d, 0, 0);
+    var third = Math.floor(H / 3), over = Math.floor(W / 12);
+    var cells = [], CAP = 2900, GAP = 50;
+    for (var rI = 1; rI <= 2; rI++) {
+      var y0 = rI * third, h0 = (rI === 2) ? (H - y0) : third;
+      if (h0 < 3) continue;
+      for (var cI = 0; cI < 3; cI++) {
+        var x0 = Math.max(0, Math.floor(W * cI / 3) - over);
+        var x1 = Math.min(W, Math.floor(W * (cI + 1) / 3) + over);
+        var cw = x1 - x0;
+        if (cw < 3) continue;
+        var sc = Math.max(2, Math.min(3, Math.floor(CAP / cw) || 2));
+        cells.push({ x: x0, y: y0, w: cw, h: h0, sc: sc });
+      }
+    }
+    var sheetW = 3, sheetH = GAP;
+    cells.forEach(function (cl) {
+      sheetW = Math.max(sheetW, cl.w * cl.sc);
+      sheetH += cl.h * cl.sc + GAP;
+    });
+    var sheet = document.createElement('canvas'); sheet.width = sheetW; sheet.height = sheetH;
+    var ctx = sheet.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, sheetW, sheetH);
+    ctx.imageSmoothingEnabled = true;
+    var y = GAP;
+    cells.forEach(function (cl) {
+      ctx.drawImage(src, cl.x, cl.y, cl.w, cl.h, 0, y, cl.w * cl.sc, cl.h * cl.sc);
+      y += cl.h * cl.sc + GAP;
+    });
+    return sheet;
   }
 
   function _auditCanvas(bmp, maxDim, mode) {
