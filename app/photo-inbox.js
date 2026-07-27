@@ -1664,13 +1664,17 @@
     var sug = '', sugGuess = '';
     _rvAiMfr = '';
     try {
-      // v0.9.1096 (Brad's 6424: card said 6424, chip said "080 — use this").
-      // The card learned in v0.9.1091 to read the readable slot — where every
-      // reader now writes — with files[0] as the fallback. The chip never did,
-      // so on a two-photo group it offered a stale junk read from the other
-      // photo's slot. Same rule for both now.
-      var s0 = _ids()[_pinReadFid(_rvGroups[0]) || _rvGroups[0].files[0].id]
-            || _ids()[_rvGroups[0].files[0].id];
+      // v0.9.1096 fixed the chip reading a different slot than the card
+      // (6424 vs "080 — use this") by preferring the readable slot. Brad's
+      // 3512 fire car showed the fix was HALF right: the card leads with the
+      // ON-SCREEN photo's slot, so when the two photos of a group disagree
+      // (3512 best-guess on the main shot, a stale confirmed "959" on the
+      // tail shot) the headline said 3512 while the input quietly filled in
+      // 959 — Barn Set. One record feeds everything now, in the SAME order
+      // the card resolves it: the photo on screen first, the readable slot
+      // as the fallback.
+      var s0 = _ids()[_rvGroups[0].files[0].id]
+            || _ids()[_pinReadFid(_rvGroups[0]) || _rvGroups[0].files[0].id];
       if (s0 && s0.num) { if (s0.guess) sugGuess = String(s0.num); else sug = String(s0.num); }
       if (s0 && s0.mfr) _rvAiMfr = String(s0.mfr);
     } catch (eS) {}

@@ -1632,8 +1632,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('and rendered for the user', /Two catalog numbers disagree/.test(el));
   ok('the stamp pass reports what it saw even when it loses',
      /best\.dbg\.stampSaw = stampSaw/.test(el) && /The light-numbers pass saw/.test(el));
-  ok('the use-this chip follows the readable slot',
-     /var s0 = _ids\(\)\[_pinReadFid\(_rvGroups\[0\]\) \|\| _rvGroups\[0\]\.files\[0\]\.id\]/.test(el));
+  // v0.9.1100 (Brad's 3512/959 card): the chip, input and lookup panel read
+  // the SAME record as the headline card, in the same order — on-screen photo
+  // first, readable slot as fallback.
+  ok('the chip and input read the same slot as the card',
+     /var s0 = _ids\(\)\[_rvGroups\[0\]\.files\[0\]\.id\]\s*\n\s*\|\| _ids\(\)\[_pinReadFid\(_rvGroups\[0\]\)/.test(el));
 
   section('76. Reconstructions need stronger paperwork');
   // Brad's 6175: raw text near-verbatim; 1523 is a SET row hiding in the
