@@ -1813,6 +1813,26 @@ META_WRITES.length = 0; TOASTS.length = 0;
   const adata = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'app-data.js'), 'utf8');
   ok('the master parser reads Body Color from its schema slot', /bodyColor:\s+r\[21\]/.test(adata));
 
+  section('84. Between two real numbers, evidence beats position');
+  // Brad's 6816 bulldozer flat asserted as '1043 — Transformer': 1043 came
+  // once, off the wall catalog page; 6816 was read three times, twice by the
+  // light-numbers pass straight off the car. Position was the tiebreak.
+  global.state = { masterByItem: new Map(), personalData: {} };
+  global.window.state = global.state;
+  global.findMaster = (n) => ({
+    '1043': { itemNum:'1043', _era:'pw', _tab:'Lionel PW - Items', description:'Transformer' },
+    '6816': { itemNum:'6816', _era:'pw', _tab:'Lionel PW - Items', description:'Flatcar with Allis-Chalmers Bulldozer' },
+  })[String(n)] || null;
+  const BLDZ = 'WEF ARAIL ORL C 11 TUN NN TBARS 7 N 4498 PF 1 1043 - AY FW 2 - 1 ON E IL EE WE HH T\n6816 1 2 4 6816 1 11 441 - -';
+  let fp = window.__NumFromText(BLDZ, { era:'pw', manufacturer:'Lionel' });
+  ok('the number read most often wins', fp && fp.num === '6816', JSON.stringify(fp && fp.num));
+  ok('and the reasoning says so', fp && fp.dbg && /6816/.test(fp.dbg.freqPick || ''), JSON.stringify(fp && fp.dbg && fp.dbg.freqPick));
+  // a single candidate is untouched by the new rule
+  let fp2 = window.__NumFromText('LIONEL 1043 TRANSFORMER WITH PLENTY OF CONTEXT', { era:'pw', manufacturer:'Lionel' });
+  ok('a lone candidate still reads as before', fp2 && fp2.num === '1043');
+  const fsrc = require('fs').readFileSync(SRC, 'utf8');
+  ok('the card explains the frequency pick', /kept the one read most often/.test(fsrc));
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

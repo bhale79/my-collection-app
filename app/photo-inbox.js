@@ -684,7 +684,7 @@
   // now carry the version of the reader that produced them, and the automatic
   // pass retries anything read by an older one. Bump this whenever the reading
   // logic changes; it costs nothing but time, and only on photos that failed.
-  var READER_VER = '1102';
+  var READER_VER = '1104';
 
   function _pinMetaOf(file) {
     var ap = (file && file.appProperties) || {};
@@ -1903,6 +1903,8 @@
             + (dbg.shortBacked ? '<br>A short number the catalog recognises (' + rrEsc(dbg.shortBacked)
                 + ') outranked longer text found in no catalog' : '')
             + (dbg.pooled ? '<br>Decided from everything all the passes read together' : '')
+            + (dbg.freqPick ? '<br>Two real numbers were in view \u2014 kept the one read most often: '
+                + rrEsc(dbg.freqPick) : '')
             + (dbg.longerUnexplained ? '<br>A longer digit-run (' + rrEsc(dbg.longerUnexplained)
                 + ') matched nothing, so this short number is offered, not asserted' : '')
             + (dbg.shortSolo ? '<br>Only three digits, seen once \u2014 offered, not asserted' : '')
@@ -2993,7 +2995,23 @@
       // road number 25000 over the catalog number 6176 purely for being longer.
       var named = matched.filter(function (c) { return namedByMaker[c]; });
       if (named.length) { named.sort(dashRank); direct = named[0]; dbg.viaMaker = direct; }
-      else { matched.sort(dashRank); direct = matched[0]; }
+      else {
+        matched.sort(dashRank);
+        // v0.9.1104 (Brad's 6816 asserted as "1043 — Transformer"): BOTH were
+        // valid in-era candidates. 6816 was read three times — twice by the
+        // light-numbers pass, straight off the car — while 1043 appeared once,
+        // inside the catalog page pinned to the wall above the shelf. The
+        // tiebreak was position in the text. Evidence decides now: the
+        // candidate read MOST OFTEN wins; dashRank still breaks real ties.
+        var _bestC = matched[0], _bestF = -1;
+        matched.forEach(function (cD) {
+          var _lit = cD.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          var _f = (UP.match(new RegExp('\\b' + _lit + '\\b', 'g')) || []).length;
+          if (_f > _bestF) { _bestF = _f; _bestC = cD; }
+        });
+        if (_bestC !== matched[0]) dbg.freqPick = _bestC + ' (read ' + _bestF + '\u00d7)';
+        direct = _bestC;
+      }
     }
 
     // ══ v0.9.1079 — one misread digit ══════════════════════════════════════
