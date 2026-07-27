@@ -353,6 +353,10 @@ function parseMasterRow(r, tabName) {
     category:     r[18] !== null && r[18] !== undefined && r[18] !== '' ? String(r[18]) : '',
     trackPower:   r[19] !== null && r[19] !== undefined && r[19] !== '' ? String(r[19]) : '',
     msrp:         r[20] !== null && r[20] !== undefined && r[20] !== '' ? String(r[20]) : '',
+    // v0.9.1102: Body Color — generated from each row's own text plus COTT
+    // catalog-photo sampling (master workbook _60). Deliberately placed AFTER
+    // the reserved unified-schema trio above so it can never shadow them.
+    bodyColor:    r[21] !== null && r[21] !== undefined && r[21] !== '' ? String(r[21]) : '',
     _tab:         tabName,
   };
 }

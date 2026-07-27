@@ -1801,6 +1801,18 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('escalation only when the fast read fell short', /if \(!\(r && r\.matched && r\.num\)\) \{\s*\n\s*var r2/.test(cv));
   ok('the bigger read cannot erase a smaller answer', /r2\.num \|\| !\(r && r\.num\)/.test(cv));
 
+  section('83. The curated Body Color outranks prose');
+  // A row with bodyColor set: the column IS the answer, prose is ignored.
+  let bc = window.__ColorClash(['yellow'], [{ description:'RED body all over', bodyColor:'yellow, black (photo)' }]);
+  ok('bodyColor clears a veto prose would have fired', bc === '', bc);
+  bc = window.__ColorClash(['red'], [{ description:'RED body', bodyColor:'yellow, black' }]);
+  ok('and fires a veto prose would have cleared', /red/.test(bc) && /yellow/.test(bc), bc);
+  // prose fallback reads the variation TEXT field
+  const bsrc = require('fs').readFileSync(SRC, 'utf8');
+  ok('prose fallback uses varDesc, not the variation number', /rw && rw\.varDesc/.test(bsrc));
+  const adata = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'app-data.js'), 'utf8');
+  ok('the master parser reads Body Color from its schema slot', /bodyColor:\s+r\[21\]/.test(adata));
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

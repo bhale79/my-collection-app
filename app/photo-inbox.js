@@ -684,7 +684,7 @@
   // now carry the version of the reader that produced them, and the automatic
   // pass retries anything read by an older one. Bump this whenever the reading
   // logic changes; it costs nothing but time, and only on photos that failed.
-  var READER_VER = '1101';
+  var READER_VER = '1102';
 
   function _pinMetaOf(file) {
     var ap = (file && file.appProperties) || {};
@@ -4551,9 +4551,15 @@
     if (!photoCols || !photoCols.length || !rows || !rows.length) return '';
     var rowCols = {}, any = false;
     rows.forEach(function (rw) {
-      _pinColorWords([rw && rw.description, rw && rw.roadName, rw && rw.variation]
-        .filter(Boolean).join(' '))
-        .forEach(function (cw) { rowCols[cw] = 1; any = true; });
+      // v0.9.1102: the curated Body Color column (text pass + COTT photo
+      // sampling) outranks parsing prose — when a row carries it, it IS the
+      // answer. Prose fallback reads varDesc, the variation TEXT; `variation`
+      // is just the variation number and never held a color.
+      var srcTxt = (rw && rw.bodyColor)
+        ? String(rw.bodyColor).replace(/\(photo\)/ig, '')
+        : [rw && rw.description, rw && rw.roadName, rw && rw.varDesc]
+            .filter(Boolean).join(' ');
+      _pinColorWords(srcTxt).forEach(function (cw) { rowCols[cw] = 1; any = true; });
     });
     if (!any) return '';
     // Judged on the photo's DOMINANT color only. Every shelf photo carries
