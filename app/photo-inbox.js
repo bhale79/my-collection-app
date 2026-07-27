@@ -684,7 +684,7 @@
   // now carry the version of the reader that produced them, and the automatic
   // pass retries anything read by an older one. Bump this whenever the reading
   // logic changes; it costs nothing but time, and only on photos that failed.
-  var READER_VER = '1098';
+  var READER_VER = '1099';
 
   function _pinMetaOf(file) {
     var ap = (file && file.appProperties) || {};
@@ -1898,6 +1898,10 @@
                 + ' — both offered, pick the one on your item' : '')
             + (dbg.shortBacked ? '<br>A short number the catalog recognises (' + rrEsc(dbg.shortBacked)
                 + ') outranked longer text found in no catalog' : '')
+            + (dbg.pooled ? '<br>Decided from everything all the passes read together' : '')
+            + (dbg.longerUnexplained ? '<br>A longer digit-run (' + rrEsc(dbg.longerUnexplained)
+                + ') matched nothing, so this short number is offered, not asserted' : '')
+            + (dbg.shortSolo ? '<br>Only three digits, seen once \u2014 offered, not asserted' : '')
             + (dbg.noEraJoin ? '<br>Assembled from split digits with no maker/era tag on this photo '
                 + '— that can match the wrong maker\u2019s list, so it is only offered. '
                 + 'Tag the photo and re-read for a filtered answer.' : '')
@@ -3037,13 +3041,12 @@
       return null;
     }
 
-    var jHit = null;
+    var jHit = null, wholeRuns = [];
     // Whole runs first, and a one-character repair of them, BEFORE any window.
     // Order matters: "5464475" cut into windows yields "6447", a real postwar
     // caboose, and it was winning over the boxcar the car actually is. A
     // complete number with one digit corrected beats a fragment of it.
     if (fm) {
-      var wholeRuns = [];
       var _addRun = function (d) {
         if (d && d.length >= 4 && d.length <= 12 && !capStamp[d] && !banned[d]
             && wholeRuns.indexOf(d) < 0) wholeRuns.push(d);
@@ -3130,6 +3133,32 @@
       // A number the maker named is trustworthy however little else was read —
       // "LIONEL 6176" is corroboration in itself.
       var solid = (evidence >= THIN) || !!dbg.viaMaker;
+      // v0.9.1099 (Brad's 6175 asserted as "225 — Alco Diesel"): the same
+      // photo yielded "4225", a four-digit run that matched nothing — strong
+      // evidence the real number is LONGER than the three digits being
+      // asserted. A short token cannot be stated as fact while a longer run
+      // from the same photo went unexplained; it is offered instead.
+      if (solid && win === direct && !jHit && !dbg.viaMaker
+          && String(direct).replace(/\D/g, '').length <= 3
+          && wholeRuns.some(function (dR) { return dR.replace(/\D/g, '').length >= 4; })) {
+        dbg.longerUnexplained = wholeRuns[0];
+        return { num: win, matched: false, alts: [String(win)], dbg: dbg };
+      }
+      // v0.9.1099b (Brad's Rio Grande 53 asserted as "988 — Railroad
+      // Structure Set", then "213 — Alco Diesel" on re-scan; his 6175 as
+      // "225"): with a few thousand catalog numbers, a stray three-digit
+      // token lands on a real item too easily to be stated as FACT on one
+      // sighting. Seen once → offered as a guess. Read twice or more in the
+      // pooled text, or vouched for by the maker's name, it still confirms.
+      if (solid && win === direct && !jHit && !dbg.viaMaker
+          && String(direct).replace(/\D/g, '').length <= 3) {
+        var _dD = String(direct).replace(/\D/g, '');
+        var _frD = (UP.match(new RegExp('\\b' + _dD + '\\b', 'g')) || []).length;
+        if (_frD < 2) {
+          dbg.shortSolo = String(direct);
+          return { num: win, matched: false, alts: [String(win)], dbg: dbg };
+        }
+      }
       // v0.9.1097 (Brad's era-less 3545 asserted as an ATLAS "2501"): with no
       // era stamped on the photo there is no particular catalog to check a
       // reconstruction against — the join found 2501 in a different maker's
@@ -3155,6 +3184,9 @@
     // but a hit there is a LEAD, not a confirmation, because the whole reason we
     // are here is that the photo says it belongs somewhere else. This also
     // protects against the stamped era's data simply not being loaded.
+    // v0.9.1099 (Brad's Santa Fe guessed "0000"): a token whose digits are
+    // all zeros is smudge, not a number.
+    uniq = uniq.filter(function (cZ) { return !/^0+$/.test(String(cZ).replace(/\D/g, '')); });
     var loose = fmAny
       ? uniq.filter(function (c) { return fmAny(c) || fmAny(c.replace(/^\d-/, '')); })
       : [];
@@ -3409,6 +3441,14 @@
           // the set rows, tied the score, and the matcher refused to pick.
           // The words painted on a car identify an ITEM; sets answer nothing.
           if (_pinIsSetRow(row)) return;
+          // v0.9.1099 (the same Ballast Tamper, still "138"): the master also
+          // carries the item's BOX and its INSTRUCTION SHEET as rows, each
+          // wearing the item's own name — so the item TIED with its own
+          // paperwork and the matcher called it ambiguous. Paper rows
+          // duplicate item names by design; they cannot vote here. (Number
+          // validation is untouched — a number on a box lid is real.)
+          if (/\b(box|boxes|paper|instruction|catalog|catalogs|service|science|construction|companions|other)\b/i
+              .test(String(row._tab || ''))) return;
           var words = {};
           _descTokens([row.description, row.roadName, row.itemType].filter(Boolean).join(' '))
             .forEach(function (w) {
@@ -3571,7 +3611,7 @@
                       note: 'the browser could not decode this photo' } };
     }
     var dim = maxDim || 2400;
-    var best = null, text = '', stampSaw = '';
+    var best = null, text = '', stampSaw = '', textAll = '';
     for (var pi = 0; pi < _FREE_PASSES.length; pi++) {
       var p = _FREE_PASSES[pi];
       var t = '', r = null;
@@ -3654,6 +3694,7 @@
       if (!r) r = _numberFromText(t, prefer);
       // An empty answer still carries its reasoning, so keep it if nothing
       // better turns up — but never let it outrank a real one.
+      if (t) textAll += (textAll ? '\n' : '') + t;
       if (r && (!best || (r.num && !best.num) || (r.matched && !best.matched))) { best = r; text = t; }
       // v0.9.1096 (Brad's 6175 read as "225", his 3545 as "250"): a later pass
       // that confirms a LONGER in-era number than an early short confirm is a
@@ -3678,12 +3719,30 @@
               || (best.dbg && best.dbg.viaMaker))) break;
     }
     try { await w.setParameters({ tessedit_char_whitelist: _WL_FULL }); } catch (eR) {}
+    // ── v0.9.1099 — the passes compare notes ──────────────────────────────
+    // Brad's Great Northern: pass texts held "58" three times, but each pass
+    // ranked only its own text, so "25" (once) tied it and won by order. His
+    // Santa Fe 2408: an early pass guessed "0000" while the stamp pass
+    // plainly read 2408 — and lost the slot. When no pass confirmed, one
+    // final read of the POOLED text decides: it sees every number every pass
+    // saw, so frequency and backing are judged on the whole evidence.
+    try {
+      if (textAll && !(best && best.matched)) {
+        var rPool = _numberFromText(textAll, prefer);
+        if (rPool && rPool.num) {
+          if (rPool.dbg) rPool.dbg.pooled = true;
+          best = rPool; text = textAll;
+        }
+      }
+    } catch (ePool) {}
     // What the stamp pass saw survives into the disclosure even when it lost —
     // the next failure report then shows what it read instead of a blank.
     try { if (best && best.dbg && stampSaw && !best.dbg.stampPass) best.dbg.stampSaw = stampSaw; } catch (eSS) {}
     try { if (bmp.close) bmp.close(); } catch (eC) {}
     // ── What does the car SAY? ────────────────────────────────────────────
-    try { best = _pinDescArbitrate(best, text, prefer); }
+    // v0.9.1099: the words are matched against the POOLED text of every pass
+    // — a name half-read by one pass is often completed by another.
+    try { best = _pinDescArbitrate(best, textAll || text, prefer); }
     catch (eD) { console.warn('[inbox] description match failed', eD && eD.message); }
     var out = best;
     // v0.9.1068 (Brad: "where does 120 come from?"). A number appears with no
@@ -3709,7 +3768,9 @@
       if (dm && dm.row && dm.row.itemNum) {
         var descNum = String(dm.row.itemNum);
         var haveNum = (best && best.num) ? String(best.num) : '';
-        var descOf = [dm.row.description, dm.row.roadName].filter(Boolean).join(' \u2014 ');
+        var descOf = [dm.row.description, dm.row.roadName].filter(Boolean)
+          .filter(function (v, i, a) { return a.findIndex(function (x) { return String(x).toLowerCase() === String(v).toLowerCase(); }) === i; })
+          .join(' \u2014 ');
         var dbg2 = (best && best.dbg) || {};
         dbg2.viaDesc = dm.words.join(', ');
 

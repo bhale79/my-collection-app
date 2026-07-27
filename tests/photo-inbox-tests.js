@@ -1713,6 +1713,58 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('the fine cells skip the wall quarter', /H \* 0\.25/.test(tw));
   ok('cells overlap vertically so a straddling number is whole somewhere', /vPad/.test(tw));
 
+  section('80. Paper rows cannot vote, and the passes compare notes');
+  // Brad's Ballast Tamper, THIRD diagnosis — the master carries the item, its
+  // BOX, and its INSTRUCTION SHEET, all named 'Ballast Tamper'. The item tied
+  // with its own paperwork and the matcher called it ambiguous.
+  const PROWS = [
+    { itemNum:'54',  _era:'pw', _tab:'Lionel PW - Items', description:'Ballast Tamper', roadName:'Ballast Tamper' },
+    { itemNum:'54',  _era:'pw', _tab:'Lionel PW - Boxes', description:'Ballast Tamper, 90', roadName:'' },
+    { itemNum:'IS1-54', _era:'pw', _tab:'Lionel PW - Instruction Sheets', description:'Track Ballast Tamper', roadName:'' },
+    { itemNum:'2954', _era:'pw', _tab:'Lionel PW - Items', description:'Boxcar DOES NOT APPEAR TO HAVE BEEN TAMPERED WITH', roadName:'Pennsylvania' },
+    { itemNum:'138', _era:'pw', _tab:'Lionel PW - Items', description:'Operating Water Tower', roadName:'' },
+    { itemNum:'229', _era:'pw', _tab:'Lionel PW - Items', description:'Alco Diesel', roadName:'Minneapolis & St. Louis' },
+  ];
+  const PM = new Map();
+  PROWS.forEach(r => { const k = r.itemNum; PM.set(k, (PM.get(k) || []).concat([r])); });
+  global.state = { masterByItem: PM, personalData: {} }; global.window.state = global.state;
+  global.findMaster = (n) => { const rs = PM.get(String(n)); return rs ? rs[0] : null; };
+  const BT99 = 'YL TR - IY BALLAST TAMPER I 138 1 F A IS 0 EF A 2 J1 O20 MH 229 1 1 VAS NEP 0 OA I 2 TE NEAR RV 5 3 S 540 HN BALLAST TAMPER SJ TPS S- LL CO A SE H TET K 3 B41 EE GLA J 0 BD BS EE I';
+  let pb = window.__DescMatch(BT99, { era:'pw' });
+  ok('the item no longer ties with its own box', pb && pb.row.itemNum === '54', JSON.stringify(pb && pb.row));
+  ok('and the winning row is the ITEM row', pb && /Items/.test(pb.row._tab));
+  let pa = window.__DescArbitrate(window.__NumFromText(BT99, { era:'pw', manufacturer:'Lionel' }), BT99, { era:'pw' });
+  ok('the Ballast Tamper card finally says 54', pa && pa.num === '54', JSON.stringify(pa && pa.num));
+  ok('and does not say its name twice', pa && pa.descOf === 'Ballast Tamper', JSON.stringify(pa && pa.descOf));
+
+  const pl = require('fs').readFileSync(SRC, 'utf8');
+  ok('every pass contributes to the pooled text', /textAll \+= \(textAll \? '\\n' : ''\) \+ t;/.test(pl));
+  ok('the pooled text gets the final word when nothing confirmed', /rPool = _numberFromText\(textAll, prefer\)/.test(pl));
+  ok('and the arbitration reads the pooled words', /_pinDescArbitrate\(best, textAll \|\| text, prefer\)/.test(pl));
+
+  section('81. Noise tokens cannot be answers');
+  global.state = { masterByItem: new Map(), personalData: {} }; global.window.state = global.state;
+  global.findMaster = () => null;
+  let zz = window.__NumFromText('BEB 0000 83 1 - CL LT PE - FL 2 EE RE CR 2 2 OY EE BF', { era:'pw' });
+  ok('all-zero tokens are never offered', !zz || zz.num !== '0000', JSON.stringify(zz && zz.num));
+
+  // A stray three-digit token seen ONCE is a guess, not a fact (Brad's 988/213/225).
+  global.findMaster = (n) => (String(n) === '988'
+    ? { itemNum:'988', _era:'pw', _tab:'Lionel PW - Items', description:'Railroad Structure Set' } : null);
+  let so = window.__NumFromText('R6 EEE 53 A3F 2 - A A 25 TE J - SF SEI 4 - B 6 8 988 - - LONG ENOUGH TEXT HERE FOR EVIDENCE',
+                                { era:'pw', manufacturer:'Lionel' });
+  ok('a once-seen three-digit token is offered, not asserted',
+     so && so.num === '988' && so.matched === false, JSON.stringify(so));
+  // Either caution can fire first here: the space-joined "6 8 988" makes an
+  // unexplained five-digit run, which is the same argument said differently.
+  ok('the reasoning says why', so && so.dbg && (so.dbg.shortSolo === '988' || !!so.dbg.longerUnexplained),
+     JSON.stringify(so && so.dbg && { shortSolo: so.dbg.shortSolo, longer: so.dbg.longerUnexplained }));
+  // ...but read twice, it still confirms.
+  let so2 = window.__NumFromText('LIONEL 988 STRUCTURE AND AGAIN 988 WITH PLENTY OF CONTEXT AROUND IT',
+                                 { era:'pw', manufacturer:'Lionel' });
+  ok('the same token seen twice still confirms', so2 && so2.num === '988' && so2.matched === true,
+     JSON.stringify(so2));
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
