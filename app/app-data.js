@@ -165,6 +165,7 @@ async function loadAllData() {
     _patchMasterData();
     _inferMissingYears();
     buildPartnerMap();
+    _loadMasterVersion();   // v0.9.1103 — which master sheet is live (fail-silent)
     buildApp(); if (typeof _auditCatalogResolution === 'function') setTimeout(_auditCatalogResolution, 1500);
     _scheduleLookupIndex(6000);   // v0.9.971: full-catalog lookup index (background)
     showOnboarding();
@@ -324,6 +325,25 @@ function _fmtYearProd(s) {
   m = t.match(/^\d{1,2}\/\d{1,2}\/(\d{4})$/);
   if (m) return m[1];
   return t;
+}
+
+// ══ v0.9.1103 — the master sheet says which VERSION it is ═══════════════════
+// Brad: "is there a place on the master sheet we can put what version it is?"
+// A tiny 'Master Version' tab (Version | Date | Notes, one data row) that every
+// delivered workbook bumps. The app reads it once after the master loads and
+// shows it in Preferences — so a stale upload (the _59/_60 mix-up) is visible
+// at a glance instead of a mystery. Fail-silent: no tab, no error, no change.
+async function _loadMasterVersion() {
+  try {
+    if (!state.masterSheetId || typeof sheetsGet !== 'function') return;
+    var resp = await sheetsGet(state.masterSheetId, "'Master Version'!A2:C2");
+    var row = resp && resp.values && resp.values[0];
+    if (row && row[0]) {
+      state.masterVersion = { v: String(row[0]), date: String(row[1] || ''), notes: String(row[2] || '') };
+      var el = document.getElementById('pref-catalog-count');
+      if (el) el.textContent = el.textContent.replace(/ · sheet v.*$/, '') + ' \u00b7 sheet v' + state.masterVersion.v;
+    }
+  } catch (e) { /* silent — older masters simply have no version tab */ }
 }
 
 function parseMasterRow(r, tabName) {

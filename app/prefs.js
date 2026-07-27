@@ -337,7 +337,7 @@ function buildPrefsPage() {
         <div class="pref-row-label"><strong>The Rail Roster</strong><span>${APP_VERSION} · ${APP_DATE}</span></div>
       </div>
       <div class="pref-row">
-        <div class="pref-row-label"><strong>Master Catalog</strong><span id="pref-catalog-count">${state.masterData?.length?.toLocaleString() || '—'} items loaded</span></div>
+        <div class="pref-row-label"><strong>Master Catalog</strong><span id="pref-catalog-count">${state.masterData?.length?.toLocaleString() || '—'} items loaded${state.masterVersion?.v ? ' · sheet v' + state.masterVersion.v + (state.masterVersion.date ? ' (' + state.masterVersion.date + ')' : '') : ''}</span></div>
       </div>
       <div class="pref-row">
         <div class="pref-row-label"><strong>Send Feedback</strong><span>Report a bug or suggest a feature</span></div>
@@ -379,6 +379,7 @@ function _rrFeedbackMailto() {
   var lines = [];
   try {
     lines.push('', '', '\u2014\u2014 please write above this line \u2014\u2014', '');
+    lines.push('Master sheet: v' + (state.masterVersion?.v || 'unknown — no Master Version tab'));
     lines.push('App version: ' + (typeof APP_VERSION !== 'undefined' ? APP_VERSION : '?')
       + (typeof APP_DATE !== 'undefined' ? ' \u00b7 ' + APP_DATE : ''));
     var ua = String(navigator.userAgent || '');
