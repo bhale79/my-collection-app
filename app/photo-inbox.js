@@ -1723,6 +1723,24 @@
         + rrEsc(sugGuess) + ' \u2014 use this</button>'
         + '</div>'
       : '';
+    // ══ v0.9.1114 — add the WHOLE SET from a photo group (Brad: "when trying
+    // to add a photo group, it just tried to enter the engine, not the set").
+    // Every member photo has carried its own read since v0.9.1090; when two or
+    // more members have numbers, the group can enter the wizard's existing SET
+    // flow with those numbers pre-entered — the set-suggestion engine matches
+    // them against the Sets catalog and the per-item walkthrough does the rest.
+    var _setNums = [];
+    try {
+      var _idsA = _ids();
+      _pinFilesToRead(_rvGroups[0]).forEach(function (fS) {
+        var sS = fS && _idsA[fS.id];
+        var nS = (sS && sS.num) ? String(sS.num).trim() : '';
+        if (nS && _setNums.indexOf(nS) < 0) _setNums.push(nS);
+      });
+    } catch (eSN) {}
+    var _setBtn = (_setNums.length >= 2)
+      ? '<button onclick="_pinAddSetFromGroup()" style="width:100%;padding:0.72rem;border-radius:10px;border:2px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);font-weight:700;font-size:0.93rem;cursor:pointer;margin-bottom:0.5rem">\ud83d\ude82 Add the whole set \u2014 ' + _setNums.length + ' items read</button>'
+      : '';
     var _btnArea =
       _guessChip +
       '<input id="pin-rv-num" list="pin-rv-list" type="text" value="' + sug.replace(/"/g, '&quot;') + '" placeholder="Item number — e.g. 2343 or 6464-1" autocomplete="off" spellcheck="false" oninput="_pinReviewLookup(this.value)" style="width:100%;box-sizing:border-box;padding:0.6rem 0.75rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:1rem;margin-bottom:0.55rem">' +
@@ -1731,6 +1749,7 @@
       '<div style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap;margin-top:0.35rem">' +
         '<div style="flex:1 1 240px;min-width:0">' +
           '<div style="' + _lbl + '">What do you want to do with it?</div>' +
+          _setBtn +
           '<button id="pin-rv-add" onclick="_pinFileToCollection()" class="btn-primary" style="width:100%;padding:0.72rem;border-radius:10px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.93rem;cursor:pointer;margin-bottom:0.5rem">Add to my Collection</button>' +
           '<button id="pin-rv-sell" onclick="_pinSendForSale()" style="width:100%;padding:0.68rem;border-radius:10px;border:1.5px solid #d4a843;background:rgba(212,168,67,0.12);color:#d4a843;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;margin-bottom:0.5rem">Add to Sales List</button>' +
           '<button onclick="_pinReviewDiscard()" style="width:100%;padding:0.68rem;border-radius:10px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer">Discard Photo' + (n > 1 ? 's' : '') + '</button>' +
@@ -2516,6 +2535,38 @@
   // v0.9.966 (Brad): "Add to my Collection" ALWAYS adds a new item — you can
   // own multiples of the same number, so it must never fold photos into an
   // existing item. (Adding photos to an item you already own is a separate flow.)
+  // v0.9.1114 — the photo group walks into the wizard's EXISTING set flow
+  // with its members pre-entered. The identify step's suggestion engine
+  // (suggestSets) runs off _enteredNums on render, so with six member reads
+  // the right set usually appears immediately with a "This is mine" button.
+  window._pinAddSetFromGroup = function () {
+    var g = _rvGroups && _rvGroups[0];
+    if (!g) return;
+    var ids0 = _ids(), nums = [];
+    _pinFilesToRead(g).forEach(function (f) {
+      var s0 = f && ids0[f.id];
+      var n0 = (s0 && s0.num) ? String(s0.num).trim() : '';
+      if (n0 && nums.indexOf(n0) < 0) nums.push(n0);
+    });
+    if (nums.length < 2) { showToast('Fewer than two member numbers are read \u2014 re-read or type them first', 3500, true); return; }
+    if (typeof _buildWizardModal !== 'function' || typeof getSteps !== 'function' || typeof renderWizardStep !== 'function') {
+      showToast('The add wizard is not available on this page', 3000, true); return;
+    }
+    var ov = document.getElementById('pin-review-ov'); if (ov) ov.remove();
+    _buildWizardModal();
+    window.wizard = {
+      step: 0, tab: 'set',
+      data: { tab: 'set', set_knowsNum: 'No', _enteredNums: nums.slice(0), _returnPage: 'photo-inbox' },
+      steps: [], matchedItem: null,
+    };
+    wizard.steps = getSteps('set');
+    var _skip = { set_knowsNum: 1, set_num: 1, set_loco: 1 };
+    while (wizard.step < wizard.steps.length && _skip[wizard.steps[wizard.step].id]) wizard.step++;
+    document.getElementById('wizard-modal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    renderWizardStep();
+  };
+
   window._pinFileToCollection = function () { return window._pinReviewAdd('new'); };
   window._pinAttachOwned      = function () { return window._pinReviewAdd('attach'); };
   window._pinSendForSale      = function () { return window._pinReviewAdd('forsale'); };

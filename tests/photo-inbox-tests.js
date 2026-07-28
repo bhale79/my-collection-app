@@ -1931,6 +1931,19 @@ META_WRITES.length = 0; TOASTS.length = 0;
      /scan-new-item/.test(cs) && /!res\.notInMaster\);/.test(cs));
   ok('queued pairs drain at map load', /_bcPairDrain\(\); \} catch \(e4\)/.test(cs));
 
+  section('93. A photo group can add the WHOLE set');
+  const sw = require('fs').readFileSync(SRC, 'utf8');
+  ok('the review card offers the whole set when two or more members are read',
+     /Add the whole set/.test(sw) && /_setNums\.length >= 2/.test(sw));
+  ok('it enters the wizard\'s EXISTING set flow, not a new one',
+     /tab: 'set',\s*\n\s*data: \{ tab: 'set', set_knowsNum: 'No', _enteredNums: nums\.slice\(0\)/.test(sw));
+  ok('the members come from each photo\'s own read', /_pinFilesToRead\(g\)\.forEach/.test(sw));
+  ok('finishing returns to the photo inbox', /_returnPage: 'photo-inbox' \}/.test(sw));
+  ok('the identify steps are skipped \u2014 the reads did that part',
+     /_skip = \{ set_knowsNum: 1, set_num: 1, set_loco: 1 \}/.test(sw));
+  ok('a group without enough reads says so instead of guessing',
+     /Fewer than two member numbers are read/.test(sw));
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
