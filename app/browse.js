@@ -3513,11 +3513,27 @@ function renderBrowse() {
   // Async: load thumbnails for My Collection view
   if (state.filters.owned) {
     pageData.forEach(function(item) {
-      const pd2 = item._personalOnly ? item : findPD(_displayItemNum(item), item.variation);
-      if (!pd2 || !pd2.owned || !pd2.photoItem) return;
+      if (item._setFold) return;                       // folded set header has no thumbnail
+      // v0.9.1123 (Brad's missing thumbnails), cause 1: this pass still used a
+      // strict findPD against the CATALOG row's variation, while the item is
+      // saved with a blank one — so every adopted row (v0.9.1120) resolved to
+      // nothing and silently skipped its picture. Same resolver as the filter,
+      // the sorter and the renderer now.
+      const pd2 = _rrPdForRow(item);
+      if (!pd2 || !pd2.owned) return;
       const thumbEl = document.getElementById('thumb-' + item.itemNum + '-' + (item.variation || ''));
       if (!thumbEl) return;
-      driveGetFolderPhotos(pd2.photoItem).then(function(photos) {
+      // cause 2: photos can be filed in the item's Drive folder while the
+      // sheet's photo-link cell is still blank. The detail page already falls
+      // back to the folder; the list now does too (find-only — never creates).
+      const _linkP = pd2.photoItem
+        ? Promise.resolve(pd2.photoItem)
+        : (typeof driveFindItemFolder === 'function'
+            ? driveFindItemFolder(_displayItemNum(item)).catch(function () { return ''; })
+            : Promise.resolve(''));
+      _linkP.then(function (_link) {
+      if (!_link) return;
+      driveGetFolderPhotos(_link).then(function(photos) {
         if (photos && photos.length > 0) {
           const fileId = photos[0].id;
           const el = document.getElementById('thumb-' + item.itemNum + '-' + (item.variation || ''));
@@ -3532,6 +3548,7 @@ function renderBrowse() {
           const el = document.getElementById('thumb-' + item.itemNum + '-' + (item.variation || ''));
           if (el) el.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;height:100%"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.35"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>';
         }
+      });
       });
     });
   }
@@ -3600,12 +3617,23 @@ function renderBrowse() {
   // Async: check which owned items have photos and reveal their camera icons
   if (state.filters.owned) {
     pageData.forEach(function(item) {
-      const pd2 = item._personalOnly ? item : findPD(_displayItemNum(item), item.variation);
+      if (item._setFold) return;
+      // v0.9.1123: the camera-icon pass had BOTH of the thumbnail bugs — a
+      // strict findPD against the catalog row's variation, and a hard bail on
+      // a blank photo-link cell. Same resolver, same find-only fallback (the
+      // folder id is cached by the thumbnail pass, so this costs nothing new).
+      const pd2 = _rrPdForRow(item);
       if (!pd2 || !pd2.owned) return;
       const camEl = document.getElementById('cam-' + item.itemNum + '-' + (item.variation || ''));
       if (!camEl) return;
-      if (pd2.photoItem) {
-        driveGetFolderPhotos(pd2.photoItem).then(function(photos) {
+      const _camLinkP = pd2.photoItem
+        ? Promise.resolve(pd2.photoItem)
+        : (typeof driveFindItemFolder === 'function'
+            ? driveFindItemFolder(_displayItemNum(item)).catch(function () { return ''; })
+            : Promise.resolve(''));
+      _camLinkP.then(function (_camLink) {
+        if (!_camLink) return;
+        driveGetFolderPhotos(_camLink).then(function(photos) {
           if (photos && photos.length > 0) {
             const c1 = document.getElementById('cam-' + item.itemNum + '-' + (item.variation || ''));
             const c2 = document.getElementById('cam-' + item.itemNum + '-' + (item.variation || '') + '-m');
@@ -3613,7 +3641,7 @@ function renderBrowse() {
             if (c2) c2.style.display = 'inline';
           }
         });
-      }
+      });
     });
   }
 

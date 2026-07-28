@@ -1154,7 +1154,17 @@ async function _thumbFor(pd) {
   var c = _thumbFids(), k = String(pd.inventoryId || pd.itemNum);
   if (c[k]) return c[k];
   if (typeof driveGetFolderPhotos !== 'function') return null;
-  var files = await driveGetFolderPhotos(pd.photoItem).catch(function () { return null; });
+  // v0.9.1123: the same fallback the item detail page has always had — photos
+  // can sit in the item's Drive folder while the sheet's photo-link cell is
+  // still blank, and a blank cell used to mean no thumbnail anywhere (phone
+  // rows, dashboard reel) even though the detail page showed the picture.
+  // Find-only: never creates a folder, so a photoless item costs one lookup.
+  var _link = pd.photoItem;
+  if (!_link && typeof driveFindItemFolder === 'function') {
+    _link = await driveFindItemFolder(pd.itemNum).catch(function () { return ''; });
+  }
+  if (!_link) return null;
+  var files = await driveGetFolderPhotos(_link).catch(function () { return null; });
   var fid = files && files[0] && files[0].id;
   if (fid) { c[k] = fid; try { localStorage.setItem('lv_thumb_fids', JSON.stringify(c)); } catch (e) {} }
   return fid || null;   // failures/empties NOT cached — retried next time

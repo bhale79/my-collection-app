@@ -336,6 +336,32 @@ async function driveEnsureItemFolder(itemNum) {
   return folderId;
 }
 
+// ── v0.9.1123 (Brad: "several pictures are not showing up on thumbnails
+// that are on the detail sheets") ─────────────────────────────────────────
+// Find an item's photo folder WITHOUT creating one. The detail page already
+// falls back to the item's folder when the sheet's photo-link cell is blank —
+// that is exactly why a photo shows there and not in the list. The list needs
+// the same fallback, but it runs over a whole page of rows at once, so it must
+// never use the create-if-missing lookup: that would litter Drive with an
+// empty folder for every photoless item on screen. Returns a folder LINK (the
+// same shape the sheet stores) or '' when no folder exists yet.
+async function driveFindItemFolder(itemNum) {
+  try {
+    const name = String(itemNum || '').trim();
+    if (!name || !accessToken) return '';
+    await driveEnsureSetup();
+    if (driveCache.itemFolders[name]) return driveFolderLink(driveCache.itemFolders[name]);
+    if (!driveCache.photosId) return '';
+    const q = encodeURIComponent("name='" + name.replace(/'/g, "\\'") + "' and mimeType='application/vnd.google-apps.folder' and '" + driveCache.photosId + "' in parents and trashed=false");
+    const res = await driveRequest('GET', '/files?q=' + q + '&fields=files(id)&spaces=drive');
+    const id = res && res.files && res.files[0] && res.files[0].id;
+    if (!id) return '';
+    driveCache.itemFolders[name] = id;
+    return driveFolderLink(id);
+  } catch (e) { console.warn('[Drive] item folder lookup:', itemNum, e && e.message); return ''; }
+}
+if (typeof window !== 'undefined') window.driveFindItemFolder = driveFindItemFolder;
+
 async function driveGetFolderPhotos(folderLink) {
   const match = (folderLink || '').match(/folders\/([a-zA-Z0-9_-]+)/);
   if (!match) return null;

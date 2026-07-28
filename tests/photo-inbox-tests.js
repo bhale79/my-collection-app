@@ -2104,6 +2104,23 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('the notice names the leftover items and asks before removing',
      /Unfinished set entry/.test(bwz) && /ok: 'Remove them', cancel: 'Keep them'/.test(bwz));
 
+  section('101. A photo on the detail page also shows as a thumbnail');
+  const drv = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'drive.js'), 'utf8');
+  const dsh = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'dashboard.js'), 'utf8');
+  const bwt = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'browse.js'), 'utf8');
+  ok('the list thumbnail pass uses the shared resolver, not a strict findPD',
+     !/const pd2 = item\._personalOnly \? item : findPD\(/.test(bwt) && /const pd2 = _rrPdForRow\(item\)/.test(bwt));
+  ok('a blank photo-link cell no longer means no thumbnail',
+     !/if \(!pd2 \|\| !pd2\.owned \|\| !pd2\.photoItem\) return;/.test(bwt) &&
+     /driveFindItemFolder\(_displayItemNum\(item\)\)/.test(bwt));
+  ok('the folder lookup NEVER creates a folder',
+     /async function driveFindItemFolder/.test(drv) &&
+     !/driveFindOrCreateFolder/.test(drv.slice(drv.indexOf('async function driveFindItemFolder'), drv.indexOf('async function driveGetFolderPhotos'))));
+  ok('phone rows and the dashboard reel get the same fallback',
+     /_link = await driveFindItemFolder\(pd\.itemNum\)/.test(dsh));
+  ok('a folded set header asks for no thumbnail',
+     /if \(item\._setFold\) return;                       \/\/ folded set header/.test(bwt));
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
