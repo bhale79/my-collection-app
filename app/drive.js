@@ -383,6 +383,19 @@ function driveEraFolderNameFor(itemNum, eraHint) {
       if (String(own.era) === 'Manual') return '';        // a manual entry has no catalog era
       const l = lab(own.era); if (l) return l;
     }
+    // v0.9.1126 — an AA/ABA pair's photos live in a folder named for the BASE
+    // number (204) while the owned rows carry suffixes (204-P, 204-D). Without
+    // this bridge the bare number finds no owner, falls through to the catalog
+    // and hits the PREWAR 204 — landing a postwar Alco in Lionel Pre-War. Same
+    // "a number is not an identity" trap as Brad's 213.
+    const based = pds.find(function (p) {
+      return p && p.owned && p.era && typeof baseItemNum === 'function'
+        && String(p.itemNum) !== n && baseItemNum(String(p.itemNum)) === n;
+    });
+    if (based) {
+      if (String(based.era) === 'Manual') return '';
+      const l2 = lab(based.era); if (l2) return l2;
+    }
   } catch (e) {}
   // Then the catalog.
   try {
@@ -530,8 +543,49 @@ async function driveMigrateItemFoldersToEras(opts) {
   _driveEraFolderCache = null;                            // rescan next time
   return result;
 }
+// v0.9.1126 — corrective pass. The migration only ever looks at TOP-LEVEL
+// folders, so once something is filed it stays put even if the era rule later
+// improves. This re-checks every item folder ALREADY inside an era folder and
+// moves the ones now known to be in the wrong place. Same safety properties:
+// ids never change, an undeterminable era is left alone, failures don't abort.
+async function driveRefileItemFolders(opts) {
+  opts = opts || {};
+  const dryRun = !!opts.dryRun;
+  await driveEnsureSetup();
+  const eras = await _driveEraFolders(true);
+  const names = Object.keys(eras);
+  const wrong = [];
+  for (let i = 0; i < names.length; i++) {
+    const eraName = names[i], eraId = eras[eraName];
+    let pageToken = '';
+    do {
+      const q = encodeURIComponent("mimeType='application/vnd.google-apps.folder' and '" + eraId + "' in parents and trashed=false");
+      const res = await driveRequest('GET', '/files?q=' + q + '&fields=nextPageToken,files(id,name)&pageSize=200' + (pageToken ? '&pageToken=' + pageToken : ''));
+      (res.files || []).forEach(function (f) {
+        const should = driveEraFolderNameFor(f.name, '');
+        if (should && should !== eraName) wrong.push({ id: f.id, name: f.name, from: eraName, to: should });
+      });
+      pageToken = (res && res.nextPageToken) || '';
+    } while (pageToken);
+  }
+  const result = { checked: names.length, wrong: wrong.length, moved: 0, failed: [], dryRun: dryRun, list: wrong };
+  if (dryRun) return result;
+  for (let j = 0; j < wrong.length; j++) {
+    const w = wrong[j];
+    try {
+      if (!eras[w.to]) { eras[w.to] = await driveFindOrCreateFolder(w.to, driveCache.photosId); _driveEraFolderCache = eras; }
+      await driveRequest('PATCH', '/files/' + w.id + '?addParents=' + eras[w.to] +
+                                  '&removeParents=' + eras[w.from] + '&fields=id');
+      result.moved++;
+    } catch (e) { result.failed.push({ name: w.name, error: (e && e.message) || String(e) }); }
+  }
+  _driveEraFolderCache = null;
+  return result;
+}
+
 if (typeof window !== 'undefined') {
   window.driveMigrateItemFoldersToEras = driveMigrateItemFoldersToEras;
+  window.driveRefileItemFolders = driveRefileItemFolders;
   window.driveEraFolderNameFor = driveEraFolderNameFor;
 }
 

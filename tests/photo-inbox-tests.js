@@ -2165,6 +2165,19 @@ META_WRITES.length = 0; TOASTS.length = 0;
      /let parentId = driveCache\.photosId;/.test(dv) && /if \(eraName\) \{/.test(dv));
   ok('a manual entry has no catalog era and is left alone',
      /if \(String\(own\.era\) === 'Manual'\) return '';/.test(dv));
+  // v0.9.1126: the AA/ABA base-number bridge. Brad's 204/205/210…520 folders
+  // are named for the base while the owned rows are 204-P / 204-D, so without
+  // this the bare number falls to the catalog and hits the PREWAR item.
+  ok('a base-number folder inherits the era of its suffixed owned rows',
+     /baseItemNum\(String\(p\.itemNum\)\) === n/.test(dv) &&
+     /String\(p\.itemNum\) !== n/.test(dv));
+  ok('the exact owned match is still tried first',
+     dv.indexOf("String(p.itemNum) === n && p.era") < dv.indexOf('baseItemNum(String(p.itemNum)) === n'));
+  ok('a corrective pass can re-file folders already inside an era folder',
+     /async function driveRefileItemFolders/.test(dv) &&
+     /if \(should && should !== eraName\) wrong\.push/.test(dv));
+  ok('the corrective pass also moves rather than copies',
+     /'\/files\/' \+ w\.id \+ '\?addParents='/.test(dv) && /removeParents=' \+ eras\[w\.from\]/.test(dv));
   ok('ONE level — the era label, not era+maker+scale',
      /driveEraFolderNameFor/.test(dv) && !/eraName \+ '\/' \+ .*manufacturer/.test(dv));
   // Migration
