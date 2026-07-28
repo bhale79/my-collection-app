@@ -2195,6 +2195,32 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('one failure does not abort the rest',
      /result\.failed\.push\(\{ name: p\.name/.test(dv));
 
+  section('104. A tender\'s photos reach its own row (audit #3, #4, #7, #9)');
+  const ws4 = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'wizard-save.js'), 'utf8');
+  ok('the tender row carries its own photo links',
+     /photoItem: anyTenderLink/.test(ws4) && /photoBox: anyTenderBoxLink/.test(ws4));
+  ok('the links are derived the same way the engine derives its own',
+     /Object\.values\(d\.photosTenderItem \|\| \{\}\)\.find\(v => v\)/.test(ws4));
+  ok('the B unit and the second A unit get theirs too',
+     /Object\.values\(d\.photosUnit2Item \|\| \{\}\)\.find/.test(ws4) &&
+     /Object\.values\(d\.photosUnit3Item \|\| \{\}\)\.find/.test(ws4));
+  ok('companion box rows no longer hardcode a blank photo link',
+     !/_buildGroupBoxRow\(u2Num, d\.unit2BoxCond \|\| '', '',/.test(ws4) &&
+     !/_buildGroupBoxRow\(tNum, d\.tenderBoxCond \|\| '', '',/.test(ws4));
+  // audit #7 — the tender's variation was hardcoded blank
+  ok('the tender takes its matched catalog row\'s variation',
+     /let tVariation = '';/.test(ws4) &&
+     /if \(_tm && String\(_tm\.variation \|\| ''\)\.trim\(\)\) tVariation = String\(_tm\.variation\);/.test(ws4));
+  ok('the old hardcoded blank is gone',
+     !/const tVariation = '';/.test(ws4));
+  // audit #9 — inventory id collision
+  ok('the tender draws a real inventory id from the allocator',
+     /inventoryId: \(typeof nextInventoryId === 'function'\)/.test(ws4) &&
+     !/inventoryId: String\(parseInt\(_engineInvId\) \+ 1\),/.test(ws4));
+  // audit #4 — companion box rows keyed by the wrong column
+  ok('box companions are keyed by inventoryId, not by matchedTo (index 20)',
+     !/BoxRow\[20\]/.test(ws4) && /BoxRow\[PERSONAL_FIELD_INDEX\.inventoryId\]/.test(ws4));
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

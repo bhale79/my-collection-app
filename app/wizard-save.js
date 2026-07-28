@@ -1341,6 +1341,9 @@ async function saveWizardItem() {
       hasBox: d.unit2HasBox || 'No',
       boxCond: d.unit2BoxCond || '',
       notes: setPriceNote((d.notes || '').trim(), itemNum),
+      // v0.9.1127 — the B unit's photos uploaded to Drive and were never linked.
+      photoItem: Object.values(d.photosUnit2Item || {}).find(v => v) || '',
+      photoBox:  Object.values(d.photosUnit2Box  || {}).find(v => v) || '',
       datePurchased: d.datePurchased || '', purchasedFrom: d.purchasedFrom || '',
       matchedTo: itemNum,
       setId: setId,
@@ -1367,6 +1370,9 @@ async function saveWizardItem() {
         hasBox: d.unit3HasBox || 'No',
         boxCond: d.unit3BoxCond || '',
         notes: setPriceNote((d.notes || '').trim(), itemNum),
+        // v0.9.1127 — the second A unit's photos, same gap.
+        photoItem: Object.values(d.photosUnit3Item || {}).find(v => v) || '',
+        photoBox:  Object.values(d.photosUnit3Box  || {}).find(v => v) || '',
         datePurchased: d.datePurchased || '', purchasedFrom: d.purchasedFrom || '',
         matchedTo: u2Num,
         setId: setId,
@@ -1405,7 +1411,25 @@ async function saveWizardItem() {
   isPairedSave = d.tenderMatch && d.tenderMatch !== 'none';
   if (isPairedSave) {
     const tNum = d.tenderMatch.trim();
-    const tVariation = '';
+    // ── v0.9.1127 (audit #3) ────────────────────────────────────────────────
+    // The tender's photos upload to Drive and then went nowhere: saveWizardItem
+    // never read photosTenderItem / photosTenderBox, so the tender's row had a
+    // blank photo link and its pictures were invisible everywhere in the app
+    // while sitting safely in Drive the whole time. Same derivation the engine
+    // uses at line ~1104 — every view returns the same folder link, so the
+    // first non-empty one is the folder.
+    const anyTenderLink    = Object.values(d.photosTenderItem || {}).find(v => v) || '';
+    const anyTenderBoxLink = Object.values(d.photosTenderBox  || {}).find(v => v) || '';
+    // v0.9.1127: the tender's variation was hardcoded blank, so a tender WITH
+    // catalog variations (2046W) always resolved to whichever row loaded first.
+    // Take the matched catalog row's variation when there is one.
+    let tVariation = '';
+    try {
+      const _tm = (typeof findMaster === 'function')
+        ? findMaster(tNum, '', (typeof _wizMasterPrefer === 'function' ? _wizMasterPrefer() : null))
+        : null;
+      if (_tm && String(_tm.variation || '').trim()) tVariation = String(_tm.variation);
+    } catch (eTV) {}
     const tenderNote = (() => {
       const ref = 'Set price on item ' + itemNum;
       const nonOrigFlag = d.tenderIsNonOriginal ? '; non-original tender' : '';
@@ -1421,11 +1445,19 @@ async function saveWizardItem() {
       hasBox: d.tenderHasBox || 'No',
       boxCond: d.tenderBoxCond || '',
       notes: tenderNote,
+      photoItem: anyTenderLink,          // v0.9.1127 — was never written
+      photoBox: anyTenderBoxLink,        // v0.9.1127 — was never written
       datePurchased: d.datePurchased || '', purchasedFrom: d.purchasedFrom || '',
       matchedTo: itemNum,
       isError: d.tenderIsError === 'Yes' ? 'Yes' : '',
       errorDesc: d.tenderIsError === 'Yes' ? (d.tenderErrorDesc || '') : '',
-      inventoryId: String(parseInt(_engineInvId) + 1),
+      // v0.9.1127 (audit #9): was String(parseInt(_engineInvId) + 1), which
+      // bypasses the allocator — so the watermark never learned this id was
+      // used and the NEXT row (typically the box) was handed the same number.
+      // Two rows sharing an inventory id breaks For Sale linkage, Upgrade
+      // cleanup and the per-copy photo subfolder.
+      inventoryId: (typeof nextInventoryId === 'function')
+        ? nextInventoryId() : String(parseInt(_engineInvId) + 1),
       groupId: groupId,
       location: d.location || '',
       era: _resolveSaveEra(),
@@ -1783,56 +1815,56 @@ async function saveWizardItem() {
           await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [u1BoxRow]);
           var _bxNote = 'Box for ' + itemNum;
           if (_bxDesc) _bxNote += ' — ' + _bxDesc;
-          state.personalData[u1BoxRow[20]] = {
+          state.personalData[u1BoxRow[PERSONAL_FIELD_INDEX.inventoryId]] = {
             row: 99999, itemNum: itemNum + '-BOX', variation: _bxVar,
             status: 'Owned', owned: true,
             condition: d.boxCond || row[PERSONAL_FIELD_INDEX.boxCond] || '', hasBox: 'Yes', boxCond: d.boxCond || row[PERSONAL_FIELD_INDEX.boxCond] || '',
             notes: _bxNote, matchedTo: itemNum,
-            inventoryId: u1BoxRow[20], groupId: groupId,
+            inventoryId: u1BoxRow[PERSONAL_FIELD_INDEX.inventoryId], groupId: groupId,
           };
-          _stampSaved(state.personalData[u1BoxRow[20]]);
+          _stampSaved(state.personalData[u1BoxRow[PERSONAL_FIELD_INDEX.inventoryId]]);
         }
         // Unit 2 box (set save)
         if (isSetSave && d.unit2HasBox === 'Yes' && d.unit2ItemNum) {
           const u2Num = (d.unit2ItemNum || '').trim();
-          const u2BoxRow = _buildGroupBoxRow(u2Num, d.unit2BoxCond || '', '', groupId, d.datePurchased, itemNum);
+          const u2BoxRow = _buildGroupBoxRow(u2Num, d.unit2BoxCond || '', Object.values(d.photosUnit2Box || {}).find(v => v) || '', groupId, d.datePurchased, itemNum);
           await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [u2BoxRow]);
-          state.personalData[u2BoxRow[20]] = {
+          state.personalData[u2BoxRow[PERSONAL_FIELD_INDEX.inventoryId]] = {
             row: 99999, itemNum: u2Num + '-BOX', variation: '',
             status: 'Owned', owned: true,
             condition: d.unit2BoxCond || '', hasBox: 'Yes', boxCond: d.unit2BoxCond || '',
             notes: 'Box for ' + u2Num, matchedTo: u2Num,
-            inventoryId: u2BoxRow[20], groupId: groupId,
+            inventoryId: u2BoxRow[PERSONAL_FIELD_INDEX.inventoryId], groupId: groupId,
           };
-          _stampSaved(state.personalData[u2BoxRow[20]]);
+          _stampSaved(state.personalData[u2BoxRow[PERSONAL_FIELD_INDEX.inventoryId]]);
         }
         // Unit 3 box (ABA save)
         if (isSetSave && d.setType === 'ABA' && d.unit3HasBox === 'Yes') {
           const u3Num = _pdSuffix((d.unit3ItemNum || _rawItemNum).trim(), d.unit3Power);
-          const u3BoxRow = _buildGroupBoxRow(u3Num, d.unit3BoxCond || '', '', groupId, d.datePurchased, itemNum);
+          const u3BoxRow = _buildGroupBoxRow(u3Num, d.unit3BoxCond || '', Object.values(d.photosUnit3Box || {}).find(v => v) || '', groupId, d.datePurchased, itemNum);
           await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [u3BoxRow]);
-          state.personalData[u3BoxRow[20]] = {
+          state.personalData[u3BoxRow[PERSONAL_FIELD_INDEX.inventoryId]] = {
             row: 99999, itemNum: u3Num + '-BOX', variation: '',
             status: 'Owned', owned: true,
             condition: d.unit3BoxCond || '', hasBox: 'Yes', boxCond: d.unit3BoxCond || '',
             notes: 'Box for ' + u3Num, matchedTo: u3Num,
-            inventoryId: u3BoxRow[20], groupId: groupId,
+            inventoryId: u3BoxRow[PERSONAL_FIELD_INDEX.inventoryId], groupId: groupId,
           };
-          _stampSaved(state.personalData[u3BoxRow[20]]);
+          _stampSaved(state.personalData[u3BoxRow[PERSONAL_FIELD_INDEX.inventoryId]]);
         }
         // Tender box (paired save)
         if (isPairedSave && d.tenderHasBox === 'Yes') {
           const tNum = d.tenderMatch.trim();
-          const tBoxRow = _buildGroupBoxRow(tNum, d.tenderBoxCond || '', '', groupId, d.datePurchased, itemNum);
+          const tBoxRow = _buildGroupBoxRow(tNum, d.tenderBoxCond || '', Object.values(d.photosTenderBox || {}).find(v => v) || '', groupId, d.datePurchased, itemNum);
           await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [tBoxRow]);
-          state.personalData[tBoxRow[20]] = {
+          state.personalData[tBoxRow[PERSONAL_FIELD_INDEX.inventoryId]] = {
             row: 99999, itemNum: tNum + '-BOX', variation: '',
             status: 'Owned', owned: true,
             condition: d.tenderBoxCond || '', hasBox: 'Yes', boxCond: d.tenderBoxCond || '',
             notes: 'Box for ' + tNum, matchedTo: tNum,
-            inventoryId: tBoxRow[20], groupId: groupId,
+            inventoryId: tBoxRow[PERSONAL_FIELD_INDEX.inventoryId], groupId: groupId,
           };
-          _stampSaved(state.personalData[tBoxRow[20]]);
+          _stampSaved(state.personalData[tBoxRow[PERSONAL_FIELD_INDEX.inventoryId]]);
         }
       } catch(e) { console.warn('Group box row save error:', e); }
     }
