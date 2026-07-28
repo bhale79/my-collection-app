@@ -2221,6 +2221,25 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('box companions are keyed by inventoryId, not by matchedTo (index 20)',
      !/BoxRow\[20\]/.test(ws4) && /BoxRow\[PERSONAL_FIELD_INDEX\.inventoryId\]/.test(ws4));
 
+  section('105. Reconnecting photos that were uploaded but never linked');
+  const dv5 = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'drive.js'), 'utf8');
+  ok('only rows with a BLANK link are touched',
+     /\.filter\(function \(x\) \{ return x\.pd && x\.pd\.owned && x\.pd\.itemNum && !x\.pd\.photoItem; \}\)/.test(dv5));
+  ok('the per-copy subfolder is named for the row\'s inventory id',
+     /name='" \+ String\(pd\.inventoryId\)/.test(dv5));
+  ok('loose photos are only claimed when exactly ONE copy is owned',
+     /if \(\(copies\[pd\.itemNum\] \|\| 1\) === 1\) hit = link;/.test(dv5));
+  ok('with several copies and no per-copy folder it gives up rather than guess',
+     /ambiguous\.push\(\{ item: pd\.itemNum, copies: copies\[pd\.itemNum\]/.test(dv5));
+  ok('a dry run writes nothing',
+     /if \(dryRun\) return result;/.test(dv5.slice(dv5.indexOf('async function driveRepairPhotoLinks'))));
+  ok('it writes the photoItem column by name, never a hardcoded letter',
+     /personalColLetter\('photoItem'\) \+ p\.row/.test(dv5));
+  ok('an unsaved row is skipped instead of writing to row 99999',
+     /if \(!p\.row \|\| p\.row === 99999\)/.test(dv5));
+  ok('one failure does not abort the rest',
+     /result\.failed\.push\(\{ item: p\.item, error:/.test(dv5));
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

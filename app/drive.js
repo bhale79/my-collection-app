@@ -589,6 +589,94 @@ if (typeof window !== 'undefined') {
   window.driveEraFolderNameFor = driveEraFolderNameFor;
 }
 
+// ── v0.9.1128 — reconnect photos that were uploaded but never linked ───────
+// Until v0.9.1127 the tender / B-unit / second-A-unit and their box rows were
+// saved with a blank photo link, so their pictures sat in Drive invisible to
+// the whole app. The pictures are recoverable because every upload files into
+// "<itemNum>/<inventoryId>/" — the inventory id names the copy, so the right
+// photos for the right row can be identified deterministically, not guessed.
+//
+// Rules, deliberately conservative:
+//   · only rows with a BLANK photo link are touched — an existing link is
+//     never second-guessed;
+//   · the per-copy subfolder named for this row's inventory id is the only
+//     evidence used when the user owns more than one copy of a number;
+//   · the item folder's own loose photos are used only when the user owns
+//     EXACTLY ONE copy of that number — otherwise which copy they belong to
+//     is genuinely unknowable and the row is left alone;
+//   · dryRun reports the plan and writes nothing.
+async function driveRepairPhotoLinks(opts) {
+  opts = opts || {};
+  const dryRun = !!opts.dryRun;
+  const onProgress = typeof opts.onProgress === 'function' ? opts.onProgress : function () {};
+  await driveEnsureSetup();
+
+  const pds = Object.entries((window.state || {}).personalData || {})
+    .map(function (e) { return { key: e[0], pd: e[1] }; })
+    .filter(function (x) { return x.pd && x.pd.owned && x.pd.itemNum && !x.pd.photoItem; });
+
+  // how many copies of each number are owned — decides whether loose photos
+  // in the item folder can be attributed to a single row
+  const copies = {};
+  Object.values((window.state || {}).personalData || {}).forEach(function (p) {
+    if (p && p.owned && p.itemNum) copies[p.itemNum] = (copies[p.itemNum] || 0) + 1;
+  });
+
+  const plan = [], noPhotos = [], ambiguous = [];
+  for (let i = 0; i < pds.length; i++) {
+    const pd = pds[i].pd;
+    onProgress(i + 1, pds.length, pd.itemNum);
+    let link = '';
+    try { link = await driveFindItemFolder(pd.itemNum); } catch (e) {}
+    if (!link) { noPhotos.push({ item: pd.itemNum, why: 'no folder' }); continue; }
+    const fid = (link.match(/folders\/([a-zA-Z0-9_-]+)/) || [])[1];
+    if (!fid) { noPhotos.push({ item: pd.itemNum, why: 'bad link' }); continue; }
+    // 1. the per-copy subfolder for THIS row
+    let hit = '';
+    if (pd.inventoryId) {
+      try {
+        const q = encodeURIComponent("name='" + String(pd.inventoryId).replace(/'/g, "\\'") + "' and mimeType='application/vnd.google-apps.folder' and '" + fid + "' in parents and trashed=false");
+        const r = await driveRequest('GET', '/files?q=' + q + '&fields=files(id)');
+        const sub = r && r.files && r.files[0] && r.files[0].id;
+        if (sub) {
+          const ph = await driveGetFolderPhotos(driveFolderLink(sub));
+          if (ph && ph.length) hit = driveFolderLink(sub);
+        }
+      } catch (e) {}
+    }
+    // 2. loose photos in the item folder — only safe with a single owned copy
+    if (!hit) {
+      try {
+        const ph = await driveGetFolderPhotos(link);
+        if (ph && ph.length) {
+          if ((copies[pd.itemNum] || 1) === 1) hit = link;
+          else { ambiguous.push({ item: pd.itemNum, copies: copies[pd.itemNum], photos: ph.length }); continue; }
+        }
+      } catch (e) {}
+    }
+    if (hit) plan.push({ key: pds[i].key, item: pd.itemNum, inv: pd.inventoryId, row: pd.row, link: hit });
+    else noPhotos.push({ item: pd.itemNum, why: 'folder has no photos' });
+  }
+
+  const result = { candidates: pds.length, willLink: plan.length, noPhotos: noPhotos.length,
+                   ambiguous: ambiguous, plan: plan.map(function (p) { return p.item + ' (inv ' + p.inv + ')'; }),
+                   linked: 0, failed: [], dryRun: dryRun };
+  if (dryRun) return result;
+
+  for (const p of plan) {
+    try {
+      if (!p.row || p.row === 99999) { result.failed.push({ item: p.item, error: 'no sheet row yet' }); continue; }
+      await sheetsUpdate(state.personalSheetId,
+        PERSONAL_TAB + '!' + personalColLetter('photoItem') + p.row, [[p.link]]);
+      if (state.personalData[p.key]) state.personalData[p.key].photoItem = p.link;
+      result.linked++;
+    } catch (e) { result.failed.push({ item: p.item, error: (e && e.message) || String(e) }); }
+  }
+  try { if (typeof _cachePersonalData === 'function') _cachePersonalData(); } catch (e) {}
+  return result;
+}
+if (typeof window !== 'undefined') window.driveRepairPhotoLinks = driveRepairPhotoLinks;
+
 async function driveGetFolderPhotos(folderLink) {
   const match = (folderLink || '').match(/folders\/([a-zA-Z0-9_-]+)/);
   if (!match) return null;
