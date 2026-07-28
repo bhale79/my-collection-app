@@ -1975,6 +1975,21 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('the photo map is save-metadata, never a sheet field',
      (wzk.match(/'_setMemberPhotos'/g) || []).length === 1);
 
+  section('96. The whole-set add clears its photo group after the save');
+  const pv6 = require('fs').readFileSync(SRC, 'utf8');
+  ok('the set add writes one pending note per member',
+     /pend0\[n1\] = \{ link: '', fromFid: '', toFid: ''/.test(pv6) &&
+     /never clobber a single-add note/.test(pv6));
+  ok('the notes carry every photo that read that number, first one as RSV',
+     /numFiles\[n0\] = numFiles\[n0\] \|\| \[\]/.test(pv6) && /rsvFid: fl\[0\]\.id, files: fl/.test(pv6));
+  ok('the flush resolves Drive folders at move time, not at click time',
+     /if \(!rec\.fromFid\) rec\.fromFid = await _folder\(\)/.test(pv6) &&
+     /if \(!rec\.toFid\) rec\.toFid = await driveEnsureItemFolder\(num\)/.test(pv6));
+  ok('a folder failure retries next build instead of dropping the note',
+     /will retry:', eF\); continue;/.test(pv6));
+  ok('the flush matches saved members through the number normalizer',
+     /normalizeItemNum\(String\(p\.itemNum\)\) === normalizeItemNum\(num\)/.test(pv6));
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

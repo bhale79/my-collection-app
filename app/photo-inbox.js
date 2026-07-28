@@ -2542,7 +2542,7 @@
   window._pinAddSetFromGroup = function () {
     var g = _rvGroups && _rvGroups[0];
     if (!g) return;
-    var ids0 = _ids(), nums = [], memberPhotos = {};
+    var ids0 = _ids(), nums = [], memberPhotos = {}, numFiles = {};
     _pinFilesToRead(g).forEach(function (f) {
       var s0 = f && ids0[f.id];
       var n0 = (s0 && s0.num) ? String(s0.num).trim() : '';
@@ -2551,11 +2551,32 @@
       // v0.9.1117 (Brad: "its not putting the pictures in their rhs slot") —
       // each member's own inbox photo rides into that item's photo slot.
       if (!memberPhotos[n0]) memberPhotos[n0] = f.id;
+      // v0.9.1118: every photo that read this member's number files with it.
+      (numFiles[n0] = numFiles[n0] || []).push({ id: f.id, name: f.name });
     });
     if (nums.length < 2) { showToast('Fewer than two member numbers are read \u2014 re-read or type them first', 3500, true); return; }
     if (typeof _buildWizardModal !== 'function' || typeof getSteps !== 'function' || typeof renderWizardStep !== 'function') {
       showToast('The add wizard is not available on this page', 3000, true); return;
     }
+    // v0.9.1118 (Brad: "the set was added, but the picture group did not
+    // disappear") — one pending note per member, so the SAME machinery that
+    // clears a single add clears the whole group once the walkthrough saves.
+    // No Drive calls here (the button stays instant): _flushPending resolves
+    // the folders at move time. Cancelling the wizard leaves these notes
+    // unmatched, so the photos stay in the inbox — exactly like a cancelled
+    // single add. Photos whose number never read are left alone on purpose.
+    try {
+      var pend0 = JSON.parse(localStorage.getItem(PENDING_KEY) || '{}');
+      var ts0 = new Date().getTime();
+      nums.forEach(function (n1) {
+        if (pend0[n1]) return;                 // never clobber a single-add note
+        var fl = numFiles[n1] || [];
+        if (!fl.length) return;
+        pend0[n1] = { link: '', fromFid: '', toFid: '', ts: ts0,
+                      rsvFid: fl[0].id, files: fl };
+      });
+      localStorage.setItem(PENDING_KEY, JSON.stringify(pend0));
+    } catch (eP0) {}
     var ov = document.getElementById('pin-review-ov'); if (ov) ov.remove();
     _buildWizardModal();
     // v0.9.1115 (Brad: "it asks me the priority for this item, which is a
@@ -2655,11 +2676,29 @@
     for (var ni = 0; ni < nums.length; ni++) {
       var num = nums[ni];
       if (_flushingNums[num]) continue;
-      var pd = Object.values(state.personalData).find(function (p) { return p && p.owned && String(p.itemNum) === num; });
+      // v0.9.1118: set members save under the MASTER row's item number, which
+      // can differ from the read's formatting (2343P vs 2343-P) — match through
+      // the same normalizer the walkthrough uses, so a note can't be stranded.
+      var pd = Object.values(state.personalData).find(function (p) {
+        if (!p || !p.owned || !p.itemNum) return false;
+        if (String(p.itemNum) === num) return true;
+        return (typeof normalizeItemNum === 'function') &&
+               normalizeItemNum(String(p.itemNum)) === normalizeItemNum(num);
+      });
       if (!pd) continue;   // item not saved yet -> leave its photos in the inbox
       _flushingNums[num] = true;
       try {
         var rec = pend[num];
+        // v0.9.1118: set-add notes are written without Drive folders (keeps
+        // the button instant) — resolve them here, at move time. A failure
+        // just leaves the note for the next dashboard build to retry.
+        if (rec && typeof rec === 'object' && rec.files && rec.files.length && (!rec.fromFid || !rec.toFid)) {
+          try {
+            if (!rec.fromFid) rec.fromFid = await _folder();
+            if (!rec.toFid) rec.toFid = await driveEnsureItemFolder(num);
+            if (!rec.link) rec.link = driveFolderLink(rec.toFid);
+          } catch (eF) { console.warn('[Inbox] pending folder resolve failed — will retry:', eF); continue; }
+        }
         var link = (rec && typeof rec === 'object') ? rec.link : rec;  // back-compat: old entries were a plain link string
         if (rec && typeof rec === 'object' && rec.files && rec.files.length && rec.fromFid && rec.toFid) {
           var mv = 0;
