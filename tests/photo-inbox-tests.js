@@ -2706,11 +2706,37 @@ META_WRITES.length = 0; TOASTS.length = 0;
        !/z-index:99997;background:#0b0d1d/.test(bc4));
     ok('it centres the standard card',
        /align-items:center;justify-content:center/.test(bc4.slice(bc4.indexOf('function _biOverlay'), bc4.indexOf('var _biStream'))));
-    ok('every phase renders inside the card, with the research accent edge',
-       /d\.innerHTML = '<div class="rr-card" style="border-top:3px solid var\(--accent\)">' \+ inner \+ '<\/div>';/.test(bc4));
+    // v0.9.1143: the accent top edge moved from an inline style here into
+    // .rr-card itself — Brad asked for the orange bar on ALL of these.
+    ok('every phase renders inside the standard card',
+       /d\.innerHTML = '<div class="rr-card">' \+ inner \+ '<\/div>';/.test(bc4));
+    ok('the accent top bar is part of the standard now, one place',
+       /\.rr-card \{[\s\S]{0,400}border-top: 3px solid var\(--accent\);/.test(rd4('app.css').replace(/\/\*[\s\S]*?\*\//g, '')));
     const css4 = rd4('app.css').replace(/\/\*[\s\S]*?\*\//g, '');
     ok('#identify-modal dims like the wizard so its card has visible edges',
        /#identify-modal \{[\s\S]{0,300}background: rgba\(0,0,0,0\.7\);/.test(css4));
+  })();
+
+  section('119. The wizard top line says what you are doing (v0.9.1143)');
+  (function () {
+    const P5 = require('path');
+    const rd5 = f => fs.readFileSync(P5.join(__dirname, '..', 'app', f), 'utf8');
+    const wz = rd5('wizard.js');
+    ok('_wizFlowTitle exists and carries all four of Brad\'s phrasings',
+       /Add Item to Your Collection/.test(wz) && /Add Item to Your Want List/.test(wz) &&
+       /Add Item to Your Sale List/.test(wz) && /What Item Did You Sell\?/.test(wz));
+    ok('the step label leads with the flow title on every render',
+       /_wizFlowTitle\(\) \+ ' · Step ' \+ current \+ ' of ' \+ total/.test(wz));
+    // The scope trap this fix nearly shipped: a function declared INSIDE
+    // another function passes node --check but is invisible to its caller.
+    (function () {
+      const idx = wz.indexOf('function _wizFlowTitle');
+      let d = 0;
+      for (const ch of wz.slice(0, idx)) { if (ch === '{') d++; else if (ch === '}') d--; }
+      ok('_wizFlowTitle is declared at TOP LEVEL, in scope of its caller', d === 0, 'depth=' + d);
+    })();
+    ok('the research chooser asks the question in Brad\'s words',
+       /What Item Do You Want to Research\?/.test(rd5('barcode.js')));
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

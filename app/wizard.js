@@ -1456,6 +1456,24 @@ function findGroupingCandidates(d) {
 // renders until the user has picked / typed an item number (or, for the
 // Set flow, a set number). Colour + label adapt to box-only and to the
 // want/for-sale/sold tabs so the user always sees the correct context.
+// v0.9.1143 — the flow title shown as the wizard's top line. Brad's phrasings:
+// "Add item to your collection." "Add item to your want list" "What item did
+// you sale?" (sell). One place, keyed on wizard.tab, so every step of every
+// flow reminds the user which list they are feeding.
+function _wizFlowTitle() {
+  switch (wizard && wizard.tab) {
+    case 'collection': return 'Add Item to Your Collection';
+    case 'want':       return 'Add Item to Your Want List';
+    case 'forsale':    return 'Add Item to Your Sale List';
+    case 'sold':       return 'What Item Did You Sell?';
+    case 'catalogs':   return 'Add a Catalog';
+    case 'paper':      return 'Add a Paper Item';
+    case 'mockups':    return 'Add a Mock-Up';
+    case 'other':      return 'Add an Item';
+    default:           return 'Add an Item';
+  }
+}
+
 function _renderAddingBanner() {
   var el = document.getElementById('wizard-adding-banner');
   if (!el) return;
@@ -1656,7 +1674,12 @@ function renderWizardStep() {
     else                             { nextBtn.style.background=''; nextBtn.style.borderColor=''; nextBtn.style.color=''; }
   }
 
-  document.getElementById('wizard-step-label').textContent = `Step ${current} of ${total}`;
+  // v0.9.1143 (Brad): "the top line should remind the user what they are
+  // doing. So we need a title." The big title says WHERE you are (Item
+  // Number, Condition…); this top line now says WHAT you're doing, in his
+  // words — and unlike the step name it stays put through all six steps.
+  document.getElementById('wizard-step-label').textContent =
+    _wizFlowTitle() + ' · Step ' + current + ' of ' + total;
   _renderAddingBanner();
   const _titleText = typeof s.title === 'function' ? s.title(wizard.data) : s.title;
   const _titleEl = document.getElementById('wizard-title');

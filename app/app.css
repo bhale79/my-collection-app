@@ -42,6 +42,12 @@
   .rr-card {
     background: var(--bg);
     border: 1px solid var(--border-hi);
+    /* v0.9.1143 (Brad): "add this orange bar at the top for these as well" —
+       the accent top edge from the research card, now on every card in the
+       standard. Cards that override border-color for a flow identity get the
+       bar in THEIR accent (same rule as the wizard's progress bar, which is
+       blue on Want and green on Sold). */
+    border-top: 3px solid var(--accent);
     border-radius: 16px;
     width: 100%;
     max-width: 520px;

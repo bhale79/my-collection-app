@@ -2104,7 +2104,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       d.style.cssText = 'position:fixed;inset:0;z-index:99997;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;overflow-y:auto;padding:1rem;box-sizing:border-box';
       document.body.appendChild(d);
     }
-    d.innerHTML = '<div class="rr-card" style="border-top:3px solid var(--accent)">' + inner + '</div>';
+    d.innerHTML = '<div class="rr-card">' + inner + '</div>';
     return d;
   }
   var _biStream = null, _biOnCancel = null, _biLastShot = null;
@@ -2132,7 +2132,9 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       }
       var d = _biOverlay(
         '<div style="width:100%;max-width:560px">'
-        + '<div style="color:var(--text,#fff);font-family:var(--font-head,sans-serif);font-size:1.02rem;margin:0.2rem 0 0.45rem">📷 Identify from Photo</div>'
+        // v0.9.1143 (Brad): titles say what the user is DOING, in his words —
+        // same convention as the wizard's new flow titles.
+        + '<div class="rr-card-title">📷 What Item Do You Want to Research?</div>'
         // v0.9.704 (Brad): desktops get NO camera UI — upload only. The webcam
         // was never useful for photographing boxes on a shelf, and phantom-touch
         // PCs were showing the whole mobile capture rig.
