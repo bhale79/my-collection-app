@@ -2058,13 +2058,8 @@ function renderWizardStep() {
       + '<span style="font-size:0.82rem;color:' + (_seBoxChecked ? 'var(--accent2)' : 'var(--text-mid)') + '">📦</span></label>';
     threeRow.appendChild(worthCol);
     threeRow.appendChild(boxCol);
-    // QE Photo button
-    const photoCol = document.createElement('div');
-    photoCol.style.cssText = 'flex:1;display:flex;flex-direction:column;gap:3px';
-    photoCol.innerHTML = '<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim)">&nbsp;</div>'
-      + '<button type="button" id="se-photo-btn" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.45rem 0.5rem;color:var(--text-mid);font-family:var(--font-body);font-size:0.78rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.3rem">'
-      + '<span>📷</span> QE Photo</button>';
-    threeRow.appendChild(photoCol);
+    // v0.9.1116 (Brad: "quick entry was deleted months ago. how is this
+    // still a thing") — the QE Photo button left with the rest of Quick Entry.
     wrap.appendChild(threeRow);
 
     // Session 115: side-by-side [Full Entry] [Save Quick Entry] row —
@@ -2073,27 +2068,16 @@ function renderWizardStep() {
     // screens. Now both options are visible without scrolling, and a
     // small helper line above the buttons tells the user what
     // Quick Entry does differently.
-    const qeHelp = document.createElement('div');
-    qeHelp.style.cssText = 'font-size:0.7rem;color:var(--text-dim);line-height:1.45;text-align:center;padding:0 0.5rem;margin-top:0.1rem';
-    qeHelp.innerHTML = 'Quick Entry: one condition, one price, shared Group ID. Full Entry: walk each item one-by-one.';
-    wrap.appendChild(qeHelp);
-
+    // v0.9.1116: Quick Entry is gone from sets too — one path, walked
+    // properly. The condition, worth and set-box above still prefill the walk.
     const btnRow = document.createElement('div');
     btnRow.style.cssText = 'display:flex;gap:0.5rem;align-items:stretch;margin-top:0.25rem';
-    // Full Entry on the left — primary (orange)
     const fullBtn = document.createElement('button');
     fullBtn.type = 'button';
     fullBtn.id = 'se-full-btn';
-    fullBtn.style.cssText = 'flex:1;padding:0.7rem 0.5rem;border-radius:10px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.86rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.4rem';
-    fullBtn.innerHTML = '\u{1F4CB} Full Entry \u2192';
+    fullBtn.style.cssText = 'flex:1;padding:0.75rem 0.5rem;border-radius:10px;border:none;background:var(--accent);color:white;font-family:var(--font-body);font-size:0.9rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.4rem';
+    fullBtn.innerHTML = '\u{1F4CB} Add each item \u2192';
     btnRow.appendChild(fullBtn);
-    // Save Quick Entry on the right — secondary (outlined)
-    const qeSaveBtn = document.createElement('button');
-    qeSaveBtn.type = 'button';
-    qeSaveBtn.id = 'se-qe-save';
-    qeSaveBtn.style.cssText = 'flex:1;padding:0.7rem 0.5rem;border-radius:10px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.86rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.4rem';
-    qeSaveBtn.innerHTML = '\u26a1 Save Quick Entry';
-    btnRow.appendChild(qeSaveBtn);
     wrap.appendChild(btnRow);
 
     body.appendChild(wrap);
@@ -2116,67 +2100,10 @@ function renderWizardStep() {
         if (lbl) lbl.style.borderColor = boxCB.checked ? 'var(--accent2)' : 'var(--border)';
       };
 
-      // QE Photo button — opens the full photo page
-      const photoBtn = document.getElementById('se-photo-btn');
-      if (photoBtn) photoBtn.onclick = () => {
-        const condSlider = document.getElementById('se-cond-slider');
-        const worthInp = document.getElementById('se-worth');
-        wizard.data._setCondition = condSlider ? parseInt(condSlider.value) : 7;
-        wizard.data._setWorth = worthInp ? worthInp.value : '';
-        // Lock in set box choice
-        const pBoxCB = document.getElementById('se-setbox');
-        wizard.data._setHasBoxChecked = pBoxCB ? pBoxCB.checked : false;
-        wizard.data.set_hasBox = (pBoxCB && pBoxCB.checked) ? 'Yes' : 'No';
-        // Flag to show the photos step
-        wizard.data._setWantPhotos = true;
-        wizard.data._setPhotoThenSave = true;
-        // Advance to set_photos step
-        wizard.step++;
-        while (wizard.step < wizard.steps.length - 1 && wizard.steps[wizard.step].skipIf && wizard.steps[wizard.step].skipIf(wizard.data)) {
-          wizard.step++;
-        }
-        renderWizardStep();
-      };
-
-      // Quick Entry save
-      const saveBtn = document.getElementById('se-qe-save');
-      if (saveBtn) saveBtn.onclick = async () => {
-        const worthInp = document.getElementById('se-worth');
-        const condSlider = document.getElementById('se-cond-slider');
-        const cond = condSlider ? parseInt(condSlider.value) : 7;
-        const worth = worthInp ? worthInp.value : '';
-
-        // Require Est. Worth
-        if (!worth || parseFloat(worth) <= 0) {
-          if (worthInp) { worthInp.style.outline = '2px solid var(--accent)'; worthInp.focus(); }
-          showToast('Please enter an Est. Worth before saving', 3000);
-          return;
-        }
-        if (worthInp) worthInp.style.outline = '';
-
-        // Lock in set box choice from checkbox
-        const qeBoxCB = document.getElementById('se-setbox');
-        wizard.data.set_hasBox = (qeBoxCB && qeBoxCB.checked) ? 'Yes' : 'No';
-
-        saveBtn.disabled = true;
-        saveBtn.textContent = 'Saving\u2026';
-        // Disable Full Entry button to prevent both paths
-        const _seFullBtn = document.getElementById('se-full-btn');
-        if (_seFullBtn) { _seFullBtn.disabled = true; _seFullBtn.style.opacity = '0.5'; }
-        try {
-          await _quickEntrySaveSet(cond, worth, {});
-        } catch(e) {
-          saveBtn.disabled = false;
-          saveBtn.innerHTML = '\u26a1 Save Quick Entry';
-          if (_seFullBtn) { _seFullBtn.disabled = false; _seFullBtn.style.opacity = '1'; }
-          showToast('\u274c Save failed: ' + e.message, 5000);
-        }
-      };
-
+      // (QE Photo and Quick Entry handlers removed in v0.9.1116 — the set
+      // flow has one path now.)
       // Full Entry
       if (fullBtn) fullBtn.onclick = () => {
-        // Guard: block if QE save already in progress
-        if (saveBtn && saveBtn.disabled) return;
         const condSlider = document.getElementById('se-cond-slider');
         const worthInp = document.getElementById('se-worth');
         const worth = worthInp ? worthInp.value : '';

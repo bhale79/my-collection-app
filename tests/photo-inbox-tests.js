@@ -1948,6 +1948,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('a group without enough reads says so instead of guessing',
      /Fewer than two member numbers are read/.test(sw));
 
+  section('94. Quick Entry is gone from the set flow too');
+  const wz = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'wizard.js'), 'utf8');
+  ok('no Save Quick Entry button in the set flow', !/se-qe-save/.test(wz));
+  ok('no QE Photo button either', !/se-photo-btn/.test(wz));
+  ok('one path remains and it walks each item', /Add each item/.test(wz));
+  const wzs = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'wizard-steps.js'), 'utf8');
+  ok('the step title no longer asks HOW', !/How would you like to add ' \+ label/.test(wzs));
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

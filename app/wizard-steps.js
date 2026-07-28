@@ -103,7 +103,7 @@ function getSteps(tab) {
           title: d => {
             const s = d._resolvedSet;
             const label = s ? 'Set ' + s.setNum : 'your set';
-            return 'How would you like to add ' + label + '?';
+            return 'Set details \u2014 ' + label;
           },
           type: 'setEntryMode' },
 
