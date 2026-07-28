@@ -2765,6 +2765,30 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /\.rr-card \{[\s\S]{0,400}border-top: 3px solid var\(--accent\);/.test(css6));
   })();
 
+  section('121. Collection pickers match the upgrade list style (v0.9.1147)');
+  (function () {
+    const wp7 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'wizard-pickers.js'), 'utf8');
+    const ap7 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app-pages.js'), 'utf8');
+    ok('all three row titles are accent orange at the upgrade size',
+       (wp7.match(/font-family:var\(--font-mono\);font-size:0\.92rem;color:var\(--accent\);font-weight:600/g) || []).length === 3);
+    ok('none are gold any more',
+       !/color:var\(--accent2\);font-weight:600/.test(wp7));
+    // The row shell — surface2 card, 8px radius, bordered, spaced — must be
+    // the upgrade picker's shell, in all three renderers.
+    const shell = /display:flex;align-items:center;gap:0\.6rem;padding:0\.65rem 0\.85rem;border-radius:8px;background:var\(--surface2\);border:1px solid var\(--border\)/g;
+    ok('all three renderers use the upgrade card shell', (wp7.match(shell) || []).length === 3);
+    // Fresh non-global regex here: reusing the /g one above would carry its
+    // lastIndex into .test() and miss — a classic /g footgun.
+    ok('which really is the upgrade picker\'s shell',
+       /display:flex;align-items:center;gap:0\.6rem;padding:0\.65rem 0\.85rem;border-radius:8px;background:var\(--surface2\);border:1px solid var\(--border\)/
+         .test(ap7.slice(ap7.indexOf('window._upgPickApply'))));
+    ok('no picker row is a flat border-bottom row any more',
+       !/padding:0\.5+\drem 0\.7+\drem;cursor:pointer;border-bottom/.test(wp7));
+    ok('condition renders as the right-side pip, same as the upgrade list',
+       /function _wpCondPip/.test(wp7) && (wp7.match(/\+ _wpCondPip\(pd\)/g) || []).length === 2 &&
+       /condition-pip ' \+ k \+ '/.test(wp7));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

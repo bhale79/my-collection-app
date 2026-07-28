@@ -129,6 +129,16 @@ function wizardPickSoldItem(key) {
 // steps" — grouped rows (AA/AB/ABA, engine+tender, item+box) collapse to ONE
 // row led by the powered unit, with a config chip. Same fold rules as the
 // collection table / group detail sheet.
+// v0.9.1147 (Brad: "just match the style of the upgrade list") — the condition
+// pip + number, right-aligned, exactly as the upgrade picker rows render it.
+function _wpCondPip(pd) {
+  var c = pd && pd.condition ? parseInt(pd.condition) : null;
+  if (c === null || isNaN(c)) return '';
+  var k = c >= 9 ? 'cond-9' : c >= 7 ? 'cond-7' : c >= 5 ? 'cond-5' : 'cond-low';
+  return '<span style="font-size:0.78rem;display:flex;align-items:center;gap:0.3rem;flex-shrink:0">'
+       + '<span class="condition-pip ' + k + '"></span>' + c + '</span>';
+}
+
 function _wpFoldGroups(entries) {
   var byGid = {}, out = [];
   entries.forEach(function (e) {
@@ -269,15 +279,15 @@ function _filterCollPicker(q) {
         var pdKey = entry[0], pd = entry[1];
         var fs = state.forSaleData[pdKey] || {};
         var master = (String(pd.era || '') === 'Manual') ? {} : (findMaster(pd.itemNum, (pd.variation || ''), pd) || {});
-        return '<div onclick="_selectCollItem(\'' + pdKey.replace(/'/g, "\\'") + '\')" style="display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.75rem;cursor:pointer;border-bottom:1px solid var(--border)">'
+        return '<div onclick="_selectCollItem(\'' + pdKey.replace(/'/g, "\\'") + '\')" style="display:flex;align-items:center;gap:0.6rem;padding:0.65rem 0.85rem;border-radius:8px;background:var(--surface2);border:1px solid var(--border);cursor:pointer;margin-bottom:0.35rem;">'
           + '<div style="flex:1;min-width:0">'
           + '<div style="display:flex;align-items:center;gap:0.4rem">'
-          + '<span style="font-family:var(--font-mono);font-size:0.88rem;color:var(--accent2);font-weight:600">' + pd.itemNum + '</span>'
+          + '<span style="font-family:var(--font-mono);font-size:0.92rem;color:var(--accent);font-weight:600">' + pd.itemNum + '</span>'
           + (pd.variation ? '<span style="font-size:0.68rem;color:var(--text-dim)">V' + pd.variation + '</span>' : '')
           + _wpGroupChip(pd, entry._mates)
           + (fs.askingPrice ? '<span style="font-size:0.68rem;color:#e67e22;font-weight:700;margin-left:auto">ASKING $' + parseFloat(fs.askingPrice).toLocaleString() + '</span>' : '')
           + '</div>'
-          + '<div style="font-size:0.72rem;color:var(--text-mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'
+          + '<div style="font-size:0.78rem;color:var(--text-mid);margin-top:0.15rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'
           + (pd.roadName || master.roadName || master.itemType || pd.description || pd.itemType || '')
           + (fs.dateListed ? ' \u00b7 listed ' + fs.dateListed : '')
           + '</div></div></div>';
@@ -303,23 +313,22 @@ function _filterCollPicker(q) {
     // itemNum|variation lookup always missed, so LISTED never showed.
     var alreadyListed = wizard.tab === 'forsale' ? !!(pd.inventoryId && state.forSaleData[pd.inventoryId]) : false;
     html += '<div onclick="_selectCollItem(\'' + pdKey.replace(/'/g,"\\'") + '\')" style="'
-      + 'display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.75rem;cursor:pointer;'
-      + 'border-bottom:1px solid var(--border);transition:background 0.1s;'
-      + (alreadyListed ? 'background:rgba(230,126,34,0.05);' : '')
-      + '" onmouseenter="this.style.background=\'rgba(232,64,28,0.06)\'" onmouseleave="this.style.background=\'' + (alreadyListed ? 'rgba(230,126,34,0.05)' : '') + '\'">'
+      + 'display:flex;align-items:center;gap:0.6rem;padding:0.65rem 0.85rem;border-radius:8px;background:var(--surface2);border:1px solid var(--border);cursor:pointer;margin-bottom:0.35rem;'
+      + 'transition:background 0.1s;'
+      + '" onmouseenter="this.style.background=\'var(--surface3)\'" onmouseleave="this.style.background=\'var(--surface2)\'">'
       + '<div style="flex:1;min-width:0">'
       + '<div style="display:flex;align-items:center;gap:0.4rem">'
-      + '<span style="font-family:var(--font-mono);font-size:0.88rem;color:var(--accent2);font-weight:600">' + pd.itemNum + '</span>'
+      + '<span style="font-family:var(--font-mono);font-size:0.92rem;color:var(--accent);font-weight:600">' + pd.itemNum + '</span>'
       + (pd.variation ? '<span style="font-size:0.68rem;color:var(--text-dim)">V' + pd.variation + '</span>' : '')
       + _wpGroupChip(pd, entry._mates)
       + (alreadyListed ? '<span style="font-size:0.6rem;color:#e67e22;font-weight:600;margin-left:auto">LISTED</span>' : '')
       + '</div>'
-      + '<div style="font-size:0.72rem;color:var(--text-mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'
+      + '<div style="font-size:0.78rem;color:var(--text-mid);margin-top:0.15rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'
       + (master.roadName || master.itemType || pd.description || pd.itemType || '')
-      + (pd.condition ? ' · C:' + pd.condition : '')
       + (pd.priceItem ? ' · $' + parseFloat(pd.priceItem).toLocaleString() : '')
       + '</div>'
       + '</div>'
+      + _wpCondPip(pd)
       + '</div>';
   });
   el.innerHTML = html;
@@ -424,12 +433,12 @@ function _renderFullPickList(q) {
       : _wpCopyHasSale(pd);
 
     html += '<div onclick="_selectCollItem(\'' + pdKey.replace(/'/g,"\\'") + '\')" style="'
-      + 'display:flex;align-items:center;gap:0.7rem;padding:0.7rem 1.25rem;cursor:pointer;'
-      + 'border-bottom:1px solid var(--border);transition:background 0.1s;'
-      + '" onmouseenter="this.style.background=\'var(--surface2)\'" onmouseleave="this.style.background=\'\'">'
+      + 'display:flex;align-items:center;gap:0.6rem;padding:0.65rem 0.85rem;border-radius:8px;background:var(--surface2);border:1px solid var(--border);cursor:pointer;margin-bottom:0.35rem;'
+      + 'transition:background 0.1s;'
+      + '" onmouseenter="this.style.background=\'var(--surface3)\'" onmouseleave="this.style.background=\'var(--surface2)\'">'
       + '<div style="flex:1;min-width:0">'
       + '<div style="display:flex;align-items:center;gap:0.4rem">'
-      + '<span style="font-family:var(--font-mono);font-size:0.92rem;color:var(--accent2);font-weight:600">' + pd.itemNum + '</span>'
+      + '<span style="font-family:var(--font-mono);font-size:0.92rem;color:var(--accent);font-weight:600">' + pd.itemNum + '</span>'
       + (pd.variation ? '<span style="font-size:0.7rem;color:var(--text-dim)">Var ' + pd.variation + '</span>' : '')
       + _wpGroupChip(pd, entry._mates)
       + '</div>'
@@ -437,9 +446,10 @@ function _renderFullPickList(q) {
       + (master.roadName || master.itemType || pd.description || pd.itemType || '')
       + '</div>'
       + '<div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.1rem">'
-      + [pd.condition ? 'Cond: ' + pd.condition + '/10' : '', pd.priceItem ? 'Paid: $' + parseFloat(pd.priceItem).toLocaleString() : '', pd.userEstWorth ? 'Worth: $' + parseFloat(pd.userEstWorth).toLocaleString() : ''].filter(Boolean).join(' · ')
+      + [pd.priceItem ? 'Paid: $' + parseFloat(pd.priceItem).toLocaleString() : '', pd.userEstWorth ? 'Worth: $' + parseFloat(pd.userEstWorth).toLocaleString() : ''].filter(Boolean).join(' · ')
       + '</div>'
       + '</div>'
+      + _wpCondPip(pd)
       + (alreadyListed ? '<span style="font-size:0.65rem;color:' + accentColor + ';font-weight:600;flex-shrink:0">' + (wizard.tab === 'forsale' ? 'LISTED' : 'SOLD') + '</span>' : '')
       + '</div>';
   });
