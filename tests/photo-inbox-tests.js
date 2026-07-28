@@ -2026,6 +2026,18 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('set members now save the matched row\'s variation',
      /wizard\.data\.variation = String\(wizard\.matchedItem\.variation\)/.test(wsv8));
 
+  section('99. Whole sets fold to one expandable row in My Collection');
+  ok('only SET-… groups fold — pairs and GRP-… groups are untouched',
+     /\^SET-\/i\.test\(String\(_fp\.groupId\)\)/.test(brw));
+  ok('folding is display-only and skips search and column-sort views',
+     /state\.filters\.owned && !\(state\.filters\.search \|\| ''\)\.trim\(\) && !\(state\._collSort && state\._collSort\.col\)/.test(brw));
+  ok('an expanded set renders its members beneath the set row',
+     /if \(_openFolds\[_gid\]\) _foldedFD\.push\(it\);/.test(brw));
+  ok('the set row shows number, name, piece count and worth',
+     /piece\$\{item\.members\.length !== 1 \? 's' : ''\}/.test(brw) && /_fs\.setName, _fs\.year/.test(brw));
+  ok('tapping the row toggles the fold',
+     /window\._rrToggleSetFold = function \(gid\)/.test(brw) && /_rrToggleSetFold\('\$\{String\(item\.groupId\)/.test(brw));
+
   section('96. The whole-set add clears its photo group after the save');
   const pv6 = require('fs').readFileSync(SRC, 'utf8');
   ok('the set add writes one pending note per member',

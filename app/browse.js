@@ -719,6 +719,13 @@ function _ownedCompanions(pd) {
 }
 if (typeof window !== 'undefined') window._ownedCompanions = _ownedCompanions;
 
+// v0.9.1121: expand/collapse a folded SET row in My Collection.
+window._rrToggleSetFold = function (gid) {
+  window._rrOpenSetFolds = window._rrOpenSetFolds || {};
+  window._rrOpenSetFolds[gid] = !window._rrOpenSetFolds[gid];
+  try { renderBrowse(); } catch (e) { console.warn('[setFold]', e); }
+};
+
 // ── For Sale grouped-item helpers (Session 154) ─────────────────────────────
 // The For Sale tab has no Group ID column, so resolve a row's group through its
 // Inventory ID against the collection / instruction-sheet records (which DO
@@ -2823,6 +2830,33 @@ function renderBrowse() {
     });
     state.filteredData = _expandedFD;
   }
+  // v0.9.1121 (Brad: "I thought we kept grouped items on 1 row") — whole
+  // SETS fold into one expandable row in My Collection. Only SET-… groups
+  // fold: engine+tender pairs are already one sheet row, and GRP-… groups
+  // keep their existing companion handling. Display-only — the sheet keeps
+  // one row per piece. Folding skips search and column-sort views so
+  // members stay findable and sortable.
+  if (state.filters.owned && !(state.filters.search || '').trim() && !(state._collSort && state._collSort.col)) {
+    var _openFolds = window._rrOpenSetFolds = window._rrOpenSetFolds || {};
+    var _foldedFD = [], _foldByGid = {};
+    state.filteredData.forEach(function (it) {
+      var _fp = it._setFold ? null : _rrPdForRow(it);
+      var _gid = (_fp && _fp.groupId && /^SET-/i.test(String(_fp.groupId))) ? String(_fp.groupId) : '';
+      if (!_gid) { _foldedFD.push(it); return; }
+      var _f = _foldByGid[_gid];
+      if (!_f) {
+        var _ms = null;
+        try { _ms = Object.values(state.mySetsData || {}).find(function (s) { return s && s.groupId === _gid; }) || null; } catch (eMs) {}
+        _f = { _setFold: true, groupId: _gid, set: _ms, members: [],
+               itemNum: (_ms && _ms.setNum) || (_gid.split('-')[1] || ''), variation: '' };
+        _foldByGid[_gid] = _f;
+        _foldedFD.push(_f);
+      }
+      _f.members.push(it);
+      if (_openFolds[_gid]) _foldedFD.push(it);   // expanded: members render beneath the set row
+    });
+    state.filteredData = _foldedFD;
+  }
   const total = state.filteredData.length;
   const pages = Math.ceil(total / state.pageSize);
   const start = (state.currentPage - 1) * state.pageSize;
@@ -3122,6 +3156,22 @@ function renderBrowse() {
 
   var _collThumbJobs = [];   // v0.9.1025: phone row thumbnails
   const rowsHtml = pageData.map((item, i) => {
+    // v0.9.1121: a folded SET renders as one row — set number, name, piece
+    // count, worth — and clicking it expands/collapses the members beneath.
+    if (item._setFold) {
+      const _fs = item.set || {};
+      const _fOpen = !!(window._rrOpenSetFolds && window._rrOpenSetFolds[item.groupId]);
+      const _fW = parseFloat(_fs.estWorth);
+      const _fWTxt = (_fs.estWorth && !isNaN(_fW)) ? _currencySymbol() + _fW.toLocaleString() : '';
+      const _fName = [_fs.setName, _fs.year].filter(Boolean).join(' · ');
+      return `<tr onclick="_rrToggleSetFold('${String(item.groupId).replace(/[^A-Za-z0-9_-]/g, '')}')" style="cursor:pointer;background:rgba(168,85,247,0.07)">`
+        + `<td colspan="12" style="padding:0.65rem 0.9rem;border-left:3px solid #a855f7">`
+        + `<span style="font-size:0.95rem">${_fOpen ? '▾' : '▸'}</span> \u{1F682} `
+        + `<strong style="color:#a855f7">${item.itemNum || 'Set'}</strong>`
+        + (_fName ? ` <span style="color:var(--text-mid)">— ${_fName}</span>` : '')
+        + ` <span style="color:var(--text-dim);font-size:0.82rem">· ${item.members.length} piece${item.members.length !== 1 ? 's' : ''}${_fWTxt ? ' · ' + _fWTxt : ''} · ${_fOpen ? 'tap to fold' : 'tap to see the pieces'}</span>`
+        + `</td></tr>`;
+    }
     const _pd0 = _rrPdForRow(item);   // v0.9.1120: same resolver as the filter — adoption-aware
     const pd = (_pd0 && !item._personalOnly && String(_pd0.era || '') === 'Manual') ? null : _pd0;   // v0.9.718
     const isOwned = item._personalOnly ? true : (pd?.owned || false);
