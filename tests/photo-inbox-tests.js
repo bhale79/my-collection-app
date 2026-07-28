@@ -2746,6 +2746,20 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /What Item Do You Want to Research\?/.test(rd5('barcode.js')));
   })();
 
+  section('120. The accent top bar matches everywhere (v0.9.1145)');
+  (function () {
+    const css6 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app.css'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '');
+    ok('the wizard shell wears the same 3px top bar as .rr-card',
+       /#wizard-modal \.modal \{ border-top: 3px solid var\(--accent\); \}/.test(css6));
+    ok('in each flow\'s accent — orange, blue, green — like its progress bar',
+       /wiz-collection \{[\s\S]{0,200}border-top: 3px solid var\(--accent\);/.test(css6) &&
+       /wiz-want \{[\s\S]{0,200}border-top: 3px solid #2980b9;/.test(css6) &&
+       /wiz-sold \{[\s\S]{0,200}border-top: 3px solid #2ecc71;/.test(css6));
+    ok('and .rr-card still carries its bar, so the two families agree',
+       /\.rr-card \{[\s\S]{0,400}border-top: 3px solid var\(--accent\);/.test(css6));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
