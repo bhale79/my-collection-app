@@ -1321,6 +1321,9 @@
     return /\b(promo|promotional|paper|boxes|catalog|catalogs|display|displays|instruction|instructions)\b/i
       .test(String(row.itemType || '') + ' ' + String(row._tab || ''));
   }
+  // v0.9.1120: browse.js consults the same rule when deciding which catalog
+  // row an owned item lights up — one definition, shared everywhere.
+  window.rrDemotedRow = _pinDemotedRow;
 
   function _pinBestMaster(num, aiMfr, prefer) {
     var bucket = null;

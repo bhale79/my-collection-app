@@ -353,6 +353,13 @@ function launchSetItemWizard() {
   } catch (eYr) {}
   if (wizard.matchedItem) {
     wizard.data.itemNum = wizard.matchedItem.itemNum; // use canonical form
+    // v0.9.1120 (Brad's 1562W): record the matched row's variation too — a
+    // blank variation is how set members ended up lighting the wrong catalog
+    // rows (2444's box row, MPC 1053 sets) in My Collection. This also makes
+    // the year-aware 2442 pick (silver vs brown) actually land in the sheet.
+    if (!wizard.data.variation && String(wizard.matchedItem.variation == null ? '' : wizard.matchedItem.variation).trim() !== '') {
+      wizard.data.variation = String(wizard.matchedItem.variation);
+    }
   }
   // v0.9.1117 — this member's own inbox photo lands in its photo slot, the
   // same _addPhotoDriveId lane a single-item add from the inbox uses.

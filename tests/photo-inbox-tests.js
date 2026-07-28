@@ -2002,6 +2002,30 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('word boundaries keep Boxcar and friends out of the demotion',
      /\\b\(promo\|promotional\|paper\|boxes\|catalog\|catalogs\|display\|displays\|instruction\|instructions\)\\b/.test(dm1));
 
+  section('98. Blank-variation items light exactly one catalog row (Brad\'s 1562W)');
+  // Members saved without a variation were lighting the BOX/paper rows for
+  // 2444/2445/2446 and BOTH MPC-era 1053 sets instead of the postwar
+  // transformer — number+blank-variation lookalikes across tabs and eras.
+  const brw = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'browse.js'), 'utf8');
+  const pin8 = require('fs').readFileSync(SRC, 'utf8');
+  ok('the demotion rule is shared, not duplicated',
+     /window\.rrDemotedRow = _pinDemotedRow/.test(pin8) && /window\.rrDemotedRow === 'function'/.test(brw));
+  ok('adoption scores the saved era first',
+     /_pEra && r\._era === _pEra\) s \+= 4/.test(brw));
+  ok('row kind must agree with the item\'s own kind',
+     /_dem === _pPaper\) s \+= 2/.test(brw));
+  ok('one resolver serves the filter, the sorter and the renderer',
+     (brw.match(/_rrPdForRow\(/g) || []).length >= 5 && /function _rrPdForRow\(item\)/.test(brw));
+  ok('an adopted row lights up and lookalikes let go',
+     /_ad\.row === item\) _p = _ad\.pd/.test(brw) && /_p === _ad\.pd && _ad\.row !== item\) _p = null/.test(brw));
+  ok('adopted items leave the personal-only lane',
+     /adopted items display on their catalog row instead/.test(brw));
+  ok('manual entries are never adopted',
+     /if \(String\(p\.era \|\| ''\) === 'Manual'\) return;/.test(brw));
+  const wsv8 = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'wizard-save.js'), 'utf8');
+  ok('set members now save the matched row\'s variation',
+     /wizard\.data\.variation = String\(wizard\.matchedItem\.variation\)/.test(wsv8));
+
   section('96. The whole-set add clears its photo group after the save');
   const pv6 = require('fs').readFileSync(SRC, 'utf8');
   ok('the set add writes one pending note per member',

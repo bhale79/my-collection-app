@@ -2480,9 +2480,64 @@ function renderBrowse() {
     if (variation) { for (let j = 0; j < bucket.length; j++) { if (String(bucket[j].variation || '') === String(variation)) return bucket[j]; } return undefined; }
     return bucket[0];
   };
+  // v0.9.1120 (Brad's 1562W): an owned item saved WITHOUT a variation must
+  // light up exactly ONE catalog row — its best identity match — instead of
+  // whichever blank-variation lookalikes happen to share the number (2444's
+  // BOX row instead of the Newark Pullman; the two MPC-era 1053 SETS instead
+  // of his postwar 1053 transformer). Scoring: the saved era first, then the
+  // v0.9.1119 promo/paper demotion rule (aligned with the item's own type,
+  // so a deliberately-saved paper item still lands on a paper row).
+  var _bvAdopt = null;
+  if (state.filters.owned) {
+    _bvAdopt = new Map();
+    var _bvByNum = new Map();
+    state.masterData.forEach(function (m) {
+      var _bn = _displayItemNum(m);
+      if (!_bvByNum.has(_bn)) _bvByNum.set(_bn, []);
+      _bvByNum.get(_bn).push(m);
+    });
+    Object.values(state.personalData).forEach(function (p) {
+      if (!p || !p.owned || !p.itemNum) return;
+      if (String(p.variation || '').trim()) return;             // has a variation — strict match handles it
+      if (String(p.era || '') === 'Manual') return;             // a manual entry's identity is its own
+      var _rows = _bvByNum.get(p.itemNum) || [];
+      if (!_rows.length) return;                                 // truly off-catalog — personal-only lane
+      var _pEra = (typeof _rrEraKeyOf === 'function') ? _rrEraKeyOf(p.era) : String(p.era || '').toLowerCase();
+      var _pPaper = /\b(paper|promo|promotional|box|boxes|catalog|display|instruction)\b/i.test(String(p.itemType || ''));
+      var _best = null, _bestS = -1;
+      _rows.forEach(function (r) {
+        var s = 0;
+        if (_pEra && r._era === _pEra) s += 4;
+        var _dem = (typeof window.rrDemotedRow === 'function') ? window.rrDemotedRow(r) : false;
+        if (_dem === _pPaper) s += 2;                            // row kind agrees with the item's own kind
+        if (s > _bestS) { _bestS = s; _best = r; }
+      });
+      if (_best) _bvAdopt.set(p.itemNum, { pd: p, row: _best });
+    });
+  }
+  // ONE resolver for "which owned item does this catalog row represent" —
+  // the filter, the sorter and the row renderer all use it, so a row can
+  // never pass the filter as owned and then render unowned (or vice versa).
+  function _rrPdForRow(item) {
+    if (item._copyPd) return item._copyPd;
+    if (item._personalOnly) return item;
+    var _dn = _displayItemNum(item);
+    var _p = findPD(_dn, item.variation);
+    if (_p && _p.itemNum !== _dn) _p = null;                     // no -P/-D bleed
+    if (_p && String(_p.era || '') === 'Manual') _p = null;      // v0.9.718
+    if (_bvAdopt) {
+      var _ad = _bvAdopt.get(_dn);
+      if (_ad) {
+        if (!_p && _ad.row === item) _p = _ad.pd;                // the adopted row lights up
+        else if (_p === _ad.pd && _ad.row !== item) _p = null;   // lookalikes let go of it
+      }
+    }
+    return _p;
+  }
   const _eraFilterPersonalOnly = state.filters.owned && typeof _currentEra !== 'undefined' && _currentEra !== 'all';
   const personalOnlyItems = Object.values(state.personalData)
     .filter(pd => pd.owned && (String(pd.era || '') === 'Manual' || !masterNums.has(pd.itemNum + '|' + (pd.variation||''))))   // v0.9.718: manual rows never merge into catalog rows
+    .filter(pd => !(_bvAdopt && _bvAdopt.get(pd.itemNum) && _bvAdopt.get(pd.itemNum).pd === pd))   // v0.9.1120: adopted items display on their catalog row instead
     .filter(pd => !_eraFilterPersonalOnly)
     .filter(pd => !(typeof _isCollectionCompanion === 'function' ? _isCollectionCompanion(pd) : _isGroupedBoxRow(pd)))
     .map(pd => {
@@ -2576,11 +2631,10 @@ function renderBrowse() {
   })();
   state.filteredData = baseList.filter(item => {
     const _dispNum = _displayItemNum(item);
-    let pd = findPD(_dispNum, item.variation);
-    // Verify exact match — don't let findPD's -P/-D fallback match unrelated items
-    // (e.g. master "205" Science Set should not match personal "205-P" diesel)
-    if (pd && pd.itemNum !== _dispNum) pd = null;
-    if (pd && !item._personalOnly && String(pd.era || '') === 'Manual') pd = null;   // v0.9.718
+    // v0.9.1120: shared resolver — strict item+variation match plus the
+    // blank-variation adoption above (authoritative: an item without a
+    // variation lights its ONE adopted row and nothing else).
+    let pd = item._personalOnly ? null : _rrPdForRow(item);
     pd = pd || (item._personalOnly ? item : null);
     const isOwned = item._personalOnly ? true : (pd?.owned || false);
     const hasBox = pd?.hasBox === 'Yes';
@@ -2666,8 +2720,8 @@ function renderBrowse() {
   // (default). Skipped when the user has clicked a column header to sort.
   if (state.filters.owned && !(state._collSort && state._collSort.col)) {
     state.filteredData.sort((a, b) => {
-      const pdA = findPD(_displayItemNum(a), a.variation) || {};
-      const pdB = findPD(_displayItemNum(b), b.variation) || {};
+      const pdA = _rrPdForRow(a) || {};   // v0.9.1120: adoption-aware, so set members still cluster
+      const pdB = _rrPdForRow(b) || {};
       const gA = pdA.groupId || '';
       const gB = pdB.groupId || '';
       // If same group, sort by item number within group
@@ -3068,7 +3122,7 @@ function renderBrowse() {
 
   var _collThumbJobs = [];   // v0.9.1025: phone row thumbnails
   const rowsHtml = pageData.map((item, i) => {
-    const _pd0 = item._copyPd ? item._copyPd : (item._personalOnly ? item : findPD(_displayItemNum(item), item.variation));
+    const _pd0 = _rrPdForRow(item);   // v0.9.1120: same resolver as the filter — adoption-aware
     const pd = (_pd0 && !item._personalOnly && String(_pd0.era || '') === 'Manual') ? null : _pd0;   // v0.9.718
     const isOwned = item._personalOnly ? true : (pd?.owned || false);
     const isWanted = !!state.wantData[`${item.itemNum}|${item.variation}`];
