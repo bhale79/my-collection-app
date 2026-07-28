@@ -298,7 +298,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // Drive returns only requested fields. Prove appProperties is now requested.
   const srcTxt = require('fs').readFileSync(SRC, 'utf8');
   ok('Drive listing asks for appProperties',
-     /fields=files\(id,name,createdTime,appProperties\)/.test(srcTxt));
+     // v0.9.1131 paginated this call, so the fields list now leads with nextPageToken
+     /fields=nextPageToken,files\(id,name,createdTime,appProperties\)/.test(srcTxt));
   ok('_pinMetaOf reads era back off a file',
      window.__T && (function () {
        const f = { id: 'x', appProperties: { rrEra: 'pw', rrKind: 'aba', rrRole: 'p' } };
@@ -1600,7 +1601,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
   const sd = require('fs').readFileSync(SRC, 'utf8');
   ok('free reads persist the disagreement',
-     (sd.match(/disagreed: r\.disagreed \|\| ''/g) || []).length === 3);
+     // v0.9.1131 gave the re-read path the full record too, so there are 4 writers now
+     (sd.match(/disagreed: r\.disagreed \|\| ''/g) || []).length === 4);
   ok('the card names the overruled number', /names a different item/.test(sd));
   ok('the set rule lives in ONE place',
      (sd.match(/function _pinIsSetRow/g) || []).length === 1 &&
@@ -2262,6 +2264,26 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('the flush files onto the copy just added, not the first match',
      /var _fresh = _cands\.filter\(function \(p\) \{ return !p\.photoItem; \}\)/.test(a6src) &&
      /parseInt\(b\.inventoryId\) \|\| 0\) - \(parseInt\(a\.inventoryId\)/.test(a6src));
+
+  section('107. The inbox sees past 200 photos, and re-reads survive');
+  const a7 = require('fs').readFileSync(SRC, 'utf8');
+  ok('the inbox listing pages to the end instead of stopping at 200',
+     /nextPageToken,files\(id,name,createdTime,appProperties\)/.test(a7) &&
+     /_pageTok = \(res && res\.nextPageToken\) \|\| '';/.test(a7));
+  ok('a truncated listing is recorded, not assumed complete',
+     /_pinListComplete = false; break;/.test(a7));
+  ok('the prune NEVER runs against a listing we know is truncated',
+     /if \(!_pinListComplete\) \{ console\.warn\(.\[Inbox\] listing truncated/.test(a7));
+  ok('the badge counts the whole inbox, not the first page',
+     /async function _pinCountAll\(q\)/.test(a7) && /_navBadge\(await _pinCountAll\(q\)\)/.test(a7));
+  ok('the failed-read record is pruned too, so storage cannot fill forever',
+     /var ft = _freeTried\(\), ch2 = false;/.test(a7));
+  ok('a re-read is stamped with the reader version like every other writer',
+     /rv: READER_VER, viaDesc: !!r\.viaDesc,\n                     descOf/.test(a7));
+  ok('a re-read miss stores an object, not a bare 1',
+     !/f2\[fid\] = 1; _freeTriedSave\(f2\);/.test(a7));
+  ok('the lead-photo fallback is per group, not global',
+     /var before = jobs\.length;/.test(a7) && /jobs\.length === before && _pinReadFid\(g2\)/.test(a7));
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);

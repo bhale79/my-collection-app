@@ -793,8 +793,20 @@
       // was then invisible on the next load: _pinMetaOf read an empty object
       // every time. Tagging 80 photos looked like it did nothing, because as
       // far as the app could see, it had. One missing word.
-      var res = await driveRequest('GET', '/files?q=' + q + '&fields=files(id,name,createdTime,appProperties)&orderBy=createdTime desc&pageSize=200');
-      var files = (res && res.files) || [];
+      // v0.9.1131 (audit #5): this asked for 200 files and never followed
+      // nextPageToken, so the inbox could only ever SEE the newest 200 — and
+      // sorted newest-first, the ones it could not see were the oldest, i.e.
+      // exactly the backlog. Now it pages to the end. _pinListComplete records
+      // whether we really reached it, because the prune below depends on that.
+      var files = [], _pageTok = '', _guard = 0, _pinListComplete = true;
+      do {
+        var res = await driveRequest('GET', '/files?q=' + q +
+          '&fields=nextPageToken,files(id,name,createdTime,appProperties)&orderBy=createdTime desc&pageSize=200' +
+          (_pageTok ? '&pageToken=' + _pageTok : ''));
+        ((res && res.files) || []).forEach(function (f) { files.push(f); });
+        _pageTok = (res && res.nextPageToken) || '';
+        if (++_guard > 40) { _pinListComplete = false; break; }   // ~8,000 photos; never spin forever
+      } while (_pageTok);
       // Group by the g<id> tag; untagged files are their own group.
       var map = {}, order = [];
       files.forEach(function (f) {
@@ -809,12 +821,27 @@
       try { _pinReconcileStored(); } catch (eRS) {}
       // Drop selections that no longer exist
       Object.keys(_sel).forEach(function (k) { if (!map[k]) delete _sel[k]; });
-      // Prune stored AI suggestions for photos that left the inbox
+      // Prune stored reads for photos that left the inbox.
+      // v0.9.1131 (audit #5, the damaging half): this ran against whatever the
+      // listing happened to contain. Paired with the 200-file cap it deleted
+      // the stored read for every photo past the first 200 — including PAID
+      // reads the user bought. It only ever runs on a listing we know is
+      // complete now; a truncated listing prunes nothing.
       (function () {
+        if (!_pinListComplete) { console.warn('[Inbox] listing truncated — skipping prune'); return; }
         var live = {}; files.forEach(function (f) { live[f.id] = true; });
         var ids = _ids(), changed = false;
         Object.keys(ids).forEach(function (k) { if (!live[k]) { delete ids[k]; changed = true; } });
         if (changed) _idsSave(ids);
+        // v0.9.1131 (audit #11): the failed-read record was never pruned at
+        // all, and each entry carries raw text plus a debug object. Left alone
+        // it grows until localStorage is full — at which point EVERY write in
+        // this file fails silently, because they are all in quiet catch blocks.
+        try {
+          var ft = _freeTried(), ch2 = false;
+          Object.keys(ft).forEach(function (k) { if (!live[k]) { delete ft[k]; ch2 = true; } });
+          if (ch2) _freeTriedSave(ft);
+        } catch (eFT) {}
       })();
       _render();
       _status('');
@@ -4468,7 +4495,8 @@
         _freeReadBlob(blob, 1600, _preferForFid(fid)).then(function (r) {
           var m = _ids();
           if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, alts: r.alts || [], tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null, rv: READER_VER, viaDesc: !!r.viaDesc, descOf: r.descOf || '', descWords: r.descWords || [], disagreed: r.disagreed || '' }; _idsSave(m); }
-          else { var f2 = _freeTried(); f2[fid] = 1; _freeTriedSave(f2); }
+          // v0.9.1131: object, stamped — same shape as every other writer
+          else { var f2 = _freeTried(); f2[fid] = { t: 1, raw: (r && r.raw) || '', dbg: (r && r.dbg) || null, rv: READER_VER }; _freeTriedSave(f2); }
           try { _render(); } catch (e2) {}
         }).catch(function () {});
       } catch (e4) { showToast('Could not save the crop — the original is untouched', 3000, true); }
@@ -4539,10 +4567,15 @@
     var found = 0, done = 0, failed = 0;
     // v0.9.1090: cropped MEMBER photos re-read too, not just the group's lead.
     var jobs = [];
+    var cr = _cropped();
     gs.forEach(function (g2) {
-      var cr = _cropped();
+      // v0.9.1131 (audit #7b): the lead-photo fallback used to test the GLOBAL
+      // jobs array, so once the FIRST group contributed anything the fallback
+      // never fired again — the button could count five groups and process two.
+      // The fallback is about THIS group, so it counts this group's jobs.
+      var before = jobs.length;
       _pinFilesToRead(g2).forEach(function (f2) { if (f2 && cr[f2.id]) jobs.push({ g: g2, fid: f2.id }); });
-      if (!jobs.length && _pinReadFid(g2) && cr[_pinReadFid(g2)]) jobs.push({ g: g2, fid: _pinReadFid(g2) });
+      if (jobs.length === before && _pinReadFid(g2) && cr[_pinReadFid(g2)]) jobs.push({ g: g2, fid: _pinReadFid(g2) });
     });
     gs = jobs;
     for (var i = 0; i < gs.length; i++) {
@@ -4558,8 +4591,24 @@
         var blob = await _pinBytes(fid);
         var r = await _freeReadBlob(blob, 2400, _pinPreferOf(gs[i].g));   // the higher-resolution attempt
         var m = _ids();
-        if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, tried: 1, free: 1 }; _idsSave(m); found++; }
-        else { var f2 = _freeTried(); f2[fid] = 1; _freeTriedSave(f2); }
+        // v0.9.1131 (audit #7a): this record used to be written WITHOUT
+        // rv: READER_VER — and the auto-reader treats a missing rv as "never
+        // read" (see the rv checks in _pinAutoRead). So the background pass
+        // queued the photo again, re-read it at the LOWER resolution, and
+        // overwrote the better answer this button had just produced, seconds
+        // later. Same shape as every other writer now, stamp included.
+        if (r && r.num) {
+          m[fid] = { num: r.num, guess: r.matched ? 0 : 1, alts: r.alts || [], tried: 1, free: 1,
+                     raw: r.raw || '', dbg: r.dbg || null, rv: READER_VER, viaDesc: !!r.viaDesc,
+                     descOf: r.descOf || '', descWords: r.descWords || [], disagreed: r.disagreed || '' };
+          _idsSave(m); found++;
+        } else {
+          // and the miss record was a bare 1 while every other writer stores an
+          // object — anything reading .rv off it got undefined.
+          var f2 = _freeTried();
+          f2[fid] = { t: 1, raw: (r && r.raw) || '', dbg: (r && r.dbg) || null, rv: READER_VER };
+          _freeTriedSave(f2);
+        }
       } catch (e) {
         failed++;
         console.warn('[inbox] free re-read failed', fid, e && e.message);
@@ -5461,6 +5510,20 @@
 
   // Lightweight count fetch — runs at startup so the badges and the
   // dashboard card are right BEFORE the inbox page is ever opened.
+  // v0.9.1131 (audit #5): the badge counters also stopped at 200, so a big
+  // inbox permanently read "200". Pages ids only — cheap, and the badge is the
+  // number the user trusts to know there is work left.
+  async function _pinCountAll(q) {
+    var n = 0, tok = '', guard = 0;
+    do {
+      var r = await driveRequest('GET', '/files?q=' + q + '&fields=nextPageToken,files(id)&pageSize=200' +
+        (tok ? '&pageToken=' + tok : ''));
+      n += ((r && r.files) || []).length;
+      tok = (r && r.nextPageToken) || '';
+    } while (tok && ++guard < 40);
+    return n;
+  }
+
   var _countBusy = false;
   async function _pinCountRefresh() {
     if (_countBusy || !_qcToken()) return;
@@ -5468,8 +5531,7 @@
     try {
       var fid = await _folder();
       var q = encodeURIComponent("'" + fid + "' in parents and mimeType contains 'image/' and trashed=false");
-      var res = await driveRequest('GET', '/files?q=' + q + '&fields=files(id)&pageSize=200');
-      _navBadge(((res && res.files) || []).length);
+      _navBadge(await _pinCountAll(q));
     } catch (e) { /* offline / signed out — badge stays as-is */ }
     finally { _countBusy = false; }
   }
@@ -5520,7 +5582,8 @@
       var q = encodeURIComponent("'" + fid + "' in parents and mimeType contains 'image/' and trashed=false");
       var res = await driveRequest('GET', '/files?q=' + q + '&fields=files(id)&orderBy=createdTime desc&pageSize=200');
       var files = (res && res.files) || [];
-      _navBadge(files.length);
+      // the panel only draws a handful, but the badge must be the TRUE total
+      _pinCountAll(q).then(function (n) { _navBadge(n); }).catch(function () { _navBadge(files.length); });
       grid = document.getElementById('pin-panel-grid');
       if (!grid) return;
       if (!files.length) {
