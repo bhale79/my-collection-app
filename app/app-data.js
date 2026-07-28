@@ -286,14 +286,22 @@ async function _fetchMasterTabs(era) {
   }
   // Try multi-tab batchGet first, fall back to old single-tab
   try {
-    const ranges = _mt.map(t => `${t}!A2:U`);
+    // v0.9.1133: A1 (not A2) so row 1 arrives and can be read as the header,
+    // and out to AD so appended columns are actually fetched. The old A2:U cut
+    // off at MSRP, which is why Body Color and UPC / Barcode never loaded.
+    const ranges = _mt.map(t => `${t}!A1:AD`);
     const res = await sheetsBatchGet(state.masterSheetId, ranges);
     const allRows = [];
     (res.valueRanges || []).forEach((vr, i) => {
       const tabName = _mt[i];
-      (vr.values || []).forEach(r => {
-        allRows.push(parseMasterRow(r, tabName));
-      });
+      const vals = vr.values || [];
+      if (!vals.length) return;
+      // Row 1 is the header on every tab in the master workbook. Build the
+      // column map from it, then parse the data rows beneath.
+      const cm = buildMasterColMap(vals[0]);
+      for (let n = 1; n < vals.length; n++) {
+        allRows.push(parseMasterRow(vals[n], tabName, cm));
+      }
     });
     if (allRows.length > 0) return allRows;
   } catch(e) {
@@ -346,39 +354,110 @@ async function _loadMasterVersion() {
   } catch (e) { /* silent — older masters simply have no version tab */ }
 }
 
-function parseMasterRow(r, tabName) {
-  return {
-    itemNum:      r[0]  !== null && r[0]  !== undefined && r[0]  !== '' ? String(r[0])  : '',
-    // Phase 3k: coerce all fields to strings — UNFORMATTED_VALUE returns
-    // numbers/dates raw, but the rest of the app expects string fields.
-    itemType:     r[1]  !== null && r[1]  !== undefined && r[1]  !== '' ? String(r[1])  : '',
-    subType:      r[2]  !== null && r[2]  !== undefined && r[2]  !== '' ? String(r[2])  : '',
-    unit:         r[3]  !== null && r[3]  !== undefined && r[3]  !== '' ? String(r[3])  : '',
-    poweredDummy: r[4]  !== null && r[4]  !== undefined && r[4]  !== '' ? String(r[4])  : '',
-    control:      r[5]  !== null && r[5]  !== undefined && r[5]  !== '' ? String(r[5])  : '',
-    roadName:     r[6]  !== null && r[6]  !== undefined && r[6]  !== '' ? String(r[6])  : '',
-    description:  r[7]  !== null && r[7]  !== undefined && r[7]  !== '' ? String(r[7])  : '',
-    gauge:        r[8]  !== null && r[8]  !== undefined && r[8]  !== '' ? String(r[8])  : '',
-    yearProd:     r[9]  !== null && r[9]  !== undefined && r[9]  !== '' ? _fmtYearProd(r[9]) : '',
-    _yearRaw:     r[9]  !== null && r[9]  !== undefined && r[9]  !== '' ? String(r[9])  : '',
-    variation:    r[10] !== null && r[10] !== undefined && r[10] !== '' ? String(r[10]) : '',
-    varDesc:      r[11] !== null && r[11] !== undefined && r[11] !== '' ? String(r[11]) : '',
-    refLink:      r[12] !== null && r[12] !== undefined && r[12] !== '' ? String(r[12]) : '',
-    notes:        r[13] !== null && r[13] !== undefined && r[13] !== '' ? String(r[13]) : '',
-    marketVal:    r[14] !== null && r[14] !== undefined && r[14] !== '' ? String(r[14]) : '',
-    source:       r[15] !== null && r[15] !== undefined && r[15] !== '' ? String(r[15]) : '',
-    cottCode:     r[16] !== null && r[16] !== undefined && r[16] !== '' ? String(r[16]) : '',
-    originalDesc: r[17] !== null && r[17] !== undefined && r[17] !== '' ? String(r[17]) : '',
-    // Unified-schema extension columns (used by Atlas rows; blank for Lionel rows):
-    category:     r[18] !== null && r[18] !== undefined && r[18] !== '' ? String(r[18]) : '',
-    trackPower:   r[19] !== null && r[19] !== undefined && r[19] !== '' ? String(r[19]) : '',
-    msrp:         r[20] !== null && r[20] !== undefined && r[20] !== '' ? String(r[20]) : '',
-    // v0.9.1102: Body Color — generated from each row's own text plus COTT
-    // catalog-photo sampling (master workbook _60). Deliberately placed AFTER
-    // the reserved unified-schema trio above so it can never shadow them.
-    bodyColor:    r[21] !== null && r[21] !== undefined && r[21] !== '' ? String(r[21]) : '',
-    _tab:         tabName,
-  };
+// ══ v0.9.1133 — master columns are read BY HEADER NAME, not by position ═════
+// Brad found the cause of a whole bug class here. Every master tab used to be
+// fetched `A2:U` — 21 columns — and parsed by fixed index. Two consequences,
+// both silent:
+//
+//   1. Body Color (column V, added in _60) was NEVER fetched. The colour-clash
+//      check fell back to parsing prose and reported no error, because the
+//      fallback is written as a normal alternative rather than a failure. The
+//      curated column sat in the sheet doing nothing from the day it shipped.
+//   2. Column V means Body Color on Lionel PW - Items but UPC / Barcode on the
+//      MTH / K-Line / Williams / Marx / Other O tabs. Simply widening the range
+//      would have started feeding barcodes into the colour check.
+//
+// Reading by name fixes both at once and makes every future column free: append
+// it to the sheet, name it, and it arrives. No range to widen, no positions to
+// keep in sync across tabs whose schemas legitimately differ.
+//
+// Names are normalised (lowercased, non-alphanumerics stripped) so the real
+// spelling drift across tabs collapses on its own: "Track Power" / "Track/Power"
+// both become `trackpower`, "Variation #" becomes `variation`.
+function _normHdr(s) {
+  return String(s === null || s === undefined ? '' : s).toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+// field -> accepted normalised header names, in preference order.
+// `pos` is the legacy fixed index, used ONLY when a tab has no usable header
+// row (the legacy 'Master Inventory' / 'Sheet1' fallback). Fields with pos
+// null never had a position and are name-only.
+const MASTER_COL_SPEC = [
+  ['itemNum',        0,    ['itemnumber']],
+  ['itemType',       1,    ['itemtype']],
+  ['subType',        2,    ['subtype']],
+  ['unit',           3,    ['unit']],
+  ['poweredDummy',   4,    ['powereddummy']],
+  ['control',        5,    ['control']],
+  ['roadName',       6,    ['roadname']],
+  ['description',    7,    ['description']],
+  ['gauge',          8,    ['gauge']],
+  ['yearProd',       9,    ['yearproduced']],
+  ['variation',      10,   ['variation', 'variationnumber']],
+  ['varDesc',        11,   ['variationdetails']],
+  ['refLink',        12,   ['referencelink']],
+  ['notes',          13,   ['notes']],
+  ['marketVal',      14,   ['estmarketvalue']],
+  ['source',         15,   ['source']],
+  ['cottCode',       16,   ['cottcode']],
+  ['originalDesc',   17,   ['originalcottdesc', 'originaldescription']],
+  // Unified-schema extension columns (used by Atlas rows; blank for Lionel rows):
+  ['category',       18,   ['category']],
+  ['trackPower',     19,   ['trackpower']],
+  ['msrp',           20,   ['msrp']],
+  // Name-only columns. These are the ones position could never carry safely,
+  // because the same index holds a different column on different tabs.
+  ['bodyColor',      null, ['bodycolor', 'bodycolour']],
+  ['upc',            null, ['upcbarcode', 'upc']],
+  ['manufacturer',   null, ['manufacturer']],
+  ['stampedMarkings', null, ['stampedmarkings']],
+];
+
+// Build a field -> column-index map from a sheet's header row.
+// Returns null when the row isn't a recognisable header, which tells
+// parseMasterRow to fall back to the legacy fixed positions.
+function buildMasterColMap(headerRow) {
+  if (!headerRow || !headerRow.length) return null;
+  var pos = {};
+  headerRow.forEach(function (h, i) {
+    var k = _normHdr(h);
+    if (k && !(k in pos)) pos[k] = i;   // first wins — duplicates are typos, not data
+  });
+  var map = {}, hits = 0;
+  MASTER_COL_SPEC.forEach(function (spec) {
+    for (var j = 0; j < spec[2].length; j++) {
+      if (spec[2][j] in pos) { map[spec[0]] = pos[spec[2][j]]; hits++; return; }
+    }
+  });
+  // Anchor check: without Item Number it isn't an items tab header, and a
+  // couple of stray matches shouldn't be enough to trust the whole row.
+  if (map.itemNum === undefined || hits < 5) return null;
+  return map;
+}
+
+// Read one field. With a column map, a field the tab doesn't have reads blank —
+// it must NOT fall through to the legacy position, because that is exactly the
+// collision that put a barcode where a colour belonged.
+function _mcell(r, cm, field, posIdx) {
+  var i;
+  if (cm) { i = cm[field]; if (i === undefined) return ''; }
+  else { i = posIdx; if (i === null || i === undefined) return ''; }
+  var v = r[i];
+  // Phase 3k: coerce all fields to strings — UNFORMATTED_VALUE returns
+  // numbers/dates raw, but the rest of the app expects string fields.
+  return (v !== null && v !== undefined && v !== '') ? String(v) : '';
+}
+
+function parseMasterRow(r, tabName, cm) {
+  var out = {};
+  MASTER_COL_SPEC.forEach(function (spec) {
+    out[spec[0]] = _mcell(r, cm, spec[0], spec[1]);
+  });
+  // Year needs both shapes: display-formatted for the UI, raw for the dedupe key.
+  out._yearRaw = out.yearProd;
+  out.yearProd = out.yearProd ? _fmtYearProd(out.yearProd) : '';
+  out._tab = tabName;
+  return out;
 }
 
 function _deduplicateMaster(rows) {

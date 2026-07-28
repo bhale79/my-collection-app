@@ -1815,7 +1815,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
   const bsrc = require('fs').readFileSync(SRC, 'utf8');
   ok('prose fallback uses varDesc, not the variation number', /rw && rw\.varDesc/.test(bsrc));
   const adata = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'app-data.js'), 'utf8');
-  ok('the master parser reads Body Color from its schema slot', /bodyColor:\s+r\[21\]/.test(adata));
+  // v0.9.1133: this used to assert `bodyColor: r[21]` — the fixed position that
+  // was the whole problem, since the fetch stopped one column short of it and
+  // column 21 means UPC on the MTH-family tabs. The parser now finds the column
+  // by name, so that is what gets asserted. See section 109 for the behaviour.
+  ok('the master parser locates Body Color by header name, not by position',
+     /\['bodyColor',\s+null,\s+\['bodycolor', 'bodycolour'\]\]/.test(adata) &&
+     !/bodyColor:\s+r\[21\]/.test(adata));
 
   section('84. Between two real numbers, evidence beats position');
   // Brad's 6816 bulldozer flat asserted as '1043 — Transformer': 1043 came
@@ -2305,6 +2311,78 @@ META_WRITES.length = 0; TOASTS.length = 0;
        const regrp  = window.__MetaOf({ id: 'x1', name: f.name, appProperties: { rrGrp: 'G777' } }).grp;
        return before === 'G9ABC' && after === '' && regrp === 'G777';
      })());
+
+  section('109. Master columns read by HEADER NAME, not position (v0.9.1133)');
+  // This section is BEHAVIOURAL, not source-regex: it extracts the real
+  // functions from app-data.js and runs them. The bug it guards — Body Color
+  // never loading because the fetch stopped at column U — is precisely the
+  // class a source-shape assertion cannot see, because the code looked right.
+  (function () {
+    const ad = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app-data.js'), 'utf8');
+    const s0 = ad.indexOf('function _normHdr');
+    const s1 = ad.indexOf('function _deduplicateMaster');
+    ok('the header-name reader is present in app-data.js', s0 > 0 && s1 > s0);
+    if (s0 < 0 || s1 < s0) return;
+    const blk = ad.slice(s0, s1)
+      + '\nfunction _fmtYearProd(s){var t=String(s).trim();var m=t.match(/^(\\d{4})-\\d{1,2}-\\d{1,2}/);return m?m[1]:t;}\n'
+      + 'return {_normHdr:_normHdr,buildMasterColMap:buildMasterColMap,parseMasterRow:parseMasterRow};';
+    const M = new Function(blk)();
+
+    const PW  = ['Item Number','Item Type','Sub-Type','Unit','Powered/Dummy','Control','Road Name','Description','Gauge','Year Produced','Variation #','Variation Details','Reference Link','Notes','Est. Market Value','Source','COTT Code','Original COTT Desc','Category','Track Power','MSRP','Body Color','Stamped Markings'];
+    const MTH = ['Item Number','Item Type','Sub Type','Unit','Powered/Dummy','Control','Road Name','Description','Gauge','Year Produced','Variation #','Variation Details','Reference Link','Notes','Est. Market Value','Source','COTT Code','Original Description','Category','Track Power','MSRP','UPC / Barcode'];
+    const PRE = PW.slice(0, 18);
+    const cmPW = M.buildMasterColMap(PW), cmMTH = M.buildMasterColMap(MTH), cmPRE = M.buildMasterColMap(PRE);
+
+    ok('Body Color is found on Lionel PW - Items', !!cmPW && cmPW.bodyColor === 21);
+    ok('Stamped Markings is found on Lionel PW - Items', !!cmPW && cmPW.stampedMarkings === 22);
+    ok('UPC / Barcode is found on MTH O', !!cmMTH && cmMTH.upc === 21);
+    ok('MTH O has NO Body Color — column V no longer means two things',
+       !!cmMTH && cmMTH.bodyColor === undefined);
+    ok('Pre-War, which stops at column R, gains no phantom extension columns',
+       !!cmPRE && cmPRE.msrp === undefined && cmPRE.bodyColor === undefined);
+    ok('"Original COTT Desc" and "Original Description" both map',
+       cmPW.originalDesc === 17 && cmMTH.originalDesc === 17);
+    ok('"Track/Power" and "Track Power" normalise to the same key',
+       M._normHdr('Track/Power') === M._normHdr('Track Power'));
+
+    // The regression that matters most: a barcode must never read as a colour.
+    const mthRow = ['30-1234','Boxcar','','','','','Santa Fe','Boxcar','O','2004','','','','','','MTH','','','Rolling Stock','3-Rail','89.95','0748998801234'];
+    const pm = M.parseMasterRow(mthRow, 'MTH O', cmMTH);
+    ok('an MTH row exposes its barcode as upc', pm.upc === '0748998801234');
+    ok('and its bodyColor stays BLANK, not the barcode', pm.bodyColor === '');
+
+    const pwRow = ['6017','Caboose','','','','','Lionel Lines','SP Type Caboose','O','1956','1','brown','http://x','','','COTT','SPC6017','','','','','brown','LIONEL LINES 6017'];
+    const pp = M.parseMasterRow(pwRow, 'Lionel PW - Items', cmPW);
+    ok('a Lionel PW row finally delivers its Body Color', pp.bodyColor === 'brown');
+    ok('and its Stamped Markings', pp.stampedMarkings === 'LIONEL LINES 6017');
+    ok('while its upc stays blank', pp.upc === '');
+
+    ok('a garbage header row is rejected rather than trusted',
+       M.buildMasterColMap(['a','b','c']) === null && M.buildMasterColMap([]) === null);
+    const legacy = M.parseMasterRow(pwRow, 'Master Inventory', null);
+    ok('the legacy positional fallback still parses the core fields',
+       legacy.itemNum === '6017' && legacy.roadName === 'Lionel Lines');
+    ok('but name-only columns stay blank under it, never guessed by position',
+       legacy.bodyColor === '' && legacy.upc === '');
+
+    const yr = M.parseMasterRow(['1','','','','','','','','','2022-04-01'], 't', cmPW);
+    ok('yearProd is still display-formatted', yr.yearProd === '2022');
+    ok('and _yearRaw still keeps the full date for the dedupe key',
+       yr._yearRaw === '2022-04-01');
+  })();
+
+  section('110. The master fetch actually asks for the new columns');
+  const a9 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app-data.js'), 'utf8');
+  const cfg9 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'config.js'), 'utf8');
+  ok('the multi-tab range starts at A1 so the header row arrives',
+     /_mt\.map\(t => `\$\{t\}!A1:AD`\)/.test(a9));
+  ok('and no master-tab fetch stops at column U any more',
+     !/_mt\.map\(t => `\$\{t\}!A2:U`\)/.test(a9));
+  ok('the header row is consumed as a header, not parsed as an item',
+     /const cm = buildMasterColMap\(vals\[0\]\);/.test(a9) &&
+     /for \(let n = 1; n < vals\.length; n\+\+\)/.test(a9));
+  ok('the catalog cache version moved, so the wider fetch happens at once',
+     /CATALOG_CACHE_VER\s*=\s*'126'/.test(cfg9));
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);

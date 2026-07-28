@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1132';
+const APP_VERSION = 'v0.9.1133';
 
 // v0.9.918 (Brad): SINGLE SOURCE OF TRUTH for the personal sheet's collection
 // tab name. Every sheet read/write range ("My Collection!D12") builds from
@@ -78,7 +78,7 @@ function varShortLabel(text, max) {
 //   • PERSONAL_CACHE_VER -> personal "My Collection" cache
 // (Referenced in app-data.js as _CACHE_VER / _PERSONAL_CACHE_VER.)
 // ═══════════════════════════════════════════════════════════════
-const CATALOG_CACHE_VER  = '125';
+const CATALOG_CACHE_VER  = '126';
 const PERSONAL_CACHE_VER = 'pf1';   // v0.9.782: +purchasedFrom column — bust the parsed personal cache
 
 // ═══════════════════════════════════════════════════════════════════
