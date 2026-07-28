@@ -1,6 +1,24 @@
 <style>
   /* ── Reset & Variables ─────────────────────────────────────── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* v0.9.1138 (Brad: "the black numbers need to be cream") — a <button> does
+     NOT inherit colour from its parent. Browsers force `color: buttontext`,
+     which is black. So any button that sets a background but no colour renders
+     black text, and on our dark surfaces that is close to unreadable. Brad hit
+     it on the Upgrade picker, where the condition numbers came out black on
+     navy; ten button tags across the app had the same gap.
+
+     One rule fixes all of them because --text is re-scoped per context: :root
+     is cream for the dark chrome, .main re-scopes it to near-black for the
+     cream page area, and the light and high-contrast themes set their own. So
+     this resolves to the correct colour wherever the button happens to be.
+
+     Specificity is 0,0,1 — the lowest possible for an element selector — so
+     every class rule and every inline style still overrides it. Nothing that
+     already sets its own colour changes. */
+  button { color: var(--text); }
+
   /* Prevent iOS auto-zoom on inputs */
   @media (max-width: 640px) {
     input, select, textarea { font-size: 16px !important; }

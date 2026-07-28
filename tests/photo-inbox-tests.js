@@ -2602,6 +2602,31 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /html\[data-theme="light"\][\s\S]{0,200}--bg:\s*#f8e8c0/.test(code));
   })();
 
+  section('115. Buttons inherit a readable colour (v0.9.1138)');
+  (function () {
+    const css = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app.css'), 'utf8');
+    const code = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    ok('there is a base colour for <button>', /\bbutton \{ color: var\(--text\); \}/.test(code));
+    // It must be a BARE element selector — anything more specific would stop
+    // class rules and inline styles from overriding it.
+    ok('and it is the lowest-specificity selector, so everything still overrides it',
+       !/[.#][\w-]+\s+button \{ color: var\(--text\); \}/.test(code));
+    // --text must actually be re-scoped per context, or one rule cannot serve
+    // both the dark chrome and the cream page area.
+    ok('--text is cream at :root', /:root \{[\s\S]*?--text:\s*#f8e8c0/.test(code));
+    ok('and near-black inside .main, which is the cream page',
+       /\.main \{[\s\S]{0,400}?--text:\s*#2a2015/.test(code));
+
+    // The specific button Brad reported: the Upgrade picker rows.
+    const ap = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app-pages.js'), 'utf8');
+    const i = ap.indexOf('window._upgPickApply');
+    const pick = ap.slice(i, ap.indexOf('window._upgPickFilter', i));
+    ok('the upgrade picker still renders a bare condition number',
+       /condition-pip[\s\S]{0,80}' \+ cond \+ '/.test(pick));
+    ok('and it sets no colour of its own, so it now takes the cream default',
+       !/condition-pip[\s\S]{0,120}color:/.test(pick));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
