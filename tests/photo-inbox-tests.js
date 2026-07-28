@@ -1960,11 +1960,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
   section('95. Set members carry their own photos and their own decade');
   const pv = require('fs').readFileSync(SRC, 'utf8');
+  // v0.9.1122: one id per number became a LIST per number, so a set holding
+  // the same car twice gives each slot its own picture.
   ok('the group hands each member number its own photo id',
-     /memberPhotos\[n0\] = f\.id/.test(pv) && /_setMemberPhotos: memberPhotos/.test(pv));
+     /\(memberPhotos\[n0\] = memberPhotos\[n0\] \|\| \[\]\)\.push\(f\.id\)/.test(pv) &&
+     /_setMemberPhotos: memberPhotos/.test(pv));
   const wsv = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'wizard-save.js'), 'utf8');
   ok('the walk threads the photo map through every member',
-     /_setMemberPhotos = d\._setMemberPhotos/.test(wsv) && /_addPhotoDriveId = _setMemberPhotos\[/.test(wsv));
+     /_setMemberPhotos = d\._setMemberPhotos/.test(wsv) && /_addPhotoDriveId = _mpList\[_occ\] \|\| _mpList\[0\]/.test(wsv));
   ok('a member resolves to the row from the SET\'S year',
      /_setYr >= _y1 - 1 && _setYr <= _y2 \+ 1/.test(wsv));
   ok('year preference only ever swaps between rows of the same number',
@@ -2040,9 +2043,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
   section('96. The whole-set add clears its photo group after the save');
   const pv6 = require('fs').readFileSync(SRC, 'utf8');
+  // v0.9.1122: the note is written at click time but PARKED in staging —
+  // see section 100 for why it may not be armed until the member saves.
   ok('the set add writes one pending note per member',
-     /pend0\[n1\] = \{ link: '', fromFid: '', toFid: ''/.test(pv6) &&
-     /never clobber a single-add note/.test(pv6));
+     /stage0\[n1\] = \{ link: '', fromFid: '', toFid: ''/.test(pv6) &&
+     /localStorage\.setItem\(SETSTAGE_KEY, JSON\.stringify\(stage0\)\)/.test(pv6));
   ok('the notes carry every photo that read that number, first one as RSV',
      /numFiles\[n0\] = numFiles\[n0\] \|\| \[\]/.test(pv6) && /rsvFid: fl\[0\]\.id, files: fl/.test(pv6));
   ok('the flush resolves Drive folders at move time, not at click time',
@@ -2052,6 +2057,52 @@ META_WRITES.length = 0; TOASTS.length = 0;
      /will retry:', eF\); continue;/.test(pv6));
   ok('the flush matches saved members through the number normalizer',
      /normalizeItemNum\(String\(p\.itemNum\)\) === normalizeItemNum\(num\)/.test(pv6));
+
+  section('100. A set may hold the same car twice, and photos wait for a real save');
+  const wzz = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'wizard.js'), 'utf8');
+  const wsz = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'wizard-save.js'), 'utf8');
+  const pnz = require('fs').readFileSync(SRC, 'utf8');
+  const bwz = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'browse.js'), 'utf8');
+
+  // — duplicates —
+  ok('the catalog decides how many of each piece a set holds',
+     /var out   = \(rs\.items \|\| \[\]\)\.slice\(\);/.test(wzz) && /repeats are real/.test(wzz));
+  ok('the collapsing Map is gone from BOTH build sites',
+     !/new Map\(\[\.\.\._rs\.items/.test(wzz));
+  ok('one shared builder serves both build sites',
+     (wzz.match(/_rrBuildSetItems\(/g) || []).length >= 3 && /function _rrBuildSetItems\(rs, enteredNums\)/.test(wzz));
+  ok('alts and hand-typed add-ons still de-duplicate against the set',
+     /if \(!out\.some\(function \(o\) \{ return normalizeItemNum\(o\) === normalizeItemNum\(x\); \}\)\) out\.push\(x\)/.test(wzz));
+  ok('each repeated slot reads its own photo out of the list',
+     /if \(normalizeItemNum\(items\[_oi\]\) === normalizeItemNum\(itemNum\)\) _occ\+\+/.test(wsz));
+  ok('a pre-1122 single-id note still works',
+     /Array\.isArray\(_mpVal\) \? _mpVal : \[_mpVal\]/.test(wsz));
+
+  // — photos wait for a save that actually happened —
+  ok('set notes park in staging, not in the live pending list',
+     /var SETSTAGE_KEY = 'rr_inbox_setstage'/.test(pnz) &&
+     !/pend0\[n1\] = \{ link/.test(pnz));
+  ok('a note is armed only when its member is written to the sheet',
+     /window\.rrPinSetPhotoSaved = function \(itemNum\)/.test(pnz) &&
+     /rrPinSetPhotoSaved\(itemNum\)/.test(wsz));
+  ok('arming happens before the dashboard build that flushes it',
+     wsz.indexOf('rrPinSetPhotoSaved(itemNum)') < wsz.indexOf('buildDashboard();\n      renderBrowse();'));
+  ok('arming never clobbers a single-add note',
+     /if \(!pend\[n\]\) pend\[n\] = stage\[key\]/.test(pnz));
+  ok('an armed note leaves staging so it cannot fire twice',
+     /delete stage\[key\]/.test(pnz));
+
+  // — abandoned set entries —
+  ok('an abandoned set is a SET- group with no My Sets record behind it',
+     /\^SET-\/i\.test\(String\(p\.groupId\)\) \|\| known\[p\.groupId\]\) return;/.test(bwz));
+  ok('removal runs through the SAME code the cancel dialog uses',
+     /window\.rrRemoveSetGroup = rrRemoveSetGroup/.test(wzz) &&
+     /await rrRemoveSetGroup\(gid\)/.test(bwz) &&
+     /const _nRemoved = await rrRemoveSetGroup\(groupId\)/.test(wzz));
+  ok('rows are deleted bottom-up so row numbers stay valid',
+     /keys\.sort\(function \(a, b\) \{ return \(state\.personalData\[b\]\.row \|\| 0\) - \(state\.personalData\[a\]\.row \|\| 0\); \}\)/.test(wzz));
+  ok('the notice names the leftover items and asks before removing',
+     /Unfinished set entry/.test(bwz) && /ok: 'Remove them', cancel: 'Keep them'/.test(bwz));
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);

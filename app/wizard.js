@@ -894,6 +894,69 @@ function _doCloseWizard() {
   if (returnTo) showPage(returnTo);
 }
 
+// ── v0.9.1122 (Brad's 1562W) ───────────────────────────────────────────────
+// A set can legitimately contain the SAME item number twice. The catalog's
+// own row for 1562W reads "Car 1 = 2442, Car 2 = 2442" with the note "Two
+// 2442 Clifton Vista Domes" — two real cars, one number. The walkthrough list
+// used to be built by running every number through a Map keyed on the
+// normalized number, which silently collapsed that pair into ONE car: saving
+// the first 2442 jumped straight to the next number, and the second car could
+// never be entered.
+//
+// The CATALOG decides how many of each piece a set contains, so its list is
+// taken verbatim, repeats and all. Alternates and hand-typed additions are
+// appended only when that number isn't already accounted for — which is what
+// the old dedupe was actually there to do.
+function _rrBuildSetItems(rs, enteredNums) {
+  var nums = enteredNums || [];
+  if (!rs) return nums.slice();
+  var sameNum = function (a, b) {
+    return normalizeItemNum(a) === normalizeItemNum(b) || baseItemNum(a) === baseItemNum(b);
+  };
+  var out   = (rs.items || []).slice();                 // repeats are real — keep them
+  var known = [].concat(rs.items || [], rs.alts || []);
+  var extra = [];
+  (rs.alts || []).forEach(function (a) {                // alts only if the user entered one
+    if (nums.some(function (e) { return sameNum(e, a); })) extra.push(a);
+  });
+  nums.forEach(function (n) {                           // hand-typed add-ons the set doesn't list
+    if (!known.some(function (k) { return sameNum(k, n); })) extra.push(n);
+  });
+  extra.forEach(function (x) {
+    if (!out.some(function (o) { return normalizeItemNum(o) === normalizeItemNum(x); })) out.push(x);
+  });
+  return out;
+}
+if (typeof window !== 'undefined') window._rrBuildSetItems = _rrBuildSetItems;
+
+// v0.9.1122: ONE place that removes every collection row belonging to a set
+// group — used by the mid-entry cancel dialog AND by the abandoned-set notice
+// in My Collection, so both paths delete identically. Returns the count.
+async function rrRemoveSetGroup(groupId) {
+  if (!groupId) return 0;
+  var keys = Object.keys(state.personalData).filter(function (k) {
+    var pd = state.personalData[k];
+    return pd && pd.groupId === groupId;
+  });
+  // Descending row order so earlier deletes don't shift later row numbers.
+  keys.sort(function (a, b) { return (state.personalData[b].row || 0) - (state.personalData[a].row || 0); });
+  var removed = 0;
+  for (const key of keys) {
+    try {
+      const pd = state.personalData[key];
+      if (pd && pd.row) await sheetsDeleteRow(state.personalSheetId, PERSONAL_TAB, pd.row);
+      delete state.personalData[key];
+      removed++;
+    } catch (e) { console.warn('[setGroup] delete failed:', e); }
+  }
+  try {
+    localStorage.removeItem('lv_personal_cache');
+    localStorage.removeItem('lv_personal_cache_ts');
+  } catch (e) {}
+  return removed;
+}
+if (typeof window !== 'undefined') window.rrRemoveSetGroup = rrRemoveSetGroup;
+
 // Called by BackStack when the user hits the device back button with the
 // wizard open. Step > 0 → walk back one step (respects skipIf / set-mode
 // filtering via wizardBack()). Step 0 → close silently.
@@ -951,31 +1014,10 @@ async function _confirmSetCancel() {
     btn.disabled = true;
     btn.textContent = 'Deleting\u2026';
 
-    // Delete saved items from personal sheet (reverse order to keep row numbers valid)
-    const keysToDelete = [];
-    Object.keys(state.personalData).forEach(function(k) {
-      const pd = state.personalData[k];
-      if (pd && pd.groupId === groupId) keysToDelete.push(k);
-    });
-    // Sort by row descending so deletes don't shift row numbers
-    keysToDelete.sort(function(a, b) {
-      return (state.personalData[b].row || 0) - (state.personalData[a].row || 0);
-    });
-
-    for (const key of keysToDelete) {
-      try {
-        const pd = state.personalData[key];
-        if (pd && pd.row) {
-          await sheetsDeleteRow(state.personalSheetId, PERSONAL_TAB, pd.row);
-        }
-        delete state.personalData[key];
-      } catch(e) { console.warn('Error deleting set item:', e); }
-    }
-
-    localStorage.removeItem('lv_personal_cache');
-    localStorage.removeItem('lv_personal_cache_ts');
+    // v0.9.1122: shared with the abandoned-set notice in My Collection.
+    const _nRemoved = await rrRemoveSetGroup(groupId);
     overlay.remove();
-    showToast('Set entry canceled \u2014 ' + keysToDelete.length + ' item' + (keysToDelete.length !== 1 ? 's' : '') + ' removed');
+    showToast('Set entry canceled \u2014 ' + _nRemoved + ' item' + (_nRemoved !== 1 ? 's' : '') + ' removed');
     _doCloseWizard();
     buildDashboard();
     renderBrowse();
@@ -3450,17 +3492,8 @@ function renderWizardStep() {
 
       // Auto-advance helper: build final items and advance when set is resolved
       window._resolveSetAndAdvance = () => {
-        const _rs = wizard.data._resolvedSet;
-        const _nums = wizard.data._enteredNums || [];
-        let _finalItems;
-        if (_rs) {
-          const _knownAll = [..._rs.items, ..._rs.alts];
-          const _manuals = _nums.filter(n => !_knownAll.some(k => normalizeItemNum(k) === normalizeItemNum(n) || baseItemNum(k) === baseItemNum(n)));
-          const _altsToInclude = _rs.alts.filter(a => _nums.some(e => normalizeItemNum(e) === normalizeItemNum(a) || baseItemNum(e) === baseItemNum(a)));
-          _finalItems = [...new Map([..._rs.items, ..._altsToInclude, ..._manuals].map(x=>[normalizeItemNum(x),x])).values()];
-        } else {
-          _finalItems = [..._nums];
-        }
+        // v0.9.1122: repeats in the catalog's own list are real cars.
+        const _finalItems = _rrBuildSetItems(wizard.data._resolvedSet, wizard.data._enteredNums || []);
         wizard.data._setFinalItems = _finalItems;
         wizard.data._setItemIndex = 0;
         wizard.data._setGroupId = 'SET-' + ((wizard.data._resolvedSet && wizard.data._resolvedSet.setNum) || 'UNK') + '-' + Date.now();
@@ -3477,19 +3510,10 @@ function renderWizardStep() {
           ? `Continue — add details for ${_resolvedSet.items.length} items →`
           : `Continue without set ID — add ${_enteredNums.length} item${_enteredNums.length!==1?'s':''}  →`;
         contBtn.onclick = () => {
-          // Build final item list from resolved set + manually entered items
-          const _rs = _resolvedSet;
-          let _finalItems;
-          if (_rs) {
-            // Deduped set items + alts that were entered + manual items not in set
-            const _knownAll = [..._rs.items, ..._rs.alts];
-            const _manuals = _enteredNums.filter(n => !_knownAll.some(k => normalizeItemNum(k) === normalizeItemNum(n) || baseItemNum(k) === baseItemNum(n)));
-            // Include alts only if user explicitly entered them
-            const _altsToInclude = _rs.alts.filter(a => _enteredNums.some(e => normalizeItemNum(e) === normalizeItemNum(a) || baseItemNum(e) === baseItemNum(a)));
-            _finalItems = [...new Map([..._rs.items, ..._altsToInclude, ..._manuals].map(x=>[normalizeItemNum(x),x])).values()];
-          } else {
-            _finalItems = [..._enteredNums];
-          }
+          // Build final item list from resolved set + manually entered items.
+          // v0.9.1122: same shared builder — a set that lists a number twice
+          // (1562W's two 2442 Vista Domes) walks it twice.
+          const _finalItems = _rrBuildSetItems(_resolvedSet, _enteredNums);
           wizard.data._setFinalItems = _finalItems;
           wizard.data._setItemIndex = 0;
           wizard.data._setGroupId = 'SET-' + ((_resolvedSet && _resolvedSet.setNum) || 'UNK') + '-' + Date.now();

@@ -34,6 +34,7 @@
 
   var FID_KEY = 'rr_inbox_fid';
   var PENDING_KEY = 'rr_inbox_pending';   // { itemNum: folderLink } waiting for wizard save
+  var SETSTAGE_KEY = 'rr_inbox_setstage'; // v0.9.1122: set-add notes NOT yet armed (see _pinAddSetFromGroup)
   var CROPPED_KEY = 'rr_inbox_cropped';   // v0.9.961: { fileId: 1 } cropped -> load real bytes, not Drive's stale preview
   var _fid = null, _fidChecked = false;
   var _groups = [];          // [{ key, files:[{id,name,createdTime}] }]
@@ -2575,7 +2576,10 @@
       if (nums.indexOf(n0) < 0) nums.push(n0);
       // v0.9.1117 (Brad: "its not putting the pictures in their rhs slot") —
       // each member's own inbox photo rides into that item's photo slot.
-      if (!memberPhotos[n0]) memberPhotos[n0] = f.id;
+      // v0.9.1122: a LIST per number, not one id — a set that contains the
+      // same car twice (1562W's two 2442s) hands slot 1 the first photo and
+      // slot 2 the second, instead of both showing the same picture.
+      (memberPhotos[n0] = memberPhotos[n0] || []).push(f.id);
       // v0.9.1118: every photo that read this member's number files with it.
       (numFiles[n0] = numFiles[n0] || []).push({ id: f.id, name: f.name });
     });
@@ -2584,23 +2588,29 @@
       showToast('The add wizard is not available on this page', 3000, true); return;
     }
     // v0.9.1118 (Brad: "the set was added, but the picture group did not
-    // disappear") — one pending note per member, so the SAME machinery that
-    // clears a single add clears the whole group once the walkthrough saves.
-    // No Drive calls here (the button stays instant): _flushPending resolves
-    // the folders at move time. Cancelling the wizard leaves these notes
-    // unmatched, so the photos stay in the inbox — exactly like a cancelled
-    // single add. Photos whose number never read are left alone on purpose.
+    // disappear") — one note per member, so the SAME machinery that clears a
+    // single add clears the whole group once the walkthrough saves. No Drive
+    // calls here; _flushPending resolves the folders at move time.
+    //
+    // v0.9.1122 (Brad: "i hit discard … the set picture was there but no item
+    // pictures"): these notes used to go straight into PENDING_KEY, and
+    // _flushPending files a note the moment an owned row with that number
+    // exists. For a set Brad had ALREADY added once, that was true instantly —
+    // so the photos filed themselves before he finished, and cancelling could
+    // not put them back. Notes now wait in a STAGING area and are armed one at
+    // a time, only when that member actually saves (rrPinSetPhotoSaved, called
+    // from the set-save hook). Cancel now genuinely leaves the photos alone.
+    // A new set add supersedes any abandoned staging. Photos whose number
+    // never read are left in the inbox on purpose.
     try {
-      var pend0 = JSON.parse(localStorage.getItem(PENDING_KEY) || '{}');
-      var ts0 = new Date().getTime();
+      var stage0 = {}, ts0 = new Date().getTime();
       nums.forEach(function (n1) {
-        if (pend0[n1]) return;                 // never clobber a single-add note
         var fl = numFiles[n1] || [];
         if (!fl.length) return;
-        pend0[n1] = { link: '', fromFid: '', toFid: '', ts: ts0,
-                      rsvFid: fl[0].id, files: fl };
+        stage0[n1] = { link: '', fromFid: '', toFid: '', ts: ts0,
+                       rsvFid: fl[0].id, files: fl };
       });
-      localStorage.setItem(PENDING_KEY, JSON.stringify(pend0));
+      localStorage.setItem(SETSTAGE_KEY, JSON.stringify(stage0));
     } catch (eP0) {}
     var ov = document.getElementById('pin-review-ov'); if (ov) ov.remove();
     _buildWizardModal();
@@ -2686,6 +2696,27 @@
       }
       if (tries > 20) clearInterval(t);
     }, 250);
+  };
+
+  // v0.9.1122 — arm ONE staged set-photo note. Called from the set-save hook
+  // the instant a member is really written to the sheet, so the photo move is
+  // driven by a save that happened, never by a save that merely might.
+  window.rrPinSetPhotoSaved = function (itemNum) {
+    try {
+      var n = String(itemNum || '').trim();
+      if (!n) return;
+      var stage = JSON.parse(localStorage.getItem(SETSTAGE_KEY) || '{}');
+      var key = Object.keys(stage).find(function (k) {
+        return k === n || (typeof normalizeItemNum === 'function' &&
+                           normalizeItemNum(k) === normalizeItemNum(n));
+      });
+      if (!key) return;                                  // nothing staged for this member
+      var pend = JSON.parse(localStorage.getItem(PENDING_KEY) || '{}');
+      if (!pend[n]) pend[n] = stage[key];                // never clobber a single-add note
+      delete stage[key];                                 // armed once — a repeat car reuses the same folder
+      localStorage.setItem(PENDING_KEY, JSON.stringify(pend));
+      localStorage.setItem(SETSTAGE_KEY, JSON.stringify(stage));
+    } catch (e) { console.warn('[Inbox] could not arm the set photo note', e && e.message); }
   };
 
   // When an item is actually saved, file any pending inbox photos into its

@@ -719,6 +719,55 @@ function _ownedCompanions(pd) {
 }
 if (typeof window !== 'undefined') window._ownedCompanions = _ownedCompanions;
 
+// ── v0.9.1122: abandoned set entries ───────────────────────────────────────
+// Leaving a set walkthrough partway keeps whatever already saved — by design,
+// so a crash or a phone call doesn't lose the cars you'd entered. But if you
+// never come back, those rows sit in the collection under a set ID with no set
+// record behind it, looking like duplicates of a set you already own. This
+// finds them (SET-… group, no matching My Sets row) so the collection can
+// offer to finish the job.
+function _rrAbandonedSetGroups() {
+  var out = [];
+  try {
+    var known = {};
+    Object.values(state.mySetsData || {}).forEach(function (s) { if (s && s.groupId) known[s.groupId] = 1; });
+    var byGid = {};
+    Object.values(state.personalData || {}).forEach(function (p) {
+      if (!p || !p.owned || !p.groupId) return;
+      if (!/^SET-/i.test(String(p.groupId)) || known[p.groupId]) return;
+      (byGid[p.groupId] = byGid[p.groupId] || []).push(p);
+    });
+    Object.keys(byGid).forEach(function (gid) {
+      out.push({ groupId: gid, items: byGid[gid],
+                 setNum: (String(gid).split('-')[1] || '') });
+    });
+  } catch (e) { console.warn('[abandonedSets]', e); }
+  return out;
+}
+if (typeof window !== 'undefined') window._rrAbandonedSetGroups = _rrAbandonedSetGroups;
+
+window._rrDropAbandonedSet = async function (gid) {
+  var g = _rrAbandonedSetGroups().find(function (x) { return x.groupId === gid; });
+  if (!g) return;
+  var msg = 'Remove the ' + g.items.length + ' item' + (g.items.length !== 1 ? 's' : '')
+    + ' left over from that unfinished ' + (g.setNum || 'set') + ' entry?\n\n'
+    + g.items.map(function (p) { return '  · ' + p.itemNum; }).join('\n')
+    + '\n\nPhotos already filed to these items stay in Drive.';
+  var ok = (typeof appConfirm === 'function')
+    ? await appConfirm(msg, { danger: true, ok: 'Remove them', cancel: 'Keep them', title: 'Unfinished set entry' })
+    : window.confirm(msg);
+  if (!ok) return;
+  try {
+    var n = (typeof rrRemoveSetGroup === 'function') ? await rrRemoveSetGroup(gid) : 0;
+    showToast('Removed ' + n + ' leftover item' + (n !== 1 ? 's' : ''), 3000);
+    if (typeof buildDashboard === 'function') buildDashboard();
+    renderBrowse();
+  } catch (e) {
+    console.error('[abandonedSets] remove:', e);
+    showToast('Could not remove them — try again', 3000, true);
+  }
+};
+
 // v0.9.1121: expand/collapse a folded SET row in My Collection.
 window._rrToggleSetFold = function (gid) {
   window._rrOpenSetFolds = window._rrOpenSetFolds || {};
@@ -3129,7 +3178,25 @@ function renderBrowse() {
   // ── My Collection: show piece-count in the title, hide the old legend line ──
   if (state.filters.owned) {
     var _le = document.getElementById('coll-icon-legend');
-    if (_le) { _le.style.display = 'none'; _le.innerHTML = ''; }
+    // v0.9.1122: surface set entries that were left partway, whichever way the
+    // user exited — the mid-entry cancel dialog only catches the Cancel button.
+    var _aband = (typeof _rrAbandonedSetGroups === 'function') ? _rrAbandonedSetGroups() : [];
+    if (_le && _aband.length) {
+      _le.style.display = '';
+      _le.innerHTML = _aband.map(function (g) {
+        var _gidSafe = String(g.groupId).replace(/[^A-Za-z0-9_-]/g, '');
+        return '<div style="margin:0 0 0.6rem;padding:0.7rem 0.9rem;border-radius:10px;border:1.5px solid #e67e22;background:rgba(230,126,34,0.1);display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center;justify-content:space-between">'
+          + '<div style="font-size:0.86rem;color:var(--text-mid);line-height:1.45">'
+          + '⚠️ <strong style="color:#e67e22">Unfinished set entry</strong> — '
+          + g.items.length + ' item' + (g.items.length !== 1 ? 's' : '')
+          + ' from a ' + (g.setNum || 'set') + ' walkthrough that never finished '
+          + '(' + g.items.map(function (p) { return p.itemNum; }).join(', ') + '). '
+          + 'They are counted in your collection but have no set behind them.'
+          + '</div>'
+          + '<button onclick="_rrDropAbandonedSet(\'' + _gidSafe + '\')" style="padding:0.45rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.8rem;cursor:pointer;white-space:nowrap">Remove them</button>'
+          + '</div>';
+      }).join('');
+    } else if (_le) { _le.style.display = 'none'; _le.innerHTML = ''; }
     // Count = owned pieces that have an item number, excluding boxes/master cartons.
     var _tSpan = document.querySelector('#page-browse > .page-title > span');
     if (_tSpan) {

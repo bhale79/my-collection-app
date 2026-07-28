@@ -367,10 +367,18 @@ function launchSetItemWizard() {
     if (_setMemberPhotos) {
       var _mpKeys = Object.keys(_setMemberPhotos);
       for (var _mpI = 0; _mpI < _mpKeys.length; _mpI++) {
-        if (normalizeItemNum(_mpKeys[_mpI]) === normalizeItemNum(itemNum)) {
-          wizard.data._addPhotoDriveId = _setMemberPhotos[_mpKeys[_mpI]];
-          break;
+        if (normalizeItemNum(_mpKeys[_mpI]) !== normalizeItemNum(itemNum)) continue;
+        var _mpVal = _setMemberPhotos[_mpKeys[_mpI]];
+        var _mpList = Array.isArray(_mpVal) ? _mpVal : [_mpVal];   // pre-1122 notes held one id
+        // v0.9.1122: when a set lists this number more than once (1562W's two
+        // 2442 Vista Domes), each slot takes its OWN photo — count how many
+        // earlier slots share this number and read that far down the list.
+        var _occ = 0;
+        for (var _oi = 0; _oi < idx && _oi < (items || []).length; _oi++) {
+          if (normalizeItemNum(items[_oi]) === normalizeItemNum(itemNum)) _occ++;
         }
+        wizard.data._addPhotoDriveId = _mpList[_occ] || _mpList[0];
+        break;
       }
     }
   } catch (eMp) {}
@@ -1947,6 +1955,12 @@ async function saveWizardItem() {
       wizard.data._setPrice      = _setPrice;
       wizard.data._setDate       = _setDate;
       wizard.data._setWorth      = _setWorth;
+      // v0.9.1122: THIS member is now on the sheet — arm its staged inbox
+      // photo so the very next _flushPending (inside buildDashboard) files it.
+      // Before this, set photos were armed at button-click time and filed
+      // themselves against a set Brad had already added once, which no cancel
+      // could undo.
+      try { if (typeof rrPinSetPhotoSaved === 'function') rrPinSetPhotoSaved(itemNum); } catch (ePh) {}
       buildDashboard();
       renderBrowse();
       showToast(`✓ ${itemNum} saved (${_saved.length} of ${(d._setFinalItems||[]).length})`);
