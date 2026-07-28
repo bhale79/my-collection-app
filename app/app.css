@@ -769,44 +769,56 @@
     overflow: hidden; display: flex; flex-direction: column;
     transition: background 0.3s, border-color 0.3s;
   }
-  /* Wizard tab themes */
+  /* ── Wizard tab themes ──────────────────────────────────────────────────
+     v0.9.1137 (Brad): all three wizards now sit on the app's own background
+     instead of three tinted washes — collection was #1a0e08 (brown), want
+     #08101a, sold #081a0e. The tint was carrying the "which list am I adding
+     to?" signal; that job now belongs entirely to the ACCENT — the border, the
+     progress bar and the Next button — which was always the louder signal
+     anyway. Orange = Collection, blue = Want, green = Sold, unchanged.
+
+     Using var(--bg) rather than a literal fixes a second thing for free. The
+     light theme (html[data-theme="light"]) redefines --bg to cream #f8e8c0 and
+     --text to near-black, but it never overrode these three hardcoded darks —
+     so in light mode the wizard was dark-brown-on-dark with near-black text.
+     Following the variable means the wizard tracks whatever theme is active. */
   #wizard-modal .modal.wiz-collection {
-    background: #1a0e08;
+    background: var(--bg);
     border-color: rgba(232,64,28,0.4);
   }
   #wizard-modal .modal.wiz-collection .modal-header {
-    background: #1a0e08;
+    background: var(--bg);
     border-bottom-color: rgba(232,64,28,0.25);
   }
   #wizard-modal .modal.wiz-collection #wizard-progress { background: var(--accent); }
   #wizard-modal .modal.wiz-collection .modal-footer {
-    background: #1a0e08;
+    background: var(--bg);
     border-top-color: rgba(232,64,28,0.25);
   }
   #wizard-modal .modal.wiz-want {
-    background: #08101a;
+    background: var(--bg);
     border-color: rgba(41,128,185,0.4);
   }
   #wizard-modal .modal.wiz-want .modal-header {
-    background: #08101a;
+    background: var(--bg);
     border-bottom-color: rgba(41,128,185,0.25);
   }
   #wizard-modal .modal.wiz-want #wizard-progress { background: #2980b9; }
   #wizard-modal .modal.wiz-want .modal-footer {
-    background: #08101a;
+    background: var(--bg);
     border-top-color: rgba(41,128,185,0.25);
   }
   #wizard-modal .modal.wiz-sold {
-    background: #081a0e;
+    background: var(--bg);
     border-color: rgba(46,204,113,0.4);
   }
   #wizard-modal .modal.wiz-sold .modal-header {
-    background: #081a0e;
+    background: var(--bg);
     border-bottom-color: rgba(46,204,113,0.25);
   }
   #wizard-modal .modal.wiz-sold #wizard-progress { background: #2ecc71; }
   #wizard-modal .modal.wiz-sold .modal-footer {
-    background: #081a0e;
+    background: var(--bg);
     border-top-color: rgba(46,204,113,0.25);
   }
   .modal-overlay.open .modal { transform: translateY(0); }

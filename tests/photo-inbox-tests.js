@@ -2577,6 +2577,31 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /Other O Brands is 158 rows/.test(vj));
   })();
 
+  section('114. Wizard backgrounds follow the theme (v0.9.1137)');
+  (function () {
+    const css = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app.css'), 'utf8');
+    // Strip /* */ comments — the note recording this change quotes the old
+    // hex values, and would otherwise fail the "they are gone" assertions.
+    const code = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    ok('the brown collection wash is gone', !/#1a0e08/.test(code));
+    ok('the want and sold washes are gone from the wizard',
+       !/background:\s*#08101a/.test(code) && !/background:\s*#081a0e/.test(code));
+    const wiz = code.slice(code.indexOf('#wizard-modal .modal.wiz-collection'),
+                           code.indexOf('.modal-overlay.open .modal'));
+    ok('all nine wizard surfaces use var(--bg)',
+       (wiz.match(/background:\s*var\(--bg\)/g) || []).length === 9);
+    // The accent must still tell the three lists apart
+    ok('collection still reads orange', /wiz-collection[\s\S]{0,400}rgba\(232,64,28,0\.4\)/.test(wiz) &&
+       /wiz-collection #wizard-progress \{ background: var\(--accent\)/.test(wiz));
+    ok('want still reads blue', /wiz-want[\s\S]{0,400}rgba\(41,128,185,0\.4\)/.test(wiz) &&
+       /wiz-want #wizard-progress \{ background: #2980b9/.test(wiz));
+    ok('sold still reads green', /wiz-sold[\s\S]{0,400}rgba\(46,204,113,0\.4\)/.test(wiz) &&
+       /wiz-sold #wizard-progress \{ background: #2ecc71/.test(wiz));
+    // The light-theme bug this incidentally fixes
+    ok('the light theme really does redefine --bg, so the wizard now follows it',
+       /html\[data-theme="light"\][\s\S]{0,200}--bg:\s*#f8e8c0/.test(code));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
