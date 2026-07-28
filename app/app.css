@@ -849,11 +849,11 @@
      --text to near-black, but it never overrode these three hardcoded darks —
      so in light mode the wizard was dark-brown-on-dark with near-black text.
      Following the variable means the wizard tracks whatever theme is active. */
-  /* v0.9.1145 (Brad: "the orange bar is not the same — they all need to look
-     the same") — the research cards carry .rr-card's 3px accent top edge; the
-     wizard only had its thin progress line, so the two families disagreed at
-     the top. The wizard now wears the same bar, in each flow's accent (the
-     rule the progress bar already follows). */
+  /* v0.9.1146 (Brad): the top bar is ONE colour — orange, var(--accent) — on
+     every pop-up, every flow. v0.9.1145 tried flow-coloured bars (blue on
+     Want, green on Sold); he did not ask for that: "just make them all the
+     same color. i didn't say color cordinate." The flow identity stays where
+     it always was — the progress line and the Next button. */
   #wizard-modal .modal { border-top: 3px solid var(--accent); }
   #wizard-modal .modal.wiz-collection {
     background: var(--bg);
@@ -872,7 +872,7 @@
   #wizard-modal .modal.wiz-want {
     background: var(--bg);
     border-color: rgba(41,128,185,0.4);
-    border-top: 3px solid #2980b9;
+    border-top: 3px solid var(--accent);
   }
   #wizard-modal .modal.wiz-want .modal-header {
     background: var(--bg);
@@ -886,7 +886,7 @@
   #wizard-modal .modal.wiz-sold {
     background: var(--bg);
     border-color: rgba(46,204,113,0.4);
-    border-top: 3px solid #2ecc71;
+    border-top: 3px solid var(--accent);
   }
   #wizard-modal .modal.wiz-sold .modal-header {
     background: var(--bg);

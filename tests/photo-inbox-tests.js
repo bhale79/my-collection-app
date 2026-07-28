@@ -2752,10 +2752,15 @@ META_WRITES.length = 0; TOASTS.length = 0;
       .replace(/\/\*[\s\S]*?\*\//g, '');
     ok('the wizard shell wears the same 3px top bar as .rr-card',
        /#wizard-modal \.modal \{ border-top: 3px solid var\(--accent\); \}/.test(css6));
-    ok('in each flow\'s accent — orange, blue, green — like its progress bar',
+    // v0.9.1146: Brad's correction — ONE colour, not colour-coordinated.
+    // Every top bar is var(--accent); flow identity stays on the progress
+    // line and Next button where it always was.
+    ok('every wizard flow wears the SAME orange bar — no blue, no green',
        /wiz-collection \{[\s\S]{0,200}border-top: 3px solid var\(--accent\);/.test(css6) &&
-       /wiz-want \{[\s\S]{0,200}border-top: 3px solid #2980b9;/.test(css6) &&
-       /wiz-sold \{[\s\S]{0,200}border-top: 3px solid #2ecc71;/.test(css6));
+       /wiz-want \{[\s\S]{0,200}border-top: 3px solid var\(--accent\);/.test(css6) &&
+       /wiz-sold \{[\s\S]{0,200}border-top: 3px solid var\(--accent\);/.test(css6) &&
+       !/border-top: 3px solid #2980b9/.test(css6) &&
+       !/border-top: 3px solid #2ecc71/.test(css6));
     ok('and .rr-card still carries its bar, so the two families agree',
        /\.rr-card \{[\s\S]{0,400}border-top: 3px solid var\(--accent\);/.test(css6));
   })();
