@@ -1956,6 +1956,21 @@ META_WRITES.length = 0; TOASTS.length = 0;
   const wzs = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'wizard-steps.js'), 'utf8');
   ok('the step title no longer asks HOW', !/How would you like to add ' \+ label/.test(wzs));
 
+  section('95. Set members carry their own photos and their own decade');
+  const pv = require('fs').readFileSync(SRC, 'utf8');
+  ok('the group hands each member number its own photo id',
+     /memberPhotos\[n0\] = f\.id/.test(pv) && /_setMemberPhotos: memberPhotos/.test(pv));
+  const wsv = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'wizard-save.js'), 'utf8');
+  ok('the walk threads the photo map through every member',
+     /_setMemberPhotos = d\._setMemberPhotos/.test(wsv) && /_addPhotoDriveId = _setMemberPhotos\[/.test(wsv));
+  ok('a member resolves to the row from the SET\'S year',
+     /_setYr >= _y1 - 1 && _setYr <= _y2 \+ 1/.test(wsv));
+  ok('year preference only ever swaps between rows of the same number',
+     /normalizeItemNum\(mm\.itemNum\) === normalizeItemNum\(itemNum\)/.test(wsv));
+  const wzk = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'wizard.js'), 'utf8');
+  ok('the photo map is save-metadata, never a sheet field',
+     (wzk.match(/'_setMemberPhotos'/g) || []).length === 2);
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

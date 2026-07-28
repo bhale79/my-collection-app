@@ -275,6 +275,7 @@ function launchSetItemWizard() {
   const _returnPage      = d._returnPage;
 
   const _setLocoNum      = d._setLocoNum || (items[0] || '');
+  const _setMemberPhotos = d._setMemberPhotos || null;   // v0.9.1117
   const _setPrice        = d._setPrice || '';
   const _setDate         = d._setDate  || '';
   const _setWorth        = d._setWorth || '';
@@ -298,6 +299,7 @@ function launchSetItemWizard() {
     _setPrice,
     _setDate,
     _setWorth,
+    _setMemberPhotos,
     set_hasBox: _setHasBox,
     set_boxCond: _setBoxCond,
     set_boxPhotos: _setBoxPhotos,
@@ -325,9 +327,46 @@ function launchSetItemWizard() {
   // for a colliding number (Lionel vs Atlas 6-8359).
   var _smPrefer = (typeof _wizMasterPrefer === 'function') ? _wizMasterPrefer() : null;
   wizard.matchedItem = ((typeof findMaster==='function') ? (findMaster(itemNum, '', _smPrefer) || findMaster(itemNum)) : state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum))) || null;
+  // v0.9.1117 (Brad's 2442): Lionel reused numbers across decades — a 1946
+  // brown sheet-metal Pullman and the 1956 silver plastic car share "2442".
+  // A set member is not just a number, it is a number FROM THE SET'S YEAR:
+  // when the master holds several rows for it, the row whose production run
+  // covers the set's year wins over whichever happened to be listed first.
+  try {
+    var _setYr = parseInt(String((_resolvedSet && _resolvedSet.year) || '').slice(0, 4), 10);
+    if (_setYr && typeof state !== 'undefined' && state.masterData) {
+      var _yrCands = state.masterData.filter(function (mm) {
+        return normalizeItemNum(mm.itemNum) === normalizeItemNum(itemNum);
+      });
+      var _inYear = _yrCands.filter(function (mm) {
+        var _ym = String(mm.yearProd || mm._yearRaw || '').match(/(\d{4})(?:\s*[-\u2013]\s*(\d{4}))?/);
+        if (!_ym) return false;
+        var _y1 = parseInt(_ym[1], 10), _y2 = _ym[2] ? parseInt(_ym[2], 10) : _y1;
+        return _setYr >= _y1 - 1 && _setYr <= _y2 + 1;
+      });
+      if (_inYear.length && wizard.matchedItem && _inYear.indexOf(wizard.matchedItem) < 0) {
+        wizard.matchedItem = _inYear[0];
+      } else if (_inYear.length && !wizard.matchedItem) {
+        wizard.matchedItem = _inYear[0];
+      }
+    }
+  } catch (eYr) {}
   if (wizard.matchedItem) {
     wizard.data.itemNum = wizard.matchedItem.itemNum; // use canonical form
   }
+  // v0.9.1117 — this member's own inbox photo lands in its photo slot, the
+  // same _addPhotoDriveId lane a single-item add from the inbox uses.
+  try {
+    if (_setMemberPhotos) {
+      var _mpKeys = Object.keys(_setMemberPhotos);
+      for (var _mpI = 0; _mpI < _mpKeys.length; _mpI++) {
+        if (normalizeItemNum(_mpKeys[_mpI]) === normalizeItemNum(itemNum)) {
+          wizard.data._addPhotoDriveId = _setMemberPhotos[_mpKeys[_mpI]];
+          break;
+        }
+      }
+    }
+  } catch (eMp) {}
 
   // Fast-forward past itemCategory, itemNumGrouping, itemPicker to variation
   wizard.step = 0;

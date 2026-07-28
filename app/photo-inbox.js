@@ -2542,11 +2542,15 @@
   window._pinAddSetFromGroup = function () {
     var g = _rvGroups && _rvGroups[0];
     if (!g) return;
-    var ids0 = _ids(), nums = [];
+    var ids0 = _ids(), nums = [], memberPhotos = {};
     _pinFilesToRead(g).forEach(function (f) {
       var s0 = f && ids0[f.id];
       var n0 = (s0 && s0.num) ? String(s0.num).trim() : '';
-      if (n0 && nums.indexOf(n0) < 0) nums.push(n0);
+      if (!n0) return;
+      if (nums.indexOf(n0) < 0) nums.push(n0);
+      // v0.9.1117 (Brad: "its not putting the pictures in their rhs slot") —
+      // each member's own inbox photo rides into that item's photo slot.
+      if (!memberPhotos[n0]) memberPhotos[n0] = f.id;
     });
     if (nums.length < 2) { showToast('Fewer than two member numbers are read \u2014 re-read or type them first', 3500, true); return; }
     if (typeof _buildWizardModal !== 'function' || typeof getSteps !== 'function' || typeof renderWizardStep !== 'function') {
@@ -2563,7 +2567,8 @@
     // addSetToCollection does.
     wizard = {
       step: 0, tab: 'set',
-      data: { tab: 'set', set_knowsNum: 'No', _enteredNums: nums.slice(0), _returnPage: 'photo-inbox' },
+      data: { tab: 'set', set_knowsNum: 'No', _enteredNums: nums.slice(0),
+              _setMemberPhotos: memberPhotos, _returnPage: 'photo-inbox' },
       steps: [], matchedItem: null,
     };
     wizard.steps = getSteps('set');
