@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1128';
+const APP_VERSION = 'v0.9.1129';
 
 // v0.9.918 (Brad): SINGLE SOURCE OF TRUTH for the personal sheet's collection
 // tab name. Every sheet read/write range ("My Collection!D12") builds from
@@ -167,6 +167,16 @@ const ERAS = {
   // 2026-07-02: Menards — O-gauge store brand (Gold Line etc.). Tab starts
   // nearly empty; grows via the catalog-review pipe as boxes get scanned.
   menards: { id: 'menards', label: 'Menards O', years: 'All',     prefix: 'Menards O', manufacturer: 'Menards' },
+  // 2026-07-28 (Brad): brands the app could not carry because they had no master
+  // tab. K-Line and Williams came from the Trainz catalog crawl (2,658 and 1,201
+  // models); Marx is the postwar tinplate maker Brad asked for. "Other O Brands"
+  // is ONE tab for the long tail — AMT (14 items), KMT, Industrial Rail, Bowser
+  // and friends. Each of those is too small to justify its own era and nav slot,
+  // but collectors still own them, so the rows exist and can be uploaded to.
+  kline:    { id: 'kline',    label: 'K-Line O',   years: '1975-2006', prefix: 'K-Line O',   manufacturer: 'K-Line' },
+  williams: { id: 'williams', label: 'Williams O', years: 'All',       prefix: 'Williams O', manufacturer: 'Williams' },
+  marx:     { id: 'marx',     label: 'Marx O',     years: '1930-1975', prefix: 'Marx O',     manufacturer: 'Marx' },
+  other_o:  { id: 'other_o',  label: 'Other O Brands', years: 'All',   prefix: 'Other O',    manufacturer: '' },
   // 2026-07-19: 3rd Rail / Sunset Models (incl. Golden Gate Depot) — brass O.
   // No factory catalog numbers; itemNums are 3R-/GGD- road+model slugs from
   // the Wayback reconstruction (see 3RDRAIL_WAYBACK_PROGRESS.md in project).
@@ -177,7 +187,7 @@ const ERAS = {
   lgb:       { id: 'lgb',       label: 'LGB G',        years: 'All', prefix: 'LGB G',        manufacturer: 'LGB' },
 };
 // Real-era IDs in load priority order (excluding 'all' meta-era).
-const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver', 'rmt', 'menards', 'thirdrail', 'usatrains', 'lgb'];
+const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver', 'rmt', 'menards', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o'];
 
 // ── Master sheet tab names per era ──
 // Session 154: scale per era — drives the want-list Scale filter (master
@@ -185,6 +195,7 @@ const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'at
 const ERA_SCALE = {
   prewar: 'Standard', mth_tinplate: 'Standard',
   pw: 'O', mpc: 'O', atlas: 'O', mth_o: 'O', weaver: 'O', rmt: 'O', menards: 'O', thirdrail: 'O',
+  kline: 'O', williams: 'O', marx: 'O', other_o: 'O',
   usatrains: 'g', lgb: 'g',
   mth_ho: 'HO',
   mth_s: 'S',
@@ -246,6 +257,18 @@ const ERA_TABS = {
   // Restore here if/when those master tabs get built.
   weaver: {
     items:    'Weaver O',
+  },
+  kline: {
+    items:    'K-Line O',
+  },
+  williams: {
+    items:    'Williams O',
+  },
+  marx: {
+    items:    'Marx O',
+  },
+  other_o: {
+    items:    'Other O Brands',
   },
   rmt: {
     items:    'RMT O',
