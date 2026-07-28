@@ -111,7 +111,7 @@
     ov.id = 'rs-overlay';
     ov.style.cssText = 'position:fixed;inset:0;z-index:10050;background:rgba(0,0,0,0.82);display:flex;align-items:center;justify-content:center;padding:1rem;overflow-y:auto';
     ov.innerHTML =
-      '<div style="background:var(--surface,#1c1c22);border:1.5px solid var(--border,#333);border-radius:14px;max-width:430px;width:100%;padding:1.1rem 1.2rem;max-height:92vh;overflow-y:auto">'
+      '<div class="rr-card">'
       + '<div style="font-size:1.05rem;font-weight:800;color:var(--text,#fff);margin-bottom:0.6rem">📸 Research Result</div>'
       + '<div style="font-size:1.3rem;font-weight:800;color:var(--accent,#e8401c)">' + (_esc(itemNum) || 'No number found') + '</div>'
       + '<div style="font-size:0.9rem;color:var(--text,#eee);margin:0.25rem 0 0.15rem">'

@@ -379,7 +379,7 @@ function openHelpHub() {
   modal.id = 'help-hub-modal';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding:1.25rem;overflow-y:auto';
   modal.innerHTML =
-    '<div style="background:var(--surface);border-radius:16px;max-width:460px;width:100%;margin:auto;box-shadow:0 12px 40px rgba(0,0,0,0.5);font-family:var(--font-body)">'
+    '<div class="rr-card" style="padding:0;margin:auto;font-family:var(--font-body)">'
     + '<div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">'
     +   '<strong style="font-size:1.1rem;color:var(--text)">📖 Help Center</strong>'
     +   '<button type="button" onclick="' + X + '" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1;padding:0 0.25rem">×</button>'
@@ -680,7 +680,7 @@ function _demoPlay(title, scenes) {
   modal.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(8,10,18,0.92);display:flex;align-items:center;justify-content:center;padding:1rem;font-family:var(--font-body,sans-serif)';
   var bc = 'padding:0.4rem 0.8rem;border-radius:7px;font-size:0.82rem;cursor:pointer;font-family:inherit';
   modal.innerHTML =
-    '<div style="width:100%;max-width:680px;background:var(--surface,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;overflow:hidden;box-shadow:0 16px 50px rgba(0,0,0,0.6)">'
+    '<div class="rr-card" style="max-width:680px;padding:0;overflow:hidden">'
     + '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.7rem 1rem;border-bottom:1px solid var(--border,#333);background:var(--surface2,#222)">'
     +   '<strong style="color:var(--text,#eee);font-size:0.95rem">🎬 ' + title + '</strong>'
     +   '<button id="demo-exit" style="background:none;border:none;color:var(--text-dim,#888);font-size:1.4rem;cursor:pointer;line-height:1">×</button>'

@@ -872,7 +872,7 @@ function _openLocationsModal(){
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
   var typeOpts = LOCATION_TYPES.map(function(t){ return '<option value="'+t+'">'+t+'</option>'; }).join('');
   modal.innerHTML =
-    '<div style="background:var(--surface);border-radius:14px;max-width:480px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.4);font-family:var(--font-body)">'
+    '<div class="rr-card rr-card-flex" style="padding:0;font-family:var(--font-body)">'
     + '<div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">'
     +   '<strong style="font-size:1.05rem;color:var(--text)">Storage Locations</strong>'
     +   '<button id="loc-close" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1">&times;</button>'
@@ -951,9 +951,7 @@ function _uiShowVersionHistoryHelp() {
     'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;' +
     'display:flex;align-items:center;justify-content:center;padding:1rem';
   modal.innerHTML =
-    '<div style="background:var(--surface,#fff);color:var(--text,#111);' +
-      'border-radius:12px;max-width:560px;width:100%;max-height:85vh;' +
-      'display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.4)">' +
+    '<div class="rr-card rr-card-flex" style="padding:0">' +
       '<div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border,#ddd);' +
         'display:flex;align-items:center;justify-content:space-between">' +
         '<strong style="font-size:1.05rem">How to Undo a Mistake</strong>' +

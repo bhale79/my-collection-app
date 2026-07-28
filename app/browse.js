@@ -516,9 +516,7 @@ function _openLevelPicker(level) {
                        + 'display:flex;align-items:center;justify-content:center;padding:1rem';
   bindOverlayClose(overlay, function() { overlay.remove(); });
   var modal = document.createElement('div');
-  modal.style.cssText = 'background:var(--bg-card);border-radius:12px;padding:1.1rem;'
-                     + 'max-width:340px;width:100%;max-height:80vh;overflow:auto;'
-                     + 'border:1px solid var(--border);box-shadow:0 12px 36px rgba(0,0,0,0.5)';
+  modal.className = 'rr-card';
   var head = level.charAt(0).toUpperCase() + level.slice(1);
   var heading = document.createElement('div');
   heading.style.cssText = 'font-weight:700;font-size:0.95rem;margin-bottom:0.55rem';
@@ -2075,7 +2073,7 @@ function _ncShowFsSoldModal(type, key, action) {
   ov.id = '_nc-action-modal';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10010;display:flex;align-items:center;justify-content:center;padding:1.5rem';
   ov.innerHTML =
-      '<div style="background:var(--surface);border-radius:14px;padding:1.5rem;max-width:380px;width:100%;border:1px solid var(--border)">'
+      '<div class="rr-card">'
     +   '<div style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:0.2rem">' + heading + '</div>'
     +   '<div style="font-family:var(--font-mono);color:var(--accent);font-size:0.88rem;margin-bottom:0.15rem">' + (ids.itemNum || '—') + '</div>'
     +   '<div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:1rem">' + title + '</div>'
@@ -2196,7 +2194,7 @@ function _ncShowUpgradeModal(type, key) {
   ov.id = '_nc-upgrade-modal';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10010;display:flex;align-items:center;justify-content:center;padding:1.5rem';
   ov.innerHTML =
-      '<div style="background:var(--surface);border-radius:14px;padding:1.5rem;max-width:380px;width:100%;border:1px solid var(--border)">'
+      '<div class="rr-card">'
     +   '<div style="font-family:var(--font-head);font-size:1rem;font-weight:700;color:#8b5cf6;margin-bottom:0.2rem">↑ Add to Upgrade List</div>'
     +   '<div style="font-family:var(--font-mono);color:var(--accent);font-size:0.88rem;margin-bottom:0.15rem">' + (ids.itemNum || '—') + '</div>'
     +   '<div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:1rem">' + title + '</div>'

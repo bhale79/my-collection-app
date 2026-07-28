@@ -133,7 +133,7 @@ function _showCustomTenderInput(engineNum) {
   var overlay = document.createElement('div');
   overlay.id = 'custom-tender-overlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10010;display:flex;align-items:center;justify-content:center;padding:1.5rem';
-  overlay.innerHTML = '<div style="background:var(--surface);border-radius:14px;padding:1.25rem;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,0.5)">'
+  overlay.innerHTML = '<div class="rr-card">'
     + '<div style="font-family:var(--font-head);font-size:1rem;font-weight:700;color:var(--text);margin-bottom:0.1rem">Pair with a Non-Standard Tender</div>'
     + '<div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:0.85rem">Start typing to find a tender to pair with ' + engineNum + '.</div>'
     + '<div style="position:relative">'

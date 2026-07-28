@@ -306,9 +306,7 @@ async function uiBackupList() {
     'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;' +
     'display:flex;align-items:center;justify-content:center;padding:1rem';
   modal.innerHTML =
-    '<div style="background:var(--surface,#fff);color:var(--text,#111);' +
-      'border-radius:12px;max-width:680px;width:100%;max-height:85vh;' +
-      'display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.4)">' +
+    '<div class="rr-card rr-card-flex" style="padding:0">' +
       '<div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border,#ddd);' +
         'display:flex;align-items:center;justify-content:space-between">' +
         '<strong style="font-size:1.05rem">Your Backups</strong>' +
@@ -407,8 +405,7 @@ async function uiBackupRestore(backupId, backupName) {
     'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:10000;' +
     'display:flex;align-items:center;justify-content:center;padding:1rem';
   prog.innerHTML =
-    '<div style="background:var(--surface,#fff);color:var(--text,#111);' +
-      'border-radius:12px;max-width:420px;width:100%;padding:1.5rem;text-align:center">' +
+    '<div class="rr-card" style="text-align:center">' +
       '<div style="font-weight:700;font-size:1rem;margin-bottom:0.75rem">Restoring…</div>' +
       '<div id="backup-progress-msg" style="font-size:0.9rem;color:var(--text-dim,#777)">Starting…</div>' +
     '</div>';
@@ -426,8 +423,7 @@ async function uiBackupRestore(backupId, backupName) {
     done.id = 'backup-progress-modal';
     done.style.cssText = prog.style.cssText;
     done.innerHTML =
-      '<div style="background:var(--surface,#fff);color:var(--text,#111);' +
-        'border-radius:12px;max-width:480px;width:100%;padding:1.5rem;text-align:center">' +
+      '<div class="rr-card" style="text-align:center">' +
         '<div style="font-weight:700;font-size:1.05rem;margin-bottom:0.5rem;color:var(--accent,#4a7)">' +
           BACKUP_UI_TEXT.restoreSuccess + '</div>' +
         (successName

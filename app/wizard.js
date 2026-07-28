@@ -997,7 +997,7 @@ async function _confirmSetCancel() {
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
   const box = document.createElement('div');
-  box.style.cssText = 'background:var(--surface);border:1px solid var(--accent);border-radius:14px;max-width:400px;width:100%;padding:1.5rem;text-align:center';
+  box.className = 'rr-card'; box.style.cssText += ';border-color:var(--accent);text-align:center';
   box.innerHTML = '<div style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent);margin-bottom:0.75rem">Cancel Set Entry?</div>'
     + '<div style="font-size:0.85rem;color:var(--text-mid);line-height:1.5;margin-bottom:1.25rem">Are you sure? All ' + saved.length + ' item' + (saved.length !== 1 ? 's' : '') + ' you\'ve already entered for this set will be deleted.</div>'
     + '<div style="display:flex;gap:0.5rem;justify-content:center">'
@@ -2227,7 +2227,7 @@ function renderWizardStep() {
       var overlay = document.createElement('div');
       overlay.id = 'tender-picker-modal';
       overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10010;display:flex;align-items:center;justify-content:center;padding:1.5rem';
-      overlay.innerHTML = '<div style="background:var(--surface);border-radius:14px;padding:1.25rem;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,0.5)">'
+      overlay.innerHTML = '<div class="rr-card">'
         + '<div style="font-family:var(--font-head);font-size:1rem;font-weight:700;color:var(--text);margin-bottom:0.1rem">Select Your Tender</div>'
         + '<div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:0.85rem">Type a tender number to search, or pick from the list below.</div>'
         + '<input id="tender-picker-input" type="search" autocomplete="off" placeholder="e.g. 2046W, 6026T…" style="width:100%;box-sizing:border-box;padding:0.65rem 0.85rem;border-radius:9px;border:1.5px solid var(--accent);background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.92rem;outline:none;margin-bottom:0.5rem">'

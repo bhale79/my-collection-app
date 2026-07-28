@@ -1017,7 +1017,7 @@
       var ov = document.createElement('div');
       ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;padding:1.2rem';
       ov.innerHTML =
-        '<div style="max-width:380px;width:100%;background:var(--surface,#1e1e26);border:1px solid var(--border);border-radius:14px;padding:1.3rem 1.3rem 1.1rem;box-shadow:0 12px 40px rgba(0,0,0,0.5)">' +
+        '<div class="rr-card">' +
           '<div style="font-size:0.92rem;color:var(--text-mid);line-height:1.55;margin-bottom:1.1rem">' + msg + '</div>' +
           '<div style="display:flex;gap:0.6rem;justify-content:flex-end">' +
             '<button id="_pcc" style="padding:0.5rem 1rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:var(--text-mid);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">Not now</button>' +
@@ -1280,7 +1280,7 @@
         + '<button style="' + bcss + '" onclick="' + X + '_pinGPhotos()"><span style="font-size:1.3rem">🖼️</span> From Google Photos</button>'
       : '<button style="' + bcss + '" onclick="' + X + '_pinPickFiles()"><span style="font-size:1.3rem">💻</span> From Your Drive <span style="color:var(--text-dim);font-size:0.78rem;font-weight:400">— your computer</span></button>'
         + '<button style="' + bcss + '" onclick="' + X + '_pinGPhotos()"><span style="font-size:1.3rem">🖼️</span> From Google Photos</button>';
-    ov.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.2rem;max-width:360px;width:100%">' +
+    ov.innerHTML = '<div class="rr-card">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.85rem">' +
         '<div style="font-family:var(--font-head);font-weight:700;font-size:1rem;color:var(--text)">Add photos from…</div>' +
         '<button onclick="' + X + '" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;line-height:1;cursor:pointer;padding:0.1rem 0.3rem">✕</button>' +
@@ -1929,7 +1929,7 @@
     ov.id = 'pin-review-ov';
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
     ov.innerHTML =
-      '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.1rem;max-width:' + (_wide ? '820px' : '460px') + ';width:100%;max-height:94vh;overflow-y:auto">' +
+      '<div class="rr-card"' + (_wide ? ' style="max-width:820px"' : '') + '>' +
         '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem">' +
           _pinRvNavHtml('prev') +
           '<div style="flex:1;min-width:0;font-family:var(--font-head);font-weight:700;font-size:1rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + n + ' photo' + (n > 1 ? 's' : '') + ' · one item</div>' +
@@ -5288,7 +5288,7 @@
       txt += '\n';
     });
     ov.innerHTML =
-      '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.1rem;max-width:640px;width:100%;max-height:92vh;overflow-y:auto">'
+      '<div class="rr-card" style="max-width:640px">'
       + '<div style="font-family:var(--font-head);font-weight:700;font-size:1.05rem;margin-bottom:0.2rem">Reader audit</div>'
       + '<div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.9rem">'
         + rows.length + ' of ' + total + ' items read four ways, ' + secs + ' seconds, no credits spent.'
@@ -5492,7 +5492,7 @@
     ov.id = 'pin-gp-help';
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
     ov.innerHTML =
-      '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.2rem;max-width:420px;width:100%">' +
+      '<div class="rr-card">' +
         '<div style="font-family:var(--font-head);font-weight:700;font-size:1rem;color:var(--text);margin-bottom:0.5rem">Google Photos needs two one-time switches</div>' +
         '<div style="font-size:0.82rem;color:var(--text-dim);line-height:1.6;margin-bottom:0.8rem">' +
           '1. Turn on the <strong style="color:var(--text)">Google Photos Picker API</strong> for this app: <a href="https://console.cloud.google.com/apis/library/photospicker.googleapis.com" target="_blank" style="color:#2980b9">open the switch ↗</a> and click Enable.<br><br>' +

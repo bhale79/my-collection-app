@@ -180,7 +180,7 @@ function _dbMaybePopup() {
   ov.id = 'db-popup';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:99998;display:flex;align-items:flex-start;justify-content:center;padding:18px;overflow-y:auto';
   ov.innerHTML =
-    '<div style="background:var(--surface,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;max-width:460px;width:100%;padding:20px 22px 18px;color:var(--text,#eee);font-family:var(--font-body,sans-serif);max-height:calc(100vh - 36px);overflow-y:auto;-webkit-overflow-scrolling:touch;margin:auto 0;box-shadow:0 12px 40px rgba(0,0,0,0.5)">'
+    '<div class="rr-card" style="color:var(--text);font-family:var(--font-body);margin:auto 0">'
     + '<div style="text-align:center;margin-bottom:10px"><img src="' + DISPATCH_CFG.iconLg + '" alt="" style="width:110px;height:110px;display:inline-block"></div>'
     + '<div style="text-align:center;font-size:0.72rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--gold,#d4a843);margin-bottom:4px">Incoming from the Dispatch Board</div>'
     + '<div style="font-family:var(--font-head,sans-serif);font-size:1.25rem;text-align:center;font-weight:700;margin-bottom:4px">' + _dbEsc(it.title) + '</div>'

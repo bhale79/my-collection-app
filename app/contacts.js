@@ -809,7 +809,7 @@
     var d = document.createElement('div');
     d.id = 'ct-bought-modal';
     d.style.cssText = 'position:fixed;inset:0;z-index:10050;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;padding:1rem';
-    d.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:420px;width:100%;padding:1rem;max-height:80vh;overflow-y:auto">'
+    d.innerHTML = '<div class="rr-card">'
       + '<div style="font-family:var(--font-head);font-size:1rem;color:var(--text);margin-bottom:0.6rem">🛒 Bought from ' + _esc((c && c.name) || 'this contact') + '</div>'
       + items.map(function (pd) {
           var label = 'No. ' + _esc(pd.itemNum || '?') + (pd.customName ? ' — ' + _esc(pd.customName) : (pd.description ? ' — ' + _esc(String(pd.description).substring(0, 40)) : ''));
@@ -845,7 +845,7 @@
     var d = document.createElement('div');
     d.id = 'ct-share-modal';
     d.style.cssText = 'position:fixed;inset:0;z-index:10050;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;padding:1rem';
-    d.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:420px;width:100%;padding:1rem;max-height:80vh;display:flex;flex-direction:column">'
+    d.innerHTML = '<div class="rr-card rr-card-flex" style="max-height:80dvh">'
       + '<div style="font-family:var(--font-head);font-size:1rem;color:var(--text);margin-bottom:0.6rem">↗ Share contacts — pick who to send</div>'
       + '<div style="flex:1;overflow-y:auto;min-height:0">'
       + rows.map(function (c) {
@@ -915,7 +915,7 @@
     var _knownChips = ERA_CHIPS.concat(SPECIALTY_CHIPS).map(function (x) { return x.toLowerCase(); });
     var _extraSpecs = (c.specialties || '').split(',').map(function (x) { return x.trim(); })
       .filter(function (x) { return x && _knownChips.indexOf(x.toLowerCase()) < 0; }).join(', ');
-    ov.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:480px;width:100%;padding:0.9rem 1rem;max-height:92vh;overflow-y:auto">'
+    ov.innerHTML = '<div class="rr-card">'
       + '<div style="font-family:var(--font-head);font-size:1.05rem;color:var(--text);margin-bottom:0.5rem">' + (row ? 'Edit Contact' : '📇 New Contact') + '</div>'
       + '<div id="ct-card-dropwrap" style="display:flex;gap:0.5rem;margin-bottom:0.7rem">'
       +   '<button onclick="document.getElementById(\'ct-card-file\').click()" style="flex:1;padding:0.75rem;border-radius:9px;border:1.5px dashed #3498db;background:rgba(52,152,219,0.08);color:#3498db;font-weight:700;cursor:pointer;font-family:var(--font-body)">📷 Take photo of card</button>'

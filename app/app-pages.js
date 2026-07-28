@@ -825,8 +825,8 @@ function ephemeraForSale(tabId, rowKey) {
   const ov = document.createElement('div');
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
   ov.innerHTML = `
-    <div style="background:var(--surface);border-radius:14px;padding:1.5rem;max-width:360px;width:100%;border:1px solid var(--border)">
-      <div style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:0.2rem">List For Sale</div>
+    <div class="rr-card">
+      <div class="rr-card-title" style="margin-bottom:0.2rem">List For Sale</div>
       <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:1.1rem">${title}</div>
       <div style="margin-bottom:0.75rem">
         <div class="field-label">Asking Price ($)</div>
@@ -882,8 +882,8 @@ function ephemeraSold(tabId, rowKey) {
   const ov = document.createElement('div');
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
   ov.innerHTML = `
-    <div style="background:var(--surface);border-radius:14px;padding:1.5rem;max-width:360px;width:100%;border:1px solid var(--border)">
-      <div style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:0.2rem">Mark as Sold</div>
+    <div class="rr-card">
+      <div class="rr-card-title" style="margin-bottom:0.2rem">Mark as Sold</div>
       <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:1.1rem">${title}</div>
       <div style="margin-bottom:0.75rem">
         <div class="field-label">Sale Price ($)</div>
@@ -1159,7 +1159,7 @@ function showVarDescPopup(idx) {
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
   overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
   const box = document.createElement('div');
-  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;padding:1.5rem;position:relative';
+  box.className = 'rr-card';   // v0.9.1140 standard card
   const closeBtn = document.createElement('button');
   closeBtn.textContent = '✕';
   closeBtn.style.cssText = 'position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer';
@@ -1188,7 +1188,7 @@ function showWantDesc(idx) {
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
   overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
   const box = document.createElement('div');
-  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;padding:1.5rem;position:relative';
+  box.className = 'rr-card';   // v0.9.1140 standard card
   const closeBtn = document.createElement('button');
   closeBtn.textContent = '✕';
   closeBtn.style.cssText = 'position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer';
@@ -1391,11 +1391,11 @@ function wantFindOnEbay(itemNum, roadName) {
   _overlay.onclick = function(e) { if (e.target === _overlay) _overlay.remove(); };
 
   _overlay.innerHTML = `
-    <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;width:100%;max-width:420px;padding:1.25rem;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
+    <div class="rr-card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
         <div style="display:flex;align-items:center;gap:0.5rem">
           <span style="font-size:1.3rem">🛒</span>
-          <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--text);letter-spacing:0.03em">Search eBay</span>
+          <span class="rr-card-title" style="margin-bottom:0;padding-right:0">Search eBay</span>
         </div>
         <button onclick="document.getElementById('ebay-search-modal').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer;line-height:1">✕</button>
       </div>
@@ -2578,7 +2578,7 @@ function showSetDetail(setNum) {
 
   // ── Box ──
   const box = document.createElement('div');
-  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:560px;width:100%;padding:1.5rem;position:relative;max-height:85vh;overflow-y:auto';
+  box.className = 'rr-card';   // v0.9.1140 standard card
 
   // Close button
   const closeBtn = document.createElement('button');
@@ -2717,9 +2717,9 @@ function _buildContactModal() {
   d.id = 'contact-modal';
   d.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;align-items:center;justify-content:center;padding:1.25rem';
   d.innerHTML =
-    '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:420px;width:100%;padding:1.75rem;position:relative">' +
+    '<div class="rr-card">' +
       '<button onclick="document.getElementById(\'contact-modal\').style.display=\'none\';if(window.BackStack)BackStack.pop(\'contact-modal\')" style="position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">&#x2715;</button>' +
-      '<div style="font-family:var(--font-head);font-size:1.2rem;color:var(--accent);margin-bottom:0.4rem">&#x1F4EC; Contact Us</div>' +
+      '<div class="rr-card-title">&#x1F4EC; Contact Us</div>' +
       '<p style="font-size:0.88rem;color:var(--text);line-height:1.65;margin-bottom:1rem">' +
         'Found an error in the catalog or set list? Have a suggestion? We\'d love to hear from you.' +
       '</p>' +
@@ -3172,7 +3172,7 @@ function pickItemForUpgrade() {
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10001;display:flex;align-items:center;justify-content:center;padding:1.25rem';
   overlay.onclick = function (e) { if (e.target === overlay) overlay.remove(); };
   overlay.innerHTML =
-    '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:480px;width:100%;padding:1.4rem;position:relative;max-height:80vh;display:flex;flex-direction:column">'
+    '<div class="rr-card rr-card-flex" style="max-height:80dvh">'
     + '<button onclick="document.getElementById(\'upgrade-pick-modal\').remove()" style="position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">\u2715</button>'
     // v0.9.1139 (Brad): the purple "Add to Upgrade List" row said the same thing
     // as the line beneath it, in a colour no other modal heading uses. Dropped \u2014
@@ -3180,9 +3180,9 @@ function pickItemForUpgrade() {
     // like every other modal. Purple stays everywhere it carries meaning (the
     // Upgrade buttons, target-condition values, the list accent); it simply is
     // not a title colour any more.
-    + '<div style="font-family:var(--font-head);font-size:1.15rem;font-weight:600;color:var(--text);margin-bottom:0.7rem">Pick the item you\'d like to upgrade</div>'
+    + '<div class="rr-card-title">Pick the item you\'d like to upgrade</div>'
     + '<div style="display:flex;gap:0.4rem;margin-bottom:0.45rem">'
-    +   '<input id="upg-pick-q" type="text" placeholder="Search # or name\u2026" oninput="_upgPickApply()" style="flex:1;min-width:0;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem">'
+    +   '<input id="upg-pick-q" type="text" placeholder="Search # or name\u2026" oninput="_upgPickApply()" style="flex:1;min-width:0;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:17px;min-height:46px">'
     + '</div>'
     + ((typeof _wpSellFilterRow === 'function') ? _wpSellFilterRow('_upgPickApply()') : '')
     + '<div id="upg-pick-list" style="overflow-y:auto;flex:1"></div>'
@@ -3254,13 +3254,13 @@ function showAddToUpgradeModal(itemNum, variation, pdRow, invId, groupMode) {
   overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
 
   overlay.innerHTML = `
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:400px;width:100%;padding:1.5rem;position:relative">
+    <div class="rr-card">
       <button onclick="document.getElementById('upgrade-add-modal').remove()" style="position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">✕</button>
       <!-- v0.9.1139: matched to the picker — cream, not purple. This one KEEPS
            its title text, because unlike the picker there is no instruction line
            to promote, and the item number below it does not say what you are
            about to do with the item. The ↑ carries the Upgrade identity now. -->
-      <div style="font-family:var(--font-head);font-size:1.15rem;font-weight:600;color:var(--text);margin-bottom:0.35rem">↑ Add to Upgrade List</div>
+      <div class="rr-card-title">↑ Add to Upgrade List</div>
       ${_hdrNumHtml}
       <div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:1rem">${name}${myCond ? ' · Current condition: ' + myCond : ''}</div>
       <div style="display:flex;flex-direction:column;gap:0.75rem">
@@ -3311,9 +3311,9 @@ function _chooseUpgradeScope(itemNum, variation, pdRow, invId, pd) {
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10002;display:flex;align-items:center;justify-content:center;padding:1.25rem';
   overlay.onclick = function(e){ if (e.target === overlay) overlay.remove(); };
   overlay.innerHTML =
-    '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:380px;width:100%;padding:1.5rem">'
+    '<div class="rr-card">'
     // v0.9.1139: third of the three purple headings, matched to the other two.
-    + '<div style="font-family:var(--font-head);font-size:1.05rem;font-weight:600;color:var(--text);margin-bottom:0.3rem">↑ Add to Upgrade List</div>'
+    + '<div class="rr-card-title">↑ Add to Upgrade List</div>'
     + '<div style="font-size:0.84rem;color:var(--text-mid);margin-bottom:1rem">This is a grouped item (<strong style="color:var(--text)">' + listTxt + '</strong>). Add the whole set, or just this piece?</div>'
     + '<div style="display:flex;flex-direction:column;gap:0.5rem">'
     + '<button id="_ugs-all" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid #8b5cf6;background:#8b5cf6;color:#fff;font-family:var(--font-body);font-size:0.9rem;font-weight:700;cursor:pointer;text-align:left">Upgrade the whole set<br><span style="font-weight:400;font-size:0.78rem;opacity:0.85">Add all ' + pieces.length + ' pieces to your Upgrade list</span></button>'
@@ -3521,9 +3521,9 @@ function _upgradeGotItOldStart(ugKey) {
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10002;display:flex;align-items:center;justify-content:center;padding:1.25rem';
   overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
   overlay.innerHTML = `
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:380px;width:100%;padding:1.5rem;position:relative">
+    <div class="rr-card">
       <button onclick="document.getElementById('upgrade-gotit-modal').remove()" style="position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">✕</button>
-      <div style="font-family:var(--font-head);font-size:1.15rem;color:#2ecc71;margin-bottom:0.25rem">✓ Got It!</div>
+      <div class="rr-card-title">✓ Got It!</div>
       <div style="font-family:var(--font-mono);font-size:0.88rem;color:var(--accent);margin-bottom:0.75rem">${itemNum} — ${name}</div>
       <p style="font-size:0.85rem;color:var(--text);margin-bottom:1rem;line-height:1.5">Did you already add the new one to your collection?</p>
       <div style="display:flex;gap:0.5rem;margin-bottom:1.25rem">
@@ -3724,8 +3724,8 @@ function showAddPartModal(existingId) {
   var ov = document.createElement('div');
   ov.id = '_part-modal';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10050;display:flex;align-items:center;justify-content:center;padding:1.25rem';
-  ov.innerHTML = '<div style="background:var(--surface);border-radius:14px;padding:1.4rem;max-width:420px;width:100%;border:1px solid var(--border);max-height:90vh;overflow-y:auto">'
-    + '<div style="font-family:var(--font-head);font-size:1.05rem;font-weight:700;color:var(--accent);margin-bottom:0.9rem">🔧 ' + (existingId ? 'Edit Part' : 'Add a Part') + '</div>'
+  ov.innerHTML = '<div class="rr-card">'
+    + '<div class="rr-card-title">🔧 ' + (existingId ? 'Edit Part' : 'Add a Part') + '</div>'
     + '<label style="font-size:0.74rem;color:var(--text-dim);display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em">Description *</label>'
     + '<input id="_part-desc" type="text" value="' + String(existing.description || '').replace(/"/g, '&quot;') + '" placeholder="e.g. pickup roller assembly" style="width:100%;box-sizing:border-box;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.9rem;margin-bottom:0.7rem">'
     + '<label style="font-size:0.74rem;color:var(--text-dim);display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em">Part Number (optional)</label>'
@@ -3853,8 +3853,8 @@ function markPartInstalled(rowNum) {
   ov.id = '_part-install-modal';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10060;display:flex;align-items:center;justify-content:center;padding:1.25rem';
   ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
-  ov.innerHTML = '<div style="background:var(--surface);border-radius:14px;padding:1.4rem;max-width:420px;width:100%;border:1px solid var(--border);max-height:90vh;overflow-y:auto">'
-    + '<div style="font-family:var(--font-head);font-size:1.05rem;font-weight:700;color:#2ecc71;margin-bottom:0.3rem">\u2713 Mark Part Installed</div>'
+  ov.innerHTML = '<div class="rr-card">'
+    + '<div class="rr-card-title">\u2713 Mark Part Installed</div>'
     + '<div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:0.9rem">Recording this on <strong style="color:var(--text)">' + itemLabel + '</strong>. The details below get added to that item\'s notes.</div>'
     + '<label style="' + LB + '">Part installed *</label>'
     + '<input id="_inst-desc" type="text" value="' + _esc(p.description) + '" style="' + IN + '">'

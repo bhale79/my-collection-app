@@ -2633,15 +2633,65 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const code = ap.split('\n').filter(l => !/^\s*(\/\/|<!--)/.test(l)).join('\n');
     ok('no modal heading is purple any more',
        !/font-family:var\(--font-head\)[^"]*color:#8b5cf6/.test(code));
-    ok('all three upgrade headings are cream at heading weight',
-       (code.match(/font-family:var\(--font-head\);font-size:1\.\d+rem;font-weight:600;color:var\(--text\)/g) || []).length === 3);
+    // v0.9.1140: the three headings graduated from matching inline styles to
+    // the shared .rr-card-title class — the same cream/Oswald/600 standard,
+    // now defined once in app.css instead of three times inline.
+    ok('all three upgrade headings use the standard title class',
+       (code.match(/class=\\?"rr-card-title\\?">(?:↑ Add to Upgrade List|Pick the item)/g) || []).length === 3);
     ok('the picker heading is now the instruction itself',
-       /font-weight:600;color:var\(--text\)[^>]*>Pick the item you\\?'d like to upgrade</.test(code));
+       /rr-card-title[^>]*>Pick the item you\\?'d like to upgrade</.test(code));
     ok('and the duplicate title above it is gone',
        !/color:#8b5cf6[^>]*>\\u2191 Add to Upgrade List/.test(code));
     // Purple must survive where it actually means something.
     ok('purple is still the Upgrade accent on buttons and values',
        (code.match(/8b5cf6/g) || []).length >= 8);
+  })();
+
+  section('117. One pop-up standard, one filter size (v0.9.1140)');
+  (function () {
+    const P3 = require('path');
+    const rd3 = f => fs.readFileSync(P3.join(__dirname, '..', 'app', f), 'utf8');
+    const css = rd3('app.css').replace(/\/\*[\s\S]*?\*\//g, '');
+
+    // The standard exists, and it IS the wizard's look: app background, 16px.
+    ok('.rr-card is defined once in app.css',
+       /\.rr-card \{[\s\S]{0,400}background: var\(--bg\);[\s\S]{0,300}border-radius: 16px;[\s\S]{0,300}max-width: 520px;/.test(css));
+    ok('.rr-card-title is the one heading style',
+       /\.rr-card-title \{[\s\S]{0,200}font-family: var\(--font-head\);[\s\S]{0,200}color: var\(--text\);/.test(css));
+
+    // Adoption: every converted file actually uses it.
+    const files = ['app-pages.js','app-collection.js','browse.js','contacts.js','research.js',
+                   'sell.js','share.js','dashboard.js','wizard-utils.js','wizard.js',
+                   'wizard-handlers.js','dispatch-board.js','app-misc.js','prefs.js','backup.js',
+                   'vault.js','migration-ui.js','photo-inbox.js','barcode.js','tutorial.js',
+                   'app-setup.js','tutorial-gifs-config.js'];
+    let uses = 0, leftovers = [];
+    files.forEach(function (f) {
+      const s = rd3(f);
+      uses += (s.match(/rr-card/g) || []).length;
+      // No converted file may still hand-roll the old card shell.
+      // Bottom sheets (radius "16px 16px 0 0") are a different pattern by
+      // design — they slide from the bottom edge — and are not card drift.
+      const m = s.match(/background:var\(--surface\)[^"']{0,120}border-radius:1[46]px;[^"']{0,120}max-width:\d+px/g) || [];
+      m.forEach(x => leftovers.push(f));
+    });
+    ok('the standard is used across the app (60+ call sites)', uses >= 60, 'uses=' + uses);
+    ok('no converted file still hand-rolls the old card shell',
+       leftovers.length === 0, leftovers.slice(0,5).join(','));
+
+    // Filters: one size, from one config value, in BOTH filter rows.
+    ok('the filter config is 17px (Brad picked it over the 21px mock)',
+       /fontPx:\s*17,/.test(rd3('item-search-filters-config.js')));
+    const wp = rd3('wizard-pickers.js');
+    ok('_wpSellFilterRow reads the shared config instead of hardcoding 0.78rem',
+       /ITEM_SEARCH_FILTERS\.sizing/.test(wp) && !/font-size:0\.78rem[^']*font-family:var\(--font-body\)'/.test(wp));
+    ok('the picker search inputs match at 17px',
+       /upg-pick-q[^>]*font-size:17px/.test(rd3('app-pages.js')) &&
+       /pick-full-search[^>]*font-size:17px/.test(wp));
+
+    // The Photo-ID research panel matches the standard too.
+    ok('#identify-panel sits on the app background at 16px like the standard',
+       /#identify-panel \{[\s\S]{0,200}background: var\(--bg\);[\s\S]{0,200}border-radius: 16px;/.test(css));
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

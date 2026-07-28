@@ -52,8 +52,13 @@ window.ITEM_SEARCH_FILTERS = {
     cottLinkLabel:'COTT \u2197',
   },
   sizing: {
-    fontPx:       14,
-    minHeightPx:  44,   // tap target — matches existing A11Y minimum
+    // v0.9.1140 (Brad): filter text enlarged for readability. He asked for
+    // 50% (21px), saw it mocked up, chose 17px as the better balance. This
+    // value feeds BOTH filter rows now — the wizard's search filters here and
+    // _wpSellFilterRow in wizard-pickers.js, which used to hardcode 0.78rem
+    // and render the same four dropdowns visibly smaller than these.
+    fontPx:       17,
+    minHeightPx:  46,   // grew with the font — still ≥ the 44px tap minimum
     gapPx:        8,
   },
   maxOptions:         100000, // effectively uncapped — the type-to-search box

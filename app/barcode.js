@@ -1279,7 +1279,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       const overlay = document.createElement('div');
       overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1rem';
       overlay.innerHTML = `
-        <div style="max-width:460px;background:var(--surface,#1a1a2e);border:1px solid var(--border,#333);border-radius:14px;padding:1.5rem;color:var(--text,#eee);font-family:var(--font-body,sans-serif)">
+        <div class="rr-card" style="color:var(--text);font-family:var(--font-body)">
           <div style="font-size:1.1rem;font-weight:600;margin-bottom:0.8rem">📷 Camera access needed</div>
           <div style="font-size:0.9rem;line-height:1.5;color:var(--text-mid,#bbb);margin-bottom:1rem">
             We'll use your phone or laptop camera to read barcodes on modern boxes so you can add items without typing.
@@ -1797,7 +1797,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         return '<button data-i="' + i + '" style="display:block;width:100%;text-align:left;margin-top:8px;padding:12px;border-radius:10px;border:1px solid var(--border,#444);background:#222;color:var(--text,#fff);font-family:var(--font-mono);font-size:1.05rem;font-weight:700;cursor:pointer">'
           + _bcEsc(c.raw) + (c.mfr ? ' <span style="font-size:0.72rem;color:var(--text-dim,#999);font-weight:400">' + _bcEsc(c.mfr) + '</span>' : '') + '</button>';
       }).join('');
-      d.innerHTML = '<div style="width:100%;max-width:420px;background:var(--surface,#1a1d3a);border:1px solid var(--border,#333);border-radius:16px;padding:18px;color:var(--text,#eee);font-family:var(--font-body,sans-serif)">'
+      d.innerHTML = '<div class="rr-card" style="color:var(--text);font-family:var(--font-body)">'
         + '<div style="font-size:0.95rem;font-weight:600;margin-bottom:4px">Which one is checked on the box?</div>'
         + '<div style="font-size:0.78rem;color:var(--text-dim,#999);margin-bottom:6px">The label lists more than one number (2-rail / 3-rail / with sound). Tap the one that matches your item.</div>'
         + rows
@@ -1846,7 +1846,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     var ov = document.createElement('div');
     ov.style.cssText = 'position:fixed;inset:0;z-index:100001;background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;padding:1rem';
     ov.innerHTML =
-      '<div style="width:100%;max-width:760px;background:var(--surface,#1a1d3a);border:1px solid var(--border,#333);border-radius:16px;padding:16px;color:var(--text,#eee);font-family:var(--font-body,sans-serif)">'
+      '<div class="rr-card" style="max-width:760px;color:var(--text);font-family:var(--font-body)">'
       + '<div style="font-size:0.95rem;font-weight:700;margin-bottom:10px">Same item? <span style="font-family:var(--font-mono);color:var(--accent,#e8401c)">' + _bcEsc(info.itemNum || '') + '</span><span style="font-size:0.75rem;color:var(--text-dim,#999);font-weight:400"> — you decide, nothing is spent</span></div>'
       + '<div style="display:flex;gap:10px;flex-wrap:wrap">'
       +   '<div style="flex:1;min-width:240px"><div style="font-size:0.7rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-dim,#999);margin-bottom:4px">Your photo</div>'
@@ -1888,7 +1888,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       var d = document.createElement('div');
       d.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;padding:1rem';
       var num = _bcEsc(info.itemNum || ''), mfr = _bcEsc(info.manufacturer || ''), desc = _bcEsc(info.description || '');
-      d.innerHTML = '<div style="width:100%;max-width:420px;background:var(--surface,#1a1d3a);border:1px solid var(--border,#333);border-radius:16px;padding:18px;color:var(--text,#eee);font-family:var(--font-body,sans-serif)">'
+      d.innerHTML = '<div class="rr-card" style="color:var(--text);font-family:var(--font-body)">'
         + '<div style="font-size:0.78rem;color:var(--accent2,#c9922a);font-weight:600;margin-bottom:8px">' + (info.noItemNum ? 'No item number on the label \u2014 add with this description?' : (info.notInMaster ? 'Detected \u2014 not in your catalog' : 'Found it \u2014 use this?')) + '</div>'
         + '<div style="font-family:var(--font-mono);font-size:1.15rem;font-weight:700;color:var(--accent,#e8401c)">' + num + (mfr ? ' <span style="font-size:0.72rem;color:var(--text-dim,#999);font-weight:400">' + mfr + '</span>' : '') + (info.eraTag ? ' <span style="font-size:0.72rem;color:#9ecbff;font-weight:400">' + _bcEsc(info.eraTag) + '</span>' : '') + '</div>'
         + (info.roadName ? '<div style="font-size:0.95rem;color:var(--text,#fff);font-weight:600;margin-top:5px">' + _bcEsc(info.roadName) + '</div>' : '')
@@ -1960,7 +1960,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   function _bcWhyLionelPanel() {
     var d = document.createElement('div');
     d.style.cssText = 'position:fixed;inset:0;z-index:100002;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:1rem';
-    d.innerHTML = '<div style="max-width:430px;background:var(--surface,#1a1d3a);border:1px solid var(--border,#333);border-radius:16px;padding:18px;color:var(--text-mid,#ddd);font-size:0.9rem;line-height:1.55;font-family:var(--font-body,sans-serif)">'
+    d.innerHTML = '<div class="rr-card" style="color:var(--text-mid);font-size:0.9rem;line-height:1.55;font-family:var(--font-body)">'
       + '<div style="font-size:1.05rem;font-weight:600;color:var(--text,#fff);margin-bottom:10px">Why the barcode &amp; label can disagree</div>'
       + '<p>On many modern Lionel boxes the <strong>barcode does not contain the item&rsquo;s catalog number.</strong> Lionel puts a short, separate code in the barcode, so a scan can land on a <em>different</em> item that just happens to share those digits.</p>'
       + '<p>The number <strong>printed on the label</strong> (the large catalog number) is the real one. That&rsquo;s why, when they don&rsquo;t match, we show you both and let you choose.</p>'
@@ -1985,7 +1985,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + '<p><strong style="color:var(--text,#fff)">Shared barcodes:</strong> some Lionel reissues share one barcode; the label reading tells them apart automatically, so you usually won’t have to pick.</p>'
         + '<p><strong style="color:var(--text,#fff)">No barcode?</strong> tap “Read the label instead” to identify the box by its printed item number.</p>'
         + '<p><strong style="color:var(--text,#fff)">Tips:</strong> fit the whole barcode AND the item number in the frame, hold the box right-side up and steady with good even light. You will confirm the result before anything fills.</p>';
-    d.innerHTML = '<div style="max-width:420px;background:var(--surface,#1a1d3a);border-radius:16px;padding:18px;color:var(--text-mid,#ddd);font-size:0.88rem;line-height:1.5;font-family:var(--font-body,sans-serif)">'
+    d.innerHTML = '<div class="rr-card" style="color:var(--text-mid);font-size:0.88rem;line-height:1.5;font-family:var(--font-body)">'
       + '<div style="font-size:1.05rem;font-weight:600;color:var(--text,#fff);margin-bottom:10px">' + (isLabel ? 'Scan Label \u2014 help' : 'Scan Barcode / Label \u2014 help') + '</div>'
       + body
       + '<button data-close="1" style="display:block;width:100%;margin-top:12px;padding:11px;border-radius:10px;border:2px solid var(--accent,#e8401c);background:rgba(232,64,28,0.12);color:var(--text,#fff);font-weight:600;cursor:pointer">Got it</button></div>';

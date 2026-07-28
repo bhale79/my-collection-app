@@ -205,7 +205,12 @@ function _wpSellFilterRow(onchangeJs) {   // v0.9.750: reused by the upgrade pic
       if (typeof TYPE_BUCKETS !== 'undefined') for (var i = 0; i < TYPE_BUCKETS.length; i++) if (TYPE_BUCKETS[i].id === id) return TYPE_BUCKETS[i].label;
       return id;
     };
-    var ss = 'flex:1;padding:0.4rem 0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.78rem;min-width:0;font-family:var(--font-body)';
+    // v0.9.1140: was font-size:0.78rem (~12.5px) — the SAME four dropdowns the
+    // wizard's search filters render at ITEM_SEARCH_FILTERS.sizing.fontPx, so
+    // the two rows visibly disagreed. Both now read from the one config value
+    // (Brad picked 17px), and this row gains the same tap-height minimum.
+    var _fsz = (typeof ITEM_SEARCH_FILTERS !== 'undefined' && ITEM_SEARCH_FILTERS.sizing) ? ITEM_SEARCH_FILTERS.sizing : {};
+    var ss = 'flex:1;padding:0.4rem 0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:' + (_fsz.fontPx || 17) + 'px;min-height:' + (_fsz.minHeightPx || 46) + 'px;min-width:0;font-family:var(--font-body)';
     var sel = function (id, ph, opts) {
       return '<select id="' + id + '" onchange="' + _oc.replace(/"/g, '&quot;') + '" style="' + ss + '"><option value="">' + ph + '</option>'
         + opts.map(function (o) { return '<option value="' + o[0] + '">' + o[1] + '</option>'; }).join('') + '</select>';
@@ -372,7 +377,7 @@ function _openFullCollPicker() {
 
   var searchWrap = document.createElement('div');
   searchWrap.style.cssText = 'padding:0.6rem 1.25rem;border-bottom:1px solid var(--border);flex-shrink:0';
-  searchWrap.innerHTML = '<input id="pick-full-search" type="text" placeholder="Search item #, road name…" style="width:100%;border:1px solid var(--border);border-radius:7px;padding:0.45rem 0.7rem;background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;box-sizing:border-box" oninput="_renderFullPickList(this.value)">';
+  searchWrap.innerHTML = '<input id="pick-full-search" type="text" placeholder="Search item #, road name…" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:0.45rem 0.7rem;background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:17px;min-height:46px;outline:none;box-sizing:border-box" oninput="_renderFullPickList(this.value)">';
   box.appendChild(searchWrap);
 
   var listWrap = document.createElement('div');
