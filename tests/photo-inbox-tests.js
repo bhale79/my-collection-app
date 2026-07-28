@@ -1968,8 +1968,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('year preference only ever swaps between rows of the same number',
      /normalizeItemNum\(mm\.itemNum\) === normalizeItemNum\(itemNum\)/.test(wsv));
   const wzk = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'wizard.js'), 'utf8');
+  // wizard.js has exactly ONE name-filtered key list (the confirm-review
+  // _skipKeys at ~5282); the save path maps columns explicitly, so one
+  // mention is the correct count — sibling keys like '_setQEPhotos' and
+  // '_addPhotoDriveId' also appear exactly once.
   ok('the photo map is save-metadata, never a sheet field',
-     (wzk.match(/'_setMemberPhotos'/g) || []).length === 2);
+     (wzk.match(/'_setMemberPhotos'/g) || []).length === 1);
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
