@@ -1310,6 +1310,18 @@
   // line here was `return bucket[0]`: whichever catalog happened to load first.
   // A postwar-stamped photo of a 6817 flatcar therefore resolved to Lionel
   // PRE-WAR 58, "Lamp Post, 7 3/8 high".
+  // v0.9.1119 (Brad's 2338): promo, paper, display and set rows are real
+  // catalog rows, but they must never WIN a plain number lookup while an
+  // actual item row with the same number exists — the Nabisco Train-O-Rama's
+  // 2338 was outranking the GP-7 locomotive itself purely by load order.
+  // Word boundaries keep this away from "Boxcar" and friends.
+  function _pinDemotedRow(row) {
+    if (!row) return false;
+    if (_pinIsSetRow(row)) return true;
+    return /\b(promo|promotional|paper|boxes|catalog|catalogs|display|displays|instruction|instructions)\b/i
+      .test(String(row.itemType || '') + ' ' + String(row._tab || ''));
+  }
+
   function _pinBestMaster(num, aiMfr, prefer) {
     var bucket = null;
     // v0.9.971 (Brad): _mbAllGet = the ONE shared bucket lookup (loaded eras +
@@ -1320,6 +1332,16 @@
         : ((window.state && state.masterByItem && state.masterByItem.get) ? state.masterByItem.get(String(num).trim()) : null);
     } catch (e) {}
     if (bucket && bucket.length) {
+      // v0.9.1119: demoted rows (promo/paper/display/set) go to the BACK of
+      // the line before any selection runs, so every rule below — maker
+      // match, era match, load-order fallback — naturally prefers a real
+      // item row. Relative order inside each class is untouched, and a
+      // demoted row still wins when it is the only kind there is.
+      try {
+        var _keep = [], _demo = [];
+        for (var b0 = 0; b0 < bucket.length; b0++) (_pinDemotedRow(bucket[b0]) ? _demo : _keep).push(bucket[b0]);
+        if (_keep.length && _demo.length) bucket = _keep.concat(_demo);
+      } catch (e0) {}
       // What the reader claims to have seen still wins — it looked at the item.
       if (aiMfr) {
         for (var i = 0; i < bucket.length; i++) {

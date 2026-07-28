@@ -1604,7 +1604,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('the card names the overruled number', /names a different item/.test(sd));
   ok('the set rule lives in ONE place',
      (sd.match(/function _pinIsSetRow/g) || []).length === 1 &&
-     (sd.match(/_pinIsSetRow\(row\)\) return/g) || []).length === 2);
+     // v0.9.1119 added a third consumer: _pinDemotedRow folds the set rule
+     // into the promo/paper demotion — still one definition, three callers.
+     (sd.match(/_pinIsSetRow\(row\)\) return/g) || []).length === 3);
 
   section('74. The white-stamp pass — light numbers on a coloured body');
   const ws = require('fs').readFileSync(SRC, 'utf8');
@@ -1974,6 +1976,31 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // '_addPhotoDriveId' also appear exactly once.
   ok('the photo map is save-metadata, never a sheet field',
      (wzk.match(/'_setMemberPhotos'/g) || []).length === 1);
+
+  section('97. A promo row never outranks the real item (Brad\'s 2338)');
+  // The master legitimately holds a "Promotional / Nabisco Promo" 2338 row
+  // (Train-O-Rama) AND the EMD GP-7 rows — the promo row loads first and was
+  // winning the lookup by load order, sending the reference link to the
+  // Train-O-Rama page instead of the GP-7 page.
+  const B2338 = [
+    { itemNum: '2338', _era: 'pw', _tab: 'Lionel PW - Items', itemType: 'Promotional',
+      description: 'Nabisco Promo', refLink: 'https://cornucopiaoftoytrains.com/lionel-nabisco-shreaded-wheat-train-o-rama-1956-a/' },
+    { itemNum: '2338', _era: 'pw', _tab: 'Lionel PW - Items', itemType: 'Diesel Locomotive',
+      description: 'EMD GP-7 Milwaukee Road', refLink: 'https://cornucopiaoftoytrains.com/motive-power-gp-7-gp-9-a/' },
+  ];
+  global.window._mbAllGet = () => B2338;
+  let m8 = window.__BestMaster('2338', '', { era: 'pw', manufacturer: 'Lionel' });
+  ok('an era-stamped 2338 lands on the GP-7, not the promo', /GP-7/.test(m8.description), m8 && m8.description);
+  m8 = window.__BestMaster('2338', '', null);
+  ok('even with no hint the real item beats the promo', /GP-7/.test(m8.description));
+  m8 = window.__BestMaster('2338', 'Lionel', null);
+  ok('a maker seen by the reader still lands on the real item', /GP-7/.test(m8.description));
+  global.window._mbAllGet = () => [B2338[0]];
+  m8 = window.__BestMaster('2338', '', null);
+  ok('a promo row still wins when it is the only row there is', /Nabisco/.test(m8.description));
+  const dm1 = require('fs').readFileSync(SRC, 'utf8');
+  ok('word boundaries keep Boxcar and friends out of the demotion',
+     /\\b\(promo\|promotional\|paper\|boxes\|catalog\|catalogs\|display\|displays\|instruction\|instructions\)\\b/.test(dm1));
 
   section('96. The whole-set add clears its photo group after the save');
   const pv6 = require('fs').readFileSync(SRC, 'utf8');
