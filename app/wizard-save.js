@@ -2033,6 +2033,13 @@ async function saveWizardItem() {
       return;
     }
 
+    // v0.9.1130 (audit #4): a single add from the photo inbox parks its
+    // "file these photos" note in staging now, exactly like a set member.
+    // THIS is the moment it becomes real — the row is on the sheet, so the
+    // note can be armed. Cancel before here and the photos stay in the inbox.
+    if (tab === 'collection') {
+      try { if (typeof rrPinSetPhotoSaved === 'function') rrPinSetPhotoSaved(itemNum); } catch (ePs) {}
+    }
     d._saveComplete = true;
     closeWizard();
 

@@ -2284,7 +2284,15 @@
   // photo"), not an accidental one, and the crop box opens on the rectangle you
   // used last so most photos need a nudge rather than a fresh drag.
   var _PIN_SKIP_CROP_KEY = 'rr_skip_read_crop';
-  function _pinSkipReadCrop() { try { return localStorage.getItem(_PIN_SKIP_CROP_KEY) === '1'; } catch (e) { return false; } }
+  // v0.9.1130 (audit #12): this setting had NO WRITER anywhere in the app —
+  // nothing ever set it, so the crop step was permanently mandatory on every
+  // paid read and the comment above ("not literally unskippable") was untrue
+  // in practice. Preferences now owns it. Accepts the Preferences format
+  // ('true') as well as the original '1' so nothing already stored is lost.
+  function _pinSkipReadCrop() {
+    try { var v = localStorage.getItem(_PIN_SKIP_CROP_KEY); return v === '1' || v === 'true'; }
+    catch (e) { return false; }
+  }
 
   function _pinCropForRead(blob, cb) {
     if (!blob || typeof window._openCropper !== 'function' || _pinSkipReadCrop()) { cb(blob); return; }
@@ -2541,12 +2549,19 @@
         // the photos stay in the inbox. (Session 168, Brad — fixes vanishing photos)
         _sel = {};
         _status('');
+        // v0.9.1130 (audit #4) — this note used to go STRAIGHT into PENDING_KEY,
+        // and _flushPending files a note the moment ANY owned row with that
+        // number exists. Adding a second copy of something you already own made
+        // that true instantly, so cancelling the wizard could not stop the
+        // photos leaving the inbox. Exactly the bug v0.9.1122 fixed for sets;
+        // the single-item lane never got the same treatment. It stages now and
+        // is armed by rrPinSetPhotoSaved when a save really happens.
         try {
-          var pend = JSON.parse(localStorage.getItem(PENDING_KEY) || '{}');
-          pend[num] = { link: link, fromFid: fromFid, toFid: toFid, ts: ts,
+          var stage1 = JSON.parse(localStorage.getItem(SETSTAGE_KEY) || '{}');
+          stage1[num] = { link: link, fromFid: fromFid, toFid: toFid, ts: ts,
             rsvFid: (fileList[0] && fileList[0].id) || '',   // v0.9.935: files as the Right Side View
             files: fileList.map(function (fl) { return { id: fl.id, name: fl.name }; }) };
-          localStorage.setItem(PENDING_KEY, JSON.stringify(pend));
+          localStorage.setItem(SETSTAGE_KEY, JSON.stringify(stage1));
         } catch (eP) {}
         _pinRefresh();
         showToast(fileList.length + ' photo' + (fileList.length > 1 ? 's' : '') + ' will attach when you save — they stay in the inbox until then', 3500);
@@ -2742,12 +2757,22 @@
       // v0.9.1118: set members save under the MASTER row's item number, which
       // can differ from the read's formatting (2343P vs 2343-P) — match through
       // the same normalizer the walkthrough uses, so a note can't be stranded.
-      var pd = Object.values(state.personalData).find(function (p) {
+      // v0.9.1130 (audit #4, second half): this took the FIRST owned row with a
+      // matching number, which contradicts the design note above — you can own
+      // several of the same number, so a new copy's photos could be filed onto
+      // an older copy. Prefer the copy with no photo link yet (the one just
+      // added), and among those the highest inventory id.
+      var _cands = Object.values(state.personalData).filter(function (p) {
         if (!p || !p.owned || !p.itemNum) return false;
         if (String(p.itemNum) === num) return true;
         return (typeof normalizeItemNum === 'function') &&
                normalizeItemNum(String(p.itemNum)) === normalizeItemNum(num);
       });
+      var _fresh = _cands.filter(function (p) { return !p.photoItem; });
+      var _pick = (_fresh.length ? _fresh : _cands).sort(function (a, b) {
+        return (parseInt(b.inventoryId) || 0) - (parseInt(a.inventoryId) || 0);
+      });
+      var pd = _pick[0];
       if (!pd) continue;   // item not saved yet -> leave its photos in the inbox
       _flushingNums[num] = true;
       try {

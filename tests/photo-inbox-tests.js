@@ -2240,6 +2240,29 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('one failure does not abort the rest',
      /result\.failed\.push\(\{ item: p\.item, error:/.test(dv5));
 
+  section('106. Audit quick wins — crop-skip setting, single-add cancel');
+  const a6src = require('fs').readFileSync(SRC, 'utf8');
+  const a6prefs = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'prefs.js'), 'utf8');
+  const a6wsave = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'wizard-save.js'), 'utf8');
+  // #12 — the setting that nothing could ever set
+  ok('the crop-skip setting finally has a writer',
+     /toggle\('skipreadcrop', 'rr_skip_read_crop'/.test(a6prefs));
+  ok('and it still honours anything stored in the old format',
+     /v === '1' \|\| v === 'true'/.test(a6src));
+  // #4 — a cancelled single add must not file its photos
+  ok('the single add parks its note in staging, not the live list',
+     /stage1\[num\] = \{ link: link/.test(a6src) &&
+     /localStorage\.setItem\(SETSTAGE_KEY, JSON\.stringify\(stage1\)\)/.test(a6src));
+  ok('nothing writes PENDING_KEY before a save any more',
+     !/pend\[num\] = \{ link: link/.test(a6src));
+  ok('a real single-item save is what arms it',
+     /if \(typeof rrPinSetPhotoSaved === 'function'\) rrPinSetPhotoSaved\(itemNum\); \} catch \(ePs\)/.test(a6wsave));
+  ok('arming happens before the wizard closes',
+     a6wsave.indexOf('rrPinSetPhotoSaved(itemNum); } catch (ePs)') < a6wsave.indexOf("d._saveComplete = true;\n    closeWizard();"));
+  ok('the flush files onto the copy just added, not the first match',
+     /var _fresh = _cands\.filter\(function \(p\) \{ return !p\.photoItem; \}\)/.test(a6src) &&
+     /parseInt\(b\.inventoryId\) \|\| 0\) - \(parseInt\(a\.inventoryId\)/.test(a6src));
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
