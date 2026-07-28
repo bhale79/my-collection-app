@@ -134,7 +134,14 @@
     return true;
   }
 
-  function _status(msg) {
+  // v0.9.1135: `stopFn` added. _status() escapes its message — correctly, since
+  // read text comes off a photo and must never be trusted as markup. But the
+  // reader audit passed a Stop BUTTON through here as an HTML string, so the
+  // user saw the literal tag printed in the status line and the audit, which
+  // runs six read variants over every photo and can take an hour, had no way
+  // to be cancelled. The escaping stays; the button is now built as a real
+  // element alongside it, so nothing from a photo can smuggle in markup.
+  function _status(msg, stopFn) {
     var el = document.getElementById('pin-status');
     if (!el) return;
     if (msg) {
@@ -145,6 +152,16 @@
       el.style.fontWeight = '700';
       el.innerHTML = '<span style="display:inline-block;animation:spin 0.8s linear infinite;font-size:1rem;line-height:1">↻</span>' +
         '<span>' + String(msg).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>';
+      if (typeof stopFn === 'function') {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = 'Stop';
+        b.style.cssText = 'border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);'
+          + 'border-radius:6px;font-size:0.72rem;padding:0.15rem 0.5rem;cursor:pointer;'
+          + 'font-family:var(--font-body);flex:none';
+        b.onclick = stopFn;
+        el.appendChild(b);
+      }
     } else {
       el.style.display = 'none';
     }
@@ -4575,7 +4592,12 @@
     _busy = true; _idAbort = false;
     var btn = document.getElementById('pin-recrop-btn');
     if (btn) { btn.disabled = true; btn.textContent = 'Re-reading\u2026'; }
+    // v0.9.1135: same fix as the reader audit \u2014 _busy was released only on the
+    // happy path, so one throw left every batch button on this page dead for the
+    // session. The `finally` below always releases it and always re-enables the
+    // button, which previously could also be left permanently disabled.
     var found = 0, done = 0, failed = 0;
+    try {
     // v0.9.1090: cropped MEMBER photos re-read too, not just the group's lead.
     var jobs = [];
     var cr = _cropped();
@@ -4626,8 +4648,11 @@
       }
       done++;
     }
-    _busy = false; _status('');
-    if (btn) btn.disabled = false;
+    } finally {
+      // Always released, and the button always comes back. See the note above.
+      _busy = false; _status('');
+      if (btn) { btn.disabled = false; _updateRecropBtn(); }
+    }
     // Say what actually happened, including the ones that errored.
     var msg = 'Re-read ' + done + ' photo' + (done === 1 ? '' : 's') + ' \u2014 found '
       + found + ' number' + (found === 1 ? '' : 's');
@@ -5099,6 +5124,14 @@
 
     _busy = true; _idAbort = false;
     window._rrLongJob = true;       // a deploy must not reload the page under this
+    // v0.9.1135: these two flags used to be cleared only on the happy path. One
+    // throw anywhere in the loop below and _busy stayed true for the rest of the
+    // session, which blocks EVERY batch button on this page — token reads,
+    // Identify, Re-read cropped, the audit itself, Google Photos, Add photos,
+    // Apply tags, Add to collection — all answering "Still working on the last
+    // batch…" until a reload. _rrLongJob staying true also suppresses deploy
+    // reloads indefinitely. The `finally` at the end of this function is the fix.
+    try {
     var prev = _auditLoad();
     var rows = (prev && prev.rows) ? prev.rows : [];
     var seen = {};
@@ -5126,8 +5159,8 @@
       var fid = _pinReadFid(g);
       if (!fid || seen[fid]) continue;
       var prefer = _pinPreferOf(g);
-      _status('Auditing item ' + (i + 1) + ' of ' + _groups.length + '\u2026 '
-        + '<button onclick="_pinReaderAuditCancel()" style="border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);border-radius:6px;font-size:0.72rem;padding:0.15rem 0.5rem;cursor:pointer;font-family:var(--font-body)">Stop</button>');
+      _status('Auditing item ' + (i + 1) + ' of ' + _groups.length + '\u2026',
+              window._pinReaderAuditCancel);
       var row = { fid: fid, era: (prefer && prefer.era) || '', out: {} };
       try {
         var blob = await _pinBytes(fid);
@@ -5180,7 +5213,10 @@
         tessedit_char_whitelist: '0123456789-ABCDEFGHIJKLMNOPQRSTUVWXYZ ',
       });
     } catch (eR) {}
-    _busy = false; window._rrLongJob = false; _status('');
+    } finally {
+      // Always released, however this function ends. See the note above.
+      _busy = false; window._rrLongJob = false; _status('');
+    }
 
     var secs = elapsed;
     try { secs = elapsed + Math.round((performance.now() - t0) / 1000); } catch (eS) {}
@@ -5276,7 +5312,24 @@
     if (typeof aiIdentifyImage !== 'function') { showToast('Identify service not loaded — refresh and try again', 3000, true); return; }
     var gs = _selGroups();
     if (!gs.length) { showToast('Tick the corner circle on the photos you want identified first', 3000, true); return; }
+    // v0.9.1135: this used to delete every ticked read and save that IMMEDIATELY,
+    // then start spending — with no confirmation at all. Tick 40 photos, press
+    // Identify, press Stop after the first, and 39 reads were gone with nothing
+    // bought to replace them. Its sibling (_pinIdentifyAll, just above) has always
+    // confirmed properly. Now this one does too, and the old reads are not cleared
+    // until the user has said yes.
+    var n0 = gs.length;
+    var had = 0;
     var ids = _ids();
+    gs.forEach(function (g) { if (ids[_pinReadFid(g)]) had++; });
+    var msg0 = 'Read ' + n0 + ' ticked photo' + (n0 === 1 ? '' : 's') + '? '
+      + 'This uses ' + n0 + ' of your token' + (n0 === 1 ? '' : 's') + ' (1 per item).';
+    if (had) {
+      msg0 += ' <b>' + had + '</b> of them already ' + (had === 1 ? 'has a reading' : 'have readings')
+        + ' — ' + (had === 1 ? 'it' : 'they') + ' will be replaced.';
+    }
+    var go0 = await _pinConfirm(msg0, '🔍 Read ' + n0 + ' item' + (n0 === 1 ? '' : 's'));
+    if (!go0) return;
     gs.forEach(function (g) { delete ids[_pinReadFid(g)]; });   // clear old suggestions = force fresh reads
     _idsSave(ids);
     return _pinIdentifyRun(gs, ids);

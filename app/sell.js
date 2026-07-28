@@ -91,7 +91,12 @@ function _rrFitText(x, txt, maxW) {
 function _rrCard(d, photoImg, source, photoIdx, photoTotal) {
   var W = 720, H = 900, c = document.createElement('canvas'); c.width = W; c.height = H;
   var x = c.getContext('2d');
-  var accent = source === 'want' ? '#2980b9' : (source === 'collection' ? '#2ecc71' : 'var(--accent)');
+  // v0.9.1135: 'var(--accent)' was silently ignored — canvas fillStyle does NOT
+  // resolve CSS custom properties. The assignment was dropped and the previous
+  // fill kept, so the FOR SALE badge drew cream-on-cream and the asking price
+  // white-on-white: invisible, on the main selling card. Want and Collection
+  // were fine because they pass real hex. Literal value of --accent, app.css:17.
+  var accent = source === 'want' ? '#2980b9' : (source === 'collection' ? '#2ecc71' : '#f05008');
   var badge  = source === 'want' ? 'WANTED'  : (source === 'collection' ? 'MY COLLECTION' : 'FOR SALE');
   x.fillStyle = '#141a2e'; _rrRound(x, 0, 0, W, H, 28); x.fill();
   x.fillStyle = '#e7d4a8'; x.font = '600 22px Arial'; x.textBaseline = 'alphabetic'; x.fillText('THE RAIL ROSTER', 36, 52);
@@ -131,7 +136,12 @@ function _rrCard(d, photoImg, source, photoIdx, photoTotal) {
 function _rrPhotoCard(num, photoImg, source, idx, total) {
   var W = 720, H = 900, c = document.createElement('canvas'); c.width = W; c.height = H;
   var x = c.getContext('2d');
-  var accent = source === 'want' ? '#2980b9' : (source === 'collection' ? '#2ecc71' : 'var(--accent)');
+  // v0.9.1135: 'var(--accent)' was silently ignored — canvas fillStyle does NOT
+  // resolve CSS custom properties. The assignment was dropped and the previous
+  // fill kept, so the FOR SALE badge drew cream-on-cream and the asking price
+  // white-on-white: invisible, on the main selling card. Want and Collection
+  // were fine because they pass real hex. Literal value of --accent, app.css:17.
+  var accent = source === 'want' ? '#2980b9' : (source === 'collection' ? '#2ecc71' : '#f05008');
   var badge = source === 'want' ? 'WANTED' : (source === 'collection' ? 'MY COLLECTION' : 'FOR SALE');
   x.fillStyle = '#141a2e'; _rrRound(x, 0, 0, W, H, 28); x.fill();
   x.fillStyle = '#e7d4a8'; x.font = '600 22px Arial'; x.textBaseline = 'alphabetic'; x.fillText('THE RAIL ROSTER', 36, 52);

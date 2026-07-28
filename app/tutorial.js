@@ -10,8 +10,14 @@ const _TUT = (function() {
       steps: [
         { title: 'Adding an Item',
           msg: 'To add an item, tap the <strong>+ Add to Collection</strong> button at the top of the Dashboard. This opens the Add Item wizard.' },
+        // v0.9.1135: this told the user to tap "Lionel Item #" — an option that
+        // does not exist on the wizard's first screen and, going by the copy,
+        // has not existed for some time. The real choices are listed at
+        // wizard.js:1809-1815. It was also stale in spirit: the app now covers
+        // MTH, Atlas, Weaver, RMT, Menards, 3rd Rail, USA Trains, LGB, K-Line,
+        // Williams and Marx, not Lionel alone.
         { title: 'Choose a Category',
-          msg: 'The wizard asks what you\'d like to add. Tap <strong>Lionel Item #</strong> — the first option. This covers any train, car, or accessory with a Lionel catalog number.' },
+          msg: 'The wizard asks what you\'d like to add. Tap <strong>✓ My Collection</strong> — the first option — for a train you own. The others cover items you\'ve <strong>Sold</strong>, your <strong>Want List</strong>, and <strong>Catalogs</strong>, <strong>Paper Items</strong>, <strong>Mock-Ups</strong> and <strong>Other Items</strong>.' },
         { title: 'Enter the Item Number',
           msg: 'Type the item number — for example, <strong>773</strong>. The app searches the master catalog as you type and shows matching results. Select the item from the list.' },
         { title: 'Engine + Tender',

@@ -343,7 +343,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('automatic pass uses the free reader', /_freeReadOne|_freeReadBlob/.test(auto));
 
   const reread = fnBody('window._pinReadCropped = async function');
-  ok('re-read cropped body extracted', reread.length > 200 && reread.length < 4000,
+  // The upper bound is only a sanity check that fnBody() grabbed one function
+  // and not the rest of the file. Raised from 4000 in v0.9.1135, when the
+  // try/finally that guarantees _busy is released was added.
+  ok('re-read cropped body extracted', reread.length > 200 && reread.length < 6000,
      'len ' + reread.length);
   ok('re-read cropped never calls the paid reader', !/aiIdentifyImage/.test(reread));
   ok('re-read cropped uses the free reader at high res', /_freeReadBlob\(blob, 2400,/.test(reread));
@@ -2440,6 +2443,88 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('"Item Description" is recognised as the description', !!atlas && atlas.description === 7);
     ok('"Variation Description" is recognised as varDesc', !!atlas && atlas.varDesc === 11);
     ok('"Market Value" is recognised as marketVal', !!atlas && atlas.marketVal === 14);
+  })();
+
+  section('112. Beta blockers (v0.9.1135)');
+  const P = require('path');
+  const rd = f => fs.readFileSync(P.join(__dirname, '..', f), 'utf8');
+  const pi = rd('app/photo-inbox.js');
+
+  // 1.8 — the GDPR deletion address must not be the mailbox that does not exist
+  ['index.html', 'privacy/index.html', 'terms/index.html'].forEach(function (f) {
+    ok(f + ' does not send users to the dead admin@ mailbox',
+       !/admin@therailroster\.com/.test(rd(f)));
+  });
+  ok('privacy policy gives a working deletion address',
+     /support@therailroster\.com/.test(rd('privacy/index.html')));
+
+  // 6.7 — the public landing page is not still "Coming Soon"
+  ok('the landing page title is not "Coming Soon"',
+     !/<title>[^<]*Coming Soon/i.test(rd('index.html')));
+
+  // 1.6 — the reader audit can actually be stopped
+  ok('_status takes a stop handler and builds a real button',
+     /function _status\(msg, stopFn\)/.test(pi) &&
+     /b\.onclick = stopFn;/.test(pi));
+  ok('the audit passes its cancel function rather than an HTML string',
+     /_status\('Auditing item [\s\S]{0,120}?window\._pinReaderAuditCancel\)/.test(pi));
+  ok('no Stop button is smuggled through _status as markup any more',
+     !/_status\([^)]*<button/.test(pi));
+  ok('_status still escapes its message — read text is never trusted as markup',
+     /String\(msg\)\.replace\(\/<\/g, '&lt;'\)/.test(pi));
+
+  // 1.7 — neither long job can leave the page permanently busy
+  (function () {
+    const audit = (function () {
+      const i = pi.indexOf('window._pinReaderAudit = async function');
+      return pi.slice(i, pi.indexOf('window._pinAuditShowSaved', i));
+    })();
+    ok('the reader audit releases _busy in a finally',
+       /\} finally \{[\s\S]{0,200}_busy = false; window\._rrLongJob = false;/.test(audit));
+    const rc = (function () {
+      const i = pi.indexOf('window._pinReadCropped = async function');
+      return pi.slice(i, pi.indexOf('// ══ v0.9.1063', i));
+    })();
+    ok('re-read cropped releases _busy in a finally',
+       /\} finally \{[\s\S]{0,200}_busy = false; _status\(''\);/.test(rc));
+    ok('and re-enables its button there too, so it cannot stay disabled',
+       /finally \{[\s\S]{0,240}btn\.disabled = false/.test(rc));
+  })();
+
+  // 1.4 — Identify on ticked photos must confirm BEFORE deleting anything
+  (function () {
+    const i = pi.indexOf('window._pinIdentifySelected = async function');
+    const sel = pi.slice(i, pi.indexOf('async function _pinIdentifyRun', i));
+    ok('Identify-selected asks before spending tokens',
+       /_pinConfirm\(msg0/.test(sel) && /if \(!go0\) return;/.test(sel));
+    ok('and states the cost in tokens',
+       /uses ' \+ n0 \+ ' of your token/.test(sel));
+    ok('and warns when existing readings will be replaced',
+       /will be replaced/.test(sel));
+    ok('the old readings are deleted AFTER the yes, not before',
+       sel.indexOf('if (!go0) return;') < sel.indexOf('delete ids[_pinReadFid(g)]'));
+  })();
+
+  // 5.4 — the FOR SALE badge must be a real colour, not a CSS variable
+  (function () {
+    const s = rd('app/sell.js');
+    ok('no share card passes a CSS variable to canvas fillStyle',
+       !/var accent = [^\n]*var\(--accent\)/.test(s));
+    ok('the for-sale accent is a real hex colour',
+       (s.match(/var accent = [^\n]*'#f05008'/g) || []).length === 2);
+  })();
+
+  // 6.1 — the tutorial must not point at a button that does not exist
+  (function () {
+    // Strip // comments first. The comment recording this fix necessarily
+    // quotes the dead option name, and would otherwise fail the assertion —
+    // the same self-match that has bitten this suite before.
+    const t = rd('app/tutorial.js').split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+    const w = rd('app/wizard.js');
+    ok('no tutorial step still tells the user to tap "Lionel Item #"',
+       !/Lionel Item #/.test(t));
+    ok('and the option it now names really is on the wizard\'s first screen',
+       /My Collection<\/strong>/.test(t) && /'collection','✓ My Collection'/.test(w));
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
