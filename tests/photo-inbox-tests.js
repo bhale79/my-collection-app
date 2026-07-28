@@ -2722,9 +2722,16 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const P5 = require('path');
     const rd5 = f => fs.readFileSync(P5.join(__dirname, '..', 'app', f), 'utf8');
     const wz = rd5('wizard.js');
-    ok('_wizFlowTitle exists and carries all four of Brad\'s phrasings',
-       /Add Item to Your Collection/.test(wz) && /Add Item to Your Want List/.test(wz) &&
-       /Add Item to Your Sale List/.test(wz) && /What Item Did You Sell\?/.test(wz));
+    // v0.9.1144: the full sentences became compact tags after Brad found the
+    // sentence + question stack "redundant or too wordy". The tag answers only
+    // "which list?"; the question-style step titles keep the friendly voice.
+    ok('_wizFlowTitle carries a compact tag per flow',
+       /case 'collection': return 'Collection';/.test(wz) &&
+       /case 'want':\s+return 'Want List';/.test(wz) &&
+       /case 'forsale':\s+return 'Sale List';/.test(wz) &&
+       /case 'sold':\s+return 'Sold';/.test(wz));
+    ok('and no flow title is a sentence any more',
+       !/Add Item to Your /.test(wz.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n')));
     ok('the step label leads with the flow title on every render',
        /_wizFlowTitle\(\) \+ ' · Step ' \+ current \+ ' of ' \+ total/.test(wz));
     // The scope trap this fix nearly shipped: a function declared INSIDE

@@ -1456,20 +1456,23 @@ function findGroupingCandidates(d) {
 // renders until the user has picked / typed an item number (or, for the
 // Set flow, a set number). Colour + label adapt to box-only and to the
 // want/for-sale/sold tabs so the user always sees the correct context.
-// v0.9.1143 — the flow title shown as the wizard's top line. Brad's phrasings:
-// "Add item to your collection." "Add item to your want list" "What item did
-// you sale?" (sell). One place, keyed on wizard.tab, so every step of every
-// flow reminds the user which list they are feeding.
+// v0.9.1143 — the flow tag shown as the wizard's top line, so every step
+// reminds the user which list they are feeding.
+// v0.9.1144 (Brad): the first cut used full sentences ("Add Item to Your Sale
+// List"), which stacked a second sentence on top of the question-style step
+// titles — "now it seems redundant or too wordy". The step titles carry the
+// friendly voice ("What is the item number?"); this line is a compact tag that
+// answers only "which list?" and fits one phone line.
 function _wizFlowTitle() {
   switch (wizard && wizard.tab) {
-    case 'collection': return 'Add Item to Your Collection';
-    case 'want':       return 'Add Item to Your Want List';
-    case 'forsale':    return 'Add Item to Your Sale List';
-    case 'sold':       return 'What Item Did You Sell?';
-    case 'catalogs':   return 'Add a Catalog';
-    case 'paper':      return 'Add a Paper Item';
-    case 'mockups':    return 'Add a Mock-Up';
-    case 'other':      return 'Add an Item';
+    case 'collection': return 'Collection';
+    case 'want':       return 'Want List';
+    case 'forsale':    return 'Sale List';
+    case 'sold':       return 'Sold';
+    case 'catalogs':   return 'Catalogs';
+    case 'paper':      return 'Paper Items';
+    case 'mockups':    return 'Mock-Ups';
+    case 'other':      return 'Other Items';
     default:           return 'Add an Item';
   }
 }
