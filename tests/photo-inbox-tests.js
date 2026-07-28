@@ -2627,6 +2627,23 @@ META_WRITES.length = 0; TOASTS.length = 0;
        !/condition-pip[\s\S]{0,120}color:/.test(pick));
   })();
 
+  section('116. Upgrade modal headings (v0.9.1139)');
+  (function () {
+    const ap = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app-pages.js'), 'utf8');
+    const code = ap.split('\n').filter(l => !/^\s*(\/\/|<!--)/.test(l)).join('\n');
+    ok('no modal heading is purple any more',
+       !/font-family:var\(--font-head\)[^"]*color:#8b5cf6/.test(code));
+    ok('all three upgrade headings are cream at heading weight',
+       (code.match(/font-family:var\(--font-head\);font-size:1\.\d+rem;font-weight:600;color:var\(--text\)/g) || []).length === 3);
+    ok('the picker heading is now the instruction itself',
+       /font-weight:600;color:var\(--text\)[^>]*>Pick the item you\\?'d like to upgrade</.test(code));
+    ok('and the duplicate title above it is gone',
+       !/color:#8b5cf6[^>]*>\\u2191 Add to Upgrade List/.test(code));
+    // Purple must survive where it actually means something.
+    ok('purple is still the Upgrade accent on buttons and values',
+       (code.match(/8b5cf6/g) || []).length >= 8);
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

@@ -3174,8 +3174,13 @@ function pickItemForUpgrade() {
   overlay.innerHTML =
     '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:480px;width:100%;padding:1.4rem;position:relative;max-height:80vh;display:flex;flex-direction:column">'
     + '<button onclick="document.getElementById(\'upgrade-pick-modal\').remove()" style="position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">\u2715</button>'
-    + '<div style="font-family:var(--font-head);font-size:1.15rem;color:#8b5cf6;margin-bottom:0.25rem">\u2191 Add to Upgrade List</div>'
-    + '<div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:0.6rem">Pick the item you\'d like to upgrade.</div>'
+    // v0.9.1139 (Brad): the purple "Add to Upgrade List" row said the same thing
+    // as the line beneath it, in a colour no other modal heading uses. Dropped \u2014
+    // the instruction IS the heading now, at heading size and weight, in cream
+    // like every other modal. Purple stays everywhere it carries meaning (the
+    // Upgrade buttons, target-condition values, the list accent); it simply is
+    // not a title colour any more.
+    + '<div style="font-family:var(--font-head);font-size:1.15rem;font-weight:600;color:var(--text);margin-bottom:0.7rem">Pick the item you\'d like to upgrade</div>'
     + '<div style="display:flex;gap:0.4rem;margin-bottom:0.45rem">'
     +   '<input id="upg-pick-q" type="text" placeholder="Search # or name\u2026" oninput="_upgPickApply()" style="flex:1;min-width:0;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem">'
     + '</div>'
@@ -3251,7 +3256,11 @@ function showAddToUpgradeModal(itemNum, variation, pdRow, invId, groupMode) {
   overlay.innerHTML = `
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:400px;width:100%;padding:1.5rem;position:relative">
       <button onclick="document.getElementById('upgrade-add-modal').remove()" style="position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">✕</button>
-      <div style="font-family:var(--font-head);font-size:1.15rem;color:#8b5cf6;margin-bottom:0.25rem">↑ Add to Upgrade List</div>
+      <!-- v0.9.1139: matched to the picker — cream, not purple. This one KEEPS
+           its title text, because unlike the picker there is no instruction line
+           to promote, and the item number below it does not say what you are
+           about to do with the item. The ↑ carries the Upgrade identity now. -->
+      <div style="font-family:var(--font-head);font-size:1.15rem;font-weight:600;color:var(--text);margin-bottom:0.35rem">↑ Add to Upgrade List</div>
       ${_hdrNumHtml}
       <div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:1rem">${name}${myCond ? ' · Current condition: ' + myCond : ''}</div>
       <div style="display:flex;flex-direction:column;gap:0.75rem">
@@ -3303,7 +3312,8 @@ function _chooseUpgradeScope(itemNum, variation, pdRow, invId, pd) {
   overlay.onclick = function(e){ if (e.target === overlay) overlay.remove(); };
   overlay.innerHTML =
     '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:380px;width:100%;padding:1.5rem">'
-    + '<div style="font-family:var(--font-head);font-size:1.05rem;color:#8b5cf6;margin-bottom:0.3rem">↑ Add to Upgrade List</div>'
+    // v0.9.1139: third of the three purple headings, matched to the other two.
+    + '<div style="font-family:var(--font-head);font-size:1.05rem;font-weight:600;color:var(--text);margin-bottom:0.3rem">↑ Add to Upgrade List</div>'
     + '<div style="font-size:0.84rem;color:var(--text-mid);margin-bottom:1rem">This is a grouped item (<strong style="color:var(--text)">' + listTxt + '</strong>). Add the whole set, or just this piece?</div>'
     + '<div style="display:flex;flex-direction:column;gap:0.5rem">'
     + '<button id="_ugs-all" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid #8b5cf6;background:#8b5cf6;color:#fff;font-family:var(--font-body);font-size:0.9rem;font-weight:700;cursor:pointer;text-align:left">Upgrade the whole set<br><span style="font-weight:400;font-size:0.78rem;opacity:0.85">Add all ' + pieces.length + ' pieces to your Upgrade list</span></button>'
