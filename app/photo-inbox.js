@@ -440,7 +440,10 @@
     var g = null;
     _groups.forEach(function (x) { if (x.key === key) g = x; });
     if (!g || g.files.length < 2) return;
-    var ok = await _pinMetaSetMany(g.files.map(function (f) { return f.id; }), { grp: '', kind: 'single', role: '' });
+    // v0.9.1132: '-' not '' — see _pinMetaOf. An empty value is indistinguishable
+    // from "never grouped", which is why this used to do nothing to a stack that
+    // came from Quick Capture (those group by FILENAME, not by tag).
+    var ok = await _pinMetaSetMany(g.files.map(function (f) { return f.id; }), { grp: '-', kind: 'single', role: '' });
     showToast(ok === g.files.length ? 'Split back into single photos' : ('Split ' + ok + ' of ' + g.files.length), 3000, ok !== g.files.length);
     _pinRefresh();
   };
@@ -692,14 +695,22 @@
     var out = {
       v:    ap.rrV    || '',
       era:  ap.rrEra  || '',
-      grp:  ap.rrGrp  || '',
+      // v0.9.1132 (audit #6): '-' is the DELIBERATELY UNGROUPED marker. An empty
+      // or missing rrGrp cannot mean that, because it is also what every photo
+      // starts with — and the filename fallback below would just re-derive the
+      // group. See _pinUngroup.
+      grp:  (ap.rrGrp === '-') ? '' : (ap.rrGrp || ''),
       kind: ap.rrKind || '',
       role: ap.rrRole || '',
       num:  ap.rrNum  || '',
       stat: ap.rrStat || '',
       conf: ap.rrConf || '',
     };
-    if (!out.grp && file && file.name) {
+    // Filename fallback — but NEVER for a photo the user explicitly split apart.
+    // Quick Capture names phone photos "INBOX 3 g<id> …", so before v0.9.1132
+    // "Split apart" cleared the tag, this fallback read the name a moment later,
+    // and the stack silently re-formed. The confirmation said it had worked.
+    if (!out.grp && ap.rrGrp !== '-' && file && file.name) {
       var m = String(file.name).match(/^INBOX \d+ g(\S+)/);
       if (m) out.grp = m[1];
     }

@@ -2285,6 +2285,27 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('the lead-photo fallback is per group, not global',
      /var before = jobs\.length;/.test(a7) && /jobs\.length === before && _pinReadFid\(g2\)/.test(a7));
 
+  section('108. Split apart works on phone-captured stacks (audit #6)');
+  const a8 = require('fs').readFileSync(SRC, 'utf8');
+  ok('ungroup writes a deliberate marker, not an empty value',
+     /\{ grp: '-', kind: 'single', role: '' \}/.test(a8) &&
+     !/\{ grp: '', kind: 'single', role: '' \}/.test(a8));
+  ok('the marker reads back as no-group',
+     /grp:  \(ap\.rrGrp === '-'\) \? '' : \(ap\.rrGrp \|\| ''\)/.test(a8));
+  ok('and the FILENAME fallback is skipped for a split-apart photo',
+     /if \(!out\.grp && ap\.rrGrp !== '-' && file && file\.name\)/.test(a8));
+  ok('re-grouping still overwrites the marker with a real id',
+     /_pinMetaSet\(files\[i\]\.id, \{ grp: gid, kind: kindId/.test(a8));
+  // the harness drives the real function, so prove the round trip
+  ok('a filename-grouped photo groups, splits, and stays split',
+     (function () {
+       const f = { id: 'x1', name: 'INBOX 3 gG9ABC front.jpg', appProperties: {} };
+       const before = window.__MetaOf(f).grp;
+       const after  = window.__MetaOf({ id: 'x1', name: f.name, appProperties: { rrGrp: '-' } }).grp;
+       const regrp  = window.__MetaOf({ id: 'x1', name: f.name, appProperties: { rrGrp: 'G777' } }).grp;
+       return before === 'G9ABC' && after === '' && regrp === 'G777';
+     })());
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
