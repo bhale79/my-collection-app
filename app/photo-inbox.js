@@ -2431,7 +2431,14 @@
       var gs = _pinLensGroups;
       _pinLensGroups = null;
       // v0.9.962: same shared applier as the snip/paste paths.
-      if (_pinApplyMeta(meta, gs, ai && ai.text)) {
+      // v0.9.1124 (audit finding): this passed `ai && ai.text` — but `ai` is a
+      // local in the three OTHER callers and does not exist here, so every
+      // successful return trip threw ReferenceError. `_pinLensGroups = null`
+      // two lines up had already disarmed the watcher, and the .catch() below
+      // (written for clipboard-permission denials) ate the error, so the whole
+      // Google round trip failed silently and could not be retried. The text
+      // the applier wants is the clipboard text itself — same as line 2252.
+      if (_pinApplyMeta(meta, gs, txt)) {
         showToast(meta._hedge
           ? "Google's answer applied, but it hedged on the number — double-check it"
           : "Google's answer applied — check it over and hit Add", 4000);

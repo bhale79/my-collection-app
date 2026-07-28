@@ -2121,6 +2121,30 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('a folded set header asks for no thumbnail',
      /if \(item\._setFold\) return;                       \/\/ folded set header/.test(bwt));
 
+  section('102. Audit fixes — Lens return trip, and set members reach memory');
+  const auP = require('fs').readFileSync(SRC, 'utf8');
+  const auW = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'wizard-save.js'), 'utf8');
+  // The Lens watcher referenced `ai`, a local belonging to its three sibling
+  // callers — every successful Google return trip threw and was swallowed.
+  const _lensFn = auP.slice(auP.indexOf('function _pinLensCheck()'), auP.indexOf('window._pinReviewResearch'));
+  // Match the CALL, not the comment above it that quotes the old code.
+  ok('the Lens watcher no longer reaches for a variable it does not have',
+     !/if \(_pinApplyMeta\(meta, gs, ai && ai\.text\)\)/.test(_lensFn) &&
+     /if \(_pinApplyMeta\(meta, gs, txt\)\)/.test(_lensFn));
+  ok('the three callers that DO own an `ai` still pass it',
+     (auP.match(/_pinApplyMeta\(meta, gs, ai && ai\.text\)/g) || []).length === 2);
+  // Set members returned before the optimistic insert every other path gets.
+  const _setHook = auW.slice(auW.indexOf('if (d._setMode && tab === \'collection\')'),
+                             auW.indexOf('launchSetItemWizard();'));
+  ok('a saved set member lands in memory, not just on the sheet',
+     /state\.personalData\[_setOptId\] = \{/.test(_setHook) && /owned: true/.test(_setHook));
+  ok('it carries the group so a cancel can find and remove it',
+     /inventoryId: _setOptId, groupId: groupId \|\| ''/.test(_setHook));
+  ok('it is stamped like every other optimistic insert',
+     /_stampSaved\(state\.personalData\[_setOptId\]\)/.test(_setHook));
+  ok('the insert runs BEFORE the photo note is armed and flushed',
+     _setHook.indexOf('state.personalData[_setOptId]') < _setHook.indexOf('rrPinSetPhotoSaved(itemNum)'));
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

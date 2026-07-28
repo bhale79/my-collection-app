@@ -1955,11 +1955,44 @@ async function saveWizardItem() {
       wizard.data._setPrice      = _setPrice;
       wizard.data._setDate       = _setDate;
       wizard.data._setWorth      = _setWorth;
+      // ── v0.9.1124 (audit finding) ────────────────────────────────────────
+      // Every OTHER save path drops the new row straight into state.personalData
+      // so it appears without waiting for Sheets (the "optimistic update" block
+      // further down). Set members return HERE, a hundred lines before it — so
+      // a set member was written to the sheet and existed nowhere in memory
+      // until the next full reload. Three things broke off that one gap:
+      //   · Cancelling a set mid-entry reported "0 items removed" and left the
+      //     rows behind, because rrRemoveSetGroup scans state.personalData.
+      //     (This is exactly what left Brad four orphan 1562W rows.)
+      //   · _flushPending waits for an owned row with that number to exist, so
+      //     set photos could not file until a reload.
+      //   · The set didn't show in My Collection until a reload either.
+      // Same shape and same fields as the main optimistic insert below.
+      try {
+        var _setOptId = (row && row[PERSONAL_FIELD_INDEX.inventoryId]) || ('temp_' + itemNum + '_' + _curIdx);
+        state.personalData[_setOptId] = {
+          row: 99999, itemNum: itemNum, variation: variation,
+          status: 'Owned', owned: true,
+          condition: d.condition || '',
+          allOriginal: d.allOriginal || '',
+          priceItem: d.priceItem || '',
+          hasBox: d.hasBox || 'No',
+          boxCond: d.boxCond || '',
+          notes: d.notes || '',
+          datePurchased: d.datePurchased || '',
+          inventoryId: _setOptId, groupId: groupId || '',
+          setId: (typeof setId !== 'undefined' ? (setId || '') : ''),
+          era: _resolveSaveEra(),
+          manufacturer: ((typeof _brandOfItem === 'function' && _brandOfItem(itemNum)) || _getEraManufacturer()),
+        };
+        _stampSaved(state.personalData[_setOptId]);
+      } catch (eOpt) { console.warn('[set] optimistic insert:', eOpt); }
       // v0.9.1122: THIS member is now on the sheet — arm its staged inbox
       // photo so the very next _flushPending (inside buildDashboard) files it.
       // Before this, set photos were armed at button-click time and filed
       // themselves against a set Brad had already added once, which no cancel
-      // could undo.
+      // could undo. (The insert above is what lets that flush actually find
+      // the item without a reload.)
       try { if (typeof rrPinSetPhotoSaved === 'function') rrPinSetPhotoSaved(itemNum); } catch (ePh) {}
       buildDashboard();
       renderBrowse();
