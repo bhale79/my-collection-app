@@ -327,11 +327,110 @@ async function driveEnsureSetup() {
   driveCache._validated = true;
 }
 
-async function driveEnsureItemFolder(itemNum) {
+// ══ v0.9.1125 — item photos file under their era ═══════════════════════════
+// Brad: "i thought we had made a filing system so the pictures are in folders
+// starting with era, then manufacturer, and then the item number. to help the
+// user find their photo once they unsubscribe."
+//
+// It was designed in Session 180 and never built — every item folder sat flat
+// under "My Collection Photos". Now they nest one level down, under the era's
+// own label: "Lionel Postwar / 2328". ONE level, not three, because in this
+// app maker + era + scale are a single stored fact (`pw` IS Lionel Postwar O,
+// `mth_ho` IS MTH HO modern) — splitting one field across three folder levels
+// would create levels that can never disagree with each other.
+//
+// THE ORDER MATTERS: this finder ships BEFORE anything is migrated. It looks
+// for an item's folder in the root AND in every era folder, so a folder that
+// has been moved is still found, and an item can never end up with its photos
+// split across two folders.
+
+// The era subfolders that actually exist under "My Collection Photos".
+// Cached per session; refreshed whenever we create a new one.
+let _driveEraFolderCache = null;
+async function _driveEraFolders(force) {
+  if (_driveEraFolderCache && !force) return _driveEraFolderCache;
+  const out = {};
+  try {
+    if (!driveCache.photosId) return (_driveEraFolderCache = out);
+    const q = encodeURIComponent("mimeType='application/vnd.google-apps.folder' and '" + driveCache.photosId + "' in parents and trashed=false");
+    const res = await driveRequest('GET', '/files?q=' + q + '&fields=files(id,name)&pageSize=200');
+    const labels = {};
+    try {
+      Object.keys(ERAS).forEach(function (k) {
+        if (ERAS[k] && ERAS[k].label && k !== 'all') labels[ERAS[k].label] = k;
+      });
+    } catch (e) {}
+    (res.files || []).forEach(function (f) { if (labels[f.name]) out[f.name] = f.id; });
+  } catch (e) { console.warn('[Drive] era folder scan:', e && e.message); }
+  return (_driveEraFolderCache = out);
+}
+
+// The folder NAME an item's photos belong under, or '' when we cannot tell.
+// Unknown era is not a guess-worthy situation — the folder simply stays at the
+// top level, exactly where it lives today.
+function driveEraFolderNameFor(itemNum, eraHint) {
+  function lab(k) {
+    try { return (k && k !== 'all' && ERAS[k] && ERAS[k].label) ? ERAS[k].label : ''; } catch (e) { return ''; }
+  }
+  if (eraHint) { const l = lab(eraHint); if (l) return l; }
+  const n = String(itemNum || '').trim();
+  if (!n) return '';
+  // What the user already owns is the most trustworthy answer.
+  try {
+    const pds = Object.values((window.state || {}).personalData || {});
+    const own = pds.find(function (p) { return p && p.owned && String(p.itemNum) === n && p.era; });
+    if (own) {
+      if (String(own.era) === 'Manual') return '';        // a manual entry has no catalog era
+      const l = lab(own.era); if (l) return l;
+    }
+  } catch (e) {}
+  // Then the catalog.
+  try {
+    if (typeof findMaster === 'function') {
+      const m = findMaster(n);
+      if (m && m._era) { const l = lab(m._era); if (l) return l; }
+    }
+  } catch (e) {}
+  return '';
+}
+
+// Find an item's folder wherever it currently lives — root or any era folder.
+// This is what makes the migration safe: nothing is looked up by its old path.
+async function _driveItemFolderAnywhere(itemNum) {
+  const name = String(itemNum || '').trim();
+  if (!name || !driveCache.photosId) return null;
+  const eras = await _driveEraFolders();
+  const parents = [driveCache.photosId].concat(Object.keys(eras).map(function (k) { return eras[k]; }));
+  const parentQ = parents.map(function (p) { return "'" + p + "' in parents"; }).join(' or ');
+  const q = encodeURIComponent("name='" + name.replace(/'/g, "\\'") + "' and mimeType='application/vnd.google-apps.folder' and trashed=false and (" + parentQ + ")");
+  const res = await driveRequest('GET', '/files?q=' + q + '&fields=files(id,name,parents)&spaces=drive');
+  const hit = res && res.files && res.files[0];
+  return hit ? hit.id : null;
+}
+
+async function driveEnsureItemFolder(itemNum, eraHint) {
   await driveEnsureSetup();
   const key = String(itemNum);
   if (driveCache.itemFolders[key]) return driveCache.itemFolders[key];
-  const folderId = await driveFindOrCreateFolder(key, driveCache.photosId);
+  // 1. Already exists somewhere? Use it — never create a second home.
+  let folderId = null;
+  try { folderId = await _driveItemFolderAnywhere(key); } catch (e) {}
+  // 2. Otherwise create it under its era, or at the top level if unknown.
+  if (!folderId) {
+    let parentId = driveCache.photosId;
+    try {
+      const eraName = driveEraFolderNameFor(key, eraHint);
+      if (eraName) {
+        const eras = await _driveEraFolders();
+        if (!eras[eraName]) {
+          eras[eraName] = await driveFindOrCreateFolder(eraName, driveCache.photosId);
+          _driveEraFolderCache = eras;
+        }
+        parentId = eras[eraName];
+      }
+    } catch (e) { console.warn('[Drive] era folder:', e && e.message); }   // fall back to the root
+    folderId = await driveFindOrCreateFolder(key, parentId);
+  }
   driveCache.itemFolders[key] = folderId;
   return folderId;
 }
@@ -352,15 +451,89 @@ async function driveFindItemFolder(itemNum) {
     await driveEnsureSetup();
     if (driveCache.itemFolders[name]) return driveFolderLink(driveCache.itemFolders[name]);
     if (!driveCache.photosId) return '';
-    const q = encodeURIComponent("name='" + name.replace(/'/g, "\\'") + "' and mimeType='application/vnd.google-apps.folder' and '" + driveCache.photosId + "' in parents and trashed=false");
-    const res = await driveRequest('GET', '/files?q=' + q + '&fields=files(id)&spaces=drive');
-    const id = res && res.files && res.files[0] && res.files[0].id;
+    // v0.9.1125: searches the root AND every era folder, so a migrated folder
+    // is still found. Still find-only — it never creates anything.
+    const id = await _driveItemFolderAnywhere(name);
     if (!id) return '';
     driveCache.itemFolders[name] = id;
     return driveFolderLink(id);
   } catch (e) { console.warn('[Drive] item folder lookup:', itemNum, e && e.message); return ''; }
 }
 if (typeof window !== 'undefined') window.driveFindItemFolder = driveFindItemFolder;
+
+// ── v0.9.1125 — one-time migration of the existing flat item folders ───────
+// Moves each top-level item folder under its era's folder. Safe because:
+//   · a folder KEEPS ITS ID when it moves, so every photoItem link in the
+//     sheet still resolves — nothing to rewrite, nothing to break;
+//   · the finder above already looks in both places, so a half-finished run
+//     leaves the app working exactly as well as a finished one;
+//   · an item whose era cannot be determined is LEFT ALONE, not guessed at;
+//   · re-running it is a no-op for anything already moved.
+// dryRun:true reports the plan and touches nothing.
+async function driveMigrateItemFoldersToEras(opts) {
+  opts = opts || {};
+  const dryRun = !!opts.dryRun;
+  const onProgress = typeof opts.onProgress === 'function' ? opts.onProgress : function () {};
+  await driveEnsureSetup();
+  if (!driveCache.photosId) throw new Error('Photos folder not ready');
+
+  // Every folder sitting at the top level right now.
+  const kids = [];
+  let pageToken = '';
+  do {
+    const q = encodeURIComponent("mimeType='application/vnd.google-apps.folder' and '" + driveCache.photosId + "' in parents and trashed=false");
+    const res = await driveRequest('GET', '/files?q=' + q + '&fields=nextPageToken,files(id,name)&pageSize=200' + (pageToken ? '&pageToken=' + pageToken : ''));
+    (res.files || []).forEach(function (f) { kids.push(f); });
+    pageToken = (res && res.nextPageToken) || '';
+  } while (pageToken);
+
+  // Anything already named after an era is a destination, not a thing to move.
+  const eraLabels = {};
+  try {
+    Object.keys(ERAS).forEach(function (k) {
+      if (ERAS[k] && ERAS[k].label && k !== 'all') eraLabels[ERAS[k].label] = k;
+    });
+  } catch (e) {}
+
+  const plan = [], skipped = [];
+  kids.forEach(function (f) {
+    if (eraLabels[f.name]) return;                       // an era folder itself
+    const era = driveEraFolderNameFor(f.name, '');
+    if (!era) { skipped.push({ name: f.name, why: 'era unknown — left at the top level' }); return; }
+    plan.push({ id: f.id, name: f.name, era: era });
+  });
+
+  const result = { total: kids.length, planned: plan.length, skipped: skipped,
+                   moved: 0, failed: [], dryRun: dryRun, byEra: {} };
+  plan.forEach(function (p) { result.byEra[p.era] = (result.byEra[p.era] || 0) + 1; });
+  if (dryRun) return result;
+
+  const eras = await _driveEraFolders(true);
+  for (let i = 0; i < plan.length; i++) {
+    const p = plan[i];
+    try {
+      if (!eras[p.era]) {
+        eras[p.era] = await driveFindOrCreateFolder(p.era, driveCache.photosId);
+        _driveEraFolderCache = eras;
+      }
+      // addParents/removeParents is a MOVE — the folder id is unchanged, so
+      // every stored link keeps working.
+      await driveRequest('PATCH', '/files/' + p.id + '?addParents=' + eras[p.era] +
+                                  '&removeParents=' + driveCache.photosId + '&fields=id');
+      driveCache.itemFolders[p.name] = p.id;
+      result.moved++;
+    } catch (e) {
+      result.failed.push({ name: p.name, era: p.era, error: (e && e.message) || String(e) });
+    }
+    onProgress(i + 1, plan.length, p.name);
+  }
+  _driveEraFolderCache = null;                            // rescan next time
+  return result;
+}
+if (typeof window !== 'undefined') {
+  window.driveMigrateItemFoldersToEras = driveMigrateItemFoldersToEras;
+  window.driveEraFolderNameFor = driveEraFolderNameFor;
+}
 
 async function driveGetFolderPhotos(folderLink) {
   const match = (folderLink || '').match(/folders\/([a-zA-Z0-9_-]+)/);

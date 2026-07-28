@@ -2113,9 +2113,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('a blank photo-link cell no longer means no thumbnail',
      !/if \(!pd2 \|\| !pd2\.owned \|\| !pd2\.photoItem\) return;/.test(bwt) &&
      /driveFindItemFolder\(_displayItemNum\(item\)\)/.test(bwt));
+  // Scope the slice to driveFindItemFolder ITSELF — the migration that follows
+  // it in the file creates era folders on purpose, which is not what this
+  // check is about.
   ok('the folder lookup NEVER creates a folder',
      /async function driveFindItemFolder/.test(drv) &&
-     !/driveFindOrCreateFolder/.test(drv.slice(drv.indexOf('async function driveFindItemFolder'), drv.indexOf('async function driveGetFolderPhotos'))));
+     !/driveFindOrCreateFolder/.test(drv.slice(
+        drv.indexOf('async function driveFindItemFolder'),
+        drv.indexOf('window.driveFindItemFolder = driveFindItemFolder'))));
   ok('phone rows and the dashboard reel get the same fallback',
      /_link = await driveFindItemFolder\(pd\.itemNum\)/.test(dsh));
   ok('a folded set header asks for no thumbnail',
@@ -2144,6 +2149,38 @@ META_WRITES.length = 0; TOASTS.length = 0;
      /_stampSaved\(state\.personalData\[_setOptId\]\)/.test(_setHook));
   ok('the insert runs BEFORE the photo note is armed and flushed',
      _setHook.indexOf('state.personalData[_setOptId]') < _setHook.indexOf('rrPinSetPhotoSaved(itemNum)'));
+
+  section('103. Item photos file under their era, and the migration is safe');
+  const dv = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'drive.js'), 'utf8');
+  // The finder MUST ship before anything moves, or a migrated folder vanishes.
+  ok('the finder looks in the root AND every era folder',
+     /async function _driveItemFolderAnywhere\(itemNum\)/.test(dv) &&
+     /const parents = \[driveCache\.photosId\]\.concat/.test(dv));
+  ok('ensure-folder reuses an existing folder before creating a second one',
+     /folderId = await _driveItemFolderAnywhere\(key\)/.test(dv) &&
+     dv.indexOf('_driveItemFolderAnywhere(key)') < dv.indexOf('folderId = await driveFindOrCreateFolder(key, parentId)'));
+  ok('the find-only lookup searches everywhere too',
+     /const id = await _driveItemFolderAnywhere\(name\)/.test(dv));
+  ok('an unknown era leaves the folder at the top level, never guessed',
+     /let parentId = driveCache\.photosId;/.test(dv) && /if \(eraName\) \{/.test(dv));
+  ok('a manual entry has no catalog era and is left alone',
+     /if \(String\(own\.era\) === 'Manual'\) return '';/.test(dv));
+  ok('ONE level — the era label, not era+maker+scale',
+     /driveEraFolderNameFor/.test(dv) && !/eraName \+ '\/' \+ .*manufacturer/.test(dv));
+  // Migration
+  ok('the migration MOVES folders, so ids and every stored link survive',
+     /addParents=' \+ eras\[p\.era\] \+\s*\n?\s*'&removeParents=/.test(dv) &&
+     /the folder id is unchanged/.test(dv));
+  ok('era folders are destinations, never things to move',
+     /if \(eraLabels\[f\.name\]\) return;/.test(dv));
+  ok('items with no determinable era are skipped, not guessed',
+     /skipped\.push\(\{ name: f\.name, why: 'era unknown/.test(dv));
+  ok('it pages through every folder, not just the first 200',
+     /while \(pageToken\)/.test(dv));
+  ok('a dry run touches nothing',
+     /if \(dryRun\) return result;/.test(dv));
+  ok('one failure does not abort the rest',
+     /result\.failed\.push\(\{ name: p\.name/.test(dv));
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
