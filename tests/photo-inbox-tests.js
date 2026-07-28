@@ -2778,10 +2778,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const shell = /display:flex;align-items:center;gap:0\.6rem;padding:0\.65rem 0\.85rem;border-radius:8px;background:var\(--surface2\);border:1px solid var\(--border\)/g;
     ok('all three renderers use the upgrade card shell', (wp7.match(shell) || []).length === 3);
     // Fresh non-global regex here: reusing the /g one above would carry its
-    // lastIndex into .test() and miss — a classic /g footgun.
+    // lastIndex into .test() and miss — a classic /g footgun. And the upgrade
+    // picker splits its style string across concatenated source lines, so the
+    // concatenation ('… ' + '…') is collapsed before matching: the comparison
+    // is about the RENDERED style, not the source line-wrapping.
     ok('which really is the upgrade picker\'s shell',
        /display:flex;align-items:center;gap:0\.6rem;padding:0\.65rem 0\.85rem;border-radius:8px;background:var\(--surface2\);border:1px solid var\(--border\)/
-         .test(ap7.slice(ap7.indexOf('window._upgPickApply'))));
+         .test(ap7.slice(ap7.indexOf('window._upgPickApply')).replace(/'\s*\n\s*\+\s*'/g, '')));
     ok('no picker row is a flat border-bottom row any more',
        !/padding:0\.5+\drem 0\.7+\drem;cursor:pointer;border-bottom/.test(wp7));
     ok('condition renders as the right-side pip, same as the upgrade list',
