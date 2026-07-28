@@ -190,7 +190,13 @@ function vaultShowOptInModal(fromPrefs) {
   `;
 
   modal.innerHTML = `
-    <div class="rr-card" style="font-family:var(--font-body);margin:auto 0">
+    <div style="
+      background:var(--surface);border:1px solid var(--border);
+      border-radius:14px;max-width:500px;width:100%;padding:22px 22px 20px;
+      font-family:var(--font-body);position:relative;
+      max-height:calc(100vh - 40px);overflow-y:auto;
+      -webkit-overflow-scrolling:touch;margin:auto 0;
+    ">
       <div style="font-family:var(--font-head);font-size:1.3rem;color:var(--text);margin-bottom:6px;letter-spacing:0.04em">
         Collector's Market Est.
       </div>

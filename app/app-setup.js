@@ -288,7 +288,7 @@ function showOnboarding() {
   var ov = document.createElement('div');
   ov.id = 'onboarding-overlay';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,20,0.92);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
-  ov.innerHTML = '<div class="rr-card" style="text-align:center">' +
+  ov.innerHTML = '<div style="background:var(--surface);border-radius:18px;max-width:380px;width:100%;padding:2rem;text-align:center">' +
     '<div style="font-family:var(--font-head);font-size:1.5rem;font-weight:700;margin-bottom:0.75rem">Welcome to The Rail Roster</div>' +
     '<button onclick="closeOnboarding()" style="width:100%;padding:0.9rem;border-radius:12px;border:none;background:var(--accent);color:white;font-size:1rem;font-weight:700;cursor:pointer">Get Started</button>' +
     '</div>';

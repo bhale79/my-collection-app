@@ -52,7 +52,9 @@
     var panel = document.createElement('div');
     panel.id = 'migration-panel';
     panel.style.cssText =
-      'color:var(--text);font-family:var(--font-body);margin:auto 0'; panel.className = 'rr-card';
+      'background:var(--surface);border-radius:14px;max-width:600px;width:100%;' +
+      'padding:1.3rem 1.3rem 1.1rem;color:var(--text);font-family:var(--font-body);' +
+      'box-shadow:0 20px 60px rgba(0,0,0,0.5);margin:auto 0';
     ov.appendChild(panel);
     document.body.appendChild(ov);
     ov.addEventListener('click', function(e) {

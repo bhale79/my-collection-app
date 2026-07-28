@@ -89,7 +89,7 @@ window.TUTORIAL_GIFS = TUTORIAL_GIFS;
       'position:fixed;inset:0;background:rgba(10,14,20,0.92);z-index:10020;' +
       'display:flex;align-items:center;justify-content:center;padding:1.5rem';
     ov.innerHTML =
-      '<div class="rr-card" style="max-width:720px">' +
+      '<div style="background:var(--surface);border-radius:14px;max-width:720px;width:100%;padding:1.2rem;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.5)">' +
         '<button onclick="document.getElementById(\'tut-gif-modal\').remove()" style="position:absolute;right:0.8rem;top:0.6rem;background:none;border:none;color:var(--text-mid);font-size:1.6rem;cursor:pointer;padding:0.2rem 0.5rem">\u00D7</button>' +
         '<div style="font-family:var(--font-head);font-size:1.15rem;font-weight:700;color:var(--text);margin-bottom:0.6rem">' + _escape(demo.title || '') + '</div>' +
         (demo.description ? '<div style="font-size:0.88rem;color:var(--text-mid);margin-bottom:0.9rem">' + _escape(demo.description) + '</div>' : '') +

@@ -532,7 +532,7 @@ function _showCardHelp(cardId) {
   var txt = _CARD_HELP[cardId] || 'Shows a live statistic computed from your collection.';
   var d = document.createElement('div');
   d.style.cssText = 'position:fixed;inset:0;z-index:100001;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;padding:1rem';
-  d.innerHTML = '<div class="rr-card" style="color:var(--text-mid);font-size:0.88rem;line-height:1.55;font-family:var(--font-body)">'
+  d.innerHTML = '<div style="max-width:420px;background:var(--surface,#1a1d3a);border:1px solid var(--border,#333);border-radius:14px;padding:18px;color:var(--text-mid,#ddd);font-size:0.88rem;line-height:1.55;font-family:var(--font-body,sans-serif)">'
     + '<div style="font-size:1rem;font-weight:700;color:var(--text,#fff);margin-bottom:8px">' + ((card && card.label) || 'This card') + '</div>'
     + '<p style="margin:0 0 10px">' + txt + '</p>'
     + '<p style="margin:0 0 12px;font-size:0.78rem;color:var(--text-dim,#999)">Tip: cards only show eras/makers enabled under <strong>Preferences → What I Collect</strong>. Click anywhere on a card to swap it for a different one.</p>'
@@ -1511,7 +1511,7 @@ function _catCovConfig(slotIdx) {
   var ov = document.createElement('div');
   ov.id = 'catcov-pop';
   ov.style.cssText = 'position:fixed;inset:0;z-index:99950;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:1rem';
-  ov.innerHTML = '<div class="rr-card">'
+  ov.innerHTML = '<div style="background:var(--surface,#161c34);border:1px solid var(--border,#2a3a5c);border-radius:14px;padding:1.1rem 1.2rem;max-width:320px;width:100%">'
     + '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#2980b9;margin-bottom:0.6rem">Catalog Coverage — maker &amp; era</div>'
     + '<select id="catcov-sel" style="width:100%;padding:0.5rem 0.6rem;border-radius:8px;border:1px solid var(--border,#2a3a5c);background:var(--surface2,#222);color:var(--text,#eee);font-family:var(--font-body);font-size:0.86rem">' + opts + '</select>'
     + '<div style="display:flex;justify-content:flex-end;gap:0.5rem;margin-top:0.9rem">'

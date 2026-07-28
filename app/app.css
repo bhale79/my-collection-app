@@ -19,21 +19,26 @@
      already sets its own colour changes. */
   button { color: var(--text); }
 
-  /* ── v0.9.1140 — THE standard pop-up card ──────────────────────────────
+  /* ── v0.9.1140 — the standard ADD / RESEARCH pop-up card ────────────────
      Brad: "we need all the different pop up add screens and research screens
-     to look the same and be the same size."  An inventory found 108 pop-ups
-     in ~46 hand-rolled styles: 22 widths, 26 paddings, 4 radii. This class is
-     the single standard, taken from the Add wizard he pointed at: the app
-     background, 16px corners, a subtle border, one width.
+     to look the same and be the same size." And, when a first pass painted it
+     wider: "the cards should be left alone, we are just talking about the add
+     item like want list collection, sale list ect."
 
-     Rules for converting a pop-up to the standard:
+     SCOPE — this class is for the pop-ups where the user is ADDING something
+     (collection, want list, sale list, sold, upgrade, parts, add-by-photo,
+     add-by-barcode) and the research/identify screens that serve those flows.
+     Detail cards, info popups, contacts, backups, tutorials and the like keep
+     their own styling deliberately — do not convert them.
+
+     Rules inside that scope:
        - the CONTAINER gets class="rr-card" and loses its inline background /
          border / radius / width / padding — everything else it needs (flex
          column, overflow handling) may stay inline.
        - an accent identity is allowed ONLY on border-color (e.g. the orange
          collection tint) — never on background or size.
        - headings inside use .rr-card-title. Cream, Oswald, one size.
-     New pop-ups: use this class. Do not hand-roll another card. */
+     New ADD pop-ups: use this class. Do not hand-roll another card. */
   .rr-card {
     background: var(--bg);
     border: 1px solid var(--border-hi);

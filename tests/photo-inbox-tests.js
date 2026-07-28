@@ -2659,25 +2659,27 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('.rr-card-title is the one heading style',
        /\.rr-card-title \{[\s\S]{0,200}font-family: var\(--font-head\);[\s\S]{0,200}color: var\(--text\);/.test(css));
 
-    // Adoption: every converted file actually uses it.
-    const files = ['app-pages.js','app-collection.js','browse.js','contacts.js','research.js',
-                   'sell.js','share.js','dashboard.js','wizard-utils.js','wizard.js',
-                   'wizard-handlers.js','dispatch-board.js','app-misc.js','prefs.js','backup.js',
-                   'vault.js','migration-ui.js','photo-inbox.js','barcode.js','tutorial.js',
-                   'app-setup.js','tutorial-gifs-config.js'];
-    let uses = 0, leftovers = [];
-    files.forEach(function (f) {
-      const s = rd3(f);
-      uses += (s.match(/rr-card/g) || []).length;
-      // No converted file may still hand-roll the old card shell.
-      // Bottom sheets (radius "16px 16px 0 0") are a different pattern by
-      // design — they slide from the bottom edge — and are not card drift.
-      const m = s.match(/background:var\(--surface\)[^"']{0,120}border-radius:1[46]px;[^"']{0,120}max-width:\d+px/g) || [];
-      m.forEach(x => leftovers.push(f));
+    // SCOPE (Brad, after seeing a wider first pass): the standard covers the
+    // ADD flows — collection, want, sale, sold, upgrade, parts, add-by-photo,
+    // add-by-barcode — and the research screens that serve them. Detail cards,
+    // contacts, backups, tutorials etc. deliberately keep their own styling,
+    // so they must appear in NEITHER list here.
+    const inScope = ['app-pages.js','app-collection.js','browse.js','research.js',
+                     'wizard.js','wizard-handlers.js','photo-inbox.js','barcode.js'];
+    const outOfScope = ['contacts.js','dashboard.js','prefs.js','backup.js','vault.js',
+                        'sell.js','share.js','dispatch-board.js','app-misc.js',
+                        'migration-ui.js','tutorial.js','app-setup.js','tutorial-gifs-config.js',
+                        'wizard-utils.js'];
+    let uses = 0;
+    inScope.forEach(function (f) { uses += (rd3(f).match(/rr-card/g) || []).length; });
+    ok('the standard covers the add and research pop-ups (35+ call sites)',
+       uses >= 35, 'uses=' + uses);
+    let strays = [];
+    outOfScope.forEach(function (f) {
+      if (/rr-card/.test(rd3(f))) strays.push(f);
     });
-    ok('the standard is used across the app (60+ call sites)', uses >= 60, 'uses=' + uses);
-    ok('no converted file still hand-rolls the old card shell',
-       leftovers.length === 0, leftovers.slice(0,5).join(','));
+    ok('and nothing OUTSIDE that scope was converted — the cards are left alone',
+       strays.length === 0, strays.join(','));
 
     // Filters: one size, from one config value, in BOTH filter rows.
     ok('the filter config is 17px (Brad picked it over the 21px mock)',

@@ -347,7 +347,7 @@ function _nonItemDetailEdit(type, key) {
   bindOverlayClose(ov, function() { ov.remove(); });
 
   var box = document.createElement('div');
-  box.className = 'rr-card';
+  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;max-height:85vh;overflow-y:auto;padding:1.5rem;position:relative';
 
   var hdr = document.createElement('div');
   hdr.style.cssText = 'font-family:var(--font-head);font-size:1.05rem;color:var(--accent);margin-bottom:0.25rem';
@@ -588,7 +588,7 @@ function _nonItemDetailPhotos(type, key) {
   bindOverlayClose(ov, function() { if (!ov._uploading) ov.remove(); });
 
   var box = document.createElement('div');
-  box.className = 'rr-card';
+  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:560px;width:100%;max-height:85vh;overflow-y:auto;padding:1.5rem;position:relative';
 
   var hdr = document.createElement('div');
   hdr.style.cssText = 'font-family:var(--font-head);font-size:1.05rem;color:var(--accent);margin-bottom:0.25rem';
@@ -1773,7 +1773,7 @@ function showOwnedItemMenu(idx, pdKey) {
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
   bindOverlayClose(overlay, function() { overlay.remove(); });
   const box = document.createElement('div');
-  box.className = 'rr-card'; box.style.borderColor = 'rgba(46,204,113,0.35)';
+  box.style.cssText = 'background:var(--surface);border:1px solid rgba(46,204,113,0.35);border-radius:16px;max-width:420px;width:100%;padding:1.75rem;position:relative';
 
   const closeBtn = document.createElement('button');
   closeBtn.textContent = '✕';
@@ -1855,7 +1855,7 @@ function _showSpecialOwnedMenu(idx, item, ownedItems) {
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
   bindOverlayClose(overlay, function() { overlay.remove(); });
   const box = document.createElement('div');
-  box.className = 'rr-card'; box.style.borderColor = 'rgba(46,204,113,0.35)';
+  box.style.cssText = 'background:var(--surface);border:1px solid rgba(46,204,113,0.35);border-radius:16px;max-width:420px;width:100%;padding:1.75rem;position:relative';
   const closeBtn = document.createElement('button');
   closeBtn.textContent = '✕';
   closeBtn.style.cssText = 'position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer';
@@ -1974,7 +1974,7 @@ function _checkGroupBeforeForSale(globalIdx, pdKey) {
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
   overlay.innerHTML = `
-    <div class="rr-card">
+    <div style="background:var(--surface);border-radius:16px;padding:1.5rem;max-width:420px;width:100%;border:1px solid var(--border)">
       <div style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:0.4rem">This is a grouped item</div>
       <div style="font-size:0.84rem;color:var(--text-mid);margin-bottom:0.15rem">
         <strong style="color:var(--text)">${allItems.length} items</strong> in this group:
@@ -2158,7 +2158,7 @@ function _checkSetBeforeAction(pdKey, leadIdx, proceed) {
       + '<span style="font-size:0.78rem;color:var(--text-dim)">' + c.kind + '</span></label>';
   }).join('');
 
-  overlay.innerHTML = '<div class="rr-card">'
+  overlay.innerHTML = '<div style="background:var(--surface);border-radius:16px;padding:1.5rem;max-width:400px;width:100%;border:1px solid var(--border)">'
     + '<div style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:0.3rem">Sell from this group</div>'
     + '<div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:0.9rem">Check the pieces you’re selling. They’re sold together for one price.</div>'
     + rowsHtml
@@ -2271,7 +2271,7 @@ async function removeCollectionItem(itemNum, variation, row, invId) {
       var overlay = document.createElement('div');
       overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9500;display:flex;align-items:center;justify-content:center;padding:1rem';
       overlay.innerHTML = `
-        <div class="rr-card">
+        <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:1.5rem;max-width:360px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
           <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;color:var(--accent);text-transform:uppercase;margin-bottom:0.5rem">Remove Item</div>
           <div style="font-size:0.9rem;color:var(--text);margin-bottom:0.2rem;line-height:1.5">
             Item <strong>${itemNum}</strong> is grouped with <strong>${siblings}</strong>.
@@ -2633,7 +2633,7 @@ function showItemPanel(idx, pdKey, mode) {
   });
 
   const box = document.createElement('div');
-  box.className = 'rr-card rr-card-flex'; box.style.borderColor = 'rgba(41,128,185,0.35)';
+  box.style.cssText = 'background:var(--surface);border:1px solid rgba(41,128,185,0.35);border-radius:16px;max-width:500px;width:100%;position:relative;max-height:92vh;display:flex;flex-direction:column;overflow:hidden';
 
   // Header
   const header = document.createElement('div');
@@ -3108,7 +3108,7 @@ function openISDetail(rowKey) {
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
   overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
   const box = document.createElement('div');
-  box.className = 'rr-card'; box.style.borderColor = 'rgba(22,160,133,0.4)';
+  box.style.cssText = 'background:var(--surface);border:1px solid rgba(22,160,133,0.4);border-radius:16px;max-width:460px;width:100%;padding:1.75rem;position:relative;max-height:88vh;overflow-y:auto';
   const closeBtn = document.createElement('button');
   closeBtn.innerHTML='✕'; closeBtn.style.cssText='position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer';
   closeBtn.onclick=()=>overlay.remove();
@@ -3216,7 +3216,7 @@ function browseRowClick(event, idx) {
     vdOverlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
     vdOverlay.onclick = function(e) { if (e.target === vdOverlay) vdOverlay.remove(); };
     const vdBox = document.createElement('div');
-    vdBox.className = 'rr-card';
+    vdBox.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;padding:1.75rem;position:relative;max-height:80vh;overflow-y:auto';
     const closeBtn = document.createElement('button');
     closeBtn.textContent = '✕';
     closeBtn.style.cssText = 'position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer';

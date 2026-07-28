@@ -400,7 +400,7 @@ async function openSalesShareModal() {
   var m = document.createElement('div'); m.id = 'sell-modal';
   m.style.cssText = 'position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,0.7);display:flex;align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto';
   m.innerHTML =
-    '<div class="rr-card" style="margin:auto">' +
+    '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem 1.25rem 1.5rem;width:100%;max-width:480px;margin:auto">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">' +
         '<div style="font-family:var(--font-head);font-size:1.2rem;color:var(--text)">Share my For Sale list</div>' +
         '<button onclick="document.getElementById(\'sell-modal\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.4rem;cursor:pointer;line-height:1">✕</button>' +

@@ -29,7 +29,7 @@ function _sheetLinkClick(e) {
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.25rem';
 
   const box = document.createElement('div');
-  box.className = 'rr-card'; box.style.fontFamily = 'var(--font-body)';
+  box.style.cssText = 'background:var(--surface);border-radius:14px;padding:1.5rem;max-width:360px;width:100%;font-family:var(--font-body)';
   box.innerHTML = `
     <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.9rem">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e67e22" stroke-width="2.2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
@@ -80,7 +80,7 @@ function appConfirm(message, opts) {
   return new Promise(function(resolve) {
     const ov = document.createElement('div');
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:99998;display:flex;align-items:center;justify-content:center;padding:1rem';
-    ov.innerHTML = '<div class="rr-card" style="color:var(--text);font-family:var(--font-body)">'
+    ov.innerHTML = '<div style="max-width:420px;width:100%;background:var(--surface,#1a1a2e);border:1px solid var(--border,#333);border-radius:14px;padding:1.25rem 1.25rem 1rem;color:var(--text,#eee);font-family:var(--font-body,sans-serif);box-shadow:0 10px 40px rgba(0,0,0,0.5)">'
       + '<div style="font-size:1rem;font-weight:600;margin-bottom:0.55rem">' + title + '</div>'
       + '<div style="font-size:0.9rem;line-height:1.45;color:var(--text-mid,#bbb);margin-bottom:1.1rem">' + message + '</div>'
       + '<div style="display:flex;gap:0.5rem;justify-content:flex-end">'
@@ -116,7 +116,7 @@ function appPrompt(message, defaultValue, opts) {
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:99998;display:flex;align-items:center;justify-content:center;padding:1rem';
     var safeVal = String(defaultValue == null ? '' : defaultValue).replace(/"/g, '&quot;');
     var numAttrs = (inputType === 'number') ? ' inputmode="decimal" step="any"' : '';
-    ov.innerHTML = '<div class="rr-card" style="color:var(--text);font-family:var(--font-body)">'
+    ov.innerHTML = '<div style="max-width:420px;width:100%;background:var(--surface,#1a1a2e);border:1px solid var(--border,#333);border-radius:14px;padding:1.25rem;color:var(--text,#eee);font-family:var(--font-body,sans-serif);box-shadow:0 10px 40px rgba(0,0,0,0.5)">'
       + '<div style="font-size:1rem;font-weight:600;margin-bottom:0.55rem">' + title + '</div>'
       + '<div style="font-size:0.9rem;line-height:1.45;color:var(--text-mid,#bbb);margin-bottom:0.9rem">' + message + '</div>'
       + '<div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:1.1rem">'

@@ -1159,7 +1159,7 @@ function showVarDescPopup(idx) {
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
   overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
   const box = document.createElement('div');
-  box.className = 'rr-card';   // v0.9.1140 standard card
+  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;padding:1.5rem;position:relative';
   const closeBtn = document.createElement('button');
   closeBtn.textContent = '✕';
   closeBtn.style.cssText = 'position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer';
@@ -1188,7 +1188,7 @@ function showWantDesc(idx) {
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
   overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
   const box = document.createElement('div');
-  box.className = 'rr-card';   // v0.9.1140 standard card
+  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;padding:1.5rem;position:relative';
   const closeBtn = document.createElement('button');
   closeBtn.textContent = '✕';
   closeBtn.style.cssText = 'position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer';
@@ -2578,7 +2578,7 @@ function showSetDetail(setNum) {
 
   // ── Box ──
   const box = document.createElement('div');
-  box.className = 'rr-card';   // v0.9.1140 standard card
+  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:560px;width:100%;padding:1.5rem;position:relative;max-height:85vh;overflow-y:auto';
 
   // Close button
   const closeBtn = document.createElement('button');
@@ -2717,9 +2717,9 @@ function _buildContactModal() {
   d.id = 'contact-modal';
   d.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;align-items:center;justify-content:center;padding:1.25rem';
   d.innerHTML =
-    '<div class="rr-card">' +
+    '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:420px;width:100%;padding:1.75rem;position:relative">' +
       '<button onclick="document.getElementById(\'contact-modal\').style.display=\'none\';if(window.BackStack)BackStack.pop(\'contact-modal\')" style="position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">&#x2715;</button>' +
-      '<div class="rr-card-title">&#x1F4EC; Contact Us</div>' +
+      '<div style="font-family:var(--font-head);font-size:1.2rem;color:var(--accent);margin-bottom:0.4rem">&#x1F4EC; Contact Us</div>' +
       '<p style="font-size:0.88rem;color:var(--text);line-height:1.65;margin-bottom:1rem">' +
         'Found an error in the catalog or set list? Have a suggestion? We\'d love to hear from you.' +
       '</p>' +
