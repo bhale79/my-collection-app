@@ -2384,6 +2384,64 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('the catalog cache version moved, so the wider fetch happens at once',
      /CATALOG_CACHE_VER\s*=\s*'126'/.test(cfg9));
 
+  section('111. Every real master tab layout still maps to its legacy columns');
+  // The alias table is the risk in v0.9.1133: the master spells the same column
+  // several ways across its tabs, and a missing alias silently blanks that field
+  // wherever the other spelling is used. These are the TEN header layouts that
+  // actually exist across the workbook's 28 items tabs. For each one, every
+  // field the tab really has must resolve by NAME to the same index the old
+  // positional parser used — no regression, no field quietly lost.
+  (function () {
+    const ad2 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app-data.js'), 'utf8');
+    const blk2 = ad2.slice(ad2.indexOf('function _normHdr'), ad2.indexOf('function _deduplicateMaster'))
+      + '\nfunction _fmtYearProd(s){return String(s);}\n'
+      + 'return {buildMasterColMap:buildMasterColMap,MASTER_COL_SPEC:MASTER_COL_SPEC};';
+    const M2 = new Function(blk2)();
+    const LAYOUTS = [
+    { tabs: ["Lionel PW - Items"],
+      hdr: ["Item Number", "Item Type", "Sub-Type", "Unit", "Powered/Dummy", "Control", "Road Name", "Description", "Gauge", "Year Produced", "Variation #", "Variation Details", "Reference Link", "Notes", "Est. Market Value", "Source", "COTT Code", "Original COTT Desc", "Category", "Track Power", "MSRP", "Body Color"] },
+    { tabs: ["Lionel Pre-War", "Lionel MPC-Modern"],
+      hdr: ["Item Number", "Item Type", "Sub-Type", "Unit", "Powered/Dummy", "Control", "Road Name", "Description", "Gauge", "Year Produced", "Variation #", "Variation Details", "Reference Link", "Notes", "Est. Market Value", "Source", "COTT Code", "Original COTT Desc"] },
+    { tabs: ["Lionel PW - Service Tools", "Lionel PW - Boxes"],
+      hdr: ["Item Number", "Item Type", "Sub-Type", "Unit", "Powered/Dummy", "Control", "Road Name", "Description", "Gauge", "Year Produced", "Variation #", "Variation Details", "Reference Link", "Notes", "Est. Market Value", "Source", "COTT Code", "Original COTT Desc", "", "", "", "", "", "", "", ""] },
+    { tabs: ["Atlas O", "Atlas HO"],
+      hdr: ["Item #", "Item Type", "Sub Type", "Unit", "Powered/Dummy", "Control", "Road Name", "Item Description", "Gauge", "Year Produced", "Variation", "Variation Description", "Reference Link", "Notes", "Market Value", "Source", "COTT Code", "Original Description", "Category", "Track/Power", "MSRP"] },
+    { tabs: ["MTH O", "MTH HO"],
+      hdr: ["Item Number", "Item Type", "Sub Type", "Unit", "Powered/Dummy", "Control", "Road Name", "Description", "Gauge", "Year Produced", "Variation", "Variation Description", "Reference Link", "Notes", "Market Value", "Source", "COTT Code", "Original Description", "Category", "Track Power", "MSRP", "UPC / Barcode"] },
+    { tabs: ["MTH S Gauge", "MTH G Scale"],
+      hdr: ["Item Number", "Item Type", "Sub Type", "Unit", "Powered/Dummy", "Control", "Road Name", "Description", "Gauge", "Year Produced", "Variation", "Variation Description", "Reference Link", "Notes", "Market Value", "Source", "COTT Code", "Original Description", "Category", "Track Power", "MSRP", "", "", "", "", "", "UPC / Barcode"] },
+    { tabs: ["Weaver O", "USA Trains G"],
+      hdr: ["Item Number", "Item Type", "Sub Type", "Unit", "Powered/Dummy", "Control", "Road Name", "Description", "Gauge", "Year Produced", "Variation", "Variation Description", "Reference Link", "Notes", "Market Value", "Source", "COTT Code", "Original Description", "Category", "Track Power", "MSRP"] },
+    { tabs: ["Menards O", "3rd Rail O"],
+      hdr: ["Item Number", "Item Type", "Sub Type", "Unit", "Powered/Dummy", "Control", "Road Name", "Description", "Gauge", "Year Produced", "Variation", "Variation Description", "Reference Link", "Notes", "Market Value", "Source", "COTT Code", "Original Description", "Category", "Track Power", "MSRP", "", "", "", "", ""] },
+    { tabs: ["Atlas Z"],
+      hdr: ["Item #", "Item Type", "Sub Type", "Unit", "Powered/Dummy", "Control", "Road Name", "Item Description", "Gauge", "Year Produced", "Variation", "Variation Description", "Reference Link", "Notes", "Market Value", "Source", "COTT Code", "Original Description", "Category", "Track/Power", "MSRP", "", "", "", "", ""] },
+    { tabs: ["Other O Brands"],
+      hdr: ["Item Number", "Item Type", "Sub Type", "Unit", "Powered/Dummy", "Control", "Road Name", "Description", "Gauge", "Year Produced", "Variation", "Variation Description", "Reference Link", "Notes", "Market Value", "Source", "COTT Code", "Original Description", "Category", "Track Power", "MSRP", "UPC / Barcode", "Manufacturer"] },
+    ];
+    let bad = [];
+    LAYOUTS.forEach(function (L) {
+      const cm = M2.buildMasterColMap(L.hdr);
+      if (!cm) { bad.push(L.tabs[0] + ': header not recognised at all'); return; }
+      M2.MASTER_COL_SPEC.forEach(function (sp) {
+        const field = sp[0], pos = sp[1];
+        if (pos === null) return;                       // name-only column
+        if (L.hdr[pos] === undefined || L.hdr[pos] === '') return;  // tab lacks it
+        if (cm[field] !== pos) {
+          bad.push(L.tabs[0] + ' ' + field + ': name->' + cm[field] + ' legacy->' + pos + ' ("' + L.hdr[pos] + '")');
+        }
+      });
+    });
+    ok('all ' + LAYOUTS.length + ' real tab layouts reproduce their legacy column positions',
+       bad.length === 0, bad.slice(0, 4).join(' | '));
+    // and the specific spellings that would otherwise have been lost
+    const atlas = M2.buildMasterColMap(LAYOUTS.filter(function (L) { return L.hdr[0] === 'Item #'; })[0].hdr);
+    ok('"Item #" is recognised as the item number (Atlas tabs)', !!atlas && atlas.itemNum === 0);
+    ok('"Item Description" is recognised as the description', !!atlas && atlas.description === 7);
+    ok('"Variation Description" is recognised as varDesc', !!atlas && atlas.varDesc === 11);
+    ok('"Market Value" is recognised as marketVal', !!atlas && atlas.marketVal === 14);
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

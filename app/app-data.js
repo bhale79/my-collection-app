@@ -382,22 +382,32 @@ function _normHdr(s) {
 // `pos` is the legacy fixed index, used ONLY when a tab has no usable header
 // row (the legacy 'Master Inventory' / 'Sheet1' fallback). Fields with pos
 // null never had a position and are name-only.
+//
+// The alias lists are not hypothetical. The master workbook spells the SAME
+// column four different ways across its tabs, and every one of these is real:
+//   Item Number / Item #            Description / Item Description
+//   Variation # / Variation         Variation Details / Variation Description
+//   Est. Market Value / Market Value    Original COTT Desc / Original Description
+//   Sub-Type / Sub Type             Track Power / Track/Power
+// The last two collapse under normalisation; the rest need naming here. Miss
+// one and that field silently goes blank on every tab that uses the other
+// spelling — which is a worse failure than the positional bug this replaces.
 const MASTER_COL_SPEC = [
-  ['itemNum',        0,    ['itemnumber']],
+  ['itemNum',        0,    ['itemnumber', 'item']],
   ['itemType',       1,    ['itemtype']],
   ['subType',        2,    ['subtype']],
   ['unit',           3,    ['unit']],
   ['poweredDummy',   4,    ['powereddummy']],
   ['control',        5,    ['control']],
   ['roadName',       6,    ['roadname']],
-  ['description',    7,    ['description']],
+  ['description',    7,    ['description', 'itemdescription']],
   ['gauge',          8,    ['gauge']],
   ['yearProd',       9,    ['yearproduced']],
   ['variation',      10,   ['variation', 'variationnumber']],
-  ['varDesc',        11,   ['variationdetails']],
+  ['varDesc',        11,   ['variationdetails', 'variationdescription']],
   ['refLink',        12,   ['referencelink']],
   ['notes',          13,   ['notes']],
-  ['marketVal',      14,   ['estmarketvalue']],
+  ['marketVal',      14,   ['estmarketvalue', 'marketvalue']],
   ['source',         15,   ['source']],
   ['cottCode',       16,   ['cottcode']],
   ['originalDesc',   17,   ['originalcottdesc', 'originaldescription']],
