@@ -2696,6 +2696,23 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /#identify-panel \{[\s\S]{0,200}background: var\(--bg\);[\s\S]{0,200}border-radius: 16px;/.test(css));
   })();
 
+  section('118. Research screens present as cards, not pages (v0.9.1142)');
+  (function () {
+    const P4 = require('path');
+    const rd4 = f => fs.readFileSync(P4.join(__dirname, '..', 'app', f), 'utf8');
+    const bc4 = rd4('barcode.js');
+    ok('the box-identify shell is a dim scrim, not a full-bleed page',
+       /d\.style\.cssText = 'position:fixed;inset:0;z-index:99997;background:rgba\(0,0,0,0\.7\)/.test(bc4) &&
+       !/z-index:99997;background:#0b0d1d/.test(bc4));
+    ok('it centres the standard card',
+       /align-items:center;justify-content:center/.test(bc4.slice(bc4.indexOf('function _biOverlay'), bc4.indexOf('var _biStream'))));
+    ok('every phase renders inside the card, with the research accent edge',
+       /d\.innerHTML = '<div class="rr-card" style="border-top:3px solid var\(--accent\)">' \+ inner \+ '<\/div>';/.test(bc4));
+    const css4 = rd4('app.css').replace(/\/\*[\s\S]*?\*\//g, '');
+    ok('#identify-modal dims like the wizard so its card has visible edges',
+       /#identify-modal \{[\s\S]{0,300}background: rgba\(0,0,0,0\.7\);/.test(css4));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

@@ -1333,7 +1333,11 @@
   /* ── Identify Item Modal ─────────────────────────────────── */
   #identify-modal {
     position: fixed; inset: 0; z-index: 8000;
-    background: rgba(8,10,18,0.88);
+    /* v0.9.1142: was rgba(8,10,18,0.88) — near-opaque and near-identical to
+       var(--bg), so once the panel below moved onto the standard card its
+       edges vanished into the scrim and the whole thing read as a full page.
+       This is the same dim the wizard's overlay uses; the card pops again. */
+    background: rgba(0,0,0,0.7);
     display: none; align-items: center; justify-content: center;
     padding: 1rem;
   }

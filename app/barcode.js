@@ -2088,15 +2088,23 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     return '<button data-bi="' + label.act + '" style="padding:0.7rem 1rem;border-radius:10px;font-family:var(--font-body,sans-serif);font-size:0.9rem;font-weight:600;cursor:pointer;' + (style || 'background:var(--surface2,#252848);border:1.5px solid var(--border,#444);color:var(--text,#fff)') + '">' + label.txt + '</button>';
   }
 
+  // v0.9.1142 (Brad: "why is research a whole screen, it should just be like
+  // the add to collection") — this shell was a full-bleed page because on
+  // MOBILE it hosts the live camera viewfinder. On desktop, where v0.9.704
+  // removed the camera UI, that left three buttons and a lookup box floating
+  // on an empty dark screen. It is now a dim scrim holding the standard
+  // .rr-card, exactly like the Add wizard — the accent top edge marks it as a
+  // research screen, the same convention as #identify-panel. On a phone the
+  // card fills the width anyway, so the viewfinder loses nothing.
   function _biOverlay(inner) {
     var d = document.getElementById('bi-overlay');
     if (!d) {
       d = document.createElement('div');
       d.id = 'bi-overlay';
-      d.style.cssText = 'position:fixed;inset:0;z-index:99997;background:#0b0d1d;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;overflow-y:auto;padding:0.75rem;box-sizing:border-box';
+      d.style.cssText = 'position:fixed;inset:0;z-index:99997;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;overflow-y:auto;padding:1rem;box-sizing:border-box';
       document.body.appendChild(d);
     }
-    d.innerHTML = inner;
+    d.innerHTML = '<div class="rr-card" style="border-top:3px solid var(--accent)">' + inner + '</div>';
     return d;
   }
   var _biStream = null, _biOnCancel = null, _biLastShot = null;
