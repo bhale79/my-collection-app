@@ -3579,6 +3579,30 @@
   // Lionel UPC via the maker prefix + code and looks up the real catalog item.
   // So a modern retail UPC (e.g. 0-23922-… on a Thomas set) resolves to the
   // correct item instead of a stray number the OCR might grab.
+  // v0.9.1136: every barcode this resolved used to be thrown away. The Photo
+  // Inbox is the highest-volume identification surface in the app and it
+  // contributed ZERO pairings — rrBcMapLearn was called only from the wizard
+  // scanner (barcode.js:838 and :2864), never from here.
+  //
+  // _bcLearn records the pairing without blocking the read. rrBcMapLearn is
+  // fail-quiet, dedupes against what this device already knows before touching
+  // the sheet, and dedupes again in the community queue, so calling it on every
+  // photo of the same box is cheap after the first.
+  //
+  // The `notInMaster` case is learned too, and is the MOST valuable one — it is
+  // literally what Brad asked for when this was built: "make sure when users
+  // take a pic with a barcode and enter an item that we don't have in the
+  // master it submits through our community share deal to our sheet". It is
+  // still not RETURNED as a read, because a number the catalog doesn't know
+  // can't fill in an item — but the pairing is worth having.
+  function _bcLearn(rawValue, itemNum, mfr, inMaster) {
+    try {
+      if (typeof rrBcMapLearn !== 'function') return;
+      Promise.resolve(rrBcMapLearn(rawValue, itemNum, mfr || '', 'photo-inbox', inMaster))
+        .catch(function () {});   // never let a pairing failure disturb a read
+    } catch (e) {}
+  }
+
   async function _readBarcode(blob) {
     if (!('BarcodeDetector' in window)) return null;
     var decode = (window._barcodeDebug && window._barcodeDebug.decodeBarcode) || null;
@@ -3596,13 +3620,17 @@
         if (decode) {
           try {
             var r = await decode({ rawValue: rv, format: fmt }, '');
-            if (r && r.itemNum && r.masterItem && !r.notInMaster) return { num: r.itemNum, matched: true };
+            if (r && r.itemNum) {
+              var known = !!(r.masterItem && !r.notInMaster);
+              _bcLearn(rv, r.itemNum, r.manufacturer, known);
+              if (known) return { num: r.itemNum, matched: true };
+            }
           } catch (eD) {}
         }
         // Fallback: a barcode whose value IS a catalog number.
         var t = rv.replace(/\D/g, '');
-        if (fm && fm(rv)) return { num: rv, matched: true };
-        if (fm && t.length >= 3 && t.length <= 7 && fm(t)) return { num: t, matched: true };
+        if (fm && fm(rv)) { _bcLearn(rv, rv, '', true); return { num: rv, matched: true }; }
+        if (fm && t.length >= 3 && t.length <= 7 && fm(t)) { _bcLearn(rv, t, '', true); return { num: t, matched: true }; }
       }
     } catch (e) {}
     return null;

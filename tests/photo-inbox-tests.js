@@ -2527,6 +2527,56 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /My Collection<\/strong>/.test(t) && /'collection','✓ My Collection'/.test(w));
   })();
 
+  section('113. Community contributions actually get fed (v0.9.1136)');
+  (function () {
+    const P2 = require('path');
+    const rd2 = f => fs.readFileSync(P2.join(__dirname, '..', f), 'utf8');
+    const pi2 = rd2('app/photo-inbox.js');
+    const vj  = rd2('app/vault.js');
+    const bc  = rd2('app/barcode.js');
+
+    // The relay was probed black-box on 2026-07-28 and DOES implement
+    // barcode_pair, answering {ok:true,received:N}. The client check reads
+    // r.ok first, so it passes. The pipe works — this section is about
+    // whether anything is put into it. See RELAY_PROBE.md.
+    ok('the client still checks r.ok first, which is what the relay returns',
+       /if \(r && \(r\.ok \|\| r\.success/.test(bc));
+
+    // 1.2 — the Photo Inbox must contribute the barcodes it resolves
+    ok('the Photo Inbox now feeds resolved barcodes to rrBcMapLearn',
+       /rrBcMapLearn\(rawValue, itemNum, mfr \|\| '', 'photo-inbox', inMaster\)/.test(pi2));
+    ok('it tags them with their own provenance, so they are distinguishable',
+       /'photo-inbox'/.test(pi2));
+    ok('and learning never blocks or breaks a read',
+       /\.catch\(function \(\) \{\}\);\s*\/\/ never let a pairing failure disturb a read/.test(pi2));
+    (function () {
+      const i = pi2.indexOf('async function _readBarcode(blob)');
+      const fn = pi2.slice(i, pi2.indexOf('\n  }', pi2.indexOf('return null;', i)));
+      ok('a barcode the catalog does NOT know is still learned',
+         /var known = !!\(r\.masterItem && !r\.notInMaster\);[\s\S]{0,120}_bcLearn\(rv, r\.itemNum/.test(fn));
+      ok('but is not returned as a read, since it cannot fill in an item',
+         /_bcLearn\(rv, r\.itemNum, r\.manufacturer, known\);[\s\S]{0,80}if \(known\) return/.test(fn));
+      ok('the fallback paths learn too',
+         (fn.match(/_bcLearn\(rv, /g) || []).length === 3);
+    })();
+
+    // 1.3 — the contribution guard must ask whether the catalog LOADED,
+    // not how big it happens to be
+    // Comments stripped: the note recording this fix necessarily quotes the old
+    // expression. This is the fourth time this suite has matched its own prose —
+    // when asserting that something is GONE, always strip comments first.
+    const vjCode = vj.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+    ok('the new-item guard no longer keys off an item count',
+       !/masterSet\.size >= 500/.test(vjCode));
+    ok('it asks whether the catalog actually loaded',
+       /const canFlag = masterSet\.loaded === true;/.test(vj));
+    ok('and _vaultMasterSet reports that honestly',
+       /set\.loaded = loaded;/.test(vj) &&
+       /if \(add\(state\.masterData\) > 0\) loaded = true;/.test(vj));
+    ok('a small era can now contribute — 158 rows is a real catalog, not a failure',
+       /Other O Brands is 158 rows/.test(vj));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

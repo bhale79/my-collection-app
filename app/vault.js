@@ -310,7 +310,15 @@ async function vaultSubmitData() {
   // v0.9.639: union of every era's master item numbers, so each submitted row
   // can carry an in_master flag (catalog "not found" review — Brad 2026-07-02).
   const masterSet = await _vaultMasterSet();
-  const canFlag = masterSet.size >= 500;   // caches not loaded yet? don't false-flag
+  // v0.9.1136: was `masterSet.size >= 500`. The intent was right — don't flag
+  // items as "not in our catalog" when the catalog simply hasn't loaded — but
+  // item COUNT is the wrong proxy for "did it load". The newer era tabs are
+  // genuinely small (Other O Brands is 158 rows, Marx 224), so a collector
+  // working only in one of those sat permanently under the threshold: every
+  // item was marked already-in-catalog, nothing was ever submitted, and the
+  // app still said "Thanks! You're all set". The question is whether the
+  // catalog loaded, so that is what is asked now.
+  const canFlag = masterSet.loaded === true;
 
   // v0.9.646: grouped pairs (engine+tender, AA/AB units) share ONE price that
   // lives on the lead row — find each group's lead so companion rows can say so.
@@ -412,10 +420,20 @@ async function vaultSubmitData() {
 
 // v0.9.639: build the union of all master catalogs (current era in memory +
 // every other era's IDB cache) as an UPPERCASED Set of item numbers.
+// v0.9.1136: also reports WHETHER the catalog genuinely loaded, via `.loaded`.
+// The caller used to infer that from `size >= 500`, which is the wrong proxy —
+// see the note at the canFlag line. A catalog is "loaded" here if the era the
+// user is actually working in produced rows, which is the only era whose
+// absence could cause a false "not in our catalog" flag.
 async function _vaultMasterSet() {
   const set = new Set();
-  const add = (arr) => { (arr || []).forEach((m) => { if (m && m.itemNum) set.add(String(m.itemNum).trim().toUpperCase()); }); };
-  if (typeof state !== 'undefined') add(state.masterData);
+  let loaded = false;
+  const add = (arr) => {
+    let n = 0;
+    (arr || []).forEach((m) => { if (m && m.itemNum) { set.add(String(m.itemNum).trim().toUpperCase()); n++; } });
+    return n;
+  };
+  if (typeof state !== 'undefined') { if (add(state.masterData) > 0) loaded = true; }
   if (typeof REAL_ERA_IDS !== 'undefined' && Array.isArray(REAL_ERA_IDS) && typeof idbGet === 'function') {
     const curEra = (typeof _currentEra !== 'undefined') ? _currentEra : null;
     for (const era of REAL_ERA_IDS) {
@@ -423,6 +441,7 @@ async function _vaultMasterSet() {
       try { add(await idbGet('lv_master_cache_' + era)); } catch (e) {}
     }
   }
+  set.loaded = loaded;
   return set;
 }
 
