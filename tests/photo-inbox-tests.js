@@ -1937,6 +1937,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
      /Add the whole set/.test(sw) && /_setNums\.length >= 2/.test(sw));
   ok('it enters the wizard\'s EXISTING set flow, not a new one',
      /tab: 'set',\s*\n\s*data: \{ tab: 'set', set_knowsNum: 'No', _enteredNums: nums\.slice\(0\)/.test(sw));
+  // v0.9.1115: `wizard` is a top-level let — window.wizard is a decoy. The
+  // bare assignment is the whole fix for the stale-Want-wizard priority bug.
+  ok('the wizard binding is assigned bare, never via window',
+     !/window\.wizard = \{/.test(sw) && /\n    wizard = \{/.test(sw));
   ok('the members come from each photo\'s own read', /_pinFilesToRead\(g\)\.forEach/.test(sw));
   ok('finishing returns to the photo inbox', /_returnPage: 'photo-inbox' \}/.test(sw));
   ok('the identify steps are skipped \u2014 the reads did that part',

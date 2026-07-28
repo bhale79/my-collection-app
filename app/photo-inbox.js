@@ -2554,7 +2554,14 @@
     }
     var ov = document.getElementById('pin-review-ov'); if (ov) ov.remove();
     _buildWizardModal();
-    window.wizard = {
+    // v0.9.1115 (Brad: "it asks me the priority for this item, which is a
+    // want list item"): `wizard` is a top-level `let` — it does NOT live on
+    // window. Assigning window.wizard made a decoy while renderWizardStep
+    // kept reading the real, script-scoped variable, which still held the
+    // LAST wizard used — Brad's previous Want-list add, priority question
+    // and all. Bare assignment reaches the real binding, exactly like
+    // addSetToCollection does.
+    wizard = {
       step: 0, tab: 'set',
       data: { tab: 'set', set_knowsNum: 'No', _enteredNums: nums.slice(0), _returnPage: 'photo-inbox' },
       steps: [], matchedItem: null,
