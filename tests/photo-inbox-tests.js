@@ -2965,8 +2965,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const rsc = strip(rs);
       ok('1.5 re-scan snapshots the previous read BEFORE deleting it',
          rsc.indexOf('_prevRead = JSON.parse') < rsc.indexOf('delete mm[fid]'));
+      // v0.9.1151: this asserted the literal expression
+      // `_hadPaid && _sameNum(_prevRead.num, r.num)`, which section 125's fix
+      // replaced with the broader `_keepPaid(r.num)` (same rule, plus the
+      // blank-previous-number case). Assert the CARRY-ACROSS, not the shape of
+      // the condition — section 125 proves the predicate itself with real inputs.
       ok('1.5 paid detail carries across when the number comes back the same',
-         /_hadPaid && _sameNum\(_prevRead\.num, r\.num\)/.test(rsc) &&
+         /if \(_keepPaid\(r\.num\)\)/.test(rsc) &&
          /'mfr', 'desc', 'road', 'year', 'gauge', 'subType'/.test(rsc));
       ok('1.5 a failed re-scan restores the paid read instead of leaving nothing',
          /if \(_hadPaid\) \{ m\[fid\] = _prevRead; _idsSave\(m\); \}/.test(rsc));
@@ -3005,6 +3010,103 @@ META_WRITES.length = 0; TOASTS.length = 0;
        (idx.match(/<meta name="theme-color"/g) || []).length === 1 &&
        /<meta name="theme-color" content="#0f1220">/.test(idx) &&
        JSON.parse(rd('app/manifest.json')).theme_color === '#0f1220');
+  })();
+
+  section('125. Pre-beta audit — blockers and the two half-fixes (v0.9.1151)');
+  (function () {
+    const pB = require('path');
+    const rd = f => fs.readFileSync(pB.join(__dirname, '..', f), 'utf8');
+    const strip = s => s.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+    const auth = rd('app/app-auth.js'), setup = rd('app/app-setup.js');
+    const pin = rd('app/photo-inbox.js'), pages = rd('app/app-pages.js');
+
+    // ── BLOCKER 1: sign-out must release the sheet, not just the login ──
+    (function () {
+      const so = strip(auth.slice(auth.indexOf('function handleSignOut'),
+                                  auth.indexOf('function handleSignOut') + 2500));
+      ['lv_personal_id', 'lv_vault_id', 'lv_photos_id', 'lv_sold_photos_id'].forEach(function (k) {
+        ok('sign-out clears ' + k + ' (else the next account inherits it)',
+           new RegExp("removeItem\\('" + k + "'\\)").test(so));
+      });
+      // The reason it matters: the sign-in fallback trusts this key blindly.
+      ok('…which is exactly the key the sign-in fallback trusts',
+         /state\.personalSheetId = localStorage\.getItem\('lv_personal_id'\)/.test(auth));
+    })();
+
+    // ── BLOCKER 2: a failed create must store NOTHING ──
+    (function () {
+      const cp = setup.slice(setup.indexOf('async function createPersonalSheet'),
+                             setup.indexOf('async function createPersonalSheet') + 2600);
+      const cpc = strip(cp);
+      ok('sheet creation checks the response before trusting it',
+         /if \(!res\.ok \|\| !data\.spreadsheetId\)/.test(cpc));
+      ok('…and throws instead of storing, so "undefined" can never be persisted',
+         cpc.indexOf('throw new Error') < cpc.indexOf("setItem('lv_personal_id'"));
+      ok('…with a message naming the real reason',
+         /data\.error && data\.error\.message/.test(cpc));
+    })();
+
+    // ── BLOCKER 3: paid reads must be invisible to the background reader ──
+    (function () {
+      // Both paid writers stamp rv. Find them by their signature field.
+      const writers = pin.split('mfr: trim(meta.manufacturer').slice(1);
+      ok('there are exactly the two known paid writers', writers.length === 2, 'found ' + writers.length);
+      writers.forEach(function (w, i) {
+        // rv is stamped in the same object literal, just above mfr.
+        const before = pin.slice(0, pin.indexOf(w)).slice(-700);
+        ok('paid writer #' + (i + 1) + ' stamps rv: READER_VER',
+           /rv: READER_VER/.test(before));
+        ok('paid writer #' + (i + 1) + ' also marks itself paid',
+           /paid: 1/.test(before));
+      });
+      // And the skip test that consumes it still reads the way we assumed.
+      ok('the auto-reader skips any record stamped with the current READER_VER',
+         /if \(got && got\.rv === READER_VER\) return;/.test(pin));
+      ok('…and would otherwise have treated an unstamped record as never-read',
+         /if \(!rec\) return true;/.test(pin) && /return rec\.rv !== READER_VER;/.test(pin));
+    })();
+
+    // ── Finding 4: my 1.5 fix mishandled a paid read with no number ──
+    (function () {
+      const rs = pin.slice(pin.indexOf('window._pinRescan'), pin.indexOf('window._pinAutoReadCancel'));
+      const rsc = strip(rs);
+      ok('a blank previous number no longer counts as "a different item"',
+         /var _keepPaid = function/.test(rsc) && /!_prevHadNum \|\| _sameNum/.test(rsc));
+      ok('both the carry-across and the message use that same rule',
+         /if \(_keepPaid\(r\.num\)\)/.test(rsc) && /_hadPaid && !_keepPaid\(r\.num\)/.test(rsc));
+      ok('and the "different item" message can only fire when it is TRUE',
+         !/_hadPaid && !_sameNum\(_prevRead\.num, r\.num\)/.test(rsc));
+      // Prove the predicate, don't just grep it.
+      (function () {
+        const n = v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+        const sameNum = (a, b) => !!n(a) && n(a) === n(b);
+        const keep = (prevNum, hadPaid, newNum) => {
+          const prevHadNum = !!String(prevNum || '').trim();
+          return hadPaid && (!prevHadNum || sameNum(prevNum, newNum));
+        };
+        ok('predicate: paid read with NO number keeps its detail', keep('', true, '2408') === true);
+        ok('predicate: same number keeps its detail',              keep('2408', true, '2408') === true);
+        ok('predicate: a genuinely different number does not',      keep('2408', true, '6464') === false);
+        ok('predicate: nothing paid, nothing to keep',              keep('2408', false, '2408') === false);
+      })();
+    })();
+
+    // ── Finding 5: my 5.3 fix only reached the desktop branch ──
+    (function () {
+      const up = pages.slice(pages.indexOf('function buildUpgradePage'));
+      const mobileStart = up.indexOf('if (isMobile) {');
+      const desktopStart = up.indexOf('} else {', mobileStart);
+      const mobile = up.slice(mobileStart, desktopStart);
+      ok('the MOBILE Want/Upgrade cards register share data (they registered none)',
+         /_shareDataMap\[_wuMKey\]/.test(mobile));
+      ok('…render a checkbox and a share-card id so a tap can select',
+         /share-cb-\$\{_wuMKey\}/.test(mobile) && /share-card-\$\{_wuMKey\}/.test(mobile));
+      ok('…and use the SAME nested payload as the desktop branch',
+         /want: Object\.assign\(\{\}, u, \{ notes: _wlStripGrp/.test(mobile) &&
+         /master: master \|\| \{\}/.test(mobile));
+      ok('…keyed identically, so phone and desktop selections are interchangeable',
+         /'wu-' \+ \(u\.inventoryId \|\| \(\(u\.itemNum\|\|''\) \+ '-' \+ \(u\.variation\|\|''\)\)\) \+ '-' \+ \(u\.listType\|\|''\)/.test(mobile));
+    })();
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

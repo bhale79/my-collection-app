@@ -633,7 +633,18 @@ async function createPersonalSheet() {
       sheets: [{ properties: { title: 'My Collection', gridProperties: { rowCount: 1000, columnCount: Math.max(40, (typeof PERSONAL_HEADERS !== 'undefined' ? PERSONAL_HEADERS.length : 40) + 3) } } }]
     })
   });
-  const data = await res.json();
+  const data = await res.json().catch(function () { return {}; });
+  // v0.9.1151 (pre-beta audit, BLOCKER 2): there was no res.ok check here, so a
+  // 403 / 429 / quota hiccup — and this path fires ~30 sequential Sheets writes
+  // — stored the STRING "undefined" as the sheet id. The sign-in fallback then
+  // treats that as a real sheet forever, so signing out and back in never
+  // recreates it: the account is bricked and only clearing site data recovers,
+  // which no beta tester will ever find. Fail loudly and store nothing instead.
+  if (!res.ok || !data.spreadsheetId) {
+    var _why = (data && data.error && data.error.message) ? data.error.message : ('HTTP ' + res.status);
+    console.error('[setup] sheet creation failed:', _why);
+    throw new Error('Could not create your collection sheet (' + _why + '). Nothing was saved — please try signing in again.');
+  }
   state.personalSheetId = data.spreadsheetId;
   localStorage.setItem('lv_personal_id', state.personalSheetId);
 

@@ -2220,6 +2220,17 @@
         num: meta.itemNum ? String(meta.itemNum) : (prev.num || ''),
         guess: meta.itemNum ? (meta._hedge ? 1 : 0) : (prev.guess || 0),
         tried: 1,
+        // v0.9.1151 (pre-beta audit, BLOCKER 3): PAID reads were stored with no
+        // rv stamp. _pinAutoRead skips a photo only when rec.rv === READER_VER,
+        // and _stale() calls a missing record stale — so every paid read with no
+        // _freeTried marker was re-queued by the background reader (which fires
+        // 400ms after each inbox refresh) and REPLACED wholesale by a bare free
+        // read. Maker, description, road, year, gauge, subType and aiRaw gone,
+        // silently, for money already spent. This file documents the same trap
+        // at the re-crop path and fixed it there by stamping rv; the paid writers
+        // were missed. Stamping here makes the auto-reader leave paid work alone.
+        rv: READER_VER,
+        paid: 1,
         mfr: trim(meta.manufacturer, prev.mfr), desc: trim(meta.description, prev.desc),
         road: trim(meta.roadName, prev.road), year: trim(meta.year, prev.year),
         // v0.9.968 (Brad): keep scale + item-type so the Add wizard can pre-fill
@@ -4349,6 +4360,17 @@
       var n = function (v) { return String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); };
       return !!n(a) && n(a) === n(b);
     };
+    // v0.9.1151 (pre-beta audit, finding 4 — a hole in yesterday's 1.5 fix):
+    // a paid read can legitimately carry a maker and description with NO number
+    // (_pinApplyMeta accepts a result that identifies the item but not its
+    // catalog number). _sameNum('', '2408') is false by design, so that case
+    // took the "different item" branch: the paid detail was cleared AND the user
+    // was told it belonged to a different item — which was untrue, there was no
+    // other item. A blank previous number contradicts nothing, so keep it.
+    var _prevHadNum = !!(_prevRead && String(_prevRead.num || '').trim());
+    var _keepPaid = function (newNum) {
+      return _hadPaid && (!_prevHadNum || _sameNum(_prevRead.num, newNum));
+    };
     try {
       try { var mm = _ids(); if (mm[fid]) { delete mm[fid]; _idsSave(mm); } } catch (e1) {}
       try { var ff = _freeTried(); if (ff[fid]) { delete ff[fid]; _freeTriedSave(ff); } } catch (e2) {}
@@ -4363,7 +4385,9 @@
         // Same item, better read: carry the paid detail across. A DIFFERENT
         // number means the user was right that the old read was wrong, and the
         // paid detail described that wrong item — so it does not come along.
-        if (_hadPaid && _sameNum(_prevRead.num, r.num)) {
+        // A previous read with NO number contradicts nothing, so it is kept
+        // (v0.9.1151 — see _keepPaid above).
+        if (_keepPaid(r.num)) {
           ['mfr', 'desc', 'road', 'year', 'gauge', 'subType', 'aiRaw', 'aiSku'].forEach(function (k) {
             if (_prevRead[k]) m[fid][k] = _prevRead[k];
           });
@@ -4392,8 +4416,12 @@
         showToast(_hadPaid
           ? 'The free reader could not pick out a number this time — your earlier identification has been kept, nothing was lost'
           : 'The free reader could not pick out a number on this one — type it in, or use “Read this photo” for a closer look', 4500);
-      } else if (_hadPaid && !_sameNum(_prevRead.num, r.num)) {
+      } else if (_hadPaid && !_keepPaid(r.num)) {
+        // Only say this when it is TRUE: the old read named a different number,
+        // so its maker/description really did describe a different item.
         showToast('New number found (' + r.num + ') — the maker and description from the old read were for a different item, so they were cleared', 5000);
+      } else if (_hadPaid && !_prevHadNum && r && r.num) {
+        showToast('Found number ' + r.num + ' — your paid identification was kept', 4000);
       }
     } catch (e) {
       if (btn) { btn.disabled = false; btn.textContent = 'This is wrong — re-scan'; }
@@ -5477,6 +5505,11 @@
             // number — shown on the review card and fed into manual entry.
             var trim = function (v) { return String(v || '').slice(0, 120); };
             ids[fid0] = { num: num, guess: guess, alts: alts, tried: 1,
+              // v0.9.1151 (pre-beta audit, BLOCKER 3): see the matching comment
+              // on the other paid writer. Without rv, the background auto-reader
+              // treats a paid read as "never read" and overwrites it with a free
+              // one — destroying work the user paid for, silently.
+              rv: READER_VER, paid: 1,
               mfr: trim(meta.manufacturer), desc: trim(meta.description),
               road: trim(meta.roadName), year: trim(meta.year),
               // v0.9.968 (Brad): carry scale + item-type through for wizard pre-fill.

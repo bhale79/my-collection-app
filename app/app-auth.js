@@ -657,6 +657,17 @@ function handleSignOut() {
   // shared-browser user B doesn't see user A's collection.
   localStorage.removeItem('lv_personal_cache');
   localStorage.removeItem('lv_personal_cache_ts');
+  // v0.9.1151 (pre-beta audit, BLOCKER 1): H9 cleared the DATA but left the
+  // IDs behind. On the next sign-in driveFindPersonalSheet correctly finds
+  // nothing for the new account — and then the fallback (:587, :611) reads
+  // lv_personal_id, which still holds the PREVIOUS user's sheet. It is truthy,
+  // so createPersonalSheet() never runs: user B silently inherits user A's
+  // sheet id, gets 403 on every read, and can never obtain a sheet of their
+  // own. Any shared computer — or Brad demoing with a second account — hits it.
+  localStorage.removeItem('lv_personal_id');
+  localStorage.removeItem('lv_vault_id');
+  localStorage.removeItem('lv_photos_id');
+  localStorage.removeItem('lv_sold_photos_id');
   state.user = null;
   state.personalSheetId = null;
   state.masterSheetId = null;

@@ -2976,8 +2976,29 @@ function buildUpgradePage() {
       const _escName = (name||'').replace(/'/g,"\\'");
       const _priceLabel = _isWant ? 'Want: ' : 'Max: ';
       const _priceVal = _isWant ? u.expectedPrice : u.maxPrice;
-      return `<div onclick="_wantViewDetail('${u.itemNum}','${escVar}')" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.85rem 1rem;cursor:pointer">
+      // v0.9.1151 (pre-beta audit, finding 5 — a hole in yesterday's 5.3 fix):
+      // share mode was wired ONLY into the desktop table branch below, so on a
+      // phone the Want/Upgrade cards rendered no checkbox, registered nothing in
+      // _shareDataMap, and toggleShareItem returned early — tapping items
+      // selected nothing and the bar sat at "0 items selected". The Want page
+      // has always done this in BOTH branches; this mirrors it. Same key shape
+      // and same nested payload as the table branch, so a selection made on a
+      // phone and one made on a desktop are indistinguishable downstream.
+      const _wuMKey = _wuInShare ? ('wu-' + (u.inventoryId || ((u.itemNum||'') + '-' + (u.variation||''))) + '-' + (u.listType||'')) : '';
+      const _wuMSel = _wuInShare && typeof _shareItems !== 'undefined' && _shareItems[_wuMKey];
+      if (_wuInShare) {
+        window._shareDataMap = window._shareDataMap || {};
+        window._shareDataMap[_wuMKey] = {
+          itemNum: u.itemNum,
+          variation: u.variation || '',
+          want: Object.assign({}, u, { notes: _wlStripGrp(u.notes || '') }),
+          master: master || {},
+          pd: pd || {},
+        };
+      }
+      return `<div ${_wuInShare ? `id="share-card-${_wuMKey}" onclick="toggleShareItem('${_wuMKey}')"` : `onclick="_wantViewDetail('${u.itemNum}','${escVar}')"`} style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.85rem 1rem;cursor:pointer${_wuMSel ? ';outline:2px solid #2ecc71;background:rgba(46,204,113,0.08)' : ''}">
         <div style="display:flex;align-items:flex-start;gap:0.5rem">
+          ${_wuInShare ? `<input type="checkbox" id="share-cb-${_wuMKey}" ${_wuMSel ? 'checked' : ''} onclick="event.stopPropagation();toggleShareItem('${_wuMKey}')" style="width:1.1rem;height:1.1rem;accent-color:#2ecc71;flex-shrink:0;margin-top:0.2rem">` : ''}
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap">
               <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${_wuItemNumHTML(u)}</span>
