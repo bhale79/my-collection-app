@@ -4335,6 +4335,20 @@
     var key = _rvGroups[0].key;
     var btn = document.getElementById('pin-rv-rescan');
     if (btn) { btn.disabled = true; btn.textContent = 'Re-scanning…'; }
+    // v0.9.1150 (beta punch list 1.5): re-scan threw the whole entry away and
+    // wrote a bare free-reader result in its place. On a photo the user had
+    // PAID to identify, that silently destroyed mfr / desc / road / year /
+    // gauge / subType — even when the re-scan came back with the very same
+    // number. Snapshot it first: the paid identification is worth far more
+    // than the number sitting next to it, and it is not refundable.
+    var _prevRead = null;
+    try { var _pm0 = _ids(); if (_pm0[fid]) _prevRead = JSON.parse(JSON.stringify(_pm0[fid])); } catch (eP0) {}
+    var _hadPaid = !!(_prevRead && (_prevRead.mfr || _prevRead.desc || _prevRead.road ||
+                                    _prevRead.year || _prevRead.gauge || _prevRead.subType));
+    var _sameNum = function (a, b) {
+      var n = function (v) { return String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); };
+      return !!n(a) && n(a) === n(b);
+    };
     try {
       try { var mm = _ids(); if (mm[fid]) { delete mm[fid]; _idsSave(mm); } } catch (e1) {}
       try { var ff = _freeTried(); if (ff[fid]) { delete ff[fid]; _freeTriedSave(ff); } } catch (e2) {}
@@ -4344,8 +4358,25 @@
       // digits-only, stopping as soon as the stamped catalog confirms.
       var r = await _freeReadBlob(blob, 2400, _preferForFid(fid));
       var m = _ids();
-      if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, alts: r.alts || [], tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null, rv: READER_VER, viaDesc: !!r.viaDesc, descOf: r.descOf || '', descWords: r.descWords || [], disagreed: r.disagreed || '' }; _idsSave(m); }
-      else { var f2 = _freeTried(); f2[fid] = { t: 1, raw: (r && r.raw) || '', dbg: (r && r.dbg) || null, rv: READER_VER }; _freeTriedSave(f2); }
+      if (r && r.num) {
+        m[fid] = { num: r.num, guess: r.matched ? 0 : 1, alts: r.alts || [], tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null, rv: READER_VER, viaDesc: !!r.viaDesc, descOf: r.descOf || '', descWords: r.descWords || [], disagreed: r.disagreed || '' };
+        // Same item, better read: carry the paid detail across. A DIFFERENT
+        // number means the user was right that the old read was wrong, and the
+        // paid detail described that wrong item — so it does not come along.
+        if (_hadPaid && _sameNum(_prevRead.num, r.num)) {
+          ['mfr', 'desc', 'road', 'year', 'gauge', 'subType', 'aiRaw', 'aiSku'].forEach(function (k) {
+            if (_prevRead[k]) m[fid][k] = _prevRead[k];
+          });
+        }
+        _idsSave(m);
+      }
+      else {
+        var f2 = _freeTried(); f2[fid] = { t: 1, raw: (r && r.raw) || '', dbg: (r && r.dbg) || null, rv: READER_VER }; _freeTriedSave(f2);
+        // Nothing found. Without this the user would be strictly worse off for
+        // having pressed the button: the paid identification deleted, and no
+        // number to show for it. Put it back exactly as it was.
+        if (_hadPaid) { m[fid] = _prevRead; _idsSave(m); }
+      }
       try { _render(); } catch (e4) {}
       window._pinReview(key);
       // Come back to the photo the user was actually working on.
@@ -4357,7 +4388,13 @@
       // telling the user to crop tighter implies they took a bad photo when the
       // app is the one that failed. Say what happened, own it, and offer the
       // thing that actually works next.
-      if (!(r && r.num)) showToast('The free reader could not pick out a number on this one — type it in, or use “Read this photo” for a closer look', 4500);
+      if (!(r && r.num)) {
+        showToast(_hadPaid
+          ? 'The free reader could not pick out a number this time — your earlier identification has been kept, nothing was lost'
+          : 'The free reader could not pick out a number on this one — type it in, or use “Read this photo” for a closer look', 4500);
+      } else if (_hadPaid && !_sameNum(_prevRead.num, r.num)) {
+        showToast('New number found (' + r.num + ') — the maker and description from the old read were for a different item, so they were cleared', 5000);
+      }
     } catch (e) {
       if (btn) { btn.disabled = false; btn.textContent = 'This is wrong — re-scan'; }
       // v0.9.1078: "Re-scan failed — try again" told Brad nothing and told me

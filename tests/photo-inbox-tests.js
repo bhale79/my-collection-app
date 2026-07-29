@@ -843,7 +843,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
   section('36. Re-scan clears and re-reads the right photo');
   const rs = require('fs').readFileSync(SRC, 'utf8');
-  const rsBody = rs.slice(rs.indexOf('window._pinRescan'), rs.indexOf('window._pinRescan') + 2200);
+  // v0.9.1150: this sliced a fixed 2,200 characters from the top of the
+  // function, so ANY addition to _pinRescan silently pushed later code out of
+  // the window and failed four assertions that were still perfectly true —
+  // which is exactly what the 1.5 paid-metadata fix did. Bound the slice by the
+  // function's real end instead. Same assertions, honest window.
+  const rsBody = rs.slice(rs.indexOf('window._pinRescan'), rs.indexOf('window._pinAutoReadCancel'));
   ok('it forgets the stored read', /delete mm\[fid\]/.test(rsBody));
   ok('it forgets the "already tried" marker', /delete ff\[fid\]/.test(rsBody));
   ok('it clears the visual-check cache', /delete _vfCache\[k\]/.test(rsBody));
@@ -2917,6 +2922,89 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('no user-facing string says "AI"',
          !strings.some(s => /\bAI\b/.test(s)));
     })();
+  })();
+
+  section('124. Beta punch list — the pre-invite sweep (v0.9.1150)');
+  (function () {
+    const pathA = require('path');
+    const rd = f => fs.readFileSync(pathA.join(__dirname, '..', f), 'utf8');
+    const strip = s => s.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+    const sh  = rd('app/share.js'),   shc = strip(sh);
+    const ap  = rd('app/app-pages.js');
+    const pi  = rd('app/photo-inbox.js');
+    const tu  = rd('app/tutorial.js');
+    const am  = rd('app/app-misc.js'), amc = strip(am);
+    const idx = rd('app/index.html'),  root = rd('index.html');
+
+    // ── 5.2 PDF share dropped every photo ──
+    ok('5.2 the share sheet reads the photo RADIOS that exist, not the dead #sf-photo checkbox',
+       /input\[name="rr-photomode"\]:checked/.test(shc) && !/getElementById\('sf-photo'\)/.test(shc));
+    ok('5.2 …and "All photos of item" actually fetches more than one',
+       /allPhotos:/.test(shc) && /_photoExtras/.test(shc) && /p <= 4/.test(shc));
+    ok('5.2 extra photos are drawn, and only when they exist (main-only layout untouched)',
+       /if \(_extras\) cardH \+= 52/.test(shc) &&
+       /_extras = \(fields\.allPhotos && it\._photoExtras && it\._photoExtras\.length\)/.test(shc));
+
+    // ── 5.3 Want/Upgrade share arrived empty ──
+    (function () {
+      const blk = ap.slice(ap.indexOf('_shareDataMap[_wuShareKey]'), ap.indexOf('var _wuTrAttrs'));
+      ok('5.3 the Want/Upgrade page registers the NESTED shape share.js reads',
+         /want:\s*Object\.assign/.test(blk) && /master:\s*master/.test(blk) && /pd:\s*pd/.test(blk));
+      ok('5.3 …and no longer registers the flat keys nothing consumed',
+         !/listType:\s*u\.listType/.test(blk) && !/priority:\s*u\.priority/.test(blk));
+      ok('5.3 group markers stay out of notes a recipient sees',
+         /_wlStripGrp\(u\.notes \|\| ''\)/.test(blk));
+      // The shape must match what the PDF builder actually destructures.
+      ok('5.3 which is the same shape the PDF builder reads',
+         /var master = it\.master \|\| \{\}/.test(sh) && /var want\s+= it\.want\s+\|\| \{\}/.test(sh));
+    })();
+
+    // ── 1.5 re-scan destroyed paid metadata ──
+    (function () {
+      const rs = pi.slice(pi.indexOf('window._pinRescan'), pi.indexOf('window._pinAutoReadCancel'));
+      const rsc = strip(rs);
+      ok('1.5 re-scan snapshots the previous read BEFORE deleting it',
+         rsc.indexOf('_prevRead = JSON.parse') < rsc.indexOf('delete mm[fid]'));
+      ok('1.5 paid detail carries across when the number comes back the same',
+         /_hadPaid && _sameNum\(_prevRead\.num, r\.num\)/.test(rsc) &&
+         /'mfr', 'desc', 'road', 'year', 'gauge', 'subType'/.test(rsc));
+      ok('1.5 a failed re-scan restores the paid read instead of leaving nothing',
+         /if \(_hadPaid\) \{ m\[fid\] = _prevRead; _idsSave\(m\); \}/.test(rsc));
+      ok('1.5 and the user is told which of those three things happened',
+         /your earlier identification has been kept/.test(rs) &&
+         /were for a different item, so they were cleared/.test(rs));
+    })();
+
+    // ── 6.3 welcome card was unreachable ──
+    ok('6.3 the Help Center can replay the welcome card (force flag finally has a caller)',
+       /showWelcomeCard\(true\)/.test(tu));
+    ok('6.3 …and the force flag still does what the caller needs',
+       /function showWelcomeCard\(force\)/.test(am) && /!force && localStorage\.getItem\(WELCOME_SEEN_KEY\)/.test(amc));
+
+    // ── §7 entry-point copy over-promised the reader ──
+    ok('§7 the welcome card no longer promises the app identifies photos for you',
+       !/snap a photo and let the app identify it/.test(amc));
+    ok('§7 …it leads with the reliable path and calls the reader a helper',
+       /type the item number/.test(amc) && /the photo reader is a helper/.test(amc));
+
+    // ── 5.1 link previews ──
+    ['index.html (landing)', 'app/index.html (app)'].forEach(function (label, i) {
+      const h = i === 0 ? root : idx;
+      ok('5.1 ' + label + ' carries og: + twitter: preview tags',
+         /property="og:image"/.test(h) && /property="og:title"/.test(h) &&
+         /name="twitter:card" content="summary_large_image"/.test(h));
+      ok('5.1 ' + label + ' uses ABSOLUTE urls (crawlers do not resolve relative paths)',
+         /content="https:\/\/therailroster\.com\/app\/share-card\.png"/.test(h));
+    });
+    ok('5.1 the 1200x630 card exists and is declared at that size',
+       fs.existsSync(pathA.join(__dirname, '..', 'app', 'share-card.png')) &&
+       /og:image:width" content="1200"/.test(root) && /og:image:height" content="630"/.test(root));
+
+    // ── census landmine 14: three disagreeing "app dark" values ──
+    ok('the browser chrome finally agrees with --bg (one theme-color, matching app.css)',
+       (idx.match(/<meta name="theme-color"/g) || []).length === 1 &&
+       /<meta name="theme-color" content="#0f1220">/.test(idx) &&
+       JSON.parse(rd('app/manifest.json')).theme_color === '#0f1220');
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

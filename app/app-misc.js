@@ -37,7 +37,13 @@ function showWelcomeCard(force) {
 
     + '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;padding:10px 12px;background:var(--surface2,#222);border-radius:9px;border:1px solid var(--border,#333)">'
     +   '<div style="font-size:1.5rem;flex-shrink:0">📷</div>'
-    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Add fast.</strong> Tap <em>Add to Collection</em>, then type the item number, scan the box barcode (modern items only), or <strong style="color:var(--text,#eee)">snap a photo and let the app identify it</strong>. The catalog fills in the rest.</div>'
+    // v0.9.1150 (beta punch list §7): this promised "snap a photo and let the
+    // app identify it. The catalog fills in the rest." The in-flow wording is
+    // already careful and honest about the reader being a helper that often
+    // needs correcting — it was the ENTRY POINTS that set testers up to expect
+    // magic and then feel let down. Typing the number is the reliable path and
+    // is named first now; the photo reader is offered as the helper it is.
+    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Add fast.</strong> Tap <em>Add to Collection</em> and type the item number — the catalog fills in the rest. No number handy? Scan the box barcode (modern items only), or <strong style="color:var(--text,#eee)">let a photo suggest one</strong> — the photo reader is a helper, so check what it finds before you save.</div>'
     + '</div>'
 
     + '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;padding:10px 12px;background:var(--surface2,#222);border-radius:9px;border:1px solid var(--border,#333)">'

@@ -387,6 +387,11 @@ function openHelpHub() {
     + '<div style="padding:0.4rem 1.25rem 1.25rem;max-height:74vh;overflow-y:auto">'
     +   hdr('Getting Started')
     +   row(X + "if(typeof startDashboardTour==='function')startDashboardTour();", '🚂', 'Take the tour', 'A guided, highlighted walkthrough of the Dashboard')
+    // v0.9.1150 (beta punch list 6.3): showWelcomeCard(true) — the force flag —
+    // existed with no caller anywhere in the app, so the first-run welcome card
+    // was gone for good the moment it was dismissed. A tester who tapped it away
+    // in their first minute could never get it back.
+    +   row(X + "if(typeof showWelcomeCard==='function')showWelcomeCard(true);", '👋', 'Show the welcome card again', 'The first-run overview of what the app does')
     +   hdr('Watch & Learn')
     +   row(X + "if(typeof startGuidedAddDemo==='function')startGuidedAddDemo();", '🎬', 'Watch: adding an item (live)', 'Auto-plays through the real Add screen, step by step')
     +   row(X + "if(typeof startLifecycleDemo==='function')startLifecycleDemo();", '🎬', 'Watch: an item lifecycle', 'See an item go from Want list to Sold')

@@ -192,9 +192,18 @@ function _shareFieldCheck(id, label, checked) {
     '</label>';
 }
 
+// v0.9.1150 (beta punch list 5.2): this read `#sf-photo`, a checkbox that was
+// REPLACED by the `rr-photomode` radio pair and never re-wired. The element was
+// gone, so `photo` was permanently false, so the photo-fetch loop never ran and
+// every shared PDF came out with no pictures at all — silently, because the
+// radios still sat there promising otherwise. Read the radios that actually
+// exist, and honour "All photos of item" instead of quietly treating it as one.
 function _getShareFields() {
+  var _pm = document.querySelector('input[name="rr-photomode"]:checked');
+  var _mode = _pm ? _pm.value : (document.querySelector('input[name="rr-photomode"]') ? 'main' : '');
   return {
-    photo:   document.getElementById('sf-photo')   ? document.getElementById('sf-photo').checked   : false,
+    photo:     !!_mode,
+    allPhotos: _mode === 'all',
     itemnum: document.getElementById('sf-itemnum') ? document.getElementById('sf-itemnum').checked : true,
     vardesc: document.getElementById('sf-vardesc') ? document.getElementById('sf-vardesc').checked : true,
     cond:    document.getElementById('sf-cond')    ? document.getElementById('sf-cond').checked    : true,
@@ -226,6 +235,15 @@ async function _doShare(mode) {
             var photos = await driveGetFolderPhotos(it.pd.photoItem);
             if (photos && photos.length > 0) {
               it._photoDataUrl = await _fetchPhotoAsDataUrl(photos[0].id);
+              // "All photos of item" fetches the rest too, capped at 4 extras so
+              // a 30-photo item can't turn one share into a multi-minute wait.
+              if (fields.allPhotos && photos.length > 1) {
+                it._photoExtras = [];
+                for (var p = 1; p < photos.length && p <= 4; p++) {
+                  var _ex = await _fetchPhotoAsDataUrl(photos[p].id);
+                  if (_ex) it._photoExtras.push(_ex);
+                }
+              }
             }
           } catch(e) { /* photo failed — skip gracefully */ }
         }
@@ -357,6 +375,10 @@ async function _buildPDF(items, fields, message) {
     if (fields.notes && notes)     cardH += doc.splitTextToSize(notes, contentW - (fields.photo ? 100 : 0) - 16).length * 12 + 4;
     cardH += 16; // bottom padding
     if (fields.photo) cardH = Math.max(cardH, 100);
+    // Extra photos ride in a strip under the text, so the main-photo layout
+    // above is untouched for the ordinary "Main photo only" share.
+    var _extras = (fields.allPhotos && it._photoExtras && it._photoExtras.length) ? it._photoExtras : null;
+    if (_extras) cardH += 52;
 
     // Page break check
     if (y + cardH > doc.internal.pageSize.getHeight() - margin) {
@@ -433,6 +455,17 @@ async function _buildPDF(items, fields, message) {
       var noteLines = doc.splitTextToSize('Notes: ' + notes, textW);
       doc.text(noteLines, textX, cy);
       cy += noteLines.length * 11;
+    }
+
+    // Extra photos ("All photos of item") — a row of thumbnails along the
+    // bottom of the card. Only drawn when the user asked for all photos AND
+    // the item actually has more than one, so nothing shifts otherwise.
+    if (_extras) {
+      var _tw = 44, _tx = textX, _ty = y + cardH - _tw - 8;
+      for (var _e = 0; _e < _extras.length; _e++) {
+        try { doc.addImage(_extras[_e], 'JPEG', _tx, _ty, _tw, _tw, '', 'FAST'); } catch (eT) {}
+        _tx += _tw + 6;
+      }
     }
 
     y += cardH + 10;

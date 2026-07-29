@@ -3034,14 +3034,20 @@ function buildUpgradePage() {
       const _wuShareKey = _wuInShare ? ('wu-' + (u.inventoryId || ((u.itemNum||'') + '-' + (u.variation||''))) + '-' + (u.listType||'')) : '';
       const _wuSelected = _wuInShare && typeof _shareItems !== 'undefined' && _shareItems[_wuShareKey];
       if (_wuInShare) {
+        // v0.9.1150 (beta punch list 5.3): this registered a FLAT object —
+        // listType/priority/notes/price at the top level — while every consumer
+        // in share.js reads a NESTED shape (it.master / it.pd / it.want / it.fs,
+        // share.js:334-337). Nothing matched, so a shared Want or Upgrade item
+        // arrived as an item number and an otherwise empty card. Register the
+        // same nested shape the Want page already uses (app-pages.js:1068).
+        // Notes keep their group marker stripped — that marker is bookkeeping,
+        // not something a recipient should ever see.
         window._shareDataMap[_wuShareKey] = {
-          itemNum: u.itemNum, variation: u.variation || '',
-          listType: u.listType || 'Want', priority: u.priority || 'Medium',
-          notes: _wlStripGrp(u.notes || ''),
-          price: _priceVal || '',
-          targetCondition: u.targetCondition || '',
-          manufacturer: u.manufacturer || '',
-          roadName: name || '',
+          itemNum: u.itemNum,
+          variation: u.variation || '',
+          want: Object.assign({}, u, { notes: _wlStripGrp(u.notes || '') }),
+          master: master || {},
+          pd: pd || {},
         };
       }
       var _wuTrAttrs = '';
