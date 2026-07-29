@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// appearance.js — the Appearance editor (v0.9.1148)
+// appearance.js — the Appearance editor (v0.9.1148, logo→palette v0.9.1149)
 //
 // Brad: "a page that allows me now but will turn into a customizing screen
 // for a user later… little boxes with the color… you click the box a color
@@ -47,6 +47,13 @@
     'Alaska':       { '--bg':'#0d1830','--surface':'#132447','--surface2':'#1a2f5a','--text':'#f6efdd','--border':'#28406e','--accent':'#f2b428','--accent2':'#e8cf8a','--green':'#3ec47a','--want':'#5a94d4','--forsale':'#e0862a','--accent3':'#a48ae8' },
   };
   var USER_PRESETS_KEY = 'rr_skin_presets';
+
+  // v0.9.1149 (Brad, overnight): "clip a Santa Fe logo and paste it in that
+  // box and have it create a palette." No AI involved — a palette is pixel
+  // math. The image is sampled on a canvas RIGHT HERE in the browser: free
+  // forever, instant, and the logo never leaves the device. The logo itself
+  // can live on as a subtle watermark behind the app (off by default-able).
+  var LOGO_KEY = 'rr_skin_logo';   // {data: dataURL, mode: 'watermark'|'off'}
 
   var _root = document.documentElement;
   var _live = {};        // vars set during this editing session (not yet saved)
@@ -219,7 +226,14 @@
     + '.rrap-wf{display:flex;gap:6px;justify-content:flex-end;padding:10px 13px;border-top:1px solid color-mix(in srgb,var(--accent) 25%,transparent)}'
     + '.rrap-wbtn{font-family:var(--font-head);font-size:0.62rem;letter-spacing:0.05em;padding:7px 12px;border-radius:7px;border:1px solid var(--border-hi);background:var(--surface2);color:var(--text)}'
     + '.rrap-go{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}'
-    + '.rrap-note{max-width:1200px;margin:0 auto;padding:0 1.25rem 2.5rem;font-size:0.7rem;color:var(--text-dim);line-height:1.6}';
+    + '.rrap-note{max-width:1200px;margin:0 auto;padding:0 1.25rem 2.5rem;font-size:0.7rem;color:var(--text-dim);line-height:1.6}'
+    // logo → palette bar
+    + '.rrap-logobar{display:flex;align-items:center;gap:0.7rem;padding:0.6rem 1.25rem;border-bottom:1px solid var(--border);flex-wrap:wrap}'
+    + '.rrap-drop{flex:1;min-width:260px;border:1.5px dashed var(--border-hi);border-radius:10px;padding:0.55rem 0.9rem;font-size:0.72rem;color:var(--text-dim);cursor:pointer;text-align:center}'
+    + '.rrap-drop.rrap-over{border-color:var(--accent);color:var(--text)}'
+    + '.rrap-lthumb{height:34px;max-width:120px;border-radius:6px;background:rgba(255,255,255,0.08);padding:2px}'
+    + '.rrap-lbtn{font-size:0.66rem;padding:0.35rem 0.6rem;border-radius:7px;border:1px solid var(--border-hi);background:var(--surface2);color:var(--text);cursor:pointer}'
+    + '.rrap-lbtn.rrap-lon{border-color:var(--accent);color:var(--accent)}';
 
   window.openAppearance = function () {
     if (typeof APPEARANCE_ENABLED !== 'undefined' && !APPEARANCE_ENABLED) return;
@@ -243,6 +257,7 @@
       + '<button class="rrap-btn rrap-primary" onclick="window._rrapClose(true)">💾 Save &amp; Use</button>'
       + '</div></div>'
       + '<div class="rrap-presets" id="rrap-presets">' + _presetPills() + '</div>'
+      + '<div class="rrap-logobar" id="rrap-logobar">' + _logoBarHtml() + '</div>'
       + '<div class="rrap-tabs">'
       + '<div class="rrap-tab rrap-on" data-scene="dash">📊 Dashboard</div>'
       + '<div class="rrap-tab" data-scene="wiz">🪟 Add Item Pop-up</div>'
@@ -295,6 +310,13 @@
       var map = BUILTIN_PRESETS[pill.dataset.preset] || _userPresets()[pill.dataset.preset];
       if (map) { Object.keys(map).forEach(function (k) { _set(k, map[k]); }); _wires(); }
     });
+
+    // logo box: file input + paste + drag-drop while the editor is open
+    _wireLogoInput();
+    document.addEventListener('paste', _onPaste);
+    document.addEventListener('dragover', _onDrag);
+    document.addEventListener('dragleave', _onDrag);
+    document.addEventListener('drop', _onDrop);
 
     window.addEventListener('resize', _onResize);
     requestAnimationFrame(function () { _layout(); _wires(); });
@@ -351,6 +373,212 @@
         + '<circle cx="' + x2 + '" cy="' + y2 + '" r="' + (hi ? 5 : 3.5) + '" fill="' + col + '"/>';
     });
     w.innerHTML = html;
+  }
+
+  // ── logo → palette (v0.9.1149) ──────────────────────────────────
+  // Pure pixel math — no AI, no network. See the note at LOGO_KEY.
+
+  function _rgb2hsl(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    var mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, h = 0, s = 0;
+    if (mx !== mn) {
+      var d = mx - mn;
+      s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+      if (mx === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+      else if (mx === g) h = ((b - r) / d + 2) / 6;
+      else h = ((r - g) / d + 4) / 6;
+    }
+    return [h, s, l];
+  }
+  function _hsl2hex(h, s, l) {
+    var f = function (n) {
+      var k = (n + h * 12) % 12;
+      var a = s * Math.min(l, 1 - l);
+      var c = l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+      return Math.round(c * 255).toString(16).padStart(2, '0');
+    };
+    return '#' + f(0) + f(8) + f(4);
+  }
+
+  // Sample the image small, bucket similar colors, return the dominant
+  // buckets with their average color + HSL + share of the pixels.
+  function _extractColors(img) {
+    var W = 64;
+    var cv = document.createElement('canvas');
+    var ratio = Math.min(1, W / Math.max(img.naturalWidth || W, img.naturalHeight || W));
+    cv.width = Math.max(1, Math.round((img.naturalWidth || W) * ratio));
+    cv.height = Math.max(1, Math.round((img.naturalHeight || W) * ratio));
+    var cx = cv.getContext('2d', { willReadFrequently: true });
+    cx.drawImage(img, 0, 0, cv.width, cv.height);
+    var d = cx.getImageData(0, 0, cv.width, cv.height).data;
+    var buckets = {}, total = 0;
+    for (var i = 0; i < d.length; i += 4) {
+      if (d[i + 3] < 128) continue;                        // transparent
+      var r = d[i], g = d[i + 1], b = d[i + 2];
+      var key = (r >> 4) + ',' + (g >> 4) + ',' + (b >> 4); // 16-step buckets
+      var bk = buckets[key] || (buckets[key] = { n: 0, r: 0, g: 0, b: 0 });
+      bk.n++; bk.r += r; bk.g += g; bk.b += b; total++;
+    }
+    return Object.keys(buckets).map(function (k) {
+      var bk = buckets[k];
+      var r = Math.round(bk.r / bk.n), g = Math.round(bk.g / bk.n), b = Math.round(bk.b / bk.n);
+      var hsl = _rgb2hsl(r, g, b);
+      return { hex: '#' + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1),
+               h: hsl[0], s: hsl[1], l: hsl[2], share: bk.n / (total || 1) };
+    }).sort(function (a, b) { return b.share - a.share; });
+  }
+
+  // Turn the dominant colors into a coherent skin. The brand hue drives the
+  // dark backgrounds and the accent; the second distinct hue becomes the
+  // gold slot. Status colors (green/want/forsale/purple) are LEFT ALONE —
+  // "owned is green, wanted is blue" must survive any logo.
+  function _paletteFromColors(cols) {
+    var vivid = cols.filter(function (c) { return c.s > 0.25 && c.l > 0.12 && c.l < 0.9 && c.share > 0.01; });
+    var accent = vivid.sort(function (a, b) { return (b.s * Math.sqrt(b.share)) - (a.s * Math.sqrt(a.share)); })[0];
+    var second = accent && vivid.filter(function (c) {
+      var dh = Math.abs(c.h - accent.h); dh = Math.min(dh, 1 - dh);
+      return dh > 0.12;
+    })[0];
+    // A colorless logo (all grays) still makes a handsome neutral dark
+    // theme, but the accents are left ALONE — inventing a hue that isn't
+    // in the logo would be doing "whatever we want", not what was asked.
+    var baseH = accent ? accent.h : (cols[0] ? cols[0].h : 0),
+        baseS = accent ? Math.min(accent.s * 0.55, 0.5) : 0.04;
+    var map = {
+      '--bg':       _hsl2hex(baseH, baseS, 0.075),
+      '--surface':  _hsl2hex(baseH, baseS, 0.125),
+      '--surface2': _hsl2hex(baseH, baseS, 0.17),
+      '--border':   _hsl2hex(baseH, baseS, 0.24),
+      '--text':     _hsl2hex(baseH, accent ? 0.28 : 0.06, 0.9),
+    };
+    if (accent) {
+      map['--accent'] = _hsl2hex(accent.h, Math.max(accent.s, 0.55), Math.min(Math.max(accent.l, 0.42), 0.58));
+      map['--accent2'] = second ? _hsl2hex(second.h, Math.max(second.s, 0.4), Math.min(Math.max(second.l, 0.55), 0.72))
+                                : _hsl2hex(baseH, 0.45, 0.68);
+    }
+    return map;
+  }
+
+  function _applyLogoPalette(img) {
+    var map = _paletteFromColors(_extractColors(img));
+    Object.keys(map).forEach(function (k) { _set(k, map[k]); });
+    _wires();
+    if (typeof showToast === 'function') showToast('Palette built from your logo — tweak any box, then Save & Use', 4000);
+  }
+
+  function _logoRec() {
+    try { return JSON.parse(localStorage.getItem(LOGO_KEY) || 'null'); } catch (e) { return null; }
+  }
+  function _logoBarHtml() {
+    var rec = _logoRec();
+    if (!rec || !rec.data) {
+      return '<div class="rrap-drop" id="rrap-drop" onclick="document.getElementById(\'rrap-lfile\').click()">'
+        + '🖼 Paste, drop, or click to add a logo — a palette is built from its colors, right on this device</div>'
+        + '<input type="file" id="rrap-lfile" accept="image/*" style="display:none">';
+    }
+    return '<img class="rrap-lthumb" src="' + rec.data + '" alt="logo">'
+      + '<button class="rrap-lbtn" onclick="window._rrapLogoRebuild()">🎨 Rebuild palette</button>'
+      + '<button class="rrap-lbtn ' + (rec.mode === 'watermark' ? 'rrap-lon' : '') + '" onclick="window._rrapLogoToggle()">'
+      + (rec.mode === 'watermark' ? '✓ Watermark on' : 'Watermark off') + '</button>'
+      + '<button class="rrap-lbtn" onclick="window._rrapLogoRemove()">✕ Remove logo</button>'
+      + '<span style="font-size:0.62rem;color:var(--text-dim)">or replace: </span>'
+      + '<button class="rrap-lbtn" onclick="document.getElementById(\'rrap-lfile\').click()">…</button>'
+      + '<input type="file" id="rrap-lfile" accept="image/*" style="display:none">';
+  }
+  function _refreshLogoBar() {
+    var bar = document.getElementById('rrap-logobar');
+    if (bar) { bar.innerHTML = _logoBarHtml(); _wireLogoInput(); }
+    applyLogoBackdrop();
+  }
+  function _wireLogoInput() {
+    var f = document.getElementById('rrap-lfile');
+    if (f) f.addEventListener('change', function () { if (f.files && f.files[0]) _rrapLogoLoad(f.files[0]); });
+  }
+
+  // Load a pasted/dropped/picked image: build the palette, then store a
+  // downscaled copy (≤360px PNG keeps transparency and stays well inside
+  // localStorage limits). Palette works even if storage is full.
+  function _rrapLogoLoad(fileOrBlob) {
+    var url = URL.createObjectURL(fileOrBlob);
+    var img = new Image();
+    img.onload = function () {
+      _applyLogoPalette(img);
+      var mx = 360, sc = Math.min(1, mx / Math.max(img.naturalWidth, img.naturalHeight));
+      var cv = document.createElement('canvas');
+      cv.width = Math.max(1, Math.round(img.naturalWidth * sc));
+      cv.height = Math.max(1, Math.round(img.naturalHeight * sc));
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      var prev = _logoRec();
+      try {
+        localStorage.setItem(LOGO_KEY, JSON.stringify({ data: cv.toDataURL('image/png'), mode: (prev && prev.mode) || 'watermark' }));
+      } catch (e) {
+        if (typeof showToast === 'function') showToast('Palette built — but the logo image was too large to keep for the watermark', 4000, true);
+      }
+      URL.revokeObjectURL(url);
+      _refreshLogoBar();
+    };
+    img.onerror = function () {
+      URL.revokeObjectURL(url);
+      if (typeof showToast === 'function') showToast('That didn’t look like an image file', 3000, true);
+    };
+    img.src = url;
+  }
+  window._rrapLogoRebuild = function () {
+    var rec = _logoRec(); if (!rec || !rec.data) return;
+    var img = new Image();
+    img.onload = function () { _applyLogoPalette(img); };
+    img.src = rec.data;
+  };
+  window._rrapLogoToggle = function () {
+    var rec = _logoRec(); if (!rec) return;
+    rec.mode = rec.mode === 'watermark' ? 'off' : 'watermark';
+    try { localStorage.setItem(LOGO_KEY, JSON.stringify(rec)); } catch (e) {}
+    _refreshLogoBar();
+  };
+  window._rrapLogoRemove = function () {
+    try { localStorage.removeItem(LOGO_KEY); } catch (e) {}
+    _refreshLogoBar();
+  };
+
+  // The logo's home in the app: a faint fixed watermark. pointer-events:none
+  // so it can never block a tap; low z-index so real pop-ups paint over it;
+  // 5% opacity so it reads as texture, not content.
+  function applyLogoBackdrop() {
+    var rec = _logoRec();
+    var el = document.getElementById('rr-logo-bg');
+    if (!rec || !rec.data || rec.mode !== 'watermark') { if (el) el.remove(); return; }
+    if (!el) {
+      el = document.createElement('div'); el.id = 'rr-logo-bg';
+      el.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:1;'
+        + 'background-position:center;background-repeat:no-repeat;background-size:min(55vmin,420px);opacity:0.05';
+      document.body.appendChild(el);
+    }
+    el.style.backgroundImage = 'url(' + rec.data + ')';
+  }
+  window.applyLogoBackdrop = applyLogoBackdrop;
+
+  // paste + drag-drop, only while the editor is open
+  function _onPaste(e) {
+    if (!document.getElementById('rrap')) return;
+    var items = (e.clipboardData && e.clipboardData.items) || [];
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].type && items[i].type.indexOf('image/') === 0) {
+        e.preventDefault(); _rrapLogoLoad(items[i].getAsFile()); return;
+      }
+    }
+  }
+  function _onDrop(e) {
+    var ov = document.getElementById('rrap'); if (!ov) return;
+    e.preventDefault();
+    var dz = document.getElementById('rrap-drop'); if (dz) dz.classList.remove('rrap-over');
+    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f && /^image\//.test(f.type)) _rrapLogoLoad(f);
+  }
+  function _onDrag(e) {
+    if (!document.getElementById('rrap')) return;
+    e.preventDefault();
+    var dz = document.getElementById('rrap-drop');
+    if (dz) dz.classList.toggle('rrap-over', e.type === 'dragover');
   }
 
   // ── actions ──
@@ -418,5 +646,14 @@
     if (typeof applyTheme === 'function') applyTheme();
     if (ov) ov.remove();
     window.removeEventListener('resize', _onResize);
+    document.removeEventListener('paste', _onPaste);
+    document.removeEventListener('dragover', _onDrag);
+    document.removeEventListener('dragleave', _onDrag);
+    document.removeEventListener('drop', _onDrop);
   };
+
+  // A saved watermark is a user choice, not an editor feature — it applies
+  // on every boot even when APPEARANCE_ENABLED is false (hiding the editor
+  // before beta must not strip Brad's own look).
+  applyLogoBackdrop();
 })();

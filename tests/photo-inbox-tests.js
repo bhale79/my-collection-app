@@ -2857,6 +2857,68 @@ META_WRITES.length = 0; TOASTS.length = 0;
           .match(/\['--[a-z0-9-]+'/g) || []).length === 11);
   })();
 
+  section('123. Logo → palette (v0.9.1149)');
+  (function () {
+    const path9 = require('path');
+    const ap9 = fs.readFileSync(path9.join(__dirname, '..', 'app', 'appearance.js'), 'utf8');
+    // Absence assertions run on comment-stripped source (recorded-five-times rule).
+    const ap9c = ap9.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+
+    ok('the editor renders the logo bar and its builder',
+       /rrap-logobar/.test(ap9) && /function _logoBarHtml/.test(ap9));
+    ok('the drop zone accepts paste, drag-drop, AND a file picker',
+       /addEventListener\('paste', _onPaste\)/.test(ap9) &&
+       /addEventListener\('drop', _onDrop\)/.test(ap9) &&
+       /accept="image\/\*"/.test(ap9));
+    ok('…and every listener is removed again on close (no leak into the app)',
+       /removeEventListener\('paste', _onPaste\)/.test(ap9) &&
+       /removeEventListener\('drop', _onDrop\)/.test(ap9) &&
+       /removeEventListener\('dragover', _onDrag\)/.test(ap9));
+
+    // The extraction is pixel math on a canvas — nothing leaves the device.
+    ok('palette extraction samples pixels locally (canvas getImageData)',
+       /getImageData/.test(ap9c) && /function _extractColors/.test(ap9));
+    ok('and makes NO network call of any kind',
+       !/fetch\(/.test(ap9c) && !/XMLHttpRequest/.test(ap9c) && !/navigator\.sendBeacon/.test(ap9c));
+
+    // The palette maps onto brand slots ONLY — status colors survive any
+    // logo ("owned is green, wanted is blue" is meaning, not branding).
+    const palFn = ap9.slice(ap9.indexOf('function _paletteFromColors'), ap9.indexOf('function _applyLogoPalette'));
+    ok('the logo drives the 7 brand slots',
+       ['--bg', '--surface', '--surface2', '--border', '--text', '--accent', '--accent2']
+         .every(v => palFn.includes("'" + v + "'")));
+    ok('…and never touches the status colors',
+       !palFn.includes('--green') && !palFn.includes('--want') &&
+       !palFn.includes('--forsale') && !palFn.includes('--accent3'));
+
+    // Storage: downscaled PNG (transparency kept) under rr_skin_logo; the
+    // palette must be applied BEFORE the storage attempt so a full
+    // localStorage can never block the feature's main point.
+    ok('the logo is stored downscaled as PNG under rr_skin_logo',
+       /LOGO_KEY = 'rr_skin_logo'/.test(ap9) && /mx = 360/.test(ap9) &&
+       /toDataURL\('image\/png'\)/.test(ap9));
+    ok('palette applies before storage, so a full localStorage cannot block it',
+       ap9.indexOf('_applyLogoPalette(img)', ap9.indexOf('function _rrapLogoLoad'))
+         < ap9.indexOf('localStorage.setItem(LOGO_KEY', ap9.indexOf('function _rrapLogoLoad')));
+
+    // The watermark: faint, untouchable, removable, and applied on boot
+    // regardless of APPEARANCE_ENABLED (a saved look outlives the editor).
+    ok('the watermark can never block a tap and stays faint',
+       /pointer-events:none/.test(ap9) && /opacity:0\.05/.test(ap9));
+    ok('turning the watermark off removes the element',
+       /rec\.mode !== 'watermark'\) \{ if \(el\) el\.remove\(\); return; \}/.test(ap9));
+    ok('the backdrop is applied at boot, outside the editor gate',
+       /^\s*applyLogoBackdrop\(\);\s*\n\}\)\(\);/m.test(ap9));
+
+    // User-facing copy never says "AI" (standing rule) — strip comments,
+    // then check only quoted strings.
+    (function () {
+      const strings = ap9c.match(/'(?:[^'\\]|\\.)*'/g) || [];
+      ok('no user-facing string says "AI"',
+         !strings.some(s => /\bAI\b/.test(s)));
+    })();
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
