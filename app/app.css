@@ -95,6 +95,16 @@
     --gold-light:#e8c060;
     --navy:      #1a1d3a;
     --cream:     #f8e8c0;
+    /* Semantic status colors (Session 185 — Appearance editor).
+       Single source for status hues; the Appearance page edits these
+       live. Sweeps will migrate matching literals onto them over time. */
+    --want:      #2980b9;   /* want-list blue */
+    --forsale:   #e67e22;   /* for-sale orange (distinct from --accent) */
+    --danger:    #e74c3c;   /* errors / destructive */
+    --warn:      #f0b429;   /* warnings */
+    --info:      #3498db;   /* informational */
+    --on-accent: #ffffff;   /* text placed on accent-colored fills */
+    --bg-card:   var(--surface2); /* was used-but-undefined; now real */
     --radius:    8px;
     --font-head: 'Oswald', 'Barlow Condensed', sans-serif;
     --font-body: 'Merriweather Sans', 'Helvetica Neue', sans-serif;

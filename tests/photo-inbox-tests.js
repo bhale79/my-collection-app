@@ -2792,6 +2792,71 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /condition-pip ' \+ k \+ '/.test(wp7));
   })();
 
+  section('122. The Appearance editor (v0.9.1148)');
+  (function () {
+    const path8 = require('path');
+    const cfg8 = fs.readFileSync(path8.join(__dirname, '..', 'app', 'config.js'), 'utf8');
+    const idx8 = fs.readFileSync(path8.join(__dirname, '..', 'app', 'index.html'), 'utf8');
+    const pf8  = fs.readFileSync(path8.join(__dirname, '..', 'app', 'prefs.js'), 'utf8');
+    const ap8  = fs.readFileSync(path8.join(__dirname, '..', 'app', 'appearance.js'), 'utf8');
+    const css8 = fs.readFileSync(path8.join(__dirname, '..', 'app', 'app.css'), 'utf8');
+
+    // The one-line hide switch Brad asked for.
+    ok('config.js has the APPEARANCE_ENABLED flag (the one-line hide switch)',
+       /const APPEARANCE_ENABLED = (true|false);/.test(cfg8));
+    ok('the flag is exported to window so late scripts can read it',
+       /window\.APPEARANCE_ENABLED = APPEARANCE_ENABLED/.test(cfg8));
+
+    // Trio-lockstep: the script tag must ride the same ?v as everything else.
+    const appVerNum = (cfg8.match(/APP_VERSION = 'v0\.9\.(\d+)'/) || [])[1];
+    const scriptVer = (idx8.match(/appearance\.js\?v=(\d+)/) || [])[1];
+    ok('index.html loads appearance.js at the SAME ?v as APP_VERSION',
+       !!appVerNum && scriptVer === appVerNum, 'app=' + appVerNum + ' script=' + scriptVer);
+
+    // Preferences row: present, gated on the flag, opens the editor.
+    ok('the Preferences row exists and is gated on APPEARANCE_ENABLED',
+       /APPEARANCE_ENABLED !== 'undefined' && APPEARANCE_ENABLED\) \?/.test(pf8) &&
+       /openAppearance\(\)/.test(pf8));
+
+    // The editor itself refuses to open when hidden — belt AND suspenders,
+    // so a stale cached prefs.js can't resurrect the row's behaviour.
+    ok('openAppearance() itself bails when the flag is off',
+       /typeof APPEARANCE_ENABLED !== 'undefined' && !APPEARANCE_ENABLED\) return/.test(ap8));
+
+    // New semantic variables land in :root (census §2 — the missing vars).
+    const root8 = css8.slice(css8.indexOf(':root {'), css8.indexOf('\n  }', css8.indexOf(':root {')));
+    ok(':root defines the new semantic vars at their census values',
+       /--want:\s*#2980b9/.test(root8) && /--forsale:\s*#e67e22/.test(root8) &&
+       /--danger:\s*#e74c3c/.test(root8) && /--warn:\s*#f0b429/.test(root8) &&
+       /--info:\s*#3498db/.test(root8) && /--on-accent:\s*#ffffff/.test(root8));
+    ok(':root finally defines --bg-card (census landmine #4 — was used-but-undefined)',
+       /--bg-card:\s*var\(--surface2\)/.test(root8));
+
+    // Persistence rides the EXISTING plumbing — lv_skin_custom + lv_theme,
+    // then applyTheme() replays it. No second theme system.
+    ok('Save & Use persists through A11Y customStorageKey / lv_skin_custom',
+       /customStorageKey\) \|\| 'lv_skin_custom', JSON\.stringify\(map\)/.test(ap8));
+    ok("…and flips lv_theme to 'custom' so applyTheme() replays the skin",
+       /storageKey\) \|\| 'lv_theme', 'custom'/.test(ap8));
+    ok('close always re-runs applyTheme() and clears the live experiment vars',
+       /applyTheme === 'function'\) applyTheme\(\)/.test(ap8) &&
+       /removeProperty\(v\)/.test(ap8));
+
+    // Every id the TARGETS wiring map points at must exist in the scene
+    // HTML — the "nothing buried or wired wrong" guarantee: a chip whose
+    // target id vanished would silently point at nothing.
+    (function () {
+      const tBlock = ap8.slice(ap8.indexOf('var TARGETS'), ap8.indexOf('};', ap8.indexOf('var TARGETS')));
+      const ids = [...new Set((tBlock.match(/'(r[aw]-[a-z0-9-]+)'/g) || []).map(s => s.slice(1, -1)))];
+      const missing = ids.filter(id => !new RegExp('id="' + id + '"').test(ap8));
+      ok('every TARGETS id exists in the scene HTML (' + ids.length + ' checked)',
+         ids.length >= 12 && missing.length === 0, 'missing: ' + missing.join(','));
+    })();
+    ok('the editor exposes exactly the 11 approved variables',
+       (ap8.slice(ap8.indexOf('var EDIT_VARS'), ap8.indexOf('];', ap8.indexOf('var EDIT_VARS')))
+          .match(/\['--[a-z0-9-]+'/g) || []).length === 11);
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

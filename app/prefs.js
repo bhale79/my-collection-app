@@ -258,6 +258,11 @@ function buildPrefsPage() {
           })()}
         </select>
       </div>
+      ${(typeof APPEARANCE_ENABLED !== 'undefined' && APPEARANCE_ENABLED) ? `
+      <div class="pref-row">
+        <div class="pref-row-label"><strong>🎨 Appearance</strong><span>Customize the app's colors — click any swatch, pick a color, see it change live.</span></div>
+        <button class="pref-select" style="cursor:pointer;text-align:center" onclick="openAppearance()">Open Editor</button>
+      </div>` : ''}
       <div class="pref-row">
         <div class="pref-row-label"><strong>${(window.A11Y && window.A11Y.ui && window.A11Y.ui.fontScaleLabel) || 'Text Size'}</strong><span>${(window.A11Y && window.A11Y.ui && window.A11Y.ui.fontScaleHint) || 'Makes all text in the app bigger or smaller.'}</span></div>
         <select class="pref-select" id="pref-font-scale" onchange="setFontScale(this.value); buildPrefsPage()">

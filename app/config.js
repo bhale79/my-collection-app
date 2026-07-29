@@ -3,7 +3,14 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1147';
+const APP_VERSION = 'v0.9.1148';
+
+// v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
+// "Appearance" row shows in Preferences (Brad's skin-building tool).
+// FLIP TO FALSE (this one line) + trio bump before sending beta invites —
+// the editor stays shipped but hidden until it's user-ready.
+const APPEARANCE_ENABLED = true;
+if (typeof window !== 'undefined') window.APPEARANCE_ENABLED = APPEARANCE_ENABLED;
 
 // v0.9.918 (Brad): SINGLE SOURCE OF TRUTH for the personal sheet's collection
 // tab name. Every sheet read/write range ("My Collection!D12") builds from
