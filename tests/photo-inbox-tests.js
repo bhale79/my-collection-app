@@ -5941,6 +5941,43 @@ META_WRITES.length = 0; TOASTS.length = 0;
        pin.indexOf("note: 'Search by the photo") < 0);
   })();
 
+  section('155. 6-prefix numbers go to lionel.com, whatever the year (v0.9.1185)');
+  // "here is another slew if items being googled instead of going to their
+  // lionel site." — 6-19578..6-20088, years 2009-2010, one and two years on the
+  // wrong side of a guessed >=2011 threshold. lionel.com's product library
+  // reaches further back (verified live: their URLs end in -6-19587), and what
+  // it actually indexes is the modern 6- SKU system. So the number decides.
+  (function () {
+    const pL = require('path');
+    const brw = fs.readFileSync(pL.join(__dirname, '..', 'app', 'browse.js'), 'utf8');
+    const a = brw.indexOf('function _itemExternalLinkURL(item)');
+    const b = brw.indexOf('function _itemExternalLinkHTML(item)');
+    if (a < 0 || b < 0) throw new Error('§155 marker moved');
+    const win = { _mbAllGet: () => null, cottAnchorUrl: (u, num) => u + '#' + num };
+    const url = new Function('window', 'state', 'ERA_TABS', '_itemEraPeriod',
+      brw.slice(a, b).replace(/if \(typeof window !== 'undefined'\) window\.[\w.]+ = \w+;/g, '')
+      + 'return _itemExternalLinkURL;')(win, {}, {},
+      (it) => ({ pw: 'postwar', prewar: 'prewar', mpc: 'modern' })[it._era] || null);
+
+    const L = (num, yr) => url({ itemNum: num, _tab: 'Lionel MPC-Modern', _era: 'mpc',
+                                 yearProd: yr || '' });
+    ok('every number from Brad\'s screenshot now reaches lionel.com',
+       ['6-19578', '6-19587', '6-19595', '6-20038', '6-20088'].every(function (n) {
+         return L(n, '2009') === 'https://www.lionel.com/search?query=' + encodeURIComponent(n);
+       }));
+    ok('...including with no year in the row at all — the prefix is enough',
+       /lionel\.com/.test(L('6-19585', '')));
+    ok('the 2011+ rule still carries the new prefix-less numbers',
+       /lionel\.com/.test(L('2233810', '2023')));
+    ok('a prefix-less modern number with an OLD year still gets the Google fallback',
+       /google\.com/.test(L('19578', '2009')));
+    ok('postwar numbers never wear the 6- prefix and keep their period-worded search',
+       /postwar/.test(decodeURIComponent(url({ itemNum: '6464-100', _tab: 'Lionel PW - Items',
+         _era: 'pw', roadName: 'Western Pacific' }))));
+    ok('the MTH tinplate branch still wins first — 11- beats every Lionel rule',
+       L('11-30127', '2011') === 'https://www.mthtrains.com/products/11-30127');
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

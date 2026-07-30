@@ -977,7 +977,16 @@ function _itemExternalLinkURL(item) {
   if (item._tab && String(item._tab).toLowerCase().indexOf('lionel') === 0
       && item.itemNum) {
     var _lyMatch2 = String(item.yearProd || '').match(/(\d{4})/);
-    if (_lyMatch2 && parseInt(_lyMatch2[1], 10) >= 2011) {
+    // v0.9.1185 (Brad: "here is another slew if items being googled instead of
+    // going to their lionel site" — 6-19578..6-20088, years 2009-2010). The
+    // year>=2011 threshold was a guess, and it was wrong: lionel.com's product
+    // library reaches further back, verified live (their own URLs end in
+    // -6-19587). The honest rule is the NUMBER SYSTEM, not the year — the
+    // modern "6-" SKU prefix is exactly what lionel.com indexes. Postwar
+    // numbers (6464-100, 2333) don't carry it and keep their COTT/Google path;
+    // the year rule stays for the new prefix-less numbers (2233810-era).
+    if ((_lyMatch2 && parseInt(_lyMatch2[1], 10) >= 2011)
+        || /^6-\d{3,}$/.test(String(item.itemNum).trim())) {
       return 'https://www.lionel.com/search?query=' + encodeURIComponent(item.itemNum);
     }
     // v0.9.1175 (Brad: "if we are going to do that, we need to search the era in
