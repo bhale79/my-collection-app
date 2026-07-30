@@ -2834,8 +2834,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /--want:\s*#2980b9/.test(root8) && /--forsale:\s*#e67e22/.test(root8) &&
        /--danger:\s*#e74c3c/.test(root8) && /--warn:\s*#f0b429/.test(root8) &&
        /--info:\s*#3498db/.test(root8) && /--on-accent:\s*#ffffff/.test(root8));
+    // v0.9.1153: this asserted the ALIAS form `var(--surface2)`, which turned out
+    // to be the bug — a custom property resolves where it is declared, so :root's
+    // dark value inherited into the light .main island. Section 127 now asserts
+    // the opposite (a literal per scope, never an alias). Landmine #4 is still
+    // closed; what matters is that :root defines it at all.
     ok(':root finally defines --bg-card (census landmine #4 — was used-but-undefined)',
-       /--bg-card:\s*var\(--surface2\)/.test(root8));
+       /--bg-card:\s*#[0-9a-f]{6}/i.test(root8));
 
     // Persistence rides the EXISTING plumbing — lv_skin_custom + lv_theme,
     // then applyTheme() replays it. No second theme system.
@@ -3208,6 +3213,71 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /Reads as ' \+ esc\(s\.gauge\) \+ ' scale/.test(pin));
     ok('…and the flag is actually rendered in both read-summary layouts',
        (pin.match(/_mismatch/g) || []).length >= 5);
+  })();
+
+  section('127. Barcode-read note + readable filter boxes (v0.9.1153)');
+  (function () {
+    const pG = require('path');
+    const rd = f => fs.readFileSync(pG.join(__dirname, '..', f), 'utf8');
+    const bc = rd('app/barcode.js'), css = rd('app/app.css');
+
+    // ── Brad: "when you scan a barcode and it locks in, we need to have a note
+    //    pop up that says 'bar code read, you can take picture now'" ──
+    ok('there is a lock banner element on the viewfinder',
+       /id="bi-lockbanner"/.test(bc) && /position:absolute/.test(
+         bc.slice(bc.indexOf('id="bi-lockbanner"'), bc.indexOf('id="bi-lockbanner"') + 300)));
+    ok('it says what Brad asked it to say',
+       /Barcode read — you can take the picture now/.test(bc));
+    ok('it is shown the moment the barcode locks, once',
+       /if \(lockBanner && lockBanner\.style\.display === 'none'\)/.test(bc) &&
+       /lockBanner\.style\.display = 'block'/.test(bc));
+    ok('…with a single buzz, for eyes that are on the box and not the screen',
+       /navigator\.vibrate\(60\)/.test(bc));
+    ok('the banner element is actually looked up',
+       /var lockBanner = d\.querySelector\('#bi-lockbanner'\)/.test(bc));
+
+    // The reason no confirmation was ever visible: an unconditional overwrite.
+    ok('the "Reading barcode…" line can no longer clobber the lock message',
+       /if \(!heldBc\) stat\.textContent = 'Reading barcode…';/.test(bc) &&
+       !/^\s+stat\.textContent = 'Reading barcode…';\s*$/m.test(bc));
+
+    // ── Brad's screenshot: "the filter boxes can not be a dark color. they
+    //    should be white background" ──
+    (function () {
+      // --bg-card must be a LITERAL in every scope, never an alias. An alias
+      // (`--bg-card: var(--surface2)`) resolves where it is DECLARED, so :root's
+      // dark value inherited into the light .main island and produced exactly
+      // the unreadable dark boxes Brad photographed.
+      ok('--bg-card is never declared as an alias of another variable',
+         !/--bg-card:\s*var\(/.test(css));
+      const scopeOf = (sel) => {
+        const i = css.indexOf(sel);
+        if (i < 0) return '';
+        return css.slice(i, css.indexOf('\n  }', i));
+      };
+      const mainBlk = scopeOf('  .main {\n    --bg:');
+      ok('.main (the content area in the screenshot) declares its own --bg-card',
+         /--bg-card:\s*#fffdf6/.test(mainBlk));
+      ok('…and it is white, not the cream surface2 or a dark value',
+         !/--bg-card:\s*#f5eeda/.test(mainBlk) && !/--bg-card:\s*#1c2544/.test(mainBlk));
+      ok('the light THEME scope declares it white too',
+         /--bg-card:\s*#fffdf6/.test(scopeOf('html[data-theme="light"] {')));
+      ok('both high-contrast scopes declare it black, so HC stays HC',
+         /--bg-card:\s*#000000/.test(scopeOf('html[data-theme="high-contrast"] {')) &&
+         /--bg-card:\s*#000000/.test(scopeOf('html[data-theme="high-contrast"] .main {')));
+      ok('the dark :root keeps its dark card colour for overlays outside .main',
+         /--bg-card:\s*#1c2544/.test(scopeOf('  :root {')));
+      // Every scope that overrides --surface2 must now also set --bg-card, or
+      // the alias trap comes straight back in whichever one was missed.
+      // Comments stripped first — the note explaining this fix quotes
+      // "--surface2: #f5eeda" and was itself counted as a declaration. That is
+      // the fifth time a comment has broken one of these counts.
+      const cssNoC = css.replace(/\/\*[\s\S]*?\*\//g, '');
+      ok('every scope that redefines --surface2 also defines --bg-card',
+         (cssNoC.match(/--surface2:/g) || []).length === (cssNoC.match(/--bg-card:/g) || []).length,
+         (cssNoC.match(/--surface2:/g) || []).length + ' surface2 vs ' +
+         (cssNoC.match(/--bg-card:/g) || []).length + ' bg-card');
+    })();
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

@@ -2178,7 +2178,17 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // PCs were showing the whole mobile capture rig.
         + (window.IS_MOBILE_UA
           ? ('<div id="bi-guide" style="color:#ffd27d;font-size:0.82rem;line-height:1.45;margin-bottom:0.5rem">Get the <b>barcode AND the printed item number</b> in the shot. No barcode? A clear shot of the box end/side with the number — or of the <b>item itself</b> (road name &amp; number visible). Already have a photo? Use <b>🖼 gallery</b> below.</div>'
-            + '<div style="width:100%;aspect-ratio:4/3;border-radius:12px;background:#000;overflow:hidden"><video id="bi-video" autoplay playsinline style="width:100%;height:100%;object-fit:cover"></video></div>'
+            + '<div style="position:relative;width:100%;aspect-ratio:4/3;border-radius:12px;background:#000;overflow:hidden"><video id="bi-video" autoplay playsinline style="width:100%;height:100%;object-fit:cover"></video>'
+            // v0.9.1153 (Brad: "when you scan a barcode and it locks in, we need
+            // to have a note pop up that says 'bar code read, you can take
+            // picture now'"). It sits ON the video, because that is where the
+            // user is looking while framing the shot — a line of text under the
+            // viewfinder is not where anyone's eyes are.
+            + '<div id="bi-lockbanner" style="display:none;position:absolute;left:0;right:0;top:0;'
+            +   'background:rgba(46,204,113,0.95);color:#08240f;font-family:var(--font-head,sans-serif);'
+            +   'font-size:0.95rem;font-weight:700;text-align:center;padding:0.6rem 0.75rem;line-height:1.3;'
+            +   'box-shadow:0 3px 14px rgba(0,0,0,0.45)">✓ Barcode read — you can take the picture now</div>'
+            + '</div>'
             + '<div id="bi-camstatus" style="color:var(--text-dim,#999);font-size:0.8rem;min-height:1.2rem;margin:0.4rem 0">Starting camera…</div>'
             + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap">'
             + _biBtn({ act: 'snap', txt: '📸 Capture' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff;flex:2')
@@ -2211,6 +2221,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + '</div>');
       var video = d.querySelector('#bi-video');
       var stat = d.querySelector('#bi-camstatus');
+      var lockBanner = d.querySelector('#bi-lockbanner');   // v0.9.1153
       // v0.9.1110 (Brad): auto-capture is a CHOICE now. Unchecked, the lock
       // loop still finds and HOLDS the barcode, but the shutter is yours —
       // press Capture when the label is framed the way you want.
@@ -2412,6 +2423,12 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                       heldBc = bc;
                       stat.style.color = '#2ecc71';
                       stat.textContent = '\u2713 Barcode locked \u2014 press \ud83d\udcf8 Capture when the label is framed';
+                      // v0.9.1153: show the banner, and buzz once so the news
+                      // reaches a user whose eyes are on the box, not the screen.
+                      if (lockBanner && lockBanner.style.display === 'none') {
+                        lockBanner.style.display = 'block';
+                        try { if (navigator.vibrate) navigator.vibrate(60); } catch (eV) {}
+                      }
                     }
                     else if (confirmN >= 2) {
                       // v0.9.1109 (Brad: "i had my phone, focused on the image,
@@ -2435,7 +2452,13 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                       done({ raw: frame.raw, view: frame.view, lockedBc: bc });
                       return;
                     }
-                    stat.textContent = 'Reading barcode…';
+                    // v0.9.1153 (the reason Brad never saw a confirmation): this
+                    // line ran UNCONDITIONALLY right after the manual-mode branch
+                    // above set "✓ Barcode locked", overwriting it within the same
+                    // pass — and again every 380ms. The barcode was locked and
+                    // held correctly, but the screen only ever said "Reading
+                    // barcode…", so there was no way to know it had worked.
+                    if (!heldBc) stat.textContent = 'Reading barcode…';
                   }
                 }
               } catch (e) {}

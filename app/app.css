@@ -104,7 +104,20 @@
     --warn:      #f0b429;   /* warnings */
     --info:      #3498db;   /* informational */
     --on-accent: #ffffff;   /* text placed on accent-colored fills */
-    --bg-card:   var(--surface2); /* was used-but-undefined; now real */
+    /* v0.9.1153 — MY BUG FROM v0.9.1148, and a CSS trap worth remembering.
+       The census flagged --bg-card as "used but never defined", and I defined
+       it here as `var(--surface2)`. That looked equivalent and is NOT: a custom
+       property's value is substituted where it is DECLARED, not where it is
+       used. So --bg-card computed to :root's DARK #1c2544 and inherited into
+       the light `.main` content area, completely ignoring .main's own
+       --surface2: #f5eeda override. Before my change it was undefined, the
+       background declaration was invalid, and the cream showed through — so
+       "defining it" is what turned Brad's filter chips and search box into
+       unreadable dark navy boxes on a cream page.
+       Fix: a LITERAL per scope, never an alias. Brad: "the filter boxes can not
+       be a dark color. they should be white background" — so the light scopes
+       get near-white --surface, not cream --surface2. */
+    --bg-card:   #1c2544;
     --radius:    8px;
     --font-head: 'Oswald', 'Barlow Condensed', sans-serif;
     --font-body: 'Merriweather Sans', 'Helvetica Neue', sans-serif;
@@ -125,6 +138,7 @@
     --bg:        #f8e8c0;
     --surface:   #fffdf6;
     --surface2:  #f5eeda;
+    --bg-card:   #fffdf6;   /* v0.9.1153: white cards, not dark (see :root note) */
     --surface3:  #ede2cc;
     --border:    #d4c8a8;
     --border-hi: #c0b090;
@@ -146,6 +160,7 @@
     --bg:        #000000;
     --surface:   #000000;
     --surface2:  #0a0a0a;
+    --bg-card:   #000000;   /* v0.9.1153 */
     --surface3:  #141414;
     --border:    #ffffff;
     --border-hi: #ffff00;
@@ -182,6 +197,7 @@
     --bg:        #000000;
     --surface:   #000000;
     --surface2:  #0a0a0a;
+    --bg-card:   #000000;   /* v0.9.1153 */
     --surface3:  #141414;
     --border:    #ffffff;
     --text:      #ffffff;
@@ -195,6 +211,10 @@
     --bg:        #f8e8c0;
     --surface:   #fffdf6;
     --surface2:  #f5eeda;
+    /* v0.9.1153 (Brad's screenshot): the filter chips and the search box in the
+       content area read --bg-card. Without this line they inherited :root's
+       dark navy and rendered as unreadable dark boxes on the cream page. */
+    --bg-card:   #fffdf6;
     --surface3:  #ede2cc;
     --border:    #d4c8a8;
     --border-hi: #c0b090;
