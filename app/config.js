@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1156';
+const APP_VERSION = 'v0.9.1157';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -308,21 +308,121 @@ const ERA_TABS = {
 // model railroad item" with no idea Brad was filtered to Lionel O.
 //
 // Anything that identifies, reads, or looks up an item asks HERE what
-// the user is currently filtered to. Returns null in 'all' mode, which
-// correctly means "no constraint".
+// the user is currently filtered to.
+//
+// v0.9.1157 — WHY 'all' DOES NOT MEAN "NO FILTER"
+// The version above returned null whenever `_currentEra === 'all'`, reasoning
+// that 'all' means no constraint. It does not. When the user picks hierarchy
+// chips, _setHierarchyChoice DELIBERATELY sets the era to 'all' ("S151: era is
+// always a period... so targetEra is always 'all'") and keeps the real
+// selection in _phState(). So the app sat at era 'all' with chips reading
+// {manufacturer:'lionel', scale:'o', era:'modern'} — and this function said
+// "no constraint" at exactly the moment Brad had visibly filtered. Which is
+// the un-fixed half of his original report.
+//
+// Returns null ONLY when nothing at all is selected.
 // ═══════════════════════════════════════════════════════════════════
+
+// Chip vocabulary ('o','ho','standard') → the ERA_SCALE vocabulary
+// ('O','HO','Standard'), so the constraint reads identically downstream
+// whichever route produced it.
+var _RR_CHIP_SCALE_LABEL = { o: 'O', ho: 'HO', s: 'S', g: 'G', standard: 'Standard', n: 'N', z: 'Z' };
+var _RR_PERIOD_LABEL = { prewar: 'Pre-War', postwar: 'Postwar', modern: 'Modern' };
+var _RR_PERIOD_YEARS = { prewar: '1901-1944', postwar: '1945-1969', modern: '1970-Today' };
+
+// The plain era route: one era key → the constraint it implies.
+function _rrFilterForEra(era, fromChips, period) {
+  var d = (typeof ERAS !== 'undefined') ? ERAS[era] : null;
+  if (!d) return null;
+  return {
+    era:          era,
+    label:        d.label || '',
+    years:        d.years || '',
+    manufacturer: d.manufacturer || '',
+    scale:        (typeof ERA_SCALE !== 'undefined') ? (ERA_SCALE[era] || '') : '',
+    period:       period || '',
+    fromChips:    !!fromChips,
+  };
+}
+
+// Which internal eras does a chip selection describe?
+// A chip selection is a maker + a scale + a time PERIOD, and an internal era is
+// also a maker + a scale + a period — so a full chip selection usually names
+// exactly ONE era (Lionel + O + Modern is 'mpc', and only 'mpc'). When it does,
+// every consumer downstream gets the same shape it already handles.
+// 'Any Manufacturer' names several, and that is fine: we then constrain by
+// whatever IS known instead of pretending there is no filter.
+function rrErasMatchingChips(st) {
+  var out = [];
+  if (!st || typeof ERAS === 'undefined') return out;
+  var wantM = (st.manufacturer && st.manufacturer !== 'any') ? String(st.manufacturer).toLowerCase() : '';
+  var wantS = (st.scale        && st.scale        !== 'any') ? String(st.scale).toLowerCase()        : '';
+  var wantP = (st.era          && st.era          !== 'any') ? String(st.era).toLowerCase()          : '';
+  if (!wantM && !wantS && !wantP) return out;
+  var ids = (typeof REAL_ERA_IDS !== 'undefined') ? REAL_ERA_IDS : Object.keys(ERAS);
+  for (var i = 0; i < ids.length; i++) {
+    var k = ids[i], d = ERAS[k];
+    if (!d || k === 'all') continue;
+    if (wantM && String(d.manufacturer || '').toLowerCase() !== wantM) continue;
+    if (wantS) {
+      // ERA_SCALE, not WHAT_I_COLLECT.ERA_TO_SCALE: ERA_SCALE covers every era
+      // in REAL_ERA_IDS, while ERA_TO_SCALE is missing the newer makers
+      // (Menards, K-Line, Williams, Marx, Other O) and would silently drop them.
+      var sc = (typeof ERA_SCALE !== 'undefined') ? ERA_SCALE[k] : '';
+      if (!sc || String(sc).toLowerCase() !== wantS) continue;
+    }
+    if (wantP) {
+      // _itemEraPeriod is the ONE place era→period lives (browse.js). Asked
+      // with a bare {_era} it answers from that map, so this stays in step
+      // with the row filter rather than growing a second copy of the table.
+      var per = (typeof _itemEraPeriod === 'function') ? _itemEraPeriod({ _era: k }) : null;
+      if (per !== wantP) continue;
+    }
+    out.push(k);
+  }
+  return out;
+}
+if (typeof window !== 'undefined') window.rrErasMatchingChips = rrErasMatchingChips;
+
 function rrActiveFilter(photoEra) {
   try {
     var era = photoEra || ((typeof _currentEra !== 'undefined') ? _currentEra : '');
-    if (!era || era === 'all') return null;
-    var d = (typeof ERAS !== 'undefined') ? ERAS[era] : null;
-    if (!d) return null;
+    if (era && era !== 'all') {
+      var per = (typeof _itemEraPeriod === 'function') ? (_itemEraPeriod({ _era: era }) || '') : '';
+      return _rrFilterForEra(era, false, per);
+    }
+    // 'all' meta-era — the real selection is in the chips.
+    var st = (typeof _phState === 'function') ? _phState() : null;
+    if (!st) return null;
+    var mfrId = (st.manufacturer && st.manufacturer !== 'any') ? String(st.manufacturer).toLowerCase() : '';
+    var scId  = (st.scale        && st.scale        !== 'any') ? String(st.scale).toLowerCase()        : '';
+    var perId = (st.era          && st.era          !== 'any') ? String(st.era).toLowerCase()          : '';
+    if (!mfrId && !scId && !perId) return null;      // genuinely unfiltered
+    var hits = rrErasMatchingChips(st);
+    if (hits.length === 1) return _rrFilterForEra(hits[0], true, perId);
+    // Several eras (or none) fit. Say what IS known and leave `era` blank —
+    // callers that need a single era key check for it; the maker and scale
+    // constraints, which is what the readers were getting wrong, still apply.
+    var mfrLabel = '';
+    if (mfrId) {
+      try {
+        var MF = (typeof window !== 'undefined' && window.WHAT_I_COLLECT
+                  && window.WHAT_I_COLLECT.MANUFACTURERS) || {};
+        mfrLabel = (MF[mfrId] && MF[mfrId].label) || '';
+      } catch (eM) {}
+      if (!mfrLabel && hits.length) mfrLabel = ERAS[hits[0]].manufacturer || '';
+      if (!mfrLabel) mfrLabel = mfrId.replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+    }
+    var scLabel  = scId  ? (_RR_CHIP_SCALE_LABEL[scId] || scId.toUpperCase()) : '';
+    var perLabel = perId ? (_RR_PERIOD_LABEL[perId] || perId) : '';
     return {
-      era:          era,
-      label:        d.label || '',
-      years:        d.years || '',
-      manufacturer: d.manufacturer || '',
-      scale:        (typeof ERA_SCALE !== 'undefined') ? (ERA_SCALE[era] || '') : '',
+      era:          '',
+      label:        [mfrLabel, scLabel, perLabel].filter(Boolean).join(' '),
+      years:        perId ? (_RR_PERIOD_YEARS[perId] || '') : '',
+      manufacturer: mfrLabel,
+      scale:        scLabel,
+      period:       perId,
+      fromChips:    true,
     };
   } catch (e) { return null; }
 }
@@ -371,11 +471,26 @@ function rrSplitByFilter(rows) {
   if (!Array.isArray(rows) || !rows.length) return out;
   var f = rrActiveFilter();
   if (!f) { out.inEra = rows.slice(); return out; }
+  var lc = function (v) { return String(v || '').trim().toLowerCase(); };
   rows.forEach(function (r) {
     var e = rrEraOfRow(r);
-    if (!e || e === f.era) { out.inEra.push(r); return; }
-    var sc = (typeof ERA_SCALE !== 'undefined') ? (ERA_SCALE[e] || '') : '';
+    var sc = (e && typeof ERA_SCALE !== 'undefined') ? (ERA_SCALE[e] || '') : '';
     if (sc && f.scale && !rrSameScale(sc, f.scale)) return;   // wrong scale: drop
+    var isIn;
+    if (f.era) {
+      isIn = (!e || e === f.era);
+    } else {
+      // v0.9.1157 — a chip filter that spans several eras (e.g. Any
+      // Manufacturer + O + Modern). There is no single era key to compare
+      // against, so judge the row on the constraints we DO have. An untagged
+      // row still counts as in-scope: never hide a row on a guess.
+      var mfr = (e && typeof ERAS !== 'undefined' && ERAS[e]) ? lc(ERAS[e].manufacturer) : '';
+      var per = (typeof _itemEraPeriod === 'function') ? (_itemEraPeriod(r) || '') : '';
+      isIn = true;
+      if (f.manufacturer && mfr && mfr !== lc(f.manufacturer)) isIn = false;
+      if (f.period && per && per !== f.period) isIn = false;
+    }
+    if (isIn) { out.inEra.push(r); return; }
     try {
       r._offEra = e;
       r._offEraLabel = (typeof ERAS !== 'undefined' && ERAS[e]) ? (ERAS[e].label || e) : e;

@@ -1369,6 +1369,27 @@ function _itemEraKey(item) {
   // has an itemNum. Tries item.era first (personalData carries it), falls back
   // to an O(1) master-catalog lookup via findMaster().
   if (!item) return null;
+  // v0.9.1157 (Brad: "why do the filters not work" — Atlas rows badged LIONEL
+  // while filtered to Lionel / O Gauge / Modern). The row already KNOWS its era:
+  // every master / set / catalog row is stamped with `_era` by the loader, from
+  // the tab it was read out of. That is a fact, not a guess.
+  //
+  // This function used to walk straight past that stamp to a findMaster()
+  // lookup BY NUMBER — and catalog numbers are NOT unique across makers. Atlas
+  // 3300 found Lionel Pre-War 3300 (a Summer Trolley Trailer) and answered
+  // 'prewar', so _manufacturerOfItem answered 'lionel'. That single wrong
+  // answer both mis-badged the row AND let it through a Lionel-only chip
+  // filter, because both read from the same helper.
+  //
+  // Same bug class as AUDIT_QUESTIONS §5: treating a number as an identity.
+  // The by-number lookup stays below as the fallback for rows carrying no
+  // stamp of their own (manual / personal entries).
+  if (item._era) {
+    var e_ = String(item._era).toLowerCase().trim();
+    // 'all' is the meta-era, not a real one — a row stamped 'all' (the
+    // phase-6 fallback path) has no era of its own, so let it fall through.
+    if (e_ && e_ !== 'all' && typeof ERAS !== 'undefined' && ERAS[e_]) return e_;
+  }
   if (item.era) {
     var e = (item.era || '').toLowerCase().trim();
     if (typeof ERAS !== 'undefined' && ERAS[e]) return e;

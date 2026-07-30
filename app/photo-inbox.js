@@ -4270,17 +4270,15 @@
     var h = {};
     try {
       var pref = _pinPreferOf(group);
-      if (pref && pref.era) {
-        var d = (typeof ERAS !== 'undefined') ? ERAS[pref.era] : null;
-        if (d) {
-          h.eraLabel = d.label || '';
-          h.eraYears = d.years || '';
-        }
+      // v0.9.1157: read the constraint off `pref` itself instead of re-deriving
+      // it from ERAS[pref.era]. A chip filter spanning several eras has no
+      // single era key, and gating on `pref.era` threw away a perfectly good
+      // maker + scale constraint whenever it was blank.
+      if (pref && (pref.label || pref.manufacturer || pref.scale)) {
+        h.eraLabel = pref.label || '';
+        h.eraYears = pref.years || '';
         if (pref.manufacturer) h.mfrs = [pref.manufacturer];
-        try {
-          var sc = (typeof ERA_SCALE !== 'undefined') ? ERA_SCALE[pref.era] : '';
-          if (sc) h.scale = sc;
-        } catch (eS) {}
+        if (pref.scale) h.scale = pref.scale;
         // Said plainly as well as structurally — the relay weaves `note` into
         // the prompt, and a sentence survives a prompt rewrite better than a
         // field name does.
@@ -4317,17 +4315,24 @@
       // maker/scale/era hint, so the AI and Lens were asked a bare "identify
       // this model railroad item" and answered Atlas / MTH / HO while Brad sat
       // in Lionel Modern. The photo's own tag still wins when present; the
-      // app-wide era filter is the fallback, and 'all' still means no
-      // constraint (rrActiveFilter returns null there).
-      var era = m.era || '';
-      if (!era) {
-        var af = (typeof rrActiveFilter === 'function') ? rrActiveFilter() : null;
-        if (af) era = af.era;
-      }
-      if (!era) return null;
-      var mfr = '';
-      try { mfr = (typeof ERAS !== 'undefined' && ERAS[era]) ? (ERAS[era].manufacturer || '') : ''; } catch (e) {}
-      return { era: era, manufacturer: mfr, _fromFilter: !m.era };
+      // app-wide era filter is the fallback.
+      // v0.9.1157: ask the one resolver for BOTH routes. Given the photo's own
+      // tag it answers for that era; given nothing it answers for whatever the
+      // user is filtered to — INCLUDING a hierarchy-chip selection, which the
+      // previous version could not see because rrActiveFilter returned null in
+      // 'all' mode and the chips run in 'all' mode by design (see the note on
+      // rrActiveFilter in config.js). That is why the readers still came back
+      // Atlas / MTH / HO after v0.9.1152.
+      var af = (typeof rrActiveFilter === 'function') ? rrActiveFilter(m.era || '') : null;
+      if (!af) return null;
+      return {
+        era:          af.era || '',        // '' when the filter spans several eras
+        manufacturer: af.manufacturer || '',
+        label:        af.label || '',
+        years:        af.years || '',
+        scale:        af.scale || '',
+        _fromFilter:  !m.era,
+      };
     } catch (e) { return null; }
   }
   async function _freeReadOne(fileId) {

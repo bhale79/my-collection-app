@@ -68,6 +68,18 @@ global.ERAS = {
   mth_ho: { label: 'MTH Modern',   manufacturer: 'MTH',    years: '1990-' },
 };
 global.ERA_SCALE = { pw: 'O', prw: 'O', mod: 'O', mth_ho: 'HO' };
+// v0.9.1157: photo-inbox now asks config.js's ONE resolver what the user is
+// filtered to (see §130), so the harness loads the REAL resolver rather than a
+// hand-written imitation of it — an imitation is exactly how a harness starts
+// passing while the app is broken. No _currentEra and no _phState here, which
+// is what an untagged photo in an unfiltered app looks like: no constraint.
+(function () {
+  const cfgAll = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'config.js'), 'utf8');
+  const a = cfgAll.indexOf('var _RR_CHIP_SCALE_LABEL');
+  const b = cfgAll.indexOf('// ── Keys that hold browseable');
+  if (a < 0 || b < 0) throw new Error('harness: the config.js filter block moved');
+  new Function(cfgAll.slice(a, b)).call(global);
+})();
 global.driveRequest = async () => ({});
 global.driveEnsureSetup = async () => {};
 global.driveFindOrCreateFolder = async () => 'fid';
@@ -3125,8 +3137,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // ── the shared resolver ──
     ok('there is ONE resolver for "what is the user filtered to"',
        /function rrActiveFilter\(photoEra\)/.test(cfg) && /window\.rrActiveFilter = rrActiveFilter/.test(cfg));
-    ok('it returns null in all-eras mode, which means no constraint',
-       /if \(!era \|\| era === 'all'\) return null;/.test(cfg));
+    // v0.9.1157 SUPERSEDES this. "era === 'all' means no constraint" was the
+    // bug: the hierarchy chips run in 'all' mode BY DESIGN, so this early
+    // return blanked the filter exactly when the user had visibly set one.
+    // Left as an inverted assertion so the old shortcut cannot come back.
+    ok('all-eras mode no longer means "no constraint" — superseded, see §130',
+       !/if \(!era \|\| era === 'all'\) return null;/.test(cfg));
     ok('it carries maker AND scale, not just the era label',
        /manufacturer: d\.manufacturer/.test(cfg) && /scale:\s*\(typeof ERA_SCALE/.test(cfg));
 
@@ -3139,7 +3155,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const ERA_TABS = { mpc:{items:'Lionel MPC-Modern'}, mth_ho:{items:'MTH HO'},
                          atlas:{items:'Atlas O'}, mth_o:{items:'MTH O'} };
       let _currentEra = 'mpc';
-      const body = cfg.slice(cfg.indexOf('function rrActiveFilter'), cfg.indexOf('// ── Keys that hold browseable'))
+      // No chips set: this section tests the single-era route. §130 covers what
+      // happens when the chips ARE set.
+      const _phState = () => ({ manufacturer: 'any', scale: 'any', era: 'any', section: 'items' });
+      const window = { WHAT_I_COLLECT: {} };
+      // v0.9.1157: the slice starts at the shared tables now, because
+      // rrActiveFilter leans on _rrFilterForEra and rrErasMatchingChips.
+      const body = cfg.slice(cfg.indexOf('var _RR_CHIP_SCALE_LABEL'), cfg.indexOf('// ── Keys that hold browseable'))
                       .replace(/if \(typeof window !== 'undefined'\) window\.\w+ = \w+;/g, '');
       // Wrap in an IIFE and hand the functions back — declaring them with `let`
       // first collides with the function declarations inside `body`.
@@ -3179,11 +3201,16 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
     // ── the hint builder no longer gives up without a per-photo tag ──
     (function () {
-      const pf = pin.slice(pin.indexOf('function _pinPreferOf'), pin.indexOf('function _pinPreferOf') + 1600);
+      // Bound the slice by the NEXT function, not by a character count — a
+      // fixed-length slice silently stops covering the code it was written for
+      // the moment the function grows (that cost four false failures in §36).
+      const i0 = pin.indexOf('function _pinPreferOf');
+      const pf = pin.slice(i0, pin.indexOf('async function _freeReadOne', i0));
       ok('the era hint falls back to the ACTIVE FILTER when the photo has no tag',
-         /rrActiveFilter\(\)/.test(pf) && !/if \(!m\.era\) return null;/.test(pf));
-      ok('…and a per-photo tag still wins over the filter',
-         /var era = m\.era \|\| ''/.test(pf));
+         /rrActiveFilter\(m\.era \|\| ''\)/.test(pf) && !/if \(!m\.era\) return null;/.test(pf));
+      ok('…and a per-photo tag still wins, because it is what the resolver is asked with',
+         /rrActiveFilter\(m\.era \|\| ''\)/.test(pf));
+      // Behaviour, not wording: §130 drives this function for real.
     })();
     ok('the Lens/Google question is handed the maker and scale, not just the era',
        /rrIdentifyQuery\(\{ eraLabel: _lh\.eraLabel, eraYears: _lh\.eraYears,[\s\S]{0,80}mfrs: _lh\.mfrs, scale: _lh\.scale \}\)/.test(pin));
@@ -3530,6 +3557,223 @@ META_WRITES.length = 0; TOASTS.length = 0;
            warns.some(m => /recognised 2 of 3 clickable rows/.test(m)), warns.join(' | '));
       })();
     })();
+  })();
+
+  section('130. The filters actually filter (v0.9.1157)');
+  // Brad: "why do the filters not work" — a screenshot of the Master Catalog
+  // with Lionel / O Gauge / Modern chips set, showing Atlas rows badged LIONEL.
+  // Two separate faults, both proven here by RUNNING the real functions:
+  //   (a) _itemEraKey resolved an item's era by NUMBER, and catalog numbers are
+  //       not unique across makers — Atlas 3300 found Lionel Pre-War 3300.
+  //   (b) rrActiveFilter treated 'all' as "no constraint", but the chips run in
+  //       'all' mode by design, so every reader ran unfiltered.
+  (function () {
+    const pH = require('path');
+    const rd = f => fs.readFileSync(pH.join(__dirname, '..', f), 'utf8');
+    const appS = rd('app/app.js'), cfgS = rd('app/config.js');
+    const brwS = rd('app/browse.js'), pinS = rd('app/photo-inbox.js');
+    const slice = (src, from, to) => {
+      const a = src.indexOf(from);
+      const b = src.indexOf(to, a + 1);
+      if (a < 0 || b < 0) throw new Error('§130 marker moved: ' + from + ' .. ' + to);
+      return src.slice(a, b);
+    };
+    const noExports = s => s.replace(/if \(typeof window !== 'undefined'\) window\.[\w.]+ = \w+;/g, '');
+
+    // ── (a) an item's era, resolved from the real source ──────────────────
+    (function () {
+      const ERAS = {
+        all:    { manufacturer: '', _isAll: true },
+        prewar: { manufacturer: 'Lionel' }, pw: { manufacturer: 'Lionel' },
+        mpc:    { manufacturer: 'Lionel' }, atlas: { manufacturer: 'Atlas' },
+        mth_o:  { manufacturer: 'MTH' },
+      };
+      // The real collision from Brad's live app: two makers, one number.
+      const findMaster = num => (String(num) === '3300'
+        ? { itemNum: '3300', _era: 'prewar', description: 'Summer Trolley Trailer' } : null);
+      const api = eval('(function(){var ERAS=arguments[0],findMaster=arguments[1];'
+        + noExports(slice(appS, 'function _manufacturerOfEra', 'var _BRAND_LABELS'))
+        + noExports(slice(appS, 'function _itemEraKey', 'function _pdEraEnabled'))
+        + 'return {k:_itemEraKey,m:_manufacturerOfItem};})')(ERAS, findMaster);
+
+      const atlas3300 = { itemNum: '3300', _tab: 'Atlas O', _era: 'atlas', gauge: 'O' };
+      ok('a row that says it is Atlas resolves as Atlas, not as the Lionel row sharing its number',
+         api.k(atlas3300) === 'atlas', String(api.k(atlas3300)));
+      ok('…so the manufacturer is Atlas, which is what the badge AND the chip filter read',
+         api.m(atlas3300) === 'atlas', String(api.m(atlas3300)));
+      ok('the genuine Lionel Pre-War 3300 still resolves to Lionel',
+         api.m({ itemNum: '3300', _era: 'prewar' }) === 'lionel');
+      ok('a row with NO era stamp still falls back to the by-number lookup',
+         api.k({ itemNum: '3300' }) === 'prewar', String(api.k({ itemNum: '3300' })));
+      ok('an explicit manufacturer field still wins over everything',
+         api.m({ itemNum: '3300', _era: 'atlas', manufacturer: 'MTH' }) === 'mth');
+      ok('a row stamped with the META era \'all\' is not treated as a real era',
+         api.k({ itemNum: '3300', _era: 'all' }) === 'prewar', String(api.k({ itemNum: '3300', _era: 'all' })));
+      ok('an unrecognised stamp is ignored rather than trusted blindly',
+         api.k({ itemNum: '3300', _era: 'not-an-era' }) === 'prewar');
+      ok('a personal row\'s own `era` field is still honoured',
+         api.k({ itemNum: '3300', era: 'mpc' }) === 'mpc');
+      ok('and an item with no number and no stamp resolves to nothing, not to a guess',
+         api.k({ description: 'mystery boxcar' }) === null);
+    })();
+
+    // ── (b) what the user is filtered to, when the filter is chips ─────────
+    (function () {
+      const ERAS = {
+        all:    { id: 'all',    label: 'All Collection',    manufacturer: '', _isAll: true },
+        prewar: { id: 'prewar', label: 'Lionel Pre-War',    years: '1901-1942',  manufacturer: 'Lionel' },
+        pw:     { id: 'pw',     label: 'Lionel Postwar',    years: '1945-1969',  manufacturer: 'Lionel' },
+        mpc:    { id: 'mpc',    label: 'Lionel MPC/Modern', years: '1970-Today', manufacturer: 'Lionel' },
+        atlas:  { id: 'atlas',  label: 'Atlas O',           years: 'All',        manufacturer: 'Atlas' },
+        mth_o:  { id: 'mth_o',  label: 'MTH O',             years: '2000-2020',  manufacturer: 'MTH' },
+        mth_ho: { id: 'mth_ho', label: 'MTH HO',            years: '2006-2019',  manufacturer: 'MTH' },
+      };
+      const ERA_SCALE = { prewar: 'Standard', pw: 'O', mpc: 'O', atlas: 'O', mth_o: 'O', mth_ho: 'HO' };
+      const ERA_TABS = { prewar: { items: 'Lionel Pre-War' }, pw: { items: 'Lionel PW - Items' },
+                         mpc: { items: 'Lionel MPC-Modern' }, atlas: { items: 'Atlas O' },
+                         mth_o: { items: 'MTH O' }, mth_ho: { items: 'MTH HO' } };
+      const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas', 'mth_o', 'mth_ho'];
+      const WIC = { MANUFACTURERS: { lionel: { label: 'Lionel' }, atlas: { label: 'Atlas' }, mth: { label: 'MTH' } } };
+      // The REAL era→period map and the REAL _itemEraPeriod, lifted from
+      // browse.js — so this test cannot drift from the row filter's own answer.
+      const periodSrc = noExports(slice(brwS, 'var _ERA_KEY_TO_PERIOD', 'function _phState'));
+      const cfgBody   = noExports(slice(cfgS, 'var _RR_CHIP_SCALE_LABEL', '// ── Keys that hold browseable'));
+      const prefSrc   = noExports(slice(pinS, 'function _pinPreferOf', 'async function _freeReadOne'));
+      const hintSrc   = noExports(slice(pinS, 'function _pinAiHints', '// v0.9.1092'));
+
+      let chips = { manufacturer: 'any', scale: 'any', era: 'any', section: 'items' };
+      let era   = 'all';
+      const make = () => eval('(function(){'
+        + 'var ERAS=arguments[0],ERA_SCALE=arguments[1],ERA_TABS=arguments[2],'
+        + 'REAL_ERA_IDS=arguments[3],window=arguments[4],_currentEra=arguments[5],'
+        + '_phState=arguments[6],_pinReadFile=function(g){return g.files[0];};'
+        + periodSrc + cfgBody + prefSrc + hintSrc
+        + 'return {f:rrActiveFilter,split:rrSplitByFilter,hits:rrErasMatchingChips,'
+        + 'pref:_pinPreferOf,hints:_pinAiHints,period:_itemEraPeriod};})')(
+          ERAS, ERA_SCALE, ERA_TABS, REAL_ERA_IDS, { WHAT_I_COLLECT: WIC }, era, () => chips);
+
+      ok('sanity: the real era→period map is what this test is using',
+         make().period({ _era: 'mpc' }) === 'modern' && make().period({ _era: 'pw' }) === 'postwar');
+
+      chips = { manufacturer: 'any', scale: 'any', era: 'any', section: 'items' };
+      ok('nothing selected really does mean no constraint', make().f() === null);
+
+      // THE bug, stated as a test: era is 'all' AND the chips are set.
+      chips = { manufacturer: 'lionel', scale: 'o', era: 'modern', section: 'items' };
+      const f1 = make().f();
+      ok('chips set + era \'all\' reports a constraint (v0.9.1152 reported none)', !!f1);
+      ok('…Lionel + O + Modern names exactly one era, and it is MPC/Modern',
+         !!f1 && f1.era === 'mpc', f1 ? f1.era : 'null');
+      ok('…so the maker, the scale and the years are all stated to the readers',
+         !!f1 && f1.manufacturer === 'Lionel' && f1.scale === 'O' && f1.years === '1970-Today',
+         f1 ? [f1.manufacturer, f1.scale, f1.years].join('/') : '-');
+      ok('…and it is marked as coming from the chips, not from an era switch',
+         !!f1 && f1.fromChips === true && f1.period === 'modern');
+
+      chips = { manufacturer: 'lionel', scale: 'o', era: 'postwar', section: 'items' };
+      ok('Lionel + O + Postwar names Postwar, not Modern', make().f().era === 'pw');
+      chips = { manufacturer: 'lionel', scale: 'standard', era: 'prewar', section: 'items' };
+      ok('Lionel + Standard + Pre-War names Pre-War', make().f().era === 'prewar');
+      chips = { manufacturer: 'mth', scale: 'ho', era: 'modern', section: 'items' };
+      ok('MTH + HO + Modern names MTH HO', make().f().era === 'mth_ho');
+
+      // Any Manufacturer spans several eras. The old code called that "no
+      // filter"; the scale and the period are still perfectly good constraints.
+      chips = { manufacturer: 'any', scale: 'o', era: 'modern', section: 'items' };
+      const f2 = make().f();
+      ok('Any Manufacturer + O + Modern still constrains scale and period',
+         !!f2 && f2.era === '' && f2.scale === 'O' && f2.period === 'modern',
+         f2 ? f2.era + '/' + f2.scale + '/' + f2.period : 'null');
+      ok('…and claims no maker, because it genuinely does not know one',
+         f2.manufacturer === '');
+      ok('…and still reads as something a person can be shown',
+         f2.label === 'O Modern', f2.label);
+
+      chips = { manufacturer: 'lionel', scale: 'any', era: 'any', section: 'items' };
+      const f3 = make().f();
+      ok('Lionel alone constrains the maker and nothing else',
+         f3.manufacturer === 'Lionel' && f3.era === '' && f3.scale === '' && f3.period === '',
+         [f3.manufacturer, f3.era, f3.scale, f3.period].join('/'));
+
+      // A real era selection must still win — chips are only the 'all'-mode route.
+      era = 'atlas';
+      chips = { manufacturer: 'lionel', scale: 'o', era: 'modern', section: 'items' };
+      ok('an actual era selection outranks the chips',
+         make().f().era === 'atlas', make().f().era);
+      ok('a per-photo era tag outranks both',
+         make().f('mth_ho').era === 'mth_ho');
+      era = 'all';
+
+      // ── the row splitter, which every master lookup goes through ─────────
+      const rows = () => ([
+        { itemNum: '8359', _tab: 'Lionel MPC-Modern' },   // Lionel, O, modern
+        { itemNum: '8359', _tab: 'Atlas O' },             // Atlas,  O, modern
+        { itemNum: '8359', _tab: 'Lionel PW - Items' },   // Lionel, O, postwar
+        { itemNum: '8359', _tab: 'MTH HO' },              // MTH,    HO
+        { itemNum: '8359' },                              // unknown
+      ]);
+      chips = { manufacturer: 'lionel', scale: 'o', era: 'modern', section: 'items' };
+      const s1 = make().split(rows());
+      ok('splitter: an HO row is dropped outright while filtered to O',
+         !s1.inEra.concat(s1.offEra).some(r => r._tab === 'MTH HO'));
+      ok('splitter: the Lionel Modern row is in-scope',
+         s1.inEra.some(r => r._tab === 'Lionel MPC-Modern'));
+      ok('splitter: the Atlas row is offered SEPARATELY, labelled, not as a plain answer',
+         s1.offEra.some(r => r._tab === 'Atlas O' && !!r._offEraLabel) &&
+         !s1.inEra.some(r => r._tab === 'Atlas O'));
+      ok('splitter: an untagged row is never hidden on a guess',
+         s1.inEra.some(r => !r._tab));
+
+      chips = { manufacturer: 'any', scale: 'o', era: 'modern', section: 'items' };
+      const s2 = make().split(rows());
+      ok('splitter: with no maker chosen, both O modern rows are in-scope',
+         s2.inEra.some(r => r._tab === 'Atlas O') && s2.inEra.some(r => r._tab === 'Lionel MPC-Modern'));
+      ok('splitter: …the postwar row is set aside as off-period',
+         s2.offEra.some(r => r._tab === 'Lionel PW - Items'));
+      ok('splitter: …and HO is still dropped',
+         !s2.inEra.concat(s2.offEra).some(r => r._tab === 'MTH HO'));
+
+      chips = { manufacturer: 'any', scale: 'any', era: 'any', section: 'items' };
+      ok('splitter: genuinely unfiltered keeps every row', make().split(rows()).inEra.length === 5);
+
+      // ── what the photo readers are actually told ─────────────────────────
+      const group = { files: [{ id: 'F1', _meta: {} }] };
+      chips = { manufacturer: 'lionel', scale: 'o', era: 'modern', section: 'items' };
+      const p1 = make().pref(group);
+      ok('an untagged photo inherits the chip filter (this returned null before)',
+         !!p1 && p1.era === 'mpc' && p1.manufacturer === 'Lionel' && p1.scale === 'O',
+         p1 ? [p1.era, p1.manufacturer, p1.scale].join('/') : 'null');
+      ok('…and is marked as coming from the filter rather than the photo',
+         p1._fromFilter === true);
+      const tagged = { files: [{ id: 'F2', _meta: { era: 'atlas' } }] };
+      ok('a photo carrying its own era tag keeps it, chips or no chips',
+         make().pref(tagged).era === 'atlas' && make().pref(tagged)._fromFilter === false);
+
+      const h1 = make().hints(group);
+      ok('the paid reader is told the maker, the scale and the period',
+         h1.mfrs && h1.mfrs[0] === 'Lionel' && h1.scale === 'O' && /1970-Today/.test(h1.note || ''),
+         JSON.stringify(h1));
+
+      // The case the old gate threw away completely: no single era, but a
+      // perfectly usable scale + period constraint.
+      chips = { manufacturer: 'any', scale: 'o', era: 'modern', section: 'items' };
+      const h2 = make().hints(group);
+      ok('a multi-era filter still reaches the reader instead of being discarded',
+         h2.scale === 'O' && /Modern/.test(h2.eraLabel || '') && !!h2.note,
+         JSON.stringify(h2));
+      ok('…and claims no maker it cannot know', !h2.mfrs);
+
+      chips = { manufacturer: 'any', scale: 'any', era: 'any', section: 'items' };
+      ok('an unfiltered, untagged photo is still asked with no constraint at all',
+         make().pref(group) === null && Object.keys(make().hints(group)).length === 0);
+    })();
+
+    // ── one cause, both symptoms ──────────────────────────────────────────
+    ok('the MFR badge and the chip filter read the SAME helper, which is why one fix cured both',
+       /_mfrBadge/.test(brwS) &&
+       (brwS.match(/_manufacturerOfItem\(item\)/g) || []).length >= 2);
+    ok('the row filter still asks _itemEraPeriod for the period, not a second copy of the map',
+       /_itemEraPeriod\(item\)[\s\S]{0,120}_stp3b\.era/.test(brwS));
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
