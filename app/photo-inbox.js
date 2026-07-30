@@ -2656,9 +2656,30 @@
       { site: '', label: 'Any site', note: 'Search by the photo, the way it works today' },
       { site: 'ebay.com', label: 'eBay', note: '' },
     ];
+    var seen = { 'ebay.com': 1 };
     _pinVendors().forEach(function (v) {
+      if (seen[v.site]) return;
+      seen[v.site] = 1;
       out.push({ site: v.site, label: v.name || v.site, note: '', mine: true });
     });
+    // v0.9.1179 (Brad): "This can be from our contact list as well. On the
+    // contact list, we can have a box added to the contacts detail page that
+    // says preferred vendor. Then if they click that, it can populate the google
+    // where from pop up."
+    //
+    // Still not the app suggesting anything: every one of these is a contact he
+    // typed in himself and then ticked. They carry no remove button — taking one
+    // off means un-ticking the contact, and a ✕ here that quietly edited a
+    // contact record would be a nasty surprise.
+    try {
+      if (typeof window._ctPreferredVendors === 'function') {
+        window._ctPreferredVendors().forEach(function (v) {
+          if (!v || !v.site || seen[v.site]) return;
+          seen[v.site] = 1;
+          out.push({ site: v.site, label: v.name || v.site, note: 'From your contacts' });
+        });
+      }
+    } catch (e) {}
     return out;
   }
   var _pinWfCb = null;
@@ -2732,6 +2753,18 @@
     ov.onclick = function (e) { if (e.target === ov) window._pinWhereFromClose(); };
     document.body.appendChild(ov);
     _pinWhereFromDraw();
+    // v0.9.1179: contacts only load when the Contacts page has been opened, so a
+    // ticked vendor would be missing from this sheet on a fresh session. Fetch
+    // them once, quietly, and redraw if any turned up — the same lazy load the
+    // wizard's "Bought From" picker does.
+    try {
+      if (!(window.state && (window.state.contactsData || []).length)
+          && typeof window._ctLoadContacts === 'function') {
+        window._ctLoadContacts().then(function () {
+          if (document.getElementById('pin-wf-card')) _pinWhereFromDraw();
+        }).catch(function () {});
+      }
+    } catch (e) {}
   }
   if (typeof window !== 'undefined') {
     window._pinVendors = _pinVendors;

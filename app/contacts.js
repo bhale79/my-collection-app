@@ -25,7 +25,11 @@
   // v0.9.767 (Brad): + Home Phone / Cell Phone / Title — appended at END (M/N/O) so
   // existing rows keep their columns. D 'Phone' = store/main number.
   // v0.9.780 (Brad): + Person Photo Link (P).
-  var HEADERS = ['Contact ID', 'Name', 'Business', 'Phone', 'Email', 'Specialties', 'Notes', 'Card Photo Link', 'Met At', 'Date Added', 'Mailing Address', 'Website', 'Home Phone', 'Cell Phone', 'Title', 'Person Photo Link'];
+  // v0.9.1179 (Brad): + Preferred Vendor (Q). "On the contact list, we can have a
+  // box added to the contacts detail page that says preferred vendor. Then if
+  // they click that, it can populate the google where from pop up." Appended at
+  // the END, like every column before it, so existing rows keep their columns.
+  var HEADERS = ['Contact ID', 'Name', 'Business', 'Phone', 'Email', 'Specialties', 'Notes', 'Card Photo Link', 'Met At', 'Date Added', 'Mailing Address', 'Website', 'Home Phone', 'Cell Phone', 'Title', 'Person Photo Link', 'Preferred Vendor'];
   // v0.9.778 (Brad): Era gets its own chip row; Lionel joins the brands.
   var ERA_CHIPS = ['Prewar', 'Postwar', 'Modern', 'All Eras'];
   var SPECIALTY_CHIPS = ['Lionel', 'MTH', 'Atlas', 'Menards', 'Parts', 'Repairs', 'Paper', 'Sets'];
@@ -648,10 +652,11 @@
         }); });
         var addJson = await addRes.json();
         if (addJson.error && String(addJson.error.message || '').indexOf('already exists') < 0) throw new Error(addJson.error.message || 'could not create Contacts tab');
-        await sheetsUpdate(state.personalSheetId, TAB + '!A1:P1', [HEADERS]);
+        await sheetsUpdate(state.personalSheetId, TAB + '!A1:Q1', [HEADERS]);
       } else {
         // v0.9.767: tab predates the M/N/O columns — write those headers (idempotent).
-        try { await sheetsUpdate(state.personalSheetId, TAB + '!M1:P1', [['Home Phone', 'Cell Phone', 'Title', 'Person Photo Link']]); } catch (e2) {}
+        // v0.9.1179: Q joins the same idempotent back-fill.
+        try { await sheetsUpdate(state.personalSheetId, TAB + '!M1:Q1', [['Home Phone', 'Cell Phone', 'Title', 'Person Photo Link', 'Preferred Vendor']]); } catch (e2) {}
       }
       _tabEnsured = true;
       return true;
@@ -668,7 +673,10 @@
     var _cs = function (x) { return (x === null || x === undefined) ? '' : String(x); };
     (values || []).forEach(function (v, i) {
       if (!v || !(v[1] || v[0])) return;
-      out.push({ row: i + 2, id: _cs(v[0]), name: _cs(v[1]), business: _cs(v[2]), phone: _cs(v[3]), email: _cs(v[4]), specialties: _cs(v[5]), notes: _cs(v[6]), cardLink: _cs(v[7]), metAt: _cs(v[8]), dateAdded: _cs(v[9]), address: _cs(v[10]), website: _cs(v[11]), homePhone: _cs(v[12]), cellPhone: _cs(v[13]), title: _cs(v[14]), personPhoto: _cs(v[15]) });
+      out.push({ row: i + 2, id: _cs(v[0]), name: _cs(v[1]), business: _cs(v[2]), phone: _cs(v[3]), email: _cs(v[4]), specialties: _cs(v[5]), notes: _cs(v[6]), cardLink: _cs(v[7]), metAt: _cs(v[8]), dateAdded: _cs(v[9]), address: _cs(v[10]), website: _cs(v[11]), homePhone: _cs(v[12]), cellPhone: _cs(v[13]), title: _cs(v[14]), personPhoto: _cs(v[15]),
+        // v0.9.1179: a real boolean at the parser, so no screen has to remember
+        // that the sheet spells it 'Yes'. Same move app-data.js made for quickEntry.
+        preferredVendor: _cs(v[16]).trim().toLowerCase() === 'yes' });
     });
     return out;
   }
@@ -678,7 +686,7 @@
     // v0.9.827 (TODO-003): offline — the phone snapshot already has them.
     if (window._offlineMode) { return state.contactsData || []; }
     try {
-      var r = await sheetsGet(state.personalSheetId, TAB + '!A2:P');
+      var r = await sheetsGet(state.personalSheetId, TAB + '!A2:Q');
       state.contactsData = _ctParseRows(r && r.values);
       return state.contactsData;
     } catch (e) { state.contactsData = state.contactsData || []; return state.contactsData; }
@@ -711,6 +719,36 @@
     await _load();
     window._ctRenderList();
   };
+
+  // ══ v0.9.1179 — contacts that opted in to the search list ════════════════
+  // Brad: "This can be from our contact list as well. On the contact list, we
+  // can have a box added to the contacts detail page that says preferred vendor.
+  // Then if they click that, it can populate the google where from pop up."
+  //
+  // This is NOT the app suggesting vendors — every entry here is a contact the
+  // user typed in and then explicitly ticked. Nothing arrives on its own.
+  function _ctVendorDomain(url) {
+    var d = String(url == null ? '' : url).trim().toLowerCase();
+    if (!d) return '';
+    d = d.replace(/^[a-z]+:\/\//, '').replace(/^www\./, '');
+    d = d.split(/[\/?#\s]/)[0];
+    return /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(d) ? d : '';
+  }
+  // [{name, site}] — ticked contacts that have a usable web address. A contact
+  // ticked with no website is skipped here and told about on their card.
+  function _ctPreferredVendors() {
+    var out = [], seen = {};
+    (state.contactsData || []).forEach(function (c) {
+      if (!c || !c.preferredVendor) return;
+      var d = _ctVendorDomain(c.website);
+      if (!d || seen[d]) return;
+      seen[d] = 1;
+      out.push({ name: (c.business || c.name || d), site: d });
+    });
+    return out;
+  }
+  window._ctVendorDomain = _ctVendorDomain;
+  window._ctPreferredVendors = _ctPreferredVendors;
 
   window._ctRenderList = function () {
     var el = document.getElementById('ct-list');
@@ -748,6 +786,12 @@
         +       '<a class="ct-clink" href="' + _esc(c.cardLink) + '" target="_blank" rel="noopener" style="display:none;font-size:0.72rem;color:var(--accent2);text-decoration:none">📇 Card</a>' : '')
         +   '</div>'
         +   (c.title ? '<div style="font-size:0.7rem;color:var(--text-dim)">' + _esc(c.title) + '</div>' : '')
+        // v0.9.1179: a flag you cannot see is a flag you cannot trust — the same
+        // reason the inbox tiles got their era badge in v0.9.1058.
+        +   (c.preferredVendor
+              ? '<div style="font-size:0.66rem;color:var(--accent2);font-weight:700;margin-top:0.12rem">\u2605 Preferred vendor'
+                + (_ctVendorDomain(c.website) ? '' : ' \u2014 add their website to search it') + '</div>'
+              : '')
         +   (chips ? '<div style="margin-top:0.15rem">' + chips + '</div>' : '')
         +   (c.notes ? '<div style="font-size:0.72rem;color:var(--text-mid);margin-top:0.15rem;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + _esc(c.notes) + '</div>' : '')
         +   (c.metAt ? '<div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.1rem">Met: ' + _esc(c.metAt) + '</div>' : '')
@@ -877,6 +921,17 @@
     }
   };
 
+  // v0.9.1179: ONE delete. There were two, one on the list card and one in the
+  // edit modal, each with its own hand-typed row of sixteen empty strings — and
+  // adding column Q caught exactly that, because only one of them got updated.
+  // The width comes from HEADERS now, so the next column added cannot be left
+  // behind in whichever copy someone forgets.
+  async function _ctBlankRow(row) {
+    return sheetsUpdate(state.personalSheetId,
+      TAB + '!A' + row + ':' + String.fromCharCode(64 + HEADERS.length) + row,
+      [HEADERS.map(function () { return ''; })]);
+  }
+
   // v0.9.773 (Brad): Delete straight from the list card (Edit | Delete split).
   window._ctDeleteRow = async function (row) {
     var c = (state.contactsData || []).find(function (x) { return x.row === row; });
@@ -885,7 +940,7 @@
       : confirm('Delete ' + ((c && c.name) ? c.name : 'this contact') + '?');
     if (!okDel) return;
     try {
-      await sheetsUpdate(state.personalSheetId, TAB + '!A' + row + ':P' + row, [['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']]);
+      await _ctBlankRow(row);
       showToast('Contact deleted');
       try { await _load(); window._ctRenderList(); } catch (e3) { console.warn('[contact list refresh]', e3); }
     } catch (e) { console.warn('[contact delete]', e); showToast('Delete failed — try again', 3500, true); }
@@ -894,7 +949,7 @@
   // ── add / edit modal ───────────────────────────────────────────
   window._ctOpenEdit = function (row) {
     var c = row ? (state.contactsData || []).find(function (x) { return x.row === row; }) : null;
-    c = c || { id: '', name: '', business: '', phone: '', email: '', specialties: '', notes: '', cardLink: '', metAt: '', dateAdded: '', address: '', website: '', homePhone: '', cellPhone: '', title: '', personPhoto: '' };
+    c = c || { id: '', name: '', business: '', phone: '', email: '', specialties: '', notes: '', cardLink: '', metAt: '', dateAdded: '', address: '', website: '', homePhone: '', cellPhone: '', title: '', personPhoto: '', preferredVendor: false };
     window._ctClose('ct-modal');
     var ov = document.createElement('div');
     ov.id = 'ct-modal';
@@ -943,6 +998,17 @@
       + _chipRow(SPECIALTY_CHIPS)
       + fld('Other specialties', 'ct-f-spec', _extraSpecs, 'anything not covered above')
       + fld('Website', 'ct-f-web', c.website, 'davestrains.com')
+      // v0.9.1179 (Brad): tick this and their website joins the "where do you
+      // want to look?" list on the inbox's Google Search. It needs the website
+      // above to have something in it — a preferred vendor with no address is
+      // nothing to search — and the hint says so rather than failing quietly.
+      + '<label for="ct-f-pref" style="display:flex;align-items:center;gap:0.5rem;margin:0.15rem 0 0.5rem;cursor:pointer">'
+      +   '<input type="checkbox" id="ct-f-pref"' + (c.preferredVendor ? ' checked' : '')
+      +     ' style="width:1.05rem;height:1.05rem;accent-color:var(--accent2);flex-shrink:0;cursor:pointer">'
+      +   '<span style="font-size:0.8rem;color:var(--text-mid);line-height:1.35">Preferred vendor'
+      +     '<span style="display:block;font-size:0.7rem;color:var(--text-dim)">Adds their website to the search list in the photo inbox</span>'
+      +   '</span>'
+      + '</label>'
       + fld('Mailing address', 'ct-f-addr', c.address, '123 Main St, Anytown PA 17400')
       + fld('Met at', 'ct-f-met', c.metAt, 'York, October 2026')
       + '<div style="margin-bottom:0.4rem"><div style="font-size:0.66rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);margin-bottom:0.1rem">Notes</div>'
@@ -1167,11 +1233,12 @@
         showToast('Contact will save, but the photo upload failed — open Edit and re-add the photo', 4500, true);
       }
       var id = c.id || ('C-' + Date.now());
-      var rowVals = [id, name, v('ct-f-biz'), v('ct-f-phone'), v('ct-f-email'), specialties, v('ct-f-notes'), cardLink, v('ct-f-met'), c.dateAdded || _today(), v('ct-f-addr'), v('ct-f-web'), v('ct-f-home'), v('ct-f-cell'), v('ct-f-title'), personLink];
+      var rowVals = [id, name, v('ct-f-biz'), v('ct-f-phone'), v('ct-f-email'), specialties, v('ct-f-notes'), cardLink, v('ct-f-met'), c.dateAdded || _today(), v('ct-f-addr'), v('ct-f-web'), v('ct-f-home'), v('ct-f-cell'), v('ct-f-title'), personLink,
+                     (function () { var b = ov.querySelector('#ct-f-pref'); return (b && b.checked) ? 'Yes' : ''; })()];
       try {
         if (!(await _ensureTab())) throw new Error('no tab');
-        if (row) await sheetsUpdate(state.personalSheetId, TAB + '!A' + row + ':P' + row, [rowVals]);
-        else await sheetsAppend(state.personalSheetId, TAB + '!A:P', [rowVals]);
+        if (row) await sheetsUpdate(state.personalSheetId, TAB + '!A' + row + ':Q' + row, [rowVals]);
+        else await sheetsAppend(state.personalSheetId, TAB + '!A:Q', [rowVals]);
         window._ctClose('ct-modal');
         showToast('✓ ' + name + ' saved to Contacts');
         try { await _load(); window._ctRenderList(); } catch (e3) { console.warn('[contact list refresh]', e3); }
@@ -1188,7 +1255,7 @@
         : confirm('Delete this contact?');
       if (!okDel2) return;
       try {
-        await sheetsUpdate(state.personalSheetId, TAB + '!A' + row + ':P' + row, [['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']]);
+        await _ctBlankRow(row);
         window._ctClose('ct-modal');
         showToast('Contact deleted');
         await _load();

@@ -5514,6 +5514,104 @@ META_WRITES.length = 0; TOASTS.length = 0;
     delete document._els['pin-wf-card'];
   })();
 
+  section('149. A contact can be a preferred vendor (v0.9.1179)');
+  // "This can be from our contact list as well. On the contact list, we can have
+  // a box added to the contacts detail page that says preferred vendor. Then if
+  // they click that, it can populate the google where from pop up."
+  //
+  // Still not the app suggesting vendors: every entry is a contact Brad typed in
+  // and then ticked.
+  (function () {
+    const pC = require('path');
+    const ct = fs.readFileSync(pC.join(__dirname, '..', 'app', 'contacts.js'), 'utf8');
+
+    // The REAL parser and the REAL vendor reader, sliced out and run. A stub of
+    // either would be a second implementation of the column mapping.
+    function cut(start, end, tag) {
+      const a = ct.indexOf(start), b = ct.indexOf(end, a);
+      if (a < 0 || b < 0) throw new Error('§149 marker moved: ' + tag);
+      return ct.slice(a, b);
+    }
+    const parse = new Function(cut('function _ctParseRows(values)', '\n  window._ctParseRows',
+      'parser') + '\nreturn _ctParseRows;')();
+    const vendApi = new Function('state', 'window',
+      cut('function _ctVendorDomain(url)', '\n  window._ctVendorDomain', 'vendors')
+      + '\nreturn { dom: _ctVendorDomain, list: _ctPreferredVendors };');
+
+    // Column Q is the 17th cell. A row written before this version has 16.
+    const OLD = ['C-1', 'Dave Miller', "Dave's Trains", '', '', '', '', '', '', '',
+                 '', 'davestrains.com', '', '', 'Owner', ''];
+    const NEW = OLD.concat(['Yes']);
+    ok('a contact row written BEFORE this column existed still parses',
+       parse([OLD]).length === 1 && parse([OLD])[0].name === 'Dave Miller');
+    ok('...and is simply not a preferred vendor, rather than undefined',
+       parse([OLD])[0].preferredVendor === false);
+    ok('a ticked contact reads as a real boolean, not the sheet\'s word "Yes"',
+       parse([NEW])[0].preferredVendor === true);
+    ok('the flag is case- and space-tolerant, because a human may type in the sheet',
+       parse([OLD.concat(['  yes '])])[0].preferredVendor === true);
+    ok('anything else is not a tick', parse([OLD.concat(['No'])])[0].preferredVendor === false);
+    ok('every column BEFORE Q still lands where it always did',
+       (function () { const c = parse([NEW])[0];
+         return c.id === 'C-1' && c.business === "Dave's Trains" && c.website === 'davestrains.com'
+             && c.title === 'Owner' && c.row === 2; })());
+
+    // The reader that feeds the picker.
+    const st = { contactsData: parse([NEW]) };
+    const api = vendApi(st, {});
+    ok('a ticked contact with a website becomes a searchable vendor',
+       api.list().length === 1 && api.list()[0].site === 'davestrains.com');
+    ok('...labelled with their business, which is what he would recognise',
+       api.list()[0].name === "Dave's Trains");
+    st.contactsData = parse([OLD.concat(['Yes']).map((v, i) => (i === 11 ? '' : v))]);
+    ok('a contact ticked with NO website is skipped rather than producing an empty search',
+       api.list().length === 0);
+    st.contactsData = parse([NEW, OLD.concat(['Yes']).map((v, i) => (i === 0 ? 'C-2' : i === 1 ? 'Other' : v))]);
+    ok('two contacts on one site appear once', api.list().length === 1);
+    st.contactsData = parse([OLD]);
+    ok('an UN-ticked contact never reaches the list, however good a dealer they are',
+       api.list().length === 0);
+
+    // The sheet plumbing: a new last column is exactly what gets left behind.
+    ok('the header row is written out to Q', /'!A1:Q1', \[HEADERS\]/.test(ct));
+    ok('an existing sheet gets Q back-filled, idempotently', /'!M1:Q1'/.test(ct));
+    ok('the load range reaches Q, or the flag would never be read back',
+       /TAB \+ '!A2:Q'/.test(ct));
+    ok('save writes and appends to Q', /':Q' \+ row, \[rowVals\]/.test(ct) && /'!A:Q', \[rowVals\]/.test(ct));
+    ok('...and NO range stops at P any more', !/!A2:P'|:P' \+ row|'!A:P'|'!A1:P1'/.test(ct));
+    ok('delete blanks a row as wide as HEADERS, not a hand-typed row of quotes',
+       /HEADERS\.map\(function \(\) \{ return ''; \}\)/.test(ct));
+    // There were TWO delete paths with two hand-typed rows of sixteen quotes, and
+    // adding column Q caught it because only one of them got updated.
+    ok('there is ONE delete, not one per screen',
+       (ct.match(/await _ctBlankRow\(row\);/g) || []).length === 2 &&
+       (ct.match(/async function _ctBlankRow\(row\)/g) || []).length === 1);
+    ok('...and its last column is derived from HEADERS, so the next one cannot be missed',
+       /String\.fromCharCode\(64 \+ HEADERS\.length\)/.test(ct));
+    ok('HEADERS actually has the new column, or every write is one short',
+       /'Person Photo Link', 'Preferred Vendor'\]/.test(ct));
+
+    // UI + wiring.
+    ok('the edit form has the box Brad asked for', /id="ct-f-pref"/.test(ct));
+    ok('...and the save reads it', /#ct-f-pref'\)[\s\S]{0,80}checked\) \? 'Yes' : ''/.test(ct));
+    ok('a ticked contact shows it on their card — a flag you cannot see is one you cannot trust',
+       /Preferred vendor/.test(ct));
+    ok('...and a ticked contact with no website is told why nothing happened',
+       /add their website to search it/.test(ct));
+
+    const pin = fs.readFileSync(pC.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8')
+      .split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+    ok('the picker asks contacts for their preferred vendors',
+       /window\._ctPreferredVendors\(\)\.forEach/.test(pin));
+    ok('...deduped against the ones typed by hand and against eBay',
+       /var seen = \{ 'ebay\.com': 1 \};/.test(pin));
+    ok('...and they carry NO remove button, since that would edit a contact',
+       /note: 'From your contacts' \}/.test(pin) &&
+       !/note: 'From your contacts', mine/.test(pin));
+    ok('contacts are lazy-loaded once when the sheet opens, so a fresh session still shows them',
+       /_ctLoadContacts\(\)\.then\(function \(\) \{/.test(pin));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
