@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1151';
+const APP_VERSION = 'v0.9.1152';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -293,6 +293,98 @@ const ERA_TABS = {
     items:    'LGB G',
   },
 };
+
+// ═══════════════════════════════════════════════════════════════════
+// THE ACTIVE FILTER — one resolver, used by every identify and lookup
+// v0.9.1152 (Brad: "when i select lionel o scale modern, the barcode
+// scanner, and our ai and google lens come back with atlas, mth, ho
+// guage... make sure all only offer what i filter")
+//
+// Why this exists: the era hint used to be read from a tag stored on the
+// individual PHOTO (`_meta.era`), and `_pinPreferOf` returned null when
+// that tag was absent — which it is for every photo dropped straight
+// into the inbox. So the maker/scale/era constraints were built for
+// almost nobody, and the AI and Lens were asked a bare "identify this
+// model railroad item" with no idea Brad was filtered to Lionel O.
+//
+// Anything that identifies, reads, or looks up an item asks HERE what
+// the user is currently filtered to. Returns null in 'all' mode, which
+// correctly means "no constraint".
+// ═══════════════════════════════════════════════════════════════════
+function rrActiveFilter(photoEra) {
+  try {
+    var era = photoEra || ((typeof _currentEra !== 'undefined') ? _currentEra : '');
+    if (!era || era === 'all') return null;
+    var d = (typeof ERAS !== 'undefined') ? ERAS[era] : null;
+    if (!d) return null;
+    return {
+      era:          era,
+      label:        d.label || '',
+      years:        d.years || '',
+      manufacturer: d.manufacturer || '',
+      scale:        (typeof ERA_SCALE !== 'undefined') ? (ERA_SCALE[era] || '') : '',
+    };
+  } catch (e) { return null; }
+}
+if (typeof window !== 'undefined') window.rrActiveFilter = rrActiveFilter;
+
+// Scale comparison must be case-insensitive: ERA_SCALE ships 'g' for
+// usatrains/lgb but 'G' for mth_g. A case-sensitive compare would call
+// two G-scale eras different scales.
+function rrSameScale(a, b) {
+  var n = function (v) { return String(v || '').trim().toLowerCase(); };
+  return !!n(a) && n(a) === n(b);
+}
+if (typeof window !== 'undefined') window.rrSameScale = rrSameScale;
+
+// Which era does a master row belong to? `_era` when the lookup index
+// tagged it; otherwise reverse-map its source tab, which survives every
+// load path. Rows from the currently-loaded era carry NO `_era` (see
+// _buildAllErasLookupIndex, which adds state.masterData with era=null),
+// so an untagged row with an unknown tab is treated as in-era rather
+// than excluded — never hide a row on a guess.
+var _RR_TAB_TO_ERA = null;
+function rrEraOfRow(row) {
+  if (!row) return '';
+  if (row._era) return row._era;
+  if (!_RR_TAB_TO_ERA) {
+    _RR_TAB_TO_ERA = {};
+    try {
+      Object.keys(ERA_TABS).forEach(function (e) {
+        var t = ERA_TABS[e] && ERA_TABS[e].items;
+        if (t) _RR_TAB_TO_ERA[String(t).toLowerCase()] = e;
+      });
+    } catch (e) {}
+  }
+  var tab = String(row._tab || '').toLowerCase();
+  return (tab && _RR_TAB_TO_ERA[tab]) || '';
+}
+if (typeof window !== 'undefined') window.rrEraOfRow = rrEraOfRow;
+
+// Split lookup hits against the active filter.
+//   → { inEra: [...], offEra: [...] }   (offEra rows tagged _offEra + _offEraLabel)
+// Rows in a DIFFERENT SCALE are dropped outright — an HO row is never a
+// useful answer to someone filtered to O, not even as an offer.
+// In 'all' mode everything is inEra, which is what 'all' means.
+function rrSplitByFilter(rows) {
+  var out = { inEra: [], offEra: [] };
+  if (!Array.isArray(rows) || !rows.length) return out;
+  var f = rrActiveFilter();
+  if (!f) { out.inEra = rows.slice(); return out; }
+  rows.forEach(function (r) {
+    var e = rrEraOfRow(r);
+    if (!e || e === f.era) { out.inEra.push(r); return; }
+    var sc = (typeof ERA_SCALE !== 'undefined') ? (ERA_SCALE[e] || '') : '';
+    if (sc && f.scale && !rrSameScale(sc, f.scale)) return;   // wrong scale: drop
+    try {
+      r._offEra = e;
+      r._offEraLabel = (typeof ERAS !== 'undefined' && ERAS[e]) ? (ERAS[e].label || e) : e;
+    } catch (eT) {}
+    out.offEra.push(r);
+  });
+  return out;
+}
+if (typeof window !== 'undefined') window.rrSplitByFilter = rrSplitByFilter;
 
 // ── Keys that hold browseable master inventory (not catalogs/companions/sets/IS) ──
 const MASTER_TAB_KEYS = ['items','boxes','science','construction','paper','other','serviceTools'];

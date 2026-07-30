@@ -55,7 +55,25 @@ function rrIdentifyQuery(opts) {
       + ' reissue, remake, Celebration Series, Postwar Celebration Series or'
       + ' Lionel Legacy version that shares the same number.';
   }
-  return 'Identify this ' + subject + mfrPhrase + eraPhrase
+  // v0.9.1152 (Brad: "when i select lionel o scale modern... our ai and google
+  // lens come back with atlas, mth, ho guage"). The era sentence above pins the
+  // PERIOD and says nothing about maker or scale, so answers came back Atlas /
+  // MTH / HO. The caller already knows both (rrActiveFilter) — state them as
+  // hard constraints, and tell the model to SAY it's out of scope rather than
+  // forcing a match, which is far more useful than a confident wrong maker.
+  var scopePhrase = '';
+  var _mfrs = (opts.mfrs && opts.mfrs.length) ? opts.mfrs.filter(Boolean) : [];
+  if (_mfrs.length || opts.scale) {
+    scopePhrase = ' IMPORTANT — the collection being catalogued covers only'
+      + (_mfrs.length ? ' items made by ' + _mfrs.join(' or ') : '')
+      + (opts.scale ? (_mfrs.length ? ', in ' : ' items in ') + opts.scale + ' scale/gauge' : '')
+      + '. Answer within that scope. If this item is clearly NOT'
+      + (_mfrs.length ? ' a ' + _mfrs.join('/') + ' product' : '')
+      + (opts.scale ? (_mfrs.length ? ' or not ' : ' ') + opts.scale + ' scale' : '')
+      + ', say that plainly on the Manufacturer line instead of forcing a match —'
+      + ' do NOT substitute a similar item from another maker or another scale.';
+  }
+  return 'Identify this ' + subject + mfrPhrase + eraPhrase + scopePhrase
     + ' — it may be a train, a box or box-end label, a building or accessory, OR a paper item '
     + '(catalog, poster, brochure, or instruction sheet). Provide each on its own line: '
     + 'Manufacturer; '

@@ -92,18 +92,41 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     }
     return out;
   }
+  // ── v0.9.1152: respect the user's era filter ──────────────────────
+  // Brad: "when i select lionel o scale modern, the barcode scanner, and our ai
+  // and google lens come back with atlas, mth, ho guage... make sure all only
+  // offer what i filter."
+  //
+  // The cross-era lookup (Session 167) is deliberate and worth keeping — it
+  // exists so scanning something outside your era isn't a dead "not found".
+  // But it MIXED those rows in with in-era ones, so an Atlas row could be
+  // offered, or silently auto-picked as hits[0], while filtered to Lionel.
+  //
+  // This orders in-era first, tags the rest (_offEra/_offEraLabel) so the UI can
+  // offer them as an explicit labelled choice, and drops a different SCALE
+  // outright — an HO row is never a useful answer for someone filtered to O,
+  // not even as an offer. The array shape is unchanged, so every existing
+  // caller keeps working, and any caller taking hits[0] now gets an in-era row
+  // whenever one exists.
+  function _rrFilterHits(rows) {
+    if (!Array.isArray(rows) || !rows.length) return rows || [];
+    if (typeof rrSplitByFilter !== 'function') return rows;
+    var s = rrSplitByFilter(rows);
+    return s.inEra.concat(s.offEra);
+  }
+
   async function findMasterItems(candidates) {
     if (!candidates || candidates.length === 0) return [];
     // Pass A — current era (in memory, fast)
     if (typeof state !== 'undefined' && state.masterData && state.masterData.length) {
       var current = _matchInArray(state.masterData, candidates);
-      if (current.length) return current;
+      if (current.length) return _rrFilterHits(current);
     }
     // Pass B (v0.9.971): the shared full-catalog rows built by app-data.js —
     // one dataset for every lookup. Falls through to the per-era IDB crawl
     // only while the index hasn't been built yet this session.
     if (typeof state !== 'undefined' && Array.isArray(state.masterAllRows) && state.masterAllRows.length) {
-      return _matchInArray(state.masterAllRows, candidates);
+      return _rrFilterHits(_matchInArray(state.masterAllRows, candidates));
     }
     // Pass C — every other era's IDB cache (legacy fallback)
     if (typeof REAL_ERA_IDS === 'undefined' || !Array.isArray(REAL_ERA_IDS)) return [];
@@ -119,7 +142,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         if (hits.length) {
           // Tag every hit with its source era so the wizard adopts it.
           hits.forEach(function(h) { if (!h._era) h._era = era; });
-          return hits;
+          return _rrFilterHits(hits);
         }
       } catch(e) {}
     }
@@ -154,11 +177,11 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     }
     if (typeof state !== 'undefined' && state.masterData && state.masterData.length) {
       var current = _exactMatch(state.masterData, candidates);
-      if (current.length) return current;
+      if (current.length) return _rrFilterHits(current);
     }
     // v0.9.971: shared full-catalog rows first; legacy IDB crawl as fallback.
     if (typeof state !== 'undefined' && Array.isArray(state.masterAllRows) && state.masterAllRows.length) {
-      return _exactMatch(state.masterAllRows, candidates);
+      return _rrFilterHits(_exactMatch(state.masterAllRows, candidates));
     }
     if (typeof REAL_ERA_IDS === 'undefined' || !Array.isArray(REAL_ERA_IDS)) return [];
     if (typeof idbGet !== 'function') return [];
@@ -202,7 +225,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     // era cache — one pass, no IDB re-reads. Legacy crawl only pre-index.
     if (typeof state !== 'undefined' && Array.isArray(state.masterAllRows) && state.masterAllRows.length) {
       addAll(state.masterAllRows, '');
-      return out;
+      return _rrFilterHits(out);
     }
     if (typeof state !== 'undefined' && state.masterData) addAll(state.masterData, curEra);
     if (typeof REAL_ERA_IDS !== 'undefined' && Array.isArray(REAL_ERA_IDS) && typeof idbGet === 'function') {
@@ -212,7 +235,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         try { addAll(await idbGet('lv_master_cache_' + era), era); } catch (e) {}
       }
     }
-    return out;
+    return _rrFilterHits(out);
   }
   window._findMasterItemsAllEras = _findMasterItemsAllEras;   // v0.9.738: research typed-lookup searches every era
 
@@ -1171,11 +1194,26 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         var meta = [_eraLabel(m._era), yr, m.roadName || '', m.itemType || ''].filter(Boolean).map(_bcEsc).join(' &middot; ');
         var desc = _bcEsc(String(m.description || '').substring(0, 70));
         var url  = _bcViewUrl(m);
-        return '<div class="bc-cand" data-idx="' + idx + '" '
+        // v0.9.1152: an off-filter row is never presented as a normal choice.
+        // It sits below a divider, dimmed and dashed, and says which era it came
+        // from and that picking it switches era — so nothing outside the filter
+        // can be taken by accident (Brad: "only offer what i filter").
+        var _off = !!m._offEra;
+        var _firstOff = _off && (idx === 0 || !candidates[idx - 1]._offEra);
+        return (_firstOff
+            ? '<div style="display:flex;align-items:center;gap:0.5rem;margin:0.9rem 0 0.55rem">'
+              + '<div style="flex:1;height:1px;background:#444"></div>'
+              + '<div style="font-size:0.68rem;letter-spacing:0.06em;text-transform:uppercase;color:#8d7f5e;white-space:nowrap">Outside your filter</div>'
+              + '<div style="flex:1;height:1px;background:#444"></div>'
+            + '</div>'
+            : '')
+          + '<div class="bc-cand" data-idx="' + idx + '" '
           + 'style="display:flex;align-items:center;gap:0.6rem;padding:0.7rem 0.8rem;border-radius:10px;'
-          + 'background:#222;border:1px solid #444;cursor:pointer;margin-bottom:0.5rem">'
+          + (_off ? 'background:#1a1a1a;border:1px dashed #555;opacity:0.82;' : 'background:#222;border:1px solid #444;')
+          + 'cursor:pointer;margin-bottom:0.5rem">'
           + '<div style="flex:1;min-width:0">'
-          +   '<div style="font-weight:700;color:#fff;font-size:0.95rem">' + _bcEsc(m.itemNum) + '</div>'
+          +   '<div style="font-weight:700;color:' + (_off ? '#c8b88a' : '#fff') + ';font-size:0.95rem">' + _bcEsc(m.itemNum) + '</div>'
+          +   (_off ? '<div style="font-size:0.72rem;color:#e8a020;margin-top:0.1rem">in ' + _bcEsc(m._offEraLabel || m._offEra) + ' &mdash; choosing this switches era</div>' : '')
           +   (meta ? '<div style="font-size:0.8rem;color:#aaa;margin-top:0.1rem">' + meta + '</div>' : '')
           +   (desc ? '<div style="font-size:0.78rem;color:#888;margin-top:0.1rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + desc + '</div>' : '')
           +   (m._descMatch ? '<div style="font-size:0.72rem;color:#e8a020;margin-top:0.1rem">matched in the description — possible reissue</div>' : '')

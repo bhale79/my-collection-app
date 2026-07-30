@@ -815,8 +815,18 @@ async function _identifyOpenLens() {
     // advertising get useful questions instead of "cab number: not applicable".
     // v0.9.917 (Brad): question text now built by the ONE shared builder in
     // ai-id.js (rrIdentifyQuery) — change it there, every button updates.
+    // v0.9.1152 (Brad: "make sure all only offer what i filter"). This passed the
+    // makers as a SOFT hint ("possibly made by…") and no era or scale constraint
+    // at all, so a Lionel-Modern-filtered user still got Atlas / MTH / HO
+    // answers. What the user ticked in the wizard wins; the active era filter
+    // fills in whatever they left blank.
+    var _af = (typeof rrActiveFilter === 'function') ? rrActiveFilter() : null;
+    var _qMfrs  = mfrs.length ? mfrs : ((_af && _af.manufacturer) ? [_af.manufacturer] : []);
+    var _qScale = scale || (_af ? _af.scale : '');
     var q = (typeof window.rrIdentifyQuery === 'function')
-      ? window.rrIdentifyQuery({ subject: subject, mfrPhrase: mfrPhrase })
+      ? window.rrIdentifyQuery({ subject: subject, mfrPhrase: mfrPhrase,
+                                 mfrs: _qMfrs, scale: _qScale,
+                                 eraLabel: _af ? _af.label : '', eraYears: _af ? _af.years : '' })
       : ('Identify this ' + subject + mfrPhrase + '. Provide Manufacturer; Manufacturer SKU or catalog number; Year; Scale; Description on labeled lines.');
     // v0.9.959 (Brad): Google retired /searchbyimage (404) — reverse-image
     // search now lives at Google Lens uploadbyurl. Lens takes no text hint.

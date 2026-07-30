@@ -2043,6 +2043,30 @@
     var bits = [s.mfr, s.road, s.desc, s.year ? '(' + s.year + ')' : ''].filter(Boolean).join(' ');
     if (!bits && !s.num) return '';
     var esc = function (t) { return String(t).replace(/</g, '&lt;'); };
+    // v0.9.1152 (Brad: "our ai and google lens come back with atlas, mth, ho
+    // guage"). Even with the maker and scale now stated in the question, a
+    // reader can still answer outside the filter. Say so on the card instead of
+    // presenting it as a plain fact — an unflagged "MTH" while filtered to
+    // Lionel Modern is how a wrong maker gets saved without anyone noticing.
+    var _mismatch = '';
+    try {
+      var _af = (typeof rrActiveFilter === 'function') ? rrActiveFilter() : null;
+      if (_af && _af.manufacturer && s.mfr) {
+        var _n = function (v) { return String(v || '').toLowerCase().replace(/[^a-z0-9]/g, ''); };
+        var _said = _n(s.mfr), _want = _n(_af.manufacturer);
+        if (_said && _want && _said.indexOf(_want) < 0 && _want.indexOf(_said) < 0) {
+          _mismatch = '<div style="margin-top:0.35rem;font-size:0.75rem;color:#e8a020">'
+            + '⚠ Reads as ' + esc(s.mfr) + ', but you are filtered to ' + esc(_af.label)
+            + '. Check before saving — or switch era if that is right.</div>';
+        }
+      }
+      if (_af && _af.scale && s.gauge && typeof rrSameScale === 'function'
+          && !rrSameScale(s.gauge, _af.scale)) {
+        _mismatch += '<div style="margin-top:0.35rem;font-size:0.75rem;color:#e8a020">'
+          + '⚠ Reads as ' + esc(s.gauge) + ' scale, but you are filtered to '
+          + esc(_af.scale) + '.</div>';
+      }
+    } catch (eMM) {}
     // v0.9.898: hedged reads show as an explicit BEST GUESS (orange), never
     // dressed up like a confident read.
     // v0.9.1077: when the identification came from the WORDS on the car rather
@@ -2053,6 +2077,7 @@
         + '<div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;color:#b98cff;margin-bottom:0.25rem">Matched by what is written on it</div>'
         + '<div style="font-size:0.98rem;color:var(--text);line-height:1.4"><span style="font-weight:600">' + rrEsc(s.descOf) + '</span>'
         + (s.num ? ' \u2014 No. ' + rrEsc(s.num) : '') + '</div>'
+        + _mismatch
         + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.25rem">Read on the car: '
         + rrEsc((s.descWords || []).join(', '))
         // v0.9.1094: when a number WAS read and it names a different item,
@@ -2073,6 +2098,7 @@
     return '<div style="margin-bottom:0.6rem;padding:0.6rem 0.75rem;border-left:3px solid ' + col + ';background:' + bg + ';border-radius:0 8px 8px 0">' +
       '<div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;color:' + col + ';margin-bottom:0.25rem">' + lbl.replace(/:$/, '') + '</div>' +
       '<div style="font-size:0.98rem;color:var(--text);line-height:1.4"><span style="font-weight:600">' + (bits ? esc(bits) : 'number only') + '</span>' + (s.num ? ' — No. ' + esc(s.num) : '') + '</div>' +
+      _mismatch +
       '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.25rem">' + tail.replace(/^ · /, '') + '</div>' +
       // v0.9.1087: ONE disclosure builder. This inline copy predated
       // _pinWhyHtml and was gated on s.raw — the FREE reader's text — so a paid
@@ -2134,8 +2160,12 @@
       // v0.9.1083: the same era hint goes into the shared text question, so a
       // Research or Google search is asked about the right decade too.
       var _lh = _pinAiHints(gs[0]);
+      // v0.9.1152: this passed ONLY eraLabel/eraYears and dropped the mfrs and
+      // scale that _pinAiHints had just worked out — so the question never said
+      // "Lionel" or "O". Pass the whole hint set.
       var q = (typeof window.rrIdentifyQuery === 'function')
-        ? window.rrIdentifyQuery({ eraLabel: _lh.eraLabel, eraYears: _lh.eraYears })
+        ? window.rrIdentifyQuery({ eraLabel: _lh.eraLabel, eraYears: _lh.eraYears,
+                                   mfrs: _lh.mfrs, scale: _lh.scale })
         : 'Identify this model railroad item. Provide Manufacturer; Manufacturer SKU or catalog number; Year; Scale; Description on labeled lines.';
       // v0.9.959 (Brad): Google retired /searchbyimage (it 404s now) and moved
       // reverse-image search to Google Lens. uploadbyurl runs the real search on
@@ -4281,10 +4311,23 @@
     try {
       var f = (fileOrGroup && fileOrGroup.files) ? _pinReadFile(fileOrGroup) : fileOrGroup;
       var m = (f && f._meta) || {};
-      if (!m.era) return null;
+      // v0.9.1152 (Brad: "make sure all only offer what i filter"). This used to
+      // `return null` whenever the photo had no per-photo era tag — which is
+      // every photo dropped straight into the inbox. Callers then built NO
+      // maker/scale/era hint, so the AI and Lens were asked a bare "identify
+      // this model railroad item" and answered Atlas / MTH / HO while Brad sat
+      // in Lionel Modern. The photo's own tag still wins when present; the
+      // app-wide era filter is the fallback, and 'all' still means no
+      // constraint (rrActiveFilter returns null there).
+      var era = m.era || '';
+      if (!era) {
+        var af = (typeof rrActiveFilter === 'function') ? rrActiveFilter() : null;
+        if (af) era = af.era;
+      }
+      if (!era) return null;
       var mfr = '';
-      try { mfr = (typeof ERAS !== 'undefined' && ERAS[m.era]) ? (ERAS[m.era].manufacturer || '') : ''; } catch (e) {}
-      return { era: m.era, manufacturer: mfr };
+      try { mfr = (typeof ERAS !== 'undefined' && ERAS[era]) ? (ERAS[era].manufacturer || '') : ''; } catch (e) {}
+      return { era: era, manufacturer: mfr, _fromFilter: !m.era };
     } catch (e) { return null; }
   }
   async function _freeReadOne(fileId) {

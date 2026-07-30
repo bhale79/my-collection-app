@@ -3109,6 +3109,107 @@ META_WRITES.length = 0; TOASTS.length = 0;
     })();
   })();
 
+  section('126. Only offer what the user filters (v0.9.1152)');
+  (function () {
+    const pF = require('path');
+    const rd = f => fs.readFileSync(pF.join(__dirname, '..', f), 'utf8');
+    const cfg = rd('app/config.js'), aid = rd('app/ai-id.js');
+    const pin = rd('app/photo-inbox.js'), bc = rd('app/barcode.js');
+    const wp = rd('app/wizard-photos.js');
+
+    // ── the shared resolver ──
+    ok('there is ONE resolver for "what is the user filtered to"',
+       /function rrActiveFilter\(photoEra\)/.test(cfg) && /window\.rrActiveFilter = rrActiveFilter/.test(cfg));
+    ok('it returns null in all-eras mode, which means no constraint',
+       /if \(!era \|\| era === 'all'\) return null;/.test(cfg));
+    ok('it carries maker AND scale, not just the era label',
+       /manufacturer: d\.manufacturer/.test(cfg) && /scale:\s*\(typeof ERA_SCALE/.test(cfg));
+
+    // Prove the whole filter engine against real rows, in-process.
+    (function () {
+      const ERAS = { mpc:{label:'Lionel MPC-Modern',years:'1970-present',manufacturer:'Lionel'},
+                     mth_ho:{label:'MTH HO',manufacturer:'MTH'}, atlas:{label:'Atlas O',manufacturer:'Atlas'},
+                     mth_o:{label:'MTH O',manufacturer:'MTH'} };
+      const ERA_SCALE = { mpc:'O', mth_ho:'HO', atlas:'O', mth_o:'O', usatrains:'g', mth_g:'G' };
+      const ERA_TABS = { mpc:{items:'Lionel MPC-Modern'}, mth_ho:{items:'MTH HO'},
+                         atlas:{items:'Atlas O'}, mth_o:{items:'MTH O'} };
+      let _currentEra = 'mpc';
+      const body = cfg.slice(cfg.indexOf('function rrActiveFilter'), cfg.indexOf('// ── Keys that hold browseable'))
+                      .replace(/if \(typeof window !== 'undefined'\) window\.\w+ = \w+;/g, '');
+      // Wrap in an IIFE and hand the functions back — declaring them with `let`
+      // first collides with the function declarations inside `body`.
+      const api = eval('(function(){' + body
+        + '\nreturn { rrActiveFilter: rrActiveFilter, rrSameScale: rrSameScale,'
+        + ' rrEraOfRow: rrEraOfRow, rrSplitByFilter: rrSplitByFilter };})')();
+      const rrActiveFilter = api.rrActiveFilter, rrSameScale = api.rrSameScale,
+            rrSplitByFilter = api.rrSplitByFilter;
+      const rows = [
+        { itemNum:'8359', _tab:'Lionel MPC-Modern' },
+        { itemNum:'8359', _tab:'Atlas O' },
+        { itemNum:'8359', _tab:'MTH HO' },
+        { itemNum:'8359', _tab:'MTH O' },
+        { itemNum:'8359' },
+      ];
+      const s = rrSplitByFilter(rows);
+      ok('engine: the filtered era\'s row is in-era', s.inEra.some(r => r._tab === 'Lionel MPC-Modern'));
+      ok('engine: an untagged row is treated as in-era, never hidden on a guess',
+         s.inEra.some(r => !r._tab));
+      ok('engine: same-scale other eras are offered SEPARATELY, labelled',
+         s.offEra.length === 2 && s.offEra.every(r => !!r._offEraLabel));
+      ok('engine: a DIFFERENT SCALE is dropped outright (no HO while in O)',
+         !s.offEra.some(r => r._offEra === 'mth_ho') && !s.inEra.some(r => r._tab === 'MTH HO'));
+      ok('engine: scale compare survives the g/G casing split in ERA_SCALE',
+         rrSameScale('g', 'G') === true);
+      _currentEra = 'all';
+      ok('engine: all-eras mode constrains nothing',
+         rrActiveFilter() === null && rrSplitByFilter(rows).inEra.length === 5);
+    })();
+
+    // ── the AI / Lens question ──
+    ok('the identify question states the maker and scale as a hard scope',
+       /IMPORTANT — the collection being catalogued covers only/.test(aid) &&
+       /opts\.mfrs/.test(aid) && /opts\.scale/.test(aid));
+    ok('…and tells the model to declare out-of-scope rather than force a match',
+       /do NOT substitute a similar item from another maker or another scale/.test(aid));
+
+    // ── the hint builder no longer gives up without a per-photo tag ──
+    (function () {
+      const pf = pin.slice(pin.indexOf('function _pinPreferOf'), pin.indexOf('function _pinPreferOf') + 1600);
+      ok('the era hint falls back to the ACTIVE FILTER when the photo has no tag',
+         /rrActiveFilter\(\)/.test(pf) && !/if \(!m\.era\) return null;/.test(pf));
+      ok('…and a per-photo tag still wins over the filter',
+         /var era = m\.era \|\| ''/.test(pf));
+    })();
+    ok('the Lens/Google question is handed the maker and scale, not just the era',
+       /rrIdentifyQuery\(\{ eraLabel: _lh\.eraLabel, eraYears: _lh\.eraYears,[\s\S]{0,80}mfrs: _lh\.mfrs, scale: _lh\.scale \}\)/.test(pin));
+    ok('the wizard photo-identify passes era + maker + scale too',
+       /mfrs: _qMfrs, scale: _qScale/.test(wp) && /eraLabel: _af \? _af\.label/.test(wp));
+    ok('…with the user\'s own wizard picks winning over the filter',
+       /mfrs\.length \? mfrs : \(\(_af && _af\.manufacturer\) \? \[_af\.manufacturer\] : \[\]\)/.test(wp));
+
+    // ── the lookups ──
+    ok('every master lookup passes its hits through the filter',
+       (bc.match(/_rrFilterHits\(/g) || []).length >= 6);
+    ok('…via the shared splitter, so one rule governs all of them',
+       /function _rrFilterHits/.test(bc) && /rrSplitByFilter\(rows\)/.test(bc));
+    ok('…ordering in-era first, so a caller taking hits[0] cannot get an off-era row',
+       /return s\.inEra\.concat\(s\.offEra\)/.test(bc));
+
+    // ── the picker must not present off-filter rows as normal choices ──
+    ok('the candidate picker separates off-filter rows behind a divider',
+       /Outside your filter/.test(bc));
+    ok('…and says which era it is and that picking it switches era',
+       /choosing this switches era/.test(bc));
+
+    // ── the answer is checked against the filter, not silently accepted ──
+    ok('a read whose maker contradicts the filter is flagged on the card',
+       /but you are filtered to/.test(pin));
+    ok('…and so is a read in the wrong scale',
+       /Reads as ' \+ esc\(s\.gauge\) \+ ' scale/.test(pin));
+    ok('…and the flag is actually rendered in both read-summary layouts',
+       (pin.match(/_mismatch/g) || []).length >= 5);
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
