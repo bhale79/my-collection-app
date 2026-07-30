@@ -1153,20 +1153,76 @@ function idbRemove(key) {
   }).catch(function() {});
 }
 
+// ══════════════════════════════════════════════════════════════════════
+// "WHAT I COLLECT" PREFERENCES — eras, scales, manufacturers
+// v0.9.1159: A NEW OPTION MUST DEFAULT TO ON.
+//
+// All three preferences store the ENABLED ids — an allow-list. That works
+// until the app gains a new option, at which point the new id is absent from
+// every list ever saved, `_isXEnabled()` answers false, and the new maker /
+// scale / era is HIDDEN from everyone who has ever opened the preference
+// screen. Nothing distinguishes "the user switched this off" from "this did
+// not exist when they saved".
+//
+// It had already happened. K-Line, Williams and Marx have had eras, master
+// tabs and catalog rows since 2026-07-28; Brad's saved list held the nine
+// manufacturers that existed before them, so adding the three to the picker
+// would have shown him no K-Line items whatsoever. That is the bug this fixes,
+// and it is a fix for the mechanism rather than for those three names.
+//
+// The mechanism: remember WHICH OPTIONS EXISTED at save time (the roster).
+// Anything not on that roster is new, so it is on. Explicit opt-outs — ids
+// that existed and were left out — are preserved exactly.
+//
+// A saved list from before the roster existed falls back to
+// WHAT_I_COLLECT.PREF_BASELINE, a historical snapshot of the option sets at
+// v0.9.1158. Where no baseline is given, the roster becomes the CURRENT id
+// set, meaning "nothing is new" — the safe direction, since it can only leave
+// behaviour unchanged.
+// ══════════════════════════════════════════════════════════════════════
+function _prefEnabled(savedKey, rosterKey, allIds, baselineIds) {
+  allIds = allIds || [];
+  var saved = null;
+  try {
+    var raw = localStorage.getItem(savedKey);
+    if (raw) { var a = JSON.parse(raw); if (Array.isArray(a) && a.length) saved = a; }
+  } catch (e) {}
+  if (!saved) return allIds.slice();          // never chosen: everything on
+  var roster = null;
+  try {
+    var r = JSON.parse(localStorage.getItem(rosterKey) || 'null');
+    if (Array.isArray(r) && r.length) roster = r;
+  } catch (e2) {}
+  if (!roster) roster = (baselineIds && baselineIds.length) ? baselineIds : allIds;
+  var out = saved.slice();
+  for (var i = 0; i < allIds.length; i++) {
+    if (roster.indexOf(allIds[i]) < 0 && out.indexOf(allIds[i]) < 0) out.push(allIds[i]);
+  }
+  return out;
+}
+// Written on every save, so the NEXT new option is measured against what the
+// user was actually shown this time.
+function _prefSaveRoster(rosterKey, allIds) {
+  try { localStorage.setItem(rosterKey, JSON.stringify(allIds || [])); } catch (e) {}
+}
+function _prefBaseline(which) {
+  try {
+    if (typeof WHAT_I_COLLECT !== 'undefined' && WHAT_I_COLLECT.PREF_BASELINE) {
+      return WHAT_I_COLLECT.PREF_BASELINE[which] || null;
+    }
+  } catch (e) {}
+  return null;
+}
+
 // ── Era preferences: which eras the user collects (admin override) ──
 // Default: all eras enabled.
 function _getEnabledEras() {
-  try {
-    var saved = localStorage.getItem('lv_collect_eras');
-    if (saved) {
-      var arr = JSON.parse(saved);
-      if (Array.isArray(arr) && arr.length) return arr;
-    }
-  } catch(e) {}
-  return Object.keys(ERAS); // default: all
+  return _prefEnabled('lv_collect_eras', 'lv_collect_eras_roster',
+                      Object.keys(ERAS), _prefBaseline('eras'));
 }
 function _setEnabledEras(arr) {
   try { localStorage.setItem('lv_collect_eras', JSON.stringify(arr || [])); } catch(e) {}
+  _prefSaveRoster('lv_collect_eras_roster', Object.keys(ERAS));
 }
 // v0.9.934 ─ Time-period helpers. 'prewar' / 'pw' / 'modern'.
 function _eraPeriod(era) {
@@ -1249,23 +1305,19 @@ if (typeof window !== 'undefined') { window._ensureEraLoaded = _ensureEraLoaded;
 // ── Session 136 ─ Scale preference helpers (Tier 3.14) ────────────────────────
 // Default: all scales enabled. User can disable scales they don't collect to
 // hide every era of every manufacturer in that scale. Admins always see all.
-function _getEnabledScales() {
-  try {
-    var saved = localStorage.getItem('lv_collect_scales');
-    if (saved) {
-      var arr = JSON.parse(saved);
-      if (Array.isArray(arr) && arr.length) return arr;
-    }
-  } catch(e) {}
-  // Default: every scale in WHAT_I_COLLECT.SCALES
-  var defaults = [];
+function _allScaleIds() {
   if (typeof WHAT_I_COLLECT !== 'undefined' && WHAT_I_COLLECT.SCALES) {
-    Object.keys(WHAT_I_COLLECT.SCALES).forEach(function(k) { defaults.push(k); });
+    return Object.keys(WHAT_I_COLLECT.SCALES);
   }
-  return defaults;
+  return [];
+}
+function _getEnabledScales() {
+  return _prefEnabled('lv_collect_scales', 'lv_collect_scales_roster',
+                      _allScaleIds(), _prefBaseline('scales'));
 }
 function _setEnabledScales(arr) {
   try { localStorage.setItem('lv_collect_scales', JSON.stringify(arr || [])); } catch(e) {}
+  _prefSaveRoster('lv_collect_scales_roster', _allScaleIds());
 }
 function _isScaleEnabled(scaleId) {
   if (!scaleId) return true; // unknown scale -> don't hide
@@ -1304,22 +1356,19 @@ function _scaleOfItem(item) {
 // ── Session 137 ─ Manufacturer preference helpers (Tier 3.15) ─────────────────
 // Parallel to the era + scale pref pattern. Default: all manufacturers in
 // WHAT_I_COLLECT.MANUFACTURERS are enabled. Admins always see all.
-function _getEnabledManufacturers() {
-  try {
-    var saved = localStorage.getItem('lv_collect_mfrs');
-    if (saved) {
-      var arr = JSON.parse(saved);
-      if (Array.isArray(arr) && arr.length) return arr;
-    }
-  } catch(e) {}
-  var defaults = [];
+function _allManufacturerIds() {
   if (typeof WHAT_I_COLLECT !== 'undefined' && WHAT_I_COLLECT.MANUFACTURERS) {
-    Object.keys(WHAT_I_COLLECT.MANUFACTURERS).forEach(function(k) { defaults.push(k); });
+    return Object.keys(WHAT_I_COLLECT.MANUFACTURERS);
   }
-  return defaults;
+  return [];
+}
+function _getEnabledManufacturers() {
+  return _prefEnabled('lv_collect_mfrs', 'lv_collect_mfrs_roster',
+                      _allManufacturerIds(), _prefBaseline('manufacturers'));
 }
 function _setEnabledManufacturers(arr) {
   try { localStorage.setItem('lv_collect_mfrs', JSON.stringify(arr || [])); } catch(e) {}
+  _prefSaveRoster('lv_collect_mfrs_roster', _allManufacturerIds());
 }
 function _isManufacturerEnabled(mfrId) {
   if (!mfrId) return true; // unknown manufacturer -> don't hide

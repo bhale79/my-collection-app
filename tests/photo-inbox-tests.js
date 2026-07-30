@@ -3826,6 +3826,142 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /_itemEraPeriod\(item\)[\s\S]{0,120}_stp3b\.era/.test(brwS));
   })();
 
+  section('131. A new option defaults to ON, and the option sets are complete (v0.9.1159)');
+  // Brad: "yes" — fill in the makers that had eras and master tabs but could not
+  // be picked. Measuring first showed the fill alone would have done nothing: his
+  // saved lv_collect_mfrs held the nine makers that existed when he saved, the
+  // preference is an allow-list, and a brand-new id is in nobody's list. So the
+  // mechanism is what changed; the three names are just the first beneficiaries.
+  (function () {
+    const pJ = require('path');
+    const rd = f => fs.readFileSync(pJ.join(__dirname, '..', f), 'utf8');
+    const appS = rd('app/app.js'), cfgS = rd('app/config.js');
+    const slice = (src, from, to) => {
+      const a = src.indexOf(from), b = src.indexOf(to, a + 1);
+      if (a < 0 || b < 0) throw new Error('§131 marker moved: ' + from + ' .. ' + to);
+      return src.slice(a, b);
+    };
+    // The REAL config object, evaluated from its own file.
+    const WIC = new Function('window', rd('app/onboarding-config.js') + '\n; return WHAT_I_COLLECT;')({});
+
+    const store = {};
+    const LS = { getItem: k => (k in store ? store[k] : null),
+                 setItem: (k, v) => { store[k] = String(v); },
+                 removeItem: k => { delete store[k]; } };
+    const ERAS_STUB = { all: {}, pw: {}, mpc: {}, prewar: {} };
+    const api = new Function('localStorage', 'WHAT_I_COLLECT', 'ERAS',
+        slice(appS, 'function _prefEnabled', '// ── Era preferences')
+      + slice(appS, 'function _getEnabledEras', '// v0.9.934 ─ Time-period helpers')
+      + slice(appS, 'function _allScaleIds', 'function _scaleOfEra')
+      + slice(appS, 'function _allManufacturerIds', 'function _manufacturerOfEra')
+      + 'return { pref:_prefEnabled, mfrs:_getEnabledManufacturers,'
+      + ' setMfrs:_setEnabledManufacturers, mfrOn:_isManufacturerEnabled,'
+      + ' scales:_getEnabledScales, setScales:_setEnabledScales, scaleOn:_isScaleEnabled,'
+      + ' eras:_getEnabledEras, setEras:_setEnabledEras };')(LS, WIC, ERAS_STUB);
+
+    const ALL_M = Object.keys(WIC.MANUFACTURERS);
+    const NEW_M = ['k-line', 'williams', 'marx'];
+
+    // ── the mechanism ──
+    Object.keys(store).forEach(k => delete store[k]);
+    ok('a user who never chose has every manufacturer enabled',
+       api.mfrs().length === ALL_M.length);
+
+    // Brad's ACTUAL saved value, copied out of his browser.
+    store['lv_collect_mfrs'] = JSON.stringify(
+      ['lgb', '3rd rail', 'lionel', 'mth', 'usa trains', 'atlas', 'weaver', 'rmt', 'menards']);
+    NEW_M.forEach(m => {
+      ok('with Brad\'s real saved list, ' + m + ' is enabled (it was hidden before)',
+         api.mfrOn(m) === true);
+    });
+    ok('…and his nine existing choices are untouched',
+       ['lionel', 'mth', 'atlas', 'weaver', 'rmt', 'menards', '3rd rail', 'usa trains', 'lgb']
+         .every(m => api.mfrOn(m)));
+
+    // The half of this that matters most: a real opt-out must SURVIVE.
+    store['lv_collect_mfrs'] = JSON.stringify(['lionel']);
+    ok('a deliberate opt-out is still respected — MTH stays off',
+       api.mfrOn('mth') === false && api.mfrOn('atlas') === false);
+    ok('…while the genuinely new makers are still switched on',
+       NEW_M.every(m => api.mfrOn(m)));
+
+    // Once a roster exists it is used in preference to the historical baseline.
+    store['lv_collect_mfrs'] = JSON.stringify(['lionel']);
+    store['lv_collect_mfrs_roster'] = JSON.stringify(ALL_M);   // saw everything, chose one
+    ok('a user who saw the new makers and left them off keeps them off',
+       NEW_M.every(m => api.mfrOn(m) === false));
+    ok('…which is the whole point: the roster distinguishes "off" from "did not exist"',
+       api.mfrOn('lionel') === true);
+
+    // Saving records what the user was shown, so the NEXT addition works too.
+    Object.keys(store).forEach(k => delete store[k]);
+    api.setMfrs(['lionel', 'mth']);
+    ok('saving writes the roster alongside the choice',
+       JSON.parse(store['lv_collect_mfrs_roster']).length === ALL_M.length &&
+       JSON.parse(store['lv_collect_mfrs']).join() === 'lionel,mth');
+    api.setScales(['o']);
+    ok('…and the same for scales',
+       JSON.parse(store['lv_collect_scales_roster']).join() === Object.keys(WIC.SCALES).join());
+    api.setEras(['pw']);
+    ok('…and for eras',
+       JSON.parse(store['lv_collect_eras_roster']).join() === Object.keys(ERAS_STUB).join());
+
+    // Degenerate stored values must not lock a user out of their own collection.
+    Object.keys(store).forEach(k => delete store[k]);
+    store['lv_collect_mfrs'] = '[]';
+    ok('an empty saved list means "not chosen", not "nothing enabled"',
+       api.mfrs().length === ALL_M.length);
+    store['lv_collect_mfrs'] = '{not json';
+    ok('unparseable preference data falls back to everything on, never to nothing',
+       api.mfrs().length === ALL_M.length);
+
+    // No baseline for eras => nothing counts as new => behaviour unchanged.
+    Object.keys(store).forEach(k => delete store[k]);
+    store['lv_collect_eras'] = JSON.stringify(['pw']);
+    ok('with no baseline recorded, nothing is treated as new (the safe direction)',
+       api.eras().join() === 'pw');
+
+    // ── the option sets themselves ──
+    const eraIds = /const REAL_ERA_IDS = \[([^\]]+)\]/.exec(cfgS)[1]
+      .split(',').map(s => s.trim().replace(/^'|'$/g, '')).filter(Boolean);
+    const eraMfr = {};
+    eraIds.forEach(k => {
+      const m = new RegExp("\\b" + k + ":\\s*\\{[^}]*manufacturer:\\s*'([^']*)'").exec(cfgS);
+      if (m) eraMfr[k] = m[1].toLowerCase();
+    });
+    const missing = eraIds.filter(k => eraMfr[k] && ALL_M.indexOf(eraMfr[k]) < 0);
+    ok('every maker that has an era can also be PICKED as a manufacturer',
+       missing.length === 0, 'unpickable: ' + missing.map(k => eraMfr[k] + '(' + k + ')').join(','));
+    const orphans = ALL_M.filter(m => !Object.keys(eraMfr).some(k => eraMfr[k] === m));
+    ok('…and no manufacturer option exists that no era uses (catches a key typo)',
+       orphans.length === 0, 'orphans: ' + orphans.join(','));
+
+    // The trap that would hide 17,596 Atlas N/Z rows completely: naming a scale
+    // in ERA_TO_SCALE that has no matching option in SCALES.
+    const badScale = Object.keys(WIC.ERA_TO_SCALE)
+      .filter(k => WIC.ERA_TO_SCALE[k] && !WIC.SCALES[WIC.ERA_TO_SCALE[k]]);
+    ok('every scale an era claims is a real, selectable scale option',
+       badScale.length === 0,
+       badScale.map(k => k + '->' + WIC.ERA_TO_SCALE[k]).join(','));
+    const SCALE_PENDING = ['atlas_n', 'atlas_z'];   // need N/Z options first — Brad's call
+    const noScale = eraIds.filter(k => !(k in WIC.ERA_TO_SCALE));
+    ok('every era has a scale except the two waiting on new scale options',
+       noScale.length === SCALE_PENDING.length && noScale.every(k => SCALE_PENDING.indexOf(k) >= 0),
+       'no scale: ' + noScale.join(','));
+    ok('Pre-War is explicitly null (mixed scale), not merely absent',
+       ('prewar' in WIC.ERA_TO_SCALE) && WIC.ERA_TO_SCALE.prewar === null);
+
+    // PREF_BASELINE is history. If someone "helpfully" updates it, the next new
+    // option stops defaulting on — so assert it stays a snapshot.
+    ok('PREF_BASELINE does NOT list the makers added in this version',
+       NEW_M.every(m => WIC.PREF_BASELINE.manufacturers.indexOf(m) < 0));
+    ok('…and everything it does list is still a real option',
+       WIC.PREF_BASELINE.manufacturers.every(m => ALL_M.indexOf(m) >= 0) &&
+       WIC.PREF_BASELINE.scales.every(s => !!WIC.SCALES[s]));
+    ok('the new makers carry no dead colour literal (nothing reads that field)',
+       NEW_M.every(m => !('color' in WIC.MANUFACTURERS[m])));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

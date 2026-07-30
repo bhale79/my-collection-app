@@ -54,7 +54,9 @@ const WHAT_I_COLLECT = {
   eraOrder:    ['prewar', 'pw', 'mpc',
                 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z',
                 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g',
-                'weaver', 'rmt', 'menards', 'thirdrail', 'usatrains', 'lgb'],
+                'weaver', 'rmt', 'menards', 'thirdrail', 'usatrains', 'lgb',
+                // v0.9.1159: placed rather than left to fall to the end.
+                'kline', 'williams', 'marx', 'other_o'],
 
   // Accent color per era — pulled into card styling.
   eraColors: {
@@ -102,11 +104,22 @@ const WHAT_I_COLLECT = {
 
   // Era key -> scale id. null = mixed scale (Pre-War) -> falls back to
   // per-item gauge field inspection in _scaleOfItem().
+  //
+  // v0.9.1159 — an era MISSING from this table (as opposed to explicitly null)
+  // gets scale null, and the browse scale filter excludes an unknown scale from
+  // every scale chip. Six eras had never been added, so their rows could only be
+  // found under "Any Scale". Every value here must also be a key in SCALES above,
+  // or the scale preference will hide the era outright — there is a test for that.
   ERA_TO_SCALE: {
     prewar:       null,
     pw:           'o',
     mpc:          'o',
     atlas:        'o',
+    atlas_ho:     'ho',
+    // atlas_n / atlas_z are DELIBERATELY absent: N and Z are not options in
+    // SCALES, and naming a scale that has no option would hide those 17,596 rows
+    // completely instead of merely limiting them to "Any Scale". Add them here
+    // ONLY together with SCALES entries. Brad's call.
     pw_ho:        'ho',
     mpc_ho:       'ho',
     mod_ho:       'ho',
@@ -118,6 +131,11 @@ const WHAT_I_COLLECT = {
     mth_g:        'g',
     weaver:       'o',
     rmt:          'o',
+    menards:      'o',
+    kline:        'o',
+    williams:     'o',
+    marx:         'o',
+    other_o:      'o',
     thirdrail:    'o',
     usatrains:    'g',
     lgb:          'g',
@@ -140,6 +158,44 @@ const WHAT_I_COLLECT = {
     '3rd rail':{ id: '3rd rail', label: '3rd Rail', color: '#8e44ad', default: false },
     'usa trains':{ id: 'usa trains', label: 'USA Trains', color: '#c0392b', default: false },
     lgb:    { id: 'lgb',    label: 'LGB',    color: '#f39c12',       default: false },
+    // v0.9.1159 — these three makers have had ERAS entries, master tabs and
+    // catalog rows since 2026-07-28, but were never added here, so they could not
+    // be picked in the manufacturer chip OR in "What I Collect" — and because the
+    // preference reads as an allow-list, their items were being HIDDEN.
+    //
+    // THE KEY MUST EQUAL ERAS[era].manufacturer.toLowerCase() — that is what
+    // _manufacturerOfEra() returns and what the chip filter compares against.
+    // Hence 'k-line' with the hyphen, matching ERAS.kline.manufacturer 'K-Line'.
+    //
+    // No `color:` on purpose. Nothing in the app reads MANUFACTURERS[].color (the
+    // era cards use eraColors instead), so inventing three more hex literals would
+    // add dead colour the ratchet has to carry. If a maker colour is ever wired
+    // up, give all nine of the above a var() and these three with them.
+    'k-line':  { id: 'k-line',   label: 'K-Line',   default: false },
+    williams:  { id: 'williams', label: 'Williams', default: false },
+    marx:      { id: 'marx',     label: 'Marx',     default: false },
+  },
+
+  // ── v0.9.1159: what the option sets looked like BEFORE this version ──
+  // The three "what I collect" preferences store the ENABLED ids, which is fine
+  // until the app gains a new option: it is absent from every saved list, so
+  // _isManufacturerEnabled() answers false and the new maker is hidden from
+  // everyone who has ever opened that screen — indistinguishable from a user who
+  // deliberately switched it off.
+  //
+  // Brad's own saved list was exactly the nine manufacturers above K-Line, so
+  // adding the three would have shown him nothing at all. _prefEnabled() (app.js)
+  // therefore records which options EXISTED at save time; this baseline stands in
+  // for saves made before that record existed. It is a historical snapshot —
+  // never "update" it. Adding a new option is enough; it is new precisely because
+  // it is not named here.
+  PREF_BASELINE: {
+    manufacturers: ['lionel', 'mth', 'atlas', 'weaver', 'rmt', 'menards',
+                    '3rd rail', 'usa trains', 'lgb'],
+    scales:        ['o', 'ho', 's', 'g', 'standard'],
+    // eras: omitted on purpose — no era options are added in this version, so
+    // era saves keep their existing meaning. _prefEnabled falls back to "nothing
+    // is new" when a baseline is absent, which is the safe direction.
   },
 };
 
