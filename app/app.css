@@ -104,6 +104,12 @@
     --warn:      #f0b429;   /* warnings */
     --info:      #3498db;   /* informational */
     --on-accent: #ffffff;   /* text placed on accent-colored fills */
+    /* v0.9.1178 — the dim behind a modal or a bottom sheet. Twenty-odd screens
+       type this value out by hand; a scrim is a palette decision, so it belongs
+       here. Same value the hand-typed ones already use, so nothing looks any
+       different today, and it is deliberately NOT overridden per theme — a dark
+       scrim reads correctly over both the dark and the light surfaces. */
+    --scrim:     rgba(0,0,0,0.55);
     /* v0.9.1153 — MY BUG FROM v0.9.1148, and a CSS trap worth remembering.
        The census flagged --bg-card as "used but never defined", and I defined
        it here as `var(--surface2)`. That looked equivalent and is NOT: a custom

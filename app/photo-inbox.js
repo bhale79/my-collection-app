@@ -32,6 +32,21 @@
 (function () {
   'use strict';
 
+  // ══ v0.9.1178 — the bottom-sheet chrome, written once ═════════════════════
+  // Three sheets in this file (Group as…, the era picker, and the new where-from
+  // picker) had the same backdrop typed out three times. Declared up here, not
+  // beside the first user, because `var` hoists the NAME and not the VALUE — a
+  // constant defined halfway down the file is `undefined` to everything above
+  // it, which is a bug this file has already shipped twice.
+  var _PIN_SHEET_OV = 'position:fixed;inset:0;z-index:10050;background:var(--scrim);'
+    + 'display:flex;align-items:flex-end;justify-content:center';
+  function _pinSheetCardCss(maxW, vh) {
+    return 'background:var(--surface);border:1px solid var(--border);'
+      + 'border-top-left-radius:16px;border-top-right-radius:16px;width:100%;'
+      + 'max-width:' + (maxW || 520) + 'px;padding:1rem 1rem 1.2rem;'
+      + 'max-height:' + (vh || 82) + 'vh;max-height:' + (vh || 82) + 'dvh;overflow-y:auto';
+  }
+
   var FID_KEY = 'rr_inbox_fid';
   var PENDING_KEY = 'rr_inbox_pending';   // { itemNum: folderLink } waiting for wizard save
   var SETSTAGE_KEY = 'rr_inbox_setstage'; // v0.9.1122: set-add notes NOT yet armed (see _pinAddSetFromGroup)
@@ -485,10 +500,9 @@
     var roles = _pinDefaultRoles(kindId, files.length);
 
     var ov = document.createElement('div');
-    ov.style.cssText = 'position:fixed;inset:0;z-index:10050;background:rgba(0,0,0,0.55);display:flex;align-items:flex-end;justify-content:center';
+    ov.style.cssText = _PIN_SHEET_OV;
     var card = document.createElement('div');
-    card.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-top-left-radius:16px;border-top-right-radius:16px;'
-      + 'width:100%;max-width:560px;padding:1rem 1rem 1.2rem;max-height:86vh;max-height:86dvh;overflow-y:auto';
+    card.style.cssText = _pinSheetCardCss(560, 86);
     ov.appendChild(card);
     ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
 
@@ -691,10 +705,9 @@
 
     var ov = document.createElement('div');
     ov.id = 'pin-ctx-sheet';
-    ov.style.cssText = 'position:fixed;inset:0;z-index:10050;background:rgba(0,0,0,0.55);display:flex;align-items:flex-end;justify-content:center';
+    ov.style.cssText = _PIN_SHEET_OV;
     var card = document.createElement('div');
-    card.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-top-left-radius:16px;border-top-right-radius:16px;'
-      + 'width:100%;max-width:520px;padding:1rem 1rem 1.2rem;max-height:82vh;max-height:82dvh;overflow-y:auto';
+    card.style.cssText = _pinSheetCardCss(520, 82);
     ov.appendChild(card);
     ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
 
@@ -1965,7 +1978,10 @@
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
     var t = e.target;
     if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName || '')) return;
-    if (document.getElementById('pin-ctx-sheet') || window._rrCropOpen) return;
+    // v0.9.1178: the where-from sheet is a sheet too — arrow keys must not walk
+    // the group behind it while it is open.
+    if (document.getElementById('pin-ctx-sheet') || document.getElementById('pin-wf-sheet')
+        || window._rrCropOpen) return;
     e.preventDefault();
     window._pinReviewStep(e.key === 'ArrowLeft' ? -1 : 1);
   });
@@ -2568,7 +2584,232 @@
   // Research by Photo — the app's existing Lens route (stage the photo
   // publicly for 10 minutes, open Google image search with a structured
   // question). Same machinery the wizard's identify uses.
-  window._pinReviewLens = async function () {
+  // ══ v0.9.1178 — where do you want to look? ═══════════════════════════════
+  // Brad: "with the google search, we need a pop up to add 'where from' that has
+  // vendors listed, we need any, ebay, and have the ability to add vendors
+  // manually. these would be like trainz.com, trainworld, ect. I DON'T WANT TO
+  // SUGGEST VENDORS, THE USER NEEDS TO MANUALLY PUT THEM IN."
+  //
+  // ⚠ READ THAT LAST SENTENCE BEFORE CHANGING THIS CODE. There is no seeded
+  // list here, no "popular dealers", no autocomplete from a bundled set, and no
+  // vendor is ever written to storage that the user did not type. trainz.com and
+  // trainworld appear in his message as examples of what HE would enter — they
+  // are not a starter list, and shipping them as one would be the opposite of
+  // what he asked for. The list below starts EMPTY and stays empty until he
+  // types into it.
+  //
+  // "Any" and "eBay" are not vendors the app is suggesting: they are the two
+  // scopes Brad named by hand in that same sentence. Any is "don't narrow it",
+  // which is the behaviour that already existed.
+  var VENDOR_KEY = 'rr_vendors';        // [{name, site}] — user-entered ONLY
+  var VENDOR_LAST_KEY = 'rr_vendor_last';
+  function _pinVendors() {
+    try {
+      var a = JSON.parse(localStorage.getItem(VENDOR_KEY) || '[]');
+      return Array.isArray(a) ? a.filter(function (v) { return v && v.site; }) : [];
+    } catch (e) { return []; }
+  }
+  function _pinVendorsSave(a) {
+    try { localStorage.setItem(VENDOR_KEY, JSON.stringify(a || [])); } catch (e) {}
+  }
+  // Turn whatever was typed into a domain we can scope a search to. Anything
+  // that is not recognisably a web address is refused with a reason rather than
+  // stored as junk that silently produces an empty search later.
+  function _pinVendorDomain(text) {
+    var s = String(text == null ? '' : text).trim().toLowerCase();
+    if (!s) return '';
+    s = s.replace(/^[a-z]+:\/\//, '').replace(/^www\./, '');
+    s = s.split(/[\/?#\s]/)[0];
+    return /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(s) ? s : '';
+  }
+  window._pinAddVendor = function () {
+    var box = document.getElementById('pin-wf-new');
+    var raw = box ? box.value : '';
+    var dom = _pinVendorDomain(raw);
+    if (!dom) {
+      showToast('Type the vendor’s web address, like trainz.com', 3200, true);
+      return;
+    }
+    var list = _pinVendors();
+    if (list.some(function (v) { return v.site === dom; })) {
+      showToast(dom + ' is already on the list', 2400, true);
+      return;
+    }
+    list.push({ name: dom, site: dom });
+    _pinVendorsSave(list);
+    if (box) box.value = '';
+    _pinWhereFromDraw();
+  };
+  window._pinRemoveVendor = function (site) {
+    var list = _pinVendors().filter(function (v) { return v.site !== site; });
+    _pinVendorsSave(list);
+    try {
+      if (localStorage.getItem(VENDOR_LAST_KEY) === site) localStorage.removeItem(VENDOR_LAST_KEY);
+    } catch (e) {}
+    _pinWhereFromDraw();
+  };
+
+  // The scopes offered, in order. Built fresh every draw so a vendor added in
+  // the sheet appears immediately.
+  function _pinWhereFromOptions() {
+    var out = [
+      { site: '', label: 'Any site', note: 'Search by the photo, the way it works today' },
+      { site: 'ebay.com', label: 'eBay', note: '' },
+    ];
+    _pinVendors().forEach(function (v) {
+      out.push({ site: v.site, label: v.name || v.site, note: '', mine: true });
+    });
+    return out;
+  }
+  var _pinWfCb = null;
+  function _pinWhereFromDraw() {
+    var card = document.getElementById('pin-wf-card');
+    if (!card) return;
+    var last = '';
+    try { last = localStorage.getItem(VENDOR_LAST_KEY) || ''; } catch (e) {}
+    var opts = _pinWhereFromOptions();
+    if (!opts.some(function (o) { return o.site === last; })) last = '';
+    var rowBtn = 'width:100%;text-align:left;padding:0.7rem 0.8rem;border-radius:9px;'
+      + 'font-family:var(--font-body);font-size:0.92rem;min-height:48px;cursor:pointer;'
+      + 'display:flex;align-items:center;gap:0.6rem;margin-bottom:0.45rem';
+    card.innerHTML =
+      '<div style="font-family:var(--font-head);font-size:1.05rem;font-weight:700;margin-bottom:0.15rem">Where do you want to look?</div>'
+      + '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.8rem">'
+      + 'Pick a place to search this item. Only the vendors you add yourself appear here.</div>'
+      + opts.map(function (o) {
+          var on = o.site === last;
+          return '<div style="display:flex;align-items:center;gap:0.4rem">'
+            + '<button onclick="_pinWhereFromPick(\'' + rrEsc(o.site) + '\')" style="' + rowBtn
+              + ';border:1.5px solid ' + (on ? 'var(--accent)' : 'var(--border)') + ';background:'
+              + (on ? 'var(--surface3)' : 'var(--surface2)') + ';color:var(--text);flex:1;min-width:0">'
+            + '<span style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + rrEsc(o.label) + '</span>'
+            + (o.note ? '<span style="font-size:0.74rem;color:var(--text-dim);font-weight:400">' + rrEsc(o.note) + '</span>' : '')
+            + '</button>'
+            + (o.mine
+                ? '<button onclick="_pinRemoveVendor(\'' + rrEsc(o.site) + '\')" title="Remove ' + rrEsc(o.label)
+                  + '" aria-label="Remove ' + rrEsc(o.label) + '" style="width:40px;min-width:40px;height:40px;border-radius:9px;'
+                  + 'border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);'
+                  + 'font-size:1.1rem;line-height:1;cursor:pointer;padding:0;margin-bottom:0.45rem">✕</button>'
+                : '')
+            + '</div>';
+        }).join('')
+      + '<div style="border-top:1px solid var(--border);margin:0.7rem 0 0.6rem"></div>'
+      + '<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-dim);font-weight:700;margin-bottom:0.3rem">Add a vendor</div>'
+      + '<div style="display:flex;gap:0.5rem;align-items:stretch">'
+        + '<input id="pin-wf-new" type="text" placeholder="Their web address, like trainz.com" autocomplete="off" spellcheck="false" '
+          + 'style="flex:1;min-width:0;padding:0.6rem 0.7rem;border-radius:8px;border:1.5px solid var(--border);'
+          + 'background:var(--surface2);color:var(--text);font-size:0.95rem;min-height:46px;box-sizing:border-box">'
+        + '<button onclick="_pinAddVendor()" style="padding:0 1rem;border-radius:8px;border:1.5px solid var(--border);'
+          + 'background:var(--surface2);color:var(--text);font-weight:700;font-size:0.9rem;min-height:46px;cursor:pointer">Add</button>'
+      + '</div>'
+      + '<button onclick="_pinWhereFromClose()" style="width:100%;margin-top:0.8rem;padding:0.6rem;border-radius:9px;border:none;background:none;color:var(--text-dim);font-size:0.88rem;cursor:pointer">Cancel</button>';
+    var nb = document.getElementById('pin-wf-new');
+    if (nb) nb.onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); window._pinAddVendor(); } };
+  }
+  window._pinWhereFromClose = function () {
+    var ov = document.getElementById('pin-wf-sheet');
+    if (ov) ov.remove();
+    _pinWfCb = null;
+  };
+  window._pinWhereFromPick = function (site) {
+    try { if (site) localStorage.setItem(VENDOR_LAST_KEY, site); else localStorage.removeItem(VENDOR_LAST_KEY); } catch (e) {}
+    var cb = _pinWfCb;
+    var label = '';
+    _pinWhereFromOptions().forEach(function (o) { if (o.site === site) label = o.label; });
+    window._pinWhereFromClose();
+    if (cb) { try { cb({ site: site, label: label }); } catch (e) { console.warn('[inbox] where-from callback', e && e.message); } }
+  };
+  function _pinWhereFrom(cb) {
+    _pinWfCb = cb;
+    var old = document.getElementById('pin-wf-sheet'); if (old) old.remove();
+    var ov = document.createElement('div');
+    ov.id = 'pin-wf-sheet';
+    ov.style.cssText = _PIN_SHEET_OV;
+    var card = document.createElement('div');
+    card.id = 'pin-wf-card';
+    card.style.cssText = _pinSheetCardCss(520, 82);
+    ov.appendChild(card);
+    ov.onclick = function (e) { if (e.target === ov) window._pinWhereFromClose(); };
+    document.body.appendChild(ov);
+    _pinWhereFromDraw();
+  }
+  if (typeof window !== 'undefined') {
+    window._pinVendors = _pinVendors;
+    window._pinVendorDomain = _pinVendorDomain;
+    window._pinWhereFromOptions = _pinWhereFromOptions;
+    window._pinWhereFrom = _pinWhereFrom;
+  }
+
+  // The number this card is about, however it got there — typed, confirmed or
+  // offered. A site search needs one; searching trainz.com for nothing at all
+  // returns their front page, which looks like a broken button.
+  function _pinCardNum() {
+    var n = '';
+    try { n = String((document.getElementById('pin-rv-num') || {}).value || '').trim(); } catch (e) {}
+    if (n) return n;
+    try {
+      var g = _rvGroups && _rvGroups[0];
+      var s = g && (_ids()[_pinOnScreenFid()] || _ids()[_pinReadFid(g)]);
+      if (s && s.num) return String(s.num).trim();
+    } catch (e2) {}
+    return '';
+  }
+
+  // A search narrowed to one site. Google's site: operator does the narrowing;
+  // the rest of the query is the same maker/period wording the app already uses
+  // everywhere else, so the results look like the ones from the item detail page.
+  window._pinVendorSearchURL = function (site, num, hints) {
+    var bits = ['site:' + String(site || '')];
+    var h = hints || {};
+    if (h.mfr) bits.push(h.mfr);
+    if (num) bits.push(String(num));
+    if (h.road) bits.push(h.road);
+    if (h.period) bits.push(h.period);
+    return 'https://www.google.com/search?q=' + encodeURIComponent(bits.join(' '));
+  };
+
+  window._pinReviewLens = function () {
+    if (!_rvGroups || !_rvGroups.length) return;
+    _pinWhereFrom(function (choice) {
+      if (choice && choice.site) return window._pinVendorSearch(choice);
+      return window._pinLensSearch();
+    });
+  };
+
+  window._pinVendorSearch = function (choice) {
+    var gs = _rvGroups;
+    if (!gs || !gs.length) return;
+    var num = _pinCardNum();
+    if (!num) {
+      showToast('A site search needs an item number — read the photo first, or choose Any site', 4200, true);
+      return;
+    }
+    var h = {};
+    try {
+      var _lh = _pinAiHints(gs[0]) || {};
+      h.mfr = (_lh.mfrs && _lh.mfrs.length === 1) ? _lh.mfrs[0] : '';
+      h.period = _lh.eraLabel || '';
+      var s = _ids()[_pinOnScreenFid()] || _ids()[_pinReadFid(gs[0])] || {};
+      if (!h.mfr && s.mfr) h.mfr = s.mfr;
+      if (s.road) h.road = s.road;
+    } catch (e) {}
+    var url = window._pinVendorSearchURL(choice.site, num, h);
+    try { window.open(url, '_blank'); } catch (e2) {}
+    // Same return trip as the photo search: he may well copy the dealer's own
+    // description back, and that parses exactly like any other answer.
+    _pinLensArm(gs);
+    try {
+      var _numEl = document.getElementById('pin-rv-num');
+      if (_numEl && !document.getElementById('pin-lens-banner')) {
+        var _bWrap = document.createElement('div');
+        _bWrap.innerHTML = _pinLensBannerHtml();
+        if (_bWrap.firstChild) _numEl.parentNode.insertBefore(_bWrap.firstChild, _numEl);
+      }
+    } catch (eB) {}
+    showToast('Searching ' + (choice.label || choice.site) + ' for ' + num, 3200);
+  };
+
+  window._pinLensSearch = async function () {
     var gs = _rvGroups;
     if (!gs.length) return;
     if (!_qcToken()) { showToast('Please sign in first', 3000, true); return; }

@@ -5410,6 +5410,110 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /colspan="' \+ \(_FS_COLS\.length \+ 1\) \+ '"/.test(pgs) && !/colspan="10"/.test(pgs));
   })();
 
+  section('148. Where do you want to look? (v0.9.1178)');
+  // "with the google search, we need a pop up to add 'where from' that has vendors
+  // listed, we need any, ebay, and have the ability to add vendors manually. these
+  // would be like trainz.com, trainworld, ect. I DON'T WANT TO SUGGEST VENDORS,
+  // THE USER NEEDS TO MANUALLY PUT THEM IN."
+  //
+  // The last sentence is the requirement most likely to be broken later by
+  // someone being helpful, so it is the one pinned hardest here.
+  (function () {
+    const pZ = require('path');
+    const src = fs.readFileSync(pZ.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+
+    // ── THE constraint: an untouched install offers no vendors ──────────────
+    localStorage.removeItem('rr_vendors');
+    localStorage.removeItem('rr_vendor_last');
+    ok('a brand-new install has NO vendors stored', window._pinVendors().length === 0);
+    const freshOpts = window._pinWhereFromOptions();
+    ok('...and the picker offers exactly the two scopes Brad named by hand',
+       freshOpts.length === 2, JSON.stringify(freshOpts.map(o => o.label)));
+    ok('...which are "Any site" and eBay, and nothing else',
+       freshOpts[0].site === '' && freshOpts[1].site === 'ebay.com', JSON.stringify(freshOpts));
+    // The examples in his own message must not have been shipped as a starter list.
+    ok('trainz and trainworld appear NOWHERE in the shipped code as data',
+       (function () {
+         const body = src.split('\n').filter(l => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n');
+         return !/trainworld/i.test(body) && !/['"`]trainz\.com['"`]/i.test(body);
+       })(), 'a seeded vendor leaked into the code');
+
+    // ── vendors only ever arrive by being typed ─────────────────────────────
+    ok('a bare word is refused — there is nothing to scope a search to',
+       window._pinVendorDomain('Trainz') === '');
+    ok('a plain domain is taken as typed', window._pinVendorDomain('trainz.com') === 'trainz.com');
+    ok('a full address is reduced to its domain',
+       window._pinVendorDomain('https://www.trainz.com/collections/lionel?page=2') === 'trainz.com');
+    ok('case and stray spaces do not create a second entry for one site',
+       window._pinVendorDomain('  TrainWorld.COM  ') === 'trainworld.com');
+    ok('nonsense is refused rather than stored as junk',
+       window._pinVendorDomain('....') === '' && window._pinVendorDomain('') === '');
+
+    // Adding one goes through the real handler, including its input box.
+    const addBox = { value: 'trainz.com' };
+    document._els['pin-wf-new'] = addBox;
+    document._els['pin-wf-card'] = mkEl('div');
+    window._pinAddVendor();
+    ok('a typed vendor is stored', window._pinVendors().length === 1 &&
+       window._pinVendors()[0].site === 'trainz.com', JSON.stringify(window._pinVendors()));
+    ok('...and appears in the picker under the two named scopes',
+       window._pinWhereFromOptions().length === 3 &&
+       window._pinWhereFromOptions()[2].site === 'trainz.com');
+    ok('...marked as the user\'s own, so only it gets a remove button',
+       window._pinWhereFromOptions()[2].mine === true &&
+       !window._pinWhereFromOptions()[1].mine);
+    addBox.value = 'https://trainz.com/anything';
+    window._pinAddVendor();
+    ok('the same site typed twice does not double up', window._pinVendors().length === 1);
+    addBox.value = 'Trainz';
+    window._pinAddVendor();
+    ok('a refused entry adds nothing', window._pinVendors().length === 1);
+    window._pinRemoveVendor('trainz.com');
+    ok('removing takes it back out', window._pinVendors().length === 0 &&
+       window._pinWhereFromOptions().length === 2);
+
+    // ── the scoped search itself ────────────────────────────────────────────
+    const vurl = window._pinVendorSearchURL('trainz.com', '6464-100',
+      { mfr: 'Lionel', road: 'Western Pacific', period: 'Postwar' });
+    const vq = decodeURIComponent(vurl.split('q=')[1] || '');
+    ok('a vendor search is narrowed to that site', /^site:trainz\.com\b/.test(vq), vq);
+    ok('...and carries the number, maker, road and period, like every other search here',
+       /6464-100/.test(vq) && /Lionel/.test(vq) && /Western Pacific/.test(vq) && /Postwar/.test(vq), vq);
+    ok('...properly encoded, so a space never truncates the query',
+       vurl.indexOf(' ') < 0 && /^https:\/\/www\.google\.com\/search\?q=/.test(vurl), vurl);
+    ok('a vendor with no hints still produces a usable search',
+       /site%3Aebay\.com/.test(window._pinVendorSearchURL('ebay.com', '2333', {})));
+
+    // ── wiring ─────────────────────────────────────────────────────────────
+    const wcode = src.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+    ok('the Google Search button opens the picker rather than searching straight away',
+       /window\._pinReviewLens = function \(\) \{[\s\S]{0,300}_pinWhereFrom\(/.test(wcode));
+    ok('"Any site" still runs the photo search that already worked',
+       /return window\._pinLensSearch\(\);/.test(wcode) &&
+       /lens\.google\.com\/uploadbyurl/.test(wcode));
+    ok('a site search without a number says so instead of opening a front page',
+       /A site search needs an item number/.test(wcode));
+    ok('the paste-the-answer box arms for a vendor search too',
+       /window\._pinVendorSearch = function[\s\S]{0,1600}_pinLensArm\(gs\)/.test(wcode));
+    ok('the arrow keys do not walk the group behind an open where-from sheet',
+       /getElementById\('pin-wf-sheet'\)/.test(wcode));
+    ok('all three bottom sheets share ONE backdrop style — no second copy of it',
+       /var _PIN_SHEET_OV =/.test(wcode) &&
+       (wcode.match(/ov\.style\.cssText = _PIN_SHEET_OV;/g) || []).length === 3);
+    ok('...and that backdrop points at the palette instead of typing a colour',
+       /_PIN_SHEET_OV = 'position:fixed;inset:0;z-index:10050;background:var\(--scrim\);'/.test(wcode));
+    ok('--scrim is defined in the palette, or every sheet loses its dim',
+       /--scrim:\s*rgba\(0,0,0,0\.55\);/.test(
+         fs.readFileSync(pZ.join(__dirname, '..', 'app', 'app.css'), 'utf8')));
+    ok('the constant is declared ABOVE its first user — var hoists the name, not the value',
+       wcode.indexOf("var _PIN_SHEET_OV =") < wcode.indexOf('ov.style.cssText = _PIN_SHEET_OV;'));
+
+    localStorage.removeItem('rr_vendors');
+    localStorage.removeItem('rr_vendor_last');
+    delete document._els['pin-wf-new'];
+    delete document._els['pin-wf-card'];
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
