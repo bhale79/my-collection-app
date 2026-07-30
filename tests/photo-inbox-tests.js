@@ -5127,22 +5127,26 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('a postwar row does NOT borrow a modern reissue\'s reference',
        url(PW2333).indexOf('modern-reissues') < 0, url(PW2333));
 
-    // v0.9.1187 SUPERSEDES the period-worded Google fallback for Lionel rows.
-    // Brad: "all lionel or mth items should go their website link not a google
-    // search." Item 8's era-in-the-query rule governed a query that no longer
-    // exists; a Lionel row with no reference goes to lionel.com now.
-    ok('a Lionel row with no reference goes to lionel.com — never Google (v0.9.1187)',
-       url(PW2333) === 'https://www.lionel.com/search?query=2333', url(PW2333));
-    ok('a row with no period at all still produces a usable link',
+    // v0.9.1188 SUPERSEDES v1187's lionel.com/search tail. Brad: "if we dont
+    // have the direct link for an item, i don't want lionel.com search engine.
+    // that is when we google it." Item 8's era-in-the-query rule (v1175) is
+    // BACK IN FORCE — the Google query exists again, so the period word goes
+    // in, exactly as he specified the first time.
+    ok('a Lionel row with no reference Googles WITH the era word (v0.9.1188)',
+       url(PW2333) === 'https://www.google.com/search?q='
+         + encodeURIComponent('Lionel 2333 Santa Fe postwar'), url(PW2333));
+    ok('a row with no period at all still produces a usable Google link',
        (function () {
          bucket['9999'] = [{ itemNum:'9999', _era:'other_o', _tab:'Lionel PW - Items' }];
-         return /lionel\.com\/search/.test(url(bucket['9999'][0]));
+         return url(bucket['9999'][0]) === 'https://www.google.com/search?q='
+           + encodeURIComponent('Lionel 9999');
        })());
-    ok('an unknown number still resolves to the maker site rather than throwing',
-       /lionel\.com\/search/.test(url({ itemNum:'000', _era:'pw', _tab:'Lionel PW - Items' })));
-    ok('and NO Lionel-tab row can produce a Google URL any more',
+    ok('an unknown number still resolves to a search rather than throwing',
+       /google\.com\/search/.test(url({ itemNum:'000', _era:'pw', _tab:'Lionel PW - Items' })));
+    ok('and NO no-link row can reach the lionel.com search page any more',
        ['2333', '6464-100', '000', '1-4392'].every(function (n) {
-         return url({ itemNum: n, _tab: 'Lionel PW - Items', _era: 'pw' }).indexOf('google.com') < 0;
+         return url({ itemNum: n, _tab: 'Lionel PW - Items', _era: 'pw' })
+           .indexOf('lionel.com') < 0;
        }));
   })();
 
@@ -5853,41 +5857,53 @@ META_WRITES.length = 0; TOASTS.length = 0;
       + 'return _itemExternalLinkURL;')(win, {}, {},
       (it) => ({ pw: 'postwar', prewar: 'prewar', mpc: 'modern' })[it._era] || null);
 
-    // The rows from Brad's screenshot: Lionel tab, year 2011, MTH number.
+    // v0.9.1188 SUPERSEDES the constructed-URL shortcut this section shipped.
+    // The guess was checked against MTH's own site index on 2026-07-30: master
+    // 1.59 carries the REAL link for every MTH item that has a page (137 of
+    // the guesses would have 404'd on a -0/-1 suffix). A tinplate row without
+    // a reference now Googles — but it still says MTH, because 11-##### is
+    // MTH's numbering wearing Lionel's name. That identity survives.
     const STD = { itemNum: '11-30127', _tab: 'Lionel MPC-Modern', _era: 'mpc',
                   yearProd: '2011', description: 'No. 516 Blue Coal Hopper Car (std)' };
-    ok('a Lionel-tab tinplate row goes STRAIGHT to the MTH product page',
-       url(STD) === 'https://www.mthtrains.com/products/11-30127', url(STD));
-    ok('...no longer to the lionel.com search it used to hit',
+    ok('a no-link Lionel-tab tinplate row Googles as MTH, not Lionel (v0.9.1188)',
+       url(STD) === 'https://www.google.com/search?q='
+         + encodeURIComponent('MTH 11-30127'), url(STD));
+    ok('...and never the lionel.com search it used to hit',
        url(STD).indexOf('lionel.com') < 0);
     ok('every number from the screenshot resolves the same way',
        ['11-30026', '11-30048', '11-30080', '11-30142'].every(function (n) {
          return url({ itemNum: n, _tab: 'Lionel MPC-Modern', _era: 'mpc', yearProd: '2011' })
-             === 'https://www.mthtrains.com/products/' + n;
+             === 'https://www.google.com/search?q=' + encodeURIComponent('MTH ' + n);
        }));
 
-    // A curated reference still outranks the shortcut — refLink wins everywhere.
+    // A curated reference still outranks everything — refLink wins everywhere.
     ok('a row with its own refLink keeps it, even with an MTH number',
        url(Object.assign({}, STD, { refLink: 'https://example.org/tinplate-guide' }))
          .indexOf('example.org') >= 0);
+    ok('a row whose refLink IS the MTH product page goes straight there — 1.59 data serves it',
+       url(Object.assign({}, STD, { refLink: 'https://www.mthtrains.com/products/11-30127' }))
+         .indexOf('mthtrains.com/products/11-30127') >= 0);
 
-    // The identity fence: the NUMBER decides, and only the exact shape passes.
-    ok('a modern Lionel number still goes to lionel.com — nothing else moved',
+    // The identity fence: the NUMBER decides which maker the query names.
+    ok('a modern Lionel number Googles as Lionel with the era word',
        url({ itemNum: '6-36814', _tab: 'Lionel MPC-Modern', _era: 'mpc', yearProd: '2011' })
-         === 'https://www.lionel.com/search?query=' + encodeURIComponent('6-36814'));
-    ok('a postwar number without a reference reaches lionel.com, not Google (v0.9.1187 supersedes)',
-       /lionel\.com\/search/.test(url({ itemNum: '2333', _tab: 'Lionel PW - Items',
-         _era: 'pw', roadName: 'Santa Fe' })));
-    ok('a bare "11-" or a short stub never matches the pattern',
+         === 'https://www.google.com/search?q=' + encodeURIComponent('Lionel 6-36814 modern'));
+    ok('a bare "11-" or a short stub never passes the MTH fence',
        url({ itemNum: '11-', _tab: 'Lionel MPC-Modern', _era: 'mpc', yearProd: '2011' })
-         .indexOf('mthtrains') < 0 &&
+         .indexOf('MTH') < 0 &&
        url({ itemNum: '11-30', _tab: 'Lionel MPC-Modern', _era: 'mpc', yearProd: '2011' })
-         .indexOf('mthtrains') < 0);
+         .indexOf('MTH') < 0);
 
-    // The MTH tab's own branch (pre-existing) must survive untouched.
-    ok('an MTH-tab row still links to MTH, as it always did',
+    // The MTH tab's own no-link rows Google as MTH too — no constructed URLs
+    // anywhere. The rows that HAVE pages carry real links in 1.59.
+    ok('an MTH-tab row without a reference Googles as MTH',
        url({ itemNum: '20-3151-1', _tab: 'MTH Premier', _era: 'mth' })
-         === 'https://www.mthtrains.com/products/' + encodeURIComponent('20-3151-1'));
+         === 'https://www.google.com/search?q=' + encodeURIComponent('MTH 20-3151-1'));
+    ok('and NO branch constructs an mthtrains URL from a bare number any more',
+       ['11-30127', '20-3151-1', '11-1001'].every(function (n) {
+         return url({ itemNum: n, _tab: 'MTH Premier', _era: 'mth' })
+           .indexOf('mthtrains') < 0;
+       }));
   })();
 
   section('154. The picker is on the RIGHT Google button now (v0.9.1184)');
@@ -5962,21 +5978,31 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
     const L = (num, yr) => url({ itemNum: num, _tab: 'Lionel MPC-Modern', _era: 'mpc',
                                  yearProd: yr || '' });
-    ok('every number from Brad\'s screenshot now reaches lionel.com',
+    // v0.9.1188 SUPERSEDES the lionel.com destination this section shipped.
+    // The rows that HAVE lionel.com product pages carry the real link in
+    // master 1.59 (823 of them, matched against lionel.com's own site index);
+    // a row still blank was PROVEN absent from lionel.com, so its search page
+    // would find nothing — it Googles, with the era word, per Brad's rule.
+    ok('every number from Brad\'s screenshot Googles as modern Lionel now',
        ['6-19578', '6-19587', '6-19595', '6-20038', '6-20088'].every(function (n) {
-         return L(n, '2009') === 'https://www.lionel.com/search?query=' + encodeURIComponent(n);
+         return L(n, '2009') === 'https://www.google.com/search?q='
+           + encodeURIComponent('Lionel ' + n + ' modern');
        }));
-    ok('...including with no year in the row at all — the prefix is enough',
-       /lionel\.com/.test(L('6-19585', '')));
-    ok('the 2011+ rule still carries the new prefix-less numbers',
-       /lionel\.com/.test(L('2233810', '2023')));
-    ok('a prefix-less number with an OLD year reaches lionel.com (v0.9.1187 supersedes)',
-       /lionel\.com/.test(L('19578', '2009')));
-    ok('a postwar number without a reference reaches lionel.com, not Google (v0.9.1187)',
+    ok('...including with no year in the row at all',
+       /google\.com/.test(L('6-19585', '')));
+    ok('the new prefix-less numbers Google the same way',
+       /google\.com/.test(L('2233810', '2023')));
+    ok('a postwar number without a reference Googles with its era word (v0.9.1188)',
        url({ itemNum: '6464-100', _tab: 'Lionel PW - Items', _era: 'pw',
-             roadName: 'Western Pacific' }) === 'https://www.lionel.com/search?query=' + encodeURIComponent('6464-100'));
-    ok('the MTH tinplate branch still wins first — 11- beats every Lionel rule',
-       L('11-30127', '2011') === 'https://www.mthtrains.com/products/11-30127');
+             roadName: 'Western Pacific' }) === 'https://www.google.com/search?q='
+         + encodeURIComponent('Lionel 6464-100 Western Pacific postwar'));
+    ok('the MTH identity still wins first — an 11- number Googles as MTH, not Lionel',
+       L('11-30127', '2011') === 'https://www.google.com/search?q='
+         + encodeURIComponent('MTH 11-30127'));
+    ok('and NO Lionel-tab row can reach the lionel.com search page',
+       ['6-19578', '2233810', '19578', '6464-100'].every(function (n) {
+         return L(n, '2009').indexOf('lionel.com') < 0;
+       }));
   })();
 
   section('156. The oddballs, by name (v0.9.1186)');
@@ -5997,25 +6023,29 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
     const TCA = { itemNum: 'X6464-1970', _tab: 'Lionel PW - Items', _era: 'pw',
                   roadName: 'TCA', yearProd: '1970' };
-    ok('X6464-1970 goes to the COTT club-cars page Brad named',
-       url(TCA) === 'https://cornucopiaoftoytrains.com/club-cars/#CCTCA', url(TCA));
-    ok('...case-insensitively, because the number is typed both ways',
-       url(Object.assign({}, TCA, { itemNum: 'x6464-1970' }))
-         === 'https://cornucopiaoftoytrains.com/club-cars/#CCTCA');
-    // v0.9.1187 FLIPPED this: the workbook audit found X6464-1970's master row
-    // carries a refLink pointing at the WRONG page (/transformers/). The map is
-    // Brad's explicit correction, and a correction that loses to the data it
-    // corrects is dead code.
-    ok('the oddball map outranks even a refLink — it exists to correct wrong data',
-       url(Object.assign({}, TCA, { refLink: 'https://cornucopiaoftoytrains.com/transformers/' }))
-         === 'https://cornucopiaoftoytrains.com/club-cars/#CCTCA');
-    ok('a refLink on a NON-oddball row is untouched by the map',
+    // v0.9.1188 RETIRED the X6464-1970 entry: master 1.59 carries the
+    // club-cars link in the row itself, so the refLink branch serves it and
+    // the correction would have been dead weight. The MAP stays — empty —
+    // because the next club car Brad names goes in the same place, and the
+    // outranks-refLink ordering it earned in v1187 must survive for it.
+    ok('X6464-1970 with its 1.59 refLink goes to the club-cars page via the DATA',
+       url(Object.assign({}, TCA,
+         { refLink: 'https://cornucopiaoftoytrains.com/club-cars/#CCTCA' }))
+         .indexOf('club-cars') >= 0);
+    ok('the empty map intercepts nothing — no ghost of the old entry',
+       url(TCA).indexOf('club-cars') < 0);
+    ok('the map machinery survives, above the refLink branch, for the next oddball',
+       (function () {
+         const src = brw.slice(a, b);
+         return src.indexOf('_ODDBALL_REFS') >= 0
+           && src.indexOf('_ODDBALL_REFS') < src.indexOf('item.refLink');
+       })());
+    ok('a refLink on any row is untouched by the empty map',
        url({ itemNum: '6464-100', _tab: 'Lionel PW - Items', _era: 'pw',
              refLink: 'https://cornucopiaoftoytrains.com/boxcars-6464/' })
          .indexOf('boxcars-6464') >= 0);
-    ok('the map is a NAMED list, and a near-miss number sails past it',
-       url({ itemNum: 'X6464-1971', _tab: 'Lionel PW - Items', _era: 'pw' })
-         .indexOf('club-cars') < 0);
+    ok('an X6464-1970 row with NO reference falls through to Google like anyone',
+       /google\.com/.test(url(TCA)));
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

@@ -933,9 +933,11 @@ function _itemExternalLinkURL(item) {
   // the /transformers/ page, which is wrong. These entries are Brad's explicit
   // per-item corrections, and a correction that loses to the data it corrects
   // is dead code. Delete an entry once the master row's link is actually fixed.
-  var _ODDBALL_REFS = {
-    'X6464-1970': 'https://cornucopiaoftoytrains.com/club-cars/#CCTCA',
-  };
+  //
+  // v0.9.1188: X6464-1970's entry deleted — master 1.59 carries the club-cars
+  // link in the row itself now, so the refLink branch serves it. The map stays
+  // (empty) for the next oddball Brad names.
+  var _ODDBALL_REFS = {};
   var _odd = _ODDBALL_REFS[String(item.itemNum || '').trim().toUpperCase()];
   if (_odd) return _odd;
   // Deep-link COTT references straight to the item anchor (cott-anchors.js).
@@ -969,43 +971,41 @@ function _itemExternalLinkURL(item) {
         ? window.cottAnchorUrl(_sib.refLink, item.itemNum) : _sib.refLink;
     }
   } catch (eSib) {}
-  if (item._tab && String(item._tab).toLowerCase().indexOf('mth') === 0
-      && item.itemNum) {
-    return 'https://www.mthtrains.com/products/' + encodeURIComponent(item.itemNum);
-  }
-  // v0.9.1183 (Brad: "we have a bunch of (std) standard guage trains where the
-  // link goes to lionel, but it should be going to the mth site... these are
-  // the lionel standard guage trains made by MTH").
+  // ── v0.9.1188 — direct link or Google, nothing in between ─────────────────
+  // Brad: "if we dont have the direct link for an item, i don't want lionel.com
+  // search engine. that is when we google it. the prewar will have to be
+  // googled until cott has all their links up."
   //
-  // Lionel Corporation Tinplate: sold under the Lionel name, manufactured and
-  // catalogued by MTH, so the rows sit in a Lionel tab with 2011-era years and
-  // fell into the lionel.com search below — a site that has never heard of an
-  // MTH SKU. The tell is the NUMBER, not the tab: 11-##### is MTH's numbering
-  // for this line, and no Lionel-proper number has that shape. MTH's product
-  // URLs are simply /products/<number> (verified live on 11-30127), so these
-  // rows get a DIRECT product link — better than the search anyone else gets.
+  // This retires v1187's lionel.com/search tail AND the two rungs that BUILT
+  // mthtrains product URLs from the bare number (the v1183 tinplate rung and
+  // the MTH-tab rung). Those guesses were checked against MTH's own site index
+  // on 2026-07-30: master 1.59 now carries the real link for every MTH item
+  // that has a page — including 137 the guess would have 404'd on, because the
+  // live page carries a -0/-1 suffix the master number drops. After 1.59, the
+  // only rows these rungs could still fire on are the ones PROVEN to have no
+  // page, so a constructed URL here is a dead link and nothing else.
   //
-  // Anchored pattern, three digits minimum: "11-" alone or a stray prefix must
-  // never match. A real refLink or a sibling's still wins above, as everywhere.
-  if (item.itemNum && /^11-\d{3,}$/.test(String(item.itemNum).trim())) {
-    return 'https://www.mthtrains.com/products/' + encodeURIComponent(String(item.itemNum).trim());
-  }
-  if (item._tab && String(item._tab).toLowerCase().indexOf('lionel') === 0
-      && item.itemNum) {
-    // v0.9.1187 (Brad: "all lionel or mth items should go their website link
-    // not a google search"). This branch has been through three regimes in one
-    // day: lionel.com behind a year>=2011 gate with a period-worded Google
-    // fallback (v1175), the 6- prefix joining the gate (v1185), and now the
-    // decision that retires the whole ladder: a Lionel row without a curated
-    // reference goes to lionel.com, full stop. The 1-xxxx Lionel Classics were
-    // the case that settled it — no COTT page, no lionel.com product page, and
-    // Brad chose the maker's own search over Google's guesses anyway.
-    //
-    // Item 8's "search the era with it" rule (v1175) is SUPERSEDED by this,
-    // not forgotten: it governed the Google query, and there is no Google
-    // query here any more. The 11- tinplate branch above still wins first —
-    // those are MTH's numbers wearing Lionel's name.
-    return 'https://www.lionel.com/search?query=' + encodeURIComponent(item.itemNum);
+  // The Google query restores item 8's v1175 form, which Brad specified
+  // ("we need to search the era in this case postwar with it"): a bare
+  // "Lionel 6464-100" search is dominated by modern reissues carrying the
+  // same number, so the era word a person would type goes in. MTH rows say
+  // MTH; 11-##### is MTH's numbering wearing Lionel's name (v1183), so it
+  // says MTH whichever tab it sits in.
+  if (item.itemNum) {
+    var _tabL = String(item._tab || '').toLowerCase();
+    var _numT = String(item.itemNum).trim();
+    var _isMth = _tabL.indexOf('mth') === 0 || /^11-\d{3,}$/.test(_numT);
+    if (_isMth) {
+      var _gqM = 'MTH ' + _numT + (item.roadName ? ' ' + item.roadName : '');
+      return 'https://www.google.com/search?q=' + encodeURIComponent(_gqM);
+    }
+    if (_tabL.indexOf('lionel') === 0) {
+      var _per2 = (typeof _itemEraPeriod === 'function') ? _itemEraPeriod(item) : null;
+      var _perWord2 = ({ prewar: 'prewar', postwar: 'postwar', modern: 'modern' })[_per2] || '';
+      var _gq2 = 'Lionel ' + _numT + (item.roadName ? ' ' + item.roadName : '')
+        + (_perWord2 ? ' ' + _perWord2 : '');
+      return 'https://www.google.com/search?q=' + encodeURIComponent(_gq2);
+    }
   }
   return '';
 }
