@@ -5831,6 +5831,62 @@ META_WRITES.length = 0; TOASTS.length = 0;
        el3.innerHTML.indexOf('67 photos') > el3.innerHTML.indexOf('Photo Inbox'));
   })();
 
+  section('153. Standard Gauge tinplate links to MTH, not Lionel (v0.9.1183)');
+  // "we have a bunch of (std) standard guage trains where the link goes to
+  // lionel, but it should be going to the mth site like this one
+  // https://www.mthtrains.com/products/11-30127  these are the lionel standard
+  // guage trains made by MTH."
+  //
+  // Same harness as §145: the REAL _itemExternalLinkURL, sliced and run.
+  (function () {
+    const pM = require('path');
+    const brw = fs.readFileSync(pM.join(__dirname, '..', 'app', 'browse.js'), 'utf8');
+    const a = brw.indexOf('function _itemExternalLinkURL(item)');
+    const b = brw.indexOf('function _itemExternalLinkHTML(item)');
+    if (a < 0 || b < 0) throw new Error('§153 marker moved');
+    const win = { _mbAllGet: () => null, cottAnchorUrl: (u, num) => u + '#' + num };
+    const url = new Function('window', 'state', 'ERA_TABS', '_itemEraPeriod',
+      brw.slice(a, b).replace(/if \(typeof window !== 'undefined'\) window\.[\w.]+ = \w+;/g, '')
+      + 'return _itemExternalLinkURL;')(win, {}, {},
+      (it) => ({ pw: 'postwar', prewar: 'prewar', mpc: 'modern' })[it._era] || null);
+
+    // The rows from Brad's screenshot: Lionel tab, year 2011, MTH number.
+    const STD = { itemNum: '11-30127', _tab: 'Lionel MPC-Modern', _era: 'mpc',
+                  yearProd: '2011', description: 'No. 516 Blue Coal Hopper Car (std)' };
+    ok('a Lionel-tab tinplate row goes STRAIGHT to the MTH product page',
+       url(STD) === 'https://www.mthtrains.com/products/11-30127', url(STD));
+    ok('...no longer to the lionel.com search it used to hit',
+       url(STD).indexOf('lionel.com') < 0);
+    ok('every number from the screenshot resolves the same way',
+       ['11-30026', '11-30048', '11-30080', '11-30142'].every(function (n) {
+         return url({ itemNum: n, _tab: 'Lionel MPC-Modern', _era: 'mpc', yearProd: '2011' })
+             === 'https://www.mthtrains.com/products/' + n;
+       }));
+
+    // A curated reference still outranks the shortcut — refLink wins everywhere.
+    ok('a row with its own refLink keeps it, even with an MTH number',
+       url(Object.assign({}, STD, { refLink: 'https://example.org/tinplate-guide' }))
+         .indexOf('example.org') >= 0);
+
+    // The identity fence: the NUMBER decides, and only the exact shape passes.
+    ok('a modern Lionel number still goes to lionel.com — nothing else moved',
+       url({ itemNum: '6-36814', _tab: 'Lionel MPC-Modern', _era: 'mpc', yearProd: '2011' })
+         === 'https://www.lionel.com/search?query=' + encodeURIComponent('6-36814'));
+    ok('a postwar number still gets the period-worded Google fallback',
+       /postwar/.test(decodeURIComponent(url({ itemNum: '2333', _tab: 'Lionel PW - Items',
+         _era: 'pw', roadName: 'Santa Fe' }))));
+    ok('a bare "11-" or a short stub never matches the pattern',
+       url({ itemNum: '11-', _tab: 'Lionel MPC-Modern', _era: 'mpc', yearProd: '2011' })
+         .indexOf('mthtrains') < 0 &&
+       url({ itemNum: '11-30', _tab: 'Lionel MPC-Modern', _era: 'mpc', yearProd: '2011' })
+         .indexOf('mthtrains') < 0);
+
+    // The MTH tab's own branch (pre-existing) must survive untouched.
+    ok('an MTH-tab row still links to MTH, as it always did',
+       url({ itemNum: '20-3151-1', _tab: 'MTH Premier', _era: 'mth' })
+         === 'https://www.mthtrains.com/products/' + encodeURIComponent('20-3151-1'));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

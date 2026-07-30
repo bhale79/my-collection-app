@@ -957,6 +957,23 @@ function _itemExternalLinkURL(item) {
       && item.itemNum) {
     return 'https://www.mthtrains.com/products/' + encodeURIComponent(item.itemNum);
   }
+  // v0.9.1183 (Brad: "we have a bunch of (std) standard guage trains where the
+  // link goes to lionel, but it should be going to the mth site... these are
+  // the lionel standard guage trains made by MTH").
+  //
+  // Lionel Corporation Tinplate: sold under the Lionel name, manufactured and
+  // catalogued by MTH, so the rows sit in a Lionel tab with 2011-era years and
+  // fell into the lionel.com search below — a site that has never heard of an
+  // MTH SKU. The tell is the NUMBER, not the tab: 11-##### is MTH's numbering
+  // for this line, and no Lionel-proper number has that shape. MTH's product
+  // URLs are simply /products/<number> (verified live on 11-30127), so these
+  // rows get a DIRECT product link — better than the search anyone else gets.
+  //
+  // Anchored pattern, three digits minimum: "11-" alone or a stray prefix must
+  // never match. A real refLink or a sibling's still wins above, as everywhere.
+  if (item.itemNum && /^11-\d{3,}$/.test(String(item.itemNum).trim())) {
+    return 'https://www.mthtrains.com/products/' + encodeURIComponent(String(item.itemNum).trim());
+  }
   if (item._tab && String(item._tab).toLowerCase().indexOf('lionel') === 0
       && item.itemNum) {
     var _lyMatch2 = String(item.yearProd || '').match(/(\d{4})/);
