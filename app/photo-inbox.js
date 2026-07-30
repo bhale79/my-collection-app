@@ -245,6 +245,117 @@
   function _pinReadFile(g) { return _pinReadFiles(g)[0] || (g && g.files && g.files[0]) || null; }
   function _pinReadFid(g) { var f = _pinReadFile(g); return f ? f.id : ''; }
 
+  // ══ v0.9.1176 — a stack of pieces is not "one item" ══════════════════════
+  // Brad: "if we group an item by a set, don't list an item in the set as what
+  // it is, if all the items are id, like this one, we should be able to
+  // suggest a set."
+  //
+  // Two places let one member speak for the whole stack. The inbox tile put
+  // the first readable photo's number in its caption, so a seven-photo
+  // Burlington set was labelled 2328 — the engine standing in for the set it
+  // came out of. And the review card header said "7 photos and one item" no
+  // matter what, which is exactly backwards for a set.
+  //
+  // Neither is a cosmetic complaint. A stack labelled 2328 invites one tap on
+  // Add, and one tap on Add files a single engine when six other pieces are
+  // sitting in the same stack waiting to be entered.
+
+  // Every distinct number known across a group's member photos, in the order
+  // they were shot. Members only — the "everything together" shot has three
+  // numbers in it and is never read (see _pinReadFiles).
+  //
+  // This asks what the stack KNOWS, not what the reader would be sent, which is
+  // why it walks _pinReadFiles rather than _pinFilesToRead: a photo anywhere in
+  // the stack can carry its own read from a re-scan or a paid read, and one of
+  // those is still a number this stack knows about.
+  //
+  // confirmedOnly drops hedged reads. Used where a wrong answer would cost
+  // something — see _pinIsMultiPiece.
+  function _pinGroupNums(g, confirmedOnly) {
+    var out = [];
+    try {
+      var ids = _ids();
+      _pinReadFiles(g).forEach(function (f) {
+        var s = f && ids[f.id];
+        if (!s || !s.num) return;
+        if (confirmedOnly && s.guess) return;
+        var n = String(s.num).trim();
+        if (n && out.indexOf(n) < 0) out.push(n);
+      });
+    } catch (e) {}
+    return out;
+  }
+
+  // Is this stack several PIECES, or several angles of one thing?
+  //
+  // Two independent signals and either is enough. The kind Brad tagged it with
+  // is the reliable one — Set, AA, AB, ABA and Engine + tender all mean more
+  // than one inventory row. The second catches the untagged stack: two member
+  // photos that read DIFFERENT numbers cannot both be the same item.
+  //
+  // "Item + its box" is deliberately excluded from the second signal. Those
+  // two photos are one item by definition, so a box that reads its own code is
+  // a misread, not a second piece, and calling it one would be a new wrong
+  // answer in place of the old one.
+  //
+  // The second signal counts CONFIRMED reads only. Two hedged reads that
+  // disagree are far more likely to be one item read badly twice than two
+  // items, and this app has spent too many versions removing exactly that kind
+  // of confident guess to add a fresh one here.
+  function _pinIsMultiPiece(g) {
+    if (!g || !g.files || g.files.length < 2) return false;
+    var kind = (g.files[0] && g.files[0]._meta && g.files[0]._meta.kind) || g.kind || 'single';
+    if (_PIN_MULTI_KIND[kind]) return true;
+    if (kind === 'box') return false;
+    return _pinGroupNums(g, true).length > 1;
+  }
+
+  // Ask the Sets catalog whether these numbers add up to a known set.
+  //
+  // Display only. Nothing here changes what gets saved or which wizard runs,
+  // so a wrong guess costs a glance and not a bad row — which is why it is
+  // allowed to guess at all.
+  //
+  // One shared number is a coincidence: a 6464 boxcar appears in dozens of
+  // sets. Two is a claim worth making, and the line says how many matched so
+  // the number can be judged rather than taken on trust.
+  function _pinSetGuess(nums) {
+    try {
+      if (!nums || nums.length < 2) return null;
+      if (typeof suggestSets !== 'function') return null;
+      var sd = (window.state || {}).setData;
+      if (!Array.isArray(sd) || !sd.length) return null;
+      var hits = suggestSets(nums);
+      var best = hits && hits[0];
+      if (!best || !best.setNum || (best.primaryMatches || 0) < 2) return null;
+      return {
+        setNum:  String(best.setNum),
+        setName: String(best.setName || ''),
+        year:    String(best.year || ''),
+        matched: best.primaryMatches || 0,
+        of:      nums.length,
+        pieces:  (best.items || []).length,
+      };
+    } catch (e) { return null; }
+  }
+
+  // What the stack should call itself, given that it is several pieces. Either
+  // the set it appears to be, or an honest count of how far the reading got.
+  function _pinGroupCaption(g) {
+    var nums = _pinGroupNums(g);
+    var guess = _pinSetGuess(nums);
+    if (guess) return 'set ' + guess.setNum;
+    var total = _pinReadFiles(g).length;
+    return nums.length + ' of ' + total + ' read';
+  }
+
+  if (typeof window !== 'undefined') {
+    window._pinGroupNums    = _pinGroupNums;
+    window._pinIsMultiPiece = _pinIsMultiPiece;
+    window._pinSetGuess     = _pinSetGuess;
+    window._pinGroupCaption = _pinGroupCaption;
+  }
+
   function _pinGroupPasses(g) {
     var f = _pinReadFile(g) || g.files[0], m = (f && f._meta) || {};
     if (_pinFilter.status && _pinStatusOf(f) !== _pinFilter.status) return false;
@@ -910,7 +1021,10 @@
       var isSel = !!_sel[g.key];
       // v0.9.1050: a stack says WHAT it is, not just how many photos.
       var _gk = (g.files[0] && g.files[0]._meta && g.files[0]._meta.kind) || 'single';
-      var _gkTxt = (_gk && _gk !== 'single') ? _pinKindLabel(_gk) : (g.files.length + ' photos · 1 item');
+      // v0.9.1176: an untagged stack whose photos read different numbers is not
+      // "1 item" either, whatever the kind field says.
+      var _gkTxt = (_gk && _gk !== 'single') ? _pinKindLabel(_gk)
+        : (g.files.length + ' photos · ' + (_pinIsMultiPiece(g) ? 'several items' : '1 item'));
       var chip = g.files.length > 1 ? '<div style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.66);color:#fff;font-size:0.62rem;font-weight:700;padding:1px 7px;border-radius:9px">' + rrEsc(_gkTxt) + (_gk !== 'single' ? ' · ' + g.files.length : '') + '</div>' : '';
       var when = '';
       try { when = new Date(g.files[0].createdTime).toLocaleDateString(); } catch (e) {}
@@ -920,7 +1034,14 @@
       if (sug && !sug.num && Array.isArray(sug.alts) && sug.alts.length) {
         var _a0 = String(sug.alts[0]); var _mm = _a0.match(/[0-9][0-9A-Za-z.\-\/]*/); _altN = _mm ? _mm[0] : _a0.slice(0, 12);
       }
-      if (sug && sug.num && sug.guess) when = '<span style="color:#ffb454;font-weight:700">' + String(sug.num).replace(/</g, '&lt;') + ' · best guess</span> · ' + when;   // v0.9.898: hedged read, kept but marked
+      // v0.9.1176 (Brad): on a stack of several pieces the caption used to show
+      // the FIRST readable photo's number, which reads as "this stack is a
+      // 2328" — one member wearing the whole set's name. Say what the stack is
+      // instead: the set it looks like, or how far the reading has got.
+      if (_pinIsMultiPiece(g)) {
+        when = '<span style="color:var(--info);font-weight:700">' + rrEsc(_pinGroupCaption(g)) + '</span> · ' + when;
+      }
+      else if (sug && sug.num && sug.guess) when = '<span style="color:#ffb454;font-weight:700">' + String(sug.num).replace(/</g, '&lt;') + ' · best guess</span> · ' + when;   // v0.9.898: hedged read, kept but marked
       else if (sug && sug.num) when = '<span style="color:#7ec3ef;font-weight:700">' + String(sug.num).replace(/</g, '&lt;') + '?</span> · ' + when;
       else if (_altN) when = '<span style="color:#ffb454;font-weight:700">' + _altN.replace(/</g, '&lt;') + ' · best guess</span> · ' + when;   // v0.9.902
       else if (sug && sug.tried) when = '<span style="color:#999">no read</span> · ' + when;
@@ -1805,6 +1926,24 @@
       + (i + 1) + ' of ' + _pinRvOrder().length + '</span>';
   }
 
+  // v0.9.1176: the header used to say "N photos · one item" for every card ever
+  // opened, including a seven-photo set. When the stack is several pieces it
+  // says so — and when the Sets catalog recognises the numbers, it says which
+  // set, which is the answer Brad actually wanted from the card.
+  function _pinRvTitle(n) {
+    var base = n + ' photo' + (n > 1 ? 's' : '');
+    var g = (_rvGroups && _rvGroups.length === 1) ? _rvGroups[0] : null;
+    if (!g) return base;                       // multi-select card: no single identity
+    if (!_pinIsMultiPiece(g)) return base + ' · one item';
+    var nums = _pinGroupNums(g);
+    var guess = _pinSetGuess(nums);
+    if (guess) return base + ' · ' + rrEsc('set ' + guess.setNum);
+    var kind = (g.files[0] && g.files[0]._meta && g.files[0]._meta.kind) || g.kind || 'single';
+    if (kind !== 'single') return base + ' · ' + rrEsc(_pinKindLabel(kind));
+    return base + ' · ' + nums.length + ' items';
+  }
+  if (typeof window !== 'undefined') window._pinRvTitle = _pinRvTitle;
+
   window._pinReviewStep = function (delta) {
     var i = _pinRvIndex();
     if (i < 0) return;
@@ -1923,8 +2062,32 @@
         if (nS && _setNums.indexOf(nS) < 0) _setNums.push(nS);
       });
     } catch (eSN) {}
+    // v0.9.1176 (Brad: "if all the items are id \u2026 we should be able to suggest
+    // a set"). The numbers were already being collected for the button; the
+    // Sets catalog can be asked what they add up to, and if it recognises them
+    // the card names the set instead of just counting the reads.
+    //
+    // The line says how many of the read numbers matched, because "this looks
+    // like set X" with no evidence behind it is the kind of confident wrong
+    // answer this app has spent a lot of versions removing.
+    var _setGuess = null;
+    try { _setGuess = _pinSetGuess(_setNums); } catch (eSG) {}
+    var _setLine = _setGuess
+      ? '<div style="border:1.5px solid var(--forsale);background:var(--surface2);border-radius:10px;padding:0.6rem 0.75rem;margin-bottom:0.5rem;font-size:0.84rem;color:var(--text);line-height:1.45">'
+        + 'This looks like <b>set ' + rrEsc(_setGuess.setNum) + '</b>'
+        + (_setGuess.setName ? ' \u2014 ' + rrEsc(_setGuess.setName) : '')
+        + (_setGuess.year ? ' (' + rrEsc(_setGuess.year) + ')' : '')
+        + '<div style="font-size:0.76rem;color:var(--text-dim);margin-top:0.25rem">'
+        + _setGuess.matched + ' of the ' + _setGuess.of + ' number' + (_setGuess.of > 1 ? 's' : '') + ' read '
+        + (_setGuess.matched === 1 ? 'is' : 'are') + ' in that set'
+        + (_setGuess.pieces ? ', which has ' + _setGuess.pieces + ' pieces' : '') + '.</div>'
+        + '</div>'
+      : '';
     var _setBtn = (_setNums.length >= 2)
-      ? '<button onclick="_pinAddSetFromGroup()" style="width:100%;padding:0.72rem;border-radius:10px;border:2px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);font-weight:700;font-size:0.93rem;cursor:pointer;margin-bottom:0.5rem">\ud83d\ude82 Add the whole set \u2014 ' + _setNums.length + ' items read</button>'
+      ? _setLine
+        + '<button onclick="_pinAddSetFromGroup()" style="width:100%;padding:0.72rem;border-radius:10px;border:2px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);font-weight:700;font-size:0.93rem;cursor:pointer;margin-bottom:0.5rem">\ud83d\ude82 '
+        + (_setGuess ? 'Add set ' + rrEsc(_setGuess.setNum) : 'Add the whole set')
+        + ' \u2014 ' + _setNums.length + ' items read</button>'
       : '';
     var _btnArea =
       _guessChip +
@@ -2046,7 +2209,7 @@
       '<div class="rr-card"' + (_wide ? ' style="max-width:820px"' : '') + '>' +
         '<div id="pin-rv-nav" style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem">' +
           _pinRvNavHtml('prev') +
-          '<div style="flex:1;min-width:0;font-family:var(--font-head);font-weight:700;font-size:1rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + n + ' photo' + (n > 1 ? 's' : '') + ' · one item</div>' +
+          '<div style="flex:1;min-width:0;font-family:var(--font-head);font-weight:700;font-size:1rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _pinRvTitle(n) + '</div>' +
           _pinRvPosHtml() +
           _pinRvNavHtml('next') +
           '<button onclick="_pinCloseReview()" style="background:none;border:none;color:var(--text-dim);font-size:1.35rem;line-height:1;cursor:pointer;padding:0.1rem 0.3rem;margin-left:0.25rem">✕</button>' +

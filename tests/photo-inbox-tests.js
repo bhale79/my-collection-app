@@ -104,6 +104,7 @@ const HOOK = '\n;window.__T = { get groups(){return _groups;}, set groups(v){_gr
      + ' get sessionEra(){return _sessionEra;}, get oneShot(){return _pinOneShot;},'
      + ' set oneShot(v){_pinOneShot=v;}, get tagEra(){return _tagEra;}, set tagEra(v){_tagEra=v;},'
      + ' get rvKey(){return _rvKey;}, set rvKey(v){_rvKey=v;},'
+     + ' get rvGroups(){return _rvGroups;}, set rvGroups(v){_rvGroups=v;},'
      + ' setHome:function(e){_pinSetHomeEra(e);}, renderBar:function(){_pinRenderBar();},'
      + ' renderTagBar:function(){_pinRenderTagBar();}, selInfo:function(){_selInfo();},'
      + ' navHtml:function(d){return _pinRvNavHtml(d);}, posHtml:function(){return _pinRvPosHtml();},'
@@ -5142,6 +5143,145 @@ META_WRITES.length = 0; TOASTS.length = 0;
        })());
     ok('an unknown number falls through to a search rather than throwing',
        /google\.com\/search/.test(url({ itemNum:'000', _era:'pw', _tab:'Lionel PW - Items' })));
+  })();
+
+  section('146. A stack of pieces is not "one item" (v0.9.1176)');
+  // "if we group an item by a set, don't list an item in the set as what it is,
+  // if all the items are id, like this one, we should be able to suggest a set."
+  //
+  // The tile put the first readable photo's number in its caption, so a
+  // seven-photo Burlington stack was labelled 2328 — the engine wearing the
+  // set's name. The card header said "7 photos · one item" regardless.
+  (function () {
+    const pX = require('path');
+    // The REAL suggestSets, sliced out of app-data.js with the two real helpers
+    // it leans on. A stub here would be a second implementation of the matcher,
+    // which is exactly the mistake that cost four sections earlier tonight.
+    const dat = fs.readFileSync(pX.join(__dirname, '..', 'app', 'app-data.js'), 'utf8');
+    const ap  = fs.readFileSync(pX.join(__dirname, '..', 'app', 'app.js'), 'utf8');
+    function slice(src, start, end, tag) {
+      const a = src.indexOf(start), b = src.indexOf(end, a);
+      if (a < 0 || b < 0) throw new Error('§146 marker moved: ' + tag);
+      return src.slice(a, b);
+    }
+    const SS = slice(dat, 'function suggestSets(enteredItems)', '\nasync function loadPersonalData', 'suggestSets');
+    const NI = slice(ap, 'function normalizeItemNum(n)', '\n// Strip powered', 'normalizeItemNum');
+    const BI = slice(ap, 'function baseItemNum(n)', '\n// Bug 14', 'baseItemNum');
+    const realSuggest = new Function('state', NI + '\n' + BI + '\n' + SS + '\nreturn suggestSets;');
+
+    // A real Sets-catalog row shape (parseSetRows output), one Berkshire freight
+    // set: engine, tender and four cars.
+    const SETS = [{
+      setNum: '1479WS', setName: 'Berkshire Freight', year: '1952', gauge: 'O',
+      items: ['736', '2046W', '6462', '6465', '6357', '3472'], alts: [], notes: '',
+    }, {
+      setNum: '2201WS', setName: 'Another Freight', year: '1955', gauge: 'O',
+      items: ['682', '2046W-50', '6414'], alts: [], notes: '',
+    }];
+    global.state = global.state || {};
+    global.suggestSets = realSuggest(global.state);
+
+    function seedReads(map) { localStorage.setItem('rr_inbox_ids', JSON.stringify(map)); }
+    function grp(kind, files) {
+      return { key: 'gset', files: files.map(function (f) {
+        return { id: f.id, name: 'INBOX 1 gset ' + f.id + '.jpg', createdTime: '2026-07-26',
+                 _meta: { kind: kind, role: f.role || '' } };
+      }) };
+    }
+
+    // ── the numbers a stack has read ────────────────────────────────────────
+    const G = grp('set', [{ id: 's1' }, { id: 's2' }, { id: 's3' }, { id: 's4', role: 'together' }]);
+    seedReads({ s1: { num: '736' }, s2: { num: '6462' }, s3: { num: '6465' },
+                s4: { num: '2328' } });
+    const nums = window._pinGroupNums(G);
+    ok('a set group reports every member number it has read',
+       nums.length === 3 && nums.indexOf('736') === 0 && nums.indexOf('6465') === 2,
+       JSON.stringify(nums));
+    ok('...and never the "everything together" shot, which has several numbers in it',
+       nums.indexOf('2328') < 0, JSON.stringify(nums));
+
+    // ── which stacks are several pieces ─────────────────────────────────────
+    ok('a stack tagged Set is several pieces', window._pinIsMultiPiece(G) === true);
+    ok('a single photo is not', window._pinIsMultiPiece(
+       { key: 'x', files: [{ id: 's1', _meta: { kind: 'single' } }] }) === false);
+    seedReads({ b1: { num: '6464-100' }, b2: { num: '6464-125' } });
+    ok('"item + its box" stays ONE item even when the two photos read differently',
+       window._pinIsMultiPiece(grp('box', [{ id: 'b1' }, { id: 'b2' }])) === false);
+    // The untagged stack: two photos that CONFIRM different numbers cannot be
+    // one thing. Two hedged reads that disagree are one item read badly twice.
+    const U = grp('single', [{ id: 'u1' }, { id: 'u2' }]);
+    seedReads({ u1: { num: '736' }, u2: { num: '6462' } });
+    ok('an untagged stack whose photos confirm different numbers is several pieces',
+       window._pinIsMultiPiece(U) === true);
+    seedReads({ u1: { num: '736', guess: 1 }, u2: { num: '6462', guess: 1 } });
+    ok('...but two BEST GUESSES that disagree are one item read badly, not two items',
+       window._pinIsMultiPiece(U) === false);
+    seedReads({ u1: { num: '736' } });
+    ok('...and an untagged stack with one number is still one item',
+       window._pinIsMultiPiece(U) === false);
+
+    // ── the set suggestion itself ───────────────────────────────────────────
+    global.state.setData = SETS;
+    ok('three numbers out of one set name that set',
+       (window._pinSetGuess(['736', '6462', '6465']) || {}).setNum === '1479WS');
+    ok('...and it says how many of them matched, so the claim can be judged',
+       (function () {
+         const g2 = window._pinSetGuess(['736', '6462', '6465']);
+         return g2 && g2.matched === 3 && g2.of === 3 && g2.pieces === 6;
+       })());
+    ok('ONE shared number is a coincidence, not a set — a 6464 is in dozens',
+       window._pinSetGuess(['6462', '9999']) === null);
+    ok('a single number never suggests anything',
+       window._pinSetGuess(['736']) === null);
+    ok('with no Sets catalog loaded it stays quiet rather than guessing',
+       (function () {
+         global.state.setData = [];
+         const q = window._pinSetGuess(['736', '6462', '6465']);
+         global.state.setData = SETS;
+         return q === null;
+       })());
+
+    // ── what the stack calls itself ─────────────────────────────────────────
+    seedReads({ s1: { num: '736' }, s2: { num: '6462' }, s3: { num: '6465' },
+                s4: { num: '2328' } });
+    ok('a recognised stack captions itself with the SET number, not a member',
+       window._pinGroupCaption(G) === 'set 1479WS', window._pinGroupCaption(G));
+    seedReads({ s1: { num: '736' }, s2: { num: '' }, s3: { num: '' } });
+    ok('an unrecognised stack says how far the reading got instead',
+       window._pinGroupCaption(G) === '1 of 3 read', window._pinGroupCaption(G));
+
+    // ── the card header ─────────────────────────────────────────────────────
+    seedReads({ s1: { num: '736' }, s2: { num: '6462' }, s3: { num: '6465' } });
+    T.rvGroups = [G];
+    ok('the header of a recognised set names the set',
+       window._pinRvTitle(4) === '4 photos · set 1479WS', window._pinRvTitle(4));
+    ok('...and never says "one item" about a set',
+       window._pinRvTitle(4).indexOf('one item') < 0);
+    seedReads({ s1: { num: '736' }, s2: { num: '' }, s3: { num: '' } });
+    ok('an unrecognised SET stack still refuses to claim one item, and uses its kind',
+       window._pinRvTitle(4) === '4 photos · Set', window._pinRvTitle(4));
+    T.rvGroups = [{ key: 'one', files: [{ id: 's1', _meta: { kind: 'single' } },
+                                        { id: 's2', _meta: { kind: 'single' } }] }];
+    ok('a genuine one-item stack is still called one item',
+       window._pinRvTitle(2) === '2 photos · one item', window._pinRvTitle(2));
+
+    // ── the inbox tile, drawn for real ──────────────────────────────────────
+    seedReads({ s1: { num: '736' }, s2: { num: '6462' }, s3: { num: '6465' },
+                s4: { num: '2328' } });
+    T.groups = [G];
+    window._pinClearFilters();                       // the public way to force a redraw
+    const gridHtml = document.getElementById('pin-grid').innerHTML;
+    ok('the tile no longer wears one member\'s number as the stack\'s identity',
+       gridHtml.indexOf('736?') < 0 && gridHtml.indexOf('736 · best guess') < 0, gridHtml.slice(0, 400));
+    ok('...it wears the set number instead',
+       gridHtml.indexOf('set 1479WS') >= 0, gridHtml.slice(0, 400));
+    ok('...and the chip stops calling several pieces "1 item"',
+       gridHtml.indexOf('· 1 item') < 0, gridHtml.slice(0, 400));
+
+    T.groups = [];
+    T.rvGroups = [];
+    delete global.suggestSets;
+    delete global.state.setData;
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
