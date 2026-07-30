@@ -5684,6 +5684,96 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /vr\._ref = _vrRef \|\| \(lk\.master && lk\.master\.refLink\)/.test(code));
   })();
 
+  section('151. How best to use these features (v0.9.1181)');
+  // "a big button underneath the 2x2 grid buttons on the right. This would say
+  // 'How best to use these features.' The[n] we need to give what each button
+  // does and what it costs. Also would give it the steps to follow."
+  //
+  // The copy lives in its own file, help-photo-id.js — several screens of prose
+  // do not belong in the 7,000-line file that does the reading. These tests run
+  // the REAL copy builder and pin the promises the copy must keep.
+  (function () {
+    const pH = require('path');
+    const helpSrc = fs.readFileSync(pH.join(__dirname, '..', 'app', 'help-photo-id.js'), 'utf8');
+    const cfgV = (fs.readFileSync(pH.join(__dirname, '..', 'app', 'config.js'), 'utf8')
+                    .match(/APP_VERSION = 'v0\.9\.(\d+)'/) || [])[1];
+    window.APP_VERSION = 'v0.9.' + cfgV;
+    eval(helpSrc);                                   // the real file, not a copy
+    ok('the copy builder exists after loading the real file',
+       typeof window.rrPhotoIdHelpHtml === 'function');
+    const html = window.rrPhotoIdHelpHtml();
+    ok('it produces a real panel, not a stub', html.length > 4000);
+
+    // ── the promises the wording must keep ──────────────────────────────────
+    ok('it NEVER says "AI" — house rule, checked as a word not a substring',
+       !/\bAI\b/.test(html.replace(/<[^>]*>/g, ' ')));
+    // Strip the markup first — width:100% in a style attribute is CSS, not a
+    // promise. The rule is about percentages a USER can read.
+    ok('it prints NO accuracy percentage — "we don\'t guarentee it" (Brad)',
+       !/\d+\s*%/.test(html.replace(/<[^>]*>/g, ' ')));
+    ok('it no longer promises "Nothing to buy" — purchased tokens are planned',
+       html.indexOf('Nothing to buy') < 0);
+    ok('exactly ONE thing costs a token, said twice: the step and the table row',
+       (html.match(/1 token/g) || []).length === 2, (html.match(/1 token/g) || []).length);
+    ok('every free route is marked Free — first read, re-scan, research, Google, table',
+       (html.match(/>Free</g) || []).length >= 6);
+    ok('the crop section made it in, with both halves of the argument',
+       /pays off twice/.test(html) && /reads better/i.test(html) && /looks better/i.test(html));
+    ok('the copy-paste return trip is spelled out',
+       /Ctrl\+A/.test(html) && /Ctrl\+C/.test(html) && /Ctrl\+V/.test(html));
+
+    // ── the six example photos, all Brad's own ──────────────────────────────
+    ['item', 'box', 'mkt', 'chessie', 'unmarked', 'strongman'].forEach(function (n) {
+      ok('example photo "' + n + '" is referenced', html.indexOf('help-img/' + n + '.jpg') >= 0);
+    });
+    ok('...and the two borrowed dealer shots are gone',
+       html.indexOf('roadnum') < 0 && html.indexOf('martian') < 0);
+    ok('photos are versioned with the app, so a swapped example never serves stale',
+       html.indexOf('help-img/item.jpg?v=' + cfgV) >= 0);
+    ok('the copy carries no hardcoded colour — palette vars only',
+       !/#[0-9a-f]{3,8}\b/i.test(html) && !/rgba?\(\s*\d/.test(html) && /var\(--/.test(html));
+
+    // ── the wiring in photo-inbox.js ────────────────────────────────────────
+    const pin = fs.readFileSync(pH.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+    const pinCode = pin.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+    ok('the button sits under the 2x2 grid, right where Brad pointed',
+       /_tokLine\(\) \+[\s\S]{0,700}How best to use these features/.test(pinCode));
+    ok('the sheet opens ABOVE the review card, not behind it',
+       /_PIN_SHEET_OV\.replace\('z-index:10050', 'z-index:10060'\)/.test(pinCode));
+    ok('the arrow keys do not walk the group behind the open help sheet',
+       /getElementById\('pin-help-sheet'\)/.test(pinCode));
+    ok('index.html actually loads the copy, at the SAME ?v as APP_VERSION',
+       new RegExp('help-photo-id\\.js\\?v=' + cfgV).test(
+         fs.readFileSync(pH.join(__dirname, '..', 'app', 'index.html'), 'utf8')));
+
+    // ── first-run behaviour, run for real ───────────────────────────────────
+    // Brad chose: opens itself ONCE, on the very first review card, then only
+    // from the button. "Once" must mean once even if it is closed immediately —
+    // so the flag is set the moment it is SHOWN, not when it is dismissed.
+    localStorage.removeItem('rr_photoid_help_seen');
+    global.rrPhotoIdHelpHtml = window.rrPhotoIdHelpHtml;
+    const bodyBefore = document.body.children.length;
+    window._pinHelpOpen(true);
+    ok('opening the panel marks it seen IMMEDIATELY — once means once',
+       localStorage.getItem('rr_photoid_help_seen') === '1');
+    ok('the sheet actually mounted', document.body.children.length === bodyBefore + 1);
+    const sheet = document.body.children[document.body.children.length - 1];
+    ok('the auto-opened panel closes with "don\'t show this again", not a bare Close',
+       /don/.test(sheet.children[0].innerHTML) && /show this again/.test(sheet.children[0].innerHTML));
+    ok('...and contains the real copy', sheet.children[0].innerHTML.indexOf('pays off twice') > 0);
+    document.body.removeChild(sheet);
+    window._pinHelpOpen();
+    const sheet2 = document.body.children[document.body.children.length - 1];
+    ok('opened from the button, the bottom button is just Close',
+       sheet2.children[0].innerHTML.indexOf('show this again') < 0 &&
+       /Close/.test(sheet2.children[0].innerHTML));
+    document.body.removeChild(sheet2);
+    ok('the auto-open is guarded by the seen flag in the review card',
+       /if \(!_pinHelpSeen\(\)\) setTimeout\(function \(\) \{ window\._pinHelpOpen\(true\); \}/.test(pinCode));
+    localStorage.removeItem('rr_photoid_help_seen');
+    delete global.rrPhotoIdHelpHtml;
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

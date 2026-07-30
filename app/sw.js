@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v1191';
+const CACHE_NAME = 'mca-v1192';
 
 const SHELL_FILES = [
   './index.html',
@@ -70,6 +70,16 @@ const SHELL_FILES = [
   './cott-anchors.js',
   './ai-id.js',
   './photo-inbox.js',
+  // v0.9.1181: the help panel — copy plus its six example photos. Offline, a
+  // help button that opens an empty sheet with broken images teaches the
+  // opposite of what it says.
+  './help-photo-id.js',
+  './help-img/item.jpg',
+  './help-img/box.jpg',
+  './help-img/mkt.jpg',
+  './help-img/chessie.jpg',
+  './help-img/unmarked.jpg',
+  './help-img/strongman.jpg',
   './dispatch-board.js',
   './img/dispatch-board-192.png',
   './img/dispatch-board-512.png',

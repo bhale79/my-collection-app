@@ -2004,7 +2004,7 @@
     // v0.9.1178: the where-from sheet is a sheet too — arrow keys must not walk
     // the group behind it while it is open.
     if (document.getElementById('pin-ctx-sheet') || document.getElementById('pin-wf-sheet')
-        || window._rrCropOpen) return;
+        || document.getElementById('pin-help-sheet') || window._rrCropOpen) return;
     e.preventDefault();
     window._pinReviewStep(e.key === 'ArrowLeft' ? -1 : 1);
   });
@@ -2160,6 +2160,13 @@
                   : 'Read this photo (1 token)') + '</button>' +
           '</div>' +
           _tokLine() +
+          // v0.9.1181 (Brad): "a big button underneath the 2x2 grid buttons on
+          // the right… what each button does and what it costs… the steps to
+          // follow." The copy lives in help-photo-id.js.
+          '<button onclick="_pinHelpOpen()" style="width:100%;margin-top:0.15rem;padding:0.72rem;'
+            + 'border-radius:10px;border:1.5px solid var(--info);background:var(--surface2);'
+            + 'color:var(--info);font-family:var(--font-body);font-weight:700;font-size:0.9rem;'
+            + 'cursor:pointer">How best to use these features</button>' +
         '</div>' +
       '</div>';
 
@@ -2256,6 +2263,11 @@
         (_wide ? _wideBody : _stripHtml + _controlsHtml) +
       '</div>';
     document.body.appendChild(ov);
+    // v0.9.1181: first review card this browser has ever opened — show the help
+    // once, unprompted, because a button nobody taps helps nobody.
+    try {
+      if (!_pinHelpSeen()) setTimeout(function () { window._pinHelpOpen(true); }, 350);
+    } catch (eH) {}
     ov.querySelectorAll('img[data-rvfid]').forEach(function (img) {
       loadDriveThumb(img.getAttribute('data-rvfid'), img, img.parentElement, null, 'hi');
     });
@@ -2822,6 +2834,50 @@
     if (h.road) bits.push(h.road);
     if (h.period) bits.push(h.period);
     return 'https://www.google.com/search?q=' + encodeURIComponent(bits.join(' '));
+  };
+
+  // ══ v0.9.1181 — the help panel ═══════════════════════════════════════════
+  // Brad chose: it opens itself ONCE, on the very first review card a new user
+  // ever sees, and after that only from the button. The flag is set the moment
+  // it is shown rather than when it is dismissed — "once" has to mean once even
+  // if they close it straight away, or it becomes the thing that nags.
+  var HELP_SEEN_KEY = 'rr_photoid_help_seen';
+  function _pinHelpSeen() {
+    try { return localStorage.getItem(HELP_SEEN_KEY) === '1'; } catch (e) { return true; }
+  }
+  function _pinHelpMarkSeen() {
+    try { localStorage.setItem(HELP_SEEN_KEY, '1'); } catch (e) {}
+  }
+  window._pinHelpClose = function () {
+    var ov = document.getElementById('pin-help-sheet');
+    if (ov) ov.remove();
+  };
+  window._pinHelpOpen = function (auto) {
+    if (typeof window.rrPhotoIdHelpHtml !== 'function') return;
+    var old = document.getElementById('pin-help-sheet'); if (old) old.remove();
+    var ov = document.createElement('div');
+    ov.id = 'pin-help-sheet';
+    // z-index above the review card's own overlay, or it opens behind it.
+    ov.style.cssText = _PIN_SHEET_OV.replace('z-index:10050', 'z-index:10060');
+    var card = document.createElement('div');
+    card.style.cssText = _pinSheetCardCss(560, 88);
+    card.innerHTML =
+      '<div style="display:flex;align-items:flex-start;gap:0.5rem;margin-bottom:0.5rem">'
+        + '<div style="flex:1;min-width:0;font-family:var(--font-head);font-size:1.2rem;'
+          + 'font-weight:700;color:var(--text);line-height:1.25">How best to use these features</div>'
+        + '<button onclick="_pinHelpClose()" aria-label="Close" style="background:none;border:none;'
+          + 'color:var(--text-dim);font-size:1.35rem;line-height:1;cursor:pointer;'
+          + 'padding:0.1rem 0.3rem;flex-shrink:0">\u2715</button>'
+      + '</div>'
+      + window.rrPhotoIdHelpHtml()
+      + '<button onclick="_pinHelpClose()" style="width:100%;margin-top:1.1rem;padding:0.75rem;'
+        + 'border-radius:10px;border:none;background:var(--accent);color:var(--on-accent);'
+        + 'font-family:var(--font-body);font-weight:700;font-size:0.95rem;cursor:pointer">'
+        + (auto ? 'Got it \u2014 don\u2019t show this again' : 'Close') + '</button>';
+    ov.appendChild(card);
+    ov.onclick = function (e) { if (e.target === ov) window._pinHelpClose(); };
+    document.body.appendChild(ov);
+    _pinHelpMarkSeen();
   };
 
   window._pinReviewLens = function () {
