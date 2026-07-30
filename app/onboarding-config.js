@@ -100,6 +100,14 @@ const WHAT_I_COLLECT = {
     s:        { id: 's',        label: 'S Gauge',                  default: false },
     g:        { id: 'g',        label: 'G / One Gauge',            default: false },
     standard: { id: 'standard', label: 'Standard / OO / Tinplate', default: false },
+    // v0.9.1160 (Brad approved) — N and Z. The Atlas N and Z tabs have been
+    // loading 17,554 and 42 rows, but with no option here their scale resolved to
+    // null, and the browse filter excludes an unknown scale from every scale chip:
+    // those rows could only ever be found under "Any Scale". Safe to add now that
+    // a new option defaults to ON (v0.9.1159) — before that, adding these would
+    // have HIDDEN all 17,596 from anyone with a saved scale list.
+    n:        { id: 'n',        label: 'N Scale',                  default: false },
+    z:        { id: 'z',        label: 'Z Scale',                  default: false },
   },
 
   // Era key -> scale id. null = mixed scale (Pre-War) -> falls back to
@@ -116,10 +124,11 @@ const WHAT_I_COLLECT = {
     mpc:          'o',
     atlas:        'o',
     atlas_ho:     'ho',
-    // atlas_n / atlas_z are DELIBERATELY absent: N and Z are not options in
-    // SCALES, and naming a scale that has no option would hide those 17,596 rows
-    // completely instead of merely limiting them to "Any Scale". Add them here
-    // ONLY together with SCALES entries. Brad's call.
+    // v0.9.1160: N and Z now exist as SCALES options, so these can finally be
+    // named. Order matters — a value here MUST have a matching SCALES key or the
+    // scale preference hides the era outright. Section 131 asserts exactly that.
+    atlas_n:      'n',
+    atlas_z:      'z',
     pw_ho:        'ho',
     mpc_ho:       'ho',
     mod_ho:       'ho',

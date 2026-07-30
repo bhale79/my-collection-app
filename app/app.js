@@ -1348,6 +1348,12 @@ function _scaleOfItem(item) {
   if (g === 'ho scale' || g === 'ho') return 'ho';
   if (g === 's gauge' || g === 's' || g === 's scale') return 's';
   if (g === 'g scale' || g === 'g' || g === 'g/one gauge' || g === 'g / one gauge') return 'g';
+  // v0.9.1160: N and Z. The live Atlas N/Z rows write a bare 'N' / 'Z' in the
+  // Gauge column (17,554 and 42 of them), with one stray 'N Scale'. Those rows
+  // now get their scale from the era anyway, so this is for rows in a MIXED era
+  // that happen to name N or Z themselves.
+  if (g === 'n scale' || g === 'n' || g === 'n gauge') return 'n';
+  if (g === 'z scale' || g === 'z' || g === 'z gauge') return 'z';
   // O variants: 'o gauge', 'o', 'o27', 'o72'
   if (g.charAt(0) === 'o') return 'o';
   return null;

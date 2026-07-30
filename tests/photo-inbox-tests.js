@@ -3943,11 +3943,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('every scale an era claims is a real, selectable scale option',
        badScale.length === 0,
        badScale.map(k => k + '->' + WIC.ERA_TO_SCALE[k]).join(','));
-    const SCALE_PENDING = ['atlas_n', 'atlas_z'];   // need N/Z options first — Brad's call
     const noScale = eraIds.filter(k => !(k in WIC.ERA_TO_SCALE));
-    ok('every era has a scale except the two waiting on new scale options',
-       noScale.length === SCALE_PENDING.length && noScale.every(k => SCALE_PENDING.indexOf(k) >= 0),
-       'no scale: ' + noScale.join(','));
+    ok('EVERY era now has a scale — no era is missing from the table',
+       noScale.length === 0, 'no scale: ' + noScale.join(','));
     ok('Pre-War is explicitly null (mixed scale), not merely absent',
        ('prewar' in WIC.ERA_TO_SCALE) && WIC.ERA_TO_SCALE.prewar === null);
 
@@ -3960,6 +3958,46 @@ META_WRITES.length = 0; TOASTS.length = 0;
        WIC.PREF_BASELINE.scales.every(s => !!WIC.SCALES[s]));
     ok('the new makers carry no dead colour literal (nothing reads that field)',
        NEW_M.every(m => !('color' in WIC.MANUFACTURERS[m])));
+
+    // ── N and Z scale (v0.9.1160, Brad approved) ──────────────────────────
+    // 17,554 Atlas N + 42 Atlas Z rows had no scale option, so they were
+    // reachable only under "Any Scale". This could ONLY be added safely after
+    // v0.9.1159 made a new option default to on — before that it would have
+    // hidden all 17,596 from anyone holding a saved scale list.
+    ok('N and Z are selectable scales with real labels',
+       !!WIC.SCALES.n && !!WIC.SCALES.z &&
+       WIC.SCALES.n.label === 'N Scale' && WIC.SCALES.z.label === 'Z Scale');
+    ok('…and the Atlas N / Z eras now claim them',
+       WIC.ERA_TO_SCALE.atlas_n === 'n' && WIC.ERA_TO_SCALE.atlas_z === 'z');
+
+    // The interaction that makes this safe, driven for real: a user holding the
+    // pre-v1160 five-scale list must come out with N and Z ON, not hidden.
+    Object.keys(store).forEach(k => delete store[k]);
+    store['lv_collect_scales'] = JSON.stringify(['o', 'ho', 's', 'g', 'standard']);
+    ok('a saved five-scale list gets N and Z switched on, not hidden',
+       api.scaleOn('n') === true && api.scaleOn('z') === true);
+    ok('…and a user who had turned HO off still has it off',
+       (function () {
+         store['lv_collect_scales'] = JSON.stringify(['o', 's', 'g', 'standard']);
+         return api.scaleOn('ho') === false && api.scaleOn('n') === true;
+       })());
+    ok('PREF_BASELINE.scales stays the historical five — that is what makes N/Z new',
+       WIC.PREF_BASELINE.scales.length === 5 &&
+       WIC.PREF_BASELINE.scales.indexOf('n') < 0 && WIC.PREF_BASELINE.scales.indexOf('z') < 0);
+
+    // The gauge-column parse, for rows in a mixed era that name N or Z themselves.
+    (function () {
+      const sc = new Function('WHAT_I_COLLECT', '_itemEraKey',
+          slice(appS, 'function _scaleOfEra', '// ── Session 137')
+        + 'return _scaleOfItem;')(WIC, () => null);
+      ok('a bare "N" in the Gauge column reads as N scale (the real Atlas value)',
+         sc({ gauge: 'N' }) === 'n' && sc({ gauge: 'Z' }) === 'z');
+      ok('…as does the stray "N Scale" spelling found in one live row',
+         sc({ gauge: 'N Scale' }) === 'n');
+      ok('…and O-gauge variants are untouched by the new branches',
+         sc({ gauge: 'O' }) === 'o' && sc({ gauge: 'O-27' }) === 'o' &&
+         sc({ gauge: 'HO Scale' }) === 'ho' && sc({ gauge: '' }) === null);
+    })();
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
