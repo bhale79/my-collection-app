@@ -4767,9 +4767,16 @@ META_WRITES.length = 0; TOASTS.length = 0;
     })();
 
     // ── (1) re-scan clears the screen ──
-    ok('re-scan blanks the number box, the info panel and the read line',
-       /_n0\.value = ''/.test(code) && /_i0\.innerHTML = ''/.test(code) &&
-       /Scanning this photo again/.test(code));
+    // v0.9.1173: the "Scanning this photo again…" line was replaced by the live
+    // research box, which occupies the same slot and narrates each step instead of
+    // showing one frozen sentence.
+    ok('re-scan blanks the number box and the catalog panel',
+       /_n0\.value = ''/.test(code) && /_i0\.innerHTML = ''/.test(code));
+    // v0.9.1173: the read line is not blanked so much as TAKEN OVER — the research
+    // box writes into that same slot and narrates, replacing whatever was there.
+    ok('...and the research box takes over the read line and narrates',
+       /_pinStepsReset\(\);\s*\n\s*_pinStep\(RR_READ_STEPS\.start\)/.test(code) &&
+       /host = document\.getElementById\('pin-rv-ailine'\)/.test(code));
     ok('...in place, NOT by re-opening the card (which resets to photo 1)',
        (function () {
          const a = code.indexOf('_reBusy = _pinBtnBusy');
@@ -4940,6 +4947,70 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('both sequences share ONE arrow builder — no second copy of the style',
        /function _pinRvArrow\(dir, can, call, title\)/.test(code) &&
        (code.match(/rgba\(139,142,148,0\.35\)/g) || []).length === 1);
+  })();
+
+  section('143. The research box, and one story told twice (v0.9.1173)');
+  // Brad: "is haveing a research box showing what is happening so that a user can
+  // see it working and might find it interesting to know whats going on." He chose
+  // plain lines with the detail on tap.
+  (function () {
+    const pU = require('path');
+    const src = fs.readFileSync(pU.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+    const code = src.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+
+    // THE requirement Brad set: one text source, or the live line and the
+    // explanation underneath it drift apart.
+    ok('there is ONE function that turns a read into plain English',
+       /function _pinPlainWhy\(dbg, raw\)/.test(code));
+    ok('...and the disclosure renders from it, above its technical trace',
+       /return _pinPlainWhyHtml\(dbg, raw\)\s*\n\s*\+ '<details/.test(code));
+    ok('...so the live account and the after-the-fact one cannot disagree',
+       (code.match(/function _pinPlainWhy\(/g) || []).length === 1);
+
+    // Run it: the same dbg the disclosure gets must produce readable sentences.
+    const api = new Function('rrEsc', '_pinEraLabel',
+      src.slice(src.indexOf('function _pinPlainWhy(dbg, raw)'),
+                src.indexOf('function _pinWhyHtml(raw, dbg, ai)'))
+      + 'return _pinPlainWhy;')(v => v, e => ({ pw: 'Lionel Postwar', mpc: 'Lionel MPC/Modern' })[e] || e);
+
+    const lines = api({ era: 'pw', cand: ['6464-475'], inEra: ['6464-475'],
+                        joined: '', viaMaker: 'LIONEL 6464' }, 'BUILT BY LIONEL 6464-475');
+    ok('a normal read reads like a sentence, not a log line',
+       lines.length >= 3 && /Searching Lionel Postwar/.test(lines.join(' | ')),
+       lines.join(' | '));
+    ok('...it names what it saw and where it looked',
+       /Numbers seen: 6464-475/.test(lines.join(' | ')) &&
+       /In that catalog: 6464-475/.test(lines.join(' | ')));
+
+    const multi = api({ era: '', eras: ['pw', 'mpc'], cand: [] }, 'x');
+    ok('a multi-era filter is named in full, matching v0.9.1167',
+       /Searching Lionel Postwar or Lionel MPC\/Modern/.test(multi.join(' | ')), multi.join(' | '));
+
+    const blank = api({ era: 'pw', cand: [], noLetters: '2233810' }, '');
+    ok('a refused answer explains itself in the same voice',
+       /No lettering was legible, so 2233810 was not trusted/.test(blank.join(' | ')),
+       blank.join(' | '));
+    ok('...and says plainly that nothing came back',
+       /nothing came back/.test(blank.join(' | ')));
+    ok('no dbg at all yields no lines, rather than an empty box',
+       api(null, '').length === 0);
+
+    // The live half.
+    ok('progress steps come from one table too',
+       /var RR_READ_STEPS = \{/.test(code) && /Looking for a printed number/.test(code));
+    ok('the box writes into the read line\'s slot — where the answer will appear',
+       /host = document\.getElementById\('pin-rv-ailine'\)/.test(code) &&
+       /id="pin-rv-research"/.test(code));
+    ok('it spins while running and stops when the answer lands',
+       /\(done \? '' : '<span style="display:inline-block;animation:spin/.test(code));
+    ok('a repeated step is not printed twice',
+       /if \(_pinSteps\[_pinSteps\.length - 1\] !== msg\) _pinSteps\.push/.test(code));
+    ok('both the free re-scan and the paid read narrate',
+       /_pinStep\(RR_READ_STEPS\.start\)/.test(code) &&
+       /_pinStep\(RR_READ_STEPS\.paid\)/.test(code) &&
+       /_pinStep\(RR_READ_STEPS\.catalog\)/.test(code));
+    ok('...and the steps are cleared once the answer replaces them',
+       (code.match(/_pinStepsReset\(\)/g) || []).length >= 4);
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

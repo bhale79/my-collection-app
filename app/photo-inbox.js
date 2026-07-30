@@ -2078,9 +2078,89 @@
   }
 
   // Shared "why" block, used by both a read and a failed read.
+  // ══ v0.9.1173 — ONE PLAIN-ENGLISH ACCOUNT OF A READ ════════════════════
+  // Brad: "is haveing a research box showing what is happening so that a user can
+  // see it working and might find it interesting to know whats going on." He chose
+  // plain lines with the detail on tap.
+  //
+  // The live box and the after-the-fact disclosure are the same story told at two
+  // moments, so they come from ONE function. Two renderings of one event drift —
+  // that class of bug bit seven separate times on 2026-07-30 — and a progress line
+  // that disagrees with the explanation underneath it is worse than no progress
+  // line at all.
+  //
+  // Plain words on purpose: this is the part a collector reads. The technical
+  // trace stays behind the expander, untouched.
+  // ── The live half: the same story, told while it happens ────────────────
+  // Progress steps come from ONE table too, for the same reason. The box is
+  // written into the read line's slot, so it occupies the space the answer will
+  // fill — the user watches the thing they are waiting for, not a spinner parked
+  // somewhere else on the card.
+  var RR_READ_STEPS = {
+    start:   'Looking for a printed number\u2026',
+    bigger:  'Nothing yet \u2014 looking again at full size\u2026',
+    catalog: 'Checking the catalog\u2026',
+    paid:    'Asking the photo reader\u2026',
+  };
+  var _pinSteps = [];
+  function _pinResearchHtml(done) {
+    if (!_pinSteps.length) return '';
+    return '<div id="pin-rv-research" style="background:var(--surface2);border:1px solid var(--border);'
+      + 'border-radius:9px;padding:0.5rem 0.65rem;margin-bottom:0.6rem;font-size:0.78rem;'
+      + 'color:var(--text-mid);line-height:1.6">'
+      + (done ? '' : '<span style="display:inline-block;animation:spin 0.8s linear infinite;'
+          + 'color:var(--info);margin-right:0.35rem">\u21bb</span>')
+      + _pinSteps.map(function (l) { return '<div>\u00b7 ' + rrEsc(l) + '</div>'; }).join('')
+      + '</div>';
+  }
+  function _pinStep(msg, done) {
+    if (!msg) return;
+    if (_pinSteps[_pinSteps.length - 1] !== msg) _pinSteps.push(String(msg));
+    try {
+      var host = document.getElementById('pin-rv-ailine');
+      if (host) host.innerHTML = _pinResearchHtml(done);
+    } catch (e) {}
+  }
+  function _pinStepsReset() { _pinSteps = []; }
+
+  function _pinPlainWhy(dbg, raw) {
+    var out = [];
+    if (!dbg) return out;
+    var eraName = dbg.era ? _pinEraLabel(dbg.era)
+      : ((dbg.eras && dbg.eras.length)
+          ? dbg.eras.map(function (e) { return _pinEraLabel(e); }).join(' or ')
+          : '');
+    out.push(raw ? 'Looked for a printed number' : 'Looked for a printed number — nothing came back');
+    if (eraName) out.push('Searching ' + eraName);
+    var cand = (dbg.cand || []).concat(dbg.shortCand || []);
+    if (cand.length) out.push('Numbers seen: ' + cand.slice(0, 4).join(', '));
+    if (dbg.joined) out.push('Pieced ' + dbg.joined + ' together from split digits');
+    if (dbg.viaMaker) out.push(dbg.viaMaker + ' was stamped next to the maker\u2019s name');
+    if ((dbg.inEra || []).length) out.push('In that catalog: ' + dbg.inEra.slice(0, 3).join(', '));
+    if ((dbg.offEra || []).length) out.push('In another maker\u2019s catalog: ' + dbg.offEra.slice(0, 3).join(', '));
+    if (dbg.quoted) out.push('The catalog itself quotes that number: ' + dbg.quoted);
+    if (dbg.repaired) out.push('One digit looked misread — corrected to ' + dbg.repaired);
+    if (dbg.noLetters) out.push('No lettering was legible, so ' + dbg.noLetters + ' was not trusted');
+    if (dbg.shortSolo) out.push('Only three digits, seen once — offered, not asserted');
+    if ((dbg.shortDropped || []).length) out.push('Too short to trust alone: ' + dbg.shortDropped.join(', '));
+    return out;
+  }
+  function _pinPlainWhyHtml(dbg, raw) {
+    var lines = _pinPlainWhy(dbg, raw);
+    if (!lines.length) return '';
+    return '<div style="font-size:0.76rem;color:var(--text-mid);line-height:1.6;margin-bottom:0.3rem">'
+      + lines.map(function (l) {
+          return '<div>\u00b7 ' + rrEsc(l) + '</div>';
+        }).join('')
+      + '</div>';
+  }
+
   function _pinWhyHtml(raw, dbg, ai) {
     if (!raw && !dbg && !(ai && (ai.aiRaw || ai.aiSku))) return '';
-    return '<details style="margin-top:0.3rem"><summary style="font-size:0.7rem;color:var(--text-dim);cursor:pointer">Where did this come from?</summary>'
+    // v0.9.1173: the same plain account the research box showed live, kept above
+    // the technical trace so the two can never tell different stories.
+    return _pinPlainWhyHtml(dbg, raw)
+      + '<details style="margin-top:0.3rem"><summary style="font-size:0.7rem;color:var(--text-dim);cursor:pointer">Where did this come from?</summary>'
       + '<div style="font-size:0.7rem;color:var(--text-dim);font-family:var(--font-mono);margin-top:0.25rem;line-height:1.4;word-break:break-word">'
       + (ai && ai.aiRaw
           ? '<div style="margin-bottom:0.35rem">The paid reader answered: \u201c' + rrEsc(ai.aiRaw) + '\u201d'
@@ -2665,6 +2745,7 @@
       // cropping four photos one at a time would cost more than it saves.
       blobs[0] = await new Promise(function (res) { _pinCropForRead(blobs[0], res); });
       _idBusy = _pinBtnBusy(btn, 'Reading\u2026');   // v0.9.1168: crop closed, the read is really running now
+      _pinStepsReset(); _pinStep(RR_READ_STEPS.paid);   // v0.9.1173
       var _h1 = _pinAiHints(_rvGroups && _rvGroups[0]);
       var ai = (typeof aiIdentifyImage2 === 'function') ? await aiIdentifyImage2(blobs, _h1) : await aiIdentifyImage(blobs[0], {});
       if (!ai || !ai.ok) {
@@ -2680,6 +2761,7 @@
       if (typeof ai.remaining === 'number') _tokSave(ai.remaining);   // v0.9.969: keep the token count fresh
       var meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(ai.text) : {};
       if (!_pinApplyMeta(meta, gs, ai && ai.text)) { showToast('Could not pull an item number from the photo — try Google Search', 4200, true); return; }
+      _pinStepsReset();
       showToast(meta._hedge
         ? 'Best guess from the photo — double-check the number (1 token used)'
         : 'Read from the photo — check it over and add it (1 token used)', 4000);
@@ -4934,12 +5016,10 @@
       if (_n0) _n0.value = '';
       var _i0 = document.getElementById('pin-rv-info');
       if (_i0) _i0.innerHTML = '';
-      var _l0 = document.getElementById('pin-rv-ailine');
-      if (_l0) _l0.innerHTML = '<div style="display:flex;align-items:center;gap:0.45rem;'
-        + 'color:var(--info);font-weight:700;font-size:0.85rem;margin-bottom:0.6rem">'
-        + '<span style="display:inline-block;animation:spin 0.8s linear infinite">\u21bb</span>'
-        + '<span>Scanning this photo again\u2026</span></div>';
     } catch (eClr) {}
+    // v0.9.1173: the research box takes over the cleared read line and narrates.
+    _pinStepsReset();
+    _pinStep(RR_READ_STEPS.start);
     // v0.9.1150 (beta punch list 1.5): re-scan threw the whole entry away and
     // wrote a bare free-reader result in its place. On a photo the user had
     // PAID to identify, that silently destroyed mfr / desc / road / year /
@@ -4986,7 +5066,9 @@
       // scorer — no new signatures, and one place does the filtering.
       var _pf = _preferForFid(fid);
       var _pfR = Object.assign({}, _pf || {}, { reject: _rejected });
+      _pinStep(RR_READ_STEPS.bigger);
       var r = await _freeReadBlob(blob, 2400, _pfR);
+      _pinStep(RR_READ_STEPS.catalog);
       var m = _ids();
       if (r && r.num) {
         m[fid] = { num: r.num, guess: r.matched ? 0 : 1, alts: r.alts || [], tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null, rv: READER_VER, viaDesc: !!r.viaDesc, descOf: r.descOf || '', descWords: r.descWords || [], disagreed: r.disagreed || '', rejected: _rejected };
@@ -5013,6 +5095,7 @@
         if (_hadPaid) { m[fid] = _prevRead; _idsSave(m); }
       }
       try { _render(); } catch (e4) {}
+      _pinStepsReset();
       window._pinReview(key);
       // Come back to the photo the user was actually working on.
       try { window._pinRvSetMain(fid); } catch (eM) {}
