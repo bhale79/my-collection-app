@@ -4683,6 +4683,59 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('a number welded out of scattered digits, with no letters read, is NOT an answer',
          !r1 || !r1.num, JSON.stringify(r1 && r1.num));
 
+      // ── v0.9.1168b, Brad: "Block it — blank beats wrong." ──
+      // The catalog-shaped HEDGE is where his 2233810 actually reached the card.
+      // But the rule cannot be "letterless = blank": his Great Northern snowplow
+      // is letterless too and 58 is correct there. REPETITION is the separator —
+      // 58 was read three times, 2233810 once.
+      (function () {
+        const M3 = new Map();
+        [{ itemNum:'2233810', _era:'mod', _tab:'Lionel MPC-Modern', description:'AT&SF F7 Diesel Pair' },
+         { itemNum:'58', _era:'mod', _tab:'Lionel MPC-Modern', description:'Great Northern Rotary Snowplow' },
+        ].forEach(r => M3.set(String(r.itemNum), [r]));
+        global.state = { masterByItem: M3, personalData: {} };
+        global.window.state = global.state;
+        global.window._mbAllGet = (n) => M3.get(String(n).trim()) || null;
+        global.findMaster = (n) => (M3.get(String(n).trim()) || [null])[0];
+
+        // BEHAVIOURAL, because a source regex only proves a line exists: disabling
+        // the gate left my first version of these checks green, which is precisely
+        // the failure mode I keep writing rules about.
+        //
+        // The hedge fires when a token is in SOME catalog but not the filtered one,
+        // so 2233810 sits in 'mod' while the filter is 'pw'. No maker on the filter,
+        // so v1167's maker refusal stays out of the way.
+        const M4 = new Map();
+        M4.set('2233810', [{ itemNum:'2233810', _era:'mod', _tab:'Lionel MPC-Modern',
+                             description:'AT&SF F7 Diesel Pair' }]);
+        global.state = { masterByItem: M4, personalData: {} };
+        global.window.state = global.state;
+        global.window._mbAllGet = (n) => M4.get(String(n).trim()) || null;
+        global.findMaster = (n) => (M4.get(String(n).trim()) || [null])[0];
+
+        const seenOnce = window.__NumFromText('- - 2233810 - - 5 - -', { era: 'pw' });
+        ok('a catalog-shaped token seen ONCE on a letterless photo is not offered',
+           !seenOnce || !seenOnce.num, JSON.stringify(seenOnce && seenOnce.num));
+        // HONEST LIMIT: I could not build a synthetic case that reproduces the exact
+        // path Brad's 2233810 took to the card — this catalog/filter combination
+        // reaches a different return than the hedge, and without his stored dbg I am
+        // guessing at which one. Rather than assert something I cannot demonstrate,
+        // the guard's proof rests on two things that ARE real: the blank above, and
+        // every pre-existing real-photo test in this suite still passing — including
+        // his Great Northern 58 and his 6464-475, both letterless, both still
+        // answered. If 2233810 reappears, the disclosure now names the path and this
+        // can be closed with evidence instead of guesswork.
+
+        // Plus the source shape, to catch a rewrite that keeps the behaviour but
+        // loses the last-ditch half.
+        const srcH = fs.readFileSync(pQ.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+        ok('the last-ditch offer is withheld on a letterless photo',
+           /if \(_noLetters\) \{ dbg\.noLetters = String\(uniq\[0\]\); return \{ num: '', matched: false, dbg: dbg \}; \}/.test(srcH));
+        // Brad's REAL Great Northern text — letterless, 58 read three times — is
+        // exercised earlier in this suite and must still answer 58. That test is the
+        // guard on this rule not over-reaching.
+      })();
+
       // A GLUED reconstruction in letterless text, where the row is a normal item
       // (not a set), is the case the gate is written for.
       const M2 = new Map();

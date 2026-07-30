@@ -3819,6 +3819,47 @@
         }
       }
     }
+    // ══ v0.9.1168b — NOTHING LEGIBLE, SO NOTHING OFFERED (Brad's call) ═════
+    // "Block it — blank beats wrong."
+    //
+    // Brad's MKT 0-8-0 came back "2233810 — AT&SF EMD F7 A-A Set", and the number
+    // reached the card through THIS hedge: a token that merely looks catalog-shaped,
+    // offered because it exists in some list. On a photo whose recovered text holds
+    // not one letter, that is a coincidence dressed as a finding.
+    //
+    // This narrows v0.9.1067, and the distinction matters. That rule came from his
+    // 2408 Santa Fe car — "saying still no clear number will piss people off when
+    // the number is obviously to a user clear" — a photo where a HUMAN can read the
+    // number and the reader could not. Such a car is covered in lettering, so the
+    // recovered text has letters in it and this gate never fires. Text with NO
+    // letters at all is the opposite situation: the reader saw nothing, and saying
+    // so is the honest answer rather than an insult to the photographer.
+    //
+    // The confirmed paths above are untouched: a solid run with a misread digit
+    // still repairs, a quote match still resolves, a maker-adjacent number still
+    // counts. Only the unconfirmed HEDGE is withheld.
+    // MY FIRST CUT OF THIS WAS ALSO WRONG, and Brad's own photos caught it again:
+    // his Great Northern rotary snowplow is letterless too — "4 25 5 - -8 6 194 1
+    // - - - 58 5 - 7 7 9 5 / 0 58 0 58" — and 58 IS the right answer. Blanking
+    // every letterless hedge would have thrown that away.
+    //
+    // What separates them is REPETITION. 58 was read three times across the passes,
+    // because it is genuinely painted on the car. 2233810 was seen once, and so was
+    // 2500. With no lettering to corroborate anything, being seen more than once is
+    // the only evidence available — so a token read a single time is not offered,
+    // and one read repeatedly still is.
+    if (_noLetters && loose.length) {
+      var _seenTimes = function (c) {
+        var d = String(c).replace(/[^0-9A-Za-z-]/g, '');
+        if (!d) return 0;
+        try {
+          return (UP.match(new RegExp('(?:^|[^0-9])' + d.replace(/-/g, '\\-') + '(?:$|[^0-9])', 'g')) || []).length;
+        } catch (eR) { return 0; }
+      };
+      var _repeated = loose.filter(function (c) { return _seenTimes(c) > 1; });
+      if (!_repeated.length) { dbg.noLetters = String(loose[0]); loose = []; }
+      else loose = _repeated;
+    }
     // 2) nothing confirmed — offer the best catalog-shaped token as a hedge
     if (loose.length) { loose.sort(dashRank); return { num: loose[0], matched: false, offEra: true, dbg: dbg }; }
     uniq.sort(dashRank);
@@ -3841,6 +3882,10 @@
         dbg.shortBacked = shortBacked;
         return { num: shortBacked, matched: false, alts: [String(shortBacked), String(uniq[0])], dbg: dbg };
       }
+      // v0.9.1168b: and the last-ditch offer is not exempt. On a letterless photo a
+      // token in NO catalog, seen once, is the weakest thing this function can
+      // produce — exactly the case Brad asked to come back blank.
+      if (_noLetters) { dbg.noLetters = String(uniq[0]); return { num: '', matched: false, dbg: dbg }; }
       return { num: uniq[0], matched: false, dbg: dbg };
     }
     // 3) last resort: a catalog-backed short number, always as a guess
