@@ -185,6 +185,19 @@ function buildPrefsPage() {
         </div>
       </div>
 
+      <div style="font-size:0.78rem;font-weight:600;color:var(--text-mid);padding:0.75rem 0.2rem 0.35rem;letter-spacing:0.03em;text-transform:uppercase">Photo ID</div>
+      <div class="pref-row" style="flex-direction:column;align-items:flex-start;gap:0.4rem">
+        <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;user-select:none;width:100%">
+          <input id="pref-ai-opt" type="checkbox" class="rr-tap-box"
+                 style="width:1rem;height:1rem;cursor:pointer;accent-color:var(--accent)"
+                 ${(typeof rrAiOptedOut === 'function' && rrAiOptedOut()) ? '' : 'checked'}
+                 onchange="_togglePrefPhotoReads(this.checked)">
+          <span style="font-size:0.85rem;font-weight:600">Use my daily photo ID reads</span>
+        </label>
+        <div style="font-size:0.78rem;color:var(--text-dim);line-height:1.5">Every photo is checked free first — printed numbers and barcodes cost nothing. This only controls what happens when the free readers can't tell: on, the photo gets a closer read from your daily allowance; off, you're asked to type the number or search instead.</div>
+        <div id="pref-ai-left" style="font-size:0.78rem;color:var(--accent2);font-weight:600">${(typeof rrAiRemainingLabel === 'function' && rrAiRemainingLabel()) || ''}</div>
+      </div>
+
       <div style="font-size:0.78rem;font-weight:600;color:var(--text-mid);padding:0.75rem 0.2rem 0.35rem;letter-spacing:0.03em;text-transform:uppercase">Scales I Collect</div>
       <div class="pref-row" style="flex-direction:column;align-items:flex-start;gap:0.4rem">
         <div style="font-size:0.78rem;color:var(--text-dim);line-height:1.5">Uncheck scales you don't collect — every era of every manufacturer in that scale gets hidden.</div>
@@ -756,6 +769,22 @@ function _togglePrefEra(eraId, on) {
   if (on && typeof _ensureEnabledErasLoaded === 'function') _ensureEnabledErasLoaded();
   if (typeof _applyEraVisibility === 'function') _applyEraVisibility();
 }
+
+// v0.9.1163: the Photo ID spending switch, from Preferences. Writes through the
+// SAME rrAiSetOptOut the crop-screen checkbox uses — one stored flag, two places
+// to see it, never two sources of truth. The Photo Inbox reads the flag when it
+// renders, so its button text and token line correct themselves next time it opens.
+function _togglePrefPhotoReads(on) {
+  if (typeof rrAiSetOptOut === 'function') rrAiSetOptOut(!on);
+  var left = document.getElementById('pref-ai-left');
+  if (left) left.textContent = on
+    ? ((typeof rrAiRemainingLabel === 'function' && rrAiRemainingLabel()) || '')
+    : 'Off — free readers only';
+  if (typeof showToast === 'function') {
+    showToast(on ? 'Photo ID reads are on' : 'Photo ID reads are off — free readers only', 2600);
+  }
+}
+if (typeof window !== 'undefined') window._togglePrefPhotoReads = _togglePrefPhotoReads;
 
 // Session 136: scale toggle handler — parallel to _togglePrefEra. When user
 // disables a scale, every era of every manufacturer in that scale becomes

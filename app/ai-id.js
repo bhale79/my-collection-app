@@ -276,10 +276,42 @@ function rrAiRemainingLabel() {
   } catch (e) {}
   return '';
 }
+
+// ── ONE place that turns a failed read into something TRUE ──────────────
+// v0.9.1163 (Brad: "our read this photo doesn't work"). It worked fine. His
+// "use my daily photo ID reads" switch was off, so aiIdentifyImage2 returned
+// {ok:false, reason:'optout'} without ever contacting the reader — no request
+// sent, nothing spent. But the Photo Inbox recognised only 'quota' and
+// 'noconsent' and let every other reason fall through to "Could not read that
+// photo — try Google Search", so a switched-off read looked identical to a
+// broken one. It sent him hunting a fault that did not exist, and pointed him
+// away from the switch that did. Each of the Photo Inbox's three read buttons
+// carried its own copy of that two-reason list.
+//
+// Every reason now has ONE message in ONE place. '' means the reason has
+// already shown its own UI and a toast on top would be noise.
+var _RR_READ_FAIL = {
+  optout:    'Photo reads are switched off — turn them on in Preferences › Photo ID',
+  quota:     'No photo reads left today — type the number, or try tomorrow',
+  busy:      'The reader is busy right now — give it a moment and try again',
+  offline:   'Cannot reach the reader — check your connection and try again',
+  norelay:   'The reader did not recognise that request — refresh and try again',
+  noref:     'No reference photo to compare against',
+  noconsent: '',
+};
+// `fallback` is the caller's own wording for a genuine "it read the photo and
+// could not tell" — the only case where the old message was ever accurate.
+function rrReadFailMessage(reason, fallback) {
+  var r = String(reason || '');
+  if (Object.prototype.hasOwnProperty.call(_RR_READ_FAIL, r)) return _RR_READ_FAIL[r];
+  return fallback || 'Could not read that photo — try Google Search, or type the number';
+}
+
 if (typeof window !== 'undefined') {
   window.rrAiOptedOut = rrAiOptedOut;
   window.rrAiSetOptOut = rrAiSetOptOut;
   window.rrAiRemainingLabel = rrAiRemainingLabel;
+  window.rrReadFailMessage = rrReadFailMessage;
 }
 
 // ── Identify v2 (v0.9.896) ──────────────────────────────────

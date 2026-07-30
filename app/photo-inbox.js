@@ -1651,6 +1651,17 @@
   }
   function _tokLine() {
     var n = _tokGet();
+    // v0.9.1163: when reads are switched off, the count is beside the point —
+    // say what is actually true and where to change it. "Token count shows after
+    // your next read" was technically correct and completely unhelpful: there
+    // was never going to BE a next read.
+    if (typeof rrAiOptedOut === 'function' && rrAiOptedOut()) {
+      // var(--warn) with NO hex fallback: :root defines it (v0.9.1148), and the
+      // colour ratchet correctly refuses one more literal in this file.
+      return '<div id="pin-rv-tokline" style="text-align:center;font-size:0.8rem;'
+        + 'color:var(--warn);margin-top:0.6rem">'
+        + 'Photo reads are switched off — Preferences › Photo ID</div>';
+    }
     return '<div id="pin-rv-tokline" style="text-align:center;font-size:0.8rem;color:var(--text-dim);margin-top:0.6rem">' +
       (n !== null
         ? '<span style="color:var(--accent2,#d4a843);font-weight:700;font-size:0.95rem">' + n + '</span> token' + (n === 1 ? '' : 's') + ' left today'
@@ -1841,7 +1852,17 @@
             '<button id="pin-rv-rescan" onclick="_pinRescan()" title="Forget this read and scan the photo again at higher detail" style="' + _gBtn + 'border:1.5px solid #f05008;background:rgba(240,80,8,0.10);color:#f05008">This is wrong — re-scan</button>' +
             '<button onclick="_pinReviewResearch()" style="' + _gBtn + 'border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9">Research Number</button>' +
             '<button id="pin-rv-lens" onclick="_pinReviewLens()" style="' + _gBtn + 'border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9">Google Search</button>' +
-            '<button id="pin-rv-idtoken" onclick="_pinReviewIdentify()" title="Identify this item straight from its photo — uses one token" style="' + _gBtn + 'border:1.5px solid var(--accent2,#d4a843);background:rgba(212,168,67,0.14);color:var(--accent2,#d4a843)">Read this photo (1 token)</button>' +
+            // v0.9.1163: don't quote a price the app will not charge. With reads
+            // switched off this button still said "(1 token)" and then reported a
+            // failure, which is how Brad ended up thinking it was broken.
+            '<button id="pin-rv-idtoken" onclick="_pinReviewIdentify()" title="'
+              + ((typeof rrAiOptedOut === 'function' && rrAiOptedOut())
+                  ? 'Photo reads are switched off — turn them on in Preferences › Photo ID'
+                  : 'Identify this item straight from its photo — uses one token')
+              + '" style="' + _gBtn + 'border:1.5px solid var(--accent2,#d4a843);background:rgba(212,168,67,0.14);color:var(--accent2,#d4a843)">'
+              + ((typeof rrAiOptedOut === 'function' && rrAiOptedOut())
+                  ? 'Read this photo (reads are off)'
+                  : 'Read this photo (1 token)') + '</button>' +
           '</div>' +
           _tokLine() +
         '</div>' +
@@ -2315,10 +2336,13 @@
         var _h0 = _pinAiHints(_rvGroups && _rvGroups[0]);
         var ai = (typeof aiIdentifyImage2 === 'function') ? await aiIdentifyImage2([f], _h0) : await aiIdentifyImage(f, _h0);
         if (!ai || !ai.ok) {
-          var why = ai && ai.reason;
-          if (why === 'quota') showToast('No tokens left today — type the number, or try tomorrow', 4500, true);
-          else if (why === 'noconsent') { /* consent dialog already handled */ }
-          else showToast('Could not read that screenshot — type the number instead', 3800, true);
+          // v0.9.1163: one shared message source (rrReadFailMessage in ai-id.js).
+          // This used to know only 'quota' and 'noconsent', so a switched-off
+          // read reported as a failed one.
+          var _m0 = (typeof rrReadFailMessage === 'function')
+            ? rrReadFailMessage(ai && ai.reason, 'Could not read that screenshot — type the number instead')
+            : 'Could not read that screenshot — type the number instead';
+          if (_m0) showToast(_m0, 4500, true);
           return;
         }
         if (typeof ai.remaining === 'number') _tokSave(ai.remaining);   // v0.9.969: keep the token count fresh
@@ -2453,10 +2477,13 @@
       var _h1 = _pinAiHints(_rvGroups && _rvGroups[0]);
       var ai = (typeof aiIdentifyImage2 === 'function') ? await aiIdentifyImage2(blobs, _h1) : await aiIdentifyImage(blobs[0], {});
       if (!ai || !ai.ok) {
-        var why = ai && ai.reason;
-        if (why === 'quota') showToast('No tokens left today — try tomorrow, or type the number', 4500, true);
-        else if (why === 'noconsent') { /* consent dialog already handled */ }
-        else showToast('Could not read that photo — try Google Search, or type the number', 4200, true);
+        // v0.9.1163 — THE one Brad hit. His reads were switched off, so this
+        // said "Could not read that photo — try Google Search" and he went
+        // looking for a broken reader. One shared message source now.
+        var _m1 = (typeof rrReadFailMessage === 'function')
+          ? rrReadFailMessage(ai && ai.reason)
+          : 'Could not read that photo — try Google Search, or type the number';
+        if (_m1) showToast(_m1, 4500, true);
         return;
       }
       if (typeof ai.remaining === 'number') _tokSave(ai.remaining);   // v0.9.969: keep the token count fresh
@@ -2470,7 +2497,11 @@
       showToast('Could not read the photo — try again', 3000, true);
     } finally {
       var b2 = document.getElementById('pin-rv-idtoken');
-      if (b2) { b2.disabled = false; b2.textContent = 'Read this photo (1 token)'; }
+      if (b2) {
+        b2.disabled = false;
+        b2.textContent = (typeof rrAiOptedOut === 'function' && rrAiOptedOut())
+          ? 'Read this photo (reads are off)' : 'Read this photo (1 token)';
+      }
     }
   };
 
@@ -5517,8 +5548,15 @@
           var ai = (typeof aiIdentifyImage2 === 'function')
             ? await aiIdentifyImage2(blobs, _hints)
             : await aiIdentifyImage(blobs[0], _hints);
-          if (!ai.ok && ai.reason === 'quota') {
-            showToast("You're out of tokens for today — the rest can run tomorrow", 4500, true);
+          // v0.9.1163: the batch used to break on 'quota' ONLY and otherwise
+          // carry on to the next group. With reads switched off that meant
+          // grinding silently through all 59 photos, spending nothing and
+          // achieving nothing. Anything that will fail identically for every
+          // remaining group must STOP the run and say why.
+          if (!ai.ok && (ai.reason === 'quota' || ai.reason === 'optout'
+                         || ai.reason === 'offline' || ai.reason === 'norelay')) {
+            var _mB = (typeof rrReadFailMessage === 'function') ? rrReadFailMessage(ai.reason) : '';
+            showToast(_mB || "Stopped — the reader is unavailable", 4500, true);
             break;
           }
           if (ai.ok && ai.text) {

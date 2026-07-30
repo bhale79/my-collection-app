@@ -4140,6 +4140,82 @@ META_WRITES.length = 0; TOASTS.length = 0;
        label('cornucopiaoftoytrains.com/no-scheme') === 'COTT');
   })();
 
+  section('134. A declined read is not reported as a broken one (v0.9.1163)');
+  // Brad: "our read this photo doesn't work". It worked. His "use my daily photo
+  // ID reads" switch was off, so aiIdentifyImage2 returned {ok:false,
+  // reason:'optout'} without contacting the reader — nothing sent, nothing spent.
+  // The Photo Inbox knew only 'quota' and 'noconsent', so it said "Could not read
+  // that photo — try Google Search": a fault that did not exist, and no mention of
+  // the switch that did. The switch also lived ONLY in the crop modal.
+  (function () {
+    const pM = require('path');
+    const rd = f => fs.readFileSync(pM.join(__dirname, '..', f), 'utf8');
+    const aid = rd('app/ai-id.js'), pin = rd('app/photo-inbox.js'), pf = rd('app/prefs.js');
+    const sliceTo = (src, from, to) => {
+      const a = src.indexOf(from), b = src.indexOf(to, a + 1);
+      if (a < 0 || b < 0) throw new Error('§134 marker moved: ' + from);
+      return src.slice(a, b);
+    };
+
+    // ── the one message source, run for real ──
+    const msg = new Function(
+      sliceTo(aid, 'var _RR_READ_FAIL', 'if (typeof window') + 'return rrReadFailMessage;')();
+    ok('a switched-off read says it is switched off, and where to change it',
+       /switched off/.test(msg('optout')) && /Preferences/.test(msg('optout')), msg('optout'));
+    ok('…and does NOT tell the user the photo could not be read',
+       !/could not read/i.test(msg('optout')));
+    ok('an exhausted allowance still says so',
+       /No photo reads left today/.test(msg('quota')));
+    ok('a busy reader and a dead connection are told apart',
+       /busy/.test(msg('busy')) && /connection/.test(msg('offline')) &&
+       msg('busy') !== msg('offline'));
+    ok('a reason that already showed its own dialog stays silent',
+       msg('noconsent') === '');
+    ok('a genuine unreadable photo keeps the original wording',
+       /Could not read that photo/.test(msg('error')) &&
+       /Could not read that photo/.test(msg(undefined)));
+    ok('…and a caller can supply its own wording for that case only',
+       msg('error', 'type the number instead') === 'type the number instead' &&
+       msg('optout', 'type the number instead') !== 'type the number instead');
+
+    // ── every Photo Inbox read button uses it ──
+    // Three read paths: the screenshot reader, "Read this photo", and the batch.
+    ok('all three Photo Inbox read paths go through the shared resolver',
+       (pin.match(/rrReadFailMessage\(/g) || []).length === 3,
+       'found ' + (pin.match(/rrReadFailMessage\(/g) || []).length + ', want 3');
+    ok('…each guarded, so an old cached ai-id.js cannot break the Inbox',
+       (pin.match(/typeof rrReadFailMessage === 'function'/g) || []).length === 3);
+    ok('none of them still carries its own two-reason list',
+       !/if \(why === 'quota'\)/.test(pin) && !/var why = ai && ai\.reason;/.test(pin));
+
+    // The batch: a reason that will fail identically for every remaining group
+    // must STOP the run. With reads off it used to grind through all 59 photos.
+    (function () {
+      const blk = sliceTo(pin, 'the batch used to break on', 'if (ai.ok && ai.text)');
+      ok('the batch stops on a reason that cannot change mid-run, not just on quota',
+         /'quota'/.test(blk) && /'optout'/.test(blk) && /'offline'/.test(blk) && /break;/.test(blk));
+    })();
+
+    // ── the button must not quote a price it will not charge ──
+    ok('the read button says reads are off instead of "(1 token)"',
+       (pin.match(/Read this photo \(reads are off\)/g) || []).length === 2,
+       'found ' + (pin.match(/Read this photo \(reads are off\)/g) || []).length + ', want 2 (render + re-enable)');
+    ok('the token line says what is true when reads are off',
+       /Photo reads are switched off — Preferences/.test(pin));
+    ok('…and it uses a theme variable, no new colour literal',
+       /color:var\(--warn\)/.test(pin) && !/var\(--warn,#/.test(pin));
+
+    // ── the switch is findable ──
+    ok('the switch now has a home in Preferences, not only the crop modal',
+       /Photo ID<\/div>/.test(pf) && /pref-ai-opt/.test(pf) &&
+       /_togglePrefPhotoReads/.test(pf));
+    ok('…and writes through the SAME setter the crop modal uses (one stored flag)',
+       /rrAiSetOptOut\(!on\)/.test(pf) &&
+       /rrAiSetOptOut/.test(rd('app/barcode.js')));
+    ok('…with the checkbox reflecting the CURRENT setting rather than defaulting on',
+       /rrAiOptedOut\(\)\) \? '' : 'checked'/.test(pf));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
