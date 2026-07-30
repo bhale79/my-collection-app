@@ -1720,14 +1720,53 @@
     return -1;
   }
 
-  function _pinRvNavHtml(dir) {
-    var i = _pinRvIndex();
-    if (i < 0) return '';                       // multi-select card: no sequence
-    var ord = _pinRvOrder();
-    var can = dir === 'prev' ? i > 0 : i < ord.length - 1;
+  // ══ v0.9.1172 — INSIDE A GROUP, THE ARROWS WALK THE GROUP ══════════════
+  // Brad: "when i am in the detail of an item of a group, the next button should
+  // go to the next item in the group. not to the next item in the photo box."
+  // He chose stop-at-the-end, greyed — the same rule he picked for the detail-page
+  // arrows in v0.9.1155, so you can SEE that you are done with the group instead
+  // of being silently moved on to something else.
+  //
+  // A single-photo group has no members to walk, so there the arrows keep stepping
+  // through the inbox exactly as before.
+  function _pinRvMembers() {
+    try {
+      if (!_rvGroups || _rvGroups.length !== 1) return null;   // multi-select card
+      var g = _rvGroups[0];
+      return (g && g.files && g.files.length > 1) ? g.files : null;
+    } catch (e) { return null; }
+  }
+  function _pinRvMemberIndex() {
+    var fl = _pinRvMembers();
+    if (!fl) return -1;
+    var cur = _pinOnScreenFid();
+    for (var i = 0; i < fl.length; i++) if (fl[i].id === cur) return i;
+    return 0;
+  }
+  window._pinReviewStepMember = function (delta) {
+    var fl = _pinRvMembers();
+    if (!fl) return;
+    var i = _pinRvMemberIndex(), j = i + delta;
+    if (j < 0 || j >= fl.length) return;        // stop at the ends, never wrap
+    window._pinRvSetMain(fl[j].id);
+    // The arrows and the counter now describe a different member, so they have to
+    // be redrawn — otherwise "2 of 6" freezes and the greying lies at the ends.
+    try {
+      var hd = document.getElementById('pin-rv-nav');
+      if (hd && hd.children.length >= 3) {
+        hd.children[0].outerHTML = _pinRvNavHtml('prev');
+        hd.children[2].outerHTML = _pinRvPosHtml();
+        hd.children[3].outerHTML = _pinRvNavHtml('next');
+      }
+    } catch (eN) {}
+  };
+
+  // ONE button builder for both sequences. The member and inbox arrows differ only
+  // in what they call and what they are called — duplicating the style gave the
+  // colour ratchet a second literal to carry, and it was right to refuse it.
+  function _pinRvArrow(dir, can, call, title) {
     var glyph = dir === 'prev' ? '\u2039' : '\u203a';
-    var title = dir === 'prev' ? 'Previous photo' : 'Next photo';
-    return '<button onclick="_pinReviewStep(' + (dir === 'prev' ? -1 : 1) + ')"'
+    return '<button onclick="' + call + '(' + (dir === 'prev' ? -1 : 1) + ')"'
       + (can ? '' : ' disabled')
       + ' title="' + title + '" aria-label="' + title + '"'
       + ' style="width:40px;height:40px;min-width:40px;border-radius:9px;border:1.5px solid '
@@ -1737,8 +1776,29 @@
       + ';font-size:1.5rem;line-height:1;cursor:' + (can ? 'pointer' : 'default')
       + ';padding:0;flex-shrink:0">' + glyph + '</button>';
   }
+  function _pinRvNavHtml(dir) {
+    var fl = _pinRvMembers();
+    if (fl) {
+      var mi = _pinRvMemberIndex();
+      return _pinRvArrow(dir, dir === 'prev' ? mi > 0 : mi < fl.length - 1,
+        '_pinReviewStepMember',
+        dir === 'prev' ? 'Previous item in this group' : 'Next item in this group');
+    }
+    var i = _pinRvIndex();
+    if (i < 0) return '';                       // multi-select card: no sequence
+    var ord = _pinRvOrder();
+    return _pinRvArrow(dir, dir === 'prev' ? i > 0 : i < ord.length - 1,
+      '_pinReviewStep', dir === 'prev' ? 'Previous photo' : 'Next photo');
+  }
 
   function _pinRvPosHtml() {
+    // v0.9.1172: inside a group the count describes the GROUP, or "2 of 6" would
+    // be read as position in the inbox and the arrows would look broken.
+    var fl = _pinRvMembers();
+    if (fl) {
+      return '<span style="font-size:0.74rem;color:var(--text-dim);font-family:var(--font-body);white-space:nowrap">'
+        + (_pinRvMemberIndex() + 1) + ' of ' + fl.length + ' in this group</span>';
+    }
     var i = _pinRvIndex();
     if (i < 0) return '';
     return '<span style="font-size:0.74rem;color:var(--text-dim);font-family:var(--font-body);white-space:nowrap">'
@@ -1984,7 +2044,7 @@
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
     ov.innerHTML =
       '<div class="rr-card"' + (_wide ? ' style="max-width:820px"' : '') + '>' +
-        '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem">' +
+        '<div id="pin-rv-nav" style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem">' +
           _pinRvNavHtml('prev') +
           '<div style="flex:1;min-width:0;font-family:var(--font-head);font-weight:700;font-size:1rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + n + ' photo' + (n > 1 ? 's' : '') + ' · one item</div>' +
           _pinRvPosHtml() +

@@ -4903,6 +4903,45 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /var _num = _e\.num \? String\(_e\.num\) : '';/.test(setMain));
   })();
 
+  section('142. Inside a group, the arrows walk the group (v0.9.1172)');
+  // "when i am in the detail of an item of a group, the next button should go to
+  // the next item in the group. not to the next item in the photo box."
+  // Brad chose stop-at-the-end, greyed — the same rule as the detail-page arrows
+  // in v0.9.1155, so you can see you are done rather than being moved on silently.
+  (function () {
+    const pT = require('path');
+    const src = fs.readFileSync(pT.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+    const code = src.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+
+    ok('a multi-photo group exposes its members as the sequence',
+       /function _pinRvMembers\(\)/.test(code) &&
+       /g\.files && g\.files\.length > 1\) \? g\.files : null/.test(code));
+    ok('a SINGLE-photo group keeps stepping through the inbox as before',
+       /g\.files\.length > 1/.test(code) && /_pinReviewStep', dir === 'prev' \? 'Previous photo'/.test(code));
+    ok('a multi-select card still has no sequence at all',
+       /_rvGroups\.length !== 1\) return null/.test(code));
+
+    ok('the arrows call the member stepper when inside a group',
+       /'_pinReviewStepMember',/.test(code));
+    ok('...which stops at both ends rather than wrapping',
+       /if \(j < 0 \|\| j >= fl\.length\) return;/.test(code));
+    ok('...and redraws itself, or the counter freezes and the greying lies',
+       /hd\.children\[0\]\.outerHTML = _pinRvNavHtml\('prev'\)/.test(code) &&
+       /hd\.children\[3\]\.outerHTML = _pinRvNavHtml\('next'\)/.test(code));
+    ok('the header has a handle for that redraw',
+       /id="pin-rv-nav"/.test(code));
+
+    ok('the counter says which sequence it is counting',
+       /' in this group<\/span>'/.test(code));
+    ok('stepping a member moves the whole card, not just the picture',
+       /window\._pinRvSetMain\(fl\[j\]\.id\)/.test(code));
+
+    // The duplication the ratchet caught: two arrow branches, one style.
+    ok('both sequences share ONE arrow builder — no second copy of the style',
+       /function _pinRvArrow\(dir, can, call, title\)/.test(code) &&
+       (code.match(/rgba\(139,142,148,0\.35\)/g) || []).length === 1);
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
