@@ -2875,6 +2875,25 @@ function _initBackButton() {
   window.addEventListener('popstate', function(e) {
     var state = e.state || {};
 
+    // ── Case 0: the wizard just returned the user somewhere on purpose ──
+    // v0.9.1191 (Brad: cancel + discard from the photo inbox landed on the
+    // Dashboard). Closing the wizard rewinds the history entry it pushed on
+    // open; that rewind fires a popstate a beat AFTER _doCloseWizard has
+    // already shown the return page. Reaching Case 3 below, it looks exactly
+    // like a Back press from the inbox and walks the trail to the Dashboard —
+    // undoing a return that was correct. The wizard stamps its return, and
+    // this consumes the stamp once: re-push the entry, navigate nowhere.
+    //
+    // Timestamped and single-use ON PURPOSE. A stale flag would swallow a
+    // genuine Back press later, which is a worse bug than the one being fixed.
+    var _wr = window._rrWizardReturn;
+    if (_wr && (Date.now() - _wr.at) < 1500) {
+      window._rrWizardReturn = null;
+      history.pushState({ appPage: _wr.page }, '', '');
+      return;
+    }
+    if (_wr) window._rrWizardReturn = null;   // expired — never leave it lying about
+
     // ── Case 1: Wizard is open ──
     var wizModal = document.getElementById('wizard-modal');
     if (wizModal && wizModal.classList.contains('open')) {

@@ -891,7 +891,24 @@ function _doCloseWizard() {
   // triggered this close (device back on step 1), the entry is already gone
   // and pop() is a no-op; safe either way.
   if (window.BackStack) window.BackStack.pop('wizard');
-  if (returnTo) showPage(returnTo);
+  // v0.9.1191 (Brad: "when you cancel and hit disreguard, it takes you to
+  // dashboard, not back to the photo inbox"). v0.9.1062 already made the
+  // inbox state its return page outright, and it does — traced live, this
+  // showPage() lands on 'photo-inbox' every time. Then the history rewind
+  // above delivers its popstate a beat LATER, app.js reads it as the user
+  // pressing Back, walks the visit trail, and hauls the user off to the
+  // Dashboard. Two correct behaviours, one stealing the other's result:
+  //
+  //   showPage('photo-inbox')  <- _doCloseWizard        (right)
+  //   showPage('dashboard')    <- _rrGoBackTo, popstate (steals it)
+  //
+  // So the return is CLAIMED here: app.js honours this stamp for one
+  // popstate and re-pushes instead of navigating. Timestamped, single-use,
+  // so a real Back press a moment later still works normally.
+  if (returnTo) {
+    window._rrWizardReturn = { page: returnTo, at: Date.now() };
+    showPage(returnTo);
+  }
 }
 
 // ── v0.9.1122 (Brad's 1562W) ───────────────────────────────────────────────

@@ -6203,6 +6203,80 @@ META_WRITES.length = 0; TOASTS.length = 0;
        windows.every(w => /padding:0\.4/.test(w)));
   })();
 
+  section('159. Cancel + Discard returns you where you came from (v0.9.1191)');
+  // "when you cancel and hit disreguard, it takes you to dashboard, not back
+  // to the photo inbox."
+  //
+  // TRACED LIVE in Brad's running app by wrapping showPage and reading the
+  // call stack. Both halves were behaving correctly on their own:
+  //   showPage('photo-inbox')  <- _doCloseWizard        (the right answer)
+  //   showPage('dashboard')    <- _rrGoBackTo, popstate (arrives after, wins)
+  // Closing the wizard rewinds the history entry it pushed on open; that
+  // popstate lands a beat later and app.js reads it as a Back press.
+  //
+  // v0.9.1062 had already set _returnPage='photo-inbox' — verified still set
+  // at discard time. The return was never wrong; it was being overwritten.
+  (function () {
+    const pR = require('path');
+    const wz = fs.readFileSync(pR.join(__dirname, '..', 'app', 'wizard.js'), 'utf8');
+    const ap = fs.readFileSync(pR.join(__dirname, '..', 'app', 'app.js'), 'utf8');
+
+    const closeFn = wz.slice(wz.indexOf('function _doCloseWizard'),
+                             wz.indexOf('// ── v0.9.1122'));
+    ok('closing the wizard claims its return before showing the page',
+       /_rrWizardReturn = \{ page: returnTo, at: Date\.now\(\) \}/.test(closeFn));
+    ok('...and the claim is made BEFORE showPage, or the race is unchanged',
+       closeFn.indexOf('_rrWizardReturn =') < closeFn.indexOf('showPage(returnTo)'));
+    ok('the return page itself is still whatever opened the wizard',
+       /const returnTo = \(wizard && wizard\.data && wizard\.data\._returnPage\)/.test(closeFn));
+
+    // Run the REAL handler: slice app.js's popstate callback and drive it.
+    const hIdx = ap.indexOf("window.addEventListener('popstate', function(e) {");
+    const hEnd = ap.indexOf('// ── Case 1: Wizard is open ──', hIdx);
+    const case0 = ap.slice(hIdx, hEnd);
+    ok('the stamp is consumed before any other case can act on it',
+       /Case 0/.test(case0) && /_rrWizardReturn/.test(case0));
+    ok('...it re-pushes the entry rather than navigating',
+       /history\.pushState\(\{ appPage: _wr\.page \}/.test(case0) && /return;/.test(case0));
+    ok('...and never calls _rrGoBackTo — that was the thief',
+       case0.indexOf('_rrGoBackTo') < 0);
+
+    // The guard must be single-use and time-boxed, or it eats a real Back press.
+    const body = case0.slice(case0.indexOf('var _wr'));
+    ok('the stamp expires, so a later Back press still works',
+       /Date\.now\(\) - _wr\.at\) < 1500/.test(body));
+    ok('...is cleared the moment it is used',
+       /window\._rrWizardReturn = null;[\s\S]{0,80}history\.pushState/.test(body));
+    ok('...and an expired stamp is cleared too, never left lying about',
+       /if \(_wr\) window\._rrWizardReturn = null;/.test(body));
+
+    // Behavioural: simulate the exact live sequence.
+    (function () {
+      const calls = [];
+      const win = { _rrWizardReturn: null };
+      const now = 1000000;
+      // close: claim + show
+      win._rrWizardReturn = { page: 'photo-inbox', at: now };
+      calls.push('photo-inbox');
+      // the stray popstate arrives 40ms later
+      const handle = (t) => {
+        const wr = win._rrWizardReturn;
+        if (wr && (t - wr.at) < 1500) { win._rrWizardReturn = null; return 'repushed'; }
+        if (wr) win._rrWizardReturn = null;
+        calls.push('dashboard');           // what Case 3 would have done
+        return 'navigated-back';
+      };
+      ok('the stray popstate right after closing does NOT navigate',
+         handle(now + 40) === 'repushed');
+      ok('...so the user is left on the page they came from',
+         calls.length === 1 && calls[0] === 'photo-inbox', calls.join(','));
+      // a genuine Back press two seconds later must still work
+      win._rrWizardReturn = { page: 'photo-inbox', at: now };
+      ok('a real Back press later is NOT swallowed',
+         handle(now + 2500) === 'navigated-back');
+    })();
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
