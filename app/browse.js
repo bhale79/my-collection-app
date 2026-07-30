@@ -925,6 +925,17 @@ function _itemExternalLinkURL(item) {
   // Deep-link COTT references straight to the item anchor (cott-anchors.js).
   if (item.refLink) return (typeof window!=='undefined' && window.cottAnchorUrl)
       ? window.cottAnchorUrl(item.refLink, item.itemNum) : item.refLink;
+  // ── v0.9.1186 — the oddballs, by name ─────────────────────────────────────
+  // Brad: "https://cornucopiaoftoytrains.com/club-cars/#CCTCA should be the
+  // link for the x6464-1970 its an odd ball." Club and convention cars don't
+  // follow any numbering rule the branches below can reason about, so they get
+  // a named map instead of a cleverer pattern. A refLink in the master still
+  // wins (above) — if a row here ever gains one, delete its entry.
+  var _ODDBALL_REFS = {
+    'X6464-1970': 'https://cornucopiaoftoytrains.com/club-cars/#CCTCA',
+  };
+  var _odd = _ODDBALL_REFS[String(item.itemNum || '').trim().toUpperCase()];
+  if (_odd) return _odd;
   // v0.9.1175 (Brad: "6464-100 is on the cott site. why does this link to a google
   // search for a lionel 6464-100"). Because THIS row has no reference of its own —
   // and his want had matched the BOX row (the card even badged it PAPER / BOX /

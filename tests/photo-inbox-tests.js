@@ -5978,6 +5978,37 @@ META_WRITES.length = 0; TOASTS.length = 0;
        L('11-30127', '2011') === 'https://www.mthtrains.com/products/11-30127');
   })();
 
+  section('156. The oddballs, by name (v0.9.1186)');
+  // "https://cornucopiaoftoytrains.com/club-cars/#CCTCA should be the link for
+  // the x6464-1970 its an odd ball." Club cars follow no numbering rule, so
+  // they get a NAMED map — not a cleverer pattern.
+  (function () {
+    const pO = require('path');
+    const brw = fs.readFileSync(pO.join(__dirname, '..', 'app', 'browse.js'), 'utf8');
+    const a = brw.indexOf('function _itemExternalLinkURL(item)');
+    const b = brw.indexOf('function _itemExternalLinkHTML(item)');
+    if (a < 0 || b < 0) throw new Error('§156 marker moved');
+    const win = { _mbAllGet: () => null, cottAnchorUrl: (u, num) => u + '#' + num };
+    const url = new Function('window', 'state', 'ERA_TABS', '_itemEraPeriod',
+      brw.slice(a, b).replace(/if \(typeof window !== 'undefined'\) window\.[\w.]+ = \w+;/g, '')
+      + 'return _itemExternalLinkURL;')(win, {}, {},
+      (it) => ({ pw: 'postwar', prewar: 'prewar', mpc: 'modern' })[it._era] || null);
+
+    const TCA = { itemNum: 'X6464-1970', _tab: 'Lionel PW - Items', _era: 'pw',
+                  roadName: 'TCA', yearProd: '1970' };
+    ok('X6464-1970 goes to the COTT club-cars page Brad named',
+       url(TCA) === 'https://cornucopiaoftoytrains.com/club-cars/#CCTCA', url(TCA));
+    ok('...case-insensitively, because the number is typed both ways',
+       url(Object.assign({}, TCA, { itemNum: 'x6464-1970' }))
+         === 'https://cornucopiaoftoytrains.com/club-cars/#CCTCA');
+    ok('a refLink in the master still outranks the oddball map',
+       url(Object.assign({}, TCA, { refLink: 'https://example.org/tca' }))
+         .indexOf('example.org') >= 0);
+    ok('the map is a NAMED list, and a near-miss number sails past it',
+       url({ itemNum: 'X6464-1971', _tab: 'Lionel PW - Items', _era: 'pw' })
+         .indexOf('club-cars') < 0);
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
