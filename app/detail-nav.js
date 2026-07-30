@@ -24,10 +24,45 @@
 (function () {
   'use strict';
 
-  // An onclick that opens an item detail page. _wantViewDetail is the
-  // Want/Upgrade route (it resolves the master index itself, then calls
-  // showItemDetailPage with wantMode).
-  var OPENS_DETAIL = /(?:^|[^\w])(?:showItemDetailPage|_wantViewDetail|showNonItemDetailPage)\s*\(/;
+  // Every way a list row opens a detail page. v0.9.1156 (Brad: "the for sale
+  // list always says 1 of 2, it wont move to the next item") — this started as
+  // the three openers I happened to know, and the For Sale list uses a fourth:
+  // `_openOwnedByInvId`, taken by any entry carrying an inventoryId, which is
+  // most of them. Those rows were invisible to the capture, so only the two
+  // legacy rows were seen: "1 of 2" on a list of eight, and stepping went to
+  // the wrong item. Enumerated from the source this time, not from memory.
+  //   showItemDetailPage    — the shared item detail (Collection, Browse, For Sale legacy)
+  //   _openOwnedByInvId     — per-copy open by inventory id (For Sale, Dashboard)
+  //   _wantViewDetail       — Want / Upgrade (resolves the index, then opens with wantMode)
+  //   showNonItemDetailPage — catalogs / paper / science / construction / other
+  //   showSoldDetailPage    — Sold items
+  //   showSetDetail         — My Sets
+  // Deliberately NOT included: openItem (opens a modal, which has no detail
+  // header to put arrows in) and _openInOtherEra (switches era, so it changes
+  // the very list you are stepping through).
+  var OPENS_DETAIL = /(?:^|[^\w])(?:showItemDetailPage|_openOwnedByInvId|_wantViewDetail|showNonItemDetailPage|showSoldDetailPage|showSetDetail)\s*\(/;
+
+  // A row the user can click at all — any handler that isn't an inner control.
+  // Used only as a CHECK: if a list has clickable rows this module does not
+  // recognise, it must show no arrows rather than a confident wrong count.
+  function _clickableRow(el) {
+    var oc = el.getAttribute && el.getAttribute('onclick');
+    if (!oc) return false;
+    if (/stopPropagation/.test(oc)) return false;
+    return true;
+  }
+  function _clickableCount(host) {
+    var n = 0;
+    for (var i = 0; i < host.children.length; i++) {
+      var c = host.children[i];
+      if (_clickableRow(c)) { n++; continue; }
+      var inner = c.querySelectorAll ? c.querySelectorAll('[onclick]') : [];
+      for (var j = 0; j < inner.length; j++) {
+        if (_clickableRow(inner[j])) { n++; break; }
+      }
+    }
+    return n;
+  }
 
   // Rows carry inner controls — share checkboxes, the photo toggle, a
   // "view on Google" link — whose handlers stop propagation. Those are not
@@ -98,6 +133,21 @@
         items.push({ call: call, label: _labelOf(child) });
       }
       if (pos < 0 || items.length < 2) { window._rrNav = null; return; }
+
+      // v0.9.1156 — the guard that turns the For Sale class of bug into a
+      // visible absence instead of a confident lie. If this list has clickable
+      // rows we did not recognise, our sequence is a SUBSET of what the user
+      // sees, so stepping through it would skip items and the count would be
+      // wrong ("1 of 2" on a list of eight). Show nothing, and say why in the
+      // console so the missing opener is discoverable rather than silent.
+      var clickable = _clickableCount(host);
+      if (items.length < clickable) {
+        console.warn('[detail-nav] no arrows: recognised ' + items.length + ' of ' +
+                     clickable + ' clickable rows here. An opener is missing from ' +
+                     'OPENS_DETAIL in detail-nav.js.');
+        window._rrNav = null;
+        return;
+      }
       window._rrNav = { items: items, pos: pos, origin: _originLabel() };
     } catch (err) { window._rrNav = null; }
   }, true);

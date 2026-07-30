@@ -3468,6 +3468,67 @@ META_WRITES.length = 0; TOASTS.length = 0;
       w.rrDetailNavGo(-1);
       ok('DOM run: pressing prev past the start does nothing at all',
          w._rrNav.pos === 0 && ran.length === 4);
+
+      // ── Brad's For Sale bug, v0.9.1156 ──
+      // "the for sale list always says 1 of 2, it wont move to the next item"
+      // For Sale rows open via _openOwnedByInvId whenever the entry has an
+      // inventoryId — most of them — and that opener was missing from the
+      // recogniser. Only the two legacy rows were seen. This reproduces the
+      // real markup: 6 with an inventoryId, 2 without.
+      (function () {
+        const card = (i, hasInv) => '<div onclick="' + (hasInv
+              ? "window._detailReturn='forsale';_openOwnedByInvId('INV" + i + "')"
+              : "window._detailReturn='forsale';showItemDetailPage(" + (100 + i) + ", '')")
+            + '"><span class="item-num">ITEM-' + i + '</span>'
+            + '<button onclick="event.stopPropagation();fsRemove(' + i + ')">Remove</button></div>';
+        const html = [1, 2, 3, 4, 5, 6].map(i => card(i, true))
+                     .concat([7, 8].map(i => card(i, false))).join('');
+        const d = new JSDOM('<!DOCTYPE html><body><div class="page active" id="page-forsale">'
+          + '<div id="fs-cards">' + html + '</div></div><div id="rr-detail-nav"></div></body>',
+          { runScripts: 'outside-only' });
+        const v = d.window;
+        const opened = [];
+        v.showToast = function () {}; v.scrollTo = function () {};
+        v._openOwnedByInvId = function (id) { opened.push(id); };
+        v.showItemDetailPage = function (i) { opened.push('idx' + i); };
+        v.eval(fs.readFileSync(pN.join(__dirname, '..', 'app', 'detail-nav.js'), 'utf8'));
+        const els = v.document.querySelectorAll('#fs-cards > div');
+
+        els[2].dispatchEvent(new v.Event('click', { bubbles: true }));
+        ok('For Sale: an inventoryId row is recognised (it used to give NO arrows)',
+           !!v._rrNav, v._rrNav ? '' : 'still null');
+        ok('For Sale: the count is the whole list, not just the legacy rows',
+           !!v._rrNav && v._rrNav.items.length === 8 && v._rrNav.pos === 2,
+           v._rrNav ? (v._rrNav.pos + 1) + ' of ' + v._rrNav.items.length : '-');
+        v.rrDetailNavGo(1); v.rrDetailNavGo(1);
+        ok('For Sale: next actually advances, in list order',
+           v._rrNav.pos === 4 && opened.join(',') === 'INV4,INV5', opened.join(','));
+        els[7].dispatchEvent(new v.Event('click', { bubbles: true }));
+        ok('For Sale: the last row reports 8 of 8 with next disabled',
+           v._rrNav.pos === 7 && /disabled/.test(v.rrDetailNavHtml().split('of 8')[1] || ''));
+      })();
+
+      // The guard that stops this class of bug being silent ever again: an
+      // opener this module does not know must produce NO arrows and a warning,
+      // never a confident wrong count.
+      (function () {
+        const d = new JSDOM('<!DOCTYPE html><body><div class="page active" id="page-forsale">'
+          + '<div id="L">'
+          + '<div onclick="showItemDetailPage(1)"><span class="item-num">A</span></div>'
+          + '<div onclick="showItemDetailPage(2)"><span class="item-num">B</span></div>'
+          + '<div onclick="_someBrandNewOpener(3)"><span class="item-num">C</span></div>'
+          + '</div></div></body>', { runScripts: 'outside-only' });
+        const v = d.window;
+        const warns = [];
+        v.console.warn = function () { warns.push(Array.prototype.join.call(arguments, ' ')); };
+        v.eval(fs.readFileSync(pN.join(__dirname, '..', 'app', 'detail-nav.js'), 'utf8'));
+        v.document.querySelectorAll('#L > div')[0]
+          .dispatchEvent(new v.Event('click', { bubbles: true }));
+        ok('an unrecognised opener yields NO arrows rather than a wrong count',
+           v._rrNav === null);
+        ok('…and says so in the console, so the gap is discoverable',
+           warns.some(m => /recognised 2 of 3 clickable rows/.test(m)), warns.join(' | '));
+      })();
     })();
   })();
 
