@@ -1348,8 +1348,24 @@ function showItemDetailPage(idx, copyInvId, opts) {
   }
 
   // Async: load photos
-  if (!_grpPhotoMembers.length && _photoLink) {
-    driveGetFolderPhotos(_photoLink).then(function(photos) {
+  // v0.9.1192 (Brad: "none of the detail pages show the pics") — a blank
+  // photo-link cell does NOT mean "no photos". The Photo Inbox files pictures
+  // into the item's Drive folder and writes the link afterwards; when that
+  // write failed the pictures were still there, and this page was the one
+  // surface that could not reach them (PHOTO_LINK_REGRESSION.md).
+  // The LIST has had this fallback since v0.9.1123 — whose comments asserted,
+  // in two separate files, that THIS page "already" had it. It never did.
+  // Find-only: never creates a folder, so a genuinely photoless item costs one
+  // lookup and its empty state stays exactly as it was.
+  if (!_grpPhotoMembers.length) {
+    var _detailLinkP = _photoLink
+      ? Promise.resolve(_photoLink)
+      : ((pd && pd.itemNum && typeof driveFindItemFolder === 'function')
+          ? driveFindItemFolder(pd.itemNum).catch(function () { return ''; })
+          : Promise.resolve(''));
+    _detailLinkP.then(function (_lnk) {
+    if (!_lnk) return;
+    return driveGetFolderPhotos(_lnk).then(function(photos) {
       const el = document.getElementById('item-detail-photos');
       if (!el) return;
       if (!photos || photos.length === 0) {
@@ -1358,8 +1374,9 @@ function showItemDetailPage(idx, copyInvId, opts) {
       }
       // v0.9.937 (Brad): hero + thumbnail-rail gallery (RSV big, other views
       // as clickable thumbnails beside it; ✂ acts on the photo shown large).
-      _buildPhotoGallery(el, photos, { folderLink: _photoLink, canRename: false,
+      _buildPhotoGallery(el, photos, { folderLink: _lnk, canRename: false,
         stack: !!document.querySelector('.rr-detail-side') });   // v0.9.1009
+    });
     }).catch(function(e) {
       console.warn('Photo gallery load:', e);
       const el = document.getElementById('item-detail-photos');

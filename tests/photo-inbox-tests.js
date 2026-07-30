@@ -6277,6 +6277,124 @@ META_WRITES.length = 0; TOASTS.length = 0;
     })();
   })();
 
+  section('160. A photo link is never written to a row that does not exist (v0.9.1192)');
+  // Brad: "all the items i added today did not get their picture into the
+  // detail sheet, but has a thumbnail."  MEASURED in his own workbook:
+  //   07-07…07-26  26 rows WITH link, 2 without
+  //   07-28         5 WITH, 3 without      <- v0.9.1130 landed
+  //   07-30         0 WITH, 21 without     <- every item he added that day
+  //
+  // A just-appended row carries the PLACEHOLDER row 99999 until a sheet sync
+  // fills the real one. 99999 is TRUTHY, so `if (pd.row …)` passed, the write
+  // addressed S99999, Sheets answered 400 "exceeds grid limits", the catch
+  // swallowed it — and the pending note was then deleted regardless, so it
+  // never retried. Photos already in Drive; pointer gone for good.
+  //
+  // These run the REAL sliced block out of photo-inbox.js, so reverting the
+  // fix turns them red.
+  (function () {
+    const pR = require('path');
+    const pinSrc = fs.readFileSync(pR.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+
+    // Bound the slice by real markers, never a character count.
+    const sIdx = pinSrc.indexOf('var _rowKnown = pd.row');
+    const eIdx = pinSrc.indexOf('try { _pinRefresh(); }', sIdx);
+    ok('the write/retire block is still findable in the shipped source',
+       sIdx > 0 && eIdx > sIdx);
+    const block = pinSrc.slice(sIdx, eIdx);
+
+    // Drive the real block. Only true boundaries are stubbed: the Sheets call,
+    // the column-letter helper and localStorage.
+    //
+    // The one transformation: `await` is stripped and the stubs return plain
+    // values, so the block runs INLINE. This harness's summary line is
+    // synchronous and calls process.exit — an async assertion here would be
+    // counted as neither pass nor fail, which is worse than not writing it.
+    // Stripping await cannot change which branch runs; the guard and the
+    // note-retention logic under test are the real shipped source, untouched.
+    function run(pd, link, sheetsThrows) {
+      const store = { rr_inbox_pending: JSON.stringify({ '2321': { link: link } }) };
+      let wroteRange = null;
+      const ctx = {
+        pd: pd, link: link, num: '2321', PERSONAL_TAB: 'My Collection',
+        PENDING_KEY: 'rr_inbox_pending',
+        state: { personalSheetId: 'SHEET' },
+        personalColLetter: function () { return 'S'; },
+        sheetsUpdate: function (id, range) {
+          if (sheetsThrows) throw new Error('Range exceeds grid limits');
+          wroteRange = range; return {};
+        },
+        localStorage: {
+          getItem: function (k) { return store[k]; },
+          setItem: function (k, v) { store[k] = v; },
+        },
+        console: { warn: function () {} },
+      };
+      const fn = new Function(...Object.keys(ctx), '"use strict";' + block.replace(/\bawait /g, ''));
+      fn(...Object.values(ctx));
+      const pend = JSON.parse(store.rr_inbox_pending || '{}');
+      return { wroteRange: wroteRange, noteKept: Object.prototype.hasOwnProperty.call(pend, '2321'), pd: pd };
+    }
+
+    // THE BUG: a freshly-saved row, still carrying the placeholder.
+    const placeholder = run({ row: 99999, photoItem: '' }, 'https://drive/folder', false);
+    ok('a placeholder row 99999 issues NO sheet write',
+       placeholder.wroteRange === null, String(placeholder.wroteRange));
+    ok('...and the note is KEPT, so the link lands on the next build',
+       placeholder.noteKept === true);
+
+    // The ordinary case must still work.
+    const real = run({ row: 164, photoItem: '' }, 'https://drive/folder', false);
+    ok('a real row still gets its link written, to that exact row',
+       real.wroteRange === 'My Collection!S164', String(real.wroteRange));
+    ok('...and only then is the note retired',
+       real.noteKept === false);
+    ok('...and the in-memory row learns its link',
+       real.pd.photoItem === 'https://drive/folder');
+
+    // A rejected write must not be mistaken for a finished job.
+    const threw = run({ row: 164, photoItem: '' }, 'https://drive/folder', true);
+    ok('a write that throws KEEPS the note instead of discarding it',
+       threw.noteKept === true);
+    ok('...and does NOT claim the row is linked',
+       !threw.pd.photoItem);
+
+    // Nothing to do is still "done" — the note must not accumulate forever.
+    const already = run({ row: 164, photoItem: 'https://drive/existing' }, 'https://drive/folder', false);
+    ok('an item that already has a link retires its note cleanly',
+       already.wroteRange === null && already.noteKept === false);
+
+    // The Drive move must not repeat when the note is held back for a retry.
+    ok('the move is skipped once rec.moved is set',
+       /!rec\.moved && rec\.files && rec\.files\.length/.test(pinSrc));
+    ok('...and rec.moved is persisted, not just held in memory',
+       /_pm\[num\]\.moved = true;[\s\S]{0,80}setItem\(PENDING_KEY/.test(pinSrc));
+
+    // The repair pass: it must never aim at a placeholder either.
+    const rIdx = pinSrc.indexOf('async function _repairMissingPhotoLinks');
+    ok('the repair pass exists', rIdx > 0);
+    const rBlock = pinSrc.slice(rIdx, pinSrc.indexOf('// ── Batch AI identify', rIdx));
+    ok('the repair pass skips placeholder rows too',
+       /Number\(p\.row\) !== 99999/.test(rBlock));
+    ok('...only touches rows with no link',
+       /!p\.photoItem/.test(rBlock));
+    ok('...is find-only, never creating a Drive folder',
+       /driveFindItemFolder/.test(rBlock) && !/driveEnsureItemFolder/.test(rBlock));
+    ok('...and re-queues a row whose write failed rather than marking it done',
+       /delete _repairDone\[k\]/.test(rBlock));
+
+    // The detail page must stop reading a blank cell as "no photos".
+    const col = fs.readFileSync(pR.join(__dirname, '..', 'app', 'app-collection.js'), 'utf8');
+    const dIdx = col.indexOf('// Async: load photos');
+    const dBlock = col.slice(dIdx, col.indexOf('Helper functions for item detail page', dIdx));
+    ok('the detail page falls back to the item folder when the cell is blank',
+       /driveFindItemFolder\(pd\.itemNum\)/.test(dBlock));
+    ok('...and no longer refuses to look when _photoLink is empty',
+       !/if \(!_grpPhotoMembers\.length && _photoLink\)/.test(dBlock));
+    ok('...rendering the gallery from the link it actually resolved',
+       /folderLink: _lnk/.test(dBlock));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

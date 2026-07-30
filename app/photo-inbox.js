@@ -3701,7 +3701,10 @@
           } catch (eF) { console.warn('[Inbox] pending folder resolve failed — will retry:', eF); continue; }
         }
         var link = (rec && typeof rec === 'object') ? rec.link : rec;  // back-compat: old entries were a plain link string
-        if (rec && typeof rec === 'object' && rec.files && rec.files.length && rec.fromFid && rec.toFid) {
+        // v0.9.1192: `rec.moved` records that the Drive move already happened,
+        // so the retry introduced below re-tries ONLY the sheet write. Without
+        // it, holding the note back would re-walk every file on every build.
+        if (rec && typeof rec === 'object' && !rec.moved && rec.files && rec.files.length && rec.fromFid && rec.toFid) {
           var mv = 0;
           for (var fi = 0; fi < rec.files.length; fi++) {
             var file = rec.files[fi]; mv++;
@@ -3714,15 +3717,83 @@
               try { await driveRequest('PATCH', '/files/' + file.id, { name: num + _vTag + ((rec.ts || new Date().getTime()) + mv) + '.' + ext }); } catch (eRn) {}
             } catch (eMv) { console.warn('[Inbox] deferred photo move skipped (removed?):', file.id, eMv); }
           }
+          // Remember the move survived, so a held-back note never repeats it.
+          rec.moved = true;
+          try {
+            var _pm = JSON.parse(localStorage.getItem(PENDING_KEY) || '{}');
+            if (_pm[num] && typeof _pm[num] === 'object') { _pm[num].moved = true; localStorage.setItem(PENDING_KEY, JSON.stringify(_pm)); }
+          } catch (ePM) {}
         }
-        if (pd.row && !pd.photoItem && link && typeof sheetsUpdate === 'function' && typeof personalColLetter === 'function' && state.personalSheetId) {
-          pd.photoItem = link;
-          try { await sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('photoItem') + pd.row, [[link]]); } catch (eUp) { console.warn('[Inbox] pending link write:', eUp); }
+        // ── v0.9.1192 (Brad: every item added today has no photo link) ──
+        // A row that was just appended carries the PLACEHOLDER row 99999 until
+        // a sheet sync fills the real one. 99999 is TRUTHY, so `if (pd.row …)`
+        // passed and the write addressed S99999 → Sheets 400 "exceeds grid
+        // limits" → swallowed by the catch → and the note below was deleted
+        // regardless, so it never retried. The photos were already in Drive by
+        // then, which is why thumbnails found them and the sheet stayed blank.
+        // v0.9.1130 moved the arming to save time, which is when this began.
+        // v0.9.695 fixed exactly this for ONE save path and named Brad's
+        // abacus; sixteen other sites still hand out the sentinel.
+        // A placeholder row is not a row. Hold the note and finish next build.
+        var _rowKnown = pd.row && Number(pd.row) !== 99999;
+        var _linkDone = true;
+        if (!pd.photoItem && link) {
+          if (_rowKnown && typeof sheetsUpdate === 'function' && typeof personalColLetter === 'function' && state.personalSheetId) {
+            try {
+              await sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('photoItem') + pd.row, [[link]]);
+              pd.photoItem = link;   // only true once the sheet actually took it
+            } catch (eUp) { _linkDone = false; console.warn('[Inbox] pending link write failed — keeping the note to retry:', eUp); }
+          } else {
+            _linkDone = false;      // row unknown yet — retry once the sync lands
+          }
         }
-        try { var p2 = JSON.parse(localStorage.getItem(PENDING_KEY) || '{}'); delete p2[num]; localStorage.setItem(PENDING_KEY, JSON.stringify(p2)); } catch (eD) {}
+        // Retire the note ONLY when its work finished. Deleting unconditionally
+        // is what turned a retryable miss into permanent, silent data loss.
+        if (_linkDone) {
+          try { var p2 = JSON.parse(localStorage.getItem(PENDING_KEY) || '{}'); delete p2[num]; localStorage.setItem(PENDING_KEY, JSON.stringify(p2)); } catch (eD) {}
+        }
         try { _pinRefresh(); } catch (eR) {}
       } finally { delete _flushingNums[num]; }
     }
+  }
+
+  // ── v0.9.1192: repair rows whose photos reached Drive but whose link was
+  // lost to the row-99999 write (see PHOTO_LINK_REGRESSION.md). Brad's sheet
+  // had 21 of 21 items added on 2026-07-30 in this state — pictures safe,
+  // pointer gone, and the detail page reading that blank cell as "no photos".
+  //
+  // Find-only and deliberately timid: it never creates a Drive folder, only
+  // walks rows that have a REAL row number and no link, stops after a small
+  // batch per build so a large collection heals over a few visits instead of
+  // firing hundreds of requests at once, and treats every failure as "try
+  // again next time" rather than as a reason to give up.
+  var _repairRan = false, _repairDone = {};
+  async function _repairMissingPhotoLinks() {
+    if (_repairRan) return;                       // once per dashboard build
+    if (!window.state || !state.personalData || !state.personalSheetId) return;
+    if (typeof driveFindItemFolder !== 'function' || typeof sheetsUpdate !== 'function'
+        || typeof personalColLetter !== 'function') return;
+    _repairRan = true;
+    try {
+      var targets = Object.values(state.personalData).filter(function (p) {
+        return p && p.owned && p.itemNum && !p.photoItem
+            && p.row && Number(p.row) !== 99999          // a placeholder is not a row
+            && !_repairDone[String(p.inventoryId || p.itemNum)];
+      }).slice(0, 12);                            // small batch; the rest heal next build
+      for (var i = 0; i < targets.length; i++) {
+        var p = targets[i], k = String(p.inventoryId || p.itemNum);
+        _repairDone[k] = true;                    // don't re-probe this row this session
+        var link = '';
+        try { link = await driveFindItemFolder(p.itemNum); } catch (eF) { continue; }
+        if (!link) continue;                      // genuinely has no folder — leave it alone
+        try {
+          await sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('photoItem') + p.row, [[link]]);
+          p.photoItem = link;
+          console.log('[Inbox] repaired photo link for', p.itemNum);
+        } catch (eW) { delete _repairDone[k]; console.warn('[Inbox] photo-link repair deferred:', p.itemNum, eW); }
+      }
+    } catch (e) { console.warn('[Inbox] photo-link repair pass:', e); }
+    finally { _repairRan = false; }               // eligible again on the next build
   }
 
   // ── Batch AI identify (Phase 3, v0.9.886) ────────────────────
@@ -7310,7 +7381,7 @@
         try { _autoPlaceOnce(); } catch (e) {}
         var r = orig.apply(this, arguments);
         try {
-          _injectNav(); _flushPending();
+          _injectNav(); _flushPending(); _repairMissingPhotoLinks();
           if (!_startupCounted) { _startupCounted = true; setTimeout(function () { _pinCountRefresh(); }, 1500); }
         } catch (e) {}
         return r;
