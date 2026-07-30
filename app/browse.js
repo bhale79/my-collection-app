@@ -925,6 +925,34 @@ function _itemExternalLinkURL(item) {
   // Deep-link COTT references straight to the item anchor (cott-anchors.js).
   if (item.refLink) return (typeof window!=='undefined' && window.cottAnchorUrl)
       ? window.cottAnchorUrl(item.refLink, item.itemNum) : item.refLink;
+  // v0.9.1175 (Brad: "6464-100 is on the cott site. why does this link to a google
+  // search for a lionel 6464-100"). Because THIS row has no reference of its own —
+  // and his want had matched the BOX row (the card even badged it PAPER / BOX /
+  // MISC), which carries the number but not the reference. The master indexes an
+  // item, its box and its paperwork under one number; the COTT page describes the
+  // item, and it is the same page whichever of those rows the app happened to land
+  // on. So: borrow a sibling's reference before falling back to a search.
+  //
+  // Same era first — a postwar row must not borrow a modern reissue's page.
+  try {
+    var _sib = null;
+    var _bucket = (typeof window !== 'undefined' && window._mbAllGet)
+      ? window._mbAllGet(String(item.itemNum || '').trim())
+      : ((typeof state !== 'undefined' && state.masterByItem && state.masterByItem.get)
+          ? state.masterByItem.get(String(item.itemNum || '').trim()) : null);
+    if (_bucket && _bucket.length) {
+      for (var _b = 0; _b < _bucket.length; _b++) {
+        var _r = _bucket[_b];
+        if (!_r || !_r.refLink || _r === item) continue;
+        if (item._era && _r._era && _r._era !== item._era) continue;   // same era only
+        _sib = _r; break;
+      }
+    }
+    if (_sib) {
+      return (typeof window !== 'undefined' && window.cottAnchorUrl)
+        ? window.cottAnchorUrl(_sib.refLink, item.itemNum) : _sib.refLink;
+    }
+  } catch (eSib) {}
   if (item._tab && String(item._tab).toLowerCase().indexOf('mth') === 0
       && item.itemNum) {
     return 'https://www.mthtrains.com/products/' + encodeURIComponent(item.itemNum);
@@ -935,7 +963,15 @@ function _itemExternalLinkURL(item) {
     if (_lyMatch2 && parseInt(_lyMatch2[1], 10) >= 2011) {
       return 'https://www.lionel.com/search?query=' + encodeURIComponent(item.itemNum);
     }
-    var _gq2 = 'Lionel ' + item.itemNum + (item.roadName ? ' ' + item.roadName : '');
+    // v0.9.1175 (Brad: "if we are going to do that, we need to search the era in
+    // this case postwar with it"). A bare "Lionel 6464-100" search is dominated by
+    // modern reissues carrying the same number — the same problem the paid reader
+    // has, and the reason v0.9.1083 started stating the period out loud. The
+    // period word is what a person would type, so it is what goes in.
+    var _per2 = (typeof _itemEraPeriod === 'function') ? _itemEraPeriod(item) : null;
+    var _perWord2 = ({ prewar: 'prewar', postwar: 'postwar', modern: 'modern' })[_per2] || '';
+    var _gq2 = 'Lionel ' + item.itemNum + (item.roadName ? ' ' + item.roadName : '')
+      + (_perWord2 ? ' ' + _perWord2 : '');
     return 'https://www.google.com/search?q=' + encodeURIComponent(_gq2);
   }
   return '';

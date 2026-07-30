@@ -5072,6 +5072,78 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /var _reStart = Date\.now\(\)/.test(code) && /var _idStart = Date\.now\(\)/.test(code));
   })();
 
+  section('145. A COTT item stops linking to Google (v0.9.1175)');
+  // "6464-100 is on the cott site. why does this link to a google search for a
+  // lionel 6464-100. Which if we are going to do that, we need to search the era in
+  // this case postwar with it."
+  //
+  // His want card badged the row PAPER / BOX / MISC — it had matched the BOX row,
+  // which carries the number but no reference link. The master indexes an item, its
+  // box and its paperwork under one number, and the COTT page describes the item;
+  // it is the same page whichever of those rows the app lands on.
+  (function () {
+    const pW = require('path');
+    const brw = fs.readFileSync(pW.join(__dirname, '..', 'app', 'browse.js'), 'utf8');
+    const a = brw.indexOf('function _itemExternalLinkURL(item)');
+    const b = brw.indexOf('function _itemExternalLinkHTML(item)');
+    if (a < 0 || b < 0) throw new Error('§145 marker moved');
+
+    const bucket = {};
+    const win = {
+      _mbAllGet: (n) => bucket[String(n).trim()] || null,
+      cottAnchorUrl: (u, num) => u + '#' + num,
+    };
+    const url = new Function('window', 'state', 'ERA_TABS', '_itemEraPeriod',
+      brw.slice(a, b).replace(/if \(typeof window !== 'undefined'\) window\.[\w.]+ = \w+;/g, '')
+      + 'return _itemExternalLinkURL;')(win, {}, {},
+      (it) => ({ pw: 'postwar', prewar: 'prewar', mpc: 'modern' })[it._era] || null);
+
+    const ITEM = { itemNum:'6464-100', _era:'pw', _tab:'Lionel PW - Items',
+                   description:'Western Pacific Boxcar', roadName:'Western Pacific',
+                   refLink:'https://cornucopiaoftoytrains.com/postwar-boxcars' };
+    const BOX  = { itemNum:'6464-100', _era:'pw', _tab:'Lionel PW - Boxes',
+                   description:'Western Pacific Boxcar, 14', roadName:'Western Pacific' };
+    bucket['6464-100'] = [ITEM, BOX];
+
+    ok('a row with its own reference still uses it',
+       url(ITEM) === 'https://cornucopiaoftoytrains.com/postwar-boxcars#6464-100',
+       url(ITEM));
+    ok('the BOX row borrows the item row\'s COTT page instead of falling back to Google',
+       url(BOX) === 'https://cornucopiaoftoytrains.com/postwar-boxcars#6464-100',
+       url(BOX));
+    ok('...anchored to the number, so a multi-item page lands on the right entry',
+       /#6464-100$/.test(url(BOX)));
+
+    // A postwar row must NOT borrow a modern reissue's page — that is the whole
+    // bug class this app keeps hitting (one number, several makers and eras).
+    bucket['2333'] = [
+      { itemNum:'2333', _era:'mpc', _tab:'Lionel MPC-Modern', description:'Santa Fe reissue',
+        refLink:'https://cornucopiaoftoytrains.com/modern-reissues' },
+      { itemNum:'2333', _era:'pw', _tab:'Lionel PW - Items', description:'Santa Fe F3',
+        roadName:'Santa Fe', yearProd:'1948' },
+    ];
+    const PW2333 = bucket['2333'][1];
+    ok('a postwar row does NOT borrow a modern reissue\'s reference',
+       url(PW2333).indexOf('modern-reissues') < 0, url(PW2333));
+
+    // ...and when Google genuinely is the fallback, the era goes in the query.
+    ok('the Google fallback names the period, as Brad asked',
+       /postwar/.test(decodeURIComponent(url(PW2333))), decodeURIComponent(url(PW2333)));
+    ok('...alongside the maker, number and road name',
+       (function () {
+         const q = decodeURIComponent(url(PW2333));
+         return /Lionel/.test(q) && /2333/.test(q) && /Santa Fe/.test(q);
+       })(), decodeURIComponent(url(PW2333)));
+    ok('a row with no period at all still produces a usable search',
+       (function () {
+         bucket['9999'] = [{ itemNum:'9999', _era:'other_o', _tab:'Lionel PW - Items' }];
+         const q = url(bucket['9999'][0]);
+         return /google\.com\/search/.test(q) && /9999/.test(decodeURIComponent(q));
+       })());
+    ok('an unknown number falls through to a search rather than throwing',
+       /google\.com\/search/.test(url({ itemNum:'000', _era:'pw', _tab:'Lionel PW - Items' })));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
