@@ -5774,6 +5774,63 @@ META_WRITES.length = 0; TOASTS.length = 0;
     delete global.rrPhotoIdHelpHtml;
   })();
 
+  section('152. The whole panel header is the click target (v0.9.1182)');
+  // "all the cards, the top white area and the titles are not clickable."
+  //
+  // The click lived on the title SPAN, and the title is right-aligned — so the
+  // whole left half of every header strip looked clickable and did nothing.
+  // ONE builder makes every panel header, so this runs THAT code, sliced out
+  // of dashboard.js and fed a fake header element.
+  (function () {
+    const pD = require('path');
+    const dsh = fs.readFileSync(pD.join(__dirname, '..', 'app', 'dashboard.js'), 'utf8');
+    const a = dsh.indexOf('// Update header: title');
+    const b = dsh.indexOf('// Render panel body', a);
+    if (a < 0 || b < 0) throw new Error('§152 marker moved');
+    const slice = dsh.slice(a, b);
+
+    function fakeHeader() {
+      return { _html: '', attrs: {}, style: {},
+        set innerHTML(v) { this._html = String(v); }, get innerHTML() { return this._html; },
+        setAttribute(k, v) { this.attrs[k] = String(v); },
+        removeAttribute(k) { delete this.attrs[k]; },
+        getAttribute(k) { return (k in this.attrs) ? this.attrs[k] : null; } };
+    }
+    function runHeader(panelDef) {
+      const el = fakeHeader();
+      new Function('panelDef', 'document', 'state', 'i', 'window', slice)(
+        panelDef, { getElementById: () => el }, {}, 0, global);
+      return el;
+    }
+
+    const NAV = { id: 'forsale', label: 'For Sale', navFn: "buildForSalePage();" };
+    const el = runHeader(NAV);
+    ok('the HEADER STRIP carries the click, not the title span',
+       /window\._fromDash=true;buildForSalePage\(\);/.test(el.getAttribute('onclick') || ''),
+       el.getAttribute('onclick'));
+    ok('...and shows a pointer over the whole band', el.style.cursor === 'pointer');
+    ok('...and says where it goes', el.getAttribute('title') === 'Go to For Sale');
+    ok('the title span itself no longer holds a private onclick',
+       el.innerHTML.indexOf('onclick') < 0, el.innerHTML);
+    ok('the label and the little chevron still render',
+       el.innerHTML.indexOf('For Sale') >= 0 && el.innerHTML.indexOf('›') >= 0);
+
+    // A panel with nowhere to go must not LOOK clickable — and a header
+    // recycled from a nav panel must shed the old handler.
+    const el2 = fakeHeader();
+    el2.setAttribute('onclick', 'stale();'); el2.style.cursor = 'pointer';
+    new Function('panelDef', 'document', 'state', 'i', 'window', slice)(
+      { id: 'plain', label: 'Plain Panel' }, { getElementById: () => el2 }, {}, 0, global);
+    ok('a panel with no destination gets NO click and no pointer',
+       el2.getAttribute('onclick') === null && el2.style.cursor === '');
+
+    // The count suffix still works (v0.9.891 must survive).
+    const el3 = runHeader({ id: 'pi', label: 'Photo Inbox',
+      navFn: "_pinGo();", count: function () { return '67 photos'; } });
+    ok('the "· 67 photos" count still renders after the label',
+       el3.innerHTML.indexOf('67 photos') > el3.innerHTML.indexOf('Photo Inbox'));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

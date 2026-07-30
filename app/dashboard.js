@@ -733,10 +733,30 @@ function buildDashboard() {
           // v0.9.842 (Brad): no emblems on card headers — labels only. The
           // icon fields stay in PANEL_CATALOG (used nowhere else visible)
           // in case we ever want them back.
-          ? '<span style="cursor:pointer;text-decoration:none" onclick="window._fromDash=true;' + panelDef.navFn + '" title="Go to ' + panelDef.label + '">' + panelDef.label + _pCnt + ' <span style="font-size:0.65rem;opacity:0.5">›</span></span>'
+          ? '<span>' + panelDef.label + _pCnt + ' <span style="font-size:0.65rem;opacity:0.5">›</span></span>'
           : '<span>' + panelDef.label + _pCnt + '</span>';
         headerEl.innerHTML = titleHtml
           ;   // v0.9.872 (Brad): no per-panel edit pencil — Edit Dashboard button is the one entry
+        // v0.9.1182 (Brad: "all the cards, the top white area and the titles
+        // are not clickable"). The click lived on the title SPAN, and the title
+        // is right-aligned — so the whole left half of the header strip looked
+        // like part of a clickable card and did nothing. The strip is one flex
+        // div spanning the card, so the honest target is the STRIP: everywhere
+        // in the top band now goes where the title goes.
+        //
+        // Deliberately NOT the whole card body: every row inside already has
+        // its own click, and a card-level handler underneath them would fire
+        // both at once. Headers are rebuilt on every buildDashboard (the host's
+        // innerHTML is replaced), so a stale handler cannot survive a re-render.
+        if (panelDef.navFn) {
+          headerEl.setAttribute('onclick', 'window._fromDash=true;' + panelDef.navFn);
+          headerEl.setAttribute('title', 'Go to ' + panelDef.label);
+          headerEl.style.cursor = 'pointer';
+        } else {
+          headerEl.removeAttribute('onclick');
+          headerEl.removeAttribute('title');
+          headerEl.style.cursor = '';
+        }
       }
 
       // Render panel body
