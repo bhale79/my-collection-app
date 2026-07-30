@@ -4875,6 +4875,34 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /border:1px solid var\(--border\)/.test(code));
   })();
 
+  section('141. In a group, the whole card follows the photo (v0.9.1171)');
+  // From Brad's six-photo group: stepping to photo 2 moved the read line to
+  // "No. 6560" while the panel still said "Item # 6464-525 - Minneapolis & St.
+  // Louis Boxcar" and the number box still held 6464-525. v0.9.1090 taught the
+  // read LINE to follow the photo and stopped there. Add would have filed the
+  // wrong item.
+  (function () {
+    const pS = require('path');
+    const src = fs.readFileSync(pS.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+    const setMain = (function () {
+      const a = src.indexOf('window._pinRvSetMain = function (fid)');
+      const b = src.indexOf('\n  };', a);
+      if (a < 0 || b < 0) throw new Error('§141 marker moved');
+      return src.slice(a, b).split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+    })();
+
+    ok('the read line still follows the photo (v0.9.1090 holds)',
+       /_pinAiLine\(fid\)/.test(setMain));
+    ok('the NUMBER BOX now follows it too',
+       /_box\.value = _num/.test(setMain) && /_ids\(\)\[fid\]/.test(setMain));
+    ok('...and so does the catalog panel beside it',
+       /_pinReviewLookup\(_num\)/.test(setMain));
+    ok('...and the maker hint, which decides which catalog row the panel picks',
+       /_rvAiMfr = _e\.mfr/.test(setMain));
+    ok('a photo with no read of its own clears the box rather than inheriting one',
+       /var _num = _e\.num \? String\(_e\.num\) : '';/.test(setMain));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

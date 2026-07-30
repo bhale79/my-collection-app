@@ -5121,6 +5121,22 @@
       var line = document.getElementById('pin-rv-ailine');
       if (line) line.innerHTML = _pinAiLine(fid) || line.innerHTML;
     } catch (e) {}
+    // v0.9.1171 (Brad's six-photo group): stepping to photo 2 moved the read line
+    // to "No. 6560" while the panel beside it still read "Item # 6464-525 —
+    // Minneapolis & St. Louis Boxcar", and the number box still held 6464-525.
+    // v0.9.1090 taught the read LINE to follow the photo and stopped there, so
+    // the other two things describing that photo went on describing the one he
+    // had just left — and the Add button would have filed the wrong item.
+    //
+    // Three elements describe one photo. All three follow it.
+    try {
+      var _e = _ids()[fid] || {};
+      var _num = _e.num ? String(_e.num) : '';
+      var _box = document.getElementById('pin-rv-num');
+      _rvAiMfr = _e.mfr || '';          // the maker hint belongs to this photo too
+      if (_box) _box.value = _num;
+      if (typeof window._pinReviewLookup === 'function') window._pinReviewLookup(_num);
+    } catch (eSync) {}
   };
 
   // ── Crop / Rotate an inbox photo IN PLACE (v0.9.899, Brad) ───
