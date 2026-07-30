@@ -789,8 +789,18 @@
     try {
       if (typeof findMaster !== 'function' || typeof _pinReconcileAiNum !== 'function') return;
       var ids = _ids(), changed = false;
+      // v0.9.1166: EVERY photo in the group, not just the readable one. Reads are
+      // stored per photo — since per-member reads landed, a set's second car or a
+      // re-read of a different angle keeps its own entry — but this walked only
+      // _pinReadFid(g), so any read saved under a non-lead photo was never
+      // repaired. Silent, and invisible: the entry simply kept a stale number
+      // forever while its group-mate got fixed. Found while verifying v0.9.1165.
+      var _files = [];
       _groups.forEach(function (g) {
-        var fid = _pinReadFid(g);
+        (g.files || []).forEach(function (f) { if (f && f.id) _files.push({ g: g, fid: f.id }); });
+      });
+      _files.forEach(function (item) {
+        var g = item.g, fid = item.fid;
         var e = fid && ids[fid];
         if (!e || !e.aiRaw || !e.num) return;
         var prefer = _pinPreferOf(g);
@@ -2028,6 +2038,11 @@
             + ((dbg.shortDropped && dbg.shortDropped.length)
                 ? '<br>Too short to trust on their own: ' + rrEsc(dbg.shortDropped.join(', ')) : '')
             + (dbg.viaMaker ? '<br>Chosen because it is stamped next to the maker\'s name: ' + rrEsc(dbg.viaMaker) : '')
+            // v0.9.1166: the lettering and the number point at different items.
+            // Both are shown; neither is asserted.
+            + (dbg.nameVsNumber ? '<br>The lettering and the number disagree: ' + rrEsc(dbg.nameVsNumber)
+                + ' \u2014 the lettering leads because it is physically on the item, but check both' : '')
+            + (dbg.typeClash ? '<br>They are not even the same kind of item: ' + rrEsc(dbg.typeClash) : '')
             + (dbg.shortVsLong ? '<br>Two catalog numbers disagree: ' + rrEsc(dbg.shortVsLong)
                 + ' — both offered, pick the one on your item' : '')
             + (dbg.shortBacked ? '<br>A short number the catalog recognises (' + rrEsc(dbg.shortBacked)
@@ -4024,7 +4039,17 @@
     if ((hitWords[keys[0]] || []).length >= 2 && _wchars < 9) return null;
     if (top < 2) return null;
     if (second >= top * 0.75) return null;
-    return { row: rowOf[keys[0]], score: top, words: (hitWords[keys[0]] || []).slice(0, 6) };
+    // v0.9.1166: does the winning match rest on a word that names one or two rows
+    // in the whole era — a herald, a road abbreviation, a model name? That is a
+    // fingerprint, and _pinDescArbitrate needs to know, because a fingerprint is
+    // strong enough to contradict a number that merely EXISTS in the catalog.
+    var _nearUnique = false;
+    (hitWords[keys[0]] || []).forEach(function (wd) {
+      var rs = _rowsFor(wd);
+      if (rs && rs.length && rs.length <= 2) _nearUnique = true;
+    });
+    return { row: rowOf[keys[0]], score: top, nearUnique: _nearUnique,
+             words: (hitWords[keys[0]] || []).slice(0, 6) };
   }
 
   // ══ v0.9.1069 — best of several passes ═══════════════════════════════════
@@ -4276,6 +4301,35 @@
         } else if (dm.score >= 3 && haveNum.replace(/\D/g, '').length <= 3) {
           // A confident name beats a three-digit number that could be anything.
           // Offered rather than asserted, since the two genuinely disagree.
+          best = { num: descNum, matched: false, viaDesc: true, descWords: dm.words, descOf: descOf,
+                   disagreed: haveNum, dbg: dbg2 };
+        } else if (dm.nearUnique) {
+          // v0.9.1166 — Brad's M-K-T steam locomotive was read as "2900 — Lockon",
+          // a track accessory, and offered as a confident answer. 2900 IS a real
+          // Lionel number, so best.matched was true, and the only branch that
+          // could overturn a matched number demanded a score of 3+ AND no more
+          // than three digits. A FOUR-digit number that merely exists therefore
+          // outranked the herald painted on the car — and that herald, M-K-T,
+          // names exactly ONE row among 23,236 Lionel-modern rows.
+          //
+          // A fingerprint word now contradicts a matched number whatever its
+          // length. NEITHER side is asserted: the name leads because it is
+          // physically on the item, the number rides along as `disagreed`, and
+          // the card shows both for the user to settle.
+          dbg2.nameVsNumber = descNum + ' (the lettering on the item) vs '
+            + haveNum + ' (the number read)';
+          // When the two answers are not even the same KIND of thing — a track
+          // accessory against a locomotive — say so. That is the part a person
+          // settles at a glance, and it is exactly what was missing from the
+          // Lockon card.
+          try {
+            var _rowNum = (typeof findMaster === 'function') ? findMaster(haveNum, null, prefer) : null;
+            var _tA = _rowNum ? String(_rowNum.itemType || '').trim() : '';
+            var _tB = String(dm.row.itemType || '').trim();
+            if (_tA && _tB && _tA.toLowerCase() !== _tB.toLowerCase()) {
+              dbg2.typeClash = haveNum + ' is a ' + _tA + ', but the lettering points to a ' + _tB;
+            }
+          } catch (eTC) {}
           best = { num: descNum, matched: false, viaDesc: true, descWords: dm.words, descOf: descOf,
                    disagreed: haveNum, dbg: dbg2 };
         }

@@ -118,7 +118,8 @@ const HOOK = '\n;window.__T = { get groups(){return _groups;}, set groups(v){_gr
      + '\n;window.__ColorWords=_pinColorWords;window.__ColorClash=_pinColorClash;'
      + '\n;window.__setConfirm=function(fn){_pinConfirm=fn;};window.__Confirm=_pinConfirm;'
      + '\n;window.__ReadFiles=_pinReadFiles;window.__ReadFid=_pinReadFid;'
-     + '\n;window.__DescArbitrate=_pinDescArbitrate;window.__IsSetRow=_pinIsSetRow;';
+     + '\n;window.__DescArbitrate=_pinDescArbitrate;window.__IsSetRow=_pinIsSetRow;'
+     + '\n;window.__ReconcileStored=_pinReconcileStored;';
 const cut = src.lastIndexOf('})();');
 if (cut < 0) { console.log('could not find IIFE end'); process.exit(2); }
 src = src.slice(0, cut) + HOOK + '\n' + src.slice(cut);
@@ -1594,10 +1595,32 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('but as an offer, not an assertion', arb && arb.matched === false);
   ok('the overruled number is remembered', arb && arb.disagreed === '138', JSON.stringify(arb && arb.disagreed));
   ok('and the card can say what matched', arb && (arb.descWords || []).join(',').indexOf('BALLAST') >= 0);
-  // a long confirmed number is NOT overruled by words
+  // v0.9.1166 SUPERSEDES the old rule here. This used to assert that a confirmed
+  // FOUR-digit number stands against the lettering, matched:true — a confident
+  // answer. That is precisely what produced Brad's MKT steam locomotive being
+  // offered as "2900 — Lockon", a track accessory: 2900 is a real Lionel number,
+  // so it was asserted, and the M-K-T herald on the tender — a word naming ONE row
+  // in 23,236 — could not contradict it because the only branch that could
+  // required three digits or fewer.
+  //
+  // The digit count was a proxy for "weak number". Near-uniqueness is a better
+  // proxy on the other side: a number can be read off anything in the frame, while
+  // lettering is ON the item. So a fingerprint word now leads — offered, never
+  // asserted, with the number named beside it.
   arb = window.__DescArbitrate({ num:'6464', matched:true, dbg:{} }, BRAD_BT, { era:'pw' });
-  ok('a four-digit confirmed number stands', arb && arb.num === '6464' && arb.matched === true,
-     JSON.stringify(arb));
+  ok('a fingerprint word now contradicts even a confirmed four-digit number',
+     arb && arb.num === '54' && arb.matched === false, JSON.stringify(arb));
+  ok('…with the number kept beside it, so the user settles it',
+     arb && arb.disagreed === '6464');
+  ok('…and the disclosure says the lettering and the number disagree',
+     arb && arb.dbg && /6464 \(the number read\)/.test(String(arb.dbg.nameVsNumber || '')),
+     arb && arb.dbg ? String(arb.dbg.nameVsNumber) : '-');
+  // But GENERIC words must still lose to a confirmed number — the rule turns on
+  // near-uniqueness, not on words being present at all.
+  arb = window.__DescArbitrate({ num:'6464', matched:true, dbg:{} },
+                               'GONDOLA CAR LIONEL LINES', { era:'pw' });
+  ok('generic words do NOT overturn a confirmed number',
+     arb && arb.num === '6464' && arb.matched === true, JSON.stringify(arb));
   // no number at all still gets the description answer
   arb = window.__DescArbitrate({ num:'', matched:false, dbg:{} }, BRAD_BT, { era:'pw' });
   ok('no number → the name is offered', arb && arb.num === '54' && arb.matched === false);
@@ -4420,6 +4443,83 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /var eraKey = eras\.join\('\|'\)/.test(rd('app/photo-inbox.js')));
     ok('and the stored-read repair no longer skips a multi-era filter',
        /if \(!_prefEras\(prefer\)\.length\) return;/.test(rd('app/photo-inbox.js')));
+  })();
+
+  section('137. The two gaps found while verifying v0.9.1165 (v0.9.1166)');
+  // Brad: "fix the 2 things you found".
+  //   (1) a read stored under a NON-LEAD photo was never repaired
+  //   (2) "2900 - Lockon" offered confidently for a photo of a steam locomotive
+  (function () {
+    const pP = require('path');
+    const src = fs.readFileSync(pP.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+
+    // ---- (1) the repair pass walks EVERY photo ----
+    ok('the stored-read repair walks every photo in every group, not just the lead',
+       /\(g\.files \|\| \[\]\)\.forEach\(function \(f\) \{ if \(f && f\.id\) _files\.push/.test(src));
+    ok('...so it no longer keys off _pinReadFid alone',
+       !/var fid = _pinReadFid\(g\);\s*\n\s*var e = fid && ids\[fid\];/.test(src));
+
+    (function () {
+      // 'mod' because that is a real era in this harness's ERAS stub — the photos
+      // are TAGGED with it, so _pinPreferOf resolves without needing chip state.
+      const ROWS = [{ itemNum:'2631200', _era:'mod', _tab:'Lionel MPC-Modern',
+                      description:'M-K-T LEGACY 0-8-0 #43', roadName:'' }];
+      for (let i = 0; i < 80; i++) ROWS.push({ itemNum:'F'+i, _era:'mod', _tab:'Lionel MPC-Modern',
+        description:'LEGACY 0-8-0 Steam Switcher filler '+i, roadName:'Missouri-Kansas-Texas' });
+      const M = new Map(); ROWS.forEach(r => M.set(r.itemNum, [r]));
+      global.state = { masterByItem: M, personalData: {} };
+      global.window.state = global.state;
+      global.findMaster = (n) => (String(n) === '2631200' ? { itemNum:'2631200', _era:'mod' }
+                                : String(n) === '20-3151-1' ? { itemNum:'20-3151-1', _era:'mth_ho' } : null);
+      // Photo A carries no read; photo B holds the stale one. The old pass looked
+      // only at the group's readable photo and never reached B.
+      window.__T.groups = [{ key:'g1', files: [{ id:'A', _meta:{ era:'mod' } },
+                                              { id:'B', _meta:{ era:'mod' } }] }];
+      localStorage.setItem('rr_inbox_ids', JSON.stringify({ B: {
+        num:'20-3151-1', aiRaw:'Lionel M-K-T LEGACY 0-8-0 #43 tender 2023',
+        desc:'M-K-T LEGACY 0-8-0 #43' } }));
+      window.__ReconcileStored();
+      const after = JSON.parse(localStorage.getItem('rr_inbox_ids')).B;
+      ok('a read stored on the SECOND photo of a group is repaired now',
+         after && after.num === '2631200', after ? String(after.num) : 'gone');
+      ok('...and remembers what it was read as',
+         after && after.aiSku === '20-3151-1', after ? String(after.aiSku) : '-');
+    })();
+
+    // ---- (2) a fingerprint word contradicts a confirmed number ----
+    ok('a near-unique word is reported as such, so arbitration can weigh it',
+       /nearUnique: _nearUnique/.test(src) && /rs\.length <= 2\) _nearUnique = true/.test(src));
+    ok('arbitration has a branch for it, independent of the number digit count',
+       /\} else if \(dm\.nearUnique\) \{/.test(src));
+    ok('the disagreement is disclosed, not resolved silently',
+       /The lettering and the number disagree/.test(src));
+    ok('...and a kind-of-item clash is spelled out - the Lockon-vs-locomotive case',
+       /They are not even the same kind of item/.test(src));
+
+    (function () {
+      const ROWS = [
+        { itemNum:'2900', _era:'mpc', _tab:'Lionel MPC-Modern', description:'Lockon', itemType:'Track' },
+        { itemNum:'2631200', _era:'mpc', _tab:'Lionel MPC-Modern', description:'M-K-T LEGACY 0-8-0 #43',
+          itemType:'Steam Locomotive', roadName:'' },
+      ];
+      for (let i = 0; i < 80; i++) ROWS.push({ itemNum:'G'+i, _era:'mpc', _tab:'Lionel MPC-Modern',
+        description:'LEGACY 0-8-0 Steam Switcher filler '+i, itemType:'Steam Locomotive' });
+      const M = new Map(); ROWS.forEach(r => M.set(r.itemNum, [r]));
+      global.state = { masterByItem: M, personalData: {} };
+      global.window.state = global.state;
+      global.findMaster = (n) => ROWS.find(x => String(x.itemNum) === String(n)) || null;
+      const arb = window.__DescArbitrate({ num:'2900', matched:true, dbg:{} },
+        'LIONEL M-K-T 43 STEAM', { era:'mpc' });
+      ok('the Lockon is no longer the confident answer for a locomotive photo',
+         arb && arb.num === '2631200' && arb.matched === false,
+         JSON.stringify(arb && { num: arb.num, matched: arb.matched }));
+      ok('...the lockon number is kept beside it rather than thrown away',
+         arb && arb.disagreed === '2900');
+      ok('...and the card is told they are different KINDS of item',
+         arb && arb.dbg && /2900 is a Track, but the lettering points to a Steam Locomotive/
+           .test(String(arb.dbg.typeClash || '')),
+         arb && arb.dbg ? String(arb.dbg.typeClash) : '-');
+    })();
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
