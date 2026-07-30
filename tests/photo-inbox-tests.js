@@ -5284,6 +5284,132 @@ META_WRITES.length = 0; TOASTS.length = 0;
     delete global.state.setData;
   })();
 
+  section('147. Thumbnails in the For Sale list (v0.9.1177)');
+  // "need thumbnails for the list to the left of description column."
+  //
+  // Four list views had already grown their own copy of the same twenty lines of
+  // thumbnail plumbing, which is why the Collection one carried a bug (v0.9.1123)
+  // the others never got. The fifth copy is not written: drive.js now holds one
+  // cell builder and one filler, and For Sale is the first caller.
+  await (async function () {
+    const pY = require('path');
+    const drv = fs.readFileSync(pY.join(__dirname, '..', 'app', 'drive.js'), 'utf8');
+    const pgs = fs.readFileSync(pY.join(__dirname, '..', 'app', 'app-pages.js'), 'utf8');
+
+    // ── the shared cell, run for real ───────────────────────────────────────
+    const dA = drv.indexOf("var _RR_THUMB_SVG");
+    const dB = drv.indexOf("if (typeof window !== 'undefined') {\n  window.rrThumbCellHTML");
+    if (dA < 0 || dB < 0) throw new Error('§147 marker moved: drive.js helper');
+
+    const REGT = {};
+    let lastLoad = null;
+    const docT = {
+      getElementById: (id) => REGT[id] || null,
+      createElement: () => ({ style: { cssText: '' }, _html: '',
+        set innerHTML(v) { this._html = String(v); }, get innerHTML() { return this._html; } }),
+    };
+    let folderPhotos = [];
+    let folderAsked = [];
+    const mk = (photos, findFolder) => new Function(
+      'document', 'driveGetFolderPhotos', 'driveFindItemFolder', 'loadDriveThumb',
+      drv.slice(dA, dB) + '\nreturn { cell: rrThumbCellHTML, fill: rrThumbFill };')(
+      docT,
+      (link) => { folderAsked.push(link); return Promise.resolve(photos); },
+      findFolder,
+      (fid, img, el, tl, pri) => { lastLoad = { fid: fid, pri: pri, thumbLink: tl }; });
+
+    const H0 = mk([]).cell('fs-thumb-0');
+    ok('the cell is a real table cell with a uniquely-addressable host',
+       /^<td /.test(H0) && H0.indexOf('id="fs-thumb-0"') > 0, H0);
+    ok('a row with NO photo shows the placeholder glyph, not a blank gap',
+       /<svg /.test(H0) && /rect x="3"/.test(H0), H0);
+    ok('the cell carries no hardcoded colour — it points at the palette',
+       /background:var\(--surface2\)/.test(H0) && !/#[0-9a-f]{3}/i.test(H0), H0);
+
+    // ── the filler, run for real against a stubbed Drive ────────────────────
+    // Drive itself is the boundary here; everything above it is the shipped code.
+    await (async function () {
+      const host = { _html: 'PLACEHOLDER', children: [],
+        set innerHTML(v) { this._html = String(v); }, get innerHTML() { return this._html; },
+        appendChild(c) { this.children.push(c); return c; } };
+      REGT['fs-thumb-1'] = host;
+      folderAsked = [];
+      const api = mk([{ id: 'FILE1', thumbnailLink: 'https://t/1' }]);
+      api.fill('fs-thumb-1', 'FOLDER-A', '6464-100');
+      return new Promise(r => setTimeout(r, 0)).then(function () {
+        ok('a row with a photo folder swaps the placeholder for the first photo',
+           host.children.length === 1 && lastLoad && lastLoad.fid === 'FILE1');
+        ok('...loaded at LOW priority, so a list never outruns the inbox',
+           lastLoad && lastLoad.pri === 'lo');
+        ok('...and hands Drive its own cheap thumbnail link rather than the full file',
+           lastLoad && lastLoad.thumbLink === 'https://t/1');
+        ok('...asking only the folder it was given', folderAsked.length === 1 && folderAsked[0] === 'FOLDER-A');
+      });
+    })();
+
+    await (async function () {
+      const host = { _html: 'PLACEHOLDER', children: [],
+        set innerHTML(v) { this._html = String(v); }, get innerHTML() { return this._html; },
+        appendChild(c) { this.children.push(c); return c; } };
+      REGT['fs-thumb-2'] = host;
+      lastLoad = null;
+      mk([]).fill('fs-thumb-2', 'FOLDER-EMPTY', '999');
+      return new Promise(r => setTimeout(r, 0)).then(function () {
+        ok('an empty photo folder KEEPS the placeholder rather than blanking the cell',
+           host._html === 'PLACEHOLDER' && host.children.length === 0 && lastLoad === null);
+      });
+    })();
+
+    await (async function () {
+      // The v0.9.1123 lesson generalised: a blank sheet cell can still find its
+      // folder by number. Never creates one — find only.
+      REGT['fs-thumb-3'] = { _html: '', children: [],
+        set innerHTML(v) { this._html = String(v); }, get innerHTML() { return this._html; },
+        appendChild(c) { this.children.push(c); return c; } };
+      folderAsked = [];
+      let askedNum = '';
+      mk([{ id: 'FILE3' }], (n) => { askedNum = n; return Promise.resolve('FOLDER-FOUND'); })
+        .fill('fs-thumb-3', '', '2333');
+      return new Promise(r => setTimeout(r, 0)).then(function () {
+        ok('a blank photo cell falls back to finding the folder by item number',
+           askedNum === '2333' && folderAsked[0] === 'FOLDER-FOUND');
+      });
+    })();
+
+    ok('no folder and no number at all is a quiet no-op, not a throw',
+       (function () { try { mk([]).fill('fs-thumb-missing', '', ''); return true; } catch (e) { return false; } })());
+
+    // ── the column itself ───────────────────────────────────────────────────
+    const colsA = pgs.indexOf('var _FS_COLS = [');
+    const colsB = pgs.indexOf('];', colsA);
+    if (colsA < 0 || colsB < 0) throw new Error('§147 marker moved: _FS_COLS');
+    const FS_COLS = new Function(pgs.slice(colsA, colsB + 2) + '\nreturn _FS_COLS;')();
+    const iPhoto = FS_COLS.findIndex(c => c.col === 'photo');
+    const iDesc  = FS_COLS.findIndex(c => c.col === 'desc');
+    ok('For Sale has a Photo column', iPhoto >= 0);
+    ok('...immediately to the LEFT of Description, which is what Brad asked for',
+       iPhoto >= 0 && iDesc === iPhoto + 1, 'photo@' + iPhoto + ' desc@' + iDesc);
+    ok('...and it does not pretend to be sortable, because there is nothing to sort',
+       iPhoto >= 0 && FS_COLS[iPhoto].noSort === true);
+
+    // The header builder, run for real over those columns.
+    const hA = pgs.indexOf('function _renderFsHeader()');
+    const hB = pgs.indexOf('function _fsSortBy(col)');
+    if (hA < 0 || hB < 0) throw new Error('§147 marker moved: _renderFsHeader');
+    const theadEl = { _html: '', set innerHTML(v) { this._html = String(v); }, get innerHTML() { return this._html; } };
+    new Function('document', 'state', '_FS_COLS',
+      pgs.slice(hA, hB) + '\n_renderFsHeader();')(
+      { querySelector: () => theadEl }, { _fsSort: {} }, FS_COLS);
+    ok('the drawn header includes Photo',
+       theadEl.innerHTML.indexOf('>Photo<') >= 0, theadEl.innerHTML);
+    ok('...with no sort handler on it, unlike every other header',
+       !/_fsSortBy\('photo'\)/.test(theadEl.innerHTML) && /_fsSortBy\('desc'\)/.test(theadEl.innerHTML));
+
+    // The empty state has to span the new width, or it draws ragged.
+    ok('the "nothing for sale" row spans the columns by COUNT, never a typed number',
+       /colspan="' \+ \(_FS_COLS\.length \+ 1\) \+ '"/.test(pgs) && !/colspan="10"/.test(pgs));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

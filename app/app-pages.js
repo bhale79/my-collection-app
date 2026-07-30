@@ -1825,6 +1825,9 @@ function clearPageSearch(name) {
 var _FS_COLS = [
   { col: 'mfr', label: 'Mfr.' }, { col: 'num', label: 'Item #' },
   { col: 'type', label: 'Type' }, { col: 'road', label: 'Road Name' },
+  // v0.9.1177 (Brad): "need thumbnails for the list to the left of description
+  // column." Same position the Collection table has used since v0.9.909.
+  { col: 'photo', label: 'Photo', noSort: true },
   { col: 'desc', label: 'Description' },
   { col: 'cond', label: 'Cond' }, { col: 'price', label: 'Asking Price' },
   { col: 'worth', label: 'Est. Worth' }, { col: 'listed', label: 'Listed' }
@@ -1851,6 +1854,8 @@ function _renderFsHeader() {
     var arrow = (cs.col===c.col)?(cs.dir==='desc'?' \u25BC':' \u25B2'):'';
     // v0.9.938 (Brad): Description expands like the My Collection table.
     var _st = (c.col==='desc') ? 'cursor:pointer;white-space:normal;width:99%' : 'cursor:pointer;white-space:nowrap';
+    // v0.9.1177: a column with nothing to sort by does not pretend to be sortable.
+    if (c.noSort) return '<th style="white-space:nowrap">'+c.label+'</th>';
     return '<th onclick="_fsSortBy(\''+c.col+'\')" style="'+_st+'" title="Sort by '+c.label+'">'+c.label+arrow+'</th>';
   }).join('');
   html += '<th style="white-space:nowrap">Actions</th>';
@@ -2008,7 +2013,10 @@ function buildForSalePage() {
   } else {
     if (fsCardsEl) fsCardsEl.style.display = 'none';
     if (fsTableWrap) fsTableWrap.style.display = '';
-    if (tbody) tbody.innerHTML = fsEntries.length ? fsEntries.map(fs => {
+    // v0.9.1177: photo cells are filled after the rows are in the DOM. Collected
+    // here so the fill pass never re-derives which row wanted which folder.
+    const _fsThumbJobs = [];
+    if (tbody) tbody.innerHTML = fsEntries.length ? fsEntries.map((fs, _fsI) => {
       const _fsx = _fsEff(fs); const master = findMaster(_fsx.itemNum, _fsx.variation) || {};
       const collPd = (fs.inventoryId && state.personalData[fs.inventoryId]) || {};
       const estWorth = fs.estWorth || collPd.userEstWorth || '';
@@ -2029,6 +2037,11 @@ function buildForSalePage() {
         <td><span class="item-num">${_fsDInShare ? '<input type="checkbox" id="share-cb-' + _fsDShareKey + '" ' + (_fsDSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _fsDShareKey + '\')" style="width:1rem;height:1rem;accent-color:#2ecc71;margin-right:5px;vertical-align:middle">' : ''}${_fsItemNumHTML(fs)}</span></td>
         <td><span class="tag">${master.itemType || '—'}</span></td>
         <td>${master.roadName || '—'}</td>
+        ${(function(){
+          const _hostId = 'fs-thumb-' + _fsI;
+          _fsThumbJobs.push({ host: _hostId, link: collPd.photoItem || '', num: _fsx.itemNum || '' });
+          return typeof rrThumbCellHTML === 'function' ? rrThumbCellHTML(_hostId) : '<td></td>';
+        })()}
         <td>${(function(){ var d = master.description || '—'; return d.length > 110 ? d.substring(0, 108) + '…' : d; })()}</td>
         <td>${fs.condition || '—'}</td>
         <td class="market-val" style="color:#e67e22">${fs.askingPrice ? _currencySymbol() + parseFloat(fs.askingPrice).toLocaleString() : '—'}</td>
@@ -2040,7 +2053,12 @@ function buildForSalePage() {
           <button onclick="event.stopPropagation();removeForSaleAndCollection('${_fsEntryKey(fs)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e74c3c;background:rgba(231,76,60,0.10);color:#e74c3c;font-family:var(--font-body)">Remove</button>` : ''}
         </td>
       </tr>`;
-    }).join('') : '<tr><td colspan="10"><div class="empty-state"><div class="empty-icon">🏷️</div><p>No items listed for sale</p></div></td></tr>';
+    // v0.9.1177: the empty row must span whatever _FS_COLS now is, plus Actions.
+    // A typed number here is how a new column leaves a ragged empty state behind.
+    }).join('') : '<tr><td colspan="' + (_FS_COLS.length + 1) + '"><div class="empty-state"><div class="empty-icon">🏷️</div><p>No items listed for sale</p></div></td></tr>';
+    if (tbody && _fsThumbJobs.length && typeof rrThumbFill === 'function') {
+      _fsThumbJobs.forEach(function (j) { rrThumbFill(j.host, j.link, j.num); });
+    }
   }
 
   const navBadge = document.getElementById('nav-forsale');

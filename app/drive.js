@@ -1114,3 +1114,65 @@ if (typeof window !== 'undefined') {
   window.rrGPhotosFile = rrGPhotosFile;
   window.rrGPhotosEnd = rrGPhotosEnd;
 }
+
+// ══ v0.9.1177 — ONE thumbnail cell for every list ═════════════════════════
+// Brad: "need thumbnails for the list to the left of description column."
+//
+// Four list views had already grown their own copy of the same twenty lines —
+// a 44px box with a grey picture-frame glyph, look up the item's Drive folder,
+// take the first photo, swap it in. The Collection table, the Insurance report,
+// the phone cards on Collection and the phone cards on For Sale each did it
+// slightly differently, which is why the Collection one had a bug (v0.9.1123)
+// that the others never got.
+//
+// So the fifth copy is not written. This is the one, and the other four can
+// move onto it in a later pass without changing how anything looks.
+//
+// A row with NO photo keeps the placeholder rather than collapsing to blank —
+// otherwise the column jitters and it reads as "still loading" forever.
+var _RR_THUMB_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" '
+  + 'stroke="currentColor" stroke-width="1.5" opacity="0.3"><rect x="3" y="3" width="18" '
+  + 'height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>';
+
+// The <td> to drop into a row. hostId must be unique on the page.
+function rrThumbCellHTML(hostId, size) {
+  var s = size || 44;
+  return '<td style="width:' + (s + 8) + 'px;text-align:center;padding:2px 4px">'
+    + '<div id="' + hostId + '" title="Photo" style="width:' + s + 'px;height:' + s + 'px;'
+    + 'border-radius:5px;background:var(--surface2);display:inline-flex;align-items:center;'
+    + 'justify-content:center;overflow:hidden;vertical-align:middle">'
+    + _RR_THUMB_SVG + '</div></td>';
+}
+
+// Fill it, later and quietly. folderLink is the item's photo folder (pd.photoItem
+// or an ephemera row's photoLink); numFallback lets a row whose sheet cell is
+// still blank find its folder by number, which is the v0.9.1123 fix generalised.
+// Never creates a folder — find only.
+function rrThumbFill(hostId, folderLink, numFallback, size) {
+  try {
+    if (typeof driveGetFolderPhotos !== 'function') return;
+    var s = size || 40;
+    var linkP = folderLink
+      ? Promise.resolve(folderLink)
+      : ((numFallback && typeof driveFindItemFolder === 'function')
+          ? driveFindItemFolder(numFallback).catch(function () { return ''; })
+          : Promise.resolve(''));
+    linkP.then(function (link) {
+      if (!link) return null;
+      return driveGetFolderPhotos(link).then(function (photos) {
+        var el = document.getElementById(hostId);
+        if (!el || !photos || !photos.length) return;   // no photo: keep the placeholder
+        var img = document.createElement('img');
+        img.style.cssText = 'width:' + s + 'px;height:' + s + 'px;object-fit:cover;border-radius:4px';
+        el.innerHTML = '';
+        el.appendChild(img);
+        loadDriveThumb(photos[0].id, img, el, photos[0].thumbnailLink || null, 'lo');
+      });
+    }).catch(function () {});
+  } catch (e) {}
+}
+
+if (typeof window !== 'undefined') {
+  window.rrThumbCellHTML = rrThumbCellHTML;
+  window.rrThumbFill = rrThumbFill;
+}
