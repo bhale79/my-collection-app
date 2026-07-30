@@ -865,7 +865,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('it forgets the stored read', /delete mm\[fid\]/.test(rsBody));
   ok('it forgets the "already tried" marker', /delete ff\[fid\]/.test(rsBody));
   ok('it clears the visual-check cache', /delete _vfCache\[k\]/.test(rsBody));
-  ok('it re-reads with the full multi-pass reader', /_freeReadBlob\(blob, 2400, _preferForFid\(fid\)\)/.test(rsBody));
+  // v0.9.1168: `prefer` now carries the rejected-answer list, so the call passes a
+  // derived object rather than _preferForFid(fid) directly. Still the same reader,
+  // still 2400px, still built from the same filter.
+  ok('it re-reads with the full multi-pass reader', /_freeReadBlob\(blob, 2400, _pfR\)/.test(rsBody));
+  ok('...on the era filter for that photo, plus what the user has rejected',
+     /_preferForFid\(fid\)/.test(rsBody) &&
+     /Object\.assign\(\{\}, _pf \|\| \{\}, \{ reject: _rejected \}\)/.test(rsBody));
   ok('it reads the photo on screen (v0.9.1092 supersedes the readable target)',
      /_pinOnScreenFid\(\)/.test(rsBody));
   ok('with a fallback if the group somehow has none',
@@ -1357,9 +1363,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
      JSON.parse(localStorage.getItem('rr_inbox_ids')).fu1.num === '6-39457');
 
   section('63. The paid disclosure actually renders');
+  // Count CODE, not comments. A comment in the app that merely names this UI
+  // string used to break this assertion (it has now happened seven times across
+  // this suite in one evening). Line comments only — a whole-file block-comment
+  // strip is its own trap, see the note in section 132.
+  const w1c = w1.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
   ok('the stale inline copy is gone',
-     (w1.match(/Where did this come from\?/g) || []).length === 1,
-     'copies: ' + (w1.match(/Where did this come from\?/g) || []).length);
+     (w1c.match(/Where did this come from\?/g) || []).length === 1,
+     'copies: ' + (w1c.match(/Where did this come from\?/g) || []).length);
   ok('the normal branch uses the shared builder', /_pinWhyHtml\(s\.raw, s\.dbg, s\) \+/.test(w1));
   // v0.9.1091: the on-screen photo's slot first, with a fallback to the
   // group's readable slot — an existing read must never be hidden by keying
@@ -4220,9 +4231,15 @@ META_WRITES.length = 0; TOASTS.length = 0;
     })();
 
     // ── the button must not quote a price it will not charge ──
+    // v0.9.1168 supersedes the count. The re-enable path no longer re-states the
+    // label: _pinBtnBusy returns a restore function that puts back whatever was
+    // there, so the wording lives in exactly ONE place — the render. Two copies of
+    // a label is how they drift; one is the point.
     ok('the read button says reads are off instead of "(1 token)"',
-       (pin.match(/Read this photo \(reads are off\)/g) || []).length === 2,
-       'found ' + (pin.match(/Read this photo \(reads are off\)/g) || []).length + ', want 2 (render + re-enable)');
+       (pin.match(/Read this photo \(reads are off\)/g) || []).length === 1,
+       'found ' + (pin.match(/Read this photo \(reads are off\)/g) || []).length + ', want 1 (render only)');
+    ok('...and the button is restored by the busy helper, not by re-typing the label',
+       /if \(typeof _idBusy === 'function'\) _idBusy\(\);/.test(pin));
     ok('the token line says what is true when reads are off',
        /Photo reads are switched off — Preferences/.test(pin));
     ok('…and it uses a theme variable, no new colour literal',
@@ -4633,6 +4650,132 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('the free reader gate uses the era SET, like the other four',
        /if \(!_inEraSet\.length\) return true;/.test(src) &&
        /_inEraSet\.indexOf\(row\._era\) >= 0/.test(src));
+  })();
+
+  section('139. Re-scan, rejections, and noise (v0.9.1168)');
+  // Three of Brad's five inbox requests, plus the thing his screenshots exposed.
+  (function () {
+    const pQ = require('path');
+    const src = fs.readFileSync(pQ.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+    const code = src.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+
+    // ── (11) a number GLUED out of fragments, in text with no letters ──
+    // "I know there is not text on here to read and don't expect it to get it
+    // right." His MKT 0-8-0's OCR was 18 characters and not one was a letter; a
+    // later pass welded scattered digits into 2233810, a real Lionel row and the
+    // wrong item entirely. Right maker, so v1167 cannot catch it.
+    (function () {
+      const M = new Map();
+      // 2233810 exists (an AT&SF F7 set); so does 6464-475, the number Brad's
+      // OTHER photo legitimately recovers from letterless text.
+      [{ itemNum:'2233810', _era:'mod', _tab:'Lionel MPC-Modern', description:'AT&SF EMD F7 A-A Set' },
+       { itemNum:'6464-475', _era:'pw', _tab:'Lionel PW - Items', description:'Bangor & Aroostook Boxcar' },
+       { itemNum:'6447', _era:'pw', _tab:'Lionel PW - Items', description:'Pennsylvania Caboose' },
+      ].forEach(r => M.set(String(r.itemNum), [r]));
+      global.state = { masterByItem: M, personalData: {} };
+      global.window.state = global.state;
+      global.window._mbAllGet = (n) => M.get(String(n).trim()) || null;
+      global.findMaster = (n) => (M.get(String(n).trim()) || [null])[0];
+
+      // Brad's real OCR, letterless, digits scattered in ones and twos.
+      const NOISE = '- -- -- 3 43 -- - - 9 7 - - - 4 - - - - - 3 10 --- - 5 - 4 - - - - - - 2 2 3 3 8 1 0 -- - 5 - -';
+      const r1 = window.__NumFromText(NOISE, { era:'mod', manufacturer:'Lionel' });
+      ok('a number welded out of scattered digits, with no letters read, is NOT an answer',
+         !r1 || !r1.num, JSON.stringify(r1 && r1.num));
+
+      // A GLUED reconstruction in letterless text, where the row is a normal item
+      // (not a set), is the case the gate is written for.
+      const M2 = new Map();
+      M2.set('4412340', [{ itemNum:'4412340', _era:'mod', _tab:'Lionel MPC-Modern',
+                           description:'Reading T-1 Northern' }]);
+      global.state = { masterByItem: M2, personalData: {} };
+      global.window.state = global.state;
+      global.window._mbAllGet = (n) => M2.get(String(n).trim()) || null;
+      global.findMaster = (n) => (M2.get(String(n).trim()) || [null])[0];
+      const g1 = window.__NumFromText('- - 4 4 1 2 3 4 0 - - - 5 - -', { era:'mod', manufacturer:'Lionel' });
+      ok('the glued-reconstruction gate fires, and says why for the disclosure',
+         !!(g1 && !g1.num && g1.dbg && g1.dbg.noLetters),
+         JSON.stringify(g1 && { num: g1.num, why: g1.dbg && g1.dbg.noLetters }));
+
+      // restore the first catalog for the run below
+      global.state = { masterByItem: M, personalData: {} };
+      global.window.state = global.state;
+      global.window._mbAllGet = (n) => M.get(String(n).trim()) || null;
+      global.findMaster = (n) => (M.get(String(n).trim()) || [null])[0];
+
+      // THE LIMIT THAT MATTERS: Brad's own 6464-475 photo is ALSO letterless, and
+      // the right answer IS recoverable there — from an unbroken run with one digit
+      // misread. A blanket "no letters, no answer" rule broke that fix; the real
+      // distinction is solid-run versus glued-together.
+      const REAL = '3 -5464475 0 20 - 748200 8- -';
+      const r2 = window.__NumFromText(REAL, { era:'pw', manufacturer:'Lionel' });
+      ok('an unbroken run with one misread digit is still repaired — letters or not',
+         r2 && r2.num === '6464-475', JSON.stringify(r2 && r2.num));
+    })();
+
+    // ── (1) re-scan clears the screen ──
+    ok('re-scan blanks the number box, the info panel and the read line',
+       /_n0\.value = ''/.test(code) && /_i0\.innerHTML = ''/.test(code) &&
+       /Scanning this photo again/.test(code));
+    ok('...in place, NOT by re-opening the card (which resets to photo 1)',
+       (function () {
+         const a = code.indexOf('_reBusy = _pinBtnBusy');
+         const b = code.indexOf('_pinReview(key)', a);
+         return a > 0 && b > a && !/window\._pinReview\(key\)/.test(code.slice(a, code.indexOf('_freeReadBlob(blob, 2400', a)));
+       })());
+    ok('...and the stored record is still snapshotted, not destroyed (v0.9.1150 holds)',
+       /_prevRead = JSON\.parse\(JSON\.stringify\(_pm0\[fid\]\)\)/.test(code) &&
+       /if \(_hadPaid\) \{ m\[fid\] = _prevRead;/.test(code));
+
+    // ── (2) a rejected answer never comes back ──
+    ok('pressing "this is wrong" records the number as rejected',
+       /_rejected\.indexOf\(_rn\) < 0\) _rejected\.push\(_rn\)/.test(code));
+    ok('...the list rides on the entry, so it accumulates across re-scans',
+       /rejected: _rejected/.test(code) &&
+       /Array\.isArray\(_prevRead\.rejected\)/.test(code));
+    ok('...and survives a re-scan that found nothing',
+       /if \(_rejected\.length\) \{ m\[fid\] = Object\.assign/.test(code));
+    ok('the filter happens at the CANDIDATE stage — one rule, every path',
+       /if \(_isRejected\(c\)\) return false;/.test(code));
+
+    (function () {
+      const M = new Map();
+      [{ itemNum:'2412', _era:'pw', _tab:'Lionel PW - Items', description:'Santa Fe Vista Dome' },
+       { itemNum:'2434', _era:'pw', _tab:'Lionel PW - Items', description:'Newark Pullman' },
+      ].forEach(r => M.set(String(r.itemNum), [r]));
+      global.state = { masterByItem: M, personalData: {} };
+      global.window.state = global.state;
+      global.window._mbAllGet = (n) => M.get(String(n).trim()) || null;
+      global.findMaster = (n) => (M.get(String(n).trim()) || [null])[0];
+      const TXT = 'BUILT BY LIONEL 2412 SANTA FE 2434 PULLMAN';
+      const base = window.__NumFromText(TXT, { era:'pw', manufacturer:'Lionel' });
+      ok('sanity: without a rejection the reader answers 2412',
+         base && base.num === '2412', JSON.stringify(base && base.num));
+      const after = window.__NumFromText(TXT, { era:'pw', manufacturer:'Lionel', reject:['2412'] });
+      ok('once rejected, 2412 is never offered again — the next candidate gets its turn',
+         after && after.num === '2434', JSON.stringify(after && after.num));
+      const both = window.__NumFromText(TXT, { era:'pw', manufacturer:'Lionel', reject:['2412','2434'] });
+      ok('reject them all and it comes back empty rather than repeating itself',
+         !both || !both.num, JSON.stringify(both && both.num));
+      ok('a rejection is matched loosely, so 6464-475 and 6464475 are the same refusal',
+         (function () {
+           const r = window.__NumFromText('LIONEL 2412 SANTA FE',
+             { era:'pw', manufacturer:'Lionel', reject:['2-412'] });
+           return !r || r.num !== '2412';
+         })());
+    })();
+
+    // ── (3) the spinner ──
+    ok('there is ONE busy helper, so a scan button cannot be wired without a spinner',
+       /function _pinBtnBusy\(btn, label\)/.test(code) &&
+       /animation:spin 0\.8s linear infinite/.test(code));
+    ok('...used by re-scan, Read this photo and the screenshot read',
+       /_reBusy = _pinBtnBusy/.test(code) && /_idBusy = _pinBtnBusy/.test(code) &&
+       /_shotBusy = _pinBtnBusy/.test(code));
+    ok('...and it restores the previous label rather than re-typing one',
+       /var was = btn\.innerHTML/.test(code) && /btn\.innerHTML = was/.test(code));
+    ok('no new colour literal — the spinner line uses a theme variable',
+       /color:var\(--info\)/.test(code) && !/color:#2980b9;font-weight:700;font-size:0\.85rem/.test(code));
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

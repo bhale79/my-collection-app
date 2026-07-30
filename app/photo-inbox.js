@@ -2092,6 +2092,28 @@
       + '</div></details>';
   }
 
+  // ══ v0.9.1168 — A SPINNING ARROW ON EVERY SCAN ═════════════════════════
+  // Brad: "anytime we are scanning, we need the arrow going arond in a circle, so
+  // a user knows its doing something. this goes for the read this photo too."
+  // He hit this twice in one evening — a button that only changes its text is
+  // indistinguishable from a button that did nothing, and he spent a look at the
+  // screen each time working out which it was.
+  //
+  // ONE helper, so a scan button cannot be wired up without it, and it reuses the
+  // same glyph and `spin` keyframes as the inbox status bar. A second animation
+  // would be a second thing to keep in step. Returns a restore function, which
+  // also means the caller never has to know what the label said before — the
+  // v0.9.1163 "reads are off" wording restores itself for free.
+  function _pinBtnBusy(btn, label) {
+    if (!btn) return function () {};
+    var was = btn.innerHTML, wasOff = btn.disabled;
+    btn.disabled = true;
+    btn.innerHTML = '<span style="display:inline-block;animation:spin 0.8s linear infinite;'
+      + 'font-size:0.95rem;line-height:1;margin-right:0.35rem">\u21bb</span>'
+      + String(label == null ? 'Working\u2026' : label).replace(/</g, '&lt;');
+    return function () { try { btn.innerHTML = was; btn.disabled = wasOff; } catch (e) {} };
+  }
+
   function _pinAiLine(fid) {
     var s = {};
     // v0.9.1087: the readable photo, matching where every reader now WRITES.
@@ -2379,7 +2401,7 @@
     if (typeof aiIdentifyImage2 !== 'function' && typeof aiIdentifyImage !== 'function') { showToast('Identify service not loaded — refresh and try again', 3000, true); return; }
     if (!f) return;
     var btn = document.getElementById('pin-rv-shot');
-    if (btn) { btn.disabled = true; btn.textContent = 'Reading screenshot…'; }
+    var _shotBusy = _pinBtnBusy(btn, 'Reading screenshot\u2026');   // v0.9.1168
     try {
       // v0.9.917 (Brad): CHEAP FIRST. A screenshot is crisp digital text, so
       // try free on-device OCR (Tesseract) before spending a token. Only fall
@@ -2397,7 +2419,7 @@
         }
       } catch (eOcr) { console.warn('[Inbox] screenshot OCR (free pass) failed:', eOcr && eOcr.message); }
       if (!meta) {
-        if (btn) btn.textContent = 'Reading…';
+        _shotBusy = _pinBtnBusy(btn, 'Reading\u2026');   // v0.9.1168
         var _h0 = _pinAiHints(_rvGroups && _rvGroups[0]);
         var ai = (typeof aiIdentifyImage2 === 'function') ? await aiIdentifyImage2([f], _h0) : await aiIdentifyImage(f, _h0);
         if (!ai || !ai.ok) {
@@ -2422,7 +2444,7 @@
       showToast('Could not read that screenshot — try again or type the number', 3800, true);
     } finally {
       var b2 = document.getElementById('pin-rv-shot');
-      if (b2) { b2.disabled = false; b2.textContent = 'Read a screenshot of the answer'; }
+      if (typeof _shotBusy === 'function') _shotBusy(); else if (b2) { b2.disabled = false; }
     }
   }
 
@@ -2511,7 +2533,7 @@
     var btn = document.getElementById('pin-rv-idtoken');
     // v0.9.1052: don't say "Reading…" while the crop screen is still open —
     // nothing is being read and nothing has been spent yet.
-    if (btn) { btn.disabled = true; btn.textContent = _pinSkipReadCrop() ? 'Reading…' : 'Crop first…'; }
+    var _idBusy = _pinBtnBusy(btn, _pinSkipReadCrop() ? 'Reading\u2026' : 'Crop first\u2026');   // v0.9.1168
     try {
       var g = gs[0];
       // v0.9.1092: "Read this photo" reads the photo ON SCREEN. For a set the
@@ -2538,7 +2560,7 @@
       // angles go as they are — several views genuinely help the read, and
       // cropping four photos one at a time would cost more than it saves.
       blobs[0] = await new Promise(function (res) { _pinCropForRead(blobs[0], res); });
-      if (btn) { btn.disabled = true; btn.textContent = 'Reading…'; }
+      _idBusy = _pinBtnBusy(btn, 'Reading\u2026');   // v0.9.1168: crop closed, the read is really running now
       var _h1 = _pinAiHints(_rvGroups && _rvGroups[0]);
       var ai = (typeof aiIdentifyImage2 === 'function') ? await aiIdentifyImage2(blobs, _h1) : await aiIdentifyImage(blobs[0], {});
       if (!ai || !ai.ok) {
@@ -2562,11 +2584,10 @@
       showToast('Could not read the photo — try again', 3000, true);
     } finally {
       var b2 = document.getElementById('pin-rv-idtoken');
-      if (b2) {
-        b2.disabled = false;
-        b2.textContent = (typeof rrAiOptedOut === 'function' && rrAiOptedOut())
-          ? 'Read this photo (reads are off)' : 'Read this photo (1 token)';
-      }
+      // v0.9.1168: the restore function puts back exactly what was there, so the
+      // v0.9.1163 "reads are off" wording no longer has to be duplicated here.
+      if (typeof _idBusy === 'function') _idBusy();
+      else if (b2) { b2.disabled = false; }
     }
   };
 
@@ -3132,6 +3153,15 @@
   function _numberFromText(text, prefer) {
     if (!text) return null;
     var UP = String(text).toUpperCase();
+    // v0.9.1168: numbers the user has explicitly rejected on this photo. Filtered
+    // out at the CANDIDATE stage, so every downstream path — direct hit, join,
+    // dash repair, quote match, hedge — is covered by one rule rather than five.
+    var _rejN = function (v) { return String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); };
+    var _rejectSet = ((prefer && prefer.reject) || []).map(_rejN).filter(Boolean);
+    var _isRejected = function (c) {
+      return _rejectSet.length > 0 && _rejectSet.indexOf(_rejN(c)) >= 0;
+    };
+
     // v0.9.959 (Brad): a 4-digit number sitting next to a © or a copyright
     // holder is a YEAR, not the catalog number — the Thomas box's "© 2012
     // LIONEL" was being read as item #2012. Ban those exact year tokens so they
@@ -3232,6 +3262,7 @@
         if (banned[c]) return false;                            // copyright year, not a catalog number
         if (isBuildDate(c)) return false;                       // "BLT 5-54" — a date, not an item
         if (capStamp[c.replace(/\D/g, '')]) return false;        // "CAPY 40200" — a weight, not an item
+        if (_isRejected(c)) return false;                        // the user already said this is wrong
         // v0.9.1071: the weight block on a freight car reads CAPY 103000,
         // LD LMT 129300, LT WT 40200 — and OCR garbles those labels often
         // enough that keyword matching alone misses them. No Lionel catalog
@@ -3267,8 +3298,20 @@
     // to the free reader's validation now. (The PAID reader is untouched: it
     // sees the photo, and a photo genuinely can be of a boxed set.)
     var _isSetRow = _pinIsSetRow;   // v0.9.1094: hoisted — three indexes share it now
+    // v0.9.1168 — THE CHOKEPOINT for a rejected answer. Filtering the producers
+    // was whack-a-mole: the token list, the maker-adjacent scan, the whole-run
+    // reconstruction and the sliding-window slicer each build candidates their own
+    // way, and a rejected number kept reappearing through whichever one had not
+    // been patched yet. But every one of them has to come THROUGH here to become an
+    // answer, because this is the only thing that turns digits into a catalog row.
+    // One guard here covers direct hits, joins, windows, dash repairs, the hedge
+    // and the quote match — and any path added later gets it for free.
     var fmAny = (typeof findMaster === 'function')
-      ? function (c) { var r = findMaster(c, null, prefer || null); return (r && !_isSetRow(r)) ? r : null; }
+      ? function (c) {
+          if (_isRejected(c)) return null;
+          var r = findMaster(c, null, prefer || null);
+          return (r && !_isSetRow(r)) ? r : null;
+        }
       : null;
     // v0.9.1167 (Brad: "if i once again tell you its a lionel, don't suggest to
     // me atlas"). THE FIFTH COPY of the single-era gate, and the one that was
@@ -3374,6 +3417,27 @@
     // text the answer is still offered, as a guess for a human to accept, but it
     // is never stated as fact.
     var evidence = UP.replace(/[^0-9A-Z]/g, '').length;
+    // ══ v0.9.1168 — NOTHING WAS READ, SO NOTHING IS THE ANSWER ═════════════
+    // Brad's MKT 0-8-0 carries no lettering at all: the herald is a graphic, the
+    // cab number is a decal the OCR broke up, and the recovered text was
+    //   "- -- -- 3 43 -- - - 9 7 - - - 4 - - - - - 3 10 --- - 5 - 4 ... 2 2500 ..."
+    // Eighteen characters, not one of them a LETTER. The re-scan said "No number
+    // picked up automatically" — correct — and then a later pass joined scattered
+    // digits into 2233810, seven digits that happen to be a real Lionel row (an
+    // AT&SF F7 A-A set). Right maker, so v0.9.1167's refusal cannot catch it;
+    // completely the wrong item.
+    //
+    // A catalog number printed on a model never sits alone. LIONEL, a road name,
+    // BLT, CAPY, NEW — something lettered is always beside it, and the same OCR
+    // that can resolve the digits can resolve those. Text with NO letters in it
+    // means nothing was truly read, only artifacts of light and shadow, and a
+    // number assembled from artifacts is an artifact.
+    //
+    // Brad said it plainly: "I know there is not text on here to read and don't
+    // expect it to get it right." Saying so IS the answer, and it costs him one
+    // step (type it, or spend a read) instead of five spent unpicking a confident
+    // wrong item.
+    var _noLetters = !/[A-Z]/.test(UP);
     var THIN = 18;
 
     var dbg = {
@@ -3520,25 +3584,36 @@
       return null;
     }
 
-    var jHit = null, wholeRuns = [];
+    var jHit = null, wholeRuns = [], _jSrc = '';
     // Whole runs first, and a one-character repair of them, BEFORE any window.
     // Order matters: "5464475" cut into windows yields "6447", a real postwar
     // caboose, and it was winning over the boxcar the car actually is. A
     // complete number with one digit corrected beats a fragment of it.
     if (fm) {
-      var _addRun = function (d) {
+      // v0.9.1168: remember HOW each run was obtained. An unbroken run of digits
+      // was genuinely read — Brad's "5464475" is 6464-475 with one digit misread,
+      // and repairing it is the whole point of this path. A run glued together
+      // across gaps is a different animal: on his MKT locomotive, scattered
+      // singles and pairs were welded into 2233810, a real Lionel row and utterly
+      // the wrong item. Same code path, opposite trustworthiness.
+      var _runSrc = {};
+      var _addRun = function (d, src) {
         if (d && d.length >= 4 && d.length <= 12 && !capStamp[d] && !banned[d]
-            && wholeRuns.indexOf(d) < 0) wholeRuns.push(d);
+            && wholeRuns.indexOf(d) < 0) { wholeRuns.push(d); _runSrc[d] = src; }
       };
       // An UNBROKEN digit token first — that is the printed number when the
       // reader managed to keep it together, and it is what "5464475" is. Only
       // then the space-joined runs, which on this car swallow the neighbouring
       // "0 20" and produce a ten-digit string matching nothing.
-      (UP.match(/\d+/g) || []).forEach(_addRun);
+      (UP.match(/\d+/g) || []).forEach(function (d) { _addRun(d, 'solid'); });
       (UP.match(/\d(?:[ \t]?\d){3,11}/g) || []).forEach(function (run) {
-        _addRun(run.replace(/\D/g, ''));
+        _addRun(run.replace(/\D/g, ''), 'glued');
       });
-      wholeRuns.some(function (d) { jHit = _tryNumber(d); return !!jHit; });
+      wholeRuns.some(function (d) {
+        jHit = _tryNumber(d);
+        if (jHit) _jSrc = _runSrc[d] || '';
+        return !!jHit;
+      });
       if (!jHit) {
         wholeRuns.some(function (d) {
           // ══ v0.9.1088 — two gates the repair badly needed ══════════════════
@@ -3632,6 +3707,15 @@
     }
 
     var digitsOf = function (x) { return String(x || '').replace(/\D/g, '').length; };
+    // v0.9.1168: no letters anywhere = no reading happened. Report that, and keep
+    // the reasoning on dbg so the disclosure expander can show what it saw.
+    // (Deliberately not quoting the expander's wording here — a comment naming a
+    // UI string gets counted as code by the tests that assert how many copies of
+    // that string exist. Seventh time that class has bitten on 2026-07-30.)
+    if (_noLetters && jHit && _jSrc === 'glued' && !direct && !dbg.viaMaker) {
+      dbg.noLetters = String(jHit);
+      return { num: '', matched: false, dbg: dbg };
+    }
     if (direct || jHit) {
       // Order of authority: what the maker stamped next to its own name, then
       // the more specific of a joined reconstruction and a direct hit. Length
@@ -4681,7 +4765,28 @@
     var fid = _pinOnScreenFid() || _rvGroups[0].files[0].id;
     var key = _rvGroups[0].key;
     var btn = document.getElementById('pin-rv-rescan');
-    if (btn) { btn.disabled = true; btn.textContent = 'Re-scanning…'; }
+    var _reBusy = _pinBtnBusy(btn, 'Re-scanning\u2026');
+    // v0.9.1168 (Brad: "if i hit this is wrong, rescan, delete everything that the
+    // old scan says on my screen and start over"). The stored entry was already
+    // being cleared below, but the CARD kept showing the old number, maker and
+    // description for the whole read — so the screen still asserted an answer the
+    // user had just told the app was wrong.
+    //
+    // Cleared in place rather than by re-opening the card: window._pinReview()
+    // resets to the group's first photo, which is the v0.9.1092 bug. And the
+    // stored record is snapshotted, not destroyed — v0.9.1150 is about paid detail
+    // surviving a re-scan, and this must not undo it. Screen only.
+    try {
+      var _n0 = document.getElementById('pin-rv-num');
+      if (_n0) _n0.value = '';
+      var _i0 = document.getElementById('pin-rv-info');
+      if (_i0) _i0.innerHTML = '';
+      var _l0 = document.getElementById('pin-rv-ailine');
+      if (_l0) _l0.innerHTML = '<div style="display:flex;align-items:center;gap:0.45rem;'
+        + 'color:var(--info);font-weight:700;font-size:0.85rem;margin-bottom:0.6rem">'
+        + '<span style="display:inline-block;animation:spin 0.8s linear infinite">\u21bb</span>'
+        + '<span>Scanning this photo again\u2026</span></div>';
+    } catch (eClr) {}
     // v0.9.1150 (beta punch list 1.5): re-scan threw the whole entry away and
     // wrote a bare free-reader result in its place. On a photo the user had
     // PAID to identify, that silently destroyed mfr / desc / road / year /
@@ -4704,6 +4809,16 @@
     // was told it belonged to a different item — which was untrue, there was no
     // other item. A blank previous number contradicts nothing, so keep it.
     var _prevHadNum = !!(_prevRead && String(_prevRead.num || '').trim());
+    // v0.9.1168 (Brad: "don't give me the same answer as before if i told you it
+    // was wrong"). Pressing this button IS an explicit rejection and nothing was
+    // recording it — so a re-scan was free to read the same digits, land on the
+    // same row, and hand back the answer he had just refused. The list rides on
+    // the entry so it survives across re-scans and accumulates.
+    var _rejected = (_prevRead && Array.isArray(_prevRead.rejected)) ? _prevRead.rejected.slice() : [];
+    if (_prevHadNum) {
+      var _rn = String(_prevRead.num).trim();
+      if (_rejected.indexOf(_rn) < 0) _rejected.push(_rn);
+    }
     var _keepPaid = function (newNum) {
       return _hadPaid && (!_prevHadNum || _sameNum(_prevRead.num, newNum));
     };
@@ -4714,10 +4829,14 @@
       var blob = await _pinBytes(fid);
       // Full multi-pass reader since v0.9.1069 — tiled, then inverted, then
       // digits-only, stopping as soon as the stamped catalog confirms.
-      var r = await _freeReadBlob(blob, 2400, _preferForFid(fid));
+      // The rejected list travels on `prefer`, which already reaches the candidate
+      // scorer — no new signatures, and one place does the filtering.
+      var _pf = _preferForFid(fid);
+      var _pfR = Object.assign({}, _pf || {}, { reject: _rejected });
+      var r = await _freeReadBlob(blob, 2400, _pfR);
       var m = _ids();
       if (r && r.num) {
-        m[fid] = { num: r.num, guess: r.matched ? 0 : 1, alts: r.alts || [], tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null, rv: READER_VER, viaDesc: !!r.viaDesc, descOf: r.descOf || '', descWords: r.descWords || [], disagreed: r.disagreed || '' };
+        m[fid] = { num: r.num, guess: r.matched ? 0 : 1, alts: r.alts || [], tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null, rv: READER_VER, viaDesc: !!r.viaDesc, descOf: r.descOf || '', descWords: r.descWords || [], disagreed: r.disagreed || '', rejected: _rejected };
         // Same item, better read: carry the paid detail across. A DIFFERENT
         // number means the user was right that the old read was wrong, and the
         // paid detail described that wrong item — so it does not come along.
@@ -4732,6 +4851,9 @@
       }
       else {
         var f2 = _freeTried(); f2[fid] = { t: 1, raw: (r && r.raw) || '', dbg: (r && r.dbg) || null, rv: READER_VER }; _freeTriedSave(f2);
+        // Keep the rejections even when this read found nothing, or the next
+        // re-scan starts from scratch and re-offers what he already refused.
+        if (_rejected.length) { m[fid] = Object.assign({}, m[fid] || {}, { rejected: _rejected }); _idsSave(m); }
         // Nothing found. Without this the user would be strictly worse off for
         // having pressed the button: the paid identification deleted, and no
         // number to show for it. Put it back exactly as it was.
@@ -4760,7 +4882,7 @@
         showToast('Found number ' + r.num + ' — your paid identification was kept', 4000);
       }
     } catch (e) {
-      if (btn) { btn.disabled = false; btn.textContent = 'This is wrong — re-scan'; }
+      _reBusy();
       // v0.9.1078: "Re-scan failed — try again" told Brad nothing and told me
       // less. Every other failure in this file explains itself by now; this one
       // swallowed the reason and left him pressing a button that could not work.
@@ -4768,7 +4890,7 @@
       var _why = (e && e.message) ? String(e.message).slice(0, 90) : 'unknown error';
       showToast('Re-scan failed \u2014 ' + _why, 5000, true);
     } finally {
-      if (btn) { btn.disabled = false; btn.textContent = 'This is wrong — re-scan'; }
+      _reBusy();
     }
   };
 
