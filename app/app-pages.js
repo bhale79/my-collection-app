@@ -980,10 +980,16 @@ function buildWantPage() {
     // Era filter: skip if item not in current era
     if (typeof _isInCurrentEra === 'function' && !_isInCurrentEra(w.itemNum)) return false;
     // Session 155: user-selected era period filter (prewar / postwar / modern)
+    // v0.9.1161: the SAME rule as the browse chips — hide only on a KNOWN
+    // mismatch. Two rows here have no period at all: one whose maker spans
+    // periods with no printed year (Marx, Other O), and one with no catalog
+    // match because the user typed it in by hand. Both used to vanish from all
+    // three period filters, which for a hand-entered want is especially wrong —
+    // the user put it on the list themselves and then could not find it.
     if (_we && typeof _itemEraPeriod === 'function') {
       var _wMaster = (typeof findMaster === 'function') ? findMaster(w.itemNum, '', w) : null;
-      if (!_wMaster) return false;
-      if (_itemEraPeriod(_wMaster) !== _we) return false;
+      var _wPeriod = _wMaster ? _itemEraPeriod(_wMaster) : null;
+      if (_wPeriod && _wPeriod !== _we) return false;
     }
     // Priority filter
     if (_wp && (w.priority || 'Medium') !== _wp) return false;

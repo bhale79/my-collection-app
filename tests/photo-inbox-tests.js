@@ -3822,8 +3822,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('the MFR badge and the chip filter read the SAME helper, which is why one fix cured both',
        /_mfrBadge/.test(brwS) &&
        (brwS.match(/_manufacturerOfItem\(item\)/g) || []).length >= 2);
+    // Bounded by the block's real edges, not by a character budget — a comment
+    // added inside it must not be able to break this.
     ok('the row filter still asks _itemEraPeriod for the period, not a second copy of the map',
-       /_itemEraPeriod\(item\)[\s\S]{0,120}_stp3b\.era/.test(brwS));
+       (function () {
+         const blk = slice(brwS, 'Step 3b: chip-state-aware filter', 'if (road && item.roadName');
+         return /_itemEraPeriod\(item\)/.test(blk) && /_stp3b\.era/.test(blk);
+       })());
   })();
 
   section('131. A new option defaults to ON, and the option sets are complete (v0.9.1159)');
@@ -3997,6 +4002,93 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('…and O-gauge variants are untouched by the new branches',
          sc({ gauge: 'O' }) === 'o' && sc({ gauge: 'O-27' }) === 'o' &&
          sc({ gauge: 'HO Scale' }) === 'ho' && sc({ gauge: '' }) === null);
+    })();
+  })();
+
+  section('132. An unknown period shows everywhere, not nowhere (v0.9.1161)');
+  // Brad chose "show under every period". Marx (1930-1975) and Other O Brands
+  // genuinely span periods, so a row of theirs with no printed production year has
+  // no period — and `null !== 'modern'` was excluding it from ALL THREE period
+  // chips. An item he owns could be missing from a list with nothing to explain it.
+  (function () {
+    const pK = require('path');
+    const rd = f => fs.readFileSync(pK.join(__dirname, '..', f), 'utf8');
+    const cfgS = rd('app/config.js');
+    // Take a NARROW slice of each filter and strip only line comments inside it.
+    // A whole-file comment strip is what broke the first draft of this section:
+    // app-pages.js contains a "/*" inside other code, so the block-comment regex
+    // swallowed everything up to the next "*/" — including the line under test.
+    // Sixth time this class has bitten. Small slices, no global stripping.
+    const codeOf = (file, from, to) => {
+      const src = rd(file), a = src.indexOf(from), b = src.indexOf(to, a + 1);
+      if (a < 0 || b < 0) throw new Error('§132 marker moved in ' + file);
+      return src.slice(a, b).split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+    };
+    const brwBlk = codeOf('app/browse.js', 'Step 3b: chip-state-aware filter',
+                                           'if (road && item.roadName');
+    const wantBlk = codeOf('app/app-pages.js', 'Session 155: user-selected era period filter',
+                                               '// Priority filter');
+
+    ok('the browse chip filter hides a row only on a KNOWN period mismatch',
+       /if \(_itmPeriod && _itmPeriod !== _stp3b\.era\) return false;/.test(brwBlk));
+    ok('…and the old form that hid every unknown period is gone',
+       !/if \(_itmPeriod !== _stp3b\.era\) return false;/.test(brwBlk));
+    ok('the Want list uses the SAME rule, so one item cannot behave two ways',
+       /if \(_wPeriod && _wPeriod !== _we\) return false;/.test(wantBlk));
+    ok('…and a hand-typed want with no catalog match is no longer dropped outright',
+       !/if \(!_wMaster\) return false;/.test(wantBlk));
+    ok('each of the two period filters asks the shared helper exactly once',
+       (brwBlk.match(/_itemEraPeriod\(item\)/g) || []).length === 1 &&
+       (wantBlk.match(/_itemEraPeriod\(_wMaster\)/g) || []).length === 1);
+
+    // Behaviour: the lookup splitter, run for real, must agree with the lists.
+    (function () {
+      // Enough modern O eras that "Any Manufacturer + O + Modern" does NOT resolve
+      // to a single era — otherwise the splitter takes its era-identity branch and
+      // this stops testing the period logic at all. (First draft had three eras,
+      // 'any' resolved uniquely to mpc, and the test failed for the wrong reason.)
+      const ERAS = { mpc:   { label: 'Lionel MPC/Modern', manufacturer: 'Lionel' },
+                     pw:    { label: 'Lionel Postwar',    manufacturer: 'Lionel' },
+                     atlas: { label: 'Atlas O',           manufacturer: 'Atlas' },
+                     mth_o: { label: 'MTH O',             manufacturer: 'MTH' },
+                     marx:  { label: 'Marx O',            manufacturer: 'Marx' } };
+      const ERA_SCALE = { mpc: 'O', pw: 'O', atlas: 'O', mth_o: 'O', marx: 'O' };
+      const ERA_TABS = { mpc: { items: 'Lionel MPC-Modern' }, pw: { items: 'Lionel PW - Items' },
+                         atlas: { items: 'Atlas O' }, mth_o: { items: 'MTH O' },
+                         marx: { items: 'Marx O' } };
+      const REAL_ERA_IDS = ['pw', 'mpc', 'atlas', 'mth_o', 'marx'];
+      const noExports = s => s.replace(/if \(typeof window !== 'undefined'\) window\.[\w.]+ = \w+;/g, '');
+      const a = cfgS.indexOf('var _RR_CHIP_SCALE_LABEL'), b = cfgS.indexOf('// ── Keys that hold browseable');
+      const chips = { manufacturer: 'any', scale: 'o', era: 'modern', section: 'items' };
+      // The REAL _itemEraPeriod out of browse.js, not an imitation. Marx has no
+      // entry in the real era→period map by design, so a Marx row with no year
+      // has no period — exactly the row this decision is about. A hand-written
+      // stand-in got this wrong (it ignored the _tab fallback and reported EVERY
+      // tab-only row as unknown), which is why it is loaded from source instead.
+      const brwRaw = rd('app/browse.js');
+      const pa = brwRaw.indexOf('var _ERA_KEY_TO_PERIOD'), pb = brwRaw.indexOf('function _phState');
+      const period = new Function('ERA_TABS',
+        noExports(brwRaw.slice(pa, pb)) + 'return _itemEraPeriod;')(ERA_TABS);
+      ok('sanity: the real period helper reads the _tab fallback and has no Marx entry',
+         period({ _tab: 'Lionel PW - Items' }) === 'postwar' &&
+         period({ _tab: 'Lionel MPC-Modern' }) === 'modern' &&
+         period({ _tab: 'Marx O' }) === null);
+      const api = new Function('ERAS', 'ERA_SCALE', 'ERA_TABS', 'REAL_ERA_IDS', 'window',
+          '_currentEra', '_phState', '_itemEraPeriod',
+          noExports(cfgS.slice(a, b)) + 'return rrSplitByFilter;')(
+          ERAS, ERA_SCALE, ERA_TABS, REAL_ERA_IDS, { WHAT_I_COLLECT: {} },
+          'all', () => chips, period);
+      const s = api([
+        { itemNum: '1', _tab: 'Lionel MPC-Modern' },   // modern  → in
+        { itemNum: '2', _tab: 'Lionel PW - Items' },   // postwar → set aside
+        { itemNum: '3', _tab: 'Marx O' },              // unknown → in
+      ]);
+      ok('splitter: a Marx row with no year counts as in-scope under Modern',
+         s.inEra.some(r => r._tab === 'Marx O'), 'off-era: ' + s.offEra.map(r => r._tab).join(','));
+      ok('splitter: a row with a KNOWN different period is still set aside',
+         s.offEra.some(r => r._tab === 'Lionel PW - Items'));
+      ok('splitter: and the matching row is untouched',
+         s.inEra.some(r => r._tab === 'Lionel MPC-Modern'));
     })();
   })();
 

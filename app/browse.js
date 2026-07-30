@@ -2800,7 +2800,14 @@ function renderBrowse() {
       if (_stp3b.era && _stp3b.era !== 'any') {
         // S151: chip era is a time period (prewar/postwar/modern).
         var _itmPeriod = (typeof _itemEraPeriod === 'function') ? _itemEraPeriod(item) : null;
-        if (_itmPeriod !== _stp3b.era) return false;
+        // v0.9.1161 (Brad chose "show under every period"): hide only on a KNOWN
+        // mismatch. A maker whose era genuinely spans periods — Marx 1930-1975,
+        // Other O Brands — has no period at all when the row carries no printed
+        // production year, and `null !== 'modern'` was excluding those rows from
+        // ALL THREE period chips. An item Brad owns could be absent from a list
+        // with nothing to explain why. Unknown now shows everywhere instead of
+        // nowhere; a real year still wins, so filling years narrows it properly.
+        if (_itmPeriod && _itmPeriod !== _stp3b.era) return false;
       }
     }
     if (road && item.roadName !== road) return false;
