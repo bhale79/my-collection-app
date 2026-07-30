@@ -225,6 +225,23 @@ var _ERA_PERIOD_LABELS = {
   modern:  'Modern (1970–today)',
 };
 // Internal era key -> time period (used as fallback when item has no yearProd).
+//
+// v0.9.1158 — EVERY era whose production window sits inside ONE period must
+// appear here. An era that is missing gets period `null`, and a null period is
+// excluded from every period chip — so those rows were reachable only under
+// "Any Era", in no other filter combination. Measured against Brad's live
+// catalog before this fix: 4,709 rows unclassifiable, of which
+//   USA Trains 2,198 · LGB 1,608 · Menards 316 · RMT 298 · Atlas HO/N 131
+// were makers that only ever produced in one period. All now mapped (4,551 rows
+// recovered). The remaining 158 are Other O Brands — see below.
+//
+// DELIBERATELY ABSENT, do not "complete" these:
+//   marx     — Marx O ran 1930-1975, which spans all three periods.
+//   other_o  — the long tail (AMT 1950s, KMT, Industrial Rail 1990s, Bowser)
+//              is several makers from several periods under one tab.
+//   all      — the meta-era, not a real one.
+// Those fall through to the yearProd / yearMade parse above, which is the only
+// honest answer for a row whose era genuinely spans periods.
 var _ERA_KEY_TO_PERIOD = {
   prewar:       'prewar',
   pw:           'postwar',
@@ -234,12 +251,23 @@ var _ERA_KEY_TO_PERIOD = {
   mod_ho:       'modern',
   mod_s:        'modern',
   atlas:        'modern',
+  // Atlas HO / N / Z — same maker, same catalog, same crawl as Atlas O above.
+  atlas_ho:     'modern',
+  atlas_n:      'modern',
+  atlas_z:      'modern',
   mth_o:        'modern',
   mth_ho:       'modern',
   mth_s:        'modern',
   mth_tinplate: 'modern',
   mth_g:        'modern',
   weaver:       'modern',
+  rmt:          'modern',   // RMT (Ready Made Trains), late 1990s onward
+  menards:      'modern',   // Menards store brand, 2014 onward
+  kline:        'modern',   // K-Line 1975-2006 (see ERAS)
+  williams:     'modern',   // Williams Reproductions, 1971 onward
+  thirdrail:    'modern',   // 3rd Rail / Sunset Models brass, 1990s onward
+  usatrains:    'modern',   // USA Trains, 1988 onward
+  lgb:          'modern',   // LGB, 1968 onward — effectively all post-1970
 };
 function _itemEraPeriod(item) {
   if (!item) return null;
@@ -334,11 +362,22 @@ var _PH_NON_TAB_SECTIONS = { boxes: 1, companions: 1 };
 
 // S151: era can be a time period (prewar/postwar/modern) or 'any'. Return
 // the union of sections across internal eras that fall in that period.
-var _PERIOD_TO_INTERNAL_ERAS = {
-  prewar:  ['prewar'],
-  postwar: ['pw', 'pw_ho'],
-  modern:  ['mpc', 'mpc_ho', 'mod_ho', 'mod_s', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver'],
-};
+//
+// v0.9.1158 — DERIVED, no longer hand-written. This was a second copy of
+// _ERA_KEY_TO_PERIOD, inverted, and the two had already drifted apart: the map
+// above knew about Atlas O and Weaver while this one had never heard of Menards,
+// RMT, 3rd Rail, K-Line, Williams, USA Trains, LGB or Atlas HO/N/Z. Two tables
+// that must agree, maintained by hand, will always drift — so this one is now
+// computed from the other (project rule 3: one source of truth). Adding an era
+// above is now the whole job.
+var _PERIOD_TO_INTERNAL_ERAS = (function () {
+  var inv = { prewar: [], postwar: [], modern: [] };
+  Object.keys(_ERA_KEY_TO_PERIOD).forEach(function (k) {
+    var p = _ERA_KEY_TO_PERIOD[k];
+    if (inv[p]) inv[p].push(k);
+  });
+  return inv;
+})();
 function _phSectionsFor(era) {
   if (typeof ERA_TABS !== 'object' || !ERA_TABS) return ['items'];
   // Period value: union across all internal eras in that period.

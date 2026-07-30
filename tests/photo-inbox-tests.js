@@ -3768,6 +3768,56 @@ META_WRITES.length = 0; TOASTS.length = 0;
          make().pref(group) === null && Object.keys(make().hints(group)).length === 0);
     })();
 
+    // ── the era→period map, completed (v0.9.1158) ─────────────────────────
+    // An era missing from the map gets period null, and a null period is
+    // excluded from EVERY period chip — so those rows were reachable only under
+    // "Any Era". Measured live before the fix: 4,709 rows, of which 4,551 were
+    // makers that only ever produced in one period.
+    (function () {
+      const cfgAll = rd('app/config.js');
+      const eraIds = /const REAL_ERA_IDS = \[([^\]]+)\]/.exec(cfgAll)[1]
+        .split(',').map(s => s.trim().replace(/^'|'$/g, '')).filter(Boolean);
+      const api = eval('(function(){var ERA_TABS={};'
+        + noExports(slice(brwS, 'var _ERA_KEY_TO_PERIOD', 'function _phState'))
+        // the derived inverse lives further down the file, next to its only caller
+        + noExports(slice(brwS, 'var _PERIOD_TO_INTERNAL_ERAS', 'function _phSectionsFor'))
+        + 'return {map:_ERA_KEY_TO_PERIOD,inv:_PERIOD_TO_INTERNAL_ERAS,p:_itemEraPeriod};})')();
+
+      // The ONLY eras allowed to have no period are the ones that genuinely
+      // span more than one. If a new era is added without a period, this fails.
+      const SPANS = ['marx', 'other_o'];
+      const unmapped = eraIds.filter(k => !api.map[k]);
+      ok('every era whose production window sits in ONE period has a period',
+         unmapped.length === SPANS.length && unmapped.every(k => SPANS.indexOf(k) >= 0),
+         'unmapped: ' + unmapped.join(','));
+      ok('…and the two that genuinely span periods are still left to yearProd',
+         SPANS.every(k => !api.map[k]));
+
+      // The makers that were silently invisible, named individually so a
+      // regression says WHICH one came back.
+      ['usatrains', 'lgb', 'menards', 'rmt', 'atlas_ho', 'atlas_n', 'atlas_z',
+       'kline', 'williams', 'thirdrail'].forEach(k => {
+        ok('a ' + k + ' row with no year now lands in Modern instead of nowhere',
+           api.p({ _era: k }) === 'modern', String(api.p({ _era: k })));
+      });
+      ok('a real production year still outranks the era map',
+         api.p({ _era: 'menards', yearProd: '1955' }) === 'postwar');
+      ok('a genuinely mixed era with no year is still honestly unknown',
+         api.p({ _era: 'other_o' }) === null && api.p({ _era: 'marx' }) === null);
+
+      // The second copy of this relationship, which had already drifted.
+      ok('the period→eras map is DERIVED from the era→period map, not a second copy',
+         !/_PERIOD_TO_INTERNAL_ERAS = \{\s*\n\s*prewar:/.test(brwS) &&
+         /_PERIOD_TO_INTERNAL_ERAS = \(function/.test(brwS));
+      ok('…so the two can no longer disagree about any era',
+         Object.keys(api.map).every(k => (api.inv[api.map[k]] || []).indexOf(k) >= 0) &&
+         Object.keys(api.inv).every(p => api.inv[p].every(k => api.map[k] === p)));
+      ok('…and the derived map now knows the makers the hand-written one missed',
+         ['menards', 'usatrains', 'lgb', 'atlas_ho', 'kline'].every(k => api.inv.modern.indexOf(k) >= 0));
+      ok('…while keeping MPC first, so the section chips keep their order',
+         api.inv.modern[0] === 'mpc' && api.inv.postwar[0] === 'pw' && api.inv.prewar[0] === 'prewar');
+    })();
+
     // ── one cause, both symptoms ──────────────────────────────────────────
     ok('the MFR badge and the chip filter read the SAME helper, which is why one fix cured both',
        /_mfrBadge/.test(brwS) &&
