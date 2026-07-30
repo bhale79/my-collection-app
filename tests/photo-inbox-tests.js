@@ -4216,6 +4216,110 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /rrAiOptedOut\(\)\) \? '' : 'checked'/.test(pf));
   })();
 
+  section('135. The reader\'s WORDS rescue a wrong number (v0.9.1164)');
+  // Brad's M-K-T Legacy 0-8-0, with Google's answer beside it. The paid read
+  // named the item exactly — "M-K-T LEGACY 0-8-0 #43" is the catalog description
+  // of Lionel 2631200, near-verbatim — then attached 20-3151-1, which is an MTH
+  // Union Pacific 0-8-0. Brad confirmed: "it is a lionel".
+  //
+  // _pinReconcileAiNum only ever searched for NUMBERS, and no number in that
+  // answer leads to 2631200, so the rescue could not have worked. Meanwhile
+  // _pinDescMatch — which scores rows by rarity-weighted word overlap — was
+  // wired into the FREE OCR path only. The read that costs a token could not use
+  // the app's best tool.
+  (function () {
+    // A catalog with the real word-frequency profile, measured live against
+    // Brad's 23,236 Lionel-modern rows:
+    //   M-K-T 1 row · MISSOURI-KANSAS-TEXAS 77 · LEGACY 735 · SWITCHER 298 · 0-8-0 81
+    // The frequencies are what decide this, so the filler is not padding — a word
+    // carried by 60+ rows scores ZERO, which is why only M-K-T can win.
+    const ROWS = [
+      { itemNum:'2631200', _era:'mpc', _tab:'Lionel MPC-Modern', description:'M-K-T LEGACY 0-8-0 #43', roadName:'' },
+      { itemNum:'11274', _era:'mpc', _tab:'Lionel MPC-Modern', description:'MKT USRA 0-8-0 Steam Switcher "46," CC', roadName:'Missouri-Kansas-Texas' },
+      { itemNum:'11275', _era:'mpc', _tab:'Lionel MPC-Modern', description:'MKT 0-8-0 Steam Switcher "51," CC', roadName:'Missouri-Kansas-Texas' },
+    ];
+    for (let i = 0; i < 80; i++) {
+      ROWS.push({ itemNum: 'F' + i, _era:'mpc', _tab:'Lionel MPC-Modern',
+                  description:'LEGACY 0-8-0 Steam Switcher filler ' + i,
+                  roadName:'Missouri-Kansas-Texas' });
+    }
+    const M = new Map();
+    ROWS.forEach(r => { M.set(r.itemNum, [r]); });
+    global.state = { masterByItem: M, personalData: {} };
+    global.window.state = global.state;
+
+    const READ = 'Lionel Missouri-Kansas-Texas Railroad M-K-T LEGACY 0-8-0 #43 '
+               + 'steam switcher locomotive and tender (2023)';
+
+    // Sanity: the frequencies really do zero out every word except M-K-T, so this
+    // case genuinely rests on one short, unique road abbreviation.
+    const dm = window.__DescMatch(READ, { era: 'mpc' });
+    ok('the words identify Lionel 2631200 — the item Google named and Brad confirmed',
+       !!dm && dm.row && dm.row.itemNum === '2631200',
+       dm ? JSON.stringify(dm.row.itemNum) : 'null — no match at all');
+    ok('…on the strength of M-K-T, which names exactly one row in the era',
+       !!dm && (dm.words || []).indexOf('M-K-T') >= 0, dm ? (dm.words || []).join(',') : '-');
+
+    // A short road abbreviation is an identity; a short ordinary word is not.
+    ok('a generic short word still identifies nothing',
+       !window.__DescMatch('STEAM SWITCHER LOCOMOTIVE', { era: 'mpc' }));
+    ok('…and neither does a lone short word that is NOT near-unique',
+       !window.__DescMatch('LEGACY', { era: 'mpc' }));
+
+    // The reconciler: the reader's number is real but belongs to another maker.
+    global.findMaster = (n) => {
+      const k = String(n);
+      if (k === '2631200') return { itemNum:'2631200', _era:'mpc' };
+      if (k === '20-3151-1') return { itemNum:'20-3151-1', _era:'mth_o' };   // MTH, wrong era
+      return null;
+    };
+    const rc = window.__Reconcile(
+      { itemNum: '20-3151-1', description: READ }, READ, { era: 'mpc', manufacturer: 'Lionel' });
+    ok('the paid read is reconciled to the Lionel row instead of keeping the MTH number',
+       rc && rc.num === '2631200', rc ? rc.num : 'null');
+    ok('…and remembers what it replaced, so the card can show the swap',
+       rc && rc.swappedFrom === '20-3151-1', rc ? String(rc.swappedFrom) : '-');
+    ok('…flagged as matched on the WORDS, so it is offered rather than asserted',
+       rc && !!rc.viaDesc && /M-K-T/.test(String(rc.viaDesc)), rc ? String(rc.viaDesc) : '-');
+    ok('…naming the row it landed on, so a glance can confirm it',
+       rc && /M-K-T LEGACY 0-8-0/.test(String(rc.descOf || '')), rc ? String(rc.descOf) : '-');
+
+    // A number that is already right must never be second-guessed by words.
+    const rcOk = window.__Reconcile(
+      { itemNum: '2631200', description: READ }, READ, { era: 'mpc', manufacturer: 'Lionel' });
+    ok('a number already correct is left alone — no word search, no swap',
+       rcOk && rcOk.num === '2631200' && !rcOk.swappedFrom && !rcOk.viaDesc,
+       JSON.stringify(rcOk));
+
+    // And with no catalog to search it must decline rather than invent.
+    ok('with no era to search, the word rescue does not fire',
+       (function () { const r = window.__Reconcile({ itemNum:'20-3151-1' }, READ, null);
+                      return r && r.num === '20-3151-1' && !r.viaDesc; })());
+
+    // ── OFFERED, NEVER ASSERTED ──────────────────────────────────────────
+    // A word match overrides a number the reader said out loud. Swapping it
+    // silently, or marking it settled, would be worse than not swapping at all.
+    // All three consumers of the reconciler must treat it as a best guess and
+    // pass the evidence to the card.
+    (function () {
+      const pN2 = require('path');
+      const src = fs.readFileSync(pN2.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const consumers = src.match(/if \(_rc0\.viaDesc\)|if \(_rcB\.viaDesc\)|if \(rc\.viaDesc\)/g) || [];
+      ok('all three reconciler consumers branch on a word match',
+         consumers.length === 3, 'found ' + consumers.length + ': ' + consumers.join(' '));
+      ok('…and none of them still marks every swap as settled',
+         !/meta\.itemNum = _rc0\.num;\s*\n\s*meta\._hedge = 0;/.test(src) &&
+         !/e\.num = rc\.num;\s*\n\s*e\.guess = 0;/.test(src));
+      // The evidence has to reach the SAME fields the free path's disclosure
+      // reads, or the swap is silent even though the data exists.
+      ok('the words and the matched row are stored for the card to show',
+         (src.match(/viaDesc: !!\(meta && meta\._viaDesc\)|viaDesc: !!meta\._viaDesc|e\.viaDesc = true/g) || []).length === 3,
+         'stores: ' + (src.match(/viaDesc: !!\(meta && meta\._viaDesc\)|viaDesc: !!meta\._viaDesc|e\.viaDesc = true/g) || []).length);
+      ok('…and the existing "Matched on the words" disclosure reads those fields',
+         /s\.viaDesc && s\.descOf/.test(src) && /dbg\.viaDesc \?/.test(src));
+    })();
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

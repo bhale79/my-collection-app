@@ -801,7 +801,16 @@
         if (rc && rc.num && rc.num !== e.num) {
           e.aiSku = e.aiSku || rc.swappedFrom || e.num;
           e.num = rc.num;
-          e.guess = 0;                       // in-era catalog hit
+          // v0.9.1164: same rule as the live path — a word match is offered, not
+          // asserted, and says what it matched.
+          if (rc.viaDesc) {
+            e.guess = 1;
+            e.viaDesc = true;
+            e.descOf = rc.descOf || '';
+            e.dbg = Object.assign({}, e.dbg || {}, { viaDesc: rc.viaDesc });
+          } else {
+            e.guess = 0;                     // in-era catalog hit
+          }
           changed = true;
         }
       });
@@ -2258,7 +2267,17 @@
         if (_rc0 && _rc0.num && _rc0.num !== meta.itemNum) {
           meta._aiSku = _rc0.swappedFrom || meta.itemNum || '';
           meta.itemNum = _rc0.num;
-          meta._hedge = 0;              // in-era catalog hit — no longer a guess
+          // v0.9.1164: a NUMBER confirmed by the catalog is settled. A match on
+          // the reader's WORDS overrides a number the reader stated out loud, so
+          // it stays a best guess and carries its evidence to the card — a
+          // silently swapped number would be worse than no swap at all.
+          if (_rc0.viaDesc) {
+            meta._hedge = 1;
+            meta._viaDesc = _rc0.viaDesc;
+            meta._descOf = _rc0.descOf || '';
+          } else {
+            meta._hedge = 0;            // in-era catalog hit — no longer a guess
+          }
         }
       }
     } catch (eR0) { console.warn('[inbox] reconcile failed', eR0 && eR0.message); }
@@ -2286,7 +2305,16 @@
         road: trim(meta.roadName, prev.road), year: trim(meta.year, prev.year),
         // v0.9.968 (Brad): keep scale + item-type so the Add wizard can pre-fill
         // them (e.g. "O" gauge, "Accessory" for a building). Were being dropped.
-        gauge: trim(meta.gauge, prev.gauge), subType: trim(meta.subType, prev.subType)
+        gauge: trim(meta.gauge, prev.gauge), subType: trim(meta.subType, prev.subType),
+        // v0.9.1164: when the number came from the reader's WORDS rather than
+        // from a number it printed, store the evidence in the same fields the
+        // free path uses, so the review card's existing "Matched on the words"
+        // disclosure covers the paid read too. One display, both routes.
+        viaDesc: !!(meta && meta._viaDesc) || !!prev.viaDesc,
+        descOf: (meta && meta._descOf) || prev.descOf || '',
+        dbg: (meta && meta._viaDesc)
+          ? Object.assign({}, prev.dbg || {}, { viaDesc: meta._viaDesc })
+          : (prev.dbg || null)
       };
       _idsSave(ids);
     } catch (eS) {
@@ -3943,7 +3971,18 @@
     if (w0.length < 2) {
       var only = w0[0] || '';
       var rowsFor0 = only ? (_rowsFor(only) || []) : [];
-      if (!(only.length >= 7 && rowsFor0.length && rowsFor0.length <= 2)) return null;
+      var nearUnique = rowsFor0.length && rowsFor0.length <= 2;
+      // v0.9.1164 — a PUNCTUATED ROAD ABBREVIATION is an identity even when it
+      // is short. Brad's M-K-T Legacy 0-8-0 turned on exactly this: 'M-K-T'
+      // names ONE row among 23,236 Lionel-modern rows — a fingerprint — but it
+      // is five characters, so the seven-character rule discarded the only
+      // identifying word in the sentence and this returned nothing at all.
+      // B&O, C&O, M-K-T, D&RGW, L&N, T&P: the most identifying text on a model
+      // is often the shortest. The punctuation is what keeps ordinary short
+      // words out — and near-uniqueness still has to hold, so a common
+      // abbreviation cannot walk in on its shape alone.
+      var isRoadAbbrev = only.length >= 3 && /[&.-]/.test(only);
+      if (!(nearUnique && (only.length >= 7 || isRoadAbbrev))) return null;
     }
     // v0.9.1093: the matched words together must carry real substance — nine
     // characters of distinct matched text. FORT+KNOX+RESERVE is fifteen,
@@ -4289,6 +4328,42 @@
           return out;
         }
       }
+    }
+    // v0.9.1164 — LAST RESORT: the reader's WORDS. Brad's M-K-T Legacy 0-8-0
+    // showed the gap. The paid reader named the item exactly ("M-K-T LEGACY
+    // 0-8-0 #43" is the catalog description of Lionel 2631200, near-verbatim,
+    // and Brad confirmed "it is a lionel") and then attached 20-3151-1 — a real
+    // number, but MTH's Union Pacific 0-8-0. Everything above hunts for NUMBERS,
+    // and no number in that answer leads to 2631200, so the rescue never had a
+    // chance.
+    //
+    // _pinDescMatch already scores catalog rows by rarity-weighted word overlap
+    // within the filtered era, and it was wired into the FREE OCR path only — so
+    // the read that costs a token could not use the app's best tool. Same
+    // matcher, called from one more place: no second implementation to drift.
+    //
+    // It runs only once the numbers have failed, and its own thresholds (two
+    // distinct words, or one long-or-punctuated near-unique word; real matched
+    // substance; a clear winner) decide whether there is an answer at all.
+    // Returned FLAGGED (viaDesc + descOf) because it overrides a number the
+    // reader stated out loud: the card offers it for confirmation, and the user
+    // can see both what matched and which row it landed on.
+    if (typeof _pinDescMatch === 'function') {
+      try {
+        var dmR = _pinDescMatch(aiText || (meta && meta.description) || '', prefer);
+        if (dmR && dmR.row && dmR.row.itemNum && String(dmR.row.itemNum) !== out.num) {
+          out.swappedFrom = out.num;
+          out.num = String(dmR.row.itemNum);
+          out.viaDesc = (dmR.words || []).join(', ');
+          out.descOf = [dmR.row.description, dmR.row.roadName]
+            .filter(Boolean)
+            .filter(function (v, i, a) {
+              return a.findIndex(function (x) { return String(x).toLowerCase() === String(v).toLowerCase(); }) === i;
+            })
+            .join(' — ');
+          return out;
+        }
+      } catch (eDsc) { console.warn('[Inbox] word rescue failed:', eDsc && eDsc.message); }
     }
     return out;
   }
@@ -5570,7 +5645,16 @@
                 if (_rcB && _rcB.num && _rcB.num !== meta.itemNum) {
                   meta._aiSku = _rcB.swappedFrom || meta.itemNum || '';
                   meta.itemNum = _rcB.num;
-                  meta._hedge = 0;
+                  // v0.9.1164: same rule as the single read — a word match stays
+                  // a best guess (so the tile shows the orange tag, not a
+                  // confident blue) and carries its evidence.
+                  if (_rcB.viaDesc) {
+                    meta._hedge = 1;
+                    meta._viaDesc = _rcB.viaDesc;
+                    meta._descOf = _rcB.descOf || '';
+                  } else {
+                    meta._hedge = 0;
+                  }
                 }
               }
             } catch (eRB) { console.warn('[inbox] batch reconcile failed', eRB && eRB.message); }
@@ -5600,6 +5684,9 @@
               road: trim(meta.roadName), year: trim(meta.year),
               // v0.9.968 (Brad): carry scale + item-type through for wizard pre-fill.
               gauge: trim(meta.gauge), subType: trim(meta.subType),
+              // v0.9.1164: the word-match evidence, in the same fields the free
+              // path uses, so one disclosure renderer covers both routes.
+              viaDesc: !!meta._viaDesc, descOf: meta._descOf || '',
               // v0.9.1085 (Brad's rocket flatcar: three different answers and no
               // way to tell why). The FREE reader has recorded its own text
               // since v0.9.1068 and every diagnosis today has come from reading
