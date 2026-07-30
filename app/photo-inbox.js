@@ -1733,7 +1733,14 @@
       console.warn('[Inbox] verify failed:', e && e.message);
       vr = { ok: false, reason: 'error' };
     }
-    if (vr && (vr.ok || vr.reason === 'noref')) _vfCache[key] = vr;   // don't cache transient errors
+    // v0.9.1180: carry the page we tried, so a failure can offer to open it.
+    try { if (vr && typeof vr === 'object') vr._ref = _vrRef || (lk.master && lk.master.refLink) || ''; } catch (eR) {}
+    // v0.9.1180: 'noref' is NOT a fact about the item — see _pinVerifyShow. It
+    // means the relay could not get a photo from that page, which is very often
+    // the site refusing an automated request. Caching it meant the button never
+    // tried again, so a site that came back, or a relay that learned to reach
+    // it, would never be noticed. Only a real answer is worth remembering.
+    if (vr && vr.ok) _vfCache[key] = vr;
     // the card may have re-rendered while we were away — find the live node
     var live = document.getElementById('pin-rv-verify') || el;
     _pinVerifyShow(live, vr);
@@ -1764,10 +1771,26 @@
     var esc = function (s) { return String(s || '').replace(/</g, '&lt;'); };
     if (!vr || !vr.ok) {
       var r = vr && vr.reason;
-      if (r === 'noref') el.innerHTML = '<div style="font-size:0.76rem;color:var(--text-dim)">No usable catalog photo on the reference page — can\'t double-check this one.</div>';
+      // v0.9.1180 (Brad's Lionel 2233810, whose page plainly HAS a photo).
+      // "No usable catalog photo on the reference page" is a claim about the
+      // page, and the app is not in a position to make it. What actually
+      // happened is that the relay could not get a photo from that page — and
+      // for lionel.com the reason is that the site returns 403 to automated
+      // requests, exactly as it does to every other datacenter fetcher. Saying
+      // the page has no photo when it visibly does is how a working feature
+      // gets reported as broken.
+      //
+      // So: say what WE could not do, and hand over the page so the compare can
+      // still be made by eye. barcode.js has done this since v0.9.1016; the
+      // inbox was the one that dead-ended.
+      var _vRef = (vr && vr._ref) || '';
+      var _vOpen = _vRef
+        ? ' <a href="' + rrEsc(_vRef) + '" target="_blank" rel="noopener" style="color:var(--info)">open the page ↗</a>'
+        : '';
+      if (r === 'noref') el.innerHTML = '<div style="font-size:0.76rem;color:var(--text-dim)">Couldn\'t get the catalog photo from that page — some sites block automated requests.' + _vOpen + '</div>';
       else if (r === 'quota') el.innerHTML = '<div style="font-size:0.76rem;color:var(--text-dim)">No tokens left today — the catalog double-check can run tomorrow.</div>';
       else if (r === 'noconsent') el.innerHTML = '';
-      else el.innerHTML = '<div style="font-size:0.76rem;color:var(--text-dim)">Couldn\'t run the catalog-photo check right now.</div>';
+      else el.innerHTML = '<div style="font-size:0.76rem;color:var(--text-dim)">Couldn\'t run the catalog-photo check right now.' + _vOpen + '</div>';
       return;
     }
     if (vr.match === 'yes') {

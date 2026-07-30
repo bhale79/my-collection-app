@@ -5612,6 +5612,78 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /_ctLoadContacts\(\)\.then\(function \(\) \{/.test(pin));
   })();
 
+  section('150. The double-check stops blaming the page (v0.9.1180)');
+  // Brad: "hit the double check. got the 3rd upload.
+  // https://www.lionel.com/products/santa-fe-legacy-f7-aa-set-341-344-2233810/"
+  // — and the card said "No usable catalog photo on the reference page" about a
+  // page that plainly carries a product image.
+  //
+  // FINDING: lionel.com returns 403 to automated requests. Two independent
+  // fetches of that exact URL from a datacenter fetcher were refused, which is
+  // the same position the relay's server-side fetch is in. The page has a photo;
+  // the app cannot reach it. The old wording asserted the opposite.
+  (function () {
+    const pD = require('path');
+    const src = fs.readFileSync(pD.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+    const a = src.indexOf('function _pinVerifyShow(el, vr)');
+    const b = src.indexOf('\n  function _pinVerifyReident', a) >= 0
+      ? src.indexOf('\n  function _pinVerifyReident', a)
+      : src.indexOf('\n  window._pinVerifyReident', a);
+    if (a < 0) throw new Error('§150 marker moved: _pinVerifyShow');
+    const showSrc = src.slice(a, b > a ? b : a + 4000);
+
+    // Run the REAL renderer against the real failure shapes.
+    const show = new Function('rrEsc', 'document', '_pinDemoteAdd',
+      showSrc.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n') + '\nreturn _pinVerifyShow;')(
+      global.rrEsc, global.document, function () {});
+    const box = () => ({ _html: '', set innerHTML(v) { this._html = String(v); }, get innerHTML() { return this._html; } });
+
+    const REF = 'https://www.lionel.com/products/santa-fe-legacy-f7-aa-set-341-344-2233810/';
+    let e1 = box();
+    show(e1, { ok: false, reason: 'noref', _ref: REF });
+    ok('the app no longer tells you the page has no photo',
+       e1.innerHTML.indexOf('No usable catalog photo') < 0, e1.innerHTML);
+    ok('...it says what IT could not do',
+       /Couldn.t get the catalog photo from that page/.test(e1.innerHTML), e1.innerHTML);
+    ok('...and names the real reason, so it does not read as a bug in the app',
+       /block automated requests/.test(e1.innerHTML), e1.innerHTML);
+    ok('...and hands over the page so the compare can still be made by eye',
+       e1.innerHTML.indexOf(REF) > 0 && /target="_blank"/.test(e1.innerHTML), e1.innerHTML);
+    ok('...opened safely, never handing the referrer to the target',
+       /rel="noopener"/.test(e1.innerHTML));
+
+    let e2 = box();
+    show(e2, { ok: false, reason: 'noref' });
+    ok('with no reference page known, there is no dead link to click',
+       e2.innerHTML.indexOf('open the page') < 0 && /Couldn.t get the catalog photo/.test(e2.innerHTML));
+
+    let e3 = box();
+    show(e3, { ok: false, reason: 'error', _ref: REF });
+    ok('a general failure offers the page too', e3.innerHTML.indexOf(REF) > 0);
+
+    let e4 = box();
+    show(e4, { ok: false, reason: 'quota', _ref: REF });
+    ok('...but a spent quota does not, because the page is not the problem',
+       e4.innerHTML.indexOf(REF) < 0 && /No tokens left today/.test(e4.innerHTML));
+
+    let e5 = box();
+    show(e5, { ok: false, reason: 'noconsent', _ref: REF });
+    ok('an opted-out user is still shown nothing at all', e5.innerHTML === '');
+
+    // A real answer must still work exactly as before.
+    let e6 = box();
+    show(e6, { ok: true, match: 'yes', refItem: 'Santa Fe F7 AA' });
+    ok('a match still reads as a match', /matches the catalog listing/.test(e6.innerHTML));
+
+    // And the failure must stop being remembered as if it were a fact.
+    const code = src.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+    ok('a "no photo" result is no longer cached, so the button can try again',
+       /if \(vr && vr\.ok\) _vfCache\[key\] = vr;/.test(code) &&
+       !/vr\.reason === 'noref'\) _vfCache/.test(code));
+    ok('the page that was tried is carried on the result, or the link has nothing to point at',
+       /vr\._ref = _vrRef \|\| \(lk\.master && lk\.master\.refLink\)/.test(code));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
