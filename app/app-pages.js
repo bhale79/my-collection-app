@@ -614,7 +614,7 @@ function openEphemeraEdit(tabId, rowKey) {
         return lbl + '<input id="ephe-f' + i + '" type="' + (f[2] === 'number' ? 'number' : f[2] === 'date' ? 'date' : 'text') + '" value="' + esc(v) + '" style="' + inp + '">';
       }).join('')
     + '<div style="display:flex;gap:0.5rem;margin-top:0.8rem">'
-    + '<button id="ephe-save" style="flex:2;padding:0.7rem;border-radius:9px;border:none;background:var(--accent);color:#fff;font-weight:800;cursor:pointer;font-family:var(--font-body)">✓ Save</button>'
+    + '<button id="ephe-save" style="flex:2;padding:0.7rem;border-radius:9px;border:none;background:var(--accent);color:var(--on-accent);font-weight:800;cursor:pointer;font-family:var(--font-body)">✓ Save</button>'
     + '<button onclick="document.getElementById(\'eph-edit-modal\').remove()" style="flex:1;padding:0.7rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body)">Cancel</button>'
     + '</div></div>';
   document.body.appendChild(overlay);
@@ -1407,7 +1407,7 @@ function wantFindOnEbay(itemNum, roadName) {
       <div style="margin-bottom:0.85rem">
         <label style="font-size:0.75rem;color:var(--text-mid);display:block;margin-bottom:0.3rem">LISTING TYPE</label>
         <div style="display:flex;gap:0.5rem">
-          <button id="ebay-type-active" onclick="_ebaySetType('active')" style="flex:1;padding:0.45rem;border-radius:7px;font-size:0.8rem;cursor:pointer;border:1.5px solid var(--accent);background:var(--accent);color:#fff;font-family:var(--font-body);font-weight:600">Active Listings</button>
+          <button id="ebay-type-active" onclick="_ebaySetType('active')" style="flex:1;padding:0.45rem;border-radius:7px;font-size:0.8rem;cursor:pointer;border:1.5px solid var(--accent);background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:600">Active Listings</button>
           <button id="ebay-type-sold" onclick="_ebaySetType('sold')" style="flex:1;padding:0.45rem;border-radius:7px;font-size:0.8rem;cursor:pointer;border:1.5px solid var(--border);background:transparent;color:var(--text-mid);font-family:var(--font-body);font-weight:600">Sold Listings</button>
         </div>
         <div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.3rem" id="ebay-type-hint">See what&apos;s available to buy right now</div>
@@ -1450,7 +1450,7 @@ function _ebaySetType(type) {
   const btnSold   = document.getElementById('ebay-type-sold');
   const hint      = document.getElementById('ebay-type-hint');
   if (type === 'active') {
-    btnActive.style.cssText += ';border-color:var(--accent);background:var(--accent);color:#fff';
+    btnActive.style.cssText += ';border-color:var(--accent);background:var(--accent);color:var(--on-accent)';
     btnSold.style.cssText   += ';border-color:var(--border);background:transparent;color:var(--text-mid)';
     hint.textContent = 'See what\'s available to buy right now';
   } else {
@@ -3769,7 +3769,7 @@ function showAddPartModal(existingId) {
     + '<textarea id="_part-notes" rows="2" placeholder="anything else to remember" style="width:100%;box-sizing:border-box;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.9rem;resize:vertical;margin-bottom:1rem">' + String(existing.notes || '') + '</textarea>'
     + '<div style="display:flex;gap:0.6rem">'
     + '<button onclick="document.getElementById(\'_part-modal\').remove()" style="flex:1;padding:0.6rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);cursor:pointer">Cancel</button>'
-    + '<button onclick="savePart(' + (existing.row || 0) + ')" style="flex:2;padding:0.6rem;border-radius:8px;border:none;background:var(--accent);color:#fff;font-family:var(--font-body);font-weight:600;cursor:pointer">' + (existingId ? 'Save' : '+ Add Part') + '</button>'
+    + '<button onclick="savePart(' + (existing.row || 0) + ')" style="flex:2;padding:0.6rem;border-radius:8px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:600;cursor:pointer">' + (existingId ? 'Save' : '+ Add Part') + '</button>'
     + '</div></div>';
   ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
   window._partPhotoFile = null;

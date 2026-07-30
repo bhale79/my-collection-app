@@ -230,7 +230,7 @@ function vaultShowOptInModal(fromPrefs) {
         ${!isOptedIn ? `
           <button onclick="vaultConfirmOptIn()" style="
             flex:1;padding:11px 20px;border-radius:8px;border:none;
-            background:var(--accent);color:#fff;font-family:var(--font-body);
+            background:var(--accent);color:var(--on-accent);font-family:var(--font-body);
             font-size:0.9rem;font-weight:600;cursor:pointer;min-width:140px
           ">Yes, I'll Contribute</button>
           <button onclick="vaultDismissOptIn()" style="
@@ -540,7 +540,7 @@ function _vaultCardTeaser() {
     </div>
     <button onclick="vaultShowOptInModal(false)" style="
       padding:9px 18px;border-radius:7px;border:none;
-      background:var(--accent);color:#fff;
+      background:var(--accent);color:var(--on-accent);
       font-family:var(--font-body);font-size:0.85rem;
       font-weight:600;cursor:pointer
     ">Contribute &amp; Unlock</button>`;
@@ -737,7 +737,7 @@ function vaultRenderPage() {
         ${!isIn ? `
           <button onclick="vaultConfirmOptIn();vaultRenderPage();vaultRenderFloatingBadge()" style="
             flex:1;padding:12px 20px;border-radius:8px;border:none;
-            background:var(--accent);color:#fff;font-family:var(--font-body);
+            background:var(--accent);color:var(--on-accent);font-family:var(--font-body);
             font-size:0.9rem;font-weight:600;cursor:pointer;min-width:160px
           ">Yes, I'll Contribute</button>
         ` : `
@@ -857,7 +857,7 @@ function _subBanner(msg, payLink, btnLabel) {
     var a = document.createElement('a');
     a.href = payLink; a.target = '_blank'; a.rel = 'noopener';
     a.textContent = btnLabel || 'Subscribe';
-    a.style.cssText = 'background:var(--accent);color:#fff;font-weight:700;text-decoration:none;padding:0.45rem 1.1rem;border-radius:8px;font-family:var(--font-head);letter-spacing:0.04em;text-transform:uppercase;font-size:0.78rem';
+    a.style.cssText = 'background:var(--accent);color:var(--on-accent);font-weight:700;text-decoration:none;padding:0.45rem 1.1rem;border-radius:8px;font-family:var(--font-head);letter-spacing:0.04em;text-transform:uppercase;font-size:0.78rem';
     b.appendChild(a);
   }
   document.body.appendChild(b);

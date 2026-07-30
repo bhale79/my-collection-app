@@ -93,7 +93,7 @@
         '<button onclick="_pinAddSource()" class="btn-primary" style="padding:0.5rem 0.9rem;border-radius:8px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Add photos…</button>' +
         '<button id="pin-group-btn" onclick="_pinStartMode(\'group\')" style="' + 'padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer' + '">Group photos</button>' +
         '<button id="pin-tag-btn" onclick="_pinStartMode(\'tag\')" style="' + 'padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer' + '">Tag maker/era/scale</button>' +
-        '<button id="pin-apply-btn" onclick="_pinApplyTags()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:none;background:var(--accent);color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Apply</button>' +
+        '<button id="pin-apply-btn" onclick="_pinApplyTags()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Apply</button>' +
         '<button id="pin-finish-btn" onclick="_pinFinishMode()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:none;background:var(--accent2);color:#1a1a1a;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">✓ Finished</button>' +
         '<button id="pin-selall-btn" onclick="_pinSelectAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Select all</button>' +
         '<button id="pin-recrop-btn" onclick="_pinReadCropped()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:rgba(212,168,67,0.14);color:var(--accent2);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Re-read cropped</button>' +
@@ -408,7 +408,7 @@
               }).join('')
             : '<div style="font-size:0.8rem;color:var(--text-dim);padding:0.5rem 0">All ' + files.length + ' photos will be filed as one item.</div>')
         + '<div style="display:flex;gap:0.5rem;margin-top:1rem">'
-        +   '<button id="pin-grp-save" style="flex:2;padding:0.75rem;border-radius:9px;border:none;background:var(--accent);color:#fff;font-weight:700;font-size:0.95rem;min-height:50px;cursor:pointer">Group them</button>'
+        +   '<button id="pin-grp-save" style="flex:2;padding:0.75rem;border-radius:9px;border:none;background:var(--accent);color:var(--on-accent);font-weight:700;font-size:0.95rem;min-height:50px;cursor:pointer">Group them</button>'
         +   '<button id="pin-grp-cancel" style="flex:1;padding:0.75rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-weight:600;font-size:0.92rem;min-height:50px;cursor:pointer">Cancel</button>'
         + '</div>';
       // draw() re-renders on every kind change, so re-hydrate the thumbs each time.
@@ -623,9 +623,9 @@
               lines.map(function (c) { return { v: c.key, t: c.label + (c.years ? '  (' + c.years + ')' : '') }; }), pick.era, '') : '')
         + '<div style="display:flex;gap:0.5rem;margin-top:0.9rem;flex-wrap:wrap">'
         + (opts.onPick
-            ? '<button id="pin-ctx-ok" style="flex:1;min-width:140px;padding:0.7rem;border-radius:9px;border:none;background:var(--accent);color:#fff;font-weight:700;font-size:0.92rem;min-height:48px;cursor:pointer">'
+            ? '<button id="pin-ctx-ok" style="flex:1;min-width:140px;padding:0.7rem;border-radius:9px;border:none;background:var(--accent);color:var(--on-accent);font-weight:700;font-size:0.92rem;min-height:48px;cursor:pointer">'
               + rrEsc(opts.okLabel || 'Use this') + '</button>'
-            : '<button id="pin-ctx-once" style="flex:1;min-width:140px;padding:0.7rem;border-radius:9px;border:none;background:var(--accent);color:#fff;font-weight:700;font-size:0.92rem;min-height:48px;cursor:pointer">Just this one</button>'
+            : '<button id="pin-ctx-once" style="flex:1;min-width:140px;padding:0.7rem;border-radius:9px;border:none;background:var(--accent);color:var(--on-accent);font-weight:700;font-size:0.92rem;min-height:48px;cursor:pointer">Just this one</button>'
               + '<button id="pin-ctx-keep" style="flex:1;min-width:140px;padding:0.7rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-weight:700;font-size:0.92rem;min-height:48px;cursor:pointer">Keep it here</button>')
         + '</div>'
         + '<button id="pin-ctx-cancel" style="width:100%;margin-top:0.5rem;padding:0.6rem;border-radius:9px;border:none;background:none;color:var(--text-dim);font-size:0.88rem;cursor:pointer">'
@@ -5409,7 +5409,7 @@
       + '</table>'
       + '<textarea id="pin-audit-txt" readonly style="width:100%;box-sizing:border-box;height:150px;margin-top:0.9rem;padding:0.6rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.72rem">' + rrEsc(txt) + '</textarea>'
       + '<div style="display:flex;gap:0.5rem;margin-top:0.7rem">'
-      +   '<button onclick="(function(){var t=document.getElementById(\'pin-audit-txt\');t.select();try{document.execCommand(\'copy\');showToast(\'Copied \u2014 paste it to Claude\',2500);}catch(e){}})()" style="flex:1;padding:0.7rem;border-radius:9px;border:none;background:var(--accent);color:#fff;font-weight:700;font-size:0.9rem;min-height:48px;cursor:pointer">Copy the results</button>'
+      +   '<button onclick="(function(){var t=document.getElementById(\'pin-audit-txt\');t.select();try{document.execCommand(\'copy\');showToast(\'Copied \u2014 paste it to Claude\',2500);}catch(e){}})()" style="flex:1;padding:0.7rem;border-radius:9px;border:none;background:var(--accent);color:var(--on-accent);font-weight:700;font-size:0.9rem;min-height:48px;cursor:pointer">Copy the results</button>'
       +   '<button onclick="document.getElementById(\'pin-audit-ov\').remove()" style="flex:1;padding:0.7rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-weight:700;font-size:0.9rem;min-height:48px;cursor:pointer">Close</button>'
       + '</div>'
       + '<button onclick="_pinAuditClear()" style="width:100%;margin-top:0.5rem;padding:0.6rem;border-radius:9px;border:none;background:none;color:var(--text-dim);font-size:0.85rem;cursor:pointer">Throw these away and start fresh next time</button>'

@@ -131,7 +131,7 @@ function _buildBetaGate() {
       '<img src="conductor.png" alt="" aria-hidden="true" style="height:clamp(96px,13vh,140px);width:auto;display:block;margin:0 auto 0.6rem">' +
       '<div style="font-family:var(--font-head);font-size:2.4rem;font-weight:700;color:var(--cream);letter-spacing:0.07em;text-transform:uppercase;margin-bottom:0.5rem">' + _mark + '</div>' +
       '<div style="font-size:0.75rem;letter-spacing:0.22em;color:var(--text-dim);text-transform:uppercase;font-family:var(--font-head);font-weight:400;margin-bottom:1.5rem">' + _tag + '</div>' +
-      '<div style="background:var(--accent);color:#fff;font-family:var(--font-head);font-size:0.85rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:0.5rem 1.25rem;border-radius:6px;display:inline-block;margin-bottom:1.5rem">Beta Testing In Progress</div>' +
+      '<div style="background:var(--accent);color:var(--on-accent);font-family:var(--font-head);font-size:0.85rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:0.5rem 1.25rem;border-radius:6px;display:inline-block;margin-bottom:1.5rem">Beta Testing In Progress</div>' +
       '<p style="font-size:0.9rem;color:var(--text-mid);line-height:1.6;margin-bottom:1.5rem">' + _blb + '</p>' +
       // v0.9.997: box-sizing set explicitly on the card/input/button. The
       // global reset in app.css never reaches the page (stray <style> on its
@@ -141,7 +141,7 @@ function _buildBetaGate() {
         '<label style="font-size:0.8rem;color:var(--text-mid);display:block;margin-bottom:0.5rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em">Enter Invite Code</label>' +
         '<input type="text" id="beta-code-input" placeholder="Enter your beta access code" autocomplete="off" spellcheck="false" style="box-sizing:border-box;width:100%;padding:0.75rem 1rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:1rem;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.75rem" onkeydown="if(event.key===\'Enter\')_checkBetaCode()">' +
         '<div id="beta-error" style="display:none;font-size:0.8rem;color:var(--accent);margin-bottom:0.75rem">Invalid code. Please check with your invite contact.</div>' +
-        '<button onclick="_checkBetaCode()" style="box-sizing:border-box;width:100%;padding:0.75rem;border:none;border-radius:8px;background:var(--accent);color:#fff;font-family:var(--font-body);font-size:0.95rem;font-weight:600;cursor:pointer;transition:background 0.15s" onmouseenter="this.style.background=\'#d84800\'" onmouseleave="this.style.background=\'var(--accent)\'">Enter Beta</button>' +
+        '<button onclick="_checkBetaCode()" style="box-sizing:border-box;width:100%;padding:0.75rem;border:none;border-radius:8px;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-size:0.95rem;font-weight:600;cursor:pointer;transition:background 0.15s" onmouseenter="this.style.background=\'#d84800\'" onmouseleave="this.style.background=\'var(--accent)\'">Enter Beta</button>' +
       '</div>' +
       '<p style="font-size:0.75rem;color:var(--text-dim);margin-top:1.25rem">Don\'t have a code? Contact <a href="mailto:' + ADMIN_EMAIL + '" style="color:var(--accent2);text-decoration:none">' + ADMIN_EMAIL + '</a> to request access.</p>' +
     '</div>';

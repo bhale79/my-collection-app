@@ -667,7 +667,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         <button id="bc-tolabel" type="button" style="width:100%;padding:0.7rem;border-radius:10px;border:1px solid #3a6ea5;background:rgba(58,110,165,0.18);color:#cfe3ff;font-size:0.9rem;font-family:inherit;cursor:pointer">📸 Can't scan? Read the label instead</button>
         <div style="display:flex;gap:0.6rem;width:100%">
           <button id="bc-cancel" style="flex:1;padding:0.8rem;border-radius:10px;border:1px solid #444;background:#222;color:#eee;font-size:0.95rem;font-family:inherit;cursor:pointer">Cancel</button>
-          <button id="bc-manual" style="flex:2;padding:0.8rem;border-radius:10px;border:none;background:var(--accent);color:#fff;font-size:0.95rem;font-family:inherit;font-weight:600;cursor:pointer">Can't Read — Type Instead</button>
+          <button id="bc-manual" style="flex:2;padding:0.8rem;border-radius:10px;border:none;background:var(--accent);color:var(--on-accent);font-size:0.95rem;font-family:inherit;font-weight:600;cursor:pointer">Can't Read — Type Instead</button>
         </div>
       </div>
     `;

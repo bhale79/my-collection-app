@@ -1767,7 +1767,7 @@ function _identifyConfirmMfrMismatch(itemNum, fullText, meta) {
     +   'You picked <strong>' + userMfrs.join(' or ') + '</strong> as the manufacturer. These don\'t match.'
     + '</div>'
     + '<div style="display:flex;flex-direction:column;gap:0.5rem">'
-    +   '<button id="id-mfr-accept" style="padding:0.65rem;border-radius:8px;border:1.5px solid var(--accent);background:var(--accent);color:#fff;font-family:var(--font-body);font-weight:600;font-size:0.88rem;cursor:pointer">Use ' + itemNum + ' from ' + tabLabel + ' anyway</button>'
+    +   '<button id="id-mfr-accept" style="padding:0.65rem;border-radius:8px;border:1.5px solid var(--accent);background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:600;font-size:0.88rem;cursor:pointer">Use ' + itemNum + ' from ' + tabLabel + ' anyway</button>'
     +   '<button id="id-mfr-cancel" style="padding:0.55rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Cancel \u2014 I\'ll edit the item # below</button>'
     + '</div>'
     + '</div>';

@@ -856,7 +856,7 @@
         }).join('')
       + '</div>'
       + '<div style="display:flex;gap:0.5rem;margin-top:0.7rem">'
-      + '<button onclick="_ctShareGo()" style="flex:2;padding:0.65rem;border-radius:9px;border:none;background:var(--accent);color:#fff;font-weight:800;cursor:pointer;font-family:var(--font-body)">↗ Share selected</button>'
+      + '<button onclick="_ctShareGo()" style="flex:2;padding:0.65rem;border-radius:9px;border:none;background:var(--accent);color:var(--on-accent);font-weight:800;cursor:pointer;font-family:var(--font-body)">↗ Share selected</button>'
       + '<button onclick="_ctClose(\'ct-share-modal\')" style="flex:1;padding:0.65rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body)">Cancel</button>'
       + '</div></div>';
     document.body.appendChild(d);
@@ -948,7 +948,7 @@
       + '<div style="margin-bottom:0.4rem"><div style="font-size:0.66rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);margin-bottom:0.1rem">Notes</div>'
       + '<textarea id="ct-f-notes" rows="2" placeholder="strong on tinplate, will negotiate, ships…" style="width:100%;box-sizing:border-box;padding:0.45rem 0.6rem;border-radius:7px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;resize:vertical">' + _esc(c.notes) + '</textarea></div>'
       + '<div style="display:flex;gap:0.5rem">'
-      + '<button id="ct-save" style="flex:2;padding:0.8rem;border-radius:9px;border:none;background:var(--accent);color:#fff;font-weight:800;cursor:pointer;font-family:var(--font-body)">✓ Save Contact</button>'
+      + '<button id="ct-save" style="flex:2;padding:0.8rem;border-radius:9px;border:none;background:var(--accent);color:var(--on-accent);font-weight:800;cursor:pointer;font-family:var(--font-body)">✓ Save Contact</button>'
       + (row ? '<button id="ct-del" style="flex:1;padding:0.8rem;border-radius:9px;border:1px solid #e74c3c;background:none;color:#e74c3c;cursor:pointer;font-family:var(--font-body)">Delete</button>' : '')
       + '<button onclick="_ctClose(\'ct-modal\')" style="flex:1;padding:0.8rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body)">Cancel</button>'
       + '</div></div>';

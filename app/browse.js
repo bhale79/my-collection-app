@@ -419,7 +419,7 @@ function _renderHierarchyChips() {
                 + 'font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;'
                 + 'align-items:center;gap:0.25rem;line-height:1';
   var chipStyleActive = 'padding:0.22rem 0.55rem;border-radius:14px;border:1.5px solid var(--accent);'
-                + 'background:var(--accent);color:#fff;font-family:var(--font-body);'
+                + 'background:var(--accent);color:var(--on-accent);font-family:var(--font-body);'
                 + 'font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;'
                 + 'align-items:center;gap:0.25rem;line-height:1';
   var _chipIsActive = function(label){ return !(label === 'Items' || label === 'All Types' || String(label).indexOf('Any ') === 0); };
@@ -3463,7 +3463,7 @@ function renderBrowse() {
       + '<div style="font-size:2rem;margin-bottom:0.5rem">🔍</div>'
       + '<p style="font-weight:600;margin-bottom:0.4rem">No matches in ' + _ssEraLabel + ' for &ldquo;<span style="color:var(--accent)">' + _ssEsc + '</span>&rdquo;</p>'
       + '<p style="font-size:0.85rem;color:var(--text-dim);margin-bottom:0.9rem">Want to look across your other manufacturers and eras?</p>'
-      + '<button onclick="_triggerCrossScopeSearch()" style="padding:0.55rem 1rem;border-radius:7px;border:1px solid var(--border);background:var(--accent);color:#fff;font-family:var(--font-body);font-size:0.9rem;font-weight:600;cursor:pointer">Search across all your eras</button>'
+      + '<button onclick="_triggerCrossScopeSearch()" style="padding:0.55rem 1rem;border-radius:7px;border:1px solid var(--border);background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-size:0.9rem;font-weight:600;cursor:pointer">Search across all your eras</button>'
       + '</div>')
     : '';
 
@@ -3693,7 +3693,7 @@ function _rrFilterSheetOpen() {
     +   '<button onclick="_rrFilterSheetClose()" style="background:none;border:none;color:var(--text-dim);font-size:1.5rem;line-height:1;cursor:pointer;padding:0 0.3rem">\u00d7</button>'
     + '</div>'
     + '<div id="rr-filter-slot"></div>'
-    + '<button onclick="_rrFilterSheetClose()" style="width:100%;margin-top:0.9rem;padding:0.75rem;border-radius:10px;border:none;background:var(--accent);color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.95rem;cursor:pointer">Show results</button>'
+    + '<button onclick="_rrFilterSheetClose()" style="width:100%;margin-top:0.9rem;padding:0.75rem;border-radius:10px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:700;font-size:0.95rem;cursor:pointer">Show results</button>'
     + '</div>';
   ov.addEventListener('click', function (e) { if (e.target === ov) _rrFilterSheetClose(); });
   // v0.9.1028 (Brad): mount inside .main — the LIGHT theme palette is scoped

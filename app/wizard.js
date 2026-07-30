@@ -254,7 +254,7 @@ function _wizFieldFocusOpen(inp) {
       '<div style="flex:1;min-width:0;font-family:var(--font-head);font-size:0.95rem;font-weight:700;color:var(--text);' +
         'overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + title + '</div>' +
       '<button id="wiz-focus-done" style="padding:0.5rem 1.1rem;min-height:40px;border-radius:8px;border:none;' +
-        'background:var(--accent);color:#fff;font-family:var(--font-body);font-size:0.9rem;font-weight:700">Done</button>' +
+        'background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-size:0.9rem;font-weight:700">Done</button>' +
     '</div>' +
     '<div id="wiz-focus-field" style="padding:0.7rem 0.9rem 0.5rem"></div>' +
     '<div id="wiz-focus-list" style="flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 0.9rem 0.9rem"></div>';
@@ -4227,7 +4227,7 @@ function renderWizardStep() {
             <div style="display:flex;flex-wrap:wrap;gap:0.35rem">
               ${_savedLocs.map(loc => `
                 <button type="button" class="loc-chip" onclick="document.getElementById('wiz-loc-input').value='${(loc.name||'').replace(/'/g, "\\'")}'; wizard.data['${s.id}']='${(loc.name||'').replace(/'/g, "\\'")}'; _highlightLocChip(this);"
-                  style="padding:0.35rem 0.7rem;border-radius:16px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.82rem;cursor:pointer;font-family:var(--font-body)${val === loc.name ? ';background:var(--accent);color:#fff;border-color:var(--accent)' : ''}">${loc.name}${loc.type ? ` <span style="font-size:0.68rem;color:var(--text-dim)">${loc.type}</span>` : ''}</button>
+                  style="padding:0.35rem 0.7rem;border-radius:16px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.82rem;cursor:pointer;font-family:var(--font-body)${val === loc.name ? ';background:var(--accent);color:var(--on-accent);border-color:var(--accent)' : ''}">${loc.name}${loc.type ? ` <span style="font-size:0.68rem;color:var(--text-dim)">${loc.type}</span>` : ''}</button>
               `).join('')}
             </div>
           </div>
@@ -4240,7 +4240,7 @@ function renderWizardStep() {
                 <button type="button" class="loc-chip" onclick="document.getElementById('wiz-loc-input').value='${loc.replace(/'/g, "\\'")}'; wizard.data['${s.id}']='${loc.replace(/'/g, "\\'")}'; _highlightLocChip(this);"
                   style="padding:0.35rem 0.7rem;border-radius:16px;border:1px solid var(--border);
                   background:var(--surface2);color:var(--text);font-size:0.82rem;cursor:pointer;
-                  font-family:var(--font-body);transition:all 0.15s ease${val === loc ? ';background:var(--accent);color:#fff;border-color:var(--accent)' : ''}">${loc} <span style="font-size:0.7rem;color:var(--text-dim);margin-left:0.15rem">(${_allLocs[loc]})</span></button>
+                  font-family:var(--font-body);transition:all 0.15s ease${val === loc ? ';background:var(--accent);color:var(--on-accent);border-color:var(--accent)' : ''}">${loc} <span style="font-size:0.7rem;color:var(--text-dim);margin-left:0.15rem">(${_allLocs[loc]})</span></button>
               `).join('')}
             </div>
           </div>

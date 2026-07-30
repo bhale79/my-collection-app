@@ -1116,7 +1116,7 @@ function _wizLocationFieldHtml(currentVal) {
     + '</div>'
     + '<div id="wiz-loc-addrow" style="display:none;gap:0.4rem;margin-top:0.4rem">'
     + '<input type="text" id="wiz-loc-newinput" placeholder="New location name" autocomplete="off" onkeydown="if(event.key===\'Enter\'){event.preventDefault();_wizLocAddNew();}" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.55rem 0.7rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box">'
-    + '<button type="button" onclick="_wizLocAddNew()" style="white-space:nowrap;padding:0.55rem 0.8rem;border-radius:8px;border:none;background:var(--accent);color:#fff;font-family:var(--font-body);font-size:0.82rem;font-weight:700;cursor:pointer">Add</button>'
+    + '<button type="button" onclick="_wizLocAddNew()" style="white-space:nowrap;padding:0.55rem 0.8rem;border-radius:8px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-size:0.82rem;font-weight:700;cursor:pointer">Add</button>'
     + '</div>';
 }
 function _wizLocSelect(sel) {

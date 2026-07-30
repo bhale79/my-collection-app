@@ -3280,6 +3280,72 @@ META_WRITES.length = 0; TOASTS.length = 0;
     })();
   })();
 
+  section('128. No new hardcoded colors — the ratchet (v0.9.1154)');
+  (function () {
+    // Brad: "no color should be hardcoded."
+    //
+    // The app has ~2,100 color literals today; converting them all at once,
+    // days before beta, is exactly the kind of broad visual change that breaks
+    // one screen's contrast silently. So the RULE lands now and the sweep runs
+    // behind it: this ratchet records a per-file budget and fails the moment any
+    // file's count goes UP. Nothing new can enter — including from me — and each
+    // sweep pass lowers its file's budget permanently (update-color-budget.js
+    // refuses to raise one).
+    const pR = require('path');
+    let counter, budget;
+    try {
+      counter = require('./color-count');
+      budget  = require('./color-budget.json');
+    } catch (e) {
+      ok('the ratchet is wired up (counter + budget present)', false, String(e && e.message));
+      return;
+    }
+    ok('the ratchet is wired up (counter + budget present)',
+       !!(counter && counter.countAll && budget && budget.budgets));
+
+    const now = counter.countAll(pR.join(__dirname, '..', 'app'));
+    const over = [], missing = [];
+    Object.keys(now).forEach(function (f) {
+      if (!(f in budget.budgets)) { missing.push(f + ' (' + now[f] + ')'); return; }
+      if (now[f] > budget.budgets[f]) over.push(f + ': ' + now[f] + ' > ' + budget.budgets[f]);
+    });
+
+    ok('no file exceeds its hardcoded-color budget',
+       over.length === 0, over.join(' · '));
+    ok('no file with colors is missing from the budget (a new file needs a decision)',
+       missing.length === 0, missing.join(' · '));
+
+    // The counter itself has to be trustworthy, or the ratchet is theatre.
+    ok('the counter is deterministic',
+       JSON.stringify(counter.countAll(pR.join(__dirname, '..', 'app'))) === JSON.stringify(now));
+    ok('it ignores colors written inside comments',
+       counter.stripComments('/* #ff0000 */ var a = 1; // #00ff00\n', false)
+         .match(/#[0-9a-f]{3,8}/gi) === null);
+    ok('…but does NOT eat code after a URL\'s double slash',
+       /#abcdef/.test(counter.stripComments('var u = "https://x.y"; var c = "#abcdef";', false)));
+    ok('it excludes app.css palette scopes — a palette MUST hold real values',
+       now['app.css'] < 260);
+
+    // Direction of travel: the total may only fall.
+    const total = Object.keys(now).reduce(function (a, f) { return a + now[f]; }, 0);
+    ok('the total is at or below the recorded budget total (' + total + ' vs ' + budget.total + ')',
+       total <= budget.total);
+
+    // The first conversion, from Brad's washed-out filter chips: text sitting on
+    // an accent fill now reads the variable made for it, so a skinned accent can
+    // carry a readable text colour instead of a hardcoded white.
+    (function () {
+      const files = ['app/browse.js', 'app/app-pages.js', 'app/wizard.js', 'app/vault.js'];
+      const src = files.map(f => fs.readFileSync(pR.join(__dirname, '..', f), 'utf8')).join('\n');
+      ok('white-on-accent is now var(--on-accent), not #fff',
+         /background:var\(--accent\);color:var\(--on-accent\)/.test(src) &&
+         !/background:var\(--accent\);color:#fff/.test(src));
+      const css = fs.readFileSync(pR.join(__dirname, '..', 'app', 'app.css'), 'utf8');
+      ok('…and --on-accent is a literal, so it cannot repeat the --bg-card alias trap',
+         /--on-accent:\s*#[0-9a-f]{3,8}/i.test(css) && !/--on-accent:\s*var\(/.test(css));
+    })();
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

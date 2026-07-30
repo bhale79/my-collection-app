@@ -550,7 +550,7 @@
     bar.id = 'onboarding-return-bar';
     bar.style.cssText =
       'position:fixed;top:0;left:0;right:0;z-index:' + (s.z + 2) + ';' +
-      'background:var(--accent);color:#fff;padding:0.75rem 1rem;' +
+      'background:var(--accent);color:var(--on-accent);padding:0.75rem 1rem;' +
       'font-family:var(--font-body);font-size:' + s.body + ';font-weight:600;' +
       'display:flex;justify-content:space-between;align-items:center;gap:0.5rem;' +
       'box-shadow:0 2px 8px rgba(0,0,0,0.25);cursor:pointer';
