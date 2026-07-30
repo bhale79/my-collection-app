@@ -1902,7 +1902,7 @@ function renderWizardStep() {
           const _label = (typeof window.resolveRefLabel === 'function')
             ? window.resolveRefLabel(singleItem.refLink, { verbose: true })
             : 'View reference \u2197';
-          return '<a href="' + ((typeof window.cottAnchorUrl==='function') ? window.cottAnchorUrl(singleItem.refLink, itemNum) : singleItem.refLink) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:0.4rem;margin-top:0.75rem;font-size:0.82rem;color:var(--accent2);text-decoration:none;padding:0.4rem 0.75rem;border:1px solid rgba(201,146,42,0.3);border-radius:6px;background:rgba(201,146,42,0.08)">' + _label + '</a>';
+          return '<a href="' + ((typeof window.cottAnchorUrl==='function') ? window.cottAnchorUrl(singleItem.refLink, itemNum) : singleItem.refLink) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:0.4rem;margin-top:0.75rem;font-size:0.82rem;color:var(--accent2);text-decoration:none;padding:0.4rem 0.75rem;border:1px solid rgba(201,146,42,0.3);border-radius:6px;background:rgba(201,146,42,0.08);min-height:34px;box-sizing:border-box">' + _label + '</a>';
         })()}
 
         </div>`;
@@ -1954,7 +1954,7 @@ function renderWizardStep() {
               // The card is a <div role="button"> now, so the anchor is a
               // normal, hit-testable link. Keyboard parity is explicit:
               // tabindex + Enter/Space, which <button> gave for free.
-              const cottLink = v.refLink ? `<a href="${(typeof window.cottAnchorUrl==='function') ? window.cottAnchorUrl(v.refLink, itemNum) : v.refLink}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.78rem;color:var(--accent2);text-decoration:none;padding:0.42rem 0.7rem;border:1px solid rgba(201,146,42,0.45);border-radius:6px;background:rgba(201,146,42,0.12);flex-shrink:0;white-space:nowrap;font-weight:600;position:relative;z-index:1">${_refShort}</a>` : '';
+              const cottLink = v.refLink ? `<a href="${(typeof window.cottAnchorUrl==='function') ? window.cottAnchorUrl(v.refLink, itemNum) : v.refLink}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.78rem;color:var(--accent2);text-decoration:none;padding:0.42rem 0.7rem;border:1px solid rgba(201,146,42,0.45);border-radius:6px;background:rgba(201,146,42,0.12);flex-shrink:0;white-space:nowrap;font-weight:600;position:relative;z-index:1;min-height:34px;box-sizing:border-box">${_refShort}</a>` : '';
               return `
               <div role="button" tabindex="0" onclick="wizardChooseVariation('${v.variation}')"
                 onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();wizardChooseVariation('${v.variation}')}" style="
@@ -4805,7 +4805,15 @@ function renderWizardStep() {
         var _cdU = window._itemExternalLinkURL(_cdMaster);
         if (_cdU) {
           var _cdLbl = (typeof window._externalSiteLabel === 'function') ? window._externalSiteLabel(_cdU) : 'External';
-          _cdExtLink = '<div style="margin-bottom:0.35rem"><a href="' + _cdU + '" target="_blank" rel="noopener" style="font-size:0.74rem;color:var(--accent2);text-decoration:none">View on ' + _cdLbl + ' \u2197</a></div>';
+          // v0.9.1190: measured live at 89x15 with zero padding \u2014 the whole
+          // clickable box was the height of the lettering, so Brad's clicks
+          // landed on dead space beside it and nothing opened. Same wording,
+          // now a real target (~34px tall). Palette vars only: the colour
+          // ratchet does not move.
+          _cdExtLink = '<div style="margin-bottom:0.35rem"><a href="' + _cdU + '" target="_blank" rel="noopener" '
+            + 'style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.78rem;color:var(--accent2);'
+            + 'text-decoration:none;padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:6px;'
+            + 'background:var(--bg);min-height:34px;box-sizing:border-box">View on ' + _cdLbl + ' \u2197</a></div>';
         }
       }
       html += '<div style="font-weight:700;font-size:0.82rem;color:var(--accent2);padding-bottom:0.2rem">' + col.label + (col.sublabel ? ' <span style=\"font-weight:400;color:var(--text-dim);font-size:0.75rem\">(' + col.sublabel + ')</span>' : '') + '</div>'

@@ -6137,6 +6137,72 @@ META_WRITES.length = 0; TOASTS.length = 0;
     })();
   })();
 
+  section('158. Every reference link is big enough to hit (v0.9.1190)');
+  // Measured LIVE in Brad's own browser, in his running app, mid-wizard:
+  //   "View on COTT ↗"  =  89 x 15 px, zero padding
+  //   the ↗ row icon     =  11 x 11 px, zero padding
+  // Clicked precisely by element reference, the link opened the right COTT
+  // page. Clicked by eye at its centre, it missed — and on a variation card a
+  // miss lands on the card, which selects and auto-advances. That is the whole
+  // bug: "the view button doesn't work here, it advances to the next page" and
+  // "nothing opens" are one cause — targets the size of the lettering.
+  //
+  // ~44px is the usual comfortable minimum. These now clear ~27-34px, which is
+  // as far as the surrounding layout allows without moving things Brad likes.
+  (function () {
+    const pH = require('path');
+    const wz = fs.readFileSync(pH.join(__dirname, '..', 'app', 'wizard.js'), 'utf8');
+    const br = fs.readFileSync(pH.join(__dirname, '..', 'app', 'browse.js'), 'utf8');
+
+    // ── the row/banner icon (browse.js, shared by lists AND the ADDING bar) ──
+    const iconFn = br.slice(br.indexOf('function _itemExternalLinkHTML'),
+                            br.indexOf('window._itemExternalLinkHTML ='));
+    ok('the 11px icon link now carries padding to grow its hit area',
+       /padding:8px/.test(iconFn));
+    ok('...cancelled by negative margins, so no row moves',
+       /margin-top:-8px/.test(iconFn) && /margin-bottom:-8px/.test(iconFn));
+    ok('...with content-box sizing, or the padding would be eaten',
+       /box-sizing:content-box/.test(iconFn));
+    ok('...and raised above the row behind it',
+       /z-index:1/.test(iconFn));
+    ok('the icon itself is still 11px — the LOOK does not change',
+       /<svg width="11" height="11"/.test(iconFn));
+    ok('it still opens in a new tab and never triggers the row underneath',
+       /target="_blank"/.test(iconFn) && /event\.stopPropagation\(\)/.test(iconFn));
+
+    // ── Condition & Details: the link from Brad's video ──
+    // NB: match the ASSIGNMENT that builds the anchor, not the `= ''`
+    // initialiser a few lines above it.
+    const cdIdx = wz.indexOf("_cdExtLink = '<div");
+    if (cdIdx < 0) throw new Error('§158: Condition & Details link marker moved');
+    const cdLine = wz.slice(cdIdx, cdIdx + 700);
+    ok('the Condition & Details link is no longer bare text',
+       /padding:0\.45rem 0\.7rem/.test(cdLine), cdLine.slice(0, 80));
+    ok('...and is at least 34px tall',
+       /min-height:34px/.test(cdLine));
+    ok('...sized correctly, so min-height means the whole box',
+       /box-sizing:border-box/.test(cdLine));
+    ok('...still says "View on <site>", wording untouched',
+       /View on ' \+ _cdLbl \+ '/.test(cdLine));
+    ok('...and uses palette vars only — the colour ratchet cannot move',
+       !/rgba\(|#[0-9a-f]{3,6}/i.test(cdLine.slice(0, cdLine.indexOf('</a>'))));
+
+    // ── every reference link in the wizard clears the bar ──
+    // Character-window scan, not line-based: these anchors are built from
+    // concatenated string pieces spanning several lines, so a per-line filter
+    // silently misses them (it did, on the first run of this section).
+    const spots = [];
+    for (let i = wz.indexOf('target="_blank"'); i >= 0; i = wz.indexOf('target="_blank"', i + 1)) spots.push(i);
+    ok('the wizard has all three reference links accounted for',
+       spots.length === 3, 'found ' + spots.length);
+    const windows = spots.map(i => wz.slice(Math.max(0, i - 400), i + 700));
+    ok('EVERY one of them declares a real hit area',
+       windows.every(w => /min-height:34px/.test(w)),
+       windows.filter(w => !/min-height:34px/.test(w)).length + ' without');
+    ok('...and none of them is zero-padded any more',
+       windows.every(w => /padding:0\.4/.test(w)));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

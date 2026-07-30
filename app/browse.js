@@ -1015,10 +1015,18 @@ function _itemExternalLinkHTML(item) {
   var url = _itemExternalLinkURL(item);
   if (!url) return '';
   var title = 'View on ' + _externalSiteLabel(url);
+  // v0.9.1190: the icon stays 11px, but its CLICKABLE box was 11px too — and
+  // measured live in Brad's own browser, an 11x11 target is a coin toss.
+  // Padding grows the hit area to ~27px; the matching negative margins mean
+  // the layout does not move a pixel, so every row and banner using this
+  // helper looks exactly as it did. z-index keeps the enlarged box above the
+  // row behind it instead of buried under it.
   return '<a href="' + url + '" target="_blank" rel="noopener" '
        + 'onclick="event.stopPropagation()" title="' + title + '" '
        + 'style="margin-left:5px;vertical-align:middle;color:var(--text-dim);'
-       + 'opacity:0.6;text-decoration:none;display:inline-flex" '
+       + 'opacity:0.6;text-decoration:none;display:inline-flex;'
+       + 'padding:8px;margin-top:-8px;margin-bottom:-8px;margin-right:-8px;'
+       + 'box-sizing:content-box;position:relative;z-index:1" '
        + 'onmouseover="this.style.opacity=\'1\'" '
        + 'onmouseout="this.style.opacity=\'0.6\'">'
        + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" '
