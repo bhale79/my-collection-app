@@ -4831,6 +4831,50 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /color:var\(--info\)/.test(code) && !/color:#2980b9;font-weight:700;font-size:0\.85rem/.test(code));
   })();
 
+  section('140. A visible box for the Google Lens answer (v0.9.1170)');
+  // "when we use the google lens, we need a box to paste it into, its natural and i
+  // can see that i did something and also that what i thought i pasted, was really
+  // pasted."
+  (function () {
+    const pR = require('path');
+    const src = fs.readFileSync(pR.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+    const code = src.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+
+    ok('the waiting banner now carries a real textarea',
+       /id="pin-lens-paste"/.test(code) && /<textarea/.test(code));
+    ok('...with a button that acts on it, disabled until something is in there',
+       /id="pin-lens-use"/.test(code) && /_pinUseLensPaste\(\)/.test(code) &&
+       /btn\.disabled = n < 10/.test(code));
+    ok('...and a live count, so the paste is visibly confirmed',
+       /character' \+ \(n === 1 \? '' : 's'\) \+ ' pasted/.test(code) &&
+       /nothing pasted yet/.test(code));
+
+    // THE point of the box: a paste aimed at it must LAND in it. The global
+    // listener used to swallow anything over 25 characters, act on it invisibly,
+    // and leave the box empty — the exact "did that even work?" being fixed.
+    ok('a paste into the box is not swallowed by the global paste listener',
+       /if \(t && t\.id === 'pin-lens-paste'\) \{ setTimeout\(window\._pinLensPasteChanged, 0\); return; \}/.test(code));
+    ok('...and the listener still handles a paste made anywhere else on the card',
+       /_pinProcessText\(txt\);/.test(code) && /showToast\('Reading the copied answer/.test(code));
+
+    ok('the box reuses the SAME applier as the keystroke and clipboard paths',
+       (function () {
+         const a = code.indexOf('_pinUseLensPaste = function');
+         const b = code.indexOf('};', a);
+         return /_pinProcessText\(txt\)/.test(code.slice(a, b));
+       })());
+    ok('...and spins while it works, like every other scan (v0.9.1168)',
+       (function () {
+         const a = code.indexOf('_pinUseLensPaste = function');
+         return /_pinBtnBusy\(document\.getElementById\('pin-lens-use'\)/.test(code.slice(a, a + 600));
+       })());
+    ok('the automatic clipboard watcher is untouched — the box is an addition',
+       /function _pinLensCheck\(\)/.test(code) && /navigator\.clipboard\.readText/.test(code));
+    ok('no new colour literal — theme variables only in the new controls',
+       /background:var\(--surface2\);color:var\(--accent2\)/.test(code) &&
+       /border:1px solid var\(--border\)/.test(code));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

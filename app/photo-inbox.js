@@ -2289,11 +2289,55 @@
   // v0.9.962 (Brad): the "waiting for Google's answer" reminder shown on the
   // review card after Research by Photo. Can't draw on Google's tab (cross-site
   // security), so the reminder lives here, where the answer comes back.
+  // v0.9.1170 (Brad: "when we use the google lens, we need a box to paste it into,
+  // its natural and i can see that i did something and also that what i thought i
+  // pasted, was really pasted"). The round trip worked entirely invisibly — a
+  // keystroke listener and a clipboard watcher — so a paste that missed, or that
+  // grabbed the wrong thing, looked exactly like a paste that worked. The box is
+  // not a new mechanism; it is the same _pinProcessText the keystroke path uses, with
+  // the paste made visible and reversible before it is acted on.
   function _pinLensBannerHtml() {
+    var box = 'width:100%;box-sizing:border-box;min-height:4.2rem;margin-top:0.5rem;'
+      + 'padding:0.5rem 0.6rem;border:1px solid var(--border);border-radius:8px;'
+      + 'background:var(--surface2);color:var(--text);font-family:var(--font-mono);'
+      + 'font-size:0.78rem;line-height:1.4;resize:vertical';
+    // Theme variables only — the colour ratchet refused a second rgba() literal
+    // here and was right to: the banner already carries the one it needs.
+    var use = 'padding:0.4rem 0.8rem;border-radius:8px;border:1.5px solid var(--accent2);'
+      + 'background:var(--surface2);color:var(--accent2);font-family:var(--font-body);'
+      + 'font-weight:700;font-size:0.82rem;cursor:pointer';
     return '<div id="pin-lens-banner" style="background:rgba(212,168,67,0.14);border:1.5px solid var(--accent2,#d4a843);border-radius:9px;padding:0.55rem 0.7rem;margin-bottom:0.6rem;font-size:0.8rem;color:var(--text-mid);line-height:1.45">' +
-      '<b>Waiting for Google’s answer.</b> In the Google tab press <b>Ctrl+A</b> then <b>Ctrl+C</b>, come back here and press <b>Ctrl+V</b>. (Or snip it with Win+Shift+S and Ctrl+V.)' +
+      '<b>Waiting for Google\u2019s answer.</b> In the Google tab press <b>Ctrl+A</b> then <b>Ctrl+C</b>, ' +
+      'come back here and paste it into this box. (A snip works too \u2014 Win+Shift+S, then Ctrl+V anywhere on this card.)' +
+      '<textarea id="pin-lens-paste" spellcheck="false" placeholder="Paste Google\u2019s answer here\u2026" ' +
+        'oninput="_pinLensPasteChanged()" style="' + box + '"></textarea>' +
+      '<div style="display:flex;align-items:center;gap:0.6rem;margin-top:0.45rem;flex-wrap:wrap">' +
+        '<button id="pin-lens-use" onclick="_pinUseLensPaste()" disabled style="' + use + ';opacity:0.5">Use this answer</button>' +
+        '<span id="pin-lens-count" style="font-size:0.74rem;color:var(--text-dim)">nothing pasted yet</span>' +
+      '</div>' +
       '</div>';
   }
+  // Live confirmation that something landed, and how much — the whole point of the
+  // box is that "what i thought i pasted, was really pasted" is visible.
+  window._pinLensPasteChanged = function () {
+    var ta = document.getElementById('pin-lens-paste');
+    var btn = document.getElementById('pin-lens-use');
+    var cnt = document.getElementById('pin-lens-count');
+    var n = ta ? String(ta.value || '').trim().length : 0;
+    if (btn) { btn.disabled = n < 10; btn.style.opacity = n < 10 ? '0.5' : '1'; }
+    if (cnt) {
+      cnt.textContent = n
+        ? (n.toLocaleString() + ' character' + (n === 1 ? '' : 's') + ' pasted')
+        : 'nothing pasted yet';
+    }
+  };
+  window._pinUseLensPaste = function () {
+    var ta = document.getElementById('pin-lens-paste');
+    var txt = ta ? String(ta.value || '').trim() : '';
+    if (txt.length < 10) { showToast('Paste Google\u2019s answer into the box first', 3000, true); return; }
+    var _busy = _pinBtnBusy(document.getElementById('pin-lens-use'), 'Reading\u2026');
+    try { _pinProcessText(txt); } finally { _busy(); }
+  };
 
   // v0.9.915 (Brad): read a SCREENSHOT of a Google/Lens answer. Pick the
   // screenshot, run it through the same identify AI (it reads the labeled
@@ -2613,6 +2657,10 @@
     txt = txt.trim();
     if (!txt) return;
     var t = e.target;
+    // v0.9.1170: a paste aimed at the Lens box belongs IN the Lens box. Without
+    // this the listener swallowed it, acted on it invisibly, and left the box
+    // empty — which is precisely the "did that even work?" the box exists to end.
+    if (t && t.id === 'pin-lens-paste') { setTimeout(window._pinLensPasteChanged, 0); return; }
     var inField = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA');
     if (inField && txt.length < 25) return;   // let a short manual paste land in the box
     e.preventDefault();
