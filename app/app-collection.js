@@ -165,10 +165,15 @@ function showNonItemDetailPage(type, key) {
   // ── HEADER ──
   var html = ''
     + '<div style="margin-bottom:1.5rem">'
-    +   '<button onclick="' + backFn + '" style="background:none;border:none;color:#2980b9;font-family:var(--font-body);font-size:1.1rem;font-weight:700;cursor:pointer;padding:0;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.4rem">'
+    // v0.9.1155: same prev/next row as the item detail page — sets, catalogs,
+    // paper items and the rest step through their list too.
+    +   '<div id="rr-detail-nav" style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;flex-wrap:wrap">'
+    +   '<button onclick="' + backFn + '" style="background:none;border:none;color:#2980b9;font-family:var(--font-body);font-size:1.1rem;font-weight:700;cursor:pointer;padding:0;display:flex;align-items:center;gap:0.4rem">'
     +     '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>'
     +     backLabel
     +   '</button>'
+    +   (typeof rrDetailNavHtml === 'function' ? rrDetailNavHtml() : '')
+    +   '</div>'
     +   '<div style="display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap">'
     +     '<div style="flex:1;min-width:0">'
     +       '<div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.25rem">'
@@ -1016,10 +1021,18 @@ function showItemDetailPage(idx, copyInvId, opts) {
         ${(function(){ var _u = (typeof _itemExternalLinkURL==='function')?_itemExternalLinkURL(it):(it.refLink||''); return _u ? `<a href="${_u}" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent2);text-decoration:none;display:inline-flex;align-items:center;gap:0.3rem;margin-top:0.4rem">View on ${(typeof _externalSiteLabel === "function" ? _externalSiteLabel(_u) : "External")} <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : ''; })()}`;
   let _headHtml = `
   <div style="margin-bottom:1.5rem">
-    <button onclick="${_backFn}" style="background:none;border:none;color:#2980b9;font-family:var(--font-body);font-size:1.1rem;font-weight:700;cursor:pointer;padding:0;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.4rem">
+    <!-- v0.9.1155 (Brad): "we need a next item, previous item with arrows on
+         the detail pages to advance to the next item in the list it just came
+         from". Back stays left, the arrows sit right. rrDetailNavHtml()
+         returns '' when there is no list to step through (a deep link, a lone
+         search hit), so the header then looks exactly as it always did. -->
+    <div id="rr-detail-nav" style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;flex-wrap:wrap">
+    <button onclick="${_backFn}" style="background:none;border:none;color:#2980b9;font-family:var(--font-body);font-size:1.1rem;font-weight:700;cursor:pointer;padding:0;display:flex;align-items:center;gap:0.4rem">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
       ${_backLabel}
     </button>
+    ${typeof rrDetailNavHtml === 'function' ? rrDetailNavHtml() : ''}
+    </div>
     <div style="display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap">
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.25rem">

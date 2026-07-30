@@ -3346,6 +3346,131 @@ META_WRITES.length = 0; TOASTS.length = 0;
     })();
   })();
 
+  section('129. Prev / next through the list you came from (v0.9.1155)');
+  (function () {
+    const pN = require('path');
+    const rd = f => fs.readFileSync(pN.join(__dirname, '..', f), 'utf8');
+    const nav = rd('app/detail-nav.js');
+    const coll = rd('app/app-collection.js');
+    const idx = rd('app/index.html');
+    const cfg = rd('app/config.js');
+
+    ok('the module is registered, at the current ?v',
+       new RegExp('detail-nav\\.js\\?v=' + (cfg.match(/APP_VERSION = 'v0\.9\.(\d+)'/) || [])[1]).test(idx));
+    ok('BOTH detail pages render the nav row (items, and sets/catalogs/paper)',
+       (coll.match(/id="rr-detail-nav"/g) || []).length === 2 &&
+       (coll.match(/rrDetailNavHtml === 'function' \? rrDetailNavHtml\(\)/g) || []).length === 2);
+
+    // Capture must happen in the CAPTURE phase — the inline onclick destroys
+    // the list DOM, so a bubble-phase listener would find nothing left.
+    ok('the list is captured in the capture phase, before the row\'s own handler',
+       /addEventListener\('click', function \(e\) \{[\s\S]*?\}, true\)/.test(nav));
+    ok('it stores onclick STRINGS, not DOM nodes (the list markup is about to die)',
+       /call: call/.test(nav) && !/node:\s*(child|row)/.test(nav));
+    ok('inner controls that stop propagation are never treated as rows',
+       /stopPropagation/.test(nav) && /if \(\/stopPropagation\/\.test\(oc\)\) return false;/.test(nav));
+    ok('a list of one, or a deep link, yields no arrows at all',
+       /items\.length < 2/.test(nav));
+
+    // Brad chose: stop at the ends, greyed — not wrap.
+    ok('the arrows STOP at the ends rather than wrapping',
+       /atStart = n\.pos <= 0/.test(nav) && /atEnd\s*= n\.pos >= n\.items\.length - 1/.test(nav) &&
+       /if \(next < 0 \|\| next >= n\.items\.length\) return;/.test(nav));
+    ok('…and the disabled end is visibly greyed, not just inert',
+       /disabled \? 'opacity:0\.45;cursor:default;'/.test(nav.replace(/\s*\n\s*\+\s*/g, ' ')) ||
+       /opacity:0\.45/.test(nav));
+    ok('position is shown, so a stack of items has a sense of progress',
+       /\(n\.pos \+ 1\) \+ ' of ' \+ n\.items\.length/.test(nav));
+    ok('the tooltips name the actual neighbouring item',
+       /'Previous: ' \+ n\.items\[n\.pos - 1\]\.label/.test(nav) &&
+       /'Next: ' \+ n\.items\[n\.pos \+ 1\]\.label/.test(nav));
+
+    // Re-running the row's own call is what preserves Want/Sale context and
+    // the Back destination — nothing about origin is re-derived here.
+    ok('navigation re-runs the row\'s own open call, keeping origin + wantMode intact',
+       /new Function\(call\)\.call\(window\)/.test(nav));
+    ok('position advances BEFORE the page redraws, so it shows its own place',
+       nav.indexOf('n.pos = next;') < nav.indexOf('new Function(call)'));
+
+    // Keyboard: helpful at a desk, must never fire under a dialog or in a field.
+    ok('arrow keys work on desktop',
+       /e\.key !== 'ArrowLeft' && e\.key !== 'ArrowRight'/.test(nav));
+    ok('…but not while typing, not under a modal, and not off a detail page',
+       /INPUT\|TEXTAREA\|SELECT/.test(nav) && /isContentEditable/.test(nav) &&
+       /\[id\$="-modal"\], \[id\$="-overlay"\], #rrap/.test(nav) &&
+       /getElementById\('rr-detail-nav'\)/.test(nav));
+
+    // The rule from two versions ago still holds for the new file.
+    (function () {
+      const budget = require('./color-budget.json').budgets;
+      const counter = require('./color-count');
+      const n = counter.countFile(pN.join(__dirname, '..', 'app', 'detail-nav.js'));
+      ok('the new file is inside the colour budget (no-hardcoded-colours rule)',
+         n <= (budget['detail-nav.js'] || 0), n + ' vs budget ' + (budget['detail-nav.js'] || 0));
+    })();
+
+    // ── The part that actually matters: RUN it against a real DOM ──
+    // Every assertion above proves the code SAYS the right thing. This drives
+    // a live list through a click and both arrows and checks what it DOES.
+    // jsdom is optional (installed with --no-save), so a fresh clone skips
+    // this loudly rather than failing.
+    (function () {
+      let JSDOM;
+      try { JSDOM = require('jsdom').JSDOM; }
+      catch (e) {
+        console.log('  SKIP  behavioural DOM run — jsdom not installed (npm i --no-save jsdom)');
+        return;
+      }
+      const dom = new JSDOM('<!DOCTYPE html><body>'
+        + '<div class="page active" id="page-upgrade"><table><tbody id="tb">'
+        + '<tr><td onclick="_wantViewDetail(\'6464-475\',\'1\')"><span class="item-num">6464-475</span></td>'
+        +     '<td><input type="checkbox" onclick="event.stopPropagation();toggleShareItem(\'x\')"></td></tr>'
+        + '<tr><td onclick="_wantViewDetail(\'2343\',\'\')"><span class="item-num">2343</span></td></tr>'
+        + '<tr><td onclick="_wantViewDetail(\'6017\',\'2\')"><span class="item-num">6017</span></td></tr>'
+        + '<tr><td onclick="_wantViewDetail(\'726\',\'\')"><span class="item-num">726</span></td></tr>'
+        + '</tbody></table></div><div id="rr-detail-nav"></div></body>', { runScripts: 'outside-only' });
+      const w = dom.window;
+      const ran = [];
+      w.showToast = function () {};
+      w.scrollTo = function () {};
+      w._wantViewDetail = function (num, v) { ran.push(num); };
+      w.eval(fs.readFileSync(pN.join(__dirname, '..', 'app', 'detail-nav.js'), 'utf8'));
+
+      // Click the THIRD row.
+      w.document.querySelectorAll('#tb tr')[2].querySelector('td[onclick]')
+        .dispatchEvent(new w.Event('click', { bubbles: true }));
+
+      const n = w._rrNav;
+      ok('DOM run: the whole visible list is captured, in display order',
+         !!n && n.items.length === 4 &&
+         n.items.map(i => i.label).join(',') === '6464-475,2343,6017,726',
+         n ? n.items.map(i => i.label).join(',') : 'nothing captured');
+      ok('DOM run: the share checkbox inside a row is NOT a navigation step',
+         !!n && !n.items.some(i => /stopPropagation/.test(i.call)));
+      ok('DOM run: position is where the user actually clicked', !!n && n.pos === 2);
+      ok('DOM run: origin is read from the active page', !!n && n.origin === 'Want / Upgrade');
+      ok('DOM run: the control shows "3 of 4" and names the next item',
+         /3 of 4/.test(w.rrDetailNavHtml()) && /Next: 726/.test(w.rrDetailNavHtml()));
+
+      w.rrDetailNavGo(1);
+      ok('DOM run: next opens the following item and advances position',
+         w._rrNav.pos === 3 && ran.join(',') === '726');
+      ok('DOM run: at the last item the next arrow is disabled',
+         /disabled/.test(w.rrDetailNavHtml().split('of 4')[1] || ''));
+      w.rrDetailNavGo(1);
+      ok('DOM run: pressing next past the end does nothing at all',
+         w._rrNav.pos === 3 && ran.length === 1);
+      w.rrDetailNavGo(-1); w.rrDetailNavGo(-1); w.rrDetailNavGo(-1);
+      ok('DOM run: prev walks all the way back to the first item',
+         w._rrNav.pos === 0 && ran.join(',') === '726,6017,2343,6464-475');
+      ok('DOM run: at the first item the prev arrow is disabled',
+         /disabled/.test(w.rrDetailNavHtml().split('1 of 4')[0]));
+      w.rrDetailNavGo(-1);
+      ok('DOM run: pressing prev past the start does nothing at all',
+         w._rrNav.pos === 0 && ran.length === 4);
+    })();
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
