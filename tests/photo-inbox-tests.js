@@ -4522,6 +4522,119 @@ META_WRITES.length = 0; TOASTS.length = 0;
     })();
   })();
 
+  section('138. A Lionel filter never answers Atlas (v0.9.1167)');
+  // Brad, two screenshots, same evening:
+  //   "if i once again tell you its a lionel, don't suggest to me atlas"
+  //   "this was labeled lionel postwar o guage, and i come on to my screen today
+  //    its atlas n. what the hell."
+  // His MKT steam locomotive read "2500 - Atlas O Undecorated (Low Nose)"; his
+  // A.T.&S.F. gondola read "40200 - Atlas N UNDECORATED (ADM/MCP)". ONE cause:
+  // the free reader's own era gate was the FIFTH copy of the single-era check,
+  // and a filter covering more than one era leaves prefer.era === '' - so it
+  // accepted rows from ANY catalog and a number assembled from OCR noise went
+  // shopping until some maker's list took it. The disclosure said so outright:
+  // "Photo is stamped: nothing - no era filter applied".
+  (function () {
+    // A catalog holding the two Atlas rows that won, plus the Lionel rows the
+    // filter should be confined to.
+    const ROWS = [
+      { itemNum:'2500',  _era:'atlas',   _tab:'Atlas O', description:'Undecorated (Low Nose)' },
+      // 40200 exists as BOTH a postwar Lionel number and an Atlas N one. The
+      // postwar row is listed first so an unfiltered lookup lands on it, which is
+      // what makes the candidate-era cap testable on its own.
+      { itemNum:'40200', _era:'pw',      _tab:'Lionel PW - Items', description:'Weight-stamp collision' },
+      { itemNum:'40200', _era:'atlas_n', _tab:'Atlas N', description:'UNDECORATED (ADM/MCP)' },
+      { itemNum:'6462',  _era:'pw',      _tab:'Lionel PW - Items', description:'New York Central Gondola' },
+      { itemNum:'2400',  _era:'mod',     _tab:'Lionel MPC-Modern', description:'Maplewood Pullman' },
+    ];
+    const M = new Map();
+    ROWS.forEach(r => { const k = String(r.itemNum); M.set(k, (M.get(k) || []).concat([r])); });
+    global.state = { masterByItem: M, personalData: {} };
+    global.window.state = global.state;
+    // The real findMaster honours `prefer`; a stub that ignores it is a second
+    // implementation and would test the wrong thing (rule 11, learned twice today).
+    global.findMaster = (n, v, prefer) => {
+      const rows = M.get(String(n)) || [];
+      if (!rows.length) return null;
+      const eras = prefer ? ((prefer.eras && prefer.eras.length) ? prefer.eras
+                            : (prefer.era ? [prefer.era] : [])) : [];
+      if (eras.length) {
+        const hit = rows.find(r => eras.indexOf(r._era) >= 0);
+        if (hit) return hit;
+      }
+      if (prefer && prefer.manufacturer) {
+        const want = String(prefer.manufacturer).toLowerCase();
+        const hit = rows.find(r => (r._tab || '').toLowerCase().indexOf(want) === 0);
+        if (hit) return hit;
+      }
+      return rows[0];
+    };
+    // _pinBestMaster reads window._mbAllGet first — an earlier section leaves one
+    // behind, and it was answering from a different catalog entirely. Point it at
+    // THIS section's rows so the test measures the code and not the leftovers.
+    global.window._mbAllGet = (n) => M.get(String(n).trim()) || null;
+    // The harness's shared ERAS stub has no Atlas entries, so the maker guard saw a
+    // BLANK maker for the Atlas row and — correctly, by its own rule — declined to
+    // contradict it. That is the stub differing from the real app, not the app being
+    // wrong: ERAS.atlas.manufacturer is 'Atlas' in config.js. Additive, so later
+    // sections are unaffected.
+    global.ERAS.atlas   = { label:'Atlas O', manufacturer:'Atlas' };
+    global.ERAS.atlas_n = { label:'Atlas N', manufacturer:'Atlas' };
+    // _manufacturerOfEra lives in app.js; the maker guard reads it when present.
+    global._manufacturerOfEra = (era) => ({ pw:'lionel', prewar:'lionel', mod:'lionel',
+      atlas:'atlas', atlas_n:'atlas' })[era] || '';
+
+    // Brad's REAL OCR text, copied from the disclosure in his screenshot.
+    const MKT_OCR = '- -- -- 3 43 -- - - 9 7 - - - 4 - - - - - 3 10 --- - 5 - 4 - - - - - - 2 - - -- - 2 2500 -- - - - - - - - - 5 - -';
+
+    // Unfiltered, the old answer still stands — nothing here narrows it.
+    let r = window.__NumFromText(MKT_OCR, null);
+    ok('with NO filter at all, an Atlas number can still be the answer',
+       r && String(r.num) === '2500', JSON.stringify(r && r.num));
+
+    // Filtered to Lionel across TWO eras — the exact state that broke.
+    const LIONEL_ANY = { era: '', eras: ['pw', 'mod'], manufacturer: 'Lionel', scale: 'O' };
+
+    // The reader may still OFFER a bare catalog-shaped token; that is a deliberate
+    // hedge and Brad is fine with it ("i don't expect it to get it right"). What he
+    // objects to is the CARD then presenting it as an Atlas product. So the
+    // assertion belongs where the card gets its maker and description.
+    ok('a number found only in another maker\'s catalog gets NO maker on the card',
+       window.__BestMaster('2500', '', LIONEL_ANY) === null,
+       JSON.stringify(window.__BestMaster('2500', '', LIONEL_ANY)));
+    ok('...and the 40200 weight stamp likewise resolves to the Lionel row, never Atlas N',
+       (function () { const m = window.__BestMaster('40200', '', LIONEL_ANY);
+                      return m && m._era === 'pw'; })(),
+       JSON.stringify(window.__BestMaster('40200', '', LIONEL_ANY)));
+    ok('with no filter at all the old behaviour stands — some maker is better than none',
+       (function () { const m = window.__BestMaster('2500', '', null);
+                      return m && m._era === 'atlas'; })());
+
+    // The five-digit weight stamp must not become the READ answer either, and the
+    // rule has to come from the candidate's own row because OCR shredded "LT WT".
+    const GON_OCR = 'A. T. &. S. F. 356 250 - 4 - - - 1 0 0 0 0 0 - - 1 2 0 0 0 0 - - 40200 - - BUILT BY LIONEL NEW 5-54';
+    r = window.__NumFromText(GON_OCR, LIONEL_ANY);
+    ok('a five-digit weight stamp is never CONFIRMED against a postwar row',
+       !r || !r.matched || String(r.num) !== '40200',
+       JSON.stringify(r && { num: r.num, matched: r.matched }));
+
+    // The narrowing must not become a blanket refusal.
+    r = window.__NumFromText('BUILT BY LIONEL 6462 NEW YORK CENTRAL', LIONEL_ANY);
+    ok('a genuine Lionel number in a covered era is still found',
+       r && String(r.num) === '6462', JSON.stringify(r && r.num));
+
+    // And the disclosure has to name what it filtered to, since "no era filter
+    // applied" while the user sat on Lionel / O / Modern is what hid this for days.
+    const src = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+    ok('the read carries every era it filtered to, for the disclosure to name',
+       /eras: _prefEras\(prefer\), cand: \[\]/.test(src));
+    ok('...and the card lists them rather than claiming no filter was applied',
+       /dbg\.eras && dbg\.eras\.length/.test(src) && /\.join\(' or '\)/.test(src));
+    ok('the free reader gate uses the era SET, like the other four',
+       /if \(!_inEraSet\.length\) return true;/.test(src) &&
+       /_inEraSet\.indexOf\(row\._era\) >= 0/.test(src));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

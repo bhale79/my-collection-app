@@ -1433,9 +1433,11 @@
         // v0.9.1089: an in-era row that QUOTES this number beats an off-era row
         // that carries it — typing 6817 on a Modern-tagged card should land on
         // the Modern reissue, because the tag settles it.
+        // v0.9.1167: the era SET, so a multi-era filter still gets an exact hit.
+        var _bmEras = _prefEras(prefer);
         try {
-          var hasExact = bucket.some(function (r) { return prefer.era && r._era === prefer.era; });
-          if (prefer.era && !hasExact) {
+          var hasExact = bucket.some(function (r) { return _bmEras.indexOf(r._era) >= 0; });
+          if (_bmEras.length && !hasExact) {
             var qm3 = _pinQuoteMatch(String(num).trim(), prefer);
             if (qm3 && qm3.row) return qm3.row;
           }
@@ -1443,7 +1445,7 @@
         var exact = null, byMaker = null;
         for (var j = 0; j < bucket.length; j++) {
           var row = bucket[j];
-          if (prefer.era && row._era === prefer.era) { exact = row; break; }
+          if (_bmEras.length && _bmEras.indexOf(row._era) >= 0) { exact = row; break; }
           if (!byMaker && prefer.manufacturer) {
             var mk2 = row.manufacturer || ((typeof ERAS !== 'undefined' && ERAS[row._era]) ? ERAS[row._era].manufacturer : '');
             if (_pinMfrAgree(prefer.manufacturer, mk2)) byMaker = row;
@@ -1451,6 +1453,18 @@
         }
         if (exact) return exact;
         if (byMaker) return byMaker;
+        // v0.9.1167 (Brad: "if i once again tell you its a lionel, don't suggest
+        // to me atlas"). THIS is the line that put Atlas on his card. The free
+        // reader offered a bare catalog-shaped token — 2500 off an MKT locomotive,
+        // 40200 off a gondola's LT WT stamp — and this dressed it in whatever
+        // maker happened to own that number, falling through to bucket[0].
+        //
+        // When the filter names a maker and nothing in this bucket IS that maker,
+        // the honest answer is none: "we read 2500 and it is not in your Lionel
+        // list". Another maker's row that shares the digits is a coincidence, not
+        // an identification, and presenting it as one is what made him ask what
+        // the hell was going on.
+        if (prefer.manufacturer) return null;
       }
       return bucket[0];
     }
@@ -2018,7 +2032,15 @@
              : (ai && ai.aiRaw ? '' : 'The reader returned no text at all.'))
       + (dbg
           ? '<div style="margin-top:0.35rem">'
-            + 'Photo is stamped: <b>' + rrEsc(dbg.era ? _pinEraLabel(dbg.era) : 'nothing \u2014 no era filter applied') + '</b><br>'
+            // v0.9.1167: name every era the filter covered. Saying "no era filter
+            // applied" while the user sat on Lionel / O / Modern was true of the
+            // code and false of their screen — and it was the clue that found the
+            // Atlas bug, so it has to stay accurate.
+            + 'Photo is stamped: <b>' + rrEsc(
+                dbg.era ? _pinEraLabel(dbg.era)
+                : ((dbg.eras && dbg.eras.length)
+                    ? dbg.eras.map(function (e) { return _pinEraLabel(e); }).join(' or ')
+                    : 'nothing \u2014 no era filter applied')) + '</b><br>'
             + 'Numbers considered: ' + rrEsc((dbg.cand || []).join(', ') || 'none')
               + ((dbg.shortCand && dbg.shortCand.length)
                   ? ' (plus short: ' + rrEsc(dbg.shortCand.join(', ')) + ')' : '') + '<br>'
@@ -3170,7 +3192,19 @@
     // 128300 all fail here. MPC, MTH and the rest genuinely use longer numbers
     // and are deliberately left alone.
     var MAX_PLAIN_DIGITS = { prewar: 4, pw: 4 };
-    var digitCap = (prefer && prefer.era && MAX_PLAIN_DIGITS[prefer.era]) || 0;
+    // v0.9.1167: the cap applies when EVERY era the filter covers has one —
+    // take the most permissive. A single covered era behaves exactly as before.
+    var digitCap = (function () {
+      var es = _prefEras(prefer);
+      if (!es.length) return 0;
+      var mx = 0;
+      for (var i = 0; i < es.length; i++) {
+        var c = MAX_PLAIN_DIGITS[es[i]];
+        if (!c) return 0;                           // one uncapped era = no cap
+        if (c > mx) mx = c;
+      }
+      return mx;
+    })();
 
     // v0.9.1084 — this shape means different things in different catalogs.
     // "5-54" on a postwar car is a build date. "6-16661" is a real modern Lionel
@@ -3181,7 +3215,7 @@
     // Lionel MPC (6-16661), MTH (20-xxxxx). On a postwar or prewar photo, and on
     // an UNSTAMPED one, it stays banned: without an era we cannot tell a build
     // date from a modern SKU, and defaulting to "date" is what keeps 5-54 out.
-    var _shortDashOk = !!(prefer && prefer.era && !digitCap);
+    var _shortDashOk = !!(_prefEras(prefer).length && !digitCap);   // v0.9.1167
     var isBuildDate = function (c) { return !_shortDashOk && /^\d{1,2}-\d+$/.test(c); };
     // CAPACITY AND LOAD LIMIT. The audit confirmed "40200" on five different
     // cars, plus 48200 and 25000. Those are the CAPY / LD LMT stamps printed on
@@ -3205,7 +3239,7 @@
         // never the answer regardless of what the label came out as.
         // The era-aware ceiling replaces the blunt six-digit rule.
         if (digitCap && c.indexOf('-') < 0 && c.replace(/\D/g, '').length > digitCap) return false;
-        if (!digitCap && prefer && prefer.era && /^\d{6,}$/.test(c)) return false;
+        if (!digitCap && _prefEras(prefer).length && /^\d{6,}$/.test(c)) return false;   // v0.9.1167
         var digits = c.replace(/\D/g, '');
         var alnum = c.replace(/[^0-9A-Za-z]/g, '');
         if (digits.length < alnum.length * 0.6) return false;   // mostly letters = junk (e.g. "4LIONEL", "MADE")
@@ -3236,11 +3270,70 @@
     var fmAny = (typeof findMaster === 'function')
       ? function (c) { var r = findMaster(c, null, prefer || null); return (r && !_isSetRow(r)) ? r : null; }
       : null;
+    // v0.9.1167 (Brad: "if i once again tell you its a lionel, don't suggest to
+    // me atlas"). THE FIFTH COPY of the single-era gate, and the one that was
+    // still live. His chips were Lionel / O / Modern, but when a filter covers
+    // more than one era `prefer.era` is '' — so this returned true for EVERY row,
+    // every catalog counted, and a number assembled out of OCR fragments went
+    // shopping until some maker's list accepted it. His MKT steam locomotive came
+    // back "2500 — Atlas Undecorated (Low Nose)", and the disclosure said so in
+    // as many words: "Photo is stamped: nothing — no era filter applied".
+    //
+    // v0.9.1165 widened four of these gates and missed this one. Fifth place,
+    // same class, enumerated from source this time.
+    var _inEraSet = _prefEras(prefer);
     var inEra = function (row) {
-      if (!prefer || !prefer.era) return true;      // nothing stamped — old behaviour
-      return !!(row && row._era === prefer.era);
+      if (!_inEraSet.length) return true;           // genuinely unfiltered — old behaviour
+      return !!(row && _inEraSet.indexOf(row._era) >= 0);
     };
-    var fm = fmAny ? function (c) { var r = fmAny(c); return (r && inEra(r)) ? r : null; } : null;
+    // v0.9.1167 — THE CAP FOLLOWS THE CANDIDATE'S ERA, not the filter's.
+    // Brad's A.T.&S.F. gondola is stamped CAPY 100000 / LD LMT 120000 / LT WT
+    // 40200, and it came back "40200 — Atlas N UNDECORATED (ADM/MCP)". The rule
+    // meant to stop that is MAX_PLAIN_DIGITS ({prewar:4, pw:4}): no Lionel
+    // pre-war or postwar catalog number has five plain digits, so a five-digit
+    // run on such a car is a weight, never the item. But it was keyed on
+    // prefer.era — one era — so a filter covering two eras switched it off, and
+    // the keyword rule above it could not help either because OCR had shredded
+    // the words "LT WT" into "- 4 - - - - -".
+    //
+    // Asking the CANDIDATE's own row instead needs no filter at all: if the row
+    // this number would match is pre-war or postwar Lionel, a five-digit plain
+    // number cannot be it, whatever the user is filtered to.
+    // v0.9.1167 (Brad: "if i once again tell you its a lionel, don't suggest to
+    // me atlas"). An off-era LEAD is a genuinely useful offer WITHIN a maker: a
+    // postwar number read off a car while the user sits in Lionel Modern is worth
+    // putting in front of them. Across makers it is noise in an answer's clothes.
+    // His MKT locomotive was handed "2500 — Atlas O (Low Nose)" and his
+    // A.T.&S.F. gondola "40200 — Atlas N (ADM/MCP)", each because the digits
+    // existed in SOME catalog. If the filter names a maker, another maker's row is
+    // not a lead — it is a different product that happens to share a number.
+    var _sameMakerAsFilter = function (row) {
+      var want = String((prefer && prefer.manufacturer) || '').toLowerCase().trim();
+      if (!want) return true;                       // no maker named — nothing to contradict
+      var got = '';
+      try {
+        if (typeof _manufacturerOfEra === 'function') {
+          got = String(_manufacturerOfEra(row && row._era) || '').toLowerCase();
+        }
+      } catch (e) {}
+      if (!got && row && row._tab) got = String(row._tab).toLowerCase().split(' ')[0];
+      if (!got) return true;                        // unknown maker — never hide on a guess
+      return got === want || got.indexOf(want) === 0 || want.indexOf(got) === 0;
+    };
+    var _capForRow = function (row, c) {
+      if (!row || !row._era) return false;
+      var cap = MAX_PLAIN_DIGITS[row._era];
+      if (!cap) return false;
+      var plain = String(c || '');
+      if (plain.indexOf('-') >= 0) return false;      // dashed numbers are catalog-shaped
+      return plain.replace(/\D/g, '').length > cap;
+    };
+    var fm = fmAny ? function (c) {
+      var r = fmAny(c);
+      if (!r || !inEra(r)) return null;
+      if (_capForRow(r, c)) return null;              // a weight stamp, not a catalog number
+      return r;
+    } : null;
     // v0.9.1065 — short tokens are a LEAD, never a fact. Catalog backing is
     // too weak a filter for them on its own: the audit turned stray markings
     // into 13, 20, 25, 40, 50, 53 and 77, and Lionel has real items at every
@@ -3517,7 +3610,10 @@
         for (var oi = 0; oi < uniq.length; oi++) {
           var oc = uniq[oi];
           if (fm(oc)) continue;
-          if (fmAny(oc) || fmAny(oc.replace(/^\d-/, ''))) { _offLead = oc; break; }
+          // v0.9.1167: same maker only. A number that exists solely in another
+          // maker's catalog is not a lead the user asked for.
+          var _oRow = fmAny(oc) || fmAny(oc.replace(/^\d-/, ''));
+          if (_oRow && _sameMakerAsFilter(_oRow)) { _offLead = oc; break; }
         }
       }
       if (_offLead) {
@@ -4098,7 +4194,7 @@
       // A photo the browser cannot decode is a real answer, not a crash.
       console.warn('[inbox] could not decode this photo', eB && eB.message);
       return { num: '', matched: false, empty: true,
-               dbg: { era: (prefer && prefer.era) || '', cand: [], inEra: [], offEra: [],
+               dbg: { era: (prefer && prefer.era) || '', eras: _prefEras(prefer), cand: [], inEra: [], offEra: [],
                       note: 'the browser could not decode this photo' } };
     }
     var dim = maxDim || 2400;
