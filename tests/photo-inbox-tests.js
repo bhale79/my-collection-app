@@ -4092,6 +4092,54 @@ META_WRITES.length = 0; TOASTS.length = 0;
     })();
   })();
 
+  section('133. Reference links are named for the site they go to (v0.9.1162)');
+  // Brad: "why doesn't the prewar items not reference the cott website". They do —
+  // 2,088 of 2,837 Pre-War rows carry a COTT link. The app just called all of them
+  // "External", because it tested the URL for 'centerlineoftrains' or 'cott' and
+  // COTT is Cornucopia Of Toy Trains: cornucopiaoftoytrains.com contains neither.
+  (function () {
+    const pL = require('path');
+    const brwS = fs.readFileSync(pL.join(__dirname, '..', 'app', 'browse.js'), 'utf8');
+    const a = brwS.indexOf('var _SITE_LABELS'), b = brwS.indexOf('if (typeof window', a);
+    if (a < 0 || b < 0) throw new Error('§133 marker moved');
+    const label = new Function(brwS.slice(a, b) + 'return _externalSiteLabel;')();
+
+    // Every reference domain actually present in the live catalog, with the row
+    // count measured 2026-07-30. A domain the app cannot name is a link the user
+    // is asked to trust blind.
+    [['https://cornucopiaoftoytrains.com/prewar-no-254-engines/#21', 'COTT', 5811],
+     ['https://archive.atlasrr.com/product/3300', 'Atlas', 46527],
+     ['https://www.mthtrains.com/products/30-1234', 'MTH', 37318],
+     ['https://www.lionel.com/search?query=6-8359', 'Lionel', 14531],
+     ['https://www.trainz.com/products/usa-trains-10627-g-boxcar', 'Trainz', 3768],
+     ['http://www.readymadetoys.com/rn.html', 'RMT', 416],
+     ['https://www.tandem-associates.com/lionel/lionel_trains_025_acc.htm', 'Tandem Associates', 154],
+     ['https://web.archive.org/web/20170406/http://3rdrail.com/x.html#ACE3001', 'Web Archive', 180],
+    ].forEach(function (t) {
+      ok(t[1] + ' links say "' + t[1] + '" (' + t[2].toLocaleString() + ' rows)',
+         label(t[0]) === t[1], label(t[0]));
+    });
+
+    // The bug, stated so it cannot come back.
+    ok('a COTT link is no longer called "External"',
+       label('https://cornucopiaoftoytrains.com/anything') !== 'External');
+
+    // Matching on the hostname, not the whole URL. Both of these were real
+    // mislabels: the app's own Google fallback for a Lionel row IS a google.com
+    // URL with 'Lionel' in the query, and 'cott' is a substring of other hosts.
+    ok('the Google fallback is called Google, not Lionel, despite the query text',
+       label('https://www.google.com/search?q=Lionel%20021%20Switches') === 'Google');
+    ok('a host that merely CONTAINS the letters c-o-t-t is not called COTT',
+       label('https://scottsdale-trains.example.com/item/70') === 'External');
+    ok('a path that mentions a site does not decide the label',
+       label('https://example.com/redirect?to=cornucopiaoftoytrains.com') === 'External');
+
+    ok('no link at all stays "External" rather than throwing',
+       label('') === 'External' && label(null) === 'External');
+    ok('a malformed URL falls back to the old whole-string match rather than crashing',
+       label('cornucopiaoftoytrains.com/no-scheme') === 'COTT');
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

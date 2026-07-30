@@ -873,17 +873,46 @@ if (typeof window !== 'undefined') {
   if (!window._fsGroupMembers) window._fsGroupMembers = _fsGroupMembers;
 }
 
+// v0.9.1162 (Brad: "why doesn't the prewar items not reference the cott
+// website"). They DO — 2,088 of his 2,837 Pre-War rows carry a COTT link, and
+// 5,811 rows do catalog-wide. This function simply never called them COTT: it
+// tested for 'centerlineoftrains' and 'cott', and COTT is Cornucopia Of Toy
+// Trains — cornucopiaoftoytrains.com, which contains NEITHER string. So every
+// COTT link read "View on External", and exactly 2 rows out of 132,791 were ever
+// labelled correctly, by accident. Three other reference sites were unnamed too.
+//
+// Matched on the HOSTNAME, not the whole URL. Testing the whole URL let a path or
+// query decide the label: the app's own Google fallback for a Lionel row is
+// google.com/search?q=Lionel..., and any host containing the letters c-o-t-t
+// (scottsdale-trains, say) was labelled COTT.
+//
+// Row counts measured live 2026-07-30 — kept here so the next person can see at a
+// glance which references actually carry the catalog.
+var _SITE_LABELS = [
+  ['cornucopiaoftoytrains', 'COTT'],               // 5,811 — Cornucopia Of Toy Trains
+  ['atlasrr',               'Atlas'],              // 46,527 (archive.atlasrr.com)
+  ['atlasmodel',            'Atlas'],
+  ['atlas.com',             'Atlas'],
+  ['mthtrains',             'MTH'],                // 37,318
+  ['lionel.com',            'Lionel'],             // 14,531
+  ['trainz.com',            'Trainz'],             // 3,768 — LGB + USA Trains
+  ['readymadetoys',         'RMT'],                // 416 — RMT's own site
+  ['tandem-associates',     'Tandem Associates'],  // 154 — Lionel postwar accessories
+  ['web.archive.org',       'Web Archive'],        // 180 — the 3rd Rail reconstruction
+  ['centerlineoftrains',    'COTT'],               // kept: harmless legacy alias
+  ['google.com',            'Google'],
+];
 function _externalSiteLabel(url) {
   if (!url) return 'External';
-  var lc = String(url).toLowerCase();
-  if (lc.indexOf('mthtrains') >= 0)           return 'MTH';
-  if (lc.indexOf('atlasrr') >= 0)             return 'Atlas';
-  if (lc.indexOf('atlas.com') >= 0)           return 'Atlas';
-  if (lc.indexOf('atlasmodel') >= 0)          return 'Atlas';
-  if (lc.indexOf('lionel.com') >= 0)          return 'Lionel';
-  if (lc.indexOf('centerlineoftrains') >= 0)  return 'COTT';
-  if (lc.indexOf('cott') >= 0)                return 'COTT';
-  if (lc.indexOf('google.com') >= 0)          return 'Google';
+  var host;
+  try {
+    host = new URL(String(url)).hostname.toLowerCase();
+  } catch (e) {
+    host = String(url).toLowerCase();   // relative or malformed: previous behaviour
+  }
+  for (var i = 0; i < _SITE_LABELS.length; i++) {
+    if (host.indexOf(_SITE_LABELS[i][0]) >= 0) return _SITE_LABELS[i][1];
+  }
   return 'External';
 }
 if (typeof window !== 'undefined') window._externalSiteLabel = _externalSiteLabel;
