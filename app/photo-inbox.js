@@ -794,7 +794,7 @@
         var e = fid && ids[fid];
         if (!e || !e.aiRaw || !e.num) return;
         var prefer = _pinPreferOf(g);
-        if (!prefer || !prefer.era) return;
+        if (!_prefEras(prefer).length) return;   // v0.9.1165: multi-era filters count
         var rc = _pinReconcileAiNum(
           { itemNum: e.num, description: e.desc || '', title: '', formNumber: '' },
           e.aiRaw, prefer);
@@ -3800,13 +3800,36 @@
     _quoteIdx = idx; _quoteIdxKey = era; _quoteIdxMap = srcMap;
     return idx;
   }
+  // ══ v0.9.1165 — WHICH ERAS IS THE USER FILTERED TO? ══════════════════════
+  // A single-era filter covers one. A chip filter like "Lionel / O Gauge / Any
+  // Era" covers several — Postwar and MPC/Modern — and rrActiveFilter names them
+  // all as of this version. Every consumer below used to demand ONE era key and
+  // return early on '', so under "Any Era" the number rescue, the quote rescue
+  // and the word rescue were ALL switched off. That is the state Brad was
+  // actually sitting in when his M-K-T read kept an MTH number: the correct
+  // answer, 2631200, was sitting in the read's own saved text and nothing was
+  // allowed to look for it.
+  //
+  // The unfinished half of v0.9.1157 — that version taught the resolver to
+  // DESCRIBE a multi-era filter and never taught these consumers to USE one.
+  function _prefEras(prefer) {
+    if (!prefer) return [];
+    if (prefer.eras && prefer.eras.length) return prefer.eras;
+    return prefer.era ? [prefer.era] : [];
+  }
+
   function _pinQuoteMatch(num, prefer) {
-    if (!num || !prefer || !prefer.era) return null;
-    var idx = _quoteIndexFor(prefer.era);
-    if (!idx) return null;
-    var rows = idx[String(num).trim()];
-    if (!rows || rows.length !== 1) return null;   // ambiguous = the user picks
-    return { row: rows[0], quoted: String(num).trim() };
+    var eras = _prefEras(prefer);
+    if (!num || !eras.length) return null;
+    // Try each era the filter covers; the FIRST unambiguous hit wins, and an
+    // ambiguous one still means the user picks.
+    for (var i = 0; i < eras.length; i++) {
+      var idx = _quoteIndexFor(eras[i]);
+      if (!idx) continue;
+      var rows = idx[String(num).trim()];
+      if (rows && rows.length === 1) return { row: rows[0], quoted: String(num).trim() };
+    }
+    return null;
   }
 
   var _descIdx = null, _descIdxKey = '', _descIdxMap = null;
@@ -3844,7 +3867,10 @@
   }
 
   // One inverted index per era: WORD -> [rows]. Built once, on first use.
-  function _descIndexFor(era) {
+  function _descIndexFor(eras) {
+    // v0.9.1165: an ERA LIST, so a multi-era chip filter has an index too.
+    eras = Array.isArray(eras) ? eras : (eras ? [eras] : []);
+    var eraKey = eras.join('|');
     // v0.9.1077d: this was cached on the era alone, so once built it survived
     // the catalog itself changing — a stale index that answers confidently is
     // worse than no index. The size of the loaded master is a cheap proxy for
@@ -3856,14 +3882,14 @@
     // era + size, and a test with two different single-row catalogs got the
     // first one's answer for the second — a stale index that answers with
     // confidence is worse than having no index at all.
-    if (_descIdx && _descIdxKey === era && _descIdxMap === srcMap) return _descIdx;
+    if (_descIdx && _descIdxKey === eraKey && _descIdxMap === srcMap) return _descIdx;
     var idx = {};
     try {
       var m = srcMap;
       if (!m || !m.forEach) return null;
       m.forEach(function (rows) {
         (rows || []).forEach(function (row) {
-          if (!row || (era && row._era !== era)) return;
+          if (!row || (eras.length && eras.indexOf(row._era) < 0)) return;
           // v0.9.1094 (Brad's Ballast Tamper, "138 — Water Tower"): a set's
           // description NAMES its member cars, so every member name also hit
           // the set rows, tied the score, and the matcher refused to pick.
@@ -3890,15 +3916,16 @@
         });
       });
     } catch (e) { return null; }
-    _descIdx = idx; _descIdxKey = era; _descIdxMap = srcMap;
+    _descIdx = idx; _descIdxKey = eraKey; _descIdxMap = srcMap;
     return idx;
   }
 
   // Returns { row, score, words } or null.
   function _pinDescMatch(text, prefer) {
-    var era = (prefer && prefer.era) || '';
-    if (!era) return null;                    // without a catalog to search, don't guess
-    var idx = _descIndexFor(era);
+    // v0.9.1165: every era the filter covers, not just a single key.
+    var eras = _prefEras(prefer);
+    if (!eras.length) return null;            // without a catalog to search, don't guess
+    var idx = _descIndexFor(eras);
     if (!idx) return null;
     var seen = {}, words = [];
     _descTokens(text).forEach(function (w) {
@@ -4279,13 +4306,17 @@
   // The reader is not corrected — it is read properly.
   function _pinReconcileAiNum(meta, aiText, prefer) {
     var out = { num: (meta && meta.itemNum) ? String(meta.itemNum).trim() : '', swappedFrom: '' };
-    if (!prefer || !prefer.era || typeof findMaster !== 'function') return out;
+    // v0.9.1165: run for a multi-era filter too. This used to return here
+    // whenever prefer.era was '' — which is exactly what "Any Era" produces — so
+    // the whole rescue chain was silently disabled for Brad's actual filter.
+    var _eras = _prefEras(prefer);
+    if (!_eras.length || typeof findMaster !== 'function') return out;
 
     var inEra = function (c) {
       if (!c) return false;
       try {
         var r = findMaster(c, null, prefer);
-        return !!(r && r._era === prefer.era);
+        return !!(r && _eras.indexOf(r._era) >= 0);
       } catch (e) { return false; }
     };
     // Already right — leave it alone.
@@ -4433,6 +4464,7 @@
       if (!af) return null;
       return {
         era:          af.era || '',        // '' when the filter spans several eras
+        eras:         (af.eras && af.eras.length) ? af.eras : (af.era ? [af.era] : []),
         manufacturer: af.manufacturer || '',
         label:        af.label || '',
         years:        af.years || '',

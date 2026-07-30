@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1164';
+const APP_VERSION = 'v0.9.1165';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -336,6 +336,7 @@ function _rrFilterForEra(era, fromChips, period) {
   if (!d) return null;
   return {
     era:          era,
+    eras:         [era],
     label:        d.label || '',
     years:        d.years || '',
     manufacturer: d.manufacturer || '',
@@ -417,6 +418,12 @@ function rrActiveFilter(photoEra) {
     var perLabel = perId ? (_RR_PERIOD_LABEL[perId] || perId) : '';
     return {
       era:          '',
+      // v0.9.1165: name the eras the filter DOES cover. `era: ''` says "not one
+      // era"; it never meant "no catalog to search". Consumers that needed a
+      // single key were returning early on '' and switching themselves off —
+      // under "Lionel / O Gauge / Any Era" the photo-read number rescue, quote
+      // rescue and word rescue were all inert. This is the list they need.
+      eras:         hits,
       label:        [mfrLabel, scLabel, perLabel].filter(Boolean).join(' '),
       years:        perId ? (_RR_PERIOD_YEARS[perId] || '') : '',
       manufacturer: mfrLabel,

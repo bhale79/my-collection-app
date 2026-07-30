@@ -4320,6 +4320,108 @@ META_WRITES.length = 0; TOASTS.length = 0;
     })();
   })();
 
+  section('136. The rescue runs under "Any Era" too (v0.9.1165)');
+  // Measured in Brad's live app: his chips were Lionel › O Gauge › ANY ERA, which
+  // spans two internal eras (pw + mpc), so rrActiveFilter reports era:'' — "not
+  // one era". Every consumer read that as "no catalog to search" and returned on
+  // the first line, so the number rescue, the quote rescue and the word rescue
+  // were ALL inert. His M-K-T read kept an MTH number while 2631200 sat in its
+  // own saved text. The unfinished half of v0.9.1157.
+  (function () {
+    const pO = require('path');
+    const rd = f => fs.readFileSync(pO.join(__dirname, '..', f), 'utf8');
+    const cfgS = rd('app/config.js');
+
+    // ── the resolver names the eras it covers ──
+    (function () {
+      const ERAS = {
+        all:   { label:'All', manufacturer:'', _isAll:true },
+        pw:    { label:'Lionel Postwar',    years:'1945-1969',  manufacturer:'Lionel' },
+        mpc:   { label:'Lionel MPC/Modern', years:'1970-Today', manufacturer:'Lionel' },
+        prewar:{ label:'Lionel Pre-War',    years:'1901-1942',  manufacturer:'Lionel' },
+        mth_o: { label:'MTH O',             years:'2000-2020',  manufacturer:'MTH' },
+      };
+      const ERA_SCALE = { pw:'O', mpc:'O', prewar:'Standard', mth_o:'O' };
+      const ERA_TABS  = { pw:{items:'Lionel PW - Items'}, mpc:{items:'Lionel MPC-Modern'},
+                          prewar:{items:'Lionel Pre-War'}, mth_o:{items:'MTH O'} };
+      const REAL_ERA_IDS = ['pw','mpc','prewar','mth_o'];
+      const period = it => ({ pw:'postwar', mpc:'modern', prewar:'prewar', mth_o:'modern' })[it._era] || null;
+      let chips = { manufacturer:'lionel', scale:'o', era:'any', section:'items' };
+      const noExports = s => s.replace(/if \(typeof window !== 'undefined'\) window\.[\w.]+ = \w+;/g, '');
+      const a = cfgS.indexOf('var _RR_CHIP_SCALE_LABEL'), b = cfgS.indexOf('// ── Keys that hold browseable');
+      const af = new Function('ERAS','ERA_SCALE','ERA_TABS','REAL_ERA_IDS','window',
+          '_currentEra','_phState','_itemEraPeriod',
+          noExports(cfgS.slice(a,b)) + 'return rrActiveFilter;')(
+          ERAS, ERA_SCALE, ERA_TABS, REAL_ERA_IDS, { WHAT_I_COLLECT:{} }, 'all', () => chips, period);
+
+      const f = af();
+      ok('Brad\'s real filter — Lionel / O / Any Era — names BOTH eras it covers',
+         !!f && f.era === '' && (f.eras || []).slice().sort().join(',') === 'mpc,pw',
+         f ? f.era + ' / [' + (f.eras || []).join(',') + ']' : 'null');
+      ok('…and still excludes the Standard-gauge Pre-War era and every other maker',
+         (f.eras || []).indexOf('prewar') < 0 && (f.eras || []).indexOf('mth_o') < 0);
+      chips = { manufacturer:'lionel', scale:'o', era:'modern', section:'items' };
+      ok('a single-era filter still reports exactly that one, in both fields',
+         af().era === 'mpc' && (af().eras || []).join(',') === 'mpc');
+    })();
+
+    // ── and the consumers actually USE the list ──
+    // Same catalog and text as §135, but the filter is "Any Era" this time.
+    const ROWS = [
+      { itemNum:'2631200', _era:'mpc', _tab:'Lionel MPC-Modern', description:'M-K-T LEGACY 0-8-0 #43', roadName:'' },
+      { itemNum:'6464-500', _era:'pw', _tab:'Lionel PW - Items', description:'Timken Boxcar', roadName:'Timken' },
+    ];
+    for (let i = 0; i < 80; i++) {
+      ROWS.push({ itemNum:'F'+i, _era:'mpc', _tab:'Lionel MPC-Modern',
+                  description:'LEGACY 0-8-0 Steam Switcher filler '+i, roadName:'Missouri-Kansas-Texas' });
+    }
+    const M = new Map();
+    ROWS.forEach(r => { M.set(r.itemNum, [r]); });
+    global.state = { masterByItem: M, personalData: {} };
+    global.window.state = global.state;
+    global.findMaster = (n) => {
+      const k = String(n);
+      if (k === '2631200')  return { itemNum:'2631200',  _era:'mpc' };
+      if (k === '6464-500') return { itemNum:'6464-500', _era:'pw' };
+      if (k === '20-3151-1') return { itemNum:'20-3151-1', _era:'mth_o' };
+      return null;
+    };
+    const READ = 'Lionel Missouri-Kansas-Texas Railroad M-K-T LEGACY 0-8-0 #43 '
+               + 'steam switcher locomotive and tender (2023)';
+    const ANY = { era: '', eras: ['pw','mpc'], manufacturer: 'Lionel', scale: 'O' };
+
+    ok('the word matcher searches every era the filter covers',
+       (function () { const d = window.__DescMatch(READ, ANY);
+                      return !!d && d.row.itemNum === '2631200'; })(),
+       JSON.stringify((window.__DescMatch(READ, ANY) || {}).row || null));
+    ok('the reconciler rescues under "Any Era" — the case that was inert',
+       (function () { const r = window.__Reconcile({ itemNum:'20-3151-1', description:READ }, READ, ANY);
+                      return r && r.num === '2631200' && !!r.viaDesc; })());
+    ok('a number valid in EITHER covered era is accepted, not just the first',
+       (function () { const r = window.__Reconcile({ itemNum:'999999' }, 'saw 6464-500 on the box', ANY);
+                      return r && r.num === '6464-500'; })());
+    ok('a number from an era the filter does NOT cover is still rejected',
+       (function () { const r = window.__Reconcile({ itemNum:'20-3151-1' }, 'only 20-3151-1 here',
+                        { era:'', eras:['pw'], manufacturer:'Lionel' });
+                      return r && r.num === '20-3151-1' && !r.viaDesc; })());
+    ok('an empty era list still declines rather than searching everything',
+       (function () { const r = window.__Reconcile({ itemNum:'20-3151-1' }, READ,
+                        { era:'', eras:[], manufacturer:'Lionel' });
+                      return r && r.num === '20-3151-1' && !r.viaDesc; })() &&
+       !window.__DescMatch(READ, { era:'', eras:[] }));
+    ok('the old single-era shape keeps working untouched',
+       (function () { const r = window.__Reconcile({ itemNum:'20-3151-1', description:READ }, READ,
+                        { era:'mpc', manufacturer:'Lionel' });
+                      return r && r.num === '2631200'; })());
+
+    // The index is keyed on the era SET, or two different filters share one.
+    ok('the description index is cached per era-set, not per single era',
+       /_descIdxKey === eraKey/.test(rd('app/photo-inbox.js')) &&
+       /var eraKey = eras\.join\('\|'\)/.test(rd('app/photo-inbox.js')));
+    ok('and the stored-read repair no longer skips a multi-era filter',
+       /if \(!_prefEras\(prefer\)\.length\) return;/.test(rd('app/photo-inbox.js')));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
