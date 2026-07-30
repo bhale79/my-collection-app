@@ -2091,6 +2091,40 @@
   //
   // Plain words on purpose: this is the part a collector reads. The technical
   // trace stays behind the expander, untouched.
+  // ══ v0.9.1174 — HOW LONG IS THIS GOING TO TAKE? ════════════════════════
+  // Brad: "add a time estimate to the right of the reading photos statement. it
+  // supposed to be, so many minutes left... approximately x:xx am/pm and round up
+  // to the nearest 5 minutes."
+  //
+  // Measured, not guessed: the average of the work actually done so far on THIS
+  // run. Photos vary — a re-read at full size costs more than a cached one — so a
+  // fixed per-photo figure would be wrong within a minute and stay wrong.
+  //
+  // Rounded UP to five minutes, his instruction, and it is the honest direction:
+  // an estimate that runs over feels like a broken promise, one that comes in
+  // early feels like a gift. The clock time is DERIVED from the rounded minutes so
+  // the two halves cannot contradict each other — "10 minutes left, done at 11:47"
+  // would just look wrong.
+  //
+  // Nothing is shown for the first few seconds or the first item: one sample is
+  // not a rate, and a wild first guess that then halves is worse than silence.
+  function _pinEtaText(done, total, startMs) {
+    try {
+      if (!startMs || !done || !total || done >= total) return '';
+      var elapsed = Date.now() - startMs;
+      if (done < 2 || elapsed < 5000) return '';
+      var leftMs = (elapsed / done) * (total - done);
+      var mins = Math.ceil(leftMs / 60000 / 5) * 5;
+      if (mins < 5) mins = 5;
+      var eta = new Date(Date.now() + mins * 60000);
+      var h = eta.getHours(), ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12; if (!h) h = 12;
+      var mm = String(eta.getMinutes());
+      if (mm.length < 2) mm = '0' + mm;
+      return 'about ' + mins + ' minutes left \u00b7 done around ' + h + ':' + mm + ' ' + ampm;
+    } catch (e) { return ''; }
+  }
+
   // ── The live half: the same story, told while it happens ────────────────
   // Progress steps come from ONE table too, for the same reason. The box is
   // written into the read line's slot, so it occupies the space the answer will
@@ -5414,10 +5448,13 @@
       if (jobs.length === before && _pinReadFid(g2) && cr[_pinReadFid(g2)]) jobs.push({ g: g2, fid: _pinReadFid(g2) });
     });
     gs = jobs;
+    var _reStart = Date.now();   // v0.9.1174: measured from the work actually done
     for (var i = 0; i < gs.length; i++) {
       if (_idAbort) break;
       var fid = gs[i].fid;
-      _status('Re-reading ' + (i + 1) + ' of ' + gs.length + '\u2026 ' + found + ' number' + (found === 1 ? '' : 's') + ' so far');
+      var _eta = _pinEtaText(i, gs.length, _reStart);
+      _status('Re-reading ' + (i + 1) + ' of ' + gs.length + '\u2026 ' + found + ' number' + (found === 1 ? '' : 's') + ' so far'
+        + (_eta ? '  \u00b7  ' + _eta : ''));
       try {
         // Forget the previous read so a number lifted from the UNCROPPED photo
         // cannot survive. That is the read this exists to replace.
@@ -6142,14 +6179,17 @@
     _busy = true; _idAbort = false;
     var okN = 0, blankN = 0, failN = 0, guessN = 0;
     var remaining = null;   // v0.9.887 (Brad): reads-left-today tracker
+    var _idStart = Date.now();   // v0.9.1174
     try {
       for (var i = 0; i < todo.length; i++) {
         if (_idAbort) break;
         var st = document.getElementById('pin-status');
         if (st) {
+          var _etaI = _pinEtaText(i, todo.length, _idStart);
           st.style.display = 'block';
           st.innerHTML = 'Identifying item ' + (i + 1) + ' of ' + todo.length +
             (remaining !== null ? ' · ' + remaining + ' token' + (remaining === 1 ? '' : 's') + ' left today' : '') +
+            (_etaI ? ' · ' + _etaI : '') +
             '… keep this tab open — go get that coffee. ' +
             '<button onclick="_pinIdentifyCancel()" style="border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);border-radius:6px;font-size:0.72rem;padding:0.15rem 0.5rem;cursor:pointer;font-family:var(--font-body)">Stop</button>';
         }

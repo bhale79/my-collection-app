@@ -5013,6 +5013,65 @@ META_WRITES.length = 0; TOASTS.length = 0;
        (code.match(/_pinStepsReset\(\)/g) || []).length >= 4);
   })();
 
+  section('144. How long is this going to take? (v0.9.1174)');
+  // "add a time estimate to the right of the reading photos statement. it supposed
+  // to be, so many minutes left... approximately x:xx am/pm and round up to the
+  // nearest 5 minutes."
+  (function () {
+    const pV = require('path');
+    const src = fs.readFileSync(pV.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+    const code = src.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
+    const eta = new Function(
+      src.slice(src.indexOf('function _pinEtaText(done, total, startMs)'),
+                src.indexOf('// ── The live half'))
+      + 'return _pinEtaText;')();
+
+    const MIN = 60000;
+    // 4 done in 4 minutes, 20 total -> 16 left at 1 min each = 16 -> rounds to 20.
+    const t1 = eta(4, 20, Date.now() - 4 * MIN);
+    ok('it says how many minutes are left', /about \d+ minutes left/.test(t1), t1);
+    ok('...and a clock time with am/pm, as asked', /done around \d{1,2}:\d{2} (AM|PM)/.test(t1), t1);
+    ok('...rounded UP to the nearest five minutes',
+       (function () { const m = /about (\d+) minutes/.exec(t1); return m && Number(m[1]) % 5 === 0; })(), t1);
+    ok('...and rounded up, never down — 16 minutes of work reads as 20',
+       /about 20 minutes left/.test(t1), t1);
+
+    // The two halves must agree: the clock time is derived FROM the rounded
+    // minutes, so "10 minutes left, done at 11:47" can never appear.
+    (function () {
+      const m = /about (\d+) minutes left · done around (\d{1,2}):(\d{2}) (AM|PM)/.exec(t1);
+      ok('the minutes and the clock time cannot contradict each other', !!m, t1);
+      if (m) {
+        const now = new Date(Date.now() + Number(m[1]) * MIN);
+        let h = now.getHours() % 12; if (!h) h = 12;
+        ok('...because the clock is derived from the rounded minutes',
+           Number(m[2]) === h && Number(m[3]) === now.getMinutes(),
+           m[2] + ':' + m[3] + ' vs ' + h + ':' + now.getMinutes());
+      }
+    })();
+
+    // Silence beats a wild guess.
+    ok('nothing is shown from a single sample — one item is not a rate',
+       eta(1, 20, Date.now() - 30000) === '');
+    ok('nothing is shown in the first few seconds either',
+       eta(3, 20, Date.now() - 1000) === '');
+    ok('nothing is shown once the run is finished',
+       eta(20, 20, Date.now() - 5 * MIN) === '');
+    ok('a missing start time yields nothing rather than a wrong number',
+       eta(4, 20, 0) === '' && eta(4, 20, null) === '');
+    ok('a nearly-done run still reads as at least five minutes, never "0 minutes"',
+       /about 5 minutes left/.test(eta(19, 20, Date.now() - 19 * 1000)),
+       eta(19, 20, Date.now() - 19 * 1000));
+
+    // Wired to both batches, and measured rather than assumed.
+    ok('the re-read line carries it',
+       /_pinEtaText\(i, gs\.length, _reStart\)/.test(code));
+    ok('the paid identify line carries it too',
+       /_pinEtaText\(i, todo\.length, _idStart\)/.test(code));
+    ok('...both timed from when the run actually started',
+       /var _reStart = Date\.now\(\)/.test(code) && /var _idStart = Date\.now\(\)/.test(code));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
