@@ -922,20 +922,25 @@ if (typeof window !== 'undefined') window._externalSiteLabel = _externalSiteLabe
 // the Atlas/MTH/Lionel/Google branching so app-collection.js can reuse it.
 function _itemExternalLinkURL(item) {
   if (!item) return '';
-  // Deep-link COTT references straight to the item anchor (cott-anchors.js).
-  if (item.refLink) return (typeof window!=='undefined' && window.cottAnchorUrl)
-      ? window.cottAnchorUrl(item.refLink, item.itemNum) : item.refLink;
   // ── v0.9.1186 — the oddballs, by name ─────────────────────────────────────
   // Brad: "https://cornucopiaoftoytrains.com/club-cars/#CCTCA should be the
   // link for the x6464-1970 its an odd ball." Club and convention cars don't
   // follow any numbering rule the branches below can reason about, so they get
-  // a named map instead of a cleverer pattern. A refLink in the master still
-  // wins (above) — if a row here ever gains one, delete its entry.
+  // a named map instead of a cleverer pattern.
+  //
+  // v0.9.1187: the map moved ABOVE the refLink check. The workbook audit showed
+  // WHY it has to be: X6464-1970's master row carries a refLink — pointing at
+  // the /transformers/ page, which is wrong. These entries are Brad's explicit
+  // per-item corrections, and a correction that loses to the data it corrects
+  // is dead code. Delete an entry once the master row's link is actually fixed.
   var _ODDBALL_REFS = {
     'X6464-1970': 'https://cornucopiaoftoytrains.com/club-cars/#CCTCA',
   };
   var _odd = _ODDBALL_REFS[String(item.itemNum || '').trim().toUpperCase()];
   if (_odd) return _odd;
+  // Deep-link COTT references straight to the item anchor (cott-anchors.js).
+  if (item.refLink) return (typeof window!=='undefined' && window.cottAnchorUrl)
+      ? window.cottAnchorUrl(item.refLink, item.itemNum) : item.refLink;
   // v0.9.1175 (Brad: "6464-100 is on the cott site. why does this link to a google
   // search for a lionel 6464-100"). Because THIS row has no reference of its own —
   // and his want had matched the BOX row (the card even badged it PAPER / BOX /
@@ -987,29 +992,20 @@ function _itemExternalLinkURL(item) {
   }
   if (item._tab && String(item._tab).toLowerCase().indexOf('lionel') === 0
       && item.itemNum) {
-    var _lyMatch2 = String(item.yearProd || '').match(/(\d{4})/);
-    // v0.9.1185 (Brad: "here is another slew if items being googled instead of
-    // going to their lionel site" — 6-19578..6-20088, years 2009-2010). The
-    // year>=2011 threshold was a guess, and it was wrong: lionel.com's product
-    // library reaches further back, verified live (their own URLs end in
-    // -6-19587). The honest rule is the NUMBER SYSTEM, not the year — the
-    // modern "6-" SKU prefix is exactly what lionel.com indexes. Postwar
-    // numbers (6464-100, 2333) don't carry it and keep their COTT/Google path;
-    // the year rule stays for the new prefix-less numbers (2233810-era).
-    if ((_lyMatch2 && parseInt(_lyMatch2[1], 10) >= 2011)
-        || /^6-\d{3,}$/.test(String(item.itemNum).trim())) {
-      return 'https://www.lionel.com/search?query=' + encodeURIComponent(item.itemNum);
-    }
-    // v0.9.1175 (Brad: "if we are going to do that, we need to search the era in
-    // this case postwar with it"). A bare "Lionel 6464-100" search is dominated by
-    // modern reissues carrying the same number — the same problem the paid reader
-    // has, and the reason v0.9.1083 started stating the period out loud. The
-    // period word is what a person would type, so it is what goes in.
-    var _per2 = (typeof _itemEraPeriod === 'function') ? _itemEraPeriod(item) : null;
-    var _perWord2 = ({ prewar: 'prewar', postwar: 'postwar', modern: 'modern' })[_per2] || '';
-    var _gq2 = 'Lionel ' + item.itemNum + (item.roadName ? ' ' + item.roadName : '')
-      + (_perWord2 ? ' ' + _perWord2 : '');
-    return 'https://www.google.com/search?q=' + encodeURIComponent(_gq2);
+    // v0.9.1187 (Brad: "all lionel or mth items should go their website link
+    // not a google search"). This branch has been through three regimes in one
+    // day: lionel.com behind a year>=2011 gate with a period-worded Google
+    // fallback (v1175), the 6- prefix joining the gate (v1185), and now the
+    // decision that retires the whole ladder: a Lionel row without a curated
+    // reference goes to lionel.com, full stop. The 1-xxxx Lionel Classics were
+    // the case that settled it — no COTT page, no lionel.com product page, and
+    // Brad chose the maker's own search over Google's guesses anyway.
+    //
+    // Item 8's "search the era with it" rule (v1175) is SUPERSEDED by this,
+    // not forgotten: it governed the Google query, and there is no Google
+    // query here any more. The 11- tinplate branch above still wins first —
+    // those are MTH's numbers wearing Lionel's name.
+    return 'https://www.lionel.com/search?query=' + encodeURIComponent(item.itemNum);
   }
   return '';
 }

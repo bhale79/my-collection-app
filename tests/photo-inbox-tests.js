@@ -5127,22 +5127,23 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('a postwar row does NOT borrow a modern reissue\'s reference',
        url(PW2333).indexOf('modern-reissues') < 0, url(PW2333));
 
-    // ...and when Google genuinely is the fallback, the era goes in the query.
-    ok('the Google fallback names the period, as Brad asked',
-       /postwar/.test(decodeURIComponent(url(PW2333))), decodeURIComponent(url(PW2333)));
-    ok('...alongside the maker, number and road name',
-       (function () {
-         const q = decodeURIComponent(url(PW2333));
-         return /Lionel/.test(q) && /2333/.test(q) && /Santa Fe/.test(q);
-       })(), decodeURIComponent(url(PW2333)));
-    ok('a row with no period at all still produces a usable search',
+    // v0.9.1187 SUPERSEDES the period-worded Google fallback for Lionel rows.
+    // Brad: "all lionel or mth items should go their website link not a google
+    // search." Item 8's era-in-the-query rule governed a query that no longer
+    // exists; a Lionel row with no reference goes to lionel.com now.
+    ok('a Lionel row with no reference goes to lionel.com — never Google (v0.9.1187)',
+       url(PW2333) === 'https://www.lionel.com/search?query=2333', url(PW2333));
+    ok('a row with no period at all still produces a usable link',
        (function () {
          bucket['9999'] = [{ itemNum:'9999', _era:'other_o', _tab:'Lionel PW - Items' }];
-         const q = url(bucket['9999'][0]);
-         return /google\.com\/search/.test(q) && /9999/.test(decodeURIComponent(q));
+         return /lionel\.com\/search/.test(url(bucket['9999'][0]));
        })());
-    ok('an unknown number falls through to a search rather than throwing',
-       /google\.com\/search/.test(url({ itemNum:'000', _era:'pw', _tab:'Lionel PW - Items' })));
+    ok('an unknown number still resolves to the maker site rather than throwing',
+       /lionel\.com\/search/.test(url({ itemNum:'000', _era:'pw', _tab:'Lionel PW - Items' })));
+    ok('and NO Lionel-tab row can produce a Google URL any more',
+       ['2333', '6464-100', '000', '1-4392'].every(function (n) {
+         return url({ itemNum: n, _tab: 'Lionel PW - Items', _era: 'pw' }).indexOf('google.com') < 0;
+       }));
   })();
 
   section('146. A stack of pieces is not "one item" (v0.9.1176)');
@@ -5874,9 +5875,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('a modern Lionel number still goes to lionel.com — nothing else moved',
        url({ itemNum: '6-36814', _tab: 'Lionel MPC-Modern', _era: 'mpc', yearProd: '2011' })
          === 'https://www.lionel.com/search?query=' + encodeURIComponent('6-36814'));
-    ok('a postwar number still gets the period-worded Google fallback',
-       /postwar/.test(decodeURIComponent(url({ itemNum: '2333', _tab: 'Lionel PW - Items',
-         _era: 'pw', roadName: 'Santa Fe' }))));
+    ok('a postwar number without a reference reaches lionel.com, not Google (v0.9.1187 supersedes)',
+       /lionel\.com\/search/.test(url({ itemNum: '2333', _tab: 'Lionel PW - Items',
+         _era: 'pw', roadName: 'Santa Fe' })));
     ok('a bare "11-" or a short stub never matches the pattern',
        url({ itemNum: '11-', _tab: 'Lionel MPC-Modern', _era: 'mpc', yearProd: '2011' })
          .indexOf('mthtrains') < 0 &&
@@ -5969,11 +5970,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /lionel\.com/.test(L('6-19585', '')));
     ok('the 2011+ rule still carries the new prefix-less numbers',
        /lionel\.com/.test(L('2233810', '2023')));
-    ok('a prefix-less modern number with an OLD year still gets the Google fallback',
-       /google\.com/.test(L('19578', '2009')));
-    ok('postwar numbers never wear the 6- prefix and keep their period-worded search',
-       /postwar/.test(decodeURIComponent(url({ itemNum: '6464-100', _tab: 'Lionel PW - Items',
-         _era: 'pw', roadName: 'Western Pacific' }))));
+    ok('a prefix-less number with an OLD year reaches lionel.com (v0.9.1187 supersedes)',
+       /lionel\.com/.test(L('19578', '2009')));
+    ok('a postwar number without a reference reaches lionel.com, not Google (v0.9.1187)',
+       url({ itemNum: '6464-100', _tab: 'Lionel PW - Items', _era: 'pw',
+             roadName: 'Western Pacific' }) === 'https://www.lionel.com/search?query=' + encodeURIComponent('6464-100'));
     ok('the MTH tinplate branch still wins first — 11- beats every Lionel rule',
        L('11-30127', '2011') === 'https://www.mthtrains.com/products/11-30127');
   })();
@@ -6001,9 +6002,17 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('...case-insensitively, because the number is typed both ways',
        url(Object.assign({}, TCA, { itemNum: 'x6464-1970' }))
          === 'https://cornucopiaoftoytrains.com/club-cars/#CCTCA');
-    ok('a refLink in the master still outranks the oddball map',
-       url(Object.assign({}, TCA, { refLink: 'https://example.org/tca' }))
-         .indexOf('example.org') >= 0);
+    // v0.9.1187 FLIPPED this: the workbook audit found X6464-1970's master row
+    // carries a refLink pointing at the WRONG page (/transformers/). The map is
+    // Brad's explicit correction, and a correction that loses to the data it
+    // corrects is dead code.
+    ok('the oddball map outranks even a refLink — it exists to correct wrong data',
+       url(Object.assign({}, TCA, { refLink: 'https://cornucopiaoftoytrains.com/transformers/' }))
+         === 'https://cornucopiaoftoytrains.com/club-cars/#CCTCA');
+    ok('a refLink on a NON-oddball row is untouched by the map',
+       url({ itemNum: '6464-100', _tab: 'Lionel PW - Items', _era: 'pw',
+             refLink: 'https://cornucopiaoftoytrains.com/boxcars-6464/' })
+         .indexOf('boxcars-6464') >= 0);
     ok('the map is a NAMED list, and a near-miss number sails past it',
        url({ itemNum: 'X6464-1971', _tab: 'Lionel PW - Items', _era: 'pw' })
          .indexOf('club-cars') < 0);
