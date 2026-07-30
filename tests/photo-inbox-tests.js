@@ -5486,15 +5486,17 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
     // ── wiring ─────────────────────────────────────────────────────────────
     const wcode = src.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
-    ok('the Google Search button opens the picker rather than searching straight away',
-       /window\._pinReviewLens = function \(\) \{[\s\S]{0,300}_pinWhereFrom\(/.test(wcode));
-    ok('"Any site" still runs the photo search that already worked',
-       /return window\._pinLensSearch\(\);/.test(wcode) &&
+    // v0.9.1184 reversal, in Brad's words: "I told you to add the prefered
+    // vendor to the research google button. instead, you screw with google
+    // lens." The picker came OFF the photo search (one click again) and moved
+    // to the text-search Google buttons — googlePart first.
+    ok('the review card\'s Google Search runs the PHOTO search in one click — no picker',
+       /window\._pinReviewLens = function \(\) \{ return window\._pinLensSearch\(\); \};/.test(wcode) &&
+       !/window\._pinReviewLens = function[\s\S]{0,300}_pinWhereFrom\(/.test(wcode));
+    ok('...and the photo search itself is intact',
        /lens\.google\.com\/uploadbyurl/.test(wcode));
-    ok('a site search without a number says so instead of opening a front page',
-       /A site search needs an item number/.test(wcode));
-    ok('the paste-the-answer box arms for a vendor search too',
-       /window\._pinVendorSearch = function[\s\S]{0,1600}_pinLensArm\(gs\)/.test(wcode));
+    ok('the review-card-only vendor search is gone, not lingering dead',
+       !/_pinVendorSearch = function/.test(wcode) && !/_pinCardNum/.test(wcode));
     ok('the arrow keys do not walk the group behind an open where-from sheet',
        /getElementById\('pin-wf-sheet'\)/.test(wcode));
     ok('all three bottom sheets share ONE backdrop style — no second copy of it',
@@ -5885,6 +5887,58 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('an MTH-tab row still links to MTH, as it always did',
        url({ itemNum: '20-3151-1', _tab: 'MTH Premier', _era: 'mth' })
          === 'https://www.mthtrains.com/products/' + encodeURIComponent('20-3151-1'));
+  })();
+
+  section('154. The picker is on the RIGHT Google button now (v0.9.1184)');
+  // "I told you to add the prefered vendor to the research google button.
+  // instead, you screw with google lens."
+  //
+  // googlePart (Parts Needed's Google button) sliced out of app-pages.js and
+  // RUN — picker present, picker absent, vendor picked, Any site picked.
+  (function () {
+    const pG = require('path');
+    const pgs = fs.readFileSync(pG.join(__dirname, '..', 'app', 'app-pages.js'), 'utf8');
+    const a = pgs.indexOf('function googlePart(partNum, forItem, desc)');
+    const b = pgs.indexOf('function showAddPartModal');
+    if (a < 0 || b < 0) throw new Error('§154 marker moved');
+    const slice = pgs.slice(a, b).replace(/if \(typeof window[\s\S]{0,80}googlePart;/, '');
+
+    function run(winExtra) {
+      const opened = [];
+      const win = Object.assign({ open: (u) => opened.push(u) }, winExtra || {});
+      new Function('window', '_brandOfItem', slice
+        + "\ngooglePart('', '3562-1', 'barrel car man');")(win, () => 'Lionel');
+      return { opened: opened, win: win };
+    }
+
+    // With the picker available, the button ASKS FIRST and opens nothing yet.
+    let cb = null;
+    const r1 = run({ _pinWhereFrom: (fn) => { cb = fn; } });
+    ok('with the picker available, the button asks where-from FIRST',
+       typeof cb === 'function' && r1.opened.length === 0);
+    cb({ site: 'trainz.com', label: 'Trainz' });
+    ok('picking a vendor searches THAT site for the part',
+       r1.opened.length === 1 && /site%3Atrainz\.com/.test(r1.opened[0])
+       && /barrel%20car%20man/.test(r1.opened[0]) && /3562-1/.test(r1.opened[0]),
+       r1.opened[0]);
+    let cb2 = null;
+    const r2 = run({ _pinWhereFrom: (fn) => { cb2 = fn; } });
+    cb2({ site: '', label: 'Any site' });
+    ok('picking Any site keeps the shopping search exactly as it always was',
+       r2.opened.length === 1 && /tbm=shop/.test(r2.opened[0]) && /barrel/.test(r2.opened[0]),
+       r2.opened[0]);
+
+    // With photo-inbox.js absent (the picker lives there), the button must
+    // quietly behave as it always did — never die.
+    const r3 = run({});
+    ok('without the picker, the button still searches — graceful, not broken',
+       r3.opened.length === 1 && /tbm=shop/.test(r3.opened[0]));
+
+    // The "Any site" note no longer claims a photo search it does not front.
+    const pin = fs.readFileSync(pG.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+    ok('the picker\'s Any-site wording fits a text search now',
+       pin.indexOf("note: 'Search the whole web'") >= 0 &&
+       pin.indexOf("note: 'Search by the photo") < 0);
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

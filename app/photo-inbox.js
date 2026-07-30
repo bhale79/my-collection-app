@@ -2688,7 +2688,7 @@
   // the sheet appears immediately.
   function _pinWhereFromOptions() {
     var out = [
-      { site: '', label: 'Any site', note: 'Search by the photo, the way it works today' },
+      { site: '', label: 'Any site', note: 'Search the whole web' },
       { site: 'ebay.com', label: 'eBay', note: '' },
     ];
     var seen = { 'ebay.com': 1 };
@@ -2808,21 +2808,6 @@
     window._pinWhereFrom = _pinWhereFrom;
   }
 
-  // The number this card is about, however it got there — typed, confirmed or
-  // offered. A site search needs one; searching trainz.com for nothing at all
-  // returns their front page, which looks like a broken button.
-  function _pinCardNum() {
-    var n = '';
-    try { n = String((document.getElementById('pin-rv-num') || {}).value || '').trim(); } catch (e) {}
-    if (n) return n;
-    try {
-      var g = _rvGroups && _rvGroups[0];
-      var s = g && (_ids()[_pinOnScreenFid()] || _ids()[_pinReadFid(g)]);
-      if (s && s.num) return String(s.num).trim();
-    } catch (e2) {}
-    return '';
-  }
-
   // A search narrowed to one site. Google's site: operator does the narrowing;
   // the rest of the query is the same maker/period wording the app already uses
   // everywhere else, so the results look like the ones from the item detail page.
@@ -2880,46 +2865,21 @@
     _pinHelpMarkSeen();
   };
 
-  window._pinReviewLens = function () {
-    if (!_rvGroups || !_rvGroups.length) return;
-    _pinWhereFrom(function (choice) {
-      if (choice && choice.site) return window._pinVendorSearch(choice);
-      return window._pinLensSearch();
-    });
-  };
-
-  window._pinVendorSearch = function (choice) {
-    var gs = _rvGroups;
-    if (!gs || !gs.length) return;
-    var num = _pinCardNum();
-    if (!num) {
-      showToast('A site search needs an item number — read the photo first, or choose Any site', 4200, true);
-      return;
-    }
-    var h = {};
-    try {
-      var _lh = _pinAiHints(gs[0]) || {};
-      h.mfr = (_lh.mfrs && _lh.mfrs.length === 1) ? _lh.mfrs[0] : '';
-      h.period = _lh.eraLabel || '';
-      var s = _ids()[_pinOnScreenFid()] || _ids()[_pinReadFid(gs[0])] || {};
-      if (!h.mfr && s.mfr) h.mfr = s.mfr;
-      if (s.road) h.road = s.road;
-    } catch (e) {}
-    var url = window._pinVendorSearchURL(choice.site, num, h);
-    try { window.open(url, '_blank'); } catch (e2) {}
-    // Same return trip as the photo search: he may well copy the dealer's own
-    // description back, and that parses exactly like any other answer.
-    _pinLensArm(gs);
-    try {
-      var _numEl = document.getElementById('pin-rv-num');
-      if (_numEl && !document.getElementById('pin-lens-banner')) {
-        var _bWrap = document.createElement('div');
-        _bWrap.innerHTML = _pinLensBannerHtml();
-        if (_bWrap.firstChild) _numEl.parentNode.insertBefore(_bWrap.firstChild, _numEl);
-      }
-    } catch (eB) {}
-    showToast('Searching ' + (choice.label || choice.site) + ' for ' + num, 3200);
-  };
+  // v0.9.1184 (Brad: "I told you to add the prefered vendor to the research
+  // google button. instead, you screw with google lens.") — v0.9.1178 put the
+  // where-from picker HERE, in front of the photo search. Wrong button. His
+  // request said "with the google search" and meant the plain text-search
+  // Google buttons (Parts Needed's, for one) — not the photo flow, which was
+  // one click and became two. The picker now lives on googlePart
+  // (app-pages.js); this button is the photo search again, full stop.
+  // v0.9.1184 (Brad: "I told you to add the prefered vendor to the research
+  // google button. instead, you screw with google lens.") — v0.9.1178 put the
+  // where-from picker HERE, in front of the photo search. Wrong button. His
+  // request said "with the google search" and meant the plain text-search
+  // Google buttons (Parts Needed's, for one) — not the photo flow, which was
+  // one click and became two. The picker now lives on googlePart
+  // (app-pages.js); this button is the photo search again, full stop.
+  window._pinReviewLens = function () { return window._pinLensSearch(); };
 
   window._pinLensSearch = async function () {
     var gs = _rvGroups;

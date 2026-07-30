@@ -3749,7 +3749,25 @@ function googlePart(partNum, forItem, desc) {
   var mfr = (forItem && typeof _brandOfItem === 'function') ? (_brandOfItem(forItem) || '') : '';
   var idPart = partNum || forItem || '';
   var q = ['part for', mfr, idPart, desc].filter(Boolean).join(' ').trim();
-  if (q) window.open('https://www.google.com/search?tbm=shop&q=' + encodeURIComponent(q), '_blank', 'noopener');
+  if (!q) return;
+  // v0.9.1184 (Brad): THIS is the button the where-from picker was asked for —
+  // "with the google search, we need a pop up to add 'where from'". Any site
+  // keeps the shopping search exactly as it was; eBay or one of his own
+  // vendors narrows the same query with site:. The picker itself (and the
+  // never-suggest-vendors rule it enforces) lives in photo-inbox.js and is
+  // shared — if that file is somehow absent, the button quietly behaves as it
+  // always did rather than dying.
+  var _go = function (site) {
+    var url = site
+      ? 'https://www.google.com/search?q=' + encodeURIComponent('site:' + site + ' ' + q)
+      : 'https://www.google.com/search?tbm=shop&q=' + encodeURIComponent(q);
+    window.open(url, '_blank', 'noopener');
+  };
+  if (typeof window._pinWhereFrom === 'function') {
+    window._pinWhereFrom(function (choice) { _go(choice && choice.site ? choice.site : ''); });
+  } else {
+    _go('');
+  }
 }
 if (typeof window !== 'undefined') window.googlePart = googlePart;
 
