@@ -6048,6 +6048,95 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /google\.com/.test(url(TCA)));
   })();
 
+  section('157. View on a variation card is a real link (v0.9.1189)');
+  // "the view button doesn't work here, it advances to the next page."
+  //
+  // The link was nested INSIDE the card's <button>. Interactive content inside
+  // interactive content is invalid HTML, and Brad's Chrome resolved it by
+  // giving the button the whole hit area: the click never reached the anchor,
+  // so nothing opened AND the card auto-advanced. One cause, both symptoms.
+  //
+  // WHY THIS IS A STRUCTURAL TEST: the failure lives in hit-testing, which
+  // Node cannot run — and a programmatic a.click() in a real browser CANNOT
+  // see it either, because dispatching at the anchor skips the step that was
+  // broken. That false-negative already happened once during this fix. So the
+  // invariant is asserted on the markup itself: the card must not be a button.
+  // The REAL template is sliced out of wizard.js and rendered — not a copy.
+  (function () {
+    const pV = require('path');
+    const wz = fs.readFileSync(pV.join(__dirname, '..', 'app', 'wizard.js'), 'utf8');
+    const a = wz.indexOf('const cottLink = v.refLink');
+    const b = wz.indexOf("}).join('')}", a);
+    if (a < 0 || b < 0) throw new Error('§157 marker moved');
+    const tpl = wz.slice(a, b);
+
+    const win = { cottAnchorUrl: (u, num) => u + '#' + num };
+    const _vEsc = (x) => String(x == null ? '' : x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const render = (v, isSelected) => new Function(
+      'v','itemNum','isSelected','_vBaseNum','_vEsc','_vHl','_refShort','window', tpl
+    )(v, '50', !!isSelected, null, _vEsc, _vEsc, 'View ↗', win);
+
+    const WITH_REF = { variation:'1', cottCode:'DE0092',
+      refLink:'https://cornucopiaoftoytrains.com/gang-cars/',
+      varDesc:'horn centered gray bumpers' };
+    const html = render(WITH_REF, false);
+
+    // THE bug: an anchor sitting inside the card's button element.
+    ok('the card is NOT a <button> — a link cannot live inside one',
+       html.indexOf('<button') < 0, html.slice(0, 120));
+    ok('the anchor is not swallowed by any button in the card',
+       !/<button[\s\S]*<a\s[^>]*href/i.test(html));
+    ok('the card root is a div that still announces itself as a button',
+       /^\s*<div role="button"/.test(html), html.slice(0, 60));
+
+    // Keyboard parity: <button> gave focus + Enter/Space for free; a div must
+    // ask for all three explicitly or the step becomes mouse-only.
+    ok('the card is still reachable by keyboard (tabindex)',
+       /<div role="button" tabindex="0"/.test(html));
+    ok('Enter and Space still choose the variation',
+       /onkeydown="[^"]*Enter[^"]*/.test(html) && /onkeydown="[^"]*' '/.test(html));
+    ok('...and the key handler picks THIS variation, not a hardcoded one',
+       /onkeydown="[^"]*wizardChooseVariation\('1'\)/.test(html));
+
+    // The link itself must survive intact — guard, new tab, anchored href.
+    ok('the View link keeps its stopPropagation guard',
+       /<a\s[^>]*onclick="event\.stopPropagation\(\)"/.test(html));
+    ok('...opens in a new tab, safely',
+       /<a\s[^>]*target="_blank"[^>]*rel="noopener"/.test(html));
+    ok('...and deep-links to the item anchor on the reference page',
+       html.indexOf('https://cornucopiaoftoytrains.com/gang-cars/#50') >= 0);
+    ok('the link sits above the card in stacking order, so nothing overlays it',
+       /<a\s[^>]*z-index:1/.test(html));
+
+    // Clicking the card body still selects — the whole point of the card.
+    ok('the card still chooses its variation when clicked',
+       /onclick="wizardChooseVariation\('1'\)"/.test(html));
+
+    // A row with no reference must not render an empty link.
+    const noRef = render({ variation:'2', varDesc:'later frame' }, false);
+    ok('a variation with no reference renders no link at all',
+       noRef.indexOf('<a ') < 0);
+    ok('...but is still a keyboard-reachable card',
+       /<div role="button" tabindex="0"/.test(noRef));
+
+    // Selected state unchanged by the rewrite.
+    ok('the selected card still paints itself selected',
+       render(WITH_REF, true).indexOf('var(--accent)') >= 0);
+
+    // The pattern must not come back anywhere in the app.
+    (function () {
+      const dir = pV.join(__dirname, '..', 'app');
+      const offenders = fs.readdirSync(dir).filter(f => f.endsWith('.js')).filter(function (f) {
+        const s = fs.readFileSync(pV.join(dir, f), 'utf8');
+        const re = /<button\b[\s\S]{0,3000}?<\/button>/g; let m;
+        while ((m = re.exec(s))) { if (/<a\s[^>]*href/i.test(m[0])) return true; }
+        return false;
+      });
+      ok('NO file in the app nests a link inside a button',
+         offenders.length === 0, offenders.join(', '));
+    })();
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

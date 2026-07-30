@@ -1935,12 +1935,32 @@ function renderWizardStep() {
                     ? window.resolveRefLabel(v.refLink)
                     : 'View \u2197')
                 : '';
-              const cottLink = v.refLink ? `<a href="${(typeof window.cottAnchorUrl==='function') ? window.cottAnchorUrl(v.refLink, itemNum) : v.refLink}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.75rem;color:var(--accent2);text-decoration:none;padding:0.2rem 0.5rem;border:1px solid rgba(201,146,42,0.3);border-radius:5px;background:rgba(201,146,42,0.08);flex-shrink:0;white-space:nowrap">${_refShort}</a>` : '';
+              // v0.9.1189 (Brad: "the view button doesn't work here, it
+              // advances to the next page"). This link used to live INSIDE the
+              // card's <button> — interactive content nested in interactive
+              // content, which the HTML spec disallows and every engine
+              // resolves its own way. On Brad's Chrome the button claimed the
+              // whole card's hit area, so a click on View never reached the
+              // anchor: the stopPropagation guard never ran, nothing opened,
+              // and the card did what a card does — picked the variation and
+              // auto-advanced. Both halves of his report, one cause.
+              //
+              // Diagnosis note for whoever is here next: a PROGRAMMATIC
+              // a.click() cannot see this bug. It dispatches straight at the
+              // anchor and skips hit-testing — the very step that was failing.
+              // It "passed" in two browsers while the real thing was broken.
+              // Test this by COORDINATE (see §157).
+              //
+              // The card is a <div role="button"> now, so the anchor is a
+              // normal, hit-testable link. Keyboard parity is explicit:
+              // tabindex + Enter/Space, which <button> gave for free.
+              const cottLink = v.refLink ? `<a href="${(typeof window.cottAnchorUrl==='function') ? window.cottAnchorUrl(v.refLink, itemNum) : v.refLink}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.78rem;color:var(--accent2);text-decoration:none;padding:0.42rem 0.7rem;border:1px solid rgba(201,146,42,0.45);border-radius:6px;background:rgba(201,146,42,0.12);flex-shrink:0;white-space:nowrap;font-weight:600;position:relative;z-index:1">${_refShort}</a>` : '';
               return `
-              <button onclick="wizardChooseVariation('${v.variation}')" style="
+              <div role="button" tabindex="0" onclick="wizardChooseVariation('${v.variation}')"
+                onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();wizardChooseVariation('${v.variation}')}" style="
                 display:flex;flex-direction:column;gap:0.4rem;padding:0.85rem 1rem;
                 border-radius:10px;text-align:left;width:100%;cursor:pointer;
-                font-family:var(--font-body);transition:all 0.15s;
+                font-family:var(--font-body);transition:all 0.15s;box-sizing:border-box;
                 border:2px solid ${isSelected ? 'var(--accent)' : 'var(--border)'};
                 background:${isSelected ? 'rgba(232,64,28,0.12)' : 'var(--surface2)'};
                 color:var(--text);
@@ -1952,10 +1972,11 @@ function renderWizardStep() {
                     min-width:2rem;
                   ">${v.variation || '—'}</span>
                   ${v.cottCode ? '<span title="COTT photo code" style="font-family:var(--font-mono);font-size:0.68rem;color:var(--text-dim);border:1px solid var(--border);border-radius:4px;padding:0.05rem 0.35rem;flex-shrink:0">' + _vEsc(v.cottCode) + '</span>' : ''}
+                  <span style="flex:1;min-width:0"></span>
                   ${cottLink}
                 </div>
                 <span style="font-size:0.82rem;color:var(--text-mid);line-height:1.5;padding-left:0.1rem;white-space:pre-line">${(v.variation && v.variation !== _vBaseNum) ? _vHl(v.varDesc || v.description || 'No description available') : _vEsc(v.varDesc || v.description || 'No description available')}</span>
-              </button>`;
+              </div>`;
             }).join('')}
           </div>
           <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Selecting a variation will auto-advance</div>
