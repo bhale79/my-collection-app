@@ -413,6 +413,116 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
          JSON.stringify(wide.rows));
     }
 
+
+    // ══════════════════════════════════════════════════════════════════
+    // The variation description, MEASURED (v0.9.1233)
+    //
+    // Brad's Step 2 of 8 screenshot: item 726RR, one attribute per line, in a
+    // 520px box. The claim is that the same text in its book sections, at the
+    // width the modal now has, is meaningfully shorter. That is a measurement,
+    // not an opinion.
+    // ══════════════════════════════════════════════════════════════════
+    {
+      const wzSrc = fs.readFileSync(path.join(APP, 'wizard.js'), 'utf8');
+      const ssrc = wzSrc.slice(wzSrc.indexOf('function _wizVarSections(txt)'),
+                               wzSrc.indexOf('window._wizVarSections = _wizVarSections;'));
+      const dsrc = wzSrc.slice(wzSrc.indexOf('const _vSecHtml = (sc, hl) =>'),
+                               wzSrc.indexOf('let _vpCanHelp=false;'));
+      const esc = x => String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+      const sections = new Function('txt', '"use strict";' + ssrc + '; return _wizVarSections(txt);');
+      const descHtml = (raw, wide) => new Function(
+        '_vEsc', '_vHl', '_vBaseNum', '_wizWide', '_wizVarSections',
+        '"use strict";' + dsrc + '; return _vDescHtml;')(esc, esc, '1', () => wide, sections)
+        ({ variation: '2', varDesc: raw });
+
+      // Brad's own 726RR text, as the reference book has it.
+      const RAW = ['(with RR on the side of the cab under 726)', '1952', '',
+        'ENGINE', 'silver rubber stamped numbers', 'black stack',
+        'with hexagonal based blackened flagstaffs',
+        'reinforcement added under headlight',
+        'ornamental bell and whistle, handrails on both sides with cotter key type stanchions',
+        'simulated coupler on top of pilot, diecast trailing and pilot truck',
+        'cab has 4 pane windows', 'large sand dome on top of boiler',
+        'lighted, without Magnatraction', 'slant mounted motor with single worm drive',
+        'with E unit slot, has three position E unit', 'spoked sintered iron drive wheels',
+        'resistance coil provides smoke',
+        'TENDER', 'plastic shell painted black with white heat stamped lettering',
+        'with whistle', 'with water scoop', 'without handrails',
+        'molded steps at rear corners'].join('\n');
+
+      const vPage = (widthPx, html) => `<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="file://${APP}/app.css">
+<style>html,body{margin:0;background:#111}
+ #box{width:${widthPx}px;box-sizing:border-box;padding:1rem 1.5rem}
+ #card{border:2px solid #444;border-radius:10px;padding:0.85rem 1rem}</style></head>
+<body><div id="box"><div id="card">${html}</div></div></body></html>`;
+
+      const vMeasure = async (widthPx, wide) => {
+        const f3 = path.join(dir, 'var-' + widthPx + '.html');
+        fs.writeFileSync(f3, vPage(widthPx, descHtml(RAW, wide)));
+        const pg = await browser.newPage({ viewport: { width: widthPx + 40, height: 1200 } });
+        await pg.goto('file://' + f3);
+        await pg.waitForTimeout(150);
+        const out = await pg.evaluate(() => {
+          const card = document.getElementById('card');
+          const box = document.getElementById('box');
+          const bb = box.getBoundingClientRect();
+          const over = [];
+          card.querySelectorAll('*').forEach(el => {
+            const r = el.getBoundingClientRect();
+            if (r.width === 0 && r.height === 0) return;
+            if (r.right > bb.right + 1 || r.left < bb.left - 1) over.push(el.className || el.tagName);
+          });
+          // Each heading must sit directly above its own list, never beside it
+          // in a different column.
+          const secs = [].slice.call(card.querySelectorAll('.var-sec')).map(sc => {
+            const h = sc.querySelector('.var-sec-h'), b = sc.querySelector('.var-sec-b');
+            return { head: h ? h.textContent.trim() : '',
+                     headBottom: h ? Math.round(h.getBoundingClientRect().bottom) : null,
+                     bodyTop: b ? Math.round(b.getBoundingClientRect().top) : null,
+                     left: Math.round(sc.getBoundingClientRect().left) };
+          });
+          return { height: Math.round(card.getBoundingClientRect().height), over, secs };
+        });
+        await pg.close();
+        return out;
+      };
+
+      const vNarrow = await vMeasure(520, false);
+      const vWide   = await vMeasure(900, true);
+
+      ok('variation: the 520px box is the plain single column it always was',
+         vNarrow.secs.length === 0);
+      ok('variation: the wide box is split into preamble, ENGINE and TENDER',
+         vWide.secs.length === 3, JSON.stringify(vWide.secs.map(x => x.head)));
+      ok('variation: ENGINE and TENDER end up side by side, not stacked',
+         vWide.secs.length === 3 && vWide.secs[1].left !== vWide.secs[2].left,
+         JSON.stringify(vWide.secs.map(x => x.left)));
+      ok('variation: every heading sits directly above its own list',
+         vWide.secs.filter(x => x.head)
+                   .every(x => x.bodyTop >= x.headBottom - 1 && x.bodyTop - x.headBottom < 30),
+         JSON.stringify(vWide.secs));
+      ok('variation: nothing overhangs at either width',
+         vNarrow.over.length === 0 && vWide.over.length === 0,
+         vNarrow.over.concat(vWide.over).join(' '));
+      ok('variation: the description is measurably shorter',
+         vWide.height < vNarrow.height * 0.8,
+         vWide.height + 'px wide vs ' + vNarrow.height + 'px narrow');
+      // The saving is bounded by the LONGEST section — ENGINE has three times
+      // TENDER's lines here, so the pair can never be shorter than ENGINE
+      // alone. That is the price of keeping sections whole, and it is still
+      // enough: what Brad actually asked for is that the step stop scrolling.
+      // The wizard body on a 1080p desktop is the 900px box less its header,
+      // progress strip, "ADDING" banner and footer.
+      const BODY_ROOM = 900 - 120 - 50 - 70;
+      ok('variation: …and the whole description now fits without scrolling',
+         vWide.height <= BODY_ROOM,
+         vWide.height + 'px inside ' + BODY_ROOM + 'px');
+      ok('variation: …which it did not at the old 580px box',
+         vNarrow.height > 580 - 120 - 50 - 70,
+         vNarrow.height + 'px inside ' + (580 - 120 - 50 - 70) + 'px');
+    }
+
   } finally {
     await browser.close();
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) {}

@@ -44,10 +44,50 @@ function _wizBoxHeight() {
   if (vv < 596) return Math.max(300, Math.round(vv - 16));
   // Desktop: use the screen instead of ignoring it. The cap keeps a very tall
   // monitor from stretching a six-field step down an entire wall.
-  if ((window.innerWidth || 0) >= 900) return Math.min(Math.round(vv * 0.9), 900);
+  if (_wizWide()) return Math.min(Math.round(vv * 0.9), 900);
   return 580;   // phones and small tablets — exactly as before
 }
 window._wizBoxHeight = _wizBoxHeight;
+
+// v0.9.1233: "wide enough to spread out on" is asked in four places now — the
+// box height, the modal width, the Condition & Details columns and the
+// variation description. It is ONE fact, so it gets one number and one reader.
+var WIZ_WIDE_AT = 900;
+function _wizWide() { return (window.innerWidth || 0) >= WIZ_WIDE_AT; }
+window._wizWide = _wizWide;
+
+// v0.9.1233 (Brad, screenshot of Step 2 of 8): a variation description is one
+// attribute per line — "silver rubber stamped numbers", "black stack", "with
+// water scoop" — and in a 520px box that turns a two-inch list into a ribbon a
+// mile long, using about a third of each line.
+//
+// The reference book writes these in SECTIONS: a preamble, then ENGINE, then
+// TENDER. Brad's call was to keep those whole rather than let the text flow
+// freely into columns, so a heading can never sit at the foot of one column
+// with its own list starting the next.
+//
+// A heading is a line in capitals with no lower-case in it. "1952" is not one
+// (no letters); "(with RR on the side of the cab under 726)" is not one.
+function _wizVarSections(txt) {
+  var lines = String(txt == null ? '' : txt).split(/\r?\n/);
+  var isHead = function (l) {
+    var t = l.trim();
+    if (!t || t.length > 32) return false;
+    if (!/[A-Z]/.test(t)) return false;
+    return !/[a-z]/.test(t);
+  };
+  var secs = [], cur = null;
+  lines.forEach(function (l) {
+    if (isHead(l)) { cur = { head: l.trim(), lines: [] }; secs.push(cur); return; }
+    if (!cur) { cur = { head: '', lines: [] }; secs.push(cur); }
+    cur.lines.push(l);
+  });
+  // Drop sections that ended up with nothing but blank lines under them.
+  return secs.filter(function (sc) {
+    return sc.head || sc.lines.join('').trim();
+  });
+}
+window._wizVarSections = _wizVarSections;
 
 // ── ADD ITEM WIZARD ─────────────────────────────────────────────
 
@@ -1854,12 +1894,12 @@ function renderWizardStep() {
       const _wideW = Math.min(window.innerWidth - 32, 280 * _numCols + 40);
       wizModal.style.maxWidth = _wideW + 'px';
       wizModal.style.height = _wizBoxHeight() + 'px';
-    } else if (s.type === 'conditionDetails' && window.innerWidth >= 900) {
+    } else if ((s.type === 'conditionDetails' || s.type === 'variation') && _wizWide()) {
       // v0.9.1232 (Brad): a SINGLE item got the 520px box while an engine and
       // tender got a wide one — the widening was written for multi-unit adds
       // and single items were never given it. They have the longest stack of
       // fields of anything in the wizard, so they needed it most.
-      wizModal.style.maxWidth = Math.min(window.innerWidth - 32, 900) + 'px';
+      wizModal.style.maxWidth = Math.min(window.innerWidth - 32, WIZ_WIDE_AT) + 'px';
       wizModal.style.height = _wizBoxHeight() + 'px';
     } else {
       wizModal.style.maxWidth = '520px';
@@ -2121,6 +2161,31 @@ function renderWizardStep() {
       const _vBaseSet = new Set();
       if (variations.length) { String(variations[0].varDesc || variations[0].description || '').toLowerCase().split(/\s+/).forEach((w) => { const c = w.replace(/[^a-z0-9]/g,''); if (c) _vBaseSet.add(c); }); }
       const _vHl = (desc) => String(desc || '').split(/(\s+)/).map((tok) => { if (/^\s+$/.test(tok)) return tok; const c = tok.toLowerCase().replace(/[^a-z0-9]/g,''); const e = _vEsc(tok); return (c && !_vBaseSet.has(c)) ? '<span style="color:var(--accent);font-weight:700;background:rgba(232,64,28,0.14);border-radius:3px;padding:0 2px">' + e + '</span>' : e; }).join('');
+      // v0.9.1233 (Brad): the description, laid out in the sections the
+      // reference book wrote it in. One column as before on a narrow screen;
+      // side by side when the modal has the room. The preamble (the lines
+      // before the first heading) always spans the full width — it is what
+      // identifies the variation, not part of either list.
+      const _vSecHtml = (sc, hl) => {
+        const txt = sc.lines.join('\n').replace(/^\n+|\n+$/g, '');
+        return '<div class="var-sec' + (sc.head ? '' : ' var-lead') + '">'
+          + (sc.head ? '<div class="var-sec-h">' + _vEsc(sc.head) + '</div>' : '')
+          + '<div class="var-sec-b">' + (hl ? _vHl(txt) : _vEsc(txt)) + '</div>'
+          + '</div>';
+      };
+      const _v2up = _wizWide();
+      const _vDescHtml = (v) => {
+        const raw = v.varDesc || v.description || 'No description available';
+        const hl = !!(v.variation && v.variation !== _vBaseNum);
+        const secs = (typeof _wizVarSections === 'function') ? _wizVarSections(raw) : [];
+        // Only worth splitting when the book actually gave it headings.
+        const headed = secs.filter(sc => sc.head).length;
+        if (!_v2up || headed < 2) {
+          return '<span class="var-desc-plain">' + (hl ? _vHl(raw) : _vEsc(raw)) + '</span>';
+        }
+        return '<div class="var-desc">' + secs.map(sc => _vSecHtml(sc, hl)).join('') + '</div>';
+      };
+
       let _vpCanHelp=false;
       try { window._vpRows = variations; window._vpItemNum = itemNum; window._vpItemType = _varType || (variations[0]&&variations[0].itemType) || ''; _vpCanHelp = (typeof _vpGenerate==='function') && _vpGenerate(variations).length>0; } catch(e){}
       body.innerHTML = `
@@ -2181,7 +2246,7 @@ function renderWizardStep() {
                   <span style="flex:1;min-width:0"></span>
                   ${cottLink}
                 </div>
-                <span style="font-size:0.82rem;color:var(--text-mid);line-height:1.5;padding-left:0.1rem;white-space:pre-line">${(v.variation && v.variation !== _vBaseNum) ? _vHl(v.varDesc || v.description || 'No description available') : _vEsc(v.varDesc || v.description || 'No description available')}</span>
+                ${_vDescHtml(v)}
               </div>`;
             }).join('')}
           </div>
@@ -4907,7 +4972,7 @@ function renderWizardStep() {
     // v0.9.1232: one item, wide screen -> its fields run in two columns instead
     // of one tall stack. Multi-unit adds already use the width for their units
     // and must not also split each unit in half.
-    const _cd2up = _colCount === 1 && window.innerWidth >= 900;
+    const _cd2up = _colCount === 1 && _wizWide();
     const _isMobile = window.innerWidth < 600;
     
     function _buildCondCol(col) {

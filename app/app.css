@@ -1088,6 +1088,24 @@
      align-items:start so a block that grows (the "what changed?" box opening)
      stretches nothing beside it. min-width:0 so a long label ellipses inside
      its own cell instead of widening the column. */
+  /* ── A variation description, in the sections the book wrote it in ──────
+     v0.9.1233 (Brad's Step 2 of 8 screenshot). One attribute per line in a
+     520px box is a mile-long ribbon. The preamble spans the full width — it
+     identifies the variation — and the headed sections (ENGINE, TENDER) sit
+     side by side, each kept whole. wizard.js only emits .var-desc when the
+     modal is wide AND the book gave the description at least two headings;
+     everything else still renders as the plain single column it always was. */
+  .var-desc-plain { font-size: 0.82rem; color: var(--text-mid); line-height: 1.5;
+    padding-left: 0.1rem; white-space: pre-line; }
+  .var-desc { display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem 1.25rem;
+    align-items: start; padding-left: 0.1rem; }
+  .var-lead { grid-column: 1 / -1; }
+  .var-sec { min-width: 0; }
+  .var-sec-h { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--accent2); font-weight: 700; margin-bottom: 0.15rem; }
+  .var-sec-b { font-size: 0.82rem; color: var(--text-mid); line-height: 1.5;
+    white-space: pre-line; overflow-wrap: anywhere; }
+
   .cd-fields { display: grid; grid-template-columns: 1fr; gap: 0; align-items: start; }
   .cd-col.cd-2up .cd-fields { grid-template-columns: 1fr 1fr; column-gap: 1rem; }
   .cd-blk { min-width: 0; }

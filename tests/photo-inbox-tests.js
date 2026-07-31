@@ -6084,9 +6084,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
     const win = { cottAnchorUrl: (u, num) => u + '#' + num };
     const _vEsc = (x) => String(x == null ? '' : x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    // v0.9.1233: the description is now built by _vDescHtml (sections when
+    // wide). §157 is about the LINK, so the description is stubbed to its
+    // text — §185 is what proves the description itself.
     const render = (v, isSelected) => new Function(
-      'v','itemNum','isSelected','_vBaseNum','_vEsc','_vHl','_refShort','window', tpl
-    )(v, '50', !!isSelected, null, _vEsc, _vEsc, 'View ↗', win);
+      'v','itemNum','isSelected','_vBaseNum','_vEsc','_vHl','_refShort','window','_vDescHtml', tpl
+    )(v, '50', !!isSelected, null, _vEsc, _vEsc, 'View ↗', win,
+      (vv) => '<span>' + _vEsc(vv.varDesc || '') + '</span>');
 
     const WITH_REF = { variation:'1', cottCode:'DE0092',
       refLink:'https://cornucopiaoftoytrains.com/gang-cars/',
@@ -8587,8 +8591,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
        !/vh < 596 \? Math\.max\(300, vh - 16\) : 580/.test(wz));
 
     // ── RUN the height rule: three screens, three answers ────────────────
+    // v0.9.1233: the slice now takes _wizWide with it — the height rule asks it
+    // rather than testing the width itself, and a slice that stops short of a
+    // function its subject calls tests nothing but its own ReferenceError.
     const hsrc = wz.slice(wz.indexOf('function _wizBoxHeight()'),
-                          wz.indexOf('window._wizBoxHeight = _wizBoxHeight;'));
+                          wz.indexOf('window._wizWide = _wizWide;'));
     const H = (innerWidth, innerHeight, vvHeight) => {
       const win = { innerWidth, innerHeight, visualViewport: vvHeight ? { height: vvHeight } : null };
       return new Function('window', '"use strict";' + hsrc + '; return _wizBoxHeight();')(win);
@@ -8608,8 +8615,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
     // ── the single item finally gets the width ──────────────────────────
     ok('a single-item Condition & Details widens on a desktop',
-       /s\.type === 'conditionDetails' && window\.innerWidth >= 900/.test(wz) &&
-       /Math\.min\(window\.innerWidth - 32, 900\)/.test(wz));
+       /s\.type === 'conditionDetails' \|\| s\.type === 'variation'\) && _wizWide\(\)/.test(wz) &&
+       /Math\.min\(window\.innerWidth - 32, WIZ_WIDE_AT\)/.test(wz));
     ok('…and a narrow screen still gets the 520px box',
        /wizModal\.style\.maxWidth = '520px'/.test(wz));
 
@@ -8700,7 +8707,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('…and absent when not',
        /class="cd-col"/.test(build({ id: 'main', label: 'x', prefix: '' }, {})));
     ok('only a single item on a wide screen asks for it',
-       /const _cd2up = _colCount === 1 && window\.innerWidth >= 900;/.test(wz));
+       /const _cd2up = _colCount === 1 && _wizWide\(\);/.test(wz));
 
     // ── the stylesheet: one column unless told otherwise ────────────────
     const rule = css.slice(css.indexOf('.cd-fields {'), css.indexOf('.cd-blk {'));
@@ -8712,6 +8719,135 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /\.cd-fields \{[^}]*align-items: start;/.test(rule));
     ok('two columns happen only under .cd-2up',
        /\.cd-col\.cd-2up \.cd-fields \{ grid-template-columns: 1fr 1fr;/.test(css));
+  })();
+
+
+  section('185. A variation description in the sections the book wrote it in (v0.9.1233)');
+  (function () {
+    const pathJ = require('path');
+    const rd = f => fs.readFileSync(pathJ.join(__dirname, '..', 'app', f), 'utf8');
+    const wz = rd('wizard.js');
+    const css = rd('app.css');
+
+    // Brad sent a screenshot of Step 2 of 8: item 726RR, one attribute per
+    // line, in a 520px box. Widening was already written for Condition &
+    // Details; this step never got it, and its content is the worst case.
+
+    ok('the variation step widens on a desktop like the add step does',
+       /\(s\.type === 'conditionDetails' \|\| s\.type === 'variation'\) && _wizWide\(\)/.test(wz));
+    ok('"wide enough to spread out on" is one number, asked in one place',
+       /var WIZ_WIDE_AT = 900;/.test(wz) &&
+       /function _wizWide\(\) \{ return \(window\.innerWidth \|\| 0\) >= WIZ_WIDE_AT; \}/.test(wz) &&
+       !/innerWidth[^;\n]*>= 900/.test(wz),
+       'bare 900 comparisons: ' + JSON.stringify(wz.match(/innerWidth[^;\n]*>= 900/g) || []));
+    ok('…and the height rule asks it too, instead of testing the width itself',
+       /if \(_wizWide\(\)\) return Math\.min\(Math\.round\(vv \* 0\.9\), 900\);/.test(wz));
+
+    // ── RUN the splitter on Brad's actual 726RR text ────────────────────
+    const ssrc = wz.slice(wz.indexOf('function _wizVarSections(txt)'),
+                          wz.indexOf('window._wizVarSections = _wizVarSections;'));
+    const split = t => new Function('txt', '"use strict";' + ssrc + '; return _wizVarSections(txt);')(t);
+
+    const BRAD = [
+      '(with RR on the side of the cab under 726)',
+      '1952',
+      '',
+      'ENGINE',
+      'silver rubber stamped numbers',
+      'black stack',
+      'with hexagonal based blackened flagstaffs',
+      'lighted, without Magnatraction',
+      'TENDER',
+      'plastic shell painted black with white heat stamped lettering',
+      'with whistle',
+      'with water scoop',
+      'without handrails'
+    ].join('\n');
+
+    const secs = split(BRAD);
+    ok('the preamble, ENGINE and TENDER come out as three sections',
+       secs.length === 3, JSON.stringify(secs.map(s2 => s2.head)));
+    ok('…the preamble keeps its lines and has no heading',
+       secs[0].head === '' &&
+       secs[0].lines.join('\n').indexOf('with RR on the side') >= 0);
+    ok('…a year is not mistaken for a heading',
+       secs[0].lines.join('\n').indexOf('1952') >= 0);
+    ok('…ENGINE keeps only the engine lines',
+       secs[1].head === 'ENGINE' &&
+       secs[1].lines.join('\n').indexOf('black stack') >= 0 &&
+       secs[1].lines.join('\n').indexOf('with whistle') < 0);
+    ok('…TENDER keeps only the tender lines',
+       secs[2].head === 'TENDER' &&
+       secs[2].lines.join('\n').indexOf('with water scoop') >= 0 &&
+       secs[2].lines.join('\n').indexOf('black stack') < 0);
+
+    // things that must NOT be read as headings
+    ok('a sentence in brackets is not a heading',
+       split('(with RR on the side of the cab under 726)')[0].head === '');
+    ok('a long shouted line is not a heading',
+       split('THIS IS A VERY LONG LINE OF SHOUTING THAT RUNS ON AND ON')[0].head === '');
+    ok('a line with any lower-case in it is not a heading',
+       split('ENGINE and tender')[0].head === '');
+    ok('a description with no headings comes back as one section',
+       split('horn centered\ngray bumpers').length === 1 &&
+       split('horn centered\ngray bumpers')[0].head === '');
+    ok('empty text does not invent a section',
+       split('').length === 0 && split(null).length === 0);
+
+    // ── RUN the description builder: when does it split, and when not ───
+    const dsrc = wz.slice(wz.indexOf('const _vSecHtml = (sc, hl) =>'),
+                          wz.indexOf('let _vpCanHelp=false;'));
+    const esc = x => String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    const desc = (raw, wide, variation) => new Function(
+      '_vEsc', '_vHl', '_vBaseNum', '_wizWide', '_wizVarSections',
+      '"use strict";' + dsrc + '; return _vDescHtml;')(
+        esc, esc, '1', () => wide,
+        new Function('txt', '"use strict";' + ssrc + '; return _wizVarSections(txt);')
+      )({ variation: variation || '2', varDesc: raw });
+
+    ok('on a desktop a two-section description is split',
+       /class="var-desc"/.test(desc(BRAD, true)) &&
+       (desc(BRAD, true).match(/class="var-sec[ "]/g) || []).length === 3,
+       JSON.stringify(desc(BRAD, true).match(/class="var-sec[ "]/g)));
+    ok('…with the preamble spanning the full width',
+       /class="var-sec var-lead"/.test(desc(BRAD, true)));
+    ok('…and ENGINE and TENDER as their own headed sections',
+       /class="var-sec-h">ENGINE</.test(desc(BRAD, true)) &&
+       /class="var-sec-h">TENDER</.test(desc(BRAD, true)));
+    ok('on a narrow screen it stays exactly the one column it always was',
+       /class="var-desc-plain"/.test(desc(BRAD, false)) &&
+       !/class="var-desc"/.test(desc(BRAD, false)));
+    ok('a description with only ONE heading is not split either',
+       /class="var-desc-plain"/.test(desc('ENGINE\nblack stack\nwith whistle', true)));
+    ok('a description with no headings is not split',
+       /class="var-desc-plain"/.test(desc('horn centered\ngray bumpers', true)));
+    ok('a missing description still says so rather than rendering nothing',
+       /No description available/.test(
+         new Function('_vEsc', '_vHl', '_vBaseNum', '_wizWide', '_wizVarSections',
+           '"use strict";' + dsrc + '; return _vDescHtml;')(
+             esc, esc, '1', () => true,
+             new Function('txt', '"use strict";' + ssrc + '; return _wizVarSections(txt);')
+           )({ variation: '2' })));
+
+    // the highlight that shows how this variation differs must survive
+    const hl = new Function('_vEsc', '_vHl', '_vBaseNum', '_wizWide', '_wizVarSections',
+      '"use strict";' + dsrc + '; return _vDescHtml;')(
+        esc, x => '<<' + x + '>>', '1', () => true,
+        new Function('txt', '"use strict";' + ssrc + '; return _wizVarSections(txt);'));
+    ok('a later variation is still highlighted against the first',
+       /<</.test(hl({ variation: '2', varDesc: BRAD })));
+    ok('…and the FIRST variation is not highlighted against itself',
+       !/<</.test(hl({ variation: '1', varDesc: BRAD })));
+
+    // ── the stylesheet ──────────────────────────────────────────────────
+    ok('the split description is a two-column grid',
+       /\.var-desc \{ display: grid; grid-template-columns: 1fr 1fr;/.test(css));
+    ok('…the preamble spans both columns',
+       /\.var-lead \{ grid-column: 1 \/ -1; \}/.test(css));
+    ok('…the plain description keeps its line breaks, as before',
+       /\.var-desc-plain \{[^}]*white-space: pre-line;/.test(css));
+    ok('…and so does each section body',
+       /\.var-sec-b \{[^}]*white-space: pre-line;/.test(css));
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
