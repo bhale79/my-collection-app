@@ -7708,6 +7708,24 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /var dz = _armedTile\(\);/.test(ap) && !/getElementById\('rrap-drop'\)/.test(ap));
     ok('the panel says out loud which box is selected',
        /is selected\./.test(ap));
+    // v0.9.1213, Brad: "also need titles to the pick boxes for font, text
+    // color, and border." A control with no label is a guess.
+    ok('every header-line control sits in a labelled field',
+       (ap.match(/class="rrap-flab">/g) || []).length === 4 &&
+       /The words<\/span>/.test(ap) && /Typeface<\/span>/.test(ap) &&
+       /Border<\/span>/.test(ap) && /Text colour<\/span>/.test(ap));
+    // "Also need to center of teh header line on the screen" — centred on
+    // the BAR, not merely in the gap after the wordmark. pointer-events:none
+    // because a label must never swallow a tap meant for the account chip.
+    ok('the collector’s line is centred on the header bar',
+       /#rr-brand-header \{\s*\n\s*position: absolute; left: 50%; transform: translateX\(-50%\)/.test(css) &&
+       /#rr-brand-header \{[\s\S]{0,220}pointer-events: none/.test(css) &&
+       /\.header \{\s*\n\s*position: relative;/.test(css));
+    ok('a chip is as wide as it says it is, so it cannot sit on the preview',
+       /\.rrap-chip\{[^}]*box-sizing:border-box;width:186px/.test(ap));
+    ok('the two chip columns are evened out, middle targets moving first',
+       /var half = Math\.ceil\(info\.length \/ 2\);/.test(ap) &&
+       /over\.sort\(function \(a, b\) \{ return b\.mid - a\.mid; \}\)/.test(ap));
 
     // ── the marks reach the real app ─────────────────────────────────────
     ok('one entry point paints all three homes',

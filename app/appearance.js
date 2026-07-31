@@ -287,9 +287,9 @@
     + '.rrap-tlabel b{display:block;font-size:0.68rem}'
     + '.rrap-tlabel span{color:var(--p-ink-dim);font-size:0.56rem}'
     + '.rrap-logotile.rrap-tileon{border-style:solid;border-color:var(--p-accent);box-shadow:0 0 0 2px var(--p-paper),0 0 0 4px var(--p-accent)}'
-    + '.rrap-tin{flex:2;min-width:190px;box-sizing:border-box;padding:0.45rem 0.6rem;border-radius:8px;border:1.5px solid var(--p-line-hi);background:var(--p-panel2);color:var(--p-ink);font-family:var(--font-body);font-size:0.8rem;margin-bottom:0.35rem}'
-    + '.rrap-tsel{flex:1;min-width:150px;box-sizing:border-box;padding:0.4rem 0.5rem;border-radius:8px;border:1.5px solid var(--p-line-hi);background:var(--p-panel2);color:var(--p-ink);font-size:0.76rem;margin-bottom:0.35rem}'
-    + '.rrap-trow{display:flex;align-items:center;gap:0.45rem;flex-wrap:wrap}'
+    + '.rrap-tin{width:100%;box-sizing:border-box;padding:0.45rem 0.6rem;border-radius:8px;border:1.5px solid var(--p-line-hi);background:var(--p-panel2);color:var(--p-ink);font-family:var(--font-body);font-size:0.8rem;margin-bottom:0.35rem}'
+    + '.rrap-tsel{width:100%;box-sizing:border-box;padding:0.4rem 0.5rem;border-radius:8px;border:1.5px solid var(--p-line-hi);background:var(--p-panel2);color:var(--p-ink);font-size:0.76rem;margin-bottom:0.35rem}'
+    + '.rrap-trow{display:flex;align-items:flex-end;gap:0.45rem;flex-wrap:wrap}'+ '.rrap-fld{flex:1;min-width:150px;display:flex;flex-direction:column;gap:0.15rem}'+ '.rrap-flab{font-size:0.58rem;letter-spacing:0.07em;text-transform:uppercase;color:var(--p-ink-dim)}'
     + '.rrap-rhead{display:inline-flex;align-items:center;gap:5px;margin-left:12px;overflow:hidden;white-space:nowrap}'
     + '.rrap-rside{margin-top:auto;padding-top:10px;display:flex;justify-content:center}'
     + '.rrap-side{display:flex;flex-direction:column}'
@@ -336,14 +336,14 @@
     + '.rrap-wires{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5}'
     + '.rrap-wires line{stroke-width:1.5;stroke-dasharray:4 3;opacity:0.85}'
     + '.rrap-scene{display:none}.rrap-scene.rrap-on{display:block}'
-    + '.rrap-chip{position:absolute;z-index:10;width:182px;display:flex;align-items:center;gap:0.5rem;background:var(--p-panel);border:1px solid var(--p-line-hi);border-radius:10px;padding:0.4rem 0.55rem;box-shadow:0 4px 14px rgba(0,0,0,0.14);cursor:pointer}'
+    + '.rrap-chip{position:absolute;z-index:10;box-sizing:border-box;width:186px;display:flex;align-items:center;gap:0.45rem;background:var(--p-panel);border:1px solid var(--p-line-hi);border-radius:10px;padding:0.3rem 0.45rem;box-shadow:0 4px 14px rgba(0,0,0,0.14);cursor:pointer}'
     + '.rrap-chip:hover{border-color:var(--p-accent)}'
     + '.rrap-cs{position:relative;width:30px;height:24px;flex:none}'
     + '.rrap-chip input[type=color]{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}'
     + '.rrap-cface{position:absolute;inset:0;border-radius:6px;border:1.5px solid var(--p-line-hi);pointer-events:none}'
-    + '.rrap-cl{font-size:0.64rem;line-height:1.25;color:var(--p-ink)}'
-    + '.rrap-cl b{display:block;font-size:0.7rem}'
-    + '.rrap-cl span{color:var(--p-ink-dim);font-size:0.57rem}'
+    + '.rrap-cl{font-size:0.6rem;line-height:1.2;color:var(--p-ink);min-width:0}'
+    + '.rrap-cl b{display:block;font-size:0.67rem}'
+    + '.rrap-cl span{display:block;color:var(--p-ink-dim);font-size:0.54rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
     + '.rrap-hl{outline:2px solid var(--p-ink) !important;outline-offset:2px}'
     // replica — these DO read the skin variables, which is the point
     + '.rrap-app{background:var(--bg);border:1px solid var(--border);border-radius:12px;overflow:hidden;font-size:13px}'
@@ -564,7 +564,19 @@
       var r = t.getBoundingClientRect();
       info.push({ ch: ch, t: t,
         dock: (r.left - sr.left) < (sr.right - r.right) ? 'l' : 'r',
+        // how far this target sits from the stage's own middle — the
+        // tie-break when one side is carrying too many
+        mid: Math.abs((r.left + r.right) / 2 - (sr.left + sr.right) / 2),
         ty: r.top + r.height / 2 - sr.top });
+    });
+    // Even the two columns out. A target near the middle has the least
+    // reason to prefer either side, so those are the ones that move.
+    var half = Math.ceil(info.length / 2);
+    ['l', 'r'].forEach(function (side) {
+      var over = info.filter(function (i) { return i.dock === side; });
+      if (over.length <= half) return;
+      over.sort(function (a, b) { return b.mid - a.mid; });
+      over.slice(half).forEach(function (i) { i.dock = (side === 'l') ? 'r' : 'l'; });
     });
     ['l', 'r'].forEach(function (side) {
       var col = info.filter(function (i) { return i.dock === side; })
@@ -1038,22 +1050,27 @@
     if (!/^#[0-9a-fA-F]{6}$/.test(col)) col = NO_COLOUR;
     return '<div class="rrap-bsec rrap-bgrow"><div class="rrap-lh">Header line</div>'
       + '<div class="rrap-trow">'
+      + '<label class="rrap-fld" style="flex:2;min-width:190px"><span class="rrap-flab">The words</span>'
       + '<input class="rrap-tin" id="rrap-title" type="text" maxlength="48" placeholder="e.g. The Short Line Rail Collection"'
-      + ' value="' + _esc(t.text) + '" oninput="window._rrapTitleSet(\'text\',this.value)">'
+      + ' value="' + _esc(t.text) + '" oninput="window._rrapTitleSet(\'text\',this.value)"></label>'
+      + '<label class="rrap-fld"><span class="rrap-flab">Typeface</span>'
       + '<select class="rrap-tsel" onchange="window._rrapTitleSet(\'font\',this.value)">'
       + FONTS.map(function (f) {
           return '<option value="' + _esc(f[0]) + '"' + (f[0] === t.font ? ' selected' : '')
             + ' style="font-family:' + (f[0] || 'var(--font-head)') + '">' + _esc(f[1]) + '</option>';
         }).join('')
-      + '</select>'
+      + '</select></label>'
+      + '<label class="rrap-fld"><span class="rrap-flab">Border</span>'
       + '<select class="rrap-tsel" onchange="window._rrapTitleSet(\'border\',this.value)">'
       + BORDERS.map(function (b) {
           return '<option value="' + b[0] + '"' + (b[0] === t.border ? ' selected' : '') + '>' + b[1] + '</option>';
         }).join('')
       + '</select>'
-      + '<span class="rrap-rc" title="Colour of the line"><input type="color" value="' + col
+      + '</select></label>'
+      + '<label class="rrap-fld" style="flex:none"><span class="rrap-flab">Text colour</span>'
+      + '<span class="rrap-rc" title="Colour of the words"><input type="color" value="' + col
       + '" oninput="window._rrapTitleSet(\'color\',this.value)">'
-      + '<span class="rrap-rcface" style="background:' + col + '"></span></span>'
+      + '<span class="rrap-rcface" style="background:' + col + '"></span></span></label>'
       + '</div>'
       + '<div class="rrap-hint" style="margin-top:0.3rem">Shows in the top bar next to THE RAIL ROSTER. Leave it empty for none.</div>'
       + '</div>';

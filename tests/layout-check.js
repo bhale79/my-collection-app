@@ -77,7 +77,7 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
         const padR = parseFloat(cs.paddingRight) || 0, padB = parseFloat(cs.paddingBottom) || 0;
         const off = [];
         // Every visible thing in the editor must be on the screen.
-        ov.querySelectorAll('.rrap-chip, .rrap-logotile, .rrap-role, .rrap-swb, .rrap-btn, .rrap-tin, .rrap-tsel')
+        ov.querySelectorAll('.rrap-chip, .rrap-logotile, .rrap-role, .rrap-swb, .rrap-btn, .rrap-tin, .rrap-tsel, .rrap-rc, .rrap-preset')
           .forEach(function (el) {
             const b = el.getBoundingClientRect();
             if (b.width === 0 && b.height === 0) return;      // a hidden scene
@@ -87,7 +87,37 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
                 + Math.round(b.right) + ',' + Math.round(b.bottom) + ']');
             }
           });
+        // A chip sitting ON the preview is what "clustered" looks like, and
+        // a column of chips running far below it is the same fault seen
+        // from the other side. Both are measurable; neither is greppable.
+        const app = document.getElementById('ra-app');
+        const ar = app ? app.getBoundingClientRect() : null;
+        const overlap = [], docks = { l: 0, r: 0 };
+        let lowest = 0;
+        document.querySelectorAll('#rrap-scene-dash .rrap-chip').forEach(function (c) {
+          const b = c.getBoundingClientRect();
+          if (!b.width) return;
+          docks[c.dataset.dock === 'l' ? 'l' : 'r']++;
+          lowest = Math.max(lowest, b.bottom);
+          if (ar && b.right > ar.left + 1 && b.left < ar.right - 1 &&
+              b.bottom > ar.top + 1 && b.top < ar.bottom - 1) overlap.push(c.dataset.var);
+        });
+        // Brad: "also need titles to the pick boxes for font, text color, and
+        // border." A control with no label is a guess, so every one of them
+        // must sit inside a label that has visible words in it.
+        const unlabelled = [];
+        ov.querySelectorAll('.rrap-trow input, .rrap-trow select').forEach(function (el) {
+          const lab = el.closest('label');
+          const txt = lab && lab.querySelector('.rrap-flab');
+          if (!txt || !txt.textContent.trim() || !txt.getBoundingClientRect().height) {
+            unlabelled.push(el.tagName.toLowerCase() + '.' + (el.className || '?'));
+          }
+        });
         return {
+          unlabelled: unlabelled,
+          chipsOverlapPreview: overlap,
+          dockSkew: Math.abs(docks.l - docks.r),
+          chipsBelowPreview: ar ? Math.round(lowest - ar.bottom) : 0,
           overflowX: sr.right > wr.right - padR + 1,
           overflowY: sr.bottom > wr.bottom - padB + 1,
           editorScrolls: ov.scrollHeight > ov.clientHeight + 1,
@@ -107,6 +137,14 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
          'x=' + r.overflowX + ' y=' + r.overflowY + ' scale=' + r.scale);
       ok(at + ': the editor does not scroll', !r.editorScrolls);
       ok(at + ': the colour box fits without scrolling', !r.leftScrolls);
+      ok(at + ': no chip sits on top of the preview',
+         r.chipsOverlapPreview.length === 0, r.chipsOverlapPreview.join(', '));
+      ok(at + ': the chips are shared evenly between the two sides',
+         r.dockSkew <= 2, 'skew=' + r.dockSkew);
+      ok(at + ': the chips do not run far below the preview',
+         r.chipsBelowPreview <= 40, r.chipsBelowPreview + 'px below');
+      ok(at + ': every pick box says what it is for',
+         r.unlabelled.length === 0, r.unlabelled.join(', '));
       await page.close();
     }
   } finally {
