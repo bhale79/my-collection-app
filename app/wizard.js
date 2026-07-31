@@ -708,6 +708,60 @@ window._wizResearchPrice = function () {
   } catch (e) { console.warn('[research price]', e); }
 };
 
+// ── Research the SET you are adding (v0.9.1234) ────────────────────────
+// Brad: "add to list for later, need a research button for the set add".
+//
+// Every other flow has a Research button beside its value field; the set flow
+// never got one. It also needs a different question asked. The price buttons
+// research an ITEM — "what did one of these sell for". Standing over a box of
+// trains, the question is "what IS this", and there are two ways to ask it:
+//
+//   • With a set number, search the number: "Lionel 1467W set …".
+//   • WITHOUT one, search the pieces. The item numbers already entered on the
+//     identify step are the only description of the set that exists, and
+//     searching them together is exactly how a collector identifies an
+//     unnumbered box. This is the case the price buttons cannot cover.
+//
+// One button, on the identify step, because both paths through the set flow
+// (knows the number / does not) converge there.
+window._wizResearchSet = function () {
+  try {
+    var d = (typeof wizard !== 'undefined' && wizard.data) || {};
+    var rs = d._resolvedSet || null;
+    var num = String((rs && rs.setNum) || d.set_num || '').trim();
+    var q;
+    if (num) {
+      q = ['Lionel', num, 'set', String((rs && rs.setName) || '').trim(),
+           String((rs && rs.year) || '').trim()]
+          .filter(Boolean).join(' ') + ' sold prices value';
+    } else {
+      var nums = (d._enteredNums || []).slice(0, 6).filter(Boolean);
+      if (!nums.length && d.set_loco) nums = [String(d.set_loco).trim()];
+      if (!nums.length) {
+        if (typeof showToast === 'function') {
+          showToast('Add the set number, or an item number or two, and I can look it up', 3500);
+        }
+        return;
+      }
+      q = 'Lionel postwar set ' + nums.join(' ');
+    }
+    window.open('https://www.google.com/search?q=' + encodeURIComponent(q), '_blank');
+  } catch (e) { console.warn('[research set]', e); }
+};
+
+// What the button says depends on what it is about to search — a button that
+// reads "Research this set" when no set has been named yet is a small lie.
+window._wizResearchSetLabel = function () {
+  var d = (typeof wizard !== 'undefined' && wizard.data) || {};
+  var rs = d._resolvedSet || null;
+  var num = String((rs && rs.setNum) || d.set_num || '').trim();
+  if (num) return '\uD83D\uDD0D Research set ' + num;
+  var n = ((d._enteredNums || []).filter(Boolean)).length;
+  if (!n && d.set_loco) n = 1;
+  if (!n) return '';
+  return '\uD83D\uDD0D Look up what set these ' + (n === 1 ? 'number is from' : 'numbers are from');
+};
+
 // v0.9.748 (Brad): "i want our detail page and photo page" — no imitation
 // modal. Hide (don't close) the wizard, open the REAL item detail page via
 // _openOwnedByInvId (full header, descriptions, details card, photo grids),
@@ -3690,6 +3744,21 @@ function renderWizardStep() {
           onkeydown="if(event.key==='Enter'){event.preventDefault();window._setAddEntered();}">
         <button onclick="window._setAddEntered()" style="padding:0.65rem 1rem;border-radius:9px;border:none;background:#1e3a5f;color:white;font-family:var(--font-body);font-weight:600;cursor:pointer">Add</button>`;
       body.appendChild(addRow);
+
+      // v0.9.1234 (Brad): "need a research button for the set add". Hidden
+      // until there is something to search — a button that opens an empty
+      // search is worse than no button.
+      const _resLabel = (typeof window._wizResearchSetLabel === 'function')
+        ? window._wizResearchSetLabel() : '';
+      if (_resLabel) {
+        const resRow = document.createElement('div');
+        resRow.style.cssText = 'margin-bottom:0.75rem';
+        resRow.innerHTML = '<button type="button" onclick="window._wizResearchSet()" '
+          + 'style="width:100%;padding:0.55rem 0.9rem;border-radius:9px;border:1.5px solid var(--green);'
+          + 'background:rgba(46,204,113,0.12);color:var(--green);font-family:var(--font-body);'
+          + 'font-weight:700;font-size:0.85rem;cursor:pointer">' + _resLabel + '</button>';
+        body.appendChild(resRow);
+      }
 
       // Suggestions
       const _allEntered = _enteredNums;

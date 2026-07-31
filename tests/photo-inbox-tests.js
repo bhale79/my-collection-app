@@ -8850,6 +8850,85 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /\.var-sec-b \{[^}]*white-space: pre-line;/.test(css));
   })();
 
+
+  section('186. A research button for the set add (v0.9.1234)');
+  (function () {
+    const pathJ = require('path');
+    const wz = fs.readFileSync(pathJ.join(__dirname, '..', 'app', 'wizard.js'), 'utf8');
+
+    // Brad: "add to list for later, need a research button for the set add"
+
+    ok('the set flow has its own research button',
+       /window\._wizResearchSet = function/.test(wz));
+    ok('…on the identify step, where both paths through the set flow meet',
+       /_wizResearchSetLabel\(\)/.test(wz) &&
+       wz.indexOf('window._setAddEntered()') < wz.indexOf('window._wizResearchSet()'));
+
+    // ── RUN it: what does it search, and when does it refuse? ───────────
+    const rsrc = wz.slice(wz.indexOf('window._wizResearchSet = function'),
+                          wz.indexOf('// What the button says depends'));
+    const lsrc = wz.slice(wz.indexOf('window._wizResearchSetLabel = function'),
+                          wz.indexOf('// v0.9.748 (Brad): "i want our detail page'));
+    const run = (data) => {
+      let opened = null, toasted = null;
+      const win = { open: (u) => { opened = u; } };
+      new Function('window', 'wizard', 'showToast', '"use strict";' + rsrc + '; window._wizResearchSet();')(
+        win, { data: data }, (m) => { toasted = m; });
+      return { url: opened, toast: toasted,
+               q: opened ? decodeURIComponent(opened.split('q=')[1] || '') : null };
+    };
+    const label = (data) => new Function('window', 'wizard',
+      '"use strict";' + lsrc + '; return window._wizResearchSetLabel();')({}, { data: data });
+
+    // a known set number searches the number
+    const known = run({ _resolvedSet: { setNum: '1467W', setName: 'Steam Freight', year: '1952' } });
+    ok('a known set searches the set number',
+       /Lionel 1467W set/.test(known.q), known.q);
+    ok('…with its name and year, which is what tells two 1467Ws apart',
+       /Steam Freight/.test(known.q) && /1952/.test(known.q), known.q);
+    ok('…and asks the price question the other Research buttons ask',
+       /sold prices value$/.test(known.q), known.q);
+
+    // THE case the price buttons cannot cover: no set number at all
+    const unknown = run({ _enteredNums: ['736', '6357', '1033'] });
+    ok('with no set number it searches the pieces instead',
+       /Lionel postwar set 736 6357 1033/.test(unknown.q), unknown.q);
+    ok('…and does NOT ask for prices — the question is which set this is',
+       !/sold prices/.test(unknown.q), unknown.q);
+    ok('a lone locomotive number is still worth searching',
+       /2023/.test(run({ set_loco: '2023' }).q || ''), run({ set_loco: '2023' }).q);
+    ok('the search is capped so a long list cannot bury the signal',
+       (run({ _enteredNums: ['1','2','3','4','5','6','7','8','9'] }).q.match(/\b\d\b/g) || []).length === 6,
+       run({ _enteredNums: ['1','2','3','4','5','6','7','8','9'] }).q);
+
+    // it must never open an empty search
+    const nothing = run({});
+    ok('with nothing entered it opens no search at all',
+       nothing.url === null);
+    ok('…and says what it needs instead of failing silently',
+       /set number/.test(nothing.toast || ''), nothing.toast || '(no toast)');
+
+    // ── the label has to match what the button will actually do ─────────
+    ok('the button names the set when there is one',
+       /Research set 1467W/.test(label({ _resolvedSet: { setNum: '1467W' } })));
+    ok('…and does not claim to know the set when it does not',
+       !/Research set/.test(label({ _enteredNums: ['736'] })) &&
+       /what set/.test(label({ _enteredNums: ['736'] })), label({ _enteredNums: ['736'] }));
+    ok('…singular for one number, plural for several',
+       /number is from/.test(label({ _enteredNums: ['736'] })) &&
+       /numbers are from/.test(label({ _enteredNums: ['736', '6357'] })));
+    ok('…and is empty when there is nothing to search, so no button renders',
+       label({}) === '');
+    ok('the step only builds the button when the label says there is something',
+       /if \(_resLabel\) \{/.test(wz));
+
+    // Brad's standing rule: no vendor is ever suggested. This opens a plain
+    // web search, exactly like every other Research button in the app.
+    ok('it opens a plain search, naming no seller',
+       /google\.com\/search/.test(known.url) &&
+       !/trainz|ebay|trainworld/i.test(known.url), known.url);
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
