@@ -125,7 +125,32 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
         // …and the preview should sit in the middle of the room it has,
         // not pinned to the top with a void beneath it.
         const gapTop = sr.top - wr.top, gapBot = wr.bottom - sr.bottom;
+        // "spread them out!" — measurable: the column should cover most of
+        // the picture's height, and the gaps between chips should be even.
+        const spread = { l: null, r: null };
+        ['l', 'r'].forEach(function (side) {
+          const col = [].slice.call(document.querySelectorAll(
+            '#rrap-scene-dash .rrap-chip[data-dock="' + side + '"]'))
+            .map(function (c) { return c.getBoundingClientRect(); })
+            .filter(function (b) { return b.height; })
+            .sort(function (a, b) { return a.top - b.top; });
+          if (col.length < 2 || !ar) return;
+          const gaps = [];
+          for (let i = 1; i < col.length; i++) gaps.push(col[i].top - col[i - 1].bottom);
+          // Coverage alone does NOT tell packed from spread — five chips
+          // packed at 12px already cover ~82% of the picture, and their
+          // gaps are perfectly even. What actually differs is BALANCE: a
+          // packed column hugs the top and leaves all the slack underneath.
+          spread[side] = {
+            n: col.length,
+            coverage: (col[col.length - 1].bottom - col[0].top) / ar.height,
+            imbalance: Math.round(Math.abs((col[0].top - ar.top) -
+                                           (ar.bottom - col[col.length - 1].bottom))),
+            gapSpread: Math.round(Math.max.apply(null, gaps) - Math.min.apply(null, gaps))
+          };
+        });
         return {
+          spread: spread,
           stripOrderOk: secs.length === 2 &&
             !!secs[0].querySelector('.rrap-trow') && !!secs[1].querySelector('.rrap-tiles'),
           stripCentred: centred,
@@ -167,6 +192,14 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
          r.stripCentred);
       ok(at + ': the preview sits in the middle of its space, not pinned to the top',
          r.previewOffCentre <= 4, r.previewOffCentre + 'px off centre');
+      ['l', 'r'].forEach(function (side) {
+        const sp = r.spread[side];
+        if (!sp) return;
+        ok(at + ': the ' + (side === 'l' ? 'left' : 'right') + ' chips are spread down the preview, not packed at the top',
+           sp.imbalance <= 6, 'top and bottom slack differ by ' + sp.imbalance + 'px');
+        ok(at + ': …with even gaps between them',
+           sp.gapSpread <= 3, 'gaps vary by ' + sp.gapSpread + 'px');
+      });
       await page.close();
     }
   } finally {

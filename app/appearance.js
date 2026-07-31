@@ -589,17 +589,37 @@
       over.sort(function (a, b) { return b.mid - a.mid; });
       over.slice(half).forEach(function (i) { i.dock = (side === 'l') ? 'r' : 'l'; });
     });
+    // Brad: "spread them out!" They used to stack tight from the top with a
+    // 12px gap and a nudge toward each target, which left the column bunched
+    // in the middle of a picture twice its height. They are now spread down
+    // the FULL height of the thing they point at, evenly. Order is still by
+    // target position, so the leader lines still cannot cross — spreading
+    // changes the spacing, never the sequence.
+    var subject = scene.querySelector('.rrap-app, .rrap-scrim');
+    var top = 30, bottom = 30;
+    if (subject) {
+      var br = subject.getBoundingClientRect();
+      top = br.top - sr.top;
+      bottom = br.bottom - sr.top;
+    }
     ['l', 'r'].forEach(function (side) {
       var col = info.filter(function (i) { return i.dock === side; })
                     .sort(function (a, b) { return a.ty - b.ty; });
-      var y = 30;
+      if (!col.length) return;
+      var totalH = col.reduce(function (a, i) { return a + i.ch.offsetHeight; }, 0);
+      var span = bottom - top;
+      // Even gaps, including one above the first and below the last, so the
+      // column reads as deliberate rather than top-aligned. If the chips are
+      // taller than the picture there is nothing to spread — pack them, and
+      // they simply overhang as before rather than overlapping each other.
+      var gap = (span - totalH) / (col.length + 1);
+      var y = (gap >= 12) ? top + gap : 30;
       col.forEach(function (i) {
-        y = Math.max(y, i.ty - 20);
-        i.ch.style.top = y + 'px';
+        i.ch.style.top = Math.round(y) + 'px';
         i.ch.style.left = side === 'l' ? '14px' : '';
         i.ch.style.right = side === 'r' ? '14px' : '';
         i.ch.dataset.dock = side;
-        y += i.ch.offsetHeight + 12;
+        y += i.ch.offsetHeight + (gap >= 12 ? gap : 12);
       });
     });
   }

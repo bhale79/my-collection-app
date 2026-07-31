@@ -7734,6 +7734,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /\.header \{\s*\n\s*position: relative;/.test(css));
     ok('a chip is as wide as it says it is, so it cannot sit on the preview',
        /\.rrap-chip\{[^}]*box-sizing:border-box;width:186px/.test(ap));
+    // v0.9.1216, Brad: "spread them out!" The column used to stack tight
+    // from the top of the stage, leaving all the slack below it.
+    ok('the chips spread down the full height of what they point at',
+       /var subject = scene\.querySelector\('\.rrap-app, \.rrap-scrim'\);/.test(ap) &&
+       /var gap = \(span - totalH\) \/ \(col\.length \+ 1\);/.test(ap) &&
+       /var y = \(gap >= 12\) \? top \+ gap : 30;/.test(ap));
+    ok('…and still in target order, so the leader lines cannot cross',
+       /\.sort\(function \(a, b\) \{ return a\.ty - b\.ty; \}\)/.test(ap));
     ok('the two chip columns are evened out, middle targets moving first',
        /var half = Math\.ceil\(info\.length \/ 2\);/.test(ap) &&
        /over\.sort\(function \(a, b\) \{ return b\.mid - a\.mid; \}\)/.test(ap));
