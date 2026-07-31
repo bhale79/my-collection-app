@@ -209,6 +209,34 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
          hov.opts >= 2 && !!hov.whatOn, hov.opts + ' options');
       ok(at + ': the chips and leader lines are gone', hov.chips === 0);
 
+      // A pop-up that is see-through is not a pop-up. Every floating panel
+      // must resolve to a real, opaque background — this is exactly what
+      // went wrong when they were appended outside the element that
+      // declares the palette they read.
+      const opaque = await page.evaluate(() => {
+        const out = {};
+        const stage = document.getElementById('rrap-stage');
+        const row = document.getElementById('ra-border').getBoundingClientRect();
+        stage.dispatchEvent(new MouseEvent('mousemove',
+          { clientX: row.left + 40, clientY: row.bottom - 1, bubbles: true }));
+        stage.dispatchEvent(new MouseEvent('click',
+          { clientX: row.left + 40, clientY: row.bottom - 1, bubbles: true }));
+        document.querySelectorAll('.rrap-role')[0].click();
+        ['rrap-pal', 'rrap-tip', 'rrap-what'].forEach(function (id) {
+          const el = document.getElementById(id);
+          if (!el) { out[id] = 'missing'; return; }
+          const bg = getComputedStyle(el).backgroundColor;
+          const m = /rgba?\(([^)]+)\)/.exec(bg);
+          const a = m ? (m[1].split(',')[3] !== undefined ? parseFloat(m[1].split(',')[3]) : 1) : 0;
+          out[id] = (bg && bg !== 'transparent' && a > 0.95) ? 'ok' : bg;
+        });
+        ['rrap-pal', 'rrap-what'].forEach(id => { const e = document.getElementById(id); if (e) e.remove(); });
+        const t = document.getElementById('rrap-tip'); if (t) t.remove();
+        return out;
+      });
+      ok(at + ': every pop-up has a solid background, not a see-through one',
+         Object.keys(opaque).every(k => opaque[k] === 'ok'), JSON.stringify(opaque));
+
       // The picker Brad asked for: it has to open beside what you clicked,
       // stay on the screen, and offer a way back. A picker that opens half
       // off the edge is worse than the browser's own.

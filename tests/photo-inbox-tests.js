@@ -7392,6 +7392,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /--p-paper:\s*#[0-9a-f]{6}/i.test(paperBlock) && /--p-ink:\s*#[0-9a-f]{6}/i.test(paperBlock));
     ok('…and covers the preview bar and the phone sheet too, not just the editor',
        /#rrap,\s*#rrap-prevbar,\s*#rrap-mini/.test(css));
+    // v0.9.1221, Brad: "can't see what the options are." Every floating panel
+    // lives on <body>, OUTSIDE #rrap, so none of them inherited this palette
+    // and every var(--p-*) in them resolved to nothing — which renders as
+    // transparent. It is also why three earlier screenshots looked like
+    // something was painting over the colour grid while hit-testing insisted
+    // it was on top. It was on top. It was see-through.
+    ok('…and the floating panels too, or they render transparent',
+       /#rrap-pal,\s*#rrap-tip,\s*#rrap-what \{/.test(css));
     // The names are the whole safety mechanism: --p-* can never shadow the
     // skin variables the preview replica is reading.
     ok('the paper palette cannot shadow a skin variable (no --bg/--surface/--text in it)',

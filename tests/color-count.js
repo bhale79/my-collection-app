@@ -48,7 +48,11 @@ const PALETTE_SCOPES = [
   // exempt for the same reason .main is: something has to hold the real value
   // of "cream". appearance.js itself must stay literal-free, and §174 checks
   // that separately, so this exemption cannot become a hiding place.
-  /#rrap,\s*#rrap-prevbar,\s*#rrap-mini\s*\{[\s\S]*?\n\s*\}/g,
+  // Matched on the #rrap prefix rather than the exact selector list: that
+  // list grew in v0.9.1221 (the floating panels had to join it), and a
+  // regex naming every id would have silently stopped exempting the block
+  // and blamed app.css for nine colours it always had.
+  /#rrap[^{]*\{[\s\S]*?\n\s*\}/g,
 ];
 
 function countFile(absPath) {

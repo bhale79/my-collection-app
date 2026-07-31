@@ -673,7 +673,13 @@
     #rr-brand-header img { height: 28px; }
   }
 
-  #rrap, #rrap-prevbar, #rrap-mini {
+  /* v0.9.1221: the pop-ups live on <body>, OUTSIDE #rrap, so they never
+     inherited this palette and every var(--p-*) in them resolved to
+     nothing — which renders as transparent. That is why the colour grid
+     and the chooser had the app showing straight through them, and why
+     three screenshots looked like something was painting over the picker
+     when hit-testing said it was on top. It was on top; it was see-through. */
+  #rrap, #rrap-prevbar, #rrap-mini, #rrap-pal, #rrap-tip, #rrap-what {
     --p-paper:   #f8e8c0;
     --p-panel:   #fffdf6;
     --p-panel2:  #f5eeda;
