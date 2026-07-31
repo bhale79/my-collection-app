@@ -189,6 +189,8 @@
   var _swatches = [];    // colours pulled from the logo
   var _armed = -1;       // which swatch is picked up, ready to drop on a role
   var _preview = false;
+  var _activePreset = '';        // the saved look currently loaded, if any
+  var _loadingPreset = false;    // …and the one moment when _set must not clear it
   var _slotArmed = 'watermark';   // which of the three boxes a paste lands in
 
   function _stage() { return document.getElementById('rrap-stage'); }
@@ -203,6 +205,7 @@
   // RULE 2 lives here. The variable goes on the STAGE, so the preview replica
   // repaints and the real app does not. One line, no mode flag.
   function _set(v, val, derived) {
+    if (!derived && !_loadingPreset && _activePreset) { _activePreset = ''; _refreshPresets(); }
     _live[v] = val;
     var st = _stage();
     if (st) st.style.setProperty(v, val);
@@ -275,12 +278,19 @@
     html += '<div class="rrap-preset rrap-addp" onclick="window._rrapSavePreset()">＋ Save current…</div>';
     return html;
   }
+  // Brad: "if we are working on a preset, the button needs to be highlighted."
+  // _activePreset is the name of the look currently loaded, and it is cleared
+  // the moment any colour is changed by hand — because at that point it is no
+  // longer that look, and saying otherwise would be a small lie.
   function _pill(name, map, isUser) {
     var dots = ['--bg', '--accent', '--text'].map(function (v) {
       return '<span class="rrap-d" style="background:' + (map[v] || NO_COLOUR) + '"></span>';
     }).join('');
-    return '<div class="rrap-preset" data-preset="' + name.replace(/"/g, '&quot;') + '">' + dots + name
-      + (isUser ? ' <span class="rrap-del" title="Delete preset">✕</span>' : '') + '</div>';
+    var esc = name.replace(/"/g, '&quot;');
+    return '<div class="rrap-preset' + (name === _activePreset ? ' rrap-preset-on' : '')
+      + '" data-preset="' + esc + '">' + dots + name
+      + (isUser ? ' <button class="rrap-del" type="button" title="Delete “' + esc + '”" aria-label="Delete ' + esc + '">✕</button>' : '')
+      + '</div>';
   }
 
   // ── CSS. Every colour here is a var — the paper set (--p-*) is declared
@@ -311,7 +321,9 @@
     + '.rrap-logotile.rrap-tileon{border-style:solid;border-color:var(--p-accent);box-shadow:0 0 0 2px var(--p-paper),0 0 0 4px var(--p-accent)}'
     + '.rrap-tin{width:100%;box-sizing:border-box;padding:0.45rem 0.6rem;border-radius:8px;border:1.5px solid var(--p-line-hi);background:var(--p-panel2);color:var(--p-ink);font-family:var(--font-body);font-size:0.8rem;margin-bottom:0.35rem}'
     + '.rrap-tsel{width:100%;box-sizing:border-box;padding:0.4rem 0.5rem;border-radius:8px;border:1.5px solid var(--p-line-hi);background:var(--p-panel2);color:var(--p-ink);font-size:0.76rem;margin-bottom:0.35rem}'
-    + '.rrap-trow{display:flex;align-items:flex-end;justify-content:center;gap:0.45rem;flex-wrap:wrap}'+ '.rrap-fld{flex:1;min-width:150px;display:flex;flex-direction:column;gap:0.15rem;text-align:left}'+ '.rrap-trow .rrap-rc{width:64px;height:32px}'+ '.rrap-tbtn{width:30px;height:30px;border-radius:7px;border:1.5px solid var(--p-line-hi);background:var(--p-panel2);color:var(--p-ink);font-size:0.85rem;cursor:pointer;padding:0}'
+    + '.rrap-trow{display:flex;align-items:flex-end;justify-content:center;gap:0.45rem;flex-wrap:wrap}'+ '.rrap-fld{flex:1;min-width:150px;display:flex;flex-direction:column;gap:0.15rem;text-align:left}'+ '.rrap-trow .rrap-rc{width:64px;height:32px}'+ '.rrap-wmwrap{display:block;margin-top:0.35rem;text-align:left}'
+    + '.rrap-wm{width:100%;accent-color:var(--p-accent);cursor:pointer}'
+    + '.rrap-tbtn{width:30px;height:30px;border-radius:7px;border:1.5px solid var(--p-line-hi);background:var(--p-panel2);color:var(--p-ink);font-size:0.85rem;cursor:pointer;padding:0}'
     + '.rrap-tbtn.rrap-ton{border-color:var(--p-accent);background:var(--p-accent);color:var(--p-panel)}'
     + '.rrap-flab{font-size:0.58rem;letter-spacing:0.07em;text-transform:uppercase;color:var(--p-ink-dim)}'
     + '.rrap-rhead{position:absolute;left:50%;transform:translateX(-50%);display:inline-flex;align-items:center;gap:5px;max-width:60%;overflow:hidden;white-space:nowrap;pointer-events:none}'
@@ -359,8 +371,10 @@
     + '.rrap-presets{flex:none;display:flex;gap:0.5rem;padding:0.6rem 1.1rem;border-bottom:1px solid var(--p-line);overflow-x:auto}'
     + '.rrap-preset{flex:none;display:flex;align-items:center;gap:0.4rem;padding:0.4rem 0.75rem;border-radius:999px;border:1.5px solid var(--p-line);background:var(--p-panel);cursor:pointer;font-size:0.75rem;color:var(--p-ink-mid);white-space:nowrap}'
     + '.rrap-preset:hover{border-color:var(--p-accent)}'
+    + '.rrap-preset-on{border-color:var(--p-accent);border-width:2px;background:var(--p-panel2);color:var(--p-ink);font-weight:600;box-shadow:0 0 0 3px color-mix(in srgb,var(--p-accent) 22%,transparent)}'
     + '.rrap-d{width:10px;height:10px;border-radius:50%;border:1px solid var(--p-line-hi);display:inline-block}'
-    + '.rrap-del{color:var(--p-ink-dim);font-size:0.65rem;padding-left:0.2rem}'
+    + '.rrap-del{margin-left:0.3rem;width:18px;height:18px;line-height:1;border-radius:50%;border:1px solid var(--p-line-hi);background:var(--p-panel2);color:var(--p-ink-mid);font-size:0.62rem;cursor:pointer;padding:0;flex:none}'
+    + '.rrap-del:hover{border-color:var(--p-accent);color:var(--p-accent)}'
     + '.rrap-addp{border-style:dashed;color:var(--p-ink-dim)}'
     + '.rrap-tabs{flex:none;display:flex;gap:0.35rem;padding:0.7rem 1.1rem 0}'
     + '.rrap-tab{font-family:var(--font-head);font-size:0.74rem;letter-spacing:0.05em;padding:0.5rem 0.9rem;border-radius:9px 9px 0 0;border:1px solid var(--p-line);border-bottom:none;background:var(--p-panel2);color:var(--p-ink-dim);cursor:pointer}'
@@ -466,7 +480,7 @@
     var old = document.getElementById('rrap'); if (old) old.remove();
     // A draft left behind by a tab that closed mid-edit is not a candidate,
     // it is litter. Every session starts from what is actually saved.
-    _live = {}; _saved = false; _armed = -1; _preview = false; _scale = 1;
+    _live = {}; _saved = false; _armed = -1; _preview = false; _scale = 1; _activePreset = '';
     _dropDraft();
     _swatches = _savedSwatches();
 
@@ -510,14 +524,31 @@
       var del = e.target.closest('.rrap-del');
       var pill = e.target.closest('.rrap-preset[data-preset]');
       if (del && pill) {
-        var up = _userPresets(); delete up[pill.dataset.preset];
-        try { localStorage.setItem(USER_PRESETS_KEY, JSON.stringify(up)); } catch (e2) {}
-        document.getElementById('rrap-presets').innerHTML = _presetPills();
+        var nm = pill.dataset.preset;
+        var drop = function () {
+          var up = _userPresets(); delete up[nm];
+          try { localStorage.setItem(USER_PRESETS_KEY, JSON.stringify(up)); } catch (e2) {}
+          if (_activePreset === nm) _activePreset = '';
+          _refreshPresets();
+          if (typeof showToast === 'function') showToast('“' + nm + '” deleted', 2600);
+        };
+        if (typeof appConfirm === 'function') {
+          appConfirm('Delete the saved look “' + nm + '”? The colours you are using now are not affected.',
+            { title: 'Delete saved look', ok: 'Delete', danger: true })
+            .then(function (yes) { if (yes) drop(); });
+        } else drop();
         return;
       }
       if (!pill) return;
       var map = BUILTIN_PRESETS[pill.dataset.preset] || _userPresets()[pill.dataset.preset];
-      if (map) { Object.keys(map).forEach(function (k) { _set(k, map[k]); }); _refreshRoles(); }
+      if (map) {
+        _loadingPreset = true;
+        Object.keys(map).forEach(function (k) { _set(k, map[k]); });
+        _loadingPreset = false;
+        _activePreset = pill.dataset.preset;
+        _refreshPanel();
+        _refreshPresets();
+      }
     });
 
     _wireLogoInput();
@@ -1170,11 +1201,20 @@
   // Every record that leaves a reader is FILLED — three slots and a title,
   // always present, even when empty. Callers never test for a missing key,
   // which is where half-migrated records usually bite.
+  // The watermark carries one extra thing: how faint it is. 5% was the fixed
+  // value from the day it was built; Brad wants the dial.
+  var WM_DEFAULT = 0.05;
+  function _fillSlot(sl) {
+    var o = { data: sl.data, kind: String(sl.kind || ''), sw: sl.sw };
+    var n = parseFloat(sl.opacity);
+    o.opacity = (isFinite(n) && n >= 0.01 && n <= 1) ? n : WM_DEFAULT;
+    return o;
+  }
   function _brandFill(r) {
     r = r || {};
     var t = r.title || {};
     return {
-      watermark: r.watermark || null,
+      watermark: r.watermark ? _fillSlot(r.watermark) : null,
       sidebar:   r.sidebar   || null,
       header:    r.header    || null,
       title: {
@@ -1277,6 +1317,12 @@
             : '<span class="rrap-tileicon">🖼</span><span class="rrap-tiletxt">add</span>')
         + '</div>'
         + '<div class="rrap-tlabel"><b>' + s[1] + '</b><span>' + s[2] + '</span></div>'
+        + (key === 'watermark' && slot && slot.data
+            ? '<label class="rrap-wmwrap"><span class="rrap-flab">How faint</span>'
+              + '<input class="rrap-wm" type="range" min="2" max="40" step="1" value="'
+              + Math.round((slot.opacity || WM_DEFAULT) * 100) + '"'
+              + ' oninput="window._rrapWmSet(this.value)"></label>'
+            : '')
         + (slot && slot.data
             ? '<div class="rrap-lbtns">'
               + '<button class="rrap-lbtn" onclick="window._rrapSlotPalette(\'' + key + '\')" title="Build the colours from this mark">🎨</button>'
@@ -1382,6 +1428,10 @@
       + '<div class="rrap-hint" style="margin-top:0.3rem">Owned-green and wanted-blue are left alone on purpose — they mean something.</div></div>';
   }
 
+  function _refreshPresets() {
+    var pl = document.getElementById('rrap-presets');
+    if (pl) pl.innerHTML = _presetPills();
+  }
   function _refreshPanel() {
     var left = document.getElementById('rrap-colourbox');
     if (left) left.innerHTML = _leftPanelHtml();
@@ -1409,6 +1459,11 @@
                       function () { _resetVar(v); });
   };
   window._rrapRoleColor = function (v, hex) { _rrApplyRole(v, hex); };
+  window._rrapWmSet = function (pct) {
+    var v = Math.min(1, Math.max(0.01, (parseFloat(pct) || 5) / 100));
+    _brandEdit(function (r) { if (r.watermark) r.watermark.opacity = v; });
+    _paintCandidate();
+  };
   window._rrapTitleToggle = function (field) {
     var cur = _brandNow().title[field];
     _brandEdit(function (r) { r.title[field] = !cur; });
@@ -1606,7 +1661,8 @@
       // it. That reproduces the real watermark's 5% strength honestly —
       // showing the logo at full strength here would promise something the
       // app never delivers.
-      var wash = 'color-mix(in srgb,var(--bg) 95%,transparent)';
+      var pct = Math.round(100 - (wm && wm.opacity ? wm.opacity : WM_DEFAULT) * 100);
+      var wash = 'color-mix(in srgb,var(--bg) ' + pct + '%,transparent)';
       replica.style.backgroundImage = on
         ? 'linear-gradient(' + wash + ',' + wash + '),url(' + wm.data + ')' : '';
       replica.style.backgroundRepeat = 'no-repeat';
@@ -1669,10 +1725,11 @@
     if (!el) {
       el = document.createElement('div'); el.id = 'rr-logo-bg';
       el.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:1;'
-        + 'background-position:center;background-repeat:no-repeat;background-size:min(55vmin,420px);opacity:0.05';
+        + 'background-position:center;background-repeat:no-repeat;background-size:min(55vmin,420px)';
       document.body.appendChild(el);
     }
     el.style.backgroundImage = 'url(' + slot.data + ')';
+    el.style.opacity = String(slot.opacity || WM_DEFAULT);
   }
   window.applyLogoBackdrop = applyLogoBackdrop;
 
@@ -1798,15 +1855,30 @@
     var ov = document.getElementById('rrap');
     _refreshPanel();
   };
+  // ONE writer for a saved look, used by "Save current…" and by Apply.
+  function _storePreset(name) {
+    name = String(name || '').slice(0, 24).trim();
+    if (!name) return '';
+    var up = _userPresets(), map = {};
+    EDIT_VARS.forEach(function (e) { map[e[0]] = _cur(e[0]); });
+    DERIVED_VARS.forEach(function (v) { var c = _cur(v); if (c) map[v] = c; });
+    up[name] = map;
+    try { localStorage.setItem(USER_PRESETS_KEY, JSON.stringify(up)); } catch (e2) {}
+    _activePreset = name;
+    _refreshPresets();
+    return name;
+  }
+  // "My look 2", "My look 3"… so the name box is never empty and cancelling
+  // is a real choice rather than the only way past a blank field.
+  function _nextLookName() {
+    var up = _userPresets(), n = 1;
+    while (up['My look ' + n]) n++;
+    return 'My look ' + n;
+  }
+
   window._rrapSavePreset = function () {
     var go = function (name) {
-      if (!name) return;
-      var up = _userPresets(); var map = {};
-      EDIT_VARS.forEach(function (e) { map[e[0]] = _cur(e[0]); });
-      up[String(name).slice(0, 24)] = map;
-      try { localStorage.setItem(USER_PRESETS_KEY, JSON.stringify(up)); } catch (e2) {}
-      var pl = document.getElementById('rrap-presets');
-      if (pl) pl.innerHTML = _presetPills();
+      if (!_storePreset(name)) return;
       if (typeof showToast === 'function') showToast('Saved as “' + String(name).slice(0, 24) + '” — it is in the row above', 3200);
     };
     // Brad: "save current doesn't do anything. it should let me make a name
@@ -1904,17 +1976,41 @@
     _dropDraft();
   }
 
+  // Brad: "when you hit apply it, you need to save it either as the one you
+  // were working on, or as a new one."
+  //
+  // Applying used to make a look the current one and nothing else — so a look
+  // you had spent time on existed only as "whatever the app is wearing", and
+  // the next thing you built replaced it with no way back. Apply now also
+  // files it in the row: over the look you were working on if there was one,
+  // otherwise under a name it asks for.
   window._rrapApply = function () {
-    var map = {}; EDIT_VARS.forEach(function (e) { map[e[0]] = _cur(e[0]); });
-    // The derived shades are not editor boxes, but they ARE part of the look
-    // and must be replayed on every boot like everything else.
-    DERIVED_VARS.forEach(function (v) { var c = _cur(v); if (c) map[v] = c; });
-    _persist(map);
-    _commitBrand();
-    _saved = true;
-    _endPreview();
-    _teardown();
-    if (typeof showToast === 'function') showToast('Saved — this is your look now. Preferences → Theme switches back any time.', 3800);
+    var finish = function (extra) {
+      var map = {}; EDIT_VARS.forEach(function (e) { map[e[0]] = _cur(e[0]); });
+      // The derived shades are not editor boxes, but they ARE part of the look
+      // and must be replayed on every boot like everything else.
+      DERIVED_VARS.forEach(function (v) { var c = _cur(v); if (c) map[v] = c; });
+      _persist(map);
+      _commitBrand();
+      _saved = true;
+      _endPreview();
+      _teardown();
+      if (typeof showToast === 'function') {
+        showToast('This is your look now' + (extra || '') + '. Preferences → Theme switches back any time.', 4200);
+      }
+    };
+    if (_activePreset) {
+      _storePreset(_activePreset);
+      finish(', and “' + _activePreset + '” is up to date');
+      return;
+    }
+    if (typeof appPrompt !== 'function') { finish(''); return; }
+    appPrompt('Name this look so you can come back to it later. Leave it if you would rather not keep it.',
+      _nextLookName(), { title: 'Apply and save this look', ok: 'Apply', cancel: 'Apply without saving' })
+      .then(function (name) {
+        var saved = _storePreset(name);
+        finish(saved ? ', saved as “' + saved + '”' : ' — not saved to the row above');
+      });
   };
   window._rrapEdit = function () {
     _endPreview();

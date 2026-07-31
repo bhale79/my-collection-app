@@ -2966,8 +2966,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
     // The watermark: faint, untouchable, removable, and applied on boot
     // regardless of APPEARANCE_ENABLED (a saved look outlives the editor).
-    ok('the watermark can never block a tap and stays faint',
-       /pointer-events:none/.test(ap9) && /opacity:0\.05/.test(ap9));
+    // v0.9.1229, Brad: "water mark needs a transparency slide." 5% was the
+    // fixed value from the day it was built; it is the default now, not the
+    // only option.
+    ok('the watermark can never block a tap, and is as faint as you set it',
+       /pointer-events:none/.test(ap9) && /var WM_DEFAULT = 0\.05;/.test(ap9) &&
+       /el\.style\.opacity = String\(slot\.opacity \|\| WM_DEFAULT\)/.test(ap9));
     // v0.9.1209: there is no watermark on/off toggle any more — the slot
     // either holds a mark or it does not, which is one fact instead of two.
     ok('an empty watermark slot removes the element',
@@ -7629,6 +7633,48 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /function _rrApplyRole[\s\S]*?_rrReadableText\(_cur\('--bg'\), _cur\('--text'\)\)/.test(ap));
     ok('assigning a background carries its panels and lines with it',
        /if \(v === '--bg'\) \{\s*\n\s*var d = _rrDeriveFromBg\(hex\);/.test(ap));
+    // ── v0.9.1229: three things Brad asked for on the presets row ───────
+    ok('the watermark carries its own faintness, defaulted not hardcoded',
+       /var WM_DEFAULT = 0\.05;/.test(ap) && /function _fillSlot\(sl\)/.test(ap) &&
+       /o\.opacity = \(isFinite\(n\) && n >= 0\.01 && n <= 1\) \? n : WM_DEFAULT/.test(ap));
+    ok('…with a slider on the watermark box and nowhere else',
+       /key === 'watermark' && slot && slot\.data/.test(ap) &&
+       /window\._rrapWmSet = function/.test(ap));
+    ok('a saved look can be deleted, and it asks first',
+       /title: 'Delete saved look'/.test(ap) &&
+       /\.then\(function \(yes\) \{ if \(yes\) drop\(\); \}\)/.test(ap));
+    ok('…from a real button, not a span you have to hunt for',
+       /<button class="rrap-del" type="button"/.test(ap) &&
+       /\.rrap-del\{[^}]*width:18px/.test(ap));
+    ok('the look you are on is highlighted',
+       /name === _activePreset \? ' rrap-preset-on' : ''/.test(ap) &&
+       /\.rrap-preset-on\{[^}]*border-color:var\(--p-accent\)/.test(ap));
+    ok('…and stops being highlighted the moment you change a colour by hand',
+       /if \(!derived && !_loadingPreset && _activePreset\) \{ _activePreset = ''; _refreshPresets\(\); \}/.test(ap) &&
+       /_loadingPreset = true;/.test(ap));
+    ok('saving a look leaves you working on it',
+       /function _storePreset\(name\)/.test(ap) && /_activePreset = name;/.test(ap));
+    // v0.9.1229, Brad: "when you hit apply it, you need to save it either as
+    // the one you were working on, or as a new one." Applying used to make a
+    // look current and nothing else, so it existed only as "whatever the app
+    // is wearing" and the next one replaced it with no way back.
+    ok('Apply files the look over the one you were working on…',
+       /if \(_activePreset\) \{\s*\n\s*_storePreset\(_activePreset\);/.test(ap));
+    ok('…or asks for a name, with one already filled in',
+       /title: 'Apply and save this look'/.test(ap) && /function _nextLookName\(\)/.test(ap) &&
+       /while \(up\['My look ' \+ n\]\) n\+\+;/.test(ap));
+    ok('…and applying without saving is still allowed, and says so',
+       /cancel: 'Apply without saving'/.test(ap) &&
+       /saved \? ', saved as “' \+ saved \+ '”' : ' — not saved to the row above'/.test(ap));
+    ok('one writer files a saved look, so Save current and Apply cannot drift',
+       (ap.match(/_storePreset\(/g) || []).length === 4 &&
+       (ap.match(/localStorage\.setItem\(USER_PRESETS_KEY/g) || []).length === 2);
+    ok('a saved look carries the derived shades too, or it reloads wrong',
+       /function _storePreset[\s\S]{0,400}DERIVED_VARS\.forEach/.test(ap));
+    ok('one place redraws the row of looks',
+       /function _refreshPresets\(\)/.test(ap) &&
+       (ap.match(/innerHTML = _presetPills\(\)/g) || []).length === 1);
+
     ok('the swatches survive a reload with the logo',
        /sw: _swatches/.test(ap) && /function _savedSwatches/.test(ap));
 
@@ -7666,7 +7712,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // it. v1209 keeps that fix while growing to three slots. These tests RUN
     // the real state machine, because a grep would not have caught the
     // original bug either.
-    const s1 = ap.slice(ap.indexOf('function _brandFill('), ap.indexOf('function _savedSwatches'));
+    // Slice from WM_DEFAULT: _brandFill now leans on _fillSlot and that
+    // constant, and a slice that starts below them runs on a missing piece.
+    const s1 = ap.slice(ap.indexOf('var WM_DEFAULT'), ap.indexOf('function _savedSwatches'));
     const s2 = ap.slice(ap.indexOf('function _commitBrand()'), ap.indexOf('window._rrapApply = function'));
     ok('the brand state machine is findable in one piece', s1.length > 400 && s2.length > 100);
 
@@ -7807,8 +7855,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /_dropDraft\(\);\s*\n\s*_swatches = _savedSwatches\(\)/.test(ap));
     ok('the boot path still reads the SAVED record, never a draft',
        /if \(rec === undefined\) rec = _brandRec\(\);/.test(ap));
-    ok('the preview replica shows the watermark as faint as it really is',
-       /color-mix\(in srgb,var\(--bg\) 95%,transparent\)/.test(ap));
+    ok('the preview replica shows the watermark as faint as you have set it',
+       /var pct = Math\.round\(100 - \(wm && wm\.opacity \? wm\.opacity : WM_DEFAULT\) \* 100\)/.test(ap) &&
+       /color-mix\(in srgb,var\(--bg\) ' \+ pct \+ '%,transparent\)/.test(ap));
   })();
 
   section('176. The three homes, and the line you type (v0.9.1209)');
@@ -7842,7 +7891,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // v0.9.1213, Brad: "also need titles to the pick boxes for font, text
     // color, and border." A control with no label is a guess.
     ok('every header-line control sits in a labelled field',
-       (ap.match(/class="rrap-flab">/g) || []).length === 6 &&
+       (ap.match(/class="rrap-flab">/g) || []).length === 7 &&
        /Header line — the words<\/span>/.test(ap) && /Typeface<\/span>/.test(ap) &&
        /Border<\/span>/.test(ap) && /Text colour<\/span>/.test(ap) &&
        /Size<\/span>/.test(ap) && /Style<\/span>/.test(ap));
@@ -8187,7 +8236,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
           // the definitions themselves, not calls
           if (/function\s+$/.test(src.slice(Math.max(0, m.index - 10), m.index))) continue;
           const awaited = /await\s*$/.test(src.slice(Math.max(0, m.index - 8), m.index));
-          const chained = /^\s*\.then/.test(src.slice(i, i + 14));
+          const chained = /^\s*\.then/.test(src.slice(i, i + 60));
           if (!awaited && !chained) {
             bad.push(f + ':' + src.slice(0, m.index).split('\n').length);
           }
