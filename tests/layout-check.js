@@ -77,7 +77,7 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
         const padR = parseFloat(cs.paddingRight) || 0, padB = parseFloat(cs.paddingBottom) || 0;
         const off = [];
         // Every visible thing in the editor must be on the screen.
-        ov.querySelectorAll('.rrap-chip, .rrap-logotile, .rrap-role, .rrap-swb, .rrap-btn, .rrap-tin, .rrap-tsel, .rrap-rc, .rrap-preset')
+        ov.querySelectorAll('.rrap-logotile, .rrap-role, .rrap-swb, .rrap-btn, .rrap-tin, .rrap-tsel, .rrap-rc, .rrap-preset')
           .forEach(function (el) {
             const b = el.getBoundingClientRect();
             if (b.width === 0 && b.height === 0) return;      // a hidden scene
@@ -87,21 +87,8 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
                 + Math.round(b.right) + ',' + Math.round(b.bottom) + ']');
             }
           });
-        // A chip sitting ON the preview is what "clustered" looks like, and
-        // a column of chips running far below it is the same fault seen
-        // from the other side. Both are measurable; neither is greppable.
         const app = document.getElementById('ra-app');
         const ar = app ? app.getBoundingClientRect() : null;
-        const overlap = [], docks = { l: 0, r: 0 };
-        let lowest = 0;
-        document.querySelectorAll('#rrap-scene-dash .rrap-chip').forEach(function (c) {
-          const b = c.getBoundingClientRect();
-          if (!b.width) return;
-          docks[c.dataset.dock === 'l' ? 'l' : 'r']++;
-          lowest = Math.max(lowest, b.bottom);
-          if (ar && b.right > ar.left + 1 && b.left < ar.right - 1 &&
-              b.bottom > ar.top + 1 && b.top < ar.bottom - 1) overlap.push(c.dataset.var);
-        });
         // Brad: "also need titles to the pick boxes for font, text color, and
         // border." A control with no label is a guess, so every one of them
         // must sit inside a label that has visible words in it.
@@ -125,30 +112,6 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
         // …and the preview should sit in the middle of the room it has,
         // not pinned to the top with a void beneath it.
         const gapTop = sr.top - wr.top, gapBot = wr.bottom - sr.bottom;
-        // "spread them out!" — measurable: the column should cover most of
-        // the picture's height, and the gaps between chips should be even.
-        const spread = { l: null, r: null };
-        ['l', 'r'].forEach(function (side) {
-          const col = [].slice.call(document.querySelectorAll(
-            '#rrap-scene-dash .rrap-chip[data-dock="' + side + '"]'))
-            .map(function (c) { return c.getBoundingClientRect(); })
-            .filter(function (b) { return b.height; })
-            .sort(function (a, b) { return a.top - b.top; });
-          if (col.length < 2 || !ar) return;
-          const gaps = [];
-          for (let i = 1; i < col.length; i++) gaps.push(col[i].top - col[i - 1].bottom);
-          // Coverage alone does NOT tell packed from spread — five chips
-          // packed at 12px already cover ~82% of the picture, and their
-          // gaps are perfectly even. What actually differs is BALANCE: a
-          // packed column hugs the top and leaves all the slack underneath.
-          spread[side] = {
-            n: col.length,
-            coverage: (col[col.length - 1].bottom - col[0].top) / ar.height,
-            imbalance: Math.round(Math.abs((col[0].top - ar.top) -
-                                           (ar.bottom - col[col.length - 1].bottom))),
-            gapSpread: Math.round(Math.max.apply(null, gaps) - Math.min.apply(null, gaps))
-          };
-        });
         // Brad circled the three mark boxes: "when i say spread it out, i
         // mean whats circled in red." They must use the strip's width, not
         // huddle in the middle of it.
@@ -165,15 +128,11 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
         }
         return {
           tileSpan: tileSpan, tileGapSpread: tileGapSpread, tileW: tileW,
-          spread: spread,
           stripOrderOk: secs.length === 2 &&
             !!secs[0].querySelector('.rrap-trow') && !!secs[1].querySelector('.rrap-tiles'),
           stripCentred: centred,
           previewOffCentre: Math.round(Math.abs(gapTop - gapBot)),
           unlabelled: unlabelled,
-          chipsOverlapPreview: overlap,
-          dockSkew: Math.abs(docks.l - docks.r),
-          chipsBelowPreview: ar ? Math.round(lowest - ar.bottom) : 0,
           overflowX: sr.right > wr.right - padR + 1,
           overflowY: sr.bottom > wr.bottom - padB + 1,
           editorScrolls: ov.scrollHeight > ov.clientHeight + 1,
@@ -193,12 +152,6 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
          'x=' + r.overflowX + ' y=' + r.overflowY + ' scale=' + r.scale);
       ok(at + ': the editor does not scroll', !r.editorScrolls);
       ok(at + ': the colour box fits without scrolling', !r.leftScrolls);
-      ok(at + ': no chip sits on top of the preview',
-         r.chipsOverlapPreview.length === 0, r.chipsOverlapPreview.join(', '));
-      ok(at + ': the chips are shared evenly between the two sides',
-         r.dockSkew <= 2, 'skew=' + r.dockSkew);
-      ok(at + ': the chips do not run far below the preview',
-         r.chipsBelowPreview <= 40, r.chipsBelowPreview + 'px below');
       ok(at + ': every pick box says what it is for',
          r.unlabelled.length === 0, r.unlabelled.join(', '));
       ok(at + ': the header line sits above the three mark boxes',
@@ -212,14 +165,50 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
          r.stripCentred);
       ok(at + ': the preview sits in the middle of its space, not pinned to the top',
          r.previewOffCentre <= 4, r.previewOffCentre + 'px off centre');
-      ['l', 'r'].forEach(function (side) {
-        const sp = r.spread[side];
-        if (!sp) return;
-        ok(at + ': the ' + (side === 'l' ? 'left' : 'right') + ' chips are spread down the preview, not packed at the top',
-           sp.imbalance <= 6, 'top and bottom slack differ by ' + sp.imbalance + 'px');
-        ok(at + ': …with even gaps between them',
-           sp.gapSpread <= 3, 'gaps vary by ' + sp.gapSpread + 'px');
+      // Brad: "hover over certain areas and it hightlights all the area that
+      // would change if i picked it. Then let me click it, and the color
+      // picker pops up." Both halves are measurable.
+      const hov = await page.evaluate(() => {
+        const stage = document.getElementById('rrap-stage');
+        const app = document.getElementById('ra-app');
+        if (!stage || !app) return { err: 'no preview' };
+        const fire = (el, type, pt) => {
+          const b = el.getBoundingClientRect();
+          const x = pt ? pt.x : b.left + b.width / 2, y = pt ? pt.y : b.top + b.height / 2;
+          el.dispatchEvent(new MouseEvent(type, { clientX: x, clientY: y, bubbles: true }));
+          return { x, y };
+        };
+        // Hover the header bar: everything painted with that colour lights up.
+        const head = document.getElementById('ra-head');
+        const hb = head.getBoundingClientRect();
+        fire(stage, 'mousemove', { x: hb.left + 6, y: hb.top + hb.height / 2 });
+        const lit = document.querySelectorAll('#rrap-stage .rrap-hl').length;
+        const tip = document.getElementById('rrap-tip');
+        const tipText = tip ? tip.textContent : '';
+        const tr = tip ? tip.getBoundingClientRect() : null;
+        const tipOn = !!tr && tr.left >= -1 && tr.top >= -1 &&
+                      tr.right <= innerWidth + 1 && tr.bottom <= innerHeight + 1;
+        // Click a hairline: a row's border sits on a panel on a background,
+        // so the chooser must appear rather than a guess being made.
+        const row = document.getElementById('ra-border');
+        const rb = row.getBoundingClientRect();
+        fire(stage, 'click', { x: rb.left + 40, y: rb.bottom - 1 });
+        const what = document.getElementById('rrap-what');
+        const opts = what ? what.querySelectorAll('.rrap-whatbtn').length : 0;
+        const wr = what ? what.getBoundingClientRect() : null;
+        const whatOn = !!wr && wr.left >= -1 && wr.top >= -1 &&
+                       wr.right <= innerWidth + 1 && wr.bottom <= innerHeight + 1;
+        if (what) what.remove();
+        return { lit, tipText, tipOn, opts, whatOn, chips: document.querySelectorAll('.rrap-chip').length };
       });
+      ok(at + ': hovering the preview lights up everything that colour touches',
+         !hov.err && hov.lit >= 2, hov.err || (hov.lit + ' lit'));
+      ok(at + ': …and names it, on the screen',
+         /Panels/.test(hov.tipText || '') && !!hov.tipOn, JSON.stringify(hov.tipText));
+      ok(at + ': clicking a hairline asks what you meant instead of guessing',
+         hov.opts >= 2 && !!hov.whatOn, hov.opts + ' options');
+      ok(at + ': the chips and leader lines are gone', hov.chips === 0);
+
       // The picker Brad asked for: it has to open beside what you clicked,
       // stay on the screen, and offer a way back. A picker that opens half
       // off the edge is worse than the browser's own.

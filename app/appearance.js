@@ -185,17 +185,6 @@
     catch (e) { return {}; }
   }
 
-  function _chipHtml(v, label, sub) {
-    return '<div class="rrap-chip" data-var="' + v + '">'
-      + '<span class="rrap-cs"><span class="rrap-cface" style="background:var(' + v + ')"></span></span>'
-      + '<span class="rrap-cl"><b>' + label + '</b><span>' + sub + '</span></span></div>';
-  }
-  function _chips(list) {
-    return list.map(function (v) {
-      var d = EDIT_VARS.filter(function (e) { return e[0] === v; })[0];
-      return d ? _chipHtml(d[0], d[1], d[2]) : '';
-    }).join('');
-  }
 
   // ── the two approved scenes; replicas use the app's real variables ──
   function _sceneDash() {
@@ -203,7 +192,7 @@
       + '<div class="rrap-app" id="ra-app" data-c="bg">'
       +  '<div class="rrap-apph" id="ra-head" data-c="surface"><span class="rrap-logo" data-c="text">THE RAIL <i data-c="accent">ROSTER</i></span><span id="ra-brand-head" class="rrap-rhead"></span></div>'
       +  '<div class="rrap-body">'
-      +   '<div class="rrap-side" data-c="surface"><div class="rrap-nav rrap-navon" id="ra-nav" data-c="accent">Dashboard</div><div class="rrap-nav">My Collection</div><div class="rrap-nav">Want / Upgrade</div><div class="rrap-nav">For Sale</div><div id="ra-brand-side" class="rrap-rside"></div></div>'
+      +   '<div class="rrap-side" data-c="surface"><div class="rrap-nav rrap-navon" id="ra-nav" data-c="accent">Dashboard</div><div class="rrap-nav" data-c="text-mid">My Collection</div><div class="rrap-nav" data-c="text-mid">Want / Upgrade</div><div class="rrap-nav" data-c="text-mid">For Sale</div><div id="ra-brand-side" class="rrap-rside"></div></div>'
       +   '<div class="rrap-content">'
       +    '<div class="rrap-acts">'
       +     '<span class="rrap-act" style="color:var(--green);border-color:var(--green)" id="ra-green" data-c="green">＋ COLLECTION</span>'
@@ -224,7 +213,6 @@
       +   '</div>'
       +  '</div>'
       + '</div>'
-      + _chips(['--bg', '--surface', '--text', '--border', '--accent', '--accent2', '--green', '--want', '--forsale', '--accent3'])
       + '</div>';
   }
   function _sceneWiz() {
@@ -241,15 +229,9 @@
       +   '<div class="rrap-wf"><span class="rrap-wbtn">CANCEL</span><span class="rrap-wbtn rrap-go" id="rw-next" data-c="accent">NEXT →</span></div>'
       +  '</div>'
       + '</div>'
-      + _chips(['--accent', '--bg', '--surface2', '--text', '--want'])
       + '</div>';
   }
 
-  // chip → what it points at, per scene (ids above)
-  var TARGETS = {
-    'rrap-scene-dash': { '--bg': 'ra-app', '--surface': 'ra-head', '--text': 'ra-stat', '--border': 'ra-border', '--accent': 'ra-inum', '--accent2': 'ra-gold', '--green': 'ra-green', '--want': 'ra-want', '--forsale': 'ra-fs', '--accent3': 'ra-upg' },
-    'rrap-scene-wiz':  { '--accent': 'rw-bar', '--bg': 'rw-card', '--surface2': 'rw-input', '--text': 'rw-title', '--want': 'rw-photo' },
-  };
 
   function _presetPills() {
     var user = _userPresets();
@@ -317,6 +299,7 @@
     +   '.rrap-tiles{gap:0.6rem}'
     +   '.rrap-bottom .rrap-hint,.rrap-bottom .rrap-lnote{display:none}'
     +   '.rrap-tlabel span{display:none}'
+    +   '.rrap-top .rrap-sub{display:none}'
     + '}'
     + '.rrap-lbtns{display:flex;gap:0.3rem;flex-wrap:wrap}'
     + '.rrap-lbtn{font-size:0.66rem;padding:0.32rem 0.55rem;border-radius:7px;border:1px solid var(--p-line-hi);background:var(--p-panel2);color:var(--p-ink);cursor:pointer}'
@@ -349,19 +332,30 @@
     // The wrapper clips; the stage scales to fit inside it. Brad: "size the
     // box with the app background in such a way that there is not scrolling."
     + '.rrap-stagewrap{flex:1;min-height:0;overflow:hidden;padding:1.1rem;display:flex;align-items:center;justify-content:center}'
-    + '.rrap-stage{position:relative;box-sizing:border-box;width:100%;min-width:1020px;border:1px solid var(--p-line-hi);border-radius:0 14px 14px 14px;background:var(--p-panel2);padding:26px 208px;transform-origin:center}'
-    + '.rrap-wires{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5}'
-    + '.rrap-wires line{stroke-width:1.5;stroke-dasharray:4 3;opacity:0.85}'
+    + '.rrap-stage{position:relative;box-sizing:border-box;width:100%;min-width:760px;border:1px solid var(--p-line-hi);border-radius:0 14px 14px 14px;background:var(--p-panel2);padding:22px;transform-origin:center}'
     + '.rrap-scene{display:none}.rrap-scene.rrap-on{display:block}'
-    + '.rrap-chip{position:absolute;z-index:10;box-sizing:border-box;width:186px;display:flex;align-items:center;gap:0.45rem;background:var(--p-panel);border:1px solid var(--p-line-hi);border-radius:10px;padding:0.3rem 0.45rem;box-shadow:0 4px 14px rgba(0,0,0,0.14);cursor:pointer}'
-    + '.rrap-chip:hover{border-color:var(--p-accent)}'
     + '.rrap-cs{position:relative;width:30px;height:24px;flex:none}'
-    + '.rrap-chip input[type=color]{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}'
     + '.rrap-cface{position:absolute;inset:0;border-radius:6px;border:1.5px solid var(--p-line-hi);pointer-events:none}'
     + '.rrap-cl{font-size:0.6rem;line-height:1.2;color:var(--p-ink);min-width:0}'
     + '.rrap-cl b{display:block;font-size:0.67rem}'
     + '.rrap-cl span{display:block;color:var(--p-ink-dim);font-size:0.54rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
-    + '.rrap-hl{outline:2px solid var(--p-ink) !important;outline-offset:2px}'
+    + '.rrap-stage{cursor:pointer}'
+    + '.rrap-hl{outline:2px dashed var(--p-accent) !important;outline-offset:1px}'
+    + '#rrap-tip{position:fixed;z-index:100062;pointer-events:none;background:var(--p-panel);color:var(--p-ink);'
+    +   'border:1px solid var(--p-line-hi);border-radius:9px;padding:0.3rem 0.55rem;font-family:var(--font-body);'
+    +   'font-size:0.7rem;line-height:1.25;box-shadow:0 6px 20px var(--scrim)}'
+    + '#rrap-tip b{display:block;font-size:0.76rem}'
+    + '#rrap-tip span{color:var(--p-ink-dim);font-size:0.62rem}'
+    + '#rrap-what{position:fixed;z-index:100061;background:var(--p-panel);color:var(--p-ink);'
+    +   'border:1px solid var(--p-line-hi);border-radius:12px;padding:0.45rem;min-width:190px;'
+    +   'font-family:var(--font-body);box-shadow:0 12px 34px var(--scrim)}'
+    + '.rrap-whatlab{font-size:0.58rem;letter-spacing:0.07em;text-transform:uppercase;color:var(--p-ink-dim);padding:0.15rem 0.4rem 0.35rem}'
+    + '.rrap-whatbtn{display:flex;align-items:center;gap:0.5rem;width:100%;text-align:left;padding:0.35rem 0.4rem;'
+    +   'border:none;background:none;color:var(--p-ink);font-family:var(--font-body);font-size:0.76rem;cursor:pointer;border-radius:8px}'
+    + '.rrap-whatbtn:hover{background:var(--p-panel2)}'
+    + '.rrap-whatbtn b{display:block}'
+    + '.rrap-whatbtn span span{display:block;color:var(--p-ink-dim);font-size:0.62rem}'
+    + '.rrap-whatsw{width:20px;height:20px;border-radius:5px;border:1px solid var(--p-line);flex:none}'
     // the shared colour picker
     + '#rrap-pal{position:fixed;z-index:100060;background:var(--p-panel);color:var(--p-ink);'
     +   'border:1px solid var(--p-line-hi);border-radius:12px;padding:0.6rem;'
@@ -443,7 +437,7 @@
     var ov = document.createElement('div'); ov.id = 'rrap';
     ov.innerHTML =
       '<div class="rrap-top"><div><h2>🎨 Appearance</h2>'
-      + '<div class="rrap-sub">Build a look here — the app itself does not change until you press Preview.</div></div>'
+      + '<div class="rrap-sub">Point at the picture to see what a colour controls, then click to change it. Nothing changes in the app until you press Preview.</div></div>'
       + '<div class="rrap-actions">'
       + '<button class="rrap-btn" onclick="window._rrapReset()">Reset to Default</button>'
       + '<button class="rrap-btn" onclick="window._rrapExport()">Export</button>'
@@ -460,7 +454,6 @@
       +    '<div class="rrap-tab" data-scene="wiz">🪟 Add Item Pop-up</div>'
       +   '</div>'
       +   '<div class="rrap-stagewrap"><div class="rrap-stage" id="rrap-stage">'
-      +    '<svg class="rrap-wires" id="rrap-wires"></svg>'
       +    _sceneDash() + _sceneWiz()
       +   '</div></div>'
       +  '</div>'
@@ -469,7 +462,6 @@
     document.body.appendChild(ov);
     if (window.BackStack && BackStack.wire) BackStack.wire(ov);
 
-    _wireChips(ov);
     ov.querySelectorAll('.rrap-tab').forEach(function (t) {
       t.addEventListener('click', function () {
         ov.querySelectorAll('.rrap-tab').forEach(function (x) { x.classList.toggle('rrap-on', x === t); });
@@ -489,7 +481,7 @@
       }
       if (!pill) return;
       var map = BUILTIN_PRESETS[pill.dataset.preset] || _userPresets()[pill.dataset.preset];
-      if (map) { Object.keys(map).forEach(function (k) { _set(k, map[k]); }); _refreshRoles(); _wires(); }
+      if (map) { Object.keys(map).forEach(function (k) { _set(k, map[k]); }); _refreshRoles(); }
     });
 
     _wireLogoInput();
@@ -498,6 +490,12 @@
     document.addEventListener('dragleave', _onDrag);
     document.addEventListener('drop', _onDrop);
 
+    var stg = document.getElementById('rrap-stage');
+    if (stg) {
+      stg.addEventListener('mousemove', _onStageMove);
+      stg.addEventListener('mouseleave', _onStageLeave);
+      stg.addEventListener('click', _onStageClick);
+    }
     window.addEventListener('resize', _onResize);
     requestAnimationFrame(_relayout);
     setTimeout(_relayout, 300);
@@ -510,26 +508,6 @@
     }
   }
 
-  function _wireChips(ov) {
-    ov.querySelectorAll('.rrap-chip').forEach(function (ch) {
-      var v = ch.dataset.var;
-      ch.addEventListener('mouseenter', function () {
-        var key = v.replace('--', '');
-        ov.querySelectorAll('[data-c="' + key + '"]').forEach(function (e) { e.classList.add('rrap-hl'); });
-        _wires(ch);
-      });
-      ch.addEventListener('mouseleave', function () {
-        ov.querySelectorAll('.rrap-hl').forEach(function (e) { e.classList.remove('rrap-hl'); });
-        _wires();
-      });
-      ch.addEventListener('click', function () {
-        _openPal(ch, _cur(v), function (hex) {
-          _set(v, hex); _refreshPanel(); _wires();
-        }, function () { _resetVar(v); });
-      });
-    });
-  }
-
   // "Back to default" for one variable: drop this session's override and let
   // whatever the app is actually wearing show through again.
   function _resetVar(v) {
@@ -537,7 +515,7 @@
     var st = _stage();
     if (st) st.style.removeProperty(v);
     if (_preview) _root.style.removeProperty(v);
-    _refreshPanel(); _wires();
+    _refreshPanel();
   }
 
   // ── the phone sheet: presets only ────────────────────────────────
@@ -564,14 +542,12 @@
   function _onResize() { if (document.getElementById('rrap')) _relayout(); }
 
   // Measure unscaled, then scale. Doing it in this order means _layout never
-  // has to know about the transform, and only _wires divides by it.
+  // has to know about the transform.
   function _relayout() {
     var st = _stage(); if (!st) return;
     st.style.transform = 'none';
     _scale = 1;
-    _layout();
     _fitStage();
-    _wires();
   }
 
   function _fitStage() {
@@ -595,91 +571,6 @@
     st.style.transform = 'scale(' + _scale + ')';
   }
 
-  // dock each chip to the gutter nearest its target; stack in target order —
-  // same order on both ends means the lines cannot cross (mock v2.1 rule).
-  function _layout() {
-    var stage = _stage(); if (!stage) return;
-    var scene = stage.querySelector('.rrap-scene.rrap-on'); if (!scene) return;
-    var sr = stage.getBoundingClientRect();
-    var tmap = TARGETS[scene.id] || {};
-    var info = [];
-    scene.querySelectorAll('.rrap-chip').forEach(function (ch) {
-      var t = document.getElementById(tmap[ch.dataset.var] || '');
-      if (!t) return;
-      var r = t.getBoundingClientRect();
-      info.push({ ch: ch, t: t,
-        dock: (r.left - sr.left) < (sr.right - r.right) ? 'l' : 'r',
-        // how far this target sits from the stage's own middle — the
-        // tie-break when one side is carrying too many
-        mid: Math.abs((r.left + r.right) / 2 - (sr.left + sr.right) / 2),
-        ty: r.top + r.height / 2 - sr.top });
-    });
-    // Even the two columns out. A target near the middle has the least
-    // reason to prefer either side, so those are the ones that move.
-    var half = Math.ceil(info.length / 2);
-    ['l', 'r'].forEach(function (side) {
-      var over = info.filter(function (i) { return i.dock === side; });
-      if (over.length <= half) return;
-      over.sort(function (a, b) { return b.mid - a.mid; });
-      over.slice(half).forEach(function (i) { i.dock = (side === 'l') ? 'r' : 'l'; });
-    });
-    // Brad: "spread them out!" They used to stack tight from the top with a
-    // 12px gap and a nudge toward each target, which left the column bunched
-    // in the middle of a picture twice its height. They are now spread down
-    // the FULL height of the thing they point at, evenly. Order is still by
-    // target position, so the leader lines still cannot cross — spreading
-    // changes the spacing, never the sequence.
-    var subject = scene.querySelector('.rrap-app, .rrap-scrim');
-    var top = 30, bottom = 30;
-    if (subject) {
-      var br = subject.getBoundingClientRect();
-      top = br.top - sr.top;
-      bottom = br.bottom - sr.top;
-    }
-    ['l', 'r'].forEach(function (side) {
-      var col = info.filter(function (i) { return i.dock === side; })
-                    .sort(function (a, b) { return a.ty - b.ty; });
-      if (!col.length) return;
-      var totalH = col.reduce(function (a, i) { return a + i.ch.offsetHeight; }, 0);
-      var span = bottom - top;
-      // Even gaps, including one above the first and below the last, so the
-      // column reads as deliberate rather than top-aligned. If the chips are
-      // taller than the picture there is nothing to spread — pack them, and
-      // they simply overhang as before rather than overlapping each other.
-      var gap = (span - totalH) / (col.length + 1);
-      var y = (gap >= 12) ? top + gap : 30;
-      col.forEach(function (i) {
-        i.ch.style.top = Math.round(y) + 'px';
-        i.ch.style.left = side === 'l' ? '14px' : '';
-        i.ch.style.right = side === 'r' ? '14px' : '';
-        i.ch.dataset.dock = side;
-        y += i.ch.offsetHeight + (gap >= 12 ? gap : 12);
-      });
-    });
-  }
-
-  function _wires(hot) {
-    var stage = _stage(), w = document.getElementById('rrap-wires');
-    if (!stage || !w) return;
-    var scene = stage.querySelector('.rrap-scene.rrap-on'); if (!scene) return;
-    // Rects come back in SCREEN pixels, so every delta is multiplied by the
-    // fit scale. The SVG lives in stage coordinates — divide it back out, or
-    // the wires drift further from their dots the smaller the window gets.
-    var k = _scale || 1;
-    var sr = stage.getBoundingClientRect(), tmap = TARGETS[scene.id] || {}, html = '';
-    scene.querySelectorAll('.rrap-chip').forEach(function (ch) {
-      var t = document.getElementById(tmap[ch.dataset.var] || ''); if (!t) return;
-      var c = ch.getBoundingClientRect(), r = t.getBoundingClientRect();
-      var l = ch.dataset.dock === 'l';
-      var x1 = ((l ? c.right : c.left) - sr.left) / k, y1 = (c.top + c.height / 2 - sr.top) / k;
-      var x2 = ((l ? r.left : r.right) - sr.left) / k, y2 = (r.top + r.height / 2 - sr.top) / k;
-      var col = _cur(ch.dataset.var) || NO_COLOUR;
-      var hi = hot === ch;
-      html += '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="' + col + '"' + (hi ? ' stroke-width="2.5" stroke-dasharray="none"' : '') + '/>'
-        + '<circle cx="' + x2 + '" cy="' + y2 + '" r="' + (hi ? 5 : 3.5) + '" fill="' + col + '"/>';
-    });
-    w.innerHTML = html;
-  }
 
   // ── logo → palette (v0.9.1149) ──────────────────────────────────
   // Pure pixel math — no AI, no network. See the note at LOGO_KEY.
@@ -983,12 +874,122 @@
     _armed = -1;
     var map = _paletteFromColors(cols);
     Object.keys(map).forEach(function (k) { _set(k, map[k]); });
-    _wires();
     if (typeof showToast === 'function') {
       showToast('Palette built from your logo — drop any colour on a job below, then Preview'
         + (kind ? '. ' + _rrLogoNote(kind) : ''), 5000);
     }
   }
+
+  // ── point at the thing you want to change (v0.9.1220) ───────────
+  // Brad: "it would be kind of nice if i just hovered over certain areas and
+  // it hightlights all the area that would change if i picked it. Then let me
+  // click it, and the color picker pops up. Then we can get rid of the 'text',
+  // 'sale orange' boxes and lines. it would be cleaner and easier to adjust
+  // what you want."
+  //
+  // He is right, and it deleted more code than it added: the chips, the
+  // leader lines, the docking rule, the column balancing and the spreading
+  // are all gone, and with them the 208px gutters they needed — so the
+  // preview is now nearly twice the size it was.
+  //
+  // Every part of the replica already carried a data-c saying which variable
+  // paints it, for the old hover-highlight. That annotation is now the whole
+  // mechanism.
+  //
+  // The one hard part is small targets: Lines is a one-pixel border. So a
+  // click does not take whatever happens to be on top — it collects EVERY
+  // annotated thing under the pointer and, when there is more than one, asks.
+  // A hairline is never something you have to hit exactly.
+  var _hoverVar = '';
+
+  function _varOf(el) {
+    var k = el && el.dataset && el.dataset.c;
+    return k ? ('--' + k) : '';
+  }
+  // Innermost first: the most specific thing under the pointer is the one a
+  // person means, and the rest are the fallbacks the chooser offers.
+  function _regionsAt(x, y) {
+    var stage = _stage(); if (!stage) return [];
+    var els = document.elementsFromPoint ? document.elementsFromPoint(x, y) : [];
+    var out = [], seen = {};
+    for (var i = 0; i < els.length; i++) {
+      if (!stage.contains(els[i])) continue;
+      var v = _varOf(els[i]);
+      if (v && !seen[v]) { seen[v] = 1; out.push(v); }
+    }
+    return out;
+  }
+  function _labelFor(v) {
+    var d = EDIT_VARS.filter(function (e) { return e[0] === v; })[0];
+    if (d) return { name: d[1], sub: d[2] };
+    if (v === '--text-mid') return { name: 'Quieter text', sub: 'menu labels · captions' };
+    return { name: v.replace('--', ''), sub: '' };
+  }
+  function _highlight(v) {
+    var stage = _stage(); if (!stage) return;
+    if (_hoverVar === v) return;
+    _hoverVar = v;
+    stage.querySelectorAll('.rrap-hl').forEach(function (e) { e.classList.remove('rrap-hl'); });
+    var tip = document.getElementById('rrap-tip');
+    if (!v) { if (tip) tip.remove(); return; }
+    stage.querySelectorAll('[data-c="' + v.replace('--', '') + '"]')
+      .forEach(function (e) { e.classList.add('rrap-hl'); });
+    if (!tip) { tip = document.createElement('div'); tip.id = 'rrap-tip'; document.body.appendChild(tip); }
+    var l = _labelFor(v);
+    tip.innerHTML = '<b>' + l.name + '</b>' + (l.sub ? '<span>' + l.sub + '</span>' : '');
+  }
+  function _onStageMove(e) {
+    var regions = _regionsAt(e.clientX, e.clientY);
+    _highlight(regions[0] || '');
+    var tip = document.getElementById('rrap-tip');
+    if (tip) {
+      var b = tip.getBoundingClientRect();
+      tip.style.left = Math.round(Math.min(e.clientX + 14, window.innerWidth - b.width - 8)) + 'px';
+      tip.style.top = Math.round(Math.max(8, e.clientY - b.height - 12)) + 'px';
+    }
+  }
+  function _onStageLeave() { _highlight(''); }
+
+  function _pickVar(v) {
+    var stage = _stage();
+    var el = stage && stage.querySelector('[data-c="' + v.replace('--', '') + '"]');
+    _openPal(el || stage, _cur(v), function (hex) {
+      _set(v, hex); _refreshPanel();
+    }, function () { _resetVar(v); });
+  }
+
+  function _onStageClick(e) {
+    var regions = _regionsAt(e.clientX, e.clientY);
+    if (!regions.length) return;
+    if (regions.length === 1) { _pickVar(regions[0]); return; }
+    // More than one thing here — ask, rather than guess and be wrong on a
+    // one-pixel border.
+    var old = document.getElementById('rrap-what'); if (old) old.remove();
+    var box = document.createElement('div');
+    box.id = 'rrap-what';
+    box.innerHTML = '<div class="rrap-whatlab">What did you mean?</div>'
+      + regions.map(function (v) {
+          var l = _labelFor(v);
+          return '<button class="rrap-whatbtn" onmouseenter="window._rrapWhatHover(\'' + v + '\')"'
+            + ' onclick="window._rrapWhatPick(\'' + v + '\')">'
+            + '<span class="rrap-whatsw" style="background:' + (_cur(v) || NO_COLOUR) + '"></span>'
+            + '<span><b>' + l.name + '</b>' + (l.sub ? '<span>' + l.sub + '</span>' : '') + '</span></button>';
+        }).join('');
+    document.body.appendChild(box);
+    var b = box.getBoundingClientRect();
+    box.style.left = Math.round(Math.min(e.clientX + 8, window.innerWidth - b.width - 8)) + 'px';
+    box.style.top = Math.round(Math.min(e.clientY + 8, window.innerHeight - b.height - 8)) + 'px';
+    setTimeout(function () { document.addEventListener('mousedown', _whatAway); }, 0);
+  }
+  function _whatAway(ev) {
+    var w = document.getElementById('rrap-what');
+    if (w && !w.contains(ev.target)) { document.removeEventListener('mousedown', _whatAway); _closeWhat(); }
+  }
+  function _closeWhat() {
+    var w = document.getElementById('rrap-what'); if (w) w.remove();
+  }
+  window._rrapWhatHover = function (v) { _highlight(v); };
+  window._rrapWhatPick = function (v) { _closeWhat(); _pickVar(v); };
 
   // ── the colour picker (v0.9.1218) ───────────────────────────────
   // Brad, after clicking a colour box and getting the browser's own picker:
@@ -1348,7 +1349,6 @@
       if (typeof showToast === 'function') showToast('Text adjusted so it stays readable on that background', 3000);
     }
     _refreshPanel();
-    _wires();
   }
 
   function _wireLogoInput() {
@@ -1660,12 +1660,7 @@
     if (_preview && typeof applyTheme === 'function') applyTheme();
     _paintCandidate();
     var ov = document.getElementById('rrap');
-    if (ov) ov.querySelectorAll('.rrap-chip').forEach(function (ch) {
-      var c = _cur(ch.dataset.var);
-      if (/^#[0-9a-fA-F]{6}$/.test(c)) ch.querySelector('input').value = c;
-    });
     _refreshPanel();
-    _wires();
   };
   window._rrapSavePreset = function () {
     var go = function (name) {
@@ -1697,7 +1692,6 @@
           if (/^#[0-9a-fA-F]{3,8}$/.test(String(map[k]))) _set(name, map[k]);
         });
         _refreshPanel();
-        _wires();
       } catch (e) { if (typeof showToast === 'function') showToast('That didn’t look like a skin — paste the exported text exactly', 3500, true); }
     };
     if (typeof appPrompt === 'function') appPrompt('Paste a skin', '', go);
@@ -1787,7 +1781,8 @@
   };
 
   function _teardown() {
-    _closePal();
+    _closePal(); _closeWhat();
+    var tip = document.getElementById('rrap-tip'); if (tip) tip.remove();
     var ov = document.getElementById('rrap');
     if (ov) ov.remove();
     var bar = document.getElementById('rrap-prevbar'); if (bar) bar.remove();

@@ -2899,15 +2899,20 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /applyTheme === 'function'\) applyTheme\(\)/.test(ap8) &&
        /removeProperty\(v\)/.test(ap8));
 
-    // Every id the TARGETS wiring map points at must exist in the scene
-    // HTML — the "nothing buried or wired wrong" guarantee: a chip whose
-    // target id vanished would silently point at nothing.
+    // v0.9.1220 retired the chips, the leader lines and the TARGETS map that
+    // wired them together. What replaced them: every part of the replica
+    // carries a data-c naming the variable that paints it, and THAT is now
+    // the whole mechanism — hover it, click it. So the guarantee to keep is
+    // that every editable colour is actually pointable somewhere.
     (function () {
-      const tBlock = ap8.slice(ap8.indexOf('var TARGETS'), ap8.indexOf('};', ap8.indexOf('var TARGETS')));
-      const ids = [...new Set((tBlock.match(/'(r[aw]-[a-z0-9-]+)'/g) || []).map(s => s.slice(1, -1)))];
-      const missing = ids.filter(id => !new RegExp('id="' + id + '"').test(ap8));
-      ok('every TARGETS id exists in the scene HTML (' + ids.length + ' checked)',
-         ids.length >= 12 && missing.length === 0, 'missing: ' + missing.join(','));
+      const scenes = ap8.slice(ap8.indexOf('function _sceneDash'), ap8.indexOf('function _presetPills'));
+      const marked = new Set((scenes.match(/data-c="([a-z0-9-]+)"/g) || [])
+        .map(m => '--' + m.slice(8, -1)));
+      const vars = (ap8.slice(ap8.indexOf('var EDIT_VARS'), ap8.indexOf('];', ap8.indexOf('var EDIT_VARS')))
+        .match(/\['(--[a-z0-9-]+)'/g) || []).map(m => m.slice(2, -1));
+      const unreachable = vars.filter(v => !marked.has(v));
+      ok('every editable colour can be pointed at in one of the scenes (' + vars.length + ' checked)',
+         vars.length === 11 && unreachable.length === 0, 'unreachable: ' + unreachable.join(','));
     })();
     ok('the editor exposes exactly the 11 approved variables',
        (ap8.slice(ap8.indexOf('var EDIT_VARS'), ap8.indexOf('];', ap8.indexOf('var EDIT_VARS')))
@@ -7500,16 +7505,27 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('every column flex child is allowed to shrink',
        /\.rrap-right\{[^}]*min-height:0/.test(ap) &&
        /\.rrap-main\{[^}]*min-height:0/.test(ap));
-    ok('the stage fills the space it is given instead of a fixed width',
-       /\.rrap-stage\{[^}]*box-sizing:border-box;width:100%;min-width:1020px/.test(ap));
-    // A scaled stage returns SCALED rects. The leader lines are drawn in
-    // stage coordinates, so every one of the four must be divided back out —
-    // miss one and the wires drift as the window narrows.
-    const wires = ap.slice(ap.indexOf('function _wires('), ap.indexOf('// ── logo → palette'));
-    ok('every wire coordinate is converted out of screen scale (all four)',
-       (wires.match(/\) \/ k/g) || []).length === 4 && /var k = _scale \|\| 1;/.test(wires));
-    ok('layout is measured UNSCALED, so it never needs the same correction',
-       /st\.style\.transform = 'none';\s*\n\s*_scale = 1;\s*\n\s*_layout\(\);\s*\n\s*_fitStage\(\);/.test(ap));
+
+    // ── 6b. Point at it, click it (v0.9.1220) ───────────────────────────
+    // Brad: "it would be kind of nice if i just hovered over certain areas
+    // and it hightlights all the area that would change if i picked it…
+    // Then we can get rid of the 'text', 'sale orange' boxes and lines."
+    ok('the chips, the leader lines and the map that wired them are gone',
+       !/rrap-chip/.test(ap) && !/rrap-wires/.test(ap) && !/var TARGETS/.test(ap) &&
+       !/function _layout\(/.test(ap) && !/function _wires\(/.test(ap));
+    ok('the preview is where you point, and it says what it found',
+       /stg\.addEventListener\('mousemove', _onStageMove\)/.test(ap) &&
+       /stg\.addEventListener\('click', _onStageClick\)/.test(ap) &&
+       /function _highlight\(v\)/.test(ap) && /rrap-tip/.test(ap));
+    ok('hovering lights up EVERY place that colour is used, not just the bit under the pointer',
+       /stage\.querySelectorAll\('\[data-c="' \+ v\.replace\('--', ''\) \+ '"\]'\)/.test(ap));
+    ok('a click collects everything under the pointer, innermost first',
+       /function _regionsAt\(x, y\)/.test(ap) && /document\.elementsFromPoint/.test(ap));
+    ok('…and asks when there is more than one, so a hairline needs no aiming',
+       /if \(regions\.length === 1\) \{ _pickVar\(regions\[0\]\); return; \}/.test(ap) &&
+       /What did you mean\?/.test(ap));
+    ok('the gutters the chips needed are gone, so the preview grew',
+       /\.rrap-stage\{[^}]*padding:22px;/.test(ap) && !/padding:26px 208px/.test(ap));
 
     // ── 7. The colour-match box ──────────────────────────────────────────
     // Brad: "we need a logo box and a color match box… allow them to adjust
@@ -7778,19 +7794,6 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /#rr-brand-header \{\s*\n\s*position: absolute; left: 50%; transform: translateX\(-50%\)/.test(css) &&
        /#rr-brand-header \{[\s\S]{0,220}pointer-events: none/.test(css) &&
        /\.header \{\s*\n\s*position: relative;/.test(css));
-    ok('a chip is as wide as it says it is, so it cannot sit on the preview',
-       /\.rrap-chip\{[^}]*box-sizing:border-box;width:186px/.test(ap));
-    // v0.9.1216, Brad: "spread them out!" The column used to stack tight
-    // from the top of the stage, leaving all the slack below it.
-    ok('the chips spread down the full height of what they point at',
-       /var subject = scene\.querySelector\('\.rrap-app, \.rrap-scrim'\);/.test(ap) &&
-       /var gap = \(span - totalH\) \/ \(col\.length \+ 1\);/.test(ap) &&
-       /var y = \(gap >= 12\) \? top \+ gap : 30;/.test(ap));
-    ok('…and still in target order, so the leader lines cannot cross',
-       /\.sort\(function \(a, b\) \{ return a\.ty - b\.ty; \}\)/.test(ap));
-    ok('the two chip columns are evened out, middle targets moving first',
-       /var half = Math\.ceil\(info\.length \/ 2\);/.test(ap) &&
-       /over\.sort\(function \(a, b\) \{ return b\.mid - a\.mid; \}\)/.test(ap));
 
     // ── the marks reach the real app ─────────────────────────────────────
     ok('one entry point paints all three homes',
