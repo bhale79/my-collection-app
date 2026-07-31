@@ -53,7 +53,8 @@
   // math. The image is sampled on a canvas RIGHT HERE in the browser: free
   // forever, instant, and the logo never leaves the device. The logo itself
   // can live on as a subtle watermark behind the app (off by default-able).
-  var LOGO_KEY = 'rr_skin_logo';   // {data: dataURL, mode: 'watermark'|'off'}
+  var LOGO_KEY = 'rr_skin_logo';   // {data, mode: 'watermark'|'off', kind}
+  var LOGO_MAX = 512;              // longest side of the copy we keep
 
   var _root = document.documentElement;
   var _live = {};        // vars set during this editing session (not yet saved)
@@ -233,7 +234,8 @@
     + '.rrap-drop.rrap-over{border-color:var(--accent);color:var(--text)}'
     + '.rrap-lthumb{height:34px;max-width:120px;border-radius:6px;background:rgba(255,255,255,0.08);padding:2px}'
     + '.rrap-lbtn{font-size:0.66rem;padding:0.35rem 0.6rem;border-radius:7px;border:1px solid var(--border-hi);background:var(--surface2);color:var(--text);cursor:pointer}'
-    + '.rrap-lbtn.rrap-lon{border-color:var(--accent);color:var(--accent)}';
+    + '.rrap-lbtn.rrap-lon{border-color:var(--accent);color:var(--accent)}'
+    + '.rrap-lnote{font-size:0.64rem;color:var(--text-dim);max-width:280px;line-height:1.35}';
 
   window.openAppearance = function () {
     if (typeof APPEARANCE_ENABLED !== 'undefined' && !APPEARANCE_ENABLED) return;
@@ -400,14 +402,131 @@
     return '#' + f(0) + f(8) + f(4);
   }
 
+  // ── logo image prep (v0.9.1205) ─────────────────────────────────
+  // Brad: "shrink whatever gets pasted… also worth auto-trimming the white
+  // box that surrounds most logos people copy off the web."
+  //
+  // Everything between here and "end logo image prep" is PURE pixel math on
+  // a flat RGBA array — no canvas, no document, no window. That is on
+  // purpose: the test suite runs these exact functions, so the behaviour
+  // that ships is the behaviour that was proved. The canvas wrapper below
+  // only feeds them pixels and draws the answer.
+
+  // Fit a box inside a square limit. Never upscales — a 90px herald stays
+  // 90px rather than being blown up into mush.
+  function _rrFitDims(w, h, max) {
+    w = Math.max(1, Math.round(w || 0));
+    h = Math.max(1, Math.round(h || 0));
+    var sc = Math.min(1, max / Math.max(w, h));
+    return { w: Math.max(1, Math.round(w * sc)), h: Math.max(1, Math.round(h * sc)) };
+  }
+
+  // Find the real mark inside the white (or transparent) box it was copied
+  // in. The border ring decides what "background" means — if the ring is not
+  // near-uniform the image bleeds to its own edge (a photograph), and we
+  // trim NOTHING rather than guess. A crop that eats the logo is far worse
+  // than a crop that never happens.
+  function _rrTrimBox(px, w, h) {
+    var full = { x: 0, y: 0, w: w, h: h, trimmed: false };
+    if (!px || !(w >= 4) || !(h >= 4)) return full;
+    var TOL = 18, i, x, y;
+    var at = function (xx, yy) { return (yy * w + xx) * 4; };
+
+    var ring = [];
+    for (x = 0; x < w; x++) { ring.push(at(x, 0)); ring.push(at(x, h - 1)); }
+    for (y = 1; y < h - 1; y++) { ring.push(at(0, y)); ring.push(at(w - 1, y)); }
+
+    var clear = 0, sr = 0, sg = 0, sb = 0, solid = 0;
+    for (i = 0; i < ring.length; i++) {
+      var p = ring[i];
+      if (px[p + 3] < 16) { clear++; continue; }
+      sr += px[p]; sg += px[p + 1]; sb += px[p + 2]; solid++;
+    }
+    var clearBg = (clear / ring.length) >= 0.9;
+    var br = solid ? sr / solid : 0, bg = solid ? sg / solid : 0, bb = solid ? sb / solid : 0;
+    if (!clearBg) {
+      if (!solid) return full;
+      var near = 0;
+      for (i = 0; i < ring.length; i++) {
+        var q = ring[i];
+        if (px[q + 3] < 16) { near++; continue; }
+        if (Math.abs(px[q] - br) <= TOL && Math.abs(px[q + 1] - bg) <= TOL &&
+            Math.abs(px[q + 2] - bb) <= TOL) near++;
+      }
+      if ((near / ring.length) < 0.9) return full;   // bleeds to the edge — nothing to trim
+    }
+
+    var isBg = function (p) {
+      if (px[p + 3] < 16) return true;
+      if (clearBg) return false;
+      return Math.abs(px[p] - br) <= TOL && Math.abs(px[p + 1] - bg) <= TOL &&
+             Math.abs(px[p + 2] - bb) <= TOL;
+    };
+    var rowBg = function (yy) { for (var xx = 0; xx < w; xx++) if (!isBg(at(xx, yy))) return false; return true; };
+    var colBg = function (xx) { for (var yy = 0; yy < h; yy++) if (!isBg(at(xx, yy))) return false; return true; };
+
+    var t = 0, b = h - 1, l = 0, r = w - 1;
+    while (t < b && rowBg(t)) t++;
+    while (b > t && rowBg(b)) b--;
+    while (l < r && colBg(l)) l++;
+    while (r > l && colBg(r)) r--;
+
+    var bw = r - l + 1, bh = b - t + 1;
+    if (bw < 4 || bh < 4) return full;                  // trimmed to nothing — keep the original
+    if (bw * bh < w * h * 0.01) return full;            // suspiciously aggressive — keep the original
+    if (bw === w && bh === h) return full;              // nothing to do
+
+    var pad = Math.max(1, Math.round(Math.min(bw, bh) * 0.02));
+    var nx = Math.max(0, l - pad), ny = Math.max(0, t - pad);
+    var nr = Math.min(w - 1, r + pad), nb = Math.min(h - 1, b + pad);
+    return { x: nx, y: ny, w: nr - nx + 1, h: nb - ny + 1, trimmed: true };
+  }
+
+  // Flat herald or photograph? A Santa Fe cross is a handful of flat colors;
+  // a Big Boy poster is thousands. The top six colors' share of the picture
+  // separates them cleanly, and the answer is told to the user in plain
+  // words rather than discovered later as disappointment.
+  function _rrClassifyPixels(px) {
+    var buckets = {}, total = 0, i;
+    for (i = 0; i + 3 < px.length; i += 4) {
+      if (px[i + 3] < 128) continue;                    // transparent pixels are not colors
+      var k = (px[i] >> 3) + ',' + (px[i + 1] >> 3) + ',' + (px[i + 2] >> 3);
+      buckets[k] = (buckets[k] || 0) + 1; total++;
+    }
+    if (!total) return { kind: 'photo', top6: 0, colors: 0 };
+    var counts = Object.keys(buckets).map(function (k) { return buckets[k]; })
+                       .sort(function (a, b) { return b - a; });
+    var top6 = counts.slice(0, 6).reduce(function (a, b) { return a + b; }, 0) / total;
+    return {
+      kind: top6 >= 0.60 ? 'herald' : (top6 >= 0.35 ? 'mixed' : 'photo'),
+      top6: top6, colors: counts.length
+    };
+  }
+
+  function _rrHasAlpha(px) {
+    for (var i = 3; i < px.length; i += 4) if (px[i] < 250) return true;
+    return false;
+  }
+
+  function _rrLogoNote(kind) {
+    if (kind === 'herald') return 'Clean logo — it will stay sharp wherever it is shown.';
+    if (kind === 'mixed')  return 'Part logo, part picture — good as a background, a little soft when small.';
+    return 'This is a photograph, not a flat logo — fine as a background, but fuzzy when small.';
+  }
+  // ── end logo image prep ─────────────────────────────────────────
+
   // Sample the image small, bucket similar colors, return the dominant
   // buckets with their average color + HSL + share of the pixels.
+  // v0.9.1205: accepts a canvas as well as an <img>, so the palette is built
+  // from the TRIMMED mark — the white box a logo was copied inside is no
+  // longer half the pixels being averaged.
   function _extractColors(img) {
     var W = 64;
+    var iw = img.naturalWidth || img.width || W, ih = img.naturalHeight || img.height || W;
     var cv = document.createElement('canvas');
-    var ratio = Math.min(1, W / Math.max(img.naturalWidth || W, img.naturalHeight || W));
-    cv.width = Math.max(1, Math.round((img.naturalWidth || W) * ratio));
-    cv.height = Math.max(1, Math.round((img.naturalHeight || W) * ratio));
+    var ratio = Math.min(1, W / Math.max(iw, ih));
+    cv.width = Math.max(1, Math.round(iw * ratio));
+    cv.height = Math.max(1, Math.round(ih * ratio));
     var cx = cv.getContext('2d', { willReadFrequently: true });
     cx.drawImage(img, 0, 0, cv.width, cv.height);
     var d = cx.getImageData(0, 0, cv.width, cv.height).data;
@@ -459,11 +578,14 @@
     return map;
   }
 
-  function _applyLogoPalette(img) {
+  function _applyLogoPalette(img, kind) {
     var map = _paletteFromColors(_extractColors(img));
     Object.keys(map).forEach(function (k) { _set(k, map[k]); });
     _wires();
-    if (typeof showToast === 'function') showToast('Palette built from your logo — tweak any box, then Save & Use', 4000);
+    if (typeof showToast === 'function') {
+      showToast('Palette built from your logo — tweak any box, then Save & Use'
+        + (kind ? '. ' + _rrLogoNote(kind) : ''), 5000);
+    }
   }
 
   function _logoRec() {
@@ -477,6 +599,7 @@
         + '<input type="file" id="rrap-lfile" accept="image/*" style="display:none">';
     }
     return '<img class="rrap-lthumb" src="' + rec.data + '" alt="logo">'
+      + (rec.kind ? '<span class="rrap-lnote">' + _rrLogoNote(rec.kind) + '</span>' : '')
       + '<button class="rrap-lbtn" onclick="window._rrapLogoRebuild()">🎨 Rebuild palette</button>'
       + '<button class="rrap-lbtn ' + (rec.mode === 'watermark' ? 'rrap-lon' : '') + '" onclick="window._rrapLogoToggle()">'
       + (rec.mode === 'watermark' ? '✓ Watermark on' : 'Watermark off') + '</button>'
@@ -495,26 +618,85 @@
     if (f) f.addEventListener('change', function () { if (f.files && f.files[0]) _rrapLogoLoad(f.files[0]); });
   }
 
-  // Load a pasted/dropped/picked image: build the palette, then store a
-  // downscaled copy (≤360px PNG keeps transparency and stays well inside
-  // localStorage limits). Palette works even if storage is full.
+  // The canvas wrapper around the pure math above: draw → trim → fit →
+  // classify → encode. Returns everything the caller needs and touches no
+  // storage, so it is safe to call repeatedly.
+  function _rrPrepLogo(img, maxSide) {
+    var sw = img.naturalWidth || img.width, sh = img.naturalHeight || img.height;
+    if (!sw || !sh) return null;
+
+    // A working copy: small enough to scan instantly even for a 12-megapixel
+    // phone photo, big enough that the trim edge is still accurate.
+    var work = _rrFitDims(sw, sh, 1024);
+    var wc = document.createElement('canvas');
+    wc.width = work.w; wc.height = work.h;
+    var wx = wc.getContext('2d', { willReadFrequently: true });
+    wx.drawImage(img, 0, 0, work.w, work.h);
+    var box;
+    try { box = _rrTrimBox(wx.getImageData(0, 0, work.w, work.h).data, work.w, work.h); }
+    catch (e) { box = { x: 0, y: 0, w: work.w, h: work.h, trimmed: false }; }
+
+    // Map the crop back onto the ORIGINAL pixels, so the kept copy is drawn
+    // once at full quality rather than downscaled twice.
+    var kx = sw / work.w, ky = sh / work.h;
+    var sx = Math.round(box.x * kx), sy = Math.round(box.y * ky);
+    var sW = Math.max(1, Math.round(box.w * kx)), sH = Math.max(1, Math.round(box.h * ky));
+
+    var fit = _rrFitDims(sW, sH, maxSide || LOGO_MAX);
+    var cv = document.createElement('canvas');
+    cv.width = fit.w; cv.height = fit.h;
+    var cx = cv.getContext('2d', { willReadFrequently: true });
+    cx.drawImage(img, sx, sy, sW, sH, 0, 0, fit.w, fit.h);
+
+    var cls = { kind: 'mixed', top6: 0, colors: 0 }, alpha = true;
+    try {
+      var px = cx.getImageData(0, 0, fit.w, fit.h).data;
+      cls = _rrClassifyPixels(px);
+      alpha = _rrHasAlpha(px);
+    } catch (e) {}
+
+    // Flat marks and anything see-through stay PNG (transparency is the
+    // whole point of a herald). A photograph as PNG is enormous for no gain.
+    var data = (alpha || cls.kind === 'herald')
+      ? cv.toDataURL('image/png')
+      : cv.toDataURL('image/jpeg', 0.85);
+    return { canvas: cv, data: data, kind: cls.kind, trimmed: box.trimmed, w: fit.w, h: fit.h };
+  }
+
+  // Store it, stepping down in size rather than giving up. The old code had
+  // one shot at 360px and told the user "too large to keep" — a dead end
+  // with an apology. A logo that has to be 160px to fit is still a logo.
+  function _rrKeepLogo(img, mode, firstTry) {
+    var sizes = [LOGO_MAX, 384, 256, 160], i, p;
+    for (i = 0; i < sizes.length; i++) {
+      p = (i === 0 && firstTry) ? firstTry : _rrPrepLogo(img, sizes[i]);
+      if (!p) return null;
+      try {
+        localStorage.setItem(LOGO_KEY, JSON.stringify({ data: p.data, mode: mode, kind: p.kind }));
+        return p;
+      } catch (e) {}
+    }
+    return null;
+  }
+
+  // Load a pasted/dropped/picked image. The palette is applied FIRST, from
+  // the trimmed mark, so a full localStorage can never block the main point.
   function _rrapLogoLoad(fileOrBlob) {
     var url = URL.createObjectURL(fileOrBlob);
     var img = new Image();
     img.onload = function () {
-      _applyLogoPalette(img);
-      var mx = 360, sc = Math.min(1, mx / Math.max(img.naturalWidth, img.naturalHeight));
-      var cv = document.createElement('canvas');
-      cv.width = Math.max(1, Math.round(img.naturalWidth * sc));
-      cv.height = Math.max(1, Math.round(img.naturalHeight * sc));
-      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
-      var prev = _logoRec();
-      try {
-        localStorage.setItem(LOGO_KEY, JSON.stringify({ data: cv.toDataURL('image/png'), mode: (prev && prev.mode) || 'watermark' }));
-      } catch (e) {
-        if (typeof showToast === 'function') showToast('Palette built — but the logo image was too large to keep for the watermark', 4000, true);
-      }
+      var prep = _rrPrepLogo(img, LOGO_MAX);
       URL.revokeObjectURL(url);
+      if (!prep) {
+        if (typeof showToast === 'function') showToast('That didn’t look like an image file', 3000, true);
+        return;
+      }
+      _applyLogoPalette(prep.canvas, prep.kind);
+      var prev = _logoRec();
+      var kept = _rrKeepLogo(img, (prev && prev.mode) || 'watermark', prep);
+      if (!kept && typeof showToast === 'function') {
+        showToast('Palette built — but this device has no room left to keep the logo image', 4500, true);
+      }
       _refreshLogoBar();
     };
     img.onerror = function () {
@@ -526,7 +708,7 @@
   window._rrapLogoRebuild = function () {
     var rec = _logoRec(); if (!rec || !rec.data) return;
     var img = new Image();
-    img.onload = function () { _applyLogoPalette(img); };
+    img.onload = function () { _applyLogoPalette(img, rec.kind); };
     img.src = rec.data;
   };
   window._rrapLogoToggle = function () {

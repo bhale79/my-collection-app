@@ -2948,15 +2948,16 @@ META_WRITES.length = 0; TOASTS.length = 0;
        !palFn.includes('--green') && !palFn.includes('--want') &&
        !palFn.includes('--forsale') && !palFn.includes('--accent3'));
 
-    // Storage: downscaled PNG (transparency kept) under rr_skin_logo; the
-    // palette must be applied BEFORE the storage attempt so a full
-    // localStorage can never block the feature's main point.
-    ok('the logo is stored downscaled as PNG under rr_skin_logo',
-       /LOGO_KEY = 'rr_skin_logo'/.test(ap9) && /mx = 360/.test(ap9) &&
+    // Storage: a fitted copy under rr_skin_logo; the palette must be applied
+    // BEFORE the storage attempt so a full localStorage can never block the
+    // feature's main point. (v0.9.1205 moved the cap to LOGO_MAX and let the
+    // encoder pick PNG or JPEG — §173 owns the details.)
+    ok('the logo is stored fitted, under rr_skin_logo',
+       /LOGO_KEY = 'rr_skin_logo'/.test(ap9) && /LOGO_MAX = 512/.test(ap9) &&
        /toDataURL\('image\/png'\)/.test(ap9));
     ok('palette applies before storage, so a full localStorage cannot block it',
-       ap9.indexOf('_applyLogoPalette(img)', ap9.indexOf('function _rrapLogoLoad'))
-         < ap9.indexOf('localStorage.setItem(LOGO_KEY', ap9.indexOf('function _rrapLogoLoad')));
+       ap9.indexOf('_applyLogoPalette(prep.canvas', ap9.indexOf('function _rrapLogoLoad'))
+         < ap9.indexOf('_rrKeepLogo(', ap9.indexOf('function _rrapLogoLoad')));
 
     // The watermark: faint, untouchable, removable, and applied on boot
     // regardless of APPEARANCE_ENABLED (a saved look outlives the editor).
@@ -7168,6 +7169,131 @@ META_WRITES.length = 0; TOASTS.length = 0;
     });
     ok('no raw variation comparison remains in the render/filter files',
        raws.length === 0, raws.join(', '));
+  })();
+
+  section('173. Pasted logos: trim the box, fit the size, name the kind (v0.9.1205)');
+  (function () {
+    const pathA = require('path');
+    const apA = fs.readFileSync(pathA.join(__dirname, '..', 'app', 'appearance.js'), 'utf8');
+
+    // ── run the REAL functions, not a copy of them ───────────────────────
+    const s = apA.indexOf('function _rrFitDims');
+    const e = apA.indexOf('// ── end logo image prep');
+    ok('the logo image-prep block is findable and self-contained', s > 0 && e > s);
+    const M = new Function('"use strict";' + apA.slice(s, e) +
+      '; return { fit: _rrFitDims, trim: _rrTrimBox, cls: _rrClassifyPixels, alpha: _rrHasAlpha, note: _rrLogoNote };')();
+
+    // The block must stay pure — the moment it reaches for a canvas, the
+    // thing the tests prove stops being the thing that ships.
+    const blk = apA.slice(s, e).replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+    ok('…and stays pure pixel math (no document, window, canvas or network)',
+       !/document\.|window\.|createElement|getImageData|fetch\(/.test(blk));
+
+    // ── _rrFitDims ───────────────────────────────────────────────────────
+    ok('an oversized image is fitted to the cap, aspect kept',
+       M.fit(4000, 3000, 512).w === 512 && M.fit(4000, 3000, 512).h === 384);
+    ok('a tall image is capped on its long side too',
+       M.fit(300, 1200, 512).h === 512 && M.fit(300, 1200, 512).w === 128);
+    ok('a small logo is NEVER blown up into mush',
+       M.fit(90, 40, 512).w === 90 && M.fit(90, 40, 512).h === 40);
+    ok('degenerate sizes still come back usable (never 0)',
+       M.fit(0, 0, 512).w === 1 && M.fit(1, 4000, 512).w >= 1 && M.fit(1, 4000, 512).h === 512);
+
+    // ── pixel fixtures ───────────────────────────────────────────────────
+    function mkPx(w, h, fn) {
+      const a = new Array(w * h * 4);
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const c = fn(x, y), i = (y * w + x) * 4;
+        a[i] = c[0]; a[i + 1] = c[1]; a[i + 2] = c[2]; a[i + 3] = c.length > 3 ? c[3] : 255;
+      }
+      return a;
+    }
+    let _seed = 12345;
+    const rnd = () => (_seed = (_seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+
+    // ── _rrTrimBox: the white box a logo arrives inside ──────────────────
+    const inBlock = (x, y) => (x >= 15 && x <= 24 && y >= 12 && y <= 21);
+    const white = mkPx(40, 40, (x, y) => inBlock(x, y) ? [200, 20, 20] : [255, 255, 255]);
+    const tb = M.trim(white, 40, 40);
+    ok('the white box around a pasted logo is trimmed away',
+       tb.trimmed === true && tb.x <= 15 && tb.y <= 12 &&
+       tb.x + tb.w >= 25 && tb.y + tb.h >= 22, JSON.stringify(tb));
+    // The mark occupies x 15–24, y 12–21. A kept pad means the box starts
+    // BEFORE that and ends AFTER it on every side — asserting only "inside a
+    // range" passed happily with the pad deleted, which is no test at all.
+    ok('…but the mark is never clipped flush — a pad is kept on every side',
+       tb.x < 15 && tb.y < 12 && tb.x + tb.w > 25 && tb.y + tb.h > 22 &&
+       tb.w <= 16 && tb.h <= 16, JSON.stringify(tb));
+
+    const clear = mkPx(40, 40, (x, y) => inBlock(x, y) ? [200, 20, 20, 255] : [0, 0, 0, 0]);
+    ok('a transparent surround is trimmed the same way',
+       M.trim(clear, 40, 40).trimmed === true);
+
+    // Santa Fe's cross is white INSIDE red. Trimming works edge-inward, so
+    // interior background can never be eaten — this is the test that says so.
+    const ring = mkPx(40, 40, (x, y) => {
+      const onRing = x >= 12 && x <= 27 && y >= 12 && y <= 27;
+      const inside = x >= 16 && x <= 23 && y >= 16 && y <= 23;
+      return onRing && !inside ? [200, 20, 20] : [255, 255, 255];
+    });
+    const rb = M.trim(ring, 40, 40);
+    ok('white INSIDE the logo survives — only the outside box goes',
+       rb.trimmed === true && rb.w >= 16 && rb.h >= 16, JSON.stringify(rb));
+
+    // A photograph bleeds to its own edge. Guessing a crop there would eat
+    // the picture, so the answer is "trim nothing".
+    const noisy = mkPx(40, 40, () => [Math.floor(rnd() * 256), Math.floor(rnd() * 256), Math.floor(rnd() * 256)]);
+    ok('an image that bleeds to its edge is NOT cropped on a guess',
+       M.trim(noisy, 40, 40).trimmed === false);
+
+    const blank = mkPx(40, 40, () => [255, 255, 255]);
+    const bb = M.trim(blank, 40, 40);
+    ok('an all-background image is left whole, not trimmed to nothing',
+       bb.trimmed === false && bb.w === 40 && bb.h === 40);
+    ok('a tiny image is left alone rather than scanned', M.trim(mkPx(2, 2, () => [255, 255, 255]), 2, 2).trimmed === false);
+
+    // ── _rrClassifyPixels: herald vs photograph ──────────────────────────
+    const flat = mkPx(60, 60, (x, y) => y < 20 ? [200, 20, 20] : (y < 40 ? [255, 255, 255] : [20, 20, 60]));
+    ok('a flat three-colour herald is called a herald', M.cls(flat).kind === 'herald');
+    _seed = 999;
+    const photo = mkPx(60, 60, () => [Math.floor(rnd() * 256), Math.floor(rnd() * 256), Math.floor(rnd() * 256)]);
+    const pc = M.cls(photo);
+    ok('a photograph is called a photograph', pc.kind === 'photo', 'top6=' + pc.top6.toFixed(3));
+    _seed = 4242;
+    const half = mkPx(60, 60, (x, y) => y < 30 ? [200, 20, 20]
+      : [Math.floor(rnd() * 256), Math.floor(rnd() * 256), Math.floor(rnd() * 256)]);
+    ok('half flat, half picture lands in the middle', M.cls(half).kind === 'mixed',
+       'top6=' + M.cls(half).top6.toFixed(3));
+    ok('a fully transparent image does not divide by zero',
+       M.cls(mkPx(10, 10, () => [0, 0, 0, 0])).colors === 0);
+
+    ok('transparency is detected', M.alpha(mkPx(4, 4, () => [1, 2, 3, 0])) === true &&
+       M.alpha(mkPx(4, 4, () => [1, 2, 3, 255])) === false);
+
+    // ── the sentence the user actually reads ─────────────────────────────
+    const notes = ['herald', 'mixed', 'photo'].map(M.note);
+    ok('each kind gets its own plain-English sentence',
+       new Set(notes).size === 3 && notes.every(n => n.length > 20));
+    ok('…and none of it says "AI" (Brad\'s standing rule on wording)',
+       !notes.some(n => /\bAI\b/.test(n)));
+
+    // ── wiring: the prep result is what gets stored and shown ────────────
+    ok('the loader preps once, then paints the palette from the TRIMMED mark',
+       /_rrPrepLogo\(img, LOGO_MAX\)/.test(apA) && /_applyLogoPalette\(prep\.canvas/.test(apA));
+    ok('storage steps DOWN in size instead of giving up',
+       /var sizes = \[LOGO_MAX, 384, 256, 160\]/.test(apA) &&
+       /function _rrKeepLogo/.test(apA));
+    // Absence assertions run on comment-stripped source (recorded-five-times
+    // rule) — the comment explaining what was removed must not fake the pass,
+    // and must not fake a failure either.
+    ok('…so the old "too large to keep" dead end is gone',
+       !/too large to keep/.test(apA.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '')));
+    ok('the kind is remembered with the logo and shown in the editor',
+       /kind: p\.kind/.test(apA) && /rec\.kind \? '<span class="rrap-lnote">'/.test(apA));
+    ok('a photograph is stored as JPEG, a herald or anything see-through as PNG',
+       /alpha \|\| cls\.kind === 'herald'/.test(apA) && /toDataURL\('image\/jpeg', 0\.85\)/.test(apA));
+    ok('the palette sampler accepts a canvas, not just an <img>',
+       /img\.naturalWidth \|\| img\.width \|\| W/.test(apA));
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
