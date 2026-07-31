@@ -398,26 +398,18 @@ function getSteps(tab) {
       // ── SCREEN 3: Condition & Details (multi-column) ──
       { id: 'conditionDetails', title: 'Condition & Details', type: 'conditionDetails' },
 
-      // ── Session 133: era-specific confirmation steps ──
-      // Atlas items confirm their Track/Power. MTH items confirm their Category
-      // (Premier / RailKing / etc.). Both are READ-ONLY confirmations sourced
-      // from the matched master row. Skips cleanly when no master match or no
-      // relevant data populated.
-      { id: 'atlasTrackPower', title: 'Track configuration', type: 'eraConfirm',
-        field: 'trackPower', label: 'Track / Power',
-        skipIf: (d) => {
-          if (wizard.data._era !== 'atlas') return true;
-          var m = wizard.matchedItem || (typeof findMaster === 'function' ? findMaster(d.itemNum) : null);
-          return !m || !m.trackPower;
-        } },
-      { id: 'mthCategory', title: 'MTH product line', type: 'eraConfirm',
-        field: 'category', label: 'Category',
-        skipIf: (d) => {
-          var era = wizard.data._era || '';
-          if (era.indexOf('mth_') !== 0) return true;
-          var m = wizard.matchedItem || (typeof findMaster === 'function' ? findMaster(d.itemNum) : null);
-          return !m || !m.category;
-        } },
+      // ── v0.9.1237: the two era-confirm steps are gone ──
+      // Session 133 gave Atlas items a "Track configuration" step and MTH items
+      // an "MTH product line" step. Both showed ONE value read off the matched
+      // master row, read-only, with the words "From the catalog. Tap Next to
+      // confirm." They saved nothing — confirming changed no data and declining
+      // was not possible — so they were a whole screen that could only be
+      // agreed with. Two of the eight steps in an MTH or Atlas add, spent on a
+      // fact the catalog already knew.
+      //
+      // The facts themselves were worth showing, so they moved UP into
+      // Condition & Details as catalog lines beside the description (see
+      // _CD_ERA_FACTS in wizard.js). Same information, no extra tap.
 
       // ── SCREEN 4: Purchase & Value (combined) ──
       // Skipped for simplified types (embedded in conditionDetails)

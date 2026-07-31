@@ -8626,13 +8626,16 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const bsrc = wz.slice(a, bEnd + 'return html;\n    }'.length);
     const build = (col, o) => {
       o = o || {};
+      // v0.9.1237: the builder now shows the catalog facts that used to be
+      // their own steps. §189 proves the real _cdEraFacts; here it is stubbed,
+      // because this section is about the markup, not the facts.
       return new Function('wizard', 'rrEsc', '_cd2up', '_isMobile', '_cdMaster',
                           '_cdIsPaperLike', '_cdHideToggles', 'getMatchingTenders',
-                          'window', 'document',
+                          '_cdEraFacts', 'window', 'document',
         '"use strict";' + bsrc + '; return _buildCondCol;')(
         o.wizard || { data: {} }, x => String(x == null ? '' : x),
         !!o.two, !!o.mobile, o.master || null, !!o.paper, !!o.hide,
-        () => ['2466W'], {}, {})(col);
+        () => ['2466W'], o.facts || (() => []), {}, {})(col);
     };
 
     // a small stack parser — the one property at risk is nesting
@@ -9105,6 +9108,88 @@ META_WRITES.length = 0; TOASTS.length = 0;
        roe.indexOf('state.masterData = ') < roe.indexOf('_rebuildMasterIndex()'));
     ok('…and repaints, since the rows on screen carry the old numbering',
        roe.indexOf('_rebuildMasterIndex()') < roe.indexOf('renderBrowse()'));
+  })();
+
+
+  section('189. The two steps that were a click and nothing else (v0.9.1237)');
+  (function () {
+    const pathJ = require('path');
+    const rd = f => fs.readFileSync(pathJ.join(__dirname, '..', 'app', f), 'utf8');
+    const wz = rd('wizard.js'), st = rd('wizard-steps.js');
+
+    // Queue #27: Session 133 gave Atlas items a "Track configuration" step and
+    // MTH items an "MTH product line" step. Each showed ONE value read off the
+    // master row, read-only, with "From the catalog. Tap Next to confirm." They
+    // saved nothing and could only be agreed with — a whole screen, two of the
+    // eight in an MTH add, spent on a fact the catalog already knew.
+
+    ok('the two steps are gone',
+       !/id: 'atlasTrackPower'/.test(st) && !/id: 'mthCategory'/.test(st));
+    ok('…and so is the renderer that had nothing left to render',
+       !/s\.type === 'eraConfirm'/.test(wz));
+    ok('…and nothing still refers to them',
+       !/eraConfirm/.test(wz) && !/eraConfirm/.test(st) &&
+       !/atlasTrackPower|mthCategory/.test(wz + st));
+
+    // ── RUN the replacement: the facts still have to show up ────────────
+    const src = wz.slice(wz.indexOf('var _CD_ERA_FACTS = ['),
+                         wz.indexOf('window._cdEraFacts = _cdEraFacts;'));
+    const facts = (master, era) =>
+      new Function('master', 'era', '"use strict";' + src + '; return _cdEraFacts(master, era);')(master, era);
+
+    ok('an Atlas item still shows its track and power',
+       JSON.stringify(facts({ trackPower: '3-Rail / DCC' }, 'atlas')) ===
+       JSON.stringify([{ label: 'Track / Power', value: '3-Rail / DCC' }]),
+       JSON.stringify(facts({ trackPower: '3-Rail / DCC' }, 'atlas')));
+    ok('an MTH item still shows its product line, whichever MTH era it is',
+       facts({ category: 'Premier' }, 'mth_o').length === 1 &&
+       facts({ category: 'RailKing' }, 'mth_ho')[0].value === 'RailKing');
+    ok('…and the label is the words a collector uses, not the column name',
+       facts({ category: 'Premier' }, 'mth_o')[0].label === 'Product line');
+
+    // the skipIf conditions the old steps had must survive as emptiness
+    ok('a Lionel item shows neither, exactly as the steps used to skip',
+       facts({ trackPower: '3-Rail', category: 'Premier' }, 'lionel_pw').length === 0);
+    ok('an Atlas item is not offered MTH\'s fact, or the other way round',
+       facts({ category: 'Premier' }, 'atlas').length === 0 &&
+       facts({ trackPower: '3-Rail' }, 'mth_o').length === 0);
+    ok('a blank value shows nothing rather than a dash',
+       facts({ trackPower: '' }, 'atlas').length === 0 &&
+       facts({ trackPower: '   ' }, 'atlas').length === 0);
+    ok('no matched catalog row shows nothing',
+       facts(null, 'atlas').length === 0 && facts(undefined, 'mth_o').length === 0);
+    ok('an era the app has never heard of shows nothing',
+       facts({ trackPower: 'x', category: 'y' }, '').length === 0 &&
+       facts({ trackPower: 'x' }, 'menards').length === 0);
+    ok('the next era that carries a fact worth showing is one line, not two branches',
+       /_CD_ERA_FACTS = \[[\s\S]*?\];/.test(wz) &&
+       (src.match(/\{ (era|prefix):/g) || []).length === 2);
+
+    // ── where they render: with the description, never among the questions ─
+    const a = wz.indexOf('function _buildCondCol(col) {');
+    const bEnd = wz.indexOf('return html;\n    }', a);
+    const bsrc = wz.slice(a, bEnd + 'return html;\n    }'.length);
+    const build = (o) => new Function('wizard', 'rrEsc', '_cd2up', '_isMobile', '_cdMaster',
+      '_cdIsPaperLike', '_cdHideToggles', 'getMatchingTenders', '_cdEraFacts',
+      'window', 'document', '"use strict";' + bsrc + '; return _buildCondCol;')(
+        { data: { _era: o.era || '' } }, x => String(x == null ? '' : x),
+        false, false, o.master || null, false, false, () => [],
+        new Function('master', 'era', '"use strict";' + src + '; return _cdEraFacts(master, era);'),
+        {}, {})(o.col || { id: 'main', label: 'No. 20-3092-1', prefix: '', description: 'Premier Hudson' });
+
+    const mth = build({ era: 'mth_o', master: { category: 'Premier' } });
+    ok('the fact renders on the step',
+       /Product line/.test(mth) && /Premier/.test(mth));
+    ok('…above the questions, not as one of them',
+       mth.indexOf('Product line') < mth.indexOf('class="cd-fields"'),
+       'fact at ' + mth.indexOf('Product line') + ', questions at ' + mth.indexOf('class="cd-fields"'));
+    ok('…and beside the description, where the catalog\'s other words are',
+       mth.indexOf('Premier Hudson') < mth.indexOf('Product line'));
+    ok('a second unit in the same add does not repeat the set\'s fact',
+       !/Product line/.test(build({ era: 'mth_o', master: { category: 'Premier' },
+          col: { id: 'unit2', label: 'Tender', prefix: 'unit2' } })));
+    ok('the value is escaped before it reaches the page',
+       /rrEsc\(f\.value\)/.test(bsrc) && /rrEsc\(f\.label\)/.test(bsrc));
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

@@ -18,6 +18,30 @@ function _composeRoadDesc(m) {
 // Picker state — declared at top so available to all onclick handlers
 // ── _pickerStepId / _pickerViewKey state moved to wizard-photos.js (Session 110, Chunk 4) ──
 
+// ── Facts the catalog already knows (v0.9.1237) ────────────────────────
+// These used to be whole steps of their own — see the note where they were
+// removed in wizard-steps.js. They are shown beside the item's description on
+// Condition & Details instead: same information, no extra tap.
+//
+// A table rather than two if-statements, so the next era that carries a fact
+// worth showing is one line here and nothing else.
+var _CD_ERA_FACTS = [
+  { era: 'atlas',   field: 'trackPower', label: 'Track / Power' },
+  { prefix: 'mth_', field: 'category',   label: 'Product line'  }
+];
+function _cdEraFacts(master, era) {
+  era = String(era || '');
+  if (!master) return [];
+  return _CD_ERA_FACTS.filter(function (f) {
+    if (f.era && era !== f.era) return false;
+    if (f.prefix && era.indexOf(f.prefix) !== 0) return false;
+    return !!String(master[f.field] || '').trim();
+  }).map(function (f) {
+    return { label: f.label, value: String(master[f.field]).trim() };
+  });
+}
+window._cdEraFacts = _cdEraFacts;
+
 // ── How big is the wizard box? ONE answer. ──────────────────────────────
 // v0.9.1232 (Brad): "the add step needs to be as wide as it can on the desktop
 // to minimize scrolling down."
@@ -3094,21 +3118,6 @@ function renderWizardStep() {
           ">${c}</button>`).join('')}
       </div>`;
 
-  } else if (s.type === 'eraConfirm') {
-    // Session 133: read-only confirmation of an era-specific master field
-    // (e.g. Atlas trackPower or MTH category). Pre-displays the catalog value;
-    // user taps the global Next button to advance. No editable UI; no save
-    // changes needed since the value lives on the master row.
-    var _ecMatched = wizard.matchedItem || (typeof findMaster === 'function' ? findMaster(wizard.data.itemNum) : null);
-    var _ecVal = (_ecMatched && s.field && _ecMatched[s.field]) ? _ecMatched[s.field] : '';
-    var _ecLabel = s.label || '';
-    body.innerHTML =
-      '<div style="padding:1.5rem 1rem;text-align:center">' +
-      (_ecLabel ? '<div style="font-size:0.78rem;color:var(--text-dim);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.6rem">' + _ecLabel + '</div>' : '') +
-      '<div style="font-size:1.6rem;font-weight:700;color:var(--accent);margin-bottom:0.7rem">' + (_ecVal || '—') + '</div>' +
-      '<div style="font-size:0.78rem;color:var(--text-dim);font-style:italic;max-width:280px;margin:0 auto">From the catalog. Tap Next to confirm.</div>' +
-      '</div>';
-
   } else if (s.type === 'choiceSearch') {
     // Searchable choice list — type to filter, click to select
     const csVal     = wizard.data[s.id] || '';
@@ -5110,6 +5119,15 @@ function renderWizardStep() {
       }
       html += '<div style="font-weight:700;font-size:0.82rem;color:var(--accent2);padding-bottom:0.2rem">' + col.label + (col.sublabel ? ' <span style=\"font-weight:400;color:var(--text-dim);font-size:0.75rem\">(' + col.sublabel + ')</span>' : '') + '</div>'
         + (col.description ? '<div style="font-size:0.78rem;color:var(--text-mid);font-style:italic;margin-bottom:0.35rem;line-height:1.35">' + String(col.description).replace(/</g,'&lt;') + '</div>' : '')
+        // v0.9.1237: what used to be the Atlas "Track configuration" and MTH
+        // "MTH product line" steps. Catalog facts, so they sit with the
+        // description — above the questions, never among them.
+        + (col.id === 'main' ? _cdEraFacts(_cdMaster, wizard.data._era).map(function (f) {
+            return '<div style="display:flex;gap:0.4rem;align-items:baseline;margin-bottom:0.2rem">'
+              + '<span style="font-size:0.62rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;white-space:nowrap">' + rrEsc(f.label) + '</span>'
+              + '<span style="font-size:0.8rem;color:var(--accent2);font-weight:600">' + rrEsc(f.value) + '</span>'
+              + '</div>';
+          }).join('') : '')
         + _cdExtLink
         + '<div style="margin-bottom:0.5rem;padding-bottom:0.4rem;border-bottom:1px solid var(--border)"></div>'
         // v0.9.1232: everything below is a grid cell. One column as before;

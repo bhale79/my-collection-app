@@ -330,10 +330,10 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
       const bsrc = wzSrc.slice(a, bEnd + 'return html;\n    }'.length);
       const build = (two, data) => new Function('wizard', 'rrEsc', '_cd2up', '_isMobile',
         '_cdMaster', '_cdIsPaperLike', '_cdHideToggles', 'getMatchingTenders',
-        'window', 'document',
+        '_cdEraFacts', 'window', 'document',
         '"use strict";' + bsrc + '; return _buildCondCol;')(
           { data: data || {} }, x => String(x == null ? '' : x), two, false, null, false, false,
-          () => [], {}, {})({ id: 'main', label: '\u{1F682} No. 2343', prefix: '',
+          () => [], () => [], {}, {})({ id: 'main', label: '\u{1F682} No. 2343', prefix: '',
                               description: 'Santa Fe F3 A Unit' });
       // The worst case is not the empty step — it is the step with every
       // question answered the way that opens another field.
