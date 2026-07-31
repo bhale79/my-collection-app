@@ -313,6 +313,106 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
          pal.buried && pal.buried.length === 0, (pal.buried || []).join(' '));
       await page.close();
     }
+
+    // ══════════════════════════════════════════════════════════════════
+    // The add step, MEASURED (v0.9.1232)
+    //
+    // Brad: "the add step needs to be as wide as it can on the desktop to
+    // minimize scrolling down." The point of the change is that the step gets
+    // SHORTER. A grep cannot see that, and neither can a screenshot with any
+    // precision — so the real markup, built by the real function, is rendered
+    // against the real stylesheet at both widths and measured.
+    // ══════════════════════════════════════════════════════════════════
+    {
+      const wzSrc = fs.readFileSync(path.join(APP, 'wizard.js'), 'utf8');
+      const a = wzSrc.indexOf('function _buildCondCol(col) {');
+      const bEnd = wzSrc.indexOf('return html;\n    }', a);
+      const bsrc = wzSrc.slice(a, bEnd + 'return html;\n    }'.length);
+      const build = (two, data) => new Function('wizard', 'rrEsc', '_cd2up', '_isMobile',
+        '_cdMaster', '_cdIsPaperLike', '_cdHideToggles', 'getMatchingTenders',
+        'window', 'document',
+        '"use strict";' + bsrc + '; return _buildCondCol;')(
+          { data: data || {} }, x => String(x == null ? '' : x), two, false, null, false, false,
+          () => [], {}, {})({ id: 'main', label: '\u{1F682} No. 2343', prefix: '',
+                              description: 'Santa Fe F3 A Unit' });
+      // The worst case is not the empty step — it is the step with every
+      // question answered the way that opens another field.
+      const OPEN = { allOriginal: 'No', hasBox: 'Yes', hasIS: 'Yes', isError: 'Yes' };
+
+      const stepPage = (widthPx, html) => `<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="file://${APP}/app.css">
+<style>html,body{margin:0;background:#111}
+ /* the wizard body, as the modal gives it: a fixed width and its padding */
+ #box{width:${widthPx}px;box-sizing:border-box;padding:1rem 1.5rem}
+ #row{display:flex;gap:0.5rem}</style></head>
+<body><div id="box"><div id="row">${html}</div></div></body></html>`;
+
+      const measure = async (widthPx, two, data, tag) => {
+        const f2 = path.join(dir, 'step-' + widthPx + '-' + (two ? '2' : '1') + (tag || '') + '.html');
+        fs.writeFileSync(f2, stepPage(widthPx, build(two, data)));
+        const pg = await browser.newPage({ viewport: { width: widthPx + 40, height: 1000 } });
+        await pg.goto('file://' + f2);
+        await pg.waitForTimeout(150);
+        const out = await pg.evaluate(() => {
+          const col = document.querySelector('.cd-col');
+          const box = document.getElementById('box');
+          const cb = col.getBoundingClientRect(), bb = box.getBoundingClientRect();
+          // Nothing may stick out sideways — that is the fault that shipped in 1211.
+          const over = [];
+          col.querySelectorAll('*').forEach(el => {
+            const r = el.getBoundingClientRect();
+            if (r.width === 0 && r.height === 0) return;
+            if (r.right > bb.right + 1 || r.left < bb.left - 1) {
+              over.push((el.id || el.className || el.tagName) + '@' + Math.round(r.right));
+            }
+          });
+          const fieldsCS = getComputedStyle(document.querySelector('.cd-fields'));
+          // Every question must still be beside its own answer control.
+          const rows = [].slice.call(col.querySelectorAll('.cd-blk')).map(b => {
+            const r = b.getBoundingClientRect();
+            return { h: Math.round(r.height), w: Math.round(r.width),
+                     txt: (b.textContent || '').trim().slice(0, 14) };
+          });
+          return { height: Math.round(cb.height), width: Math.round(cb.width),
+                   cols: fieldsCS.gridTemplateColumns.split(' ').length,
+                   over, rows };
+        });
+        await pg.close();
+        return out;
+      };
+
+      const narrow = await measure(520, false);
+      const wide   = await measure(900, true);
+
+      ok('add step: the narrow box is still one column',
+         narrow.cols === 1, JSON.stringify(narrow.cols));
+      ok('add step: the wide box is two',
+         wide.cols === 2, JSON.stringify(wide.cols));
+      ok('add step: nothing sticks out of the narrow box',
+         narrow.over.length === 0, narrow.over.join(' '));
+      ok('add step: nothing sticks out of the wide box',
+         wide.over.length === 0, wide.over.join(' '));
+      const narrowOpen = await measure(520, false, OPEN, 'o');
+      const wideOpen   = await measure(900, true,  OPEN, 'o');
+
+      // The whole point: it has to be SHORTER, not merely different.
+      ok('add step: the wide layout is measurably shorter',
+         wide.height < narrow.height * 0.85,
+         wide.height + 'px wide vs ' + narrow.height + 'px narrow');
+      ok('add step: …and shorter still once every question has opened a field',
+         wideOpen.height < narrowOpen.height * 0.8,
+         wideOpen.height + 'px wide vs ' + narrowOpen.height + 'px narrow');
+      ok('add step: nothing sticks out when every field is open either',
+         wideOpen.over.length === 0 && narrowOpen.over.length === 0,
+         wideOpen.over.concat(narrowOpen.over).join(' '));
+      ok('add step: …and short enough to stop scrolling on a 1080p desktop',
+         wide.height <= 900 - 150,
+         wide.height + 'px inside a ' + (900 - 150) + 'px body');
+      ok('add step: every question block still has real width in two columns',
+         wide.rows.length > 0 && wide.rows.every(r => r.w > 150 && r.h > 10),
+         JSON.stringify(wide.rows));
+    }
+
   } finally {
     await browser.close();
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) {}

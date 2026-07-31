@@ -8561,6 +8561,159 @@ META_WRITES.length = 0; TOASTS.length = 0;
        pag.indexOf('state.currentPage > pages') < pag.indexOf('const start ='));
   })();
 
+
+  section('184. The add step uses the desktop it is on (v0.9.1232)');
+  (function () {
+    const pathJ = require('path');
+    const rd = f => fs.readFileSync(pathJ.join(__dirname, '..', 'app', f), 'utf8');
+    const wz = rd('wizard.js');
+    const css = rd('app.css');
+
+    // Brad: "the add step needs to be as wide as it can on the desktop to
+    // minimize scrolling down"
+
+    // ── ONE answer to how tall the box is ───────────────────────────────
+    // It was pinned to 580 in TWO places: renderWizardStep and the phone
+    // keyboard guard. visualViewport fires on desktop resizes too, so the
+    // guard would have stamped any new desktop height straight back to 580.
+    ok('there is a single function that answers how tall the box is',
+       /function _wizBoxHeight\(\)/.test(wz));
+    ok('the step renderer asks it instead of writing a number',
+       !/wizModal\.style\.height = '(\d+)px'/.test(wz) &&
+       !/wizModal\.style\.height = 'min\(/.test(wz) &&
+       (wz.match(/wizModal\.style\.height = _wizBoxHeight\(\)/g) || []).length === 3);
+    ok('the phone keyboard guard asks it too',
+       /box\.style\.height = _wizBoxHeight\(\) \+ 'px'/.test(wz) &&
+       !/vh < 596 \? Math\.max\(300, vh - 16\) : 580/.test(wz));
+
+    // ── RUN the height rule: three screens, three answers ────────────────
+    const hsrc = wz.slice(wz.indexOf('function _wizBoxHeight()'),
+                          wz.indexOf('window._wizBoxHeight = _wizBoxHeight;'));
+    const H = (innerWidth, innerHeight, vvHeight) => {
+      const win = { innerWidth, innerHeight, visualViewport: vvHeight ? { height: vvHeight } : null };
+      return new Function('window', '"use strict";' + hsrc + '; return _wizBoxHeight();')(win);
+    };
+    ok('a phone is left exactly as it was',
+       H(390, 844, 844) === 580, String(H(390, 844, 844)));
+    ok('a phone with the keyboard up still gives the footer room',
+       H(390, 844, 380) === 364, String(H(390, 844, 380)));
+    ok('a 1080p desktop stops wasting half its screen',
+       H(1920, 1080, 1080) === 900, String(H(1920, 1080, 1080)));
+    ok('…a shorter laptop takes 90% of what it has, not a fixed 580',
+       H(1440, 800, 800) === 720, String(H(1440, 800, 800)));
+    ok('…and a very tall monitor is capped, not stretched down a wall',
+       H(2560, 1440, 1440) === 900, String(H(2560, 1440, 1440)));
+    ok('a small tablet keeps the old box',
+       H(760, 1024, 1024) === 580, String(H(760, 1024, 1024)));
+
+    // ── the single item finally gets the width ──────────────────────────
+    ok('a single-item Condition & Details widens on a desktop',
+       /s\.type === 'conditionDetails' && window\.innerWidth >= 900/.test(wz) &&
+       /Math\.min\(window\.innerWidth - 32, 900\)/.test(wz));
+    ok('…and a narrow screen still gets the 520px box',
+       /wizModal\.style\.maxWidth = '520px'/.test(wz));
+
+    // ── RUN the builder: the markup has to survive being split ──────────
+    const a = wz.indexOf('function _buildCondCol(col) {');
+    const bEnd = wz.indexOf('return html;\n    }', a);
+    const bsrc = wz.slice(a, bEnd + 'return html;\n    }'.length);
+    const build = (col, o) => {
+      o = o || {};
+      return new Function('wizard', 'rrEsc', '_cd2up', '_isMobile', '_cdMaster',
+                          '_cdIsPaperLike', '_cdHideToggles', 'getMatchingTenders',
+                          'window', 'document',
+        '"use strict";' + bsrc + '; return _buildCondCol;')(
+        o.wizard || { data: {} }, x => String(x == null ? '' : x),
+        !!o.two, !!o.mobile, o.master || null, !!o.paper, !!o.hide,
+        () => ['2466W'], {}, {})(col);
+    };
+
+    // a small stack parser — the one property at risk is nesting
+    const parse = html => {
+      const re = /<(\/?)div\b([^>]*)>/g;
+      const stack = [], nodes = [];
+      let m, worst = null;
+      while ((m = re.exec(html))) {
+        if (m[1]) {
+          const open = stack.pop();
+          if (!open) { worst = 'closed a div that was never opened'; break; }
+          nodes.push({ attrs: open.attrs, depth: stack.length,
+                       inner: html.slice(open.end, m.index) });
+        } else {
+          stack.push({ attrs: m[2], end: m.index + m[0].length });
+        }
+      }
+      if (!worst && stack.length) worst = stack.length + ' div(s) left open';
+      return { nodes, worst };
+    };
+
+    const CASES = [
+      ['a plain single item, two columns', { two: true }],
+      ['a plain single item, one column', {}],
+      ['a paper item (no toggles)', { paper: true, hide: true, two: true }],
+      ['an item being added as part of a set', { two: true, wizard: { data: { _setMode: true } } }],
+      ['every reveal already open', { two: true, wizard: { data: {
+          allOriginal: 'No', hasBox: 'Yes', hasIS: 'Yes', isError: 'Yes' } } }]
+    ];
+    CASES.forEach(([name, o]) => {
+      const html = build({ id: 'main', label: 'No. 2343', prefix: '', description: 'Santa Fe' }, o);
+      const { worst } = parse(html);
+      ok('the markup still closes properly — ' + name, !worst, worst || '');
+    });
+
+    // the tender picker returns EARLY, and early returns are where tags leak
+    const tp = build({ id: 'unit2', label: 'Tender', prefix: 'unit2',
+                       isTender: true, pickerMode: true, candidates: [] },
+                     { two: true, wizard: { data: { itemNum: '2343' } } });
+    ok('the markup still closes properly — the tender picker\'s early return',
+       !parse(tp).worst, parse(tp).worst || '');
+
+    // ── a question must never be parted from the field it reveals ───────
+    const full = build({ id: 'main', label: 'No. 2343', prefix: '' }, { two: true });
+    const blks = parse(full).nodes.filter(n => /class="cd-blk"/.test(n.attrs));
+    const pairedIn = (question, revealId) => {
+      const b = blks.find(n => n.inner.indexOf(question) >= 0);
+      return !!b && b.inner.indexOf(revealId) >= 0;
+    };
+    ok('"All Original?" travels with its "what changed?" box',
+       pairedIn('All Original?', 'id="cd-mod-main"'));
+    ok('"Has Box?" travels with the box-condition slider',
+       pairedIn('Has Box?', 'id="cd-boxcond-main"'));
+    ok('"Instr. Sheet?" travels with the sheet number and its slider',
+       pairedIn('Instr. Sheet?', 'id="cd-is-reveal"'));
+    ok('"Error Item?" travels with the description box',
+       pairedIn('Error Item?', 'id="cd-error-reveal-main"'));
+    ok('every one of those pairs is a block, not a loose field',
+       blks.length === 4, 'found ' + blks.length);
+
+    // ── the grid wraps the fields, and only the fields ──────────────────
+    const fields = parse(full).nodes.filter(n => /class="cd-fields"/.test(n.attrs));
+    ok('the fields sit in exactly one grid', fields.length === 1, String(fields.length));
+    ok('…which is inside the panel, not around it',
+       fields.length === 1 && fields[0].depth === 1);
+    ok('…and the panel heading stays above it, outside the columns',
+       full.indexOf('No. 2343') < full.indexOf('class="cd-fields"'));
+
+    // ── two columns are OPT-IN, and only wizard.js opts in ──────────────
+    ok('the two-column class is on the panel when asked for',
+       /class="cd-col cd-2up"/.test(full));
+    ok('…and absent when not',
+       /class="cd-col"/.test(build({ id: 'main', label: 'x', prefix: '' }, {})));
+    ok('only a single item on a wide screen asks for it',
+       /const _cd2up = _colCount === 1 && window\.innerWidth >= 900;/.test(wz));
+
+    // ── the stylesheet: one column unless told otherwise ────────────────
+    const rule = css.slice(css.indexOf('.cd-fields {'), css.indexOf('.cd-blk {'));
+    ok('the fields are one column by default',
+       /\.cd-fields \{[^}]*grid-template-columns: 1fr;/.test(rule));
+    ok('…with no gap of its own, so single-column spacing is untouched',
+       /\.cd-fields \{[^}]*gap: 0;/.test(rule));
+    ok('…and a tall block never stretches the one beside it',
+       /\.cd-fields \{[^}]*align-items: start;/.test(rule));
+    ok('two columns happen only under .cd-2up',
+       /\.cd-col\.cd-2up \.cd-fields \{ grid-template-columns: 1fr 1fr;/.test(css));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

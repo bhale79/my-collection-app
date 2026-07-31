@@ -18,6 +18,37 @@ function _composeRoadDesc(m) {
 // Picker state — declared at top so available to all onclick handlers
 // ── _pickerStepId / _pickerViewKey state moved to wizard-photos.js (Session 110, Chunk 4) ──
 
+// ── How big is the wizard box? ONE answer. ──────────────────────────────
+// v0.9.1232 (Brad): "the add step needs to be as wide as it can on the desktop
+// to minimize scrolling down."
+//
+// The box was pinned to 520 × 580 by two inline styles in renderWizardStep —
+// the same box on a phone and on a 27-inch monitor. On a 1080p desktop that is
+// roughly a quarter of the width and half the height, and everything past
+// 580px scrolled inside it.
+//
+// It was pinned in TWO places, which is the part worth remembering: the phone
+// keyboard guard (_kbApply) also wrote 580 as its "keyboard is down again"
+// height. visualViewport fires on DESKTOP window resizes too, so any desktop
+// height set in renderWizardStep would have been quietly stamped back to 580
+// the first time Brad resized his window. One fact, two readers, disagreeing —
+// the same shape as every bug of 07-30/31. Both now ask this.
+//
+// The box stays a FIXED size per step rather than hugging its content: that is
+// deliberate and predates this change. A box that resizes as you page through
+// makes the Next button move under the cursor.
+function _wizBoxHeight() {
+  var vv = (window.visualViewport && window.visualViewport.height) || window.innerHeight || 800;
+  // Phone keyboard up, or any genuinely short viewport: take what is left and
+  // keep the footer on screen. This case is why the guard exists — unchanged.
+  if (vv < 596) return Math.max(300, Math.round(vv - 16));
+  // Desktop: use the screen instead of ignoring it. The cap keeps a very tall
+  // monitor from stretching a six-field step down an entire wall.
+  if ((window.innerWidth || 0) >= 900) return Math.min(Math.round(vv * 0.9), 900);
+  return 580;   // phones and small tablets — exactly as before
+}
+window._wizBoxHeight = _wizBoxHeight;
+
 // ── ADD ITEM WIZARD ─────────────────────────────────────────────
 
 // Session 159: variation-aware tender helpers — must live at global scope
@@ -420,7 +451,7 @@ function _buildWizardModal() {
       var box = m && m.querySelector('.modal');
       if (!box) return;
       var vh = window.visualViewport.height;
-      box.style.height = (vh < 596 ? Math.max(300, vh - 16) : 580) + 'px';
+      box.style.height = _wizBoxHeight() + 'px';
       // v0.9.1033 (Brad: "when the keyboard pops up, you can hardly see what
       // you're typing"). The box shrinks to what's left of the screen, but the
       // two-line header, the progress strip and the Adding banner keep their
@@ -1822,10 +1853,17 @@ function renderWizardStep() {
       const _numCols = _grp === 'aba' ? 3 : 2;
       const _wideW = Math.min(window.innerWidth - 32, 280 * _numCols + 40);
       wizModal.style.maxWidth = _wideW + 'px';
-      wizModal.style.height = 'min(90vh, 720px)';
+      wizModal.style.height = _wizBoxHeight() + 'px';
+    } else if (s.type === 'conditionDetails' && window.innerWidth >= 900) {
+      // v0.9.1232 (Brad): a SINGLE item got the 520px box while an engine and
+      // tender got a wide one — the widening was written for multi-unit adds
+      // and single items were never given it. They have the longest stack of
+      // fields of anything in the wizard, so they needed it most.
+      wizModal.style.maxWidth = Math.min(window.innerWidth - 32, 900) + 'px';
+      wizModal.style.height = _wizBoxHeight() + 'px';
     } else {
       wizModal.style.maxWidth = '520px';
-      wizModal.style.height = '580px';
+      wizModal.style.height = _wizBoxHeight() + 'px';
     }
   }
   const progBar = document.getElementById('wizard-progress');
@@ -4866,6 +4904,10 @@ function renderWizardStep() {
     }
     
     const _colCount = _cdCols.length;
+    // v0.9.1232: one item, wide screen -> its fields run in two columns instead
+    // of one tall stack. Multi-unit adds already use the width for their units
+    // and must not also split each unit in half.
+    const _cd2up = _colCount === 1 && window.innerWidth >= 900;
     const _isMobile = window.innerWidth < 600;
     
     function _buildCondCol(col) {
@@ -4903,7 +4945,7 @@ function renderWizardStep() {
           + buttons + '</div>';
       };
       
-      let html = '<div class="cd-col" style="flex:1;min-width:' + (_isMobile ? '100%' : '200px') + ';background:var(--surface2);border-radius:10px;padding:0.75rem;border:1px solid var(--border)">';
+      let html = '<div class="cd-col' + (_cd2up ? ' cd-2up' : '') + '" style="flex:1;min-width:' + (_isMobile ? '100%' : '200px') + ';background:var(--surface2);border-radius:10px;padding:0.75rem;border:1px solid var(--border)">';
       var _cdExtLink = '';
       if (col.id === 'main' && _cdMaster && typeof window._itemExternalLinkURL === 'function') {
         var _cdU = window._itemExternalLinkURL(_cdMaster);
@@ -4923,7 +4965,11 @@ function renderWizardStep() {
       html += '<div style="font-weight:700;font-size:0.82rem;color:var(--accent2);padding-bottom:0.2rem">' + col.label + (col.sublabel ? ' <span style=\"font-weight:400;color:var(--text-dim);font-size:0.75rem\">(' + col.sublabel + ')</span>' : '') + '</div>'
         + (col.description ? '<div style="font-size:0.78rem;color:var(--text-mid);font-style:italic;margin-bottom:0.35rem;line-height:1.35">' + String(col.description).replace(/</g,'&lt;') + '</div>' : '')
         + _cdExtLink
-        + '<div style="margin-bottom:0.5rem;padding-bottom:0.4rem;border-bottom:1px solid var(--border)"></div>';
+        + '<div style="margin-bottom:0.5rem;padding-bottom:0.4rem;border-bottom:1px solid var(--border)"></div>'
+        // v0.9.1232: everything below is a grid cell. One column as before;
+        // two side by side when .cd-2up is on. Each block is wrapped so a
+        // question can never be parted from the field it reveals.
+        + '<div class="cd-fields">';
 
       // Session 159: tender picker mode. Show radio candidates instead of
       // condition fields until the user confirms which tender they have.
@@ -4966,7 +5012,7 @@ function renderWizardStep() {
         // "Don't know" - saves as Unknown
         html += _rad('Unknown', "Don't know", 'Save with tender unknown');
         html += '<div style="font-size:0.7rem;color:var(--text-dim);font-style:italic;margin-top:0.5rem;text-align:center">Need to remove the tender? Go Back and pick Engine only.</div>';
-        html += '</div>';
+        html += '</div></div>';   // v0.9.1232: .cd-fields, then .cd-col
         return html;
       }
 
@@ -4982,19 +5028,23 @@ function renderWizardStep() {
 
       // All Original — inline row
       if (!_cdIsPaperLike) {
+        html += '<div class="cd-blk">';
         html += _inlineRow('All Original?', _smallBtn(origKey, origVal, ['Yes','No','Unknown'],
           (c) => "wizard.data[\'" + origKey + "\']=\'" + c + "\';_cdToggleOrig(\'" + col.id + "\',\'" + origKey + "\',\'" + c + "\')"));
         // Modifications textarea (hidden unless allOriginal=No)
         html += '<div id="cd-mod-' + col.id + '" style="margin-bottom:0.4rem;display:' + (origVal === 'No' ? 'block' : 'none') + '">';
         html += '<textarea placeholder="What has been changed?" style="width:100%;min-height:40px;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:0.4rem;color:var(--text);font-family:var(--font-body);font-size:0.75rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data[\'' + modKey + '\']=this.value">' + rrEsc(modVal) + '</textarea></div>';
+        html += '</div>';
 
         // Has Box — inline row
+        html += '<div class="cd-blk">';
         html += _inlineRow('Has Box?', _smallBtn(boxKey, boxVal, ['Yes','No'],
           (c) => "wizard.data[\'" + boxKey + "\']=\'" + c + "\';_cdToggleBox(\'" + col.id + "\',\'" + c + "\')"));
         // Box condition slider (inline reveal)
         html += '<div id="cd-boxcond-' + col.id + '" style="margin-bottom:0.4rem;display:' + (boxVal === 'Yes' ? 'block' : 'none') + ';padding:0.4rem;background:var(--bg);border-radius:5px;border:1px solid var(--border)">';
         html += '<div style="display:flex;align-items:center;gap:0.4rem"><span style="font-size:0.65rem;color:var(--text-dim)">Box Cond:</span><span id="cd-boxcond-val-' + col.id + '" style="font-family:var(--font-head);font-size:0.95rem;color:var(--accent2);width:1.2rem;text-align:center">' + boxCondVal + '</span>';
         html += '<input type="range" min="1" max="10" value="' + boxCondVal + '" style="flex:1;accent-color:var(--accent)" oninput="wizard.data[\'' + boxCondKey + '\']=parseInt(this.value);document.getElementById(\'cd-boxcond-val-' + col.id + '\').textContent=this.value"></div>';
+        html += '</div>';
         html += '</div>';
       } // end All Original + Has Box block
       
@@ -5003,6 +5053,7 @@ function renderWizardStep() {
         const isVal = wizard.data.hasIS || '';
         const isSheetVal = wizard.data.is_sheetNum || '';
         const isCondVal = wizard.data.is_condition || 7;
+        html += '<div class="cd-blk">';
         html += _inlineRow('Instr. Sheet?', _smallBtn('hasIS', isVal, ['Yes','No'],
           (c) => "wizard.data.hasIS=\'" + c + "\';_cdToggleIS(\'" + c + "\')"));
         // IS inline reveal
@@ -5010,6 +5061,7 @@ function renderWizardStep() {
         html += '<input type="text" placeholder="Sheet # (e.g. 924-6)" value="' + isSheetVal.replace(/"/g, '&quot;') + '" style="width:100%;margin-bottom:0.3rem;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:0.3rem 0.4rem;color:var(--text);font-family:var(--font-body);font-size:0.78rem;outline:none;box-sizing:border-box" oninput="wizard.data.is_sheetNum=this.value">';
         html += '<div style="display:flex;align-items:center;gap:0.3rem"><span style="font-size:0.65rem;color:var(--text-dim)">Cond:</span><span id="cd-is-cond-val" style="font-family:var(--font-head);font-size:0.9rem;color:var(--accent2)">' + isCondVal + '</span>';
         html += '<input type="range" min="1" max="10" value="' + isCondVal + '" style="flex:1;accent-color:var(--accent)" oninput="wizard.data.is_condition=parseInt(this.value);document.getElementById(\'cd-is-cond-val\').textContent=this.value"></div>';
+        html += '</div>';
         html += '</div>';
 
         // Master Box — main column only, hidden in set mode
@@ -5026,10 +5078,12 @@ function renderWizardStep() {
         const errDescKey = p ? p + 'ErrorDesc' : 'errorDesc';
         const errVal = wizard.data[errKey] || '';
         const errDescVal = wizard.data[errDescKey] || '';
+        html += '<div class="cd-blk">';
         html += _inlineRow('Error Item?', _smallBtn(errKey, errVal, ['Yes','No'],
           (c) => "wizard.data[\'" + errKey + "\']=\'" + c + "\';_cdToggleError(\'" + col.id + "\',\'" + c + "\')"));
         html += '<div id="cd-error-reveal-' + col.id + '" style="margin-bottom:0.4rem;display:' + (errVal === 'Yes' ? 'block' : 'none') + '">';
         html += '<textarea placeholder="Describe the error…" style="width:100%;min-height:38px;background:var(--bg);border:1px solid #e74c3c44;border-radius:5px;padding:0.4rem;color:var(--text);font-family:var(--font-body);font-size:0.75rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data[\'' + errDescKey + '\']=this.value">' + rrEsc(errDescVal) + '</textarea></div>';
+        html += '</div>';
       }
       
       // Notes field — shown in set mode only
@@ -5039,7 +5093,8 @@ function renderWizardStep() {
         html += '<textarea placeholder="e.g. minor rust, runs well" style="width:100%;min-height:45px;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:0.4rem;color:var(--text);font-family:var(--font-body);font-size:0.75rem;outline:none;resize:vertical;box-sizing:border-box" oninput="wizard.data.notes=this.value">' + rrEsc(_setNoteVal) + '</textarea></div>';
       }
 
-      html += '</div>';
+      html += '</div>';   // v0.9.1232: .cd-fields
+      html += '</div>';   // .cd-col
       return html;
     }
     
