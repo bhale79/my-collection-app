@@ -277,19 +277,19 @@
     // left: the control panel (logo tile → swatches → roles)
     + '.rrap-left{flex:none;width:252px;background:var(--p-panel);border-right:1px solid var(--p-line);padding:0.85rem;overflow-y:auto;display:flex;flex-direction:column;gap:0.85rem}'
     + '.rrap-lh{font-family:var(--font-head);font-size:0.62rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--p-ink-dim)}'
-    + '.rrap-bottom{flex:none;display:flex;align-items:flex-start;gap:1.2rem;flex-wrap:wrap;'
+    + '.rrap-bottom{flex:none;display:flex;flex-direction:column;align-items:center;gap:0.55rem;'
     +   'background:var(--p-panel);border-top:1px solid var(--p-line);padding:0.7rem 1.1rem}'
-    + '.rrap-bsec{min-width:0}'
-    + '.rrap-bgrow{flex:1;min-width:340px}'
-    + '.rrap-tiles{display:flex;gap:0.7rem}'
-    + '.rrap-tilewrap{display:flex;flex-direction:column;gap:0.25rem;width:118px;flex:none}'
+    + '.rrap-bsec{min-width:0;width:100%;max-width:940px;text-align:center}'
+    + '.rrap-bgrow{width:100%;max-width:940px}'
+    + '.rrap-tiles{display:flex;gap:0.7rem;justify-content:center}'
+    + '.rrap-tilewrap{display:flex;flex-direction:column;gap:0.25rem;width:118px;flex:none;text-align:center}'
     + '.rrap-tlabel{font-size:0.63rem;line-height:1.2;color:var(--p-ink)}'
     + '.rrap-tlabel b{display:block;font-size:0.68rem}'
     + '.rrap-tlabel span{color:var(--p-ink-dim);font-size:0.56rem}'
     + '.rrap-logotile.rrap-tileon{border-style:solid;border-color:var(--p-accent);box-shadow:0 0 0 2px var(--p-paper),0 0 0 4px var(--p-accent)}'
     + '.rrap-tin{width:100%;box-sizing:border-box;padding:0.45rem 0.6rem;border-radius:8px;border:1.5px solid var(--p-line-hi);background:var(--p-panel2);color:var(--p-ink);font-family:var(--font-body);font-size:0.8rem;margin-bottom:0.35rem}'
     + '.rrap-tsel{width:100%;box-sizing:border-box;padding:0.4rem 0.5rem;border-radius:8px;border:1.5px solid var(--p-line-hi);background:var(--p-panel2);color:var(--p-ink);font-size:0.76rem;margin-bottom:0.35rem}'
-    + '.rrap-trow{display:flex;align-items:flex-end;gap:0.45rem;flex-wrap:wrap}'+ '.rrap-fld{flex:1;min-width:150px;display:flex;flex-direction:column;gap:0.15rem}'+ '.rrap-flab{font-size:0.58rem;letter-spacing:0.07em;text-transform:uppercase;color:var(--p-ink-dim)}'
+    + '.rrap-trow{display:flex;align-items:flex-end;justify-content:center;gap:0.45rem;flex-wrap:wrap}'+ '.rrap-fld{flex:1;min-width:150px;display:flex;flex-direction:column;gap:0.15rem;text-align:left}'+ '.rrap-trow .rrap-rc{width:64px;height:32px}'+ '.rrap-flab{font-size:0.58rem;letter-spacing:0.07em;text-transform:uppercase;color:var(--p-ink-dim)}'
     + '.rrap-rhead{display:inline-flex;align-items:center;gap:5px;margin-left:12px;overflow:hidden;white-space:nowrap}'
     + '.rrap-rside{margin-top:auto;padding-top:10px;display:flex;justify-content:center}'
     + '.rrap-side{display:flex;flex-direction:column}'
@@ -301,6 +301,17 @@
     + '.rrap-tileicon{font-size:1.9rem;line-height:1}'
     + '.rrap-tiletxt{font-size:0.72rem;color:var(--p-ink-mid);line-height:1.35}'
     + '.rrap-lnote{font-size:0.66rem;color:var(--p-ink-dim);line-height:1.35}'
+    // A short window is still a desktop. Rather than let the colour box
+    // start scrolling, the strip and the rows give back the few dozen
+    // pixels they can spare.
+    + '@media (max-height:800px){'
+    +   '.rrap-tilewrap{width:92px}'
+    +   '.rrap-role{padding:0.26rem 0.45rem;margin-bottom:0.2rem}'
+    +   '.rrap-bottom{padding:0.45rem 1.1rem;gap:0.35rem}'
+    +   '.rrap-tiles{gap:0.5rem}'
+    +   '.rrap-bottom .rrap-hint,.rrap-bottom .rrap-lnote{display:none}'
+    +   '.rrap-tlabel span{display:none}'
+    + '}'
     + '.rrap-lbtns{display:flex;gap:0.3rem;flex-wrap:wrap}'
     + '.rrap-lbtn{font-size:0.66rem;padding:0.32rem 0.55rem;border-radius:7px;border:1px solid var(--p-line-hi);background:var(--p-panel2);color:var(--p-ink);cursor:pointer}'
     + '.rrap-lbtn.rrap-lon{border-color:var(--p-accent);color:var(--p-accent);font-weight:600}'
@@ -331,8 +342,8 @@
     + '.rrap-tab.rrap-on{background:var(--p-panel);color:var(--p-ink);border-color:var(--p-line-hi);font-weight:600}'
     // The wrapper clips; the stage scales to fit inside it. Brad: "size the
     // box with the app background in such a way that there is not scrolling."
-    + '.rrap-stagewrap{flex:1;min-height:0;overflow:hidden;padding:0 1.1rem 1.1rem}'
-    + '.rrap-stage{position:relative;box-sizing:border-box;width:100%;min-width:1020px;border:1px solid var(--p-line-hi);border-radius:0 14px 14px 14px;background:var(--p-panel2);padding:26px 208px;transform-origin:top left}'
+    + '.rrap-stagewrap{flex:1;min-height:0;overflow:hidden;padding:1.1rem;display:flex;align-items:center;justify-content:center}'
+    + '.rrap-stage{position:relative;box-sizing:border-box;width:100%;min-width:1020px;border:1px solid var(--p-line-hi);border-radius:0 14px 14px 14px;background:var(--p-panel2);padding:26px 208px;transform-origin:center}'
     + '.rrap-wires{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5}'
     + '.rrap-wires line{stroke-width:1.5;stroke-dasharray:4 3;opacity:0.85}'
     + '.rrap-scene{display:none}.rrap-scene.rrap-on{display:block}'
@@ -998,7 +1009,7 @@
     return _swatchHtml() + _rolesHtml();
   }
   function _bottomPanelHtml() {
-    return _logoBarHtml() + _titleHtml();
+    return _titleHtml() + _logoBarHtml();
   }
 
   // The three square logo tiles. Brad: "a big square box to the top left that
@@ -1048,9 +1059,8 @@
     var t = _brandNow().title;
     var col = t.color || _cur('--text') || NO_COLOUR;
     if (!/^#[0-9a-fA-F]{6}$/.test(col)) col = NO_COLOUR;
-    return '<div class="rrap-bsec rrap-bgrow"><div class="rrap-lh">Header line</div>'
-      + '<div class="rrap-trow">'
-      + '<label class="rrap-fld" style="flex:2;min-width:190px"><span class="rrap-flab">The words</span>'
+    return '<div class="rrap-bsec rrap-bgrow"><div class="rrap-trow">'
+      + '<label class="rrap-fld" style="flex:2;min-width:190px"><span class="rrap-flab">Header line — the words</span>'
       + '<input class="rrap-tin" id="rrap-title" type="text" maxlength="48" placeholder="e.g. The Short Line Rail Collection"'
       + ' value="' + _esc(t.text) + '" oninput="window._rrapTitleSet(\'text\',this.value)"></label>'
       + '<label class="rrap-fld"><span class="rrap-flab">Typeface</span>'

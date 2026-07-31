@@ -113,7 +113,23 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
             unlabelled.push(el.tagName.toLowerCase() + '.' + (el.className || '?'));
           }
         });
+        // Brad: "the header text should be above teh three logo boxes and
+        // everything centered." Order and centring are both measurable.
+        const strip = document.querySelector('.rrap-bottom');
+        const secs = strip ? [].slice.call(strip.children) : [];
+        const sr2 = strip ? strip.getBoundingClientRect() : null;
+        const centred = secs.every(function (el) {
+          const b = el.getBoundingClientRect();
+          return Math.abs((b.left + b.right) / 2 - (sr2.left + sr2.right) / 2) <= 3;
+        });
+        // …and the preview should sit in the middle of the room it has,
+        // not pinned to the top with a void beneath it.
+        const gapTop = sr.top - wr.top, gapBot = wr.bottom - sr.bottom;
         return {
+          stripOrderOk: secs.length === 2 &&
+            !!secs[0].querySelector('.rrap-trow') && !!secs[1].querySelector('.rrap-tiles'),
+          stripCentred: centred,
+          previewOffCentre: Math.round(Math.abs(gapTop - gapBot)),
           unlabelled: unlabelled,
           chipsOverlapPreview: overlap,
           dockSkew: Math.abs(docks.l - docks.r),
@@ -145,6 +161,12 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
          r.chipsBelowPreview <= 40, r.chipsBelowPreview + 'px below');
       ok(at + ': every pick box says what it is for',
          r.unlabelled.length === 0, r.unlabelled.join(', '));
+      ok(at + ': the header line sits above the three mark boxes',
+         r.stripOrderOk);
+      ok(at + ': both rows of the strip are centred',
+         r.stripCentred);
+      ok(at + ': the preview sits in the middle of its space, not pinned to the top',
+         r.previewOffCentre <= 4, r.previewOffCentre + 'px off centre');
       await page.close();
     }
   } finally {

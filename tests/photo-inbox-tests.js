@@ -7445,10 +7445,21 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('…and the colour box keeps the left column, on its own',
        ap.indexOf('rrap-left') < ap.indexOf('rrap-right') &&
        /_leftPanelHtml[\s\S]{0,200}return _swatchHtml\(\) \+ _rolesHtml\(\);/.test(ap));
-    ok('the marks run across the bottom, in one row, at full width',
-       /_bottomPanelHtml[\s\S]{0,120}return _logoBarHtml\(\) \+ _titleHtml\(\);/.test(ap) &&
-       /'<div class="rrap-bottom" id="rrap-logobar">' \+ _bottomPanelHtml\(\)/.test(ap) &&
-       /\.rrap-tiles\{display:flex/.test(ap));
+    // v0.9.1215, Brad: "the header text should be above teh three logo boxes
+    // and everything centered." Two centred rows, header line first.
+    ok('the strip runs header line first, then the three marks',
+       /_bottomPanelHtml[\s\S]{0,120}return _titleHtml\(\) \+ _logoBarHtml\(\);/.test(ap) &&
+       /'<div class="rrap-bottom" id="rrap-logobar">' \+ _bottomPanelHtml\(\)/.test(ap));
+    ok('…stacked and centred, not two columns fighting for width',
+       /\.rrap-bottom\{[^}]*flex-direction:column;align-items:center/.test(ap) &&
+       /\.rrap-tiles\{display:flex;gap:[^;]*;justify-content:center/.test(ap) &&
+       /\.rrap-trow\{[^}]*justify-content:center/.test(ap));
+    ok('the preview sits in the middle of the room it has',
+       /\.rrap-stagewrap\{[^}]*align-items:center;justify-content:center/.test(ap) &&
+       /transform-origin:center/.test(ap));
+    ok('a short window gives back space instead of starting to scroll',
+       /@media \(max-height:800px\)/.test(ap) &&
+       /\.rrap-bottom \.rrap-hint,\.rrap-bottom \.rrap-lnote\{display:none\}/.test(ap));
     ok('both panels refresh together — one stale half is worse than none',
        /function _refreshPanel[\s\S]{0,400}_leftPanelHtml\(\)[\s\S]{0,200}_bottomPanelHtml\(\)/.test(ap));
 
@@ -7712,7 +7723,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // color, and border." A control with no label is a guess.
     ok('every header-line control sits in a labelled field',
        (ap.match(/class="rrap-flab">/g) || []).length === 4 &&
-       /The words<\/span>/.test(ap) && /Typeface<\/span>/.test(ap) &&
+       /Header line — the words<\/span>/.test(ap) && /Typeface<\/span>/.test(ap) &&
        /Border<\/span>/.test(ap) && /Text colour<\/span>/.test(ap));
     // "Also need to center of teh header line on the screen" — centred on
     // the BAR, not merely in the gap after the wordmark. pointer-events:none
