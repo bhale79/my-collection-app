@@ -7625,6 +7625,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       + "var LOGO_KEY='rr_skin_logo', BRAND_KEY='rr_skin_brand',"
       + " BRAND_DRAFT_KEY='rr_skin_brand_draft', LOGO_DRAFT_KEY='rr_skin_logo_draft';"
       + "var SLOTS=[['watermark'],['sidebar'],['header']];"
+      + "var BORDERS=[['none'],['rule'],['over'],['both'],['left'],['ends'],['box'],['round']];"
       + "var localStorage={getItem:function(k){return (k in store)?store[k]:null;},"
       + "setItem:function(k,v){store[k]=String(v);},removeItem:function(k){delete store[k];}};"
       + s1 + s2
@@ -7792,9 +7793,43 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // v0.9.1213, Brad: "also need titles to the pick boxes for font, text
     // color, and border." A control with no label is a guess.
     ok('every header-line control sits in a labelled field',
-       (ap.match(/class="rrap-flab">/g) || []).length === 4 &&
+       (ap.match(/class="rrap-flab">/g) || []).length === 6 &&
        /Header line — the words<\/span>/.test(ap) && /Typeface<\/span>/.test(ap) &&
-       /Border<\/span>/.test(ap) && /Text colour<\/span>/.test(ap));
+       /Border<\/span>/.test(ap) && /Text colour<\/span>/.test(ap) &&
+       /Size<\/span>/.test(ap) && /Style<\/span>/.test(ap));
+    // v0.9.1222, Brad: "need more fonts than the 10 or so you show, also some
+    // better boards [borders]. font size would be amazing with bold,
+    // italsized, etc."
+    ok('the typeface list is a real one now',
+       (ap.slice(ap.indexOf('var FONTS = ['), ap.indexOf('];', ap.indexOf('var FONTS = [')))
+          .match(/\['/g) || []).length >= 38);
+    ok('…and still nothing that has to be downloaded',
+       !/fonts\.googleapis|@import|\.woff/.test(ap));
+    ok('there are eight borders, not three',
+       (ap.slice(ap.indexOf('var BORDERS = ['), ap.indexOf('];', ap.indexOf('var BORDERS = [')))
+          .match(/\['/g) || []).length === 8);
+    ok('size, bold and italic are offered, and size is a key not free text',
+       /var TITLE_SIZES = \[/.test(ap) && /window\._rrapTitleToggle = function/.test(ap) &&
+       /var sizes = \{ s: '0\.85rem'/.test(ap) && /if \(sizes\[t\.size\]\)/.test(ap));
+
+    // Brad: "The text color is not showing up though selected." A font-family
+    // like  "Brush Script MT", cursive  carries DOUBLE quotes, and the style
+    // string lands in style="…" — the first quote ended the attribute and
+    // threw away everything after it, the colour included.
+    ok('a quoted font name cannot break the style attribute it lands in',
+       /String\(t\.font \|\| ''\)\.replace\(\/"\/g, "'"\)/.test(ap));
+
+    // Brad: "cant change the text color in the imput field." Writing that sat
+    // directly on a coloured element carried the BOX's tag, so the pointer
+    // found the box and never the words.
+    ok('the writing inside the input box can be pointed at',
+       /data-c="surface2"><span data-c="text">/.test(ap));
+    ok('…as can every other line of writing in both scenes',
+       /class="rrap-wlbl" data-c="text"/.test(ap) &&
+       /class="rrap-wbtn" data-c="text"/.test(ap) &&
+       (ap.match(/class="rrap-rd" data-c="text"/g) || []).length === 3);
+    ok('nothing points at a DERIVED shade, which a later change would overwrite',
+       !/data-c="text-mid"/.test(ap) && !/data-c="text-dim"/.test(ap));
     // "Also need to center of teh header line on the screen" — centred on
     // the BAR, not merely in the gap after the wordmark. pointer-events:none
     // because a label must never swallow a tap meant for the account chip.

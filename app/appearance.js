@@ -122,20 +122,54 @@
     ['var(--font-mono)', 'The Rail Roster typewriter'],
     ['Arial, Helvetica, sans-serif', 'Arial'],
     ['"Arial Black", Gadget, sans-serif', 'Arial Black'],
-    ['"Times New Roman", Times, serif', 'Times New Roman'],
-    ['Georgia, serif', 'Georgia'],
-    ['Garamond, serif', 'Garamond'],
-    ['"Palatino Linotype", "Book Antiqua", Palatino, serif', 'Palatino'],
-    ['"Courier New", Courier, monospace', 'Courier New'],
-    ['Verdana, Geneva, sans-serif', 'Verdana'],
+    ['"Arial Narrow", Arial, sans-serif', 'Arial Narrow'],
+    ['Calibri, Candara, sans-serif', 'Calibri'],
+    ['Candara, Calibri, sans-serif', 'Candara'],
+    ['"Century Gothic", CenturyGothic, sans-serif', 'Century Gothic'],
+    ['"Franklin Gothic Medium", Arial, sans-serif', 'Franklin Gothic'],
+    ['Futura, "Trebuchet MS", sans-serif', 'Futura'],
+    ['Geneva, Verdana, sans-serif', 'Geneva'],
+    ['"Gill Sans", "Gill Sans MT", Calibri, sans-serif', 'Gill Sans'],
+    ['Helvetica, Arial, sans-serif', 'Helvetica'],
+    ['Impact, Charcoal, sans-serif', 'Impact'],
+    ['"Lucida Sans Unicode", "Lucida Grande", sans-serif', 'Lucida Sans'],
+    ['Optima, Candara, sans-serif', 'Optima'],
+    ['"Segoe UI", Tahoma, sans-serif', 'Segoe UI'],
     ['Tahoma, Geneva, sans-serif', 'Tahoma'],
     ['"Trebuchet MS", Helvetica, sans-serif', 'Trebuchet MS'],
-    ['"Lucida Sans Unicode", "Lucida Grande", sans-serif', 'Lucida Sans'],
-    ['Impact, Charcoal, sans-serif', 'Impact'],
-    ['Copperplate, "Copperplate Gothic Light", fantasy', 'Copperplate'],
-    ['"Brush Script MT", cursive', 'Brush Script'],
+    ['Verdana, Geneva, sans-serif', 'Verdana'],
+    ['Baskerville, "Baskerville Old Face", serif', 'Baskerville'],
+    ['"Book Antiqua", Palatino, serif', 'Book Antiqua'],
+    ['Cambria, Georgia, serif', 'Cambria'],
+    ['Constantia, Georgia, serif', 'Constantia'],
+    ['Garamond, Baskerville, serif', 'Garamond'],
+    ['Georgia, serif', 'Georgia'],
+    ['"Hoefler Text", "Times New Roman", serif', 'Hoefler Text'],
+    ['"Palatino Linotype", Palatino, serif', 'Palatino'],
+    ['Rockwell, "Courier Bold", serif', 'Rockwell'],
+    ['"Times New Roman", Times, serif', 'Times New Roman'],
+    ['"Consolas", "Courier New", monospace', 'Consolas'],
+    ['"Courier New", Courier, monospace', 'Courier New'],
+    ['"Lucida Console", Monaco, monospace', 'Lucida Console'],
+    ['Monaco, "Lucida Console", monospace', 'Monaco'],
+    ['"Brush Script MT", "Segoe Script", cursive', 'Brush Script'],
+    ['"Comic Sans MS", "Chalkboard SE", cursive', 'Comic Sans'],
+    ['"Copperplate", "Copperplate Gothic Light", fantasy', 'Copperplate'],
+    ['"Papyrus", fantasy', 'Papyrus'],
+    ['"Segoe Script", "Brush Script MT", cursive', 'Segoe Script'],
+    ['"Snell Roundhand", "Brush Script MT", cursive', 'Snell Roundhand']
   ];
-  var BORDERS = [['none', 'No border'], ['rule', 'Line underneath'], ['box', 'Box around it']];
+  var BORDERS = [
+    ['none',  'No border'],
+    ['rule',  'Line underneath'],
+    ['over',  'Line above'],
+    ['both',  'Lines above and below'],
+    ['left',  'Bar down the left'],
+    ['ends',  'Bars at both ends'],
+    ['box',   'Box around it'],
+    ['round', 'Rounded box']
+  ];
+  var TITLE_SIZES = [['s', 'Small'], ['m', 'Normal'], ['l', 'Large'], ['xl', 'Extra large']];
   var LOGO_MAX = 512;              // longest side of the copy we keep
 
   // Editing needs the wide stage; a phone gets the presets only. Brad:
@@ -192,7 +226,7 @@
       + '<div class="rrap-app" id="ra-app" data-c="bg">'
       +  '<div class="rrap-apph" id="ra-head" data-c="surface"><span class="rrap-logo" data-c="text">THE RAIL <i data-c="accent">ROSTER</i></span><span id="ra-brand-head" class="rrap-rhead"></span></div>'
       +  '<div class="rrap-body">'
-      +   '<div class="rrap-side" data-c="surface"><div class="rrap-nav rrap-navon" id="ra-nav" data-c="accent">Dashboard</div><div class="rrap-nav" data-c="text-mid">My Collection</div><div class="rrap-nav" data-c="text-mid">Want / Upgrade</div><div class="rrap-nav" data-c="text-mid">For Sale</div><div id="ra-brand-side" class="rrap-rside"></div></div>'
+      +   '<div class="rrap-side" data-c="surface"><div class="rrap-nav rrap-navon" id="ra-nav" data-c="accent">Dashboard</div><div class="rrap-nav" data-c="text">My Collection</div><div class="rrap-nav" data-c="text">Want / Upgrade</div><div class="rrap-nav" data-c="text">For Sale</div><div id="ra-brand-side" class="rrap-rside"></div></div>'
       +   '<div class="rrap-content">'
       +    '<div class="rrap-acts">'
       +     '<span class="rrap-act" style="color:var(--green);border-color:var(--green)" id="ra-green" data-c="green">＋ COLLECTION</span>'
@@ -206,9 +240,9 @@
       +     '<div class="rrap-stat" style="border-top-color:var(--want)" data-c="surface"><div class="rrap-n" data-c="text">30</div><div class="rrap-l" data-c="want">WANT LIST</div></div>'
       +    '</div>'
       +    '<div class="rrap-panel" id="ra-rows" data-c="surface"><div class="rrap-pt" data-c="want">RECENT ACTIVITY</div>'
-      +     '<div class="rrap-row" id="ra-border" data-c="border"><span class="rrap-inum" id="ra-inum" data-c="accent">6464-475</span><span class="rrap-rd">Boston &amp; Maine Boxcar</span><span class="rrap-price" id="ra-gold" data-c="accent2">$50</span><span class="rrap-badge" style="background:color-mix(in srgb,var(--green) 16%,transparent);color:var(--green)" data-c="green">OWNED</span></div>'
-      +     '<div class="rrap-row" data-c="border"><span class="rrap-inum" data-c="accent">2343-P</span><span class="rrap-rd">Santa Fe F3 A Unit</span><span class="rrap-price" data-c="accent2">$420</span><span class="rrap-badge" style="background:color-mix(in srgb,var(--want) 16%,transparent);color:var(--want)" data-c="want">WANTED</span></div>'
-      +     '<div class="rrap-row" data-c="border"><span class="rrap-inum" data-c="accent">6017</span><span class="rrap-rd">Lionel Lines SP Caboose</span><span class="rrap-price" data-c="accent2">$20</span><span class="rrap-badge" style="background:color-mix(in srgb,var(--forsale) 16%,transparent);color:var(--forsale)" data-c="forsale">FOR SALE</span></div>'
+      +     '<div class="rrap-row" id="ra-border" data-c="border"><span class="rrap-inum" id="ra-inum" data-c="accent">6464-475</span><span class="rrap-rd" data-c="text">Boston &amp; Maine Boxcar</span><span class="rrap-price" id="ra-gold" data-c="accent2">$50</span><span class="rrap-badge" style="background:color-mix(in srgb,var(--green) 16%,transparent);color:var(--green)" data-c="green">OWNED</span></div>'
+      +     '<div class="rrap-row" data-c="border"><span class="rrap-inum" data-c="accent">2343-P</span><span class="rrap-rd" data-c="text">Santa Fe F3 A Unit</span><span class="rrap-price" data-c="accent2">$420</span><span class="rrap-badge" style="background:color-mix(in srgb,var(--want) 16%,transparent);color:var(--want)" data-c="want">WANTED</span></div>'
+      +     '<div class="rrap-row" data-c="border"><span class="rrap-inum" data-c="accent">6017</span><span class="rrap-rd" data-c="text">Lionel Lines SP Caboose</span><span class="rrap-price" data-c="accent2">$20</span><span class="rrap-badge" style="background:color-mix(in srgb,var(--forsale) 16%,transparent);color:var(--forsale)" data-c="forsale">FOR SALE</span></div>'
       +    '</div>'
       +   '</div>'
       +  '</div>'
@@ -222,11 +256,11 @@
       +   '<div class="rrap-wh"><div class="rrap-wstep" data-c="text">Collection · Step 2 of 6</div><div class="rrap-wt" id="rw-title" data-c="text">What is the item number?</div></div>'
       +   '<div class="rrap-wprog" id="rw-bar"><i data-c="accent"></i></div>'
       +   '<div class="rrap-wb">'
-      +    '<div class="rrap-wlbl">ITEM NUMBER</div>'
-      +    '<div class="rrap-win" id="rw-input" data-c="surface2">e.g. 726, 2046, 6464-1</div>'
+      +    '<div class="rrap-wlbl" data-c="text">ITEM NUMBER</div>'
+      +    '<div class="rrap-win" id="rw-input" data-c="surface2"><span data-c="text">e.g. 726, 2046, 6464-1</span></div>'
       +    '<div class="rrap-wphoto" id="rw-photo" data-c="want">📷 DON\'T KNOW THE NUMBER? IDENTIFY BY PHOTO</div>'
       +   '</div>'
-      +   '<div class="rrap-wf"><span class="rrap-wbtn">CANCEL</span><span class="rrap-wbtn rrap-go" id="rw-next" data-c="accent">NEXT →</span></div>'
+      +   '<div class="rrap-wf"><span class="rrap-wbtn" data-c="text">CANCEL</span><span class="rrap-wbtn rrap-go" id="rw-next" data-c="accent">NEXT →</span></div>'
       +  '</div>'
       + '</div>'
       + '</div>';
@@ -277,8 +311,10 @@
     + '.rrap-logotile.rrap-tileon{border-style:solid;border-color:var(--p-accent);box-shadow:0 0 0 2px var(--p-paper),0 0 0 4px var(--p-accent)}'
     + '.rrap-tin{width:100%;box-sizing:border-box;padding:0.45rem 0.6rem;border-radius:8px;border:1.5px solid var(--p-line-hi);background:var(--p-panel2);color:var(--p-ink);font-family:var(--font-body);font-size:0.8rem;margin-bottom:0.35rem}'
     + '.rrap-tsel{width:100%;box-sizing:border-box;padding:0.4rem 0.5rem;border-radius:8px;border:1.5px solid var(--p-line-hi);background:var(--p-panel2);color:var(--p-ink);font-size:0.76rem;margin-bottom:0.35rem}'
-    + '.rrap-trow{display:flex;align-items:flex-end;justify-content:center;gap:0.45rem;flex-wrap:wrap}'+ '.rrap-fld{flex:1;min-width:150px;display:flex;flex-direction:column;gap:0.15rem;text-align:left}'+ '.rrap-trow .rrap-rc{width:64px;height:32px}'+ '.rrap-flab{font-size:0.58rem;letter-spacing:0.07em;text-transform:uppercase;color:var(--p-ink-dim)}'
-    + '.rrap-rhead{display:inline-flex;align-items:center;gap:5px;margin-left:12px;overflow:hidden;white-space:nowrap}'
+    + '.rrap-trow{display:flex;align-items:flex-end;justify-content:center;gap:0.45rem;flex-wrap:wrap}'+ '.rrap-fld{flex:1;min-width:150px;display:flex;flex-direction:column;gap:0.15rem;text-align:left}'+ '.rrap-trow .rrap-rc{width:64px;height:32px}'+ '.rrap-tbtn{width:30px;height:30px;border-radius:7px;border:1.5px solid var(--p-line-hi);background:var(--p-panel2);color:var(--p-ink);font-size:0.85rem;cursor:pointer;padding:0}'
+    + '.rrap-tbtn.rrap-ton{border-color:var(--p-accent);background:var(--p-accent);color:var(--p-panel)}'
+    + '.rrap-flab{font-size:0.58rem;letter-spacing:0.07em;text-transform:uppercase;color:var(--p-ink-dim)}'
+    + '.rrap-rhead{position:absolute;left:50%;transform:translateX(-50%);display:inline-flex;align-items:center;gap:5px;max-width:60%;overflow:hidden;white-space:nowrap;pointer-events:none}'
     + '.rrap-rside{margin-top:auto;padding-top:10px;display:flex;justify-content:center}'
     + '.rrap-side{display:flex;flex-direction:column}'
     + '.rrap-logotile{width:100%;aspect-ratio:1/1;border:2px dashed var(--p-line-hi);border-radius:14px;background:var(--p-panel2);'
@@ -373,7 +409,7 @@
     + '#rrap-palnative{position:absolute;left:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none}'
     // replica — these DO read the skin variables, which is the point
     + '.rrap-app{background:var(--bg);border:1px solid var(--border);border-radius:12px;overflow:hidden;font-size:13px}'
-    + '.rrap-apph{display:flex;align-items:center;background:var(--surface);border-bottom:1px solid var(--border);padding:9px 13px}'
+    + '.rrap-apph{position:relative;display:flex;align-items:center;background:var(--surface);border-bottom:1px solid var(--border);padding:9px 13px}'
     + '.rrap-logo{font-family:var(--font-head);font-weight:700;letter-spacing:0.04em;color:var(--text)}'
     + '.rrap-logo i{color:var(--accent);font-style:normal}'
     + '.rrap-body{display:flex}'
@@ -776,9 +812,31 @@
   function _rrTitleStyle(t) {
     t = t || {};
     var col = /^#[0-9a-fA-F]{6}$/.test(String(t.color || '')) ? t.color : 'var(--cream)';
-    var css = 'font-family:' + (t.font || 'var(--font-head)') + ';color:' + col;
-    if (t.border === 'rule') css += ';border-bottom:2px solid ' + col + ';padding-bottom:2px';
-    else if (t.border === 'box') css += ';border:2px solid ' + col + ';padding:2px 10px;border-radius:7px';
+    // Brad: "The text color is not showing up though selected."
+    //
+    // A font-family like  "Brush Script MT", cursive  carries DOUBLE quotes,
+    // and this whole string is dropped into  style="…"  — so the first quote
+    // ENDED the attribute and everything after it was thrown away: the
+    // colour, the border, the lot. The text still appeared, in the default
+    // style, which is why it looked like the colour was being ignored rather
+    // than the markup being broken. Single quotes are safe inside a
+    // double-quoted attribute, and this is the one place a font becomes CSS.
+    var fam = String(t.font || '').replace(/"/g, "'") || 'var(--font-head)';
+    // Sizes are keys, never free text — the value below reaches a style
+    // attribute, and a map is the difference between a choice and an opening.
+    var sizes = { s: '0.85rem', m: '1.05rem', l: '1.35rem', xl: '1.7rem' };
+    var css = 'font-family:' + fam + ';color:' + col;
+    if (sizes[t.size]) css += ';font-size:' + sizes[t.size];
+    if (t.bold) css += ';font-weight:700';
+    if (t.italic) css += ';font-style:italic';
+    var b = t.border;
+    if (b === 'rule')       css += ';border-bottom:2px solid ' + col + ';padding-bottom:2px';
+    else if (b === 'over')  css += ';border-top:2px solid ' + col + ';padding-top:2px';
+    else if (b === 'both')  css += ';border-top:2px solid ' + col + ';border-bottom:2px solid ' + col + ';padding:2px 0';
+    else if (b === 'box')   css += ';border:2px solid ' + col + ';padding:2px 10px';
+    else if (b === 'round') css += ';border:2px solid ' + col + ';padding:2px 12px;border-radius:999px';
+    else if (b === 'left')  css += ';border-left:3px solid ' + col + ';padding-left:8px';
+    else if (b === 'ends')  css += ';border-left:3px solid ' + col + ';border-right:3px solid ' + col + ';padding:0 8px';
     return css;
   }
 
@@ -922,7 +980,6 @@
   function _labelFor(v) {
     var d = EDIT_VARS.filter(function (e) { return e[0] === v; })[0];
     if (d) return { name: d[1], sub: d[2] };
-    if (v === '--text-mid') return { name: 'Quieter text', sub: 'menu labels · captions' };
     return { name: v.replace('--', ''), sub: '' };
   }
   function _highlight(v) {
@@ -1113,7 +1170,10 @@
         text:   String(t.text || ''),
         font:   String(t.font || ''),
         color:  String(t.color || ''),
-        border: (t.border === 'rule' || t.border === 'box') ? t.border : 'none'
+        size:   ({ s: 1, m: 1, l: 1, xl: 1 })[t.size] ? t.size : 'm',
+        bold:   !!t.bold,
+        italic: !!t.italic,
+        border: BORDERS.some(function (b) { return b[0] === t.border; }) ? t.border : 'none'
       }
     };
   }
@@ -1254,6 +1314,19 @@
         }).join('')
       + '</select>'
       + '</select></label>'
+      + '<label class="rrap-fld" style="flex:none;min-width:110px"><span class="rrap-flab">Size</span>'
+      + '<select class="rrap-tsel" onchange="window._rrapTitleSet(\'size\',this.value)">'
+      + TITLE_SIZES.map(function (z) {
+          return '<option value="' + z[0] + '"' + (z[0] === t.size ? ' selected' : '') + '>' + z[1] + '</option>';
+        }).join('')
+      + '</select></label>'
+      + '<label class="rrap-fld" style="flex:none"><span class="rrap-flab">Style</span>'
+      + '<span class="rrap-trow" style="gap:0.3rem">'
+      + '<button class="rrap-tbtn' + (t.bold ? ' rrap-ton' : '') + '" style="font-weight:700"'
+      + ' onclick="window._rrapTitleToggle(\'bold\')" title="Bold">B</button>'
+      + '<button class="rrap-tbtn' + (t.italic ? ' rrap-ton' : '') + '" style="font-style:italic;font-family:serif"'
+      + ' onclick="window._rrapTitleToggle(\'italic\')" title="Italic">I</button>'
+      + '</span></label>'
       + '<label class="rrap-fld" style="flex:none"><span class="rrap-flab">Text colour</span>'
       + '<span class="rrap-rc" title="Colour of the words" onclick="window._rrapTitleColour(event)">'
       + '<span class="rrap-rcface" style="background:' + col + '"></span></span></label>'
@@ -1325,6 +1398,11 @@
                       function () { _resetVar(v); });
   };
   window._rrapRoleColor = function (v, hex) { _rrApplyRole(v, hex); };
+  window._rrapTitleToggle = function (field) {
+    var cur = _brandNow().title[field];
+    _brandEdit(function (r) { r.title[field] = !cur; });
+    _refreshPanel(); _paintCandidate();
+  };
   window._rrapTitleColour = function (ev) {
     if (ev && ev.stopPropagation) ev.stopPropagation();
     var t = _brandNow().title;
