@@ -87,6 +87,7 @@ const PERSONAL_SCHEMA = [
   { field: 'dateAdded',            header: 'Date Added' },               // v0.9.720 — appended at END (column rule)
   { field: 'purchasedFrom',        header: 'Purchased From' },           // v0.9.782 — Contact ID of the seller (Contacts tab); appended at END (column rule)
   { field: 'subType',              header: 'Sub Type' },                 // v0.9.989 — unified inventory Phase 1: detail under itemType (catType 'Advance', paperType 'Drawing', ...); appended at END (column rule)
+  { field: 'masterKey',            header: 'Master Key' },               // v0.9.1198 — WHICH catalog row this item is (era|itemNum|variation), written once at save time when the match is certain. The 07-30 audit's root cause was re-deriving this on every render: two catalog rows can answer to the same number+variation (Williams 2321, the "53" catalog) and the app guessed fresh each time. Stored once = looked up forever. Appended at END (column rule); blank on old rows = fall back to matching.
 ];
 const PERSONAL_HEADERS = PERSONAL_SCHEMA.map(s => s.header);
 const PERSONAL_FIELD_INDEX = {};
@@ -184,7 +185,18 @@ function buildPersonalRow(fields) {
   // base number now that findMaster has a base fallback). Manual items: findMaster
   // returns null, so their caller-supplied values are kept.
   if (!_rowIsManual && typeof findMaster === 'function' && inum && !_isBoxItemNum(inum)) {   // v0.9.724
-    const _mm = findMaster(inum, vari);
+    // v0.9.1198: pass what the save KNOWS (era + maker) as prefer — the
+    // standing rule: any lookup fed by an answer that names the maker must
+    // pass that maker in. First-row-wins across catalogs is a bug.
+    const _mm = findMaster(inum, vari, { era: fields.era || '', manufacturer: fields.manufacturer || '' });
+    // v0.9.1198: record WHICH catalog row this is, once, while it is known.
+    // The wizard passes the user's CONFIRMED match explicitly; every other
+    // caller gets the best save-time resolution. Never re-derived after this.
+    const _mki = PERSONAL_FIELD_INDEX.masterKey;
+    if (_mki !== undefined && (fields.masterKey === undefined || fields.masterKey === '') && _mm
+        && typeof rrMasterKeyOf === 'function') {
+      row[_mki] = rrMasterKeyOf(_mm);
+    }
     if (_mm) {
       [['itemType','itemType'],['roadName','roadName'],['roadNumber','roadNum']].forEach(function(pair){
         const _ci = PERSONAL_FIELD_INDEX[pair[0]];

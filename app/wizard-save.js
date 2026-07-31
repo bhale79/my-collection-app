@@ -1282,6 +1282,10 @@ async function saveWizardItem() {
         // Session 156: paired engine row via buildPersonalRow
         row = buildPersonalRow({
           dateAdded: (typeof existing !== 'undefined' && existing) ? (existing.dateAdded || '') : undefined,   // v0.9.720: updates keep their date
+          // v0.9.1198: the user CONFIRMED this catalog row in the wizard — the
+          // one moment the match is certain. Store it; never re-guess it.
+          masterKey: (typeof wizard !== 'undefined' && wizard && wizard.matchedItem && typeof rrMasterKeyOf === 'function')
+            ? rrMasterKeyOf(wizard.matchedItem) : undefined,
           itemNum: itemNum,
           variation: variation,
           condition: d.condition || '',

@@ -6733,6 +6733,71 @@ META_WRITES.length = 0; TOASTS.length = 0;
        mkSync(function () { throw new Error('drive down'); })({ itemNum: 'X' }) === '');
   })();
 
+  section('166. The stored master key — matched once, looked up forever (v0.9.1198)');
+  // The audit's "making it ironclad" answer, built: the wizard's confirmed
+  // catalog match is written to a new Master Key column (era|itemNum|variation,
+  // appended at the END per the column rule) and every join that receives the
+  // personal row upgrades from re-derivation to lookup. Old rows are blank and
+  // fall back to today's matching — nothing breaks on day one.
+  (function () {
+    const pR = require('path');
+    const appSrc = fs.readFileSync(pR.join(__dirname, '..', 'app', 'app.js'), 'utf8');
+    const adSrc  = fs.readFileSync(pR.join(__dirname, '..', 'app', 'app-data.js'), 'utf8');
+    const wsSrc  = fs.readFileSync(pR.join(__dirname, '..', 'app', 'wizard-save.js'), 'utf8');
+    const bwSrc  = fs.readFileSync(pR.join(__dirname, '..', 'app', 'browse.js'), 'utf8');
+
+    // Schema: the field exists and sits LAST (the column-index rule).
+    const schemaSlice = appSrc.slice(appSrc.indexOf('const PERSONAL_SCHEMA'), appSrc.indexOf('const PERSONAL_HEADERS'));
+    const fields = (schemaSlice.match(/field: '([A-Za-z]+)'/g) || []).map(function (m) { return m.slice(8, -1); });
+    ok('masterKey is in PERSONAL_SCHEMA', fields.indexOf('masterKey') >= 0);
+    ok('...appended at the END, never mid-schema', fields[fields.length - 1] === 'masterKey',
+       fields[fields.length - 1]);
+
+    // The wizard passes the CONFIRMED match; buildPersonalRow has the fallback.
+    ok('the wizard save stores the user-confirmed match',
+       /masterKey: \(typeof wizard !== 'undefined' && wizard && wizard\.matchedItem/.test(wsSrc));
+    ok('buildPersonalRow fills the key from its save-time match otherwise',
+       /row\[_mki\] = rrMasterKeyOf\(_mm\);/.test(appSrc));
+    ok('...and that lookup now passes era+maker as prefer (the standing rule)',
+       /findMaster\(inum, vari, \{ era: fields\.era \|\| '', manufacturer: fields\.manufacturer \|\| '' \}\)/.test(appSrc));
+
+    // Run the REAL key helpers + the REAL findMaster fast path.
+    const hIdx = adSrc.indexOf('function rrMasterKeyOf');
+    const hEnd = adSrc.indexOf('function _findMasterCore');
+    ok('the helpers and findMaster slice are findable', hIdx > 0 && hEnd > hIdx);
+    const pw1  = { itemNum: '2321', variation: '1', _era: 'pw', desc: 'Lionel PW' };
+    const wil  = { itemNum: '2321', variation: '1', _era: 'williams', desc: 'Williams' };
+    const idx = new Map(); idx.set('2321', [wil, pw1]);   // Williams FIRST — first-row-wins must not decide
+    const ctx = { state: { masterByItem: idx, masterByItemAll: null }, window: {},
+                  _findMasterCore: function () { return null; } };   // true boundary: the ordinary matcher, not under test here
+    const made = new Function(...Object.keys(ctx), '"use strict";'
+      + adSrc.slice(hIdx, hEnd)
+      + '; return { keyOf: rrMasterKeyOf, byKey: rrMasterByKey, fm: findMaster };')(...Object.values(ctx));
+    ok('rrMasterKeyOf builds era|num|variation', made.keyOf(pw1) === 'pw|2321|1', made.keyOf(pw1));
+    ok('rrMasterByKey resolves the exact row, not the first lookalike',
+       made.byKey('pw|2321|1') === pw1 && made.byKey('williams|2321|1') === wil);
+    ok('an unknown key resolves to null, never a guess', made.byKey('mpc|2321|1') === null);
+    ok('findMaster with a stored key returns that exact row',
+       made.fm('2321', '1', { masterKey: 'pw|2321|1' }) === pw1);
+    ok('...even when the lookalike loaded first',
+       made.fm('2321', '1', { masterKey: 'williams|2321|1' }) === wil);
+    ok('a FOREIGN key (different item number) is ignored, not obeyed',
+       made.fm('2331', '1', { masterKey: 'pw|2321|1' }) !== pw1);
+    ok('a Manual row still never gets a catalog identity',
+       made.fm('2321', '1', { era: 'Manual', masterKey: 'pw|2321|1' }) === null);
+
+    // The adopt guard pins on the key before any scoring.
+    ok('_bvAdopt resolves a stored key first and skips the scoring entirely',
+       /if \(p\.masterKey && typeof rrMasterByKey === 'function'\)/.test(bwSrc)
+       && bwSrc.indexOf('rrMasterByKey(p.masterKey)') > 0);
+    ok('...guarded by item number so a stale key cannot mis-adopt',
+       /_mkRow && String\(_mkRow\.itemNum\)\.trim\(\) === String\(p\.itemNum\)\.trim\(\)/.test(bwSrc));
+
+    // The header write is one-time, cosmetic, and only flagged on SUCCESS.
+    ok('the sheet header label is lazy, flagged only when the write lands',
+       /rr_mk_header_v1/.test(adSrc) && /\.then\(function \(\) \{ try \{ localStorage\.setItem\('rr_mk_header_v1'/.test(adSrc));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

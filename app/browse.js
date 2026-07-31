@@ -2728,6 +2728,17 @@ function renderBrowse() {
       // a unique strict match stays on today's path untouched.
       var _pv = String(p.variation || '').trim().toUpperCase();  // same normalization as _pdLookupKey
       if (String(p.era || '') === 'Manual') return;             // a manual entry's identity is its own
+      // v0.9.1198: a STORED master key settles it outright — the user
+      // confirmed this exact catalog row at save time. No scoring, no
+      // guessing; lookalikes never even get a vote. Guarded by item number so
+      // a stale key can't hand the item to a different number's row.
+      if (p.masterKey && typeof rrMasterByKey === 'function') {
+        var _mkRow = rrMasterByKey(p.masterKey);
+        if (_mkRow && String(_mkRow.itemNum).trim() === String(p.itemNum).trim()) {
+          _bvAdopt.set(_pv ? (p.itemNum + '|v|' + _pv) : p.itemNum, { pd: p, row: _mkRow });
+          return;
+        }
+      }
       var _rows = _bvByNum.get(p.itemNum) || [];
       if (_pv) {
         _rows = _rows.filter(function (r) { return String(r.variation == null ? '' : r.variation).trim().toUpperCase() === _pv; });

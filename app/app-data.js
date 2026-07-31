@@ -613,12 +613,49 @@ function _writeSearchIndex() {
 // B-unit/trailer role + variation. Always route catalog lookups through this.
 function _mIsMotive(t) { return /diesel|electric|locomotive|motoriz/i.test(String(t || '')); }
 function _mSuffix(num) { const m = String(num || '').trim().match(/-?([PDTC])$/i); return m ? m[1].toUpperCase() : ''; }
+// ── v0.9.1198: the stored master key — WHICH catalog row an owned item is ──
+// Format: era|itemNum|variation (e.g. "pw|2321|1"). Written by
+// buildPersonalRow at save time (the wizard passes the user's confirmed
+// match), read back on every personal row as pd.masterKey. A stored key makes
+// the personal→catalog join a LOOKUP; every re-derivation is a fresh chance
+// for a lookalike (Williams 2321, the "53" catalog) to claim the item.
+function rrMasterKeyOf(m) {
+  if (!m || !m.itemNum) return '';
+  return String(m._era || '') + '|' + String(m.itemNum) + '|' + String(m.variation == null ? '' : m.variation).trim();
+}
+function rrMasterByKey(key) {
+  if (!key || typeof key !== 'string') return null;
+  var parts = key.split('|');
+  if (parts.length < 2) return null;
+  var era = parts[0], num = parts[1], vari = (parts.slice(2).join('|') || '').trim();
+  function _scan(idx) {
+    if (!idx) return null;
+    var rows = idx.get(String(num).trim()) || [];
+    for (var i = 0; i < rows.length; i++) {
+      var m = rows[i];
+      if (String(m._era || '') === era && String(m.variation == null ? '' : m.variation).trim() === vari) return m;
+    }
+    return null;
+  }
+  return _scan(state.masterByItem) || _scan(state.masterByItemAll) || null;
+}
+if (typeof window !== 'undefined') { window.rrMasterKeyOf = rrMasterKeyOf; window.rrMasterByKey = rrMasterByKey; }
+
 function findMaster(itemNum, variation, prefer) {
   if (!itemNum) return null;
   // v0.9.732 (Brad's 4C, FINAL): when the caller passes the personal row as
   // `prefer` and that row is a MANUAL entry, there is no catalog identity —
   // ever. One guard here covers every display/lookup path at once.
   if (prefer && String(prefer.era || '') === 'Manual') return null;
+  // v0.9.1198: a STORED key answers outright — no scoring, no guessing. Many
+  // call sites already pass the personal row as `prefer`; rows saved from
+  // v0.9.1198 on carry pd.masterKey, so those joins upgrade to lookups
+  // automatically. Guarded by item number so a stale/foreign key can never
+  // hand back a different item's row.
+  if (prefer && prefer.masterKey) {
+    var _byKey = rrMasterByKey(prefer.masterKey);
+    if (_byKey && String(_byKey.itemNum).trim() === String(itemNum).trim()) return _byKey;
+  }
   // v0.9.971 (Brad): ONE lookup, TWO layers. Layer 1 is the loaded (enabled-
   // era) index — byte-for-byte the old behavior, so nothing regresses. Only
   // on a total miss does Layer 2 answer: the FULL-catalog index covering every
@@ -1344,6 +1381,20 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     obj.quickEntry = (obj.quickEntry === 'Yes');
     newPersonal[key] = obj;
   });
+
+  // v0.9.1198: one-time, fire-and-forget — label the new Master Key column in
+  // the sheet's header row (row 2) so Brad sees what it is when he opens the
+  // spreadsheet. Purely cosmetic (every read is positional); a failure just
+  // retries on a later load because the flag is only set on success.
+  try {
+    if (!localStorage.getItem('rr_mk_header_v1') && state.personalSheetId
+        && typeof personalColLetter === 'function' && typeof sheetsUpdate === 'function'
+        && PERSONAL_FIELD_INDEX && PERSONAL_FIELD_INDEX.masterKey !== undefined) {
+      sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('masterKey') + '2', [['Master Key']])
+        .then(function () { try { localStorage.setItem('rr_mk_header_v1', '1'); } catch (e) {} })
+        .catch(function (e) { console.warn('[MasterKey] header label deferred:', e && e.message); });
+    }
+  } catch (eMk) {}
 
   // Sold — Session 176: each sale is its own row (a history). Key uniquely by
   // sheet row so two sales of the same item number don't collide/overwrite. Read
