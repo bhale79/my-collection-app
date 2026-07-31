@@ -149,7 +149,22 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
             gapSpread: Math.round(Math.max.apply(null, gaps) - Math.min.apply(null, gaps))
           };
         });
+        // Brad circled the three mark boxes: "when i say spread it out, i
+        // mean whats circled in red." They must use the strip's width, not
+        // huddle in the middle of it.
+        const tiles = [].slice.call(document.querySelectorAll('.rrap-tilewrap'))
+          .map(function (e) { return e.getBoundingClientRect(); });
+        const tileRow = document.querySelector('.rrap-tiles');
+        let tileSpan = 0, tileGapSpread = 0, tileW = 0;
+        if (tiles.length === 3 && tileRow) {
+          const rowW = tileRow.getBoundingClientRect().width;
+          tileSpan = (tiles[2].right - tiles[0].left) / rowW;
+          const g = [tiles[1].left - tiles[0].right, tiles[2].left - tiles[1].right];
+          tileGapSpread = Math.round(Math.abs(g[0] - g[1]));
+          tileW = Math.round(tiles[0].width);
+        }
         return {
+          tileSpan: tileSpan, tileGapSpread: tileGapSpread, tileW: tileW,
           spread: spread,
           stripOrderOk: secs.length === 2 &&
             !!secs[0].querySelector('.rrap-trow') && !!secs[1].querySelector('.rrap-tiles'),
@@ -188,6 +203,11 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
          r.unlabelled.length === 0, r.unlabelled.join(', '));
       ok(at + ': the header line sits above the three mark boxes',
          r.stripOrderOk);
+      ok(at + ': the three mark boxes use the width of the strip',
+         r.tileSpan >= 0.9, 'they span ' + Math.round(r.tileSpan * 100) + '% of it');
+      ok(at + ': …evenly, and big enough to see a logo in',
+         r.tileGapSpread <= 3 && r.tileW >= 96,
+         'gaps differ by ' + r.tileGapSpread + 'px, tiles ' + r.tileW + 'px');
       ok(at + ': both rows of the strip are centred',
          r.stripCentred);
       ok(at + ': the preview sits in the middle of its space, not pinned to the top',

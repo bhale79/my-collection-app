@@ -281,8 +281,8 @@
     +   'background:var(--p-panel);border-top:1px solid var(--p-line);padding:0.7rem 1.1rem}'
     + '.rrap-bsec{min-width:0;width:100%;max-width:940px;text-align:center}'
     + '.rrap-bgrow{width:100%;max-width:940px}'
-    + '.rrap-tiles{display:flex;gap:0.7rem;justify-content:center}'
-    + '.rrap-tilewrap{display:flex;flex-direction:column;gap:0.25rem;width:118px;flex:none;text-align:center}'
+    + '.rrap-tiles{display:flex;gap:1rem;justify-content:space-between;width:100%}'
+    + '.rrap-tilewrap{display:flex;flex-direction:column;gap:0.3rem;width:172px;flex:none;text-align:center}'
     + '.rrap-tlabel{font-size:0.63rem;line-height:1.2;color:var(--p-ink)}'
     + '.rrap-tlabel b{display:block;font-size:0.68rem}'
     + '.rrap-tlabel span{color:var(--p-ink-dim);font-size:0.56rem}'
@@ -305,10 +305,10 @@
     // start scrolling, the strip and the rows give back the few dozen
     // pixels they can spare.
     + '@media (max-height:800px){'
-    +   '.rrap-tilewrap{width:92px}'
+    +   '.rrap-tilewrap{width:104px}'
     +   '.rrap-role{padding:0.26rem 0.45rem;margin-bottom:0.2rem}'
     +   '.rrap-bottom{padding:0.45rem 1.1rem;gap:0.35rem}'
-    +   '.rrap-tiles{gap:0.5rem}'
+    +   '.rrap-tiles{gap:0.6rem}'
     +   '.rrap-bottom .rrap-hint,.rrap-bottom .rrap-lnote{display:none}'
     +   '.rrap-tlabel span{display:none}'
     + '}'

@@ -7452,7 +7452,6 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'<div class="rrap-bottom" id="rrap-logobar">' \+ _bottomPanelHtml\(\)/.test(ap));
     ok('…stacked and centred, not two columns fighting for width',
        /\.rrap-bottom\{[^}]*flex-direction:column;align-items:center/.test(ap) &&
-       /\.rrap-tiles\{display:flex;gap:[^;]*;justify-content:center/.test(ap) &&
        /\.rrap-trow\{[^}]*justify-content:center/.test(ap));
     ok('the preview sits in the middle of the room it has',
        /\.rrap-stagewrap\{[^}]*align-items:center;justify-content:center/.test(ap) &&
@@ -7707,10 +7706,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('there are exactly three slots, named once',
        (slotsBlock.match(/\['[a-z]+',/g) || []).length === 3 &&
        /watermark/.test(slotsBlock) && /sidebar/.test(slotsBlock) && /header/.test(slotsBlock));
-    ok('the tiles are square by construction and sit side by side',
+    // v0.9.1217, Brad, circling the three boxes: "when i say spread it out,
+    // i mean whats circled in red." They span the strip now, and took some
+    // of that room as size.
+    ok('the tiles are square by construction and spread across the strip',
        /\.rrap-logotile\{[^}]*aspect-ratio:1\/1/.test(ap) &&
-       /\.rrap-tiles\{display:flex;gap:/.test(ap) &&
-       /\.rrap-tilewrap\{[^}]*width:118px/.test(ap));
+       /\.rrap-tiles\{display:flex;gap:[^;]*;justify-content:space-between;width:100%\}/.test(ap) &&
+       /\.rrap-tilewrap\{[^}]*width:172px/.test(ap));
     ok('one tile is armed, and a paste or a drop can only land there',
        /var _slotArmed = 'watermark';/.test(ap) &&
        /var slot = _slotArmed;/.test(ap) &&
