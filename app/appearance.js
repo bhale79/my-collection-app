@@ -275,17 +275,21 @@
     + '.rrap-btn.rrap-primary{background:var(--p-accent);border-color:var(--p-accent);color:var(--p-panel);font-weight:600}'
     + '.rrap-main{flex:1;display:flex;min-height:0}'
     // left: the control panel (logo tile → swatches → roles)
-    + '.rrap-left{flex:none;width:300px;background:var(--p-panel);border-right:1px solid var(--p-line);padding:0.85rem;overflow-y:auto;display:flex;flex-direction:column;gap:0.85rem}'
+    + '.rrap-left{flex:none;width:252px;background:var(--p-panel);border-right:1px solid var(--p-line);padding:0.85rem;overflow-y:auto;display:flex;flex-direction:column;gap:0.85rem}'
     + '.rrap-lh{font-family:var(--font-head);font-size:0.62rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--p-ink-dim)}'
-    + '.rrap-tiles{display:grid;grid-template-columns:1fr 1fr;gap:0.5rem}'
-    + '.rrap-tilewrap{display:flex;flex-direction:column;gap:0.25rem;min-width:0}'
+    + '.rrap-bottom{flex:none;display:flex;align-items:flex-start;gap:1.2rem;flex-wrap:wrap;'
+    +   'background:var(--p-panel);border-top:1px solid var(--p-line);padding:0.7rem 1.1rem}'
+    + '.rrap-bsec{min-width:0}'
+    + '.rrap-bgrow{flex:1;min-width:340px}'
+    + '.rrap-tiles{display:flex;gap:0.7rem}'
+    + '.rrap-tilewrap{display:flex;flex-direction:column;gap:0.25rem;width:118px;flex:none}'
     + '.rrap-tlabel{font-size:0.63rem;line-height:1.2;color:var(--p-ink)}'
     + '.rrap-tlabel b{display:block;font-size:0.68rem}'
     + '.rrap-tlabel span{color:var(--p-ink-dim);font-size:0.56rem}'
     + '.rrap-logotile.rrap-tileon{border-style:solid;border-color:var(--p-accent);box-shadow:0 0 0 2px var(--p-paper),0 0 0 4px var(--p-accent)}'
-    + '.rrap-tin{width:100%;box-sizing:border-box;padding:0.45rem 0.6rem;border-radius:8px;border:1.5px solid var(--p-line-hi);background:var(--p-panel2);color:var(--p-ink);font-family:var(--font-body);font-size:0.8rem;margin-bottom:0.35rem}'
-    + '.rrap-tsel{width:100%;box-sizing:border-box;padding:0.4rem 0.5rem;border-radius:8px;border:1.5px solid var(--p-line-hi);background:var(--p-panel2);color:var(--p-ink);font-size:0.76rem;margin-bottom:0.35rem}'
-    + '.rrap-trow{display:flex;align-items:center;gap:0.4rem;margin-bottom:0.3rem}'
+    + '.rrap-tin{flex:2;min-width:190px;box-sizing:border-box;padding:0.45rem 0.6rem;border-radius:8px;border:1.5px solid var(--p-line-hi);background:var(--p-panel2);color:var(--p-ink);font-family:var(--font-body);font-size:0.8rem;margin-bottom:0.35rem}'
+    + '.rrap-tsel{flex:1;min-width:150px;box-sizing:border-box;padding:0.4rem 0.5rem;border-radius:8px;border:1.5px solid var(--p-line-hi);background:var(--p-panel2);color:var(--p-ink);font-size:0.76rem;margin-bottom:0.35rem}'
+    + '.rrap-trow{display:flex;align-items:center;gap:0.45rem;flex-wrap:wrap}'
     + '.rrap-rhead{display:inline-flex;align-items:center;gap:5px;margin-left:12px;overflow:hidden;white-space:nowrap}'
     + '.rrap-rside{margin-top:auto;padding-top:10px;display:flex;justify-content:center}'
     + '.rrap-side{display:flex;flex-direction:column}'
@@ -415,7 +419,7 @@
       + '<button class="rrap-btn rrap-primary" onclick="window._rrapPreview()">👁 Preview in the app</button>'
       + '</div></div>'
       + '<div class="rrap-main">'
-      +  '<div class="rrap-left" id="rrap-logobar">' + _leftPanelHtml() + '</div>'
+      +  '<div class="rrap-left" id="rrap-colourbox">' + _leftPanelHtml() + '</div>'
       +  '<div class="rrap-right">'
       +   '<div class="rrap-presets" id="rrap-presets">' + _presetPills() + '</div>'
       +   '<div class="rrap-tabs">'
@@ -427,7 +431,8 @@
       +    _sceneDash() + _sceneWiz()
       +   '</div></div>'
       +  '</div>'
-      + '</div>';
+      + '</div>'
+      + '<div class="rrap-bottom" id="rrap-logobar">' + _bottomPanelHtml() + '</div>';
     document.body.appendChild(ov);
     if (window.BackStack && BackStack.wire) BackStack.wire(ov);
 
@@ -960,8 +965,17 @@
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
+  // Brad, seeing v1209: "this is clustered. maybe put the logos across the
+  // bottom of the screen and leave the color box to the left." Three square
+  // tiles plus a header-line form plus swatches plus five role rows never fit
+  // one 300px column — it scrolled, and the labels wrapped. The colour box
+  // keeps the left; the marks get the full width along the bottom, where
+  // three tiles sit side by side with room for their labels.
   function _leftPanelHtml() {
-    return _logoBarHtml() + _titleHtml() + _swatchHtml() + _rolesHtml();
+    return _swatchHtml() + _rolesHtml();
+  }
+  function _bottomPanelHtml() {
+    return _logoBarHtml() + _titleHtml();
   }
 
   // The three square logo tiles. Brad: "a big square box to the top left that
@@ -970,7 +984,7 @@
   // there is never a question of where an image went.
   function _logoBarHtml() {
     var rec = _brandNow();
-    var html = '<div><div class="rrap-lh">Your marks</div><div class="rrap-tiles">';
+    var html = '<div class="rrap-bsec"><div class="rrap-lh">Your marks</div><div class="rrap-tiles">';
     SLOTS.forEach(function (s) {
       var key = s[0], slot = rec[key], on = (_slotArmed === key);
       html += '<div class="rrap-tilewrap">'
@@ -1011,7 +1025,8 @@
     var t = _brandNow().title;
     var col = t.color || _cur('--text') || NO_COLOUR;
     if (!/^#[0-9a-fA-F]{6}$/.test(col)) col = NO_COLOUR;
-    return '<div><div class="rrap-lh">Header line</div>'
+    return '<div class="rrap-bsec rrap-bgrow"><div class="rrap-lh">Header line</div>'
+      + '<div class="rrap-trow">'
       + '<input class="rrap-tin" id="rrap-title" type="text" maxlength="48" placeholder="e.g. The Short Line Rail Collection"'
       + ' value="' + _esc(t.text) + '" oninput="window._rrapTitleSet(\'text\',this.value)">'
       + '<select class="rrap-tsel" onchange="window._rrapTitleSet(\'font\',this.value)">'
@@ -1020,8 +1035,7 @@
             + ' style="font-family:' + (f[0] || 'var(--font-head)') + '">' + _esc(f[1]) + '</option>';
         }).join('')
       + '</select>'
-      + '<div class="rrap-trow">'
-      + '<select class="rrap-tsel" style="flex:1;margin:0" onchange="window._rrapTitleSet(\'border\',this.value)">'
+      + '<select class="rrap-tsel" onchange="window._rrapTitleSet(\'border\',this.value)">'
       + BORDERS.map(function (b) {
           return '<option value="' + b[0] + '"' + (b[0] === t.border ? ' selected' : '') + '>' + b[1] + '</option>';
         }).join('')
@@ -1029,8 +1043,8 @@
       + '<span class="rrap-rc" title="Colour of the line"><input type="color" value="' + col
       + '" oninput="window._rrapTitleSet(\'color\',this.value)">'
       + '<span class="rrap-rcface" style="background:' + col + '"></span></span>'
-      + '</div>'
-      + '<div class="rrap-hint">Shows in the top bar next to THE RAIL ROSTER. Leave it empty for none.</div></div>';
+      + '<span class="rrap-hint" style="flex:1;min-width:170px">Shows in the top bar next to THE RAIL ROSTER. Leave it empty for none.</span>'
+      + '</div></div>';
   }
 
   function _swatchHtml() {
@@ -1072,8 +1086,11 @@
   }
 
   function _refreshPanel() {
-    var el = document.getElementById('rrap-logobar');
-    if (el) { el.innerHTML = _leftPanelHtml(); _wireLogoInput(); }
+    var left = document.getElementById('rrap-colourbox');
+    if (left) left.innerHTML = _leftPanelHtml();
+    var bot = document.getElementById('rrap-logobar');
+    if (bot) { bot.innerHTML = _bottomPanelHtml(); _wireLogoInput(); }
+    _fitStage();
   }
   function _refreshRoles() { _refreshPanel(); }
 
@@ -1287,6 +1304,29 @@
     _applyHeaderMark(rec.header, rec.title);
   }
   window.applyBranding = applyBranding;
+
+  // ── shared with the dashboard's logo cards (v0.9.1210) ──────────
+  // Deliberately OUTSIDE the APPEARANCE_ENABLED gate. Logo cards are a
+  // dashboard feature the user keeps once Appearance is hidden, and there
+  // must be exactly ONE image-prep implementation — a second copy would
+  // trim and size logos differently in two places, which is the same shape
+  // as every bug this app has had.
+  window.rrBrandFonts = FONTS;
+  window.rrBrandBorders = BORDERS;
+  window.rrTitleStyle = _rrTitleStyle;
+  window.rrLogoNote = _rrLogoNote;
+  window.rrEscape = _esc;
+  window.rrPrepLogoFile = function (fileOrBlob, cb) {
+    var url = URL.createObjectURL(fileOrBlob);
+    var img = new Image();
+    img.onload = function () {
+      var p = _rrPrepLogo(img, LOGO_MAX);
+      URL.revokeObjectURL(url);
+      cb(p ? { data: p.data, kind: p.kind } : null);
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); cb(null); };
+    img.src = url;
+  };
 
   // A faint fixed watermark. pointer-events:none so it can never block a tap;
   // low z-index so real pop-ups paint over it; 5% opacity so it reads as

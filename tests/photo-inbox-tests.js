@@ -7439,9 +7439,18 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // not a long text box."
     ok('the logo box is square by construction, not by a guessed pixel height',
        /\.rrap-logotile\{[^}]*aspect-ratio:1\/1/.test(ap));
-    ok('…and it sits at the top of the left-hand column',
+    // v0.9.1210, Brad: "this is clustered. maybe put the logos across the
+    // bottom of the screen and leave the color box to the left." The colour
+    // box keeps the left column; the marks get a full-width strip below.
+    ok('…and the colour box keeps the left column, on its own',
        ap.indexOf('rrap-left') < ap.indexOf('rrap-right') &&
-       /_leftPanelHtml[\s\S]{0,120}return _logoBarHtml\(\) \+/.test(ap));
+       /_leftPanelHtml[\s\S]{0,200}return _swatchHtml\(\) \+ _rolesHtml\(\);/.test(ap));
+    ok('the marks run across the bottom, in one row, at full width',
+       /_bottomPanelHtml[\s\S]{0,120}return _logoBarHtml\(\) \+ _titleHtml\(\);/.test(ap) &&
+       /'<div class="rrap-bottom" id="rrap-logobar">' \+ _bottomPanelHtml\(\)/.test(ap) &&
+       /\.rrap-tiles\{display:flex/.test(ap));
+    ok('both panels refresh together — one stale half is worse than none',
+       /function _refreshPanel[\s\S]{0,400}_leftPanelHtml\(\)[\s\S]{0,200}_bottomPanelHtml\(\)/.test(ap));
 
     // ── 6. Nothing scrolls: the stage is scaled to fit ───────────────────
     // Brad: "size the box with the app background in such a way that there
@@ -7671,9 +7680,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('there are exactly three slots, named once',
        (slotsBlock.match(/\['[a-z]+',/g) || []).length === 3 &&
        /watermark/.test(slotsBlock) && /sidebar/.test(slotsBlock) && /header/.test(slotsBlock));
-    ok('the tiles are square by construction and laid out two-up',
+    ok('the tiles are square by construction and sit side by side',
        /\.rrap-logotile\{[^}]*aspect-ratio:1\/1/.test(ap) &&
-       /\.rrap-tiles\{display:grid;grid-template-columns:1fr 1fr/.test(ap));
+       /\.rrap-tiles\{display:flex;gap:/.test(ap) &&
+       /\.rrap-tilewrap\{[^}]*width:118px/.test(ap));
     ok('one tile is armed, and a paste or a drop can only land there',
        /var _slotArmed = 'watermark';/.test(ap) &&
        /var slot = _slotArmed;/.test(ap) &&
