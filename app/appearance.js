@@ -1993,6 +1993,10 @@
       _persist(map);
       _commitBrand();
       _saved = true;
+      // This device's look just changed — stamp it, then send it on. Both are
+      // no-ops if look-sync.js is not loaded or Drive is not reachable.
+      if (typeof window.rrLookTouch === 'function') window.rrLookTouch();
+      if (typeof window.rrLookPush === 'function') window.rrLookPush({ loud: false });
       _endPreview();
       _teardown();
       if (typeof showToast === 'function') {

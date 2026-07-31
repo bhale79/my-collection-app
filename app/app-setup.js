@@ -253,6 +253,10 @@ function _buildAppShell() {
   // sidebar marks need a shell to hang on. This is that one call, made at the
   // moment there is something to hang them on.
   if (typeof window.applyBranding === 'function') window.applyBranding();
+  // v0.9.1230: once the app is up and usable, ask Drive one small question —
+  // has the look changed since this device last saw it? Never before the
+  // shell exists, and never on the critical path.
+  if (typeof window.rrLookCheckLater === 'function') window.rrLookCheckLater();
 }
 
 // ── OAuth + sign-in helpers moved to app-auth.js (Session 110, Round 2 Chunk 11) ──

@@ -8395,6 +8395,93 @@ META_WRITES.length = 0; TOASTS.length = 0;
        sel.kids.filter(k => k.selected).map(k => k.value).join(',') === 'C-1');
   })();
 
+  section('182. Your look follows you to the phone (v0.9.1230)');
+  (function () {
+    const pathJ = require('path');
+    const rd = f => fs.readFileSync(pathJ.join(__dirname, '..', 'app', f), 'utf8');
+    const ls = rd('look-sync.js');
+    const ap = rd('appearance.js');
+    const su = rd('app-setup.js');
+
+    // Brad: "lets get this on the phone app or whatever was the part we need
+    // to complete it."
+
+    // ── where it goes, and where it deliberately does NOT ────────────────
+    ok('the look is one file in the app\'s own Drive folder',
+       /var FILE_NAME = 'The Rail Roster - look\.json';/.test(ls) &&
+       /driveCache\.vaultId/.test(ls));
+    // Brad's first instinct was the photo folder. That folder is walked by
+    // the thumbnail code and the photo inbox, and a logo sitting among the
+    // item photos is a logo waiting to be mistaken for one.
+    ok('…and NOT among the item photos, where a logo could be taken for one',
+       !/driveEnsureItemFolder|rrPhotoFolderFor|driveGetFolderPhotos/.test(ls));
+
+    // ── it asks before it downloads ──────────────────────────────────────
+    ok('start-up reads one field, not the whole look',
+       /fields=files\(id,modifiedTime\)/.test(ls) &&
+       /seen\.modifiedTime === file\.modifiedTime/.test(ls));
+    ok('…and only then fetches the contents',
+       /_download\(file\.id\)/.test(ls) && /alt=media/.test(ls));
+
+    // ── it never costs you the app's start ───────────────────────────────
+    ok('the check runs after the shell exists, once, on a timer',
+       /window\.rrLookCheckLater\(\)/.test(su) &&
+       /if \(_checked\) return;\s*\n\s*_checked = true;/.test(ls) &&
+       /setTimeout\(function \(\) \{/.test(ls));
+    ok('…and the shell is built before it is even asked for',
+       su.indexOf('applyBranding()') < su.indexOf('rrLookCheckLater()'));
+
+    // ── it cannot lose work ──────────────────────────────────────────────
+    ok('a device refuses anything older than its own look',
+       /if \(!opts\.force && mine && \(snap\.stamp \|\| 0\) < mine\)/.test(ls));
+    ok('an existing file is updated, not duplicated on every save',
+       /method = 'PATCH'/.test(ls) && /uploadType=media/.test(ls));
+    ok('the keys that make up a look are named, not guessed at',
+       /var LOOK_KEYS = \[/.test(ls) &&
+       ['lv_theme', 'lv_skin_custom', 'rr_skin_presets', 'rr_skin_brand', 'rr_logo_cards']
+         .every(k => new RegExp("'" + k + "'").test(ls)));
+
+    // ── it is silent when it cannot work ─────────────────────────────────
+    ok('everything fails quietly — a look is not worth an error on start-up',
+       /function _ready\(\)/.test(ls) &&
+       (ls.match(/catch \(e\)/g) || []).length >= 6 &&
+       /rrLookPull\(\{ loud: false \}\)/.test(ls));
+
+    // ── Apply is what sends it ───────────────────────────────────────────
+    ok('applying a look stamps this device and sends it on',
+       /window\.rrLookTouch\(\)/.test(ap) && /window\.rrLookPush\(\{ loud: false \}\)/.test(ap));
+    ok('…after it has been saved locally, never instead of it',
+       ap.indexOf('_persist(map);') < ap.indexOf('window.rrLookPush'));
+
+    // ── RUN the snapshot: it must carry exactly the named keys ───────────
+    const src = ls.slice(ls.indexOf('function _get(k)'), ls.indexOf('function _applySnapshot'));
+    const store = {
+      lv_theme: 'custom', lv_skin_custom: '{"--bg":"#123456"}',
+      rr_skin_presets: '{}', rr_skin_brand: '{"watermark":null}',
+      rr_logo_cards: '[]', rr_look_stamp: '1700',
+      something_else: 'must not travel'
+    };
+    const fn = new Function('localStorage', 'LOOK_KEYS', 'STAMP_KEY',
+      '"use strict";' + src + '; return { snap: rrLookSnapshot, touch: rrLookTouch };')(
+      { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = v; },
+        removeItem: k => { delete store[k]; } },
+      ['lv_theme', 'lv_skin_custom', 'rr_skin_presets', 'rr_skin_brand', 'rr_logo_cards'],
+      'rr_look_stamp');
+    const snap = fn.snap();
+    ok('the snapshot carries every part of the look',
+       Object.keys(snap.keys).sort().join(',') ===
+       'lv_skin_custom,lv_theme,rr_logo_cards,rr_skin_brand,rr_skin_presets',
+       Object.keys(snap.keys).join(','));
+    ok('…and nothing else from this device',
+       !('something_else' in snap.keys));
+    ok('…and carries the stamp that decides whose copy is newer',
+       snap.stamp === 1700);
+
+    ok('the file is loaded and precached like everything else',
+       /look-sync\.js\?v=(\d+)/.test(rd('index.html')) &&
+       /'\.\/look-sync\.js'/.test(rd('sw.js')));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
