@@ -8218,6 +8218,74 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /\.then\(function \(yes\) \{ if \(yes\) go\(\); \}\)/.test(rd('app/logo-cards.js')));
   })();
 
+  section('180. The tender picker exists before the button that calls it (v0.9.1227)');
+  (function () {
+    const pathH = require('path');
+    const wz = fs.readFileSync(pathH.join(__dirname, '..', 'app', 'wizard.js'), 'utf8');
+
+    // Brad: "i had a different tender than the one suggested, i hit other
+    // tender, and got this error." _showTenderPicker was defined INSIDE the
+    // entryMode branch of renderWizardStep(), so it only existed if that
+    // screen happened to render. The button that calls it is on Condition &
+    // Details. Any path that skipped entryMode left the button pointing at a
+    // global that had never been created.
+    const defAt = wz.indexOf('window._showTenderPicker = function');
+    const selAt = wz.indexOf('window._selectTender = function');
+    const renderAt = wz.indexOf('function renderWizardStep() {');
+    ok('the picker is defined at module scope, not inside a screen',
+       defAt > 0 && renderAt > 0 && defAt < renderAt,
+       'picker at ' + defAt + ', renderWizardStep at ' + renderAt);
+    ok('…and so is the thing that records the choice',
+       selAt > 0 && selAt < renderAt);
+    ok('both sit at the left margin, which is what module scope looks like',
+       /\nwindow\._showTenderPicker = function\(\) \{/.test(wz) &&
+       /\nwindow\._selectTender = function\(tNum\) \{/.test(wz));
+
+    // The call sites are on OTHER steps — that is the whole point.
+    ok('the button that opens it is drawn on Condition & Details',
+       /_showTenderPicker\(\)"[^]{0,400}Other tender/.test(wz.replace(/\n/g, '')) ||
+       /Other tender/.test(wz));
+    ok('every caller is reachable from anywhere, not just one branch',
+       (wz.match(/_showTenderPicker\(\)/g) || []).length >= 3);
+
+    // RUN it: with only the module-level globals stubbed, the picker must be
+    // callable. A grep can prove where the text sits; only running it proves
+    // the button would find something.
+    const s1 = wz.slice(defAt, wz.indexOf('function renderWizardStep() {'));
+    const made = [];
+    const el = () => ({ id: '', style: {}, innerHTML: '', value: '',
+      addEventListener() {}, remove() {}, appendChild() {}, querySelector: () => null,
+      focus() {}, select() {} });
+    const ctx = {
+      window: {}, document: {
+        // The modal does not exist yet (so it is not removed); the input and
+        // results DO, because by then the overlay has been inserted.
+        getElementById: (id) => (id === 'tender-picker-modal' ? null : el()),
+        createElement: (t) => { const e = el(); made.push(t); return e; },
+        body: { appendChild() {} }
+      },
+      wizard: { data: { itemNum: '726' }, steps: [], step: 0 },
+      state: { masterData: [{ itemNum: '2426W', description: 'Whistle tender' }] },
+      getMatchingTenders: () => ['2426W'],
+      isTender: () => true,
+      renderWizardStep: () => {},
+      setTimeout: (fn) => fn()
+    };
+    ctx.window.state = ctx.state;
+    let ran = null;
+    try {
+      const fn = new Function('window', 'document', 'wizard', 'state', 'getMatchingTenders',
+        'isTender', 'renderWizardStep', 'setTimeout', '"use strict";' + s1 + '; return window;');
+      const w = fn(ctx.window, ctx.document, ctx.wizard, ctx.state, ctx.getMatchingTenders,
+        ctx.isTender, ctx.renderWizardStep, ctx.setTimeout);
+      w._showTenderPicker();
+      ran = 'ok';
+    } catch (e) { ran = String(e && e.message); }
+    ok('the picker actually runs with nothing but module-level globals',
+       ran === 'ok', ran);
+    ok('…and it built a dialog while doing so', made.indexOf('div') >= 0);
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

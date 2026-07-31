@@ -1613,6 +1613,90 @@ function _renderAddingBanner() {
     + '</div>';
 }
 
+// ── The tender picker (hoisted, v0.9.1227) ──────────────────────────────
+// Brad: "i had a different tender than the one suggested, i hit other tender,
+// and got this error."
+//
+// These two lived INSIDE the `entryMode` branch of renderWizardStep(), so
+// they only came into existence if that particular screen happened to render.
+// The button that calls them is drawn on the Condition & Details step. Reach
+// that step by any path that skipped entryMode -- which is what adding an
+// engine with a tender does -- and the button pointed at a global that had
+// never been created. The error banner was a ReferenceError.
+//
+// Same shape as every other bug this week: one thing defined somewhere that
+// does not govern where it is used. The fix is to move it, not to guard the
+// call site -- a guard would have made the button silently do nothing, which
+// is worse than an error.
+//
+// They depend on nothing from that branch: only wizard, state,
+// getMatchingTenders, isTender and renderWizardStep, all module-level.
+// Tender picker popup
+window._showTenderPicker = function() {
+  var existing = document.getElementById('tender-picker-modal');
+  if (existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'tender-picker-modal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10010;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+  overlay.innerHTML = '<div class="rr-card">'
+    + '<div style="font-family:var(--font-head);font-size:1rem;font-weight:700;color:var(--text);margin-bottom:0.1rem">Select Your Tender</div>'
+    + '<div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:0.85rem">Type a tender number to search, or pick from the list below.</div>'
+    + '<input id="tender-picker-input" type="search" autocomplete="off" placeholder="e.g. 2046W, 6026T…" style="width:100%;box-sizing:border-box;padding:0.65rem 0.85rem;border-radius:9px;border:1.5px solid var(--accent);background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.92rem;outline:none;margin-bottom:0.5rem">'
+    + '<div id="tender-picker-results" style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:0.25rem"></div>'
+    + '<button onclick="document.getElementById(\'tender-picker-modal\').remove()" style="margin-top:0.85rem;width:100%;padding:0.55rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Cancel</button>'
+    + '</div>';
+  document.body.appendChild(overlay);
+  var inp = document.getElementById('tender-picker-input');
+  var res = document.getElementById('tender-picker-results');
+  function _renderResults(q) {
+    var known = getMatchingTenders((wizard.data.itemNum||'').trim());
+    var all = state.masterData
+      .filter(function(m) { return isTender(m.itemNum); })
+      .reduce(function(acc, m) {
+        if (!acc.find(function(x){ return x.itemNum === m.itemNum; })) acc.push(m);
+        return acc;
+      }, []);
+    var filtered = all.filter(function(m) {
+      if (!q) return known.includes(m.itemNum);
+      return m.itemNum.toLowerCase().includes(q) || (m.description||'').toLowerCase().includes(q);
+    }).slice(0, 8);
+    res.innerHTML = filtered.map(function(m) {
+      var isKnown = known.includes(m.itemNum);
+      return '<button onclick="_selectTender(\'' + m.itemNum + '\')" style="width:100%;text-align:left;padding:0.55rem 0.75rem;border-radius:8px;border:1px solid ' + (isKnown ? 'rgba(139,92,246,0.35)' : 'var(--border)') + ';background:' + (isKnown ? 'rgba(139,92,246,0.08)' : 'var(--surface2)') + ';cursor:pointer;font-family:var(--font-body)">'
+        + '<span style="font-family:var(--font-mono);font-weight:700;color:' + (isKnown ? '#8b5cf6' : 'var(--accent2)') + ';font-size:0.88rem">' + m.itemNum + '</span>'
+        + (isKnown ? '<span style="margin-left:0.4rem;font-size:0.65rem;color:#8b5cf6;font-family:var(--font-head);letter-spacing:0.06em;text-transform:uppercase">known match</span>' : '')
+        + (m.description ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.1rem">' + m.description + '</div>' : '')
+        + '</button>';
+    }).join('');
+    if (!filtered.length) res.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--text-dim);font-size:0.82rem">No tenders found</div>';
+  }
+  inp.addEventListener('input', function() { _renderResults(this.value.trim().toLowerCase()); });
+  _renderResults('');
+  setTimeout(function(){ inp.focus(); }, 80);
+};
+window._selectTender = function(tNum) {
+  var known = getMatchingTenders((wizard.data.itemNum||'').trim());
+  wizard.data.tenderMatch = tNum;
+  wizard.data.tenderIsNonOriginal = !known.includes(tNum);
+  wizard.data._qeMultiResolved = false;
+  // Session 159: if invoked from Step 3 (no qe1 label), confirm + re-render
+  var _step3Active = wizard.steps && wizard.steps[wizard.step] &&
+                     wizard.steps[wizard.step].type === 'conditionDetails';
+  if (_step3Active) wizard.data._tenderConfirmed = true;
+  var modal = document.getElementById('tender-picker-modal');
+  if (modal) modal.remove();
+  // Update tender label in DOM without full re-render
+  var lbl = document.getElementById('qe1-tender-label');
+  if (lbl) {
+    var nonOrig = wizard.data.tenderIsNonOriginal;
+    lbl.innerHTML = 'TENDER <span style="font-family:var(--font-mono);font-weight:700;color:' + (nonOrig ? '#f39c12' : '#8b5cf6') + '">' + tNum + (nonOrig ? ' &#x26A0;' : '') + '</span>'
+      + '<button type="button" onclick="_showTenderPicker()" style="margin-left:0.4rem;padding:0.15rem 0.5rem;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-size:0.65rem;font-family:var(--font-body);cursor:pointer;white-space:nowrap">Not yours?</button>';
+  } else if (_step3Active) {
+    // Session 159: re-render Step 3 to reflect the new tender choice
+    renderWizardStep();
+  }
+};
+
 function renderWizardStep() {
   // v0.9.1033: the step is about to be re-rendered, so hand back any field the
   // full-screen focus panel borrowed before its old home is thrown away.
@@ -2284,71 +2368,7 @@ function renderWizardStep() {
       if (typeof applyGrouping === 'function') applyGrouping(wizard.data, gid, n);
     }
 
-    // Tender picker popup
-    window._showTenderPicker = function() {
-      var existing = document.getElementById('tender-picker-modal');
-      if (existing) existing.remove();
-      var overlay = document.createElement('div');
-      overlay.id = 'tender-picker-modal';
-      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10010;display:flex;align-items:center;justify-content:center;padding:1.5rem';
-      overlay.innerHTML = '<div class="rr-card">'
-        + '<div style="font-family:var(--font-head);font-size:1rem;font-weight:700;color:var(--text);margin-bottom:0.1rem">Select Your Tender</div>'
-        + '<div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:0.85rem">Type a tender number to search, or pick from the list below.</div>'
-        + '<input id="tender-picker-input" type="search" autocomplete="off" placeholder="e.g. 2046W, 6026T…" style="width:100%;box-sizing:border-box;padding:0.65rem 0.85rem;border-radius:9px;border:1.5px solid var(--accent);background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.92rem;outline:none;margin-bottom:0.5rem">'
-        + '<div id="tender-picker-results" style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:0.25rem"></div>'
-        + '<button onclick="document.getElementById(\'tender-picker-modal\').remove()" style="margin-top:0.85rem;width:100%;padding:0.55rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Cancel</button>'
-        + '</div>';
-      document.body.appendChild(overlay);
-      var inp = document.getElementById('tender-picker-input');
-      var res = document.getElementById('tender-picker-results');
-      function _renderResults(q) {
-        var known = getMatchingTenders((wizard.data.itemNum||'').trim());
-        var all = state.masterData
-          .filter(function(m) { return isTender(m.itemNum); })
-          .reduce(function(acc, m) {
-            if (!acc.find(function(x){ return x.itemNum === m.itemNum; })) acc.push(m);
-            return acc;
-          }, []);
-        var filtered = all.filter(function(m) {
-          if (!q) return known.includes(m.itemNum);
-          return m.itemNum.toLowerCase().includes(q) || (m.description||'').toLowerCase().includes(q);
-        }).slice(0, 8);
-        res.innerHTML = filtered.map(function(m) {
-          var isKnown = known.includes(m.itemNum);
-          return '<button onclick="_selectTender(\'' + m.itemNum + '\')" style="width:100%;text-align:left;padding:0.55rem 0.75rem;border-radius:8px;border:1px solid ' + (isKnown ? 'rgba(139,92,246,0.35)' : 'var(--border)') + ';background:' + (isKnown ? 'rgba(139,92,246,0.08)' : 'var(--surface2)') + ';cursor:pointer;font-family:var(--font-body)">'
-            + '<span style="font-family:var(--font-mono);font-weight:700;color:' + (isKnown ? '#8b5cf6' : 'var(--accent2)') + ';font-size:0.88rem">' + m.itemNum + '</span>'
-            + (isKnown ? '<span style="margin-left:0.4rem;font-size:0.65rem;color:#8b5cf6;font-family:var(--font-head);letter-spacing:0.06em;text-transform:uppercase">known match</span>' : '')
-            + (m.description ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.1rem">' + m.description + '</div>' : '')
-            + '</button>';
-        }).join('');
-        if (!filtered.length) res.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--text-dim);font-size:0.82rem">No tenders found</div>';
-      }
-      inp.addEventListener('input', function() { _renderResults(this.value.trim().toLowerCase()); });
-      _renderResults('');
-      setTimeout(function(){ inp.focus(); }, 80);
-    };
-    window._selectTender = function(tNum) {
-      var known = getMatchingTenders((wizard.data.itemNum||'').trim());
-      wizard.data.tenderMatch = tNum;
-      wizard.data.tenderIsNonOriginal = !known.includes(tNum);
-      wizard.data._qeMultiResolved = false;
-      // Session 159: if invoked from Step 3 (no qe1 label), confirm + re-render
-      var _step3Active = wizard.steps && wizard.steps[wizard.step] &&
-                         wizard.steps[wizard.step].type === 'conditionDetails';
-      if (_step3Active) wizard.data._tenderConfirmed = true;
-      var modal = document.getElementById('tender-picker-modal');
-      if (modal) modal.remove();
-      // Update tender label in DOM without full re-render
-      var lbl = document.getElementById('qe1-tender-label');
-      if (lbl) {
-        var nonOrig = wizard.data.tenderIsNonOriginal;
-        lbl.innerHTML = 'TENDER <span style="font-family:var(--font-mono);font-weight:700;color:' + (nonOrig ? '#f39c12' : '#8b5cf6') + '">' + tNum + (nonOrig ? ' &#x26A0;' : '') + '</span>'
-          + '<button type="button" onclick="_showTenderPicker()" style="margin-left:0.4rem;padding:0.15rem 0.5rem;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-size:0.65rem;font-family:var(--font-body);cursor:pointer;white-space:nowrap">Not yours?</button>';
-      } else if (_step3Active) {
-        // Session 159: re-render Step 3 to reflect the new tender choice
-        renderWizardStep();
-      }
-    };
+
 
     // Render grouping buttons (no auto-advance)
     function _qe1RenderGrouping() {
