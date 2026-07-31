@@ -6496,6 +6496,64 @@ META_WRITES.length = 0; TOASTS.length = 0;
        !w7.adopt.get('2321|v|1'));
   })();
 
+  section('162. Sort-by-date sorts by DATE — serials, ISO and blanks interleave (v0.9.1194)');
+  // Brad: "i filtered by date, and page 1 had several 7/30s, page 2 had none,
+  // page 3 had several." Root cause, measured then EXECUTED: the sort key used
+  // raw Date.parse, and Date.parse('46226') is not NaN — V8 reads it as the
+  // YEAR 46226 (1.4e15 ms). Sheets returns date cells as serials, so
+  // sheet-loaded rows sorted into year-46000 territory, same-session rows
+  // (ISO / _savedAt) into 2026 (1.78e12), and blanks fell to pd.row (~150).
+  // Three magnitude bands; the display meanwhile said "2026-07-30" because
+  // _formatDate DOES convert serials. Two readers of one field, drifted.
+  (function () {
+    const pR = require('path');
+    const app = fs.readFileSync(pR.join(__dirname, '..', 'app', 'app.js'), 'utf8');
+    const brw = fs.readFileSync(pR.join(__dirname, '..', 'app', 'browse.js'), 'utf8');
+
+    // Run the REAL rrDateTs.
+    const fIdx = app.indexOf('function rrDateTs(');
+    const fEnd = app.indexOf("if (typeof window !== 'undefined') window.rrDateTs", fIdx);
+    ok('rrDateTs is still findable in app.js', fIdx > 0 && fEnd > fIdx);
+    const rrDateTs = new Function('"use strict";' + app.slice(fIdx, fEnd) + '; return rrDateTs;')();
+
+    // The serial Brad's sheet actually holds for item 148: 46226 = 2026-07-23.
+    ok('a Sheets serial reads as its real day (46226 → 2026-07-23)',
+       new Date(rrDateTs('46226')).toISOString().slice(0, 10) === '2026-07-23',
+       new Date(rrDateTs('46226')).toISOString());
+    ok('...numeric form too', new Date(rrDateTs(46226)).toISOString().slice(0, 10) === '2026-07-23');
+    ok('an ISO string reads as the same day it displays',
+       new Date(rrDateTs('2026-07-30')).toISOString().slice(0, 10) === '2026-07-30');
+    ok('serial and ISO for the SAME week land in the SAME magnitude band',
+       Math.abs(rrDateTs('46226') - rrDateTs('2026-07-23')) < 86400000);
+    ok('blank is the honest zero bucket, not a row number', rrDateTs('') === 0 && rrDateTs(null) === 0);
+    ok('junk text is zero, not year-junk', rrDateTs('46226 bananas') === 0 || isFinite(rrDateTs('46226 bananas')));
+    ok('a five-digit NON-serial cannot sneak in as a year (99999)', rrDateTs('99999') === 0);
+    ok('a plausible future date still works (2089 inside the window)',
+       new Date(rrDateTs('2089-01-01')).getUTCFullYear() === 2089);
+
+    // Run the REAL sort-key expression from browse.js against Brad's shapes.
+    const kIdx = brw.indexOf('var _addTs = rrDateTs(');
+    ok('the sort key uses rrDateTs', kIdx > 0);
+    ok('the row-number fallback is GONE from the sort key',
+       brw.slice(kIdx, brw.indexOf('\n', kIdx)).indexOf('pd.row') < 0);
+    const keyLine = brw.slice(kIdx, brw.indexOf(';', kIdx) + 1);
+    const keyFor = new Function('pd', 'rrDateTs', '"use strict";' + keyLine + ' return _addTs;');
+
+    // Four rows the way they actually reach the sorter:
+    const rSheet   = { dateAdded: '46226', row: 148 };                    // loaded from the sheet (serial)
+    const rSession = { dateAdded: '2026-07-30', row: 163 };               // added this session (ISO)
+    const rSaved   = { dateAdded: '', _savedAt: Date.parse('2026-07-28'), row: 10 };
+    const rBlank   = { dateAdded: '', row: 3 };                           // old undated row
+    const keys = [rSheet, rSession, rSaved, rBlank].map(function (pd) { return keyFor(pd, rrDateTs); });
+    const sorted = keys.slice().sort(function (a, b) { return b - a; });  // desc, newest first
+    ok('desc order is 07-30, 07-28, 07-23, undated — the bands interleave',
+       sorted[0] === keyFor(rSession, rrDateTs) && sorted[1] === keyFor(rSaved, rrDateTs)
+       && sorted[2] === keyFor(rSheet, rrDateTs) && sorted[3] === 0,
+       JSON.stringify(keys));
+    ok('no key is in year-46000 territory and none is a row number',
+       keys.every(function (k) { return k === 0 || (k > 1e12 && k < 4.2e12); }), JSON.stringify(keys));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

@@ -2983,9 +2983,15 @@ function renderBrowse() {
       var pd = findPD(_displayItemNum(it), it.variation) || {};
       var _rt = [it.roadName, it.itemType].filter(Boolean).join(' \u00b7 ') || it.description || '';
       var _w = parseFloat(pd.userEstWorth);
-      // v0.9.719: date-added key — save timestamp beats purchase date beats
-      // sheet row order (older rows without either cluster together).
-      var _addTs = Date.parse(pd.dateAdded || '') || pd._savedAt || Date.parse(pd.datePurchased || '') || (pd.row || 0);   // v0.9.720: sheet column first
+      // v0.9.719: date-added key — save timestamp beats purchase date.
+      // v0.9.1194: through rrDateTs, the ONE comparison-grade date reader —
+      // raw Date.parse read Sheets serials as year-46000 timestamps, so sheet
+      // rows, session rows and blanks sorted into three bands that could
+      // never interleave (Brad's 7/30s on page 1 AND page 3). The `pd.row`
+      // fallback is GONE: a sheet row number is not a time, and a tiebreak
+      // that changes the unit of the sort key is not a tiebreak — undated
+      // rows now form one honest bucket (itemNum tiebreak orders within it).
+      var _addTs = rrDateTs(pd.dateAdded) || pd._savedAt || rrDateTs(pd.datePurchased) || 0;
       return {
         it: it,
         mfr: (typeof _manufacturerOfItem === 'function' ? (_manufacturerOfItem(it) || '') : ''),

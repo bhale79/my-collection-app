@@ -2714,6 +2714,34 @@ function _formatDate(input) {
   return yyyy + '-' + mm + '-' + dd;
 }
 
+// v0.9.1194 (Brad: "i filtered by date, and page 1 had several 7/30s, page 2
+// had none, page 3 had several") — ONE date reader for COMPARING, the sibling
+// of _formatDate's reading for DISPLAY. The date-sort key used raw Date.parse,
+// which reads a Sheets serial like "46226" as the YEAR 46226 — a timestamp a
+// thousand times larger than a real one. Rows loaded from the sheet (serials)
+// sorted into year-46000 territory, rows added this session (ISO strings /
+// _savedAt) into 2026, and blanks fell through to `pd.row` — a sheet ROW
+// NUMBER (~150) posing as a time. Three magnitude bands that can never
+// interleave: the display said 2026-07-30 (via _formatDate, which converts
+// serials) while the sort thought year 46226. Two readers of one field WILL
+// drift — this is the reader every comparison must use.
+// Returns epoch ms, or 0 for blank/unreadable (undated rows form ONE bucket
+// at the end of the order instead of secretly sorting by sheet position).
+function rrDateTs(input) {
+  if (input === null || input === undefined || input === '') return 0;
+  if (input instanceof Date) return isNaN(input.getTime()) ? 0 : input.getTime();
+  // Same serial rule as _formatDate: days since 1899-12-30, plausible window
+  // 25000 (1968) .. 80000 (2089). Serial 25569 = 1970-01-01.
+  var n = (typeof input === 'number') ? input
+        : (typeof input === 'string' && /^\d{4,5}(\.\d+)?$/.test(input.trim()) ? parseFloat(input) : NaN);
+  if (isFinite(n) && n > 25000 && n < 80000) return Math.round((n - 25569) * 86400000);
+  if (typeof input === 'number') return 0;   // a number outside the serial window is not a date
+  var t = Date.parse(input);
+  // Reject parses outside 1900..2100 — that's how "46226" became year 46226.
+  return (isFinite(t) && t > -2208988800000 && t < 4102444800000) ? t : 0;
+}
+if (typeof window !== 'undefined') window.rrDateTs = rrDateTs;
+
 // ── Theme ────────────────────────────────────────────────────────
 // Skins foundation (v0.9.944): applyTheme() is now generic — it applies ANY
 // theme key registered in a11y-config.js (window.A11Y.theme.options), so future
