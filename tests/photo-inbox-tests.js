@@ -8286,6 +8286,66 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('…and it built a dialog while doing so', made.indexOf('div') >= 0);
   })();
 
+  section('181. Buying from someone who is not on the list yet (v0.9.1228)');
+  (function () {
+    const pathI = require('path');
+    const rd = f => fs.readFileSync(pathI.join(__dirname, '..', 'app', f), 'utf8');
+    const wz = rd('wizard.js');
+    const ct = rd('contacts.js');
+
+    // Brad: "the bought from dropdown box needs a add manual button as well.
+    // This would then open up the add contacts page." It is the other half of
+    // the standing rule that the app never suggests vendors — if we will not
+    // offer sellers, adding one by hand has to be easy where we ask.
+    ok('the dropdown offers a way to add someone', /Add someone new/.test(wz));
+    ok('…identified by a value no contact id could collide with',
+       /var PV_SELLER_NEW = '__rr_new_contact__';/.test(wz));
+    ok('the contact form opens ON TOP — nothing navigates away mid-add',
+       /window\._ctOpenEdit\(\);/.test(wz) && !/showPage\('contacts'/.test(wz));
+    ok('abandoning it leaves the box exactly as it was',
+       /sel\.value = wizard\.data\.purchasedFrom \|\| '';/.test(wz));
+    ok('saving a contact tells whoever asked which one appeared',
+       /window\._ctAfterSave = null;/.test(ct) && /_cb\(id\)/.test(ct));
+    ok('…and the hook is one-shot, so it cannot fire on an unrelated save later',
+       /var _cb = window\._ctAfterSave;\s*\n\s*window\._ctAfterSave = null;/.test(ct));
+    // The list IS drawn twice — into the step's HTML string, and into the
+    // live DOM after a contact is added. So the entries and their order come
+    // from one place and both renderers are thin. My first version of this
+    // check asserted a single builder that did not exist; the code now
+    // matches the claim rather than the claim being softened.
+    ok('the entries and their order come from one place',
+       /window\._pvSellerEntries = function/.test(wz) &&
+       (wz.match(/_pvSellerEntries\(/g) || []).length === 2);
+    ok('…and both renderers use it, the string one and the DOM one',
+       /window\._pvSellerEntries\(_pvLastSeller\)\.map/.test(wz) &&
+       /window\._pvSellerEntries\(selectedId\)\.forEach/.test(wz));
+
+    // RUN it: the list must come back with the contacts, the not-tracked
+    // entry, and the add entry LAST — a grep cannot tell you the order.
+    const src = wz.slice(wz.indexOf('var PV_SELLER_NEW'), wz.indexOf('window._pvSellerPick = function'));
+    // (the slice covers the entry list and both renderers)
+    const mk = () => {
+      const kids = [];
+      return { kids, innerHTML: '', appendChild(o) { kids.push(o); },
+        querySelector: () => null, value: '' };
+    };
+    const doc = { createElement: () => ({ value: '', textContent: '', selected: false }) };
+    const st = { contactsData: [
+      { id: 'C-2', name: 'Walker, Dean', business: 'Lionel Retail' },
+      { id: 'C-1', name: 'Graham, Nathan', business: '' }
+    ] };
+    const fn = new Function('window', 'document', 'state',
+      '"use strict";' + src + '; return window._pvSellerFill;')({}, doc, st);
+    const sel = mk();
+    fn(sel, 'C-1');
+    const vals = sel.kids.map(k => k.value);
+    ok('the list is: not tracked, the contacts, then add someone new',
+       vals[0] === '' && vals[vals.length - 1] === '__rr_new_contact__' && vals.length === 4,
+       JSON.stringify(vals));
+    ok('…and the contact just added comes back selected',
+       sel.kids.filter(k => k.selected).map(k => k.value).join(',') === 'C-1');
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

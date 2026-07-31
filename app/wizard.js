@@ -1613,6 +1613,73 @@ function _renderAddingBanner() {
     + '</div>';
 }
 
+// ── Bought from: adding someone who is not on the list yet (v0.9.1228) ──
+// Brad: "the bought from dropdown box needs a add manual button as well. This
+// would then open up the add contacts page."
+//
+// It is the other half of the standing rule that the app never suggests
+// vendors: if we will not offer sellers, adding one by hand has to be easy at
+// the moment we ask. The contact form is a pop-up at a higher layer than the
+// wizard, so it opens ON TOP — nothing navigates away and half-typed purchase
+// details are never at risk.
+var PV_SELLER_NEW = '__rr_new_contact__';
+
+// The list is drawn twice — once into the step's HTML string, once into the
+// live DOM after a contact is added. So the ENTRIES and their order come from
+// one place and the two renderers are thin. Otherwise "add someone new" ends
+// up missing from whichever one somebody forgot.
+window._pvSellerEntries = function (selectedId) {
+  var out = [{ v: '', label: '— Not tracked —' }];
+  (state.contactsData || []).slice().sort(function (a, b) {
+    return (window._ctLastNameKey
+      ? window._ctLastNameKey(a.name).localeCompare(window._ctLastNameKey(b.name))
+      : (a.name || '').localeCompare(b.name || ''));
+  }).forEach(function (ct) {
+    out.push({
+      v: ct.id,
+      label: (ct.name || ct.business || ct.id) + (ct.business && ct.name ? ' — ' + ct.business : ''),
+      on: ct.id === selectedId
+    });
+  });
+  out.push({ v: PV_SELLER_NEW, label: '\uFF0B Add someone new…' });
+  return out;
+};
+window._pvSellerFill = function (sel, selectedId) {
+  if (!sel) return;
+  sel.innerHTML = '';
+  window._pvSellerEntries(selectedId).forEach(function (e) {
+    var o = document.createElement('option');
+    o.value = e.v; o.textContent = e.label;
+    if (e.on) o.selected = true;
+    sel.appendChild(o);
+  });
+  if (selectedId) sel.value = selectedId;
+};
+
+window._pvSellerPick = function (sel) {
+  if (!sel) return;
+  if (sel.value !== PV_SELLER_NEW) {
+    wizard.data.purchasedFrom = sel.value;
+    try { sessionStorage.setItem('lv_last_seller', sel.value); } catch (e) {}
+    return;
+  }
+  // Put the box straight back to what it was, so abandoning the new contact
+  // leaves the dropdown reading "Add someone new…" to nobody.
+  sel.value = wizard.data.purchasedFrom || '';
+  if (typeof window._ctOpenEdit !== 'function') {
+    if (typeof showToast === 'function') showToast('Contacts are still loading — try again in a moment', 3000, true);
+    return;
+  }
+  window._ctAfterSave = function (id) {
+    var s2 = document.getElementById('pv-seller');
+    if (!s2) return;
+    window._pvSellerFill(s2, id);
+    wizard.data.purchasedFrom = id;
+    try { sessionStorage.setItem('lv_last_seller', id); } catch (e) {}
+  };
+  window._ctOpenEdit();
+};
+
 // ── The tender picker (hoisted, v0.9.1227) ──────────────────────────────
 // Brad: "i had a different tender than the one suggested, i hit other tender,
 // and got this error."
@@ -5179,9 +5246,11 @@ function renderWizardStep() {
       try { _pvLastSeller = _pvD.purchasedFrom || sessionStorage.getItem('lv_last_seller') || ''; } catch (e) {}
       var _pvCts = (state.contactsData || []).slice().sort(function (a, b) { return (window._ctLastNameKey ? window._ctLastNameKey(a.name).localeCompare(window._ctLastNameKey(b.name)) : (a.name || '').localeCompare(b.name || '')); });
       _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Bought From (optional)</div>'
-        + '<select id="pv-seller" onchange="wizard.data.purchasedFrom=this.value; try{sessionStorage.setItem(\'lv_last_seller\',this.value)}catch(e){}" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box">'
-        + '<option value="">— Not tracked —</option>'
-        + _pvCts.map(function (ct) { return '<option value="' + _pvSellEsc(ct.id) + '"' + (ct.id === _pvLastSeller ? ' selected' : '') + '>' + _pvSellEsc((ct.name || ct.business || ct.id) + (ct.business && ct.name ? ' — ' + ct.business : '')) + '</option>'; }).join('')
+        + '<select id="pv-seller" onchange="window._pvSellerPick(this)" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box">'
+        + window._pvSellerEntries(_pvLastSeller).map(function (e) {
+            return '<option value="' + _pvSellEsc(e.v) + '"' + (e.on ? ' selected' : '') + '>'
+              + _pvSellEsc(e.label) + '</option>';
+          }).join('')
         + '</select></div>';
       if (_pvLastSeller && !_pvD.purchasedFrom && _pvCts.some(function (ct) { return ct.id === _pvLastSeller; })) _pvD.purchasedFrom = _pvLastSeller;
       // Contacts not loaded yet (user hasn't visited the page)? Fill in place.
@@ -5189,13 +5258,7 @@ function renderWizardStep() {
         window._ctLoadContacts().then(function () {
           var sel = document.getElementById('pv-seller');
           if (!sel) return;
-          (state.contactsData || []).slice().sort(function (a, b) { return (window._ctLastNameKey ? window._ctLastNameKey(a.name).localeCompare(window._ctLastNameKey(b.name)) : (a.name || '').localeCompare(b.name || '')); }).forEach(function (ct) {
-            var o = document.createElement('option');
-            o.value = ct.id;
-            o.textContent = (ct.name || ct.business || ct.id) + (ct.business && ct.name ? ' — ' + ct.business : '');
-            if (ct.id === _pvLastSeller) o.selected = true;
-            sel.appendChild(o);
-          });
+          window._pvSellerFill(sel, _pvLastSeller);
           if (_pvLastSeller && sel.value === _pvLastSeller && !wizard.data.purchasedFrom) wizard.data.purchasedFrom = _pvLastSeller;
         }).catch(function () {});
       }

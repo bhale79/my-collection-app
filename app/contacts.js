@@ -1242,6 +1242,16 @@
         window._ctClose('ct-modal');
         showToast('✓ ' + name + ' saved to Contacts');
         try { await _load(); window._ctRenderList(); } catch (e3) { console.warn('[contact list refresh]', e3); }
+        // v0.9.1228: somewhere else may have asked for this contact — the
+        // Bought-from box in the add wizard opens this form when the seller
+        // is not on the list yet, and needs to know which contact appeared.
+        // One-shot on purpose: a hook that lingers fires on the next save
+        // someone makes for an entirely different reason.
+        if (typeof window._ctAfterSave === 'function') {
+          var _cb = window._ctAfterSave;
+          window._ctAfterSave = null;
+          try { _cb(id); } catch (e4) { console.warn('[contact after-save]', e4); }
+        }
       } catch (e) {
         console.warn('[contact save]', e);
         showToast('Could not save — ' + ((e && e.message) ? e.message : 'check your connection and try again'), 5000, true);
