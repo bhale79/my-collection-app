@@ -926,14 +926,25 @@
     return map;
   }
 
-  function _applyLogoPalette(img, kind) {
+  // Reading a logo's colours and IMPOSING them are two different things.
+  // Brad: "when you upload a logo, i know i said to auto suggest, don't…
+  // cause if you want to load a logo, it changes everything before you save."
+  // Quite right — dropping in a mark should not silently repaint a look you
+  // have spent ten minutes on. Reading fills the swatch row, which is only an
+  // offer; applying is a decision, and it is now asked for.
+  function _readLogoColours(img) {
     var cols = _extractColors(img);
     _swatches = _rrPickSwatches(cols, 6);
     _armed = -1;
-    var map = _paletteFromColors(cols);
+    return _paletteFromColors(cols);
+  }
+  // Still used by the 🎨 button on a filled tile — pressing that IS the
+  // request, so it applies without asking again.
+  function _applyLogoPalette(img, kind) {
+    var map = _readLogoColours(img);
     Object.keys(map).forEach(function (k) { _set(k, map[k]); });
     if (typeof showToast === 'function') {
-      showToast('Palette built from your logo — drop any colour on a job below, then Preview'
+      showToast('Colours taken from your logo — point at the picture to adjust any of them'
         + (kind ? '. ' + _rrLogoNote(kind) : ''), 5000);
     }
   }
@@ -1514,21 +1525,41 @@
         if (typeof showToast === 'function') showToast('That didn’t look like an image file', 3000, true);
         return;
       }
-      _applyLogoPalette(prep.canvas, prep.kind);
+      // Read first, so a full localStorage can never cost the user the
+      // colours — but do not apply them yet.
+      var map = _readLogoColours(prep.canvas);
       var kept = _rrKeepLogo(img, slot, prep);
       if (!kept && typeof showToast === 'function') {
-        showToast('Palette built — but this device has no room left to keep the image', 4500, true);
-      } else if (typeof showToast === 'function') {
-        showToast(_slotLabel(slot) + ' set — press Preview to see it in the app', 3200);
+        showToast(_slotLabel(slot) + ' — this device has no room left to keep the image', 4500, true);
       }
       _refreshPanel();
       _paintCandidate();
+      _askApplyScheme(map, slot, prep.kind);
     };
     img.onerror = function () {
       URL.revokeObjectURL(url);
       if (typeof showToast === 'function') showToast('That didn’t look like an image file', 3000, true);
     };
     img.src = url;
+  }
+
+  // The offer. Answering no still leaves the logo in place and its colours
+  // sitting in the swatch row, ready to drop on one job at a time.
+  function _askApplyScheme(map, slot, kind) {
+    var apply = function () {
+      Object.keys(map).forEach(function (k) { _set(k, map[k]); });
+      _refreshPanel();
+      if (typeof showToast === 'function') showToast('Colours taken from your logo — press Preview to see them in the app', 4000);
+    };
+    var note = _slotLabel(slot) + ' set.' + (kind ? ' ' + _rrLogoNote(kind) : '');
+    if (typeof appConfirm !== 'function') { _toastOnly(note); return; }
+    appConfirm(note + ' Would you like the whole look built from this logo\u2019s colours? '
+      + 'Say no and they simply wait in the row on the left, to use where you choose.',
+      { title: 'Auto-apply generated logo scheme', ok: 'Yes, use them', cancel: 'No, leave my colours' })
+      .then(function (yes) { if (yes) apply(); else _toastOnly(note); });
+  }
+  function _toastOnly(note) {
+    if (typeof showToast === 'function') showToast(note + ' Its colours are in the row on the left.', 4000);
   }
 
   // Clicking a tile ARMS it. If it already holds a mark, the click also opens

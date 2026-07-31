@@ -2960,8 +2960,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('the logo is stored fitted, under rr_skin_logo',
        /LOGO_KEY = 'rr_skin_logo'/.test(ap9) && /LOGO_MAX = 512/.test(ap9) &&
        /toDataURL\('image\/png'\)/.test(ap9));
-    ok('palette applies before storage, so a full localStorage cannot block it',
-       ap9.indexOf('_applyLogoPalette(prep.canvas', ap9.indexOf('function _rrapLogoLoad'))
+    ok('the colours are read before storage, so a full localStorage cannot cost them',
+       ap9.indexOf('_readLogoColours(prep.canvas', ap9.indexOf('function _rrapLogoLoad'))
          < ap9.indexOf('_rrKeepLogo(', ap9.indexOf('function _rrapLogoLoad')));
 
     // The watermark: faint, untouchable, removable, and applied on boot
@@ -7289,8 +7289,20 @@ META_WRITES.length = 0; TOASTS.length = 0;
        !notes.some(n => /\bAI\b/.test(n)));
 
     // ── wiring: the prep result is what gets stored and shown ────────────
-    ok('the loader preps once, then paints the palette from the TRIMMED mark',
-       /_rrPrepLogo\(img, LOGO_MAX\)/.test(apA) && /_applyLogoPalette\(prep\.canvas/.test(apA));
+    // v0.9.1226, Brad: "when you upload a logo, i know i said to auto
+    // suggest, don't… cause if you want to load a logo, it changes
+    // everything before you save." Reading a logo's colours and imposing
+    // them are now two different things.
+    ok('the loader preps once, then READS the colours from the TRIMMED mark',
+       /_rrPrepLogo\(img, LOGO_MAX\)/.test(apA) && /_readLogoColours\(prep\.canvas\)/.test(apA));
+    ok('…and does not apply them until it has asked',
+       /_askApplyScheme\(map, slot, prep\.kind\)/.test(apA) &&
+       /title: 'Auto-apply generated logo scheme'/.test(apA) &&
+       !/_applyLogoPalette\(prep\.canvas/.test(apA));
+    ok('…answering no keeps the logo and leaves the colours waiting',
+       /\.then\(function \(yes\) \{ if \(yes\) apply\(\); else _toastOnly\(note\); \}\)/.test(apA));
+    ok('the palette button on a filled tile still applies straight away',
+       /window\._rrapSlotPalette = function[\s\S]{0,220}_applyLogoPalette\(img, s\.kind\)/.test(apA));
     ok('storage steps DOWN in size instead of giving up',
        /var sizes = \[LOGO_MAX, 384, 256, 160\]/.test(apA) &&
        /function _rrKeepLogo/.test(apA));
