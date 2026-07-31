@@ -7750,6 +7750,176 @@ META_WRITES.length = 0; TOASTS.length = 0;
        !/fonts\.googleapis|@import|\.woff/.test(fontsBlock));
   })();
 
+  section("177. The collector's own cards on the dashboard (v0.9.1211)");
+  (function () {
+    const pathE = require('path');
+    const rd = f => fs.readFileSync(pathE.join(__dirname, '..', f), 'utf8');
+    const lc = rd('app/logo-cards.js');
+    const dash = rd('app/dashboard.js');
+    const css = rd('app/app.css');
+    const idx = rd('app/index.html');
+    const ap = rd('app/appearance.js');
+    const lcc = lc.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+
+    // Brad: "the small card will just have the logo you select, and you can
+    // create as many small or large logo cards as you want to select from.
+    // The large card we should be able to select a logo, and then have a text
+    // at the top and or bottom… font and text color, and card background
+    // color." Then, on where they live: "when i say cards, i mean the large
+    // and small cards on the dashboard screen."
+
+    // ── run the real library over a stubbed store ────────────────────────
+    const s1 = lc.slice(lc.indexOf('function _fill(c)'), lc.indexOf('  // ── how a card looks'));
+    const s2 = lc.slice(lc.indexOf('function rrLogoCardHtml'), lc.indexOf('  // ── the composer'));
+    ok('the card library is findable in one piece', s1.length > 500 && s2.length > 400);
+    const build = new Function('store', '"use strict";'
+      + "var CARDS_KEY='rr_logo_cards', MAX_LIBRARY=24;"
+      + "var window={};"
+      + "function _esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;')"
+      + ".replace(/>/g,'&gt;').replace(/\"/g,'&quot;').replace(/'/g,'&#39;');}"
+      + "var localStorage={getItem:function(k){return (k in store)?store[k]:null;},"
+      + "setItem:function(k,v){store[k]=String(v);},removeItem:function(k){delete store[k];}};"
+      + s1 + s2
+      + "; return {fill:_fill, all:rrLogoCards, one:rrLogoCard, save:_saveCards,"
+      + " nextId:_nextId, name:_defaultName, html:rrLogoCardHtml, bg:rrLogoCardBg};");
+
+    {
+      const store = {};
+      const L = build(store);
+      const c = L.fill(null);
+      ok('every card comes back filled, so an old saved card cannot crash a renderer',
+         c.size === 'small' && c.logo === null && c.top === '' && c.font === '' && c.bg === '');
+      ok('an unknown size falls back to small rather than reaching the page',
+         L.fill({ size: 'enormous' }).size === 'small');
+      ok('a card with no id is not a card',
+         L.save([{ id: '', size: 'small' }]) && L.all().length === 0);
+    }
+    {
+      const store = {};
+      const L = build(store);
+      ok('ids come from the library, never from a clock or a dice roll',
+         L.nextId([]) === 'c1' && L.nextId([{ id: 'c1' }, { id: 'c2' }]) === 'c3');
+      ok('…and a gap in the middle is reused rather than skipped',
+         L.nextId([{ id: 'c1' }, { id: 'c3' }]) === 'c2');
+      ok('new cards get a name you can tell apart',
+         L.name([], 'small') === 'Small card 1' &&
+         L.name([{ name: 'Small card 1' }], 'small') === 'Small card 2' &&
+         L.name([], 'large') === 'Large card 1');
+    }
+    {
+      const store = {};
+      const L = build(store);
+      L.save([{ id: 'c1', size: 'small', name: 'A', logo: { data: 'IMG' } },
+              { id: 'c2', size: 'large', name: 'B', top: 'Top', bottom: 'Bottom', bg: '#123456' }]);
+      ok('as many cards as you like, kept and read back',
+         L.all().length === 2 && L.one('c1').name === 'A' && L.one('c2').size === 'large');
+      ok('asking for a card that is gone returns nothing, not a broken one',
+         L.one('c9') === null);
+      const small = L.html(L.one('c1'));
+      ok('a small card is the logo and nothing else',
+         /IMG/.test(small) && !/rr-lc-t/.test(small) && /rr-lc-small/.test(small));
+      const large = L.html(L.one('c2'));
+      ok('a large card carries a line above and below',
+         /rr-lc-large/.test(large) && large.indexOf('Top') < large.indexOf('Bottom'));
+      ok('a card with no logo says so rather than rendering a broken image',
+         /No logo chosen yet/.test(large) && !/<img/.test(large));
+      ok('the card background is the card’s own colour',
+         L.bg(L.one('c2')) === '#123456' && L.bg(L.one('c1')) === '');
+      ok('…and a background that is not a colour is refused, not passed through',
+         L.bg({ bg: 'red' }) === '' && L.bg({ bg: 'expression(alert(1))' }) === '');
+      ok('typed lines are escaped before they reach the page',
+         !/<b>/.test(L.html({ size: 'large', top: '<b>x</b>' })));
+    }
+    {
+      const store = {};
+      const L = build(store);
+      const many = [];
+      for (let i = 1; i <= 40; i++) many.push({ id: 'c' + i, size: 'small' });
+      L.save(many);
+      ok('the library is capped, so nothing can quietly fill the device',
+         L.all().length === 24);
+    }
+
+    // ── one answer to "what does my card look like" ──────────────────────
+    ok('the library holds no colour of its own — a new card starts from the skin',
+       /function _themeHex/.test(lc) && !/#[0-9a-f]{6}/i.test(lcc));
+    ok('it does not prepare images itself — appearance.js does that, once',
+       /window\.rrPrepLogoFile\(file/.test(lc) && !/getImageData|toDataURL/.test(lc));
+    ok('…and appearance.js exports it OUTSIDE the APPEARANCE_ENABLED gate',
+       ap.indexOf('window.rrPrepLogoFile') > ap.indexOf('window.openAppearance') &&
+       !/APPEARANCE_ENABLED[\s\S]{0,200}window\.rrPrepLogoFile/.test(ap));
+    ok('it does not style text itself either — the header line’s rule is reused',
+       /window\.rrTitleStyle\(\{ font: card\.font/.test(lc) && !/font-family:var\(--font-head\)/.test(lcc));
+    ok('one renderer serves the dashboard AND the composer’s preview',
+       (lc.match(/rrLogoCardHtml\(/g) || []).length >= 4);
+
+    // ── the dashboard side ───────────────────────────────────────────────
+    ok('there are two new card types, small and large',
+       /id: 'logoSmall', label: 'My logo'/.test(dash) &&
+       /id: 'logoLarge', label: 'My logo card'/.test(dash) &&
+       /logoCard: true, wide: true/.test(dash));
+    ok('the SLOT remembers which card, never a copy of the card',
+       /slots\[slotIdx\]\.card = cardId;/.test(dash) &&
+       !/slots\[slotIdx\]\.logo\b/.test(dash));
+    ok('choosing a large card makes the slot large, so it is never squeezed',
+       /slots\[slotIdx\]\.id = \(card\.size === 'large'\) \? 'logoLarge' : 'logoSmall'/.test(dash));
+    ok('an unset card invites you to pick one instead of showing an error',
+       /Choose a card/.test(dash));
+    ok('clicking a logo card opens the composer for THAT slot',
+       /card\.logoCard \? ' onclick="window\._rrlcOpen\(' \+ i \+ '\)"/.test(dash));
+    ok('a logo card carries no stat label above it',
+       /result\.noLabel \? '' : '<div class="stat-label">'/.test(dash) &&
+       /noLabel: true/.test(dash));
+    ok('the card’s background paints the tile itself, edge to edge',
+       /var _bg = result\.cardBg \? ';background:' \+ result\.cardBg : ''/.test(dash));
+    ok('a large card spans two columns of the grid',
+       /card\.wide \? ' rr-lc-wide' : ''/.test(dash) &&
+       /\.stat-card\.rr-lc-wide \{ grid-column: span 2/.test(css));
+    ok('the composer scrim reuses the theme’s own, adding no new colour',
+       /#rrlc-pop \{[^}]*background: var\(--scrim\)/.test(css));
+    ok('the file is actually loaded, at the same version as everything else',
+       /logo-cards\.js\?v=(\d+)/.test(idx) &&
+       (idx.match(/logo-cards\.js\?v=(\d+)/) || [])[1] === (idx.match(/dashboard\.js\?v=(\d+)/) || [])[1]);
+    // Saving from a slot should land the card in that slot, not dump the user
+    // back on a list wondering whether anything happened.
+    ok('saving a card from a dashboard slot fills that slot',
+       /if \(_slotIdx >= 0\) \{ _choose\(id\); return; \}/.test(lc) &&
+       /window\.rrDashSetSlotCard\(_slotIdx, id\)/.test(lc));
+    ok('deleting a card asks first',
+       /appConfirm\('Delete this card\?'/.test(lc));
+    ok('typing in a card’s text box does not rebuild it under the cursor',
+       /if \(field === 'font' \|\| field === 'color' \|\| field === 'bg'\) _render\(\);\s*\n\s*else _refreshPreview\(\);/.test(lc));
+  })();
+
+  section('178. Every script the page loads is a script the app can keep');
+  (function () {
+    const pathF = require('path');
+    const rd = f => fs.readFileSync(pathF.join(__dirname, '..', f), 'utf8');
+    const idx = rd('app/index.html');
+    const sw = rd('app/sw.js');
+
+    // Found while adding logo-cards.js: appearance.js and detail-nav.js had
+    // never been in the precache list, so a cold start with no signal opened
+    // the app half-built. Nothing checked, so nobody knew. This is the check.
+    const scripts = [...idx.matchAll(/<script src="\.\/([a-z0-9-]+\.js)\?v=/gi)].map(m => m[1]);
+    const pre = [...sw.matchAll(/'\.\/([a-z0-9-]+\.js)'/gi)].map(m => m[1]);
+    ok('both lists were actually found', scripts.length > 50 && pre.length > 50);
+    const missing = scripts.filter(f => !pre.includes(f));
+    ok('every script index.html loads is precached by the service worker',
+       missing.length === 0, 'missing: ' + missing.join(', '));
+    // The other direction is worth knowing but not worth failing over: a
+    // precached file no longer loaded is dead weight, not a broken app.
+    const orphan = pre.filter(f => !scripts.includes(f));
+    if (orphan.length) console.log('    note: precached but not loaded — ' + orphan.join(', '));
+
+    // The version trio, checked on the new file too.
+    const appVer = (rd('app/config.js').match(/APP_VERSION = 'v0\.9\.(\d+)'/) || [])[1];
+    const marks = [...idx.matchAll(/\.js\?v=(\d+)/g)].map(m => m[1]);
+    ok('every script tag rides the same ?v as APP_VERSION',
+       !!appVer && marks.length > 50 && marks.every(v => v === appVer),
+       'app=' + appVer + ' distinct=' + [...new Set(marks)].join(','));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

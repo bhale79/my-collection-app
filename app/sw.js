@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v1221';
+const CACHE_NAME = 'mca-v1222';
 
 const SHELL_FILES = [
   './index.html',
@@ -70,6 +70,13 @@ const SHELL_FILES = [
   './cott-anchors.js',
   './ai-id.js',
   './photo-inbox.js',
+  // v0.9.1211: three files that were being fetched from the network on every
+  // cold start because nothing checked this list against index.html. §178
+  // does now — a script tag without a precache line is an app that opens
+  // half-built when the signal drops.
+  './detail-nav.js',
+  './appearance.js',
+  './logo-cards.js',
   // v0.9.1181: the help panel — copy plus its six example photos. Offline, a
   // help button that opens an empty sheet with broken images teaches the
   // opposite of what it says.

@@ -471,8 +471,52 @@ var CARD_CATALOG = [
         + lineEntries.map(function(e){ return _row(e[0], e[1]); }).join('');
       return { html: html };
     }
+  },
+  // ── the collector's own cards (v0.9.1211) ────────────────────────────
+  // Brad: "the small card will just have the logo you select… The large card
+  // we should be able to select a logo, and then have a text at the top and
+  // or bottom, like the header line, be able to choose font and text color,
+  // and card background color."
+  //
+  // The card's CONTENT lives in the library in logo-cards.js; the SLOT only
+  // remembers which card it points at. That way editing a card updates every
+  // spot that shows it, and the same card can sit in two places without
+  // being copied — a copy would be a second answer to "what does my card
+  // look like", which is how every drift bug in this app has started.
+  {
+    id: 'logoSmall', label: 'My logo', color: 'var(--accent3)', logoCard: true,
+    compute: function(state, i) { return _logoCardBody(i); }
+  },
+  {
+    id: 'logoLarge', label: 'My logo card', color: 'var(--accent3)', logoCard: true, wide: true,
+    compute: function(state, i) { return _logoCardBody(i); }
   }
 ];
+
+// What a logo-card slot shows. An unset slot is an invitation, not an error —
+// the card was added from the editor before a picture was ever chosen.
+function _logoCardBody(slotIdx) {
+  var slots = _getSlots();
+  var id = (slots[slotIdx] && slots[slotIdx].card) || '';
+  var card = (typeof window.rrLogoCard === 'function') ? window.rrLogoCard(id) : null;
+  if (!card) return { html: '<div class="rr-lc-empty">\uFF0B Choose a card</div>', noLabel: true };
+  return {
+    html: window.rrLogoCardHtml(card),
+    noLabel: true,
+    cardBg: (typeof window.rrLogoCardBg === 'function') ? window.rrLogoCardBg(card) : ''
+  };
+}
+
+// Point a slot at a card. The slot's TYPE follows the card's own size, so
+// choosing a large card never leaves it squeezed into a small spot.
+window.rrDashSetSlotCard = function(slotIdx, cardId) {
+  var slots = _getSlots();
+  if (!slots[slotIdx]) return;
+  var card = (typeof window.rrLogoCard === 'function') ? window.rrLogoCard(cardId) : null;
+  slots[slotIdx].card = cardId;
+  if (card) slots[slotIdx].id = (card.size === 'large') ? 'logoLarge' : 'logoSmall';
+  _saveSlots(slots);
+};
 
 var MAX_CARDS = 6;   // v0.9.754 (Brad): "looks like we can fit a 6th small card" — the grid auto-fits, only this cap said no
 var _DEFAULT_SLOTS = [{id:'owned'},{id:'value'},{id:'eraProgress'},{id:'activity'},null,null];
@@ -640,7 +684,7 @@ function buildDashboard() {
         var cardLabel = card.label;
         var inner;
         if (result.html) {
-          inner = '<div class="stat-label">' + cardLabel + '</div>' + result.html;
+          inner = (result.noLabel ? '' : '<div class="stat-label">' + cardLabel + '</div>') + result.html;
         } else {
           inner = '<div class="stat-label">' + cardLabel + '</div>'
             + '<div class="stat-value">' + result.value + '</div>'
@@ -649,8 +693,10 @@ function buildDashboard() {
         // v0.9.890: cards may declare their own onclick (Photo Inbox card
         // opens the inbox). Catalog keeps its picker; others stay inert.
         var _cardClick = (card.id === 'catalog') ? ' onclick="_catCovConfig(' + i + ')" title="Pick maker &amp; era"'
-          : (card.onclick ? ' onclick="window._fromDash=true;' + card.onclick + '" title="Open ' + card.label + '"' : '');
-        return '<div class="stat-card" id="dash-card-' + i + '" style="--card-accent:' + card.color + ((card.id === 'catalog' || card.onclick) ? ';cursor:pointer' : '') + ';position:relative"' + _cardClick + '>'
+          : (card.logoCard ? ' onclick="window._rrlcOpen(' + i + ')" title="Choose or edit this card"'
+          : (card.onclick ? ' onclick="window._fromDash=true;' + card.onclick + '" title="Open ' + card.label + '"' : ''));
+        var _bg = result.cardBg ? ';background:' + result.cardBg : '';
+        return '<div class="stat-card' + (card.wide ? ' rr-lc-wide' : '') + '" id="dash-card-' + i + '" style="--card-accent:' + card.color + _bg + ((card.id === 'catalog' || card.logoCard || card.onclick) ? ';cursor:pointer' : '') + ';position:relative"' + _cardClick + '>'
           + inner
           + '</div>';
       }).join('');
