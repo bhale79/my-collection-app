@@ -32,6 +32,41 @@
 // Browse page to the exact tab + ownership filter the user was on
 // before they entered the detail view. Falls back to a clean
 // filterOwned() if no captured state exists (first-time visit).
+// v0.9.1231 (Brad): "if you are on page 3, click on a item to look at it, then
+// hit the back to collection button, it takes you back to page 1."
+//
+// The page was never LOST — it was never written down. Every route back
+// rebuilds the list (filterOwned -> resetFilters -> applyFilters), and each of
+// those quite correctly starts the reader at page one. So the page number now
+// travels in _lastBrowseState alongside the tab and the filters, and is put
+// back LAST, after every rebuild has had its say.
+//
+// One refinement Brad chose: if he stepped through items with the arrows on
+// the detail page, Back lands on the page holding the item he ENDED on, not the
+// one he clicked from - arrowing forward into item 60 and being returned to
+// page 3, where item 60 is not, would be its own small betrayal. The row
+// objects in state.filteredData are the very same objects as in
+// state.masterData, so finding it is an identity lookup, not a search.
+function _restoreBrowsePage(ls) {
+  if (!ls) return;
+  var want = parseInt(ls.page, 10) || 1;
+  try {
+    var i = window._lastDetailIdx;
+    var rec = (typeof i === 'number' && i >= 0 && state.masterData) ? state.masterData[i] : null;
+    if (rec && Array.isArray(state.filteredData)) {
+      var pos = state.filteredData.indexOf(rec);
+      // Not found is normal and fine - a set row, a catalog, a folded member.
+      // Fall back to the page he clicked from rather than guessing.
+      if (pos >= 0) want = Math.floor(pos / (state.pageSize || 50)) + 1;
+    }
+  } catch (e) { /* the saved page is always a safe answer */ }
+  if (want > 1 && state.currentPage !== want) {
+    state.currentPage = want;
+    // renderBrowse pulls this back into range if the list shrank while he was away.
+    if (typeof renderBrowse === 'function') renderBrowse();
+  }
+}
+
 function _detailBackToBrowse() {
   showPage('browse');
   var ls = window._lastBrowseState;
@@ -71,6 +106,9 @@ function _detailBackToBrowse() {
         renderBrowseTab(ls.tab);
       }
     }
+    // LAST, on purpose: everything above rebuilds the list, and every rebuild
+    // resets the reader to page one.
+    _restoreBrowsePage(ls);
   } else if (typeof filterOwned === 'function') {
     filterOwned();
   }
@@ -123,6 +161,7 @@ function showNonItemDetailPage(type, key) {
       filterType: state.filters.type || '',
       filterRoad: state.filters.road || '',
       search:     state.filters.search || '',
+      page:       state.currentPage || 1,             // v0.9.1231 (Brad): come back to the page you left
       filters:    Object.assign({}, state.filters),   // v0.9.798: FULL snapshot (mfr/scale/era chips too)
     };
   }
@@ -871,6 +910,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
       filterType: state.filters.type || '',
       filterRoad: state.filters.road || '',
       search:     state.filters.search || '',
+      page:       state.currentPage || 1,             // v0.9.1231 (Brad): come back to the page you left
       filters:    Object.assign({}, state.filters),   // v0.9.798: FULL snapshot (mfr/scale/era chips too)
     };
   }

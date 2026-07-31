@@ -8482,6 +8482,85 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/look-sync\.js'/.test(rd('sw.js')));
   })();
 
+
+  section('183. Back to Collection returns to the page you were on (v0.9.1231)');
+  (function () {
+    const pathJ = require('path');
+    const rd = f => fs.readFileSync(pathJ.join(__dirname, '..', 'app', f), 'utf8');
+    const ac = rd('app-collection.js');
+    const br = rd('browse.js');
+
+    // Brad: "if you are on page 3, click on a item to look at it, then hit the
+    // back to collection button, it takes you back to page 1. It needs to go
+    // back to the page you was on."
+
+    // ── it has to be WRITTEN DOWN, at both doors into a detail page ──────
+    const caps = ac.match(/window\._lastBrowseState = \{[\s\S]*?\};/g) || [];
+    ok('both ways into a detail page record where he was',
+       caps.length === 2, 'found ' + caps.length);
+    ok('…and both record the page, not just the tab and the filters',
+       caps.length === 2 && caps.every(c => /page:\s*state\.currentPage/.test(c)));
+
+    // ── it has to be put back AFTER every rebuild, or it is overwritten ──
+    const back = ac.slice(ac.indexOf('function _detailBackToBrowse'),
+                          ac.indexOf('window._detailBackToBrowse ='));
+    ok('the page is restored on the way back',
+       /_restoreBrowsePage\(ls\)/.test(back));
+    ok('…after applyFilters, which resets the reader to page one',
+       back.indexOf('applyFilters()') < back.indexOf('_restoreBrowsePage(ls)'));
+    ok('…and after the tab is rebuilt, for the same reason',
+       back.lastIndexOf('renderBrowseTab(ls.tab)') < back.indexOf('_restoreBrowsePage(ls)'));
+
+    // ── RUN it: three journeys, three answers ───────────────────────────
+    const src = ac.slice(ac.indexOf('function _restoreBrowsePage'),
+                         ac.indexOf('function _detailBackToBrowse'));
+    const run = (saved, detailIdx, master, filtered) => {
+      const state = { currentPage: 1, pageSize: 25, masterData: master, filteredData: filtered };
+      let renders = 0;
+      const win = { _lastDetailIdx: detailIdx };
+      new Function('state', 'window', 'renderBrowse',
+        '"use strict";' + src + '; _restoreBrowsePage(' + JSON.stringify({ page: saved }) + ');'
+      )(state, win, () => { renders++; });
+      return { page: state.currentPage, renders };
+    };
+    const rows = Array.from({ length: 120 }, (_, i) => ({ n: i }));
+
+    ok('page 3 in, page 3 out',
+       run(3, -1, rows, rows).page === 3);
+    ok('…and it repaints, or the number would be a lie',
+       run(3, -1, rows, rows).renders === 1);
+    ok('page 1 needs no work — the rebuild already left him there',
+       run(1, -1, rows, rows).renders === 0);
+
+    // Brad's choice: arrowed forward to row 60 → the page holding row 60 wins
+    ok('arrowing forward lands on the page the item is actually on',
+       run(3, 60, rows, rows).page === 3 && run(3, 12, rows, rows).page === 1,
+       'row 60 → ' + run(3, 60, rows, rows).page + ', row 12 → ' + run(3, 12, rows, rows).page);
+    ok('…row 80 sits on page 4, and that is where it lands',
+       run(2, 80, rows, rows).page === 4);
+
+    // a set row, a catalog, a folded member — not in the list, so fall back
+    ok('an item that is not in the list falls back to the page he clicked from',
+       run(3, 60, rows, rows.slice(0, 10)).page === 3);
+    ok('…and a detail page he never opened does the same',
+       run(3, undefined, rows, rows).page === 3);
+    ok('a missing saved page is page one, not NaN',
+       (function () {
+         const state = { currentPage: 1, pageSize: 25, masterData: rows, filteredData: rows };
+         new Function('state', 'window', 'renderBrowse',
+           '"use strict";' + src + '; _restoreBrowsePage({});')(state, { _lastDetailIdx: -1 }, () => {});
+         return state.currentPage === 1;
+       })());
+
+    // ── the list can shrink while he is away ────────────────────────────
+    const pag = br.slice(br.indexOf('const total = state.filteredData.length;'),
+                         br.indexOf('const pageData = state.filteredData.slice('));
+    ok('the reader is pulled back into range when the list shrinks',
+       /state\.currentPage > pages/.test(pag) && /state\.currentPage = pages > 0 \? pages : 1/.test(pag));
+    ok('…before the rows for that page are cut, not after',
+       pag.indexOf('state.currentPage > pages') < pag.indexOf('const start ='));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

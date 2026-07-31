@@ -3183,6 +3183,12 @@ function renderBrowse() {
   }
   const total = state.filteredData.length;
   const pages = Math.ceil(total / state.pageSize);
+  // v0.9.1231: nothing pulled the reader back when the list SHRANK beneath
+  // him - sell four items off page 4 of a four-page list and you were left
+  // looking at an empty table with no page marked. Restoring a saved page
+  // makes that far easier to reach, so the guard belongs here, at the one
+  // place the page count is known, rather than at each caller.
+  if (state.currentPage > pages) state.currentPage = pages > 0 ? pages : 1;
   const start = (state.currentPage - 1) * state.pageSize;
   const pageData = state.filteredData.slice(start, start + state.pageSize);
 
