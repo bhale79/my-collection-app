@@ -7187,7 +7187,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const M = new Function('"use strict";' + apA.slice(s, e) +
       '; return { fit: _rrFitDims, trim: _rrTrimBox, cls: _rrClassifyPixels, alpha: _rrHasAlpha,' +
       ' note: _rrLogoNote, lum: _rrLum, contrast: _rrContrast, readable: _rrReadableText,' +
-      ' pick: _rrPickSwatches, derive: _rrDeriveFromBg, hsl: _rrHexToHsl };')();
+      ' pick: _rrPickSwatches, derive: _rrDeriveFromBg, derText: _rrDeriveText, hsl: _rrHexToHsl };')();
 
     // The block must stay pure — the moment it reaches for a canvas, the
     // thing the tests prove stops being the thing that ships.
@@ -7352,6 +7352,23 @@ META_WRITES.length = 0; TOASTS.length = 0;
        M.hsl(lt['--border'])[2] < M.hsl(lt['--surface2'])[2]);
     ok('deriving touches the four background slots and nothing else',
        Object.keys(dk).sort().join(',') === '--bg,--border,--surface,--surface2');
+
+    // v0.9.1219, Brad circling the sidebar menu: "this text doesn't change."
+    // It reads --text-mid, and the editor only ever set --text.
+    const shades = M.derText('#f8e8c0', '#0f1220');
+    ok('the dimmer text shades are derived from the text colour',
+       Object.keys(shades).sort().join(',') === '--text-dim,--text-mid');
+    ok('…each one further toward the background than the last',
+       M.hsl(shades['--text-mid'])[2] < M.hsl('#f8e8c0')[2] &&
+       M.hsl(shades['--text-dim'])[2] < M.hsl(shades['--text-mid'])[2] &&
+       M.hsl(shades['--text-dim'])[2] > M.hsl('#0f1220')[2]);
+    ok('…and close to what the built-in dark theme uses',
+       Math.abs(M.hsl(shades['--text-mid'])[2] - M.hsl('#c8b88a')[2]) < 0.12 &&
+       Math.abs(M.hsl(shades['--text-dim'])[2] - M.hsl('#6a5e48')[2]) < 0.12);
+    const lightShades = M.derText('#2a2015', '#f8e8c0');
+    ok('…and it works the other way up, on a light skin',
+       M.hsl(lightShades['--text-mid'])[2] > M.hsl('#2a2015')[2] &&
+       M.hsl(lightShades['--text-dim'])[2] > M.hsl(lightShades['--text-mid'])[2]);
   })();
 
   section('174. The editor is paper, the app is the app (v0.9.1206)');
@@ -7529,6 +7546,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /if \(_armed >= 0 && _swatches\[_armed\]\) \{[\s\S]{0,120}_rrApplyRole\(v, _swatches\[_armed\]\)/.test(ap));
     ok('no raw browser colour input is left anywhere in the editor',
        (ap.match(/type="color"/g) || []).length === 1);
+    ok('changing the text colour carries its dimmer shades with it',
+       /if \(!derived && \(v === '--text' \|\| v === '--bg'\)\)/.test(ap) &&
+       /Object\.keys\(d\)\.forEach\(function \(k\) \{ _set\(k, d\[k\], true\); \}\)/.test(ap));
+    ok('…and they are saved with the skin, so a reload keeps them',
+       /var DERIVED_VARS = \['--text-mid', '--text-dim'\]/.test(ap) &&
+       /DERIVED_VARS\.forEach\(function \(v\) \{ var c = _cur\(v\); if \(c\) map\[v\] = c; \}\)/.test(ap));
     ok('the readability guard runs on every assignment, last',
        /function _rrApplyRole[\s\S]*?_rrReadableText\(_cur\('--bg'\), _cur\('--text'\)\)/.test(ap));
     ok('assigning a background carries its panels and lines with it',

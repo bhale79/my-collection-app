@@ -75,6 +75,9 @@
     'Alaska':       { '--bg':'#0d1830','--surface':'#132447','--surface2':'#1a2f5a','--text':'#f6efdd','--border':'#28406e','--accent':'#f2b428','--accent2':'#e8cf8a','--green':'#3ec47a','--want':'#5a94d4','--forsale':'#e0862a','--accent3':'#a48ae8' },
   };
   var USER_PRESETS_KEY = 'rr_skin_presets';
+  // Not boxes in the editor — shades that follow --text. Saved with the
+  // skin because applyTheme() replays whatever the saved map contains.
+  var DERIVED_VARS = ['--text-mid', '--text-dim'];
 
   // v0.9.1149 (Brad, overnight): "clip a Santa Fe logo and paste it in that
   // box and have it create a palette." No AI involved — a palette is pixel
@@ -165,13 +168,17 @@
 
   // RULE 2 lives here. The variable goes on the STAGE, so the preview replica
   // repaints and the real app does not. One line, no mode flag.
-  function _set(v, val) {
+  function _set(v, val, derived) {
     _live[v] = val;
     var st = _stage();
     if (st) st.style.setProperty(v, val);
     if (_preview) _root.style.setProperty(v, val);
-    var i = document.querySelector('#rrap .rrap-chip[data-var="' + v + '"] input');
-    if (i && i.value !== val) { try { i.value = val; } catch (e) {} }
+    // The dimmer text shades follow the text colour. `derived` stops the
+    // two calls below from calling straight back into here.
+    if (!derived && (v === '--text' || v === '--bg')) {
+      var d = _rrDeriveText(_cur('--text'), _cur('--bg'));
+      Object.keys(d).forEach(function (k) { _set(k, d[k], true); });
+    }
   }
   function _userPresets() {
     try { return JSON.parse(localStorage.getItem(USER_PRESETS_KEY) || '{}') || {}; }
@@ -378,6 +385,7 @@
     + '.rrap-body{display:flex}'
     + '.rrap-side{width:130px;background:var(--surface);border-right:1px solid var(--border);padding:8px;flex:none}'
     + '.rrap-nav{padding:6px 9px;border-radius:7px;color:var(--text-mid);font-size:0.7rem;margin-bottom:2px}'
+    + '.rrap-side .rrap-nav{color:var(--text-mid)}'
     + '.rrap-navon{background:var(--surface2);color:var(--text);border-left:3px solid var(--accent)}'
     + '.rrap-content{flex:1;padding:11px;display:flex;flex-direction:column;gap:9px;background:var(--bg)}'
     + '.rrap-acts{display:flex;gap:6px;flex-wrap:wrap}'
@@ -881,6 +889,21 @@
     if (t.border === 'rule') css += ';border-bottom:2px solid ' + col + ';padding-bottom:2px';
     else if (t.border === 'box') css += ';border:2px solid ' + col + ';padding:2px 10px;border-radius:7px';
     return css;
+  }
+
+  // Brad's red circle: the sidebar's menu labels never changed colour. They
+  // read --text-mid, and the editor only ever set --text. Those two, plus
+  // --text-dim, are not separate decisions — they ARE the text colour, faded
+  // toward the background. Hundreds of places in the app use them, so the
+  // moment --text moves they have to move with it or half the writing keeps
+  // the old skin. 35% and 65% of the way to the background reproduces the
+  // built-in themes' own values closely.
+  function _rrDeriveText(textHex, bgHex) {
+    var t = _rrHexToHsl(textHex), b = _rrHexToHsl(bgHex);
+    var mix = function (f) {
+      return _hsl2hex(t[0], t[1] * (1 - f * 0.5), t[2] + (b[2] - t[2]) * f);
+    };
+    return { '--text-mid': mix(0.35), '--text-dim': mix(0.65) };
   }
 
   function _rrDeriveFromBg(hex) {
@@ -1740,6 +1763,9 @@
 
   window._rrapApply = function () {
     var map = {}; EDIT_VARS.forEach(function (e) { map[e[0]] = _cur(e[0]); });
+    // The derived shades are not editor boxes, but they ARE part of the look
+    // and must be replayed on every boot like everything else.
+    DERIVED_VARS.forEach(function (v) { var c = _cur(v); if (c) map[v] = c; });
     _persist(map);
     _commitBrand();
     _saved = true;
