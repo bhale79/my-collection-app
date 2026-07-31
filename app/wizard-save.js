@@ -214,10 +214,10 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
       'Yes',                               // M: Quick Entry
       nextInventoryId(),                   // N: Inventory ID
     ];
-    await sheetsAppend(state.personalSheetId, 'My Sets!A:A', [mySetsRow]);
+    const _msApRow = await sheetsAppend(state.personalSheetId, 'My Sets!A:A', [mySetsRow]);   // v0.9.1196: keep the REAL row
     const _msInvId = mySetsRow[13];
     state.mySetsData[_msInvId] = {
-      row: 99999, setNum, setName: resolvedSet ? (resolvedSet.setName || '') : '',
+      row: _msApRow || 0, setNum, setName: resolvedSet ? (resolvedSet.setName || '') : '',
       year, condition: String(condition), estWorth: worth, datePurchased: '',
       groupId, setId, hasSetBox: d.set_hasBox || 'No', boxCondition: '',
       photoLink, notes: '', quickEntry: true, inventoryId: _msInvId,
@@ -451,10 +451,10 @@ async function saveSet() {
       'No',                                // M: Quick Entry
       nextInventoryId(),                   // N: Inventory ID
     ];
-    await sheetsAppend(state.personalSheetId, 'My Sets!A:A', [mySetsRow]);
+    const _msApRow2 = await sheetsAppend(state.personalSheetId, 'My Sets!A:A', [mySetsRow]);   // v0.9.1196
     const _msInvId2 = mySetsRow[13];
     state.mySetsData[_msInvId2] = {
-      row: 99999, setNum, setName: _resolvedSet ? (_resolvedSet.setName || '') : '',
+      row: _msApRow2 || 0, setNum, setName: _resolvedSet ? (_resolvedSet.setName || '') : '',
       year, condition: mySetsRow[3], estWorth: d._setWorth || '', datePurchased: '',
       groupId, setId, hasSetBox: d.set_hasBox || 'No', boxCondition: d.set_boxCond || '',
       photoLink: '', notes: d.set_notes || '', quickEntry: false, inventoryId: _msInvId2,
@@ -544,7 +544,7 @@ async function saveInstructionSheet() {
   try {
     const _apRowIS = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [row]);
     state.personalData[isStandaloneInvId] = {
-      row: _apRowIS || 99999, itemNum: _isItemNum, variation: '',
+      row: _apRowIS || 0, itemNum: _isItemNum, variation: '',   // v0.9.1196: 0 = honestly unknown, never a fake row
       status: 'Owned', owned: true,
       condition: d.is_condition||'', notes: _isNotes,
       photoItem: photoLink || '', matchedTo: linkedItem || '',
@@ -945,7 +945,7 @@ async function _saveManualEntry() {
   // made every later update on this item fail with a Sheets "exceeds grid
   // limits" 400 — Brad's abacus photo/description case).
   state.personalData[invId] = {
-    row: _apRow || 99999, itemNum: displayId, variation: '',
+    row: _apRow || 0, itemNum: displayId, variation: '',   // v0.9.1196
     status: 'Owned', owned: true,
     condition, allOriginal: '',
     priceItem, priceBox: '', priceComplete: row[PERSONAL_FIELD_INDEX.priceComplete],
@@ -1236,13 +1236,14 @@ async function saveWizardItem() {
         if (existing && existing.row && existing.itemNum === boxItemNum) {
           // Update existing BOX row
           await sheetsUpdate(state.personalSheetId, personalFullRowRange(existing.row), [boxRow]);
+          var _bxApRow = existing.row;                 // v0.9.1196: updates know their row
         } else {
-          await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [boxRow]);
+          var _bxApRow = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [boxRow]);
         }
 
         // Optimistic state update
         state.personalData[boxInvId] = {
-          row: 99999, itemNum: boxItemNum, variation,
+          row: _bxApRow || 0, itemNum: boxItemNum, variation,
           status: 'Owned', owned: true,
           itemType: 'Box',
           condition: d.boxCond || '', hasBox: 'Yes', boxCond: d.boxCond || '',
@@ -1479,12 +1480,14 @@ async function saveWizardItem() {
     }
   }
 
+  var _mainApRow = 0;   // v0.9.1196: the sheet row this item actually landed on
   if (d._fillItemMode && existing?.row) {
         // Updating existing row with new item details (e.g. filling in a quick-entry row)
         await sheetsUpdate(state.personalSheetId, personalFullRowRange(existing.row), [row]);
+        _mainApRow = existing.row;
       } else {
         // Always append for a plain new collection add — never overwrite existing rows
-        await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [row]);
+        _mainApRow = (await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [row])) || 0;
       }
 
       // Session 115: general "adopt candidates into the group" block.
@@ -1572,12 +1575,12 @@ async function saveWizardItem() {
       }
       // Optimistic update
       const _fsEntry = {
-        row: existingFs?.row || 99999, itemNum, variation: fsVariation,
+        row: existingFs?.row || 0, itemNum, variation: fsVariation,   // v0.9.1196
         condition: fsCondition, askingPrice: d.askingPrice || '',
         dateListed: row[4], notes: row[5], originalPrice: fsOrigPrice, estWorth: fsEstWorth,
         inventoryId: _fsInvId,
       };
-      const _fsKey = _fsInvId || ('legacy-row-' + (existingFs?.row || 99999));
+      const _fsKey = _fsInvId || ('legacy-row-' + (existingFs?.row || 0));   // v0.9.1196
       state.forSaleData[_fsKey] = _fsEntry;
       // Session 154: "Sell individually" deferred the group-break to here so a
       // cancelled wizard never dismantles the group. Now the sale saved, so
@@ -1629,7 +1632,7 @@ async function saveWizardItem() {
         inventoryId: collectionEntry ? collectionEntry.inventoryId : '',
         src: collectionEntry || {},
       });
-      await sheetsAppend(state.personalSheetId, 'Sold!A:T', [row]);
+      var _soldApRow = (await sheetsAppend(state.personalSheetId, 'Sold!A:T', [row])) || 0;   // v0.9.1196
       // Bug 19 (Session 154): group sale — handle the other selected pieces
       // BEFORE deleting the lead row (clearing rows doesn't shift row numbers
       // the way a delete does, so companion rows stay valid).
@@ -1748,6 +1751,7 @@ async function saveWizardItem() {
       // write a Want row for EACH item with a shared groupId. Single items
       // skip the partner list and write one row.
       var _wPartners = [];
+      var _wuLastApRow = 0;   // v0.9.1196: last appended want row, for the fallback optimistic insert
       var _wGrp = d._itemGrouping || 'single';
       if (_wGrp === 'engine_tender' && d.tenderMatch && d.tenderMatch !== 'none') {
         _wPartners.push({ num: String(d.tenderMatch), variation: '' });
@@ -1783,12 +1787,13 @@ async function saveWizardItem() {
           await sheetsUpdate(state.personalSheetId, `Want-Upgrade List!A${existing.row}:I${existing.row}`, [wuRow]);
         } else {
           const wuAppendRow = [row[0], row[1], 'Want', row[2], row[3], _wTargetCond, '', _notesWithGrp, row[5]];
-          await sheetsAppend(state.personalSheetId, 'Want-Upgrade List!A:I', [wuAppendRow]);
+          var _wuApRow = await sheetsAppend(state.personalSheetId, 'Want-Upgrade List!A:I', [wuAppendRow]);   // v0.9.1196
+          _wuLastApRow = _wuApRow || 0;
           // Optimistic state mirror — store CLEAN notes (without [grp:xxx])
           // and the parsed groupId as a separate field, matching how the
           // loader will parse it back when next fetched.
           state.wantData[_wKey] = {
-            row: 99999, itemNum: _w.num, variation: _w.variation || '',
+            row: _wuApRow || 0, itemNum: _w.num, variation: _w.variation || '',
             priority: _wPriority, expectedPrice: _wPrice,
             targetCondition: _wTargetCond, notes: _wNotes,
             manufacturer: _wMfr, listType: 'Want', groupId: _wGroupId,
@@ -1812,11 +1817,11 @@ async function saveWizardItem() {
           const _bxVar = d.boxVariation || '';
           const _bxDesc = d.boxVariationDesc || '';
           const u1BoxRow = _buildGroupBoxRow(itemNum, d.boxCond || row[PERSONAL_FIELD_INDEX.boxCond], boxPhotos[0] || row[PERSONAL_FIELD_INDEX.photoBox] || '', groupId, d.datePurchased, itemNum, _bxVar, _bxDesc);
-          await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [u1BoxRow]);
+          const _bx1ApRow = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [u1BoxRow]);   // v0.9.1196
           var _bxNote = 'Box for ' + itemNum;
           if (_bxDesc) _bxNote += ' — ' + _bxDesc;
           state.personalData[u1BoxRow[PERSONAL_FIELD_INDEX.inventoryId]] = {
-            row: 99999, itemNum: itemNum + '-BOX', variation: _bxVar,
+            row: _bx1ApRow || 0, itemNum: itemNum + '-BOX', variation: _bxVar,
             status: 'Owned', owned: true,
             condition: d.boxCond || row[PERSONAL_FIELD_INDEX.boxCond] || '', hasBox: 'Yes', boxCond: d.boxCond || row[PERSONAL_FIELD_INDEX.boxCond] || '',
             notes: _bxNote, matchedTo: itemNum,
@@ -1828,9 +1833,9 @@ async function saveWizardItem() {
         if (isSetSave && d.unit2HasBox === 'Yes' && d.unit2ItemNum) {
           const u2Num = (d.unit2ItemNum || '').trim();
           const u2BoxRow = _buildGroupBoxRow(u2Num, d.unit2BoxCond || '', Object.values(d.photosUnit2Box || {}).find(v => v) || '', groupId, d.datePurchased, itemNum);
-          await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [u2BoxRow]);
+          const _bx2ApRow = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [u2BoxRow]);   // v0.9.1196
           state.personalData[u2BoxRow[PERSONAL_FIELD_INDEX.inventoryId]] = {
-            row: 99999, itemNum: u2Num + '-BOX', variation: '',
+            row: _bx2ApRow || 0, itemNum: u2Num + '-BOX', variation: '',
             status: 'Owned', owned: true,
             condition: d.unit2BoxCond || '', hasBox: 'Yes', boxCond: d.unit2BoxCond || '',
             notes: 'Box for ' + u2Num, matchedTo: u2Num,
@@ -1842,9 +1847,9 @@ async function saveWizardItem() {
         if (isSetSave && d.setType === 'ABA' && d.unit3HasBox === 'Yes') {
           const u3Num = _pdSuffix((d.unit3ItemNum || _rawItemNum).trim(), d.unit3Power);
           const u3BoxRow = _buildGroupBoxRow(u3Num, d.unit3BoxCond || '', Object.values(d.photosUnit3Box || {}).find(v => v) || '', groupId, d.datePurchased, itemNum);
-          await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [u3BoxRow]);
+          const _bx3ApRow = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [u3BoxRow]);   // v0.9.1196
           state.personalData[u3BoxRow[PERSONAL_FIELD_INDEX.inventoryId]] = {
-            row: 99999, itemNum: u3Num + '-BOX', variation: '',
+            row: _bx3ApRow || 0, itemNum: u3Num + '-BOX', variation: '',
             status: 'Owned', owned: true,
             condition: d.unit3BoxCond || '', hasBox: 'Yes', boxCond: d.unit3BoxCond || '',
             notes: 'Box for ' + u3Num, matchedTo: u3Num,
@@ -1856,9 +1861,9 @@ async function saveWizardItem() {
         if (isPairedSave && d.tenderHasBox === 'Yes') {
           const tNum = d.tenderMatch.trim();
           const tBoxRow = _buildGroupBoxRow(tNum, d.tenderBoxCond || '', Object.values(d.photosTenderBox || {}).find(v => v) || '', groupId, d.datePurchased, itemNum);
-          await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [tBoxRow]);
+          const _bxtApRow = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [tBoxRow]);   // v0.9.1196
           state.personalData[tBoxRow[PERSONAL_FIELD_INDEX.inventoryId]] = {
-            row: 99999, itemNum: tNum + '-BOX', variation: '',
+            row: _bxtApRow || 0, itemNum: tNum + '-BOX', variation: '',
             status: 'Owned', owned: true,
             condition: d.tenderBoxCond || '', hasBox: 'Yes', boxCond: d.tenderBoxCond || '',
             notes: 'Box for ' + tNum, matchedTo: tNum,
@@ -1908,9 +1913,9 @@ async function saveWizardItem() {
           inventoryId: isInvId,
           groupId: groupId,
         });
-        await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [isRow]);
+        const _isApRow2 = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [isRow]);   // v0.9.1196
         state.personalData[isInvId] = {
-          row: 99999, itemNum: _isItemNum, variation: '',
+          row: _isApRow2 || 0, itemNum: _isItemNum, variation: '',
           status: 'Owned', owned: true,
           condition: d.is_condition || '', notes: _isNotes,
           photoItem: isPhotoLink || '', matchedTo: itemNum,
@@ -1955,10 +1960,10 @@ async function saveWizardItem() {
           era: _resolveSaveEra(),
           manufacturer: _getEraManufacturer(),
         });
-        await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [mbRow]);
+        const _mbApRow = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [mbRow]);   // v0.9.1196
         // Add to local state
         state.personalData[mbInvId] = {
-          row: 99999, itemNum: mbItemNum, variation: '',
+          row: _mbApRow || 0, itemNum: mbItemNum, variation: '',
           status: 'Owned', owned: true,
           itemType: 'Master Carton',
           condition: d.masterBoxCond || '', hasBox: 'Yes', boxCond: d.masterBoxCond || '',
@@ -2003,7 +2008,7 @@ async function saveWizardItem() {
       try {
         var _setOptId = (row && row[PERSONAL_FIELD_INDEX.inventoryId]) || ('temp_' + itemNum + '_' + _curIdx);
         state.personalData[_setOptId] = {
-          row: 99999, itemNum: itemNum, variation: variation,
+          row: _mainApRow || 0, itemNum: itemNum, variation: variation,   // v0.9.1196: set members get their real row too
           status: 'Owned', owned: true,
           condition: d.condition || '',
           allOriginal: d.allOriginal || '',
@@ -2063,12 +2068,12 @@ async function saveWizardItem() {
           _alfInvId,
           ((typeof _brandOfItem === 'function' && _brandOfItem(d.itemNum)) || (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : 'Lionel')),
         ];
-        await sheetsAppend(state.personalSheetId, 'For Sale!A:J', [_alfFsRow]);
+        var _alfApRow = (await sheetsAppend(state.personalSheetId, 'For Sale!A:J', [_alfFsRow])) || 0;   // v0.9.1196
         // Mirror into state for instant rendering
         if (!state.forSaleData) state.forSaleData = {};
         var _alfKey = _alfInvId || ('legacy-row-' + Date.now());
         state.forSaleData[_alfKey] = {
-          row: 99999,  // optimistic placeholder; next sheet refetch fills the real row
+          row: _alfApRow || 0,  // v0.9.1196: real row from the append (0 only if the API answered oddly)
           itemNum: d.itemNum || '',
           variation: d.variation || '',
           condition: String(d.condition || ''),
@@ -2138,7 +2143,7 @@ async function saveWizardItem() {
     }
     if (tab === 'collection') {
       state.personalData[_optInvId] = {
-        row: 99999, itemNum, variation,
+        row: _mainApRow || 0, itemNum, variation,   // v0.9.1196
         status: 'Owned', owned: true,
         condition: d.condition || '',
         allOriginal: d.allOriginal || '',
@@ -2157,7 +2162,7 @@ async function saveWizardItem() {
     } else if (tab === 'sold') {
       var _osk = _newSoldKey();
       state.soldData[_osk] = {
-        row: 99999, key: _osk, itemNum, variation,
+        row: (typeof _soldApRow !== 'undefined' && _soldApRow) || 0, key: _osk, itemNum, variation,   // v0.9.1196
         condition: d.condition || '',
         priceItem: d.priceItem || '',
         salePrice: d.salePrice || '',
@@ -2166,7 +2171,7 @@ async function saveWizardItem() {
       };
     } else if (tab === 'want') {
       state.wantData[`${itemNum}|${variation}`] = {
-        row: 99999, itemNum, variation,
+        row: _wuLastApRow || 0, itemNum, variation,   // v0.9.1196
         priority: d.priority || 'Medium',
         expectedPrice: d.expectedPrice || '',
         notes: d.notes || '',

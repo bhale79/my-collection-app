@@ -2074,7 +2074,7 @@ function _checkGroupBeforeForSale(globalIdx, pdKey) {
       // get their own For Sale rows. The For Sale list resolves the group via
       // the lead's Inventory ID and its actions cascade across every piece.
       // Phase 3: key for the For Sale entry is the lead pd's inventoryId.
-      const _grpFsKey = pd.inventoryId || ('legacy-row-' + (pd.row || 99999));
+      const _grpFsKey = pd.inventoryId || ('legacy-row-' + (pd.row || 0));   // v0.9.1196
       const fsRow = [
         pd.itemNum, pd.variation || '',
         pd.condition || '',
@@ -2087,13 +2087,15 @@ function _checkGroupBeforeForSale(globalIdx, pdKey) {
         pd.manufacturer || (typeof _brandOfItem === 'function' && _brandOfItem(pd.itemNum)) || _getEraManufacturer(),
       ];
       const existingFs = state.forSaleData[_grpFsKey];
+      let _grpFsApRow = 0;   // v0.9.1196: real row from update target or append return
       if (existingFs && existingFs.row) {
         await sheetsUpdate(sheetId, 'For Sale!A' + existingFs.row + ':J' + existingFs.row, [fsRow]);
+        _grpFsApRow = existingFs.row;
       } else {
-        await sheetsAppend(sheetId, 'For Sale!A:J', [fsRow]);
+        _grpFsApRow = (await sheetsAppend(sheetId, 'For Sale!A:J', [fsRow])) || 0;
       }
       const _grpFsEntry = {
-        row: existingFs ? existingFs.row : 99999,
+        row: _grpFsApRow,
         itemNum: pd.itemNum, variation: pd.variation || '',
         condition: pd.condition || '', askingPrice: askingPrice,
         dateListed: today,
@@ -4133,14 +4135,14 @@ function _checkWantPartners(itemNum, variation, priority, maxPrice, notes) {
         const row = [c.itemNum, '', priority || 'Medium', maxPrice || '', notes || '', ((typeof _brandOfItem === 'function' && _brandOfItem(c.itemNum)) || _getEraManufacturer())];
         // Want-Upgrade combined: append partner 9-col row with List Type='Want'.
         const _wuPartnerRow = [row[0], row[1], 'Want', row[2], row[3], '', '', row[4], row[5]];
-        await sheetsAppend(state.personalSheetId, 'Want-Upgrade List!A:I', [_wuPartnerRow]);
+        const _wuPartnerApRow = (await sheetsAppend(state.personalSheetId, 'Want-Upgrade List!A:I', [_wuPartnerRow])) || 0;   // v0.9.1196
         // Bugfix 2026-04-14: optimistically add partner to state.wantData so the
         // Want List table shows the new partners immediately instead of waiting
         // for the 1.2s refresh. Session 102 observed partners not appearing.
         const pKey = `${c.itemNum}|`;
         if (!state.wantData[pKey]) {
           state.wantData[pKey] = {
-            row: 99999, // placeholder; overwritten on next sheet sync
+            row: _wuPartnerApRow,   // v0.9.1196: the REAL row from the append
             itemNum: c.itemNum,
             variation: '',
             priority: priority || 'Medium',

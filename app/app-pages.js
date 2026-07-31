@@ -2169,7 +2169,7 @@ async function markForSaleAsSold(fsKey, askingPrice) {
     manufacturer: fs.manufacturer || (collEntry && collEntry.manufacturer) || '',
     src: collEntry || {},
   });
-  await sheetsAppend(state.personalSheetId, 'Sold!A:T', [soldRow]);
+  const _soldApRow = (await sheetsAppend(state.personalSheetId, 'Sold!A:T', [soldRow])) || 0;   // v0.9.1196
 
   // If this sold copy had an Upgrade entry linked to it, convert to Want.
   await _convertUpgradeToWantOnSell(fs.inventoryId || (collEntry && collEntry.inventoryId));
@@ -2235,7 +2235,7 @@ async function markForSaleAsSold(fsKey, askingPrice) {
   // Optimistic state update — unique key so each sale is its own row.
   var _osk = (typeof _newSoldKey === 'function') ? _newSoldKey() : ('sold-opt-' + Date.now());
   state.soldData[_osk] = {
-    row: 99999, key: _osk, itemNum, variation,
+    row: _soldApRow, key: _osk, itemNum, variation,   // v0.9.1196
     condition: fs.condition || (collEntry && collEntry.condition) || '',
     priceItem: fs.originalPrice || (collEntry && collEntry.priceItem) || '',
     salePrice: salePrice || askingPrice, dateSold, notes: fs.notes || '',

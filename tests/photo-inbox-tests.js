@@ -6645,6 +6645,45 @@ META_WRITES.length = 0; TOASTS.length = 0;
        abacusId.indexOf('"') < 0 && /^[A-Za-z0-9_-]+$/.test(abacusId), abacusId);
   })();
 
+  section('164. The 99999 sentinel is retired — a save keeps the row the sheet answered with (v0.9.1196)');
+  // v0.9.695 fixed "the fake 99999 made every later update fail with a Sheets
+  // 400" for ONE save path and named Brad's abacus. Seventeen others kept the
+  // sentinel, and v0.9.1130's timing change turned one of them into the
+  // photo-link data loss (every item added 07-30). sheetsAppend has returned
+  // the real row all along — now every optimistic insert records it, and a
+  // row that genuinely isn't known yet is an honest 0, which every
+  // `if (pd.row …)` guard already treats as "do not write".
+  (function () {
+    const pR = require('path');
+    const files = ['wizard-save.js', 'app-collection.js', 'app-pages.js'].map(function (f) {
+      return { name: f, src: fs.readFileSync(pR.join(__dirname, '..', 'app', f), 'utf8') };
+    });
+    files.forEach(function (f) {
+      ok('no optimistic insert fakes a row in ' + f.name,
+         f.src.indexOf('row: 99999') < 0 && f.src.indexOf('|| 99999)') < 0 && f.src.indexOf('|| 99999,') < 0);
+    });
+    const ws = files[0].src;
+    ok('the main collection save records its real row from BOTH branches',
+       /_mainApRow = existing\.row;/.test(ws) && /_mainApRow = \(await sheetsAppend\(/.test(ws));
+    ok('set members inherit that same real row',
+       /row: _mainApRow \|\| 0, itemNum: itemNum, variation: variation/.test(ws));
+    ok('My Sets, Sold, For Sale and Want appends are all captured',
+       /_msApRow = await sheetsAppend/.test(ws) && /_soldApRow = \(await sheetsAppend/.test(ws)
+       && /_alfApRow = \(await sheetsAppend/.test(ws) && /_wuApRow = await sheetsAppend/.test(ws));
+    ok('every grouped box row captures its append too',
+       ['_bx1ApRow', '_bx2ApRow', '_bx3ApRow', '_bxtApRow'].every(function (v) { return ws.indexOf(v + ' = await sheetsAppend') > 0; }));
+    ok('the sold quick-path (app-pages) records its real row',
+       /_soldApRow = \(await sheetsAppend/.test(files[2].src) && /row: _soldApRow, key: _osk/.test(files[2].src));
+    ok('the want partner path (app-collection) records its real row',
+       /_wuPartnerApRow = \(await sheetsAppend/.test(files[1].src) && /row: _wuPartnerApRow,/.test(files[1].src));
+    // The downstream guards treat 0 exactly like unknown — falsy short-circuits.
+    const pin2 = fs.readFileSync(pR.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+    ok('the photo-link flush guard rejects 0 and 99999 alike',
+       /var _rowKnown = pd\.row && Number\(pd\.row\) !== 99999;/.test(pin2));
+    ok('the repair pass rejects them alike too',
+       /p\.row && Number\(p\.row\) !== 99999/.test(pin2));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
