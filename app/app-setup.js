@@ -713,6 +713,24 @@ async function syncUserDefinedTabsFromSheet(sheetId) {
         if (state.ephemeraData) { delete state.ephemeraData.parts_needed; delete state.ephemeraData.contacts; }
       }
     }
+    // v0.9.1204 (structural audit #10): this function ADDED unknown tabs but
+    // never removed vanished ones, so a tab renamed or deleted in the sheet
+    // was probed forever — Brad's four retired "LEGACY - …" tabs threw
+    // "Unable to parse range" on EVERY load, four console warnings a load,
+    // for weeks. The title list we just fetched is the authority on what
+    // exists; anything user-defined that is not in it is gone. Guarded on a
+    // non-empty title list so a partial or failed metadata read can never
+    // wipe a legitimate tab, and the tab's bucket goes with it.
+    if (titles.length && state.userDefinedTabs && state.userDefinedTabs.length) {
+      const _live = new Set(titles);
+      const _stale = state.userDefinedTabs.filter(t => t && !_live.has(t.label));
+      if (_stale.length) {
+        state.userDefinedTabs = state.userDefinedTabs.filter(t => t && _live.has(t.label));
+        _stale.forEach(t => { try { if (state.ephemeraData) delete state.ephemeraData[t.id]; } catch (e) {} });
+        saveUserDefinedTabs();
+        console.log('[UserTabs] pruned', _stale.length, 'tab(s) no longer in the sheet:', _stale.map(t => t.label).join(', '));
+      }
+    }
     const known = new Set((state.userDefinedTabs || []).map(t => t.label));
     let added = 0;
     titles.forEach(t => {

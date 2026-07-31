@@ -3686,7 +3686,25 @@
         return (parseInt(b.inventoryId) || 0) - (parseInt(a.inventoryId) || 0);
       });
       var pd = _pick[0];
-      if (!pd) continue;   // item not saved yet -> leave its photos in the inbox
+      if (!pd) {
+        // v0.9.1204: "item not saved yet" is the RIGHT call for a note minutes
+        // old — the row is about to appear. But a note whose item never
+        // arrived (a cancelled add, an item later removed) waited forever:
+        // Brad's store still held entries keyed 905 and 2348 from set-adds
+        // days earlier, re-examined on every dashboard build. A note gets a
+        // generous week to find its row, then retires. Its photos stay safely
+        // in the inbox either way — this expires the NOTE, never the photos.
+        try {
+          var _ts = (pend[num] && typeof pend[num] === 'object' && pend[num].ts) || 0;
+          if (_ts && (_rrNowMs() - _ts) > 604800000) {
+            var _pe = JSON.parse(localStorage.getItem(PENDING_KEY) || '{}');
+            delete _pe[num];
+            localStorage.setItem(PENDING_KEY, JSON.stringify(_pe));
+            console.log('[Inbox] retired a pending note whose item never arrived:', num, '(photos stay in the inbox)');
+          }
+        } catch (eEx) {}
+        continue;   // item not saved yet -> leave its photos in the inbox
+      }
       _flushingNums[num] = true;
       try {
         var rec = pend[num];
@@ -3771,13 +3789,20 @@
   // batch per build so a large collection heals over a few visits instead of
   // firing hundreds of requests at once, and treats every failure as "try
   // again next time" rather than as a reason to give up.
-  var _repairRan = false, _repairDone = {};
+  // v0.9.1204: `_repairRan` alone let OVERLAPPING dashboard builds each start
+  // a pass (it clears in `finally`, so build B began while build A awaited),
+  // re-writing links that were already written — idempotent, but wasted API
+  // calls every time. A short cooldown makes a second build within the same
+  // moment a no-op instead of a duplicate run.
+  function _rrNowMs() { try { return Date.now(); } catch (e) { return 0; } }
+  var _repairRan = false, _repairDone = {}, _repairLastAt = 0;
   async function _repairMissingPhotoLinks() {
-    if (_repairRan) return;                       // once per dashboard build
+    if (_repairRan) return;                       // a pass is already in flight
+    if (_rrNowMs() - _repairLastAt < 20000) return;   // and not again within 20s of the last one
     if (!window.state || !state.personalData || !state.personalSheetId) return;
     if (typeof driveFindItemFolder !== 'function' || typeof sheetsUpdate !== 'function'
         || typeof personalColLetter !== 'function') return;
-    _repairRan = true;
+    _repairRan = true; _repairLastAt = _rrNowMs();
     try {
       var targets = Object.values(state.personalData).filter(function (p) {
         return p && p.owned && p.itemNum && !p.photoItem

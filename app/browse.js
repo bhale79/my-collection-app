@@ -63,7 +63,7 @@ function _isFirstOwnedCopyByRow(itemNum, variation, pdRow) {
   Object.values(state.personalData).forEach(function(p) {
     if (!p || !p.owned) return;
     if (p.itemNum !== itemNum) return;
-    if ((p.variation || '') !== v) return;
+    if (!rrSameVar(p.variation, v)) return;   // v0.9.1204: one comparison rule
     if (lowest === null || (p.row && p.row < lowest)) lowest = p.row;
   });
   return lowest !== null && pdRow === lowest;
@@ -2430,7 +2430,7 @@ function _ncShowUpgradeModal(type, key) {
       // variation, priority, targetCondition, maxPrice, notes, inventoryId,
       // manufacturer. saveUpgradeItem already uses this layout — match it.
       const _brOwnedPd = Object.values(state.personalData||{}).find(function(p){
-        return p && p.owned && p.itemNum === ids.itemNum && (p.variation||'') === (ids.variation||'');
+        return p && p.owned && rrSameNum(p.itemNum, ids.itemNum) && rrSameVar(p.variation, ids.variation);   // v0.9.1204
       });
       const row = [
         ids.itemNum, ids.variation,
@@ -2446,7 +2446,8 @@ function _ncShowUpgradeModal(type, key) {
       await sheetsAppend(state.personalSheetId, 'Want-Upgrade List!A:I', [_wuRow]);
       // Local state mirror — Phase 3: state.upgradeData is inventoryId-keyed.
       if (!state.upgradeData) state.upgradeData = {};
-      const _brPd = Object.values(state.personalData||{}).find(function(p){ return p.itemNum===ids.itemNum && (p.variation||'')===(ids.variation||'') && p.owned; });
+      // v0.9.1204: one comparison rule (rrSameNum / rrSameVar)
+      const _brPd = Object.values(state.personalData||{}).find(function(p){ return rrSameNum(p.itemNum, ids.itemNum) && rrSameVar(p.variation, ids.variation) && p.owned; });
       const _brUgEntry = {
         itemNum: ids.itemNum, variation: ids.variation,
         priority, expectedPrice: price,
@@ -2566,7 +2567,7 @@ function renderMasterSubTab(tabKey) {
     // Check ownership — count how many copies of this item the user owns
     // For P/D items, match the suffixed key (e.g. "210-P|...")
     var _ownedCopies = Object.values(state.personalData).filter(function(p) {
-      return p.itemNum === _dispNum && (p.variation || '') === (item.variation || '') && p.owned;
+      return rrSameNum(p.itemNum, _dispNum) && rrSameVar(p.variation, item.variation) && p.owned;   // v0.9.1204
     }).length;
     // Also check Science/Construction dedicated tabs
     if (tabKey === 'science') {
@@ -3065,7 +3066,12 @@ function renderBrowse() {
       // fallback is GONE: a sheet row number is not a time, and a tiebreak
       // that changes the unit of the sort key is not a tiebreak — undated
       // rows now form one honest bucket (itemNum tiebreak orders within it).
-      var _addTs = rrDateTs(pd.dateAdded) || pd._savedAt || rrDateTs(pd.datePurchased) || 0;
+      // v0.9.1204: SAME precedence as the Date Added cell renders
+      // (dateAdded → datePurchased → _savedAt). They disagreed: the key put
+      // _savedAt second, so a row with no dateAdded, a datePurchased, and an
+      // earlier save stamp DISPLAYED one date and SORTED by another — Brad's
+      // lone 07-29 sitting under the 07-28 block. One precedence, both places.
+      var _addTs = rrDateTs(pd.dateAdded) || rrDateTs(pd.datePurchased) || pd._savedAt || 0;
       return {
         it: it,
         mfr: (typeof _manufacturerOfItem === 'function' ? (_manufacturerOfItem(it) || '') : ''),
@@ -3135,7 +3141,7 @@ function renderBrowse() {
         if (!p || !p.owned || p.itemNum !== _dnp) return false;
         if (String(p.itemNum || '').toUpperCase().endsWith('-BOX')) return false;
         if (p.masterKey && _itKeyFD) return p.masterKey === _itKeyFD;
-        return (p.variation || '') === (it.variation || '');
+        return rrSameVar(p.variation, it.variation);   // v0.9.1204: one comparison rule
       });
       if (_copiesFD.length <= 1) { _expandedFD.push(it); return; }
       _copiesFD.sort(function(a, b) { return (parseInt(a.inventoryId) || 0) - (parseInt(b.inventoryId) || 0); });
@@ -3616,7 +3622,7 @@ function renderBrowse() {
       const _isAnyFS = !!_fsEntry;
       const _isAnyUG = !!_ugEntry;
       // Count how many copies of this item exist in collection
-      const _copyCount = Object.values(state.personalData).filter(p => p.itemNum === item.itemNum && (p.variation||'') === (item.variation||'') && p.owned).length;
+      const _copyCount = Object.values(state.personalData).filter(p => rrSameNum(p.itemNum, item.itemNum) && rrSameVar(p.variation, item.variation) && p.owned).length;   // v0.9.1204
       // Status badges — render on a line UNDER the item number (Brad's
       // request) so they read clearly and don't drift under the Var column.
       const _statusBadges = (_isThisCopyFS ? '<span title="On the For Sale list" style="font-size:0.82rem;margin-left:3px;vertical-align:middle">🏷️</span>' : '')

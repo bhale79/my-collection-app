@@ -26,6 +26,23 @@ function _pdLookupKey(itemNum, variation) {
          String(variation == null ? '' : variation).trim().toUpperCase();
 }
 
+// ── v0.9.1204 (structural audit #5): ONE rule for "same variation" / "same
+// item number". The pd index has always normalized (trim + upper-case) while
+// a dozen render/filter sites compared raw — so a variation differing only by
+// case or a trailing space matched in one code path and missed in another.
+// That mismatch is the engine behind every phantom-row bug this session
+// (the Williams 2321, the "53" catalog, the 3545 triple): identity decided
+// differently in two places is identity decided wrongly in one of them.
+// Same normalization as _pdLookupKey by construction — these call it — so
+// the index and every comparison can never drift apart again.
+function rrSameVar(a, b) {
+  return _pdLookupKey('', a) === _pdLookupKey('', b);
+}
+function rrSameNum(a, b) {
+  return _pdLookupKey(a, '') === _pdLookupKey(b, '');
+}
+if (typeof window !== 'undefined') { window.rrSameVar = rrSameVar; window.rrSameNum = rrSameNum; }
+
 function _rebuildPdIndex() {
   const idx = {};
   Object.keys(state.personalData).forEach(k => {

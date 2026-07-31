@@ -1405,7 +1405,7 @@ async function _removeFromCollectionDetail(idx, itemNum, variation) {
   var gone = false;
   for (var _i = 0; _i < 10 && !gone; _i++) {
     gone = !Object.values(state.personalData || {}).some(function(p) {
-      return p && p.owned && p.itemNum === itemNum && (p.variation || '') === (variation || '');
+      return p && p.owned && rrSameNum(p.itemNum, itemNum) && rrSameVar(p.variation, variation);   // v0.9.1204
     });
     if (!gone) await new Promise(function(r) { setTimeout(r, 200); });
   }

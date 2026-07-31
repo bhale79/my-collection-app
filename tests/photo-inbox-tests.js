@@ -7054,10 +7054,17 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const fEnd = brw5.indexOf('if (_copiesFD.length <= 1)', fIdx);
     ok('the expander filter slice is findable', fIdx > 0 && fEnd > fIdx);
     function copiesFor(it) {
+      // v0.9.1204: the expander now uses the shared comparison rule — give the
+      // harness the REAL helpers (sliced from wizard-pdlookup.js), not stubs.
+      const _pdl = fs.readFileSync(pR.join(__dirname, '..', 'app', 'wizard-pdlookup.js'), 'utf8');
+      const _hIdx = _pdl.indexOf('function _pdLookupKey');
+      const _hEnd = _pdl.indexOf("if (typeof window !== 'undefined') { window.rrSameVar");
+      const _cmp = new Function('"use strict";' + _pdl.slice(_hIdx, _hEnd) + '; return { v: rrSameVar, n: rrSameNum };')();
       const fctx = {
         it: it, state: ctx.state,
         _dnp: it.itemNum,
         rrMasterKeyOf: ctx.rrMasterKeyOf,
+        rrSameVar: _cmp.v, rrSameNum: _cmp.n,
       };
       return new Function(...Object.keys(fctx), '"use strict";' + brw5.slice(fIdx, fEnd) + '; return _copiesFD;')(...Object.values(fctx));
     }
@@ -7099,6 +7106,68 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('blank stays blank (no phantom label)', gauge('') === '' && gauge(null) === '');
     ok('the scale line routes through the normalizer',
        /_sc = rrGaugeLabel\(_sc\);/.test(bw7));
+  })();
+
+  section('172. Overnight polish — no ambush tour, no dead-tab noise, one comparison rule (v0.9.1204)');
+  (function () {
+    const pR = require('path');
+    const rd = f => fs.readFileSync(pR.join(__dirname, '..', 'app', f), 'utf8');
+    const tut = rd('tutorial.js'), stp = rd('app-setup.js'), bw8 = rd('browse.js'),
+          pin8 = rd('photo-inbox.js'), pdl8 = rd('wizard-pdlookup.js');
+
+    // 1) The interactive tour no longer auto-launches (it ate the first click).
+    const alIdx = tut.indexOf('function tutCheckAutoLaunch');
+    const alBody = tut.slice(alIdx, tut.indexOf('\n}', alIdx));
+    ok('the add-item tour no longer auto-starts on load', alBody.indexOf("_TUT.start('add-item')") < 0);
+    ok('...and no longer READS the seen flag to decide whether to launch',
+       !/const seen = localStorage\.getItem\('lv_tut_seen'\)/.test(alBody) && alBody.indexOf('if (!seen)') < 0);
+    ok('the floating help widget still appears', /tutShowHelpBtn\(\)/.test(alBody));
+    ok('Help can still start every guide by hand',
+       /tutStart\('add-item'\)/.test(tut) && /startDashboardTour/.test(tut));
+
+    // 2) Vanished sheet tabs get pruned instead of probed forever.
+    ok('the tab sync prunes tabs that are no longer in the sheet',
+       /_stale = state\.userDefinedTabs\.filter\(t => t && !_live\.has\(t\.label\)\)/.test(stp));
+    ok('...guarded on a non-empty title list, so a failed read cannot wipe tabs',
+       /if \(titles\.length && state\.userDefinedTabs/.test(stp));
+    ok('...and the pruned tab\'s bucket goes with it',
+       /delete state\.ephemeraData\[t\.id\]/.test(stp));
+
+    // 3) Date display and date sort now read the columns in the same order.
+    ok('the sort key precedence matches the cell precedence',
+       /rrDateTs\(pd\.dateAdded\) \|\| rrDateTs\(pd\.datePurchased\) \|\| pd\._savedAt \|\| 0/.test(bw8));
+
+    // 4) Housekeeping: repair cooldown + pending-note expiry.
+    ok('overlapping dashboard builds cannot double-run the repair',
+       /_rrNowMs\(\) - _repairLastAt < 20000/.test(pin8));
+    ok('a pending note whose item never arrived retires after a week',
+       /604800000/.test(pin8) && /retired a pending note whose item never arrived/.test(pin8));
+    ok('...and expiring the NOTE never touches the photos',
+       /photos stay in the inbox/.test(pin8));
+
+    // 5) One comparison rule — run the REAL helpers.
+    const hIdx = pdl8.indexOf('function _pdLookupKey');
+    const hEnd = pdl8.indexOf("if (typeof window !== 'undefined') { window.rrSameVar");
+    ok('the shared comparison helpers are findable', hIdx > 0 && hEnd > hIdx);
+    const cmp = new Function('"use strict";' + pdl8.slice(hIdx, hEnd) + '; return { v: rrSameVar, n: rrSameNum, k: _pdLookupKey };')();
+    ok('variation comparison ignores case and whitespace, like the index',
+       cmp.v('1', ' 1 ') && cmp.v('a', 'A') && cmp.v('', null) && cmp.v(undefined, ''));
+    ok('...but still tells genuinely different variations apart',
+       !cmp.v('1', '2') && !cmp.v('', '1'));
+    ok('number comparison normalizes the same way', cmp.n('2321', ' 2321 ') && !cmp.n('2321', '2331'));
+    ok('the helpers ARE the index rule, not a copy of it',
+       cmp.v('x', 'X') === (cmp.k('', 'x') === cmp.k('', 'X')));
+
+    // The grep-guard: no new raw variation comparisons may creep back in.
+    const raws = [];
+    ['browse.js', 'app-collection.js', 'app-pages.js'].forEach(function (f) {
+      const src = rd(f);
+      src.split('\n').forEach(function (ln, i) {
+        if (/\(p\.variation\s*\|\|\s*''\)\s*[!=]==\s*\(/.test(ln)) raws.push(f + ':' + (i + 1));
+      });
+    });
+    ok('no raw variation comparison remains in the render/filter files',
+       raws.length === 0, raws.join(', '));
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

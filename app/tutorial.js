@@ -273,12 +273,21 @@ function tutShowHelpBtn() {
 }
 
 function tutCheckAutoLaunch() {
-  const seen = localStorage.getItem('lv_tut_seen');
+  // v0.9.1204: the auto-start is GONE. app.js has said since 2026-04-14 that
+  // "Tutorial is NOT auto-launched. Replaced with showWelcomeCard" — but this
+  // line kept launching the interactive add-item tour on EVERY load for any
+  // browser whose lv_tut_seen was never set (skip it once without finishing
+  // and it greets you forever). Its panel overlays the sidebar, so the FIRST
+  // click after every deploy-reload died in it — measured live in Brad's
+  // browser on 2026-07-31 (tut-overlay + tut-panel present on a fresh load,
+  // sidebar click swallowed, five times in one evening). An interactive tour
+  // is an INVITATION, not an ambush: it now starts only from Help → the
+  // how-to guides, or the welcome card's own buttons. The floating help
+  // widget still appears here, exactly as before.
   setTimeout(() => {
-    // Don't fire tutorial over the onboarding welcome screen
+    // Don't fire over the onboarding welcome screen
     if (document.getElementById('onboarding-overlay')) return;
     tutShowHelpBtn();
-    if (!seen) { _TUT.start('add-item'); }
   }, 1200);
 }
 

@@ -2903,7 +2903,7 @@ function buildUpgradePage() {
     entries.sort((a, b) => (priorityOrder[a.priority]??1) - (priorityOrder[b.priority]??1));
   } else if (_sort === 'condition') {
     entries.sort((a, b) => {
-      const getC = u => { const pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === u.itemNum && (p.variation||'') === (u.variation||'')); return pd && pd.condition ? parseInt(pd.condition) : 99; };
+      const getC = u => { const pd = Object.values(state.personalData).find(p => p.owned && rrSameNum(p.itemNum, u.itemNum) && rrSameVar(p.variation, u.variation)); return pd && pd.condition ? parseInt(pd.condition) : 99; };
       return getC(a) - getC(b);
     });
   } else {
@@ -2984,7 +2984,7 @@ function buildUpgradePage() {
     if (tableEl) tableEl.style.display = 'none';
     if (cardsEl) cardsEl.style.display = 'flex';
     cardsEl.innerHTML = entries.map(u => {
-      const pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === u.itemNum && (p.variation||'') === (u.variation||''));
+      const pd = Object.values(state.personalData).find(p => p.owned && rrSameNum(p.itemNum, u.itemNum) && rrSameVar(p.variation, u.variation));
       const master = findMaster(u.itemNum, '', u);
       const name = master ? (master.roadName || '') : '';  // Road Name column shows ONLY roadName — itemType fallback removed (was lying about road name)
       const cond = pd && pd.condition ? parseInt(pd.condition) : null;
@@ -3059,7 +3059,7 @@ function buildUpgradePage() {
     if (cardsEl) cardsEl.style.display = 'none';
     tbody.innerHTML = entries.map((u, idx) => {
       const _isWant = u.listType === 'Want';
-      const pd = _isWant ? null : Object.values(state.personalData).find(p => p.owned && p.itemNum === u.itemNum && (p.variation||'') === (u.variation||''));
+      const pd = _isWant ? null : Object.values(state.personalData).find(p => p.owned && rrSameNum(p.itemNum, u.itemNum) && rrSameVar(p.variation, u.variation));
       const master = findMaster(u.itemNum, '', u);
       const name = master ? (master.roadName || '') : '';  // Road Name column shows ONLY roadName — itemType fallback removed (was lying about road name)
       const cond = pd && pd.condition ? parseInt(pd.condition) : null;
@@ -3257,7 +3257,7 @@ function showAddToUpgradeModal(itemNum, variation, pdRow, invId, groupMode) {
     const _pdKey = findPDKeyByRow(itemNum, variation, pdRow);
     if (_pdKey) pd = state.personalData[_pdKey];
   }
-  if (!pd) pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === itemNum && (p.variation||'') === (variation||''));
+  if (!pd) pd = Object.values(state.personalData).find(p => p.owned && rrSameNum(p.itemNum, itemNum) && rrSameVar(p.variation, variation));
 
   // Session 162: grouped-row Upgrade chooser. If this copy is part of a group
   // with more than one real piece (engine + tender, AA/AB/ABA — boxes and
@@ -3615,7 +3615,7 @@ async function _upgradeGotItFinish(ugKey, action) {
     if (upgradeEntry && upgradeEntry.inventoryId && state.personalData[upgradeEntry.inventoryId]) {
       pd = state.personalData[upgradeEntry.inventoryId];
     } else {
-      pd = Object.values(state.personalData).find(p => p.owned && p.itemNum === itemNum && (p.variation||'') === (variation||''));
+      pd = Object.values(state.personalData).find(p => p.owned && rrSameNum(p.itemNum, itemNum) && rrSameVar(p.variation, variation));
     }
     if (pd) await removeCollectionItem(itemNum, variation, pd.row, pd.inventoryId);
     else showToast('Item not found in collection');
