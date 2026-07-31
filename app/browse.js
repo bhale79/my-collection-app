@@ -2699,9 +2699,26 @@ function renderBrowse() {
     });
     Object.values(state.personalData).forEach(function (p) {
       if (!p || !p.owned || !p.itemNum) return;
-      if (String(p.variation || '').trim()) return;             // has a variation — strict match handles it
+      // v0.9.1193 (Brad's phantom Williams 2321 and "53" 1953-catalog rows):
+      // items WITH a variation used to bail out here — "strict match handles
+      // it". Strict matching answers whether A catalog row matches, never
+      // WHICH one, and number+variation is NOT unique: Williams reissued the
+      // 2321 Trainmaster and a 1953 paper catalog shares "53" with the snow
+      // plow, all as variation 1. Every lookalike called findPD, every one got
+      // Brad's single entry, and one owned item rendered as two or three rows
+      // wearing contradictory badges (maker LIONEL from his row, era WILLIAMS
+      // from the row that claimed it). So: arbitrate variation items too —
+      // same era + paper/kind scoring — keyed by number+variation so multiple
+      // owned copies (his 2321 var 1 AND var 2) keep separate seats. Only
+      // ambiguous cases (2+ same-number-same-variation rows) get an entry;
+      // a unique strict match stays on today's path untouched.
+      var _pv = String(p.variation || '').trim().toUpperCase();  // same normalization as _pdLookupKey
       if (String(p.era || '') === 'Manual') return;             // a manual entry's identity is its own
       var _rows = _bvByNum.get(p.itemNum) || [];
+      if (_pv) {
+        _rows = _rows.filter(function (r) { return String(r.variation == null ? '' : r.variation).trim().toUpperCase() === _pv; });
+        if (_rows.length < 2) return;                            // 0 → other lanes; 1 → already unambiguous
+      }
       if (!_rows.length) return;                                 // truly off-catalog — personal-only lane
       var _pEra = (typeof _rrEraKeyOf === 'function') ? _rrEraKeyOf(p.era) : String(p.era || '').toLowerCase();
       var _pPaper = /\b(paper|promo|promotional|box|boxes|catalog|display|instruction)\b/i.test(String(p.itemType || ''));
@@ -2713,7 +2730,7 @@ function renderBrowse() {
         if (_dem === _pPaper) s += 2;                            // row kind agrees with the item's own kind
         if (s > _bestS) { _bestS = s; _best = r; }
       });
-      if (_best) _bvAdopt.set(p.itemNum, { pd: p, row: _best });
+      if (_best) _bvAdopt.set(_pv ? (p.itemNum + '|v|' + _pv) : p.itemNum, { pd: p, row: _best });
     });
   }
   // ONE resolver for "which owned item does this catalog row represent" —
@@ -2727,7 +2744,10 @@ function renderBrowse() {
     if (_p && _p.itemNum !== _dn) _p = null;                     // no -P/-D bleed
     if (_p && String(_p.era || '') === 'Manual') _p = null;      // v0.9.718
     if (_bvAdopt) {
-      var _ad = _bvAdopt.get(_dn);
+      // v0.9.1193: blank-variation entries key by number (unchanged); the new
+      // variation entries key by number+variation. Check both.
+      var _ad = _bvAdopt.get(_dn)
+             || _bvAdopt.get(_dn + '|v|' + String(item.variation == null ? '' : item.variation).trim().toUpperCase());
       if (_ad) {
         if (!_p && _ad.row === item) _p = _ad.pd;                // the adopted row lights up
         else if (_p === _ad.pd && _ad.row !== item) _p = null;   // lookalikes let go of it
@@ -2738,7 +2758,13 @@ function renderBrowse() {
   const _eraFilterPersonalOnly = state.filters.owned && typeof _currentEra !== 'undefined' && _currentEra !== 'all';
   const personalOnlyItems = Object.values(state.personalData)
     .filter(pd => pd.owned && (String(pd.era || '') === 'Manual' || !masterNums.has(pd.itemNum + '|' + (pd.variation||''))))   // v0.9.718: manual rows never merge into catalog rows
-    .filter(pd => !(_bvAdopt && _bvAdopt.get(pd.itemNum) && _bvAdopt.get(pd.itemNum).pd === pd))   // v0.9.1120: adopted items display on their catalog row instead
+    .filter(pd => {   // v0.9.1120: adopted items display on their catalog row instead (v0.9.1193: variation-keyed entries too)
+      if (!_bvAdopt) return true;
+      var _adN = _bvAdopt.get(pd.itemNum);
+      if (_adN && _adN.pd === pd) return false;
+      var _adV = _bvAdopt.get(pd.itemNum + '|v|' + String(pd.variation == null ? '' : pd.variation).trim().toUpperCase());
+      return !(_adV && _adV.pd === pd);
+    })
     .filter(pd => !_eraFilterPersonalOnly)
     .filter(pd => !(typeof _isCollectionCompanion === 'function' ? _isCollectionCompanion(pd) : _isGroupedBoxRow(pd)))
     .map(pd => {

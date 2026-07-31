@@ -6395,6 +6395,107 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /folderLink: _lnk/.test(dBlock));
   })();
 
+  section('161. One owned item renders as ONE row — lookalikes let go (v0.9.1193)');
+  // Brad: "i entered only 2 2321. one var. 1 and one var. 2. I never entered a
+  // williams." His sheet agreed: two rows, both Lionel PW. The browse list
+  // drew THREE — Williams reissued the 2321 Trainmaster under the same number
+  // and variation, and both catalog rows claimed his one entry. Same evening,
+  // "53" drew twice: his Rio Grande snow plow AND a 1953 paper catalog.
+  // The _bvAdopt guard (v0.9.1120) was built to arbitrate exactly this, but
+  // opened with `if (variation) return` — switched off for every item that
+  // has a variation, which is precisely where lookalikes live.
+  //
+  // These drive the REAL _bvAdopt + _rrPdForRow block sliced from browse.js,
+  // with the REAL findPD/_pdLookupKey sliced from wizard-pdlookup.js.
+  (function () {
+    const pR = require('path');
+    const brw = fs.readFileSync(pR.join(__dirname, '..', 'app', 'browse.js'), 'utf8');
+    const pdl = fs.readFileSync(pR.join(__dirname, '..', 'app', 'wizard-pdlookup.js'), 'utf8');
+
+    // Slice the real lookup from the TOP of the file (module-scope index vars
+    // included) down to findPD's end — chasing individual `let`s is how a
+    // harness drifts from the module it claims to test.
+    const pdlSlice = pdl.slice(0, pdl.indexOf('// Find a collection item by item number'))
+                        .replace(/^const /m, 'var ');   // tolerate re-eval inside the Function body
+    ok('the pd-lookup slice is still findable', pdlSlice.indexOf('function findPD(') > 0);
+
+    // Slice the real adopt-map build + resolver.
+    const aIdx = brw.indexOf('var _bvAdopt = null;');
+    const aEnd = brw.indexOf('const _eraFilterPersonalOnly');
+    ok('the adopt/resolver block is still findable', aIdx > 0 && aEnd > aIdx);
+    const adoptSlice = brw.slice(aIdx, aEnd);
+
+    function makeWorld(masterRows, pds) {
+      const state = { filters: { owned: true }, personalData: {}, masterData: masterRows };
+      pds.forEach(function (p, i) { state.personalData['k' + i] = p; });
+      const ctx = {
+        state: state,
+        window: { rrDemotedRow: function (r) { return !!r._paper; } },
+        _displayItemNum: function (m) { return m.itemNum; },
+        _rrEraKeyOf: function (e) { return String(e || '').toLowerCase(); },
+        _pdIndexCache: null,
+      };
+      const src = pdlSlice
+        + '\n' + adoptSlice
+        + '\nreturn { pdFor: _rrPdForRow, adopt: _bvAdopt };';
+      const fn = new Function(...Object.keys(ctx), '"use strict";' + src);
+      return fn(...Object.values(ctx));
+    }
+
+    // ── Brad's 2321: PW var 1 + PW var 2 owned; Williams var 1 in the catalog.
+    const pw1 = { itemNum: '2321', variation: '1', _era: 'pw' };
+    const pw2 = { itemNum: '2321', variation: '2', _era: 'pw' };
+    const wil = { itemNum: '2321', variation: '1', _era: 'williams' };
+    const pdA = { itemNum: '2321', variation: '1', era: 'pw', owned: true, manufacturer: 'Lionel' };
+    const pdB = { itemNum: '2321', variation: '2', era: 'pw', owned: true, manufacturer: 'Lionel' };
+    const w1 = makeWorld([pw1, pw2, wil], [pdA, pdB]);
+    ok('the PW var-1 row gets his var-1 item', w1.pdFor(pw1) === pdA);
+    ok('the PW var-2 row gets his var-2 item', w1.pdFor(pw2) === pdB);
+    ok('the WILLIAMS row gets NOTHING — the phantom is gone', w1.pdFor(wil) === null);
+    ok('...and each owned item claimed exactly one row',
+       [pw1, pw2, wil].filter(function (r) { return w1.pdFor(r) === pdA; }).length === 1
+       && [pw1, pw2, wil].filter(function (r) { return w1.pdFor(r) === pdB; }).length === 1);
+
+    // ── Brad's 53: snow plow (Motorized) vs a 1953 paper catalog, same var.
+    const plow = { itemNum: '53', variation: '1', _era: 'pw' };
+    const cat53 = { itemNum: '53', variation: '1', _era: 'pw', _paper: true };
+    const pdPlow = { itemNum: '53', variation: '1', era: 'pw', owned: true, itemType: 'Motorized' };
+    const w2 = makeWorld([plow, cat53], [pdPlow]);
+    ok('the snow plow row gets his snow plow', w2.pdFor(plow) === pdPlow);
+    ok('the 1953 CATALOG paper row gets NOTHING', w2.pdFor(cat53) === null);
+
+    // ── A deliberately-saved paper item still lands on the paper row.
+    const pdPaper = { itemNum: '53', variation: '1', era: 'pw', owned: true, itemType: 'Paper Item' };
+    const w3 = makeWorld([plow, cat53], [pdPaper]);
+    ok('a saved PAPER 53 adopts the paper row, not the train', w3.pdFor(cat53) === pdPaper && w3.pdFor(plow) === null);
+
+    // ── The v0.9.1120 blank-variation behavior is untouched.
+    const e1 = { itemNum: '1053', variation: '', _era: 'pw' };
+    const e2 = { itemNum: '1053', variation: '', _era: 'mpc' };
+    const pdT = { itemNum: '1053', variation: '', era: 'pw', owned: true };
+    const w4 = makeWorld([e1, e2], [pdT]);
+    ok('blank-variation era arbitration still works (his 1053)', w4.pdFor(e1) === pdT && w4.pdFor(e2) === null);
+
+    // ── A unique strict match takes today's fast path — no adopt entry.
+    const only = { itemNum: '2028', variation: '1', _era: 'pw' };
+    const pdO = { itemNum: '2028', variation: '1', era: 'pw', owned: true };
+    const w5 = makeWorld([only], [pdO]);
+    ok('a unique number+variation match is untouched by the new logic',
+       w5.pdFor(only) === pdO && !w5.adopt.get('2028|v|1'));
+
+    // ── Variation text drift ("1 " / lowercase) matches like _pdLookupKey does.
+    const drift = { itemNum: '2321', variation: '1 ', _era: 'pw' };
+    const w6 = makeWorld([drift, wil], [pdA]);
+    ok('variation matching survives whitespace drift, same as the pd index',
+       w6.pdFor(drift) === pdA && w6.pdFor(wil) === null);
+
+    // ── Manual entries keep their own identity — never adopted.
+    const pdM = { itemNum: '2321', variation: '1', era: 'Manual', owned: true };
+    const w7 = makeWorld([pw1, wil], [pdM]);
+    ok('a Manual entry is never adopted onto a catalog row',
+       !w7.adopt.get('2321|v|1'));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
