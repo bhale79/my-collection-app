@@ -82,6 +82,14 @@
   // forever, instant, and the logo never leaves the device. The logo itself
   // can live on as a subtle watermark behind the app (off by default-able).
   var LOGO_KEY = 'rr_skin_logo';   // {data, mode: 'watermark'|'off', kind, sw}
+  // v0.9.1208. Brad: "cancel doesn't delete out the logo… reset to default
+  // didn't get rid of it either." One cause, not three: the logo was written
+  // to LOGO_KEY the instant it was pasted, so it lived OUTSIDE the
+  // Preview/Apply flow — already committed before Cancel could refuse it, and
+  // its watermark already painted on the real app. The logo is now part of
+  // the candidate, exactly like the colours. It rides a DRAFT key rather than
+  // a variable so the size-fitting ladder still proves it fits at paste time.
+  var LOGO_DRAFT_KEY = 'rr_skin_logo_draft';
   var LOGO_MAX = 512;              // longest side of the copy we keep
 
   // Editing needs the wide stage; a phone gets the presets only. Brad:
@@ -98,6 +106,7 @@
   var _swatches = [];    // colours pulled from the logo
   var _armed = -1;       // which swatch is picked up, ready to drop on a role
   var _preview = false;
+  var _logoCleared = false;  // the user removed the logo this session (not yet saved)
 
   function _stage() { return document.getElementById('rrap-stage'); }
 
@@ -329,7 +338,10 @@
     if (!_canEdit()) { _openMini(); return; }
 
     var old = document.getElementById('rrap'); if (old) old.remove();
+    // A draft left behind by a tab that closed mid-edit is not a candidate,
+    // it is litter. Every session starts from what is actually saved.
     _live = {}; _saved = false; _armed = -1; _preview = false; _scale = 1;
+    _dropDraft();
     _swatches = _savedSwatches();
 
     var ov = document.createElement('div'); ov.id = 'rrap';
@@ -800,11 +812,29 @@
   }
 
   // ── the left-hand control panel ─────────────────────────────────
+  // The SAVED logo — what the app is actually wearing.
   function _logoRec() {
     try { return JSON.parse(localStorage.getItem(LOGO_KEY) || 'null'); } catch (e) { return null; }
   }
+  // The CANDIDATE logo — what the editor is showing. Draft beats cleared
+  // beats saved. Everything in the editor asks this; only Apply and boot ask
+  // _logoRec directly. That split is the whole of Brad's cancel/reset bug.
+  function _logoNow() {
+    var d = null;
+    try { d = JSON.parse(localStorage.getItem(LOGO_DRAFT_KEY) || 'null'); } catch (e) {}
+    if (d && d.data) return d;
+    return _logoCleared ? null : _logoRec();
+  }
+  function _logoDirty() {
+    if (_logoCleared) return true;
+    try { return !!localStorage.getItem(LOGO_DRAFT_KEY); } catch (e) { return false; }
+  }
+  function _dropDraft() {
+    try { localStorage.removeItem(LOGO_DRAFT_KEY); } catch (e) {}
+    _logoCleared = false;
+  }
   function _savedSwatches() {
-    var rec = _logoRec();
+    var rec = _logoNow();
     return (rec && Array.isArray(rec.sw)) ? rec.sw.slice(0, 6) : [];
   }
 
@@ -815,7 +845,7 @@
   // The square logo tile. Brad: "a big square box to the top left that looks
   // like a logo shape, not a long text box."
   function _logoBarHtml() {
-    var rec = _logoRec();
+    var rec = _logoNow();
     var tile = rec && rec.data
       ? '<div class="rrap-logotile" id="rrap-drop" onclick="document.getElementById(\'rrap-lfile\').click()"><img src="' + rec.data + '" alt="logo"></div>'
       : '<div class="rrap-logotile" id="rrap-drop" onclick="document.getElementById(\'rrap-lfile\').click()">'
@@ -830,7 +860,7 @@
             + '<button class="rrap-lbtn" onclick="window._rrapLogoRebuild()">🎨 Rebuild palette</button>'
             + '<button class="rrap-lbtn ' + (rec.mode === 'watermark' ? 'rrap-lon' : '') + '" onclick="window._rrapLogoToggle()">'
             + (rec.mode === 'watermark' ? '✓ Watermark on' : 'Watermark off') + '</button>'
-            + '<button class="rrap-lbtn" onclick="window._rrapLogoRemove()">✕ Remove</button></div>'
+            + '<button class="rrap-lbtn" onclick="window._rrapLogoRemove()">✕ Remove logo</button></div>'
           : '')
       + '<input type="file" id="rrap-lfile" accept="image/*" style="display:none"></div>';
   }
@@ -964,16 +994,18 @@
     return { canvas: cv, data: data, kind: cls.kind, trimmed: box.trimmed, w: fit.w, h: fit.h };
   }
 
-  // Store it, stepping down in size rather than giving up. The old code had
-  // one shot at 360px and told the user the image was too big to keep — a
-  // dead end with an apology. A logo that has to be 160px is still a logo.
+  // Store it as a DRAFT, stepping down in size rather than giving up. The old
+  // code had one shot at 360px and told the user the image was too big to
+  // keep — a dead end with an apology. A logo that has to be 160px is still a
+  // logo. It goes to the draft key, not the live one, so the size ladder
+  // still proves the image fits while Cancel can still refuse it.
   function _rrKeepLogo(img, mode, firstTry) {
     var sizes = [LOGO_MAX, 384, 256, 160], i, p;
     for (i = 0; i < sizes.length; i++) {
       p = (i === 0 && firstTry) ? firstTry : _rrPrepLogo(img, sizes[i]);
       if (!p) return null;
       try {
-        localStorage.setItem(LOGO_KEY, JSON.stringify({ data: p.data, mode: mode, kind: p.kind, sw: _swatches }));
+        localStorage.setItem(LOGO_DRAFT_KEY, JSON.stringify({ data: p.data, mode: mode, kind: p.kind, sw: _swatches }));
         return p;
       } catch (e) {}
     }
@@ -993,13 +1025,14 @@
         return;
       }
       _applyLogoPalette(prep.canvas, prep.kind);
-      var prev = _logoRec();
+      var prev = _logoNow();
+      _logoCleared = false;
       var kept = _rrKeepLogo(img, (prev && prev.mode) || 'watermark', prep);
       if (!kept && typeof showToast === 'function') {
         showToast('Palette built — but this device has no room left to keep the logo image', 4500, true);
       }
       _refreshPanel();
-      applyLogoBackdrop();
+      _paintCandidateLogo();
     };
     img.onerror = function () {
       URL.revokeObjectURL(url);
@@ -1008,28 +1041,57 @@
     img.src = url;
   }
   window._rrapLogoRebuild = function () {
-    var rec = _logoRec(); if (!rec || !rec.data) return;
+    var rec = _logoNow(); if (!rec || !rec.data) return;
     var img = new Image();
     img.onload = function () { _applyLogoPalette(img, rec.kind); _refreshPanel(); };
     img.src = rec.data;
   };
   window._rrapLogoToggle = function () {
-    var rec = _logoRec(); if (!rec) return;
+    var rec = _logoNow(); if (!rec) return;
     rec.mode = rec.mode === 'watermark' ? 'off' : 'watermark';
-    try { localStorage.setItem(LOGO_KEY, JSON.stringify(rec)); } catch (e) {}
-    _refreshPanel(); applyLogoBackdrop();
+    try { localStorage.setItem(LOGO_DRAFT_KEY, JSON.stringify(rec)); } catch (e) {}
+    _logoCleared = false;
+    _refreshPanel(); _paintCandidateLogo();
   };
+  // Brad: "there is not logo delete button." There was one, but it deleted
+  // the SAVED logo outright — no Cancel, no undo. It now clears the
+  // candidate, and only Apply makes that permanent.
   window._rrapLogoRemove = function () {
-    try { localStorage.removeItem(LOGO_KEY); } catch (e) {}
+    _dropDraft();
+    _logoCleared = true;
     _swatches = []; _armed = -1;
-    _refreshPanel(); applyLogoBackdrop();
+    _refreshPanel(); _paintCandidateLogo();
   };
+
+  // Show the CANDIDATE watermark: in the preview replica always, and on the
+  // real app only while previewing. Outside those two, the app keeps wearing
+  // whatever is saved — which is the point of the whole draft mechanism.
+  function _paintCandidateLogo() {
+    var rec = _logoNow();
+    var on = !!(rec && rec.data && rec.mode === 'watermark');
+    var replica = document.getElementById('ra-app');
+    if (replica) {
+      // Two layers: the mark, and a 95%-opaque wash of the background over
+      // it. That reproduces the real watermark's 5% strength honestly —
+      // showing the logo at full strength here would promise something the
+      // app never delivers.
+      var wash = 'color-mix(in srgb,var(--bg) 95%,transparent)';
+      replica.style.backgroundImage = on
+        ? 'linear-gradient(' + wash + ',' + wash + '),url(' + rec.data + ')' : '';
+      replica.style.backgroundRepeat = 'no-repeat';
+      replica.style.backgroundPosition = 'center';
+      replica.style.backgroundSize = 'auto,38%';
+    }
+    if (_preview) applyLogoBackdrop(rec);
+  }
 
   // The logo's home in the app: a faint fixed watermark. pointer-events:none
   // so it can never block a tap; low z-index so real pop-ups paint over it;
   // 5% opacity so it reads as texture, not content.
-  function applyLogoBackdrop() {
-    var rec = _logoRec();
+  // Called with no argument it reads what is SAVED — that is the boot path,
+  // and the path Cancel uses to put the app back the way it was.
+  function applyLogoBackdrop(rec) {
+    if (rec === undefined) rec = _logoRec();
     var el = document.getElementById('rr-logo-bg');
     if (!rec || !rec.data || rec.mode !== 'watermark') { if (el) el.remove(); return; }
     if (!el) {
@@ -1076,7 +1138,14 @@
       if (_preview) _root.style.removeProperty(v);
     });
     _live = {};
+    // Brad: "reset to default didn't get rid of it either." Default means the
+    // plain app — no skin AND no logo. The removal is still only a candidate;
+    // Apply makes it real, Cancel puts the logo back.
+    _dropDraft();
+    _logoCleared = true;
+    _swatches = []; _armed = -1;
     if (_preview && typeof applyTheme === 'function') applyTheme();
+    _paintCandidateLogo();
     var ov = document.getElementById('rrap');
     if (ov) ov.querySelectorAll('.rrap-chip').forEach(function (ch) {
       var c = _cur(ch.dataset.var);
@@ -1127,13 +1196,16 @@
   //  let us flip through the app to see it completely while a pop up stays
   //  on top with apply it, edit it, and cancel."
   window._rrapPreview = function () {
-    if (!Object.keys(_live).length) {
+    // A logo on its own is a change worth previewing, so the guard asks
+    // about both halves of the candidate, not just the colours.
+    if (!Object.keys(_live).length && !_logoDirty()) {
       if (typeof showToast === 'function') showToast('Nothing has changed yet — add a logo or pick some colours first', 3200, true);
       return;
     }
     var ov = document.getElementById('rrap'); if (ov) ov.style.display = 'none';
     _preview = true;
     Object.keys(_live).forEach(function (v) { _root.style.setProperty(v, _live[v]); });
+    applyLogoBackdrop(_logoNow());
     var bar = document.getElementById('rrap-prevbar'); if (bar) bar.remove();
     bar = document.createElement('div'); bar.id = 'rrap-prevbar';
     bar.innerHTML = '<span class="rrap-pvt">This is your new look — move around the app and see it everywhere.</span>'
@@ -1150,6 +1222,7 @@
     Object.keys(_live).forEach(function (v) { _root.style.removeProperty(v); });
     _preview = false;
     if (typeof applyTheme === 'function') applyTheme();
+    applyLogoBackdrop();      // back to the SAVED logo, whatever that now is
   }
 
   function _persist(map) {
@@ -1159,9 +1232,22 @@
     } catch (e2) {}
   }
 
+  // Apply is the ONE place a candidate becomes real — colours AND logo. Keep
+  // it that way: any other writer resurrects the bug Brad found, where a
+  // logo was already saved before Cancel had a say.
+  function _commitLogo() {
+    var d = _logoNow();
+    try {
+      if (d && d.data) localStorage.setItem(LOGO_KEY, JSON.stringify(d));
+      else localStorage.removeItem(LOGO_KEY);
+    } catch (e) {}
+    _dropDraft();
+  }
+
   window._rrapApply = function () {
     var map = {}; EDIT_VARS.forEach(function (e) { map[e[0]] = _cur(e[0]); });
     _persist(map);
+    _commitLogo();
     _saved = true;
     _endPreview();
     _teardown();
@@ -1174,8 +1260,9 @@
     else window.openAppearance();
   };
   window._rrapCancel = function () {
-    _endPreview();
     _live = {};
+    _dropDraft();          // the pasted logo goes with everything else
+    _endPreview();         // …then put the app back on what is SAVED
     _teardown();
   };
 
@@ -1193,9 +1280,11 @@
 
   window._rrapClose = function (save) {
     if (save) { window._rrapApply(); return; }
-    if (_preview) _endPreview();
     _live = {};
+    _dropDraft();
+    if (_preview) _endPreview();
     if (typeof applyTheme === 'function') applyTheme();
+    applyLogoBackdrop();
     _teardown();
   };
 

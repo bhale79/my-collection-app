@@ -7499,6 +7499,140 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /\.rrap-app\{background:var\(--bg\)/.test(ap));
   })();
 
+  section('175. A pasted logo is a candidate, not a commitment (v0.9.1208)');
+  (function () {
+    const pathC = require('path');
+    const ap = fs.readFileSync(pathC.join(__dirname, '..', 'app', 'appearance.js'), 'utf8');
+    const apc = ap.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+
+    // Brad, live on v1207: "cancel doesn't delete out the logo, there is not
+    // logo delete button, and reset to default didn't get rid of it either."
+    // One cause, not three — the logo was written to the LIVE key the instant
+    // it was pasted, so it was already committed before Cancel could refuse
+    // it. These tests RUN the real state machine, because greps would not
+    // have caught the original bug either.
+    const s1 = ap.slice(ap.indexOf('function _logoRec()'), ap.indexOf('function _savedSwatches'));
+    const s2 = ap.slice(ap.indexOf('function _commitLogo()'), ap.indexOf('window._rrapApply = function'));
+    ok('the logo state machine is findable in one piece', s1.length > 200 && s2.length > 100);
+
+    const build = new Function('store', '"use strict";'
+      + "var LOGO_KEY='rr_skin_logo', LOGO_DRAFT_KEY='rr_skin_logo_draft';"
+      + "var localStorage={getItem:function(k){return (k in store)?store[k]:null;},"
+      + "setItem:function(k,v){store[k]=String(v);},removeItem:function(k){delete store[k];}};"
+      + "var _logoCleared=false;"
+      + s1 + s2
+      + "; return {now:_logoNow, dirty:_logoDirty, drop:_dropDraft, commit:_commitLogo,"
+      + " remove:function(){_dropDraft();_logoCleared=true;}};");
+    const fresh = () => {
+      const store = { 'rr_skin_logo': JSON.stringify({ data: 'SAVED', mode: 'watermark' }) };
+      return { store, h: build(store) };
+    };
+    const paste = (store, data) => { store['rr_skin_logo_draft'] = JSON.stringify({ data: data, mode: 'watermark' }); };
+    const savedData = store => { try { return JSON.parse(store['rr_skin_logo']).data; } catch (e) { return null; } };
+
+    // Baseline
+    {
+      const { store, h } = fresh();
+      ok('with nothing changed, the editor shows what the app is wearing',
+         h.now().data === 'SAVED' && h.dirty() === false);
+    }
+    // Paste
+    {
+      const { store, h } = fresh();
+      paste(store, 'NEW');
+      ok('a pasted logo becomes the candidate straight away',
+         h.now().data === 'NEW' && h.dirty() === true);
+      ok('…but the app is STILL wearing the old one — nothing committed yet',
+         savedData(store) === 'SAVED');
+    }
+    // Cancel — the reported bug
+    {
+      const { store, h } = fresh();
+      paste(store, 'NEW');
+      h.drop();
+      ok('Cancel throws the pasted logo away (the bug Brad found)',
+         h.now().data === 'SAVED' && h.dirty() === false && !store['rr_skin_logo_draft']);
+      ok('…and never damages the logo that was already saved',
+         savedData(store) === 'SAVED');
+    }
+    // Remove
+    {
+      const { store, h } = fresh();
+      h.remove();
+      ok('Remove empties the box', h.now() === null && h.dirty() === true);
+      ok('…but destroys nothing until Apply — Cancel could still put it back',
+         savedData(store) === 'SAVED');
+    }
+    // Remove → Cancel
+    {
+      const { store, h } = fresh();
+      h.remove();
+      h.drop();
+      ok('Remove then Cancel leaves the saved logo exactly where it was',
+         savedData(store) === 'SAVED' && h.now().data === 'SAVED');
+    }
+    // Remove → Apply
+    {
+      const { store, h } = fresh();
+      h.remove();
+      h.commit();
+      ok('Remove then Apply is the only path that really deletes it',
+         !('rr_skin_logo' in store) && h.now() === null && h.dirty() === false);
+    }
+    // Paste → Apply
+    {
+      const { store, h } = fresh();
+      paste(store, 'NEW');
+      h.commit();
+      ok('Paste then Apply promotes the candidate and clears the draft',
+         savedData(store) === 'NEW' && !store['rr_skin_logo_draft'] && h.dirty() === false);
+    }
+    // Paste twice → Apply keeps the last one
+    {
+      const { store, h } = fresh();
+      paste(store, 'ONE'); paste(store, 'TWO');
+      h.commit();
+      ok('changing your mind before Apply keeps the last logo, not the first',
+         savedData(store) === 'TWO');
+    }
+
+    // ── the wiring that keeps it that way ────────────────────────────────
+    ok('pasting writes to the DRAFT key, never the live one',
+       /localStorage\.setItem\(LOGO_DRAFT_KEY, JSON\.stringify\(\{ data: p\.data/.test(ap) &&
+       !/localStorage\.setItem\(LOGO_KEY/.test(apc.slice(apc.indexOf('function _rrKeepLogo'), apc.indexOf('function _rrapLogoLoad'))));
+    ok('exactly one function writes the live logo key',
+       (apc.match(/localStorage\.setItem\(LOGO_KEY/g) || []).length === 1 &&
+       /function _commitLogo[\s\S]*?localStorage\.setItem\(LOGO_KEY/.test(ap));
+    // Two matches: the definition and exactly one call site — and that call
+    // site has to be inside Apply, not merely somewhere in the file.
+    // Both ends slice on the DEFINITION. "window._rrapEdit" alone appears
+    // earlier as an onclick in the preview bar, which slices backwards to
+    // an empty string — and an empty string satisfies nothing, so the test
+    // would have failed loudly rather than passed quietly. Twice now.
+    const applyFn = ap.slice(ap.indexOf('window._rrapApply = function'), ap.indexOf('window._rrapEdit = function'));
+    ok('…and it is reached only from Apply',
+       (apc.match(/_commitLogo\(\)/g) || []).length === 2 && /_commitLogo\(\);/.test(applyFn));
+    ok('pasting does not repaint the real app — only the candidate',
+       !/applyLogoBackdrop\(\);/.test(apc.slice(apc.indexOf('function _rrapLogoLoad'), apc.indexOf('window._rrapLogoRebuild'))) &&
+       /_paintCandidateLogo\(\);/.test(ap));
+    ok('Reset to Default clears the logo as well as the colours',
+       /window\._rrapReset[\s\S]*?_dropDraft\(\);\s*\n\s*_logoCleared = true;/.test(ap));
+    ok('Cancel drops the draft, then puts the app back on what is saved',
+       /window\._rrapCancel[\s\S]*?_dropDraft\(\);[\s\S]*?_endPreview\(\);/.test(ap));
+    ok('Preview shows the CANDIDATE logo; leaving preview restores the saved one',
+       /applyLogoBackdrop\(_logoNow\(\)\)/.test(ap) &&
+       /function _endPreview[\s\S]*?applyLogoBackdrop\(\);/.test(ap));
+    ok('a draft left behind by a closed tab is litter, not a candidate',
+       /_dropDraft\(\);\s*\n\s*_swatches = _savedSwatches\(\)/.test(ap));
+    ok('the boot path still reads the SAVED logo, never a draft',
+       /if \(rec === undefined\) rec = _logoRec\(\);/.test(ap));
+    ok('the delete button says what it deletes',
+       /✕ Remove logo/.test(ap));
+    // The replica shows the watermark at its true 5% strength, not full blast.
+    ok('the preview replica shows the watermark as faint as it really is',
+       /color-mix\(in srgb,var\(--bg\) 95%,transparent\)/.test(ap));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
