@@ -7504,10 +7504,31 @@ META_WRITES.length = 0; TOASTS.length = 0;
        !/--green|--want|--forsale|--accent3/.test(rolesBlock));
     ok('pick a colour, then pick a job — two clicks, no dragging',
        /window\._rrapArm = function/.test(ap) && /window\._rrapRole = function/.test(ap));
-    ok('a colour picker is still there as the escape hatch',
-       /window\._rrapRoleColor = function/.test(ap) && /rrap-role input\[type=color\]/.test(ap));
-    ok('clicking the escape hatch does not ALSO drop the armed swatch',
-       /ev\.target\.tagName === 'INPUT'\) return/.test(ap));
+    // v0.9.1218, Brad, after meeting the browser's own picker: "this is hard
+    // for a user to get the color they want." Every colour control in the
+    // editor now opens ONE grid — and the browser's picker is still one
+    // click away inside it for anyone who wants to type numbers.
+    ok('there is one colour picker, and every control opens it',
+       /function _openPal\(anchorEl, current, onPick, onReset\)/.test(ap) &&
+       (ap.match(/_openPal\(/g) || []).length === 4);
+    ok('the grid is computed, not sixty literals somebody has to keep straight',
+       /var PAL_HUES\s+= \[/.test(ap) && /var PAL_LIGHT = \[/.test(ap) &&
+       /function _palRows/.test(ap) && /_hsl2hex\(h, l > 0\.75/.test(ap));
+    ok('it offers a way back to the default and a way to the browser picker',
+       /_rrapPalReset\(\)">↺ Back to default/.test(ap) &&
+       /_rrapPalCustom\(\)">🎨 Custom…/.test(ap) &&
+       /id="rrap-palnative"/.test(ap));
+    ok('…and the logo’s own colours, when there are any',
+       /From your logo/.test(ap));
+    ok('it opens BESIDE what you clicked, never on top of it',
+       /if \(r\.right \+ pad \+ b\.width <= window\.innerWidth - pad\) left = r\.right \+ pad;/.test(ap) &&
+       /else if \(r\.left - pad - b\.width >= pad\)/.test(ap));
+    ok('…and it goes when the editor goes',
+       /function _teardown\(\) \{\s*\n\s*_closePal\(\);/.test(ap));
+    ok('with a swatch armed, clicking a job still drops that colour on it',
+       /if \(_armed >= 0 && _swatches\[_armed\]\) \{[\s\S]{0,120}_rrApplyRole\(v, _swatches\[_armed\]\)/.test(ap));
+    ok('no raw browser colour input is left anywhere in the editor',
+       (ap.match(/type="color"/g) || []).length === 1);
     ok('the readability guard runs on every assignment, last',
        /function _rrApplyRole[\s\S]*?_rrReadableText\(_cur\('--bg'\), _cur\('--text'\)\)/.test(ap));
     ok('assigning a background carries its panels and lines with it',

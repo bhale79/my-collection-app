@@ -220,6 +220,53 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
         ok(at + ': …with even gaps between them',
            sp.gapSpread <= 3, 'gaps vary by ' + sp.gapSpread + 'px');
       });
+      // The picker Brad asked for: it has to open beside what you clicked,
+      // stay on the screen, and offer a way back. A picker that opens half
+      // off the edge is worse than the browser's own.
+      const pal = await page.evaluate(() => {
+        const role = document.querySelector('.rrap-role');
+        if (!role) return { err: 'no colour control found' };
+        role.click();
+        const p = document.getElementById('rrap-pal');
+        if (!p) return { err: 'the picker did not open' };
+        const b = p.getBoundingClientRect();
+        // Is the picker actually the topmost thing across its own area? A
+        // screenshot cannot answer this reliably — a pale panel over pale
+        // chrome looks the same either way. Hit-testing can.
+        const buried = [];
+        for (let x = 4; x < b.width - 4; x += 24) {
+          for (let y = 4; y < b.height - 4; y += 24) {
+            const hit = document.elementFromPoint(b.left + x, b.top + y);
+            if (!hit || !p.contains(hit)) {
+              buried.push(Math.round(x) + ',' + Math.round(y) + '→' +
+                (hit ? (hit.className || hit.tagName) : 'null'));
+            }
+          }
+        }
+        const a = role.getBoundingClientRect();
+        return {
+          buried: buried.slice(0, 6),
+          anchor: [Math.round(a.left), Math.round(a.top), Math.round(a.right), Math.round(a.bottom)],
+          coversAnchor: b.left < a.right - 1 && b.right > a.left + 1 &&
+                        b.top < a.bottom - 1 && b.bottom > a.top + 1,
+          swatches: p.querySelectorAll('.rrap-palsw').length,
+          onScreen: b.left >= -1 && b.top >= -1 &&
+                    b.right <= window.innerWidth + 1 && b.bottom <= window.innerHeight + 1,
+          hasReset: /Back to default/.test(p.textContent),
+          hasCustom: /Custom/.test(p.textContent),
+          rect: [Math.round(b.left), Math.round(b.top), Math.round(b.right), Math.round(b.bottom)]
+        };
+      });
+      ok(at + ': the colour picker opens with a grid to choose from',
+         !pal.err && pal.swatches >= 60, pal.err || (pal.swatches + ' swatches'));
+      ok(at + ': …entirely on the screen',
+         !!pal.onScreen, JSON.stringify(pal.rect));
+      ok(at + ': …with a way back to the default and a way to the browser picker',
+         !!pal.hasReset && !!pal.hasCustom);
+      ok(at + ': …and never covering the swatch you clicked',
+         !pal.coversAnchor, JSON.stringify(pal.rect) + ' vs ' + JSON.stringify(pal.anchor));
+      ok(at + ': …and nothing paints over it',
+         pal.buried && pal.buried.length === 0, (pal.buried || []).join(' '));
       await page.close();
     }
   } finally {

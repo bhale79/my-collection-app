@@ -180,8 +180,7 @@
 
   function _chipHtml(v, label, sub) {
     return '<div class="rrap-chip" data-var="' + v + '">'
-      + '<span class="rrap-cs"><input type="color" value="' + (_cur(v) || NO_COLOUR) + '">'
-      + '<span class="rrap-cface" style="background:var(' + v + ')"></span></span>'
+      + '<span class="rrap-cs"><span class="rrap-cface" style="background:var(' + v + ')"></span></span>'
       + '<span class="rrap-cl"><b>' + label + '</b><span>' + sub + '</span></span></div>';
   }
   function _chips(list) {
@@ -356,6 +355,21 @@
     + '.rrap-cl b{display:block;font-size:0.67rem}'
     + '.rrap-cl span{display:block;color:var(--p-ink-dim);font-size:0.54rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
     + '.rrap-hl{outline:2px solid var(--p-ink) !important;outline-offset:2px}'
+    // the shared colour picker
+    + '#rrap-pal{position:fixed;z-index:100060;background:var(--p-panel);color:var(--p-ink);'
+    +   'border:1px solid var(--p-line-hi);border-radius:12px;padding:0.6rem;'
+    +   'box-shadow:0 12px 34px var(--scrim);font-family:var(--font-body)}'
+    + '.rrap-palgrid{display:grid;grid-template-columns:repeat(10,22px);gap:3px}'
+    + '.rrap-pallogo{grid-template-columns:repeat(auto-fit,22px)}'
+    + '.rrap-palsw{width:22px;height:22px;border-radius:4px;border:1px solid var(--p-line);cursor:pointer;padding:0}'
+    + '.rrap-palsw:hover{transform:scale(1.18);border-color:var(--p-ink)}'
+    + '.rrap-palsw.rrap-palon{outline:2px solid var(--p-ink);outline-offset:1px}'
+    + '.rrap-pallab{font-size:0.58rem;letter-spacing:0.07em;text-transform:uppercase;color:var(--p-ink-dim);margin:0.5rem 0 0.2rem}'
+    + '.rrap-palbtn{display:block;width:100%;margin:0.45rem 0 0;padding:0.4rem 0.6rem;border-radius:8px;'
+    +   'border:1px solid var(--p-line-hi);background:var(--p-panel2);color:var(--p-ink);font-size:0.74rem;cursor:pointer}'
+    + '.rrap-palbtn:hover{border-color:var(--p-accent)}'
+    + '#rrap-pal .rrap-palbtn:first-child{margin:0 0 0.5rem}'
+    + '#rrap-palnative{position:absolute;left:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none}'
     // replica — these DO read the skin variables, which is the point
     + '.rrap-app{background:var(--bg);border:1px solid var(--border);border-radius:12px;overflow:hidden;font-size:13px}'
     + '.rrap-apph{display:flex;align-items:center;background:var(--surface);border-bottom:1px solid var(--border);padding:9px 13px}'
@@ -490,9 +504,7 @@
 
   function _wireChips(ov) {
     ov.querySelectorAll('.rrap-chip').forEach(function (ch) {
-      var v = ch.dataset.var, inp = ch.querySelector('input');
-      inp.value = /^#[0-9a-fA-F]{6}$/.test(_cur(v)) ? _cur(v) : inp.value;
-      inp.addEventListener('input', function () { _set(v, inp.value); _refreshRoles(); _wires(); });
+      var v = ch.dataset.var;
       ch.addEventListener('mouseenter', function () {
         var key = v.replace('--', '');
         ov.querySelectorAll('[data-c="' + key + '"]').forEach(function (e) { e.classList.add('rrap-hl'); });
@@ -502,8 +514,22 @@
         ov.querySelectorAll('.rrap-hl').forEach(function (e) { e.classList.remove('rrap-hl'); });
         _wires();
       });
-      ch.addEventListener('click', function (e) { if (e.target !== inp) inp.click(); });
+      ch.addEventListener('click', function () {
+        _openPal(ch, _cur(v), function (hex) {
+          _set(v, hex); _refreshPanel(); _wires();
+        }, function () { _resetVar(v); });
+      });
     });
+  }
+
+  // "Back to default" for one variable: drop this session's override and let
+  // whatever the app is actually wearing show through again.
+  function _resetVar(v) {
+    delete _live[v];
+    var st = _stage();
+    if (st) st.style.removeProperty(v);
+    if (_preview) _root.style.removeProperty(v);
+    _refreshPanel(); _wires();
   }
 
   // ── the phone sheet: presets only ────────────────────────────────
@@ -941,6 +967,113 @@
     }
   }
 
+  // ── the colour picker (v0.9.1218) ───────────────────────────────
+  // Brad, after clicking a colour box and getting the browser's own picker:
+  // "this is hard for a user to get the color they want, i am think
+  // something along these lines" — and a picture of a swatch grid.
+  //
+  // He is right. A saturation square and three numbers is a tool for someone
+  // who already knows the colour they want in RGB. A grid is a tool for
+  // someone who wants "a darker green". So: one grid, used by EVERY colour
+  // control in this editor — the chips on the picture, the five jobs, and
+  // the header line. One picker means one answer to "how do I choose a
+  // colour", and the browser's own is still one click away for anyone who
+  // does want to type numbers.
+  //
+  // Every swatch is COMPUTED, not listed. That keeps the no-hardcoded-colour
+  // rule honest and means the grid is described by the two arrays below
+  // rather than by sixty literals somebody would have to keep consistent.
+  var PAL_HUES  = [0, 0.07, 0.12, 0.18, 0.33, 0.47, 0.55, 0.62, 0.72, 0.85];
+  var PAL_LIGHT = [0.86, 0.72, 0.58, 0.46, 0.34, 0.22];
+
+  function _palRows() {
+    var rows = [];
+    // A greyscale row first: black through white, the row people reach for.
+    rows.push([0, 0.13, 0.26, 0.39, 0.52, 0.63, 0.74, 0.84, 0.93, 1]
+      .map(function (l) { return _hsl2hex(0, 0, l); }));
+    PAL_LIGHT.forEach(function (l) {
+      rows.push(PAL_HUES.map(function (h) {
+        return _hsl2hex(h, l > 0.75 ? 0.55 : (l < 0.3 ? 0.62 : 0.72), l);
+      }));
+    });
+    return rows;
+  }
+
+  var _palCb = null;      // what to do with the colour that gets picked
+  var _palReset = null;   // what "Reset" means for the control that opened it
+
+  function _closePal() {
+    var p = document.getElementById('rrap-pal');
+    if (p) p.remove();
+    _palCb = null; _palReset = null;
+  }
+
+  // anchor: the element clicked, so the grid opens beside it rather than in
+  // the middle of the screen where it would cover the thing being changed.
+  function _openPal(anchorEl, current, onPick, onReset) {
+    _closePal();
+    _palCb = onPick; _palReset = onReset || null;
+    var el = document.createElement('div');
+    el.id = 'rrap-pal';
+    var cur = String(current || '').toLowerCase();
+    el.innerHTML =
+      (onReset ? '<button class="rrap-palbtn" onclick="window._rrapPalReset()">↺ Back to default</button>' : '')
+      + '<div class="rrap-palgrid">'
+      + _palRows().map(function (row) {
+          return row.map(function (hex) {
+            return '<button class="rrap-palsw' + (hex.toLowerCase() === cur ? ' rrap-palon' : '')
+              + '" style="background:' + hex + '" title="' + hex
+              + '" onclick="window._rrapPalPick(\'' + hex + '\')"></button>';
+          }).join('');
+        }).join('')
+      + '</div>'
+      + (_swatches.length
+          ? '<div class="rrap-pallab">From your logo</div><div class="rrap-palgrid rrap-pallogo">'
+            + _swatches.map(function (hex) {
+                return '<button class="rrap-palsw" style="background:' + hex + '" title="' + hex
+                  + '" onclick="window._rrapPalPick(\'' + hex + '\')"></button>';
+              }).join('') + '</div>'
+          : '')
+      + '<button class="rrap-palbtn" onclick="window._rrapPalCustom()">🎨 Custom…</button>'
+      + '<input type="color" id="rrap-palnative" value="'
+      + (/^#[0-9a-fA-F]{6}$/.test(cur) ? cur : NO_COLOUR) + '">';
+    document.body.appendChild(el);
+
+    var nat = document.getElementById('rrap-palnative');
+    if (nat) nat.addEventListener('input', function () { if (_palCb) _palCb(nat.value); });
+
+    // Beside the anchor, never on top of it — a picker that covers the very
+    // swatch you are changing hides the one thing you need to see. Right of
+    // it if there is room, otherwise left; only below as a last resort. Then
+    // pull the whole thing back inside the window, because a picker that
+    // opens half off the screen is worse than no picker.
+    var r = anchorEl.getBoundingClientRect(), b = el.getBoundingClientRect();
+    var pad = 8, left, top;
+    if (r.right + pad + b.width <= window.innerWidth - pad) left = r.right + pad;
+    else if (r.left - pad - b.width >= pad) left = r.left - pad - b.width;
+    else left = Math.max(pad, Math.min(r.left, window.innerWidth - b.width - pad));
+    top = r.top + r.height / 2 - b.height / 2;
+    top = Math.max(pad, Math.min(top, window.innerHeight - b.height - pad));
+    // If it still lands on the anchor (a narrow window), drop it clear.
+    if (left < r.right && left + b.width > r.left && top < r.bottom && top + b.height > r.top) {
+      top = (r.bottom + b.height + pad <= window.innerHeight) ? r.bottom + pad
+          : Math.max(pad, r.top - b.height - pad);
+    }
+    el.style.left = Math.round(left) + 'px';
+    el.style.top = Math.round(top) + 'px';
+    setTimeout(function () { document.addEventListener('mousedown', _palAway); }, 0);
+  }
+  function _palAway(e) {
+    var p = document.getElementById('rrap-pal');
+    if (p && !p.contains(e.target)) { document.removeEventListener('mousedown', _palAway); _closePal(); }
+  }
+  window._rrapPalPick = function (hex) { if (_palCb) _palCb(hex); _closePal(); };
+  window._rrapPalReset = function () { if (_palReset) _palReset(); _closePal(); };
+  window._rrapPalCustom = function () {
+    var n = document.getElementById('rrap-palnative');
+    if (n) n.click();
+  };
+
   // ── the left-hand control panel ─────────────────────────────────
   // Every record that leaves a reader is FILLED — three slots and a title,
   // always present, even when empty. Callers never test for a missing key,
@@ -1098,8 +1231,7 @@
       + '</select>'
       + '</select></label>'
       + '<label class="rrap-fld" style="flex:none"><span class="rrap-flab">Text colour</span>'
-      + '<span class="rrap-rc" title="Colour of the words"><input type="color" value="' + col
-      + '" oninput="window._rrapTitleSet(\'color\',this.value)">'
+      + '<span class="rrap-rc" title="Colour of the words" onclick="window._rrapTitleColour(event)">'
       + '<span class="rrap-rcface" style="background:' + col + '"></span></span></label>'
       + '</div>'
       + '<div class="rrap-hint" style="margin-top:0.3rem">Shows in the top bar next to THE RAIL ROSTER. Leave it empty for none.</div>'
@@ -1136,9 +1268,7 @@
           var v = _cur(r[0]) || NO_COLOUR;
           var hex = /^#[0-9a-fA-F]{6}$/.test(v) ? v : NO_COLOUR;
           return '<div class="rrap-role' + (_armed >= 0 ? ' rrap-ready' : '') + '" onclick="window._rrapRole(event,\'' + r[0] + '\')">'
-            + '<span class="rrap-rc"><input type="color" value="' + hex
-            + '" oninput="window._rrapRoleColor(\'' + r[0] + '\',this.value)">'
-            + '<span class="rrap-rcface" style="background:' + hex + '"></span></span>'
+            + '<span class="rrap-rc"><span class="rrap-rcface" style="background:' + hex + '"></span></span>'
             + '<span class="rrap-rl"><b>' + r[1] + '</b><span>' + r[2] + '</span></span></div>';
         }).join('')
       + '<div class="rrap-hint" style="margin-top:0.3rem">Owned-green and wanted-blue are left alone on purpose — they mean something.</div></div>';
@@ -1158,18 +1288,28 @@
     _refreshPanel();
   };
   window._rrapRole = function (ev, v) {
-    // The native colour input inside the row is the escape hatch; clicking it
-    // must not also drop the armed swatch.
-    if (ev && ev.target && ev.target.tagName === 'INPUT') return;
-    if (_armed < 0 || !_swatches[_armed]) {
-      var inp = ev && ev.currentTarget && ev.currentTarget.querySelector('input');
-      if (inp) inp.click();
+    // With a swatch armed, clicking a job drops that colour on it. With
+    // nothing armed, the same click opens the picker — one control, and the
+    // meaning is whichever you set up first.
+    if (_armed >= 0 && _swatches[_armed]) {
+      _rrApplyRole(v, _swatches[_armed]);
+      _armed = -1;
       return;
     }
-    _rrApplyRole(v, _swatches[_armed]);
-    _armed = -1;
+    var row = ev && ev.currentTarget;
+    if (row) _openPal(row, _cur(v), function (hex) { _rrApplyRole(v, hex); },
+                      function () { _resetVar(v); });
   };
   window._rrapRoleColor = function (v, hex) { _rrApplyRole(v, hex); };
+  window._rrapTitleColour = function (ev) {
+    if (ev && ev.stopPropagation) ev.stopPropagation();
+    var t = _brandNow().title;
+    var el = (ev && ev.currentTarget) || document.querySelector('#rrap-logobar .rrap-rc');
+    if (!el) return;
+    _openPal(el, t.color || _cur('--text'),
+      function (hex) { window._rrapTitleSet('color', hex); },
+      function () { window._rrapTitleSet('color', ''); });
+  };
 
   function _rrApplyRole(v, hex) {
     if (v === '--bg') {
@@ -1621,6 +1761,7 @@
   };
 
   function _teardown() {
+    _closePal();
     var ov = document.getElementById('rrap');
     if (ov) ov.remove();
     var bar = document.getElementById('rrap-prevbar'); if (bar) bar.remove();
