@@ -7071,6 +7071,36 @@ META_WRITES.length = 0; TOASTS.length = 0;
     copyA.masterKey = 'pw|3545|1'; copyB.masterKey = 'pw|3545|1';
   })();
 
+  section('171. Every copy row is addressable, and O is spelled one way (v0.9.1203)');
+  // Brad's 8359s: two copies of one item shared ONE thumbnail DOM id, so the
+  // second could never fill. And "some say o and some say o gauge": the scale
+  // line is fed by three sources that spell O differently.
+  (function () {
+    const pR = require('path');
+    const bw7 = fs.readFileSync(pR.join(__dirname, '..', 'app', 'browse.js'), 'utf8');
+    const kIdx = bw7.indexOf('function _rrRowDomKey');
+    const keyFn = new Function('"use strict";' + bw7.slice(kIdx, bw7.indexOf('\n}', kIdx) + 2) + '; return _rrRowDomKey;')();
+    const base = { itemNum: '8359', variation: '' };
+    const c1 = Object.assign({ _copyPd: { inventoryId: 97 } }, base);
+    const c2 = Object.assign({ _copyPd: { inventoryId: 99 } }, base);
+    ok('two copies of one item get DIFFERENT dom keys', keyFn(c1) !== keyFn(c2),
+       keyFn(c1) + ' vs ' + keyFn(c2));
+    ok('...each carrying its inventory id', /-c97$/.test(keyFn(c1)) && /-c99$/.test(keyFn(c2)));
+    ok('an un-expanded row keys exactly as before', keyFn(base) === '8359-');
+    ok('the copy suffix is attribute-safe too', /^[A-Za-z0-9_-]+$/.test(keyFn(c1)));
+
+    const gIdx = bw7.indexOf('function rrGaugeLabel');
+    const gauge = new Function('"use strict";' + bw7.slice(gIdx, bw7.indexOf('\n}', gIdx) + 2) + '; return rrGaugeLabel;')();
+    ok("'O' renders as 'O Gauge'", gauge('O') === 'O Gauge');
+    ok("'O Gauge' stays 'O Gauge'", gauge('O Gauge') === 'O Gauge' && gauge('o gauge') === 'O Gauge');
+    ok("'O-27' family is canonical", gauge('O27') === 'O-27' && gauge('O-27') === 'O-27');
+    ok('non-O scales pass through as written',
+       gauge('Standard') === 'Standard' && gauge('S') === 'S' && gauge('HO') === 'HO');
+    ok('blank stays blank (no phantom label)', gauge('') === '' && gauge(null) === '');
+    ok('the scale line routes through the normalizer',
+       /_sc = rrGaugeLabel\(_sc\);/.test(bw7));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

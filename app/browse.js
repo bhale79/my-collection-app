@@ -8,9 +8,33 @@
 // did — same idea written twice, hardened once. ONE builder now, used by
 // every emit and every lookup, so the two sides cannot disagree again.
 function _rrRowDomKey(item) {
+  // v0.9.1203 (Brad's 8359s): TWO COPIES of one item are two rows sharing the
+  // same number+variation — without the copy suffix they got IDENTICAL DOM
+  // ids, getElementById always answered with the first, and the second copy's
+  // thumbnail could never fill. The copy's inventoryId (stable, unique) keeps
+  // every rendered row addressable.
+  var _cp = (item && item._copyPd && item._copyPd.inventoryId)
+    ? '-c' + String(item._copyPd.inventoryId).replace(/[^A-Za-z0-9_-]/g, '_') : '';
   return (String(item && item.itemNum || '') + '-' + String(item && item.variation || ''))
-    .replace(/[^A-Za-z0-9_-]/g, '_');   // underscore, not strip: "53 x" and "53x" stay distinct
+    .replace(/[^A-Za-z0-9_-]/g, '_') + _cp;   // underscore, not strip: "53 x" and "53x" stay distinct
 }
+
+// v0.9.1203 (Brad: "some say o and some say o gauge. they should all say O
+// gauge"): the scale line under the maker badge is fed by THREE sources —
+// the saved row's gauge, the master row's gauge, and the era default — and
+// they spell O differently ('O' vs 'O Gauge'). Master data is inconsistent
+// across tabs and always will be a little; ONE label reader at display time
+// makes every source render the same. Only the O family is canonicalized;
+// anything else passes through as written.
+function rrGaugeLabel(s) {
+  var t = String(s == null ? '' : s).trim();
+  if (!t) return '';
+  var k = t.toUpperCase().replace(/[\s.‑-]/g, '');
+  if (k === 'O' || k === 'OGAUGE' || k === 'OSCALE') return 'O Gauge';
+  if (k === 'O27' || k === 'O27GAUGE') return 'O-27';
+  return t;
+}
+if (typeof window !== 'undefined') window.rrGaugeLabel = rrGaugeLabel;
 
 // v0.9.1201 (structural audit #4): _rrRowDomKey's sibling for the OTHER place
 // raw item text was being spliced — inline onclick strings. A hand-typed
@@ -3617,6 +3641,7 @@ function renderBrowse() {
           var _sc = (pd && pd.gauge) || (item && item.gauge) || '';
           if (!_sc && item && item._era && typeof ERA_SCALE !== 'undefined') _sc = ERA_SCALE[item._era] || '';
           if (!_sc && pd && pd.era && typeof ERA_SCALE !== 'undefined') _sc = ERA_SCALE[String(pd.era).toLowerCase()] || '';
+          _sc = rrGaugeLabel(_sc);   // v0.9.1203: every source spells O the same way
           return _sc ? _b.replace('</td>', '<div style="font-size:0.66rem;color:var(--text-dim);margin-top:2px;letter-spacing:0.04em">' + _sc + '</div></td>') : _b;
         })()}
         <td style="max-width:170px;overflow:hidden">
