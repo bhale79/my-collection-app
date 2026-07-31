@@ -850,14 +850,24 @@
       + '</div></div>';
   }
 
+  // Brad: "the boxes… with background, panels and headers, change color on
+  // the app but not on the button themselves."
+  //
+  // He was right, and the cause is the same structural rule that fixed the
+  // dark page. The candidate skin lives on the STAGE; this panel sits OUTSIDE
+  // the stage, so a `var(--bg)` here resolved against :root — the app's
+  // current colour — and the button showed the old skin while the preview
+  // showed the new one. The panel must be painted with the VALUE, never the
+  // variable. Same reason the swatch buttons above already use a literal.
   function _rolesHtml() {
     return '<div><div class="rrap-lh">What each colour does</div>'
       + ROLES.map(function (r) {
           var v = _cur(r[0]) || '#888888';
+          var hex = /^#[0-9a-fA-F]{6}$/.test(v) ? v : '#888888';
           return '<div class="rrap-role' + (_armed >= 0 ? ' rrap-ready' : '') + '" onclick="window._rrapRole(event,\'' + r[0] + '\')">'
-            + '<span class="rrap-rc"><input type="color" value="' + (/^#[0-9a-fA-F]{6}$/.test(v) ? v : '#888888')
+            + '<span class="rrap-rc"><input type="color" value="' + hex
             + '" oninput="window._rrapRoleColor(\'' + r[0] + '\',this.value)">'
-            + '<span class="rrap-rcface" style="background:var(' + r[0] + ')"></span></span>'
+            + '<span class="rrap-rcface" style="background:' + hex + '"></span></span>'
             + '<span class="rrap-rl"><b>' + r[1] + '</b><span>' + r[2] + '</span></span></div>';
         }).join('')
       + '<div class="rrap-hint" style="margin-top:0.3rem">Owned-green and wanted-blue are left alone on purpose — they mean something.</div></div>';

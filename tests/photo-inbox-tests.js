@@ -7477,6 +7477,26 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /if \(v === '--bg'\) \{\s*\n\s*var d = _rrDeriveFromBg\(hex\);/.test(ap));
     ok('the swatches survive a reload with the logo',
        /sw: _swatches/.test(ap) && /function _savedSwatches/.test(ap));
+
+    // ── 8. The left panel is outside the stage, so it paints by VALUE ────
+    // Brad, live on v0.9.1206: "the boxes… with background, panels and
+    // headers, change color on the app but not on the button themselves."
+    // The candidate skin lives on the stage; this panel does not. A
+    // var(--bg) here resolves against :root, so the button showed the OLD
+    // skin while the preview showed the new one. Painting by value is the
+    // only thing that can be right here, and this is the guard that says so.
+    const panelSrc = ap.slice(ap.indexOf('function _leftPanelHtml'), ap.indexOf('function _refreshPanel'));
+    ok('the left panel is findable', panelSrc.length > 400);
+    // Comment-stripped: the comment explaining this fix necessarily quotes
+    // the very thing it forbids. Sixth time this suite has learned that.
+    ok('nothing in the left panel paints itself from a skin variable',
+       !/var\(--(bg|surface|surface2|text|border|accent|accent2|green|want|forsale|accent3)\b/
+         .test(panelSrc.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '')));
+    ok('the role buttons show the candidate colour as a literal value',
+       /background:' \+ hex \+ '/.test(panelSrc) && /var hex = \/\^#\[0-9a-fA-F\]\{6\}\$\/\.test\(v\)/.test(panelSrc));
+    // …while the replica, which IS inside the stage, must keep using them.
+    ok('the replica still paints from the variables, as it must',
+       /\.rrap-app\{background:var\(--bg\)/.test(ap));
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
