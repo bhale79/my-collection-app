@@ -1673,14 +1673,65 @@
     if (lk.ownedPd && lk.ownedAgrees === false) {
       // Same number, different item — say so plainly instead of claiming a duplicate.
       html += '<div style="margin-top:0.45rem;font-size:0.8rem;color:#d4a843;font-weight:700;line-height:1.5">You own a '
-        + rrEsc(lk.ownedLabel) + ' \u2014 same number, different item. This one is new to your collection.</div>';
+        + rrEsc(lk.ownedLabel) + ' \u2014 same number, different item. This one is new to your collection.'
+        + _pinSeeItLink(lk.ownedPd) + '</div>';
     } else if (lk.ownedPd) {
-      html += '<div style="margin-top:0.45rem;font-size:0.8rem;color:#2ecc71;font-weight:700">\u2713 You already own one — this will be added as a separate copy.</div>';
+      html += '<div style="margin-top:0.45rem;font-size:0.8rem;color:#2ecc71;font-weight:700">\u2713 You already own one — this will be added as a separate copy.'
+        + _pinSeeItLink(lk.ownedPd) + '</div>';
     }
     box.innerHTML = html;
     // v0.9.942 (Identify v3, Brad): double-check the photo against the
     // catalog listing's reference photo when the matched master row links one.
     try { _pinVerifyRender(lk); } catch (eV) {}
+  };
+
+  // ── "See it here." (v0.9.1235) ────────────────────────────────────────
+  // Brad: "have a clickable text at the end of that sentence that says,
+  // 'See it here.'"
+  //
+  // Being told you already own one raises exactly one question — WHICH one —
+  // and until now the only way to answer it was to abandon the review, go to
+  // My Collection and search. The link goes straight to that copy.
+  //
+  // It is keyed on the inventoryId, never the item number: the whole point of
+  // the sentence is that a number can name more than one thing, and two
+  // sentences up we say so. Without an inventoryId there is no link, because
+  // a link that opens the wrong copy is worse than no link on a message
+  // specifically about telling copies apart.
+  //
+  // It HIDES the review rather than closing it, and floats a way back — the
+  // same shape as _wizPeekDetail, for the same reason. A half-reviewed photo
+  // is work in progress and must survive the round trip.
+  function _pinSeeItLink(pd) {
+    var id = (pd && pd.inventoryId) ? String(pd.inventoryId) : '';
+    if (!id) return '';
+    return ' <a href="javascript:void 0" onclick="window._pinSeeOwned(\'' + rrEsc(id) + '\');return false"'
+      + ' style="color:var(--accent2);text-decoration:underline;font-weight:700;cursor:pointer">See it here.</a>';
+  }
+
+  window._pinSeeOwned = function (invId) {
+    try {
+      if (!invId) return;
+      var ov = document.getElementById('pin-review-ov');
+      if (ov) ov.style.display = 'none';        // hide only — the review is still in progress
+      var old = document.getElementById('pin-owned-pill');
+      if (old) old.remove();
+      var pill = document.createElement('button');
+      pill.id = 'pin-owned-pill';
+      pill.innerHTML = '\u2190 Back to your photo';
+      pill.style.cssText = 'position:fixed;bottom:1.1rem;left:50%;transform:translateX(-50%);'
+        + 'z-index:8000;padding:0.7rem 1.3rem;border-radius:999px;border:none;'
+        + 'background:var(--accent);color:var(--cream);font-weight:700;font-size:0.9rem;'
+        + 'cursor:pointer;box-shadow:0 4px 18px var(--scrim);font-family:var(--font-body)';
+      pill.onclick = function () {
+        pill.remove();
+        var o = document.getElementById('pin-review-ov');
+        if (o) o.style.display = '';
+      };
+      document.body.appendChild(pill);
+      if (typeof _openOwnedByInvId === 'function') _openOwnedByInvId(invId);
+      else if (typeof goToMyCollection === 'function') goToMyCollection();
+    } catch (e) { console.warn('[see it here]', e); }
   };
 
   // ── Identify v3 (v0.9.942): photo double-check vs the catalog photo ──────

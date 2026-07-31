@@ -8929,6 +8929,75 @@ META_WRITES.length = 0; TOASTS.length = 0;
        !/trainz|ebay|trainworld/i.test(known.url), known.url);
   })();
 
+
+  section('187. "See it here." on a duplicate you already own (v0.9.1235)');
+  (function () {
+    const pathJ = require('path');
+    const pin = fs.readFileSync(pathJ.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+
+    // Brad: "have a clickable text at the end of that sentence that says,
+    // 'See it here.'"
+
+    ok('the sentence about already owning one carries the link',
+       /You already own one — this will be added as a separate copy\.'\s*\n\s*\+ _pinSeeItLink\(lk\.ownedPd\)/.test(pin));
+    ok('…and so does the one about owning a DIFFERENT item with the same number',
+       /same number, different item[\s\S]{0,120}_pinSeeItLink\(lk\.ownedPd\)/.test(pin));
+
+    // ── RUN the link builder ────────────────────────────────────────────
+    const src = pin.slice(pin.indexOf('function _pinSeeItLink(pd)'),
+                          pin.indexOf('window._pinSeeOwned = function'));
+    const link = pd => new Function('rrEsc',
+      '"use strict";' + src + '; return _pinSeeItLink;')(
+        x => String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/'/g, '&#39;'))(pd);
+
+    ok('a copy with an inventory id gets a link',
+       /See it here\./.test(link({ inventoryId: 'INV-42' })) &&
+       /_pinSeeOwned\('INV-42'\)/.test(link({ inventoryId: 'INV-42' })));
+    ok('the link is keyed on the inventory id, never the item number',
+       !/itemNum/.test(src));
+    // This message is ABOUT a number naming two different things. A link that
+    // guesses which copy would be worse than no link at all.
+    ok('a copy with no inventory id gets NO link rather than a guess',
+       link({ itemNum: '2343' }) === '' && link(null) === '' && link({}) === '');
+    ok('the id is escaped before it goes in an onclick',
+       /rrEsc\(id\)/.test(src));
+
+    // ── the round trip ──────────────────────────────────────────────────
+    const osrc = pin.slice(pin.indexOf('window._pinSeeOwned = function'),
+                           pin.indexOf('// ── Identify v3 (v0.9.942)'));
+    ok('the review is HIDDEN, not closed — a half-reviewed photo is work in progress',
+       /ov\.style\.display = 'none'/.test(osrc) && !/\.remove\(\)/.test(osrc.split('pill.onclick')[0].replace(/old\.remove\(\)/, '')));
+    ok('…and there is a way back to it',
+       /pin-owned-pill/.test(osrc) && /Back to your photo/.test(osrc));
+    ok('…which puts the review back on screen',
+       /o\.style\.display = ''/.test(osrc));
+    ok('it opens the real detail page for that copy',
+       /_openOwnedByInvId\(invId\)/.test(osrc));
+    ok('…and falls back to the collection rather than doing nothing',
+       /goToMyCollection/.test(osrc));
+    ok('an empty id opens nothing at all',
+       /if \(!invId\) return;/.test(osrc));
+
+    // RUN it: the hide/restore has to actually round-trip
+    (function () {
+      const els = { 'pin-review-ov': { style: { display: '' } } };
+      let opened = null, appended = null;
+      const doc = {
+        getElementById: id => els[id] || null,
+        createElement: () => ({ style: {}, onclick: null, remove() {}, set innerHTML(v) { this._h = v; } }),
+        body: { appendChild: el => { appended = el; } }
+      };
+      new Function('document', 'window', '_openOwnedByInvId', 'goToMyCollection', 'console',
+        '"use strict";' + osrc + '; window._pinSeeOwned("INV-42");')(
+          doc, {}, id => { opened = id; }, () => {}, { warn() {} });
+      ok('pressing it hides the review and opens that copy',
+         els['pin-review-ov'].style.display === 'none' && opened === 'INV-42');
+      appended.onclick();
+      ok('…and coming back puts the review exactly where it was',
+         els['pin-review-ov'].style.display === '');
+    })();
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
