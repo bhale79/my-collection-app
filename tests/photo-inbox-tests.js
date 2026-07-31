@@ -6999,6 +6999,78 @@ META_WRITES.length = 0; TOASTS.length = 0;
        wired.every(function (w) { return w.hit; }), JSON.stringify(wired));
   })();
 
+  section('170. Two copies, one catalog row — the 3545 triple is gone (v0.9.1202)');
+  // Brad: "somehow there are 3, i think 2 are legit." His sheet held exactly
+  // TWO 3545 flatcars (both saved with a BLANK variation, both master-keyed
+  // pw|3545|1). The list drew THREE rows: the copy-expander matched his
+  // copies to a blank-variation PAPER row (an instruction sheet sharing the
+  // number), and one copy also lit the flatcar row via adoption — one copy
+  // rendered twice, on two different catalog rows. Neither path consulted
+  // the stored master key. Now both do.
+  (function () {
+    const pR = require('path');
+    const brw5 = fs.readFileSync(pR.join(__dirname, '..', 'app', 'browse.js'), 'utf8');
+    const pdl5 = fs.readFileSync(pR.join(__dirname, '..', 'app', 'wizard-pdlookup.js'), 'utf8');
+
+    // The expander defers to the stored key.
+    ok('the copy-expander asks the master key before variation text',
+       /if \(p\.masterKey && _itKeyFD\) return p\.masterKey === _itKeyFD;/.test(brw5));
+    // The resolver releases a copy whose key names another row.
+    ok('_rrPdForRow releases a copy keyed to a different catalog row',
+       /_rowKeyPd && _rowKeyPd !== _p\.masterKey/.test(brw5));
+
+    // Drive the REAL adopt+resolver slice with Brad's exact 3545 shape.
+    const pdlSlice = pdl5.slice(0, pdl5.indexOf('// Find a collection item by item number'))
+                         .replace(/^const /m, 'var ');
+    const aIdx = brw5.indexOf('var _bvAdopt = null;');
+    const aEnd = brw5.indexOf('const _eraFilterPersonalOnly');
+    ok('the resolver slice is findable', aIdx > 0 && aEnd > aIdx);
+    const flat  = { itemNum: '3545', variation: '1', _era: 'pw' };
+    const paper = { itemNum: '3545', variation: '', _era: 'pw', _paper: true };
+    const copyA = { itemNum: '3545', variation: '', era: 'pw', owned: true, inventoryId: 178, masterKey: 'pw|3545|1', userEstWorth: '150' };
+    const copyB = { itemNum: '3545', variation: '', era: 'pw', owned: true, inventoryId: 198, masterKey: 'pw|3545|1', userEstWorth: '75' };
+    const ctx = {
+      state: { filters: { owned: true }, personalData: { a: copyA, b: copyB }, masterData: [flat, paper] },
+      window: { rrDemotedRow: function (r) { return !!r._paper; } },
+      _displayItemNum: function (m) { return m.itemNum; },
+      _rrEraKeyOf: function (e) { return String(e || '').toLowerCase(); },
+      rrMasterByKey: function (k) { return k === 'pw|3545|1' ? flat : (k === 'pw|3545|' ? paper : null); },
+      rrMasterKeyOf: function (m) { return String(m._era || '') + '|' + String(m.itemNum) + '|' + String(m.variation == null ? '' : m.variation).trim(); },
+    };
+    const made = new Function(...Object.keys(ctx), '"use strict";' + pdlSlice
+      + brw5.slice(aIdx, aEnd) + '; return _rrPdForRow;')(...Object.values(ctx));
+    const paperPd = made(paper);
+    ok('the PAPER row gets NOBODY — both copies are keyed to the flatcar', paperPd === null,
+       paperPd && ('inv ' + paperPd.inventoryId));
+    const flatPd = made(flat);
+    ok('the flatcar row still lights up with one of his copies',
+       flatPd === copyA || flatPd === copyB);
+    ok('a cloned copy-row answers with ITS copy, both of them',
+       made({ itemNum: '3545', variation: '1', _era: 'pw', _copyPd: copyA }) === copyA
+       && made({ itemNum: '3545', variation: '1', _era: 'pw', _copyPd: copyB }) === copyB);
+
+    // Simulate the REAL expander filter for both catalog rows.
+    const fIdx = brw5.indexOf('var _itKeyFD =');
+    const fEnd = brw5.indexOf('if (_copiesFD.length <= 1)', fIdx);
+    ok('the expander filter slice is findable', fIdx > 0 && fEnd > fIdx);
+    function copiesFor(it) {
+      const fctx = {
+        it: it, state: ctx.state,
+        _dnp: it.itemNum,
+        rrMasterKeyOf: ctx.rrMasterKeyOf,
+      };
+      return new Function(...Object.keys(fctx), '"use strict";' + brw5.slice(fIdx, fEnd) + '; return _copiesFD;')(...Object.values(fctx));
+    }
+    ok('the flatcar row expands to BOTH copies (his $150 and his $75)',
+       copiesFor(flat).length === 2);
+    ok('the paper row expands to NONE', copiesFor(paper).length === 0);
+    // Un-keyed copies keep the old variation-text behavior.
+    delete copyA.masterKey; delete copyB.masterKey;
+    ok('un-keyed copies still match by variation text (no regression for blank rows)',
+       copiesFor(paper).length === 2 && copiesFor(flat).length === 0);
+    copyA.masterKey = 'pw|3545|1'; copyB.masterKey = 'pw|3545|1';
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

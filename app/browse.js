@@ -2784,6 +2784,15 @@ function renderBrowse() {
     var _p = findPD(_dn, item.variation);
     if (_p && _p.itemNum !== _dn) _p = null;                     // no -P/-D bleed
     if (_p && String(_p.era || '') === 'Manual') _p = null;      // v0.9.718
+    // v0.9.1202: a found copy whose STORED key names a different catalog row
+    // is not this row's copy — release it. (The 3545 paper row was lighting
+    // up with a flatcar copy findPD happened to return, because two copies
+    // share one blank-variation index key and only ONE can win the adopt
+    // map's seat; the key check releases the other everywhere.)
+    if (_p && _p.masterKey && typeof rrMasterKeyOf === 'function') {
+      var _rowKeyPd = rrMasterKeyOf(item);
+      if (_rowKeyPd && _rowKeyPd !== _p.masterKey) _p = null;
+    }
     if (_bvAdopt) {
       // v0.9.1193: blank-variation entries key by number (unchanged); the new
       // variation entries key by number+variation. Check both.
@@ -3088,10 +3097,21 @@ function renderBrowse() {
     state.filteredData.forEach(function(it) {
       if (it._personalOnly) { _expandedFD.push(it); return; }
       var _dnp = _displayItemNum(it);
+      // v0.9.1202 (Brad's three 3545s): a copy with a STORED master key
+      // belongs to exactly the catalog row that key names — variation text
+      // no longer gets a vote. His two TV Monitor Cars were saved with a
+      // BLANK variation, so this filter matched them to the blank-variation
+      // PAPER row (an instruction sheet sharing the number) instead of the
+      // var-1 flatcar, and one copy rendered twice. Keys settle it: both
+      // copies attach to the flatcar row (each getting its own copy row),
+      // and the paper row gets nobody. Un-keyed copies keep the old
+      // variation-text matching.
+      var _itKeyFD = (typeof rrMasterKeyOf === 'function') ? rrMasterKeyOf(it) : '';
       var _copiesFD = Object.values(state.personalData).filter(function(p) {
-        return p && p.owned
-          && p.itemNum === _dnp && (p.variation || '') === (it.variation || '')
-          && !String(p.itemNum || '').toUpperCase().endsWith('-BOX');
+        if (!p || !p.owned || p.itemNum !== _dnp) return false;
+        if (String(p.itemNum || '').toUpperCase().endsWith('-BOX')) return false;
+        if (p.masterKey && _itKeyFD) return p.masterKey === _itKeyFD;
+        return (p.variation || '') === (it.variation || '');
       });
       if (_copiesFD.length <= 1) { _expandedFD.push(it); return; }
       _copiesFD.sort(function(a, b) { return (parseInt(a.inventoryId) || 0) - (parseInt(b.inventoryId) || 0); });
