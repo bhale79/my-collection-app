@@ -3724,11 +3724,10 @@ function renderBrowse() {
       // cause 2: photos can be filed in the item's Drive folder while the
       // sheet's photo-link cell is still blank. The detail page already falls
       // back to the folder; the list now does too (find-only — never creates).
-      const _linkP = pd2.photoItem
-        ? Promise.resolve(pd2.photoItem)
-        : (typeof driveFindItemFolder === 'function'
-            ? driveFindItemFolder(_displayItemNum(item)).catch(function () { return ''; })
-            : Promise.resolve(''));
+      // v0.9.1197: the ONE photo resolver (drive.js rrPhotoFolderFor).
+      const _linkP = (typeof rrPhotoFolderFor === 'function')
+        ? rrPhotoFolderFor(pd2, _displayItemNum(item))
+        : Promise.resolve(pd2.photoItem || '');
       _linkP.then(function (_link) {
       if (!_link) return;
       driveGetFolderPhotos(_link).then(function(photos) {
@@ -3824,11 +3823,10 @@ function renderBrowse() {
       if (!pd2 || !pd2.owned) return;
       const camEl = document.getElementById('cam-' + _rrRowDomKey(item));
       if (!camEl) return;
-      const _camLinkP = pd2.photoItem
-        ? Promise.resolve(pd2.photoItem)
-        : (typeof driveFindItemFolder === 'function'
-            ? driveFindItemFolder(_displayItemNum(item)).catch(function () { return ''; })
-            : Promise.resolve(''));
+      // v0.9.1197: the ONE photo resolver (drive.js rrPhotoFolderFor).
+      const _camLinkP = (typeof rrPhotoFolderFor === 'function')
+        ? rrPhotoFolderFor(pd2, _displayItemNum(item))
+        : Promise.resolve(pd2.photoItem || '');
       _camLinkP.then(function (_camLink) {
         if (!_camLink) return;
         driveGetFolderPhotos(_camLink).then(function(photos) {

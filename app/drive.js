@@ -474,6 +474,27 @@ async function driveFindItemFolder(itemNum) {
 }
 if (typeof window !== 'undefined') window.driveFindItemFolder = driveFindItemFolder;
 
+// v0.9.1197 — THE one answer to "where do this item's photos live?"
+// The 07-30 audit found this question answered in FOUR places (desktop list,
+// phone list / dashboard reel, detail page, camera-icon pass), each with its
+// own copy of "sheet cell, else search Drive" — and they drifted: v0.9.1123
+// hardened three of them while its comments claimed, in two files, that the
+// detail page already had the fallback. It didn't, and that false parity hid
+// the row-99999 write regression from the one page Brad opens to look at a
+// photo. One resolver, called by every surface: the sheet's stored link when
+// present, otherwise a find-only Drive search (never creates a folder), '' on
+// any failure. If a fifth surface ever needs photos, it calls this.
+async function rrPhotoFolderFor(pd, itemNumOverride) {
+  try {
+    var link = pd && pd.photoItem;
+    if (link) return link;
+    var num = String(itemNumOverride || (pd && pd.itemNum) || '').trim();
+    if (!num) return '';
+    return (await driveFindItemFolder(num)) || '';
+  } catch (e) { return ''; }
+}
+if (typeof window !== 'undefined') window.rrPhotoFolderFor = rrPhotoFolderFor;
+
 // ── v0.9.1125 — one-time migration of the existing flat item folders ───────
 // Moves each top-level item folder under its era's folder. Safe because:
 //   · a folder KEEPS ITS ID when it moves, so every photoItem link in the

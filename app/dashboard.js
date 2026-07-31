@@ -1179,10 +1179,9 @@ async function _thumbFor(pd) {
   // still blank, and a blank cell used to mean no thumbnail anywhere (phone
   // rows, dashboard reel) even though the detail page showed the picture.
   // Find-only: never creates a folder, so a photoless item costs one lookup.
-  var _link = pd.photoItem;
-  if (!_link && typeof driveFindItemFolder === 'function') {
-    _link = await driveFindItemFolder(pd.itemNum).catch(function () { return ''; });
-  }
+  // v0.9.1197: the ONE photo resolver (drive.js rrPhotoFolderFor) — this pass
+  // no longer keeps its own copy of the sheet-cell-else-Drive-search dance.
+  var _link = (typeof rrPhotoFolderFor === 'function') ? await rrPhotoFolderFor(pd) : pd.photoItem;
   if (!_link) return null;
   var files = await driveGetFolderPhotos(_link).catch(function () { return null; });
   var fid = files && files[0] && files[0].id;

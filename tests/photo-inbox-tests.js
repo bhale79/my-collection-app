@@ -2173,9 +2173,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
   const bwt = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'browse.js'), 'utf8');
   ok('the list thumbnail pass uses the shared resolver, not a strict findPD',
      !/const pd2 = item\._personalOnly \? item : findPD\(/.test(bwt) && /const pd2 = _rrPdForRow\(item\)/.test(bwt));
-  ok('a blank photo-link cell no longer means no thumbnail',
+  ok('a blank photo-link cell no longer means no thumbnail',   // v0.9.1197: fallback now lives in the ONE resolver
      !/if \(!pd2 \|\| !pd2\.owned \|\| !pd2\.photoItem\) return;/.test(bwt) &&
-     /driveFindItemFolder\(_displayItemNum\(item\)\)/.test(bwt));
+     /rrPhotoFolderFor\(pd2, _displayItemNum\(item\)\)/.test(bwt));
   // Scope the slice to driveFindItemFolder ITSELF — the migration that follows
   // it in the file creates era folders on purpose, which is not what this
   // check is about.
@@ -2184,8 +2184,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
      !/driveFindOrCreateFolder/.test(drv.slice(
         drv.indexOf('async function driveFindItemFolder'),
         drv.indexOf('window.driveFindItemFolder = driveFindItemFolder'))));
-  ok('phone rows and the dashboard reel get the same fallback',
-     /_link = await driveFindItemFolder\(pd\.itemNum\)/.test(dsh));
+  ok('phone rows and the dashboard reel get the same fallback',   // v0.9.1197: via the ONE resolver
+     /await rrPhotoFolderFor\(pd\)/.test(dsh));
   ok('a folded set header asks for no thumbnail',
      /if \(item\._setFold\) return;                       \/\/ folded set header/.test(bwt));
 
@@ -6387,8 +6387,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const col = fs.readFileSync(pR.join(__dirname, '..', 'app', 'app-collection.js'), 'utf8');
     const dIdx = col.indexOf('// Async: load photos');
     const dBlock = col.slice(dIdx, col.indexOf('Helper functions for item detail page', dIdx));
-    ok('the detail page falls back to the item folder when the cell is blank',
-       /driveFindItemFolder\(pd\.itemNum\)/.test(dBlock));
+    ok('the detail page falls back to the item folder when the cell is blank',   // v0.9.1197: via the ONE resolver
+       /rrPhotoFolderFor\(pd\)/.test(dBlock));
     ok('...and no longer refuses to look when _photoLink is empty',
        !/if \(!_grpPhotoMembers\.length && _photoLink\)/.test(dBlock));
     ok('...rendering the gallery from the link it actually resolved',
@@ -6682,6 +6682,55 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /var _rowKnown = pd\.row && Number\(pd\.row\) !== 99999;/.test(pin2));
     ok('the repair pass rejects them alike too',
        /p\.row && Number\(p\.row\) !== 99999/.test(pin2));
+  })();
+
+  section('165. ONE answer to "where do this item\'s photos live?" (v0.9.1197)');
+  // The 07-30 audit's through-line: this question had four hand-rolled
+  // answers (desktop list, phone/reel, detail page, camera pass) and they
+  // drifted — v1123's comments claimed a parity the detail page never had,
+  // which hid the row-99999 regression from the one page that mattered.
+  // rrPhotoFolderFor (drive.js) is the single resolver now.
+  (function () {
+    const pR = require('path');
+    const drv2 = fs.readFileSync(pR.join(__dirname, '..', 'app', 'drive.js'), 'utf8');
+    const bw3 = fs.readFileSync(pR.join(__dirname, '..', 'app', 'browse.js'), 'utf8');
+    const ds3 = fs.readFileSync(pR.join(__dirname, '..', 'app', 'dashboard.js'), 'utf8');
+    const ac3 = fs.readFileSync(pR.join(__dirname, '..', 'app', 'app-collection.js'), 'utf8');
+
+    ok('the resolver exists in drive.js', /async function rrPhotoFolderFor/.test(drv2));
+    ok('all four surfaces call it (desktop thumb, cam pass, reel, detail)',
+       (bw3.match(/rrPhotoFolderFor\(/g) || []).length >= 2
+       && /rrPhotoFolderFor\(pd\)/.test(ds3) && /rrPhotoFolderFor\(pd\)/.test(ac3));
+    ok('no surface keeps a private copy of the cell-else-search dance',
+       !/photoItem\s*\?\s*Promise\.resolve\(pd2\.photoItem\)/.test(bw3)
+       && !/driveFindItemFolder\(pd\.itemNum\)\.catch/.test(ac3)
+       && !/driveFindItemFolder\(pd\.itemNum\)\.catch/.test(ds3));
+
+    // Run the REAL resolver, made synchronous the same way as section 160:
+    // strip async/await (the branching is unchanged) so the assertions run
+    // BEFORE the summary's process.exit — in this harness an async assertion
+    // is an invisible one, which section 160's first draft proved the hard way.
+    const rIdx = drv2.indexOf('async function rrPhotoFolderFor');
+    const rEnd = drv2.indexOf("window.rrPhotoFolderFor = rrPhotoFolderFor", rIdx);
+    ok('the resolver slice is findable', rIdx > 0 && rEnd > rIdx);
+    const mkSync = function (finder) {
+      const body = drv2.slice(rIdx, rEnd)
+        .replace(/if \(typeof window[^\n]*\n/, '')
+        .replace(/\basync /g, '').replace(/\bawait /g, '');
+      return new Function('driveFindItemFolder', '"use strict";' + body + '; return rrPhotoFolderFor;')(finder);
+    };
+    var _finderCalls = [];
+    var _res = mkSync(function (n) { _finderCalls.push(n); return 'https://drive/found-' + n; });
+    ok('a stored sheet link wins outright',
+       _res({ photoItem: 'https://drive/stored' }) === 'https://drive/stored');
+    ok('...without consulting Drive at all', _finderCalls.length === 0);
+    ok('a blank cell searches Drive by item number',
+       _res({ itemNum: '2331' }) === 'https://drive/found-2331' && _finderCalls[0] === '2331');
+    ok('an override number wins over the pd (companion rows)',
+       _res({ itemNum: '2343' }, '2343-P') === 'https://drive/found-2343-P');
+    ok('no pd and no number yields empty, not a crash', _res(null) === '');
+    ok('a Drive failure yields empty, never a throw',
+       mkSync(function () { throw new Error('drive down'); })({ itemNum: 'X' }) === '');
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

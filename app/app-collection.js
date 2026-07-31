@@ -1358,11 +1358,10 @@ function showItemDetailPage(idx, copyInvId, opts) {
   // Find-only: never creates a folder, so a genuinely photoless item costs one
   // lookup and its empty state stays exactly as it was.
   if (!_grpPhotoMembers.length) {
-    var _detailLinkP = _photoLink
-      ? Promise.resolve(_photoLink)
-      : ((pd && pd.itemNum && typeof driveFindItemFolder === 'function')
-          ? driveFindItemFolder(pd.itemNum).catch(function () { return ''; })
-          : Promise.resolve(''));
+    // v0.9.1197: the ONE photo resolver (drive.js rrPhotoFolderFor).
+    var _detailLinkP = (typeof rrPhotoFolderFor === 'function')
+      ? rrPhotoFolderFor(pd)
+      : Promise.resolve(_photoLink || '');
     _detailLinkP.then(function (_lnk) {
     if (!_lnk) return;
     return driveGetFolderPhotos(_lnk).then(function(photos) {
