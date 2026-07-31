@@ -1717,15 +1717,42 @@
   }
 
   // ── actions ──────────────────────────────────────────────────────
+  // The app's BUILT-IN palette, read from the stylesheet rather than from
+  // whatever :root happens to be wearing. A saved custom skin lives as inline
+  // properties on :root, so simply removing this session's overrides falls
+  // back to that skin — which is why Reset never reached the default. The
+  // inline values are lifted off, the real cascade is read, and they go
+  // straight back; nothing on screen changes while it happens.
+  function _defaultPalette() {
+    var all = EDIT_VARS.map(function (e) { return e[0]; }).concat(DERIVED_VARS);
+    var saved = {}, out = {};
+    all.forEach(function (v) {
+      saved[v] = _root.style.getPropertyValue(v);
+      _root.style.removeProperty(v);
+    });
+    var cs = getComputedStyle(_root);
+    all.forEach(function (v) { out[v] = (cs.getPropertyValue(v) || '').trim(); });
+    all.forEach(function (v) { if (saved[v]) _root.style.setProperty(v, saved[v]); });
+    return out;
+  }
+
   window._rrapReset = function () {
-    // Remove exactly the properties THIS session set — never blanket-clear
-    // an element's inline style, which would take other code's work with it.
-    var keys = Object.keys(_live), st = _stage();
-    keys.forEach(function (v) {
+    // Brad: "reset to default doesn't reset it back to our normal layout."
+    // It used to work by ABSENCE — drop this session's overrides and let
+    // whatever is underneath show through. Underneath is the saved skin, so
+    // Reset returned you to your last look, not to the app's. It now states
+    // the default outright, which is also the only version of this that can
+    // be tested.
+    var st = _stage();
+    Object.keys(_live).forEach(function (v) {
       if (st) st.style.removeProperty(v);
       if (_preview) _root.style.removeProperty(v);
     });
     _live = {};
+    var def = _defaultPalette();
+    // `true` because every one is being set explicitly — deriving the text
+    // shades here would overwrite the defaults we just read for them.
+    Object.keys(def).forEach(function (v) { if (def[v]) _set(v, def[v], true); });
     // Brad: "reset to default didn't get rid of it either." Default means the
     // plain app — no skin AND no logo. The removal is still only a candidate;
     // Apply makes it real, Cancel puts the logo back.

@@ -7443,9 +7443,21 @@ META_WRITES.length = 0; TOASTS.length = 0;
        (apc.match(/lv_theme/g) || []).length === 1);
     ok('…reached from Apply and the phone preset sheet, and nowhere else',
        (apc.match(/_persist\(/g) || []).length === 3);
+    // v0.9.1224, Brad: "reset to default doesn't reset it back to our normal
+    // layout." Reset worked by ABSENCE — drop this session's overrides and
+    // let what is underneath show. Underneath is the SAVED skin, so it
+    // returned you to your last look rather than the app's.
+    ok('Reset states the default outright instead of falling back to it',
+       /function _defaultPalette\(\)/.test(ap) &&
+       /Object\.keys\(def\)\.forEach\(function \(v\) \{ if \(def\[v\]\) _set\(v, def\[v\], true\); \}\)/.test(ap));
+    ok('…read from the stylesheet, with the inline skin lifted off and put back',
+       /saved\[v\] = _root\.style\.getPropertyValue\(v\);\s*\n\s*_root\.style\.removeProperty\(v\);/.test(ap) &&
+       /if \(saved\[v\]\) _root\.style\.setProperty\(v, saved\[v\]\)/.test(ap));
+    ok('…covering the derived shades as well as the eleven boxes',
+       /EDIT_VARS\.map\(function \(e\) \{ return e\[0\]; \}\)\.concat\(DERIVED_VARS\)/.test(ap));
     ok('Reset removes only what this session set, never the whole inline style',
        !/style\.cssText\s*=\s*''/.test(apc) &&
-       /var keys = Object\.keys\(_live\), st = _stage\(\)/.test(ap));
+       /Object\.keys\(_live\)\.forEach\(function \(v\) \{\s*\n\s*if \(st\) st\.style\.removeProperty\(v\);/.test(ap));
 
     // ── 4. Desktop only; presets on a phone ──────────────────────────────
     // Brad: "Making and editing skins will only be done on a desktop. Only

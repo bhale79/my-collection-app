@@ -209,6 +209,33 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
          hov.opts >= 2 && !!hov.whatOn, hov.opts + ' options');
       ok(at + ': the chips and leader lines are gone', hov.chips === 0);
 
+      // Brad: "reset to default doesn't reset it back to our normal layout."
+      // The real test is with a saved skin already on :root — that is the
+      // case where falling back by absence lands on the wrong thing.
+      const reset = await page.evaluate(() => {
+        const root = document.documentElement;
+        const before = getComputedStyle(root).getPropertyValue('--bg').trim();
+        // Pretend a custom skin has already been applied and saved.
+        root.style.setProperty('--bg', '#123456');
+        root.style.setProperty('--text', '#abcdef');
+        window._rrapReset();
+        const stage = document.getElementById('rrap-stage');
+        const got = stage.style.getPropertyValue('--bg').trim();
+        const gotText = stage.style.getPropertyValue('--text').trim();
+        // Read the INLINE value, not the computed one: the question is
+        // whether reading the defaults put the skin back where it found it.
+        const restored = root.style.getPropertyValue('--bg').trim();
+        root.style.removeProperty('--bg'); root.style.removeProperty('--text');
+        return { before, got, gotText, restored };
+      });
+      ok(at + ': Reset goes to the app default, not to the saved skin',
+         !!reset.got && reset.got.toLowerCase() === reset.before.toLowerCase(),
+         'got ' + reset.got + ', default is ' + reset.before);
+      ok(at + ': …and it resets the writing too, not just the page',
+         !!reset.gotText && reset.gotText.toLowerCase() !== '#abcdef');
+      ok(at + ': …and reading the default puts the live skin back as it found it',
+         reset.restored === '#123456', 'root kept ' + JSON.stringify(reset.restored));
+
       // A pop-up that is see-through is not a pop-up. Every floating panel
       // must resolve to a real, opaque background — this is exactly what
       // went wrong when they were appended outside the element that
