@@ -1086,7 +1086,19 @@ async function rrRemoveSetGroup(groupId) {
   for (const key of keys) {
     try {
       const pd = state.personalData[key];
-      if (pd && pd.row) await sheetsDeleteRow(state.personalSheetId, PERSONAL_TAB, pd.row);
+      if (pd && pd.row) {
+        await sheetsDeleteRow(state.personalSheetId, PERSONAL_TAB, pd.row);
+        // v0.9.1236 (identity audit): a sheet row number is a POSITION, and
+        // deleting a row moves every row beneath it up by one. Every other
+        // delete path in the app calls this; this one never did, so cancelling
+        // a set left every later item's remembered row one too high. Nothing
+        // looked wrong — until the next edit, which then wrote to the row
+        // BELOW the item being edited and overwrote a different item.
+        if (typeof _adjustRowsAfterDelete === 'function') {
+          _adjustRowsAfterDelete(state.personalData, pd.row);
+          if (state.forSaleData) _adjustRowsAfterDelete(state.forSaleData, pd.row);
+        }
+      }
       delete state.personalData[key];
       removed++;
     } catch (e) { console.warn('[setGroup] delete failed:', e); }

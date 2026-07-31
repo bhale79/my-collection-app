@@ -246,7 +246,7 @@ function vaultShowOptInModal(fromPrefs) {
             color:var(--text-mid);font-family:var(--font-body);
             font-size:0.9rem;cursor:pointer;min-width:140px
           ">Opt Out &amp; Delete My Data</button>
-          <button onclick="document.getElementById('vault-optin-modal').remove()" style="
+          <button onclick="_vaultCloseOptInModal()" style="
             flex:1;padding:11px 20px;border-radius:8px;border:none;
             background:var(--surface2);color:var(--text);font-family:var(--font-body);
             font-size:0.9rem;cursor:pointer;min-width:140px
@@ -269,15 +269,26 @@ function vaultShowOptInModal(fromPrefs) {
 
 function vaultConfirmOptIn() {
   vaultSetOptIn(true);
-  document.getElementById('vault-optin-modal').remove();
+  // v0.9.1236 (button audit): these two functions were written for the pop-up
+  // and are ALSO wired to the buttons on the Market page, where there is no
+  // pop-up to remove. The unguarded remove() threw on the page, so the opt-in
+  // flag was set and then nothing else ran — no submission, no message, no
+  // visible error (the global error net waits for three in eight seconds).
+  // Pressing it looked like the tap had not registered.
+  _vaultCloseOptInModal();
   vaultSubmitData();   // submit right away
   vaultShowToast('You\'re contributing to Collector\'s Market Est. Thank you!');
 }
 
+// ONE place that closes it, and it does not mind if there is nothing to close.
+function _vaultCloseOptInModal() {
+  var m = document.getElementById('vault-optin-modal');
+  if (m) m.remove();
+}
+
 function vaultDismissOptIn() {
   // Don't set a value — ask again next session
-  const modal = document.getElementById('vault-optin-modal');
-  if (modal) modal.remove();
+  _vaultCloseOptInModal();
 }
 
 async function vaultConfirmOptOut() {
@@ -292,7 +303,11 @@ async function vaultConfirmOptOut() {
   localStorage.removeItem(VAULT.KEY_TOKEN);
   vaultGetToken();  // generates fresh token
 
-  document.getElementById('vault-optin-modal').remove();
+  // Same fault as opt-in, and worse: this one is async, so the throw became an
+  // unhandled rejection. The data really WAS deleted and the token really was
+  // rotated — but the message never appeared and the "you are contributing"
+  // panel stayed on screen, so it read as a failed opt-out.
+  _vaultCloseOptInModal();
   vaultShowToast('Your data has been removed. You can opt back in any time from Preferences.');
 }
 

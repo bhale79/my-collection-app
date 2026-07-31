@@ -457,7 +457,7 @@ async function _sellMakeLink() {
     var id = await _sellSync(); _sellLiveLink = _sellSheetLink(id);
     var row = document.getElementById('sell-link-row');
     if (row) row.innerHTML = '<input readonly value="' + _sellEsc(_sellLiveLink) + '" style="flex:1;padding:0.5rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:0.78rem" onclick="this.select()">' +
-      '<button onclick="navigator.clipboard.writeText(\'' + _sellLiveLink + '\');showToast(\'Link copied\')" style="padding:0.5rem 0.7rem;border-radius:8px;border:1.5px solid #0891b2;background:rgba(8,145,178,0.1);color:#0891b2;font-weight:600;font-size:0.82rem;cursor:pointer">Copy</button>';
+      '<button onclick="navigator.clipboard.writeText(\'' + _sellLiveLink + '\').then(function(){showToast(\'Link copied\')}).catch(function(){showToast(\'Could not copy it \u2014 tap the box and copy it by hand\',4000,true)})" style="padding:0.5rem 0.7rem;border-radius:8px;border:1.5px solid #0891b2;background:rgba(8,145,178,0.1);color:#0891b2;font-weight:600;font-size:0.82rem;cursor:pointer">Copy</button>';
     _sellStatus('Live list updated. Customers with access always see the latest.');
   } catch (e) { console.error(e); _sellStatus('Could not build the list — try again.'); if (btn) { btn.disabled = false; btn.textContent = 'Create / refresh live list'; } }
 }

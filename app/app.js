@@ -1866,6 +1866,16 @@ async function loadAllErasMode() {
       try { localStorage.setItem('lv_master_cache_ts_' + _era, Date.now().toString()); } catch(e) {}
       // Swap in just this era's slice — every other era's rows stay untouched.
       state.masterData = (state.masterData || []).filter(function(m) { return m._era !== _era; }).concat(deduped);
+      // v0.9.1236 (identity audit): that line MOVES this era's block to the end
+      // of the array, so every row at or after it changes index. The rendered
+      // browse rows carry their index baked into their onclick, and the app
+      // invites the user to keep working while eras load ("loading more eras
+      // 2/7"). Clicking a row during that window opened a different item — and
+      // answering "yes, I own this" filed the wrong one. Rebuilding here also
+      // bumps _rrDataRev, which is what tells the browse render its cached DOM
+      // is stale; the length-based fingerprint cannot see a reorder.
+      if (typeof _rebuildMasterIndex === 'function') _rebuildMasterIndex();
+      if (typeof renderBrowse === 'function') renderBrowse();
       if (state.loading && state.loading.allEras) {
         state.loading.allEras.loaded++;
         if (typeof _renderAllLoadingIndicator === 'function') _renderAllLoadingIndicator();

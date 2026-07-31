@@ -6780,7 +6780,7 @@
       + '</table>'
       + '<textarea id="pin-audit-txt" readonly style="width:100%;box-sizing:border-box;height:150px;margin-top:0.9rem;padding:0.6rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.72rem">' + rrEsc(txt) + '</textarea>'
       + '<div style="display:flex;gap:0.5rem;margin-top:0.7rem">'
-      +   '<button onclick="(function(){var t=document.getElementById(\'pin-audit-txt\');t.select();try{document.execCommand(\'copy\');showToast(\'Copied \u2014 paste it to Claude\',2500);}catch(e){}})()" style="flex:1;padding:0.7rem;border-radius:9px;border:none;background:var(--accent);color:var(--on-accent);font-weight:700;font-size:0.9rem;min-height:48px;cursor:pointer">Copy the results</button>'
+      +   '<button onclick="(function(){var t=document.getElementById(\'pin-audit-txt\');t.select();try{document.execCommand(\'copy\');showToast(\'Copied \u2014 you can paste it into an email to us\',2500);}catch(e){}})()" style="flex:1;padding:0.7rem;border-radius:9px;border:none;background:var(--accent);color:var(--on-accent);font-weight:700;font-size:0.9rem;min-height:48px;cursor:pointer">Copy the results</button>'
       +   '<button onclick="document.getElementById(\'pin-audit-ov\').remove()" style="flex:1;padding:0.7rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-weight:700;font-size:0.9rem;min-height:48px;cursor:pointer">Close</button>'
       + '</div>'
       + '<button onclick="_pinAuditClear()" style="width:100%;margin-top:0.5rem;padding:0.6rem;border-radius:9px;border:none;background:none;color:var(--text-dim);font-size:0.85rem;cursor:pointer">Throw these away and start fresh next time</button>'

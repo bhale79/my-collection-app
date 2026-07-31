@@ -8998,6 +8998,115 @@ META_WRITES.length = 0; TOASTS.length = 0;
     })();
   })();
 
+
+  section('188. What the audits found, and what was fixed (v0.9.1236)');
+  (function () {
+    const pathJ = require('path');
+    const rd = f => fs.readFileSync(pathJ.join(__dirname, '..', 'app', f), 'utf8');
+    const vault = rd('vault.js'), pin = rd('photo-inbox.js'), sell = rd('sell.js');
+    const wz = rd('wizard.js'), app = rd('app.js');
+
+    // ── 1. Two buttons on the Market page did nothing at all ────────────
+    // vaultConfirmOptIn/OptOut are wired to BOTH the pop-up and the Market
+    // page. On the page there is no pop-up, so an unguarded .remove() threw
+    // and everything after it — the submission, the message — never ran.
+    ok('closing the opt-in pop-up happens in one place',
+       /function _vaultCloseOptInModal\(\)/.test(vault));
+    ok('…and it does not mind when there is no pop-up to close',
+       /var m = document\.getElementById\('vault-optin-modal'\);\s*\n\s*if \(m\) m\.remove\(\);/.test(vault));
+    ok('no caller reaches past it to remove the pop-up itself',
+       (vault.match(/getElementById\('vault-optin-modal'\)\.remove\(\)/g) || []).length === 0,
+       'sites: ' + (vault.match(/getElementById\('vault-optin-modal'\)\.remove\(\)/g) || []).join(' '));
+    ok('…so opting in still submits, and opting out still confirms',
+       /_vaultCloseOptInModal\(\);\s*\n\s*vaultSubmitData\(\)/.test(vault) &&
+       /_vaultCloseOptInModal\(\);\s*\n\s*vaultShowToast\('Your data has been removed/.test(vault));
+
+    // RUN it on a page with no modal — the old code threw here
+    (function () {
+      let submitted = false, said = null, optin = null;
+      const doc = { getElementById: () => null };
+      const src = vault.slice(vault.indexOf('function vaultConfirmOptIn()'),
+                              vault.indexOf('function vaultDismissOptIn()'));
+      let threw = null;
+      try {
+        new Function('document', 'vaultSetOptIn', 'vaultSubmitData', 'vaultShowToast',
+          '"use strict";' + src + '; vaultConfirmOptIn();')(
+            doc, v => { optin = v; }, () => { submitted = true; }, m => { said = m; });
+      } catch (e) { threw = String(e && e.message); }
+      ok('on the Market page, Yes I\'ll Contribute now goes all the way through',
+         !threw && optin === true && submitted === true && /Thank you/.test(said || ''),
+         threw || ('optin=' + optin + ' submitted=' + submitted));
+    })();
+
+    // ── 2. THE HARD RULE: the app never says AI, and never names a model ─
+    ok('nothing user-facing tells anyone to paste results to Claude',
+       !/paste it to Claude/.test(pin));
+    ok('…the button still says what it copied',
+       pin.indexOf('you can paste it into an email to us') > 0);
+
+    // ── 3. A toast that said "copied" whether or not it copied ──────────
+    const copyBtn = sell.slice(sell.indexOf('navigator.clipboard.writeText'),
+                               sell.indexOf('>Copy</button>'));
+    ok('the live-list Copy button waits to find out before it claims success',
+       copyBtn.indexOf('.then(') > 0 &&
+       copyBtn.indexOf('.then(') < copyBtn.indexOf('Link copied'), copyBtn.slice(0, 90));
+    ok('…and says so plainly when the browser refuses',
+       copyBtn.indexOf('.catch(') > 0 && copyBtn.indexOf('Could not copy it') > 0);
+
+    // ── 4. Cancelling a set left every later row number wrong ───────────
+    const rsg = wz.slice(wz.indexOf('async function rrRemoveSetGroup'),
+                         wz.indexOf("if (typeof window !== 'undefined') window.rrRemoveSetGroup"));
+    ok('deleting a set row pulls the rows beneath it up, like every other delete',
+       /_adjustRowsAfterDelete\(state\.personalData, pd\.row\)/.test(rsg));
+    ok('…and it happens after the delete, not before',
+       rsg.indexOf('sheetsDeleteRow') < rsg.indexOf('_adjustRowsAfterDelete'));
+    ok('…for the For Sale list too, which is keyed the same way',
+       /_adjustRowsAfterDelete\(state\.forSaleData, pd\.row\)/.test(rsg));
+
+    // RUN it: three set rows deleted, everything below must move up three
+    (function () {
+      const pdata = {};
+      for (let r = 2; r <= 10; r++) {
+        pdata['k' + r] = { row: r, groupId: (r >= 4 && r <= 6) ? 'G1' : '' };
+      }
+      const deleted = [];
+      const adjust = (obj, delRow) => {
+        Object.keys(obj).forEach(k => { if (obj[k].row > delRow) obj[k].row--; });
+      };
+      // In this harness an async assertion is an INVISIBLE one — the summary
+      // line is synchronous and calls process.exit. The async/await here is
+      // only the Sheets round trip; the row arithmetic under test is
+      // untouched by removing it, and the stub returns nothing to await.
+      const src = rsg.replace(/\basync\s+/g, '').replace(/\bawait\s+/g, '')
+                     .replace('function rrRemoveSetGroup', 'return function rrRemoveSetGroup');
+      const fn = new Function('state', 'sheetsDeleteRow', 'PERSONAL_TAB',
+        '_adjustRowsAfterDelete', 'localStorage', 'console',
+        '"use strict";' + src)(
+          { personalData: pdata, personalSheetId: 'S', forSaleData: null },
+          (sid, tab, row) => { deleted.push(row); }, 'T', adjust,
+          { removeItem() {} }, { warn() {} });
+      const n = fn('G1');
+      ok('the three set rows are the ones deleted, bottom-up',
+         n === 3 && deleted.join(',') === '6,5,4', deleted.join(','));
+      // rows 7..10 each sat below three deletions -> 4,5,6,7
+      ok('…and every row that was below them now knows its new position',
+         [7, 8, 9, 10].map(r => pdata['k' + r].row).join(',') === '4,5,6,7',
+         [7, 8, 9, 10].map(r => pdata['k' + r].row).join(','));
+      ok('…while the rows above them are untouched',
+         [2, 3].map(r => pdata['k' + r].row).join(',') === '2,3');
+    })();
+
+    // ── 5. A background era refresh renumbered the list under the user ──
+    const roe = app.slice(app.indexOf('async function _refreshOneEra'),
+                          app.indexOf('try {\n      var _queue = realEras.slice();'));
+    ok('an era swap rebuilds the index it just invalidated',
+       /_rebuildMasterIndex\(\)/.test(roe));
+    ok('…right after the swap, before anything can render a stale index',
+       roe.indexOf('state.masterData = ') < roe.indexOf('_rebuildMasterIndex()'));
+    ok('…and repaints, since the rows on screen carry the old numbering',
+       roe.indexOf('_rebuildMasterIndex()') < roe.indexOf('renderBrowse()'));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
