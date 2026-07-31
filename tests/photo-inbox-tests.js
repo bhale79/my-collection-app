@@ -7514,6 +7514,31 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /\.rrap-right\{[^}]*min-height:0/.test(ap) &&
        /\.rrap-main\{[^}]*min-height:0/.test(ap));
 
+    // ── 6a. The preview must not lie about the real app ─────────────────
+    // v0.9.1223, Brad boxing the top bar: "the blue area inside of my box,
+    // needs to be selectable as well." The replica's header read --surface
+    // and the real header read --navy, so the mock showed the bar recolouring
+    // and the real one never did. Anywhere those two disagree, the preview is
+    // telling a lie — so the pairs are checked, not trusted.
+    (function () {
+      // Slice the rule OUT before testing it. A non-greedy [\s\S]*? happily
+      // runs to the end of the stylesheet to find what it is looking for, so
+      // the first version of this check passed on the very code it was
+      // written to catch.
+      const block = (sel) => {
+        const i = css.indexOf(sel);
+        return i < 0 ? '' : css.slice(i, css.indexOf('}', i));
+      };
+      const pairs = [
+        ['the top bar', block('.header {'), /\.rrap-apph\{[^}]*background:var\(--surface\)/],
+        ['the menu',    block('.sidebar {'), /\.rrap-side\{[^}]*background:var\(--surface\)/],
+      ];
+      pairs.forEach(function (p) {
+        ok('the preview and the real app paint ' + p[0] + ' from the same colour',
+           /background: var\(--surface/.test(p[1]) && p[2].test(ap), p[1].slice(0, 90));
+      });
+    })();
+
     // ── 6b. Point at it, click it (v0.9.1220) ───────────────────────────
     // Brad: "it would be kind of nice if i just hovered over certain areas
     // and it hightlights all the area that would change if i picked it…

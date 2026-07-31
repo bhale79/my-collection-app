@@ -502,7 +502,16 @@
   /* Header */
   .header {
     position: relative;   /* v0.9.1213: so the collector's line can centre in it */
-    height: var(--header-h); background: var(--navy,#1a1d3a);
+    /* v0.9.1223. Brad, boxing the top bar: "the blue area inside of my box,
+       needs to be selectable as well. the area left of my box will keep the
+       same becasue that is our apps logo and we won't change that."
+       It read --navy, which no skin has ever touched, while the preview's
+       own header read --surface — so the mock showed the bar recolouring
+       and the real one never did. The label on that control has said
+       "cards · sidebar · top bar" since the day it was written; the top bar
+       simply was not wired to it. The conductor and the wordmark to its
+       left are untouched. */
+    height: var(--header-h); background: var(--surface, var(--navy,#1a1d3a));
     border-bottom: 4px solid #2980b9;   /* v0.9.914 (Brad): doubled 2px -> 4px */
     display: flex; align-items: center; padding: 0 1.25rem;
     gap: 1rem; flex-shrink: 0; z-index: 100;

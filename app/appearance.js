@@ -43,7 +43,7 @@
   // the layout — docking + stacking are computed from each scene's targets.
   var EDIT_VARS = [
     ['--bg',       'Background',      'whole app canvas'],
-    ['--surface',  'Panels',          'cards · sidebar · tables'],
+    ['--surface',  'Panels',          'cards · sidebar · top bar'],
     ['--surface2', 'Input fields',    'boxes · dropdowns'],
     ['--text',     'Text',            'the cream'],
     ['--border',   'Lines',           'borders · dividers'],
