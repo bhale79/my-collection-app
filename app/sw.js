@@ -4,7 +4,39 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v1224';
+const CACHE_NAME = 'mca-v1225';
+
+// ── v0.9.1214: the version stamp has to survive as far as the cache ──
+// Brad, on v1213: "im reset twice and it still looks the same." He was
+// right, and this file was the reason.
+//
+// Every app file is requested as "thing.js?v=1213". This worker used to
+// STRIP that query before looking in the cache, so a worker still holding
+// last deploy's files answered a request for v1213 with a copy of v1212 —
+// the version stamp thrown away at the exact moment it matters. Worse, a
+// browser only re-checks sw.js every ten minutes, so an OLD worker kept
+// doing that long after the deploy landed. The page reported the new
+// version (config.js happened to have been revalidated) while the rest of
+// the app was a deploy behind. That is every "his browser cached hard"
+// incident of 2026-07-30/31, in one line of code.
+//
+// A versioned URL is unique by construction: it can never be stale, so it
+// is cached UNDER that URL and a mismatched worker simply misses and goes
+// to the network. The version this worker was registered at — index.html
+// registers './sw.js?v=NNNN' — is the one it precaches with, so there is
+// no extra number to keep in step with the trio.
+const ASSET_V = (function () {
+  try { return new URL(self.location.href).searchParams.get('v') || ''; }
+  catch (e) { return ''; }
+})();
+const _vq = ASSET_V ? ('?v=' + ASSET_V) : '';
+// Only our own .js and .css are requested with a ?v — those are the ones
+// index.html stamps. Anything else (the page, the manifest, icons, and the
+// two third-party URLs) is asked for bare and must be cached bare, or it
+// would be filed under a key nothing ever requests.
+function _stamped(url) {
+  return (url.indexOf('./') === 0 && /\.(js|css)$/.test(url)) ? (url + _vq) : url;
+}
 
 const SHELL_FILES = [
   './index.html',
@@ -122,7 +154,7 @@ self.addEventListener('install', event => {
   // the console.
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache =>
-      Promise.all(SHELL_FILES.map(url =>
+      Promise.all(SHELL_FILES.map(_stamped).map(url =>
         cache.add(url).catch(err => {
           console.warn('[sw] precache miss:', url, err && err.message);
           return url;   // resolve, so one miss can't sink the rest
@@ -171,18 +203,15 @@ self.addEventListener('fetch', event => {
   // Only GET requests can be cached; let anything else pass through.
   if (event.request.method !== 'GET') return;
 
-  // v0.9.875: cache our own files under their URL WITHOUT the ?v=
-  // cache-buster. Before this, the install pre-cache stored "app.js"
-  // but the page asked for "app.js?v=874" — never a match, so every
-  // file was downloaded twice and the pre-cache was never used.
-  // With one shared key, pre-cache + stale-while-revalidate update
-  // the same entry. Safe because CACHE_NAME is wiped on every deploy.
-  let cacheKey = event.request;
-  if (url.startsWith(self.location.origin)) {
-    const u = new URL(url);
-    u.search = '';
-    cacheKey = u.href;
-  }
+  // v0.9.875 stripped the ?v= here so the precache and the page shared one
+  // key. It solved a double-download and created a far worse problem: a
+  // stale worker could answer a request for a NEW file with an OLD one.
+  // v0.9.1214 keeps the key exactly as asked. The precache is stamped to
+  // match (see _stamped above), so the double-download stays solved, and a
+  // request the cache has never seen now correctly goes to the network.
+  const cacheKey = event.request;
+  const isNav = event.request.mode === 'navigate' ||
+                (event.request.destination === 'document');
 
   // Stale-while-revalidate for app shell files:
   // 1. Serve from cache immediately (fast)
@@ -198,7 +227,15 @@ self.addEventListener('fetch', event => {
           return response;
         }).catch(() => cached);
 
-        return cached || networkFetch;
+        if (cached) return cached;
+        // A navigation that misses (offline, or "/app/" rather than
+        // "/app/index.html") falls back to the shell we precached, so the
+        // app still opens with no signal.
+        if (isNav) {
+          return networkFetch.catch(() =>
+            cache.match('./index.html').then(shell => shell || Response.error()));
+        }
+        return networkFetch;
       })
     )
   );

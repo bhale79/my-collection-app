@@ -7946,8 +7946,50 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const orphan = pre.filter(f => !scripts.includes(f));
     if (orphan.length) console.log('    note: precached but not loaded — ' + orphan.join(', '));
 
+    // ── v0.9.1214: the version stamp must survive as far as the cache ───
+    // Brad, on v1213: "im reset twice and it still looks the same." The
+    // worker stripped ?v= before looking in its cache, so a worker holding
+    // last deploy's files answered a request for the new one with the old.
+    ok('the worker caches a file under the URL it was actually asked for',
+       /const cacheKey = event\.request;/.test(sw) &&
+       !/u\.search = '';/.test(sw));
+    ok('…and precaches .js and .css at that same stamped URL',
+       /function _stamped\(url\)[\s\S]{0,220}\\\.\(js\|css\)\$/.test(sw) &&
+       /SHELL_FILES\.map\(_stamped\)/.test(sw));
+    ok('the stamp comes from the worker’s own URL — no fourth number to keep in step',
+       /searchParams\.get\('v'\)/.test(sw));
+    ok('the worker itself is registered WITH a version, so the browser sees it at once',
+       /serviceWorker\.register\('\.\/sw\.js\?v=(\d+)'\)/.test(idx));
+    // Everything the page asks for bare must stay bare, or it is filed
+    // under a key nothing ever requests.
+    // Rather than grep the guard's shape, RUN it — a rule about which files
+    // get stamped is exactly the kind of thing that reads right and behaves
+    // wrong. (The stamp itself is blank here; only the decision matters.)
+    (function () {
+      const fn = new Function('var _vq = "?v=9";'
+        + sw.slice(sw.indexOf('function _stamped(url)'), sw.indexOf('// Install: pre-cache'))
+        + '; return _stamped;')();
+      ok('our own scripts and styles are stamped',
+         fn('./app.js') === './app.js?v=9' && fn('./app.css') === './app.css?v=9');
+      ok('…and the page, the manifest and the icons are left bare',
+         fn('./index.html') === './index.html' &&
+         fn('./manifest.json') === './manifest.json' &&
+         fn('./icon-512.png') === './icon-512.png');
+      ok('…and third-party URLs are never touched',
+         fn('https://cdnjs.cloudflare.com/x.js') === 'https://cdnjs.cloudflare.com/x.js' &&
+         fn('https://fonts.googleapis.com/css2?family=Oswald') === 'https://fonts.googleapis.com/css2?family=Oswald');
+    })();
+    ok('a navigation that misses still opens the app from the shell',
+       /const isNav = event\.request\.mode === 'navigate'/.test(sw) &&
+       /if \(isNav\)[\s\S]{0,200}cache\.match\('\.\/index\.html'\)/.test(sw));
+
     // The version trio, checked on the new file too.
     const appVer = (rd('app/config.js').match(/APP_VERSION = 'v0\.9\.(\d+)'/) || [])[1];
+    ok('the service-worker registration rides the same version as everything else',
+       (idx.match(/sw\.js\?v=(\d+)/) || [])[1] === appVer,
+       'sw=' + (idx.match(/sw\.js\?v=(\d+)/) || [])[1] + ' app=' + appVer);
+    ok('…in the landing page too, which is easy to forget',
+       (rd('index.html').match(/sw\.js\?v=(\d+)/) || [])[1] === appVer);
     const marks = [...idx.matchAll(/\.js\?v=(\d+)/g)].map(m => m[1]);
     ok('every script tag rides the same ?v as APP_VERSION',
        !!appVer && marks.length > 50 && marks.every(v => v === appVer),
