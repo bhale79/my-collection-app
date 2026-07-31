@@ -1,3 +1,17 @@
+// v0.9.1195 (Brad's abacus): a DOM id must NEVER be built from raw user text.
+// Hand-typed item "numbers" are titles — '"Add Up Your 1966 Lionel Profits" —
+// Lionel Dealer Promo Abacus' — and the embedded double quote TERMINATED the
+// id attribute, so the element's real id became "thumb-", the
+// getElementById lookup missed, and the thumbnail silently never loaded.
+// 6 of his 168 items have such characters; ALL 6 have photos. The phone path
+// (coll-thumb-, ~3503) has sanitized since v0.9.1025; the desktop path never
+// did — same idea written twice, hardened once. ONE builder now, used by
+// every emit and every lookup, so the two sides cannot disagree again.
+function _rrRowDomKey(item) {
+  return (String(item && item.itemNum || '') + '-' + String(item && item.variation || ''))
+    .replace(/[^A-Za-z0-9_-]/g, '_');   // underscore, not strip: "53 x" and "53x" stay distinct
+}
+
 // ── Era-aware browse tab visibility ──
 // Session 159 Phase 2d: when the cache has no inventoryId to disambiguate
 // duplicates, badge only the FIRST owned copy (lowest sheet row). Matches the
@@ -3574,7 +3588,7 @@ function renderBrowse() {
         </td>
         <td style="white-space:nowrap;text-align:center">${item.variation ? '<span style="font-size:0.78rem;color:var(--text-mid)">' + item.variation + '</span>' : '<span style="color:var(--text-dim)">—</span>'}</td>
         <td style="font-size:0.78rem;color:var(--text-dim)">${_typeText}${(pd && pd.subType) ? '<div style="font-size:0.66rem;opacity:0.8;margin-top:1px">' + pd.subType + '</div>' : ''}</td>
-        <td style="width:52px;text-align:center;padding:2px 4px"><div id="thumb-${item.itemNum}-${item.variation||''}" style="width:44px;height:44px;border-radius:5px;background:var(--surface2);display:inline-flex;align-items:center;justify-content:center;overflow:hidden;vertical-align:middle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div></td>
+        <td style="width:52px;text-align:center;padding:2px 4px"><div id="thumb-${_rrRowDomKey(item)}" style="width:44px;height:44px;border-radius:5px;background:var(--surface2);display:inline-flex;align-items:center;justify-content:center;overflow:hidden;vertical-align:middle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div></td>
         <td style="color:var(--text-mid);font-size:0.85rem" title="${(_descFull||'').replace(/"/g,'&quot;')}">${_descFull}</td>
         <td style="font-size:0.82rem;color:var(--gold);white-space:nowrap;text-align:center">${_estWorth}</td>
         <td style="font-size:0.76rem;color:var(--text-dim);white-space:nowrap;width:80px;text-align:center">${(function(){ var d = (pd && (pd.dateAdded || pd.datePurchased)) || ''; if (d) return (typeof _formatDate === 'function') ? _formatDate(d) : d; if (pd && pd._savedAt) { try { return new Date(pd._savedAt).toLocaleDateString(); } catch(e){} } return '—'; })()}</td>
@@ -3601,7 +3615,7 @@ function renderBrowse() {
         <td>
           <span class="item-num">${_displayItemNum(item)}${_isErrCar ? '<sup style="color:var(--accent);font-size:0.65rem">*</sup>' : ''}${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(\''+item.itemNum+'\',\''+((item.variation||'').replace(/\'/g,"\\\\'"))+'\','+globalIdx+',\''+(pd.inventoryId||'')+'\')" style="font-size:0.6rem;background:#2ecc71;color:#fff;border-radius:3px;padding:1px 4px;vertical-align:middle;font-weight:600;cursor:pointer" title="Complete this Quick Entry">⚡</span>' : ''}</span>${_noNumTag(item.itemNum)}${_eraBadgeHtml}
           ${_itemExternalLinkHTML(item)}
-          <span id="cam-${item.itemNum}-${item.variation||''}" style="margin-left:5px;font-size:0.85rem;cursor:pointer;display:none" onclick="event.stopPropagation();openPhotoFolder('${item.itemNum}','${pd&&pd.photoItem?pd.photoItem:''}')" title="Open photo folder">📷</span>
+          <span id="cam-${_rrRowDomKey(item)}" style="margin-left:5px;font-size:0.85rem;cursor:pointer;display:none" onclick="event.stopPropagation();openPhotoFolder('${item.itemNum}','${pd&&pd.photoItem?pd.photoItem:''}')" title="Open photo folder">📷</span>
         </td>
         <td><span class="tag">${(typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(item) : item.itemType) || '—'}</span></td>
         ${((_currentEra === 'atlas') || (item && item._tab === 'Atlas O')) ? (
@@ -3705,7 +3719,7 @@ function renderBrowse() {
       // the sorter and the renderer now.
       const pd2 = _rrPdForRow(item);
       if (!pd2 || !pd2.owned) return;
-      const thumbEl = document.getElementById('thumb-' + item.itemNum + '-' + (item.variation || ''));
+      const thumbEl = document.getElementById('thumb-' + _rrRowDomKey(item));
       if (!thumbEl) return;
       // cause 2: photos can be filed in the item's Drive folder while the
       // sheet's photo-link cell is still blank. The detail page already falls
@@ -3720,7 +3734,7 @@ function renderBrowse() {
       driveGetFolderPhotos(_link).then(function(photos) {
         if (photos && photos.length > 0) {
           const fileId = photos[0].id;
-          const el = document.getElementById('thumb-' + item.itemNum + '-' + (item.variation || ''));
+          const el = document.getElementById('thumb-' + _rrRowDomKey(item));
           if (el) {
             const img = document.createElement('img');
             img.style.cssText = 'width:40px;height:40px;object-fit:cover;border-radius:4px';
@@ -3729,7 +3743,7 @@ function renderBrowse() {
             loadDriveThumb(fileId, img, el, (photos[0] && photos[0].thumbnailLink) || null, 'lo');
           }
         } else {
-          const el = document.getElementById('thumb-' + item.itemNum + '-' + (item.variation || ''));
+          const el = document.getElementById('thumb-' + _rrRowDomKey(item));
           if (el) el.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;height:100%"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.35"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span>';
         }
       });
@@ -3808,7 +3822,7 @@ function renderBrowse() {
       // folder id is cached by the thumbnail pass, so this costs nothing new).
       const pd2 = _rrPdForRow(item);
       if (!pd2 || !pd2.owned) return;
-      const camEl = document.getElementById('cam-' + item.itemNum + '-' + (item.variation || ''));
+      const camEl = document.getElementById('cam-' + _rrRowDomKey(item));
       if (!camEl) return;
       const _camLinkP = pd2.photoItem
         ? Promise.resolve(pd2.photoItem)
@@ -3819,8 +3833,8 @@ function renderBrowse() {
         if (!_camLink) return;
         driveGetFolderPhotos(_camLink).then(function(photos) {
           if (photos && photos.length > 0) {
-            const c1 = document.getElementById('cam-' + item.itemNum + '-' + (item.variation || ''));
-            const c2 = document.getElementById('cam-' + item.itemNum + '-' + (item.variation || '') + '-m');
+            const c1 = document.getElementById('cam-' + _rrRowDomKey(item));
+            const c2 = document.getElementById('cam-' + _rrRowDomKey(item) + '-m');
             if (c1) c1.style.display = 'inline';
             if (c2) c2.style.display = 'inline';
           }

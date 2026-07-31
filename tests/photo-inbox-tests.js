@@ -6554,6 +6554,97 @@ META_WRITES.length = 0; TOASTS.length = 0;
        keys.every(function (k) { return k === 0 || (k > 1e12 && k < 4.2e12); }), JSON.stringify(keys));
   })();
 
+  section('163. A page-sized Lens paste cannot invent an identity (v0.9.1195)');
+  // Brad's UFO scene (Menards 279-4439) came back "Marx — Union Pacific,
+  // 2018" from a whole-page Ctrl+A paste. Proven by ablation on the REAL
+  // parser: "Marx" from one junk Facebook link (beating 40 "Menards" on
+  // ladder order), "Union Pacific" from lowercase "up" in "Beam up bovines",
+  // "2018" from a magazine article's date, and a stashed cabNum 922 from an
+  // Etsy listing. Three rules now: the number system outranks page keywords;
+  // abbreviations match case-sensitively; loose year/cab harvesting is
+  // short-answer-only. These load the REAL wizard-photos.js in a vm and run
+  // the REAL extractIdentifyMetadata.
+  (function () {
+    const pR = require('path');
+    const vm = require('vm');
+    const src = fs.readFileSync(pR.join(__dirname, '..', 'app', 'wizard-photos.js'), 'utf8');
+    const noop = function () {};
+    const sb = {
+      console: { log: noop, warn: noop, error: noop },
+      document: { getElementById: function () { return null; }, querySelectorAll: function () { return []; },
+                  querySelector: function () { return null; }, createElement: function () { return { style: {} }; },
+                  addEventListener: noop, body: {} },
+      navigator: { userAgent: 'node' }, localStorage: { getItem: function () { return null; }, setItem: noop },
+      setTimeout: setTimeout, clearTimeout: clearTimeout, setInterval: setInterval, clearInterval: clearInterval,
+    };
+    sb.window = sb; sb.self = sb; sb.window.addEventListener = noop;
+    vm.createContext(sb);
+    vm.runInContext(src, sb, { filename: 'wizard-photos.js' });
+    const extract = sb.extractIdentifyMetadata;
+    ok('extractIdentifyMetadata loads from the real file', typeof extract === 'function');
+
+    // A page-sized paste with every trap from Brad's real one: the item named
+    // in the AI Overview, "Marx" in a junk link, "Menards" everywhere,
+    // "Beam up bovines", an article date, an Etsy "Item #922". Padded past
+    // the page-size threshold with the kind of listing noise Ctrl+A collects.
+    var page = 'AI Overview\n'
+      + 'The image shows the Menards O Gauge UFO Scene (No. 279-4439), an animated model railroad accessory. www.trains.com\n'
+      + 'O gauge UFO scene from Menards | Classic Toy Trains Magazine Dec 4, 2018\n'
+      + 'Visual matches $240 eBay MENARDS 279-4439 UFO ACTION SCENE WITH BUILDING, O SCALE\n'
+      + 'Facebook UFO landing dioramas with Dept 56 and Marx figurines\n'
+      + 'Vat19.com Mini UFO Cow Abduction Kit: Beam up bovines with this fun kit\n'
+      + 'Etsy Flying Saucer W/alien Family - Item #922, Cast Bronze\n';
+    for (var pi = 0; pi < 40; pi++) page += 'Menards O Scale UFO Scene - YouTube - listing noise line ' + pi + ' In stock $100\n';
+    ok('the fixture is page-sized (past the 1200-char gate)', page.length > 1200, String(page.length));
+
+    const r = extract(page);
+    ok('the item number still reads correctly', r.itemNum === '279-4439', JSON.stringify(r));
+    ok('the maker is MENARDS — the number system outvotes the Marx junk link',
+       r.manufacturer === 'Menards', String(r.manufacturer));
+    ok('"Beam up bovines" is NOT the Union Pacific railroad', !r.roadName, String(r.roadName));
+    ok('the article date is NOT the item year', !r.year, String(r.year));
+    ok('the Etsy listing number is NOT a cab number', !r.cabNum, String(r.cabNum));
+    ok('the scale still reads (O gauge is all over the page)', r.gauge === 'O', String(r.gauge));
+
+    // Short labeled answers — the designed input — are untouched.
+    const s1 = extract('Manufacturer: Lionel\nManufacturer SKU: 6464-500\nRoad name: Timken\nYear manufactured: 1971');
+    ok('a short labeled answer still parses in full',
+       s1.itemNum === '6464-500' && s1.manufacturer === 'Lionel' && s1.roadName === 'Timken' && s1.year === '1971',
+       JSON.stringify(s1));
+    const s2 = extract('Road name: UP\nManufacturer SKU: 2023');
+    ok('an UPPERCASE abbreviation still reads as its railroad', s2.roadName === 'Union Pacific', String(s2.roadName));
+    const s3 = extract('The item is a Lionel 2343 Santa Fe F3 made in 1952, catalog number 2343.');
+    ok('a short prose answer still yields its year', s3.year === '1952', String(s3.year));
+    ok('...and its full-name road, case-insensitively', s3.roadName === 'Santa Fe', String(s3.roadName));
+    const s4 = extract('I set this up on the shelf next to a Lionel 2026 locomotive, catalog number 2026.');
+    ok('lowercase "up" in a SHORT answer is not a railroad either', !s4.roadName, String(s4.roadName));
+    // A labeled maker still beats the number system (precedence: label first).
+    const s5 = extract('Manufacturer: Lionel\nManufacturer SKU: 279-4439');
+    ok('an explicit label still outranks the number system', s5.manufacturer === 'Lionel', String(s5.manufacturer));
+
+    // The research card says when a not-in-catalog result bypasses filters.
+    const rsc = fs.readFileSync(pR.join(__dirname, '..', 'app', 'research.js'), 'utf8');
+    ok('the research card names the active filter it bypassed',
+       /Shown even though your filter is set to/.test(rsc) && /rrActiveFilter/.test(rsc));
+
+    // Bug D: every thumbnail id in browse.js goes through the ONE sanitizer.
+    const brw2 = fs.readFileSync(pR.join(__dirname, '..', 'app', 'browse.js'), 'utf8');
+    ok('_rrRowDomKey exists and underscores unsafe characters',
+       /function _rrRowDomKey/.test(brw2) && /replace\(\/\[\^A-Za-z0-9_-\]\/g, '_'\)/.test(brw2));
+    ok('no thumb/cam id is built from raw item text any more',
+       brw2.indexOf("'thumb-' + item.itemNum") < 0 && brw2.indexOf("'cam-' + item.itemNum") < 0
+       && brw2.indexOf('id="thumb-${item.itemNum}') < 0 && brw2.indexOf('id="cam-${item.itemNum}') < 0);
+    ok('emit and lookup share the builder (8 call sites)',
+       (brw2.match(/_rrRowDomKey\(item\)/g) || []).length >= 8,
+       String((brw2.match(/_rrRowDomKey\(item\)/g) || []).length));
+    // The abacus id, exactly as stored, is now a legal DOM id.
+    const kIdx2 = brw2.indexOf('function _rrRowDomKey');
+    const keyFn = new Function('"use strict";' + brw2.slice(kIdx2, brw2.indexOf('\n}', kIdx2) + 2) + '; return _rrRowDomKey;')();
+    const abacusId = keyFn({ itemNum: '"Add Up Your 1966 Lionel Profits" — Lionel Dealer Promo Abacus', variation: '' });
+    ok('the abacus title becomes a quote-free, attribute-safe id',
+       abacusId.indexOf('"') < 0 && /^[A-Za-z0-9_-]+$/.test(abacusId), abacusId);
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

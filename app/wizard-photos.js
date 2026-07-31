@@ -1246,9 +1246,18 @@ function extractIdentifyMetadata(text, opts) {
   // Road name — prefer labeled value, fall back to dictionary scan of raw.
   if (lblRoad) {
     // Find the first known road that appears in the labeled value.
+    // v0.9.1195 (Brad's UFO scene): ABBREVIATIONS match case-SENSITIVELY.
+    // The pair ['UP','Union Pacific'] with an 'i' flag matched the word "up"
+    // in a Vat19 toy link — "Beam **up** bovines" — and a cow-abduction kit
+    // became the Union Pacific railroad. Same landmine armed in IC, CN, CP,
+    // PRR, NYC, CSX. Full names ('Santa Fe', 'Reading' as a word this short
+    // list treats as a name) stay case-insensitive so "UNION PACIFIC" and
+    // "union pacific" both still match. A matcher built for labels breaks on
+    // prose — v1164's lesson, third appearance.
     for (const pair of _IDENTIFY_ROAD_NAMES) {
       try {
-        const re = new RegExp('\\b' + pair[0].replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/&/g, '\\&') + '\\b', 'i');
+        const re = new RegExp('\\b' + pair[0].replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/&/g, '\\&') + '\\b',
+                              /^[A-Z&]{2,7}$/.test(pair[0]) ? '' : 'i');
         if (re.test(lblRoad)) { out.roadName = pair[1]; break; }
       } catch(e) {}
     }
@@ -1258,11 +1267,22 @@ function extractIdentifyMetadata(text, opts) {
     for (const pair of _IDENTIFY_ROAD_NAMES) {
       const escaped = pair[0].replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/&/g, '\\&');
       try {
-        const re = new RegExp('\\b' + escaped + '\\b', 'i');
+        const re = new RegExp('\\b' + escaped + '\\b',
+                              /^[A-Z&]{2,7}$/.test(pair[0]) ? '' : 'i');   // v0.9.1195: see above
         if (re.test(raw)) { out.roadName = pair[1]; break; }
       } catch(e) {}
     }
   }
+
+  // v0.9.1195 (Brad's UFO scene): a whole-page Ctrl+A paste is a different
+  // kind of input from a short labeled answer, and the bare-text fallbacks
+  // below must know it. On his paste the first year-shaped digits were a
+  // magazine article's date ("Dec 4, **2018**" — and with that removed, 2019
+  // from the next listing), and the cab-number regex fished **#922** out of
+  // an Etsy listing for a bronze flying saucer. Labeled values ("Year
+  // manufactured: …") are still trusted at any size; the LOOSE harvest only
+  // runs on short answers, where it was designed to work. Blank beats junk.
+  const _pageSized = raw.length > 1200;
 
   // Year — prefer labeled value, then raw text. Plausible 1900-2030.
   function _grabYear(s) {
@@ -1272,7 +1292,7 @@ function extractIdentifyMetadata(text, opts) {
     const m = String(s).match(/(~\s?)?\b(19[0-9]{2}|20[0-2][0-9]|2030)\b/);
     return m ? ((m[1] ? '~' : '') + m[2]) : null;
   }
-  out.year = _grabYear(lblYear) || _grabYear(raw) || undefined;
+  out.year = _grabYear(lblYear) || (_pageSized ? null : _grabYear(raw)) || undefined;
   // v0.9.700 (Brad's Railroaders): "Late 1940s-1950s" has no exact year but IS
   // the answer — keep the labeled text when it names a decade/era.
   if (!out.year && lblYear) {
@@ -1293,7 +1313,7 @@ function extractIdentifyMetadata(text, opts) {
     const c = _grabCab(lblCab);
     if (c) out.cabNum = c;
   }
-  if (!out.cabNum) {
+  if (!out.cabNum && !_pageSized) {   // v0.9.1195: no loose-number fishing in a page-sized paste (Etsy's "Item #922")
     const cabMatch = raw.match(/(?:#|No\.?\s?|number\s)(\d{2,5})(?![\d-])/i);
     if (cabMatch) out.cabNum = cabMatch[1];
   }
@@ -1337,8 +1357,21 @@ function extractIdentifyMetadata(text, opts) {
     out.subType = lblClass.trim();
   }
 
-  // Manufacturer — match against known list.
-  for (const mfr of _IDENTIFY_MFRS) {
+  // v0.9.1195 (Brad's UFO scene): the NUMBER SYSTEM outranks any keyword
+  // scraped from the page. 279-#### is unambiguously Menards — but the old
+  // order let a keyword ladder run first, and the single word "Marx" in a
+  // junk Facebook link ("UFO dioramas with Dept 56 and Marx figurines") beat
+  // FORTY occurrences of "Menards", because marx sits before menards in the
+  // ladder. The rule that knew better (v0.9.682's 27[59]- inference) only
+  // fired `if (!out.manufacturer)` — pre-empted by its own teammate. Number
+  // systems are identity; page keywords are hearsay. Precedence now:
+  // explicit label > number system > keyword scan. External-link rules key on
+  // NUMBER SYSTEMS, not years — same law, reader side.
+  const _numSysMfr = (out.itemNum && /^27[59]-\d{3,4}$/.test(String(out.itemNum).trim())) ? 'Menards' : '';
+
+  // Manufacturer — match against known list (skipped when the number system
+  // already names the maker; a page keyword must not outvote it).
+  if (!_numSysMfr) for (const mfr of _IDENTIFY_MFRS) {
     const escaped = mfr.replace(/[-]/g, '[-\\s]?');
     try {
       const re = new RegExp('\\b' + escaped + '\\b', 'i');
@@ -1528,6 +1561,8 @@ function extractIdentifyMetadata(text, opts) {
   };
   if (out.manufacturer) {
     out.manufacturer = _canonMfr(out.manufacturer) || out.manufacturer;
+  } else if (_numSysMfr) {
+    out.manufacturer = _numSysMfr;   // v0.9.1195: the number system speaks before the page does
   } else {
     var _rawMfr = _canonMfr(raw);
     if (_rawMfr) out.manufacturer = _rawMfr;
