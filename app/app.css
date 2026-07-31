@@ -600,6 +600,30 @@
   /* Main content */
   .main { flex: 1; overflow-y: auto; padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; }
 
+  /* ── The Appearance editor's paper (v0.9.1206) ──────────────────
+     Brad: "this whole page is super dark, its hard to see anything.
+     This should be the cream background."
+
+     The cause was structural, not cosmetic: the editor painted itself
+     with the very skin it was editing, so designing a dark skin made
+     the tool unreadable. The chrome now has its own palette that never
+     changes; only the preview inside it repaints.
+
+     Deliberately named --p-* rather than --bg/--surface/--text so it
+     can NEVER shadow the skin variables the preview replica reads.
+     Values match the light .main island above — one cream, not two. */
+  #rrap, #rrap-prevbar, #rrap-mini {
+    --p-paper:   #f8e8c0;
+    --p-panel:   #fffdf6;
+    --p-panel2:  #f5eeda;
+    --p-line:    #d4c8a8;
+    --p-line-hi: #c0b090;
+    --p-ink:     #2a2015;
+    --p-ink-mid: #5a4e38;
+    --p-ink-dim: #8a7e68;
+    --p-accent:  #b8480f;
+  }
+
   /* ── Dashboard ─────────────────────────────────────────────── */
   .page { display: none; }
   .page.active { display: contents; }

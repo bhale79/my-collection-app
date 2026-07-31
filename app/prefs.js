@@ -273,8 +273,10 @@ function buildPrefsPage() {
       </div>
       ${(typeof APPEARANCE_ENABLED !== 'undefined' && APPEARANCE_ENABLED) ? `
       <div class="pref-row">
-        <div class="pref-row-label"><strong>🎨 Appearance</strong><span>Customize the app's colors — click any swatch, pick a color, see it change live.</span></div>
-        <button class="pref-select" style="cursor:pointer;text-align:center" onclick="openAppearance()">Open Editor</button>
+        <div class="pref-row-label"><strong>🎨 Appearance</strong><span>${(typeof window.rrAppearanceCanEdit === 'function' && !window.rrAppearanceCanEdit())
+          ? 'Pick a ready-made look. Designing your own needs the room of a desktop screen.'
+          : "Build your own look — paste a logo, match its colors, then preview it across the app before you keep it."}</span></div>
+        <button class="pref-select" style="cursor:pointer;text-align:center" onclick="openAppearance()">${(typeof window.rrAppearanceCanEdit === 'function' && !window.rrAppearanceCanEdit()) ? 'Choose a Look' : 'Open Editor'}</button>
       </div>` : ''}
       <div class="pref-row">
         <div class="pref-row-label"><strong>${(window.A11Y && window.A11Y.ui && window.A11Y.ui.fontScaleLabel) || 'Text Size'}</strong><span>${(window.A11Y && window.A11Y.ui && window.A11Y.ui.fontScaleHint) || 'Makes all text in the app bigger or smaller.'}</span></div>

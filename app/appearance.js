@@ -1,25 +1,40 @@
 // ═══════════════════════════════════════════════════════════════
-// appearance.js — the Appearance editor (v0.9.1148, logo→palette v0.9.1149)
+// appearance.js — the Appearance editor
+// v0.9.1148 · logo→palette v0.9.1149 · logo prep v0.9.1205
+// v0.9.1206: paper chrome, square logo tile, colour-match box,
+//            desktop-only editing, and Preview-before-Apply.
 //
-// Brad: "a page that allows me now but will turn into a customizing screen
-// for a user later… little boxes with the color… you click the box a color
-// wheel pops up… it changes instantly all the things that are tied to that…
-// then we can set presets." Mock v2.1 approved 2026-07-28.
+// Brad, 2026-07-31, on the editor itself:
+//   "We need a big square box to the top left that looks like a logo shape,
+//    not a long text box. Also this whole page is super dark, its hard to
+//    see anything. This should be the cream background. Also size the box
+//    with the app background in such a way that there is not scrolling.
+//    Making and editing skins will only be done on a desktop. Only presets
+//    can be on the mobile app to be selected."
+//   "the actual app shouldn't change until we hit preview, which then will
+//    let us flip through the app to see it completely while a pop up stays
+//    on top with apply it, edit it, and cancel."
 //
-// This is the "picker UI" that applyTheme()'s custom-skin plumbing
-// (app.js v0.9.944) has been waiting for: the editor writes CSS variables
-// inline while you experiment, and Save persists the map to lv_skin_custom
-// + sets lv_theme='custom', which is exactly what applyTheme() replays on
-// every boot. Cancel removes the experiments and replays the saved theme.
+// THREE STRUCTURAL RULES FALL OUT OF THAT, AND THEY ARE WHY THIS FILE LOOKS
+// THE WAY IT DOES:
 //
-// The annotated screens are live replicas drawn from the SAME variables as
-// the app (a screenshot could not repaint while you drag the wheel). Chip
-// boxes auto-dock to the gutter nearest their target and stack in target
-// order, so leader lines cannot cross; hover a chip and everything that
-// color touches lights up.
+//  1. The tool never wears the skin it is making. The editor's chrome reads
+//     --p-* (declared once in app.css, beside the light .main island) and
+//     nothing else. Building a black skin used to make the editor unreadable.
+//
+//  2. The candidate skin lives on the STAGE, not on :root. _set() writes the
+//     variable onto #rrap-stage, so only the preview replica repaints and the
+//     real app behind is untouched until Preview is pressed. That is the whole
+//     of Brad's second note, and it is one line of plumbing rather than a mode.
+//
+//  3. Preview is a round trip, not a commit. Preview paints :root, hides the
+//     editor, and floats a bar with Apply it / Edit it / Cancel. Edit puts you
+//     back exactly where you were; Cancel leaves no trace. Persistence still
+//     rides the EXISTING plumbing — lv_skin_custom + lv_theme='custom', which
+//     applyTheme() replays on every boot.
 //
 // Visibility is gated on APPEARANCE_ENABLED (config.js) — flip it false to
-// hide the whole feature before beta invites go out.
+// hide the whole feature before beta invites.
 // ═══════════════════════════════════════════════════════════════
 (function () {
   'use strict';
@@ -40,6 +55,19 @@
     ['--accent3',  'Upgrade purple',  'upgrade list'],
   ];
 
+  // The colour-match box (Brad: "a color match box… allow them to adjust the
+  // colors and apply those colors to the different areas"). Five plain-English
+  // jobs, NOT eleven variables — the chips on the preview stay the precise
+  // path for anyone who wants one. The four status colours are deliberately
+  // absent: owned-is-green and wanted-is-blue are meaning, not decoration.
+  var ROLES = [
+    ['--bg',      'Background',      'the whole page'],
+    ['--surface', 'Panels & header', 'cards · sidebar · top bar'],
+    ['--accent',  'Brand accent',    'numbers · buttons · bars'],
+    ['--accent2', 'Highlights',      'values · era chips'],
+    ['--text',    'Text',            'all the writing'],
+  ];
+
   var BUILTIN_PRESETS = {
     'Lionel Box':   { '--bg':'#0f1220','--surface':'#161c34','--surface2':'#1c2544','--text':'#f8e8c0','--border':'#2a3560','--accent':'#f05008','--accent2':'#d4a843','--green':'#2ecc71','--want':'#2980b9','--forsale':'#e67e22','--accent3':'#8b5cf6' },
     'Pennsy Tuscan':{ '--bg':'#2b100d','--surface':'#3d1512','--surface2':'#4a1c16','--text':'#f2e2c4','--border':'#5a2a22','--accent':'#c9922a','--accent2':'#e8c060','--green':'#3aad70','--want':'#4a7ba6','--forsale':'#d97c22','--accent3':'#9b6fd0' },
@@ -53,19 +81,40 @@
   // math. The image is sampled on a canvas RIGHT HERE in the browser: free
   // forever, instant, and the logo never leaves the device. The logo itself
   // can live on as a subtle watermark behind the app (off by default-able).
-  var LOGO_KEY = 'rr_skin_logo';   // {data, mode: 'watermark'|'off', kind}
+  var LOGO_KEY = 'rr_skin_logo';   // {data, mode: 'watermark'|'off', kind, sw}
   var LOGO_MAX = 512;              // longest side of the copy we keep
 
-  var _root = document.documentElement;
-  var _live = {};        // vars set during this editing session (not yet saved)
-  var _saved = false;
+  // Editing needs the wide stage; a phone gets the presets only. Brad:
+  // "Making and editing skins will only be done on a desktop. Only presets
+  // can be on the mobile app to be selected."
+  var EDIT_MIN_WIDTH = 900;
+  function _canEdit() { return (window.innerWidth || 0) >= EDIT_MIN_WIDTH; }
+  window.rrAppearanceCanEdit = _canEdit;
 
+  var _root = document.documentElement;
+  var _live = {};        // the CANDIDATE skin — not on :root until Preview
+  var _saved = false;
+  var _scale = 1;        // stage fit-to-window factor
+  var _swatches = [];    // colours pulled from the logo
+  var _armed = -1;       // which swatch is picked up, ready to drop on a role
+  var _preview = false;
+
+  function _stage() { return document.getElementById('rrap-stage'); }
+
+  // The candidate value: what the user has chosen this session, else what the
+  // app is wearing right now. Never reads the stage back, so it cannot drift.
   function _cur(v) {
-    return (_root.style.getPropertyValue(v) || getComputedStyle(_root).getPropertyValue(v) || '').trim();
+    if (_live[v]) return _live[v];
+    return (getComputedStyle(_root).getPropertyValue(v) || '').trim();
   }
+
+  // RULE 2 lives here. The variable goes on the STAGE, so the preview replica
+  // repaints and the real app does not. One line, no mode flag.
   function _set(v, val) {
-    _root.style.setProperty(v, val);
     _live[v] = val;
+    var st = _stage();
+    if (st) st.style.setProperty(v, val);
+    if (_preview) _root.style.setProperty(v, val);
     var i = document.querySelector('#rrap .rrap-chip[data-var="' + v + '"] input');
     if (i && i.value !== val) { try { i.value = val; } catch (e) {} }
   }
@@ -157,38 +206,74 @@
       + (isUser ? ' <span class="rrap-del" title="Delete preset">✕</span>' : '') + '</div>';
   }
 
+  // ── CSS. Every colour here is a var — the paper set (--p-*) is declared
+  // once in app.css, the skin set (--bg, --accent…) only inside the stage.
   var CSS = ''
-    + '#rrap{position:fixed;inset:0;z-index:100040;background:var(--bg);overflow-y:auto;font-family:var(--font-body)}'
-    + '.rrap-top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 94%,black);border-bottom:1px solid var(--border);padding:0.8rem 1.25rem;display:flex;align-items:center;gap:0.9rem;flex-wrap:wrap}'
-    + '.rrap-top h2{font-family:var(--font-head);font-size:1.1rem;font-weight:600;color:var(--text)}'
-    + '.rrap-top .rrap-sub{font-size:0.7rem;color:var(--text-dim)}'
+    + '#rrap{position:fixed;inset:0;z-index:100040;background:var(--p-paper);color:var(--p-ink);'
+    +   'display:flex;flex-direction:column;overflow:hidden;font-family:var(--font-body)}'
+    + '.rrap-top{flex:none;background:var(--p-panel);border-bottom:1px solid var(--p-line);padding:0.7rem 1.1rem;display:flex;align-items:center;gap:0.9rem;flex-wrap:wrap}'
+    + '.rrap-top h2{font-family:var(--font-head);font-size:1.05rem;font-weight:600;color:var(--p-ink)}'
+    + '.rrap-top .rrap-sub{font-size:0.7rem;color:var(--p-ink-dim)}'
     + '.rrap-actions{margin-left:auto;display:flex;gap:0.45rem;flex-wrap:wrap}'
-    + '.rrap-btn{font-family:var(--font-head);font-size:0.72rem;letter-spacing:0.05em;padding:0.5rem 0.85rem;border-radius:8px;border:1px solid var(--border-hi);background:var(--surface2);color:var(--text);cursor:pointer}'
-    + '.rrap-btn.rrap-primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}'
-    + '.rrap-presets{display:flex;gap:0.5rem;padding:0.7rem 1.25rem;border-bottom:1px solid var(--border);overflow-x:auto}'
-    + '.rrap-preset{flex:none;display:flex;align-items:center;gap:0.4rem;padding:0.42rem 0.8rem;border-radius:999px;border:1.5px solid var(--border);background:var(--surface);cursor:pointer;font-size:0.75rem;color:var(--text-mid);white-space:nowrap}'
-    + '.rrap-preset:hover{border-color:var(--text-mid)}'
-    + '.rrap-d{width:10px;height:10px;border-radius:50%;border:1px solid rgba(255,255,255,0.2);display:inline-block}'
-    + '.rrap-del{color:var(--text-dim);font-size:0.65rem;padding-left:0.2rem}'
-    + '.rrap-addp{border-style:dashed;color:var(--text-dim)}'
-    + '.rrap-tabs{display:flex;gap:0.35rem;padding:0.85rem 1.25rem 0;max-width:1200px;margin:0 auto}'
-    + '.rrap-tab{font-family:var(--font-head);font-size:0.76rem;letter-spacing:0.05em;padding:0.55rem 1rem;border-radius:9px 9px 0 0;border:1px solid var(--border);border-bottom:none;background:var(--surface);color:var(--text-dim);cursor:pointer}'
-    + '.rrap-tab.rrap-on{background:var(--surface2);color:var(--text);border-color:var(--border-hi)}'
-    + '.rrap-stagewrap{max-width:1200px;margin:0 auto;padding:0 1.25rem 2rem;overflow-x:auto}'
-    + '.rrap-stage{position:relative;border:1px solid var(--border-hi);border-radius:0 14px 14px 14px;background:var(--surface2);padding:26px 208px;min-width:1020px}'
+    + '.rrap-btn{font-family:var(--font-head);font-size:0.72rem;letter-spacing:0.05em;padding:0.5rem 0.85rem;border-radius:8px;border:1px solid var(--p-line-hi);background:var(--p-panel2);color:var(--p-ink);cursor:pointer}'
+    + '.rrap-btn:hover{border-color:var(--p-ink-mid)}'
+    + '.rrap-btn.rrap-primary{background:var(--p-accent);border-color:var(--p-accent);color:var(--p-panel);font-weight:600}'
+    + '.rrap-main{flex:1;display:flex;min-height:0}'
+    // left: the control panel (logo tile → swatches → roles)
+    + '.rrap-left{flex:none;width:272px;background:var(--p-panel);border-right:1px solid var(--p-line);padding:0.85rem;overflow-y:auto;display:flex;flex-direction:column;gap:0.85rem}'
+    + '.rrap-lh{font-family:var(--font-head);font-size:0.62rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--p-ink-dim)}'
+    + '.rrap-logotile{width:100%;aspect-ratio:1/1;border:2px dashed var(--p-line-hi);border-radius:14px;background:var(--p-panel2);'
+    +   'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.4rem;padding:0.8rem;text-align:center;cursor:pointer;overflow:hidden}'
+    + '.rrap-logotile:hover,.rrap-logotile.rrap-over{border-color:var(--p-accent);background:var(--p-panel)}'
+    + '.rrap-logotile img{max-width:100%;max-height:100%;object-fit:contain}'
+    + '.rrap-tileicon{font-size:1.9rem;line-height:1}'
+    + '.rrap-tiletxt{font-size:0.72rem;color:var(--p-ink-mid);line-height:1.35}'
+    + '.rrap-lnote{font-size:0.66rem;color:var(--p-ink-dim);line-height:1.35}'
+    + '.rrap-lbtns{display:flex;gap:0.3rem;flex-wrap:wrap}'
+    + '.rrap-lbtn{font-size:0.66rem;padding:0.32rem 0.55rem;border-radius:7px;border:1px solid var(--p-line-hi);background:var(--p-panel2);color:var(--p-ink);cursor:pointer}'
+    + '.rrap-lbtn.rrap-lon{border-color:var(--p-accent);color:var(--p-accent);font-weight:600}'
+    // swatches + roles
+    + '.rrap-sw{display:flex;flex-wrap:wrap;gap:0.35rem}'
+    + '.rrap-swb{width:32px;height:32px;border-radius:8px;border:2px solid var(--p-line);cursor:pointer;padding:0}'
+    + '.rrap-swb.rrap-armed{border-color:var(--p-ink);box-shadow:0 0 0 2px var(--p-paper),0 0 0 4px var(--p-ink)}'
+    + '.rrap-hint{font-size:0.66rem;color:var(--p-ink-dim);line-height:1.4}'
+    + '.rrap-role{display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0.5rem;margin-bottom:0.3rem;border-radius:9px;border:1px solid var(--p-line);background:var(--p-panel2);cursor:pointer}'
+    + '.rrap-role:hover{border-color:var(--p-accent)}'
+    + '.rrap-role.rrap-ready{border-color:var(--p-accent);border-style:dashed}'
+    + '.rrap-rc{position:relative;width:30px;height:24px;flex:none}'
+    + '.rrap-role input[type=color]{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}'
+    + '.rrap-rcface{position:absolute;inset:0;border-radius:6px;border:1.5px solid var(--p-line-hi);pointer-events:none}'
+    + '.rrap-rl{font-size:0.7rem;line-height:1.25;color:var(--p-ink)}'
+    + '.rrap-rl b{display:block;font-size:0.75rem}'
+    + '.rrap-rl span{color:var(--p-ink-dim);font-size:0.62rem}'
+    // right: presets, tabs, the fitted stage
+    + '.rrap-right{flex:1;min-width:0;display:flex;flex-direction:column}'
+    + '.rrap-presets{flex:none;display:flex;gap:0.5rem;padding:0.6rem 1.1rem;border-bottom:1px solid var(--p-line);overflow-x:auto}'
+    + '.rrap-preset{flex:none;display:flex;align-items:center;gap:0.4rem;padding:0.4rem 0.75rem;border-radius:999px;border:1.5px solid var(--p-line);background:var(--p-panel);cursor:pointer;font-size:0.75rem;color:var(--p-ink-mid);white-space:nowrap}'
+    + '.rrap-preset:hover{border-color:var(--p-accent)}'
+    + '.rrap-d{width:10px;height:10px;border-radius:50%;border:1px solid var(--p-line-hi);display:inline-block}'
+    + '.rrap-del{color:var(--p-ink-dim);font-size:0.65rem;padding-left:0.2rem}'
+    + '.rrap-addp{border-style:dashed;color:var(--p-ink-dim)}'
+    + '.rrap-tabs{flex:none;display:flex;gap:0.35rem;padding:0.7rem 1.1rem 0}'
+    + '.rrap-tab{font-family:var(--font-head);font-size:0.74rem;letter-spacing:0.05em;padding:0.5rem 0.9rem;border-radius:9px 9px 0 0;border:1px solid var(--p-line);border-bottom:none;background:var(--p-panel2);color:var(--p-ink-dim);cursor:pointer}'
+    + '.rrap-tab.rrap-on{background:var(--p-panel);color:var(--p-ink);border-color:var(--p-line-hi);font-weight:600}'
+    // The wrapper clips; the stage scales to fit inside it. Brad: "size the
+    // box with the app background in such a way that there is not scrolling."
+    + '.rrap-stagewrap{flex:1;min-height:0;overflow:hidden;padding:0 1.1rem 1.1rem}'
+    + '.rrap-stage{position:relative;border:1px solid var(--p-line-hi);border-radius:0 14px 14px 14px;background:var(--p-panel2);padding:26px 208px;width:1020px;transform-origin:top left}'
     + '.rrap-wires{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5}'
     + '.rrap-wires line{stroke-width:1.5;stroke-dasharray:4 3;opacity:0.85}'
     + '.rrap-scene{display:none}.rrap-scene.rrap-on{display:block}'
-    + '.rrap-chip{position:absolute;z-index:10;width:182px;display:flex;align-items:center;gap:0.5rem;background:color-mix(in srgb,var(--bg) 80%,black);border:1px solid var(--border-hi);border-radius:10px;padding:0.4rem 0.55rem;box-shadow:0 6px 22px rgba(0,0,0,0.45);cursor:pointer}'
-    + '.rrap-chip:hover{border-color:var(--text-mid)}'
+    + '.rrap-chip{position:absolute;z-index:10;width:182px;display:flex;align-items:center;gap:0.5rem;background:var(--p-panel);border:1px solid var(--p-line-hi);border-radius:10px;padding:0.4rem 0.55rem;box-shadow:0 4px 14px rgba(0,0,0,0.14);cursor:pointer}'
+    + '.rrap-chip:hover{border-color:var(--p-accent)}'
     + '.rrap-cs{position:relative;width:30px;height:24px;flex:none}'
     + '.rrap-chip input[type=color]{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}'
-    + '.rrap-cface{position:absolute;inset:0;border-radius:6px;border:1.5px solid rgba(255,255,255,0.25);pointer-events:none}'
-    + '.rrap-cl{font-size:0.64rem;line-height:1.25;color:var(--text)}'
+    + '.rrap-cface{position:absolute;inset:0;border-radius:6px;border:1.5px solid var(--p-line-hi);pointer-events:none}'
+    + '.rrap-cl{font-size:0.64rem;line-height:1.25;color:var(--p-ink)}'
     + '.rrap-cl b{display:block;font-size:0.7rem}'
-    + '.rrap-cl span{color:var(--text-dim);font-size:0.57rem}'
-    + '.rrap-hl{outline:2px solid #fff !important;outline-offset:2px}'
-    // replica
+    + '.rrap-cl span{color:var(--p-ink-dim);font-size:0.57rem}'
+    + '.rrap-hl{outline:2px solid var(--p-ink) !important;outline-offset:2px}'
+    // replica — these DO read the skin variables, which is the point
     + '.rrap-app{background:var(--bg);border:1px solid var(--border);border-radius:12px;overflow:hidden;font-size:13px}'
     + '.rrap-apph{display:flex;align-items:center;background:var(--surface);border-bottom:1px solid var(--border);padding:9px 13px}'
     + '.rrap-logo{font-family:var(--font-head);font-weight:700;letter-spacing:0.04em;color:var(--text)}'
@@ -212,7 +297,6 @@
     + '.rrap-rd{flex:1;font-size:0.68rem;color:var(--text-mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
     + '.rrap-price{font-family:var(--font-mono);font-size:0.68rem;color:var(--accent2)}'
     + '.rrap-badge{font-size:0.52rem;font-family:var(--font-head);letter-spacing:0.06em;border-radius:5px;padding:2px 6px}'
-    // wizard replica
     + '.rrap-scrim{background:rgba(0,0,0,0.55);border-radius:10px;padding:24px;display:flex;justify-content:center}'
     + '.rrap-wiz{width:330px;background:var(--bg);border:1px solid color-mix(in srgb,var(--accent) 40%,transparent);border-top:3px solid var(--accent);border-radius:13px;overflow:hidden}'
     + '.rrap-wh{padding:11px 13px 0}'
@@ -225,77 +309,63 @@
     + '.rrap-win{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:0.76rem;color:var(--text-dim);font-family:var(--font-mono)}'
     + '.rrap-wphoto{border:1.5px dashed var(--want);color:var(--want);border-radius:8px;padding:7px;text-align:center;font-family:var(--font-head);font-size:0.56rem;letter-spacing:0.08em}'
     + '.rrap-wf{display:flex;gap:6px;justify-content:flex-end;padding:10px 13px;border-top:1px solid color-mix(in srgb,var(--accent) 25%,transparent)}'
-    + '.rrap-wbtn{font-family:var(--font-head);font-size:0.62rem;letter-spacing:0.05em;padding:7px 12px;border-radius:7px;border:1px solid var(--border-hi);background:var(--surface2);color:var(--text)}'
-    + '.rrap-go{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}'
-    + '.rrap-note{max-width:1200px;margin:0 auto;padding:0 1.25rem 2.5rem;font-size:0.7rem;color:var(--text-dim);line-height:1.6}'
-    // logo → palette bar
-    + '.rrap-logobar{display:flex;align-items:center;gap:0.7rem;padding:0.6rem 1.25rem;border-bottom:1px solid var(--border);flex-wrap:wrap}'
-    + '.rrap-drop{flex:1;min-width:260px;border:1.5px dashed var(--border-hi);border-radius:10px;padding:0.55rem 0.9rem;font-size:0.72rem;color:var(--text-dim);cursor:pointer;text-align:center}'
-    + '.rrap-drop.rrap-over{border-color:var(--accent);color:var(--text)}'
-    + '.rrap-lthumb{height:34px;max-width:120px;border-radius:6px;background:rgba(255,255,255,0.08);padding:2px}'
-    + '.rrap-lbtn{font-size:0.66rem;padding:0.35rem 0.6rem;border-radius:7px;border:1px solid var(--border-hi);background:var(--surface2);color:var(--text);cursor:pointer}'
-    + '.rrap-lbtn.rrap-lon{border-color:var(--accent);color:var(--accent)}'
-    + '.rrap-lnote{font-size:0.64rem;color:var(--text-dim);max-width:280px;line-height:1.35}';
+    + '.rrap-wbtn{font-family:var(--font-head);font-size:0.62rem;letter-spacing:0.05em;padding:7px 12px;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text)}'
+    + '.rrap-go{background:var(--accent);border-color:var(--accent);color:var(--text);font-weight:600}'
+    // the Preview bar — lives OUTSIDE #rrap, so it carries its own paper vars
+    + '#rrap-prevbar{position:fixed;left:50%;bottom:1.1rem;transform:translateX(-50%);z-index:100050;'
+    +   'display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;justify-content:center;max-width:94vw;'
+    +   'background:var(--p-panel);color:var(--p-ink);border:1px solid var(--p-line-hi);border-radius:14px;'
+    +   'padding:0.6rem 0.85rem;box-shadow:0 10px 34px rgba(0,0,0,0.4);font-family:var(--font-body)}'
+    + '#rrap-prevbar .rrap-pvt{font-size:0.74rem;color:var(--p-ink-mid);max-width:280px;line-height:1.35}'
+    // the phone sheet — presets only
+    + '#rrap-mini{position:fixed;inset:0;z-index:100040;background:var(--p-paper);color:var(--p-ink);overflow-y:auto;padding:1.1rem;font-family:var(--font-body)}'
+    + '#rrap-mini h2{font-family:var(--font-head);font-size:1.05rem;margin-bottom:0.2rem}'
+    + '#rrap-mini .rrap-preset{margin-bottom:0.5rem;width:100%;justify-content:flex-start;padding:0.7rem 0.9rem;border-radius:12px}';
 
+  // ═══ the editor ═══════════════════════════════════════════════
   window.openAppearance = function () {
     if (typeof APPEARANCE_ENABLED !== 'undefined' && !APPEARANCE_ENABLED) return;
-    var old = document.getElementById('rrap'); if (old) old.remove();
-    _live = {}; _saved = false;
+    _ensureCss();
+    if (!_canEdit()) { _openMini(); return; }
 
-    if (!document.getElementById('rrap-css')) {
-      var st = document.createElement('style'); st.id = 'rrap-css'; st.textContent = CSS;
-      document.head.appendChild(st);
-    }
+    var old = document.getElementById('rrap'); if (old) old.remove();
+    _live = {}; _saved = false; _armed = -1; _preview = false; _scale = 1;
+    _swatches = _savedSwatches();
 
     var ov = document.createElement('div'); ov.id = 'rrap';
     ov.innerHTML =
       '<div class="rrap-top"><div><h2>🎨 Appearance</h2>'
-      + '<div class="rrap-sub">Click a color box — the whole app changes instantly. Hover a box to see everything it controls. Nothing is kept unless you Save.</div></div>'
+      + '<div class="rrap-sub">Build a look here — the app itself does not change until you press Preview.</div></div>'
       + '<div class="rrap-actions">'
       + '<button class="rrap-btn" onclick="window._rrapReset()">Reset to Default</button>'
       + '<button class="rrap-btn" onclick="window._rrapExport()">Export</button>'
       + '<button class="rrap-btn" onclick="window._rrapImport()">Import…</button>'
       + '<button class="rrap-btn" onclick="window._rrapClose(false)">Cancel</button>'
-      + '<button class="rrap-btn rrap-primary" onclick="window._rrapClose(true)">💾 Save &amp; Use</button>'
+      + '<button class="rrap-btn rrap-primary" onclick="window._rrapPreview()">👁 Preview in the app</button>'
       + '</div></div>'
-      + '<div class="rrap-presets" id="rrap-presets">' + _presetPills() + '</div>'
-      + '<div class="rrap-logobar" id="rrap-logobar">' + _logoBarHtml() + '</div>'
-      + '<div class="rrap-tabs">'
-      + '<div class="rrap-tab rrap-on" data-scene="dash">📊 Dashboard</div>'
-      + '<div class="rrap-tab" data-scene="wiz">🪟 Add Item Pop-up</div>'
-      + '</div>'
-      + '<div class="rrap-stagewrap"><div class="rrap-stage" id="rrap-stage">'
-      + '<svg class="rrap-wires" id="rrap-wires"></svg>'
-      + _sceneDash() + _sceneWiz()
-      + '</div></div>'
-      + '<div class="rrap-note"><b style="color:var(--text-mid)">While you experiment, the real app behind this page is repainting too.</b> '
-      + 'Save &amp; Use keeps this as your look on this device (Preferences → Theme switches back any time). '
-      + 'Some copies of these colors are still hard-wired in older corners of the app — they join the system sweep by sweep (see the census); the boxes here only claim what they truly control.</div>';
+      + '<div class="rrap-main">'
+      +  '<div class="rrap-left" id="rrap-logobar">' + _leftPanelHtml() + '</div>'
+      +  '<div class="rrap-right">'
+      +   '<div class="rrap-presets" id="rrap-presets">' + _presetPills() + '</div>'
+      +   '<div class="rrap-tabs">'
+      +    '<div class="rrap-tab rrap-on" data-scene="dash">📊 Dashboard</div>'
+      +    '<div class="rrap-tab" data-scene="wiz">🪟 Add Item Pop-up</div>'
+      +   '</div>'
+      +   '<div class="rrap-stagewrap"><div class="rrap-stage" id="rrap-stage">'
+      +    '<svg class="rrap-wires" id="rrap-wires"></svg>'
+      +    _sceneDash() + _sceneWiz()
+      +   '</div></div>'
+      +  '</div>'
+      + '</div>';
     document.body.appendChild(ov);
     if (window.BackStack && BackStack.wire) BackStack.wire(ov);
 
-    // wire chips
-    ov.querySelectorAll('.rrap-chip').forEach(function (ch) {
-      var v = ch.dataset.var, inp = ch.querySelector('input');
-      inp.value = /^#[0-9a-fA-F]{6}$/.test(_cur(v)) ? _cur(v) : inp.value;
-      inp.addEventListener('input', function () { _set(v, inp.value); _wires(); });
-      ch.addEventListener('mouseenter', function () {
-        var key = v.replace('--', '');
-        ov.querySelectorAll('[data-c="' + key + '"]').forEach(function (e) { e.classList.add('rrap-hl'); });
-        _wires(ch);
-      });
-      ch.addEventListener('mouseleave', function () {
-        ov.querySelectorAll('.rrap-hl').forEach(function (e) { e.classList.remove('rrap-hl'); });
-        _wires();
-      });
-      ch.addEventListener('click', function (e) { if (e.target !== inp) inp.click(); });
-    });
-    // tabs
+    _wireChips(ov);
     ov.querySelectorAll('.rrap-tab').forEach(function (t) {
       t.addEventListener('click', function () {
         ov.querySelectorAll('.rrap-tab').forEach(function (x) { x.classList.toggle('rrap-on', x === t); });
         ov.querySelectorAll('.rrap-scene').forEach(function (s) { s.classList.toggle('rrap-on', s.id === 'rrap-scene-' + t.dataset.scene); });
-        requestAnimationFrame(function () { _layout(); _wires(); });
+        requestAnimationFrame(_relayout);
       });
     });
     // presets (delegated so refreshed pills keep working)
@@ -310,10 +380,9 @@
       }
       if (!pill) return;
       var map = BUILTIN_PRESETS[pill.dataset.preset] || _userPresets()[pill.dataset.preset];
-      if (map) { Object.keys(map).forEach(function (k) { _set(k, map[k]); }); _wires(); }
+      if (map) { Object.keys(map).forEach(function (k) { _set(k, map[k]); }); _refreshRoles(); _wires(); }
     });
 
-    // logo box: file input + paste + drag-drop while the editor is open
     _wireLogoInput();
     document.addEventListener('paste', _onPaste);
     document.addEventListener('dragover', _onDrag);
@@ -321,16 +390,83 @@
     document.addEventListener('drop', _onDrop);
 
     window.addEventListener('resize', _onResize);
-    requestAnimationFrame(function () { _layout(); _wires(); });
-    setTimeout(function () { _layout(); _wires(); }, 300);
+    requestAnimationFrame(_relayout);
+    setTimeout(_relayout, 300);
   };
 
-  function _onResize() { if (document.getElementById('rrap')) { _layout(); _wires(); } }
+  function _ensureCss() {
+    if (!document.getElementById('rrap-css')) {
+      var st = document.createElement('style'); st.id = 'rrap-css'; st.textContent = CSS;
+      document.head.appendChild(st);
+    }
+  }
+
+  function _wireChips(ov) {
+    ov.querySelectorAll('.rrap-chip').forEach(function (ch) {
+      var v = ch.dataset.var, inp = ch.querySelector('input');
+      inp.value = /^#[0-9a-fA-F]{6}$/.test(_cur(v)) ? _cur(v) : inp.value;
+      inp.addEventListener('input', function () { _set(v, inp.value); _refreshRoles(); _wires(); });
+      ch.addEventListener('mouseenter', function () {
+        var key = v.replace('--', '');
+        ov.querySelectorAll('[data-c="' + key + '"]').forEach(function (e) { e.classList.add('rrap-hl'); });
+        _wires(ch);
+      });
+      ch.addEventListener('mouseleave', function () {
+        ov.querySelectorAll('.rrap-hl').forEach(function (e) { e.classList.remove('rrap-hl'); });
+        _wires();
+      });
+      ch.addEventListener('click', function (e) { if (e.target !== inp) inp.click(); });
+    });
+  }
+
+  // ── the phone sheet: presets only ────────────────────────────────
+  function _openMini() {
+    var old = document.getElementById('rrap-mini'); if (old) old.remove();
+    var el = document.createElement('div'); el.id = 'rrap-mini';
+    el.innerHTML = '<h2>🎨 Appearance</h2>'
+      + '<div style="font-size:0.75rem;color:var(--p-ink-dim);line-height:1.5;margin-bottom:0.9rem">'
+      + 'Designing a skin needs the room of a desktop screen. Here you can pick one that is already made — it applies straight away.</div>'
+      + '<div id="rrap-minilist">' + _presetPills().replace(/<div class="rrap-preset rrap-addp"[\s\S]*?<\/div>/, '') + '</div>'
+      + '<button class="rrap-btn" style="width:100%;margin-top:0.9rem" onclick="var m=document.getElementById(\'rrap-mini\');if(m)m.remove()">Close</button>';
+    document.body.appendChild(el);
+    if (window.BackStack && BackStack.wire) BackStack.wire(el);
+    el.querySelector('#rrap-minilist').addEventListener('click', function (e) {
+      var pill = e.target.closest('.rrap-preset[data-preset]'); if (!pill) return;
+      var map = BUILTIN_PRESETS[pill.dataset.preset] || _userPresets()[pill.dataset.preset];
+      if (!map) return;
+      _persist(map);
+      if (typeof applyTheme === 'function') applyTheme();
+      if (typeof showToast === 'function') showToast(pill.dataset.preset + ' applied', 2600);
+    });
+  }
+
+  function _onResize() { if (document.getElementById('rrap')) _relayout(); }
+
+  // Measure unscaled, then scale. Doing it in this order means _layout never
+  // has to know about the transform, and only _wires divides by it.
+  function _relayout() {
+    var st = _stage(); if (!st) return;
+    st.style.transform = 'none';
+    _scale = 1;
+    _layout();
+    _fitStage();
+    _wires();
+  }
+
+  function _fitStage() {
+    var wrap = document.querySelector('.rrap-stagewrap'), st = _stage();
+    if (!wrap || !st) return;
+    var sw = st.offsetWidth, sh = st.offsetHeight;
+    var aw = wrap.clientWidth, ah = wrap.clientHeight;
+    if (!sw || !sh || !aw || !ah) return;
+    _scale = Math.min(1, aw / sw, ah / sh);
+    st.style.transform = 'scale(' + _scale + ')';
+  }
 
   // dock each chip to the gutter nearest its target; stack in target order —
   // same order on both ends means the lines cannot cross (mock v2.1 rule).
   function _layout() {
-    var stage = document.getElementById('rrap-stage'); if (!stage) return;
+    var stage = _stage(); if (!stage) return;
     var scene = stage.querySelector('.rrap-scene.rrap-on'); if (!scene) return;
     var sr = stage.getBoundingClientRect();
     var tmap = TARGETS[scene.id] || {};
@@ -359,16 +495,20 @@
   }
 
   function _wires(hot) {
-    var stage = document.getElementById('rrap-stage'), w = document.getElementById('rrap-wires');
+    var stage = _stage(), w = document.getElementById('rrap-wires');
     if (!stage || !w) return;
     var scene = stage.querySelector('.rrap-scene.rrap-on'); if (!scene) return;
+    // Rects come back in SCREEN pixels, so every delta is multiplied by the
+    // fit scale. The SVG lives in stage coordinates — divide it back out, or
+    // the wires drift further from their dots the smaller the window gets.
+    var k = _scale || 1;
     var sr = stage.getBoundingClientRect(), tmap = TARGETS[scene.id] || {}, html = '';
     scene.querySelectorAll('.rrap-chip').forEach(function (ch) {
       var t = document.getElementById(tmap[ch.dataset.var] || ''); if (!t) return;
       var c = ch.getBoundingClientRect(), r = t.getBoundingClientRect();
       var l = ch.dataset.dock === 'l';
-      var x1 = (l ? c.right : c.left) - sr.left, y1 = c.top + c.height / 2 - sr.top;
-      var x2 = (l ? r.left : r.right) - sr.left, y2 = r.top + r.height / 2 - sr.top;
+      var x1 = ((l ? c.right : c.left) - sr.left) / k, y1 = (c.top + c.height / 2 - sr.top) / k;
+      var x2 = ((l ? r.left : r.right) - sr.left) / k, y2 = (r.top + r.height / 2 - sr.top) / k;
       var col = _cur(ch.dataset.var) || '#888';
       var hi = hot === ch;
       html += '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="' + col + '"' + (hi ? ' stroke-width="2.5" stroke-dasharray="none"' : '') + '/>'
@@ -406,11 +546,11 @@
   // Brad: "shrink whatever gets pasted… also worth auto-trimming the white
   // box that surrounds most logos people copy off the web."
   //
-  // Everything between here and "end logo image prep" is PURE pixel math on
-  // a flat RGBA array — no canvas, no document, no window. That is on
-  // purpose: the test suite runs these exact functions, so the behaviour
-  // that ships is the behaviour that was proved. The canvas wrapper below
-  // only feeds them pixels and draws the answer.
+  // Everything from _rgb2hsl above down to "end logo image prep" is PURE
+  // math on numbers and flat RGBA arrays — no canvas, no document, no
+  // window. That is on purpose: the test suite runs these exact functions,
+  // so the behaviour that ships is the behaviour that was proved. The canvas
+  // wrapper below only feeds them pixels and draws the answer.
 
   // Fit a box inside a square limit. Never upscales — a 90px herald stays
   // 90px rather than being blown up into mush.
@@ -513,6 +653,74 @@
     if (kind === 'mixed')  return 'Part logo, part picture — good as a background, a little soft when small.';
     return 'This is a photograph, not a flat logo — fine as a background, but fuzzy when small.';
   }
+
+  function _rrHexToHsl(hex) {
+    var m = /^#?([0-9a-f]{6})$/i.exec(String(hex == null ? '' : hex).trim());
+    if (!m) return [0, 0, 0];
+    var v = parseInt(m[1], 16);
+    return _rgb2hsl((v >> 16) & 255, (v >> 8) & 255, v & 255);
+  }
+
+  // Relative luminance and contrast ratio, straight from the accessibility
+  // definition. This is what stops a pale logo producing a pale skin with
+  // pale writing on it — a look nobody can read and everybody blames on us.
+  function _rrLum(hex) {
+    var m = /^#?([0-9a-f]{6})$/i.exec(String(hex == null ? '' : hex).trim());
+    if (!m) return 0;
+    var v = parseInt(m[1], 16);
+    var ch = [(v >> 16) & 255, (v >> 8) & 255, v & 255].map(function (x) {
+      x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+  }
+  function _rrContrast(a, b) {
+    var la = _rrLum(a), lb = _rrLum(b);
+    return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+  }
+
+  // Keep the user's HUE, move only its lightness, until the writing is
+  // readable on the background they chose. Returns the same colour when it
+  // was already fine, so callers can compare and stay quiet.
+  function _rrReadableText(bgHex, textHex) {
+    if (_rrContrast(bgHex, textHex) >= 4.5) return textHex;
+    var hsl = _rrHexToHsl(textHex);
+    var lighten = _rrLum(bgHex) < 0.18;
+    var l = hsl[2], step = lighten ? 0.04 : -0.04, i, cand;
+    for (i = 0; i < 25; i++) {
+      l = Math.min(1, Math.max(0, l + step));
+      cand = _hsl2hex(hsl[0], hsl[1], l);
+      if (_rrContrast(bgHex, cand) >= 4.5) return cand;
+      if (l <= 0 || l >= 1) break;
+    }
+    return _hsl2hex(0, 0, lighten ? 1 : 0);   // white or black, without a literal
+  }
+
+  // The swatches offered in the colour-match box: the logo's own colours,
+  // spread out so six near-identical creams can never fill the row.
+  function _rrPickSwatches(cols, n) {
+    var out = [], i, c;
+    var far = function (a, b) {
+      var dh = Math.abs(a.h - b.h); dh = Math.min(dh, 1 - dh);
+      return (dh > 0.06) || (Math.abs(a.l - b.l) > 0.18) || (Math.abs(a.s - b.s) > 0.3);
+    };
+    for (i = 0; i < (cols || []).length && out.length < (n || 6); i++) {
+      c = cols[i];
+      if (!c || c.share < 0.005) continue;
+      if (out.every(function (o) { return far(c, o); })) out.push(c);
+    }
+    return out.map(function (o) { return o.hex; });
+  }
+
+  // Dropping a colour on "Background" has to move its neighbours too, or the
+  // panels and lines stay from the old skin and the result looks broken. The
+  // ladder steps AWAY from the background's own lightness, so it works for a
+  // cream background as well as a black one.
+  function _rrDeriveFromBg(hex) {
+    var hsl = _rrHexToHsl(hex), h = hsl[0], s = hsl[1], l = hsl[2];
+    var dir = l < 0.5 ? 1 : -1;
+    var at = function (d) { return _hsl2hex(h, s, Math.min(1, Math.max(0, l + dir * d))); };
+    return { '--bg': hex, '--surface': at(0.05), '--surface2': at(0.09), '--border': at(0.16) };
+  }
   // ── end logo image prep ─────────────────────────────────────────
 
   // Sample the image small, bucket similar colors, return the dominant
@@ -579,40 +787,123 @@
   }
 
   function _applyLogoPalette(img, kind) {
-    var map = _paletteFromColors(_extractColors(img));
+    var cols = _extractColors(img);
+    _swatches = _rrPickSwatches(cols, 6);
+    _armed = -1;
+    var map = _paletteFromColors(cols);
     Object.keys(map).forEach(function (k) { _set(k, map[k]); });
     _wires();
     if (typeof showToast === 'function') {
-      showToast('Palette built from your logo — tweak any box, then Save & Use'
+      showToast('Palette built from your logo — drop any colour on a job below, then Preview'
         + (kind ? '. ' + _rrLogoNote(kind) : ''), 5000);
     }
   }
 
+  // ── the left-hand control panel ─────────────────────────────────
   function _logoRec() {
     try { return JSON.parse(localStorage.getItem(LOGO_KEY) || 'null'); } catch (e) { return null; }
   }
+  function _savedSwatches() {
+    var rec = _logoRec();
+    return (rec && Array.isArray(rec.sw)) ? rec.sw.slice(0, 6) : [];
+  }
+
+  function _leftPanelHtml() {
+    return _logoBarHtml() + _swatchHtml() + _rolesHtml();
+  }
+
+  // The square logo tile. Brad: "a big square box to the top left that looks
+  // like a logo shape, not a long text box."
   function _logoBarHtml() {
     var rec = _logoRec();
-    if (!rec || !rec.data) {
-      return '<div class="rrap-drop" id="rrap-drop" onclick="document.getElementById(\'rrap-lfile\').click()">'
-        + '🖼 Paste, drop, or click to add a logo — a palette is built from its colors, right on this device</div>'
-        + '<input type="file" id="rrap-lfile" accept="image/*" style="display:none">';
+    var tile = rec && rec.data
+      ? '<div class="rrap-logotile" id="rrap-drop" onclick="document.getElementById(\'rrap-lfile\').click()"><img src="' + rec.data + '" alt="logo"></div>'
+      : '<div class="rrap-logotile" id="rrap-drop" onclick="document.getElementById(\'rrap-lfile\').click()">'
+        + '<span class="rrap-tileicon">🖼</span>'
+        + '<span class="rrap-tiletxt">Paste, drop, or click<br>to add a logo</span>'
+        + '<span class="rrap-lnote">A palette is built from its colours, right on this device.</span></div>';
+    return '<div>'
+      + '<div class="rrap-lh">Your logo</div>' + tile
+      + (rec && rec.data && rec.kind ? '<div class="rrap-lnote" style="margin-top:0.4rem">' + _rrLogoNote(rec.kind) + '</div>' : '')
+      + (rec && rec.data
+          ? '<div class="rrap-lbtns" style="margin-top:0.45rem">'
+            + '<button class="rrap-lbtn" onclick="window._rrapLogoRebuild()">🎨 Rebuild palette</button>'
+            + '<button class="rrap-lbtn ' + (rec.mode === 'watermark' ? 'rrap-lon' : '') + '" onclick="window._rrapLogoToggle()">'
+            + (rec.mode === 'watermark' ? '✓ Watermark on' : 'Watermark off') + '</button>'
+            + '<button class="rrap-lbtn" onclick="window._rrapLogoRemove()">✕ Remove</button></div>'
+          : '')
+      + '<input type="file" id="rrap-lfile" accept="image/*" style="display:none"></div>';
+  }
+
+  function _swatchHtml() {
+    if (!_swatches.length) {
+      return '<div><div class="rrap-lh">Its colours</div>'
+        + '<div class="rrap-hint">Add a logo above and its colours land here, ready to drop onto the jobs below.</div></div>';
     }
-    return '<img class="rrap-lthumb" src="' + rec.data + '" alt="logo">'
-      + (rec.kind ? '<span class="rrap-lnote">' + _rrLogoNote(rec.kind) + '</span>' : '')
-      + '<button class="rrap-lbtn" onclick="window._rrapLogoRebuild()">🎨 Rebuild palette</button>'
-      + '<button class="rrap-lbtn ' + (rec.mode === 'watermark' ? 'rrap-lon' : '') + '" onclick="window._rrapLogoToggle()">'
-      + (rec.mode === 'watermark' ? '✓ Watermark on' : 'Watermark off') + '</button>'
-      + '<button class="rrap-lbtn" onclick="window._rrapLogoRemove()">✕ Remove logo</button>'
-      + '<span style="font-size:0.62rem;color:var(--text-dim)">or replace: </span>'
-      + '<button class="rrap-lbtn" onclick="document.getElementById(\'rrap-lfile\').click()">…</button>'
-      + '<input type="file" id="rrap-lfile" accept="image/*" style="display:none">';
+    return '<div><div class="rrap-lh">Its colours</div>'
+      + '<div class="rrap-sw">' + _swatches.map(function (hex, i) {
+          return '<button class="rrap-swb' + (i === _armed ? ' rrap-armed' : '') + '" style="background:' + hex
+            + '" title="' + hex + '" onclick="window._rrapArm(' + i + ')"></button>';
+        }).join('') + '</div>'
+      + '<div class="rrap-hint" style="margin-top:0.35rem">'
+      + (_armed >= 0 ? 'Now click the job you want it to do.' : 'Click a colour, then click a job below.')
+      + '</div></div>';
   }
-  function _refreshLogoBar() {
-    var bar = document.getElementById('rrap-logobar');
-    if (bar) { bar.innerHTML = _logoBarHtml(); _wireLogoInput(); }
-    applyLogoBackdrop();
+
+  function _rolesHtml() {
+    return '<div><div class="rrap-lh">What each colour does</div>'
+      + ROLES.map(function (r) {
+          var v = _cur(r[0]) || '#888888';
+          return '<div class="rrap-role' + (_armed >= 0 ? ' rrap-ready' : '') + '" onclick="window._rrapRole(event,\'' + r[0] + '\')">'
+            + '<span class="rrap-rc"><input type="color" value="' + (/^#[0-9a-fA-F]{6}$/.test(v) ? v : '#888888')
+            + '" oninput="window._rrapRoleColor(\'' + r[0] + '\',this.value)">'
+            + '<span class="rrap-rcface" style="background:var(' + r[0] + ')"></span></span>'
+            + '<span class="rrap-rl"><b>' + r[1] + '</b><span>' + r[2] + '</span></span></div>';
+        }).join('')
+      + '<div class="rrap-hint" style="margin-top:0.3rem">Owned-green and wanted-blue are left alone on purpose — they mean something.</div></div>';
   }
+
+  function _refreshPanel() {
+    var el = document.getElementById('rrap-logobar');
+    if (el) { el.innerHTML = _leftPanelHtml(); _wireLogoInput(); }
+  }
+  function _refreshRoles() { _refreshPanel(); }
+
+  window._rrapArm = function (i) {
+    _armed = (_armed === i) ? -1 : i;
+    _refreshPanel();
+  };
+  window._rrapRole = function (ev, v) {
+    // The native colour input inside the row is the escape hatch; clicking it
+    // must not also drop the armed swatch.
+    if (ev && ev.target && ev.target.tagName === 'INPUT') return;
+    if (_armed < 0 || !_swatches[_armed]) {
+      var inp = ev && ev.currentTarget && ev.currentTarget.querySelector('input');
+      if (inp) inp.click();
+      return;
+    }
+    _rrApplyRole(v, _swatches[_armed]);
+    _armed = -1;
+  };
+  window._rrapRoleColor = function (v, hex) { _rrApplyRole(v, hex); };
+
+  function _rrApplyRole(v, hex) {
+    if (v === '--bg') {
+      var d = _rrDeriveFromBg(hex);
+      Object.keys(d).forEach(function (k) { _set(k, d[k]); });
+    } else {
+      _set(v, hex);
+    }
+    // The readability guard runs last, every time, whatever was changed.
+    var want = _rrReadableText(_cur('--bg'), _cur('--text'));
+    if (want && want.toLowerCase() !== String(_cur('--text')).toLowerCase()) {
+      _set('--text', want);
+      if (typeof showToast === 'function') showToast('Text adjusted so it stays readable on that background', 3000);
+    }
+    _refreshPanel();
+    _wires();
+  }
+
   function _wireLogoInput() {
     var f = document.getElementById('rrap-lfile');
     if (f) f.addEventListener('change', function () { if (f.files && f.files[0]) _rrapLogoLoad(f.files[0]); });
@@ -664,15 +955,15 @@
   }
 
   // Store it, stepping down in size rather than giving up. The old code had
-  // one shot at 360px and told the user "too large to keep" — a dead end
-  // with an apology. A logo that has to be 160px to fit is still a logo.
+  // one shot at 360px and told the user the image was too big to keep — a
+  // dead end with an apology. A logo that has to be 160px is still a logo.
   function _rrKeepLogo(img, mode, firstTry) {
     var sizes = [LOGO_MAX, 384, 256, 160], i, p;
     for (i = 0; i < sizes.length; i++) {
       p = (i === 0 && firstTry) ? firstTry : _rrPrepLogo(img, sizes[i]);
       if (!p) return null;
       try {
-        localStorage.setItem(LOGO_KEY, JSON.stringify({ data: p.data, mode: mode, kind: p.kind }));
+        localStorage.setItem(LOGO_KEY, JSON.stringify({ data: p.data, mode: mode, kind: p.kind, sw: _swatches }));
         return p;
       } catch (e) {}
     }
@@ -697,7 +988,8 @@
       if (!kept && typeof showToast === 'function') {
         showToast('Palette built — but this device has no room left to keep the logo image', 4500, true);
       }
-      _refreshLogoBar();
+      _refreshPanel();
+      applyLogoBackdrop();
     };
     img.onerror = function () {
       URL.revokeObjectURL(url);
@@ -708,18 +1000,19 @@
   window._rrapLogoRebuild = function () {
     var rec = _logoRec(); if (!rec || !rec.data) return;
     var img = new Image();
-    img.onload = function () { _applyLogoPalette(img, rec.kind); };
+    img.onload = function () { _applyLogoPalette(img, rec.kind); _refreshPanel(); };
     img.src = rec.data;
   };
   window._rrapLogoToggle = function () {
     var rec = _logoRec(); if (!rec) return;
     rec.mode = rec.mode === 'watermark' ? 'off' : 'watermark';
     try { localStorage.setItem(LOGO_KEY, JSON.stringify(rec)); } catch (e) {}
-    _refreshLogoBar();
+    _refreshPanel(); applyLogoBackdrop();
   };
   window._rrapLogoRemove = function () {
     try { localStorage.removeItem(LOGO_KEY); } catch (e) {}
-    _refreshLogoBar();
+    _swatches = []; _armed = -1;
+    _refreshPanel(); applyLogoBackdrop();
   };
 
   // The logo's home in the app: a faint fixed watermark. pointer-events:none
@@ -763,16 +1056,23 @@
     if (dz) dz.classList.toggle('rrap-over', e.type === 'dragover');
   }
 
-  // ── actions ──
+  // ── actions ──────────────────────────────────────────────────────
   window._rrapReset = function () {
-    Object.keys(_live).forEach(function (v) { _root.style.removeProperty(v); });
+    // Remove exactly the properties THIS session set — never blanket-clear
+    // an element's inline style, which would take other code's work with it.
+    var keys = Object.keys(_live), st = _stage();
+    keys.forEach(function (v) {
+      if (st) st.style.removeProperty(v);
+      if (_preview) _root.style.removeProperty(v);
+    });
     _live = {};
-    if (typeof applyTheme === 'function') applyTheme();
+    if (_preview && typeof applyTheme === 'function') applyTheme();
     var ov = document.getElementById('rrap');
     if (ov) ov.querySelectorAll('.rrap-chip').forEach(function (ch) {
       var c = _cur(ch.dataset.var);
       if (/^#[0-9a-fA-F]{6}$/.test(c)) ch.querySelector('input').value = c;
     });
+    _refreshPanel();
     _wires();
   };
   window._rrapSavePreset = function () {
@@ -782,7 +1082,8 @@
       EDIT_VARS.forEach(function (e) { map[e[0]] = _cur(e[0]); });
       up[String(name).slice(0, 24)] = map;
       try { localStorage.setItem(USER_PRESETS_KEY, JSON.stringify(up)); } catch (e2) {}
-      document.getElementById('rrap-presets').innerHTML = _presetPills();
+      var pl = document.getElementById('rrap-presets');
+      if (pl) pl.innerHTML = _presetPills();
     };
     if (typeof appPrompt === 'function') appPrompt('Name this preset', '', go);
     else go(window.prompt('Name this preset'));
@@ -803,35 +1104,89 @@
           var name = k.charAt(0) === '-' ? k : '--' + k;
           if (/^#[0-9a-fA-F]{3,8}$/.test(String(map[k]))) _set(name, map[k]);
         });
+        _refreshPanel();
         _wires();
       } catch (e) { if (typeof showToast === 'function') showToast('That didn’t look like a skin — paste the exported text exactly', 3500, true); }
     };
     if (typeof appPrompt === 'function') appPrompt('Paste a skin', '', go);
     else go(window.prompt('Paste a skin'));
   };
-  window._rrapClose = function (save) {
-    var ov = document.getElementById('rrap');
-    if (save && Object.keys(_live).length) {
-      // Persist through the EXISTING plumbing: applyTheme('custom') replays
-      // lv_skin_custom on every boot — this editor is just its picker.
-      var map = {}; EDIT_VARS.forEach(function (e) { map[e[0]] = _cur(e[0]); });
-      try {
-        localStorage.setItem((window.A11Y && A11Y.theme && A11Y.theme.customStorageKey) || 'lv_skin_custom', JSON.stringify(map));
-        localStorage.setItem((window.A11Y && A11Y.theme && A11Y.theme.storageKey) || 'lv_theme', 'custom');
-      } catch (e2) {}
-      _saved = true;
-      if (typeof showToast === 'function') showToast('Saved — this is your look now. Preferences → Theme switches back any time.', 3800);
+
+  // ── Preview: the round trip Brad asked for ───────────────────────
+  // "the actual app shouldn't change until we hit preview, which then will
+  //  let us flip through the app to see it completely while a pop up stays
+  //  on top with apply it, edit it, and cancel."
+  window._rrapPreview = function () {
+    if (!Object.keys(_live).length) {
+      if (typeof showToast === 'function') showToast('Nothing has changed yet — add a logo or pick some colours first', 3200, true);
+      return;
     }
-    // drop the session's inline experiments; applyTheme replays the truth
+    var ov = document.getElementById('rrap'); if (ov) ov.style.display = 'none';
+    _preview = true;
+    Object.keys(_live).forEach(function (v) { _root.style.setProperty(v, _live[v]); });
+    var bar = document.getElementById('rrap-prevbar'); if (bar) bar.remove();
+    bar = document.createElement('div'); bar.id = 'rrap-prevbar';
+    bar.innerHTML = '<span class="rrap-pvt">This is your new look — move around the app and see it everywhere.</span>'
+      + '<button class="rrap-btn rrap-primary" onclick="window._rrapApply()">✓ Apply it</button>'
+      + '<button class="rrap-btn" onclick="window._rrapEdit()">✎ Edit it</button>'
+      + '<button class="rrap-btn" onclick="window._rrapCancel()">✕ Cancel</button>';
+    document.body.appendChild(bar);
+  };
+
+  // Take the preview back off :root. applyTheme() then replays whatever is
+  // actually saved — the old look, or the new one if Apply just stored it.
+  function _endPreview() {
+    var bar = document.getElementById('rrap-prevbar'); if (bar) bar.remove();
     Object.keys(_live).forEach(function (v) { _root.style.removeProperty(v); });
-    _live = {};
+    _preview = false;
     if (typeof applyTheme === 'function') applyTheme();
+  }
+
+  function _persist(map) {
+    try {
+      localStorage.setItem((window.A11Y && A11Y.theme && A11Y.theme.customStorageKey) || 'lv_skin_custom', JSON.stringify(map));
+      localStorage.setItem((window.A11Y && A11Y.theme && A11Y.theme.storageKey) || 'lv_theme', 'custom');
+    } catch (e2) {}
+  }
+
+  window._rrapApply = function () {
+    var map = {}; EDIT_VARS.forEach(function (e) { map[e[0]] = _cur(e[0]); });
+    _persist(map);
+    _saved = true;
+    _endPreview();
+    _teardown();
+    if (typeof showToast === 'function') showToast('Saved — this is your look now. Preferences → Theme switches back any time.', 3800);
+  };
+  window._rrapEdit = function () {
+    _endPreview();
+    var ov = document.getElementById('rrap');
+    if (ov) { ov.style.display = ''; requestAnimationFrame(_relayout); }
+    else window.openAppearance();
+  };
+  window._rrapCancel = function () {
+    _endPreview();
+    _live = {};
+    _teardown();
+  };
+
+  function _teardown() {
+    var ov = document.getElementById('rrap');
     if (ov) ov.remove();
+    var bar = document.getElementById('rrap-prevbar'); if (bar) bar.remove();
+    _preview = false;
     window.removeEventListener('resize', _onResize);
     document.removeEventListener('paste', _onPaste);
     document.removeEventListener('dragover', _onDrag);
     document.removeEventListener('dragleave', _onDrag);
     document.removeEventListener('drop', _onDrop);
+  }
+
+  window._rrapClose = function (save) {
+    if (save) { window._rrapApply(); return; }
+    if (_preview) _endPreview();
+    _live = {};
+    if (typeof applyTheme === 'function') applyTheme();
+    _teardown();
   };
 
   // A saved watermark is a user choice, not an editor feature — it applies

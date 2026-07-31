@@ -7177,11 +7177,15 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const apA = fs.readFileSync(pathA.join(__dirname, '..', 'app', 'appearance.js'), 'utf8');
 
     // ── run the REAL functions, not a copy of them ───────────────────────
-    const s = apA.indexOf('function _rrFitDims');
+    // The block starts at the colour converters because v0.9.1206's contrast
+    // and derive helpers build on them — one contiguous pure region, not two.
+    const s = apA.indexOf('function _rgb2hsl');
     const e = apA.indexOf('// ── end logo image prep');
     ok('the logo image-prep block is findable and self-contained', s > 0 && e > s);
     const M = new Function('"use strict";' + apA.slice(s, e) +
-      '; return { fit: _rrFitDims, trim: _rrTrimBox, cls: _rrClassifyPixels, alpha: _rrHasAlpha, note: _rrLogoNote };')();
+      '; return { fit: _rrFitDims, trim: _rrTrimBox, cls: _rrClassifyPixels, alpha: _rrHasAlpha,' +
+      ' note: _rrLogoNote, lum: _rrLum, contrast: _rrContrast, readable: _rrReadableText,' +
+      ' pick: _rrPickSwatches, derive: _rrDeriveFromBg, hsl: _rrHexToHsl };')();
 
     // The block must stay pure — the moment it reaches for a canvas, the
     // thing the tests prove stops being the thing that ships.
@@ -7289,11 +7293,190 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('…so the old "too large to keep" dead end is gone',
        !/too large to keep/.test(apA.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '')));
     ok('the kind is remembered with the logo and shown in the editor',
-       /kind: p\.kind/.test(apA) && /rec\.kind \? '<span class="rrap-lnote">'/.test(apA));
+       /kind: p\.kind/.test(apA) && /rec\.kind \? '<div class="rrap-lnote"/.test(apA));
     ok('a photograph is stored as JPEG, a herald or anything see-through as PNG',
        /alpha \|\| cls\.kind === 'herald'/.test(apA) && /toDataURL\('image\/jpeg', 0\.85\)/.test(apA));
     ok('the palette sampler accepts a canvas, not just an <img>',
        /img\.naturalWidth \|\| img\.width \|\| W/.test(apA));
+
+    // ── the colour-match maths (v0.9.1206) ───────────────────────────────
+    ok('contrast is the real ratio: black on white is ~21:1, a colour on itself is 1:1',
+       Math.abs(M.contrast('#000000', '#ffffff') - 21) < 0.1 &&
+       Math.abs(M.contrast('#3a7ba6', '#3a7ba6') - 1) < 0.001);
+    ok('contrast does not care which way round you ask',
+       Math.abs(M.contrast('#123456', '#eeddcc') - M.contrast('#eeddcc', '#123456')) < 1e-9);
+
+    // Readability guard: this is what stops a pale logo making a skin nobody
+    // can read. It must LEAVE ALONE anything already fine, or it would fight
+    // the user on every single click.
+    const okPair = M.readable('#0f1220', '#f8e8c0');
+    ok('text that is already readable is returned untouched', okPair === '#f8e8c0');
+    const fixedDark = M.readable('#101010', '#202020');
+    ok('dark text on a dark background is lightened until it is readable',
+       M.contrast('#101010', fixedDark) >= 4.5, fixedDark);
+    const fixedLight = M.readable('#fdf6e3', '#f5eeda');
+    ok('pale text on a pale background is darkened until it is readable',
+       M.contrast('#fdf6e3', fixedLight) >= 4.5, fixedLight);
+    ok('…and the guard keeps the hue it was given, it does not invent one',
+       Math.abs(M.hsl(fixedDark)[0] - M.hsl('#202020')[0]) < 0.02);
+    ok('an impossible ask still returns a usable colour rather than looping',
+       /^#[0-9a-f]{6}$/i.test(M.readable('#808080', '#808080')));
+
+    // Swatches: six near-identical creams would be a useless row of chips.
+    const near = [0, 1, 2, 3, 4, 5, 6].map(i => ({ hex: '#eee' + i + i + i, h: 0.1, s: 0.2, l: 0.9, share: 0.1 }));
+    ok('near-identical colours collapse to one swatch', M.pick(near, 6).length === 1);
+    const spread = [
+      { hex: '#c00000', h: 0.00, s: 0.9, l: 0.38, share: 0.30 },
+      { hex: '#00a000', h: 0.33, s: 0.9, l: 0.31, share: 0.25 },
+      { hex: '#0000c0', h: 0.66, s: 0.9, l: 0.38, share: 0.20 },
+      { hex: '#f0f0f0', h: 0.00, s: 0.0, l: 0.94, share: 0.15 },
+    ];
+    ok('genuinely different colours all get a swatch', M.pick(spread, 6).length === 4);
+    ok('…and a colour nobody would see is not offered',
+       M.pick(spread.concat([{ hex: '#123456', h: 0.55, s: 0.6, l: 0.2, share: 0.001 }]), 6).length === 4);
+    ok('the swatch row is capped', M.pick(spread, 2).length === 2);
+    ok('no swatches from nothing', M.pick(null, 6).length === 0 && M.pick([], 6).length === 0);
+
+    // Dropping a colour on Background has to move panels and lines with it,
+    // in the right direction for BOTH a dark and a light background.
+    const dk = M.derive('#101828');
+    ok('a dark background lifts its panels and lines above it',
+       dk['--bg'] === '#101828' &&
+       M.hsl(dk['--surface'])[2] > M.hsl(dk['--bg'])[2] &&
+       M.hsl(dk['--border'])[2] > M.hsl(dk['--surface2'])[2]);
+    const lt = M.derive('#f8e8c0');
+    ok('a light background pushes them the other way',
+       M.hsl(lt['--surface'])[2] < M.hsl(lt['--bg'])[2] &&
+       M.hsl(lt['--border'])[2] < M.hsl(lt['--surface2'])[2]);
+    ok('deriving touches the four background slots and nothing else',
+       Object.keys(dk).sort().join(',') === '--bg,--border,--surface,--surface2');
+  })();
+
+  section('174. The editor is paper, the app is the app (v0.9.1206)');
+  (function () {
+    const pathB = require('path');
+    const rd = f => fs.readFileSync(pathB.join(__dirname, '..', f), 'utf8');
+    const ap = rd('app/appearance.js');
+    const css = rd('app/app.css');
+    const apc = ap.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+
+    // ── 1. The tool never wears the skin it is making ────────────────────
+    // Brad: "this whole page is super dark, its hard to see anything."
+    const paper = css.slice(css.indexOf('#rrap, #rrap-prevbar, #rrap-mini'));
+    const paperBlock = paper.slice(0, paper.indexOf('\n  }') + 4);
+    ok('the editor palette is declared in app.css, where palettes live',
+       /--p-paper:\s*#[0-9a-f]{6}/i.test(paperBlock) && /--p-ink:\s*#[0-9a-f]{6}/i.test(paperBlock));
+    ok('…and covers the preview bar and the phone sheet too, not just the editor',
+       /#rrap,\s*#rrap-prevbar,\s*#rrap-mini/.test(css));
+    // The names are the whole safety mechanism: --p-* can never shadow the
+    // skin variables the preview replica is reading.
+    ok('the paper palette cannot shadow a skin variable (no --bg/--surface/--text in it)',
+       !/--bg\s*:/.test(paperBlock) && !/--surface\s*:/.test(paperBlock) && !/--text\s*:/.test(paperBlock));
+    ok('the editor chrome paints itself from the paper set',
+       /#rrap\{[^}]*background:var\(--p-paper\)/.test(ap) &&
+       /\.rrap-btn\{[^}]*color:var\(--p-ink\)/.test(ap));
+    // The replica is the ONE place that must still read the skin.
+    ok('…while the preview replica still reads the real skin variables',
+       /\.rrap-app\{background:var\(--bg\)/.test(ap) && /\.rrap-logo i\{color:var\(--accent\)/.test(ap));
+
+    // ── 2. The app does not change until Preview ─────────────────────────
+    // Brad: "the actual app shouldn't change until we hit preview."
+    const setFn = apc.slice(apc.indexOf('function _set('), apc.indexOf('function _userPresets'));
+    ok('a colour change lands on the STAGE, not on the live app',
+       /st\.style\.setProperty\(v, val\)/.test(setFn));
+    ok('…and only reaches the real app once Preview is on',
+       /if \(_preview\) _root\.style\.setProperty\(v, val\)/.test(setFn) &&
+       (setFn.match(/_root\.style\.setProperty/g) || []).length === 1);
+
+    // ── 3. Preview is a round trip, not a commit ─────────────────────────
+    ok('Preview exists and paints the whole app',
+       /window\._rrapPreview = function/.test(ap) && /_root\.style\.setProperty\(v, _live\[v\]\)/.test(ap));
+    ok('the floating bar offers exactly Apply it, Edit it and Cancel',
+       /_rrapApply\(\)">✓ Apply it/.test(ap) && /_rrapEdit\(\)">✎ Edit it/.test(ap) &&
+       /_rrapCancel\(\)">✕ Cancel/.test(ap));
+    ok('Edit puts the editor back rather than rebuilding it from scratch',
+       /window\._rrapEdit = function[\s\S]*?ov\.style\.display = ''/.test(ap));
+    ok('leaving preview always strips what it painted and replays the truth',
+       /function _endPreview[\s\S]*?_root\.style\.removeProperty\(v\)[\s\S]*?applyTheme\(\)/.test(ap));
+    ok('Cancel keeps nothing',
+       /window\._rrapCancel = function[\s\S]*?_live = \{\}/.test(ap));
+    // ONE writer for the saved skin. Two storage keys move together or the
+    // app boots with lv_theme='custom' and no custom map to replay.
+    // Slice on the DEFINITION, not the name — "window._rrapApply" also appears
+    // earlier as an onclick in the preview bar, which would slice backwards.
+    const persist = ap.slice(ap.indexOf('function _persist'), ap.indexOf('window._rrapApply = function'));
+    ok('there is exactly ONE place that writes the skin to storage',
+       /lv_skin_custom/.test(persist) && /lv_theme/.test(persist) &&
+       (apc.match(/lv_skin_custom/g) || []).length === 1 &&
+       (apc.match(/lv_theme/g) || []).length === 1);
+    ok('…reached from Apply and the phone preset sheet, and nowhere else',
+       (apc.match(/_persist\(/g) || []).length === 3);
+    ok('Reset removes only what this session set, never the whole inline style',
+       !/style\.cssText\s*=\s*''/.test(apc) &&
+       /var keys = Object\.keys\(_live\), st = _stage\(\)/.test(ap));
+
+    // ── 4. Desktop only; presets on a phone ──────────────────────────────
+    // Brad: "Making and editing skins will only be done on a desktop. Only
+    // presets can be on the mobile app to be selected."
+    ok('there is one width that decides, named once',
+       /var EDIT_MIN_WIDTH = 900;/.test(ap) &&
+       (apc.match(/EDIT_MIN_WIDTH/g) || []).length === 2);
+    ok('a narrow screen gets the preset sheet instead of the editor',
+       /if \(!_canEdit\(\)\) \{ _openMini\(\); return; \}/.test(ap));
+    const mini = ap.slice(ap.indexOf('function _openMini'), ap.indexOf('function _onResize'));
+    ok('…and that sheet has presets only — no stage, no chips, no logo box',
+       /rrap-preset/.test(mini) && !/rrap-stage/.test(mini) && !/rrap-chip/.test(mini) &&
+       !/rrap-logotile/.test(mini));
+    ok('picking a preset on a phone applies it straight away',
+       /_persist\(map\);[\s\S]{0,120}applyTheme\(\)/.test(mini));
+    ok('"＋ Save current…" is not offered where nothing can be built',
+       /rrap-addp[\s\S]*?\/, ''\)/.test(mini));
+
+    // ── 5. A square logo box, top left ───────────────────────────────────
+    // Brad: "a big square box to the top left that looks like a logo shape,
+    // not a long text box."
+    ok('the logo box is square by construction, not by a guessed pixel height',
+       /\.rrap-logotile\{[^}]*aspect-ratio:1\/1/.test(ap));
+    ok('…and it sits at the top of the left-hand column',
+       ap.indexOf('rrap-left') < ap.indexOf('rrap-right') &&
+       /_leftPanelHtml[\s\S]{0,80}_logoBarHtml\(\) \+ _swatchHtml\(\) \+ _rolesHtml\(\)/.test(ap));
+
+    // ── 6. Nothing scrolls: the stage is scaled to fit ───────────────────
+    // Brad: "size the box with the app background in such a way that there
+    // is not scrolling."
+    ok('the stage area clips and the stage scales into it',
+       /\.rrap-stagewrap\{[^}]*overflow:hidden/.test(ap) &&
+       /_scale = Math\.min\(1, aw \/ sw, ah \/ sh\)/.test(ap));
+    ok('the fit never enlarges the stage past its true size', /Math\.min\(1,/.test(ap));
+    // A scaled stage returns SCALED rects. The leader lines are drawn in
+    // stage coordinates, so every one of the four must be divided back out —
+    // miss one and the wires drift as the window narrows.
+    const wires = ap.slice(ap.indexOf('function _wires('), ap.indexOf('// ── logo → palette'));
+    ok('every wire coordinate is converted out of screen scale (all four)',
+       (wires.match(/\) \/ k/g) || []).length === 4 && /var k = _scale \|\| 1;/.test(wires));
+    ok('layout is measured UNSCALED, so it never needs the same correction',
+       /st\.style\.transform = 'none';\s*\n\s*_scale = 1;\s*\n\s*_layout\(\);\s*\n\s*_fitStage\(\);/.test(ap));
+
+    // ── 7. The colour-match box ──────────────────────────────────────────
+    // Brad: "we need a logo box and a color match box… allow them to adjust
+    // the colors and apply those colors to the different areas."
+    const rolesBlock = ap.slice(ap.indexOf('var ROLES = ['), ap.indexOf('];', ap.indexOf('var ROLES = [')));
+    ok('the colour-match box offers five plain-English jobs',
+       (rolesBlock.match(/\['--[a-z0-9-]+'/g) || []).length === 5);
+    ok('…and never offers a status colour — those mean something',
+       !/--green|--want|--forsale|--accent3/.test(rolesBlock));
+    ok('pick a colour, then pick a job — two clicks, no dragging',
+       /window\._rrapArm = function/.test(ap) && /window\._rrapRole = function/.test(ap));
+    ok('a colour picker is still there as the escape hatch',
+       /window\._rrapRoleColor = function/.test(ap) && /rrap-role input\[type=color\]/.test(ap));
+    ok('clicking the escape hatch does not ALSO drop the armed swatch',
+       /ev\.target\.tagName === 'INPUT'\) return/.test(ap));
+    ok('the readability guard runs on every assignment, last',
+       /function _rrApplyRole[\s\S]*?_rrReadableText\(_cur\('--bg'\), _cur\('--text'\)\)/.test(ap));
+    ok('assigning a background carries its panels and lines with it',
+       /if \(v === '--bg'\) \{\s*\n\s*var d = _rrDeriveFromBg\(hex\);/.test(ap));
+    ok('the swatches survive a reload with the logo',
+       /sw: _swatches/.test(ap) && /function _savedSwatches/.test(ap));
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

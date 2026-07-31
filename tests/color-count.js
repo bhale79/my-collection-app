@@ -43,6 +43,12 @@ const PALETTE_SCOPES = [
   /html\[data-theme="high-contrast"\]\s*\{[\s\S]*?\n\s*\}/g,
   /html\[data-theme="high-contrast"\]\s+\.main\s*\{[\s\S]*?\n\s*\}/g,
   /\n\s*\.main\s*\{[\s\S]*?\n\s*\}/g,
+  // v0.9.1206: the Appearance editor's paper. Same kind of block as .main —
+  // a palette DEFINITION, the source of truth appearance.js points at. It is
+  // exempt for the same reason .main is: something has to hold the real value
+  // of "cream". appearance.js itself must stay literal-free, and §174 checks
+  // that separately, so this exemption cannot become a hiding place.
+  /#rrap,\s*#rrap-prevbar,\s*#rrap-mini\s*\{[\s\S]*?\n\s*\}/g,
 ];
 
 function countFile(absPath) {
