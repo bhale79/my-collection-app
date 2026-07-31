@@ -181,35 +181,38 @@ async function sheetsAppend(spreadsheetId, range, values) {
   // Extract raw tab name from range (e.g. "For Sale!A:A" -> "For Sale")
   const tabName = range.includes('!') ? range.split('!')[0] : range;
 
-  // Helper: convert column number (1-based) to letter(s): 1=A, 26=Z, 27=AA
-  function colLetter(n) {
-    let s = '';
-    while (n > 0) { n--; s = String.fromCharCode(65 + (n % 26)) + s; n = Math.floor(n / 26); }
-    return s;
+  // ── v0.9.1200 (structural audit #1): a REAL append, atomic at Google ──
+  // The old shape was read-then-write: count column A, compute nextRow, PUT
+  // to that exact range. Two saves in flight at once — Brad's phone at a
+  // train show and his PC at home, or a double-fired handler slipping a
+  // guard — both counted the same rows, computed the same nextRow, and the
+  // SECOND PUT silently replaced the first row. No error, no trace: an item
+  // that was saved simply never existed. Worse than a failed write, because
+  // this one succeeds — over someone else's data.
+  //
+  // Sheets' own append endpoint (:append with insertDataOption=INSERT_ROWS)
+  // does the find-the-end and the write as ONE server-side operation, so
+  // concurrent appends interleave instead of colliding. The row the data
+  // actually landed on comes back in updates.updatedRange — parsed and
+  // returned, same contract as before (v0.9.1196 callers store it). If the
+  // response ever lacks a parsable range, return 0 — the honest "row
+  // unknown", which every downstream guard already treats as do-not-write.
+  const body = JSON.stringify({ majorDimension: 'ROWS', values: values });
+  const appendRange = `${tabName}!A3:A`;   // anchor the table below the two header rows
+  const res = await _withTokenRetry(() => fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${_encodeRange(appendRange)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+    { method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body }
+  ));
+  const json = await res.json();
+  if (json.error) {
+    console.error('sheetsAppend error:', JSON.stringify(json.error));
+    throw new Error('Sheets write failed: ' + (json.error.message || JSON.stringify(json.error)));
   }
-
-  // Find the last used row in column A (data starts at row 3)
-  const colARes = await sheetsGet(spreadsheetId, `${tabName}!A3:A`);
-  const nextRow = 3 + ((colARes.values || []).length);
-
-  // Write each row with PUT to an exact range
-  for (let i = 0; i < values.length; i++) {
-    const row = values[i];
-    const endCol = colLetter(Math.max(row.length, 1));
-    const writeRange = `${tabName}!A${nextRow + i}:${endCol}${nextRow + i}`;
-    const body = JSON.stringify({ range: writeRange, majorDimension: 'ROWS', values: [row] });
-    const res = await _withTokenRetry(() => fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${_encodeRange(writeRange)}?valueInputOption=USER_ENTERED`,
-      { method: 'PUT', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body }
-    ));
-    const json = await res.json();
-    if (json.error) {
-      console.error('sheetsAppend (PUT) error:', JSON.stringify(json.error));
-      throw new Error('Sheets write failed: ' + (json.error.message || JSON.stringify(json.error)));
-    }
-    console.log('[Sheets] Wrote row to', writeRange);
-  }
-  return nextRow;
+  const _ur = (json.updates && json.updates.updatedRange) || '';
+  const _rm = _ur.match(/![A-Z]+(\d+)/);
+  const firstRow = _rm ? parseInt(_rm[1], 10) : 0;
+  console.log('[Sheets] Appended', values.length, 'row(s) at', _ur || '(range not reported)');
+  return firstRow;
 }
 
 async function sheetsDeleteRow(spreadsheetId, sheetName, rowNumber) {

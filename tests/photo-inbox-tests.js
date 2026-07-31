@@ -6883,6 +6883,70 @@ META_WRITES.length = 0; TOASTS.length = 0;
        three[0].masterKey === 'pw|A|' && w3b.writes.length === 1, JSON.stringify(w3b.writes));
   })();
 
+  section('168. sheetsAppend is a REAL append — concurrent saves cannot overwrite each other (v0.9.1200)');
+  // Structural audit #1. The old shape read column A, computed nextRow, and
+  // PUT to that exact range — two in-flight saves computed the SAME row and
+  // the second silently replaced the first. Now the :append endpoint does
+  // find-the-end + write as one atomic server-side operation, and the row the
+  // data actually landed on is parsed from updates.updatedRange.
+  (function () {
+    const pR = require('path');
+    const sh = fs.readFileSync(pR.join(__dirname, '..', 'app', 'sheets.js'), 'utf8');
+    const aIdx = sh.indexOf('async function sheetsAppend');
+    const aEnd = sh.indexOf('async function sheetsDeleteRow');
+    ok('sheetsAppend slice is findable', aIdx > 0 && aEnd > aIdx);
+    const body = sh.slice(aIdx, aEnd);
+
+    // The read-then-write shape is GONE — no pre-count, no per-row PUT.
+    ok('no column-A pre-count remains (the race window)', body.indexOf('sheetsGet') < 0);
+    ok('no exact-range PUT remains', body.indexOf("method: 'PUT'") < 0);
+    ok('it POSTs to the :append endpoint', /:append\?/.test(body) && /method: 'POST'/.test(body));
+    ok('with INSERT_ROWS, so concurrent appends interleave instead of colliding',
+       /insertDataOption=INSERT_ROWS/.test(body));
+    ok('USER_ENTERED is preserved (the leading-quote text coercion depends on it)',
+       /valueInputOption=USER_ENTERED/.test(body));
+
+    // Drive the REAL function (await stripped; stubs return plain values —
+    // async assertions are invisible in this harness, per sections 160/165).
+    const syncBody = body.replace(/\basync /g, '').replace(/\bawait /g, '');
+    function run(response, opts) {
+      const calls = [];
+      const ctx = {
+        window: (opts && opts.win) || {},
+        showToast: function () {},
+        _withTokenRetry: function (fn) { return fn(); },
+        _encodeRange: function (r) { return encodeURIComponent(r); },
+        accessToken: 'tok',
+        fetch: function (url, init) { calls.push({ url: url, init: init }); return { json: function () { return response; } }; },
+        console: { log: function () {}, error: function () {} },
+      };
+      const fn = new Function(...Object.keys(ctx), '"use strict";' + syncBody + '; return sheetsAppend;')(...Object.values(ctx));
+      return { fn: fn, calls: calls };
+    }
+
+    const good = run({ updates: { updatedRange: "'My Collection'!A170:AK170" } });
+    const row = good.fn('SHEET', 'My Collection!A:A', [['x'], ['y']]);
+    ok('the REAL landed row is parsed from updatedRange (170)', row === 170, String(row));
+    ok('one request carries ALL rows — no per-row write loop',
+       good.calls.length === 1 && JSON.parse(good.calls[0].init.body).values.length === 2);
+    ok('the append range anchors below the two header rows',
+       decodeURIComponent(good.calls[0].url).indexOf('My Collection!A3:A:append') >= 0);
+
+    const noRange = run({ updates: {} });
+    ok('a response without a parsable range returns the honest 0, never a guess',
+       noRange.fn('SHEET', 'My Collection!A:A', [['x']]) === 0);
+
+    const errRes = run({ error: { message: 'quota' } });
+    var threw = false;
+    try { errRes.fn('SHEET', 'My Collection!A:A', [['x']]); } catch (e) { threw = /quota/.test(e.message); }
+    ok('an API error still throws to the caller (never a silent shrug)', threw);
+
+    var offline = run({}, { win: { _offlineMode: true } });
+    var threwOff = false;
+    try { offline.fn('SHEET', 'T!A:A', [['x']]); } catch (e) { threwOff = /offline/.test(e.message); }
+    ok('offline mode still refuses the write up front', threwOff);
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
