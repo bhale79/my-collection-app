@@ -1776,9 +1776,20 @@
       try { localStorage.setItem(USER_PRESETS_KEY, JSON.stringify(up)); } catch (e2) {}
       var pl = document.getElementById('rrap-presets');
       if (pl) pl.innerHTML = _presetPills();
+      if (typeof showToast === 'function') showToast('Saved as “' + String(name).slice(0, 24) + '” — it is in the row above', 3200);
     };
-    if (typeof appPrompt === 'function') appPrompt('Name this preset', '', go);
-    else go(window.prompt('Name this preset'));
+    // Brad: "save current doesn't do anything. it should let me make a name
+    // and then save it."
+    //
+    // Two faults, both mine. appPrompt RETURNS A PROMISE — it has never taken
+    // a callback — so `go` was being handed in as the options object and the
+    // name the user typed was resolved to nobody. And the dialog paints at
+    // z-index 99998 while this editor sits at 100040, so it opened BEHIND the
+    // editor: a dialog you cannot see, discarding an answer nobody collects.
+    if (typeof appPrompt === 'function') {
+      appPrompt('Give this look a name so you can come back to it.', '',
+        { title: 'Save this look' }).then(go);
+    } else go(window.prompt('Name this look'));
   };
   window._rrapExport = function () {
     var map = {}; EDIT_VARS.forEach(function (e) { map[e[0]] = _cur(e[0]); });
@@ -1799,8 +1810,10 @@
         _refreshPanel();
       } catch (e) { if (typeof showToast === 'function') showToast('That didn’t look like a skin — paste the exported text exactly', 3500, true); }
     };
-    if (typeof appPrompt === 'function') appPrompt('Paste a skin', '', go);
-    else go(window.prompt('Paste a skin'));
+    if (typeof appPrompt === 'function') {
+      appPrompt('Paste the text you exported from another device.', '',
+        { title: 'Import a look' }).then(go);
+    } else go(window.prompt('Paste a skin'));
   };
 
   // ── Preview: the round trip Brad asked for ───────────────────────

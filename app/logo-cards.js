@@ -296,8 +296,14 @@
       _render();
       if (typeof buildDashboard === 'function') { try { buildDashboard(); } catch (e) {} }
     };
-    if (typeof appConfirm === 'function') appConfirm('Delete this card?', go);
-    else go();
+    // appConfirm returns a promise; it has never taken a callback. Passed one,
+    // it silently became the options object and the answer went nowhere —
+    // so Delete did nothing at all.
+    if (typeof appConfirm === 'function') {
+      appConfirm('Delete this card? Anywhere on the dashboard showing it will go back to “Choose a card”.',
+        { title: 'Delete card', ok: 'Delete', danger: true })
+        .then(function (yes) { if (yes) go(); });
+    } else go();
   };
   function _choose(id) {
     if (_slotIdx >= 0 && typeof window.rrDashSetSlotCard === 'function') {

@@ -79,7 +79,7 @@ function appConfirm(message, opts) {
   const danger = !!opts.danger;
   return new Promise(function(resolve) {
     const ov = document.createElement('div');
-    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:99998;display:flex;align-items:center;justify-content:center;padding:1rem';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:100080;display:flex;align-items:center;justify-content:center;padding:1rem';
     ov.innerHTML = '<div style="max-width:420px;width:100%;background:var(--surface,#1a1a2e);border:1px solid var(--border,#333);border-radius:14px;padding:1.25rem 1.25rem 1rem;color:var(--text,#eee);font-family:var(--font-body,sans-serif);box-shadow:0 10px 40px rgba(0,0,0,0.5)">'
       + '<div style="font-size:1rem;font-weight:600;margin-bottom:0.55rem">' + title + '</div>'
       + '<div style="font-size:0.9rem;line-height:1.45;color:var(--text-mid,#bbb);margin-bottom:1.1rem">' + message + '</div>'
@@ -113,7 +113,7 @@ function appPrompt(message, defaultValue, opts) {
   var prefix = opts.prefix || '';
   return new Promise(function(resolve) {
     var ov = document.createElement('div');
-    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:99998;display:flex;align-items:center;justify-content:center;padding:1rem';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:100080;display:flex;align-items:center;justify-content:center;padding:1rem';
     var safeVal = String(defaultValue == null ? '' : defaultValue).replace(/"/g, '&quot;');
     var numAttrs = (inputType === 'number') ? ' inputmode="decimal" step="any"' : '';
     ov.innerHTML = '<div style="max-width:420px;width:100%;background:var(--surface,#1a1a2e);border:1px solid var(--border,#333);border-radius:14px;padding:1.25rem;color:var(--text,#eee);font-family:var(--font-body,sans-serif);box-shadow:0 10px 40px rgba(0,0,0,0.5)">'

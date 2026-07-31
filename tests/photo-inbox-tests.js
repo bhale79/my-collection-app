@@ -8067,8 +8067,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('saving a card from a dashboard slot fills that slot',
        /if \(_slotIdx >= 0\) \{ _choose\(id\); return; \}/.test(lc) &&
        /window\.rrDashSetSlotCard\(_slotIdx, id\)/.test(lc));
-    ok('deleting a card asks first',
-       /appConfirm\('Delete this card\?'/.test(lc));
+    ok('deleting a card asks first, and waits for the answer',
+       /appConfirm\('Delete this card\?/.test(lc) &&
+       /\.then\(function \(yes\) \{ if \(yes\) go\(\); \}\)/.test(lc));
     ok('typing in a card’s text box does not rebuild it under the cursor',
        /if \(field === 'font' \|\| field === 'color' \|\| field === 'bg'\) _render\(\);\s*\n\s*else _refreshPreview\(\);/.test(lc));
   })();
@@ -8142,6 +8143,67 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('every script tag rides the same ?v as APP_VERSION',
        !!appVer && marks.length > 50 && marks.every(v => v === appVer),
        'app=' + appVer + ' distinct=' + [...new Set(marks)].join(','));
+  })();
+
+  section('179. A dialog nobody sees, answering nobody');
+  (function () {
+    const pathG = require('path');
+    const rd = f => fs.readFileSync(pathG.join(__dirname, '..', f), 'utf8');
+
+    // Brad: "save current doesn't do anything. it should let me make a name
+    // and then save it."
+    //
+    // appPrompt and appConfirm RETURN PROMISES. They have never taken a
+    // callback. Passed one, it silently becomes the options object: the
+    // dialog opens, the user types, and the answer resolves to nobody. Three
+    // call sites had it wrong and all three were written in this session —
+    // Save current, Import, and Delete card, which had also never worked.
+    //
+    // This walks every call in the app rather than checking the three I know
+    // about, because the mistake is invisible at the call site and the next
+    // one will be too.
+    const bad = [];
+    fs.readdirSync(pathG.join(__dirname, '..', 'app'))
+      .filter(f => /\.js$/.test(f))
+      .forEach(function (f) {
+        const src = rd('app/' + f);
+        const re = /(appPrompt|appConfirm)\s*\(/g;
+        let m;
+        while ((m = re.exec(src))) {
+          let i = re.lastIndex, d = 1;
+          while (i < src.length && d > 0) { if (src[i] === '(') d++; else if (src[i] === ')') d--; i++; }
+          // the definitions themselves, not calls
+          if (/function\s+$/.test(src.slice(Math.max(0, m.index - 10), m.index))) continue;
+          const awaited = /await\s*$/.test(src.slice(Math.max(0, m.index - 8), m.index));
+          const chained = /^\s*\.then/.test(src.slice(i, i + 14));
+          if (!awaited && !chained) {
+            bad.push(f + ':' + src.slice(0, m.index).split('\n').length);
+          }
+        }
+      });
+    ok('every appPrompt/appConfirm result is actually collected (' + bad.length + ' loose)',
+       bad.length === 0, bad.join(', '));
+
+    // …and the dialog has to be ON TOP of whatever asked for it. It sat at
+    // 99998 while the Appearance editor sits at 100040, so it opened behind
+    // the editor — invisible, and discarding an answer nobody was collecting.
+    const wu = rd('app/wizard-utils.js');
+    const ap = rd('app/appearance.js');
+    // Only the two promise-returning dialogs matter here; the third overlay
+    // in that file at z-index 9999 is the photo viewer, which nothing in the
+    // editor opens.
+    const dlgZ = [...wu.matchAll(/z-index:(1\d{5});display:flex;align-items:center;justify-content:center/g)]
+      .map(m => parseInt(m[1], 10));
+    const appZ = [...ap.matchAll(/z-index:(\d{6})/g)].map(m => parseInt(m[1], 10));
+    ok('both dialogs were found', dlgZ.length === 2 && appZ.length >= 3);
+    ok('a modal dialog paints above everything that can open one',
+       dlgZ.every(z => z > Math.max.apply(null, appZ)),
+       'dialogs at ' + dlgZ.join(',') + ' vs editor up to ' + Math.max.apply(null, appZ));
+
+    ok('saving a look tells you it worked, and names it back to you',
+       /showToast\('Saved as “'/.test(ap));
+    ok('deleting a card only deletes when the answer is yes',
+       /\.then\(function \(yes\) \{ if \(yes\) go\(\); \}\)/.test(rd('app/logo-cards.js')));
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
