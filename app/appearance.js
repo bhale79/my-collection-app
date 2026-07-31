@@ -319,7 +319,7 @@
     + '.rrap-rl b{display:block;font-size:0.75rem}'
     + '.rrap-rl span{color:var(--p-ink-dim);font-size:0.62rem}'
     // right: presets, tabs, the fitted stage
-    + '.rrap-right{flex:1;min-width:0;display:flex;flex-direction:column}'
+    + '.rrap-right{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column}'
     + '.rrap-presets{flex:none;display:flex;gap:0.5rem;padding:0.6rem 1.1rem;border-bottom:1px solid var(--p-line);overflow-x:auto}'
     + '.rrap-preset{flex:none;display:flex;align-items:center;gap:0.4rem;padding:0.4rem 0.75rem;border-radius:999px;border:1.5px solid var(--p-line);background:var(--p-panel);cursor:pointer;font-size:0.75rem;color:var(--p-ink-mid);white-space:nowrap}'
     + '.rrap-preset:hover{border-color:var(--p-accent)}'
@@ -332,7 +332,7 @@
     // The wrapper clips; the stage scales to fit inside it. Brad: "size the
     // box with the app background in such a way that there is not scrolling."
     + '.rrap-stagewrap{flex:1;min-height:0;overflow:hidden;padding:0 1.1rem 1.1rem}'
-    + '.rrap-stage{position:relative;border:1px solid var(--p-line-hi);border-radius:0 14px 14px 14px;background:var(--p-panel2);padding:26px 208px;width:1020px;transform-origin:top left}'
+    + '.rrap-stage{position:relative;box-sizing:border-box;width:100%;min-width:1020px;border:1px solid var(--p-line-hi);border-radius:0 14px 14px 14px;background:var(--p-panel2);padding:26px 208px;transform-origin:top left}'
     + '.rrap-wires{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5}'
     + '.rrap-wires line{stroke-width:1.5;stroke-dasharray:4 3;opacity:0.85}'
     + '.rrap-scene{display:none}.rrap-scene.rrap-on{display:block}'
@@ -532,9 +532,20 @@
   function _fitStage() {
     var wrap = document.querySelector('.rrap-stagewrap'), st = _stage();
     if (!wrap || !st) return;
-    var sw = st.offsetWidth, sh = st.offsetHeight;
-    var aw = wrap.clientWidth, ah = wrap.clientHeight;
-    if (!sw || !sh || !aw || !ah) return;
+    // What the stage really occupies, chips included. offsetWidth is the
+    // padding box only — an absolutely-positioned chip that overhangs it is
+    // invisible to the fit, and gets clipped instead of scaled.
+    var sw = Math.max(st.offsetWidth, st.scrollWidth);
+    var sh = Math.max(st.offsetHeight, st.scrollHeight);
+    // …and what the wrapper really OFFERS. clientWidth includes the
+    // wrapper's own padding, so fitting to it overhangs by exactly that
+    // padding — which is how the right-hand chips ended up cut off the
+    // screen at 1200px wide while looking fine at 1900.
+    var cs = getComputedStyle(wrap);
+    var px = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+    var py = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+    var aw = wrap.clientWidth - px, ah = wrap.clientHeight - py;
+    if (!sw || !sh || aw <= 0 || ah <= 0) return;
     _scale = Math.min(1, aw / sw, ah / sh);
     st.style.transform = 'scale(' + _scale + ')';
   }
@@ -1043,8 +1054,9 @@
       + '<span class="rrap-rc" title="Colour of the line"><input type="color" value="' + col
       + '" oninput="window._rrapTitleSet(\'color\',this.value)">'
       + '<span class="rrap-rcface" style="background:' + col + '"></span></span>'
-      + '<span class="rrap-hint" style="flex:1;min-width:170px">Shows in the top bar next to THE RAIL ROSTER. Leave it empty for none.</span>'
-      + '</div></div>';
+      + '</div>'
+      + '<div class="rrap-hint" style="margin-top:0.3rem">Shows in the top bar next to THE RAIL ROSTER. Leave it empty for none.</div>'
+      + '</div>';
   }
 
   function _swatchHtml() {

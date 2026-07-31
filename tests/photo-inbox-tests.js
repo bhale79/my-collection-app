@@ -7459,6 +7459,22 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /\.rrap-stagewrap\{[^}]*overflow:hidden/.test(ap) &&
        /_scale = Math\.min\(1, aw \/ sw, ah \/ sh\)/.test(ap));
     ok('the fit never enlarges the stage past its true size', /Math\.min\(1,/.test(ap));
+    // v0.9.1212. Brad's screenshot showed the right-hand chips cut off the
+    // side of the screen while this whole suite was green — clientWidth
+    // INCLUDES the wrapper's own padding, so fitting to it overhung by
+    // exactly that padding. No grep could have seen it; tests/layout-check.js
+    // renders the editor and measures. These two lines keep the fix honest
+    // on a machine with no browser.
+    ok('the fit measures what the wrapper OFFERS, not its padding box',
+       /parseFloat\(cs\.paddingLeft\)/.test(ap) &&
+       /var aw = wrap\.clientWidth - px, ah = wrap\.clientHeight - py;/.test(ap));
+    ok('…and what the stage really occupies, overhanging chips included',
+       /Math\.max\(st\.offsetWidth, st\.scrollWidth\)/.test(ap));
+    ok('every column flex child is allowed to shrink',
+       /\.rrap-right\{[^}]*min-height:0/.test(ap) &&
+       /\.rrap-main\{[^}]*min-height:0/.test(ap));
+    ok('the stage fills the space it is given instead of a fixed width',
+       /\.rrap-stage\{[^}]*box-sizing:border-box;width:100%;min-width:1020px/.test(ap));
     // A scaled stage returns SCALED rects. The leader lines are drawn in
     // stage coordinates, so every one of the four must be divided back out —
     // miss one and the wires drift as the window narrows.
