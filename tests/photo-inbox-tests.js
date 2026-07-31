@@ -6798,6 +6798,91 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /rr_mk_header_v1/.test(adSrc) && /\.then\(function \(\) \{ try \{ localStorage\.setItem\('rr_mk_header_v1'/.test(adSrc));
   })();
 
+  section('167. The master-key backfill — old rows learn what they are (v0.9.1199)');
+  // Rows saved before v0.9.1198 have a blank Master Key. The backfill walks
+  // them on each dashboard build: resolution is in-memory and FREE (every row
+  // examined every pass — the photo-repair starvation lesson), only sheet
+  // writes are capped at 12/build. Off-catalog rows are done without a write;
+  // a failed write re-queues. These slice and drive the REAL function.
+  (function () {
+    const pR = require('path');
+    const pinS = fs.readFileSync(pR.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+    ok('the backfill runs on every dashboard build, beside the photo repair',
+       /_repairMissingPhotoLinks\(\); _backfillMasterKeys\(\);/.test(pinS));
+    const bIdx = pinS.indexOf('var _mkDone = {};');
+    const bEnd = pinS.indexOf('window._rrBackfillMasterKeys', bIdx);
+    ok('the backfill slice is findable', bIdx > 0 && bEnd > bIdx);
+    // Sync-drive the real body (await stripped — branching unchanged; in this
+    // harness an async assertion is an invisible one, per sections 160/165).
+    const body = pinS.slice(bIdx, bEnd).replace(/\basync /g, '').replace(/\bawait /g, '');
+    function world(rows, failNums) {
+      const writes = [];
+      const ctx = {
+        window: { state: {} },
+        state: { personalData: {}, personalSheetId: 'SHEET' },
+        PERSONAL_TAB: 'My Collection',
+        findMaster: function (num, vari, prefer) {
+          if (num === 'OFFCAT') return null;
+          return { _era: (prefer && prefer.era) || 'pw', itemNum: num, variation: vari };
+        },
+        rrMasterKeyOf: function (m) { return m._era + '|' + m.itemNum + '|' + (m.variation || ''); },
+        personalColLetter: function () { return 'AK'; },
+        sheetsUpdate: function (id, range, vals) {
+          const num = vals[0][0].split('|')[1];
+          if (failNums && failNums.indexOf(num) >= 0) throw new Error('quota');
+          writes.push(range + '=' + vals[0][0]); return {};
+        },
+        console: { log: function () {}, warn: function () {} },
+      };
+      ctx.window.state = ctx.state;
+      rows.forEach(function (r, i) { ctx.state.personalData['k' + i] = r; });
+      const fn = new Function(...Object.keys(ctx), '"use strict";' + body + '; return _backfillMasterKeys;')(...Object.values(ctx));
+      return { run: fn, writes: writes, rows: rows };
+    }
+
+    // 20 eligible rows -> exactly 12 writes on pass one, the rest on pass two.
+    var many = []; for (var i = 0; i < 20; i++) many.push({ owned: true, itemNum: 'N' + i, variation: '1', era: 'pw', row: 10 + i, inventoryId: 100 + i });
+    var w1 = world(many, null);
+    w1.run();
+    ok('pass one writes exactly the cap (12)', w1.writes.length === 12, String(w1.writes.length));
+    w1.run();
+    ok('pass two finishes the rest (8) — no starvation, no repeats', w1.writes.length === 20, String(w1.writes.length));
+    w1.run();
+    ok('pass three writes NOTHING — done means done', w1.writes.length === 20, String(w1.writes.length));
+    ok('memory learned every key', many.every(function (r) { return r.masterKey; }));
+
+    // Skips: manual, placeholder row, already-keyed, off-catalog.
+    var mix = [
+      { owned: true, itemNum: 'M1', era: 'Manual', row: 5, inventoryId: 1 },
+      { owned: true, itemNum: 'P1', era: 'pw', row: 99999, inventoryId: 2 },
+      { owned: true, itemNum: 'P2', era: 'pw', row: 0, inventoryId: 3 },
+      { owned: true, itemNum: 'K1', era: 'pw', row: 7, inventoryId: 4, masterKey: 'pw|K1|' },
+      { owned: true, itemNum: 'OFFCAT', era: 'pw', row: 8, inventoryId: 5 },
+      { owned: true, itemNum: '2321', variation: '1', era: 'pw', row: 163, inventoryId: 212 },
+    ];
+    var w2 = world(mix, null);
+    w2.run();
+    ok('only the one eligible row is written — manual/placeholder/keyed/off-catalog all skipped',
+       w2.writes.length === 1 && /AK163=pw\|2321\|1$/.test(w2.writes[0]), JSON.stringify(w2.writes));
+    ok('the off-catalog row got NO key and NO write', !mix[4].masterKey);
+    ok('the manual row is untouched', !mix[0].masterKey);
+
+    // A failed write re-queues; a later pass completes it.
+    var three = [
+      { owned: true, itemNum: 'A', era: 'pw', row: 3, inventoryId: 11 },
+      { owned: true, itemNum: 'B', era: 'pw', row: 4, inventoryId: 12 },
+    ];
+    var w3 = world(three, ['A']);           // A's write throws
+    w3.run();
+    ok('a failed write leaves the row unkeyed and keeps B moving',
+       !three[0].masterKey && three[1].masterKey === 'pw|B|', JSON.stringify([three[0].masterKey, three[1].masterKey]));
+    w3.rows[0].itemNum = 'A'; // unchanged; clear the failure and re-run
+    var w3b = world(three, null);           // fresh session, A now writable, B already keyed
+    w3b.run();
+    ok('the next pass completes the failed row and leaves the keyed one alone',
+       three[0].masterKey === 'pw|A|' && w3b.writes.length === 1, JSON.stringify(w3b.writes));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

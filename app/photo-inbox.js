@@ -3796,6 +3796,46 @@
     finally { _repairRan = false; }               // eligible again on the next build
   }
 
+  // ── v0.9.1199: backfill Master Keys for rows saved before v0.9.1198 ──
+  // New saves store WHICH catalog row the user confirmed (col AK). Brad's
+  // existing 168 rows predate that; this walks them once and writes each
+  // row's best resolution — the SAME answer every render already trusts,
+  // computed once with full context (era + maker + variation as prefer) and
+  // then never re-guessed. Wired beside _repairMissingPhotoLinks and paced
+  // the same way, with tonight's starvation lesson applied: RESOLUTION is
+  // in-memory and free, so every row is examined each pass — only the sheet
+  // WRITES are capped (12/build). A row that resolves to nothing is done
+  // (off-catalog; nothing to store); a row whose WRITE fails is re-queued.
+  var _mkDone = {};
+  async function _backfillMasterKeys() {
+    if (!window.state || !state.personalData || !state.personalSheetId) return;
+    if (typeof findMaster !== 'function' || typeof rrMasterKeyOf !== 'function'
+        || typeof sheetsUpdate !== 'function' || typeof personalColLetter !== 'function') return;
+    var wrote = 0;
+    var rows = Object.values(state.personalData);
+    for (var i = 0; i < rows.length; i++) {
+      var p = rows[i];
+      if (!p || !p.owned || !p.itemNum || p.masterKey) continue;
+      if (String(p.era || '') === 'Manual') continue;            // a manual entry's identity is its own
+      if (!p.row || Number(p.row) === 99999) continue;           // a placeholder is not a row
+      var k = String(p.inventoryId || (p.itemNum + '|' + (p.variation || '') + '|' + p.row));
+      if (_mkDone[k]) continue;
+      var m = null;
+      try { m = findMaster(p.itemNum, p.variation || '', p); } catch (e) {}
+      var key = m ? rrMasterKeyOf(m) : '';
+      if (!key) { _mkDone[k] = true; continue; }                 // off-catalog — nothing to store, no API spent
+      if (wrote >= 12) continue;                                 // write cap only; resolution stays free
+      try {
+        await sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('masterKey') + p.row, [[key]]);
+        p.masterKey = key;                                       // memory learns it the moment the sheet does
+        _mkDone[k] = true;
+        wrote++;
+        console.log('[MasterKey] backfilled', p.itemNum, key);
+      } catch (e) { console.warn('[MasterKey] backfill deferred:', p.itemNum, e && e.message); }
+    }
+  }
+  if (typeof window !== 'undefined') window._rrBackfillMasterKeys = _backfillMasterKeys;
+
   // ── Batch AI identify (Phase 3, v0.9.886) ────────────────────
   // One button: every un-identified item group gets its FIRST photo
   // run through the existing identify relay (ai-id.js → Gemini).
@@ -7381,7 +7421,7 @@
         try { _autoPlaceOnce(); } catch (e) {}
         var r = orig.apply(this, arguments);
         try {
-          _injectNav(); _flushPending(); _repairMissingPhotoLinks();
+          _injectNav(); _flushPending(); _repairMissingPhotoLinks(); _backfillMasterKeys();
           if (!_startupCounted) { _startupCounted = true; setTimeout(function () { _pinCountRefresh(); }, 1500); }
         } catch (e) {}
         return r;
