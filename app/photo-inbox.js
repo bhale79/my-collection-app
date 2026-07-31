@@ -3747,6 +3747,10 @@
             _linkDone = false;      // row unknown yet — retry once the sync lands
           }
         }
+        // v0.9.1201: this item's photo set just changed (files moved in and/or
+        // link written) — forget its cached first-photo id so lists and the
+        // reel re-resolve instead of showing the old picture forever.
+        try { if (typeof rrThumbBust === 'function') rrThumbBust(pd); } catch (eTB) {}
         // Retire the note ONLY when its work finished. Deleting unconditionally
         // is what turned a retryable miss into permanent, silent data loss.
         if (_linkDone) {

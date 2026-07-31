@@ -1781,6 +1781,7 @@ async function openPhotoFolder(itemNum, storedLink) {
     });
     if (_pfKey && state.personalData[_pfKey].row) {
       state.personalData[_pfKey].photoItem = freshLink;
+      try { if (typeof rrThumbBust === 'function') rrThumbBust(state.personalData[_pfKey]); } catch (eTB) {}   // v0.9.1201
       sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('photoItem') + state.personalData[_pfKey].row, [[freshLink]]).catch(function(e) { console.warn('Photo link update:', e); });
     }
   } catch(e) { showToast('Could not open Drive folder: ' + e.message); }

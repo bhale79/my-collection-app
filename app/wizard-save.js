@@ -804,6 +804,7 @@ async function savePhotoOnlyUpdate() {
     try {
       await sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('photoItem') + pd.row, [[folderLink]]);
       pd.photoItem = folderLink;
+      try { if (typeof rrThumbBust === 'function') rrThumbBust(pd); } catch (eTB) {}   // v0.9.1201: photo set changed
       // v0.9.697: without this, the 2-hour personal-data cache reloads WITHOUT
       // the new photo link — "saved" data vanished on next app load (Brad).
       if (typeof _cachePersonalData === 'function') _cachePersonalData();

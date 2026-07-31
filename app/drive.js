@@ -689,7 +689,10 @@ async function driveRepairPhotoLinks(opts) {
       if (!p.row || p.row === 99999) { result.failed.push({ item: p.item, error: 'no sheet row yet' }); continue; }
       await sheetsUpdate(state.personalSheetId,
         PERSONAL_TAB + '!' + personalColLetter('photoItem') + p.row, [[p.link]]);
-      if (state.personalData[p.key]) state.personalData[p.key].photoItem = p.link;
+      if (state.personalData[p.key]) {
+        state.personalData[p.key].photoItem = p.link;
+        try { if (typeof rrThumbBust === 'function') rrThumbBust(state.personalData[p.key]); } catch (eTB) {}   // v0.9.1201
+      }
       result.linked++;
     } catch (e) { result.failed.push({ item: p.item, error: (e && e.message) || String(e) }); }
   }

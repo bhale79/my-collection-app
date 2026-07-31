@@ -1170,6 +1170,24 @@ function _thumbFids() {
   }
   return window._thumbFidCache;
 }
+// v0.9.1201 (structural audit #6): the cache above remembers each item's
+// first-photo file id FOREVER — "asked ONCE per item ever" was the design,
+// and nothing ever un-asked. Replace or add an item's photos and every list
+// and reel kept showing the OLD picture indefinitely. This is the forget
+// button: call it wherever an item's photo set changes (photo-inbox flush,
+// wizard photo save, link refresh paths). Takes the pd or the raw cache key.
+function rrThumbBust(pdOrKey) {
+  try {
+    var k = (pdOrKey && typeof pdOrKey === 'object') ? String(pdOrKey.inventoryId || pdOrKey.itemNum || '') : String(pdOrKey || '');
+    if (!k) return;
+    var c = _thumbFids();
+    if (c[k] !== undefined) {
+      delete c[k];
+      try { localStorage.setItem('lv_thumb_fids', JSON.stringify(c)); } catch (e) {}
+    }
+  } catch (e) {}
+}
+if (typeof window !== 'undefined') window.rrThumbBust = rrThumbBust;
 async function _thumbFor(pd) {
   var c = _thumbFids(), k = String(pd.inventoryId || pd.itemNum);
   if (c[k]) return c[k];

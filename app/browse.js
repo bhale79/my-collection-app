@@ -12,6 +12,22 @@ function _rrRowDomKey(item) {
     .replace(/[^A-Za-z0-9_-]/g, '_');   // underscore, not strip: "53 x" and "53x" stay distinct
 }
 
+// v0.9.1201 (structural audit #4): _rrRowDomKey's sibling for the OTHER place
+// raw item text was being spliced — inline onclick strings. A hand-typed
+// "number" like '"Add Up Your 1966 Lionel Profits" — …' carries quotes; the
+// double quote ended the HTML attribute and the single quote ended the JS
+// string, so the camera icon and Quick Entry buttons on exactly the odd-named
+// items silently did nothing. One escaper for every interpolation: backslash
+// and single-quote escaped for the JS string, double quote entity-encoded for
+// the surrounding attribute (the browser decodes it back before the JS runs).
+function _rrAttrArg(s) {
+  return String(s == null ? '' : s)
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;');
+}
+
 // ── Era-aware browse tab visibility ──
 // Session 159 Phase 2d: when the cache has no inventoryId to disambiguate
 // duplicates, badge only the FIRST owned copy (lowest sheet row). Matches the
@@ -3496,7 +3512,7 @@ function renderBrowse() {
                          + (_isThisCopyUG ? '<span title="This copy on Upgrade list" style="font-size:0.8rem;color:#8b5cf6">↑</span>' : '')
                          + (_isGrouped ? '<span title="Grouped item" style="font-size:0.8rem">🔗</span>' : '')
                          + (_isQE ? '<span title="Quick Entry — details incomplete" style="font-size:0.8rem">⚡</span>' : '')
-                         + (_hasPhoto ? '<span title="Has photo" style="font-size:0.8rem" onclick="event.stopPropagation();openPhotoFolder(\''+item.itemNum+'\',\''+(_hasPhoto||'')+'\')">📷</span>' : '');
+                         + (_hasPhoto ? '<span title="Has photo" style="font-size:0.8rem" onclick="event.stopPropagation();openPhotoFolder(\''+_rrAttrArg(item.itemNum)+'\',\''+_rrAttrArg(_hasPhoto||'')+'\')">📷</span>' : '');
       // v0.9.921 (chunk 2): share keys are per-copy identity — use inventoryId
       // (stable) instead of row number (shifts when sheet rows change). Items
       // without an owned copy / legacy rows keep the composite fallback.
@@ -3592,7 +3608,7 @@ function renderBrowse() {
               var _lbl = _gcfg === 'Engine + Tender' ? 'Engine + Tender' : (_gcfg && _gcfg !== 'Set' ? _gcfg + ' Set' : '🔗 ' + _co.join(' '));
               return '<span style="font-size:0.7rem;color:var(--accent3);font-weight:600" title="Grouped: ' + _dispNum + ' + ' + _co.join(', ') + '">🔗 ' + _lbl + '</span>';
             } return _groupId ? '<span style="font-size:0.6rem;color:var(--accent3)" title="Grouped">🔗</span>' : ''; })()}
-            ${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(\''+item.itemNum+'\',\''+_escVar+'\','+globalIdx+',\''+(pd.inventoryId||'')+'\')" style="font-size:0.72rem;background:#2ecc71;color:#fff;border-radius:4px;padding:1px 5px;cursor:pointer;font-weight:700" title="Complete this Quick Entry">⚡</span>' : ''}
+            ${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(\''+_rrAttrArg(item.itemNum)+'\',\''+_escVar+'\','+globalIdx+',\''+(pd.inventoryId||'')+'\')" style="font-size:0.72rem;background:#2ecc71;color:#fff;border-radius:4px;padding:1px 5px;cursor:pointer;font-weight:700" title="Complete this Quick Entry">⚡</span>' : ''}
             ${pd && pd.photoItem ? '<span style="font-size:0.78rem;opacity:0.75" title="Has photo">📷</span>' : ''}
             ${_statusBadges}
           </div>
@@ -3624,9 +3640,9 @@ function renderBrowse() {
       return `<tr onclick="browseRowClick(event, ${globalIdx})" style="cursor:pointer${_isQuick ? ';opacity:0.78' : ''}" title="${_isErrCar ? '⚠ Error car: ' + (pd.errorDesc||'see notes') : _isQuick ? '⚡ Quick Entry — details not yet filled in' : ''}">
         ${_mfrBadge(item)}
         <td>
-          <span class="item-num">${_displayItemNum(item)}${_isErrCar ? '<sup style="color:var(--accent);font-size:0.65rem">*</sup>' : ''}${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(\''+item.itemNum+'\',\''+((item.variation||'').replace(/\'/g,"\\\\'"))+'\','+globalIdx+',\''+(pd.inventoryId||'')+'\')" style="font-size:0.6rem;background:#2ecc71;color:#fff;border-radius:3px;padding:1px 4px;vertical-align:middle;font-weight:600;cursor:pointer" title="Complete this Quick Entry">⚡</span>' : ''}</span>${_noNumTag(item.itemNum)}${_eraBadgeHtml}
+          <span class="item-num">${_displayItemNum(item)}${_isErrCar ? '<sup style="color:var(--accent);font-size:0.65rem">*</sup>' : ''}${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(\''+_rrAttrArg(item.itemNum)+'\',\''+_rrAttrArg(item.variation||'')+'\','+globalIdx+',\''+(pd.inventoryId||'')+'\')" style="font-size:0.6rem;background:#2ecc71;color:#fff;border-radius:3px;padding:1px 4px;vertical-align:middle;font-weight:600;cursor:pointer" title="Complete this Quick Entry">⚡</span>' : ''}</span>${_noNumTag(item.itemNum)}${_eraBadgeHtml}
           ${_itemExternalLinkHTML(item)}
-          <span id="cam-${_rrRowDomKey(item)}" style="margin-left:5px;font-size:0.85rem;cursor:pointer;display:none" onclick="event.stopPropagation();openPhotoFolder('${item.itemNum}','${pd&&pd.photoItem?pd.photoItem:''}')" title="Open photo folder">📷</span>
+          <span id="cam-${_rrRowDomKey(item)}" style="margin-left:5px;font-size:0.85rem;cursor:pointer;display:none" onclick="event.stopPropagation();openPhotoFolder('${_rrAttrArg(item.itemNum)}','${_rrAttrArg(pd&&pd.photoItem?pd.photoItem:'')}')" title="Open photo folder">📷</span>
         </td>
         <td><span class="tag">${(typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(item) : item.itemType) || '—'}</span></td>
         ${((_currentEra === 'atlas') || (item && item._tab === 'Atlas O')) ? (

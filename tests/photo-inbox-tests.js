@@ -6947,6 +6947,58 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('offline mode still refuses the write up front', threwOff);
   })();
 
+  section('169. Handlers survive odd item names, and thumbnails forget replaced photos (v0.9.1201)');
+  // Structural audit #4 and #6, the two small ones.
+  (function () {
+    const pR = require('path');
+    const bw4 = fs.readFileSync(pR.join(__dirname, '..', 'app', 'browse.js'), 'utf8');
+    const ds4 = fs.readFileSync(pR.join(__dirname, '..', 'app', 'dashboard.js'), 'utf8');
+
+    // #4 — run the REAL escaper against the abacus title.
+    const eIdx = bw4.indexOf('function _rrAttrArg');
+    ok('_rrAttrArg exists beside _rrRowDomKey', eIdx > 0);
+    const esc = new Function('"use strict";' + bw4.slice(eIdx, bw4.indexOf('\n}', eIdx) + 2) + '; return _rrAttrArg;')();
+    const abacus = '"Add Up Your 1966 Lionel Profits" — Lionel Dealer Promo Abacus';
+    const out = esc(abacus);
+    ok('the abacus title carries no raw double quote (attribute-safe)', out.indexOf('"') < 0, out);
+    ok('...no raw single quote (JS-string-safe)', !/[^\\]'/.test(out) && out.charAt(0) !== "'");
+    ok("a plain number passes through untouched", esc('2321') === '2321');
+    ok('backslashes are doubled first, so escapes cannot be re-broken', esc("a\\'b") === "a\\\\\\'b", esc("a\\'b"));
+    // Every raw interpolation is gone from the handler sites.
+    ok('no onclick splices a raw item number any more',
+       bw4.indexOf("openPhotoFolder(\\''+item.itemNum") < 0
+       && bw4.indexOf("completeQuickEntry(\\''+item.itemNum") < 0
+       && bw4.indexOf("openPhotoFolder('${item.itemNum}'") < 0);
+    ok('all four sites route through the escaper — counted precisely',
+       (bw4.match(/_rrAttrArg\(item\.itemNum\)/g) || []).length === 4);
+
+    // #6 — run the REAL bust helper.
+    const bIdx = ds4.indexOf('function rrThumbBust');
+    ok('rrThumbBust exists beside the cache it governs', bIdx > 0);
+    const bustSrc = ds4.slice(bIdx, ds4.indexOf('\n}', bIdx) + 2);
+    const store = { lv_thumb_fids: JSON.stringify({ '212': 'oldfid', '9999': 'keep' }) };
+    const cache = JSON.parse(store.lv_thumb_fids);
+    const ctx = {
+      _thumbFids: function () { return cache; },
+      localStorage: { setItem: function (k, v) { store[k] = v; }, getItem: function (k) { return store[k]; } },
+    };
+    const bust = new Function(...Object.keys(ctx), '"use strict";' + bustSrc + '; return rrThumbBust;')(...Object.values(ctx));
+    bust({ inventoryId: 212, itemNum: '2321' });
+    ok('busting by pd removes exactly that item from cache AND storage',
+       cache['212'] === undefined && cache['9999'] === 'keep'
+       && JSON.parse(store.lv_thumb_fids)['212'] === undefined
+       && JSON.parse(store.lv_thumb_fids)['9999'] === 'keep');
+    bust(null); bust({});
+    ok('null / keyless pds are harmless no-ops', cache['9999'] === 'keep');
+
+    // The bust is wired at every photo-set-changing site.
+    const wired = ['photo-inbox.js', 'wizard-save.js', 'app-collection.js', 'drive.js'].map(function (f) {
+      return { f: f, hit: /rrThumbBust\(/.test(fs.readFileSync(pR.join(__dirname, '..', 'app', f), 'utf8')) };
+    });
+    ok('the bust is wired in the flush, the wizard save, the refresh path and the batch link fix',
+       wired.every(function (w) { return w.hit; }), JSON.stringify(wired));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
