@@ -90,12 +90,58 @@
   // the candidate, exactly like the colours. It rides a DRAFT key rather than
   // a variable so the size-fitting ladder still proves it fits at paste time.
   var LOGO_DRAFT_KEY = 'rr_skin_logo_draft';
+
+  // ── v0.9.1209: three marks, not one ─────────────────────────────
+  // Brad: "you should have a color match box, and 3 logo boxes. 1 for
+  // water mark, 1 for left side bar logo, and 1 for header logo… on the
+  // third upload, in that box let them type a custom header. 'The Short
+  // Line Rail Collection' With fonts and color and border options."
+  //
+  // One record holds all three slots plus the typed line, and the whole
+  // record is the candidate — so Cancel, Reset and Apply keep meaning
+  // exactly what they meant for one logo. The old single-logo record is
+  // migrated into the watermark slot on first read; nothing is lost.
+  var BRAND_KEY = 'rr_skin_brand';
+  var BRAND_DRAFT_KEY = 'rr_skin_brand_draft';
+  var SLOTS = [
+    ['watermark', 'Watermark', 'faint, behind the whole app'],
+    ['sidebar',   'Sidebar',   'foot of the menu, on the left'],
+    ['header',    'Header',    'top bar, beside THE RAIL ROSTER'],
+  ];
+
+  // Brad: "offer all fonts like you would select in word or whatever,
+  // auto start with our fonts." These are all already on the machine —
+  // nothing downloads, so a custom title cannot slow the app's start or
+  // fail to appear on a bad connection.
+  var FONTS = [
+    ['', 'The Rail Roster headline'],
+    ['var(--font-body)', 'The Rail Roster body'],
+    ['var(--font-mono)', 'The Rail Roster typewriter'],
+    ['Arial, Helvetica, sans-serif', 'Arial'],
+    ['"Arial Black", Gadget, sans-serif', 'Arial Black'],
+    ['"Times New Roman", Times, serif', 'Times New Roman'],
+    ['Georgia, serif', 'Georgia'],
+    ['Garamond, serif', 'Garamond'],
+    ['"Palatino Linotype", "Book Antiqua", Palatino, serif', 'Palatino'],
+    ['"Courier New", Courier, monospace', 'Courier New'],
+    ['Verdana, Geneva, sans-serif', 'Verdana'],
+    ['Tahoma, Geneva, sans-serif', 'Tahoma'],
+    ['"Trebuchet MS", Helvetica, sans-serif', 'Trebuchet MS'],
+    ['"Lucida Sans Unicode", "Lucida Grande", sans-serif', 'Lucida Sans'],
+    ['Impact, Charcoal, sans-serif', 'Impact'],
+    ['Copperplate, "Copperplate Gothic Light", fantasy', 'Copperplate'],
+    ['"Brush Script MT", cursive', 'Brush Script'],
+  ];
+  var BORDERS = [['none', 'No border'], ['rule', 'Line underneath'], ['box', 'Box around it']];
   var LOGO_MAX = 512;              // longest side of the copy we keep
 
   // Editing needs the wide stage; a phone gets the presets only. Brad:
   // "Making and editing skins will only be done on a desktop. Only presets
   // can be on the mobile app to be selected."
-  var EDIT_MIN_WIDTH = 900;
+  var EDIT_MIN_WIDTH = 940;
+  // The stand-in shown when a variable has no readable value yet. One
+  // constant, because six copies of a grey is six chances to drift.
+  var NO_COLOUR = '#888888';
   function _canEdit() { return (window.innerWidth || 0) >= EDIT_MIN_WIDTH; }
   window.rrAppearanceCanEdit = _canEdit;
 
@@ -106,7 +152,7 @@
   var _swatches = [];    // colours pulled from the logo
   var _armed = -1;       // which swatch is picked up, ready to drop on a role
   var _preview = false;
-  var _logoCleared = false;  // the user removed the logo this session (not yet saved)
+  var _slotArmed = 'watermark';   // which of the three boxes a paste lands in
 
   function _stage() { return document.getElementById('rrap-stage'); }
 
@@ -134,7 +180,7 @@
 
   function _chipHtml(v, label, sub) {
     return '<div class="rrap-chip" data-var="' + v + '">'
-      + '<span class="rrap-cs"><input type="color" value="' + (_cur(v) || '#888888') + '">'
+      + '<span class="rrap-cs"><input type="color" value="' + (_cur(v) || NO_COLOUR) + '">'
       + '<span class="rrap-cface" style="background:var(' + v + ')"></span></span>'
       + '<span class="rrap-cl"><b>' + label + '</b><span>' + sub + '</span></span></div>';
   }
@@ -149,9 +195,9 @@
   function _sceneDash() {
     return '<div class="rrap-scene rrap-on" id="rrap-scene-dash">'
       + '<div class="rrap-app" id="ra-app" data-c="bg">'
-      +  '<div class="rrap-apph" id="ra-head" data-c="surface"><span class="rrap-logo" data-c="text">THE RAIL <i data-c="accent">ROSTER</i></span></div>'
+      +  '<div class="rrap-apph" id="ra-head" data-c="surface"><span class="rrap-logo" data-c="text">THE RAIL <i data-c="accent">ROSTER</i></span><span id="ra-brand-head" class="rrap-rhead"></span></div>'
       +  '<div class="rrap-body">'
-      +   '<div class="rrap-side" data-c="surface"><div class="rrap-nav rrap-navon" id="ra-nav" data-c="accent">Dashboard</div><div class="rrap-nav">My Collection</div><div class="rrap-nav">Want / Upgrade</div><div class="rrap-nav">For Sale</div></div>'
+      +   '<div class="rrap-side" data-c="surface"><div class="rrap-nav rrap-navon" id="ra-nav" data-c="accent">Dashboard</div><div class="rrap-nav">My Collection</div><div class="rrap-nav">Want / Upgrade</div><div class="rrap-nav">For Sale</div><div id="ra-brand-side" class="rrap-rside"></div></div>'
       +   '<div class="rrap-content">'
       +    '<div class="rrap-acts">'
       +     '<span class="rrap-act" style="color:var(--green);border-color:var(--green)" id="ra-green" data-c="green">＋ COLLECTION</span>'
@@ -209,7 +255,7 @@
   }
   function _pill(name, map, isUser) {
     var dots = ['--bg', '--accent', '--text'].map(function (v) {
-      return '<span class="rrap-d" style="background:' + (map[v] || '#888') + '"></span>';
+      return '<span class="rrap-d" style="background:' + (map[v] || NO_COLOUR) + '"></span>';
     }).join('');
     return '<div class="rrap-preset" data-preset="' + name.replace(/"/g, '&quot;') + '">' + dots + name
       + (isUser ? ' <span class="rrap-del" title="Delete preset">✕</span>' : '') + '</div>';
@@ -229,11 +275,24 @@
     + '.rrap-btn.rrap-primary{background:var(--p-accent);border-color:var(--p-accent);color:var(--p-panel);font-weight:600}'
     + '.rrap-main{flex:1;display:flex;min-height:0}'
     // left: the control panel (logo tile → swatches → roles)
-    + '.rrap-left{flex:none;width:272px;background:var(--p-panel);border-right:1px solid var(--p-line);padding:0.85rem;overflow-y:auto;display:flex;flex-direction:column;gap:0.85rem}'
+    + '.rrap-left{flex:none;width:300px;background:var(--p-panel);border-right:1px solid var(--p-line);padding:0.85rem;overflow-y:auto;display:flex;flex-direction:column;gap:0.85rem}'
     + '.rrap-lh{font-family:var(--font-head);font-size:0.62rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--p-ink-dim)}'
+    + '.rrap-tiles{display:grid;grid-template-columns:1fr 1fr;gap:0.5rem}'
+    + '.rrap-tilewrap{display:flex;flex-direction:column;gap:0.25rem;min-width:0}'
+    + '.rrap-tlabel{font-size:0.63rem;line-height:1.2;color:var(--p-ink)}'
+    + '.rrap-tlabel b{display:block;font-size:0.68rem}'
+    + '.rrap-tlabel span{color:var(--p-ink-dim);font-size:0.56rem}'
+    + '.rrap-logotile.rrap-tileon{border-style:solid;border-color:var(--p-accent);box-shadow:0 0 0 2px var(--p-paper),0 0 0 4px var(--p-accent)}'
+    + '.rrap-tin{width:100%;box-sizing:border-box;padding:0.45rem 0.6rem;border-radius:8px;border:1.5px solid var(--p-line-hi);background:var(--p-panel2);color:var(--p-ink);font-family:var(--font-body);font-size:0.8rem;margin-bottom:0.35rem}'
+    + '.rrap-tsel{width:100%;box-sizing:border-box;padding:0.4rem 0.5rem;border-radius:8px;border:1.5px solid var(--p-line-hi);background:var(--p-panel2);color:var(--p-ink);font-size:0.76rem;margin-bottom:0.35rem}'
+    + '.rrap-trow{display:flex;align-items:center;gap:0.4rem;margin-bottom:0.3rem}'
+    + '.rrap-rhead{display:inline-flex;align-items:center;gap:5px;margin-left:12px;overflow:hidden;white-space:nowrap}'
+    + '.rrap-rside{margin-top:auto;padding-top:10px;display:flex;justify-content:center}'
+    + '.rrap-side{display:flex;flex-direction:column}'
     + '.rrap-logotile{width:100%;aspect-ratio:1/1;border:2px dashed var(--p-line-hi);border-radius:14px;background:var(--p-panel2);'
     +   'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.4rem;padding:0.8rem;text-align:center;cursor:pointer;overflow:hidden}'
     + '.rrap-logotile:hover,.rrap-logotile.rrap-over{border-color:var(--p-accent);background:var(--p-panel)}'
+    + '.rrap-logotile .rrap-tiletxt{font-size:0.66rem}'
     + '.rrap-logotile img{max-width:100%;max-height:100%;object-fit:contain}'
     + '.rrap-tileicon{font-size:1.9rem;line-height:1}'
     + '.rrap-tiletxt{font-size:0.72rem;color:var(--p-ink-mid);line-height:1.35}'
@@ -521,7 +580,7 @@
       var l = ch.dataset.dock === 'l';
       var x1 = ((l ? c.right : c.left) - sr.left) / k, y1 = (c.top + c.height / 2 - sr.top) / k;
       var x2 = ((l ? r.left : r.right) - sr.left) / k, y2 = (r.top + r.height / 2 - sr.top) / k;
-      var col = _cur(ch.dataset.var) || '#888';
+      var col = _cur(ch.dataset.var) || NO_COLOUR;
       var hi = hot === ch;
       html += '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="' + col + '"' + (hi ? ' stroke-width="2.5" stroke-dasharray="none"' : '') + '/>'
         + '<circle cx="' + x2 + '" cy="' + y2 + '" r="' + (hi ? 5 : 3.5) + '" fill="' + col + '"/>';
@@ -727,6 +786,18 @@
   // panels and lines stay from the old skin and the result looks broken. The
   // ladder steps AWAY from the background's own lightness, so it works for a
   // cream background as well as a black one.
+  // The typed header line's look, from the four things the user chose.
+  // Pure, so the test suite can prove that an empty choice falls back to the
+  // app's own headline face and cream rather than to nothing at all.
+  function _rrTitleStyle(t) {
+    t = t || {};
+    var col = /^#[0-9a-fA-F]{6}$/.test(String(t.color || '')) ? t.color : 'var(--cream)';
+    var css = 'font-family:' + (t.font || 'var(--font-head)') + ';color:' + col;
+    if (t.border === 'rule') css += ';border-bottom:2px solid ' + col + ';padding-bottom:2px';
+    else if (t.border === 'box') css += ';border:2px solid ' + col + ';padding:2px 10px;border-radius:7px';
+    return css;
+  }
+
   function _rrDeriveFromBg(hex) {
     var hsl = _rrHexToHsl(hex), h = hsl[0], s = hsl[1], l = hsl[2];
     var dir = l < 0.5 ? 1 : -1;
@@ -812,57 +883,154 @@
   }
 
   // ── the left-hand control panel ─────────────────────────────────
-  // The SAVED logo — what the app is actually wearing.
-  function _logoRec() {
-    try { return JSON.parse(localStorage.getItem(LOGO_KEY) || 'null'); } catch (e) { return null; }
+  // Every record that leaves a reader is FILLED — three slots and a title,
+  // always present, even when empty. Callers never test for a missing key,
+  // which is where half-migrated records usually bite.
+  function _brandFill(r) {
+    r = r || {};
+    var t = r.title || {};
+    return {
+      watermark: r.watermark || null,
+      sidebar:   r.sidebar   || null,
+      header:    r.header    || null,
+      title: {
+        text:   String(t.text || ''),
+        font:   String(t.font || ''),
+        color:  String(t.color || ''),
+        border: (t.border === 'rule' || t.border === 'box') ? t.border : 'none'
+      }
+    };
   }
-  // The CANDIDATE logo — what the editor is showing. Draft beats cleared
-  // beats saved. Everything in the editor asks this; only Apply and boot ask
-  // _logoRec directly. That split is the whole of Brad's cancel/reset bug.
-  function _logoNow() {
+
+  // The SAVED marks — what the app is actually wearing. Migrates the old
+  // single-logo record into the watermark slot on first read. A logo whose
+  // watermark had been switched OFF was only ever used as a watermark, so
+  // honouring that choice means it does not come back on by surprise.
+  function _brandRec() {
+    var r = null;
+    try { r = JSON.parse(localStorage.getItem(BRAND_KEY) || 'null'); } catch (e) {}
+    if (r && typeof r === 'object') return _brandFill(r);
+    var old = null;
+    try { old = JSON.parse(localStorage.getItem(LOGO_KEY) || 'null'); } catch (e) {}
+    if (old && old.data) {
+      return _brandFill({ watermark: old.mode === 'off' ? null
+        : { data: old.data, kind: old.kind, sw: old.sw } });
+    }
+    return _brandFill({});
+  }
+
+  // The CANDIDATE — what the editor is showing. Draft beats saved. Every
+  // part of the editor asks this; only Apply and boot ask _brandRec. That
+  // split is the whole of Brad's cancel/reset bug, kept for three slots.
+  function _brandNow() {
     var d = null;
-    try { d = JSON.parse(localStorage.getItem(LOGO_DRAFT_KEY) || 'null'); } catch (e) {}
-    if (d && d.data) return d;
-    return _logoCleared ? null : _logoRec();
+    try { d = JSON.parse(localStorage.getItem(BRAND_DRAFT_KEY) || 'null'); } catch (e) {}
+    return d && typeof d === 'object' ? _brandFill(d) : _brandRec();
   }
-  function _logoDirty() {
-    if (_logoCleared) return true;
-    try { return !!localStorage.getItem(LOGO_DRAFT_KEY); } catch (e) { return false; }
+  function _brandDirty() {
+    try { return !!localStorage.getItem(BRAND_DRAFT_KEY); } catch (e) { return false; }
+  }
+  // Every edit goes through here: take the candidate, change it, write it
+  // back as the draft. One writer for the draft, one for the saved record.
+  function _brandEdit(fn) {
+    var rec = _brandNow();
+    fn(rec);
+    try { localStorage.setItem(BRAND_DRAFT_KEY, JSON.stringify(rec)); } catch (e) {}
+    return rec;
   }
   function _dropDraft() {
-    try { localStorage.removeItem(LOGO_DRAFT_KEY); } catch (e) {}
-    _logoCleared = false;
+    try { localStorage.removeItem(BRAND_DRAFT_KEY); localStorage.removeItem(LOGO_DRAFT_KEY); } catch (e) {}
   }
+  function _slotNow(slot) { return _brandNow()[slot] || null; }
+
+  // The swatches shown in the colour box: from whichever slot last built a
+  // palette, else the first slot that has any.
   function _savedSwatches() {
-    var rec = _logoNow();
-    return (rec && Array.isArray(rec.sw)) ? rec.sw.slice(0, 6) : [];
+    var rec = _brandNow(), i, s;
+    for (i = 0; i < SLOTS.length; i++) {
+      s = rec[SLOTS[i][0]];
+      if (s && Array.isArray(s.sw) && s.sw.length) return s.sw.slice(0, 6);
+    }
+    return [];
+  }
+
+  function _esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   function _leftPanelHtml() {
-    return _logoBarHtml() + _swatchHtml() + _rolesHtml();
+    return _logoBarHtml() + _titleHtml() + _swatchHtml() + _rolesHtml();
   }
 
-  // The square logo tile. Brad: "a big square box to the top left that looks
-  // like a logo shape, not a long text box."
+  // The three square logo tiles. Brad: "a big square box to the top left that
+  // looks like a logo shape, not a long text box" — now one per home. The
+  // ARMED tile is the one a paste, a drop or the file picker lands in, so
+  // there is never a question of where an image went.
   function _logoBarHtml() {
-    var rec = _logoNow();
-    var tile = rec && rec.data
-      ? '<div class="rrap-logotile" id="rrap-drop" onclick="document.getElementById(\'rrap-lfile\').click()"><img src="' + rec.data + '" alt="logo"></div>'
-      : '<div class="rrap-logotile" id="rrap-drop" onclick="document.getElementById(\'rrap-lfile\').click()">'
-        + '<span class="rrap-tileicon">🖼</span>'
-        + '<span class="rrap-tiletxt">Paste, drop, or click<br>to add a logo</span>'
-        + '<span class="rrap-lnote">A palette is built from its colours, right on this device.</span></div>';
-    return '<div>'
-      + '<div class="rrap-lh">Your logo</div>' + tile
-      + (rec && rec.data && rec.kind ? '<div class="rrap-lnote" style="margin-top:0.4rem">' + _rrLogoNote(rec.kind) + '</div>' : '')
-      + (rec && rec.data
-          ? '<div class="rrap-lbtns" style="margin-top:0.45rem">'
-            + '<button class="rrap-lbtn" onclick="window._rrapLogoRebuild()">🎨 Rebuild palette</button>'
-            + '<button class="rrap-lbtn ' + (rec.mode === 'watermark' ? 'rrap-lon' : '') + '" onclick="window._rrapLogoToggle()">'
-            + (rec.mode === 'watermark' ? '✓ Watermark on' : 'Watermark off') + '</button>'
-            + '<button class="rrap-lbtn" onclick="window._rrapLogoRemove()">✕ Remove logo</button></div>'
-          : '')
+    var rec = _brandNow();
+    var html = '<div><div class="rrap-lh">Your marks</div><div class="rrap-tiles">';
+    SLOTS.forEach(function (s) {
+      var key = s[0], slot = rec[key], on = (_slotArmed === key);
+      html += '<div class="rrap-tilewrap">'
+        + '<div class="rrap-logotile' + (on ? ' rrap-tileon' : '') + '" data-slot="' + key + '"'
+        + ' onclick="window._rrapSlotPick(\'' + key + '\')">'
+        + (slot && slot.data
+            ? '<img src="' + slot.data + '" alt="' + _esc(s[1]) + '">'
+            : '<span class="rrap-tileicon">🖼</span><span class="rrap-tiletxt">add</span>')
+        + '</div>'
+        + '<div class="rrap-tlabel"><b>' + s[1] + '</b><span>' + s[2] + '</span></div>'
+        + (slot && slot.data
+            ? '<div class="rrap-lbtns">'
+              + '<button class="rrap-lbtn" onclick="window._rrapSlotPalette(\'' + key + '\')" title="Build the colours from this mark">🎨</button>'
+              + '<button class="rrap-lbtn" onclick="window._rrapSlotRemove(\'' + key + '\')" title="Remove this mark">✕</button></div>'
+            : '')
+        + '</div>';
+    });
+    html += '</div>';
+    var armed = rec[_slotArmed];
+    html += '<div class="rrap-hint" style="margin-top:0.4rem">'
+      + 'Paste, drop, or click a box to fill it. <b>' + _slotLabel(_slotArmed) + '</b> is selected.'
+      + '</div>'
+      + (armed && armed.kind ? '<div class="rrap-lnote" style="margin-top:0.3rem">' + _rrLogoNote(armed.kind) + '</div>' : '')
       + '<input type="file" id="rrap-lfile" accept="image/*" style="display:none"></div>';
+    return html;
+  }
+  function _slotLabel(key) {
+    var s = SLOTS.filter(function (x) { return x[0] === key; })[0];
+    return s ? s[1] : key;
+  }
+
+  // The typed header line. Brad: "let them type a custom header. 'The Short
+  // Line Rail Collection' With fonts and color and border options."
+  // It sits WITH the header logo rather than instead of it — a mark and a
+  // name side by side is a normal thing to want, and offering both removes
+  // a decision instead of adding one.
+  function _titleHtml() {
+    var t = _brandNow().title;
+    var col = t.color || _cur('--text') || NO_COLOUR;
+    if (!/^#[0-9a-fA-F]{6}$/.test(col)) col = NO_COLOUR;
+    return '<div><div class="rrap-lh">Header line</div>'
+      + '<input class="rrap-tin" id="rrap-title" type="text" maxlength="48" placeholder="e.g. The Short Line Rail Collection"'
+      + ' value="' + _esc(t.text) + '" oninput="window._rrapTitleSet(\'text\',this.value)">'
+      + '<select class="rrap-tsel" onchange="window._rrapTitleSet(\'font\',this.value)">'
+      + FONTS.map(function (f) {
+          return '<option value="' + _esc(f[0]) + '"' + (f[0] === t.font ? ' selected' : '')
+            + ' style="font-family:' + (f[0] || 'var(--font-head)') + '">' + _esc(f[1]) + '</option>';
+        }).join('')
+      + '</select>'
+      + '<div class="rrap-trow">'
+      + '<select class="rrap-tsel" style="flex:1;margin:0" onchange="window._rrapTitleSet(\'border\',this.value)">'
+      + BORDERS.map(function (b) {
+          return '<option value="' + b[0] + '"' + (b[0] === t.border ? ' selected' : '') + '>' + b[1] + '</option>';
+        }).join('')
+      + '</select>'
+      + '<span class="rrap-rc" title="Colour of the line"><input type="color" value="' + col
+      + '" oninput="window._rrapTitleSet(\'color\',this.value)">'
+      + '<span class="rrap-rcface" style="background:' + col + '"></span></span>'
+      + '</div>'
+      + '<div class="rrap-hint">Shows in the top bar next to THE RAIL ROSTER. Leave it empty for none.</div></div>';
   }
 
   function _swatchHtml() {
@@ -892,8 +1060,8 @@
   function _rolesHtml() {
     return '<div><div class="rrap-lh">What each colour does</div>'
       + ROLES.map(function (r) {
-          var v = _cur(r[0]) || '#888888';
-          var hex = /^#[0-9a-fA-F]{6}$/.test(v) ? v : '#888888';
+          var v = _cur(r[0]) || NO_COLOUR;
+          var hex = /^#[0-9a-fA-F]{6}$/.test(v) ? v : NO_COLOUR;
           return '<div class="rrap-role' + (_armed >= 0 ? ' rrap-ready' : '') + '" onclick="window._rrapRole(event,\'' + r[0] + '\')">'
             + '<span class="rrap-rc"><input type="color" value="' + hex
             + '" oninput="window._rrapRoleColor(\'' + r[0] + '\',this.value)">'
@@ -999,23 +1167,28 @@
   // keep — a dead end with an apology. A logo that has to be 160px is still a
   // logo. It goes to the draft key, not the live one, so the size ladder
   // still proves the image fits while Cancel can still refuse it.
-  function _rrKeepLogo(img, mode, firstTry) {
+  // Fill ONE slot in the draft record, stepping the image down in size
+  // rather than giving up. A logo that has to be 160px is still a logo.
+  function _rrKeepLogo(img, slot, firstTry) {
     var sizes = [LOGO_MAX, 384, 256, 160], i, p;
     for (i = 0; i < sizes.length; i++) {
       p = (i === 0 && firstTry) ? firstTry : _rrPrepLogo(img, sizes[i]);
       if (!p) return null;
       try {
-        localStorage.setItem(LOGO_DRAFT_KEY, JSON.stringify({ data: p.data, mode: mode, kind: p.kind, sw: _swatches }));
+        var rec = _brandNow();
+        rec[slot] = { data: p.data, kind: p.kind, sw: _swatches };
+        localStorage.setItem(BRAND_DRAFT_KEY, JSON.stringify(rec));
         return p;
       } catch (e) {}
     }
     return null;
   }
 
-  // Load a pasted/dropped/picked image. The palette is applied FIRST, from
-  // the trimmed mark, so a full localStorage can never block the main point.
+  // Load a pasted/dropped/picked image into the ARMED slot. The palette is
+  // applied FIRST so a full localStorage can never block the main point.
   function _rrapLogoLoad(fileOrBlob) {
     var url = URL.createObjectURL(fileOrBlob);
+    var slot = _slotArmed;
     var img = new Image();
     img.onload = function () {
       var prep = _rrPrepLogo(img, LOGO_MAX);
@@ -1025,14 +1198,14 @@
         return;
       }
       _applyLogoPalette(prep.canvas, prep.kind);
-      var prev = _logoNow();
-      _logoCleared = false;
-      var kept = _rrKeepLogo(img, (prev && prev.mode) || 'watermark', prep);
+      var kept = _rrKeepLogo(img, slot, prep);
       if (!kept && typeof showToast === 'function') {
-        showToast('Palette built — but this device has no room left to keep the logo image', 4500, true);
+        showToast('Palette built — but this device has no room left to keep the image', 4500, true);
+      } else if (typeof showToast === 'function') {
+        showToast(_slotLabel(slot) + ' set — press Preview to see it in the app', 3200);
       }
       _refreshPanel();
-      _paintCandidateLogo();
+      _paintCandidate();
     };
     img.onerror = function () {
       URL.revokeObjectURL(url);
@@ -1040,36 +1213,46 @@
     };
     img.src = url;
   }
-  window._rrapLogoRebuild = function () {
-    var rec = _logoNow(); if (!rec || !rec.data) return;
-    var img = new Image();
-    img.onload = function () { _applyLogoPalette(img, rec.kind); _refreshPanel(); };
-    img.src = rec.data;
+
+  // Clicking a tile ARMS it. If it already holds a mark, the click also opens
+  // the file picker — one control, no hunting for a second button.
+  window._rrapSlotPick = function (slot) {
+    _slotArmed = slot;
+    _refreshPanel();
+    var f = document.getElementById('rrap-lfile');
+    if (f) f.click();
   };
-  window._rrapLogoToggle = function () {
-    var rec = _logoNow(); if (!rec) return;
-    rec.mode = rec.mode === 'watermark' ? 'off' : 'watermark';
-    try { localStorage.setItem(LOGO_DRAFT_KEY, JSON.stringify(rec)); } catch (e) {}
-    _logoCleared = false;
-    _refreshPanel(); _paintCandidateLogo();
+  window._rrapSlotPalette = function (slot) {
+    var s = _slotNow(slot); if (!s || !s.data) return;
+    var img = new Image();
+    img.onload = function () { _applyLogoPalette(img, s.kind); _refreshPanel(); };
+    img.src = s.data;
   };
   // Brad: "there is not logo delete button." There was one, but it deleted
   // the SAVED logo outright — no Cancel, no undo. It now clears the
-  // candidate, and only Apply makes that permanent.
-  window._rrapLogoRemove = function () {
-    _dropDraft();
-    _logoCleared = true;
-    _swatches = []; _armed = -1;
-    _refreshPanel(); _paintCandidateLogo();
+  // candidate slot, and only Apply makes that permanent.
+  window._rrapSlotRemove = function (slot) {
+    _brandEdit(function (r) { r[slot] = null; });
+    _slotArmed = slot;
+    _refreshPanel(); _paintCandidate();
+  };
+  window._rrapTitleSet = function (field, value) {
+    _brandEdit(function (r) { r.title[field] = String(value == null ? '' : value); });
+    // The text box must not be rebuilt under the cursor while typing.
+    if (field !== 'text') _refreshPanel();
+    _paintCandidate();
   };
 
-  // Show the CANDIDATE watermark: in the preview replica always, and on the
-  // real app only while previewing. Outside those two, the app keeps wearing
-  // whatever is saved — which is the point of the whole draft mechanism.
-  function _paintCandidateLogo() {
-    var rec = _logoNow();
-    var on = !!(rec && rec.data && rec.mode === 'watermark');
+  // Show the CANDIDATE marks: in the preview replica always, and on the real
+  // app only while previewing. Outside those two the app keeps wearing what
+  // is saved — the point of the whole draft mechanism.
+  function _paintCandidate() {
+    var rec = _brandNow();
+    var wm = rec.watermark;
+    var on = !!(wm && wm.data);
     var replica = document.getElementById('ra-app');
+    _paintReplicaMark('ra-brand-side', rec.sidebar, 62);
+    _paintReplicaHeader(rec.header, rec.title);
     if (replica) {
       // Two layers: the mark, and a 95%-opaque wash of the background over
       // it. That reproduces the real watermark's 5% strength honestly —
@@ -1077,32 +1260,97 @@
       // app never delivers.
       var wash = 'color-mix(in srgb,var(--bg) 95%,transparent)';
       replica.style.backgroundImage = on
-        ? 'linear-gradient(' + wash + ',' + wash + '),url(' + rec.data + ')' : '';
+        ? 'linear-gradient(' + wash + ',' + wash + '),url(' + wm.data + ')' : '';
       replica.style.backgroundRepeat = 'no-repeat';
       replica.style.backgroundPosition = 'center';
       replica.style.backgroundSize = 'auto,38%';
     }
-    if (_preview) applyLogoBackdrop(rec);
+    if (_preview) applyBranding(rec);
+  }
+  function _paintReplicaMark(id, slot, maxH) {
+    var el = document.getElementById(id); if (!el) return;
+    el.innerHTML = (slot && slot.data)
+      ? '<img src="' + slot.data + '" style="max-width:100%;max-height:' + maxH + 'px;object-fit:contain">' : '';
+  }
+  function _paintReplicaHeader(slot, title) {
+    var el = document.getElementById('ra-brand-head'); if (!el) return;
+    el.innerHTML = _brandHeaderHtml(slot, title, 18, '0.62rem');
   }
 
-  // The logo's home in the app: a faint fixed watermark. pointer-events:none
-  // so it can never block a tap; low z-index so real pop-ups paint over it;
-  // 5% opacity so it reads as texture, not content.
-  // Called with no argument it reads what is SAVED — that is the boot path,
+  // ── the three homes in the real app ─────────────────────────────
+  // Called with no argument they read what is SAVED — that is the boot path,
   // and the path Cancel uses to put the app back the way it was.
-  function applyLogoBackdrop(rec) {
-    if (rec === undefined) rec = _logoRec();
+  function applyBranding(rec) {
+    if (rec === undefined) rec = _brandRec();
+    applyLogoBackdrop(rec.watermark);
+    _applySidebarMark(rec.sidebar);
+    _applyHeaderMark(rec.header, rec.title);
+  }
+  window.applyBranding = applyBranding;
+
+  // A faint fixed watermark. pointer-events:none so it can never block a tap;
+  // low z-index so real pop-ups paint over it; 5% opacity so it reads as
+  // texture, not content.
+  function applyLogoBackdrop(slot) {
+    if (slot === undefined) slot = _brandRec().watermark;
     var el = document.getElementById('rr-logo-bg');
-    if (!rec || !rec.data || rec.mode !== 'watermark') { if (el) el.remove(); return; }
+    if (!slot || !slot.data) { if (el) el.remove(); return; }
     if (!el) {
       el = document.createElement('div'); el.id = 'rr-logo-bg';
       el.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:1;'
         + 'background-position:center;background-repeat:no-repeat;background-size:min(55vmin,420px);opacity:0.05';
       document.body.appendChild(el);
     }
-    el.style.backgroundImage = 'url(' + rec.data + ')';
+    el.style.backgroundImage = 'url(' + slot.data + ')';
   }
   window.applyLogoBackdrop = applyLogoBackdrop;
+
+  // The foot of the menu. Appended to .sidebar itself, never to a nav
+  // section, so it stays last however many sections other code adds — the
+  // Need Help widget goes INTO the final section and cannot displace it.
+  function _applySidebarMark(slot) {
+    var host = document.querySelector('.sidebar');
+    var el = document.getElementById('rr-brand-sidebar');
+    if (!host || !slot || !slot.data) { if (el) el.remove(); return; }
+    if (!el) { el = document.createElement('div'); el.id = 'rr-brand-sidebar'; }
+    el.innerHTML = '<img src="' + slot.data + '" alt="">';
+    host.appendChild(el);
+  }
+
+  // The top bar, beside THE RAIL ROSTER — inserted before .header-right so
+  // it can never push the account chip off the end.
+  function _applyHeaderMark(slot, title) {
+    var host = document.querySelector('.header');
+    var el = document.getElementById('rr-brand-header');
+    var html = _brandHeaderHtml(slot, title, 0, '');
+    if (!host || !html) { if (el) el.remove(); return; }
+    if (!el) {
+      el = document.createElement('div'); el.id = 'rr-brand-header';
+      var right = host.querySelector('.header-right');
+      if (right) host.insertBefore(el, right); else host.appendChild(el);
+    }
+    el.innerHTML = html;
+  }
+
+  // ONE builder for the header mark, used by the real header and by the
+  // preview replica. Two builders would be two answers to the same question,
+  // and the preview would eventually stop matching the thing it previews.
+  function _brandHeaderHtml(slot, title, imgH, fontSize) {
+    var t = title || {};
+    var text = String(t.text || '').trim();
+    var hasLogo = !!(slot && slot.data);
+    if (!hasLogo && !text) return '';
+    return (hasLogo ? '<img src="' + slot.data + '" alt=""'
+             + (imgH ? ' style="height:' + imgH + 'px;width:auto;display:block"' : '') + '>' : '')
+      + (text ? '<span style="' + _rrTitleStyle(t) + (fontSize ? ';font-size:' + fontSize : '') + '">'
+             + _esc(text) + '</span>' : '');
+  }
+
+  // The tile a paste or a drop will land in — the one that is armed. There
+  // is no fixed drop zone any more, so the highlight has to follow the arming.
+  function _armedTile() {
+    return document.querySelector('#rrap .rrap-logotile[data-slot="' + _slotArmed + '"]');
+  }
 
   // paste + drag-drop, only while the editor is open
   function _onPaste(e) {
@@ -1117,14 +1365,14 @@
   function _onDrop(e) {
     var ov = document.getElementById('rrap'); if (!ov) return;
     e.preventDefault();
-    var dz = document.getElementById('rrap-drop'); if (dz) dz.classList.remove('rrap-over');
+    var dz = _armedTile(); if (dz) dz.classList.remove('rrap-over');
     var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
     if (f && /^image\//.test(f.type)) _rrapLogoLoad(f);
   }
   function _onDrag(e) {
     if (!document.getElementById('rrap')) return;
     e.preventDefault();
-    var dz = document.getElementById('rrap-drop');
+    var dz = _armedTile();
     if (dz) dz.classList.toggle('rrap-over', e.type === 'dragover');
   }
 
@@ -1142,10 +1390,13 @@
     // plain app — no skin AND no logo. The removal is still only a candidate;
     // Apply makes it real, Cancel puts the logo back.
     _dropDraft();
-    _logoCleared = true;
+    _brandEdit(function (r) {
+      r.watermark = null; r.sidebar = null; r.header = null;
+      r.title = { text: '', font: '', color: '', border: 'none' };
+    });
     _swatches = []; _armed = -1;
     if (_preview && typeof applyTheme === 'function') applyTheme();
-    _paintCandidateLogo();
+    _paintCandidate();
     var ov = document.getElementById('rrap');
     if (ov) ov.querySelectorAll('.rrap-chip').forEach(function (ch) {
       var c = _cur(ch.dataset.var);
@@ -1198,14 +1449,14 @@
   window._rrapPreview = function () {
     // A logo on its own is a change worth previewing, so the guard asks
     // about both halves of the candidate, not just the colours.
-    if (!Object.keys(_live).length && !_logoDirty()) {
+    if (!Object.keys(_live).length && !_brandDirty()) {
       if (typeof showToast === 'function') showToast('Nothing has changed yet — add a logo or pick some colours first', 3200, true);
       return;
     }
     var ov = document.getElementById('rrap'); if (ov) ov.style.display = 'none';
     _preview = true;
     Object.keys(_live).forEach(function (v) { _root.style.setProperty(v, _live[v]); });
-    applyLogoBackdrop(_logoNow());
+    applyBranding(_brandNow());
     var bar = document.getElementById('rrap-prevbar'); if (bar) bar.remove();
     bar = document.createElement('div'); bar.id = 'rrap-prevbar';
     bar.innerHTML = '<span class="rrap-pvt">This is your new look — move around the app and see it everywhere.</span>'
@@ -1222,7 +1473,7 @@
     Object.keys(_live).forEach(function (v) { _root.style.removeProperty(v); });
     _preview = false;
     if (typeof applyTheme === 'function') applyTheme();
-    applyLogoBackdrop();      // back to the SAVED logo, whatever that now is
+    applyBranding();          // back to the SAVED marks, whatever they now are
   }
 
   function _persist(map) {
@@ -1235,11 +1486,15 @@
   // Apply is the ONE place a candidate becomes real — colours AND logo. Keep
   // it that way: any other writer resurrects the bug Brad found, where a
   // logo was already saved before Cancel had a say.
-  function _commitLogo() {
-    var d = _logoNow();
+  function _commitBrand() {
+    var d = _brandNow();
+    var any = d.watermark || d.sidebar || d.header || String(d.title.text || '').trim();
     try {
-      if (d && d.data) localStorage.setItem(LOGO_KEY, JSON.stringify(d));
-      else localStorage.removeItem(LOGO_KEY);
+      if (any) localStorage.setItem(BRAND_KEY, JSON.stringify(d));
+      else localStorage.removeItem(BRAND_KEY);
+      // The legacy single-logo record has been migrated by now; leaving it
+      // behind would let a future read resurrect a mark the user deleted.
+      localStorage.removeItem(LOGO_KEY);
     } catch (e) {}
     _dropDraft();
   }
@@ -1247,7 +1502,7 @@
   window._rrapApply = function () {
     var map = {}; EDIT_VARS.forEach(function (e) { map[e[0]] = _cur(e[0]); });
     _persist(map);
-    _commitLogo();
+    _commitBrand();
     _saved = true;
     _endPreview();
     _teardown();
@@ -1284,12 +1539,12 @@
     _dropDraft();
     if (_preview) _endPreview();
     if (typeof applyTheme === 'function') applyTheme();
-    applyLogoBackdrop();
+    applyBranding();
     _teardown();
   };
 
   // A saved watermark is a user choice, not an editor feature — it applies
   // on every boot even when APPEARANCE_ENABLED is false (hiding the editor
   // before beta must not strip Brad's own look).
-  applyLogoBackdrop();
+  applyBranding();
 })();

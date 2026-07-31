@@ -612,6 +612,31 @@
      Deliberately named --p-* rather than --bg/--surface/--text so it
      can NEVER shadow the skin variables the preview replica reads.
      Values match the light .main island above — one cream, not two. */
+  /* ── A collector's own marks (v0.9.1209) ────────────────────────
+     Three slots, three homes: a faint watermark behind everything, a
+     mark at the foot of the menu, and a mark and/or a typed line in the
+     top bar beside THE RAIL ROSTER. Screen only, this device only —
+     nothing here is ever drawn on a share card or a PDF.
+     Sizes are capped here rather than in script so a very tall logo can
+     never push the menu or stretch the header. */
+  #rr-brand-header {
+    display: flex; align-items: center; gap: 0.55rem;
+    margin-left: 1.35rem; min-width: 0; overflow: hidden;
+  }
+  #rr-brand-header img { height: 38px; width: auto; display: block; flex-shrink: 0; }
+  #rr-brand-header span {
+    font-size: 1.05rem; letter-spacing: 0.04em; line-height: 1.2;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  /* margin-top:auto drops it to the foot of the menu — .sidebar is
+     already a flex column, so this needs no other change. */
+  #rr-brand-sidebar { margin-top: auto; padding: 1rem 0.9rem 1.2rem; display: flex; justify-content: center; }
+  #rr-brand-sidebar img { max-width: 100%; max-height: 110px; width: auto; object-fit: contain; }
+  @media (max-width: 900px) {
+    #rr-brand-header span { display: none; }
+    #rr-brand-header img { height: 28px; }
+  }
+
   #rrap, #rrap-prevbar, #rrap-mini {
     --p-paper:   #f8e8c0;
     --p-panel:   #fffdf6;

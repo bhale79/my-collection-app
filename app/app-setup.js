@@ -248,6 +248,11 @@ function _buildAppShell() {
     appBody.appendChild(existingMain);
   }
   app.appendChild(appBody);
+  // v0.9.1209: the collector's own marks. appearance.js runs before the shell
+  // exists, so its boot call can only reach the watermark — the header and
+  // sidebar marks need a shell to hang on. This is that one call, made at the
+  // moment there is something to hang them on.
+  if (typeof window.applyBranding === 'function') window.applyBranding();
 }
 
 // ── OAuth + sign-in helpers moved to app-auth.js (Session 110, Round 2 Chunk 11) ──

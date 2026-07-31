@@ -2963,10 +2963,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // regardless of APPEARANCE_ENABLED (a saved look outlives the editor).
     ok('the watermark can never block a tap and stays faint',
        /pointer-events:none/.test(ap9) && /opacity:0\.05/.test(ap9));
-    ok('turning the watermark off removes the element',
-       /rec\.mode !== 'watermark'\) \{ if \(el\) el\.remove\(\); return; \}/.test(ap9));
-    ok('the backdrop is applied at boot, outside the editor gate',
-       /^\s*applyLogoBackdrop\(\);\s*\n\}\)\(\);/m.test(ap9));
+    // v0.9.1209: there is no watermark on/off toggle any more — the slot
+    // either holds a mark or it does not, which is one fact instead of two.
+    ok('an empty watermark slot removes the element',
+       /if \(!slot \|\| !slot\.data\) \{ if \(el\) el\.remove\(\); return; \}/.test(ap9));
+    ok('the marks are applied at boot, outside the editor gate',
+       /^\s*applyBranding\(\);\s*\n\}\)\(\);/m.test(ap9));
 
     // User-facing copy never says "AI" (standing rule) — strip comments,
     // then check only quoted strings.
@@ -7293,7 +7295,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('…so the old "too large to keep" dead end is gone',
        !/too large to keep/.test(apA.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '')));
     ok('the kind is remembered with the logo and shown in the editor',
-       /kind: p\.kind/.test(apA) && /rec\.kind \? '<div class="rrap-lnote"/.test(apA));
+       /kind: p\.kind/.test(apA) && /armed && armed\.kind \? '<div class="rrap-lnote"/.test(apA));
     ok('a photograph is stored as JPEG, a herald or anything see-through as PNG',
        /alpha \|\| cls\.kind === 'herald'/.test(apA) && /toDataURL\('image\/jpeg', 0\.85\)/.test(apA));
     ok('the palette sampler accepts a canvas, not just an <img>',
@@ -7419,7 +7421,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // Brad: "Making and editing skins will only be done on a desktop. Only
     // presets can be on the mobile app to be selected."
     ok('there is one width that decides, named once',
-       /var EDIT_MIN_WIDTH = 900;/.test(ap) &&
+       /var EDIT_MIN_WIDTH = \d{3};/.test(ap) &&
        (apc.match(/EDIT_MIN_WIDTH/g) || []).length === 2);
     ok('a narrow screen gets the preset sheet instead of the editor',
        /if \(!_canEdit\(\)\) \{ _openMini\(\); return; \}/.test(ap));
@@ -7439,7 +7441,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /\.rrap-logotile\{[^}]*aspect-ratio:1\/1/.test(ap));
     ok('…and it sits at the top of the left-hand column',
        ap.indexOf('rrap-left') < ap.indexOf('rrap-right') &&
-       /_leftPanelHtml[\s\S]{0,80}_logoBarHtml\(\) \+ _swatchHtml\(\) \+ _rolesHtml\(\)/.test(ap));
+       /_leftPanelHtml[\s\S]{0,120}return _logoBarHtml\(\) \+/.test(ap));
 
     // ── 6. Nothing scrolls: the stage is scaled to fit ───────────────────
     // Brad: "size the box with the app background in such a way that there
@@ -7499,7 +7501,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /\.rrap-app\{background:var\(--bg\)/.test(ap));
   })();
 
-  section('175. A pasted logo is a candidate, not a commitment (v0.9.1208)');
+  section('175. Three marks, one candidate (v0.9.1209)');
   (function () {
     const pathC = require('path');
     const ap = fs.readFileSync(pathC.join(__dirname, '..', 'app', 'appearance.js'), 'utf8');
@@ -7509,128 +7511,233 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // logo delete button, and reset to default didn't get rid of it either."
     // One cause, not three — the logo was written to the LIVE key the instant
     // it was pasted, so it was already committed before Cancel could refuse
-    // it. These tests RUN the real state machine, because greps would not
-    // have caught the original bug either.
-    const s1 = ap.slice(ap.indexOf('function _logoRec()'), ap.indexOf('function _savedSwatches'));
-    const s2 = ap.slice(ap.indexOf('function _commitLogo()'), ap.indexOf('window._rrapApply = function'));
-    ok('the logo state machine is findable in one piece', s1.length > 200 && s2.length > 100);
+    // it. v1209 keeps that fix while growing to three slots. These tests RUN
+    // the real state machine, because a grep would not have caught the
+    // original bug either.
+    const s1 = ap.slice(ap.indexOf('function _brandFill('), ap.indexOf('function _savedSwatches'));
+    const s2 = ap.slice(ap.indexOf('function _commitBrand()'), ap.indexOf('window._rrapApply = function'));
+    ok('the brand state machine is findable in one piece', s1.length > 400 && s2.length > 100);
 
     const build = new Function('store', '"use strict";'
-      + "var LOGO_KEY='rr_skin_logo', LOGO_DRAFT_KEY='rr_skin_logo_draft';"
+      + "var LOGO_KEY='rr_skin_logo', BRAND_KEY='rr_skin_brand',"
+      + " BRAND_DRAFT_KEY='rr_skin_brand_draft', LOGO_DRAFT_KEY='rr_skin_logo_draft';"
+      + "var SLOTS=[['watermark'],['sidebar'],['header']];"
       + "var localStorage={getItem:function(k){return (k in store)?store[k]:null;},"
       + "setItem:function(k,v){store[k]=String(v);},removeItem:function(k){delete store[k];}};"
-      + "var _logoCleared=false;"
       + s1 + s2
-      + "; return {now:_logoNow, dirty:_logoDirty, drop:_dropDraft, commit:_commitLogo,"
-      + " remove:function(){_dropDraft();_logoCleared=true;}};");
-    const fresh = () => {
-      const store = { 'rr_skin_logo': JSON.stringify({ data: 'SAVED', mode: 'watermark' }) };
+      + "; return {fill:_brandFill, saved:_brandRec, now:_brandNow, dirty:_brandDirty,"
+      + " edit:_brandEdit, drop:_dropDraft, commit:_commitBrand, slot:_slotNow};");
+
+    const mark = d => ({ data: d, kind: 'herald', sw: ['#c00000'] });
+    const withSaved = obj => {
+      const store = { 'rr_skin_brand': JSON.stringify(obj) };
       return { store, h: build(store) };
     };
-    const paste = (store, data) => { store['rr_skin_logo_draft'] = JSON.stringify({ data: data, mode: 'watermark' }); };
-    const savedData = store => { try { return JSON.parse(store['rr_skin_logo']).data; } catch (e) { return null; } };
 
-    // Baseline
+    // ── the filled shape: no caller ever tests for a missing key ─────────
     {
-      const { store, h } = fresh();
-      ok('with nothing changed, the editor shows what the app is wearing',
-         h.now().data === 'SAVED' && h.dirty() === false);
+      const h = build({});
+      const empty = h.fill(null);
+      ok('every record comes back filled, three slots and a title',
+         empty.watermark === null && empty.sidebar === null && empty.header === null &&
+         empty.title.text === '' && empty.title.border === 'none');
+      ok('a nonsense border falls back to none rather than reaching the page',
+         h.fill({ title: { border: 'javascript:alert(1)' } }).title.border === 'none');
     }
-    // Paste
+
+    // ── migration off the old single-logo record ─────────────────────────
     {
-      const { store, h } = fresh();
-      paste(store, 'NEW');
-      ok('a pasted logo becomes the candidate straight away',
-         h.now().data === 'NEW' && h.dirty() === true);
-      ok('…but the app is STILL wearing the old one — nothing committed yet',
-         savedData(store) === 'SAVED');
+      const store = { 'rr_skin_logo': JSON.stringify({ data: 'OLD', mode: 'watermark', kind: 'herald' }) };
+      const h = build(store);
+      ok('an existing single logo becomes the watermark — nothing is lost',
+         h.saved().watermark.data === 'OLD' && h.saved().sidebar === null);
     }
-    // Cancel — the reported bug
     {
-      const { store, h } = fresh();
-      paste(store, 'NEW');
+      const store = { 'rr_skin_logo': JSON.stringify({ data: 'OLD', mode: 'off' }) };
+      const h = build(store);
+      ok('…and a watermark the user had switched OFF does not come back on',
+         h.saved().watermark === null);
+    }
+    {
+      const store = {
+        'rr_skin_brand': JSON.stringify({ watermark: mark('NEW') }),
+        'rr_skin_logo': JSON.stringify({ data: 'OLD', mode: 'watermark' })
+      };
+      const h = build(store);
+      ok('once migrated, the old record can never override the new one',
+         h.saved().watermark.data === 'NEW');
+    }
+
+    // ── the candidate: paste, cancel, remove, apply ──────────────────────
+    {
+      const { store, h } = withSaved({ watermark: mark('SAVED') });
+      h.edit(r => { r.sidebar = mark('PASTED'); });
+      ok('a mark pasted into a slot becomes the candidate straight away',
+         h.now().sidebar.data === 'PASTED' && h.dirty() === true);
+      ok('…but the app is STILL wearing the old marks — nothing committed yet',
+         JSON.parse(store['rr_skin_brand']).sidebar == null);
       h.drop();
-      ok('Cancel throws the pasted logo away (the bug Brad found)',
-         h.now().data === 'SAVED' && h.dirty() === false && !store['rr_skin_logo_draft']);
-      ok('…and never damages the logo that was already saved',
-         savedData(store) === 'SAVED');
+      ok('Cancel throws the pasted mark away (the bug Brad found)',
+         h.now().sidebar === null && h.dirty() === false);
+      ok('…and never damages the marks that were already saved',
+         h.saved().watermark.data === 'SAVED');
     }
-    // Remove
     {
-      const { store, h } = fresh();
-      h.remove();
-      ok('Remove empties the box', h.now() === null && h.dirty() === true);
-      ok('…but destroys nothing until Apply — Cancel could still put it back',
-         savedData(store) === 'SAVED');
-    }
-    // Remove → Cancel
-    {
-      const { store, h } = fresh();
-      h.remove();
-      h.drop();
-      ok('Remove then Cancel leaves the saved logo exactly where it was',
-         savedData(store) === 'SAVED' && h.now().data === 'SAVED');
-    }
-    // Remove → Apply
-    {
-      const { store, h } = fresh();
-      h.remove();
+      const { store, h } = withSaved({ watermark: mark('W'), sidebar: mark('S'), header: mark('H') });
+      h.edit(r => { r.sidebar = null; });
+      ok('removing one slot leaves the other two alone',
+         h.now().sidebar === null && h.now().watermark.data === 'W' && h.now().header.data === 'H');
+      ok('…and destroys nothing until Apply — Cancel could still put it back',
+         h.saved().sidebar.data === 'S');
       h.commit();
-      ok('Remove then Apply is the only path that really deletes it',
-         !('rr_skin_logo' in store) && h.now() === null && h.dirty() === false);
+      ok('Apply is the only path that really removes it',
+         JSON.parse(store['rr_skin_brand']).sidebar == null &&
+         JSON.parse(store['rr_skin_brand']).watermark.data === 'W' && h.dirty() === false);
     }
-    // Paste → Apply
     {
-      const { store, h } = fresh();
-      paste(store, 'NEW');
+      const store = {
+        'rr_skin_brand': JSON.stringify({ watermark: mark('W') }),
+        'rr_skin_logo': JSON.stringify({ data: 'OLD', mode: 'watermark' })
+      };
+      const h = build(store);
       h.commit();
-      ok('Paste then Apply promotes the candidate and clears the draft',
-         savedData(store) === 'NEW' && !store['rr_skin_logo_draft'] && h.dirty() === false);
+      ok('Apply clears the legacy record, so a deleted mark cannot come back',
+         !('rr_skin_logo' in store));
     }
-    // Paste twice → Apply keeps the last one
     {
-      const { store, h } = fresh();
-      paste(store, 'ONE'); paste(store, 'TWO');
+      const { store, h } = withSaved({ watermark: mark('W') });
+      h.edit(r => { r.watermark = null; });
       h.commit();
-      ok('changing your mind before Apply keeps the last logo, not the first',
-         savedData(store) === 'TWO');
+      ok('emptying every slot removes the record rather than saving an empty one',
+         !('rr_skin_brand' in store));
+    }
+    {
+      const { store, h } = withSaved({});
+      h.edit(r => { r.title.text = 'The Short Line Rail Collection'; r.title.border = 'box'; });
+      ok('a typed header line is a change worth keeping on its own',
+         h.dirty() === true && h.now().title.text === 'The Short Line Rail Collection');
+      h.commit();
+      ok('…and it survives Apply with no logo anywhere',
+         JSON.parse(store['rr_skin_brand']).title.text === 'The Short Line Rail Collection' &&
+         JSON.parse(store['rr_skin_brand']).title.border === 'box');
+    }
+    {
+      const { store, h } = withSaved({ header: mark('H') });
+      h.edit(r => { r.title.text = 'Both'; });
+      ok('a header can hold a mark AND a line — neither replaces the other',
+         h.now().header.data === 'H' && h.now().title.text === 'Both');
     }
 
     // ── the wiring that keeps it that way ────────────────────────────────
     ok('pasting writes to the DRAFT key, never the live one',
-       /localStorage\.setItem\(LOGO_DRAFT_KEY, JSON\.stringify\(\{ data: p\.data/.test(ap) &&
-       !/localStorage\.setItem\(LOGO_KEY/.test(apc.slice(apc.indexOf('function _rrKeepLogo'), apc.indexOf('function _rrapLogoLoad'))));
-    ok('exactly one function writes the live logo key',
-       (apc.match(/localStorage\.setItem\(LOGO_KEY/g) || []).length === 1 &&
-       /function _commitLogo[\s\S]*?localStorage\.setItem\(LOGO_KEY/.test(ap));
-    // Two matches: the definition and exactly one call site — and that call
-    // site has to be inside Apply, not merely somewhere in the file.
-    // Both ends slice on the DEFINITION. "window._rrapEdit" alone appears
-    // earlier as an onclick in the preview bar, which slices backwards to
-    // an empty string — and an empty string satisfies nothing, so the test
-    // would have failed loudly rather than passed quietly. Twice now.
+       /localStorage\.setItem\(BRAND_DRAFT_KEY, JSON\.stringify\(rec\)\)/.test(ap) &&
+       !/localStorage\.setItem\(BRAND_KEY/.test(apc.slice(apc.indexOf('function _rrKeepLogo'), apc.indexOf('function _rrapLogoLoad'))));
+    ok('exactly one function writes the live record',
+       (apc.match(/localStorage\.setItem\(BRAND_KEY/g) || []).length === 1 &&
+       /function _commitBrand[\s\S]*?localStorage\.setItem\(BRAND_KEY/.test(ap));
     const applyFn = ap.slice(ap.indexOf('window._rrapApply = function'), ap.indexOf('window._rrapEdit = function'));
     ok('…and it is reached only from Apply',
-       (apc.match(/_commitLogo\(\)/g) || []).length === 2 && /_commitLogo\(\);/.test(applyFn));
+       (apc.match(/_commitBrand\(\)/g) || []).length === 2 && /_commitBrand\(\);/.test(applyFn));
+    ok('every edit goes through the one draft writer',
+       (apc.match(/localStorage\.setItem\(BRAND_DRAFT_KEY/g) || []).length === 2);
     ok('pasting does not repaint the real app — only the candidate',
-       !/applyLogoBackdrop\(\);/.test(apc.slice(apc.indexOf('function _rrapLogoLoad'), apc.indexOf('window._rrapLogoRebuild'))) &&
-       /_paintCandidateLogo\(\);/.test(ap));
-    ok('Reset to Default clears the logo as well as the colours',
-       /window\._rrapReset[\s\S]*?_dropDraft\(\);\s*\n\s*_logoCleared = true;/.test(ap));
+       !/applyBranding\(\);/.test(apc.slice(apc.indexOf('function _rrapLogoLoad'), apc.indexOf('window._rrapSlotPick'))) &&
+       /_paintCandidate\(\);/.test(ap));
+    ok('Reset to Default clears all three marks and the header line',
+       /window\._rrapReset[\s\S]*?r\.watermark = null; r\.sidebar = null; r\.header = null;/.test(ap));
     ok('Cancel drops the draft, then puts the app back on what is saved',
        /window\._rrapCancel[\s\S]*?_dropDraft\(\);[\s\S]*?_endPreview\(\);/.test(ap));
-    ok('Preview shows the CANDIDATE logo; leaving preview restores the saved one',
-       /applyLogoBackdrop\(_logoNow\(\)\)/.test(ap) &&
-       /function _endPreview[\s\S]*?applyLogoBackdrop\(\);/.test(ap));
+    ok('Preview shows the CANDIDATE marks; leaving preview restores the saved ones',
+       /applyBranding\(_brandNow\(\)\)/.test(ap) &&
+       /function _endPreview[\s\S]*?applyBranding\(\);/.test(ap));
     ok('a draft left behind by a closed tab is litter, not a candidate',
        /_dropDraft\(\);\s*\n\s*_swatches = _savedSwatches\(\)/.test(ap));
-    ok('the boot path still reads the SAVED logo, never a draft',
-       /if \(rec === undefined\) rec = _logoRec\(\);/.test(ap));
-    ok('the delete button says what it deletes',
-       /✕ Remove logo/.test(ap));
-    // The replica shows the watermark at its true 5% strength, not full blast.
+    ok('the boot path still reads the SAVED record, never a draft',
+       /if \(rec === undefined\) rec = _brandRec\(\);/.test(ap));
     ok('the preview replica shows the watermark as faint as it really is',
        /color-mix\(in srgb,var\(--bg\) 95%,transparent\)/.test(ap));
+  })();
+
+  section('176. The three homes, and the line you type (v0.9.1209)');
+  (function () {
+    const pathD = require('path');
+    const rd = f => fs.readFileSync(pathD.join(__dirname, '..', f), 'utf8');
+    const ap = rd('app/appearance.js');
+    const css = rd('app/app.css');
+    const setup = rd('app/app-setup.js');
+
+    // ── three boxes, and it is obvious which one a paste lands in ────────
+    const slotsBlock = ap.slice(ap.indexOf('var SLOTS = ['), ap.indexOf('];', ap.indexOf('var SLOTS = [')));
+    ok('there are exactly three slots, named once',
+       (slotsBlock.match(/\['[a-z]+',/g) || []).length === 3 &&
+       /watermark/.test(slotsBlock) && /sidebar/.test(slotsBlock) && /header/.test(slotsBlock));
+    ok('the tiles are square by construction and laid out two-up',
+       /\.rrap-logotile\{[^}]*aspect-ratio:1\/1/.test(ap) &&
+       /\.rrap-tiles\{display:grid;grid-template-columns:1fr 1fr/.test(ap));
+    ok('one tile is armed, and a paste or a drop can only land there',
+       /var _slotArmed = 'watermark';/.test(ap) &&
+       /var slot = _slotArmed;/.test(ap) &&
+       /function _armedTile\(\)/.test(ap));
+    ok('the drag highlight follows the armed tile, not a fixed drop zone',
+       /var dz = _armedTile\(\);/.test(ap) && !/getElementById\('rrap-drop'\)/.test(ap));
+    ok('the panel says out loud which box is selected',
+       /is selected\./.test(ap));
+
+    // ── the marks reach the real app ─────────────────────────────────────
+    ok('one entry point paints all three homes',
+       /function applyBranding\(rec\)[\s\S]{0,300}applyLogoBackdrop\(rec\.watermark\)[\s\S]{0,120}_applySidebarMark\(rec\.sidebar\)[\s\S]{0,120}_applyHeaderMark\(rec\.header, rec\.title\)/.test(ap));
+    ok('…and the app shell calls it once the shell exists',
+       /applyBranding\(\)/.test(setup));
+    ok('the sidebar mark is appended to the sidebar itself, so it stays last',
+       /document\.querySelector\('\.sidebar'\)[\s\S]{0,400}host\.appendChild\(el\)/.test(ap));
+    ok('the header mark goes BEFORE the account chip, never after it',
+       /host\.querySelector\('\.header-right'\)[\s\S]{0,80}host\.insertBefore\(el, right\)/.test(ap));
+    ok('an empty slot removes its element rather than leaving a gap',
+       (ap.match(/if \(el\) el\.remove\(\); return;/g) || []).length === 3);
+    // ONE builder, or the preview would drift away from the thing it previews.
+    ok('the real header and the preview replica share one builder',
+       /function _brandHeaderHtml/.test(ap) &&
+       (ap.match(/_brandHeaderHtml\(/g) || []).length === 3);
+    ok('typed text is escaped before it reaches the page',
+       /_esc\(text\)/.test(ap) && /function _esc/.test(ap));
+    // Proving _rrTitleStyle in isolation is not enough — deleting the CALL
+    // left every assertion green while the header rendered unstyled.
+    ok('…and the builder actually applies the chosen look to it',
+       /'<span style="' \+ _rrTitleStyle\(t\)/.test(ap));
+    ok('sizes are capped in the stylesheet, so a tall logo cannot stretch the app',
+       /#rr-brand-header img \{ height: 38px/.test(css) &&
+       /#rr-brand-sidebar img \{[^}]*max-height: 110px/.test(css));
+    ok('the sidebar mark drops to the foot of the menu',
+       /#rr-brand-sidebar \{ margin-top: auto/.test(css));
+
+    // ── the typed line's look is pure, so it can be proved ───────────────
+    const s = ap.indexOf('function _rgb2hsl');
+    const e = ap.indexOf('// ── end logo image prep');
+    const M = new Function('"use strict";' + ap.slice(s, e) + '; return { style: _rrTitleStyle };')();
+    ok('an untouched line falls back to the app headline and cream',
+       /font-family:var\(--font-head\)/.test(M.style({})) && /color:var\(--cream\)/.test(M.style({})));
+    ok('a chosen font and colour are used',
+       /font-family:Georgia, serif/.test(M.style({ font: 'Georgia, serif', color: '#c00000' })) &&
+       /color:#c00000/.test(M.style({ font: 'Georgia, serif', color: '#c00000' })));
+    ok('a colour that is not a colour is refused, not passed through',
+       !/red;/.test(M.style({ color: 'red' })) &&
+       !/expression/.test(M.style({ color: 'expression(alert(1))' })));
+    ok('the border options do what they say',
+       /border-bottom:2px solid/.test(M.style({ border: 'rule' })) &&
+       /border:2px solid/.test(M.style({ border: 'box' })) &&
+       !/border/.test(M.style({ border: 'none' })));
+    ok('the border takes the line colour, so it always matches',
+       /border-bottom:2px solid #c00000/.test(M.style({ border: 'rule', color: '#c00000' })));
+
+    // ── the font list ────────────────────────────────────────────────────
+    const fontsBlock = ap.slice(ap.indexOf('var FONTS = ['), ap.indexOf('];', ap.indexOf('var FONTS = [')));
+    ok('the list starts with the app’s own faces, as Brad asked',
+       /\['', 'The Rail Roster headline'\]/.test(fontsBlock) &&
+       fontsBlock.indexOf('Arial') > fontsBlock.indexOf('The Rail Roster typewriter'));
+    ok('…and offers a proper word-processor list beyond them',
+       (fontsBlock.match(/\['/g) || []).length >= 14);
+    ok('nothing in it has to be downloaded',
+       !/fonts\.googleapis|@import|\.woff/.test(fontsBlock));
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
