@@ -9753,6 +9753,90 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /\.rrap-savebox \{[^}]*background: var\(--p-panel\)/.test(css));
   })();
 
+
+  section('196. Weaver and the other makers get a reference at last (v0.9.1245)');
+  (function () {
+    const pathJ = require('path');
+    const br = fs.readFileSync(pathJ.join(__dirname, '..', 'app', 'browse.js'), 'utf8');
+
+    // The Weaver link pilot (2026-08-01) found no durable reference pages exist
+    // for a maker that closed in 2015, so a SEARCH is the honest answer. But
+    // until now _itemExternalLinkURL returned '' for every non-Lionel,
+    // non-MTH tab — so those items showed no reference affordance at all.
+    // Weaver alone is 12,568 rows.
+
+    ok('there is a named maker per tab, not a guess from the tab title',
+       /function _makerForTab\(tabLower\)/.test(br));
+
+    // ── RUN the whole resolver ──────────────────────────────────────────
+    const src = br.slice(br.indexOf('function _itemExternalLinkURL(item)'),
+                         br.indexOf('if (typeof window !== \'undefined\') window._makerForTab'));
+    const url = (item) => new Function('item', 'window', 'state', '_itemEraPeriod',
+      '"use strict";' + src + '; return _itemExternalLinkURL(item);')(
+        item, {}, {}, () => null);
+    const q = (item) => {
+      const u = url(item);
+      return u ? decodeURIComponent((u.split('q=')[1] || '')) : '';
+    };
+
+    // ── Weaver: the three shapes the pilot measured ─────────────────────
+    ok('a Weaver item gets a search instead of nothing',
+       /google\.com\/search/.test(url({ itemNum: 'U2704', _tab: 'Weaver O', roadName: 'BURLINGTON NORTHERN' })));
+    ok('…led by the maker and the road name, because the bare number is far too generic',
+       q({ itemNum: 'U2704', _tab: 'Weaver O', roadName: 'BURLINGTON NORTHERN' })
+         === 'Weaver U2704 BURLINGTON NORTHERN',
+       q({ itemNum: 'U2704', _tab: 'Weaver O', roadName: 'BURLINGTON NORTHERN' }));
+
+    // the -L/-S suffix is the 2-rail/3-rail version of ONE model and never
+    // appears in a listing title
+    ok('the -S suffix is stripped, or the search matches nothing',
+       q({ itemNum: '1055-S', _tab: 'Weaver O', roadName: 'LEHIGH VALLEY' })
+         === 'Weaver 1055 LEHIGH VALLEY',
+       q({ itemNum: '1055-S', _tab: 'Weaver O', roadName: 'LEHIGH VALLEY' }));
+    ok('…and so are -L, -LP and -SP',
+       q({ itemNum: '1077-L', _tab: 'Weaver O', roadName: 'PRR' }) === 'Weaver 1077 PRR' &&
+       q({ itemNum: '2013-LP', _tab: 'Weaver O', roadName: 'PRR' }) === 'Weaver 2013 PRR' &&
+       q({ itemNum: '2013-SP', _tab: 'Weaver O', roadName: 'PRR' }) === 'Weaver 2013 PRR');
+    ok('…but a suffix that is part of the number is left alone',
+       q({ itemNum: 'EBC67', _tab: 'Weaver O', roadName: 'GTW' }) === 'Weaver EBC67 GTW');
+
+    // CUSTOM RUN is Weaver's stock-number field saying there ISN'T one
+    const cr = { itemNum: 'CUSTOM RUN', _tab: 'Weaver O', roadName: 'ALASKA',
+                 itemType: 'Hopper', variation: '14500' };
+    ok('a CUSTOM RUN row never searches the words "CUSTOM RUN"',
+       !/CUSTOM/i.test(q(cr)), q(cr));
+    ok('…it searches what that row actually has: road, car type and road number',
+       q(cr) === 'Weaver ALASKA Hopper 14500', q(cr));
+
+    // ── the other makers that were also getting nothing ────────────────
+    [['K-Line O','K-Line'], ['Williams O','Williams'], ['Marx O','Marx'],
+     ['RMT O','RMT'], ['Menards O','Menards'], ['3rd Rail O','3rd Rail'],
+     ['USA Trains G','USA Trains'], ['LGB G','LGB']].forEach(([tab, maker]) => {
+      ok(tab + ' items get one too, naming ' + maker,
+         q({ itemNum: 'X1', _tab: tab, roadName: 'PRR' }) === maker + ' X1 PRR',
+         q({ itemNum: 'X1', _tab: tab, roadName: 'PRR' }));
+    });
+
+    // ── it must not disturb what already worked ────────────────────────
+    ok('a real reference link still wins over any search',
+       url({ itemNum: 'U2704', _tab: 'Weaver O', refLink: 'https://example.com/x' })
+         === 'https://example.com/x');
+    ok('Lionel still searches as Lionel',
+       /^Lionel 6464-1 /.test(q({ itemNum: '6464-1', _tab: 'Lionel PW - Items', roadName: 'WESTERN PACIFIC' })));
+    ok('MTH still searches as MTH',
+       /^MTH /.test(q({ itemNum: '20-1234', _tab: 'MTH O', roadName: 'PRR' })));
+    ok('an 11- number is still MTH whichever tab it sits in',
+       /^MTH 11-30026/.test(q({ itemNum: '11-30026', _tab: 'Lionel MPC-Modern', roadName: 'PRR' })));
+    ok('a tab nobody has named gets no link, rather than a search for the wrong company',
+       url({ itemNum: 'X1', _tab: 'Acme Trains O', roadName: 'PRR' }) === '');
+    ok('…and an item with no number at all still gets nothing',
+       url({ _tab: 'Weaver O', roadName: 'PRR' }) === '');
+    // a maker name on its own would be a search for the company, not the item
+    ok('a row with nothing but a maker produces no link',
+       url({ itemNum: 'CUSTOM RUN', _tab: 'Weaver O' }) === '',
+       url({ itemNum: 'CUSTOM RUN', _tab: 'Weaver O' }));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

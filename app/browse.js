@@ -1060,9 +1060,63 @@ function _itemExternalLinkURL(item) {
         + (_perWord2 ? ' ' + _perWord2 : '');
       return 'https://www.google.com/search?q=' + encodeURIComponent(_gq2);
     }
+    // ── v0.9.1245 — every other maker gets a search too ───────────────────
+    // Until now this returned '' for them, so a Weaver, K-Line, Williams,
+    // Marx, RMT or Menards item showed NO reference affordance at all — not a
+    // bad link, no link. Weaver alone is 12,568 rows.
+    //
+    // These are makers with no live product site to point at (Weaver closed in
+    // 2015), so a search IS the honest answer — but it has to be a search that
+    // works, and a 30-item pilot on 2026-08-01 measured what does:
+    //
+    //   • The bare number is far too generic. Maker + number + road name is
+    //     what finds the item.
+    //   • Weaver's -L / -S / -LP / -SP suffixes are the 3-rail / 2-rail
+    //     version of ONE model. In the wild the suffix is either absent or
+    //     written without the dash (U16011L, EBC56D), so searching "1055-S"
+    //     matches nothing while "1055" finds it. Strip it.
+    //   • A Weaver CUSTOM RUN row has no catalogue number at all — that is
+    //     Weaver's own stock-number field saying so. Searching the words
+    //     "CUSTOM RUN" is worse than useless, so those rows search on what
+    //     they DO have: the road name, the car type and the road number.
+    var _maker = _makerForTab(_tabL);
+    if (_maker) {
+      var _isCustom = /^CUSTOM RUN/i.test(_numT);
+      var _base = _isCustom ? '' : _numT.replace(/-(L|S|LP|SP)$/i, '');
+      var _bits = [_maker, _base, item.roadName || '',
+                   _isCustom ? (item.itemType || '') : '',
+                   _isCustom ? (item.variation || '') : ''];
+      var _gq3 = _bits.filter(Boolean).join(' ').trim();
+      if (_gq3 !== _maker) {
+        return 'https://www.google.com/search?q=' + encodeURIComponent(_gq3);
+      }
+    }
   }
   return '';
 }
+
+// The maker a tab is about, for tabs whose items have no manufacturer site.
+// Named rather than derived from the tab title so a renamed tab fails loudly
+// (no link) instead of quietly searching for the wrong company.
+function _makerForTab(tabLower) {
+  var t = String(tabLower || '');
+  var MAKERS = [
+    ['weaver',     'Weaver'],
+    ['k-line',     'K-Line'],
+    ['williams',   'Williams'],
+    ['marx',       'Marx'],
+    ['rmt',        'RMT'],
+    ['menards',    'Menards'],
+    ['3rd rail',   '3rd Rail'],
+    ['usa trains', 'USA Trains'],
+    ['lgb',        'LGB']
+  ];
+  for (var i = 0; i < MAKERS.length; i++) {
+    if (t.indexOf(MAKERS[i][0]) === 0) return MAKERS[i][1];
+  }
+  return '';
+}
+if (typeof window !== 'undefined') window._makerForTab = _makerForTab;
 if (typeof window !== 'undefined') window._itemExternalLinkURL = _itemExternalLinkURL;
 
 function _itemExternalLinkHTML(item) {
