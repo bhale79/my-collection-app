@@ -9286,6 +9286,86 @@ META_WRITES.length = 0; TOASTS.length = 0;
        !/will save once the upload finishes/.test(pcCode));
   })();
 
+
+  section('191. A number names a model, not the copy you own (v0.9.1238)');
+  (function () {
+    const pathJ = require('path');
+    const rd = f => fs.readFileSync(pathJ.join(__dirname, '..', 'app', f), 'utf8');
+    const app = rd('app.js'), dv = rd('drive.js'), ws = rd('wizard-save.js');
+
+    // ── K1: selling one of two identical items blanked BOTH box records ──
+    const clean = app.slice(app.indexOf('async function _cleanupSoldItemBoxes'),
+                            app.indexOf('window._cleanupSoldItemBoxes ='));
+    ok('a group, when there is one, is the whole answer',
+       /if \(leadGroupId\) \{[\s\S]{0,240}p\.groupId === leadGroupId/.test(clean));
+    ok('…and the name test no longer runs alongside it',
+       clean.indexOf('boxNames.indexOf(num) !== -1') < 0);
+
+    // RUN it: two 2343s, each with its own box
+    const runClean = (pdata, lead, gid) => {
+      const blanked = [], removed = [];
+      const src = clean.replace(/\basync\s+/g, '').replace(/\bawait\s+/g, '')
+                       .replace('function _cleanupSoldItemBoxes', 'return function _cleanupSoldItemBoxes');
+      const n = new Function('state', 'sheetsUpdate', 'personalFullRowRange', 'personalBlankRow', 'console',
+        '"use strict";' + src)(
+          { personalData: pdata, personalSheetId: 'S' },
+          (sid, range) => { blanked.push(range); }, r => 'R' + r, () => [], { warn() {} })(lead, gid);
+      Object.keys(pdata).forEach(k => { if (!(k in pdata)) removed.push(k); });
+      return { n, blanked };
+    };
+
+    const twoCopies = () => ({
+      a:    { owned: 1, itemNum: '2343', row: 2, groupId: 'GA', inventoryId: '116' },
+      abox: { owned: 1, itemNum: '2343-BOX', row: 3, groupId: 'GA' },
+      b:    { owned: 1, itemNum: '2343', row: 4, groupId: 'GB', inventoryId: '117' },
+      bbox: { owned: 1, itemNum: '2343-BOX', row: 5, groupId: 'GB' }
+    });
+    const pd1 = twoCopies();
+    const r1 = runClean(pd1, '2343', 'GA');
+    ok('selling one of two identical items takes only ITS box',
+       r1.n === 1 && r1.blanked.length === 1 && r1.blanked[0] === 'R3',
+       JSON.stringify(r1));
+    ok('…and the copy you kept still has its box',
+       !!pd1.bbox && pd1.bbox.row === 5);
+
+    // one copy, no group at all (older rows) — must still work
+    const pd2 = { a: { owned: 1, itemNum: '2343', row: 2 },
+                  abox: { owned: 1, itemNum: '2343-BOX', row: 3 },
+                  ambox: { owned: 1, itemNum: '2343-MBOX', row: 4 } };
+    const r2 = runClean(pd2, '2343', '');
+    ok('an ungrouped single copy still has its box and master carton cleaned up',
+       r2.n === 2 && r2.blanked.sort().join(',') === 'R3,R4', JSON.stringify(r2));
+
+    // two ungrouped box rows of the same name — cannot tell, must not guess
+    const pd3 = { abox: { owned: 1, itemNum: '2343-BOX', row: 3 },
+                  bbox: { owned: 1, itemNum: '2343-BOX', row: 5 } };
+    const r3 = runClean(pd3, '2343', '');
+    ok('two identically named boxes and no group leaves BOTH alone',
+       r3.n === 0 && r3.blanked.length === 0, JSON.stringify(r3));
+    ok('…because blanking the wrong one cannot be undone, and an orphan row is cosmetic',
+       /leaving all of them/.test(clean));
+
+    // ── K4: selling one copy moved EVERY copy's photos ──────────────────
+    const mts = dv.slice(dv.indexOf('async function driveMoveToSold'),
+                         dv.indexOf('// ── DRIVE CONFIG FILE'));
+    ok('moving photos to Sold takes the copy, not the item number',
+       /async function driveMoveToSold\(itemNum, inventoryId\)/.test(mts));
+    ok('…it moves that copy\'s own folder',
+       /copies\.find\(function \(f\) \{ return String\(f\.name\) === String\(inventoryId\); \}\)/.test(mts));
+    ok('…into a matching item folder on the sold side, not loose',
+       /driveFindOrCreateFolder\(key, driveCache\.soldPhotosId\)/.test(mts));
+    ok('…and only takes the item folder itself once nothing is left in it',
+       /if \(copies\.length === 1\) \{[\s\S]{0,200}driveMoveFileToFolder\(itemFolderId/.test(mts));
+    ok('with copies present and no id given, it moves NOBODY\'s photos',
+       /\} else if \(copies\.length\) \{[\s\S]{0,220}return false;/.test(mts));
+    ok('…and a single-copy item with no subfolders still moves as it always did',
+       /await driveMoveFileToFolder\(itemFolderId, driveCache\.photosId, driveCache\.soldPhotosId\);\s*\n\s*delete driveCache\.itemFolders\[key\];\s*\n\s*return true;/.test(mts));
+    ok('the sale passes the copy through',
+       /driveMoveToSold\(collectionEntry\.itemNum, collectionEntry\.inventoryId\)/.test(ws));
+    ok('the copy folder is dropped from the cache under its copy key',
+       /delete driveCache\.itemFolders\[key \+ '\/' \+ inventoryId\]/.test(mts));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

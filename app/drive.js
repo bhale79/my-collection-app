@@ -883,17 +883,64 @@ async function driveUploadItemPhoto(file, itemNum, viewAbbr, inventoryId, fileLa
   return driveFolderLink(folderId);
 }
 
-async function driveMoveToSold(itemNum) {
+// v0.9.1238 (identity audit): this moved the folder named after the ITEM
+// NUMBER. Photos for a particular copy live in a subfolder named after its
+// inventory id (see driveUploadItemPhoto), so selling one of two 2343s moved
+// BOTH copies' photos into Sold — and the copy still in the collection lost
+// its pictures.
+//
+// With an inventory id we move that copy's subfolder and nothing else, into a
+// matching item-number folder under Sold Photos so the sold side stays
+// organised the same way. Without one, we move the item folder only when there
+// is nothing to be wrong about: no copy subfolders beneath it.
+const _FOLDER_MIME = 'application/vnd.google-apps.folder';
+
+async function _driveChildFolders(parentId) {
+  const q = encodeURIComponent(
+    `mimeType='${_FOLDER_MIME}' and '${parentId}' in parents and trashed=false`);
+  const res = await driveRequest('GET', `/files?q=${q}&fields=files(id,name)`);
+  return (res && res.files) || [];
+}
+
+async function driveMoveToSold(itemNum, inventoryId) {
   await driveEnsureSetup();
   const key = String(itemNum);
-  // Find item folder in My Collection Photos
-  const q = encodeURIComponent(`name='${key}' and mimeType='application/vnd.google-apps.folder' and '${driveCache.photosId}' in parents and trashed=false`);
+  const q = encodeURIComponent(
+    `name='${key}' and mimeType='${_FOLDER_MIME}' and '${driveCache.photosId}' in parents and trashed=false`);
   const res = await driveRequest('GET', `/files?q=${q}&fields=files(id)`);
-  if (res.files && res.files.length > 0) {
-    const fId = res.files[0].id;
-    await driveMoveFileToFolder(fId, driveCache.photosId, driveCache.soldPhotosId);
-    delete driveCache.itemFolders[key];
+  if (!res.files || !res.files.length) return false;
+  const itemFolderId = res.files[0].id;
+  const copies = await _driveChildFolders(itemFolderId);
+
+  if (inventoryId) {
+    const mine = copies.find(function (f) { return String(f.name) === String(inventoryId); });
+    if (mine) {
+      const soldItemFolder = await driveFindOrCreateFolder(key, driveCache.soldPhotosId);
+      await driveMoveFileToFolder(mine.id, itemFolderId, soldItemFolder);
+      delete driveCache.itemFolders[key + '/' + inventoryId];
+      // The item folder itself only follows once nothing is left in it.
+      if (copies.length === 1) {
+        await driveMoveFileToFolder(itemFolderId, driveCache.photosId, driveCache.soldPhotosId);
+        delete driveCache.itemFolders[key];
+      }
+      return true;
+    }
+    // No subfolder for this copy: its photos, if any, sit loose in the item
+    // folder. Only safe to move the whole thing if no other copy shares it.
+    if (copies.length) {
+      console.warn('[Drive] ' + key + ' has copy folders but none for ' + inventoryId +
+                   ' - leaving photos where they are rather than moving another copy\'s');
+      return false;
+    }
+  } else if (copies.length) {
+    console.warn('[Drive] ' + key + ' holds ' + copies.length +
+                 ' copies and no inventory id was given - not moving anyone\'s photos');
+    return false;
   }
+
+  await driveMoveFileToFolder(itemFolderId, driveCache.photosId, driveCache.soldPhotosId);
+  delete driveCache.itemFolders[key];
+  return true;
 }
 
 // ── DRIVE CONFIG FILE ───────────────────────────────────────────

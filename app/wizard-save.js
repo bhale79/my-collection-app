@@ -1740,7 +1740,9 @@ async function saveWizardItem() {
       } catch(e) { console.warn('[Sold] clearing Upgrade row failed:', e); }
       // Move photo folder to Sold in Drive
       if (collectionEntry?.itemNum) {
-        try { await driveMoveToSold(collectionEntry.itemNum); } catch(e) { console.warn('Drive move failed:', e); }
+        // v0.9.1238: pass the copy, not just the number — see driveMoveToSold.
+        try { await driveMoveToSold(collectionEntry.itemNum, collectionEntry.inventoryId); }
+        catch(e) { console.warn('Drive move failed:', e); }
       }
 
     } else if (tab === 'want') {

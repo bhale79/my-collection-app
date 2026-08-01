@@ -815,17 +815,45 @@ function getGroupMembers(itemNum) {
 async function _cleanupSoldItemBoxes(leadItemNum, leadGroupId) {
   try {
     if (!state || !state.personalData) return 0;
+    // v0.9.1238 (identity audit): the name test used to run REGARDLESS of the
+    // group, so "2343-BOX" matched every 2343 box row in the collection. Own
+    // two 2343s, sell one, and BOTH boxes were blanked — the surviving copy
+    // silently lost its box.
+    //
+    // A groupId names a copy; an item number names a model. So:
+    //   • lead has a groupId -> that group IS the answer. Name-matching adds
+    //     nothing and can only reach into another copy.
+    //   • no groupId (older rows) -> name-match, but only when there is
+    //     exactly one candidate of that name. Two means we cannot tell which
+    //     is this copy's, and an orphan box row is a cosmetic problem while
+    //     blanking the wrong one is data loss.
     var lead = String(leadItemNum || '');
     var boxNames = [ (lead + '-BOX').toUpperCase(), (lead + '-MBOX').toUpperCase() ];
-    var keys = Object.keys(state.personalData).filter(function(k) {
-      var p = state.personalData[k];
+    var isBoxRow = function (p) {
       if (!p || !p.owned || !p.itemNum) return false;
       var num = String(p.itemNum).toUpperCase();
-      if (!(num.endsWith('-BOX') || num.endsWith('-MBOX'))) return false;
-      if (boxNames.indexOf(num) !== -1) return true;
-      if (leadGroupId && p.groupId && p.groupId === leadGroupId) return true;
-      return false;
-    });
+      return num.endsWith('-BOX') || num.endsWith('-MBOX');
+    };
+    var keys;
+    if (leadGroupId) {
+      keys = Object.keys(state.personalData).filter(function (k) {
+        var p = state.personalData[k];
+        return isBoxRow(p) && p.groupId && p.groupId === leadGroupId;
+      });
+    } else {
+      keys = [];
+      boxNames.forEach(function (want) {
+        var hits = Object.keys(state.personalData).filter(function (k) {
+          var p = state.personalData[k];
+          return isBoxRow(p) && String(p.itemNum).toUpperCase() === want;
+        });
+        if (hits.length === 1) keys.push(hits[0]);
+        else if (hits.length > 1) {
+          console.warn('[Sold] ' + hits.length + ' rows named ' + want +
+                       ' and no group to tell them apart - leaving all of them');
+        }
+      });
+    }
     for (var i = 0; i < keys.length; i++) {
       var bp = state.personalData[keys[i]];
       if (bp && bp.row && bp.row !== 99999) {
