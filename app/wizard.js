@@ -3019,18 +3019,22 @@ function renderWizardStep() {
 
     var _bpvHtml = '<div style="padding-top:0.25rem;max-height:65vh;overflow-y:auto;-webkit-overflow-scrolling:touch">';
 
-    _bpvHtml += '<div style="margin-bottom:0.75rem">'
-      + '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">What did you pay? ($)</div>'
-      + '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem">'
-      + '<span style="color:var(--text-dim);font-size:1.1rem">$</span>'
-      + '<input type="number" id="bpv-price" value="' + (_bpv.priceBox || '') + '" placeholder="0.00" min="0" step="0.01" style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem" oninput="wizard.data.priceBox=this.value">'
-      + '</div></div>';
-
+    // v0.9.1242 (Brad): Est. Worth is asked BEFORE what you paid, on every
+    // screen that asks both. What a thing is worth is the answer he wants
+    // recorded; what he paid is history. Five screens asked these two
+    // questions and three of them asked them the other way round.
     _bpvHtml += '<div style="margin-bottom:0.75rem">'
       + '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Estimated Worth (for insurance) <a href="javascript:_wizResearchPrice()" style="float:right;color:#2ecc71;font-weight:700;text-decoration:none;text-transform:none;letter-spacing:0">\uD83D\uDD0D Research</a></div>'
       + '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem">'
       + '<span style="color:var(--text-dim);font-size:1.1rem">$</span>'
       + '<input type="number" id="bpv-worth" value="' + (_bpv.userEstWorth || '') + '" placeholder="0.00" min="0" step="0.01" style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem" oninput="wizard.data.userEstWorth=this.value">'
+      + '</div></div>';
+
+    _bpvHtml += '<div style="margin-bottom:0.75rem">'
+      + '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">What did you pay? ($)</div>'
+      + '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem">'
+      + '<span style="color:var(--text-dim);font-size:1.1rem">$</span>'
+      + '<input type="number" id="bpv-price" value="' + (_bpv.priceBox || '') + '" placeholder="0.00" min="0" step="0.01" style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem" oninput="wizard.data.priceBox=this.value">'
       + '</div></div>';
 
     _bpvHtml += '<div style="margin-bottom:0.75rem">'
@@ -3319,15 +3323,10 @@ function renderWizardStep() {
     const da  = wizard.data.eph_dateAcquired|| '';
     const nt  = wizard.data.eph_notes       || '';
     body.innerHTML = '<div style="padding-top:0.5rem;display:flex;flex-direction:column;gap:0.9rem">'
-      + '<div>'
-      +   '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.35rem">What Did You Pay? ($)</div>'
-      +   '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.9rem">'
-      +     '<span style="color:var(--text-dim)">$</span>'
-      +     '<input type="number" id="pe-paid" value="' + pp + '" placeholder="0.00" min="0" step="0.01"'
-      +     ' style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem"'
-      +     ' oninput="wizard.data.eph_pricePaid=this.value">'
-      +   '</div>'
-      + '</div>'
+      // v0.9.1242 (Brad): Est. Worth is asked BEFORE what you paid, on every
+      // screen that asks both. What a thing is worth is the answer he wants
+      // recorded; what he paid is history. Five screens asked these two
+      // questions and three of them asked them the other way round.
       + '<div>'
       +   '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.35rem">Est. Worth ($)</div>'
       +   '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.9rem">'
@@ -3335,6 +3334,15 @@ function renderWizardStep() {
       +     '<input type="number" id="pe-val" value="' + ev + '" placeholder="0.00" min="0" step="0.01"'
       +     ' style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem"'
       +     ' oninput="wizard.data.eph_estValue=this.value">'
+      +   '</div>'
+      + '</div>'
+      + '<div>'
+      +   '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.35rem">What Did You Pay? ($)</div>'
+      +   '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.9rem">'
+      +     '<span style="color:var(--text-dim)">$</span>'
+      +     '<input type="number" id="pe-paid" value="' + pp + '" placeholder="0.00" min="0" step="0.01"'
+      +     ' style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem"'
+      +     ' oninput="wizard.data.eph_pricePaid=this.value">'
       +   '</div>'
       + '</div>'
       + '<div>'
@@ -4286,22 +4294,10 @@ function renderWizardStep() {
       wrap.appendChild(csDiv);
     }
 
-    // Price paid field (when embedded in photo step, e.g. IS flow)
-    if (s.pricePaidField) {
-      const _ppKey = s.pricePaidField.key;
-      const _ppLabel = s.pricePaidField.label || 'What Did You Pay? ($)';
-      const _ppVal = wizard.data[_ppKey] || '';
-      const ppDiv = document.createElement('div');
-      ppDiv.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.65rem 0.85rem;margin-bottom:0.75rem';
-      ppDiv.innerHTML = '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);margin-bottom:0.35rem">' + _ppLabel + '</div>'
-        + '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.75rem">'
-        + '<span style="color:var(--text-dim)">$</span>'
-        + '<input type="number" value="' + _ppVal + '" placeholder="0.00" min="0" step="0.01"'
-        + ' style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:0.95rem"'
-        + ' oninput="wizard.data[\'' + _ppKey + '\']=this.value"></div>';
-      wrap.appendChild(ppDiv);
-    }
-
+    // v0.9.1242 (Brad): Est. Worth is asked BEFORE what you paid, on every
+    // screen that asks both. What a thing is worth is the answer he wants
+    // recorded; what he paid is history. Five screens asked these two
+    // questions and three of them asked them the other way round.
     // Money field (when embedded in photo step, e.g. IS flow)
     if (s.moneyField) {
       const _mfKey = s.moneyField.key;
@@ -4316,6 +4312,22 @@ function renderWizardStep() {
         + ' style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:0.95rem"'
         + ' oninput="wizard.data[\'' + _mfKey + '\']=this.value"></div>';
       wrap.appendChild(mfDiv);
+    }
+
+    // Price paid field (when embedded in photo step, e.g. IS flow)
+    if (s.pricePaidField) {
+      const _ppKey = s.pricePaidField.key;
+      const _ppLabel = s.pricePaidField.label || 'What Did You Pay? ($)';
+      const _ppVal = wizard.data[_ppKey] || '';
+      const ppDiv = document.createElement('div');
+      ppDiv.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.65rem 0.85rem;margin-bottom:0.75rem';
+      ppDiv.innerHTML = '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);margin-bottom:0.35rem">' + _ppLabel + '</div>'
+        + '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.75rem">'
+        + '<span style="color:var(--text-dim)">$</span>'
+        + '<input type="number" value="' + _ppVal + '" placeholder="0.00" min="0" step="0.01"'
+        + ' style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:0.95rem"'
+        + ' oninput="wizard.data[\'' + _ppKey + '\']=this.value"></div>';
+      wrap.appendChild(ppDiv);
     }
 
     if (s.note && s.note(wizard.data)) {
@@ -5295,18 +5307,22 @@ function renderWizardStep() {
       const _scNote = wizard.data.notes       || '';
       _cdHtml += '<div style="margin-top:0.75rem;display:flex;flex-direction:column;gap:0.7rem">';
       _cdHtml += '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.1rem">Purchase & Value</div>';
-      _cdHtml += '<div><div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.25rem">What Did You Pay? ($)</div>'
-        + '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.75rem">'
-        + '<span style="color:var(--text-dim)">$</span>'
-        + '<input type="number" value="' + _scPaid + '" placeholder="0.00" min="0" step="0.01"'
-        + ' style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:0.95rem"'
-        + ' oninput="wizard.data.priceItem=this.value"></div></div>';
+      // v0.9.1242 (Brad): Est. Worth is asked BEFORE what you paid, on every
+      // screen that asks both. What a thing is worth is the answer he wants
+      // recorded; what he paid is history. Five screens asked these two
+      // questions and three of them asked them the other way round.
       _cdHtml += '<div><div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.25rem">Est. Worth ($) <a href="javascript:_wizResearchPrice()" style="float:right;color:#2ecc71;font-weight:700;text-decoration:none;text-transform:none;letter-spacing:0">\uD83D\uDD0D Research</a></div>'
         + '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.75rem">'
         + '<span style="color:var(--text-dim)">$</span>'
         + '<input type="number" value="' + _scVal + '" placeholder="0.00" min="0" step="0.01"'
         + ' style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:0.95rem"'
         + ' oninput="wizard.data.userEstWorth=this.value"></div></div>';
+      _cdHtml += '<div><div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.25rem">What Did You Pay? ($)</div>'
+        + '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.75rem">'
+        + '<span style="color:var(--text-dim)">$</span>'
+        + '<input type="number" value="' + _scPaid + '" placeholder="0.00" min="0" step="0.01"'
+        + ' style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:0.95rem"'
+        + ' oninput="wizard.data.priceItem=this.value"></div></div>';
       _cdHtml += '<div><div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.25rem">Date Acquired</div>'
         + '<div style="position:relative;display:flex;align-items:center">'
         + '<input type="date" id="cd-sc-date" value="' + _scDate + '"'

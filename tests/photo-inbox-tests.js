@@ -9542,6 +9542,71 @@ META_WRITES.length = 0; TOASTS.length = 0;
          '; return _wizPlaceholder({ placeholder: "e.g. 1957" });')({ data: {} }) === 'e.g. 1957');
   })();
 
+
+  section('194. Est. Worth is asked before what you paid, everywhere (v0.9.1242)');
+  (function () {
+    const pathJ = require('path');
+    const wz = fs.readFileSync(pathJ.join(__dirname, '..', 'app', 'wizard.js'), 'utf8');
+
+    // Brad: "need to add all the different add item steps where we ask price
+    // paid and est. worth. We need to ask est. worth first then what did you
+    // pay. we are not consistant throught out the app on the order."
+    //
+    // Five screens ask both questions. Two already asked worth first
+    // (v0.9.906 purchaseValue, v0.9.968); three asked them the other way.
+
+    // Every screen, by the marker that is unique to it. The rule is the same
+    // one each time: the worth question must appear BEFORE the paid question
+    // in the source, because these are built by string concatenation in
+    // render order.
+    const SCREENS = [
+      ['Purchase & Value (the main add step)',
+       "'Est. Worth of Whole Set ($)'", "'What did you pay for the whole set? ($)'"],
+      ['Box purchase & value',
+       'Estimated Worth (for insurance)', 'What did you pay? ($)'],
+      ['Paper items — value, date & notes',
+       'Est. Worth ($)</div>', 'What Did You Pay? ($)</div>'],
+      ['Condition & Details (simplified types)',
+       "margin-bottom:0.25rem\">Est. Worth ($)", "margin-bottom:0.25rem\">What Did You Pay? ($)"],
+      ['The embedded pair (instruction sheets, paper photo step)',
+       '// Money field (when embedded', '// Price paid field (when embedded']
+    ];
+    SCREENS.forEach(([name, worth, paid]) => {
+      const iw = wz.indexOf(worth), ip = wz.indexOf(paid);
+      ok('worth comes first — ' + name,
+         iw > 0 && ip > 0 && iw < ip,
+         'worth@' + iw + ' paid@' + ip);
+    });
+
+    // The pair of fields must still both be there — a "fix" that dropped one
+    // would satisfy an ordering test trivially.
+    ok('both questions still exist on all five screens',
+       (wz.match(/What [Dd]id [Yy]ou [Pp]ay/g) || []).length >= 5 &&
+       (wz.match(/Est\. Worth|Estimated Worth/g) || []).length >= 5,
+       (wz.match(/What [Dd]id [Yy]ou [Pp]ay/g) || []).length + ' paid, ' +
+       (wz.match(/Est\. Worth|Estimated Worth/g) || []).length + ' worth');
+
+    // …and each still writes to the field it always wrote to. Swapping two
+    // blocks of string-building is exactly where a value can end up in the
+    // wrong key.
+    const PAIRS = [
+      ['wizard.data.priceBox', 'wizard.data.userEstWorth'],
+      ['wizard.data.eph_pricePaid', 'wizard.data.eph_estValue'],
+      ['wizard.data.priceItem', 'wizard.data.userEstWorth']
+    ];
+    PAIRS.forEach(([a, b]) => {
+      ok('still writes to ' + a + ' and ' + b, wz.indexOf(a) > 0 && wz.indexOf(b) > 0);
+    });
+    ok('the Research link stays with the worth question, not the paid one',
+       /Est\. Worth \(\$\) <a href="javascript:_wizResearchPrice\(\)/.test(wz) &&
+       !/What Did You Pay\? \(\$\) <a href="javascript:_wizResearchPrice/.test(wz));
+
+    // the two that were already right must not have been flipped by the sweep
+    ok('the screens that were already correct were left correct',
+       wz.indexOf("'Est. Worth of Whole Set ($)'") <
+       wz.indexOf("'What did you pay for the whole set? ($)'"));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
