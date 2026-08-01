@@ -7419,7 +7419,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // something was painting over the colour grid while hit-testing insisted
     // it was on top. It was on top. It was see-through.
     ok('…and the floating panels too, or they render transparent',
-       /#rrap-pal,\s*#rrap-tip,\s*#rrap-what \{/.test(css));
+       /#rrap-pal,\s*#rrap-tip,\s*#rrap-what[^{]*\{/.test(css));
+    // v0.9.1243: the save-as dialog is a floating panel like the rest and must
+    // join the same palette scope, or it renders see-through exactly as the
+    // colour grid did.
+    ok('…including the save-as dialog',
+       /#rrap-what, #rrap-save \{/.test(css));
     // The names are the whole safety mechanism: --p-* can never shadow the
     // skin variables the preview replica is reading.
     ok('the paper palette cannot shadow a skin variable (no --bg/--surface/--text in it)',
@@ -7664,12 +7669,18 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // is wearing" and the next one replaced it with no way back.
     ok('Apply files the look over the one you were working on…',
        /if \(_activePreset\) \{\s*\n\s*_storePreset\(_activePreset\);/.test(ap));
-    ok('…or asks for a name, with one already filled in',
-       /title: 'Apply and save this look'/.test(ap) && /function _nextLookName\(\)/.test(ap) &&
+    // v0.9.1243 (Brad): "we need a way to save as an existing one as well as
+    // creating a new one. maybe a dropdown." The plain name box became a
+    // chooser, so these two now assert the dialog rather than appPrompt's
+    // options.
+    ok('…or asks where to save it, with a name already filled in',
+       /function _askSaveTarget\(\)/.test(ap) &&
+       />Apply and save this look</.test(ap) &&
+       /function _nextLookName\(\)/.test(ap) &&
        /while \(up\['My look ' \+ n\]\) n\+\+;/.test(ap));
     ok('…and applying without saving is still allowed, and says so',
-       /cancel: 'Apply without saving'/.test(ap) &&
-       /saved \? ', saved as “' \+ saved \+ '”' : ' — not saved to the row above'/.test(ap));
+       />Apply without saving</.test(ap) &&
+       /if \(!r \|\| r\.skip\) \{ finish\(' — not saved to the row above'\); return; \}/.test(ap));
     ok('one writer files a saved look, so Save current and Apply cannot drift',
        (ap.match(/_storePreset\(/g) || []).length === 4 &&
        (ap.match(/localStorage\.setItem\(USER_PRESETS_KEY/g) || []).length === 2);
@@ -9605,6 +9616,141 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('the screens that were already correct were left correct',
        wz.indexOf("'Est. Worth of Whole Set ($)'") <
        wz.indexOf("'What did you pay for the whole set? ($)'"));
+  })();
+
+
+  section('195. Save over a look you already have (v0.9.1243)');
+  (function () {
+    const pathJ = require('path');
+    const rd = f => fs.readFileSync(pathJ.join(__dirname, '..', 'app', f), 'utf8');
+    const ap = rd('appearance.js'), css = rd('app.css');
+
+    // Brad: "when saving, we need a way to save as an existing one as well as
+    // creating a new one. maybe a dropdown."
+
+    ok('Apply asks where to save, not just what to call it',
+       /_askSaveTarget\(\)\.then\(function \(r\) \{/.test(ap));
+    ok('…and the old plain name prompt is gone from that path',
+       !/appPrompt\('Name this look so you can come back to it later/.test(ap));
+
+    // ── RUN the dialog against a fake DOM ───────────────────────────────
+    const src = ap.slice(ap.indexOf('function _askSaveTarget()'),
+                         ap.indexOf('window._rrapSavePreset = function () {'));
+    const run = (presets) => {
+      const els = {};
+      const mk = () => {
+        const e = { style: {}, children: [], value: '', textContent: '', onclick: null,
+                    onchange: null, onkeydown: null, remove() { e._gone = true; },
+                    focus() {} };
+        Object.defineProperty(e, 'innerHTML', {
+          get() { return e._h || ''; },
+          set(v) {
+            e._h = v;
+            // register the ids the dialog will look up
+            (v.match(/id="([^"]+)"/g) || []).forEach(m => {
+              const id = m.slice(4, -1);
+              els[id] = els[id] || mk();
+            });
+            const sel = v.match(/<select id="rrap-save-sel"[\s\S]*?<\/select>/);
+            if (sel && els['rrap-save-sel']) {
+              els['rrap-save-sel'].options =
+                (sel[0].match(/value="([^"]*)"/g) || []).map(x => x.slice(7, -1));
+              const d = sel[0].match(/value="([^"]*)" selected/);
+              els['rrap-save-sel'].value = d ? d[1] : '';
+            }
+            const nm = v.match(/id="rrap-save-name"[^>]*value="([^"]*)"/);
+            if (nm && els['rrap-save-name']) els['rrap-save-name'].value = nm[1];
+          }
+        });
+        return e;
+      };
+      const ov = mk();
+      const doc = {
+        getElementById: id => (id === 'rrap-save' ? null : els[id] || null),
+        createElement: () => ov,
+        body: { appendChild() {} }
+      };
+      // A real Promise resolves in a microtask, so `out` would still be
+      // undefined when the assertion below reads it — and in this harness an
+      // async assertion is an INVISIBLE one. The executor itself runs
+      // synchronously, so hand the function a Promise stand-in that captures
+      // the resolved value there and then.
+      let out;
+      const SyncP = function (executor) { executor(v => { out = v; }, () => {}); };
+      new Function('document', 'setTimeout', '_userPresets', '_esc', '_nextLookName', 'Promise',
+        '"use strict";' + src + '; return _askSaveTarget();')(
+          doc, () => {}, () => presets, x => String(x),
+          () => 'My look ' + (Object.keys(presets).length + 1), SyncP);
+      return { els, ov, done: () => out };
+    };
+
+    // ── with looks already saved ────────────────────────────────────────
+    const A = run({ 'Santa Fe': {}, 'Winter': {} });
+    ok('every look you already have is offered',
+       /Replace \u201cSanta Fe\u201d/.test(A.ov.innerHTML) && /Replace \u201cWinter\u201d/.test(A.ov.innerHTML));
+    ok('…plus a way to make a new one, which is what it starts on',
+       A.els['rrap-save-sel'].value === '\u0000new' &&
+       /Save as a new look/.test(A.ov.innerHTML));
+    ok('the name box starts filled in, so Apply is never a dead button',
+       A.els['rrap-save-name'].value === 'My look 3');
+    ok('…and it is showing, because a new look needs a name',
+       A.els['rrap-save-name'].style.display === '');
+    ok('the button says Apply while a new look is selected',
+       A.els['rrap-save-ok'].textContent === 'Apply');
+
+    // choose an existing look
+    A.els['rrap-save-sel'].value = 'Santa Fe';
+    A.els['rrap-save-sel'].onchange();
+    ok('picking one you already have hides the name box — the dropdown IS the name',
+       A.els['rrap-save-name'].style.display === 'none');
+    ok('…and the button says what it is about to do',
+       A.els['rrap-save-ok'].textContent === 'Apply and replace',
+       A.els['rrap-save-ok'].textContent);
+    A.els['rrap-save-ok'].onclick();
+    ok('…and it resolves to that look, not to the typed name',
+       JSON.stringify(A.done()) === '{"name":"Santa Fe"}', JSON.stringify(A.done()));
+
+    // new look path
+    const B = run({ 'Santa Fe': {} });
+    B.els['rrap-save-name'].value = '  Depot green  ';
+    B.els['rrap-save-ok'].onclick();
+    ok('a new name is taken, and trimmed',
+       JSON.stringify(B.done()) === '{"name":"Depot green"}', JSON.stringify(B.done()));
+
+    // apply without saving
+    const C = run({ 'Santa Fe': {} });
+    C.els['rrap-save-skip'].onclick();
+    ok('applying without saving still works',
+       JSON.stringify(C.done()) === '{"skip":true}', JSON.stringify(C.done()));
+
+    // ── with NOTHING saved yet, there is nothing to choose between ──────
+    const D = run({});
+    ok('with no saved looks there is no dropdown at all',
+       !/rrap-save-sel/.test(D.ov.innerHTML));
+    ok('…just the name box, exactly as it always was',
+       D.els['rrap-save-name'].value === 'My look 1' &&
+       D.els['rrap-save-name'].style.display === '');
+    D.els['rrap-save-ok'].onclick();
+    ok('…and it still saves',
+       JSON.stringify(D.done()) === '{"name":"My look 1"}');
+
+    // ── the message afterwards must match what happened ─────────────────
+    ok('replacing says the look is up to date; a new one says it was saved',
+       /existed \? ', and \\u201c' \+ saved \+ '\\u201d is up to date'/.test(ap) &&
+       /: ', saved as \\u201c' \+ saved \+ '\\u201d'/.test(ap));
+    ok('…and it checks what existed BEFORE storing, or every save reads as a replace',
+       ap.indexOf('var existed = Object.prototype.hasOwnProperty.call(_userPresets(), r.name);')
+         < ap.indexOf('var saved = _storePreset(r.name);'));
+    ok('there is still ONE writer for a saved look',
+       (ap.match(/_storePreset\(/g) || []).length === 4,
+       String((ap.match(/_storePreset\(/g) || []).length));
+
+    // ── it has to be visible ────────────────────────────────────────────
+    ok('the dialog outranks the editor that opened it',
+       /#rrap-save \{[^}]*z-index: 100090/.test(css));
+    ok('…and wears the editor\u2019s paper palette, so it is not see-through',
+       /#rrap-what, #rrap-save \{/.test(css) &&
+       /\.rrap-savebox \{[^}]*background: var\(--p-panel\)/.test(css));
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

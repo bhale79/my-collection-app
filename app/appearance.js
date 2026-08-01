@@ -1899,6 +1899,76 @@
     return 'My look ' + n;
   }
 
+  // ── Where should this look be saved? (v0.9.1243) ────────────────────────
+  // Brad: "when saving, we need a way to save as an existing one as well as
+  // creating a new one. maybe a dropdown."
+  //
+  // The old box could only make a NEW look. Typing the name of one you already
+  // had silently replaced it with no warning, and there was no way to see what
+  // you already had while deciding.
+  //
+  // Resolves to { name } to save under that name, or { skip: true } to apply
+  // without saving. Never rejects — closing it is "apply without saving",
+  // which is what the old dialog's Cancel did.
+  //
+  // With no saved looks yet there is nothing to choose between, so it stays
+  // exactly the single name box it always was.
+  function _askSaveTarget() {
+    return new Promise(function (resolve) {
+      var names = Object.keys(_userPresets());
+      var NEW = '\u0000new';
+      var old = document.getElementById('rrap-save');
+      if (old) old.remove();
+
+      var ov = document.createElement('div');
+      ov.id = 'rrap-save';
+      ov.innerHTML =
+        '<div class="rrap-savebox">'
+        + '<div class="rrap-saveh">Apply and save this look</div>'
+        + '<div class="rrap-savep">Save over one you already have, or keep it as a new one. '
+        +   'You can also apply it without saving.</div>'
+        + (names.length
+            ? '<label class="rrap-savel" for="rrap-save-sel">Save as</label>'
+              + '<select id="rrap-save-sel" class="rrap-savesel">'
+              + names.map(function (n) {
+                  return '<option value="' + _esc(n) + '">Replace \u201c' + _esc(n) + '\u201d</option>';
+                }).join('')
+              + '<option value="' + NEW + '" selected>\uFF0B Save as a new look\u2026</option>'
+              + '</select>'
+            : '')
+        + '<input id="rrap-save-name" class="rrap-savein" type="text" maxlength="24" '
+        +   'value="' + _esc(_nextLookName()) + '" placeholder="Name this look">'
+        + '<div class="rrap-saveb">'
+        +   '<button type="button" id="rrap-save-skip" class="rrap-savebtn">Apply without saving</button>'
+        +   '<button type="button" id="rrap-save-ok" class="rrap-savebtn rrap-saveok">Apply</button>'
+        + '</div></div>';
+      document.body.appendChild(ov);
+
+      var sel  = document.getElementById('rrap-save-sel');
+      var name = document.getElementById('rrap-save-name');
+      var ok   = document.getElementById('rrap-save-ok');
+      var isNew = function () { return !sel || sel.value === NEW; };
+      // The name box is only meaningful for a NEW look; for a replacement the
+      // dropdown already IS the name, and a second name box beside it would be
+      // two answers to one question.
+      var sync = function () {
+        name.style.display = isNew() ? '' : 'none';
+        ok.textContent = isNew() ? 'Apply' : 'Apply and replace';
+      };
+      if (sel) sel.onchange = sync;
+      sync();
+
+      var done = function (val) { ov.remove(); resolve(val); };
+      ok.onclick = function () {
+        done({ name: isNew() ? String(name.value || '').trim() : sel.value });
+      };
+      document.getElementById('rrap-save-skip').onclick = function () { done({ skip: true }); };
+      ov.onclick = function (e) { if (e.target === ov) done({ skip: true }); };
+      name.onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); ok.click(); } };
+      setTimeout(function () { try { (sel || name).focus(); } catch (e) {} }, 30);
+    });
+  }
+
   window._rrapSavePreset = function () {
     var go = function (name) {
       if (!_storePreset(name)) return;
@@ -2031,13 +2101,15 @@
       finish(', and “' + _activePreset + '” is up to date');
       return;
     }
-    if (typeof appPrompt !== 'function') { finish(''); return; }
-    appPrompt('Name this look so you can come back to it later. Leave it if you would rather not keep it.',
-      _nextLookName(), { title: 'Apply and save this look', ok: 'Apply', cancel: 'Apply without saving' })
-      .then(function (name) {
-        var saved = _storePreset(name);
-        finish(saved ? ', saved as “' + saved + '”' : ' — not saved to the row above');
-      });
+    // v0.9.1243: pick an existing look to replace, or name a new one.
+    _askSaveTarget().then(function (r) {
+      if (!r || r.skip) { finish(' — not saved to the row above'); return; }
+      var existed = Object.prototype.hasOwnProperty.call(_userPresets(), r.name);
+      var saved = _storePreset(r.name);
+      finish(saved ? (existed ? ', and \u201c' + saved + '\u201d is up to date'
+                              : ', saved as \u201c' + saved + '\u201d')
+                   : ' — not saved to the row above');
+    });
   };
   window._rrapEdit = function () {
     _endPreview();
