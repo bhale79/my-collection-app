@@ -1621,7 +1621,26 @@ async function saveWizardItem() {
       // sets selectedSoldKey, so fall back to a lookup by item number. That resolves
       // the real collection row (and its exact -P/-D itemNum) so the box cleanup
       // below can find and remove the matching -BOX companion.
-      let _collKey = d.selectedSoldKey || (typeof findPDKey === 'function' ? findPDKey(itemNum, variation) : null);
+      //
+      // v0.9.1240 (identity audit, finding K2): that fallback was findPDKey,
+      // which is first-one-wins and cannot even see a second copy of the same
+      // number and variation — the lookup index holds one key per pair. Own two
+      // and it retired an arbitrary one, taking its condition, its price paid
+      // and its photos into the sale record.
+      //
+      // Now: exactly one candidate is knowledge and is used. More than one is a
+      // question, and the picker step is where it gets asked — the user cannot
+      // walk past it (see wizardNext). Reaching here with several and no choice
+      // means something skipped the picker, and the right answer is to record
+      // the sale WITHOUT attaching it to a copy, not to retire a guess.
+      var _copyKeys = (typeof soldCopyKeys === 'function') ? soldCopyKeys(itemNum) : [];
+      let _collKey = d.selectedSoldKey ||
+        (_copyKeys.length === 1 ? _copyKeys[0]
+          : (typeof findPDKey === 'function' && _copyKeys.length === 0 ? findPDKey(itemNum, variation) : null));
+      if (!d.selectedSoldKey && _copyKeys.length > 1) {
+        console.warn('[Sold] ' + _copyKeys.length + ' copies of ' + itemNum +
+                     ' and none chosen - recording the sale without retiring a copy');
+      }
       const collectionEntry = _collKey ? state.personalData[_collKey] : null;
       const soldVariation = collectionEntry ? (collectionEntry.variation || '') : variation;
       const soldCondition = d.condition || (collectionEntry?.condition !== 'N/A' ? collectionEntry?.condition : '') || '';

@@ -163,6 +163,36 @@ function pdItemNumMatches(pd, query) {
   return n === q || n === q + '-P' || n === q + '-D';
 }
 
+// v0.9.1240 (identity audit, finding K2): the candidate copies for a sale.
+//
+// This existed in three shapes: the picker step's skipIf listed them one way,
+// the picker itself listed them another (deduping per copy), and the SAVE path
+// did not list them at all — it called findPDKey, which is documented as
+// first-one-wins and cannot see a second copy of the same number and variation
+// because the lookup index holds one key per number+variation.
+//
+// So: one reader. A sale is about a COPY, and this is the list of copies the
+// number could mean. If it has one entry, that is knowledge. If it has more,
+// only the user can say which — and the picker is how they say it.
+function soldCopyKeys(itemNum) {
+  var out = [], seen = {};
+  if (typeof state === 'undefined' || !state.personalData) return out;
+  Object.keys(state.personalData).forEach(function (k) {
+    var pd = state.personalData[k];
+    if (!pd || !pd.owned) return;
+    if (!pdItemNumMatches(pd, itemNum)) return;
+    // A box is an accessory of an item, never a thing you sell on its own.
+    if (String(pd.itemNum || '').toUpperCase().endsWith('-BOX')) return;
+    // One entry per physical copy — the same dedupe the picker draws with.
+    var dk = pd.inventoryId || (pd.itemNum + '|' + (pd.variation || ''));
+    if (seen[dk]) return;
+    seen[dk] = 1;
+    out.push(k);
+  });
+  return out;
+}
+if (typeof window !== 'undefined') window.soldCopyKeys = soldCopyKeys;
+
 function findPD(itemNum, variation) {
   const idx = _getPdIndex();
   const key = idx[_pdLookupKey(itemNum, variation)];

@@ -6093,6 +6093,14 @@ async function _wizardNextCore() {
   if (s.type === 'choice' && !wizard.tab) {
     showToast('Please select where to add the item.'); return;
   }
+  // v0.9.1240: with more than one copy of this number owned, the app cannot
+  // know which one is being sold and must not pick for you. One copy is not a
+  // choice, so Next still walks straight past it.
+  if (s.type === 'pickSoldItem' && !wizard.data.selectedSoldKey &&
+      typeof soldCopyKeys === 'function' &&
+      soldCopyKeys((wizard.data.itemNum || '').trim()).length > 1) {
+    showToast('You own more than one of these — choose which one you sold.', 4000, true); return;
+  }
   if ((s.type === 'choice2' || s.type === 'choice3' || s.type === 'choiceSearch') && !s.optional && !wizard.data[s.id]) {
     showToast('Please make a selection.'); return;
   }

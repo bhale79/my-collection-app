@@ -9366,6 +9366,80 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /delete driveCache\.itemFolders\[key \+ '\/' \+ inventoryId\]/.test(mts));
   })();
 
+
+  section('192. Recording a sale cannot retire the wrong copy (v0.9.1240)');
+  (function () {
+    const pathJ = require('path');
+    const rd = f => fs.readFileSync(pathJ.join(__dirname, '..', 'app', f), 'utf8');
+    const pl = rd('wizard-pdlookup.js'), st = rd('wizard-steps.js');
+    const wz = rd('wizard.js'), ws = rd('wizard-save.js');
+
+    // Finding K2. findPDKey is first-one-wins AND cannot see a second copy of
+    // the same number+variation at all — the lookup index holds one key per
+    // pair. Own two, sell one from the dashboard, and an arbitrary copy was
+    // retired, taking its condition, price paid and photos into the record.
+
+    ok('there is one list of "which copies could this sale be about"',
+       /function soldCopyKeys\(itemNum\)/.test(pl));
+    ok('the picker step asks it',
+       /return soldCopyKeys\(\(d\.itemNum \|\| ''\)\.trim\(\)\)\.length === 0;/.test(st));
+    ok('…and so does the save path',
+       /var _copyKeys = \(typeof soldCopyKeys === 'function'\) \? soldCopyKeys\(itemNum\) : \[\];/.test(ws));
+
+    // ── RUN the list ────────────────────────────────────────────────────
+    const src = pl.slice(pl.indexOf('function pdItemNumMatches'),
+                         pl.indexOf('if (typeof window !== \'undefined\') window.soldCopyKeys'));
+    const keys = (pdata, num) => new Function('state', 'itemNum',
+      '"use strict";' + src + '; return soldCopyKeys(itemNum);')({ personalData: pdata }, num);
+
+    const TWO = {
+      a:    { owned: 1, itemNum: '2343', inventoryId: '116', condition: '8' },
+      abox: { owned: 1, itemNum: '2343-BOX', inventoryId: '116B' },
+      b:    { owned: 1, itemNum: '2343', inventoryId: '117', condition: '5' },
+      gone: { owned: 0, itemNum: '2343', inventoryId: '118' }
+    };
+    ok('two owned copies come back as two',
+       keys(TWO, '2343').join(',') === 'a,b', keys(TWO, '2343').join(','));
+    // Asking for '2343' cannot reach '2343-BOX' anyway — pdItemNumMatches only
+    // bridges -P and -D. The guard earns its place on the query that DOES
+    // reach it, which is the one a box row's own number would produce.
+    ok('…a box is never one of them — you do not sell a box on its own',
+       keys(TWO, '2343').indexOf('abox') < 0 && keys(TWO, '2343-BOX').length === 0,
+       JSON.stringify(keys(TWO, '2343-BOX')));
+    ok('…and a copy you no longer own is not either',
+       keys(TWO, '2343').indexOf('gone') < 0);
+    ok('a powered unit stored as 210-P still answers to 210',
+       keys({ p: { owned: 1, itemNum: '210-P', inventoryId: '9' } }, '210').length === 1);
+    ok('one copy is one copy',
+       keys({ a: { owned: 1, itemNum: '726', inventoryId: '3' } }, '726').length === 1);
+    ok('a number you do not own is nobody',
+       keys(TWO, '9999').length === 0 && keys({}, '2343').length === 0);
+    ok('the same copy listed twice counts once',
+       keys({ a: { owned: 1, itemNum: '726', inventoryId: '3' },
+              b: { owned: 1, itemNum: '726', inventoryId: '3' } }, '726').length === 1);
+
+    // ── you cannot walk past the question ───────────────────────────────
+    ok('Next refuses to move on when several copies are owned and none chosen',
+       /s\.type === 'pickSoldItem' && !wizard\.data\.selectedSoldKey/.test(wz) &&
+       /soldCopyKeys\(\(wizard\.data\.itemNum \|\| ''\)\.trim\(\)\)\.length > 1/.test(wz));
+    ok('…and says why, in words about trains rather than data',
+       /You own more than one of these — choose which one you sold\./.test(wz));
+    ok('…while one copy is not a choice, so Next still walks past it',
+       /\.length > 1\) \{\s*\n\s*showToast/.test(wz));
+
+    // ── the save path ───────────────────────────────────────────────────
+    ok('one candidate is knowledge and gets used',
+       /_copyKeys\.length === 1 \? _copyKeys\[0\]/.test(ws));
+    ok('several candidates and no choice retires NOBODY',
+       /_copyKeys\.length === 0 \? findPDKey\(itemNum, variation\) : null/.test(ws));
+    ok('…and says so in the log rather than silently picking',
+       /copies of ' \+ itemNum \+\s*\n?\s*' and none chosen - recording the sale without retiring a copy'/.test(ws));
+    ok('the user\'s own choice still beats everything',
+       /let _collKey = d\.selectedSoldKey \|\|/.test(ws));
+    ok('findPDKey is only consulted when there are no owned copies at all',
+       ws.indexOf('_copyKeys.length === 0 ? findPDKey') > 0);
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

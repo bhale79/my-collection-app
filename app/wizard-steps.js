@@ -576,9 +576,9 @@ function getSteps(tab) {
           // v0.9.923: use the shared matcher (normalized + -P/-D bridging) so
           // this agrees with save-time findPD — a raw compare here skipped the
           // picker for '210' vs stored '210-P', then save grabbed a copy blind.
-          const _num = (d.itemNum||'').trim();
-          const matches = Object.values(state.personalData).filter(p => p.owned && pdItemNumMatches(p, _num));
-          return matches.length === 0; // not in collection — skip picker
+          // v0.9.1240: that shared matcher is now soldCopyKeys, and the SAVE
+          // path asks it too — the two can no longer drift apart.
+          return soldCopyKeys((d.itemNum || '').trim()).length === 0;
         }
       },
       { id: 'condition',    title: 'What condition was the item?',         type: 'slider',      min:1, max:10,
