@@ -6927,6 +6927,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const syncBody = body.replace(/\basync /g, '').replace(/\bawait /g, '');
     function run(response, opts) {
       const calls = [];
+      const recorded = [];
       const ctx = {
         window: (opts && opts.win) || {},
         showToast: function () {},
@@ -6935,9 +6936,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
         accessToken: 'tok',
         fetch: function (url, init) { calls.push({ url: url, init: init }); return { json: function () { return response; } }; },
         console: { log: function () {}, error: function () {} },
+        // v0.9.1246: the write functions now hand a failure to the outbox and
+        // rethrow it untouched. The stub records what it was told AND returns
+        // the original error, so the throw-to-caller contract is still tested.
+        _rrWriteFailed: function (kind, args, err) { recorded.push({ kind: kind, args: args }); return err; },
       };
       const fn = new Function(...Object.keys(ctx), '"use strict";' + syncBody + '; return sheetsAppend;')(...Object.values(ctx));
-      return { fn: fn, calls: calls };
+      return { fn: fn, calls: calls, recorded: recorded };
     }
 
     const good = run({ updates: { updatedRange: "'My Collection'!A170:AK170" } });
@@ -6956,6 +6961,17 @@ META_WRITES.length = 0; TOASTS.length = 0;
     var threw = false;
     try { errRes.fn('SHEET', 'My Collection!A:A', [['x']]); } catch (e) { threw = /quota/.test(e.message); }
     ok('an API error still throws to the caller (never a silent shrug)', threw);
+    // v0.9.1246: …and the same failure is now handed to the outbox on its way
+    // out, which is the half that 70 swallowing catches used to destroy.
+    ok('…and it is recorded before it is rethrown',
+       errRes.recorded.length === 1 && errRes.recorded[0].kind === 'append',
+       JSON.stringify(errRes.recorded));
+    ok('…with enough to replay it: the sheet, the range and the values',
+       errRes.recorded[0].args.sheetId === 'SHEET' &&
+       errRes.recorded[0].args.range === 'My Collection!A:A' &&
+       JSON.stringify(errRes.recorded[0].args.values) === '[["x"]]');
+    ok('a write that SUCCEEDS records nothing',
+       good.recorded.length === 0 && noRange.recorded.length === 0);
 
     var offline = run({}, { win: { _offlineMode: true } });
     var threwOff = false;
@@ -9835,6 +9851,125 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('a row with nothing but a maker produces no link',
        url({ itemNum: 'CUSTOM RUN', _tab: 'Weaver O' }) === '',
        url({ itemNum: 'CUSTOM RUN', _tab: 'Weaver O' }));
+  })();
+
+
+  section('197. No write to your collection disappears quietly (v0.9.1246)');
+  (function () {
+    const pathJ = require('path');
+    const rd = f => fs.readFileSync(pathJ.join(__dirname, '..', 'app', f), 'utf8');
+    const ob = rd('write-outbox.js'), sh = rd('sheets.js');
+    const idx = rd('index.html'), sw = rd('sw.js'), su = rd('app-setup.js');
+
+    // 193 places write to the user's sheet; 70 sit behind a catch that
+    // swallows the error. They all funnel through three functions, so the
+    // three record the failure and rethrow it UNCHANGED — the catches still
+    // swallow the exception, they no longer swallow the fact.
+
+    // ── the three doors ─────────────────────────────────────────────────
+    ['update', 'append', 'delete'].forEach(k => {
+      ok('a failed ' + k + ' is recorded',
+         sh.indexOf("_rrWriteFailed('" + k + "'") > 0);
+    });
+    ok('…and the original error is rethrown, so no caller behaves differently',
+       (sh.match(/throw _rrWriteFailed\(/g) || []).length === 3 &&
+       /return err;/.test(sh));
+    ok('a blocked write is not a failed one — the trial gate is not queued',
+       /if \(why === 'readonly'\) return null;/.test(ob));
+
+    // ── THE RULE: a range is a position, not an identity ────────────────
+    const canSrc = ob.slice(ob.indexOf('function rrOutboxCanAutoRetry(entry)'),
+                            ob.indexOf('// ── retrying'));
+    const can = (entry, session, moved) => new Function('entry', '_session', '_rowsMovedAt',
+      '"use strict";' + canSrc + '; return rrOutboxCanAutoRetry(entry);')(
+        entry, () => session, moved);
+
+    const E = (over) => Object.assign({ kind: 'update', session: 'S1', movedAt: 0 }, over || {});
+    ok('a same-session update with nothing moved may be retried on its own',
+       can(E(), 'S1', 0) === true);
+    ok('a DELETE is never retried automatically — re-running one hits a different row',
+       can(E({ kind: 'delete' }), 'S1', 0) === false);
+    ok('nothing is retried across a reload — the rows may have moved while away',
+       can(E({ session: 'S0' }), 'S1', 0) === false);
+    ok('…nor after any row deletion, which shifts every row beneath it',
+       can(E(), 'S1', 12345) === false);
+    ok('an append is still bound by the same rules',
+       can(E({ kind: 'append' }), 'S1', 0) === true &&
+       can(E({ kind: 'append', session: 'S0' }), 'S1', 0) === false);
+    ok('a missing entry is not retryable', can(null, 'S1', 0) === false);
+
+    // the flag is raised BEFORE the delete, not after
+    // Assert it EXISTS as well as where it is: indexOf returns -1 when the
+    // call is gone, and -1 is less than everything, so an ordering test alone
+    // passes on deleted code.
+    ok('a delete tells the outbox rows moved BEFORE it deletes',
+       sh.indexOf('rrOutboxRowsMoved') > 0 &&
+       sh.indexOf('rrOutboxRowsMoved') < sh.indexOf('deleteDimension'),
+       'moved@' + sh.indexOf('rrOutboxRowsMoved') + ' delete@' + sh.indexOf('deleteDimension'));
+
+    // ── RUN the recorder over a fake localStorage ───────────────────────
+    const recSrc = ob.slice(ob.indexOf("var KEY = 'rr_write_outbox'"),
+                            ob.indexOf('// ── may this entry be replayed'));
+    const mk = () => {
+      const store = {};
+      const ls = { getItem: k => (k in store ? store[k] : null),
+                   setItem: (k, v) => { store[k] = v; }, removeItem: k => { delete store[k]; } };
+      // The sliced region calls _paint(), which is defined BELOW it — a slice
+      // that stops short of a function its subject calls tests nothing but its
+      // own ReferenceError. Supply a no-op; drawing the badge is section 197's
+      // separate concern.
+      return new Function('localStorage', 'document', 'Math',
+        '"use strict"; function _paint(){}' + recSrc +
+        '; return { rec: rrOutboxRecord, list: rrOutboxList, count: rrOutboxCount, clear: rrOutboxClear, moved: rrOutboxRowsMoved };')(
+          ls, { getElementById: () => null, createElement: () => ({ style: {} }), body: { appendChild() {} } }, Math);
+    };
+    const A = mk();
+    A.rec('update', { sheetId: 'S', range: 'Collection!A5:V5', values: [['x']] }, new Error('Failed to fetch'));
+    ok('a failure lands in the outbox', A.count() === 1);
+    const e0 = A.list()[0];
+    ok('…with what it was trying to do', e0.kind === 'update' && e0.args.range === 'Collection!A5:V5');
+    ok('…why it failed', /Failed to fetch/.test(e0.why));
+    ok('…and when, so the user can tell which change it was', typeof e0.at === 'number' && e0.at > 0);
+    ok('…and which session, which is what makes the retry rule enforceable',
+       typeof e0.session === 'string' && e0.session.length > 5);
+    ok('a readonly block is NOT queued',
+       (A.rec('update', {}, new Error('readonly')), A.count() === 1));
+    ok('an offline failure IS queued — that is the case worth keeping',
+       (A.rec('append', { sheetId: 'S' }, new Error('offline')), A.count() === 2));
+    ok('forgetting them empties the outbox', (A.clear(), A.count() === 0));
+
+    // ── the user is told, quietly ───────────────────────────────────────
+    ok('an empty outbox shows nothing at all',
+       /if \(!n\) \{ if \(el\) el\.remove\(\); return; \}/.test(ob));
+    ok('a non-empty one shows a badge, not a modal that interrupts an add',
+       /rr-outbox-badge/.test(ob) && /position: fixed; left: 1rem; bottom: 1rem/.test(rd('app.css')));
+    ok('the panel says the sheet does not have them, which is the honest wording',
+       /your Google Sheet does not yet/.test(ob));
+    ok('…and explains why removals are never re-run',
+       /could take out a different item/.test(ob));
+    ok('the user can force a retry of what the app will not retry itself',
+       /rrOutboxRetry\(\{ force: true \}\)/.test(ob));
+    ok('…but a forced retry STILL will not replay a delete',
+       /opts\.force \? \(e\.kind !== 'delete'\)/.test(ob));
+    ok('forgetting them asks first — it means the sheet will never get them',
+       /appConfirm\(/.test(ob) && /Forget these changes/.test(ob));
+
+    // ── when it tries again on its own ──────────────────────────────────
+    ok('it retries when the connection comes back',
+       /addEventListener\('online'/.test(ob));
+    ok('…and when the app is looked at again',
+       /visibilitychange/.test(ob) && /!document\.hidden/.test(ob));
+    ok('the outbox is capped, so a bad night cannot fill storage',
+       /var MAX = 200;/.test(ob) && /list\.slice\(-MAX\)/.test(ob));
+
+    // ── it has to be loaded, cached and started ─────────────────────────
+    ok('the file is loaded before sheets.js, which needs it',
+       idx.indexOf('write-outbox.js') > 0 &&
+       idx.indexOf('write-outbox.js') < idx.indexOf('sheets.js?v='));
+    ok('…precached like everything else',
+       /'\.\/write-outbox\.js'/.test(sw));
+    ok('…and started when the app builds its shell',
+       /window\.rrOutboxStart === 'function'\) window\.rrOutboxStart\(\)/.test(su));
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

@@ -1094,6 +1094,37 @@
      align-items:start so a block that grows (the "what changed?" box opening)
      stretches nothing beside it. min-width:0 so a long label ellipses inside
      its own cell instead of widening the column. */
+  /* ── The write outbox (v0.9.1246) ───────────────────────────────────────
+     A badge, not a modal. A write that did not land is usually recoverable,
+     and interrupting an add to announce it would be its own kind of rude —
+     but it must never be invisible, which is the whole bug this fixes. */
+  #rr-outbox-badge { position: fixed; left: 1rem; bottom: 1rem; z-index: 9000;
+    padding: 0.5rem 0.9rem; border-radius: 999px; cursor: pointer;
+    border: 1.5px solid var(--warn, var(--accent2)); background: var(--surface);
+    color: var(--accent2); font-family: var(--font-body); font-weight: 700;
+    font-size: 0.8rem; box-shadow: 0 4px 16px var(--scrim); }
+  #rr-outbox-panel { position: fixed; inset: 0; z-index: 100095; display: flex;
+    align-items: center; justify-content: center; padding: 1rem;
+    background: var(--scrim); font-family: var(--font-body); }
+  .rr-ob-box { background: var(--surface); color: var(--text);
+    border: 1px solid var(--border); border-radius: 14px; padding: 1.1rem 1.25rem;
+    width: 100%; max-width: 560px; max-height: 88vh; overflow-y: auto;
+    box-shadow: 0 12px 40px var(--scrim); }
+  .rr-ob-h { font-family: var(--font-head); font-size: 1.05rem; font-weight: 700;
+    margin-bottom: 0.35rem; }
+  .rr-ob-p, .rr-ob-note { font-size: 0.85rem; color: var(--text-mid); line-height: 1.45;
+    margin-bottom: 0.85rem; }
+  .rr-ob-note { border-left: 3px solid var(--accent2); padding-left: 0.7rem; }
+  .rr-ob-list { margin-bottom: 0.9rem; }
+  .rr-ob-row { padding: 0.5rem 0; border-top: 1px solid var(--border); }
+  .rr-ob-what { font-size: 0.85rem; color: var(--text); font-weight: 600; }
+  .rr-ob-why { font-size: 0.72rem; color: var(--text-dim); margin-top: 0.15rem; }
+  .rr-ob-b { display: flex; gap: 0.6rem; justify-content: flex-end; flex-wrap: wrap; }
+  .rr-ob-btn { padding: 0.6rem 1rem; border-radius: 9px; cursor: pointer;
+    font-family: var(--font-body); font-weight: 700; font-size: 0.9rem;
+    border: 1.5px solid var(--border); background: var(--surface2); color: var(--text); }
+  .rr-ob-ok { background: var(--accent); border-color: var(--accent); color: var(--cream); }
+
   /* ── The dashboard's add buttons (v0.9.1244, Brad) ──────────────────────
      "the add buttons on top need to sit above the background logo, and not be
      transparant."

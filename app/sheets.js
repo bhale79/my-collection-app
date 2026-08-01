@@ -137,6 +137,16 @@ async function _withTokenRetry(fetchFn) {
   return res;
 }
 
+// v0.9.1246: the three write functions below are the ONE place every write to
+// the user's sheet passes through — 193 call sites, 70 of them behind a catch
+// that swallows the error. Recording the failure HERE means those catches keep
+// swallowing the exception but no longer swallow the fact. The error is
+// rethrown untouched, so nothing downstream behaves any differently.
+function _rrWriteFailed(kind, args, err) {
+  try { if (typeof rrOutboxRecord === 'function') rrOutboxRecord(kind, args, err); } catch (e) {}
+  return err;
+}
+
 async function sheetsUpdate(spreadsheetId, range, values) {
   // v0.9.985 (perf): any write = data changed — invalidate cached page renders.
   try { window._rrDataRev = (window._rrDataRev || 0) + 1; } catch (e) {}
@@ -152,17 +162,21 @@ async function sheetsUpdate(spreadsheetId, range, values) {
   }
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${_encodeRange(range)}?valueInputOption=USER_ENTERED`;
   const body = JSON.stringify({ range, majorDimension: 'ROWS', values });
-  const res = await _withTokenRetry(() => fetch(url, {
-    method: 'PUT',
-    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-    body,
-  }));
-  const json = await res.json();
-  if (json.error) {
-    console.error('sheetsUpdate error:', JSON.stringify(json.error));
-    throw new Error('Sheets update failed: ' + (json.error.message || JSON.stringify(json.error)));
+  try {
+    const res = await _withTokenRetry(() => fetch(url, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body,
+    }));
+    const json = await res.json();
+    if (json.error) {
+      console.error('sheetsUpdate error:', JSON.stringify(json.error));
+      throw new Error('Sheets update failed: ' + (json.error.message || JSON.stringify(json.error)));
+    }
+    return json;
+  } catch (e) {
+    throw _rrWriteFailed('update', { sheetId: spreadsheetId, range: range, values: values }, e);
   }
-  return json;
 }
 
 async function sheetsAppend(spreadsheetId, range, values) {
@@ -199,25 +213,37 @@ async function sheetsAppend(spreadsheetId, range, values) {
   // unknown", which every downstream guard already treats as do-not-write.
   const body = JSON.stringify({ majorDimension: 'ROWS', values: values });
   const appendRange = `${tabName}!A3:A`;   // anchor the table below the two header rows
-  const res = await _withTokenRetry(() => fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${_encodeRange(appendRange)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
-    { method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body }
-  ));
-  const json = await res.json();
-  if (json.error) {
-    console.error('sheetsAppend error:', JSON.stringify(json.error));
-    throw new Error('Sheets write failed: ' + (json.error.message || JSON.stringify(json.error)));
+  try {
+    const res = await _withTokenRetry(() => fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${_encodeRange(appendRange)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+      { method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body }
+    ));
+    const json = await res.json();
+    if (json.error) {
+      console.error('sheetsAppend error:', JSON.stringify(json.error));
+      throw new Error('Sheets write failed: ' + (json.error.message || JSON.stringify(json.error)));
+    }
+    const _ur = (json.updates && json.updates.updatedRange) || '';
+    const _rm = _ur.match(/![A-Z]+(\d+)/);
+    const firstRow = _rm ? parseInt(_rm[1], 10) : 0;
+    console.log('[Sheets] Appended', values.length, 'row(s) at', _ur || '(range not reported)');
+    return firstRow;
+  } catch (e) {
+    // An append names a TABLE, not a row, so it is the one write that stays
+    // safe to replay however long it waited — nothing can shift under it.
+    throw _rrWriteFailed('append', { sheetId: spreadsheetId, range: range, values: values }, e);
   }
-  const _ur = (json.updates && json.updates.updatedRange) || '';
-  const _rm = _ur.match(/![A-Z]+(\d+)/);
-  const firstRow = _rm ? parseInt(_rm[1], 10) : 0;
-  console.log('[Sheets] Appended', values.length, 'row(s) at', _ur || '(range not reported)');
-  return firstRow;
 }
 
 async function sheetsDeleteRow(spreadsheetId, sheetName, rowNumber) {
   // v0.9.985 (perf): any write = data changed — invalidate cached page renders.
   try { window._rrDataRev = (window._rrDataRev || 0) + 1; } catch (e) {}
+  // v0.9.1246: a delete moves every row beneath it, so every range write
+  // already queued now names a position that may not be what it meant. Tell
+  // the outbox BEFORE the delete, not after — if the delete succeeds and this
+  // never ran, a stale entry would be replayed onto the wrong item.
+  try { if (typeof rrOutboxRowsMoved === 'function') rrOutboxRowsMoved(); } catch (e) {}
+  try {
   // First get the sheetId (numeric) for the named tab
   const metaRes = await _withTokenRetry(() => fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties`,
@@ -245,5 +271,9 @@ async function sheetsDeleteRow(spreadsheetId, sheetName, rowNumber) {
       }]
     })
   }));
+  } catch (e) {
+    // Recorded so it can be SHOWN. Never replayed — see write-outbox.js.
+    throw _rrWriteFailed('delete', { sheetId: spreadsheetId, sheetName: sheetName, rowNumber: rowNumber }, e);
+  }
 }
 

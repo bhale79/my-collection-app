@@ -256,6 +256,7 @@ function _buildAppShell() {
   // v0.9.1230: once the app is up and usable, ask Drive one small question —
   // has the look changed since this device last saw it? Never before the
   // shell exists, and never on the critical path.
+  if (typeof window.rrOutboxStart === 'function') window.rrOutboxStart();
   if (typeof window.rrLookCheckLater === 'function') window.rrLookCheckLater();
 }
 
