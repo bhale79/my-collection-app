@@ -360,18 +360,64 @@ function _cropFirst(file, onDone) {
 }
 if (typeof window !== 'undefined') window._cropFirst = _cropFirst;
 
-// Replace the bytes of an already-uploaded Drive photo in place (no duplicate).
+// ── Replacing the bytes of a photo already in Drive (v0.9.1238) ─────────
+//
+// THE BUG THIS FIXES, because it must never come back:
+//
+//   var hit = photos.find(p => p.name === fileName) || photos[0];
+//
+// The name being searched for was rebuilt by hand as `itemNum + ' ' + viewKey`
+// — "2025 RSV.jpg". Uploads are named by _photoFileName as
+// "Lionel 2025 ID116 RSV.jpg": a maker in front, an ID## in the middle. For any
+// item in the collection those two strings CANNOT match, so find() always
+// missed and the `|| photos[0]` handed back whatever Drive happened to list
+// first. Cropping the right-side view overwrote the top view. Permanently.
+//
+// Two rules now, and the second matters more than the first:
+//   1. A file id is the only thing that identifies a file. Where the caller
+//      knows it — and the detail page always did, it was just throwing it
+//      away — we PATCH that id and nothing else.
+//   2. When we do not know the id, we must be SURE or do nothing. A name that
+//      matches exactly one photo is sure. Anything else refuses. Losing a crop
+//      is an annoyance; overwriting the wrong photo is not recoverable.
+//
+// There is no fallback to "the first one". There never should have been.
+
+// The ONE writer. Everything below resolves an id and calls this.
+async function _cropReplaceDriveFile(fileId, blob) {
+  try {
+    if (!fileId || typeof accessToken === 'undefined' || !accessToken) return false;
+    var r = await fetch('https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=media', {
+      method: 'PATCH', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'image/jpeg' }, body: blob
+    });
+    return r.ok;
+  } catch (e) { console.warn('[crop] replace by id', e); return false; }
+}
+
+// Resolve a photo by name — EXACTLY one match, or nothing. Exported so the
+// tests can prove the "nothing" half without a network.
+function _cropPickByName(photos, fileName) {
+  if (!photos || !photos.length || !fileName) return null;
+  var exact = photos.filter(function (p) { return p && p.name === fileName; });
+  if (exact.length === 1) return exact[0];
+  if (exact.length > 1) return null;          // two files, same name: unsure
+  // The caller may have guessed the name. Fall back to the part that is not
+  // guessed — the view tag at the end — and accept it only if it is unique.
+  var view = String(fileName).replace(/\.[^.]+$/, '').split(' ').pop();
+  if (!view) return null;
+  var tail = photos.filter(function (p) {
+    return p && String(p.name).replace(/\.[^.]+$/, '').split(' ').pop() === view;
+  });
+  return tail.length === 1 ? tail[0] : null;
+}
+
 async function _cropReplaceDrivePhoto(folderLink, fileName, blob) {
   try {
     if (typeof driveGetFolderPhotos !== 'function' || typeof accessToken === 'undefined' || !accessToken) return false;
     var photos = await driveGetFolderPhotos(folderLink);
-    if (!photos || !photos.length) return false;
-    var hit = photos.find(function (p) { return p.name === fileName; }) || photos[0];
-    if (!hit) return false;
-    var r = await fetch('https://www.googleapis.com/upload/drive/v3/files/' + hit.id + '?uploadType=media', {
-      method: 'PATCH', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'image/jpeg' }, body: blob
-    });
-    return r.ok;
+    var hit = _cropPickByName(photos, fileName);
+    if (!hit) { console.warn('[crop] no unambiguous match for', fileName, '- refusing to overwrite'); return false; }
+    return await _cropReplaceDriveFile(hit.id, blob);
   } catch (e) { console.warn('[crop] replace', e); return false; }
 }
 
@@ -381,13 +427,37 @@ function _photoCropStart(file, stepId, viewKey, itemNum, srcUrl) {
     try {
       if (typeof _awaitPhotoUploads === 'function') await _awaitPhotoUploads(10000); // ensure the original landed
       var ext = (String(file && file.name || '').split('.').pop() || 'jpg').toLowerCase();
-      var fileName = itemNum + ' ' + viewKey + '.' + ext;
-      var folderLink = (typeof wizard !== 'undefined' && wizard.data && wizard.data[stepId] && wizard.data[stepId][viewKey]) || '';
-      var ok = folderLink ? await _cropReplaceDrivePhoto(folderLink, fileName, blob) : false;
+      var wd = (typeof wizard !== 'undefined' && wizard.data) || {};
+      // v0.9.1238: the id of the file this thumbnail actually uploaded,
+      // recorded by wizard-photos.js at upload time. This is the whole fix —
+      // everything else here is the fallback for a photo that predates it.
+      var fileId = (wd._photoFileIds || {})[stepId + '|' + viewKey] || '';
+      var folderLink = (wd[stepId] && wd[stepId][viewKey]) || '';
+      var ok = false;
+      if (fileId) {
+        ok = await _cropReplaceDriveFile(fileId, blob);
+      } else if (folderLink) {
+        // No id: name-match, and only if it is unambiguous. The name is built
+        // by the ONE builder that names uploads, not guessed at.
+        var fileName = ((typeof window !== 'undefined' && typeof window._photoFileName === 'function')
+          ? window._photoFileName(itemNum, viewKey, wd._invIdForPhotos, wd._fileLabelForPhotos)
+          : (itemNum + ' ' + viewKey)) + '.' + ext;
+        ok = await _cropReplaceDrivePhoto(folderLink, fileName, blob);
+      }
       var zone = document.querySelector('.photo-drop-zone[data-view="' + viewKey + '"][data-sid="' + stepId + '"]');
       if (zone) { var im = zone.querySelector('img'); if (im) im.src = URL.createObjectURL(blob); }
-      if (typeof showToast === 'function') showToast(ok ? 'Photo cropped' : 'Cropped — will save once the upload finishes', 1800);
+      // v0.9.1238: "will save once the upload finishes" was never true — there
+      // was no retry. Say what actually happened.
+      if (typeof showToast === 'function') {
+        showToast(ok ? 'Photo cropped'
+                     : 'Could not save the crop — the photo on screen is cropped, the one in Drive is not', 4500, !ok);
+      }
     } catch (e) { console.warn('[crop] apply', e); if (typeof showToast === 'function') showToast('Crop failed: ' + e.message); }
   });
 }
-if (typeof window !== 'undefined') { window._photoCropStart = _photoCropStart; window._openCropper = _openCropper; }
+if (typeof window !== 'undefined') {
+  window._photoCropStart = _photoCropStart;
+  window._openCropper = _openCropper;
+  window._cropReplaceDriveFile = _cropReplaceDriveFile;
+  window._cropPickByName = _cropPickByName;
+}

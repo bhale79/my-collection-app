@@ -9192,6 +9192,100 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /rrEsc\(f\.value\)/.test(bsrc) && /rrEsc\(f\.label\)/.test(bsrc));
   })();
 
+
+  section('190. The photo crop edits the photo you meant (v0.9.1238)');
+  (function () {
+    const pathJ = require('path');
+    const rd = f => fs.readFileSync(pathJ.join(__dirname, '..', 'app', f), 'utf8');
+    const pc = rd('photo-crop.js'), ac = rd('app-collection.js');
+    const dv = rd('drive.js'), wp = rd('wizard-photos.js');
+    // The fix carries a comment quoting the bug it fixes, so that the next
+    // person cannot reintroduce it by accident. That means a grep for the old
+    // code finds the WARNING about the old code. Same trap the colour ratchet
+    // hit five times; strip comments before asserting absence.
+    const noComments = src => src.replace(/\/\*[\s\S]*?\*\//g, ' ')
+                                .replace(/(^|[^:/])\/\/[^\n]*/g, '$1');
+    const pcCode = noComments(pc);
+
+    // THE BUG: _cropReplaceDrivePhoto searched for a name rebuilt by hand as
+    // `itemNum + ' ' + viewKey` ("2025 RSV.jpg") while uploads are named by
+    // _photoFileName as "Lionel 2025 ID116 RSV.jpg". For any collection item
+    // those cannot match — so find() always missed and `|| photos[0]`
+    // overwrote whatever Drive listed first. Permanently.
+
+    ok('nothing falls back to "whatever Drive listed first"',
+       !/\|\| photos\[0\]/.test(pcCode), 'still there in code');
+    ok('…and the warning about it survives in the comments, for the next person',
+       /\|\| photos\[0\]/.test(pc));
+    ok('the crop no longer guesses the file name from the item number',
+       !/var fileName = itemNum \+ ' ' \+ viewKey/.test(pcCode));
+    ok('there is exactly one function that overwrites bytes in Drive',
+       (pc.match(/uploadType=media'/g) || []).length === 1 &&
+       /async function _cropReplaceDriveFile\(fileId, blob\)/.test(pc));
+    ok('…and it takes a file id, not a folder and a hope',
+       /_cropReplaceDriveFile\(fileId, blob\)[\s\S]{0,400}files\/' \+ fileId/.test(pc));
+
+    // ── RUN the matcher: sure, or nothing ───────────────────────────────
+    const src = pc.slice(pc.indexOf('function _cropPickByName(photos, fileName)'),
+                         pc.indexOf('async function _cropReplaceDrivePhoto'));
+    const pick = (photos, name) =>
+      new Function('photos', 'fileName', '"use strict";' + src + '; return _cropPickByName(photos, fileName);')(photos, name);
+
+    // The real folder, named the way uploads really name things
+    const FOLDER = [
+      { id: 'f1', name: 'Lionel 2025 ID116 TOP.jpg' },
+      { id: 'f2', name: 'Lionel 2025 ID116 RSV.jpg' },
+      { id: 'f3', name: 'Lionel 2025 ID116 LSV.jpg' }
+    ];
+    ok('the right-side view resolves to the right-side file',
+       pick(FOLDER, 'Lionel 2025 ID116 RSV.jpg').id === 'f2');
+    // THE ORIGINAL BUG, as a test: the old hand-built name, against a real folder
+    ok('the old hand-built name no longer lands on the first photo',
+       pick(FOLDER, '2025 RSV.jpg').id === 'f2',
+       JSON.stringify(pick(FOLDER, '2025 RSV.jpg')));
+    ok('…and a name whose view tag matches nothing gets NOTHING',
+       pick(FOLDER, '2025 BOX-FRONT.jpg') === null);
+    ok('two files with the same name is not sure enough to overwrite either',
+       pick([{ id: 'a', name: 'x RSV.jpg' }, { id: 'b', name: 'x RSV.jpg' }], 'x RSV.jpg') === null);
+    ok('two files sharing a view tag is not sure enough either',
+       pick([{ id: 'a', name: 'Lionel 2025 ID116 RSV.jpg' },
+             { id: 'b', name: 'Lionel 2025 ID117 RSV.jpg' }], '2025 RSV.jpg') === null);
+    ok('an empty folder overwrites nothing',
+       pick([], 'x.jpg') === null && pick(null, 'x.jpg') === null);
+    ok('no name at all overwrites nothing',
+       pick(FOLDER, '') === null && pick(FOLDER, null) === null);
+
+    // ── the id is recorded at upload, and used at crop ──────────────────
+    ok('the uploader hands back the id of the file it just wrote',
+       /async function driveUploadItemPhoto\(file, itemNum, viewAbbr, inventoryId, fileLabel, onUploaded\)/.test(dv) &&
+       /onUploaded\(\{ id: result\.id, name: fileName, folderId: folderId \}\)/.test(dv));
+    ok('…without changing what it returns, which three callers store',
+       /return driveFolderLink\(folderId\);/.test(dv));
+    ok('the wizard remembers which file each thumbnail is',
+       /wizard\.data\._photoFileIds\[stepId \+ '\|' \+ viewKey\] = up\.id/.test(wp));
+    ok('…and the crop button uses it',
+       /var fileId = \(wd\._photoFileIds \|\| \{\}\)\[stepId \+ '\|' \+ viewKey\] \|\| '';/.test(pc) &&
+       /if \(fileId\) \{\s*\n\s*ok = await _cropReplaceDriveFile\(fileId, blob\);/.test(pc));
+    ok('…falling back to the name only when there is no id',
+       /\} else if \(folderLink\) \{/.test(pc));
+    ok('…and building that name with the ONE builder that names uploads',
+       /window\._photoFileName\(itemNum, viewKey/.test(pc));
+
+    // ── the detail page was HANDED the id and threw it away ─────────────
+    const dpe = ac.slice(ac.indexOf('async function _detailPhotoEdit(fileId'),
+                         ac.indexOf('async function _detailPhotoEdit(fileId') + 2200);
+    ok('the detail page edit uses the id it was given',
+       /ok = fileId \? await _cropReplaceDriveFile\(fileId, blob\)/.test(dpe));
+    ok('…and only searches by name when it somehow has none',
+       /: await _cropReplaceDrivePhoto\(folderLink, fileName, blob\)/.test(dpe));
+
+    // ── and it must not claim it saved when it did not ──────────────────
+    ok('a crop that could not be saved says so',
+       /Could not save the crop/.test(pc));
+    ok('…and no longer promises a retry that does not exist',
+       !/will save once the upload finishes/.test(pcCode));
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

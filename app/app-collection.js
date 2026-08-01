@@ -1602,8 +1602,13 @@ async function _detailPhotoEdit(fileId, fileName, folderLink, imgId) {
   }
   _openCropper(url, async function (blob) {
     try { URL.revokeObjectURL(url); } catch (e) {}
+    // v0.9.1238: this function is HANDED the file id and used to discard it,
+    // passing a folder and a name to be searched instead. The id is the answer.
     var ok = false;
-    try { ok = await _cropReplaceDrivePhoto(folderLink, fileName, blob); } catch (e) { console.warn('[detail photo replace]', e); }
+    try {
+      ok = fileId ? await _cropReplaceDriveFile(fileId, blob)
+                  : await _cropReplaceDrivePhoto(folderLink, fileName, blob);
+    } catch (e) { console.warn('[detail photo replace]', e); }
     if (ok) {
       if (typeof showToast === 'function') showToast('\u2713 Photo updated');
       var img = (imgId && document.getElementById(imgId)) || document.getElementById('idp-' + fileId) || document.getElementById('nip-' + fileId);

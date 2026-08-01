@@ -837,7 +837,12 @@ function _photoFileName(itemNum, viewAbbr, inventoryId, fileLabel) {
 }
 if (typeof window !== 'undefined') window._photoFileName = _photoFileName;
 
-async function driveUploadItemPhoto(file, itemNum, viewAbbr, inventoryId, fileLabel) {
+// v0.9.1238: onUploaded receives {id, name, folderId} for the file just
+// written. The return value stays the FOLDER link, because three callers store
+// it as one — the id is handed sideways so nothing downstream has to change.
+// Anything that later edits this exact photo needs its id; a name is not an
+// identity (see the note in photo-crop.js).
+async function driveUploadItemPhoto(file, itemNum, viewAbbr, inventoryId, fileLabel, onUploaded) {
   console.log('[Drive] Uploading photo:', itemNum, viewAbbr, 'invId:', inventoryId || 'none', 'file:', file.name, 'size:', file.size);
   await driveEnsureSetup();
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
@@ -869,6 +874,10 @@ async function driveUploadItemPhoto(file, itemNum, viewAbbr, inventoryId, fileLa
   console.log('[Drive] Upload result:', result && result.id ? 'OK id=' + result.id : 'FAILED', result);
   if (!result || !result.id) {
     throw new Error('Upload returned no file ID');
+  }
+  if (typeof onUploaded === 'function') {
+    try { onUploaded({ id: result.id, name: fileName, folderId: folderId }); }
+    catch (eCb) { console.warn('[Drive] onUploaded', eCb); }
   }
   // Return folder link (not individual photo link)
   return driveFolderLink(folderId);

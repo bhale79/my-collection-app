@@ -168,7 +168,17 @@ async function uploadWizardPhoto(file, stepId, viewKey) {
       await driveUploadPhoto(file, _ephTitle + ' ' + viewKey + '.' + _ephExt, _ephFolder);
       url = (typeof driveFolderLink === 'function') ? driveFolderLink(_ephFolder) : ('https://drive.google.com/drive/folders/' + _ephFolder);
     } else {
-      url = await driveUploadItemPhoto(file, itemNum, viewKey, _invId || undefined, _fileLabel);
+      url = await driveUploadItemPhoto(file, itemNum, viewKey, _invId || undefined, _fileLabel,
+        function (up) {
+          // v0.9.1238: remember WHICH file this thumbnail is, so the ✂ button
+          // edits that photo and not whichever one Drive lists first.
+          if (!wizard.data._photoFileIds) wizard.data._photoFileIds = {};
+          wizard.data._photoFileIds[stepId + '|' + viewKey] = up.id;
+        });
+      // Kept for the name-matching fallback on photos uploaded before ids
+      // were recorded — see _photoCropStart.
+      wizard.data._invIdForPhotos = _invId || undefined;
+      wizard.data._fileLabelForPhotos = _fileLabel;
     }
     if (!wizard.data[stepId]) wizard.data[stepId] = {};
     wizard.data[stepId][viewKey] = url;
