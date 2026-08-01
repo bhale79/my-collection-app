@@ -1094,6 +1094,23 @@
      align-items:start so a block that grows (the "what changed?" box opening)
      stretches nothing beside it. min-width:0 so a long label ellipses inside
      its own cell instead of widening the column. */
+  /* ── The dashboard's add buttons (v0.9.1244, Brad) ──────────────────────
+     "the add buttons on top need to sit above the background logo, and not be
+     transparant."
+
+     They carried background:rgba(139,142,148,0.12) inline — 12% of a grey, so
+     effectively see-through, which nobody noticed until a watermark appeared
+     behind them. The inline value is gone and the background lives here, where
+     it follows the theme like every other surface. --bg-card is the same near
+     white the stat cards beside them use, so the row reads as one family.
+
+     position:relative + z-index put them above the watermark for the same
+     reason .main needed a stacking context: the mark sits at z-index -1 inside
+     .main, and an ordinary block's background is painted after that. Being
+     explicit here means it stays true if the row is ever moved. */
+  .dash-desktop-actions .btn,
+  .dash-mobile-actions .btn { background: var(--bg-card); position: relative; z-index: 1; }
+
   /* ── "Save as" on Apply (v0.9.1243, Brad) ───────────────────────────────
      "when saving, we need a way to save as an existing one as well as
      creating a new one. maybe a dropdown."

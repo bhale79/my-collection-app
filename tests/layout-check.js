@@ -630,6 +630,54 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
       }
     }
 
+
+    // ══════════════════════════════════════════════════════════════════
+    // The dashboard's add buttons, MEASURED (v0.9.1244)
+    //
+    // Brad: "the add buttons on top need to sit above the background logo, and
+    // not be transparant." They carried a 12%-opacity inline background, so a
+    // watermark behind them showed straight through. Whether a button is
+    // see-through is a pixel fact — sample it.
+    // ══════════════════════════════════════════════════════════════════
+    {
+      const btnPage = `<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="file://${APP}/app.css">
+<style>html,body{margin:0;height:100%}.app-body{display:flex;height:100%}</style></head>
+<body><div class="app-body"><div class="main">
+  <div id="rr-logo-bg" style="position:fixed;inset:0;pointer-events:none;z-index:-1;
+       background:#00ff00;opacity:1"></div>
+  <div class="dash-desktop-actions"><button class="btn" id="b1">Add to My Collection</button></div>
+</div></div></body></html>`;
+      const f5 = path.join(dir, 'dashbtn.html');
+      fs.writeFileSync(f5, btnPage);
+      const pg3 = await browser.newPage({ viewport: { width: 900, height: 400 } });
+      await pg3.goto('file://' + f5);
+      await pg3.waitForTimeout(120);
+      const shot3 = await pg3.screenshot({ type: 'png' });
+      const pt = await pg3.evaluate(() => {
+        const b = document.getElementById('b1').getBoundingClientRect();
+        const cs = getComputedStyle(document.getElementById('b1'));
+        return { x: Math.round(b.left + b.width / 2), y: Math.round(b.top + b.height / 2),
+                 bg: cs.backgroundColor, z: cs.zIndex, pos: cs.position };
+      });
+      await pg3.close();
+      ok('add buttons: the background is a solid colour, not a 12% wash',
+         !/rgba\([^)]*,\s*0?\.\d+\)/.test(pt.bg), pt.bg);
+      ok('add buttons: …and they sit above the watermark explicitly',
+         pt.pos === 'relative' && pt.z === '1', pt.pos + ' / ' + pt.z);
+      const png3 = (() => { try { return require('pngjs').PNG.sync.read(shot3); } catch (e) { return null; } })();
+      if (png3) {
+        const i = (png3.width * pt.y + pt.x) << 2;
+        const px3 = [png3.data[i], png3.data[i + 1], png3.data[i + 2]];
+        // A solid green backdrop is directly behind. If any of it reaches the
+        // button face, green wins the middle channel.
+        ok('add buttons: nothing behind them bleeds through',
+           !(px3[1] > px3[0] && px3[1] > px3[2]), JSON.stringify(px3));
+      } else {
+        ok('add buttons: pixel check skipped — pngjs not installed', true);
+      }
+    }
+
   } finally {
     await browser.close();
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) {}
