@@ -112,8 +112,8 @@
         '<button id="pin-finish-btn" onclick="_pinFinishMode()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:none;background:var(--accent2);color:#1a1a1a;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">✓ Finished</button>' +
         '<button id="pin-selall-btn" onclick="_pinSelectAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Select all</button>' +
         '<button id="pin-recrop-btn" onclick="_pinReadCropped()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:rgba(212,168,67,0.14);color:var(--accent2);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Re-read cropped</button>' +
-        '<button id="pin-idall-btn" onclick="_pinIdentifyAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:rgba(212,168,67,0.14);color:var(--accent2);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">🔍 Read with a token</button>' +
-        '<button id="pin-audit-btn" onclick="_pinReaderAudit()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:600;font-size:0.82rem;cursor:pointer">Reader audit (free)</button>' +
+        '<button id="pin-idall-btn" onclick="_pinIdentifyAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:rgba(212,168,67,0.14);color:var(--accent2);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">🔍 Read with a photo ID</button>' +
+        (rrDiagnostics() ? '<button id="pin-audit-btn" onclick="_pinReaderAudit()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:600;font-size:0.82rem;cursor:pointer">Reader audit (free)</button>' : '') +
         '<button onclick="_pinRefresh()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:600;font-size:0.82rem;cursor:pointer">Refresh</button>' +
         '<span style="flex:1"></span>' +
         '<span id="pin-selinfo" style="font-size:0.78rem;color:var(--text-dim)"></span>' +
@@ -1154,7 +1154,7 @@
       // falls because the free reader is succeeding on them. "Read 44 (44
       // tokens)" reads like a balance, so watching it drop after a free run
       // looks exactly like being charged for it. Say which number it is.
-      b.textContent = '🔍 Read the ' + n + ' still unread \u00b7 costs ' + n + ' token' + (n === 1 ? '' : 's');
+      b.textContent = '🔍 Read the ' + n + ' still unread \u00b7 costs ' + n + ' photo ID' + (n === 1 ? '' : 's');
       b.title = n + ' photo' + (n === 1 ? '' : 's') + ' the free reader could not place. This is what it would COST, not what you have left.';
       b.style.display = '';
     } else {
@@ -1839,7 +1839,7 @@
         ? ' <a href="' + rrEsc(_vRef) + '" target="_blank" rel="noopener" style="color:var(--info)">open the page ↗</a>'
         : '';
       if (r === 'noref') el.innerHTML = '<div style="font-size:0.76rem;color:var(--text-dim)">Couldn\'t get the catalog photo from that page — some sites block automated requests.' + _vOpen + '</div>';
-      else if (r === 'quota') el.innerHTML = '<div style="font-size:0.76rem;color:var(--text-dim)">No tokens left today — the catalog double-check can run tomorrow.</div>';
+      else if (r === 'quota') el.innerHTML = '<div style="font-size:0.76rem;color:var(--text-dim)">No photo IDs left today — the catalog double-check can run tomorrow.</div>';
       else if (r === 'noconsent') el.innerHTML = '';
       else el.innerHTML = '<div style="font-size:0.76rem;color:var(--text-dim)">Couldn\'t run the catalog-photo check right now.' + _vOpen + '</div>';
       return;
@@ -1905,8 +1905,8 @@
     }
     return '<div id="pin-rv-tokline" style="text-align:center;font-size:0.8rem;color:var(--text-dim);margin-top:0.6rem">' +
       (n !== null
-        ? '<span style="color:var(--accent2,#d4a843);font-weight:700;font-size:0.95rem">' + n + '</span> token' + (n === 1 ? '' : 's') + ' left today'
-        : 'Token count shows after your next read') +
+        ? '<span style="color:var(--accent2,#d4a843);font-weight:700;font-size:0.95rem">' + n + '</span> photo ID' + (n === 1 ? '' : 's') + ' left today'
+        : 'Photo ID count shows after your next read') +
       '</div>';
   }
 
@@ -2204,11 +2204,11 @@
             '<button id="pin-rv-idtoken" onclick="_pinReviewIdentify()" title="'
               + ((typeof rrAiOptedOut === 'function' && rrAiOptedOut())
                   ? 'Photo reads are switched off — turn them on in Preferences › Photo ID'
-                  : 'Identify this item straight from its photo — uses one token')
+                  : 'Identify this item straight from its photo — uses one photo ID')
               + '" style="' + _gBtn + 'border:1.5px solid var(--accent2,#d4a843);background:rgba(212,168,67,0.14);color:var(--accent2,#d4a843)">'
               + ((typeof rrAiOptedOut === 'function' && rrAiOptedOut())
                   ? 'Read this photo (reads are off)'
-                  : 'Read this photo (1 token)') + '</button>' +
+                  : 'Read this photo (1 photo ID)') + '</button>' +
           '</div>' +
           _tokLine() +
           // v0.9.1181 (Brad): "a big button underneath the 2x2 grid buttons on
@@ -3126,7 +3126,7 @@
       // like a good one — which is how a ReferenceError here cost Brad two
       // tokens before anyone noticed. A paid read that cannot be stored says so.
       console.error('[Inbox] could not store the read:', eS);
-      showToast('The read came back but could not be saved \u2014 ' + ((eS && eS.message) || 'unknown error'), 5000, true);
+      showToast(rrSaveError(eS, 'the read \u2014 you were not charged for it again'), 5000, true);
     }
     _render();
     _sel = {};
@@ -3183,7 +3183,7 @@
       if (!_pinApplyMeta(meta, gs, ai && ai.text)) { showToast('No item info found in that screenshot — type the number instead', 4000, true); return; }
       showToast(meta._hedge
         ? 'Read the screenshot — the number is a best guess, double-check it'
-        : ('Read the screenshot' + (_freeRead ? ' (free — no token used)' : '') + ' — check it over and hit Add'), 4000);
+        : ('Read the screenshot' + (_freeRead ? ' (free — no photo ID used)' : '') + ' — check it over and hit Add'), 4000);
     } catch (e) {
       console.warn('[Inbox] read screenshot:', e);
       showToast('Could not read that screenshot — try again or type the number', 3800, true);
@@ -3324,8 +3324,8 @@
       if (!_pinApplyMeta(meta, gs, ai && ai.text)) { showToast('Could not pull an item number from the photo — try Google Search', 4200, true); return; }
       _pinStepsReset();
       showToast(meta._hedge
-        ? 'Best guess from the photo — double-check the number (1 token used)'
-        : 'Read from the photo — check it over and add it (1 token used)', 4000);
+        ? 'Best guess from the photo — double-check the number (1 photo ID used)'
+        : 'Read from the photo — check it over and add it (1 photo ID used)', 4000);
     } catch (e) {
       console.warn('[Inbox] review identify:', e);
       showToast('Could not read the photo — try again', 3000, true);
@@ -5996,7 +5996,7 @@
     try {
       var blob0 = await _pinBytes(fid);
       srcUrl = URL.createObjectURL(blob0);
-    } catch (e) { showToast('Could not load the photo: ' + ((e && e.message) || 'download failed'), 3000, true); return; }
+    } catch (e) { showToast(rrSaveError(e, 'the photo for cropping', { kept: false }), 3000, true); return; }
     window._openCropper(srcUrl, async function (blob) {
       try { URL.revokeObjectURL(srcUrl); } catch (e1) {}
       try {
@@ -6624,7 +6624,7 @@
     var w = await _tessGet();
     if (!w) { showToast('The free reader is not available on this device', 3500, true); return; }
     var go = await _pinConfirm('Read all ' + _groups.length + ' items with the free reader, '
-      + _AUDIT_VARIANTS.length + ' different settings each. <b>No credits are used</b> \u2014 this is the same '
+      + _AUDIT_VARIANTS.length + ' different settings each. <b>No photo IDs are used</b> \u2014 this is the same '
       + 'browser-side reader that already runs by itself. It takes a while; keep this tab open.',
       'Run the audit');
     if (!go) return;
@@ -6770,7 +6770,7 @@
       '<div class="rr-card" style="max-width:640px">'
       + '<div style="font-family:var(--font-head);font-weight:700;font-size:1.05rem;margin-bottom:0.2rem">Reader audit</div>'
       + '<div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.9rem">'
-        + rows.length + ' of ' + total + ' items read four ways, ' + secs + ' seconds, no credits spent.'
+        + rows.length + ' of ' + total + ' items read four ways, ' + secs + ' seconds, no photo IDs spent.'
         + (rows.length < total ? ' <b>Partial \u2014 run it again to carry on from here.</b>' : '') + '  <b>Confirmed</b> means the catalog recognised the number \u2014 that is the column that matters; a setting that finds more digits but confirms fewer is reading noise.</div>'
       + '<table style="width:100%;border-collapse:collapse;font-size:0.82rem">'
       +   '<tr><th style="text-align:left;padding:0.3rem 0.5rem;font-size:0.72rem;text-transform:uppercase;color:var(--text-dim)">Setting</th>'
@@ -6802,7 +6802,7 @@
     var n = todo.length;
     var msg = 'The free reader already tried every photo. <b>' + n + '</b> item' + (n === 1 ? '' : 's') +
       ' couldn\'t be matched for free. Read ' + (n === 1 ? 'it' : 'them') +
-      ' now? This uses ' + n + ' of your token' + (n === 1 ? '' : 's') + ' (1 per item).';
+      ' now? This uses ' + n + ' of your photo ID' + (n === 1 ? '' : 's') + ' (1 per item).';
     // The message above already states the cost; repeating "(44 tokens)" on the
     // button is the same ambiguity as the toolbar had — it reads like a balance.
     var go = await _pinConfirm(msg, '🔍 Read ' + n + ' item' + (n === 1 ? '' : 's'));
@@ -6830,7 +6830,7 @@
     var ids = _ids();
     gs.forEach(function (g) { if (ids[_pinReadFid(g)]) had++; });
     var msg0 = 'Read ' + n0 + ' ticked photo' + (n0 === 1 ? '' : 's') + '? '
-      + 'This uses ' + n0 + ' of your token' + (n0 === 1 ? '' : 's') + ' (1 per item).';
+      + 'This uses ' + n0 + ' of your photo ID' + (n0 === 1 ? '' : 's') + ' (1 per item).';
     if (had) {
       msg0 += ' <b>' + had + '</b> of them already ' + (had === 1 ? 'has a reading' : 'have readings')
         + ' — ' + (had === 1 ? 'it' : 'they') + ' will be replaced.';
@@ -6855,7 +6855,7 @@
           var _etaI = _pinEtaText(i, todo.length, _idStart);
           st.style.display = 'block';
           st.innerHTML = 'Identifying item ' + (i + 1) + ' of ' + todo.length +
-            (remaining !== null ? ' · ' + remaining + ' token' + (remaining === 1 ? '' : 's') + ' left today' : '') +
+            (remaining !== null ? ' · ' + remaining + ' photo ID' + (remaining === 1 ? '' : 's') + ' left today' : '') +
             (_etaI ? ' · ' + _etaI : '') +
             '… keep this tab open — go get that coffee. ' +
             '<button onclick="_pinIdentifyCancel()" style="border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);border-radius:6px;font-size:0.72rem;padding:0.15rem 0.5rem;cursor:pointer;font-family:var(--font-body)">Stop</button>';
@@ -6977,7 +6977,7 @@
       if (guessN) msg += ' · ' + guessN + ' best guess' + (guessN > 1 ? 'es' : '') + ' (double-check those)';
       if (blankN) msg += ' · ' + blankN + ' unreadable (no number visible?)';
       if (failN) msg += ' · ' + failN + ' errored (run again to retry)';
-      if (remaining !== null) msg += ' · ' + remaining + ' token' + (remaining === 1 ? '' : 's') + ' left today';
+      if (remaining !== null) msg += ' · ' + remaining + ' photo ID' + (remaining === 1 ? '' : 's') + ' left today';
       showToast(msg, 5000, (okN + guessN) === 0);
     } finally {
       _busy = false;

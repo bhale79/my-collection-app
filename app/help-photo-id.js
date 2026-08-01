@@ -138,7 +138,7 @@
     + '<p style="' + _P + '"><b>And it looks better.</b> This is the picture that shows up in your '
       + 'collection, on your For Sale list, and on anything you hand to a friend or a buyer. A tight '
       + 'shot looks like a catalog photo. A wide one looks like a snapshot of your basement.</p>'
-    + '<p style="' + _P + '">Worth doing before you reach for a token, too — a bad crop is the '
+    + '<p style="' + _P + '">Worth doing before you reach for a photo ID, too — a bad crop is the '
       + 'cheapest thing to fix, and it sometimes fixes the answer on its own.</p>'
     + _HR
 
@@ -159,14 +159,14 @@
           + 'In the Google tab: <b>Ctrl+A</b> (select all), then <b>Ctrl+C</b> (copy). Come back '
           + 'here and press <b>Ctrl+V</b> in the paste box.</div>'
         + _sp('Four keystrokes. If you don’t mind them, this costs you nothing.'))
-    + _step(4, 'Read this photo', '1 token', false,
+    + _step(4, 'Read this photo', '1 photo ID', false,
         _sp('A different reader looks at the whole photo — the shape, the colours, the lettering — '
           + 'not just printed text. About as good as the Google route, and it does the '
           + 'carrying-back for you. Use it when you’d rather not do the copy-paste, or when Google '
           + 'didn’t get there either.'))
     + _HR
 
-    + '<div style="' + _H2 + '">About tokens</div>'
+    + '<div style="' + _H2 + '">About photo IDs</div>'
     // "Nothing to buy." was here and was cut on 2026-07-30: purchased tokens are
     // planned (see BUY_MORE_TOKENS_TODO), and that is exactly the sentence a
     // beta user would quote back the day they ship. The rest is true either way.
@@ -183,7 +183,7 @@
       + _row('This is wrong — re-scan', 'Free', false)
       + _row('Research Number', 'Free', false)
       + _row('Google Search', 'Free', false)
-      + _row('Read this photo', '1 token', true)
+      + _row('Read this photo', '1 photo ID', true)
     + '</table>';
   };
 })();

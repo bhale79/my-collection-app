@@ -4494,7 +4494,7 @@ function renderWizardStep() {
         setTimeout(function () {
           try {
             var _idUp = uploadWizardPhoto(_idF, s.id, _idTargetView);
-            if (_idUp && _idUp.catch) _idUp.catch(function (eU2) { showToast && showToast('Photo attach failed: ' + (eU2 && eU2.message || 'upload error') + ' — add it manually below', 4500, true); });
+            if (_idUp && _idUp.catch) _idUp.catch(function (eU2) { showToast && showToast(rrSaveError(eU2, 'the item photo', { kept: false }) + ' Add it manually below.', 4500, true); });
             showToast && showToast('\u{1F4F7} The photo you identified it from was added as the Item photo', 3200);
           } catch (eIP) { showToast && showToast('Photo attach failed — add it manually below', 4000, true); }
         }, 400);
@@ -4511,7 +4511,7 @@ function renderWizardStep() {
         setTimeout(function () {
           try {
             var _biUp = uploadWizardPhoto(_biF, s.id, _biTargetView);
-            if (_biUp && _biUp.catch) _biUp.catch(function (eU) { showToast && showToast('Box photo attach failed: ' + (eU && eU.message || 'upload error') + ' — add it manually below', 4500, true); });
+            if (_biUp && _biUp.catch) _biUp.catch(function (eU) { showToast && showToast(rrSaveError(eU, 'the box photo', { kept: false }) + ' Add it manually below.', 4500, true); });
             showToast && showToast('📦 Your label shot was added as the Box photo', 3000);
           } catch (eBP) { showToast && showToast('Box photo attach failed — add it manually below', 4000, true); }
         }, 400);

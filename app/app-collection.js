@@ -514,7 +514,7 @@ function _nonItemDetailEdit(type, key) {
             if (_ap) _ap.classList.remove('active');
           } catch(_se) { console.warn('show auth-screen failed:', _se); }
         } else if (typeof showToast === 'function') {
-          showToast('Save failed — ' + (err && err.message ? err.message : 'try again'), 4500, true);
+          showToast(rrSaveError(err, 'your change'), 4500, true);
         }
       });
   };
@@ -1653,7 +1653,7 @@ window._grpRenamePhoto = async function (fileId, labelEl) {
     var inner = labelEl.querySelector('div') || labelEl;
     inner.innerHTML = next.trim().replace(/</g, '&lt;').toUpperCase() + ' <span style="opacity:0.6">✎</span>';
     showToast('✓ Photo renamed');
-  } catch (e) { showToast('Rename failed: ' + (e && e.message || 'Drive error'), 3500, true); }
+  } catch (e) { showToast(rrSaveError(e, 'the new photo name', { kept: false }), 3500, true); }
 };
 
 // v0.9.728: open a group member's edit/photos panel from the group sheet.

@@ -319,11 +319,11 @@ function buildPrefsPage() {
         <button class="pref-btn" onclick="exportFullCollection()">Download CSV</button>
       </div>
       <div class="pref-row">
-        <div class="pref-row-label"><strong>Last Synced</strong><span id="pref-cache-ts">${cacheDateStr} · ${cacheSize}</span></div>
-        <button class="pref-btn" onclick="forceRefreshData().then(()=>buildPrefsPage())">Sync Now</button>
+        <div class="pref-row-label"><strong>Last updated</strong><span id="pref-cache-ts">${cacheDateStr} · ${cacheSize}</span></div>
+        <button class="pref-btn" onclick="forceRefreshData().then(()=>buildPrefsPage())">Update now</button>
       </div>
       <div class="pref-row">
-        <div class="pref-row-label"><strong>Clear Local Cache</strong><span>Full reload from Google Sheets on next launch</span></div>
+        <div class="pref-row-label"><strong>Clear saved copy on this device</strong><span>Your collection stays safe in Google — this only clears the copy kept here, and it reloads on next launch</span></div>
         <button class="pref-btn danger" onclick="_clearCacheOnly()">Clear Cache</button>
       </div>
 
@@ -737,7 +737,7 @@ async function _rebuildDashboardTab() {
     showToast('Sheet refreshed!');
   } catch(e) {
     console.error('Refresh sheet styling failed:', e);
-    showToast('Failed to refresh: ' + (e.message || ''), 4000, true);
+    showToast(rrSaveError(e, 'the sheet refresh', { kept: false }), 4000, true);
   } finally {
     _rebuildInProgress = false;
   }

@@ -543,7 +543,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
      /_freeReadBlob\(bytes, 1600, pref\)/.test(body5) &&
      /_freeReadBlob\(bytes, 2400, pref\)/.test(body5) &&
      /var pref = _preferForFid\(fileId\)/.test(body5));
-  ok('the audit exists and is free', /_pinReaderAudit/.test(body5) && /No credits are used/.test(body5));
+  ok('the audit exists and is free', /_pinReaderAudit/.test(body5) && /No photo IDs are used/.test(body5));
 
 
   section('22. The audit survives a reload');
@@ -884,7 +884,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   section('37. The token button cannot be mistaken for a balance');
   const tb = require('fs').readFileSync(SRC, 'utf8');
   ok('the label says what the number IS', /Read the ' \+ n \+ ' still unread/.test(tb));
-  ok('and that the tokens are a cost', /costs ' \+ n \+ ' token/.test(tb));
+  ok('and that the photo IDs are a cost', /costs ' \+ n \+ ' photo ID/.test(tb));
   ok('with a tooltip spelling it out', /not what you have left/.test(tb));
   ok('the old balance-looking label is gone', !/Read ' \+ n \+ ' \(' \+ n \+ ' token/.test(tb));
 
@@ -1306,7 +1306,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('no caller forgets to pass it',
      (am2.match(/_pinApplyMeta\(meta, gs\)/g) || []).length === 0);
   ok('a failure to store is no longer silent',
-     /could not be saved/.test(am2) && /console\.error\('\[Inbox\] could not store the read:'/.test(am2));
+     /rrSaveError\(eS,/.test(am2) && /console\.error\('\[Inbox\] could not store the read:'/.test(am2));
+  ok('...and says the paid read was not charged twice',
+     /you were not charged for it again/.test(am2));
 
 
   section('61. Reconciliation reaches every paid path, once');
@@ -2549,8 +2551,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const sel = pi.slice(i, pi.indexOf('async function _pinIdentifyRun', i));
     ok('Identify-selected asks before spending tokens',
        /_pinConfirm\(msg0/.test(sel) && /if \(!go0\) return;/.test(sel));
-    ok('and states the cost in tokens',
-       /uses ' \+ n0 \+ ' of your token/.test(sel));
+    ok('and states the cost in photo IDs',
+       /uses ' \+ n0 \+ ' of your photo ID/.test(sel));
     ok('and warns when existing readings will be replaced',
        /will be replaced/.test(sel));
     ok('the old readings are deleted AFTER the yes, not before',
@@ -5683,7 +5685,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     let e4 = box();
     show(e4, { ok: false, reason: 'quota', _ref: REF });
     ok('...but a spent quota does not, because the page is not the problem',
-       e4.innerHTML.indexOf(REF) < 0 && /No tokens left today/.test(e4.innerHTML));
+       e4.innerHTML.indexOf(REF) < 0 && /No photo IDs left today/.test(e4.innerHTML));
 
     let e5 = box();
     show(e5, { ok: false, reason: 'noconsent', _ref: REF });
@@ -5730,10 +5732,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // promise. The rule is about percentages a USER can read.
     ok('it prints NO accuracy percentage — "we don\'t guarentee it" (Brad)',
        !/\d+\s*%/.test(html.replace(/<[^>]*>/g, ' ')));
-    ok('it no longer promises "Nothing to buy" — purchased tokens are planned',
+    ok('it no longer promises "Nothing to buy" — purchased photo IDs are planned',
        html.indexOf('Nothing to buy') < 0);
-    ok('exactly ONE thing costs a token, said twice: the step and the table row',
-       (html.match(/1 token/g) || []).length === 2, (html.match(/1 token/g) || []).length);
+    ok('exactly ONE thing costs a photo ID, said twice: the step and the table row',
+       (html.match(/1 photo ID/g) || []).length === 2, (html.match(/1 photo ID/g) || []).length);
     ok('every free route is marked Free — first read, re-scan, research, Google, table',
        (html.match(/>Free</g) || []).length >= 6);
     ok('the crop section made it in, with both halves of the argument',
@@ -10039,6 +10041,147 @@ META_WRITES.length = 0; TOASTS.length = 0;
        String((ws.match(/rrSaveError\(e, 'your item'\)/g) || []).length));
     ok('every rewritten site still works if the helper is somehow missing',
        (ws.match(/typeof rrSaveError === 'function'/g) || []).length >= 5);
+  })();
+
+  // ═══════════════════════════════════════════════════════════
+  // §199. v0.9.1248 — the beta-facing audit decisions
+  //   Brad chose: gate the diagnostics, one name for the photo-ID
+  //   currency, one name for Sold, collector words for the plumbing,
+  //   date the legal pages, and stop promising demos that do not exist.
+  //   Each of these is a fact with exactly ONE reader; these tests are
+  //   here to keep it that way.
+  // ═══════════════════════════════════════════════════════════
+  (function () {
+    const fs199 = require('fs'), p199 = require('path');
+    const rd = f => fs199.readFileSync(p199.join(__dirname, '..', f), 'utf8');
+    const cfg = rd('app/config.js'), pin = rd('app/photo-inbox.js');
+    const gifs = rd('app/tutorial-gifs-config.js'), onb = rd('app/onboarding.js');
+    const idx = rd('app/index.html'), root = rd('index.html');
+    const prefs = rd('app/prefs.js'), appjs = rd('app/app.js');
+    const strip = t => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+
+    section('199. The Reader audit button is Brad’s tool, not a tester’s');
+    ok('there is ONE reader for "should diagnostics show"',
+       /function rrDiagnostics\(\)/.test(cfg) && /window\.rrDiagnostics = rrDiagnostics/.test(cfg));
+    ok('it is off by default', /const DIAGNOSTICS_ENABLED = false;/.test(cfg));
+    ok('Brad can still switch it on for his own device only',
+       /localStorage\.getItem\('rr_diag'\) === '1'/.test(cfg));
+    ok('a private-window failure cannot crash the toolbar',
+       /catch \(e\) \{ return false; \}/.test(cfg));
+    ok('the audit button asks that one reader',
+       /\(rrDiagnostics\(\) \? '<button id="pin-audit-btn"/.test(pin));
+    ok('nothing else tests the constant or the key directly',
+       (strip(pin).match(/DIAGNOSTICS_ENABLED|rr_diag/g) || []).length === 0);
+    ok('the code that updates the button survives it being absent',
+       /var b = document\.getElementById\('pin-audit-btn'\);\s*\n\s*if \(!b\) return;/.test(pin));
+
+    section('199b. One name for the currency: photo ID');
+    // A comment may say "token" all it likes — what matters is what a
+    // collector READS. So: pull the quoted strings out, drop the ones that are
+    // plumbing (storage keys, URL params, element ids, console prefixes), and
+    // assert none of what is left calls the currency anything but a photo ID.
+    const PLUMBING = /^(lv_|rr_|pin-|nav-|tut-|#|\.|\/|https?:|&|\?|\[|_)|token_?(client|expiry)?$|^(access|page|next|id)?token$/i;
+    const visibleStrings = t => (strip(t).match(/'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"/g) || [])
+      .map(q => q.slice(1, -1))
+      .filter(q => q.length > 3 && !PLUMBING.test(q) && !/^\[[A-Z]/.test(q));
+    ['app/photo-inbox.js', 'app/help-photo-id.js', 'app/wizard-photos.js'].forEach(function (f) {
+      const bad = visibleStrings(rd(f)).filter(q => /\btokens?\b|\bcredits?\b/i.test(q));
+      ok(f + ' says photo ID, never token or credit', bad.length === 0,
+         bad.length ? bad[0].slice(0, 80) : '');
+    });
+    ok('the count label was renamed too',
+       /Photo ID count shows after your next read/.test(pin));
+    ok('the spent-quota message was renamed too',
+       /No photo IDs left today/.test(pin));
+
+    section('199c. One name for Sold');
+    ok('the sidebar button says Sold', />Sold<\/button>/.test(idx));
+    ok('the page heading says Sold', /<span>Sold<span id="sold-title-stats"/.test(idx));
+    ok('neither old name survives',
+       !/>Sold List</.test(idx) && !/Items I've Sold/.test(idx));
+    ok('the stat still counts items, so it keeps its own words',
+       />Items Sold</.test(idx));
+
+    section('199d. The plumbing speaks the collector’s language');
+    ok('the loading screen loads a collection, not an inventory',
+       />Loading your collection<\/div>/.test(appjs) && !/Fetching master inventory/.test(appjs));
+    ok('Preferences says updated, not synced',
+       /<strong>Last updated<\/strong>/.test(prefs) && />Update now<\/button>/.test(prefs));
+    ok('the cache button says what it really clears',
+       /<strong>Clear saved copy on this device<\/strong>/.test(prefs));
+    ok('...and reassures that the real data is safe',
+       /Your collection stays safe in Google/.test(prefs));
+    ok('neither old label survives',
+       !/Last Synced|Sync Now|Clear Local Cache/.test(prefs));
+
+    section('199e. The demos: one reader, and it counts only what exists');
+    ok('there is ONE reader for "which demos exist"',
+       /function rrReadyDemos\(\)/.test(gifs) && /window\.rrReadyDemos = rrReadyDemos/.test(gifs));
+    ok('it counts a gifUrl, not a placeholder',
+       /return \(cfg\.demos \|\| \[\]\)\.filter\(function \(d\) \{ return d && d\.gifUrl; \}\)/.test(gifs));
+    ok('the Help menu draws only ready demos',
+       /rrReadyDemos\(\)\.forEach\(function\(d\)/.test(gifs));
+    ok('...and skips the whole section when none are ready',
+       /if \(!rrReadyDemos\(\)\.length\) return true;/.test(gifs));
+    ok('the first-run tour button asks the same reader',
+       /if \(typeof rrReadyDemos === 'function' && rrReadyDemos\(\)\.length\)/.test(onb));
+    ok('the preview modal lists only ready demos',
+       /var list = rrReadyDemos\(\)\.map\(function\(d\)/.test(onb));
+    ok('nobody counts cfg.demos directly any more',
+       !/\(cfg\.demos \|\| \[\]\)\.(forEach|map)/.test(strip(gifs) + strip(onb)) &&
+       !/TUTORIAL_GIFS\.demos \|\| \[\]\)\.length/.test(strip(onb)));
+    ok('with today’s empty config, nothing is promised',
+       (function () {
+         const g = { demos: [{ id: 'a', title: 'A' }, { id: 'b', title: 'B', gifUrl: '' }] };
+         const f = new Function('window', 'return (function(){ var cfg = window.TUTORIAL_GIFS || {};' +
+           ' return (cfg.demos || []).filter(function (d) { return d && d.gifUrl; }); })()');
+         return f({ TUTORIAL_GIFS: g }).length === 0;
+       })());
+    ok('...and one recorded demo brings the section back on its own',
+       (function () {
+         const g = { demos: [{ id: 'a', title: 'A' }, { id: 'b', title: 'B', gifUrl: 'x.gif' }] };
+         const f = new Function('window', 'return (function(){ var cfg = window.TUTORIAL_GIFS || {};' +
+           ' return (cfg.demos || []).filter(function (d) { return d && d.gifUrl; }); })()');
+         return f({ TUTORIAL_GIFS: g }).length === 1;
+       })());
+
+    section('199f. The public pages');
+    ok('the landing page no longer says Under Construction',
+       !/Under Construction/.test(root) && /<div class="stripe">Now in private beta<\/div>/.test(root));
+    ok('Terms and Privacy carry a real date',
+       ['terms/index.html', 'privacy/index.html'].every(f =>
+         /Effective date: August 1, 2026/.test(rd(f)) &&
+         !/to be announced/.test(rd(f))));
+
+    section('199g. A failed save never shows the machine');
+    const RAW = /(showToast|appAlert)\([^;]*\b(e|err|eS|eU|eU2|error)\s*(&&|\.)\s*(\w+\s*&&\s*)?\w*\.?message/;
+    ['app/app-collection.js', 'app/app-pages.js', 'app/backup.js', 'app/contacts.js',
+     'app/photo-inbox.js', 'app/prefs.js', 'app/wizard.js', 'app/wizard-photos.js'].forEach(function (f) {
+      const lines = strip(rd(f)).split('\n')
+        .filter(l => /showToast|appAlert/.test(l) && /\.message/.test(l) && !/rrSaveError/.test(l));
+      ok(f + ' routes every save error through rrSaveError', lines.length === 0,
+         lines.length ? lines[0].trim().slice(0, 90) : '');
+    });
+    ok('the outbox helper is loaded before anything that calls it',
+       (function () {
+         // Position of the <script> TAG, not of any mention — the file names
+         // also appear in comments, and one of those sits above the tags.
+         const at = f => idx.indexOf('<script src="./' + f + '?v=');
+         const outbox = at('write-outbox.js');
+         return outbox > 0 && ['app-collection.js', 'app-pages.js', 'photo-inbox.js',
+                               'prefs.js', 'wizard.js', 'contacts.js', 'backup.js']
+           .every(f => at(f) > outbox);
+       })());
+    ok('...and is precached, so it cannot go missing offline',
+       /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
+
+    section('199h. The version trio moved together');
+    ok('APP_VERSION is v0.9.1248', /const APP_VERSION = 'v0\.9\.1248';/.test(cfg));
+    ok('every ?v= mark in app/index.html matches it',
+       (idx.match(/\?v=1248/g) || []).length === 69 && !/\?v=1247/.test(idx),
+       String((idx.match(/\?v=1248/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1259';/.test(rd('app/sw.js')));
+    ok('the root page asks for the new worker', /sw\.js\?v=1248/.test(root));
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

@@ -736,7 +736,7 @@ async function _identifySearchLens() {
       var _free = await window.rrIdentifyFree(_identifyPhotoFile);
       if (_free && _free.itemNum && _identifyProcessText('Item Number: ' + _free.itemNum) === 'applied') {
         if (searchBtn) { searchBtn.disabled = false; searchBtn.innerHTML = origText; }
-        if (typeof showToast === 'function') showToast('Read it free from the photo — no credit used', 2800);
+        if (typeof showToast === 'function') showToast('Read it free from the photo — no photo ID used', 2800);
         return;
       }
     } catch (e) {}

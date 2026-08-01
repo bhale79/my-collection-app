@@ -58,7 +58,7 @@
     ov.style.cssText =
       'position:fixed;inset:0;background:rgba(10,14,20,0.90);z-index:' + (s.z + 5) + ';' +
       'display:flex;align-items:flex-start;justify-content:center;padding:1.5rem;overflow-y:auto';
-    var list = (cfg.demos || []).map(function(d) {
+    var list = rrReadyDemos().map(function(d) {
       var comingSoon = !d.gifUrl;
       var badge = comingSoon
         ? '<span style="font-size:' + s.small + ';color:var(--text-dim);font-style:italic">' + _escape(cfg.comingSoonBadge || 'Coming soon') + '</span>'
@@ -310,7 +310,7 @@
     // Session 112: link to GIFs section of Help menu (closes onboarding
     // arc from earlier user ask: "mentioned or ability to click on it").
     var gifsLink = '';
-    if (window.TUTORIAL_GIFS && (window.TUTORIAL_GIFS.demos || []).length) {
+    if (typeof rrReadyDemos === 'function' && rrReadyDemos().length) {
       gifsLink =
         '<div style="text-align:center;margin:0.3rem 0 1rem">' +
           '<button onclick="onboardShowGifsPreview()" style="' +

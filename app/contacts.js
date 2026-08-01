@@ -1254,7 +1254,7 @@
         }
       } catch (e) {
         console.warn('[contact save]', e);
-        showToast('Could not save — ' + ((e && e.message) ? e.message : 'check your connection and try again'), 5000, true);
+        showToast(rrSaveError(e, 'the contact'), 5000, true);
         this.textContent = '✓ Save Contact'; this.disabled = false;
       }
     };

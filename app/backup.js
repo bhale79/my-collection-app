@@ -290,7 +290,7 @@ async function uiBackupNow() {
   } catch (e) {
     console.error('[Backup] uiBackupNow failed:', e);
     if (typeof showToast === 'function') {
-      showToast(BACKUP_UI_TEXT.errorToast + (e.message || 'unknown error'));
+      showToast(rrSaveError(e, 'the backup', { kept: false }));
     }
   }
 }
@@ -444,7 +444,7 @@ async function uiBackupRestore(backupId, backupName) {
     console.error('[Restore] Failed:', e);
     prog.remove();
     if (typeof showToast === 'function') {
-      showToast(BACKUP_UI_TEXT.restoreFailed + (e.message || 'unknown'));
+      showToast(rrSaveError(e, 'the restore', { kept: false }));
     } else {
       window.alert(BACKUP_UI_TEXT.restoreFailed + (e.message || 'unknown'));
     }

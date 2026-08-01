@@ -2460,7 +2460,7 @@ function _hidePreloadPill(pill) {
 
 function showLoading() {
   const tb = document.getElementById('browse-tbody');
-  if (tb) tb.innerHTML = '<tr><td colspan="9"><div class="loading" style="padding:3rem;flex-direction:column;gap:0.75rem"><div class="spinner" style="width:36px;height:36px;border-width:3px"></div><div style="font-size:0.9rem;color:var(--text-dim)">Loading The Rail Roster…</div><div style="font-size:0.75rem;color:var(--text-dim);opacity:0.7">Fetching master inventory</div></div></td></tr>';
+  if (tb) tb.innerHTML = '<tr><td colspan="9"><div class="loading" style="padding:3rem;flex-direction:column;gap:0.75rem"><div class="spinner" style="width:36px;height:36px;border-width:3px"></div><div style="font-size:0.9rem;color:var(--text-dim)">Loading The Rail Roster…</div><div style="font-size:0.75rem;color:var(--text-dim);opacity:0.7">Loading your collection</div></div></td></tr>';
   // Session 161 watchdog: if the splash is still visible 4s later AND master
   // data has actually loaded, force a re-render. If that throws, show a
   // recovery message with a Refresh button instead of leaving the user stuck.

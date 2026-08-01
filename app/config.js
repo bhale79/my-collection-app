@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1247';
+const APP_VERSION = 'v0.9.1248';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -11,6 +11,27 @@ const APP_VERSION = 'v0.9.1247';
 // the editor stays shipped but hidden until it's user-ready.
 const APPEARANCE_ENABLED = true;
 if (typeof window !== 'undefined') window.APPEARANCE_ENABLED = APPEARANCE_ENABLED;
+
+// v0.9.1248 (audit finding A): Brad's diagnostic tools are shipped but hidden.
+// The Reader audit button lived permanently in the Photo Inbox toolbar with no
+// gate, so a beta tester clicking it learned the app has internal settings it
+// was not telling them about.
+//
+// ONE READER for "should diagnostics show": rrDiagnostics(). Never test the
+// constant or the localStorage key directly anywhere else — that is how a fact
+// ends up with two answers.
+//
+// Brad keeps his tools: run  localStorage.rr_diag = '1'  once in the browser
+// console on his own device and they come back, on that device only.
+const DIAGNOSTICS_ENABLED = false;
+function rrDiagnostics() {
+  if (DIAGNOSTICS_ENABLED) return true;
+  try { return localStorage.getItem('rr_diag') === '1'; } catch (e) { return false; }
+}
+if (typeof window !== 'undefined') {
+  window.DIAGNOSTICS_ENABLED = DIAGNOSTICS_ENABLED;
+  window.rrDiagnostics = rrDiagnostics;
+}
 
 // v0.9.918 (Brad): SINGLE SOURCE OF TRUTH for the personal sheet's collection
 // tab name. Every sheet read/write range ("My Collection!D12") builds from

@@ -649,7 +649,7 @@ function openEphemeraEdit(tabId, rowKey) {
       if (typeof renderBrowse === 'function') renderBrowse();
     } catch (e) {
       console.warn('[ephemera edit]', e);
-      showToast('Could not save — ' + (e && e.message ? e.message : 'try again'), 4500, true);
+      showToast(rrSaveError(e, 'your change'), 4500, true);
       this.textContent = '✓ Save'; this.disabled = false;
     }
   };
@@ -702,7 +702,7 @@ window.ephemeraAddPhotos = function (tabId, rowKey) {
       if (typeof renderBrowse === 'function') renderBrowse();
     } catch (e) {
       console.warn('[ephemera photos]', e);
-      showToast('Photo upload failed — ' + (e && e.message ? e.message : 'try again'), 4500, true);
+      showToast(rrSaveError(e, 'the photo', { kept: false }), 4500, true);
     }
   };
   inp.click();
@@ -3888,7 +3888,7 @@ async function savePart(existingRow) {
     }
     if (typeof showToast === 'function') showToast('✓ Part saved');
     buildPartsPage();
-  } catch (e) { if (typeof showToast === 'function') showToast('Save failed: ' + (e && e.message || ''), 4000, true); }
+  } catch (e) { if (typeof showToast === 'function') showToast(rrSaveError(e, 'the part'), 4000, true); }
 }
 if (typeof window !== 'undefined') window.savePart = savePart;
 
@@ -3987,7 +3987,7 @@ async function _savePartInstalled(rowNum) {
     if (typeof _cachePersonalData === 'function') _cachePersonalData();
     if (typeof showToast === 'function') showToast('\u2713 Installed on ' + pd.itemNum + ' \u2014 added to its notes');
   } catch (e) {
-    if (typeof showToast === 'function') showToast('Save failed: ' + (e && e.message || ''), 4000, true);
+    if (typeof showToast === 'function') showToast(rrSaveError(e, 'the installed part'), 4000, true);
   }
 }
 if (typeof window !== 'undefined') window._savePartInstalled = _savePartInstalled;

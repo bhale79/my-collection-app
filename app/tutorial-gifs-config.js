@@ -30,6 +30,24 @@ const TUTORIAL_GIFS = {
 
 window.TUTORIAL_GIFS = TUTORIAL_GIFS;
 
+// v0.9.1248 (audit finding D): "Watch how it works" promised six demos and had
+// none — every gifUrl was empty, so all six rendered "Coming soon", and the
+// button sat on the FIRST-RUN TOUR. The worst thing to hand a new tester.
+//
+// ONE READER for "which demos actually exist": rrReadyDemos(). The tour button,
+// the Help-menu section, and anything added later all ask this and nothing else.
+// Two places used to answer it differently — the tour counted every demo
+// including the empty ones, the Help menu counted them and drew them greyed out.
+//
+// Nothing is hidden by a hardcoded switch. With no recordings the count is zero
+// and both surfaces disappear on their own; the day Brad fills in a gifUrl that
+// demo appears, with no code change and no second edit to remember.
+function rrReadyDemos() {
+  var cfg = window.TUTORIAL_GIFS || {};
+  return (cfg.demos || []).filter(function (d) { return d && d.gifUrl; });
+}
+window.rrReadyDemos = rrReadyDemos;
+
 // ─── Render into the Help menu after it's built ──────────────
 // tutorial.js builds tut-help-menu once on first open. We mount our
 // extra section at the end of that menu, preserving its existing items.
@@ -41,6 +59,7 @@ window.TUTORIAL_GIFS = TUTORIAL_GIFS;
     var menu = document.getElementById('tut-help-menu');
     if (!menu) return false;
     if (document.getElementById('tut-gifs-section')) return true;
+    if (!rrReadyDemos().length) return true;   // nothing recorded — no empty section
 
     var cfg = window.TUTORIAL_GIFS || {};
     var section = document.createElement('div');
@@ -60,7 +79,7 @@ window.TUTORIAL_GIFS = TUTORIAL_GIFS;
       section.appendChild(note);
     }
 
-    (cfg.demos || []).forEach(function(d) {
+    rrReadyDemos().forEach(function(d) {
       var btn = document.createElement('button');
       btn.className = 'tut-menu-item';
       btn.disabled = !d.gifUrl;
