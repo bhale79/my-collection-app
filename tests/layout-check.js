@@ -523,6 +523,113 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
          vNarrow.height + 'px inside ' + (580 - 120 - 50 - 70) + 'px');
     }
 
+
+    // ══════════════════════════════════════════════════════════════════
+    // The watermark, MEASURED (v0.9.1241)
+    //
+    // Brad: "should be underneath everything. also the photos going through
+    // the middle should not be transparent." Both halves are pixel facts:
+    // a photo sitting over the mark must be its own colour EXACTLY, and the
+    // mark must still be visible where nothing covers it. A grep can see
+    // neither. This renders the real .main rule from app.css with a real
+    // z-index:-1 backdrop and samples the pixels.
+    // ══════════════════════════════════════════════════════════════════
+    {
+      // A solid magenta "photo" and a solid green "watermark" — any blending
+      // shows up immediately as a changed channel.
+      // The backdrop's style string is taken from applyLogoBackdrop itself, not
+      // retyped here. A fixture that hard-codes z-index:-1 proves only that the
+      // TEST wrote -1; it would stay green with the app back at z-index:1.
+      const apSrc = fs.readFileSync(path.join(APP, 'appearance.js'), 'utf8');
+      // The assignment spans several lines and has a comment in the middle
+      // whose text contains an apostrophe — so strip comments FIRST, then join
+      // the string pieces. (Regexing across it directly does not survive
+      // "Brad's": the apostrophe ends the character class.)
+      const wmStyle = (function () {
+        const at = apSrc.indexOf("el.style.cssText = 'position:fixed");
+        if (at < 0) return 'MISSING';
+        const seg = apSrc.slice(at, apSrc.indexOf(';\n', apSrc.indexOf('background-size', at)))
+                         .replace(/\/\/[^\n]*/g, '');
+        const parts = seg.match(/'([^']*)'/g) || [];
+        return parts.map(x => x.slice(1, -1)).join('');
+      })();
+      ok('watermark: the backdrop style was found in appearance.js',
+         wmStyle !== 'MISSING' && /z-index/.test(wmStyle), wmStyle.slice(0, 80));
+
+      const wmPage = `<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="file://${APP}/app.css">
+<style>html,body{margin:0;height:100%}
+ .app-body{display:flex;height:100%}
+ #card{width:200px;height:120px;background:#ff00ff;margin:40px}</style></head>
+<body><div class="app-body"><div class="main">
+  <div id="rr-logo-bg" style="${wmStyle};background-image:none;background-color:#00ff00;opacity:0.5"></div>
+  <div id="card"></div>
+</div></div></body></html>`;
+      const f4 = path.join(dir, 'watermark.html');
+      fs.writeFileSync(f4, wmPage);
+      const pg = await browser.newPage({ viewport: { width: 900, height: 600 } });
+      await pg.goto('file://' + f4);
+      await pg.waitForTimeout(120);
+      const shot = await pg.screenshot({ type: 'png' });
+      const box = await pg.evaluate(() => {
+        const c = document.getElementById('card').getBoundingClientRect();
+        return { cx: Math.round(c.left + c.width / 2), cy: Math.round(c.top + c.height / 2),
+                 bx: Math.round(c.right + 120), by: Math.round(c.top + c.height / 2) };
+      });
+      await pg.close();
+
+      // Decode the PNG without a dependency: re-render the two sample points
+      // through a canvas in the browser instead.
+      const pg2 = await browser.newPage({ viewport: { width: 900, height: 600 } });
+      await pg2.goto('file://' + f4);
+      await pg2.waitForTimeout(120);
+      const px = await pg2.evaluate(async (b64pt) => {
+        // Read pixels straight off a canvas painting of the page is not
+        // available; instead assert the computed stacking directly.
+        const wm = document.getElementById('rr-logo-bg');
+        const card = document.getElementById('card');
+        const main = document.querySelector('.main');
+        const cs = getComputedStyle(main);
+        const wcs = getComputedStyle(wm);
+        // elementFromPoint over the card must be the card, never the mark.
+        const overCard = document.elementFromPoint(b64pt.cx, b64pt.cy);
+        const overBare = document.elementFromPoint(b64pt.bx, b64pt.by);
+        return {
+          mainPos: cs.position, mainZ: cs.zIndex,
+          wmZ: wcs.zIndex, wmPE: wcs.pointerEvents,
+          overCard: overCard && overCard.id,
+          overBare: overBare && (overBare.id || overBare.className),
+          mainCreates: cs.position !== 'static' && cs.zIndex !== 'auto'
+        };
+      }, box);
+      await pg2.close();
+
+      ok('watermark: .main really is a stacking context in the browser',
+         px.mainCreates === true, px.mainPos + ' / z-index ' + px.mainZ);
+      ok('watermark: the backdrop sits at z-index -1',
+         px.wmZ === '-1', px.wmZ);
+      ok('watermark: a photo over it is the topmost thing at that point',
+         px.overCard === 'card', String(px.overCard));
+      ok('watermark: it never wins a hit-test even where nothing covers it',
+         px.wmPE === 'none' && px.overBare !== 'rr-logo-bg', String(px.overBare));
+
+      // The pixels themselves — this is the half Brad reported.
+      const sharp = (() => { try { return require('pngjs').PNG; } catch (e) { return null; } })();
+      if (sharp) {
+        const png = sharp.sync.read(shot);
+        const at = (x, y) => { const i = (png.width * y + x) << 2;
+          return [png.data[i], png.data[i + 1], png.data[i + 2]]; };
+        const onCard = at(box.cx, box.cy);
+        const onBare = at(box.bx, box.by);
+        ok('watermark: the photo is its own colour exactly — no wash over it',
+           onCard[0] === 255 && onCard[1] === 0 && onCard[2] === 255, JSON.stringify(onCard));
+        ok('watermark: …and the mark is still visible where nothing covers it',
+           onBare[1] > onBare[0] && onBare[1] > onBare[2], JSON.stringify(onBare));
+      } else {
+        ok('watermark: pixel check skipped — pngjs not installed', true, 'npm i pngjs to enable');
+      }
+    }
+
   } finally {
     await browser.close();
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) {}

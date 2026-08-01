@@ -18,6 +18,21 @@ function _composeRoadDesc(m) {
 // Picker state — declared at top so available to all onclick handlers
 // ── _pickerStepId / _pickerViewKey state moved to wizard-photos.js (Session 110, Chunk 4) ──
 
+// v0.9.1241 (Brad): a step's example must be an example of what the step is
+// asking for. "Title of this Dealer Display Poster" was showing
+// "e.g. 1957 Advance Catalog" — a different kind of paper entirely — because
+// the title followed the chosen paper type and the placeholder was a fixed
+// string written for catalogs. A placeholder may now be a function of the
+// answers so far, exactly like a title.
+function _wizPlaceholder(s) {
+  if (!s) return '';
+  var p = s.placeholder;
+  try { if (typeof p === 'function') p = p((typeof wizard !== 'undefined' && wizard.data) || {}); }
+  catch (e) { return ''; }
+  return String(p == null ? '' : p).replace(/"/g, '&quot;');
+}
+window._wizPlaceholder = _wizPlaceholder;
+
 // ── Facts the catalog already knows (v0.9.1237) ────────────────────────
 // These used to be whole steps of their own — see the note where they were
 // removed in wizard-steps.js. They are shown beside the item's description on
@@ -2363,7 +2378,7 @@ function renderWizardStep() {
     const _showCollPicker = s.id === 'itemNum' && (wizard.tab === 'forsale' || wizard.tab === 'sold');
     body.innerHTML = `
       <div style="padding-top:0.75rem">
-        <input type="text" id="wiz-input" value="${val}" placeholder="${s.placeholder || ''}"
+        <input type="text" id="wiz-input" value="${val}" placeholder="${_wizPlaceholder(s)}"
           style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
           padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none"
           autocomplete="off"
@@ -3198,7 +3213,7 @@ function renderWizardStep() {
     const pickedTitle = cpVal ? cpVal.title : '';
     let listHTML = '';
     if (allItems.length === 0) {
-      listHTML = '<div style="color:var(--text-dim);font-size:0.82rem;padding:0.5rem">No catalog data yet - press Next to enter title manually</div>';
+      listHTML = '<div style="color:var(--text-dim);font-size:0.82rem;padding:0.5rem">Nothing in the catalog yet — hit Next to manually enter your item.</div>';
     } else {
       allItems.slice(0, 80).forEach(function(it, idx) {
         const picked = cpVal && cpVal.id === it.id;
@@ -3225,7 +3240,7 @@ function renderWizardStep() {
       + '<div id="cp-list" style="display:flex;flex-direction:column;max-height:280px;overflow-y:auto">'
       + listHTML
       + '</div>'
-      + '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional - press Next to enter title manually</div>'
+      + '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">If it is not listed, hit Next to manually enter your item.</div>'
       + '</div>';
     setTimeout(function() { var i = document.getElementById('cp-input'); if(i) i.focus(); }, 80);
 

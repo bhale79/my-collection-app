@@ -608,7 +608,13 @@
   .nav-badge.green { background: var(--green); }
 
   /* Main content */
-  .main { flex: 1; overflow-y: auto; padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; }
+  /* v0.9.1241: position + z-index:0 make .main a stacking context, which is
+     what lets the watermark sit at z-index:-1 — above .main's own cream
+     background, below every card, list and photograph inside it. Without
+     these two values the watermark is painted behind the cream and vanishes.
+     See applyLogoBackdrop in appearance.js. */
+  .main { flex: 1; overflow-y: auto; padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem;
+          position: relative; z-index: 0; }
 
   /* ── The Appearance editor's paper (v0.9.1206) ──────────────────
      Brad: "this whole page is super dark, its hard to see anything.

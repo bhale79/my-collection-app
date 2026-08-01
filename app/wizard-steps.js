@@ -210,7 +210,23 @@ function getSteps(tab) {
             const sub = d.eph_paperSubType ? d.eph_paperSubType + ' ' : '';
             return 'Title of this ' + sub + (d.eph_paperType || 'item');
           },
-          type: 'text', placeholder: 'e.g. 1957 Advance Catalog',
+          // v0.9.1241 (Brad): the example follows the kind of paper being
+          // added, so a poster is shown a poster.
+          type: 'text',
+          placeholder: (d) => {
+            var eg = {
+              'Catalog': '1957 Advance Catalog',
+              'Operating Manual': '1954 Lionel Instruction Booklet',
+              'Magazine': 'Model Builder, March 1950',
+              'Dealer Paper': '1955 Dealer Price List',
+              'Dealer Promo Kit': '1958 Dealer Promo Kit',
+              'Dealer Display Poster': '1956 Dealer Poster',
+              'Reference Book': 'Greenberg Guide to Lionel Trains',
+              'Promotional Item': '1959 Lionel Showroom Sign',
+            };
+            var t = d.eph_paperType || '';
+            return 'e.g. ' + (eg[t] || (d.eph_paperSubType || t || 'item'));
+          },
           skipIf: (d) => !!(d.eph_catalogPick) },
         // Year skipped if catalog picked (auto-filled)
         { id: 'eph_year',

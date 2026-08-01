@@ -1715,19 +1715,42 @@
     img.src = url;
   };
 
-  // A faint fixed watermark. pointer-events:none so it can never block a tap;
-  // low z-index so real pop-ups paint over it; 5% opacity so it reads as
-  // texture, not content.
+  // A faint watermark, BEHIND the page (v0.9.1241, Brad).
+  //
+  // It used to be a fixed div on <body> at z-index:1, which put it above every
+  // ordinary block in the page — so the dashboard's photo strip, the stat
+  // cards and the lists all had a 5% wash laid over them and the photographs
+  // looked faded. Brad: "should be underneath everything. also the photos
+  // going through the middle should not be transparent."
+  //
+  // WHY z-index:-1 INSIDE .main AND NOT ON <body>:
+  //   CSS paints, within one stacking context: the element's own background,
+  //   then negative-z-index descendants, then the backgrounds of ordinary
+  //   blocks, then everything else. So z-index:-1 is exactly the layer we
+  //   want — above the page's cream, below every card and photo.
+  //   But .main paints its own opaque cream, and on <body> the watermark
+  //   would sit below that and never be seen at all. It therefore lives
+  //   INSIDE .main, and .main is made a stacking context (position:relative;
+  //   z-index:0) so -1 is measured against .main's background rather than the
+  //   document's. Without that one line the watermark disappears completely.
+  //
+  // pointer-events:none so it can never block a tap. position:fixed so it
+  // stays put while the page scrolls under it.
   function applyLogoBackdrop(slot) {
     if (slot === undefined) slot = _brandRec().watermark;
     var el = document.getElementById('rr-logo-bg');
     if (!slot || !slot.data) { if (el) el.remove(); return; }
+    var host = document.querySelector('.main') || document.body;
     if (!el) {
       el = document.createElement('div'); el.id = 'rr-logo-bg';
-      el.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:1;'
-        + 'background-position:center;background-repeat:no-repeat;background-size:min(55vmin,420px)';
-      document.body.appendChild(el);
+      el.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:-1;'
+        + 'background-position:center;background-repeat:no-repeat;'
+        // v0.9.1241: twice the old min(55vmin,420px), at Brad's ask.
+        + 'background-size:min(110vmin,840px)';
     }
+    // .main is rebuilt by app-setup, so re-home the mark rather than assume
+    // the node it was appended to still exists.
+    if (el.parentNode !== host) host.appendChild(el);
     el.style.backgroundImage = 'url(' + slot.data + ')';
     el.style.opacity = String(slot.opacity || WM_DEFAULT);
   }

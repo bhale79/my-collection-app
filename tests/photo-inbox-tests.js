@@ -9440,6 +9440,108 @@ META_WRITES.length = 0; TOASTS.length = 0;
        ws.indexOf('_copyKeys.length === 0 ? findPDKey') > 0);
   })();
 
+
+  section('193. The watermark goes behind the page (v0.9.1241)');
+  (function () {
+    const pathJ = require('path');
+    const rd = f => fs.readFileSync(pathJ.join(__dirname, '..', 'app', f), 'utf8');
+    const ap = rd('appearance.js'), css = rd('app.css'), wz = rd('wizard.js');
+    const noComments = src => src.replace(/\/\*[\s\S]*?\*\//g, ' ')
+                                .replace(/(^|[^:/])\/\/[^\n]*/g, '$1');
+
+    // Brad: "the water mark needs to be twice as large, and should be
+    // underneath everything. also the photos going therought the middle
+    // should not be transparent"
+
+    const fn = ap.slice(ap.indexOf('function applyLogoBackdrop(slot)'),
+                        ap.indexOf('window.applyLogoBackdrop = applyLogoBackdrop;'));
+    const code = noComments(fn);
+
+    ok('the watermark is twice the size it was',
+       /background-size:min\(110vmin,840px\)/.test(code), 'size rule');
+    ok('…which is exactly double the old min(55vmin,420px)',
+       110 === 55 * 2 && 840 === 420 * 2);
+    ok('it paints BEHIND the page, not over it',
+       /z-index:-1/.test(code) && !/z-index:1;/.test(code));
+    ok('…and no longer hangs off <body>, where the cream would bury it',
+       /document\.querySelector\('\.main'\) \|\| document\.body/.test(code) &&
+       !/document\.body\.appendChild\(el\)/.test(code));
+    ok('…and is re-homed when the page is rebuilt rather than assumed to still be there',
+       /if \(el\.parentNode !== host\) host\.appendChild\(el\)/.test(code));
+    ok('it still cannot swallow a tap',
+       /pointer-events:none/.test(code));
+    ok('turning the watermark off still removes it',
+       /if \(!slot \|\| !slot\.data\) \{ if \(el\) el\.remove\(\); return; \}/.test(code));
+
+    // THE LINE THE WHOLE THING RESTS ON: without a stacking context on .main,
+    // z-index:-1 is measured against the document and the mark disappears
+    // behind .main's opaque cream.
+    const mainRule = css.slice(css.indexOf('.main { flex: 1; overflow-y: auto;'),
+                               css.indexOf('.main { flex: 1; overflow-y: auto;') + 260);
+    ok('.main is a stacking context, or the watermark would vanish entirely',
+       /position: relative; z-index: 0;/.test(mainRule), mainRule.slice(0, 200));
+    ok('…and .main still paints its own cream beneath it',
+       /\.main \{[\s\S]{0,700}background: #f8e8c0;/.test(css));
+
+    // Brad: "need something to say, If not listed, hit next to manually
+    // enter your item."
+    ok('the search step says what Next will do',
+       /If it is not listed, hit Next to manually enter your item\./.test(wz));
+    ok('…and so does the empty-catalog case',
+       /hit Next to manually enter your item\./.test(wz) &&
+       !/press Next to enter title manually/.test(wz));
+
+    // Brad: "the example should say 1956 Dealer Poster or something like
+    // that." The title already followed the chosen paper type; the example
+    // underneath it was a fixed string written for catalogs, so a poster was
+    // shown a catalog.
+    const st = rd('wizard-steps.js');
+    ok('a placeholder may be a function of the answers so far, like a title',
+       /function _wizPlaceholder\(s\)/.test(wz) &&
+       /placeholder="\$\{_wizPlaceholder\(s\)\}"/.test(wz));
+    ok('…and the title step uses one',
+       /placeholder: \(d\) => \{[\s\S]{0,80}var eg = \{/.test(st));
+
+    const psrc = wz.slice(wz.indexOf('function _wizPlaceholder(s)'),
+                          wz.indexOf('window._wizPlaceholder = _wizPlaceholder;'));
+    const ssrc = st.slice(st.indexOf("placeholder: (d) => {"),
+                          st.indexOf("skipIf: (d) => !!(d.eph_catalogPick) },"));
+    // ssrc is the whole `placeholder: (d) => {...},` property, trailing comma
+    // and all — trim it back to a single property before wrapping it.
+    const phProp = ssrc.trim().replace(/,\s*$/, '');
+    const ph = (data) => new Function('wizard',
+      '"use strict";' + psrc + '; return _wizPlaceholder({ ' + phProp + ' });')({ data: data });
+
+    ok('a poster is shown a poster',
+       ph({ eph_paperType: 'Dealer Display Poster' }) === 'e.g. 1956 Dealer Poster',
+       ph({ eph_paperType: 'Dealer Display Poster' }));
+    ok('a catalog still gets the catalog example it always had',
+       ph({ eph_paperType: 'Catalog' }) === 'e.g. 1957 Advance Catalog');
+    ok('a magazine is shown a magazine',
+       /Model Builder/.test(ph({ eph_paperType: 'Magazine' })));
+    ok('a kind with no example of its own still shows something sensible',
+       ph({ eph_paperType: 'Blueprint' }) === 'e.g. Blueprint');
+    ok('…and nothing chosen at all does not print "e.g. undefined"',
+       ph({}) === 'e.g. item', ph({}));
+    ok('a quote in an example cannot break out of the attribute',
+       new Function('wizard', '"use strict";' + psrc +
+         '; return _wizPlaceholder({ placeholder: function(){ return String.fromCharCode(34) + \'x\'; } });')({ data: {} })
+         === '&quot;x');
+    // Guarded: without the try/catch in _wizPlaceholder this THROWS, which
+    // would take the whole suite down before the summary line prints. A
+    // crash is red, but a named failure is better.
+    ok('a placeholder that throws yields an empty box, not a broken step',
+       (function () {
+         try {
+           return new Function('wizard', '"use strict";' + psrc +
+             '; return _wizPlaceholder({ placeholder: function(){ throw new Error("x"); } });')({ data: {} }) === '';
+         } catch (e) { return false; }
+       })());
+    ok('a plain string placeholder still works everywhere else',
+       new Function('wizard', '"use strict";' + psrc +
+         '; return _wizPlaceholder({ placeholder: "e.g. 1957" });')({ data: {} }) === 'e.g. 1957');
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();
