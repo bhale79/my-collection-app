@@ -558,7 +558,7 @@ async function saveInstructionSheet() {
     buildDashboard();
     renderBrowse();
   } catch(e) {
-    showToast('Error saving: ' + e.message);
+    showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'your item') : 'Error saving: ' + e.message, 5000, true);
   }
 }
 
@@ -670,7 +670,7 @@ async function _saveCatalogFromPaper() {
     populateFilters();
     renderBrowse();
   } catch(e) {
-    showToast('Error saving: ' + e.message);
+    showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'your item') : 'Error saving: ' + e.message, 5000, true);
   }
 }
 
@@ -783,7 +783,7 @@ async function saveEphemeraItem() {
     closeWizard();
     if (state.filters.owned) renderBrowse();
   } catch(e) {
-    showToast('Error saving: ' + e.message);
+    showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'your item') : 'Error saving: ' + e.message, 5000, true);
   }
 }
 
@@ -818,7 +818,7 @@ async function savePhotoOnlyUpdate() {
         }
       } catch (eRR) {}
     } catch(e) {
-      showToast('Photos uploaded but link save failed: ' + e.message);
+      showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'your item') : 'Photos uploaded but link save failed: ' + e.message, 5000, true);
     }
   } else {
     showToast('✓ Photos uploaded!');
@@ -2263,7 +2263,7 @@ async function saveWizardItem() {
         if (_ap) _ap.classList.remove('active');
       } catch(_se) { console.warn('show auth-screen failed:', _se); }
     } else {
-      showToast('❌ Save failed: ' + e.message, 8000, true);
+      showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'your item') : '❌ Save failed: ' + e.message, 8000, true);
     }
   }
 }

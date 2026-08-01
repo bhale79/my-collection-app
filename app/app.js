@@ -1717,7 +1717,7 @@ async function switchEra(era) {
     if (typeof renderBrowse === 'function') renderBrowse();
     if (typeof buildDashboard === 'function') buildDashboard();
     showToast(ERAS[era].label + ' era loaded — ' + (state.masterData||[]).length + ' items');
-  } catch(e) { console.error('[switchEra]', e); showToast('Era switch error: ' + e.message); }
+  } catch(e) { console.error('[switchEra]', e); showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'the catalog switch') : 'Era switch error: ' + e.message, 5000, true); }
 }
 
 // ── Load 'All Collection' meta-era ────────────────────────────────
@@ -2524,7 +2524,7 @@ async function forceRefreshData() {
     applySheetFormatting(state.personalSheetId).catch((e) => console.warn('[applySheetFormatting failed]', e && e.message));
   } catch(e) {
     console.error('Sync error:', e);
-    showToast('Sync failed: ' + e.message, 5000, true);
+    showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'the sync') : 'Sync failed: ' + e.message, 5000, true);
   } finally {
     if (btn)  btn.disabled = false;
     if (icon) icon.style.animation = '';

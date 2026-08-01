@@ -452,7 +452,7 @@ function _photoCropStart(file, stepId, viewKey, itemNum, srcUrl) {
         showToast(ok ? 'Photo cropped'
                      : 'Could not save the crop — the photo on screen is cropped, the one in Drive is not', 4500, !ok);
       }
-    } catch (e) { console.warn('[crop] apply', e); if (typeof showToast === 'function') showToast('Crop failed: ' + e.message); }
+    } catch (e) { console.warn('[crop] apply', e); if (typeof showToast === 'function') showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'the crop') : 'Crop failed: ' + e.message, 5000, true); }
   });
 }
 if (typeof window !== 'undefined') {

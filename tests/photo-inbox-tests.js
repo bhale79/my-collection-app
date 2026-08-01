@@ -9972,6 +9972,75 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /window\.rrOutboxStart === 'function'\) window\.rrOutboxStart\(\)/.test(su));
   })();
 
+
+  section('198. A failed save says something you can act on (v0.9.1247)');
+  (function () {
+    const pathJ = require('path'); const glob = require('fs');
+    const APPD = pathJ.join(__dirname, '..', 'app');
+    const rd = f => fs.readFileSync(pathJ.join(APPD, f), 'utf8');
+    const ob = rd('write-outbox.js');
+
+    // 33 places showed the user a raw JavaScript error — "Unexpected token <
+    // in JSON at position 0", "Failed to fetch" — and 5 of them are the item
+    // and sale save handlers, so it appeared on the one action every user
+    // performs. It told them nothing they could act on, and worst of all it
+    // did not say whether their change was safe.
+
+    // ── none left ───────────────────────────────────────────────────────
+    const files = glob.readdirSync(APPD).filter(f => f.endsWith('.js'));
+    const raw = [];
+    files.forEach(f => {
+      const s = fs.readFileSync(pathJ.join(APPD, f), 'utf8');
+      const m = s.match(/showToast\(\s*(['"`])(?:(?!\1).)*?\1\s*\+\s*[A-Za-z_$][\w$]*\.message/g);
+      if (m) raw.push(f + ' x' + m.length);
+    });
+    ok('no toast concatenates a raw error message any more', raw.length === 0, raw.join(' '));
+    ok('the technical text is kept for debugging, not thrown away',
+       /console\.warn\('\[save\] '/.test(ob));
+
+    // ── RUN the message builder ─────────────────────────────────────────
+    const src = ob.slice(ob.indexOf('function rrSaveError(err, what, opts)'),
+                         ob.indexOf('window.rrSaveError'));
+    const say = (msg, what, count) => new Function('console', 'rrOutboxCount',
+      '"use strict";' + src + '; return rrSaveError;')(
+        { warn() {} }, () => (count === undefined ? 1 : count))(new Error(msg), what);
+
+    ok('offline says the change is kept, which is the only thing that matters',
+       /No connection/.test(say('offline', 'your item')) &&
+       /kept/.test(say('offline', 'your item')), say('offline', 'your item'));
+    ok('a dropped connection reads the same as being offline',
+       /No connection/.test(say('Failed to fetch', 'your item')));
+    ok('a signed-out session says how to fix it',
+       /signed out/.test(say('SESSION_EXPIRED', 'your item')) &&
+       /Sign in again/.test(say('SESSION_EXPIRED', 'your item')));
+    ok('a rate limit is explained in words, not as 429',
+       /slow down/.test(say('Sheets API error 429: quota', 'your item')) &&
+       !/429/.test(say('Sheets API error 429: quota', 'your item')));
+    ok('a permission problem points at the sheet being shared',
+       /shared with this account/.test(say('Sheets API error 403: PERMISSION_DENIED', 'your item')));
+    ok('the trial gate keeps its own wording',
+       /trial has ended/.test(say('readonly', 'your item')));
+    ok('anything unrecognised still never shows the machine',
+       !/token|JSON|position/i.test(say('Unexpected token < in JSON at position 0', 'your item')),
+       say('Unexpected token < in JSON at position 0', 'your item'));
+    ok('…and still says the change is kept',
+       /kept on this device/.test(say('Unexpected token < in JSON at position 0', 'your item')));
+    ok('with nothing kept it asks the user to try again, rather than promising a retry',
+       /Please try again/.test(say('boom', 'your item', 0)) &&
+       !/kept/.test(say('boom', 'your item', 0)), say('boom', 'your item', 0));
+    ok('the message names the thing in the user’s words',
+       /the sale/.test(say('offline', 'the sale')) &&
+       /this photo/.test(say('offline', 'this photo')));
+
+    // ── the save path specifically ──────────────────────────────────────
+    const ws = rd('wizard-save.js');
+    ok('the item and sale saves say "your item", not "your change"',
+       (ws.match(/rrSaveError\(e, 'your item'\)/g) || []).length === 5,
+       String((ws.match(/rrSaveError\(e, 'your item'\)/g) || []).length));
+    ok('every rewritten site still works if the helper is somehow missing',
+       (ws.match(/typeof rrSaveError === 'function'/g) || []).length >= 5);
+  })();
+
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);
 })();

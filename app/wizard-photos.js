@@ -197,7 +197,7 @@ async function uploadWizardPhoto(file, stepId, viewKey) {
     }
   } catch(e) {
     console.error('Photo upload failed:', e);
-    showToast('Photo upload failed: ' + e.message);
+    showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'this photo') : 'Photo upload failed: ' + e.message, 5000, true);
   } finally {
     if (prog) prog.style.display = 'none';
     if (wizard && wizard.data) wizard.data._photoUploadsInFlight = Math.max(0, (wizard.data._photoUploadsInFlight || 1) - 1);
@@ -712,7 +712,7 @@ function _wireIdentifyModalV2() {
           ? "Couldn't pin the item number — check the text below, fix it, and tap Enter →"
           : 'Screenshot read — check the number below and tap Enter →', 4500, true);
       } catch (err) {
-        if (typeof showToast === 'function') showToast('Screenshot read failed: ' + err.message, 4000, true);
+        if (typeof showToast === 'function') showToast((typeof rrSaveError === 'function') ? rrSaveError(err, 'the read') : 'Screenshot read failed: ' + err.message, 4000, true);
       } finally {
         _shotBtn.disabled = false; _shotBtn.innerHTML = orig;
       }
@@ -852,7 +852,7 @@ async function _identifyOpenLens() {
     _identifyLensOpened = true;   // v0.9.642: arms the return-from-Lens clipboard check
   } catch(e) {
     console.error('[Lens] Search failed:', e);
-    if (typeof showToast === 'function') showToast('Lens search failed: ' + e.message, 4000, true);
+    if (typeof showToast === 'function') showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'your change') : 'Lens search failed: ' + e.message, 4000, true);
     if (searchBtn) { searchBtn.disabled = false; searchBtn.innerHTML = origText; }
   }
 }

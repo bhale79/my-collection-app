@@ -254,6 +254,48 @@
     }
   }
 
+  // ── What to SAY when a write fails (v0.9.1247) ──────────────────────
+  //
+  // 33 places showed the user a raw JavaScript error: "Error: Unexpected
+  // token < in JSON at position 0", "Failed to fetch", "Sheets API error 401".
+  // Nine of them are the main save handlers, so it appeared on the one action
+  // every user performs, and it told them nothing they could act on.
+  //
+  // Now that a failed write is KEPT (see above), the message can say the one
+  // thing that actually matters — whether the change is safe — instead of
+  // quoting the machine. `what` is the thing being saved, in the user's
+  // words: "your item", "the sale", "this photo".
+  //
+  // The technical text is not thrown away, it is moved: console.warn keeps it
+  // for a debugging session, where it belongs.
+  function rrSaveError(err, what, opts) {
+    opts = opts || {};
+    var raw = String((err && err.message) || err || '');
+    try { console.warn('[save] ' + (what || 'write') + ' failed:', raw); } catch (e) {}
+    var thing = what || 'your change';
+    var kept = opts.kept !== false && rrOutboxCount() > 0;
+    var tail = kept ? ' It is kept on this device and will go up on its own.' : '';
+
+    if (raw === 'readonly') {
+      return 'Your trial has ended — subscribe to keep adding and editing.';
+    }
+    if (raw === 'SESSION_EXPIRED' || /Not signed in|Token required|sign in again|Cannot refresh/i.test(raw)) {
+      return 'You have been signed out. Sign in again and ' + thing + ' will save.';
+    }
+    if (raw === 'offline' || /Failed to fetch|NetworkError|network|ERR_INTERNET/i.test(raw)) {
+      return 'No connection, so ' + thing + ' did not reach your sheet.' +
+             (kept ? ' It is kept and will go up when you are back on.' : '');
+    }
+    if (/\b429\b|rate limit|quota/i.test(raw)) {
+      return 'Google is asking us to slow down, so ' + thing + ' did not save yet.' + tail;
+    }
+    if (/\b40[34]\b|permission|PERMISSION_DENIED/i.test(raw)) {
+      return 'Your sheet would not accept that change — check it is still shared with this account.' + tail;
+    }
+    return 'Could not save ' + thing + '.' + (tail || ' Please try again.');
+  }
+  window.rrSaveError = rrSaveError;
+
   window.rrOutboxRecord = rrOutboxRecord;
   window.rrOutboxRowsMoved = rrOutboxRowsMoved;
   window.rrOutboxList = rrOutboxList;

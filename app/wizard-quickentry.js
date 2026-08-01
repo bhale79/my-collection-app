@@ -250,7 +250,7 @@ async function quickEntryAdd() {
     }
   } catch(e) {
     console.error('[QE] Save error:', e);
-    showToast('❌ Save failed: ' + e.message, 6000, true);
+    showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'your change') : '❌ Save failed: ' + e.message, 6000, true);
   }
 }
 

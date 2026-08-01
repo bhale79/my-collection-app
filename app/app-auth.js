@@ -411,7 +411,7 @@ function handleSignIn() {
     tokenClient.requestAccessToken({ prompt: '' });
   } catch (e) {
     _resetSignInButton();
-    if (typeof showToast === 'function') showToast('Sign-in failed: ' + e.message, 4000, true);
+    if (typeof showToast === 'function') showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'sign-in') : 'Sign-in failed: ' + e.message, 4000, true);
   }
 }
 

@@ -869,7 +869,7 @@ function ephemeraForSale(tabId, rowKey) {
     try {
       await sheetsAppend(state.personalSheetId, 'For Sale!A:J', [row]);
       showToast('✓ Listed for sale');
-    } catch(e) { showToast('Error listing: ' + e.message, 3000, true); }
+    } catch(e) { showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'this listing') : 'Error listing: ' + e.message, 3000, true); }
   };
 }
 
@@ -950,7 +950,7 @@ function ephemeraSold(tabId, rowKey) {
         buildDashboard();
       }
       showToast('✓ Marked as sold');
-    } catch(e) { showToast('Error saving: ' + e.message, 3000, true); }
+    } catch(e) { showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'your change') : 'Error saving: ' + e.message, 3000, true); }
   };
 }
 

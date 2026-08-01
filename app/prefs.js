@@ -727,7 +727,7 @@ async function _rebuildDashboardTab() {
       showToast('Dashboard tab updated!');
     } catch(e) {
       console.error('Rebuild dashboard failed:', e);
-      showToast('Failed to rebuild: ' + e.message, 4000, true);
+      showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'your change') : 'Failed to rebuild: ' + e.message, 4000, true);
     }
     return;
   }

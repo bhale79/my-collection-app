@@ -2950,7 +2950,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       }
     } catch (err) {
       _biKill();
-      if (typeof showToast === 'function') showToast('Identify failed: ' + err.message, 4000, true);
+      if (typeof showToast === 'function') showToast((typeof rrSaveError === 'function') ? rrSaveError(err, 'the read') : 'Identify failed: ' + err.message, 4000, true);
       if (onCancel) onCancel();
     }
   }
