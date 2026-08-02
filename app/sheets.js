@@ -147,6 +147,44 @@ function _rrWriteFailed(kind, args, err) {
   return err;
 }
 
+// v0.9.1253 (row-identity audit, findings 3, 4, 12): verify before writing to
+// a row you did not just read.
+//
+// A row number is a POSITION. Inside the app nothing shifts on these tabs —
+// Ephemera, Parts and Sold rows are BLANKED, never deleted, and the only
+// tabs the app deletes from are My Collection and For Sale. But Brad edits
+// the same spreadsheet on his PC, and the phone can still be showing data it
+// cached before that edit. A blind write then overwrites a different record,
+// and for Sold that record is a price/date/photo snapshot the app itself
+// warns cannot be undone.
+//
+// ONE reader for "is row N still the record I think it is". Every tab this
+// guards keeps its identifying value in column A — Item ID, Part ID, Item
+// Number — so one check covers all of them.
+//
+// A definite MISMATCH refuses the write. A failed CHECK does not: a network
+// hiccup is not evidence of a mismatch, and refusing on one would make
+// editing fail whenever the connection wobbles. That leaves the pre-existing
+// behaviour exactly as it was in the only case this cannot improve on.
+async function rrRowStillIs(spreadsheetId, tab, rowNum, expected) {
+  if (!rowNum || Number(rowNum) === 99999) return false;
+  const want = String(expected == null ? '' : expected).trim();
+  if (!want) return true;                    // nothing to compare — do not block
+  let got;
+  try {
+    const res = await sheetsGet(spreadsheetId, tab + '!A' + rowNum + ':A' + rowNum);
+    got = String((((res && res.values) || [[]])[0] || [])[0] || '').trim();
+  } catch (e) {
+    console.warn('[rows] could not verify ' + tab + ' row ' + rowNum + ' — writing anyway:', e && e.message);
+    return true;
+  }
+  if (got === want) return true;
+  console.warn('[rows] ' + tab + ' row ' + rowNum + ' now holds "' + got + '", expected "' + want +
+               '" — refusing to write. The sheet was changed somewhere else.');
+  return false;
+}
+if (typeof window !== 'undefined') window.rrRowStillIs = rrRowStillIs;
+
 async function sheetsUpdate(spreadsheetId, range, values) {
   // v0.9.985 (perf): any write = data changed — invalidate cached page renders.
   try { window._rrDataRev = (window._rrDataRev || 0) + 1; } catch (e) {}

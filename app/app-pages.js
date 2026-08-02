@@ -648,6 +648,18 @@ function openEphemeraEdit(tabId, rowKey) {
       endCol = 'N';
     }
     try {
+      // v0.9.1253 (finding 3): a blind full-row rewrite. The app even tells the
+      // user to edit these in the Google Sheet ("This is an older-format row"),
+      // which is exactly the habit that shifts rows under a cached page.
+      const _ok = (typeof rrRowStillIs === 'function')
+        ? await rrRowStillIs(state.personalSheetId, sheetName, rowNum, entry.itemNum)
+        : true;
+      if (!_ok) {
+        if (typeof showToast === 'function') {
+          showToast('That row changed in your sheet — nothing was saved. Refresh and try again.', 5000, true);
+        }
+        return;
+      }
       await sheetsUpdate(state.personalSheetId, sheetName + '!A' + rowNum + ':' + endCol + rowNum, [row]);
       overlay.remove();
       // Refresh the reopened detail + list
@@ -1810,6 +1822,17 @@ async function _removeSoldRecord(key) {
   if (!ok) return;
   try {
     if (sd.row && sd.row !== 99999) {
+      // v0.9.1253 (finding 12): a sale is a snapshot the user is warned cannot
+      // be undone. Confirm the row still holds this sale before blanking it.
+      const _ok = (typeof rrRowStillIs === 'function')
+        ? await rrRowStillIs(state.personalSheetId, 'Sold', sd.row, sd.itemNum)
+        : true;
+      if (!_ok) {
+        if (typeof showToast === 'function') {
+          showToast('Your Sold list changed somewhere else — nothing was removed. Pull down to refresh and try again.', 5000, true);
+        }
+        return;
+      }
       await sheetsUpdate(state.personalSheetId, 'Sold!A' + sd.row + ':T' + sd.row, [Array(20).fill('')]);
     }
   } catch(e) { console.warn('[Sold] remove record:', e); }
@@ -3917,6 +3940,18 @@ async function savePart(existingRow) {
     }
     var row = [_t(id), desc, _t(partNum), _t(forItem), _t(forInv), photoLink, notes, new Date().toISOString().split('T')[0]];
     if (existingRow > 0) {
+      // v0.9.1253 (finding 4): this overwrites eight columns of an existing
+      // part. Confirm the row still holds that part first.
+      const _expId = (Object.values(state.partsData || {}).find(function (p) { return p.row === existingRow; }) || {}).id;
+      const _ok = (typeof rrRowStillIs === 'function')
+        ? await rrRowStillIs(state.personalSheetId, 'Parts Needed', existingRow, _expId)
+        : true;
+      if (!_ok) {
+        if (typeof showToast === 'function') {
+          showToast('Your Parts list changed somewhere else — nothing was saved. Refresh and try again.', 5000, true);
+        }
+        return;
+      }
       await sheetsUpdate(state.personalSheetId, 'Parts Needed!A' + existingRow + ':H' + existingRow, [row]);
     } else {
       await sheetsAppend(state.personalSheetId, 'Parts Needed!A:H', [row]);
@@ -3930,6 +3965,17 @@ if (typeof window !== 'undefined') window.savePart = savePart;
 async function removePart(rowNum) {
   if (!rowNum) return;
   try {
+    // v0.9.1253 (finding 4): confirm the row is still this part before blanking.
+    const _expId = (Object.values(state.partsData || {}).find(function (p) { return p.row === rowNum; }) || {}).id;
+    const _ok = (typeof rrRowStillIs === 'function')
+      ? await rrRowStillIs(state.personalSheetId, 'Parts Needed', rowNum, _expId)
+      : true;
+    if (!_ok) {
+      if (typeof showToast === 'function') {
+        showToast('Your Parts list changed somewhere else — nothing was removed. Refresh and try again.', 5000, true);
+      }
+      return;
+    }
     await sheetsUpdate(state.personalSheetId, 'Parts Needed!A' + rowNum + ':H' + rowNum, [['', '', '', '', '', '', '', '']]);
     if (typeof showToast === 'function') showToast('Part removed');
     buildPartsPage();

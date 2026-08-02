@@ -10195,12 +10195,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1252', /const APP_VERSION = 'v0\.9\.1252';/.test(cfg));
+    ok('APP_VERSION is v0.9.1253', /const APP_VERSION = 'v0\.9\.1253';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1252/g) || []).length === 69 && !/\?v=1251/.test(idx),
-       String((idx.match(/\?v=1252/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1263';/.test(rd('app/sw.js')));
-    ok('the root page asks for the new worker', /sw\.js\?v=1252/.test(root));
+       (idx.match(/\?v=1253/g) || []).length === 69 && !/\?v=1252/.test(idx),
+       String((idx.match(/\?v=1253/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1264';/.test(rd('app/sw.js')));
+    ok('the root page asks for the new worker', /sw\.js\?v=1253/.test(root));
   })();
 
   // ═══════════════════════════════════════════════════════════
@@ -10522,6 +10522,80 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('on a browse sub-tab it redraws THAT tab, not Items',
          called.join() === 'tab:paper', called.join());
     })();
+  })();
+
+  // ═══════════════════════════════════════════════════════════
+  // §203. v0.9.1253 — verify before writing to a row you did not
+  //   just read. Findings 3, 4 and 12. These tabs are never deleted
+  //   from INSIDE the app — but Brad edits the same sheet on a PC,
+  //   and a cached page then writes to a row that has become
+  //   somebody else.
+  // ═══════════════════════════════════════════════════════════
+  (function () {
+    const fs203 = require('fs'), p203 = require('path');
+    const rd = f => fs203.readFileSync(p203.join(__dirname, '..', f), 'utf8');
+    const sh = rd('app/sheets.js'), pages = rd('app/app-pages.js'), idx = rd('app/index.html');
+
+    section('203. One reader for "is this row still that record"');
+    ok('the helper exists and is shared',
+       /async function rrRowStillIs\(spreadsheetId, tab, rowNum, expected\)/.test(sh) &&
+       /window\.rrRowStillIs = rrRowStillIs/.test(sh));
+    ok('it loads before the page that uses it',
+       idx.indexOf('<script src="./sheets.js?v=') < idx.indexOf('<script src="./app-pages.js?v='));
+
+    // Run it — SYNCHRONOUSLY. The harness's summary line is synchronous and
+    // calls process.exit, so an assertion that resolves in a microtask never
+    // prints and never fails: an invisible test. The only async here is one
+    // network round trip, so strip the async/await out of the slice and drive
+    // it with a plain function, exactly as §(earlier) does.
+    (function () {
+      const raw = sh.slice(sh.indexOf('async function rrRowStillIs'),
+                           sh.indexOf("if (typeof window !== 'undefined') window.rrRowStillIs"));
+      const src = raw.replace(/^async function/, 'function').replace(/await /g, '');
+      const mkWarns = [];
+      const mk = (cell, throws) => new Function('sheetsGet', 'console',
+        src + '\n return rrRowStillIs;')(
+          () => { if (throws) throw new Error('offline'); return { values: [[cell]] }; },
+          { warn: function () { mkWarns.push([].slice.call(arguments).join(' ')); } });
+
+      ok('a matching row is allowed through',
+         mk('PART-7')('S', 'Parts Needed', 5, 'PART-7') === true);
+      ok('a MISMATCHED row is refused',
+         mk('PART-9')('S', 'Parts Needed', 5, 'PART-7') === false);
+      ok('…and says the sheet was changed elsewhere',
+         mkWarns.some(w => /refusing to write/.test(w)), mkWarns[0] || '(no warning)');
+      ok('a failed CHECK is not treated as a mismatch — the write proceeds',
+         mk('', true)('S', 'Parts Needed', 5, 'PART-7') === true);
+      ok('nothing to compare against does not block the write',
+         mk('PART-9')('S', 'Parts Needed', 5, '') === true);
+      ok('a missing row is refused',
+         mk('PART-7')('S', 'Parts Needed', 0, 'PART-7') === false);
+      ok('a placeholder row is refused',
+         mk('PART-7')('S', 'Parts Needed', 99999, 'PART-7') === false);
+      ok('whitespace in the sheet does not cause a false refusal',
+         mk('  PART-7 ')('S', 'Parts Needed', 5, 'PART-7') === true);
+      ok('an emptied row is refused, not treated as a match',
+         mk('')('S', 'Sold', 5, '1001') === false);
+    })();
+
+    section('203b. All four write sites ask first');
+    ok('removing a sale record verifies',
+       /rrRowStillIs\(state\.personalSheetId, 'Sold', sd\.row, sd\.itemNum\)/.test(pages));
+    ok('saving over an existing part verifies',
+       /rrRowStillIs\(state\.personalSheetId, 'Parts Needed', existingRow, _expId\)/.test(pages));
+    ok('removing a part verifies',
+       /rrRowStillIs\(state\.personalSheetId, 'Parts Needed', rowNum, _expId\)/.test(pages));
+    ok('the ephemera full-row rewrite verifies',
+       /rrRowStillIs\(state\.personalSheetId, sheetName, rowNum, entry\.itemNum\)/.test(pages));
+    ok('each one STOPS on a refusal rather than writing anyway',
+       (pages.match(/if \(!_ok\) \{/g) || []).length === 4,
+       String((pages.match(/if \(!_ok\) \{/g) || []).length));
+    ok('…and tells the user what happened, in their words',
+       (pages.match(/changed (somewhere else|in your sheet) — nothing was/g) || []).length === 4,
+       String((pages.match(/changed (somewhere else|in your sheet) — nothing was/g) || []).length));
+    ok('no guarded write can run before its check',
+       ['Sold!A', "Parts Needed!A' + existingRow", "Parts Needed!A' + rowNum", "sheetName + '!A' + rowNum"]
+         .every(w => pages.indexOf('rrRowStillIs') < pages.lastIndexOf(w)));
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
