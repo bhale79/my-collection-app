@@ -11053,48 +11053,149 @@ META_WRITES.length = 0; TOASTS.length = 0;
        'unreachable code that looks like a safety net is worse than none');
 
     section('209d. Retrying is only for what might get better');
-    const cfgFn = drive.slice(drive.indexOf('async function driveReadConfig'),
-                              drive.indexOf('async function driveFindPersonalSheet'));
-    ok('a definite refusal is not retried three times',
-       /e\.status\s*===\s*429/.test(cfgFn) && /e\.status\s*>=\s*500/.test(cfgFn),
-       'a 403 answers the same way however many times you ask — and sign-in pays 2s each');
-    ok('…and does not raise a "could not connect" alarm on a path that recovers',
-       /if\s*\(_transient\)\s*showToast/.test(cfgFn),
-       'app-auth falls through to driveFindPersonalSheet and finds the sheet by name');
+    // The first draft of this section asked whether the strings
+    // "e.status === 429" and "e.status >= 500" appeared somewhere in the
+    // function. They would still appear if the gate that USES them were
+    // deleted — reverting `if (_transient && retryCount < MAX_RETRIES)` to
+    // `if (retryCount < MAX_RETRIES)` reinstates the whole six-second sign-in
+    // regression and passes a regex that only wants the words. So: run the
+    // real function against a stub that refuses, and COUNT how many times it
+    // is asked.
+    function configAsking(status) {
+      const src = drive.slice(drive.indexOf('async function driveReadConfig'),
+                              drive.indexOf('// Fallback: search Drive for the personal sheet by name'));
+      let calls = 0;
+      const toasts = [];
+      const stubReq = async function () {
+        calls++;
+        const e = new Error('Drive request failed (' + status + ')');
+        e.status = status;
+        throw e;
+      };
+      const fn = new Function('driveRequest', 'fetch', 'CONFIG_FILENAME', '_OLD_CONFIG_FILENAME',
+                              'accessToken', 'showToast', 'setTimeout', 'console',
+        src + 'return driveReadConfig;'
+      )(stubReq, async () => ({ json: async () => ({}) }), 'cfg.json', 'old.json', 'tok',
+        function (t) { toasts.push(t); },
+        function (f) { f(); },                       // no real 2s waits in a test
+        { warn() {}, error() {}, log() {} });
+      return { run: fn, calls: function () { return calls; }, toasts: toasts };
+    }
+
+    const refused = configAsking(403);
+    const refusedOut = await refused.run();
+    ok('a definite refusal is asked exactly once, not four times',
+       refused.calls() === 1,
+       'asked ' + refused.calls() + ' times — a 403 answers the same way however many ' +
+       'times you ask, and each retry costs a signing-in user two seconds');
+    ok('…and still answers null, so app-auth falls through to the by-name search',
+       refusedOut === null, String(refusedOut));
+    ok('…without alarming anyone on a path that recovers by itself',
+       refused.toasts.length === 0, JSON.stringify(refused.toasts));
+
+    const flaky = configAsking(500);
+    const flakyOut = await flaky.run();
+    ok('a server error IS retried — three times, as it always was',
+       flaky.calls() === 4, 'asked ' + flaky.calls() + ' times (1 + 3 retries)');
+    ok('…and says so, first hopefully and then honestly',
+       flaky.toasts.length === 2 &&
+       /Reconnecting/.test(flaky.toasts[0]) &&
+       /Could not connect/.test(flaky.toasts[1]),
+       JSON.stringify(flaky.toasts));
+    ok('…and gives up with null rather than throwing at sign-in',
+       flakyOut === null, String(flakyOut));
+
+    const rated = configAsking(429);
+    await rated.run();
+    ok('a rate limit is treated as transient, not as a refusal',
+       rated.calls() === 4, 'asked ' + rated.calls() + ' times');
 
     section('209e. A listing that stopped early says so');
-    // The first draft of this section asked only whether the word
-    // "listComplete" appeared anywhere in the function — and a deliberate
-    // break that deleted it from the RESULT, leaving the local variable
-    // behind, sailed straight through. Setting a flag nobody is handed is the
-    // same as not setting one. So: read the object the caller is actually
-    // given, and require the flag to be in THAT.
-    function resultLiteralOf(fnName, endMarker) {
-      const fn = drive.slice(drive.indexOf('async function ' + fnName),
-                             drive.indexOf(endMarker));
-      const at = fn.indexOf('const result = {');
-      return at < 0 ? '' : fn.slice(at, fn.indexOf('};', at));
+    // Two drafts of this section were worthless, in two different ways, and
+    // both are worth recording because the same mistakes are easy to repeat:
+    //
+    //   Draft 1 asked whether the word "listComplete" appeared anywhere in the
+    //   function. Deleting it from the RESULT, leaving the local variable
+    //   behind, sailed through — a flag nobody is handed is not a flag.
+    //
+    //   Draft 2 read the result LITERAL instead. Better, but still text: it
+    //   passed when `listComplete = false` was deleted from the catch block
+    //   (the OTHER assignment, on the spin-limit guard, satisfied the regex),
+    //   and it passed when the literal was hardcoded to `listComplete: true`.
+    //
+    // Text about a value is not the value. These run the real functions
+    // against a Drive that fails on page two, and read the answer.
+    const ERAS_STUB = { pw: { label: 'Lionel Postwar' }, mod: { label: 'Modern' }, all: { label: 'All' } };
+    function runsWith(fnName, endMarker, pages) {
+      const src = drive.slice(drive.indexOf('async function ' + fnName), drive.indexOf(endMarker));
+      let n = 0;
+      const stubReq = async function () {
+        const p = pages[n++];
+        if (!p) throw new Error('asked for a page the test did not script');
+        if (p.refuse) { const e = new Error('Drive request failed (403)'); e.status = 403; throw e; }
+        return p;
+      };
+      return new Function('driveEnsureSetup', 'driveCache', 'driveRequest', 'ERAS',
+                          'driveEraFolderNameFor', '_driveEraFolders', 'driveFindOrCreateFolder', 'console',
+        src + 'return ' + fnName + ';'
+      )(async function () {}, { photosId: 'PHOTOS', itemFolders: {} }, stubReq, ERAS_STUB,
+        function () { return 'Lionel Postwar'; },
+        async function () { return { 'Lionel Postwar': 'ERA_PW' }; },
+        async function () { return 'NEW'; },
+        { warn() {}, error() {}, log() {} });
     }
-    const migFn = drive.slice(drive.indexOf('async function driveMigrateItemFoldersToEras'),
-                              drive.indexOf('async function driveRefileItemFolders'));
-    const migResult = resultLiteralOf('driveMigrateItemFoldersToEras', 'async function driveRefileItemFolders');
-    ok('the era migration notices a page it never got',
-       /listComplete = false/.test(migFn),
-       'a truncated listing used to report a tidy success over half the data');
-    ok('…and hands that fact to whoever called it',
-       /listComplete/.test(migResult), migResult.slice(0, 200));
-    ok('…in words, not just a boolean to be overlooked',
-       /warning/.test(migFn));
 
-    const refFn = drive.slice(drive.indexOf('async function driveRefileItemFolders'),
-                              drive.indexOf('if (typeof window !== \'undefined\') {\n  window.driveMigrateItemFoldersToEras'));
-    const refResult = resultLiteralOf('driveRefileItemFolders',
-      'if (typeof window !== \'undefined\') {\n  window.driveMigrateItemFoldersToEras');
-    ok('the refile pass survives one bad era instead of abandoning the rest',
-       /catch \(e\) \{[\s\S]{0,160}listComplete = false/.test(refFn),
-       'it loops once per era — an unhandled throw would skip every era after the failure');
-    ok('…and reports which eras it could not finish',
-       /incompleteEras/.test(refResult), refResult.slice(0, 200));
+    const MIG_END = 'async function driveRefileItemFolders';
+    // Page 1 arrives and promises a page 2. Page 2 is refused.
+    const migPartial = await runsWith('driveMigrateItemFoldersToEras', MIG_END, [
+      { files: [{ id: 'f1', name: '2328' }], nextPageToken: 'p2' },
+      { refuse: true },
+    ])({ dryRun: true });
+    ok('the era migration TELLS the caller it never saw page two',
+       migPartial.listComplete === false,
+       'listComplete=' + migPartial.listComplete + ' — a truncated listing used to report a ' +
+       'tidy success over half the data');
+    ok('…in words, not just a boolean to be overlooked',
+       typeof migPartial.warning === 'string' && migPartial.warning.length > 20,
+       String(migPartial.warning));
+    ok('…while still keeping the folders it did read',
+       migPartial.total === 1 && migPartial.planned === 1,
+       'total=' + migPartial.total + ' planned=' + migPartial.planned +
+       ' — a partial run is safe; abandoning the whole thing would not be');
+
+    // Both pages arrive. The flag must be able to say YES too, or it says nothing.
+    const migWhole = await runsWith('driveMigrateItemFoldersToEras', MIG_END, [
+      { files: [{ id: 'f1', name: '2328' }], nextPageToken: 'p2' },
+      { files: [{ id: 'f2', name: '2343' }] },
+    ])({ dryRun: true });
+    ok('a listing that DID finish is not reported as partial',
+       migWhole.listComplete === true && !migWhole.warning,
+       'listComplete=' + migWhole.listComplete + ' warning=' + migWhole.warning);
+    ok('…and every page it read is counted, not just the first',
+       migWhole.total === 2, 'total=' + migWhole.total);
+
+    const REF_END = 'if (typeof window !== \'undefined\') {\n  window.driveMigrateItemFoldersToEras';
+    const refPartial = await runsWith('driveRefileItemFolders', REF_END, [
+      { files: [{ id: 'g1', name: '2328' }], nextPageToken: 'p2' },
+      { refuse: true },
+    ])({ dryRun: true });
+    ok('the refile pass records the era it could not finish reading',
+       refPartial.listComplete === false &&
+       Array.isArray(refPartial.incompleteEras) && refPartial.incompleteEras.length === 1,
+       'listComplete=' + refPartial.listComplete + ' incompleteEras=' + JSON.stringify(refPartial.incompleteEras));
+    ok('…and names it, so a re-run knows where to look',
+       (refPartial.incompleteEras || [])[0] === 'Lionel Postwar',
+       JSON.stringify(refPartial.incompleteEras));
+    ok('…and still reports having checked the era rather than aborting',
+       refPartial.checked === 1, 'checked=' + refPartial.checked +
+       ' — it loops once per era; an unhandled throw would skip every era after the failure');
+
+    const refWhole = await runsWith('driveRefileItemFolders', REF_END, [
+      { files: [{ id: 'g1', name: '2328' }] },
+    ])({ dryRun: true });
+    ok('a refile pass that read everything says so',
+       refWhole.listComplete === true && refWhole.incompleteEras.length === 0 && !refWhole.warning,
+       'listComplete=' + refWhole.listComplete + ' incompleteEras=' + JSON.stringify(refWhole.incompleteEras));
 
     section('209f. Nothing erases where the photos are before it knows where they are');
     const ensure = drive.slice(drive.indexOf('async function driveEnsureSetup'),
