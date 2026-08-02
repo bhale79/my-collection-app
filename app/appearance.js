@@ -1736,14 +1736,59 @@
   //
   // pointer-events:none so it can never block a tap. position:fixed so it
   // stays put while the page scrolls under it.
+  // v0.9.1255 (Brad): "the water mark logo needs to stay centered in the
+  // yellow part not centered in the screen."
+  //
+  // The mark was `position:fixed; inset:0`. Being INSIDE .main does not help:
+  // a fixed element is positioned against the VIEWPORT whatever its parent is,
+  // so inset:0 covered the whole window and background-position:center centred
+  // the logo on the screen — pushed left of the cream by the whole width of
+  // the sidebar.
+  //
+  // It has to stay fixed (it must not scroll away with the content), so the
+  // fix is to give it .main's box rather than the window's. ONE reader for
+  // that geometry — _fitLogoBackdrop — and it is re-run whenever .main can
+  // change size: window resize, and a ResizeObserver for everything a resize
+  // event does not cover (the sidebar collapsing under a breakpoint, a
+  // scrollbar appearing, the keyboard opening on a phone).
+  function _fitLogoBackdrop() {
+    var el = document.getElementById('rr-logo-bg');
+    var host = document.querySelector('.main');
+    if (!el) return;
+    if (!host) {                       // no cream area yet — fall back to the window
+      el.style.cssText += ';left:0;top:0;width:100%;height:100%';
+      return;
+    }
+    var r = host.getBoundingClientRect();
+    el.style.left   = r.left + 'px';
+    el.style.top    = r.top + 'px';
+    el.style.width  = r.width + 'px';
+    el.style.height = r.height + 'px';
+  }
+  window._rrFitLogoBackdrop = _fitLogoBackdrop;
+
+  var _wmRO = null;
+  function _watchLogoBackdrop() {
+    var host = document.querySelector('.main');
+    if (!host || typeof ResizeObserver !== 'function') return;
+    if (_wmRO) { try { _wmRO.disconnect(); } catch (e) {} }
+    _wmRO = new ResizeObserver(function () { _fitLogoBackdrop(); });
+    try { _wmRO.observe(host); } catch (e) {}
+  }
+
   function applyLogoBackdrop(slot) {
     if (slot === undefined) slot = _brandRec().watermark;
     var el = document.getElementById('rr-logo-bg');
-    if (!slot || !slot.data) { if (el) el.remove(); return; }
+    if (!slot || !slot.data) {
+      if (el) el.remove();
+      if (_wmRO) { try { _wmRO.disconnect(); } catch (e) {} _wmRO = null; }
+      return;
+    }
     var host = document.querySelector('.main') || document.body;
     if (!el) {
       el = document.createElement('div'); el.id = 'rr-logo-bg';
-      el.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:-1;'
+      // No `inset:0` — the box is set from .main by _fitLogoBackdrop below.
+      el.style.cssText = 'position:fixed;pointer-events:none;z-index:-1;'
         + 'background-position:center;background-repeat:no-repeat;'
         // v0.9.1241: twice the old min(55vmin,420px), at Brad's ask.
         + 'background-size:min(110vmin,840px)';
@@ -1753,6 +1798,11 @@
     if (el.parentNode !== host) host.appendChild(el);
     el.style.backgroundImage = 'url(' + slot.data + ')';
     el.style.opacity = String(slot.opacity || WM_DEFAULT);
+    _fitLogoBackdrop();
+    _watchLogoBackdrop();
+  }
+  if (typeof window !== 'undefined') {
+    window.addEventListener('resize', function () { _fitLogoBackdrop(); });
   }
   window.applyLogoBackdrop = applyLogoBackdrop;
 

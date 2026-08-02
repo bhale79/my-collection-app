@@ -556,15 +556,33 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
       ok('watermark: the backdrop style was found in appearance.js',
          wmStyle !== 'MISSING' && /z-index/.test(wmStyle), wmStyle.slice(0, 80));
 
+      // v0.9.1255: the backdrop no longer carries `inset:0` — it is a fixed
+      // layer given .main's BOX, so it centres in the cream and not on the
+      // screen. Take that sizing rule from appearance.js too rather than
+      // retyping it: a fixture that positions the element itself would prove
+      // only that the fixture can do maths.
+      const wmFit = (function () {
+        const at = apSrc.indexOf('function _fitLogoBackdrop()');
+        if (at < 0) return '';
+        return apSrc.slice(at, apSrc.indexOf('\n  }', at) + 4);
+      })();
+      ok('watermark: the sizing rule was found in appearance.js',
+         /getBoundingClientRect\(\)/.test(wmFit) && /el\.style\.left/.test(wmFit), wmFit.slice(0, 60));
+
+      // A real sidebar, so .main is OFFSET from the window. Without one the
+      // old bug and the fix look identical.
       const wmPage = `<!doctype html><html><head><meta charset="utf-8">
 <link rel="stylesheet" href="file://${APP}/app.css">
 <style>html,body{margin:0;height:100%}
  .app-body{display:flex;height:100%}
+ .sidebar{width:260px;flex:0 0 260px;background:#123}
  #card{width:200px;height:120px;background:#ff00ff;margin:40px}</style></head>
-<body><div class="app-body"><div class="main">
+<body><div class="app-body"><div class="sidebar"></div><div class="main">
   <div id="rr-logo-bg" style="${wmStyle};background-image:none;background-color:#00ff00;opacity:0.5"></div>
   <div id="card"></div>
-</div></div></body></html>`;
+</div></div>
+<script>${wmFit}\n_fitLogoBackdrop();</script>
+</body></html>`;
       const f4 = path.join(dir, 'watermark.html');
       fs.writeFileSync(f4, wmPage);
       const pg = await browser.newPage({ viewport: { width: 900, height: 600 } });
@@ -576,6 +594,37 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
         return { cx: Math.round(c.left + c.width / 2), cy: Math.round(c.top + c.height / 2),
                  bx: Math.round(c.right + 120), by: Math.round(c.top + c.height / 2) };
       });
+      // v0.9.1255 — THE POINT OF THE CHANGE. Brad: "the water mark logo needs
+      // to stay centered in the yellow part not centered in the screen."
+      // With a 260px sidebar the two centres are 130px apart, so this is the
+      // one measurement that tells the fix from the bug.
+      {
+        const geo = await pg.evaluate(() => {
+          const b = document.getElementById('rr-logo-bg').getBoundingClientRect();
+          const m = document.querySelector('.main').getBoundingClientRect();
+          return {
+            bg: { l: Math.round(b.left), t: Math.round(b.top), w: Math.round(b.width), h: Math.round(b.height),
+                  cx: Math.round(b.left + b.width / 2) },
+            main: { l: Math.round(m.left), t: Math.round(m.top), w: Math.round(m.width), h: Math.round(m.height),
+                    cx: Math.round(m.left + m.width / 2) },
+            winCx: Math.round(window.innerWidth / 2),
+            fixed: getComputedStyle(document.getElementById('rr-logo-bg')).position,
+          };
+        });
+        ok('watermark: it fills the cream area exactly, not the window',
+           geo.bg.l === geo.main.l && geo.bg.t === geo.main.t &&
+           geo.bg.w === geo.main.w && geo.bg.h === geo.main.h,
+           JSON.stringify(geo.bg) + ' vs ' + JSON.stringify(geo.main));
+        ok('watermark: its centre is the CREAM centre',
+           geo.bg.cx === geo.main.cx, geo.bg.cx + ' vs ' + geo.main.cx);
+        ok('watermark: …which is NOT the screen centre, so this measures the fix',
+           geo.main.cx !== geo.winCx, 'cream ' + geo.main.cx + ' / screen ' + geo.winCx);
+        ok('watermark: it does not start at the window edge any more',
+           geo.bg.l > 0, 'left=' + geo.bg.l);
+        ok('watermark: it stays FIXED, so it does not scroll away with the list',
+           geo.fixed === 'fixed', geo.fixed);
+      }
+
       await pg.close();
 
       // Decode the PNG without a dependency: re-render the two sample points

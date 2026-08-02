@@ -10195,12 +10195,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1254', /const APP_VERSION = 'v0\.9\.1254';/.test(cfg));
+    ok('APP_VERSION is v0.9.1255', /const APP_VERSION = 'v0\.9\.1255';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1254/g) || []).length === 69 && !/\?v=1253/.test(idx),
-       String((idx.match(/\?v=1254/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1265';/.test(rd('app/sw.js')));
-    ok('the root page asks for the new worker', /sw\.js\?v=1254/.test(root));
+       (idx.match(/\?v=1255/g) || []).length === 69 && !/\?v=1254/.test(idx),
+       String((idx.match(/\?v=1255/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1266';/.test(rd('app/sw.js')));
+    ok('the root page asks for the new worker', /sw\.js\?v=1255/.test(root));
   })();
 
   // ═══════════════════════════════════════════════════════════
