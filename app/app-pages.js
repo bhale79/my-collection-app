@@ -2247,8 +2247,9 @@ async function markForSaleAsSold(fsKey, askingPrice) {
 
   // Remove from My Collection
   if (collEntry?.row) {
-    await sheetsUpdate(state.personalSheetId, personalFullRowRange(collEntry.row), [personalBlankRow()]);
-    delete state.personalData[collKey];
+    // v0.9.1267 (R3): identity-checked. Only forget the item if the sheet
+    // actually let go of it.
+    if (await personalWriteRow(collEntry, personalBlankRow())) delete state.personalData[collKey];
   }
 
   // ── Cascade: this Sold row covers the WHOLE group (one price). Remove
@@ -2256,8 +2257,10 @@ async function markForSaleAsSold(fsKey, askingPrice) {
   if (_grpMembers) {
     for (const _m of _grpMembers.pd) {
       if (_m.key === collKey) continue;
-      if (_m.rec && _m.rec.row) { try { await sheetsUpdate(state.personalSheetId, personalFullRowRange(_m.rec.row), [personalBlankRow()]); } catch(e){} }
-      delete state.personalData[_m.key];
+      // v0.9.1267 (R3): identity-checked; keep the member in memory if its row moved.
+      var _mBlanked = true;
+      if (_m.rec && _m.rec.row) { try { _mBlanked = await personalWriteRow(_m.rec, personalBlankRow()); } catch(e){} }
+      if (_mBlanked) delete state.personalData[_m.key];
     }
     for (const _m of _grpMembers.is) {
       if (_m.rec && _m.rec.row) { try { await sheetsUpdate(state.personalSheetId, `Instruction Sheets!A${_m.rec.row}:K${_m.rec.row}`, [['','','','','','','','','','','']]); } catch(e){} }
@@ -2414,18 +2417,23 @@ async function removeForSaleAndCollection(fsKey) {
   // My Collection rows (all members) — prefer the lead's inventoryId for single-item case
   if (_grp && _grp.pd.length) {
     for (const _m of _grp.pd) {
-      if (_m.rec && _m.rec.row) { try { await sheetsUpdate(state.personalSheetId, personalFullRowRange(_m.rec.row), [personalBlankRow()]); } catch(e){} }
-      delete state.personalData[_m.key];
+      // v0.9.1267 (R3): identity-checked; keep the member in memory if its row moved.
+      let _mBlanked2 = true;
+      if (_m.rec && _m.rec.row) { try { _mBlanked2 = await personalWriteRow(_m.rec, personalBlankRow()); } catch(e){} }
+      if (_mBlanked2) delete state.personalData[_m.key];
     }
   } else {
     // Phase 3: prefer the lead's inventoryId for the collection lookup so duplicate copies don't collide.
     let collKey = _lead.inventoryId && state.personalData[_lead.inventoryId] ? _lead.inventoryId : null;
     if (!collKey && typeof findPDKey === 'function') collKey = findPDKey(itemNum, variation);
     const collEntry = collKey ? state.personalData[collKey] : null;
+    // v0.9.1267 (R3): identity-checked. A row with no stored row number was
+    // never on the sheet, so forgetting it is still correct.
+    let _ceBlanked = true;
     if (collEntry && collEntry.row) {
-      await sheetsUpdate(state.personalSheetId, personalFullRowRange(collEntry.row), [personalBlankRow()]);
+      _ceBlanked = await personalWriteRow(collEntry, personalBlankRow());
     }
-    if (collKey) delete state.personalData[collKey];
+    if (collKey && _ceBlanked) delete state.personalData[collKey];
   }
   // Instruction sheets (all members)
   if (_grp && _grp.is.length) {

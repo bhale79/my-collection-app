@@ -149,12 +149,28 @@ async function migrationAppendToDest(sourceRow, destTab) {
 window.migrationAppendToDest = migrationAppendToDest;
 
 // ── Step 3: Clear / delete the source row.
-async function migrationClearSource(sourceTab, sourceRowNumber) {
+// v0.9.1267 (R3): `expectedItemNum` is REQUIRED, and it is required for the
+// same reason it is required on sheetsDeleteRow itself. This one deletes from
+// the MASTER sheet — the shared reference data every user of the app reads —
+// and the three steps are separate button presses with a human in between, so
+// the gap between "find row 4,812" and "delete row 4,812" can be minutes long.
+// Master tabs have no Inventory ID column, so the item number in column A is
+// the only identity there is; it is at least unique within a master tab.
+// Both callers already hold it on the preview object as `.itemNum`.
+async function migrationClearSource(sourceTab, sourceRowNumber, expectedItemNum) {
   var cfg = window.MIGRATION || {};
   if (!cfg.enabled)   throw new Error(_migFill(cfg.ui.errDisabled, {}));
   if (!_migAdminOk()) throw new Error(_migFill(cfg.ui.errNotAdmin, {}));
+  if (expectedItemNum === undefined) {
+    throw new Error('migrationClearSource: expectedItemNum is required — say which item you believe is on ' +
+                    sourceTab + ' row ' + sourceRowNumber + ' before deleting it.');
+  }
   var sheetId = state.masterSheetId || (typeof MASTER_SHEET_ID !== 'undefined' ? MASTER_SHEET_ID : '');
-  await sheetsDeleteRow(sheetId, sourceTab, sourceRowNumber);
+  var _cleared = await sheetsDeleteRow(sheetId, sourceTab, sourceRowNumber, { itemNum: expectedItemNum, inventoryId: '' });
+  if (!_cleared) {
+    throw new Error('That master row is no longer ' + expectedItemNum +
+                    ' — nothing was deleted. Reload the master sheet and find the item again.');
+  }
   // Wipe master cache so next load re-fetches
   try { idbRemove('lv_master_cache'); } catch(e){}
   try { localStorage.removeItem('lv_master_cache_ts'); } catch(e){}
@@ -167,6 +183,6 @@ window.migrationClearSource = migrationClearSource;
 window.migrateItemBetweenTabs = async function(itemNum, sourceTab, destTab) {
   var prev = await migrationFindItem(itemNum, sourceTab, destTab);
   var destRowNum = await migrationAppendToDest(prev.sourceRow, destTab);
-  await migrationClearSource(sourceTab, prev.sourceRowNumber);
+  await migrationClearSource(sourceTab, prev.sourceRowNumber, prev.itemNum);
   return { moved: true, destRowNum: destRowNum, sourceRowNumber: prev.sourceRowNumber };
 };

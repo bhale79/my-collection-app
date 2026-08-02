@@ -1126,7 +1126,12 @@ async function rrRemoveSetGroup(groupId) {
     try {
       const pd = state.personalData[key];
       if (pd && pd.row) {
-        await sheetsDeleteRow(state.personalSheetId, PERSONAL_TAB, pd.row);
+        // v0.9.1267 (R3): name the record before removing it. A false return
+        // means the row is not ours any more — it is still there, nothing below
+        // it moved, and the user has been told to refresh. Leave state alone.
+        const _setGone = await sheetsDeleteRow(state.personalSheetId, PERSONAL_TAB, pd.row,
+                                               { itemNum: pd.itemNum, inventoryId: pd.inventoryId || '' });
+        if (!_setGone) continue;
         // v0.9.1236 (identity audit): a sheet row number is a POSITION, and
         // deleting a row moves every row beneath it up by one. Every other
         // delete path in the app calls this; this one never did, so cancelling

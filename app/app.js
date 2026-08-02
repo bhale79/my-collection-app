@@ -93,14 +93,15 @@ const PERSONAL_HEADERS = PERSONAL_SCHEMA.map(s => s.header);
 const PERSONAL_FIELD_INDEX = {};
 PERSONAL_SCHEMA.forEach((s, i) => { PERSONAL_FIELD_INDEX[s.field] = i; });
 
-// Spreadsheet column letter (A, B, ..., Z, AA, AB, AC, AD, ...) for a field
-function personalColLetter(fieldName) {
-  const idx = PERSONAL_FIELD_INDEX[fieldName];
-  if (idx === undefined) {
-    console.warn('[personalColLetter] unknown field:', fieldName);
-    return 'A';
-  }
-  let n = idx + 1;   // 1-indexed column number
+// v0.9.1267 (R3): the index -> letter arithmetic on its own, because
+// personalColLetter is no longer the only caller. rrRowStillIs (sheets.js)
+// needs the letter of the Inventory ID column on For Sale / Sold /
+// Want-Upgrade too, and those tabs are not described by PERSONAL_SCHEMA.
+// One copy of the arithmetic, per the single-source-of-truth rule.
+// 0-based index in, spreadsheet column letter out: 0 -> A, 25 -> Z, 26 -> AA.
+function colLetter(idx) {
+  let n = Number(idx) + 1;   // 1-indexed column number
+  if (!(n > 0)) return 'A';
   let s = '';
   while (n > 0) {
     n--;
@@ -108,6 +109,16 @@ function personalColLetter(fieldName) {
     n = Math.floor(n / 26);
   }
   return s;
+}
+
+// Spreadsheet column letter (A, B, ..., Z, AA, AB, AC, AD, ...) for a field
+function personalColLetter(fieldName) {
+  const idx = PERSONAL_FIELD_INDEX[fieldName];
+  if (idx === undefined) {
+    console.warn('[personalColLetter] unknown field:', fieldName);
+    return 'A';
+  }
+  return colLetter(idx);
 }
 
 // Blank row sized to the schema — used to clear a row
@@ -119,6 +130,40 @@ function personalBlankRow() {
 function personalFullRowRange(rowNum) {
   const lastCol = personalColLetter(PERSONAL_SCHEMA[PERSONAL_SCHEMA.length - 1].field);
   return PERSONAL_TAB + '!A' + rowNum + ':' + lastCol + rowNum;
+}
+
+// v0.9.1267 (R3): the ONE way to replace or blank a whole My Collection row.
+//
+// A full-row write is the most destructive thing that is not a delete: it
+// replaces every column at once, so landing one row off does not corrupt an
+// item, it REPLACES one item with another — or, when the values are a blank
+// row, erases an item that was never meant to be touched. The row numbers we
+// are writing to came from a read that may be minutes or hours old, and a
+// second view of the same spreadsheet (a phone, or Brad editing on his PC) can
+// have deleted a row above in the meantime.
+//
+// So: pass the RECORD, not a row number. The record already carries both the
+// row and the identity, which means there is no way to hand this function a
+// position without also saying whose position it is meant to be.
+//
+// Returns true if the write happened, false if it was refused because the row
+// no longer holds that record. On false the user has already been shown the
+// "that row moved — refresh" message, and the caller must NOT go on to update
+// its own state: the sheet still says what it said before.
+//
+// Two call sites deliberately do NOT use this and ask rrRowStillIs themselves:
+// the box row in wizard-save.js, which appends instead of stopping (so a toast
+// saying nothing was saved would be untrue), and the fill-item write in
+// saveWizardItem, which throws 'ROW_MOVED' so its existing caller reports it
+// once. Both are commented where they sit. Everywhere else, use this.
+async function personalWriteRow(rec, values) {
+  if (!rec || !rec.row || rec.row === 99999) return false;
+  return await sheetsUpdateRow(
+    state.personalSheetId,
+    personalFullRowRange(rec.row),
+    [values],
+    { itemNum: rec.itemNum, inventoryId: rec.inventoryId || '' }
+  );
 }
 
 // Master-description helpers (Session 156). Look up description/varDesc from
@@ -229,9 +274,11 @@ if (typeof window !== 'undefined') {
   window.PERSONAL_SCHEMA = PERSONAL_SCHEMA;
   window.PERSONAL_HEADERS = PERSONAL_HEADERS;
   window.PERSONAL_FIELD_INDEX = PERSONAL_FIELD_INDEX;
+  window.colLetter = colLetter;
   window.personalColLetter = personalColLetter;
   window.personalBlankRow = personalBlankRow;
   window.personalFullRowRange = personalFullRowRange;
+  window.personalWriteRow = personalWriteRow;
   window.buildPersonalRow = buildPersonalRow;
   window._lookupMasterDesc = _lookupMasterDesc;
   window._lookupMasterVarDesc = _lookupMasterVarDesc;
@@ -856,10 +903,14 @@ async function _cleanupSoldItemBoxes(leadItemNum, leadGroupId) {
     }
     for (var i = 0; i < keys.length; i++) {
       var bp = state.personalData[keys[i]];
+      // v0.9.1267 (R3): identity-checked. If the box row moved, leave the box
+      // in memory too — otherwise the app forgets a box that is still on the
+      // sheet, and nothing will ever clean it up.
+      var _bpBlanked = true;
       if (bp && bp.row && bp.row !== 99999) {
-        try { await sheetsUpdate(state.personalSheetId, personalFullRowRange(bp.row), [personalBlankRow()]); } catch(e) {}
+        try { _bpBlanked = await personalWriteRow(bp, personalBlankRow()); } catch(e) {}
       }
-      delete state.personalData[keys[i]];
+      if (_bpBlanked) delete state.personalData[keys[i]];
     }
     return keys.length;
   } catch(e) { console.warn('[Sold] box cleanup:', e); return 0; }

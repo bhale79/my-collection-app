@@ -150,40 +150,168 @@ function _rrWriteFailed(kind, args, err) {
 // v0.9.1253 (row-identity audit, findings 3, 4, 12): verify before writing to
 // a row you did not just read.
 //
-// A row number is a POSITION. Inside the app nothing shifts on these tabs —
-// Ephemera, Parts and Sold rows are BLANKED, never deleted, and the only
-// tabs the app deletes from are My Collection and For Sale. But Brad edits
-// the same spreadsheet on his PC, and the phone can still be showing data it
-// cached before that edit. A blind write then overwrites a different record,
-// and for Sold that record is a price/date/photo snapshot the app itself
-// warns cannot be undone.
+// A row number is a POSITION, and a position is only meaningful relative to a
+// snapshot. Rows move when a row above them is DELETED, and the app deletes
+// from exactly two tabs: My Collection and For Sale. Everywhere else — Sold,
+// Parts Needed, the ephemera tabs — a removed record is BLANKED in place, so
+// nothing below it ever shifts.
 //
-// ONE reader for "is row N still the record I think it is". Every tab this
-// guards keeps its identifying value in column A — Item ID, Part ID, Item
-// Number — so one check covers all of them.
+// v0.9.1267 (audit 2026-08-02 round 2, finding R3) — READ THAT PARAGRAPH
+// AGAIN BEFORE EDITING THIS. The original version of this comment drew the
+// premise correctly and then reached the opposite conclusion: the guard was
+// wired onto Ephemera, Parts and Sold, the three tabs whose rows cannot move,
+// and left off the two that can. It protected everything except the thing it
+// was written to protect.
+//
+// The hazard is not the app racing itself. It is a SECOND view of the same
+// spreadsheet: the phone deletes an item, every My Collection row below it
+// moves up one, and the desktop tab that has been sitting open all morning
+// still holds the old numbers — there is no polling, and the one refresh path
+// needs the tab to go hidden AND the snapshot to be over five minutes old, so
+// a visible desktop tab never re-reads at all. Brad editing the sheet directly
+// on his PC is the same thing from the other direction, and more common. The
+// stale side then writes a whole row onto a record it has never seen. Google
+// answers 200. Nothing anywhere notices.
+//
+// ONE reader for "is row N still the record I think it is."
+//
+// WHAT IT COMPARES, and why that changed. The first version compared column A
+// only — the Item Number. That is not an identity: you can own three 2343s, so
+// a shift of one row lands on another 2343 and the check passes on the wrong
+// record. Every tab that can shift already carries a genuinely unique per-copy
+// Inventory ID, so the guard now prefers it and falls back to the item number
+// only when the row has no id to compare (rows written before ids existed, or
+// a backfill that has not landed yet). An ABSENT id is not evidence of a
+// mismatch, so it must not be treated as one — that is the difference between
+// a guard and an outage.
 //
 // A definite MISMATCH refuses the write. A failed CHECK does not: a network
 // hiccup is not evidence of a mismatch, and refusing on one would make
 // editing fail whenever the connection wobbles. That leaves the pre-existing
 // behaviour exactly as it was in the only case this cannot improve on.
-async function rrRowStillIs(spreadsheetId, tab, rowNum, expected) {
-  if (!rowNum || Number(rowNum) === 99999) return false;
-  const want = String(expected == null ? '' : expected).trim();
-  if (!want) return true;                    // nothing to compare — do not block
-  let got;
+
+// Where each tab keeps its per-copy Inventory ID, derived from the header
+// arrays that already define these tabs rather than written out as letters.
+// Add or reorder a column and the guard moves with it; hand-written letters
+// are exactly how the pre-Session-156 code ended up writing inventoryId into
+// the matchedTo column. Returns null for a tab with no id column, which is not
+// a failure — it means "compare the item number, that is all this tab has".
+function _rrTabIdentity(tab) {
   try {
-    const res = await sheetsGet(spreadsheetId, tab + '!A' + rowNum + ':A' + rowNum);
-    got = String((((res && res.values) || [[]])[0] || [])[0] || '').trim();
+    if (typeof PERSONAL_TAB !== 'undefined' && tab === PERSONAL_TAB) {
+      const i = PERSONAL_FIELD_INDEX.inventoryId;
+      return (i === undefined) ? null : { idx: i, col: colLetter(i) };
+    }
+    let headers = null;
+    if (tab === 'For Sale' && typeof FOR_SALE_HEADERS !== 'undefined') headers = FOR_SALE_HEADERS;
+    else if (tab === 'Sold' && typeof SOLD_HEADERS !== 'undefined') headers = SOLD_HEADERS;
+    else if (tab === 'Want-Upgrade List' && typeof WISHLIST_HEADERS !== 'undefined') headers = WISHLIST_HEADERS;
+    if (!headers) return null;
+    let i = headers.indexOf('Inventory ID');
+    if (i < 0) i = headers.indexOf('Upgrading Inventory ID');
+    return (i < 0) ? null : { idx: i, col: colLetter(i) };
+  } catch (e) {
+    return null;
+  }
+}
+
+// expectedNum   — the item number the caller believes is in column A
+// expectedInvId — the per-copy Inventory ID the caller believes is on the row.
+//                 Optional, and worth passing wherever it is in hand: it is the
+//                 only value here that identifies ONE COPY rather than a model.
+async function rrRowStillIs(spreadsheetId, tab, rowNum, expectedNum, expectedInvId) {
+  if (!rowNum || Number(rowNum) === 99999) return false;
+  const wantNum = String(expectedNum == null ? '' : expectedNum).trim();
+  const wantId  = String(expectedInvId == null ? '' : expectedInvId).trim();
+  if (!wantNum && !wantId) return true;      // nothing to compare — do not block
+
+  const ident = wantId ? _rrTabIdentity(tab) : null;
+  const range = ident
+    ? tab + '!A' + rowNum + ':' + ident.col + rowNum
+    : tab + '!A' + rowNum + ':A' + rowNum;
+
+  let cells;
+  try {
+    const res = await sheetsGet(spreadsheetId, range);
+    cells = (((res && res.values) || [[]])[0] || []);
   } catch (e) {
     console.warn('[rows] could not verify ' + tab + ' row ' + rowNum + ' — writing anyway:', e && e.message);
     return true;
   }
-  if (got === want) return true;
-  console.warn('[rows] ' + tab + ' row ' + rowNum + ' now holds "' + got + '", expected "' + want +
+  const _cell = function (i) { return String(cells[i] == null ? '' : cells[i]).trim(); };
+  const gotNum = _cell(0);
+  const gotId  = ident ? _cell(ident.idx) : '';
+
+  // The id settles it in both directions when both sides have one.
+  if (wantId && gotId) {
+    if (gotId === wantId) return true;
+    console.warn('[rows] ' + tab + ' row ' + rowNum + ' now holds Inventory ID "' + gotId +
+                 '", expected "' + wantId + '" — refusing to write. The sheet was changed somewhere else.');
+    return false;
+  }
+  // No id to compare on one side or the other. Fall back to the item number,
+  // which is what this guard has always done. Weaker — item numbers repeat —
+  // but an absent id cannot prove a mismatch, and refusing here would break
+  // editing on every row written before Inventory IDs existed.
+  if (!wantNum) return true;
+  if (gotNum === wantNum) return true;
+  console.warn('[rows] ' + tab + ' row ' + rowNum + ' now holds "' + gotNum + '", expected "' + wantNum +
                '" — refusing to write. The sheet was changed somewhere else.');
   return false;
 }
 if (typeof window !== 'undefined') window.rrRowStillIs = rrRowStillIs;
+
+// v0.9.1267 (R3): the message the user sees when a write is refused. One copy,
+// because it is going to appear at ~20 call sites and "roughly the same
+// wording twenty times" is how a product ends up sounding like twenty
+// products. It has to say three things: nothing was saved, why, and what to do.
+const RR_ROW_MOVED_MSG = 'That row moved in your spreadsheet — nothing was saved. Refresh and try again.';
+if (typeof window !== 'undefined') window.RR_ROW_MOVED_MSG = RR_ROW_MOVED_MSG;
+function rrRowMovedToast() {
+  try { if (typeof showToast === 'function') showToast(RR_ROW_MOVED_MSG, 5000, true); } catch (e) {}
+}
+if (typeof window !== 'undefined') window.rrRowMovedToast = rrRowMovedToast;
+
+// v0.9.1267 (R3): verify-then-write for a write that replaces a WHOLE ROW.
+//
+// The range is the single source of truth for which tab and row are being
+// written — parsed out of it rather than passed alongside it, because a
+// separate tab/row pair is a second copy of the same fact and the two can
+// drift apart on the next edit. "My Collection!A123:AD123" -> tab "My
+// Collection", row 123.
+//
+// Scope, stated plainly: this is for the writes that replace or blank an
+// entire row, where landing on the wrong row erases an item. Single-cell
+// writes (a photo link, one price) are a smaller blast radius and are not
+// converted yet — see the R3 note in the audit findings.
+//
+// Returns true if the write happened, false if it was refused. On false the
+// user has already been told; the caller must not update its own state.
+// Errors from the write itself still throw, exactly as sheetsUpdate does.
+async function sheetsUpdateRow(spreadsheetId, range, values, expected) {
+  if (expected === undefined) {
+    throw new Error('sheetsUpdateRow: `expected` is required — say which record you believe is at ' +
+                    range + ' before replacing it.');
+  }
+  const m = /^(.*)!([A-Z]+)(\d+)(?::|$)/.exec(String(range || ''));
+  if (!m) {
+    // Not a row-scoped range. Refusing outright would be worse than the bug:
+    // fail loudly at the gate instead, where a bad range is a code error.
+    throw new Error('sheetsUpdateRow: could not read a tab and row out of "' + range + '".');
+  }
+  const tab = m[1];
+  const rowNum = Number(m[3]);
+  const _exp = (expected && typeof expected === 'object') ? expected : { itemNum: expected, inventoryId: '' };
+  const _still = await rrRowStillIs(spreadsheetId, tab, rowNum, _exp.itemNum, _exp.inventoryId);
+  if (!_still) {
+    console.warn('[rows] refusing to replace ' + range + ' — it is not the record we meant.');
+    rrRowMovedToast();
+    return false;
+  }
+  await sheetsUpdate(spreadsheetId, range, values);
+  return true;
+}
+if (typeof window !== 'undefined') window.sheetsUpdateRow = sheetsUpdateRow;
 
 async function sheetsUpdate(spreadsheetId, range, values) {
   // v0.9.985 (perf): any write = data changed — invalidate cached page renders.
@@ -273,7 +401,38 @@ async function sheetsAppend(spreadsheetId, range, values) {
   }
 }
 
-async function sheetsDeleteRow(spreadsheetId, sheetName, rowNumber) {
+// v0.9.1267 (audit 2026-08-02 round 2, finding R3): `expected` is REQUIRED,
+// and omitting it throws rather than deleting.
+//
+// This is the operation the whole row-identity problem grows out of. Every
+// other stale-row write damages one record; a delete removes a record AND
+// moves every row beneath it, so one wrong delete invalidates the row numbers
+// every other device is holding, in one stroke. It is the cause, not a symptom.
+//
+// The guard therefore lives HERE rather than at the seven call sites. Checking
+// at the call sites is the arrangement that produced this finding in the first
+// place: the check existed, four places remembered it, and the places that
+// mattered did not. A parameter that throws when it is missing cannot be
+// forgotten — the gate catches it, and it can never reach a user.
+//
+// `expected` is {itemNum, inventoryId} (either key may be blank), or a plain
+// string treated as the item number. Pass the inventoryId whenever it is in
+// hand; on My Collection it is the only value that names ONE COPY.
+//
+// Returns true if the row was deleted, false if it was refused. Callers must
+// not update their in-memory state on a false — the row is still there.
+async function sheetsDeleteRow(spreadsheetId, sheetName, rowNumber, expected) {
+  if (expected === undefined) {
+    throw new Error('sheetsDeleteRow: `expected` is required — say which record you believe is on ' +
+                    sheetName + ' row ' + rowNumber + ' before deleting it. See the note above sheetsDeleteRow.');
+  }
+  const _exp = (expected && typeof expected === 'object') ? expected : { itemNum: expected, inventoryId: '' };
+  const _still = await rrRowStillIs(spreadsheetId, sheetName, rowNumber, _exp.itemNum, _exp.inventoryId);
+  if (!_still) {
+    console.warn('[rows] refusing to delete ' + sheetName + ' row ' + rowNumber + ' — it is not the record we meant.');
+    rrRowMovedToast();
+    return false;
+  }
   // v0.9.985 (perf): any write = data changed — invalidate cached page renders.
   try { window._rrDataRev = (window._rrDataRev || 0) + 1; } catch (e) {}
   // v0.9.1246: a delete moves every row beneath it, so every range write
@@ -289,7 +448,9 @@ async function sheetsDeleteRow(spreadsheetId, sheetName, rowNumber) {
   ));
   const meta = await metaRes.json();
   const sheet = meta.sheets.find(s => s.properties.title === sheetName);
-  if (!sheet) return;
+  // v0.9.1267 (R3): false, not undefined. Nothing was deleted, and callers now
+  // read the return value to decide whether to update their own state.
+  if (!sheet) return false;
   const sheetId = sheet.properties.sheetId;
 
   // Delete the row (0-indexed, startIndex = rowNumber-1)
@@ -309,6 +470,7 @@ async function sheetsDeleteRow(spreadsheetId, sheetName, rowNumber) {
       }]
     })
   }));
+  return true;
   } catch (e) {
     // Recorded so it can be SHOWN. Never replayed — see write-outbox.js.
     throw _rrWriteFailed('delete', { sheetId: spreadsheetId, sheetName: sheetName, rowNumber: rowNumber }, e);

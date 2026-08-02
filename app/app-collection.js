@@ -2385,13 +2385,22 @@ async function removeCollectionItem(itemNum, variation, row, invId) {
       // Remove every item in the group — delete from bottom to top to avoid row shift issues
       var sortedSibs = groupSiblings.slice().sort(function(a, b) { return (b.row || 0) - (a.row || 0); });
       var fsRowsToDelete = [];
+      var _sibsRemoved = 0;   // v0.9.1267 (R3): count what actually went, not what we tried
       for (var sib of sortedSibs) {
         var sibKey = sib.inventoryId || findPDKeyByRow(sib.itemNum, sib.variation, sib.row);
         if (sib.row && sib.row !== 99999) {
           try {
-            await sheetsDeleteRow(state.personalSheetId, PERSONAL_TAB, sib.row);
+            // v0.9.1267 (R3): name the record we believe is on that row before
+            // deleting it. If the sheet moved underneath us the delete is
+            // refused and returns false — and then the row is STILL THERE, so
+            // nothing below it moved and we must not renumber remembered rows,
+            // must not drop this sibling from memory, and must not strip its
+            // For Sale / Upgrade listings. Skip the rest of this sibling.
+            var _sibGone = await sheetsDeleteRow(state.personalSheetId, PERSONAL_TAB, sib.row,
+                                                 { itemNum: sib.itemNum, inventoryId: sib.inventoryId || '' });
+            if (!_sibGone) continue;
             _adjustRowsAfterDelete(state.personalData, sib.row, PERSONAL_TAB);
-          } catch(e) { console.warn('Remove group row error:', sib.itemNum, e); }
+          } catch(e) { console.warn('Remove group row error:', sib.itemNum, e); continue; }
         }
         // Phase 3: prefer sibling's inventoryId for For Sale + Upgrade cleanup.
         var sibInv = sib.inventoryId || '';
@@ -2402,7 +2411,12 @@ async function removeCollectionItem(itemNum, variation, row, invId) {
         }
         var sibFs = sibFsKey ? state.forSaleData[sibFsKey] : null;
         if (sibFs && sibFs.row) {
-          fsRowsToDelete.push(sibFs.row);
+          // v0.9.1267 (R3): carry the identity along with the row number. A row
+          // number on its own is a position, and by the time this list is
+          // drained the earlier deletes have moved things.
+          fsRowsToDelete.push({ row: sibFs.row,
+                                itemNum: sibFs.itemNum || sib.itemNum,
+                                inventoryId: sibFs.inventoryId || sibInv || '' });
           delete state.forSaleData[sibFsKey];
         }
         // 2026-05-18: also clear Upgrade row for each sibling when removing the group.
@@ -2419,19 +2433,24 @@ async function removeCollectionItem(itemNum, variation, row, invId) {
           delete state.upgradeData[sibUgKey];
         }
         if (sibKey) delete state.personalData[sibKey];
+        _sibsRemoved++;
       }
       // Delete For Sale rows bottom-to-top
-      fsRowsToDelete.sort(function(a, b) { return b - a; });
+      fsRowsToDelete.sort(function(a, b) { return b.row - a.row; });
       for (var fsRow of fsRowsToDelete) {
         try {
-          await sheetsDeleteRow(state.personalSheetId, 'For Sale', fsRow);
-          _adjustRowsAfterDelete(state.forSaleData, fsRow, 'For Sale');
+          var _fsGone = await sheetsDeleteRow(state.personalSheetId, 'For Sale', fsRow.row,
+                                              { itemNum: fsRow.itemNum, inventoryId: fsRow.inventoryId });
+          if (_fsGone) _adjustRowsAfterDelete(state.forSaleData, fsRow.row, 'For Sale');
         } catch(e) { console.warn('FS cleanup:', e); }
       }
       _cachePersonalData();
       renderBrowse();
       buildDashboard();
-      showToast('✓ Removed ' + groupSiblings.length + ' grouped items');
+      // v0.9.1267 (R3): report what was actually removed. If a row had moved,
+      // sheetsDeleteRow already told the user to refresh — don't follow that
+      // with a checkmark claiming everything went.
+      if (_sibsRemoved > 0) showToast('✓ Removed ' + _sibsRemoved + ' grouped item' + (_sibsRemoved === 1 ? '' : 's'));
       return;
     }
     // else fall through to remove just this one item
@@ -2444,7 +2463,15 @@ async function removeCollectionItem(itemNum, variation, row, invId) {
   var _delRow = thisPd ? thisPd.row : row;
   if (_delRow && _delRow !== 99999) {
     try {
-      await sheetsDeleteRow(state.personalSheetId, PERSONAL_TAB, _delRow);
+      // v0.9.1267 (R3): the identity of the copy we mean. inventoryId names ONE
+      // copy — item number alone does not, and you can own three 2343s.
+      var _delGone = await sheetsDeleteRow(state.personalSheetId, PERSONAL_TAB, _delRow,
+                                           { itemNum: (thisPd && thisPd.itemNum) || itemNum,
+                                             inventoryId: (thisPd && thisPd.inventoryId) || '' });
+      // Refused: the row is not the record we meant, so it is still there and
+      // nothing below it moved. The user has already been told to refresh.
+      // Stop here rather than stripping the listings of an item we did not remove.
+      if (!_delGone) return;
     } catch(e) { console.error('Remove row error:', e); showToast('Error removing item — please try again', 3000, true); return; }
   }
   // Phase 3: also remove from For Sale + Upgrade if listed — look up by THIS
@@ -2458,8 +2485,10 @@ async function removeCollectionItem(itemNum, variation, row, invId) {
   var fsEntry = fsKey ? state.forSaleData[fsKey] : null;
   if (fsEntry && fsEntry.row) {
     try {
-      await sheetsDeleteRow(state.personalSheetId, 'For Sale', fsEntry.row);
-      _adjustRowsAfterDelete(state.forSaleData, fsEntry.row, 'For Sale');
+      var _fsEntGone = await sheetsDeleteRow(state.personalSheetId, 'For Sale', fsEntry.row,
+                                             { itemNum: fsEntry.itemNum || itemNum,
+                                               inventoryId: fsEntry.inventoryId || _thisInv || '' });
+      if (_fsEntGone) _adjustRowsAfterDelete(state.forSaleData, fsEntry.row, 'For Sale');
     } catch(e) { console.warn('For Sale cleanup:', e); }
     delete state.forSaleData[fsKey];
   }
@@ -3183,7 +3212,15 @@ function showItemPanel(idx, pdKey, mode) {
       });
       try {
         if (typeof _healPdRow === 'function') await _healPdRow(pd);
-        await sheetsUpdate(state.personalSheetId, personalFullRowRange(pd.row), [newRow]);
+        // v0.9.1267 (R3): identity-checked. This is the edit-save — the values
+        // being written describe THIS item, so landing a row off would stamp
+        // this item's details over a different one. If the row moved, stop:
+        // the user has been told to refresh, and the overlay stays open with
+        // their edits intact rather than closing on a save that did not happen.
+        if (!(await personalWriteRow(pd, newRow))) {
+          saveBtn.textContent = '💾 Save All Changes'; saveBtn.disabled = false;
+          return;
+        }
         state.personalData[pdKey] = Object.assign({}, pd, { priceComplete: calc > 0 ? calc.toFixed(2) : '' });
         // v0.9.697: keep the offline snapshot in sync — edits were reverting
         // to pre-edit values on the next app load (cache had the old row).
@@ -4011,7 +4048,11 @@ async function _saveItemWrites() {
     });
     const existing = _saveItemPd;
     if (existing && existing.row) {
-      await sheetsUpdate(state.personalSheetId, personalFullRowRange(existing.row), [ownedRow]);
+      // v0.9.1267 (R3): identity-checked. Re-owning replaces a whole row with
+      // this item's details; on the wrong row that overwrites someone else's
+      // item outright. A refusal stops the whole re-own rather than going on to
+      // clear the Want row for a change that never landed.
+      if (!(await personalWriteRow(existing, ownedRow))) return false;
     } else {
       await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [ownedRow]);
     }
@@ -4087,8 +4128,11 @@ async function _saveItemWrites() {
     await sheetsAppend(state.personalSheetId, 'Sold!A:T', [soldRow]);
 
     // Only now that the sale is safely recorded, remove it from My Collection.
+    // v0.9.1267 (R3): identity-checked. If it is refused the Sold row already
+    // exists, so the item shows in both places — visible and fixable. Blanking
+    // whatever row happens to be sitting there instead is neither.
     if (existing && existing.row) {
-      await sheetsUpdate(state.personalSheetId, personalFullRowRange(existing.row), [personalBlankRow()]);  // 25 cols A-Y
+      if (!(await personalWriteRow(existing, personalBlankRow()))) return false;
     }
     // Remove from For Sale if it was there
     const fsEntry3 = _fsKeySI ? state.forSaleData[_fsKeySI] : null;
@@ -4128,8 +4172,9 @@ async function _saveItemWrites() {
       await sheetsAppend(state.personalSheetId, 'Want-Upgrade List!A:I', [_wuAppendRow]);
     }
     // Only now that the Want row exists, remove it from My Collection.
+    // v0.9.1267 (R3): identity-checked, same reasoning as the Sold path above.
     if (existing && existing.row) {
-      await sheetsUpdate(state.personalSheetId, personalFullRowRange(existing.row), [personalBlankRow()]);  // 25 cols A-Y
+      if (!(await personalWriteRow(existing, personalBlankRow()))) return false;
     }
     // Store info for partner prompt — shown after modal closes
     window._pendingWantPartner = {
@@ -4142,6 +4187,7 @@ async function _saveItemWrites() {
   } else {
     window._pendingWantPartner = null;
   }
+  return true;   // v0.9.1267 (R3): every write landed
 }
 
 // v0.9.1258 (audit 2026-08-02, finding 1). saveItem()'s only caller is an
@@ -4162,7 +4208,13 @@ async function saveItem() {
   if (_btn) { _btn.disabled = true; _btn.textContent = 'Saving…'; }
 
   try {
-    await _saveItemWrites();
+    // v0.9.1267 (R3): a false return means a whole-row write was refused
+    // because that row no longer holds this item. The user has already been
+    // shown "that row moved — refresh and try again", so say nothing more —
+    // but do NOT fall through to the success tail below, which closes the
+    // dialog and ticks. The item was not updated. Everything they typed stays
+    // on screen, exactly as it does when a write throws.
+    if ((await _saveItemWrites()) === false) return;
   } catch (e) {
     // Stop here: the dialog stays open with everything the user typed still
     // in it, and no checkmark appears. rrSaveError is the one reader that

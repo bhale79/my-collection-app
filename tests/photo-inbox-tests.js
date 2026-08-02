@@ -9139,9 +9139,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
     (function () {
       const pdata = {};
       for (let r = 2; r <= 10; r++) {
-        pdata['k' + r] = { row: r, groupId: (r >= 4 && r <= 6) ? 'G1' : '' };
+        pdata['k' + r] = { row: r, groupId: (r >= 4 && r <= 6) ? 'G1' : '',
+                           itemNum: 'N' + r, inventoryId: 'INV' + r };
       }
-      const deleted = [];
+      const deleted = [], expects = [];
       const adjust = (obj, delRow) => {
         Object.keys(obj).forEach(k => { if (obj[k].row > delRow) obj[k].row--; });
       };
@@ -9155,7 +9156,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
         '_adjustRowsAfterDelete', 'localStorage', 'console',
         '"use strict";' + src)(
           { personalData: pdata, personalSheetId: 'S', forSaleData: null },
-          (sid, tab, row) => { deleted.push(row); }, 'T', adjust,
+          // v0.9.1267 (R3): sheetsDeleteRow now REPORTS whether it deleted, and
+          // rrRemoveSetGroup reads that answer. A stub that returns nothing is a
+          // stub that says "refused", so it must say true here or the function
+          // under test correctly does nothing and the rig, not the code, is
+          // what failed. It also now takes the expected identity — captured so
+          // the assertions below can check the caller actually supplies one.
+          (sid, tab, row, expected) => { deleted.push(row); expects.push(expected); return true; },
+          'T', adjust,
           { removeItem() {} }, { warn() {} });
       const n = fn('G1');
       ok('the three set rows are the ones deleted, bottom-up',
@@ -9166,6 +9174,35 @@ META_WRITES.length = 0; TOASTS.length = 0;
          [7, 8, 9, 10].map(r => pdata['k' + r].row).join(','));
       ok('…while the rows above them are untouched',
          [2, 3].map(r => pdata['k' + r].row).join(',') === '2,3');
+      // v0.9.1267 (R3)
+      ok('each delete says WHICH copy it believes is on that row',
+         expects.length === 3 &&
+         expects.every(e => e && e.inventoryId && e.itemNum) &&
+         expects.map(e => e.inventoryId).join(',') === 'INV6,INV5,INV4',
+         JSON.stringify(expects));
+
+      // …and a refused delete must change nothing at all. This is the direction
+      // that matters: a guard that refuses while the caller carries on
+      // regardless is worse than no guard, because the app then believes an
+      // item is gone that is still sitting in the spreadsheet.
+      (function () {
+        const pd2 = {};
+        for (let r = 2; r <= 10; r++) {
+          pd2['k' + r] = { row: r, groupId: (r >= 4 && r <= 6) ? 'G1' : '',
+                           itemNum: 'N' + r, inventoryId: 'INV' + r };
+        }
+        const fn2 = new Function('state', 'sheetsDeleteRow', 'PERSONAL_TAB',
+          '_adjustRowsAfterDelete', 'localStorage', 'console',
+          '"use strict";' + src)(
+            { personalData: pd2, personalSheetId: 'S', forSaleData: null },
+            () => false, 'T', adjust, { removeItem() {} }, { warn() {} });
+        const n2 = fn2('G1');
+        ok('a refused delete removes nothing and is not counted',
+           n2 === 0 && !!pd2.k4 && !!pd2.k5 && !!pd2.k6, String(n2));
+        ok('…and no row below is renumbered, because no row actually moved',
+           [7, 8, 9, 10].map(r => pd2['k' + r].row).join(',') === '7,8,9,10',
+           [7, 8, 9, 10].map(r => pd2['k' + r].row).join(','));
+      })();
     })();
 
     // ── 5. A background era refresh renumbered the list under the user ──
@@ -9375,10 +9412,15 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const blanked = [], removed = [];
       const src = clean.replace(/\basync\s+/g, '').replace(/\bawait\s+/g, '')
                        .replace('function _cleanupSoldItemBoxes', 'return function _cleanupSoldItemBoxes');
-      const n = new Function('state', 'sheetsUpdate', 'personalFullRowRange', 'personalBlankRow', 'console',
+      // v0.9.1267 (R3): the blanking goes through personalWriteRow now, which
+      // takes the RECORD rather than a row number — so the identity travels
+      // with the position and cannot be supplied separately, or forgotten.
+      // It answers true when the write landed; a stub returning nothing would
+      // mean "refused" and the code under test would correctly do nothing.
+      const n = new Function('state', 'personalWriteRow', 'personalBlankRow', 'console',
         '"use strict";' + src)(
           { personalData: pdata, personalSheetId: 'S' },
-          (sid, range) => { blanked.push(range); }, r => 'R' + r, () => [], { warn() {} })(lead, gid);
+          (rec) => { blanked.push('R' + rec.row); return true; }, () => [], { warn() {} })(lead, gid);
       Object.keys(pdata).forEach(k => { if (!(k in pdata)) removed.push(k); });
       return { n, blanked };
     };
@@ -10221,11 +10263,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1266', /const APP_VERSION = 'v0\.9\.1266';/.test(cfg));
+    ok('APP_VERSION is v0.9.1267', /const APP_VERSION = 'v0\.9\.1267';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1266/g) || []).length === 69 && !/\?v=1265/.test(idx),
-       String((idx.match(/\?v=1266/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1276';/.test(rd('app/sw.js')));
+       (idx.match(/\?v=1267/g) || []).length === 69 && !/\?v=1266/.test(idx),
+       String((idx.match(/\?v=1267/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1277';/.test(rd('app/sw.js')));
     // v0.9.1259: the root page's own ?v= is gone — it registers no worker.
     // The trio is a trio again. §207 is what guards the root page now.
     ok('the landing page carries no version stamp to forget',
@@ -10594,9 +10636,16 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const sh = rd('app/sheets.js'), pages = rd('app/app-pages.js'), idx = rd('app/index.html');
 
     section('203. One reader for "is this row still that record"');
+    // v0.9.1267 (R3): the signature grew a fifth parameter, expectedInvId. The
+    // four call sites below still pass four arguments and are still correct —
+    // Sold, Parts Needed and Ephemera rows are BLANKED in place, never deleted,
+    // so nothing on those tabs ever shifts and an item number is identity
+    // enough. The fifth argument is for the two tabs that do shift.
     ok('the helper exists and is shared',
-       /async function rrRowStillIs\(spreadsheetId, tab, rowNum, expected\)/.test(sh) &&
+       /async function rrRowStillIs\(spreadsheetId, tab, rowNum, expectedNum, expectedInvId\)/.test(sh) &&
        /window\.rrRowStillIs = rrRowStillIs/.test(sh));
+    ok('an absent fifth argument is read as "no id", not as a mismatch',
+       /wantId\s*=\s*String\(expectedInvId == null \? '' : expectedInvId\)/.test(sh));
     ok('it loads before the page that uses it',
        idx.indexOf('<script src="./sheets.js?v=') < idx.indexOf('<script src="./app-pages.js?v='));
 
@@ -10805,7 +10854,18 @@ META_WRITES.length = 0; TOASTS.length = 0;
        !/await sheets(Update|Append)\(/.test(saveFn),
        'an unguarded write is back in saveItem() itself');
     ok('the writes are awaited inside a try',
-       /try \{\s*await _saveItemWrites\(\);\s*\} catch/.test(saveFn));
+       /try \{[\s\S]{0,700}await _saveItemWrites\(\)[\s\S]{0,80}\} catch/.test(saveFn));
+    // v0.9.1267 (R3): a refused row write is not an exception — it is a false
+    // return — so the try/catch above cannot see it. The wrapper has to read
+    // the answer, and has to stop on it, or the dialog closes and ticks over a
+    // save that never landed.
+    ok('…and a REFUSED write stops the wrapper too, not just a thrown one',
+       /\(await _saveItemWrites\(\)\) === false\) return;/.test(saveFn));
+    ok('…and every refusal inside the writes returns that false',
+       (writesFn.match(/await personalWriteRow\([\s\S]{0,70}?\)\)\) return false;/g) || []).length === 3,
+       String((writesFn.match(/await personalWriteRow\([\s\S]{0,70}?\)\)\) return false;/g) || []).length));
+    ok('…and the writes end by saying everything landed',
+       /\n  return true;   \/\/ v0\.9\.1267/.test(writesFn));
     ok('a failure goes through the one save-error reader',
        /catch \(e\)[\s\S]{0,500}rrSaveError\(e, 'this item'\)/.test(saveFn));
     ok('…and is shown as an error, not a normal toast',
@@ -11875,6 +11935,287 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('a patch with nothing known in it writes nothing',
        wEmptyRet === false && wEmpty.seen.writes === 0,
        wEmpty.seen.writes + ' upload(s), returned ' + wEmptyRet);
+
+    // ═══════════════════════════════════════════════════════════
+    // §217. v0.9.1267 — audit 2026-08-02 round 2, finding R3.
+    //
+    //   A row number is a POSITION, not an identity. It is only true
+    //   relative to the read it came from, and it stops being true the
+    //   moment anything deletes a row above it. §203 built a guard for
+    //   exactly this — and then applied it to Sold, Parts Needed and
+    //   Ephemera, the three tabs the app never deletes from, while
+    //   leaving My Collection and For Sale, the two tabs it does,
+    //   unguarded. Its own comment stated the correct premise one line
+    //   above the wrong conclusion. It protected everything except the
+    //   thing it was written to protect.
+    //
+    //   Two further points this section pins down:
+    //
+    //   1. Item Number is not an identity. You can own three 2343s, so
+    //      a one-row shift can land on another 2343 and a
+    //      number-only check waves it through — on the wrong record.
+    //      Inventory ID names one copy; the guard now prefers it.
+    //
+    //   2. An ABSENT id is not evidence of a mismatch. wizard-save
+    //      backfills an inventoryId into memory while writing it to the
+    //      sheet fire-and-forget, so memory can legitimately hold an id
+    //      the row lacks. Treating a blank cell as a mismatch would turn
+    //      a guard into an outage. Ids are compared only when BOTH sides
+    //      have one.
+    //
+    //   And the structural point, which is the actual fix: the check
+    //   lives INSIDE sheetsDeleteRow with a required argument, not at
+    //   seven call sites. Checking at call sites is the arrangement that
+    //   produced this finding.
+    // ═══════════════════════════════════════════════════════════
+    (function () {
+      const fs217 = require('fs'), p217 = require('path');
+      const rd7 = f => fs217.readFileSync(p217.join(__dirname, '..', f), 'utf8');
+      const sh7 = rd7('app/sheets.js'), ap7 = rd7('app/app.js'),
+            coll7 = rd7('app/app-collection.js'), wz7 = rd7('app/wizard.js'),
+            ws7 = rd7('app/wizard-save.js'), pg7 = rd7('app/app-pages.js'),
+            mcfg7 = rd7('app/migration-config.js'), mui7 = rd7('app/migration-ui.js');
+
+      section('217. A row number is a position — the guard now covers the tabs that move');
+
+      // ── The reader itself, RUN. Same trick as §203: strip the async so
+      // the assertions are synchronous and therefore visible.
+      const raw7 = sh7.slice(sh7.indexOf('function _rrTabIdentity'),
+                             sh7.indexOf("if (typeof window !== 'undefined') window.rrRowStillIs"));
+      const src7 = raw7.replace(/\basync\s+/g, '').replace(/\bawait /g, '');
+      const mk7 = (rowCells) => {
+        const warns = [];
+        const fn = new Function('sheetsGet', 'console', 'PERSONAL_TAB',
+          'PERSONAL_FIELD_INDEX', 'colLetter', 'FOR_SALE_HEADERS', 'SOLD_HEADERS',
+          'WISHLIST_HEADERS',
+          src7 + '\n return rrRowStillIs;')(
+            () => ({ values: [rowCells] }),
+            { warn: function () { warns.push([].slice.call(arguments).join(' ')); } },
+            'My Collection', { inventoryId: 26 }, i => 'C' + i,
+            ['Item Number', 'x', 'Inventory ID'], ['Item Number', 'x', 'Inventory ID'],
+            ['Item Number', 'x', 'Upgrading Inventory ID']);
+        return { fn, warns };
+      };
+      // A My Collection row: column A is the item number, index 26 the id.
+      const mcRow = (num, id) => { const r = new Array(27).fill(''); r[0] = num; r[26] = id; return r; };
+
+      ok('the same copy is allowed through on its Inventory ID',
+         mk7(mcRow('2343', '117')).fn('S', 'My Collection', 12, '2343', '117') === true);
+      ok('a DIFFERENT copy of the same item number is refused',
+         mk7(mcRow('2343', '116')).fn('S', 'My Collection', 12, '2343', '117') === false,
+         'item number matched, so a number-only guard would have written to the wrong 2343');
+      const dw = mk7(mcRow('2343', '116'));
+      dw.fn('S', 'My Collection', 12, '2343', '117');
+      ok('…and says the sheet was changed somewhere else',
+         dw.warns.some(w => /Inventory ID .*expected .*refusing to write/.test(w)),
+         dw.warns[0] || '(no warning)');
+      ok('a row holding a different item entirely is refused',
+         mk7(mcRow('6464', '900')).fn('S', 'My Collection', 12, '2343', '117') === false);
+
+      // The direction that would turn a guard into an outage.
+      ok('a row with no id yet falls back to the item number and is allowed',
+         mk7(mcRow('2343', '')).fn('S', 'My Collection', 12, '2343', '117') === true,
+         'a blank id cell must not be read as a mismatch — the backfill is fire-and-forget');
+      ok('a caller with no id in hand still matches on the item number',
+         mk7(mcRow('2343', '117')).fn('S', 'My Collection', 12, '2343', '') === true);
+      ok('…and is still refused when even the item number is wrong',
+         mk7(mcRow('6464', '117')).fn('S', 'My Collection', 12, '2343', '') === false);
+      ok('knowing nothing about the record does not block the write',
+         mk7(mcRow('2343', '117')).fn('S', 'My Collection', 12, '', '') === true);
+
+      // For Sale / Sold / Want-Upgrade find their id column from the headers,
+      // never from a hand-written letter. Hand-written letters are how
+      // pre-Session-156 code wrote inventoryId into the matchedTo column.
+      ok('For Sale finds its Inventory ID column from the header row',
+         mk7(['FS-1', '', '117']).fn('S', 'For Sale', 9, 'FS-1', '117') === true &&
+         mk7(['FS-1', '', '116']).fn('S', 'For Sale', 9, 'FS-1', '117') === false);
+      ok('Want-Upgrade uses its own differently-named id column',
+         mk7(['W-1', '', '117']).fn('S', 'Want-Upgrade List', 9, 'W-1', '117') === true &&
+         mk7(['W-1', '', '116']).fn('S', 'Want-Upgrade List', 9, 'W-1', '117') === false);
+      ok('a tab with no id column at all still works on the item number',
+         mk7(['PART-7']).fn('S', 'Parts Needed', 5, 'PART-7', '117') === true,
+         'the four §203 callers must keep working unchanged');
+      ok('no column letter is hand-written anywhere in the tab lookup',
+         !/['"](A[A-Z]|[B-Z])\d*['"]\s*[;,)]/.test(sh7.slice(sh7.indexOf('function _rrTabIdentity'),
+                                                             sh7.indexOf('async function rrRowStillIs'))) &&
+         /colLetter\(i\)/.test(sh7));
+
+      section('217b. Deleting blind is no longer something the code can do');
+      ok('the expected identity is a required argument, not an option',
+         /async function sheetsDeleteRow\(spreadsheetId, sheetName, rowNumber, expected\)/.test(sh7) &&
+         /if \(expected === undefined\) \{\s*\n\s*throw new Error\('sheetsDeleteRow: `expected` is required/.test(sh7));
+      ok('…and the check runs before anything is deleted',
+         sh7.indexOf('rrRowStillIs(spreadsheetId, sheetName, rowNumber') <
+         sh7.indexOf('deleteDimension'),
+         'a check after the delete is not a check');
+      // ── sheetsDeleteRow itself, RUN. The earlier draft of this block greped
+      // the source for "return false" and "return true" and was satisfied. It
+      // was satisfied by a mutation that made a REFUSED delete report success —
+      // the exact break the whole finding exists to prevent — because the words
+      // it was looking for were still somewhere in the file. Text about a value
+      // is not the value. So: run the real function against a scripted Sheets
+      // API and read what it hands back, in both directions.
+      const delStart7 = sh7.indexOf('async function sheetsDeleteRow(');
+      const rawDel7 = sh7.slice(delStart7, sh7.indexOf('\n}', sh7.indexOf('_rrWriteFailed(\'delete\'')) + 2);
+      const mkDel7 = (stillIs, tabTitle) => {
+        const posts = [], warns = [];
+        let toasts = 0, movedTold = 0;
+        const fn = new Function('rrRowStillIs', 'console', 'window', '_withTokenRetry',
+          'fetch', 'accessToken', 'rrRowMovedToast', 'rrOutboxRowsMoved', '_rrWriteFailed',
+          rawDel7.replace(/\basync\s+/g, '').replace(/\bawait /g, '') +
+          '\n return sheetsDeleteRow;')(
+            () => stillIs,
+            { warn: function () { warns.push([].slice.call(arguments).join(' ')); } },
+            {}, (f) => f(),
+            (url, opts) => {
+              if (opts && opts.method === 'POST') { posts.push(JSON.parse(opts.body)); return {}; }
+              return { json: () => ({ sheets: [{ properties: { title: tabTitle, sheetId: 7 } }] }) };
+            },
+            'tok', () => { toasts++; }, () => { movedTold++; },
+            (kind, where, e) => e);
+        return { fn, posts, warns, t: () => toasts, m: () => movedTold };
+      };
+
+      const refused7 = mkDel7(false, 'My Collection');
+      const refusedRet7 = refused7.fn('S', 'My Collection', 12, { itemNum: '2343', inventoryId: '117' });
+      ok('a refused delete answers false — not undefined, not true',
+         refusedRet7 === false,
+         'got ' + String(refusedRet7) + '; every caller now decides on this value');
+      ok('…and nothing at all was sent to the spreadsheet',
+         refused7.posts.length === 0 && refused7.m() === 0,
+         'a refusal that still tells the outbox rows moved would corrupt queued writes');
+      ok('…and the collector is told, once',
+         refused7.t() === 1 && refused7.warns.some(w => /refusing to delete/.test(w)));
+
+      const allowed7 = mkDel7(true, 'My Collection');
+      const allowedRet7 = allowed7.fn('S', 'My Collection', 12, { itemNum: '2343', inventoryId: '117' });
+      ok('a delete that is allowed through answers true',
+         allowedRet7 === true,
+         'got ' + String(allowedRet7));
+      ok('…and really asked for that one row, by position, on that tab',
+         allowed7.posts.length === 1 &&
+         allowed7.posts[0].requests[0].deleteDimension.range.sheetId === 7 &&
+         allowed7.posts[0].requests[0].deleteDimension.range.startIndex === 11 &&
+         allowed7.posts[0].requests[0].deleteDimension.range.endIndex === 12,
+         JSON.stringify(allowed7.posts));
+      ok('…and no toast was shown for a delete that worked', allowed7.t() === 0);
+
+      const noTab7 = mkDel7(true, 'Some Other Tab');
+      ok('a tab that is not there is a false, not a silent success',
+         noTab7.fn('S', 'My Collection', 12, { itemNum: '2343', inventoryId: '117' }) === false &&
+         noTab7.posts.length === 0);
+
+      let missingThrew7 = '';
+      try { mkDel7(true, 'My Collection').fn('S', 'My Collection', 12); }
+      catch (e) { missingThrew7 = String(e.message || e); }
+      ok('calling it without saying who you mean throws before anything happens',
+         /`expected` is required/.test(missingThrew7),
+         missingThrew7 || '(it did not throw)');
+
+      // The tripwire. This is the part that keeps R3 shut: a new delete added
+      // next year cannot quietly go back to passing three arguments.
+      const delCalls = [];
+      [['app-collection.js', coll7], ['wizard.js', wz7], ['wizard-save.js', ws7],
+       ['migration-config.js', mcfg7], ['app-pages.js', pg7], ['app.js', ap7]]
+        .forEach(([name, src]) => {
+          (src.match(/sheetsDeleteRow\([\s\S]{0,400}?\);/g) || []).forEach(c => delCalls.push([name, c]));
+        });
+      ok('every delete in the app names the record it means',
+         delCalls.length === 7 &&
+         delCalls.every(([, c]) => /inventoryId|itemNum/.test(c)),
+         delCalls.filter(([, c]) => !/inventoryId|itemNum/.test(c)).map(x => x[0]).join(',') ||
+         (delCalls.length + ' call(s) found, expected 7'));
+      // Every one of the seven passes an inventoryId — six carry a real one, and
+      // the master-sheet migration passes '' on purpose, because master tabs have
+      // no Inventory ID column at all. An empty id is read as "no id", which falls
+      // back to the item number; it is NOT read as a mismatch. Asserting all seven
+      // (rather than six) means a new delete cannot omit the field and still pass.
+      ok('…and every one of them passes an Inventory ID field, empty only where there is no column',
+         delCalls.filter(([, c]) => /inventoryId/.test(c)).length === 7 &&
+         delCalls.filter(([, c]) => /inventoryId: ''/.test(c)).length === 1 &&
+         /inventoryId: ''/.test(mcfg7),
+         String(delCalls.filter(([, c]) => /inventoryId/.test(c)).length) + ' of 7 name an id field');
+
+      // Refusals must not be treated as successes by the callers.
+      ok('the group remove leaves a refused sibling alone entirely',
+         /_sibGone[\s\S]{0,200}if \(!_sibGone\) continue;/.test(coll7));
+      ok('the single remove stops rather than stripping listings it did not remove',
+         /_delGone[\s\S]{0,700}if \(!_delGone\) return;/.test(coll7));
+      ok('…and the For Sale row is only renumbered when one was really deleted',
+         /if \(_fsGone\) _adjustRowsAfterDelete/.test(coll7) &&
+         /if \(_fsEntGone\) _adjustRowsAfterDelete/.test(coll7));
+      ok('the master-sheet migration refuses loudly instead of returning success',
+         /if \(!_cleared\) \{\s*\n\s*throw new Error\('That master row is no longer/.test(mcfg7));
+      ok('…and both of its callers now say which item they mean',
+         /migrationClearSource\(sourceTab, prev\.sourceRowNumber, prev\.itemNum\)/.test(mcfg7) &&
+         /migrationClearSource\(p\.sourceTab, p\.sourceRowNumber, p\.itemNum\)/.test(mui7));
+      ok('the group toast counts what actually went, not what was attempted',
+         /_sibsRemoved > 0\) showToast/.test(coll7));
+
+      section('217c. A whole-row write takes the record, not a row number');
+      ok('there is one helper and it is given the record itself',
+         /async function personalWriteRow\(rec, values\)/.test(ap7) &&
+         /window\.personalWriteRow = personalWriteRow/.test(ap7));
+      ok('it builds both the position and the identity from that one record',
+         /personalFullRowRange\(rec\.row\)[\s\S]{0,160}itemNum: rec\.itemNum, inventoryId: rec\.inventoryId/.test(ap7));
+      ok('sheetsUpdateRow reads its tab and row out of the range, not beside it',
+         /const m = \/\^\(\.\*\)!\(\[A-Z\]\+\)\(\\d\+\)\(\?:\:\|\$\)\/\.exec/.test(sh7) &&
+         /const tab = m\[1\];\s*\n\s*const rowNum = Number\(m\[3\]\);/.test(sh7));
+      ok('…and refuses to be called without an expected record at all',
+       /if \(expected === undefined\) \{\s*\n\s*throw new Error\('sheetsUpdateRow: `expected` is required/.test(sh7));
+
+      // The other tripwire: no raw full-row write may come back.
+      const rawFull = [];
+      [['app.js', ap7], ['app-collection.js', coll7], ['app-pages.js', pg7],
+       ['wizard-save.js', ws7], ['wizard.js', wz7]].forEach(([name, src]) => {
+        (src.match(/sheetsUpdate\(state\.personalSheetId, personalFullRowRange\(/g) || [])
+          .forEach(() => rawFull.push(name));
+      });
+      ok('no full-row write goes straight to sheetsUpdate any more',
+         rawFull.length === 2 && rawFull.every(n => n === 'wizard-save.js'),
+         rawFull.join(',') || '(none)');
+      ok('…and the two that remain each ask rrRowStillIs themselves first',
+         (ws7.match(/rrRowStillIs\(state\.personalSheetId, PERSONAL_TAB, existing\.row,/g) || []).length === 2,
+         String((ws7.match(/rrRowStillIs\(state\.personalSheetId, PERSONAL_TAB, existing\.row,/g) || []).length));
+      ok('the box row appends rather than overwriting a row that moved',
+         /_bxUpdated[\s\S]{0,400}appending a new box row instead/.test(ws7));
+      ok('the fill-item write throws the sentinel rather than saving quietly',
+         /throw new Error\('ROW_MOVED'\);/.test(ws7));
+      ok('…and the one save-error reader turns that into "refresh", not "try again"',
+         /raw === 'ROW_MOVED'/.test(rd7('app/write-outbox.js')) &&
+         /RR_ROW_MOVED_MSG/.test(rd7('app/write-outbox.js')));
+
+      section('217d. A refused write never becomes a forgotten item');
+      ok('the sold-box cleanup keeps a box whose row moved',
+         /_bpBlanked[\s\S]{0,200}if \(_bpBlanked\) delete state\.personalData/.test(ap7));
+      ok('the mark-as-sold path keeps the item it could not blank',
+         /if \(await personalWriteRow\(collEntry, personalBlankRow\(\)\)\) delete state\.personalData\[collKey\]/.test(pg7));
+      ok('every group member is judged on its own answer',
+         (pg7.match(/if \(_mBlanked2?\) delete state\.personalData/g) || []).length === 2,
+         String((pg7.match(/if \(_mBlanked2?\) delete state\.personalData/g) || []).length));
+      ok('the group-sale members in the wizard are too',
+         /if \(_spBlanked\) delete state\.personalData/.test(ws7));
+      ok('the edit-save gives the button back instead of leaving it on "Saving…"',
+         /if \(!\(await personalWriteRow\(pd, newRow\)\)\) \{[\s\S]{0,160}saveBtn\.disabled = false;\s*\n\s*return;/.test(coll7));
+
+      section('217e. One message, one place');
+      ok('the refusal wording lives in exactly one constant',
+         (sh7.match(/const RR_ROW_MOVED_MSG = /g) || []).length === 1 &&
+         /nothing was saved\. Refresh and try again\./.test(sh7));
+      ok('…and it tells the collector all three things: nothing saved, why, what to do',
+         /moved in your spreadsheet/.test(sh7) && /nothing was saved/.test(sh7) &&
+         /Refresh and try again/.test(sh7));
+      ok('the comment above the guard no longer states the opposite of what it does',
+         /READ THAT PARAGRAPH[\s\S]{0,20}AGAIN BEFORE EDITING THIS/.test(sh7) &&
+         !/only ever deleted from Sold, Parts Needed and Ephemera/.test(sh7));
+      ok('the index-to-letter arithmetic exists once, not once per caller',
+         (ap7.match(/String\.fromCharCode\(65 \+ \(n % 26\)\)/g) || []).length === 1 &&
+         /window\.colLetter = colLetter/.test(ap7) &&
+         /return colLetter\(idx\);/.test(ap7));
+      ok('sheets.js loads after the file that defines colLetter',
+         rd7('app/index.html').indexOf('<script src="./app.js?v=') <
+         rd7('app/index.html').indexOf('<script src="./sheets.js?v='));
+    })();
 
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

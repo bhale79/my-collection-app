@@ -218,7 +218,7 @@
     var p = _st.preview; if (!p) return;
     var btn = $('mig-clear-btn'); if (btn) { btn.disabled = true; btn.textContent = 'Clearing…'; }
     try {
-      await migrationClearSource(p.sourceTab, p.sourceRowNumber);
+      await migrationClearSource(p.sourceTab, p.sourceRowNumber, p.itemNum);
       _st.step = 4;
       _render();
     } catch (e) {

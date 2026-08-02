@@ -1234,9 +1234,22 @@ async function saveWizardItem() {
           manufacturer: _getEraManufacturer(),
         });
 
+        // v0.9.1267 (R3): identity-checked — but this one asks rrRowStillIs
+        // directly rather than going through personalWriteRow, because it has
+        // somewhere better to go when the answer is no. Everywhere else a moved
+        // row means "stop and tell the user"; here it means "append a fresh box
+        // row instead of overwriting whatever is now sitting there". A duplicate
+        // box row is a far smaller problem than an erased engine, and telling
+        // the user nothing was saved would be untrue — the box gets saved either
+        // way. So: no toast on this path, just a different destination.
+        var _bxUpdated = false;
         if (existing && existing.row && existing.itemNum === boxItemNum) {
-          // Update existing BOX row
-          await sheetsUpdate(state.personalSheetId, personalFullRowRange(existing.row), [boxRow]);
+          _bxUpdated = await rrRowStillIs(state.personalSheetId, PERSONAL_TAB, existing.row,
+                                          existing.itemNum, existing.inventoryId || '');
+          if (_bxUpdated) await sheetsUpdate(state.personalSheetId, personalFullRowRange(existing.row), [boxRow]);
+          else console.warn('[box] row ' + existing.row + ' moved — appending a new box row instead.');
+        }
+        if (_bxUpdated) {
           var _bxApRow = existing.row;                 // v0.9.1196: updates know their row
         } else {
           var _bxApRow = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [boxRow]);
@@ -1488,6 +1501,18 @@ async function saveWizardItem() {
   var _mainApRow = 0;   // v0.9.1196: the sheet row this item actually landed on
   if (d._fillItemMode && existing?.row) {
         // Updating existing row with new item details (e.g. filling in a quick-entry row)
+        //
+        // v0.9.1267 (R3): identity-checked, and it throws rather than returning
+        // false. saveWizardItem is a long function whose caller already catches
+        // and reports through rrSaveError; a mid-function `return` here would
+        // skip the grouping, partner and cache work below and leave the wizard
+        // believing it had saved. ROW_MOVED is the sentinel rrSaveError reads
+        // to say "refresh" instead of "try again" — the toast is raised once,
+        // by the caller, so no toast is raised here.
+        if (!(await rrRowStillIs(state.personalSheetId, PERSONAL_TAB, existing.row,
+                                 existing.itemNum, existing.inventoryId || ''))) {
+          throw new Error('ROW_MOVED');
+        }
         await sheetsUpdate(state.personalSheetId, personalFullRowRange(existing.row), [row]);
         _mainApRow = existing.row;
       } else {
@@ -1664,8 +1689,12 @@ async function saveWizardItem() {
         var _gs = window._pendingGroupSell;
         for (var _i=0; _i<(_gs.sellPd||[]).length; _i++) {
           var _sp = state.personalData[_gs.sellPd[_i]];
-          if (_sp && _sp.row) { try { await sheetsUpdate(state.personalSheetId, personalFullRowRange(_sp.row), [personalBlankRow()]); } catch(e){} }
-          delete state.personalData[_gs.sellPd[_i]];
+          // v0.9.1267 (R3): identity-checked. A member whose row moved stays in
+          // memory, because it is still on the sheet — forgetting it here is how
+          // an item disappears from the app while sitting in the spreadsheet.
+          var _spBlanked = true;
+          if (_sp && _sp.row) { try { _spBlanked = await personalWriteRow(_sp, personalBlankRow()); } catch(e){} }
+          if (_spBlanked) delete state.personalData[_gs.sellPd[_i]];
         }
         for (var _j=0; _j<(_gs.sellIs||[]).length; _j++) {
           var _ip = (state.isData||{})[_gs.sellIs[_j]];
@@ -1700,7 +1729,14 @@ async function saveWizardItem() {
       }
       // Delete the row from My Collection
       if (collectionEntry?.row) {
-        await sheetsDeleteRow(state.personalSheetId, PERSONAL_TAB, collectionEntry.row);
+        // v0.9.1267 (R3): name the copy being sold. The Sold row has already
+        // been written at this point, so a refused delete leaves the item in
+        // BOTH places — which is recoverable and visible. Silently deleting
+        // somebody else's 2343 instead is neither, so refusing is still right.
+        const _soldGone = await sheetsDeleteRow(state.personalSheetId, PERSONAL_TAB, collectionEntry.row,
+                                                { itemNum: collectionEntry.itemNum || itemNum,
+                                                  inventoryId: collectionEntry.inventoryId || '' });
+        if (!_soldGone) console.warn('[sold] My Collection row was not removed — it had moved.');
       }
       // Session 176: drop the sold item from state right away so Items-I-Own and the
       // collection list update immediately (don't wait for the background reload).

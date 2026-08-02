@@ -279,6 +279,18 @@
     if (raw === 'readonly') {
       return 'Your trial has ended — subscribe to keep adding and editing.';
     }
+    // v0.9.1267 (R3): a whole-row write was refused because that row no longer
+    // holds the record we meant — the spreadsheet was changed somewhere else.
+    // "Please try again" is the wrong advice here: trying again reads the same
+    // stale row number and is refused for the same reason. A refresh is the
+    // only thing that helps, so this case gets its own words. It is also NOT
+    // kept in the outbox — a queued write to a row number that has moved is
+    // exactly the write we just refused.
+    if (raw === 'ROW_MOVED') {
+      return (typeof RR_ROW_MOVED_MSG === 'string' && RR_ROW_MOVED_MSG)
+        ? RR_ROW_MOVED_MSG
+        : 'That row moved in your spreadsheet — nothing was saved. Refresh and try again.';
+    }
     if (raw === 'SESSION_EXPIRED' || /Not signed in|Token required|sign in again|Cannot refresh/i.test(raw)) {
       return 'You have been signed out. Sign in again and ' + thing + ' will save.';
     }
