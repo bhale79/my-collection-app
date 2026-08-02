@@ -9465,12 +9465,23 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /copies\.find\(function \(f\) \{ return String\(f\.name\) === String\(inventoryId\); \}\)/.test(mts));
     ok('…into a matching item folder on the sold side, not loose',
        /driveFindOrCreateFolder\(key, driveCache\.soldPhotosId\)/.test(mts));
-    ok('…and only takes the item folder itself once nothing is left in it',
-       /if \(copies\.length === 1\) \{[\s\S]{0,200}driveMoveFileToFolder\(itemFolderId/.test(mts));
+    // v0.9.1268 (R7): these two used to assert that the item FOLDER was moved —
+    // once when it was the last copy, once when there were no copies at all.
+    // That is the exact behaviour R7 removed: moving the folder meant naming the
+    // parent it was leaving, and after the era migration that parent was a guess.
+    // The intent behind both survives and is now asserted BEHAVIOURALLY in §218,
+    // which runs the real function; what is left here is the shape those two
+    // intents take in the new code.
+    // The retire helper is defined ABOVE driveMoveToSold, so its body is outside
+    // `mts` — the call is read here, the looking-before-trashing from the file.
+    ok('…and the emptied item folder is only retired after we look inside it',
+       /await _driveRetireEmptyItemFolder\(itemFolderId, key\)/.test(mts) &&
+       /if \(res && res\.files && res\.files\.length\) return false;/.test(dv));
     ok('with copies present and no id given, it moves NOBODY\'s photos',
        /\} else if \(copies\.length\) \{[\s\S]{0,220}return false;/.test(mts));
-    ok('…and a single-copy item with no subfolders still moves as it always did',
-       /await driveMoveFileToFolder\(itemFolderId, driveCache\.photosId, driveCache\.soldPhotosId\);\s*\n\s*delete driveCache\.itemFolders\[key\];\s*\n\s*return true;/.test(mts));
+    ok('…and a single-copy item with loose photos moves the photos, not the folder',
+       /const loose = await _driveChildFiles\(itemFolderId\);/.test(mts) &&
+       /driveMoveFileToFolder\(loose\[i\]\.id, itemFolderId, dest\)/.test(mts));
     ok('the sale passes the copy through',
        /driveMoveToSold\(collectionEntry\.itemNum, collectionEntry\.inventoryId\)/.test(ws));
     ok('the copy folder is dropped from the cache under its copy key',
@@ -10263,11 +10274,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1267', /const APP_VERSION = 'v0\.9\.1267';/.test(cfg));
+    ok('APP_VERSION is v0.9.1268', /const APP_VERSION = 'v0\.9\.1268';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1267/g) || []).length === 69 && !/\?v=1266/.test(idx),
-       String((idx.match(/\?v=1267/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1277';/.test(rd('app/sw.js')));
+       (idx.match(/\?v=1268/g) || []).length === 69 && !/\?v=1267/.test(idx),
+       String((idx.match(/\?v=1268/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1278';/.test(rd('app/sw.js')));
     // v0.9.1259: the root page's own ?v= is gone — it registers no worker.
     // The trio is a trio again. §207 is what guards the root page now.
     ok('the landing page carries no version stamp to forget',
@@ -12215,6 +12226,292 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('sheets.js loads after the file that defines colLetter',
          rd7('app/index.html').indexOf('<script src="./app.js?v=') <
          rd7('app/index.html').indexOf('<script src="./sheets.js?v='));
+    })();
+
+    // ═══════════════════════════════════════════════════════════════════
+    await (async function () {
+      section('218. Selling an item takes its photos with it');
+      // Finding R7, plus two more faults found while tracing it. All three are
+      // about driveMoveToSold, and all three are answered by ONE rule: the item
+      // folder itself is never moved — the Sold side gets one folder per item
+      // number and the CONTENTS go into it.
+      //
+      //   1. (R7 as filed) the item folder was searched for at the top level of
+      //      My Collection Photos only. Since v0.9.1125 it lives under its era.
+      //      After the migration the search found nothing, returned false, and
+      //      the caller threw the false away.
+      //   2. selling the last copy created a Sold folder named after the item
+      //      and then moved the identically-named original in beside it.
+      //   3. the move told Drive the folder was leaving driveCache.photosId,
+      //      which stops being its parent the moment it sits under an era.
+      //
+      // These run the real driveMoveToSold, the real finder and the real
+      // driveMoveFileToFolder against a scripted Drive, and assert on the
+      // REQUESTS — which folder was asked for, what was moved out of what, and
+      // what was created. Nothing here greps the source for a phrase.
+      const fs8 = require('fs');
+      const dv8 = fs8.readFileSync(APP_FILE('drive.js'), 'utf8');
+      const cut8 =
+        dv8.slice(dv8.indexOf('async function driveMoveFileToFolder('),
+                  dv8.indexOf('\n}', dv8.indexOf('async function driveMoveFileToFolder(')) + 2) +
+        dv8.slice(dv8.indexOf('let _driveEraFolderCache = null;'),
+                  dv8.indexOf('// ── v0.9.1123 (Brad:')) +
+        dv8.slice(dv8.indexOf("const _FOLDER_MIME = 'application/vnd.google-apps.folder';"),
+                  dv8.indexOf('// ── DRIVE CONFIG FILE'));
+
+      // What each Drive call is for, decided by the fields it asks for rather
+      // than by guessing at the encoded query.
+      function kind8(ep) {
+        if (/^\/files\/[^?]+\?addParents=/.test(ep))            return 'move';
+        if (/^\/files\/[^?]+\?fields=id$/.test(ep))             return 'patch';
+        if (/fields=files\(id\)&pageSize=2$/.test(ep))          return 'empty';
+        if (/fields=nextPageToken,files\(id,name\)/.test(ep))   return 'files';
+        if (/fields=files\(id,name,parents\)/.test(ep))         return 'find';
+        if (/pageSize=200/.test(ep))                            return 'eras';
+        return 'folders';
+      }
+      function moveOf(ep) {
+        const m = /^\/files\/([^?]+)\?addParents=([^&]+)&removeParents=([^&]+)/.exec(ep);
+        return m ? { what: m[1], to: m[2], from: m[3] } : null;
+      }
+
+      // world: { eras:[...], find:[...], folders:{parent:[...]}, files:{parent:[[page1],[page2]]} }
+      function soldRig(world) {
+        const calls = [], created = [];
+        const api = new Function(
+          'driveCache', 'driveRequest', 'driveEnsureSetup', 'driveFindOrCreateFolder',
+          'ERAS', 'window', 'console', 'baseItemNum', 'findMaster',
+          cut8 + '\n; return { move: driveMoveToSold, cache: driveCache };'
+        )({ photosId: 'PHOTOS', soldPhotosId: 'SOLD', itemFolders: {} },
+          async function (method, endpoint, body) {
+            const k = kind8(endpoint);
+            calls.push({ k: k, method: method, ep: endpoint, body: body });
+            if (world.fail && world.fail(k, endpoint)) { const e = new Error('Drive refused (403)'); e.status = 403; throw e; }
+            if (k === 'eras')  return { files: world.eras || [] };
+            if (k === 'find')  return { files: world.find || [] };
+            if (k === 'folders') {
+              const p = /'([^']+)'\+?%20?in/.test(endpoint) ? null : null;   // parent is in the encoded q
+              const who = decodeURIComponent(endpoint).match(/'([^']+)' in parents/);
+              return { files: (world.folders || {})[who ? who[1] : ''] || [] };
+            }
+            if (k === 'files') {
+              const who = decodeURIComponent(endpoint).match(/'([^']+)' in parents/);
+              const pages = (world.files || {})[who ? who[1] : ''] || [];
+              const n = /pageToken=(\d+)/.exec(endpoint);
+              const i = n ? parseInt(n[1], 10) : 0;
+              return { files: pages[i] || [], nextPageToken: (i + 1 < pages.length) ? String(i + 1) : '' };
+            }
+            if (k === 'empty') {
+              const who = decodeURIComponent(endpoint).match(/'([^']+)' in parents/);
+              const p = who ? who[1] : '';
+              const left = ((world.folders || {})[p] || []).concat(
+                (((world.files || {})[p] || [])[0]) || []);
+              return { files: world.emptied ? [] : left };
+            }
+            return {};
+          },
+          async function () {},
+          async function (name, parentId) { created.push({ name: name, parentId: parentId }); return 'SOLD_' + name; },
+          { all: { label: 'All' }, pw: { label: 'Lionel Postwar' } },
+          { state: { personalData: {} } },
+          { warn: function () {}, error: function () {}, log: function () {} },
+          function (n) { return n; },
+          function () { return null; });
+        return { api: api, calls: calls, created: created,
+                 moves: function () { return calls.filter(c => c.k === 'move').map(c => moveOf(c.ep)); },
+                 trashed: function () { return calls.filter(c => c.k === 'patch' && c.body && c.body.trashed === true)
+                                                    .map(c => /^\/files\/([^?]+)/.exec(c.ep)[1]); } };
+      }
+
+      // ── The R7 scenario, exactly: post-migration, folder under its era ──
+      // 2328 lives at Lionel Postwar / 2328 and holds one copy subfolder INV1.
+      const eraWorld = {
+        eras: [{ id: 'ERA_PW', name: 'Lionel Postwar' }],
+        find: [{ id: 'ITEM_2328', name: '2328', parents: ['ERA_PW'] }],
+        folders: { ITEM_2328: [{ id: 'COPY_INV1', name: 'INV1' }] },
+        emptied: true,
+      };
+      const r7 = soldRig(eraWorld);
+      const r7ok = await r7.api.move('2328', 'INV1');
+
+      ok('an item filed under its era is found, not reported missing',
+         r7ok === true && r7.calls.some(c => c.k === 'find'),
+         'returned ' + r7ok + ' — the root-only search is what made R7 silent');
+      ok('…and the copy\'s photos actually move to Sold',
+         r7.moves().length === 1 &&
+         r7.moves()[0].what === 'COPY_INV1' && r7.moves()[0].to === 'SOLD_2328',
+         JSON.stringify(r7.moves()));
+      ok('…leaving the folder they really came from, not the one we assumed',
+         r7.moves().length === 1 && r7.moves()[0].from === 'ITEM_2328',
+         'removeParents said ' + ((r7.moves()[0] || {}).from) +
+         ' — naming PHOTOS is fault 3: it is not the parent once the folder sits under an era');
+      ok('the item folder itself is never moved',
+         r7.moves().every(m => m.what !== 'ITEM_2328'), JSON.stringify(r7.moves()));
+      ok('…so exactly one folder named 2328 is created under Sold, not two',
+         r7.created.length === 1 &&
+         r7.created[0].name === '2328' && r7.created[0].parentId === 'SOLD',
+         JSON.stringify(r7.created));
+      ok('the emptied folder is trashed, and only after we looked inside it',
+         r7.trashed().join() === 'ITEM_2328' &&
+         r7.calls.findIndex(c => c.k === 'empty') <
+         r7.calls.findIndex(c => c.k === 'patch' && c.body && c.body.trashed === true),
+         'trashed ' + JSON.stringify(r7.trashed()));
+      ok('…by trashing, which is recoverable, never by a permanent delete',
+         r7.calls.every(c => c.method !== 'DELETE'),
+         JSON.stringify(r7.calls.filter(c => c.method === 'DELETE').map(c => c.ep)));
+
+      // ── A folder that is NOT empty is left where it is ──
+      const sib = soldRig({
+        eras: [], find: [{ id: 'ITEM_2328', name: '2328', parents: ['PHOTOS'] }],
+        folders: { ITEM_2328: [{ id: 'COPY_INV1', name: 'INV1' }, { id: 'COPY_INV2', name: 'INV2' }] },
+      });
+      const sibOk = await sib.api.move('2328', 'INV1');
+      ok('selling one of two copies moves only that copy',
+         sibOk === true && sib.moves().length === 1 && sib.moves()[0].what === 'COPY_INV1',
+         JSON.stringify(sib.moves()));
+      ok('…and the item folder survives, because the sibling still lives there',
+         sib.trashed().length === 0, JSON.stringify(sib.trashed()));
+
+      // ── Loose photos, paged, so a second page cannot be left behind ──
+      const loose = soldRig({
+        eras: [{ id: 'ERA_PW', name: 'Lionel Postwar' }],
+        find: [{ id: 'ITEM_44', name: '44', parents: ['ERA_PW'] }],
+        folders: { ITEM_44: [] },
+        files: { ITEM_44: [[{ id: 'P1' }, { id: 'P2' }], [{ id: 'P3' }]] },
+        emptied: true,
+      });
+      const looseOk = await loose.api.move('44', '');
+      ok('loose photos move too, including the ones on the second page',
+         looseOk === true &&
+         loose.moves().map(m => m.what).sort().join() === 'P1,P2,P3',
+         JSON.stringify(loose.moves().map(m => m.what)));
+      ok('…each one out of the item folder it was actually in',
+         loose.moves().every(m => m.from === 'ITEM_44' && m.to === 'SOLD_44'),
+         JSON.stringify(loose.moves()));
+
+      // ── The refusals: nothing moved, and nothing created either ──
+      const wrongCopy = soldRig({
+        eras: [], find: [{ id: 'ITEM_2328', name: '2328', parents: ['PHOTOS'] }],
+        folders: { ITEM_2328: [{ id: 'COPY_OTHER', name: 'INV9' }] },
+      });
+      const wrongOk = await wrongCopy.api.move('2328', 'INV1');
+      ok('a copy with no folder of its own never takes another copy\'s photos',
+         wrongOk === false && wrongCopy.moves().length === 0,
+         'returned ' + wrongOk + ', moved ' + JSON.stringify(wrongCopy.moves()));
+      ok('…and no empty folder is created under Sold to imply otherwise',
+         wrongCopy.created.length === 0 && wrongCopy.trashed().length === 0,
+         JSON.stringify(wrongCopy.created));
+
+      const noId = soldRig({
+        eras: [], find: [{ id: 'ITEM_2328', name: '2328', parents: ['PHOTOS'] }],
+        folders: { ITEM_2328: [{ id: 'C1', name: 'A' }, { id: 'C2', name: 'B' }] },
+      });
+      ok('two copies and no inventory id moves nobody\'s photos',
+         (await noId.api.move('2328', '')) === false && noId.moves().length === 0,
+         JSON.stringify(noId.moves()));
+
+      // ── The other direction, twice over ──
+      // Without these, a driveMoveToSold that did nothing at all would pass
+      // every "nothing was moved" assertion above.
+      const none = soldRig({ eras: [], find: [], folders: {}, files: {} });
+      const noneOk = await none.api.move('7777', 'INV1');
+      ok('an item that never had photos reports success, not a failure to warn about',
+         noneOk === true && none.moves().length === 0 && none.created.length === 0,
+         'returned ' + noneOk + ' — false here would toast on every sale of a photoless item');
+      ok('…and nothing is trashed on the way past',
+         none.trashed().length === 0, JSON.stringify(none.trashed()));
+
+      const flat = soldRig({
+        eras: [], find: [{ id: 'ITEM_99', name: '99', parents: ['PHOTOS'] }],
+        folders: { ITEM_99: [{ id: 'COPY_X', name: 'X' }] }, emptied: true,
+      });
+      ok('an un-migrated item at the top level still works exactly as before',
+         (await flat.api.move('99', 'X')) === true &&
+         flat.moves().length === 1 && flat.moves()[0].from === 'ITEM_99' &&
+         flat.trashed().join() === 'ITEM_99',
+         JSON.stringify(flat.moves()));
+
+      // ── A Drive failure is raised, not reported as "there were no photos" ──
+      const refused = soldRig({ eras: [], find: [], fail: k => k === 'find' });
+      let refThrew = '';
+      try { await refused.api.move('2328', 'INV1'); } catch (e) { refThrew = (e && e.message) || ''; }
+      ok('a refused search raises rather than answering "this item has none"',
+         /403/.test(refThrew) && refused.moves().length === 0,
+         refThrew || '(did not throw — a swallow here re-opens R7 exactly)');
+
+      // ── Tidying up is not allowed to fail the move ──
+      const tidyFail = soldRig({
+        eras: [], find: [{ id: 'ITEM_5', name: '5', parents: ['PHOTOS'] }],
+        folders: { ITEM_5: [{ id: 'C', name: 'INV1' }] }, emptied: true,
+        fail: k => k === 'patch',
+      });
+      let tidyOk = null, tidyThrew = '';
+      try { tidyOk = await tidyFail.api.move('5', 'INV1'); } catch (e) { tidyThrew = (e && e.message) || ''; }
+      ok('the photos having arrived is the answer, even if the empty shell cannot be tidied',
+         tidyOk === true && !tidyThrew && tidyFail.moves().length === 1,
+         'returned ' + tidyOk + (tidyThrew ? ' / threw ' + tidyThrew : ''));
+
+      // ── The caller. The mutation drill killed the first version of this:
+      // suppressing the toast outright left the message TEXT sitting in the file,
+      // so a grep for the wording stayed green while the collector was told
+      // nothing. Sixth time this month that text about a value is not the value.
+      // So the sold-photos block is now RUN, with the real driveMoveToSold
+      // replaced by a scripted one, and we read what showToast was handed. ──
+      const ws8 = fs8.readFileSync(APP_FILE('wizard-save.js'), 'utf8');
+
+      const soldBlk = ws8.slice(ws8.indexOf('if (collectionEntry?.itemNum) {'),
+                                ws8.indexOf('\n    } else if (tab === \'want\') {'));
+      // Runs the real block against a scripted move. `answer` is what
+      // driveMoveToSold does: true, false, or throwing.
+      async function runSoldBlock(answer) {
+        const toasts = [];
+        const showToast = function (msg, ms, isErr) { toasts.push({ msg: msg, ms: ms, isErr: isErr }); };
+        const driveMoveToSold = async function () {
+          if (answer instanceof Error) throw answer;
+          return answer;
+        };
+        const blk = new Function('collectionEntry', 'driveMoveToSold', 'showToast', 'console',
+                                 'return (async function () {\n' + soldBlk + '\n})();');
+        let threw = '';
+        try {
+          await blk({ itemNum: '2328', inventoryId: 'INV1' }, driveMoveToSold, showToast,
+                    { warn: function () {}, log: function () {} });
+        } catch (e) { threw = (e && e.message) || String(e); }
+        return { toasts: toasts, threw: threw };
+      }
+
+      const moved8 = await runSoldBlock(true);
+      ok('when the photos really moved, the collector is not nagged about it',
+         moved8.toasts.length === 0 && !moved8.threw, JSON.stringify(moved8));
+
+      const stayed8 = await runSoldBlock(false);
+      ok('when they did not move, the collector is actually told — not just in the source',
+         stayed8.toasts.length === 1, JSON.stringify(stayed8.toasts));
+      ok('…and told which item, and where the photos still are',
+         stayed8.toasts.length === 1 &&
+         stayed8.toasts[0].msg.indexOf('2328') > -1 &&
+         /still under My Collection Photos/.test(stayed8.toasts[0].msg),
+         JSON.stringify(stayed8.toasts));
+      ok('…and told that the sale itself still stands',
+         stayed8.toasts.length === 1 && /^Sold —/.test(stayed8.toasts[0].msg),
+         'the message must open by confirming the sale, or it reads as a failed sale');
+
+      const blew8 = await runSoldBlock(new Error('Drive said 500'));
+      ok('a Drive failure warns rather than failing a sale already on the sheet',
+         blew8.toasts.length === 1 && !blew8.threw, JSON.stringify(blew8));
+      ok('…and the reason is kept out of the collector\'s message',
+         blew8.toasts.length === 1 && blew8.toasts[0].msg.indexOf('Drive said 500') === -1,
+         'per §199g, raw error text does not belong in a toast');
+      ok('TRIPWIRE: the sale keeps the answer instead of discarding it',
+         /_photosMoved = await driveMoveToSold\(/.test(ws8) &&
+         /if \(!_photosMoved\) \{/.test(ws8),
+         'driveMoveToSold\'s return must be read — discarding it is what hid R7');
+      ok('TRIPWIRE: …and says where the photos actually are',
+         /could not be moved\. They are still under My Collection Photos/.test(ws8));
+      ok('TRIPWIRE: …without failing the sale that is already written',
+         /catch \(e\) \{ _moveErr =/.test(ws8) &&
+         ws8.indexOf('_photosMoved = await driveMoveToSold(') >
+         ws8.indexOf('await sheetsAppend(state.personalSheetId, \'Sold'));
     })();
 
   })().then(function () {

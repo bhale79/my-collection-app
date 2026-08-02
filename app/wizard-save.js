@@ -1796,8 +1796,29 @@ async function saveWizardItem() {
       // Move photo folder to Sold in Drive
       if (collectionEntry?.itemNum) {
         // v0.9.1238: pass the copy, not just the number — see driveMoveToSold.
-        try { await driveMoveToSold(collectionEntry.itemNum, collectionEntry.inventoryId); }
-        catch(e) { console.warn('Drive move failed:', e); }
+        //
+        // v0.9.1268 (R7): the answer used to be thrown away, so "the photos
+        // moved", "there were none to move", "Drive refused" and "we looked in
+        // the wrong place entirely" all looked identical from here. That is why
+        // R7 could have survived a whole era migration without anyone noticing.
+        //
+        // The sale still stands either way — it is already written to the sheet,
+        // and a Drive hiccup is not a reason to fail it. But the user is now
+        // told where their photos actually are.
+        let _photosMoved = false, _moveErr = '';
+        try { _photosMoved = await driveMoveToSold(collectionEntry.itemNum, collectionEntry.inventoryId); }
+        catch (e) { _moveErr = (e && e.message) || String(e); console.warn('Drive move failed:', e); }
+        if (!_photosMoved) {
+          console.warn('[Sold] photos for ' + collectionEntry.itemNum +
+                       ' were NOT moved to Sold' + (_moveErr ? ': ' + _moveErr : ''));
+          try {
+            if (typeof showToast === 'function') {
+              showToast('Sold — but the photos for ' + collectionEntry.itemNum +
+                        ' could not be moved. They are still under My Collection Photos in your Drive.',
+                        6000, true);
+            }
+          } catch (eT) {}
+        }
       }
 
     } else if (tab === 'want') {

@@ -1014,6 +1014,41 @@ async function driveUploadItemPhoto(file, itemNum, viewAbbr, inventoryId, fileLa
 // is nothing to be wrong about: no copy subfolders beneath it.
 const _FOLDER_MIME = 'application/vnd.google-apps.folder';
 
+// v0.9.1268 (audit 2026-08-02 round 2, finding R7): three separate faults in
+// this one function, and the fix for all three is a single rule — WE NEVER MOVE
+// THE ITEM FOLDER ITSELF. The Sold side gets one folder per item number,
+// found-or-created, and the CONTENTS move into it.
+//
+// What that rule buys, fault by fault:
+//
+//   1. This searched for the item folder at the top level of My Collection
+//      Photos only. Since v0.9.1125 item folders live one level down, under
+//      their era ("Lionel Postwar / 2328"). After the era migration this found
+//      nothing, returned false, and the caller discarded the false — so the
+//      sale saved, the photos never moved, and the Sold record's folder was
+//      empty with nothing anywhere admitting it. It now uses
+//      _driveItemFolderAnywhere, the same finder driveFindItemFolder and
+//      driveEnsureItemFolder already use, so there is one answer to "where does
+//      this item's folder live" rather than two that disagree.
+//
+//   2. Selling the last copy created a Sold folder named after the item AND
+//      then moved the original folder — also named after the item — in beside
+//      it. Two folders called "2328" under Sold, one of them empty. That is
+//      live today, before any migration. Never moving the item folder makes it
+//      unrepresentable rather than merely fixed.
+//
+//   3. The move named driveCache.photosId as the parent being left. Drive's
+//      removeParents has to name the folder's REAL parent, which stops being
+//      photosId the moment the folder sits under an era. Contents always have a
+//      known parent — the item folder we just found — so with rule in place
+//      there is no longer a parent this function has to guess at.
+//
+// The emptied item folder is trashed, not left as a shell and not permanently
+// deleted: recoverable for 30 days, the same as every other removal in this app.
+//
+// The Sold side stays FLAT — one folder per item number, no era level. Mirroring
+// the era layout over there may be worth doing, but reorganising the user's
+// Drive is not a thing a bug fix gets to do as a side effect.
 async function _driveChildFolders(parentId) {
   const q = encodeURIComponent(
     `mimeType='${_FOLDER_MIME}' and '${parentId}' in parents and trashed=false`);
@@ -1021,31 +1056,81 @@ async function _driveChildFolders(parentId) {
   return (res && res.files) || [];
 }
 
+// The loose photo FILES in a folder. This one pages and _driveChildFolders does
+// not, deliberately: a truncated file listing means photos silently left behind
+// under the active tree, which is the exact harm R7 is about, whereas an item
+// with 200+ copy subfolders is not a collection anyone has.
+async function _driveChildFiles(parentId) {
+  const out = [];
+  let pageToken = '', guard = 0;
+  do {
+    const q = encodeURIComponent(
+      `mimeType!='${_FOLDER_MIME}' and '${parentId}' in parents and trashed=false`);
+    const res = await driveRequest('GET', `/files?q=${q}&fields=nextPageToken,files(id,name)&pageSize=200` +
+                                          (pageToken ? '&pageToken=' + pageToken : ''));
+    (res && res.files || []).forEach(function (f) { out.push(f); });
+    pageToken = (res && res.nextPageToken) || '';
+  } while (pageToken && ++guard < 10);
+  return out;
+}
+
+// Trash an item folder once its contents have gone to Sold.
+//
+// It LOOKS before it trashes, because "I moved everything" and "everything is
+// gone" are two different claims and only the second one justifies this.
+//
+// The catch is exonerated, not lazy: reaching it means the photos have already
+// arrived in Sold, which is the whole job. Failing the move because we could not
+// tidy up an empty folder afterwards would report a real success as a failure
+// and send the user looking for photos that are exactly where they should be.
+async function _driveRetireEmptyItemFolder(folderId, key) {
+  try {
+    const q = encodeURIComponent(`'${folderId}' in parents and trashed=false`);
+    const res = await driveRequest('GET', `/files?q=${q}&fields=files(id)&pageSize=2`);
+    if (res && res.files && res.files.length) return false;   // not empty — leave it alone
+    await driveRequest('PATCH', '/files/' + folderId + '?fields=id', { trashed: true });
+    return true;
+  } catch (e) {
+    console.warn('[Drive] photos moved, but the empty folder for ' + key +
+                 ' could not be tidied away:', (e && e.message) || e);
+    return false;
+  }
+}
+
 async function driveMoveToSold(itemNum, inventoryId) {
   await driveEnsureSetup();
   const key = String(itemNum);
-  const q = encodeURIComponent(
-    `name='${key}' and mimeType='${_FOLDER_MIME}' and '${driveCache.photosId}' in parents and trashed=false`);
-  const res = await driveRequest('GET', `/files?q=${q}&fields=files(id)`);
-  if (!res.files || !res.files.length) return false;
-  const itemFolderId = res.files[0].id;
+  const itemFolderId = await _driveItemFolderAnywhere(key);
+  // No folder anywhere means this item never had photos. Nothing was left
+  // behind, so that is a success and not a refusal. The caller warns the user
+  // on false, and warning on every sale of a photoless item would teach them to
+  // ignore the one warning that matters. _driveItemFolderAnywhere raises on a
+  // Drive failure rather than returning null, so null really is "none".
+  if (!itemFolderId) return true;
   const copies = await _driveChildFolders(itemFolderId);
+
+  // Created only once, and only when there is genuinely something to put in it —
+  // an empty "2328" under Sold for an item whose photos we refused to move would
+  // be its own small lie.
+  let _soldItemFolder = null;
+  async function soldFolder() {
+    if (!_soldItemFolder) _soldItemFolder = await driveFindOrCreateFolder(key, driveCache.soldPhotosId);
+    return _soldItemFolder;
+  }
 
   if (inventoryId) {
     const mine = copies.find(function (f) { return String(f.name) === String(inventoryId); });
     if (mine) {
-      const soldItemFolder = await driveFindOrCreateFolder(key, driveCache.soldPhotosId);
-      await driveMoveFileToFolder(mine.id, itemFolderId, soldItemFolder);
+      await driveMoveFileToFolder(mine.id, itemFolderId, await soldFolder());
       delete driveCache.itemFolders[key + '/' + inventoryId];
-      // The item folder itself only follows once nothing is left in it.
-      if (copies.length === 1) {
-        await driveMoveFileToFolder(itemFolderId, driveCache.photosId, driveCache.soldPhotosId);
-        delete driveCache.itemFolders[key];
-      }
+      // Only the LAST copy leaves an empty shell; while siblings remain the
+      // folder is still someone's home and the emptiness check says so.
+      await _driveRetireEmptyItemFolder(itemFolderId, key);
+      delete driveCache.itemFolders[key];
       return true;
     }
     // No subfolder for this copy: its photos, if any, sit loose in the item
-    // folder. Only safe to move the whole thing if no other copy shares it.
+    // folder. Only safe to move them if no other copy shares that folder.
     if (copies.length) {
       console.warn('[Drive] ' + key + ' has copy folders but none for ' + inventoryId +
                    ' - leaving photos where they are rather than moving another copy\'s');
@@ -1057,7 +1142,15 @@ async function driveMoveToSold(itemNum, inventoryId) {
     return false;
   }
 
-  await driveMoveFileToFolder(itemFolderId, driveCache.photosId, driveCache.soldPhotosId);
+  // Loose photos, and no other copy they could belong to.
+  const loose = await _driveChildFiles(itemFolderId);
+  if (loose.length) {
+    const dest = await soldFolder();
+    for (let i = 0; i < loose.length; i++) {
+      await driveMoveFileToFolder(loose[i].id, itemFolderId, dest);
+    }
+  }
+  await _driveRetireEmptyItemFolder(itemFolderId, key);
   delete driveCache.itemFolders[key];
   return true;
 }
