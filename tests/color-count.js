@@ -83,3 +83,66 @@ function countAll(appDir) {
 }
 
 module.exports = { countAll, countFile, targetFiles, stripComments };
+
+// ═══════════════════════════════════════════════════════════════
+// Run it directly:  node tests/color-count.js
+//
+// v0.9.1257 (audit 2026-08-02). Until now this file was a module and
+// NOTHING else — no main block, no output, no exit code. `node
+// tests/color-count.js` has been a step in the deploy checklist since
+// v0.9.1154 and it printed nothing and exited 0 every single time. The
+// counter was always sound; it just had no way of being asked directly,
+// so the step was theatre. A gate that cannot fail is not a gate.
+//
+// The real ratchet still runs inside photo-inbox-tests.js (§ colour),
+// which requires the functions above. This block does not replace it —
+// it makes the standalone command mean what the checklist claims it
+// means, and it reads the SAME budget file, so the two can never give
+// different answers.
+// ═══════════════════════════════════════════════════════════════
+if (require.main === module) {
+  const appDir = path.join(__dirname, '..', 'app');
+
+  let budgets;
+  try {
+    budgets = require('./color-budget.json').budgets;
+  } catch (e) {
+    console.log('FAILED  —  cannot read tests/color-budget.json: ' + (e && e.message));
+    process.exit(1);
+  }
+
+  const counts = countAll(appDir);
+  const problems = [];
+  let total = 0;
+
+  Object.keys(counts).sort().forEach(function (f) {
+    const n = counts[f];
+    total += n;
+    const b = budgets[f];
+    if (b === undefined) {
+      // A tracked file with colours and no budget line is not "fine by
+      // default" — it is untracked, which is how a file slips out of the
+      // rule entirely. Treat it as a failure, not a shrug.
+      problems.push('  ' + f + ': ' + n + ' literals, NO budget entry  ' +
+                    '-> run node tests/update-color-budget.js');
+      return;
+    }
+    if (n > b) {
+      problems.push('  ' + f + ': ' + n + ' vs budget ' + b + '   (+' + (n - b) + ')');
+    }
+  });
+
+  const budgetTotal = Object.keys(budgets).reduce(function (a, k) { return a + budgets[k]; }, 0);
+
+  if (problems.length) {
+    console.log('Hardcoded colours OVER BUDGET:\n' + problems.join('\n'));
+    console.log('\nFAILED  —  ' + problems.length + ' file(s) over budget.  ' +
+                'Point the new colour at a CSS custom property instead of a literal.');
+    process.exit(1);
+  }
+
+  console.log('ALL PASS  —  hardcoded colours within budget: ' +
+              total + ' of ' + budgetTotal +
+              ' across ' + Object.keys(counts).length + ' files.');
+  process.exit(0);
+}

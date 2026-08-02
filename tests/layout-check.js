@@ -14,9 +14,21 @@
 //      past the space it was given.
 // Neither was visible at 1900px, which is why it shipped.
 //
-// Run it with:  node tests/layout-check.js
-// It needs playwright. Without it the script says so and exits 0 rather
-// than failing a machine that never asked to run browser tests.
+// Run it with:  node tests/layout-check.js  (or, better, `npm test`)
+//
+// It needs playwright. Until v0.9.1257 a missing playwright printed a
+// note and exited 0 — "rather than failing a machine that never asked to
+// run browser tests." The 2026-08-02 audit found what that actually
+// bought: playwright was not declared in package.json, so on any clean
+// clone this entire file — 171 assertions, the only thing in the suite
+// that can SEE the app — exited green without rendering a single pixel.
+// A gate that passes by not existing is worse than no gate, because it
+// is counted.
+//
+// playwright is now a declared devDependency and its absence is a
+// FAILURE. If a machine genuinely does not want browser tests, it should
+// say so out loud by not running this file, not by having the file quietly
+// agree with it.
 // ═══════════════════════════════════════════════════════════════
 'use strict';
 
@@ -27,8 +39,11 @@ const path = require('path');
 let chromium;
 try { chromium = require('playwright').chromium; }
 catch (e) {
-  console.log('layout-check: playwright not installed — skipping (npm i playwright to enable)');
-  process.exit(0);
+  console.log('FAILED  —  layout-check needs playwright and it is not installed.');
+  console.log('          playwright is a declared devDependency: run `npm install`.');
+  console.log('          (This used to exit 0, which meant 171 layout assertions');
+  console.log('           silently did not run on any clean clone. v0.9.1257.)');
+  process.exit(1);
 }
 
 const APP = path.join(__dirname, '..', 'app');
@@ -675,7 +690,11 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
         ok('watermark: …and the mark is still visible where nothing covers it',
            onBare[1] > onBare[0] && onBare[1] > onBare[2], JSON.stringify(onBare));
       } else {
-        ok('watermark: pixel check skipped — pngjs not installed', true, 'npm i pngjs to enable');
+        // v0.9.1257: this used to be `ok(…, true)` — a PASS printed for two
+        // pixel reads that never happened, in the one part of the file that
+        // looks at actual rendered colour. pngjs is a DECLARED dependency,
+        // so its absence is a broken install, not a lifestyle choice.
+        ok('watermark: pixel check could NOT run — pngjs missing', false, 'run npm install');
       }
     }
 
@@ -723,7 +742,8 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
         ok('add buttons: nothing behind them bleeds through',
            !(px3[1] > px3[0] && px3[1] > px3[2]), JSON.stringify(px3));
       } else {
-        ok('add buttons: pixel check skipped — pngjs not installed', true);
+        // v0.9.1257 — see the note on the watermark pixel check above.
+        ok('add buttons: pixel check could NOT run — pngjs missing', false, 'run npm install');
       }
     }
 
