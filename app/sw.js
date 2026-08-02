@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v1271';
+const CACHE_NAME = 'mca-v1272';
 
 // ── v0.9.1214: the version stamp has to survive as far as the cache ──
 // Brad, on v1213: "im reset twice and it still looks the same." He was
@@ -215,6 +215,29 @@ self.addEventListener('fetch', event => {
   const isNav = event.request.mode === 'navigate' ||
                 (event.request.destination === 'document');
 
+  // v0.9.1262 (audit 2026-08-02 round 2, finding R1): a navigation has to ask
+  // the SERVER, and plain `fetch(event.request)` does not. A re-fetch inside a
+  // worker inherits the original request's cache MODE, and a navigation's mode
+  // is "default" — which permits the browser's own HTTP cache to answer it
+  // without a round trip. v0.9.1259's network-first navigation was verified
+  // against a local server that sends no cache headers, so this was invisible.
+  // GitHub Pages sends `cache-control: max-age=600`. Measured on the real
+  // host: Refresh and in-page reload got fresh code, but a typed URL, a
+  // bookmark, a home-screen launch, and the landing page's hop into /app/ were
+  // all answered from disk — the server logged three requests and none of them
+  // was for /app/. The stale index.html then re-registered the OLD sw.js, so
+  // the update did not arrive late; it never began. This is the live cause of
+  // "I reset twice and it still looks the same."
+  //
+  // `cache: 'reload'` is the only thing that bypasses the HTTP cache, and it
+  // writes the fresh copy back through it as well.
+  //
+  // It is deliberately NOT applied to the other files. Those are ?v=-stamped,
+  // so a stamp the cache has never seen already goes to the network on its
+  // own, and forcing a reload on all of them would undo stale-while-revalidate
+  // for the entire shell — every file re-downloaded on every load.
+  const netOpts = isNav ? { cache: 'reload' } : undefined;
+
   // Stale-while-revalidate for app shell files:
   // 1. Serve from cache immediately (fast)
   // 2. Fetch fresh copy in background
@@ -222,7 +245,7 @@ self.addEventListener('fetch', event => {
   event.respondWith(
     caches.open(CACHE_NAME).then(cache =>
       cache.match(cacheKey).then(cached => {
-        const networkFetch = fetch(event.request).then(response => {
+        const networkFetch = fetch(event.request, netOpts).then(response => {
           if (response && response.ok) {
             cache.put(cacheKey, response.clone());
           }

@@ -10221,11 +10221,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1261', /const APP_VERSION = 'v0\.9\.1261';/.test(cfg));
+    ok('APP_VERSION is v0.9.1262', /const APP_VERSION = 'v0\.9\.1262';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1261/g) || []).length === 69 && !/\?v=1260/.test(idx),
-       String((idx.match(/\?v=1261/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1271';/.test(rd('app/sw.js')));
+       (idx.match(/\?v=1262/g) || []).length === 69 && !/\?v=1261/.test(idx),
+       String((idx.match(/\?v=1262/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1272';/.test(rd('app/sw.js')));
     // v0.9.1259: the root page's own ?v= is gone — it registers no worker.
     // The trio is a trio again. §207 is what guards the root page now.
     ok('the landing page carries no version stamp to forget',
@@ -11206,6 +11206,93 @@ META_WRITES.length = 0; TOASTS.length = 0;
        'v0.9.1258 lesson: never erase the only copy of a record before its replacement exists');
     ok('…and the setup that rewrites them is still actually run',
        /await driveSetupVault\(\)/.test(ensure));
+
+    section('210. A page load asks the server, not the browser’s own cache');
+    // v0.9.1259 made navigations network-first and it was verified against a
+    // local server that sends no cache headers. GitHub Pages sends
+    // `cache-control: max-age=600`, and a re-fetch inside a service worker
+    // INHERITS the original request's cache mode — "default" for a navigation
+    // — so the browser's disk cache answered it and the server was never
+    // asked. v0.9.1262 passes `{ cache: 'reload' }` on that one path.
+    //
+    // The tempting assertion here is /cache: 'reload'/ over the file. Do not
+    // write it: it passes with the option computed and then never handed to
+    // fetch, and it says nothing about whether the SUBRESOURCE path was
+    // wrecked at the same time — forcing a reload on all ~70 shell files
+    // would undo stale-while-revalidate for the whole app and quietly make
+    // every load a full re-download. So run the real handler and read what
+    // fetch was actually called with.
+    //
+    // The offline behaviour and the full six-entry-path matrix are covered by
+    // tests/sw-nav-cache.js, which drives a real Chromium against a real
+    // server that sends the real header. This section is the cheap guard that
+    // runs in the gate on every push.
+    const swSrc = require('fs').readFileSync(APP_FILE('sw.js'), 'utf8');
+
+    function swFetchCall(req, cachedHit) {
+      const seen = [];
+      const handlers = {};
+      const fakeCache = {
+        match: function () { return Promise.resolve(cachedHit || undefined); },
+        put: function () { return Promise.resolve(); },
+        add: function () { return Promise.resolve(); },
+      };
+      const fakeSelf = {
+        location: { href: 'http://example.test/app/sw.js?v=1262' },
+        addEventListener: function (t, h) { (handlers[t] = handlers[t] || []).push(h); },
+        skipWaiting: function () {},
+        clients: { claim: function () {} },
+        registration: { unregister: function () { return Promise.resolve(); } },
+      };
+      const fakeCaches = {
+        open: function () { return Promise.resolve(fakeCache); },
+        keys: function () { return Promise.resolve([]); },
+        delete: function () { return Promise.resolve(true); },
+        match: function () { return Promise.resolve(undefined); },
+      };
+      const fakeFetch = function (r, init) {
+        seen.push({ url: (r && r.url) || String(r), init: init });
+        return Promise.resolve({ ok: true, clone: function () { return this; } });
+      };
+      new Function('self', 'caches', 'fetch', 'console', 'URL', 'Response', 'Promise',
+        swSrc
+      )(fakeSelf, fakeCaches, fakeFetch, { warn: function () {}, error: function () {}, log: function () {} },
+        URL, { error: function () { return { ok: false }; } }, Promise);
+
+      let answered = null;
+      const ev = { request: req, respondWith: function (p) { answered = p; } };
+      (handlers.fetch || []).forEach(function (h) { h(ev); });
+      return Promise.resolve(answered).then(function () { return seen; });
+    }
+
+    const NAV = { url: 'http://example.test/app/', method: 'GET',
+                  mode: 'navigate', destination: 'document' };
+    const SUB = { url: 'http://example.test/app/app.js?v=1262', method: 'GET',
+                  mode: 'no-cors', destination: 'script' };
+
+    const navSeen = await swFetchCall(NAV, null);
+    ok('a page load reaches fetch at all',
+       navSeen.length === 1, 'fetch called ' + navSeen.length + ' times');
+    ok('…and is told to bypass the browser’s HTTP cache',
+       !!navSeen[0] && !!navSeen[0].init && navSeen[0].init.cache === 'reload',
+       'fetch got ' + JSON.stringify(navSeen[0] && navSeen[0].init) +
+       ' — without cache:"reload" a typed URL, a bookmark, a home-screen launch ' +
+       'and the landing page’s hop are all answered from disk for ten minutes ' +
+       'and the deploy never arrives');
+
+    const subSeen = await swFetchCall(SUB, { ok: true, clone: function () { return this; } });
+    ok('a ?v=-stamped shell file is NOT forced to reload',
+       subSeen.length === 1 && (!subSeen[0].init || subSeen[0].init.cache !== 'reload'),
+       'fetch got ' + JSON.stringify(subSeen[0] && subSeen[0].init) +
+       ' — a stamped URL the cache has never seen already goes to the network; ' +
+       'reloading all ~70 of them turns every load into a full re-download');
+
+    // A document request that arrives without mode:"navigate" is still a page.
+    const navByDest = await swFetchCall(
+      { url: 'http://example.test/app/', method: 'GET', destination: 'document' }, null);
+    ok('a page recognised by destination alone gets the same treatment',
+       !!navByDest[0] && !!navByDest[0].init && navByDest[0].init.cache === 'reload',
+       JSON.stringify(navByDest[0] && navByDest[0].init));
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
