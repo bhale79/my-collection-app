@@ -1903,7 +1903,10 @@ async function loadAllErasMode() {
       // bumps _rrDataRev, which is what tells the browse render its cached DOM
       // is stale; the length-based fingerprint cannot see a reorder.
       if (typeof _rebuildMasterIndex === 'function') _rebuildMasterIndex();
-      if (typeof renderBrowse === 'function') renderBrowse();
+      // v0.9.1251 (finding 13): repaint the VISIBLE tab, not just the Items
+      // list — the sub-tabs bake the same masterData index into their rows.
+      if (typeof rrRepaintBrowse === 'function') rrRepaintBrowse();
+      else if (typeof renderBrowse === 'function') renderBrowse();
       if (state.loading && state.loading.allEras) {
         state.loading.allEras.loaded++;
         if (typeof _renderAllLoadingIndicator === 'function') _renderAllLoadingIndicator();
@@ -2033,7 +2036,9 @@ async function loadAllErasMode() {
     _rebuildMasterIndex();
     if (state.companionData.length || state.setData.length) buildPartnerMap();
     populateFilters();
-    if (typeof renderBrowse === 'function') renderBrowse();
+    // v0.9.1251 (finding 13): this path also rebuilt masterData from scratch.
+    if (typeof rrRepaintBrowse === 'function') rrRepaintBrowse();
+    else if (typeof renderBrowse === 'function') renderBrowse();
     if (typeof buildDashboard === 'function') buildDashboard();
     showToast('All eras up to date — ' + (state.masterData||[]).length + ' items', 2500);
   })().catch(function(e) {

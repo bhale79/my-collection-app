@@ -250,7 +250,10 @@ async function loadMasterData() {
             if (typeof ERAS !== 'undefined' && _currentEra && ERAS[_currentEra]) { ERAS[_currentEra]._total = state.masterData.length; try { localStorage.setItem('lv_era_total_' + _currentEra, state.masterData.length); } catch(e) {} }
             idbSet(_IDB_KEY, state.masterData);
             localStorage.setItem(_TS_KEY, Date.now().toString());
-            if (typeof renderBrowse === 'function') renderBrowse();
+            // v0.9.1251 (finding 13): masterData was just replaced wholesale —
+            // repaint whichever tab is on screen, not only the Items list.
+            if (typeof rrRepaintBrowse === 'function') rrRepaintBrowse();
+            else if (typeof renderBrowse === 'function') renderBrowse();
           }
         }).catch(() => {});
       }
@@ -1457,7 +1460,15 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
       inventoryId: _s(r[8]),
       manufacturer: _s(r[9]) || 'Lionel',
     };
+    // v0.9.1251 (row-identity audit, finding 8): mint the storage key ONCE and
+    // carry it on the entry. It used to be recomputed later by _fsEntryKey()
+    // from entry.row — but _adjustRowsAfterDelete mutates entry.row in place
+    // after a deletion and never rekeys the table, so the recomputed key
+    // stopped naming the entry it was built from. Remove then pointed at a
+    // different listing. Two names for one thing, drifting apart on the first
+    // delete; now there is one name, and it never moves.
     const key = entry.inventoryId || ('legacy-row-' + _row);
+    entry._key = key;
     newForSale[key] = entry;
   });
 
@@ -1483,7 +1494,9 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
         manufacturer: _wu(r[8]) || 'Lionel',
         listType: 'Upgrade',
       };
+      // v0.9.1251: same as For Sale above — the key is minted once and carried.
       const key = entry.inventoryId || ('legacy-row-' + _row);
+      entry._key = key;
       state.upgradeData[key] = entry;
     } else {
       // Default to Want (covers 'Want', empty, or anything unrecognized)
@@ -1589,8 +1602,15 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     if (!r[0] || r[0] === 'Sheet #' || r[0] === 'Instruction Sheets') return;
     const _rowNum = idx + 3;
     const _isInvId = String(r[6] || '');
+    // v0.9.1251 (finding 14): carry the storage key on the record. Three
+    // render sites used to pass `it.row` into openISDetail(), which looks up
+    // state.isData[key] — and the key is the inventoryId whenever the record
+    // has one, so those clicks silently did nothing. One branch had already
+    // been fixed with a lookup map and a comment explaining why; the other two
+    // were missed. Stamping the key here means no site has to re-derive it.
     const key = _isInvId || _rowNum;
     newIsData[key] = {
+      _key: key,
       row: _rowNum, sheetNum: String(r[0]||''), linkedItem: String(r[1]||''), year: String(r[2]||''),
       condition: String(r[3]||''), notes: String(r[4]||''), photoLink: String(r[5]||''),
       inventoryId: _isInvId, groupId: String(r[7]||''), formCode: String(r[8]||''),

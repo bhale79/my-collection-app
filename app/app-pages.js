@@ -87,10 +87,17 @@ function _ugCacheRemove(ugKey) { delete state.upgradeData[ugKey]; }
 // Phase 3: helper for the For Sale list — derive a stable storage key from
 // the entry itself, NOT the (itemNum|variation) composite that collides on
 // duplicate-owned items. Used inside list renderers + delete handlers.
+// v0.9.1251 (finding 8): prefer the key the entry was STORED under. Deriving
+// it again from .row was the bug — that number is mutated in place after a
+// deletion, so the derived key drifted away from the real one and Remove hit
+// a different listing. The derivation is kept only for entries built in-session
+// (those always have an inventoryId, so it never actually runs on a row).
 function _fsEntryKey(fs) {
+  if (fs && fs._key) return fs._key;
   return (fs && fs.inventoryId) ? fs.inventoryId : ('legacy-row-' + (fs && fs.row ? fs.row : 0));
 }
 function _ugEntryKey(ug) {
+  if (ug && ug._key) return ug._key;
   return (ug && ug.inventoryId) ? ug.inventoryId : ('legacy-row-' + (ug && ug.row ? ug.row : 0));
 }
 

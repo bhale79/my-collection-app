@@ -9089,11 +9089,16 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const rsg = wz.slice(wz.indexOf('async function rrRemoveSetGroup'),
                          wz.indexOf("if (typeof window !== 'undefined') window.rrRemoveSetGroup"));
     ok('deleting a set row pulls the rows beneath it up, like every other delete',
-       /_adjustRowsAfterDelete\(state\.personalData, pd\.row\)/.test(rsg));
+       /_adjustRowsAfterDelete\(state\.personalData, pd\.row, PERSONAL_TAB\)/.test(rsg));
     ok('…and it happens after the delete, not before',
        rsg.indexOf('sheetsDeleteRow') < rsg.indexOf('_adjustRowsAfterDelete'));
-    ok('…for the For Sale list too, which is keyed the same way',
-       /_adjustRowsAfterDelete\(state\.forSaleData, pd\.row\)/.test(rsg));
+    // v0.9.1251: this assertion used to require the OPPOSITE — it locked in the
+    // bug. "which is keyed the same way" was simply untrue: For Sale rows are
+    // positions in the For Sale tab, and deleting a My Collection row moves
+    // none of them. The old line made a four-piece set cancel renumber every
+    // listing below that number, four times over.
+    ok('…but the For Sale list is NOT renumbered from a My Collection row',
+       !/_adjustRowsAfterDelete\(state\.forSaleData, pd\.row/.test(rsg));
 
     // RUN it: three set rows deleted, everything below must move up three
     (function () {
@@ -10181,12 +10186,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1250', /const APP_VERSION = 'v0\.9\.1250';/.test(cfg));
+    ok('APP_VERSION is v0.9.1251', /const APP_VERSION = 'v0\.9\.1251';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1250/g) || []).length === 69 && !/\?v=1249/.test(idx),
-       String((idx.match(/\?v=1250/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1261';/.test(rd('app/sw.js')));
-    ok('the root page asks for the new worker', /sw\.js\?v=1250/.test(root));
+       (idx.match(/\?v=1251/g) || []).length === 69 && !/\?v=1250/.test(idx),
+       String((idx.match(/\?v=1251/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1262';/.test(rd('app/sw.js')));
+    ok('the root page asks for the new worker', /sw\.js\?v=1251/.test(root));
   })();
 
   // ═══════════════════════════════════════════════════════════
@@ -10272,6 +10277,121 @@ META_WRITES.length = 0; TOASTS.length = 0;
     k = run([['6014', '1', ''], ['6014', '1', '']]);
     ok('rows with no Inventory ID still fall back to the row, as before',
        k[0] === '6014|1|3' && k[1] === '6014|1|4', k.join('  '));
+  })();
+
+  // ═══════════════════════════════════════════════════════════
+  // §201. v0.9.1251 — the row-number identity sweep.
+  //   Four confirmed findings from the 16-finding audit. The rule they
+  //   all break: a row number is a POSITION, not an IDENTITY, and it is
+  //   legitimate only inside an A1 range at the moment of a write.
+  // ═══════════════════════════════════════════════════════════
+  (function () {
+    const fs201 = require('fs'), p201 = require('path');
+    const rd = f => fs201.readFileSync(p201.join(__dirname, '..', f), 'utf8');
+    const coll = rd('app/app-collection.js'), wiz = rd('app/wizard.js');
+    const data = rd('app/app-data.js'), pages = rd('app/app-pages.js');
+    const brw = rd('app/browse.js'), appjs = rd('app/app.js');
+    const strip = t => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+
+    section('201. Finding 7 — a row number cannot cross tabs any more');
+    ok('there is ONE reader for "which tab does this table’s row mean"',
+       /function _rowTabOf\(dataObj\)/.test(coll));
+    ok('the renumberer takes the tab it came from',
+       /function _adjustRowsAfterDelete\(dataObj, deletedRow, fromTab\)/.test(coll));
+    ok('a cross-tab call is refused, not applied',
+       /refusing to renumber/.test(coll));
+    ok('every caller in app-collection names its tab',
+       (strip(coll).match(/_adjustRowsAfterDelete\([^)]*,\s*(PERSONAL_TAB|'For Sale')\)/g) || []).length === 4,
+       String((strip(coll).match(/_adjustRowsAfterDelete\([^)]*,\s*(PERSONAL_TAB|'For Sale')\)/g) || []).length));
+    ok('the set-cancel path no longer touches For Sale at all',
+       !/_adjustRowsAfterDelete\(state\.forSaleData/.test(strip(wiz)));
+
+    // Run the real guard.
+    (function () {
+      const src = coll.slice(coll.indexOf('function _rowTabOf(dataObj)'),
+                             coll.indexOf('Object.values(dataObj).forEach(rec =>'));
+      const tail = 'Object.values(dataObj).forEach(function(rec){ if (rec.row && rec.row > deletedRow && rec.row !== 99999) rec.row--; });\n}';
+      const warns = [];
+      const mk = new Function('state', 'PERSONAL_TAB', 'console',
+        src + tail + '\n return { adjust: _adjustRowsAfterDelete, tabOf: _rowTabOf };');
+      const state = {
+        personalData: { a: { row: 10 }, b: { row: 20 } },
+        forSaleData:  { x: { row: 10 }, y: { row: 20 } },
+      };
+      const api = mk(state, 'My Collection',
+        { warn: function () { warns.push([].slice.call(arguments).join(' ')); }, debug: function () {} });
+
+      ok('the table knows its own tab', api.tabOf(state.forSaleData) === 'For Sale');
+      // The actual bug: a My Collection deletion aimed at the For Sale table.
+      api.adjust(state.forSaleData, 13, 'My Collection');
+      ok('a My Collection row does NOT renumber For Sale',
+         state.forSaleData.y.row === 20, 'y.row=' + state.forSaleData.y.row);
+      ok('…and it says why, instead of failing silently',
+         warns.some(w => /refusing to renumber "For Sale"/.test(w)), warns[0] || '(no warning)');
+      // The legitimate call still works.
+      api.adjust(state.forSaleData, 13, 'For Sale');
+      ok('a real For Sale deletion still pulls the rows beneath it up',
+         state.forSaleData.y.row === 19 && state.forSaleData.x.row === 10,
+         'x=' + state.forSaleData.x.row + ' y=' + state.forSaleData.y.row);
+    })();
+
+    section('201b. Finding 8 — the storage key is minted once and carried');
+    ok('For Sale stamps the key on the entry', /entry\._key = key;/.test(data));
+    ok('the key is no longer re-derived from a mutable row',
+       /function _fsEntryKey\(fs\) \{\s*\n\s*if \(fs && fs\._key\) return fs\._key;/.test(pages));
+    ok('the Upgrade list does the same',
+       /function _ugEntryKey\(ug\) \{\s*\n\s*if \(ug && ug\._key\) return ug\._key;/.test(pages));
+    (function () {
+      const src = pages.slice(pages.indexOf('function _fsEntryKey(fs)'),
+                              pages.indexOf('function _ugEntryKey(ug)'));
+      const keyOf = new Function(src + '\n return _fsEntryKey;')();
+      // A legacy listing: no inventoryId, stored under legacy-row-4.
+      const entry = { row: 4, _key: 'legacy-row-4', itemNum: '2343' };
+      ok('the key names the entry before any deletion', keyOf(entry) === 'legacy-row-4');
+      entry.row = 3;   // exactly what _adjustRowsAfterDelete does
+      ok('…and STILL names it after the row is renumbered', keyOf(entry) === 'legacy-row-4',
+         keyOf(entry));
+      ok('an entry with an inventoryId is unaffected',
+         keyOf({ inventoryId: 'INV-9', row: 7 }) === 'INV-9');
+    })();
+
+    section('201c. Finding 13 — repaint the tab that is actually showing');
+    ok('there is ONE reader for "redraw the visible list"',
+       /function rrRepaintBrowse\(\)/.test(brw) && /window\.rrRepaintBrowse = rrRepaintBrowse/.test(brw));
+    ok('it draws the current tab, not just Items',
+       /renderBrowseTab\(\(typeof state !== 'undefined' && state\._browseTab\) \|\| 'items'\)/.test(brw));
+    ok('the background era refresh calls it',
+       /rrRepaintBrowse\(\);\s*\n\s*else if \(typeof renderBrowse === 'function'\) renderBrowse\(\);\s*\n\s*if \(state\.loading/.test(appjs));
+    ok('so does the all-eras finish',
+       (strip(appjs).match(/rrRepaintBrowse\(\)/g) || []).length >= 2,
+       String((strip(appjs).match(/rrRepaintBrowse\(\)/g) || []).length));
+    ok('and the cache-then-refresh path in app-data',
+       /rrRepaintBrowse\(\)/.test(strip(data)));
+    ok('every sub-tab is reachable from the dispatcher it now calls',
+       ['science', 'construction', 'paper', 'other', 'service']
+         .every(t => new RegExp("state\\._browseTab === '" + t + "'").test(brw)));
+
+    section('201d. Finding 14 — an instruction sheet is opened by its key');
+    ok('the record carries the key it is stored under', /_key: key,\s*\n\s*row: _rowNum, sheetNum:/.test(data));
+    ok('no render site passes a bare row into openISDetail',
+       !/openISDetail\(\$\{(it|s)\.row\}\)/.test(strip(brw) + strip(coll)));
+    ok('the master-catalog branch resolves the key like the owned branch does',
+       /const _isKeyM = /.test(brw) && /openISDetail\(\$\{_isKeyM\}\)/.test(brw));
+    ok('the linked-sheets list on the detail page was fixed too',
+       /openISDetail\('\$\{String\(s\._key \|\| s\.row\)/.test(coll));
+    (function () {
+      // The lookup openISDetail actually performs.
+      const isData = {};
+      isData['INV-42'] = { _key: 'INV-42', row: 7, sheetNum: '2343-8' };
+      isData[9]        = { _key: 9,        row: 9, sheetNum: '6464-1' };
+      const resolve = e => (e._key || e.row);
+      ok('a sheet WITH an inventory id resolves to a real record',
+         !!isData[resolve(isData['INV-42'])], 'got ' + resolve(isData['INV-42']));
+      ok('…where the old code found nothing at all',
+         isData[isData['INV-42'].row] === undefined);
+      ok('a legacy sheet with no inventory id still resolves',
+         !!isData[resolve(isData[9])]);
+    })();
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

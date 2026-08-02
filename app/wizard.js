@@ -1134,8 +1134,12 @@ async function rrRemoveSetGroup(groupId) {
         // looked wrong — until the next edit, which then wrote to the row
         // BELOW the item being edited and overwrote a different item.
         if (typeof _adjustRowsAfterDelete === 'function') {
-          _adjustRowsAfterDelete(state.personalData, pd.row);
-          if (state.forSaleData) _adjustRowsAfterDelete(state.forSaleData, pd.row);
+          // v0.9.1251 (finding 7): only My Collection rows were deleted above,
+          // so only My Collection rows moved. The line that also renumbered
+          // state.forSaleData from this same number was plain wrong — a For
+          // Sale row 13 is not a My Collection row 13 — and it corrupted every
+          // listing below that number each time a set member was removed.
+          _adjustRowsAfterDelete(state.personalData, pd.row, PERSONAL_TAB);
         }
       }
       delete state.personalData[key];

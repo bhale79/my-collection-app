@@ -2381,7 +2381,7 @@ async function removeCollectionItem(itemNum, variation, row, invId) {
         if (sib.row && sib.row !== 99999) {
           try {
             await sheetsDeleteRow(state.personalSheetId, PERSONAL_TAB, sib.row);
-            _adjustRowsAfterDelete(state.personalData, sib.row);
+            _adjustRowsAfterDelete(state.personalData, sib.row, PERSONAL_TAB);
           } catch(e) { console.warn('Remove group row error:', sib.itemNum, e); }
         }
         // Phase 3: prefer sibling's inventoryId for For Sale + Upgrade cleanup.
@@ -2416,7 +2416,7 @@ async function removeCollectionItem(itemNum, variation, row, invId) {
       for (var fsRow of fsRowsToDelete) {
         try {
           await sheetsDeleteRow(state.personalSheetId, 'For Sale', fsRow);
-          _adjustRowsAfterDelete(state.forSaleData, fsRow);
+          _adjustRowsAfterDelete(state.forSaleData, fsRow, 'For Sale');
         } catch(e) { console.warn('FS cleanup:', e); }
       }
       _cachePersonalData();
@@ -2450,7 +2450,7 @@ async function removeCollectionItem(itemNum, variation, row, invId) {
   if (fsEntry && fsEntry.row) {
     try {
       await sheetsDeleteRow(state.personalSheetId, 'For Sale', fsEntry.row);
-      _adjustRowsAfterDelete(state.forSaleData, fsEntry.row);
+      _adjustRowsAfterDelete(state.forSaleData, fsEntry.row, 'For Sale');
     } catch(e) { console.warn('For Sale cleanup:', e); }
     delete state.forSaleData[fsKey];
   }
@@ -2468,15 +2468,47 @@ async function removeCollectionItem(itemNum, variation, row, invId) {
     delete state.upgradeData[ugKey];
   }
   if (pdKey) delete state.personalData[pdKey];
-  if (_delRow && _delRow !== 99999) _adjustRowsAfterDelete(state.personalData, _delRow);
+  if (_delRow && _delRow !== 99999) _adjustRowsAfterDelete(state.personalData, _delRow, PERSONAL_TAB);
   _cachePersonalData();
   renderBrowse();
   buildDashboard();
   showToast('✓ Removed from collection');
 }
 
-function _adjustRowsAfterDelete(dataObj, deletedRow) {
+// v0.9.1251 (row-identity audit, finding 7): a row number is only meaningful
+// against ITS OWN TAB. Deleting My Collection row 13 does not move For Sale
+// row 13 — but this function used to take any table and any number, so a
+// caller could hand it a My Collection row and silently renumber every For
+// Sale listing below it. rrRemoveSetGroup did exactly that, and cancelling a
+// four-piece set entry was enough to corrupt the whole For Sale list.
+//
+// ONE READER for "which tab does this table's .row refer to". The tab is now
+// required, and a mismatch is refused rather than applied — a wrong call
+// becomes a console warning instead of silent corruption.
+function _rowTabOf(dataObj) {
+  if (!dataObj || typeof state === 'undefined') return '';
+  if (dataObj === state.personalData) return (typeof PERSONAL_TAB !== 'undefined') ? PERSONAL_TAB : 'My Collection';
+  if (dataObj === state.forSaleData)  return 'For Sale';
+  if (dataObj === state.soldData)     return 'Sold';
+  if (dataObj === state.wantData || dataObj === state.upgradeData) return 'Want-Upgrade List';
+  return '';
+}
+
+function _adjustRowsAfterDelete(dataObj, deletedRow, fromTab) {
   if (!deletedRow || deletedRow === 99999) return;
+  if (!dataObj) return;
+  const owns = _rowTabOf(dataObj);
+  if (fromTab && owns && fromTab !== owns) {
+    console.warn('[rows] refusing to renumber "' + owns + '" from a "' + fromTab +
+      '" deletion (row ' + deletedRow + '). A row number only means something ' +
+      'against its own tab.');
+    return;
+  }
+  if (!fromTab) {
+    // Not fatal — every in-tree caller passes one — but say so, because an
+    // un-named call is how the cross-tab bug got in.
+    console.debug('[rows] _adjustRowsAfterDelete called without a tab for "' + (owns || 'unknown') + '"');
+  }
   Object.values(dataObj).forEach(rec => {
     if (rec.row && rec.row > deletedRow && rec.row !== 99999) rec.row--;
   });
@@ -3057,7 +3089,7 @@ function showItemPanel(idx, pdKey, mode) {
     const isSection = document.createElement('div');
     isSection.style.cssText = 'margin-top:0.75rem;padding-top:0.75rem;border-top:2px solid rgba(22,160,133,0.3)';
     isSection.innerHTML = '<div style="font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:#16a085;text-transform:uppercase;margin-bottom:0.5rem">📋 Instruction Sheets</div>'
-      + _linkedIS.map(s => `<div onclick="openISDetail(${s.row})" style="display:flex;align-items:center;gap:0.6rem;padding:0.45rem 0.5rem;border-radius:8px;cursor:pointer;transition:background 0.1s" class="dash-row-hover">
+      + _linkedIS.map(s => `<div onclick="openISDetail('${String(s._key || s.row).replace(/'/g, "\\'")}')" style="display:flex;align-items:center;gap:0.6rem;padding:0.45rem 0.5rem;border-radius:8px;cursor:pointer;transition:background 0.1s" class="dash-row-hover">
         <span style="font-family:var(--font-mono);font-size:0.85rem;color:#16a085;font-weight:600;min-width:80px">${s.sheetNum}</span>
         <span style="font-size:0.8rem;color:var(--text-mid)">${s.year||''}</span>
         ${s.condition?`<span style="font-size:0.78rem;color:var(--text-dim);margin-left:auto">Cond: ${s.condition}/10</span>`:''}

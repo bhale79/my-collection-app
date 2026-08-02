@@ -1708,6 +1708,33 @@ function buildBrowse() {
 
 var _lastBrowseHash = '';
 
+// v0.9.1251 (row-identity audit, finding 13): ONE reader for "the list on
+// screen is stale — redraw it".
+//
+// Rendered rows carry their masterData INDEX baked into their onclick. Any
+// code that reorders masterData must therefore repaint whatever list is
+// showing. v0.9.1236 fixed this after the background era refresh by calling
+// renderBrowse() — but renderBrowse() only draws the ITEMS list. The five
+// master sub-tabs (science, construction, paper, other, service) render
+// through renderMasterSubTab and were never repainted, so their rows kept
+// pre-reorder indices while the user was invited to keep working
+// ("loading more eras 2/7"). Clicking a Paper row then opened a different
+// catalog item, and answering "yes, I own this" filed the wrong one.
+//
+// That fix made one caller correct instead of making the fact have one
+// answer. This is the one answer: call it after anything that reorders
+// masterData, and it draws the tab that is actually visible.
+function rrRepaintBrowse() {
+  try {
+    if (typeof renderBrowseTab === 'function') {
+      renderBrowseTab((typeof state !== 'undefined' && state._browseTab) || 'items');
+      return;
+    }
+  } catch (e) { console.warn('[rrRepaintBrowse]', e); }
+  if (typeof renderBrowse === 'function') renderBrowse();
+}
+if (typeof window !== 'undefined') window.rrRepaintBrowse = rrRepaintBrowse;
+
 // ── Browse Tab Controller ─────────────────────────────────────────────────────
 function renderBrowseTab(tab) {
   const inCollection = !!state.filters.owned;
@@ -3390,7 +3417,7 @@ function renderBrowse() {
         if (state.filters.owned) {
           // Use the real state.isData key (inventoryId when present, else row #)
           // — passing it.row directly silently failed when key was an inventoryId.
-          const _isKey = _isKeyByEntry.get(it) || it.row;
+          const _isKey = it._key || _isKeyByEntry.get(it) || it.row;
           const _isKeyArg = "'" + String(_isKey).replace(/'/g, "\\'") + "'";
           const _isActions = (typeof _collectionActionsHTML === 'function' && _isKey)
             ? _collectionActionsHTML('is', _isKey, it) : '';
@@ -3413,7 +3440,11 @@ function renderBrowse() {
             <td class="coll-actions-cell" onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">${_isActions}</td>
           </tr>`;
         }
-        return `<tr onclick="openISDetail(${it.row})" style="cursor:pointer">
+        // v0.9.1251 (finding 14): the master-catalog branch passed the raw
+        // row, so clicking an instruction sheet that has an Inventory ID did
+        // nothing at all. Use the key the record is stored under.
+        const _isKeyM = "'" + String(it._key || _isKeyByEntry.get(it) || it.row).replace(/'/g, "\\'") + "'";
+        return `<tr onclick="openISDetail(${_isKeyM})" style="cursor:pointer">
             ${_collGutterSpacerTd()}
           <td><span style="font-family:var(--font-mono);font-size:0.85rem;color:#16a085;font-weight:600">${it.sheetNum}</span></td>
           <td><span class="tag" style="border-color:#16a085;color:#16a085;background:#16a08518">Instr. Sheet</span></td>
