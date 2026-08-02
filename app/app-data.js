@@ -1556,6 +1556,18 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // so the UI can render from fresh primary data while secondary (ephemera,
   // IS, science, construction, mySets) continues loading in the background.
   if (!collRes._failed && (forceOverwrite || Object.keys(newPersonal).length > 0 || Object.keys(state.personalData).length === 0)) {
+    // v0.9.1254 (audit finding L): personalData keys are re-minted here from
+    // the CURRENT rows. window._poKeys holds key strings captured earlier and
+    // is append-only, so after this rebuild an old entry can name a different
+    // copy — for a legacy row with no Inventory ID the key carries its row
+    // number, and a copy that moved up into that row now answers to it. The
+    // detail page would then open, and act on, the wrong copy.
+    //
+    // Brad's own sheet is fully populated with Inventory IDs, so his keys never
+    // carry a row and this cannot fire for him. It can for a tester importing
+    // older data — and it costs one line to close: the index is only ever a
+    // within-session shorthand, so it is rebuilt whenever its subject is.
+    try { window._poKeys = []; } catch (e) {}
     state.personalData = newPersonal;
   }
   // inv-id hardening (v0.9.634): re-seed the inventory-ID watermark from the

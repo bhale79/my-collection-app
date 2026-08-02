@@ -10195,12 +10195,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1253', /const APP_VERSION = 'v0\.9\.1253';/.test(cfg));
+    ok('APP_VERSION is v0.9.1254', /const APP_VERSION = 'v0\.9\.1254';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1253/g) || []).length === 69 && !/\?v=1252/.test(idx),
-       String((idx.match(/\?v=1253/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1264';/.test(rd('app/sw.js')));
-    ok('the root page asks for the new worker', /sw\.js\?v=1253/.test(root));
+       (idx.match(/\?v=1254/g) || []).length === 69 && !/\?v=1253/.test(idx),
+       String((idx.match(/\?v=1254/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1265';/.test(rd('app/sw.js')));
+    ok('the root page asks for the new worker', /sw\.js\?v=1254/.test(root));
   })();
 
   // ═══════════════════════════════════════════════════════════
@@ -10596,6 +10596,66 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('no guarded write can run before its check',
        ['Sold!A', "Parts Needed!A' + existingRow", "Parts Needed!A' + rowNum", "sheetName + '!A' + rowNum"]
          .every(w => pages.indexOf('rrRowStillIs') < pages.lastIndexOf(w)));
+  })();
+
+  // ═══════════════════════════════════════════════════════════
+  // §204. v0.9.1254 — the last two audit decisions.
+  //   I: never hand a collector a Google Cloud Console link.
+  //   L: an index of personalData keys must not outlive the keys.
+  // ═══════════════════════════════════════════════════════════
+  (function () {
+    const fs204 = require('fs'), p204 = require('path');
+    const rd = f => fs204.readFileSync(p204.join(__dirname, '..', f), 'utf8');
+    const pin = rd('app/photo-inbox.js'), data = rd('app/app-data.js'), coll = rd('app/app-collection.js');
+    const strip = t => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    // What the USER can read: quoted strings — after removing comments AND
+    // console.* calls FROM THE SOURCE. Order matters: strip the calls first,
+    // or their arguments have already been extracted as strings by the time
+    // you try to filter them out.
+    const noLogs = t => strip(t).replace(/console\.(warn|log|error|debug|info)\([\s\S]*?\);/g, '');
+    const userText = t => (noLogs(t).match(/'(?:[^'\\\n]|\\.)*'/g) || []).join(' ');
+
+    section('204. Finding I — a collector is never sent to Cloud Console');
+    ok('no console.cloud link survives in anything the user can see',
+       !/console\.cloud\.google\.com/.test(userText(pin)), 'found one');
+    ok('…and the whole app is clean of it, not just this file',
+       ['app/photo-inbox.js', 'app/app-pages.js', 'app/prefs.js', 'app/app-collection.js']
+         .every(f => !/console\.cloud\.google\.com/.test(userText(rd(f)))));
+    ok('the link that remains is for Brad, in a console warning',
+       /console\.warn\('\[GPhotos\] picker session refused/.test(pin) &&
+       /enable the Google Photos Picker API for the project/.test(pin));
+    ok('the two causes are told apart, not merged',
+       /function _gpHelp\(status\)/.test(pin) && /if \(status === 401\)/.test(pin));
+    ok('the caller passes the status through',
+       /_gpHelp\(pick\.status\)/.test(pin));
+    ok('a 401 gives the user the step they CAN take',
+       /sign out and back in once/.test(pin));
+    ok('a 403 says it is not their fault and offers a way through',
+       /This one is on our side, not yours/.test(pin) &&
+       /You can still add photos with/.test(pin));
+    ok('…and a way to reach a human', /support@therailroster\.com/.test(pin));
+    ok('the old "enable the API" instruction is gone from user copy',
+       !/Turn on the <strong[^>]*>Google Photos Picker API/.test(pin));
+
+    section('204b. Finding L — the shorthand index cannot outlive its keys');
+    ok('rebuilding personalData clears the index',
+       /window\._poKeys = \[\];/.test(data) &&
+       data.indexOf('window._poKeys = []') < data.indexOf('state.personalData = newPersonal;'));
+    ok('a stale entry resolves to nothing, not to somebody else',
+       /pdKey = pd \? poKey : null;/.test(coll));
+    ok('…and says so instead of showing a blank page',
+       /is no longer in the collection/.test(coll) &&
+       /not in your collection any more/.test(coll));
+    (function () {
+      // The encode/decode pair, run for real.
+      const enc = i => -(i + 1000);
+      const dec = i => -(i + 1000);
+      const keys = ['INV-1', 'INV-2'];
+      ok('the negative-index encoding round-trips', dec(enc(0)) === 0 && dec(enc(1)) === 1);
+      ok('a cleared index yields nothing rather than a wrong hit',
+         (([])[dec(enc(1))]) === undefined);
+      ok('a populated index still resolves', keys[dec(enc(1))] === 'INV-2');
+    })();
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

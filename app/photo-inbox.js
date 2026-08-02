@@ -7013,20 +7013,54 @@
   var _gpAbort = false;
   window._pinGPhotosCancel = function () { _gpAbort = true; _status(''); };
 
-  function _gpHelp() {
+  // v0.9.1254 (audit finding I): this used to hand a train collector a
+  // Google Cloud Console link and tell them to enable an API. They cannot —
+  // it is Brad's Cloud project, not theirs. Worse, the same dialog answered
+  // two different problems:
+  //
+  //   403 — the Picker API is off for the project. NOBODY but Brad can fix
+  //         this, and it is the same for every user at once.
+  //   401 — this user's sign-in no longer carries the photo-picking
+  //         permission. They CAN fix that, by signing in again.
+  //
+  // Split them, and never show the console link to a user.
+  function _gpHelp(status) {
+    if (status === 401) {
+      var ov1 = document.createElement('div');
+      ov1.id = 'pin-gp-help';
+      ov1.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.2rem';
+      ov1.innerHTML =
+        '<div class="rr-card">' +
+          '<div style="font-family:var(--font-head);font-weight:700;font-size:1rem;color:var(--text);margin-bottom:0.5rem">One more permission needed</div>' +
+          '<div style="font-size:0.82rem;color:var(--text-dim);line-height:1.6;margin-bottom:0.8rem">' +
+            'To pick photos from Google Photos, sign out and back in once — Preferences \u2192 Sign Out \u2014 and say yes when Google asks about your photos. ' +
+            'Your collection is not affected.' +
+          '</div>' +
+          '<button onclick="document.getElementById(\'pin-gp-help\').remove()" class="btn-primary" style="width:100%;padding:0.6rem;border-radius:8px;border:none;background:var(--accent);color:var(--on-accent);font-weight:700;cursor:pointer">Got it</button>' +
+        '</div>';
+      document.body.appendChild(ov1);
+      return;
+    }
+    // 403 (or anything else): not the user's to fix. Say so plainly, offer
+    // the way they already have of reaching a human, and stop there.
     var ov = document.createElement('div');
     ov.id = 'pin-gp-help';
-    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.2rem';
     ov.innerHTML =
       '<div class="rr-card">' +
-        '<div style="font-family:var(--font-head);font-weight:700;font-size:1rem;color:var(--text);margin-bottom:0.5rem">Google Photos needs two one-time switches</div>' +
+        '<div style="font-family:var(--font-head);font-weight:700;font-size:1rem;color:var(--text);margin-bottom:0.5rem">Google Photos picking is unavailable</div>' +
         '<div style="font-size:0.82rem;color:var(--text-dim);line-height:1.6;margin-bottom:0.8rem">' +
-          '1. Turn on the <strong style="color:var(--text)">Google Photos Picker API</strong> for this app: <a href="https://console.cloud.google.com/apis/library/photospicker.googleapis.com" target="_blank" style="color:#2980b9">open the switch ↗</a> and click Enable.<br><br>' +
-          '2. Give the app its new photo-picking permission: sign out (Preferences → Sign Out), sign back in, and approve when Google asks.' +
+          'This one is on our side, not yours \u2014 nothing is wrong with your account or your collection. ' +
+          'You can still add photos with <strong style="color:var(--text)">Upload</strong> or by taking one with the camera. ' +
+          'If it stays broken, let us know at <a href="mailto:support@therailroster.com" style="color:var(--accent)">support@therailroster.com</a>.' +
         '</div>' +
-        '<button onclick="document.getElementById(\'pin-gp-help\').remove()" class="btn-primary" style="width:100%;padding:0.6rem;border-radius:8px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.88rem;cursor:pointer">Got it</button>' +
+        '<button onclick="document.getElementById(\'pin-gp-help\').remove()" class="btn-primary" style="width:100%;padding:0.6rem;border-radius:8px;border:none;background:var(--accent);color:var(--on-accent);font-weight:700;cursor:pointer">OK</button>' +
       '</div>';
     document.body.appendChild(ov);
+    // Brad's console needs the actionable detail the user must not see.
+    console.warn('[GPhotos] picker session refused (' + status + '). If this is 403, ' +
+      'enable the Google Photos Picker API for the project: ' +
+      'https://console.cloud.google.com/apis/library/photospicker.googleapis.com');
   }
 
   window._pinGPhotos = async function () {
@@ -7051,7 +7085,7 @@
       if (pick.error) {
         _status('');
         if (pick.error === 'scope') showToast('Google Photos permission was not granted', 3500, true);
-        else if (pick.error === 'session' && (pick.status === 403 || pick.status === 401)) _gpHelp();
+        else if (pick.error === 'session' && (pick.status === 403 || pick.status === 401)) _gpHelp(pick.status);
         else if (pick.error === 'timeout') showToast('Gave up waiting for the picker — try again', 3000, true);
         else if (pick.error !== 'cancelled') showToast('Google Photos picker error' + (pick.status ? ' (' + pick.status + ')' : '') + ' — try again', 3500, true);
         return;

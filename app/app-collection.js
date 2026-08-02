@@ -930,9 +930,18 @@ function showItemDetailPage(idx, copyInvId, opts) {
       if (_ckey) { pdKey = _ckey; pd = state.personalData[_ckey]; }
     }
   } else {
+    // v0.9.1254 (finding L): the index is cleared whenever personalData is
+    // rebuilt, so a stale entry resolves to nothing rather than to somebody
+    // else. Say so instead of silently showing an empty page.
     const poKey = window._poKeys ? window._poKeys[-(idx+1000)] : null;
     pd = poKey ? state.personalData[poKey] : null;
-    pdKey = poKey;
+    pdKey = pd ? poKey : null;
+    if (poKey && !pd) {
+      console.warn('[detail] item ' + poKey + ' is no longer in the collection');
+      if (typeof showToast === 'function') {
+        showToast('That item is not in your collection any more — your list has been refreshed.', 4000, true);
+      }
+    }
   }
   if (_wantMode) { pd = null; pdKey = null; }
   // Bug 17 (Session 154): remember the exact copy the detail page is showing
