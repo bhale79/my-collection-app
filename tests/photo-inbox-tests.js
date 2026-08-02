@@ -10148,6 +10148,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
     section('199f. The public pages');
     ok('the landing page no longer says Under Construction',
        !/Under Construction/.test(root) && /<div class="stripe">Now in private beta<\/div>/.test(root));
+    ok('...and the paragraph under it is not still in the future tense',
+       !/coming down the tracks|Something special is coming/.test(root));
+    ok('...it says what the app does, in the present',
+       /one roster for the whole collection/.test(root) &&
+       /Track what you own/.test(root));
     ok('Terms and Privacy carry a real date',
        ['terms/index.html', 'privacy/index.html'].every(f =>
          /Effective date: August 1, 2026/.test(rd(f)) &&
@@ -10176,12 +10181,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1248', /const APP_VERSION = 'v0\.9\.1248';/.test(cfg));
+    ok('APP_VERSION is v0.9.1249', /const APP_VERSION = 'v0\.9\.1249';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1248/g) || []).length === 69 && !/\?v=1247/.test(idx),
-       String((idx.match(/\?v=1248/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1259';/.test(rd('app/sw.js')));
-    ok('the root page asks for the new worker', /sw\.js\?v=1248/.test(root));
+       (idx.match(/\?v=1249/g) || []).length === 69 && !/\?v=1248/.test(idx),
+       String((idx.match(/\?v=1249/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1260';/.test(rd('app/sw.js')));
+    ok('the root page asks for the new worker', /sw\.js\?v=1249/.test(root));
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
