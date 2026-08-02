@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1264';
+const APP_VERSION = 'v0.9.1265';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -59,9 +59,20 @@ window.bindOverlayClose = function (ov, closeFn) {
   ov.addEventListener('click', function (e) { if (e.target === ov && down) closeFn(e); down = false; });
 };
 // v0.9.1054 (Brad: "it says April, it's July"). This is hand-written and had
-// drifted three months. It moves with APP_VERSION now — same edit, every deploy
-// — because a version stamp nobody trusts is worse than none.
-const APP_DATE    = 'July 2026';
+// drifted three months.
+//
+// v0.9.1265: the note that used to sit here said it "moves with APP_VERSION now
+// — same edit, every deploy", and nothing made that true. It was a description
+// of an intention, and it drifted again the moment the month turned. That is
+// the same shape as the audit findings this week: a comment asserting a
+// property the code does not keep.
+//
+// So it is enforced now instead of described. §199h fails the gate when this
+// month is not the current one, which means a deploy on the first of a month
+// cannot go out until this one word is updated. A version stamp nobody trusts
+// is worse than none — and the date sitting next to the version number is what
+// makes the version number look untrustworthy.
+const APP_DATE    = 'August 2026';
 
 // ── varShortLabel — SINGLE SOURCE for short variation labels (v0.9.657) ──
 // COTT Variation Details are verbatim multi-line sections that begin with a

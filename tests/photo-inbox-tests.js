@@ -10221,15 +10221,43 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1264', /const APP_VERSION = 'v0\.9\.1264';/.test(cfg));
+    ok('APP_VERSION is v0.9.1265', /const APP_VERSION = 'v0\.9\.1265';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1264/g) || []).length === 69 && !/\?v=1263/.test(idx),
-       String((idx.match(/\?v=1264/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1274';/.test(rd('app/sw.js')));
+       (idx.match(/\?v=1265/g) || []).length === 69 && !/\?v=1264/.test(idx),
+       String((idx.match(/\?v=1265/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1275';/.test(rd('app/sw.js')));
     // v0.9.1259: the root page's own ?v= is gone — it registers no worker.
     // The trio is a trio again. §207 is what guards the root page now.
     ok('the landing page carries no version stamp to forget',
        !/sw\.js\?v=/.test(root));
+
+    // v0.9.1265: APP_DATE is the fourth thing on that Preferences row and the
+    // only one nothing checked. It is hand-written, it sits directly beside the
+    // version number, and it had already drifted three months once (v0.9.1054,
+    // Brad: "it says April, it's July") before drifting again overnight into
+    // August. A date that is visibly wrong makes the version number beside it
+    // look wrong too, and that number is the one Brad needs to trust when he is
+    // asking whether a fix actually shipped.
+    //
+    // This is deliberately tied to the real clock rather than to a pinned
+    // string: a pinned string is just the same hand-written value written
+    // twice, and would go stale in exactly the same way. The cost is that the
+    // gate turns red on the first of a month even with no code change. That is
+    // the intended behaviour — the fix is one word, and it is better to be
+    // stopped at the gate than to ship a date the user can see is wrong.
+    (function () {
+      const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
+                      'July', 'August', 'September', 'October', 'November', 'December'];
+      const now = new Date();
+      const expected = MONTHS[now.getMonth()] + ' ' + now.getFullYear();
+      const m = cfg.match(/const APP_DATE\s*=\s*'([^']*)'/);
+      ok('APP_DATE is present and in "Month YYYY" form',
+         !!(m && /^[A-Z][a-z]+ \d{4}$/.test(m[1])), m ? m[1] : '(not found)');
+      ok('...and says the month it actually is, so the About panel cannot drift',
+         !!(m && m[1] === expected),
+         (m ? m[1] : '(not found)') + ' — should be ' + expected +
+         ' (one word, app/config.js)');
+    })();
   })();
 
   // ═══════════════════════════════════════════════════════════
