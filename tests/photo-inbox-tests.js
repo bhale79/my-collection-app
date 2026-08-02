@@ -10221,11 +10221,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1265', /const APP_VERSION = 'v0\.9\.1265';/.test(cfg));
+    ok('APP_VERSION is v0.9.1266', /const APP_VERSION = 'v0\.9\.1266';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1265/g) || []).length === 69 && !/\?v=1264/.test(idx),
-       String((idx.match(/\?v=1265/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1275';/.test(rd('app/sw.js')));
+       (idx.match(/\?v=1266/g) || []).length === 69 && !/\?v=1265/.test(idx),
+       String((idx.match(/\?v=1266/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1276';/.test(rd('app/sw.js')));
     // v0.9.1259: the root page's own ?v= is gone — it registers no worker.
     // The trio is a trio again. §207 is what guards the root page now.
     ok('the landing page carries no version stamp to forget',
@@ -11728,6 +11728,153 @@ META_WRITES.length = 0; TOASTS.length = 0;
     await sWrite.write([{ name: 'Ann' }]);
     ok('a list from a healthy read is still written normally',
        sellWrites === 1, sellWrites + ' write(s) reached Drive');
+
+    // ────────────────────────────────────────────────────────────────────
+    section('216. One bad request never strips the shared Drive config');
+    // Finding R2, and the third face of the same bug as R6 and R8: a read
+    // failure that turns into "there is nothing here", after which the code
+    // takes a destructive action.
+    //
+    // The config file is the app's address book — which spreadsheet is the
+    // user's collection, and where their three photo folders live. Every
+    // device reads it. driveReadConfig did not check the HTTP status, so
+    // Drive's refusal envelope {error:{code,message}} parsed cleanly, had no
+    // personalSheetId, and read as "this user has never set up a collection".
+    // app-auth.js then searched by name and wrote {personalSheetId} ALONE —
+    // and the write was a whole-file replace, so the three folder ids were
+    // erased from the file every other device reads. Silently: every write
+    // was unchecked and the whole function was swallowed.
+    const cfgSrc = require('fs').readFileSync(APP_FILE('drive.js'), 'utf8');
+
+    // Sliced from the CONFIG_FILENAME constants so the rig exercises the real
+    // filename fallback and the real retry bookkeeping, not a copy of them.
+    function cfgRig(driveRequest, fetchImpl) {
+      const cut = cfgSrc.slice(cfgSrc.indexOf("const CONFIG_FILENAME = 'rail-roster-config.json';"),
+                               cfgSrc.indexOf('// Move sheet into vault folder after creation'));
+      return new Function(
+        'driveRequest', 'fetch', 'accessToken', 'showToast', 'MASTER_SHEET_ID',
+        'Blob', 'FormData', 'setTimeout', 'console',
+        cut + '\n; return { read: driveReadConfig, write: driveWriteConfig };'
+      )(driveRequest, fetchImpl, 'tok',
+        function () {}, 'MASTER',
+        function (parts) { return { _body: String(parts && parts[0]) }; },
+        function () { return { append: function () {} }; },
+        function (fn) { return fn(); },          // no real 2s waits in the gate
+        { warn: function () {}, error: function () {}, log: function () {} });
+    }
+
+    const cfgFound = async function () { return { files: [{ id: 'CFG' }] }; };
+    const CFG_ON_DRIVE = {
+      personalSheetId: 'SHEET_A', vaultId: 'VAULT_A',
+      photosId: 'PHOTOS_A', soldPhotosId: 'SOLD_A',
+    };
+
+    // Direction one: a healthy read still works. Asserted first, because
+    // "nothing came back" is also exactly what a completely broken slice
+    // looks like.
+    const cGood = cfgRig(cfgFound, async function () {
+      return { ok: true, json: async function () { return CFG_ON_DRIVE; } };
+    });
+    const cGoodOut = await cGood.read();
+    ok('a config that reads cleanly comes back whole',
+       !!(cGoodOut && cGoodOut.personalSheetId === 'SHEET_A' && cGoodOut.photosId === 'PHOTOS_A'),
+       JSON.stringify(cGoodOut));
+
+    // Direction two: the refusal. Before the fix this returned the error
+    // envelope itself — an object, truthy, with no personalSheetId — and the
+    // caller treated it as a user with no collection.
+    const cDenied = cfgRig(cfgFound, async function () {
+      return { ok: false, status: 403,
+               json: async function () { return { error: { code: 403, message: 'Insufficient permission' } }; } };
+    });
+    const cDeniedOut = await cDenied.read();
+    ok('a refused config read is null, not Drive’s error envelope',
+       cDeniedOut === null, JSON.stringify(cDeniedOut));
+
+    // The specific shape that made this dangerous rather than merely wrong.
+    ok('…so the caller can never read a personalSheetId off a refusal',
+       !(cDeniedOut && cDeniedOut.error), JSON.stringify(cDeniedOut));
+
+    // A body that is valid JSON but not an object — an empty file, a stray
+    // array, a captive-portal page — is not a config either.
+    const cArr = cfgRig(cfgFound, async function () {
+      return { ok: true, json: async function () { return []; } };
+    });
+    ok('a config file that does not contain an object is ignored',
+       (await cArr.read()) === null, 'expected null');
+
+    // ── The write half ──────────────────────────────────────────────
+    // A patch that knows only the spreadsheet must not erase the rest.
+    function writeRig(existing, opts) {
+      const seen = { bodies: [], reads: 0, writes: 0 };
+      const rig = cfgRig(
+        async function () { return { files: existing === null ? [] : [{ id: 'CFG' }] }; },
+        async function (url, init) {
+          if (!init || init.method === undefined) {          // the read-before-write
+            seen.reads++;
+            if (opts && opts.readFails) return { ok: false, status: 403, json: async function () { return {}; } };
+            return { ok: true, json: async function () { return existing; } };
+          }
+          seen.writes++;
+          seen.bodies.push(init.body && init.body._body);
+          if (opts && opts.writeFails) return { ok: false, status: 500 };
+          return { ok: true, json: async function () { return {}; } };
+        });
+      return { rig: rig, seen: seen };
+    }
+
+    const wPartial = writeRig(CFG_ON_DRIVE);
+    await wPartial.rig.write({ personalSheetId: 'SHEET_B' });
+    const wrote = JSON.parse(wPartial.seen.bodies[0] || '{}');
+    ok('a one-key write updates the sheet id…',
+       wrote.personalSheetId === 'SHEET_B', JSON.stringify(wrote));
+    ok('…and leaves the three folder ids exactly as they were',
+       wrote.vaultId === 'VAULT_A' && wrote.photosId === 'PHOTOS_A' && wrote.soldPhotosId === 'SOLD_A',
+       JSON.stringify(wrote));
+
+    // The app-data.js shape: the caller holds nulls because driveCache has
+    // not been populated on this device yet. "I do not know" is not "erase".
+    const wBlank = writeRig(CFG_ON_DRIVE);
+    await wBlank.rig.write({ personalSheetId: 'SHEET_A', vaultId: null, photosId: '', soldPhotosId: undefined });
+    const wroteB = JSON.parse(wBlank.seen.bodies[0] || '{}');
+    ok('unknown folder ids are dropped from the patch, never written as blanks',
+       wroteB.vaultId === 'VAULT_A' && wroteB.photosId === 'PHOTOS_A' && wroteB.soldPhotosId === 'SOLD_A',
+       JSON.stringify(wroteB));
+
+    // If the current file cannot be READ, writing would replace ids we cannot
+    // see with only the ones we hold. Declining is always recoverable.
+    const wNoRead = writeRig(CFG_ON_DRIVE, { readFails: true });
+    let wNoReadThrew = '';
+    try { await wNoRead.rig.write({ personalSheetId: 'SHEET_B' }); } catch (e) { wNoReadThrew = e && e.message; }
+    ok('a config that cannot be read before writing is not written over',
+       /read-before-write failed/.test(wNoReadThrew), wNoReadThrew || '(did not throw)');
+    ok('…and no upload was attempted at all',
+       wNoRead.seen.writes === 0, wNoRead.seen.writes + ' upload(s) reached Drive');
+
+    // A failed upload used to be swallowed whole — the config silently did
+    // not change and every other device kept the old address.
+    const wFail = writeRig(CFG_ON_DRIVE, { writeFails: true });
+    let wFailThrew = '';
+    try { await wFail.rig.write({ personalSheetId: 'SHEET_B' }); } catch (e) { wFailThrew = e && e.message; }
+    ok('a failed config upload is reported, not swallowed',
+       /write failed: HTTP 500/.test(wFailThrew), wFailThrew || '(did not throw)');
+
+    // Other direction again: a first-ever write with no file on Drive must
+    // still create one, or a brand-new user is never findable from a second
+    // device.
+    const wNew = writeRig(null);
+    const wNewRet = await wNew.rig.write({ personalSheetId: 'SHEET_NEW', photosId: 'PHOTOS_NEW' });
+    ok('with no config on Drive yet, one is still created',
+       wNewRet === true && wNew.seen.writes === 1, wNew.seen.writes + ' upload(s), returned ' + wNewRet);
+    ok('…and no read-before-write was attempted, since there is nothing to merge',
+       wNew.seen.reads === 0, wNew.seen.reads + ' read(s)');
+
+    // Knowing nothing at all is not a reason to touch the file.
+    const wEmpty = writeRig(CFG_ON_DRIVE);
+    const wEmptyRet = await wEmpty.rig.write({ personalSheetId: null, vaultId: '' });
+    ok('a patch with nothing known in it writes nothing',
+       wEmptyRet === false && wEmpty.seen.writes === 0,
+       wEmpty.seen.writes + ' upload(s), returned ' + wEmptyRet);
 
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

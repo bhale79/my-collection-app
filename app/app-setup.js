@@ -684,12 +684,23 @@ async function createPersonalSheet() {
 
 
   // 5. Write config to Drive so other devices can find this sheet
-  await driveWriteConfig({
-    personalSheetId: state.personalSheetId,
-    vaultId: driveCache.vaultId,
-    photosId: driveCache.photosId,
-    soldPhotosId: driveCache.soldPhotosId,
-  });
+  // v0.9.1266 (R2): driveWriteConfig used to swallow every failure; it now
+  // re-throws so callers can react. This one is a bare await in the middle of
+  // creating a brand-new collection, and the sheet itself already exists and
+  // is populated by this point — aborting here would leave the user with no
+  // collection at all over a config file that the next successful load
+  // rewrites anyway (app-data.js does it after every load). So: catch, name it
+  // in the console, and carry on returning the sheet we just built.
+  try {
+    await driveWriteConfig({
+      personalSheetId: state.personalSheetId,
+      vaultId: driveCache.vaultId,
+      photosId: driveCache.photosId,
+      soldPhotosId: driveCache.soldPhotosId,
+    });
+  } catch (e) {
+    console.warn('[Setup] Config write after sheet creation failed (non-fatal):', e);
+  }
 
   return state.personalSheetId;
 }

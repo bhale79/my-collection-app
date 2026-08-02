@@ -579,7 +579,13 @@ function onTokenReceived(resp) {
         state.personalSheetId = foundId;
         localStorage.setItem('lv_personal_id', foundId);
         // Write config so future loads are faster
-        driveWriteConfig({ personalSheetId: foundId }).catch(() => {});
+        // v0.9.1266 (R2): this used to write {personalSheetId} on its own, and
+        // driveWriteConfig replaced the whole file — so arriving here (which
+        // happens whenever the config read fails, including a transient 403)
+        // wiped the three photo-folder ids for every other device. Send what
+        // we know, and let the merge keep the rest.
+        driveWriteConfig(Object.assign({ personalSheetId: foundId }, driveKnownFolderIds()))
+          .catch(e => console.warn('Config write after sheet search:', e));
         loadAllData();
         return;
       }
@@ -603,7 +609,11 @@ function onTokenReceived(resp) {
     if (foundId) {
       state.personalSheetId = foundId;
       localStorage.setItem('lv_personal_id', foundId);
-      driveWriteConfig({ personalSheetId: foundId }).catch(() => {});
+      // v0.9.1266 (R2) — same as the branch above. This one is reached after
+      // driveReadConfig has already thrown, which is exactly when we know the
+      // least and so exactly when a whole-file replace did the most damage.
+      driveWriteConfig(Object.assign({ personalSheetId: foundId }, driveKnownFolderIds()))
+        .catch(e => console.warn('Config write after sheet search:', e));
       loadAllData();
       return;
     }

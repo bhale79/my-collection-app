@@ -97,6 +97,24 @@ const driveCache = {
   itemFolders: {},     // itemNum -> folderId
 };
 
+// v0.9.1266 (audit 2026-08-02 round 2, finding R2). The three folder ids as
+// best we currently know them: the in-memory cache first, then the note the
+// last successful setup left in localStorage. driveCache seeds only catalogsId
+// and isPhotosId at declaration, so early in a session these three are null in
+// memory while localStorage still knows them perfectly well.
+//
+// Callers of driveWriteConfig use this so a config write never goes out
+// knowing only the spreadsheet id. driveWriteConfig merges and would preserve
+// them anyway — this is the belt to that pair of braces, and it keeps the
+// "what do we know" question answered in ONE place instead of at each caller.
+function driveKnownFolderIds() {
+  return {
+    vaultId:      driveCache.vaultId      || localStorage.getItem('lv_vault_id')       || null,
+    photosId:     driveCache.photosId     || localStorage.getItem('lv_photos_id')      || null,
+    soldPhotosId: driveCache.soldPhotosId || localStorage.getItem('lv_sold_photos_id') || null,
+  };
+}
+
 async function driveRequest(method, endpoint, body) {
   if (!accessToken) {
     // Try restore from localStorage
@@ -1082,7 +1100,35 @@ async function driveReadConfig(retryCount = 0) {
     const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
       headers: { Authorization: 'Bearer ' + accessToken }
     });
-    return await r.json();
+    // v0.9.1266 (audit 2026-08-02 round 2, finding R2). This was the one call
+    // in the function that did not go through driveRequest, and so the one
+    // call that never looked at whether Drive said yes. Drive answers a
+    // refusal with a perfectly well-formed JSON body — {error:{code,message}}
+    // — which is truthy, parses fine, and has no personalSheetId in it. The
+    // caller in app-auth.js reads that as "this user has never set up a
+    // collection", goes looking for a sheet by name, and on a device where
+    // that search also fails creates a brand new empty one and writes it into
+    // the config as the user's collection.
+    //
+    // Raising instead hands the case to the retry logic below, which already
+    // knows the difference between a 429 worth waiting out and a 403 that will
+    // say the same thing three more times, and already falls through to
+    // driveFindPersonalSheet on both. The status is attached because that is
+    // what the _transient test reads.
+    if (!r.ok) {
+      const err = new Error('Drive config read failed: HTTP ' + r.status);
+      err.status = r.status;
+      throw err;
+    }
+    const parsed = await r.json();
+    // A config that is not an object is not a config. An empty file, a stray
+    // array, or an HTML interstitial from a captive portal would all otherwise
+    // reach the caller as something it tries to read keys off.
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      console.warn('[Drive] Config file did not contain an object; ignoring.');
+      return null;
+    }
+    return parsed;
   } catch(e) {
     console.warn(`driveReadConfig error (attempt ${retryCount + 1}):`, e);
     // v0.9.1261 (audit 2026-08-02, finding 2). Retrying is for problems that
@@ -1140,35 +1186,102 @@ async function driveFindPersonalSheet() {
   }
 }
 
+// v0.9.1266 (audit 2026-08-02 round 2, finding R2). This used to be a whole-file
+// replace, and callers pass whatever subset of the four ids they happen to know.
+// app-auth.js wrote {personalSheetId} on its own; app-data.js wrote the folder
+// ids as '' when driveCache had not been populated yet. Either one erased the
+// other three ids from the file EVERY other device reads to find its way around
+// — and since the write was also swallowed whole, nothing ever said so.
+//
+// Three changes, and the reasoning matters more than the code:
+//
+//   1. It merges. A key whose incoming value is blank means "I do not know
+//      this right now", never "erase this". Nothing in the app has any reason
+//      to clear an id, so refusing to write a blank costs nothing and closes
+//      the whole class of bug rather than the four callers that hit it today.
+//   2. If it cannot READ the current file, it does not write. A partial write
+//      is the destructive act; declining to write is always recoverable.
+//   3. Both uploads are checked and failures are re-thrown, not swallowed.
+//
+// Returns true when something was written, false when there was nothing worth
+// writing. Throws when a write was wanted and could not be completed.
 async function driveWriteConfig(data) {
   try {
-    const json = JSON.stringify(data);
-    const blob = new Blob([json], { type: 'application/json' });
+    // Drop anything blank, null or undefined. What is left is a patch: only
+    // the things the caller actually knows.
+    const patch = {};
+    Object.keys(data || {}).forEach(function (k) { if (data[k]) patch[k] = data[k]; });
+    if (Object.keys(patch).length === 0) {
+      console.warn('driveWriteConfig: caller knew none of the ids; not writing.');
+      return false;
+    }
+
     // Check if file already exists
     // v0.9.981 (isolation fix): only update a config the user OWNS; otherwise
     // fall through to create their own (never overwrite a shared-in config).
     const q = encodeURIComponent(`name='${CONFIG_FILENAME}' and trashed=false and 'me' in owners`);
     const res = await driveRequest('GET', `/files?q=${q}&fields=files(id)&spaces=drive`);
-    if (res.files && res.files.length > 0) {
+    const fileId = (res.files && res.files.length > 0) ? res.files[0].id : null;
+
+    let merged = patch;
+    if (fileId) {
+      const cur = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+        headers: { Authorization: 'Bearer ' + accessToken }
+      });
+      if (!cur.ok) {
+        // The file is there and we could not read it. Writing now would
+        // replace ids we cannot see with only the ones we happen to hold.
+        const err = new Error('Drive config read-before-write failed: HTTP ' + cur.status);
+        err.status = cur.status;
+        throw err;
+      }
+      let current = null;
+      try { current = await cur.json(); } catch (e) { current = null; }
+      if (current && typeof current === 'object' && !Array.isArray(current)) {
+        merged = Object.assign({}, current, patch);
+      }
+      // An unparseable or non-object config has nothing worth preserving, so
+      // the patch stands on its own — that is a repair, not an erasure.
+    }
+
+    const blob = new Blob([JSON.stringify(merged)], { type: 'application/json' });
+
+    if (fileId) {
       // Update existing file
-      const fileId = res.files[0].id;
-      await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+      const w = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
         method: 'PATCH',
         headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
         body: blob,
       });
+      if (!w.ok) {
+        const err = new Error('Drive config write failed: HTTP ' + w.status);
+        err.status = w.status;
+        throw err;
+      }
     } else {
       // Create new file
       const form = new FormData();
       form.append('metadata', new Blob([JSON.stringify({ name: CONFIG_FILENAME, mimeType: 'application/json' })], { type: 'application/json' }));
       form.append('file', blob);
-      await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+      const w = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
         method: 'POST',
         headers: { Authorization: 'Bearer ' + accessToken },
         body: form,
       });
+      if (!w.ok) {
+        const err = new Error('Drive config create failed: HTTP ' + w.status);
+        err.status = w.status;
+        throw err;
+      }
     }
-  } catch(e) { console.warn('driveWriteConfig error:', e); }
+    return true;
+  } catch (e) {
+    // Logged here so the cause has a name in the console, then re-thrown so
+    // callers can react. Every existing caller already has a .catch or a
+    // try/catch; the old silent swallow is what let this go unnoticed.
+    console.warn('driveWriteConfig error:', e);
+    throw e;
+  }
 }
 
 // Move sheet into vault folder after creation

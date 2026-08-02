@@ -150,11 +150,16 @@ async function loadAllData() {
       showOnboarding();
       if (typeof vaultInit === 'function') vaultInit();
       if (state.personalSheetId) {
+        // v0.9.1266 (R2): the `|| ''` that used to sit on these three turned
+        // "driveCache has not been populated on this device yet" into a blank
+        // written over the real folder ids in the shared config file. Passing
+        // the raw value lets driveWriteConfig tell "I do not know" apart from
+        // "erase this" — it drops the unknown and keeps what is on record.
         driveWriteConfig({
           personalSheetId: state.personalSheetId,
-          vaultId: driveCache.vaultId || '',
-          photosId: driveCache.photosId || '',
-          soldPhotosId: driveCache.soldPhotosId || '',
+          vaultId: driveCache.vaultId,
+          photosId: driveCache.photosId,
+          soldPhotosId: driveCache.soldPhotosId,
         }).catch(e => console.warn('Config refresh:', e));
         _maybeRenamePersonalSheet().catch(e => console.warn('Sheet rename:', e));
       }
@@ -172,11 +177,12 @@ async function loadAllData() {
     if (typeof vaultInit === 'function') vaultInit();
     // Re-write config after every successful load so all devices can always find the Sheet ID
     if (state.personalSheetId) {
+      // v0.9.1266 (R2) — same as the 'all'-era branch above: no `|| ''`.
       driveWriteConfig({
         personalSheetId: state.personalSheetId,
-        vaultId: driveCache.vaultId || '',
-        photosId: driveCache.photosId || '',
-        soldPhotosId: driveCache.soldPhotosId || '',
+        vaultId: driveCache.vaultId,
+        photosId: driveCache.photosId,
+        soldPhotosId: driveCache.soldPhotosId,
       }).catch(e => console.warn('Config refresh:', e));
       // Auto-rename sheet if it still has the old Boxcar Files name
       _maybeRenamePersonalSheet().catch(e => console.warn('Sheet rename:', e));
