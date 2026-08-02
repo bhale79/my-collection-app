@@ -137,7 +137,16 @@ function _buildAppShell() {
   header.className = 'header';
   header.innerHTML =
     '<div class="header-logo" style="display:flex;align-items:flex-end;gap:0.6rem;align-self:stretch;height:100%">' +
-      '<img src="img/conductor-header.png?v=203" alt="" aria-hidden="true" style="height:55px;width:auto;flex-shrink:0;display:block;filter:drop-shadow(0 0 5px rgba(190,195,205,0.45)) drop-shadow(0 0 14px rgba(190,195,205,0.25))">' +   /* v0.9.914 (Brad): mascot +15% (48->55px) */
+      /* v0.9.1259 (audit 2026-08-02, finding 5): the "?v=203" that used to be
+         here meant this image was never once served from cache. sw.js
+         precaches "./img/conductor-header.png" bare, and a cache is keyed by
+         the whole URL — so the stamped request and the bare precache entry
+         were two different keys and never met. Offline, the mascot at the top
+         of every screen was a broken image. The stamp was also about a
+         thousand deploys stale, because it lived in a JavaScript string
+         rather than in index.html and so was never swept. Bumping CACHE_NAME
+         is what busts images; they need no stamp of their own. */
+      '<img src="img/conductor-header.png" alt="" aria-hidden="true" style="height:55px;width:auto;flex-shrink:0;display:block;filter:drop-shadow(0 0 5px rgba(190,195,205,0.45)) drop-shadow(0 0 14px rgba(190,195,205,0.25))">' +   /* v0.9.914 (Brad): mascot +15% (48->55px) */
       '<div style="font-family:var(--font-head);font-size:1.8rem;font-weight:700;color:var(--cream);letter-spacing:0.06em;text-transform:uppercase;line-height:1;padding-bottom:6px">The <span style="color:var(--cream)">Rail</span> Roster</div>' +
     '</div>' +
     '<div class="header-right" style="position:relative">' +

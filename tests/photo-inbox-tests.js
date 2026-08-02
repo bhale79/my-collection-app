@@ -8261,8 +8261,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('the service-worker registration rides the same version as everything else',
        (idx.match(/sw\.js\?v=(\d+)/) || [])[1] === appVer,
        'sw=' + (idx.match(/sw\.js\?v=(\d+)/) || [])[1] + ' app=' + appVer);
-    ok('…in the landing page too, which is easy to forget',
-       (rd('index.html').match(/sw\.js\?v=(\d+)/) || [])[1] === appVer);
+    // v0.9.1259: the landing page used to register './sw.js?v=NNNN' and so
+    // had to be swept along with the other three. It no longer registers a
+    // worker at all (see §207), which removed a fourth hand-kept number from
+    // the lockstep. What matters now is that it has not quietly grown one
+    // back — a stamped root registration is the exact shape of finding 4.
+    ok('the landing page no longer registers a worker of its own',
+       !/serviceWorker\.register\(/.test(rd('index.html')));
     const marks = [...idx.matchAll(/\.js\?v=(\d+)/g)].map(m => m[1]);
     ok('every script tag rides the same ?v as APP_VERSION',
        !!appVer && marks.length > 50 && marks.every(v => v === appVer),
@@ -10216,12 +10221,15 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1258', /const APP_VERSION = 'v0\.9\.1258';/.test(cfg));
+    ok('APP_VERSION is v0.9.1259', /const APP_VERSION = 'v0\.9\.1259';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1258/g) || []).length === 69 && !/\?v=1257/.test(idx),
-       String((idx.match(/\?v=1258/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1268';/.test(rd('app/sw.js')));
-    ok('the root page asks for the new worker', /sw\.js\?v=1258/.test(root));
+       (idx.match(/\?v=1259/g) || []).length === 69 && !/\?v=1258/.test(idx),
+       String((idx.match(/\?v=1259/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1269';/.test(rd('app/sw.js')));
+    // v0.9.1259: the root page's own ?v= is gone — it registers no worker.
+    // The trio is a trio again. §207 is what guards the root page now.
+    ok('the landing page carries no version stamp to forget',
+       !/sw\.js\?v=/.test(root));
   })();
 
   // ═══════════════════════════════════════════════════════════
@@ -10799,6 +10807,78 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('the button the guard reaches for actually exists',
        /id="fc-save-btn"[^>]*onclick="saveItem\(\)"/.test(coll),
        'getElementById returns null and the label never changes');
+  })();
+
+  // ═══════════════════════════════════════════════════════════
+  // §207. v0.9.1259 — the offline copy survives a visit to the front door.
+  //
+  //   Measured in a real browser before this fix: seed the app's precache,
+  //   visit the landing page once, and the precache is EMPTY. Do it again
+  //   with no redeploy and no version change, and it is empty again. Cache
+  //   storage is per-origin, not per-scope, so the root worker's "delete
+  //   every cache" reached straight into /app/ — and because that worker
+  //   unregistered itself, every visit installed it fresh and repeated the
+  //   wipe. The audit called this "once per deploy". It was every time.
+  // ═══════════════════════════════════════════════════════════
+  (function () {
+    const pathG = require('path');
+    const rd = f => fs.readFileSync(pathG.join(__dirname, '..', f), 'utf8');
+    const rootIdx = rd('index.html');
+    const rootSw  = rd('sw.js');
+    const appSw   = rd('app/sw.js');
+
+    section('207a. The landing page cleans up without a worker');
+    ok('it registers no service worker of its own',
+       !/serviceWorker\.register\(/.test(rootIdx),
+       'a root-scoped worker is what wiped the app precache');
+    ok('it tears the old registrations down from the page instead',
+       /getRegistrations\(\)/.test(rootIdx) && /\.unregister\(\)/.test(rootIdx));
+    ok('…and spares anything scoped to the app',
+       /indexOf\('\/app\/'\) !== -1\) return;/.test(rootIdx),
+       'unregistering /app/ would take the app offline entirely');
+    ok('cache cleanup skips our own precache by name',
+       /indexOf\('mca-'\) === 0\) return;/.test(rootIdx),
+       'mca-* is the app cache — deleting it is the whole bug');
+    ok('…and there is no unfiltered delete-everything left anywhere in it',
+       !/keys\.map\(function \(k\) \{ return caches\.delete\(k\)/.test(rootIdx));
+
+    section('207b. The leftover root worker is safe for whoever still has it');
+    // It is no longer registered, but browsers that registered it before this
+    // deploy will byte-compare it on their next visit and run this activate.
+    ok('it still exists, so those browsers get the corrected version',
+       rootSw.length > 200);
+    ok('it filters the app cache out before deleting',
+       /filter\(function \(k\) \{ return k\.indexOf\('mca-'\) !== 0; \}\)/.test(rootSw),
+       'this file runs on machines we cannot reach any other way');
+    ok('…and still unregisters itself, so it goes away for good',
+       /registration\.unregister\(\)/.test(rootSw));
+
+    section('207c. The mascot can actually be cached');
+    ok('the header image is requested bare, matching how it is precached',
+       /src="img\/conductor-header\.png"/.test(rd('app/app-setup.js')),
+       'a stamped request never matches a bare cache key — broken offline');
+    ok('…and no stray ?v= crept back into it',
+       !/conductor-header\.png\?v=/.test(rd('app/app-setup.js')));
+    ok('the precache still lists it', /'\.\/img\/conductor-header\.png'/.test(appSw));
+
+    section('207d. index.html is fetched fresh, not served from yesterday');
+    // Every other file may safely be stale for one load. index.html is the
+    // file that declares which version of everything else to load, so a
+    // stale copy of it serves the whole previous build, coherently, with
+    // nothing on screen admitting it.
+    const fetchFn = appSw.slice(appSw.indexOf('// Fetch handler'));
+    ok('a navigation goes to the network before it looks in the cache',
+       fetchFn.indexOf('if (isNav)') < fetchFn.indexOf('if (cached) {'),
+       'cache-first on a navigation pins the user to the old build');
+    ok('the navigation branch starts from the network',
+       /if \(isNav\) \{\s*\n\s*return networkFetch\s*\n/.test(fetchFn));
+    ok('…and falls back to the precached shell when the network fails',
+       /if \(isNav\)[\s\S]{0,420}catch\([\s\S]{0,120}cache\.match\('\.\/index\.html'\)/.test(fetchFn),
+       'offline must still open the app');
+    ok('everything else is still served from cache first',
+       /if \(cached\) \{\s*\n\s*networkFetch\.catch/.test(fetchFn));
+    ok('…and the background refresh cannot raise an unhandled rejection',
+       /networkFetch\.catch\(\(\) => \{\}\);/.test(fetchFn));
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

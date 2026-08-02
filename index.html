@@ -69,7 +69,37 @@ try {
     <div class="track">━ ━ ━ ━ ━ ━ ━ ━</div>
   </div>
 <script>
-if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./sw.js?v=1258').catch(function () {}); }
+/* v0.9.1259 (audit 2026-08-02, finding 4). This page used to register a
+   root service worker whose whole job was to tear down the OLD root-scoped
+   worker from before the app moved to /app/. Two things went wrong with
+   that. Cache storage is per-ORIGIN, not per-scope, so "delete every cache"
+   deleted the app's own precache along with the old one. And because the
+   worker unregistered itself, the next visit installed it fresh and did it
+   all again — measured in a real browser: the app's offline copy was wiped
+   on every single landing-page visit, not once per deploy.
+
+   The teardown is a one-time chore, so it now runs here, on the page, where
+   it can be precise: unregister only workers scoped to the root, and delete
+   only caches that are not ours. Anything named mca-* belongs to the app and
+   is never touched. This also takes sw.js out of the version lockstep — one
+   fewer hand-kept number to get wrong. */
+if ('serviceWorker' in navigator && navigator.serviceWorker.getRegistrations) {
+  navigator.serviceWorker.getRegistrations().then(function (regs) {
+    regs.forEach(function (r) {
+      /* Never touch the app's worker. Its scope ends in /app/. */
+      if (r.scope && r.scope.indexOf('/app/') !== -1) return;
+      r.unregister().catch(function () {});
+    });
+  }).catch(function () {});
+}
+if (window.caches && caches.keys) {
+  caches.keys().then(function (keys) {
+    keys.forEach(function (k) {
+      if (k.indexOf('mca-') === 0) return;   /* the app's own precache */
+      caches.delete(k).catch(function () {});
+    });
+  }).catch(function () {});
+}
 </script>
 </body>
 </html>

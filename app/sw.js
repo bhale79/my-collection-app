@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v1268';
+const CACHE_NAME = 'mca-v1269';
 
 // ── v0.9.1214: the version stamp has to survive as far as the cache ──
 // Brad, on v1213: "im reset twice and it still looks the same." He was
@@ -227,17 +227,29 @@ self.addEventListener('fetch', event => {
             cache.put(cacheKey, response.clone());
           }
           return response;
-        }).catch(() => cached);
+        });
 
-        if (cached) return cached;
-        // A navigation that misses (offline, or "/app/" rather than
-        // "/app/index.html") falls back to the shell we precached, so the
-        // app still opens with no signal.
+        // v0.9.1259 (audit 2026-08-02, finding 6): a NAVIGATION goes to the
+        // network first. Every other file is safe to serve stale and refresh
+        // behind — but index.html is the file that declares which version of
+        // everything else to load, so serving it stale serves the whole of
+        // last deploy's app, coherently, with nothing on screen admitting it.
+        // Offline behaviour is unchanged: when the network fails, the
+        // precached shell still answers, so the app opens with no signal.
         if (isNav) {
-          return networkFetch.catch(() =>
-            cache.match('./index.html').then(shell => shell || Response.error()));
+          return networkFetch
+            .then(response => (response && response.ok)
+              ? response
+              : (cached || cache.match('./index.html').then(shell => shell || response)))
+            .catch(() => cached ||
+              cache.match('./index.html').then(shell => shell || Response.error()));
         }
-        return networkFetch;
+
+        if (cached) {
+          networkFetch.catch(() => {});   // refresh behind; a failure here is fine
+          return cached;
+        }
+        return networkFetch.catch(() => cached || Response.error());
       })
     )
   );
