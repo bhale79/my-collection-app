@@ -2986,7 +2986,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // v0.9.1209: there is no watermark on/off toggle any more — the slot
     // either holds a mark or it does not, which is one fact instead of two.
     ok('an empty watermark slot removes the element',
-       /if \(!slot \|\| !slot\.data\) \{ if \(el\) el\.remove\(\); return; \}/.test(ap9));
+       /if \(!slot \|\| !slot\.data\) \{\s*\n\s*if \(el\) el\.remove\(\);/.test(ap9));
     ok('the marks are applied at boot, outside the editor gate',
        /^\s*applyBranding\(\);\s*\n\}\)\(\);/m.test(ap9));
 
@@ -7987,8 +7987,19 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /document\.querySelector\('\.sidebar'\)[\s\S]{0,400}host\.appendChild\(el\)/.test(ap));
     ok('the header mark goes BEFORE the account chip, never after it',
        /host\.querySelector\('\.header-right'\)[\s\S]{0,80}host\.insertBefore\(el, right\)/.test(ap));
+    // v0.9.1255: assert the INTENT per mark, not a count of one exact string.
+    // The old version counted `if (el) el.remove(); return;` three times, so
+    // reformatting the watermark's copy onto its own lines failed a test about
+    // behaviour that had not changed. A formatting-shaped assertion breaks on
+    // formatting.
     ok('an empty slot removes its element rather than leaving a gap',
-       (ap.match(/if \(el\) el\.remove\(\); return;/g) || []).length === 3);
+       ['function applyLogoBackdrop(slot)', 'function _applySidebarMark(slot)',
+        'function _applyHeaderMark(slot, title)'].every(function (sig) {
+         var at = ap.indexOf(sig);
+         if (at < 0) return false;
+         var body = ap.slice(at, at + 900);
+         return /if \(el\) el\.remove\(\);/.test(body);
+       }));
     // ONE builder, or the preview would drift away from the thing it previews.
     ok('the real header and the preview replica share one builder',
        /function _brandHeaderHtml/.test(ap) &&
@@ -9514,7 +9525,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('it still cannot swallow a tap',
        /pointer-events:none/.test(code));
     ok('turning the watermark off still removes it',
-       /if \(!slot \|\| !slot\.data\) \{ if \(el\) el\.remove\(\); return; \}/.test(code));
+       /if \(!slot \|\| !slot\.data\) \{\s*\n\s*if \(el\) el\.remove\(\);/.test(code));
 
     // THE LINE THE WHOLE THING RESTS ON: without a stacking context on .main,
     // z-index:-1 is measured against the document and the mark disappears
