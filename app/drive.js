@@ -139,17 +139,37 @@ async function driveRequest(method, endpoint, body) {
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   }
-  // For 4xx errors (except 401 handled above), return JSON so callers can inspect .error
-  // For 5xx server errors, throw
-  if (res.status >= 500) {
-    var errBody = await res.text().catch(function() { return 'unknown'; });
-    console.error('[Drive] Server error:', res.status, endpoint, errBody);
-    throw new Error('Drive server error (' + res.status + ')');
-  }
+  // v0.9.1261 (audit 2026-08-02, finding 2). This used to throw only on 5xx.
+  // A 4xx — no permission, folder deleted, quota, a bad id — was logged to a
+  // console nobody has open and then RETURNED, as Google's error envelope
+  // { error: { code, message } }. Callers read `res.files`, got undefined, and
+  // every one of them read that as a truthful, successful "there is nothing
+  // there". Two places then created a second copy of something that already
+  // existed (the vault folder at driveSetupVault, the config file at
+  // driveWriteConfig), and several told the user a job had finished when it
+  // had not: "12 photos tagged" for zero writes, "Discarded N photos" for
+  // photos still sitting in the inbox.
+  //
+  // A failed request now raises. Callers that genuinely want to shrug already
+  // sit inside try/catch — the "does this still exist?" probes were written
+  // expecting a throw and have been catching one all along.
   if (!res.ok) {
-    console.warn('[Drive] API', res.status, method, endpoint);
+    var errText = await res.text().catch(function () { return ''; });
+    var errMsg = '';
+    try { errMsg = (JSON.parse(errText).error || {}).message || ''; } catch (e) {}
+    console.error('[Drive] API', res.status, method, endpoint, errText);
+    var err = new Error('Drive request failed (' + res.status + ')' + (errMsg ? ': ' + errMsg : ''));
+    err.status = res.status;          // so callers can tell "denied" from "try again"
+    throw err;
   }
-  return res.json();
+  // A successful DELETE answers 204 with an EMPTY body, and res.json() on an
+  // empty body rejects with "Unexpected end of JSON input". backupDelete has
+  // therefore been throwing on SUCCESS — the backup really was deleted, then
+  // the UI reported a failure. (sell.js quietly worked around this years ago
+  // with its own hand-rolled _sellRawDelete, which is the tell.)
+  if (res.status === 204) return {};
+  var text = await res.text();
+  return text ? JSON.parse(text) : {};
 }
 
 async function driveUploadFile(file, name, folderId) {
@@ -181,7 +201,8 @@ async function driveFindOrCreateFolder(name, parentId) {
   if (!parentId) throw new Error('Missing parentId for folder: ' + name);
   const q = encodeURIComponent(`name='${name}' and mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`);
   const res = await driveRequest('GET', `/files?q=${q}&fields=files(id,name)&spaces=drive`);
-  if (res.error) { console.error('[Drive] Folder search error:', name, res.error); throw new Error('Drive folder search failed: ' + (res.error.message || res.error)); }
+  // v0.9.1261: the `if (res.error)` check that used to be here is gone.
+  // driveRequest raises now, so a failed search never reaches this line.
   if (res.files && res.files.length > 0) return res.files[0].id;
   const created = await driveRequest('POST', '/files?fields=id', {
     name, mimeType: 'application/vnd.google-apps.folder', parents: [parentId],
@@ -287,16 +308,18 @@ async function driveEnsureSetup() {
       var _vc = await driveRequest('GET', '/files/' + driveCache.photosId + '?fields=id,trashed');
       if (_vc && _vc.id && !_vc.trashed) { driveCache._validated = true; return; }
     } catch(e) { /* validation failed, fall through */ }
-    // Cache is stale — clear everything
+    // Cache looks stale — rediscover. v0.9.1261 (audit 2026-08-02, finding 2):
+    // the ids used to be erased HERE, before the rediscovery that replaces
+    // them. That was survivable only because a failed rediscovery used to
+    // "succeed" by creating an empty duplicate vault; now it can genuinely
+    // raise, and erasing first would turn one refused request into a user with
+    // no idea where their own photo folders are. driveSetupVault searches Drive
+    // by name from scratch and overwrites every one of these on the way out, so
+    // there is nothing to clear first — only itemFolders, whose entries point
+    // into the old layout, and that is cleared once the new layout is known.
     console.warn('[Drive] Cached photosId stale/invalid, re-running setup');
-    driveCache.vaultId = null;
-    driveCache.photosId = null;
-    driveCache.soldPhotosId = null;
-    driveCache.itemFolders = {};
-    localStorage.removeItem('lv_vault_id');
-    localStorage.removeItem('lv_photos_id');
-    localStorage.removeItem('lv_sold_photos_id');
     await driveSetupVault();
+    driveCache.itemFolders = {};
     driveCache._validated = true;
     return;
   }
@@ -316,11 +339,11 @@ async function driveEnsureSetup() {
         return;
       }
     } catch(e) { /* fall through to full setup */ }
-    // Cached IDs are stale — clear and re-create
+    // Cached IDs look stale — rediscover. Same reasoning as above: the three
+    // removeItem calls that used to sit here erased the only note of where the
+    // user's folders are, before knowing whether anything could replace it.
+    // driveSetupVault writes all three itself.
     console.warn('[Drive] localStorage folder IDs stale, re-running setup');
-    localStorage.removeItem('lv_vault_id');
-    localStorage.removeItem('lv_photos_id');
-    localStorage.removeItem('lv_sold_photos_id');
   }
   // Always run full setup so any missing folders get created
   await driveSetupVault();
@@ -512,13 +535,29 @@ async function driveMigrateItemFoldersToEras(opts) {
   if (!driveCache.photosId) throw new Error('Photos folder not ready');
 
   // Every folder sitting at the top level right now.
+  // v0.9.1261 (audit 2026-08-02, finding 2): this listing decides what gets
+  // migrated, so a page that fails to arrive is not a detail — it is a set of
+  // folders that will silently never be moved. Before driveRequest raised, a
+  // 4xx on page 2 left res.files undefined and res.nextPageToken undefined, so
+  // the loop simply ended and the run reported a tidy, complete-looking
+  // success over half the data. It now records that the listing is incomplete
+  // and says so in the result, the same way _pinRefresh does with
+  // _pinListComplete. A partial run is still safe to do — every move is
+  // idempotent and ids never change — but the caller deserves to know.
   const kids = [];
-  let pageToken = '';
+  let pageToken = '', listComplete = true, guard = 0;
   do {
     const q = encodeURIComponent("mimeType='application/vnd.google-apps.folder' and '" + driveCache.photosId + "' in parents and trashed=false");
-    const res = await driveRequest('GET', '/files?q=' + q + '&fields=nextPageToken,files(id,name)&pageSize=200' + (pageToken ? '&pageToken=' + pageToken : ''));
+    let res;
+    try {
+      res = await driveRequest('GET', '/files?q=' + q + '&fields=nextPageToken,files(id,name)&pageSize=200' + (pageToken ? '&pageToken=' + pageToken : ''));
+    } catch (e) {
+      console.warn('[Drive] folder listing stopped early:', e);
+      listComplete = false; break;
+    }
     (res.files || []).forEach(function (f) { kids.push(f); });
     pageToken = (res && res.nextPageToken) || '';
+    if (++guard > 40) { listComplete = false; break; }   // never spin forever
   } while (pageToken);
 
   // Anything already named after an era is a destination, not a thing to move.
@@ -538,7 +577,9 @@ async function driveMigrateItemFoldersToEras(opts) {
   });
 
   const result = { total: kids.length, planned: plan.length, skipped: skipped,
-                   moved: 0, failed: [], dryRun: dryRun, byEra: {} };
+                   moved: 0, failed: [], dryRun: dryRun, byEra: {},
+                   listComplete: listComplete };
+  if (!listComplete) result.warning = 'Drive stopped listing folders partway — this run covers only what was read. Re-run it; moves already made are not repeated.';
   plan.forEach(function (p) { result.byEra[p.era] = (result.byEra[p.era] || 0) + 1; });
   if (dryRun) return result;
 
@@ -576,20 +617,35 @@ async function driveRefileItemFolders(opts) {
   const eras = await _driveEraFolders(true);
   const names = Object.keys(eras);
   const wrong = [];
+  // v0.9.1261 (audit 2026-08-02, finding 2): same reasoning as the migration
+  // above, with one addition — this loop runs once PER ERA, so a raised error
+  // left unhandled here would abandon every era after the one that failed. A
+  // failure inside one era is recorded and the rest are still checked.
+  let listComplete = true;
+  const incomplete = [];
   for (let i = 0; i < names.length; i++) {
     const eraName = names[i], eraId = eras[eraName];
-    let pageToken = '';
+    let pageToken = '', guard = 0;
     do {
       const q = encodeURIComponent("mimeType='application/vnd.google-apps.folder' and '" + eraId + "' in parents and trashed=false");
-      const res = await driveRequest('GET', '/files?q=' + q + '&fields=nextPageToken,files(id,name)&pageSize=200' + (pageToken ? '&pageToken=' + pageToken : ''));
+      let res;
+      try {
+        res = await driveRequest('GET', '/files?q=' + q + '&fields=nextPageToken,files(id,name)&pageSize=200' + (pageToken ? '&pageToken=' + pageToken : ''));
+      } catch (e) {
+        console.warn('[Drive] listing stopped early inside era:', eraName, e);
+        listComplete = false; incomplete.push(eraName); break;
+      }
       (res.files || []).forEach(function (f) {
         const should = driveEraFolderNameFor(f.name, '');
         if (should && should !== eraName) wrong.push({ id: f.id, name: f.name, from: eraName, to: should });
       });
       pageToken = (res && res.nextPageToken) || '';
+      if (++guard > 40) { listComplete = false; incomplete.push(eraName); break; }
     } while (pageToken);
   }
-  const result = { checked: names.length, wrong: wrong.length, moved: 0, failed: [], dryRun: dryRun, list: wrong };
+  const result = { checked: names.length, wrong: wrong.length, moved: 0, failed: [], dryRun: dryRun, list: wrong,
+                   listComplete: listComplete, incompleteEras: incomplete };
+  if (!listComplete) result.warning = 'Some eras were not fully read (' + incomplete.join(', ') + '). Re-run to finish; moves already made are not repeated.';
   if (dryRun) return result;
   for (let j = 0; j < wrong.length; j++) {
     const w = wrong[j];
@@ -719,7 +775,8 @@ async function driveGetFolderPhotos(folderLink) {
   try {
     const q = encodeURIComponent(`'${folderId}' in parents and mimeType contains 'image/' and trashed=false`);
     const res = await driveRequest('GET', `/files?q=${q}&fields=files(id,name,thumbnailLink)&orderBy=name`);
-    if (res.error) { console.warn('Drive photo fetch error:', res.error); return null; }
+    // v0.9.1261: the `if (res.error)` check is gone — driveRequest raises, and
+    // the catch below already returns null, which is what this did anyway.
     return (res.files || []).map(function(f) {
       return {
         id: f.id,
@@ -994,14 +1051,27 @@ async function driveReadConfig(retryCount = 0) {
     return await r.json();
   } catch(e) {
     console.warn(`driveReadConfig error (attempt ${retryCount + 1}):`, e);
-    if (retryCount < MAX_RETRIES) {
+    // v0.9.1261 (audit 2026-08-02, finding 2). Retrying is for problems that
+    // might go away on their own — a dropped connection, a rate limit, a
+    // Google hiccup. "You do not have permission" and "there is no such file"
+    // will answer exactly the same way three more times. Before driveRequest
+    // raised on 4xx those cases never reached this catch at all; now they do,
+    // and retrying them would cost a signing-in user six seconds of staring at
+    // a spinner and two alarming toasts on a path that recovers perfectly well
+    // by itself (app-auth.js falls through to driveFindPersonalSheet).
+    // So: retry the transient, fall straight through on the definite.
+    const _transient = !e || !e.status || e.status === 429 || e.status >= 500;
+    if (_transient && retryCount < MAX_RETRIES) {
       // Show reconnecting message on first retry
       if (retryCount === 0) showToast('Reconnecting to your collection\u2026');
       await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
       return driveReadConfig(retryCount + 1);
     }
-    // All retries failed — show clear message to user
-    showToast('Could not connect to your collection. Try signing out and back in.');
+    // A definite refusal is not worth alarming anyone about: returning null
+    // sends app-auth.js down its driveFindPersonalSheet fallback, which finds
+    // the sheet by name and works. Only say "could not connect" when we really
+    // did try to connect, repeatedly, and could not.
+    if (_transient) showToast('Could not connect to your collection. Try signing out and back in.');
     return null;
   }
 }

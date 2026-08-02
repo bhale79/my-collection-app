@@ -10221,11 +10221,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1260', /const APP_VERSION = 'v0\.9\.1260';/.test(cfg));
+    ok('APP_VERSION is v0.9.1261', /const APP_VERSION = 'v0\.9\.1261';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1260/g) || []).length === 69 && !/\?v=1259/.test(idx),
-       String((idx.match(/\?v=1260/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1270';/.test(rd('app/sw.js')));
+       (idx.match(/\?v=1261/g) || []).length === 69 && !/\?v=1260/.test(idx),
+       String((idx.match(/\?v=1261/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1271';/.test(rd('app/sw.js')));
     // v0.9.1259: the root page's own ?v= is gone — it registers no worker.
     // The trio is a trio again. §207 is what guards the root page now.
     ok('the landing page carries no version stamp to forget',
@@ -10970,6 +10970,143 @@ META_WRITES.length = 0; TOASTS.length = 0;
        built.ranges.every((r, i) => i === 0 || r.start > built.ranges[i - 1].end - 1));
   })();
 
-  console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
-  process.exit(fail ? 1 : 0);
+  // ═══════════════════════════════════════════════════════════
+  // §209. v0.9.1261 — a refused Drive request is not a successful one.
+  //
+  //   driveRequest used to throw only on 5xx. A 4xx — no permission, folder
+  //   deleted, quota, a bad id — was logged to a console nobody has open and
+  //   then RETURNED, as Google's error envelope { error: {...} }. Fifty-odd
+  //   callers read `res.files`, got undefined, and read that as a truthful
+  //   "there is nothing there". Two of them then created a SECOND copy of
+  //   something that already existed; several told the user a job had finished
+  //   when nothing had been written.
+  //
+  //   These tests do not read the source and hope. They lift the real function
+  //   out of drive.js, run it against a fake fetch, and ask what it does.
+  // ═══════════════════════════════════════════════════════════
+  (async function () {
+    const pathH = require('path');
+    const rd = f => fs.readFileSync(pathH.join(__dirname, '..', f), 'utf8');
+    const drive = rd('app/drive.js');
+
+    const drvSrc = drive.slice(drive.indexOf('async function driveRequest('),
+                               drive.indexOf('async function driveUploadFile'));
+    // status -> a Response-alike. Only what driveRequest actually touches.
+    function driveReturning(status, bodyText) {
+      const fakeFetch = async () => ({
+        status: status,
+        ok: status >= 200 && status < 300,
+        text: async () => bodyText,
+        json: async () => JSON.parse(bodyText),
+      });
+      return new Function('fetch', 'accessToken', 'state', 'localStorage', 'tokenClient', 'console',
+        drvSrc + 'return driveRequest;'
+      )(fakeFetch, 'a-token', { user: null }, { getItem: () => null },
+        null, { warn() {}, error() {}, log() {} });
+    }
+    async function caught(fn) {
+      try { const v = await fn(); return { threw: false, value: v }; }
+      catch (e) { return { threw: true, err: e }; }
+    }
+
+    section('209a. A failed request raises');
+    const r403 = await caught(() => driveReturning(403,
+      '{"error":{"code":403,"message":"Insufficient permission"}}')('GET', '/files'));
+    ok('a 403 throws instead of returning an error envelope', r403.threw,
+       'this is the whole finding — it used to return, and callers read it as "nothing there"');
+    ok('…and carries the status code so callers can tell refused from flaky',
+       r403.threw && r403.err.status === 403, 'status=' + (r403.err && r403.err.status));
+    ok('…and repeats what Google actually said',
+       r403.threw && /Insufficient permission/.test(r403.err.message),
+       r403.threw ? r403.err.message : '');
+
+    const r404 = await caught(() => driveReturning(404, '{"error":{"message":"File not found"}}')('GET', '/files/x'));
+    ok('a 404 throws, with its status', r404.threw && r404.err.status === 404);
+    const r500 = await caught(() => driveReturning(500, 'upstream boom')('GET', '/files'));
+    ok('a 500 still throws, as it always did', r500.threw && r500.err.status === 500);
+    ok('a body that is not JSON does not break the error path',
+       r500.threw && typeof r500.err.message === 'string');
+
+    section('209b. A successful DELETE is not a failure');
+    // Drive v3 answers DELETE with 204 and an EMPTY body. res.json() on an
+    // empty body rejects. backupDelete has therefore been throwing on SUCCESS:
+    // the backup really was gone, and the UI said it could not be deleted.
+    const r204 = await caught(() => driveReturning(204, '')('DELETE', '/files/abc'));
+    ok('a 204 resolves rather than throwing "Unexpected end of JSON input"', !r204.threw,
+       r204.threw ? String(r204.err && r204.err.message) : '');
+    ok('…and hands back an object, so callers can read properties off it',
+       !r204.threw && r204.value && typeof r204.value === 'object');
+    const r200empty = await caught(() => driveReturning(200, '')('GET', '/files'));
+    ok('a 200 with an empty body is also survivable', !r200empty.threw);
+    const r200 = await caught(() => driveReturning(200, '{"files":[{"id":"z"}]}')('GET', '/files'));
+    ok('an ordinary 200 still parses as before',
+       !r200.threw && r200.value.files && r200.value.files[0].id === 'z');
+    ok('sell.js no longer needs its hand-rolled DELETE workaround to be the only one that works',
+       /_sellRawDelete/.test(rd('app/sell.js')),
+       'left in place deliberately — noted here so the duplication is visible, not forgotten');
+
+    section('209c. The checks that can no longer fire are gone');
+    // Live code only: the replacement comments say what USED to be here.
+    const driveCode = drive.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+    ok('no caller still tests the returned error envelope',
+       !/if\s*\(\s*res\.error\s*\)/.test(driveCode),
+       'unreachable code that looks like a safety net is worse than none');
+
+    section('209d. Retrying is only for what might get better');
+    const cfgFn = drive.slice(drive.indexOf('async function driveReadConfig'),
+                              drive.indexOf('async function driveFindPersonalSheet'));
+    ok('a definite refusal is not retried three times',
+       /e\.status\s*===\s*429/.test(cfgFn) && /e\.status\s*>=\s*500/.test(cfgFn),
+       'a 403 answers the same way however many times you ask — and sign-in pays 2s each');
+    ok('…and does not raise a "could not connect" alarm on a path that recovers',
+       /if\s*\(_transient\)\s*showToast/.test(cfgFn),
+       'app-auth falls through to driveFindPersonalSheet and finds the sheet by name');
+
+    section('209e. A listing that stopped early says so');
+    // The first draft of this section asked only whether the word
+    // "listComplete" appeared anywhere in the function — and a deliberate
+    // break that deleted it from the RESULT, leaving the local variable
+    // behind, sailed straight through. Setting a flag nobody is handed is the
+    // same as not setting one. So: read the object the caller is actually
+    // given, and require the flag to be in THAT.
+    function resultLiteralOf(fnName, endMarker) {
+      const fn = drive.slice(drive.indexOf('async function ' + fnName),
+                             drive.indexOf(endMarker));
+      const at = fn.indexOf('const result = {');
+      return at < 0 ? '' : fn.slice(at, fn.indexOf('};', at));
+    }
+    const migFn = drive.slice(drive.indexOf('async function driveMigrateItemFoldersToEras'),
+                              drive.indexOf('async function driveRefileItemFolders'));
+    const migResult = resultLiteralOf('driveMigrateItemFoldersToEras', 'async function driveRefileItemFolders');
+    ok('the era migration notices a page it never got',
+       /listComplete = false/.test(migFn),
+       'a truncated listing used to report a tidy success over half the data');
+    ok('…and hands that fact to whoever called it',
+       /listComplete/.test(migResult), migResult.slice(0, 200));
+    ok('…in words, not just a boolean to be overlooked',
+       /warning/.test(migFn));
+
+    const refFn = drive.slice(drive.indexOf('async function driveRefileItemFolders'),
+                              drive.indexOf('if (typeof window !== \'undefined\') {\n  window.driveMigrateItemFoldersToEras'));
+    const refResult = resultLiteralOf('driveRefileItemFolders',
+      'if (typeof window !== \'undefined\') {\n  window.driveMigrateItemFoldersToEras');
+    ok('the refile pass survives one bad era instead of abandoning the rest',
+       /catch \(e\) \{[\s\S]{0,160}listComplete = false/.test(refFn),
+       'it loops once per era — an unhandled throw would skip every era after the failure');
+    ok('…and reports which eras it could not finish',
+       /incompleteEras/.test(refResult), refResult.slice(0, 200));
+
+    section('209f. Nothing erases where the photos are before it knows where they are');
+    const ensure = drive.slice(drive.indexOf('async function driveEnsureSetup'),
+                               drive.indexOf('// ══ v0.9.1125'));
+    ok('the cached folder ids are not removed ahead of the search that replaces them',
+       !/removeItem\('lv_vault_id'\)/.test(ensure) &&
+       !/removeItem\('lv_photos_id'\)/.test(ensure),
+       'v0.9.1258 lesson: never erase the only copy of a record before its replacement exists');
+    ok('…and the setup that rewrites them is still actually run',
+       /await driveSetupVault\(\)/.test(ensure));
+  })().then(function () {
+    console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
+    process.exit(fail ? 1 : 0);
+  });
 })();
