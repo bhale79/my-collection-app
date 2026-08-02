@@ -2141,7 +2141,18 @@ async function _convertUpgradeToWantOnSell(soldInventoryId) {
 if (typeof window !== 'undefined') window._convertUpgradeToWantOnSell = _convertUpgradeToWantOnSell;
 
 async function markForSaleAsSold(fsKey, askingPrice) {
-  const fs = state.forSaleData[fsKey] || {};
+  // v0.9.1252 (row-identity audit, finding 1): this used to fall back to {} on
+  // a miss and carry on — appending a Sold row with a BLANK item number and a
+  // real sale price, which is unrecoverable without hand-editing the sheet.
+  // A missing listing is not a sale; say so and stop.
+  const fs = state.forSaleData[fsKey];
+  if (!fs || !fs.itemNum) {
+    console.warn('[markForSaleAsSold] no listing stored under key', fsKey);
+    if (typeof showToast === 'function') {
+      showToast('That listing is no longer on your For Sale list — refresh and try again.', 4500, true);
+    }
+    return;
+  }
   const itemNum = fs.itemNum || '';
   const variation = fs.variation || '';
   const salePrice = (typeof appPrompt === 'function')
@@ -3264,7 +3275,24 @@ function showAddToUpgradeModal(itemNum, variation, pdRow, invId, groupMode) {
     const _pdKey = findPDKeyByRow(itemNum, variation, pdRow);
     if (_pdKey) pd = state.personalData[_pdKey];
   }
-  if (!pd) pd = Object.values(state.personalData).find(p => p.owned && rrSameNum(p.itemNum, itemNum) && rrSameVar(p.variation, variation));
+  // v0.9.1252 (row-identity audit, finding 6): this last-resort .find() is
+  // first-one-wins, which is the very thing the comment above says was wrong.
+  // With one copy there is nothing to get wrong; with several, picking the
+  // first silently files the Upgrade against a copy the user was not looking
+  // at. Be sure or do nothing — the same rule as the photo crop (v0.9.1238).
+  if (!pd) {
+    const _cands = Object.values(state.personalData).filter(p =>
+      p.owned && rrSameNum(p.itemNum, itemNum) && rrSameVar(p.variation, variation));
+    if (_cands.length === 1) pd = _cands[0];
+    else if (_cands.length > 1) {
+      console.warn('[showAddToUpgradeModal] ' + _cands.length + ' copies of ' + itemNum +
+        ' and nothing to tell them apart — not guessing.');
+      if (typeof showToast === 'function') {
+        showToast('You own more than one of these — open the copy you mean from your collection and add the upgrade from there.', 5000, true);
+      }
+      return;
+    }
+  }
 
   // Session 162: grouped-row Upgrade chooser. If this copy is part of a group
   // with more than one real piece (engine + tender, AA/AB/ABA — boxes and

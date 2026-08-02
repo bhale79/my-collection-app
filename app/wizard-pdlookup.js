@@ -227,13 +227,32 @@ function findPDKey(itemNum, variation) {
 }
 
 // Find personalData key by row number — used to disambiguate multiple copies
+//
+// v0.9.1252 (row-identity audit, finding 11): the row is a POSITION, and the
+// callers get it from markup rendered earlier, so it can be stale. It used to
+// fall through to findPDKey() on a miss — and findPDKey is first-one-wins, so
+// with several copies of the same number a stale row silently selected a
+// DIFFERENT copy and then removed or sold it.
+//
+// Same rule as the photo crop in v0.9.1238: without an id, be sure or do
+// nothing. A miss now falls back only when there is exactly ONE candidate and
+// therefore nothing to get wrong; with several it returns null so the caller
+// asks rather than guesses.
 function findPDKeyByRow(itemNum, variation, row) {
   if (!row) return findPDKey(itemNum, variation);
   // v0.9.922 (chunk 3): same normalized comparison as the index.
   const want = _pdLookupKey(itemNum, variation);
-  const k = Object.keys(state.personalData).find(k => {
+  const all = Object.keys(state.personalData).filter(k => {
     const pd = state.personalData[k];
-    return _pdLookupKey(pd.itemNum, pd.variation) === want && pd.row == row;
+    return _pdLookupKey(pd.itemNum, pd.variation) === want;
   });
-  return k || findPDKey(itemNum, variation);
+  const exact = all.find(k => state.personalData[k].row == row);
+  if (exact) return exact;
+  if (all.length === 1) return all[0];
+  if (all.length > 1) {
+    console.warn('[findPDKeyByRow] row ' + row + ' no longer matches any of the ' +
+      all.length + ' copies of ' + itemNum + ' — refusing to guess which one.');
+    return null;
+  }
+  return findPDKey(itemNum, variation);
 }

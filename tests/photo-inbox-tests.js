@@ -2299,9 +2299,18 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('a dry run writes nothing',
      /if \(dryRun\) return result;/.test(dv5.slice(dv5.indexOf('async function driveRepairPhotoLinks'))));
   ok('it writes the photoItem column by name, never a hardcoded letter',
-     /personalColLetter\('photoItem'\) \+ p\.row/.test(dv5));
+     /personalColLetter\('photoItem'\) \+ _row/.test(dv5));
   ok('an unsaved row is skipped instead of writing to row 99999',
-     /if \(!p\.row \|\| p\.row === 99999\)/.test(dv5));
+     /if \(!_row \|\| _row === 99999\)/.test(dv5));
+  // v0.9.1252 (finding 9): the plan is built minutes before it is written, so
+  // the row it captured can be stale. These two assertions used to require the
+  // SNAPSHOT row — they would have passed on the bug.
+  ok('the row is re-read from the live record, not from the plan',
+     /const _live = state\.personalData\[p\.key\];/.test(dv5) && /const _row = _live\.row;/.test(dv5));
+  ok('an item deleted while the repair ran is skipped, not written to',
+     /item is no longer in the collection/.test(dv5));
+  ok('the stale snapshot row is never used for a write',
+     !/personalColLetter\('photoItem'\) \+ p\.row/.test(dv5));
   ok('one failure does not abort the rest',
      /result\.failed\.push\(\{ item: p\.item, error:/.test(dv5));
 
@@ -10186,12 +10195,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1251', /const APP_VERSION = 'v0\.9\.1251';/.test(cfg));
+    ok('APP_VERSION is v0.9.1252', /const APP_VERSION = 'v0\.9\.1252';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1251/g) || []).length === 69 && !/\?v=1250/.test(idx),
-       String((idx.match(/\?v=1251/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1262';/.test(rd('app/sw.js')));
-    ok('the root page asks for the new worker', /sw\.js\?v=1251/.test(root));
+       (idx.match(/\?v=1252/g) || []).length === 69 && !/\?v=1251/.test(idx),
+       String((idx.match(/\?v=1252/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1263';/.test(rd('app/sw.js')));
+    ok('the root page asks for the new worker', /sw\.js\?v=1252/.test(root));
   })();
 
   // ═══════════════════════════════════════════════════════════
@@ -10391,6 +10400,127 @@ META_WRITES.length = 0; TOASTS.length = 0;
          isData[isData['INV-42'].row] === undefined);
       ok('a legacy sheet with no inventory id still resolves',
          !!isData[resolve(isData[9])]);
+    })();
+  })();
+
+  // ═══════════════════════════════════════════════════════════
+  // §202. v0.9.1252 — the rest of the row-identity sweep.
+  //   Findings 1, 2, 6, 9, 10, 11, 15, 16. The recurring shape: a
+  //   position used where an identity belongs, and — in four of these —
+  //   a silent fall back to "the first one that looks right", which is
+  //   how the wrong copy gets sold, removed, or upgraded.
+  // ═══════════════════════════════════════════════════════════
+  (function () {
+    const fs202 = require('fs'), p202 = require('path');
+    const rd = f => fs202.readFileSync(p202.join(__dirname, '..', f), 'utf8');
+    const pages = rd('app/app-pages.js'), pdl = rd('app/wizard-pdlookup.js');
+    const drv = rd('app/drive.js'), ws = rd('app/wizard-save.js');
+    const pin = rd('app/photo-inbox.js'), brw = rd('app/browse.js');
+    const strip = t => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+
+    section('202. Finding 1 — a missing listing is not a sale');
+    ok('the empty-object fallback is gone',
+       !/const fs = state\.forSaleData\[fsKey\] \|\| \{\};/.test(strip(pages)));
+    ok('a miss stops instead of recording a blank sale',
+       /if \(!fs \|\| !fs\.itemNum\) \{/.test(pages) && /no longer on your For Sale list/.test(pages));
+
+    section('202b. Findings 11 and 6 — be sure, or do nothing');
+    (function () {
+      const src = pdl.slice(pdl.indexOf('function findPDKey(itemNum, variation)'),
+                            pdl.indexOf('function findPDKeyByRow') );
+      const src2 = pdl.slice(pdl.indexOf('function findPDKeyByRow'),
+                             pdl.indexOf('\n}', pdl.indexOf('return findPDKey(itemNum, variation);\n}')) + 2);
+      const warns = [];
+      // The fallback calls findPDKey, which calls _getPdIndex — not in the
+      // slice. Without a stub, breaking this function throws a ReferenceError
+      // and CRASHES the suite instead of failing an assertion: an invisible
+      // break, which is worse than no test. The stub returns the FIRST copy,
+      // exactly what the old code did, so a regression shows up as a wrong
+      // answer rather than an explosion.
+      const mk = new Function('state', '_pdLookupKey', 'console', '_getPdIndex',
+        src + src2 + '\n return findPDKeyByRow;');
+      const norm = (n, v) => String(n || '').trim().toUpperCase() + '|' + String(v || '').trim();
+      const lookup = (n, v) => norm(n, v);
+
+      // Two copies of one number. The stale row matches neither.
+      const twoCopies = {
+        personalData: { 'INV-1': { itemNum: '2343', variation: '1', row: 10 },
+                        'INV-2': { itemNum: '2343', variation: '1', row: 11 } },
+      };
+      const idxOf = st => {
+        const ix = {};
+        Object.keys(st.personalData).forEach(k => {
+          const key = lookup(st.personalData[k].itemNum, st.personalData[k].variation);
+          if (!(key in ix)) ix[key] = k;          // first-one-wins, like the real index
+        });
+        return ix;
+      };
+      const f2 = mk(twoCopies, lookup,
+        { warn: function () { warns.push([].slice.call(arguments).join(' ')); } },
+        () => idxOf(twoCopies));
+      ok('an exact row match still wins', f2('2343', '1', 11) === 'INV-2');
+      ok('a STALE row no longer silently picks copy #1',
+         f2('2343', '1', 99) === null, String(f2('2343', '1', 99)));
+      ok('…and it says why', warns.some(w => /refusing to guess which one/.test(w)),
+         warns[0] || '(no warning)');
+
+      // One copy: nothing to get wrong, so a stale row is still resolvable.
+      const oneCopy = { personalData: { 'INV-1': { itemNum: '2343', variation: '1', row: 10 } } };
+      const f1 = mk(oneCopy, lookup, { warn: function () {} }, () => idxOf(oneCopy));
+      ok('with a single copy a stale row still resolves', f1('2343', '1', 99) === 'INV-1');
+    })();
+    ok('the Upgrade modal stopped taking the first of several copies',
+       !/if \(!pd\) pd = Object\.values\(state\.personalData\)\.find\(p => p\.owned/.test(strip(pages)));
+    ok('…and asks the user instead when it cannot tell them apart',
+       /_cands\.length === 1\) pd = _cands\[0\]/.test(pages) &&
+       /open the copy you mean from your collection/.test(pages));
+
+    section('202c. Findings 9, 10, 16 — a row captured before an await is stale');
+    ok('the photo-link repair re-reads the row from the live record',
+       /const _live = state\.personalData\[p\.key\];/.test(drv));
+    ok('the wishlist cleanup re-reads it too',
+       /var _live = \(_tbl && m\.key\) \? _tbl\[m\.key\] : null;/.test(ws));
+    ok('…and refuses to blank a row whose entry has gone',
+       /is gone — not blanking row/.test(ws));
+    ok('the inbox attach re-resolves the record after the Drive moves',
+       /var _livePd = \(_pdKey && state\.personalData\[_pdKey\]\) \|\| pd;/.test(pin));
+    ok('…refuses a placeholder row, like its hardened sibling',
+       /var _rowKnown = _livePd\.row && Number\(_livePd\.row\) !== 99999;/.test(pin));
+    ok('…and only records the link once the sheet has taken it',
+       /_livePd\.photoItem = link;   \/\/ only true once the sheet actually took it/.test(pin));
+
+    section('202d. Finding 15 — a done-marker that named a moving target');
+    ok('the backfill iterates entries so it has the store key',
+       /var rows = Object\.entries\(state\.personalData\);/.test(pin));
+    ok('the marker no longer contains a row number',
+       /var k = String\(p\.inventoryId \|\| _storeKey\);/.test(pin) &&
+       !/p\.itemNum \+ '\|' \+ \(p\.variation \|\| ''\) \+ '\|' \+ p\.row/.test(strip(pin)));
+
+    section('202e. Finding 2 — the collection page is a page, not a tab');
+    ok('the repainter asks which page is on screen',
+       /document\.querySelector\('\.page\.active'\)/.test(brw));
+    ok('…and rebuilds My Collection when that is the one showing',
+       /active === 'page-collection' && typeof buildCollectionPage === 'function'/.test(brw));
+    (function () {
+      // Run the real chooser against a fake DOM.
+      const src = brw.slice(brw.indexOf('function rrRepaintBrowse()'),
+                            brw.indexOf('if (typeof window !== \'undefined\') window.rrRepaintBrowse'));
+      const called = [];
+      const mk = (activeId) => new Function('document', 'state', 'buildCollectionPage',
+        'renderBrowseTab', 'renderBrowse', 'console',
+        src + '\n return rrRepaintBrowse;')(
+          { querySelector: () => ({ id: activeId }) },
+          { _browseTab: 'paper' },
+          () => called.push('collection'),
+          (t) => called.push('tab:' + t),
+          () => called.push('items'),
+          console);
+      called.length = 0; mk('page-collection')();
+      ok('on My Collection it rebuilds the collection page',
+         called.join() === 'collection', called.join());
+      called.length = 0; mk('page-browse')();
+      ok('on a browse sub-tab it redraws THAT tab, not Items',
+         called.join() === 'tab:paper', called.join());
     })();
   })();
 

@@ -686,9 +686,19 @@ async function driveRepairPhotoLinks(opts) {
 
   for (const p of plan) {
     try {
-      if (!p.row || p.row === 99999) { result.failed.push({ item: p.item, error: 'no sheet row yet' }); continue; }
+      // v0.9.1252 (row-identity audit, finding 9): the plan was built minutes
+      // earlier — one Drive folder lookup and one photo listing per photoless
+      // item — and p.row was frozen at that moment. If anything was deleted
+      // from My Collection in between, every planned row is one too high and
+      // each photo link lands on the item BELOW the one it belongs to.
+      // p.key is the stable identity and was already being carried; re-read
+      // the row from the live record instead of trusting the snapshot.
+      const _live = state.personalData[p.key];
+      if (!_live) { result.failed.push({ item: p.item, error: 'item is no longer in the collection' }); continue; }
+      const _row = _live.row;
+      if (!_row || _row === 99999) { result.failed.push({ item: p.item, error: 'no sheet row yet' }); continue; }
       await sheetsUpdate(state.personalSheetId,
-        PERSONAL_TAB + '!' + personalColLetter('photoItem') + p.row, [[p.link]]);
+        PERSONAL_TAB + '!' + personalColLetter('photoItem') + _row, [[p.link]]);
       if (state.personalData[p.key]) {
         state.personalData[p.key].photoItem = p.link;
         try { if (typeof rrThumbBust === 'function') rrThumbBust(state.personalData[p.key]); } catch (eTB) {}   // v0.9.1201

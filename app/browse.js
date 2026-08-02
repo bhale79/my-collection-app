@@ -1724,7 +1724,22 @@ var _lastBrowseHash = '';
 // That fix made one caller correct instead of making the fact have one
 // answer. This is the one answer: call it after anything that reorders
 // masterData, and it draws the tab that is actually visible.
+// v0.9.1252 (finding 2): the My Collection PAGE bakes the same masterData
+// index into showItemDetailPage(idx), and it is a different page — so
+// repainting the browse tab never reached it. It was only ever rebuilt by
+// navigating to it. Ask which page is actually on screen and redraw that one.
 function rrRepaintBrowse() {
+  var active = '';
+  try {
+    var el = document.querySelector('.page.active');
+    active = (el && el.id) || '';
+  } catch (e) {}
+  try {
+    if (active === 'page-collection' && typeof buildCollectionPage === 'function') {
+      buildCollectionPage();
+      return;
+    }
+  } catch (e) { console.warn('[rrRepaintBrowse] collection', e); }
   try {
     if (typeof renderBrowseTab === 'function') {
       renderBrowseTab((typeof state !== 'undefined' && state._browseTab) || 'items');

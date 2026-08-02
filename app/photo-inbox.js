@@ -3493,9 +3493,21 @@
         _sel = {};
         _status('');
         var pd = lk.ownedPd;
-        if (!pd.photoItem && pd.row && typeof sheetsUpdate === 'function' && typeof personalColLetter === 'function' && window.state.personalSheetId) {
-          pd.photoItem = link;
-          try { await sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('photoItem') + pd.row, [[link]]); } catch (eUp) { console.warn('[Inbox] photo link write:', eUp); }
+        // v0.9.1252 (row-identity audit, finding 16): pd was captured before a
+        // folder lookup and a per-file Drive move/rename loop — a long way back.
+        // Its .row can be stale by now, and the sibling write in _flushPending
+        // was hardened for exactly this in v0.9.1192 while this one was not.
+        // Match it: re-resolve the live record, refuse a placeholder row, and
+        // only record the link in memory once the sheet has actually taken it.
+        var _pdKey = Object.keys(state.personalData || {}).find(function (k) { return state.personalData[k] === pd; });
+        var _livePd = (_pdKey && state.personalData[_pdKey]) || pd;
+        var _rowKnown = _livePd.row && Number(_livePd.row) !== 99999;
+        if (!_livePd.photoItem && link && _rowKnown
+            && typeof sheetsUpdate === 'function' && typeof personalColLetter === 'function' && window.state.personalSheetId) {
+          try {
+            await sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('photoItem') + _livePd.row, [[link]]);
+            _livePd.photoItem = link;   // only true once the sheet actually took it
+          } catch (eUp) { console.warn('[Inbox] photo link write failed — leaving it for the repair pass:', eUp); }
         }
         showToast('Attached ' + moved + ' photo' + (moved > 1 ? 's' : '') + ' to ' + num, 3000);
         _pinRefresh();
@@ -3892,13 +3904,21 @@
     if (typeof findMaster !== 'function' || typeof rrMasterKeyOf !== 'function'
         || typeof sheetsUpdate !== 'function' || typeof personalColLetter !== 'function') return;
     var wrote = 0;
-    var rows = Object.values(state.personalData);
+    // v0.9.1252 (row-identity audit, finding 15): iterate ENTRIES so the
+    // store key is available. The done-marker used to be rebuilt from
+    // p.row for rows with no Inventory ID — but _adjustRowsAfterDelete
+    // mutates .row in place and _mkDone is module-scope, so a marker minted
+    // before a deletion named a DIFFERENT copy afterwards and that copy was
+    // skipped for the rest of the session, never getting its Master Key.
+    // The store key is minted once per load and never recomputed.
+    var rows = Object.entries(state.personalData);
     for (var i = 0; i < rows.length; i++) {
-      var p = rows[i];
+      var _storeKey = rows[i][0];
+      var p = rows[i][1];
       if (!p || !p.owned || !p.itemNum || p.masterKey) continue;
       if (String(p.era || '') === 'Manual') continue;            // a manual entry's identity is its own
       if (!p.row || Number(p.row) === 99999) continue;           // a placeholder is not a row
-      var k = String(p.inventoryId || (p.itemNum + '|' + (p.variation || '') + '|' + p.row));
+      var k = String(p.inventoryId || _storeKey);
       if (_mkDone[k]) continue;
       var m = null;
       try { m = findMaster(p.itemNum, p.variation || '', p); } catch (e) {}

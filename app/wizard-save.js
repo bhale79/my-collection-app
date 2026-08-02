@@ -2145,8 +2145,21 @@ async function saveWizardItem() {
     if (d._cleanupWishlistMatches && Array.isArray(d._cleanupWishlistMatches) && tab === 'collection') {
       d._cleanupWishlistMatches.forEach(function(m) {
         if (!m || !m.row || m.unchecked) return;
+        // v0.9.1252 (row-identity audit, finding 10): m.row was captured when
+        // the banner appeared, which can be many wizard steps and several photo
+        // uploads earlier. m.key is the stable store key and is right here —
+        // read the row off the live entry instead of the stale snapshot, so a
+        // Want-Upgrade row deleted in the meantime cannot make this blank a
+        // different want entry.
+        var _tbl = (m.listType === 'Upgrade') ? state.upgradeData : state.wantData;
+        var _live = (_tbl && m.key) ? _tbl[m.key] : null;
+        var _row = (_live && _live.row) || m.row;
+        if (m.key && !_live) {
+          console.warn('[wishlist cleanup] entry', m.key, 'is gone — not blanking row', m.row);
+          return;
+        }
         sheetsUpdate(state.personalSheetId,
-          `Want-Upgrade List!A${m.row}:I${m.row}`,
+          `Want-Upgrade List!A${_row}:I${_row}`,
           [['','','','','','','','','']]
         ).catch(e => console.warn('Wishlist cleanup error:', e));
         if (m.listType === 'Upgrade' && m.key && state.upgradeData) delete state.upgradeData[m.key];
