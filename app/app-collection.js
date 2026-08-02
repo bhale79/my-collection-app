@@ -3774,7 +3774,7 @@ function _buildItemModal() {
       '</div>' +
       '<div class="modal-footer">' +
         '<button class="btn btn-secondary" onclick="closeModal()">Cancel</button>' +
-        '<button class="btn btn-primary" onclick="saveItem()">Save to Collection</button>' +
+        '<button class="btn btn-primary" id="fc-save-btn" onclick="saveItem()">Save to Collection</button>' +
       '</div>' +
     '</div>';
   document.body.appendChild(overlay);
@@ -3942,8 +3942,18 @@ function setStatus(status) {
   if (wantFields) wantFields.style.display = status === 'Want' ? 'block' : 'none';
 }
 
-async function saveItem() {
-  if (!state.currentItem) return;
+// ── SAVE AN ITEM ─────────────────────────────────────────────────
+// v0.9.1258 (audit 2026-08-02, finding 1). The sheet writes live here, in
+// their own function, for one reason: so saveItem() below can put ONE
+// try/catch around all of them. They used to sit inline in saveItem() —
+// roughly fourteen awaits with no guard anywhere, followed by an
+// unconditional "✓ Item updated!". The checkmark was not reporting success;
+// it was simply the next line of code.
+//
+// Nothing in here changed except the ORDER of the Sold and Want paths.
+// Both used to erase the row in My Collection BEFORE writing its
+// replacement. See the notes at each one.
+async function _saveItemWrites() {
   const { item } = state.currentItem;
   // Phase 3: personalData is inventoryId-keyed. Find the existing copy (if any)
   // via findPDKey (value scan). pdKey is the canonical storage key.
@@ -4047,17 +4057,22 @@ async function saveItem() {
     }
 
   } else if (currentStatus === 'Sold') {
-    // Remove from My Collection
     const existing = _saveItemPd;
-    if (existing && existing.row) {
-      await sheetsUpdate(state.personalSheetId, personalFullRowRange(existing.row), [personalBlankRow()]);  // 25 cols A-Y
-    }
-    // Remove from For Sale if it was there
-    const fsEntry3 = _fsKeySI ? state.forSaleData[_fsKeySI] : null;
-    if (fsEntry3 && fsEntry3.row) {
-      await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry3.row}:J${fsEntry3.row}`, [['','','','','','','','','','']]);
-    }
-    // Write to Sold tab — Session 176: each sale its own row (append) + snapshot.
+
+    // Write to Sold tab FIRST — Session 176: each sale its own row (append)
+    // + snapshot.
+    //
+    // v0.9.1258: this append used to come AFTER the two erases below. If it
+    // threw — expired sign-in, dropped connection, Sold tab renamed — the
+    // item was already gone from My Collection, had never arrived in Sold,
+    // and the dialog closed with a checkmark. That was the one bug in the
+    // 08-02 audit that could destroy a record.
+    //
+    // The rule: never erase the only copy of a record before its replacement
+    // exists. Reordered, the worst case is the opposite failure — the Sold
+    // row lands and the erase does not, so the item shows in both places at
+    // once. That is visible on screen and the user can fix it. A silent
+    // deletion is neither.
     const soldRow = _buildSoldRow({
       itemNum: item.itemNum, variation: item.variation || '', copy: copy,
       condition: condition,
@@ -4071,18 +4086,28 @@ async function saveItem() {
     });
     await sheetsAppend(state.personalSheetId, 'Sold!A:T', [soldRow]);
 
+    // Only now that the sale is safely recorded, remove it from My Collection.
+    if (existing && existing.row) {
+      await sheetsUpdate(state.personalSheetId, personalFullRowRange(existing.row), [personalBlankRow()]);  // 25 cols A-Y
+    }
+    // Remove from For Sale if it was there
+    const fsEntry3 = _fsKeySI ? state.forSaleData[_fsKeySI] : null;
+    if (fsEntry3 && fsEntry3.row) {
+      await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry3.row}:J${fsEntry3.row}`, [['','','','','','','','','','']]);
+    }
+
     // If this sold copy had an Upgrade entry linked to it, convert to Want.
     if (typeof _convertUpgradeToWantOnSell === 'function') {
       await _convertUpgradeToWantOnSell((existing && existing.inventoryId) || '');
     }
 
   } else if (currentStatus === 'Want') {
-    // Remove from My Collection if present
     const existing = state.personalData[key];
-    if (existing && existing.row) {
-      await sheetsUpdate(state.personalSheetId, personalFullRowRange(existing.row), [personalBlankRow()]);  // 25 cols A-Y
-    }
-    // Write/update Want List tab
+
+    // v0.9.1258: same reorder as the Sold path above. This branch used to
+    // blank the My Collection row first and write the Want row second, so a
+    // failed Want write erased an owned item and put nothing in its place.
+    // Write/update Want List tab FIRST.
     const wantRow = [
       item.itemNum,
       item.variation || '',
@@ -4102,6 +4127,10 @@ async function saveItem() {
       const _wuAppendRow = [wantRow[0], wantRow[1], 'Want', wantRow[2], wantRow[3], wantRow[6] || '', '', wantRow[4], wantRow[5]];
       await sheetsAppend(state.personalSheetId, 'Want-Upgrade List!A:I', [_wuAppendRow]);
     }
+    // Only now that the Want row exists, remove it from My Collection.
+    if (existing && existing.row) {
+      await sheetsUpdate(state.personalSheetId, personalFullRowRange(existing.row), [personalBlankRow()]);  // 25 cols A-Y
+    }
     // Store info for partner prompt — shown after modal closes
     window._pendingWantPartner = {
       itemNum: item.itemNum,
@@ -4112,6 +4141,42 @@ async function saveItem() {
     };
   } else {
     window._pendingWantPartner = null;
+  }
+}
+
+// v0.9.1258 (audit 2026-08-02, finding 1). saveItem()'s only caller is an
+// inline onclick="saveItem()" with no await and no catch, so anything it
+// threw became an unhandled promise rejection — which shows the user
+// nothing at all. Everything below the try/catch now runs ONLY when every
+// write actually succeeded.
+async function saveItem() {
+  if (!state.currentItem) return;
+
+  // Project rule #5: any save gets a flag guard that stops it firing twice
+  // however it is triggered. This is a data bug, not a UI nicety — on the
+  // Sold path a second run appends a SECOND sale row for one sale.
+  if (window._saveItemBusy) return;
+  window._saveItemBusy = true;
+  const _btn = document.getElementById('fc-save-btn');
+  const _btnLabel = _btn ? _btn.textContent : '';
+  if (_btn) { _btn.disabled = true; _btn.textContent = 'Saving…'; }
+
+  try {
+    await _saveItemWrites();
+  } catch (e) {
+    // Stop here: the dialog stays open with everything the user typed still
+    // in it, and no checkmark appears. rrSaveError is the one reader that
+    // turns a raw failure into words a collector understands — "you have
+    // been signed out", "no connection" — and every other save in the app
+    // already goes through it.
+    console.error('saveItem:', e);
+    showToast((typeof rrSaveError === 'function')
+      ? rrSaveError(e, 'this item')
+      : 'Could not save this item. Please try again.', 5000, true);
+    return;
+  } finally {
+    window._saveItemBusy = false;
+    if (_btn) { _btn.disabled = false; _btn.textContent = _btnLabel; }
   }
 
   // Bust cache then background sync — don't block the UI

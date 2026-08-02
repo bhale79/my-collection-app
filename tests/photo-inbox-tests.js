@@ -10216,12 +10216,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1256', /const APP_VERSION = 'v0\.9\.1256';/.test(cfg));
+    ok('APP_VERSION is v0.9.1258', /const APP_VERSION = 'v0\.9\.1258';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1256/g) || []).length === 69 && !/\?v=1255/.test(idx),
-       String((idx.match(/\?v=1256/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1267';/.test(rd('app/sw.js')));
-    ok('the root page asks for the new worker', /sw\.js\?v=1256/.test(root));
+       (idx.match(/\?v=1258/g) || []).length === 69 && !/\?v=1257/.test(idx),
+       String((idx.match(/\?v=1258/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1268';/.test(rd('app/sw.js')));
+    ok('the root page asks for the new worker', /sw\.js\?v=1258/.test(root));
   })();
 
   // ═══════════════════════════════════════════════════════════
@@ -10716,6 +10716,89 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('…it asks config.js instead', /placeholder="' \+\s*\(typeof MASTER_SHEET_ID/.test(setup));
     ok('…and falls back to a shape, not a stale id',
        /Paste the master sheet ID here/.test(setup));
+  })();
+
+  // ═══════════════════════════════════════════════════════════
+  // §206. v0.9.1258 — audit 2026-08-02, finding 1: saveItem().
+  //
+  // It ran ~14 sheet writes with no guard anywhere, from an inline
+  // onclick with no await and no catch, and then showed "✓ Item
+  // updated!" unconditionally — the checkmark was not reporting
+  // success, it was the next line of code. Two of the four paths also
+  // erased the row in My Collection BEFORE writing its replacement, so
+  // a failed write on the Sold path destroyed the record outright.
+  //
+  // Each function is sliced at its own closing brace (every brace
+  // INSIDE a function is indented, so "\n}\n" is the end of it). That
+  // way these assertions cannot start reading the next function along
+  // and quietly pass on the wrong code.
+  // ═══════════════════════════════════════════════════════════
+  (function () {
+    const fs206 = require('fs'), p206 = require('path');
+    const coll = fs206.readFileSync(p206.join(__dirname, '..', 'app', 'app-collection.js'), 'utf8');
+    const fnBody = function (decl) {
+      const a = coll.indexOf(decl);
+      if (a < 0) return '';
+      return coll.slice(a, coll.indexOf('\n}\n', a) + 3);
+    };
+    const writesFn = fnBody('async function _saveItemWrites()');
+    const saveFn   = fnBody('async function saveItem()');
+
+    section('206. Write before erase — a failed sale cannot delete an item');
+    ok('both halves of saveItem exist to be checked',
+       writesFn.length > 2000 && saveFn.length > 400,
+       'writes ' + writesFn.length + ', wrapper ' + saveFn.length);
+
+    const soldBranch = writesFn.slice(writesFn.indexOf("currentStatus === 'Sold'"),
+                                      writesFn.indexOf("currentStatus === 'Want'"));
+    ok('the Sold path still records the sale AND clears the collection row',
+       soldBranch.includes("'Sold!A:T'") && soldBranch.includes('personalBlankRow()'));
+    ok('the sale is recorded BEFORE the collection row is erased',
+       soldBranch.indexOf("'Sold!A:T'") < soldBranch.indexOf('personalBlankRow()'),
+       'the erase runs first — a failed append destroys the only copy');
+
+    const wantBranch = writesFn.slice(writesFn.indexOf("currentStatus === 'Want'"));
+    ok('the Want path still writes the want row AND clears the collection row',
+       wantBranch.includes('Want-Upgrade List!A:I') && wantBranch.includes('personalBlankRow()'));
+    ok('the want row is written BEFORE the collection row is erased',
+       wantBranch.indexOf('Want-Upgrade List!A:I') < wantBranch.indexOf('personalBlankRow()'),
+       'the erase runs first — a failed want write loses an owned item');
+
+    section('206b. A failed save says so, in the collector’s words');
+    ok('every sheet write sits inside the wrapped function',
+       !/await sheets(Update|Append)\(/.test(saveFn),
+       'an unguarded write is back in saveItem() itself');
+    ok('the writes are awaited inside a try',
+       /try \{\s*await _saveItemWrites\(\);\s*\} catch/.test(saveFn));
+    ok('a failure goes through the one save-error reader',
+       /catch \(e\)[\s\S]{0,500}rrSaveError\(e, 'this item'\)/.test(saveFn));
+    ok('…and is shown as an error, not a normal toast',
+       /rrSaveError[\s\S]{0,240}5000, true\)/.test(saveFn));
+
+    section('206c. The checkmark reports success rather than just following');
+    const catchBlock = (saveFn.match(/\} catch \(e\) \{[\s\S]*?\n  \} finally \{/) || [''])[0];
+    ok('the catch block exists to be checked', catchBlock.length > 60);
+    ok('…and STOPS, instead of falling through to the success tail',
+       /\n\s*return;\s*\n/.test(catchBlock),
+       'no return — a failed save would still close the dialog and tick');
+    ok('the checkmark is below the try/catch, not above it',
+       saveFn.indexOf('catch (e)') < saveFn.indexOf("showToast('✓ Item updated!')"));
+    ok('the dialog closes below it too',
+       saveFn.indexOf('catch (e)') < saveFn.indexOf('closeModal()'));
+
+    section('206d. Save cannot run twice (project rule 5)');
+    ok('a flag guard turns a second tap into a no-op',
+       /if \(window\._saveItemBusy\) return;\s*\n\s*window\._saveItemBusy = true;/.test(saveFn),
+       'on the Sold path a second run appends a SECOND sale row');
+    ok('…and the flag is released however the save ends',
+       /finally \{[\s\S]{0,240}window\._saveItemBusy = false;/.test(saveFn));
+    ok('the button is disabled while the save is in flight',
+       /_btn\.disabled = true;[\s\S]{0,90}Saving/.test(saveFn));
+    ok('…and comes back afterwards',
+       /finally \{[\s\S]{0,320}_btn\.disabled = false;/.test(saveFn));
+    ok('the button the guard reaches for actually exists',
+       /id="fc-save-btn"[^>]*onclick="saveItem\(\)"/.test(coll),
+       'getElementById returns null and the label never changes');
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
