@@ -10221,11 +10221,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1263', /const APP_VERSION = 'v0\.9\.1263';/.test(cfg));
+    ok('APP_VERSION is v0.9.1264', /const APP_VERSION = 'v0\.9\.1264';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1263/g) || []).length === 69 && !/\?v=1262/.test(idx),
-       String((idx.match(/\?v=1263/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1273';/.test(rd('app/sw.js')));
+       (idx.match(/\?v=1264/g) || []).length === 69 && !/\?v=1263/.test(idx),
+       String((idx.match(/\?v=1264/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1274';/.test(rd('app/sw.js')));
     // v0.9.1259: the root page's own ?v= is gone — it registers no worker.
     // The trio is a trio again. §207 is what guards the root page now.
     ok('the landing page carries no version stamp to forget',
@@ -11428,6 +11428,278 @@ META_WRITES.length = 0; TOASTS.length = 0;
     try { await backupRig().fn(''); } catch (e) { bkThrew = e && e.message; }
     ok('…and a missing id is refused before any request is made',
        /No backup ID/.test(bkThrew), bkThrew || '(did not throw)');
+
+    // ═══════════════════════════════════════════════════════════════════
+    section('213. A refused Drive search never becomes a second photo folder');
+    // Finding R6. v0.9.1261 taught driveRequest to raise so that a refusal
+    // would stop reading as "nothing there". Two swallows downstream turned it
+    // straight back into "nothing there":
+    //   drive.js — `try { folderId = await _driveItemFolderAnywhere(key); }
+    //               catch (e) {}`
+    //   drive.js — _driveEraFolders caught a failed scan, returned {}, AND
+    //               cached that empty map for the whole session
+    // Either one makes driveEnsureItemFolder create a folder for an item that
+    // already has one, splitting its photos across two folders with the same
+    // name in different parents.
+    //
+    // The only assertion that can prove this is "was a folder created?", so
+    // that is what these count. The rig slices the region that owns the shared
+    // _driveEraFolderCache, because a test that reset it by hand would be
+    // testing its own bookkeeping instead of the code's.
+    const r6Src = require('fs').readFileSync(APP_FILE('drive.js'), 'utf8');
+
+    function driveRig(script) {
+      // script: (method, endpoint) -> {files:[...]} or throws
+      const created = [];
+      const asked = [];
+      const cut = r6Src.slice(r6Src.indexOf('let _driveEraFolderCache = null;'),
+                               r6Src.indexOf('// ── v0.9.1123 (Brad:'));
+      const api = new Function(
+        'driveCache', 'driveRequest', 'driveEnsureSetup', 'driveFindOrCreateFolder',
+        'ERAS', 'window', 'console', 'baseItemNum', 'findMaster',
+        cut + '\n; return { ensure: driveEnsureItemFolder, eras: _driveEraFolders };'
+      )({ photosId: 'PHOTOS', itemFolders: {} },
+        async function (method, endpoint) { asked.push(endpoint); return script(method, endpoint); },
+        async function () {},
+        async function (name, parentId) { created.push({ name: name, parentId: parentId }); return 'NEW_' + name; },
+        { all: { label: 'All' }, pw: { label: 'Lionel Postwar' } },
+        { state: { personalData: {} } },
+        { warn: function () {}, error: function () {}, log: function () {} },
+        function (n) { return n; },
+        function () { return null; });
+      return { api: api, created: created, asked: asked };
+    }
+
+    // Everything works: the folder already lives under its era and is reused.
+    const dOK = driveRig(function (m, ep) {
+      if (/in\+parents|in%20parents/.test(ep) && /application%2Fvnd/.test(ep) && !/name%3D/.test(ep)) {
+        return { files: [{ id: 'ERA_PW', name: 'Lionel Postwar' }] };   // the era scan
+      }
+      return { files: [{ id: 'ITEM_2328', name: '2328', parents: ['ERA_PW'] }] };
+    });
+    const dOKid = await dOK.api.ensure('2328');
+    ok('an item folder that already exists is reused, not re-created',
+       dOKid === 'ITEM_2328' && dOK.created.length === 0,
+       'got ' + dOKid + ', created ' + JSON.stringify(dOK.created));
+
+    // THE BUG: the era scan works, the item search is refused.
+    const dItemFail = driveRig(function (m, ep) {
+      if (/name%3D/.test(ep)) { const e = new Error('Drive refused (403)'); e.status = 403; throw e; }
+      return { files: [{ id: 'ERA_PW', name: 'Lionel Postwar' }] };
+    });
+    let dItemThrew = '';
+    try { await dItemFail.api.ensure('2328'); } catch (e) { dItemThrew = e && e.message; }
+    ok('a refused item-folder search raises instead of answering "not found"',
+       /403/.test(dItemThrew), dItemThrew || '(did not throw)');
+    ok('…and no folder is created, so the photos cannot be split in two',
+       dItemFail.created.length === 0, JSON.stringify(dItemFail.created));
+
+    // The other swallow: the era scan itself is refused.
+    const dEraFail = driveRig(function () { const e = new Error('Drive refused (429)'); e.status = 429; throw e; });
+    let dEraThrew = '';
+    try { await dEraFail.api.ensure('2328'); } catch (e) { dEraThrew = e && e.message; }
+    ok('a refused era scan raises rather than reporting zero era folders',
+       /429/.test(dEraThrew), dEraThrew || '(did not throw)');
+    ok('…and it too creates nothing',
+       dEraFail.created.length === 0, JSON.stringify(dEraFail.created));
+
+    // A failed scan must not be remembered as an empty Drive for the session.
+    let eraCalls = 0;
+    const dEraRetry = driveRig(function (m, ep) {
+      if (!/name%3D/.test(ep)) { eraCalls++; const e = new Error('Drive refused (500)'); e.status = 500; throw e; }
+      return { files: [] };
+    });
+    try { await dEraRetry.api.eras(); } catch (e) {}
+    try { await dEraRetry.api.eras(); } catch (e) {}
+    ok('a failed era scan is not cached — the next call asks Drive again',
+       eraCalls === 2, 'Drive was asked ' + eraCalls + ' time(s); caching a failure freezes it for the session');
+
+    // The other direction. If the fix simply made everything throw, every
+    // assertion above would still pass and the app would never file a photo.
+    const dNew = driveRig(function () { return { files: [] }; });
+    const dNewId = await dNew.api.ensure('9999');
+    ok('a search that really finds nothing still creates exactly one folder',
+       dNewId === 'NEW_9999' && dNew.created.length === 1,
+       'got ' + dNewId + ', created ' + JSON.stringify(dNew.created));
+
+    // ═══════════════════════════════════════════════════════════════════
+    section('214. A failed catalog read is never cached over a good catalog');
+    // Finding R8. _fetchMasterTabs answered "the catalog is empty" and "I could
+    // not read the catalog" with the same value, and the cold path in
+    // loadMasterData wrote that value to IndexedDB *and stamped it fresh for 24
+    // hours*. The catalog went blank and stayed blank for a day; reloading did
+    // not help, because the stamp said the blank was current.
+    //
+    // app.js:1890 already stated the rule the rest of the file did not follow:
+    // "empty = failure: never cache a blank catalog over a good one".
+    const adSrc = require('fs').readFileSync(APP_FILE('app-data.js'), 'utf8');
+
+    function fetchTabsRig(batchGet, legacyGet) {
+      const cut = adSrc.slice(adSrc.indexOf('// Session 156: one-time skip flag'),
+                              adSrc.indexOf('// v0.9.658 — Atlas'));
+      return new Function(
+        'state', 'SHEET_TABS', 'ERA_TABS', 'MASTER_TAB_KEYS', '_getMasterTabs',
+        'sheetsBatchGet', 'sheetsGet', 'buildMasterColMap', 'parseMasterRow', 'console',
+        cut + '\n; return _fetchMasterTabs;'
+      )({ masterSheetId: 'MS' }, { items: 'Items' }, {}, ['items'],
+        function () { return ['Items']; },
+        batchGet, legacyGet,
+        function () { return {}; },
+        function (r) { return { itemNum: r[0] }; },
+        { warn: function () {}, error: function () {}, log: function () {} });
+    }
+
+    const ftOK = await fetchTabsRig(
+      async function () { return { valueRanges: [{ values: [['hdr'], ['2328'], ['2329']] }] }; },
+      async function () { return {}; })();
+    ok('a catalog read that works returns its rows and is not marked failed',
+       ftOK.length === 2 && !ftOK._failed, JSON.stringify(ftOK));
+
+    const ftBad = fetchTabsRig(
+      async function () { throw new Error('batchGet 403'); },
+      async function () { throw new Error('legacy 403'); });
+    const ftFail1 = await ftBad();
+    ok('a catalog read that fails is marked, not silently empty',
+       ftFail1.length === 0 && ftFail1._failed === true, JSON.stringify(ftFail1) + ' _failed=' + ftFail1._failed);
+    const ftFail2 = await ftBad();
+    ok('…and the "already failed once, skip it" shortcut is marked too',
+       ftFail2.length === 0 && ftFail2._failed === true, '_failed=' + ftFail2._failed);
+
+    // The cold path is where the damage happened, so it gets its own rig.
+    function loadMasterRig(fetchResult) {
+      const idbWrites = [];
+      const stamps = [];
+      const cut = adSrc.slice(adSrc.indexOf('async function loadMasterData() {'),
+                              adSrc.indexOf('// Session 156: one-time skip flag'));
+      const st = { masterData: [{ itemNum: 'GOOD' }] };
+      const fn = new Function(
+        'state', '_currentEra', 'idbGet', 'idbSet', 'idbRemove', 'localStorage', 'navigator', 'window',
+        '_fetchMasterTabs', '_deduplicateMaster', '_rebuildMasterIndex', 'ERAS', 'console',
+        cut + '\n; return loadMasterData;'
+      )(st, 'pw',
+        async function () { return null; },                       // no cache: this is the COLD path
+        function (k, v) { idbWrites.push({ key: k, len: (v || []).length }); },
+        function () {},                                           // idbRemove: the legacy-key wipe, not under test
+        { getItem: function () { return '0'; },
+          removeItem: function () {},
+          setItem: function (k, v) { stamps.push(k); } },
+        { onLine: true }, {},
+        async function () { return fetchResult; },
+        function (r) { return r; },
+        function () {},
+        { pw: { label: 'Lionel Postwar' } },
+        { warn: function () {}, error: function () {}, log: function () {} });
+      return { fn: fn, idbWrites: idbWrites, stamps: stamps, state: st };
+    }
+
+    const failed = []; failed._failed = true; failed._why = 'HTTP 403';
+    const lmBad = loadMasterRig(failed);
+    let lmThrew = '';
+    try { await lmBad.fn(); } catch (e) { lmThrew = e && e.message; }
+    ok('a cold load that could not read the catalog raises instead of blanking it',
+       /Could not load the catalog/.test(lmThrew), lmThrew || '(did not throw)');
+    ok('…writes nothing to IndexedDB',
+       lmBad.idbWrites.length === 0, JSON.stringify(lmBad.idbWrites));
+    ok('…and never stamps the cache fresh, which is what froze it for 24 hours',
+       lmBad.stamps.filter(function (k) { return /master_cache_ts/.test(k); }).length === 0,
+       JSON.stringify(lmBad.stamps));
+
+    // Other direction: a real load must still cache. "Nothing was written" is
+    // also what a completely broken loader looks like.
+    const lmOK = loadMasterRig([{ itemNum: '2328' }, { itemNum: '2329' }]);
+    await lmOK.fn();
+    ok('a cold load that works does cache the rows and stamp them',
+       lmOK.idbWrites.length === 1 && lmOK.idbWrites[0].len === 2 &&
+       lmOK.stamps.filter(function (k) { return /master_cache_ts/.test(k); }).length === 1,
+       JSON.stringify(lmOK.idbWrites) + ' / ' + JSON.stringify(lmOK.stamps));
+
+    // ═══════════════════════════════════════════════════════════════════
+    section('215. A customer list that could not be read is never written back');
+    // Finding R8, third instance and the one that destroys data. The write is a
+    // whole-file REPLACE. A failed read produced [], the panel said "No
+    // customers yet — add one below", and the user's first entry replaced the
+    // real list with a list of one. No confirmation, no undo, no message.
+    const slSrc = require('fs').readFileSync(APP_FILE('sell.js'), 'utf8');
+
+    function sellRig(driveRequest, fetchImpl) {
+      const cut = slSrc.slice(slSrc.indexOf('function _sellCustReadFailed(why) {'),
+                              slSrc.indexOf('async function _sellGrant('));
+      return new Function(
+        '_SELL_CUST_FILE', 'driveRequest', 'fetch', '_sellTok', 'Blob', 'FormData', 'console',
+        cut + '\n; return { read: _sellReadCustomers, write: _sellWriteCustomers };'
+      )('customers.json', driveRequest, fetchImpl,
+        function () { return 'tok'; },
+        function () { return {}; },
+        function () { return { append: function () {} }; },
+        { warn: function () {}, error: function () {}, log: function () {} });
+    }
+
+    const okDrive = async function () { return { files: [{ id: 'CUST' }] }; };
+
+    const sRead = sellRig(okDrive, async function () {
+      return { ok: true, json: async function () { return [{ name: 'Ann' }, { name: 'Bob' }]; } };
+    });
+    const sList = await sRead.read();
+    ok('a customer list that reads cleanly comes back whole and unmarked',
+       sList.length === 2 && !sList._failed, JSON.stringify(sList));
+
+    // A Drive error envelope is valid JSON. It used to parse, fail the
+    // Array.isArray test, have no .customers, and become [] without throwing.
+    const sEnv = sellRig(okDrive, async function () {
+      return { ok: false, status: 403, json: async function () { return { error: { code: 403 } }; } };
+    });
+    const sEnvList = await sEnv.read();
+    ok('a Drive error envelope is recognised as a failure, not an empty list',
+       sEnvList.length === 0 && sEnvList._failed === true, '_failed=' + sEnvList._failed);
+    // …and recognised from the HTTP status, not from the shape of the body.
+    // Falling through to "the file did not contain a list" would also mark it
+    // failed, but it names the wrong cause: a permissions problem would be
+    // reported to the user, and logged, as a corrupt customer file.
+    ok('…and reported as the HTTP failure it is, not as a corrupt file',
+       /HTTP 403/.test(sEnvList._why || ''), '_why=' + sEnvList._why);
+
+    // The case only the status check can catch: a failed response whose body
+    // happens to be valid JSON of the right shape. A proxy, a captive portal
+    // or a Drive outage page can all produce one, and without the r.ok test
+    // an empty array here reads as "you have no customers" — after which the
+    // next write replaces the real list with whatever the user types.
+    const sBadOk = sellRig(okDrive, async function () {
+      return { ok: false, status: 500, json: async function () { return []; } };
+    });
+    const sBadOkList = await sBadOk.read();
+    ok('a failed response that parses as an empty list is still a failure',
+       sBadOkList._failed === true, '_failed=' + sBadOkList._failed);
+
+    const sThrow = sellRig(async function () { throw new Error('offline'); }, async function () { return {}; });
+    const sThrowList = await sThrow.read();
+    ok('…and so is a read that throws outright',
+       sThrowList._failed === true, '_failed=' + sThrowList._failed);
+
+    // Genuinely no file yet: the first customer must still be writable.
+    const sNone = sellRig(async function () { return { files: [] }; }, async function () { return {}; });
+    const sNoneList = await sNone.read();
+    ok('no customer file yet is a real empty list, not a failure',
+       sNoneList.length === 0 && !sNoneList._failed, '_failed=' + sNoneList._failed);
+
+    // The refusal itself — the assertion the whole finding rests on.
+    let sellWrites = 0;
+    const sWrite = sellRig(okDrive, async function () { sellWrites++; return { ok: true, json: async function () { return {}; } }; });
+    const poisoned = [];
+    poisoned._failed = true;
+    poisoned._why = 'HTTP 403';
+    poisoned.push({ name: 'the customer the user just typed' });   // exactly what _sellAddCustomer does
+    let sellThrew = '';
+    try { await sWrite.write(poisoned); } catch (e) { sellThrew = e && e.message; }
+    ok('writing a list that came from a failed read is refused',
+       /could not be read/.test(sellThrew), sellThrew || '(did not throw)');
+    ok('…before any request is made, so the stored list is untouched',
+       sellWrites === 0, sellWrites + ' write(s) reached Drive');
+
+    // Other direction: a real empty list must be writable, or the first
+    // customer anyone ever adds can never be saved.
+    await sWrite.write([{ name: 'Ann' }]);
+    ok('a list from a healthy read is still written normally',
+       sellWrites === 1, sellWrites + ' write(s) reached Drive');
 
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

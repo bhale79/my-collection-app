@@ -371,22 +371,36 @@ async function driveEnsureSetup() {
 
 // The era subfolders that actually exist under "My Collection Photos".
 // Cached per session; refreshed whenever we create a new one.
+//
+// v0.9.1264 (audit 2026-08-02 round 2, finding R6): this used to wrap the whole
+// scan in `catch (e) { console.warn(...) }` and then cache whatever it had —
+// which, after a failure, was an EMPTY map, for the rest of the session. Two
+// harms followed from that one line, and the second is the expensive one:
+//
+//   1. _driveItemFolderAnywhere searches the root plus every era folder in this
+//      map. With the map empty it searches the root only, misses a folder that
+//      lives under an era, and reports "no folder exists".
+//   2. Its caller then CREATES one. The item's photos are now split across two
+//      folders with the same name in different parents — the exact duplicate
+//      the era-folder finder was written to prevent, caused by the failure
+//      handling rather than by the logic.
+//
+// A refused scan is not an empty Drive. It raises now, and nothing is cached,
+// so the next call tries again instead of being answered from a failure.
 let _driveEraFolderCache = null;
 async function _driveEraFolders(force) {
   if (_driveEraFolderCache && !force) return _driveEraFolderCache;
   const out = {};
+  if (!driveCache.photosId) return (_driveEraFolderCache = out);   // no photos folder yet: genuinely empty
+  const q = encodeURIComponent("mimeType='application/vnd.google-apps.folder' and '" + driveCache.photosId + "' in parents and trashed=false");
+  const res = await driveRequest('GET', '/files?q=' + q + '&fields=files(id,name)&pageSize=200');
+  const labels = {};
   try {
-    if (!driveCache.photosId) return (_driveEraFolderCache = out);
-    const q = encodeURIComponent("mimeType='application/vnd.google-apps.folder' and '" + driveCache.photosId + "' in parents and trashed=false");
-    const res = await driveRequest('GET', '/files?q=' + q + '&fields=files(id,name)&pageSize=200');
-    const labels = {};
-    try {
-      Object.keys(ERAS).forEach(function (k) {
-        if (ERAS[k] && ERAS[k].label && k !== 'all') labels[ERAS[k].label] = k;
-      });
-    } catch (e) {}
-    (res.files || []).forEach(function (f) { if (labels[f.name]) out[f.name] = f.id; });
-  } catch (e) { console.warn('[Drive] era folder scan:', e && e.message); }
+    Object.keys(ERAS).forEach(function (k) {
+      if (ERAS[k] && ERAS[k].label && k !== 'all') labels[ERAS[k].label] = k;
+    });
+  } catch (e) {}   // ERAS missing is a load-order problem, not a Drive failure — an unlabelled scan is still a real answer
+  (res.files || []).forEach(function (f) { if (labels[f.name]) out[f.name] = f.id; });
   return (_driveEraFolderCache = out);
 }
 
@@ -451,8 +465,21 @@ async function driveEnsureItemFolder(itemNum, eraHint) {
   const key = String(itemNum);
   if (driveCache.itemFolders[key]) return driveCache.itemFolders[key];
   // 1. Already exists somewhere? Use it — never create a second home.
-  let folderId = null;
-  try { folderId = await _driveItemFolderAnywhere(key); } catch (e) {}
+  //
+  // v0.9.1264 (finding R6): this line used to be
+  //   try { folderId = await _driveItemFolderAnywhere(key); } catch (e) {}
+  // which turned every failure into `null`, and `null` here means "no folder
+  // exists" — so the next block created one. v0.9.1261 taught driveRequest to
+  // raise precisely so that a refusal would stop reading as "nothing there";
+  // this catch handed the raise straight back to null, one level down, and
+  // re-created the duplicate-folder bug that motivated the whole fix.
+  //
+  // There is no swallow here now. _driveItemFolderAnywhere returns null ONLY
+  // when the search ran and found nothing — the one case where creating a
+  // folder is the right answer. Anything else raises, and the callers (all six
+  // of them, checked) already handle that: the photo upload reports a failure
+  // the user can retry, instead of quietly filing into a second home.
+  let folderId = await _driveItemFolderAnywhere(key);
   // 2. Otherwise create it under its era, or at the top level if unknown.
   if (!folderId) {
     let parentId = driveCache.photosId;
@@ -466,6 +493,11 @@ async function driveEnsureItemFolder(itemNum, eraHint) {
         }
         parentId = eras[eraName];
       }
+      // This catch stays, and is NOT the one R6 was about. Reaching here means
+      // step 1 already ran successfully and established that no folder for this
+      // item exists anywhere — so a failure to work out or create the ERA
+      // folder costs tidiness (the folder lands at the top level, where every
+      // folder used to live) and cannot produce a second home for the photos.
     } catch (e) { console.warn('[Drive] era folder:', e && e.message); }   // fall back to the root
     folderId = await driveFindOrCreateFolder(key, parentId);
   }

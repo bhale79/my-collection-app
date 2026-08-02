@@ -1317,8 +1317,18 @@ async function _ensureEraLoaded(era) {
     if (!Array.isArray(arr) || !arr.length) {
       if (typeof _fetchMasterTabs !== 'function') return;
       var fetched = await _fetchMasterTabs(era);
+      // v0.9.1264 (finding R8, same shape as the cold path in app-data.js):
+      // this wrote the fetch result to IndexedDB *and stamped it fresh for 24
+      // hours* without asking whether the fetch had worked. A refused read
+      // therefore locked this era's catalog empty for a day — and because the
+      // stamp looked current, nothing tried again. Nothing is cached now unless
+      // the read genuinely returned rows; a failure just means this era stays
+      // unloaded and the next visit retries.
+      if (fetched && fetched._failed) return;
       arr = (typeof _deduplicateMaster === 'function') ? _deduplicateMaster(fetched) : fetched;
-      try { idbSet('lv_master_cache_' + era, arr); localStorage.setItem('lv_master_cache_ts_' + era, Date.now().toString()); } catch(e) {}
+      if (Array.isArray(arr) && arr.length) {
+        try { idbSet('lv_master_cache_' + era, arr); localStorage.setItem('lv_master_cache_ts_' + era, Date.now().toString()); } catch(e) {}
+      }
     }
     if (!Array.isArray(arr) || !arr.length) return;
     arr.forEach(function(m) { if (m && !m._era) m._era = era; });

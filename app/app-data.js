@@ -262,6 +262,20 @@ async function loadMasterData() {
   }
 
   const allRows = await _fetchMasterTabs();
+  // v0.9.1264 (finding R8): the warm path seventeen lines above already guards
+  // its cache write with `if (allRows.length)`. This one — the COLD path, the
+  // one that runs when there is no usable cache — did not, so a single refused
+  // read wrote an empty catalog into IndexedDB *and stamped it fresh for 24
+  // hours*. The user's catalog went blank and stayed blank for a day, with the
+  // app entirely convinced it was up to date. Reloading did not help, which is
+  // the worst property a cache bug can have.
+  //
+  // A failed read is now allowed to raise. Every caller of loadMasterData
+  // already handles that, and an error the user can retry beats a blank screen
+  // that insists it is correct.
+  if (allRows && allRows._failed) {
+    throw new Error('Could not load the catalog' + (allRows._why ? ' (' + allRows._why + ')' : ''));
+  }
   state.masterData = _deduplicateMaster(allRows);
   _rebuildMasterIndex();
   if (typeof ERAS !== 'undefined' && _currentEra && ERAS[_currentEra]) { ERAS[_currentEra]._total = state.masterData.length; try { localStorage.setItem('lv_era_total_' + _currentEra, state.masterData.length); } catch(e) {} }
@@ -271,6 +285,27 @@ async function loadMasterData() {
 
 // Session 156: one-time skip flag for the Master Inventory legacy fallback
 var _legacyFallbackBlocked = false;
+
+// v0.9.1264 (audit 2026-08-02 round 2, finding R8): _fetchMasterTabs answers
+// "the catalog is empty" and "I could not read the catalog" with the same
+// value — an empty array. Callers then cache that emptiness, and stamp it fresh
+// for 24 hours, over a catalog that was perfectly good.
+//
+// The codebase already knew the rule. app.js:1890 states it outright:
+//   if (!rows || !rows.length) throw new Error('no rows returned');
+//   // empty = failure: never cache a blank catalog over a good one
+// and _loadPersonalFromSheets carries a `_failed` sentinel for exactly this.
+// This is that sentinel, applied to the one loader that lacked it.
+//
+// It is a marked ARRAY rather than a wrapper object on purpose: every existing
+// caller does `if (rows && rows.length)` and keeps working untouched. Only the
+// callers that write to a cache have to care, and they now say so out loud.
+function _masterFetchFailed(why) {
+  const out = [];
+  out._failed = true;
+  out._why = why || '';
+  return out;
+}
 async function _fetchMasterTabs(era) {
   // Session 117 (Phase 2 #6): added optional `era` param so loadAllErasMode
   // can fetch every era's tabs in parallel without mutating SHEET_TABS.
@@ -312,7 +347,9 @@ async function _fetchMasterTabs(era) {
   }
   // Fallback: old single-tab approach
   // Session 156: skip after first failure — was spamming 400s ~5x per sign-in
-  if (_legacyFallbackBlocked) return [];
+  // v0.9.1264 (R8): the skip is still right, but it is a *failure* being
+  // skipped, not an empty catalog — say which.
+  if (_legacyFallbackBlocked) return _masterFetchFailed('legacy fallback already failed once this session');
   try {
     let res = await sheetsGet(state.masterSheetId, 'Master Inventory!A2:U');
     if (!res.values) res = await sheetsGet(state.masterSheetId, 'Sheet1!A2:U');
@@ -320,7 +357,7 @@ async function _fetchMasterTabs(era) {
   } catch(e2) {
     console.warn('[Master] Legacy fallback also failed (will skip on subsequent calls):', e2.message);
     _legacyFallbackBlocked = true;
-    return [];
+    return _masterFetchFailed(e2 && e2.message);
   }
 }
 

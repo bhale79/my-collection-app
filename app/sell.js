@@ -335,16 +335,54 @@ async function _sellSync() {
 function _sellSheetLink(id) { return 'https://docs.google.com/spreadsheets/d/' + id + '/edit?usp=sharing'; }
 
 // ═══ TIER 2 — CUSTOMER BOOK (private Drive JSON) ═════════════════
+// v0.9.1264 (audit 2026-08-02 round 2, finding R8): this used to answer BOTH
+// "you have no customers yet" and "I could not read your customer list" with
+// the same empty array, and the difference between those two matters more here
+// than anywhere else in the app — because _sellWriteCustomers is a whole-file
+// REPLACE. The sequence was:
+//
+//   read fails (403, offline, expired token) → [] → the panel says
+//   "No customers yet — add one below" → the user adds one → the write
+//   replaces the file with a one-entry list → every customer is gone.
+//
+// No confirmation, no undo, no message. The user's own action destroyed the
+// data, which is the hardest kind of loss to notice and the hardest to explain.
+//
+// Two things were wrong. There was no `r.ok` check, so a Drive error envelope
+// ({error:{code,message}}) parsed cleanly as JSON, was not an array, had no
+// .customers, and became [] without ever throwing. And the outer catch turned
+// every real failure into the same []. Both now produce a MARKED empty array,
+// and _sellWriteCustomers refuses to write one.
+//
+// A genuinely absent file still returns a plain [] — that is a real answer, and
+// the first customer must be writable.
+function _sellCustReadFailed(why) {
+  var out = [];
+  out._failed = true;
+  out._why = why || '';
+  return out;
+}
 async function _sellReadCustomers() {
   try {
     var q = encodeURIComponent("name='" + _SELL_CUST_FILE + "' and trashed=false");
     var res = await driveRequest('GET', '/files?q=' + q + '&fields=files(id)&spaces=drive');
-    if (!res.files || !res.files.length) return [];
+    if (!res.files || !res.files.length) return [];   // no file yet = genuinely no customers
     var r = await fetch('https://www.googleapis.com/drive/v3/files/' + res.files[0].id + '?alt=media', { headers: { Authorization: 'Bearer ' + _sellTok() } });
-    var j = await r.json(); return Array.isArray(j) ? j : (j.customers || []);
-  } catch (e) { return []; }
+    if (!r.ok) return _sellCustReadFailed('HTTP ' + r.status);
+    var j = await r.json();
+    if (Array.isArray(j)) return j;
+    if (j && Array.isArray(j.customers)) return j.customers;
+    return _sellCustReadFailed('the customer file did not contain a list');
+  } catch (e) { return _sellCustReadFailed(e && e.message); }
 }
 async function _sellWriteCustomers(arr) {
+  // v0.9.1264 (finding R8): the ONE place that can tell a real empty list from
+  // a failed read is here, so this is where the refusal lives — not spread
+  // across the three callers, all of which already handle a throw by putting
+  // the user's entry back and saying so.
+  if (arr && arr._failed) {
+    throw new Error('Your customer list could not be read' + (arr._why ? ' (' + arr._why + ')' : '') + ' — nothing was saved, so nothing was lost');
+  }
   var blob = new Blob([JSON.stringify(arr)], { type: 'application/json' });
   var q = encodeURIComponent("name='" + _SELL_CUST_FILE + "' and trashed=false");
   var res = await driveRequest('GET', '/files?q=' + q + '&fields=files(id)&spaces=drive');
@@ -439,6 +477,15 @@ async function openSalesShareModal() {
 }
 function _sellRenderCustomers() {
   var el = document.getElementById('sell-cust-list'); if (!el) return;
+  // v0.9.1264 (finding R8): "no customers yet" and "your list could not be
+  // read" used to look identical here, and the first one invites the user to
+  // start typing — which is exactly the action that would have overwritten the
+  // list they still had. Say which it is.
+  if (_sellCustomers && _sellCustomers._failed) {
+    el.innerHTML = '<div style="font-size:0.8rem;color:var(--warn)">Your customer list could not be loaded just now, so it is not shown. '
+      + 'Nothing has been changed — close this and try again in a moment.</div>';
+    return;
+  }
   if (!_sellCustomers.length) { el.innerHTML = '<div style="font-size:0.8rem;color:var(--text-dim)">No customers yet — add one below.</div>'; return; }
   el.innerHTML = _sellCustomers.map(function (c, i) {
     var on = !!c.access;
