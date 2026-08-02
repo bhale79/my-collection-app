@@ -803,14 +803,55 @@ const LOCK_CONFIG = {
                'Instruction Sheets','Science Sets','Construction Sets','My Sets'],
   // Tabs locked entirely (no row/col bounds = whole sheet).
   fullLockTabs: ['Dashboard'],
-  // My Collection technical columns to lock (0-indexed column numbers from PERSONAL_HEADERS).
-  // 14=Matched Tender, 15=Set ID, 17=Is Error, 18=Error Description,
-  // 19=Quick Entry, 20=Inventory ID, 21=Group ID.
-  myCollectionTechColRanges: [
-    { start: 14, end: 16 },   // Matched Tender + Set ID  (cols O, P)
-    { start: 17, end: 22 },   // Is Error..Group ID       (cols R, S, T, U, V)
+  // ── My Collection technical columns to lock ──────────────────────────
+  // v0.9.1259 (audit 2026-08-02, finding 3). These used to be hand-written
+  // column numbers — { start: 14, end: 16 } and { start: 17, end: 22 } —
+  // with a comment naming the fields they were meant to cover. Columns were
+  // appended to PERSONAL_SCHEMA over time, the numbers stayed put, and the
+  // comment stopped being true. By 2026-08-02 the lock was protecting
+  // Item+Box Complete, Has Box, Item Photo Link, Box Photo Link and Date
+  // Purchased — five things a collector has every reason to edit by hand —
+  // while leaving Inventory ID and Group ID, the app's whole notion of
+  // identity, wide open. Exactly backwards.
+  //
+  // Named fields cannot drift: the positions are looked up from
+  // PERSONAL_FIELD_INDEX at lock time, so reordering or appending a column
+  // moves the lock with it. Add a field here, not a number.
+  myCollectionTechFields: [
+    'matchedTo',     // which tender/engine this is paired with — set by the app
+    'setId',         // which set this piece belongs to
+    'isError',
+    'errorDesc',
+    'quickEntry',
+    'inventoryId',   // the app's identity for this row. Editing it orphans the item.
+    'groupId',
+    'masterKey',     // v0.9.1198 — WHICH catalog row this is. Same kind of thing
+                     // as inventoryId, and just as damaging to retype.
   ],
 };
+
+// Turn the field names above into the fewest contiguous column ranges that
+// cover them, reading positions from the schema rather than from memory.
+// Consecutive fields merge into one protected range; a gap starts a new one.
+// An unknown name is skipped loudly rather than silently locking column 0 —
+// PERSONAL_FIELD_INDEX returns undefined for a typo, and undefined used as a
+// column index is a lock on Item Number.
+function myCollectionTechColRanges() {
+  const idxs = [];
+  LOCK_CONFIG.myCollectionTechFields.forEach(f => {
+    const i = (typeof PERSONAL_FIELD_INDEX !== 'undefined') ? PERSONAL_FIELD_INDEX[f] : undefined;
+    if (typeof i !== 'number') { console.warn('[SheetLock] unknown field, not locked:', f); return; }
+    idxs.push(i);
+  });
+  idxs.sort((a, b) => a - b);
+  const ranges = [];
+  idxs.forEach(i => {
+    const last = ranges[ranges.length - 1];
+    if (last && i === last.end) last.end = i + 1;      // extends the run
+    else if (!last || i > last.end) ranges.push({ start: i, end: i + 1 });
+  });
+  return ranges;
+}
 
 async function lockSheetTabs(sheetId) {
   if (!sheetId || !accessToken) return;
@@ -883,7 +924,7 @@ async function lockSheetTabs(sheetId) {
 
     // 5. Lock My Collection technical columns (rows 3+ only — leave headers in headerTab lock)
     if (tabMap.hasOwnProperty('My Collection')) {
-      LOCK_CONFIG.myCollectionTechColRanges.forEach(colRange => {
+      myCollectionTechColRanges().forEach(colRange => {
         requests.push({
           addProtectedRange: {
             protectedRange: {

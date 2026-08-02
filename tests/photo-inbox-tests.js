@@ -10221,11 +10221,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1259', /const APP_VERSION = 'v0\.9\.1259';/.test(cfg));
+    ok('APP_VERSION is v0.9.1260', /const APP_VERSION = 'v0\.9\.1260';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1259/g) || []).length === 69 && !/\?v=1258/.test(idx),
-       String((idx.match(/\?v=1259/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1269';/.test(rd('app/sw.js')));
+       (idx.match(/\?v=1260/g) || []).length === 69 && !/\?v=1259/.test(idx),
+       String((idx.match(/\?v=1260/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1270';/.test(rd('app/sw.js')));
     // v0.9.1259: the root page's own ?v= is gone — it registers no worker.
     // The trio is a trio again. §207 is what guards the root page now.
     ok('the landing page carries no version stamp to forget',
@@ -10879,6 +10879,95 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /if \(cached\) \{\s*\n\s*networkFetch\.catch/.test(fetchFn));
     ok('…and the background refresh cannot raise an unhandled rejection',
        /networkFetch\.catch\(\(\) => \{\}\);/.test(fetchFn));
+  })();
+
+  // ═══════════════════════════════════════════════════════════
+  // §208. v0.9.1259 — the sheet lock protects what it says it protects.
+  //
+  //   It used to be two pairs of hand-written column numbers with a comment
+  //   naming the fields they stood for. Columns were appended to
+  //   PERSONAL_SCHEMA, the numbers stayed put, and the comment quietly
+  //   stopped being true: the lock was protecting five fields a collector
+  //   edits by hand and leaving Inventory ID and Group ID — the app's whole
+  //   notion of identity — open.
+  //
+  //   So this section does not check the numbers. It RUNS the range builder
+  //   against the real schema and asks which FIELDS come out protected. That
+  //   question stays meaningful no matter how the columns move.
+  // ═══════════════════════════════════════════════════════════
+  (function () {
+    const pathG = require('path');
+    const rd = f => fs.readFileSync(pathG.join(__dirname, '..', f), 'utf8');
+    const sb = rd('app/sheet-builder.js');
+    const appSrc = rd('app/app.js');
+
+    // Rebuild the real schema and run the real function over it.
+    const schemaSrc = appSrc.slice(appSrc.indexOf('const PERSONAL_SCHEMA = ['),
+                                   appSrc.indexOf('const PERSONAL_HEADERS'));
+    const cfgSrc = sb.slice(sb.indexOf('const LOCK_CONFIG = {'),
+                            sb.indexOf('async function lockSheetTabs'));
+    const built = new Function(
+      schemaSrc +
+      'const PERSONAL_FIELD_INDEX = {};' +
+      'PERSONAL_SCHEMA.forEach(function (s, i) { PERSONAL_FIELD_INDEX[s.field] = i; });' +
+      cfgSrc +
+      'return { ranges: myCollectionTechColRanges(), schema: PERSONAL_SCHEMA, cfg: LOCK_CONFIG };'
+    )();
+    const lockedFields = [];
+    built.ranges.forEach(r => {
+      for (let i = r.start; i < r.end; i++) lockedFields.push(built.schema[i].field);
+    });
+
+    section('208a. The lock is built from field names, not remembered numbers');
+    ok('the config lists fields', Array.isArray(built.cfg.myCollectionTechFields));
+    // Comments stripped first — the note above the config quotes the old
+    // numbers on purpose, to say what went wrong. Only live code counts.
+    const cfgCode = cfgSrc.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+    ok('…and no hand-written column numbers survive in it',
+       !/myCollectionTechColRanges:\s*\[/.test(sb) && !/start:\s*\d/.test(cfgCode),
+       'a number here goes stale the next time a column is appended');
+    ok('the ranges are derived at lock time from the schema',
+       /myCollectionTechColRanges\(\)\.forEach/.test(sb),
+       'the builder must be CALLED, not just defined');
+    ok('a name the schema does not have is skipped, not locked as column 0',
+       /typeof i !== 'number'/.test(sb) && /unknown field, not locked/.test(sb),
+       'undefined as a column index protects Item Number');
+
+    section('208b. Identity is protected');
+    ok('Inventory ID is locked', lockedFields.indexOf('inventoryId') !== -1,
+       'the row identity the whole app keys off');
+    ok('Group ID is locked', lockedFields.indexOf('groupId') !== -1);
+    ok('Master Key is locked', lockedFields.indexOf('masterKey') !== -1,
+       'which catalog row this is — same kind of thing, just as damaging to retype');
+    ok('Matched Tender/Engine and Set ID are locked',
+       lockedFields.indexOf('matchedTo') !== -1 && lockedFields.indexOf('setId') !== -1);
+
+    section('208c. …and the collector’s own columns are left alone');
+    ['priceComplete', 'hasBox', 'photoItem', 'photoBox', 'datePurchased',
+     'condition', 'notes', 'userEstWorth', 'location', 'customName'].forEach(f => {
+      ok(f + ' stays editable', lockedFields.indexOf(f) === -1,
+         'this is the drift the 08-02 audit found — it was write-protected');
+    });
+    ok('nothing outside the named list got swept in',
+       lockedFields.every(f => built.cfg.myCollectionTechFields.indexOf(f) !== -1),
+       'locked: ' + lockedFields.join(','));
+    ok('every named field made it into a range',
+       built.cfg.myCollectionTechFields.every(f => lockedFields.indexOf(f) !== -1),
+       'locked: ' + lockedFields.join(','));
+
+    section('208d. Adjacent columns merge; gaps do not');
+    // isError/errorDesc/quickEntry/inventoryId/groupId are consecutive and
+    // must come out as ONE range; yearMade sits between setId and isError and
+    // must NOT be swallowed.
+    ok('yearMade is not caught in the middle', lockedFields.indexOf('yearMade') === -1,
+       'a single start..end span across the gap would take it');
+    ok('consecutive fields collapse into one range, not five',
+       built.ranges.length < built.cfg.myCollectionTechFields.length,
+       JSON.stringify(built.ranges));
+    ok('no range is empty or backwards',
+       built.ranges.every(r => r.end > r.start));
+    ok('the ranges do not overlap each other',
+       built.ranges.every((r, i) => i === 0 || r.start > built.ranges[i - 1].end - 1));
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
