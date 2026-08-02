@@ -10181,12 +10181,97 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1249', /const APP_VERSION = 'v0\.9\.1249';/.test(cfg));
+    ok('APP_VERSION is v0.9.1250', /const APP_VERSION = 'v0\.9\.1250';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1249/g) || []).length === 69 && !/\?v=1248/.test(idx),
-       String((idx.match(/\?v=1249/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1260';/.test(rd('app/sw.js')));
-    ok('the root page asks for the new worker', /sw\.js\?v=1249/.test(root));
+       (idx.match(/\?v=1250/g) || []).length === 69 && !/\?v=1249/.test(idx),
+       String((idx.match(/\?v=1250/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1261';/.test(rd('app/sw.js')));
+    ok('the root page asks for the new worker', /sw\.js\?v=1250/.test(root));
+  })();
+
+  // ═══════════════════════════════════════════════════════════
+  // §200. v0.9.1250 — a colliding key is told apart by WHAT it is,
+  //   not WHERE it sits. Brad's sheet has 169 rows, every one with an
+  //   Inventory ID and no duplicates, so the old row-number fallback
+  //   never fired for him — but it was armed, and personalData keys are
+  //   cached to localStorage, so it would have survived a reload and
+  //   named the wrong item after the next deletion.
+  // ═══════════════════════════════════════════════════════════
+  (function () {
+    const fs200 = require('fs'), p200 = require('path');
+    const src = fs200.readFileSync(p200.join(__dirname, '..', 'app/app-data.js'), 'utf8');
+    const bare = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+
+    section('200. The box-row collision no longer bakes in a row number');
+    ok('the row number is gone from the collision key',
+       !/if \(newPersonal\[key\]\) key = key \+ '\|' \+ rowNum;/.test(bare));
+    ok('the item number is what tells the two rows apart',
+       /_alt = _tag \? key \+ '\|' \+ _tag : key;/.test(bare));
+    ok('a genuinely ambiguous pair is reported, not swallowed',
+       /console\.warn\('\[personal\] two rows share Inventory ID/.test(bare));
+    ok('...and neither row is dropped when that happens',
+       /_alt = key \+ '\|' \+ _tag \+ '\|' \+ rowNum;/.test(bare));
+
+    // Run the REAL branch, sliced out of the file, against made-up rows.
+    const start = src.indexOf("    const _invId = r[invIdCol] || '';");
+    const end   = src.indexOf('const obj = { row: rowNum', start);
+    ok('the collision branch could be sliced out to run', start > 0 && end > start);
+    const body = src.slice(start, end);
+    const keyOf = new Function('r', 'rowNum', 'newPersonal', 'invIdCol', 'itemNumCol', 'varCol',
+      body + '\n return key;');
+
+    function run(rows) {
+      const store = {}, keys = [];
+      rows.forEach(function (row, i) {
+        const k = keyOf(row, i + 3, store, 2, 0, 1);
+        keys.push(k);
+        store[k] = { row: i + 3, itemNum: row[0] };
+      });
+      return keys;
+    }
+
+    section('200b. …proved by running it');
+    // r = [itemNum, variation, inventoryId]
+    let k = run([['2343', '1', 'INV-7'], ['2343-BOX', '1', 'INV-7']]);
+    ok('a parent and its box get different keys', k[0] !== k[1], k.join('  |  '));
+    ok('the parent keeps the plain Inventory ID', k[0] === 'INV-7');
+    ok('the box is named by what it is', k[1] === 'INV-7|2343-BOX');
+    ok('no key contains a row number', !k.some(x => /\|\d+$/.test(x)), k.join('  '));
+
+    // THE POINT: delete a row above them and the keys must not move.
+    const before = run([['1001', '1', 'INV-1'], ['2343', '1', 'INV-7'], ['2343-BOX', '1', 'INV-7']]);
+    const after  = run([['2343', '1', 'INV-7'], ['2343-BOX', '1', 'INV-7']]);
+    ok('deleting a row above does NOT change the surviving keys',
+       before[1] === after[0] && before[2] === after[1],
+       before.slice(1).join(',') + '  vs  ' + after.join(','));
+
+    // A master carton as well as a box, all three on one Inventory ID.
+    k = run([['2343', '1', 'INV-9'], ['2343-BOX', '1', 'INV-9'], ['2343-MBOX', '1', 'INV-9']]);
+    ok('a master carton is told apart too', new Set(k).size === 3, k.join('  '));
+
+    // Genuinely ambiguous: same id AND same item number. TWO such rows still
+    // separate cleanly (id, then id+itemNum) and need no warning — it takes a
+    // THIRD before the code has nothing stable left to tell them apart with.
+    const warned = [];
+    const realWarn = console.warn;
+    console.warn = function () { warned.push([].slice.call(arguments).join(' ')); };
+    k = run([['6464-500', '1', 'INV-3'], ['6464-500', '1', 'INV-3']]);
+    const warnedOnTwo = warned.length;
+    k = run([['6464-500', '1', 'INV-3'], ['6464-500', '1', 'INV-3'], ['6464-500', '1', 'INV-3']]);
+    console.warn = realWarn;
+    ok('two rows sharing an id and a number still separate quietly',
+       warnedOnTwo === 0);
+    ok('a third such row still survives rather than overwriting one of them',
+       new Set(k).size === 3, k.join('  '));
+    ok('...and the clash is reported so the sheet can be fixed',
+       warned.some(w => /two rows share Inventory ID/.test(w)), warned[0] || '(no warning)');
+    ok('...naming both rows so they can be found',
+       warned.some(w => /rows 3 and 5|rows 4 and 5/.test(w)), warned[0] || '(no warning)');
+
+    // No Inventory ID at all — the old fallback still applies, by design.
+    k = run([['6014', '1', ''], ['6014', '1', '']]);
+    ok('rows with no Inventory ID still fall back to the row, as before',
+       k[0] === '6014|1|3' && k[1] === '6014|1|4', k.join('  '));
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

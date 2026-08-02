@@ -1370,7 +1370,33 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     let key = _invId || `${r[itemNumCol]}|${r[varCol] || ''}|${rowNum}`;
     // Bug 14 (Session 154): a box row can carry the SAME Inventory ID as its
     // parent item — disambiguate on collision so both survive.
-    if (newPersonal[key]) key = key + '|' + rowNum;
+    //
+    // v0.9.1250: disambiguate on the ITEM NUMBER, not the row number.
+    // A ROW NUMBER IS A POSITION, NOT AN IDENTITY. It changes the moment
+    // anything above it is deleted, and this key is cached to localStorage —
+    // so a key built from a row number silently starts naming a DIFFERENT
+    // item after the next deletion. That is the same bug that blanked the
+    // wrong box record (v0.9.1239) and moved the wrong copy's photos, and it
+    // was still armed here: it fires whenever a -BOX row carries its parent's
+    // Inventory ID, which is exactly the case this branch exists for.
+    // The colliding rows are a parent and its -BOX/-MBOX companion, so the
+    // item number tells them apart — and keeps telling them apart forever.
+    if (newPersonal[key]) {
+      const _tag = String(r[itemNumCol] || '').trim().toUpperCase();
+      let _alt = _tag ? key + '|' + _tag : key;
+      if (!_tag || newPersonal[_alt]) {
+        // Two rows sharing an Inventory ID AND an item number are genuinely
+        // ambiguous — that is a problem in the sheet, not something code can
+        // resolve. Keep both rows rather than dropping one, but say so: a
+        // silent collision here is how a copy goes missing from the list.
+        console.warn('[personal] two rows share Inventory ID "' + key +
+          '" and item number "' + (_tag || '(blank)') + '" — rows ' +
+          ((newPersonal[_alt] && newPersonal[_alt].row) || '?') + ' and ' + rowNum +
+          '. Give one of them its own Inventory ID.');
+        _alt = key + '|' + _tag + '|' + rowNum;
+      }
+      key = _alt;
+    }
     const obj = { row: rowNum, status: 'Owned', owned: true };
     PERSONAL_SCHEMA.forEach((s, i) => {
       // Phase 3j: coerce to string. UNFORMATTED_VALUE returns numbers/dates raw,
