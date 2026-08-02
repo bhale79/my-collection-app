@@ -10221,11 +10221,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1262', /const APP_VERSION = 'v0\.9\.1262';/.test(cfg));
+    ok('APP_VERSION is v0.9.1263', /const APP_VERSION = 'v0\.9\.1263';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1262/g) || []).length === 69 && !/\?v=1261/.test(idx),
-       String((idx.match(/\?v=1262/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1272';/.test(rd('app/sw.js')));
+       (idx.match(/\?v=1263/g) || []).length === 69 && !/\?v=1262/.test(idx),
+       String((idx.match(/\?v=1263/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1273';/.test(rd('app/sw.js')));
     // v0.9.1259: the root page's own ?v= is gone — it registers no worker.
     // The trio is a trio again. §207 is what guards the root page now.
     ok('the landing page carries no version stamp to forget',
@@ -11293,6 +11293,142 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('a page recognised by destination alone gets the same treatment',
        !!navByDest[0] && !!navByDest[0].init && navByDest[0].init.cache === 'reload',
        JSON.stringify(navByDest[0] && navByDest[0].init));
+
+    section('211. A switched-off photo read is not spent');
+    // Finding R4. Three functions in ai-id.js spend a metered read. Two
+    // checked the user's "use my daily photo ID reads" switch; aiVerifyPhoto
+    // did not, and it is reachable with no identify having run at all — type a
+    // catalog number into the review card by hand and the "Double-check vs
+    // catalog photo" button appears. A user who had switched reads OFF was
+    // still billed for them.
+    //
+    // Do NOT write this as /rrAiOptedOut/.test(src) counted three times. That
+    // passes with the call sitting in dead code, passes if the gate is placed
+    // AFTER the relay post, and says nothing about the one question that
+    // matters: did a request leave the app. So: load the real file, drive the
+    // real functions, and count what reached the relay.
+    //
+    // Both directions are asserted. "Nothing was posted" is also what a
+    // completely broken file looks like, so each function is run a second time
+    // with the switch ON and has to actually reach the relay.
+    const aiSrc = require('fs').readFileSync(APP_FILE('ai-id.js'), 'utf8');
+
+    function aiRig(optedOut) {
+      const posts = [];
+      const store = { rr_ai_optout: optedOut ? '1' : '0' };
+      function FakeCanvas() { this.width = 100; this.height = 100; }
+      FakeCanvas.prototype.getContext = function () { return { drawImage: function () {} }; };
+      FakeCanvas.prototype.toDataURL = function () { return 'data:image/jpeg;base64,QUJD'; };
+      const api = new Function(
+        'window', 'localStorage', 'document', 'console', 'setTimeout',
+        'vaultGetToken', 'vaultPost', 'HTMLCanvasElement', 'HTMLVideoElement',
+        aiSrc + '\n; return { one: aiIdentifyImage, two: aiIdentifyImage2, verify: aiVerifyPhoto };'
+      )({},
+        { getItem: function (k) { return (k in store) ? store[k] : null; },
+          setItem: function (k, v) { store[k] = String(v); } },
+        { createElement: function () { return new FakeCanvas(); } },
+        { warn: function () {}, error: function () {}, log: function () {} },
+        function (f) { f(); },
+        function () { return 'tok'; },
+        async function (p) { posts.push(p && p.action); return { status: 200, text: 'Match: yes' }; },
+        FakeCanvas, function () {});
+      return { api: api, posts: posts, photo: new FakeCanvas() };
+    }
+
+    const REF = 'https://example.test/catalog/2328';
+
+    const off = aiRig(true);
+    const offOne = await off.api.one(off.photo, {});
+    const offTwo = await off.api.two([off.photo], {});
+    const offVer = await off.api.verify(off.photo, REF);
+    ok('with reads switched off, NOTHING reaches the relay',
+       off.posts.length === 0,
+       'posted: ' + JSON.stringify(off.posts) +
+       ' — each of these is a metered read the user has said not to spend');
+    ok('…and all three say why, in the word the UI has a message for',
+       offOne.reason === 'optout' && offTwo.reason === 'optout' && offVer.reason === 'optout',
+       JSON.stringify([offOne.reason, offTwo.reason, offVer.reason]));
+
+    const on = aiRig(false);
+    await on.api.one(on.photo, {});
+    await on.api.two([on.photo], {});
+    await on.api.verify(on.photo, REF);
+    ok('with reads switched on, all three still reach the relay',
+       on.posts.length === 3 &&
+       on.posts.indexOf('ai_identify') >= 0 &&
+       on.posts.indexOf('ai_identify2') >= 0 &&
+       on.posts.indexOf('ai_verify_photo') >= 0,
+       'posted: ' + JSON.stringify(on.posts) +
+       ' — without this, "nothing was spent" would also pass on a file that ' +
+       'cannot spend anything because it is broken');
+
+    // A tripwire, not a proof. It cannot tell whether a gate works — §211's
+    // first two checks do that. Its job is to notice a FOURTH metered entry
+    // point being added, which the behavioural checks above would sail past
+    // because they only know about the three that exist today.
+    const METERED = ['ai_identify', 'ai_identify2', 'ai_verify_photo'];
+    const GATED = ['aiIdentifyImage', 'aiIdentifyImage2', 'aiVerifyPhoto'];
+    const spenders = [];
+    METERED.forEach(function (act) {
+      let at = aiSrc.indexOf("action: '" + act + "'");
+      while (at >= 0) {
+        const before = aiSrc.slice(0, at);
+        // the LAST function declared before this line is the one that owns it
+        const all = before.match(/function\s+[A-Za-z0-9_$]+\s*\(/g) || [];
+        const last = all.length ? all[all.length - 1].replace(/function\s+|\s*\($/g, '') : '';
+        if (last && spenders.indexOf(last) < 0) spenders.push(last);
+        at = aiSrc.indexOf("action: '" + act + "'", at + 1);
+      }
+    });
+    ok('no metered read has appeared outside the three that are gated',
+       spenders.length > 0 && spenders.every(function (f) { return GATED.indexOf(f) >= 0; }),
+       'functions posting a metered action: ' + JSON.stringify(spenders) +
+       ' — a new one must call aiSpendBlocked() first and be added to §211');
+
+    section('212. Removing a backup can be undone');
+    // Finding R5. The comment on backupDelete promised "moves to Drive trash —
+    // user can recover for 30 days" and the code was a bare DELETE, which is
+    // Drive's irreversible form. Nothing calls it from the UI yet; the risk was
+    // the next person building a delete button on top of a promise the code did
+    // not keep.
+    //
+    // Asserting on the words PATCH and trashed appearing in backup.js would
+    // pass with them in a comment. Run the real function and read the request.
+    const bkSrc = require('fs').readFileSync(APP_FILE('backup.js'), 'utf8');
+    function backupRig() {
+      const calls = [];
+      const cut = bkSrc.slice(bkSrc.indexOf('async function backupDelete'),
+                              bkSrc.indexOf('// Restore from a backup'));
+      const fn = new Function('driveRequest', 'backupCache', 'console',
+        cut + '\n; return backupDelete;'
+      )(async function (method, endpoint, body) {
+          calls.push({ method: method, endpoint: endpoint, body: body });
+          return {};
+        },
+        { lastList: [1, 2], lastListAt: 999 },
+        { warn: function () {}, error: function () {}, log: function () {} });
+      return { fn: fn, calls: calls };
+    }
+
+    const bk = backupRig();
+    await bk.fn('BKID');
+    ok('removing a backup makes exactly one Drive request',
+       bk.calls.length === 1, JSON.stringify(bk.calls));
+    ok('…and it is the recoverable kind, not a permanent delete',
+       bk.calls.length === 1 && bk.calls[0].method === 'PATCH',
+       'method was ' + (bk.calls[0] || {}).method +
+       ' — a bare DELETE does not visit the trash and there is no undo');
+    ok('…asking Drive to trash the backup the caller named',
+       bk.calls.length === 1 &&
+       !!bk.calls[0].body && bk.calls[0].body.trashed === true &&
+       /\/files\/BKID/.test(bk.calls[0].endpoint),
+       JSON.stringify(bk.calls[0]));
+
+    let bkThrew = '';
+    try { await backupRig().fn(''); } catch (e) { bkThrew = e && e.message; }
+    ok('…and a missing id is refused before any request is made',
+       /No backup ID/.test(bkThrew), bkThrew || '(did not throw)');
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

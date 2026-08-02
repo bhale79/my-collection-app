@@ -163,10 +163,12 @@ async function driveRequest(method, endpoint, body) {
     throw err;
   }
   // A successful DELETE answers 204 with an EMPTY body, and res.json() on an
-  // empty body rejects with "Unexpected end of JSON input". backupDelete has
-  // therefore been throwing on SUCCESS — the backup really was deleted, then
-  // the UI reported a failure. (sell.js quietly worked around this years ago
-  // with its own hand-rolled _sellRawDelete, which is the tell.)
+  // empty body rejects with "Unexpected end of JSON input" — so a DELETE that
+  // worked was reported to the user as a failure. (sell.js quietly worked
+  // around this years ago with its own hand-rolled _sellRawDelete, which is
+  // the tell.) v0.9.1263 moved backupDelete off the bare DELETE and onto
+  // PATCH {trashed:true}, so it no longer depends on this line — but the line
+  // stays, because any DELETE that arrives here later needs it.
   if (res.status === 204) return {};
   var text = await res.text();
   return text ? JSON.parse(text) : {};

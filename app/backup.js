@@ -167,13 +167,29 @@ async function backupList() {
   return files;
 }
 
-// Delete a backup permanently (moves to Drive trash — user can recover for 30 days)
+// Remove a backup: moves it to Drive trash, where the user can recover it for
+// 30 days. Honors the "no permanent delete" convention.
+//
+// v0.9.1263 (audit 2026-08-02 round 2, finding R5): the comment above this
+// function used to promise exactly that, in a sentence that contradicted
+// itself — "Delete a backup permanently (moves to Drive trash — user can
+// recover for 30 days)" — while the code underneath was a bare
+// `DELETE /files/<id>`, which is Drive's IRREVERSIBLE form. It does not visit
+// the trash. There is no undo, and nothing on the way there says so.
+//
+// Every other removal in this app already does the recoverable thing and says
+// which one it is doing: _trashDriveFile (app-collection.js), the two photo
+// paths at app-collection.js:2714 and photo-inbox.js, and drive.js:1199. This
+// file was the only bare DELETE left. The danger was not what it did today —
+// nothing in the UI calls this yet — but what the next person builds on top of
+// it, having read the comment and reasonably decided no confirmation step or
+// undo was needed.
 async function backupDelete(backupId) {
   if (!backupId) throw new Error('No backup ID');
-  await driveRequest('DELETE', '/files/' + backupId);
+  await driveRequest('PATCH', '/files/' + backupId + '?fields=id', { trashed: true });
   backupCache.lastList = null;
   backupCache.lastListAt = 0;
-  console.log('[Backup] Deleted:', backupId);
+  console.log('[Backup] Moved to trash (recoverable for 30 days):', backupId);
 }
 
 

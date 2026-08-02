@@ -173,6 +173,29 @@ async function aiPrepImage(src) {
   }
 }
 
+// ── The one definition of "this read must not happen" ───────
+// v0.9.1263 (audit 2026-08-02 round 2, finding R4). Three functions in this
+// file spend a metered read: aiIdentifyImage, aiIdentifyImage2 and
+// aiVerifyPhoto. Two of them checked the user's opt-out switch. The third did
+// not, and its own header calls it "one cheap read from the same shared daily
+// pool" — so a user who had switched metered reads OFF could still be charged
+// for one, by pressing a button the app went on offering him.
+//
+// The comment above aiIdentifyImage's gate used to say "ONE gate here covers
+// every caller", which was already untrue when it was written (there were two
+// copies) and became a spend-control claim that an auditor would stop at.
+//
+// There is now one function that answers the question, and every metered entry
+// point asks it as its FIRST act — before the token check, before consent,
+// before the image is prepared. A read that is not going to happen should cost
+// nothing, not even the work of getting ready for it.
+//
+// If a fourth metered entry point is ever added, §211 fails until it calls
+// this too.
+function aiSpendBlocked() {
+  return rrAiOptedOut() ? { ok: false, reason: 'optout' } : null;
+}
+
 // ── Main entry ──────────────────────────────────────────────
 // aiIdentifyImage(source, hints)
 //   source: canvas | video | File/Blob
@@ -184,8 +207,9 @@ async function aiIdentifyImage(source, hints) {
   try {
     // v0.9.1015 (Brad): the user can switch metered photo ID reads off — the
     // free readers still run (they never reach this file); only the paid
-    // read is skipped. ONE gate here covers every caller.
-    if (rrAiOptedOut()) return { ok: false, reason: 'optout' };
+    // read is skipped. See aiSpendBlocked() above for why this is a call and
+    // not a copy.
+    var _blocked = aiSpendBlocked(); if (_blocked) return _blocked;
     if (typeof vaultGetToken !== 'function' || typeof vaultPost !== 'function') {
       return { ok: false, reason: 'error' };
     }
@@ -331,7 +355,7 @@ async function aiIdentifyImage2(sources, hints) {
   var list = Array.isArray(sources) ? sources.slice(0, 4) : [sources];
   if (!list.length) return { ok: false, reason: 'error' };
   try {
-    if (rrAiOptedOut()) return { ok: false, reason: 'optout' };   // v0.9.1015: user switched paid reads off
+    var _blocked = aiSpendBlocked(); if (_blocked) return _blocked;   // v0.9.1015: user switched paid reads off
     if (typeof vaultGetToken !== 'function' || typeof vaultPost !== 'function') {
       return { ok: false, reason: 'error' };
     }
@@ -400,9 +424,15 @@ if (typeof window !== 'undefined') { window.rrFetchRefPhoto = rrFetchRefPhoto; }
 // cheap read from the same shared daily pool.
 // Resolves:
 //   { ok:true, match:'yes'|'no'|'unsure', differences, refItem, refImg, remaining, cached }
-//   { ok:false, reason:'noref'|'noconsent'|'quota'|'busy'|'offline'|'error' }
+//   { ok:false, reason:'optout'|'noref'|'noconsent'|'quota'|'busy'|'offline'|'error' }
 async function aiVerifyPhoto(source, refUrl) {
   try {
+    // v0.9.1263 (finding R4): this was the metered read with no opt-out gate.
+    // It is reachable without any AI identify having run — type a catalog
+    // number into the review card by hand, and if that master row carries a
+    // reference link the "Double-check vs catalog photo" button appears and
+    // spends a read. A user who switched reads off was still billed.
+    var _blocked = aiSpendBlocked(); if (_blocked) return _blocked;
     if (typeof vaultGetToken !== 'function' || typeof vaultPost !== 'function') {
       return { ok: false, reason: 'error' };
     }

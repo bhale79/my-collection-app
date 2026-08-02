@@ -1754,6 +1754,18 @@
     el.style.cssText = 'margin-top:0.5rem;padding-top:0.45rem;border-top:1px dashed var(--border)';
     box.appendChild(el);
     if (_vfCache[key]) { _pinVerifyShow(el, _vfCache[key]); return; }
+    // v0.9.1263 (finding R4): the double-check is a metered read. ai-id.js now
+    // refuses it when the user has switched reads off — but offering a button
+    // that cannot work, and answering it with "switched off", is the same dead
+    // end that sent Brad hunting a fault in v0.9.1163. Say so up front instead,
+    // and never auto-run. An already-cached verdict still shows: it was paid
+    // for before the switch was thrown and costs nothing to display.
+    if (typeof rrAiOptedOut === 'function' && rrAiOptedOut()) {
+      el.innerHTML = '<div style="font-size:0.78rem;color:var(--warn)">'
+        + '📷 Double-check vs the catalog photo uses a photo ID read — '
+        + 'reads are switched off in Preferences › Photo ID</div>';
+      return;
+    }
     var s0 = null; try { s0 = _ids()[fid0]; } catch (eS) {}
     var auto = !!(s0 && s0.num && String(s0.num) === String(lk.num) && (s0.guess || lk.mfrMismatch));
     if (auto && !_vfSeen[key]) {
