@@ -1540,10 +1540,13 @@ function soldSortBy(field) {
 }
 
 function buildSoldPage() {
-  // Contextual hint for empty Sold List
+  // Contextual hint for an empty Sold page.
+  // v0.9.1256: this hint was the last survivor of audit finding G (one name for
+  // Sold). It still said "Sold List" after every other surface was renamed,
+  // because the G test read the page headings and never reached a hint string.
   if (typeof maybeShowContextualHint === 'function' && Object.keys(state.soldData || {}).length === 0) {
     var _spcAnchor = document.getElementById('sold-page') || document.querySelector('.page-sold');
-    if (_spcAnchor) maybeShowContextualHint('sold_empty', '<strong>Sold List</strong> records items you\'ve sold. From My Collection, click <em>Add to Sold</em> on any item to log a sale.', _spcAnchor);
+    if (_spcAnchor) maybeShowContextualHint('sold_empty', '<strong>Sold</strong> records items you\'ve sold. From My Collection, click <em>Add to Sold</em> on any item to log a sale.', _spcAnchor);
   }
   // Initialize sort/filter state if needed
   if (!state._soldSortField) state._soldSortField = 'dateSold';

@@ -3,6 +3,16 @@
 const fs = require('fs');
 const SRC = require('path').join(__dirname, '..', 'app', 'photo-inbox.js');
 
+// v0.9.1256: ONE READER for "where does the app live". Two reads below used to
+// spell an absolute /root/repo/... path while every other read in this file
+// resolved from __dirname, so the suite only ran inside one container layout
+// and died mid-run — a stack trace at assertion ~700, not a clean red — in any
+// ordinary clone. A test harness that cannot run where the code is checked out
+// is a safety net with a hole in it. Resolve every app file through here.
+const APP_FILE = function (name) {
+  return require('path').join(__dirname, '..', 'app', name);
+};
+
 let pass = 0, fail = 0;
 function ok(name, cond, extra) {
   if (cond) { pass++; console.log('  PASS  ' + name); }
@@ -561,7 +571,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
      /_pinAuditShowSaved/.test(inbox));
   ok('and thrown away deliberately', /_pinAuditClear/.test(inbox));
 
-  const html = require('fs').readFileSync('/root/repo/app/index.html', 'utf8');
+  const html = require('fs').readFileSync(APP_FILE('index.html'), 'utf8');
   ok('the busy guard knows about the audit overlay', /pin-audit-ov/.test(html));
   ok('the busy guard knows about long jobs', /_rrLongJob/.test(html));
   ok('a deploy reload remembers the page', /sessionStorage\.setItem\('rr_resume_page'/.test(html));
@@ -1202,7 +1212,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
   section('56. The paid reader is told which era it is looking at');
   const aiSrc = require('fs').readFileSync(SRC, 'utf8');
-  const aiid = require('fs').readFileSync('/root/repo/app/ai-id.js', 'utf8');
+  const aiid = require('fs').readFileSync(APP_FILE('ai-id.js'), 'utf8');
   ok('hints are built from the photo stamp', /function _pinAiHints\(group, extra\)/.test(aiSrc));
   ok('no paid call site passes empty hints any more',
      !/aiIdentifyImage2\(\[?[a-z]+\]?, \{\}\)/.test(aiSrc), 'found a bare {} hint');
@@ -10206,12 +10216,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1255', /const APP_VERSION = 'v0\.9\.1255';/.test(cfg));
+    ok('APP_VERSION is v0.9.1256', /const APP_VERSION = 'v0\.9\.1256';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1255/g) || []).length === 69 && !/\?v=1254/.test(idx),
-       String((idx.match(/\?v=1255/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1266';/.test(rd('app/sw.js')));
-    ok('the root page asks for the new worker', /sw\.js\?v=1255/.test(root));
+       (idx.match(/\?v=1256/g) || []).length === 69 && !/\?v=1255/.test(idx),
+       String((idx.match(/\?v=1256/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1267';/.test(rd('app/sw.js')));
+    ok('the root page asks for the new worker', /sw\.js\?v=1256/.test(root));
   })();
 
   // ═══════════════════════════════════════════════════════════
@@ -10667,6 +10677,45 @@ META_WRITES.length = 0; TOASTS.length = 0;
          (([])[dec(enc(1))]) === undefined);
       ok('a populated index still resolves', keys[dec(enc(1))] === 'INV-2');
     })();
+  })();
+
+  // ═══════════════════════════════════════════════════════════
+  // §205. v0.9.1256 — the three tidy-ups from the 08-02 re-verification.
+  //   Nothing here was broken for a user. Each is one fact written in two
+  //   places, which is how the bugs above got in.
+  // ═══════════════════════════════════════════════════════════
+  (function () {
+    const fs205 = require('fs'), p205 = require('path');
+    const rd205 = f => fs205.readFileSync(p205.join(__dirname, '..', f), 'utf8');
+
+    section('205. The suite runs wherever the code is checked out');
+    const testSrc = fs205.readFileSync(__filename, 'utf8');
+    // Match the absolute-path shape without spelling it, so this assertion
+    // does not trip over itself.
+    const absRead = new RegExp("readFileSync\\(\\s*['\"]\\/", 'g');
+    ok('no assertion reads an absolute path',
+       !absRead.test(testSrc),
+       (testSrc.match(absRead) || []).length + ' left');
+    ok('the app files resolve through one helper', /function \(name\) \{[\s\S]{0,120}__dirname/.test(testSrc));
+
+    section('205b. Sold is called Sold on every surface, hints included');
+    const pages = rd205('app/app-pages.js');
+    // The empty-state hint was the last place the old name survived, because
+    // the G test read headings and never reached a hint string.
+    const hint = (pages.match(/maybeShowContextualHint\('sold_empty',[\s\S]{0,200}?\)/) || [''])[0];
+    ok('the empty-Sold hint exists to be checked', hint.length > 40);
+    ok('…and does not say "Sold List"', !/Sold List/.test(hint));
+    ok('…and still names the page', /<strong>Sold<\/strong>/.test(hint));
+
+    section('205c. The master sheet id is written once');
+    const setup = rd205('app/app-setup.js');
+    const cfg205 = rd205('app/config.js');
+    const realId = (cfg205.match(/MASTER_SHEET_ID = '([^']+)'/) || [])[1] || '';
+    ok('config.js still holds the id', realId.length > 20);
+    ok('the setup screen does not spell it a second time', !setup.includes(realId));
+    ok('…it asks config.js instead', /placeholder="' \+\s*\(typeof MASTER_SHEET_ID/.test(setup));
+    ok('…and falls back to a shape, not a stale id',
+       /Paste the master sheet ID here/.test(setup));
   })();
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

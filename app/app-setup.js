@@ -111,8 +111,14 @@ function _buildSetupScreen() {
       '<div class="setup-step"><div class="setup-num">2</div>' +
         '<p>Create a blank Google Sheet for your personal collection, then paste its ID below. Go to <a href="https://sheets.google.com" target="_blank" style="color:var(--accent2)">sheets.google.com</a>, create a blank sheet, name it "The Rail Roster", and copy the ID from the URL.</p>' +
       '</div>' +
+      // v0.9.1256: the placeholder used to spell the master sheet id out a
+      // second time. One fact, two places — change the sheet and this screen
+      // quietly keeps offering the old id. MASTER_SHEET_ID (config.js) is the
+      // one reader; the fallback is a shape, not an id, so a missing config
+      // shows the user what a sheet id looks like rather than a stale one.
       '<div class="input-group"><label>Master Sheet ID</label>' +
-        '<input id="master-sheet-input" type="text" placeholder="1Y9-cg8C1CkIqy0RQ66DfP7fmGrE3IGBpyJbtdfYx8q0">' +
+        '<input id="master-sheet-input" type="text" placeholder="' +
+          (typeof MASTER_SHEET_ID === 'string' && MASTER_SHEET_ID ? MASTER_SHEET_ID : 'Paste the master sheet ID here') + '">' +
       '</div>' +
       '<div class="input-group" style="margin-top:0.75rem"><label>Your Personal Collection Sheet ID</label>' +
         '<input id="personal-sheet-input" type="text" placeholder="Paste your blank sheet ID here">' +
